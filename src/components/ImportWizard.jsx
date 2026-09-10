@@ -27,6 +27,9 @@ import { guessMonthIsoFromFilename } from '../lib/importDateGuess'
 import { summarizeErrors } from '../lib/importErrorSummary'
 
 const BATCH_SIZE = 200
+// Righe massime per file. Era dichiarato nella schermata ("max 5.000 righe")
+// e non controllato in nessun punto del codice.
+const MAX_RIGHE_FILE = 5000
 const MAX_PREVIEW_ROWS = 10
 
 export default function ImportWizard({ orgId, onClose, notify, initialEntity = '' }) {
@@ -58,6 +61,13 @@ export default function ImportWizard({ orgId, onClose, notify, initialEntity = '
       const buf = await fileToArrayBuffer(file)
       const wb = parseWorkbook(buf, XLSX)
       const sheetCount = wb.sheetNames.length
+      // Il limite di 5.000 righe era scritto sotto il bottone e non applicato
+      // da nessuna parte: un file da 40.000 righe partiva, e si piantava a
+      // metà senza dire perché.
+      const righeTotali = wb.sheetNames.reduce((a, nm) => a + ((wb.rawSheets[nm] || []).length), 0)
+      if (righeTotali > MAX_RIGHE_FILE) {
+        throw new Error(`Il file ha ${righeTotali.toLocaleString('it-IT')} righe: il massimo è ${MAX_RIGHE_FILE.toLocaleString('it-IT')}. Dividilo in più file (per esempio un mese per file) e caricali uno alla volta.`)
+      }
 
       let detected = null
       const looksComplex = sheetCount > 1 || !!schema?.wideFormatWarning
@@ -187,6 +197,55 @@ export default function ImportWizard({ orgId, onClose, notify, initialEntity = '
     // di procedere. Su conferma → uso upsert (sovrascrive). Su annulla → stop.
     // Utile per: "hai già caricato luglio 2025 di Berthollet, sicuro di
     // ricaricare?". Diverso da luglio 2026 (mese-anno differente → OK).
+    // ═══ Doppioni per nome, quando lo schema NON ha upsertOn.
+    // `fornitori` e `dipendenti` dichiarano uniqueOn:['nome'] ma in DB non
+    // esiste nessun indice unique, e il controllo qui sotto girava solo per
+    // gli schemi con upsertOn (uno). Risultato: ricaricare lo stesso file
+    // raddoppiava tutto e la schermata diceva "Tutto caricato!". In
+    // produzione sono 283 fornitori e 290 dipendenti: un secondo
+    // caricamento li portava a 566 e 580.
+    // Qui non possiamo fare upsert (senza indice il database lo rifiuta):
+    // controlliamo i nomi che ci sono già, li diciamo, e lasciamo scegliere
+    // fra saltarli e inserirli comunque.
+    let prepared2 = prepared
+    const chiaveNome = !schema.upsertOn && (schema.uniqueOn || []).length === 1
+      ? schema.uniqueOn[0] : null
+    if (chiaveNome) {
+      const nomi = [...new Set(prepared.map(r => r[chiaveNome]).filter(Boolean).map(String))]
+      if (nomi.length > 0) {
+        try {
+          const esistenti = new Set()
+          for (let i = 0; i < nomi.length; i += 200) {
+            const { data } = await supabase.from(schema.table)
+              .select(chiaveNome).eq('organization_id', orgId)
+              .in(chiaveNome, nomi.slice(i, i + 200))
+            for (const r of (data || [])) esistenti.add(String(r[chiaveNome]).trim().toLowerCase())
+          }
+          const doppi = prepared.filter(r => esistenti.has(String(r[chiaveNome] || '').trim().toLowerCase()))
+          if (doppi.length > 0) {
+            const elenco = [...new Set(doppi.map(r => r[chiaveNome]))].slice(0, 8).join(', ')
+            const salta = window.confirm(
+              `${doppi.length} ${doppi.length === 1 ? 'riga è' : 'righe sono'} già in Foodos con lo stesso nome:\n\n${elenco}${doppi.length > 8 ? '…' : ''}\n\n` +
+              `OK = le salto e carico solo le altre ${prepared.length - doppi.length}.\n` +
+              `Annulla = le carico comunque, e avrai due righe con lo stesso nome.`
+            )
+            if (salta) {
+              prepared2 = prepared.filter(r => !esistenti.has(String(r[chiaveNome] || '').trim().toLowerCase()))
+              if (prepared2.length === 0) {
+                setLoading(false)
+                setError('Erano tutte già presenti: non ho caricato niente.')
+                return
+              }
+            }
+          }
+        } catch (e) {
+          // Se il controllo non parte lo diciamo, invece di caricare doppioni
+          // in silenzio.
+          console.error('controllo doppioni:', e)
+        }
+      }
+    }
+
     let useUpsert = false
     if (schema.upsertOn && prepared.some(r => r.data)) {
       const combos = new Set()
@@ -232,30 +291,39 @@ export default function ImportWizard({ orgId, onClose, notify, initialEntity = '
     }
 
     setStep(4)
-    setProgress({ done: 0, total: prepared.length })
+    setProgress({ done: 0, total: prepared2.length })
     let insertedCount = 0
     const failedBatches = []
-    for (let i = 0; i < prepared.length; i += BATCH_SIZE) {
-      const chunk = prepared.slice(i, i + BATCH_SIZE)
+    for (let i = 0; i < prepared2.length; i += BATCH_SIZE) {
+      const chunk = prepared2.slice(i, i + BATCH_SIZE)
+      // `_row_index` e' nostro, non una colonna: va togliato prima di scrivere.
+      const payload = chunk.map(({ _row_index, ...resto }) => resto)  // eslint-disable-line no-unused-vars
       let queryBuilder = supabase.from(schema.table)
       let insErr, data
       if (useUpsert) {
         // Costruisci onConflict dai campi uniqueOn dello schema
         const onConflict = ['organization_id', ...(schema.uniqueOn || [])].join(',')
-        const resp = await queryBuilder.upsert(chunk, { onConflict }).select('id')
+        const resp = await queryBuilder.upsert(payload, { onConflict }).select('id')
         insErr = resp.error; data = resp.data
       } else {
-        const resp = await queryBuilder.insert(chunk).select('id')
+        const resp = await queryBuilder.insert(payload).select('id')
         insErr = resp.error; data = resp.data
       }
       if (insErr) {
-        failedBatches.push({ batch_start: i, error: insErr.message })
+        // `batch_start` e' l'indice dentro le righe VALIDE, che non e' la riga
+        // del file: se 400 righe erano da rivedere, "riga 201" era un'altra.
+        // Portiamo anche il numero di riga vero, quando c'e'.
+        failedBatches.push({
+          batch_start: i,
+          riga_file: chunk[0]?._row_index != null ? chunk[0]._row_index + 2 : null,
+          error: insErr.message,
+        })
       } else {
         insertedCount += (data?.length || 0)
       }
-      setProgress({ done: Math.min(i + BATCH_SIZE, prepared.length), total: prepared.length })
+      setProgress({ done: Math.min(i + BATCH_SIZE, prepared2.length), total: prepared2.length })
     }
-    setInsertResult({ inserted: insertedCount, failed: failedBatches, total: prepared.length })
+    setInsertResult({ inserted: insertedCount, failed: failedBatches, total: prepared2.length })
     setLoading(false)
     if (insertedCount > 0 && notify) notify(`Caricate ${insertedCount} righe in ${schema.label}.`, 'success')
 
@@ -501,6 +569,18 @@ function StepFile({ entity, setEntity, file, setFile, loading, onNext, isMobile,
 
 // ── STEP 2: mapping editabile ─────────────────────────────────────
 
+// Fogli davvero letti dall'unpivot. `sheetCount` e' il numero di fogli del
+// file, non quelli da cui sono uscite delle righe: dirlo come se fossero la
+// stessa cosa nascondeva i fogli scartati.
+function fogliLetti(detectInfo) {
+  const ps = detectInfo?.unpivotStats?.per_sheet
+  if (ps && typeof ps === 'object') {
+    const n = Object.values(ps).filter(v => (typeof v === 'number' ? v : v?.rows || v?.total || 0) > 0).length
+    if (n > 0) return n
+  }
+  return detectInfo?.sheetCount || 0
+}
+
 function StepMapping({ schema, headers, sampleRows, detectInfo, mapping, setMapping, activeConversions, setActiveConversions, aiNotes, loading, onBack, onNext, isMobile, T }) {
   function changeMap(fieldName, headerOrEmpty) {
     setMapping(prev => {
@@ -534,7 +614,21 @@ function StepMapping({ schema, headers, sampleRows, detectInfo, mapping, setMapp
           <div style={{ fontSize: 14, color: '#14532D', lineHeight: 1.5 }}>
             <div style={{ fontWeight: 700, marginBottom: 2 }}>Ho letto il tuo file.</div>
             Ho trovato <b>{detectInfo.unpivotStats.total.toLocaleString('it-IT')} righe di produzione</b>
-            {' '}nei tuoi {detectInfo.sheetCount} fogli. Ora dimmi solo che riga corrisponde a cosa.
+            {' '}in {fogliLetti(detectInfo)} {fogliLetti(detectInfo) === 1 ? 'foglio' : 'fogli'}
+            {detectInfo.sheetCount > fogliLetti(detectInfo) ? ` su ${detectInfo.sheetCount}` : ''}.
+            {' '}Ora dimmi solo che riga corrisponde a cosa.
+            {/* I fogli che applyUnpivot ha scartato erano raccolti in
+                unpivotStats.warnings e non venivano mostrati da nessuna parte,
+                mentre il riquadro verde continuava a dire "nei tuoi 3 fogli".
+                Mara ha 3 sedi = 3 fogli: se uno ha l'intestazione spostata,
+                un mese intero di una sede entrava a zero senza un avviso. */}
+            {(detectInfo.unpivotStats.warnings || []).length > 0 && (
+              <ul style={{ margin: '8px 0 0 0', paddingLeft: 18, color: T.AMBER }}>
+                {detectInfo.unpivotStats.warnings.slice(0, 6).map((w, i) => (
+                  <li key={i} style={{ marginBottom: 2 }}>{w}</li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
       )}
@@ -560,7 +654,7 @@ function StepMapping({ schema, headers, sampleRows, detectInfo, mapping, setMapp
             }}>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: T.TXT }}>
-                  {f.name}
+                  {f.label || f.name}
                   {f.required && <span style={{ color: T.RED, marginLeft: 4 }}>*</span>}
                 </div>
                 <div style={{ fontSize: 11, color: T.SOFT, marginTop: 2, lineHeight: 1.35 }}>
@@ -568,7 +662,7 @@ function StepMapping({ schema, headers, sampleRows, detectInfo, mapping, setMapp
                 </div>
               </div>
               <select value={current} onChange={e => changeMap(f.name, e.target.value)}
-                aria-label={`Colonna per ${f.name}`}
+                aria-label={`Colonna per ${f.label || f.name}`}
                 style={{
                   padding: isMobile ? '12px 10px' : '10px 12px',
                   fontSize: isMobile ? 16 : 14,
@@ -748,7 +842,7 @@ function StepValidate({ schema, result, mapping = {}, onBack, onNext, isMobile, 
                       textAlign: 'left', padding: '10px 12px',
                       fontWeight: 700, color: T.TXT, borderBottom: `1px solid ${T.BORDER}`,
                       whiteSpace: 'nowrap',
-                    }}>{f.name}</th>
+                    }}>{f.label || f.name}</th>
                   ))}
                 </tr>
               </thead>
@@ -903,7 +997,11 @@ function StepInsert({ loading, progress, result, schema, onFinish, onAnother, is
         }}>
           <div style={{ fontWeight: 700, marginBottom: 6 }}>Dettaglio degli intoppi:</div>
           {result.failed.slice(0, 5).map((f, i) => (
-            <div key={i}>Partendo dalla riga {(f.batch_start + 1).toLocaleString('it-IT')}: {f.error}</div>
+            <div key={i}>
+              {f.riga_file != null
+                ? `Dalla riga ${f.riga_file.toLocaleString('it-IT')} del tuo foglio`
+                : `Dal blocco che comincia alla riga ${(f.batch_start + 1).toLocaleString('it-IT')} di quelle valide`}: {f.error}
+            </div>
           ))}
         </div>
       )}
@@ -975,11 +1073,15 @@ function Reassurance({ isMobile, SOFT }) {
     }}>
       <Icon name="shield" size={14}/>
       <div>
-        <b style={{ color: '#334155' }}>Il tuo file resta sul tuo computer.</b>{' '}
-        Foodos non lo memorizza. Al server arrivano solo i nomi delle colonne
-        (per aiutarci a suggerirti come mapparle). I valori — importi, stipendi,
-        ricette — vanno dal tuo browser direttamente al database della tua attività,
-        senza passare da noi.
+        <b style={{ color: '#334155' }}>Il file non viene salvato da noi.</b>{' '}
+        Per capire com'è fatto il tuo foglio, le <b>prime righe</b> (intestazioni e
+        alcuni valori di esempio) vengono lette dal nostro servizio di
+        riconoscimento automatico: serve a proporti l'abbinamento delle colonne.
+        Non restano memorizzate. Tutto il resto del file va dal tuo browser
+        direttamente al database della tua attività.
+        {' '}Se il foglio contiene dati delle persone — nomi, stipendi — e preferisci
+        non farli passare da lì, abbina le colonne a mano: il riconoscimento
+        automatico non è obbligatorio.
       </div>
     </div>
   )

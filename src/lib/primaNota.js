@@ -14,7 +14,12 @@
 
 import { supabase } from './supabase'
 
-const COLONNE = 'id, data, importo, descrizione, documento, categoria, fornitore, note'
+const COLONNE = 'id, data, importo, descrizione, documento, categoria, fornitore, note, origine'
+
+/** Marca le righe scritte dall'import del registro Excel. */
+export const ORIGINE_IMPORT = 'import-registro'
+/** Riga scritta a mano nell'app: l'import non la tocca mai. */
+export const ORIGINE_MANUALE = 'manuale'
 
 export const DOCUMENTI = [
   { valore: 'fattura', etichetta: 'Con fattura',   breve: 'F',     colore: 'green' },
@@ -58,6 +63,8 @@ export async function aggiungiMovimento(orgId, sedeId, m) {
     categoria: m.categoria || null,
     fornitore: m.fornitore || null,
     note: m.note || null,
+    // Scritta a mano: l'import del registro non deve poterla cancellare.
+    origine: ORIGINE_MANUALE,
   }).select(COLONNE).single()
   if (error) throw new Error(error.message)
   return { ...data, importo: Number(data.importo) || 0 }
@@ -72,7 +79,7 @@ export async function eliminaMovimento(id) {
  * Inserimento in blocco, usato dall'importazione di un registro.
  * A blocchi di 200 per non superare i limiti della richiesta.
  */
-export async function aggiungiMovimentiInBlocco(orgId, righe) {
+export async function aggiungiMovimentiInBlocco(orgId, righe, origine = ORIGINE_IMPORT) {
   if (!orgId || !Array.isArray(righe) || righe.length === 0) return 0
   const payload = righe
     .filter(r => Number(r.importo) > 0 && r.data)
@@ -81,6 +88,9 @@ export async function aggiungiMovimentiInBlocco(orgId, righe) {
       sede_id: r.sede_id || null,
       data: r.data,
       importo: Number(r.importo),
+      // Marchiamo la provenienza: l'import può cancellare solo le righe che
+      // ha scritto lui, mai una spesa messa a mano dal titolare.
+      origine,
       descrizione: String(r.descrizione || 'spesa').slice(0, 500),
       documento: DOCUMENTI.some(d => d.valore === r.documento) ? r.documento : 'incerto',
       note: r.importoStimato
@@ -121,17 +131,59 @@ export async function totaliPeriodo(orgId, sedeIds, from, to) {
 }
 
 /**
- * Svuota le uscite di un periodo per una sede.
+ * Elenca le uscite di un periodo che vengono da un import: sono le uniche
+ * che un nuovo import può cancellare.
+ *
+ * Fino al 10/09/2026 non esisteva questa distinzione: prima di scrivere le
+ * uscite del mese, l'import cancellava TUTTE le uscite di quel periodo per
+ * quella sede, comprese quelle scritte a mano nell'app, che nel file Excel
+ * non ci sono e non tornano più. E lo faceva sempre, anche quando il foglio
+ * caricato non aveva nemmeno la colonna delle spese.
+ */
+export async function movimentiImportatiPeriodo(orgId, sedeId, from, to, origine = ORIGINE_IMPORT) {
+  if (!orgId || !from || !to) return []
+  let q = supabase.from('movimenti_cassa').select('id, importo')
+    .eq('organization_id', orgId)
+    .eq('origine', origine)
+    .gte('data', from)
+    .lte('data', to)
+  q = sedeId ? q.eq('sede_id', sedeId) : q.is('sede_id', null)
+  const { data, error } = await q
+  if (error) throw new Error(error.message)
+  return data || []
+}
+
+/**
+ * Cancella per id. Si usa DOPO aver inserito le righe nuove: se la
+ * cancellazione fallisce restano dei doppioni, che si vedono e si sistemano;
+ * se invece si cancellasse prima e l'inserimento fallisse, le spese del mese
+ * sarebbero perse e nessuno saprebbe quali.
+ */
+export async function eliminaMovimentiPerId(ids) {
+  if (!Array.isArray(ids) || ids.length === 0) return 0
+  let eliminati = 0
+  for (let i = 0; i < ids.length; i += 200) {
+    const blocco = ids.slice(i, i + 200)
+    const { error, count } = await supabase.from('movimenti_cassa')
+      .delete({ count: 'exact' }).in('id', blocco)
+    if (error) throw new Error(error.message)
+    eliminati += count || blocco.length
+  }
+  return eliminati
+}
+
+/**
+ * Svuota le uscite IMPORTATE di un periodo per una sede.
  *
  * Serve prima di reimportare un registro: caricare due volte il foglio di
- * luglio senza questo passaggio raddoppierebbe ogni spesa, e nessuno se ne
- * accorgerebbe guardando il totale del mese. Un'importazione SOSTITUISCE il
- * periodo che dichiara di coprire, e la UI lo dice prima di farlo.
+ * luglio senza questo passaggio raddoppierebbe ogni spesa importata. Le righe
+ * scritte a mano (origine NULL o 'manuale') non si toccano.
  */
-export async function eliminaMovimentiPeriodo(orgId, sedeId, from, to) {
+export async function eliminaMovimentiPeriodo(orgId, sedeId, from, to, origine = ORIGINE_IMPORT) {
   if (!orgId || !from || !to) return 0
   let q = supabase.from('movimenti_cassa').delete({ count: 'exact' })
     .eq('organization_id', orgId)
+    .eq('origine', origine)
     .gte('data', from)
     .lte('data', to)
   q = sedeId ? q.eq('sede_id', sedeId) : q.is('sede_id', null)

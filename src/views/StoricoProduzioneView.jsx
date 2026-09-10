@@ -251,8 +251,10 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
       map[k].fcTot   += ch.kpi.totFC||0;
       map[k].margTot += ch.kpi.totM||0;
       map[k].sproTot += ch.kpi.totS||0;
-      map[k].stSum   += ch.kpi.avgST||0;
-      map[k].stCnt   += 1;
+      // Solo le giornate che hanno DAVVERO un sell-through entrano nella
+      // media. Una chiusura registrata col solo totale non sa quanto è stato
+      // smaltito: contarla come 0% abbassava la media del mese senza motivo.
+      if (ch.kpi.avgST != null) { map[k].stSum += ch.kpi.avgST; map[k].stCnt += 1; }
       for (const r of (ch.confronto||[])) {
         if (!map[k].byProd[r.nome]) map[k].byProd[r.nome]={ rv:0, unitaV:0, spreco:0 };
         map[k].byProd[r.nome].rv     += r.rv||0;
@@ -261,7 +263,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
       }
     }
     return Object.values(map).sort((a,b)=>a.key.localeCompare(b.key)).map(p=>({
-      ...p, margPct:p.rvTot>0?(p.margTot/p.rvTot*100):0, avgST:p.stCnt>0?(p.stSum/p.stCnt):0, label:fmtKey(p.key)
+      ...p, margPct:p.rvTot>0?(p.margTot/p.rvTot*100):0, avgST:p.stCnt>0?(p.stSum/p.stCnt):null, label:fmtKey(p.key)
     }));
   }, [chiusure, vista, dateFrom, dateTo]);
 
@@ -284,7 +286,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
   const dataKPI    = periodiProd.map(p=>({ label:p.label, Ricavo:+p.ricavoTot.toFixed(2), FoodCost:+p.fcTot.toFixed(2), Margine:+p.margine.toFixed(2) }));
   const dataVend   = periodiVend.map(p=>({ label:p.label, ...Object.fromEntries(Object.entries(p.byProd).map(([n,v])=>[n,+v.rv.toFixed(2)])) }));
   const dataVendKPI= periodiVend.map(p=>({ label:p.label, Ricavo:+p.rvTot.toFixed(2), FoodCost:+p.fcTot.toFixed(2), Margine:+p.margTot.toFixed(2), Spreco:+p.sproTot.toFixed(2) }));
-  const dataST     = periodiVend.map(p=>({ label:p.label, "Sell-Through":+p.avgST.toFixed(1) }));
+  const dataST     = periodiVend.filter(p=>p.avgST!=null).map(p=>({ label:p.label, "Sell-Through":+p.avgST.toFixed(1) }));
 
   // Grafico produzione: top 5 ricette per stampi totali + "Altri". Impilare una
   // serie per OGNI ricetta (decine) con pochi colori rendeva il grafico
@@ -352,7 +354,8 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
   const totFV=periodiVend.reduce((s,p)=>s+p.fcTot,0);
   const totSV=periodiVend.reduce((s,p)=>s+p.sproTot,0);
   const totMV=totRV-totFV;
-  const avgST=periodiVend.length>0?periodiVend.reduce((s,p)=>s+p.avgST,0)/periodiVend.length:0;
+  const conST=periodiVend.filter(p=>p.avgST!=null);
+  const avgST=conST.length>0?conST.reduce((s,p)=>s+p.avgST,0)/conST.length:null;
 
   // Formattazione box grandi: arrotonda all'unità + separatore migliaia IT (1.000).
   // useGrouping:'always' obbligatorio: senza, "4715" appare senza separatore migliaia
@@ -377,7 +380,8 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
         const rv  = vendList.reduce((s,p)=>s+p.rvTot,0);
         const fc  = vendList.reduce((s,p)=>s+p.fcTot,0);
         const spr = vendList.reduce((s,p)=>s+p.sproTot,0);
-        const st  = vendList.reduce((s,p)=>s+p.avgST,0)/vendList.length;
+        const conSt = vendList.filter(p=>p.avgST!=null);
+        const st  = conSt.length>0 ? conSt.reduce((s,p)=>s+p.avgST,0)/conSt.length : null;
         return { rv, marg:rv-fc, margPct:rv>0?((rv-fc)/rv*100):0, st, spreco:spr, stimato:false };
       }
       // fallback stimato da produzione (niente sell-through reale, niente spreco)
@@ -409,7 +413,8 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
           // ricalcola le metriche vendite sui prevKeys
           let rv=0,fc=0,spr=0,stSum=0,stCnt=0;
           for (const k of prevKeys) for (const ch of (allChiuByKey[k]||[])) {
-            rv+=ch.kpi?.totV||0; fc+=ch.kpi?.totFC||0; spr+=ch.kpi?.totS||0; stSum+=ch.kpi?.avgST||0; stCnt++;
+            rv+=ch.kpi?.totV||0; fc+=ch.kpi?.totFC||0; spr+=ch.kpi?.totS||0;
+      if (ch.kpi?.avgST != null) { stSum+=ch.kpi.avgST; stCnt++; }
           }
           if (stCnt>0) prev = { rv, margPct:rv>0?((rv-fc)/rv*100):0, st:stSum/stCnt, spreco:spr };
         } else {
@@ -925,7 +930,10 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                 <KPI icon={<Icon name="money" size={18} />} label="Ricavi reali"  value={eur0(totRV)}  highlight/>
                 <KPI icon={<Icon name="trendUp" size={18} />} label="Margine"       value={eur0(totMV)}  color={margColor(totRV>0?(totMV/totRV*100):0)} sub={fmtp(totRV>0?(totMV/totRV*100):0)}/>
                 <KPI icon={<Icon name="receipt" size={18} />} label="Food cost"     value={eur0(totFV)}  color={C.red}/>
-                <KPI icon={<Icon name="target" size={18} />} label="Sell-through"  value={fmtp(avgST)} color={avgST>=85?C.green:avgST>=65?C.amber:C.red}/>
+                <KPI icon={<Icon name="target" size={18} />} label="Sell-through"
+                  value={avgST==null?'—':fmtp(avgST)}
+                  sub={avgST==null?'nessuna giornata con il confronto prodotti':undefined}
+                  color={avgST==null?C.textSoft:avgST>=85?C.green:avgST>=65?C.amber:C.red}/>
                 <KPI icon={<Icon name="trash" size={18} />} label="Spreco"        value={eur0(totSV)}  sub={totRV>0?`${(totSV/totRV*100).toFixed(1)}% dei ricavi`:undefined} color={totRV>0&&totSV/totRV>0.05?C.red:C.amber}/>
               </div>
 
@@ -1228,7 +1236,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                     <div style={{fontSize:15,fontWeight:900,color:C.text}}>{fmt3(bestDay?.data)}</div>
                     <div style={{fontSize:13,color:C.green,fontWeight:700,marginTop:2}}>{euro((bestDay?.kpi?.totV||0).toFixed(2))}</div>
                     <div style={{fontSize:10,color:C.textSoft,marginTop:3}}>
-                      marg. {pct(bestDay?.kpi?.totMP)} · ST {pct(bestDay?.kpi?.avgST)}
+                      marg. {pct(bestDay?.kpi?.totMP)}{bestDay?.kpi?.avgST!=null?` · ST ${pct(bestDay.kpi.avgST)}`:''}
                     </div>
                   </div>
                   {/* Peggior giorno */}
@@ -1346,7 +1354,12 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                         <td style={{padding:"10px 12px",textAlign:"right",fontWeight:800,color:margColor(ch.kpi.totMP),fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{eur0(ch.kpi.totM)}</td>
                         <td style={{padding:"10px 12px",textAlign:"right"}}>{margBadge(ch.kpi.totMP)}</td>
                         <td style={{padding:"10px 12px",textAlign:"right"}}>
-                          <span style={{fontWeight:700,color:ch.kpi.avgST>=85?C.green:ch.kpi.avgST>=65?C.amber:C.red,fontVariantNumeric:'tabular-nums'}}>{fmtp(ch.kpi.avgST)}</span>
+                          {/* "—" e non "0,0%": una giornata registrata col solo
+                              totale non ha un sell-through da mostrare. */}
+                          <span title={ch.kpi.avgST==null?'Questa giornata è stata registrata col solo incasso: non c\'è il confronto fra prodotto e venduto.':undefined}
+                            style={{fontWeight:700,color:ch.kpi.avgST==null?C.textSoft:ch.kpi.avgST>=85?C.green:ch.kpi.avgST>=65?C.amber:C.red,fontVariantNumeric:'tabular-nums',cursor:ch.kpi.avgST==null?'help':undefined}}>
+                            {ch.kpi.avgST==null?'—':fmtp(ch.kpi.avgST)}
+                          </span>
                         </td>
                         <td style={{padding:"10px 12px",textAlign:"right",color:ch.kpi.totS>5?C.red:C.textSoft,fontWeight:ch.kpi.totS>5?700:400,fontVariantNumeric:'tabular-nums'}}>{eur0(ch.kpi.totS)}</td>
                       </tr>

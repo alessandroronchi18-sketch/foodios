@@ -64,6 +64,7 @@ export const IMPORT_SCHEMAS = {
     fields: [
       {
         name: 'nome',
+        label: 'Nome',
         type: 'string',
         required: true,
         hint: 'Ragione sociale o nome del fornitore, es. "Molino Rossi SRL"',
@@ -71,6 +72,7 @@ export const IMPORT_SCHEMAS = {
       },
       {
         name: 'contatto',
+        label: 'Persona di riferimento',
         type: 'string',
         required: false,
         hint: 'Nome della persona referente, es. "Mario Rossi"',
@@ -78,6 +80,7 @@ export const IMPORT_SCHEMAS = {
       },
       {
         name: 'email',
+        label: 'Email',
         type: 'email',
         required: false,
         hint: 'Email del fornitore, es. "info@molinorossi.it"',
@@ -85,6 +88,7 @@ export const IMPORT_SCHEMAS = {
       },
       {
         name: 'telefono',
+        label: 'Telefono',
         type: 'phone',
         required: false,
         hint: 'Numero di telefono, mobile o fisso',
@@ -92,6 +96,7 @@ export const IMPORT_SCHEMAS = {
       },
       {
         name: 'note',
+        label: 'Note',
         type: 'string',
         required: false,
         hint: 'Note libere sul fornitore (categoria merceologica, condizioni pagamento, ecc.)',
@@ -118,6 +123,7 @@ export const IMPORT_SCHEMAS = {
     fields: [
       {
         name: 'data',
+        label: 'Data',
         type: 'date',
         required: true,
         hint: 'Data della produzione, formato YYYY-MM-DD o DD/MM/YYYY',
@@ -125,6 +131,7 @@ export const IMPORT_SCHEMAS = {
       },
       {
         name: 'sede_id',
+        label: 'Punto vendita (scrivi il nome, non un codice)',
         type: 'lookup',
         required: true,
         hint: 'Nome della sede/punto vendita/laboratorio dove è stato prodotto',
@@ -138,6 +145,7 @@ export const IMPORT_SCHEMAS = {
       },
       {
         name: 'gusto_nome',
+        label: 'Gusto o prodotto',
         type: 'string',
         required: true,
         // Il nome del gusto e' una CHIAVE: inventario_produzione ha l'unique
@@ -151,6 +159,7 @@ export const IMPORT_SCHEMAS = {
       },
       {
         name: 'produzione_g',
+        label: 'Quanto ho prodotto',
         type: 'number',
         required: false,
         default: 0,
@@ -160,6 +169,7 @@ export const IMPORT_SCHEMAS = {
       },
       {
         name: 'rimanenza_g',
+        label: 'Quanto è rimasto a fine giornata',
         type: 'number',
         required: false,
         default: 0,
@@ -169,6 +179,7 @@ export const IMPORT_SCHEMAS = {
       },
       {
         name: 'scarto_g',
+        label: 'Quanto ho buttato',
         type: 'number',
         required: false,
         default: 0,
@@ -178,6 +189,7 @@ export const IMPORT_SCHEMAS = {
       },
       {
         name: 'note',
+        label: 'Note',
         type: 'string',
         required: false,
         hint: 'Note libere sulla giornata',
@@ -194,6 +206,7 @@ export const IMPORT_SCHEMAS = {
     fields: [
       {
         name: 'nome',
+        label: 'Nome',
         type: 'string',
         required: true,
         hint: 'Nome e cognome del dipendente, es. "Mario Rossi"',
@@ -201,6 +214,7 @@ export const IMPORT_SCHEMAS = {
       },
       {
         name: 'ruolo',
+        label: 'Ruolo',
         type: 'string',
         required: false,
         hint: 'Mansione, es. "Pasticcere", "Commesso banco", "Responsabile laboratorio"',
@@ -208,6 +222,7 @@ export const IMPORT_SCHEMAS = {
       },
       {
         name: 'tipo_contratto',
+        label: 'Tipo di contratto',
         type: 'string',
         required: false,
         default: 'Full-time',
@@ -216,6 +231,7 @@ export const IMPORT_SCHEMAS = {
       },
       {
         name: 'costo_orario',
+        label: 'Costo per ora',
         type: 'number',
         required: false,
         default: 0,
@@ -226,6 +242,7 @@ export const IMPORT_SCHEMAS = {
       },
       {
         name: 'ore_settimana',
+        label: 'Ore a settimana',
         type: 'number',
         required: false,
         default: 40,
@@ -236,6 +253,7 @@ export const IMPORT_SCHEMAS = {
       },
       {
         name: 'note',
+        label: 'Note',
         type: 'string',
         required: false,
         hint: 'Note libere (data assunzione, orari, aspettative, ecc.)',
@@ -243,6 +261,7 @@ export const IMPORT_SCHEMAS = {
       },
       {
         name: 'attivo',
+        label: 'In forza',
         type: 'boolean',
         required: false,
         default: true,

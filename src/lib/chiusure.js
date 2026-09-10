@@ -30,7 +30,14 @@ function rigaAOggetto(r) {
       totM:  Number(r.tot_margine) || 0,
       totS:  Number(r.tot_scarti) || 0,
       totMP: Number(r.margine_pct) || 0,
-      avgST: r.scontrino_medio == null ? 0 : Number(r.scontrino_medio),
+      // `scontrino_medio` contiene il SELL-THROUGH in percentuale (nome
+      // storico fuorviante, vedi il commento sulla colonna nel DB).
+      // null resta null: "non rilevato" non è "0% smaltito".
+      avgST: r.scontrino_medio == null ? null : Number(r.scontrino_medio),
+      // Euro per scontrino: ha una colonna sua da 10/09/2026. Prima la
+      // chiusura rapida lo scriveva dentro avgST e lo Storico lo mostrava
+      // come una percentuale di sell-through, in rosso.
+      scontrinoMedio: r.scontrino_medio_eur == null ? null : Number(r.scontrino_medio_eur),
       // Scomposizione per canale: null vuol dire "non rilevato", che e' diverso
       // da zero. Chi registra solo il totale continua a non vederli.
       pos:      r.incasso_pos == null ? null : Number(r.incasso_pos),
@@ -58,6 +65,7 @@ function oggettoARiga(c, orgId, sedeId) {
     tot_scarti:      Number(kpi?.totS) || 0,
     margine_pct:     Number(kpi?.totMP) || 0,
     scontrino_medio: kpi?.avgST == null ? null : Number(kpi.avgST),
+    scontrino_medio_eur: kpi?.scontrinoMedio == null ? null : Number(kpi.scontrinoMedio),
     incasso_pos:      kpi?.pos == null ? null : Number(kpi.pos),
     incasso_contanti: kpi?.contanti == null ? null : Number(kpi.contanti),
     incasso_delivery: kpi?.delivery == null ? null : Number(kpi.delivery),

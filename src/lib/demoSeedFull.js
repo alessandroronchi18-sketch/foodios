@@ -423,7 +423,11 @@ function buildChiusure(vendibili) {
         totM: ricavo - fc,
         totS: Math.round(ricavo * 0.025),
         totMP: 0,
-        avgST: 0.82 + r() * 0.12,
+        // Il sell-through è una PERCENTUALE 0-100 (st = venduto/prodotto * 100,
+        // ChiusuraView:591) e lo Storico lo colora con le soglie 85 e 65.
+        // Qui erano frazioni: la demo mostrava "Sell-through 0,9%" in rosso su
+        // ogni giornata, ed è la prima cosa che vede un cliente nuovo.
+        avgST: 82 + r() * 12,
       },
     })
   }

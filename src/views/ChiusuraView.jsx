@@ -271,7 +271,7 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
 
   // Formati di vendita (config shared): mappano le righe scontrino senza dettaglio
   // gusto/ripieno (cono, vaschetta, panino…) a una categoria di ricette.
-  // Applichiamo l'override sede sui prezzi (una sede in centro puo' avere il
+  // Applichiamo l'override sede sui prezzi (una sede in centro può avere il
   // cono a prezzo diverso da quella in periferia).
   const [formatiBase, setFormatiBase] = useState([])
   const formati = useMemo(() => applicaListinoAiFormati(formatiBase, listinoSede), [formatiBase, listinoSede])
@@ -317,7 +317,15 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
   const inputRef = useRef(null)
 
   useEffect(() => {
-    if (chiusuraSalvata) { setVenduto(chiusuraSalvata.venduto); setSalvato(true) }
+    // Le chiusure registrate col solo totale hanno `venduto` vuoto: un array
+    // vuoto in JavaScript e' un valore "vero" e faceva scattare il riquadro
+    // "Nessun prodotto del ricettario trovato". Qui lo normalizziamo a null,
+    // che e' quello che significa: nessuno scontrino letto.
+    if (chiusuraSalvata) {
+      const v = chiusuraSalvata.venduto
+      setVenduto(Array.isArray(v) && v.length === 0 ? null : v)
+      setSalvato(true)
+    }
     else { setVenduto(null); setSalvato(false) }
   }, [chiusuraSalvata])
 
@@ -500,8 +508,12 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
         setLoading(false)
       },
       onError: (err) => {
-        _receiptPending.current = { loading: false, venduto: null, error: err.message, dataEstratta: null }
-        setError(err.message); setLoading(false)
+        // `friendly` e' il messaggio scritto per l'utente ("Riprova con una
+        // foto più nitida"): veniva creato e mai letto, e a schermo
+        // compariva "JSON malformato".
+        const msg = err.friendly || err.message
+        _receiptPending.current = { loading: false, venduto: null, error: msg, dataEstratta: null }
+        setError(msg); setLoading(false)
       },
     })
   }
@@ -661,7 +673,14 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
         id: `ch-${dataFiltro}`,
         data: dataFiltro,
         salvatoAt: new Date().toISOString(),
-        venduto: [],
+        // `venduto: []` era un array vuoto, che in JavaScript e' un valore
+        // "vero": il pannello di confronto lo prendeva per "ho letto uno
+        // scontrino e non ho riconosciuto niente" e su OGNI giornata chiusa
+        // col metodo rapido compariva il riquadro "Nessun prodotto del
+        // ricettario trovato / I nomi sullo scontrino non corrispondono alle
+        // ricette" con la riga "Letti:" vuota. Con null la pagina sa che
+        // nessuno scontrino e' stato letto.
+        venduto: null,
         confronto: [],
         formati: [],
         solo_totale: true,
@@ -672,11 +691,35 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
           totM: totM ?? 0,
           totS: 0,
           totMP: (totM != null && totV > 0) ? (totM / totV * 100) : 0,
-          avgST: nSc > 0 ? totV / nSc : 0,
+          // avgST è il SELL-THROUGH in percentuale. Qui non c'è: registrando
+          // solo il totale non si sa quanto è stato smaltito di quanto
+          // prodotto. Prima ci finiva l'euro per scontrino (1.477 € su 128
+          // scontrini = 11,54) e lo Storico lo mostrava come
+          // "Sell-through 11,5%" in rosso, abbassando la media del mese.
+          avgST: null,
+          scontrinoMedio: nSc > 0 ? totV / nSc : null,
           pos, contanti, delivery,
         },
       }
-      const nuove = [...(chiusure || []).filter(c => c.data !== dataFiltro), rec]
+      // FUSIONE, non sostituzione. Prima questa riga buttava via la giornata
+      // esistente: se lo stesso giorno aveva già un import delivery o un
+      // import cassa, salvare il totale a mano li cancellava. La strada
+      // dell'OCR (righe 533-542) fa già la fusione con un commento esplicito;
+      // questa era rimasta indietro.
+      const precedente = (chiusure || []).find(c => c.data === dataFiltro)
+      const fuso = precedente ? {
+        ...precedente,
+        ...rec,
+        // Quello che il totale a mano non conosce si conserva.
+        venduto: rec.venduto?.length ? rec.venduto : (precedente.venduto || []),
+        confronto: precedente.confronto || [],
+        formati: precedente.formati || [],
+        cassaImport: precedente.cassaImport || [],
+        deliveryImport: precedente.deliveryImport || [],
+        id: precedente.id || rec.id,
+        kpi: { ...(precedente.kpi || {}), ...rec.kpi },
+      } : rec
+      const nuove = [...(chiusure || []).filter(c => c.data !== dataFiltro), fuso]
       await ssave(SK_CHIUS, nuove)
       setChiusure(nuove)
       setSalvato(true)
@@ -754,7 +797,18 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
     // Calcola eraGiaChiusa da `chiusure` PRIMA della filter - evita race se
     // setChiusure asincrono dopo navigazione+ritorno (audit 2026-06-17 MEDIUM).
     const eraGiaChiusa = (chiusure || []).some(c => c.data === dataFiltro)
-    const nuove = [...(chiusure || []).filter(c => c.data !== dataFiltro), rec]
+    // Fusione anche qui: gli import della giornata (cassa, delivery) non
+    // devono sparire perché si salva la chiusura dal confronto prodotti.
+    const precedenteFull = (chiusure || []).find(c => c.data === dataFiltro)
+    const recFuso = precedenteFull ? {
+      ...precedenteFull,
+      ...rec,
+      cassaImport: rec.cassaImport || precedenteFull.cassaImport || [],
+      deliveryImport: rec.deliveryImport || precedenteFull.deliveryImport || [],
+      id: precedenteFull.id || rec.id,
+      kpi: { ...(precedenteFull.kpi || {}), ...rec.kpi },
+    } : rec
+    const nuove = [...(chiusure || []).filter(c => c.data !== dataFiltro), recFuso]
     // SAVE FIRST per evitare data-loss: se ssave fallisce, non aggiorniamo lo
     // state (l'UI deve restare allineata al DB).
     try {
@@ -823,7 +877,7 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
       return result
     }, {
       onComplete: (result) => { setImportPreview(result); setImportLoading(false) },
-      onError: (err) => { notify(`${err.message}`); setImportLoading(false) },
+      onError: (err) => { notify(`Non riesco a leggere il file: ${err.friendly || err.message}`, false); setImportLoading(false) },
     })
   }
 
@@ -857,7 +911,7 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
       return { tipo: 'aggregated', righe }
     }, {
       onComplete: (result) => { setImportPreview(result); setImportLoading(false) },
-      onError: (err) => { notify(`${err.message}`); setImportLoading(false) },
+      onError: (err) => { notify(`Non riesco a leggere il file: ${err.friendly || err.message}`, false); setImportLoading(false) },
     })
   }
 
@@ -1499,7 +1553,7 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
         </>
       )}
 
-      {venduto && confronto.length === 0 && formatiRiconc.righe.length === 0 && !loading && (
+      {venduto?.length > 0 && confronto.length === 0 && formatiRiconc.righe.length === 0 && !loading && (
         <div style={{ textAlign: 'center', padding: '36px', background: C.bgCard, borderRadius: 18, border: `1px solid ${C.border}`, boxShadow: SHADOW_PREMIUM }}>
           <div style={{ marginBottom: 10, color: C.textSoft }}><Icon name="search" size={30} /></div>
           <div style={{ fontSize: FS.body, fontWeight: 700, color: C.text, marginBottom: 6 }}>Nessun prodotto del ricettario trovato</div>

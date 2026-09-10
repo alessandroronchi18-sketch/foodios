@@ -21,7 +21,10 @@ const FOGLIO = [
   ['TOTALE MESE', 3570.5, 1289.7, 4860.2, 4174.45, 1530.55, 5705, 10565.2, null, 'TOT MESE', 329.3, 567.9, null, null, 'TOT', 70, null, 'TOT', 30],
 ]
 
-const scritture = { chiusure: [], svuotati: [], movimenti: [] }
+const scritture = { chiusure: [], svuotati: [], movimenti: [], letturaImportate: [] }
+// Righe di uscita che finge di trovare in DB come "già importate da un
+// registro precedente": sono le sole che l'import può cancellare.
+let importateInDb = []
 
 vi.mock('../../src/lib/xlsx', () => ({ loadXLSX: () => Promise.resolve({}) }))
 
@@ -48,9 +51,15 @@ vi.mock('../../src/lib/primaNota', async () => {
   const real = await vi.importActual('../../src/lib/primaNota')
   return {
     ...real,
-    eliminaMovimentiPeriodo: vi.fn((orgId, sedeId, from, to) => {
-      scritture.svuotati.push({ sedeId, from, to })
-      return Promise.resolve(0)
+    movimentiImportatiPeriodo: vi.fn((orgId, sedeId, from, to) => {
+      scritture.letturaImportate.push({ sedeId, from, to })
+      return Promise.resolve(importateInDb.filter(m => m.sede_id === sedeId))
+    }),
+    eliminaMovimentiPerId: vi.fn((ids) => {
+      // L'ordine conta: la cancellazione deve arrivare DOPO l'inserimento,
+      // così un errore a metà lascia dei doppioni e non un buco.
+      scritture.svuotati.push({ ids, movimentiGiaScritti: scritture.movimenti.length })
+      return Promise.resolve(ids.length)
     }),
     aggiungiMovimentiInBlocco: vi.fn((orgId, righe) => {
       scritture.movimenti.push(...righe)
@@ -83,6 +92,8 @@ async function caricaFile(view, nome = 'INCASSI MARAMA LUGLIO 2026.xlsx') {
 
 beforeEach(() => {
   scritture.chiusure = []; scritture.svuotati = []; scritture.movimenti = []
+  scritture.letturaImportate = []
+  importateInDb = []
   vi.clearAllMocks()
   cleanup()
 })
@@ -134,7 +145,7 @@ describe('ImportRegistroIncassi', () => {
     expect(view.container.textContent).toContain('non è abbinato a nessun punto vendita')
   })
 
-  it('importa incassi e spese sulla sede giusta, e svuota prima il periodo', async () => {
+  it('importa incassi e spese sulla sede giusta, e sostituisce solo le uscite già importate', async () => {
     const view = monta()
     await caricaFile(view)
     fireEvent.click(view.getByText('Importa il registro'))
@@ -147,12 +158,19 @@ describe('ImportRegistroIncassi', () => {
     expect(bert.righe).toHaveLength(3)
     expect(bert.righe[0]).toMatchObject({ data: '2026-07-01', totale: 1076.4, pos: 788.1, contanti: 288.3, delivery: 70 })
 
-    // Il periodo delle uscite viene rifatto da zero: reimportare non raddoppia.
-    expect(scritture.svuotati).toEqual(expect.arrayContaining([
+    // Reimportare non raddoppia: si guarda cosa c'è già di importato nel
+    // periodo, una sede per volta.
+    // AGGIORNATO 10/09/2026: prima l'import cancellava TUTTE le uscite del
+    // periodo, comprese quelle scritte a mano nell'app, e lo faceva sempre,
+    // anche con un foglio senza colonna spese. Ora cancella solo le proprie,
+    // solo se il foglio porta delle spese, e DOPO aver inserito le nuove.
+    expect(scritture.letturaImportate).toEqual(expect.arrayContaining([
       { sedeId: 'sede-bert', from: '2026-07-01', to: '2026-07-31' },
       { sedeId: 'sede-dega', from: '2026-07-01', to: '2026-07-31' },
     ]))
-    expect(scritture.svuotati).toHaveLength(2)
+    expect(scritture.letturaImportate).toHaveLength(2)
+    // Niente da sostituire: in DB non c'era nessuna uscita importata prima.
+    expect(scritture.svuotati).toHaveLength(0)
 
     // Le spese portano la sede e la notazione sul documento letta dal testo.
     const limoni = scritture.movimenti.find(m => m.descrizione === 'limoni')
@@ -169,7 +187,26 @@ describe('ImportRegistroIncassi', () => {
 
     await waitFor(() => expect(scritture.chiusure).toHaveLength(1))
     expect(scritture.chiusure[0].sedeId).toBe('sede-bert')
-    expect(scritture.svuotati).toHaveLength(1)
+    expect(scritture.letturaImportate).toHaveLength(1)
+  })
+
+  it('le uscite già importate si sostituiscono, e la cancellazione arriva DOPO l\'inserimento', async () => {
+    importateInDb = [
+      { id: 'vecchia-1', sede_id: 'sede-bert', importo: 10 },
+      { id: 'vecchia-2', sede_id: 'sede-dega', importo: 30 },
+    ]
+    const view = monta()
+    await caricaFile(view)
+    fireEvent.click(view.getByText('Importa il registro'))
+    await waitFor(() => expect(view.container.textContent).toContain('Fatto'))
+
+    const ids = scritture.svuotati.flatMap(s => s.ids)
+    expect(ids).toEqual(expect.arrayContaining(['vecchia-1', 'vecchia-2']))
+    // Nessuna cancellazione a mani vuote: quando si cancella, le righe nuove
+    // sono già scritte.
+    for (const s of scritture.svuotati) {
+      expect(s.movimentiGiaScritti).toBeGreaterThan(0)
+    }
   })
 
   it('cambiare il mese sposta tutte le date, senza rileggere il file', async () => {
@@ -181,7 +218,7 @@ describe('ImportRegistroIncassi', () => {
     fireEvent.click(view.getByText('Importa il registro'))
     await waitFor(() => expect(scritture.chiusure.length).toBeGreaterThan(0))
     expect(scritture.chiusure[0].righe[0].data).toBe('2026-08-01')
-    expect(scritture.svuotati[0]).toMatchObject({ from: '2026-08-01', to: '2026-08-31' })
+    expect(scritture.letturaImportate[0]).toMatchObject({ from: '2026-08-01', to: '2026-08-31' })
   })
 
   it('un file senza mese nel nome chiede di indicarlo, e non importa nulla', async () => {

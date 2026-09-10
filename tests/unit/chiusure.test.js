@@ -81,10 +81,23 @@ describe('forma dei dati restituita', () => {
     expect(c.note).toBe('giornata di prova')
   })
 
-  it('scontrino medio assente diventa 0, non NaN', async () => {
+  // AGGIORNATO 10/09/2026: adesso resta null, e deve restare null.
+  // La colonna contiene il sell-through in percentuale; una giornata
+  // registrata col solo incasso non ce l'ha, e trasformarla in 0 la faceva
+  // entrare nella media del mese come "0% smaltito", tirandola giu' senza
+  // motivo, e la mostrava in rosso nello Storico.
+  it('sell-through assente resta null (non 0: 0% smaltito e un dato, "non misurato" no)', async () => {
     chainSelect([{ ...RIGA_DB, scontrino_medio: null }])
     const [c] = await caricaChiusure(ORG, SEDE)
-    expect(c.kpi.avgST).toBe(0)
+    expect(c.kpi.avgST).toBeNull()
+    expect(Number.isNaN(c.kpi.avgST)).toBe(false)
+  })
+
+  it('euro per scontrino: colonna sua, non dentro il sell-through', async () => {
+    chainSelect([{ ...RIGA_DB, scontrino_medio: null, scontrino_medio_eur: 11.54 }])
+    const [c] = await caricaChiusure(ORG, SEDE)
+    expect(c.kpi.scontrinoMedio).toBe(11.54)
+    expect(c.kpi.avgST).toBeNull()
   })
 })
 

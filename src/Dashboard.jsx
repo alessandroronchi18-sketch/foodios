@@ -1619,9 +1619,15 @@ export default function Dashboard({
         // Idem per le rese: il loadRese precedente potrebbe aver popolato
         // il singleton con rese di un'altra org. Audit 2026-06-17 HIGH.
         try { resetRese(); } catch {}
+        // Le regole dell'org sovrascrivono SEMPRE la tabella di REGOLE.
+        // C'era un `&& !REGOLE[r.nome]`: per gli 11 nomi scritti nel codice
+        // (TORTA DI CAROTE, BANANA BREAD, PASTA FROLLA...) il prezzo e il
+        // numero di fette salvati dall'azienda non entravano mai, e i calcoli
+        // usavano quelli di un'altra pasticceria. Verificato: 3 collisioni
+        // vere in produzione, fino a +25% sul ricavo di una torta.
         for(const r of Object.values(ric.ricette||{})){
-          if(r.unita!=null && !REGOLE[r.nome]){
-            REGOLE[r.nome]={ unita:r.unita, prezzo:r.prezzo, tipo:r.tipo||"fetta" };
+          if(r.unita!=null){
+            REGOLE[r.nome]={ unita:r.unita, prezzo:r.prezzo, tipo:r.tipo||REGOLE[r.nome]?.tipo||"fetta" };
           }
         }
       } else {
@@ -1721,50 +1727,122 @@ export default function Dashboard({
     } catch { /* localStorage non disponibile, silente */ }
   },[ready]);
 
-  const handleFile=useCallback(files=>{
-    // Fire-and-forget: each file runs independently via uploadManager.
-    // onComplete uses functional setRic updater so it's safe even if user navigated away.
-    for(const f of Array.from(files)){
-      if(!f.name.endsWith(".xlsx")) continue;
+  // Import del ricettario da file Excel.
+  //
+  // Quattro difetti corretti il 10/09/2026, tutti nello stesso punto:
+  //
+  // 1. DUE FILE INSIEME, UNO SPARIVA. L'input e' `multiple` e ogni file
+  //    partiva subito per conto suo (backgroundManager avvia ogni job senza
+  //    coda). Tutti gli onComplete leggevano lo STESSO `ricettario` chiuso
+  //    nella closure e salvavano: l'ultimo che finiva sovrascriveva gli altri,
+  //    e i messaggi dicevano "importate" per tutti e due. Il commento qui
+  //    sopra sosteneva che fosse sicuro "perché usa un updater funzionale":
+  //    non lo era, era setRic(merged) con un valore. Ora i file si leggono in
+  //    fila, si accumulano su una base sola e si salva UNA volta.
+  //
+  // 2. NESSUNA ANTEPRIMA. Il file entrava nel database senza che nessuno
+  //    vedesse cosa era stato letto, e senza modo di annullare. Ora prima di
+  //    salvare si vede il riepilogo e si conferma.
+  //
+  // 3. "27 RICETTE IMPORTATE" E BASTA. Il messaggio non diceva che prezzo,
+  //    unita' e tipo non c'erano: da quel vuoto nascevano i prezzi inventati
+  //    a valle. Ora il riepilogo dichiara cosa manca.
+  //
+  // 4. DATI ASSURDI ACCETTATI IN SILENZIO. Nella ricetta MAROTTO di Mara c'e'
+  //    un ingrediente da 146.000 g (146 kg in un gusto da 1 kg: nel file del
+  //    cliente e' scritto 146.000 invece di 146). Il parser non ha nessun
+  //    controllo di plausibilita'. Ora le quantita' fuori scala vengono
+  //    elencate nel riepilogo, prima di salvare.
+  const handleFile=useCallback(async files=>{
+    const validi = Array.from(files||[]).filter(f=>f.name.endsWith(".xlsx"));
+    const scartati = Array.from(files||[]).length - validi.length;
+    if (scartati > 0) notify(`${scartati} file ignorat${scartati===1?'o':'i'}: serve un file Excel .xlsx`, false);
+    if (validi.length === 0) return;
+
+    // Lettura in fila, accumulando su una base sola.
+    let base = ricettario;
+    const letti = [];
+    for (const f of validi) {
       const id = `ric-${f.name}-${Date.now()}`;
-      const cacheKey = _RIC_CACHE_KEY;
-      uploadManager.add(id, f, async (onProgress) => {
-        onProgress(15);
-        // Parser ibrido: prova prima il template rigido, fallback su AI se
-        // il file non segue la struttura standard. Non blocca su AI errors.
-        const p = await parseRicettarioSmart(f);
-        onProgress(100);
-        return p;
-      }, {
-        onComplete: async (result) => {
-          if (!result) return;
-          const merged = ricettario ? {
-            ...ricettario,
-            ricette: { ...ricettario.ricette, ...result.ricette },
-            ingredienti_costi: { ...ricettario.ingredienti_costi, ...result.ingredienti_costi },
-          } : result;
-          try {
-            await ssave(SK_RIC, merged);
-            setRic(merged);
-            try { localStorage.setItem(cacheKey, JSON.stringify({ data: merged, savedAt: new Date().toLocaleString('it-IT') })); } catch {}
-            const n = Object.keys(result.ricette || {}).length;
-            const source = result.source === 'ai' ? ' (letto con AI: controlla che siano giuste)' : '';
-            const trunc = result.truncated ? ' - file lungo, alcune ricette potrebbero mancare' : '';
-            if (n === 0) {
-              notify(`${f.name}: nessuna ricetta riconosciuta${result.aiError ? ' (' + result.aiError + ')' : ''}`, false);
-            } else {
-              notify(`${f.name} - ${n} ricette importate${source}${trunc}`);
-            }
-          } catch (e) {
-            notify(`${f.name}: errore salvataggio (${e.message || 'rete'})`, false);
-          }
-        },
-        onError: (err) => {
-          notify(`${f.name}: ${err.message}`, false);
-        },
-      });
+      let result = null;
+      try {
+        result = await new Promise((resolve) => {
+          uploadManager.add(id, f, async (onProgress) => {
+            onProgress(15);
+            const p = await parseRicettarioSmart(f);
+            onProgress(100);
+            return p;
+          }, {
+            onComplete: (r) => resolve(r || null),
+            onError: (err) => { notify(`${f.name}: ${err.message}`, false); resolve(null); },
+          });
+        });
+      } catch (e) {
+        notify(`${f.name}: ${e.message || 'errore di lettura'}`, false);
+      }
+      if (!result) continue;
+      const nRic = Object.keys(result.ricette||{}).length;
+      if (nRic === 0) {
+        notify(`${f.name}: nessuna ricetta riconosciuta${result.aiError ? ' (' + result.aiError + ')' : ''}`, false);
+        continue;
+      }
+      letti.push({ nome: f.name, result, nRic });
+      base = base ? {
+        ...base,
+        ricette: { ...base.ricette, ...result.ricette },
+        ingredienti_costi: { ...base.ingredienti_costi, ...result.ingredienti_costi },
+      } : result;
     }
-  },[_RIC_CACHE_KEY, notify]);
+    if (letti.length === 0) return;
+
+    // Riepilogo onesto di cosa e' stato letto e di cosa manca.
+    const nuove = letti.flatMap(l => Object.keys(l.result.ricette||{}));
+    const giaPresenti = ricettario ? nuove.filter(n => ricettario.ricette?.[n]) : [];
+    const tutte = nuove.map(n => base.ricette[n]);
+    const senzaPrezzo = tutte.filter(r => !(Number(r?.prezzo) > 0)).length;
+    const senzaUnita  = tutte.filter(r => r?.unita == null).length;
+    const senzaTipo   = tutte.filter(r => !r?.tipo).length;
+    const FUORI_SCALA_G = 20000;  // 20 kg di un solo ingrediente in una ricetta
+    const sospette = tutte
+      .filter(r => (r?.ingredienti||[]).some(i => Number(i?.qty1stampo) > FUORI_SCALA_G))
+      .map(r => r.nome);
+    const conAi = letti.filter(l => l.result.source === 'ai').map(l => l.nome);
+    const troncati = letti.filter(l => l.result.truncated).map(l => l.nome);
+
+    const righe = [
+      `${nuove.length} ricette lette da ${letti.length === 1 ? 'un file' : letti.length + ' file'}.`,
+      giaPresenti.length > 0 ? `${giaPresenti.length} sostituiscono ricette che hai già: ${giaPresenti.slice(0,6).join(', ')}${giaPresenti.length>6?'…':''}` : null,
+      senzaPrezzo > 0 ? `${senzaPrezzo} senza prezzo di vendita: il ricavo e il margine resteranno vuoti finché non lo scrivi.` : null,
+      senzaUnita > 0 ? `${senzaUnita} senza il numero di pezzi per stampo.` : null,
+      senzaTipo > 0 ? (isMetodoInv
+        ? `${senzaTipo} senza tipo: le tratto come gusti di gelato, perché lavori col metodo inventario.`
+        : `${senzaTipo} senza tipo: le tratto come torte a fette.`) : null,
+      sospette.length > 0 ? `Attenzione, quantità fuori scala (oltre 20 kg di un solo ingrediente) in: ${sospette.slice(0,5).join(', ')}. Nel file potrebbe esserci un punto di troppo.` : null,
+      conAi.length > 0 ? `Letto con l'AI (controlla che sia giusto): ${conAi.join(', ')}` : null,
+      troncati.length > 0 ? `File lungo, alcune ricette potrebbero mancare: ${troncati.join(', ')}` : null,
+      '',
+      'Salvo nel ricettario?',
+    ].filter(v => v !== null).join('\n');
+    if (!window.confirm(righe)) { notify('Import annullato: non ho salvato niente.', true); return; }
+
+    // Il tipo si scrive ADESSO, che sappiamo con che metodo lavora l'azienda:
+    // a valle, senza tipo, un gusto di gelato diventava una torta a fette.
+    const ricetteConTipo = { ...base.ricette };
+    for (const n of nuove) {
+      const r = ricetteConTipo[n];
+      if (r && !r.tipo) ricetteConTipo[n] = { ...r, tipo: isMetodoInv ? 'gusto' : 'fetta' };
+    }
+    const merged = { ...base, ricette: ricetteConTipo };
+
+    try {
+      await ssave(SK_RIC, merged);
+      setRic(merged);
+      try { localStorage.setItem(_RIC_CACHE_KEY, JSON.stringify({ data: merged, savedAt: new Date().toLocaleString('it-IT') })); } catch {}
+      notify(`${nuove.length} ricette salvate nel ricettario${senzaPrezzo > 0 ? `. ${senzaPrezzo} sono senza prezzo di vendita: aprile dal Ricettario per completarle.` : '.'}`);
+    } catch (e) {
+      notify(`Salvataggio non riuscito (${e.message || 'rete'}): il ricettario non e' stato modificato.`, false);
+    }
+  },[_RIC_CACHE_KEY, notify, ricettario, isMetodoInv]);
 
   const handleImportPrezziOCR=useCallback(async (nuoviCosti) => {
     if (!ricettario) return;
@@ -3446,7 +3524,7 @@ export default function Dashboard({
             </label>
           </div>
         )}
-        {ricettario&&view==="ricettario"&&<RicettarioView ricettario={ricettario} onUpdateRegola={handleUpdateRegola} onUpload={files=>handleFile(files)} onEditRicetta={(nome)=>{setEditingRicetta(nome);setView("nuova-ricetta");}} orgId={orgId} sedi={sedi} sedeAttiva={sedeAttiva} notify={notify} LEX={LEX}/>}
+        {ricettario&&view==="ricettario"&&<RicettarioView metodoProduzione={metodoProduzione} ricettario={ricettario} onUpdateRegola={handleUpdateRegola} onUpload={files=>handleFile(files)} onEditRicetta={(nome)=>{setEditingRicetta(nome);setView("nuova-ricetta");}} orgId={orgId} sedi={sedi} sedeAttiva={sedeAttiva} notify={notify} LEX={LEX}/>}
         {ricettario&&view==="semilavorati"&&<SemilavoratiView ricettario={ricettario} onSave={handleSalvaRicetta} notify={notify} tipoAttivita={tipoAttivita}/>}
         {ricettario&&view==="pl"&&<PLView ricettario={ricettario} chiusure={chiusure} orgId={orgId} sedeId={sedeId} onUpdateRegola={handleUpdateRegola} notify={notify}/>}
         {ricettario&&view==="simulatore"&&<SimulatorePrezziView ricettario={ricettario} giornaliero={giornaliero} tipoAttivita={tipoAttivita} sedi={sedi} orgId={orgId} sedeId={sedeId}/>}

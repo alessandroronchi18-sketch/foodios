@@ -10,6 +10,7 @@ import { loadXLSX } from './xlsx'
 import { normIng } from './foodcost'
 import { callAi } from './aiClient'
 import { parseRicettario } from './parseRicettario'
+import { parseNum as _parseNum } from './importCassa'
 
 const SYSTEM_PROMPT = `Sei un esperto parser di ricettari di pasticceria, gelateria e panetteria italiana.
 
@@ -118,12 +119,25 @@ export function isLikelyPivot(rows) {
       const v = row[j]
       if (v == null || v === '') continue
       total++
-      const n = Number(v)
+      const n = numCella(v)
       if (Number.isFinite(n)) numeric++
     }
   }
   if (total < 5) return false
   return numeric / total > 0.75
+}
+
+// Numero da una cella, con la virgola italiana. Una cella di TESTO scritta
+// "0,355" con Number() diventa NaN: nel riconoscimento del pivot non veniva
+// contata come numerica (e il foglio non veniva riconosciuto come pivot),
+// e nell'appiattimento la riga veniva scartata SENZA nessun avviso.
+// Il layout pivot — ricette in colonna, ingredienti in riga — e' dichiarato
+// qui sotto come tipico delle gelaterie: e' proprio il formato dei clienti.
+function numCella(v) {
+  if (v == null || v === '') return NaN
+  if (typeof v === 'number') return Number.isFinite(v) ? v : NaN
+  const n = _parseNum(v)
+  return Number.isFinite(n) && n !== 0 ? n : (String(v).trim() === '0' ? 0 : NaN)
 }
 
 // Appiattisce un pivot in una tabella classica "Ricetta,Ingrediente,Quantita_kg".
@@ -147,7 +161,7 @@ export function flattenPivot(rows) {
       if (SEP_HEADER_RE.test(ing)) continue // salta righe placeholder
       const raw = row[col]
       if (raw == null || raw === '') continue
-      const qty = Number(raw)
+      const qty = numCella(raw)
       if (!Number.isFinite(qty) || qty === 0) continue
       const key = `${nome}||${ing}`
       if (seen.has(key)) continue
@@ -261,7 +275,7 @@ export async function parseRicettarioAI(file) {
     timeoutMs: 180_000,
   })
 
-  // Debug: logga il conteggio in console così l'utente puo' diagnosticare
+  // Debug: logga il conteggio in console così l'utente può diagnosticare
   // se qualcosa non torna (es. Claude ha ritornato 2 ricette invece di 40).
   const n = Object.keys(json?.ricette || {}).length || (Array.isArray(json?.ricette) ? json.ricette.length : 0)
   console.log(`[parseRicettarioAI] ricette estratte dall'AI: ${n}`)
@@ -292,7 +306,7 @@ export async function parseRicettarioSmart(file) {
   try {
     const ai = await parseRicettarioAI(file)
     // Se anche l'AI non ha trovato nulla, restituiamo il rigido (source='rigid')
-    // così il chiamante puo' distinguere fra "AI ha capito ma vuoto" e "nemmeno
+    // così il chiamante può distinguere fra "AI ha capito ma vuoto" e "nemmeno
     // provato" — utile per diagnostica.
     if (Object.keys(ai?.ricette || {}).length === 0) {
       return { ...rigido, source: 'rigid', aiTried: true }

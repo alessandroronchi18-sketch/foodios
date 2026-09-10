@@ -31,7 +31,7 @@ import {
   estraiIncassi, chiaveSede, annoMeseDaNomeFile, etichettaAnnoMese,
 } from '../lib/importIncassi'
 import { importaChiusureIncassi } from '../lib/chiusure'
-import { aggiungiMovimentiInBlocco, eliminaMovimentiPeriodo } from '../lib/primaNota'
+import { aggiungiMovimentiInBlocco, movimentiImportatiPeriodo, eliminaMovimentiPerId } from '../lib/primaNota'
 
 /** Ultimo giorno del mese, per delimitare il periodo che l'import sostituisce. */
 function finePeriodo(annoMese) {
@@ -151,7 +151,7 @@ export default function ImportRegistroIncassi({ orgId, sedi, notify, onClose }) 
     if (!pronto || !letto) return
     setImportando(true); setErrore(null)
     const from = `${annoMese}-01`, to = finePeriodo(annoMese)
-    const conteggio = { giorni: 0, nuove: 0, aggiornate: 0, spese: 0, sedi: 0 }
+    const conteggio = { giorni: 0, nuove: 0, aggiornate: 0, spese: 0, sedi: 0, sostituite: 0 }
     try {
       for (const s of daImportare) {
         const sedeId = mappa[s.nome]
@@ -163,12 +163,28 @@ export default function ImportRegistroIncassi({ orgId, sedi, notify, onClose }) 
         conteggio.aggiornate += res.aggiornate
         conteggio.giorni += chiusure.length
 
-        // Le uscite del periodo si rifanno da zero: vedi nota in testa al file.
-        await eliminaMovimentiPeriodo(orgId, sedeId, from, to)
         const spese = letto.movimenti
           .filter(mv => chiaveSede(mv.sede || '') === k)
           .map(mv => ({ ...mv, sede_id: sedeId }))
-        conteggio.spese += await aggiungiMovimentiInBlocco(orgId, spese)
+
+        // Le uscite si rifanno da zero SOLO se il foglio ne porta davvero,
+        // e solo quelle importate: le spese scritte a mano nell'app restano.
+        //
+        // Prima: `eliminaMovimentiPeriodo` girava sempre, senza filtro
+        // sull'origine, anche con un foglio senza colonna spese. Cancellava
+        // le spese scritte a mano dal titolare, che nel file non ci sono e
+        // non tornano più.
+        //
+        // E l'ordine è insert-poi-elimina, non il contrario: se qualcosa si
+        // rompe a metà restano dei doppioni (si vedono e si sistemano),
+        // invece di un mese di spese sparite senza sapere quali.
+        if (spese.length > 0) {
+          const vecchie = await movimentiImportatiPeriodo(orgId, sedeId, from, to)
+          conteggio.spese += await aggiungiMovimentiInBlocco(orgId, spese)
+          if (vecchie.length > 0) {
+            conteggio.sostituite += await eliminaMovimentiPerId(vecchie.map(v => v.id))
+          }
+        }
         conteggio.sedi++
       }
       setEsito(conteggio)
@@ -366,7 +382,9 @@ export default function ImportRegistroIncassi({ orgId, sedi, notify, onClose }) 
                 {daImportare.length === 1 ? 'un punto vendita' : `${daImportare.length} punti vendita`}, per un incassato di{' '}
                 <b>{fmt(daImportare.reduce((s, x) => s + x.totale, 0))}</b>.
                 {' '}Le giornate già registrate vengono aggiornate nei soldi, e il dettaglio dei prodotti che avevi inserito resta.
-                {daImportare.some(x => x.nSpese > 0) && ` Le uscite di cassa di ${etichettaAnnoMese(annoMese)} vengono rifatte da zero, per non contarle due volte.`}
+                {daImportare.some(x => x.nSpese > 0)
+                  ? ` Le uscite di cassa di ${etichettaAnnoMese(annoMese)} già importate da un registro vengono sostituite con queste, per non contarle due volte: le spese che hai scritto a mano in Foodos restano dove sono.`
+                  : ' In questo foglio non ci sono uscite di cassa, quindi le spese del mese non vengono toccate.'}
               </div>
               <button type="button" onClick={importa} disabled={!pronto}
                 style={{
@@ -394,7 +412,8 @@ export default function ImportRegistroIncassi({ orgId, sedi, notify, onClose }) 
             {etichettaAnnoMese(annoMese)}: {esito.giorni} giornate su {esito.sedi === 1 ? 'un punto vendita' : `${esito.sedi} punti vendita`}
             {esito.nuove > 0 && ` · ${esito.nuove} nuove`}
             {esito.aggiornate > 0 && ` · ${esito.aggiornate} aggiornate`}
-            {esito.spese > 0 && ` · ${esito.spese} uscite di cassa`}.
+            {esito.spese > 0 && ` · ${esito.spese} uscite di cassa`}
+            {esito.sostituite > 0 && ` (${esito.sostituite} uscite di un import precedente sostituite)`}.
           </div>
           <div style={{ ...typo.small, color: T.textSoft, marginTop: 8, lineHeight: 1.5 }}>
             Li trovi nella pagina Cassa, giorno per giorno, e nel P&L del mese.

@@ -170,7 +170,9 @@ function buildChiusure() {
         totM: ricavo - fc,
         totS: Math.round(ricavo * 0.02),
         totMP: 0,
-        avgST: 0.85,
+        // Percentuale 0-100, non una frazione: con 0.85 la demo mostrava
+        // "Sell-through 0,9%" in rosso.
+        avgST: 85,
       },
     })
   }

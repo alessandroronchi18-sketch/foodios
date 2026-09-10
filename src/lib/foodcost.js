@@ -688,6 +688,24 @@ export const NOMI_SKIP = [
 export const isRicettaValida = nome =>
   nome && !NOMI_SKIP.includes(String(nome).trim().toLowerCase())
 
+// ATTENZIONE: questa tabella e' un RESIDUO. Sono le regole di vendita di una
+// singola pasticceria, scritte nel codice ai tempi in cui il tool serviva un
+// cliente solo. Oggi ogni azienda ha le sue, salvate nel ricettario.
+//
+// Serve ancora a due cose, e solo a queste:
+//   - fa da cache runtime: Dashboard ci scrive dentro le regole vere dell'org
+//     al caricamento, e handleUpdateRegola ci scrive la modifica dell'utente;
+//   - fa da ultima spiaggia per un nome mai visto, quando getR viene chiamato
+//     senza l'oggetto ricetta.
+//
+// Non deve MAI vincere sul dato salvato dall'azienda. Fino al 10/09/2026 lo
+// faceva: getR guardava questa tabella per prima, e il caricamento in
+// Dashboard aveva un `!REGOLE[r.nome]` che impediva di sovrascriverla.
+// Conseguenze vere, misurate in produzione:
+//   - Pasticceria Mara 1 / TORTA DI CAROTE: prezzo salvato 4 EUR, qui c'e' 5 ->
+//     il ricavo di quella torta veniva calcolato il 25% in più;
+//   - Gelateria Demo / BANANA BREAD: prezzo salvato 3,50 EUR, qui c'e' 4;
+//   - Pasticceria Mara 1 / BANANA BREAD: 12 fette salvate, qui ce ne sono 11.
 export const REGOLE = {
   "TORTA DI CAROTE":  { unita:8,  prezzo:5,   tipo:"fetta" },
   "LIMONE E COCCO":   { unita:8,  prezzo:5,   tipo:"fetta" },
@@ -715,13 +733,19 @@ export function resetRegoleRuntime() {
 }
 
 export const getR = (nome, ricetta) => {
-  if (REGOLE[nome]) return REGOLE[nome]
-  // Ricette manuali: leggi da dentro l'oggetto ricetta se presente
+  // Il dato dell'azienda viene PRIMA della tabella nel codice. Era il
+  // contrario, e per i nomi presenti in REGOLE il prezzo salvato dal
+  // titolare veniva ignorato (vedi il commento sopra REGOLE).
   if (ricetta?.unita != null) return {
     unita:  ricetta.unita || 0,
     prezzo: ricetta.prezzo || 0,
-    tipo:   ricetta.tipo || "fetta",
+    // Il `tipo` può mancare su una ricetta importata da Excel: in quel caso
+    // vale quello della tabella, che almeno sa distinguere un semilavorato da
+    // una torta a fette. Senza questo, una PASTA FROLLA importata senza tipo
+    // diventerebbe un prodotto da vendere.
+    tipo:   ricetta.tipo || REGOLE[nome]?.tipo || "fetta",
   }
+  if (REGOLE[nome]) return REGOLE[nome]
   // Audit 2026-09-09 ALTA: qui il fallback era `{ unita:8, prezzo:4 }`, cioè un
   // PREZZO DI VENDITA INVENTATO. Le ricette importate da Excel non hanno
   // unita/prezzo, e in produzione erano 24 delle 27 ricette del design partner

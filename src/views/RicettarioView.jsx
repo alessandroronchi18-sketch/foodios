@@ -8,7 +8,7 @@ import {
   buildIngCosti, calcolaFC, getR, isRicettaValida, normIng, REGOLE, resaGrammi, costoRigaIngrediente } from '../lib/foodcost'
 import { ALLERGENI, ALLERGENE_COLORS } from '../lib/allergeni'
 import { lessico } from '../lib/lessico'
-import { labelPlurale, labelSingolare } from '../lib/tipoRicetta'
+import { labelPlurale, labelSingolare, tipoEffettivo } from '../lib/tipoRicetta'
 import { useListinoSede, getRegSede } from '../lib/listinoSede'
 import { useRicavoFlat } from '../lib/useRicavoFlat'
 import PrezziPerSedeModal from '../components/PrezziPerSedeModal'
@@ -29,7 +29,7 @@ const PIE_COLORS = [C.red, '#E07040', '#D4A030', '#5B8FCE', '#7B7B7B', '#A0522D'
 // (gelateria/yogurt) hanno prezzo=0 sulla ricetta — il prezzo di vendita vive
 // sui formati (cono/coppetta/vaschetta), non sulla singola ricetta. Senza
 // questo valore il margine risulterebbe 0% (audit 2026-07-28).
-function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant = 'ricetta', ricavoFlatKg = null, sedi = [], orgId = null, notify = null, listinoSede = null, sedeAttivaNome = null }) {
+function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant = 'ricetta', ricavoFlatKg = null, sedi = [], orgId = null, notify = null, listinoSede = null, sedeAttivaNome = null, metodoProduzione = 'stampi' }) {
   // Audit 2026-06-22 CRITICAL: TUTTI gli hook DEVONO essere chiamati prima
   // dell'early return (regole React). Il vecchio codice metteva 3 useState +
   // 1 useEffect DOPO `if (reg.tipo === 'interno') return null` → hook order
@@ -46,7 +46,14 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
   // ricetta, li applica sopra il base. Se listinoSede e' null (vista "tutte
   // le sedi") il reg e' il base org.
   const reg = getRegSede(ric.nome, ric, listinoSede)
-  const isSemi = variant === 'semilavorato' || reg.tipo === 'semilavorato'
+  // Tipo EFFETTIVO. Le ricette importate da Excel non hanno il campo `tipo`
+  // (il foglio del cliente non ce l'ha): 24 delle 27 di Mara. Senza tipo
+  // cadevano su "fetta", quindi per una GELATERIA il food cost al kg non
+  // veniva calcolato e il ricavo usciva "8 fette x 0 EUR" = 0, anche con i
+  // formati di vendita configurati a circa 35 EUR/kg. Un tipo scelto a mano
+  // vince sempre: qui si copre solo il caso del tipo assente.
+  const tipoEff = ric?.tipo ? reg.tipo : tipoEffettivo(ric, metodoProduzione)
+  const isSemi = variant === 'semilavorato' || tipoEff === 'semilavorato'
   // Segnale visivo: c'e' override attivo su questa sede? (usato per un
   // piccolo badge accanto al bottone "Prezzi / sede")
   const hasOverride = !!listinoSede?.ricette?.[ric.nome]
@@ -74,7 +81,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
   }, [ric.nome, reg.prezzo, reg.unita])
 
   // Early return DOPO tutti gli hook.
-  if (reg.tipo === 'interno') return null
+  if (tipoEff === 'interno') return null
 
   // Audit 2026-09-09: tre difetti in questa funzione.
   //  1. `onUpdateRegola(...)` senza await, seguito da `setEditMode(false)`:
@@ -127,7 +134,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
   // reale in cui gli ingredienti pesano 1010g per 1 kg finito (evaporazione)
   // o 950g (overrun d'aria montata). Fallback su somma ingredienti se resa
   // non specificata (ricette pregresse).
-  const isGusto = reg.tipo === 'gusto'
+  const isGusto = tipoEff === 'gusto'
   const resaG = resaGrammi(ric)
   const fcPerKg = isGusto && resaG > 0 ? (fc / resaG) * 1000 : 0
   const ricavoFlatOk = isGusto && Number(ricavoFlatKg) > 0
@@ -374,7 +381,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
                     : `Gusto · costo ${fmt(fcPerKg)}/kg · aggiungi formati vendita per stimare il margine`)
                 : senzaPrezzo
                   ? `Prezzo di vendita da impostare${ric.totImpasto1 > 0 ? ` · ${ric.totImpasto1}g impasto` : ''}`
-                  : `${reg.unita} ${labelPlurale(reg.tipo)} × ${fmt(reg.prezzo)}${ric.totImpasto1 > 0 ? ` · ${ric.totImpasto1}g impasto` : ''}`}
+                  : `${reg.unita} ${labelPlurale(tipoEff)} × ${fmt(reg.prezzo)}${ric.totImpasto1 > 0 ? ` · ${ric.totImpasto1}g impasto` : ''}`}
           </div>
           {(ric.allergeni || []).length > 0 && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
@@ -458,7 +465,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
               su SK_RIC (base org-wide) sovrascrivendo il valore anche per le
               altre sedi. Se c'è override, l'utente usa "Prezzi / sede" che
               apre la modale batch multi-sede. */}
-          {!isSemi && reg.tipo !== 'gusto' && !hasOverride && (
+          {!isSemi && tipoEff !== 'gusto' && !hasOverride && (
             <button onClick={() => { setEditPrezzo(reg.prezzo); setEditUnita(reg.unita); setEditMode(e => !e) }}
               style={{ height: isMobile ? 40 : 34, padding: '0 12px', borderRadius: 7, border: `1px solid ${editMode ? C.red : C.borderStr}`, background: editMode ? C.redLight : 'transparent', fontSize: 11, fontWeight: 700, color: editMode ? C.red : C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
               <Icon name="edit" size={13} /> Prezzo
@@ -500,14 +507,14 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
       {/* Edit inline */}
       {editMode && (
         <div style={{ padding: '14px 24px', background: '#FFF8F7', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: C.text }}>Modifica prezzo / {labelPlurale(reg.tipo)}:</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: C.text }}>Modifica prezzo / {labelPlurale(tipoEff)}:</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <label style={{ fontSize: 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase' }}>N°</label>
             <input type="number" inputMode="numeric" min="1" max="100" value={editUnita} onChange={e => setEditUnita(e.target.value)}
               style={{ width: isMobile ? 80 : 64, padding: '8px 8px', minHeight: isMobile ? 44 : 'auto', borderRadius: 6, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, fontWeight: 700, color: C.text, textAlign: 'center' }}/>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <label style={{ fontSize: 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase' }}>€ / {labelSingolare(reg.tipo)}</label>
+            <label style={{ fontSize: 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase' }}>€ / {labelSingolare(tipoEff)}</label>
             <input type="number" inputMode="decimal" min="0" step="0.1" value={editPrezzo} onChange={e => setEditPrezzo(e.target.value)}
               style={{ width: isMobile ? 90 : 72, padding: '8px 8px', minHeight: isMobile ? 44 : 'auto', borderRadius: 6, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, fontWeight: 700, color: C.text, textAlign: 'center' }}/>
           </div>
@@ -791,7 +798,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
 }
 
 // ─── RicettarioView ──────────────────────────────────────────────────────────
-export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, onEditRicetta, orgId, sedi = [], sedeAttiva = null, notify = null, LEX = lessico() }) {
+export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, onEditRicetta, orgId, sedi = [], sedeAttiva = null, notify = null, LEX = lessico(), metodoProduzione = 'stampi' }) {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario])
@@ -1002,7 +1009,7 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 32 }}>
-          {filtered.map(ric => <TortaCard key={ric.nome} ric={ric} ingCosti={ingCosti} ricettario={ricettario} onUpdateRegola={onUpdateRegola} onEdit={onEditRicetta} ricavoFlatKg={ricavoFlatFor(ric)} sedi={sedi} orgId={orgId} notify={notify} listinoSede={listinoSede} sedeAttivaNome={sedeAttiva?.nome}/>)}
+          {filtered.map(ric => <TortaCard metodoProduzione={metodoProduzione} key={ric.nome} ric={ric} ingCosti={ingCosti} ricettario={ricettario} onUpdateRegola={onUpdateRegola} onEdit={onEditRicetta} ricavoFlatKg={ricavoFlatFor(ric)} sedi={sedi} orgId={orgId} notify={notify} listinoSede={listinoSede} sedeAttivaNome={sedeAttiva?.nome}/>)}
         </div>
       ))}
 
@@ -1017,7 +1024,7 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {semilavorati.map(ric => (
-              <TortaCard key={ric.nome} ric={ric} ingCosti={ingCosti} ricettario={ricettario} onUpdateRegola={onUpdateRegola} onEdit={onEditRicetta} variant="semilavorato"/>
+              <TortaCard metodoProduzione={metodoProduzione} key={ric.nome} ric={ric} ingCosti={ingCosti} ricettario={ricettario} onUpdateRegola={onUpdateRegola} onEdit={onEditRicetta} variant="semilavorato"/>
             ))}
           </div>
         </div>

@@ -636,7 +636,7 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
                   <span style={{ fontSize: 12, color: C.textMid, ...TNUM }}>{fmtQta(m.qta, m.unita)}</span>
                   <span style={{ flex: 1 }} />
                   <button onClick={() => elimina(m)} title="Elimina"
-                    style={{ padding: '5px 8px', background: 'transparent', color: C.red, border: `1px solid ${C.redLight}`, borderRadius: 7, fontSize: 10, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                    style={{ padding: '9px 12px', minHeight: 40, background: 'transparent', color: C.red, border: `1px solid ${C.redLight}`, borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                     <Icon name="trash" size={12} /> Elimina
                   </button>
                 </div>
@@ -692,8 +692,16 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
 
       {/* (1) DIAGNOSI - banda KPI del mese */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: isMobile ? 10 : 16, marginBottom: 14 }}>
+        {/* Il prezzo di vendita dell'omaggio si chiede nel form da sempre, si
+            sommava in diag.ricavoMancato e non veniva mostrato in nessun
+            punto della pagina: un dato chiesto all'utente e buttato via.
+            Per un titolare e' il numero che conta più del food cost: un
+            omaggio non costa quello che c'e' dentro, costa quello che non hai
+            incassato. */}
         <KPI icon={<Icon name="trendDown" size={18} />} label="Perdita totale del mese" value={fmt0(diag.totPerso)} highlight
-          sub={`${fmt0(diag.valSpreco)} perdite · ${fmt0(diag.valOmaggio)} omaggi`} />
+          sub={diag.ricavoMancato > 0
+            ? `${fmt0(diag.valSpreco)} perdite · ${fmt0(diag.valOmaggio)} omaggi · ${fmt0(diag.ricavoMancato)} di incasso mancato`
+            : `${fmt0(diag.valSpreco)} perdite · ${fmt0(diag.valOmaggio)} omaggi`} />
         <KPI icon={<Icon name="receipt" size={18} />} label="Incidenza sul food cost"
           value={incidenza == null ? '—' : fmtp(incidenza)} color={incColor}
           sub={incidenza == null
@@ -821,12 +829,16 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
       </div>
       <div style={{ ...cardStyle(), overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
+          {/* minWidth: e' l'unica tabella a 8 colonne del prodotto senza una
+              larghezza minima. Su tablet le colonne si schiacciavano una
+              sull'altra invece di far scorrere. Convenzione della casa:
+              minWidth sulla table dentro un contenitore overflowX auto. */}
+          <table style={{ width: '100%', minWidth: 780, borderCollapse: 'collapse', fontSize: 12.5 }}>
             <thead>
               <tr>
                 {['Quando', 'Tipo', 'Cosa', 'Qta', 'Causale', 'Costo', 'Autore', ''].map((h, i) => (
                   <th key={i} title={h === 'Qta' ? 'Quantità (grammi o pezzi)' : h === 'Costo' ? 'Food cost del prodotto perso/omaggiato' : undefined}
-                    style={{ padding: '11px 14px', textAlign: (i === 3 || i === 5) ? 'right' : 'left', fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, whiteSpace: 'nowrap', ...((h === 'Qta' || h === 'Costo') ? { cursor: 'help', textDecoration: 'underline dotted', textUnderlineOffset: 3 } : null) }}>{h}</th>
+                    style={{ padding: '11px 14px', textAlign: (i === 3 || i === 5) ? 'right' : 'left', fontSize: 12, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, whiteSpace: 'nowrap', ...((h === 'Qta' || h === 'Costo') ? { cursor: 'help', textDecoration: 'underline dotted', textUnderlineOffset: 3 } : null) }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -851,14 +863,14 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
                       <span style={{ color: C.textSoft, fontWeight: 400, marginLeft: 6 }}>(− {fmt(m.valoreOmaggio)} ricavo)</span>
                     )}
                   </td>
-                  <td style={{ padding: '11px 14px', color: C.textSoft, fontSize: 11 }}>
-                    {m._legacy ? <span style={{ padding: '1px 5px', borderRadius: 4, background: C.bgSubtle, color: C.textSoft, fontSize: 8, fontWeight: 700 }}>STORICO</span> : (m.autore_email || '-')}
-                    {m.autore_ruolo === 'dipendente' && <span style={{ marginLeft: 6, padding: '1px 5px', borderRadius: 4, background: C.amberLight, color: C.amber, fontSize: 8, fontWeight: 700 }}>DIP</span>}
+                  <td style={{ padding: '11px 14px', color: C.textSoft, fontSize: 12 }}>
+                    {m._legacy ? <span style={{ padding: '1px 5px', borderRadius: 4, background: C.bgSubtle, color: C.textSoft, fontSize: 11, fontWeight: 700 }}>STORICO</span> : (m.autore_email || '-')}
+                    {m.autore_ruolo === 'dipendente' && <span style={{ marginLeft: 6, padding: '1px 5px', borderRadius: 4, background: C.amberLight, color: C.amber, fontSize: 11, fontWeight: 700 }}>DIP</span>}
                   </td>
                   <td style={{ padding: '11px 14px' }}>
                     {!m._legacy && (
                       <button onClick={() => elimina(m)} title="Elimina"
-                        style={{ padding: '5px 8px', background: 'transparent', color: C.red, border: `1px solid ${C.redLight}`, borderRadius: 7, fontSize: 10, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                        style={{ padding: '9px 12px', minHeight: 40, background: 'transparent', color: C.red, border: `1px solid ${C.redLight}`, borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                         <Icon name="trash" size={12} /> Elimina
                       </button>
                     )}

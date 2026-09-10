@@ -61,3 +61,25 @@ export function descrizioneUnita(tipo) {
     default:      return 'unità'
   }
 }
+
+// Tipo EFFETTIVO di una ricetta, tenendo conto del metodo di produzione
+// dell'azienda.
+//
+// Perché serve: il parser dei file Excel non scrive `tipo` (il foglio del
+// cliente non ce l'ha), quindi 24 delle 27 ricette del design partner — una
+// GELATERIA — arrivavano senza tipo e a valle venivano trattate come torte a
+// fette. Conseguenza: il food cost al kg, che e' IL numero che un gelataio
+// guarda, non veniva calcolato; il ricavo usciva 8 fette x 0 EUR = 0 anche se
+// i formati di vendita erano configurati (circa 35 EUR/kg); e la pagina
+// scriveva "fette" sotto NOCCIOLA.
+//
+// La regola e' la stessa già scritta in elencoGusti (inventarioProduzione.js):
+// il titolare sceglie il metodo UNA volta nelle impostazioni, e in modalita'
+// inventario tutte le ricette che non sono basi o semilavorati sono gusti.
+// Un tipo scelto a mano dall'utente vince sempre: qui si copre solo il caso
+// del tipo ASSENTE.
+export function tipoEffettivo(ric, metodoProduzione) {
+  const t = ric?.tipo
+  if (t) return t
+  return metodoProduzione === 'inventario' ? 'gusto' : 'fetta'
+}

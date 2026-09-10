@@ -12,15 +12,20 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { supabase } from '../lib/supabase'
-import { parseRicettario } from '../lib/parseRicettario'
+import { parseRicettarioSmart } from '../lib/parseRicettarioAI'
 import { ssave } from '../lib/storage'
 import { lessico } from '../lib/lessico'
 import { seedDemoData } from '../lib/demoSeed'
 import { seedFormatiGelateriaSeMancano } from '../lib/formatiVendita'
 import Icon from '../components/Icon'
 import useIsMobile from '../lib/useIsMobile'
+import { color } from '../lib/theme'
 
 const BRAND = '#6E0E1A'
+// Ambra dai token del tema (color.amber / color.amberLight): serve per lo
+// stato "ho letto solo i prezzi", che non e' un successo ne' un errore.
+const T_AMBER = color.amber
+const T_AMBER_LIGHT = color.amberLight
 const BRAND_DARK = '#4A0612'
 
 // ─── Helpers UI ─────────────────────────────────────────────────────────────
@@ -132,6 +137,13 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
     return () => window.removeEventListener('keydown', onKey)
   }, [onSkip])
 
+  // Esito della lettura del file, in tre stati distinti: riuscita (ci sono
+  // ricette), parziale (solo prezzi, nessuna ricetta) e non riuscita.
+  // Prima ce n'erano due, e "solo prezzi" finiva in quello verde con la
+  // spunta e la scritta "importato!".
+  const parseOk = !!parseStats && parseStats.nRicette > 0
+  const parseParziale = !!parseStats && parseStats.nRicette === 0
+
   // ─── STEP 2 path A: carica file Excel reale ──
   async function handleFile(file) {
     if (!file || !orgId) return
@@ -139,7 +151,14 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
     setParseError(null)
     setParseStats(null)
     try {
-      const parsed = await parseRicettario(file)
+      // parseRicettarioSmart, non parseRicettario: il parser rigido vuole il
+      // formato del template e sul foglio di una gelateria (ricette nelle
+      // colonne, ingredienti nelle righe — il layout pivot, dichiarato come
+      // frequente in gelateria) restituisce zero ricette. Al PRIMO accesso
+      // l'utente leggeva "Nel file non ho trovato niente da importare" su un
+      // file che la pagina Importa dati avrebbe letto senza problemi, perché
+      // lì il parser rigido ha già il ripiego sull'AI. Adesso è lo stesso.
+      const parsed = await parseRicettarioSmart(file)
       const nRicette = Object.keys(parsed?.ricette || {}).length
       const nIngredienti = Object.keys(parsed?.ingredienti_costi || {}).length
       if (nRicette === 0 && nIngredienti === 0) {
@@ -147,8 +166,15 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
         // 'gusto' e 'piatto' maschili. Così vale per tutte le categorie.
         throw new Error('Nel file non ho trovato niente da importare. Controlla che sia nel formato del template.')
       }
+      // Zero ricette e solo prezzi NON è un import riuscito: prima passava,
+      // il riquadro diventava verde con la spunta e il titolo "Ricettario
+      // importato!", e sotto in piccolo "0 gusti · 12 prezzi importati". Poi
+      // il wizard avanzava da solo dopo 1,2 secondi. Ora si salvano i prezzi
+      // (sono un dato utile) ma si dice come sta la cosa, e il passo non
+      // avanza da solo: la decisione è dell'utente.
       await ssave('pasticceria-ricettario-v1', parsed, orgId, null)
-      setParseStats({ nRicette, nIngredienti })
+      setParseStats({ nRicette, nIngredienti, soloPrezzi: nRicette === 0 })
+      if (nRicette === 0) return
       if (stepTimerRef.current) clearTimeout(stepTimerRef.current)
       stepTimerRef.current = setTimeout(() => setStep(3), 1200)   // → seconda sede
     } catch (e) {
@@ -399,33 +425,39 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
                 onClick={() => document.getElementById('file-input-onboarding').click()}
                 style={{
                   textAlign: 'left', padding: '20px 22px',
-                  background: dragging ? '#FEF0EE' : (parseStats ? '#F0FDF4' : '#FFF'),
-                  border: `2px ${parsing ? 'dashed' : 'solid'} ${dragging ? BRAND : (parseStats ? '#16A34A' : '#E5E9EF')}`,
+                  background: dragging ? '#FEF0EE' : (parseOk ? '#F0FDF4' : parseParziale ? T_AMBER_LIGHT : '#FFF'),
+                  border: `2px ${parsing ? 'dashed' : 'solid'} ${dragging ? BRAND : (parseOk ? '#16A34A' : parseParziale ? T_AMBER : '#E5E9EF')}`,
                   borderRadius: 14, cursor: 'pointer',
                   display: 'flex', alignItems: 'center', gap: 16,
                   transition: 'all 0.18s',
-                  boxShadow: parseStats ? '0 4px 14px rgba(22,163,74,0.18)' : '0 1px 2px rgba(15,23,42,0.04)',
+                  boxShadow: parseOk ? '0 4px 14px rgba(22,163,74,0.18)' : '0 1px 2px rgba(15,23,42,0.04)',
                 }}
                 onMouseEnter={e => { if (!parseStats && !dragging) e.currentTarget.style.borderColor = BRAND }}
                 onMouseLeave={e => { if (!parseStats && !dragging) e.currentTarget.style.borderColor = '#E5E9EF' }}
               >
                 <div style={{
                   width: 48, height: 48, borderRadius: 12, flexShrink: 0,
-                  background: parseStats ? '#16A34A' : '#F1F4F8',
+                  background: parseOk ? '#16A34A' : parseParziale ? T_AMBER : '#F1F4F8',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: parseStats ? '#FFF' : '#475264',
+                  color: (parseOk || parseParziale) ? '#FFF' : '#475264',
                 }}>
-                  {parseError ? <Icon name="warning" size={22}/> : parseStats ? <Icon name="check" size={22} color="#FFF"/> : (parsing ? <Icon name="hourglass" size={22}/> : <Icon name="folder" size={22}/>)}
+                  {parseError ? <Icon name="warning" size={22}/> : parseParziale ? <Icon name="warning" size={22} color="#FFF"/> : parseOk ? <Icon name="check" size={22} color="#FFF"/> : (parsing ? <Icon name="hourglass" size={22}/> : <Icon name="folder" size={22}/>)}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 15, fontWeight: 700, color: '#0E1726', marginBottom: 3,
                     letterSpacing: '-0.01em' }}>
-                    {parseStats ? `${LEX.Ricettario} importato!` : `Carica il tuo ${LEX.Ricettario.toLowerCase()} Excel`}
+                    {parseOk
+                      ? `${LEX.Ricettario} importato!`
+                      : parseParziale
+                        ? 'Ho trovato solo i prezzi'
+                        : `Carica il tuo ${LEX.Ricettario.toLowerCase()} Excel`}
                   </div>
                   <div style={{ fontSize: 13, color: parseError ? '#DC2626' : '#475264', lineHeight: 1.5 }}>
                     {parseError
                       ? parseError
-                      : parseStats
+                      : parseParziale
+                        ? `Ho salvato ${parseStats.nIngredienti} prezzi, ma nessun${LEX.ricette === 'ricette' ? 'a ricetta' : ' ' + LEX.ricetta}. Nel file mancano le quantità: puoi caricare un altro foglio, oppure andare avanti e scriverle dopo.`
+                      : parseOk
                         ? `${parseStats.nRicette} ${LEX.ricette} · ${parseStats.nIngredienti} prezzi importati`
                         : parsing
                           ? 'Analisi in corso…'

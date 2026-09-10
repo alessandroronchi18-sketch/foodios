@@ -234,7 +234,11 @@ export function validateRows(rows, mapping, schema, opts = {}) {
       continue
     }
     const res = validateRow(row, mapping, schema, opts)
-    if (res.ok) valid_rows.push(res.data)
+    // `_row_index` = riga del foglio da cui viene il dato. Serve a dire
+    // all'utente la riga VERA quando un blocco di insert fallisce: prima si
+    // stampava l'indice dentro le righe valide, che con 400 righe scartate e'
+    // una riga completamente diversa. Chi inserisce lo togliera' dal payload.
+    if (res.ok) valid_rows.push({ ...res.data, _row_index: i })
     else invalid_rows.push({ row_index: i, errors: res.errors, row_data: row })
   }
   return {
