@@ -227,9 +227,9 @@ Restituisci 3 varianti come da schema, italiano umano.`
                 </div>
                 <div style={{ fontSize: 14, fontWeight: 800, color: TXT, marginTop: 4 }}>{v.titolo}</div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 11 }}>
-                <Stat label="Delta FC" value={`${v.delta_fc_eur > 0 ? '+' : ''}${Number(v.delta_fc_eur || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`} color={v.delta_fc_eur >= 0 ? GREEN : BRAND} />
-                <Stat label="FC stimato" value={`${(v.fc_risultante_pct || 0).toFixed(1)}%`} />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 12 }}>
+                <Stat label="Differenza food cost" value={`${v.delta_fc_eur > 0 ? '+' : ''}${Number(v.delta_fc_eur || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`} color={v.delta_fc_eur >= 0 ? GREEN : BRAND} />
+                <Stat label="Food cost finale" value={`${(v.fc_risultante_pct || 0).toFixed(1)}%`} />
                 <Stat label="Rischio gusto" value={v.rischio_gusto || '-'} color={v.rischio_gusto === 'basso' ? GREEN : v.rischio_gusto === 'alto' ? BRAND : MID} />
                 <Stat label="Impatto vendite" value={`${(v.impatto_vendite_pct || 0).toFixed(0)}%`} color={v.impatto_vendite_pct < -5 ? BRAND : MID} />
               </div>
@@ -262,8 +262,8 @@ Restituisci 3 varianti come da schema, italiano umano.`
 function Stat({ label, value, color }) {
   return (
     <div style={{ background: '#FAFAF6', borderRadius: 6, padding: '6px 8px' }}>
-      <div style={{ fontSize: 9, color: SOFT, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{label}</div>
-      <div style={{ fontSize: 13, fontWeight: 800, color: color || TXT, marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>{value}</div>
+      <div style={{ fontSize: 12, color: SOFT, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}>{label}</div>
+      <div style={{ fontSize: 15, fontWeight: 800, color: color || TXT, marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>{value}</div>
     </div>
   )
 }

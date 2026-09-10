@@ -1413,7 +1413,7 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: FS.small }}>
                   <thead>
                     <tr style={{ background: '#F8F4F2' }}>
-                      {['Formato', 'Categoria', 'Vendute', 'Ricavo', ...(isDipendente ? [] : ['FC stimato', 'Margine'])].map((h, i) => (
+                      {['Formato', 'Categoria', 'Vendute', 'Ricavo', ...(isDipendente ? [] : ['Food cost', 'Margine'])].map((h, i) => (
                         <th key={i} style={{ padding: '9px 12px', textAlign: i <= 1 ? 'left' : 'right', fontSize: FS.small, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, whiteSpace: 'nowrap' }}>{h}</th>
                       ))}
                     </tr>

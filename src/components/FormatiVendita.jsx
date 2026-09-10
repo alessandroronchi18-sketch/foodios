@@ -241,7 +241,7 @@ export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita
             value={diag.piuCostoso ? fmt3(diag.piuCostoso.costoMateriali) : '—'}
             sub={diag.piuCostoso ? diag.piuCostoso.f.nome : 'servono i materiali di confezionamento'}
             color={diag.piuCostoso ? T.amber : T.textSoft} />
-          <KPI icon={<Icon name="receipt" size={18} />} label="Senza FC categoria" value={diag.senzaCategoria.toLocaleString('it-IT', { useGrouping: 'always' })}
+          <KPI icon={<Icon name="receipt" size={18} />} label="Senza food cost" value={diag.senzaCategoria.toLocaleString('it-IT', { useGrouping: 'always' })}
             color={diag.senzaCategoria ? T.amber : T.green}
             sub={diag.senzaCategoria ? 'solo materiali stimati' : 'tutti collegati'} />
         </div>
@@ -341,8 +341,8 @@ export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita
                 // loro su desktop; mobile passa a 2x2.
                 <div style={{ display: 'grid', gridTemplateColumns: isMobile || isTablet ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: isMobile ? 14 : 16, alignItems: 'start' }}>
                   <PreviewStat label="Materiali" val={fmt3(previewFC.fcComponenti)} />
-                  <PreviewStat label={`Prodotto (${previewFC.baseG.toLocaleString('it-IT', { useGrouping: 'always' })}g)`} val={fmt3(previewFC.baseG * previewFC.avg)} hint={`FC ${form.categoria}: ${fmtEuro(previewFC.avg * 1000)}/kg`} />
-                  <PreviewStat label="FC stimato / unità" val={fmt3(previewFC.fcUnit)} color={T.green} />
+                  <PreviewStat label={`Prodotto (${previewFC.baseG.toLocaleString('it-IT', { useGrouping: 'always' })}g)`} val={fmt3(previewFC.baseG * previewFC.avg)} hint={`Food cost ${form.categoria}: ${fmtEuro(previewFC.avg * 1000)}/kg`} />
+                  <PreviewStat label="Food cost stimato / unità" val={fmt3(previewFC.fcUnit)} color={T.green} />
                   {previewFC.margPct != null && <PreviewStat label="Margine stimato" val={`${previewFC.margPct.toFixed(0)}%`} color={previewFC.margPct >= 60 ? T.green : previewFC.margPct >= 40 ? T.amber : T.brand} />}
                 </div>
               )}
@@ -373,7 +373,7 @@ export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita
         </div>
       ) : formati.length > 0 && (
         <>
-          <SH sub="Clicca un formato per vedere com'è composto il costo di confezionamento. Il FC stimato somma i materiali e la quota di prodotto.">I tuoi formati</SH>
+          <SH sub="Clicca un formato per vedere com'è composto il costo di confezionamento. Il food cost stimato somma i materiali e la quota di prodotto.">I tuoi formati</SH>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {rows.map(r => {
               const f = r.f
@@ -398,7 +398,7 @@ export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita
                     {/* mini-stat */}
                     <div style={{ display: 'flex', gap: isMobile ? 16 : 26, alignItems: 'center' }}>
                       <MiniStat label="Confezione" val={fmt3(r.costoMateriali)} />
-                      <MiniStat label="FC / unità" val={fmt3(r.fcUnit)} color={r.fcKnown ? T.text : T.amber} title={r.fcKnown ? undefined : 'Stima sui soli materiali: categoria senza gusti pesati'} />
+                      <MiniStat label="Food cost / unità" val={fmt3(r.fcUnit)} color={r.fcKnown ? T.text : T.amber} title={r.fcKnown ? undefined : 'Stima sui soli materiali: categoria senza gusti pesati'} />
                       {r.margPct != null && <MiniStat label="Margine" val={`${r.margPct.toFixed(0)}%`} color={margCol} />}
                     </div>
 
@@ -470,8 +470,8 @@ export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita
                         <BreakdownTot label="Materiali" val={fmt3(r.costoMateriali)} />
                         <BreakdownTot label={`Prodotto (${(Number(f.baseQtaG) || 0).toLocaleString('it-IT', { useGrouping: 'always' })}g)`}
                           val={r.fcKnown ? fmt3(r.fcBase) : '-'}
-                          hint={r.fcKnown ? `FC ${f.categoria}: ${fmtEuro(r.avg * 1000)}/kg` : `categoria senza ${LEX.prodotti} pesati`} />
-                        <BreakdownTot label="FC stimato / unità" val={fmt3(r.fcUnit)} color={r.fcKnown ? T.green : T.amber} big />
+                          hint={r.fcKnown ? `Food cost ${f.categoria}: ${fmtEuro(r.avg * 1000)}/kg` : `categoria senza ${LEX.prodotti} pesati`} />
+                        <BreakdownTot label="Food cost stimato / unità" val={fmt3(r.fcUnit)} color={r.fcKnown ? T.green : T.amber} big />
                         {r.prezzo > 0 && <BreakdownTot label={`Margine (prezzo ${fmtEuro(r.prezzo)})`} val={r.margPct != null ? `${r.margPct.toFixed(0)}%` : '-'} color={margCol} />}
                       </div>
 
