@@ -992,6 +992,10 @@ export default function MagazzinoView({
   const esauriti = righe.filter(r => r.stato === 'esaurito')
   const sottoSoglia = righe.filter(r => r.stato === 'critico')
   const negativi = righe.filter(r => r.stato === 'negativo')
+  // Ingredienti che stanno nelle ricette ma non sono mai stati inventariati.
+  // Prima finivano fra gli "esauriti" e li rendevano inutili: nel magazzino
+  // reale di Mara sono 40 su 48, quindi l'allarme era sempre acceso.
+  const maiContati = righe.filter(r => r.stato === 'mai_contato')
 
   // ── Diagnosi aggregata (banda premium) ─────────────────────────────────────
   const valoreStock = righe.reduce((s, r) => s + (r.valore || 0), 0)
@@ -1161,13 +1165,16 @@ export default function MagazzinoView({
   // temuto. Prima erano lo stesso rosso, e con mezza dispensa sotto soglia la
   // tabella diventava un muro d'allarme in cui l'unico ingrediente finito
   // davvero non si distingueva più dagli altri.
-  const statoColor = s => s === 'negativo' ? C.red : s === 'esaurito' ? C.red : s === 'critico' ? C.amber : s === 'attenzione' ? C.textMid : C.green
-  const statoBg = s => s === 'negativo' ? C.redLight : s === 'esaurito' ? C.redLight : s === 'critico' ? C.amberLight : s === 'attenzione' ? C.bgSubtle : C.greenLight
+  // 'mai_contato' e' grigio, non rosso: non e' un allarme ma un'informazione.
+  // Nel magazzino reale di Mara sono 40 ingredienti su 48, e quando l'allarme
+  // e' sempre acceso copre i tre che sono davvero finiti.
+  const statoColor = s => s === 'negativo' ? C.red : s === 'mai_contato' ? C.textSoft : s === 'esaurito' ? C.red : s === 'critico' ? C.amber : s === 'attenzione' ? C.textMid : C.green
+  const statoBg = s => s === 'negativo' ? C.redLight : s === 'mai_contato' ? C.bgSubtle : s === 'esaurito' ? C.redLight : s === 'critico' ? C.amberLight : s === 'attenzione' ? C.bgSubtle : C.greenLight
   // "Critico" per un ingrediente che ha toccato la soglia di riordino e' la
   // parola sbagliata: la soglia esiste proprio per dire quando ordinare, e
   // arrivarci non e' una crisi. "Da ordinare" dice la stessa cosa e dice anche
   // cosa fare. "Esaurito" resta forte, perché a zero non si produce.
-  const statoLabel = s => s === 'negativo' ? 'Da correggere' : s === 'esaurito' ? 'Esaurito' : s === 'critico' ? 'Da ordinare' : s === 'attenzione' ? 'In calo' : 'OK'
+  const statoLabel = s => s === 'negativo' ? 'Da correggere' : s === 'mai_contato' ? 'Mai contato' : s === 'esaurito' ? 'Esaurito' : s === 'critico' ? 'Da ordinare' : s === 'attenzione' ? 'In calo' : 'OK'
   // fmtG: rispetta unitMode utente. 'kg' -> sempre kg (anche piccoli, "0,80 kg").
   // 'g' -> sempre grammi (anche grandi, "28.000 g"). Niente piu mix.
   const fmtG = g => {
@@ -1263,7 +1270,14 @@ export default function MagazzinoView({
             label={esauriti.length > 0 ? 'A zero' : 'Da ordinare'}
             value={esauriti.length > 0 ? esauriti.length : sottoSoglia.length}
             color={esauriti.length > 0 ? C.red : sottoSoglia.length > 0 ? C.amber : C.green}
-            sub={critici.length > 0 ? 'clicca per vedere cosa ordinare' : 'tutto ok'}
+            sub={critici.length > 0
+              ? 'clicca per vedere cosa ordinare'
+              : maiContati.length > 0
+                // Dire "tutto ok" quando 40 ingredienti su 48 non sono mai stati
+                // pesati e' una rassicurazione senza fondamento: il magazzino non
+                // e' a posto, e' vuoto di informazioni.
+                ? `${maiContati.length} ${maiContati.length === 1 ? 'ingrediente' : 'ingredienti'} da inventariare`
+                : 'tutto ok'}
             onClick={critici.length > 0 ? () => {
               const el = document.getElementById('riordino-urgente')
               if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -1518,7 +1532,9 @@ export default function MagazzinoView({
                     nome: r.nome, giacenza: r.giacenza, fabb: r.fabb,
                     giorniScorta: r.giorniScorta ?? 9999, soglia: r.soglia,
                     valore: r.valore, riordino: r.riordinoG,
-                    stato: ({ negativo: 0, esaurito: 1, critico: 2, attenzione: 3, ok: 4 }[r.stato] ?? 4),
+                    // 'mai_contato' sta in fondo: non e' un'urgenza, e' una
+                    // riga che aspetta il primo inventario.
+                    stato: ({ negativo: 0, esaurito: 1, critico: 2, attenzione: 3, ok: 4, mai_contato: 5 }[r.stato] ?? 4),
                     ultimoRif: r.ultimoRif ? new Date(r.ultimoRif).getTime() : 0,
                   })[k] ?? 0).map((r, i) => (
                     <tr key={r.k} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.white : '#FDFAF7' }}>
