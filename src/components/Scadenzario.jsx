@@ -18,6 +18,7 @@ import { aggiungiMovimentiInBlocco, ORIGINE_FATTURA } from '../lib/primaNota'
 import {
   imputaPagamento, terminiOsservati, ricorrenti, fattureAnomale, testoEstrattoConto,
 } from '../lib/pagamentiFornitore'
+import { leggiEstrattoConto, proponiAbbinamenti } from '../lib/riconciliazioneBanca'
 
 // Chiave storage per i dati di pagamento dell'azienda (intestatario + IBAN da
 // cui partono i bonifici). Shared a livello org (sede null).
@@ -186,6 +187,10 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
   const [sedeConf, setSedeConf]           = useState(false)
   const [sedeSaving, setSedeSaving]       = useState(false)
   const [sedeScelta, setSedeScelta]       = useState('')
+  // Riconciliazione con la banca: { movimenti, abbinamenti, nonAbbinati,
+  // avvisi, scelti: Set } | null
+  const [banca, setBanca]                 = useState(null)
+  const [bancaSaving, setBancaSaving]     = useState(false)
   const [editFornData, setEditFornData]   = useState({ iban: '', termini: 30, categoria: '' })
   // Set di fornitori (nome_norm) con dropdown fatture espanso.
   const [expandedForn, setExpandedForn]   = useState(() => new Set())
@@ -364,6 +369,109 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
       notify('Non riesco a caricare le fatture: controlla la connessione e riprova.', false)
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Carica l'estratto conto della banca e propone gli abbinamenti.
+  //
+  // PERCHE': per sapere se una fattura è stata pagata, oggi si apre l'home
+  // banking, si cerca il bonifico, si torna qui e si segna la fattura. Su
+  // 1.387 fatture aperte è il lavoro che nessuno fa — ed è la ragione per cui
+  // lo scadenzario resta gonfio e smette di dire la verità.
+  //
+  // PROPONE, non applica: un abbinamento sbagliato chiude una fattura ancora
+  // da pagare, e non se ne accorgerebbe nessuno.
+  async function handleImportBanca(file) {
+    if (!file) return
+    setImportLoading(true)
+    try {
+      const testo = await file.text()
+      const { movimenti, avvisi } = leggiEstrattoConto(testo)
+      if (movimenti.length === 0) {
+        notify(avvisi[0] || 'In questo file non trovo uscite da abbinare.', false)
+        setImportLoading(false)
+        return
+      }
+      // Serve TUTTO lo storico aperto per abbinare: le fatture vecchie sono
+      // proprio quelle che si pagano in ritardo.
+      const { abbinamenti, nonAbbinati } = proponiAbbinamenti(movimenti, fattureExt)
+      setBanca({
+        nomeFile: file.name,
+        movimenti, avvisi, abbinamenti, nonAbbinati,
+        // I "certi" partono spuntati, gli altri no: la conferma è un gesto,
+        // non un automatismo.
+        scelti: new Set(abbinamenti.filter(a => a.certezza === 'certo').map((a, i) => i)),
+      })
+      const nCerti = abbinamenti.filter(a => a.certezza === 'certo').length
+      notify(`${movimenti.length} uscite lette · ${abbinamenti.length} abbinate (${nCerti} sicure) · ${nonAbbinati.length} da guardare`)
+    } catch (e) {
+      console.error('[scadenzario] estratto conto', e)
+      notify('Non riesco a leggere questo estratto conto: esportalo in CSV dalla banca e riprova.', false)
+    } finally {
+      setImportLoading(false)
+    }
+  }
+
+  // Applica gli abbinamenti spuntati: segna pagate le fatture e, se serve,
+  // registra le uscite in prima nota.
+  async function applicaAbbinamenti() {
+    if (!banca) return
+    const scelti = [...banca.scelti].map(i => banca.abbinamenti[i]).filter(Boolean)
+    if (!scelti.length) return
+    setBancaSaving(true)
+    try {
+      const patchPerId = {}
+      for (const a of scelti) {
+        for (const rf of a.fatture) {
+          const f = fatture.find(x => x.id === rf.id)
+          const totale = Math.abs(Number(f?.totale) || 0)
+          patchPerId[rf.id] = {
+            stato: 'pagata',
+            data_pagamento: a.movimento.data,
+            importo_pagato: totale,
+            metodo_pagamento: 'bonifico',
+          }
+        }
+      }
+      const ids = Object.keys(patchPerId)
+      let fatti = 0
+      const LOTTO = 20
+      for (let i = 0; i < ids.length; i += LOTTO) {
+        const lotto = ids.slice(i, i + LOTTO)
+        const esiti = await Promise.all(lotto.map(async (id) => {
+          const { error } = await supabase.from('fatture').update(patchPerId[id]).eq('id', id)
+          return error ? null : id
+        }))
+        fatti += esiti.filter(Boolean).length
+      }
+      setFatture(prev => prev.map(x => patchPerId[x.id] ? { ...x, ...patchPerId[x.id] } : x))
+      // In prima nota UNA riga per movimento bancario: il bonifico è uno,
+      // anche quando copre cinque fatture.
+      let inCassa = 0
+      if (registraInCassa) {
+        const righe = scelti.map(a => ({
+          data: a.movimento.data,
+          importo: a.movimento.importo,
+          descrizione: a.fatture.length === 1
+            ? `${a.fatture[0].fornitore}${a.fatture[0].numero_rif ? ` · fatt. ${a.fatture[0].numero_rif}` : ''}`
+            : `${a.fatture[0].fornitore} · ${a.fatture.length} fatture`,
+          fornitore: a.fatture[0].fornitore,
+          documento: 'fattura',
+        }))
+        if (righe.length && await registraUscitaCassa(righe)) inCassa = righe.length
+      }
+      setBanca(null)
+      const coda = inCassa > 0 ? ` · ${inCassa} ${inCassa === 1 ? 'uscita registrata' : 'uscite registrate'} in Cassa` : ''
+      if (fatti === ids.length) {
+        notify(`${fatti} ${fatti === 1 ? 'fattura segnata' : 'fatture segnate'} come pagate dall'estratto conto${coda}`)
+      } else {
+        notify(`Segnate ${fatti} di ${ids.length}: sulle altre il salvataggio non è riuscito, riprova.${coda}`, false)
+      }
+    } catch (e) {
+      console.error('[scadenzario] applicaAbbinamenti', e)
+      notify('Non ho potuto applicare gli abbinamenti: controlla la connessione e riprova.', false)
+    } finally {
+      setBancaSaving(false)
     }
   }
 
@@ -2166,6 +2274,14 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                   <input type="file" accept=".xml,.p7m" multiple style={{ display: 'none' }}
                     onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length) { setActionsOpen(false); handleImportXML(files) } }} />
                 </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8, fontSize: typo.size.base, color: T.text, cursor: 'pointer', fontWeight: 500 }}
+                  onMouseEnter={e => { e.currentTarget.style.background = T.bgSubtle }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                  title="Il CSV dei movimenti che scarichi dalla banca: cerco quali uscite corrispondono a quali fatture">
+                  <Icon name="bank" size={14} color={T.textSoft} /> Estratto conto banca
+                  <input type="file" accept=".csv,.txt" style={{ display: 'none' }}
+                    onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) { setActionsOpen(false); handleImportBanca(f) } }} />
+                </label>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8, fontSize: 13, color: T.text, cursor: 'pointer', fontWeight: 500 }}
                   onMouseEnter={e => { e.currentTarget.style.background = '#F4EEEA' }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
@@ -2568,6 +2684,107 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
             style={{ width: '100%', padding: isMobile ? '11px 12px 11px 36px' : '10px 14px 10px 36px', minHeight: minTouch, borderRadius: 9, border: `1px solid ${T.border}`, fontSize: isMobile ? 16 : 13, color: T.text, boxSizing: 'border-box', outline: 'none' }} />
         </div>
       </div>
+
+        {/* Riconciliazione con l'estratto conto: si VEDONO gli abbinamenti
+            prima di applicarli. I "certi" arrivano spuntati, gli altri no. */}
+        {banca && (
+          <div style={{ ...card, padding: isMobile ? '14px 16px' : '18px 22px', marginBottom: 16, border: `2px solid ${T.blue}` }}>
+            <div style={{ ...typo.bodyStrong, fontWeight: 800, color: T.text, marginBottom: 4 }}>
+              Estratto conto: {banca.movimenti.length} uscite lette da {banca.nomeFile}
+            </div>
+            <div style={{ ...typo.small, color: T.textSoft, lineHeight: 1.55, marginBottom: 12 }}>
+              Ho cercato quali corrispondono alle tue fatture aperte. Spunta quelle giuste e le segno
+              pagate: quelle sicure sono già spuntate, le altre le decidi tu.
+              {banca.avvisi.length > 0 && <div style={{ marginTop: 4, color: T.amber }}>{banca.avvisi.join(' ')}</div>}
+            </div>
+
+            {banca.abbinamenti.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 360, overflowY: 'auto', marginBottom: 12 }}>
+                {banca.abbinamenti.map((a, i) => {
+                  const spuntato = banca.scelti.has(i)
+                  const col = a.certezza === 'certo' ? T.green : a.certezza === 'probabile' ? T.blue : T.amber
+                  return (
+                    <label key={i} style={{
+                      display: 'flex', gap: 10, alignItems: 'flex-start', padding: '10px 12px',
+                      background: spuntato ? T.bgSubtle : T.bgCard, border: `1px solid ${spuntato ? col : T.border}`,
+                      borderRadius: 9, cursor: 'pointer',
+                    }}>
+                      <input type="checkbox" checked={spuntato}
+                        onChange={e => setBanca(b => {
+                          const scelti = new Set(b.scelti)
+                          if (e.target.checked) scelti.add(i); else scelti.delete(i)
+                          return { ...b, scelti }
+                        })}
+                        style={{ width: 20, height: 20, marginTop: 1, accentColor: T.brand, cursor: 'pointer', flexShrink: 0 }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: typo.size.base, fontWeight: 700, color: T.text, ...tnum }}>
+                            {String(a.movimento.data).split('-').reverse().join('/')} · {fmtEuro(a.movimento.importo)}
+                          </span>
+                          <span style={{ fontSize: typo.size.xs, fontWeight: 700, color: col, background: `${col}18`, padding: '1px 8px', borderRadius: 999, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            {a.certezza}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: typo.size.sm, color: T.textSoft, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {a.movimento.descrizione || 'senza descrizione'}
+                        </div>
+                        <div style={{ fontSize: typo.size.base, color: T.textMid, marginTop: 4, lineHeight: 1.45 }}>
+                          → {a.fatture.map(rf => `${rf.fornitore}${rf.numero_rif ? ` fatt. ${rf.numero_rif}` : ''}`).join(' + ')}
+                          <div style={{ fontSize: typo.size.sm, color: T.textSoft, marginTop: 1 }}>{a.motivo}</div>
+                        </div>
+                      </div>
+                    </label>
+                  )
+                })}
+              </div>
+            )}
+
+            {banca.nonAbbinati.length > 0 && (
+              <details style={{ marginBottom: 12 }}>
+                <summary style={{ ...typo.small, fontWeight: 700, color: T.textMid, cursor: 'pointer', padding: '6px 0' }}>
+                  {banca.nonAbbinati.length} {banca.nonAbbinati.length === 1 ? 'uscita che non ho abbinato' : 'uscite che non ho abbinato'} — guardale
+                </summary>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 6, maxHeight: 220, overflowY: 'auto' }}>
+                  {banca.nonAbbinati.map((mv, i) => (
+                    <div key={i} style={{ fontSize: typo.size.base, color: T.textMid, padding: '6px 10px', background: T.bgSubtle, borderRadius: 7 }}>
+                      <span style={{ ...tnum, fontWeight: 700, color: T.text }}>
+                        {String(mv.data).split('-').reverse().join('/')} · {fmtEuro(mv.importo)}
+                      </span>
+                      {' — '}{mv.descrizione || 'senza descrizione'}
+                      <div style={{ fontSize: typo.size.sm, color: T.textSoft, marginTop: 1 }}>{mv.motivo}</div>
+                    </div>
+                  ))}
+                </div>
+              </details>
+            )}
+
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 9, marginBottom: 12, cursor: 'pointer' }}>
+              <input type="checkbox" checked={registraInCassa} onChange={e => setRegistraInCassa(e.target.checked)}
+                style={{ width: 20, height: 20, marginTop: 1, accentColor: T.brand, cursor: 'pointer', flexShrink: 0 }} />
+              <span style={{ ...typo.small, color: T.textMid, lineHeight: 1.45 }}>
+                Registra in <b>Cassa</b> un'uscita per ogni movimento spuntato, con la data della banca.
+                Se le uscite di questo periodo le hai già in prima nota, lascia spento per non contarle due volte.
+              </span>
+            </label>
+
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button type="button" onClick={applicaAbbinamenti} disabled={bancaSaving || banca.scelti.size === 0}
+                style={{
+                  padding: '11px 18px', minHeight: 44, borderRadius: 8, border: 'none',
+                  background: (bancaSaving || banca.scelti.size === 0) ? T.border : T.blue, color: '#fff',
+                  ...typo.body, fontWeight: 800, cursor: (bancaSaving || banca.scelti.size === 0) ? 'default' : 'pointer',
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                }}>
+                <Icon name="check" size={14} />
+                {bancaSaving ? 'Applico…' : `Segna pagate le ${banca.scelti.size} spuntate`}
+              </button>
+              <button type="button" onClick={() => setBanca(null)} disabled={bancaSaving}
+                style={{ padding: '11px 16px', minHeight: 44, borderRadius: 8, border: `1px solid ${T.border}`, background: T.bgCard, ...typo.body, fontWeight: 700, color: T.textSoft, cursor: 'pointer' }}>
+                Annulla
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Pagamento cumulativo: si scrive l'importo e si VEDE il piano
             prima di applicarlo. Su 99 fatture un'imputazione sbagliata non
