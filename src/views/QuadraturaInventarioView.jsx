@@ -203,19 +203,24 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
       .then(perSettimana => {
         const out = settimane.map((lun, idx) => {
           const matr = calcolaVendutoSettimana(perSettimana[idx], lun)
-          const kg = Object.values(matr).reduce((s, byData) =>
-            s + Object.values(byData).reduce((a, c) => a + Number(c.venduto || 0), 0)
-          , 0) / 1000
           const fineW = addDays(lun, 7)
-          const cassa = (chiusure || [])
-            .filter(c => c.data >= lun && c.data < fineW)
-            .reduce((s, c) => s + Number(c?.kpi?.totV || c?.totale || 0), 0)
-          return { lunIso: lun, kg, cassa }
+          const chiusW = (chiusure || []).filter(c => c.data >= lun && c.data < fineW)
+          // Prima questa somma era scritta a mano qui dentro, in parallelo a
+          // quella del KPI: due conti diversi sullo stesso dato, liberi di
+          // divergere alla prima modifica di uno dei due. Ora è la stessa
+          // funzione, e porta anche il conto delle celle che non tornano.
+          const kp = kpiQuadraturaSettimana(matr, chiusW, euroKg, null)
+          return {
+            lunIso: lun,
+            kg: kp.totVendutoKg,
+            cassa: kp.cassaEffettiva,
+            nonQuadrate: kp.celleNonQuadrate,
+          }
         })
         setTrendData(out)
       })
       .catch(e => console.error('trend:', e))
-  }, [orgId, sedeId, lunediIso, chiusure])
+  }, [orgId, sedeId, lunediIso, chiusure, euroKg])
 
   // Drill-down per sede (solo isAllSedi): per ogni sede produttiva
   // carichiamo settimana + b2b e calcoliamo KPI individuali.
@@ -245,7 +250,10 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
     }))
     .then(setPerSede)
     .catch(e => console.error('drill-down per sede:', e))
-  }, [isAllSedi, orgId, sedi, lunediIso, euroKg, chiusure])
+  // metodoProduzione nelle dipendenze: l'effetto lo legge per decidere se c'è
+  // qualcosa da drillare, e senza di lui il drill-down restava quello di prima
+  // dopo un cambio di metodo nelle impostazioni.
+  }, [isAllSedi, orgId, sedi, lunediIso, euroKg, chiusure, metodoProduzione])
 
   const kpi = useMemo(
     () => kpiQuadraturaSettimana(matrice, chiusureSett, euroKg, venditeB2bSett),
@@ -524,8 +532,50 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
                     {' '}{nKg(kpi.b2bKg * 1000)} kg fatturati per {fmt0(kpi.ricaviB2b)}
                   </span>
                 </span>
-                <span style={{ fontSize: 11.5, color: '#0C4A6E', whiteSpace: 'nowrap' }}>
+                <span style={{ fontSize: 12, color: '#0C4A6E', whiteSpace: 'nowrap' }}>
                   sottratti dal retail per non gonfiare il drift
+                </span>
+              </div>
+            )}
+
+            {/* Le celle che non tornano abbassano il totale qui sopra, perché
+                entrano col loro segno. Sui dati reali del design partner sono
+                604 su 7.012 (8,6%) per -2.650 kg: se la pagina non lo dice, il
+                proprietario legge un numero più basso del vero e va a cercare
+                un ammanco che non c'è. */}
+            {(kpi.celleNonQuadrate > 0 || kpi.celleNonCalcolabili > 0) && (
+              <div style={{
+                marginTop: 14, padding: isMobile ? 12 : '12px 16px',
+                background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 12,
+                fontSize: 12.5, color: '#92400E', lineHeight: 1.55,
+                display: 'flex', alignItems: 'flex-start', gap: 8,
+                width: '100%', boxSizing: 'border-box',
+              }}>
+                <Icon name="alert" size={14} color="#92400E" style={{ flexShrink: 0, marginTop: 3 }} />
+                <span>
+                  {kpi.celleNonQuadrate > 0 && (
+                    <>
+                      <strong>
+                        {kpi.celleNonQuadrate === 1
+                          ? 'Una casella non torna'
+                          : `${n0(kpi.celleNonQuadrate)} caselle non tornano`}
+                      </strong>
+                      {' '}questa settimana, per {nKg(Math.abs(kpi.kgNonQuadrati) * 1000)} kg:
+                      la rimanenza scritta è più alta di quanto c&apos;era a disposizione.
+                      Il totale qui sopra le conta col loro segno, quindi è più basso del vero.
+                    </>
+                  )}
+                  {kpi.celleNonQuadrate > 0 && kpi.celleNonCalcolabili > 0 && ' '}
+                  {kpi.celleNonCalcolabili > 0 && (
+                    <>
+                      {kpi.celleNonCalcolabili === 1
+                        ? 'Una casella non ha il giorno prima'
+                        : `${n0(kpi.celleNonCalcolabili)} caselle non hanno il giorno prima`}
+                      {' '}(o è più vecchio di una settimana): per quelle il venduto non si può calcolare
+                      e restano fuori dal totale.
+                    </>
+                  )}
+                  {' '}Le trovi segnate nell&apos;inventario settimanale.
                 </span>
               </div>
             )}
@@ -651,20 +701,42 @@ function SparklineTrend({ data }) {
         <path d={pathKg} fill="none" stroke="#16A34A" strokeWidth="2" />
         {data.map((d, i) => {
           const x = PAD_X + i * xStep
+          // Settimana con caselle che non tornano: anello ambra intorno al
+          // punto. Senza questo, una settimana compilata male sembra una
+          // settimana con meno vendite, ed è la lettura sbagliata.
           return (
             <g key={i}>
+              {d.nonQuadrate > 0 && (
+                <circle cx={x} cy={yScale(d.kg, maxKg)} r="6.5" fill="none" stroke="#F59E0B" strokeWidth="1.5" />
+              )}
               <circle cx={x} cy={yScale(d.kg, maxKg)} r="3.5" fill="#16A34A" stroke="#FFF" strokeWidth="1.5" />
               <circle cx={x} cy={yScale(d.cassa, maxEur)} r="3.5" fill="#6E0E1A" stroke="#FFF" strokeWidth="1.5" />
-              <text x={x} y={H - 4} fontSize="10" textAnchor="middle" fill="#6B7280">
-                {fmtLabel(d.lunIso)}
-              </text>
             </g>
           )
         })}
       </svg>
+      {/* Le date stavano dentro l'SVG con fontSize 10 su un viewBox da 600:
+          su desktop si ingrandivano col disegno, ma su telefono lo stesso
+          disegno sta in 340px e quelle scritte diventavano 5-6px, illeggibili.
+          Fuori dall'SVG restano 12px su qualsiasi schermo. */}
       <div style={{
-        display: 'flex', gap: 18, fontSize: 11.5, color: C.textSoft,
-        marginTop: 6, flexWrap: 'wrap',
+        display: 'flex', justifyContent: 'space-between',
+        padding: `0 ${(PAD_X / W * 100).toFixed(1)}%`, marginTop: 2,
+        fontSize: 12, color: C.textSoft, ...TNUM,
+      }}>
+        {data.map((d, i) => (
+          <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            {fmtLabel(d.lunIso)}
+            {d.nonQuadrate > 0 && (
+              <span title={`${d.nonQuadrate} caselle non tornano in questa settimana`}
+                style={{ color: '#B45309', fontWeight: 700, cursor: 'help' }}>!</span>
+            )}
+          </span>
+        ))}
+      </div>
+      <div style={{
+        display: 'flex', gap: 18, fontSize: 12, color: C.textSoft,
+        marginTop: 8, flexWrap: 'wrap',
       }}>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
           <span style={{ display: 'inline-block', width: 14, height: 2, background: '#16A34A', borderRadius: 1 }} />
@@ -677,6 +749,15 @@ function SparklineTrend({ data }) {
           }} />
           cassa retail
         </span>
+        {data.some(d => d.nonQuadrate > 0) && (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <span style={{
+              display: 'inline-block', width: 10, height: 10,
+              borderRadius: '50%', border: '1.5px solid #F59E0B',
+            }} />
+            settimana con caselle da controllare
+          </span>
+        )}
       </div>
     </div>
   )
