@@ -1,6 +1,7 @@
 // @ts-check
 import { test, expect } from '@playwright/test'
 import { SEED_OK } from './helpers/auth.js'
+import { hasDbEnv, serviceClient, cleanupByEmail } from './helpers/db.js'
 
 // Email temporanea univoca per ogni run.
 function tempEmail() {
@@ -11,9 +12,23 @@ function tempEmail() {
 }
 
 test.describe('Signup nuovo utente', () => {
+  // Le email registrate durante il run, da cancellare alla fine. Questo test
+  // registra un'azienda VERA passando dalla UI: senza questa pulizia ogni run
+  // lasciava nel database di produzione un'azienda "FoodOS E2E Test Co" con il
+  // suo utente, e nessuno le cancellava perché il test non conosce l'id
+  // dell'org (la crea il trigger, non il test).
+  const registrate = []
+
+  test.afterAll(async () => {
+    if (!hasDbEnv || !registrate.length) return
+    const svc = serviceClient()
+    for (const email of registrate) await cleanupByEmail(svc, email)
+  })
+
   test('registrazione 2-step -> conferma email / onboarding', async ({ page }) => {
     test.skip(!SEED_OK, 'infra CI non configurata (aggiorna i secret DB) — smoke signup skippato')
     const email = tempEmail()
+    registrate.push(email)
     const password = 'TestPwd!' + Math.random().toString(36).slice(2, 8) + 'A1'
 
     // /register apre AuthPage in mode "registrati" (fix deep-link).

@@ -123,11 +123,69 @@ export async function createDipendenteIn(svc, orgId, label = 'dip') {
   return { userId, email, password, orgId, orphanOrgId, userClient }
 }
 
-// Pulizia best-effort: cancella l'org (cascata su sedi/user_data/stock se FK
-// cascade) e l'utente auth. Errori ignorati (è solo igiene post-test).
+// Pulizia dopo il test: cancella l'org (a cascata sedi, user_data, stock) e
+// l'utente auth.
+//
+// NON silenziosa, e c'è una ragione precisa. Fino al 10/09/2026 questa
+// funzione ingoiava ogni errore con un `/* noop */`, e la cancellazione
+// FALLIVA sempre: il trigger log_ricettario_change, scattando sui dati
+// cancellati a cascata, scriveva una riga di registro che referenziava
+// l'azienda in corso di cancellazione, e il vincolo la rifiutava.
+// Risultato: 1.639 aziende di test rimaste nel database di produzione, con
+// 1.230 profili e 2.230 righe di dati, che falsavano ogni conteggio.
+// I test facevano la cosa giusta; era il database a rifiutarla, e il
+// `/* noop */` a nasconderlo.
+//
+// Ora l'errore si vede. Non fa fallire il test — la pulizia non è quello che
+// il test sta verificando — ma lo scrive, così non si accumula per mesi.
+// Pulizia per EMAIL, per i test che non creano l'org via service key ma
+// passando dalla schermata di registrazione (02-signup): lì l'org la crea il
+// trigger handle_new_user e il test non ne conosce l'id, quindi non poteva
+// cancellare niente. Ogni run lasciava un'azienda "FoodOS E2E Test Co" e un
+// utente nel database di produzione.
+export async function cleanupByEmail(svc, email) {
+  if (!svc || !email) return
+  try {
+    // listUsers non filtra per email: si cerca nelle prime pagine (i test
+    // appena registrati sono gli ultimi creati).
+    let userId = null
+    for (let page = 1; page <= 5 && !userId; page++) {
+      const { data } = await svc.auth.admin.listUsers({ page, perPage: 200 })
+      const u = (data?.users || []).find(x => (x.email || '').toLowerCase() === email.toLowerCase())
+      if (u) userId = u.id
+      if (!data?.users?.length) break
+    }
+    if (!userId) return
+    const { data: prof } = await svc.from('profiles').select('organization_id').eq('id', userId).maybeSingle()
+    await cleanupOrg(svc, { orgId: prof?.organization_id || null, userId })
+  } catch (e) {
+    console.warn(`[cleanupByEmail] ${email}: ${e?.message || e}`)
+  }
+}
+
 export async function cleanupOrg(svc, ref) {
   if (!ref) return
-  try { if (ref.orgId) await svc.from('organizations').delete().eq('id', ref.orgId) } catch { /* noop */ }
-  try { if (ref.orphanOrgId && ref.orphanOrgId !== ref.orgId) await svc.from('organizations').delete().eq('id', ref.orphanOrgId) } catch { /* noop */ }
-  try { if (ref.userId) await svc.auth.admin.deleteUser(ref.userId) } catch { /* noop */ }
+  const problemi = []
+  const cancellaOrg = async (id, etichetta) => {
+    if (!id) return
+    try {
+      const { error } = await svc.from('organizations').delete().eq('id', id)
+      if (error) problemi.push(`${etichetta} ${id}: ${error.message}`)
+    } catch (e) {
+      problemi.push(`${etichetta} ${id}: ${e?.message || e}`)
+    }
+  }
+  await cancellaOrg(ref.orgId, 'org')
+  if (ref.orphanOrgId && ref.orphanOrgId !== ref.orgId) await cancellaOrg(ref.orphanOrgId, 'org orfana')
+  if (ref.userId) {
+    try {
+      const { error } = await svc.auth.admin.deleteUser(ref.userId)
+      if (error) problemi.push(`utente ${ref.userId}: ${error.message}`)
+    } catch (e) {
+      problemi.push(`utente ${ref.userId}: ${e?.message || e}`)
+    }
+  }
+  if (problemi.length) {
+    console.warn('[cleanupOrg] pulizia NON riuscita, resteranno dati di test nel database:\n  - ' + problemi.join('\n  - '))
+  }
 }

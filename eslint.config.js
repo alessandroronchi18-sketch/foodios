@@ -102,6 +102,14 @@ export default [
         describe: 'readonly', it: 'readonly', test: 'readonly',
         expect: 'readonly', beforeEach: 'readonly', afterEach: 'readonly',
         beforeAll: 'readonly', afterAll: 'readonly', vi: 'readonly',
+        // I test girano su Node: senza questi, no-undef segnalava come errore
+        // ogni `process.env`, `setTimeout` e `console.warn` dei test — 200+
+        // errori finti che rendevano inutile lanciare eslint su tests/.
+        process: 'readonly', console: 'readonly', Buffer: 'readonly',
+        setTimeout: 'readonly', clearTimeout: 'readonly',
+        setInterval: 'readonly', clearInterval: 'readonly',
+        fetch: 'readonly', URL: 'readonly', TextEncoder: 'readonly',
+        globalThis: 'readonly', structuredClone: 'readonly',
       },
     },
     rules: {
