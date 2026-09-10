@@ -127,7 +127,7 @@ function setPdfMetadata(doc, opts = {}) {
 }
 
 function fmt(v) {
-  return `${Number(v || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
+  return `${Number(v || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
 }
 
 // ─── 1. Ricetta PDF ───────────────────────────────────────────────────────────
@@ -158,7 +158,7 @@ export async function exportRicettaPDF(ricetta, foodCost, ingCosti, nomeAttivita
       const c = costMap[normIng(ing.nome)]
       const costoG = c?.costoG || 0
       const costoTot = qtyG * costoG
-      const qtyDisp = qtyG >= 1000 ? `${(Number(qtyG) / 1000).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : `${Math.round(Number(qtyG)||0).toLocaleString('it-IT')} g`
+      const qtyDisp = qtyG >= 1000 ? `${(Number(qtyG) / 1000).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : `${Math.round(Number(qtyG)||0).toLocaleString('it-IT', { useGrouping: 'always' })} g`
       return [ing.nome, qtyDisp, fmt(costoG * 1000) + '/kg', fmt(costoTot)]
     })
 
@@ -174,8 +174,8 @@ export async function exportRicettaPDF(ricetta, foodCost, ingCosti, nomeAttivita
   const sommaG = pesoIngredientiG(ricetta)
   const resaG = resaGrammi(ricetta)
   const fmtGrammi = (g) => g >= 1000
-    ? `${(g / 1000).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg`
-    : `${Math.round(g).toLocaleString('it-IT')} g`
+    ? `${(g / 1000).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg`
+    : `${Math.round(g).toLocaleString('it-IT', { useGrouping: 'always' })} g`
   const info = [
     ['Categoria', ricetta.categoria || '-'],
     ['Porzioni', String(ricetta.porzioni || ricetta.unita || 1)],

@@ -338,7 +338,7 @@ function RoiCalculator() {
           </div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 14 }}>
             <span style={{ fontFamily: SERIF, fontSize: 44, fontWeight: 600, color: T.ink, letterSpacing: '-0.04em' }}>
-              € {ricavi.toLocaleString('it-IT')}
+              € {ricavi.toLocaleString('it-IT', { useGrouping: 'always' })}
             </span>
             <span style={{ fontSize: 13, color: T.textSoft }}>/ mese</span>
           </div>
@@ -368,7 +368,7 @@ function RoiCalculator() {
               fontFamily: SERIF, fontSize: isMobile ? 42 : 56,
               fontWeight: 700, color: T.green, letterSpacing: '-0.04em', lineHeight: 1,
             }}>
-              € {annualSavings.toLocaleString('it-IT')}
+              € {annualSavings.toLocaleString('it-IT', { useGrouping: 'always' })}
             </span>
           </div>
           <div style={{ fontSize: 13, color: T.textMid, marginTop: 8 }}>risparmiati ogni anno</div>
@@ -378,7 +378,7 @@ function RoiCalculator() {
           }}>
             <Icon name="checkCirc" size={18} color={T.green}/>
             <div style={{ fontSize: 12, color: T.green, fontWeight: 600 }}>
-              ROI di <strong>{roi}%</strong> · costo annuo €{annualCost.toLocaleString('it-IT')} → guadagno netto €{netGain.toLocaleString('it-IT')}
+              ROI di <strong>{roi}%</strong> · costo annuo €{annualCost.toLocaleString('it-IT', { useGrouping: 'always' })} → guadagno netto €{netGain.toLocaleString('it-IT', { useGrouping: 'always' })}
             </div>
           </div>
         </div>

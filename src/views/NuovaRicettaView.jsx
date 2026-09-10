@@ -202,7 +202,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
       };
       await onSave(nuovoRic, {}, true); // noRedirect: resta sul form
       setPriceModal(null);
-      notify(`Prezzo di "${priceModal.nome}" salvato: ${val.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/kg`);
+      notify(`Prezzo di "${priceModal.nome}" salvato: ${val.toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/kg`);
     } catch (e) {
       setPriceModal(m => m ? { ...m, saving: false } : m);
       notify("Errore salvataggio prezzo, riprova", false);
@@ -1041,16 +1041,16 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 4 }}>
                       <span>Somma ingredienti</span>
-                      <b style={{ ...TNUM }}>{sommaG.toLocaleString('it-IT', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} g</b>
+                      <b style={{ ...TNUM }}>{sommaG.toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 0, maximumFractionDigits: 2 })} g</b>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: scartoRilevante ? 10 : 0 }}>
                       <span>Resa dichiarata</span>
-                      <b style={{ ...TNUM }}>{Math.round(resaEff).toLocaleString('it-IT')} g</b>
+                      <b style={{ ...TNUM }}>{Math.round(resaEff).toLocaleString('it-IT', { useGrouping: 'always' })} g</b>
                     </div>
                     {scartoRilevante && (
                       <>
                         <div style={{ fontWeight: 600, marginBottom: 8 }}>
-                          Scarto {scartoPct.toFixed(1)}% ({sommaG > resaEff ? '+' : '−'}{scartoAssoluto.toLocaleString('it-IT', { maximumFractionDigits: 1 })} g).
+                          Scarto {scartoPct.toFixed(1)}% ({sommaG > resaEff ? '+' : '−'}{scartoAssoluto.toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 1 })} g).
                           {isGusto
                             ? " Verifica: perdita evaporazione? overrun d'aria? errore quantità?"
                             : ' Il peso stampo dichiarato differisce dalla somma ingredienti.'}
@@ -1250,7 +1250,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                         capisce perché. */}
                     {live.resaG > 0 && Math.abs(live.resaG - 1000) > 1 && (
                       <div style={{ fontSize: 10, color: C.textSoft, marginTop: 6, paddingTop: 6, borderTop: `1px solid ${C.red}20` }}>
-                        {fmt(live.fc)} di ingredienti per {Math.round(live.resaG).toLocaleString('it-IT')} g di gusto
+                        {fmt(live.fc)} di ingredienti per {Math.round(live.resaG).toLocaleString('it-IT', { useGrouping: 'always' })} g di gusto
                       </div>
                     )}
                   </div>

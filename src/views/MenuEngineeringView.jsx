@@ -226,7 +226,7 @@ export default function MenuEngineeringView({ orgId, sedeId, ricettario, sedeAtt
           <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 14, padding: isMobile ? 14 : 22, marginBottom: 18 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 10 }}>
               <div style={{ fontSize: 13, color: MID, lineHeight: 1.5 }}>
-                <strong>{Number(classified.length).toLocaleString('it-IT')}</strong> prodotti analizzati · media popolarità {Number(mediaPop || 0).toLocaleString('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} pz · media margine € {Number(mediaMarg || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                <strong>{Number(classified.length).toLocaleString('it-IT', { useGrouping: 'always' })}</strong> prodotti analizzati · media popolarità {Number(mediaPop || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 1, maximumFractionDigits: 1 })} pz · media margine € {Number(mediaMarg || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <AiExplainButton
@@ -255,10 +255,10 @@ export default function MenuEngineeringView({ orgId, sedeId, ricettario, sedeAtt
                     { label: 'Dog', value: String(stats.DOG.length), sub: 'da rivedere' },
                   ],
                   sections: [
-                    { title: 'Star — da tenere stretti',    table: { columns: ['Prodotto', 'Qta vendute', 'Margine/pz'], alignments: ['left','right','right'], rows: stats.STAR.slice(0, 10).map(x => [x.nome, x.qtaVenduta, '€' + Number(x.margine).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })]) } },
-                    { title: 'Plowhorse — alza il prezzo',   table: { columns: ['Prodotto', 'Qta', 'Margine/pz'], alignments: ['left','right','right'], rows: stats.PLOWHORSE.slice(0, 10).map(x => [x.nome, x.qtaVenduta, '€' + Number(x.margine).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })]) } },
-                    { title: 'Puzzle — metti in vista',     table: { columns: ['Prodotto', 'Qta', 'Margine/pz'], alignments: ['left','right','right'], rows: stats.PUZZLE.slice(0, 10).map(x => [x.nome, x.qtaVenduta, '€' + Number(x.margine).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })]) } },
-                    { title: 'Dog — da rivedere',           table: { columns: ['Prodotto', 'Qta', 'Margine/pz'], alignments: ['left','right','right'], rows: stats.DOG.slice(0, 10).map(x => [x.nome, x.qtaVenduta, '€' + Number(x.margine).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })]) } },
+                    { title: 'Star — da tenere stretti',    table: { columns: ['Prodotto', 'Qta vendute', 'Margine/pz'], alignments: ['left','right','right'], rows: stats.STAR.slice(0, 10).map(x => [x.nome, x.qtaVenduta, '€' + Number(x.margine).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })]) } },
+                    { title: 'Plowhorse — alza il prezzo',   table: { columns: ['Prodotto', 'Qta', 'Margine/pz'], alignments: ['left','right','right'], rows: stats.PLOWHORSE.slice(0, 10).map(x => [x.nome, x.qtaVenduta, '€' + Number(x.margine).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })]) } },
+                    { title: 'Puzzle — metti in vista',     table: { columns: ['Prodotto', 'Qta', 'Margine/pz'], alignments: ['left','right','right'], rows: stats.PUZZLE.slice(0, 10).map(x => [x.nome, x.qtaVenduta, '€' + Number(x.margine).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })]) } },
+                    { title: 'Dog — da rivedere',           table: { columns: ['Prodotto', 'Qta', 'Margine/pz'], alignments: ['left','right','right'], rows: stats.DOG.slice(0, 10).map(x => [x.nome, x.qtaVenduta, '€' + Number(x.margine).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })]) } },
                   ],
                 })}
               />
@@ -362,7 +362,7 @@ export default function MenuEngineeringView({ orgId, sedeId, ricettario, sedeAtt
                         }}>
                           <span style={{ color: TXT, fontWeight: 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={x.nome}>{x.nome}</span>
                           <span style={{ color: SOFT, fontSize: 11, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
-                            {Number(x.qtaVenduta || 0).toLocaleString('it-IT')}pz · € {Number(x.margine || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/pz
+                            {Number(x.qtaVenduta || 0).toLocaleString('it-IT', { useGrouping: 'always' })}pz · € {Number(x.margine || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}/pz
                           </span>
                         </div>
                       ))}

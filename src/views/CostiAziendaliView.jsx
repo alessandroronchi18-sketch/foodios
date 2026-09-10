@@ -17,7 +17,7 @@ import {
 
 // Helper locali: fmt2 mantiene 2 decimali (per importi tabella).
 // fmt0/fmt sono già importati da _shared.
-const fmt2 = v => `${Number(v || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
+const fmt2 = v => `${Number(v || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
 
 export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
   const isMobile = useIsMobile()

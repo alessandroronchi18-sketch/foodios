@@ -262,20 +262,20 @@ export function formatChartValue(value, name) {
   if (!Number.isFinite(n)) return String(value ?? '')
   const s = String(name || '').toLowerCase()
   if (s.includes('€') || /\b(ricavo|fatturato|costo|margine\s*€)\b/.test(s)) {
-    if (Math.abs(n) >= 100) return `${Math.round(n).toLocaleString('it-IT')} €`
-    return `${n.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
+    if (Math.abs(n) >= 100) return `${Math.round(n).toLocaleString('it-IT', { useGrouping: 'always' })} €`
+    return `${n.toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
   }
   if (s.includes('%') || /\b(percent|margine\s*%)\b/.test(s)) {
-    return `${n.toLocaleString('it-IT', { maximumFractionDigits: 1 })}%`
+    return `${n.toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 1 })}%`
   }
   if (s.includes('kg')) {
-    if (Math.abs(n) >= 100) return `${Math.round(n).toLocaleString('it-IT')} kg`
-    return `${n.toLocaleString('it-IT', { maximumFractionDigits: 1 })} kg`
+    if (Math.abs(n) >= 100) return `${Math.round(n).toLocaleString('it-IT', { useGrouping: 'always' })} kg`
+    return `${n.toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 1 })} kg`
   }
   if (/\bg\b|grammi/.test(s)) {
-    return `${Math.round(n).toLocaleString('it-IT')} g`
+    return `${Math.round(n).toLocaleString('it-IT', { useGrouping: 'always' })} g`
   }
-  return Math.round(n).toLocaleString('it-IT')
+  return Math.round(n).toLocaleString('it-IT', { useGrouping: 'always' })
 }
 
 // Tooltip Recharts condiviso (era inline in Dashboard.jsx).

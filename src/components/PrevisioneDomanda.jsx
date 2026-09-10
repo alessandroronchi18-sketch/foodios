@@ -49,8 +49,8 @@ const DAYS_IT = ["Dom", "Lun", "Mar", "Mer", "Gio", "Ven", "Sab"]
 const DAYS_FULL = ["Domenica", "Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "Sabato"]
 const MONTHS_IT = ["Gen","Feb","Mar","Apr","Mag","Giu","Lug","Ago","Set","Ott","Nov","Dic"]
 
-const nf = n => Math.round(n).toLocaleString('it-IT')
-const nf1 = n => (Math.round(n * 10) / 10).toLocaleString('it-IT', { minimumFractionDigits: 0, maximumFractionDigits: 1 })
+const nf = n => Math.round(n).toLocaleString('it-IT', { useGrouping: 'always' })
+const nf1 = n => (Math.round(n * 10) / 10).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 0, maximumFractionDigits: 1 })
 
 // Etichetta mese: da "YYYY-MM" a "Giu '26"
 const meseLabel = m => {
@@ -524,7 +524,7 @@ export default function PrevisioneDomanda({ ricettario, giornaliero, chiusure, i
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false} />
                   <XAxis dataKey="label" tick={{ fontSize: 11, fill: AXIS_COLOR }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: AXIS_COLOR }} axisLine={false} tickLine={false} width={42} tickFormatter={v => v.toLocaleString('it-IT')} />
+                  <YAxis tick={{ fontSize: 11, fill: AXIS_COLOR }} axisLine={false} tickLine={false} width={42} tickFormatter={v => v.toLocaleString('it-IT', { useGrouping: 'always' })} />
                   <Tooltip content={<ChartTip />} cursor={{ stroke: GRID_STROKE, strokeWidth: 1 }} />
                   <Area
                     type="monotone"
@@ -559,7 +559,7 @@ export default function PrevisioneDomanda({ ricettario, giornaliero, chiusure, i
                 <BarChart data={stagionaleData} margin={{ top: 8, right: 12, left: isMobile ? -12 : 0, bottom: 4 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false} />
                   <XAxis dataKey="label" tick={{ fontSize: 11, fill: AXIS_COLOR }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: AXIS_COLOR }} axisLine={false} tickLine={false} width={42} tickFormatter={v => v.toLocaleString('it-IT')} />
+                  <YAxis tick={{ fontSize: 11, fill: AXIS_COLOR }} axisLine={false} tickLine={false} width={42} tickFormatter={v => v.toLocaleString('it-IT', { useGrouping: 'always' })} />
                   <Tooltip content={<ChartTip />} cursor={{ fill: 'rgba(15,23,42,0.04)' }} />
                   <Bar
                     dataKey="stampi"

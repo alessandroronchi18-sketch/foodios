@@ -240,7 +240,7 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
         <KPI icon={<Icon name="barChart" size={18} />} label="Pezzi totali"
           value={`${totPezzi.toLocaleString('it-IT', { maximumFractionDigits: 0, useGrouping: 'always' })} pz`}
           sub={totGrammi > 0
-            ? `più ${(totGrammi / 1000).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg sfusi`
+            ? `più ${(totGrammi / 1000).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg sfusi`
             : ''}/>
         <KPI icon={<Icon name="warning" size={18} />} label="Sotto soglia" value={sottoSoglia.length} color={sottoSoglia.length > 0 ? C.amber : C.green}/>
         <KPI icon={<Icon name="alert" size={18} />} label="Stock negativo" value={negativi.length} color={negativi.length > 0 ? C.red : C.green} sub={negativi.length > 0 ? 'più vendite che carico' : ''}/>
@@ -282,10 +282,10 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
                   <tr key={r.id} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.white : '#FDFAF7' }}>
                     <td style={{ padding: '10px 14px', fontWeight: 700, color: C.text }}>{r.prodotto_nome}</td>
                     <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 800, color: neg ? C.red : sotto ? C.amber : C.text, ...TNUM }}>
-                      {q.toLocaleString('it-IT', { maximumFractionDigits: 2 })} {r.unita}
+                      {q.toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 2 })} {r.unita}
                     </td>
                     <td style={{ padding: '10px 14px', textAlign: 'right', color: C.textSoft, ...TNUM }}>
-                      {r.soglia_min > 0 ? Number(r.soglia_min).toLocaleString('it-IT') : '-'}
+                      {r.soglia_min > 0 ? Number(r.soglia_min).toLocaleString('it-IT', { useGrouping: 'always' }) : '-'}
                     </td>
                     <td style={{ padding: '10px 14px', fontSize: typo.small.fontSize, color: C.textSoft, whiteSpace: 'nowrap' }}>
                       {dataLeggibile(r.updated_at)}
@@ -369,7 +369,7 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
                           delta di 8400 grammi usciva "-8400" invece di
                           "-8.400" (regola dei numeri italiani). */}
                       <td style={{ padding: '8px 14px', textAlign: 'right', fontWeight: 800, color: m.causale === 'scarto' ? C.red : C.text, ...TNUM, whiteSpace: 'nowrap' }}>
-                        {d > 0 ? '+' : d < 0 ? '−' : ''}{Math.abs(d).toLocaleString('it-IT')}
+                        {d > 0 ? '+' : d < 0 ? '−' : ''}{Math.abs(d).toLocaleString('it-IT', { useGrouping: 'always' })}
                       </td>
                       <td style={{ padding: '8px 14px', fontSize: typo.small.fontSize, color: C.textSoft, fontStyle: 'italic' }}>{m.note || ''}</td>
                     </tr>
@@ -568,7 +568,7 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
                   {logPrezzi.slice(0, 50).map(l => (
                     <tr key={l.id} style={{ borderBottom: `1px solid ${C.border}` }}>
 <td style={{ padding: '7px 12px', color: C.textMid, whiteSpace: 'nowrap' }}>
-                        {new Date(l.data).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                        {new Date(l.data).toLocaleString('it-IT', { useGrouping: 'always', day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
                         {/* Audit 2026-09-09: chi ha cambiato il prezzo non si
                             vedeva, e il campo `utente` era già nel log. Su un
                             dato che sposta il food cost di tutte le ricette,
@@ -599,14 +599,14 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
                           )
                         })()}
                       </td>
-                      <td style={{ padding: '7px 12px', textAlign: 'right', color: C.textMid, ...TNUM }}>{(l.prezzoVecchio || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/kg</td>
-                      <td style={{ padding: '7px 12px', textAlign: 'right', fontWeight: 700, color: C.text, ...TNUM }}>{(l.prezzoNuovo || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/kg</td>
+                      <td style={{ padding: '7px 12px', textAlign: 'right', color: C.textMid, ...TNUM }}>{(l.prezzoVecchio || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/kg</td>
+                      <td style={{ padding: '7px 12px', textAlign: 'right', fontWeight: 700, color: C.text, ...TNUM }}>{(l.prezzoNuovo || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/kg</td>
                       {/* `delta` può mancare nelle righe di log vecchie, e
                           `undefined.toLocaleString()` fa esplodere l'intera
                           scheda: una riga storica malformata portava via la
                           pagina, non solo la sua cella. */}
                       <td style={{ padding: '7px 12px', textAlign: 'right', fontWeight: 700, color: (l.delta || 0) > 0 ? C.red : C.green, ...TNUM }}>
-                        {(l.delta || 0) > 0 ? '+' : ''}{(l.delta || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {(l.delta || 0) > 0 ? '+' : ''}{(l.delta || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         {Number.isFinite(Number(l.deltaPct)) && <span style={{ fontSize: 12, marginLeft: 4, opacity: 0.7 }}>({Number(l.deltaPct) > 0 ? '+' : ''}{fmtp(Number(l.deltaPct))})</span>}
                       </td>
                     </tr>
@@ -673,7 +673,7 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
                       ) : (
                         <span onClick={() => startEdit(row)} title="Clicca per modificare"
                           style={{ cursor: 'pointer', padding: '4px 8px', borderRadius: 5, display: 'inline-block' }}>
-                          {row.prezzoKg > 0 ? `${row.prezzoKg.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €` : '-'}
+                          {row.prezzoKg > 0 ? `${row.prezzoKg.toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €` : '-'}
                         </span>
                       )}
                     </td>
@@ -741,11 +741,11 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
               <div style={{ background: '#F8F4F2', borderRadius: 10, padding: '14px 16px', marginBottom: 18 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                   <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, fontWeight: 600 }}>Prezzo attuale</span>
-                  <span style={{ fontSize: 14, color: C.textMid, ...TNUM, fontWeight: 700 }}>{row.prezzoKg.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/kg</span>
+                  <span style={{ fontSize: 14, color: C.textMid, ...TNUM, fontWeight: 700 }}>{row.prezzoKg.toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/kg</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                   <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, fontWeight: 600 }}>Nuovo prezzo</span>
-                  <span style={{ fontSize: 14, color: C.red, ...TNUM, fontWeight: 800 }}>{confirmVal.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/kg</span>
+                  <span style={{ fontSize: 14, color: C.red, ...TNUM, fontWeight: 800 }}>{confirmVal.toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/kg</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 6, borderTop: `1px solid ${C.border}` }}>
                   <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, fontWeight: 600 }}>Variazione</span>
@@ -756,7 +756,7 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
                       "allarme": per un prezzo che sale serve il rosso di
                       allarme. */}
                   <span style={{ fontSize: 13, color: delta > 0 ? C.red : delta < 0 ? C.green : C.textSoft, ...TNUM, fontWeight: 800 }}>
-                    {delta > 0 ? '+' : ''}{delta.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} € {deltaPct != null && <span style={{ fontSize: 12, marginLeft: 4, opacity: 0.85 }}>({deltaPct > 0 ? '+' : ''}{fmtp(deltaPct)})</span>}
+                    {delta > 0 ? '+' : ''}{delta.toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} € {deltaPct != null && <span style={{ fontSize: 12, marginLeft: 4, opacity: 0.85 }}>({deltaPct > 0 ? '+' : ''}{fmtp(deltaPct)})</span>}
                   </span>
                 </div>
               </div>
@@ -1220,7 +1220,7 @@ export default function MagazzinoView({
   const fmtG = g => {
     const n = Number(g) || 0
     if (unitMode === 'g') return `${Math.round(n).toLocaleString('it-IT', { useGrouping: 'always' })} g`
-    return `${(n / 1000).toLocaleString('it-IT', { minimumFractionDigits: n >= 1000 ? 2 : 3, maximumFractionDigits: n >= 1000 ? 2 : 3 })} kg`
+    return `${(n / 1000).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: n >= 1000 ? 2 : 3, maximumFractionDigits: n >= 1000 ? 2 : 3 })} kg`
   }
   // Suggerimento riordino arrotondato a step pratici: <1kg → step 100g, ≥1kg → 0,5kg.
   // Il suggerimento di riordino si arrotonda a passi pratici (100 g sotto il
@@ -1240,7 +1240,7 @@ export default function MagazzinoView({
     if (gg == null) return '-'
     const n = Math.round(gg)
     if (n > 90) return stimato ? '~ oltre 90 gg' : 'oltre 90 gg'
-    const testo = `${n.toLocaleString('it-IT')} gg`
+    const testo = `${n.toLocaleString('it-IT', { useGrouping: 'always' })} gg`
     return stimato ? `~ ${testo}` : testo
   }
 
@@ -1659,7 +1659,7 @@ export default function MagazzinoView({
                             l'inventario e non rivela il singolo prezzo. */}
                         {!isDipendente && r.valore > 0 && r.costoKg > 0 && (
                           <div style={{ fontSize: typo.small.fontSize, color: C.textSoft, fontWeight: 500 }}>
-                            {r.costoKg.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/kg
+                            {r.costoKg.toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/kg
                             {r.prezzoStimato && <span title="Prezzo non inserito da te: è una stima di mercato, quindi anche il valore è indicativo."> · stima</span>}
                           </div>
                         )}
@@ -1938,7 +1938,7 @@ export default function MagazzinoView({
                           - `textTransform: capitalize` rompe le maiuscole vere:
                             "FARINA 00" diventava "Farina 00" e "IGP" diventava
                             "Igp". Il nome si mostra come l'utente l'ha scritto. */}
-                      <td style={{ padding: '10px 14px', color: C.textMid, whiteSpace: 'nowrap' }}>{new Date(r.data).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
+                      <td style={{ padding: '10px 14px', color: C.textMid, whiteSpace: 'nowrap' }}>{new Date(r.data).toLocaleString('it-IT', { useGrouping: 'always', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
                       <td style={{ padding: '10px 14px', fontWeight: 600, color: C.text }}>{r.ingrediente}</td>
                       <td style={{ padding: '10px 14px', fontWeight: 700, textAlign: 'right', whiteSpace: 'nowrap', ...TNUM, color: Number(r.quantita_g) < 0 ? C.amber : C.green }}>
                         {Number(r.quantita_g) < 0 ? '−' : '+'}{fmtG(Math.abs(Number(r.quantita_g) || 0))}
@@ -1955,7 +1955,7 @@ export default function MagazzinoView({
               {logRif.length > logLimite && (
                 <div style={{ padding: '10px 14px', borderTop: `1px solid ${C.border}`, textAlign: 'center' }}>
                   <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, marginRight: 10 }}>
-                    {logLimite} di {logRif.length.toLocaleString('it-IT')}
+                    {logLimite} di {logRif.length.toLocaleString('it-IT', { useGrouping: 'always' })}
                   </span>
                   <button type="button" onClick={() => setLogLimite(l => l + 100)}
                     style={{ padding: '9px 16px', minHeight: 40, borderRadius: 8, border: `1px solid ${C.borderStr}`, background: C.bgCard, fontSize: typo.small.fontSize, fontWeight: 700, color: C.textMid, cursor: 'pointer' }}>

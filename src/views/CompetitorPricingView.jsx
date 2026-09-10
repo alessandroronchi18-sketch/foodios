@@ -113,7 +113,7 @@ export default function CompetitorPricingView({ orgId, sedeId, ricettario, notif
     setAiLoading(true); setAiInsight(null)
 
     // Numeri italiani (memory feedback-numeri-italiani)
-    const _e = n => `${Number(n||0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
+    const _e = n => `${Number(n||0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
     const fcPct = (fcInfo.fcPezzo / fcInfo.prezzo * 100)
     const targetFC = 30  // benchmark pasticceria sana
     const yourMargPct = 100 - fcPct
@@ -211,11 +211,11 @@ Valuta se sono sotto, in linea o sopra, e dimmi cosa farei al posto mio.`
           <div style={{ background: '#F0F9FF', border: '1px solid #BAE6FD', borderRadius: 12, padding: 16, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
             <div>
               <div style={{ fontSize: 10.5, fontWeight: 700, color: '#0369A1', letterSpacing: '0.07em', textTransform: 'uppercase' }}>Il tuo prezzo</div>
-              <div style={{ fontSize: 24, fontWeight: 900, color: TXT, marginTop: 2 }}>€ {Number(fcInfo.prezzo).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+              <div style={{ fontSize: 24, fontWeight: 900, color: TXT, marginTop: 2 }}>€ {Number(fcInfo.prezzo).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
             </div>
             <div style={{ fontSize: 12, color: MID, lineHeight: 1.5 }}>
-              Food cost € {Number(fcInfo.fcPezzo).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({(fcInfo.fcPezzo / fcInfo.prezzo * 100).toFixed(1)}%)<br/>
-              Margine lordo € {Number(fcInfo.prezzo - fcInfo.fcPezzo).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              Food cost € {Number(fcInfo.fcPezzo).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({(fcInfo.fcPezzo / fcInfo.prezzo * 100).toFixed(1)}%)<br/>
+              Margine lordo € {Number(fcInfo.prezzo - fcInfo.fcPezzo).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
           </div>
 
@@ -241,9 +241,9 @@ Valuta se sono sotto, in linea o sopra, e dimmi cosa farei al posto mio.`
             <>
               <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: 16, marginBottom: 16 }}>
                 <div style={{ display: isMobile ? 'grid' : 'flex', gridTemplateColumns: isMobile ? '1fr 1fr' : undefined, alignItems: isMobile ? 'start' : 'center', gap: isMobile ? 14 : 16, flexWrap: 'wrap', marginBottom: 14 }}>
-                  <Stat label="Media zona" value={`${Number(compStats.media).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`} hint={`${Number(compStats.n).toLocaleString('it-IT')} rilevati`}/>
-                  <Stat label="Range min-max" value={`${Number(compStats.min).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} € – ${Number(compStats.max).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`}/>
-                  <Stat label="Tuo prezzo" value={`${Number(fcInfo.prezzo).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`}
+                  <Stat label="Media zona" value={`${Number(compStats.media).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`} hint={`${Number(compStats.n).toLocaleString('it-IT', { useGrouping: 'always' })} rilevati`}/>
+                  <Stat label="Range min-max" value={`${Number(compStats.min).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} € – ${Number(compStats.max).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`}/>
+                  <Stat label="Tuo prezzo" value={`${Number(fcInfo.prezzo).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`}
                     color={fcInfo.prezzo < compStats.media * 0.9 ? AMBER : fcInfo.prezzo > compStats.media * 1.1 ? BRAND : GREEN}/>
                   <button onClick={chiediAi} disabled={aiLoading}
                     style={{ marginLeft: isMobile ? '0' : 'auto', gridColumn: isMobile ? '1 / -1' : undefined, background: BRAND, color: '#FFF', border: 'none', padding: isMobile ? '12px 14px' : '8px 14px', minHeight: isMobile ? 44 : 'auto', borderRadius: 8, fontSize: isMobile ? 13 : 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center', width: isMobile ? '100%' : 'auto' }}>
@@ -263,9 +263,9 @@ Valuta se sono sotto, in linea o sopra, e dimmi cosa farei al posto mio.`
                       </div>
                       {aiInsight.prezzo_consigliato && (
                         <div style={{ fontSize: 12.5, color: MID, fontWeight: 700 }}>
-                          → € {Number(aiInsight.prezzo_consigliato).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          → € {Number(aiInsight.prezzo_consigliato).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           {aiInsight.range_consigliato?.min && aiInsight.range_consigliato?.max && (
-                            <span style={{ fontWeight: 500, color: SOFT }}> (€ {Number(aiInsight.range_consigliato.min).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} – € {Number(aiInsight.range_consigliato.max).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</span>
+                            <span style={{ fontWeight: 500, color: SOFT }}> (€ {Number(aiInsight.range_consigliato.min).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} – € {Number(aiInsight.range_consigliato.max).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })})</span>
                           )}
                         </div>
                       )}
@@ -307,7 +307,7 @@ Valuta se sono sotto, in linea o sopra, e dimmi cosa farei al posto mio.`
                 {compFiltered.map(c => (
                   <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 6px', borderTop: `1px solid ${BORDER}` }}>
                     <span style={{ flex: 1, fontSize: 13, color: TXT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={c.competitor_nome}>{c.competitor_nome}</span>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: TXT, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>€ {Number(c.prezzo).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: TXT, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>€ {Number(c.prezzo).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     <button aria-label={`Rimuovi competitor ${c.competitor_nome}`} onClick={() => rimuoviCompetitor(c.id)} style={{ background: 'transparent', border: 'none', color: SOFT, cursor: 'pointer', padding: 0, width: 40, height: 40, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 6, flexShrink: 0 }}>
                       <Icon name="x" size={14}/>
                     </button>

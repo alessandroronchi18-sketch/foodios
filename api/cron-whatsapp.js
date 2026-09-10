@@ -24,7 +24,7 @@ async function getSupabase() {
 }
 
 function fmtEur(n) {
-  return `€${Number(n || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  return `€${Number(n || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 function fmtPct(n) {
   return `${Number(n || 0).toFixed(1)}%`

@@ -109,7 +109,7 @@ export default function DocumentaryView({ orgId, nomeAttivita }) {
                   {Object.entries(selected.contenuto.kpi).slice(0, 6).map(([k, v]) => (
                     <div key={k} style={{ background: '#FAFAF6', padding: 12, borderRadius: 8 }}>
                       <div style={{ fontSize: 10, fontWeight: 700, color: SOFT, textTransform: 'uppercase' }}>{k.replace(/_/g, ' ')}</div>
-                      <div style={{ fontSize: 18, fontWeight: 800, color: TXT, marginTop: 2 }}>{typeof v === 'number' ? v.toLocaleString('it-IT', { maximumFractionDigits: 0 }) : String(v)}</div>
+                      <div style={{ fontSize: 18, fontWeight: 800, color: TXT, marginTop: 2 }}>{typeof v === 'number' ? v.toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 }) : String(v)}</div>
                     </div>
                   ))}
                 </div>

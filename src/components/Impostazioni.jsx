@@ -704,7 +704,7 @@ function PacchettiAIPanel({ auth, notify }) {
       <div style={{ padding: 16, background: totaleResidue > 0 ? '#F0FDF4' : '#F8FAFC', borderRadius: 12, marginBottom: 18, border: `1px solid ${totaleResidue > 0 ? '#86EFAC' : '#E2E8F0'}`, minHeight: 90, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
         <div style={{ fontSize: 11, color: totaleResidue > 0 ? '#065F46' : '#64748B', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.05em' }}>Saldo foto AI</div>
         <div style={{ fontSize: isMobile ? 28 : 32, fontWeight: 900, color: totaleResidue > 0 ? '#16A34A' : '#94A3B8', fontVariantNumeric: 'tabular-nums', marginTop: 4 }}>
-          {(totaleResidue || 0).toLocaleString('it-IT')} <span style={{ fontSize: isMobile ? 14 : 16, fontWeight: 700, color: totaleResidue > 0 ? '#065F46' : '#94A3B8' }}>foto</span>
+          {(totaleResidue || 0).toLocaleString('it-IT', { useGrouping: 'always' })} <span style={{ fontSize: isMobile ? 14 : 16, fontWeight: 700, color: totaleResidue > 0 ? '#065F46' : '#94A3B8' }}>foto</span>
         </div>
       </div>
 
@@ -729,7 +729,7 @@ function PacchettiAIPanel({ auth, notify }) {
             )}
             {/* Titolo: quante foto AI (informazione principale) */}
             <div style={{ fontSize: 15, fontWeight: 800, color: '#1C0A0A', letterSpacing: '-0.01em', marginBottom: 2 }}>
-              {p.calls.toLocaleString('it-IT')} foto AI
+              {p.calls.toLocaleString('it-IT', { useGrouping: 'always' })} foto AI
             </div>
             {/* Prezzo grande sotto il titolo */}
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 6, marginBottom: 10 }}>
@@ -785,11 +785,11 @@ function PacchettiAIPanel({ auth, notify }) {
                   opacity: scaduto || esaurito ? 0.55 : 1,
                 }}>
                   <div>
-                    <strong>{(p.calls_included || 0).toLocaleString('it-IT')} foto</strong>
+                    <strong>{(p.calls_included || 0).toLocaleString('it-IT', { useGrouping: 'always' })} foto</strong>
                     <span style={{ color: '#64748B', marginLeft: 8 }}>€{(p.amount_paid_cents / 100).toFixed(2)}</span>
                   </div>
                   <div style={{ color: esaurito ? '#DC2626' : '#16A34A', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
-                    {esaurito ? 'esaurito' : `${(p.calls_remaining || 0).toLocaleString('it-IT')} / ${(p.calls_included || 0).toLocaleString('it-IT')} disp.`}
+                    {esaurito ? 'esaurito' : `${(p.calls_remaining || 0).toLocaleString('it-IT', { useGrouping: 'always' })} / ${(p.calls_included || 0).toLocaleString('it-IT', { useGrouping: 'always' })} disp.`}
                   </div>
                   <div style={{ color: '#94A3B8', fontSize: 11 }}>
                     {new Date(p.acquistato_il).toLocaleDateString('it-IT')}

@@ -95,12 +95,12 @@ const LEGACY_MAP = {
 const inputS = { width: '100%', padding: '10px 12px', borderRadius: 9, border: `1px solid ${C.borderStr}`, fontSize: 16, color: C.text, boxSizing: 'border-box', fontFamily: 'inherit', background: C.white }
 const labelS = { fontSize: 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5, display: 'block' }
 
-const fmt = n => `${(Number.isFinite(Number(n)) ? Number(n) : 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
-const fmt0 = n => { const v = Number(n); return `${Math.round(Number.isFinite(v) ? v : 0).toLocaleString('it-IT')} €` }
+const fmt = n => `${(Number.isFinite(Number(n)) ? Number(n) : 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
+const fmt0 = n => { const v = Number(n); return `${Math.round(Number.isFinite(v) ? v : 0).toLocaleString('it-IT', { useGrouping: 'always' })} €` }
 const fmtp = n => `${(Number.isFinite(Number(n)) ? Number(n) : 0).toFixed(0)}%`
-const fmtQta = (q, u) => `${(Number(q) || 0).toLocaleString('it-IT')} ${u || ''}`.trim()
-const fmtN = n => (Number(n) || 0).toLocaleString('it-IT')
-const fmtTs = iso => new Date(iso).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+const fmtQta = (q, u) => `${(Number(q) || 0).toLocaleString('it-IT', { useGrouping: 'always' })} ${u || ''}`.trim()
+const fmtN = n => (Number(n) || 0).toLocaleString('it-IT', { useGrouping: 'always' })
+const fmtTs = iso => new Date(iso).toLocaleString('it-IT', { useGrouping: 'always', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 
 function cardStyle() { return { background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, boxShadow: SHADOW_PREMIUM } }
 

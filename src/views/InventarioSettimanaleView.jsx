@@ -57,7 +57,7 @@ function fmtRange(lunediIso) {
 
 function fmtG(n) {
   if (n == null) return '-'
-  return Number(n).toLocaleString('it-IT')
+  return Number(n).toLocaleString('it-IT', { useGrouping: 'always' })
 }
 
 // Scorciatoia per le dimensioni del testo dai token (typo.size).
@@ -162,9 +162,9 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
     if (g == null || g === '') return ''
     const n = Number(g) || 0
     if (unitaDisplay === 'kg') {
-      return (n / 1000).toLocaleString('it-IT', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+      return (n / 1000).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 0, maximumFractionDigits: 2 })
     }
-    return n.toLocaleString('it-IT')
+    return n.toLocaleString('it-IT', { useGrouping: 'always' })
   }
   // Parse input utente -> grammi (per CellInput/BigField).
   const parseToG = (val) => {
@@ -986,8 +986,8 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
           <div style={{ fontSize: TS.base, color: T.amberDark || T.amber, lineHeight: 1.5, flex: 1, minWidth: 180 }}>
             <b>{senzaRicetta.n} gust{senzaRicetta.n === 1 ? 'o' : 'i'} su {senzaRicetta.nTot} senza ricetta</b>
             {senzaRicetta.kgSenza > 0 && (
-              <>: sono {senzaRicetta.kgSenza.toLocaleString('it-IT', { maximumFractionDigits: 1 })} kg su {senzaRicetta.kgTot.toLocaleString('it-IT', { maximumFractionDigits: 1 })} di questa settimana
-                {' '}({senzaRicetta.pct.toLocaleString('it-IT', { maximumFractionDigits: 0 })}%)</>
+              <>: sono {senzaRicetta.kgSenza.toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 1 })} kg su {senzaRicetta.kgTot.toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 1 })} di questa settimana
+                {' '}({senzaRicetta.pct.toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })}%)</>
             )}
             . La produzione la registro, ma per loro il magazzino non si scala e non c'è food cost.
             <div style={{ marginTop: 3, fontSize: TS.sm, color: T.amber }}>
@@ -1318,7 +1318,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
               const cella = (righe || []).find(r => r.gusto_nome === gusto && r.data === oggiIso)
               const destSede = (sedi || []).find(s => s.id === destSedeId)
               const destInventario = !!destSede?.is_sede_produzione
-              const notaOrigine = `Spediti ${Number(kg).toLocaleString('it-IT', { maximumFractionDigits: 1 })} kg a ${destSede?.nome || 'altra sede'}`
+              const notaOrigine = `Spediti ${Number(kg).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 1 })} kg a ${destSede?.nome || 'altra sede'}`
               const notaOrigineTot = cella?.note ? `${cella.note} · ${notaOrigine}` : notaOrigine
               await salvaCella(orgId, sedeId, gusto, oggiIso, {
                 produzione_g: cella?.produzione_g || 0,
@@ -1334,7 +1334,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
                   .eq('organization_id', orgId).eq('sede_id', destSedeId)
                   .eq('gusto_nome', normGusto(gusto)).eq('data', oggiIso)
                   .maybeSingle()
-                const notaDest = `Ricevuti ${Number(kg).toLocaleString('it-IT', { maximumFractionDigits: 1 })} kg da ${sedeOrigineNome}`
+                const notaDest = `Ricevuti ${Number(kg).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 1 })} kg da ${sedeOrigineNome}`
                 const notaDestTot = cellDest?.note ? `${cellDest.note} · ${notaDest}` : notaDest
                 await salvaCella(orgId, destSedeId, gusto, oggiIso, {
                   produzione_g: cellDest?.produzione_g || 0,
@@ -1424,7 +1424,7 @@ function DialogSpedizione({ state, setState, gusti, sedi, sedeOrigineId, righeOg
             {gustiBase.map(g => {
               const key = normGusto(g.nome)
               const disp = (dispPerGusto[key] || 0) / 1000
-              const suffix = disp > 0 ? ` — ${disp.toLocaleString('it-IT', { maximumFractionDigits: 1 })} kg disponibili` : ' — nessuna disponibilità oggi'
+              const suffix = disp > 0 ? ` — ${disp.toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 1 })} kg disponibili` : ' — nessuna disponibilità oggi'
               return (
                 <option key={g.nome} value={key}>{g.nome}{suffix}</option>
               )
@@ -1433,7 +1433,7 @@ function DialogSpedizione({ state, setState, gusti, sedi, sedeOrigineId, righeOg
           {state.gusto && (
             <div style={{ fontSize: 11.5, color: C.textSoft, marginTop: 6 }}>
               Disponibile oggi: <b style={{ color: dispKg > 0 ? '#166534' : '#B45309' }}>
-                {dispKg.toLocaleString('it-IT', { maximumFractionDigits: 1 })} kg
+                {dispKg.toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 1 })} kg
               </b>
             </div>
           )}
@@ -1453,8 +1453,8 @@ function DialogSpedizione({ state, setState, gusti, sedi, sedeOrigineId, righeOg
               background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 8,
               fontSize: 12, color: '#7F1D1D', lineHeight: 1.45,
             }}>
-              <Icon name="alert" size={12} color="#92400E" /> Stai spedendo <b>{kgRichiesti.toLocaleString('it-IT', { maximumFractionDigits: 1 })} kg</b>
-              {' '}ma la sede oggi ne ha solo <b>{dispKg.toLocaleString('it-IT', { maximumFractionDigits: 1 })} kg</b> disponibili.
+              <Icon name="alert" size={12} color="#92400E" /> Stai spedendo <b>{kgRichiesti.toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 1 })} kg</b>
+              {' '}ma la sede oggi ne ha solo <b>{dispKg.toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 1 })} kg</b> disponibili.
               Puoi comunque procedere se sai di avere rimanenza del giorno prima da spedire.
             </div>
           )}
@@ -1477,7 +1477,7 @@ function DialogSpedizione({ state, setState, gusti, sedi, sedeOrigineId, righeOg
             onClick={() => {
               if (oltreDisp) {
                 const conferma = window.confirm(
-                  `Attenzione: stai spedendo ${kgRichiesti.toLocaleString('it-IT', { maximumFractionDigits: 1 })} kg ma la sede oggi ne ha solo ${dispKg.toLocaleString('it-IT', { maximumFractionDigits: 1 })} kg disponibili.\n\nProcedi solo se sai che hai rimanenza del giorno prima o altre giacenze.\n\nConfermi la spedizione?`
+                  `Attenzione: stai spedendo ${kgRichiesti.toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 1 })} kg ma la sede oggi ne ha solo ${dispKg.toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 1 })} kg disponibili.\n\nProcedi solo se sai che hai rimanenza del giorno prima o altre giacenze.\n\nConfermi la spedizione?`
                 )
                 if (!conferma) return
               }
@@ -1762,9 +1762,9 @@ function VistaMese({ gusti, righeMese, lunediIso, unita = 'g', onClickGusto }) {
   const fmtVal = (g) => {
     if (g <= 0) return '-'
     if (unita === 'kg') {
-      return (g / 1000).toLocaleString('it-IT', { maximumFractionDigits: 1 }) + ' kg'
+      return (g / 1000).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 1 }) + ' kg'
     }
-    return g.toLocaleString('it-IT') + ' g'
+    return g.toLocaleString('it-IT', { useGrouping: 'always' }) + ' g'
   }
   const m = useMemo(() => {
     // Indicizza per gusto+data
@@ -1931,8 +1931,8 @@ function VistaStorico({ gusti, perMese, inizio, unita = 'g', onClickGusto, onOpe
   const fmtTot = (g) => {
     if (g <= 0) return '-'
     return unita === 'kg'
-      ? (g / 1000).toLocaleString('it-IT', { maximumFractionDigits: 1 })
-      : g.toLocaleString('it-IT')
+      ? (g / 1000).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 1 })
+      : g.toLocaleString('it-IT', { useGrouping: 'always' })
   }
   const data = useMemo(() => {
     const mesi = []
@@ -2219,8 +2219,8 @@ function DrilldownGustoModal({ gusto, orgId, sedeId, isAllSedi, sediProdIds, uni
   const fmt = (g) => {
     if (g <= 0) return '0'
     return unita === 'kg'
-      ? (g / 1000).toLocaleString('it-IT', { maximumFractionDigits: 1 })
-      : g.toLocaleString('it-IT')
+      ? (g / 1000).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 1 })
+      : g.toLocaleString('it-IT', { useGrouping: 'always' })
   }
   const noteRicettario = useMemo(() => {
     if (!ricettario?.ricette) return null
@@ -2350,8 +2350,8 @@ function KpiCompactBar({ rows, periodo, unita = 'g', vendutoG = null, celleNonQu
   const fmt = (g) => {
     if (g <= 0) return '0'
     return unita === 'kg'
-      ? (g / 1000).toLocaleString('it-IT', { maximumFractionDigits: 1 })
-      : g.toLocaleString('it-IT')
+      ? (g / 1000).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 1 })
+      : g.toLocaleString('it-IT', { useGrouping: 'always' })
   }
   // Lo scarto e' "misurato" solo se almeno una riga del periodo ne ha uno.
   const scartoMisurato = Array.isArray(rows) && rows.some(r => (Number(r.scarto_g) || 0) > 0)
@@ -2378,7 +2378,7 @@ function KpiCompactBar({ rows, periodo, unita = 'g', vendutoG = null, celleNonQu
             che non e' registrato, in grigio, senza semaforo.
             E la percentuale va con la virgola italiana, non col punto. */}
         {scartoMisurato ? (
-          <KpiTile label={`Scarto ${stats.scartoPct > 0 ? '(' + stats.scartoPct.toLocaleString('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%)' : ''}`.trim()}
+          <KpiTile label={`Scarto ${stats.scartoPct > 0 ? '(' + stats.scartoPct.toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%)' : ''}`.trim()}
             value={fmt(stats.scarto)} unit={unita} color={scartoColor} bg={scartoBg}/>
         ) : (
           <KpiTile label="Scarto" value="non registrato" unit="" color={C.textSoft} bg={C.bgSubtle}/>
@@ -2515,8 +2515,8 @@ function VistaOggi({ gusti, matrice, saving, onSave, readOnly, unita = 'g', gior
                   <div style={{ fontSize: 11, color: C.textSoft }}>
                     venduto stimato: <strong style={{ color: T.brand, ...TNUM }}>
                       {unita === 'kg'
-                        ? (Number(cell.venduto) / 1000).toLocaleString('it-IT', { maximumFractionDigits: 2 }) + ' kg'
-                        : Number(cell.venduto).toLocaleString('it-IT') + ' g'}
+                        ? (Number(cell.venduto) / 1000).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 2 }) + ' kg'
+                        : Number(cell.venduto).toLocaleString('it-IT', { useGrouping: 'always' }) + ' g'}
                     </strong>
                   </div>
                 )}
@@ -2558,11 +2558,11 @@ function BigField({ label, accent, value, saving, onCommit, readOnly, unita = 'g
     if (unita === 'kg') {
       const num = Number(g) / 1000
       return withSeparator
-        ? num.toLocaleString('it-IT', { maximumFractionDigits: 2 })
+        ? num.toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 2 })
         : String(num).replace('.', ',')
     }
     const num = Number(g)
-    return withSeparator ? num.toLocaleString('it-IT') : String(num)
+    return withSeparator ? num.toLocaleString('it-IT', { useGrouping: 'always' }) : String(num)
   }
   const [local, setLocal] = useState(toDisplay(value, true))
   // eslint-disable-next-line react-hooks/exhaustive-deps

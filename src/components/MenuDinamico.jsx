@@ -328,7 +328,7 @@ function BCGMatrix({ menuItems, popVenduto, hasStorico, isMobile, isTablet }) {
           {ranked.map((m,idx) => {
             const x = m.volRel * 90 + 5
             const y = 100 - (Math.min(100,m.margPct) / 100 * 90 + 5)
-            const tipText = `${m.nome} - quadrante ${m.bcg.q}: ${fmtp(m.margPct)} di margine, ${m.vol.toLocaleString('it-IT')} ${hasStorico ? "vendite" : "pz/ric"}.`
+            const tipText = `${m.nome} - quadrante ${m.bcg.q}: ${fmtp(m.margPct)} di margine, ${m.vol.toLocaleString('it-IT', { useGrouping: 'always' })} ${hasStorico ? "vendite" : "pz/ric"}.`
             return (
               <div key={m.nome} style={{
                 position:"absolute", left:`${x}%`, top:`${y}%`, transform:"translate(-50%,-50%)",
@@ -567,13 +567,13 @@ function BandaDiagnosi({ menuItems, popVenduto, isMobile, isTablet = false }) {
 
   return (
     <div style={{ display:"grid", gridTemplateColumns: isMobile ? "1fr 1fr" : isTablet ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap:14, marginBottom:24 }}>
-      <KPI label="Prodotti nel menù" value={n.toLocaleString('it-IT')}
+      <KPI label="Prodotti nel menù" value={n.toLocaleString('it-IT', { useGrouping: 'always' })}
         icon={<Icon name="fileText" size={18}/>}/>
       <KPI label="Margine medio" value={fmtp(margMedio)} color={margMedio>=55?T.green:T.amber}
         icon={<Icon name="trendUp" size={18}/>}/>
       <KPI label="Food cost medio" value={fmtp(fcMedio)} color={fcMedio<=45?T.green:T.amber}
         icon={<Icon name="barChart" size={18}/>}/>
-      <KPI label="Da rivedere (Dog)" value={nDog.toLocaleString('it-IT')} color={nDog>0?T.red:T.green}
+      <KPI label="Da rivedere (Dog)" value={nDog.toLocaleString('it-IT', { useGrouping: 'always' })} color={nDog>0?T.red:T.green}
         sub={nDog>0 ? "valuta rimozione" : "nessuno"}
         icon={<Icon name={nDog>0?"warning":"checkCircle"} size={18}/>}/>
     </div>

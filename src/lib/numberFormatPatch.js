@@ -1,7 +1,7 @@
-// Patch globale: Number.prototype.toLocaleString('it-IT')
+// Patch globale: Number.prototype.toLocaleString('it-IT', { useGrouping: 'always' })
 //
 // In alcuni runtime (Safari iOS in private browsing, Node senza ICU full)
-// `(4715).toLocaleString('it-IT')` ritorna "4715" SENZA il separatore migliaia.
+// `(4715).toLocaleString('it-IT', { useGrouping: 'always' })` ritorna "4715" SENZA il separatore migliaia.
 // Per evitare di toccare 200+ call site nel codebase, patchamo il prototype
 // una sola volta a startup: ogni chiamata con locale it/it-IT senza
 // `useGrouping` esplicito riceve `useGrouping: 'always'` automaticamente.

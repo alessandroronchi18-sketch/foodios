@@ -203,11 +203,11 @@ export default function ReferralPanel({ auth }) {
         {/* KPI */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 18 }}>
           <div style={{ textAlign: 'center', padding: '16px 12px', background: '#FEF2F2', borderRadius: 10, minHeight: 92, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-            <div style={{ fontSize: isMobile ? 28 : 30, fontWeight: 900, color: '#6E0E1A', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{(utilizzi || 0).toLocaleString('it-IT')}</div>
+            <div style={{ fontSize: isMobile ? 28 : 30, fontWeight: 900, color: '#6E0E1A', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{(utilizzi || 0).toLocaleString('it-IT', { useGrouping: 'always' })}</div>
             <div style={{ fontSize: 11, color: '#9C7B76', fontWeight: 600, marginTop: 6 }}>amici invitati</div>
           </div>
           <div style={{ textAlign: 'center', padding: '16px 12px', background: '#F0FDF4', borderRadius: 10, minHeight: 92, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-            <div style={{ fontSize: isMobile ? 28 : 30, fontWeight: 900, color: '#16A34A', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{(data.mesi_guadagnati || 0).toLocaleString('it-IT')}</div>
+            <div style={{ fontSize: isMobile ? 28 : 30, fontWeight: 900, color: '#16A34A', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{(data.mesi_guadagnati || 0).toLocaleString('it-IT', { useGrouping: 'always' })}</div>
             <div style={{ fontSize: 11, color: '#4B6860', fontWeight: 600, marginTop: 6 }}>mesi guadagnati</div>
           </div>
         </div>

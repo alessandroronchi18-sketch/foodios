@@ -579,7 +579,7 @@ function LogTable({ logs }) {
               </span>
             </td>
             <td style={{ padding: '6px 10px', color: C.text, fontWeight: 600 }}>
-              {l.records_importati == null ? '-' : Number(l.records_importati).toLocaleString('it-IT')}
+              {l.records_importati == null ? '-' : Number(l.records_importati).toLocaleString('it-IT', { useGrouping: 'always' })}
             </td>
             {/* L'errore va LETTO, non troncato a 200px in una riga sola:
                 è l'unica traccia di cosa non è entrato. */}
@@ -984,7 +984,7 @@ export default function Integrazioni({ orgId, sedeId }) {
                         </label>
                         {lastLog?.stato === 'ok' && (
                           <span style={{ fontSize: 11, color: C.green }}>
-                            <Icon name="check" size={11} /> Ultimo: {Number(lastLog.records_importati || 0).toLocaleString('it-IT')} record - {fmtTs(lastLog.created_at)}
+                            <Icon name="check" size={11} /> Ultimo: {Number(lastLog.records_importati || 0).toLocaleString('it-IT', { useGrouping: 'always' })} record - {fmtTs(lastLog.created_at)}
                           </span>
                         )}
                         {lastLog?.stato === 'errore' && (
@@ -1007,10 +1007,10 @@ export default function Integrazioni({ orgId, sedeId }) {
                             <div style={{ display: 'flex', gap: 20, fontSize: 11, color: C.green }}>
                               <span>Uscite: {risultato.movimenti.filter(m => m.tipo === 'uscita')
                                 .reduce((s, m) => s + m.importo, 0)
-                                .toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</span>
+                                .toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</span>
                               <span>Entrate: {risultato.movimenti.filter(m => m.tipo === 'entrata')
                                 .reduce((s, m) => s + m.importo, 0)
-                                .toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</span>
+                                .toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</span>
                             </div>
                           </>
                         )}
@@ -1021,7 +1021,7 @@ export default function Integrazioni({ orgId, sedeId }) {
                             </div>
                             <div style={{ fontSize: 11, color: C.green }}>
                               Totale: {risultato.chiusure.reduce((s, c) => s + c.totale, 0)
-                                .toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+                                .toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
                             </div>
                           </>
                         )}
@@ -1031,7 +1031,7 @@ export default function Integrazioni({ orgId, sedeId }) {
                               <Icon name="check" size={12} /> {risultato.righe.length} giorni · {risultato.ordini || risultato.righe.reduce((s,r)=>s+(r.ordini||r.righe||0),0)} record da {risultato.fonte}
                             </div>
                             <div style={{ fontSize: 11, color: C.green }}>
-                              Totale: {risultato.totale.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} € · uniti alle chiusure cassa
+                              Totale: {risultato.totale.toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} € · uniti alle chiusure cassa
                             </div>
                           </>
                         )}

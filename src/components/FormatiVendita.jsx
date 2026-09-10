@@ -32,7 +32,7 @@ const TNUM = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'"
 
 // Formattazione monetaria a 3 decimali (i costi di confezionamento sono centesimi
 // di euro: cono cialda 0,06 €, fazzoletto 0,01 € → servono i millesimi). Separatore IT.
-const fmt3 = n => `${(Number.isFinite(Number(n)) ? Number(n) : 0).toLocaleString('it-IT', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} €`
+const fmt3 = n => `${(Number.isFinite(Number(n)) ? Number(n) : 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 3, maximumFractionDigits: 3 })} €`
 
 // fontSize 16 su mobile per evitare zoom automatico iOS (regola permanente CLAUDE.md).
 const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: R.md, border: `1px solid ${T.borderStr}`, fontSize: 16, color: T.text, boxSizing: 'border-box', fontFamily: 'inherit', background: T.bgCard }
@@ -227,7 +227,7 @@ export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita
       {/* ① DIAGNOSI */}
       {diag.n > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: isMobile ? 10 : 16, marginBottom: 26 }}>
-          <KPI icon={<Icon name="package" size={18} />} label="Formati configurati" value={diag.n.toLocaleString('it-IT')}
+          <KPI icon={<Icon name="package" size={18} />} label="Formati configurati" value={diag.n.toLocaleString('it-IT', { useGrouping: 'always' })}
             sub={diag.n === 1 ? 'formato di vendita' : 'formati di vendita'} />
           <KPI icon={<Icon name="money" size={18} />} label="Confezionamento medio"
             value={diag.nConMateriali > 0 ? fmt3(diag.costoMedioMat) : 'da compilare'}
@@ -241,7 +241,7 @@ export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita
             value={diag.piuCostoso ? fmt3(diag.piuCostoso.costoMateriali) : '—'}
             sub={diag.piuCostoso ? diag.piuCostoso.f.nome : 'servono i materiali di confezionamento'}
             color={diag.piuCostoso ? T.amber : T.textSoft} />
-          <KPI icon={<Icon name="receipt" size={18} />} label="Senza FC categoria" value={diag.senzaCategoria.toLocaleString('it-IT')}
+          <KPI icon={<Icon name="receipt" size={18} />} label="Senza FC categoria" value={diag.senzaCategoria.toLocaleString('it-IT', { useGrouping: 'always' })}
             color={diag.senzaCategoria ? T.amber : T.green}
             sub={diag.senzaCategoria ? 'solo materiali stimati' : 'tutti collegati'} />
         </div>
@@ -341,7 +341,7 @@ export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita
                 // loro su desktop; mobile passa a 2x2.
                 <div style={{ display: 'grid', gridTemplateColumns: isMobile || isTablet ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: isMobile ? 14 : 16, alignItems: 'start' }}>
                   <PreviewStat label="Materiali" val={fmt3(previewFC.fcComponenti)} />
-                  <PreviewStat label={`Prodotto (${previewFC.baseG.toLocaleString('it-IT')}g)`} val={fmt3(previewFC.baseG * previewFC.avg)} hint={`FC ${form.categoria}: ${fmtEuro(previewFC.avg * 1000)}/kg`} />
+                  <PreviewStat label={`Prodotto (${previewFC.baseG.toLocaleString('it-IT', { useGrouping: 'always' })}g)`} val={fmt3(previewFC.baseG * previewFC.avg)} hint={`FC ${form.categoria}: ${fmtEuro(previewFC.avg * 1000)}/kg`} />
                   <PreviewStat label="FC stimato / unità" val={fmt3(previewFC.fcUnit)} color={T.green} />
                   {previewFC.margPct != null && <PreviewStat label="Margine stimato" val={`${previewFC.margPct.toFixed(0)}%`} color={previewFC.margPct >= 60 ? T.green : previewFC.margPct >= 40 ? T.amber : T.brand} />}
                 </div>
@@ -390,7 +390,7 @@ export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita
                     <div style={{ flex: 1, minWidth: 160 }}>
                       <div style={{ fontSize: 14, fontWeight: 800, color: T.text }}>{f.nome}</div>
                       <div style={{ fontSize: typo.small.fontSize, color: T.textSoft, marginTop: 3 }}>
-                        Categoria: <b style={{ color: T.textMid }}>{f.categoria || '-'}</b> · base {(Number(f.baseQtaG) || 0).toLocaleString('it-IT')}g · {r.componenti.length} {r.componenti.length === 1 ? 'materiale' : 'materiali'}
+                        Categoria: <b style={{ color: T.textMid }}>{f.categoria || '-'}</b> · base {(Number(f.baseQtaG) || 0).toLocaleString('it-IT', { useGrouping: 'always' })}g · {r.componenti.length} {r.componenti.length === 1 ? 'materiale' : 'materiali'}
                         {f.alias?.length > 0 && <> · alias: {f.alias.join(', ')}</>}
                       </div>
                     </div>
@@ -452,7 +452,7 @@ export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita
                             return (
                               <div key={j} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12.5 }}>
                                 <span style={{ flex: '0 0 38%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: T.text, fontWeight: 500 }}>
-                                  {c.nome} <span style={{ color: T.textSoft, ...TNUM }}>· {c.qta.toLocaleString('it-IT')} × {fmt3(c.costo)}</span>
+                                  {c.nome} <span style={{ color: T.textSoft, ...TNUM }}>· {c.qta.toLocaleString('it-IT', { useGrouping: 'always' })} × {fmt3(c.costo)}</span>
                                 </span>
                                 <span style={{ flex: 1, height: 7, background: T.bgCard, borderRadius: 4, overflow: 'hidden' }}>
                                   <span style={{ display: 'block', height: '100%', width: `${Math.min(100, pctCosto)}%`, background: 'rgba(110,14,26,0.45)' }} />
@@ -468,7 +468,7 @@ export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita
                       {/* quota prodotto + totali */}
                       <div style={{ borderTop: `1px dashed ${T.border}`, paddingTop: 12, display: 'grid', gridTemplateColumns: isMobile || isTablet ? '1fr 1fr' : 'repeat(4,1fr)', gap: 14 }}>
                         <BreakdownTot label="Materiali" val={fmt3(r.costoMateriali)} />
-                        <BreakdownTot label={`Prodotto (${(Number(f.baseQtaG) || 0).toLocaleString('it-IT')}g)`}
+                        <BreakdownTot label={`Prodotto (${(Number(f.baseQtaG) || 0).toLocaleString('it-IT', { useGrouping: 'always' })}g)`}
                           val={r.fcKnown ? fmt3(r.fcBase) : '-'}
                           hint={r.fcKnown ? `FC ${f.categoria}: ${fmtEuro(r.avg * 1000)}/kg` : `categoria senza ${LEX.prodotti} pesati`} />
                         <BreakdownTot label="FC stimato / unità" val={fmt3(r.fcUnit)} color={r.fcKnown ? T.green : T.amber} big />

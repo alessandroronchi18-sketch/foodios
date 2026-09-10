@@ -161,11 +161,11 @@ export default function DailyBriefCard({ orgId }) {
 
       {expanded && (
         <div style={{ marginTop: 14, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10 }}>
-          {k.ricaviIeri > 0 && kpiBox('Ricavi ieri', `${Number(k.ricaviIeri).toLocaleString('it-IT', { maximumFractionDigits: 0 })} €`)}
-          {k.ricaviSettCorr > 0 && kpiBox('Settimana in corso', `${Number(k.ricaviSettCorr).toLocaleString('it-IT', { maximumFractionDigits: 0 })} €`,
+          {k.ricaviIeri > 0 && kpiBox('Ricavi ieri', `${Number(k.ricaviIeri).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })} €`)}
+          {k.ricaviSettCorr > 0 && kpiBox('Settimana in corso', `${Number(k.ricaviSettCorr).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })} €`,
             k.ricaviSettPrec > 0 ? `${(((k.ricaviSettCorr - k.ricaviSettPrec) / k.ricaviSettPrec) * 100).toFixed(1)}% vs prec.` : null)}
           {k.foodCostMedio != null && kpiBox('Food cost', `${k.foodCostMedio.toFixed(1)}%`, 'media 7gg')}
-          {k.topProdotto && kpiBox('Bestseller', k.topProdotto.nome, `${Number(k.topProdotto.qta || 0).toLocaleString('it-IT')} pz`)}
+          {k.topProdotto && kpiBox('Bestseller', k.topProdotto.nome, `${Number(k.topProdotto.qta || 0).toLocaleString('it-IT', { useGrouping: 'always' })} pz`)}
           {k.mpSottoSoglia?.length > 0 && kpiBox('MP sotto soglia', `${k.mpSottoSoglia.length}`, k.mpSottoSoglia.slice(0, 2).map(m => m.nome).join(', '))}
           {k.fattureScadute?.length > 0 && kpiBox('Fatture scadute', `${k.fattureScadute.length}`, 'attenzione')}
         </div>

@@ -33,7 +33,7 @@ const AMBER = T.amber || '#D97706'
 const SK_CASH_SETTINGS = 'pasticceria-cashflow-settings-v1'  // { saldoOggi, fissi: [{label, importo, frequenza}] }
 
 function fmt0(n) {
-  return Number(n || 0).toLocaleString('it-IT', { maximumFractionDigits: 0 })
+  return Number(n || 0).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })
 }
 
 const TIPI_EVENTO = [

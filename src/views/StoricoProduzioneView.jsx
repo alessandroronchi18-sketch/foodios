@@ -26,7 +26,7 @@ const AXIS_TICK    = { fill:'#64748B', fontSize:11 }
 const GRID_STROKE  = '#E5E9EF'
 const BAR_RADIUS_TOP = [6,6,0,0]
 // Formattatori asse Y: importo in IT, € dopo la cifra.
-const yEUR = v => `${Number(v||0).toLocaleString('it-IT')} €`
+const yEUR = v => `${Number(v||0).toLocaleString('it-IT', { useGrouping: 'always' })} €`
 const yPCT = v => `${v}%`
 
 // Nomi mese italiani per fmtKey (vista="mese"). L'index 0 è vuoto perché
@@ -1193,7 +1193,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                         <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false}/>
                         <XAxis dataKey="data" tick={AXIS_TICK} tickLine={false} axisLine={false} interval={n<=10?0:Math.floor(n/8)}/>
                         <YAxis tick={AXIS_TICK} tickLine={false} axisLine={false} tickFormatter={yEUR} width={isMobile?52:60}/>
-                        <Tooltip content={<ChartTip/>} formatter={(v,name)=>[`${Number(v).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})} €`,name]} cursor={{fill:'rgba(110,14,26,0.04)'}}/>
+                        <Tooltip content={<ChartTip/>} formatter={(v,name)=>[`${Number(v).toLocaleString('it-IT', { useGrouping: 'always',minimumFractionDigits:2,maximumFractionDigits:2})} €`,name]} cursor={{fill:'rgba(110,14,26,0.04)'}}/>
                         <Bar dataKey="Ricavi"  fill={C.red}  opacity={0.85} radius={BAR_RADIUS_TOP}/>
                         <Bar dataKey="Margine" fill={C.green} opacity={0.7} radius={BAR_RADIUS_TOP}/>
                         <Bar dataKey="Spreco"  fill={C.amber} opacity={0.6} radius={BAR_RADIUS_TOP}/>

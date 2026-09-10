@@ -26,15 +26,15 @@ const tnum = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'"
 
 function fmt(n) {
   if (n == null) return '-'
-  return '€ ' + Number(n).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return '€ ' + Number(n).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 function fmt0(n) {
   if (n == null) return '-'
-  return '€ ' + Number(n).toLocaleString('it-IT', { maximumFractionDigits: 0 })
+  return '€ ' + Number(n).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })
 }
 function fmtInt(n) {
   if (n == null) return '-'
-  return Number(n).toLocaleString('it-IT', { maximumFractionDigits: 0 })
+  return Number(n).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })
 }
 function fmtPct(n) {
   if (n == null) return '-'

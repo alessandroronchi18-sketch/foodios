@@ -424,7 +424,7 @@ const C = {
   shadowMed:"0 4px 12px rgba(15,23,42,0.06), 0 1px 3px rgba(15,23,42,0.04)",
   shadowLg:"0 10px 30px rgba(15,23,42,0.08), 0 2px 6px rgba(15,23,42,0.04)",
 };
-const fmt  = v => `${Number(v).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})} €`;
+const fmt  = v => `${Number(v).toLocaleString('it-IT', { useGrouping: 'always',minimumFractionDigits:2,maximumFractionDigits:2})} €`;
 const fmtp = v => `${Number(v).toFixed(1)}%`;
 const PIE_COLORS = [C.red,"#E07040","#D4A030","#5B8FCE","#7B7B7B","#A0522D"];
 
@@ -555,8 +555,8 @@ function ProduzioneView({ricettario,mese,onSave,onAddAction,nomeAttivita=''}) {
   const totV=rows.reduce((s,r)=>s+(r.stampiVenduti||0),0);
   const st=totP>0?(totV/totP*100):0;
 
-  const _eur = (n) => `€${Math.round(Number(n)||0).toLocaleString('it-IT')}`
-  const aiPrompt=`${nomeAttivita} - ${mese.label}. Ricavi totali ${_eur(totR)}, food cost ${_eur(totFC)}, margine lordo ${totMP.toFixed(1)}%. Stampi prodotti ${totP.toLocaleString('it-IT')}, venduti ${totV.toLocaleString('it-IT')}, sell-through ${st.toFixed(1)}%. Prodotti: ${rows.filter(r=>r.stampiProdotti>0).map(r=>`${r.ricettaNome} ${r.stampiProdotti}prod/${r.stampiVenduti}vend marg${r.margPct.toFixed(0)}%`).join(", ")}. ${mese.meteo?`Meteo: ${mese.meteo.tempMean}°C, ${mese.meteo.giorniSole}gg sole.`:""} Suggerisci 3 azioni concrete.`;
+  const _eur = (n) => `€${Math.round(Number(n)||0).toLocaleString('it-IT', { useGrouping: 'always' })}`
+  const aiPrompt=`${nomeAttivita} - ${mese.label}. Ricavi totali ${_eur(totR)}, food cost ${_eur(totFC)}, margine lordo ${totMP.toFixed(1)}%. Stampi prodotti ${totP.toLocaleString('it-IT', { useGrouping: 'always' })}, venduti ${totV.toLocaleString('it-IT', { useGrouping: 'always' })}, sell-through ${st.toFixed(1)}%. Prodotti: ${rows.filter(r=>r.stampiProdotti>0).map(r=>`${r.ricettaNome} ${r.stampiProdotti}prod/${r.stampiVenduti}vend marg${r.margPct.toFixed(0)}%`).join(", ")}. ${mese.meteo?`Meteo: ${mese.meteo.tempMean}°C, ${mese.meteo.giorniSole}gg sole.`:""} Suggerisci 3 azioni concrete.`;
   const runAI=async()=>{ setAiLoad(true); setAiData(await getAI(aiPrompt,`mese-${mese.key}`,sload,ssave)); setAiLoad(false); };
 
   return (
@@ -1612,7 +1612,7 @@ export default function Dashboard({
       if(ric){
         setRic(ric);
         bkWriteLS(SK_RIC, ric, orgId, null);
-        try { localStorage.setItem(_RIC_CACHE_KEY, JSON.stringify({ data: ric, savedAt: new Date().toLocaleString('it-IT') })); } catch {}
+        try { localStorage.setItem(_RIC_CACHE_KEY, JSON.stringify({ data: ric, savedAt: new Date().toLocaleString('it-IT', { useGrouping: 'always' }) })); } catch {}
         // Ripulisci le regole runtime della precedente org prima di applicare
         // quelle di questa (evita leakage cross-org nel singleton REGOLE).
         resetRegoleRuntime();
@@ -1837,7 +1837,7 @@ export default function Dashboard({
     try {
       await ssave(SK_RIC, merged);
       setRic(merged);
-      try { localStorage.setItem(_RIC_CACHE_KEY, JSON.stringify({ data: merged, savedAt: new Date().toLocaleString('it-IT') })); } catch {}
+      try { localStorage.setItem(_RIC_CACHE_KEY, JSON.stringify({ data: merged, savedAt: new Date().toLocaleString('it-IT', { useGrouping: 'always' }) })); } catch {}
       notify(`${nuove.length} ricette salvate nel ricettario${senzaPrezzo > 0 ? `. ${senzaPrezzo} sono senza prezzo di vendita: aprile dal Ricettario per completarle.` : '.'}`);
     } catch (e) {
       notify(`Salvataggio non riuscito (${e.message || 'rete'}): il ricettario non e' stato modificato.`, false);
@@ -2123,7 +2123,7 @@ export default function Dashboard({
     } catch(err) {
       console.error('ERRORE salvataggio ricetta su Supabase:', err);
       // Backup localStorage perché Supabase ha fallito
-      try { localStorage.setItem(_RIC_CACHE_KEY, JSON.stringify({ data: nuovoRic, savedAt: new Date().toLocaleString('it-IT') })); } catch {}
+      try { localStorage.setItem(_RIC_CACHE_KEY, JSON.stringify({ data: nuovoRic, savedAt: new Date().toLocaleString('it-IT', { useGrouping: 'always' }) })); } catch {}
       notify(`Salvataggio DB fallito: ${err.message || 'errore'}. Ricetta salvata in copia locale sul browser: non chiudere la pagina.`, false);
       // Audit 2026-09-09 CRITICO: prima qui c'era `return` - la promise si
       // risolveva regolarmente e i chiamanti proseguivano come se il salvataggio
@@ -3148,7 +3148,7 @@ export default function Dashboard({
                   {ic(ICONS.bell, 14)}
                   <span>Notifiche</span>
                   {nonLette>0&&<span style={{background:"#E84B3A",color:"#fff",borderRadius:10,fontSize:10,fontWeight:700,padding:"1px 6px",minWidth:18,textAlign:"center",
-                    boxShadow:"0 0 10px rgba(232,75,58,0.55)"}}>{nonLette.toLocaleString('it-IT')}</span>}
+                    boxShadow:"0 0 10px rgba(232,75,58,0.55)"}}>{nonLette.toLocaleString('it-IT', { useGrouping: 'always' })}</span>}
                 </button>
                 <button onClick={()=>onSignOut&&onSignOut()}
                   aria-label="Esci dall'account"

@@ -56,7 +56,7 @@ export function bonificoText({ beneficiario, iban, importo, causale }) {
   return [
     `Beneficiario: ${beneficiario || '-'}`,
     `IBAN: ${normalizeIban(iban) || '-'}`,
-    `Importo: € ${round2(importo).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+    `Importo: € ${round2(importo).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
     `Causale: ${causale || '-'}`,
   ].join('\n')
 }

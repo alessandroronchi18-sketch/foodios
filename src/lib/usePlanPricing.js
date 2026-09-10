@@ -27,7 +27,7 @@ export function fmtPrezzo(n) {
   const v = Number(n)
   if (!Number.isFinite(v)) return ''
   // Numeri ≥1000 con punto migliaia IT (memory feedback-numeri-italiani).
-  return Number.isInteger(v) ? v.toLocaleString('it-IT') : v.toFixed(2).replace('.', ',')
+  return Number.isInteger(v) ? v.toLocaleString('it-IT', { useGrouping: 'always' }) : v.toFixed(2).replace('.', ',')
 }
 
 // Costruisce l'oggetto { base/pro/chain: {prezzo, nome, desc, label} } a partire

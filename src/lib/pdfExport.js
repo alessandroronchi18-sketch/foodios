@@ -49,7 +49,7 @@ const TEXT = '#0E1726'
 const MUTED = '#8B95A7'
 
 function fmt0(n) {
-  return Number(n || 0).toLocaleString('it-IT', { maximumFractionDigits: 0 })
+  return Number(n || 0).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })
 }
 
 function drawHeader(doc, { title, subtitle, periodo }) {
@@ -91,7 +91,7 @@ function drawFooter(doc) {
     doc.setPage(i)
     doc.setFontSize(8)
     doc.setTextColor(139, 149, 167)
-    doc.text(`Generato da Foodos · ${new Date().toLocaleString('it-IT')}`, 14, 290)
+    doc.text(`Generato da Foodos · ${new Date().toLocaleString('it-IT', { useGrouping: 'always' })}`, 14, 290)
     doc.text(`${i} / ${pages}`, 196, 290, { align: 'right' })
   }
 }

@@ -654,7 +654,7 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
   const stL = confronto.filter(r => r.st !== null && r.st !== undefined)
   const fmtV = dettaglio.ricaviFormati
   const stC = st => colorePerSellThrough(st, C)
-  const fmtKg = g => g >= 1000 ? `${(Number(g) / 1000).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : `${Math.round(Number(g)||0).toLocaleString('it-IT')} g`
+  const fmtKg = g => g >= 1000 ? `${(Number(g) / 1000).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : `${Math.round(Number(g)||0).toLocaleString('it-IT', { useGrouping: 'always' })} g`
 
   // ── Chiusura rapida: solo il totale incassato ───────────────────────────
   //
@@ -1009,7 +1009,7 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
                     <tbody>{importPreview.righe.map((r, i) => (
                       <tr key={i} style={{ borderTop: `1px solid ${C.border}`, background: i % 2 ? '#FDFAF7' : C.white }}>
                         <td style={{ padding: '5px 10px', fontWeight: 700, color: C.text }}>{r.data}</td>
-                        <td style={{ padding: '5px 10px', textAlign: 'right', color: C.green, fontVariantNumeric: 'tabular-nums' }}>€{(r.importo || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td style={{ padding: '5px 10px', textAlign: 'right', color: C.green, fontVariantNumeric: 'tabular-nums' }}>€{(r.importo || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         <td style={{ padding: '5px 10px', textAlign: 'right', color: C.red }}>€{(r.commissione || 0).toFixed(2)}</td>
                         <td style={{ padding: '5px 10px', textAlign: 'right', fontWeight: 700 }}>€{(r.netto || 0).toFixed(2)}</td>
                         <td style={{ padding: '5px 10px', textAlign: 'right', color: C.textSoft }}>{r.ordini}</td>
@@ -1080,7 +1080,7 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
                     <tbody>{importPreview.righe.map((r, i) => (
                       <tr key={i} style={{ borderTop: `1px solid ${C.border}`, background: i % 2 ? '#FDFAF7' : C.white }}>
                         <td style={{ padding: '5px 10px', fontWeight: 700, color: C.text }}>{r.data}</td>
-                        <td style={{ padding: '5px 10px', textAlign: 'right', color: C.green, fontVariantNumeric: 'tabular-nums' }}>€{(r.importo || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td style={{ padding: '5px 10px', textAlign: 'right', color: C.green, fontVariantNumeric: 'tabular-nums' }}>€{(r.importo || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         <td style={{ padding: '5px 10px', textAlign: 'right', color: C.textSoft }}>€{(r.iva || 0).toFixed(2)}</td>
                         <td style={{ padding: '5px 10px', textAlign: 'right' }}>{r.righe || 1}</td>
                         <td style={{ padding: '5px 10px', color: C.textMid, fontSize: FS.small }}>{r.fonte}</td>
@@ -1117,7 +1117,7 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
           {sessione ? (
             <div style={{ background: C.greenLight, border: `1px solid ${C.green}25`, borderRadius: 8, padding: '8px 14px' }}>
               <div style={{ fontSize: FS.small, fontWeight: 700, color: C.green, display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="checkCircle" size={12} />Produzione trovata per questa data</div>
-              <div style={{ fontSize: FS.small, color: C.textMid, marginTop: 2, wordBreak: 'break-word' }}>{(sessione.prodotti || []).map(p => `${(Number(p.stampi)||0).toLocaleString('it-IT')}× ${p.nome}`).join(' · ') || '-'}</div>
+              <div style={{ fontSize: FS.small, color: C.textMid, marginTop: 2, wordBreak: 'break-word' }}>{(sessione.prodotti || []).map(p => `${(Number(p.stampi)||0).toLocaleString('it-IT', { useGrouping: 'always' })}× ${p.nome}`).join(' · ') || '-'}</div>
             </div>
           ) : (
             /* Ambra e triangolo di avviso per dire una cosa che non e' un

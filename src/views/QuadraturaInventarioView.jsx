@@ -37,17 +37,17 @@ function fmtRange(lunediIso) {
   return `${f(lun)} - ${f(dom)} ${dom.getFullYear()}`
 }
 // Numero intero con separatore migliaia IT (1.234)
-function n0(v) { return Number(v || 0).toLocaleString('it-IT', { maximumFractionDigits: 0 }) }
+function n0(v) { return Number(v || 0).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 }) }
 // kg con 1 decimale e separatore IT (1.234,5)
 function nKg(g) {
-  return (Number(g) / 1000).toLocaleString('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+  return (Number(g) / 1000).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 1, maximumFractionDigits: 1 })
 }
 function pct(v) {
   if (v == null) return '-'
   const n = Number(v)
   if (!Number.isFinite(n)) return '-'
   // Max 1 decimale (regola: percentuali con max 1 decimale)
-  return `${n > 0 ? '+' : ''}${n.toLocaleString('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`
+  return `${n > 0 ? '+' : ''}${n.toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`
 }
 
 function csvEscape(s) {
@@ -118,7 +118,7 @@ function fmtDriftEur(v) {
   if (v == null || !Number.isFinite(Number(v))) return '-'
   const n = Math.round(Number(v))
   const sign = n > 0 ? '+ ' : (n < 0 ? '- ' : '')
-  const abs = Math.abs(n).toLocaleString('it-IT')
+  const abs = Math.abs(n).toLocaleString('it-IT', { useGrouping: 'always' })
   return `${sign}${abs} €`
 }
 
@@ -754,7 +754,7 @@ function Tile({ icon, label, value, sub, tendVal, muted, color, bg, borderColor,
         {sub || (tendVal != null ? '' : ' ')}
         {tendVal != null && !sub && (
           <span style={{ color: tendVal >= 0 ? '#065F46' : '#991B1B', fontWeight: 600 }}>
-            vs sett. prec.: {tendVal > 0 ? '+' : ''}{tendVal.toLocaleString('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%
+            vs sett. prec.: {tendVal > 0 ? '+' : ''}{tendVal.toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 1, maximumFractionDigits: 1 })}%
           </span>
         )}
       </div>
@@ -781,7 +781,7 @@ function Tile({ icon, label, value, sub, tendVal, muted, color, bg, borderColor,
             color: tendVal >= 0 ? '#065F46' : '#991B1B',
             whiteSpace: 'nowrap',
           }}>
-            vs prec. {tendVal > 0 ? '+' : ''}{tendVal.toLocaleString('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%
+            vs prec. {tendVal > 0 ? '+' : ''}{tendVal.toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 1, maximumFractionDigits: 1 })}%
           </span>
         )}
       </div>
@@ -814,7 +814,7 @@ function DiagnosiDrift({ driftEur, driftPct, isMobile }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
         <Icon name="warning" size={15} color="#991B1B" />
         <strong style={{ fontSize: 13 }}>
-          Cosa controllare - drift {tono} del {Math.abs(driftPct).toLocaleString('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%
+          Cosa controllare - drift {tono} del {Math.abs(driftPct).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 1, maximumFractionDigits: 1 })}%
         </strong>
       </div>
       <ul style={{ margin: 0, paddingLeft: 22 }}>
@@ -886,7 +886,7 @@ function PanelTop({ title, items, total, isMobile }) {
                 flex: '0 0 38px', fontSize: 11.5, color: C.textSoft,
                 textAlign: 'right', ...TNUM, whiteSpace: 'nowrap',
               }}>
-                {pctVal.toLocaleString('it-IT', { maximumFractionDigits: 0 })}%
+                {pctVal.toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })}%
               </span>
             </div>
           )
@@ -915,13 +915,13 @@ function PanelSofferenza({ sofferenza, zeroVenduto }) {
             display: 'flex', alignItems: 'center', gap: 6,
           }}>
             <Icon name="alert" size={12} color="#991B1B" />
-            Zero venduto ({zeroVenduto.length.toLocaleString('it-IT')})
+            Zero venduto ({zeroVenduto.length.toLocaleString('it-IT', { useGrouping: 'always' })})
           </div>
           <div style={{
             fontSize: 12.5, color: '#7F1D1D', lineHeight: 1.55,
           }}>
             {zeroVenduto.slice(0, 8).map(x => x.gusto).join(' · ')}
-            {zeroVenduto.length > 8 ? ` · +${(zeroVenduto.length - 8).toLocaleString('it-IT')} altri` : ''}
+            {zeroVenduto.length > 8 ? ` · +${(zeroVenduto.length - 8).toLocaleString('it-IT', { useGrouping: 'always' })} altri` : ''}
           </div>
         </div>
       )}
@@ -957,7 +957,7 @@ function PanelSofferenza({ sofferenza, zeroVenduto }) {
                 background: '#FEF3C7', padding: '2px 8px', borderRadius: 999,
                 fontSize: 11.5,
               }}>
-                {(x.ratio * 100).toLocaleString('it-IT', { maximumFractionDigits: 0 })}%
+                {(x.ratio * 100).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })}%
               </span>
             </div>
           ))}

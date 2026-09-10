@@ -34,10 +34,10 @@ function fmtData(iso) {
   return new Date(iso).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 function fmtQty(q, u) {
-  return `${Number(q || 0).toLocaleString('it-IT', { maximumFractionDigits: 3 })} ${u || ''}`
+  return `${Number(q || 0).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 3 })} ${u || ''}`
 }
 function fmtEuro(v) {
-  return `${Number(v || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
+  return `${Number(v || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
 }
 
 export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null, notify }) {
@@ -479,7 +479,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
                 <>
                   <div style={kpiCell}>
                     <div style={labelStyle}>Trasferimenti</div>
-                    <div style={valStyle(C.text)}>{Number(accuratezzaMese.tot || 0).toLocaleString('it-IT')}</div>
+                    <div style={valStyle(C.text)}>{Number(accuratezzaMese.tot || 0).toLocaleString('it-IT', { useGrouping: 'always' })}</div>
                     <div style={subStyle}>nel mese corrente</div>
                   </div>
                   <div style={kpiCell}>
@@ -492,14 +492,14 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
                   <div style={kpiCell}>
                     <div style={labelStyle}>Scarto totale</div>
                     <div style={valStyle(accuratezzaMese.scartoQty > 0 ? C.red : C.text)}>
-                      {accuratezzaMese.scartoQty > 0 ? accuratezzaMese.scartoQty.toLocaleString('it-IT', { maximumFractionDigits: 1 }) : '0'}
+                      {accuratezzaMese.scartoQty > 0 ? accuratezzaMese.scartoQty.toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 1 }) : '0'}
                     </div>
                     <div style={subStyle}>unità varie</div>
                   </div>
                   <div style={kpiCell}>
                     <div style={labelStyle}>Valore sprecato</div>
                     <div style={valStyle(accuratezzaMese.scartoValore > 0 ? C.red : C.text)}>
-                      {accuratezzaMese.scartoValore > 0 ? `${Math.round(accuratezzaMese.scartoValore).toLocaleString('it-IT')} €` : '€ 0'}
+                      {accuratezzaMese.scartoValore > 0 ? `${Math.round(accuratezzaMese.scartoValore).toLocaleString('it-IT', { useGrouping: 'always' })} €` : '€ 0'}
                     </div>
                     <div style={subStyle}>perso in scarti</div>
                   </div>
@@ -601,7 +601,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
             display: 'flex', flexDirection: 'column', justifyContent: 'center',
           }}>
             <div style={{ fontSize: isMobile ? 10.5 : 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em' }}>{k.label}</div>
-            <div style={{ fontSize: isMobile ? 26 : isTablet ? 28 : 30, fontWeight: 800, color: k.color, marginTop: 4, lineHeight: 1.05, letterSpacing: '-0.02em', ...tnum }}>{Number(k.val || 0).toLocaleString('it-IT')}</div>
+            <div style={{ fontSize: isMobile ? 26 : isTablet ? 28 : 30, fontWeight: 800, color: k.color, marginTop: 4, lineHeight: 1.05, letterSpacing: '-0.02em', ...tnum }}>{Number(k.val || 0).toLocaleString('it-IT', { useGrouping: 'always' })}</div>
           </div>
         ))}
       </div>
@@ -749,7 +749,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
                 style={inp}/>
               {parseFloat(riceviModal.qtyRic) < Number(riceviModal.t.quantita) && (
                 <div style={{ marginTop: 6, fontSize: 11, color: C.amber, display: 'inline-flex', alignItems: 'center', gap: 5, ...tnum }}>
-                  <Icon name="warning" size={12} /> Scarto: {(Number(riceviModal.t.quantita) - parseFloat(riceviModal.qtyRic || 0)).toLocaleString('it-IT', { maximumFractionDigits: 2 })} {riceviModal.t.unita}
+                  <Icon name="warning" size={12} /> Scarto: {(Number(riceviModal.t.quantita) - parseFloat(riceviModal.qtyRic || 0)).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 2 })} {riceviModal.t.unita}
                 </div>
               )}
             </div>

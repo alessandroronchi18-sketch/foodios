@@ -66,7 +66,7 @@ export default function ImportWizard({ orgId, onClose, notify, initialEntity = '
       // metà senza dire perché.
       const righeTotali = wb.sheetNames.reduce((a, nm) => a + ((wb.rawSheets[nm] || []).length), 0)
       if (righeTotali > MAX_RIGHE_FILE) {
-        throw new Error(`Il file ha ${righeTotali.toLocaleString('it-IT')} righe: il massimo è ${MAX_RIGHE_FILE.toLocaleString('it-IT')}. Dividilo in più file (per esempio un mese per file) e caricali uno alla volta.`)
+        throw new Error(`Il file ha ${righeTotali.toLocaleString('it-IT', { useGrouping: 'always' })} righe: il massimo è ${MAX_RIGHE_FILE.toLocaleString('it-IT', { useGrouping: 'always' })}. Dividilo in più file (per esempio un mese per file) e caricali uno alla volta.`)
       }
 
       let detected = null
@@ -274,7 +274,7 @@ export default function ImportWizard({ orgId, onClose, notify, initialEntity = '
       }
       if (dupPerCombo.length > 0) {
         const list = dupPerCombo
-          .map(d => `- Mese ${d.ym}: ${d.count.toLocaleString('it-IT')} righe già presenti`)
+          .map(d => `- Mese ${d.ym}: ${d.count.toLocaleString('it-IT', { useGrouping: 'always' })} righe già presenti`)
           .join('\n')
         const conferma = window.confirm(
           `Attenzione: hai già dei dati caricati per uno o più mesi che stai per importare:\n\n${list}\n\n` +
@@ -613,7 +613,7 @@ function StepMapping({ schema, headers, sampleRows, detectInfo, mapping, setMapp
           <Icon name="check" size={18} color={T.GREEN}/>
           <div style={{ fontSize: 14, color: '#14532D', lineHeight: 1.5 }}>
             <div style={{ fontWeight: 700, marginBottom: 2 }}>Ho letto il tuo file.</div>
-            Ho trovato <b>{detectInfo.unpivotStats.total.toLocaleString('it-IT')} righe di produzione</b>
+            Ho trovato <b>{detectInfo.unpivotStats.total.toLocaleString('it-IT', { useGrouping: 'always' })} righe di produzione</b>
             {' '}in {fogliLetti(detectInfo)} {fogliLetti(detectInfo) === 1 ? 'foglio' : 'fogli'}
             {detectInfo.sheetCount > fogliLetti(detectInfo) ? ` su ${detectInfo.sheetCount}` : ''}.
             {' '}Ora dimmi solo che riga corrisponde a cosa.
@@ -877,7 +877,7 @@ function StepValidate({ schema, result, mapping = {}, onBack, onNext, isMobile, 
               cursor: 'pointer', width: '100%', textAlign: 'left',
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             }}>
-            <span>Vedi i dettagli delle {invalid_rows.length.toLocaleString('it-IT')} righe da rivedere</span>
+            <span>Vedi i dettagli delle {invalid_rows.length.toLocaleString('it-IT', { useGrouping: 'always' })} righe da rivedere</span>
             <Icon name={showErrors ? 'chevU' : 'chevD'} size={12}/>
           </button>
           {showErrors && (
@@ -908,7 +908,7 @@ function StepValidate({ schema, result, mapping = {}, onBack, onNext, isMobile, 
         onBack={onBack}
         onNext={onNext}
         nextDisabled={valid_rows.length === 0}
-        nextLabel={valid_rows.length === 0 ? 'Non posso caricare, torna indietro' : `Carica ${valid_rows.length.toLocaleString('it-IT')} righe`}
+        nextLabel={valid_rows.length === 0 ? 'Non posso caricare, torna indietro' : `Carica ${valid_rows.length.toLocaleString('it-IT', { useGrouping: 'always' })} righe`}
         isMobile={isMobile} T={T}
       />
     </div>
@@ -927,7 +927,7 @@ function StatBox({ label, value, color, T }) {
       <div style={{
         fontSize: 24, fontWeight: 800, color: color || T.TXT,
         fontVariantNumeric: 'tabular-nums', lineHeight: 1,
-      }}>{Number(value || 0).toLocaleString('it-IT')}</div>
+      }}>{Number(value || 0).toLocaleString('it-IT', { useGrouping: 'always' })}</div>
       <div style={{ fontSize: 12, color: T.SOFT, marginTop: 4 }}>{label}</div>
     </div>
   )
@@ -935,7 +935,7 @@ function StatBox({ label, value, color, T }) {
 
 function formatCell(v, type) {
   if (v == null || v === '') return '—'
-  if (type === 'number') return Number(v).toLocaleString('it-IT')
+  if (type === 'number') return Number(v).toLocaleString('it-IT', { useGrouping: 'always' })
   if (type === 'boolean') return v ? 'sì' : 'no'
   return String(v)
 }
@@ -960,7 +960,7 @@ function StepInsert({ loading, progress, result, schema, onFinish, onAnother, is
           }}/>
         </div>
         <div style={{ marginTop: 10, fontSize: 13, color: T.SOFT, fontVariantNumeric: 'tabular-nums' }}>
-          {progress.done.toLocaleString('it-IT')} di {progress.total.toLocaleString('it-IT')} righe
+          {progress.done.toLocaleString('it-IT', { useGrouping: 'always' })} di {progress.total.toLocaleString('it-IT', { useGrouping: 'always' })} righe
         </div>
       </div>
     )
@@ -985,7 +985,7 @@ function StepInsert({ loading, progress, result, schema, onFinish, onAnother, is
           {successAll ? 'Tutto caricato!' : 'Caricamento fatto, con qualche intoppo.'}
         </div>
         <div style={{ fontSize: 14, color: T.SOFT, textAlign: 'center', maxWidth: 480, lineHeight: 1.5 }}>
-          {`Ho salvato ${result.inserted.toLocaleString('it-IT')} righe in ${schema.label}.`}
+          {`Ho salvato ${result.inserted.toLocaleString('it-IT', { useGrouping: 'always' })} righe in ${schema.label}.`}
           {failedCount > 0 && ` Alcuni gruppi (${failedCount}) non sono passati — controlla sotto.`}
         </div>
       </div>
@@ -999,8 +999,8 @@ function StepInsert({ loading, progress, result, schema, onFinish, onAnother, is
           {result.failed.slice(0, 5).map((f, i) => (
             <div key={i}>
               {f.riga_file != null
-                ? `Dalla riga ${f.riga_file.toLocaleString('it-IT')} del tuo foglio`
-                : `Dal blocco che comincia alla riga ${(f.batch_start + 1).toLocaleString('it-IT')} di quelle valide`}: {f.error}
+                ? `Dalla riga ${f.riga_file.toLocaleString('it-IT', { useGrouping: 'always' })} del tuo foglio`
+                : `Dal blocco che comincia alla riga ${(f.batch_start + 1).toLocaleString('it-IT', { useGrouping: 'always' })} di quelle valide`}: {f.error}
             </div>
           ))}
         </div>

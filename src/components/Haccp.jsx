@@ -19,7 +19,7 @@ import { KPI } from '../views/_shared'
 
 const SHADOW_PREMIUM = '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)'
 const TNUM = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" }
-const nfmt = (n) => Number(n || 0).toLocaleString('it-IT')
+const nfmt = (n) => Number(n || 0).toLocaleString('it-IT', { useGrouping: 'always' })
 
 const TIPI_APPARECCHIO = [
   { id: 'frigo',        label: 'Frigorifero',     min:0,  max:8  },
@@ -37,7 +37,7 @@ const FREQUENZE = [
 const FmtDt = (s) => {
   if (!s) return '-'
   const d = new Date(s)
-  return d.toLocaleString('it-IT', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' })
+  return d.toLocaleString('it-IT', { useGrouping: 'always', day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' })
 }
 const FmtDate = (s) => {
   if (!s) return '-'

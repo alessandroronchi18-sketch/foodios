@@ -80,7 +80,7 @@ export default function ReformulationView({ ricettario, orgId, sedeId }) {
     setLoading(true); setError(null); setVarianti(null)
 
     // Numeri italiani (memory feedback-numeri-italiani)
-    const _e = n => `${Number(n||0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
+    const _e = n => `${Number(n||0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
     const deltaTarget = fcAttuale.fcPct - fcTarget
     const fcEurTarget = fcAttuale.prezzo * fcTarget / 100
 
@@ -205,7 +205,7 @@ Restituisci 3 varianti come da schema, italiano umano.`
             <strong style={{ display: 'block', marginBottom: isMobile ? 4 : 0 }}>Stato attuale:</strong>
             <span style={{ display: isMobile ? 'block' : 'inline' }}>
               <span style={{ display: 'inline-block', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', verticalAlign: 'bottom' }}>{ricCurrent.nome}</span>
-              {' · '}FC € {Number(fcAttuale.fcPezzo).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/pz ({fcAttuale.fcPct.toFixed(1)}%) · Prezzo € {Number(fcAttuale.prezzo).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {' · '}FC € {Number(fcAttuale.fcPezzo).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}/pz ({fcAttuale.fcPct.toFixed(1)}%) · Prezzo € {Number(fcAttuale.prezzo).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </div>
         )}
@@ -228,7 +228,7 @@ Restituisci 3 varianti come da schema, italiano umano.`
                 <div style={{ fontSize: 14, fontWeight: 800, color: TXT, marginTop: 4 }}>{v.titolo}</div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 11 }}>
-                <Stat label="Delta FC" value={`${v.delta_fc_eur > 0 ? '+' : ''}${Number(v.delta_fc_eur || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`} color={v.delta_fc_eur >= 0 ? GREEN : BRAND} />
+                <Stat label="Delta FC" value={`${v.delta_fc_eur > 0 ? '+' : ''}${Number(v.delta_fc_eur || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`} color={v.delta_fc_eur >= 0 ? GREEN : BRAND} />
                 <Stat label="FC stimato" value={`${(v.fc_risultante_pct || 0).toFixed(1)}%`} />
                 <Stat label="Rischio gusto" value={v.rischio_gusto || '-'} color={v.rischio_gusto === 'basso' ? GREEN : v.rischio_gusto === 'alto' ? BRAND : MID} />
                 <Stat label="Impatto vendite" value={`${(v.impatto_vendite_pct || 0).toFixed(0)}%`} color={v.impatto_vendite_pct < -5 ? BRAND : MID} />
@@ -241,8 +241,8 @@ Restituisci 3 varianti come da schema, italiano umano.`
                   <div style={{ marginBottom: 4, fontWeight: 700, color: MID }}>Azioni</div>
                   {v.azioni.map((a, j) => (
                     <div key={j} style={{ marginTop: 4, padding: '6px 10px', background: '#F1F5F9', borderRadius: 6, lineHeight: 1.5, wordBreak: 'break-word' }}>
-                      {a.ingrediente_attuale && <>{a.ingrediente_attuale} → <strong>{a.ingrediente_nuovo}</strong>{a.delta_grammi != null && ` (${a.delta_grammi > 0 ? '+' : ''}${Number(a.delta_grammi).toLocaleString('it-IT')}g)`}</>}
-                      {a.prezzo_attuale != null && <>Prezzo € {Number(a.prezzo_attuale).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} → <strong>€ {Number(a.prezzo_nuovo).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></>}
+                      {a.ingrediente_attuale && <>{a.ingrediente_attuale} → <strong>{a.ingrediente_nuovo}</strong>{a.delta_grammi != null && ` (${a.delta_grammi > 0 ? '+' : ''}${Number(a.delta_grammi).toLocaleString('it-IT', { useGrouping: 'always' })}g)`}</>}
+                      {a.prezzo_attuale != null && <>Prezzo € {Number(a.prezzo_attuale).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} → <strong>€ {Number(a.prezzo_nuovo).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></>}
                     </div>
                   ))}
                 </div>

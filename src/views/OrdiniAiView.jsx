@@ -188,14 +188,14 @@ export default function OrdiniAiView({ orgId, sedeId, notify }) {
 
   function testoGruppo(g) {
     const qtaTesto = (qta) => qta >= 1000
-      ? `${(Number(qta) / 1000).toLocaleString('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg`
-      : `${Math.round(Number(qta) || 0).toLocaleString('it-IT')} g`
+      ? `${(Number(qta) / 1000).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg`
+      : `${Math.round(Number(qta) || 0).toLocaleString('it-IT', { useGrouping: 'always' })} g`
     const lines = ['Buongiorno,', '', 'Vi chiedo gentilmente di prepararci il seguente ordine:', '']
     for (const s of g.righe) lines.push(`- ${s.nome}: ${qtaTesto(s.qtaSuggerita)}`)
     const minimo = g.righe.find(r => r.minimoOrdine)?.minimoOrdine
     const stima = g.righe.reduce((a, r) => a + (r.prezzo_ultimo > 0 ? r.prezzo_ultimo * r.qtaSuggerita / 1000 : 0), 0)
     if (minimo && stima > 0 && stima < minimo) {
-      lines.push('', `(il vostro minimo d'ordine è ${minimo.toLocaleString('it-IT')} €: fatemi sapere se serve aggiungere qualcosa)`)
+      lines.push('', `(il vostro minimo d'ordine è ${minimo.toLocaleString('it-IT', { useGrouping: 'always' })} €: fatemi sapere se serve aggiungere qualcosa)`)
     }
     lines.push('', 'Grazie!', '')
     return lines.join('\n')
@@ -277,7 +277,7 @@ export default function OrdiniAiView({ orgId, sedeId, notify }) {
             <>
               <div style={{ marginTop: 12, fontSize: 14, fontWeight: 700, color: TXT }}>Nessuna soglia minima impostata</div>
               <div style={{ fontSize: typo.size.base, marginTop: 6 }}>
-                Su {Number(nGiacenze).toLocaleString('it-IT')} ingredient{nGiacenze === 1 ? 'e' : 'i'} in magazzino nessuno ha una soglia:
+                Su {Number(nGiacenze).toLocaleString('it-IT', { useGrouping: 'always' })} ingredient{nGiacenze === 1 ? 'e' : 'i'} in magazzino nessuno ha una soglia:
                 {' '}posso solo guardare i giorni di scorta, e servono le vendite registrate. Imposta le soglie dal Magazzino.
               </div>
             </>
@@ -285,7 +285,7 @@ export default function OrdiniAiView({ orgId, sedeId, notify }) {
             <>
               <div style={{ marginTop: 12, fontSize: 14, fontWeight: 700, color: TXT }}>Tutto sopra soglia</div>
               <div style={{ fontSize: typo.size.base, marginTop: 6 }}>
-                Niente da ordinare oggi, su {Number(nSoglie).toLocaleString('it-IT')} ingredient{nSoglie === 1 ? 'e' : 'i'} con una soglia impostata. Ti avviso appena qualcosa scende.
+                Niente da ordinare oggi, su {Number(nSoglie).toLocaleString('it-IT', { useGrouping: 'always' })} ingredient{nSoglie === 1 ? 'e' : 'i'} con una soglia impostata. Ti avviso appena qualcosa scende.
               </div>
             </>
           )}
@@ -295,7 +295,7 @@ export default function OrdiniAiView({ orgId, sedeId, notify }) {
           <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 14, overflow: 'hidden', marginBottom: 16 }}>
             <div style={{ background: '#FAFAF6', padding: isMobile ? '12px 14px' : '12px 18px', borderBottom: `1px solid ${BORDER}`, display: 'flex', alignItems: isMobile ? 'stretch' : 'center', gap: 10, flexWrap: 'wrap', flexDirection: isMobile ? 'column' : 'row' }}>
               <div style={{ fontSize: 14, fontWeight: 800, color: TXT }}>
-                {Number(suggerimenti.length).toLocaleString('it-IT')} ingredient{suggerimenti.length === 1 ? 'e' : 'i'} da ordinare
+                {Number(suggerimenti.length).toLocaleString('it-IT', { useGrouping: 'always' })} ingredient{suggerimenti.length === 1 ? 'e' : 'i'} da ordinare
               </div>
               <button onClick={copia}
                 style={{ marginLeft: isMobile ? '0' : 'auto', background: BRAND, color: '#FFF', border: 'none', padding: isMobile ? '12px 14px' : '8px 14px', minHeight: isMobile ? 44 : 'auto', borderRadius: 8, fontSize: isMobile ? 13 : 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
@@ -329,14 +329,14 @@ export default function OrdiniAiView({ orgId, sedeId, notify }) {
                           <span title="Nessun fornitore collegato a questo ingrediente: si collega registrando un ordine ricevuto in Fornitori." style={{ cursor: 'help' }}>da collegare</span>
                         )}
                       </td>
-                      <td style={{ padding: '11px 14px', textAlign: 'right', fontSize: 12, color: MID, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{Math.round(s.giacenza).toLocaleString('it-IT')}g</td>
-                      <td style={{ padding: '11px 14px', textAlign: 'right', fontSize: 12, color: SOFT, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{Math.round(s.soglia).toLocaleString('it-IT')}g</td>
-                      <td style={{ padding: '11px 14px', textAlign: 'right', fontSize: 12, color: SOFT, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{Math.round(s.cons).toLocaleString('it-IT')}g</td>
+                      <td style={{ padding: '11px 14px', textAlign: 'right', fontSize: 12, color: MID, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{Math.round(s.giacenza).toLocaleString('it-IT', { useGrouping: 'always' })}g</td>
+                      <td style={{ padding: '11px 14px', textAlign: 'right', fontSize: 12, color: SOFT, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{Math.round(s.soglia).toLocaleString('it-IT', { useGrouping: 'always' })}g</td>
+                      <td style={{ padding: '11px 14px', textAlign: 'right', fontSize: 12, color: SOFT, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{Math.round(s.cons).toLocaleString('it-IT', { useGrouping: 'always' })}g</td>
                       <td style={{ padding: '11px 14px', textAlign: 'right', fontSize: 12, color: s.giorniRimasti != null && s.giorniRimasti <= 3 ? BRAND : MID, fontWeight: 700, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
-                        {s.giorniRimasti != null ? Number(s.giorniRimasti).toLocaleString('it-IT') : '-'}
+                        {s.giorniRimasti != null ? Number(s.giorniRimasti).toLocaleString('it-IT', { useGrouping: 'always' }) : '-'}
                       </td>
                       <td style={{ padding: '11px 14px', textAlign: 'right', fontSize: 13, color: TXT, fontWeight: 800, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
-                        {s.qtaSuggerita >= 1000 ? `${(s.qtaSuggerita / 1000).toLocaleString('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg` : `${Number(s.qtaSuggerita).toLocaleString('it-IT')} g`}
+                        {s.qtaSuggerita >= 1000 ? `${(s.qtaSuggerita / 1000).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg` : `${Number(s.qtaSuggerita).toLocaleString('it-IT', { useGrouping: 'always' })} g`}
                       </td>
                     </tr>
                   ))}

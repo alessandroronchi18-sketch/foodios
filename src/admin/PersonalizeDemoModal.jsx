@@ -302,7 +302,7 @@ function Step2Review({ menu, setMenu, onBack, onSave, onCommit, saving, committi
     <div>
       {cached && (
         <div style={{ padding: '8px 12px', background: P.blueBg, color: P.blue, borderRadius: 8, fontSize: 11, marginBottom: 14, border: `1px solid ${P.blue}` }}>
-          <Icon name="check" size={11} /> Caricato menu salvato {lastSavedAt && `(ultima modifica: ${new Date(lastSavedAt).toLocaleString('it-IT')})`}
+          <Icon name="check" size={11} /> Caricato menu salvato {lastSavedAt && `(ultima modifica: ${new Date(lastSavedAt).toLocaleString('it-IT', { useGrouping: 'always' })})`}
         </div>
       )}
 

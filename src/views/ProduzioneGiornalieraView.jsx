@@ -64,7 +64,7 @@ function ProdottiChips({ prodotti }) {
   const nascosti = ordinati.length - visibili.length
   return (
     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-      {visibili.map(p => <span key={p.nome} style={CHIP_PROD}>{(Number(p.stampi)||0).toLocaleString('it-IT')}× {p.nome}</span>)}
+      {visibili.map(p => <span key={p.nome} style={CHIP_PROD}>{(Number(p.stampi)||0).toLocaleString('it-IT', { useGrouping: 'always' })}× {p.nome}</span>)}
       {!aperto && nascosti > 0 && (
         <span role="button" tabIndex={0} onMouseEnter={() => setAperto(true)} onClick={() => setAperto(true)}
           onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setAperto(true) } }}
@@ -692,7 +692,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
     setTab('storico')
   }
 
-  const fmtG = g => g >= 1000 ? `${(Number(g) / 1000).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : `${Math.round(Number(g)||0).toLocaleString('it-IT')} g`
+  const fmtG = g => g >= 1000 ? `${(Number(g) / 1000).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : `${Math.round(Number(g)||0).toLocaleString('it-IT', { useGrouping: 'always' })} g`
   const margPct = riepilogo.ricavoTot > 0 ? ((riepilogo.ricavoTot - riepilogo.fcTot) / riepilogo.ricavoTot * 100) : 0
 
   return (
@@ -846,7 +846,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
             return (
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : isTablet ? 'repeat(2,1fr)' : 'repeat(4, 1fr)', gap: isMobile ? 10 : 16, marginBottom: 14 }}>
                 <KPI icon={<Icon name="package" size={18} />} label="Stampi totali"
-                  value={riepilogo.stampiTot.toLocaleString('it-IT')}
+                  value={riepilogo.stampiTot.toLocaleString('it-IT', { useGrouping: 'always' })}
                   sub={riepilogo.nProdotti ? `${riepilogo.nProdotti} prodotti in sessione` : 'nessun prodotto'} />
                 <KPI icon={<Icon name="money" size={18} />} label="Ricavo potenziale"
                   value={fmt0(riepilogo.ricavoTot)} color={C.green}
@@ -948,7 +948,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                                 </span>
                                 {q > 0 && reg.unita > 0 && (
                                   <span style={{ fontSize: 12, fontWeight: 700, background: '#FEF7F5', color: C.red, padding: '2px 7px', borderRadius: 4 }}>
-                                    {q} × {reg.unita} = {(q * reg.unita).toLocaleString('it-IT')} pezzi al banco
+                                    {q} × {reg.unita} = {(q * reg.unita).toLocaleString('it-IT', { useGrouping: 'always' })} pezzi al banco
                                   </span>
                                 )}
                                 {cong && <span style={{ fontSize: 11, fontWeight: 700, background: '#E8F4FF', color: '#2980B9', padding: '2px 7px', borderRadius: 4, display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="snow" size={12} /> congelabile</span>}
@@ -1024,7 +1024,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                           </div>
                           {reg.unita > 1 && (
                             <div style={{ fontSize: 12, color: C.textSoft, marginTop: 2 }}>
-                              → <b style={{ color: C.red }}>{pezziVetrina.toLocaleString('it-IT')} {labelPlurale(reg.tipo)}</b> al banco
+                              → <b style={{ color: C.red }}>{pezziVetrina.toLocaleString('it-IT', { useGrouping: 'always' })} {labelPlurale(reg.tipo)}</b> al banco
                               {q !== qv && <span style={{ color: '#92400E', marginLeft: 6 }}>({qv} vendibili oggi, {q - qv} in freezer)</span>}
                             </div>
                           )}
@@ -1048,7 +1048,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                             <span style={{ color: C.textMid }}>Margine %</span>
                             {/* Audit 2026-09-09: toFixed usa il punto decimale, quindi il
                                 margine usciva "33.3%" invece di "33,3%". */}
-                            <span style={{ fontWeight: 700, color: mc, ...TNUM }}>{margPct.toLocaleString('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%</span>
+                            <span style={{ fontWeight: 700, color: mc, ...TNUM }}>{margPct.toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 1, maximumFractionDigits: 1 })}%</span>
                           </div>
                         </div>
                       </>
@@ -1071,7 +1071,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                       const pezzi = qv * (reg.unita || 1)
                       return (
                         <span key={ric.nome} style={{ fontSize: 12, padding: '6px 10px', borderRadius: 6, background: C.white, border: `1px solid ${C.red}25`, color: C.text, fontWeight: 700 }}>
-                          {ric.nome} <span style={{ color: C.red }}>+{pezzi.toLocaleString('it-IT')}</span> <span style={{ fontWeight: 500, color: C.textSoft }}>{labelPlurale(reg.tipo)}</span>
+                          {ric.nome} <span style={{ color: C.red }}>+{pezzi.toLocaleString('it-IT', { useGrouping: 'always' })}</span> <span style={{ fontWeight: 500, color: C.textSoft }}>{labelPlurale(reg.tipo)}</span>
                         </span>
                       )
                     })}
@@ -1175,7 +1175,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                 const mpct = tot.ric > 0 ? (mtot / tot.ric * 100) : 0
                 return (
                   <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : isTablet ? 'repeat(2,1fr)' : 'repeat(4, 1fr)', gap: isMobile ? 10 : 16, marginBottom: 6 }}>
-                    <KPI icon={<Icon name="calendar" size={18} />} label="Sessioni" value={giornaliero.length.toLocaleString('it-IT')} sub={`${tot.stampi.toLocaleString('it-IT')} stampi totali`} />
+                    <KPI icon={<Icon name="calendar" size={18} />} label="Sessioni" value={giornaliero.length.toLocaleString('it-IT', { useGrouping: 'always' })} sub={`${tot.stampi.toLocaleString('it-IT', { useGrouping: 'always' })} stampi totali`} />
                     <KPI icon={<Icon name="money" size={18} />} label="Ricavo potenziale" value={fmt0(tot.ric)} color={C.green} sub="somma sessioni" />
                     <KPI icon={<Icon name="receipt" size={18} />} label="Food cost" value={fmt0(tot.fc)} color={C.red} sub={tot.ric > 0 ? `${fmtp(tot.fc / tot.ric * 100)} sul ricavo` : 'materie prime'} />
                     <KPI icon={<Icon name="trendUp" size={18} />} label="Margine lordo" value={fmt0(mtot)} highlight sub={tot.ric > 0 ? `${fmtp(mpct)} sul ricavo` : '-'} />
@@ -1220,7 +1220,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                         }}>
                           {/* Una cella sola: i due rami isMobile / !isMobile
                               erano identici carattere per carattere. */}
-                          <div style={kpiCell}><div style={kpiLabel}>Stampi</div><div style={{ ...kpiVal, color: C.text }}>{stampiSess.toLocaleString('it-IT')}</div></div>
+                          <div style={kpiCell}><div style={kpiLabel}>Stampi</div><div style={{ ...kpiVal, color: C.text }}>{stampiSess.toLocaleString('it-IT', { useGrouping: 'always' })}</div></div>
                           <div style={kpiCell}><div style={kpiLabel}>Ricavo pot.</div><div style={{ ...kpiVal, color: C.green }}>{fmt0(sess.ricavoTot || 0)}</div></div>
                           <div style={kpiCell}><div style={kpiLabel}>Food cost</div><div style={{ ...kpiVal, color: C.red }}>{fmt0(sess.fcTot || 0)}</div></div>
                           {!isMobile && <div style={kpiCell}><div style={kpiLabel}>Margine</div><div style={{ ...kpiVal, color: mcSess }}>{fmt0(margSess)}</div></div>}
@@ -1292,7 +1292,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
             </div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', margin: '8px 0 12px' }}>
               {(deleteSessConf.prodotti || []).map(p => (
-                <span key={p.nome} style={{ background: '#F8F4F2', border: `1px solid ${C.border}`, borderRadius: 5, padding: '4px 9px', fontSize: 12, fontWeight: 700, color: C.textMid }}>{(Number(p.stampi)||0).toLocaleString('it-IT')}× {p.nome}</span>
+                <span key={p.nome} style={{ background: '#F8F4F2', border: `1px solid ${C.border}`, borderRadius: 5, padding: '4px 9px', fontSize: 12, fontWeight: 700, color: C.textMid }}>{(Number(p.stampi)||0).toLocaleString('it-IT', { useGrouping: 'always' })}× {p.nome}</span>
               ))}
             </div>
             {deleteSessConf.ingredientiUsati && Object.keys(deleteSessConf.ingredientiUsati).length > 0 ? (
@@ -1306,8 +1306,8 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                           "1,25 kg", e i grammi vogliono il punto delle
                           migliaia: 8400 g e' "8.400 g". */}
                       {k}: +{qty >= 1000
-                        ? `${(qty / 1000).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg`
-                        : `${Math.round(qty).toLocaleString('it-IT')} g`}
+                        ? `${(qty / 1000).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg`
+                        : `${Math.round(qty).toLocaleString('it-IT', { useGrouping: 'always' })} g`}
                     </span>
                   ))}
                 </div>

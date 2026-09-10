@@ -59,7 +59,7 @@ const tableMeta = (t) => TABLE_META[t] || { label: t || 'Altro', icon: null }
 
 function fmtTs(iso) {
   if (!iso) return '-'
-  return new Date(iso).toLocaleString('it-IT', {
+  return new Date(iso).toLocaleString('it-IT', { useGrouping: 'always',
     day: '2-digit', month: '2-digit', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
   })
@@ -455,7 +455,7 @@ export default function RegistroAttivita({ orgId, sedi = [], notify }) {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 6, marginBottom: 4 }}>
                         <span style={{ fontSize: 13, fontWeight: 700, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nomeCompleto}</span>
-                        <span style={{ fontSize: 14, fontWeight: 800, color: T.brand, ...tnum, flexShrink: 0 }}>{total.toLocaleString('it-IT')}</span>
+                        <span style={{ fontSize: 14, fontWeight: 800, color: T.brand, ...tnum, flexShrink: 0 }}>{total.toLocaleString('it-IT', { useGrouping: 'always' })}</span>
                       </div>
                       <div style={{ fontSize: 10.5, color: T.textSoft, lineHeight: 1.45, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                         {topTables.map(([t, n]) => (

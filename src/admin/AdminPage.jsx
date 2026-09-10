@@ -65,7 +65,7 @@ const tnum = _tnum;
 
 // ─── Utility ───────────────────────────────────────────────────────────────
 const fmtData = iso => iso ? new Date(iso).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '-'
-const fmtDataOra = iso => iso ? new Date(iso).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '-'
+const fmtDataOra = iso => iso ? new Date(iso).toLocaleString('it-IT', { useGrouping: 'always', day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '-'
 // useGrouping:'always' obbligatorio: senza, "4715" appare senza separatore migliaia
 // su Safari iOS private / Node senza ICU full. Vedi _shared.jsx.
 const _ADMIN_NF = new Intl.NumberFormat('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })
@@ -453,7 +453,7 @@ function DemoCleanupModal({ cliente, matches, onClose, onConferma }) {
                     <td style={{ padding: '8px 12px', color: COLORS.textSoft, whiteSpace: 'nowrap' }}>{f.data_fattura || '-'}</td>
                     <td style={{ padding: '8px 12px', color: COLORS.text, fontWeight: 500 }}>{f.fornitore}</td>
                     <td style={{ padding: '8px 12px', color: COLORS.textSoft, fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 11 }}>{f.numero_rif || '-'}</td>
-                    <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600, color: COLORS.text, whiteSpace: 'nowrap' }}>€ {Number(f.totale || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600, color: COLORS.text, whiteSpace: 'nowrap' }}>€ {Number(f.totale || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                   </tr>
                 ))}
               </tbody>
@@ -955,7 +955,7 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
                       <Icon name="building" size={10} /> Vendite B2B (mese)
                     </div>
                     <div style={{ fontSize: 18, fontWeight: 800, color: c360.b2b.ricavo_mtd > 0 ? COLORS.ok : COLORS.textMute, ...tnum }}>
-                      €{Number(c360.b2b.ricavo_mtd || 0).toLocaleString('it-IT', { maximumFractionDigits: 0 })}
+                      €{Number(c360.b2b.ricavo_mtd || 0).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })}
                     </div>
                     <div style={{ fontSize: 10, color: COLORS.textMute, marginTop: 2 }}>
                       {c360.b2b.n_vendite_mtd} vendite · {c360.b2b.n_clienti_attivi} clienti attivi
@@ -969,7 +969,7 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
                       <Icon name="creditCard" size={10} /> POS (mese)
                     </div>
                     <div style={{ fontSize: 18, fontWeight: 800, color: c360.pos.ricavo_mtd > 0 ? COLORS.ok : COLORS.textMute, ...tnum }}>
-                      €{Number(c360.pos.ricavo_mtd || 0).toLocaleString('it-IT', { maximumFractionDigits: 0 })}
+                      €{Number(c360.pos.ricavo_mtd || 0).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })}
                     </div>
                     <div style={{ fontSize: 10, color: COLORS.textMute, marginTop: 2 }}>
                       {c360.pos.n_scontrini_mtd} scontrini
@@ -1004,7 +1004,7 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
                     </div>
                     <div style={{ fontSize: 10, color: COLORS.textMute, marginTop: 2 }}>
                       {c360.scadenzario.n_overdue > 0
-                        ? `€${Number(c360.scadenzario.totale_overdue).toLocaleString('it-IT', { maximumFractionDigits: 0 })} non pagato`
+                        ? `€${Number(c360.scadenzario.totale_overdue).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })} non pagato`
                         : `${c360.scadenzario.n_prossime_7gg} in scadenza 7gg`}
                     </div>
                   </div>
@@ -1016,7 +1016,7 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
                       <Icon name="receipt" size={10} /> Costi mensili
                     </div>
                     <div style={{ fontSize: 18, fontWeight: 800, color: c360.costi.totale_mensile > 0 ? COLORS.warn : COLORS.textMute, ...tnum }}>
-                      €{Number(c360.costi.totale_mensile || 0).toLocaleString('it-IT', { maximumFractionDigits: 0 })}
+                      €{Number(c360.costi.totale_mensile || 0).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })}
                     </div>
                     <div style={{ fontSize: 10, color: COLORS.textMute, marginTop: 2 }}>
                       {c360.costi.n_voci_attive} voci attive
@@ -1030,7 +1030,7 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
                       <Icon name="users" size={10} /> Stipendi (lordo/mese)
                     </div>
                     <div style={{ fontSize: 18, fontWeight: 800, color: c360.stipendi.lordo_mensile > 0 ? COLORS.warn : COLORS.textMute, ...tnum }}>
-                      €{Number(c360.stipendi.lordo_mensile || 0).toLocaleString('it-IT', { maximumFractionDigits: 0 })}
+                      €{Number(c360.stipendi.lordo_mensile || 0).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })}
                     </div>
                     <div style={{ fontSize: 10, color: COLORS.textMute, marginTop: 2 }}>
                       {c360.stipendi.n_dipendenti} dipendenti attivi
@@ -3051,7 +3051,7 @@ export default function AdminPage() {
               const def = defaults[plan]
               const row = pricing.find(p => p.plan === plan) || { plan, ...def, stripe_price_id: null }
               const inEdit = priceDraft?.plan === plan
-              const euroAttuale = Number(row.prezzo_mese_cents / 100).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+              const euroAttuale = Number(row.prezzo_mese_cents / 100).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })
               const nomeAttuale = row.nome_display || def.nome_display
               const descrAttuale = row.descrizione || def.descrizione
               return (
@@ -3191,7 +3191,7 @@ export default function AdminPage() {
                         </td>
                         <td style={td()}>
                           <span style={{ fontWeight: 700, color: c.valore_sconto === 100 && c.tipo_sconto === 'percent' ? '#059669' : COLORS.accent }}>
-                            {c.tipo_sconto === 'percent' ? `-${c.valore_sconto}%` : `-€${Number(c.valore_sconto / 100).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                            {c.tipo_sconto === 'percent' ? `-${c.valore_sconto}%` : `-€${Number(c.valore_sconto / 100).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                           </span>
                           {c.valore_sconto === 100 && c.tipo_sconto === 'percent' && (
                             <div style={{ fontSize: 10, color: '#059669', fontWeight: 600 }}><Icon name="gift" size={11} /> Gratis</div>
@@ -3360,7 +3360,7 @@ export default function AdminPage() {
                           {e.customer_email || (e.customer_id ? <code>{e.customer_id.slice(0, 16)}…</code> : '-')}
                         </td>
                         <td style={{ padding: '8px 18px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                          {e.amount_cents != null ? `${Number(e.amount_cents / 100).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${(e.currency || 'EUR').toUpperCase()}` : ''}
+                          {e.amount_cents != null ? `${Number(e.amount_cents / 100).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${(e.currency || 'EUR').toUpperCase()}` : ''}
                         </td>
                       </tr>
                     )
@@ -3899,7 +3899,7 @@ export default function AdminPage() {
           <div style={{ padding: '12px 18px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <strong style={{ fontSize: 14 }}><Icon name="coins" size={14} /> Costi AI per cliente</strong>
             <span style={{ fontSize: 11, color: COLORS.textMute }}>
-              ultimi {aiCostDays} gg · totale {aiCost ? '$' + Number(aiCost.total_cost_usd || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}
+              ultimi {aiCostDays} gg · totale {aiCost ? '$' + Number(aiCost.total_cost_usd || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}
             </span>
             <span style={{ flex: 1 }} />
             <select value={aiCostDays} onChange={e => setAiCostDays(parseInt(e.target.value, 10))}
@@ -3940,14 +3940,14 @@ export default function AdminPage() {
                           {c.nome || (c.organization_id || '').slice(0, 8) + '…'}
                         </td>
                         <td style={{ ...td(), textAlign: 'right', fontWeight: 700, color: c.total_cost_usd > 5 ? COLORS.err : c.total_cost_usd > 1 ? COLORS.warn : COLORS.text, fontVariantNumeric: 'tabular-nums' }}>
-                          ${Number(c.total_cost_usd).toLocaleString('it-IT', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
+                          ${Number(c.total_cost_usd).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 3, maximumFractionDigits: 3 })}
                         </td>
                         <td style={{ ...td(), textAlign: 'right', color: COLORS.textMute, fontVariantNumeric: 'tabular-nums' }}>{c.total_calls}</td>
                         <td style={{ ...td(), textAlign: 'right', color: COLORS.textMute, fontVariantNumeric: 'tabular-nums', fontSize: 10 }}>
                           {Math.round(c.tokens_in / 1000)}k / {Math.round(c.tokens_out / 1000)}k
                         </td>
                         <td style={{ ...td(), fontSize: 11 }}>
-                          {c.top_features.map(f => `${f.feature} $${Number(f.cost_usd).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`).join(' · ')}
+                          {c.top_features.map(f => `${f.feature} $${Number(f.cost_usd).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}`).join(' · ')}
                         </td>
                         <td style={{ ...td(), color: COLORS.textMute, fontSize: 11 }}>{c.last_call_at ? fmtDataOra(c.last_call_at) : '-'}</td>
                       </tr>
@@ -3989,16 +3989,16 @@ export default function AdminPage() {
                 <div>
                   <div style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Costo stimato (USD)</div>
                   <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontVariantNumeric: 'tabular-nums' }}>
-                    ${(aiTelemetry.costi?.usd_estimated || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    ${(aiTelemetry.costi?.usd_estimated || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                   <div style={{ fontSize: 10, color: COLORS.textMute, marginTop: 2 }}>
-                    ≈ € {(aiTelemetry.costi?.eur_estimated || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    ≈ € {(aiTelemetry.costi?.eur_estimated || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 </div>
                 <div>
                   <div style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Daily Brief</div>
                   <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.text, fontVariantNumeric: 'tabular-nums' }}>
-                    {(aiTelemetry.daily_brief?.tot ?? 0).toLocaleString('it-IT')}
+                    {(aiTelemetry.daily_brief?.tot ?? 0).toLocaleString('it-IT', { useGrouping: 'always' })}
                   </div>
                   <div style={{ fontSize: 10, color: COLORS.textMute, marginTop: 2 }}>
                     {aiTelemetry.daily_brief?.sent ?? 0} inviati · OR {aiTelemetry.daily_brief?.open_rate ?? '-'}%
@@ -4007,7 +4007,7 @@ export default function AdminPage() {
                 <div>
                   <div style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Brain msgs</div>
                   <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.text, fontVariantNumeric: 'tabular-nums' }}>
-                    {(aiTelemetry.brain?.messaggi_tot ?? 0).toLocaleString('it-IT')}
+                    {(aiTelemetry.brain?.messaggi_tot ?? 0).toLocaleString('it-IT', { useGrouping: 'always' })}
                   </div>
                   <div style={{ fontSize: 10, color: COLORS.textMute, marginTop: 2 }}>
                     {aiTelemetry.brain?.conversazioni ?? 0} conv
@@ -4016,7 +4016,7 @@ export default function AdminPage() {
                 <div>
                   <div style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>OCR fatture</div>
                   <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.text, fontVariantNumeric: 'tabular-nums' }}>
-                    {(aiTelemetry.ocr_fatture?.estratte ?? 0).toLocaleString('it-IT')}
+                    {(aiTelemetry.ocr_fatture?.estratte ?? 0).toLocaleString('it-IT', { useGrouping: 'always' })}
                   </div>
                   <div style={{ fontSize: 10, color: COLORS.textMute, marginTop: 2 }}>
                     avg conf {aiTelemetry.ocr_fatture?.avg_confidence ?? '-'}
@@ -4046,7 +4046,7 @@ export default function AdminPage() {
                     <tr style={{ borderTop: `1px solid ${COLORS.border}` }}>
                       <td style={{ padding: '6px 14px' }}>Forecast vendite</td>
                       <td style={{ padding: '6px 14px', textAlign: 'right', color: COLORS.textMute }}>righe</td>
-                      <td style={{ padding: '6px 14px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{(aiTelemetry.forecast?.righe_generate ?? 0).toLocaleString('it-IT')}</td>
+                      <td style={{ padding: '6px 14px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{(aiTelemetry.forecast?.righe_generate ?? 0).toLocaleString('it-IT', { useGrouping: 'always' })}</td>
                     </tr>
                     <tr style={{ borderTop: `1px solid ${COLORS.border}` }}>
                       <td style={{ padding: '6px 14px' }}>Documentary AI</td>
@@ -4056,12 +4056,12 @@ export default function AdminPage() {
                     <tr style={{ borderTop: `1px solid ${COLORS.border}` }}>
                       <td style={{ padding: '6px 14px' }}>Competitor pricing</td>
                       <td style={{ padding: '6px 14px', textAlign: 'right', color: COLORS.textMute }}>prezzi</td>
-                      <td style={{ padding: '6px 14px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{(aiTelemetry.competitor_pricing?.prezzi_tracciati ?? 0).toLocaleString('it-IT')}</td>
+                      <td style={{ padding: '6px 14px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{(aiTelemetry.competitor_pricing?.prezzi_tracciati ?? 0).toLocaleString('it-IT', { useGrouping: 'always' })}</td>
                     </tr>
                     <tr style={{ borderTop: `1px solid ${COLORS.border}` }}>
                       <td style={{ padding: '6px 14px' }}>POS scontrini</td>
                       <td style={{ padding: '6px 14px', textAlign: 'right', color: COLORS.textMute }}>ricevuti</td>
-                      <td style={{ padding: '6px 14px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{(aiTelemetry.pos_scontrini?.ricevuti ?? 0).toLocaleString('it-IT')}</td>
+                      <td style={{ padding: '6px 14px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{(aiTelemetry.pos_scontrini?.ricevuti ?? 0).toLocaleString('it-IT', { useGrouping: 'always' })}</td>
                     </tr>
                     <tr style={{ borderTop: `1px solid ${COLORS.border}` }}>
                       <td style={{ padding: '6px 14px' }}>WhatsApp Bot</td>
@@ -4141,7 +4141,7 @@ export default function AdminPage() {
                   {Object.entries(healthSnap.table_counts || {}).map(([t, n]) => (
                     <div key={t} style={{ padding: '4px 8px', background: COLORS.rowAlt, borderRadius: 4, fontSize: 11, display: 'flex', justifyContent: 'space-between' }}>
                       <span style={{ color: COLORS.textMute }}>{t}</span>
-                      <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{typeof n === 'number' ? n.toLocaleString('it-IT') : (n ?? '-')}</span>
+                      <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{typeof n === 'number' ? n.toLocaleString('it-IT', { useGrouping: 'always' }) : (n ?? '-')}</span>
                     </div>
                   ))}
                 </div>
@@ -4182,7 +4182,7 @@ export default function AdminPage() {
                 <div>
                   <div style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>View tracciate</div>
                   <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontVariantNumeric: 'tabular-nums' }}>
-                    {(usageStats.totale_view_tracciate || 0).toLocaleString('it-IT')}
+                    {(usageStats.totale_view_tracciate || 0).toLocaleString('it-IT', { useGrouping: 'always' })}
                   </div>
                 </div>
                 <div>
@@ -4217,7 +4217,7 @@ export default function AdminPage() {
                         <tr key={v.view} style={{ borderTop: `1px solid ${COLORS.border}` }}>
                           <td style={{ padding: '6px 10px', color: COLORS.textMute, fontVariantNumeric: 'tabular-nums' }}>{i + 1}</td>
                           <td style={{ padding: '6px 10px', fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>{v.view}</td>
-                          <td style={{ padding: '6px 10px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{v.opens.toLocaleString('it-IT')}</td>
+                          <td style={{ padding: '6px 10px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{v.opens.toLocaleString('it-IT', { useGrouping: 'always' })}</td>
                           <td style={{ padding: '6px 10px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{v.utenti_unici}</td>
                           <td style={{ padding: '6px 10px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{v.org_uniche}</td>
                           <td style={{ padding: '6px 10px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: COLORS.textMute }}>{v.giorni_attivi}</td>
@@ -4288,25 +4288,25 @@ export default function AdminPage() {
                 <div>
                   <div style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Login OK</div>
                   <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.ok, fontVariantNumeric: 'tabular-nums' }}>
-                    {(securitySnap.login?.ok ?? 0).toLocaleString('it-IT')}
+                    {(securitySnap.login?.ok ?? 0).toLocaleString('it-IT', { useGrouping: 'always' })}
                   </div>
                 </div>
                 <div>
                   <div style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Login falliti</div>
                   <div style={{ fontSize: 20, fontWeight: 700, color: (securitySnap.login?.failed ?? 0) > 0 ? COLORS.err : COLORS.text, fontVariantNumeric: 'tabular-nums' }}>
-                    {(securitySnap.login?.failed ?? 0).toLocaleString('it-IT')}
+                    {(securitySnap.login?.failed ?? 0).toLocaleString('it-IT', { useGrouping: 'always' })}
                   </div>
                 </div>
                 <div>
                   <div style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Anomalie</div>
                   <div style={{ fontSize: 20, fontWeight: 700, color: (securitySnap.anomalie?.length ?? 0) > 0 ? COLORS.warn : COLORS.text, fontVariantNumeric: 'tabular-nums' }}>
-                    {(securitySnap.anomalie?.length ?? 0).toLocaleString('it-IT')}
+                    {(securitySnap.anomalie?.length ?? 0).toLocaleString('it-IT', { useGrouping: 'always' })}
                   </div>
                 </div>
                 <div>
                   <div style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Azioni admin</div>
                   <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontVariantNumeric: 'tabular-nums' }}>
-                    {(securitySnap.admin_log?.length ?? 0).toLocaleString('it-IT')}
+                    {(securitySnap.admin_log?.length ?? 0).toLocaleString('it-IT', { useGrouping: 'always' })}
                   </div>
                 </div>
               </div>
@@ -4537,7 +4537,7 @@ export default function AdminPage() {
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ fontWeight: 700, color: COLORS.ok, fontSize: 13 }}>
-                      €{Number((r.ammontare_scontato_cents || 0) / 100).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} scontati
+                      €{Number((r.ammontare_scontato_cents || 0) / 100).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} scontati
                     </div>
                     {r.stripe_invoice_id && (
                       <div style={{ fontSize: 10, color: COLORS.textMute, fontFamily: 'monospace' }}>{r.stripe_invoice_id.slice(0, 18)}…</div>
@@ -4546,7 +4546,7 @@ export default function AdminPage() {
                 </div>
               ))}
               <div style={{ padding: 10, background: COLORS.blueBg, borderRadius: 8, fontSize: 11, color: COLORS.blue }}>
-                Totale risparmiato: <strong>€{Number(redemptions.reduce((s, r) => s + (r.ammontare_scontato_cents || 0), 0) / 100).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> · {redemptions.length} utilizzi
+                Totale risparmiato: <strong>€{Number(redemptions.reduce((s, r) => s + (r.ammontare_scontato_cents || 0), 0) / 100).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> · {redemptions.length} utilizzi
               </div>
             </div>
           )}

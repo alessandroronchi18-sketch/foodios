@@ -186,8 +186,8 @@ export default function AnalisiInventarioSection({
   const nMappati = perGusto.filter(x => x.haMapping).length
   const nNonMappati = perGusto.length - nMappati
 
-  const eur = (n) => (Number(n) || 0).toLocaleString('it-IT', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' €'
-  const kg = (n) => (Number(n) || 0).toLocaleString('it-IT', { maximumFractionDigits: 1 })
+  const eur = (n) => (Number(n) || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' €'
+  const kg = (n) => (Number(n) || 0).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 1 })
   const pct = (n) => (Number(n) || 0).toFixed(1) + '%'
   const deltaPct = (cur, prev) => {
     if (prev == null || prev === 0) return null
@@ -329,7 +329,7 @@ export default function AnalisiInventarioSection({
           <BarChart data={trend}>
             <CartesianGrid strokeDasharray="3 3" stroke="#E5E9EF"/>
             <XAxis dataKey="label" tick={{ fontSize: 11 }} interval="preserveStartEnd"/>
-            <YAxis tick={{ fontSize: 11 }} tickFormatter={v => v.toLocaleString('it-IT')}/>
+            <YAxis tick={{ fontSize: 11 }} tickFormatter={v => v.toLocaleString('it-IT', { useGrouping: 'always' })}/>
             <Tooltip content={<ChartTip/>}/>
             <Legend wrapperStyle={{ fontSize: 12 }}/>
             <Bar dataKey="prod" name="Prodotto kg" fill={T.brand} radius={[4, 4, 0, 0]}/>

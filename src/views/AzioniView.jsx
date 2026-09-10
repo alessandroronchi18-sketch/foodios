@@ -41,8 +41,8 @@ export default function AzioniView({ actions, onUpdate, onDelete, ricettario, gi
   // Helper: format numero in formato IT per evitare "€32.00" anglosassone nel
   // prompt → il modello eredita la formattazione e risponde con punti come
   // separatore decimale (CLAUDE.md§Formattazione numeri).
-  const ftEur = (n) => `${Number(n || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
-  const ftPct = (n) => `${Number(n || 0).toLocaleString('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`
+  const ftEur = (n) => `${Number(n || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
+  const ftPct = (n) => `${Number(n || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`
   // Pluralizza correttamente l'unita' di vendita di una ricetta. Il vecchio
   // `${reg.tipo}e` produceva stringhe rotte tipo "stampoe", "pezzoe", "fettae"
   // → output AI degradato. Tabella minima per i tipi noti, fallback all'unita'.
@@ -95,7 +95,7 @@ export default function AzioniView({ actions, onUpdate, onDelete, ricettario, gi
 
     // Chiusure recenti
     const ultimeChiusure = [...(chiusure || [])].sort((a,b) => b.data?.localeCompare(a.data)).slice(0, 5);
-    const _eur = (n) => `€${Math.round(Number(n)||0).toLocaleString('it-IT')}`
+    const _eur = (n) => `€${Math.round(Number(n)||0).toLocaleString('it-IT', { useGrouping: 'always' })}`
     const chiusureRec = ultimeChiusure.map(c =>
       `- ${c.data}: venduto ${_eur(c.kpi?.totV)}, FC ${_eur(c.kpi?.totFC)}, margine ${_eur(c.kpi?.totM)} (${(c.kpi?.totMP ?? 0).toFixed(1)}%)`
     ).join("\n");

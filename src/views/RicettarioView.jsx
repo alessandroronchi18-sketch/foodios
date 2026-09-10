@@ -19,7 +19,7 @@ import {
   C, TNUM, margColor, margBadge, Badge, Tip, KPI,
 } from './_shared'
 
-const fmt  = v => `${Number(v).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})} €`
+const fmt  = v => `${Number(v).toLocaleString('it-IT', { useGrouping: 'always',minimumFractionDigits:2,maximumFractionDigits:2})} €`
 const fmtp = v => `${Number(v).toFixed(1)}%`
 const PIE_COLORS = [C.red, '#E07040', '#D4A030', '#5B8FCE', '#7B7B7B', '#A0522D']
 
@@ -218,7 +218,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
           ? { lbl: 'Margine', val: 'prezzo da impostare', c: C.textSoft }
           : { lbl: 'Margine', val: fmtp(margPct), c: mc }
     const kpiSec = isSemi
-      ? { lbl: 'Peso batch', val: pesoTotSemi >= 1000 ? `${(Number(pesoTotSemi) / 1000).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : `${Math.round(Number(pesoTotSemi)||0).toLocaleString('it-IT')} g`, c: C.text }
+      ? { lbl: 'Peso batch', val: pesoTotSemi >= 1000 ? `${(Number(pesoTotSemi) / 1000).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : `${Math.round(Number(pesoTotSemi)||0).toLocaleString('it-IT', { useGrouping: 'always' })} g`, c: C.text }
       : (isGusto && !ricavoFlatOk)
         ? { lbl: 'Ricavo/kg', val: 'Configura formati', c: C.textSoft }
         : isGusto
@@ -374,7 +374,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
           )}
           <div style={{ fontSize: 11, color: C.textSoft, lineHeight: 1.4 }}>
             {isSemi
-              ? `Base interna · ${pesoTotSemi >= 1000 ? `${(Number(pesoTotSemi) / 1000).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : `${Math.round(Number(pesoTotSemi)||0).toLocaleString('it-IT')} g`} per batch${ric.totImpasto1 > 0 ? ` · ${ric.totImpasto1}g impasto` : ''}`
+              ? `Base interna · ${pesoTotSemi >= 1000 ? `${(Number(pesoTotSemi) / 1000).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : `${Math.round(Number(pesoTotSemi)||0).toLocaleString('it-IT', { useGrouping: 'always' })} g`} per batch${ric.totImpasto1 > 0 ? ` · ${ric.totImpasto1}g impasto` : ''}`
               : isGusto
                 ? (ricavoFlatOk
                     ? `Gusto · costo ${fmt(fcPerKg)}/kg · ricavo medio ${fmt(ricavo)}/kg (dai formati)`
@@ -403,7 +403,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
             niente "fisarmonica" tra ricette con margine 1 cifra vs 4 cifre. */}
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? `repeat(${isSemi ? 3 : 4}, 1fr)` : `repeat(${isSemi ? 3 : 4}, minmax(86px, 1fr))`, gap: isMobile ? 6 : 6, alignItems: 'stretch', flexShrink: 0, flexBasis: isMobile ? '100%' : 'auto', width: isMobile ? '100%' : 'auto' }}>
           {(isSemi ? [
-            { lbl: 'Peso batch', val: pesoTotSemi >= 1000 ? `${(Number(pesoTotSemi) / 1000).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : `${Math.round(Number(pesoTotSemi)||0).toLocaleString('it-IT')} g`, c: C.text, bg: SEMI.panel },
+            { lbl: 'Peso batch', val: pesoTotSemi >= 1000 ? `${(Number(pesoTotSemi) / 1000).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : `${Math.round(Number(pesoTotSemi)||0).toLocaleString('it-IT', { useGrouping: 'always' })} g`, c: C.text, bg: SEMI.panel },
             { lbl: 'Costo batch', val: fmt(fc), c: SEMI.accent, bg: SEMI.accentLight, bold: true },
             { lbl: 'Costo / kg', val: fmt(costoGSemi * 1000), c: SEMI.accent, bg: SEMI.accentLight, bold: true },
           ] : isGusto ? (
@@ -417,7 +417,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
               { lbl: 'Costo / kg', val: fmt(fcPerKg), c: C.red, bg: C.redLight },
             ] : [
               { lbl: 'Costo / kg', val: fmt(fcPerKg), c: C.red, bg: C.redLight, bold: true },
-              { lbl: 'Peso batch', val: pesoTotSemi >= 1000 ? `${(Number(pesoTotSemi) / 1000).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : `${Math.round(Number(pesoTotSemi)||0).toLocaleString('it-IT')} g`, c: C.text, bg: '#F8F4F2' },
+              { lbl: 'Peso batch', val: pesoTotSemi >= 1000 ? `${(Number(pesoTotSemi) / 1000).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : `${Math.round(Number(pesoTotSemi)||0).toLocaleString('it-IT', { useGrouping: 'always' })} g`, c: C.text, bg: '#F8F4F2' },
               { lbl: 'Ricavo / kg', val: 'n/d', c: C.textSoft, bg: '#F8F4F2' },
               { lbl: 'Margine %', val: 'n/d', c: C.textSoft, bg: '#F8F4F2' },
             ]
@@ -768,7 +768,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
               <div style={PANEL_TITLE_STYLE}><Icon name="bank" size={14} /> Riepilogo batch</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
                 {[
-                  { lbl: 'Peso totale',   val: pesoTotSemi >= 1000 ? `${(Number(pesoTotSemi) / 1000).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : `${Math.round(Number(pesoTotSemi)||0).toLocaleString('it-IT')} g`, c: C.text },
+                  { lbl: 'Peso totale',   val: pesoTotSemi >= 1000 ? `${(Number(pesoTotSemi) / 1000).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : `${Math.round(Number(pesoTotSemi)||0).toLocaleString('it-IT', { useGrouping: 'always' })} g`, c: C.text },
                   { lbl: 'Costo / kg',    val: fmt(costoGSemi * 1000), c: SEMI.accent },
                   { lbl: 'Costo / 100 g', val: fmt(costoGSemi * 100),  c: SEMI.accent },
                 ].map(({ lbl, val, c }) => (
@@ -922,7 +922,7 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : isTablet ? 'repeat(2,1fr)' : 'repeat(3,1fr)', gap: isMobile ? 10 : 16 }}>
               <KPI label={LEX.ricette} value={ric} icon={<Icon name="gift" size={18} />} color={T.text} sub={subRicette} />
               <KPI label="Food cost medio"
-                value={fcMedioSu === 0 ? '—' : `${(fcMedio * 100).toLocaleString('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}
+                value={fcMedioSu === 0 ? '—' : `${(fcMedio * 100).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}
                 icon={<Icon name="barChart" size={18} />}
                 color={fcMedioSu === 0 ? T.textSoft : fcMedio < 0.30 ? T.green : fcMedio < 0.35 ? T.amber : T.brand}
                 sub={fcMedioSu === 0

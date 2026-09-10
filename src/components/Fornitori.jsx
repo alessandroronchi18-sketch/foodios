@@ -14,8 +14,8 @@ import { SK_RIC } from '../lib/storageKeys'
 
 const tnum = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" }
 
-function fmt(n) { return n == null ? "-" : `${Number(n).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €` }
-function fmt0(n) { const x = Number(n); return `${Math.round(Number.isFinite(x) ? x : 0).toLocaleString('it-IT')} €` }
+function fmt(n) { return n == null ? "-" : `${Number(n).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €` }
+function fmt0(n) { const x = Number(n); return `${Math.round(Number.isFinite(x) ? x : 0).toLocaleString('it-IT', { useGrouping: 'always' })} €` }
 function fmtDate(s) { if (!s) return "-"; const d = new Date(s); return d.toLocaleDateString("it-IT") }
 
 // Maschera IBAN: mostra prefisso paese + 2 cifre e ultime 4. Es: IT60…3456
@@ -117,7 +117,7 @@ function BandaDiagnosi({ orgId, sedeId, sedi = [], isMobile, isTablet, refreshKe
           fornitori sono in genere condivisi tra le sedi (nei dati reali nessuno dei
           fornitori ha una sede assegnata), quindi il conto su tutta l'azienda e' il
           più utile - purché sia scritto. */}
-      <KPI label="Fornitori attivi" value={s.attivi.toLocaleString('it-IT')} sub={multiSede ? 'in tutta l’azienda' : undefined} icon={<Icon name="truck" size={17} />} />
+      <KPI label="Fornitori attivi" value={s.attivi.toLocaleString('it-IT', { useGrouping: 'always' })} sub={multiSede ? 'in tutta l’azienda' : undefined} icon={<Icon name="truck" size={17} />} />
       <KPI label={s.periodoLabel === 'ultimi 30 giorni' ? 'Spesa ultimi 30 giorni' : `Spesa di ${s.periodoLabel}`} value={fmt0(s.spesa)}
         sub={s.daFatture
           ? (s.periodoLabel === 'ultimi 30 giorni'
@@ -128,7 +128,7 @@ function BandaDiagnosi({ orgId, sedeId, sedi = [], isMobile, isTablet, refreshKe
       <KPI label="Top fornitore" value={s.topNome}
         sub={s.topTot > 0 ? `${fmt0(s.topTot)} · ${s.periodoLabel}` : "nessun ordine né fattura registrata"}
         icon={<Icon name="trophy" size={17} />} />
-      <KPI label="Categorie" value={s.categorie.toLocaleString('it-IT')}
+      <KPI label="Categorie" value={s.categorie.toLocaleString('it-IT', { useGrouping: 'always' })}
         sub={s.categorie === 0 && s.attivi > 0 ? 'nessuna assegnata' : 'merceologiche'} icon={<Icon name="package" size={17} />} />
     </div>
   )
@@ -160,7 +160,7 @@ function RigheOrdine({ righe, isMobile }) {
             <tr key={i}>
               <td style={{ padding: '7px 10px', fontSize: typo.small.fontSize, color: C.text, fontWeight: 600 }}>{r.prodotto || '-'}</td>
               <td style={{ padding: '7px 10px', fontSize: typo.small.fontSize, color: C.textMid, textAlign: 'right', whiteSpace: 'nowrap', ...tnum }}>
-                {Number(r.quantita || 0).toLocaleString('it-IT', { maximumFractionDigits: 3 })} {r.unita || ''}
+                {Number(r.quantita || 0).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 3 })} {r.unita || ''}
               </td>
               {/* Un prezzo a zero non e' un prezzo: nei 3 ordini reali del database
                   2 righe su 3 hanno prezzo_unitario 0 e il totale esce 0,00 €.
@@ -845,8 +845,8 @@ function OrdiniTab({ orgId, notify, isMobile, onMutate }) {
       return
     }
     const righeTesto = cambi.slice(0, 8).map(c => c.primaVolta
-      ? `- ${c.nome}: ${c.a.toLocaleString('it-IT', { maximumFractionDigits: 2 })} €/kg (prima non c'era)`
-      : `- ${c.nome}: da ${c.da.toLocaleString('it-IT', { maximumFractionDigits: 2 })} a ${c.a.toLocaleString('it-IT', { maximumFractionDigits: 2 })} €/kg`)
+      ? `- ${c.nome}: ${c.a.toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 2 })} €/kg (prima non c'era)`
+      : `- ${c.nome}: da ${c.da.toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 2 })} a ${c.a.toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 2 })} €/kg`)
     const testo = [
       `Aggiorno il prezzo di ${cambi.length} ingredient${cambi.length === 1 ? 'e' : 'i'} col prezzo di questo ordine?`,
       '',
@@ -1249,7 +1249,7 @@ function SpesaTab({ orgId, isMobile }) {
               sub={fonteFatture ? 'dalle fatture registrate' : 'ordini ricevuti'}
               color={T.brand} highlight icon={<Icon name="money" size={17} />} />
             <KPI label={fonteFatture ? 'Fatture' : 'Ordini'}
-              value={(fonteFatture ? daFatture.nFatture : ordini.length).toLocaleString('it-IT')}
+              value={(fonteFatture ? daFatture.nFatture : ordini.length).toLocaleString('it-IT', { useGrouping: 'always' })}
               icon={<Icon name="receipt" size={17} />} />
             <KPI label={fonteFatture ? 'Fattura media' : 'Ordine medio'}
               value={fmt0(fonteFatture ? daFatture.media : (ordini.length ? totale / ordini.length : 0))}
@@ -1275,11 +1275,11 @@ function SpesaTab({ orgId, isMobile }) {
               <div style={cardSt}>
                 {fornitoriGrafico.map(([nome, tot], i) => (
                   <BarRow key={nome} label={nome} value={tot} max={maxForn} color={PALETTE[i % PALETTE.length]}
-                    sub={totale > 0 ? `${(tot / totale * 100).toLocaleString('it-IT', { maximumFractionDigits: 1 })}%` : null} />
+                    sub={totale > 0 ? `${(tot / totale * 100).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 1 })}%` : null} />
                 ))}
                 {restoFornitori.n > 0 && (
                   <BarRow label={`altri ${restoFornitori.n} fornitori`} value={restoFornitori.totale} max={maxForn} color={C.borderStr}
-                    sub={totale > 0 ? `${(restoFornitori.totale / totale * 100).toLocaleString('it-IT', { maximumFractionDigits: 1 })}%` : null} />
+                    sub={totale > 0 ? `${(restoFornitori.totale / totale * 100).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 1 })}%` : null} />
                 )}
               </div>
 

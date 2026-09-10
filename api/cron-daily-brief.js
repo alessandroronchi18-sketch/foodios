@@ -23,7 +23,7 @@ async function getSupabase() {
 }
 
 function fmtIt0(n) {
-  return Number(n || 0).toLocaleString('it-IT', { maximumFractionDigits: 0 })
+  return Number(n || 0).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })
 }
 
 // Prompt SETTIMANALE: 5-6 frasi, narrativa con insight + 1 azione strategica.

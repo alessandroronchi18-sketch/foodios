@@ -30,7 +30,7 @@ const fmtData = (d) => {
   try { return new Date(d + 'T12:00').toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' }) }
   catch { return d }
 }
-const plural = (n, s, p) => `${n.toLocaleString('it-IT')} ${n === 1 ? s : p}`
+const plural = (n, s, p) => `${n.toLocaleString('it-IT', { useGrouping: 'always' })} ${n === 1 ? s : p}`
 
 export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
   const isMobile = useIsMobile()
@@ -269,7 +269,7 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
           color: active ? C.white : C.textSoft,
           padding: '1px 7px', borderRadius: 999, fontSize: 11, fontWeight: 700,
           ...TNUM,
-        }}>{count.toLocaleString('it-IT')}</span>
+        }}>{count.toLocaleString('it-IT', { useGrouping: 'always' })}</span>
       )}
     </button>
   )
@@ -309,7 +309,7 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
         <KPI
           icon={<Icon name="receipt" size={18} />}
           label="Da fatturare"
-          value={daFatturare.length.toLocaleString('it-IT')}
+          value={daFatturare.length.toLocaleString('it-IT', { useGrouping: 'always' })}
           sub={totDaFatturare > 0 ? `${fmt0(totDaFatturare)} in sospeso` : 'nessuna vendita aperta'}
           color={daFatturare.length ? C.amber : C.textSoft}
         />
@@ -417,9 +417,9 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
                           maxWidth: 240, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                           position: 'sticky', left: 0, background: C.bgCard, zIndex: 1,
                         }} title={g.nome}>{g.nome}</td>
-                        <td style={{ padding: '12px 14px', textAlign: 'right', color: C.textMid, ...TNUM }}>{g.n.toLocaleString('it-IT')}</td>
+                        <td style={{ padding: '12px 14px', textAlign: 'right', color: C.textMid, ...TNUM }}>{g.n.toLocaleString('it-IT', { useGrouping: 'always' })}</td>
                         <td style={{ padding: '12px 14px', textAlign: 'right', color: g.giorniDaUltimo > 30 ? C.amber : C.textSoft, ...TNUM, whiteSpace: 'nowrap' }}>
-                          {g.giorniDaUltimo != null ? `${g.giorniDaUltimo.toLocaleString('it-IT')}g fa` : '-'}
+                          {g.giorniDaUltimo != null ? `${g.giorniDaUltimo.toLocaleString('it-IT', { useGrouping: 'always' })}g fa` : '-'}
                         </td>
                         <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 700, color: C.text, ...TNUM, whiteSpace: 'nowrap' }}>{fmt(g.fatturato)}</td>
                         <td style={{ padding: '12px 14px', textAlign: 'right', color: C.green, ...TNUM, whiteSpace: 'nowrap' }}>
@@ -463,7 +463,7 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
                             <span style={{ display: 'block', height: '100%', width: `${widthPct}%`, background: i === 0 ? C.green : 'rgba(31,122,72,0.5)' }} />
                           </span>
                           <span style={{ fontSize: 11, color: C.textSoft, ...TNUM, whiteSpace: 'nowrap' }}>
-                            {p.qta.toLocaleString('it-IT')} pz
+                            {p.qta.toLocaleString('it-IT', { useGrouping: 'always' })} pz
                           </span>
                         </div>
                       </div>
@@ -479,7 +479,7 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
                         <span style={{ display: 'block', height: '100%', width: `${widthPct}%`, background: i === 0 ? C.green : 'rgba(31,122,72,0.5)' }} />
                       </span>
                       <span style={{ flex: '0 0 70px', textAlign: 'right', fontSize: 11.5, color: C.textSoft, ...TNUM, whiteSpace: 'nowrap' }}>
-                        {p.qta.toLocaleString('it-IT')} pz
+                        {p.qta.toLocaleString('it-IT', { useGrouping: 'always' })} pz
                       </span>
                       <span style={{ flex: '0 0 110px', textAlign: 'right', fontSize: 12.5, fontWeight: 700, color: C.text, ...TNUM, whiteSpace: 'nowrap' }}>
                         {fmt(p.ricavo)}
@@ -811,7 +811,7 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
                             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                           }}>{v.clienti_b2b?.nome || 'Cliente eliminato'}</div>
                           <div style={{ fontSize: 11.5, color: C.textSoft, marginTop: 3, lineHeight: 1.5 }}>
-                            {fmtData(v.data)} · {plural((v.righe || []).length, 'prodotto', 'prodotti')} · {(v.righe || []).reduce((s, r) => s + (Number(r.qta) || 0), 0).toLocaleString('it-IT')} pz
+                            {fmtData(v.data)} · {plural((v.righe || []).length, 'prodotto', 'prodotti')} · {(v.righe || []).reduce((s, r) => s + (Number(r.qta) || 0), 0).toLocaleString('it-IT', { useGrouping: 'always' })} pz
                           </div>
                           <div style={{ fontSize: 11, color: C.textSoft, marginTop: 2 }}>
                             Margine <span style={{ fontWeight: 700, color: C.green, ...TNUM }}>{fmt(v.margine)}</span>
@@ -886,7 +886,7 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
                         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                       }}>{v.clienti_b2b?.nome || 'Cliente eliminato'}</div>
                       <div style={{ fontSize: 11.5, color: C.textSoft, marginTop: 3 }}>
-                        {fmtData(v.data)} · {plural((v.righe || []).length, 'prodotto', 'prodotti')} · {(v.righe || []).reduce((s, r) => s + (Number(r.qta) || 0), 0).toLocaleString('it-IT')} pz
+                        {fmtData(v.data)} · {plural((v.righe || []).length, 'prodotto', 'prodotti')} · {(v.righe || []).reduce((s, r) => s + (Number(r.qta) || 0), 0).toLocaleString('it-IT', { useGrouping: 'always' })} pz
                         <span style={{ color: C.textSoft }}> · margine </span>
                         <span style={{ fontWeight: 700, color: C.green, ...TNUM }}>{fmt(v.margine)}</span>
                       </div>

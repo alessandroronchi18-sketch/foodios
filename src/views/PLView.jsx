@@ -535,7 +535,7 @@ function SensTable({ rows, euro, pct }) {
                     <span style={{ background: r.headroom > 50 ? C.greenLight : r.headroom > 25 ? C.amberLight : C.redLight,
                       color: r.headroom > 50 ? C.green : r.headroom > 25 ? C.amber : C.red,
                       fontSize: 12, fontWeight: 700, padding: '3px 8px', borderRadius: 6 }}>
-                      {r.headroom > 0 ? '+' : ''}{r.headroom.toLocaleString('it-IT', { maximumFractionDigits: 0 })}% FC tollerabile
+                      {r.headroom > 0 ? '+' : ''}{r.headroom.toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })}% FC tollerabile
                     </span>
                   </td>
                 </tr>
@@ -1536,7 +1536,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
               margin={isMobile ? { top: 8, right: 16, left: 8, bottom: 32 } : { top: 12, right: 24, left: 12, bottom: 40 }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#E5E9EF" vertical={false} />
-              <XAxis type="number" tickFormatter={v => `${Math.round(v).toLocaleString('it-IT')} €`} tick={{ fill: '#64748B', fontSize: 11 }} axisLine={false} tickLine={false}/>
+              <XAxis type="number" tickFormatter={v => `${Math.round(v).toLocaleString('it-IT', { useGrouping: 'always' })} €`} tick={{ fill: '#64748B', fontSize: 11 }} axisLine={false} tickLine={false}/>
               <YAxis type="category" dataKey="short" width={80} tick={{ fill: '#64748B', fontSize: 11 }} axisLine={false} tickLine={false}/>
               <Tooltip content={<ChartTip />} />
               <Bar dataKey="ricavo" name="Ricavo" fill={C.green} fillOpacity={0.2} stroke="#6E0E1A" strokeOpacity={0.15} radius={[6, 6, 0, 0]}/>
@@ -1581,9 +1581,9 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
 //   2) Tabella per gusto (Prodotto, Venduto, Scarto, Ricavo, Food cost, Margine)
 //   3) Nota se ci sono gusti senza mapping ricetta (ricavo/fc = 0)
 function PLInventarioSection({ data, rangeLabel: rangeLbl, cardP, isMobile }) {
-  const euro = (n) => (Number(n) || 0).toLocaleString('it-IT', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' €'
+  const euro = (n) => (Number(n) || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' €'
   const fmtKg = (v) => v > 0
-    ? v.toLocaleString('it-IT', { maximumFractionDigits: 1 })
+    ? v.toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 1 })
     : '-'
   const fmtPct = (v) => fmtp(Number(v) || 0)
   return (
@@ -1748,7 +1748,7 @@ function CostiNettoBanda({ costiAziendali, margineLordoPeriodo, giorniPeriodo = 
           label={haMargine ? 'Margine netto del periodo' : 'Margine netto'}
           value={haMargine ? euro(margineNetto) : '—'}
           sub={haMargine
-            ? `costi riproporzionati su ${giorniPeriodo} ${giorniPeriodo === 1 ? 'giorno' : 'giorni'}${margPct != null ? ` · ${margPct.toLocaleString('it-IT', { maximumFractionDigits: 1 })}% del lordo` : ''}`
+            ? `costi riproporzionati su ${giorniPeriodo} ${giorniPeriodo === 1 ? 'giorno' : 'giorni'}${margPct != null ? ` · ${margPct.toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 1 })}% del lordo` : ''}`
             : 'senza chiusure non c\'è un margine da cui togliere i costi'}
           color={!haMargine ? T.textSoft : margineNetto >= 0 ? T.green : T.brand}
           highlight={haMargine}

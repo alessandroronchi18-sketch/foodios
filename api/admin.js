@@ -1164,7 +1164,7 @@ async function azImpersona(supabase, orgId, adminEmail) {
     await _sendLinkEmail({
       to: prof.email,
       subject: 'Accesso admin al tuo account FoodOS',
-      body: `Per esigenze di supporto, il team FoodOS (${adminEmail}) ha richiesto un accesso temporaneo al tuo account il ${new Date().toLocaleString('it-IT')}. Se questa richiesta non e' attesa, scrivici subito a support@foodos.it.`,
+      body: `Per esigenze di supporto, il team FoodOS (${adminEmail}) ha richiesto un accesso temporaneo al tuo account il ${new Date().toLocaleString('it-IT', { useGrouping: 'always' })}. Se questa richiesta non e' attesa, scrivici subito a support@foodos.it.`,
     })
   } catch (e) { console.warn('owner alert email failed:', e.message) }
 

@@ -1027,7 +1027,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
             <label style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: 12, fontWeight: 600, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               Importo
               <input type="number" inputMode="decimal" value={pagImporto} onChange={e => setPagImporto(e.target.value)}
-                placeholder={`${Number(residuoTot || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`}
+                placeholder={`${Number(residuoTot || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`}
                 title="Vuoto = salda l'intero residuo. Importo minore = acconto."
                 aria-label="Importo pagato"
                 style={{ padding: fieldPad, minHeight: minTouch, border: `1px solid ${T.border}`, borderRadius: 8, fontSize: fieldFs, color: T.text, boxSizing: 'border-box', width: '100%' }} />
@@ -1320,7 +1320,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
               minWidth: 28, height: 28, padding: '0 8px', borderRadius: 9, background: cfg.pillBg, color: cfg.pillFg,
               fontSize: 12, fontWeight: 800, ...tnum,
-            }}>{items.length.toLocaleString('it-IT')}</span>
+            }}>{items.length.toLocaleString('it-IT', { useGrouping: 'always' })}</span>
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: 15, fontWeight: 700, color: T.text, letterSpacing: '-0.01em' }}>
                 {cfg.header}
@@ -1414,7 +1414,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                   borderTop: `1px solid ${T.border}`, background: '#FAFAF6',
                 }}>
                   <div style={{ fontSize: 12.5, color: T.textSoft, marginBottom: 10, ...tnum }}>
-                    Mostrate <strong>{view.length.toLocaleString('it-IT')}</strong> di <strong>{items.length.toLocaleString('it-IT')}</strong> fatture.
+                    Mostrate <strong>{view.length.toLocaleString('it-IT', { useGrouping: 'always' })}</strong> di <strong>{items.length.toLocaleString('it-IT', { useGrouping: 'always' })}</strong> fatture.
                   </div>
                   <button onClick={() => setShownAll(true)}
                     aria-label={`Mostra tutte le ${items.length} fatture`}
@@ -1423,7 +1423,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                       border: `1px solid ${T.border}`, background: T.bgCard,
                       fontSize: 13, fontWeight: 700, color: T.text, cursor: 'pointer',
                     }}>
-                    Mostra tutte ({items.length.toLocaleString('it-IT')})
+                    Mostra tutte ({items.length.toLocaleString('it-IT', { useGrouping: 'always' })})
                   </button>
                 </div>
               )}
@@ -1447,7 +1447,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         <div style={{ padding: isMobile ? '14px 16px' : '14px 20px', borderBottom: `1px solid ${T.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: 15, fontWeight: 700, color: T.text, letterSpacing: '-0.01em' }}>Dovuto per fornitore</div>
-            <div style={{ fontSize: 12, color: T.textSoft, marginTop: 2 }}>{rollupFornitori.length.toLocaleString('it-IT')} fornitori · netto note di credito · spunta per il bonifico</div>
+            <div style={{ fontSize: 12, color: T.textSoft, marginTop: 2 }}>{rollupFornitori.length.toLocaleString('it-IT', { useGrouping: 'always' })} fornitori · netto note di credito · spunta per il bonifico</div>
           </div>
           <div style={{ fontSize: 18, fontWeight: 800, color: T.text, ...tnum, whiteSpace: 'nowrap' }}>{fmtEuro(totGlob)}</div>
         </div>
@@ -1681,7 +1681,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                 style={{ padding: '11px 18px', minHeight: minTouch, borderRadius: R.md, border: 'none', background: T.brand, color: '#fff', fontSize: 13, fontWeight: 700, flex: isMobile ? 1 : '0 0 auto',
                   cursor: (bulkConfirm.trim().toUpperCase() === 'ELIMINA' && !bulkDeleting) ? 'pointer' : 'not-allowed',
                   opacity: (bulkConfirm.trim().toUpperCase() === 'ELIMINA' && !bulkDeleting) ? 1 : 0.5 }}>
-                {bulkDeleting ? 'Eliminazione…' : `Elimina ${fatture.length.toLocaleString('it-IT')} ${fatture.length === 1 ? 'fattura' : 'fatture'}`}
+                {bulkDeleting ? 'Eliminazione…' : `Elimina ${fatture.length.toLocaleString('it-IT', { useGrouping: 'always' })} ${fatture.length === 1 ? 'fattura' : 'fatture'}`}
               </button>
             </div>
           </div>
@@ -1696,7 +1696,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                 fatture di FORNITORI, cioè su quello che l'azienda SPENDE.
                 Per Mara sono 82.676 EUR, che letti come fatturato dicono
                 l'opposto della verita' sul suo stato di salute. */}
-            {fatture.length.toLocaleString('it-IT')} {fatture.length === 1 ? 'fattura' : 'fatture'} dai fornitori · {fmtEuro(fatture.reduce((s,f) => s+(f.totale||0), 0))} di spesa registrata
+            {fatture.length.toLocaleString('it-IT', { useGrouping: 'always' })} {fatture.length === 1 ? 'fattura' : 'fatture'} dai fornitori · {fmtEuro(fatture.reduce((s,f) => s+(f.totale||0), 0))} di spesa registrata
           </div>
         </div>
         {/* Toolbar consolidato: 1 CTA primario "Importa .xlsx" + 1 dropdown
@@ -1798,7 +1798,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
             label: 'Totale da pagare',
             val: fmtEuro0(summary.daPagare),
             exact: fmtEuro(summary.daPagare),
-            sub: `${summary.nDaPagare.toLocaleString('it-IT')} ${summary.nDaPagare === 1 ? 'fattura aperta' : 'fatture aperte'}`,
+            sub: `${summary.nDaPagare.toLocaleString('it-IT', { useGrouping: 'always' })} ${summary.nDaPagare === 1 ? 'fattura aperta' : 'fatture aperte'}`,
             color: summary.daPagare > 0 ? T.text : T.textSoft,
             accent: T.text,
             onClick: () => setFiltro('tutte'),
@@ -1808,7 +1808,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
             val: fmtEuro0(summary.scaduto),
             exact: fmtEuro(summary.scaduto),
             sub: summary.nScadute > 0
-              ? `${summary.nScadute.toLocaleString('it-IT')} ${summary.nScadute === 1 ? 'fattura' : 'fatture'} da regolare subito`
+              ? `${summary.nScadute.toLocaleString('it-IT', { useGrouping: 'always' })} ${summary.nScadute === 1 ? 'fattura' : 'fatture'} da regolare subito`
               : 'nessuna fattura scaduta',
             color: summary.scaduto > 0 ? T.brand : T.green,
             accent: summary.scaduto > 0 ? T.brand : T.green,
@@ -1820,7 +1820,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
             val: fmtEuro0(summary.settimanaTot),
             exact: fmtEuro(summary.settimanaTot),
             sub: summary.nSettimana > 0
-              ? `${summary.nSettimana.toLocaleString('it-IT')} ${summary.nSettimana === 1 ? 'fattura' : 'fatture'} questa settimana`
+              ? `${summary.nSettimana.toLocaleString('it-IT', { useGrouping: 'always' })} ${summary.nSettimana === 1 ? 'fattura' : 'fatture'} questa settimana`
               : 'nulla in scadenza',
             color: summary.settimanaTot > 0 ? '#9A3412' : T.textSoft,
             accent: summary.settimanaTot > 0 ? '#F97316' : T.border,
@@ -1875,7 +1875,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
             <Icon name="clock" size={16} color={T.textSoft} style={{ flexShrink: 0, marginTop: 2 }} />
             <div style={{ flex: 1, minWidth: 220 }}>
               <div style={{ fontSize: typo.size.md, fontWeight: 700, color: T.text, marginBottom: 3 }}>
-                {vecchieDaSistemare.n.toLocaleString('it-IT')} {vecchieDaSistemare.n === 1 ? 'fattura scaduta' : 'fatture scadute'} da più di sei mesi
+                {vecchieDaSistemare.n.toLocaleString('it-IT', { useGrouping: 'always' })} {vecchieDaSistemare.n === 1 ? 'fattura scaduta' : 'fatture scadute'} da più di sei mesi
               </div>
               <div style={{ fontSize: typo.size.base, color: T.textMid, lineHeight: 1.5 }}>
                 Valgono {fmtEuro(vecchieDaSistemare.totale)} e stanno gonfiando il totale da pagare.
@@ -1909,7 +1909,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
             <Icon name="bank" size={16} color={T.amber} style={{ flexShrink: 0, marginTop: 2 }} />
             <div style={{ flex: 1, minWidth: 220 }}>
               <div style={{ fontSize: typo.size.md, fontWeight: 700, color: T.text, marginBottom: 3 }}>
-                Il bonifico automatico non può partire: manca l'IBAN a {senzaIban.n.toLocaleString('it-IT')} {senzaIban.n === 1 ? 'fornitore' : 'fornitori'}
+                Il bonifico automatico non può partire: manca l'IBAN a {senzaIban.n.toLocaleString('it-IT', { useGrouping: 'always' })} {senzaIban.n === 1 ? 'fornitore' : 'fornitori'}
               </div>
               <div style={{ fontSize: typo.size.base, color: T.textMid, lineHeight: 1.5 }}>
                 Sono {fmtEuro(senzaIban.totale)} da pagare. L'IBAN si scrive UNA volta sulla scheda del
@@ -1952,7 +1952,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
               </div>
               {senzaIban.righe.length > 5 && (
                 <div style={{ fontSize: typo.size.sm, color: T.textSoft, marginTop: 8 }}>
-                  Altri {(senzaIban.righe.length - 5).toLocaleString('it-IT')} fornitori senza IBAN: li trovi nella vista <b>Per fornitore</b>, ognuno con la sua targhetta "no IBAN".
+                  Altri {(senzaIban.righe.length - 5).toLocaleString('it-IT', { useGrouping: 'always' })} fornitori senza IBAN: li trovi nella vista <b>Per fornitore</b>, ognuno con la sua targhetta "no IBAN".
                 </div>
               )}
             </div>
@@ -2065,8 +2065,8 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                     {/* Sul filtro "Pagate" il numero è parziale finché non si
                         carica lo storico: dirlo, invece di far sembrare che le
                         vecchie siano sparite. */}
-                    {count.toLocaleString('it-IT')}
-                    {f.id === 'pagate' && pagateTotali != null && pagateTotali > count ? ` di ${pagateTotali.toLocaleString('it-IT')}` : ''}
+                    {count.toLocaleString('it-IT', { useGrouping: 'always' })}
+                    {f.id === 'pagate' && pagateTotali != null && pagateTotali > count ? ` di ${pagateTotali.toLocaleString('it-IT', { useGrouping: 'always' })}` : ''}
                   </span>
                 )}
               </button>
@@ -2086,7 +2086,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
               fontSize: typo.size.base, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
               display: 'inline-flex', alignItems: 'center', gap: 6,
             }}
-            title={`In pagina ci sono le fatture aperte e le pagate degli ultimi 4 mesi. In archivio ce ne sono ${pagateTotali.toLocaleString('it-IT')} pagate in tutto.`}>
+            title={`In pagina ci sono le fatture aperte e le pagate degli ultimi 4 mesi. In archivio ce ne sono ${pagateTotali.toLocaleString('it-IT', { useGrouping: 'always' })} pagate in tutto.`}>
             <Icon name="clock" size={13} />
             Carica anche lo storico pagato
           </button>
@@ -2094,7 +2094,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         <div style={{ flex: 1 }} />
         {totaliFiltrati.n > 0 && (
           <div style={{ fontSize: 12.5, color: T.textSoft, letterSpacing: '-0.005em', ...tnum, marginLeft: 'auto', whiteSpace: 'nowrap' }}>
-            <strong style={{ color: T.text }}>{totaliFiltrati.n.toLocaleString('it-IT')}</strong> {totaliFiltrati.n === 1 ? 'fattura' : 'fatture'} · <strong style={{ color: T.text }}>{fmtEuro(totaliFiltrati.tot)}</strong>
+            <strong style={{ color: T.text }}>{totaliFiltrati.n.toLocaleString('it-IT', { useGrouping: 'always' })}</strong> {totaliFiltrati.n === 1 ? 'fattura' : 'fatture'} · <strong style={{ color: T.text }}>{fmtEuro(totaliFiltrati.tot)}</strong>
           </div>
         )}
       </div>
@@ -2208,7 +2208,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         return (
           <div style={{ position: 'fixed', left: 0, right: 0, bottom: isMobile ? 64 : 0, zIndex: 900, background: T.bgCard, borderTop: `1px solid ${T.border}`, boxShadow: '0 -6px 24px rgba(15,23,42,0.14)', padding: isMobile ? '12px 14px' : '14px 28px', display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', gap: isMobile ? 10 : 14 }}>
             <div style={{ fontSize: isMobile ? 13 : 13, color: T.text, fontWeight: 600, ...tnum, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {selItems.length.toLocaleString('it-IT')} fattur{selItems.length === 1 ? 'a' : 'e'} pagabil{selItems.length === 1 ? 'e' : 'i'} · {numFornitori} fornitor{numFornitori === 1 ? 'e' : 'i'} · <span style={{ color: T.brand, fontWeight: 800 }}>{fmtEuro(tot)}</span>
+              {selItems.length.toLocaleString('it-IT', { useGrouping: 'always' })} fattur{selItems.length === 1 ? 'a' : 'e'} pagabil{selItems.length === 1 ? 'e' : 'i'} · {numFornitori} fornitor{numFornitori === 1 ? 'e' : 'i'} · <span style={{ color: T.brand, fontWeight: 800 }}>{fmtEuro(tot)}</span>
             </div>
             {!isMobile && <div style={{ flex: 1 }} />}
             <div style={{ display: 'flex', gap: 8, flexShrink: 0, width: isMobile ? '100%' : 'auto' }}>

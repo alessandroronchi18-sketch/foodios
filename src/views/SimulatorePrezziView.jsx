@@ -68,7 +68,7 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
   const eurSigned = v => {
     const n = Math.round(Number(v) || 0)
     const sign = n > 0 ? '+' : n < 0 ? '−' : ''
-    return `${sign}${Math.abs(n).toLocaleString('it-IT')} €`
+    return `${sign}${Math.abs(n).toLocaleString('it-IT', { useGrouping: 'always' })} €`
   }
 
   // ── Storico stampi → media per sessione + frequenza ──────────────────────────
@@ -251,7 +251,7 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
       <style>{SLIDER_CSS}</style>
 
       <PageHeader
-        subtitle={`Quanto ti costano i prodotti, quanto margini e a che prezzo venderli${hasStorico ? ` · ${totSess.toLocaleString('it-IT')} sessioni di storico` : ''}`}
+        subtitle={`Quanto ti costano i prodotti, quanto margini e a che prezzo venderli${hasStorico ? ` · ${totSess.toLocaleString('it-IT', { useGrouping: 'always' })} sessioni di storico` : ''}`}
         action={exportBtn}
       />
 
@@ -345,8 +345,8 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
         <KPI icon={<Icon name="receipt" size={17} />} label="Food cost medio" value={fmtp(diag.fcMedio)} color={fcColor(diag.fcMedio)}
           sub={`obiettivo ${targetPct}%`} />
         <KPI icon={<Icon name="trendUp" size={17} />} label="Margine medio" value={fmtp(diag.margMedio)} color={T.green} sub="sul ricavo" />
-        <KPI icon={<Icon name="warning" size={17} />} label="Prodotti critici" value={diag.critici.toLocaleString('it-IT')} color={diag.critici ? T.brand : T.green}
-          sub={`su ${rows.length.toLocaleString('it-IT')} · oltre ${targetPct + 10}%`} />
+        <KPI icon={<Icon name="warning" size={17} />} label="Prodotti critici" value={diag.critici.toLocaleString('it-IT', { useGrouping: 'always' })} color={diag.critici ? T.brand : T.green}
+          sub={`su ${rows.length.toLocaleString('it-IT', { useGrouping: 'always' })} · oltre ${targetPct + 10}%`} />
         <KPI icon={<Icon name="money" size={17} />} label="Recuperabile / mese" value={fmt0(diag.impattoMese)} highlight
           sub={hasStorico ? 'portando i critici a target' : 'serve storico produzione'} />
       </div>
@@ -367,14 +367,14 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
                 display: 'flex', height: 16, borderRadius: 8, overflow: 'hidden', background: T.bgSubtle,
               }}>
                 {segs.map((s, i) => s.n > 0 && (
-                  <div key={i} title={`${s.lbl}: ${s.n.toLocaleString('it-IT')}`} style={{ width: `${s.n / tot * 100}%`, background: s.c, transition: 'width 0.3s' }} />
+                  <div key={i} title={`${s.lbl}: ${s.n.toLocaleString('it-IT', { useGrouping: 'always' })}`} style={{ width: `${s.n / tot * 100}%`, background: s.c, transition: 'width 0.3s' }} />
                 ))}
               </div>
               <div style={{ display: 'flex', gap: isMobile ? 14 : 22, marginTop: 12, flexWrap: 'wrap' }}>
                 {segs.map((s, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12.5, color: T.textMid }}>
                     <span style={{ width: 10, height: 10, borderRadius: 3, background: s.c, flexShrink: 0 }} />
-                    <b style={{ color: T.text, ...TNUM }}>{s.n.toLocaleString('it-IT')}</b> {s.lbl}
+                    <b style={{ color: T.text, ...TNUM }}>{s.n.toLocaleString('it-IT', { useGrouping: 'always' })}</b> {s.lbl}
                   </div>
                 ))}
               </div>
@@ -464,7 +464,7 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
                       <tr style={{ background: T.bgSubtle }}>
                         <td colSpan={7} style={{ padding: '8px 14px 18px' }}>
                           <div style={{ fontSize: 11, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', margin: '6px 0 10px' }}>
-                            Composizione del costo · {r.reg.unita.toLocaleString('it-IT')} {labelPlurale(r.reg.tipo)}/stampo
+                            Composizione del costo · {r.reg.unita.toLocaleString('it-IT', { useGrouping: 'always' })} {labelPlurale(r.reg.tipo)}/stampo
                           </div>
                           {r.righe.length === 0 ? (
                             <div style={{ fontSize: 12.5, color: T.textSoft }}>Nessun ingrediente con quantità nel ricettario.</div>
@@ -650,7 +650,7 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
             borderRadius: R.md, fontSize: 12.5, color: '#92400E',
             lineHeight: 1.5, boxSizing: 'border-box',
           }}>
-            <b>{sim.sofferenti.length.toLocaleString('it-IT')}</b> {sim.sofferenti.length === 1 ? 'prodotto va' : 'prodotti vanno'} in sofferenza con +{mpPct}% materie prime: {sim.sofferenti.slice(0, 4).map(r => r.nome).join(', ')}{sim.sofferenti.length > 4 ? '…' : ''}
+            <b>{sim.sofferenti.length.toLocaleString('it-IT', { useGrouping: 'always' })}</b> {sim.sofferenti.length === 1 ? 'prodotto va' : 'prodotti vanno'} in sofferenza con +{mpPct}% materie prime: {sim.sofferenti.slice(0, 4).map(r => r.nome).join(', ')}{sim.sofferenti.length > 4 ? '…' : ''}
           </div>
         )}
       </div>

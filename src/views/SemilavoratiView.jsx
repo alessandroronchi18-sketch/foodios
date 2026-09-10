@@ -19,9 +19,9 @@ import { C, KPI, SH, PageHeader, Tip, Badge, TNUM, useSortable, SortTH } from '.
 const SHADOW_PREMIUM = '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)'
 const SHADOW_HOVER = '0 1px 2px rgba(15,23,42,0.06), 0 18px 40px rgba(15,23,42,0.10)'
 
-const fmtKg  = v => `${Number(v || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
-const fmtBatch = v => `${Number(v || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
-const fmtPeso = g => g >= 1000 ? `${(g / 1000).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : `${Math.round(g).toLocaleString('it-IT')} g`
+const fmtKg  = v => `${Number(v || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
+const fmtBatch = v => `${Number(v || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
+const fmtPeso = g => g >= 1000 ? `${(g / 1000).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : `${Math.round(g).toLocaleString('it-IT', { useGrouping: 'always' })} g`
 
 // ─── Card premium di un singolo semilavorato ─────────────────────────────────
 function SemiCard({ sm, ricettario, ingCosti, onEdit, onDelete, LEX }) {
@@ -128,7 +128,7 @@ function SemiCard({ sm, ricettario, ingCosti, onEdit, onDelete, LEX }) {
                     <span style={{ flex: isMobile ? '0 0 38%' : '0 0 30%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: ing.mancante ? T.amber : T.text, fontWeight: j === 0 ? 700 : 600, textTransform: 'capitalize' }}>
                       {ing.nome}{ing.isSemilavorato ? ' (semilav.)' : ''}{ing.mancante ? ' · n/d' : ''}
                     </span>
-                    <span style={{ flex: '0 0 60px', textAlign: 'right', ...TNUM, color: T.textSoft, fontSize: 11, whiteSpace: 'nowrap' }}>{Math.round(ing.qty).toLocaleString('it-IT')} g</span>
+                    <span style={{ flex: '0 0 60px', textAlign: 'right', ...TNUM, color: T.textSoft, fontSize: 11, whiteSpace: 'nowrap' }}>{Math.round(ing.qty).toLocaleString('it-IT', { useGrouping: 'always' })} g</span>
                     <span style={{ flex: 1, height: 7, background: T.bgCard, borderRadius: 4, overflow: 'hidden', minWidth: 24 }}>
                       <span style={{ display: 'block', height: '100%', width: `${Math.min(100, pctCosto)}%`, background: j === 0 ? T.brand : 'rgba(110,14,26,0.45)', transition: 'width 240ms ease' }} />
                     </span>
@@ -162,7 +162,7 @@ function SemiCard({ sm, ricettario, ingCosti, onEdit, onDelete, LEX }) {
               {sm.usato.map(u => (
                 <div key={u.nome} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '6px 11px', background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: R.full, fontSize: 12 }}>
                   <span style={{ fontWeight: 600, color: T.text, textTransform: 'capitalize' }}>{u.nome.toLowerCase()}</span>
-                  <span style={{ ...TNUM, color: T.textSoft, fontSize: 11 }}>{Math.round(u.qty).toLocaleString('it-IT')} g</span>
+                  <span style={{ ...TNUM, color: T.textSoft, fontSize: 11 }}>{Math.round(u.qty).toLocaleString('it-IT', { useGrouping: 'always' })} g</span>
                 </div>
               ))}
             </div>

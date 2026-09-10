@@ -19,8 +19,8 @@ const C = {
 
 // Formato monetario IT: separatore migliaia "." e € SEMPRE DOPO la cifra (regola design partner).
 // fmt → 2 decimali (dettagli tabella), fmt0 → arrotondato all'unità (KPI grandi).
-function fmt(n) { const v = Number(n); return n==null||!Number.isFinite(v)?"-":`${v.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})} €` }
-function fmt0(n) { const v = Number(n); return `${Math.round(Number.isFinite(v)?v:0).toLocaleString('it-IT')} €` }
+function fmt(n) { const v = Number(n); return n==null||!Number.isFinite(v)?"-":`${v.toLocaleString('it-IT', { useGrouping: 'always',minimumFractionDigits:2,maximumFractionDigits:2})} €` }
+function fmt0(n) { const v = Number(n); return `${Math.round(Number.isFinite(v)?v:0).toLocaleString('it-IT', { useGrouping: 'always' })} €` }
 // fmtH: numeric Postgres + utenti che digitano stringhe in input → coercion + guard.
 function fmtH(h) { const v = Number(h); return `${(Number.isFinite(v)?v:0).toFixed(1)}h` }
 // Nome completo (nome + cognome) per disambiguare gli omonimi senza ambiguità.
@@ -2239,7 +2239,7 @@ function CalcoloLordoNetto({ lordo, netto, setForm }) {
     if (netto && !lordo) return calcolaStipendio({ netto, mensilita: 13 })
     return calcolaStipendio({ lordo, netto, mensilita: 13 })
   }, [lordo, netto])
-  const fmt = (n) => `${Math.round(Number(n) || 0).toLocaleString('it-IT')} €`
+  const fmt = (n) => `${Math.round(Number(n) || 0).toLocaleString('it-IT', { useGrouping: 'always' })} €`
   return (
     <div style={{ marginTop: 6, padding: '10px 12px', background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 8 }}>
       <div style={{ fontSize: 10, fontWeight: 700, color: '#1E3A8A', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
