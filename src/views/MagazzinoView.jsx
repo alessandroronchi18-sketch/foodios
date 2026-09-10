@@ -198,7 +198,7 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
       setScartoForm(null)
       await carica()
     } catch (e) {
-      notify('Errore: ' + e.message, false)
+      console.error('[magazzino] salvataggio:', e); notify('Non ho potuto salvare. Controlla la connessione e riprova', false)
     } finally {
       setSaving(false)
     }
@@ -414,8 +414,17 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
       )}
 
       {scartoForm && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}
-          onClick={() => setScartoForm(null)}>
+        // Audit 2026-09-09: la finestra non si chiudeva con Esc (tutte le altre
+        // del prodotto lo fanno), si chiudeva toccando lo sfondo ANCHE mentre il
+        // salvataggio era in corso — buttando via quello che il pasticcere aveva
+        // scritto senza dire com'era finita — e all'apertura il cursore non
+        // finiva nel campo, quindi bisognava cliccarci.
+        <div role="dialog" aria-modal="true" aria-label="Registra scarto"
+          tabIndex={-1}
+          ref={el => { if (el && !el.dataset.visto) { el.dataset.visto = '1'; el.focus() } }}
+          onKeyDown={e => { if (e.key === 'Escape' && !saving) setScartoForm(null) }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}
+          onClick={() => { if (!saving) setScartoForm(null) }}>
           <div onClick={e => e.stopPropagation()} style={{ background: C.bgCard, borderRadius: 16, padding: 24, maxWidth: 420, width: '100%', boxShadow: '0 24px 60px rgba(15,23,42,0.28)' }}>
             <h3 style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 800, color: C.text, display: 'inline-flex', alignItems: 'center', gap: 8 }}><Icon name="warning" size={18} />Registra scarto</h3>
             <p style={{ margin: '0 0 16px', fontSize: 12, color: C.textSoft }}>{LEX.Prodotto}: <strong>{scartoForm.prodotto}</strong></p>
@@ -573,16 +582,46 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: typo.small.fontSize }}>
                 <thead>
                   <tr>
-                    {['Data', 'Ingrediente', 'Vecchio', 'Nuovo', 'Δ'].map((h, i) => (
-                      <th key={i} style={{ padding: '8px 12px', textAlign: i >= 2 ? 'right' : 'left', ...typo.caption, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, background: '#FDFAF7' }}>{h}</th>
+                    {['Modificato il', 'Ingrediente', 'Vale da', 'Vecchio', 'Nuovo', 'Δ'].map((h, i) => (
+                      <th key={i} style={{ padding: '8px 12px', textAlign: i >= 3 ? 'right' : 'left', ...typo.caption, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, background: '#FDFAF7' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {logPrezzi.slice(0, 50).map(l => (
                     <tr key={l.id} style={{ borderBottom: `1px solid ${C.border}` }}>
-                      <td style={{ padding: '7px 12px', color: C.textMid, whiteSpace: 'nowrap' }}>{new Date(l.data).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}</td>
-                      <td style={{ padding: '7px 12px', fontWeight: 600, color: C.text, textTransform: 'capitalize' }}>{l.ingrediente}</td>
+<td style={{ padding: '7px 12px', color: C.textMid, whiteSpace: 'nowrap' }}>
+                        {new Date(l.data).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                        {/* Audit 2026-09-09: chi ha cambiato il prezzo non si
+                            vedeva, e il campo `utente` era già nel log. Su un
+                            dato che sposta il food cost di tutte le ricette,
+                            sapere chi l'ha toccato serve. */}
+                        {l.utente && (
+                          <div style={{ ...typo.caption, color: C.textSoft, fontWeight: 400 }}>{String(l.utente).split('@')[0]}</div>
+                        )}
+                      </td>
+                      {/* `capitalize` rompe le maiuscole vere: "FARINA 00"
+                          diventava "Farina 00". Il nome resta come scritto. */}
+                      <td style={{ padding: '7px 12px', fontWeight: 600, color: C.text }}>{l.ingrediente}</td>
+                      {/* Da quando vale questo prezzo. Un prezzo con decorrenza
+                          futura prima non si vedeva da nessuna parte: si poteva
+                          impostare e dimenticare, e il food cost cambiava da
+                          solo il giorno stabilito. */}
+                      <td style={{ padding: '7px 12px', color: C.textMid, whiteSpace: 'nowrap' }}>
+                        {(() => {
+                          const da = l.decorre_da || l.data
+                          if (!da) return '-'
+                          const d = new Date(da)
+                          if (isNaN(d.getTime())) return '-'
+                          const futuro = d.getTime() > Date.now()
+                          return (
+                            <span style={{ color: futuro ? C.amber : C.textMid, fontWeight: futuro ? 700 : 400 }}>
+                              {d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                              {futuro && ' (futuro)'}
+                            </span>
+                          )
+                        })()}
+                      </td>
                       <td style={{ padding: '7px 12px', textAlign: 'right', color: C.textMid, ...TNUM }}>{(l.prezzoVecchio || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/kg</td>
                       <td style={{ padding: '7px 12px', textAlign: 'right', fontWeight: 700, color: C.text, ...TNUM }}>{(l.prezzoNuovo || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/kg</td>
                       {/* `delta` può mancare nelle righe di log vecchie, e
@@ -863,7 +902,8 @@ export default function MagazzinoView({
       await ssave(SK_MAG, nm)
       await ssave(SK_EXCL, [...nuoviEsclusi])
     } catch (e) {
-      notify(`Eliminazione fallita: ${e.message || 'rete'}. Riprova.`, false)
+      console.error('[magazzino] eliminazione:', e)
+      notify('Non ho potuto eliminare: la voce è ancora al suo posto. Riprova', false)
       setSaving(false)
       return
     }
@@ -939,6 +979,9 @@ export default function MagazzinoView({
 
   const righe = tuttiIngNomi.map(k => {
     const m = magPerNorm[k] || {}
+    // La voce esiste in magazzino? Serve per distinguere "finito" da "mai
+    // contato": sono due situazioni diverse e chiedono due azioni diverse.
+    const inMagazzino = !!magPerNorm[k]
     const giacenza = m.giacenza_g || 0
     const soglia = m.soglia_g || 0
     const fabb = fabbisogno[k] || 0
@@ -953,6 +996,13 @@ export default function MagazzinoView({
       // Prodotti finiti ha da sempre un KPI "Stock negativo": le materie prime
       // non avevano niente.
       giacenza < 0 ? 'negativo' :
+      // Audit 2026-09-09: `giacenza === 0` non distingue "finito" da "mai
+      // contato". Un ingrediente che sta nel ricettario ma non è mai stato
+      // inventariato ha giacenza 0 perché nessuno l'ha pesato, e la pagina lo
+      // dichiarava ESAURITO in rosso. Nel magazzino reale di Mara sono 40
+      // ingredienti su 48: l'allarme era sempre acceso, quindi non voleva dire
+      // niente e copriva i tre che erano davvero finiti.
+      !inMagazzino ? 'mai_contato' :
       giacenza === 0 ? 'esaurito' :
       soglia > 0 && giacenza <= soglia ? 'critico' :
       giorniScorta !== null && giorniScorta < 3 ? 'critico' :
@@ -1051,7 +1101,7 @@ export default function MagazzinoView({
     try {
       await ssave(SK_MAG, nm); await ssave(SK_LOGRIF, log)
     } catch (e) {
-      notify(`Salvataggio magazzino fallito: ${e.message || 'rete'}. Riprova.`, false)
+      console.error('[magazzino] salvataggio giacenze:', e); notify('Non ho potuto salvare il magazzino: le giacenze non sono cambiate. Riprova', false)
       setSaving(false)
       return
     }
@@ -1072,7 +1122,13 @@ export default function MagazzinoView({
     } else {
       notify(testo)
     }
-    setFormIng(''); setFormQty(''); setFormNote(''); setQuickLoad(null)
+    // Audit 2026-09-09: il modo (carico / scarico) restava impostato dopo il
+    // salvataggio. Chi registrava uno scarico e poi caricava della merce nuova
+    // trovava il form ancora su "scarico" e sottraeva invece di aggiungere,
+    // senza accorgersene: il campo si svuota e l'unico segnale del modo e' il
+    // bordo ambra dell'input. Il carico e' l'operazione normale, quindi il
+    // form torna li'.
+    setFormIng(''); setFormQty(''); setFormNote(''); setQuickLoad(null); setFormMode('carico')
     setSaving(false)
   }
 
@@ -1102,7 +1158,7 @@ export default function MagazzinoView({
     try {
       await ssave(SK_MAG, nm)
     } catch (e) {
-      notify(`Errore soglia: ${e.message || 'rete'}`, false)
+      console.error('[magazzino] soglia:', e); notify('Non ho potuto salvare la soglia. Riprova', false)
       setSaving(false)
       return
     }
@@ -1145,7 +1201,8 @@ export default function MagazzinoView({
     try {
       await ssave(SK_MAG, nm)
     } catch (e) {
-      notify(`Errore aggiunta ingrediente: ${e.message || 'rete'}`, false)
+      console.error('[magazzino] nuovo ingrediente:', e)
+      notify('Non ho potuto aggiungere l’ingrediente. Riprova', false)
       setSaving(false)
       return
     }
@@ -1408,9 +1465,19 @@ export default function MagazzinoView({
         )
       })()}
 
-      <div style={{ display: 'flex', gap: 2, marginBottom: 24, borderBottom: `1px solid ${T.border}`, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+      {/* Audit 2026-09-09: su telefono due schede su cinque restano fuori
+          schermo e niente diceva che la barra scorre — si crede che ce ne siano
+          tre. Il gradiente sul bordo destro e' il segnale, e scompare quando si
+          e' arrivati in fondo. E la barra ora si dichiara come tablist: senza,
+          un lettore di schermo legge cinque bottoni sciolti e non dice quale
+          scheda e' aperta. */}
+      <div role="tablist" aria-label="Sezioni del magazzino"
+        style={{ display: 'flex', gap: 2, marginBottom: 24, borderBottom: `1px solid ${T.border}`, overflowX: 'auto', WebkitOverflowScrolling: 'touch',
+          maskImage: isMobile ? 'linear-gradient(to right, #000 88%, transparent 100%)' : undefined,
+          WebkitMaskImage: isMobile ? 'linear-gradient(to right, #000 88%, transparent 100%)' : undefined }}>
         {[['giacenze', 'Materie prime'], ['pf', 'Prodotti finiti'], ['prezzi', 'Prezzi ingredienti'], ['carica', 'Carica merce'], ['log', 'Storico carichi']].filter(([id]) => !(isDipendente && id === 'prezzi')).map(([id, lbl]) => (
           <button key={id} onClick={() => setTab(id)}
+            role="tab" aria-selected={tab === id} id={`mag-tab-${id}`}
             style={{ padding: '12px 16px', minHeight: 44, border: 'none', background: 'transparent', cursor: 'pointer',
               fontSize: 13, fontWeight: tab === id ? 600 : 500, color: tab === id ? T.text : T.textSoft,
               borderBottom: tab === id ? `2px solid ${T.brand}` : '2px solid transparent',
@@ -1696,7 +1763,7 @@ export default function MagazzinoView({
               await ssave(SK_MAG, nm)
               await ssave(SK_LOGRIF, updLogs)
             } catch (e) {
-              notify(`Salvataggio OCR fallito: ${e.message || 'rete'}. Riprova.`, false)
+              console.error('[magazzino] OCR:', e); notify('Non ho potuto salvare i dati letti dalla foto. Riprova', false)
               return
             }
             setMagazzino(nm)
@@ -1750,26 +1817,51 @@ export default function MagazzinoView({
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>Ingrediente</div>
-                <input type="text" value={formIng}
+                <label htmlFor="mag-ing-input" style={{ display: 'block', fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3, cursor: 'pointer' }}>Ingrediente</label>
+                <input id="mag-ing-input" type="text" value={formIng}
                   onChange={e => setFormIng(e.target.value)}
                   onKeyDown={onEnterAutoComplete(tuttiIngNomi, formIng, setFormIng, () => {
                     const qtyEl = document.getElementById('mag-qty-input')
                     if (qtyEl) qtyEl.focus()
                   })}
                   placeholder="es. burro"
+                  aria-label="Nome dell'ingrediente da caricare o scaricare"
                   list="ing-list" style={{ width: '100%', padding: '11px 12px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 13, color: C.text, boxSizing: 'border-box' }}/>
+                {/* Audit 2026-09-09: il form non diceva quanto ce n'e' adesso.
+                    Chi carica non sa da dove parte, e chi scarica non sa se sta
+                    per andare sotto zero — cosa che succede davvero, tanto che
+                    esiste uno stato "Da correggere" per le giacenze negative.
+                    Il dato è già in `righe`: basta mostrarlo. */}
+                {(() => {
+                  if (!formIng.trim()) return null
+                  const rigaScelta = righe.find(r => r.k === normIng(formIng.toLowerCase().trim()))
+                  if (!rigaScelta) {
+                    return (
+                      <div style={{ fontSize: typo.small.fontSize, color: C.textSoft, marginTop: 5 }}>
+                        Nuovo ingrediente: non è ancora in magazzino, lo aggiungo io.
+                      </div>
+                    )
+                  }
+                  const dopo = rigaScelta.giacenza + (formMode === 'scarico' ? -1 : 1) * (parseFloat(String(formQty).replace(',', '.')) || 0)
+                  return (
+                    <div style={{ fontSize: typo.small.fontSize, color: dopo < 0 ? C.red : C.textSoft, marginTop: 5, lineHeight: 1.5 }}>
+                      Adesso in magazzino: <b style={{ color: C.text, ...TNUM }}>{fmtG(rigaScelta.giacenza)}</b>
+                      {formQty && <> → dopo questa operazione <b style={{ color: dopo < 0 ? C.red : C.text, ...TNUM }}>{fmtG(dopo)}</b></>}
+                      {dopo < 0 && <> — andrebbe sotto zero: controlla la quantità.</>}
+                    </div>
+                  )
+                })()}
               </div>
               <div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>
-                  Quantità (g) - {formMode === 'scarico' ? 'da rimuovere' : 'in arrivo'}
-                </div>
+                <label htmlFor="mag-qty-input" style={{ display: 'block', fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3, cursor: 'pointer' }}>
+                  Quantità (g) — {formMode === 'scarico' ? 'da rimuovere' : 'in arrivo'}
+                </label>
                 <input id="mag-qty-input" type="number" inputMode="decimal" value={formQty} onChange={e => setFormQty(e.target.value)} placeholder="es. 2000" min="0"
                   style={{ width: '100%', padding: '11px 12px', minHeight: 44, borderRadius: 8, border: `1px solid ${formMode === 'scarico' ? C.amber : C.borderStr}`, fontSize: isMobile ? 16 : 13, color: C.text, boxSizing: 'border-box' }}/>
               </div>
               <div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>Note (opzionale)</div>
-                <input type="text" value={formNote} onChange={e => setFormNote(e.target.value)} placeholder="es. Metro - bolla 1234"
+                <label htmlFor="mag-note-input" style={{ display: 'block', fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3, cursor: 'pointer' }}>Note (opzionale)</label>
+                <input id="mag-note-input" type="text" value={formNote} onChange={e => setFormNote(e.target.value)} placeholder="es. Metro - bolla 1234"
                   style={{ width: '100%', padding: '11px 12px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 13, color: C.text, boxSizing: 'border-box' }}/>
               </div>
               <datalist id="ing-list">{tuttiIngNomi.map(k => <option key={k} value={k}/>)}</datalist>
@@ -1794,7 +1886,18 @@ export default function MagazzinoView({
           {(!logRif || logRif.length === 0) ? (
             <div style={{ textAlign: 'center', padding: '50px 20px', color: C.textSoft }}>
               <div style={{ marginBottom: 12, color: C.textSoft }}><Icon name="clipboard" size={32} /></div>
-              <div style={{ fontSize: 13, fontWeight: 600 }}>Nessun rifornimento registrato</div>
+              {/* Audit 2026-09-09: diceva solo "Nessun rifornimento registrato"
+                  e finiva li'. Uno stato vuoto che non dice come uscirne lascia
+                  la persona a chiedersi se la pagina e' rotta. */}
+              <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 6 }}>Nessun carico registrato</div>
+              <div style={{ fontSize: typo.small.fontSize, color: C.textSoft, maxWidth: 380, margin: '0 auto 16px', lineHeight: 1.55 }}>
+                Qui finisce ogni merce che entra o esce dal magazzino, con la data e la quantità.
+                Si riempie da sola man mano che registri i carichi.
+              </div>
+              <button type="button" onClick={() => setTab('carica')}
+                style={{ padding: '11px 18px', minHeight: 44, borderRadius: 9, border: 'none', background: T.brand, color: '#fff', fontSize: 13, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <Icon name="plus" size={14} /> Registra un carico
+              </button>
             </div>
           ) : (
             <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, overflow: 'hidden', boxShadow: SHADOW_PREMIUM }}>

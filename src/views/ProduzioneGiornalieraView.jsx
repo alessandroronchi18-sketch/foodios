@@ -149,8 +149,25 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
     const keys = new Set([...Object.keys(oldIngs), ...Object.keys(agg.ings)])
     for (const k of keys) {
       const delta = (oldIngs[k] || 0) - (agg.ings[k] || 0) // >0 = restituito, <0 = consumato
-      const base = nm[k]?.giacenza_g || 0
-      nm[k] = nm[k] ? { ...nm[k], giacenza_g: Math.max(0, base + delta) } : { nome: k, giacenza_g: Math.max(0, delta), soglia_g: 0, ultimoRifornimento: null }
+      if (!delta) continue
+      // Audit 2026-09-09: qui, quando la voce non esisteva, veniva CREATA con
+      // la quantità restituita. È lo stesso modo in cui il magazzino si gonfia
+      // già corretto nell'eliminazione della sessione (vedi il commento su
+      // `scalatoPerChiave` più sotto), ma nel percorso di modifica era rimasto:
+      // correggere una sessione faceva comparire merce che non era mai entrata.
+      // E come lì, la chiave va cercata anche fra quelle non canoniche: il
+      // magazzino conserva "uova" mentre il calcolo usa "uovo".
+      const grezze = nm[k] ? [k] : (chiaviSalvate[normIng(k)] || [])
+      if (grezze.length === 0) {
+        // Se stiamo CONSUMANDO un ingrediente che non è in magazzino, la voce
+        // nasce (a giacenza negativa) perché va inventariato. Se invece stiamo
+        // restituendo, non si crea niente: quella merce non è mai uscita da qui.
+        if (delta < 0) nm[k] = { nome: k, giacenza_g: delta, soglia_g: 0, ultimoRifornimento: null }
+        continue
+      }
+      const raw = grezze[0]
+      const base = Number(nm[raw]?.giacenza_g) || 0
+      nm[raw] = { ...nm[raw], giacenza_g: base + delta }
     }
     const nuovaSess = { ...sess, prodotti: nuoviProdotti, ingredientiUsati: agg.ings, fcTot: agg.fcTot, ricavoTot: agg.ricavoTot }
     const ng = (giornaliero || []).map(s => s.id === sess.id ? nuovaSess : s)
@@ -424,6 +441,13 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
       const vendibile = vendibileMap[r.nome] || stampi
       if (vendibile <= 0) continue
       const reg = getR(r.nome, r)
+      // Audit 2026-09-09: un batch di semilavorato finiva nello stock dei
+      // PRODOTTI FINITI, cioè nella vetrina da cui la cassa scarica le vendite.
+      // Ma una crema pasticcera non si vende al banco: la vetrina si riempiva
+      // di righe che nessuno avrebbe mai scaricato, e i suoi conti non
+      // tornavano più. Il semilavorato resta nella sessione (va registrato, e
+      // il suo food cost va contato) ma non entra in vetrina.
+      if (reg.tipo === 'semilavorato') continue
       const unitaFactor = Number(reg.unita)
       const pezzi = vendibile * (Number.isFinite(unitaFactor) && unitaFactor > 0 ? unitaFactor : 1)
       if (pezzi <= 0) continue
@@ -449,6 +473,13 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
       const vendibile = vendibileMap[r.nome] || stampi
       if (vendibile <= 0) continue
       const reg = getR(r.nome, r)
+      // Audit 2026-09-09: un batch di semilavorato finiva nello stock dei
+      // PRODOTTI FINITI, cioè nella vetrina da cui la cassa scarica le vendite.
+      // Ma una crema pasticcera non si vende al banco: la vetrina si riempiva
+      // di righe che nessuno avrebbe mai scaricato, e i suoi conti non
+      // tornavano più. Il semilavorato resta nella sessione (va registrato, e
+      // il suo food cost va contato) ma non entra in vetrina.
+      if (reg.tipo === 'semilavorato') continue
       const unitaFactor = Number(reg.unita)
       const pezzi = vendibile * (Number.isFinite(unitaFactor) && unitaFactor > 0 ? unitaFactor : 1)
       if (pezzi <= 0) continue
