@@ -17,7 +17,7 @@ import FotoOCR from '../components/FotoOCR'
 import Icon from '../components/Icon'
 import { loadStockPF, loadMovimentiPF, scartoPF } from '../lib/stockPF'
 import {
-  C, TNUM, PageHeader, useSortable, SortTH, fmt0, fmtp,
+  C, TNUM, KPI, PageHeader, useSortable, SortTH, fmt0, fmtp,
 } from './_shared'
 
 // Ombra premium coerente con la Dashboard home (card/contenitori principali).
@@ -44,44 +44,12 @@ const SHADOW_PREMIUM = '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42
 // "clicca per vedere cosa ordinare" non reagiva al clic, e la promessa restava
 // lettera morta. Ora se arriva un onClick la tessera diventa un vero pulsante,
 // raggiungibile anche da tastiera.
-function KPI({ label, value, sub, color, highlight, icon, onClick }) {
-  const accent = color || T.brand
-  const chipBg = highlight ? 'rgba(255,255,255,0.14)' : `${accent}1F`
-  const chipColor = highlight ? '#fff' : accent
-  return (
-    <div className="fos-tile"
-      {...(onClick ? {
-        onClick,
-        role: 'button',
-        tabIndex: 0,
-        onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } },
-      } : {})}
-      style={{
-      cursor: onClick ? 'pointer' : 'default',
-      position: 'relative', overflow: 'hidden',
-      background: highlight ? 'linear-gradient(135deg, #6E0E1A 0%, #4A0612 100%)' : T.bgCard,
-      border: `1px solid ${highlight ? '#4A0612' : T.border}`, borderRadius: 18,
-      padding: '18px 20px',
-      boxShadow: highlight ? '0 14px 34px rgba(110,14,26,0.32), inset 0 1px 0 rgba(255,255,255,0.18)' : '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)',
-    }}>
-      {/* decoro radiale d'angolo */}
-      <div style={{ position: 'absolute', top: -28, right: -28, width: 92, height: 92, borderRadius: '50%',
-        background: highlight ? 'rgba(255,255,255,0.07)' : `${accent}14`, opacity: 0.6, pointerEvents: 'none' }}/>
-      {icon && (
-        <div style={{ position: 'relative', marginBottom: 12 }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, borderRadius: 11, background: chipBg, color: chipColor, fontSize: 17 }}>{icon}</span>
-        </div>
-      )}
-      <div style={{ position: 'relative', fontSize: 12, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase',
-        color: highlight ? 'rgba(255,255,255,0.76)' : T.textSoft, marginBottom: 6 }}>{label}</div>
-      <div style={{ position: 'relative', fontSize: 30, fontWeight: 800, color: highlight ? T.textOnDark : color || T.text,
-        letterSpacing: '-0.035em', lineHeight: 1.05, ...TNUM }}>
-        {value}
-      </div>
-      {sub && <div style={{ position: 'relative', fontSize: 12, color: highlight ? 'rgba(255,255,255,0.7)' : T.textSoft, marginTop: 7, fontWeight: 500 }}>{sub}</div>}
-    </div>
-  )
-}
+// Audit 2026-09-09: qui c'era una copia locale del riquadro KPI, ferma a una
+// versione precedente di quella condivisa in _shared.jsx: non chiamava
+// useIsMobile, quindi su telefono il valore sforava il riquadro e i numeri dei
+// riquadri affiancati non erano incolonnati fra loro (regola della casa).
+// Due copie della stessa cosa vogliono due correzioni ogni volta, e una delle
+// due resta sempre indietro: ora si usa quella condivisa.
 
 // ─── Section header con barra brand (gerarchia premium) ──────────────────────
 function SectHead({ icon, title, sub, right }) {
@@ -172,18 +140,12 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
 
   useEffect(() => { carica() }, [carica])
 
-  // Audit 2026-07-01 HIGH: tracking focus timer per cleanup unmount.
-  const focusTimerRef = useRef(null)
-  useEffect(() => () => {
-    if (focusTimerRef.current) clearTimeout(focusTimerRef.current)
-  }, [])
-  function focusQtyDeferred() {
-    if (focusTimerRef.current) clearTimeout(focusTimerRef.current)
-    focusTimerRef.current = setTimeout(() => {
-      try { document.getElementById('mag-qty-input')?.focus() } catch {}
-      focusTimerRef.current = null
-    }, 100)
-  }
+  // Audit 2026-09-09: qui c'erano `focusTimerRef` e `focusQtyDeferred`, copia
+  // di quelli che stanno in MagazzinoView. Codice morto: nessuno li chiamava in
+  // questo componente, e puntavano a `mag-qty-input`, che e' un campo di un
+  // ALTRO componente (il form di carico merce). Una copia inerte di una
+  // funzione che tocca il DOM di un'altra parte della pagina e' il genere di
+  // cosa che sembra funzionare finche' qualcuno prova a usarla.
 
   const handleScarto = async () => {
     if (saving) return // evita doppio scarico stock su doppio click
@@ -703,11 +665,11 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
                     <td style={{ padding: '10px 14px', textAlign: 'right', whiteSpace: 'nowrap' }}>
                       {editing ? (
                         <>
-                          <button onClick={() => tentaSalva(row)} style={{ padding: '8px 14px', minHeight: 36, borderRadius: 6, border: 'none', background: C.red, color: C.white, fontSize: 12, fontWeight: 800, cursor: 'pointer', marginRight: 4 }}>Salva</button>
-                          <button onClick={cancelEdit} style={{ padding: '8px 12px', minHeight: 36, borderRadius: 6, border: `1px solid ${C.borderStr}`, background: 'transparent', fontSize: 12, fontWeight: 700, color: C.textMid, cursor: 'pointer' }}>Annulla</button>
+                          <button onClick={() => tentaSalva(row)} style={{ padding: '8px 14px', minHeight: 40, borderRadius: 6, border: 'none', background: C.red, color: C.white, fontSize: 12, fontWeight: 800, cursor: 'pointer', marginRight: 4 }}>Salva</button>
+                          <button onClick={cancelEdit} style={{ padding: '8px 12px', minHeight: 40, borderRadius: 6, border: `1px solid ${C.borderStr}`, background: 'transparent', fontSize: 12, fontWeight: 700, color: C.textMid, cursor: 'pointer' }}>Annulla</button>
                         </>
                       ) : (
-                        <button onClick={() => startEdit(row)} style={{ padding: '8px 14px', minHeight: 36, borderRadius: 6, border: `1px solid ${C.borderStr}`, background: 'transparent', fontSize: 12, fontWeight: 700, color: C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="edit" size={13} />Modifica</button>
+                        <button onClick={() => startEdit(row)} style={{ padding: '8px 14px', minHeight: 40, borderRadius: 6, border: `1px solid ${C.borderStr}`, background: 'transparent', fontSize: 12, fontWeight: 700, color: C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="edit" size={13} />Modifica</button>
                       )}
                     </td>
                   </tr>
@@ -772,7 +734,13 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 6, borderTop: `1px solid ${C.border}` }}>
                   <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, fontWeight: 600 }}>Variazione</span>
-                  <span style={{ fontSize: 13, color: delta > 0 ? C.red : C.green, ...TNUM, fontWeight: 800 }}>
+                  {/* Audit 2026-09-09: `delta > 0 ? rosso : verde` colorava di
+                      VERDE anche una variazione di zero, come se non cambiare
+                      prezzo fosse un risparmio. E il rosso era quello del
+                      marchio, che in questa pagina significa "azione", non
+                      "allarme": per un prezzo che sale serve il rosso di
+                      allarme. */}
+                  <span style={{ fontSize: 13, color: delta > 0 ? C.red : delta < 0 ? C.green : C.textSoft, ...TNUM, fontWeight: 800 }}>
                     {delta > 0 ? '+' : ''}{delta.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} € {deltaPct != null && <span style={{ fontSize: 11, marginLeft: 4, opacity: 0.85 }}>({deltaPct > 0 ? '+' : ''}{deltaPct.toFixed(1)}%)</span>}
                   </span>
                 </div>
@@ -1755,7 +1723,7 @@ export default function MagazzinoView({
             // e in magazzino ne trovava 7, senza sapere quali cinque rifare.
             const scartati = (res.ingredienti || []).length - newLogs.length
             if (newLogs.length === 0) {
-              notify('Dalla foto non si legge nessuna quantita\': niente e\' stato caricato. Prova con una foto piu\' nitida, o inserisci a mano.', false)
+              notify('Dalla foto non si legge nessuna quantità: niente è stato caricato. Prova con una foto più nitida, o inserisci a mano.', false)
               return
             }
             const updLogs = [...newLogs, ...(logRif || [])]
@@ -1794,7 +1762,7 @@ export default function MagazzinoView({
               letti++
             }
             if (letti === 0) {
-              notify('Dalla foto non si legge nessun prezzo. Prova con una foto piu\' nitida.', false)
+              notify('Dalla foto non si legge nessun prezzo. Prova con una foto più nitida.', false)
               return
             }
             if (onImportPrezziOCR) onImportPrezziOCR(nuoviCosti)
