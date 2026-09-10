@@ -182,6 +182,10 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
   const [pagCumSaving, setPagCumSaving]   = useState(false)
   // Quale settimana del calendario è aperta a mostrare i fornitori.
   const [settimanaAperta, setSettimanaAperta] = useState(null)
+  // Assegnazione in blocco del punto vendita alle fatture che non l'hanno.
+  const [sedeConf, setSedeConf]           = useState(false)
+  const [sedeSaving, setSedeSaving]       = useState(false)
+  const [sedeScelta, setSedeScelta]       = useState('')
   const [editFornData, setEditFornData]   = useState({ iban: '', termini: 30, categoria: '' })
   // Set di fornitori (nome_norm) con dropdown fatture espanso.
   const [expandedForn, setExpandedForn]   = useState(() => new Set())
@@ -363,10 +367,57 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
     }
   }
 
+  // Cosa si fa DOPO aver inserito le fatture, e vale per tutte e tre le
+  // strade di import (Excel, XML, FatturaSMART).
+  //
+  // 1. L'IBAN trovato nel documento si salva sul FORNITORE. La fattura
+  //    elettronica lo porta nel blocco DatiPagamento quando il fornitore lo
+  //    mette: ogni IBAN trovato è un IBAN che non devi scrivere a mano, e
+  //    sblocca il bonifico per tutte le sue fatture, anche quelle future.
+  //    (Nei file di Mara quel blocco non c'era: 0 su 3.520. Ma i prossimi
+  //    fornitori lo metteranno, e da oggi lo raccogliamo.)
+  //
+  // 2. I FORNITORI NUOVI si dicono. Il momento giusto per aggiungere IBAN e
+  //    termini è adesso, mentre hai il documento in mano — non sei mesi dopo
+  //    quando il bonifico non parte e non ti ricordi chi sono.
+  async function dopoImport(recordsInseriti) {
+    const nuoviIban = []
+    const nomiVisti = new Set()
+    const nomiNuovi = []
+    for (const r of (recordsInseriti || [])) {
+      const nome = String(r?.fornitore || '').trim()
+      if (!nome) continue
+      const k = normNome(nome)
+      if (!nomiVisti.has(k)) {
+        nomiVisti.add(k)
+        const anag = fornitoriMap[k]
+        if (!anag) nomiNuovi.push(nome)
+        const ibanDoc = String(r?.iban || '').replace(/\s+/g, '').toUpperCase()
+        // Solo se il fornitore non ce l'ha già e l'IBAN del documento è valido:
+        // un IBAN sbagliato scritto in anagrafica è peggio di nessun IBAN,
+        // perché il file dei bonifici lo scarta in silenzio.
+        if (ibanDoc && ibanIsValid(ibanDoc) && !anag?.iban) {
+          nuoviIban.push({ nome, iban: ibanDoc })
+        }
+      }
+    }
+    for (const v of nuoviIban) {
+      try { await salvaFornitore(v.nome, { iban: v.iban }) } catch { /* lo dice il riepilogo */ }
+    }
+    if (nuoviIban.length > 0) {
+      notify(`${nuoviIban.length} ${nuoviIban.length === 1 ? 'IBAN preso' : 'IBAN presi'} dalle fatture e ${nuoviIban.length === 1 ? 'salvato' : 'salvati'} in anagrafica: ${nuoviIban.slice(0, 3).map(v => v.nome).join(', ')}${nuoviIban.length > 3 ? '…' : ''}`)
+    }
+    if (nomiNuovi.length > 0) {
+      notify(`${nomiNuovi.length} ${nomiNuovi.length === 1 ? 'fornitore nuovo' : 'fornitori nuovi'}: ${nomiNuovi.slice(0, 4).join(', ')}${nomiNuovi.length > 4 ? ` e altri ${nomiNuovi.length - 4}` : ''}. Aggiungi IBAN e termini dalla vista Per fornitore, così il bonifico parte e le scadenze sono quelle vere.`, true)
+    }
+    try { await loadFornitori() } catch { /* niente */ }
+  }
+
   async function handleImportExcel(files) {
     if (!orgId) return
     setImportLoading(true)
     let imported = 0, scartati = 0
+    const inseriti = []
     // Le chiavi vengono dal DATABASE, non dalla lista in pagina: quella è
     // filtrata per sede e, da oggi, non contiene tutte le pagate. Con le
     // chiavi parziali un doppione di un'altra sede (o di una fattura vecchia
@@ -380,6 +431,9 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         scartati += sc
         const toInsert = nuovi.map(r => pickFattura(r, orgId, sedeId))
         await insertFattureResilient(supabase, toInsert)
+        // I record ORIGINALI (non quelli ripuliti): pickFattura tiene solo le
+        // colonne della tabella, e l'IBAN del documento ci serve qui.
+        inseriti.push(...nuovi)
         imported += nuovi.length
       } catch (e) {
         const msg = e?.message || (typeof e === 'string' ? e : '') || 'errore sconosciuto'
@@ -389,6 +443,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
     if (imported > 0) {
       notify(`${imported} fatture importate${scartati > 0 ? ` · ${scartati} già presenti, saltate` : ''}`)
       try { await loadFatture() } catch { /* il toast di esito è già stato mostrato */ }
+      try { await dopoImport(inseriti) } catch (e) { console.error('[scadenzario] dopoImport', e) }
     } else if (scartati > 0) {
       notify(`${scartati} fatture erano già presenti - nessun duplicato aggiunto`, false)
     }
@@ -399,6 +454,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
     if (!orgId) return
     setImportLoading(true)
     let imported = 0, scartati = 0
+    const inseriti = []
     // Le chiavi vengono dal DATABASE, non dalla lista in pagina: quella è
     // filtrata per sede e, da oggi, non contiene tutte le pagate. Con le
     // chiavi parziali un doppione di un'altra sede (o di una fattura vecchia
@@ -413,6 +469,9 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         scartati += sc
         const toInsert = nuovi.map(r => pickFattura(r, orgId, sedeId))
         await insertFattureResilient(supabase, toInsert)
+        // I record ORIGINALI (non quelli ripuliti): pickFattura tiene solo le
+        // colonne della tabella, e l'IBAN del documento ci serve qui.
+        inseriti.push(...nuovi)
         imported += nuovi.length
       } catch (e) {
         notify('Errore import XML ' + file.name + ': ' + (e?.message || 'sconosciuto'), false)
@@ -421,6 +480,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
     if (imported > 0) {
       notify(`${imported} fatture XML importate${scartati > 0 ? ` · ${scartati} già presenti, saltate` : ''}`)
       try { await loadFatture() } catch { /* il toast di esito è già stato mostrato */ }
+      try { await dopoImport(inseriti) } catch (e) { console.error('[scadenzario] dopoImport', e) }
     } else if (scartati > 0) {
       notify(`${scartati} fatture erano già presenti - nessun duplicato aggiunto`, false)
     }
@@ -431,6 +491,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
     if (!orgId) return
     setImportLoading(true)
     let imported = 0, scartati = 0
+    const inseriti = []
     // Le chiavi vengono dal DATABASE, non dalla lista in pagina: quella è
     // filtrata per sede e, da oggi, non contiene tutte le pagate. Con le
     // chiavi parziali un doppione di un'altra sede (o di una fattura vecchia
@@ -444,6 +505,9 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         scartati += sc
         const toInsert = nuovi.map(r => pickFattura(r, orgId, sedeId))
         await insertFattureResilient(supabase, toInsert)
+        // I record ORIGINALI (non quelli ripuliti): pickFattura tiene solo le
+        // colonne della tabella, e l'IBAN del documento ci serve qui.
+        inseriti.push(...nuovi)
         imported += nuovi.length
       } catch (e) {
         notify('Errore import FatturaSMART ' + file.name + ': ' + (e?.message || 'sconosciuto'), false)
@@ -452,6 +516,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
     if (imported > 0) {
       notify(`${imported} fatture FatturaSMART importate${scartati > 0 ? ` · ${scartati} già presenti, saltate` : ''}`)
       try { await loadFatture() } catch { /* il toast di esito è già stato mostrato */ }
+      try { await dopoImport(inseriti) } catch (e) { console.error('[scadenzario] dopoImport', e) }
     } else if (scartati > 0) {
       notify(`${scartati} fatture erano già presenti - nessun duplicato aggiunto`, false)
     }
@@ -532,6 +597,40 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         + (inCassa ? ' · uscita registrata in Cassa' : ''))
     } catch (e) {
       notify('Errore: ' + (e?.message || 'aggiornamento fallito'), false)
+    }
+  }
+
+  // Assegna un punto vendita alle fatture che non ce l'hanno.
+  //
+  // A lotti e con l'esito vero: su 142 righe, dire "fatto" quando ne sono
+  // passate 100 sarebbe la stessa bugia che abbiamo corretto altrove.
+  async function assegnaSede(items, nuovaSedeId) {
+    if (!nuovaSedeId || !items?.length) return
+    setSedeSaving(true)
+    try {
+      const ids = items.map(f => f.id)
+      let fatti = 0
+      const LOTTO = 100
+      for (let i = 0; i < ids.length; i += LOTTO) {
+        const lotto = ids.slice(i, i + LOTTO)
+        const { error } = await supabase.from('fatture')
+          .update({ sede_id: nuovaSedeId }).in('id', lotto).eq('organization_id', orgId)
+        if (!error) fatti += lotto.length
+        else console.error('[scadenzario] assegnaSede', error)
+      }
+      const nomeSede = (sedi || []).find(x => x.id === nuovaSedeId)?.nome || 'quel punto vendita'
+      if (fatti === ids.length) {
+        notify(`${fatti} ${fatti === 1 ? 'fattura assegnata' : 'fatture assegnate'} a ${nomeSede}`)
+      } else {
+        notify(`Assegnate ${fatti} di ${ids.length}: sulle altre il salvataggio non è riuscito, riprova.`, false)
+      }
+      setSedeConf(false)
+      await loadFatture()
+    } catch (e) {
+      console.error('[scadenzario] assegnaSede', e)
+      notify('Non ho potuto assegnare il punto vendita: controlla la connessione e riprova.', false)
+    } finally {
+      setSedeSaving(false)
     }
   }
 
@@ -914,6 +1013,18 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
       f.stato !== 'pagata' && !f.isNC && f.dueIso && f.dueIso < limiteIso)
     return { items, n: items.length, totale: items.reduce((s, f) => s + Math.abs(f.residuo || 0), 0) }
   }, [fattureExt])
+
+  // Fatture senza punto vendita.
+  //
+  // PERCHE' CONTA: il Confronto sedi raggruppa per sede, quindi una fattura
+  // con la sede vuota non entra nel conto di nessun negozio — resta visibile
+  // qui (il filtro tiene anche le condivise) e invisibile là. Nei dati veri
+  // sono 142 fatture, tutte aperte.
+  const senzaSede = useMemo(() => {
+    if (!Array.isArray(sedi) || sedi.filter(x => x?.attiva !== false).length < 2) return { items: [], n: 0, totale: 0 }
+    const items = fattureExt.filter(f => !f.sede_id && f.stato !== 'pagata')
+    return { items, n: items.length, totale: items.reduce((sm, f) => sm + Math.abs(f.residuo || 0), 0) }
+  }, [fattureExt, sedi])
 
   // Fornitori a cui devi dei soldi e di cui NON hai l'IBAN.
   //
@@ -1809,6 +1920,101 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
   }
 
   // ─── Vista: cassa in uscita (forward) ────────────────────────────────────────
+  // Le spese fisse: bollette, canoni, professionisti.
+  //
+  // PERCHE' SEPARARLE: Enel ha 19 fatture, una al mese, sempre uguali. Non
+  // serve controllarle 19 volte: serve sapere se quella del mese è arrivata e
+  // se costa come sempre. Mescolate alle forniture di merce sono solo rumore
+  // in un elenco di 1.387 righe.
+  // Il riconoscimento è nei dati, non in una lista di nomi scritta da noi:
+  // una al mese, per almeno tre mesi, senza buchi, e con gli importi che non
+  // ballano troppo (sopra il 25% di scarto è una fornitura che capita di
+  // ordinare ogni mese, non un canone).
+  function FisseView() {
+    const oggi = new Date()
+    const meseCorrente = `${oggi.getFullYear()}-${String(oggi.getMonth() + 1).padStart(2, '0')}`
+    // Ultimo importo e ultimo mese di ciascuna fissa, per dire "questo mese
+    // è arrivata" e "costa come sempre".
+    const perNome = {}
+    for (const f of fatture) {
+      const k = String(f.fornitore || '').trim()
+      if (!k) continue
+      const mese = String(f.data_fattura || '').slice(0, 7)
+      if (!perNome[k] || mese > perNome[k].mese) {
+        perNome[k] = { mese, importo: Math.abs(Number(f.totale) || 0), stato: f.stato }
+      }
+    }
+    const totaleMese = fisseMensili.reduce((sm, r) => sm + r.mediaImporto, 0)
+    return (
+      <div style={{ ...card, overflow: 'hidden', marginBottom: 14 }}>
+        <div style={{ padding: isMobile ? '14px 16px' : '14px 20px', borderBottom: `1px solid ${T.border}` }}>
+          <div style={{ fontSize: typo.size.lg, fontWeight: 700, color: T.text, letterSpacing: '-0.01em' }}>Spese fisse mensili</div>
+          <div style={{ fontSize: typo.size.sm, color: T.textSoft, marginTop: 2 }}>
+            {fisseMensili.length.toLocaleString('it-IT', { useGrouping: 'always' })} voci che tornano ogni mese,
+            per circa {fmtEuro0(totaleMese)} al mese. Riconosciute dai tuoi dati: una al mese, per almeno tre mesi.
+          </div>
+        </div>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 620, fontSize: typo.size.base }}>
+            <thead>
+              <tr style={{ background: T.bgSubtle }}>
+                {[['Voce', 'left'], ['Di solito', 'right'], ['Ultima', 'right'], ['Differenza', 'right'], ['Questo mese', 'left'], ['Da quando', 'left']].map(([h, al]) => (
+                  <th key={h} style={{
+                    padding: '10px 12px', textAlign: al, fontSize: typo.size.sm, fontWeight: 700,
+                    color: T.textMid, textTransform: 'uppercase', letterSpacing: '0.06em',
+                    borderBottom: `1px solid ${T.border}`, whiteSpace: 'nowrap',
+                  }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {fisseMensili.map(r => {
+                const ultima = perNome[r.nome]
+                const arrivata = ultima?.mese === meseCorrente
+                const diff = ultima ? ultima.importo - r.mediaImporto : 0
+                const diffPct = r.mediaImporto > 0 ? (diff / r.mediaImporto) * 100 : 0
+                // Sopra il 20% di scostamento vale la pena guardarla: una
+                // bolletta che raddoppia è la prima cosa da controllare.
+                const fuori = Math.abs(diffPct) >= 20
+                return (
+                  <tr key={r.nome} style={{ borderBottom: `1px solid ${T.border}` }}>
+                    <td style={{ padding: '10px 12px', fontWeight: 700, color: T.text, maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {r.nome}
+                      {r.ricorrenza === 'mensile-variabile' && (
+                        <span title="Gli importi ballano molto da un mese all'altro: è una fornitura che ordini ogni mese, non un canone fisso."
+                          style={{ marginLeft: 6, fontSize: typo.size.xs, fontWeight: 700, color: T.amber, background: T.amberLight, padding: '1px 7px', borderRadius: 999, cursor: 'help' }}>
+                          variabile
+                        </span>
+                      )}
+                    </td>
+                    <td style={{ padding: '10px 12px', textAlign: 'right', color: T.textMid, ...tnum, whiteSpace: 'nowrap' }}>{fmtEuro(r.mediaImporto)}</td>
+                    <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, color: T.text, ...tnum, whiteSpace: 'nowrap' }}>{ultima ? fmtEuro(ultima.importo) : '-'}</td>
+                    <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: fuori ? 800 : 500, color: !ultima ? T.textSoft : fuori ? (diff > 0 ? T.brand : T.green) : T.textSoft, ...tnum, whiteSpace: 'nowrap' }}>
+                      {ultima ? `${diff > 0 ? '+' : ''}${fmtEuro0(diff)}` : '-'}
+                    </td>
+                    <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
+                      {arrivata
+                        ? <span style={{ fontSize: typo.size.sm, fontWeight: 700, color: T.green, background: T.greenLight, padding: '3px 9px', borderRadius: 999 }}>arrivata</span>
+                        : <span title={`L'ultima che ho è di ${ultima?.mese || '—'}.`} style={{ fontSize: typo.size.sm, fontWeight: 700, color: T.amber, background: T.amberLight, padding: '3px 9px', borderRadius: 999, cursor: 'help' }}>non ancora</span>}
+                    </td>
+                    <td style={{ padding: '10px 12px', color: T.textSoft, ...tnum, whiteSpace: 'nowrap' }}>
+                      {r.primoMese.split('-').reverse().join('/')} · {r.mesi} mesi
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+        <div style={{ padding: '10px 16px', borderTop: `1px solid ${T.border}`, fontSize: typo.size.sm, color: T.textSoft, lineHeight: 1.5 }}>
+          "Non ancora" vuol dire che per questo mese non ho ancora una fattura di quella voce: o non è
+          arrivata, o non è stata caricata. La colonna "Differenza" confronta l'ultima con la media di
+          tutte le altre.
+        </div>
+      </div>
+    )
+  }
+
   function CassaView() {
     return (
       <div style={{ ...card, padding: isMobile ? 16 : 22, marginBottom: 14 }}>
@@ -2087,6 +2293,62 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         ))}
       </div>
 
+      {/* Le fatture senza punto vendita: invisibili nel Confronto sedi.
+          Il Confronto raggruppa per sede, quindi una fattura con la sede
+          vuota non entra nel conto di nessun negozio. Qui si vedono (il
+          filtro tiene anche le condivise) e si assegnano in blocco. */}
+      {!loading && senzaSede.n > 0 && (
+        <div style={{ ...card, padding: isMobile ? '14px' : '14px 18px', marginBottom: 14, borderLeft: `4px solid ${T.blue}` }}>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+            <Icon name="store" size={16} color={T.blue} style={{ flexShrink: 0, marginTop: 2 }} />
+            <div style={{ flex: 1, minWidth: 220 }}>
+              <div style={{ fontSize: typo.size.md, fontWeight: 700, color: T.text, marginBottom: 3 }}>
+                {senzaSede.n.toLocaleString('it-IT', { useGrouping: 'always' })} {senzaSede.n === 1 ? 'fattura' : 'fatture'} senza punto vendita
+              </div>
+              <div style={{ fontSize: typo.size.base, color: T.textMid, lineHeight: 1.5 }}>
+                Valgono {fmtEuro(senzaSede.totale)}. Le vedi qui, ma nel <b>Confronto sedi</b> non entrano
+                nel conto di nessun negozio, perché quella pagina raggruppa per punto vendita.
+              </div>
+              {sedeConf && (
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 10 }}>
+                  <select value={sedeScelta} onChange={e => setSedeScelta(e.target.value)}
+                    aria-label="Punto vendita da assegnare"
+                    style={{ padding: '10px 12px', minHeight: 44, borderRadius: 8, border: `1px solid ${T.border}`, fontSize: isMobile ? 16 : 13, color: T.text, background: T.bgCard }}>
+                    <option value="">Scegli il punto vendita…</option>
+                    {(sedi || []).filter(x => x?.attiva !== false).map(x => (
+                      <option key={x.id} value={x.id}>{x.nome}</option>
+                    ))}
+                  </select>
+                  <button type="button" onClick={() => assegnaSede(senzaSede.items, sedeScelta)}
+                    disabled={!sedeScelta || sedeSaving}
+                    style={{
+                      padding: '11px 16px', minHeight: 44, borderRadius: 8, border: 'none',
+                      background: (!sedeScelta || sedeSaving) ? T.border : T.blue, color: '#fff',
+                      fontSize: typo.size.base, fontWeight: 800, cursor: (!sedeScelta || sedeSaving) ? 'default' : 'pointer',
+                    }}>
+                    {sedeSaving ? 'Assegno…' : `Assegna tutte le ${senzaSede.n}`}
+                  </button>
+                  <button type="button" onClick={() => setSedeConf(false)} disabled={sedeSaving}
+                    style={{ padding: '11px 14px', minHeight: 44, borderRadius: 8, border: `1px solid ${T.border}`, background: T.bgCard, fontSize: typo.size.base, fontWeight: 700, color: T.textSoft, cursor: 'pointer' }}>
+                    Annulla
+                  </button>
+                </div>
+              )}
+            </div>
+            {!sedeConf && (
+              <button type="button" onClick={() => setSedeConf(true)}
+                style={{
+                  padding: '10px 16px', minHeight: 44, borderRadius: 8, border: `1px solid ${T.border}`,
+                  background: T.bgCard, color: T.textMid, fontSize: typo.size.base, fontWeight: 700,
+                  cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+                }}>
+                Assegnale
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Fatture fuori scala rispetto alla storia del loro fornitore.
           Nei dati veri: GECKO CIOCCOLATI ha UNA fattura da 86.651 €, l'11,5%
           di tutto il debito. Può essere giusta — o può essere un punto nel
@@ -2277,6 +2539,9 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
             { id: 'scadenza', label: 'Per scadenza', icon: 'calendar' },
             { id: 'fornitore', label: 'Per fornitore', icon: 'factory' },
             { id: 'cassa', label: 'Cassa in uscita', icon: 'money' },
+            // Le fisse compaiono come vista solo se ce ne sono: una scheda
+            // vuota è un invito a cliccare per niente.
+            ...(fisseMensili.length > 0 ? [{ id: 'fisse', label: 'Fisse mensili', icon: 'refresh' }] : []),
           ].map(v => {
             const active = vista === v.id
             return (
@@ -2425,6 +2690,9 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
 
       {/* Vista CASSA IN USCITA */}
       {vista === 'cassa' && !loading && fatture.length > 0 && CassaView()}
+
+      {/* Vista FISSE MENSILI */}
+      {vista === 'fisse' && !loading && fatture.length > 0 && FisseView()}
 
       {/* Filtri rapidi - solo nella vista per scadenza */}
       {vista === 'scadenza' && (<>

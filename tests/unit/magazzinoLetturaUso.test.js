@@ -60,7 +60,13 @@ describe('colori: il rosso solo dove c è da agire', () => {
 
 describe('numeri e date', () => {
   it('i delta dei movimenti hanno il punto delle migliaia', () => {
-    expect(src).toMatch(/Math\.abs\(d\)\.toLocaleString\('it-IT'\)/)
+    // AGGIORNATO 10/09/2026: il raggruppamento ora è ESPLICITO
+    // (`useGrouping: 'always'`) e non affidato alla patch globale a runtime.
+    // In italiano Intl non raggruppa i numeri di quattro cifre: 1000 diventa
+    // "1000", e 1.000 solo da 10.000 in su. La patch in src/lib
+    // numberFormatPatch.js copre il browser, ma è in try/catch e potrebbe non
+    // installarsi in silenzio: meglio dirlo in ogni chiamata.
+    expect(src).toMatch(/Math\.abs\(d\)\.toLocaleString\('it-IT', \{ useGrouping: 'always' \}\)/)
   })
 
   it('le date dicono anche l anno, o quanti giorni sono passati', () => {
