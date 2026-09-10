@@ -203,7 +203,11 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
 
   async function loadFornitori() {
     try {
-      const { data, error } = await supabase.from('fornitori').select('*').eq('organization_id', orgId)
+      // Solo i campi che questa pagina usa: nome per l'abbinamento, IBAN e
+      // termini per il bonifico e la scadenza, categoria per il riepilogo.
+      const { data, error } = await supabase.from('fornitori')
+        .select('id, nome, iban, termini_pagamento, termini_tipo, categoria, attivo')
+        .eq('organization_id', orgId)
       if (error) {
         // tabella non ancora creata (migration non applicata) → enrichment vuoto
         if (/does not exist|schema cache|could not find/i.test(error.message || '')) { setFornitori([]); return }
