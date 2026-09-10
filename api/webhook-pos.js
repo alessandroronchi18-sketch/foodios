@@ -5,7 +5,8 @@
 // Generalizza il pattern di webhook-zucchetti.js per supportare piu provider.
 //
 // Headers richiesti:
-//   x-pos-provider:   id del provider (es. 'tilby', 'cassainCloud', 'rch',
+//   x-pos-provider:   id del provider in minuscolo (es. 'tilby',
+//                     'cassaincloud', 'rch',
 //                     'olivetti', 'custom', 'salvi', 'indaco', 'polotouch',
 //                     'ekopos', 'wolf', 'zucchetti')
 //   x-pos-secret:     shared secret per autenticare (env vars per provider)
@@ -43,6 +44,12 @@ import { verifyRawSecret } from './lib/cryptoCompare.js'
 // Pattern env var: POS_<PROVIDER>_SECRET (es. POS_TILBY_SECRET).
 const PROVIDER_SECRET_ENV = {
   tilby:        'POS_TILBY_SECRET',
+  // Tutto minuscolo: la riga 82 normalizza l'header con .toLowerCase(), e con
+  // la chiave scritta 'cassainCloud' la ricerca nella mappa non trovava
+  // niente. Ogni chiamata di Cassa in Cloud veniva rifiutata con
+  // "x-pos-provider non valido", sempre, per un maiuscolo. Il vecchio valore
+  // resta accettato come alias per non rompere chi lo manda già così.
+  cassaincloud: 'POS_CASSAINCLOUD_SECRET',
   cassainCloud: 'POS_CASSAINCLOUD_SECRET',
   rch:          'POS_RCH_SECRET',
   olivetti:     'POS_OLIVETTI_SECRET',
@@ -158,8 +165,31 @@ export default async function handler(req) {
     .single()
 
   if (error) {
+    // Anche il fallimento va nel registro: senza questa riga un webhook che
+    // non entra è invisibile dalla pagina Integrazioni, e la card resta
+    // ferma all'ultimo sync riuscito.
+    await supabase.from('sync_log').insert({
+      organization_id: orgId,
+      sede_id: sedeId || null,
+      integrazione: `${provider}_webhook`,
+      stato: 'errore',
+      records_importati: 0,
+      errore: (error.message || '').slice(0, 200),
+    }).catch(() => {})
     return jsonResponse(req, { error: 'DB error: ' + error.message }, 500)
   }
+
+  // Ogni scontrino accettato lascia una traccia nel registro, come fa
+  // webhook-zucchetti.js: prima gli scontrini finivano in pos_scontrini e la
+  // pagina del cliente non aveva modo di sapere che il collegamento
+  // funzionava (nessuna riga in sync_log, targhetta ferma).
+  await supabase.from('sync_log').insert({
+    organization_id: orgId,
+    sede_id: sedeId || null,
+    integrazione: `${provider}_webhook`,
+    stato: 'ok',
+    records_importati: 1,
+  }).catch(() => {})
 
   return jsonResponse(req, { ok: true, scontrino_id: inserted.id, provider }, 200)
 }

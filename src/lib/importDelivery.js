@@ -175,9 +175,30 @@ export function mergeInChiusure(chiusure = [], importati = [], fonte = '') {
       importatoAt: new Date().toISOString(),
     };
     if (idx >= 0) {
+      // L'importo va anche in `kpi.delivery`, che è la casella che la Cassa
+      // mostra e che il conto economico legge. Prima l'import scriveva solo
+      // in `delivery[]` (un dettaglio che nessuna pagina somma), quindi su un
+      // giorno già chiuso a mano non cambiava un numero: il riquadro verde
+      // diceva "importato", e nel P&L l'incasso del delivery non c'era.
+      //
+      // `totV` NON si tocca se la giornata è già stata chiusa col dettaglio:
+      // lì l'incasso c'è già e sommarlo lo conterebbe due volte. Si aggiorna
+      // solo quando la giornata era stata creata da un import (solo_totale).
+      const prec = nuove[idx];
+      const altreFonti = (prec.delivery || []).filter(d => d.fonte !== fonte);
+      const deliveryTot = altreFonti.reduce((a, d) => a + (Number(d.netto) || 0), 0) + (Number(riga.netto) || 0);
+      const soloTotale = !!prec.solo_totale;
+      const kpiPrec = prec.kpi || {};
       nuove[idx] = {
-        ...nuove[idx],
-        delivery: [...(nuove[idx].delivery || []).filter(d => d.fonte !== fonte), importoDelivery],
+        ...prec,
+        delivery: [...altreFonti, importoDelivery],
+        kpi: {
+          ...kpiPrec,
+          delivery: Math.round(deliveryTot * 100) / 100,
+          ...(soloTotale ? {
+            totV: Math.round((Number(kpiPrec.totV) || 0) * 100) / 100,
+          } : {}),
+        },
       };
     } else {
       nuove.push({
@@ -196,7 +217,7 @@ export function mergeInChiusure(chiusure = [], importati = [], fonte = '') {
         // calcola su quel denominatore, più alta.
         solo_totale: true,
         foodcost_noto: false,
-        kpi: { totV: riga.netto, totFC: 0, totM: riga.netto, totS: 0, totMP: 0, avgST: 0 },
+        kpi: { totV: riga.netto, totFC: 0, totM: riga.netto, totS: 0, totMP: 0, avgST: 0, delivery: Math.round((Number(riga.netto) || 0) * 100) / 100 },
         delivery: [importoDelivery],
       });
     }

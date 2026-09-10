@@ -5,7 +5,7 @@ import { parseZucchettiInfinity, parseZucchettiKassa } from '../lib/importZucche
 import { parseSumUp, parseSatispay, parseSquare } from '../lib/importCassa'
 import { parseUberEats, parseDeliveroo, parseJustEat, parseGlovo, mergeInChiusure } from '../lib/importDelivery'
 import { parseShopifyOrders, parseWooCommerceOrders, mergeOrdiniInChiusure } from '../lib/importEcommerce'
-import { caricaChiusure, upsertChiusure } from '../lib/chiusure'
+import { caricaChiusure, upsertChiusure, importaChiusureIncassi } from '../lib/chiusure'
 import { pickFattura, dedupFatture, insertFattureResilient, chiaviFattureEsistenti } from '../lib/fattureImport'
 import Icon from './Icon'
 
@@ -26,6 +26,34 @@ const fmtTs = ts => {
   const d = new Date(ts)
   return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' }) +
     ' ' + d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
+}
+
+// Traduce l'errore tecnico in una frase utile. Prima a schermo arrivava il
+// messaggio di PostgREST in inglese, tagliato a 60 caratteri, e nel console
+// non restava niente: impossibile capire cosa fare.
+function messaggioLeggibile(e) {
+  const m = String(e?.message || '')
+  if (/duplicate key|already exists|23505/i.test(m)) return 'Risulta già caricato: non l\'ho inserito di nuovo.'
+  if (/violates row-level security|permission denied|42501/i.test(m)) return 'Non hai i permessi per scrivere questo dato: rientra e riprova.'
+  if (/does not exist|42703|PGRST204/i.test(m)) return 'Questo file ha una colonna che non mi aspettavo: scrivici e lo sistemiamo.'
+  if (/Failed to fetch|NetworkError|timeout|fetch failed/i.test(m)) return 'Connessione caduta a metà: riprova tra un minuto.'
+  if (/XML|parse|Unexpected token|JSON/i.test(m)) return 'Questo file non è nel formato che aspettavo: controlla di aver esportato le vendite e non gli articoli.'
+  if (/vuoto|empty/i.test(m)) return 'Il file è vuoto.'
+  return m ? `Non l'ho saputo leggere (${m.slice(0, 120)})` : 'Non l\'ho saputo leggere.'
+}
+
+// Somma gli importi dei metodi di pagamento che somigliano a quelli passati.
+// I registratori di cassa scrivono "CARTA", "Carte", "POS", "BANCOMAT" per la
+// stessa cosa: senza questa normalizzazione i canali della chiusura
+// resterebbero vuoti pur avendo il dato nel file.
+function sommaMetodi(perMetodo, alias) {
+  if (!perMetodo || typeof perMetodo !== 'object') return null
+  let tot = 0, trovato = false
+  for (const [k, v] of Object.entries(perMetodo)) {
+    const key = String(k).toLowerCase().trim()
+    if (alias.some(a => key.includes(a))) { tot += Number(v) || 0; trovato = true }
+  }
+  return trovato ? Math.round(tot * 100) / 100 : null
 }
 
 const INTEGRAZIONI_CFG = [
@@ -447,7 +475,7 @@ function StatoConnessioni({ notify }) {
       const j = await r.json().catch(() => ({}))
       const elapsed = Math.round(performance.now() - t0)
       setStato({ ...j, latencyMs: elapsed })
-      if (j.status === 'ok') notify('✓ Backend Foodos online')
+      if (j.status === 'ok') notify('Backend Foodos online')
       else notify('Backend degradato - controlla configurazione', false)
     } catch (e) {
       setStato({ status: 'down', error: e.message })
@@ -511,22 +539,25 @@ function StatoBadge({ stato, errore, lastSync }) {
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, color: C.green }}>
       <span style={{ width: 8, height: 8, borderRadius: '50%', background: C.green, display: 'inline-block' }} />
-      Connessa - ultimo sync: {fmtTs(lastSync)}
+      Connessa - ultimo import: {fmtTs(lastSync)}
     </span>
   )
 }
 
 function LogTable({ logs }) {
   if (!logs?.length) return (
-    <div style={{ fontSize: 11, color: C.textSoft, padding: '10px 0' }}>Nessun log disponibile.</div>
+    <div style={{ fontSize: 12, color: C.textSoft, padding: '10px 0' }}>Nessun import registrato per questo collegamento.</div>
   )
   return (
-    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+    // Sul telefono la colonna dell'errore era tagliata via e non si
+    // raggiungeva scorrendo: senza minWidth lo scorrimento non parte.
+    <div style={{ overflowX: 'auto' }}>
+    <table style={{ width: '100%', minWidth: 520, borderCollapse: 'collapse', fontSize: 12 }}>
       <thead>
         <tr style={{ background: '#FAF8F7' }}>
           {['Data/Ora', 'Stato', 'Records', 'Errore'].map(h => (
             <th key={h} style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 700, color: C.textSoft,
-              textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: 9,
+              textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: 12,
               borderBottom: `1px solid ${C.border}` }}>{h}</th>
           ))}
         </tr>
@@ -539,27 +570,35 @@ function LogTable({ logs }) {
               <span style={{
                 background: l.stato === 'ok' ? C.greenLight : l.stato === 'errore' ? C.redLight : C.amberLight,
                 color: l.stato === 'ok' ? C.green : l.stato === 'errore' ? C.red : C.amber,
-                padding: '2px 7px', borderRadius: 8, fontSize: 10, fontWeight: 700,
+                padding: '2px 7px', borderRadius: 8, fontSize: 12, fontWeight: 700,
+                display: 'inline-flex', alignItems: 'center', gap: 4,
               }}>
-                {l.stato === 'ok' ? '✓ OK' : l.stato === 'errore' ? '✕ Errore' : l.stato}
+                {l.stato === 'ok'
+                  ? <><Icon name="check" size={11} /> OK</>
+                  : l.stato === 'errore' ? <><Icon name="x" size={11} /> Errore</> : l.stato}
               </span>
             </td>
             <td style={{ padding: '6px 10px', color: C.text, fontWeight: 600 }}>
-              {l.records_importati ?? '-'}
+              {l.records_importati == null ? '-' : Number(l.records_importati).toLocaleString('it-IT')}
             </td>
-            <td style={{ padding: '6px 10px', color: C.red, fontSize: 10, maxWidth: 200,
-              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {/* L'errore va LETTO, non troncato a 200px in una riga sola:
+                è l'unica traccia di cosa non è entrato. */}
+            <td title={l.errore || undefined}
+              style={{ padding: '6px 10px', color: C.red, fontSize: 12, minWidth: 200, lineHeight: 1.4 }}>
               {l.errore || '-'}
             </td>
           </tr>
         ))}
       </tbody>
     </table>
+    </div>
   )
 }
 
 export default function Integrazioni({ orgId, sedeId }) {
   const [logs, setLogs] = useState({})
+  // Vero solo se il registro degli import non risponde davvero (42P01).
+  const [registroMancante, setRegistroMancante] = useState(false)
   const [loading, setLoading] = useState(true)
   const [importLoading, setImportLoading] = useState(null)
   const [expanded, setExpanded] = useState(null)
@@ -576,25 +615,33 @@ export default function Integrazioni({ orgId, sedeId }) {
     try {
       await supabase.from('sync_log').insert({
         organization_id: orgId,
+        // La sede SERVE: con tre negozi la targhetta "Connessa" si accendeva
+        // su tutti, anche su quelli dove non era mai entrato niente.
+        sede_id: sedeId || null,
         integrazione,
         stato,
         records_importati: records || 0,
         errore: errore || null,
       })
     } catch { /* non-critical */ }
-  }, [orgId])
+  }, [orgId, sedeId])
 
   const loadLogs = useCallback(async () => {
     if (!orgId) { setLoading(false); return }
     setLoading(true)
     try {
-      const { data, error } = await supabase
+      // Solo gli import della sede attiva (più quelli vecchi, senza sede:
+      // di quelli non sappiamo da dove vengono e non possiamo attribuirli).
+      let q = supabase
         .from('sync_log')
         .select('*')
         .eq('organization_id', orgId)
+      if (sedeId) q = q.or(`sede_id.eq.${sedeId},sede_id.is.null`)
+      const { data, error } = await q
         .order('created_at', { ascending: false })
         .limit(100)
       if (error) throw error
+      setRegistroMancante(false)
 
       // Group by integrazione, last 10 each
       const grouped = {}
@@ -604,12 +651,14 @@ export default function Integrazioni({ orgId, sedeId }) {
       }
       setLogs(grouped)
     } catch (e) {
-      // sync_log table might not exist yet - show banner only
+      // 42P01 = la tabella non esiste. Solo in quel caso l'avviso ha senso.
+      console.error('sync_log:', e)
+      setRegistroMancante(/42P01|does not exist|relation .* does not exist/i.test(e?.message || ''))
       setLogs({})
     } finally {
       setLoading(false)
     }
-  }, [orgId])
+  }, [orgId, sedeId])
 
   useEffect(() => { loadLogs() }, [loadLogs])
 
@@ -632,6 +681,7 @@ export default function Integrazioni({ orgId, sedeId }) {
     }
 
     for (const file of Array.from(files)) {
+      let nFile = 0
       try {
         if (cfg.id === 'fattura_elettronica_xml' || cfg.id === 'fattura_smart') {
           const records = cfg.id === 'fattura_elettronica_xml'
@@ -645,37 +695,42 @@ export default function Integrazioni({ orgId, sedeId }) {
           const { nuovi, scartati } = dedupFatture(records, chiaviNote)
           const toInsert = nuovi.map(r => pickFattura(r, orgId, sedeId))
           await insertFattureResilient(supabase, toInsert)
-          imported += toInsert.length
+          nFile += toInsert.length; imported += toInsert.length
           esiti.push({ file: file.name, ok: true, n: toInsert.length, doppie: scartati })
 
         } else if (cfg.id === 'zucchetti_infinity') {
           const text = await file.text()
           const movimenti = parseZucchettiInfinity(text)
-          const dataKey = `zucchetti_infinity_${new Date().toISOString().slice(0, 10)}`
-          const { error: zInfErr } = await supabase.from('user_data').upsert({
-            organization_id: orgId,
-            sede_id: null,
-            data_key: dataKey,
-            data_value: { movimenti, importato_il: new Date().toISOString() },
-          }, { onConflict: 'organization_id,sede_id,data_key' })
-          if (zInfErr) throw zInfErr
-          imported += movimenti.length
-          setRisultato({ tipo: 'movimenti', movimenti, cfgId: cfg.id })
+          // Questi sono movimenti CONTABILI (prima nota del gestionale), non
+          // incassi di giornata: in Foodos non esiste ancora una pagina che
+          // li mostri. Prima venivano scritti in una chiave di user_data che
+          // nessuno legge, e il riquadro verde diceva "importati": un dato
+          // sepolto, spacciato per arrivato.
+          // Finché non c'è dove metterli, li leggiamo e lo diciamo, invece di
+          // salvarli in un posto morto.
+          setRisultato({ tipo: 'movimenti', movimenti, cfgId: cfg.id, soloLettura: true })
+          notify(`Ho letto ${movimenti.length} ${movimenti.length === 1 ? 'movimento' : 'movimenti'} contabili, ma in Foodos non c'è ancora una pagina che li mostri: non li ho salvati. Se ti servono, scrivici.`, true)
 
         } else if (cfg.id === 'zucchetti_kassa') {
           const text = await file.text()
           const { vendite, chiusure_giornaliere } = parseZucchettiKassa(text)
-          for (const ch of chiusure_giornaliere) {
-            const { error: zKassaErr } = await supabase.from('user_data').upsert({
-              organization_id: orgId,
-              sede_id: null,
-              data_key: `chiusura_${ch.data}`,
-              data_value: { ...ch, source: 'zucchetti_kassa' },
-            }, { onConflict: 'organization_id,sede_id,data_key' })
-            if (zKassaErr) throw zKassaErr
+          // Le chiusure vanno nella tabella delle chiusure, non in una chiave
+          // di user_data chiamata `chiusura_2026-08-01` che nessuna pagina
+          // legge: prima il riquadro verde confermava i totali e in Cassa non
+          // compariva niente, esattamente come per il delivery.
+          if (chiusure_giornaliere.length > 0) {
+            const righe = chiusure_giornaliere.map(ch => ({
+              data: ch.data,
+              totale: Number(ch.totale) || 0,
+              // per_metodo dice come è stato pagato: quello che il registro
+              // chiama contanti/carte lo portiamo nei canali della chiusura.
+              pos: sommaMetodi(ch.per_metodo, ['carta', 'carte', 'pos', 'bancomat', 'card']),
+              contanti: sommaMetodi(ch.per_metodo, ['contanti', 'cash', 'contante']),
+            }))
+            const r = await importaChiusureIncassi(orgId, sedeId, righe)
+            nFile += (r.nuove + r.aggiornate); imported += (r.nuove + r.aggiornate)
           }
-          imported += vendite.length
-          setRisultato({ tipo: 'kassa', chiusure: chiusure_giornaliere, cfgId: cfg.id })
+          setRisultato({ tipo: 'kassa', chiusure: chiusure_giornaliere, cfgId: cfg.id, vendite: vendite.length })
 
         } else if (['sumup','satispay','square','deliveroo','justeat','uber_eats','glovo','shopify','woocommerce'].includes(cfg.id)) {
           // Pattern unificato: parser → aggregati per giorno → merge nelle chiusure (tabella chiusure_cassa, per sede)
@@ -712,7 +767,7 @@ export default function Integrazioni({ orgId, sedeId }) {
           // dell'anno perché riceve l'elenco come se fosse completo.
           const soloToccate = nuove.filter(c => c?.data && c.data >= daData && c.data <= aData)
           await upsertChiusure(orgId, sedeId, soloToccate)
-          imported += aggregati.length
+          nFile += aggregati.length; imported += aggregati.length
           setRisultato({
             tipo: 'aggregato',
             cfgId: cfg.id,
@@ -729,15 +784,20 @@ export default function Integrazioni({ orgId, sedeId }) {
         // ramo di questa funzione sapeva leggere. Chi vedeva verde smetteva di
         // registrare la chiusura a mano, e il giorno dopo il conto economico
         // era a zero incassi.
-        if (imported > 0) {
-          await logSync(cfg.id, 'ok', imported, null)
+        // `nFile` = record di QUESTO file. Prima veniva passato `imported`,
+        // che è il totale progressivo: quattro file da un record ciascuno
+        // scrivevano nel registro 1, 2, 3, 4 e sembravano dieci record.
+        if (nFile > 0) {
+          await logSync(cfg.id, 'ok', nFile, null)
         } else {
           const msg = 'Questo file non l\'ho saputo leggere: la cassa non è ancora collegata. Scrivici e la aggiungiamo.'
           await logSync(cfg.id, 'errore', 0, msg)
           notify(msg, false)
         }
       } catch (e) {
-        esiti.push({ file: file.name, ok: false, errore: e.message })
+        // Messaggio per chi legge, non quello di Postgres. Il tecnico resta
+        // nel console e nel registro degli import, dove serve a noi.
+        esiti.push({ file: file.name, ok: false, errore: messaggioLeggibile(e) })
         console.error('[Integrazioni] import', file.name, e)
         await logSync(cfg.id, 'errore', 0, `${file.name}: ${e.message}`)
       }
@@ -801,18 +861,23 @@ export default function Integrazioni({ orgId, sedeId }) {
         </div>
       </div>
 
-      {/* SQL migration reminder */}
-      <div style={{ background: C.blueLight, border: `1px solid #BFDBFE`, borderRadius: 10,
-        padding: '12px 16px', marginBottom: 20, fontSize: 12 }}>
-        <div style={{ fontWeight: 700, color: C.blue, marginBottom: 3 }}>
-          Setup richiesto (una volta sola)
+      {/* La prima cosa che si leggeva in questa pagina era un compito da
+          programmatore: "esegui lo script supabase_sync_log.sql nel Supabase
+          SQL Editor". Un pasticciere non ha un SQL Editor, e la tabella in
+          produzione c'è da mesi. Ora l'avviso compare SOLO se il registro
+          davvero non risponde, ed è scritto per chi lo legge. */}
+      {registroMancante && (
+        <div style={{ background: C.blueLight, border: `1px solid ${C.blue}40`, borderRadius: 10,
+          padding: '12px 16px', marginBottom: 20, fontSize: 12.5 }}>
+          <div style={{ fontWeight: 700, color: C.blue, marginBottom: 3 }}>
+            Il registro degli import non è attivo
+          </div>
+          <div style={{ color: C.blue, lineHeight: 1.5 }}>
+            I collegamenti funzionano, ma non riesco a tenere lo storico di cosa è
+            entrato e quando. È una cosa nostra da sistemare: scrivici e ce ne occupiamo.
+          </div>
         </div>
-        <div style={{ color: '#1D4ED8', lineHeight: 1.5 }}>
-          Esegui lo script <code style={{ background: 'rgba(37,99,235,0.1)', padding: '1px 4px', borderRadius: 3 }}>supabase_sync_log.sql</code> in
-          {' '}<a href="https://supabase.com/dashboard" target="_blank" rel="noopener noreferrer" style={{ color: C.blue }}>Supabase SQL Editor</a>{' '}
-          per abilitare il log dei sync.
-        </div>
-      </div>
+      )}
 
       <StatoConnessioni notify={notify}/>
 
@@ -919,12 +984,12 @@ export default function Integrazioni({ orgId, sedeId }) {
                         </label>
                         {lastLog?.stato === 'ok' && (
                           <span style={{ fontSize: 11, color: C.green }}>
-                            ✓ Ultimo: {lastLog.records_importati} record - {fmtTs(lastLog.created_at)}
+                            <Icon name="check" size={11} /> Ultimo: {Number(lastLog.records_importati || 0).toLocaleString('it-IT')} record - {fmtTs(lastLog.created_at)}
                           </span>
                         )}
                         {lastLog?.stato === 'errore' && (
                           <span style={{ fontSize: 11, color: C.red }}>
-                            ✕ {lastLog.errore?.slice(0, 80)}
+                            <Icon name="x" size={11} /> {lastLog.errore?.slice(0, 160)}
                           </span>
                         )}
                       </div>
@@ -937,36 +1002,36 @@ export default function Integrazioni({ orgId, sedeId }) {
                         {risultato.tipo === 'movimenti' && (
                           <>
                             <div style={{ fontWeight: 700, fontSize: 12, color: C.green, marginBottom: 6 }}>
-                              ✓ {risultato.movimenti.length} movimenti importati da Zucchetti Infinity
+                              <Icon name="check" size={12} /> {risultato.movimenti.length} movimenti letti da Zucchetti Infinity
                             </div>
                             <div style={{ display: 'flex', gap: 20, fontSize: 11, color: C.green }}>
-                              <span>Uscite: €{risultato.movimenti.filter(m => m.tipo === 'uscita')
+                              <span>Uscite: {risultato.movimenti.filter(m => m.tipo === 'uscita')
                                 .reduce((s, m) => s + m.importo, 0)
-                                .toLocaleString('it-IT', { minimumFractionDigits: 2 })}</span>
-                              <span>Entrate: €{risultato.movimenti.filter(m => m.tipo === 'entrata')
+                                .toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</span>
+                              <span>Entrate: {risultato.movimenti.filter(m => m.tipo === 'entrata')
                                 .reduce((s, m) => s + m.importo, 0)
-                                .toLocaleString('it-IT', { minimumFractionDigits: 2 })}</span>
+                                .toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</span>
                             </div>
                           </>
                         )}
                         {risultato.tipo === 'kassa' && (
                           <>
                             <div style={{ fontWeight: 700, fontSize: 12, color: C.green, marginBottom: 6 }}>
-                              ✓ {risultato.chiusure.length} giorni importati da Zucchetti Kassa
+                              <Icon name="check" size={12} /> {risultato.chiusure.length} giorni importati da Zucchetti Kassa
                             </div>
                             <div style={{ fontSize: 11, color: C.green }}>
-                              Totale: €{risultato.chiusure.reduce((s, c) => s + c.totale, 0)
-                                .toLocaleString('it-IT', { minimumFractionDigits: 2 })}
+                              Totale: {risultato.chiusure.reduce((s, c) => s + c.totale, 0)
+                                .toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
                             </div>
                           </>
                         )}
                         {risultato.tipo === 'aggregato' && (
                           <>
                             <div style={{ fontWeight: 700, fontSize: 12, color: C.green, marginBottom: 6 }}>
-                              ✓ {risultato.righe.length} giorni · {risultato.ordini || risultato.righe.reduce((s,r)=>s+(r.ordini||r.righe||0),0)} record da {risultato.fonte}
+                              <Icon name="check" size={12} /> {risultato.righe.length} giorni · {risultato.ordini || risultato.righe.reduce((s,r)=>s+(r.ordini||r.righe||0),0)} record da {risultato.fonte}
                             </div>
                             <div style={{ fontSize: 11, color: C.green }}>
-                              Totale: €{risultato.totale.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} · uniti alle chiusure cassa
+                              Totale: {risultato.totale.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} € · uniti alle chiusure cassa
                             </div>
                           </>
                         )}
