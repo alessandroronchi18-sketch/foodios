@@ -13,7 +13,8 @@ import { color as T, radius as R, shadow as S, motion as M, typo } from '../lib/
 // darebbe la data UTC, che in Italia fra mezzanotte e le 2 e' ancora ieri: la
 // data di pagamento proposta risultava del giorno prima.
 import { todayLocal } from '../lib/dateLocal'
-import { pickFattura, dedupFatture, insertFattureResilient, fatturaKey } from '../lib/fattureImport'
+import { pickFattura, dedupFatture, insertFattureResilient, chiaviFattureEsistenti } from '../lib/fattureImport'
+import { aggiungiMovimentiInBlocco, ORIGINE_FATTURA } from '../lib/primaNota'
 
 // Chiave storage per i dati di pagamento dell'azienda (intestatario + IBAN da
 // cui partono i bonifici). Shared a livello org (sede null).
@@ -109,6 +110,10 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
   const [fatture, setFatture]             = useState([])
+  // Storico completo caricato su richiesta: per default la pagina tiene le
+  // aperte e le pagate recenti, non tutte le 3.520.
+  const [storicoCompleto, setStoricoCompleto] = useState(false)
+  const [pagateTotali, setPagateTotali]   = useState(null)
   const [loading, setLoading]             = useState(true)
   const [importLoading, setImportLoading] = useState(false)
   // Quali gruppi di scadenza hanno "mostra tutte" attivo. Sta qui e non dentro
@@ -124,6 +129,15 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
   const scopeSede = sedeId ? 'attiva' : 'tutte'
   const [toast, setToast]                 = useState(null)
   const [pagandoId, setPagandoId]         = useState(null)
+  // "Registra anche l'uscita in Cassa": accesa per default, e ricordata fra
+  // una sessione e l'altra. Chi tiene la prima nota altrove la spegne una
+  // volta sola.
+  const [registraInCassa, setRegistraInCassa] = useState(() => {
+    try { return localStorage.getItem('foodos-scad-uscita-cassa') !== 'no' } catch { return true }
+  })
+  useEffect(() => {
+    try { localStorage.setItem('foodos-scad-uscita-cassa', registraInCassa ? 'si' : 'no') } catch { /* niente */ }
+  }, [registraInCassa])
   // Data locale del browser (not UTC): toISOString() darebbe il giorno
   // precedente per chiunque sia a UTC+ tra le 00:00 e le 00:59 locali.
   const [dataPag, setDataPag]             = useState(() => {
@@ -274,23 +288,63 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
     }
   }
 
-  async function loadFatture() {
+  // Colonne che questa pagina usa davvero. Prima era `select('*')`: su Mara
+  // sono 856 kB scaricati a ogni apertura per 3.104 righe, di cui solo 152 kB
+  // servono (le fatture aperte). `note`, `allegato_url`, `piva`, `cf` e
+  // `data_rif` non vengono mostrati da nessuna parte, e `note` è la colonna
+  // più pesante. Il peso cresce per sempre: fra un anno sono 2 MB a ogni clic.
+  const COLONNE = 'id, numero_rif, data_fattura, data_scadenza, tipo, fornitore, totale, imponibile, imposta, stato, importo_pagato, data_pagamento, metodo_pagamento, iban, sede_id'
+
+  // Quante fatture PAGATE si tengono in pagina: le ultime, non tutte.
+  // Su Mara le pagate sono 2.133 e sono la parte che non serve al lavoro di
+  // oggi. Chi cerca una fattura vecchia clicca "carica tutto lo storico".
+  const GIORNI_PAGATE = 120
+
+  async function loadFatture(tutto = storicoCompleto) {
     if (!orgId) { setLoading(false); return }
     setLoading(true)
     try {
-      let q = supabase
-        .from('fatture')
-        .select('*')
-        .eq('organization_id', orgId)
-        .order('data_fattura', { ascending: false })
-      if (scopeSede === 'attiva' && sedeId) {
-        q = q.or(`sede_id.eq.${sedeId},sede_id.is.null`)
+      const applicaSede = (q) => (scopeSede === 'attiva' && sedeId)
+        ? q.or(`sede_id.eq.${sedeId},sede_id.is.null`)
+        : q
+      const base = () => applicaSede(
+        supabase.from('fatture').select(COLONNE).eq('organization_id', orgId)
+      ).order('data_fattura', { ascending: false })
+
+      let righe
+      if (tutto) {
+        const { data, error } = await base()
+        if (error) throw error
+        righe = data || []
+      } else {
+        // Due richieste, non una: tutte le aperte (quelle su cui si lavora) e
+        // le pagate recenti (per controllare quello che si è appena saldato).
+        const limite = new Date()
+        limite.setDate(limite.getDate() - GIORNI_PAGATE)
+        const limiteIso = `${limite.getFullYear()}-${String(limite.getMonth() + 1).padStart(2, '0')}-${String(limite.getDate()).padStart(2, '0')}`
+        const [aperte, pagate] = await Promise.all([
+          base().neq('stato', 'pagata'),
+          base().eq('stato', 'pagata').gte('data_fattura', limiteIso),
+        ])
+        if (aperte.error) throw aperte.error
+        if (pagate.error) throw pagate.error
+        righe = [...(aperte.data || []), ...(pagate.data || [])]
       }
-      const { data, error } = await q
-      if (error) throw error
-      setFatture(data || [])
+      setFatture(righe)
+      // Quante pagate restano fuori: la pagina lo deve dire, altrimenti il
+      // filtro "Pagate" sembra vuoto quando invece è solo parziale.
+      if (!tutto) {
+        const { count } = await applicaSede(
+          supabase.from('fatture').select('id', { count: 'exact', head: true })
+            .eq('organization_id', orgId).eq('stato', 'pagata')
+        )
+        setPagateTotali(count || 0)
+      } else {
+        setPagateTotali(null)
+      }
     } catch (e) {
-      notify('Errore caricamento: ' + (e?.message || 'sconosciuto'), false)
+      console.error('[scadenzario] loadFatture', e)
+      notify('Non riesco a caricare le fatture: controlla la connessione e riprova.', false)
     } finally {
       setLoading(false)
     }
@@ -300,7 +354,11 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
     if (!orgId) return
     setImportLoading(true)
     let imported = 0, scartati = 0
-    const seen = new Set(fatture.map(fatturaKey))
+    // Le chiavi vengono dal DATABASE, non dalla lista in pagina: quella è
+    // filtrata per sede e, da oggi, non contiene tutte le pagate. Con le
+    // chiavi parziali un doppione di un'altra sede (o di una fattura vecchia
+    // non caricata) passava il controllo ed entrava due volte.
+    const seen = await chiaviFattureEsistenti(supabase, orgId)
     for (const file of Array.from(files || [])) {
       try {
         const records = await parseFatturaSMART(file)
@@ -328,7 +386,11 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
     if (!orgId) return
     setImportLoading(true)
     let imported = 0, scartati = 0
-    const seen = new Set(fatture.map(fatturaKey))
+    // Le chiavi vengono dal DATABASE, non dalla lista in pagina: quella è
+    // filtrata per sede e, da oggi, non contiene tutte le pagate. Con le
+    // chiavi parziali un doppione di un'altra sede (o di una fattura vecchia
+    // non caricata) passava il controllo ed entrava due volte.
+    const seen = await chiaviFattureEsistenti(supabase, orgId)
     for (const file of Array.from(files || [])) {
       try {
         const text = await file.text()
@@ -356,7 +418,11 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
     if (!orgId) return
     setImportLoading(true)
     let imported = 0, scartati = 0
-    const seen = new Set(fatture.map(fatturaKey))
+    // Le chiavi vengono dal DATABASE, non dalla lista in pagina: quella è
+    // filtrata per sede e, da oggi, non contiene tutte le pagate. Con le
+    // chiavi parziali un doppione di un'altra sede (o di una fattura vecchia
+    // non caricata) passava il controllo ed entrava due volte.
+    const seen = await chiaviFattureEsistenti(supabase, orgId)
     for (const file of Array.from(files || [])) {
       try {
         const records = await parseFatturaSMART(file)
@@ -377,6 +443,33 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
       notify(`${scartati} fatture erano già presenti - nessun duplicato aggiunto`, false)
     }
     setImportLoading(false)
+  }
+
+  // Registra in prima nota le uscite dei pagamenti appena segnati.
+  //
+  // PERCHE': segnare pagata una fattura NON scriveva niente in Cassa, e la
+  // Cassa è la sola pagina che sa quanti soldi sono usciti davvero (il conto
+  // economico legge le uscite da lì). Il ciclo passivo finiva nello
+  // scadenzario e non arrivava mai al conto: si pagavano i fornitori e in
+  // Cassa non compariva un euro.
+  //
+  // Le righe portano `origine: 'fattura-pagata'`, così si distinguono da
+  // quelle scritte a mano e da quelle importate dal registro: se un domani
+  // servirà rifarle, si sa quali sono.
+  async function registraUscitaCassa(righe) {
+    if (!orgId || !Array.isArray(righe) || righe.length === 0) return false
+    try {
+      const n = await aggiungiMovimentiInBlocco(
+        orgId,
+        righe.map(r => ({ ...r, sede_id: sedeId || null, categoria: 'Fornitori' })),
+        ORIGINE_FATTURA,
+      )
+      return n > 0
+    } catch (e) {
+      console.error('[scadenzario] uscita in prima nota', e)
+      notify('Fattura segnata pagata, ma non ho potuto registrare l\'uscita in Cassa: aggiungila a mano dalla prima nota.', false)
+      return false
+    }
   }
 
   // Segna pagata o registra un ACCONTO. Se l'importo inserito copre il residuo
@@ -405,9 +498,25 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
       if (error) throw error
       setFatture(prev => prev.map(x => x.id === id ? { ...x, ...applied } : x))
       setPagandoId(null); setPagImporto('')
-      notify(saldata || applied.stato === 'pagata'
+      // Pagare una fattura è un'uscita di soldi veri: se non finisce in prima
+      // nota, la Cassa e il conto economico non la vedono mai. Prima
+      // succedeva esattamente questo — il ciclo passivo si fermava qui.
+      // Non lo facciamo di nascosto: dipende dalla spunta "registra anche
+      // l'uscita in Cassa", accesa per default e ricordata.
+      let inCassa = false
+      if (registraInCassa && importoInput > 0) {
+        inCassa = await registraUscitaCassa([{
+          data: dataPag,
+          importo: importoInput,
+          descrizione: `${f?.fornitore || 'Fornitore'}${f?.numero_rif ? ` · fatt. ${f.numero_rif}` : ''}`,
+          fornitore: f?.fornitore || null,
+          documento: 'fattura',
+        }])
+      }
+      notify((saldata || applied.stato === 'pagata'
         ? 'Fattura saldata'
         : `Acconto registrato (${fmtEuro(importoInput)}) · residuo ${fmtEuro(totale - nuovoPagato)}`)
+        + (inCassa ? ' · uscita registrata in Cassa' : ''))
     } catch (e) {
       notify('Errore: ' + (e?.message || 'aggiornamento fallito'), false)
     }
@@ -446,12 +555,32 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         setFatture(prev => prev.map(x => perId[x.id] ? { ...x, ...perId[x.id] } : x))
       }
       setBloccoConf(null)
+      // Le uscite in prima nota: una riga per fattura pagata, così in Cassa si
+      // ritrova il pagamento con il nome del fornitore e il numero del
+      // documento, invece di un totale muto.
+      let inCassa = 0
+      if (registraInCassa && fatte.length) {
+        const perIdF = Object.fromEntries(daFare.map(f => [f.id, f]))
+        const righe = fatte.map(e => {
+          const f = perIdF[e.id]
+          const importo = Math.abs(Number(f?.totale) || 0) - (Number(f?.importo_pagato) || 0)
+          return {
+            data: dataIso,
+            importo: Math.max(0, Math.round(importo * 100) / 100),
+            descrizione: `${f?.fornitore || 'Fornitore'}${f?.numero_rif ? ` · fatt. ${f.numero_rif}` : ''}`,
+            fornitore: f?.fornitore || null,
+            documento: 'fattura',
+          }
+        }).filter(r => r.importo > 0)
+        if (righe.length && await registraUscitaCassa(righe)) inCassa = righe.length
+      }
       // Se qualcuna non passa va detto: il numero a schermo dopo l'operazione
       // deve corrispondere a quello che e' successo davvero.
+      const codaCassa = inCassa > 0 ? ` · ${inCassa} ${inCassa === 1 ? 'uscita registrata' : 'uscite registrate'} in Cassa` : ''
       if (fatte.length === daFare.length) {
-        notify(`${fatte.length} ${fatte.length === 1 ? 'fattura segnata' : 'fatture segnate'} come pagate`)
+        notify(`${fatte.length} ${fatte.length === 1 ? 'fattura segnata' : 'fatture segnate'} come pagate${codaCassa}`)
       } else {
-        notify(`Segnate ${fatte.length} di ${daFare.length}: sulle altre il salvataggio non è riuscito, riprova.`, false)
+        notify(`Segnate ${fatte.length} di ${daFare.length}: sulle altre il salvataggio non è riuscito, riprova.${codaCassa}`, false)
       }
     } catch (e) {
       notify('Errore: ' + (e?.message || 'aggiornamento fallito'), false)
@@ -630,14 +759,81 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
     }
   }, [gruppi])
 
+  // Le fatture scadute da tanto: quelle che quasi sempre sono già state
+  // pagate e mai segnate come tali.
+  //
+  // PERCHE' SERVE UNO STRUMENTO: l'importazione porta dentro TUTTI i
+  // documenti come "da pagare", anche quelli di due anni fa. Sui dati veri
+  // erano 2.126 fatture per 1,13 milioni che risultavano debito, e l'unico
+  // modo di sistemarle era una alla volta, oppure "Segna pagate" su un gruppo
+  // che mescola le vecchie con quelle di ieri. Nessuno lo fa a mano: quindi
+  // lo scadenzario resta gonfio e smette di dire la verità.
+  const VECCHIE_GIORNI = 180
+  const vecchieDaSistemare = useMemo(() => {
+    const limite = new Date()
+    limite.setDate(limite.getDate() - VECCHIE_GIORNI)
+    const limiteIso = `${limite.getFullYear()}-${String(limite.getMonth() + 1).padStart(2, '0')}-${String(limite.getDate()).padStart(2, '0')}`
+    const items = fattureExt.filter(f =>
+      f.stato !== 'pagata' && !f.isNC && f.dueIso && f.dueIso < limiteIso)
+    return { items, n: items.length, totale: items.reduce((s, f) => s + Math.abs(f.residuo || 0), 0) }
+  }, [fattureExt])
+
+  // Fornitori a cui devi dei soldi e di cui NON hai l'IBAN.
+  //
+  // PERCHE' E' IL PRIMO PROBLEMA DI QUESTA PAGINA: il bonifico SEPA è la
+  // funzione che dovrebbe far risparmiare più tempo di tutte, e sui dati veri
+  // non può partire per nessuna fattura — 0 documenti su 3.520 portano un
+  // IBAN, e in anagrafica ce l'ha 1 fornitore su 615. Le caselle di spunta
+  // ci sono, il pulsante c'è, e non succede niente: la barra del bonifico
+  // compare solo se almeno una fattura ha un IBAN valido, quindi non compare
+  // mai e nessuno capisce perché.
+  // Ora la pagina lo dice, e mette in cima i fornitori che pesano di più:
+  // scrivere cinque IBAN sblocca la maggior parte dell'importo.
+  const senzaIban = useMemo(() => {
+    const map = {}
+    for (const f of fattureExt) {
+      if (f.stato === 'pagata' || f.isNC) continue
+      if (f.ibanValido) continue
+      const k = normNome(f.fornitore)
+      if (!k) continue
+      if (!map[k]) map[k] = { nome_norm: k, nome: f.fornitore, tot: 0, n: 0 }
+      map[k].tot += Math.abs(f.residuo || 0)
+      map[k].n++
+    }
+    const righe = Object.values(map).sort((a, b) => b.tot - a.tot)
+    return {
+      righe,
+      n: righe.length,
+      totale: righe.reduce((s, r) => s + r.tot, 0),
+    }
+  }, [fattureExt])
+
   const gruppiVisibili = useMemo(() => {
     return (FILTRI.find(x => x.id === filtro) || FILTRI[0]).gruppi
   }, [filtro])
 
+  // La ricerca guarda il fornitore, il numero, la DATA e l'IMPORTO.
+  // Prima solo i primi due: con 1.387 fatture aperte, cercare "1.240" o
+  // "marzo" non trovava niente, e per una fattura di cui si ricorda la cifra
+  // — il caso più frequente quando arriva un sollecito — non c'era strada.
   const matchSearch = (f) => {
     const q = search.trim().toLowerCase()
     if (!q) return true
-    return (f.fornitore || '').toLowerCase().includes(q) || (f.numero_rif || '').toLowerCase().includes(q)
+    if ((f.fornitore || '').toLowerCase().includes(q)) return true
+    if ((f.numero_rif || '').toLowerCase().includes(q)) return true
+    // Date: sia come le scrive il database (2026-04-08) sia all'italiana
+    // (08/04/2026), e anche solo l'anno o il mese.
+    const iso = String(f.data_fattura || '')
+    if (iso.includes(q)) return true
+    if (iso && iso.split('-').reverse().join('/').includes(q)) return true
+    if (String(f.dueIso || '').includes(q)) return true
+    // Importo: con la virgola e col punto, e anche col punto delle migliaia.
+    const qNum = q.replace(/\./g, '').replace(',', '.')
+    if (qNum && /^[0-9.]+$/.test(qNum)) {
+      const tot = Math.abs(Number(f.totale) || 0)
+      if (String(tot).startsWith(qNum) || String(Math.round(tot)).startsWith(qNum)) return true
+    }
+    return false
   }
 
   // Audit 2026-09-09: due difetti in tre righe.
@@ -727,26 +923,41 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
   async function exportExcel() {
     try {
       const XLSX = await loadXLSX()
-      const items = gruppiVisibili.flatMap(k => gruppi[k] || [])
+      const items = gruppiVisibili.flatMap(k => gruppi[k] || []).filter(matchSearch)
+      // Il foglio che va dal commercialista deve dire anche quanto è stato
+      // pagato e quanto resta: prima usciva solo il totale lordo, quindi gli
+      // acconti sparivano e il residuo andava ricalcolato a mano. E la
+      // scadenza va marcata quando è stimata da noi, non letta dal documento.
       const rows = [
-        ['Data fattura', 'Data scadenza', 'Fornitore', 'Numero Rif.', 'Imponibile €', 'Imposta €', 'Totale €', 'Stato', 'Data Pagamento'],
+        ['Data fattura', 'Data scadenza', 'Scadenza stimata', 'Fornitore', 'Numero Rif.', 'Tipo',
+         'Imponibile €', 'Imposta €', 'Totale €', 'Pagato €', 'Residuo €', 'Stato', 'Data pagamento', 'Metodo'],
         ...items.map(f => [
           f.data_fattura || '',
           f.dueIso || '',
+          f.dueStimata ? 'sì' : 'no',
           f.fornitore,
           f.numero_rif || '',
+          f.isNC ? 'nota di credito' : 'fattura',
           f.imponibile || 0,
           f.imposta || 0,
           f.totale || 0,
-          URGENZA_CFG[f.urgenza]?.label || '-',
+          f.pagato || 0,
+          Math.abs(f.residuo || 0),
+          f.stato === 'pagata' ? 'pagata' : (URGENZA_CFG[f.urgenza]?.label || '-'),
           f.data_pagamento || '',
+          f.metodo_pagamento || '',
         ])
       ]
       const ws = XLSX.utils.aoa_to_sheet(rows)
-      ws['!cols'] = [{ wch:12 },{ wch:12 },{ wch:36 },{ wch:24 },{ wch:14 },{ wch:12 },{ wch:12 },{ wch:16 },{ wch:14 }]
+      ws['!cols'] = [{ wch:12 },{ wch:12 },{ wch:10 },{ wch:36 },{ wch:24 },{ wch:16 },{ wch:14 },{ wch:12 },{ wch:12 },{ wch:12 },{ wch:12 },{ wch:16 },{ wch:14 },{ wch:12 }]
       const wb = XLSX.utils.book_new()
       XLSX.utils.book_append_sheet(wb, ws, 'Fatture')
-      XLSX.writeFile(wb, `fatture_${new Date().toISOString().slice(0,10)}.xlsx`)
+      // Nome file con la data LOCALE (toISOString a mezzanotte dà il giorno
+      // prima) e col filtro attivo dentro, così due export dello stesso
+      // giorno non si sovrascrivono e si capisce cosa contengono.
+      const oggi = new Date()
+      const dataFile = `${oggi.getFullYear()}${String(oggi.getMonth() + 1).padStart(2, '0')}${String(oggi.getDate()).padStart(2, '0')}`
+      XLSX.writeFile(wb, `fatture_${filtro}_${dataFile}.xlsx`)
     } catch (e) {
       notify('Errore export: ' + (e?.message || 'sconosciuto'), false)
     }
@@ -831,6 +1042,18 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
               </select>
             </label>
           </div>
+          {/* La spunta che collega lo scadenzario alla Cassa: pagare una
+              fattura è un'uscita di soldi veri, e finché non arrivava in prima
+              nota il conto economico non la vedeva. Accesa per default, e
+              ricordata: chi tiene la prima nota altrove la spegne una volta. */}
+          <label style={{ display: 'flex', alignItems: 'flex-start', gap: 9, margin: '2px 0 10px', cursor: 'pointer' }}>
+            <input type="checkbox" checked={registraInCassa}
+              onChange={e => setRegistraInCassa(e.target.checked)}
+              style={{ width: 20, height: 20, marginTop: 1, accentColor: T.brand, cursor: 'pointer', flexShrink: 0 }} />
+            <span style={{ fontSize: typo.size.base, color: T.textMid, lineHeight: 1.45 }}>
+              Registra anche l'uscita in <b>Cassa</b>, così il pagamento entra nel conto economico.
+            </span>
+          </label>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
             <button aria-label="Annulla pagamento" onClick={() => { setPagandoId(null); setPagImporto('') }}
               style={{ padding: '8px 14px', minHeight: minTouch, background: 'transparent', color: T.textMid, border: `1px solid ${T.border}`, borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', flex: isMobile ? 1 : '0 0 auto' }}>
@@ -1639,6 +1862,100 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         ))}
       </div>
 
+      {/* Le fatture vecchie da sistemare: uno strumento, non un lavoro a mano.
+          Non fa niente da sé: apre la stessa conferma di "Segna pagate", con
+          scritto quante sono e da quanto. */}
+      {!loading && vecchieDaSistemare.n > 0 && (
+        <div style={{ ...card, padding: isMobile ? '14px' : '14px 18px', marginBottom: 14, borderLeft: `4px solid ${T.textSoft}` }}>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+            <Icon name="clock" size={16} color={T.textSoft} style={{ flexShrink: 0, marginTop: 2 }} />
+            <div style={{ flex: 1, minWidth: 220 }}>
+              <div style={{ fontSize: typo.size.md, fontWeight: 700, color: T.text, marginBottom: 3 }}>
+                {vecchieDaSistemare.n.toLocaleString('it-IT')} {vecchieDaSistemare.n === 1 ? 'fattura scaduta' : 'fatture scadute'} da più di sei mesi
+              </div>
+              <div style={{ fontSize: typo.size.base, color: T.textMid, lineHeight: 1.5 }}>
+                Valgono {fmtEuro(vecchieDaSistemare.totale)} e stanno gonfiando il totale da pagare.
+                Se le hai già saldate — succede sempre, perché l'importazione porta dentro tutti i
+                documenti come "da pagare" — puoi segnarle pagate in un colpo, invece di aprirle una
+                per una. Controlla prima l'elenco: quello che segni pagato non torna indietro da solo.
+              </div>
+            </div>
+            <button type="button"
+              onClick={() => setBloccoConf({ items: vecchieDaSistemare.items, titolo: 'scadute da più di sei mesi' })}
+              disabled={bloccoLoading}
+              style={{
+                padding: '10px 16px', minHeight: 44, borderRadius: 8,
+                border: `1px solid ${T.border}`, background: T.bgCard, color: T.textMid,
+                fontSize: typo.size.base, fontWeight: 700, cursor: bloccoLoading ? 'default' : 'pointer',
+                whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0,
+              }}>
+              <Icon name="check" size={14} /> Segnale pagate
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Perché il bonifico non parte, e come sbloccarlo.
+          Sui dati veri: 0 fatture su 3.520 portano un IBAN e in anagrafica
+          ce l'ha 1 fornitore su 615. Senza questo riquadro la pagina mostra
+          le caselle di spunta e un pulsante che non compare mai. */}
+      {!loading && senzaIban.n > 0 && (
+        <div style={{ ...card, padding: isMobile ? '14px' : '14px 18px', marginBottom: 14, borderLeft: `4px solid ${T.amber}` }}>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+            <Icon name="bank" size={16} color={T.amber} style={{ flexShrink: 0, marginTop: 2 }} />
+            <div style={{ flex: 1, minWidth: 220 }}>
+              <div style={{ fontSize: typo.size.md, fontWeight: 700, color: T.text, marginBottom: 3 }}>
+                Il bonifico automatico non può partire: manca l'IBAN a {senzaIban.n.toLocaleString('it-IT')} {senzaIban.n === 1 ? 'fornitore' : 'fornitori'}
+              </div>
+              <div style={{ fontSize: typo.size.base, color: T.textMid, lineHeight: 1.5 }}>
+                Sono {fmtEuro(senzaIban.totale)} da pagare. L'IBAN si scrive UNA volta sulla scheda del
+                fornitore e vale per tutte le sue fatture, anche quelle future.
+                {senzaIban.righe.length > 3 ? ' Comincia da questi, che sono quelli che pesano di più:' : ''}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 10 }}>
+                {senzaIban.righe.slice(0, 5).map(r => (
+                  <div key={r.nome_norm} style={{
+                    display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+                    padding: '8px 10px', background: T.bgSubtle, borderRadius: 8,
+                  }}>
+                    <span style={{ fontSize: typo.size.base, fontWeight: 700, color: T.text, flex: 1, minWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {r.nome}
+                    </span>
+                    <span style={{ fontSize: typo.size.base, color: T.textMid, ...tnum, whiteSpace: 'nowrap' }}>
+                      {r.n} {r.n === 1 ? 'fattura' : 'fatture'} · <b>{fmtEuro(r.tot)}</b>
+                    </span>
+                    <button type="button"
+                      onClick={() => {
+                        setVista('fornitore')
+                        setEditForn(r.nome_norm)
+                        const anag = fornitoriMap[r.nome_norm]
+                        setEditFornData({
+                          iban: anag?.iban || '',
+                          termini: anag?.termini_pagamento ?? 30,
+                          terminiTipo: anag?.termini_tipo || 'netti',
+                          categoria: anag?.categoria || '',
+                        })
+                      }}
+                      style={{
+                        padding: '8px 14px', minHeight: 40, borderRadius: 8, border: 'none',
+                        background: T.brand, color: T.white, fontSize: typo.size.base, fontWeight: 700,
+                        cursor: 'pointer', whiteSpace: 'nowrap',
+                      }}>
+                      Scrivi l'IBAN
+                    </button>
+                  </div>
+                ))}
+              </div>
+              {senzaIban.righe.length > 5 && (
+                <div style={{ fontSize: typo.size.sm, color: T.textSoft, marginTop: 8 }}>
+                  Altri {(senzaIban.righe.length - 5).toLocaleString('it-IT')} fornitori senza IBAN: li trovi nella vista <b>Per fornitore</b>, ognuno con la sua targhetta "no IBAN".
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Conto pagamenti azienda (debtor del bonifico SEPA) */}
       <div style={{ ...card, padding: isMobile ? '12px 14px' : '12px 18px', marginBottom: 14, display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', gap: isMobile ? 10 : 14 }}>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10, fontSize: 12, color: T.textMid, fontWeight: 600, flexShrink: 0 }}>
@@ -1740,12 +2057,36 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                     marginLeft: 8, fontSize: 12, fontWeight: 700,
                     color: active ? 'rgba(255,255,255,0.7)' : T.textSoft,
                     ...tnum,
-                  }}>{count.toLocaleString('it-IT')}</span>
+                  }}>
+                    {/* Sul filtro "Pagate" il numero è parziale finché non si
+                        carica lo storico: dirlo, invece di far sembrare che le
+                        vecchie siano sparite. */}
+                    {count.toLocaleString('it-IT')}
+                    {f.id === 'pagate' && pagateTotali != null && pagateTotali > count ? ` di ${pagateTotali.toLocaleString('it-IT')}` : ''}
+                  </span>
                 )}
               </button>
             )
           })}
         </div>
+        {/* Lo storico completo si carica quando serve: per default la pagina
+            tiene le fatture aperte e le pagate degli ultimi quattro mesi.
+            Prima scaricava tutto a ogni apertura — 856 kB su 3.104 righe per
+            mostrarne 152 kB di utili — e il peso cresce per sempre. */}
+        {!storicoCompleto && pagateTotali != null && pagateTotali > (gruppi.pagata?.length || 0) && (
+          <button type="button"
+            onClick={() => { setStoricoCompleto(true); loadFatture(true) }}
+            style={{
+              padding: '8px 14px', minHeight: 40, borderRadius: 999,
+              border: `1px solid ${T.border}`, background: T.bgCard, color: T.textMid,
+              fontSize: typo.size.base, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+            }}
+            title={`In pagina ci sono le fatture aperte e le pagate degli ultimi 4 mesi. In archivio ce ne sono ${pagateTotali.toLocaleString('it-IT')} pagate in tutto.`}>
+            <Icon name="clock" size={13} />
+            Carica anche lo storico pagato
+          </button>
+        )}
         <div style={{ flex: 1 }} />
         {totaliFiltrati.n > 0 && (
           <div style={{ fontSize: 12.5, color: T.textSoft, letterSpacing: '-0.005em', ...tnum, marginLeft: 'auto', whiteSpace: 'nowrap' }}>
@@ -1805,6 +2146,21 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                   Metto la stessa data di pagamento su tutte: usa il giorno in cui è partito il bonifico.
                   Se qualcuna l'hai pagata in un altro giorno, correggila dopo dalla sua riga.
                 </div>
+                {/* La stessa spunta del pagamento singolo: in blocco pesa
+                    ancora di più, perché sono decine di uscite in una volta.
+                    Sulle fatture vecchie conviene tenerla SPENTA: quelle sono
+                    già state pagate nella realtà, e registrarle in cassa oggi
+                    sposterebbe l'uscita nel mese sbagliato. */}
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: 9, marginBottom: 12, cursor: 'pointer' }}>
+                  <input type="checkbox" checked={registraInCassa}
+                    onChange={e => setRegistraInCassa(e.target.checked)}
+                    style={{ width: 20, height: 20, marginTop: 1, accentColor: T.brand, cursor: 'pointer', flexShrink: 0 }} />
+                  <span style={{ ...typo.small, color: T.textMid, lineHeight: 1.45 }}>
+                    Registra anche <b>{daFare.length} {daFare.length === 1 ? 'uscita' : 'uscite'} in Cassa</b>, con la data del pagamento.
+                    {' '}Se stai sistemando fatture vecchie già pagate, lascia questa spunta spenta:
+                    altrimenti l'uscita finisce nel mese di oggi invece che in quello in cui è avvenuta.
+                  </span>
+                </label>
                 <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
                   <div>
                     <div style={{ ...typo.small, fontWeight: 700, color: T.textSoft, marginBottom: 4 }}>Data del pagamento</div>

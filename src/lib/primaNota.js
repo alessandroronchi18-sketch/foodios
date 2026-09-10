@@ -20,6 +20,8 @@ const COLONNE = 'id, data, importo, descrizione, documento, categoria, fornitore
 export const ORIGINE_IMPORT = 'import-registro'
 /** Riga scritta a mano nell'app: l'import non la tocca mai. */
 export const ORIGINE_MANUALE = 'manuale'
+/** Uscita nata dal pagamento di una fattura registrato nello Scadenzario. */
+export const ORIGINE_FATTURA = 'fattura-pagata'
 
 export const DOCUMENTI = [
   { valore: 'fattura', etichetta: 'Con fattura',   breve: 'F',     colore: 'green' },
@@ -93,6 +95,8 @@ export async function aggiungiMovimentiInBlocco(orgId, righe, origine = ORIGINE_
       origine,
       descrizione: String(r.descrizione || 'spesa').slice(0, 500),
       documento: DOCUMENTI.some(d => d.valore === r.documento) ? r.documento : 'incerto',
+      categoria: r.categoria || null,
+      fornitore: r.fornitore || null,
       note: r.importoStimato
         ? 'Importo ripartito automaticamente: nel registro originale la cifra non era indicata per questa voce.'
         : r.importoResiduo
