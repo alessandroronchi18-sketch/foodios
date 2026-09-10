@@ -76,7 +76,14 @@ function ProdottiChips({ prodotti }) {
       {aperto && ordinati.length > LIMITE && (
         <span role="button" tabIndex={0} onClick={() => setAperto(false)}
           onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setAperto(false) } }}
-          style={{ ...CHIP_PROD, cursor: 'pointer', color: C.textSoft }}>↑ comprimi</span>
+          style={{ ...CHIP_PROD, cursor: 'pointer', color: C.textSoft, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          {/* Audit 2026-09-09: era il glifo "↑". Il progetto ha il componente
+              Icon con SVG proprio per non dipendere dai glifi, che cambiano
+              forma da un sistema all'altro e i lettori di schermo leggono a
+              modo loro. */}
+          <span style={{ display: 'inline-flex', transform: 'rotate(180deg)' }}><Icon name="chevDown" size={11} /></span>
+          comprimi
+        </span>
       )}
     </div>
   )
@@ -1035,7 +1042,9 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                           </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginTop: 4 }}>
                             <span style={{ color: C.textMid }}>Margine %</span>
-                            <span style={{ fontWeight: 700, color: mc, ...TNUM }}>{margPct.toFixed(1)}%</span>
+                            {/* Audit 2026-09-09: toFixed usa il punto decimale, quindi il
+                                margine usciva "33.3%" invece di "33,3%". */}
+                            <span style={{ fontWeight: 700, color: mc, ...TNUM }}>{margPct.toLocaleString('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%</span>
                           </div>
                         </div>
                       </>
@@ -1285,7 +1294,13 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                 <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {Object.entries(deleteSessConf.ingredientiUsati).map(([k, qty]) => (
                     <span key={k} style={{ background: '#D4F0DC', borderRadius: 4, padding: '2px 7px', fontSize: 10, fontWeight: 600, textTransform: 'capitalize' }}>
-                      {k}: +{qty >= 1000 ? (qty / 1000).toFixed(2) + 'kg' : Math.round(qty) + 'g'}
+                      {/* Audit 2026-09-09: "1.25kg" col punto decimale e senza
+                          spazio prima dell'unita'. In italiano si scrive
+                          "1,25 kg", e i grammi vogliono il punto delle
+                          migliaia: 8400 g e' "8.400 g". */}
+                      {k}: +{qty >= 1000
+                        ? `${(qty / 1000).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg`
+                        : `${Math.round(qty).toLocaleString('it-IT')} g`}
                     </span>
                   ))}
                 </div>

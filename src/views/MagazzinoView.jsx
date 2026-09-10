@@ -266,7 +266,7 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
     trasferimento_ricezione: { lbl: 'Ricevuto', ic: 'package', col: '#16A34A' },
     vendita: { lbl: 'Vendita', ic: 'cart', col: '#2563EB' },
     scarto: { lbl: 'Scarto', ic: 'warning', col: '#92400E' },
-    annullo_trasferimento: { lbl: '↩ Annullo', col: '#94A3B8' },
+    annullo_trasferimento: { lbl: 'Annullo', ic: 'undo', col: '#94A3B8' },
     rettifica: { lbl: 'Rettifica', ic: 'edit', col: '#475569' },
   }
 
