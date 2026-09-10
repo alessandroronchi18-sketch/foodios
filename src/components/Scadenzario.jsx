@@ -13,6 +13,7 @@ import { color as T, radius as R, shadow as S, motion as M, typo } from '../lib/
 // darebbe la data UTC, che in Italia fra mezzanotte e le 2 e' ancora ieri: la
 // data di pagamento proposta risultava del giorno prima.
 import { todayLocal } from '../lib/dateLocal'
+import { pickFattura, dedupFatture, insertFattureResilient, fatturaKey } from '../lib/fattureImport'
 
 // Chiave storage per i dati di pagamento dell'azienda (intestatario + IBAN da
 // cui partono i bonifici). Shared a livello org (sede null).
@@ -22,65 +23,6 @@ const SK_AZIENDA_PAG = 'azienda-pagamenti-v1'
 const normNome = s => String(s || '').trim().toUpperCase().replace(/\s+/g, ' ')
 
 const tnum = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" }
-
-// Colonne sicure della tabella `fatture` (quelle effettivamente lette/usate dal
-// componente → esistono di certo nel DB). I parser possono produrre campi extra
-// (piva, cf, note) che, se la tabella non li ha, fanno fallire l'INSERT con un
-// errore PostgREST. Inseriamo SOLO le colonne sicure per non rompere l'import.
-const FATTURA_COLS_SICURE = ['numero_rif', 'data_fattura', 'data_scadenza', 'tipo', 'fornitore', 'piva', 'cf', 'iban', 'imponibile', 'imposta', 'totale', 'stato', 'importo_pagato', 'note']
-function pickFattura(r, orgId, sedeId) {
-  const out = { organization_id: orgId, sede_id: sedeId || null }
-  for (const k of FATTURA_COLS_SICURE) if (r[k] !== undefined && r[k] !== null) out[k] = r[k]
-  return out
-}
-
-// Colonne "core" sempre presenti (anche prima della migration scadenzario).
-const FATTURA_COLS_CORE = ['numero_rif', 'data_fattura', 'fornitore', 'imponibile', 'imposta', 'totale', 'stato']
-
-// INSERT resiliente: prova con tutte le colonne sicure (scadenza/iban/tipo/…);
-// se la migration delle nuove colonne NON è ancora applicata, PostgREST risponde
-// "column does not exist" / PGRST204 → ripieghiamo sulle sole colonne core, così
-// l'import funziona comunque (degradando i campi nuovi) invece di rompersi.
-async function insertFattureResilient(supabase, rows) {
-  if (!rows.length) return
-  for (let i = 0; i < rows.length; i += 100) {
-    const chunk = rows.slice(i, i + 100)
-    let { error } = await supabase.from('fatture').insert(chunk)
-    if (error && /does not exist|schema cache|PGRST204|could not find/i.test(error.message || '')) {
-      const core = chunk.map(r => {
-        const o = { organization_id: r.organization_id, sede_id: r.sede_id }
-        for (const k of FATTURA_COLS_CORE) if (r[k] !== undefined && r[k] !== null) o[k] = r[k]
-        return o
-      })
-      error = (await supabase.from('fatture').insert(core)).error
-    }
-    if (error) throw error
-  }
-}
-
-// Chiave di deduplica fattura: numero + fornitore + data, normalizzati.
-// Serve a NON reinserire righe già presenti se l'utente reimporta un file che
-// contiene fatture già caricate (es. export sovrapposti tra mesi). Le fatture
-// nuove di un mese diverso hanno chiave diversa → vengono comunque aggiunte.
-function fatturaKey(r) {
-  const norm = v => String(v ?? '').trim().toUpperCase()
-  return `${norm(r.numero_rif)}|${norm(r.fornitore)}|${norm(r.data_fattura)}`
-}
-
-// Filtra i record da inserire scartando quelli già presenti (set `seen`) e i
-// duplicati interni allo stesso import. Muta `seen` aggiungendo le chiavi nuove.
-// Ritorna { nuovi, scartati }.
-function dedupFatture(records, seen) {
-  const nuovi = []
-  let scartati = 0
-  for (const r of records) {
-    const k = fatturaKey(r)
-    if (seen.has(k)) { scartati++; continue }
-    seen.add(k)
-    nuovi.push(r)
-  }
-  return { nuovi, scartati }
-}
 
 // Termine di pagamento standard usato per derivare la data di scadenza
 // quando in DB non e' specificata: 30 giorni dalla data fattura.

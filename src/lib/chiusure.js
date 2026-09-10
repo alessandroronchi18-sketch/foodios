@@ -178,6 +178,28 @@ export function foodcostNoto(c) {
 }
 
 /**
+ * Upsert delle sole giornate passate, senza cancellare niente.
+ *
+ * Differenza da salvaChiusure: quella riceve l'elenco COMPLETO e cancella le
+ * date che non ci sono più (giusto per una vista che ragiona su tutto lo
+ * storico). Questa parla solo dei giorni che le passi: serve a chi importa un
+ * periodo — un export delivery, un file di cassa, un mese di registro — e non
+ * deve toccare il resto dell'anno.
+ *
+ * Ritorna il numero di giornate scritte.
+ */
+export async function upsertChiusure(orgId, sedeId, chiusure) {
+  if (!orgId) throw new Error('upsertChiusure: orgId mancante')
+  const valide = (Array.isArray(chiusure) ? chiusure : []).filter(c => c?.data)
+  if (valide.length === 0) return 0
+  const righeDb = valide.map(c => oggettoARiga(c, orgId, sedeId))
+  const { error } = await supabase.from('chiusure_cassa')
+    .upsert(righeDb, { onConflict: 'organization_id,sede_id,data' })
+  if (error) throw new Error(error.message)
+  return righeDb.length
+}
+
+/**
  * Importa le giornate lette da un registro incassi tenuto a mano.
  *
  * Non usa salvaChiusure di proposito: quella riceve l'elenco COMPLETO e

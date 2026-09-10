@@ -5,10 +5,10 @@ import { parseZucchettiInfinity, parseZucchettiKassa } from '../lib/importZucche
 import { parseSumUp, parseSatispay, parseSquare } from '../lib/importCassa'
 import { parseUberEats, parseDeliveroo, parseJustEat, parseGlovo, mergeInChiusure } from '../lib/importDelivery'
 import { parseShopifyOrders, parseWooCommerceOrders, mergeOrdiniInChiusure } from '../lib/importEcommerce'
-import { sload, ssave } from '../lib/storage'
+import { caricaChiusure, upsertChiusure } from '../lib/chiusure'
+import { pickFattura, dedupFatture, insertFattureResilient, chiaviFattureEsistenti } from '../lib/fattureImport'
 import Icon from './Icon'
 
-const SK_CHIUS = 'pasticceria-chiusure-v1'
 import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 
 const C = {
@@ -620,28 +620,33 @@ export default function Integrazioni({ orgId, sedeId }) {
     setImportLoading(cfg.id)
     setRisultato(null)
     let imported = 0
-    let lastErr = null
+    // Esito FILE PER FILE: prima un errore su un file di dodici faceva
+    // sparire il messaggio di successo per tutti, e
+    // chi ricaricava tutto duplicava quello che era già entrato.
+    const esiti = []
+    // Chiavi delle fatture già in database: la deduplica dev'essere fatta
+    // contro il DB, non solo dentro il file.
+    let chiaviNote = null
+    if (['fattura_elettronica_xml', 'fattura_smart'].includes(cfg.id)) {
+      try { chiaviNote = await chiaviFattureEsistenti(supabase, orgId) } catch { chiaviNote = new Set() }
+    }
 
     for (const file of Array.from(files)) {
       try {
-        if (cfg.id === 'fattura_elettronica_xml') {
-          const text = await file.text()
-          const records = parseFatturaXML(text)
-          const toInsert = records.map(r => ({ ...r, organization_id: orgId }))
-          for (let i = 0; i < toInsert.length; i += 100) {
-            const { error } = await supabase.from('fatture').insert(toInsert.slice(i, i + 100))
-            if (error) throw error
-          }
-          imported += records.length
-
-        } else if (cfg.id === 'fattura_smart') {
-          const records = await parseFatturaSMART(file)
-          const toInsert = records.map(r => ({ ...r, organization_id: orgId }))
-          for (let i = 0; i < toInsert.length; i += 100) {
-            const { error } = await supabase.from('fatture').insert(toInsert.slice(i, i + 100))
-            if (error) throw error
-          }
-          imported += records.length
+        if (cfg.id === 'fattura_elettronica_xml' || cfg.id === 'fattura_smart') {
+          const records = cfg.id === 'fattura_elettronica_xml'
+            ? parseFatturaXML(await file.text())
+            : await parseFatturaSMART(file)
+          // pickFattura tiene solo le colonne che la tabella ha e mette la
+          // sede (le fatture importate da qui avevano sede_id NULL, e con tre
+          // negozi sparivano dal Confronto sedi); dedupFatture scarta quelle
+          // che ci sono già; insertFattureResilient ripiega sulle colonne
+          // core se una colonna nuova non c'è ancora.
+          const { nuovi, scartati } = dedupFatture(records, chiaviNote)
+          const toInsert = nuovi.map(r => pickFattura(r, orgId, sedeId))
+          await insertFattureResilient(supabase, toInsert)
+          imported += toInsert.length
+          esiti.push({ file: file.name, ok: true, n: toInsert.length, doppie: scartati })
 
         } else if (cfg.id === 'zucchetti_infinity') {
           const text = await file.text()
@@ -673,7 +678,7 @@ export default function Integrazioni({ orgId, sedeId }) {
           setRisultato({ tipo: 'kassa', chiusure: chiusure_giornaliere, cfgId: cfg.id })
 
         } else if (['sumup','satispay','square','deliveroo','justeat','uber_eats','glovo','shopify','woocommerce'].includes(cfg.id)) {
-          // Pattern unificato: parser → aggregati per giorno → merge in chiusure (SK_CHIUS per-sede)
+          // Pattern unificato: parser → aggregati per giorno → merge nelle chiusure (tabella chiusure_cassa, per sede)
           let aggregati = []
           if (cfg.id === 'sumup')         aggregati = parseSumUp(await file.text())
           else if (cfg.id === 'satispay') aggregati = parseSatispay(await file.text())
@@ -685,15 +690,28 @@ export default function Integrazioni({ orgId, sedeId }) {
           else if (cfg.id === 'shopify')  aggregati = parseShopifyOrders(await file.text())
           else if (cfg.id === 'woocommerce') aggregati = parseWooCommerceOrders(await file.text())
 
-          // Merge nelle chiusure cassa (SK_CHIUS) - chiave PER-SEDE: usare sedeId,
-          // non null, altrimenti i dati finiscono nel bucket shared e ChiusuraView
-          // (che legge per-sede) non li vede mai.
-          const chiusureAttuali = (await sload(SK_CHIUS, orgId, sedeId)) || []
+          // Le chiusure NON stanno più in user_data: dalla migrazione del
+          // 07/09/2026 vivono nella tabella chiusure_cassa (src/lib/chiusure.js).
+          // Qui si leggeva e riscriveva il vecchio blob jsonb, che nessuno
+          // legge più: la pagina diceva "uniti alle chiusure cassa" col
+          // riquadro verde e il totale, e in Cassa non compariva niente.
+          // Un mese di incassi delivery restava fuori dal conto economico
+          // senza nessun modo di accorgersene.
           const fonteLabel = cfg.nome
+          const dateTocca = aggregati.map(r => r.data).filter(Boolean).sort()
+          const daData = dateTocca[0]
+          const aData = dateTocca[dateTocca.length - 1]
+          const chiusureAttuali = daData
+            ? await caricaChiusure(orgId, sedeId, { from: daData, to: aData })
+            : []
           const nuove = ['shopify','woocommerce'].includes(cfg.id)
             ? mergeOrdiniInChiusure(chiusureAttuali, aggregati, fonteLabel)
             : mergeInChiusure(chiusureAttuali, aggregati, fonteLabel)
-          await ssave(SK_CHIUS, nuove, orgId, sedeId)
+          // upsertChiusure e non salvaChiusure: qui si parla solo dei giorni
+          // del file, e salvaChiusure cancellerebbe tutte le altre giornate
+          // dell'anno perché riceve l'elenco come se fosse completo.
+          const soloToccate = nuove.filter(c => c?.data && c.data >= daData && c.data <= aData)
+          await upsertChiusure(orgId, sedeId, soloToccate)
           imported += aggregati.length
           setRisultato({
             tipo: 'aggregato',
@@ -705,18 +723,40 @@ export default function Integrazioni({ orgId, sedeId }) {
           })
         }
 
-        await logSync(cfg.id, 'ok', imported, null)
+        // Il registro dei sync si scrive SOLO se qualcosa è entrato davvero.
+        // Prima veniva scritto sempre, anche con imported = 0: la targhetta
+        // diventava verde "Connessa - ultimo sync ..." su un file che nessun
+        // ramo di questa funzione sapeva leggere. Chi vedeva verde smetteva di
+        // registrare la chiusura a mano, e il giorno dopo il conto economico
+        // era a zero incassi.
+        if (imported > 0) {
+          await logSync(cfg.id, 'ok', imported, null)
+        } else {
+          const msg = 'Questo file non l\'ho saputo leggere: la cassa non è ancora collegata. Scrivici e la aggiungiamo.'
+          await logSync(cfg.id, 'errore', 0, msg)
+          notify(msg, false)
+        }
       } catch (e) {
-        lastErr = e.message
-        await logSync(cfg.id, 'errore', 0, e.message)
-        notify('Errore: ' + e.message, false)
+        esiti.push({ file: file.name, ok: false, errore: e.message })
+        console.error('[Integrazioni] import', file.name, e)
+        await logSync(cfg.id, 'errore', 0, `${file.name}: ${e.message}`)
       }
     }
 
     await loadLogs()
     setImportLoading(null)
-    if (!lastErr && imported > 0) {
-      notify(`✓ ${imported} record importati correttamente`)
+    // Un messaggio che dice cosa è entrato e cosa no, file per file.
+    const falliti = esiti.filter(x => !x.ok)
+    const doppie = esiti.reduce((a, x) => a + (x.doppie || 0), 0)
+    if (imported > 0) {
+      const parti = [`${imported} ${imported === 1 ? 'record importato' : 'record importati'}`]
+      if (doppie > 0) parti.push(`${doppie} ${doppie === 1 ? 'già presente, saltata' : 'già presenti, saltate'}`)
+      if (falliti.length > 0) parti.push(`${falliti.length} file non ${falliti.length === 1 ? 'letto' : 'letti'}: ${falliti.map(f => f.file).join(', ')}`)
+      notify(parti.join(' · '), falliti.length === 0)
+    } else if (falliti.length > 0) {
+      notify(`Non ho letto ${falliti.length === 1 ? 'il file' : `nessuno dei ${falliti.length} file`}: ${falliti[0].errore}`, false)
+    } else if (doppie > 0) {
+      notify(`Erano tutte già in Foodos (${doppie}): non ho inserito niente, e non ci sono doppioni.`, true)
     }
   }
 

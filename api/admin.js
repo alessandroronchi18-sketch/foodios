@@ -2351,6 +2351,16 @@ export default async function handler(req) {
                 config_encrypted: enc.config_encrypted,
                 config_iv: enc.config_iv,
                 config_tag: enc.config_tag,
+                // `encryption_version` SERVE: senza di essa decryptConfig
+                // prende il ramo legacy (integrationsCrypto.js: "se la version
+                // manca o è 0, restituisci row.config") e ritorna {}, perché
+                // qui `config` non c'è. Il confronto col config originale
+                // falliva sempre, scattava "round-trip mismatch" e la riga
+                // veniva SALTATA: la procedura che deve mettere sotto chiave
+                // le credenziali lasciava in chiaro proprio quelle che hanno
+                // un segreto dentro, e le uniche a passare erano le config
+                // vuote.
+                encryption_version: enc.encryption_version ?? 1,
               })
               if (!roundTrip || JSON.stringify(roundTrip) !== JSON.stringify(r.config)) {
                 throw new Error('round-trip mismatch')
