@@ -84,6 +84,11 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
   }, [isAllSedi, sediProduttive, sediFiltro])
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
+  // Gusti per cui abbiamo già detto "non ha una ricetta": una volta basta.
+  const avvisatiSenzaRicetta = useRef(new Set())
+  // Giorno mostrato dalla vista "Oggi": si può tornare a ieri per chiudere
+  // una giornata dimenticata.
+  const [giornoOggi, setGiornoOggi] = useState(() => todayLocal())
   const [lunediIso, setLunediIso] = useState(() => lunediDellaSettimana())
   const [righe, setRighe] = useState([])
   const [loading, setLoading] = useState(true)
@@ -170,6 +175,16 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
   // Lista gusti = unione di ricettario + gusti orfani (presenti in DB ma
   // non nel ricettario). Così un file importato con nomi non ancora a
   // ricettario non viene "nascosto" nel foglio settimanale.
+  // Se il giorno scelto nella vista "Oggi" esce dalla settimana caricata, si
+  // sposta la settimana: la matrice contiene solo i 7 giorni caricati, e
+  // senza questo la cella di ieri risulterebbe vuota pur avendo un dato.
+  useEffect(() => {
+    const fine = addDays(lunediIso, 6)
+    if (giornoOggi < lunediIso || giornoOggi > fine) {
+      setLunediIso(lunediDellaSettimana(giornoOggi))
+    }
+  }, [giornoOggi, lunediIso])
+
   // I 7 giorni della settimana mostrata. `righe` ne contiene di più: i
   // giorni PRIMA del lunedi servono come rimanenza di partenza per il calcolo
   // del venduto, ma non vanno contati. Tutto cio' che si somma a schermo usa
@@ -182,6 +197,36 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
   }, [righe, lunediIso])
 
   const gusti = useMemo(() => elencoGusti(ricettario, righeSettimana), [ricettario, righeSettimana])
+
+  // Gusti senza una ricetta con gli ingredienti: la produzione si registra,
+  // ma il magazzino non si scala e quei chili non hanno food cost.
+  //
+  // Prima non c'era nessun segno a schermo tranne un triangolino arancione
+  // accanto al nome: nei dati veri di Mara sono 21 gusti su 32, per
+  // 10.788 kg su 25.754 prodotti — il 42% dei chili senza food cost, in
+  // silenzio. Un contatore che lo dice vale più di ventuno triangolini.
+  const senzaRicetta = useMemo(() => {
+    const nomi = []
+    for (const g of (gusti || [])) {
+      const ric = ricettaDelGusto(ricettario, g.nome)
+      const pesa = (ric?.ingredienti || []).some(i => Number(i?.qty1stampo) > 0)
+      if (!pesa) nomi.push(normGusto(g.nome))
+    }
+    const set = new Set(nomi)
+    let kgSenza = 0, kgTot = 0
+    for (const r of righeSettimana) {
+      const kg = (Number(r.produzione_g) || 0) / 1000
+      kgTot += kg
+      if (set.has(normGusto(r.gusto_nome))) kgSenza += kg
+    }
+    return {
+      nomi, set,
+      n: nomi.length,
+      nTot: (gusti || []).length,
+      kgSenza, kgTot,
+      pct: kgTot > 0 ? (kgSenza / kgTot * 100) : 0,
+    }
+  }, [gusti, ricettario, righeSettimana])
 
   // ID delle sedi su cui leggere: una se sede attiva, oppure il sub-set
   // selezionato dall'utente in modalita' isAllSedi.
@@ -467,6 +512,13 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
       let ingredientiScalatiTarget = []
       if (campo === 'produzione_g' && setMagazzino && ricettario) {
         const ric = ricettaDelGusto(ricettario, gustoNome)
+        // Se il gusto non ha una ricetta, il magazzino non si scala: prima
+        // succedeva senza un fiato. Lo diciamo una volta per gusto, non a
+        // ogni cella, per non diventare un fastidio.
+        if (!ric && Number(valore) > 0 && !avvisatiSenzaRicetta.current.has(gustoNome)) {
+          avvisatiSenzaRicetta.current.add(gustoNome)
+          notify?.(`${gustoNome} non ha una ricetta: la produzione la registro, ma il magazzino non si scala e questi chili non hanno food cost. La ricetta si aggiunge dal Ricettario.`, true)
+        }
         const oldProd = Number(esistente.produzione_g) || 0
         const newProd = Number(valore) || 0
         const delta = newProd - oldProd
@@ -505,7 +557,11 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
       })
     } catch (e) {
       console.error('salvaCella:', e)
-      notify?.(`Errore salvataggio: ${e.message || 'rete'}`, false)
+      // Il messaggio di PostgREST ("JSON object requested, multiple (or no)
+      // rows returned") non dice niente a un gelatiere. Il dettaglio va nel
+      // console, a schermo va cosa e' successo e cosa fare.
+      console.error('salvaCella:', e)
+      notify?.(`Non ho salvato ${campo === 'produzione_g' ? 'la produzione' : 'la rimanenza'} di ${gustoNome} del ${new Date(dataIso + 'T12:00').toLocaleDateString('it-IT', { weekday: 'long', day: '2-digit', month: 'long' })}: controlla la connessione e riprova.`, false)
     } finally {
       setSaving(s => { const n = { ...s }; delete n[k]; return n })
     }
@@ -665,7 +721,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
           border: '1px solid #BFDBFE', borderRadius: 10, marginBottom: 12,
         }}>
           <div style={{ fontSize: 12.5, color: '#1E3A8A', lineHeight: 1.5, marginBottom: 10 }}>
-            <Icon name="globe" size={13} style={{ marginRight: 6, verticalAlign: 'middle' }}/><strong>Vista aggregata</strong> - Somma delle sedi selezionate qui sotto.
+            <Icon name="store" size={13} style={{ marginRight: 6, verticalAlign: 'middle' }}/><strong>Vista aggregata</strong> - Somma delle sedi selezionate qui sotto.
             Compilazione e import disabilitati: per modificare i dati, seleziona una sede
             specifica dal selettore in alto.
           </div>
@@ -744,18 +800,23 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
           Carica foglio produzione
         </button>
 
+        {/* `saving` e' l'OGGETTO delle celle in salvataggio: un oggetto vuoto
+            in JavaScript e' un valore "vero", quindi il bottone "Ripeti
+            settimana scorsa" nasceva disabilitato e non si poteva cliccare
+            mai. Con lui anche il cursore "attendi" e l'opacita' al 60% erano
+            sempre accesi: sembrava un bottone rotto, e lo era. */}
         {vista === 'settimana' && !isAllSedi && (
           <button onClick={ripetiSettimanaScorsa}
-            disabled={saving}
+            disabled={Object.keys(saving).length > 0}
             title="Copia i valori di PRODUZIONE dalla settimana scorsa in questa settimana. Sovrascrive solo le celle vuote."
             style={{
               padding: '8px 16px', minHeight: 40,
               background: '#FFFFFF', color: T.brand,
               border: `1px solid ${T.brand}`, borderRadius: 8,
               fontSize: 12.5, fontWeight: 700,
-              cursor: saving ? 'wait' : 'pointer',
+              cursor: Object.keys(saving).length > 0 ? 'wait' : 'pointer',
               display: 'inline-flex', alignItems: 'center', gap: 6,
-              opacity: saving ? 0.6 : 1,
+              opacity: Object.keys(saving).length > 0 ? 0.6 : 1,
             }}>
             <Icon name="clock" size={14} color={T.brand} />
             Ripeti settimana scorsa
@@ -913,6 +974,39 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
         />
       )}
 
+      {/* Contatore dei gusti senza ricetta. Non e' un allarme: e' un fatto che
+          cambia il significato di tutti i numeri della pagina, e va scritto. */}
+      {!loading && senzaRicetta.n > 0 && (vista === 'settimana' || vista === 'oggi') && (
+        <div style={{
+          background: T.amberLight, border: `1px solid ${T.amber}55`, borderRadius: R.lg,
+          padding: '10px 14px', marginBottom: 12, display: 'flex', gap: 10,
+          alignItems: 'flex-start', flexWrap: 'wrap',
+        }}>
+          <Icon name="alert" size={14} color={T.amberDark || T.amber} style={{ flexShrink: 0, marginTop: 2 }} />
+          <div style={{ fontSize: TS.base, color: T.amberDark || T.amber, lineHeight: 1.5, flex: 1, minWidth: 180 }}>
+            <b>{senzaRicetta.n} gust{senzaRicetta.n === 1 ? 'o' : 'i'} su {senzaRicetta.nTot} senza ricetta</b>
+            {senzaRicetta.kgSenza > 0 && (
+              <>: sono {senzaRicetta.kgSenza.toLocaleString('it-IT', { maximumFractionDigits: 1 })} kg su {senzaRicetta.kgTot.toLocaleString('it-IT', { maximumFractionDigits: 1 })} di questa settimana
+                {' '}({senzaRicetta.pct.toLocaleString('it-IT', { maximumFractionDigits: 0 })}%)</>
+            )}
+            . La produzione la registro, ma per loro il magazzino non si scala e non c'è food cost.
+            <div style={{ marginTop: 3, fontSize: TS.sm, color: T.amber }}>
+              {senzaRicetta.nomi.slice(0, 6).join(', ')}{senzaRicetta.nomi.length > 6 ? ` e altri ${senzaRicetta.nomi.length - 6}` : ''}
+            </div>
+          </div>
+          {onNavigate && (
+            <button onClick={() => onNavigate('ricettario')}
+              style={{
+                padding: '9px 14px', minHeight: 40, background: C.white, color: T.amberDark || T.amber,
+                border: `1px solid ${T.amber}55`, borderRadius: R.md, fontSize: TS.base, fontWeight: 700,
+                cursor: 'pointer', whiteSpace: 'nowrap',
+              }}>
+              Vai al Ricettario
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Suggerimento su mobile per la vista Settimana: 16 colonne su 375px
           sono scomode da compilare — invitiamo a passare a Oggi. */}
       {!loading && isMobile && vista === 'settimana' && (
@@ -967,6 +1061,8 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
           gusti={gustiVisibili} matrice={matrice} saving={saving}
           onSave={handleSave} readOnly={isAllSedi}
           unita={unitaDisplay}
+          giornoIso={giornoOggi}
+          onCambiaGiorno={setGiornoOggi}
         />
       ) : vista === 'mese' ? (
         <VistaMese gusti={gustiVisibili} righeMese={meseData?.righe || []} lunediIso={lunediIso} unita={unitaDisplay} onClickGusto={setDrilldownGusto} />
@@ -1261,7 +1357,8 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
               notify?.(`Spediti ${kg} kg di ${gusto} a ${destSede?.nome || 'destinazione'}`, true)
             } catch (e) {
               console.error('spedizione:', e)
-              notify?.('Errore spedizione: ' + (e.message || 'rete'), false)
+              console.error('spedizione fra sedi:', e)
+      notify?.('Non ho registrato la spedizione: controlla la connessione e riprova. Se il problema resta, la merce non e\' stata spostata.', false)
             }
           }}
         />
@@ -1356,7 +1453,7 @@ function DialogSpedizione({ state, setState, gusti, sedi, sedeOrigineId, righeOg
               background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 8,
               fontSize: 12, color: '#7F1D1D', lineHeight: 1.45,
             }}>
-              ⚠ Stai spedendo <b>{kgRichiesti.toLocaleString('it-IT', { maximumFractionDigits: 1 })} kg</b>
+              <Icon name="alert" size={12} color="#92400E" /> Stai spedendo <b>{kgRichiesti.toLocaleString('it-IT', { maximumFractionDigits: 1 })} kg</b>
               {' '}ma la sede oggi ne ha solo <b>{dispKg.toLocaleString('it-IT', { maximumFractionDigits: 1 })} kg</b> disponibili.
               Puoi comunque procedere se sai di avere rimanenza del giorno prima da spedire.
             </div>
@@ -2256,6 +2353,8 @@ function KpiCompactBar({ rows, periodo, unita = 'g', vendutoG = null, celleNonQu
       ? (g / 1000).toLocaleString('it-IT', { maximumFractionDigits: 1 })
       : g.toLocaleString('it-IT')
   }
+  // Lo scarto e' "misurato" solo se almeno una riga del periodo ne ha uno.
+  const scartoMisurato = Array.isArray(rows) && rows.some(r => (Number(r.scarto_g) || 0) > 0)
   const scartoColor = stats.scartoPct >= 5 ? '#B91C1C' : stats.scartoPct >= 2 ? '#B45309' : '#166534'
   const scartoBg = stats.scartoPct >= 5 ? '#FEF2F2' : stats.scartoPct >= 2 ? '#FEF9EB' : '#F0FDF4'
 
@@ -2272,7 +2371,18 @@ function KpiCompactBar({ rows, periodo, unita = 'g', vendutoG = null, celleNonQu
       }}>
         <KpiTile label={`Prodotto ${periodo}`} value={fmt(stats.prod)} unit={unita} color={C.text} bg="#F8FAFC"/>
         <KpiTile label="Venduto stimato" value={fmt(stats.venduto)} unit={unita} color={T.brand} bg="#FEF9EB"/>
-        <KpiTile label={`Scarto ${stats.scartoPct > 0 ? '(' + stats.scartoPct.toFixed(1) + '%)' : ''}`.trim()} value={fmt(stats.scarto)} unit={unita} color={scartoColor} bg={scartoBg}/>
+        {/* Lo scarto e' una colonna OPZIONALE, e in produzione non e' mai
+            stata compilata: su tutte le righe vale 0. Mostrare "0" col
+            semaforo verde e' un complimento su un dato che non esiste. Se in
+            tutto il periodo non c'e' nemmeno una riga con scarto, si scrive
+            che non e' registrato, in grigio, senza semaforo.
+            E la percentuale va con la virgola italiana, non col punto. */}
+        {scartoMisurato ? (
+          <KpiTile label={`Scarto ${stats.scartoPct > 0 ? '(' + stats.scartoPct.toLocaleString('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%)' : ''}`.trim()}
+            value={fmt(stats.scarto)} unit={unita} color={scartoColor} bg={scartoBg}/>
+        ) : (
+          <KpiTile label="Scarto" value="non registrato" unit="" color={C.textSoft} bg={C.bgSubtle}/>
+        )}
       </div>
       {hasAlerts && (
         <div style={{
@@ -2340,15 +2450,47 @@ function KpiTile({ label, value, unit, color, bg }) {
 // ── VistaOggi: lista verticale mobile-first per il dipendente ─────────────
 // Mostra SOLO il giorno corrente (today). Per ogni gusto, 2 input grandi
 // (PROD, RIMAN). Pensata per essere usata in laboratorio dal cellulare.
-function VistaOggi({ gusti, matrice, saving, onSave, readOnly, unita = 'g' }) {
-  const oggiIso = todayLocal()
+// VistaOggi lavora su UN giorno, e il giorno si può cambiare.
+//
+// Prima la data era fissa a oggi e non c'era nessun modo di spostarla: la
+// rimanenza di ieri sera, se nessuno l'aveva scritta prima di chiudere, dal
+// telefono non si recuperava più — e questa e' la vista di default sul
+// telefono, quella che la pagina stessa consiglia per compilare in fretta.
+// Senza la rimanenza di ieri il venduto di oggi non si calcola, quindi un
+// giorno dimenticato ne rovinava due.
+function VistaOggi({ gusti, matrice, saving, onSave, readOnly, unita = 'g', giornoIso, onCambiaGiorno }) {
+  const oggiIso = giornoIso || todayLocal()
+  const isOggi = oggiIso === todayLocal()
+  const nomeGiorno = new Date(oggiIso + 'T12:00').toLocaleDateString('it-IT', { weekday: 'long', day: '2-digit', month: 'long' })
+  const spostaGiorno = (delta) => {
+    if (!onCambiaGiorno) return
+    const d = new Date(oggiIso + 'T12:00')
+    d.setDate(d.getDate() + delta)
+    const nuovo = formatLocalDate(d)
+    // Nel futuro non si produce: il limite e' oggi.
+    if (nuovo > todayLocal()) return
+    onCambiaGiorno(nuovo)
+  }
   return (
     <div>
+      {onCambiaGiorno && (
+        <div style={{ display: 'grid', gridTemplateColumns: '44px 1fr 44px', gap: 8, alignItems: 'center', marginBottom: 10 }}>
+          <button onClick={() => spostaGiorno(-1)} aria-label="Giorno prima"
+            style={{ minHeight: 44, borderRadius: R.md, border: `1px solid ${C.border}`, background: C.white, cursor: 'pointer', fontSize: TS.lg, color: C.textMid }}>←</button>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: TS.base, fontWeight: 800, color: C.text, textTransform: 'capitalize' }}>{nomeGiorno}</div>
+            {!isOggi && <div style={{ fontSize: TS.sm, color: T.brand, fontWeight: 700 }}>stai compilando un giorno passato</div>}
+          </div>
+          <button onClick={() => spostaGiorno(1)} aria-label="Giorno dopo" disabled={isOggi}
+            style={{ minHeight: 44, borderRadius: R.md, border: `1px solid ${C.border}`, background: isOggi ? C.bgSubtle : C.white, cursor: isOggi ? 'default' : 'pointer', fontSize: TS.lg, color: isOggi ? C.textSoft : C.textMid }}>→</button>
+        </div>
+      )}
       <div style={{
-        background: '#FEF9EB', border: '1px solid #FCD34D', borderRadius: 10,
-        padding: '10px 14px', marginBottom: 14, fontSize: 12, color: '#92400E',
+        background: isOggi ? T.amberLight : T.blueLight || '#EFF6FF',
+        border: `1px solid ${isOggi ? T.amber : T.blue}55`, borderRadius: R.lg,
+        padding: '10px 14px', marginBottom: 14, fontSize: TS.sm, color: isOggi ? (T.amberDark || T.amber) : T.blue,
       }}>
-        <strong>Oggi {new Date(oggiIso).toLocaleDateString('it-IT', { weekday: 'long', day: '2-digit', month: 'long' })}</strong>
+        <strong style={{ textTransform: 'capitalize' }}>{isOggi ? `Oggi ${nomeGiorno}` : nomeGiorno}</strong>
         &nbsp;- Compila PROD (quanto hai prodotto) e RIMAN (quanto e' rimasto a fine giornata). I valori si salvano automaticamente.
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
