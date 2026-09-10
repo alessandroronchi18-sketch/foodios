@@ -1,3 +1,5 @@
+import { normGusto } from './normGusto'
+
 // Helper di import file Excel/CSV per il foglio inventario gelateria.
 //
 // Modello del file (basato sullo screenshot del cliente, giu 2026):
@@ -59,7 +61,7 @@ export function parseNomeFile(nomeFile) {
 
   // Pattern 3: anno-mese (es. "2026-06", "2026_06", "2026-06_inventario").
   // Niente \b finale: rompe il match se dopo c'e' "_" (che e' word char in regex).
-  // Usiamo lookahead negativo: il mese non puo' essere seguito da altro numero.
+  // Usiamo lookahead negativo: il mese non può essere seguito da altro numero.
   m = base.match(/\b((?:20)?\d{2})[ _\-./]+(0?[1-9]|1[0-2])(?!\d)/)
   if (m) {
     const anno = ann(parseInt(m[1], 10))
@@ -162,7 +164,10 @@ export function parseFoglioInventario(matrice, lunediBase) {
     const row = matrice[i] || []
     const nome = (row[0] || '').toString().trim()
     if (!nome) continue  // riga vuota: salto
-    const gustoUp = nome.toUpperCase()
+    // normGusto = UPPER + trim, la stessa funzione che usa la scrittura su
+     // DB. Con il solo toUpperCase() uno spazio finale nel foglio Excel
+     // creava un gusto diverso da quello del ricettario.
+    const gustoUp = normGusto(nome)
     // Filtro righe di "totale" del foglio (TOTALE, TOTALI, TOTALE GUSTI, ecc.)
     // Altrimenti finiscono come "gusto" e dominano i top nelle analisi.
     if (
@@ -265,7 +270,7 @@ export function classificaSheet(XLSX, workbook) {
     // Classificazione per pattern strutturale (preferito) + fallback nome:
     // 1. sede produttiva: ha GUSTI + PROD nei sub-header
     // 2. totali: header con multi "VENDUTO SETTIMANA" e "totale mese"
-    //    (puo' anche chiamarsi "Riepilogo", "Totale generale", ecc.)
+    //    (può anche chiamarsi "Riepilogo", "Totale generale", ecc.)
     // 3. b2b: ha RISTORANTE/CLIENTE + DATA + GUSTO
     // 4. sprechi: ha NEGOZIO + KG + GUSTO + MOTIVO (e NON ha PROD)
     if (trovatoGusti && trovatoProd) {
@@ -389,7 +394,7 @@ export function checkTotaliCrossSheet(perSedeRighe, totaliMatrice) {
 // Layout cliente gelateria:
 //   R0: header tipo "PRODUZIONE PER RISTORANTI" (decorativo)
 //   R1: header colonne | RISTORANTE | DATA | GUSTO | KG | PAGAMENTO | negozio |
-//   R2+: dati. La DATA puo' essere un Excel serial (numero) o una stringa.
+//   R2+: dati. La DATA può essere un Excel serial (numero) o una stringa.
 // Ritorna array di { cliente, dataIso, gusto, qta, pagamento, sedeNome }.
 export function parseFoglioRistoranti(matrice) {
   const out = { righe: [], warnings: [] }

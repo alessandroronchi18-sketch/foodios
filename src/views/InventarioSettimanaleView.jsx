@@ -20,7 +20,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { color as T, radius as R, shadow as S } from '../lib/theme'
+import { color as T, radius as R, shadow as S, typo } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from '../components/Icon'
 import { C, TNUM, PageHeader } from './_shared'
@@ -29,13 +29,14 @@ import { ssave, sload } from '../lib/storage'
 import { SK_MAG } from '../lib/storageKeys'
 import {
   elencoGusti, caricaSettimana, salvaCella, calcolaVendutoSettimana,
-  totaliVenduti, lunediDellaSettimana, normGusto,
+  totaliVenduti, dettaglioVenduto, serieVendutoGusto, lunediDellaSettimana, normGusto,
   scaloMagazzinoPerGusto, ricettaDelGusto,
   fetchAllInventarioProduzione, caricaStoricoMensile,
 } from '../lib/inventarioProduzione'
 import { loadXLSX } from '../lib/xlsx'
 import { supabase } from '../lib/supabase'
 import { caricoProduzionePF } from '../lib/stockPF'
+import { formatLocalDate, todayLocal } from '../lib/dateLocal'
 
 const GIORNI = ['lun', 'mar', 'mer', 'gio', 'ven', 'sab', 'dom']
 const GIORNI_LUNGHI = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica']
@@ -44,7 +45,7 @@ const MESI_LABEL = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno'
 
 function addDays(dateIso, n) {
   const d = new Date(dateIso); d.setDate(d.getDate() + n)
-  return d.toISOString().slice(0, 10)
+  return formatLocalDate(d)
 }
 
 function fmtRange(lunediIso) {
@@ -58,6 +59,9 @@ function fmtG(n) {
   if (n == null) return '-'
   return Number(n).toLocaleString('it-IT')
 }
+
+// Scorciatoia per le dimensioni del testo dai token (typo.size).
+const TS = typo.size
 
 export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAttiva, ricettario, magazzino, setMagazzino, tipoAttivita, metodoProduzione = 'stampi', notify, onNavigate }) {
   // "Tutte le sedi" attivo: vista AGGREGATA read-only. Somma PROD/RIMAN di
@@ -166,7 +170,18 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
   // Lista gusti = unione di ricettario + gusti orfani (presenti in DB ma
   // non nel ricettario). Così un file importato con nomi non ancora a
   // ricettario non viene "nascosto" nel foglio settimanale.
-  const gusti = useMemo(() => elencoGusti(ricettario, righe), [ricettario, righe])
+  // I 7 giorni della settimana mostrata. `righe` ne contiene di più: i
+  // giorni PRIMA del lunedi servono come rimanenza di partenza per il calcolo
+  // del venduto, ma non vanno contati. Tutto cio' che si somma a schermo usa
+  // questa lista, non `righe`: la banda dei KPI in cima sommava la produzione
+  // di 8 giorni mentre la tabella sotto ne mostrava 7, e i due numeri non
+  // tornavano mai.
+  const righeSettimana = useMemo(() => {
+    const fine = addDays(lunediIso, 6)
+    return (righe || []).filter(r => r.data >= lunediIso && r.data <= fine)
+  }, [righe, lunediIso])
+
+  const gusti = useMemo(() => elencoGusti(ricettario, righeSettimana), [ricettario, righeSettimana])
 
   // ID delle sedi su cui leggere: una se sede attiva, oppure il sub-set
   // selezionato dall'utente in modalita' isAllSedi.
@@ -194,9 +209,14 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
           const map = {}
           for (const arr of perSede) {
             for (const r of (arr || [])) {
-              const k = `${r.gusto_nome}|${r.data}`
+              // Nome NORMALIZZATO nella chiave: in produzione ci sono righe
+              // scritte "CAFFè FLORA" da un import vecchio, e la pagina cerca
+              // "CAFFÈ FLORA". Con la chiave grezza quelle righe finivano in
+              // un secondo gruppo invisibile.
+              const g = normGusto(r.gusto_nome)
+              const k = `${g}|${r.data}`
               if (!map[k]) {
-                map[k] = { gusto_nome: r.gusto_nome, data: r.data, produzione_g: 0, rimanenza_g: 0, scarto_g: 0, spedito_g: 0 }
+                map[k] = { gusto_nome: g, data: r.data, produzione_g: 0, rimanenza_g: 0, scarto_g: 0, spedito_g: 0 }
               }
               map[k].produzione_g += Number(r.produzione_g) || 0
               map[k].rimanenza_g += Number(r.rimanenza_g) || 0
@@ -223,10 +243,10 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
     if (vista !== 'mese' || !orgId || sediProdIds.length === 0) return
     let alive = true
     const d = new Date(lunediIso)
-    const inizio = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10)
-    const fine = new Date(d.getFullYear(), d.getMonth() + 1, 1).toISOString().slice(0, 10)
+    const inizio = formatLocalDate(new Date(d.getFullYear(), d.getMonth(), 1))
+    const fine = formatLocalDate(new Date(d.getFullYear(), d.getMonth() + 1, 1))
     // fine e' esclusivo → sottraggo 1 giorno per usare lte
-    const fineIncl = new Date(new Date(fine).getTime() - 86400000).toISOString().slice(0, 10)
+    const fineIncl = formatLocalDate(new Date(new Date(fine).getTime() - 86400000))
     fetchAllInventarioProduzione(orgId, {
       sedeIds: sediProdIds,
       dataFrom: inizio,
@@ -236,8 +256,9 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
       if (isAllSedi) {
         const map = {}
         for (const r of (data || [])) {
-          const k = `${r.gusto_nome}|${r.data}`
-          if (!map[k]) map[k] = { gusto_nome: r.gusto_nome, data: r.data, produzione_g: 0, rimanenza_g: 0, scarto_g: 0, spedito_g: 0 }
+          const g = normGusto(r.gusto_nome)
+          const k = `${g}|${r.data}`
+          if (!map[k]) map[k] = { gusto_nome: g, data: r.data, produzione_g: 0, rimanenza_g: 0, scarto_g: 0, spedito_g: 0 }
           map[k].produzione_g += Number(r.produzione_g) || 0
           map[k].rimanenza_g += Number(r.rimanenza_g) || 0
           map[k].scarto_g += Number(r.scarto_g) || 0
@@ -260,8 +281,8 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
     if (vista !== 'storico' || !orgId || sediProdIds.length === 0) return
     let alive = true
     const oggi = new Date()
-    const inizio = new Date(oggi.getFullYear(), oggi.getMonth() - 5, 1).toISOString().slice(0, 10)
-    const fineIso = oggi.toISOString().slice(0, 10)
+    const inizio = formatLocalDate(new Date(oggi.getFullYear(), oggi.getMonth() - 5, 1))
+    const fineIso = formatLocalDate(oggi)
     caricaStoricoMensile(orgId, sediProdIds, inizio, fineIso)
       .then(({ perMese }) => {
         if (!alive) return
@@ -274,6 +295,10 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
 
   const matrice = useMemo(() => calcolaVendutoSettimana(righe, lunediIso), [righe, lunediIso])
   const totali = useMemo(() => totaliVenduti(matrice), [matrice])
+  // Quante celle non tornano e quante non si possono calcolare, per gusto:
+  // il totale del venduto non va mostrato muto quando dietro c'e' un giorno
+  // in cui i conti non quadrano.
+  const dettaglio = useMemo(() => dettaglioVenduto(matrice), [matrice])
   // Totale PROD settimanale per gusto (somma dei 7 giorni). Serve alla colonna
   // "Tot. prodotto" della vista Settimana, uniformata con Mese e Storico.
   const totaliProdSettimana = useMemo(() => {
@@ -306,7 +331,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
         return sgn * ((totaliProdSettimana[ak] || 0) - (totaliProdSettimana[bk] || 0))
       }
       // { tipo: 'prod'|'riman', giorno }
-      const dIso = (() => { const d = new Date(lunediIso); d.setDate(d.getDate() + key.giorno); return d.toISOString().slice(0, 10) })()
+      const dIso = (() => { const d = new Date(lunediIso); d.setDate(d.getDate() + key.giorno); return formatLocalDate(d) })()
       const av = (matrice[ak]?.[dIso] || {})[key.tipo === 'prod' ? 'prod' : 'riman'] || 0
       const bv = (matrice[bk]?.[dIso] || {})[key.tipo === 'prod' ? 'prod' : 'riman'] || 0
       return sgn * (av - bv)
@@ -322,10 +347,10 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
     const set = new Set()
     let source = []
     if (vista === 'oggi') {
-      const oggiIso = new Date().toISOString().slice(0, 10)
+      const oggiIso = todayLocal()
       source = (righe || []).filter(r => r.data === oggiIso)
     } else if (vista === 'settimana') {
-      source = righe || []
+      source = righeSettimana
     } else if (vista === 'mese') {
       source = meseData?.righe || []
     } else if (vista === 'storico') {
@@ -351,7 +376,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
       }
     }
     return set
-  }, [vista, righe, meseData, storicoData])
+  }, [vista, righe, righeSettimana, meseData, storicoData])
 
   // Lista finale che finisce nelle sotto-viste: se il toggle e' spento,
   // e' identica a gustiOrdinati; se acceso, tiene solo i gusti presenti nel
@@ -414,7 +439,11 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
         .eq('organization_id', orgId).eq('sede_id', sedeId)
         .eq('gusto_nome', gustoNome).eq('data', dataIso)
         .maybeSingle()
-      const esistenteMem = righe.find(r => r.gusto_nome === gustoNome && r.data === dataIso) || {}
+      // Confronto NORMALIZZATO: le righe in memoria possono avere il nome
+      // scritto in un'altra grafia (import vecchi). Col confronto grezzo la
+      // riga esistente non si trovava, il patch partiva da zero e il gusto
+      // si sdoppiava in due serie.
+      const esistenteMem = righe.find(r => normGusto(r.gusto_nome) === gustoNome && r.data === dataIso) || {}
       // Usa il server come fonte di verita' se ha dati più recenti.
       const esistente = serverRow
         ? { ...esistenteMem, ...serverRow }
@@ -467,7 +496,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
       const saved = await salvaCella(orgId, sedeId, gustoNome, dataIso, patch)
 
       setRighe(prev => {
-        const idx = prev.findIndex(r => r.gusto_nome === gustoNome && r.data === dataIso)
+        const idx = prev.findIndex(r => normGusto(r.gusto_nome) === gustoNome && r.data === dataIso)
         if (idx >= 0) {
           const next = [...prev]; next[idx] = { ...prev[idx], ...saved }
           return next
@@ -503,7 +532,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
         if (diffGg < 0 || diffGg > 6) continue
         const p = Number(r.produzione_g) || 0
         if (p <= 0) continue
-        prodByGustoOffset[`${r.gusto_nome}|${diffGg}`] = p
+        prodByGustoOffset[`${normGusto(r.gusto_nome)}|${diffGg}`] = p
       }
       const totCells = Object.keys(prodByGustoOffset).length
       if (totCells === 0) {
@@ -518,10 +547,10 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
       // Trova le celle vuote in this week e copia il PROD scorso.
       // Iteriamo per gusto+offset. Se righeDb attuale ha produzione_g=0 su
       // quella coppia, salviamo.
-      const righeDbNow = righe || []
+      const righeDbNow = righeSettimana
       const idxNow = new Map()
       for (const r of righeDbNow) {
-        idxNow.set(`${r.gusto_nome}|${r.data}`, r)
+        idxNow.set(`${normGusto(r.gusto_nome)}|${r.data}`, r)
       }
       let scritte = 0, skip = 0
       for (const [key, prodScorsa] of Object.entries(prodByGustoOffset)) {
@@ -551,17 +580,17 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
   const mesePrec = () => {
     const d = new Date(lunediIso)
     const primo = new Date(d.getFullYear(), d.getMonth() - 1, 1)
-    setLunediIso(primo.toISOString().slice(0, 10))
+    setLunediIso(formatLocalDate(primo))
   }
   const meseSucc = () => {
     const d = new Date(lunediIso)
     const primo = new Date(d.getFullYear(), d.getMonth() + 1, 1)
-    setLunediIso(primo.toISOString().slice(0, 10))
+    setLunediIso(formatLocalDate(primo))
   }
   const meseCorrente = () => {
     const d = new Date()
     const primo = new Date(d.getFullYear(), d.getMonth(), 1)
-    setLunediIso(primo.toISOString().slice(0, 10))
+    setLunediIso(formatLocalDate(primo))
   }
   const meseLabel = () => {
     const d = new Date(lunediIso)
@@ -874,9 +903,13 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
           dipendenti). 3 numeri compatti, colori tenui: non deve dominare la pagina. */}
       {!loading && (vista === 'settimana' || vista === 'mese') && (
         <KpiCompactBar
-          rows={vista === 'settimana' ? righe : (meseData?.righe || [])}
+          rows={vista === 'settimana' ? righeSettimana : (meseData?.righe || [])}
           periodo={vista === 'settimana' ? 'questa settimana' : 'questo mese'}
           unita={unitaDisplay}
+          vendutoG={vista === 'settimana' ? totaliColonnaSettimana.venduto : null}
+          celleNonQuadrate={vista === 'settimana'
+            ? Object.values(dettaglio).reduce((a, d) => a + d.celleNonQuadrate, 0)
+            : 0}
         />
       )}
 
@@ -1027,11 +1060,27 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
                               onCommit={v => handleSave(gustoKey, dIso, 'produzione_g', v)}
                             />
                           </td>
-                          <td style={{ ...tdInput, background: '#FFFEFB' }}>
+                          {/* Se il conto del giorno non torna (rimanenza scritta
+                              più alta di quanto c'era) la cella della rimanenza
+                              si segna in rosso col perché. Prima il venduto
+                              negativo veniva azzerato in silenzio e non c'era
+                              modo di accorgersi di aver sbagliato la pesata. */}
+                          <td
+                            title={cell.quadra === false
+                              ? `Qui il conto non torna di ${fmtUnita(Math.abs(cell.venduto))}${unitaDisplay === 'kg' ? ' kg' : ' g'}: la rimanenza scritta e' più alta del disponibile (rimasto ieri ${fmtUnita(cell.rimanPrec || 0)} + prodotto ${fmtUnita(cell.prod || 0)}). O manca una produzione, o la pesata va corretta.`
+                              : (cell.registrata && cell.venduto == null
+                                ? 'Manca la rimanenza del giorno prima: per questo giorno il venduto non si puo\' calcolare.'
+                                : undefined)}
+                            style={{
+                              ...tdInput,
+                              background: cell.quadra === false ? T.redLight : '#FFFEFB',
+                              boxShadow: cell.quadra === false ? `inset 0 0 0 1.5px ${T.red}66` : undefined,
+                              cursor: cell.quadra === false ? 'help' : undefined,
+                            }}>
                             <CellInput
                               value={cell.riman || ''}
                               saving={!!saving[kRim]}
-                              accent="#F59E0B" readOnly={isAllSedi}
+                              accent={cell.quadra === false ? T.red : '#F59E0B'} readOnly={isAllSedi}
                               unita={unitaDisplay}
                               onCommit={v => handleSave(gustoKey, dIso, 'rimanenza_g', v)}
                             />
@@ -1044,9 +1093,29 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
                     <td style={{ ...tdTot, borderLeft: `2px solid ${C.borderStr}`, position: 'sticky', right: 120, zIndex: 1, background: '#F0FDF4', color: '#166534', boxShadow: '-2px 0 0 rgba(15,23,42,0.04)' }}>
                       {fmtUnita(totaliProdSettimana[gustoKey] || 0)}{unitaDisplay === 'kg' ? ' kg' : ' g'}
                     </td>
-                    <td style={{ ...tdTot, position: 'sticky', right: 0, zIndex: 1 }}>
-                      {fmtUnita(totali[gustoKey] || 0)}{unitaDisplay === 'kg' ? ' kg' : ' g'}
-                    </td>
+                    {(() => {
+                      const q = dettaglio[gustoKey] || { celleNonQuadrate: 0, celleNonCalcolabili: 0 }
+                      const problemi = q.celleNonQuadrate + q.celleNonCalcolabili
+                      const titolo = problemi === 0 ? undefined
+                        : [
+                          q.celleNonQuadrate > 0 ? `${q.celleNonQuadrate} giorn${q.celleNonQuadrate === 1 ? 'o' : 'i'} in cui il conto non torna (celle in rosso)` : null,
+                          q.celleNonCalcolabili > 0 ? `${q.celleNonCalcolabili} giorn${q.celleNonCalcolabili === 1 ? 'o' : 'i'} senza la rimanenza del giorno prima: non entra nel totale` : null,
+                        ].filter(Boolean).join('. ')
+                      return (
+                        <td title={titolo} style={{
+                          ...tdTot, position: 'sticky', right: 0, zIndex: 1,
+                          cursor: problemi > 0 ? 'help' : undefined,
+                        }}>
+                          {fmtUnita(totali[gustoKey] || 0)}{unitaDisplay === 'kg' ? ' kg' : ' g'}
+                          {problemi > 0 && (
+                            <span style={{
+                              marginLeft: 4, color: q.celleNonQuadrate > 0 ? T.red : T.amber,
+                              fontSize: TS.sm, fontWeight: 800,
+                            }}>{q.celleNonQuadrate > 0 ? '!' : '?'}</span>
+                          )}
+                        </td>
+                      )
+                    })()}
                   </tr>
                 )
               })}
@@ -1140,14 +1209,14 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
           gusti={gustiOrdinati}
           sedi={sedi}
           sedeOrigineId={sedeId}
-          righeOggi={(righe || []).filter(r => r.data === new Date().toISOString().slice(0, 10))}
+          righeOggi={(righe || []).filter(r => r.data === todayLocal())}
           onConferma={async ({ gusto, kg, destSedeId }) => {
             // Metodo e' org-level: dentro questa view (che gira solo se
             // metodoProduzione='inventario') tutte le sedi is_sede_produzione
             // ricevono come inventario. Le non-produttive prendono via stock PF.
             try {
               const qtaG = Math.round(Number(kg) * 1000)
-              const oggiIso = new Date().toISOString().slice(0, 10)
+              const oggiIso = todayLocal()
               const sedeOrigineNome = (sedi || []).find(s => s.id === sedeId)?.nome || 'sede origine'
               // 1) scarico sede origine: somma a SPEDITO_G (NON scarto_g)
               const cella = (righe || []).find(r => r.gusto_nome === gusto && r.data === oggiIso)
@@ -1167,7 +1236,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
                 const { data: cellDest } = await supabase.from('inventario_produzione')
                   .select('produzione_g, rimanenza_g, scarto_g, spedito_g, note')
                   .eq('organization_id', orgId).eq('sede_id', destSedeId)
-                  .eq('gusto_nome', gusto).eq('data', oggiIso)
+                  .eq('gusto_nome', normGusto(gusto)).eq('data', oggiIso)
                   .maybeSingle()
                 const notaDest = `Ricevuti ${Number(kg).toLocaleString('it-IT', { maximumFractionDigits: 1 })} kg da ${sedeOrigineNome}`
                 const notaDestTot = cellDest?.note ? `${cellDest.note} · ${notaDest}` : notaDest
@@ -1864,7 +1933,7 @@ function VistaStorico({ gusti, perMese, inizio, unita = 'g', onClickGusto, onOpe
       const ws = XLSX.utils.aoa_to_sheet(rows)
       const wb = XLSX.utils.book_new()
       XLSX.utils.book_append_sheet(wb, ws, `Storico ${unita}`)
-      const ts = new Date().toISOString().slice(0, 10)
+      const ts = todayLocal()
       XLSX.writeFile(wb, `storico-produzione-${ts}.xlsx`)
     } catch (e) {
       console.error('Export xlsx fallito:', e)
@@ -2000,11 +2069,11 @@ function DrilldownGustoModal({ gusto, orgId, sedeId, isAllSedi, sediProdIds, uni
     let alive = true
     setLoading(true)
     const oggi = new Date()
-    const from = new Date(oggi.getFullYear(), oggi.getMonth(), oggi.getDate() - 90).toISOString().slice(0, 10)
+    const from = formatLocalDate(new Date(oggi.getFullYear(), oggi.getMonth(), oggi.getDate() - 90))
     let q = supabase.from('inventario_produzione')
       .select('data, produzione_g, rimanenza_g, scarto_g, sede_id')
       .eq('organization_id', orgId)
-      .eq('gusto_nome', gusto)
+      .eq('gusto_nome', normGusto(gusto))
       .gte('data', from)
       .order('data')
       .limit(100000)
@@ -2012,15 +2081,17 @@ function DrilldownGustoModal({ gusto, orgId, sedeId, isAllSedi, sediProdIds, uni
     if (sediSet.length > 0) q = q.in('sede_id', sediSet)
     q.then(({ data }) => {
       if (!alive) return
-      // Aggrega per data (somma cross-sede se piu di una)
-      const perData = {}
-      for (const r of (data || [])) {
-        if (!perData[r.data]) perData[r.data] = { data: r.data, prod: 0, riman: 0, scarto: 0 }
-        perData[r.data].prod += Number(r.produzione_g) || 0
-        perData[r.data].riman += Number(r.rimanenza_g) || 0
-        perData[r.data].scarto += Number(r.scarto_g) || 0
-      }
-      const arr = Object.values(perData).sort((a, b) => a.data.localeCompare(b.data))
+      // Somma cross-sede e venduto con la regola condivisa (serieVendutoGusto):
+      // prima questo pannello si rifaceva la formula per conto suo e mostrava
+      // un venduto diverso da quello della tabella settimanale sugli stessi
+      // giorni, perché azzerava i negativi e perdeva la rimanenza di partenza
+      // dopo ogni giorno di chiusura.
+      const gKey = normGusto(gusto)
+      const serie = serieVendutoGusto((data || []).map(r => ({ ...r, gusto_nome: gKey })))
+      const arr = (serie[gKey] || []).map(c => ({
+        data: c.data, prod: c.prod, riman: c.riman, scarto: c.scarto,
+        venduto: c.venduto, quadra: c.quadra,
+      }))
       setRows(arr); setLoading(false)
     }).catch(() => { if (alive) { setRows([]); setLoading(false) } })
     return () => { alive = false }
@@ -2036,22 +2107,16 @@ function DrilldownGustoModal({ gusto, orgId, sedeId, isAllSedi, sediProdIds, uni
     if (!Array.isArray(rows) || rows.length === 0) {
       return { prod: 0, venduto: 0, scarto: 0, giorni: 0, avgProd: 0, prodByDay: [] }
     }
-    let prod = 0, scarto = 0
-    let rimanPrev = 0, prevD = null, venduto = 0
+    let prod = 0, scarto = 0, venduto = 0, nonQuadrano = 0
     for (const r of rows) {
-      const d = new Date(r.data)
-      if (prevD !== null) {
-        const diff = Math.round((d - prevD) / 86400000)
-        if (diff !== 1) rimanPrev = 0
-      }
-      const v = Math.max(0, rimanPrev + r.prod - r.riman - r.scarto)
-      venduto += v
-      rimanPrev = r.riman; prevD = d
+      // Il venduto arriva già calcolato dalla regola condivisa, col segno.
+      if (r.venduto != null) venduto += r.venduto
+      if (r.quadra === false) nonQuadrano++
       prod += r.prod; scarto += r.scarto
     }
     const giorni = rows.length
     const avgProd = giorni > 0 ? prod / giorni : 0
-    return { prod, venduto, scarto, giorni, avgProd, prodByDay: rows.map(r => r.prod) }
+    return { prod, venduto, scarto, giorni, avgProd, nonQuadrano, prodByDay: rows.map(r => r.prod) }
   }, [rows])
 
   const fmt = (g) => {
@@ -2146,7 +2211,7 @@ function DrilldownGustoModal({ gusto, orgId, sedeId, isAllSedi, sediProdIds, uni
   )
 }
 
-function KpiCompactBar({ rows, periodo, unita = 'g' }) {
+function KpiCompactBar({ rows, periodo, unita = 'g', vendutoG = null, celleNonQuadrate = 0 }) {
   const stats = useMemo(() => {
     if (!Array.isArray(rows) || rows.length === 0) {
       return { prod: 0, venduto: 0, scarto: 0, scartoPct: 0, gustiN: 0, gustiRimanAlta: [] }
@@ -2174,10 +2239,16 @@ function KpiCompactBar({ rows, periodo, unita = 'g' }) {
       .filter(([, v]) => v.prod > 0 && v.rimanFin > v.prod)
       .map(([g]) => g)
     const rimanFinale = Object.values(perG).reduce((s, v) => s + v.rimanFin, 0)
-    const venduto = Math.max(0, prod - scarto - rimanFinale)
+    // Il venduto lo passa la pagina (`vendutoG`), che lo prende dalla stessa
+    // matrice della tabella. Prima questa banda se lo ricalcolava a modo suo
+    // (prodotto - scarto - rimanenza finale, senza la rimanenza di partenza)
+    // e mostrava un numero diverso da quello della colonna "Tot. venduto"
+    // dieci centimetri sotto. La formula locale resta solo come ripiego
+    // quando il totale non arriva (vista Mese).
+    const venduto = vendutoG != null ? vendutoG : (prod - scarto - rimanFinale)
     const scartoPct = prod > 0 ? (scarto / prod) * 100 : 0
     return { prod, venduto, scarto, scartoPct, gustiN: Object.keys(perG).length, gustiRimanAlta }
-  }, [rows])
+  }, [rows, vendutoG])
 
   const fmt = (g) => {
     if (g <= 0) return '0'
@@ -2188,7 +2259,7 @@ function KpiCompactBar({ rows, periodo, unita = 'g' }) {
   const scartoColor = stats.scartoPct >= 5 ? '#B91C1C' : stats.scartoPct >= 2 ? '#B45309' : '#166534'
   const scartoBg = stats.scartoPct >= 5 ? '#FEF2F2' : stats.scartoPct >= 2 ? '#FEF9EB' : '#F0FDF4'
 
-  const hasAlerts = stats.scartoPct >= 5 || stats.gustiRimanAlta.length > 0
+  const hasAlerts = stats.scartoPct >= 5 || stats.gustiRimanAlta.length > 0 || celleNonQuadrate > 0
   return (
     <div style={{
       background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12,
@@ -2215,7 +2286,17 @@ function KpiCompactBar({ rows, periodo, unita = 'g' }) {
               border: '1px solid #FCA5A5', borderRadius: 999,
               padding: '3px 10px', fontSize: 11, fontWeight: 700,
             }} title="Lo scarto e' oltre il 5% del prodotto: probabilmente stai producendo piu di quanto vendi.">
-              ⚠ Scarto sopra il 5%
+              <Icon name="alert" size={12} color={T.red} /> Scarto sopra il 5%
+            </span>
+          )}
+          {celleNonQuadrate > 0 && (
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: 4,
+              background: T.redLight, color: T.red,
+              border: `1px solid ${T.red}55`, borderRadius: R.full,
+              padding: '3px 10px', fontSize: TS.sm, fontWeight: 700,
+            }} title="In queste giornate la rimanenza scritta e' più alta di quanto c'era a disposizione: o manca una produzione, o la pesata e' sbagliata. Il venduto di quelle celle e' negativo e resta nel totale col suo segno.">
+              {celleNonQuadrate} giornat{celleNonQuadrate === 1 ? 'a' : 'e'} in cui il conto non torna
             </span>
           )}
           {stats.gustiRimanAlta.length > 0 && (
@@ -2223,9 +2304,9 @@ function KpiCompactBar({ rows, periodo, unita = 'g' }) {
               display: 'inline-flex', alignItems: 'center', gap: 4,
               background: '#FEF9EB', color: '#B45309',
               border: '1px solid #FCD34D', borderRadius: 999,
-              padding: '3px 10px', fontSize: 11, fontWeight: 700,
+              padding: '3px 10px', fontSize: TS.sm, fontWeight: 700,
             }} title={`Gusti con rimanenza superiore alla produzione del periodo: ${stats.gustiRimanAlta.slice(0, 8).join(', ')}`}>
-              ⚠ {stats.gustiRimanAlta.length} gust{stats.gustiRimanAlta.length === 1 ? 'o' : 'i'} con rimanenza alta
+              <Icon name="alert" size={12} color={T.amber} /> {stats.gustiRimanAlta.length} gust{stats.gustiRimanAlta.length === 1 ? 'o' : 'i'} con rimanenza alta
             </span>
           )}
         </div>
@@ -2260,7 +2341,7 @@ function KpiTile({ label, value, unit, color, bg }) {
 // Mostra SOLO il giorno corrente (today). Per ogni gusto, 2 input grandi
 // (PROD, RIMAN). Pensata per essere usata in laboratorio dal cellulare.
 function VistaOggi({ gusti, matrice, saving, onSave, readOnly, unita = 'g' }) {
-  const oggiIso = new Date().toISOString().slice(0, 10)
+  const oggiIso = todayLocal()
   return (
     <div>
       <div style={{

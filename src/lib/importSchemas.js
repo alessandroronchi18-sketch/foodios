@@ -140,6 +140,12 @@ export const IMPORT_SCHEMAS = {
         name: 'gusto_nome',
         type: 'string',
         required: true,
+        // Il nome del gusto e' una CHIAVE: inventario_produzione ha l'unique
+        // su (organization_id, sede_id, gusto_nome, data) e tutta l'app cerca
+        // il gusto in UPPER+trim (normGusto). Un import che scrive "Caffè
+        // Flora" o "CAFFè FLORA" crea righe che nessuna pagina trova più:
+        // e' successo davvero, 117 righe e 156 kg invisibili.
+        normalize: 'upper_trim',
         hint: 'Nome del gusto/prodotto (es. "Nocciola", "Fiordilatte")',
         aliases: ['gusto', 'sapore', 'prodotto', 'ricetta', 'nome'],
       },

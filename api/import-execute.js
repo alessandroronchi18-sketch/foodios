@@ -59,11 +59,20 @@ export default async function handler(req) {
 
   // Prepara le rows: forza organization_id dal profilo (NON dal body).
   const validFieldNames = new Set(schema.fields.map(f => f.name))
+  // Campi che lo schema dichiara come chiave da normalizzare (normalize:
+  // 'upper_trim'). Serve per i nomi che l'app usa come identificatore:
+  // scritti in una grafia diversa creano righe che nessuna pagina ritrova.
+  const daNormalizzare = schema.fields
+    .filter(f => f.normalize === 'upper_trim')
+    .map(f => f.name)
   const prepared = rows.map(r => {
     if (!r || typeof r !== 'object') return null
     const out = { organization_id: orgId }
     for (const [k, v] of Object.entries(r)) {
       if (validFieldNames.has(k)) out[k] = v
+    }
+    for (const k of daNormalizzare) {
+      if (typeof out[k] === 'string') out[k] = out[k].toUpperCase().trim()
     }
     return out
   }).filter(Boolean)

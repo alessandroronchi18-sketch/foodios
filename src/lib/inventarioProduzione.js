@@ -11,13 +11,14 @@
 // formati = ricavo atteso). Vedi supabase/migrations/20260626_inventario_produzione.sql.
 
 import { supabase } from './supabase'
+import { formatLocalDate, todayLocal } from './dateLocal'
+import { normGusto } from './normGusto'
 
-// Normalizzazione del nome gusto: lo riportiamo SEMPRE in UPPER+trim come in
-// stock_prodotti_finiti, cosi indipendente da come l'utente l'ha digitato in
-// ricettario. Single source of truth.
-export function normGusto(s) {
-  return (s || '').toString().toUpperCase().trim()
-}
+// Normalizzazione del nome gusto: UPPER+trim come in stock_prodotti_finiti,
+// cosi e' indipendente da come l'utente l'ha digitato in ricettario.
+// La funzione vive in ./normGusto (senza dipendenze) e la ri-esportiamo qui
+// perché mezzo progetto la importa da questo file.
+export { normGusto }
 
 // Estrae l'elenco dei gusti dal ricettario E dalle righe già presenti in
 // inventario (DB). L'unione e' importante perché:
@@ -85,15 +86,23 @@ export function elencoGustiConExtra(ricettario, righeInventario, nomiExtra) {
 
 // ── CRUD inventario_produzione ────────────────────────────────────────────
 
-export async function caricaSettimana(orgId, sedeId, lunediIso) {
+export async function caricaSettimana(orgId, sedeId, lunediIso, opts = {}) {
   if (!orgId || !sedeId || !lunediIso) return []
   const da = new Date(lunediIso); da.setHours(0, 0, 0, 0)
   const a = new Date(da); a.setDate(a.getDate() + 7)
-  // Includiamo anche il giorno prima del lunedi: serve come "riman(N-1)" per
-  // calcolare il venduto del lunedi stesso.
-  const inizio = new Date(da); inizio.setDate(inizio.getDate() - 1)
-  const inizioIso = inizio.toISOString().slice(0, 10)
-  const fineIso = a.toISOString().slice(0, 10)
+  // Carichiamo anche i giorni PRIMA del lunedi: servono come rimanenza di
+  // partenza per il venduto del lunedi.
+  //
+  // Era 1 solo giorno, e bastava solo se la gelateria aveva lavorato la
+  // domenica. Con la chiusura settimanale (o due giorni di ferie) il lunedi
+  // ripartiva da "0 rimasto" e il venduto usciva negativo, poi azzerato.
+  // Ora ne carichiamo GIORNI_RIPORTO_MAX e la regola differenziale risale
+  // all'ultimo giorno davvero registrato.
+  // Chi vuole la vecchia finestra passa { giorniPrima: 1 }.
+  const giorniPrima = Number.isFinite(opts.giorniPrima) ? opts.giorniPrima : GIORNI_RIPORTO_MAX
+  const inizio = new Date(da); inizio.setDate(inizio.getDate() - giorniPrima)
+  const inizioIso = formatLocalDate(inizio)
+  const fineIso = formatLocalDate(a)
 
   const { data, error } = await supabase
     .from('inventario_produzione')
@@ -188,66 +197,199 @@ export async function rimuoviCella(orgId, sedeId, gustoNome, dataIso, opts = {})
   return { rimossa: true }
 }
 
-// ── Calcolo venduto per ogni (gusto × giorno) di una settimana ────────────
-// Lavora interamente in-memory dai dati gia caricati: niente round-trip extra.
+// ── Regola differenziale del venduto: un solo posto ──────────────────
+// La formula "venduto = rimanenza di ieri + prodotto oggi - rimanenza di
+// stasera - scarto - spedito" era scritta in tre punti diversi del file e
+// divergeva su due dettagli, quindi le pagine mostravano numeri diversi
+// sugli stessi giorni. Ora c'e' una funzione sola.
 //
-// righe = output di caricaSettimana(...), che include il giorno PRIMA del
-// lunedi target.
+// Due regole, entrambe corrette il 10/09/2026 sui dati veri di Mara
+// (7.012 celle gusto×giorno; 8.793 contando anche l'org demo):
 //
-// Ritorna { [gusto_nome]: { [dataIso]: { prod, riman, scarto, venduto } } }.
-export function calcolaVendutoSettimana(righe, lunediIso) {
-  if (!Array.isArray(righe)) return {}
-  // Indicizziamo per gusto+data per O(1) lookup del giorno precedente.
+//  1) la base di partenza e' la rimanenza dell'ULTIMO GIORNO REGISTRATO
+//     prima di oggi, non solo di ieri. Se la gelateria e' chiusa il lunedi,
+//     il gelato rimasto la domenica e' ancora in vetrina il martedi:
+//     ripartire da "0 rimasto" faceva risultare centinaia di celle con
+//     venduto negativo, poi azzerate (194 celle e 585 kg su tutte le org,
+//     dovute proprio al giorno di chiusura e non a un errore di pesata).
+//     Oltre GIORNI_RIPORTO_MAX giorni di distanza la rimanenza vecchia non
+//     e' più un'informazione affidabile: la cella diventa "non calcolabile"
+//     (venduto null) invece di far finta che fosse zero.
+//
+//  2) il venduto NON viene più azzerato quando esce negativo. Un negativo
+//     significa "il conto non torna" (rimanenza scritta più alta di quanto
+//     c'era a disposizione): va mostrato come tale e sommato col suo segno.
+//     Azzerarlo gonfiava il totale mostrato del 12,6%: su Mara 766 celle
+//     su 7.012 (10,9%) uscivano negative per 3.042,6 kg, e il venduto
+//     passava da 24.057,8 kg reali a 27.100,4 kg a schermo. Nello Storico
+//     di De Gasperi 21 gusti su 24 risultavano venduti più di quanto
+//     prodotti: impossibile, e sempre nello stesso verso.
+//     `quadra: false` marca la cella; `venduto` resta il numero col segno.
+export const GIORNI_RIPORTO_MAX = 7
+
+// Somma di giorni su una data 'YYYY-MM-DD' senza passare dal fuso orario.
+function piuGiorni(dataIso, n) {
+  const [y, m, d] = dataIso.split('-').map(Number)
+  const t = Date.UTC(y, m - 1, d) + n * 86400000
+  const dt = new Date(t)
+  return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}`
+}
+
+// Indicizza le righe per gusto+data normalizzando il nome del gusto.
+// Il nome VA normalizzato qui: in produzione ci sono 117 righe scritte
+// "CAFFè FLORA" da un import vecchio, mentre la pagina cerca
+// "CAFFÈ FLORA" (normGusto). Risultato: 156 kg di produzione invisibili,
+// e scrivendoci sopra il gusto si sdoppiava. Se due grafie cadono sullo
+// stesso giorno le sommiamo: e' la stessa vasca di gelato.
+function indicizzaPerGustoGiorno(righe) {
   const byKey = {}
   for (const r of righe) {
-    const k = `${r.gusto_nome}|${r.data}`
-    byKey[k] = r
+    if (!r || !r.data) continue
+    const g = normGusto(r.gusto_nome)
+    if (!g) continue
+    const k = `${g}|${r.data}`
+    const prec = byKey[k]
+    const val = {
+      gusto_nome: g,
+      data: r.data,
+      produzione_g: Number(r.produzione_g) || 0,
+      rimanenza_g: Number(r.rimanenza_g) || 0,
+      scarto_g: Number(r.scarto_g) || 0,
+      spedito_g: Number(r.spedito_g) || 0,
+    }
+    byKey[k] = prec ? {
+      ...val,
+      produzione_g: prec.produzione_g + val.produzione_g,
+      rimanenza_g: prec.rimanenza_g + val.rimanenza_g,
+      scarto_g: prec.scarto_g + val.scarto_g,
+      spedito_g: prec.spedito_g + val.spedito_g,
+    } : val
   }
-  const gusti = [...new Set(righe.map(r => r.gusto_nome))]
+  return byKey
+}
+
+// Calcola la cella di un singolo (gusto, giorno) dato l'indice completo.
+// Ritorna sempre un oggetto: `venduto: null` quando il numero non si può
+// calcolare, mai uno zero di comodo.
+export function cellaVenduto(byKey, gustoKey, dataIso) {
+  const corrente = byKey[`${gustoKey}|${dataIso}`]
+  if (!corrente) {
+    return {
+      prod: 0, riman: 0, scarto: 0, spedito: 0,
+      venduto: null, vendutoRaw: null, quadra: true, registrata: false,
+      motivo: 'giorno non registrato',
+    }
+  }
+  const prod = corrente.produzione_g
+  const riman = corrente.rimanenza_g
+  const scarto = corrente.scarto_g
+  const spedito = corrente.spedito_g
+  // Rimanenza dell'ultimo giorno registrato prima di oggi.
+  let rimanPrec = null
+  let giorniIndietro = 0
+  for (let k = 1; k <= GIORNI_RIPORTO_MAX; k++) {
+    const prev = byKey[`${gustoKey}|${piuGiorni(dataIso, -k)}`]
+    if (prev) { rimanPrec = prev.rimanenza_g; giorniIndietro = k; break }
+  }
+  if (rimanPrec === null) {
+    return {
+      prod, riman, scarto, spedito,
+      venduto: null, vendutoRaw: null, quadra: true, registrata: true,
+      motivo: 'manca la rimanenza del giorno prima: il venduto non si può calcolare',
+    }
+  }
+  const v = rimanPrec + prod - riman - scarto - spedito
+  return {
+    prod, riman, scarto, spedito, rimanPrec, giorniIndietro,
+    venduto: v, vendutoRaw: v, quadra: v >= 0, registrata: true,
+    motivo: !(v >= 0)
+      ? "il conto non torna: la rimanenza scritta è più alta di quanto c'era a disposizione"
+      : (giorniIndietro > 1
+        ? `include ${giorniIndietro - 1} giorn${giorniIndietro === 2 ? 'o' : 'i'} non registrat${giorniIndietro === 2 ? 'o' : 'i'} prima`
+        : null),
+  }
+}
+
+// ── Calcolo venduto per ogni (gusto × giorno) di una settimana ────────
+// Lavora interamente in-memory dai dati gia caricati: niente round-trip extra.
+//
+// righe = output di caricaSettimana(...), che include i giorni PRIMA del
+// lunedi target (serve la rimanenza di partenza).
+//
+// Ritorna { [GUSTO]: { [dataIso]: cella } } con le celle di cellaVenduto().
+export function calcolaVendutoSettimana(righe, lunediIso) {
+  if (!Array.isArray(righe) || !lunediIso) return {}
+  const byKey = indicizzaPerGustoGiorno(righe)
+  const gusti = [...new Set(Object.values(byKey).map(r => r.gusto_nome))]
   const out = {}
   for (const g of gusti) {
     out[g] = {}
-    // I 7 giorni della settimana target (lunedi inclus, domenica inclus).
     for (let i = 0; i < 7; i++) {
-      const d = new Date(lunediIso)
-      d.setDate(d.getDate() + i)
-      const dIso = d.toISOString().slice(0, 10)
-      const corrente = byKey[`${g}|${dIso}`]
-      if (!corrente) {
-        out[g][dIso] = { prod: 0, riman: 0, scarto: 0, venduto: null }
-        continue
-      }
-      const dPrev = new Date(d); dPrev.setDate(dPrev.getDate() - 1)
-      const prev = byKey[`${g}|${dPrev.toISOString().slice(0, 10)}`]
-      const rimanPrev = prev ? (prev.rimanenza_g || 0) : 0
-      const prod = corrente.produzione_g || 0
-      const riman = corrente.rimanenza_g || 0
-      const scarto = corrente.scarto_g || 0
-      // Audit 2026-07-01 HIGH: la formula deve sottrarre anche `spedito_g`
-      // (kg trasferiti ad altra sede), altrimenti la quadratura inventario↔cassa
-      // conta gli spediti come venduti retail → drift cronico falso.
-      // Allineata a inventarioASessioni che già lo fa.
-      const spedito = corrente.spedito_g || 0
-      const vRaw = rimanPrev + prod - riman - scarto - spedito
-      out[g][dIso] = {
-        prod, riman, scarto, spedito,
-        venduto: Math.max(0, vRaw),
-        vendutoRaw: vRaw,
-      }
+      const dIso = piuGiorni(lunediIso, i)
+      out[g][dIso] = cellaVenduto(byKey, g, dIso)
     }
   }
   return out
 }
 
-// Totali settimana per gusto: somma del venduto sui 7 giorni.
+// Totali settimana per gusto: somma ALGEBRICA del venduto sui 7 giorni.
+// Le celle non calcolabili (venduto null) non entrano nella somma, e
+// `dettaglioVenduto` dice quante sono, cosi la pagina può dichiararlo
+// invece di far passare un totale parziale per completo.
 export function totaliVenduti(matrice) {
   const out = {}
   for (const [gusto, byData] of Object.entries(matrice || {})) {
     let tot = 0
     for (const cell of Object.values(byData)) {
-      tot += Number(cell.venduto || 0)
+      if (cell.venduto == null) continue
+      tot += Number(cell.venduto) || 0
     }
     out[gusto] = tot
+  }
+  return out
+}
+
+// Serie completa (tutte le date presenti) delle celle di ogni gusto.
+// La usa il dettaglio storico di un gusto, che prima si riscriveva la formula
+// del venduto per conto suo — terza copia, con lo stesso azzeramento del
+// negativo e la stessa perdita della rimanenza sui giorni di chiusura.
+export function serieVendutoGusto(righe) {
+  if (!Array.isArray(righe)) return {}
+  const byKey = indicizzaPerGustoGiorno(righe)
+  const perGusto = {}
+  for (const r of Object.values(byKey)) {
+    if (!perGusto[r.gusto_nome]) perGusto[r.gusto_nome] = []
+    perGusto[r.gusto_nome].push(r)
+  }
+  const out = {}
+  for (const [g, list] of Object.entries(perGusto)) {
+    list.sort((a, b) => a.data.localeCompare(b.data))
+    out[g] = list.map(r => ({ data: r.data, ...cellaVenduto(byKey, g, r.data) }))
+  }
+  return out
+}
+
+// Qualita' del dato per gusto: quante celle non tornano, quanti kg valgono,
+// quante celle non si possono calcolare. Serve a scrivere accanto al totale
+// "3 giorni non tornano" invece di mostrare un numero muto.
+export function dettaglioVenduto(matrice) {
+  const out = {}
+  for (const [gusto, byData] of Object.entries(matrice || {})) {
+    let celleNonQuadrate = 0, gNonQuadrati = 0, celleNonCalcolabili = 0, giorniRegistrati = 0
+    const giorniNonQuadrati = []
+    for (const [dataIso, cell] of Object.entries(byData)) {
+      if (cell.registrata) giorniRegistrati++
+      if (cell.venduto == null) {
+        if (cell.registrata) celleNonCalcolabili++
+        continue
+      }
+      if (!cell.quadra) {
+        celleNonQuadrate++
+        gNonQuadrati += cell.venduto
+        giorniNonQuadrati.push(dataIso)
+      }
+    }
+    out[gusto] = { celleNonQuadrate, gNonQuadrati, celleNonCalcolabili, giorniRegistrati, giorniNonQuadrati }
   }
   return out
 }
@@ -257,7 +399,7 @@ export function totaliVenduti(matrice) {
 // magazzino la quota proporzionale di ingredienti. Il fattore di scalo e':
 //   fattore = delta_g / peso_impasto_per_stampo
 // dove peso_impasto_per_stampo = sum(ingredienti.qty1stampo) della ricetta
-// del gusto. delta puo' essere negativo (correzione al ribasso): in quel
+// del gusto. delta può essere negativo (correzione al ribasso): in quel
 // caso il magazzino sale (l'utente sta dicendo "ho usato meno di quanto
 // avevo scritto").
 //
@@ -341,9 +483,21 @@ export function euroKgMedioFormati(formati) {
 //                  perché sono fatturati a parte: senza sottrarre i kg
 //                  B2B il drift mostra un negativo cronico falso).
 export function kpiQuadraturaSettimana(matrice, chiusureSettimana, euroKg, venditeB2BSett) {
-  const totVendutoG = Object.values(matrice || {}).reduce((s, byData) =>
-    s + Object.values(byData).reduce((a, c) => a + Number(c.venduto || 0), 0)
-  , 0)
+  // Somma algebrica: le celle che non tornano entrano col loro segno, non
+  // azzerate. E teniamo il conto di quante sono, perché una quadratura
+  // fatta su celle che non tornano non e' una quadratura: e' una coincidenza.
+  let totVendutoG = 0
+  let celleNonQuadrate = 0, gNonQuadrati = 0, celleNonCalcolabili = 0
+  for (const byData of Object.values(matrice || {})) {
+    for (const c of Object.values(byData)) {
+      if (c.venduto == null) {
+        if (c.registrata) celleNonCalcolabili++
+        continue
+      }
+      totVendutoG += Number(c.venduto) || 0
+      if (c.quadra === false) { celleNonQuadrate++; gNonQuadrati += Number(c.venduto) || 0 }
+    }
+  }
   const totVendutoKg = totVendutoG / 1000
 
   // kg venduti via B2B nella settimana (somma qta dalle righe[].qta in kg)
@@ -369,6 +523,7 @@ export function kpiQuadraturaSettimana(matrice, chiusureSettimana, euroKg, vendi
   return {
     totVendutoG, totVendutoKg, retailKg, b2bKg, ricaviB2b,
     cassaEffettiva, euroKg, ricavoAtteso, driftEur, driftPct,
+    celleNonQuadrate, kgNonQuadrati: gNonQuadrati / 1000, celleNonCalcolabili,
   }
 }
 
@@ -430,39 +585,34 @@ export function variazione(curr, prev) {
 // "quanto prodotto in kg" come "stampi", e tutti i KPI sono significativi.
 export function inventarioASessioni(righeInventario) {
   if (!Array.isArray(righeInventario) || righeInventario.length === 0) return []
+  // Stessa regola differenziale della vista settimanale (cellaVenduto):
+  // prima queste due copie divergevano e le pagine legacy mostravano kg
+  // venduti diversi da quelli dell'inventario sugli stessi giorni.
+  const byKey = indicizzaPerGustoGiorno(righeInventario)
   const perGusto = {}
-  for (const r of righeInventario) {
-    const k = r.gusto_nome
-    if (!perGusto[k]) perGusto[k] = []
-    perGusto[k].push(r)
+  for (const r of Object.values(byKey)) {
+    if (!perGusto[r.gusto_nome]) perGusto[r.gusto_nome] = []
+    perGusto[r.gusto_nome].push(r)
   }
   const byData = {}
   for (const [gusto, righe] of Object.entries(perGusto)) {
     righe.sort((a, b) => a.data.localeCompare(b.data))
-    let rimanPrev = 0
-    let prevDayMs = null
     for (const r of righe) {
-      const prod = Number(r.produzione_g) || 0
-      const riman = Number(r.rimanenza_g) || 0
-      const scarto = Number(r.scarto_g) || 0
-      const spedito = Number(r.spedito_g) || 0
-      const dMs = new Date(r.data).getTime()
-      if (prevDayMs !== null && Math.round((dMs - prevDayMs) / 86400000) !== 1) rimanPrev = 0
-      // venduto = riman_prev + prod − riman − scarto − spedito (sede origine)
-      const venduto = Math.max(0, rimanPrev + prod - riman - scarto - spedito)
-      const vendutoKg = venduto / 1000
-      const prodKg = prod / 1000
-      if (prodKg > 0 || vendutoKg > 0) {
+      const cell = cellaVenduto(byKey, gusto, r.data)
+      const prodKg = cell.prod / 1000
+      // `venduto` null = non calcolabile (manca la rimanenza di partenza):
+      // resta fuori dal vendibile, non diventa uno zero.
+      const vendutoKg = cell.venduto == null ? 0 : cell.venduto / 1000
+      if (prodKg > 0 || vendutoKg !== 0) {
         if (!byData[r.data]) byData[r.data] = []
         byData[r.data].push({
           nome: gusto,
           stampi: Math.round(prodKg * 1000) / 1000,
           vendibile: Math.round(vendutoKg * 1000) / 1000,
           _da_inventario: true,
+          _quadra: cell.quadra !== false,
         })
       }
-      rimanPrev = riman
-      prevDayMs = dMs
     }
   }
   return Object.entries(byData)
@@ -545,19 +695,14 @@ export async function caricaStoricoMensile(orgId, sedeIds, dataFrom, dataTo) {
     sedeIds: arr, dataFrom, dataTo,
     columns: 'gusto_nome, data, produzione_g, rimanenza_g, scarto_g',
   })
-  // Aggrega per (gusto, data): somma cross-sede prima del calcolo differenziale.
-  const perGD = new Map()
-  for (const r of righe) {
-    const k = `${r.gusto_nome}|${r.data}`
-    let v = perGD.get(k)
-    if (!v) { v = { gusto_nome: r.gusto_nome, data: r.data, produzione_g: 0, rimanenza_g: 0, scarto_g: 0 }; perGD.set(k, v) }
-    v.produzione_g += Number(r.produzione_g) || 0
-    v.rimanenza_g += Number(r.rimanenza_g) || 0
-    v.scarto_g += Number(r.scarto_g) || 0
-  }
-  // Raggruppa per gusto ordinato per data e calcola venduto.
+  // Aggrega per (gusto, data) normalizzando il nome (somma cross-sede) e poi
+  // applica la stessa regola differenziale di cellaVenduto: prima questa
+  // copia azzerava la rimanenza di partenza a ogni giorno di chiusura e
+  // troncava i negativi, quindi lo storico mensile non tornava con la
+  // settimanale sugli stessi giorni.
+  const byKey = indicizzaPerGustoGiorno(righe)
   const perGusto = new Map()
-  for (const r of perGD.values()) {
+  for (const r of Object.values(byKey)) {
     let arr = perGusto.get(r.gusto_nome)
     if (!arr) { arr = []; perGusto.set(r.gusto_nome, arr) }
     arr.push(r)
@@ -565,24 +710,15 @@ export async function caricaStoricoMensile(orgId, sedeIds, dataFrom, dataTo) {
   const perMese = new Map()  // key = `${gusto}|${YYYY-MM}`
   for (const [gusto, list] of perGusto.entries()) {
     list.sort((a, b) => a.data.localeCompare(b.data))
-    let rimanPrev = 0
-    let dataPrev = null
     for (const r of list) {
-      const d = new Date(r.data)
-      if (dataPrev !== null) {
-        const gap = Math.round((d - dataPrev) / 86400000)
-        if (gap !== 1) rimanPrev = 0
-      }
-      const venduto = Math.max(0, rimanPrev + r.produzione_g - r.rimanenza_g - r.scarto_g)
-      rimanPrev = r.rimanenza_g
-      dataPrev = d
+      const cell = cellaVenduto(byKey, gusto, r.data)
       const mese = r.data.slice(0, 7)
       const k = `${gusto}|${mese}`
       let bucket = perMese.get(k)
       if (!bucket) { bucket = { gusto_nome: gusto, mese, prod_g: 0, venduto_g: 0, scarto_g: 0 }; perMese.set(k, bucket) }
-      bucket.prod_g += r.produzione_g
-      bucket.venduto_g += venduto
-      bucket.scarto_g += r.scarto_g
+      bucket.prod_g += cell.prod
+      bucket.venduto_g += cell.venduto == null ? 0 : cell.venduto
+      bucket.scarto_g += cell.scarto
     }
   }
   return { source: 'client', perMese: [...perMese.values()] }
@@ -594,7 +730,7 @@ export async function caricaSessioniDaInventario(orgId, sedeId, opts = {}) {
   const inizio = new Date()
   inizio.setMonth(inizio.getMonth() - monthsBack)
   inizio.setDate(1)
-  const inizioIso = inizio.toISOString().slice(0, 10)
+  const inizioIso = formatLocalDate(inizio)
   const rows = await fetchAllInventarioProduzione(orgId, {
     sedeIds: sedeId,
     dataFrom: inizioIso,
@@ -645,5 +781,5 @@ export function lunediDellaSettimana(dateIso) {
   const dow = d.getDay()
   const arretra = dow === 0 ? 6 : dow - 1
   d.setDate(d.getDate() - arretra)
-  return d.toISOString().slice(0, 10)
+  return formatLocalDate(d)
 }
