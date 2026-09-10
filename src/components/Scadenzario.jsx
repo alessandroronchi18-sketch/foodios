@@ -935,7 +935,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
               setSelFatt(prev => { const n = new Set(prev); if (n.has(f.id)) n.delete(f.id); else n.add(f.id); return n })
             }}
               title={isPagabile ? 'Includi nel bonifico SEPA' : (f.stato === 'pagata' ? 'Gia pagata' : !f.ibanValido ? 'IBAN fornitore mancante - clicca per aggiungerlo' : 'Residuo nullo')}
-              style={{ width: 16, height: 16, cursor: 'pointer', accentColor: T.brand, opacity: isPagabile ? 1 : 0.45, flexShrink: 0 }} />
+              style={{ width: 20, height: 20, margin: 8, cursor: 'pointer', accentColor: T.brand, opacity: isPagabile ? 1 : 0.45, flexShrink: 0 }} />
             <span title={f.fornitore} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{f.fornitore}</span>
           </span>
         </td>
@@ -977,7 +977,12 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
             letterSpacing: '0.04em', whiteSpace: 'nowrap',
           }}>{cfg.label}</span>
         </td>
-        <td style={{ padding: '8px 12px' }}>
+        <td style={{
+          padding: '8px 12px',
+          position: 'sticky', right: 0, zIndex: 1,
+          background: isSel ? T.brandLight : baseBg,
+          boxShadow: '-2px 0 0 rgba(15,23,42,0.06)',
+        }}>
           {ActionsCell({ f, compact: true })}
         </td>
       </tr>
@@ -1152,10 +1157,18 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                             fontSize: 12, fontWeight: 700,
                             color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em',
                             borderBottom: `1px solid ${T.border}`, whiteSpace: 'nowrap',
-                            position: idx === 0 ? 'sticky' : 'static',
+                            // Prima colonna ancorata a sinistra (il nome del
+                            // fornitore, che serve a capire di che riga si
+                            // parla) e ULTIMA ancorata a destra: su tablet in
+                            // verticale la colonna Azioni, dove stanno "segna
+                            // pagata" e il cestino, finiva fuori schermo e si
+                            // scopriva solo scorrendo di lato.
+                            position: (idx === 0 || l === 'Azioni') ? 'sticky' : 'static',
                             left: idx === 0 ? 0 : 'auto',
+                            right: l === 'Azioni' ? 0 : 'auto',
                             background: '#FAFAF8',
-                            zIndex: idx === 0 ? 2 : 1,
+                            boxShadow: l === 'Azioni' ? '-2px 0 0 rgba(15,23,42,0.06)' : undefined,
+                            zIndex: (idx === 0 || l === 'Azioni') ? 2 : 1,
                           }}>{l}</th>
                         ))}
                       </tr>
@@ -1237,7 +1250,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                   }}
                     title={selectable ? 'Includi nel bonifico SEPA' : `IBAN mancante: clicca per aggiungerlo a ${g.nome}`}
                     aria-label={`Seleziona ${g.nome} per bonifico SEPA`}
-                    style={{ width: 18, height: 18, cursor: 'pointer', accentColor: T.brand, opacity: selectable ? 1 : 0.6 }} />
+                    style={{ width: 20, height: 20, margin: 10, cursor: 'pointer', accentColor: T.brand, opacity: selectable ? 1 : 0.6 }} />
                 </span>
                 <div style={{ minWidth: 0, flex: 1, cursor: 'pointer' }}
                   onClick={() => toggleExpandForn(g.nome_norm)}
@@ -1253,8 +1266,13 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, marginLeft: isMobile ? 28 : 0 }}>
-                  {g.scaduto > 0 && <span style={{ fontSize: 12, fontWeight: 700, color: '#991B1B', background: '#FEE2E2', padding: '4px 9px', borderRadius: 9, whiteSpace: 'nowrap', ...tnum }}>scaduto {fmtEuro0(g.scaduto)}</span>}
-                  <div style={{ fontSize: isMobile ? 15 : 16, fontWeight: 800, color: g.totale < 0 ? T.green : T.text, ...tnum, minWidth: 96, textAlign: 'right', whiteSpace: 'nowrap' }}>{fmtEuro(g.totale)}</div>
+                  {/* Il bollino "scaduto ..." ha larghezza variabile: dentro
+                      uno slot fisso, così i totali delle righe restano
+                      incolonnati anche quando un fornitore non ha scaduto. */}
+                  <div style={{ width: isMobile ? 'auto' : 150, display: 'flex', justifyContent: 'flex-end', flexShrink: 0 }}>
+                    {g.scaduto > 0 && <span style={{ fontSize: 12, fontWeight: 700, color: '#991B1B', background: '#FEE2E2', padding: '4px 9px', borderRadius: 9, whiteSpace: 'nowrap', ...tnum }}>scaduto {fmtEuro0(g.scaduto)}</span>}
+                  </div>
+                  <div style={{ fontSize: isMobile ? 15 : 16, fontWeight: 800, color: g.totale < 0 ? T.green : T.text, ...tnum, minWidth: 110, textAlign: 'right', whiteSpace: 'nowrap' }}>{fmtEuro(g.totale)}</div>
                   <button onClick={(e) => { e.stopPropagation(); if (isEdit) { setEditForn(null) } else { setEditForn(g.nome_norm); setEditFornData({ iban: g.iban || '', termini: g.termini ?? 30, terminiTipo: g.terminiTipo || 'netti', categoria: g.categoria || '' }) } }}
                     aria-label="Modifica anagrafica fornitore"
                     title="Anagrafica fornitore (IBAN, termini)" style={{ ...ghostBtn, padding: isMobile ? '8px 10px' : '6px 11px', minHeight: minTouch, minWidth: minTouch }}><Icon name="gear" size={14} /></button>
@@ -1599,16 +1617,24 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
             }}
             onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 14px rgba(15,23,42,0.08), 0 16px 36px rgba(15,23,42,0.08)'; e.currentTarget.style.transform = 'translateY(-3px)' }}
             onMouseLeave={e => { e.currentTarget.style.boxShadow = k.urgent ? '0 1px 2px rgba(110,14,26,0.08), 0 10px 28px rgba(110,14,26,0.10)' : '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)'; e.currentTarget.style.transform = 'translateY(0)' }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.08em', minHeight: 28, display: 'flex', alignItems: 'flex-start', lineHeight: 1.3 }}>
+            {/* Le tre tessere stanno affiancate: etichetta, importo e riga
+                sotto devono essere INCOLONNATI fra loro. Prima il valore era
+                allineato a sinistra dentro il bottone, quindi le tre cifre
+                partivano da tre punti diversi e l'occhio non poteva
+                confrontarle. Ora sono a destra, con le altezze minime
+                uguali, come le altre bande del prodotto. */}
+            <div style={{ fontSize: typo.size.sm, fontWeight: 600, color: T.textMid, textTransform: 'uppercase', letterSpacing: '0.08em', minHeight: 30, display: 'flex', alignItems: 'flex-start', lineHeight: 1.3, textAlign: 'left' }}>
               {k.label}
             </div>
             <div title={k.exact} style={{
-              fontSize: isMobile ? 26 : isTablet ? 28 : 30, fontWeight: 700, color: k.color, lineHeight: 1.05,
+              // Su tablet il corpo scende: con importi a sette cifre il
+              // numero a 28px veniva troncato coi puntini.
+              fontSize: isMobile ? typo.size['3xl'] : isTablet ? typo.size['3xl'] : 30, fontWeight: 700, color: k.color, lineHeight: 1.05,
               letterSpacing: '-0.025em', ...tnum,
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              minHeight: isMobile ? 32 : 36, display: 'flex', alignItems: 'center',
+              minHeight: isMobile ? 34 : 38, display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
             }}>{k.val}</div>
-            <div style={{ fontSize: isMobile ? 12.5 : 12, color: T.textSoft, letterSpacing: '-0.005em', lineHeight: 1.35, minHeight: 34, marginTop: 6, display: 'flex', alignItems: 'flex-end' }}>{k.sub}</div>
+            <div style={{ fontSize: typo.size.sm, color: T.textSoft, letterSpacing: '-0.005em', lineHeight: 1.35, minHeight: 34, marginTop: 6, display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end', textAlign: 'right' }}>{k.sub}</div>
           </button>
         ))}
       </div>

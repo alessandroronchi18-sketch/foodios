@@ -290,8 +290,11 @@ export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita
               Tutto ciò che va con la vendita: contenitore + accessori (cono cialda, fazzoletto, palettina, coppetta, cucchiaino…). Il food cost del formato somma queste voci.
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              {/* Su telefono e tablet le caselle sono più larghe: a 56 e 84 px
+                  il testo di aiuto ("es. 0,060") era tagliato a metà e
+                  l'unità di misura non si leggeva. */}
               {(form.componenti || []).length > 0 && (
-                <div style={{ ...labelStyle, display: 'grid', gridTemplateColumns: isMobile ? '1fr 56px 84px 36px' : '2fr 80px 110px 100px 40px', gap: 8, marginBottom: 0, alignItems: 'end' }}>
+                <div style={{ ...labelStyle, display: 'grid', gridTemplateColumns: isMobile ? '1fr 74px 96px 44px' : '2fr 80px 110px 100px 40px', gap: 8, marginBottom: 0, alignItems: 'end' }}>
                   <span>Materiale</span>
                   <span style={{ textAlign: 'right' }}>Qtà</span>
                   <span style={{ textAlign: 'right' }}>€/unità</span>
@@ -302,7 +305,7 @@ export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita
               {(form.componenti || []).map((c, i) => {
                 const subtot = (Number(c.qta) || 0) * (Number(c.costo) || 0)
                 return (
-                  <div key={i} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 56px 84px 36px' : '2fr 80px 110px 100px 40px', gap: 8, alignItems: 'center' }}>
+                  <div key={i} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 74px 96px 44px' : '2fr 80px 110px 100px 40px', gap: 8, alignItems: 'center' }}>
                     <input style={inputStyle} value={c.nome || ''} placeholder="es. Cono cialda piccolo"
                       onChange={e => setForm(f => ({ ...f, componenti: f.componenti.map((x, j) => j === i ? { ...x, nome: e.target.value } : x) }))}/>
                     <input style={{ ...inputStyle, textAlign: 'right', ...TNUM }} type="number" min="0" step="0.01" value={c.qta ?? ''} placeholder="es. 1"

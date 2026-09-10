@@ -485,9 +485,11 @@ export default function CashflowView({ orgId, sedeId, sedi = [], notify }) {
               <Icon name="clock" size={14} color={SOFT} style={{ flexShrink: 0, marginTop: 2 }} />
               <div style={{ flex: 1, minWidth: 200 }}>
                 Ci sono anche <b>{arretrato.nVecchio} {arretrato.nVecchio === 1 ? 'fattura' : 'fatture'} scadute da più di tre mesi</b>
-                {' '}per {fmt0(arretrato.vecchio)}. Queste NON le conto nella cassa: quasi sempre sono
-                già state pagate e non risultano segnate come tali in Foodos (l'importazione le porta
-                dentro tutte come "da pagare"). Se le segni pagate dallo Scadenzario, spariscono da qui.
+                {' '}per {fmt0(arretrato.vecchio)}. Queste NON le conto nella previsione di cassa: a
+                quella distanza o sono già state pagate e non risultano segnate come tali (succede
+                sempre, perché l'importazione porta dentro tutti i documenti come "da pagare"), oppure
+                sono una questione aperta col fornitore, che non si risolve nella cassa di domani.
+                Controllale nello Scadenzario: quelle che hai pagato, segnale pagate, e spariscono da qui.
               </div>
             </div>
           )}

@@ -5,6 +5,7 @@
 import React, { useState, useRef, useCallback } from 'react'
 import { color as T } from '../lib/theme'
 import useIsMobile from '../lib/useIsMobile'
+import Icon from '../components/Icon'
 
 // Palette "C.*" usata dal vecchio Dashboard.jsx - mappa diretta ai token theme.
 // Usata per non riscrivere ogni accesso a C.foo nei body delle view.
@@ -207,9 +208,16 @@ export function KPI({ label, value, sub, color, highlight, icon, onClick }) {
             boxShadow: highlight ? 'inset 0 1px 0 rgba(255,255,255,0.14)' : `0 4px 12px ${accent}28` }}>{icon}</span>
         </div>
       )}
-      <div style={{ position: 'relative', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase',
-        color: highlight ? 'rgba(255,255,255,0.76)' : T.textSoft, marginBottom: 6,
-        minHeight: 28, lineHeight: 1.25 }}>{label}</div>
+      {/* Etichetta a 12px, non 10,5: è il minimo leggibile della casa, e
+          questo componente disegna le tessere di TUTTE le pagine (magazzino,
+          formati, scadenzario, P&L…). Il colore passa da textSoft a textMid:
+          textSoft su fondo bgSubtle fa 4,31:1, sotto il minimo di
+          leggibilità, e queste etichette stanno spesso su quel fondo.
+          minHeight resta uniforme così le tessere affiancate restano
+          incolonnate fra loro. */}
+      <div style={{ position: 'relative', fontSize: 12, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase',
+        color: highlight ? 'rgba(255,255,255,0.82)' : T.textMid, marginBottom: 6,
+        minHeight: 30, lineHeight: 1.25 }}>{label}</div>
       {/* Audit 2026-06-25: fontSize auto-shrink in base alla lunghezza del value.
           Risolve due bug:
           (1) Valori numerici con 2 decimali (es. "611,50 €") troncati con "..."
@@ -445,16 +453,26 @@ export function SortTH({ k, children, right, active, dir, onToggle, tip }) {
       title={tip || undefined}
       style={{
         padding: '10px 16px', textAlign: right ? 'right' : 'left',
-        fontSize: 10, fontWeight: 600, letterSpacing: '0.05em',
+        // 12px e un grigio leggibile: era 10px con #94A3B8 sul bianco, cioè
+        // 2,56:1 — sotto la metà del minimo. Queste sono le intestazioni con
+        // cui si ordina una tabella: se non si leggono, non si clicca.
+        fontSize: 12, fontWeight: 700, letterSpacing: '0.05em',
         textTransform: 'uppercase', whiteSpace: 'nowrap',
-        color: active ? '#6E0E1A' : '#94A3B8',
+        color: active ? '#6E0E1A' : T.textMid,
         borderBottom: '1px solid #E2E8F0',
         background: active ? '#FEF2F2' : 'transparent',
         cursor: 'pointer', userSelect: 'none',
         transition: 'background 0.15s',
         textDecoration: tip ? 'underline dotted' : 'none', textUnderlineOffset: 3,
       }}>
-      {children}{active ? (dir === 'desc' ? ' ▼' : ' ▲') : ''}
+      {/* Il verso dell'ordinamento con l'icona, non coi caratteri ▼▲: quelli
+          cambiano forma da un dispositivo all'altro e non si allineano al
+          testo. `aria-sort` qui sopra lo dice già a chi usa lo screen reader. */}
+      {children}
+      {active && (
+        <Icon name={dir === 'desc' ? 'chevDown' : 'chevUp'} size={11}
+          style={{ marginLeft: 4, verticalAlign: 'middle' }} />
+      )}
     </th>
   )
 }

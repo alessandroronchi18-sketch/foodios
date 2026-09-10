@@ -890,7 +890,11 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                   </div>
                 </div>
                 <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, minWidth: 420 }}>
+                  {/* Su telefono la quarta colonna ("Pezzi al banco") restava
+                      fuori dallo schermo e si scopriva solo scorrendo di
+                      lato: la larghezza minima scende, e il testo va a capo
+                      invece di spingere le colonne fuori. */}
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, minWidth: isMobile ? 0 : 420, tableLayout: isMobile ? 'fixed' : 'auto' }}>
                     <thead>
                       <tr style={{ background: '#F8F4F2' }}>
                         {[
@@ -953,19 +957,19 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                             <td style={{ padding: '10px 14px', color: C.red }}>{fmt(fc)}</td>
                             <td style={{ padding: '10px 14px', textAlign: 'center' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
-                                <button aria-label="Diminuisci" onClick={() => setQ(ric.nome, Math.max(0, (qtaMap[ric.nome] || 0) - 1))} style={{ width: isMobile || isTablet ? 40 : 30, height: isMobile || isTablet ? 40 : 30, borderRadius: 5, border: `1px solid ${C.borderStr}`, background: C.white, fontSize: 18, cursor: 'pointer', fontWeight: 700, color: C.textMid }}>−</button>
+                                <button aria-label="Diminuisci" onClick={() => setQ(ric.nome, Math.max(0, (qtaMap[ric.nome] || 0) - 1))} style={{ width: isMobile || isTablet ? 40 : 30, height: isMobile || isTablet ? 40 : 30, borderRadius: 5, border: `1px solid ${C.borderStr}`, background: C.white, cursor: 'pointer', color: C.textMid, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="minus" size={16} /></button>
                                 <input type="number" min="0" value={q || ''} onChange={e => setQ(ric.nome, e.target.value)}
                                   style={{ width: 56, padding: '8px 4px', borderRadius: 5, border: `1px solid ${q > 0 ? C.red : C.borderStr}`, background: C.white, fontSize: isMobile || isTablet ? 16 : 14, textAlign: 'center', fontWeight: 800, color: q > 0 ? C.red : C.text }}/>
-                                <button aria-label="Aumenta" onClick={() => setQ(ric.nome, (qtaMap[ric.nome] || 0) + 1)} style={{ width: isMobile || isTablet ? 40 : 30, height: isMobile || isTablet ? 40 : 30, borderRadius: 5, border: `1px solid ${C.borderStr}`, background: C.white, fontSize: 18, cursor: 'pointer', fontWeight: 700, color: C.textMid }}>+</button>
+                                <button aria-label="Aumenta" onClick={() => setQ(ric.nome, (qtaMap[ric.nome] || 0) + 1)} style={{ width: isMobile || isTablet ? 40 : 30, height: isMobile || isTablet ? 40 : 30, borderRadius: 5, border: `1px solid ${C.borderStr}`, background: C.white, cursor: 'pointer', color: C.textMid, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="plus" size={16} /></button>
                               </div>
                             </td>
                             <td style={{ padding: '10px 14px', textAlign: 'center' }}>
                               {cong ? (
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
-                                  <button aria-label="Diminuisci vendibile" onClick={() => setV(ric.nome, Math.max(0, (vendibileMap[ric.nome] || q) - 1))} style={{ width: isMobile || isTablet ? 40 : 30, height: isMobile || isTablet ? 40 : 30, borderRadius: 5, border: '1px solid #BDE', background: '#F0F8FF', fontSize: 18, cursor: 'pointer', fontWeight: 700, color: '#2980B9' }}>−</button>
+                                  <button aria-label="Diminuisci vendibile" onClick={() => setV(ric.nome, Math.max(0, (vendibileMap[ric.nome] || q) - 1))} style={{ width: isMobile || isTablet ? 40 : 30, height: isMobile || isTablet ? 40 : 30, borderRadius: 5, border: '1px solid #BDE', background: '#F0F8FF', cursor: 'pointer', color: '#2980B9', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="minus" size={16} /></button>
                                   <input type="number" min="0" value={vq || ''} onChange={e => setV(ric.nome, e.target.value)}
                                     style={{ width: 56, padding: '8px 4px', borderRadius: 5, border: `1px solid ${vq > 0 ? '#2980B9' : C.borderStr}`, background: '#F0F8FF', fontSize: isMobile || isTablet ? 16 : 14, textAlign: 'center', fontWeight: 800, color: vq > 0 ? '#2980B9' : C.text }}/>
-                                  <button aria-label="Aumenta vendibile" onClick={() => setV(ric.nome, (vendibileMap[ric.nome] || q) + 1)} style={{ width: isMobile || isTablet ? 40 : 30, height: isMobile || isTablet ? 40 : 30, borderRadius: 5, border: '1px solid #BDE', background: '#F0F8FF', fontSize: 18, cursor: 'pointer', fontWeight: 700, color: '#2980B9' }}>+</button>
+                                  <button aria-label="Aumenta vendibile" onClick={() => setV(ric.nome, (vendibileMap[ric.nome] || q) + 1)} style={{ width: isMobile || isTablet ? 40 : 30, height: isMobile || isTablet ? 40 : 30, borderRadius: 5, border: '1px solid #BDE', background: '#F0F8FF', cursor: 'pointer', color: '#2980B9', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="plus" size={16} /></button>
                                 </div>
                               ) : (
                                 <span style={{ fontSize: 12, color: C.textSoft }}>= {LEX.prodotti}</span>
@@ -1200,7 +1204,10 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                       const margSess = (sess.ricavoTot || 0) - (sess.fcTot || 0)
                       const mPctSess = (sess.ricavoTot || 0) > 0 ? margSess / sess.ricavoTot * 100 : 0
                       const mcSess = margColor(mPctSess)
-                      const kpiCell = { display: 'flex', flexDirection: 'column', gap: 2, alignItems: isMobile ? 'flex-start' : 'flex-end', minHeight: isMobile ? 36 : 'auto' }
+                      // minWidth sulla cella: senza, su schermi stretti le
+                      // quattro celle si comprimono e i numeri delle sessioni
+                      // affiancate non risultano più incolonnati fra loro.
+                      const kpiCell = { display: 'flex', flexDirection: 'column', gap: 2, alignItems: isMobile ? 'flex-start' : 'flex-end', minWidth: isMobile ? 0 : 92, minHeight: isMobile ? 40 : 42 }
                       const kpiLabel = { fontSize: 11, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700, lineHeight: 1.2, minHeight: 15 }
                       const kpiVal   = { fontSize: 14, fontWeight: 800, ...TNUM, lineHeight: 1.1 }
                       return (
@@ -1211,9 +1218,9 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                           textAlign: isMobile ? 'left' : 'right',
                           alignItems: 'flex-start',
                         }}>
-                          {/* "Stampi" mostrato su mobile insieme agli altri per coerenza */}
-                          {isMobile && <div style={kpiCell}><div style={kpiLabel}>Stampi</div><div style={{ ...kpiVal, color: C.text }}>{stampiSess.toLocaleString('it-IT')}</div></div>}
-                          {!isMobile && <div style={kpiCell}><div style={kpiLabel}>Stampi</div><div style={{ ...kpiVal, color: C.text }}>{stampiSess.toLocaleString('it-IT')}</div></div>}
+                          {/* Una cella sola: i due rami isMobile / !isMobile
+                              erano identici carattere per carattere. */}
+                          <div style={kpiCell}><div style={kpiLabel}>Stampi</div><div style={{ ...kpiVal, color: C.text }}>{stampiSess.toLocaleString('it-IT')}</div></div>
                           <div style={kpiCell}><div style={kpiLabel}>Ricavo pot.</div><div style={{ ...kpiVal, color: C.green }}>{fmt0(sess.ricavoTot || 0)}</div></div>
                           <div style={kpiCell}><div style={kpiLabel}>Food cost</div><div style={{ ...kpiVal, color: C.red }}>{fmt0(sess.fcTot || 0)}</div></div>
                           {!isMobile && <div style={kpiCell}><div style={kpiLabel}>Margine</div><div style={{ ...kpiVal, color: mcSess }}>{fmt0(margSess)}</div></div>}

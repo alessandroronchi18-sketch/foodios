@@ -332,6 +332,20 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
                 bordo e raggio, dentro un div che scorre, tabella con minWidth. */}
             <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: typo.small.fontSize, minWidth: 620 }}>
+              {/* L'intestazione mancava: cinque colonne senza nome, e la
+                  colonna dei numeri non diceva se era una quantità o un
+                  valore in euro. */}
+              <thead>
+                <tr style={{ background: '#F8F4F2' }}>
+                  {[['Quando', 'left'], ['Prodotto', 'left'], ['Perché', 'left'], ['Quantità', 'right'], ['Nota', 'left']].map(([h, al]) => (
+                    <th key={h} style={{
+                      padding: '9px 14px', textAlign: al, fontSize: 12, fontWeight: 700,
+                      letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textMid,
+                      borderBottom: `1px solid ${C.border}`, whiteSpace: 'nowrap',
+                    }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
               <tbody>
                 {movimenti.map(m => {
                   const c = CAUSALE_LBL[m.causale] || { lbl: m.causale, col: C.textSoft }
@@ -1217,6 +1231,19 @@ export default function MagazzinoView({
   // Fornitore di un ingrediente, letto dal listino del ricettario.
   const fornitorePerNome = (nome) => fornitoreDiIngrediente(ricettario?.ingredienti_costi, nome)?.nome || null
 
+  // Giorni di scorta leggibili: un tetto a 90 giorni (oltre non dice niente
+  // di utile e "2000 gg" occupa mezza colonna), il punto delle migliaia, e
+  // una sola convenzione per "circa" — il tilde DAVANTI al numero, come nella
+  // colonna "Da ordinare" qui accanto. Prima in una riga si leggeva
+  // "2000 gg ~" e nella cella successiva "~ 1,5 kg".
+  const fmtGiorniScorta = (gg, stimato) => {
+    if (gg == null) return '-'
+    const n = Math.round(gg)
+    if (n > 90) return stimato ? '~ oltre 90 gg' : 'oltre 90 gg'
+    const testo = `${n.toLocaleString('it-IT')} gg`
+    return stimato ? `~ ${testo}` : testo
+  }
+
   const fmtRiordino = g => {
     if (!(g > 0)) return null
     const arrotondato = g < 1000
@@ -1394,7 +1421,7 @@ export default function MagazzinoView({
                       </td>
                       <td style={{ padding: '10px 14px', textAlign: 'right', color: statoColor(r.stato), fontWeight: 700, ...TNUM }}>{fmtG(r.giacenza)}</td>
                       <td style={{ padding: '10px 14px', textAlign: 'right', color: statoColor(r.stato), fontWeight: 700, ...TNUM }}>
-                        {r.giorniScorta !== null ? `${r.giorniScorta.toFixed(0)} gg${consumoStimato ? ' ~' : ''}` : '-'}
+                        {fmtGiorniScorta(r.giorniScorta, consumoStimato)}
                       </td>
                       <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 800, color: C.text, ...TNUM }}>
                         {fmtRiordino(r.riordinoG) ? `~ ${fmtRiordino(r.riordinoG)}` : '-'}
@@ -1505,7 +1532,9 @@ export default function MagazzinoView({
           )}
 
           {showAddIng && (
-            <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, padding: '16px 20px', marginBottom: 16, display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 120px 120px auto', gap: 10, alignItems: 'flex-end', boxShadow: SHADOW_PREMIUM }}>
+            <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, padding: '16px 20px', marginBottom: 16, // Su iPad in verticale (768-1023px) quattro colonne non ci stanno:
+            // il caso d'uso reale è proprio il tablet appoggiato al bancone.
+            display: 'grid', gridTemplateColumns: isMobile ? '1fr' : isTablet ? '1fr 1fr' : '1fr 120px 120px auto', gap: 10, alignItems: 'flex-end', boxShadow: SHADOW_PREMIUM }}>
               {[{ lbl: 'Nome ingrediente', val: newIngNome, set: setNewIngNome, ph: 'es. burro' },
                 { lbl: 'Giacenza (g)', val: newIngQty, set: setNewIngQty, ph: 'es. 1000', type: 'number' },
                 { lbl: 'Soglia alert (g)', val: newIngSoglia, set: setNewIngSoglia, ph: 'es. 500', type: 'number' }].map(({ lbl, val, set, ph, type }) => (
@@ -1551,7 +1580,10 @@ export default function MagazzinoView({
                     <SortTH k="soglia" right active={magKey === 'soglia'} dir={magDir} onToggle={magToggle} tip="Soglia minima sotto la quale scatta l'alert di riordino">Soglia alert</SortTH>
                     <SortTH k="stato" active={magKey === 'stato'} dir={magDir} onToggle={magToggle}>Stato</SortTH>
                     <SortTH k="ultimoRif" right active={magKey === 'ultimoRif'} dir={magDir} onToggle={magToggle} tip="Data dell'ultimo rifornimento registrato">Ultimo riforn.</SortTH>
-                    <th style={{ padding: '10px 10px', textAlign: 'right', fontSize: 12, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, whiteSpace: 'nowrap' }}>Azioni</th>
+                    {/* Stesse misure delle altre nove intestazioni, che
+                        passano da SortTH: prima questa era scritta a mano e
+                        la testata aveva due dimensioni diverse. */}
+                    <th style={{ padding: '10px 16px', textAlign: 'right', fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textMid, borderBottom: `1px solid ${C.border}`, whiteSpace: 'nowrap' }}>Azioni</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1612,7 +1644,7 @@ export default function MagazzinoView({
                       <td style={{ padding: '10px 14px', textAlign: 'right', color: C.textMid, ...TNUM }}>{r.fabb > 0 ? fmtG(r.fabb) : '-'}</td>
                       <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 700, color: statoColor(r.stato), ...TNUM }}
                           title="Giorni di scorta: giacenza diviso consumo medio giornaliero">
-                        {r.giorniScorta !== null ? `${r.giorniScorta.toFixed(0)} gg${consumoStimato ? ' ~' : ''}` : '-'}
+                        {fmtGiorniScorta(r.giorniScorta, consumoStimato)}
                       </td>
                       <td style={{ padding: '10px 14px', textAlign: 'right', color: r.valore > 0 ? C.text : C.textSoft, fontWeight: r.valore > 0 ? 700 : 400, ...TNUM }}>
                         {r.valore > 0 ? fmt0(r.valore) : '-'}

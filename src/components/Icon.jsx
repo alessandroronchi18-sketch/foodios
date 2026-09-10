@@ -94,6 +94,12 @@ const P = {
   arrowL:     '<line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>',
   chevR:      '<polyline points="9 18 15 12 9 6"/>',
   chevDown:   '<polyline points="6 9 12 15 18 9"/>',
+  // chevUp e minus mancavano: senza di loro <Icon name="chevUp"> cadeva sul
+  // pallino di ripiego. Servono per il verso dell'ordinamento nelle tabelle
+  // e per i contatori "meno / più" della produzione, che finora usavano i
+  // caratteri tipografici − e +.
+  chevUp:     '<polyline points="18 15 12 9 6 15"/>',
+  minus:      '<line x1="5" y1="12" x2="19" y2="12"/>',
   // AI / magic
   sparkles:   '<path d="M12 3l1.9 4.6L18.5 9.5 13.9 11.4 12 16l-1.9-4.6L5.5 9.5 10.1 7.6 12 3z"/><path d="M19 14l.8 1.9 1.9.8-1.9.8-.8 1.9-.8-1.9-1.9-.8 1.9-.8z"/>',
   bell:       '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>',
