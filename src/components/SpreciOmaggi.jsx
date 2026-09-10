@@ -39,7 +39,7 @@ import {
   contaDateIlleggibili,
 } from '../lib/movimentiSpeciali'
 import { foodcostNoto } from '../lib/chiusure'
-import { scartoPF } from '../lib/stockPF'
+import { scartoPF, loadStockPF } from '../lib/stockPF'
 
 const SK_DISCREPANZE = 'pasticceria-discrepanze-v1'
 
@@ -313,6 +313,27 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
     .sort((x, y) => new Date(y.ts) - new Date(x.ts)),
     [movs, oggi, auth])
 
+  // Residuo di giornata valorizzato a food cost, che le chiusure di cassa
+  // registrano in kpi.totS. E' prodotto invenduto: una perdita a tutti gli
+  // effetti, e non compariva da nessuna parte in questa pagina (in produzione
+  // sono 1.106 € su 77 chiusure, contro un registro che ne mostrava 0).
+  // Resta una VOCE SEPARATA: non si somma al registro, perché arriva da
+  // un'altra strada e sommarla in silenzio farebbe contare due volte chi
+  // registra anche la perdita a mano.
+  const residuoChiusure = useMemo(() => {
+    if (isDip) return { valore: 0, giorni: 0 }
+    let valore = 0, giorni = 0
+    for (const c of (chiusure || [])) {
+      if (!c?.data) continue
+      const d = String(c.data).slice(0, 10)
+      if (da && d < da) continue
+      if (a && d > a) continue
+      const s = Number(c.kpi?.totS) || 0
+      if (s > 0) { valore += s; giorni++ }
+    }
+    return { valore, giorni }
+  }, [chiusure, da, a, isDip])
+
   // Incidenza % della perdita sul food cost: heuristica grezza ma utile come ordine
   // di grandezza. Manteniamo soglie semaforo prudenti.
   const incidenza = fcPeriodo.noto ? (diag.totPerso / fcPeriodo.valore * 100) : null
@@ -451,7 +472,19 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
         try {
           const prodottoKey = form.prodotto.trim().toUpperCase()
           const causale = `${form.tipo}:${form.causale || ''}`
-          await scartoPF({ sedeId, prodotto: prodottoKey, quantita: qta, note: causale })
+          // Lo scarico si fa SOLO su un prodotto che esiste davvero in
+          // vetrina. La funzione sul database fa un INSERT ... ON CONFLICT:
+          // su un nome scritto a mano che non c'e' in vetrina creava una riga
+          // nuova con giacenza negativa, cioe' un prodotto fantasma al
+          // contrario, che poi confonde tutte le vendite successive.
+          const stock = await loadStockPF(orgId, sedeId)
+          const inVetrina = (stock || []).some(r =>
+            String(r.prodotto_nome || '').toUpperCase().trim() === prodottoKey)
+          if (inVetrina) {
+            await scartoPF({ sedeId, prodotto: prodottoKey, quantita: qta, note: causale })
+          } else {
+            notify?.(`"${form.prodotto.trim()}" non è in vetrina: ho registrato la perdita nel registro, ma non c'era niente da scaricare.`, true)
+          }
         } catch (e) {
           console.warn('[SpreciOmaggi] scartoPF fallito (movimento salvato):', e.message)
           notify?.('Movimento salvato ma scarico vetrina non riuscito: verifica lo stock', false)
@@ -711,6 +744,11 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
           sub={diag.causaPrinc ? `${fmtp(diag.causaPct)} · ${fmt0(diag.causaPrinc.eur)}` : 'nessun evento'} />
         <KPI icon={<Icon name="clipboard" size={18} />} label="Eventi nel mese" value={fmtN(diag.nTot)} color={T.brand}
           sub={`${fmtN(diag.nSpreco)} perdite · ${fmtN(diag.nOmaggio)} omaggi`} />
+        {residuoChiusure.valore > 0 && (
+          <KPI icon={<Icon name="trash" size={18} />} label="Invenduto dalle chiusure"
+            value={fmt0(residuoChiusure.valore)} color={C.amber}
+            sub={`da ${fmtN(residuoChiusure.giorni)} ${residuoChiusure.giorni === 1 ? 'giornata' : 'giornate'} di cassa, fuori dal registro qui sotto`} />
+        )}
       </div>
 
       {/* Drift porzionatura (insight informativo dai dati storici Discrepanze) */}

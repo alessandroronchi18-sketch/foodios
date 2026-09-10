@@ -55,7 +55,7 @@ function PanelHead({ icon, title, color = C.red }) {
 // Chip dei prodotti di una sessione: ordinati per pezzi prodotti (desc) e, quando
 // sono tanti (es. 50), mostra solo i primi N + un chip "+X altri" che al passaggio
 // del mouse (o al tap) espande l'elenco completo. Evita righe di chip infinite.
-const CHIP_PROD = { background: '#F8F4F2', border: `1px solid ${C.border}`, borderRadius: 6, padding: '4px 10px', fontSize: 10, fontWeight: 700, color: C.textMid, whiteSpace: 'nowrap' }
+const CHIP_PROD = { background: '#F8F4F2', border: `1px solid ${C.border}`, borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 700, color: C.textMid, whiteSpace: 'nowrap' }
 function ProdottiChips({ prodotti }) {
   const [aperto, setAperto] = useState(false)
   const LIMITE = 12
@@ -760,7 +760,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
               </span>
               <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', textAlign: 'left' }}>
                 <span style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.2 }}>Parti da una foto</span>
-                <span style={{ fontSize: 10.5, color: showFotoPanel ? T.brand : C.textSoft, fontWeight: 500, marginTop: 2, opacity: showFotoPanel ? 0.8 : 1 }}>Estrai i prodotti da un appunto</span>
+                <span style={{ fontSize: 12, color: showFotoPanel ? T.brand : C.textSoft, fontWeight: 500, marginTop: 2, opacity: showFotoPanel ? 0.8 : 1 }}>Estrai i prodotti da un appunto</span>
               </span>
               <Icon name="chevDown" size={12} color={showFotoPanel ? T.brand : C.textSoft} />
             </button>
@@ -784,7 +784,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
               </span>
               <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', textAlign: 'left' }}>
                 <span style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.2 }}>Scarica modello</span>
-                <span style={{ fontSize: 10.5, color: C.textSoft, fontWeight: 500, marginTop: 2 }}>Excel pre-compilato per la produzione</span>
+                <span style={{ fontSize: 12, color: C.textSoft, fontWeight: 500, marginTop: 2 }}>Excel pre-compilato per la produzione</span>
               </span>
             </button>
           </div>
@@ -866,12 +866,12 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
               <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, overflow: 'hidden', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)', boxSizing: 'border-box', width: '100%' }}>
                 <div style={{ padding: isMobile ? '14px 16px' : '16px 20px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: isMobile ? 'stretch' : 'flex-end', gap: isMobile ? 12 : 16, flexDirection: isMobile ? 'column' : 'row' }}>
                   <div style={{ flex: '0 0 auto', minWidth: 0 }}>
-                    <div style={{ fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 }}>Data produzione</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 }}>Data produzione</div>
                     <input type="date" value={data} onChange={e => setData(e.target.value)}
                       style={{ padding: isMobile ? '10px 12px' : '9px 12px', borderRadius: 7, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, color: C.text, boxSizing: 'border-box', width: isMobile ? '100%' : 'auto', maxWidth: isMobile ? '100%' : undefined }}/>
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 }}>Cerca prodotto</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 }}>Cerca prodotto</div>
                     <div style={{ position: 'relative' }}>
                       <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: C.textSoft, display: 'inline-flex', pointerEvents: 'none' }}>
                         <Icon name="search" size={14} />
@@ -890,7 +890,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                   </div>
                 </div>
                 <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, minWidth: 420 }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, minWidth: 420 }}>
                     <thead>
                       <tr style={{ background: '#F8F4F2' }}>
                         {[
@@ -899,7 +899,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                           { h: 'Stampi prodotti', sub: 'quanti stampi/teglie' },
                           { h: 'Pezzi al banco', sub: 'esposti per la vendita' },
                         ].map(({ h, sub }, i) => (
-                          <th key={i} title={sub} style={{ padding: '10px 14px', textAlign: i < 2 ? 'left' : 'center', fontSize: 8, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, cursor: 'help', textDecoration: 'underline dotted', textUnderlineOffset: 3 }}>
+                          <th key={i} title={sub} style={{ padding: '10px 14px', textAlign: i < 2 ? 'left' : 'center', fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, cursor: 'help', textDecoration: 'underline dotted', textUnderlineOffset: 3 }}>
                             {h}
                           </th>
                         ))}
@@ -931,10 +931,10 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                             <td style={{ padding: '10px 14px', fontWeight: 700, color: C.text }}>
                               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                                 {ric.nome}
-                                {isSemi && <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: '0.07em', textTransform: 'uppercase', padding: '2px 6px', borderRadius: 4, background: '#F0E4FA', color: '#8E44AD' }}>Semi</span>}
+                                {isSemi && <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.07em', textTransform: 'uppercase', padding: '2px 7px', borderRadius: 4, background: '#F0E4FA', color: '#8E44AD' }}>Semi</span>}
                               </span>
                               <div style={{ display: 'flex', gap: 4, marginTop: 3, flexWrap: 'wrap', alignItems: 'center' }}>
-                                <span style={{ fontSize: 9, color: C.textSoft }}>
+                                <span style={{ fontSize: 12, color: C.textSoft }}>
                                   {isSemi
                                     ? <>1 batch → <b style={{ color: C.text }}>base per altre ricette</b></>
                                     : isGustoTipo(reg.tipo)
@@ -943,32 +943,32 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                                   }
                                 </span>
                                 {q > 0 && reg.unita > 0 && (
-                                  <span style={{ fontSize: 8, fontWeight: 700, background: '#FEF7F5', color: C.red, padding: '1px 6px', borderRadius: 3 }}>
+                                  <span style={{ fontSize: 12, fontWeight: 700, background: '#FEF7F5', color: C.red, padding: '2px 7px', borderRadius: 4 }}>
                                     {q} × {reg.unita} = {(q * reg.unita).toLocaleString('it-IT')} pezzi al banco
                                   </span>
                                 )}
-                                {cong && <span style={{ fontSize: 8, fontWeight: 700, background: '#E8F4FF', color: '#2980B9', padding: '1px 6px', borderRadius: 3, display: 'inline-flex', alignItems: 'center', gap: 3 }}><Icon name="snow" size={9} /> congelabile</span>}
+                                {cong && <span style={{ fontSize: 11, fontWeight: 700, background: '#E8F4FF', color: '#2980B9', padding: '2px 7px', borderRadius: 4, display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="snow" size={12} /> congelabile</span>}
                               </div>
                             </td>
                             <td style={{ padding: '10px 14px', color: C.red }}>{fmt(fc)}</td>
                             <td style={{ padding: '10px 14px', textAlign: 'center' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
-                                <button aria-label="Diminuisci" onClick={() => setQ(ric.nome, Math.max(0, (qtaMap[ric.nome] || 0) - 1))} style={{ width: isMobile ? 40 : 26, height: isMobile ? 40 : 26, borderRadius: 5, border: `1px solid ${C.borderStr}`, background: C.white, fontSize: 13, cursor: 'pointer', fontWeight: 700, color: C.textMid }}>−</button>
+                                <button aria-label="Diminuisci" onClick={() => setQ(ric.nome, Math.max(0, (qtaMap[ric.nome] || 0) - 1))} style={{ width: isMobile || isTablet ? 40 : 30, height: isMobile || isTablet ? 40 : 30, borderRadius: 5, border: `1px solid ${C.borderStr}`, background: C.white, fontSize: 18, cursor: 'pointer', fontWeight: 700, color: C.textMid }}>−</button>
                                 <input type="number" min="0" value={q || ''} onChange={e => setQ(ric.nome, e.target.value)}
-                                  style={{ width: 48, padding: '4px', borderRadius: 5, border: `1px solid ${q > 0 ? C.red : C.borderStr}`, background: C.white, fontSize: isMobile ? 16 : 13, textAlign: 'center', fontWeight: 800, color: q > 0 ? C.red : C.text }}/>
-                                <button aria-label="Aumenta" onClick={() => setQ(ric.nome, (qtaMap[ric.nome] || 0) + 1)} style={{ width: isMobile ? 40 : 26, height: isMobile ? 40 : 26, borderRadius: 5, border: `1px solid ${C.borderStr}`, background: C.white, fontSize: 13, cursor: 'pointer', fontWeight: 700, color: C.textMid }}>+</button>
+                                  style={{ width: 56, padding: '8px 4px', borderRadius: 5, border: `1px solid ${q > 0 ? C.red : C.borderStr}`, background: C.white, fontSize: isMobile || isTablet ? 16 : 14, textAlign: 'center', fontWeight: 800, color: q > 0 ? C.red : C.text }}/>
+                                <button aria-label="Aumenta" onClick={() => setQ(ric.nome, (qtaMap[ric.nome] || 0) + 1)} style={{ width: isMobile || isTablet ? 40 : 30, height: isMobile || isTablet ? 40 : 30, borderRadius: 5, border: `1px solid ${C.borderStr}`, background: C.white, fontSize: 18, cursor: 'pointer', fontWeight: 700, color: C.textMid }}>+</button>
                               </div>
                             </td>
                             <td style={{ padding: '10px 14px', textAlign: 'center' }}>
                               {cong ? (
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
-                                  <button aria-label="Diminuisci vendibile" onClick={() => setV(ric.nome, Math.max(0, (vendibileMap[ric.nome] || q) - 1))} style={{ width: isMobile ? 40 : 26, height: isMobile ? 40 : 26, borderRadius: 5, border: '1px solid #BDE', background: '#F0F8FF', fontSize: 13, cursor: 'pointer', fontWeight: 700, color: '#2980B9' }}>−</button>
+                                  <button aria-label="Diminuisci vendibile" onClick={() => setV(ric.nome, Math.max(0, (vendibileMap[ric.nome] || q) - 1))} style={{ width: isMobile || isTablet ? 40 : 30, height: isMobile || isTablet ? 40 : 30, borderRadius: 5, border: '1px solid #BDE', background: '#F0F8FF', fontSize: 18, cursor: 'pointer', fontWeight: 700, color: '#2980B9' }}>−</button>
                                   <input type="number" min="0" value={vq || ''} onChange={e => setV(ric.nome, e.target.value)}
-                                    style={{ width: 48, padding: '4px', borderRadius: 5, border: `1px solid ${vq > 0 ? '#2980B9' : C.borderStr}`, background: '#F0F8FF', fontSize: isMobile ? 16 : 13, textAlign: 'center', fontWeight: 800, color: vq > 0 ? '#2980B9' : C.text }}/>
-                                  <button aria-label="Aumenta vendibile" onClick={() => setV(ric.nome, (vendibileMap[ric.nome] || q) + 1)} style={{ width: isMobile ? 40 : 26, height: isMobile ? 40 : 26, borderRadius: 5, border: '1px solid #BDE', background: '#F0F8FF', fontSize: 13, cursor: 'pointer', fontWeight: 700, color: '#2980B9' }}>+</button>
+                                    style={{ width: 56, padding: '8px 4px', borderRadius: 5, border: `1px solid ${vq > 0 ? '#2980B9' : C.borderStr}`, background: '#F0F8FF', fontSize: isMobile || isTablet ? 16 : 14, textAlign: 'center', fontWeight: 800, color: vq > 0 ? '#2980B9' : C.text }}/>
+                                  <button aria-label="Aumenta vendibile" onClick={() => setV(ric.nome, (vendibileMap[ric.nome] || q) + 1)} style={{ width: isMobile || isTablet ? 40 : 30, height: isMobile || isTablet ? 40 : 30, borderRadius: 5, border: '1px solid #BDE', background: '#F0F8FF', fontSize: 18, cursor: 'pointer', fontWeight: 700, color: '#2980B9' }}>+</button>
                                 </div>
                               ) : (
-                                <span style={{ fontSize: 11, color: C.textSoft }}>= {LEX.prodotti}</span>
+                                <span style={{ fontSize: 12, color: C.textSoft }}>= {LEX.prodotti}</span>
                               )}
                             </td>
                           </tr>
@@ -980,13 +980,13 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                 </div>
                 <div style={{ padding: isMobile ? '14px 16px' : '14px 20px', borderTop: `1px solid ${C.border}`, display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 12, flexWrap: 'wrap' }}>
                   <div style={{ flex: isMobile ? '1 1 auto' : '1 1 240px', width: isMobile ? '100%' : 'auto', minWidth: 0 }}>
-                    <div style={{ fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Note sessione</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Note sessione</div>
                     <input type="text" value={sessNote} onChange={e => setSessNote(e.target.value)} placeholder="es. produzione weekend, teglia extra…"
                       style={{ width: '100%', padding: '10px 12px', borderRadius: 7, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, color: C.text, boxSizing: 'border-box' }}/>
                   </div>
                   {haPiuSedi && (
                     <div style={{ flex: isMobile ? '1 1 auto' : '1 1 200px', width: isMobile ? '100%' : 'auto', minWidth: 0 }}>
-                      <div style={{ fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Destinazione</div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Destinazione</div>
                       <select value={destinazioneSedeId || ''} onChange={e => setDestinazioneSedeId(e.target.value || null)}
                         style={{ width: '100%', padding: '10px 12px', borderRadius: 7, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, color: C.text, background: C.bgCard, boxSizing: 'border-box' }}>
                         <option value="">Questa sede ({sedeAttiva?.nome || '-'})</option>
@@ -1004,7 +1004,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
               <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: isMobile ? '16px' : '20px', boxShadow: SHADOW_PREMIUM, boxSizing: 'border-box', width: '100%' }}>
                 <PanelHead icon={<Icon name="barChart" size={16} />} title="Riepilogo sessione" color={C.text} />
                 {!hasQta ? (
-                  <div style={{ color: C.textSoft, fontSize: 11, textAlign: 'center', padding: '20px 0' }}>Inserisci gli stampi prodotti</div>
+                  <div style={{ color: C.textSoft, fontSize: 13, textAlign: 'center', padding: '20px 0' }}>Inserisci gli stampi prodotti</div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                     {ricette.filter(r => qtaMap[r.nome] > 0).map(ric => {
@@ -1013,13 +1013,13 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                       const qv = vendibileMap[ric.nome] != null ? vendibileMap[ric.nome] : q
                       const pezziVetrina = qv * (reg.unita || 1)
                       return (
-                        <div key={ric.nome} style={{ fontSize: 11, padding: '6px 0', borderBottom: `1px solid ${C.border}` }}>
+                        <div key={ric.nome} style={{ fontSize: 12, padding: '6px 0', borderBottom: `1px solid ${C.border}` }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                             <span style={{ color: C.text, fontWeight: 700 }}>{q} stampi · {ric.nome}</span>
                             {!isDipendente && <span style={{ fontWeight: 700, color: C.green }}>{fmt(qv * reg.unita * reg.prezzo)}</span>}
                           </div>
                           {reg.unita > 1 && (
-                            <div style={{ fontSize: 10, color: C.textSoft, marginTop: 2 }}>
+                            <div style={{ fontSize: 12, color: C.textSoft, marginTop: 2 }}>
                               → <b style={{ color: C.red }}>{pezziVetrina.toLocaleString('it-IT')} {labelPlurale(reg.tipo)}</b> al banco
                               {q !== qv && <span style={{ color: '#92400E', marginLeft: 6 }}>({qv} vendibili oggi, {q - qv} in freezer)</span>}
                             </div>
@@ -1032,7 +1032,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                       const mbg = margPct >= 60 ? C.greenLight : margPct >= 40 ? C.amberLight : C.redLight
                       return (
                       <>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: C.red, paddingTop: 4 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: C.red, paddingTop: 4 }}>
                           <span>Food cost totale</span><span style={{ fontWeight: 700, ...TNUM }}>−{fmt(riepilogo.fcTot)}</span>
                         </div>
                         <div style={{ marginTop: 4, padding: '12px 14px', background: mbg, border: `1px solid ${mc}25`, borderRadius: 10 }}>
@@ -1040,7 +1040,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                             <span style={{ fontSize: 12, fontWeight: 800, color: mc }}>Margine lordo</span>
                             <span style={{ fontSize: 18, fontWeight: 900, color: mc, ...TNUM }}>{fmt(riepilogo.ricavoTot - riepilogo.fcTot)}</span>
                           </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginTop: 4 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 4 }}>
                             <span style={{ color: C.textMid }}>Margine %</span>
                             {/* Audit 2026-09-09: toFixed usa il punto decimale, quindi il
                                 margine usciva "33.3%" invece di "33,3%". */}
@@ -1057,7 +1057,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
               {hasQta && (
                 <div style={{ background: '#FEF7F5', border: `1px solid ${C.red}30`, borderRadius: 16, padding: isMobile ? '14px' : '16px', boxShadow: '0 1px 2px rgba(110,14,26,0.05), 0 8px 22px rgba(110,14,26,0.06)', boxSizing: 'border-box', width: '100%' }}>
                   <PanelHead icon={<Icon name="gift" size={16} />} title="Stock vetrina dopo la sessione" color={C.red} />
-                  <div style={{ fontSize: 11, color: C.textMid, lineHeight: 1.55, marginBottom: 8 }}>
+                  <div style={{ fontSize: 12, color: C.textMid, lineHeight: 1.55, marginBottom: 8 }}>
                     Una volta confermata, questi pezzi finiscono nello stock vetrina disponibile per la vendita:
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -1066,7 +1066,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                       const qv = vendibileMap[ric.nome] != null ? vendibileMap[ric.nome] : (qtaMap[ric.nome] || 0)
                       const pezzi = qv * (reg.unita || 1)
                       return (
-                        <span key={ric.nome} style={{ fontSize: 11, padding: '5px 10px', borderRadius: 6, background: C.white, border: `1px solid ${C.red}25`, color: C.text, fontWeight: 700 }}>
+                        <span key={ric.nome} style={{ fontSize: 12, padding: '6px 10px', borderRadius: 6, background: C.white, border: `1px solid ${C.red}25`, color: C.text, fontWeight: 700 }}>
                           {ric.nome} <span style={{ color: C.red }}>+{pezzi.toLocaleString('it-IT')}</span> <span style={{ fontWeight: 500, color: C.textSoft }}>{labelPlurale(reg.tipo)}</span>
                         </span>
                       )
@@ -1083,11 +1083,11 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                       const giac = magazzino?.[k]?.giacenza_g || 0
                       const ok = giac >= qty
                       return (
-                        <div key={k} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 10, padding: '5px 8px', borderRadius: 6, background: ok ? '#F8FAF8' : C.redLight }}>
+                        <div key={k} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, padding: '6px 8px', borderRadius: 6, background: ok ? '#F8FAF8' : C.redLight }}>
                           <span style={{ fontWeight: 600, color: C.text, textTransform: 'capitalize' }}>{k}</span>
                           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                             <span style={{ color: C.red, fontWeight: 700 }}>−{fmtG(qty)}</span>
-                            <span style={{ color: ok ? C.green : C.red, fontSize: 9 }}>{ok ? `→ ${fmtG(giac - qty)}` : 'insuff.'}</span>
+                            <span style={{ color: ok ? C.green : C.red, fontSize: 12 }}>{ok ? `→ ${fmtG(giac - qty)}` : 'insuff.'}</span>
                           </div>
                         </div>
                       )
@@ -1117,13 +1117,13 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
 
               {problemi.length > 0 && !isDipendente && (
                 <div style={{ background: C.redLight, border: `1px solid ${C.red}25`, borderRadius: 10, padding: '14px 16px' }}>
-                  <div style={{ fontSize: 11, fontWeight: 800, color: C.red, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}><Icon name="warning" size={13} />Scorte insufficienti</div>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: C.red, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="warning" size={15} />Scorte insufficienti</div>
                   {problemi.map(p => (
-                    <div key={p.nome} style={{ fontSize: 10, color: C.red, marginBottom: 4 }}>
+                    <div key={p.nome} style={{ fontSize: 12, color: C.red, marginBottom: 4 }}>
                       <b style={{ textTransform: 'capitalize' }}>{p.nome}</b>: servono {fmtG(p.richiesto)}, disponibili {fmtG(p.disponibile)}
                     </div>
                   ))}
-                  <div style={{ fontSize: 10, color: C.red, marginTop: 8, opacity: 0.7 }}>Puoi procedere comunque - il magazzino andrà a 0.</div>
+                  <div style={{ fontSize: 12, color: C.red, marginTop: 8 }}>Puoi procedere comunque - il magazzino andrà a 0.</div>
                 </div>
               )}
 
@@ -1190,10 +1190,10 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                           <span style={{ fontSize: 12, fontWeight: 600, color: C.textSoft, textTransform: 'capitalize' }}>{new Date(sess.data).toLocaleDateString('it-IT', { weekday: 'long' })}</span>
                         </div>
                         {sess.destinazioneSedeNome && (
-                          <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: '#FEF3C7', color: '#92400E', display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="truck" size={11} />Per: {sess.destinazioneSedeNome}</span>
+                          <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 999, background: '#FEF3C7', color: '#92400E', display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="truck" size={13} />Per: {sess.destinazioneSedeNome}</span>
                         )}
                       </div>
-                      {sess.note && <div style={{ fontSize: 11, color: C.textSoft, marginTop: 4 }}>{sess.note}</div>}
+                      {sess.note && <div style={{ fontSize: 12, color: C.textSoft, marginTop: 4 }}>{sess.note}</div>}
                     </div>
                     {!isDipendente && (() => {
                       const stampiSess = (sess.prodotti || []).reduce((x, p) => x + (Number(p.stampi) || 0), 0)
@@ -1201,7 +1201,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                       const mPctSess = (sess.ricavoTot || 0) > 0 ? margSess / sess.ricavoTot * 100 : 0
                       const mcSess = margColor(mPctSess)
                       const kpiCell = { display: 'flex', flexDirection: 'column', gap: 2, alignItems: isMobile ? 'flex-start' : 'flex-end', minHeight: isMobile ? 36 : 'auto' }
-                      const kpiLabel = { fontSize: 8, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700, lineHeight: 1.2 }
+                      const kpiLabel = { fontSize: 11, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700, lineHeight: 1.2, minHeight: 15 }
                       const kpiVal   = { fontSize: 14, fontWeight: 800, ...TNUM, lineHeight: 1.1 }
                       return (
                         <div style={{
@@ -1224,19 +1224,19 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                   </div>
                   <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
                     <button onClick={() => editSessId === sess.id ? annullaModifica() : apriModificaSessione(sess)}
-                      style={{ flex: isMobile ? 1 : 'unset', padding: isMobile ? '10px 14px' : '6px 12px', minHeight: isMobile ? 40 : 'auto', borderRadius: 6, border: `1px solid ${C.borderStr}`, background: C.white, color: C.textMid, fontSize: isMobile ? 12 : 10, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>{editSessId === sess.id ? <><Icon name="x" size={isMobile ? 13 : 11} />Chiudi</> : <><Icon name="edit" size={isMobile ? 13 : 11} />Modifica</>}</button>
+                      style={{ flex: isMobile ? 1 : 'unset', padding: isMobile ? '10px 14px' : '6px 12px', minHeight: isMobile ? 40 : 'auto', borderRadius: 6, border: `1px solid ${C.borderStr}`, background: C.white, color: C.textMid, fontSize: isMobile ? 13 : 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>{editSessId === sess.id ? <><Icon name="x" size={isMobile ? 13 : 11} />Chiudi</> : <><Icon name="edit" size={isMobile ? 13 : 11} />Modifica</>}</button>
                     <button onClick={() => { setDeleteSessConf(sess); setDeleteSessPin(''); annullaModifica() }}
-                      style={{ flex: isMobile ? 1 : 'unset', padding: isMobile ? '10px 14px' : '6px 12px', minHeight: isMobile ? 40 : 'auto', borderRadius: 6, border: `1px solid ${C.red}`, background: C.redLight, color: C.red, fontSize: isMobile ? 12 : 10, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}><Icon name="trash" size={isMobile ? 13 : 11} />Elimina</button>
+                      style={{ flex: isMobile ? 1 : 'unset', padding: isMobile ? '10px 14px' : '6px 12px', minHeight: isMobile ? 40 : 'auto', borderRadius: 6, border: `1px solid ${C.red}`, background: C.redLight, color: C.red, fontSize: isMobile ? 13 : 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}><Icon name="trash" size={isMobile ? 13 : 11} />Elimina</button>
                   </div>
                   {editSessId === sess.id ? (
                     <div style={{ marginTop: 12, padding: '14px 16px', background: '#F8F4F2', border: `1px solid ${C.borderStr}`, borderRadius: 10 }}>
                       <div style={{ fontSize: 11, fontWeight: 800, color: C.text, marginBottom: 4 }}>Modifica quantità prodotte</div>
-                      <div style={{ fontSize: 10, color: C.textSoft, marginBottom: 10, lineHeight: 1.5 }}>Cambia gli stampi o i pezzi vendibili. Metti <b>0</b> per togliere un prodotto. Magazzino e vetrina verranno riallineati di conseguenza.</div>
+                      <div style={{ fontSize: 12, color: C.textSoft, marginBottom: 10, lineHeight: 1.5 }}>Cambia gli stampi o i pezzi vendibili. Metti <b>0</b> per togliere un prodotto. Magazzino e vetrina verranno riallineati di conseguenza.</div>
                       {/* Intestazioni colonne */}
                       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 64px 64px' : '1fr 90px 90px', gap: 8, marginBottom: 4 }}>
                         <div/>
-                        <div style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.textSoft, textAlign: 'center' }}>Stampi</div>
-                        <div style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.textSoft, textAlign: 'center' }}>Vendibili</div>
+                        <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.textSoft, textAlign: 'center' }}>Stampi</div>
+                        <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.textSoft, textAlign: 'center' }}>Vendibili</div>
                       </div>
                       {(sess.prodotti || []).map(p => (
                         <div key={p.nome} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 70px 70px' : '1fr 90px 90px', gap: 8, alignItems: 'center', marginBottom: 6 }}>
@@ -1285,7 +1285,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
             </div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', margin: '8px 0 12px' }}>
               {(deleteSessConf.prodotti || []).map(p => (
-                <span key={p.nome} style={{ background: '#F8F4F2', border: `1px solid ${C.border}`, borderRadius: 5, padding: '3px 9px', fontSize: 10, fontWeight: 700, color: C.textMid }}>{(Number(p.stampi)||0).toLocaleString('it-IT')}× {p.nome}</span>
+                <span key={p.nome} style={{ background: '#F8F4F2', border: `1px solid ${C.border}`, borderRadius: 5, padding: '4px 9px', fontSize: 12, fontWeight: 700, color: C.textMid }}>{(Number(p.stampi)||0).toLocaleString('it-IT')}× {p.nome}</span>
               ))}
             </div>
             {deleteSessConf.ingredientiUsati && Object.keys(deleteSessConf.ingredientiUsati).length > 0 ? (
@@ -1293,7 +1293,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="refresh" size={12} /><b>Gli ingredienti verranno restituiti al magazzino:</b></span>
                 <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {Object.entries(deleteSessConf.ingredientiUsati).map(([k, qty]) => (
-                    <span key={k} style={{ background: '#D4F0DC', borderRadius: 4, padding: '2px 7px', fontSize: 10, fontWeight: 600, textTransform: 'capitalize' }}>
+                    <span key={k} style={{ background: '#D4F0DC', borderRadius: 4, padding: '3px 8px', fontSize: 12, fontWeight: 600, textTransform: 'capitalize' }}>
                       {/* Audit 2026-09-09: "1.25kg" col punto decimale e senza
                           spazio prima dell'unita'. In italiano si scrive
                           "1,25 kg", e i grammi vogliono il punto delle
@@ -1318,7 +1318,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
             <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 10 }}>
               <button onClick={() => handleDeleteSessione(deleteSessConf)}
                 disabled={deleteSessPin !== 'ELIMINA' || deletingSess}
-                style={{ flex: 1, padding: '12px', minHeight: 44, background: (deleteSessPin === 'ELIMINA' && !deletingSess) ? C.red : '#EEE', color: (deleteSessPin === 'ELIMINA' && !deletingSess) ? C.white : '#AAA', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 800, cursor: (deleteSessPin === 'ELIMINA' && !deletingSess) ? 'pointer' : 'not-allowed' }}>
+                style={{ flex: 1, padding: '12px', minHeight: 44, background: (deleteSessPin === 'ELIMINA' && !deletingSess) ? C.red : '#EEE', color: (deleteSessPin === 'ELIMINA' && !deletingSess) ? C.white : C.textMid, border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 800, cursor: (deleteSessPin === 'ELIMINA' && !deletingSess) ? 'pointer' : 'not-allowed' }}>
                 {deletingSess ? 'Eliminazione…' : 'Elimina e reintegra magazzino'}
               </button>
               <button onClick={() => { setDeleteSessConf(null); setDeleteSessPin('') }} disabled={deletingSess} style={{ flex: 1, padding: '12px', minHeight: 44, background: C.white, color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: deletingSess ? 'not-allowed' : 'pointer', opacity: deletingSess ? 0.6 : 1 }}>Annulla</button>

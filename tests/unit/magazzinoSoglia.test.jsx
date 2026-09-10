@@ -138,7 +138,7 @@ describe('aggiungi ingrediente', () => {
       setMagazzino={() => {}} notify={(m, ok) => avvisi.push([m, ok])} />)
     await waitFor(() => expect(v.container.textContent).toContain('Materie prime'))
 
-    fireEvent.click(v.getByText('+ Aggiungi ingrediente'))
+    fireEvent.click(v.getByText('Aggiungi ingrediente'))
     const nome = await waitFor(() => {
       const i = v.container.querySelector('input[placeholder="es. burro"]')
       expect(i).toBeTruthy(); return i
@@ -159,7 +159,7 @@ describe('aggiungi ingrediente', () => {
       magazzino={{ uova: { giacenza_g: 4800, soglia_g: 1000, nome: 'Uova' } }}
       setMagazzino={() => {}} notify={(m) => avvisi.push(m)} />)
     await waitFor(() => expect(v.container.textContent).toContain('Materie prime'))
-    fireEvent.click(v.getByText('+ Aggiungi ingrediente'))
+    fireEvent.click(v.getByText('Aggiungi ingrediente'))
     const nome = await waitFor(() => v.container.querySelector('input[placeholder="es. burro"]'))
     // Si digita il singolare: normIng lo porta sulla stessa voce.
     fireEvent.change(nome, { target: { value: 'uovo' } })

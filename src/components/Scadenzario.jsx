@@ -862,12 +862,12 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
       return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'auto auto auto', gap: 8 }}>
-            <label style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: 10, fontWeight: 600, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: 12, fontWeight: 600, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               Data
               <input type="date" value={dataPag} onChange={e => setDataPag(e.target.value)} aria-label="Data pagamento"
                 style={{ padding: fieldPad, minHeight: minTouch, border: `1px solid ${T.border}`, borderRadius: 8, fontSize: fieldFs, color: T.text, boxSizing: 'border-box', width: '100%' }} />
             </label>
-            <label style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: 10, fontWeight: 600, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: 12, fontWeight: 600, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               Importo
               <input type="number" inputMode="decimal" value={pagImporto} onChange={e => setPagImporto(e.target.value)}
                 placeholder={`${Number(residuoTot || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`}
@@ -875,7 +875,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                 aria-label="Importo pagato"
                 style={{ padding: fieldPad, minHeight: minTouch, border: `1px solid ${T.border}`, borderRadius: 8, fontSize: fieldFs, color: T.text, boxSizing: 'border-box', width: '100%' }} />
             </label>
-            <label style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: 10, fontWeight: 600, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', gridColumn: isMobile ? '1 / -1' : 'auto' }}>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: 12, fontWeight: 600, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', gridColumn: isMobile ? '1 / -1' : 'auto' }}>
               Metodo
               <select value={pagMetodo} onChange={e => setPagMetodo(e.target.value)}
                 aria-label="Metodo di pagamento"
@@ -906,7 +906,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
     return (
       <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
         {f.stato === 'pagata' ? (
-          <span style={{ fontSize: 11, color: T.green, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: 12, color: T.green, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' }}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <polyline points="20 6 9 17 4 12"/>
             </svg>
@@ -958,7 +958,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
             <td style={{ padding: '8px 12px 6px', fontWeight: 600, color: T.text, maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', position: 'sticky', left: 0, background: baseBg, zIndex: 1 }}>
               <span title={f.fornitore}>{f.fornitore}</span>
             </td>
-            <td colSpan={5} style={{ padding: '8px 12px 6px', color: T.textSoft, fontSize: 11.5 }}>
+            <td colSpan={5} style={{ padding: '8px 12px 6px', color: T.textSoft, fontSize: 12 }}>
               {f.numero_rif || '-'} · {fmtDate(f.data_fattura)} · {f.dueStimata ? 'scadenza calcolata' : 'scade'} {fmtDate(f.dueIso)} · totale <span style={{ color: T.text, fontWeight: 700, ...tnum }}>{fmtEuro(f.totale)}</span>
             </td>
             <td style={{ padding: '8px 12px 6px' }} />
@@ -997,7 +997,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
             <span title={f.fornitore} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{f.fornitore}</span>
           </span>
         </td>
-        <td style={{ padding: '10px 12px', color: T.textMid, fontFamily: 'monospace', fontSize: 11, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 160 }}>
+        <td style={{ padding: '10px 12px', color: T.textMid, fontFamily: 'monospace', fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 160 }}>
           <span title={f.numero_rif || ''}>{f.numero_rif || '-'}</span>
         </td>
         <td style={{ padding: '10px 12px', color: T.textMid, whiteSpace: 'nowrap', ...tnum }}>
@@ -1031,7 +1031,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         <td style={{ padding: '10px 12px' }}>
           <span style={{
             background: cfg.pillBg, color: cfg.pillFg,
-            padding: '4px 10px', borderRadius: 9, fontSize: 10, fontWeight: 700,
+            padding: '4px 10px', borderRadius: 9, fontSize: 12, fontWeight: 700,
             letterSpacing: '0.04em', whiteSpace: 'nowrap',
           }}>{cfg.label}</span>
         </td>
@@ -1064,11 +1064,11 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
           </div>
           <span style={{
             background: cfg.pillBg, color: cfg.pillFg,
-            padding: '3px 9px', borderRadius: 9, fontSize: 10, fontWeight: 700,
+            padding: '3px 9px', borderRadius: 9, fontSize: 12, fontWeight: 700,
             letterSpacing: '0.04em', whiteSpace: 'nowrap', flexShrink: 0,
           }}>{cfg.label}</span>
         </div>
-        <div title={`${f.numero_rif || ''} · ${fmtDate(f.data_fattura)}`} style={{ fontSize: 11.5, color: T.textSoft, marginBottom: 10, ...tnum, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <div title={`${f.numero_rif || ''} · ${fmtDate(f.data_fattura)}`} style={{ fontSize: 12, color: T.textSoft, marginBottom: 10, ...tnum, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {f.numero_rif || '-'} · fattura {fmtDate(f.data_fattura)}
           {f.stato !== 'pagata' && f.dueIso && (
             <>
@@ -1151,7 +1151,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
               <div style={{ fontSize: 15, fontWeight: 700, color: T.text, letterSpacing: '-0.01em' }}>
                 {cfg.header}
               </div>
-              <div style={{ fontSize: 11.5, color: T.textSoft, letterSpacing: '-0.005em', marginTop: 1 }}>
+              <div style={{ fontSize: 12, color: T.textSoft, letterSpacing: '-0.005em', marginTop: 1 }}>
                 {cfg.sub}
               </div>
             </div>
@@ -1207,7 +1207,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                           <th key={l} style={{
                             padding: '10px 12px',
                             textAlign: idx === 4 ? 'right' : 'left',
-                            fontSize: 10, fontWeight: 700,
+                            fontSize: 12, fontWeight: 700,
                             color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em',
                             borderBottom: `1px solid ${T.border}`, whiteSpace: 'nowrap',
                             position: idx === 0 ? 'sticky' : 'static',
@@ -1265,7 +1265,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         <div style={{ padding: isMobile ? '14px 16px' : '14px 20px', borderBottom: `1px solid ${T.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: 15, fontWeight: 700, color: T.text, letterSpacing: '-0.01em' }}>Dovuto per fornitore</div>
-            <div style={{ fontSize: 11.5, color: T.textSoft, marginTop: 2 }}>{rollupFornitori.length.toLocaleString('it-IT')} fornitori · netto note di credito · spunta per il bonifico</div>
+            <div style={{ fontSize: 12, color: T.textSoft, marginTop: 2 }}>{rollupFornitori.length.toLocaleString('it-IT')} fornitori · netto note di credito · spunta per il bonifico</div>
           </div>
           <div style={{ fontSize: 18, fontWeight: 800, color: T.text, ...tnum, whiteSpace: 'nowrap' }}>{fmtEuro(totGlob)}</div>
         </div>
@@ -1301,17 +1301,17 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                   onClick={() => toggleExpandForn(g.nome_norm)}
                   title="Mostra tutte le fatture di questo fornitore">
                   <div style={{ fontWeight: 700, fontSize: isMobile ? 14 : 13.5, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span aria-hidden="true" style={{ fontSize: 10, color: T.textSoft, transition: 'transform .15s ease', display: 'inline-block', transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)', flexShrink: 0 }}>▶</span>
+                    <span aria-hidden="true" style={{ color: T.textSoft, transition: 'transform .15s ease', display: 'inline-flex', alignItems: 'center', transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)', flexShrink: 0 }}><Icon name="chevR" size={13} color={T.textSoft} /></span>
                     <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.nome}</span>
                   </div>
-                  <div title={ibanN ? `IBAN ${ibanN}` : 'IBAN mancante'} style={{ fontSize: 11.5, color: T.textSoft, ...tnum, marginLeft: 16, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <div title={ibanN ? `IBAN ${ibanN}` : 'IBAN mancante'} style={{ fontSize: 12, color: T.textSoft, ...tnum, marginLeft: 16, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {g.nFatt} fatt.{g.nNC > 0 ? ` · ${g.nNC} NC` : ''}{g.termini != null ? ` · ${g.termini}gg` : ''}
                     {' · '}{ibanN ? `${ibanN.slice(0, 2)}…${ibanN.slice(-4)}` : <span style={{ color: T.brand, fontWeight: 600 }}>no IBAN</span>}
                     {tutteFatture.length > g.n && <span style={{ marginLeft: 6, color: T.textSoft }}>· +{tutteFatture.length - g.n} pagate</span>}
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, marginLeft: isMobile ? 28 : 0 }}>
-                  {g.scaduto > 0 && <span style={{ fontSize: 10.5, fontWeight: 700, color: '#991B1B', background: '#FEE2E2', padding: '4px 9px', borderRadius: 9, whiteSpace: 'nowrap', ...tnum }}>scaduto {fmtEuro0(g.scaduto)}</span>}
+                  {g.scaduto > 0 && <span style={{ fontSize: 12, fontWeight: 700, color: '#991B1B', background: '#FEE2E2', padding: '4px 9px', borderRadius: 9, whiteSpace: 'nowrap', ...tnum }}>scaduto {fmtEuro0(g.scaduto)}</span>}
                   <div style={{ fontSize: isMobile ? 15 : 16, fontWeight: 800, color: g.totale < 0 ? T.green : T.text, ...tnum, minWidth: 96, textAlign: 'right', whiteSpace: 'nowrap' }}>{fmtEuro(g.totale)}</div>
                   <button onClick={(e) => { e.stopPropagation(); if (isEdit) { setEditForn(null) } else { setEditForn(g.nome_norm); setEditFornData({ iban: g.iban || '', termini: g.termini ?? 30, terminiTipo: g.terminiTipo || 'netti', categoria: g.categoria || '' }) } }}
                     aria-label="Modifica anagrafica fornitore"
@@ -1322,18 +1322,18 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
               {/* Dropdown fatture (pagate + non pagate) */}
               {isExpanded && tutteFatture.length > 0 && (
                 <div style={{ marginTop: 10, marginLeft: isMobile ? 0 : 30, padding: 0, background: T.bgSubtle, borderRadius: 10, overflow: 'hidden' }}>
-                  <div style={{ padding: '8px 12px', fontSize: 10.5, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: `1px solid ${T.border}`, background: '#FAFBFC' }}>
+                  <div style={{ padding: '8px 12px', fontSize: 12, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: `1px solid ${T.border}`, background: '#FAFBFC' }}>
                     {tutteFatture.length} fatture totali · {tutteFatture.filter(f => f.stato === 'pagata').length} pagate · {tutteFatture.filter(f => f.stato !== 'pagata').length} aperte
                   </div>
                   <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: isMobile ? 520 : 'auto' }}>
                     <thead>
                       <tr style={{ background: '#FFFFFF' }}>
-                        <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: 10, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Numero</th>
-                        <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: 10, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Data</th>
-                        {!isMobile && <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: 10, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em' }}><span title="Le date con * sono calcolate come data fattura + 30 giorni: il documento del fornitore non le porta scritte." style={{ cursor: 'help' }}>Scadenza</span></th>}
-                        <th style={{ padding: '8px 10px', textAlign: 'right', fontSize: 10, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Importo</th>
-                        <th style={{ padding: '8px 10px', textAlign: 'center', fontSize: 10, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Stato</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Numero</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Data</th>
+                        {!isMobile && <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em' }}><span title="Le date con * sono calcolate come data fattura + 30 giorni: il documento del fornitore non le porta scritte." style={{ cursor: 'help' }}>Scadenza</span></th>}
+                        <th style={{ padding: '8px 10px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Importo</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'center', fontSize: 12, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Stato</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1347,13 +1347,13 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                           }}>
                             <td style={{ padding: '7px 10px', fontSize: 12, color: T.text, fontWeight: 600, ...tnum, maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {f.numero_rif || '-'}
-                              {isNC && <span style={{ marginLeft: 4, fontSize: 9, padding: '1px 4px', background: '#DBEAFE', color: '#1E40AF', borderRadius: 3, fontWeight: 700 }}>NC</span>}
+                              {isNC && <span style={{ marginLeft: 4, fontSize: 11, padding: '1px 4px', background: '#DBEAFE', color: '#1E40AF', borderRadius: 3, fontWeight: 700 }}>NC</span>}
                             </td>
-                            <td style={{ padding: '7px 10px', fontSize: 11.5, color: T.textMid, ...tnum }}>
+                            <td style={{ padding: '7px 10px', fontSize: 12, color: T.textMid, ...tnum }}>
                               {f.data_fattura ? new Date(f.data_fattura).toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: '2-digit' }) : '-'}
                             </td>
                             {!isMobile && (
-                              <td style={{ padding: '7px 10px', fontSize: 11.5, color: f.urgenza === 'scaduta' && !isPagata ? T.brand : T.textSoft, ...tnum, fontWeight: f.urgenza === 'scaduta' && !isPagata ? 700 : 400 }}>
+                              <td style={{ padding: '7px 10px', fontSize: 12, color: f.urgenza === 'scaduta' && !isPagata ? T.brand : T.textSoft, ...tnum, fontWeight: f.urgenza === 'scaduta' && !isPagata ? 700 : 400 }}>
                                 {f.dueIso ? new Date(f.dueIso).toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: '2-digit' }) : '-'}
                               </td>
                             )}
@@ -1362,15 +1362,15 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                             </td>
                             <td style={{ padding: '7px 10px', textAlign: 'center' }}>
                               {isPagata ? (
-                                <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 10, background: '#DCFCE7', color: '#166534', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 8px', borderRadius: 10, background: '#DCFCE7', color: '#166534', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                                   Pagata
                                 </span>
                               ) : f.urgenza === 'scaduta' ? (
-                                <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 10, background: '#FEE2E2', color: '#991B1B', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 8px', borderRadius: 10, background: '#FEE2E2', color: '#991B1B', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                                   Scaduta
                                 </span>
                               ) : (
-                                <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 10, background: '#FEF9C3', color: '#854D0E', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 8px', borderRadius: 10, background: '#FEF9C3', color: '#854D0E', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                                   Aperta
                                 </span>
                               )}
@@ -1427,7 +1427,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
       <div style={{ ...card, padding: isMobile ? 16 : 22, marginBottom: 14 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', marginBottom: 4 }}>
           <div style={{ fontSize: 15, fontWeight: 700, color: T.text, letterSpacing: '-0.01em' }}>Cassa in uscita - prossime settimane</div>
-          {!isMobile && <div style={{ fontSize: 11, color: T.textSoft, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Settimana · Importo · Cumulato</div>}
+          {!isMobile && <div style={{ fontSize: 12, color: T.textSoft, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Settimana · Importo · Cumulato</div>}
         </div>
         <div style={{ fontSize: 12, color: T.textSoft, marginBottom: 18 }}>Quanto esce e quando (netto note di credito). A destra il saldo cumulato.</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -1441,7 +1441,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                   {b.tot !== 0 && <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${pct}%`, background: col, borderRadius: 7, minWidth: b.n ? 6 : 0, transition: 'width 0.3s' }} />}
                 </div>
                 <div style={{ width: isMobile ? 84 : 104, textAlign: 'right', fontSize: 13, fontWeight: 700, color: b.tot < 0 ? T.green : T.text, ...tnum, flexShrink: 0, whiteSpace: 'nowrap' }}>{b.n ? fmtEuro0(b.tot) : '-'}</div>
-                {!isMobile && <div style={{ width: 96, textAlign: 'right', fontSize: 11.5, color: T.textSoft, ...tnum, flexShrink: 0, whiteSpace: 'nowrap' }} title="Saldo cumulato">{fmtEuro0(b.cum)}</div>}
+                {!isMobile && <div style={{ width: 96, textAlign: 'right', fontSize: 12, color: T.textSoft, ...tnum, flexShrink: 0, whiteSpace: 'nowrap' }} title="Saldo cumulato">{fmtEuro0(b.cum)}</div>}
               </div>
             )
           })}
@@ -1544,7 +1544,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                 <style>{`@keyframes _fos_scadenzario_drop { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }`}</style>
                 <div aria-hidden="true" style={{ height: 2, margin: '-6px -6px 6px', background: 'linear-gradient(90deg, #E84B3A 0%, #FFB350 50%, #6E0E1A 100%)', opacity: 0.7 }}/>
                 {/* IMPORT alternativi */}
-                <div style={{ fontSize: 9, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.08em', padding: '6px 10px 4px' }}>Importa da altro</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.08em', padding: '6px 10px 4px' }}>Importa da altro</div>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8, fontSize: 13, color: T.text, cursor: 'pointer', fontWeight: 500 }}
                   onMouseEnter={e => { e.currentTarget.style.background = '#F4EEEA' }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
@@ -1562,7 +1562,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                 {fatture.length > 0 && (
                   <>
                     <div style={{ height: 1, background: T.border, margin: '6px 4px' }}/>
-                    <div style={{ fontSize: 9, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.08em', padding: '6px 10px 4px' }}>Esporta</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.08em', padding: '6px 10px 4px' }}>Esporta</div>
                     <button onClick={() => { setActionsOpen(false); exportExcel() }}
                       style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8, fontSize: 13, color: T.text, cursor: 'pointer', fontWeight: 500, width: '100%', textAlign: 'left', background: 'transparent', border: 'none', fontFamily: 'inherit' }}
                       onMouseEnter={e => { e.currentTarget.style.background = '#F4EEEA' }}
@@ -1611,7 +1611,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
             label: 'Totale da pagare',
             val: fmtEuro0(summary.daPagare),
             exact: fmtEuro(summary.daPagare),
-            sub: `${summary.nDaPagare} ${summary.nDaPagare === 1 ? 'fattura aperta' : 'fatture aperte'}`,
+            sub: `${summary.nDaPagare.toLocaleString('it-IT')} ${summary.nDaPagare === 1 ? 'fattura aperta' : 'fatture aperte'}`,
             color: summary.daPagare > 0 ? T.text : T.textSoft,
             accent: T.text,
             onClick: () => setFiltro('tutte'),
@@ -1621,7 +1621,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
             val: fmtEuro0(summary.scaduto),
             exact: fmtEuro(summary.scaduto),
             sub: summary.nScadute > 0
-              ? `${summary.nScadute} ${summary.nScadute === 1 ? 'fattura' : 'fatture'} da regolare subito`
+              ? `${summary.nScadute.toLocaleString('it-IT')} ${summary.nScadute === 1 ? 'fattura' : 'fatture'} da regolare subito`
               : 'nessuna fattura scaduta',
             color: summary.scaduto > 0 ? T.brand : T.green,
             accent: summary.scaduto > 0 ? T.brand : T.green,
@@ -1633,7 +1633,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
             val: fmtEuro0(summary.settimanaTot),
             exact: fmtEuro(summary.settimanaTot),
             sub: summary.nSettimana > 0
-              ? `${summary.nSettimana} ${summary.nSettimana === 1 ? 'fattura' : 'fatture'} questa settimana`
+              ? `${summary.nSettimana.toLocaleString('it-IT')} ${summary.nSettimana === 1 ? 'fattura' : 'fatture'} questa settimana`
               : 'nulla in scadenza',
             color: summary.settimanaTot > 0 ? '#9A3412' : T.textSoft,
             accent: summary.settimanaTot > 0 ? '#F97316' : T.border,
@@ -1657,7 +1657,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
             }}
             onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 14px rgba(15,23,42,0.08), 0 16px 36px rgba(15,23,42,0.08)'; e.currentTarget.style.transform = 'translateY(-3px)' }}
             onMouseLeave={e => { e.currentTarget.style.boxShadow = k.urgent ? '0 1px 2px rgba(110,14,26,0.08), 0 10px 28px rgba(110,14,26,0.10)' : '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)'; e.currentTarget.style.transform = 'translateY(0)' }}>
-            <div style={{ fontSize: isMobile ? 11 : 10, fontWeight: 600, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.08em', minHeight: 28, display: 'flex', alignItems: 'flex-start', lineHeight: 1.3 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.08em', minHeight: 28, display: 'flex', alignItems: 'flex-start', lineHeight: 1.3 }}>
               {k.label}
             </div>
             <div title={k.exact} style={{
@@ -1769,7 +1769,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                 {f.label}
                 {fatture.length > 0 && (
                   <span style={{
-                    marginLeft: 8, fontSize: 11, fontWeight: 700,
+                    marginLeft: 8, fontSize: 12, fontWeight: 700,
                     color: active ? 'rgba(255,255,255,0.7)' : T.textSoft,
                     ...tnum,
                   }}>{count.toLocaleString('it-IT')}</span>
@@ -1880,7 +1880,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         return (
           <div style={{ position: 'fixed', left: 0, right: 0, bottom: isMobile ? 64 : 0, zIndex: 900, background: T.bgCard, borderTop: `1px solid ${T.border}`, boxShadow: '0 -6px 24px rgba(15,23,42,0.14)', padding: isMobile ? '12px 14px' : '14px 28px', display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', gap: isMobile ? 10 : 14 }}>
             <div style={{ fontSize: isMobile ? 13 : 13, color: T.text, fontWeight: 600, ...tnum, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {selItems.length} fattur{selItems.length === 1 ? 'a' : 'e'} pagabil{selItems.length === 1 ? 'e' : 'i'} · {numFornitori} fornitor{numFornitori === 1 ? 'e' : 'i'} · <span style={{ color: T.brand, fontWeight: 800 }}>{fmtEuro(tot)}</span>
+              {selItems.length.toLocaleString('it-IT')} fattur{selItems.length === 1 ? 'a' : 'e'} pagabil{selItems.length === 1 ? 'e' : 'i'} · {numFornitori} fornitor{numFornitori === 1 ? 'e' : 'i'} · <span style={{ color: T.brand, fontWeight: 800 }}>{fmtEuro(tot)}</span>
             </div>
             {!isMobile && <div style={{ flex: 1 }} />}
             <div style={{ display: 'flex', gap: 8, flexShrink: 0, width: isMobile ? '100%' : 'auto' }}>
@@ -1964,7 +1964,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                 <li>Torna in Foodos e clicca <b>"Segna pagata"</b> sulle fatture</li>
               </ol>
             </div>
-            <div style={{ background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: 10, padding: '10px 14px', marginBottom: 18, fontSize: 11.5, color: '#78350F', lineHeight: 1.55, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+            <div style={{ background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: 10, padding: '10px 14px', marginBottom: 18, fontSize: 12, color: '#78350F', lineHeight: 1.55, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
               <Icon name="warning" size={14} style={{ flexShrink: 0, marginTop: 1 }} />
               <span>Se non sai quale sezione cercare nella tua banca, prova "Bonifici" → "Carica file" oppure chiama l'assistenza banca: dì che vuoi caricare un <b>file SEPA pain.001</b> per bonifici multipli.</span>
             </div>

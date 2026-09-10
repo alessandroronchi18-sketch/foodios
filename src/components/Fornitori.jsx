@@ -5,8 +5,12 @@ import Icon from './Icon'
 import { useConfirm } from './ConfirmModal'
 import { color as T, radius as R, shadow as S, motion as M, typo } from '../lib/theme'
 import { todayLocal } from '../lib/dateLocal'
-import { raggruppaFornitoriDaFatture, spesaDaFatture } from '../lib/fornitoriDaFatture'
+import { ibanIsValid } from '../lib/sepa'
+import { marcaNonMerce, raggruppaFornitoriDaFatture, spesaDaFatture } from '../lib/fornitoriDaFatture'
 import { KPI, SH, PageHeader, Tip, C, useSortable, SortTH } from '../views/_shared'
+import { costiDaOrdine } from '../lib/fornitoreIngrediente'
+import { sload, ssave } from '../lib/storage'
+import { SK_RIC } from '../lib/storageKeys'
 
 const tnum = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" }
 
@@ -65,25 +69,44 @@ function BandaDiagnosi({ orgId, sedeId, sedi = [], isMobile, isTablet, refreshKe
       // "Spesa 30gg 0 € · Top fornitore -" mentre nel database ci sono 217
       // fatture per 82.676 €. Gli ordini sono un registro facoltativo; la spesa
       // vera passa dalle fatture. Le leggiamo come riserva e lo dichiariamo.
+      let periodoLabel = 'ultimi 30 giorni'
+      let ultimaData = null
       if (!(ord || []).length) {
+        // Leggiamo TUTTE le fatture, non solo quelle degli ultimi 30 giorni:
+        // in produzione 0 fatture su 418 cadono nella finestra fissa (l'ultima
+        // è di cinque mesi fa), e la banda diceva "Spesa 0 €" con 82.676 €
+        // in archivio. Se nella finestra non c'è niente, si guarda l'ultimo
+        // mese che ha dei dati e SI SCRIVE quale.
         const { data: fatt } = await supabase.from('fatture')
           .select('fornitore,totale,data_fattura')
           .eq('organization_id', orgId)
-          .gte('data_fattura', fromStr)
-        const r = spesaDaFatture(fatt || [])
-        if (r.nFatture > 0) {
-          spesa = r.totale
-          top = r.righe[0] ? [r.righe[0].nome, r.righe[0].totale] : null
+        const recenti = spesaDaFatture(fatt || [], { da: fromStr })
+        if (recenti.nFatture > 0) {
+          spesa = recenti.totale
+          top = recenti.righe[0] ? [recenti.righe[0].nome, recenti.righe[0].totale] : null
           daFatture = true
+        } else if ((fatt || []).length > 0) {
+          ultimaData = (fatt || []).reduce((max, f) => (f.data_fattura && (!max || f.data_fattura > max)) ? f.data_fattura : max, null)
+          if (ultimaData) {
+            const mese = String(ultimaData).slice(0, 7)
+            const daMese = `${mese}-01`
+            const r = spesaDaFatture(fatt || [], { da: daMese })
+            spesa = r.totale
+            top = r.righe[0] ? [r.righe[0].nome, r.righe[0].totale] : null
+            daFatture = true
+            const [y, m] = mese.split('-')
+            const nomiMese = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre']
+            periodoLabel = `${nomiMese[Number(m) - 1]} ${y}`
+          }
         }
       }
-      setStats({ attivi, categorie, spesa, topNome: top?.[0] || "-", topTot: top?.[1] || 0, daFatture })
+      setStats({ attivi, categorie, spesa, topNome: top?.[0] || "-", topTot: top?.[1] || 0, daFatture, periodoLabel })
     }
     load()
     return () => { alive = false }
   }, [orgId, sedeId, refreshKey])
 
-  const s = stats || { attivi: 0, categorie: 0, spesa: 0, topNome: "-", topTot: 0, daFatture: false }
+  const s = stats || { attivi: 0, categorie: 0, spesa: 0, topNome: "-", topTot: 0, daFatture: false, periodoLabel: 'ultimi 30 giorni' }
   const multiSede = Array.isArray(sedi) && sedi.filter(x => x?.attiva !== false).length > 1
 
   return (
@@ -95,12 +118,16 @@ function BandaDiagnosi({ orgId, sedeId, sedi = [], isMobile, isTablet, refreshKe
           fornitori ha una sede assegnata), quindi il conto su tutta l'azienda e' il
           più utile - purché sia scritto. */}
       <KPI label="Fornitori attivi" value={s.attivi.toLocaleString('it-IT')} sub={multiSede ? 'in tutta l’azienda' : undefined} icon={<Icon name="truck" size={17} />} />
-      <KPI label="Spesa ultimi 30 giorni" value={fmt0(s.spesa)}
+      <KPI label={s.periodoLabel === 'ultimi 30 giorni' ? 'Spesa ultimi 30 giorni' : `Spesa di ${s.periodoLabel}`} value={fmt0(s.spesa)}
         sub={s.daFatture
-          ? (multiSede ? 'dalle fatture, tutte le sedi' : 'dalle fatture registrate')
+          ? (s.periodoLabel === 'ultimi 30 giorni'
+            ? (multiSede ? 'dalle fatture, tutte le sedi' : 'dalle fatture registrate')
+            : 'ultimo mese con delle fatture registrate')
           : (multiSede ? 'ordini ricevuti, tutte le sedi' : 'ordini ricevuti')}
         color={T.brand} highlight icon={<Icon name="money" size={17} />} />
-      <KPI label="Top fornitore" value={s.topNome} sub={s.topTot > 0 ? `${fmt0(s.topTot)} negli ultimi 30 giorni` : "nessun ordine ricevuto"} icon={<Icon name="trophy" size={17} />} />
+      <KPI label="Top fornitore" value={s.topNome}
+        sub={s.topTot > 0 ? `${fmt0(s.topTot)} · ${s.periodoLabel}` : "nessun ordine né fattura registrata"}
+        icon={<Icon name="trophy" size={17} />} />
       <KPI label="Categorie" value={s.categorie.toLocaleString('it-IT')}
         sub={s.categorie === 0 && s.attivi > 0 ? 'nessuna assegnata' : 'merceologiche'} icon={<Icon name="package" size={17} />} />
     </div>
@@ -157,7 +184,7 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
   const confirmDialog = useConfirm()
   const [lista, setLista] = useState([])
   const [loading, setLoading] = useState(true)
-  const [form, setForm] = useState({ nome: "", contatto: "", email: "", telefono: "", note: "", sede_id: "", iban: "", termini_pagamento: "30", termini_tipo: "netti", categoria: "" })
+  const [form, setForm] = useState({ nome: "", contatto: "", email: "", telefono: "", note: "", sede_id: "", iban: "", termini_pagamento: "30", termini_tipo: "netti", categoria: "", partita_iva: "", lead_time_giorni: "", minimo_ordine: "" })
   const [editId, setEditId] = useState(null)
   const [saving, setSaving] = useState(false)
   const [showForm, setShowForm] = useState(false)
@@ -190,13 +217,25 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
     let vivo = true
     async function leggiFatture() {
       if (!orgId || inArchivio) { setCandidati([]); return }
-      const { data, error } = await supabase.from('fatture')
-        .select('fornitore,totale,data_fattura,iban')
-        .eq('organization_id', orgId)
+      // Servono TUTTI i fornitori già in anagrafica, compresi gli
+      // archiviati: `lista` contiene solo quelli della vista corrente, e con
+      // l'archivio fuori un fornitore archiviato ricompariva fra i candidati
+      // e tornava attivo al primo import.
+      const [{ data, error }, { data: tuttiForn }] = await Promise.all([
+        supabase.from('fatture')
+          .select('fornitore,totale,data_fattura,iban')
+          .eq('organization_id', orgId),
+        supabase.from('fornitori').select('nome').eq('organization_id', orgId),
+      ])
       if (!vivo || error) return
-      const { daImportare } = raggruppaFornitoriDaFatture(data || [], lista, todayLocal())
-      setCandidati(daImportare)
-      setScelti(new Set(daImportare.map(v => v.chiave)))
+      const { daImportare } = raggruppaFornitoriDaFatture(data || [], tuttiForn || lista, todayLocal())
+      const marcati = marcaNonMerce(daImportare)
+      setCandidati(marcati)
+      // Pre-selezione: solo chi somiglia a un fornitore di merce. La luce, i
+      // contributi, le commissioni del delivery e il commercialista restano
+      // in elenco ma senza spunta: in produzione erano 18 nomi su 77 per
+      // 12.787 €, e il bottone diceva "Aggiungi 77 fornitori".
+      setScelti(new Set(marcati.filter(v => !v.nonMerce).map(v => v.chiave)))
     }
     leggiFatture()
     return () => { vivo = false }
@@ -250,6 +289,13 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
     if (!orgId) { notify("Profilo non pronto, riprova", false); return }
     setSaving(true)
     // sede_id="" significa "Tutte le sedi" (azienda) → NULL nel DB
+    if (ibanScritto && !ibanOk) {
+      const proseguo = window.confirm(
+        "L'IBAN che hai scritto non torna (il controllo delle cifre non passa).\n\n" +
+        'Lo salvo comunque? Il file dei bonifici salterà i pagamenti a questo fornitore.'
+      )
+      if (!proseguo) { setSaving(false); return }
+    }
     const termini = parseInt(form.termini_pagamento, 10)
     const payload = {
       nome: form.nome,
@@ -262,6 +308,11 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
       termini_pagamento: Number.isFinite(termini) && termini >= 0 ? termini : 30,
       termini_tipo: form.termini_tipo === "fine_mese" ? "fine_mese" : "netti",
       categoria: form.categoria?.trim() || null,
+      // I tre campi che servono per ordinare davvero. Vuoto = NULL, non 0:
+      // "non lo so" e "zero giorni di consegna" sono cose diverse.
+      partita_iva: form.partita_iva?.replace(/\s+/g, '').toUpperCase() || null,
+      lead_time_giorni: form.lead_time_giorni === "" ? null : (parseInt(form.lead_time_giorni, 10) || null),
+      minimo_ordine: form.minimo_ordine === "" ? null : (parseFloat(String(form.minimo_ordine).replace(',', '.')) || null),
       organization_id: orgId,
     }
     let err
@@ -306,11 +357,17 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
     notify("Fornitore eliminato definitivamente"); onMutate?.(); carica()
   }
 
-  function resetForm() { setForm({ nome: "", contatto: "", email: "", telefono: "", note: "", sede_id: sedeId || "", iban: "", termini_pagamento: "30", termini_tipo: "netti", categoria: "" }); setEditId(null); setShowForm(false) }
+  // IBAN scritto e IBAN valido (mod-97, lo stesso controllo dello Scadenzario).
+  const ibanScritto = !!form.iban?.trim()
+  const ibanOk = ibanScritto && ibanIsValid(form.iban)
+
+  function resetForm() { setForm({ nome: "", contatto: "", email: "", telefono: "", note: "", sede_id: sedeId || "", iban: "", termini_pagamento: "30", termini_tipo: "netti", categoria: "", partita_iva: "", lead_time_giorni: "", minimo_ordine: "" }); setEditId(null); setShowForm(false) }
   function initEdit(f) {
     setForm({
       nome: f.nome, contatto: f.contatto || "", email: f.email || "", telefono: f.telefono || "", note: f.note || "",
       sede_id: f.sede_id || "", iban: f.iban || "", termini_pagamento: String(f.termini_pagamento ?? 30), termini_tipo: f.termini_tipo || "netti", categoria: f.categoria || "",
+      partita_iva: f.partita_iva || "", lead_time_giorni: f.lead_time_giorni == null ? "" : String(f.lead_time_giorni),
+      minimo_ordine: f.minimo_ordine == null ? "" : String(f.minimo_ordine),
     })
     setEditId(f.id); if (isMobile) setShowForm(true)
   }
@@ -325,11 +382,11 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
   }, [lista, q])
 
   const inputSt = { width: "100%", height: 40, padding: "0 12px", borderRadius: R.md, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 13, color: C.text, background: C.bgCard, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }
-  const lblSt = { fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }
+  const lblSt = { fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }
   const formVisible = !isMobile || showForm
 
   const chip = (text, bg, color, icon) => (
-    <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 999, background: bg, color, fontWeight: 700, whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+    <span style={{ fontSize: 12, padding: '2px 8px', borderRadius: 999, background: bg, color, fontWeight: 700, whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
       {icon}{text}
     </span>
   )
@@ -374,7 +431,7 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
             </div>
             <div style={{ fontSize: typo.small.fontSize, color: C.textMid, lineHeight: 1.5 }}>
               Li ho trovati nelle fatture che hai già caricato, per un totale di <b style={{ ...tnum }}>{fmt0(totCandidati)}</b>.
-              Posso aggiungerli io: nome e IBAN li prendo dalle fatture, il resto lo completi quando vuoi.
+              Posso aggiungerli io: prendo il nome dalle fatture (e l'IBAN, quando la fattura ce l'ha), il resto lo completi quando vuoi.
             </div>
           </div>
           <button type="button" onClick={() => setPannelloFatture(v => !v)}
@@ -390,6 +447,8 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
             <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
               <button type="button" onClick={() => setScelti(new Set(candidati.map(v => v.chiave)))}
                 style={{ padding: '8px 12px', minHeight: 40, borderRadius: 8, border: `1px solid ${C.borderStr}`, background: C.white, fontSize: typo.small.fontSize, fontWeight: 700, color: C.textMid, cursor: 'pointer' }}>Seleziona tutti</button>
+              <button type="button" onClick={() => setScelti(new Set(candidati.filter(v => !v.nonMerce).map(v => v.chiave)))}
+                style={{ padding: '8px 12px', minHeight: 40, borderRadius: 8, border: `1px solid ${C.borderStr}`, background: C.white, fontSize: typo.small.fontSize, fontWeight: 700, color: C.textMid, cursor: 'pointer' }}>Solo la merce</button>
               <button type="button" onClick={() => setScelti(new Set())}
                 style={{ padding: '8px 12px', minHeight: 40, borderRadius: 8, border: `1px solid ${C.borderStr}`, background: C.white, fontSize: typo.small.fontSize, fontWeight: 700, color: C.textMid, cursor: 'pointer' }}>Nessuno</button>
               <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, ...tnum }}>{nSceltiOra} di {candidati.length} selezionati</span>
@@ -421,6 +480,12 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
                       <td style={{ padding: '8px 10px', fontSize: typo.small.fontSize, fontWeight: 700, color: C.text }}>
                         {v.nome}
                         {v.iban && <span style={{ marginLeft: 6, fontSize: typo.small.fontSize, fontWeight: 600, color: T.blue }}>{maskIban(v.iban)}</span>}
+                        {v.nonMerce && (
+                          <span style={{ marginLeft: 6, padding: '1px 7px', borderRadius: 999, background: C.amberLight, color: C.amber, fontSize: 11, fontWeight: 700 }}
+                            title="Sembra un costo, non merce da ordinare: non l'ho spuntato. Se per te è un fornitore, spuntalo.">
+                            {v.motivoNonMerce}
+                          </span>
+                        )}
                         {v.ultimaData && <div style={{ fontSize: typo.small.fontSize, fontWeight: 400, color: C.textSoft, marginTop: 1 }}>ultima fattura {fmtDate(v.ultimaData)}</div>}
                       </td>
                       <td style={{ padding: '8px 10px', textAlign: 'right', fontSize: typo.small.fontSize, color: C.textMid, ...tnum }}>{v.nFatture}</td>
@@ -464,7 +529,7 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
               {editId ? "Modifica fornitore" : "Nuovo fornitore"}
             </div>
             {isMobile && (
-              <button onClick={resetForm} aria-label="Chiudi form fornitore" style={{ padding: "6px 12px", background: "transparent", border: "none", fontSize: 18, color: C.textSoft, cursor: "pointer" }}>✕</button>
+              <button onClick={resetForm} aria-label="Chiudi form fornitore" style={{ padding: "6px 12px", background: "transparent", border: "none", color: C.textSoft, cursor: "pointer" }}><Icon name="x" size={16} /></button>
             )}
           </div>
 
@@ -504,14 +569,63 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
             </div>
           </div>
 
-          {/* IBAN */}
+          {/* IBAN — controllato QUI, non solo nello Scadenzario.
+              Prima questa pagina lo salvava così com'era scritto e mostrava
+              la targhetta blu come se fosse buono; poi il file dei bonifici
+              (generateSepaXml) scartava in silenzio i pagamenti con un IBAN
+              non valido, e il fornitore restava da pagare senza che nessuno
+              sapesse perché. */}
           <div style={{ marginBottom: 12 }}>
             <div style={lblSt}>
               <Tip text="IBAN del fornitore per i bonifici. Alimenta lo Scadenzario pagamenti.">
                 <span style={{ cursor: 'help', textDecoration: 'underline dotted', textUnderlineOffset: 2 }}>IBAN</span>
               </Tip>
             </div>
-            <input value={form.iban} onChange={e => setForm(f => ({ ...f, iban: e.target.value }))} placeholder="IT60 X054 2811 1010 0000 0123 456" style={{ ...inputSt, fontFamily: 'monospace', letterSpacing: '0.04em' }} />
+            <input value={form.iban} onChange={e => setForm(f => ({ ...f, iban: e.target.value }))}
+              placeholder="IT60 X054 2811 1010 0000 0123 456"
+              aria-invalid={ibanScritto && !ibanOk ? 'true' : 'false'}
+              style={{ ...inputSt, fontFamily: 'monospace', letterSpacing: '0.04em',
+                borderColor: ibanScritto ? (ibanOk ? C.green : C.red) : undefined }} />
+            {ibanScritto && !ibanOk && (
+              <div style={{ marginTop: 5, fontSize: 12, color: C.red, lineHeight: 1.45 }}>
+                Questo IBAN non torna: ricontrolla le cifre. Se lo salvi così, il file dei bonifici salterà i pagamenti a questo fornitore.
+              </div>
+            )}
+          </div>
+
+          {/* Partita IVA, giorni di consegna e minimo d'ordine.
+              La partita IVA la fattura elettronica la porta già (e nessuna
+              delle 418 in archivio la aveva collegata al fornitore); i giorni
+              di consegna erano scritti nel codice come "3" per tutti, e la
+              pagina degli ordini prometteva "configurabile per fornitore". */}
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
+            <div>
+              <div style={lblSt}>
+                <Tip text="Come la scrive la fattura elettronica. Serve al commercialista per riconciliare, e a distinguere due fornitori con lo stesso nome.">
+                  <span style={{ cursor: 'help', textDecoration: 'underline dotted', textUnderlineOffset: 2 }}>Partita IVA</span>
+                </Tip>
+              </div>
+              <input value={form.partita_iva} onChange={e => setForm(f => ({ ...f, partita_iva: e.target.value }))}
+                placeholder="IT01234567890" style={{ ...inputSt, fontFamily: 'monospace' }} />
+            </div>
+            <div>
+              <div style={lblSt}>
+                <Tip text="Quanti giorni passano fra l'ordine e la consegna. Serve alla pagina Ordini per capire quando è tardi per ordinare. Vuoto = uso 3 giorni come riferimento e lo dichiaro.">
+                  <span style={{ cursor: 'help', textDecoration: 'underline dotted', textUnderlineOffset: 2 }}>Giorni di consegna</span>
+                </Tip>
+              </div>
+              <input value={form.lead_time_giorni} onChange={e => setForm(f => ({ ...f, lead_time_giorni: e.target.value.replace(/[^0-9]/g, '') }))}
+                inputMode="numeric" placeholder="3" style={inputSt} />
+            </div>
+            <div>
+              <div style={lblSt}>
+                <Tip text="Sotto questa cifra il fornitore non spedisce. Serve per non proporti un ordine che verrebbe rifiutato.">
+                  <span style={{ cursor: 'help', textDecoration: 'underline dotted', textUnderlineOffset: 2 }}>Minimo d'ordine</span>
+                </Tip>
+              </div>
+              <input value={form.minimo_ordine} onChange={e => setForm(f => ({ ...f, minimo_ordine: e.target.value.replace(/[^0-9,.]/g, '') }))}
+                inputMode="decimal" placeholder="250" style={inputSt} />
+            </div>
           </div>
 
           {haPiuSedi && (
@@ -536,7 +650,7 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
               style={{ flex: 1, padding: isMobile ? "14px" : "10px", background: C.red, color: C.white, border: "none", borderRadius: 8, fontWeight: 800, fontSize: isMobile ? 15 : 12, cursor: saving ? 'default' : "pointer", opacity: saving ? 0.7 : 1 }}>
               {saving ? "…" : editId ? "Salva modifiche" : "Aggiungi"}
             </button>
-            {editId && <button onClick={resetForm} aria-label="Annulla modifica fornitore" style={{ padding: isMobile ? "14px" : "10px 14px", background: C.white, border: `1px solid ${C.borderStr}`, borderRadius: 8, fontSize: isMobile ? 14 : 12, color: C.textMid, cursor: "pointer" }}>✕</button>}
+            {editId && <button onClick={resetForm} aria-label="Annulla modifica fornitore" style={{ padding: isMobile ? "14px" : "10px 14px", background: C.white, border: `1px solid ${C.borderStr}`, borderRadius: 8, fontSize: isMobile ? 14 : 12, color: C.textMid, cursor: "pointer" }}><Icon name="x" size={14} /></button>}
           </div>
         </div>
       )}
@@ -554,7 +668,7 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
         <div style={{ marginBottom: 10, display: 'flex', gap: 6 }}>
           {[['attivi', 'truck', 'Attivi'], ['archivio', 'package', `Archivio${archCount > 0 ? ` (${archCount})` : ''}`]].map(([id, ico, lbl]) => (
             <button key={id} onClick={() => setVista(id)}
-              style={{ padding: '5px 12px', borderRadius: 999, border: `1px solid ${vista === id ? C.red : C.border}`, background: vista === id ? C.redLight : C.white, color: vista === id ? C.red : C.textMid, fontSize: 11, fontWeight: vista === id ? 800 : 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name={ico} size={12} /> {lbl}</button>
+              style={{ padding: '5px 12px', borderRadius: 999, border: `1px solid ${vista === id ? C.red : C.border}`, background: vista === id ? C.redLight : C.white, color: vista === id ? C.red : C.textMid, fontSize: 12, fontWeight: vista === id ? 800 : 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name={ico} size={12} /> {lbl}</button>
           ))}
         </div>
 
@@ -569,7 +683,7 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
             {f.contatto && <div style={{ fontSize: typo.small.fontSize, color: C.textMid, marginTop: 6, display: "flex", alignItems: "center", gap: 6 }}><Icon name="user" size={12} /> {f.contatto}</div>}
             {f.email && <div style={{ fontSize: typo.small.fontSize, color: C.textMid, marginTop: 2, display: "flex", alignItems: "center", gap: 6 }}><Icon name="mail" size={12} /> <a href={`mailto:${f.email}`} style={{ color: C.red }}>{f.email}</a></div>}
             {f.telefono && <div style={{ fontSize: typo.small.fontSize, color: C.textMid, marginTop: 2 }}><a href={`tel:${f.telefono}`} style={{ color: C.red }}>{f.telefono}</a></div>}
-            {f.note && <div style={{ fontSize: 11, color: C.textSoft, marginTop: 6, fontStyle: "italic" }}>{f.note}</div>}
+            {f.note && <div style={{ fontSize: 12, color: C.textSoft, marginTop: 6, fontStyle: "italic" }}>{f.note}</div>}
             <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
               <button onClick={() => initEdit(f)} style={{ flex: 1, padding: "10px", background: C.bg, border: `1px solid ${C.borderStr}`, borderRadius: 8, fontSize: typo.small.fontSize, color: C.textMid, cursor: "pointer", fontWeight: 600 }}>Modifica</button>
               {inArchivio ? (
@@ -588,10 +702,10 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontWeight: 800, fontSize: 14, color: C.text }}>{f.nome}</div>
                 <FornitoreMeta f={f} />
-                {f.contatto && <div style={{ fontSize: 11, color: C.textMid, marginTop: 6, display: "flex", alignItems: "center", gap: 6 }}><Icon name="user" size={11} /> {f.contatto}</div>}
-                {f.email && <div style={{ fontSize: 11, color: C.textMid, marginTop: 2 }}><a href={`mailto:${f.email}`} style={{ color: C.red }}>{f.email}</a></div>}
-                {f.telefono && <div style={{ fontSize: 11, color: C.textMid, marginTop: 2 }}>{f.telefono}</div>}
-                {f.note && <div style={{ fontSize: 10, color: C.textSoft, marginTop: 4, fontStyle: "italic" }}>{f.note}</div>}
+                {f.contatto && <div style={{ fontSize: 12, color: C.textMid, marginTop: 6, display: "flex", alignItems: "center", gap: 6 }}><Icon name="user" size={11} /> {f.contatto}</div>}
+                {f.email && <div style={{ fontSize: 12, color: C.textMid, marginTop: 2 }}><a href={`mailto:${f.email}`} style={{ color: C.red }}>{f.email}</a></div>}
+                {f.telefono && <div style={{ fontSize: 12, color: C.textMid, marginTop: 2 }}>{f.telefono}</div>}
+                {f.note && <div style={{ fontSize: 12, color: C.textSoft, marginTop: 4, fontStyle: "italic" }}>{f.note}</div>}
               </div>
               <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
                 <button onClick={() => initEdit(f)} aria-label="Modifica fornitore" title="Modifica" style={{ width: 36, height: 36, padding: 0, borderRadius: 8, border: `1px solid ${C.borderStr}`, background: C.white, color: C.textMid, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}><Icon name="edit" size={14} /></button>
@@ -701,8 +815,55 @@ function OrdiniTab({ orgId, notify, isMobile, onMutate }) {
     const { error } = await supabase.from("ordini_fornitori").update({ stato }).eq("id", id).eq("organization_id", orgId)
     if (error) { notify("Errore aggiornamento stato: " + error.message, false); return }
     notify("Stato aggiornato")
+    // Ordine RICEVUTO: i prezzi che hai appena pagato sono il prezzo vero
+    // degli ingredienti. Prima non arrivavano da nessuna parte: registrare
+    // il burro a 9,20 EUR/kg non toccava il food cost di nessuna ricetta, e
+    // in produzione 78 righe di ricetta su 118 restavano senza prezzo mentre
+    // il prezzo era già scritto in un ordine.
+    if (stato === 'ricevuto') await proponiAggiornamentoPrezzi(id)
     onMutate?.()
     carica()
+  }
+
+  // Propone di portare i prezzi dell'ordine nel listino ingredienti. Chiede
+  // sempre: un prezzo di acquisto cambia il food cost di tutte le ricette che
+  // usano quell'ingrediente, e non è una cosa da fare di nascosto.
+  async function proponiAggiornamentoPrezzi(ordineId) {
+    const ordine = ordini.find(o => o.id === ordineId)
+    if (!ordine) return
+    let ric
+    try { ric = await sload(SK_RIC, orgId, null) } catch { return }
+    if (!ric) return
+    const { nuovi, cambi, nonConvertibili } = costiDaOrdine(ric.ingredienti_costi || {}, {
+      ...ordine,
+      fornitore_nome: ordine.fornitori?.nome || null,
+    })
+    if (cambi.length === 0) {
+      if (nonConvertibili.length > 0) {
+        notify(`Prezzi non aggiornati: ${nonConvertibili.map(x => x.nome).join(', ')} ${nonConvertibili.length === 1 ? 'è' : 'sono'} a ${nonConvertibili.map(x => x.unita).join('/')}, e da un prezzo al pezzo non si ricava il costo al chilo.`, true)
+      }
+      return
+    }
+    const righeTesto = cambi.slice(0, 8).map(c => c.primaVolta
+      ? `- ${c.nome}: ${c.a.toLocaleString('it-IT', { maximumFractionDigits: 2 })} €/kg (prima non c'era)`
+      : `- ${c.nome}: da ${c.da.toLocaleString('it-IT', { maximumFractionDigits: 2 })} a ${c.a.toLocaleString('it-IT', { maximumFractionDigits: 2 })} €/kg`)
+    const testo = [
+      `Aggiorno il prezzo di ${cambi.length} ingredient${cambi.length === 1 ? 'e' : 'i'} col prezzo di questo ordine?`,
+      '',
+      ...righeTesto,
+      cambi.length > 8 ? `… e altri ${cambi.length - 8}` : null,
+      '',
+      'Il food cost delle ricette che li usano cambia di conseguenza.',
+      nonConvertibili.length > 0 ? `\nRestano fuori ${nonConvertibili.map(x => x.nome).join(', ')}: ${nonConvertibili.length === 1 ? 'è' : 'sono'} a pezzo, e da lì non si ricava il costo al chilo.` : null,
+    ].filter(v => v !== null).join('\n')
+    if (!window.confirm(testo)) return
+    try {
+      // SAVE FIRST: se il salvataggio non riesce non diciamo che è fatto.
+      await ssave(SK_RIC, { ...ric, ingredienti_costi: nuovi }, orgId, null)
+      notify(`${cambi.length} prezz${cambi.length === 1 ? 'o' : 'i'} aggiornat${cambi.length === 1 ? 'o' : 'i'} nel listino ingredienti. Ricarica il Ricettario per vedere il food cost nuovo.`)
+    } catch (e) {
+      notify(`Prezzi NON aggiornati (${e.message || 'errore di rete'}): il listino è rimasto come prima.`, false)
+    }
   }
 
   const addRiga = () => setRighe(r => [...r, { prodotto: "", quantita: "", unita: "kg", prezzo_unitario: "" }])
@@ -710,6 +871,9 @@ function OrdiniTab({ orgId, notify, isMobile, onMutate }) {
   const updateRiga = (i, field, val) => setRighe(r => r.map((x, j) => j === i ? { ...x, [field]: val } : x))
 
   const statoColor = { bozza: "#94A3B8", inviato: "#2563EB", ricevuto: "#16A34A", annullato: "#DC2626" }
+  // Come si legge uno stato a schermo: prima usciva la parola del database,
+  // minuscola, dentro una targhetta ("bozza", "inviato").
+  const statoLabel = { bozza: "Bozza", inviato: "Inviato", ricevuto: "Ricevuto", annullato: "Annullato" }
   const inputSt = { padding: isMobile ? "12px 14px" : "8px 10px", borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, color: C.text, background: C.bgCard, fontFamily: 'inherit' }
 
   const ordiniFiltrati = useMemo(() => {
@@ -746,7 +910,7 @@ function OrdiniTab({ orgId, notify, isMobile, onMutate }) {
         {!isMobile && (
           <button onClick={() => setShowForm(s => !s)}
             style={{ padding: "9px 18px", background: C.red, color: C.white, border: "none", borderRadius: 8, fontWeight: 800, fontSize: typo.small.fontSize, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}>
-            {showForm ? "✕ Annulla" : <><Icon name="plus" size={13} /> Nuovo ordine</>}
+            {showForm ? <><Icon name="x" size={13} /> Annulla</> : <><Icon name="plus" size={13} /> Nuovo ordine</>}
           </button>
         )}
       </div>
@@ -755,7 +919,7 @@ function OrdiniTab({ orgId, notify, isMobile, onMutate }) {
       <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
         {[['tutti', 'Tutti'], ['bozza', 'Bozza'], ['inviato', 'Inviato'], ['ricevuto', 'Ricevuto'], ['annullato', 'Annullato']].map(([id, lbl]) => (
           <button key={id} onClick={() => setFiltroStato(id)}
-            style={{ padding: '5px 12px', borderRadius: 999, border: `1px solid ${filtroStato === id ? (statoColor[id] || C.red) : C.border}`, background: filtroStato === id ? `${(statoColor[id] || C.red)}15` : C.white, color: filtroStato === id ? (statoColor[id] || C.red) : C.textMid, fontSize: 11, fontWeight: filtroStato === id ? 800 : 600, cursor: 'pointer' }}>{lbl}</button>
+            style={{ padding: '5px 12px', borderRadius: 999, border: `1px solid ${filtroStato === id ? (statoColor[id] || C.red) : C.border}`, background: filtroStato === id ? `${(statoColor[id] || C.red)}15` : C.white, color: filtroStato === id ? (statoColor[id] || C.red) : C.textMid, fontSize: 12, fontWeight: filtroStato === id ? 800 : 600, cursor: 'pointer' }}>{lbl}</button>
         ))}
       </div>
 
@@ -778,34 +942,34 @@ function OrdiniTab({ orgId, notify, isMobile, onMutate }) {
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
             <div style={{ fontSize: 13, fontWeight: 800, color: C.text, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="plus" size={14} /> Nuovo ordine</div>
             {isMobile && (
-              <button aria-label="Chiudi form ordine" onClick={() => setShowForm(false)} style={{ padding: "6px 12px", background: "transparent", border: "none", fontSize: 18, color: C.textSoft, cursor: "pointer" }}>✕</button>
+              <button aria-label="Chiudi form ordine" onClick={() => setShowForm(false)} style={{ padding: "6px 12px", background: "transparent", border: "none", color: C.textSoft, cursor: "pointer" }}><Icon name="x" size={16} /></button>
             )}
           </div>
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 12, marginBottom: 16 }}>
             <div>
-              <div style={{ fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>Fornitore *</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>Fornitore *</div>
               <select value={form.fornitore_id} onChange={e => setForm(f => ({ ...f, fornitore_id: e.target.value }))} style={{ ...inputSt, width: "100%" }}>
                 <option value="">Seleziona…</option>
                 {fornitori.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
               </select>
             </div>
             <div>
-              <div style={{ fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>Data ordine</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>Data ordine</div>
               <input type="date" value={form.data_ordine} onChange={e => setForm(f => ({ ...f, data_ordine: e.target.value }))} style={{ ...inputSt, width: "100%" }} />
             </div>
             <div>
-              <div style={{ fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>Stato</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>Stato</div>
               <select value={form.stato} onChange={e => setForm(f => ({ ...f, stato: e.target.value }))} style={{ ...inputSt, width: "100%" }}>
-                {["bozza", "inviato", "ricevuto", "annullato"].map(s => <option key={s} value={s}>{s}</option>)}
+                {["bozza", "inviato", "ricevuto", "annullato"].map(s => <option key={s} value={s}>{statoLabel[s]}</option>)}
               </select>
             </div>
           </div>
           <div style={{ marginBottom: 14 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: C.text, marginBottom: 8 }}>Prodotti ordinati</div>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: C.text, marginBottom: 8 }}>Prodotti ordinati</div>
             {!isMobile && (
               <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 80px 1fr auto", gap: 6, marginBottom: 6 }}>
                 {["Prodotto", "Quantità", "Unità", "€/unità", ""].map((h, i) => (
-                  <div key={i} style={{ fontSize: 8, fontWeight: 700, color: C.textSoft, textTransform: "uppercase", letterSpacing: "0.07em" }}>{h}</div>
+                  <div key={i} style={{ fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: "uppercase", letterSpacing: "0.07em" }}>{h}</div>
                 ))}
               </div>
             )}
@@ -819,7 +983,7 @@ function OrdiniTab({ orgId, notify, isMobile, onMutate }) {
                       {["kg", "g", "l", "pz", "cf"].map(u => <option key={u}>{u}</option>)}
                     </select>
                     <input type="number" value={r.prezzo_unitario} onChange={e => updateRiga(i, "prezzo_unitario", e.target.value)} placeholder="€/u" style={inputSt} />
-                    <button aria-label="Rimuovi riga" onClick={() => removeRiga(i)} style={{ padding: "8px 10px", borderRadius: 8, border: `1px solid ${C.border}`, background: C.white, color: C.textSoft, fontSize: 14, cursor: "pointer" }}>✕</button>
+                    <button aria-label="Rimuovi riga" onClick={() => removeRiga(i)} style={{ padding: "8px 10px", borderRadius: 8, border: `1px solid ${C.border}`, background: C.white, color: C.textSoft, cursor: "pointer" }}><Icon name="x" size={14} /></button>
                   </div>
                 </div>
               ) : (
@@ -830,14 +994,14 @@ function OrdiniTab({ orgId, notify, isMobile, onMutate }) {
                     {["kg", "g", "l", "pz", "cf"].map(u => <option key={u}>{u}</option>)}
                   </select>
                   <input type="number" value={r.prezzo_unitario} onChange={e => updateRiga(i, "prezzo_unitario", e.target.value)} placeholder="0.00" style={inputSt} />
-                  <button aria-label="Rimuovi riga" onClick={() => removeRiga(i)} style={{ padding: "4px 8px", borderRadius: 8, border: `1px solid ${C.border}`, background: C.white, color: C.textSoft, fontSize: 10, cursor: "pointer" }}>✕</button>
+                  <button aria-label="Rimuovi riga" onClick={() => removeRiga(i)} style={{ padding: "4px 8px", borderRadius: 8, border: `1px solid ${C.border}`, background: C.white, color: C.textSoft, cursor: "pointer", minHeight: 40 }}><Icon name="x" size={14} /></button>
                 </div>
               )
             ))}
             <button onClick={addRiga} style={{ padding: isMobile ? "10px 14px" : "6px 14px", background: C.white, border: `1px solid ${C.borderStr}`, borderRadius: 8, fontSize: isMobile ? 13 : 11, color: C.textMid, cursor: "pointer", width: isMobile ? "100%" : "auto" }}>+ Riga</button>
           </div>
           <div style={{ marginBottom: 14 }}>
-            <div style={{ fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>Note</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>Note</div>
             <textarea value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} rows={2} style={{ ...inputSt, width: "100%", resize: "vertical" }} />
           </div>
           <button onClick={salvaOrdine} disabled={saving}
@@ -855,7 +1019,7 @@ function OrdiniTab({ orgId, notify, isMobile, onMutate }) {
             <div key={o.id} className="fos-tile" style={{ background: C.bgCard, borderRadius: 16, border: `1px solid ${C.border}`, padding: "12px 14px", marginBottom: 8, boxShadow: S.lg }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 6 }}>
                 <div style={{ fontWeight: 800, fontSize: 13, color: C.text, flex: 1, minWidth: 0, wordBreak: "break-word" }}>{o.fornitori?.nome || "-"}</div>
-                <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 12, background: `${statoColor[o.stato]}20`, color: statoColor[o.stato], whiteSpace: "nowrap" }}>{o.stato}</span>
+                <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 12, background: `${statoColor[o.stato]}20`, color: statoColor[o.stato], whiteSpace: "nowrap" }}>{statoLabel[o.stato] || o.stato}</span>
               </div>
               <div style={{ fontSize: typo.small.fontSize, color: C.textSoft, marginBottom: 8 }}>
                 {fmtDate(o.data_ordine)} · <strong style={{ color: C.text, ...tnum }}>{fmt(o.totale)}</strong>
@@ -881,7 +1045,7 @@ function OrdiniTab({ orgId, notify, isMobile, onMutate }) {
                 )}
                 <select value={o.stato} onChange={e => aggiornaStato(o.id, e.target.value)}
                   style={{ flex: 1, padding: "10px", borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 16, color: C.text, cursor: "pointer", background: C.white }}>
-                  {["bozza", "inviato", "ricevuto", "annullato"].map(s => <option key={s}>{s}</option>)}
+                  {["bozza", "inviato", "ricevuto", "annullato"].map(s => <option key={s} value={s}>{statoLabel[s]}</option>)}
                 </select>
               </div>
             </div>
@@ -908,7 +1072,7 @@ function OrdiniTab({ orgId, notify, isMobile, onMutate }) {
                   </td>
                   <td style={{ padding: '11px 16px', fontSize: typo.small.fontSize, color: C.textMid, whiteSpace: 'nowrap', ...tnum }}>{fmtDate(o.data_ordine)}</td>
                   <td style={{ padding: '11px 16px' }}>
-                    <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: `${statoColor[o.stato]}20`, color: statoColor[o.stato] }}>{o.stato}</span>
+                    <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: `${statoColor[o.stato]}20`, color: statoColor[o.stato] }}>{statoLabel[o.stato] || o.stato}</span>
                   </td>
                   <td style={{ padding: '11px 16px', textAlign: 'right', fontWeight: 800, fontSize: 13, color: C.text, ...tnum }}>{fmt(o.totale)}</td>
                   <td style={{ padding: '11px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>
@@ -924,7 +1088,7 @@ function OrdiniTab({ orgId, notify, isMobile, onMutate }) {
                     <select value={o.stato} onChange={e => aggiornaStato(o.id, e.target.value)}
                       aria-label={`Stato dell'ordine di ${o.fornitori?.nome || 'fornitore'}`}
                       style={{ padding: "9px 10px", minHeight: 40, borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: typo.small.fontSize, color: C.text, cursor: "pointer", background: C.white }}>
-                      {["bozza", "inviato", "ricevuto", "annullato"].map(s => <option key={s}>{s}</option>)}
+                      {["bozza", "inviato", "ricevuto", "annullato"].map(s => <option key={s} value={s}>{statoLabel[s]}</option>)}
                     </select>
                   </td>
                 </tr>
@@ -956,7 +1120,10 @@ function OrdiniTab({ orgId, notify, isMobile, onMutate }) {
 // Barra orizzontale per breakdown
 // ─────────────────────────────────────────────────────────────────────────────
 function BarRow({ label, value, max, color, sub }) {
-  const pct = max > 0 ? Math.max(2, (value / max) * 100) : 0
+  // Nessun minimo fittizio: c'era un Math.max(2, ...) che dava a una spesa da
+  // 12 € la stessa barra visibile di una da 300 €. Una barra piccola deve
+  // sembrare piccola; il numero accanto resta leggibile comunque.
+  const pct = max > 0 ? (value / max) * 100 : 0
   return (
     <div style={{ marginBottom: 12 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 5, gap: 8 }}>
@@ -1048,6 +1215,13 @@ function SpesaTab({ orgId, isMobile }) {
   }, [ordini, catMap])
 
   const maxForn = byFornitore[0]?.[1] || 0
+  // Primi 12 in grafico, il resto in una riga sola: 77 barre non si leggono.
+  const GRAFICO_MAX = 12
+  const fornitoriGrafico = useMemo(() => byFornitore.slice(0, GRAFICO_MAX), [byFornitore])
+  const restoFornitori = useMemo(() => {
+    const coda = byFornitore.slice(GRAFICO_MAX)
+    return { n: coda.length, totale: coda.reduce((a, [, t]) => a + t, 0) }
+  }, [byFornitore])
   const maxCat = byCategoria[0]?.[1] || 0
 
   const cardSt = { background: C.bgCard, borderRadius: 16, border: `1px solid ${C.border}`, padding: isMobile ? "16px 16px" : "18px 22px", boxShadow: S.lg }
@@ -1094,10 +1268,19 @@ function SpesaTab({ orgId, isMobile }) {
               <SH sub={fonteFatture
                 ? 'Calcolata sulle fatture che hai registrato nel periodo, non sugli ordini.'
                 : 'Quanto stai spendendo per ciascun fornitore nel periodo selezionato.'}>Spesa per fornitore</SH>
+              {/* Primi 12 e il resto in una riga sola. Con tutti i fornitori
+                  in elenco erano 77 barre, di cui 46 con scritto "0%" (la più
+                  piccola valeva 12 €): un grafico che non si può leggere e in
+                  cui la merce vera si perde in fondo. */}
               <div style={cardSt}>
-                {byFornitore.map(([nome, tot], i) => (
-                  <BarRow key={nome} label={nome} value={tot} max={maxForn} color={PALETTE[i % PALETTE.length]} sub={`${totale > 0 ? Math.round((tot / totale) * 100) : 0}%`} />
+                {fornitoriGrafico.map(([nome, tot], i) => (
+                  <BarRow key={nome} label={nome} value={tot} max={maxForn} color={PALETTE[i % PALETTE.length]}
+                    sub={totale > 0 ? `${(tot / totale * 100).toLocaleString('it-IT', { maximumFractionDigits: 1 })}%` : null} />
                 ))}
+                {restoFornitori.n > 0 && (
+                  <BarRow label={`altri ${restoFornitori.n} fornitori`} value={restoFornitori.totale} max={maxForn} color={C.borderStr}
+                    sub={totale > 0 ? `${(restoFornitori.totale / totale * 100).toLocaleString('it-IT', { maximumFractionDigits: 1 })}%` : null} />
+                )}
               </div>
 
               <SH sub="Aggregazione per categoria merceologica del fornitore. I fornitori senza categoria sono raggruppati a parte.">Spesa per categoria</SH>

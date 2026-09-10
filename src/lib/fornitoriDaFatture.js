@@ -114,3 +114,42 @@ export function spesaDaFatture(fatture, { da = null, a = null } = {}) {
   const righe = [...perNome.values()].sort((x, y) => y.totale - x.totale)
   return { righe, totale, nFatture, media: nFatture > 0 ? totale / nFatture : 0 }
 }
+
+// ── Chi non è un fornitore di merce ──────────────────────────────────────
+//
+// Le fatture di un'azienda contengono la luce, il gas, l'INPS, il
+// commercialista, le commissioni del delivery, la stampa dei volantini. Sono
+// costi veri e stanno benissimo in contabilità, ma non sono fornitori a cui
+// mandare un ordine: nel database di Mara sono 18 nomi su 77 per 12.787 €,
+// e la pagina li pre-selezionava tutti col bottone "Aggiungi 77 fornitori".
+//
+// Qui NON si nasconde niente: si toglie solo la spunta e si dice perché.
+// Il titolare può sempre aggiungerli se per lui hanno senso.
+const NON_MERCE = [
+  { re: /\b(enel|eni |eni$|plenitude|hera|iren|a2a|acea|servizio elettrico|edison|sorgenia)\b/i, motivo: 'utenze (luce o gas)' },
+  { re: /\b(fastweb|tim |vodafone|wind ?tre|iliad|telecom|aruba|register\.it|sky |openfiber)\b/i, motivo: 'telefono, internet o servizi online' },
+  { re: /\b(inps|inail|agenzia delle entrate|f24|erario|comune di|regione |camera di commercio)\b/i, motivo: 'contributi, imposte o enti' },
+  { re: /\b(deliveroo|just.?eat|glovo|foodinho|uber ?eats|thefork|satispay|sumup|nexi|numia|stripe|paypal)\b/i, motivo: 'commissioni di incasso o delivery' },
+  { re: /\b(teamsystem|zucchetti|studio |dott\.|dr\.|commercialist|consulen|avvocat|notai|revisore)\b/i, motivo: 'servizi professionali' },
+  { re: /\b(pixartprinting|centrocopie|centro copie|office service|tipografia|stampa)\b/i, motivo: 'stampa e ufficio' },
+  { re: /\b(easypark|autorimessa|parcheggi|telepass|assicuraz|allianz|unipol|generali|antincendio|estintor)\b/i, motivo: 'servizi vari e assicurazioni' },
+]
+
+/**
+ * Se il nome somiglia a un costo che non è merce, ritorna il motivo.
+ * Altrimenti null. Nessuna certezza: è un'euristica sul nome, e chi la usa
+ * deve presentarla come un suggerimento.
+ */
+export function motivoNonMerce(nome) {
+  const s = String(nome || '')
+  for (const { re, motivo } of NON_MERCE) if (re.test(s)) return motivo
+  return null
+}
+
+/** Marca le voci di raggruppaFornitoriDaFatture con il motivo, se c'è. */
+export function marcaNonMerce(voci) {
+  return (voci || []).map(v => {
+    const motivo = motivoNonMerce(v.nome)
+    return motivo ? { ...v, nonMerce: true, motivoNonMerce: motivo } : { ...v, nonMerce: false }
+  })
+}

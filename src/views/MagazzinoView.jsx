@@ -19,6 +19,7 @@ import { loadStockPF, loadMovimentiPF, scartoPF } from '../lib/stockPF'
 import {
   C, TNUM, KPI, PageHeader, useSortable, SortTH, fmt0, fmtp,
 } from './_shared'
+import { fornitoreDiIngrediente } from '../lib/fornitoreIngrediente'
 
 // Ombra premium coerente con la Dashboard home (card/contenitori principali).
 const SHADOW_PREMIUM = '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)'
@@ -237,12 +238,12 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10, marginBottom: 20 }}>
         <KPI icon={<Icon name="package" size={18} />} label={`${LEX.Prodotti} in stock`} value={stock.length}/>
         <KPI icon={<Icon name="barChart" size={18} />} label="Pezzi totali"
-          value={`${totPezzi.toLocaleString('it-IT', { maximumFractionDigits: 0 })} pz`}
+          value={`${totPezzi.toLocaleString('it-IT', { maximumFractionDigits: 0, useGrouping: 'always' })} pz`}
           sub={totGrammi > 0
             ? `più ${(totGrammi / 1000).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg sfusi`
             : ''}/>
         <KPI icon={<Icon name="warning" size={18} />} label="Sotto soglia" value={sottoSoglia.length} color={sottoSoglia.length > 0 ? C.amber : C.green}/>
-        <KPI icon={<Icon name="alert" size={18} />} label="Stock negativo" value={negativi.length} color={negativi.length > 0 ? C.red : C.green} sub={negativi.length > 0 ? 'vendite > carico' : ''}/>
+        <KPI icon={<Icon name="alert" size={18} />} label="Stock negativo" value={negativi.length} color={negativi.length > 0 ? C.red : C.green} sub={negativi.length > 0 ? 'più vendite che carico' : ''}/>
       </div>
 
       {stock.length === 0 ? (
@@ -413,7 +414,7 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
                 style={{ width: '100%', padding: '12px 14px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 16, boxSizing: 'border-box' }}/>
             </div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => setScartoForm(null)} style={{ padding: '10px 18px', background: 'transparent', color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Annulla</button>
+              <button onClick={() => setScartoForm(null)} style={{ padding: '10px 18px', minHeight: 44, background: 'transparent', color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Annulla</button>
               <button onClick={handleScarto}
                 disabled={saving || !(parseFloat(String(scartoForm.qty ?? '').replace(',', '.')) > 0)}
                 style={{ padding: '10px 18px', minHeight: 44, background: C.red, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 13,
@@ -516,10 +517,10 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
       <div style={{ display: 'flex', gap: 10, marginBottom: 14, alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{ flex: 1, minWidth: 200, position: 'relative' }}>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Cerca ingrediente…"
-            style={{ width: '100%', padding: '9px 14px', borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 12, background: C.white, color: C.text, outline: 'none', boxSizing: 'border-box' }}/>
+            style={{ width: '100%', padding: '11px 14px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.border}`, fontSize: isMobile ? 16 : 13, background: C.white, color: C.text, outline: 'none', boxSizing: 'border-box' }}/>
         </div>
         <button onClick={() => setShowLog(s => !s)}
-          style={{ padding: '9px 14px', borderRadius: 8, border: `1px solid ${C.borderStr}`, background: showLog ? C.redLight : 'transparent', fontSize: 11, fontWeight: 700, color: showLog ? C.red : C.textMid, cursor: 'pointer', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          style={{ padding: '0 14px', minHeight: 40, borderRadius: 8, border: `1px solid ${C.borderStr}`, background: showLog ? C.redLight : 'transparent', fontSize: 12, fontWeight: 700, color: showLog ? C.red : C.textMid, cursor: 'pointer', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
           {/* "Log" e' gergo da informatico: in italiano si chiama storico. E il
               carattere ✕ diventa un'icona, come il resto della pagina. */}
           {showLog
@@ -544,7 +545,7 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: typo.small.fontSize }}>
                 <thead>
                   <tr>
-                    {['Modificato il', 'Ingrediente', 'Vale da', 'Vecchio', 'Nuovo', 'Δ'].map((h, i) => (
+                    {['Modificato il', 'Ingrediente', 'Vale da', 'Vecchio', 'Nuovo', 'Differenza'].map((h, i) => (
                       <th key={i} style={{ padding: '8px 12px', textAlign: i >= 3 ? 'right' : 'left', ...typo.caption, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, background: '#FDFAF7' }}>{h}</th>
                     ))}
                   </tr>
@@ -687,7 +688,7 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
               </div>
               <button onClick={() => setMaxVisible(m => m + 80)}
                 style={{
-                  padding: '8px 20px', borderRadius: 8,
+                  padding: '0 20px', minHeight: 40, borderRadius: 8,
                   border: `1px solid ${C.borderStr}`, background: C.white,
                   fontSize: 12, fontWeight: 700, color: C.text, cursor: 'pointer',
                 }}>
@@ -741,7 +742,7 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
                       "allarme": per un prezzo che sale serve il rosso di
                       allarme. */}
                   <span style={{ fontSize: 13, color: delta > 0 ? C.red : delta < 0 ? C.green : C.textSoft, ...TNUM, fontWeight: 800 }}>
-                    {delta > 0 ? '+' : ''}{delta.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} € {deltaPct != null && <span style={{ fontSize: 11, marginLeft: 4, opacity: 0.85 }}>({deltaPct > 0 ? '+' : ''}{deltaPct.toFixed(1)}%)</span>}
+                    {delta > 0 ? '+' : ''}{delta.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} € {deltaPct != null && <span style={{ fontSize: 12, marginLeft: 4, opacity: 0.85 }}>({deltaPct > 0 ? '+' : ''}{fmtp(deltaPct)})</span>}
                   </span>
                 </div>
               </div>
@@ -1204,7 +1205,7 @@ export default function MagazzinoView({
   // 'g' -> sempre grammi (anche grandi, "28.000 g"). Niente piu mix.
   const fmtG = g => {
     const n = Number(g) || 0
-    if (unitMode === 'g') return `${Math.round(n).toLocaleString('it-IT')} g`
+    if (unitMode === 'g') return `${Math.round(n).toLocaleString('it-IT', { useGrouping: 'always' })} g`
     return `${(n / 1000).toLocaleString('it-IT', { minimumFractionDigits: n >= 1000 ? 2 : 3, maximumFractionDigits: n >= 1000 ? 2 : 3 })} kg`
   }
   // Suggerimento riordino arrotondato a step pratici: <1kg → step 100g, ≥1kg → 0,5kg.
@@ -1213,6 +1214,9 @@ export default function MagazzinoView({
   // pagina. Prima decideva l'unità da solo ignorando il toggle kg/g: nella
   // stessa riga si leggeva "28.000 g" di giacenza e "~ 1,5 kg" da ordinare, e
   // per capire se bastava bisognava fare la conversione a mente.
+  // Fornitore di un ingrediente, letto dal listino del ricettario.
+  const fornitorePerNome = (nome) => fornitoreDiIngrediente(ricettario?.ingredienti_costi, nome)?.nome || null
+
   const fmtRiordino = g => {
     if (!(g > 0)) return null
     const arrotondato = g < 1000
@@ -1233,9 +1237,7 @@ export default function MagazzinoView({
         action={onImportPrezzi && (
           <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 16px',
             background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: R.md, cursor: 'pointer', boxShadow: S.sm }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={T.textMid} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
-            </svg>
+            <Icon name="upload" size={14} color={T.textMid} />
             <span style={{ fontSize: 13, fontWeight: 500, color: T.textMid }}>Importa prezzi</span>
             <input type="file" accept=".xlsx,.xls,.csv" multiple style={{ display: 'none' }} onChange={e => e.target.files.length && onImportPrezzi(e.target.files)}/>
           </label>
@@ -1368,7 +1370,10 @@ export default function MagazzinoView({
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, minWidth: 540 }}>
                 <thead>
                   <tr style={{ background: '#F8F4F2' }}>
-                    {[['Ingrediente', 'left'], ['Giacenza', 'right'], ['Giorni scorta', 'right'], ['Da ordinare', 'right'], ['Costo stim.', 'right'], ['', 'right']].map(([h, al], i) => (
+                    {/* "Da chi": la lista diceva quanto ordinare e non a chi
+                        chiederlo. Il fornitore di un ingrediente si impara
+                        registrando un ordine ricevuto in Fornitori. */}
+                    {[['Ingrediente', 'left'], ['Da chi', 'left'], ['Giacenza', 'right'], ['Giorni scorta', 'right'], ['Da ordinare', 'right'], ['Costo stim.', 'right'], ['', 'right']].map(([h, al], i) => (
                       <th key={i} style={{ padding: '9px 14px', textAlign: al, ...typo.caption, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>{h}</th>
                     ))}
                   </tr>
@@ -1381,6 +1386,11 @@ export default function MagazzinoView({
                           <span style={{ width: 7, height: 7, borderRadius: '50%', background: statoColor(r.stato), flexShrink: 0 }}/>
                           {r.nome}
                         </span>
+                      </td>
+                      <td style={{ padding: '10px 14px', color: fornitorePerNome(r.nome) ? C.textMid : C.textSoft, whiteSpace: 'nowrap' }}>
+                        {fornitorePerNome(r.nome) || (
+                          <span title="Nessun fornitore collegato: si collega da sé quando segni come ricevuto un ordine che contiene questo ingrediente." style={{ cursor: 'help' }}>da collegare</span>
+                        )}
                       </td>
                       <td style={{ padding: '10px 14px', textAlign: 'right', color: statoColor(r.stato), fontWeight: 700, ...TNUM }}>{fmtG(r.giacenza)}</td>
                       <td style={{ padding: '10px 14px', textAlign: 'right', color: statoColor(r.stato), fontWeight: 700, ...TNUM }}>
@@ -1466,16 +1476,16 @@ export default function MagazzinoView({
                 <div style={{ display: 'inline-flex', padding: 3, background: C.bgSubtle, borderRadius: 8 }}>
                   {['kg', 'g'].map(u => (
                     <button key={u} onClick={() => setUnitMode(u)}
-                      style={{ padding: '6px 12px', borderRadius: 6, border: 'none', cursor: 'pointer',
+                      style={{ padding: '0 14px', minHeight: 38, borderRadius: 6, border: 'none', cursor: 'pointer',
                         background: unitMode === u ? C.bgCard : 'transparent',
                         color: unitMode === u ? C.red : C.textSoft,
-                        fontSize: 11.5, fontWeight: 700,
+                        fontSize: 12, fontWeight: 700,
                         boxShadow: unitMode === u ? '0 1px 2px rgba(15,23,42,0.08)' : 'none',
                         fontFamily: 'inherit',
                       }}>{u}</button>
                   ))}
                 </div>
-                <button onClick={() => setShowAddIng(true)} style={{ padding: '8px 16px', background: C.red, color: C.white, border: 'none', borderRadius: 9, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 2px 8px rgba(110,14,26,0.2)' }}>+ Aggiungi ingrediente</button>
+                <button onClick={() => setShowAddIng(true)} style={{ padding: '0 16px', minHeight: 44, background: C.red, color: C.white, border: 'none', borderRadius: 9, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 2px 8px rgba(110,14,26,0.2)', display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="plus" size={12} />Aggiungi ingrediente</button>
               </div>
             } />
           {/* [15] Ricerca: con 35 ingredienti e oltre non c'era modo di
@@ -1593,14 +1603,14 @@ export default function MagazzinoView({
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
                           <span style={{ fontWeight: 800, fontSize: 12, color: statoColor(r.stato), ...TNUM }}>{fmtG(r.giacenza)}</span>
                           {r.fabb > 0 && (
-                            <div style={{ width: 60, height: 4, background: '#EEE', borderRadius: 2 }}>
+                            <div style={{ width: 60, height: 4, background: C.borderStr, borderRadius: 2 }}>
                               <div style={{ width: `${Math.min(100, (r.giacenza / r.fabb) * 100)}%`, height: 4, background: statoColor(r.stato), borderRadius: 2 }}/>
                             </div>
                           )}
                         </div>
                       </td>
-                      <td style={{ padding: '10px 14px', textAlign: 'center', color: C.textMid, ...TNUM }}>{r.fabb > 0 ? fmtG(r.fabb) : '-'}</td>
-                      <td style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 700, color: statoColor(r.stato), ...TNUM }}
+                      <td style={{ padding: '10px 14px', textAlign: 'right', color: C.textMid, ...TNUM }}>{r.fabb > 0 ? fmtG(r.fabb) : '-'}</td>
+                      <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 700, color: statoColor(r.stato), ...TNUM }}
                           title="Giorni di scorta: giacenza diviso consumo medio giornaliero">
                         {r.giorniScorta !== null ? `${r.giorniScorta.toFixed(0)} gg${consumoStimato ? ' ~' : ''}` : '-'}
                       </td>
@@ -1631,9 +1641,9 @@ export default function MagazzinoView({
                           <span style={{ color: C.textSoft }}>-</span>
                         )}
                       </td>
-                      <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                      <td style={{ padding: '10px 14px', textAlign: 'right' }}>
                         {editSoglia?.nome === r.k ? (
-                          <div style={{ display: 'flex', gap: 4, alignItems: 'center', justifyContent: 'center' }}>
+                          <div style={{ display: 'flex', gap: 4, alignItems: 'center', justifyContent: 'flex-end' }}>
                             {/* L'unità scritta accanto al campo.
                                 Il pulsante mostrava "0,500 kg", si apriva e
                                 dentro c'era "500": chi aveva appena letto kg
@@ -1661,10 +1671,10 @@ export default function MagazzinoView({
                           </button>
                         )}
                       </td>
-                      <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                      <td style={{ padding: '10px 14px', textAlign: 'left' }}>
                         <span style={{ background: statoBg(r.stato), color: statoColor(r.stato), fontSize: 12, fontWeight: 700, padding: '3px 9px', borderRadius: 10, letterSpacing: '0.06em', textTransform: 'uppercase', whiteSpace: 'nowrap', display: 'inline-block' }}>{statoLabel(r.stato)}</span>
                       </td>
-                      <td style={{ padding: '10px 14px', textAlign: 'center', color: C.textSoft, fontSize: 12 }}>
+                      <td style={{ padding: '10px 14px', textAlign: 'right', color: C.textSoft, fontSize: 12 }}>
                         {r.ultimoRif ? new Date(r.ultimoRif).toLocaleDateString('it-IT') : '-'}
                       </td>
                       {/* Una colonna sola per le azioni, allineata a destra:
@@ -1779,7 +1789,7 @@ export default function MagazzinoView({
                     color: formMode === m ? (m === 'carico' ? C.green : C.amber) : C.textMid,
                     fontWeight: formMode === m ? 800 : 500, fontSize: 13, cursor: 'pointer', textAlign: 'left' }}>
                   <div style={{ fontWeight: 800, marginBottom: 2, display: 'flex', alignItems: 'center', gap: 5 }}><Icon name={ic} size={12} />{lbl}</div>
-                  <div style={{ fontSize: 12, opacity: 0.7 }}>{sub}</div>
+                  <div style={{ fontSize: 12, opacity: 0.88 }}>{sub}</div>
                 </button>
               ))}
             </div>
@@ -1814,7 +1824,7 @@ export default function MagazzinoView({
                   return (
                     <div style={{ fontSize: typo.small.fontSize, color: dopo < 0 ? C.red : C.textSoft, marginTop: 5, lineHeight: 1.5 }}>
                       Adesso in magazzino: <b style={{ color: C.text, ...TNUM }}>{fmtG(rigaScelta.giacenza)}</b>
-                      {formQty && <> → dopo questa operazione <b style={{ color: dopo < 0 ? C.red : C.text, ...TNUM }}>{fmtG(dopo)}</b></>}
+                      {formQty && <> <Icon name="arrowR" size={11} /> dopo questa operazione <b style={{ color: dopo < 0 ? C.red : C.text, ...TNUM }}>{fmtG(dopo)}</b></>}
                       {dopo < 0 && <> — andrebbe sotto zero: controlla la quantità.</>}
                     </div>
                   )
@@ -1836,7 +1846,7 @@ export default function MagazzinoView({
               <button onClick={handleCarica} disabled={!formIng || !formQty || saving}
                 style={{ padding: '12px', border: 'none', borderRadius: 9, fontWeight: 800, fontSize: 13, cursor: (formIng && formQty && !saving) ? 'pointer' : 'default',
                   background: (formIng && formQty && !saving) ? (formMode === 'scarico' ? C.amber : C.red) : '#DDD',
-                  color: (formIng && formQty && !saving) ? C.white : '#999', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+                  color: (formIng && formQty && !saving) ? C.white : C.textMid, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
                 {saving ? 'Salvataggio…' : (formMode === 'scarico' ? <><Icon name="trash" size={14} />Rimuovi dal magazzino</> : <><Icon name="plus" size={14} />Aggiungi al magazzino</>)}
               </button>
             </div>
@@ -1955,7 +1965,7 @@ export default function MagazzinoView({
               style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 7, border: `2px solid ${deleteIngPin === 'ELIMINA' ? C.red : '#DDD'}`, fontSize: 14, fontWeight: 800, color: C.red, letterSpacing: '0.1em', marginBottom: 16, outline: 'none' }}/>
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={() => { if (deleteIngPin === 'ELIMINA') handleDeleteIng(deleteIngConf) }} disabled={saving}
-                style={{ flex: 1, padding: '11px', background: deleteIngPin === 'ELIMINA' && !saving ? C.red : '#EEE', color: deleteIngPin === 'ELIMINA' && !saving ? C.white : '#AAA', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 800, cursor: deleteIngPin === 'ELIMINA' && !saving ? 'pointer' : 'not-allowed' }}>
+                style={{ flex: 1, padding: '11px', background: deleteIngPin === 'ELIMINA' && !saving ? C.red : '#EEE', color: deleteIngPin === 'ELIMINA' && !saving ? C.white : C.textMid, border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 800, cursor: deleteIngPin === 'ELIMINA' && !saving ? 'pointer' : 'not-allowed' }}>
                 {saving ? 'Eliminazione…' : 'Elimina definitivamente'}
               </button>
               <button onClick={() => { setDeleteIngConf(null); setDeleteIngPin('') }} style={{ flex: 1, padding: '11px', background: C.white, color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Annulla</button>

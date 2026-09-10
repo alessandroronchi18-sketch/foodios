@@ -291,7 +291,7 @@ export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
               {(form.componenti || []).length > 0 && (
-                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 56px 84px 36px' : '2fr 80px 110px 100px 40px', gap: 8, ...labelStyle, marginBottom: 0, alignItems: 'end' }}>
+                <div style={{ ...labelStyle, display: 'grid', gridTemplateColumns: isMobile ? '1fr 56px 84px 36px' : '2fr 80px 110px 100px 40px', gap: 8, marginBottom: 0, alignItems: 'end' }}>
                   <span>Materiale</span>
                   <span style={{ textAlign: 'right' }}>Qtà</span>
                   <span style={{ textAlign: 'right' }}>€/unità</span>
@@ -336,7 +336,7 @@ export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita
                 // Grid uniforme 4 col: ogni stat ha stesso label (10/700/0.08em) +
                 // value (18/800) + hint (10.5). Incolonnati perfettamente tra di
                 // loro su desktop; mobile passa a 2x2.
-                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: isMobile ? 14 : 16, alignItems: 'start' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile || isTablet ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: isMobile ? 14 : 16, alignItems: 'start' }}>
                   <PreviewStat label="Materiali" val={fmt3(previewFC.fcComponenti)} />
                   <PreviewStat label={`Prodotto (${previewFC.baseG.toLocaleString('it-IT')}g)`} val={fmt3(previewFC.baseG * previewFC.avg)} hint={`FC ${form.categoria}: ${fmtEuro(previewFC.avg * 1000)}/kg`} />
                   <PreviewStat label="FC stimato / unità" val={fmt3(previewFC.fcUnit)} color={T.green} />
@@ -405,7 +405,7 @@ export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita
                           <button onClick={(e) => { e.stopPropagation(); setPrezziSedeTarget(f) }}
                             title="Prezzi diversi per sede"
                             style={{ padding: '8px 12px', background: 'transparent', color: T.textMid, border: `1px solid ${T.border}`, borderRadius: R.sm, fontSize: 12.5, fontWeight: 500, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                            <Icon name="map" size={13} />Prezzi / sede
+                            <Icon name="pin" size={13} />Prezzi / sede
                           </button>
                         )}
                         <button onClick={(e) => { e.stopPropagation(); apriEditor(f) }}
@@ -428,7 +428,7 @@ export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita
                         </button>
                       </div>
                     )}
-                    <span style={{ color: T.textSoft, fontSize: 13, flexShrink: 0 }}>{open ? '▾' : '▸'}</span>
+                    <span style={{ color: T.textSoft, flexShrink: 0, display: 'inline-flex' }}><Icon name={open ? 'chevDown' : 'chevR'} size={16} /></span>
                   </div>
 
                   {/* breakdown espandibile */}
@@ -463,7 +463,7 @@ export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita
                       )}
 
                       {/* quota prodotto + totali */}
-                      <div style={{ borderTop: `1px dashed ${T.border}`, paddingTop: 12, display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4,1fr)', gap: 14 }}>
+                      <div style={{ borderTop: `1px dashed ${T.border}`, paddingTop: 12, display: 'grid', gridTemplateColumns: isMobile || isTablet ? '1fr 1fr' : 'repeat(4,1fr)', gap: 14 }}>
                         <BreakdownTot label="Materiali" val={fmt3(r.costoMateriali)} />
                         <BreakdownTot label={`Prodotto (${(Number(f.baseQtaG) || 0).toLocaleString('it-IT')}g)`}
                           val={r.fcKnown ? fmt3(r.fcBase) : '-'}
@@ -478,7 +478,7 @@ export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita
                           {hasMultiSede && (
                             <button onClick={(e) => { e.stopPropagation(); setPrezziSedeTarget(f) }}
                               style={{ padding: '10px', background: 'transparent', color: T.textMid, border: `1px solid ${T.border}`, borderRadius: R.sm, fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                              <Icon name="map" size={14} />Prezzi per sede
+                              <Icon name="pin" size={14} />Prezzi per sede
                             </button>
                           )}
                           <div style={{ display: 'flex', gap: 8 }}>
@@ -529,7 +529,7 @@ function MiniStat({ label, val, color, title }) {
 function BreakdownTot({ label, val, hint, color, big }) {
   return (
     <div title={hint}>
-      <div style={{ fontSize: typo.small.fontSize, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, marginBottom: 4, cursor: hint ? 'help' : 'default' }}>{label}</div>
+      <div style={{ fontSize: typo.small.fontSize, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, marginBottom: 4, minHeight: 32, cursor: hint ? 'help' : 'default' }}>{label}</div>
       <div style={{ fontSize: big ? 18 : 15, fontWeight: 800, color: color || T.text, letterSpacing: '-0.02em', ...TNUM }}>{val}</div>
       {hint && <div style={{ fontSize: typo.small.fontSize, color: T.textSoft, marginTop: 2 }}>{hint}</div>}
     </div>
@@ -543,7 +543,7 @@ function PreviewStat({ label, val, hint, color }) {
   // a minHeight + flex column.
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minHeight: 56 }}>
-      <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: T.textSoft, lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</div>
+      <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: T.textSoft, lineHeight: 1.2, minHeight: 30, overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</div>
       <div style={{ fontSize: 18, fontWeight: 800, color: color || T.text, letterSpacing: '-0.02em', ...TNUM, lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{val}</div>
       {hint && <div style={{ fontSize: typo.small.fontSize, color: T.textSoft, lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{hint}</div>}
     </div>
