@@ -3565,7 +3565,7 @@ export default function Dashboard({
         {view==="changelog"&&<ChangelogView/>}
         {view==="recensioni"&&<RecensioniView nomeAttivita={nomeAttivita}/>}
         {view==="menu-engineering"&&<MenuEngineeringView orgId={orgId} sedeId={sedeId} ricettario={ricettario} sedeAttiva={sedeAttiva}/>}
-        {view==="cashflow"&&<CashflowView orgId={orgId} sedeId={sedeId} notify={notify}/>}
+        {view==="cashflow"&&<CashflowView orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify}/>}
         {view==="forecast"&&<ForecastView orgId={orgId} sedeId={sedeId} sedeAttiva={sedeAttiva} setView={setView}/>}
         {view==="reformulation"&&<ReformulationView ricettario={ricettario} orgId={orgId} sedeId={sedeId} notify={notify}/>}
         {view==="ordini-ai"&&<OrdiniAiView orgId={orgId} sedeId={sedeId} notify={notify}/>}
