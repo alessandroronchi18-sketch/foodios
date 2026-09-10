@@ -15,6 +15,9 @@ import { color as T, radius as R, shadow as S, motion as M, typo } from '../lib/
 import { todayLocal } from '../lib/dateLocal'
 import { pickFattura, dedupFatture, insertFattureResilient, chiaviFattureEsistenti } from '../lib/fattureImport'
 import { aggiungiMovimentiInBlocco, ORIGINE_FATTURA } from '../lib/primaNota'
+import {
+  imputaPagamento, terminiOsservati, ricorrenti, fattureAnomale, testoEstrattoConto,
+} from '../lib/pagamentiFornitore'
 
 // Chiave storage per i dati di pagamento dell'azienda (intestatario + IBAN da
 // cui partono i bonifici). Shared a livello org (sede null).
@@ -173,6 +176,12 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
   const [pagMetodo, setPagMetodo]         = useState('bonifico')
   // Editing anagrafica fornitore (IBAN/termini) dal rollup
   const [editForn, setEditForn]           = useState(null) // nome_norm in edit
+  // Pagamento cumulativo: un bonifico, un importo, le fatture si chiudono
+  // dalla più vecchia. { nome_norm, nome, testo } | null
+  const [pagCum, setPagCum]               = useState(null)
+  const [pagCumSaving, setPagCumSaving]   = useState(false)
+  // Quale settimana del calendario è aperta a mostrare i fornitori.
+  const [settimanaAperta, setSettimanaAperta] = useState(null)
   const [editFornData, setEditFornData]   = useState({ iban: '', termini: 30, categoria: '' })
   // Set di fornitori (nome_norm) con dropdown fatture espanso.
   const [expandedForn, setExpandedForn]   = useState(() => new Set())
@@ -526,6 +535,102 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
     }
   }
 
+  // Copia negli appunti l'estratto conto di un fornitore, pronto da mandare
+  // su WhatsApp o per mail.
+  //
+  // PERCHE': con 99 fatture aperte con lo stesso fornitore, prima o poi vi
+  // dovete allineare. Finora l'unica strada era leggere i numeri al telefono
+  // o rifare l'elenco a mano.
+  async function copiaEstrattoConto(gruppo) {
+    const testo = testoEstrattoConto(gruppo.nome, gruppo.items, {
+      nomeAzienda: azienda.nome || '',
+      oggiIso: dataPag,
+    })
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(testo)
+        notify(`Estratto conto di ${gruppo.nome} copiato: incollalo nel messaggio al fornitore.`)
+        return
+      }
+    } catch { /* si prova il ripiego */ }
+    try {
+      const ta = document.createElement('textarea')
+      ta.value = testo
+      ta.setAttribute('readonly', '')
+      ta.style.position = 'fixed'; ta.style.opacity = '0'
+      document.body.appendChild(ta)
+      ta.focus(); ta.select(); ta.setSelectionRange(0, testo.length)
+      const ok = document.execCommand('copy')
+      document.body.removeChild(ta)
+      notify(ok
+        ? `Estratto conto di ${gruppo.nome} copiato: incollalo nel messaggio al fornitore.`
+        : 'Copia non riuscita: apri il fornitore e leggi le fatture dall\'elenco.', ok)
+    } catch {
+      notify('Copia non supportata da questo browser.', false)
+    }
+  }
+
+  // Applica il piano di imputazione di un pagamento cumulativo.
+  //
+  // Il piano arriva già calcolato da imputaPagamento (che è puro e testato) e
+  // viene mostrato all'utente PRIMA: su 99 fatture un'imputazione sbagliata
+  // non si disfa a mano.
+  async function applicaPagamentoCumulativo(piano, dataIso, fornitoreNome) {
+    const daScrivere = piano.righe.filter(r => r.imputato !== 0)
+    if (!daScrivere.length) return
+    setPagCumSaving(true)
+    try {
+      const fatte = []
+      const LOTTO = 20
+      for (let i = 0; i < daScrivere.length; i += LOTTO) {
+        const lotto = daScrivere.slice(i, i + LOTTO)
+        const esiti = await Promise.all(lotto.map(async (r) => {
+          const f = fatture.find(x => x.id === r.id)
+          const totale = Math.abs(Number(f?.totale) || 0)
+          // Una nota di credito usata si chiude per intero; una fattura
+          // saldata pure; una parziale porta l'acconto nuovo.
+          const patch = r.saldata
+            ? { stato: 'pagata', data_pagamento: dataIso, importo_pagato: totale, metodo_pagamento: 'bonifico' }
+            : { importo_pagato: Math.round((totale - r.residuoDopo) * 100) / 100, metodo_pagamento: 'bonifico' }
+          const { error } = await supabase.from('fatture').update(patch).eq('id', r.id)
+          return error ? null : { id: r.id, patch }
+        }))
+        for (const e of esiti) if (e) fatte.push(e)
+      }
+      if (fatte.length) {
+        const perId = Object.fromEntries(fatte.map(e => [e.id, e.patch]))
+        setFatture(prev => prev.map(x => perId[x.id] ? { ...x, ...perId[x.id] } : x))
+      }
+      // L'uscita in Cassa è UNA, non una per fattura: il bonifico è uno.
+      let inCassa = false
+      if (registraInCassa && piano.usato > 0) {
+        inCassa = await registraUscitaCassa([{
+          data: dataIso,
+          importo: piano.usato,
+          descrizione: `${fornitoreNome} · ${piano.chiuse + piano.parziali} fatture`,
+          fornitore: fornitoreNome,
+          documento: 'fattura',
+        }])
+      }
+      setPagCum(null)
+      const parti = []
+      if (piano.chiuse > 0) parti.push(`${piano.chiuse} ${piano.chiuse === 1 ? 'fattura chiusa' : 'fatture chiuse'}`)
+      if (piano.parziali > 0) parti.push(`${piano.parziali} con acconto`)
+      if (piano.creditiUsati > 0) parti.push(`${fmtEuro(piano.creditiUsati)} di note di credito usate`)
+      if (inCassa) parti.push('uscita registrata in Cassa')
+      if (fatte.length < daScrivere.length) {
+        notify(`Applicate ${fatte.length} righe di ${daScrivere.length}: sulle altre il salvataggio non è riuscito, riprova.`, false)
+      } else {
+        notify(parti.join(' · ') || 'Pagamento registrato')
+      }
+    } catch (e) {
+      console.error('[scadenzario] pagamento cumulativo', e)
+      notify('Non ho potuto registrare il pagamento: controlla la connessione e riprova.', false)
+    } finally {
+      setPagCumSaving(false)
+    }
+  }
+
   // Segna pagate più fatture in una volta.
   //
   // Audit 2026-09-09: l'unico modo di segnare pagata una fattura era una alla
@@ -763,6 +868,34 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
     }
   }, [gruppi])
 
+  // Termini di pagamento IMPARATI da come hai pagato finora, per fornitore.
+  // Nei dati veri nessuna fattura porta la scadenza, quindi la pagina le
+  // calcola tutte a 30 giorni: ma ogni fornitore ha le sue condizioni, e si
+  // vedono dalle date di pagamento già registrate. Serve lo storico
+  // completo: sulle sole fatture aperte non c'è nessun pagamento da guardare.
+  const terminiImparati = useMemo(() => {
+    const perFornitore = {}
+    for (const f of fatture) {
+      const k = normNome(f.fornitore)
+      if (!k) continue
+      if (!perFornitore[k]) perFornitore[k] = []
+      perFornitore[k].push(f)
+    }
+    const out = {}
+    for (const [k, lista] of Object.entries(perFornitore)) {
+      const t = terminiOsservati(lista)
+      if (t) out[k] = t
+    }
+    return out
+  }, [fatture])
+
+  // Fatture fuori scala rispetto alla storia del loro fornitore.
+  const anomale = useMemo(() => fattureAnomale(fatture), [fatture])
+
+  // Canoni e bollette: una al mese, importi simili. Non hanno bisogno dello
+  // stesso controllo di una fornitura di merce.
+  const fisseMensili = useMemo(() => ricorrenti(fatture), [fatture])
+
   // Le fatture scadute da tanto: quelle che quasi sempre sono già state
   // pagate e mai segnate come tali.
   //
@@ -910,18 +1043,34 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
     const buckets = []
     for (let w = 0; w < 8; w++) buckets.push({ label: w === 0 ? 'Questa sett.' : `+${w} sett.`, tot: 0, n: 0 })
     const oltre = { label: 'Oltre', tot: 0, n: 0 }
+    // Ogni settimana si porta dietro A CHI si paga, non solo quanto: la
+    // domanda della mattina è "questa settimana chi devo pagare", e un
+    // importo da solo non ci risponde.
+    for (const b of [scaduto, ...buckets, oltre]) b.perFornitore = {}
+    const conta = (b, f) => {
+      const k = String(f.fornitore || '—').trim()
+      b.perFornitore[k] = (b.perFornitore[k] || 0) + f.residuo
+    }
     for (const f of fattureExt) {
       if (f.stato === 'pagata') continue
       const amt = f.residuo
-      if (f.dueDays == null) { oltre.tot += amt; oltre.n++; continue }
-      if (f.dueDays < 0) { scaduto.tot += amt; scaduto.n++; continue }
+      if (f.dueDays == null) { oltre.tot += amt; oltre.n++; conta(oltre, f); continue }
+      if (f.dueDays < 0) { scaduto.tot += amt; scaduto.n++; conta(scaduto, f); continue }
       const w = Math.floor(f.dueDays / 7)
-      if (w < 8) { buckets[w].tot += amt; buckets[w].n++ } else { oltre.tot += amt; oltre.n++ }
+      if (w < 8) { buckets[w].tot += amt; buckets[w].n++; conta(buckets[w], f) }
+      else { oltre.tot += amt; oltre.n++; conta(oltre, f) }
     }
     const all = [scaduto, ...buckets, oltre]
     const max = Math.max(1, ...all.map(b => Math.abs(b.tot)))
     let cum = 0
-    return all.map(b => { cum += b.tot; return { ...b, cum, max } })
+    return all.map(b => {
+      cum += b.tot
+      const top = Object.entries(b.perFornitore)
+        .sort((x, y) => Math.abs(y[1]) - Math.abs(x[1]))
+        .slice(0, 5)
+        .map(([nome, tot]) => ({ nome, tot }))
+      return { ...b, cum, max, top, nFornitori: Object.keys(b.perFornitore).length }
+    })
   }, [fattureExt])
 
   async function exportExcel() {
@@ -1500,6 +1649,35 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                     {g.scaduto > 0 && <span style={{ fontSize: 12, fontWeight: 700, color: '#991B1B', background: '#FEE2E2', padding: '4px 9px', borderRadius: 9, whiteSpace: 'nowrap', ...tnum }}>scaduto {fmtEuro0(g.scaduto)}</span>}
                   </div>
                   <div style={{ fontSize: isMobile ? 15 : 16, fontWeight: 800, color: g.totale < 0 ? T.green : T.text, ...tnum, minWidth: 110, textAlign: 'right', whiteSpace: 'nowrap' }}>{fmtEuro(g.totale)}</div>
+                  {/* Un bonifico, un importo. Con 99 fatture aperte allo
+                      stesso fornitore, segnarle pagate una per una è lavoro
+                      che nessuno fa: si scrive quanto è partito e le fatture
+                      si chiudono dalla più vecchia. */}
+                  {g.items.some(f => f.residuo > 0) && (
+                    <button onClick={(e) => { e.stopPropagation(); setPagCum({ nome_norm: g.nome_norm, nome: g.nome, testo: '' }) }}
+                      aria-label={`Registra un pagamento a ${g.nome}`}
+                      title="Ho pagato una cifra a questo fornitore: la imputo alle fatture più vecchie"
+                      style={{
+                        padding: isMobile ? '9px 12px' : '7px 12px', minHeight: minTouch, borderRadius: 8,
+                        border: 'none', background: T.green, color: T.white,
+                        fontSize: typo.size.base, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
+                        display: 'inline-flex', alignItems: 'center', gap: 5,
+                      }}>
+                      <Icon name="euro" size={13} /> Ho pagato
+                    </button>
+                  )}
+                  {/* L'estratto conto da mandare al fornitore: "queste ci
+                      risultano aperte, ti torna?". Con decine di fatture è
+                      l'unico modo di allinearsi senza leggere i numeri al
+                      telefono. */}
+                  {g.items.length > 1 && (
+                    <button onClick={(e) => { e.stopPropagation(); copiaEstrattoConto(g) }}
+                      aria-label={`Copia l'estratto conto di ${g.nome}`}
+                      title="Copia l'elenco delle fatture aperte, pronto da mandare al fornitore"
+                      style={{ ...ghostBtn, padding: isMobile ? '8px 10px' : '6px 11px', minHeight: minTouch, minWidth: minTouch }}>
+                      <Icon name="copy" size={14} />
+                    </button>
+                  )}
                   <button onClick={(e) => { e.stopPropagation(); if (isEdit) { setEditForn(null) } else { setEditForn(g.nome_norm); setEditFornData({ iban: g.iban || '', termini: g.termini ?? 30, terminiTipo: g.terminiTipo || 'netti', categoria: g.categoria || '' }) } }}
                     aria-label="Modifica anagrafica fornitore"
                     title="Anagrafica fornitore (IBAN, termini)" style={{ ...ghostBtn, padding: isMobile ? '8px 10px' : '6px 11px', minHeight: minTouch, minWidth: minTouch }}><Icon name="gear" size={14} /></button>
@@ -1575,10 +1753,32 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                   <input placeholder="IBAN fornitore" value={editFornData.iban} onChange={e => setEditFornData(d => ({ ...d, iban: e.target.value }))}
                     aria-label="IBAN fornitore"
                     style={{ padding: '10px 12px', minHeight: minTouch, border: `1px solid ${editFornData.iban && !ibanIsValid(editFornData.iban) ? T.brand : T.border}`, borderRadius: 9, fontSize: isMobile ? 16 : 13, flex: isMobile ? '1 1 100%' : '1 1 240px', minWidth: 0, width: isMobile ? '100%' : 'auto', boxSizing: 'border-box', ...tnum }} />
-                  <input type="number" inputMode="numeric" placeholder="Termini (gg)" value={editFornData.termini} onChange={e => setEditFornData(d => ({ ...d, termini: e.target.value }))}
-                    title="Giorni di pagamento (per derivare la scadenza quando non è nell'XML)"
-                    aria-label="Termini di pagamento in giorni"
-                    style={{ padding: '10px 12px', minHeight: minTouch, border: `1px solid ${T.border}`, borderRadius: 9, fontSize: isMobile ? 16 : 13, width: isMobile ? '100%' : 120, boxSizing: 'border-box' }} />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, width: isMobile ? '100%' : 'auto' }}>
+                    <input type="number" inputMode="numeric" placeholder="Termini (gg)" value={editFornData.termini} onChange={e => setEditFornData(d => ({ ...d, termini: e.target.value }))}
+                      title="Giorni di pagamento (per derivare la scadenza quando non è nell'XML)"
+                      aria-label="Termini di pagamento in giorni"
+                      style={{ padding: '10px 12px', minHeight: minTouch, border: `1px solid ${T.border}`, borderRadius: 9, fontSize: isMobile ? 16 : 13, width: isMobile ? '100%' : 120, boxSizing: 'border-box' }} />
+                    {/* I termini VERI, imparati da come hai pagato: la mediana
+                        dei giorni fra fattura e pagamento su questo fornitore.
+                        Non li scriviamo noi — si propongono, e li confermi tu:
+                        cambiano la scadenza di tutte le sue fatture future. */}
+                    {(() => {
+                      const t = terminiImparati[g.nome_norm]
+                      if (!t || String(t.proposto) === String(editFornData.termini)) return null
+                      return (
+                        <button type="button"
+                          onClick={() => setEditFornData(d => ({ ...d, termini: String(t.proposto) }))}
+                          title={`Su ${t.campione} pagamenti registrati, di solito paghi dopo ${t.giorni} giorni (dal minimo di ${t.min} al massimo di ${t.max}).`}
+                          style={{
+                            padding: '6px 9px', borderRadius: 7, border: `1px dashed ${T.blue}`,
+                            background: T.blueLight, color: T.blue, fontSize: typo.size.sm,
+                            fontWeight: 700, cursor: 'pointer', textAlign: 'left', lineHeight: 1.35,
+                          }}>
+                          Di solito paghi a {t.giorni} gg · usa {t.proposto}
+                        </button>
+                      )
+                    })()}
+                  </div>
                   {/* Come si contano quei giorni. Audit 2026-09-09: c'era solo il
                       numero, e il calcolo era sempre "dalla data fattura". I
                       fornitori alimentari lavorano quasi tutti a fine mese: una
@@ -1616,19 +1816,40 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
           <div style={{ fontSize: 15, fontWeight: 700, color: T.text, letterSpacing: '-0.01em' }}>Cassa in uscita - prossime settimane</div>
           {!isMobile && <div style={{ fontSize: 12, color: T.textSoft, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Settimana · Importo · Cumulato</div>}
         </div>
-        <div style={{ fontSize: 12, color: T.textSoft, marginBottom: 18 }}>Quanto esce e quando (netto note di credito). A destra il saldo cumulato.</div>
+        <div style={{ fontSize: 12, color: T.textSoft, marginBottom: 18 }}>Quanto esce e quando (netto note di credito). A destra il saldo cumulato. Clicca una settimana per vedere a chi va.</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {cashflow.map((b, i) => {
             const pct = Math.min(100, (Math.abs(b.tot) / b.max) * 100)
             const col = b.scaduto ? T.brand : (b.tot < 0 ? T.green : '#F97316')
             return (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 10 : 14 }}>
-                <div style={{ width: isMobile ? 78 : 96, fontSize: 12, color: b.scaduto ? T.brand : T.textMid, fontWeight: b.scaduto ? 700 : 500, flexShrink: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{b.label}</div>
-                <div style={{ flex: 1, height: 24, background: T.bgSubtle, borderRadius: 7, position: 'relative', overflow: 'hidden' }}>
-                  {b.tot !== 0 && <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${pct}%`, background: col, borderRadius: 7, minWidth: b.n ? 6 : 0, transition: 'width 0.3s' }} />}
+              <div key={i}>
+                <div
+                  onClick={() => b.n > 0 && setSettimanaAperta(settimanaAperta === i ? null : i)}
+                  role={b.n > 0 ? 'button' : undefined}
+                  tabIndex={b.n > 0 ? 0 : undefined}
+                  onKeyDown={e => { if (b.n > 0 && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setSettimanaAperta(settimanaAperta === i ? null : i) } }}
+                  title={b.n > 0 ? `${b.n} fatture · ${b.nFornitori} fornitori · clicca per vedere a chi va` : undefined}
+                  style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 10 : 14, cursor: b.n > 0 ? 'pointer' : 'default', minHeight: 40 }}>
+                  <div style={{ width: isMobile ? 78 : 96, fontSize: 12, color: b.scaduto ? T.brand : T.textMid, fontWeight: b.scaduto ? 700 : 500, flexShrink: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{b.label}</div>
+                  <div style={{ flex: 1, height: 24, background: T.bgSubtle, borderRadius: 7, position: 'relative', overflow: 'hidden' }}>
+                    {b.tot !== 0 && <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${pct}%`, background: col, borderRadius: 7, minWidth: b.n ? 6 : 0, transition: 'width 0.3s' }} />}
+                  </div>
+                  <div style={{ width: isMobile ? 84 : 104, textAlign: 'right', fontSize: 13, fontWeight: 700, color: b.tot < 0 ? T.green : T.text, ...tnum, flexShrink: 0, whiteSpace: 'nowrap' }}>{b.n ? fmtEuro0(b.tot) : '-'}</div>
+                  {!isMobile && <div style={{ width: 96, textAlign: 'right', fontSize: 12, color: T.textSoft, ...tnum, flexShrink: 0, whiteSpace: 'nowrap' }} title="Saldo cumulato">{fmtEuro0(b.cum)}</div>}
                 </div>
-                <div style={{ width: isMobile ? 84 : 104, textAlign: 'right', fontSize: 13, fontWeight: 700, color: b.tot < 0 ? T.green : T.text, ...tnum, flexShrink: 0, whiteSpace: 'nowrap' }}>{b.n ? fmtEuro0(b.tot) : '-'}</div>
-                {!isMobile && <div style={{ width: 96, textAlign: 'right', fontSize: 12, color: T.textSoft, ...tnum, flexShrink: 0, whiteSpace: 'nowrap' }} title="Saldo cumulato">{fmtEuro0(b.cum)}</div>}
+                {settimanaAperta === i && b.top.length > 0 && (
+                  <div style={{ margin: '6px 0 10px', marginLeft: isMobile ? 0 : 110, padding: '10px 12px', background: T.bgSubtle, borderRadius: 9 }}>
+                    <div style={{ fontSize: typo.size.sm, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+                      A chi va{b.nFornitori > b.top.length ? ` · i ${b.top.length} più grossi su ${b.nFornitori}` : ''}
+                    </div>
+                    {b.top.map(t => (
+                      <div key={t.nome} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'baseline', marginBottom: 3 }}>
+                        <span style={{ fontSize: typo.size.base, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.nome}</span>
+                        <span style={{ fontSize: typo.size.base, fontWeight: 700, color: t.tot < 0 ? T.green : T.text, ...tnum, whiteSpace: 'nowrap' }}>{fmtEuro(t.tot)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )
           })}
@@ -1866,6 +2087,50 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         ))}
       </div>
 
+      {/* Fatture fuori scala rispetto alla storia del loro fornitore.
+          Nei dati veri: GECKO CIOCCOLATI ha UNA fattura da 86.651 €, l'11,5%
+          di tutto il debito. Può essere giusta — o può essere un punto nel
+          posto sbagliato, che è esattamente la forma che ha questo errore.
+          Meglio guardarla adesso che scoprirlo quando si paga. */}
+      {!loading && anomale.length > 0 && (
+        <div style={{ ...card, padding: isMobile ? '14px' : '14px 18px', marginBottom: 14, borderLeft: `4px solid ${T.amber}` }}>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+            <Icon name="alert" size={16} color={T.amber} style={{ flexShrink: 0, marginTop: 2 }} />
+            <div style={{ flex: 1, minWidth: 220 }}>
+              <div style={{ fontSize: typo.size.md, fontWeight: 700, color: T.text, marginBottom: 3 }}>
+                {anomale.length === 1 ? 'Una fattura è fuori scala' : `${anomale.length} fatture sono fuori scala`}
+              </div>
+              <div style={{ fontSize: typo.size.base, color: T.textMid, lineHeight: 1.5, marginBottom: 8 }}>
+                Molto più grandi del solito per quel fornitore. Può essere giusto — o può essere
+                un punto nel posto sbagliato: vale un controllo prima di pagarle.
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                {anomale.slice(0, 5).map(a => (
+                  <div key={a.id} style={{ display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap', fontSize: typo.size.base }}>
+                    <span style={{ fontWeight: 700, color: T.text, flex: 1, minWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {a.fornitore}
+                    </span>
+                    <span style={{ color: T.textMid, ...tnum, whiteSpace: 'nowrap' }}>
+                      fatt. {a.numero_rif || 's.n.'} · <b>{fmtEuro(a.totale)}</b>
+                    </span>
+                    <span style={{ color: T.amber, fontWeight: 700, whiteSpace: 'nowrap' }}>
+                      {a.quanteVolte.toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 1 })}× il solito ({fmtEuro0(a.mediana)})
+                    </span>
+                    <button type="button" onClick={() => { setVista('scadenza'); setFiltro('tutte'); setSearch(a.numero_rif || a.fornitore) }}
+                      style={{ padding: '6px 11px', minHeight: 36, borderRadius: 7, border: `1px solid ${T.border}`, background: T.bgCard, color: T.textMid, fontSize: typo.size.sm, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                      Vedila
+                    </button>
+                  </div>
+                ))}
+                {anomale.length > 5 && (
+                  <div style={{ fontSize: typo.size.sm, color: T.textSoft }}>… e altre {anomale.length - 5}</div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Le fatture vecchie da sistemare: uno strumento, non un lavoro a mano.
           Non fa niente da sé: apre la stessa conferma di "Segna pagate", con
           scritto quante sono e da quanto. */}
@@ -2038,6 +2303,121 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
             style={{ width: '100%', padding: isMobile ? '11px 12px 11px 36px' : '10px 14px 10px 36px', minHeight: minTouch, borderRadius: 9, border: `1px solid ${T.border}`, fontSize: isMobile ? 16 : 13, color: T.text, boxSizing: 'border-box', outline: 'none' }} />
         </div>
       </div>
+
+        {/* Pagamento cumulativo: si scrive l'importo e si VEDE il piano
+            prima di applicarlo. Su 99 fatture un'imputazione sbagliata non
+            si disfa a mano, quindi niente automatismi silenziosi. */}
+        {pagCum && (() => {
+          const gruppo = rollupFornitori.find(g => g.nome_norm === pagCum.nome_norm)
+          const aperte = gruppo?.items || []
+          const importoNum = Number(String(pagCum.testo).replace(/\./g, '').replace(',', '.')) || 0
+          const piano = importoNum > 0 ? imputaPagamento(aperte, importoNum) : null
+          const dovuto = aperte.reduce((sm, f) => sm + (f.residuo || 0), 0)
+          return (
+            <div style={{ ...card, padding: isMobile ? '14px 16px' : '18px 22px', marginBottom: 16, border: `2px solid ${T.green}` }}>
+              <div style={{ ...typo.bodyStrong, fontWeight: 800, color: T.text, marginBottom: 4 }}>
+                Ho pagato {pagCum.nome}
+              </div>
+              <div style={{ ...typo.small, color: T.textSoft, lineHeight: 1.55, marginBottom: 12 }}>
+                In tutto gli devi <b style={{ color: T.text, ...tnum }}>{fmtEuro(dovuto)}</b> su {aperte.length} {aperte.length === 1 ? 'fattura' : 'fatture'}.
+                Scrivi quanto è partito: chiudo le più vecchie fino a esaurire l'importo, e l'ultima resta con un acconto.
+              </div>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 12 }}>
+                <div>
+                  <div style={{ ...typo.small, fontWeight: 700, color: T.textSoft, marginBottom: 4 }}>Quanto hai pagato</div>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <input type="text" inputMode="decimal" value={pagCum.testo} autoFocus
+                      onChange={e => setPagCum(p => ({ ...p, testo: e.target.value }))}
+                      placeholder={String(Math.round(Math.max(0, dovuto)))}
+                      aria-label="Importo pagato al fornitore"
+                      style={{ padding: '10px 12px', minHeight: minTouch, width: 150, borderRadius: 8, border: `1px solid ${T.border}`, fontSize: isMobile ? 16 : 15, fontWeight: 700, color: T.text, ...tnum }} />
+                    <span style={{ fontSize: 16, fontWeight: 700, color: T.textMid }}>€</span>
+                  </div>
+                </div>
+                <div>
+                  <div style={{ ...typo.small, fontWeight: 700, color: T.textSoft, marginBottom: 4 }}>Quando</div>
+                  <input type="date" value={dataPag} onChange={e => setDataPag(e.target.value)}
+                    aria-label="Data del pagamento"
+                    style={{ padding: '9px 11px', minHeight: minTouch, borderRadius: 8, border: `1px solid ${T.border}`, fontSize: isMobile ? 16 : 13, color: T.text }} />
+                </div>
+                {dovuto > 0 && (
+                  <button type="button" onClick={() => setPagCum(p => ({ ...p, testo: String(Math.round(dovuto * 100) / 100).replace('.', ',') }))}
+                    style={{ padding: '9px 13px', minHeight: minTouch, borderRadius: 8, border: `1px solid ${T.border}`, background: T.bgCard, ...typo.small, fontWeight: 700, color: T.textMid, cursor: 'pointer' }}>
+                    Ho pagato tutto
+                  </button>
+                )}
+              </div>
+
+              {piano && piano.righe.length > 0 && (
+                <div style={{ background: T.bgSubtle, borderRadius: 10, padding: '10px 12px', marginBottom: 12 }}>
+                  <div style={{ ...typo.small, fontWeight: 700, color: T.text, marginBottom: 6 }}>
+                    Cosa faccio con {fmtEuro(importoNum)}:
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 260, overflowY: 'auto' }}>
+                    {piano.righe.slice(0, 40).map(r => (
+                      <div key={r.id} style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', fontSize: typo.size.base }}>
+                        <span style={{ color: T.textMid, minWidth: 96, ...tnum }}>
+                          {r.dueIso ? String(r.dueIso).slice(0, 10).split('-').reverse().join('/') : '-'}
+                        </span>
+                        <span style={{ color: T.text, flex: 1, minWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {r.isNC ? 'nota di credito' : 'fatt.'} {r.numero_rif || 's.n.'}
+                        </span>
+                        <span style={{ ...tnum, color: T.textMid, whiteSpace: 'nowrap' }}>
+                          {r.isNC
+                            ? `uso ${fmtEuro(Math.abs(r.imputato))} di credito`
+                            : r.saldata
+                              ? `chiusa · ${fmtEuro(r.imputato)}`
+                              : `acconto ${fmtEuro(r.imputato)} · resta ${fmtEuro(r.residuoDopo)}`}
+                        </span>
+                      </div>
+                    ))}
+                    {piano.righe.length > 40 && (
+                      <div style={{ fontSize: typo.size.sm, color: T.textSoft }}>… e altre {piano.righe.length - 40} righe</div>
+                    )}
+                  </div>
+                  <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${T.border}`, ...typo.small, color: T.textMid, lineHeight: 1.5 }}>
+                    <b>{piano.chiuse}</b> {piano.chiuse === 1 ? 'fattura si chiude' : 'fatture si chiudono'}
+                    {piano.parziali > 0 ? `, ${piano.parziali} resta con un acconto` : ''}.
+                    {piano.eccedenza > 0.004 && (
+                      <div style={{ marginTop: 4, color: T.brand, fontWeight: 700 }}>
+                        Attenzione: {fmtEuro(piano.eccedenza)} restano fuori, perché superano quello che gli devi.
+                        Controlla l'importo: se hai pagato davvero di più, è un anticipo e va segnato a parte.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 9, marginBottom: 12, cursor: 'pointer' }}>
+                <input type="checkbox" checked={registraInCassa} onChange={e => setRegistraInCassa(e.target.checked)}
+                  style={{ width: 20, height: 20, marginTop: 1, accentColor: T.brand, cursor: 'pointer', flexShrink: 0 }} />
+                <span style={{ ...typo.small, color: T.textMid, lineHeight: 1.45 }}>
+                  Registra in <b>Cassa</b> un'unica uscita da {fmtEuro(piano?.usato || 0)}: il bonifico è uno, e in prima nota deve comparire una riga sola.
+                </span>
+              </label>
+
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button type="button"
+                  onClick={() => applicaPagamentoCumulativo(piano, dataPag, pagCum.nome)}
+                  disabled={pagCumSaving || !piano || piano.usato <= 0 || !dataPag}
+                  style={{
+                    padding: '11px 18px', minHeight: 44, borderRadius: 8, border: 'none',
+                    background: (pagCumSaving || !piano || piano.usato <= 0) ? T.border : T.green,
+                    color: '#fff', ...typo.body, fontWeight: 800,
+                    cursor: (pagCumSaving || !piano || piano.usato <= 0) ? 'default' : 'pointer',
+                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                  }}>
+                  <Icon name="check" size={14} />
+                  {pagCumSaving ? 'Registro…' : piano ? `Registra ${fmtEuro(piano.usato)}` : 'Scrivi l\'importo'}
+                </button>
+                <button type="button" onClick={() => setPagCum(null)} disabled={pagCumSaving}
+                  style={{ padding: '11px 16px', minHeight: 44, borderRadius: 8, border: `1px solid ${T.border}`, background: T.bgCard, ...typo.body, fontWeight: 700, color: T.textSoft, cursor: 'pointer' }}>
+                  Annulla
+                </button>
+              </div>
+            </div>
+          )
+        })()}
 
       {/* Vista PER FORNITORE - chiamata come funzione (non <RollupView/>): così
           NON viene rimontata a ogni render e gli input non perdono il focus. */}
