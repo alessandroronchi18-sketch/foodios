@@ -188,6 +188,11 @@ export async function buildAndDownloadPdf({
   periodo,
   kpi = [],
   sections = [],
+  // `nota`: una riga sotto i numeri che dice su quale base sono calcolati
+  // (giornate senza food cost, costi in quota sui giorni del periodo…).
+  // Serve perché un PDF esce dall'azienda e va dal commercialista: se il
+  // numero è parziale, deve essere scritto sul foglio, non solo a schermo.
+  nota,
 }) {
   const { jsPDF, autoTable } = await loadPdfDeps()
   const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' })
@@ -195,6 +200,14 @@ export async function buildAndDownloadPdf({
   drawHeader(doc, { title, subtitle, periodo })
   let y = 60
   y = drawKpi(doc, kpi, y)
+  if (nota) {
+    doc.setFontSize(8)
+    doc.setTextColor(110, 110, 110)
+    const righe = doc.splitTextToSize(String(nota), 182)
+    doc.text(righe, 14, y)
+    y += righe.length * 4 + 4
+    doc.setTextColor(0, 0, 0)
+  }
   for (const s of sections) {
     y = drawSection(doc, s, y, autoTable)
   }

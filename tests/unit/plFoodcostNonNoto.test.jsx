@@ -104,6 +104,9 @@ beforeEach(() => {
   cleanup()
 })
 
+// AGGIORNATO 10/09/2026: le percentuali di questa pagina ora hanno la virgola
+// italiana ("30,0%"), non il punto. Sulla stessa riga convivevano importi con
+// la virgola e percentuali col punto.
 describe('P&L — food cost non noto', () => {
   it('con tutte le giornate col solo totale non stampa una percentuale inventata', async () => {
     // Prima della correzione qui si leggeva "0.0%" di food cost, che è la
@@ -131,8 +134,8 @@ describe('P&L — food cost non noto', () => {
     // Sulla base sbagliata — tutti i ricavi — sarebbe uscito 15%.
     const v = monta([conDettaglio(g(1), 1000, 300), soloTotale(g(2), 1000)])
     await waitFor(() => expect(v.container.textContent).toContain('Food cost'))
-    expect(v.container.textContent).toContain('30.0%')
-    expect(v.container.textContent).not.toContain('15.0%')
+    expect(v.container.textContent).toContain('30,0%')
+    expect(v.container.textContent).not.toContain('15,0%')
     // E dichiara la base su cui è calcolata.
     expect(v.container.textContent).toContain('su 1 giorni di 2')
   })
@@ -140,7 +143,7 @@ describe('P&L — food cost non noto', () => {
   it('quando tutte le giornate hanno il costo materie non avverte di niente', async () => {
     const v = monta([conDettaglio(g(1), 1000, 300), conDettaglio(g(2), 1000, 300)])
     await waitFor(() => expect(v.container.textContent).toContain('Food cost'))
-    expect(v.container.textContent).toContain('30.0%')
+    expect(v.container.textContent).toContain('30,0%')
     expect(v.container.textContent).not.toContain('senza costo delle materie')
     expect(v.container.textContent).not.toContain('non noto')
   })
@@ -151,7 +154,7 @@ describe('P&L — food cost non noto', () => {
     const senzaFlag = { data: g(1), venduto: [], kpi: { totV: 1000, totFC: 250, totM: 750, totS: 0, totMP: 0, avgST: 0 } }
     const v = monta([senzaFlag])
     await waitFor(() => expect(v.container.textContent).toContain('Food cost'))
-    expect(v.container.textContent).toContain('25.0%')
+    expect(v.container.textContent).toContain('25,0%')
     expect(v.container.textContent).not.toContain('senza costo delle materie')
   })
 })

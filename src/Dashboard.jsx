@@ -3526,7 +3526,7 @@ export default function Dashboard({
         )}
         {ricettario&&view==="ricettario"&&<RicettarioView metodoProduzione={metodoProduzione} ricettario={ricettario} onUpdateRegola={handleUpdateRegola} onUpload={files=>handleFile(files)} onEditRicetta={(nome)=>{setEditingRicetta(nome);setView("nuova-ricetta");}} orgId={orgId} sedi={sedi} sedeAttiva={sedeAttiva} notify={notify} LEX={LEX}/>}
         {ricettario&&view==="semilavorati"&&<SemilavoratiView ricettario={ricettario} onSave={handleSalvaRicetta} notify={notify} tipoAttivita={tipoAttivita}/>}
-        {ricettario&&view==="pl"&&<PLView ricettario={ricettario} chiusure={chiusure} orgId={orgId} sedeId={sedeId} onUpdateRegola={handleUpdateRegola} notify={notify}/>}
+        {ricettario&&view==="pl"&&<PLView metodoProduzione={metodoProduzione} ricettario={ricettario} chiusure={chiusure} orgId={orgId} sedeId={sedeId} onUpdateRegola={handleUpdateRegola} notify={notify}/>}
         {ricettario&&view==="simulatore"&&<SimulatorePrezziView ricettario={ricettario} giornaliero={giornaliero} tipoAttivita={tipoAttivita} sedi={sedi} orgId={orgId} sedeId={sedeId}/>}
         {view==="nuova-ricetta"&&<NuovaRicettaView ricettario={ricettario} notify={notify} onSave={handleSalvaRicetta} editingRicetta={editingRicetta} onEditConsumed={()=>setEditingRicetta(null)} LEX={LEX} tipoAttivita={tipoAttivita}/>}
         {view==="scheda-allergeni"&&!PAGINE_NASCOSTE.has("scheda-allergeni")&&<SchedaAllergeniView ricettario={ricettario} tipoAttivita={tipoAttivita}/>}

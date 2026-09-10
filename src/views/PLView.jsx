@@ -8,7 +8,7 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import { sload, ssave } from '../lib/storage'
 import { supabase } from '../lib/supabase'
-import { fetchAllInventarioProduzione } from '../lib/inventarioProduzione'
+import { serieVendutoGusto, normGusto, fetchAllInventarioProduzione } from '../lib/inventarioProduzione'
 import { foodcostNoto } from '../lib/chiusure'
 import { totaliPeriodo as usciteCassaPeriodo } from '../lib/primaNota'
 import {
@@ -27,7 +27,7 @@ import { exportPLCompleto } from '../lib/exportPDF'
 import { gateExport, getExportCtx } from '../lib/exportGuard'
 import {
   C, TNUM, margColor, margBadge, Badge, Tip, PageHeader, SH, TD, TH,
-  useSortable, SortTH, fmt, fmt0, KPI, ChartTip,
+  useSortable, SortTH, fmt, fmt0, fmtp, KPI, ChartTip,
 } from './_shared'
 import Icon from '../components/Icon'
 import AiExplainButton from '../components/AiExplainButton'
@@ -181,7 +181,10 @@ function TopIngredientiTable({ ricettario, ingCosti, euro, pct }) {
     <>
       <SH sub="Aggregato su tutti i prodotti - clicca le intestazioni per ordinare">Ingredienti per Impatto sul Food Cost</SH>
       <div className="fos-card-glow" style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, overflowX: 'auto', marginBottom: 28, boxShadow: SHADOW_PREMIUM, position: 'relative' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+        {/* minWidth: senza una larghezza minima lo scorrimento orizzontale
+            non parte mai, e sul telefono le ultime colonne restavano tagliate
+            fuori senza modo di raggiungerle. Sei colonne come in PLTable. */}
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, minWidth: 720 }}>
           <thead>
             <tr style={{ background: '#F8F4F2' }}>
               <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 8, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>Ingrediente</th>
@@ -216,7 +219,7 @@ function TopIngredientiTable({ ricettario, ingCosti, euro, pct }) {
                         background: C.white, border: `1px solid ${C.border}`, borderRadius: 9,
                         padding: '10px 14px', boxShadow: '0 6px 24px rgba(0,0,0,0.13)',
                         minWidth: 180, pointerEvents: 'none', marginTop: 4 }}>
-                        <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: C.textSoft, marginBottom: 6 }}>Usato in</div>
+                        <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: C.textSoft, marginBottom: 6 }}>Usato in</div>
                         {ing.ricette.map((r, ri) => (
                           <div key={r} style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 4 }}>
                             <div style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, background: ['#6E0E1A', '#E07040', '#B45309', '#5B8FCE', '#7B7B7B'][ri % 5] }}/>
@@ -347,7 +350,7 @@ function ScenarioPrezzi({ rows, euro, pct }) {
                   <div style={{ textAlign: 'center' }}>
                     <div style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: !changed ? C.textSoft : r.delta > 0 ? C.green : C.red, marginBottom: 2 }}>Variazione</div>
                     <div style={{ fontSize: 15, fontWeight: 900, ...TNUM, color: !changed ? C.textSoft : r.delta > 0 ? C.green : C.red }}>
-                      {!changed ? '-' : `${dSign}${r.delta.toFixed(1)}%`}
+                      {!changed ? '-' : `${dSign}${fmtp(r.delta)}`}
                     </div>
                   </div>
                 </div>
@@ -384,7 +387,7 @@ function ScenarioPrezzi({ rows, euro, pct }) {
 }
 
 // ─── PL TABLE (sortable) ─────────────────────────────────────────────────────
-function PLTable({ rows, euro, pct, totRicavo, totFC, totMargine, fcAvg, avgMarg }) {
+function PLTable({ rows, euro, pct, totRicavo, totFC, totMargine, fcAvg, avgMarg, nSenzaPrezzo = 0, fcSenzaPrezzo = 0 }) {
   const { sort, sortKey, sortDir, toggleSort } = useSortable('margPct')
   const sorted = sort(rows, (r, k) => {
     if (k === 'nome') return r.nome
@@ -400,7 +403,7 @@ function PLTable({ rows, euro, pct, totRicavo, totFC, totMargine, fcAvg, avgMarg
           numeri; numeri tabular-nums e allineati a destra; riga TOTALE 800. */}
       <div className="fos-card-glow" style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, overflowX: 'auto', marginBottom: 28, position: 'relative', boxShadow: SHADOW_PREMIUM }}>
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, minWidth: 760 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, minWidth: 760 }}>
             <thead>
               <tr style={{ background: '#F8F4F2' }}>
                 <SortTH k="nome" active={sortKey === 'nome'} dir={sortDir} onToggle={toggleSort}>Prodotto</SortTH>
@@ -419,23 +422,59 @@ function PLTable({ rows, euro, pct, totRicavo, totFC, totMargine, fcAvg, avgMarg
             <tbody>
               {sorted.map((r, i) => (
                 <tr key={r.nome} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.white : '#FDFAF7' }}>
+                  {/* Senza un prezzo di vendita salvato non si mostra un
+                      numero: si mostra "—". Prima, per le 24 ricette
+                      importate da Excel, il fallback di getR dava "8 fette"
+                      (unità presunta) e ricavo 0, e la tabella ne ricavava
+                      "Food cost 0,0%" in verde con il bollino rosso "Basso -
+                      rivedere": un verdetto su dati che nessuno ha inserito. */}
                   <TD bold>{r.nome}</TD>
-                  <TD right color={C.textMid}>{r.reg.unita} {labelPlurale(r.reg.tipo)}</TD>
-                  <TD right bold color={C.text} mono>{euro(r.reg.prezzo)}</TD>
-                  <TD right bold color={C.green} mono>{fmt0(r.ricavo)}</TD>
+                  <TD right color={C.textMid}>
+                    {r.senzaPrezzo && !r.isGusto
+                      ? <span title="Il numero di pezzi per stampo non è stato inserito" style={{ color: C.textSoft, cursor: 'help' }}>—</span>
+                      : <>{r.reg.unita} {labelPlurale(r.reg.tipo)}</>}
+                  </TD>
+                  <TD right bold color={C.text} mono>
+                    {r.senzaPrezzo ? <span style={{ color: C.textSoft }}>—</span> : euro(r.reg.prezzo)}
+                  </TD>
+                  <TD right bold color={C.green} mono>
+                    {r.senzaPrezzo ? <span style={{ color: C.textSoft }}>—</span> : fmt0(r.ricavo)}
+                  </TD>
                   <TD right color={C.red} mono>{euro(r.fc)}</TD>
-                  <TD right color={r.fcPct < 30 ? C.green : r.fcPct < 40 ? C.amber : C.red} bold>{pct(r.fcPct)}</TD>
-                  <TD right bold color={margColor(r.margPct)} mono>{fmt0(r.margine)}</TD>
-                  <TD right bold color={margColor(r.margPct)}>{pct(r.margPct)}</TD>
-                  <TD right color={C.red} small mono>{euro(r.fcUnita)}</TD>
-                  <TD right bold color={r.mrgUnita > 0 ? C.green : C.red} mono>{euro(r.mrgUnita)}</TD>
-                  <td style={{ padding: '10px 14px', textAlign: 'right' }}>{margBadge(r.margPct)}</td>
+                  <TD right color={r.senzaPrezzo ? C.textSoft : r.fcPct < 30 ? C.green : r.fcPct < 40 ? C.amber : C.red} bold>
+                    {r.senzaPrezzo ? '—' : pct(r.fcPct)}
+                  </TD>
+                  <TD right bold color={r.senzaPrezzo ? C.textSoft : margColor(r.margPct)} mono>
+                    {r.senzaPrezzo ? '—' : fmt0(r.margine)}
+                  </TD>
+                  <TD right bold color={r.senzaPrezzo ? C.textSoft : margColor(r.margPct)}>
+                    {r.senzaPrezzo ? '—' : pct(r.margPct)}
+                  </TD>
+                  <TD right color={C.red} small mono>
+                    {r.senzaPrezzo && !r.isGusto ? <span style={{ color: C.textSoft }}>—</span> : euro(r.fcUnita)}
+                  </TD>
+                  <TD right bold color={r.senzaPrezzo ? C.textSoft : r.mrgUnita > 0 ? C.green : C.red} mono>
+                    {r.senzaPrezzo ? '—' : euro(r.mrgUnita)}
+                  </TD>
+                  <td style={{ padding: '10px 14px', textAlign: 'right' }}>
+                    {r.senzaPrezzo
+                      ? <span title="Manca il prezzo di vendita: senza quello non c'è un margine da valutare." style={{ fontSize: 12, color: C.textSoft, cursor: 'help' }}>prezzo mancante</span>
+                      : margBadge(r.margPct)}
+                  </td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
               <tr style={{ background: '#F0EAE6', borderTop: `2px solid ${C.borderStr}` }}>
-                <td colSpan={3} style={{ padding: '12px 14px', fontWeight: 800, fontSize: 12, color: C.text }}>TOTALE / MEDIA</td>
+                <td colSpan={3} style={{ padding: '12px 14px', fontWeight: 800, fontSize: 12, color: C.text }}>
+                  TOTALE / MEDIA
+                  {nSenzaPrezzo > 0 && (
+                    <div style={{ fontWeight: 500, fontSize: typo.size.sm, color: C.textSoft, marginTop: 2, textTransform: 'none', letterSpacing: 0 }}>
+                      su {rows.length - nSenzaPrezzo} {rows.length - nSenzaPrezzo === 1 ? 'prodotto' : 'prodotti'} con un prezzo di vendita.
+                      {' '}{nSenzaPrezzo} {nSenzaPrezzo === 1 ? 'è fuori' : 'sono fuori'} dal conto{fcSenzaPrezzo > 0 ? `, per ${euro(fcSenzaPrezzo)} di materie prime` : ''}.
+                    </div>
+                  )}
+                </td>
                 <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 800, fontSize: 13, color: C.green, ...TNUM }}>{fmt0(totRicavo)}</td>
                 <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 800, fontSize: 13, color: C.red, ...TNUM }}>{euro(totFC)}</td>
                 <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 800, color: fcAvg < 30 ? C.green : fcAvg < 40 ? C.amber : C.red }}>{pct(fcAvg)}</td>
@@ -453,7 +492,14 @@ function PLTable({ rows, euro, pct, totRicavo, totFC, totMargine, fcAvg, avgMarg
 
 // ─── SENSITIVITY TABLE ───────────────────────────────────────────────────────
 function SensTable({ rows, euro, pct }) {
-  const sensRows = rows.map(r => ({
+  // Solo i prodotti che hanno un prezzo E un costo: senza uno dei due la
+  // domanda "quanto possono salire i costi prima di andare in perdita" non ha
+  // risposta. Prima 24 prodotti su 26 mostravano "+-100% FC tollerabile",
+  // perché con ricavo 0 il conto fa (0/fc - 1) = -100%, e il segno "+" era
+  // scritto a mano nel testo: usciva "+-100%".
+  const validi = rows.filter(r => r.ricavo > 0 && r.fc > 0)
+  const nEsclusi = rows.length - validi.length
+  const sensRows = validi.map(r => ({
     ...r,
     marg10: parseFloat((r.ricavo - r.fc * 1.10).toFixed(2)),
     marg20: parseFloat((r.ricavo - r.fc * 1.20).toFixed(2)),
@@ -466,7 +512,7 @@ function SensTable({ rows, euro, pct }) {
       <SH sub="Cosa succede se i costi materie prime salgono">Sensitivity: Impatto Aumento Costi</SH>
       <div className="fos-card-glow" style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, overflow: 'hidden', overflowX: 'auto', marginBottom: 28, position: 'relative', boxShadow: SHADOW_PREMIUM }}>
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, minWidth: 580 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, minWidth: 580 }}>
             <thead>
               <tr style={{ background: '#F8F4F2' }}>
                 <SortTH k="nome" active={sortKey === 'nome'} dir={sortDir} onToggle={toggleSort}>Prodotto</SortTH>
@@ -488,8 +534,8 @@ function SensTable({ rows, euro, pct }) {
                   <td style={{ padding: '10px 14px', textAlign: 'right' }}>
                     <span style={{ background: r.headroom > 50 ? C.greenLight : r.headroom > 25 ? C.amberLight : C.redLight,
                       color: r.headroom > 50 ? C.green : r.headroom > 25 ? C.amber : C.red,
-                      fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 6 }}>
-                      +{r.headroom.toFixed(0)}% FC tollerabile
+                      fontSize: 12, fontWeight: 700, padding: '3px 8px', borderRadius: 6 }}>
+                      {r.headroom > 0 ? '+' : ''}{r.headroom.toLocaleString('it-IT', { maximumFractionDigits: 0 })}% FC tollerabile
                     </span>
                   </td>
                 </tr>
@@ -497,6 +543,12 @@ function SensTable({ rows, euro, pct }) {
             </tbody>
           </table>
         </div>
+        {nEsclusi > 0 && (
+          <div style={{ padding: '10px 14px', borderTop: `1px solid ${C.border}`, fontSize: typo.size.sm, color: C.textSoft, lineHeight: 1.5 }}>
+            {nEsclusi} {nEsclusi === 1 ? 'prodotto è fuori' : 'prodotti sono fuori'} da questa tabella: senza un prezzo
+            di vendita non si può dire di quanto possono salire i costi prima di andare in perdita.
+          </div>
+        )}
       </div>
     </>
   )
@@ -504,6 +556,34 @@ function SensTable({ rows, euro, pct }) {
 
 // ─── PLView ──────────────────────────────────────────────────────────────────
 const SK_PL_COSTI = 'pl-costi-fissi-v1' // per-sede: { affitto, utenze, altro, personale }
+
+// ── Helper di calendario ─────────────────────────────────────────────────
+// In giorni di calendario, non in millisecondi: col cambio dell'ora legale
+// una differenza in ms sbaglia di un giorno, e i confronti fra periodi
+// mettevano 31 giorni contro 32.
+function giorniDelRange(from, to) {
+  if (!from || !to) return 0
+  const [fy, fm, fd] = String(from).slice(0, 10).split('-').map(Number)
+  const [ty, tm, td] = String(to).slice(0, 10).split('-').map(Number)
+  if (!fy || !ty) return 0
+  const gg = Math.round((Date.UTC(ty, tm - 1, td) - Date.UTC(fy, fm - 1, fd)) / 86400000) + 1
+  return gg > 0 ? gg : 0
+}
+
+// Giorni del mese a cui appartiene una data (28, 29, 30 o 31).
+function giorniNelMese(dataIso) {
+  const [y, m] = String(dataIso || '').slice(0, 10).split('-').map(Number)
+  if (!y || !m) return 30
+  return new Date(Date.UTC(y, m, 0)).getUTCDate()
+}
+
+// N giorni prima di una data, restando su date locali.
+function giorniPrimaDi(dataIso, n) {
+  if (!dataIso) return dataIso
+  const [y, m, d] = String(dataIso).slice(0, 10).split('-').map(Number)
+  const t = new Date(Date.UTC(y, m - 1, d) - n * 86400000)
+  return `${t.getUTCFullYear()}-${String(t.getUTCMonth() + 1).padStart(2, '0')}-${String(t.getUTCDate()).padStart(2, '0')}`
+}
 
 export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metodoProduzione = 'stampi', onUpdateRegola, notify }) {
   const isMobile = useIsMobile()
@@ -545,7 +625,9 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
   // così IT thousands separator + simbolo € dopo cifra restano coerenti
   // ovunque (KPI, tabelle, conto economico, banda costi extra-food).
   const euro = v => fmt(v)
-  const pct = v => `${Number(v).toFixed(1)}%`
+  // Percentuali con la virgola italiana: sulla stessa riga convivevano
+  // importi con la virgola ("1.234,50 €") e percentuali col punto ("32.4%").
+  const pct = v => fmtp(Number(v) || 0)
   const cardP = { background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 16, boxShadow: SHADOW_PREMIUM }
 
   const rows = ricette.map(ric => {
@@ -590,18 +672,37 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
       short: ric.nome.replace(/^TORTA (DI |AL |ALLE? )/, '').split(' ').map(w => w[0] + w.slice(1).toLowerCase()).join(' '),
       reg: regEff, fc, ricavo, margine, margPct, fcPct, fcUnita, mrgUnita,
       isGusto: isG,
+      // `senzaRegola` lo marca getR quando la ricetta NON ha un prezzo di
+      // vendita salvato: nei dati veri sono 24 ricette su 27. Il commento in
+      // foodcost.js dice "la marchiamo, così chi la mostra può dire che è
+      // presunta" — e questa pagina non lo leggeva.
+      senzaPrezzo: !!reg.senzaRegola || !(ricavo > 0),
     }
   }).sort((a, b) => b.margPct - a.margPct)
 
-  const totRicavo = rows.reduce((s, r) => s + r.ricavo, 0)
-  const totFC = rows.reduce((s, r) => s + r.fc, 0)
-  const totMargine = rows.reduce((s, r) => s + r.margine, 0)
-  // Audit 2026-07-01 LOW: guard division by zero (rows vuoto -> NaN).
-  const avgMarg = rows.length > 0
-    ? rows.reduce((s, r) => s + r.margPct, 0) / rows.length
+  // I totali si fanno SOLO sulle righe che hanno un prezzo di vendita.
+  //
+  // Prima `totFC` sommava il food cost di tutte e 26 le ricette e `totRicavo`
+  // il ricavo di 2 (le altre 24 non hanno un prezzo, quindi ricavo 0): il
+  // rapporto fra i due usciva "Food cost 102,8%" e la card lo mostrava in
+  // rosso. Non era un food cost alto: era il costo di ventisei prodotti
+  // diviso per l'incasso di due.
+  const righeConPrezzo = rows.filter(r => !r.senzaPrezzo)
+  const nSenzaPrezzo = rows.length - righeConPrezzo.length
+  const totRicavo = righeConPrezzo.reduce((s, r) => s + r.ricavo, 0)
+  const totFC = righeConPrezzo.reduce((s, r) => s + r.fc, 0)
+  const totMargine = righeConPrezzo.reduce((s, r) => s + r.margine, 0)
+  // Food cost delle ricette senza prezzo: non entra nei rapporti, ma esiste e
+  // va detto, altrimenti sembra che quei prodotti non costino niente.
+  const fcSenzaPrezzo = rows.filter(r => r.senzaPrezzo).reduce((s, r) => s + r.fc, 0)
+  const avgMarg = righeConPrezzo.length > 0
+    ? righeConPrezzo.reduce((s, r) => s + r.margPct, 0) / righeConPrezzo.length
     : 0
-  const best = rows[0]
-  const worst = rows[rows.length - 1]
+  // Il migliore e il peggiore si scelgono fra chi ha un prezzo: senza prezzo
+  // il margine è 0 e "il prodotto meno redditizio" sarebbe sempre uno di
+  // quelli non ancora prezzati.
+  const best = righeConPrezzo[0]
+  const worst = righeConPrezzo[righeConPrezzo.length - 1]
   const fcAvg = totRicavo > 0 ? (totFC / totRicavo * 100) : 0
 
   // ═══ P&L MENSILE REALE (ricavi+food cost dalle chiusure, personale+costi fissi input) ═══
@@ -643,7 +744,10 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
     } catch (e) {
       // Audit 2026-07-01 HIGH: il vecchio catch swallow silenzioso lasciava
       // l'utente convinto di aver salvato. Mostriamo errore esplicito.
-      try { notify?.('Errore salvataggio costi: ' + (e?.message || 'sconosciuto'), false) } catch {}
+      // 10/09/2026: in italiano, non col messaggio di Postgres. Il dettaglio
+      // tecnico serve a noi e va nel console.
+      console.error('salvaCosti:', e)
+      try { notify?.('Non ho potuto salvare i costi: controlla la connessione e riprova. Se resta così, esci e rientra.', false) } catch {}
     } finally { setSavingCosti(false) }
   }
 
@@ -696,13 +800,16 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
     return `${fmtD(f, f.getFullYear() !== t.getFullYear())} - ${fmtD(t, true)}`
   }
   // Range del periodo precedente di pari durata, per confronto vs mese prec.
+  // Durata in GIORNI DI CALENDARIO, non in millisecondi: col cambio dell'ora
+  // legale un mese di 31 giorni diventava 32 (o 30), e il confronto col
+  // periodo precedente metteva ottobre contro 32 giorni.
   const prevRange = (from, to) => {
     if (!from || !to) return { from, to }
-    const f = new Date(from + 'T00:00:00')
-    const t = new Date(to + 'T00:00:00')
-    const ms = t - f
-    const pt = new Date(f.getTime() - 86400000) // giorno prima di "from"
-    const pf = new Date(pt.getTime() - ms)
+    const gg = giorniDelRange(from, to)
+    if (!gg) return { from, to }
+    const f = new Date(from + 'T12:00:00')
+    const pt = new Date(f); pt.setDate(pt.getDate() - 1)
+    const pf = new Date(pt); pf.setDate(pf.getDate() - (gg - 1))
     return { from: _ymd(pf), to: _ymd(pt) }
   }
 
@@ -710,8 +817,18 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
     const cur = aggRange(dateFrom, dateTo)
     const pr = prevRange(dateFrom, dateTo)
     const prev = aggRange(pr.from, pr.to)
-    const costiFissi = (+costi.affitto || 0) + (+costi.utenze || 0) + (+costi.altro || 0)
-    const personale = +costi.personale || 0
+    // I costi fissi che l'utente inserisce sono MENSILI. Il periodo guardato
+    // però può essere di due giorni: il 2 del mese l'utile sottraeva un mese
+    // intero di affitto e stipendi a due giornate di incasso, e usciva un
+    // rosso spaventoso su un'azienda che va bene. Ora si prende la quota dei
+    // giorni guardati, e la pagina scrive quanti sono.
+    const giorniPeriodo = giorniDelRange(dateFrom, dateTo)
+    const giorniMese = giorniNelMese(dateTo)
+    const quota = giorniMese > 0 ? Math.min(1, giorniPeriodo / giorniMese) : 1
+    const costiFissiMese = (+costi.affitto || 0) + (+costi.utenze || 0) + (+costi.altro || 0)
+    const personaleMese = +costi.personale || 0
+    const costiFissi = costiFissiMese * quota
+    const personale = personaleMese * quota
     const margineLordo = cur.ricavi - cur.foodcost
     const usciteCassa = Number(uscite?.totale) || 0
     const utile = margineLordo - personale - costiFissi - usciteCassa
@@ -723,7 +840,15 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
     const mcPct = cur.ricavi > 0 ? margineLordo / cur.ricavi : 0.7
     const breakeven = mcPct > 0 ? (personale + costiFissi) / mcPct : 0
     const utilePrev = (prev.ricavi - prev.foodcost) - personale - costiFissi
-    return { cur, prev, costiFissi, personale, margineLordo, utile, fcPct, lavPct, margOpPct, breakeven, utilePrev, usciteCassa }
+    return {
+      cur, prev, costiFissi, personale, margineLordo, utile, fcPct, lavPct,
+      margOpPct, breakeven, utilePrev, usciteCassa,
+      // Serve alla pagina per scrivere "quota di 12 giorni su 30".
+      giorniPeriodo, giorniMese, quota, costiFissiMese, personaleMese,
+      // Il break-even è un valore MENSILE: si calcola sui costi pieni, non
+      // sulla quota, altrimenti cambia ogni giorno che passa.
+      breakevenMese: mcPct > 0 ? (personaleMese + costiFissiMese) / mcPct : 0,
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- aggRange/prevRange sono pure closures stabili sui props (chiusure) già in deps
   }, [chiusure, dateFrom, dateTo, costi, uscite])
 
@@ -751,8 +876,13 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
     // Paginato: Supabase PostgREST ha db-max-rows=1000, quindi .limit() del
     // client viene cappato lato server. Serve range() iterato.
     fetchAllInventarioProduzione(orgId, {
-      sedeIds: sedeId, dataFrom: dateFrom, dataTo: dateTo,
-      columns: 'gusto_nome, data, produzione_g, rimanenza_g, scarto_g',
+      sedeIds: sedeId, dataFrom: giorniPrimaDi(dateFrom, 7), dataTo: dateTo,
+      // `spedito_g` SERVE: i chili spediti a un'altra sede non sono venduti
+      // al banco, e senza questa colonna il ricavo del periodo li contava
+      // come incasso. E si carica anche la settimana prima di `dateFrom`,
+      // perché la rimanenza del giorno precedente è la giacenza di partenza:
+      // senza quella il primo giorno del periodo risultava tutto venduto.
+      columns: 'gusto_nome, data, produzione_g, rimanenza_g, scarto_g, spedito_g',
     })
       .then(data => { if (alive) setInvRows(data || []) })
       .catch(() => { if (alive) setInvRows([]) })
@@ -761,42 +891,46 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
 
   const inventarioPL = useMemo(() => {
     if (metodoProduzione !== 'inventario' || invRows.length === 0) return null
-    // Aggreghiamo per gusto: prod, scarto, venduto (differenziale).
-    const perGusto = {}
-    for (const r of invRows) {
-      const g = r.gusto_nome
-      if (!perGusto[g]) perGusto[g] = { rows: [] }
-      perGusto[g].rows.push(r)
-    }
+    // La regola del venduto NON si riscrive qui: è la stessa della vista
+    // Inventario, e stava scritta in quattro punti diversi del progetto con
+    // quattro varianti. Questa copia, oltre a ignorare `spedito_g`, azzerava
+    // la rimanenza di partenza a ogni giorno di chiusura e troncava a zero i
+    // conti che non tornavano — gli stessi difetti corretti stamattina nel
+    // motore condiviso.
+    const serie = serieVendutoGusto(invRows)
     // Match gusti col ricettario per calcolare ricavo/fc.
     const ricByName = {}
     for (const ric of Object.values(ricettario?.ricette || {})) {
-      ricByName[String(ric.nome || '').trim().toUpperCase()] = ric
+      ricByName[normGusto(ric.nome)] = ric
     }
     const rows = []
     let totProd = 0, totVend = 0, totScart = 0, totRic = 0, totFc = 0
-    for (const [gusto, { rows: rr }] of Object.entries(perGusto)) {
-      rr.sort((a, b) => a.data.localeCompare(b.data))
-      let rimanPrev = 0, prevD = null
-      let prodTot = 0, scartoTot = 0, vendTot = 0
-      for (const r of rr) {
-        const prod = Number(r.produzione_g) || 0
-        const riman = Number(r.rimanenza_g) || 0
-        const scarto = Number(r.scarto_g) || 0
-        const d = new Date(r.data)
-        if (prevD !== null) {
-          const diffGg = Math.round((d - prevD) / 86400000)
-          if (diffGg !== 1) rimanPrev = 0
-        }
-        const vend = Math.max(0, rimanPrev + prod - riman - scarto)
-        rimanPrev = riman; prevD = d
-        prodTot += prod; scartoTot += scarto; vendTot += vend
+    for (const [gusto, celle] of Object.entries(serie)) {
+      let prodTot = 0, scartoTot = 0, vendTot = 0, celleNonQuadrate = 0
+      for (const c of celle) {
+        // Solo i giorni DENTRO il periodo scelto: la settimana caricata prima
+        // di `dateFrom` serve solo come giacenza di partenza.
+        if (c.data < dateFrom || c.data > dateTo) continue
+        prodTot += c.prod
+        scartoTot += c.scarto
+        if (c.venduto != null) vendTot += c.venduto
+        if (c.quadra === false) celleNonQuadrate++
       }
-      const ric = ricByName[String(gusto).trim().toUpperCase()]
+      const ric = ricByName[normGusto(gusto)]
       const ricavoKg = ric ? (Number(ricavoFlatFor(ric)) || 0) : 0
-      const fcInfo = ric ? calcolaFC(ric, ricettario) : null
-      // calcolaFC ritorna costo per stampo. Per gusti (resa 1 kg), = €/kg.
-      const fcKg = fcInfo?.foodCost || 0
+      // La firma è calcolaFC(ricetta, ingCosti, ricettario): qui veniva
+      // passato il RICETTARIO al posto della mappa dei costi ingrediente,
+      // quindi ogni lookup ingCosti[nome] falliva e ogni ingrediente
+      // risultava senza prezzo. E il campo letto era `foodCost`, che
+      // calcolaFC non restituisce (restituisce `tot`): quindi il costo delle
+      // materie prime di OGNI gusto era zero, e il margine risultava il 100%
+      // del ricavo su tutta la sezione.
+      const fcInfo = ric ? calcolaFC(ric, ingCosti, ricettario) : null
+      // calcolaFC ritorna il costo per stampo. Per un gusto (resa 1 kg) = €/kg.
+      const fcKg = Number(fcInfo?.tot) || 0
+      // `mancanti` dice quali ingredienti non hanno un prezzo: un food cost
+      // parziale non va presentato come completo.
+      const fcParziale = (fcInfo?.mancanti || []).length > 0
       const prodKg = prodTot / 1000
       const vendKg = vendTot / 1000
       const scartoKg = scartoTot / 1000
@@ -808,6 +942,9 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
         gusto, prodKg, vendKg, scartoKg,
         ricavoKg, fcKg, ricavo, fc, margine, margPct,
         haRicavo: ricavoKg > 0, haFc: fcKg > 0,
+        haRicetta: !!ric, fcParziale,
+        mancanti: fcInfo?.mancanti || [],
+        celleNonQuadrate,
       })
       totProd += prodKg; totVend += vendKg; totScart += scartoKg
       totRic += ricavo; totFc += fc
@@ -819,8 +956,14 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
       rows, totProd, totVend, totScart, totRic, totFc, totMarg, totMargPct,
       nMappati: rows.filter(r => r.haRicavo && r.haFc).length,
       nNonMappati: rows.filter(r => !r.haRicavo || !r.haFc).length,
+      // Due problemi diversi che prima finivano nello stesso conteggio: un
+      // gusto senza RICETTA si risolve nel Ricettario, uno senza PREZZO nei
+      // Formati vendita. Dirlo insieme non aiuta nessuno.
+      senzaRicetta: rows.filter(r => !r.haRicetta).map(r => r.gusto),
+      senzaPrezzo: rows.filter(r => r.haRicetta && !r.haRicavo).map(r => r.gusto),
+      fcParziali: rows.filter(r => r.fcParziale).map(r => r.gusto),
     }
-  }, [metodoProduzione, invRows, ricettario, ricavoFlatFor])
+  }, [metodoProduzione, invRows, ricettario, ricavoFlatFor, ingCosti, dateFrom, dateTo])
 
   // Top ingredienti per costo (aggregato, riusato per PDF export)
   const topIngredienti = useMemo(() => {
@@ -859,7 +1002,11 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
       out.push({ tipo: 'critical', testo: `${critici} ${critici === 1 ? 'prodotto è' : 'prodotti sono'} sotto il 40% di margine - rivedere prezzo o ricetta.` })
     }
     if (ricsotto > 0) {
-      out.push({ tipo: 'warn', testo: `${ricsotto} ${ricsotto === 1 ? 'prodotto ha' : 'prodotti hanno'} food cost > 40% (benchmark pasticceria: 28–30%).` })
+      // Il riferimento dipende dal mestiere: nel gelato artigianale un food
+      // cost del 20-28% è normale, in pasticceria 28-30%. Prima la pagina
+      // citava il riferimento della pasticceria anche a una gelateria.
+      const rifer = metodoProduzione === 'inventario' ? 'gelateria: 20–28%' : 'pasticceria: 28–30%'
+      out.push({ tipo: 'warn', testo: `${ricsotto} ${ricsotto === 1 ? 'prodotto ha' : 'prodotti hanno'} food cost oltre il 40% (riferimento ${rifer}).` })
     }
     if (topContrib) {
       out.push({ tipo: 'ok', testo: `Top contributore margine: ${topContrib.nome} (${euro(topContrib.margine)}/stampo, ${pct(topContrib.margPct)}).` })
@@ -874,7 +1021,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
       out.push({ tipo: 'warn', testo: `${topIngredienti[0].nome} pesa ${topIngredienti[0].perc.toFixed(0)}% del food cost totale - concentrazione alta su un singolo ingrediente.` })
     }
     return out
-  }, [rows, topIngredienti])
+  }, [rows, topIngredienti, metodoProduzione])
 
   // Early return DOPO tutti gli hook (Rules of Hooks): rows può passare da
   // vuoto a popolato quando il ricettario si carica async - il return non deve
@@ -1083,12 +1230,32 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
                 title: 'Conto economico',
                 subtitle: `Periodo: ${rangeLabel(dateFrom, dateTo)}`,
                 periodo: plMese.prev?.ricavi > 0 ? `vs periodo prec. (variazione ${pct(((plMese.cur.ricavi - plMese.prev.ricavi) / plMese.prev.ricavi) * 100)})` : undefined,
+                // fmt0 mette già il simbolo dell'euro: il " €" aggiunto qui
+                // produceva "1.477 € €" su ogni riga del PDF che il titolare
+                // manda al commercialista.
+                // E il food cost: se non c'e' una sola giornata col costo
+                // delle materie, a schermo si legge "non noto" mentre il PDF
+                // scriveva "0,0%", cioe' un food cost perfetto.
                 kpi: [
-                  { label: 'Ricavi', value: `${fmt0(plMese.cur.ricavi)} €`, sub: `${plMese.cur.giorni} giorni` },
-                  { label: 'Food cost', value: pct(plMese.fcPct), sub: `${fmt0(plMese.cur.foodcost)} €` },
-                  { label: 'Costo lavoro', value: pct(plMese.lavPct), sub: `${fmt0(plMese.personale)} €` },
-                  { label: 'Utile', value: `${fmt0(plMese.utile)} €`, sub: `margine op. ${pct(plMese.margOpPct)}` },
+                  { label: 'Ricavi', value: fmt0(plMese.cur.ricavi), sub: `${plMese.cur.giorni} ${plMese.cur.giorni === 1 ? 'giorno' : 'giorni'}` },
+                  {
+                    label: 'Food cost',
+                    value: plMese.cur.ricaviConFc > 0 ? pct(plMese.fcPct) : 'non noto',
+                    sub: plMese.cur.ricaviConFc > 0
+                      ? fmt0(plMese.cur.foodcost)
+                      : 'nessuna giornata col costo delle materie',
+                  },
+                  { label: 'Costo lavoro', value: pct(plMese.lavPct), sub: fmt0(plMese.personale) },
+                  { label: 'Utile', value: fmt0(plMese.utile), sub: `margine op. ${pct(plMese.margOpPct)}` },
                 ],
+                nota: [
+                  plMese.cur.giorniSenzaFc > 0
+                    ? `${plMese.cur.giorniSenzaFc} ${plMese.cur.giorniSenzaFc === 1 ? 'giornata' : 'giornate'} su ${plMese.cur.giorni} senza il costo delle materie prime: il food cost qui sopra è calcolato solo sulle altre.`
+                    : null,
+                  plMese.quota < 1
+                    ? `Affitto, utenze e personale sono in quota sui ${plMese.giorniPeriodo} giorni del periodo (su ${plMese.giorniMese} del mese).`
+                    : null,
+                ].filter(Boolean).join(' '),
                 sections: [
                   {
                     title: 'Conto economico a cascata',
@@ -1203,7 +1370,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
 
               {/* Food cost */}
               <Voce dot={C.red}>Food cost</Voce>
-              <div style={{ ...cellP, color: C.red }}>{fcPct.toFixed(1)}%</div>
+              <div style={{ ...cellP, color: C.red }}>{fmtp(fcPct)}</div>
               <div style={{ ...cellA, color: C.red }}>−{fmt0(totFC)}</div>
 
               {/* Linea di chiusura (stile bilancio) */}
@@ -1211,7 +1378,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
 
               {/* Margine lordo */}
               <Voce dot={margC}>Margine lordo</Voce>
-              <div style={{ ...cellP, color: margC }}>{margPctTot.toFixed(1)}%</div>
+              <div style={{ ...cellP, color: margC }}>{fmtp(margPctTot)}</div>
               <div style={{ ...cellA, color: margC }}>{fmt0(totMargine)}</div>
             </div>
 
@@ -1247,8 +1414,8 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
               const palette = ins.tipo === 'critical'
                 ? { bg: C.redLight, fg: C.red, lbl: 'CRITICO', icon: <Icon name="warning" size={14} /> }
                 : ins.tipo === 'warn'
-                ? { bg: C.amberLight, fg: C.amber, lbl: 'ATTENZIONE', icon: '!' }
-                : { bg: C.greenLight, fg: C.green, lbl: 'OK', icon: '✓' }
+                ? { bg: C.amberLight, fg: C.amber, lbl: 'ATTENZIONE', icon: <Icon name="alert" size={14} /> }
+                : { bg: C.greenLight, fg: C.green, lbl: 'OK', icon: <Icon name="checkCircle" size={14} /> }
               return (
                 <div key={i} style={{
                   background: C.bgCard, border: `1px solid ${C.border}`, borderLeft: `3px solid ${palette.fg}`,
@@ -1283,8 +1450,10 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
           { lbl: 'Ricavo/stampo', val: fmt0(totRicavo), sub: 'somma tutti i prodotti', color: T.green, tip: 'Somma del ricavo teorico di uno stampo di ciascun prodotto, ai prezzi di listino.' },
           { lbl: 'Food cost tot.', val: fmt0(totFC), sub: `FC ratio ${pct(fcAvg)}`, color: T.brand, tip: 'Costo totale degli ingredienti per uno stampo di ciascun prodotto. FC ratio = food cost ÷ ricavo.' },
           { lbl: 'Margine lordo', val: fmt0(totMargine), sub: `${pct(avgMarg)} medio`, color: margColor(avgMarg), tip: 'Ricavo meno food cost, prima di personale, affitto e utenze. La % è la media dei margini di prodotto.' },
-          { lbl: 'Miglior margine', val: best.short, sub: pct(best.margPct), color: T.green, tip: 'Il prodotto con il margine percentuale più alto del listino.' },
-          { lbl: 'Da ottimizzare', val: worst.short, sub: pct(worst.margPct), color: T.brand, tip: 'Il prodotto con il margine percentuale più basso: rivedi prezzo o ricetta.' },
+          // Con zero prodotti prezzati non esiste un "migliore": prima la
+          // pagina leggeva best.short su undefined e si schiantava.
+          { lbl: 'Miglior margine', val: best ? best.short : '—', sub: best ? pct(best.margPct) : 'nessun prezzo inserito', color: T.green, tip: 'Il prodotto con il margine percentuale più alto, fra quelli che hanno un prezzo di vendita.' },
+          { lbl: 'Da ottimizzare', val: worst ? worst.short : '—', sub: worst ? pct(worst.margPct) : 'nessun prezzo inserito', color: T.brand, tip: 'Il prodotto con il margine percentuale più basso: rivedi prezzo o ricetta.' },
         ].map(({ lbl, val, sub, hi, color, tip }, i) => (
           <div key={i} className="fos-tile" style={{
             width: '100%', boxSizing: 'border-box', minWidth: 0,
@@ -1306,19 +1475,27 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
       </div>
 
       {/* Banda costi azienda + margine netto.
-          Mostra il costo mensile dei costi extra-food (consumabili, manutenzione,
-          ammortamenti, utenze) configurati dall'utente, e il margine NETTO
-          stimato = (totMargine ipotetico mensile * 30) − costi extra.
-          NB: stima a margine teorico, non sostituisce un commercialista. */}
+          CORRETTO 10/09/2026: qui arrivava `totMargine`, che è la somma del
+          margine di UNA unità (o di un chilo) di ciascuna ricetta — una
+          grandezza per prodotto, non per mese. La banda ci sottraeva i costi
+          aziendali mensili: l'affitto di un mese meno il margine di un chilo
+          di gelato per gusto. Con i costi di Mara il "margine netto mensile"
+          usciva profondamente negativo su un'azienda che guadagna.
+          Il commento qui sopra dichiarava una formula ("totMargine * 30") che
+          nel codice non c'era.
+          Ora la banda riceve il margine lordo VERO del periodo, quello
+          calcolato dalle chiusure di cassa, e se non ci sono chiusure non
+          mostra nessun margine netto: mostra solo i costi. */}
       <CostiNettoBanda
         costiAziendali={costiAziendali}
-        totMargine={totMargine}
+        margineLordoPeriodo={plMese.cur.giorni > 0 ? plMese.margineLordo : null}
+        giorniPeriodo={plMese.cur.giorni}
         euro={euro}
         isMobile={isMobile}
       />
 
       <BarreRicavo rows={rows} euro={euro} pct={pct}/>
-      <PLTable rows={rows} euro={euro} pct={pct} totRicavo={totRicavo} totFC={totFC} totMargine={totMargine} fcAvg={fcAvg} avgMarg={avgMarg}/>
+      <PLTable rows={rows} euro={euro} pct={pct} totRicavo={totRicavo} totFC={totFC} totMargine={totMargine} fcAvg={fcAvg} avgMarg={avgMarg} nSenzaPrezzo={nSenzaPrezzo} fcSenzaPrezzo={fcSenzaPrezzo}/>
       <TopIngredientiTable ricettario={ricettario} ingCosti={ingCosti} euro={euro} pct={pct}/>
       {/* Simulatore Scenari di Prezzo rimosso: duplicato della sezione Food Cost. */}
       <SensTable rows={rows} euro={euro} pct={pct}/>
@@ -1408,7 +1585,7 @@ function PLInventarioSection({ data, rangeLabel: rangeLbl, cardP, isMobile }) {
   const fmtKg = (v) => v > 0
     ? v.toLocaleString('it-IT', { maximumFractionDigits: 1 })
     : '-'
-  const fmtPct = (v) => (Number(v) || 0).toFixed(1) + '%'
+  const fmtPct = (v) => fmtp(Number(v) || 0)
   return (
     <div style={{ ...cardP, marginBottom: 28 }}>
       <SH sub="Il tuo P&L specifico per il metodo inventario differenziale: quanto hai prodotto, quanto hai venduto (calcolato dai residui giornalieri), quanto costano gli ingredienti e quanto ti resta.">
@@ -1425,13 +1602,35 @@ function PLInventarioSection({ data, rangeLabel: rangeLbl, cardP, isMobile }) {
         <BoxKpi label="Ricavo stimato" value={euro(data.totRic)} color={C.green} highlight={data.totRic > 0}/>
         <BoxKpi label={`Margine lordo (${fmtPct(data.totMargPct)})`} value={euro(data.totMarg)} color={data.totMarg >= 0 ? C.green : T.brand} highlight={data.totMarg > 0}/>
       </div>
-      {/* Nota gusti non mappati */}
-      {data.nNonMappati > 0 && (
+      {/* Due problemi diversi, due frasi diverse. Prima erano una sola
+          ("non è collegato al ricettario o non ha ricavo"), e chi leggeva non
+          sapeva dove andare: la ricetta si aggiunge nel Ricettario, il prezzo
+          nei Formati vendita. */}
+      {(data.senzaRicetta.length > 0 || data.senzaPrezzo.length > 0 || data.fcParziali.length > 0) && (
         <div style={{
-          background: '#FEF9EB', border: '1px solid #FCD34D', borderRadius: 10,
-          padding: 10, marginBottom: 14, fontSize: 12, color: '#78350F', lineHeight: 1.5,
+          background: T.amberLight, border: `1px solid ${T.amber}55`, borderRadius: 10,
+          padding: 10, marginBottom: 14, fontSize: 12.5, color: '#78350F', lineHeight: 1.55,
         }}>
-          <b>Attenzione:</b> {data.nNonMappati} {data.nNonMappati === 1 ? 'gusto non è collegato' : 'gusti non sono collegati'} al ricettario o non ha ricavo €/kg impostato — per {data.nNonMappati === 1 ? 'questo' : 'questi'} il ricavo e il costo ingredienti sono a zero. Sistema la ricetta e i formati vendita per averli nel conto.
+          {data.senzaRicetta.length > 0 && (
+            <div>
+              <b>{data.senzaRicetta.length} {data.senzaRicetta.length === 1 ? 'gusto senza ricetta' : 'gusti senza ricetta'}</b>
+              {' '}({data.senzaRicetta.slice(0, 5).join(', ')}{data.senzaRicetta.length > 5 ? ` e altri ${data.senzaRicetta.length - 5}` : ''}):
+              {' '}per {data.senzaRicetta.length === 1 ? 'questo' : 'questi'} non conosco il costo delle materie prime. La ricetta si aggiunge dal <b>Ricettario</b>.
+            </div>
+          )}
+          {data.senzaPrezzo.length > 0 && (
+            <div style={{ marginTop: data.senzaRicetta.length > 0 ? 5 : 0 }}>
+              <b>{data.senzaPrezzo.length} {data.senzaPrezzo.length === 1 ? 'gusto senza prezzo al chilo' : 'gusti senza prezzo al chilo'}</b>
+              {' '}({data.senzaPrezzo.slice(0, 5).join(', ')}{data.senzaPrezzo.length > 5 ? ` e altri ${data.senzaPrezzo.length - 5}` : ''}):
+              {' '}il ricavo di un gusto vive sui <b>Formati vendita</b> (cono, coppetta, vaschetta), non sulla ricetta.
+            </div>
+          )}
+          {data.fcParziali.length > 0 && (
+            <div style={{ marginTop: 5 }}>
+              <b>{data.fcParziali.length} {data.fcParziali.length === 1 ? 'gusto con food cost incompleto' : 'gusti con food cost incompleto'}</b>:
+              {' '}qualche ingrediente non ha un prezzo nel listino, quindi il costo che vedi è più basso del vero.
+            </div>
+          )}
         </div>
       )}
       {/* Tabella per gusto */}
@@ -1457,7 +1656,7 @@ function PLInventarioSection({ data, rangeLabel: rangeLbl, cardP, isMobile }) {
                   {r.gusto}
                   {(!r.haRicavo || !r.haFc) && (
                     <span title="Ricavo o food cost non calcolabile: manca la ricetta o il listino"
-                      style={{ display: 'inline-block', marginLeft: 6, color: '#B45309', fontSize: 10 }}>⚠</span>
+                      style={{ display: 'inline-block', marginLeft: 6, color: '#B45309' }}><Icon name="alert" size={12} color="#B45309" /></span>
                   )}
                 </TD>
                 <TD style={{ textAlign: 'right', ...TNUM }}>{fmtKg(r.prodKg)}</TD>
@@ -1498,15 +1697,24 @@ function PLInventarioSection({ data, rangeLabel: rangeLbl, cardP, isMobile }) {
 // totMargine arriva dalla sezione P&L (ricavo - foodcost per ricetta).
 // Il margine NETTO sottrae i costi aziendali extra: consumabili, manutenzione,
 // ammortamenti, utenze, ecc. Stima informativa, non sostituisce un commercialista.
-function CostiNettoBanda({ costiAziendali, totMargine, euro, isMobile }) {
+function CostiNettoBanda({ costiAziendali, margineLordoPeriodo, giorniPeriodo = 0, euro, isMobile }) {
   const totCostiMensili = (costiAziendali || []).reduce((s, v) => {
     const x = Number(v.importo) || 0
     if (v.periodicita === 'annuale' || v.periodicita === 'una_tantum') return s + x / 12
     return s + x
   }, 0)
   const totCostiAnnui = totCostiMensili * 12
-  const margineNetto = totMargine - totCostiMensili
-  const margPct = totMargine > 0 ? (margineNetto / totMargine * 100) : 0
+  // Il margine netto si calcola solo se c'è un margine lordo vero del
+  // periodo: senza chiusure di cassa non esiste un margine da cui sottrarre
+  // dei costi, e inventarlo era il difetto.
+  const haMargine = margineLordoPeriodo != null
+  // I costi mensili si riproporzionano ai giorni del periodo guardato: un
+  // periodo di 10 giorni non porta un mese di affitto.
+  const costiPeriodo = haMargine && giorniPeriodo > 0
+    ? totCostiMensili * (giorniPeriodo / 30)
+    : totCostiMensili
+  const margineNetto = haMargine ? margineLordoPeriodo - costiPeriodo : null
+  const margPct = haMargine && margineLordoPeriodo > 0 ? (margineNetto / margineLordoPeriodo * 100) : null
   const noConfig = (costiAziendali || []).length === 0
   return (
     <div style={{
@@ -1531,14 +1739,28 @@ function CostiNettoBanda({ costiAziendali, totMargine, euro, isMobile }) {
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,minmax(0,1fr))' : 'repeat(4,minmax(0,1fr))', gap: 12 }}>
         <BoxKpi label="Costi mensili" value={euro(totCostiMensili)} color={T.brand} small />
         <BoxKpi label="Costi annui" value={euro(totCostiAnnui)} color={T.textMid} small />
-        <BoxKpi label="Margine lordo (rif.)" value={euro(totMargine)} color={T.textSoft} small />
         <BoxKpi
-          label="Margine netto mensile (stima)"
-          value={euro(margineNetto)}
-          color={margineNetto >= 0 ? T.green : T.brand}
-          highlight
+          label={haMargine ? 'Margine lordo del periodo' : 'Margine lordo'}
+          value={haMargine ? euro(margineLordoPeriodo) : '—'}
+          sub={haMargine ? `${giorniPeriodo} ${giorniPeriodo === 1 ? 'giornata di cassa' : 'giornate di cassa'}` : 'servono le chiusure di cassa'}
+          color={T.textSoft} small />
+        <BoxKpi
+          label={haMargine ? 'Margine netto del periodo' : 'Margine netto'}
+          value={haMargine ? euro(margineNetto) : '—'}
+          sub={haMargine
+            ? `costi riproporzionati su ${giorniPeriodo} ${giorniPeriodo === 1 ? 'giorno' : 'giorni'}${margPct != null ? ` · ${margPct.toLocaleString('it-IT', { maximumFractionDigits: 1 })}% del lordo` : ''}`
+            : 'senza chiusure non c\'è un margine da cui togliere i costi'}
+          color={!haMargine ? T.textSoft : margineNetto >= 0 ? T.green : T.brand}
+          highlight={haMargine}
         />
       </div>
+      {!haMargine && (
+        <div style={{ marginTop: 12, padding: '10px 14px', background: T.blueLight, border: `1px solid ${T.blue}40`, borderRadius: 10, fontSize: 12.5, color: T.blue, lineHeight: 1.5 }}>
+          Nel periodo scelto non ci sono chiusure di cassa, quindi non c'è un margine
+          lordo da cui togliere i costi. Qui sopra vedi solo quanto ti costano al mese e
+          all'anno: il margine netto compare appena registri le prime giornate.
+        </div>
+      )}
       {noConfig && (
         <div style={{ marginTop: 12, padding: '10px 14px', background: '#FEF9EB', border: '1px solid #FDE68A', borderRadius: 10, fontSize: 12, color: '#78350F' }}>
           Vai in <strong>Andamento &amp; costi → Costi aziendali</strong> per aggiungere i tuoi costi extra-food (fazzoletti, coppette, utenze, manutenzioni).
@@ -1548,7 +1770,7 @@ function CostiNettoBanda({ costiAziendali, totMargine, euro, isMobile }) {
   )
 }
 
-function BoxKpi({ label, value, color, highlight, small }) {
+function BoxKpi({ label, value, color, highlight, small, sub }) {
   // Audit 2026-06-25: width:100% + boxSizing:border-box + minWidth:0 evita
   // overflow nei grid stretti; minHeight uniformi (label 28, value 32) per
   // allineare i box anche se le etichette vanno su 2 righe.
@@ -1561,8 +1783,14 @@ function BoxKpi({ label, value, color, highlight, small }) {
       borderRadius: 10,
       display: 'flex', flexDirection: 'column',
     }}>
-      <div style={{ fontSize: 10, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4, minHeight: 28, lineHeight: 1.3 }}>{label}</div>
+      {/* Etichetta a 12px: a 10px i numeri di questa banda non si leggono
+          sul tablet del laboratorio. Le tre altezze minime restano uniformi
+          così i box affiancati sono incolonnati fra loro. */}
+      <div style={{ fontSize: typo.size.sm, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4, minHeight: 30, lineHeight: 1.3 }}>{label}</div>
       <div style={{ fontSize: small ? 17 : 20, fontWeight: 800, color, ...TNUM, letterSpacing: '-0.02em', minHeight: 32, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</div>
+      {sub != null && (
+        <div style={{ fontSize: typo.size.sm, color: T.textSoft, marginTop: 3, minHeight: 30, lineHeight: 1.35 }}>{sub}</div>
+      )}
     </div>
   )
 }
