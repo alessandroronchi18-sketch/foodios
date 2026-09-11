@@ -177,6 +177,49 @@ export async function salvaCella(orgId, sedeId, gustoNome, dataIso, patch) {
   return data
 }
 
+// Registra nell'inventario i chili spediti a un'altra sede.
+//
+// Finora il trasferimento e l'inventario erano due registrazioni separate
+// dello stesso fatto: si registrava il trasferimento nella sua pagina E si
+// scriveva a mano `spedito` nella casella dell'inventario. Chi ne faceva solo
+// una delle due aveva i conti sbagliati da una parte o dall'altra — e il
+// venduto di quel gusto usciva gonfiato, perché i chili partiti sembravano
+// venduti al banco.
+//
+// Si SOMMA a quello che c'è già: in un giorno possono partire due spedizioni
+// dello stesso gusto, e la seconda non deve cancellare la prima.
+export async function aggiungiSpedito(orgId, sedeId, gustoNome, dataIso, grammi) {
+  const g = Math.round(Number(grammi) || 0)
+  if (!orgId || !sedeId || !gustoNome || !dataIso || g <= 0) return null
+  const nome = normGusto(gustoNome)
+  const { data: esistente, error: errLettura } = await supabase
+    .from('inventario_produzione')
+    .select('id, spedito_g')
+    .eq('organization_id', orgId).eq('sede_id', sedeId)
+    .eq('gusto_nome', nome).eq('data', dataIso)
+    .maybeSingle()
+  if (errLettura) throw errLettura
+  const nuovoSpedito = (Number(esistente?.spedito_g) || 0) + g
+  if (esistente?.id) {
+    const { error } = await supabase
+      .from('inventario_produzione')
+      .update({ spedito_g: nuovoSpedito })
+      .eq('id', esistente.id)
+    if (error) throw error
+  } else {
+    // La casella di quel giorno non esiste ancora: si crea con il solo
+    // spedito. Produzione e rimanenza le scriverà chi fa l'inventario.
+    const { error } = await supabase
+      .from('inventario_produzione')
+      .insert({
+        organization_id: orgId, sede_id: sedeId, gusto_nome: nome, data: dataIso,
+        produzione_g: 0, rimanenza_g: 0, scarto_g: 0, spedito_g: nuovoSpedito,
+      })
+    if (error) throw error
+  }
+  return nuovoSpedito
+}
+
 // Cancella una cella (utile per "ho sbagliato giorno").
 //
 // Se la cella ha produzione_g > 0, il magazzino MP era stato scalato in

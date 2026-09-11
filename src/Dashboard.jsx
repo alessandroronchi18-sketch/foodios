@@ -3596,7 +3596,7 @@ export default function Dashboard({
           notify={notify}/>}
         {view==="confronto-sedi"&&(canAccessView("confronto-sedi",piano,auth?.user?.email)?<ConfrontoSedi orgId={orgId} sedi={sedi}/>:<UpgradeGate view="confronto-sedi" onUpgrade={goToUpgrade}/>)}
         {view==="eventi"&&<EventiView orgId={orgId} sedeId={sedeId} ricettario={ricettario} notify={notify} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita}/>}
-        {view==="trasferimenti"&&!isAllSedi&&(canAccessView("trasferimenti",piano,auth?.user?.email)?<TrasferimentiView orgId={orgId} sedi={sedi} sedeAttiva={sedeAttiva} notify={notify}/>:<UpgradeGate view="trasferimenti" onUpgrade={goToUpgrade}/>)}
+        {view==="trasferimenti"&&!isAllSedi&&(canAccessView("trasferimenti",piano,auth?.user?.email)?<TrasferimentiView orgId={orgId} sedi={sedi} sedeAttiva={sedeAttiva} notify={notify} metodoProduzione={metodoProduzione}/>:<UpgradeGate view="trasferimenti" onUpgrade={goToUpgrade}/>)}
         {view==="integrazioni"&&(canAccessView("integrazioni",piano,auth?.user?.email)?<Integrazioni orgId={orgId} sedeId={sedeId} notify={notify}/>:<UpgradeGate view="integrazioni" onUpgrade={goToUpgrade}/>)}
         {view==="scadenzario"&&<Scadenzario orgId={orgId} sedeId={sedeId} sedi={sedi}/>}
         {view==="changelog"&&<ChangelogView/>}

@@ -8,6 +8,7 @@ import { sload, ssave } from '../lib/storage'
 import { color as T, radius as R, motion as M, typo } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { todayLocal } from '../lib/dateLocal'
+import { aggiungiSpedito } from '../lib/inventarioProduzione'
 import {
   loadTrasferimenti, creaTrasferimento,
   inviaTrasferimento, riceviTrasferimento, annullaTrasferimento,
@@ -40,7 +41,7 @@ function fmtEuro(v) {
   return `${Number(v || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
 }
 
-export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null, notify }) {
+export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null, notify, metodoProduzione = 'stampi' }) {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
   const confirmDialog = useConfirm()
@@ -269,7 +270,26 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
         // RPC con tipo='semilavorato' non scala stock ma aggiorna stato.
         await inviaTrasferimento(t.id)
       }
-      notify?.('Invio registrato')
+      // Il trasferimento scrive da solo i chili spediti nell'inventario della
+      // sede di partenza. Prima erano due registrazioni dello stesso fatto —
+      // il trasferimento qui e "spedito" a mano nell'inventario — e chi ne
+      // faceva solo una aveva i conti sbagliati da una parte: i chili partiti
+      // risultavano venduti al banco.
+      let inventarioScritto = 0
+      if (metodoProduzione === 'inventario' && t.tipo === 'prodotto') {
+        const grammi = t.unita === 'kg' ? Number(t.quantita) * 1000 : Number(t.quantita)
+        try {
+          inventarioScritto = await aggiungiSpedito(orgId, t.sede_da, t.prodotto, t.data || todayLocal(), grammi) || 0
+        } catch (e) {
+          // Non si annulla l'invio per questo: il trasferimento è registrato e
+          // la merce è partita. Si dice che l'inventario va sistemato a mano.
+          console.error('[Trasferimenti] spedito non scritto in inventario:', e)
+          notify?.(`Invio registrato, ma non ho potuto segnare i chili spediti nell'inventario di ${sediMap[t.sede_da]?.nome || 'partenza'}: scrivili a mano.`, false)
+        }
+      }
+      notify?.(inventarioScritto > 0
+        ? `Invio registrato. Nell'inventario di ${sediMap[t.sede_da]?.nome || 'partenza'} ho segnato ${(inventarioScritto / 1000).toLocaleString('it-IT', { maximumFractionDigits: 1 })} kg spediti.`
+        : 'Invio registrato')
       await carica()
     } catch (e) {
       if (mpScalatoOra) {
