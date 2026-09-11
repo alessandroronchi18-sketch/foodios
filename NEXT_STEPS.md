@@ -3,7 +3,7 @@
 > Questo documento elenca **solo le azioni che richiedono chiavi/account esterni, decisioni umane, soldi o tempo offline**.
 > Il codice e' allineato; gli step elencati qui non sono dentro git per loro natura.
 >
-> Aggiornato: **2026-09-07**.
+> Aggiornato: **2026-09-11**.
 
 ---
 
@@ -190,6 +190,46 @@ da fare col feedback di chi la usa e non prima:
 - [ ] Le chiusure importate portano `fonte_incassi: 'registro'` in `extra`.
       Nessuna vista lo mostra: servirebbe per distinguere a schermo una giornata
       ricostruita dal foglio da una registrata sul momento.
+
+---
+
+### 15. Le tre funzioni che non si sbloccano scrivendo codice (11 set 2026)
+
+Nel giro sulle funzioni mancanti ne sono uscite 15. Dodici sono state scritte e
+sono in produzione. Tre no, e non perche' siano difficili: dipendono da qualcosa
+che sta fuori dal repository. Le lascio qui con i numeri veri misurati sul
+database, cosi' quando decidi sai cosa stai comprando.
+
+- [ ] **Riconciliazione bancaria automatica — serve un fornitore di open banking.**
+      Mara ha **3.104 fatture fornitore** caricate, di cui **978 ancora aperte**.
+      Oggi per sapere se una e' stata pagata bisogna guardare l'home banking e
+      spuntarla a mano: nessuno lo fa, e infatti la prima nota ha **0 movimenti**
+      su tutto il database. Per leggere l'estratto conto serve un intermediario
+      autorizzato PSD2 (in Italia si valutano Fabrick, Nexi, Salt Edge, Enable
+      Banking, TrueLayer): sono contratti a canone, con adesione della banca e
+      consenso dell'utente da rinnovare periodicamente. **Decisione tua: quanto
+      costa il fornitore e se il canone sta dentro il prezzo dell'abbonamento.**
+      Senza banca resta il ripiego gia' possibile: importare il CSV dei movimenti
+      e abbinarlo agli importi delle fatture. Quello e' codice, e si puo' fare.
+
+- [ ] **Sonde di temperatura HACCP — serve hardware.**
+      Le tabelle ci sono da mesi (`haccp_apparecchi`, `haccp_temperature`), ma il
+      database contiene **0 letture** e **1 solo apparecchio censito**, per di piu'
+      sull'organizzazione demo e non su Mara. Non e' un buco di codice: senza
+      sonde collegate qualcuno deve girare coi frigoriferi e scrivere i numeri a
+      mano, e non lo fara'. Le sonde con gateway esistono (Testo Saveris, Elpro,
+      sensori LoRaWAN), costano per punto di misura piu' un canone cloud.
+      **Decisione tua: se e' una funzione da vendere o una casella da spuntare
+      per l'ASL.** Se e' la seconda, la checklist manuale che c'e' gia' basta.
+
+- [ ] **Stock vetrina — non e' un problema di codice, e' un problema di uso.**
+      Su Mara c'e' **1 sola riga** di stock prodotti finiti, ferma al 1 settembre.
+      Il meccanismo funziona (carico da produzione, scarico da vendita,
+      trasferimenti fra sedi): semplicemente non lo usa nessuno, perche' il gelato
+      lo governa l'inventario differenziale e i prodotti finiti sono un giro a
+      parte. **Prima di scrivere altro codice qui, guarda se qualcuno lo apre.**
+      Se dopo un mese di uso vero resta a una riga, la risposta giusta e'
+      togliere la voce dal menu, non aggiungerci funzioni.
 
 ---
 
