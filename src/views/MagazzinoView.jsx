@@ -1032,10 +1032,22 @@ export default function MagazzinoView({
 
   // ── Diagnosi aggregata (banda premium) ─────────────────────────────────────
   const valoreStock = righe.reduce((s, r) => s + (r.valore || 0), 0)
+  // Copertura: MEDIANA, non media, e il colore lo decide il caso peggiore.
+  //
+  // La media dei giorni di scorta è un numero che non appartiene a nessun
+  // ingrediente: una spezia comprata in busta grande può avere 400 giorni di
+  // copertura e tirare su la media da sola, colorando la tessera di verde
+  // mentre la farina finisce domani. La mediana descrive l'ingrediente tipico;
+  // il colore guarda quanti sono sotto i tre giorni, che è la domanda vera.
   const conCopertura = righe.filter(r => r.giorniScorta !== null)
   const coperturaMedia = conCopertura.length > 0
-    ? conCopertura.reduce((s, r) => s + r.giorniScorta, 0) / conCopertura.length
+    ? (() => {
+      const ord = conCopertura.map(r => r.giorniScorta).sort((a, b) => a - b)
+      const mid = Math.floor(ord.length / 2)
+      return ord.length % 2 ? ord[mid] : (ord[mid - 1] + ord[mid]) / 2
+    })()
     : null
+  const sottoTreGiorni = conCopertura.filter(r => r.giorniScorta < 3).length
   // Rosso SOLO per gli esauriti, che fermano la produzione. Sotto soglia e' una
   // lista della spesa: informativa, non un allarme.
   const salute = (negativi.length > 0 || esauriti.length > 0) ? 'critico'
@@ -1343,10 +1355,14 @@ export default function MagazzinoView({
               const el = document.getElementById('riordino-urgente')
               if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
             } : undefined}/>
-          <KPI icon={<Icon name="clock" size={18} />} label="Copertura media"
+          <KPI icon={<Icon name="clock" size={18} />} label="Copertura tipica"
             value={coperturaMedia !== null ? `${coperturaMedia.toFixed(0)} gg` : '-'}
-            color={coperturaMedia === null ? undefined : coperturaMedia < 3 ? C.red : coperturaMedia < 7 ? C.amber : C.green}
-            sub={coperturaMedia !== null ? 'giorni di scorta' : 'storico assente'}/>
+            color={coperturaMedia === null ? undefined : sottoTreGiorni > 0 ? C.red : coperturaMedia < 7 ? C.amber : C.green}
+            sub={coperturaMedia === null
+              ? 'storico assente'
+              : sottoTreGiorni > 0
+                ? `${sottoTreGiorni} sotto i 3 giorni`
+                : 'giorni di scorta, ingrediente tipico'}/>
         </div>
       </div>
 
@@ -1666,7 +1682,7 @@ export default function MagazzinoView({
                       </td>
                       <td style={{ padding: '10px 14px', textAlign: 'right', ...TNUM }}>
                         {(r.stato === 'critico' || r.stato === 'esaurito' || r.stato === 'attenzione') && fmtRiordino(r.riordinoG) ? (
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 8, background: statoBg(r.stato), color: statoColor(r.stato), fontWeight: 800, fontSize: 11 }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 8, background: statoBg(r.stato), color: statoColor(r.stato), fontWeight: 800, fontSize: typo.small.fontSize }}>
                             <Icon name="truck" size={11} /><span style={{ whiteSpace: 'nowrap' }}>~ {fmtRiordino(r.riordinoG)}</span>
                           </span>
                         ) : (

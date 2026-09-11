@@ -23,6 +23,26 @@
 //
 // Trial e` livello Maestro (rank 2): il cliente assaggia tutto il valore AI
 // nei 30gg, poi sceglie Bottega/Maestro/Insegna in base alle sue dimensioni.
+// ╔═══════════════════════════════════════════════════════════════════════╗
+// ║  SBLOCCO TEMPORANEO — TUTTE LE PAGINE VISIBILI A QUALSIASI PIANO      ║
+// ╚═══════════════════════════════════════════════════════════════════════╝
+//
+// Acceso l'11/09/2026 su richiesta del titolare, per vedere tutte le pagine
+// mentre si lavora alla ripulitura, senza dover cambiare piano.
+//
+// Cosa fa, esattamente: `canAccessView` risponde sempre sì. Quindi
+//   - nessuna pagina è lucchettata nel menù (spariscono anche i badge ⬩);
+//   - cliccando una pagina non esce più il modal "passa a Maestro/Insegna";
+//   - le pagine gated si aprono davvero, non mostrano il muro dell'upgrade.
+//
+// Cosa NON fa: la tabella VIEW_MIN_PLAN resta intatta, quindi PER TORNARE
+// COME PRIMA basta rimettere `false` qui sotto. Nient'altro da toccare.
+//
+// ⚠️ Da rimettere a false prima di far entrare clienti veri a pagamento:
+// finché è true, il piano Bottega (69 €/mese) vede anche le funzioni di
+// Maestro (149 €) e Insegna (399 €).
+export const SBLOCCO_TUTTE_LE_PAGINE = true
+
 export const PLAN_RANK = {
   trial:      2,  // Maestro durante prova
   base:       1,  // Bottega
@@ -115,11 +135,22 @@ export function effectivePlan(piano, email) {
 
 // true se il piano dato può accedere alla view.
 // `userEmail` opzionale: alcune email (demo) bypassano il gate.
-export function canAccessView(view, piano, userEmail) {
-  if (isPlanBypassEmail(userEmail)) return true
+// La REGOLA dei piani, senza sconti: serve a sapere cosa sarebbe incluso in un
+// piano, indipendentemente dallo sblocco temporaneo qui sopra. La usano i test
+// (che devono continuare a proteggere i tier anche mentre lo sblocco è acceso)
+// e chiunque debba mostrare "questa funzione è del piano X".
+export function vistaInclusaNelPiano(view, piano) {
   const need = VIEW_MIN_PLAN[view]
   if (!need) return true
   return planRank(piano) >= planRank(need)
+}
+
+// true se l'utente può APRIRE la view adesso.
+export function canAccessView(view, piano, userEmail) {
+  // Sblocco temporaneo: vedi il blocco in testa al file.
+  if (SBLOCCO_TUTTE_LE_PAGINE) return true
+  if (isPlanBypassEmail(userEmail)) return true
+  return vistaInclusaNelPiano(view, piano)
 }
 
 // Piano (etichetta) richiesto da una view gated, o null se libera.

@@ -1,11 +1,21 @@
 import { describe, it, expect } from 'vitest'
-import { canAccessView, planRank, requiredPlanLabel, isPlanBypassEmail, effectivePlan } from '../../src/lib/planAccess.js'
+import {
+  canAccessView, vistaInclusaNelPiano, planRank, requiredPlanLabel,
+  isPlanBypassEmail, effectivePlan, SBLOCCO_TUTTE_LE_PAGINE,
+} from '../../src/lib/planAccess.js'
+
+// I test sui TIER usano `vistaInclusaNelPiano`, che è la regola dei piani pura.
+// `canAccessView` invece risponde "puoi aprirla ADESSO" e tiene conto anche
+// dello sblocco temporaneo (SBLOCCO_TUTTE_LE_PAGINE, acceso l'11/09/2026 su
+// richiesta del titolare). Tenerli separati serve a questo: i controlli sui
+// piani continuano a proteggere il ritorno indietro anche mentre tutto è
+// aperto, e il giorno in cui lo sblocco si spegne non c'è niente da riscrivere.
 
 describe('planAccess', () => {
   it('view non gated → accessibile a tutti i piani', () => {
     for (const p of ['trial', 'base', 'pro', 'enterprise', 'sconosciuto', null]) {
-      expect(canAccessView('ricettario', p)).toBe(true)
-      expect(canAccessView('magazzino', p)).toBe(true)
+      expect(vistaInclusaNelPiano('ricettario', p)).toBe(true)
+      expect(vistaInclusaNelPiano('magazzino', p)).toBe(true)
     }
   })
 
@@ -13,11 +23,11 @@ describe('planAccess', () => {
     // Audit 2026-06-21: Bottega/Maestro/Insegna. Trial assaggia Maestro (rank 2)
     // ma resta gated sulle Insegna (multi-sede + integrazioni real-time).
     for (const v of ['confronto-sedi', 'trasferimenti', 'integrazioni']) {
-      expect(canAccessView(v, 'enterprise')).toBe(true)
-      expect(canAccessView(v, 'chain')).toBe(true)
-      expect(canAccessView(v, 'pro')).toBe(false)
-      expect(canAccessView(v, 'base')).toBe(false)
-      expect(canAccessView(v, 'trial')).toBe(false) // trial = Maestro (rank 2), non Insegna
+      expect(vistaInclusaNelPiano(v, 'enterprise')).toBe(true)
+      expect(vistaInclusaNelPiano(v, 'chain')).toBe(true)
+      expect(vistaInclusaNelPiano(v, 'pro')).toBe(false)
+      expect(vistaInclusaNelPiano(v, 'base')).toBe(false)
+      expect(vistaInclusaNelPiano(v, 'trial')).toBe(false) // trial = Maestro (rank 2), non Insegna
     }
   })
 
@@ -35,8 +45,8 @@ describe('planAccess', () => {
   })
 
   it('è case-insensitive sul nome del piano', () => {
-    expect(canAccessView('integrazioni', 'ENTERPRISE')).toBe(true)
-    expect(canAccessView('integrazioni', ' Pro ')).toBe(false)
+    expect(vistaInclusaNelPiano('integrazioni', 'ENTERPRISE')).toBe(true)
+    expect(vistaInclusaNelPiano('integrazioni', ' Pro ')).toBe(false)
   })
 
   // ── Email bypass (account demo) ─────────────────────────────────────────
@@ -68,8 +78,8 @@ describe('planAccess', () => {
     // Solo le feature multi-sede + integrazioni real-time + WhatsApp + Marketplace
     // sono Insegna-tier (le altre AI sono passate a Maestro)
     for (const v of ['whatsapp', 'marketplace', 'documentary', 'confronto-sedi', 'trasferimenti', 'integrazioni']) {
-      expect(canAccessView(v, 'pro')).toBe(false)
-      expect(canAccessView(v, 'enterprise')).toBe(true)
+      expect(vistaInclusaNelPiano(v, 'pro')).toBe(false)
+      expect(vistaInclusaNelPiano(v, 'enterprise')).toBe(true)
     }
   })
 
@@ -77,27 +87,58 @@ describe('planAccess', () => {
     // Audit 2026-06-21: ai-brain e ricette-ai promossi a Maestro (era Insegna).
     // Trial assaggia tutto Maestro (rank 2) per generare valore prima upgrade.
     for (const v of ['forecast', 'menu-engineering', 'cashflow', 'reformulation', 'competitor-pricing', 'ordini-ai', 'ai-brain', 'ricette-ai']) {
-      expect(canAccessView(v, 'base')).toBe(false)
-      expect(canAccessView(v, 'trial')).toBe(true)  // trial = Maestro
-      expect(canAccessView(v, 'pro')).toBe(true)
-      expect(canAccessView(v, 'enterprise')).toBe(true)
+      expect(vistaInclusaNelPiano(v, 'base')).toBe(false)
+      expect(vistaInclusaNelPiano(v, 'trial')).toBe(true)  // trial = Maestro
+      expect(vistaInclusaNelPiano(v, 'pro')).toBe(true)
+      expect(vistaInclusaNelPiano(v, 'enterprise')).toBe(true)
     }
   })
 
   it('logica 3-tier badge: Bottega vede locked su Maestro+Insegna, Maestro solo su Insegna, Insegna nessuno', () => {
     // Bottega: tutte le AI feature gated sono lockate
     for (const v of ['forecast', 'reformulation', 'ai-brain', 'whatsapp']) {
-      expect(canAccessView(v, 'base')).toBe(false)
+      expect(vistaInclusaNelPiano(v, 'base')).toBe(false)
     }
     // Maestro: solo Insegna lockate
-    expect(canAccessView('forecast', 'pro')).toBe(true)        // Maestro feature
-    expect(canAccessView('reformulation', 'pro')).toBe(true)
-    expect(canAccessView('ai-brain', 'pro')).toBe(true)        // ora Maestro
-    expect(canAccessView('whatsapp', 'pro')).toBe(false)       // Insegna-only
-    expect(canAccessView('confronto-sedi', 'pro')).toBe(false) // Insegna-only
+    expect(vistaInclusaNelPiano('forecast', 'pro')).toBe(true)        // Maestro feature
+    expect(vistaInclusaNelPiano('reformulation', 'pro')).toBe(true)
+    expect(vistaInclusaNelPiano('ai-brain', 'pro')).toBe(true)        // ora Maestro
+    expect(vistaInclusaNelPiano('whatsapp', 'pro')).toBe(false)       // Insegna-only
+    expect(vistaInclusaNelPiano('confronto-sedi', 'pro')).toBe(false) // Insegna-only
     // Insegna: tutto accessibile
     for (const v of ['forecast', 'reformulation', 'ai-brain', 'whatsapp', 'marketplace', 'documentary', 'confronto-sedi']) {
-      expect(canAccessView(v, 'enterprise')).toBe(true)
+      expect(vistaInclusaNelPiano(v, 'enterprise')).toBe(true)
     }
+  })
+})
+
+// ── Sblocco temporaneo di tutte le pagine ──────────────────────────────────
+//
+// Acceso l'11/09/2026 su richiesta del titolare: tutte le pagine visibili a
+// qualsiasi piano mentre si lavora alla ripulitura, senza cambiare piano.
+// Questo controllo è scritto per passare in TUTTI E DUE gli stati: il giorno
+// in cui lo sblocco si spegne non va riscritto, dice solo la cosa giusta.
+describe('sblocco temporaneo tutte le pagine', () => {
+  const gated = ['confronto-sedi', 'trasferimenti', 'integrazioni', 'whatsapp', 'forecast', 'cashflow']
+
+  it('coerente con lo stato dello sblocco', () => {
+    for (const v of gated) {
+      if (SBLOCCO_TUTTE_LE_PAGINE) {
+        // Acceso: il piano Bottega apre tutto.
+        expect(canAccessView(v, 'base')).toBe(true)
+      } else {
+        // Spento: torna a valere la regola dei piani.
+        expect(canAccessView(v, 'base')).toBe(vistaInclusaNelPiano(v, 'base'))
+      }
+    }
+  })
+
+  it('la tabella dei piani resta intatta, così tornare indietro è una riga', () => {
+    // Lo sblocco NON cancella VIEW_MIN_PLAN: la regola c'è ancora e si può
+    // interrogare. Se un giorno qualcuno "pulisse" la tabella pensando che
+    // non serva più, tornare al gating diventerebbe un lavoro.
+    expect(vistaInclusaNelPiano('confronto-sedi', 'base')).toBe(false)
+    expect(vistaInclusaNelPiano('forecast', 'base')).toBe(false)
+    expect(vistaInclusaNelPiano('ricettario', 'base')).toBe(true)
   })
 })
