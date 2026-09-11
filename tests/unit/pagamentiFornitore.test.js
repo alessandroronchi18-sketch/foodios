@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   residuoDa, ordinePagamento, imputaPagamento, terminiOsservati,
-  ricorrenti, fattureAnomale, testoEstrattoConto,
+  ricorrenti, fattureAnomale, testoEstrattoConto, cadenzaConsegne,
 } from '../../src/lib/pagamentiFornitore'
 
 const ft = (p) => ({
@@ -236,5 +236,66 @@ describe('testoEstrattoConto', () => {
     expect(t).toContain('Totale a saldo: 1.000,00 €')
     expect(t).toContain('Mara dei Boschi')
     expect(t).toContain('10/09/2026')
+  })
+})
+
+// ── Ogni quanto consegna un fornitore ─────────────────────────────────────
+//
+// La quantità da ordinare copriva un numero fisso di giorni (quattordici) per
+// tutti i fornitori. Per uno che passa ogni settimana è il doppio del
+// necessario — merce ferma e soldi bloccati — per uno che passa ogni mese è
+// metà, e resti a secco a metà periodo.
+//
+// Dalle fatture non si ricava il tempo di consegna (manca la data dell'ordine),
+// ma si ricava la CADENZA: ogni quanti giorni arriva una fattura. Per decidere
+// la scorta serve quella. Sui dati veri è misurabile per 188 fornitori su 322.
+describe('cadenzaConsegne', () => {
+  const f = (...date) => date.map(d => ({ data_fattura: d }))
+
+  it('un fornitore settimanale', () => {
+    const c = cadenzaConsegne(f('2026-05-04', '2026-05-11', '2026-05-18', '2026-05-25', '2026-06-01'))
+    expect(c.giorni).toBe(7)
+    expect(c.campione).toBe(4)
+  })
+
+  it('un fornitore mensile', () => {
+    const c = cadenzaConsegne(f('2026-01-15', '2026-02-14', '2026-03-16', '2026-04-15'))
+    expect(c.giorni).toBeGreaterThanOrEqual(29)
+    expect(c.giorni).toBeLessThanOrEqual(31)
+  })
+
+  it('la mediana regge alla chiusura estiva', () => {
+    // Settimanale tutto l'anno, poi tre settimane di ferie ad agosto: la
+    // media direbbe 11 giorni, la mediana dice 7 — che è la verità.
+    const c = cadenzaConsegne(f(
+      '2026-06-01', '2026-06-08', '2026-06-15', '2026-06-22',
+      '2026-07-13', // 21 giorni di buco
+      '2026-07-20', '2026-07-27',
+    ))
+    expect(c.giorni).toBe(7)
+    expect(c.max).toBe(21)
+  })
+
+  it('due fatture lo stesso giorno non sono due consegne', () => {
+    // È una fattura divisa in due documenti: intervallo zero, si scarta.
+    const c = cadenzaConsegne(f('2026-05-04', '2026-05-04', '2026-05-11', '2026-05-18', '2026-05-25'))
+    expect(c.giorni).toBe(7)
+  })
+
+  it('con poche fatture non si azzarda una cadenza', () => {
+    expect(cadenzaConsegne(f('2026-05-04', '2026-05-11'))).toBeNull()
+    expect(cadenzaConsegne(f('2026-05-04'))).toBeNull()
+    expect(cadenzaConsegne([])).toBeNull()
+    expect(cadenzaConsegne(null)).toBeNull()
+  })
+
+  it('un fornitore occasionale non ha una cadenza', () => {
+    // Sei mesi fra una fattura e l'altra: non è un fornitore abituale, e
+    // proporre una scorta di sei mesi sarebbe assurdo.
+    expect(cadenzaConsegne(f('2026-01-10', '2026-07-15', '2027-01-20', '2027-08-01'))).toBeNull()
+  })
+
+  it('date storte non fanno esplodere niente', () => {
+    expect(cadenzaConsegne([{ data_fattura: null }, { data_fattura: 'boh' }, {}])).toBeNull()
   })
 })

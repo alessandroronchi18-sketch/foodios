@@ -29,6 +29,7 @@ import { sload } from '../lib/storage'
 import { supabase } from '../lib/supabase'
 import { buildIngCosti, normIng } from '../lib/foodcost'
 import { fornitoreDiIngrediente, raggruppaPerFornitore, LEAD_TIME_RIFERIMENTO } from '../lib/fornitoreIngrediente'
+import { cadenzaConsegne } from '../lib/pagamentiFornitore'
 import { color as T, font } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from '../components/Icon'
@@ -51,6 +52,7 @@ export default function OrdiniAiView({ orgId, sedeId, notify }) {
   const [chiusure, setChiusure] = useState([])
   const [ricettario, setRicettario] = useState(null)
   const [fornitori, setFornitori] = useState([])
+  const [fattureDate, setFattureDate] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -58,12 +60,20 @@ export default function OrdiniAiView({ orgId, sedeId, notify }) {
     let alive = true
     async function load() {
       setLoading(true)
-      const [m, c, r, f] = await Promise.all([
+      // Si caricano anche le date delle fatture: da lì si impara ogni quanto
+      // ogni fornitore consegna davvero, che è quello che decide quanta
+      // scorta serve. Solo due colonne, niente importi: è una lettura leggera
+      // anche su tremila fatture.
+      const [m, c, r, f, fat] = await Promise.all([
         sload('pasticceria-magazzino-v1', orgId, sedeId),
         sload('pasticceria-chiusure-v1', orgId, sedeId),
         sload('pasticceria-ricettario-v1', orgId, null),
         supabase.from('fornitori').select('nome, lead_time_giorni, minimo_ordine')
           .eq('organization_id', orgId).eq('attivo', true),
+        supabase.from('fatture').select('fornitore, data_fattura')
+          .eq('organization_id', orgId)
+          .gte('data_fattura', new Date(Date.now() - 400 * 86400000).toISOString().slice(0, 10))
+          .order('data_fattura'),
       ])
       if (alive) {
         setMagazzino(m || {})
@@ -73,6 +83,7 @@ export default function OrdiniAiView({ orgId, sedeId, notify }) {
         // sempre vuoto.
         setRicettario(r && typeof r === 'object' ? r : null)
         setFornitori(f?.data || [])
+        setFattureDate(fat?.data || [])
         setLoading(false)
       }
     }
@@ -124,6 +135,23 @@ export default function OrdiniAiView({ orgId, sedeId, notify }) {
     return m
   }, [fornitori])
 
+  // Ogni quanto consegna ciascun fornitore, imparato dalle sue fatture.
+  const cadenzaPerFornitore = useMemo(() => {
+    const perNome = new Map()
+    for (const f of (fattureDate || [])) {
+      const n = String(f?.fornitore || '').trim()
+      if (!n) continue
+      if (!perNome.has(n)) perNome.set(n, [])
+      perNome.get(n).push(f)
+    }
+    const out = new Map()
+    for (const [nome, righe] of perNome) {
+      const c = cadenzaConsegne(righe)
+      if (c) out.set(nome, c)
+    }
+    return out
+  }, [fattureDate])
+
   const suggerimenti = useMemo(() => {
     const out = []
     // Valore di riferimento quando il fornitore non ha dichiarato i suoi
@@ -153,7 +181,18 @@ export default function OrdiniAiView({ orgId, sedeId, notify }) {
       // consegna arriva dopo un mese, e restavi a secco in mezzo. Il commento
       // in testa al file descriveva già la formula giusta
       // ("consumo_lead_time + safety_stock") — era il codice a non seguirla.
-      const giorniDaCoprire = Math.max(14, leadTimeIng + 7)
+      // Quanti giorni coprire: la cadenza vera del fornitore più un margine,
+      // oppure il tempo di consegna dichiarato, oppure quattordici giorni.
+      //
+      // La cadenza vince perché è misurata: se quel fornitore passa ogni sette
+      // giorni, la scorta deve arrivare al suo prossimo giro. Quattordici
+      // giorni fissi per tutti erano il doppio del necessario per chi passa
+      // ogni settimana (merce ferma) e la metà per chi passa ogni mese
+      // (resti a secco).
+      const cadenza = forn ? cadenzaPerFornitore.get(forn.nome) : null
+      const giorniDaCoprire = cadenza
+        ? Math.max(7, cadenza.giorni + 3)
+        : Math.max(14, leadTimeIng + 7)
       const qtaSuggerita = Math.max(soglia * 2, cons * giorniDaCoprire * safety)
       const voce = ingCosti[normIng(nome)]
       out.push({
@@ -163,6 +202,7 @@ export default function OrdiniAiView({ orgId, sedeId, notify }) {
         sottoSoglia, inEsaurimento,
         qtaSuggerita: Math.round(qtaSuggerita),
         giorniDaCoprire,
+        cadenza,
         urgenza: sottoSoglia ? 'alta' : 'media',
         // Il prezzo viene dal listino ingredienti del ricettario, che e' dove
         // vive davvero: `prezzo_kg` nel magazzino non esiste, quindi il
@@ -179,7 +219,7 @@ export default function OrdiniAiView({ orgId, sedeId, notify }) {
       if (a.urgenza !== b.urgenza) return a.urgenza === 'alta' ? -1 : 1
       return (a.giorniRimasti ?? 999) - (b.giorniRimasti ?? 999)
     })
-  }, [magazzino, consumoGiornaliero, ingCosti, fornitoriPerNome])
+  }, [magazzino, consumoGiornaliero, ingCosti, fornitoriPerNome, cadenzaPerFornitore])
 
   // Quanti ingredienti hanno una giacenza e quanti hanno una soglia: serve
   // per non dire "tutto a posto" quando invece non c'e' niente da guardare.
@@ -347,7 +387,7 @@ export default function OrdiniAiView({ orgId, sedeId, notify }) {
                       {/* Su cosa si regge la quantità: senza questa riga il
                           numero sembra una misura, mentre è "copri N giorni". */}
                       <td style={{ padding: '11px 14px', textAlign: 'right', fontSize: 13, color: TXT, fontWeight: 800, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}
-                        title={`Copre ${s.giorniDaCoprire} giorni di consumo più il 40% di margine${s.leadTimeDichiarato ? ` (il fornitore consegna in ${s.leadTimeIng} giorni)` : ' (tempo di consegna non dichiarato dal fornitore)'}`}>
+                        title={`Copre ${s.giorniDaCoprire} giorni di consumo più il 40% di margine${s.cadenza ? ` — questo fornitore passa in media ogni ${s.cadenza.giorni} giorni, misurato su ${s.cadenza.campione} fatture` : s.leadTimeDichiarato ? ` (il fornitore consegna in ${s.leadTimeIng} giorni)` : ' (nessuna cadenza misurabile: uso 14 giorni)'}`}>
                         {s.qtaSuggerita >= 1000 ? `${(s.qtaSuggerita / 1000).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg` : `${Number(s.qtaSuggerita).toLocaleString('it-IT', { useGrouping: 'always' })} g`}
                       </td>
                     </tr>

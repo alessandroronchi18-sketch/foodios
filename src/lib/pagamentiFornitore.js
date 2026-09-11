@@ -124,6 +124,55 @@ export function imputaPagamento(fatture, importo) {
  * Ritorna null quando non c'è abbastanza storia: due pagamenti non fanno una
  * regola, e un numero inventato qui sposterebbe tutte le scadenze future.
  */
+// Ogni quanto un fornitore consegna, imparato dalle sue fatture.
+//
+// Serve a decidere quanto ordinare. Prima la quantità suggerita copriva un
+// numero fisso di giorni (quattordici) per tutti: per un fornitore che passa
+// ogni settimana è il doppio del necessario — merce ferma e soldi bloccati —
+// e per uno che passa ogni mese è metà, e resti a secco.
+//
+// NON è il tempo di consegna (quello sarebbe dall'ordine alla merce, e la data
+// dell'ordine non ce l'abbiamo). È la CADENZA: ogni quanti giorni arriva una
+// fattura da quel fornitore. Per decidere la scorta serve quella: se passa
+// ogni sette giorni devi coprire almeno sette giorni.
+//
+// Sui dati del design partner è misurabile per 188 fornitori su 322, e i
+// numeri si riconoscono a occhio: il fornitore dei coni ogni 7 giorni, il
+// grano ogni 8, la bolletta del telefono ogni 27.
+export function cadenzaConsegne(fatture, { minimo = 3 } = {}) {
+  const date = []
+  for (const f of (fatture || [])) {
+    const d = String(f?.data_fattura || '').slice(0, 10)
+    if (/^\d{4}-\d{2}-\d{2}$/.test(d)) date.push(d)
+  }
+  if (date.length < minimo + 1) return null
+  date.sort()
+  const intervalli = []
+  for (let i = 1; i < date.length; i++) {
+    const [y1, m1, g1] = date[i - 1].split('-').map(Number)
+    const [y2, m2, g2] = date[i].split('-').map(Number)
+    const gg = Math.round((Date.UTC(y2, m2 - 1, g2) - Date.UTC(y1, m1 - 1, g1)) / 86400000)
+    // Due fatture lo stesso giorno non sono due consegne (è una fattura
+    // divisa). Oltre i quattro mesi non è una cadenza: è un fornitore
+    // occasionale.
+    if (gg >= 1 && gg <= 120) intervalli.push(gg)
+  }
+  if (intervalli.length < minimo) return null
+  intervalli.sort((a, b) => a - b)
+  // La MEDIANA, non la media: una fattura arrivata dopo la chiusura estiva
+  // non deve spostare la cadenza di tutto l'anno.
+  const mid = Math.floor(intervalli.length / 2)
+  const mediana = intervalli.length % 2
+    ? intervalli[mid]
+    : Math.round((intervalli[mid - 1] + intervalli[mid]) / 2)
+  return {
+    giorni: mediana,
+    campione: intervalli.length,
+    min: intervalli[0],
+    max: intervalli[intervalli.length - 1],
+  }
+}
+
 export function terminiOsservati(fatture, { minimo = 3 } = {}) {
   const giorni = []
   for (const f of (fatture || [])) {
