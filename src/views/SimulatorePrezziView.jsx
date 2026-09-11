@@ -116,8 +116,21 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
 
   // ── Diagnosi (hero) ──────────────────────────────────────────────────────────
   const diag = useMemo(() => {
-    const totFc = rows.reduce((s, r) => s + r.fc, 0)
-    const totRic = rows.reduce((s, r) => s + r.ricavo, 0)
+    // Food cost medio PESATO su quanto produci davvero.
+    //
+    // Prima si sommavano i costi e i ricavi di uno stampo per ricetta, come se
+    // di ogni prodotto ne facessi uno solo: un gusto che produci cento volte
+    // al mese pesava come uno che fai una volta l'anno. Su un listino di
+    // ventisette ricette dove due o tre tirano tutto il fatturato, la
+    // percentuale che ne usciva non era quella di nessuno — e sta in cima alla
+    // pagina, colorata di verde o di rosso, come se fosse il food cost
+    // dell'azienda.
+    //
+    // Senza storico di produzione il peso non c'è e si ricade sul conto di
+    // prima, che a quel punto è l'unico possibile: lo dice il sottotitolo.
+    const peso = (r) => (hasStorico ? (r.mensili || 0) : 1)
+    const totFc = rows.reduce((s, r) => s + r.fc * peso(r), 0)
+    const totRic = rows.reduce((s, r) => s + r.ricavo * peso(r), 0)
     const fcMedio = totRic > 0 ? (totFc / totRic * 100) : 0
     const margMedio = totRic > 0 ? ((totRic - totFc) / totRic * 100) : 0
     const sani = rows.filter(r => r.ricavo > 0 && r.fcPct <= targetPct).length
@@ -129,7 +142,7 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
       return s + r.deltaPrezzo * r.reg.unita * r.mensili
     }, 0)
     return { fcMedio, margMedio, sani, occhio, critici, totFc, totRic, impattoMese }
-  }, [rows, targetPct])
+  }, [rows, targetPct, hasStorico])
 
   // ── Top ingredienti per incidenza sul food cost (pesato sulla produzione) ────
   const topIngredienti = useMemo(() => {
@@ -343,12 +356,17 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
         gap: isMobile ? 10 : 16, marginBottom: 14,
       }}>
         <KPI icon={<Icon name="receipt" size={17} />} label="Food cost medio" value={fmtp(diag.fcMedio)} color={fcColor(diag.fcMedio)}
-          sub={`obiettivo ${targetPct}%`} />
-        <KPI icon={<Icon name="trendUp" size={17} />} label="Margine medio" value={fmtp(diag.margMedio)} color={T.green} sub="sul ricavo" />
+          sub={hasStorico ? `obiettivo ${targetPct}% · pesato sulla produzione` : `obiettivo ${targetPct}% · senza storico, ogni ricetta pesa uguale`} />
+        <KPI icon={<Icon name="trendUp" size={17} />} label="Margine medio" value={fmtp(diag.margMedio)} color={T.green}
+          sub={hasStorico ? 'sul ricavo, pesato sulla produzione' : 'sul ricavo'} />
         <KPI icon={<Icon name="warning" size={17} />} label="Prodotti critici" value={diag.critici.toLocaleString('it-IT', { useGrouping: 'always' })} color={diag.critici ? T.brand : T.green}
           sub={`su ${rows.length.toLocaleString('it-IT', { useGrouping: 'always' })} · oltre ${targetPct + 10}%`} />
-        <KPI icon={<Icon name="money" size={17} />} label="Recuperabile / mese" value={fmt0(diag.impattoMese)} highlight
-          sub={hasStorico ? 'portando i critici a target' : 'serve storico produzione'} />
+        {/* Senza storico l'impatto viene sempre 0, perché le quantità mensili
+            sono zero: mostrare "0 €" in grande diceva "non c'è niente da
+            recuperare", mentre vuol dire "non lo so ancora". */}
+        <KPI icon={<Icon name="money" size={17} />} label="Recuperabile / mese"
+          value={hasStorico ? fmt0(diag.impattoMese) : '—'} highlight={hasStorico}
+          sub={hasStorico ? 'alzando i prezzi dei critici, a parità di vendite' : 'serve lo storico di produzione'} />
       </div>
 
       {/* ② SALUTE DEL LISTINO */}

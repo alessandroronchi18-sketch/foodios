@@ -12,8 +12,14 @@ const AXIS_COLOR = '#64748B'
 // ── Algoritmo previsione (Holt, smoothing esponenziale doppio) ───────────────
 // NON MODIFICARE la firma: riusata da RicettaProduzione e dai calcoli globali.
 // Returns { prev: number, trend: "up"|"down"|"flat", confidence: 0-1 }
-function previsione(serie, periodi = 3) {
-  if (!serie || serie.length < 2) return { prev: serie?.[0] || 0, trend: "flat", confidence: 0.3 }
+export function previsione(serie, periodi = 3) {
+  // Con meno di due rilevazioni non c'è una tendenza da stimare: si restituiva
+  // comunque un numero (il primo valore, o zero) con una confidenza del 30%,
+  // cioè un valore inventato con l'aria di una previsione. Ora il numero c'è
+  // solo se c'è un dato da cui ricavarlo, e la confidenza è zero — così chi
+  // chiama può distinguere "non lo so" da "ho previsto poco".
+  if (!serie || serie.length === 0) return { prev: null, trend: "flat", confidence: 0 }
+  if (serie.length < 2) return { prev: serie[0], trend: "flat", confidence: 0 }
   const n = serie.length
   // Simple exponential smoothing (Holt's linear)
   let alpha = 0.3, beta = 0.1
@@ -65,20 +71,29 @@ const meseSucc = m => {
 // ── Card "Cosa produrre" per singola ricetta ────────────────────────────────
 function RicettaProduzione({ ric, serieMese, sellThrough, stagionale, totStag, getR, prossimiGiorni, isMobile, isTablet }) {
   const values = serieMese.map(s => s.stampi)
-  const { prev, confidence, trend } = previsione(values)
+  // `previsione(values)` senza il secondo argomento guarda TRE mesi avanti
+  // (il default della funzione è `periodi = 3`), ma questo numero viene
+  // mostrato e usato come "il mese prossimo" — e da lì esce il suggerimento
+  // di quanto produrre domani. Con una tendenza in crescita la previsione
+  // usciva gonfiata di due mesi di crescita; in calo, sgonfiata. Il backtest
+  // qui sotto infatti passa già `1`: era solo questa strada a non farlo.
+  const { prev, confidence, trend } = previsione(values, 1)
   const media = values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0
 
   // Stima n° giorni di produzione tipici al mese: giorni-settimana con stagionalità > 0 × ~4.3 settimane.
   const giorniAttivi = stagionale.filter(v => v > 0).length || 7
   const giorniMeseTipici = Math.max(1, Math.round(giorniAttivi * 4.3))
-  const prevGiornaliera = prev / giorniMeseTipici
+  // `prev` è null quando non c'è nemmeno un mese di storico: in JavaScript
+  // `null / 30` fa 0, quindi senza questa guardia la pagina avrebbe scritto
+  // "produci 0" invece di "non lo so ancora".
+  const prevGiornaliera = prev == null ? null : prev / giorniMeseTipici
 
   // Previsione per ciascuno dei prossimi giorni, pesata per indice stagionale del DOW.
   const giorniPrev = prossimiGiorni.map(g => {
     const peso = totStag > 0 ? (stagionale[g.dow] * 7) / totStag : 1
-    const stima = prevGiornaliera * peso
-    const banda = stima * (1 - confidence) * 0.6
-    return { ...g, stima, lo: Math.max(0, stima - banda), hi: stima + banda }
+    const stima = prevGiornaliera == null ? null : prevGiornaliera * peso
+    const banda = stima == null ? null : stima * (1 - confidence) * 0.6
+    return { ...g, stima, lo: stima == null ? null : Math.max(0, stima - banda), hi: stima == null ? null : stima + banda }
   })
 
   const st = sellThrough // { pct, venduto, prodotto } | null
@@ -122,7 +137,7 @@ function RicettaProduzione({ ric, serieMese, sellThrough, stagionale, totStag, g
           <div style={{ fontSize: 12, color: C.textSoft, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
             <Icon name={trendIcon} size={12} color={trendColor} />
             <span style={{ color: trendColor, fontWeight: 700 }}>{trendTxt}</span>
-            <span style={{ ...tnum }}>· media {nf1(media)} · previsione {nf1(prev)} stampi/mese</span>
+            <span style={{ ...tnum }}>· media {nf1(media)} · {prev == null ? 'ancora nessuna previsione' : `previsione ${nf1(prev)} stampi/mese`}</span>
           </div>
         </div>
         <Tip text={st == null ? 'Nessuna vendita registrata nelle chiusure per questo prodotto.' : `Venduto ${nf(st.venduto)} su ${nf(st.prodotto)} pezzi prodotti nel periodo.`} width={240}>
@@ -151,12 +166,12 @@ function RicettaProduzione({ ric, serieMese, sellThrough, stagionale, totStag, g
             minHeight: 92,
           }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', minHeight: 14 }}>{g.label}</div>
-            <div style={{ fontSize: 20, fontWeight: 900, color: C.text, ...tnum, marginTop: 4, lineHeight: 1, minHeight: 22 }}>
-              ≈ {nf(g.stima)}
+            <div style={{ fontSize: 20, fontWeight: 900, color: g.stima == null ? C.textSoft : C.text, ...tnum, marginTop: 4, lineHeight: 1, minHeight: 22 }}>
+              {g.stima == null ? '—' : `≈ ${nf(g.stima)}`}
             </div>
-            <div style={{ fontSize: 12, color: C.textSoft, marginTop: 2 }}>stampi</div>
-            <div style={{ fontSize: 12, color: C.textSoft, ...tnum, marginTop: 3 }}>
-              {nf(g.lo)}–{nf(g.hi)}
+            <div style={{ fontSize: 12, color: C.textSoft, marginTop: 2 }}>{g.stima == null ? 'senza storico' : 'stampi'}</div>
+            <div style={{ fontSize: 12, color: C.textSoft, ...tnum, marginTop: 3, minHeight: 16 }}>
+              {g.stima == null ? '' : `${nf(g.lo)}–${nf(g.hi)}`}
             </div>
           </div>
         ))}
@@ -237,7 +252,8 @@ export default function PrevisioneDomanda({ ricettario, giornaliero, chiusure, i
     return Object.entries(byMese).sort(([a], [b]) => a.localeCompare(b)).map(([m, v]) => ({ mese: m, label: meseLabel(m), stampi: v }))
   }, [giornaliero])
 
-  const totForecast = serieTotale.length >= 2 ? previsione(serieTotale.map(s => s.stampi)) : { prev: 0, trend: "flat", confidence: 0 }
+  // Stesso discorso: un mese avanti, non tre.
+  const totForecast = serieTotale.length >= 2 ? previsione(serieTotale.map(s => s.stampi), 1) : { prev: null, trend: "flat", confidence: 0 }
 
   // Prossimi 5 giorni (da oggi) con DOW + label
   const prossimiGiorni = useMemo(() => {
@@ -255,7 +271,7 @@ export default function PrevisioneDomanda({ ricettario, giornaliero, chiusure, i
     if (serieTotale.length < 2) return 0
     const giorniAttivi = stagionale.filter(v => v > 0).length || 7
     const giorniMeseTipici = Math.max(1, Math.round(giorniAttivi * 4.3))
-    const prevGiornaliera = totForecast.prev / giorniMeseTipici
+    const prevGiornaliera = totForecast.prev == null ? 0 : totForecast.prev / giorniMeseTipici
     let tot = 0
     for (let dow = 0; dow < 7; dow++) {
       const peso = totStag > 0 ? (stagionale[dow] * 7) / totStag : 1

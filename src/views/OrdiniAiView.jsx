@@ -145,8 +145,16 @@ export default function OrdiniAiView({ orgId, sedeId, notify }) {
       const sottoSoglia = soglia > 0 && giacenza <= soglia
       const inEsaurimento = giorniRimasti != null && giorniRimasti <= leadTimeIng
       if (!sottoSoglia && !inEsaurimento) continue
-      // Quantita suggerita: copri 14 giorni + safety
-      const qtaSuggerita = Math.max(soglia * 2, cons * 14 * safety)
+      // Quanto ordinare: si copre il tempo di consegna PIÙ una settimana di
+      // margine, con un minimo di quattordici giorni.
+      //
+      // Prima erano quattordici giorni fissi, anche se il fornitore consegna
+      // in trenta: ordinavi due settimane di scorta sapendo che la prossima
+      // consegna arriva dopo un mese, e restavi a secco in mezzo. Il commento
+      // in testa al file descriveva già la formula giusta
+      // ("consumo_lead_time + safety_stock") — era il codice a non seguirla.
+      const giorniDaCoprire = Math.max(14, leadTimeIng + 7)
+      const qtaSuggerita = Math.max(soglia * 2, cons * giorniDaCoprire * safety)
       const voce = ingCosti[normIng(nome)]
       out.push({
         nome,
@@ -154,6 +162,7 @@ export default function OrdiniAiView({ orgId, sedeId, notify }) {
         giorniRimasti: giorniRimasti != null ? Math.round(giorniRimasti) : null,
         sottoSoglia, inEsaurimento,
         qtaSuggerita: Math.round(qtaSuggerita),
+        giorniDaCoprire,
         urgenza: sottoSoglia ? 'alta' : 'media',
         // Il prezzo viene dal listino ingredienti del ricettario, che e' dove
         // vive davvero: `prezzo_kg` nel magazzino non esiste, quindi il
@@ -335,7 +344,10 @@ export default function OrdiniAiView({ orgId, sedeId, notify }) {
                       <td style={{ padding: '11px 14px', textAlign: 'right', fontSize: 12, color: s.giorniRimasti != null && s.giorniRimasti <= 3 ? BRAND : MID, fontWeight: 700, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
                         {s.giorniRimasti != null ? Number(s.giorniRimasti).toLocaleString('it-IT', { useGrouping: 'always' }) : '-'}
                       </td>
-                      <td style={{ padding: '11px 14px', textAlign: 'right', fontSize: 13, color: TXT, fontWeight: 800, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+                      {/* Su cosa si regge la quantità: senza questa riga il
+                          numero sembra una misura, mentre è "copri N giorni". */}
+                      <td style={{ padding: '11px 14px', textAlign: 'right', fontSize: 13, color: TXT, fontWeight: 800, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}
+                        title={`Copre ${s.giorniDaCoprire} giorni di consumo più il 40% di margine${s.leadTimeDichiarato ? ` (il fornitore consegna in ${s.leadTimeIng} giorni)` : ' (tempo di consegna non dichiarato dal fornitore)'}`}>
                         {s.qtaSuggerita >= 1000 ? `${(s.qtaSuggerita / 1000).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg` : `${Number(s.qtaSuggerita).toLocaleString('it-IT', { useGrouping: 'always' })} g`}
                       </td>
                     </tr>
