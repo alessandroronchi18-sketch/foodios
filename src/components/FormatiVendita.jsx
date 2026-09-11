@@ -39,7 +39,7 @@ const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: R.md, bo
 const labelStyle = { fontSize: typo.small.fontSize, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6, display: 'block' }
 const cardStyle = { background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 16, boxShadow: SHADOW_PREMIUM }
 
-export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita, sedi = [] }) {
+export default function FormatiVendita({ orgId, ricettario, onSaveRicettario, notify, tipoAttivita, sedi = [] }) {
   const LEX = useMemo(() => lessico(tipoAttivita), [tipoAttivita])
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
@@ -49,6 +49,7 @@ export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita
   const [form, setForm] = useState(null) // formato in editing, o null
   const [expanded, setExpanded] = useState(null) // id formato col breakdown aperto
   const [prezziSedeTarget, setPrezziSedeTarget] = useState(null) // formato per cui aprire modal "Prezzi per sede"
+  const [assegnando, setAssegnando] = useState(false)
   const hasMultiSede = Array.isArray(sedi) && sedi.filter(s => s?.attiva !== false).length > 1
 
   // Categorie disponibili dalle ricette (per il dropdown).
@@ -113,6 +114,38 @@ export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita
   // formato legacy con solo costoContenitore).
   const apriEditor = (base) => {
     setForm({ ...base, componenti: componentiNormalizzati(base) })
+  }
+
+  // Assegna una categoria a TUTTE le ricette che non ne hanno.
+  //
+  // Serve perché senza categoria una ricetta non entra in nessuna stima di
+  // food cost dei formati: sui dati del design partner sono 25 su 27, quindi
+  // il food cost di tutti i coni e le vaschette si reggeva su due ricette.
+  // Farlo a mano vuol dire aprire venticinque schede.
+  const assegnaCategoriaATutte = async (categoria) => {
+    if (assegnando || !categoria?.trim()) return
+    if (typeof onSaveRicettario !== 'function') {
+      notify?.('Non posso salvare le ricette da questa pagina', false)
+      return
+    }
+    setAssegnando(true)
+    const ricette = { ...(ricettario?.ricette || {}) }
+    let n = 0
+    for (const r of senzaCategoria) {
+      const chiave = Object.keys(ricette).find(k => ricette[k]?.nome === r.nome)
+      if (!chiave) continue
+      ricette[chiave] = { ...ricette[chiave], categoria: categoria.trim() }
+      n++
+    }
+    try {
+      // SAVE FIRST: se il salvataggio non riesce non si dice che è fatto.
+      await onSaveRicettario({ ...(ricettario || {}), ricette }, {}, true)
+      notify?.(`${n === 1 ? 'Una ricetta è entrata' : `${n} ricette sono entrate`} nella categoria "${categoria.trim()}": ora contano nel food cost dei formati.`)
+    } catch (e) {
+      notify?.('Non ho potuto salvare: ' + (e?.message || 'rete'), false)
+    } finally {
+      setAssegnando(false)
+    }
   }
 
   const elimina = async (id) => {
@@ -287,6 +320,22 @@ export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita
             {senzaCategoria.length >= 3 && <> Le prime: {senzaCategoria.slice(0, 3).map(r => r.nome).join(', ')}.</>}
             {' '}Scrivi una categoria nelle ricette (per una gelateria basta &quot;Gusto&quot;)
             e le stime si appoggeranno su tutto il ricettario invece che su una parte.
+            <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              {/* Le categorie già in uso, più quella tipica del mestiere:
+                  un clic invece di venticinque schede da aprire. */}
+              {[...new Set([...(categorie || []), tipoAttivita === 'gelateria' ? 'Gusto' : 'Generale'])].slice(0, 4).map(cat => (
+                <button key={cat} type="button" disabled={assegnando}
+                  onClick={() => assegnaCategoriaATutte(cat)}
+                  style={{
+                    padding: '7px 13px', minHeight: 36, borderRadius: 9,
+                    border: `1px solid ${T.amber}`, background: T.bgCard, color: T.amberDark,
+                    fontSize: typo.small.fontSize, fontWeight: 700,
+                    cursor: assegnando ? 'default' : 'pointer', opacity: assegnando ? 0.6 : 1,
+                  }}>
+                  {assegnando ? 'Salvo…' : `Mettile tutte in "${cat}"`}
+                </button>
+              ))}
+            </div>
           </span>
         </div>
       )}

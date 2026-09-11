@@ -3538,7 +3538,7 @@ export default function Dashboard({
         />}
 
         {/* Formati di vendita (prodotti generici senza dettaglio gusto) */}
-        {view==="formati-vendita"&&<FormatiVendita orgId={orgId} ricettario={ricettario} notify={notify} tipoAttivita={tipoAttivita} sedi={sedi}/>}
+        {view==="formati-vendita"&&<FormatiVendita orgId={orgId} ricettario={ricettario} onSaveRicettario={handleSalvaRicetta} notify={notify} tipoAttivita={tipoAttivita} sedi={sedi}/>}
 
         {/* Registro attività - solo titolare (RLS + DIPENDENTE_VIEWS gate). */}
         {view==="registro-attivita"&&<RegistroAttivita orgId={orgId} sedi={sedi} notify={notify}/>}

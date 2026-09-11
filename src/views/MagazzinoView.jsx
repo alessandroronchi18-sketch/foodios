@@ -1127,6 +1127,56 @@ export default function MagazzinoView({
     setSaving(false)
   }
 
+  // Propone la soglia di riordino a TUTTE le voci che non ce l'hanno.
+  //
+  // Serve perché nel magazzino del design partner le soglie sono zero su nove
+  // voci: con soglia zero l'avviso "sotto soglia" non scatta mai, e la lista
+  // della spesa resta vuota anche quando la farina è agli sgoccioli. Metterle
+  // a mano vuol dire aprire ogni riga.
+  //
+  // La soglia proposta è una SETTIMANA di consumo: è il tempo che serve per
+  // accorgersene e ordinare, con i tempi di consegna tipici di un fornitore
+  // alimentare. Si arrotonda a passi pratici (100 g sotto il chilo, 500 g
+  // sopra) perché una soglia di 1.347 g non la scrive nessuno.
+  const arrotondaSoglia = (g) => {
+    if (g <= 0) return 0
+    if (g < 1000) return Math.max(100, Math.round(g / 100) * 100)
+    return Math.round(g / 500) * 500
+  }
+  const sogliePropose = useMemo(
+    () => righe
+      .filter(r => r.soglia <= 0 && r.consumoG > 0)
+      .map(r => ({ k: r.k, nome: r.nome, soglia: arrotondaSoglia(r.consumoG * 7), consumoG: r.consumoG }))
+      .filter(r => r.soglia > 0),
+    [righe],
+  )
+
+  const applicaSogliePropose = async () => {
+    if (saving || sogliePropose.length === 0) return
+    setSaving(true)
+    const nm = { ...magazzino }
+    for (const p of sogliePropose) {
+      // Come handleSoglia: si scrivono TUTTE le grafie del nome sotto cui la
+      // voce è salvata, altrimenti la soglia finisce su una chiave che nessuno
+      // legge.
+      const grezze = magPerNorm[p.k]?.chiaviRaw?.length ? magPerNorm[p.k].chiaviRaw : [p.k]
+      for (const raw of grezze) {
+        nm[raw] = { ...(magazzino?.[raw] || {}), soglia_g: p.soglia }
+      }
+    }
+    try {
+      await ssave(SK_MAG, nm)
+    } catch (e) {
+      console.error('[magazzino] soglie proposte:', e)
+      notify('Non ho potuto salvare le soglie. Riprova', false)
+      setSaving(false)
+      return
+    }
+    setMagazzino(nm)
+    setSaving(false)
+    notify(`${sogliePropose.length === 1 ? 'Una soglia impostata' : `${sogliePropose.length} soglie impostate`}: da adesso ti avviso quando un ingrediente sta per finire.`)
+  }
+
   const handleSoglia = async (k, val) => {
     // Audit 2026-07-01 MEDIUM: saving guard per race su doppio Enter rapido.
     if (saving) return
@@ -1485,6 +1535,40 @@ export default function MagazzinoView({
           </div>
         )
       })()}
+
+      {/* Soglie di riordino mancanti: senza una soglia l'avviso non scatta mai,
+          e la lista della spesa resta vuota anche quando un ingrediente è agli
+          sgoccioli. Sul magazzino del design partner sono zero su nove. */}
+      {tab === 'giacenze' && sogliePropose.length > 0 && (
+        <div style={{
+          display: 'flex', alignItems: 'flex-start', gap: 9, flexWrap: 'wrap',
+          background: C.amberLight, border: `1px solid ${C.amber}55`, borderRadius: 12,
+          padding: isMobile ? 12 : '12px 16px', marginBottom: 16,
+          fontSize: typo.small.fontSize, color: T.amberDark, lineHeight: 1.55,
+        }}>
+          <Icon name="alert" size={14} color={T.amberDark} style={{ flexShrink: 0, marginTop: 3 }} />
+          <span style={{ flex: 1, minWidth: 220 }}>
+            <strong>
+              {sogliePropose.length === 1
+                ? 'Un ingrediente non ha una soglia di riordino'
+                : `${sogliePropose.length} ingredienti non hanno una soglia di riordino`}
+            </strong>
+            {' '}e senza soglia non ti avviso quando stanno per finire. Posso metterla io a
+            una settimana di consumo, calcolata da quanto ne usi davvero: potrai
+            sempre cambiarla riga per riga.
+          </span>
+          <button type="button" onClick={applicaSogliePropose} disabled={saving}
+            style={{
+              padding: '8px 14px', minHeight: 38, borderRadius: 9,
+              border: 'none', background: T.amberDark, color: '#FFF',
+              fontSize: typo.small.fontSize, fontWeight: 700,
+              cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.6 : 1, flexShrink: 0,
+            }}>
+            {saving ? 'Salvo…' : 'Imposta le soglie'}
+          </button>
+        </div>
+      )}
+
 
       {/* Audit 2026-09-09: su telefono due schede su cinque restano fuori
           schermo e niente diceva che la barra scorre — si crede che ce ne siano
