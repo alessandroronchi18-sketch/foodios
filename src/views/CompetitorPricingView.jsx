@@ -40,21 +40,34 @@ export default function CompetitorPricingView({ orgId, sedeId, ricettario, notif
   const [aiLoading, setAiLoading] = useState(false)
 
   // Persist competitors locale via supabase
+  // I prezzi dei concorrenti sono di una zona, quindi di una sede.
+  //
+  // La pagina li salvava con la sede (sede_id: sedeId) ma poi li rileggeva
+  // TUTTI, senza filtro e senza ricaricare al cambio sede: chi apriva la sede
+  // di Torino centro vedeva anche i bar rilevati intorno alla sede di San
+  // Salvario, e il selettore in cima non cambiava niente.
+  //
+  // Le righe senza sede (rilevazioni vecchie, fatte prima che il campo
+  // esistesse) restano visibili ovunque: nasconderle vorrebbe dire far sparire
+  // dei dati senza dirlo.
+  const [troncato, setTroncato] = useState(false)
   useEffect(() => {
     if (!orgId) return
     let alive = true
     async function load() {
-      const { data } = await supabase
-        .from('competitor_prices')
-        .select('*')
-        .eq('organization_id', orgId)
-        .order('scraped_at', { ascending: false })
-        .limit(50)
-      if (alive) setCompetitors(data || [])
+      const LIMITE = 50
+      let q = supabase.from('competitor_prices').select('*').eq('organization_id', orgId)
+      if (sedeId) q = q.or(`sede_id.eq.${sedeId},sede_id.is.null`)
+      const { data } = await q.order('scraped_at', { ascending: false }).limit(LIMITE)
+      if (!alive) return
+      setCompetitors(data || [])
+      // Il taglio a 50 c'era già ma non si vedeva: chi ne aveva di più
+      // pensava che le altre non fossero mai state salvate.
+      setTroncato((data || []).length >= LIMITE)
     }
     load()
     return () => { alive = false }
-  }, [orgId])
+  }, [orgId, sedeId])
 
   const ricCurrent = useMemo(() => ricetteArr.find(r => (r.nome || '') === ricSel), [ricSel, ricetteArr])
 
@@ -241,7 +254,7 @@ Valuta se sono sotto, in linea o sopra, e dimmi cosa farei al posto mio.`
             <>
               <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: 16, marginBottom: 16 }}>
                 <div style={{ display: isMobile ? 'grid' : 'flex', gridTemplateColumns: isMobile ? '1fr 1fr' : undefined, alignItems: isMobile ? 'start' : 'center', gap: isMobile ? 14 : 16, flexWrap: 'wrap', marginBottom: 14 }}>
-                  <Stat label="Media zona" value={`${Number(compStats.media).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`} hint={`${Number(compStats.n).toLocaleString('it-IT', { useGrouping: 'always' })} rilevati`}/>
+                  <Stat label="Media zona" value={`${Number(compStats.media).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`} hint={`${Number(compStats.n).toLocaleString('it-IT', { useGrouping: 'always' })} ${compStats.n === 1 ? 'rilevato' : 'rilevati'}${troncato ? ', solo i 50 più recenti' : ''}`}/>
                   <Stat label="Range min-max" value={`${Number(compStats.min).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} € – ${Number(compStats.max).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`}/>
                   <Stat label="Tuo prezzo" value={`${Number(fcInfo.prezzo).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`}
                     color={fcInfo.prezzo < compStats.media * 0.9 ? AMBER : fcInfo.prezzo > compStats.media * 1.1 ? BRAND : GREEN}/>

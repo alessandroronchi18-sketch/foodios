@@ -1245,19 +1245,36 @@ const DIPENDENTE_VIEWS = new Set([
 // L'analisi resta disponibile in Menu engineering, che è il posto giusto.
 const PAGINE_NASCOSTE = new Set(['scheda-allergeni', 'haccp', 'menu'])
 
+// Le pagine dove il selettore delle sedi NON va mostrato.
+//
+// La regola, dopo l'audit dell'11/09/2026: il selettore si mostra dove i dati
+// della pagina CAMBIANO al cambio sede, e si nasconde dove non cambiano.
+// Mostrarlo su una pagina che lo ignora e' peggio che non averlo: sembra un
+// comando e non lo e'. Nasconderlo su una pagina che lavora su dati di una
+// sede sola e' peggio ancora: chi legge non sa di che sede sta guardando i
+// numeri.
+//
+// Tolte da questo elenco in quell'audit:
+//  - 'previsione' e 'azioni': lavorano su giornaliero e chiusure, che sono
+//    per-sede. La previsione della domanda di tre gelaterie diverse non e' la
+//    stessa cosa, e senza selettore non si vedeva nemmeno quale fosse.
+//  - 'integrazioni': ci finiscono dentro le fatture importate, e l'import
+//    scrive sede_id. Senza selettore le fatture entravano su una sede scelta
+//    dal codice, non dall'utente.
+// Aggiunta: 'registro-attivita', che ha già un suo filtro sede dentro la
+// pagina; il selettore globale li' non faceva niente ed erano due comandi con
+// lo stesso nome.
 const NO_SEDE_SELECTOR = new Set([
   // Ricettario shared (sede_id=null)
   'nuova-ricetta', 'semilavorati', 'scheda-allergeni',
-  // Azioni + previsioni ricette (shared)
-  'azioni', 'previsione',
   // Configurazione org-level
   'impostazioni', 'importa-dati', 'formati-vendita',
-  'integrazioni', 'marketplace', 'ai-hub', 'whatsapp',
+  'marketplace', 'ai-hub', 'whatsapp',
   'documentary', 'ricette-ai', 'recensioni', 'changelog',
   // Landing dipendente (già in sedeAttiva forzata su tablet)
   'home-dipendente',
   // Cross-sede: gestiscono la sede internamente
-  'confronto-sedi', 'trasferimenti',
+  'confronto-sedi', 'trasferimenti', 'registro-attivita',
 ])
 
 // Il ricettario mostra i prezzi effettivi per la sede attiva (con override
