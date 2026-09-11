@@ -29,7 +29,8 @@ import { ssave, sload } from '../lib/storage'
 import { SK_MAG } from '../lib/storageKeys'
 import {
   elencoGusti, caricaSettimana, salvaCella, calcolaVendutoSettimana,
-  totaliVenduti, dettaglioVenduto, serieVendutoGusto, lunediDellaSettimana, normGusto,
+  totaliVenduti, dettaglioVenduto, serieVendutoGusto, serieVendutoMultiSede,
+  GIORNI_RIPORTO_MAX, lunediDellaSettimana, normGusto,
   scaloMagazzinoPerGusto, ricettaDelGusto,
   fetchAllInventarioProduzione, caricaStoricoMensile,
 } from '../lib/inventarioProduzione'
@@ -292,27 +293,24 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
     const fine = formatLocalDate(new Date(d.getFullYear(), d.getMonth() + 1, 1))
     // fine e' esclusivo → sottraggo 1 giorno per usare lte
     const fineIncl = formatLocalDate(new Date(new Date(fine).getTime() - 86400000))
+    // Si caricano anche i giorni PRIMA del primo del mese: la rimanenza del
+    // giorno precedente e' la giacenza di partenza, e senza quella il primo
+    // giorno del mese non si puo' calcolare. Prima partiva dal giorno 1 e il
+    // conto del giorno 1 usciva gonfiato (come se la vasca fosse vuota).
+    const inizioConGiacenza = formatLocalDate(
+      new Date(new Date(inizio).getTime() - GIORNI_RIPORTO_MAX * 86400000)
+    )
     fetchAllInventarioProduzione(orgId, {
       sedeIds: sediProdIds,
-      dataFrom: inizio,
+      dataFrom: inizioConGiacenza,
       dataTo: fineIncl,
     }).then(data => {
       if (!alive) return
-      if (isAllSedi) {
-        const map = {}
-        for (const r of (data || [])) {
-          const g = normGusto(r.gusto_nome)
-          const k = `${g}|${r.data}`
-          if (!map[k]) map[k] = { gusto_nome: g, data: r.data, produzione_g: 0, rimanenza_g: 0, scarto_g: 0, spedito_g: 0 }
-          map[k].produzione_g += Number(r.produzione_g) || 0
-          map[k].rimanenza_g += Number(r.rimanenza_g) || 0
-          map[k].scarto_g += Number(r.scarto_g) || 0
-          map[k].spedito_g += Number(r.spedito_g) || 0
-        }
-        setMeseData({ righe: Object.values(map), inizio, fine })
-      } else {
-        setMeseData({ righe: data || [], inizio, fine })
-      }
+      // Le righe delle diverse sedi NON si sommano qui: ci pensa il motore,
+      // che calcola sede per sede e poi somma. Sommarle prima sottraeva due
+      // volte i trasferimenti interni (spedito da una sede + rimanenza
+      // dell'altra).
+      setMeseData({ righe: data || [], inizio, fine })
     }).catch(e => { if (alive) console.error('fetch mese:', e) })
     return () => { alive = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1759,50 +1757,46 @@ function VistaMese({ gusti, righeMese, lunediIso, unita = 'g', onClickGusto }) {
       return { by: key, dir: key === 'nome' ? 'asc' : 'desc' }
     })
   }
+  // Il trattino vale solo per lo zero. I NEGATIVI si scrivono col segno: da
+  // quando il venduto non viene più troncato a zero, un conto che non torna
+  // esce negativo, e mostrarlo come "-" lo faceva sembrare un giorno senza
+  // dati invece di un dato da correggere.
   const fmtVal = (g) => {
-    if (g <= 0) return '-'
+    if (!g) return '-'
     if (unita === 'kg') {
       return (g / 1000).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 1 }) + ' kg'
     }
     return g.toLocaleString('it-IT', { useGrouping: 'always' }) + ' g'
   }
   const m = useMemo(() => {
-    // Indicizza per gusto+data
-    const idx = {}
-    for (const r of (righeMese || [])) {
-      const k = `${r.gusto_nome}|${r.data}`
-      idx[k] = r
-    }
-    // Per ogni gusto, calcola venduto giorno per giorno e raggruppa per settimana.
+    // Il venduto lo calcola il motore condiviso, lo stesso della vista
+    // settimana. Prima questa vista se lo ricalcolava per conto suo — quinta
+    // copia della formula nel progetto — con tre differenze che facevano
+    // uscire numeri diversi nella STESSA pagina: azzerava la giacenza a ogni
+    // giorno non registrato (non solo dopo una settimana), troncava a zero i
+    // conti che non tornavano, e ignorava i chili spediti alle altre sedi.
+    const serie = serieVendutoMultiSede(righeMese || [])
+    const start = new Date(lunediIso)
+    const annoMese = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}`
     const out = {}
-    const start = new Date(lunediIso); start.setDate(1)  // primo del mese del lunediIso
-    const inizioMese = new Date(start.getFullYear(), start.getMonth(), 1)
-    const fineMese = new Date(start.getFullYear(), start.getMonth() + 1, 0)
-    const nGg = fineMese.getDate()
     for (const { nome } of (gusti || [])) {
       const k = normGusto(nome)
       const per_sett = [0, 0, 0, 0, 0]  // 5 settimane max
-      let totProd = 0, totVend = 0
-      let rimanPrev = 0
-      for (let d = 1; d <= nGg; d++) {
-        const dateIso = `${inizioMese.getFullYear()}-${String(inizioMese.getMonth() + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
-        const r = idx[`${k}|${dateIso}`]
-        if (!r) {
-          rimanPrev = 0
-          continue
+      let totProd = 0, totVend = 0, nonQuadra = 0
+      for (const c of (serie[k] || [])) {
+        // Le righe includono i giorni prima del mese (giacenza di partenza):
+        // servono al conto, ma non sono dati di questo mese.
+        if (!c.data.startsWith(annoMese)) continue
+        totProd += c.prod
+        if (c.venduto != null) {
+          totVend += c.venduto
+          // Settimana del mese (0-indexed, max 4).
+          const giorno = Number(c.data.slice(8, 10))
+          per_sett[Math.min(4, Math.floor((giorno - 1) / 7))] += c.venduto
         }
-        const prod = Number(r.produzione_g) || 0
-        const riman = Number(r.rimanenza_g) || 0
-        const scarto = Number(r.scarto_g) || 0
-        const venduto = Math.max(0, rimanPrev + prod - riman - scarto)
-        totProd += prod
-        totVend += venduto
-        // Settimana del mese (0-indexed, max 4): (giorno - 1) / 7 arrotondato
-        const sw = Math.min(4, Math.floor((d - 1) / 7))
-        per_sett[sw] += venduto
-        rimanPrev = riman
+        if (c.quadra === false) nonQuadra++
       }
-      out[k] = { per_sett, totProd, totVend }
+      out[k] = { per_sett, totProd, totVend, nonQuadra }
     }
     return out
   }, [gusti, righeMese, lunediIso])
@@ -1851,7 +1845,7 @@ function VistaMese({ gusti, righeMese, lunediIso, unita = 'g', onClickGusto }) {
                 label="Gusto"
                 onClick={() => toggleSort('nome')}
                 active={sort.by === 'nome'} dir={sort.dir}
-                style={{ padding: '10px 12px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em' }}
+                style={{ padding: '10px 12px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em' }}
               />
               {[1,2,3,4,5].map(w => {
                 const key = { tipo: 'w', settimana: w - 1 }
@@ -1861,7 +1855,7 @@ function VistaMese({ gusti, righeMese, lunediIso, unita = 'g', onClickGusto }) {
                     label={`W${w}`}
                     onClick={() => toggleSort(key)}
                     active={active} dir={sort.dir}
-                    style={{ padding: '10px 12px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em' }}
+                    style={{ padding: '10px 12px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em' }}
                   />
                 )
               })}
@@ -1871,20 +1865,20 @@ function VistaMese({ gusti, righeMese, lunediIso, unita = 'g', onClickGusto }) {
                 label="Tot. prodotto"
                 onClick={() => toggleSort('totProd')}
                 active={sort.by === 'totProd'} dir={sort.dir}
-                style={{ padding: '10px 12px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: '#166534', textTransform: 'uppercase', letterSpacing: '0.06em', background: '#F0FDF4' }}
+                style={{ padding: '10px 12px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: '#166534', textTransform: 'uppercase', letterSpacing: '0.05em', background: '#F0FDF4' }}
               />
               <SortableHeader
                 label="Tot. venduto"
                 onClick={() => toggleSort('totVend')}
                 active={sort.by === 'totVend'} dir={sort.dir}
-                style={{ padding: '10px 12px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: T.brand, textTransform: 'uppercase', letterSpacing: '0.06em', background: '#FEF9EB' }}
+                style={{ padding: '10px 12px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: T.brand, textTransform: 'uppercase', letterSpacing: '0.05em', background: '#FEF9EB' }}
               />
             </tr>
           </thead>
           <tbody>
             {gustiOrdinati.map(({ nome, orfano }) => {
               const k = normGusto(nome)
-              const r = m[k] || { per_sett: [0,0,0,0,0], totProd: 0, totVend: 0 }
+              const r = m[k] || { per_sett: [0,0,0,0,0], totProd: 0, totVend: 0, nonQuadra: 0 }
               return (
                 <tr key={k} style={{ borderTop: `1px solid ${C.borderSoft}` }}>
                   <td style={{ padding: '8px 12px', fontSize: 13, fontWeight: 600, color: C.text }}>
@@ -1900,6 +1894,14 @@ function VistaMese({ gusti, righeMese, lunediIso, unita = 'g', onClickGusto }) {
                   </td>
                   <td style={{ padding: '8px 12px', textAlign: 'right', ...TNUM, color: T.brand, fontWeight: 800, fontSize: 13, background: '#FEF9EB' }}>
                     {fmtVal(r.totVend)}
+                    {r.nonQuadra > 0 && (
+                      <span
+                        title={r.nonQuadra === 1
+                          ? 'Un giorno di questo mese non torna: la rimanenza scritta è più alta del disponibile. Il totale lo conta col suo segno.'
+                          : `${r.nonQuadra} giorni di questo mese non tornano: la rimanenza scritta è più alta del disponibile. Il totale li conta col loro segno.`}
+                        style={{ color: T.amber, marginLeft: 5, cursor: 'help', fontWeight: 800 }}
+                      >!</span>
+                    )}
                   </td>
                 </tr>
               )
@@ -2096,13 +2098,13 @@ function VistaStorico({ gusti, perMese, inizio, unita = 'g', onClickGusto, onOpe
                 label="Tot. prodotto"
                 onClick={() => toggleSort('totProd')}
                 active={sort.by === 'totProd'} dir={sort.dir}
-                style={{ padding: '10px 12px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: '#166534', textTransform: 'uppercase', letterSpacing: '0.06em', background: '#F0FDF4' }}
+                style={{ padding: '10px 12px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: '#166534', textTransform: 'uppercase', letterSpacing: '0.05em', background: '#F0FDF4' }}
               />
               <SortableHeader
                 label="Tot. venduto"
                 onClick={() => toggleSort('totVend')}
                 active={sort.by === 'totVend'} dir={sort.dir}
-                style={{ padding: '10px 12px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: T.brand, textTransform: 'uppercase', letterSpacing: '0.06em', background: '#FEF9EB' }}
+                style={{ padding: '10px 12px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: T.brand, textTransform: 'uppercase', letterSpacing: '0.05em', background: '#FEF9EB' }}
               />
               {/* Tot. scarto nascosta per ora: la colonna esiste ancora nei
                   dati e viene esportata in Excel, ma non e' mostrata in UI. */}

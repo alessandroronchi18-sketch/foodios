@@ -369,6 +369,56 @@ export function serieVendutoGusto(righe) {
   return out
 }
 
+// Celle del venduto per gusto e giorno, con PIÙ SEDI gestite nel modo giusto.
+//
+// Il conto si fa SEDE PER SEDE e solo dopo si sommano i risultati. Sommare
+// prima le righe e' sbagliato quando ci sono trasferimenti interni: se la sede
+// A manda 5 kg alla sede B, quei chili escono dal venduto di A (spedito) e
+// restano giacenza di B (rimanenza) — sommando prima del conto verrebbero
+// sottratti due volte, e il venduto totale uscirebbe più basso del vero.
+//
+// Ritorna { [GUSTO]: [ { data, prod, riman, scarto, spedito, venduto,
+//                        quadra, registrata, nonCalcolabili } ] } ordinato per
+// data. `venduto` e' null solo se NESSUNA sede sa calcolarlo quel giorno.
+export function serieVendutoMultiSede(righe) {
+  if (!Array.isArray(righe) || righe.length === 0) return {}
+  const perSede = new Map()
+  for (const r of righe) {
+    const k = r?.sede_id || '_'
+    if (!perSede.has(k)) perSede.set(k, [])
+    perSede.get(k).push(r)
+  }
+  // { gusto: { data: cella sommata } }
+  const acc = {}
+  for (const righeSede of perSede.values()) {
+    for (const [gusto, celle] of Object.entries(serieVendutoGusto(righeSede))) {
+      const perData = acc[gusto] || (acc[gusto] = {})
+      for (const c of celle) {
+        const t = perData[c.data] || (perData[c.data] = {
+          data: c.data, prod: 0, riman: 0, scarto: 0, spedito: 0,
+          venduto: null, quadra: true, registrata: false, nonCalcolabili: 0,
+        })
+        t.prod += Number(c.prod) || 0
+        t.riman += Number(c.riman) || 0
+        t.scarto += Number(c.scarto) || 0
+        t.spedito += Number(c.spedito) || 0
+        if (c.registrata) t.registrata = true
+        if (c.venduto == null) {
+          if (c.registrata) t.nonCalcolabili++
+          continue
+        }
+        t.venduto = (t.venduto == null ? 0 : t.venduto) + (Number(c.venduto) || 0)
+        if (c.quadra === false) t.quadra = false
+      }
+    }
+  }
+  const out = {}
+  for (const [gusto, perData] of Object.entries(acc)) {
+    out[gusto] = Object.values(perData).sort((a, b) => a.data.localeCompare(b.data))
+  }
+  return out
+}
+
 // Totali per gusto su un periodo qualunque (non solo una settimana).
 //
 // Perché esiste. La sezione "metodo inventario" dello Storico produzione si
@@ -390,33 +440,22 @@ export function serieVendutoGusto(righe) {
 export function totaliPerGusto(righe, opts = {}) {
   if (!Array.isArray(righe) || righe.length === 0) return {}
   const { da = null, a = null } = opts
-  const perSede = new Map()
-  for (const r of righe) {
-    const k = r?.sede_id || '_'
-    if (!perSede.has(k)) perSede.set(k, [])
-    perSede.get(k).push(r)
-  }
   const out = {}
-  for (const righeSede of perSede.values()) {
-    const serie = serieVendutoGusto(righeSede)
-    for (const [gusto, celle] of Object.entries(serie)) {
-      const t = out[gusto] || (out[gusto] = {
-        prodTot: 0, scartoTot: 0, speditoTot: 0, vendTot: 0,
-        celleNonQuadrate: 0, gNonQuadrati: 0, celleNonCalcolabili: 0,
-      })
-      for (const c of celle) {
-        if (da && c.data < da) continue
-        if (a && c.data > a) continue
-        t.prodTot += Number(c.prod) || 0
-        t.scartoTot += Number(c.scarto) || 0
-        t.speditoTot += Number(c.spedito) || 0
-        if (c.venduto == null) {
-          if (c.registrata) t.celleNonCalcolabili++
-          continue
-        }
-        t.vendTot += Number(c.venduto) || 0
-        if (c.quadra === false) { t.celleNonQuadrate++; t.gNonQuadrati += Number(c.venduto) || 0 }
-      }
+  for (const [gusto, celle] of Object.entries(serieVendutoMultiSede(righe))) {
+    const t = out[gusto] = {
+      prodTot: 0, scartoTot: 0, speditoTot: 0, vendTot: 0,
+      celleNonQuadrate: 0, gNonQuadrati: 0, celleNonCalcolabili: 0,
+    }
+    for (const c of celle) {
+      if (da && c.data < da) continue
+      if (a && c.data > a) continue
+      t.prodTot += Number(c.prod) || 0
+      t.scartoTot += Number(c.scarto) || 0
+      t.speditoTot += Number(c.spedito) || 0
+      t.celleNonCalcolabili += c.nonCalcolabili || 0
+      if (c.venduto == null) continue
+      t.vendTot += Number(c.venduto) || 0
+      if (c.quadra === false) { t.celleNonQuadrate++; t.gNonQuadrati += Number(c.venduto) || 0 }
     }
   }
   return out

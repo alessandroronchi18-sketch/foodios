@@ -20,7 +20,7 @@
 // comportamento giusto.
 
 import { describe, it, expect } from 'vitest'
-import { totaliPerGusto } from '../../src/lib/inventarioProduzione'
+import { totaliPerGusto, serieVendutoMultiSede } from '../../src/lib/inventarioProduzione'
 
 const r = (gusto, data, prod, riman, extra = {}) => ({
   gusto_nome: gusto, data, produzione_g: prod, rimanenza_g: riman,
@@ -125,5 +125,55 @@ describe('totaliPerGusto', () => {
     expect(totaliPerGusto([])).toEqual({})
     expect(totaliPerGusto(null)).toEqual({})
     expect(totaliPerGusto(undefined)).toEqual({})
+  })
+})
+
+// serieVendutoMultiSede e' il primitivo sotto totaliPerGusto e sotto la vista
+// "mese" dell'inventario. La vista mese si ricalcolava la formula per conto suo
+// — quinta copia — e mostrava numeri diversi dalla vista settimana della STESSA
+// pagina: azzerava la giacenza a ogni giorno non registrato (non solo dopo una
+// settimana di chiusura), troncava a zero i conti che non tornavano e ignorava
+// i chili spediti alle altre sedi.
+describe('serieVendutoMultiSede', () => {
+  it('somma le sedi DOPO il conto, giorno per giorno', () => {
+    const serie = serieVendutoMultiSede([
+      r('FRAGOLA', '2026-05-01', 2000, 1000, { sede_id: 'A' }),
+      r('FRAGOLA', '2026-05-02', 0, 400, { sede_id: 'A' }),
+      r('FRAGOLA', '2026-05-01', 3000, 2000, { sede_id: 'B' }),
+      r('FRAGOLA', '2026-05-02', 0, 1200, { sede_id: 'B' }),
+    ])
+    const celle = serie.FRAGOLA
+    expect(celle.map(c => c.data)).toEqual(['2026-05-01', '2026-05-02'])
+    // Il 01/05 nessuna delle due sedi ha un giorno prima: non calcolabile.
+    expect(celle[0].venduto).toBeNull()
+    expect(celle[0].nonCalcolabili).toBe(2)
+    // Il 02/05: A = 1000 - 400 = 600, B = 2000 - 1200 = 800 → 1400.
+    expect(celle[1].venduto).toBe(1400)
+    expect(celle[1].quadra).toBe(true)
+  })
+
+  it('se una sede sa calcolare e l altra no, tiene il numero e conta il buco', () => {
+    const serie = serieVendutoMultiSede([
+      r('MANGO', '2026-05-01', 1000, 600, { sede_id: 'A' }),
+      r('MANGO', '2026-05-02', 0, 100, { sede_id: 'A' }),
+      // La sede B compare solo il 02: per lei il venduto non si puo' calcolare.
+      r('MANGO', '2026-05-02', 500, 500, { sede_id: 'B' }),
+    ])
+    const c = serie.MANGO.find(x => x.data === '2026-05-02')
+    expect(c.venduto).toBe(500)        // solo la sede A
+    expect(c.nonCalcolabili).toBe(1)   // la sede B
+    expect(c.prod).toBe(500)           // la produzione si somma comunque
+  })
+
+  it('basta una sede che non torna perche la cella sia da controllare', () => {
+    const serie = serieVendutoMultiSede([
+      r('CIOCCOLATO', '2026-05-01', 1000, 500, { sede_id: 'A' }),
+      r('CIOCCOLATO', '2026-05-02', 0, 200, { sede_id: 'A' }),      // +300
+      r('CIOCCOLATO', '2026-05-01', 1000, 200, { sede_id: 'B' }),
+      r('CIOCCOLATO', '2026-05-02', 0, 900, { sede_id: 'B' }),      // -700
+    ])
+    const c = serie.CIOCCOLATO.find(x => x.data === '2026-05-02')
+    expect(c.venduto).toBe(-400)
+    expect(c.quadra).toBe(false)
   })
 })
