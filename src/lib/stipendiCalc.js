@@ -1,7 +1,8 @@
 // Calcolo lordo ↔ netto semplificato (Italia, scaglioni IRPEF 2024-2026).
 //
 // **NB IMPORTANTE**: calcolo APPROSSIMATIVO per il P&L. Tiene conto di:
-//   - INPS dipendente ~9.49% (commercio/servizi)
+//   - INPS dipendente 9,19% (commercio/servizi) — il commento diceva 9,49%
+//     mentre il codice usa 9,19%: era il commento a sbagliare.
 //   - IRPEF a scaglioni 2024+:
 //       0-28k    23%
 //       28k-50k  35%
@@ -32,7 +33,6 @@ function detrazioneDipendente(redditoAnnuo) {
 // Calcola IRPEF lorda annuale a scaglioni.
 function calcIrpef(redditoImponibile) {
   let irpef = 0
-  let res = redditoImponibile
   let prev = 0
   for (const s of SCAGLIONI_IRPEF) {
     const fascia = Math.min(s.fino, redditoImponibile) - prev
@@ -99,4 +99,50 @@ export function calcolaStipendio({ lordo, netto, mensilita = 13 } = {}) {
   else if (nettoMese > 0 && lordoMese === 0) lordoMese = nettoToLordo(nettoMese, { mensilita })
   const costoAzienda = lordoMese > 0 ? costoAziendaMensile(lordoMese, { mensilita }) : 0
   return { lordo: lordoMese, netto: nettoMese, costoAzienda, mensilita }
+}
+
+// ── Costo del personale di un'azienda, dal personale VERO ──────────────────
+//
+// Nasce da un difetto grosso. Il conto economico prendeva il costo del lavoro
+// da un campo scritto a mano ("Personale" fra i costi fissi), separato dai
+// dipendenti inseriti nella pagina Personale. Sul design partner quel campo
+// era vuoto: il conto economico contava zero costo del lavoro con TRE
+// dipendenti a libro paga (8.039 € lordi al mese in tutto), e l'utile
+// risultava più alto di circa 11.700 € al mese. Nessun avviso: solo un utile
+// bello e falso.
+//
+// `dipendenti` = righe della tabella dipendenti (serve stipendio_lordo_mensile,
+// oppure costo_orario + ore_settimana per i contratti a ore).
+// `opts.sedeId` = se passato, tiene i dipendenti di quella sede più quelli
+// senza sede (che valgono per tutta l'azienda).
+export function costoPersonaleMensile(dipendenti, opts = {}) {
+  const { sedeId = null, mensilita = 13 } = opts
+  let totale = 0, contati = 0, senzaDato = 0
+  for (const d of (Array.isArray(dipendenti) ? dipendenti : [])) {
+    if (!d || d.attivo === false) continue
+    if (sedeId && d.sede_id && d.sede_id !== sedeId) continue
+    const lordo = Number(d.stipendio_lordo_mensile) || 0
+    if (lordo > 0) {
+      totale += costoAziendaMensile(lordo, { mensilita })
+      contati++
+      continue
+    }
+    // Contratto a ore: il costo orario che il titolare scrive è già lordo,
+    // e le ore settimanali diventano mensili con 4,333 settimane (52/12).
+    const oraria = Number(d.costo_orario) || 0
+    const ore = Number(d.ore_settimana) || 0
+    if (oraria > 0 && ore > 0) {
+      totale += costoAziendaMensile(oraria * ore * (52 / 12), { mensilita })
+      contati++
+      continue
+    }
+    // Un dipendente senza né stipendio né costo orario non si può contare, e
+    // va DETTO: è la differenza fra "costa zero" e "non lo sappiamo".
+    senzaDato++
+  }
+  return {
+    totale: Math.round(totale * 100) / 100,
+    contati,
+    senzaDato,
+  }
 }

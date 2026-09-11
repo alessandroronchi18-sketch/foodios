@@ -48,6 +48,11 @@ export const color = {
   green:      '#0E9F6E',
   greenLight: '#E7F6F0',
   amber:      '#D97706',
+  // Ambra scura per il TESTO sopra amberLight: l'ambra normale su quel fondo
+  // ha poco contrasto. Quattro punti del progetto scrivevano già
+  // `T.amberDark || T.amber` aspettandosi questo colore, e ricadevano sempre
+  // sul secondo perché la chiave non esisteva.
+  amberDark:  '#92400E',
   amberLight: '#FFF8EB',
   red:        '#DC2626',
   redLight:   '#FEF2F2',

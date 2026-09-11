@@ -8,7 +8,7 @@ import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { sload, ssave } from '../lib/storage'
 import { generateSepaXml, ibanIsValid, normalizeIban, causaleFattura, bonificoText } from '../lib/sepa'
 import Icon from './Icon'
-import { color as T, radius as R, shadow as S, motion as M, typo } from '../lib/theme'
+import { color as T, radius as R, shadow as S, motion as M, typo, font } from '../lib/theme'
 // todayLocal: la data di OGGI nel fuso dell'utente. new Date().toISOString()
 // darebbe la data UTC, che in Italia fra mezzanotte e le 2 e' ancora ieri: la
 // data di pagamento proposta risultava del giorno prima.
@@ -1422,7 +1422,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
             <input type="checkbox" checked={registraInCassa}
               onChange={e => setRegistraInCassa(e.target.checked)}
               style={{ width: 20, height: 20, marginTop: 1, accentColor: T.brand, cursor: 'pointer', flexShrink: 0 }} />
-            <span style={{ fontSize: typo.size.base, color: T.textMid, lineHeight: 1.45 }}>
+            <span style={{ fontSize: font.size.base, color: T.textMid, lineHeight: 1.45 }}>
               Registra anche l'uscita in <b>Cassa</b>, così il pagamento entra nel conto economico.
             </span>
           </label>
@@ -1879,7 +1879,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                       style={{
                         padding: isMobile ? '9px 12px' : '7px 12px', minHeight: minTouch, borderRadius: 8,
                         border: 'none', background: T.green, color: T.white,
-                        fontSize: typo.size.base, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
+                        fontSize: font.size.base, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
                         display: 'inline-flex', alignItems: 'center', gap: 5,
                       }}>
                       <Icon name="euro" size={13} /> Ho pagato
@@ -1990,7 +1990,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                           title={`Su ${t.campione} pagamenti registrati, di solito paghi dopo ${t.giorni} giorni (dal minimo di ${t.min} al massimo di ${t.max}).`}
                           style={{
                             padding: '6px 9px', borderRadius: 7, border: `1px dashed ${T.blue}`,
-                            background: T.blueLight, color: T.blue, fontSize: typo.size.sm,
+                            background: T.blueLight, color: T.blue, fontSize: font.size.sm,
                             fontWeight: 700, cursor: 'pointer', textAlign: 'left', lineHeight: 1.35,
                           }}>
                           Di solito paghi a {t.giorni} gg · usa {t.proposto}
@@ -2056,19 +2056,19 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
     return (
       <div style={{ ...card, overflow: 'hidden', marginBottom: 14 }}>
         <div style={{ padding: isMobile ? '14px 16px' : '14px 20px', borderBottom: `1px solid ${T.border}` }}>
-          <div style={{ fontSize: typo.size.lg, fontWeight: 700, color: T.text, letterSpacing: '-0.01em' }}>Spese fisse mensili</div>
-          <div style={{ fontSize: typo.size.sm, color: T.textSoft, marginTop: 2 }}>
+          <div style={{ fontSize: font.size.lg, fontWeight: 700, color: T.text, letterSpacing: '-0.01em' }}>Spese fisse mensili</div>
+          <div style={{ fontSize: font.size.sm, color: T.textSoft, marginTop: 2 }}>
             {fisseMensili.length.toLocaleString('it-IT', { useGrouping: 'always' })} voci che tornano ogni mese,
             per circa {fmtEuro0(totaleMese)} al mese. Riconosciute dai tuoi dati: una al mese, per almeno tre mesi.
           </div>
         </div>
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 620, fontSize: typo.size.base }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 620, fontSize: font.size.base }}>
             <thead>
               <tr style={{ background: T.bgSubtle }}>
                 {[['Voce', 'left'], ['Di solito', 'right'], ['Ultima', 'right'], ['Differenza', 'right'], ['Questo mese', 'left'], ['Da quando', 'left']].map(([h, al]) => (
                   <th key={h} style={{
-                    padding: '10px 12px', textAlign: al, fontSize: typo.size.sm, fontWeight: 700,
+                    padding: '10px 12px', textAlign: al, fontSize: font.size.sm, fontWeight: 700,
                     color: T.textMid, textTransform: 'uppercase', letterSpacing: '0.06em',
                     borderBottom: `1px solid ${T.border}`, whiteSpace: 'nowrap',
                   }}>{h}</th>
@@ -2090,7 +2090,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                       {r.nome}
                       {r.ricorrenza === 'mensile-variabile' && (
                         <span title="Gli importi ballano molto da un mese all'altro: è una fornitura che ordini ogni mese, non un canone fisso."
-                          style={{ marginLeft: 6, fontSize: typo.size.xs, fontWeight: 700, color: T.amber, background: T.amberLight, padding: '1px 7px', borderRadius: 999, cursor: 'help' }}>
+                          style={{ marginLeft: 6, fontSize: font.size.xs, fontWeight: 700, color: T.amber, background: T.amberLight, padding: '1px 7px', borderRadius: 999, cursor: 'help' }}>
                           variabile
                         </span>
                       )}
@@ -2102,8 +2102,8 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                     </td>
                     <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
                       {arrivata
-                        ? <span style={{ fontSize: typo.size.sm, fontWeight: 700, color: T.green, background: T.greenLight, padding: '3px 9px', borderRadius: 999 }}>arrivata</span>
-                        : <span title={`L'ultima che ho è di ${ultima?.mese || '—'}.`} style={{ fontSize: typo.size.sm, fontWeight: 700, color: T.amber, background: T.amberLight, padding: '3px 9px', borderRadius: 999, cursor: 'help' }}>non ancora</span>}
+                        ? <span style={{ fontSize: font.size.sm, fontWeight: 700, color: T.green, background: T.greenLight, padding: '3px 9px', borderRadius: 999 }}>arrivata</span>
+                        : <span title={`L'ultima che ho è di ${ultima?.mese || '—'}.`} style={{ fontSize: font.size.sm, fontWeight: 700, color: T.amber, background: T.amberLight, padding: '3px 9px', borderRadius: 999, cursor: 'help' }}>non ancora</span>}
                     </td>
                     <td style={{ padding: '10px 12px', color: T.textSoft, ...tnum, whiteSpace: 'nowrap' }}>
                       {r.primoMese.split('-').reverse().join('/')} · {r.mesi} mesi
@@ -2114,7 +2114,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
             </tbody>
           </table>
         </div>
-        <div style={{ padding: '10px 16px', borderTop: `1px solid ${T.border}`, fontSize: typo.size.sm, color: T.textSoft, lineHeight: 1.5 }}>
+        <div style={{ padding: '10px 16px', borderTop: `1px solid ${T.border}`, fontSize: font.size.sm, color: T.textSoft, lineHeight: 1.5 }}>
           "Non ancora" vuol dire che per questo mese non ho ancora una fattura di quella voce: o non è
           arrivata, o non è stata caricata. La colonna "Differenza" confronta l'ultima con la media di
           tutte le altre.
@@ -2153,13 +2153,13 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                 </div>
                 {settimanaAperta === i && b.top.length > 0 && (
                   <div style={{ margin: '6px 0 10px', marginLeft: isMobile ? 0 : 110, padding: '10px 12px', background: T.bgSubtle, borderRadius: 9 }}>
-                    <div style={{ fontSize: typo.size.sm, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+                    <div style={{ fontSize: font.size.sm, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
                       A chi va{b.nFornitori > b.top.length ? ` · i ${b.top.length} più grossi su ${b.nFornitori}` : ''}
                     </div>
                     {b.top.map(t => (
                       <div key={t.nome} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'baseline', marginBottom: 3 }}>
-                        <span style={{ fontSize: typo.size.base, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.nome}</span>
-                        <span style={{ fontSize: typo.size.base, fontWeight: 700, color: t.tot < 0 ? T.green : T.text, ...tnum, whiteSpace: 'nowrap' }}>{fmtEuro(t.tot)}</span>
+                        <span style={{ fontSize: font.size.base, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.nome}</span>
+                        <span style={{ fontSize: font.size.base, fontWeight: 700, color: t.tot < 0 ? T.green : T.text, ...tnum, whiteSpace: 'nowrap' }}>{fmtEuro(t.tot)}</span>
                       </div>
                     ))}
                   </div>
@@ -2274,7 +2274,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                   <input type="file" accept=".xml,.p7m" multiple style={{ display: 'none' }}
                     onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length) { setActionsOpen(false); handleImportXML(files) } }} />
                 </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8, fontSize: typo.size.base, color: T.text, cursor: 'pointer', fontWeight: 500 }}
+                <label style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8, fontSize: font.size.base, color: T.text, cursor: 'pointer', fontWeight: 500 }}
                   onMouseEnter={e => { e.currentTarget.style.background = T.bgSubtle }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
                   title="Il CSV dei movimenti che scarichi dalla banca: cerco quali uscite corrispondono a quali fatture">
@@ -2393,18 +2393,18 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                 partivano da tre punti diversi e l'occhio non poteva
                 confrontarle. Ora sono a destra, con le altezze minime
                 uguali, come le altre bande del prodotto. */}
-            <div style={{ fontSize: typo.size.sm, fontWeight: 600, color: T.textMid, textTransform: 'uppercase', letterSpacing: '0.08em', minHeight: 30, display: 'flex', alignItems: 'flex-start', lineHeight: 1.3, textAlign: 'left' }}>
+            <div style={{ fontSize: font.size.sm, fontWeight: 600, color: T.textMid, textTransform: 'uppercase', letterSpacing: '0.08em', minHeight: 30, display: 'flex', alignItems: 'flex-start', lineHeight: 1.3, textAlign: 'left' }}>
               {k.label}
             </div>
             <div title={k.exact} style={{
               // Su tablet il corpo scende: con importi a sette cifre il
               // numero a 28px veniva troncato coi puntini.
-              fontSize: isMobile ? typo.size['3xl'] : isTablet ? typo.size['3xl'] : 30, fontWeight: 700, color: k.color, lineHeight: 1.05,
+              fontSize: isMobile ? font.size['3xl'] : isTablet ? font.size['3xl'] : 30, fontWeight: 700, color: k.color, lineHeight: 1.05,
               letterSpacing: '-0.025em', ...tnum,
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
               minHeight: isMobile ? 34 : 38, display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
             }}>{k.val}</div>
-            <div style={{ fontSize: typo.size.sm, color: T.textSoft, letterSpacing: '-0.005em', lineHeight: 1.35, minHeight: 34, marginTop: 6, display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end', textAlign: 'right' }}>{k.sub}</div>
+            <div style={{ fontSize: font.size.sm, color: T.textSoft, letterSpacing: '-0.005em', lineHeight: 1.35, minHeight: 34, marginTop: 6, display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end', textAlign: 'right' }}>{k.sub}</div>
           </button>
         ))}
       </div>
@@ -2418,10 +2418,10 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
           <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', flexWrap: 'wrap' }}>
             <Icon name="store" size={16} color={T.blue} style={{ flexShrink: 0, marginTop: 2 }} />
             <div style={{ flex: 1, minWidth: 220 }}>
-              <div style={{ fontSize: typo.size.md, fontWeight: 700, color: T.text, marginBottom: 3 }}>
+              <div style={{ fontSize: font.size.md, fontWeight: 700, color: T.text, marginBottom: 3 }}>
                 {senzaSede.n.toLocaleString('it-IT', { useGrouping: 'always' })} {senzaSede.n === 1 ? 'fattura' : 'fatture'} senza punto vendita
               </div>
-              <div style={{ fontSize: typo.size.base, color: T.textMid, lineHeight: 1.5 }}>
+              <div style={{ fontSize: font.size.base, color: T.textMid, lineHeight: 1.5 }}>
                 Valgono {fmtEuro(senzaSede.totale)}. Le vedi qui, ma nel <b>Confronto sedi</b> non entrano
                 nel conto di nessun negozio, perché quella pagina raggruppa per punto vendita.
               </div>
@@ -2440,12 +2440,12 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                     style={{
                       padding: '11px 16px', minHeight: 44, borderRadius: 8, border: 'none',
                       background: (!sedeScelta || sedeSaving) ? T.border : T.blue, color: '#fff',
-                      fontSize: typo.size.base, fontWeight: 800, cursor: (!sedeScelta || sedeSaving) ? 'default' : 'pointer',
+                      fontSize: font.size.base, fontWeight: 800, cursor: (!sedeScelta || sedeSaving) ? 'default' : 'pointer',
                     }}>
                     {sedeSaving ? 'Assegno…' : `Assegna tutte le ${senzaSede.n}`}
                   </button>
                   <button type="button" onClick={() => setSedeConf(false)} disabled={sedeSaving}
-                    style={{ padding: '11px 14px', minHeight: 44, borderRadius: 8, border: `1px solid ${T.border}`, background: T.bgCard, fontSize: typo.size.base, fontWeight: 700, color: T.textSoft, cursor: 'pointer' }}>
+                    style={{ padding: '11px 14px', minHeight: 44, borderRadius: 8, border: `1px solid ${T.border}`, background: T.bgCard, fontSize: font.size.base, fontWeight: 700, color: T.textSoft, cursor: 'pointer' }}>
                     Annulla
                   </button>
                 </div>
@@ -2455,7 +2455,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
               <button type="button" onClick={() => setSedeConf(true)}
                 style={{
                   padding: '10px 16px', minHeight: 44, borderRadius: 8, border: `1px solid ${T.border}`,
-                  background: T.bgCard, color: T.textMid, fontSize: typo.size.base, fontWeight: 700,
+                  background: T.bgCard, color: T.textMid, fontSize: font.size.base, fontWeight: 700,
                   cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
                 }}>
                 Assegnale
@@ -2475,16 +2475,16 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
           <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', flexWrap: 'wrap' }}>
             <Icon name="alert" size={16} color={T.amber} style={{ flexShrink: 0, marginTop: 2 }} />
             <div style={{ flex: 1, minWidth: 220 }}>
-              <div style={{ fontSize: typo.size.md, fontWeight: 700, color: T.text, marginBottom: 3 }}>
+              <div style={{ fontSize: font.size.md, fontWeight: 700, color: T.text, marginBottom: 3 }}>
                 {anomale.length === 1 ? 'Una fattura è fuori scala' : `${anomale.length} fatture sono fuori scala`}
               </div>
-              <div style={{ fontSize: typo.size.base, color: T.textMid, lineHeight: 1.5, marginBottom: 8 }}>
+              <div style={{ fontSize: font.size.base, color: T.textMid, lineHeight: 1.5, marginBottom: 8 }}>
                 Molto più grandi del solito per quel fornitore. Può essere giusto — o può essere
                 un punto nel posto sbagliato: vale un controllo prima di pagarle.
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                 {anomale.slice(0, 5).map(a => (
-                  <div key={a.id} style={{ display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap', fontSize: typo.size.base }}>
+                  <div key={a.id} style={{ display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap', fontSize: font.size.base }}>
                     <span style={{ fontWeight: 700, color: T.text, flex: 1, minWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {a.fornitore}
                     </span>
@@ -2495,13 +2495,13 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                       {a.quanteVolte.toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 1 })}× il solito ({fmtEuro0(a.mediana)})
                     </span>
                     <button type="button" onClick={() => { setVista('scadenza'); setFiltro('tutte'); setSearch(a.numero_rif || a.fornitore) }}
-                      style={{ padding: '6px 11px', minHeight: 36, borderRadius: 7, border: `1px solid ${T.border}`, background: T.bgCard, color: T.textMid, fontSize: typo.size.sm, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                      style={{ padding: '6px 11px', minHeight: 36, borderRadius: 7, border: `1px solid ${T.border}`, background: T.bgCard, color: T.textMid, fontSize: font.size.sm, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
                       Vedila
                     </button>
                   </div>
                 ))}
                 {anomale.length > 5 && (
-                  <div style={{ fontSize: typo.size.sm, color: T.textSoft }}>… e altre {anomale.length - 5}</div>
+                  <div style={{ fontSize: font.size.sm, color: T.textSoft }}>… e altre {anomale.length - 5}</div>
                 )}
               </div>
             </div>
@@ -2517,10 +2517,10 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
           <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', flexWrap: 'wrap' }}>
             <Icon name="clock" size={16} color={T.textSoft} style={{ flexShrink: 0, marginTop: 2 }} />
             <div style={{ flex: 1, minWidth: 220 }}>
-              <div style={{ fontSize: typo.size.md, fontWeight: 700, color: T.text, marginBottom: 3 }}>
+              <div style={{ fontSize: font.size.md, fontWeight: 700, color: T.text, marginBottom: 3 }}>
                 {vecchieDaSistemare.n.toLocaleString('it-IT', { useGrouping: 'always' })} {vecchieDaSistemare.n === 1 ? 'fattura scaduta' : 'fatture scadute'} da più di sei mesi
               </div>
-              <div style={{ fontSize: typo.size.base, color: T.textMid, lineHeight: 1.5 }}>
+              <div style={{ fontSize: font.size.base, color: T.textMid, lineHeight: 1.5 }}>
                 Valgono {fmtEuro(vecchieDaSistemare.totale)} e stanno gonfiando il totale da pagare.
                 Se le hai già saldate — succede sempre, perché l'importazione porta dentro tutti i
                 documenti come "da pagare" — puoi segnarle pagate in un colpo, invece di aprirle una
@@ -2533,7 +2533,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
               style={{
                 padding: '10px 16px', minHeight: 44, borderRadius: 8,
                 border: `1px solid ${T.border}`, background: T.bgCard, color: T.textMid,
-                fontSize: typo.size.base, fontWeight: 700, cursor: bloccoLoading ? 'default' : 'pointer',
+                fontSize: font.size.base, fontWeight: 700, cursor: bloccoLoading ? 'default' : 'pointer',
                 whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0,
               }}>
               <Icon name="check" size={14} /> Segnale pagate
@@ -2551,10 +2551,10 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
           <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', flexWrap: 'wrap' }}>
             <Icon name="bank" size={16} color={T.amber} style={{ flexShrink: 0, marginTop: 2 }} />
             <div style={{ flex: 1, minWidth: 220 }}>
-              <div style={{ fontSize: typo.size.md, fontWeight: 700, color: T.text, marginBottom: 3 }}>
+              <div style={{ fontSize: font.size.md, fontWeight: 700, color: T.text, marginBottom: 3 }}>
                 Il bonifico automatico non può partire: manca l'IBAN a {senzaIban.n.toLocaleString('it-IT', { useGrouping: 'always' })} {senzaIban.n === 1 ? 'fornitore' : 'fornitori'}
               </div>
-              <div style={{ fontSize: typo.size.base, color: T.textMid, lineHeight: 1.5 }}>
+              <div style={{ fontSize: font.size.base, color: T.textMid, lineHeight: 1.5 }}>
                 Sono {fmtEuro(senzaIban.totale)} da pagare. L'IBAN si scrive UNA volta sulla scheda del
                 fornitore e vale per tutte le sue fatture, anche quelle future.
                 {senzaIban.righe.length > 3 ? ' Comincia da questi, che sono quelli che pesano di più:' : ''}
@@ -2565,10 +2565,10 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                     display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
                     padding: '8px 10px', background: T.bgSubtle, borderRadius: 8,
                   }}>
-                    <span style={{ fontSize: typo.size.base, fontWeight: 700, color: T.text, flex: 1, minWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <span style={{ fontSize: font.size.base, fontWeight: 700, color: T.text, flex: 1, minWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {r.nome}
                     </span>
-                    <span style={{ fontSize: typo.size.base, color: T.textMid, ...tnum, whiteSpace: 'nowrap' }}>
+                    <span style={{ fontSize: font.size.base, color: T.textMid, ...tnum, whiteSpace: 'nowrap' }}>
                       {r.n} {r.n === 1 ? 'fattura' : 'fatture'} · <b>{fmtEuro(r.tot)}</b>
                     </span>
                     <button type="button"
@@ -2585,7 +2585,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                       }}
                       style={{
                         padding: '8px 14px', minHeight: 40, borderRadius: 8, border: 'none',
-                        background: T.brand, color: T.white, fontSize: typo.size.base, fontWeight: 700,
+                        background: T.brand, color: T.white, fontSize: font.size.base, fontWeight: 700,
                         cursor: 'pointer', whiteSpace: 'nowrap',
                       }}>
                       Scrivi l'IBAN
@@ -2594,7 +2594,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                 ))}
               </div>
               {senzaIban.righe.length > 5 && (
-                <div style={{ fontSize: typo.size.sm, color: T.textSoft, marginTop: 8 }}>
+                <div style={{ fontSize: font.size.sm, color: T.textSoft, marginTop: 8 }}>
                   Altri {(senzaIban.righe.length - 5).toLocaleString('it-IT', { useGrouping: 'always' })} fornitori senza IBAN: li trovi nella vista <b>Per fornitore</b>, ognuno con la sua targhetta "no IBAN".
                 </div>
               )}
@@ -2718,19 +2718,19 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                         style={{ width: 20, height: 20, marginTop: 1, accentColor: T.brand, cursor: 'pointer', flexShrink: 0 }} />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: typo.size.base, fontWeight: 700, color: T.text, ...tnum }}>
+                          <span style={{ fontSize: font.size.base, fontWeight: 700, color: T.text, ...tnum }}>
                             {String(a.movimento.data).split('-').reverse().join('/')} · {fmtEuro(a.movimento.importo)}
                           </span>
-                          <span style={{ fontSize: typo.size.xs, fontWeight: 700, color: col, background: `${col}18`, padding: '1px 8px', borderRadius: 999, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                          <span style={{ fontSize: font.size.xs, fontWeight: 700, color: col, background: `${col}18`, padding: '1px 8px', borderRadius: 999, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                             {a.certezza}
                           </span>
                         </div>
-                        <div style={{ fontSize: typo.size.sm, color: T.textSoft, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <div style={{ fontSize: font.size.sm, color: T.textSoft, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {a.movimento.descrizione || 'senza descrizione'}
                         </div>
-                        <div style={{ fontSize: typo.size.base, color: T.textMid, marginTop: 4, lineHeight: 1.45 }}>
+                        <div style={{ fontSize: font.size.base, color: T.textMid, marginTop: 4, lineHeight: 1.45 }}>
                           → {a.fatture.map(rf => `${rf.fornitore}${rf.numero_rif ? ` fatt. ${rf.numero_rif}` : ''}`).join(' + ')}
-                          <div style={{ fontSize: typo.size.sm, color: T.textSoft, marginTop: 1 }}>{a.motivo}</div>
+                          <div style={{ fontSize: font.size.sm, color: T.textSoft, marginTop: 1 }}>{a.motivo}</div>
                         </div>
                       </div>
                     </label>
@@ -2746,12 +2746,12 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                 </summary>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 6, maxHeight: 220, overflowY: 'auto' }}>
                   {banca.nonAbbinati.map((mv, i) => (
-                    <div key={i} style={{ fontSize: typo.size.base, color: T.textMid, padding: '6px 10px', background: T.bgSubtle, borderRadius: 7 }}>
+                    <div key={i} style={{ fontSize: font.size.base, color: T.textMid, padding: '6px 10px', background: T.bgSubtle, borderRadius: 7 }}>
                       <span style={{ ...tnum, fontWeight: 700, color: T.text }}>
                         {String(mv.data).split('-').reverse().join('/')} · {fmtEuro(mv.importo)}
                       </span>
                       {' — '}{mv.descrizione || 'senza descrizione'}
-                      <div style={{ fontSize: typo.size.sm, color: T.textSoft, marginTop: 1 }}>{mv.motivo}</div>
+                      <div style={{ fontSize: font.size.sm, color: T.textSoft, marginTop: 1 }}>{mv.motivo}</div>
                     </div>
                   ))}
                 </div>
@@ -2837,7 +2837,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 260, overflowY: 'auto' }}>
                     {piano.righe.slice(0, 40).map(r => (
-                      <div key={r.id} style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', fontSize: typo.size.base }}>
+                      <div key={r.id} style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', fontSize: font.size.base }}>
                         <span style={{ color: T.textMid, minWidth: 96, ...tnum }}>
                           {r.dueIso ? String(r.dueIso).slice(0, 10).split('-').reverse().join('/') : '-'}
                         </span>
@@ -2854,7 +2854,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                       </div>
                     ))}
                     {piano.righe.length > 40 && (
-                      <div style={{ fontSize: typo.size.sm, color: T.textSoft }}>… e altre {piano.righe.length - 40} righe</div>
+                      <div style={{ fontSize: font.size.sm, color: T.textSoft }}>… e altre {piano.righe.length - 40} righe</div>
                     )}
                   </div>
                   <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${T.border}`, ...typo.small, color: T.textMid, lineHeight: 1.5 }}>
@@ -2948,7 +2948,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
             style={{
               padding: '8px 14px', minHeight: 40, borderRadius: 999,
               border: `1px solid ${T.border}`, background: T.bgCard, color: T.textMid,
-              fontSize: typo.size.base, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
+              fontSize: font.size.base, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
               display: 'inline-flex', alignItems: 'center', gap: 6,
             }}
             title={`In pagina ci sono le fatture aperte e le pagate degli ultimi 4 mesi. In archivio ce ne sono ${pagateTotali.toLocaleString('it-IT', { useGrouping: 'always' })} pagate in tutto.`}>

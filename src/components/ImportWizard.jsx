@@ -499,7 +499,7 @@ function StepFile({ entity, setEntity, file, setFile, loading, onNext, isMobile,
   const entities = listEntities().map(id => ({ id, schema: IMPORT_SCHEMAS[id] }))
   return (
     <div>
-      <div style={{ fontSize: 16, fontWeight: 700, color: T.TXT, marginBottom: 12 }}>
+      <div style={{ fontSize: 16, fontWeight: 700, color: T.text, marginBottom: 12 }}>
         1. Che dati vuoi caricare?
       </div>
       <div style={{
@@ -513,36 +513,36 @@ function StepFile({ entity, setEntity, file, setFile, loading, onNext, isMobile,
             style={{
               textAlign: 'left', cursor: 'pointer',
               background: entity === id ? '#FDF2F4' : '#FFF',
-              border: `2px solid ${entity === id ? T.BRAND : T.BORDER}`,
+              border: `2px solid ${entity === id ? T.brand : T.border}`,
               borderRadius: 12, padding: 14, transition: 'all 0.15s',
               minHeight: 88,
             }}>
-            <div style={{ fontSize: 14, fontWeight: 800, color: T.TXT, marginBottom: 4 }}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: T.text, marginBottom: 4 }}>
               {schema.label}
             </div>
-            <div style={{ fontSize: 12, color: T.SOFT, lineHeight: 1.4 }}>
+            <div style={{ fontSize: 12, color: T.textSoft, lineHeight: 1.4 }}>
               {schema.description}
             </div>
           </button>
         ))}
       </div>
 
-      <div style={{ fontSize: 16, fontWeight: 700, color: T.TXT, marginBottom: 12 }}>
+      <div style={{ fontSize: 16, fontWeight: 700, color: T.text, marginBottom: 12 }}>
         2. Carica il tuo file
       </div>
       <label htmlFor="import-file-input"
         style={{
           display: 'block', cursor: 'pointer',
           background: file ? '#F0FDF4' : '#F8FAFC',
-          border: `2px dashed ${file ? '#16A34A' : T.BORDER}`,
+          border: `2px dashed ${file ? '#16A34A' : T.border}`,
           borderRadius: 12, padding: isMobile ? 22 : 32,
           textAlign: 'center', marginBottom: 8,
         }}>
-        <Icon name={file ? 'check' : 'download'} size={20} color={file ? '#16A34A' : T.SOFT}/>
-        <div style={{ marginTop: 8, fontSize: 14, fontWeight: 700, color: T.TXT }}>
+        <Icon name={file ? 'check' : 'download'} size={20} color={file ? '#16A34A' : T.textSoft}/>
+        <div style={{ marginTop: 8, fontSize: 14, fontWeight: 700, color: T.text }}>
           {file ? file.name : 'Trascina qui il tuo file, oppure clicca per sceglierlo dal computer'}
         </div>
-        <div style={{ marginTop: 4, fontSize: 12, color: T.SOFT }}>
+        <div style={{ marginTop: 4, fontSize: 12, color: T.textSoft }}>
           Excel (.xlsx, .xls) o CSV — max 5.000 righe
         </div>
         <input id="import-file-input" type="file"
@@ -554,7 +554,7 @@ function StepFile({ entity, setEntity, file, setFile, loading, onNext, isMobile,
       <div style={{ marginTop: 24, textAlign: 'right' }}>
         <button type="button" disabled={!file || !entity || loading} onClick={onNext}
           style={{
-            background: (!file || !entity || loading) ? '#CBD5E1' : T.BRAND,
+            background: (!file || !entity || loading) ? '#CBD5E1' : T.brand,
             color: '#FFF', border: 'none', borderRadius: 10,
             padding: isMobile ? '14px 22px' : '12px 26px', fontSize: 14, fontWeight: 700,
             cursor: (!file || !entity || loading) ? 'not-allowed' : 'pointer',
@@ -606,11 +606,11 @@ function StepMapping({ schema, headers, sampleRows, detectInfo, mapping, setMapp
     <div>
       {detectInfo?.format === 'wide' && detectInfo.unpivotStats && (
         <div style={{
-          background: '#F0FDF4', border: `1px solid ${T.GREEN}`,
+          background: '#F0FDF4', border: `1px solid ${T.green}`,
           borderRadius: 10, padding: 14, marginBottom: 14,
           display: 'flex', gap: 12, alignItems: 'flex-start',
         }}>
-          <Icon name="check" size={18} color={T.GREEN}/>
+          <Icon name="check" size={18} color={T.green}/>
           <div style={{ fontSize: 14, color: '#14532D', lineHeight: 1.5 }}>
             <div style={{ fontWeight: 700, marginBottom: 2 }}>Ho letto il tuo file.</div>
             Ho trovato <b>{detectInfo.unpivotStats.total.toLocaleString('it-IT', { useGrouping: 'always' })} righe di produzione</b>
@@ -623,7 +623,7 @@ function StepMapping({ schema, headers, sampleRows, detectInfo, mapping, setMapp
                 Mara ha 3 sedi = 3 fogli: se uno ha l'intestazione spostata,
                 un mese intero di una sede entrava a zero senza un avviso. */}
             {(detectInfo.unpivotStats.warnings || []).length > 0 && (
-              <ul style={{ margin: '8px 0 0 0', paddingLeft: 18, color: T.AMBER }}>
+              <ul style={{ margin: '8px 0 0 0', paddingLeft: 18, color: T.amber }}>
                 {detectInfo.unpivotStats.warnings.slice(0, 6).map((w, i) => (
                   <li key={i} style={{ marginBottom: 2 }}>{w}</li>
                 ))}
@@ -633,10 +633,10 @@ function StepMapping({ schema, headers, sampleRows, detectInfo, mapping, setMapp
         </div>
       )}
 
-      <div style={{ fontSize: 16, fontWeight: 700, color: T.TXT, marginBottom: 6 }}>
+      <div style={{ fontSize: 16, fontWeight: 700, color: T.text, marginBottom: 6 }}>
         Controlla che sia tutto giusto
       </div>
-      <div style={{ fontSize: 13, color: T.SOFT, marginBottom: 16, lineHeight: 1.5 }}>
+      <div style={{ fontSize: 13, color: T.textSoft, marginBottom: 16, lineHeight: 1.5 }}>
         A sinistra i campi di Foodos, a destra le tue colonne. Se qualcosa non torna,
         scegli la colonna giusta dal menù a tendina.
       </div>
@@ -650,14 +650,14 @@ function StepMapping({ schema, headers, sampleRows, detectInfo, mapping, setMapp
               gridTemplateColumns: isMobile ? '1fr' : '200px 1fr auto',
               gap: 10, alignItems: 'center',
               padding: 10, background: '#FAFBFC',
-              border: `1px solid ${T.BORDER}`, borderRadius: 10,
+              border: `1px solid ${T.border}`, borderRadius: 10,
             }}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: T.TXT }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: T.text }}>
                   {f.label || f.name}
-                  {f.required && <span style={{ color: T.RED, marginLeft: 4 }}>*</span>}
+                  {f.required && <span style={{ color: T.red, marginLeft: 4 }}>*</span>}
                 </div>
-                <div style={{ fontSize: 11, color: T.SOFT, marginTop: 2, lineHeight: 1.35 }}>
+                <div style={{ fontSize: 11, color: T.textSoft, marginTop: 2, lineHeight: 1.35 }}>
                   {f.hint}
                 </div>
               </div>
@@ -666,8 +666,8 @@ function StepMapping({ schema, headers, sampleRows, detectInfo, mapping, setMapp
                 style={{
                   padding: isMobile ? '12px 10px' : '10px 12px',
                   fontSize: isMobile ? 16 : 14,
-                  border: `1px solid ${current ? T.BORDER : '#FCA5A5'}`,
-                  borderRadius: 8, background: '#FFF', color: T.TXT,
+                  border: `1px solid ${current ? T.border : '#FCA5A5'}`,
+                  borderRadius: 8, background: '#FFF', color: T.text,
                   width: '100%', boxSizing: 'border-box',
                 }}>
                 <option value="">— non caricare —</option>
@@ -681,7 +681,7 @@ function StepMapping({ schema, headers, sampleRows, detectInfo, mapping, setMapp
                 })}
               </select>
               {!isMobile && (
-                <div style={{ fontSize: 11, color: T.SOFT, whiteSpace: 'nowrap' }}>
+                <div style={{ fontSize: 11, color: T.textSoft, whiteSpace: 'nowrap' }}>
                   {current ? headerSampleValue(sampleRows, current) : ''}
                 </div>
               )}
@@ -716,7 +716,7 @@ function StepMapping({ schema, headers, sampleRows, detectInfo, mapping, setMapp
 
       {schema.wideFormatWarning && (
         <div style={{
-          background: T.AMBER_BG, color: T.AMBER,
+          background: T.amberLight, color: T.amber,
           border: '1px solid #FCD34D', borderRadius: 10,
           padding: 12, marginBottom: 12, fontSize: 12, lineHeight: 1.5,
         }}>
@@ -726,7 +726,7 @@ function StepMapping({ schema, headers, sampleRows, detectInfo, mapping, setMapp
 
       {aiNotes && (
         <div style={{
-          background: T.AMBER_BG, color: T.AMBER,
+          background: T.amberLight, color: T.amber,
           border: `1px solid #FCD34D`, borderRadius: 10,
           padding: 12, marginBottom: 18, fontSize: 12, lineHeight: 1.5,
         }}>
@@ -776,10 +776,10 @@ function StepValidate({ schema, result, mapping = {}, onBack, onNext, isMobile, 
 
   return (
     <div>
-      <div style={{ fontSize: 16, fontWeight: 700, color: T.TXT, marginBottom: 6 }}>
+      <div style={{ fontSize: 16, fontWeight: 700, color: T.text, marginBottom: 6 }}>
         Ecco cosa ho capito dai tuoi dati
       </div>
-      <div style={{ fontSize: 13, color: T.SOFT, marginBottom: 16, lineHeight: 1.5 }}>
+      <div style={{ fontSize: 13, color: T.textSoft, marginBottom: 16, lineHeight: 1.5 }}>
         Ho letto tutte le righe e controllato che i valori siano nel formato giusto.
         Qui vedi il riepilogo, prima di caricare per davvero.
       </div>
@@ -804,23 +804,23 @@ function StepValidate({ schema, result, mapping = {}, onBack, onNext, isMobile, 
         gap: 10, marginBottom: 20,
       }}>
         <StatBox label="Righe lette" value={stats.total} T={T}/>
-        <StatBox label="Pronte da caricare" value={stats.valid} color={T.GREEN} T={T}/>
-        <StatBox label="Da rivedere" value={stats.invalid} color={stats.invalid > 0 ? T.RED : T.SOFT} T={T}/>
+        <StatBox label="Pronte da caricare" value={stats.valid} color={T.green} T={T}/>
+        <StatBox label="Da rivedere" value={stats.invalid} color={stats.invalid > 0 ? T.red : T.textSoft} T={T}/>
       </div>
 
       {campiConDefault.length > 0 && stats.valid > 0 && (
-        <div style={{ background: T.CARD, border: `1px solid ${T.BORDER}`, borderRadius: 10, padding: 14, marginBottom: 18 }}>
-          <div style={{ ...typo.bodyStrong, color: T.TXT, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 7 }}>
+        <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 10, padding: 14, marginBottom: 18 }}>
+          <div style={{ ...typo.bodyStrong, color: T.text, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 7 }}>
             <Icon name="info" size={15} />
             {campiConDefault.length === 1 ? 'Un campo non è nel tuo file' : `${campiConDefault.length} campi non sono nel tuo file`}
           </div>
-          <div style={{ fontSize: typo.small.fontSize, color: T.SOFT, lineHeight: 1.6, marginBottom: 8 }}>
+          <div style={{ fontSize: typo.small.fontSize, color: T.textSoft, lineHeight: 1.6, marginBottom: 8 }}>
             Li carico con il valore predefinito. Se ti servono davvero, torna indietro e aggiungi la colonna al file:
             dopo il caricamento non si distinguono da un valore che hai scritto tu.
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {campiConDefault.map(f => (
-              <span key={f.name} style={{ fontSize: typo.small.fontSize, fontWeight: 600, color: T.TXT, background: T.BG, border: `1px solid ${T.BORDER}`, borderRadius: 6, padding: '4px 9px' }}>
+              <span key={f.name} style={{ fontSize: typo.small.fontSize, fontWeight: 600, color: T.text, background: T.bg, border: `1px solid ${T.border}`, borderRadius: 6, padding: '4px 9px' }}>
                 {f.label || f.name}: {descriviDefault(f)}
               </span>
             ))}
@@ -830,17 +830,17 @@ function StepValidate({ schema, result, mapping = {}, onBack, onNext, isMobile, 
 
       {valid_rows.length > 0 && (
         <div style={{ marginBottom: 18 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: T.TXT, marginBottom: 8 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 8 }}>
             Anteprima prime {Math.min(MAX_PREVIEW_ROWS, valid_rows.length)} righe
           </div>
-          <div style={{ overflowX: 'auto', border: `1px solid ${T.BORDER}`, borderRadius: 10 }}>
+          <div style={{ overflowX: 'auto', border: `1px solid ${T.border}`, borderRadius: 10 }}>
             <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 12 }}>
               <thead style={{ background: '#F8FAFC' }}>
                 <tr>
                   {schema.fields.map(f => (
                     <th key={f.name} style={{
                       textAlign: 'left', padding: '10px 12px',
-                      fontWeight: 700, color: T.TXT, borderBottom: `1px solid ${T.BORDER}`,
+                      fontWeight: 700, color: T.text, borderBottom: `1px solid ${T.border}`,
                       whiteSpace: 'nowrap',
                     }}>{f.label || f.name}</th>
                   ))}
@@ -852,7 +852,7 @@ function StepValidate({ schema, result, mapping = {}, onBack, onNext, isMobile, 
                     {schema.fields.map(f => (
                       <td key={f.name} style={{
                         padding: '10px 12px', borderBottom: `1px solid #F1F5F9`,
-                        color: T.TXT,
+                        color: T.text,
                         fontVariantNumeric: f.type === 'number' ? 'tabular-nums' : 'normal',
                         textAlign: f.type === 'number' ? 'right' : 'left',
                         whiteSpace: 'nowrap', maxWidth: 220,
@@ -920,15 +920,15 @@ function StepValidate({ schema, result, mapping = {}, onBack, onNext, isMobile, 
 function StatBox({ label, value, color, T }) {
   return (
     <div style={{
-      background: '#F8FAFC', border: `1px solid ${T.BORDER}`,
+      background: '#F8FAFC', border: `1px solid ${T.border}`,
       borderRadius: 10, padding: 14, minHeight: 78,
       display: 'flex', flexDirection: 'column', justifyContent: 'center',
     }}>
       <div style={{
-        fontSize: 24, fontWeight: 800, color: color || T.TXT,
+        fontSize: 24, fontWeight: 800, color: color || T.text,
         fontVariantNumeric: 'tabular-nums', lineHeight: 1,
       }}>{Number(value || 0).toLocaleString('it-IT', { useGrouping: 'always' })}</div>
-      <div style={{ fontSize: 12, color: T.SOFT, marginTop: 4 }}>{label}</div>
+      <div style={{ fontSize: 12, color: T.textSoft, marginTop: 4 }}>{label}</div>
     </div>
   )
 }
@@ -947,7 +947,7 @@ function StepInsert({ loading, progress, result, schema, onFinish, onAnother, is
   if (loading || !result) {
     return (
       <div style={{ padding: '30px 0', textAlign: 'center' }}>
-        <div style={{ fontSize: 16, fontWeight: 700, color: T.TXT, marginBottom: 12 }}>
+        <div style={{ fontSize: 16, fontWeight: 700, color: T.text, marginBottom: 12 }}>
           Sto caricando i tuoi dati, un attimo…
         </div>
         <div style={{
@@ -956,10 +956,10 @@ function StepInsert({ loading, progress, result, schema, onFinish, onAnother, is
         }}>
           <div style={{
             height: '100%', width: `${pct}%`,
-            background: T.BRAND, transition: 'width 0.3s ease',
+            background: T.brand, transition: 'width 0.3s ease',
           }}/>
         </div>
-        <div style={{ marginTop: 10, fontSize: 13, color: T.SOFT, fontVariantNumeric: 'tabular-nums' }}>
+        <div style={{ marginTop: 10, fontSize: 13, color: T.textSoft, fontVariantNumeric: 'tabular-nums' }}>
           {progress.done.toLocaleString('it-IT', { useGrouping: 'always' })} di {progress.total.toLocaleString('it-IT', { useGrouping: 'always' })} righe
         </div>
       </div>
@@ -976,15 +976,15 @@ function StepInsert({ loading, progress, result, schema, onFinish, onAnother, is
         <div style={{
           width: 60, height: 60, borderRadius: '50%',
           background: successAll ? '#DCFCE7' : '#FEF3C7',
-          color: successAll ? T.GREEN : '#B45309',
+          color: successAll ? T.green : '#B45309',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           <Icon name={successAll ? 'check' : 'info'} size={26}/>
         </div>
-        <div style={{ fontSize: 18, fontWeight: 800, color: T.TXT, textAlign: 'center' }}>
+        <div style={{ fontSize: 18, fontWeight: 800, color: T.text, textAlign: 'center' }}>
           {successAll ? 'Tutto caricato!' : 'Caricamento fatto, con qualche intoppo.'}
         </div>
-        <div style={{ fontSize: 14, color: T.SOFT, textAlign: 'center', maxWidth: 480, lineHeight: 1.5 }}>
+        <div style={{ fontSize: 14, color: T.textSoft, textAlign: 'center', maxWidth: 480, lineHeight: 1.5 }}>
           {`Ho salvato ${result.inserted.toLocaleString('it-IT', { useGrouping: 'always' })} righe in ${schema.label}.`}
           {failedCount > 0 && ` Alcuni gruppi (${failedCount}) non sono passati — controlla sotto.`}
         </div>
@@ -1013,7 +1013,7 @@ function StepInsert({ loading, progress, result, schema, onFinish, onAnother, is
       }}>
         <button type="button" onClick={onAnother}
           style={{
-            background: '#FFF', color: T.BRAND, border: `1.5px solid ${T.BRAND}`,
+            background: '#FFF', color: T.brand, border: `1.5px solid ${T.brand}`,
             borderRadius: 10, padding: '12px 22px', fontSize: 14, fontWeight: 700,
             cursor: 'pointer', minHeight: 44,
           }}>
@@ -1021,7 +1021,7 @@ function StepInsert({ loading, progress, result, schema, onFinish, onAnother, is
         </button>
         <button type="button" onClick={onFinish}
           style={{
-            background: T.BRAND, color: '#FFF', border: 'none',
+            background: T.brand, color: '#FFF', border: 'none',
             borderRadius: 10, padding: '12px 22px', fontSize: 14, fontWeight: 700,
             cursor: 'pointer', minHeight: 44,
           }}>
@@ -1042,7 +1042,7 @@ function BackNext({ onBack, onNext, nextDisabled, nextLabel = 'Avanti', isMobile
     }}>
       <button type="button" onClick={onBack}
         style={{
-          background: '#FFF', color: T.TXT, border: `1px solid ${T.BORDER}`,
+          background: '#FFF', color: T.text, border: `1px solid ${T.border}`,
           borderRadius: 10, padding: isMobile ? '14px 22px' : '12px 22px',
           fontSize: 14, fontWeight: 700, cursor: 'pointer', minHeight: 44,
         }}>
@@ -1050,7 +1050,7 @@ function BackNext({ onBack, onNext, nextDisabled, nextLabel = 'Avanti', isMobile
       </button>
       <button type="button" onClick={onNext} disabled={nextDisabled}
         style={{
-          background: nextDisabled ? '#CBD5E1' : T.BRAND,
+          background: nextDisabled ? '#CBD5E1' : T.brand,
           color: '#FFF', border: 'none', borderRadius: 10,
           padding: isMobile ? '14px 22px' : '12px 26px', fontSize: 14, fontWeight: 700,
           cursor: nextDisabled ? 'not-allowed' : 'pointer', minHeight: 44,

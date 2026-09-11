@@ -20,7 +20,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { color as T, radius as R, shadow as S, typo } from '../lib/theme'
+import { color as T, radius as R, shadow as S, font } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from '../components/Icon'
 import { C, TNUM, PageHeader } from './_shared'
@@ -61,8 +61,8 @@ function fmtG(n) {
   return Number(n).toLocaleString('it-IT', { useGrouping: 'always' })
 }
 
-// Scorciatoia per le dimensioni del testo dai token (typo.size).
-const TS = typo.size
+// Scorciatoia per le dimensioni del testo dai token (font.size).
+const TS = font.size
 
 export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAttiva, ricettario, magazzino, setMagazzino, tipoAttivita, metodoProduzione = 'stampi', notify, onNavigate }) {
   // "Tutte le sedi" attivo: vista AGGREGATA read-only. Somma PROD/RIMAN di

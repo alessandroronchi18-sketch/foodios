@@ -29,7 +29,7 @@ import { sload } from '../lib/storage'
 import { supabase } from '../lib/supabase'
 import { buildIngCosti, normIng } from '../lib/foodcost'
 import { fornitoreDiIngrediente, raggruppaPerFornitore, LEAD_TIME_RIFERIMENTO } from '../lib/fornitoreIngrediente'
-import { color as T, typo } from '../lib/theme'
+import { color as T, font } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from '../components/Icon'
 import AiPageHero from '../components/AiPageHero'
@@ -271,12 +271,12 @@ export default function OrdiniAiView({ orgId, sedeId, notify }) {
           {nGiacenze === 0 ? (
             <>
               <div style={{ marginTop: 12, fontSize: 14, fontWeight: 700, color: TXT }}>Il magazzino è vuoto</div>
-              <div style={{ fontSize: typo.size.base, marginTop: 6 }}>Non ho nessuna giacenza da guardare, quindi non posso dirti cosa ordinare. Pesa gli ingredienti dal Magazzino e torna qui.</div>
+              <div style={{ fontSize: font.size.base, marginTop: 6 }}>Non ho nessuna giacenza da guardare, quindi non posso dirti cosa ordinare. Pesa gli ingredienti dal Magazzino e torna qui.</div>
             </>
           ) : nSoglie === 0 ? (
             <>
               <div style={{ marginTop: 12, fontSize: 14, fontWeight: 700, color: TXT }}>Nessuna soglia minima impostata</div>
-              <div style={{ fontSize: typo.size.base, marginTop: 6 }}>
+              <div style={{ fontSize: font.size.base, marginTop: 6 }}>
                 Su {Number(nGiacenze).toLocaleString('it-IT', { useGrouping: 'always' })} ingredient{nGiacenze === 1 ? 'e' : 'i'} in magazzino nessuno ha una soglia:
                 {' '}posso solo guardare i giorni di scorta, e servono le vendite registrate. Imposta le soglie dal Magazzino.
               </div>
@@ -284,7 +284,7 @@ export default function OrdiniAiView({ orgId, sedeId, notify }) {
           ) : (
             <>
               <div style={{ marginTop: 12, fontSize: 14, fontWeight: 700, color: TXT }}>Tutto sopra soglia</div>
-              <div style={{ fontSize: typo.size.base, marginTop: 6 }}>
+              <div style={{ fontSize: font.size.base, marginTop: 6 }}>
                 Niente da ordinare oggi, su {Number(nSoglie).toLocaleString('it-IT', { useGrouping: 'always' })} ingredient{nSoglie === 1 ? 'e' : 'i'} con una soglia impostata. Ti avviso appena qualcosa scende.
               </div>
             </>
@@ -306,13 +306,13 @@ export default function OrdiniAiView({ orgId, sedeId, notify }) {
               <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: isMobile ? 600 : 'auto' }}>
                 <thead>
                   <tr style={{ background: '#F8FAFC' }}>
-                    <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: typo.size.sm, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Ingrediente</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: typo.size.sm, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Da chi</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'right', fontSize: typo.size.sm, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Giacenza</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'right', fontSize: typo.size.sm, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Soglia</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'right', fontSize: typo.size.sm, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Cons. medio/gg</th>
-                    <th title="Giorni rimasti di scorta = giacenza attuale / consumo medio giornaliero" style={{ padding: '10px 14px', textAlign: 'right', fontSize: typo.size.sm, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.06em', cursor: 'help' }}>Gg rimasti</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'right', fontSize: typo.size.sm, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Da ordinare</th>
+                    <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: font.size.sm, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Ingrediente</th>
+                    <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: font.size.sm, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Da chi</th>
+                    <th style={{ padding: '10px 14px', textAlign: 'right', fontSize: font.size.sm, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Giacenza</th>
+                    <th style={{ padding: '10px 14px', textAlign: 'right', fontSize: font.size.sm, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Soglia</th>
+                    <th style={{ padding: '10px 14px', textAlign: 'right', fontSize: font.size.sm, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Cons. medio/gg</th>
+                    <th title="Giorni rimasti di scorta = giacenza attuale / consumo medio giornaliero" style={{ padding: '10px 14px', textAlign: 'right', fontSize: font.size.sm, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.06em', cursor: 'help' }}>Gg rimasti</th>
+                    <th style={{ padding: '10px 14px', textAlign: 'right', fontSize: font.size.sm, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Da ordinare</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -324,7 +324,7 @@ export default function OrdiniAiView({ orgId, sedeId, notify }) {
                       </td>
                       {/* Da chi comprare: senza questa colonna la lista dice
                           quanto ordinare e non a chi chiederlo. */}
-                      <td style={{ padding: '11px 14px', fontSize: typo.size.base, color: s.fornitore ? MID : SOFT, whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '11px 14px', fontSize: font.size.base, color: s.fornitore ? MID : SOFT, whiteSpace: 'nowrap' }}>
                         {s.fornitore || (
                           <span title="Nessun fornitore collegato a questo ingrediente: si collega registrando un ordine ricevuto in Fornitori." style={{ cursor: 'help' }}>da collegare</span>
                         )}

@@ -10,6 +10,7 @@ import { sload, ssave } from '../lib/storage'
 import { supabase } from '../lib/supabase'
 import { totaliPerGusto, normGusto, fetchAllInventarioProduzione } from '../lib/inventarioProduzione'
 import { caricaCostiAziendali, totaleMensile } from '../lib/costiAziendali'
+import { costoPersonaleMensile } from '../lib/stipendiCalc'
 import { foodcostNoto } from '../lib/chiusure'
 import { totaliPeriodo as usciteCassaPeriodo } from '../lib/primaNota'
 import {
@@ -17,7 +18,7 @@ import {
   ResponsiveContainer, Cell,
 } from 'recharts'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
-import { color as T, radius as R, shadow as S, motion as M, typo } from '../lib/theme'
+import { color as T, radius as R, shadow as S, motion as M, typo, font } from '../lib/theme'
 import {
   buildIngCosti, calcolaFC, getR, isRicettaValida, normIng, resaGrammi,
 } from '../lib/foodcost'
@@ -470,7 +471,7 @@ function PLTable({ rows, euro, pct, totRicavo, totFC, totMargine, fcAvg, avgMarg
                 <td colSpan={3} style={{ padding: '12px 14px', fontWeight: 800, fontSize: 12, color: C.text }}>
                   TOTALE / MEDIA
                   {nSenzaPrezzo > 0 && (
-                    <div style={{ fontWeight: 500, fontSize: typo.size.sm, color: C.textSoft, marginTop: 2, textTransform: 'none', letterSpacing: 0 }}>
+                    <div style={{ fontWeight: 500, fontSize: font.size.sm, color: C.textSoft, marginTop: 2, textTransform: 'none', letterSpacing: 0 }}>
                       su {rows.length - nSenzaPrezzo} {rows.length - nSenzaPrezzo === 1 ? 'prodotto' : 'prodotti'} con un prezzo di vendita.
                       {' '}{nSenzaPrezzo} {nSenzaPrezzo === 1 ? 'è fuori' : 'sono fuori'} dal conto{fcSenzaPrezzo > 0 ? `, per ${euro(fcSenzaPrezzo)} di materie prime` : ''}.
                     </div>
@@ -545,7 +546,7 @@ function SensTable({ rows, euro, pct }) {
           </table>
         </div>
         {nEsclusi > 0 && (
-          <div style={{ padding: '10px 14px', borderTop: `1px solid ${C.border}`, fontSize: typo.size.sm, color: C.textSoft, lineHeight: 1.5 }}>
+          <div style={{ padding: '10px 14px', borderTop: `1px solid ${C.border}`, fontSize: font.size.sm, color: C.textSoft, lineHeight: 1.5 }}>
             {nEsclusi} {nEsclusi === 1 ? 'prodotto è fuori' : 'prodotti sono fuori'} da questa tabella: senza un prezzo
             di vendita non si può dire di quanto possono salire i costi prima di andare in perdita.
           </div>
@@ -717,6 +718,12 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
   const [dateFrom, setDateFrom] = useState(() => _ymd(new Date(today.getFullYear(), today.getMonth(), 1)))
   const [dateTo, setDateTo] = useState(() => _ymd(today))
   const [costi, setCosti] = useState({ affitto: 0, utenze: 0, altro: 0, personale: 0 })
+  // Il costo del lavoro calcolato dai dipendenti VERI (pagina Personale).
+  // Prima il conto economico lo prendeva SOLO da un campo scritto a mano, e se
+  // quel campo era vuoto — come sul design partner, che ha tre dipendenti a
+  // libro paga — il conto economico contava zero costo del lavoro e l'utile
+  // usciva più alto di circa 11.700 € al mese. Senza un avviso.
+  const [personaleReale, setPersonaleReale] = useState({ totale: 0, contati: 0, senzaDato: 0 })
   // Uscite di cassa del periodo (prima nota). Sono soldi usciti davvero dal
   // cassetto — la frutta, la carta, la spesa al supermercato — e finora non
   // entravano in nessun conto: restavano scritte da qualche parte e l'utile
@@ -727,6 +734,18 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
   const [savingCosti, setSavingCosti] = useState(false)
   const [exportingPdf, setExportingPdf] = useState(false)
   const [targetLavoro, setTargetLavoro] = useState(30)
+
+  useEffect(() => {
+    if (!orgId) return
+    let alive = true
+    supabase.from('dipendenti')
+      .select('id, sede_id, attivo, stipendio_lordo_mensile, costo_orario, ore_settimana')
+      .eq('organization_id', orgId).eq('attivo', true)
+      .then(({ data }) => {
+        if (alive) setPersonaleReale(costoPersonaleMensile(data || [], { sedeId }))
+      }, () => {})
+    return () => { alive = false }
+  }, [orgId, sedeId])
 
   useEffect(() => {
     if (!orgId) return
@@ -828,7 +847,12 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
     const giorniMese = giorniNelMese(dateTo)
     const quota = giorniMese > 0 ? Math.min(1, giorniPeriodo / giorniMese) : 1
     const costiFissiMese = (+costi.affitto || 0) + (+costi.utenze || 0) + (+costi.altro || 0)
-    const personaleMese = +costi.personale || 0
+    // Il campo scritto a mano vince (il titolare può sapere cose che il
+    // programma non sa: collaboratori occasionali, soci, un mese di ferie).
+    // Ma se è vuoto si usa il costo dei dipendenti inseriti, invece di zero.
+    const personaleManuale = +costi.personale || 0
+    const personaleMese = personaleManuale > 0 ? personaleManuale : personaleReale.totale
+    const personaleDaDipendenti = personaleManuale <= 0 && personaleReale.totale > 0
     const costiFissi = costiFissiMese * quota
     const personale = personaleMese * quota
     const margineLordo = cur.ricavi - cur.foodcost
@@ -844,6 +868,8 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
     const utilePrev = (prev.ricavi - prev.foodcost) - personale - costiFissi
     return {
       cur, prev, costiFissi, personale, margineLordo, utile, fcPct, lavPct,
+      personaleDaDipendenti, personaleDipendentiN: personaleReale.contati,
+      personaleSenzaDato: personaleReale.senzaDato,
       margOpPct, breakeven, utilePrev, usciteCassa,
       // Serve alla pagina per scrivere "quota di 12 giorni su 30".
       giorniPeriodo, giorniMese, quota, costiFissiMese, personaleMese,
@@ -852,7 +878,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
       breakevenMese: mcPct > 0 ? (personaleMese + costiFissiMese) / mcPct : 0,
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- aggRange/prevRange sono pure closures stabili sui props (chiusure) già in deps
-  }, [chiusure, dateFrom, dateTo, costi, uscite])
+  }, [chiusure, dateFrom, dateTo, costi, uscite, personaleReale])
 
   // ═══ P&L METODO INVENTARIO DIFFERENZIALE (gelaterie con gusti) ══════════
   // Attivo solo se organizations.metodo_produzione = 'inventario'. Legge dalla
@@ -1120,8 +1146,18 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, border: `1px solid ${T.border}`, borderRadius: 8, padding: '10px 12px', minHeight: 44, background: T.bgCard }}>
                 <span style={{ color: T.textSoft, fontSize: 13 }}>€</span>
                 <input type="number" inputMode="decimal" value={costi[k] || ''} onChange={e => setCosti(c => ({ ...c, [k]: e.target.value }))}
-                  placeholder="0" style={{ border: 'none', outline: 'none', width: '100%', fontSize: isMobile ? 16 : 14, fontWeight: 700, color: T.text, background: 'transparent', ...TNUM }} />
+                  placeholder={k === 'personale' && personaleReale.totale > 0 ? String(Math.round(personaleReale.totale)) : '0'}
+                  style={{ border: 'none', outline: 'none', width: '100%', fontSize: isMobile ? 16 : 14, fontWeight: 700, color: T.text, background: 'transparent', ...TNUM }} />
               </div>
+              {/* Il campo del personale non è più un buco: se resta vuoto si
+                  usa il costo dei dipendenti inseriti, e qui c'è scritto. */}
+              {k === 'personale' && (
+                <div style={{ fontSize: typo.small.fontSize, color: T.textSoft, marginTop: 5, lineHeight: 1.45 }}>
+                  {personaleReale.totale > 0
+                    ? `Se lo lasci vuoto uso ${fmt0(personaleReale.totale)} al mese, dai ${personaleReale.contati === 1 ? 'dipendente inserito' : `${personaleReale.contati} dipendenti inseriti`} (lordo + contributi + TFR).`
+                    : 'Nessun dipendente con stipendio inserito: scrivilo qui, o compila la pagina Personale.'}
+                </div>
+              )}
             </div>
           ))}
           <div style={{ gridColumn: isMobile ? '1 / -1' : 'auto', display: 'flex', gap: 8 }}>
@@ -1295,7 +1331,11 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
                   <Row label="Ricavi" val={plMese.cur.ricavi} pctv={100} bold />
                   <Row label="Food cost (materie prime)" val={plMese.cur.foodcost} pctv={plMese.fcPct} neg />
                   <Row label="Margine lordo" val={plMese.margineLordo} pctv={plMese.cur.ricavi > 0 ? plMese.margineLordo / plMese.cur.ricavi * 100 : 0} bold />
-                  <Row label="Costo del personale" val={plMese.personale} pctv={plMese.lavPct} neg />
+                  <Row
+                    label={plMese.personaleDaDipendenti
+                      ? `Costo del personale (${plMese.personaleDipendentiN === 1 ? '1 dipendente' : `${plMese.personaleDipendentiN} dipendenti`})`
+                      : 'Costo del personale'}
+                    val={plMese.personale} pctv={plMese.lavPct} neg />
                   <Row label="Costi fissi (affitto, utenze, altro)" val={plMese.costiFissi} pctv={plMese.cur.ricavi > 0 ? plMese.costiFissi / plMese.cur.ricavi * 100 : 0} neg />
                   {plMese.usciteCassa > 0 && (
                     <Row label="Uscite di cassa (prima nota)" val={plMese.usciteCassa}
@@ -1786,10 +1826,10 @@ function BoxKpi({ label, value, color, highlight, small, sub }) {
       {/* Etichetta a 12px: a 10px i numeri di questa banda non si leggono
           sul tablet del laboratorio. Le tre altezze minime restano uniformi
           così i box affiancati sono incolonnati fra loro. */}
-      <div style={{ fontSize: typo.size.sm, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4, minHeight: 30, lineHeight: 1.3 }}>{label}</div>
+      <div style={{ fontSize: font.size.sm, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4, minHeight: 30, lineHeight: 1.3 }}>{label}</div>
       <div style={{ fontSize: small ? 17 : 20, fontWeight: 800, color, ...TNUM, letterSpacing: '-0.02em', minHeight: 32, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</div>
       {sub != null && (
-        <div style={{ fontSize: typo.size.sm, color: T.textSoft, marginTop: 3, minHeight: 30, lineHeight: 1.35 }}>{sub}</div>
+        <div style={{ fontSize: font.size.sm, color: T.textSoft, marginTop: 3, minHeight: 30, lineHeight: 1.35 }}>{sub}</div>
       )}
     </div>
   )

@@ -13,7 +13,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { sload, ssave } from '../lib/storage'
 import { caricaChiusure } from '../lib/chiusure'
 import { supabase } from '../lib/supabase'
-import { color as T, typo } from '../lib/theme'
+import { color as T, font } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from '../components/Icon'
 import AiExplainButton from '../components/AiExplainButton'
@@ -442,7 +442,7 @@ export default function CashflowView({ orgId, sedeId, sedi = [], notify }) {
                   <div style={{
                     gridColumn: isMobile ? 'span 2' : 'span 3',
                     padding: '12px 14px', background: T.amberLight, border: `1px solid ${T.amber}55`,
-                    borderRadius: 10, fontSize: typo.size.base, color: T.amber, lineHeight: 1.5,
+                    borderRadius: 10, fontSize: font.size.base, color: T.amber, lineHeight: 1.5,
                     display: 'flex', gap: 8, alignItems: 'flex-start',
                   }}>
                     <Icon name="warning" size={14} color={T.amber} style={{ flexShrink: 0, marginTop: 2 }} />
@@ -464,7 +464,7 @@ export default function CashflowView({ orgId, sedeId, sedi = [], notify }) {
             <div style={{
               padding: '12px 14px', marginBottom: 16, borderRadius: 10,
               background: T.redLight, border: `1px solid ${T.red}55`,
-              fontSize: typo.size.base, color: T.red, lineHeight: 1.55,
+              fontSize: font.size.base, color: T.red, lineHeight: 1.55,
               display: 'flex', gap: 8, alignItems: 'flex-start', flexWrap: 'wrap',
             }}>
               <Icon name="alert" size={14} color={T.red} style={{ flexShrink: 0, marginTop: 2 }} />
@@ -479,7 +479,7 @@ export default function CashflowView({ orgId, sedeId, sedi = [], notify }) {
             <div style={{
               padding: '12px 14px', marginBottom: 16, borderRadius: 10,
               background: T.bgSubtle, border: `1px solid ${T.border}`,
-              fontSize: typo.size.base, color: MID, lineHeight: 1.55,
+              fontSize: font.size.base, color: MID, lineHeight: 1.55,
               display: 'flex', gap: 8, alignItems: 'flex-start', flexWrap: 'wrap',
             }}>
               <Icon name="clock" size={14} color={SOFT} style={{ flexShrink: 0, marginTop: 2 }} />
@@ -543,7 +543,7 @@ export default function CashflowView({ orgId, sedeId, sedi = [], notify }) {
               <div style={{ display: 'flex', gap: 6 }}>
                 {[30, 60, 90].map(d => (
                   <button key={d} onClick={() => setOrizzonte(d)}
-                    style={{ padding: '10px 16px', minHeight: 40, borderRadius: 999, border: `1px solid ${BORDER}`, background: orizzonte === d ? TXT : 'transparent', color: orizzonte === d ? '#FFF' : MID, fontSize: typo.size.base, fontWeight: 700, cursor: 'pointer' }}>
+                    style={{ padding: '10px 16px', minHeight: 40, borderRadius: 999, border: `1px solid ${BORDER}`, background: orizzonte === d ? TXT : 'transparent', color: orizzonte === d ? '#FFF' : MID, fontSize: font.size.base, fontWeight: 700, cursor: 'pointer' }}>
                     {d}gg
                   </button>
                 ))}
@@ -566,7 +566,7 @@ export default function CashflowView({ orgId, sedeId, sedi = [], notify }) {
             {riepilogo.n > 0 && riepilogo.stimate > 0 && (
               <div style={{
                 marginTop: 12, paddingTop: 12, borderTop: `1px solid ${BORDER}`,
-                fontSize: typo.size.base, color: SOFT, lineHeight: 1.55,
+                fontSize: font.size.base, color: SOFT, lineHeight: 1.55,
               }}>
                 {riepilogo.tutteStimate
                   ? 'Le date di scadenza non arrivano dalle fatture: le calcolo a 30 giorni dalla data del documento, o coi termini che hai impostato sul fornitore. Se un fornitore ha condizioni diverse, scrivile nella sua scheda in Fornitori e questa previsione si sposta di conseguenza.'
