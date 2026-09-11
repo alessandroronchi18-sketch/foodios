@@ -243,7 +243,7 @@ export default function HomeDipendente({
           </div>
           <div style={{ flex: 1, fontSize: 12.5, color: SOFT, lineHeight: 1.5 }}>
             <strong style={{ color: TXT }}>Suggerimento</strong>: aggiungi Foodos alla schermata Home per accedere come app
-            <span style={{ fontStyle: 'italic' }}> (tap sul menu del browser → "Aggiungi a Home")</span>.
+            <span style={{ fontStyle: 'italic' }}> (tocca il menu del browser e scegli "Aggiungi a Home")</span>.
           </div>
         </div>
       )}

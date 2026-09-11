@@ -75,12 +75,24 @@ export default function BrainView({ orgId, sedeId, user, nomeAttivita }) {
           n_ricette: 0,  // riempi se necessario
           mp_sotto_soglia: Object.values(mag || {}).filter(m => {
             const g = Number(m?.giacenza_g || m?.giacenza || 0)
-            const s = Number(m?.soglia_min_g || m?.soglia || 0)
+            // `soglia_g` è la chiave che il Magazzino scrive davvero.
+            // Qui si leggeva `soglia_min_g` / `soglia`, che nel magazzino non
+            // esistono (controllato: nove voci su nove hanno `soglia_g` e
+            // nessuna le altre due). Quindi la soglia era sempre zero, il
+            // conteggio "sotto soglia" sempre zero, e la chat rispondeva
+            // "nessun ingrediente sotto soglia" qualunque cosa ci fosse in
+            // magazzino. Lo stesso errore era già stato corretto in Ordini AI.
+            const s = Number(m?.soglia_g ?? m?.soglia_min_g ?? m?.soglia ?? 0)
             return s > 0 && g <= s
           }).length,
           fatture_aperte: fattureAperte,
         })
-      } catch {}
+      } catch (e) {
+        // Senza contesto la chat risponde sull'azienda senza sapere niente
+        // dell'azienda: meglio che si veda, e che lo sappia anche lei.
+        console.error('[Brain] contesto non caricato:', e)
+        if (alive) setContextSummary({ _errore: 'contesto non disponibile' })
+      }
     }
     loadCtx()
     return () => { alive = false }
@@ -120,6 +132,7 @@ export default function BrainView({ orgId, sedeId, user, nomeAttivita }) {
 Conosci il contesto della sua attivita' e rispondi a domande aperte usando i dati che hai.
 
 Contesto attivita': ${JSON.stringify(contextSummary || {})}
+${contextSummary?._errore ? 'ATTENZIONE: i dati dell\'attivita\' non si sono caricati. Dillo apertamente e non inventare numeri.' : ''}
 
 REGOLE:
 - Italiano corrente, tono diretto e professionale ma caldo.

@@ -228,8 +228,8 @@ Inventa 3 ricette diverse fra loro (es. una classica, una innovativa, una stagio
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', fontSize: 12 }}>
                 {r.tempo_preparazione_min && <Chip>⏱ {r.tempo_preparazione_min} min</Chip>}
                 {r.porzioni && <Chip>👥 {r.porzioni} porzioni</Chip>}
-                {r.food_cost_stimato_pz && <Chip>FC € {Number(r.food_cost_stimato_pz).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}/pz</Chip>}
-                {r.prezzo_consigliato && <Chip color={BRAND}>vendi € {Number(r.prezzo_consigliato).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Chip>}
+                {r.food_cost_stimato_pz && <Chip>Food cost {Number(r.food_cost_stimato_pz).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/pz</Chip>}
+                {r.prezzo_consigliato && <Chip color={BRAND}>vendi a {Number(r.prezzo_consigliato).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</Chip>}
               </div>
               {Array.isArray(r.ingredienti) && (
                 <div>

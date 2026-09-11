@@ -82,7 +82,7 @@ export default function DocumentaryView({ orgId, nomeAttivita }) {
                 style={{ textAlign: 'left', padding: 14, background: selected?.id === s.id ? '#FFF7ED' : CARD, border: `1px solid ${selected?.id === s.id ? BRAND : BORDER}`, borderRadius: 10, cursor: 'pointer' }}>
                 <div style={{ fontSize: 12, fontWeight: 700, color: BRAND }}>{s.periodo}</div>
                 <div style={{ fontSize: 12, color: SOFT, marginTop: 4 }}>
-                  {s.data_inizio} → {s.data_fine}
+                  {s.data_inizio} <Icon name="arrowR" size={11} style={{ verticalAlign: 'middle', opacity: 0.6 }} /> {s.data_fine}
                 </div>
               </button>
             ))}
