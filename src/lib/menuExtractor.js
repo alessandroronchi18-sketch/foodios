@@ -224,7 +224,7 @@ export async function extractMenuFromInput({ text = '', images = [] } = {}) {
       'Authorization': `Bearer ${session.access_token}`,
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
+      model: 'claude-sonnet-5',
       max_tokens: 4500,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content }],

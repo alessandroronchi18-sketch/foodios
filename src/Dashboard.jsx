@@ -396,7 +396,7 @@ Niente markdown, niente testo fuori dal JSON.`;
   try {
     const { text: raw, json: parsed } = await _callAi({
       feature: 'dashboard-monthly-insight',
-      model: 'claude-sonnet-4-6',
+      model: 'claude-sonnet-5',
       system: sys,
       prompt,
       maxTokens: 500,

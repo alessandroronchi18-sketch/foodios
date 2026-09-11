@@ -58,7 +58,7 @@ ${JSON.stringify(context, null, 2)}`
 
       const { text } = await callAi({
         feature: 'explain-kpi',
-        model: 'claude-sonnet-4-6',
+        model: 'claude-sonnet-5',
         system,
         prompt: userMsg,
         maxTokens: 400,

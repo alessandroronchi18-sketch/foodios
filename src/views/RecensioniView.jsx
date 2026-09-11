@@ -76,7 +76,7 @@ Genera le 3 risposte come da istruzioni.`
 
       const { json: parsed } = await callAi({
         feature: 'reply-recensioni',
-        model: 'claude-sonnet-4-6',
+        model: 'claude-sonnet-5',
         system,
         prompt: userMsg,
         maxTokens: 1000,

@@ -170,7 +170,7 @@ ${azioniStr}
       const history = messages.slice(-6).map(m => ({ role:m.role, content:m.content }));
       const { text } = await callAi({
         feature: 'azioni-chat',
-        model: 'claude-sonnet-4-6',
+        model: 'claude-sonnet-5',
         system: ctx,
         messages: [...history, { role: 'user', content: q }],
         maxTokens: 1000,

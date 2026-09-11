@@ -131,7 +131,7 @@ REGOLE:
 
       const { text: txt } = await callAi({
         feature: 'brain-chat',
-        model: 'claude-sonnet-4-6',
+        model: 'claude-sonnet-5',
         system,
         messages: newMsgs.map(m => ({ role: m.role, content: m.content })),
         maxTokens: 800,

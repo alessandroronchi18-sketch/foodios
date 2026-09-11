@@ -12,15 +12,16 @@ describe('estimateCostForCall', () => {
   })
 
   it('feature ignota + model opus → 0.080', () => {
-    expect(estimateCostForCall({ feature: 'xxx', model: 'claude-opus-4-7' })).toBe(0.080)
+    expect(estimateCostForCall({ feature: 'xxx', model: 'claude-opus-5' })).toBe(0.080)
   })
 
   it('feature ignota + model haiku → 0.001', () => {
     expect(estimateCostForCall({ feature: 'xxx', model: 'claude-haiku-4-5' })).toBe(0.001)
   })
 
-  it('feature ignota + model sonnet → 0.012', () => {
-    expect(estimateCostForCall({ feature: 'xxx', model: 'claude-sonnet-4-6' })).toBe(0.012)
+  it('feature ignota + model sonnet → 0.008', () => {
+    // Sonnet 5 costa meno di Sonnet 4.6: la stima per chiamata è scesa con lui.
+    expect(estimateCostForCall({ feature: 'xxx', model: 'claude-sonnet-5' })).toBe(0.008)
   })
 
   it('nessuna feature + nessun model → default 0.015', () => {
@@ -29,7 +30,7 @@ describe('estimateCostForCall', () => {
 
   it('model case-insensitive', () => {
     expect(estimateCostForCall({ model: 'CLAUDE-OPUS' })).toBe(0.080)
-    expect(estimateCostForCall({ model: 'Sonnet' })).toBe(0.012)
+    expect(estimateCostForCall({ model: 'Sonnet' })).toBe(0.008)
   })
 })
 

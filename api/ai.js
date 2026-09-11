@@ -12,11 +12,22 @@ const MIN_RESPONSE_MS = 200
 
 // Modelli consentiti al proxy: impedisce a un client di selezionare un modello
 // arbitrario/più costoso. Aggiornare qui se si introduce un nuovo modello.
-const DEFAULT_MODEL = 'claude-sonnet-4-6'
+const DEFAULT_MODEL = 'claude-sonnet-5'
 const ALLOWED_MODELS = new Set([
-  'claude-sonnet-4-6',
-  'claude-opus-4-7',
+  'claude-sonnet-5',
+  'claude-opus-5',
   'claude-haiku-4-5-20251001',
+])
+
+// Modelli su cui `temperature` (e gli altri parametri di campionamento) sono
+// stati RIMOSSI: mandarli fa tornare 400, non vengono ignorati.
+const MODELLI_SENZA_TEMPERATURE = new Set([
+  'claude-opus-5',
+  'claude-opus-4-8',
+  'claude-opus-4-7',
+  'claude-sonnet-5',
+  'claude-fable-5',
+  'claude-fable-5-1',
 ])
 
 function errResponse(error, status, req) {
@@ -116,7 +127,7 @@ export default async function handler(req) {
       operation: 'ai_call',
       user_agent: (req.headers.get('user-agent') || '').slice(0, 256),
       client_ip: ip,
-      new_data: { n_messages: body.messages.length, model: body.model || 'claude-sonnet-4-6' },
+      new_data: { n_messages: body.messages.length, model: body.model || 'claude-sonnet-5' },
     })
   } catch {}
 
@@ -125,11 +136,23 @@ export default async function handler(req) {
     // Sanitizza messages: solo role user/assistant accettati.
     // Un role 'system' iniettato dal client potrebbe sovrascrivere istruzioni
     // di sistema applicate altrove → filtriamo qui per sicurezza.
-    const sanitizedMessages = body.messages
+    const messaggiValidi = body.messages
       .slice(0, MAX_MESSAGES)
       .filter(m => m && (m.role === 'user' || m.role === 'assistant') && m.content != null)
+    // La conversazione deve COMINCIARE con un messaggio dell'utente: se il
+    // primo è dell'assistente, l'API risponde 400 e la funzione non parte.
+    //
+    // Non è teoria: l'assistente AI dentro l'app apre la chat con un saluto
+    // scritto da lui ("Ciao! Sono l'assistente di Foodos...") e poi mandava
+    // TUTTA la conversazione, saluto compreso. Quindi ogni domanda fatta a
+    // quell'assistente tornava indietro con un errore — da sempre. Il saluto
+    // si toglie qui, così vale per chiunque chiami il proxy, non solo per
+    // quella pagina.
+    let primo = 0
+    while (primo < messaggiValidi.length && messaggiValidi[primo].role === 'assistant') primo++
+    const sanitizedMessages = messaggiValidi.slice(primo)
     if (sanitizedMessages.length === 0) {
-      return errResponse('Messages: nessun ruolo user/assistant valido', 400, req)
+      return errResponse('Messages: serve almeno un messaggio dell\'utente', 400, req)
     }
     // Allow-list esplicita: NON fare spread di `body` (un client compromesso
     // potrebbe iniettare tools, stop_sequences, metadata, o un model arbitrario
@@ -163,7 +186,19 @@ export default async function handler(req) {
     } else {
       safeBody.system = SAFETY_PREFIX.trim()
     }
-    if (Number.isFinite(body.temperature) && body.temperature >= 0 && body.temperature <= 1) {
+    // `temperature` si inoltra SOLO ai modelli che lo accettano ancora.
+    //
+    // Sui modelli della generazione attuale (Opus 5, Sonnet 5, Opus 4.7/4.8)
+    // il parametro è stato rimosso: mandarlo non viene ignorato, fa tornare un
+    // 400 e la funzione AI non risponde. Oggi nessuna pagina lo manda, quindi
+    // il difetto è dormiente — ma basta una riga nuova in un componente per
+    // svegliarlo, e l'errore che ne uscirebbe ("400") non direbbe niente su
+    // cosa l'ha causato.
+    if (MODELLI_SENZA_TEMPERATURE.has(model)) {
+      if (body.temperature !== undefined) {
+        console.warn(`[ai] temperature ignorata: ${model} non la accetta più`)
+      }
+    } else if (Number.isFinite(body.temperature) && body.temperature >= 0 && body.temperature <= 1) {
       safeBody.temperature = body.temperature
     }
 

@@ -117,7 +117,7 @@ Instructions:
   const analyzeOneImage = async (imgData, imgMediaType) => {
     const { text, json: viaParser } = await callAi({
       feature: `foto-ocr-${mode}`,
-      model: 'claude-sonnet-4-6',
+      model: 'claude-sonnet-5',
       maxTokens: 1500,
       timeoutMs: 60_000,
       messages: [{

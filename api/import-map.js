@@ -19,7 +19,7 @@ const MAX_HEADERS = 200
 const MAX_SAMPLE_ROWS = 5
 
 // Costo AI contenuto: input ~1-2k token, output ~500 token. Sonnet 4.6 basta.
-const MODEL = 'claude-sonnet-4-6'
+const MODEL = 'claude-sonnet-5'
 
 function buildSystemPrompt() {
   return `Sei un esperto di data migration per software gestionale della ristorazione italiana.

@@ -109,7 +109,7 @@ Inventa 3 ricette diverse fra loro (es. una classica, una innovativa, una stagio
 
       const { json: parsed } = await callAi({
         feature: 'recipe-inventor',
-        model: 'claude-opus-4-7',
+        model: 'claude-opus-5',
         system,
         prompt: userMsg,
         maxTokens: 4000,

@@ -17,7 +17,7 @@ import { getEntitySchema, listEntities } from '../src/lib/importSchemas.js'
 const MIN_MS = 200
 const MAX_ROWS_PER_SHEET = 20
 const MAX_SHEETS = 10
-const MODEL = 'claude-sonnet-4-6'
+const MODEL = 'claude-sonnet-5'
 
 function buildSystemPrompt() {
   return `Sei un esperto di data migration per software gestionale della ristorazione italiana. Riconosci il FORMATO di file Excel/CSV che i clienti caricano e proponi come trasformarli in LONG (una riga per ogni combinazione delle dimensioni).

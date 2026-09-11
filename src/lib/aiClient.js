@@ -105,7 +105,7 @@ function logTelemetry(feature, ok, ms) {
 // Esempio:
 //   const { text, json, raw } = await callAi({
 //     feature: 'menu-engineering',
-//     model: 'claude-sonnet-4-6',
+//     model: 'claude-sonnet-5',
 //     system: 'Sei un consulente food cost...',
 //     prompt: 'Analizza questi prodotti: ...',
 //     maxTokens: 1500,
@@ -118,7 +118,7 @@ function logTelemetry(feature, ok, ms) {
 export async function callAi(opts) {
   const {
     feature = 'unknown',
-    model = 'claude-sonnet-4-6',
+    model = 'claude-sonnet-5',
     system,
     prompt,
     messages,           // alternative a `prompt`: array messages completo

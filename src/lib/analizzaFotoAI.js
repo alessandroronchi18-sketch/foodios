@@ -44,7 +44,7 @@ export async function analizzaFotoAI(file, tipo = 'ricetta') {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
+      model: 'claude-sonnet-5',
       max_tokens: 2000,
       messages: [{
         role: 'user',

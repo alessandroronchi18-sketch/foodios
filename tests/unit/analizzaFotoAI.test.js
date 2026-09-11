@@ -86,7 +86,7 @@ describe('analizzaFotoAI', () => {
     // body contiene il base64 e il mime
     const callArgs = globalThis.fetch.mock.calls[0][1]
     const body = JSON.parse(callArgs.body)
-    expect(body.model).toBe('claude-sonnet-4-6')
+    expect(body.model).toBe('claude-sonnet-5')
     expect(body.messages[0].content[0].source.data).toBe('QUJDREVG')
     expect(body.messages[0].content[0].source.media_type).toBe('image/jpeg')
   })

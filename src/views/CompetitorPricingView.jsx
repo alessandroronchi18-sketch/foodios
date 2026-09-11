@@ -163,7 +163,7 @@ Valuta se sono sotto, in linea o sopra, e dimmi cosa farei al posto mio.`
     try {
       const { json } = await callAi({
         feature: 'competitor-pricing',
-        model: 'claude-sonnet-4-6',
+        model: 'claude-sonnet-5',
         system,
         prompt: userMsg,
         maxTokens: 500,

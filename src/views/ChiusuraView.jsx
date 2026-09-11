@@ -447,7 +447,7 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
   const analyzeReceipt = async (imgData, mediaType) => {
     const { text, json: viaParser } = await callAi({
       feature: 'chiusura-ocr-scontrino',
-      model: 'claude-sonnet-4-6',
+      model: 'claude-sonnet-5',
       maxTokens: 2000,
       timeoutMs: 60_000,
       messages: [{ role: 'user', content: [

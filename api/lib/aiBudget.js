@@ -40,7 +40,11 @@ export function estimateCostForCall({ feature, model }) {
   const m = (model || '').toLowerCase()
   if (m.includes('opus')) return 0.080
   if (m.includes('haiku')) return 0.001
-  if (m.includes('sonnet')) return 0.012
+  // Sonnet 5 costa meno di Sonnet 4.6 (2 $ invece di 3 $ per milione di token
+  // in ingresso, 10 $ invece di 15 $ in uscita): la stima per chiamata scende
+  // in proporzione. Lasciarla a 0,012 avrebbe fatto scattare il tetto di spesa
+  // con un terzo di chiamate in meno del dovuto.
+  if (m.includes('sonnet')) return 0.008
   return 0.015
 }
 

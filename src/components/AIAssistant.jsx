@@ -119,10 +119,16 @@ export default function AIAssistant({ externalOpen, onOpenChange, hideFab = fals
     setInput('')
     setLoading(true)
     try {
-      const apiMessages = next.map(m => ({ role: m.role, content: m.content }))
+      // Il saluto di apertura è scritto da noi e sta solo a schermo: non va
+      // mandato all'AI. La conversazione che parte dall'assistente fa tornare
+      // un 400 ("il primo messaggio deve essere dell'utente"), quindi ogni
+      // domanda fatta qui dentro finiva in errore.
+      const primaDomanda = next.findIndex(m => m.role === 'user')
+      const apiMessages = (primaDomanda >= 0 ? next.slice(primaDomanda) : next)
+        .map(m => ({ role: m.role, content: m.content }))
       const { text } = await callAi({
         feature: 'ai-assistant',
-        model: 'claude-sonnet-4-6',
+        model: 'claude-sonnet-5',
         system: SYSTEM_PROMPT,
         messages: apiMessages,
         maxTokens: 800,

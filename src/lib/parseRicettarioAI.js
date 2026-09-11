@@ -267,7 +267,7 @@ export async function parseRicettarioAI(file) {
     // Opus 4.7 e' più preciso per parsing strutturato di layout complessi
     // (pivot, matrici, righe con header ripetuti). Il costo aggiuntivo vs
     // Sonnet e' accettabile per un flusso raro come l'import ricettario.
-    model: 'claude-opus-4-7',
+    model: 'claude-opus-5',
     system: SYSTEM_PROMPT,
     prompt: `Ecco il contenuto del file Excel. Estrai TUTTE le ricette (non solo le prime) e restituisci JSON.\n\n${promptText}`,
     maxTokens: 16_000,

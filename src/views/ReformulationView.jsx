@@ -140,7 +140,7 @@ Restituisci 3 varianti come da schema, italiano umano.`
     try {
       const { json } = await callAi({
         feature: 'reformulation',
-        model: 'claude-opus-4-7',
+        model: 'claude-opus-5',
         system,
         prompt: userMsg,
         maxTokens: 2500,
