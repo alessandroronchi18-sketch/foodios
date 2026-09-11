@@ -204,7 +204,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
               sedeIds: sede.id,
               dataFrom: isoMeno(curStart, GIORNI_RIPORTO_MAX),
               dataTo: isoDi(new Date(curEnd.getTime() - 86400000)),
-              columns: 'gusto_nome, data, produzione_g, rimanenza_g, scarto_g, spedito_g, sede_id',
+              columns: 'gusto_nome, data, produzione_g, rimanenza_g, scarto_g, spedito_g, scostamento_accettato, sede_id',
             }).catch(() => []),
           ])
 

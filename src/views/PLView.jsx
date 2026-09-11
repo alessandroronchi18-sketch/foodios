@@ -864,7 +864,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
       // come incasso. E si carica anche la settimana prima di `dateFrom`,
       // perché la rimanenza del giorno precedente è la giacenza di partenza:
       // senza quella il primo giorno del periodo risultava tutto venduto.
-      columns: 'gusto_nome, data, produzione_g, rimanenza_g, scarto_g, spedito_g',
+      columns: 'gusto_nome, data, produzione_g, rimanenza_g, scarto_g, spedito_g, scostamento_accettato',
     })
       .then(data => { if (alive) setInvRows(data || []) })
       .catch(() => { if (alive) setInvRows([]) })

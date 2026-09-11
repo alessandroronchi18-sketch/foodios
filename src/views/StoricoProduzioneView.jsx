@@ -141,7 +141,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
     // di questa pagina. E si caricano anche i giorni PRIMA del periodo, perché
     // la rimanenza del giorno precedente è la giacenza di partenza: senza
     // quella il primo giorno del periodo non si può calcolare.
-    const COLONNE_INV = 'gusto_nome, data, produzione_g, rimanenza_g, scarto_g, spedito_g, sede_id'
+    const COLONNE_INV = 'gusto_nome, data, produzione_g, rimanenza_g, scarto_g, spedito_g, scostamento_accettato, sede_id'
     setWin({ from, to, prevFrom, prevTo })
     const prevPromise = prevFrom
       ? fetchAllInventarioProduzione(orgId, {

@@ -23,6 +23,7 @@ import { C, PageHeader, TNUM, fmt0 } from './_shared'
 import {
   caricaSettimana, calcolaVendutoSettimana, lunediDellaSettimana,
   euroKgMedioFormati, kpiQuadraturaSettimana, classificaGusti, variazione,
+  accettaScostamento,
 } from '../lib/inventarioProduzione'
 
 // ── Helpers data/numeri (IT) ──────────────────────────────────────────────
@@ -122,7 +123,7 @@ function fmtDriftEur(v) {
   return `${sign}${abs} €`
 }
 
-export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAttiva, chiusure, metodoProduzione = 'stampi', onNavigate }) {
+export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAttiva, chiusure, metodoProduzione = 'stampi', onNavigate, notify }) {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
   const isAllSedi = sedeAttiva?._all === true
@@ -173,6 +174,49 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
   }, [orgId, sedeId, lunediIso])
 
   const matrice = useMemo(() => calcolaVendutoSettimana(righe, lunediIso), [righe, lunediIso])
+
+  // Le celle da controllare, una per una.
+  //
+  // La fascia diceva QUANTE sono, non QUALI: per trovarle bisognava aprire
+  // l'inventario e cercarle a occhio fra quattordici colonne. Sui dati del
+  // design partner sono 604 su 7.012, quindi "cercarle a occhio" vuol dire
+  // non trovarle mai.
+  const celleDaControllare = useMemo(() => {
+    const out = []
+    for (const [gusto, byData] of Object.entries(matrice || {})) {
+      for (const [dataIso, c] of Object.entries(byData)) {
+        if (!c?.daControllare) continue
+        out.push({
+          gusto, data: dataIso,
+          mancano: Math.abs(Number(c.venduto) || 0),
+          rimanPrec: c.rimanPrec, prod: c.prod, riman: c.riman,
+        })
+      }
+    }
+    return out.sort((a, b) => b.mancano - a.mancano)
+  }, [matrice])
+
+  const [accettando, setAccettando] = useState(null)   // chiave della cella in salvataggio
+  const [mostraTutteLeCelle, setMostraTutteLeCelle] = useState(false)
+
+  // "È giusta così": lo scostamento resta nel totale (la merce è uscita
+  // davvero) ma la cella esce dall'elenco delle cose da guardare.
+  const accettaCella = async (cella, nota) => {
+    const chiave = `${cella.gusto}|${cella.data}`
+    if (accettando) return
+    setAccettando(chiave)
+    try {
+      await accettaScostamento(orgId, sedeId, cella.gusto, cella.data, { accettato: true, nota })
+      // Ricarico la settimana: il conteggio in alto deve scendere subito.
+      const righeNuove = await caricaSettimana(orgId, sedeId, lunediIso)
+      setRighe(righeNuove)
+      notify?.(`${cella.gusto} del ${cella.data.slice(8, 10)}: segnata come giusta.`)
+    } catch (e) {
+      notify?.('Non ho potuto salvare: ' + (e?.message || 'rete'), false)
+    } finally {
+      setAccettando(null)
+    }
+  }
   const matricePrev = useMemo(
     () => calcolaVendutoSettimana(righePrev, addDays(lunediIso, -7)),
     [righePrev, lunediIso]
@@ -575,8 +619,69 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
                       e restano fuori dal totale.
                     </>
                   )}
-                  {' '}Le trovi segnate nell&apos;inventario settimanale.
+                  {' '}Eccole qui sotto.
                 </span>
+              </div>
+            )}
+
+            {/* QUALI sono. Prima la pagina diceva solo quante, e per trovarle
+                bisognava aprire l'inventario e cercarle a occhio fra quattordici
+                colonne: con 604 celle vuol dire non trovarle mai.
+                E "è giusta così" serve perché non tutte sono errori: un
+                omaggio, una vaschetta rovesciata, un assaggio. Quelle restano
+                nel totale — la merce è uscita davvero — ma escono dall'elenco
+                delle cose da guardare, così l'elenco cala invece di restare
+                rosso per sempre. */}
+            {celleDaControllare.length > 0 && (
+              <div style={{
+                marginTop: 10, border: `1px solid ${T.border}`, borderRadius: 12,
+                overflow: 'hidden', width: '100%', boxSizing: 'border-box',
+              }}>
+                {celleDaControllare.slice(0, mostraTutteLeCelle ? 200 : 5).map((c) => {
+                  const chiave = `${c.gusto}|${c.data}`
+                  const giorno = new Date(c.data + 'T12:00:00')
+                  return (
+                    <div key={chiave} style={{
+                      display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+                      padding: isMobile ? '10px 12px' : '10px 14px',
+                      borderTop: `1px solid ${T.borderSoft}`,
+                      fontSize: typo.small.fontSize, color: C.text,
+                    }}>
+                      <span style={{ fontWeight: 700, flex: '1 1 150px', minWidth: 0 }}>{c.gusto}</span>
+                      <span style={{ color: C.textSoft, whiteSpace: 'nowrap' }}>
+                        {giorno.toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: 'short' })}
+                      </span>
+                      <span style={{ ...TNUM, color: T.brand, fontWeight: 700, whiteSpace: 'nowrap' }}
+                        title={`Rimasti il giorno prima ${nKg(c.rimanPrec)} kg + prodotti ${nKg(c.prod)} kg, ma la rimanenza scritta è ${nKg(c.riman)} kg`}>
+                        mancano {nKg(c.mancano)} kg
+                      </span>
+                      <button type="button" disabled={accettando === chiave}
+                        onClick={() => accettaCella(c, 'verificata dal titolare')}
+                        style={{
+                          padding: '6px 12px', minHeight: 36, borderRadius: 8,
+                          border: `1px solid ${T.border}`, background: T.bgCard, color: C.textMid,
+                          fontSize: typo.small.fontSize, fontWeight: 700,
+                          cursor: accettando === chiave ? 'default' : 'pointer',
+                          opacity: accettando === chiave ? 0.6 : 1, whiteSpace: 'nowrap',
+                        }}>
+                        {accettando === chiave ? 'Salvo…' : 'È giusta così'}
+                      </button>
+                    </div>
+                  )
+                })}
+                {celleDaControllare.length > 5 && (
+                  <button type="button" onClick={() => setMostraTutteLeCelle(v => !v)}
+                    style={{
+                      width: '100%', padding: '10px 14px', minHeight: 40,
+                      border: 'none', borderTop: `1px solid ${T.borderSoft}`,
+                      background: T.bgSubtle, color: C.textMid,
+                      fontSize: typo.small.fontSize, fontWeight: 700, cursor: 'pointer',
+                    }}>
+                    {mostraTutteLeCelle
+                      ? 'Mostra solo le prime 5'
+                      : `Vedi tutte e ${celleDaControllare.length}`}
+                  </button>
+                )}
               </div>
             )}
 

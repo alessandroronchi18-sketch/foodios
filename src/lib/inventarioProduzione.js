@@ -106,7 +106,7 @@ export async function caricaSettimana(orgId, sedeId, lunediIso, opts = {}) {
 
   const { data, error } = await supabase
     .from('inventario_produzione')
-    .select('id, gusto_nome, data, produzione_g, rimanenza_g, scarto_g, spedito_g, note, updated_at')
+    .select('id, gusto_nome, data, produzione_g, rimanenza_g, scarto_g, spedito_g, note, updated_at, scostamento_accettato, scostamento_nota')
     .eq('organization_id', orgId)
     .eq('sede_id', sedeId)
     .gte('data', inizioIso)
@@ -120,6 +120,30 @@ export async function caricaSettimana(orgId, sedeId, lunediIso, opts = {}) {
 // specificati nel patch preservano il valore esistente sulla cella. Questo
 // evita che un import di sprechi azzeri silenziosamente uno `spedito_g`
 // precedentemente registrato per la stessa cella.
+// Segna (o toglie) l'accettazione dello scostamento su una cella.
+//
+// Diversa da salvaCella apposta: qui non si toccano i grammi. Chi accetta uno
+// scostamento sta dicendo "il conto non torna e va bene così", non sta
+// correggendo una pesata — e se passasse da salvaCella, che scrive tutti i
+// campi, un patch incompleto azzererebbe produzione o rimanenza.
+export async function accettaScostamento(orgId, sedeId, gustoNome, dataIso, { accettato, nota } = {}) {
+  if (!orgId || !sedeId || !gustoNome || !dataIso) throw new Error('accettaScostamento: dati mancanti')
+  const { data, error } = await supabase
+    .from('inventario_produzione')
+    .update({
+      scostamento_accettato: !!accettato,
+      scostamento_nota: accettato ? (String(nota || '').trim() || null) : null,
+    })
+    .eq('organization_id', orgId)
+    .eq('sede_id', sedeId)
+    .eq('gusto_nome', normGusto(gustoNome))
+    .eq('data', dataIso)
+    .select('id')
+  if (error) throw error
+  if (!data || data.length === 0) throw new Error('cella non trovata')
+  return data.length
+}
+
 export async function salvaCella(orgId, sedeId, gustoNome, dataIso, patch) {
   // Audit 2026-06-17 LOW: input negativo silenziato a 0. Logghiamo warning
   // se l'utente passa un valore <0 esplicito (typo) invece di azzerare
@@ -256,6 +280,11 @@ function indicizzaPerGustoGiorno(righe) {
       rimanenza_g: Number(r.rimanenza_g) || 0,
       scarto_g: Number(r.scarto_g) || 0,
       spedito_g: Number(r.spedito_g) || 0,
+      // Lo scostamento che il titolare ha già guardato e considera giusto
+      // (un omaggio, una rottura, un assaggio): resta nel totale col suo
+      // segno, ma non va più nell'elenco delle cose da controllare.
+      scostamento_accettato: !!r.scostamento_accettato,
+      scostamento_nota: r.scostamento_nota || null,
     }
     byKey[k] = prec ? {
       ...val,
@@ -263,9 +292,22 @@ function indicizzaPerGustoGiorno(righe) {
       rimanenza_g: prec.rimanenza_g + val.rimanenza_g,
       scarto_g: prec.scarto_g + val.scarto_g,
       spedito_g: prec.spedito_g + val.spedito_g,
+      // Se una sola delle righe sommate è accettata, la cella lo è.
+      scostamento_accettato: prec.scostamento_accettato || val.scostamento_accettato,
+      scostamento_nota: prec.scostamento_nota || val.scostamento_nota,
     } : val
   }
   return byKey
+}
+
+// Una cella va CONTROLLATA? Risponde anche a celle costruite altrove (o
+// vecchie), che hanno solo `quadra` e non conoscono l'accettazione dello
+// scostamento: in quel caso "non torna" vuol dire "da controllare", come
+// prima.
+export function cellaDaControllare(c) {
+  if (!c) return false
+  if (c.daControllare !== undefined) return !!c.daControllare
+  return c.quadra === false
 }
 
 // Calcola la cella di un singolo (gusto, giorno) dato l'indice completo.
@@ -299,9 +341,19 @@ export function cellaVenduto(byKey, gustoKey, dataIso) {
     }
   }
   const v = rimanPrec + prod - riman - scarto - spedito
+  const accettato = !!corrente.scostamento_accettato
   return {
     prod, riman, scarto, spedito, rimanPrec, giorniIndietro,
-    venduto: v, vendutoRaw: v, quadra: v >= 0, registrata: true,
+    venduto: v, vendutoRaw: v,
+    // `quadra` resta il fatto matematico (il conto torna o no).
+    // `daControllare` è la domanda pratica: c'è qualcosa da guardare?
+    // Una cella accettata non torna e non tornerà mai — è un omaggio, una
+    // rottura — ma non va più messa in fila con gli errori di compilazione.
+    quadra: v >= 0,
+    accettato,
+    daControllare: v < 0 && !accettato,
+    nota: corrente.scostamento_nota || null,
+    registrata: true,
     motivo: !(v >= 0)
       ? "il conto non torna: la rimanenza scritta è più alta di quanto c'era a disposizione"
       : (giorniIndietro > 1
@@ -397,6 +449,10 @@ export function serieVendutoMultiSede(righe) {
         const t = perData[c.data] || (perData[c.data] = {
           data: c.data, prod: 0, riman: 0, scarto: 0, spedito: 0,
           venduto: null, quadra: true, registrata: false, nonCalcolabili: 0,
+          // Anche la cella unita fra sedi deve portarsi dietro se c'è
+          // qualcosa DA CONTROLLARE: senza, i contatori a valle vedevano
+          // sempre zero.
+          daControllare: false,
         })
         t.prod += Number(c.prod) || 0
         t.riman += Number(c.riman) || 0
@@ -409,6 +465,7 @@ export function serieVendutoMultiSede(righe) {
         }
         t.venduto = (t.venduto == null ? 0 : t.venduto) + (Number(c.venduto) || 0)
         if (c.quadra === false) t.quadra = false
+        if (cellaDaControllare(c)) t.daControllare = true
       }
     }
   }
@@ -455,7 +512,7 @@ export function totaliPerGusto(righe, opts = {}) {
       t.celleNonCalcolabili += c.nonCalcolabili || 0
       if (c.venduto == null) continue
       t.vendTot += Number(c.venduto) || 0
-      if (c.quadra === false) { t.celleNonQuadrate++; t.gNonQuadrati += Number(c.venduto) || 0 }
+      if (cellaDaControllare(c)) { t.celleNonQuadrate++; t.gNonQuadrati += Number(c.venduto) || 0 }
     }
   }
   return out
@@ -475,7 +532,7 @@ export function dettaglioVenduto(matrice) {
         if (cell.registrata) celleNonCalcolabili++
         continue
       }
-      if (!cell.quadra) {
+      if (cellaDaControllare(cell)) {
         celleNonQuadrate++
         gNonQuadrati += cell.venduto
         giorniNonQuadrati.push(dataIso)
@@ -636,7 +693,7 @@ export function kpiQuadraturaSettimana(matrice, chiusureSettimana, euroKg, vendi
         continue
       }
       totVendutoG += Number(c.venduto) || 0
-      if (c.quadra === false) { celleNonQuadrate++; gNonQuadrati += Number(c.venduto) || 0 }
+      if (cellaDaControllare(c)) { celleNonQuadrate++; gNonQuadrati += Number(c.venduto) || 0 }
     }
   }
   const totVendutoKg = totVendutoG / 1000

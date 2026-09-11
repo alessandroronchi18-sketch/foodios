@@ -20,7 +20,7 @@
 // comportamento giusto.
 
 import { describe, it, expect } from 'vitest'
-import { totaliPerGusto, serieVendutoMultiSede, ricaviDaInventario } from '../../src/lib/inventarioProduzione'
+import { totaliPerGusto, serieVendutoMultiSede, ricaviDaInventario, cellaDaControllare } from '../../src/lib/inventarioProduzione'
 
 const r = (gusto, data, prod, riman, extra = {}) => ({
   gusto_nome: gusto, data, produzione_g: prod, rimanenza_g: riman,
@@ -236,5 +236,48 @@ describe('ricaviDaInventario', () => {
     const out = ricaviDaInventario(righe, formati, { da: '2026-05-02', a: '2026-05-02' })
     expect(out.ricavi).toBe(0)
     expect(out.kg).toBeLessThan(0)   // il dato grezzo resta visibile
+  })
+})
+
+// ── Scostamenti accettati ─────────────────────────────────────────────────
+//
+// Il conto del venduto a volte non torna per ragioni vere: un omaggio non
+// registrato, una vaschetta rovesciata, un assaggio. Sui dati del design
+// partner sono 604 celle su 7.012. Finora restavano rosse per sempre,
+// mescolate agli errori di compilazione che invece vanno corretti — e chi
+// guardava non aveva modo di distinguere "l'ho già vista, è così" da "non
+// l'ho ancora guardata".
+describe('scostamento accettato', () => {
+  const righe = (accettato) => ([
+    r('MENTA', '2026-05-01', 2000, 1000),
+    { ...r('MENTA', '2026-05-02', 500, 3000), scostamento_accettato: accettato, scostamento_nota: accettato ? 'vaschetta rovesciata' : null },
+  ])
+
+  it('una cella accettata non finisce più fra quelle da controllare', () => {
+    const senza = totaliPerGusto(righe(false))
+    const con = totaliPerGusto(righe(true))
+    expect(senza.MENTA.celleNonQuadrate).toBe(1)
+    expect(con.MENTA.celleNonQuadrate).toBe(0)
+  })
+
+  it('ma resta nel totale col suo segno: la merce è uscita davvero', () => {
+    const con = totaliPerGusto(righe(true))
+    // 1000 + 500 - 3000 = -1.500 g. Accettarla non fa ricomparire il gelato.
+    expect(con.MENTA.vendTot).toBe(-1500)
+  })
+
+  it('la cella porta con sé il perché', () => {
+    const serie = serieVendutoMultiSede(righe(true))
+    const cella = serie.MENTA.find(c => c.data === '2026-05-02')
+    expect(cella.daControllare).toBe(false)
+  })
+
+  it('le celle costruite altrove, senza il campo nuovo, si comportano come prima', () => {
+    // Compatibilità: chiunque passi una matrice fatta a mano (o dati vecchi)
+    // deve continuare a vedere "non torna" = "da controllare".
+    expect(cellaDaControllare({ quadra: false })).toBe(true)
+    expect(cellaDaControllare({ quadra: true })).toBe(false)
+    expect(cellaDaControllare({ quadra: false, daControllare: false })).toBe(false)
+    expect(cellaDaControllare(null)).toBe(false)
   })
 })

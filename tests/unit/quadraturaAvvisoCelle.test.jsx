@@ -86,8 +86,9 @@ describe('Quadratura — le caselle che non tornano si vedono', () => {
     await waitFor(() => {
       expect(screen.getByText(/casella non torna|caselle non tornano/i)).toBeTruthy()
     }, { timeout: 5000 })
-    // 200 g = 0,2 kg, con la virgola decimale italiana.
-    expect(screen.getByText(/0,2 kg/)).toBeTruthy()
+    // 200 g = 0,2 kg, con la virgola decimale italiana. Compare due volte: nel
+    // riepilogo della fascia e nella riga dell'elenco qui sotto.
+    expect(screen.getAllByText(/0,2 kg/).length).toBeGreaterThan(0)
     // E deve dire perche', non solo che c'e' un problema.
     expect(screen.getByText(/rimanenza scritta è più alta/i)).toBeTruthy()
   })
@@ -103,5 +104,38 @@ describe('Quadratura — le caselle che non tornano si vedono', () => {
     // ha finito di caricare e l'avviso, se servisse, sarebbe li'.
     await waitFor(() => expect(screen.getByText(/Cassa effettiva/i)).toBeTruthy(), { timeout: 5000 })
     expect(screen.queryByText(/caselle non tornano/i)).toBeNull()
+  })
+})
+
+// ── L'elenco delle celle da controllare ───────────────────────────────────
+//
+// La fascia diceva QUANTE caselle non tornano, non QUALI: per trovarle
+// bisognava aprire l'inventario e cercarle a occhio fra quattordici colonne.
+// Sui dati veri sono 604 su 7.012, quindi "cercarle a occhio" vuol dire non
+// trovarle mai.
+describe('Quadratura — quali caselle non tornano', () => {
+  beforeEach(() => {
+    vi.setSystemTime(new Date(`${LUN}T10:00:00`))
+  })
+
+  it('elenca il gusto, il giorno e quanto manca', async () => {
+    const mod = await import('../../src/lib/inventarioProduzione')
+    mod.caricaSettimana.mockImplementation(async () => RIGHE)
+    render(<QuadraturaInventarioView {...props} />)
+    await waitFor(() => expect(screen.getByText(/caselle non tornano|casella non torna/i)).toBeTruthy(), { timeout: 5000 })
+    expect(screen.getByText('NOCCIOLA')).toBeTruthy()
+    expect(screen.getAllByText(/mancano/i).length).toBeGreaterThan(0)
+    // E il modo per chiuderla: non tutte le differenze sono errori.
+    expect(screen.getByRole('button', { name: /è giusta così/i })).toBeTruthy()
+  })
+
+  it('una casella già verificata non compare nell elenco', async () => {
+    const mod = await import('../../src/lib/inventarioProduzione')
+    mod.caricaSettimana.mockImplementation(async () => RIGHE.map(r =>
+      r.data === '2026-09-08' ? { ...r, scostamento_accettato: true, scostamento_nota: 'omaggio' } : r))
+    render(<QuadraturaInventarioView {...props} />)
+    await waitFor(() => expect(screen.getByText(/Cassa effettiva/i)).toBeTruthy(), { timeout: 5000 })
+    expect(screen.queryByText(/caselle non tornano|casella non torna/i)).toBeNull()
+    expect(screen.queryByRole('button', { name: /è giusta così/i })).toBeNull()
   })
 })
