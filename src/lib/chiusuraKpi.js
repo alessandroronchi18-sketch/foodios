@@ -44,20 +44,41 @@ export function calcolaKpiChiusura(confronto = [], formati = [], movimenti = {})
   const totS  = righe.reduce((s, r) => s + num(r.spreco), 0) + eurSpreco
   const totMP = totV > 0 ? (totM / totV * 100) : 0
 
-  // Sell-through medio solo sulle righe che ce l'hanno: un prodotto venduto ma
-  // mai prodotto non ha una percentuale di smaltimento, e contarlo come zero
-  // abbasserebbe la media senza motivo.
+  // Sell-through: PEZZI VENDUTI sui PEZZI PRODOTTI, non la media delle
+  // percentuali riga per riga.
+  //
+  // Era una media non pesata: un prodotto con 2 pezzi prodotti contava come
+  // uno con 500. E questo numero finisce dentro ogni chiusura salvata, quindi
+  // se lo portavano dietro lo storico, il confronto fra sedi e il conto
+  // economico — dove veniva mediato una seconda e una terza volta, sempre
+  // senza peso. Le chiusure vecchie non hanno il dettaglio dei pezzi: per
+  // quelle resta la media di prima, che è meglio di niente.
+  //
+  // Righe senza `st` (un prodotto venduto ma mai prodotto) restano fuori: non
+  // hanno una percentuale di smaltimento, e contarle come zero abbassava il
+  // numero senza motivo.
   const conSt = righe.filter(r => r.st !== null && r.st !== undefined)
-  const avgST = conSt.length > 0 ? conSt.reduce((s, r) => s + num(r.st), 0) / conSt.length : 0
+  const pezziProdotti = conSt.reduce((s, r) => s + num(r.unitaP), 0)
+  const pezziVenduti  = conSt.reduce((s, r) => s + num(r.unitaV), 0)
+  const avgST = pezziProdotti > 0
+    ? (pezziVenduti / pezziProdotti) * 100
+    // Nessun pezzo da confrontare: `null`, non zero. Uno zero qui veniva
+    // colorato di rosso e letto come "non hai venduto niente", mentre vuol
+    // dire "non c'è un confronto da fare".
+    : (conSt.length > 0 ? conSt.reduce((s, r) => s + num(r.st), 0) / conSt.length : null)
 
   return {
-    totV, totFC, totM, totS, totMP, avgST,
+    totV, totFC, totM, totS, totMP, avgST, pezziProdotti, pezziVenduti,
     dettaglio: { ricaviRicette, ricaviFormati, fcRicette, fcFormati, fcMovimenti, eurSpreco, eurOmaggio },
   }
 }
 
 /** Colore del semaforo sul sell-through, coerente con le altre viste. */
 export function colorePerSellThrough(st, palette) {
+  // Nessun dato non è un brutto risultato: prima `null` cadeva nell'ultimo
+  // ramo e la tessera si colorava di ROSSO, come se non si fosse venduto
+  // niente.
+  if (st == null || !Number.isFinite(Number(st))) return palette.textSoft || palette.textMid
   if (st >= 85) return palette.green
   if (st >= 65) return palette.amber
   return palette.red

@@ -75,9 +75,34 @@ describe('sell-through medio', () => {
     expect(k.avgST).toBe(80)
   })
 
-  it('senza righe valorizzate la media è zero', () => {
+  it('senza righe da confrontare il sell-through è NULL, non zero', () => {
+    // Prima tornava 0, e un mese senza confronto fra prodotto e venduto
+    // mostrava "Sell-through 0,0%" con la tessera ROSSA: sembrava che non si
+    // fosse venduto niente, mentre voleva dire che non c'era niente da
+    // confrontare. È il difetto ricorrente "dato mancante → zero → verdetto".
     const k = calcolaKpiChiusura([{ rv: 10, fcV: 1, spreco: 0, st: null }], [], {})
-    expect(k.avgST).toBe(0)
+    expect(k.avgST).toBeNull()
+  })
+
+  it('pesa sui PEZZI quando ci sono, non sulle percentuali', () => {
+    // Riga da 2 pezzi prodotti smaltita al 50%, riga da 500 pezzi al 100%.
+    // La media non pesata darebbe 75%. Il sell-through vero è
+    // (1 + 500) / (2 + 500) = 99,8%.
+    const k = calcolaKpiChiusura([
+      { rv: 10, fcV: 1, spreco: 0, st: 50,  unitaP: 2,   unitaV: 1 },
+      { rv: 10, fcV: 1, spreco: 0, st: 100, unitaP: 500, unitaV: 500 },
+    ], [], {})
+    expect(k.avgST).toBeCloseTo(99.8, 1)
+    expect(k.pezziProdotti).toBe(502)
+    expect(k.pezziVenduti).toBe(501)
+  })
+
+  it('senza il dettaglio dei pezzi ricade sulla media (chiusure vecchie)', () => {
+    const k = calcolaKpiChiusura([
+      { rv: 10, fcV: 1, spreco: 0, st: 80 },
+      { rv: 10, fcV: 1, spreco: 0, st: 100 },
+    ], [], {})
+    expect(k.avgST).toBe(90)
   })
 })
 

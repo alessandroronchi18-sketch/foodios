@@ -1293,7 +1293,14 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
             <KPI icon={<Icon name="money" size={18} />} label="Ricavo" value={fmt0(totV)} highlight sub="incassato oggi"/>
             {!isDipendente && <KPI icon={<Icon name={totMP >= 60 ? 'trendUp' : 'trendDown'} size={18} />} label="Margine" value={fmt0(totM)} color={margColor(totMP)} sub={`${fmtp(totMP)} · ${totMP >= 60 ? 'sano' : totMP >= 40 ? 'da tenere d’occhio' : 'basso'}`}/>}
             {!isDipendente && <KPI icon={<Icon name="receipt" size={18} />} label="Food cost" value={fmt0(totFC)} color={C.red} sub={totV > 0 ? `${fmtp(totFC / totV * 100)} del ricavo` : 'materie prime'}/>}
-            <KPI icon={<Icon name="checkCircle" size={18} />} label="Sell-through" value={fmtp(avgST)} color={stC(avgST)} sub={`${stL.length} ${stL.length === 1 ? 'prodotto venduto' : 'prodotti'}`}/>
+            {/* Sell-through: quando non c'è un confronto fra prodotto e
+                venduto il valore è null, e va scritto "—" invece di "0,0%"
+                colorato di rosso. */}
+            <KPI icon={<Icon name="checkCircle" size={18} />} label="Sell-through"
+              value={avgST == null ? '—' : fmtp(avgST)} color={stC(avgST)}
+              sub={avgST == null
+                ? 'nessun confronto fra prodotto e venduto'
+                : `${stL.length} ${stL.length === 1 ? 'prodotto venduto' : 'prodotti'}`}/>
             {!isDipendente && <KPI icon={<Icon name="trash" size={18} />} label="Spreco" value={fmt0(totS)} color={totS > 5 ? C.red : C.green} sub={totS > 5 ? 'food cost invenduto' : 'sotto controllo'}/>}
           </div>
 

@@ -5,7 +5,7 @@ import { fetchAllInventarioProduzione, GIORNI_RIPORTO_MAX } from '../lib/inventa
 import AnalisiInventarioSection from './AnalisiInventarioSection'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend, ReferenceLine } from 'recharts'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
-import { color as T } from '../lib/theme'
+import { color as T, typo } from '../lib/theme'
 import { buildIngCosti, calcolaFCStorico, getR, resaGrammi } from '../lib/foodcost'
 import { useRicavoFlat } from '../lib/useRicavoFlat'
 import { useListinoSede, getRegSede } from '../lib/listinoSede'
@@ -22,7 +22,7 @@ import { C, KPI, SH, margColor, margBadge, fmt, fmt0, fmtp, ChartTip, Tip } from
 // - sort header keyboard accessibili + touch target ≥ 40px
 // - tabelle larghe scrollabili con minWidth + sticky prima colonna
 // - input date font ≥ 16px su mobile per evitare zoom iOS
-const AXIS_TICK    = { fill:'#64748B', fontSize:11 }
+const AXIS_TICK    = { fill:'#64748B', fontSize: typo.small.fontSize }
 const GRID_STROKE  = '#E5E9EF'
 const BAR_RADIUS_TOP = [6,6,0,0]
 // Formattatori asse Y: importo in IT, € dopo la cifra.
@@ -255,25 +255,46 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
     const chiusureFiltered = filterByDate(chiusure||[], c=>c.data);
     for (const ch of chiusureFiltered) {
       const k = getKey(ch.data);
-      if (!map[k]) map[k]={ key:k, chiusure:[], rvTot:0, fcTot:0, margTot:0, sproTot:0, byProd:{}, stSum:0, stCnt:0 };
+      if (!map[k]) map[k]={ key:k, chiusure:[], rvTot:0, fcTot:0, margTot:0, sproTot:0, byProd:{}, stSum:0, stCnt:0, pezziProdotti:0, pezziVenduti:0 };
       map[k].chiusure.push(ch);
       map[k].rvTot   += ch.kpi.totV||0;
       map[k].fcTot   += ch.kpi.totFC||0;
       map[k].margTot += ch.kpi.totM||0;
       map[k].sproTot += ch.kpi.totS||0;
-      // Solo le giornate che hanno DAVVERO un sell-through entrano nella
-      // media. Una chiusura registrata col solo totale non sa quanto è stato
+      // Solo le giornate che hanno DAVVERO un sell-through entrano nel conto.
+      // Una chiusura registrata col solo totale non sa quanto è stato
       // smaltito: contarla come 0% abbassava la media del mese senza motivo.
+      //
+      // E si sommano i PEZZI, non si fa la media delle percentuali. Il
+      // sell-through era una media di medie di medie, senza peso a nessun
+      // livello: un prodotto con 2 pezzi prodotti contava come uno con 500, e
+      // la tessera in alto si colorava di verde o di rosso su quel numero
+      // (soglie 85% e 65%). Il sell-through di un periodo è uno solo: pezzi
+      // venduti sui pezzi prodotti.
       if (ch.kpi.avgST != null) { map[k].stSum += ch.kpi.avgST; map[k].stCnt += 1; }
       for (const r of (ch.confronto||[])) {
         if (!map[k].byProd[r.nome]) map[k].byProd[r.nome]={ rv:0, unitaV:0, spreco:0 };
         map[k].byProd[r.nome].rv     += r.rv||0;
         map[k].byProd[r.nome].unitaV += r.unitaV||0;
         map[k].byProd[r.nome].spreco += r.spreco||0;
+        // Pezzi prodotti e venduti del periodo, per il sell-through pesato.
+        if (r.st != null) {
+          map[k].pezziProdotti += Number(r.unitaP) || 0
+          map[k].pezziVenduti  += Number(r.unitaV) || 0
+        }
       }
     }
     return Object.values(map).sort((a,b)=>a.key.localeCompare(b.key)).map(p=>({
-      ...p, margPct:p.rvTot>0?(p.margTot/p.rvTot*100):0, avgST:p.stCnt>0?(p.stSum/p.stCnt):null, label:fmtKey(p.key)
+      ...p,
+      margPct: p.rvTot>0 ? (p.margTot/p.rvTot*100) : 0,
+      // Sell-through pesato sui pezzi. Il vecchio `stSum/stCnt` (media delle
+      // percentuali giornaliere) resta solo come ripiego per le chiusure
+      // vecchie, che non hanno il dettaglio dei pezzi.
+      avgST: p.pezziProdotti > 0
+        ? (p.pezziVenduti / p.pezziProdotti) * 100
+        : (p.stCnt > 0 ? (p.stSum / p.stCnt) : null),
+      pesato: p.pezziProdotti > 0,
+      label: fmtKey(p.key)
     }));
   }, [chiusure, vista, dateFrom, dateTo]);
 
@@ -335,20 +356,20 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
     return (
       <div style={{ background:C.white, border:`1px solid ${C.border}`, borderRadius:10, padding:'10px 12px', boxShadow:'0 8px 24px rgba(15,23,42,0.14)', minWidth:190 }}>
         <div style={{ display:'flex', justifyContent:'space-between', gap:14, alignItems:'baseline', marginBottom:7, paddingBottom:6, borderBottom:`1px solid ${C.border}` }}>
-          <span style={{ fontSize:11.5, fontWeight:800, color:C.text }}>{label}</span>
-          <span style={{ fontSize:10.5, fontWeight:700, color:C.textSoft, fontVariantNumeric:'tabular-nums' }}>{n0(d.tot)} stampi</span>
+          <span style={{ fontSize: typo.small.fontSize, fontWeight:800, color:C.text }}>{label}</span>
+          <span style={{ fontSize: typo.small.fontSize, fontWeight:700, color:C.textSoft, fontVariantNumeric:'tabular-nums' }}>{n0(d.tot)} stampi</span>
         </div>
         {d.top.map(([nome,q],i)=>{
           const col = colorOf(nome);
           return (
           <div key={nome} style={{ display:'flex', justifyContent:'space-between', gap:14, alignItems:'baseline', padding:'2px 0' }}>
-            <span style={{ fontSize:11, fontWeight:600, color:col, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', maxWidth:170 }}>
+            <span style={{ fontSize: typo.small.fontSize, fontWeight:600, color:col, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', maxWidth:170 }}>
               <span style={{ display:'inline-block', width:15, color:C.textSoft, fontWeight:700 }}>{i+1}</span>{nome}
             </span>
-            <span style={{ fontSize:11, fontWeight:800, color:col, fontVariantNumeric:'tabular-nums', flexShrink:0 }}>{n0(q)}</span>
+            <span style={{ fontSize: typo.small.fontSize, fontWeight:800, color:col, fontVariantNumeric:'tabular-nums', flexShrink:0 }}>{n0(q)}</span>
           </div>
         );})}
-        {d.extra>0 && <div style={{ fontSize:10, color:C.textSoft, marginTop:5 }}>+{d.extra} altri prodotti</div>}
+        {d.extra>0 && <div style={{ fontSize: typo.small.fontSize, color:C.textSoft, marginTop:5 }}>+{d.extra} altri prodotti</div>}
       </div>
     );
   };
@@ -364,8 +385,15 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
   const totFV=periodiVend.reduce((s,p)=>s+p.fcTot,0);
   const totSV=periodiVend.reduce((s,p)=>s+p.sproTot,0);
   const totMV=totRV-totFV;
+  // Sell-through del periodo intero: pezzi venduti su pezzi prodotti. Prima
+  // era la media delle percentuali dei sotto-periodi, quindi una settimana da
+  // 20 pezzi pesava come una da 2.000.
+  const pezziProdTot = periodiVend.reduce((s,p)=>s+(p.pezziProdotti||0),0);
+  const pezziVendTot = periodiVend.reduce((s,p)=>s+(p.pezziVenduti||0),0);
   const conST=periodiVend.filter(p=>p.avgST!=null);
-  const avgST=conST.length>0?conST.reduce((s,p)=>s+p.avgST,0)/conST.length:null;
+  const avgST = pezziProdTot > 0
+    ? (pezziVendTot / pezziProdTot) * 100
+    : (conST.length>0 ? conST.reduce((s,p)=>s+p.avgST,0)/conST.length : null);
 
   // Formattazione box grandi: arrotonda all'unità + separatore migliaia IT (1.000).
   // useGrouping:'always' obbligatorio: senza, "4715" appare senza separatore migliaia
@@ -390,8 +418,14 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
         const rv  = vendList.reduce((s,p)=>s+p.rvTot,0);
         const fc  = vendList.reduce((s,p)=>s+p.fcTot,0);
         const spr = vendList.reduce((s,p)=>s+p.sproTot,0);
+        // Sell-through pesato anche qui: pezzi su pezzi, non media delle
+        // percentuali dei sotto-periodi.
+        const pzP = vendList.reduce((a,p)=>a+(p.pezziProdotti||0),0);
+        const pzV = vendList.reduce((a,p)=>a+(p.pezziVenduti||0),0);
         const conSt = vendList.filter(p=>p.avgST!=null);
-        const st  = conSt.length>0 ? conSt.reduce((s,p)=>s+p.avgST,0)/conSt.length : null;
+        const st  = pzP > 0
+          ? (pzV / pzP) * 100
+          : (conSt.length>0 ? conSt.reduce((s,p)=>s+p.avgST,0)/conSt.length : null);
         return { rv, marg:rv-fc, margPct:rv>0?((rv-fc)/rv*100):0, st, spreco:spr, stimato:false };
       }
       // fallback stimato da produzione (niente sell-through reale, niente spreco)
@@ -452,11 +486,11 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
   // Freccia di confronto: ▲ verde / ▼ rosso (o invertita per metriche dove "meno è meglio").
   const Delta = ({ now, before, invert=false, suffix='%' }) => {
     const d = deltaPct(now, before);
-    if (d==null) return <span style={{fontSize:11,color:C.textSoft,fontWeight:600}}>n/d</span>;
+    if (d==null) return <span style={{fontSize: typo.small.fontSize,color:C.textSoft,fontWeight:600}}>n/d</span>;
     const positivo = invert ? d<0 : d>0;
     const col = Math.abs(d)<0.05 ? C.textSoft : positivo ? C.green : C.red;
     return (
-      <span style={{display:'inline-flex',alignItems:'center',gap:3,fontSize:11.5,fontWeight:800,color:col,fontVariantNumeric:'tabular-nums'}}>
+      <span style={{display:'inline-flex',alignItems:'center',gap:3,fontSize: typo.small.fontSize,fontWeight:800,color:col,fontVariantNumeric:'tabular-nums'}}>
         <Icon name={d>=0?'trendUp':'trendDown'} size={12} />{d>=0?'+':''}{d.toFixed(1)}{suffix}
       </span>
     );
@@ -529,18 +563,18 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
     return (
       <div style={{ background:C.white, border:`1px solid ${C.border}`, borderRadius:10, padding:'10px 12px', boxShadow:'0 8px 24px rgba(15,23,42,0.14)', minWidth:210 }}>
         <div style={{ display:'flex', justifyContent:'space-between', gap:14, alignItems:'baseline', marginBottom:7, paddingBottom:6, borderBottom:`1px solid ${C.border}` }}>
-          <span style={{ fontSize:11.5, fontWeight:800, color:C.text }}>{label}</span>
-          <span style={{ fontSize:10.5, fontWeight:700, color:C.green, fontVariantNumeric:'tabular-nums' }}>{eur0(d.tot)}</span>
+          <span style={{ fontSize: typo.small.fontSize, fontWeight:800, color:C.text }}>{label}</span>
+          <span style={{ fontSize: typo.small.fontSize, fontWeight:700, color:C.green, fontVariantNumeric:'tabular-nums' }}>{eur0(d.tot)}</span>
         </div>
         {d.top.map(([nome,v],i)=>(
           <div key={nome} style={{ display:'flex', justifyContent:'space-between', gap:14, alignItems:'baseline', padding:'2px 0' }}>
-            <span style={{ fontSize:11, color:C.textMid, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', maxWidth:180 }}>
+            <span style={{ fontSize: typo.small.fontSize, color:C.textMid, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', maxWidth:180 }}>
               <span style={{ display:'inline-block', width:15, color:C.textSoft, fontWeight:700 }}>{i+1}</span>{nome}
             </span>
-            <span style={{ fontSize:11, fontWeight:800, color:C.text, fontVariantNumeric:'tabular-nums', flexShrink:0 }}>{eur0(v)}</span>
+            <span style={{ fontSize: typo.small.fontSize, fontWeight:800, color:C.text, fontVariantNumeric:'tabular-nums', flexShrink:0 }}>{eur0(v)}</span>
           </div>
         ))}
-        {d.extra>0 && <div style={{ fontSize:10, color:C.textSoft, marginTop:5 }}>+{d.extra} altri prodotti</div>}
+        {d.extra>0 && <div style={{ fontSize: typo.small.fontSize, color:C.textSoft, marginTop:5 }}>+{d.extra} altri prodotti</div>}
       </div>
     );
   };
@@ -554,15 +588,15 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
     const pctOf = x => d.ricavo>0 ? `${(x/d.ricavo*100).toFixed(0)}%` : '-';
     const Row = (col, nome, val, sub) => (
       <div style={{ display:'flex', justifyContent:'space-between', gap:16, alignItems:'baseline', padding:'2px 0' }}>
-        <span style={{ fontSize:11, fontWeight:600, color:col, display:'flex', alignItems:'center', gap:6 }}><span style={{width:9,height:9,borderRadius:2,background:col,display:'inline-block'}}/>{nome}</span>
-        <span style={{ fontSize:11, fontWeight:800, color:col, fontVariantNumeric:'tabular-nums', flexShrink:0 }}>{eur0(val)} <span style={{color:C.textSoft,fontWeight:600}}>· {sub}</span></span>
+        <span style={{ fontSize: typo.small.fontSize, fontWeight:600, color:col, display:'flex', alignItems:'center', gap:6 }}><span style={{width:9,height:9,borderRadius:2,background:col,display:'inline-block'}}/>{nome}</span>
+        <span style={{ fontSize: typo.small.fontSize, fontWeight:800, color:col, fontVariantNumeric:'tabular-nums', flexShrink:0 }}>{eur0(val)} <span style={{color:C.textSoft,fontWeight:600}}>· {sub}</span></span>
       </div>
     );
     return (
       <div style={{ background:C.white, border:`1px solid ${C.border}`, borderRadius:10, padding:'10px 12px', boxShadow:'0 8px 24px rgba(15,23,42,0.14)', minWidth:230 }}>
         <div style={{ display:'flex', justifyContent:'space-between', gap:14, alignItems:'baseline', marginBottom:7, paddingBottom:6, borderBottom:`1px solid ${C.border}` }}>
-          <span style={{ fontSize:11.5, fontWeight:800, color:C.text }}>{label}</span>
-          <span style={{ fontSize:10.5, fontWeight:700, color:C.text }}>Ricavo {eur0(d.ricavo)}</span>
+          <span style={{ fontSize: typo.small.fontSize, fontWeight:800, color:C.text }}>{label}</span>
+          <span style={{ fontSize: typo.small.fontSize, fontWeight:700, color:C.text }}>Ricavo {eur0(d.ricavo)}</span>
         </div>
         {Row(C.green, 'Margine (quello che resta)', d.marg, pctOf(d.marg))}
         {Row(C.red, 'Food cost (ingredienti venduti)', d.fc, pctOf(d.fc))}
@@ -580,15 +614,15 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
     const pctOf = x => d.ricavo>0 ? `${(x/d.ricavo*100).toFixed(0)}%` : '-';
     const Row = (col, nome, val, sub) => (
       <div style={{ display:'flex', justifyContent:'space-between', gap:16, alignItems:'baseline', padding:'2px 0' }}>
-        <span style={{ fontSize:11, fontWeight:600, color:col, display:'flex', alignItems:'center', gap:6 }}><span style={{width:9,height:9,borderRadius:2,background:col,display:'inline-block'}}/>{nome}</span>
-        <span style={{ fontSize:11, fontWeight:800, color:col, fontVariantNumeric:'tabular-nums', flexShrink:0 }}>{eur0(val)} <span style={{color:C.textSoft,fontWeight:600}}>· {sub}</span></span>
+        <span style={{ fontSize: typo.small.fontSize, fontWeight:600, color:col, display:'flex', alignItems:'center', gap:6 }}><span style={{width:9,height:9,borderRadius:2,background:col,display:'inline-block'}}/>{nome}</span>
+        <span style={{ fontSize: typo.small.fontSize, fontWeight:800, color:col, fontVariantNumeric:'tabular-nums', flexShrink:0 }}>{eur0(val)} <span style={{color:C.textSoft,fontWeight:600}}>· {sub}</span></span>
       </div>
     );
     return (
       <div style={{ background:C.white, border:`1px solid ${C.border}`, borderRadius:10, padding:'10px 12px', boxShadow:'0 8px 24px rgba(15,23,42,0.14)', minWidth:230 }}>
         <div style={{ display:'flex', justifyContent:'space-between', gap:14, alignItems:'baseline', marginBottom:7, paddingBottom:6, borderBottom:`1px solid ${C.border}` }}>
-          <span style={{ fontSize:11.5, fontWeight:800, color:C.text }}>{label}</span>
-          <span style={{ fontSize:10.5, fontWeight:700, color:C.text }}>Ricavo stim. {eur0(d.ricavo)}</span>
+          <span style={{ fontSize: typo.small.fontSize, fontWeight:800, color:C.text }}>{label}</span>
+          <span style={{ fontSize: typo.small.fontSize, fontWeight:700, color:C.text }}>Ricavo stim. {eur0(d.ricavo)}</span>
         </div>
         {Row(C.green, 'Margine stimato', d.marg, pctOf(d.marg))}
         {Row(C.red, 'Food cost', d.fc, pctOf(d.fc))}
@@ -649,7 +683,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
         {/* Preset rapidi: 1 click → dateFrom/dateTo. Copre giornaliero, settimanale,
             mensile, trimestrale, YTD. Da un giorno singolo alla stagione intera. */}
         <div style={{display:'flex', gap:8, flexWrap:'wrap', alignItems:'center'}}>
-          <span style={{fontSize:10, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.08em", color:C.textSoft, marginRight:4}}>Preset</span>
+          <span style={{fontSize: typo.small.fontSize, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.08em", color:C.textSoft, marginRight:4}}>Preset</span>
           {[
             ['oggi', 'Oggi'],
             ['ieri', 'Ieri'],
@@ -674,10 +708,10 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
         {/* Date custom + modalita' confronto sulla stessa riga (impilate su mobile) */}
         <div style={{display:'flex', gap:12, flexWrap:'wrap', alignItems:isMobile?'stretch':'center', flexDirection:isMobile?'column':'row'}}>
           <div style={{display:'flex', gap:8, alignItems:'center', flexWrap:'wrap'}}>
-            <span style={{fontSize:10, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.08em", color:C.textSoft}}>Da</span>
+            <span style={{fontSize: typo.small.fontSize, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.08em", color:C.textSoft}}>Da</span>
             <input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} aria-label="Data inizio"
               style={{padding:"10px 12px", minHeight:40, borderRadius:8, border:`1px solid ${C.borderStr}`, fontSize:isMobile?16:13, color:C.text, background:C.white, boxSizing:'border-box'}}/>
-            <span style={{fontSize:10, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.08em", color:C.textSoft}}>A</span>
+            <span style={{fontSize: typo.small.fontSize, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.08em", color:C.textSoft}}>A</span>
             <input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)} aria-label="Data fine"
               style={{padding:"10px 12px", minHeight:40, borderRadius:8, border:`1px solid ${C.borderStr}`, fontSize:isMobile?16:13, color:C.text, background:C.white, boxSizing:'border-box'}}/>
             {(dateFrom || dateTo) && (
@@ -688,7 +722,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
             )}
           </div>
           <div style={{display:'flex', gap:8, alignItems:'center', flexWrap:'wrap', marginLeft:isMobile?0:'auto'}}>
-            <span style={{fontSize:10, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.08em", color:C.textSoft}}>Confronta con</span>
+            <span style={{fontSize: typo.small.fontSize, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.08em", color:C.textSoft}}>Confronta con</span>
             <div style={{display:'inline-flex', background:'#F1F5F9', borderRadius:8, padding:3, gap:2}}>
               {[
                 ['periodoPrec', 'Periodo prec.'],
@@ -781,7 +815,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
             borderRight:isMobile?'none':`1px solid rgba(255,255,255,0.10)`}}>
             <div style={{display:'flex',alignItems:'center',gap:6,minHeight:20}}>
               <span style={{display:'inline-flex',color:'rgba(255,255,255,0.55)'}}><Icon name={icon} size={14} /></span>
-              <span style={{fontSize:10,fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase',color:'rgba(255,255,255,0.7)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
+              <span style={{fontSize: typo.small.fontSize,fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase',color:'rgba(255,255,255,0.7)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
                 {tip ? <Tip text={tip}><span style={{cursor:'help',borderBottom:'1px dotted rgba(255,255,255,0.35)'}}>{label}</span></Tip> : label}
               </span>
             </div>
@@ -789,7 +823,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
               <span style={{fontSize:isMobile?19:22,fontWeight:900,color:color||C.white,letterSpacing:'-0.02em',fontVariantNumeric:'tabular-nums'}}>{value}</span>
               {delta}
             </div>
-            <div style={{fontSize:10,color:'rgba(255,255,255,0.55)',lineHeight:1.4,minHeight:16}}>{sub||''}</div>
+            <div style={{fontSize: typo.small.fontSize,color:'rgba(255,255,255,0.55)',lineHeight:1.4,minHeight:16}}>{sub||''}</div>
           </div>
         );
         return (
@@ -800,10 +834,10 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
               padding:isMobile?'12px 14px 0':'14px 18px 0',flexWrap:'wrap'}}>
               <div style={{display:'flex',alignItems:'center',gap:8,minWidth:0}}>
                 <span style={{display:'inline-flex',color:'#fff'}}><Icon name="target" size={16} /></span>
-                <span style={{fontSize:11,fontWeight:800,letterSpacing:'0.06em',textTransform:'uppercase',color:'#fff'}}>Diagnosi</span>
-                <span style={{fontSize:10.5,color:'rgba(255,255,255,0.55)',fontWeight:500}}>· {periodoTxt}</span>
+                <span style={{fontSize: typo.small.fontSize,fontWeight:800,letterSpacing:'0.06em',textTransform:'uppercase',color:'#fff'}}>Diagnosi</span>
+                <span style={{fontSize: typo.small.fontSize,color:'rgba(255,255,255,0.55)',fontWeight:500}}>· {periodoTxt}</span>
               </div>
-              <span style={{fontSize:9.5,fontWeight:700,color:'rgba(255,255,255,0.55)'}}>
+              <span style={{fontSize: typo.small.fontSize,fontWeight:700,color:'rgba(255,255,255,0.55)'}}>
                 {stimato ? 'dati stimati da produzione' : 'dati reali da chiusure'}{prev ? ' · confronto vs periodo precedente' : ''}
               </span>
             </div>
@@ -831,7 +865,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
       {/* ─── TAB PRODUZIONE ─── */}
       {tab==="produzione"&&(
         <>
-          {!hasProd&&<div style={{textAlign:"center",padding:"40px 24px",background:C.bgCard,borderRadius:16,border:`1px solid ${C.border}`,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)",color:C.textSoft,fontSize:13,lineHeight:1.5}}><div style={{marginBottom:10,opacity:0.5,color:C.textSoft}}><Icon name="gift" size={32} /></div>Nessuna produzione registrata.<br/><span style={{fontSize:11,color:C.textSoft,marginTop:4,display:'inline-block'}}>Vai a <b style={{color:C.text}}>Produzione</b> dal menu per iniziare.</span></div>}
+          {!hasProd&&<div style={{textAlign:"center",padding:"40px 24px",background:C.bgCard,borderRadius:16,border:`1px solid ${C.border}`,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)",color:C.textSoft,fontSize:13,lineHeight:1.5}}><div style={{marginBottom:10,opacity:0.5,color:C.textSoft}}><Icon name="gift" size={32} /></div>Nessuna produzione registrata.<br/><span style={{fontSize: typo.small.fontSize,color:C.textSoft,marginTop:4,display:'inline-block'}}>Vai a <b style={{color:C.text}}>Produzione</b> dal menu per iniziare.</span></div>}
           {hasProd&&(
             <>
               <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,1fr)":isTablet?"repeat(3,1fr)":"repeat(5,1fr)",gap:10,marginBottom:24}}>
@@ -847,9 +881,9 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                   <BarChart data={dataProdTop} margin={{top:4,right:16,left:0,bottom:0}} barCategoryGap="28%">
                     <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false}/>
                     <XAxis dataKey="label" tick={AXIS_TICK} axisLine={false} tickLine={false}/>
-                    <YAxis tick={AXIS_TICK} axisLine={false} tickLine={false} allowDecimals={false} width={isMobile?38:46} label={{ value:'stampi', angle:-90, position:'insideLeft', fill:'#64748B', fontSize:11, dy:24 }}/>
+                    <YAxis tick={AXIS_TICK} axisLine={false} tickLine={false} allowDecimals={false} width={isMobile?38:46} label={{ value:'stampi', angle:-90, position:'insideLeft', fill:'#64748B', fontSize: typo.small.fontSize, dy:24 }}/>
                     <Tooltip content={<ProdTooltip/>} cursor={{fill:'rgba(110,14,26,0.04)'}}/>
-                    <Legend wrapperStyle={{fontSize:11,paddingTop:12}}/>
+                    <Legend wrapperStyle={{fontSize: typo.small.fontSize,paddingTop:12}}/>
                     {seriesProd.map((n,i)=>(
                       <Bar key={n} dataKey={n} stackId="a"
                         fill={n==="Altri"?ALTRI_COLOR:STACK_COLORS[i%STACK_COLORS.length]}
@@ -866,20 +900,20 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                     <XAxis dataKey="label" tick={AXIS_TICK} axisLine={false} tickLine={false}/>
                     <YAxis tickFormatter={yEUR} tick={AXIS_TICK} axisLine={false} tickLine={false} width={isMobile?52:64}/>
                     <Tooltip content={<EcoProdTooltip/>} cursor={{fill:'rgba(110,14,26,0.04)'}}/>
-                    <Legend wrapperStyle={{fontSize:11,paddingTop:12}}/>
+                    <Legend wrapperStyle={{fontSize: typo.small.fontSize,paddingTop:12}}/>
                     {/* Barra = ricavo stimato: margine (verde) sopra il food cost (rosso) */}
                     <Bar dataKey="FoodCost" stackId="e" name="Food cost" fill={C.red} barSize={isMobile?26:42}/>
                     <Bar dataKey="Margine"  stackId="e" name="Margine" fill={C.green} radius={BAR_RADIUS_TOP} barSize={isMobile?26:42}/>
                   </BarChart>
                 </ResponsiveContainer>
-                <div style={{fontSize:11,color:C.textSoft,marginTop:10,lineHeight:1.5,textAlign:"center"}}>
+                <div style={{fontSize: typo.small.fontSize,color:C.textSoft,marginTop:10,lineHeight:1.5,textAlign:"center"}}>
                   L'altezza è il <b>ricavo stimato</b>. Più verde = più margine. Passa il mouse per i dettagli.
                 </div>
               </div>
               <SH sub="Dettaglio per periodo">Riepilogo Periodi</SH>
               <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,overflow:"hidden",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
                 <div style={{overflowX:'auto'}}>
-                <table style={{width:"100%",minWidth:720,borderCollapse:"collapse",fontSize:11}}>
+                <table style={{width:"100%",minWidth:720,borderCollapse:"collapse",fontSize: typo.small.fontSize}}>
                   <thead>
                     <tr style={{background:"#F8F4F2"}}>
                       {COLS_RIEP.map((c,idx)=>(
@@ -887,7 +921,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                           onClick={()=>clickSort(c.key)}
                           onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();clickSort(c.key);}}}
                           title="Ordina" aria-sort={sortBy===c.key?(sortDir==='asc'?'ascending':'descending'):'none'}
-                          style={{padding:"12px 12px",textAlign:c.align==='left'?"left":"right",fontSize:10,fontWeight:700,letterSpacing:"0.05em",textTransform:"uppercase",color:sortBy===c.key?C.red:C.textSoft,borderBottom:`1px solid ${C.border}`,cursor:"pointer",userSelect:"none",whiteSpace:"nowrap",
+                          style={{padding:"12px 12px",textAlign:c.align==='left'?"left":"right",fontSize: typo.small.fontSize,fontWeight:700,letterSpacing:"0.05em",textTransform:"uppercase",color:sortBy===c.key?C.red:C.textSoft,borderBottom:`1px solid ${C.border}`,cursor:"pointer",userSelect:"none",whiteSpace:"nowrap",
                             ...(idx===0?{position:'sticky',left:0,background:'#F8F4F2',zIndex:1}:null)}}>
                           {c.label}<span style={{opacity:sortBy===c.key?1:0.25,marginLeft:4}}>{sortBy===c.key?(sortDir==='asc'?'▲':'▼'):'↕'}</span>
                         </th>
@@ -913,7 +947,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                           <td style={{padding:"10px 12px",textAlign:"right",color:C.red,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{eur0(p.fcTot)}</td>
                           <td style={{padding:"10px 12px",textAlign:"right",fontWeight:800,color:margColor(p.margPct),fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{eur0(p.margine)}</td>
                           <td style={{padding:"10px 12px",textAlign:"right"}}>{margBadge(p.margPct)}</td>
-                          <td style={{padding:"10px 12px",textAlign:"right",color:C.textSoft,fontSize:10,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',maxWidth:180}}>{top?`${top[0].replace("TORTA DI ","")} (${top[1]})`:"-"}</td>
+                          <td style={{padding:"10px 12px",textAlign:"right",color:C.textSoft,fontSize: typo.small.fontSize,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',maxWidth:180}}>{top?`${top[0].replace("TORTA DI ","")} (${top[1]})`:"-"}</td>
                         </tr>
                       );
                     })}
@@ -957,7 +991,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                     <XAxis dataKey="label" tick={AXIS_TICK} axisLine={false} tickLine={false}/>
                     <YAxis tickFormatter={yEUR} tick={AXIS_TICK} axisLine={false} tickLine={false} width={isMobile?52:64}/>
                     <Tooltip content={<VendTooltip/>} cursor={{fill:'rgba(110,14,26,0.04)'}}/>
-                    <Legend wrapperStyle={{fontSize:11,paddingTop:12}}/>
+                    <Legend wrapperStyle={{fontSize: typo.small.fontSize,paddingTop:12}}/>
                     {seriesVend.map((n,i)=>(
                       <Bar key={n} dataKey={n} stackId="a" fill={n==="Altri"?ALTRI_COLOR:STACK_COLORS[i%STACK_COLORS.length]} radius={i===seriesVend.length-1?BAR_RADIUS_TOP:[0,0,0,0]}/>
                     ))}
@@ -969,10 +1003,10 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
               <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:isMobile?"14px":"20px",marginBottom:12,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
                 {/* Zoom asse Y: parti da 0/25/50 per leggere meglio le differenze */}
                 <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12,flexWrap:"wrap"}}>
-                  <span style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.06em",color:C.textSoft}}>Zoom asse Y</span>
+                  <span style={{fontSize: typo.small.fontSize,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.06em",color:C.textSoft}}>Zoom asse Y</span>
                   {[[0,"0–100%"],[25,"25–100%"],[50,"50–100%"]].map(([v,lbl])=>(
                     <button key={v} onClick={()=>setStZoom(v)} aria-label={`Zoom asse Y ${lbl}`} aria-pressed={stZoom===v}
-                      style={{padding:"6px 12px",minHeight:32,borderRadius:999,border:`1px solid ${stZoom===v?C.red:C.border}`,background:stZoom===v?C.redLight:C.white,color:stZoom===v?C.red:C.textMid,fontSize:11,fontWeight:stZoom===v?800:600,cursor:"pointer"}}>{lbl}</button>
+                      style={{padding:"6px 12px",minHeight:32,borderRadius:999,border:`1px solid ${stZoom===v?C.red:C.border}`,background:stZoom===v?C.redLight:C.white,color:stZoom===v?C.red:C.textMid,fontSize: typo.small.fontSize,fontWeight:stZoom===v?800:600,cursor:"pointer"}}>{lbl}</button>
                   ))}
                 </div>
                 <ResponsiveContainer width="100%" height={isMobile?200:240}>
@@ -981,8 +1015,8 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                     <XAxis dataKey="label" tick={AXIS_TICK} axisLine={false} tickLine={false}/>
                     <YAxis domain={[stZoom,100]} allowDataOverflow tickFormatter={yPCT} tick={AXIS_TICK} axisLine={false} tickLine={false} width={isMobile?38:46}/>
                     <Tooltip content={<ChartTip/>} formatter={(v)=>[`${Number(v).toFixed(1)}%`,"Sell-through"]} cursor={{fill:'rgba(110,14,26,0.04)'}}/>
-                    <ReferenceLine y={85} stroke={C.green} strokeDasharray="4 4" label={{value:"85%",fill:C.green,fontSize:11}}/>
-                    <ReferenceLine y={65} stroke={C.amber} strokeDasharray="4 4" label={{value:"65%",fill:C.amber,fontSize:11}}/>
+                    <ReferenceLine y={85} stroke={C.green} strokeDasharray="4 4" label={{value:"85%",fill:C.green,fontSize: typo.small.fontSize}}/>
+                    <ReferenceLine y={65} stroke={C.amber} strokeDasharray="4 4" label={{value:"65%",fill:C.amber,fontSize: typo.small.fontSize}}/>
                     <Bar dataKey="Sell-Through" fill={C.red} radius={BAR_RADIUS_TOP}>
                       {dataST.map((d,i)=>(
                         <Cell key={i} fill={d["Sell-Through"]>=85?C.green:d["Sell-Through"]>=65?C.amber:C.red}/>
@@ -1000,13 +1034,13 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                     <XAxis dataKey="label" tick={AXIS_TICK} axisLine={false} tickLine={false}/>
                     <YAxis tickFormatter={yEUR} tick={AXIS_TICK} axisLine={false} tickLine={false} width={isMobile?52:64}/>
                     <Tooltip content={<ContoTooltip/>} cursor={{fill:'rgba(110,14,26,0.04)'}}/>
-                    <Legend wrapperStyle={{fontSize:11,paddingTop:12}}/>
+                    <Legend wrapperStyle={{fontSize: typo.small.fontSize,paddingTop:12}}/>
                     {/* Barra = ricavo: margine (verde) sopra il food cost (rosso) */}
                     <Bar dataKey="FoodCost" stackId="ce" name="Food cost (ingredienti)" fill={C.red} barSize={isMobile?26:42}/>
                     <Bar dataKey="Margine"  stackId="ce" name="Margine (ti resta)" fill={C.green} radius={BAR_RADIUS_TOP} barSize={isMobile?26:42}/>
                   </BarChart>
                 </ResponsiveContainer>
-                <div style={{fontSize:11,color:C.textSoft,marginTop:10,lineHeight:1.5,textAlign:"center"}}>
+                <div style={{fontSize: typo.small.fontSize,color:C.textSoft,marginTop:10,lineHeight:1.5,textAlign:"center"}}>
                   L'altezza della colonna è il <b>ricavo</b>. Più verde = più margine. Passa il mouse per vedere anche lo spreco.
                 </div>
               </div>
@@ -1017,18 +1051,18 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                 // Lista classifica con barre orizzontali proporzionali al valore max della lista.
                 const ListaRank = ({ rows, valKey, fmtVal, colorOf, max, positivo }) => (
                   <div style={{display:"flex",flexDirection:"column",gap:9}}>
-                    {rows.length===0 && <div style={{fontSize:11,color:C.textSoft}}>Dati non sufficienti.</div>}
+                    {rows.length===0 && <div style={{fontSize: typo.small.fontSize,color:C.textSoft}}>Dati non sufficienti.</div>}
                     {rows.map((p,i)=>{
                       const v = p[valKey];
                       const w = max>0 ? Math.max(3, Math.abs(v)/max*100) : 3;
                       const col = colorOf(p);
                       return (
                         <div key={p.nome} style={{display:"flex",alignItems:"center",gap:9}}>
-                          <span style={{fontSize:11,fontWeight:900,color:C.textSoft,width:16,textAlign:"right",flexShrink:0}}>{positivo?i+1:""}</span>
+                          <span style={{fontSize: typo.small.fontSize,fontWeight:900,color:C.textSoft,width:16,textAlign:"right",flexShrink:0}}>{positivo?i+1:""}</span>
                           <div style={{flex:1,minWidth:0}}>
                             <div style={{display:"flex",justifyContent:"space-between",gap:8,marginBottom:3}}>
-                              <span style={{fontSize:11,fontWeight:700,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{nomePulito(p.nome)}</span>
-                              <span style={{fontSize:11.5,fontWeight:900,color:col,fontVariantNumeric:"tabular-nums",flexShrink:0}}>{fmtVal(v)}</span>
+                              <span style={{fontSize: typo.small.fontSize,fontWeight:700,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{nomePulito(p.nome)}</span>
+                              <span style={{fontSize: typo.small.fontSize,fontWeight:900,color:col,fontVariantNumeric:"tabular-nums",flexShrink:0}}>{fmtVal(v)}</span>
                             </div>
                             <div style={{height:6,background:"#F0EAE6",borderRadius:3,overflow:"hidden"}}>
                               <div style={{height:6,width:`${w}%`,background:col,borderRadius:3,transition:"width .3s"}}/>
@@ -1047,7 +1081,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                       <span style={{display:"inline-flex",color:C.red}}><Icon name={icon} size={14} /></span>
                       <span style={{fontSize:12,fontWeight:800,color:C.text}}>{titolo}</span>
                     </div>
-                    <div style={{fontSize:10.5,color:C.textSoft,marginBottom:12}}>{sub}</div>
+                    <div style={{fontSize: typo.small.fontSize,color:C.textSoft,marginBottom:12}}>{sub}</div>
                     {children}
                   </div>
                 );
@@ -1105,9 +1139,18 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
             const worstDay = sorted[sorted.length-1];
             const fmt3 = d => d ? new Date(d+"T12:00").toLocaleDateString("it-IT",{day:"numeric",month:"short"}) : "-";
 
-            // Sell-through medio aggregato
-            const stVals = giorni.flatMap(g=>(g.confronto||[]).filter(r=>r.st!=null).map(r=>r.st));
-            const avgST  = stVals.length>0 ? stVals.reduce((s,v)=>s+v,0)/stVals.length : null;
+            // Sell-through del periodo: pezzi venduti sui pezzi prodotti.
+            // Prima era la media delle percentuali riga per riga: un prodotto
+            // con 2 pezzi prodotti pesava come uno con 500.
+            let pzP = 0, pzV = 0;
+            for (const g of giorni) {
+              for (const r of (g.confronto||[])) {
+                if (r.st == null) continue;
+                pzP += Number(r.unitaP) || 0;
+                pzV += Number(r.unitaV) || 0;
+              }
+            }
+            const avgST = pzP > 0 ? (pzV / pzP) * 100 : null;
 
             // Trend ultime 2 settimane vs precedenti
             const midIdx = Math.floor(n/2);
@@ -1152,7 +1195,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                   <div style={{display:"flex",alignItems:"center",gap:10,minWidth:0}}>
                     <div style={{width:3,height:34,background:C.red,borderRadius:2,flexShrink:0}}/>
                     <div style={{minWidth:0}}>
-                      <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:C.red,marginBottom:3}}>Overview aggregata</div>
+                      <div style={{fontSize: typo.small.fontSize,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:C.red,marginBottom:3}}>Overview aggregata</div>
                       <div style={{fontSize:isMobile?16:20,fontWeight:800,color:C.text,letterSpacing:"-0.02em"}}>
                         {n} {n===1?"giornata":"giornate"} · {fmt3(giorni[0].data)} – {fmt3(giorni[n-1].data)}
                       </div>
@@ -1163,7 +1206,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                       background:trendPct>=0?C.greenLight:C.redLight,
                       border:`1px solid ${trendPct>=0?C.green+"40":C.red+"40"}`}}>
                       <span style={{display:"inline-flex",color:trendPct>=0?C.green:C.red}}><Icon name={trendPct>=0?"trendUp":"trendDown"} size={14} /></span>
-                      <span style={{fontSize:11,fontWeight:800,color:trendPct>=0?C.green:C.red}}>
+                      <span style={{fontSize: typo.small.fontSize,fontWeight:800,color:trendPct>=0?C.green:C.red}}>
                         {trendPct>=0?"+":""}{trendPct.toFixed(1)}% ricavo medio (2ª metà vs 1ª)
                       </span>
                     </div>
@@ -1185,11 +1228,11 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                       boxShadow:hi?"0 4px 14px rgba(110,14,26,0.22)":"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)",
                       display:'flex',flexDirection:'column'}}>
                       <div style={{marginBottom:4,color:hi?C.white:color}}><Icon name={icon} size={15} /></div>
-                      <div style={{fontSize:9,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",
+                      <div style={{fontSize: typo.small.fontSize,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",
                         color:hi?`rgba(255,255,255,0.6)`:C.textSoft,marginBottom:3,minHeight:24,lineHeight:1.25}}>{lbl}</div>
                       <div style={{fontSize:16,fontWeight:900,color:hi?C.white:color,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'",minHeight:22,lineHeight:1.1,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{val}</div>
                       {sub
-                        ? <div style={{fontSize:9,color:hi?`rgba(255,255,255,0.55)`:C.textSoft,marginTop:2,minHeight:18,lineHeight:1.3,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{sub}</div>
+                        ? <div style={{fontSize: typo.small.fontSize,color:hi?`rgba(255,255,255,0.55)`:C.textSoft,marginTop:2,minHeight:18,lineHeight:1.3,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{sub}</div>
                         : <div style={{minHeight:18,marginTop:2}}/>}
                     </div>
                   ))}
@@ -1199,7 +1242,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                 <div style={{display:"grid",gridTemplateColumns:isMobile||isTablet?"1fr":"1fr 280px",gap:14,marginBottom:14}}>
                   {/* Trend ricavi */}
                   <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"16px 20px",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
-                    <div style={{fontSize:11,fontWeight:800,color:C.text,marginBottom:12}}>Ricavi & margine giornalieri</div>
+                    <div style={{fontSize: typo.small.fontSize,fontWeight:800,color:C.text,marginBottom:12}}>Ricavi & margine giornalieri</div>
                     <ResponsiveContainer width="100%" height={160}>
                       <BarChart data={chartData} margin={{top:4,right:8,left:0,bottom:0}} barSize={n<=14?14:n<=20?10:6}>
                         <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false}/>
@@ -1211,7 +1254,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                         <Bar dataKey="Spreco"  fill={C.amber} opacity={0.6} radius={BAR_RADIUS_TOP}/>
                       </BarChart>
                     </ResponsiveContainer>
-                    <div style={{display:"flex",gap:14,marginTop:6,fontSize:9,color:C.textSoft}}>
+                    <div style={{display:"flex",gap:14,marginTop:6,fontSize: typo.small.fontSize,color:C.textSoft}}>
                       {[[C.red,"Ricavi"],[C.green,"Margine"],[C.amber,"Spreco"]].map(([c,l])=>(
                         <span key={l} style={{display:"flex",alignItems:"center",gap:3}}>
                           <span style={{width:8,height:8,borderRadius:2,background:c,display:"inline-block"}}/>
@@ -1223,16 +1266,16 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
 
                   {/* Top prodotti */}
                   <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"16px 20px",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
-                    <div style={{fontSize:11,fontWeight:800,color:C.text,marginBottom:10,display:"flex",alignItems:"center",gap:6}}><Icon name="trophy" size={13} />Top {LEX.prodotti} per ricavo</div>
-                    {topProd.length===0 && <div style={{fontSize:10,color:C.textSoft}}>Dati non disponibili - salva chiusure con scontrino per vederli.</div>}
+                    <div style={{fontSize: typo.small.fontSize,fontWeight:800,color:C.text,marginBottom:10,display:"flex",alignItems:"center",gap:6}}><Icon name="trophy" size={13} />Top {LEX.prodotti} per ricavo</div>
+                    {topProd.length===0 && <div style={{fontSize: typo.small.fontSize,color:C.textSoft}}>Dati non disponibili - salva chiusure con scontrino per vederli.</div>}
                     {topProd.map(([nome,d],i)=>(
                       <div key={nome} style={{display:"flex",alignItems:"center",gap:8,marginBottom:7}}>
-                        <span style={{fontSize:11,fontWeight:900,color:C.textSoft,width:14,textAlign:"right"}}>{i+1}</span>
+                        <span style={{fontSize: typo.small.fontSize,fontWeight:900,color:C.textSoft,width:14,textAlign:"right"}}>{i+1}</span>
                         <div style={{flex:1,minWidth:0}}>
-                          <div style={{fontSize:10,fontWeight:700,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                          <div style={{fontSize: typo.small.fontSize,fontWeight:700,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
                             {nome.replace("TORTA DI ","").replace("TORTA ","").replace(" BREAD","")}
                           </div>
-                          <div style={{fontSize:9,color:C.textSoft}}>{d.qta} pz · {d.spreco>0?`spreco ${euro(d.spreco.toFixed(2))}`:"spreco 0"}</div>
+                          <div style={{fontSize: typo.small.fontSize,color:C.textSoft}}>{d.qta} pz · {d.spreco>0?`spreco ${euro(d.spreco.toFixed(2))}`:"spreco 0"}</div>
                         </div>
                         <div style={{fontSize:12,fontWeight:800,color:C.green,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'",flexShrink:0}}>{euro(d.rv.toFixed(2))}</div>
                       </div>
@@ -1244,28 +1287,28 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                 <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(3,1fr)",gap:10,marginBottom:14}}>
                   {/* Miglior giorno */}
                   <div style={{background:"linear-gradient(135deg,#EAF5EE,#FFF)",border:`1px solid ${C.green}30`,borderRadius:16,padding:"14px 16px",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
-                    <div style={{fontSize:9,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:C.green,marginBottom:6,display:"flex",alignItems:"center",gap:5}}><Icon name="trophy" size={11} />Miglior giorno</div>
+                    <div style={{fontSize: typo.small.fontSize,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:C.green,marginBottom:6,display:"flex",alignItems:"center",gap:5}}><Icon name="trophy" size={11} />Miglior giorno</div>
                     <div style={{fontSize:15,fontWeight:900,color:C.text}}>{fmt3(bestDay?.data)}</div>
                     <div style={{fontSize:13,color:C.green,fontWeight:700,marginTop:2}}>{euro((bestDay?.kpi?.totV||0).toFixed(2))}</div>
-                    <div style={{fontSize:10,color:C.textSoft,marginTop:3}}>
+                    <div style={{fontSize: typo.small.fontSize,color:C.textSoft,marginTop:3}}>
                       marg. {pct(bestDay?.kpi?.totMP)}{bestDay?.kpi?.avgST!=null?` · ST ${pct(bestDay.kpi.avgST)}`:''}
                     </div>
                   </div>
                   {/* Peggior giorno */}
                   <div style={{background:"linear-gradient(135deg,#FEF3C7,#FFF)",border:`1px solid ${C.amber}30`,borderRadius:16,padding:"14px 16px",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
-                    <div style={{fontSize:9,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:C.amber,marginBottom:6,display:"flex",alignItems:"center",gap:5}}><Icon name="warning" size={11} />Giorno più debole</div>
+                    <div style={{fontSize: typo.small.fontSize,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:C.amber,marginBottom:6,display:"flex",alignItems:"center",gap:5}}><Icon name="warning" size={11} />Giorno più debole</div>
                     <div style={{fontSize:15,fontWeight:900,color:C.text}}>{fmt3(worstDay?.data)}</div>
                     <div style={{fontSize:13,color:C.amber,fontWeight:700,marginTop:2}}>{euro((worstDay?.kpi?.totV||0).toFixed(2))}</div>
-                    <div style={{fontSize:10,color:C.textSoft,marginTop:3}}>
+                    <div style={{fontSize: typo.small.fontSize,color:C.textSoft,marginTop:3}}>
                       marg. {pct(worstDay?.kpi?.totMP)} · ST {pct(worstDay?.kpi?.avgST)}
                     </div>
                   </div>
                   {/* Spreco insight */}
                   <div style={{background:"linear-gradient(135deg,#FDECEA,#FFF)",border:`1px solid ${C.red}20`,borderRadius:16,padding:"14px 16px",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
-                    <div style={{fontSize:9,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:C.red,marginBottom:6,display:"flex",alignItems:"center",gap:5}}><Icon name="trash" size={11} />Impatto spreco</div>
+                    <div style={{fontSize: typo.small.fontSize,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:C.red,marginBottom:6,display:"flex",alignItems:"center",gap:5}}><Icon name="trash" size={11} />Impatto spreco</div>
                     <div style={{fontSize:15,fontWeight:900,color:C.text}}>{euro(totSpreco.toFixed(2))}</div>
-                    <div style={{fontSize:10,color:C.textSoft,marginTop:2}}>{pct(totRicavi>0?(totSpreco/totRicavi*100):0)} dei ricavi</div>
-                    <div style={{fontSize:10,color:C.red,fontWeight:700,marginTop:4,display:"flex",alignItems:"center",gap:4}}>
+                    <div style={{fontSize: typo.small.fontSize,color:C.textSoft,marginTop:2}}>{pct(totRicavi>0?(totSpreco/totRicavi*100):0)} dei ricavi</div>
+                    <div style={{fontSize: typo.small.fontSize,color:C.red,fontWeight:700,marginTop:4,display:"flex",alignItems:"center",gap:4}}>
                       {totRicavi>0&&totSpreco/totRicavi>0.05
                         ? <><Icon name="warning" size={11} /><span>sopra soglia (5%)</span></>
                         : <><Icon name="check" size={11} /><span>{totSpreco===0?"nessuno spreco rilevato":"sotto controllo"}</span></>}
@@ -1280,11 +1323,11 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                       Dettaglio prodotti - totale periodo
                     </div>
                     <div style={{overflowX:'auto'}}>
-                    <table style={{width:"100%",minWidth:640,borderCollapse:"collapse",fontSize:11}}>
+                    <table style={{width:"100%",minWidth:640,borderCollapse:"collapse",fontSize: typo.small.fontSize}}>
                       <thead>
                         <tr style={{background:"#F8F4F2"}}>
                           {[LEX.Prodotto,"Pz venduti","Ricavo tot.","Ricavo/gg","Spreco FC","% su totale"].map((h,i)=>(
-                            <th key={h} style={{padding:"10px 12px",textAlign:i===0?"left":"right",fontSize:10,fontWeight:700,
+                            <th key={h} style={{padding:"10px 12px",textAlign:i===0?"left":"right",fontSize: typo.small.fontSize,fontWeight:700,
                               letterSpacing:"0.05em",textTransform:"uppercase",color:C.textSoft,whiteSpace:'nowrap',
                               borderBottom:`1px solid ${C.border}`,
                               ...(i===0?{position:'sticky',left:0,background:'#F8F4F2',zIndex:1}:null)}}>{h}</th>
@@ -1296,7 +1339,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                           const rowBg = i%2===0?"#FFFAF8":"#FFF";
                           return (
                           <tr key={nome} style={{borderBottom:`1px solid ${C.border}`,background:rowBg}}>
-                            <td style={{padding:"9px 12px",fontWeight:700,color:C.text,fontSize:11,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',maxWidth:220,position:'sticky',left:0,background:rowBg,zIndex:1}}>{nome}</td>
+                            <td style={{padding:"9px 12px",fontWeight:700,color:C.text,fontSize: typo.small.fontSize,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',maxWidth:220,position:'sticky',left:0,background:rowBg,zIndex:1}}>{nome}</td>
                             <td style={{padding:"9px 12px",textAlign:"right",color:C.textMid,fontVariantNumeric:'tabular-nums'}}>{d.qta}</td>
                             <td style={{padding:"9px 12px",textAlign:"right",fontWeight:800,color:C.green,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{euro(d.rv.toFixed(2))}</td>
                             <td style={{padding:"9px 12px",textAlign:"right",color:C.textMid,fontVariantNumeric:'tabular-nums'}}>{euro((d.rv/n).toFixed(2))}</td>
@@ -1322,7 +1365,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
               <SH sub="Ogni giornata chiusa con scontrino">Storico Chiusure</SH>
               <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,overflow:"hidden",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
                 <div style={{overflowX:'auto'}}>
-                <table style={{width:"100%",minWidth:760,borderCollapse:"collapse",fontSize:11}}>
+                <table style={{width:"100%",minWidth:760,borderCollapse:"collapse",fontSize: typo.small.fontSize}}>
                   <thead>
                     <tr style={{background:"#F8F4F2"}}>
                       {(() => {
@@ -1342,7 +1385,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                             onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.currentTarget.click();}}}
                             title="Ordina"
                             aria-sort={chiSort.key===c.key?(chiSort.dir==='asc'?'ascending':'descending'):'none'}
-                            style={{padding:"12px 12px",textAlign:c.align==='left'?"left":"right",fontSize:10,fontWeight:700,letterSpacing:"0.05em",textTransform:"uppercase",color:chiSort.key===c.key?C.red:C.textSoft,borderBottom:`1px solid ${C.border}`,cursor:"pointer",userSelect:"none",whiteSpace:"nowrap",
+                            style={{padding:"12px 12px",textAlign:c.align==='left'?"left":"right",fontSize: typo.small.fontSize,fontWeight:700,letterSpacing:"0.05em",textTransform:"uppercase",color:chiSort.key===c.key?C.red:C.textSoft,borderBottom:`1px solid ${C.border}`,cursor:"pointer",userSelect:"none",whiteSpace:"nowrap",
                               ...(idx===0?{position:'sticky',left:0,background:'#F8F4F2',zIndex:1}:null)}}>
                             {c.h}<span style={{opacity:chiSort.key===c.key?1:0.25,marginLeft:4}}>{chiSort.key===c.key?(chiSort.dir==='asc'?'▲':'▼'):'↕'}</span>
                           </th>
@@ -1437,7 +1480,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                       <XAxis dataKey="label" tick={AXIS_TICK} axisLine={false} tickLine={false}/>
                       <YAxis tickFormatter={yEUR} tick={AXIS_TICK} axisLine={false} tickLine={false} width={isMobile?52:64}/>
                       <Tooltip content={<ChartTip/>} formatter={(v,n)=>[fmt(v),n]} cursor={{fill:'rgba(110,14,26,0.04)'}}/>
-                      <Legend wrapperStyle={{fontSize:11,paddingTop:12}}/>
+                      <Legend wrapperStyle={{fontSize: typo.small.fontSize,paddingTop:12}}/>
                       <Bar dataKey="Ricavo stimato" name="Stimato" fill="#8497B0" radius={BAR_RADIUS_TOP} maxBarSize={46}/>
                       <Bar dataKey="Ricavo reale"   name="Reale"   fill={C.green}  radius={BAR_RADIUS_TOP} maxBarSize={46}/>
                     </BarChart>
@@ -1451,7 +1494,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                       <XAxis dataKey="label" tick={AXIS_TICK} axisLine={false} tickLine={false}/>
                       <YAxis tickFormatter={yEUR} tick={AXIS_TICK} axisLine={false} tickLine={false} width={isMobile?52:64}/>
                       <Tooltip content={<ChartTip/>} formatter={(v,n)=>[fmt(v),n]} cursor={{fill:'rgba(110,14,26,0.04)'}}/>
-                      <Legend wrapperStyle={{fontSize:11,paddingTop:12}}/>
+                      <Legend wrapperStyle={{fontSize: typo.small.fontSize,paddingTop:12}}/>
                       <Bar dataKey="Margine stimato" name="Stimato" fill="#8497B0" radius={BAR_RADIUS_TOP} maxBarSize={46}/>
                       <Bar dataKey="Margine reale"   name="Reale"   fill={C.green}  radius={BAR_RADIUS_TOP} maxBarSize={46}/>
                     </BarChart>
@@ -1461,11 +1504,11 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                 <SH sub="Per ogni periodo con entrambi i dati">Dettaglio Confronto</SH>
                 <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,overflow:"hidden",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
                   <div style={{overflowX:'auto'}}>
-                  <table style={{width:"100%",minWidth:760,borderCollapse:"collapse",fontSize:11}}>
+                  <table style={{width:"100%",minWidth:760,borderCollapse:"collapse",fontSize: typo.small.fontSize}}>
                     <thead>
                       <tr style={{background:"#F8F4F2"}}>
                         {["Periodo","Ric. stimato","Ric. reale","Diff €","Margine stim.","Margine reale","Sell-T. medio","Spreco"].map((h,i)=>(
-                          <th key={i} style={{padding:"12px 12px",textAlign:i===0?"left":"right",fontSize:10,fontWeight:700,letterSpacing:"0.05em",textTransform:"uppercase",color:C.textSoft,borderBottom:`1px solid ${C.border}`,whiteSpace:'nowrap',
+                          <th key={i} style={{padding:"12px 12px",textAlign:i===0?"left":"right",fontSize: typo.small.fontSize,fontWeight:700,letterSpacing:"0.05em",textTransform:"uppercase",color:C.textSoft,borderBottom:`1px solid ${C.border}`,whiteSpace:'nowrap',
                             ...(i===0?{position:'sticky',left:0,background:'#F8F4F2',zIndex:1}:null)}}>{h}</th>
                         ))}
                       </tr>
