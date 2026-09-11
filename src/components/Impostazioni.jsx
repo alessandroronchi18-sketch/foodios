@@ -27,7 +27,7 @@ import EsportaDati from './EsportaDati'
 import ReferralPanel from './ReferralPanel'
 import DeleteAccountModal from './DeleteAccountModal'
 
-import { getAllRese, getStoreRese, setResaIngrediente } from '../lib/rese'
+import { getAllRese, getStoreRese, setResaIngrediente, salvaRese } from '../lib/rese'
 import { lazyWithReload } from '../lib/lazyWithReload'
 
 // Integrazioni caricata lazy (bundle ~35KB): solo se l'utente apre la
@@ -805,7 +805,7 @@ function PacchettiAIPanel({ auth, notify }) {
   )
 }
 
-function ReseSection({ notify }) {
+function ReseSection({ notify, orgId }) {
   const isMobile = useIsMobile()
   const [rese, setRese] = useState(() => getAllRese())
   const [filtro, setFiltro] = useState('')
@@ -813,13 +813,16 @@ function ReseSection({ notify }) {
   function save(k, val) {
     const v = Math.max(1, Math.min(100, parseFloat(val) || 100)) / 100
     setResaIngrediente(k, v)
-    try { localStorage.setItem(SK_RESE, JSON.stringify(getStoreRese())) } catch {}
+    // Nel DATABASE, non solo nel browser: la resa cambia il food cost, e
+    // finché stava nel localStorage la stessa ricetta mostrava un numero
+    // diverso sul portatile e sul tablet.
+    salvaRese(orgId).catch(e => notify?.('Non ho potuto salvare la resa: ' + (e?.message || 'rete'), false))
     setRese(getAllRese())
     notify('Resa aggiornata')
   }
   function reset(k) {
     setResaIngrediente(k, 1.0)
-    try { localStorage.setItem(SK_RESE, JSON.stringify(getStoreRese())) } catch {}
+    salvaRese(orgId).catch(e => notify?.('Non ho potuto ripristinare la resa: ' + (e?.message || 'rete'), false))
     setRese(getAllRese())
     notify('Resa ripristinata al 100%')
   }
@@ -1067,7 +1070,7 @@ function buildSezioni({ auth, nomeAttivita, tipoAttivita, metodoProduzione = 'st
         {
           id: 'rese', label: 'Resa ingredienti', icon: 'pie',
           summary: `${Object.keys(getStoreRese()).length} rese personalizzate`,
-          render: () => <ReseSection notify={notify}/>,
+          render: () => <ReseSection notify={notify} orgId={orgId}/>,
         },
         {
           id: 'prezzi-import', label: 'Importa prezzi', icon: 'upload',

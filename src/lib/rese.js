@@ -1,6 +1,21 @@
 // Resa ingredienti: resa = frazione del peso lordo che diventa peso netto utilizzabile.
 // Default 100% per ogni ingrediente: ogni utente può personalizzare il valore.
 // Es. impostando uova al 85% → 100g lordi diventano 85g netti.
+//
+// PERCHE' QUESTE RESE VANNO NEL DATABASE (e non solo nel browser).
+//
+// La resa cambia il food cost: se le uova rendono l'85%, 100 g comprati danno
+// 85 g usabili, e il costo per grammo usabile sale del 18%. Fino all'11/09/2026
+// queste rese stavano SOLO nel localStorage del browser — la chiave
+// `pasticceria-rese-v1` non esisteva in nessuna riga di user_data, in tutto il
+// database. Conseguenze:
+//   - il titolare impostava "uova 85%" sul portatile, e sul tablet in
+//     laboratorio la stessa ricetta mostrava un food cost diverso;
+//   - svuotando i dati del browser le rese sparivano senza un avviso;
+//   - i dipendenti non le vedevano mai;
+//   - non finivano in nessun backup.
+// Ora si salvano su user_data (condivise, sede_id = NULL) e il localStorage
+// resta come copia locale per il primo disegno della pagina e per l'offline.
 
 const RESE_DEFAULT = {};
 
@@ -40,6 +55,49 @@ export function loadRese(obj) {
 
 export function getAllRese() {
   return { ...RESE_DEFAULT, ..._store };
+}
+
+// ── Persistenza ───────────────────────────────────────────────────────────
+// Import dinamico di storage.js: tiene questo file utilizzabile dai test come
+// modulo puro (nessun supabase caricato se non si salva).
+const CHIAVE = 'pasticceria-rese-v1'
+
+// Salva le rese: PRIMA sul database, poi la copia locale. Se il database
+// rifiuta, la funzione lancia — così chi chiama può dirlo invece di far
+// credere che sia salvato.
+export async function salvaRese(orgId) {
+  const rese = getStoreRese()
+  if (orgId) {
+    const { ssave } = await import('./storage')
+    await ssave(CHIAVE, rese, orgId, null)
+  }
+  try { localStorage.setItem(CHIAVE, JSON.stringify(rese)) } catch { /* browser senza storage */ }
+  return rese
+}
+
+// Carica le rese all'avvio: il database è la fonte di verità, il localStorage
+// il ripiego. Se il database non ha niente ma il browser sì, quelle locali
+// vengono portate su una volta sola (e restano).
+export async function caricaRese(orgId) {
+  let locali = null
+  try { locali = JSON.parse(localStorage.getItem(CHIAVE) || 'null') } catch { /* noop */ }
+  if (!orgId) {
+    if (locali) loadRese(locali)
+    return { origine: locali ? 'browser' : 'nessuna', migrate: 0 }
+  }
+  const { sload, ssave } = await import('./storage')
+  const dalDb = await sload(CHIAVE, orgId, null)
+  if (dalDb && Object.keys(dalDb).length > 0) {
+    loadRese(dalDb)
+    try { localStorage.setItem(CHIAVE, JSON.stringify(getStoreRese())) } catch { /* noop */ }
+    return { origine: 'database', migrate: 0 }
+  }
+  if (locali && Object.keys(locali).length > 0) {
+    loadRese(locali)
+    await ssave(CHIAVE, getStoreRese(), orgId, null)
+    return { origine: 'browser', migrate: Object.keys(locali).length }
+  }
+  return { origine: 'nessuna', migrate: 0 }
 }
 
 export function getStoreRese() {

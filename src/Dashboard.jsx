@@ -61,7 +61,7 @@ const NotifichePanel = lazyWithReload(() => import('./components/NotifichePanel'
 const BackgroundToast = lazyWithReload(() => import('./components/BackgroundToast'))
 import { backgroundManager } from './lib/backgroundManager'
 import { uploadManager } from './lib/backgroundManager'
-import { costoNettoPerG, loadRese, getStoreRese, setResaIngrediente, getAllRese, resetRese } from './lib/rese'
+import { costoNettoPerG, loadRese, getStoreRese, setResaIngrediente, getAllRese, salvaRese, caricaRese, resetRese } from './lib/rese'
 const Fornitori = lazyWithReload(() => import('./components/Fornitori'))
 const VenditeB2BView = lazyWithReload(() => import('./views/VenditeB2BView'))
 const Personale = lazyWithReload(() => import('./components/Personale'))
@@ -837,19 +837,52 @@ function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi
 
   // Rese state
   const [reseState, setReseState] = useState(() => getAllRese());
+
+  // Rese degli ingredienti dal DATABASE, appena si sa di quale azienda si
+  // tratta. In cima al file c'è già una lettura dal localStorage, che serve a
+  // far partire il food cost col numero giusto al primo disegno; questa la
+  // sostituisce con il dato condiviso, e la prima volta porta su quello che
+  // era rimasto nel browser (era l'unico posto dove viveva).
+  useEffect(() => {
+    if (!orgId) return;
+    let vivo = true;
+    caricaRese(orgId)
+      .then(({ migrate }) => {
+        if (!vivo) return;
+        setReseState(getAllRese());
+        if (migrate > 0) {
+          notify(`${migrate === 1 ? 'Una resa' : `${migrate} rese`} ${migrate === 1 ? 'era' : 'erano'} salvata solo su questo computer: ${migrate === 1 ? 'l\'ho' : 'le ho'} messe nell'archivio dell'azienda, così ${migrate === 1 ? 'vale' : 'valgono'} anche su tablet e telefono.`);
+        }
+      })
+      .catch(() => { /* il localStorage in cima al file è già stato letto */ });
+    return () => { vivo = false };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgId]);
   const [reseFiltro, setReseFiltro] = useState("");
-  const saveRese = (nomeNorm, val) => {
+  // Le rese vanno nel DATABASE, non solo nel browser: cambiano il food cost, e
+  // finché stavano nel localStorage la stessa ricetta mostrava un numero
+  // diverso sul portatile e sul tablet. Salvataggio prima, avviso dopo: se il
+  // database rifiuta non si dice "salvato".
+  const saveRese = async (nomeNorm, val) => {
     const v = Math.max(1, Math.min(100, parseFloat(val)||100)) / 100;
     setResaIngrediente(nomeNorm, v);
-    const nuoveRese = getStoreRese();
-    try { localStorage.setItem(SK_RESE, JSON.stringify(nuoveRese)); } catch {}
+    try {
+      await salvaRese(orgId);
+    } catch (e) {
+      notify("Non ho potuto salvare la resa: " + (e?.message || 'rete'), false);
+      return;
+    }
     setReseState(getAllRese());
     notify("Resa aggiornata");
   };
-  const resetRese = (nomeNorm) => {
+  const resetRese = async (nomeNorm) => {
     setResaIngrediente(nomeNorm, 1.0);
-    const nuoveRese = getStoreRese();
-    try { localStorage.setItem(SK_RESE, JSON.stringify(nuoveRese)); } catch {}
+    try {
+      await salvaRese(orgId);
+    } catch (e) {
+      notify("Non ho potuto ripristinare la resa: " + (e?.message || 'rete'), false);
+      return;
+    }
     setReseState(getAllRese());
     notify("Resa ripristinata al 100%");
   };
@@ -1325,6 +1358,7 @@ export default function Dashboard({
   useEffect(() => {
     try { sessionStorage.setItem(`foodos_view_${orgId||'_'}`, view); } catch {}
   }, [view, orgId]);
+
 
   // ─── HISTORY API per back button ────────────────────────────────────────
   // Bug 26/06: l'utente in ricettario → modifica ricetta → "nuova-ricetta",
