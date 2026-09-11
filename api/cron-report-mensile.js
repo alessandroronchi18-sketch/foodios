@@ -295,7 +295,7 @@ async function elaboraOrg(supabase, org, { anno, mese, label }) {
       subject: `Report FoodOS — ${label}`,
       html: `
         <div style="font-family:system-ui,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;background:#FDFAF7;">
-          <h1 style="color:#1C0A0A;font-size:22px;margin:0 0 8px;">📊 Report ${esc(label)}</h1>
+          <h1 style="color:#1C0A0A;font-size:22px;margin:0 0 8px;"> Report ${esc(label)}</h1>
           <p style="color:#6B4C44;font-size:14px;line-height:1.7;margin:0 0 16px;">
             Ciao ${esc(prof.nome_completo || '')},<br>
             il report mensile di <strong>${esc(label)}</strong> per <strong>${esc(org.nome_attivita || org.nome)}</strong> è pronto.

@@ -110,7 +110,7 @@ describe('Email templates — snapshot per non-regressione', () => {
       prodottoPiuVenduto: 'Torta Sacher',
       prodottoMenoVenduto: 'Bignè crema',
     })
-    expect(t.subject).toBe('📊 Report giugno 2026 — FoodOS')
+    expect(t.subject).toBe('Report giugno 2026 — FoodOS')
     expect(t.html).toContain('Torta Sacher')
     expect(t.html).toContain('Bignè crema')
     expect(t.html).toContain('28.5%')
@@ -125,8 +125,12 @@ describe('Email templates — snapshot per non-regressione', () => {
       ricaviTotali: 1000,
       foodCostMedio: 30,
     })
-    expect(t.html).not.toContain('🥇')
-    expect(t.html).not.toContain('🐢')
+    // Il controllo era sulle due emoji (medaglia e tartaruga) che marcavano
+    // il prodotto più e meno venduto: senza quei dati la sezione non deve
+    // comparire. Ora le emoji non ci sono più — dalle email le abbiamo tolte
+    // tutte — quindi si controlla direttamente che la sezione non ci sia.
+    expect(t.html).not.toContain('Più venduto')
+    expect(t.html).not.toContain('Meno venduto')
   })
 
   it('escapeHtml — entities standard', () => {

@@ -156,10 +156,10 @@ export default async function handler(req) {
       if (!validateEmail(recipient)) throw new Error('Email destinatario mancante')
       await sendEmail({
         to: recipient,
-        subject: 'Benvenuto in FoodOS — la tua prova gratuita è iniziata 🍰',
+        subject: 'Benvenuto in FoodOS — la tua prova gratuita è iniziata',
         html: `
           <div style="font-family:system-ui,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;background:#FDFAF7;">
-            <h1 style="color:#1C0A0A;font-size:24px;margin:0 0 8px;">Benvenuto in FoodOS! 🎉</h1>
+            <h1 style="color:#1C0A0A;font-size:24px;margin:0 0 8px;">Benvenuto in FoodOS!</h1>
             <p style="color:#6B4C44;font-size:15px;line-height:1.7;margin:0 0 20px;">
               La tua attività <strong>${escapeHtml(nomeAttivita)}</strong> è stata registrata con successo.<br>
               Hai <strong>3 mesi gratuiti</strong> per esplorare tutte le funzionalità —
@@ -192,10 +192,10 @@ export default async function handler(req) {
       if (prof?.email && validateEmail(prof.email)) {
         await sendEmail({
           to: prof.email,
-          subject: 'Il tuo account FoodOS è attivo! ✅',
+          subject: 'Il tuo account FoodOS è attivo!',
           html: `
             <div style="font-family:system-ui,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;background:#FDFAF7;">
-              <h1 style="color:#1C0A0A;font-size:24px;margin:0 0 8px;">Account attivato! 🎉</h1>
+              <h1 style="color:#1C0A0A;font-size:24px;margin:0 0 8px;">Account attivato!</h1>
               <p style="color:#6B4C44;font-size:15px;line-height:1.7;margin:0 0 20px;">
                 Ciao ${escapeHtml(prof.nome_completo || '')},<br>
                 il tuo account per <strong>${escapeHtml(org?.nome || 'la tua attività')}</strong> è stato attivato.
@@ -266,7 +266,7 @@ export default async function handler(req) {
       if (!validateEmail(recipient)) throw new Error('Email destinatario mancante')
       await sendEmail({
         to: recipient,
-        subject: 'La tua prova FoodOS scade tra 7 giorni ⏰',
+        subject: 'La tua prova FoodOS scade tra 7 giorni',
         html: `
           <div style="font-family:system-ui,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;background:#FDFAF7;">
             <h1 style="color:#1C0A0A;font-size:24px;margin:0 0 8px;">La tua prova sta per scadere</h1>
@@ -298,10 +298,10 @@ export default async function handler(req) {
         </tr>`).join('')
       await sendEmail({
         to: recipient,
-        subject: `⚠️ ${ingredienti.length} ${ingredienti.length === 1 ? 'ingrediente' : 'ingredienti'} sotto soglia — FoodOS`,
+        subject: `${ingredienti.length} ${ingredienti.length === 1 ? 'ingrediente' : 'ingredienti'} sotto soglia — FoodOS`,
         html: `
           <div style="font-family:system-ui,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;background:#FDFAF7;">
-            <h1 style="color:#1C0A0A;font-size:22px;margin:0 0 8px;">Scorte sotto soglia 📦</h1>
+            <h1 style="color:#1C0A0A;font-size:22px;margin:0 0 8px;">Scorte sotto soglia</h1>
             <p style="color:#6B4C44;font-size:15px;line-height:1.7;margin:0 0 20px;">
               <strong>${escapeHtml(nomeAttivita || 'La tua attività')}</strong> ha ${ingredienti.length} ${ingredienti.length === 1 ? 'ingrediente' : 'ingredienti'} da riordinare:
             </p>
@@ -329,7 +329,7 @@ export default async function handler(req) {
         </tr>`).join('')
       await sendEmail({
         to: recipient,
-        subject: `📄 ${fatture.length} fattur${fatture.length === 1 ? 'a' : 'e'} in scadenza — FoodOS`,
+        subject: `${fatture.length} fattur${fatture.length === 1 ? 'a' : 'e'} in scadenza — FoodOS`,
         html: `
           <div style="font-family:system-ui,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;background:#FDFAF7;">
             <h1 style="color:#1C0A0A;font-size:22px;margin:0 0 8px;">Fatture in scadenza</h1>
@@ -363,7 +363,7 @@ export default async function handler(req) {
         </div>`
       await sendEmail({
         to: recipient,
-        subject: `📊 Report ${escapeHtml(mese)} — FoodOS`,
+        subject: `Report ${escapeHtml(mese)} — FoodOS`,
         html: `
           <div style="font-family:system-ui,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;background:#FDFAF7;">
             <h1 style="color:#1C0A0A;font-size:22px;margin:0 0 8px;">Report di ${escapeHtml(mese)}</h1>
@@ -374,8 +374,8 @@ export default async function handler(req) {
               ${stat('Ricavi', Number(ricavi).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €')}
               ${stat('Food cost medio', Number(fcMedio).toFixed(1) + '%')}
             </div>
-            ${piuVenduto ? `<p style="color:#6B4C44;font-size:14px;line-height:1.7;margin:0 0 6px;">🥇 Più venduto: <strong>${escapeHtml(piuVenduto)}</strong></p>` : ''}
-            ${menoVenduto ? `<p style="color:#6B4C44;font-size:14px;line-height:1.7;margin:0;">🐢 Meno venduto: <strong>${escapeHtml(menoVenduto)}</strong></p>` : ''}
+            ${piuVenduto ? `<p style="color:#6B4C44;font-size:14px;line-height:1.7;margin:0 0 6px;"> Più venduto: <strong>${escapeHtml(piuVenduto)}</strong></p>` : ''}
+            ${menoVenduto ? `<p style="color:#6B4C44;font-size:14px;line-height:1.7;margin:0;"> Meno venduto: <strong>${escapeHtml(menoVenduto)}</strong></p>` : ''}
             <hr style="border:none;border-top:1px solid #E8DDD8;margin:24px 0;">
             <p style="color:#9C7B76;font-size:12px;">Report automatico FoodOS · <a href="mailto:${SUPPORT}" style="color:#C0392B;">${SUPPORT}</a></p>
           </div>

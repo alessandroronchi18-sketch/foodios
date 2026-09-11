@@ -116,7 +116,7 @@ export default async function handler(req) {
     const lower = text.trim().toLowerCase()
     if (lower === 'aiuto' || lower === 'help' || lower === '?') {
       return twimlResponse(
-`📋 Comandi disponibili:
+` Comandi disponibili:
 - "kpi" - riassunto giornata
 - "scorte" - cosa manca in magazzino
 - "fatture" - fatture in scadenza

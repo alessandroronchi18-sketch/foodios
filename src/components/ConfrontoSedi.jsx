@@ -8,6 +8,15 @@ import { sload } from '../lib/storage'
 import { supabase } from '../lib/supabase'
 import { color as T, typo } from '../lib/theme'
 import { foodCostPesato, vocePerGruppo } from '../lib/confrontoSediCalc'
+import { ricaviDaInventario, fetchAllInventarioProduzione, GIORNI_RIPORTO_MAX } from '../lib/inventarioProduzione'
+import { SK_FORMATI } from '../lib/storageKeys'
+
+// Date in ISO locale per le finestre dell'inventario.
+const isoDi = (d) => {
+  const x = new Date(d)
+  return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`
+}
+const isoMeno = (d, giorni) => isoDi(new Date(new Date(d).getTime() - giorni * 86400000))
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { caricaCostiAziendali, totaleMensile } from '../lib/costiAziendali'
 import { ChartTip } from '../views/_shared'
@@ -183,9 +192,20 @@ export default function ConfrontoSedi({ orgId, sedi }) {
       // Per ogni sede, carico chiusure + giornaliero (per-sede, non c'è un modo aggregato).
       await Promise.all(sediAttive.map(async (sede) => {
         try {
-          const [chiusure, giornaliero] = await Promise.all([
+          // Si carica anche l'inventario e i formati di vendita: servono a
+          // ricavare l'incasso quando le chiusure di cassa non ci sono. Chi
+          // lavora col metodo inventario spesso non le compila, e questa
+          // pagina restava completamente vuota — con l'allarme rosso acceso.
+          const [chiusure, giornaliero, formati, righeInv] = await Promise.all([
             sload('pasticceria-chiusure-v1', orgId, sede.id),
             sload('pasticceria-giornaliero-v1', orgId, sede.id),
+            sload(SK_FORMATI, orgId, null),
+            fetchAllInventarioProduzione(orgId, {
+              sedeIds: sede.id,
+              dataFrom: isoMeno(curStart, GIORNI_RIPORTO_MAX),
+              dataTo: isoDi(new Date(curEnd.getTime() - 86400000)),
+              columns: 'gusto_nome, data, produzione_g, rimanenza_g, scarto_g, spedito_g, sede_id',
+            }).catch(() => []),
           ])
 
           const chiusureArr = Array.isArray(chiusure) ? chiusure : []
@@ -201,8 +221,20 @@ export default function ConfrontoSedi({ orgId, sedi }) {
           const chiusurePrev = chiusureArr.filter(c => inRange(c.data || 0, prevStart, prevEnd))
           const nChiusureCur = chiusureCur.length
           const nChiusurePrev = chiusurePrev.length
-          const ricaviCur = chiusureCur.reduce((s, c) => s + (c.kpi?.totV || 0), 0)
+          const ricaviCassaCur = chiusureCur.reduce((s, c) => s + (c.kpi?.totV || 0), 0)
           const ricaviPrev = chiusurePrev.reduce((s, c) => s + (c.kpi?.totV || 0), 0)
+
+          // Senza nemmeno una chiusura, l'incasso si stima dall'inventario:
+          // chili usciti × prezzo medio al chilo dei formati. È una stima, e
+          // la pagina lo dice.
+          const stima = nChiusureCur === 0
+            ? ricaviDaInventario(righeInv, formati, {
+              da: isoDi(curStart),
+              a: isoDi(new Date(curEnd.getTime() - 86400000)),
+            })
+            : null
+          const ricaviStimati = stima?.ricavi != null && stima.ricavi > 0
+          const ricaviCur = ricaviStimati ? stima.ricavi : ricaviCassaCur
 
           // Trend 8 settimane: somma cumulativa nel trend8 condiviso.
           for (const wk of trend8) {
@@ -238,7 +270,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
           // non compila le chiusure, usciva 0 - 2,42 = margine NEGATIVO su
           // tutte e tre le sedi, e la pagina alzava un allarme rosso
           // "margine netto negativo" fisso, basato sul nulla.
-          const haIncasso = nChiusureCur > 0
+          const haIncasso = nChiusureCur > 0 || ricaviStimati
           const margineLordoCur = haIncasso ? ricaviCur - fcEuroCur : null
 
           // Costi aziendali ripartiti sul periodo
@@ -251,7 +283,9 @@ export default function ConfrontoSedi({ orgId, sedi }) {
             .reduce((s, sess) => s + (sess.prodotti || []).reduce((ps, p) => ps + (p.stampi || 0), 0), 0)
 
           results[sede.id] = {
-            ricaviCur: nChiusureCur > 0 ? ricaviCur : null,
+            ricaviCur: haIncasso ? ricaviCur : null,
+            ricaviStimati,
+            kgStimati: stima?.kg ?? null,
             ricaviPrev: nChiusurePrev > 0 ? ricaviPrev : null,
             nChiusureCur, nChiusurePrev, giornateConDato,
             foodCostPct,
@@ -323,7 +357,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
       // Cassa non chiusa: e' un promemoria, non un allarme sui conti.
       if (k.errore) {
         out.push({ sede: s, lvl: 'amber', icon: 'alert', msg: `Dati non caricati: ${k.errore}` })
-      } else if (k.nChiusureCur === 0) {
+      } else if (k.nChiusureCur === 0 && !k.ricaviStimati) {
         out.push({ sede: s, lvl: 'amber', icon: 'clock', msg: `Nessuna chiusura di cassa ${periodo === 'mese' ? 'questo mese' : 'questa settimana'}: ricavi e margini non si possono calcolare` })
       }
       if (k.ricaviCur != null && k.ricaviPrev != null && k.ricaviPrev > 0) {
@@ -482,6 +516,8 @@ export default function ConfrontoSedi({ orgId, sedi }) {
   // Sedi senza nemmeno una chiusura di cassa nel periodo: senza quelle non
   // esistono ricavi, e senza ricavi non esistono margini, food cost e voti.
   const sediSenzaCassa = sediAttive.filter(s => (kpiMap[s.id]?.nChiusureCur ?? 0) === 0 && !kpiMap[s.id]?.errore)
+  // Sedi i cui ricavi arrivano dall'inventario invece che dalla cassa.
+  const sediStimate = sediAttive.filter(s => kpiMap[s.id]?.ricaviStimati)
 
   return (
     <div style={{ maxWidth: 1080, padding: isMobile ? 12 : 0 }}>
@@ -499,9 +535,11 @@ export default function ConfrontoSedi({ orgId, sedi }) {
         }}>
           <Icon name="clock" size={14} color={T.amberDark} style={{ flexShrink: 0, marginTop: 3 }} />
           <span>
-            {sediSenzaCassa.length === sediAttive.length
-              ? <><strong>Nessuna chiusura di cassa {periodo === 'mese' ? 'questo mese' : 'questa settimana'}.</strong> Ricavi, margini e food cost di questa pagina arrivano dalle chiusure: finché non ne registri una restano vuoti, e non è un dato negativo — è un dato che manca.</>
-              : <><strong>{sediSenzaCassa.length === 1 ? 'Una sede non ha' : `${sediSenzaCassa.length} sedi non hanno`} chiusure di cassa {periodo === 'mese' ? 'questo mese' : 'questa settimana'}</strong> ({sediSenzaCassa.map(s => s.nome).join(', ')}): per {sediSenzaCassa.length === 1 ? 'quella' : 'quelle'} i ricavi e i margini restano vuoti, e il confronto è fra le altre.</>}
+            {sediStimate.length > 0
+              ? <><strong>Ricavi stimati dall&apos;inventario</strong> per {sediStimate.length === sediAttive.length ? 'tutte le sedi' : sediStimate.map(s => s.nome).join(', ')}: {periodo === 'mese' ? 'questo mese' : 'questa settimana'} non ci sono chiusure di cassa, quindi l&apos;incasso è calcolato dai chili usciti dal laboratorio per il prezzo dei formati. Va bene per confrontare le sedi fra loro, non per chiudere i conti.</>
+              : sediSenzaCassa.length === sediAttive.length
+                ? <><strong>Nessuna chiusura di cassa {periodo === 'mese' ? 'questo mese' : 'questa settimana'}</strong>, e nemmeno dati di inventario da cui ricavare l&apos;incasso. Ricavi e margini restano vuoti: non è un dato negativo, è un dato che manca.</>
+                : <><strong>{sediSenzaCassa.length === 1 ? 'Una sede non ha' : `${sediSenzaCassa.length} sedi non hanno`} chiusure di cassa {periodo === 'mese' ? 'questo mese' : 'questa settimana'}</strong> ({sediSenzaCassa.map(s => s.nome).join(', ')}): per {sediSenzaCassa.length === 1 ? 'quella' : 'quelle'} i ricavi e i margini restano vuoti, e il confronto è fra le altre.</>}
           </span>
         </div>
       )}

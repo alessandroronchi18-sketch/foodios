@@ -565,6 +565,55 @@ export function euroKgMedioFormati(formati) {
   return sumEurKg / validi.length
 }
 
+// ── Ricavi stimati DALL'INVENTARIO, senza passare dalle chiusure di cassa ──
+//
+// Perché esiste. Tutto il conto economico, il confronto fra sedi, il margine e
+// il food cost in percentuale si reggono sulle chiusure di cassa. Chi lavora
+// col metodo inventario — come il design partner — spesso non le compila: nel
+// suo database ce ne sono ZERO. Risultato: otto pagine che mostrano zero
+// ricavi, margini negativi e allarmi rossi, su un'azienda che invece vende.
+//
+// L'inventario però sa quanti chili sono usciti. Moltiplicandoli per il prezzo
+// medio al chilo dei formati di vendita si ottiene il ricavo. È lo stesso
+// conto che la pagina Quadratura fa già per confrontarsi con la cassa: qui
+// diventa una stima utilizzabile ovunque, quando la cassa non c'è.
+//
+// È una STIMA, e chi la mostra deve dirlo: il prezzo medio al chilo è la media
+// semplice dei formati (un cono piccolo pesa come una vaschetta da un chilo),
+// e non tiene conto di sconti, omaggi o del mix reale di vendita.
+//
+// Ritorna null se manca quello che serve, invece di un numero inventato:
+//   righe   = righe inventario del periodo PIÙ i giorni prima (giacenza iniziale)
+//   formati = formati di vendita (per il prezzo al chilo)
+//   da / a  = estremi del periodo (ISO)
+export function ricaviDaInventario(righe, formati, { da, a } = {}) {
+  const euroKg = euroKgMedioFormati(formati)
+  if (euroKg == null) {
+    return { ricavi: null, kg: null, euroKg: null, motivo: 'nessun formato di vendita con prezzo e peso' }
+  }
+  const tot = totaliPerGusto(righe, { da, a })
+  const gusti = Object.values(tot)
+  if (gusti.length === 0) {
+    return { ricavi: null, kg: null, euroKg, motivo: 'nessun dato di inventario nel periodo' }
+  }
+  let g = 0, celleNonQuadrate = 0, celleNonCalcolabili = 0
+  for (const t of gusti) {
+    g += t.vendTot
+    celleNonQuadrate += t.celleNonQuadrate
+    celleNonCalcolabili += t.celleNonCalcolabili
+  }
+  const kg = g / 1000
+  return {
+    ricavi: Math.max(0, kg * euroKg),
+    kg,
+    euroKg,
+    celleNonQuadrate,
+    celleNonCalcolabili,
+    nGusti: gusti.length,
+    motivo: null,
+  }
+}
+
 // KPI settimana: somma kg venduti, € attesi, drift vs cassa effettiva.
 // matrice = output di calcolaVendutoSettimana
 // chiusureSettimana = chiusure SK_CHIUS filtrate alla settimana target

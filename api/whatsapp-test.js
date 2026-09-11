@@ -49,7 +49,7 @@ export default async function handler(req) {
   }
 
   try {
-    const body = `📊 *Test report FoodOS*\n${org.nome}\n\nQuesto è un messaggio di prova. Se lo vedi, il setup WhatsApp è OK.\n\nIl report serale arriva ogni giorno alle 22:00.`
+    const body = ` *Test report FoodOS*\n${org.nome}\n\nQuesto è un messaggio di prova. Se lo vedi, il setup WhatsApp è OK.\n\nIl report serale arriva ogni giorno alle 22:00.`
     await sendWhatsApp({ to: org.telefono_whatsapp, body })
     return new Response(JSON.stringify({ ok: true, to: org.telefono_whatsapp }), { status: 200 })
   } catch (e) {

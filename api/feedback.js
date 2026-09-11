@@ -103,7 +103,7 @@ export default async function handler(req) {
             '',
             messaggio,
             '',
-            '— Apri il pannello admin → 📨 Feedback dai clienti per gestire.',
+            '— Apri il pannello admin → Feedback dai clienti per gestire.',
           ].filter(Boolean).join('\n'),
         }),
       }).catch(e => console.error('[feedback] admin notify failed', e?.message))

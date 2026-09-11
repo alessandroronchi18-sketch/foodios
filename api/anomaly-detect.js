@@ -153,7 +153,7 @@ async function notifyAdminIfNeeded(req, findings) {
       body: JSON.stringify({
         tipo: 'custom',
         email: admin,
-        oggetto: `🚨 FoodOS — ${findings.length} anomalie rilevate`,
+        oggetto: ` FoodOS — ${findings.length} anomalie rilevate`,
         messaggio,
       }),
     })

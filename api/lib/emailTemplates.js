@@ -36,9 +36,9 @@ function frame(inner) {
 // ── 1. Benvenuto (signup) ────────────────────────────────────────────────
 export function templateBenvenuto({ nomeAttivita }) {
   return {
-    subject: 'Benvenuto in FoodOS — la tua prova gratuita è iniziata 🍰',
+    subject: 'Benvenuto in FoodOS — la tua prova gratuita è iniziata',
     html: frame(`
-      <h1 style="color:#1C0A0A;font-size:24px;margin:0 0 8px;">Benvenuto in FoodOS! 🎉</h1>
+      <h1 style="color:#1C0A0A;font-size:24px;margin:0 0 8px;">Benvenuto in FoodOS!</h1>
       <p style="color:#6B4C44;font-size:15px;line-height:1.7;margin:0 0 20px;">
         La tua attività <strong>${escapeHtml(nomeAttivita)}</strong> è stata registrata con successo.<br>
         Hai <strong>3 mesi gratuiti</strong> per esplorare tutte le funzionalità —
@@ -53,9 +53,9 @@ export function templateBenvenuto({ nomeAttivita }) {
 // ── 2. Approvazione (admin attiva) ───────────────────────────────────────
 export function templateApprovazione({ nomeOrg, nomeCompleto }) {
   return {
-    subject: 'Il tuo account FoodOS è attivo! ✅',
+    subject: 'Il tuo account FoodOS è attivo!',
     html: frame(`
-      <h1 style="color:#1C0A0A;font-size:24px;margin:0 0 8px;">Account attivato! 🎉</h1>
+      <h1 style="color:#1C0A0A;font-size:24px;margin:0 0 8px;">Account attivato!</h1>
       <p style="color:#6B4C44;font-size:15px;line-height:1.7;margin:0 0 20px;">
         Ciao ${escapeHtml(nomeCompleto || '')},<br>
         il tuo account per <strong>${escapeHtml(nomeOrg || 'la tua attività')}</strong> è stato attivato.
@@ -90,7 +90,7 @@ export function templateCustom({ oggetto, messaggio }) {
 // ── 4. Scadenza trial (T-7) ──────────────────────────────────────────────
 export function templateScadenzaTrial() {
   return {
-    subject: 'La tua prova FoodOS scade tra 7 giorni ⏰',
+    subject: 'La tua prova FoodOS scade tra 7 giorni',
     html: frame(`
       <h1 style="color:#1C0A0A;font-size:24px;margin:0 0 8px;">La tua prova sta per scadere</h1>
       <p style="color:#6B4C44;font-size:15px;line-height:1.7;margin:0 0 20px;">
@@ -149,9 +149,9 @@ export function templateMagazzinoSottoSoglia({ nomeAttivita, ingredienti }) {
     </tr>`).join('')
   const plurale = items.length === 1 ? 'ingrediente' : 'ingredienti'
   return {
-    subject: `⚠️ ${items.length} ${plurale} sotto soglia — FoodOS`,
+    subject: `${items.length} ${plurale} sotto soglia — FoodOS`,
     html: frame(`
-      <h1 style="color:#1C0A0A;font-size:22px;margin:0 0 8px;">Scorte sotto soglia 📦</h1>
+      <h1 style="color:#1C0A0A;font-size:22px;margin:0 0 8px;">Scorte sotto soglia</h1>
       <p style="color:#6B4C44;font-size:15px;line-height:1.7;margin:0 0 20px;">
         <strong>${escapeHtml(nomeAttivita || 'La tua attività')}</strong> ha ${items.length} ${plurale} da riordinare:
       </p>
@@ -176,7 +176,7 @@ export function templateFattureInScadenza({ nomeAttivita, fatture }) {
       <td style="padding:8px 12px;border-bottom:1px solid #E8DDD8;color:#C0392B;font-size:14px;font-weight:700;text-align:right;">${Number(f.totale || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</td>
     </tr>`).join('')
   return {
-    subject: `📄 ${items.length} fattur${items.length === 1 ? 'a' : 'e'} in scadenza — FoodOS`,
+    subject: `${items.length} fattur${items.length === 1 ? 'a' : 'e'} in scadenza — FoodOS`,
     html: frame(`
       <h1 style="color:#1C0A0A;font-size:22px;margin:0 0 8px;">Fatture in scadenza</h1>
       <p style="color:#6B4C44;font-size:15px;line-height:1.7;margin:0 0 20px;">
@@ -203,7 +203,7 @@ export function templateReportMensile({ nomeAttivita, mese, ricaviTotali, foodCo
   const piuVenduto = String(prodottoPiuVenduto || '').slice(0, 120)
   const menoVenduto = String(prodottoMenoVenduto || '').slice(0, 120)
   return {
-    subject: `📊 Report ${escapeHtml(mese)} — FoodOS`,
+    subject: `Report ${escapeHtml(mese)} — FoodOS`,
     html: frame(`
       <h1 style="color:#1C0A0A;font-size:22px;margin:0 0 8px;">Report di ${escapeHtml(mese)}</h1>
       <p style="color:#6B4C44;font-size:15px;line-height:1.7;margin:0 0 20px;">
@@ -213,7 +213,7 @@ export function templateReportMensile({ nomeAttivita, mese, ricaviTotali, foodCo
         ${stat('Ricavi', Number(ricaviTotali || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €')}
         ${stat('Food cost medio', Number(foodCostMedio || 0).toFixed(1) + '%')}
       </div>
-      ${piuVenduto ? `<p style="color:#6B4C44;font-size:14px;line-height:1.7;margin:0 0 6px;">🥇 Più venduto: <strong>${escapeHtml(piuVenduto)}</strong></p>` : ''}
-      ${menoVenduto ? `<p style="color:#6B4C44;font-size:14px;line-height:1.7;margin:0;">🐢 Meno venduto: <strong>${escapeHtml(menoVenduto)}</strong></p>` : ''}`),
+      ${piuVenduto ? `<p style="color:#6B4C44;font-size:14px;line-height:1.7;margin:0 0 6px;"> Più venduto: <strong>${escapeHtml(piuVenduto)}</strong></p>` : ''}
+      ${menoVenduto ? `<p style="color:#6B4C44;font-size:14px;line-height:1.7;margin:0;"> Meno venduto: <strong>${escapeHtml(menoVenduto)}</strong></p>` : ''}`),
   }
 }

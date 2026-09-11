@@ -196,7 +196,7 @@ export default async function handler(req, res) {
                 to: prof2.email,
                 subject: `FoodOS · ${calls} foto AI extra accreditate`,
                 html: `<div style="font-family:Inter,sans-serif;max-width:520px;margin:0 auto;padding:24px">
-                  <h1 style="color:#6E0E1A;margin:0 0 16px">${calls} foto AI accreditate ✓</h1>
+                  <h1 style="color:#6E0E1A;margin:0 0 16px">${calls} foto AI accreditate</h1>
                   <p>Hai aggiunto al tuo account un pacchetto di <strong>${calls} analisi AI</strong>.</p>
                   <p>Potrai usarle per fotografare scontrini, fatture, listini concorrenti o qualsiasi altra cosa nell'app. Restano valide per 12 mesi.</p>
                   <p style="color:#94A3B8;font-size:12px;margin-top:32px">FoodOS</p>
@@ -230,7 +230,7 @@ export default async function handler(req, res) {
             to: prof.email,
             subject: 'Benvenuto in FoodOS — il tuo abbonamento è attivo',
             html: `<div style="font-family:Inter,sans-serif;max-width:520px;margin:0 auto;padding:24px">
-              <h1 style="color:#6E0E1A;margin:0 0 16px">Abbonamento attivato 🎉</h1>
+              <h1 style="color:#6E0E1A;margin:0 0 16px">Abbonamento attivato</h1>
               <p>Grazie per esserti abbonato a FoodOS. Il tuo account è ora attivo senza limiti di trial.</p>
               <p>Puoi gestire l'abbonamento (cambiare piano, scaricare fatture, disdire) direttamente dalle <strong>Impostazioni → Abbonamento</strong>.</p>
               <p>Hai bisogno di aiuto? Scrivici a <a href="mailto:support@foodos.it">support@foodos.it</a>.</p>
@@ -494,7 +494,7 @@ export default async function handler(req, res) {
         if (prof?.email) {
           await sendEmail({
             to: prof.email,
-            subject: '⚠️ Pagamento FoodOS non riuscito',
+            subject: 'Pagamento FoodOS non riuscito',
             html: `<div style="font-family:Inter,sans-serif;max-width:520px;margin:0 auto;padding:24px">
               <h1 style="color:#DC2626;margin:0 0 16px">Pagamento non riuscito</h1>
               <p>Il pagamento del tuo abbonamento FoodOS non è andato a buon fine. Per evitare l'interruzione del servizio aggiorna il metodo di pagamento dalle <strong>Impostazioni → Abbonamento → Gestisci</strong>.</p>

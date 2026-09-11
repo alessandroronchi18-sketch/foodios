@@ -20,7 +20,7 @@
 // comportamento giusto.
 
 import { describe, it, expect } from 'vitest'
-import { totaliPerGusto, serieVendutoMultiSede } from '../../src/lib/inventarioProduzione'
+import { totaliPerGusto, serieVendutoMultiSede, ricaviDaInventario } from '../../src/lib/inventarioProduzione'
 
 const r = (gusto, data, prod, riman, extra = {}) => ({
   gusto_nome: gusto, data, produzione_g: prod, rimanenza_g: riman,
@@ -175,5 +175,66 @@ describe('serieVendutoMultiSede', () => {
     const c = serie.CIOCCOLATO.find(x => x.data === '2026-05-02')
     expect(c.venduto).toBe(-400)
     expect(c.quadra).toBe(false)
+  })
+})
+
+// ── Ricavi stimati dall'inventario ────────────────────────────────────────
+//
+// Tutto il conto economico, il confronto fra sedi e il margine si reggono
+// sulle chiusure di cassa. Chi lavora col metodo inventario spesso non le
+// compila: nel database del design partner ce ne sono ZERO. Otto pagine
+// mostravano zero ricavi e allarmi rossi su un'azienda che invece vende.
+//
+// L'inventario però sa quanti chili sono usciti: per il prezzo medio al chilo
+// dei formati, quello è il ricavo.
+describe('ricaviDaInventario', () => {
+  const formati = [
+    { nome: 'Cono piccolo', baseQtaG: 100, prezzoDefault: 3.5 },   // 35 €/kg
+    { nome: 'Vaschetta 1kg', baseQtaG: 1000, prezzoDefault: 28 },  // 28 €/kg
+  ]
+
+  it('chili venduti per prezzo al chilo', () => {
+    const righe = [
+      r('NOCCIOLA', '2026-05-01', 10000, 4000),
+      r('NOCCIOLA', '2026-05-02', 0, 1000),   // venduti 3.000 g
+    ]
+    const out = ricaviDaInventario(righe, formati, { da: '2026-05-02', a: '2026-05-02' })
+    expect(out.kg).toBeCloseTo(3, 3)
+    expect(out.euroKg).toBeCloseTo(31.5, 2)   // media di 35 e 28
+    expect(out.ricavi).toBeCloseTo(94.5, 2)
+  })
+
+  it('senza formati con prezzo non inventa un ricavo', () => {
+    const righe = [r('NOCCIOLA', '2026-05-01', 10000, 4000), r('NOCCIOLA', '2026-05-02', 0, 1000)]
+    const out = ricaviDaInventario(righe, [], { da: '2026-05-02', a: '2026-05-02' })
+    expect(out.ricavi).toBeNull()
+    expect(out.motivo).toMatch(/formato/)
+  })
+
+  it('senza inventario nel periodo non inventa un ricavo', () => {
+    const out = ricaviDaInventario([], formati, { da: '2026-05-01', a: '2026-05-31' })
+    expect(out.ricavi).toBeNull()
+    expect(out.motivo).toMatch(/inventario/)
+  })
+
+  it('porta con sé quante celle non tornano, perché la stima si regge su quelle', () => {
+    const righe = [
+      r('STRANO', '2026-05-01', 2000, 1000),
+      r('STRANO', '2026-05-02', 500, 3000),   // il conto non torna: -1.500 g
+    ]
+    const out = ricaviDaInventario(righe, formati, { da: '2026-05-02', a: '2026-05-02' })
+    expect(out.celleNonQuadrate).toBe(1)
+  })
+
+  it('un totale negativo non diventa un ricavo negativo', () => {
+    // Se in un periodo le celle sbagliate superano quelle giuste il totale dei
+    // chili può uscire sotto zero: un ricavo negativo non esiste.
+    const righe = [
+      r('STRANO', '2026-05-01', 1000, 500),
+      r('STRANO', '2026-05-02', 0, 5000),
+    ]
+    const out = ricaviDaInventario(righe, formati, { da: '2026-05-02', a: '2026-05-02' })
+    expect(out.ricavi).toBe(0)
+    expect(out.kg).toBeLessThan(0)   // il dato grezzo resta visibile
   })
 })

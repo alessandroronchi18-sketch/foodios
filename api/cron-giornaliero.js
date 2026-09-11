@@ -181,7 +181,7 @@ export default async function handler(req) {
           return `<tr><td style="padding:6px 12px;border-bottom:1px solid #E5E7EB">${s.step}</td><td style="padding:6px 12px;border-bottom:1px solid #E5E7EB;color:#DC2626">${err.toString().slice(0, 200)}</td><td style="padding:6px 12px;border-bottom:1px solid #E5E7EB;color:#94A3B8">${s.ms || 0}ms</td></tr>`
         }).join('')
         const html = `<div style="font-family:Inter,system-ui,sans-serif;max-width:680px;margin:0 auto;padding:24px">
-          <h1 style="color:#DC2626;margin:0 0 16px;font-size:20px">⚠️ Cron giornaliero FoodOS — ${stepsFalliti.length}/${results.length} step falliti</h1>
+          <h1 style="color:#DC2626;margin:0 0 16px;font-size:20px"> Cron giornaliero FoodOS — ${stepsFalliti.length}/${results.length} step falliti</h1>
           <p style="color:#475569;font-size:14px;margin:0 0 16px">Eseguito alle ${now.toISOString()}. Step falliti:</p>
           <table style="width:100%;border-collapse:collapse;font-size:13px;background:#fff;border:1px solid #E5E7EB;border-radius:8px;overflow:hidden">
             <thead><tr style="background:#FAFAF6"><th style="padding:8px 12px;text-align:left;color:#475569;font-weight:700">Step</th><th style="padding:8px 12px;text-align:left;color:#475569;font-weight:700">Errore</th><th style="padding:8px 12px;text-align:left;color:#475569;font-weight:700">Durata</th></tr></thead>
@@ -200,14 +200,14 @@ export default async function handler(req) {
             body: JSON.stringify({
               from: 'FoodOS <noreply@foodos.it>',
               to: process.env.ADMIN_EMAIL,
-              subject: `⚠️ Cron FoodOS — ${stepsFalliti.length} step falliti`,
+              subject: `Cron FoodOS — ${stepsFalliti.length} step falliti`,
               html,
             }),
           }).catch(() => { /* alerting best-effort */ })
         }
         // SLACK via incoming webhook (se configurato)
         if (hasSlack) {
-          const slackText = `⚠️ *Cron FoodOS* — ${stepsFalliti.length}/${results.length} step falliti (${now.toISOString()})`
+          const slackText = ` *Cron FoodOS* — ${stepsFalliti.length}/${results.length} step falliti (${now.toISOString()})`
           const slackFields = stepsFalliti.slice(0, 7).map(s => {
             const err = (s.error || s.body?.error || `HTTP ${s.status || '?'}`).toString().slice(0, 150)
             return { title: s.step, value: `${err} _(${s.ms || 0}ms)_`, short: false }

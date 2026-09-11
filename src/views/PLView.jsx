@@ -834,52 +834,6 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
     return { from: _ymd(pf), to: _ymd(pt) }
   }
 
-  const plMese = useMemo(() => {
-    const cur = aggRange(dateFrom, dateTo)
-    const pr = prevRange(dateFrom, dateTo)
-    const prev = aggRange(pr.from, pr.to)
-    // I costi fissi che l'utente inserisce sono MENSILI. Il periodo guardato
-    // però può essere di due giorni: il 2 del mese l'utile sottraeva un mese
-    // intero di affitto e stipendi a due giornate di incasso, e usciva un
-    // rosso spaventoso su un'azienda che va bene. Ora si prende la quota dei
-    // giorni guardati, e la pagina scrive quanti sono.
-    const giorniPeriodo = giorniDelRange(dateFrom, dateTo)
-    const giorniMese = giorniNelMese(dateTo)
-    const quota = giorniMese > 0 ? Math.min(1, giorniPeriodo / giorniMese) : 1
-    const costiFissiMese = (+costi.affitto || 0) + (+costi.utenze || 0) + (+costi.altro || 0)
-    // Il campo scritto a mano vince (il titolare può sapere cose che il
-    // programma non sa: collaboratori occasionali, soci, un mese di ferie).
-    // Ma se è vuoto si usa il costo dei dipendenti inseriti, invece di zero.
-    const personaleManuale = +costi.personale || 0
-    const personaleMese = personaleManuale > 0 ? personaleManuale : personaleReale.totale
-    const personaleDaDipendenti = personaleManuale <= 0 && personaleReale.totale > 0
-    const costiFissi = costiFissiMese * quota
-    const personale = personaleMese * quota
-    const margineLordo = cur.ricavi - cur.foodcost
-    const usciteCassa = Number(uscite?.totale) || 0
-    const utile = margineLordo - personale - costiFissi - usciteCassa
-    // Percentuale sui soli giorni misurati: e' la sola base su cui il numero
-    // significa qualcosa. Con zero giorni misurati non si stampa una stima.
-    const fcPct = cur.ricaviConFc > 0 ? cur.foodcost / cur.ricaviConFc * 100 : 0
-    const lavPct = cur.ricavi > 0 ? personale / cur.ricavi * 100 : 0
-    const margOpPct = cur.ricavi > 0 ? utile / cur.ricavi * 100 : 0
-    const mcPct = cur.ricavi > 0 ? margineLordo / cur.ricavi : 0.7
-    const breakeven = mcPct > 0 ? (personale + costiFissi) / mcPct : 0
-    const utilePrev = (prev.ricavi - prev.foodcost) - personale - costiFissi
-    return {
-      cur, prev, costiFissi, personale, margineLordo, utile, fcPct, lavPct,
-      personaleDaDipendenti, personaleDipendentiN: personaleReale.contati,
-      personaleSenzaDato: personaleReale.senzaDato,
-      margOpPct, breakeven, utilePrev, usciteCassa,
-      // Serve alla pagina per scrivere "quota di 12 giorni su 30".
-      giorniPeriodo, giorniMese, quota, costiFissiMese, personaleMese,
-      // Il break-even è un valore MENSILE: si calcola sui costi pieni, non
-      // sulla quota, altrimenti cambia ogni giorno che passa.
-      breakevenMese: mcPct > 0 ? (personaleMese + costiFissiMese) / mcPct : 0,
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- aggRange/prevRange sono pure closures stabili sui props (chiusure) già in deps
-  }, [chiusure, dateFrom, dateTo, costi, uscite, personaleReale])
-
   // ═══ P&L METODO INVENTARIO DIFFERENZIALE (gelaterie con gusti) ══════════
   // Attivo solo se organizations.metodo_produzione = 'inventario'. Legge dalla
   // tabella inventario_produzione filtrata per periodo e sede, calcola per gusto:
@@ -987,6 +941,69 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
       fcParziali: rows.filter(r => r.fcParziale).map(r => r.gusto),
     }
   }, [metodoProduzione, invRows, ricettario, ricavoFlatFor, ingCosti, dateFrom, dateTo])
+
+  const plMese = useMemo(() => {
+    let cur = aggRange(dateFrom, dateTo)
+    const pr = prevRange(dateFrom, dateTo)
+    const prev = aggRange(pr.from, pr.to)
+    // I costi fissi che l'utente inserisce sono MENSILI. Il periodo guardato
+    // però può essere di due giorni: il 2 del mese l'utile sottraeva un mese
+    // intero di affitto e stipendi a due giornate di incasso, e usciva un
+    // rosso spaventoso su un'azienda che va bene. Ora si prende la quota dei
+    // giorni guardati, e la pagina scrive quanti sono.
+    const giorniPeriodo = giorniDelRange(dateFrom, dateTo)
+    const giorniMese = giorniNelMese(dateTo)
+    const quota = giorniMese > 0 ? Math.min(1, giorniPeriodo / giorniMese) : 1
+    const costiFissiMese = (+costi.affitto || 0) + (+costi.utenze || 0) + (+costi.altro || 0)
+    // Il campo scritto a mano vince (il titolare può sapere cose che il
+    // programma non sa: collaboratori occasionali, soci, un mese di ferie).
+    // Ma se è vuoto si usa il costo dei dipendenti inseriti, invece di zero.
+    const personaleManuale = +costi.personale || 0
+    const personaleMese = personaleManuale > 0 ? personaleManuale : personaleReale.totale
+    const personaleDaDipendenti = personaleManuale <= 0 && personaleReale.totale > 0
+    const costiFissi = costiFissiMese * quota
+    const personale = personaleMese * quota
+    // Ricavi DALL'INVENTARIO quando le chiusure di cassa non ci sono.
+    //
+    // Tutto questo conto economico si regge sulle chiusure. Chi lavora col
+    // metodo inventario spesso non le compila — nel database del design
+    // partner ce ne sono ZERO — e la pagina mostrava ricavi zero, margine
+    // negativo e food cost nemmeno calcolabile, su un'azienda che vende.
+    //
+    // L'inventario però sa quanti chili sono usciti, e la sezione qui sopra
+    // ha già calcolato ricavo e food cost gusto per gusto, ognuno col suo
+    // prezzo al chilo. Se non c'è nemmeno una chiusura nel periodo, quelli
+    // diventano i ricavi — dichiarati come stima, perché lo sono.
+    const daInventario = cur.giorni === 0 && inventarioPL && inventarioPL.totRic > 0
+    if (daInventario) {
+      cur = { ...cur, ricavi: inventarioPL.totRic, foodcost: inventarioPL.totFc, ricaviConFc: inventarioPL.totRic }
+    }
+    const margineLordo = cur.ricavi - cur.foodcost
+    const usciteCassa = Number(uscite?.totale) || 0
+    const utile = margineLordo - personale - costiFissi - usciteCassa
+    // Percentuale sui soli giorni misurati: e' la sola base su cui il numero
+    // significa qualcosa. Con zero giorni misurati non si stampa una stima.
+    const fcPct = cur.ricaviConFc > 0 ? cur.foodcost / cur.ricaviConFc * 100 : 0
+    const lavPct = cur.ricavi > 0 ? personale / cur.ricavi * 100 : 0
+    const margOpPct = cur.ricavi > 0 ? utile / cur.ricavi * 100 : 0
+    const mcPct = cur.ricavi > 0 ? margineLordo / cur.ricavi : 0.7
+    const breakeven = mcPct > 0 ? (personale + costiFissi) / mcPct : 0
+    const utilePrev = (prev.ricavi - prev.foodcost) - personale - costiFissi
+    return {
+      cur, prev, costiFissi, personale, margineLordo, utile, fcPct, lavPct,
+      daInventario,
+      personaleDaDipendenti, personaleDipendentiN: personaleReale.contati,
+      personaleSenzaDato: personaleReale.senzaDato,
+      margOpPct, breakeven, utilePrev, usciteCassa,
+      // Serve alla pagina per scrivere "quota di 12 giorni su 30".
+      giorniPeriodo, giorniMese, quota, costiFissiMese, personaleMese,
+      // Il break-even è un valore MENSILE: si calcola sui costi pieni, non
+      // sulla quota, altrimenti cambia ogni giorno che passa.
+      breakevenMese: mcPct > 0 ? (personaleMese + costiFissiMese) / mcPct : 0,
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- aggRange/prevRange sono pure closures stabili sui props (chiusure) già in deps
+  }, [chiusure, dateFrom, dateTo, costi, uscite, personaleReale, inventarioPL])
+
 
   // Top ingredienti per costo (aggregato, riusato per PDF export)
   const topIngredienti = useMemo(() => {
@@ -1179,7 +1196,29 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
         />
       )}
 
-      {plMese.cur.giorni === 0 ? (
+      {/* La pagina si apriva vuota per chi lavora col metodo inventario e non
+          compila le chiusure di cassa. Ora, se l'inventario c'è, i numeri si
+          fanno con quelli — e la fascia qui sotto dice da dove vengono, perché
+          un ricavo stimato e un incasso contato non sono la stessa cosa. */}
+      {plMese.daInventario && (
+        <div style={{
+          display: 'flex', alignItems: 'flex-start', gap: 9,
+          background: T.blueLight, border: `1px solid ${T.blue}44`, borderRadius: 12,
+          padding: isMobile ? 12 : '12px 16px', marginBottom: 18,
+          fontSize: typo.small.fontSize, color: T.blue, lineHeight: 1.55,
+        }}>
+          <Icon name="info" size={14} color={T.blue} style={{ flexShrink: 0, marginTop: 3 }} />
+          <span>
+            <strong>Ricavi stimati dall&apos;inventario</strong>, non dalle chiusure di cassa:
+            nel periodo non ce n&apos;è nessuna registrata. Sono i chili usciti dal laboratorio
+            moltiplicati per il prezzo dei formati di vendita — vanno bene per capire come
+            stai andando, non per chiudere i conti col commercialista.
+            {inventarioPL?.senzaPrezzo?.length > 0 && <> {inventarioPL.senzaPrezzo.length === 1 ? 'Un gusto è' : `${inventarioPL.senzaPrezzo.length} gusti sono`} senza prezzo, quindi {inventarioPL.senzaPrezzo.length === 1 ? 'non conta' : 'non contano'}.</>}
+          </span>
+        </div>
+      )}
+
+      {plMese.cur.giorni === 0 && !plMese.daInventario ? (
         <div style={{ ...cardP, padding: 32, textAlign: 'center', color: T.textSoft, fontSize: 13, marginBottom: 28 }}>
           Nessuna chiusura di cassa registrata nel periodo selezionato ({rangeLabel(dateFrom, dateTo)}). Registra le chiusure (sezione Cassa) per vedere il conto economico.
         </div>

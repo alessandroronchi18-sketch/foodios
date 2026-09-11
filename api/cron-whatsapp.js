@@ -118,7 +118,7 @@ async function sendWhatsApp({ to, body }) {
 
 function buildMessage(org, sede, k) {
   const lines = []
-  lines.push(`📊 *Report serale FoodOS*`)
+  lines.push(` *Report serale FoodOS*`)
   lines.push(`${org.nome}${sede?.nome ? ` · ${sede.nome}` : ''}`)
   lines.push(`Data: ${k.today}`)
   lines.push('')
@@ -128,15 +128,15 @@ function buildMessage(org, sede, k) {
     lines.push('Apri FoodOS e chiudi la giornata in 3 minuti.')
     return lines.join('\n')
   }
-  lines.push(`💰 Ricavi: *${fmtEur(k.ricavi)}*`)
-  lines.push(`📉 Food cost: *${fmtPct(k.fcPct)}*`)
-  lines.push(`📈 Margine: *${fmtEur(k.margine)}*`)
+  lines.push(` Ricavi: *${fmtEur(k.ricavi)}*`)
+  lines.push(` Food cost: *${fmtPct(k.fcPct)}*`)
+  lines.push(` Margine: *${fmtEur(k.margine)}*`)
   lines.push('')
   if (k.top) {
-    lines.push(`🏆 Top: ${k.top.nome} — ${fmtEur(k.top.margine)} (${fmtPct(k.top.margPct)})`)
+    lines.push(` Top: ${k.top.nome} — ${fmtEur(k.top.margine)} (${fmtPct(k.top.margPct)})`)
   }
   if (k.flop) {
-    lines.push(`⚠ Da rivedere: ${k.flop.nome} — margine ${fmtPct(k.flop.margPct)}`)
+    lines.push(` Da rivedere: ${k.flop.nome} — margine ${fmtPct(k.flop.margPct)}`)
   }
   lines.push('')
   lines.push('Apri FoodOS per il dettaglio.')

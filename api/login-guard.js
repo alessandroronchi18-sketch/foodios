@@ -107,7 +107,7 @@ async function notifyTitolare(supabase, req, email, ip, ua) {
       body: JSON.stringify({
         tipo: 'custom',
         email: prof.email,
-        oggetto: '🔒 FoodOS: tentativi di accesso falliti',
+        oggetto: ' FoodOS: tentativi di accesso falliti',
         messaggio,
       }),
     })
