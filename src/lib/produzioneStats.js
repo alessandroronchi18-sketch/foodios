@@ -3,7 +3,10 @@
 // Usato dalla view Produzione (KPI banner + alert rimanenza alta) e dal
 // modal drilldown gusto singolo. Puro: nessun I/O, testabile.
 //
-// Test coverage: scripts/test-import-smoke.mjs.
+// Test: tests/unit/ (vitest). Qui c'era scritto
+// "Test coverage: scripts/test-import-smoke.mjs", ma quello script non gira
+// più da tempo (import senza estensione, che Node non risolve) e non e'
+// agganciato alla CI: era una copertura solo sulla carta.
 
 /**
  * @typedef {Object} ProduzioneRow
@@ -66,41 +69,8 @@ export function calcKpiStats(rows) {
   }
 }
 
-/**
- * Calcola per ogni gusto: prod, scarto, venduto (residuo differenziale).
- * Iteriamo per data ordinata: venduto_giorno = max(0, riman_prev + prod - riman - scarto).
- * Reset rimanPrev a 0 quando c'e' un gap (diffGg != 1).
- *
- * @param {ProduzioneRow[]} rows
- * @returns {Record<string, {prodTot: number, scartoTot: number, vendTot: number}>}
- */
-export function calcPerGustoDifferenziale(rows) {
-  if (!Array.isArray(rows) || rows.length === 0) return {}
-  const perGusto = {}
-  for (const r of rows) {
-    const g = r.gusto_nome
-    if (!perGusto[g]) perGusto[g] = { rows: [] }
-    perGusto[g].rows.push(r)
-  }
-  const out = {}
-  for (const [gusto, { rows: rr }] of Object.entries(perGusto)) {
-    rr.sort((a, b) => a.data.localeCompare(b.data))
-    let rimanPrev = 0, prevD = null
-    let prodTot = 0, scartoTot = 0, vendTot = 0
-    for (const r of rr) {
-      const prod = Number(r.produzione_g) || 0
-      const riman = Number(r.rimanenza_g) || 0
-      const scarto = Number(r.scarto_g) || 0
-      const d = new Date(r.data)
-      if (prevD !== null) {
-        const diffGg = Math.round((d - prevD) / 86400000)
-        if (diffGg !== 1) rimanPrev = 0
-      }
-      const vend = Math.max(0, rimanPrev + prod - riman - scarto)
-      rimanPrev = riman; prevD = d
-      prodTot += prod; scartoTot += scarto; vendTot += vend
-    }
-    out[gusto] = { prodTot, scartoTot, vendTot }
-  }
-  return out
-}
+// calcPerGustoDifferenziale viveva qui: era la quarta copia della regola del
+// venduto nel progetto, e l'ultima rimasta con i difetti già corretti nel
+// motore condiviso (negativi troncati a zero, giacenza di partenza persa sui
+// giorni di chiusura, `spedito_g` ignorato). Ora la regola sta in un solo
+// posto: inventarioProduzione.totaliPerGusto.

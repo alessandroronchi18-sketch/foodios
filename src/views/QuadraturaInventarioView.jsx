@@ -12,7 +12,7 @@
 // suggerisce dove guardare per chiudere il gap.
 
 import React, { useEffect, useMemo, useState } from 'react'
-import { color as T } from '../lib/theme'
+import { color as T, typo } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { sload } from '../lib/storage'
 import { supabase } from '../lib/supabase'
@@ -546,12 +546,12 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
             {(kpi.celleNonQuadrate > 0 || kpi.celleNonCalcolabili > 0) && (
               <div style={{
                 marginTop: 14, padding: isMobile ? 12 : '12px 16px',
-                background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 12,
-                fontSize: 12.5, color: '#92400E', lineHeight: 1.55,
+                background: T.amberLight, border: `1px solid ${T.amber}55`, borderRadius: 12,
+                fontSize: typo.small.fontSize, color: T.amber, lineHeight: 1.55,
                 display: 'flex', alignItems: 'flex-start', gap: 8,
                 width: '100%', boxSizing: 'border-box',
               }}>
-                <Icon name="alert" size={14} color="#92400E" style={{ flexShrink: 0, marginTop: 3 }} />
+                <Icon name="alert" size={14} color={T.amber} style={{ flexShrink: 0, marginTop: 3 }} />
                 <span>
                   {kpi.celleNonQuadrate > 0 && (
                     <>
@@ -707,7 +707,7 @@ function SparklineTrend({ data }) {
           return (
             <g key={i}>
               {d.nonQuadrate > 0 && (
-                <circle cx={x} cy={yScale(d.kg, maxKg)} r="6.5" fill="none" stroke="#F59E0B" strokeWidth="1.5" />
+                <circle cx={x} cy={yScale(d.kg, maxKg)} r="6.5" fill="none" stroke={T.amber} strokeWidth="1.5" />
               )}
               <circle cx={x} cy={yScale(d.kg, maxKg)} r="3.5" fill="#16A34A" stroke="#FFF" strokeWidth="1.5" />
               <circle cx={x} cy={yScale(d.cassa, maxEur)} r="3.5" fill="#6E0E1A" stroke="#FFF" strokeWidth="1.5" />
@@ -722,20 +722,20 @@ function SparklineTrend({ data }) {
       <div style={{
         display: 'flex', justifyContent: 'space-between',
         padding: `0 ${(PAD_X / W * 100).toFixed(1)}%`, marginTop: 2,
-        fontSize: 12, color: C.textSoft, ...TNUM,
+        fontSize: typo.small.fontSize, color: C.textSoft, ...TNUM,
       }}>
         {data.map((d, i) => (
           <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
             {fmtLabel(d.lunIso)}
             {d.nonQuadrate > 0 && (
               <span title={`${d.nonQuadrate} caselle non tornano in questa settimana`}
-                style={{ color: '#B45309', fontWeight: 700, cursor: 'help' }}>!</span>
+                style={{ color: T.amber, fontWeight: 700, cursor: 'help' }}>!</span>
             )}
           </span>
         ))}
       </div>
       <div style={{
-        display: 'flex', gap: 18, fontSize: 12, color: C.textSoft,
+        display: 'flex', gap: 18, fontSize: typo.small.fontSize, color: C.textSoft,
         marginTop: 8, flexWrap: 'wrap',
       }}>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
@@ -753,7 +753,7 @@ function SparklineTrend({ data }) {
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             <span style={{
               display: 'inline-block', width: 10, height: 10,
-              borderRadius: '50%', border: '1.5px solid #F59E0B',
+              borderRadius: '50%', border: `1.5px solid ${T.amber}`,
             }} />
             settimana con caselle da controllare
           </span>

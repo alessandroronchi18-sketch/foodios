@@ -369,6 +369,59 @@ export function serieVendutoGusto(righe) {
   return out
 }
 
+// Totali per gusto su un periodo qualunque (non solo una settimana).
+//
+// Perché esiste. La sezione "metodo inventario" dello Storico produzione si
+// riscriveva la formula del venduto per conto suo in produzioneStats.js —
+// QUARTA copia nel progetto — e quella copia aveva i tre difetti che il motore
+// condiviso aveva già risolto: troncava a zero i conti che non tornavano,
+// azzerava la rimanenza di partenza a ogni giorno di chiusura (e Mara chiude un
+// giorno a settimana), e ignorava del tutto `spedito_g`, contando come venduti
+// al banco i chili mandati a un'altra sede. La stessa pagina mostrava percio'
+// un venduto diverso da Quadratura e dal conto economico, sugli stessi giorni.
+//
+// Il conto si fa SEDE PER SEDE e poi si somma, non aggregando prima le righe:
+// se la sede A spedisce 5 kg alla sede B, quei 5 kg escono dal venduto di A
+// (spedito) e restano giacenza di B (rimanenza). Sommando le righe prima del
+// calcolo verrebbero sottratti due volte.
+// `opts.da` / `opts.a` (ISO) restringono la somma ai giorni del periodo
+// scelto: i giorni caricati PRIMA di `da` servono solo come giacenza di
+// partenza e non devono entrare nei totali di produzione e scarto.
+export function totaliPerGusto(righe, opts = {}) {
+  if (!Array.isArray(righe) || righe.length === 0) return {}
+  const { da = null, a = null } = opts
+  const perSede = new Map()
+  for (const r of righe) {
+    const k = r?.sede_id || '_'
+    if (!perSede.has(k)) perSede.set(k, [])
+    perSede.get(k).push(r)
+  }
+  const out = {}
+  for (const righeSede of perSede.values()) {
+    const serie = serieVendutoGusto(righeSede)
+    for (const [gusto, celle] of Object.entries(serie)) {
+      const t = out[gusto] || (out[gusto] = {
+        prodTot: 0, scartoTot: 0, speditoTot: 0, vendTot: 0,
+        celleNonQuadrate: 0, gNonQuadrati: 0, celleNonCalcolabili: 0,
+      })
+      for (const c of celle) {
+        if (da && c.data < da) continue
+        if (a && c.data > a) continue
+        t.prodTot += Number(c.prod) || 0
+        t.scartoTot += Number(c.scarto) || 0
+        t.speditoTot += Number(c.spedito) || 0
+        if (c.venduto == null) {
+          if (c.registrata) t.celleNonCalcolabili++
+          continue
+        }
+        t.vendTot += Number(c.venduto) || 0
+        if (c.quadra === false) { t.celleNonQuadrate++; t.gNonQuadrati += Number(c.venduto) || 0 }
+      }
+    }
+  }
+  return out
+}
+
 // Qualita' del dato per gusto: quante celle non tornano, quanti kg valgono,
 // quante celle non si possono calcolare. Serve a scrivere accanto al totale
 // "3 giorni non tornano" invece di mostrare un numero muto.

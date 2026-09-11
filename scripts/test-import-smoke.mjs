@@ -1,3 +1,9 @@
+// ATTENZIONE: questo script NON gira piu'. Node non risolve gli import senza
+// estensione (`./dateLocal`), che invece Vite risolve: lanciandolo esce
+// ERR_MODULE_NOT_FOUND prima del primo test. Non e' agganciato a package.json
+// ne' alla CI, quindi la rottura e' passata inosservata.
+// I test veri sono in tests/unit/ (vitest): `npm test`.
+//
 #!/usr/bin/env node
 /**
  * Smoke test per il tooling import:
@@ -25,7 +31,7 @@ import { validateRows, findMissingRequired, getLookupFields } from '../src/lib/i
 import { applyUnpivot, defaultGelateriaWideConfig } from '../src/lib/importUnpivot.js'
 import { guessMonthIsoFromFilename } from '../src/lib/importDateGuess.js'
 import { summarizeErrors } from '../src/lib/importErrorSummary.js'
-import { calcKpiStats, calcPerGustoDifferenziale } from '../src/lib/produzioneStats.js'
+import { calcKpiStats } from '../src/lib/produzioneStats.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -441,47 +447,13 @@ function testCalcKpiStats() {
   console.log('  ✓ Test calcKpiStats PASSED')
 }
 
-// ── Test 10: calcPerGustoDifferenziale — venduto residuo ────────
-
-function testCalcPerGustoDifferenziale() {
-  console.log('\n=== TEST 10: calcPerGustoDifferenziale ===')
-
-  // Gusto NOCCIOLA con 3 giorni consecutivi
-  //  g1: prod=3000, riman=1000, scarto=100 → venduto = 0+3000-1000-100 = 1900 (rimanPrev iniziale=0)
-  //  g2: prod=2000, riman=1500, scarto=50  → rimanPrev=1000, venduto = 1000+2000-1500-50 = 1450
-  //  g3: prod=2500, riman=800, scarto=0    → rimanPrev=1500, venduto = 1500+2500-800-0 = 3200
-  //  Totale: prod=7500, scarto=150, venduto=6550
-  const rows = [
-    { gusto_nome: 'NOCCIOLA', data: '2026-05-01', produzione_g: 3000, rimanenza_g: 1000, scarto_g: 100 },
-    { gusto_nome: 'NOCCIOLA', data: '2026-05-02', produzione_g: 2000, rimanenza_g: 1500, scarto_g: 50 },
-    { gusto_nome: 'NOCCIOLA', data: '2026-05-03', produzione_g: 2500, rimanenza_g: 800, scarto_g: 0 },
-  ]
-  const p = calcPerGustoDifferenziale(rows)
-  const noc = p['NOCCIOLA']
-  if (!noc) throw new Error('NOCCIOLA mancante')
-  if (noc.prodTot !== 7500) throw new Error(`prodTot=${noc.prodTot}, atteso 7500`)
-  if (noc.scartoTot !== 150) throw new Error(`scartoTot=${noc.scartoTot}, atteso 150`)
-  if (noc.vendTot !== 6550) throw new Error(`vendTot=${noc.vendTot}, atteso 6550`)
-
-  // Gap tra 2 giorni → reset rimanPrev
-  const gapRows = [
-    { gusto_nome: 'CAFFE', data: '2026-05-01', produzione_g: 2000, rimanenza_g: 1500, scarto_g: 0 }, // venduto = 500
-    { gusto_nome: 'CAFFE', data: '2026-05-05', produzione_g: 3000, rimanenza_g: 500, scarto_g: 0 },   // rimanPrev reset a 0 → venduto = 2500
-  ]
-  const p2 = calcPerGustoDifferenziale(gapRows)
-  const caf = p2['CAFFE']
-  if (caf.vendTot !== 3000) throw new Error(`CAFFE vendTot=${caf.vendTot}, atteso 3000 (500+2500)`)
-
-  // Consumo negativo → max(0)
-  const negRows = [
-    { gusto_nome: 'STRANO', data: '2026-05-01', produzione_g: 1000, rimanenza_g: 3000, scarto_g: 0 },
-  ]
-  const p3 = calcPerGustoDifferenziale(negRows)
-  if (p3['STRANO'].vendTot !== 0) throw new Error(`Atteso venduto=0 con riman>prod, ho ${p3['STRANO'].vendTot}`)
-
-  console.log('  ✓ Test calcPerGustoDifferenziale PASSED')
-}
-
+// Test 10 (calcPerGustoDifferenziale) rimosso: quella funzione era la quarta
+// copia della regola del venduto e non esiste piu'. La regola sta in
+// inventarioProduzione.totaliPerGusto ed e' testata in
+// tests/unit/inventarioProduzione.test.js e tests/unit/totaliPerGusto.test.js
+// (qui non si puo' importare: il motore importa supabase, che ha bisogno delle
+// variabili di Vite).
+//
 // ── Test 11: unpivot day inheritance (colonna RIMAN vuota) ──────
 
 function testUnpivotDayInheritance() {
@@ -540,7 +512,6 @@ try {
   testMonthGuess()
   testSummarizeErrors()
   testCalcKpiStats()
-  testCalcPerGustoDifferenziale()
   testUnpivotDayInheritance()
   console.log('\n🎉 TUTTI I TEST PASSATI')
 } catch (e) {

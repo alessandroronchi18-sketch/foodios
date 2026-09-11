@@ -28,7 +28,12 @@ import { color as T } from '../lib/theme'
 import { C, TNUM, KPI, SH, ChartTip, PageHeader } from './_shared'
 import Icon from '../components/Icon'
 import { loadXLSX } from '../lib/xlsx'
-import { calcPerGustoDifferenziale } from '../lib/produzioneStats'
+// Il venduto lo calcola il motore condiviso, non una formula scritta qui.
+// La vecchia copia (produzioneStats.calcPerGustoDifferenziale) troncava a zero
+// i conti che non tornavano, perdeva la giacenza di partenza a ogni giorno di
+// chiusura e ignorava i chili spediti alle altre sedi: questa pagina mostrava
+// un venduto diverso da Quadratura e dal conto economico sugli stessi giorni.
+import { totaliPerGusto } from '../lib/inventarioProduzione'
 import { calcolaFC, isRicettaValida, getR } from '../lib/foodcost'
 import { useRicavoFlat } from '../lib/useRicavoFlat'
 
@@ -46,6 +51,9 @@ import { useRicavoFlat } from '../lib/useRicavoFlat'
  */
 export default function AnalisiInventarioSection({
   rows = [], rowsPrev = [], dateFrom, dateTo, confronto = 'periodoPrec',
+  // Finestra del periodo di confronto: le righe arrivano con qualche giorno in
+  // più davanti (giacenza di partenza) e quei giorni non vanno nei totali.
+  prevFrom = null, prevTo = null,
   ricettario, orgId, sedeId, sedi = [],
   onBack,
 }) {
@@ -64,7 +72,7 @@ export default function AnalisiInventarioSection({
   // Aggregato per gusto: prod, venduto (residuo differenziale), scarto,
   // ricavo €, food cost €, margine €, margine %.
   const perGusto = useMemo(() => {
-    const raw = calcPerGustoDifferenziale(rows)
+    const raw = totaliPerGusto(rows, { da: dateFrom, a: dateTo })
     const ricByName = {}
     for (const ric of Object.values(ricettario?.ricette || {})) {
       ricByName[String(ric.nome || '').trim().toUpperCase()] = ric
@@ -102,7 +110,7 @@ export default function AnalisiInventarioSection({
 
   const totaliPrev = useMemo(() => {
     if (!Array.isArray(rowsPrev) || rowsPrev.length === 0) return null
-    const raw = calcPerGustoDifferenziale(rowsPrev)
+    const raw = totaliPerGusto(rowsPrev, { da: prevFrom, a: prevTo })
     const ricByName = {}
     for (const ric of Object.values(ricettario?.ricette || {})) {
       ricByName[String(ric.nome || '').trim().toUpperCase()] = ric

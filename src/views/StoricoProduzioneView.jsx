@@ -1,7 +1,7 @@
 // StoricoProduzioneView - Storico produzioni con grafici. Estratta da Dashboard.jsx.
 import React, { useState, useMemo, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { fetchAllInventarioProduzione } from '../lib/inventarioProduzione'
+import { fetchAllInventarioProduzione, GIORNI_RIPORTO_MAX } from '../lib/inventarioProduzione'
 import AnalisiInventarioSection from './AnalisiInventarioSection'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend, ReferenceLine } from 'recharts'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
@@ -32,6 +32,14 @@ const yPCT = v => `${v}%`
 // Nomi mese italiani per fmtKey (vista="mese"). L'index 0 è vuoto perché
 // k.slice(5) restituisce mesi 01-12 e parseInt('01') = 1.
 const MN = ['', 'Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
+
+// Data ISO di `n` giorni prima. Serve a caricare la giacenza di partenza del
+// primo giorno del periodo scelto.
+function giorniPrimaDi(dataIso, n) {
+  const d = new Date(dataIso + 'T12:00:00')
+  d.setDate(d.getDate() - n)
+  return d.toISOString().slice(0, 10)
+}
 
 export default function StoricoProduzioneView({ ricettario, giornaliero, chiusure, logPrezzi = [], orgId, sedeId, sedi = [], metodoProduzione = 'stampi', onNavigate, LEX = lessico() }) {
   // Ricavo effettivo per gusti (gelateria): stimato dai Formati vendita.
@@ -85,6 +93,12 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
   // Se metodo=stampi, restiamo sul flusso legacy (giornaliero da localStorage).
   const [invRows, setInvRows] = useState([])
   const [invRowsPrev, setInvRowsPrev] = useState([])
+  // Finestre EFFETTIVE (periodo scelto e periodo di confronto), da passare
+  // alla sezione. Non bastano le prop dateFrom/dateTo: quando l'utente non ha
+  // scelto le date sono vuote e qui dentro valgono gli ultimi due mesi. Le
+  // righe arrivano con i giorni di giacenza iniziale davanti e quei giorni non
+  // devono entrare nei totali di produzione e scarto.
+  const [win, setWin] = useState({ from: null, to: null, prevFrom: null, prevTo: null })
   // In modalita' "Tutte le sedi" sedeId e' null: prendiamo TUTTE le sedi
   // produttive dell'org, altrimenti solo quella attiva. Le non-produttive
   // (uffici, magazzini centrali) non entrano nell'aggregato inventario.
@@ -122,38 +136,34 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
 
     // Paginato: il server Supabase (PostgREST) ha db-max-rows=50000, quindi
     // .limit() del client viene comunque cappato. Serve range() iterato.
+    // `spedito_g` serve: i chili mandati a un'altra sede non sono venduti al
+    // banco, e senza quella colonna finivano nel venduto (e quindi nel ricavo)
+    // di questa pagina. E si caricano anche i giorni PRIMA del periodo, perché
+    // la rimanenza del giorno precedente è la giacenza di partenza: senza
+    // quella il primo giorno del periodo non si può calcolare.
+    const COLONNE_INV = 'gusto_nome, data, produzione_g, rimanenza_g, scarto_g, spedito_g, sede_id'
+    setWin({ from, to, prevFrom, prevTo })
     const prevPromise = prevFrom
       ? fetchAllInventarioProduzione(orgId, {
-          sedeIds: sediProdIdsPL, dataFrom: prevFrom, dataTo: prevTo,
-          columns: 'gusto_nome, data, produzione_g, rimanenza_g, scarto_g, sede_id',
+          sedeIds: sediProdIdsPL, dataFrom: giorniPrimaDi(prevFrom, GIORNI_RIPORTO_MAX), dataTo: prevTo,
+          columns: COLONNE_INV,
         })
       : Promise.resolve([])
     Promise.all([
       fetchAllInventarioProduzione(orgId, {
-        sedeIds: sediProdIdsPL, dataFrom: from, dataTo: to,
-        columns: 'gusto_nome, data, produzione_g, rimanenza_g, scarto_g, sede_id',
+        sedeIds: sediProdIdsPL, dataFrom: giorniPrimaDi(from, GIORNI_RIPORTO_MAX), dataTo: to,
+        columns: COLONNE_INV,
       }),
       prevPromise,
     ]).then(([cur, prev]) => {
       if (!alive) return
-      // Se aggreghiamo più sedi, sommiamo per (gusto, data): coerente con il
-      // calcolo differenziale del venduto (RIMAN(N-1)+PROD(N)-RIMAN(N) sommato
-      // per sede = sum RIMAN_prev + sum PROD - sum RIMAN).
-      const aggrega = (rows) => {
-        if (sediProdIdsPL.length <= 1) return rows || []
-        const map = new Map()
-        for (const r of (rows || [])) {
-          const k = `${r.gusto_nome}|${r.data}`
-          let v = map.get(k)
-          if (!v) { v = { gusto_nome: r.gusto_nome, data: r.data, produzione_g: 0, rimanenza_g: 0, scarto_g: 0 }; map.set(k, v) }
-          v.produzione_g += Number(r.produzione_g) || 0
-          v.rimanenza_g += Number(r.rimanenza_g) || 0
-          v.scarto_g += Number(r.scarto_g) || 0
-        }
-        return [...map.values()]
-      }
-      setInvRows(aggrega(cur))
-      setInvRowsPrev(aggrega(prev))
+      // Le righe NON si sommano più fra sedi prima del calcolo. Sommarle era
+      // sbagliato con le spedizioni interne: se la sede A manda 5 kg alla sede
+      // B, quei 5 kg escono dal venduto di A (spedito) e restano giacenza di B
+      // (rimanenza) — sommando prima del conto venivano sottratti due volte.
+      // Il motore raggruppa per sede, calcola, e poi somma.
+      setInvRows(cur || [])
+      setInvRowsPrev(prev || [])
     }).catch(() => { if (alive) { setInvRows([]); setInvRowsPrev([]) } })
     return () => { alive = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -710,8 +720,10 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
         <AnalisiInventarioSection
           rows={invRows}
           rowsPrev={invRowsPrev}
-          dateFrom={dateFrom}
-          dateTo={dateTo}
+          dateFrom={win.from || dateFrom}
+          dateTo={win.to || dateTo}
+          prevFrom={win.prevFrom}
+          prevTo={win.prevTo}
           confronto={confronto}
           ricettario={ricettario}
           orgId={orgId}

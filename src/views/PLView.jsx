@@ -8,7 +8,7 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import { sload, ssave } from '../lib/storage'
 import { supabase } from '../lib/supabase'
-import { serieVendutoGusto, normGusto, fetchAllInventarioProduzione } from '../lib/inventarioProduzione'
+import { totaliPerGusto, normGusto, fetchAllInventarioProduzione } from '../lib/inventarioProduzione'
 import { foodcostNoto } from '../lib/chiusure'
 import { totaliPeriodo as usciteCassaPeriodo } from '../lib/primaNota'
 import {
@@ -897,7 +897,11 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
     // la rimanenza di partenza a ogni giorno di chiusura e troncava a zero i
     // conti che non tornavano — gli stessi difetti corretti stamattina nel
     // motore condiviso.
-    const serie = serieVendutoGusto(invRows)
+    // La somma per gusto la fa il motore (totaliPerGusto), con la finestra del
+    // periodo: i giorni caricati prima di `dateFrom` servono solo come giacenza
+    // di partenza. Prima questo ciclo era scritto qui, e la stessa somma esiste
+    // nello Storico produzione: un solo posto, un solo risultato.
+    const perGustoTot = totaliPerGusto(invRows, { da: dateFrom, a: dateTo })
     // Match gusti col ricettario per calcolare ricavo/fc.
     const ricByName = {}
     for (const ric of Object.values(ricettario?.ricette || {})) {
@@ -905,17 +909,8 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
     }
     const rows = []
     let totProd = 0, totVend = 0, totScart = 0, totRic = 0, totFc = 0
-    for (const [gusto, celle] of Object.entries(serie)) {
-      let prodTot = 0, scartoTot = 0, vendTot = 0, celleNonQuadrate = 0
-      for (const c of celle) {
-        // Solo i giorni DENTRO il periodo scelto: la settimana caricata prima
-        // di `dateFrom` serve solo come giacenza di partenza.
-        if (c.data < dateFrom || c.data > dateTo) continue
-        prodTot += c.prod
-        scartoTot += c.scarto
-        if (c.venduto != null) vendTot += c.venduto
-        if (c.quadra === false) celleNonQuadrate++
-      }
+    for (const [gusto, t] of Object.entries(perGustoTot)) {
+      const { prodTot, scartoTot, vendTot, celleNonQuadrate } = t
       const ric = ricByName[normGusto(gusto)]
       const ricavoKg = ric ? (Number(ricavoFlatFor(ric)) || 0) : 0
       // La firma è calcolaFC(ricetta, ingCosti, ricettario): qui veniva
