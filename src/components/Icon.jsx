@@ -92,6 +92,11 @@ const P = {
   // frecce / navigazione
   arrowR:     '<line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>',
   arrowL:     '<line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>',
+  // Su e giù mancavano, e chi ne aveva bisogno scriveva le frecce a mano nel
+  // testo del bottone (↑ ↓): carattere tipografico invece di un'icona, che
+  // cambia forma da un dispositivo all'altro e non si allinea col testo.
+  arrowUp:    '<line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>',
+  arrowDown:  '<line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/>',
   chevR:      '<polyline points="9 18 15 12 9 6"/>',
   chevDown:   '<polyline points="6 9 12 15 18 9"/>',
   // chevUp e minus mancavano: senza di loro <Icon name="chevUp"> cadeva sul

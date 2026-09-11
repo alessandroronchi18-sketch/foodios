@@ -59,8 +59,17 @@ vi.mock('../../src/lib/theme', () => ({
   shadow: { sm: 'none', md: 'none', lg: 'none' },
   motion: { durFast: '150ms', ease: 'ease' },
   tnum: { fontVariantNumeric: 'tabular-nums' },
-  typo: {},
-  getTypo: () => ({}),
+  // typo era `{}`: un mock più povero del modulo vero. Ogni componente che
+  // leggeva `typo.small.fontSize` — cioè quelli che usano il token invece di
+  // una dimensione scritta a mano, come vuole il gate del design — crashava
+  // QUI dentro e non nell'app. Un test che punisce la cosa giusta.
+  typo: {
+    display:    { fontSize: 32 }, h1: { fontSize: 24 }, h2: { fontSize: 18 },
+    h3:         { fontSize: 15 }, body: { fontSize: 14 }, bodyStrong: { fontSize: 14 },
+    small:      { fontSize: 12 }, caption: { fontSize: 11 }, overline: { fontSize: 10 },
+    num:        { fontSize: 22 }, numSm: { fontSize: 14 },
+  },
+  getTypo: () => ({ fontSize: 14 }),
 }))
 
 // Helper renderer che cattura il crash come fallback (verifica che NON cada in fallback)

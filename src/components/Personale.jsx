@@ -8,6 +8,7 @@ import { sload, ssave, sloadAllSedi } from '../lib/storage'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { SkeletonList } from './Skeleton'
 import { calcolaStipendio } from '../lib/stipendiCalc'
+import { toMin as _toMin, finMin as _finMin, hm as _hm, oreTurno, analizzaCopertura } from '../lib/turni'
 import { color as T, radius as R, shadow as S, motion as M, tnum, typo } from '../lib/theme'
 
 const C = {
@@ -30,27 +31,8 @@ function etichettaNome(nome) {
 }
 
 // ─── Copertura turni: sovrapposizioni + n° persone presenti per fascia oraria ──
-const _toMin = s => { const [h,m] = String(s||'').split(':').map(Number); return (h||0)*60 + (m||0) }
-const _hm = m => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`
-function analizzaCopertura(turniGiorno) {
-  const shifts = (turniGiorno||[])
-    .map(t => ({ id:t.id, nome:t.dipendenti?.nome||'-', ini:_toMin(t.ora_inizio), fin:_toMin(t.ora_fine) }))
-    .filter(s => s.fin > s.ini)
-    .sort((a,b)=>a.ini-b.ini)
-  if (!shifts.length) return { shifts:[], overlaps:new Set(), segments:[], open:0, close:0, min:0, max:0 }
-  const overlaps = new Set()
-  for (let i=0;i<shifts.length;i++) for (let j=i+1;j<shifts.length;j++)
-    if (shifts[i].ini < shifts[j].fin && shifts[j].ini < shifts[i].fin) { overlaps.add(shifts[i].id); overlaps.add(shifts[j].id) }
-  const open = Math.min(...shifts.map(s=>s.ini)), close = Math.max(...shifts.map(s=>s.fin))
-  const pts = [...new Set(shifts.flatMap(s=>[s.ini,s.fin]))].sort((a,b)=>a-b)
-  const segments = []
-  for (let k=0;k<pts.length-1;k++) {
-    const a=pts[k], b=pts[k+1]
-    segments.push({ a, b, count: shifts.filter(s=>s.ini<=a && s.fin>=b).length })
-  }
-  const counts = segments.map(s=>s.count)
-  return { shifts, overlaps, segments, open, close, min:Math.min(...counts), max:Math.max(...counts) }
-}
+// Gli orari dei turni (minuti, mezzanotte, ore, copertura) vivono in
+// src/lib/turni.js: stavano qui dentro e non erano testabili.
 const _covColor = c => c===0 ? '#FCA5A5' : c===1 ? '#9AD0B4' : c===2 ? '#16A34A' : '#0B6E3D'
 // Colori per dipendente (timeline turni) + packing in corsie: i turni che si
 // sovrappongono finiscono in corsie diverse → si VEDE la compresenza.
@@ -69,7 +51,7 @@ function CoperturaBar({ cov, compact }) {
   if (!cov || !cov.shifts.length) return null
   return (
     <div style={{ marginTop: compact?6:8 }}>
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', fontSize:9, color:'#8B95A7', marginBottom:3, gap:6 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', fontSize: typo.small.fontSize, color:'#8B95A7', marginBottom:3, gap:6 }}>
         <span>{_hm(cov.open)}</span>
         <span style={{ fontWeight:700, color: '#8B95A7', whiteSpace:'nowrap' }}>
           {`${cov.min===cov.max?cov.min:`${cov.min}–${cov.max}`} in turno`}
@@ -291,7 +273,7 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
         </div>
         {[["Nome e cognome *","nome","text","es. Mario Rossi"],["Ruolo","ruolo","text","es. Pasticciere (facoltativo)"]].map(([lbl,key,type,ph])=>(
           <div key={key} style={{ marginBottom:12 }}>
-            <div style={{ fontSize:9, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:4 }}>{lbl}</div>
+            <div style={{ fontSize: typo.small.fontSize, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:4 }}>{lbl}</div>
             {/* autoComplete off + name fuori-standard: evita che il browser autocompili
                 il RUOLO col cognome dell'utente (bug: il cognome finiva nel ruolo). */}
             <input type={type} value={form[key]} placeholder={ph} onChange={e=>setForm(f=>({...f,[key]:e.target.value}))} style={inputSt}
@@ -299,16 +281,16 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
           </div>
         ))}
         <div style={{ marginBottom:12 }}>
-          <div style={{ fontSize:9, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:4 }}>Tipo contratto</div>
+          <div style={{ fontSize: typo.small.fontSize, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:4 }}>Tipo contratto</div>
           <select value={form.tipo_contratto} onChange={e=>setForm(f=>({...f,tipo_contratto:e.target.value}))} style={inputSt}>
             {TIPI_CONTRATTO.map(t=><option key={t}>{t}</option>)}
           </select>
         </div>
         {/* Reparto (serve alla copertura turni). Secondo reparto = ibrido. */}
         <div style={{ marginBottom:12 }}>
-          <div style={{ fontSize:9, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:4 }}>Reparto</div>
+          <div style={{ fontSize: typo.small.fontSize, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:4 }}>Reparto</div>
           {(orgData.reparti||[]).length===0 ? (
-            <div style={{ fontSize:11, color:C.textSoft, fontStyle:"italic", padding:"8px 0" }}>Crea prima i reparti nella scheda <b>Organigramma</b>, poi potrai assegnarli qui.</div>
+            <div style={{ fontSize: typo.small.fontSize, color:C.textSoft, fontStyle:"italic", padding:"8px 0" }}>Crea prima i reparti nella scheda <b>Organigramma</b>, poi potrai assegnarli qui.</div>
           ) : (<>
             <select value={form.reparto1} onChange={e=>setForm(f=>({...f, reparto1:e.target.value, reparto2: e.target.value===f.reparto2 ? "" : f.reparto2 }))} style={inputSt}>
               <option value="">- Nessun reparto -</option>
@@ -324,34 +306,34 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
         </div>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:12 }}>
           <div>
-            <div title="Costo orario lordo (stipendio mensile / ore mensili)" style={{ fontSize:9, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:4, cursor: 'help' }}>€/ora</div>
+            <div title="Costo orario lordo (stipendio mensile / ore mensili)" style={{ fontSize: typo.small.fontSize, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:4, cursor: 'help' }}>€/ora</div>
             <input type="number" min="0" step="0.5" value={form.costo_orario} onChange={e=>setForm(f=>({...f,costo_orario:e.target.value}))} style={inputSt}/>
           </div>
           <div>
-            <div style={{ fontSize:9, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:4 }}>Ore/settimana</div>
+            <div style={{ fontSize: typo.small.fontSize, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:4 }}>Ore/settimana</div>
             <input type="number" min="0" max="60" value={form.ore_settimana} onChange={e=>setForm(f=>({...f,ore_settimana:e.target.value}))} style={inputSt}/>
           </div>
         </div>
         {form.costo_orario && form.ore_settimana && (
-          <div style={{ marginBottom:12, padding:"8px 12px", background:C.amberLight, borderRadius:8, fontSize:11, color:C.amber, fontWeight:700 }}>
+          <div style={{ marginBottom:12, padding:"8px 12px", background:C.amberLight, borderRadius:8, fontSize: typo.small.fontSize, color:C.amber, fontWeight:700 }}>
             Costo mese stimato (dal costo orario): {fmt((parseFloat(form.costo_orario)||0)*(parseFloat(form.ore_settimana)||0)*4.33)}
           </div>
         )}
 
         {/* STIPENDIO MENSILE + CONTRATTO */}
         <div style={{ marginBottom: 12, padding: 12, background: '#F8FAFC', border: `1px solid ${C.border}`, borderRadius: 10 }}>
-          <div style={{ fontSize: 10.5, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>
+          <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>
             Stipendio mensile (in alternativa al costo orario)
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
             <div>
-              <div style={{ fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Lordo (€)</div>
+              <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Lordo (€)</div>
               <input type="number" min="0" step="10" value={form.stipendio_lordo_mensile}
                 onChange={e => setForm(f => ({ ...f, stipendio_lordo_mensile: e.target.value, stipendio_netto_mensile: '' }))}
                 style={inputSt} placeholder="es. 1500" />
             </div>
             <div>
-              <div style={{ fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Netto stimato (€)</div>
+              <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Netto stimato (€)</div>
               <input type="number" min="0" step="10" value={form.stipendio_netto_mensile}
                 onChange={e => setForm(f => ({ ...f, stipendio_netto_mensile: e.target.value, stipendio_lordo_mensile: '' }))}
                 style={inputSt} placeholder="auto" />
@@ -366,7 +348,7 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
           )}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 10 }}>
             <div>
-              <div style={{ fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Tipo contratto</div>
+              <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Tipo contratto</div>
               <select value={form.contratto_tipo} onChange={e => setForm(f => ({ ...f, contratto_tipo: e.target.value }))} style={inputSt}>
                 <option value="">- Non specificato -</option>
                 <option value="indeterminato">Indeterminato</option>
@@ -378,22 +360,22 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
               </select>
             </div>
             <div>
-              <div style={{ fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Livello CCNL</div>
+              <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Livello CCNL</div>
               <input type="text" value={form.livello} onChange={e => setForm(f => ({ ...f, livello: e.target.value }))}
                 style={inputSt} placeholder="es. 4S, 5, 6" />
             </div>
           </div>
           <div style={{ marginTop: 10 }}>
-            <div style={{ fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Data assunzione (opzionale)</div>
+            <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Data assunzione (opzionale)</div>
             <input type="date" value={form.data_assunzione} onChange={e => setForm(f => ({ ...f, data_assunzione: e.target.value }))} style={inputSt} />
           </div>
-          <div style={{ marginTop: 10, fontSize: 10.5, color: C.textSoft, lineHeight: 1.45 }}>
+          <div style={{ marginTop: 10, fontSize: typo.small.fontSize, color: C.textSoft, lineHeight: 1.45 }}>
             ⚠️ I calcoli lordo↔netto sono stime semplificate (IRPEF + INPS commercio ~9,19% + addizionali 2%). Non sostituiscono il commercialista.
           </div>
         </div>
         {haPiuSedi && (
           <div style={{ marginBottom:12 }}>
-            <div style={{ fontSize:9, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:4 }}>Sede primaria</div>
+            <div style={{ fontSize: typo.small.fontSize, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:4 }}>Sede primaria</div>
             <select value={form.sede_id} onChange={e=>setForm(f=>({...f,sede_id:e.target.value}))} style={inputSt}>
               <option value="">Tutte le sedi (azienda)</option>
               {sedi.filter(s => s.attiva !== false).map(s => (
@@ -403,7 +385,7 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
           </div>
         )}
         <div style={{ marginBottom:14 }}>
-          <div style={{ fontSize:9, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:4 }}>Note</div>
+          <div style={{ fontSize: typo.small.fontSize, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:4 }}>Note</div>
           <textarea value={form.note} onChange={e=>setForm(f=>({...f,note:e.target.value}))} rows={2} style={{ ...inputSt, resize:"vertical" }}/>
         </div>
         <div style={{ display:"flex", gap:8 }}>
@@ -424,7 +406,7 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
             <button key={id} onClick={() => setVista(id)}
               style={{ padding: '5px 12px', borderRadius: 999, border: `1px solid ${vista === id ? C.red : C.border}`,
                 background: vista === id ? C.redLight : C.white, color: vista === id ? C.red : C.textMid,
-                fontSize: 11, fontWeight: vista === id ? 800 : 600, cursor: 'pointer',
+                fontSize: typo.small.fontSize, fontWeight: vista === id ? 800 : 600, cursor: 'pointer',
                 display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name={icon} size={13} />{lbl}</button>
           ))}
         </div>
@@ -451,13 +433,13 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ fontWeight:800, fontSize:14, color:C.text }}>{d.nome}</div>
                 <div style={{ fontSize:12, color:C.textMid, marginTop:2 }}>{d.ruolo || "-"} · {fmt(d.costo_orario)}/h</div>
-                <div style={{ fontSize:11, color:C.textSoft, marginTop:2 }}>
+                <div style={{ fontSize: typo.small.fontSize, color:C.textSoft, marginTop:2 }}>
                   {d.ore_settimana}h/sett · <strong style={{ color:C.red }}>{fmt((d.costo_orario||0)*(d.ore_settimana||0)*4.33)}/mese</strong>
                 </div>
               </div>
-              <span style={{ fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:12, background:C.amberLight, color:C.amber, whiteSpace:"nowrap" }}>{d.tipo_contratto}</span>
+              <span style={{ fontSize: typo.small.fontSize, fontWeight:700, padding:"3px 10px", borderRadius:12, background:C.amberLight, color:C.amber, whiteSpace:"nowrap" }}>{d.tipo_contratto}</span>
             </div>
-            {d.note && <div style={{ fontSize:11, color:C.textSoft, marginTop:6, fontStyle:"italic" }}>{d.note}</div>}
+            {d.note && <div style={{ fontSize: typo.small.fontSize, color:C.textSoft, marginTop:6, fontStyle:"italic" }}>{d.note}</div>}
             <div style={{ display:"flex", gap:8, marginTop:10 }}>
               <button onClick={()=>initEdit(d)} style={{ flex:1, padding:"10px", background:C.bg, border:`1px solid ${C.borderStr}`, borderRadius:8, fontSize:12, color:C.textMid, cursor:"pointer", fontWeight:600 }}>Modifica</button>
               {inArchivio
@@ -471,9 +453,9 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
               <div>
                 <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:3, flexWrap: 'wrap' }}>
                   <span style={{ fontWeight:800, fontSize:13, color:C.text }}>{d.nome}</span>
-                  <span style={{ fontSize:9, fontWeight:700, padding:"2px 8px", borderRadius:20, background:C.amberLight, color:C.amber }}>{d.tipo_contratto}</span>
+                  <span style={{ fontSize: typo.small.fontSize, fontWeight:700, padding:"2px 8px", borderRadius:20, background:C.amberLight, color:C.amber }}>{d.tipo_contratto}</span>
                   {haPiuSedi && (
-                    <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 999,
+                    <span style={{ fontSize: typo.small.fontSize, padding: '2px 8px', borderRadius: 999,
                       background: d.sede_id ? C.amberLight : '#F1F5F9',
                       color: d.sede_id ? '#92400E' : C.textSoft, fontWeight: 700,
                       display: 'inline-flex', alignItems: 'center', gap: 4 }}>
@@ -481,17 +463,17 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
                     </span>
                   )}
                 </div>
-                {d.ruolo && <div style={{ fontSize:11, color:C.textMid, marginBottom:2, display:"inline-flex", alignItems:"center", gap:5 }}><Icon name="briefcase" size={12} />{d.ruolo}</div>}
-                <div style={{ fontSize:11, color:C.textSoft }}>
+                {d.ruolo && <div style={{ fontSize: typo.small.fontSize, color:C.textMid, marginBottom:2, display:"inline-flex", alignItems:"center", gap:5 }}><Icon name="briefcase" size={12} />{d.ruolo}</div>}
+                <div style={{ fontSize: typo.small.fontSize, color:C.textSoft }}>
                   {fmt(d.costo_orario)}/h · {d.ore_settimana}h/sett · <strong style={{ color:C.red }}>{fmt((d.costo_orario||0)*(d.ore_settimana||0)*4.33)}/mese</strong>
                 </div>
-                {d.note && <div style={{ fontSize:10, color:C.textSoft, marginTop:3, fontStyle:"italic" }}>{d.note}</div>}
+                {d.note && <div style={{ fontSize: typo.small.fontSize, color:C.textSoft, marginTop:3, fontStyle:"italic" }}>{d.note}</div>}
               </div>
               <div style={{ display:"flex", gap:6, flexShrink:0 }}>
-                <button onClick={()=>initEdit(d)} title="Modifica" style={{ padding:"5px 10px", borderRadius:8, border:`1px solid ${C.borderStr}`, background:C.white, fontSize:10, color:C.textMid, cursor:"pointer" }}><Icon name="edit" size={13} /></button>
+                <button onClick={()=>initEdit(d)} title="Modifica" style={{ padding:"5px 10px", borderRadius:8, border:`1px solid ${C.borderStr}`, background:C.white, fontSize: typo.small.fontSize, color:C.textMid, cursor:"pointer" }}><Icon name="edit" size={13} /></button>
                 {inArchivio
-                  ? <button onClick={()=>riattiva(d.id)} title="Riattiva" style={{ padding:"5px 10px", borderRadius:8, border:"1px solid #10B981", background:"#ECFDF5", fontSize:10, color:"#065F46", cursor:"pointer", fontWeight:700 }}>↩ Riattiva</button>
-                  : <button onClick={()=>disattiva(d.id)} title="Archivia" style={{ padding:"5px 10px", borderRadius:8, border:`1px solid ${C.red}40`, background:C.redLight, fontSize:10, color:C.red, cursor:"pointer" }}><Icon name="package" size={13} /></button>}
+                  ? <button onClick={()=>riattiva(d.id)} title="Riattiva" style={{ padding:"5px 10px", borderRadius:8, border:"1px solid #10B981", background:"#ECFDF5", fontSize: typo.small.fontSize, color:"#065F46", cursor:"pointer", fontWeight:700 }}>↩ Riattiva</button>
+                  : <button onClick={()=>disattiva(d.id)} title="Archivia" style={{ padding:"5px 10px", borderRadius:8, border:`1px solid ${C.red}40`, background:C.redLight, fontSize: typo.small.fontSize, color:C.red, cursor:"pointer" }}><Icon name="package" size={13} /></button>}
               </div>
             </div>
           </div>
@@ -599,8 +581,9 @@ function TurniTab({ orgId, notify, isMobile }) {
     if (!form.dipendente_id || !form.data) { notify("Seleziona dipendente e data", false); return }
     if (!orgId) { notify("Profilo non pronto, riprova", false); return }
     // Avviso sovrapposizione: stesso dipendente, stesso giorno, orari che si accavallano.
-    const ni = _toMin(form.ora_inizio), nf = _toMin(form.ora_fine)
-    const conflitto = turni.find(t => t.id !== editId && t.dipendente_id === form.dipendente_id && t.data === form.data && ni < _toMin(t.ora_fine) && _toMin(t.ora_inizio) < nf)
+    const ni = _toMin(form.ora_inizio), nf = _finMin(form.ora_inizio, form.ora_fine)
+    const conflitto = turni.find(t => t.id !== editId && t.dipendente_id === form.dipendente_id && t.data === form.data
+      && ni < _finMin(t.ora_inizio, t.ora_fine) && _toMin(t.ora_inizio) < nf)
     if (conflitto) {
       const nomeDip = dipendenti.find(d => d.id === form.dipendente_id)?.nome || 'Il dipendente'
       const ok = await confirmDialog({
@@ -663,10 +646,8 @@ function TurniTab({ orgId, notify, isMobile }) {
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
-  function calcOre(ini, fin) {
-    const [h1,m1]=ini.split(":").map(Number); const [h2,m2]=fin.split(":").map(Number)
-    return Math.max(0, (h2*60+m2 - h1*60-m1)/60)
-  }
+  const calcOre = oreTurno
+
 
   // Audit 2026-06-22: ore/costo possono arrivare come stringa da PostgREST
   // (numeric) → `0 + "8.00"` concatena e la somma collassa in NaN.
@@ -718,11 +699,11 @@ function TurniTab({ orgId, notify, isMobile }) {
       </div>
       {/* Nav periodo */}
       <div style={{ display:"flex", alignItems:"center", gap: isMobile ? 8 : 12, marginBottom:16, flexWrap:"wrap" }}>
-        <button onClick={prevWeek} aria-label="Periodo precedente" style={{ padding: isMobile ? "10px 16px" : "7px 14px", borderRadius:8, border:`1px solid ${C.borderStr}`, background:C.white, fontSize: isMobile ? 14 : 12, cursor:"pointer" }}>←{isMobile ? "" : " Prec"}</button>
+        <button onClick={prevWeek} aria-label="Periodo precedente" style={{ padding: isMobile ? "10px 16px" : "7px 14px", borderRadius:8, border:`1px solid ${C.borderStr}`, background:C.white, fontSize: isMobile ? 14 : 12, cursor:"pointer" }}><Icon name="arrowL" size={14} />{isMobile ? "" : " Prec"}</button>
         <div style={{ fontWeight:800, fontSize: isMobile ? 13 : 14, color:C.text, flex: isMobile ? 1 : "0 0 auto", textAlign: isMobile ? "center" : "left", textTransform:"capitalize" }}>
           {labelPeriodo}
         </div>
-        <button onClick={nextWeek} aria-label="Periodo successivo" style={{ padding: isMobile ? "10px 16px" : "7px 14px", borderRadius:8, border:`1px solid ${C.borderStr}`, background:C.white, fontSize: isMobile ? 14 : 12, cursor:"pointer" }}>{isMobile ? "" : "Succ "}→</button>
+        <button onClick={nextWeek} aria-label="Periodo successivo" style={{ padding: isMobile ? "10px 16px" : "7px 14px", borderRadius:8, border:`1px solid ${C.borderStr}`, background:C.white, fontSize: isMobile ? 14 : 12, cursor:"pointer" }}>{isMobile ? "" : "Succ "}<Icon name="arrowR" size={14} /></button>
         {!isMobile && (
           <>
             <div style={{ marginLeft:"auto", display:"flex", gap:20 }}>
@@ -736,7 +717,7 @@ function TurniTab({ orgId, notify, isMobile }) {
               </div>
             </div>
             <button onClick={()=> showForm ? resetForm() : apriNuovoTurno(week)}
-              style={{ padding:"8px 16px", background:C.red, color:C.white, border:"none", borderRadius:8, fontWeight:800, fontSize:11, cursor:"pointer", display:"inline-flex", alignItems:"center", gap:5 }}>
+              style={{ padding:"8px 16px", background:C.red, color:C.white, border:"none", borderRadius:8, fontWeight:800, fontSize: typo.small.fontSize, cursor:"pointer", display:"inline-flex", alignItems:"center", gap:5 }}>
               {showForm ? "✕" : <><Icon name="plus" size={13} />Turno</>}
             </button>
           </>
@@ -746,11 +727,11 @@ function TurniTab({ orgId, notify, isMobile }) {
       {isMobile && (
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:12 }}>
           <div style={{ background:C.bgCard, borderRadius:10, border:`1px solid ${C.border}`, padding:"10px 12px", textAlign:"center" }}>
-            <div style={{ fontSize:9, fontWeight:700, color:C.textSoft, textTransform:"uppercase" }}>Ore</div>
+            <div style={{ fontSize: typo.small.fontSize, fontWeight:700, color:C.textSoft, textTransform:"uppercase" }}>Ore</div>
             <div style={{ fontSize:18, fontWeight:900, color:C.text }}>{fmtH(totOre)}</div>
           </div>
           <div style={{ background:C.bgCard, borderRadius:10, border:`1px solid ${C.border}`, padding:"10px 12px", textAlign:"center" }}>
-            <div style={{ fontSize:9, fontWeight:700, color:C.textSoft, textTransform:"uppercase" }}>Costo</div>
+            <div style={{ fontSize: typo.small.fontSize, fontWeight:700, color:C.textSoft, textTransform:"uppercase" }}>Costo</div>
             <div style={{ fontSize:18, fontWeight:900, color:C.red, ...tnum }}>{fmt(totCosto)}</div>
           </div>
         </div>
@@ -791,13 +772,13 @@ function TurniTab({ orgId, notify, isMobile }) {
               ) },
             ].map(({lbl,el},i)=>(
               <div key={i}>
-                <div style={{ fontSize: isMobile ? 10 : 8, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:4 }}>{lbl}</div>
+                <div style={{ fontSize: isMobile ? 10 : 8, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:4 }}>{lbl}</div>
                 {el}
               </div>
             ))}
           </div>
           {form.ora_inizio && form.ora_fine && (
-            <div style={{ marginTop:8, fontSize:11, color:C.amber, fontWeight:700 }}>
+            <div style={{ marginTop:8, fontSize: typo.small.fontSize, color:C.amber, fontWeight:700 }}>
               Ore: {fmtH(calcOre(form.ora_inizio, form.ora_fine))}
               {form.dipendente_id && ` · Costo: ${fmt(calcOre(form.ora_inizio, form.ora_fine) * (dipendenti.find(d=>d.id===form.dipendente_id)?.costo_orario||0))}`}
             </div>
@@ -833,11 +814,11 @@ function TurniTab({ orgId, notify, isMobile }) {
                     style={{ borderRight:`1px solid ${C.border}`, borderBottom:`1px solid ${C.border}`, minHeight: isMobile ? 64 : 88, padding:"6px 7px", cursor:"pointer", background: oggi ? "#FFFCF7" : "transparent" }}>
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                       <span style={{ fontSize:12, fontWeight:800, color: oggi ? C.red : C.text }}>{dd.getDate()}</span>
-                      {ds.length > 0 && <span style={{ fontSize:9, fontWeight:700, color:C.textSoft }}>{fmtH(ore)}</span>}
+                      {ds.length > 0 && <span style={{ fontSize: typo.small.fontSize, fontWeight:700, color:C.textSoft }}>{fmtH(ore)}</span>}
                     </div>
                     <div style={{ display:"flex", flexDirection:"column", gap:2, marginTop:3 }}>
                       {ds.slice(0, isMobile ? 2 : 3).map(t => (
-                        <span key={t.id} style={{ fontSize:9, fontWeight:600, color:"#fff", background:colorById[t.dipendente_id] || C.red, border:"1px solid #000", borderRadius:4, padding:"1px 4px", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{etichettaNome(t.dipendenti?.nome)} {_hm(_toMin(t.ora_inizio))}</span>
+                        <span key={t.id} style={{ fontSize: typo.small.fontSize, fontWeight:600, color:"#fff", background:colorById[t.dipendente_id] || C.red, border:"1px solid #000", borderRadius:4, padding:"1px 4px", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{etichettaNome(t.dipendenti?.nome)} {_hm(_toMin(t.ora_inizio))}</span>
                       ))}
                       {ds.length > (isMobile ? 2 : 3) && <span style={{ fontSize:8, color:C.textSoft, fontWeight:700 }}>+{ds.length - (isMobile ? 2 : 3)} altri</span>}
                     </div>
@@ -886,7 +867,7 @@ function TurniTab({ orgId, notify, isMobile }) {
             {repartiInTurno.length > 0 && (
               <div style={{ display:"flex", flexWrap:"wrap", gap:isMobile?10:16, padding:"12px 16px", borderBottom:`1px solid ${C.border}` }}>
                 {repartiInTurno.map(r => (
-                  <span key={r.nome} style={{ display:"inline-flex", alignItems:"center", gap:6, fontSize:11, color:C.textMid, fontWeight:700 }}>
+                  <span key={r.nome} style={{ display:"inline-flex", alignItems:"center", gap:6, fontSize: typo.small.fontSize, color:C.textMid, fontWeight:700 }}>
                     <span style={{ width:11, height:11, borderRadius:3, background:r.color, flexShrink:0, border:"1px solid rgba(0,0,0,0.15)" }}/>{r.nome}
                   </span>
                 ))}
@@ -899,14 +880,14 @@ function TurniTab({ orgId, notify, isMobile }) {
               <div style={{ overflowX: isMobile ? 'auto' : 'visible', WebkitOverflowScrolling: 'touch' }}>
                 {/* Asse orario */}
                 <div style={{ position:"relative", height:22, borderBottom:`1px solid ${C.border}`, minWidth: inner || undefined }}>
-                  {ticks.map(m => <span key={m} style={{ position:"absolute", left:pos(m), transform:"translateX(-50%)", top:5, fontSize:10, color:C.textSoft, fontVariantNumeric:"tabular-nums", whiteSpace:'nowrap' }}>{_hm(m)}</span>)}
+                  {ticks.map(m => <span key={m} style={{ position:"absolute", left:pos(m), transform:"translateX(-50%)", top:5, fontSize: typo.small.fontSize, color:C.textSoft, fontVariantNumeric:"tabular-nums", whiteSpace:'nowrap' }}>{_hm(m)}</span>)}
                 </div>
               </div>
             </div>
             {/* Una riga per giorno: turni come barre sull'orario, in corsie quando si sovrappongono */}
             {weekDays.map((dIso, i) => {
               const cov = covByDay[dIso]
-              const dayShifts = turni.filter(t => t.data === dIso).map(t => ({ id:t.id, dipId:t.dipendente_id, nome:(t.dipendenti?.nome || "-"), data:t.data, note:t.note, ini:_toMin(t.ora_inizio), fin:_toMin(t.ora_fine), ore:t.ore, ora_inizio:t.ora_inizio, ora_fine:t.ora_fine })).filter(s => s.fin > s.ini)
+              const dayShifts = turni.filter(t => t.data === dIso).map(t => ({ id:t.id, dipId:t.dipendente_id, nome:(t.dipendenti?.nome || "-"), data:t.data, note:t.note, ini:_toMin(t.ora_inizio), fin:_finMin(t.ora_inizio, t.ora_fine), ore:t.ore, ora_inizio:t.ora_inizio, ora_fine:t.ora_fine })).filter(s => s.fin > s.ini)
               const { placed, nLanes } = packLanes(dayShifts)
               // Audit 2026-06-25: laneSpacing dinamico per evitare sovrapposizione
               // turni mobile (barre 40px su 30px spacing → overlap 10px).
@@ -931,7 +912,7 @@ function TurniTab({ orgId, notify, isMobile }) {
                           {repartiAttivi.map(r => {
                             const n = presPerRep[r.nome]?.size || 0
                             return (
-                              <span key={r.nome} style={{ display:"flex", alignItems:"center", gap:5, fontSize:9, fontWeight:700, color: n === 0 ? C.amber : C.textMid }}>
+                              <span key={r.nome} style={{ display:"flex", alignItems:"center", gap:5, fontSize: typo.small.fontSize, fontWeight:700, color: n === 0 ? C.amber : C.textMid }}>
                                 <span style={{ width:7, height:7, borderRadius:2, background: n===0 ? "transparent" : r.color, border: n===0 ? `1px solid ${C.amber}` : "none", flexShrink:0 }}/>
                                 {r.nome}: {n === 0 ? <>0 <Icon name="warning" size={10} /></> : n}
                               </span>
@@ -940,12 +921,12 @@ function TurniTab({ orgId, notify, isMobile }) {
                         </div>
                       )
                     })()}
-                    {!isMobile && <button onClick={() => apriNuovoTurno(dIso)} style={{ marginTop:6, fontSize:10, fontWeight:700, color:C.red, background:"transparent", border:`1px dashed ${C.red}40`, borderRadius:6, padding:"3px 8px", cursor:"pointer" }}>+ turno</button>}
+                    {!isMobile && <button onClick={() => apriNuovoTurno(dIso)} style={{ marginTop:6, fontSize: typo.small.fontSize, fontWeight:700, color:C.red, background:"transparent", border:`1px dashed ${C.red}40`, borderRadius:6, padding:"3px 8px", cursor:"pointer" }}>+ turno</button>}
                   </div>
                   <div style={{ overflowX: isMobile ? 'auto' : 'visible', WebkitOverflowScrolling: 'touch' }}>
                     <div style={{ position:"relative", height: rowH, minWidth: inner || undefined }}>
                       {ticks.map(m => <div key={m} style={{ position:"absolute", left:pos(m), top:0, bottom:0, width:1, background:"#F2ECE8" }}/>)}
-                      {dayShifts.length === 0 && <div style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", fontSize:11, color:"#CBD5E1", fontStyle:'italic' }}>-</div>}
+                      {dayShifts.length === 0 && <div style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", fontSize: typo.small.fontSize, color:"#CBD5E1", fontStyle:'italic' }}>-</div>}
                       {placed.map(s => {
                         const col = colorById[s.dipId] || C.red
                         const selez = editId === s.id
@@ -965,7 +946,7 @@ function TurniTab({ orgId, notify, isMobile }) {
                             <span style={{ fontSize: isMobile ? 11 : 10, fontWeight:700, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", flex:1 }}>
                               {isMobile ? etichettaNome(s.nome) : `${etichettaNome(s.nome)} · ${_hm(s.ini)}–${_hm(s.fin)}`}
                             </span>
-                            {eff != null && <span title="Ore consuntivate" style={{ fontSize: 9, fontWeight:800, background:straord > 0 ? "#F59E0B" : "rgba(255,255,255,0.3)", color:"#fff", borderRadius:4, padding:"0 4px", flexShrink:0 }}>{straord > 0 ? `+${straord}h` : "✓"}</span>}
+                            {eff != null && <span title="Ore consuntivate" style={{ fontSize: typo.small.fontSize, fontWeight:800, background:straord > 0 ? "#F59E0B" : "rgba(255,255,255,0.3)", color:"#fff", borderRadius:4, padding:"0 4px", flexShrink:0 }}>{straord > 0 ? `+${straord}h` : "✓"}</span>}
                           </div>
                         )
                       })}
@@ -996,14 +977,14 @@ function TurniTab({ orgId, notify, isMobile }) {
             </div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:16 }}>
               <div style={{ background:C.bg, borderRadius:12, padding:'10px 12px' }}>
-                <div style={{ fontSize:10, fontWeight:700, color:C.textSoft, textTransform:'uppercase', letterSpacing:'0.07em' }}>Orario</div>
+                <div style={{ fontSize: typo.small.fontSize, fontWeight:700, color:C.textSoft, textTransform:'uppercase', letterSpacing:'0.07em' }}>Orario</div>
                 <div style={{ fontSize:16, fontWeight:800, color:C.text, marginTop:4, ...tnum }}>{_hm(shiftPreview.ini)}–{_hm(shiftPreview.fin)}</div>
               </div>
               <div style={{ background:C.bg, borderRadius:12, padding:'10px 12px' }}>
-                <div style={{ fontSize:10, fontWeight:700, color:C.textSoft, textTransform:'uppercase', letterSpacing:'0.07em' }}>Ore</div>
+                <div style={{ fontSize: typo.small.fontSize, fontWeight:700, color:C.textSoft, textTransform:'uppercase', letterSpacing:'0.07em' }}>Ore</div>
                 <div style={{ fontSize:16, fontWeight:800, color:C.text, marginTop:4, ...tnum }}>
                   {fmtH(shiftPreview.ore || 0)}
-                  {consuntivo[shiftPreview.id] != null && <span style={{ fontSize:11, color:C.amber, fontWeight:700, marginLeft:6 }}>eff. {fmtH(consuntivo[shiftPreview.id])}</span>}
+                  {consuntivo[shiftPreview.id] != null && <span style={{ fontSize: typo.small.fontSize, color:C.amber, fontWeight:700, marginLeft:6 }}>eff. {fmtH(consuntivo[shiftPreview.id])}</span>}
                 </div>
               </div>
             </div>
@@ -1130,7 +1111,7 @@ function AnalisiCostoTab({ orgId, isMobile, isTablet }) {
           style={{ padding: isMobile ? "10px 14px" : "8px 12px", borderRadius:8, border:`1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, color:C.text }}/>
         <span style={{ fontSize:12, color:C.textSoft, textTransform:"capitalize" }}>{meseLbl}</span>
         <div style={{ flex:1 }} />
-        <span style={{ fontSize:11, color:C.textSoft }}>Target incidenza</span>
+        <span style={{ fontSize: typo.small.fontSize, color:C.textSoft }}>Target incidenza</span>
         <div style={{ display:"flex", gap:2, padding:3, background:C.bgSubtle, borderRadius:8 }}>
           {[25,30,35].map(tg=>(
             <button key={tg} onClick={()=>setTarget(tg)} style={{ padding:"5px 10px", borderRadius:6, border:"none", cursor:"pointer", fontSize:12, fontWeight: target===tg?700:500, ...tnum, background: target===tg?C.bgCard:"transparent", color: target===tg?C.red:C.textSoft, boxShadow: target===tg?"0 1px 3px rgba(15,23,42,0.10)":"none" }}>{tg}%</button>
@@ -1146,7 +1127,7 @@ function AnalisiCostoTab({ orgId, isMobile, isTablet }) {
           <div style={{ background:"linear-gradient(135deg, #6E0E1A 0%, #4A0612 100%)", borderRadius:18, padding: isMobile?"18px 18px":"22px 26px", marginBottom:16, boxShadow:"0 14px 34px rgba(110,14,26,0.32), inset 0 1px 0 rgba(255,255,255,0.18)" }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:16, flexWrap:"wrap" }}>
               <div style={{ flex:1, minWidth:200 }}>
-                <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase", color:"rgba(255,255,255,0.6)", marginBottom:6 }}>Incidenza costo lavoro</div>
+                <div style={{ fontSize: typo.small.fontSize, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase", color:"rgba(255,255,255,0.6)", marginBottom:6 }}>Incidenza costo lavoro</div>
                 <div style={{ display:"flex", alignItems:"baseline", gap:10 }}>
                   <span style={{ fontSize: isMobile?34:44, fontWeight:900, color: incidenza==null?"rgba(255,255,255,0.5)":(incidenza<=30?"#7BE0A6":incidenza<=40?"#FCD34D":"#FCA5A5"), lineHeight:1, ...tnum }}>{incidenza==null?"-":`${incidenza.toFixed(1)}%`}</span>
                   {incidenza!=null && <span style={{ fontSize:12, color:"rgba(255,255,255,0.7)" }}>del fatturato ({fmt0(ricavi)})</span>}
@@ -1158,7 +1139,7 @@ function AnalisiCostoTab({ orgId, isMobile, isTablet }) {
                   <div style={{ width:64, height:64, borderRadius:"50%", background:`conic-gradient(${incidenza<=30?"#7BE0A6":incidenza<=40?"#FCD34D":"#FCA5A5"} ${Math.min(100,incidenza)*3.6}deg, rgba(255,255,255,0.12) 0)`, display:"flex", alignItems:"center", justifyContent:"center" }}>
                     <div style={{ width:46, height:46, borderRadius:"50%", background:"#2A0E0E", display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:800, color:"#fff" }}>{incidenza.toFixed(0)}%</div>
                   </div>
-                  <span style={{ fontSize:8, color:"rgba(255,255,255,0.5)", textTransform:"uppercase", letterSpacing:"0.08em" }}>target ≤30%</span>
+                  <span style={{ fontSize:8, color:"rgba(255,255,255,0.5)", textTransform:"uppercase", letterSpacing:"0.05em" }}>target ≤30%</span>
                 </div>
               )}
             </div>
@@ -1176,9 +1157,9 @@ function AnalisiCostoTab({ orgId, isMobile, isTablet }) {
               { lbl:"Proiezione annua", val:fmt0(costoFissoMese*12), c:C.amber, sub:"costo fisso × 12" },
             ].map(({lbl,val,c,sub})=>(
               <div key={lbl} className="fos-tile" style={{ background:C.bgCard, borderRadius:16, border:`1px solid ${C.border}`, padding: isMobile ? "14px 14px" : "16px 18px", boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)", display:'flex', flexDirection:'column' }}>
-                <div style={{ fontSize:10, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:8, minHeight: 28, lineHeight: 1.25 }}>{lbl}</div>
+                <div style={{ fontSize: typo.small.fontSize, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:8, minHeight: 28, lineHeight: 1.25 }}>{lbl}</div>
                 <div style={{ fontSize: isMobile ? 20 : 24, fontWeight:800, color:c, letterSpacing:'-0.02em', lineHeight: 1.05, minHeight: isMobile ? 24 : 28, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', ...tnum }}>{val}</div>
-                <div style={{ fontSize: 11, color:C.textSoft, marginTop: 6, minHeight: 28, lineHeight: 1.35, fontWeight: 500 }}>{sub || ''}</div>
+                <div style={{ fontSize: typo.small.fontSize, color:C.textSoft, marginTop: 6, minHeight: 28, lineHeight: 1.35, fontWeight: 500 }}>{sub || ''}</div>
               </div>
             ))}
           </div>
@@ -1201,16 +1182,16 @@ function AnalisiCostoTab({ orgId, isMobile, isTablet }) {
                           <span style={{ fontSize: 13, fontWeight: 800, color: C.red, ...tnum, whiteSpace: 'nowrap' }}>{fmt0(d.costo)}</span>
                         </div>
                         <div style={{ display:'grid', gridTemplateColumns:'1fr auto', gap: 8, alignItems: 'baseline', marginTop: 2, marginBottom: 6 }}>
-                          <span style={{ fontSize: 11, color: C.textSoft, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{fmtH(d.ore)} · {fmt(oraEff)}/h</span>
-                          <span style={{ fontSize: 11, color: C.textSoft, fontWeight: 600, ...tnum }}>{quota.toFixed(0)}%</span>
+                          <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{fmtH(d.ore)} · {fmt(oraEff)}/h</span>
+                          <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, fontWeight: 600, ...tnum }}>{quota.toFixed(0)}%</span>
                         </div>
                       </>
                     ) : (
                       <div style={{ display:'grid', gridTemplateColumns:'minmax(0,1fr) auto auto auto', gap: 14, alignItems:'baseline', marginBottom: 6 }}>
                         <span style={{ fontSize: 13, fontWeight: 700, color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{nome}</span>
-                        <span style={{ fontSize: 11, color: C.textSoft, whiteSpace: 'nowrap' }}>{fmtH(d.ore)} · {fmt(oraEff)}/h</span>
+                        <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, whiteSpace: 'nowrap' }}>{fmtH(d.ore)} · {fmt(oraEff)}/h</span>
                         <span style={{ fontSize: 13, fontWeight: 800, color: C.red, ...tnum, minWidth: 96, textAlign: 'right' }}>{fmt(d.costo)}</span>
-                        <span style={{ fontSize: 11, color: C.textSoft, fontWeight: 600, ...tnum, minWidth: 42, textAlign: 'right' }}>{quota.toFixed(0)}%</span>
+                        <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, fontWeight: 600, ...tnum, minWidth: 42, textAlign: 'right' }}>{quota.toFixed(0)}%</span>
                       </div>
                     )}
                     <div style={{ height: 6, background: '#F0EAE6', borderRadius: 999, overflow: 'hidden' }}>
@@ -1238,16 +1219,16 @@ function AnalisiCostoTab({ orgId, isMobile, isTablet }) {
                           <span style={{ fontSize: 13, fontWeight: 800, color: colore, ...tnum, whiteSpace: 'nowrap' }}>{fmt0(r.costo)}</span>
                         </div>
                         <div style={{ display:'grid', gridTemplateColumns:'1fr auto', gap: 8, alignItems: 'baseline', marginTop: 2, marginBottom: 6 }}>
-                          <span style={{ fontSize: 11, color: C.textSoft }}>{fmtH(r.ore)}</span>
-                          <span style={{ fontSize: 11, color: C.textSoft, fontWeight: 600, ...tnum }}>{quota.toFixed(0)}%</span>
+                          <span style={{ fontSize: typo.small.fontSize, color: C.textSoft }}>{fmtH(r.ore)}</span>
+                          <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, fontWeight: 600, ...tnum }}>{quota.toFixed(0)}%</span>
                         </div>
                       </>
                     ) : (
                       <div style={{ display:'grid', gridTemplateColumns:'minmax(0,1fr) auto auto auto', gap: 14, alignItems:'baseline', marginBottom: 6 }}>
                         <span style={{ fontSize: 13, fontWeight: 700, color: nome==="Senza reparto" ? C.textSoft : C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{nome}</span>
-                        <span style={{ fontSize: 11, color: C.textSoft, whiteSpace: 'nowrap' }}>{fmtH(r.ore)}</span>
+                        <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, whiteSpace: 'nowrap' }}>{fmtH(r.ore)}</span>
                         <span style={{ fontSize: 13, fontWeight: 800, color: colore, ...tnum, minWidth: 96, textAlign: 'right' }}>{fmt(r.costo)}</span>
-                        <span style={{ fontSize: 11, color: C.textSoft, fontWeight: 600, ...tnum, minWidth: 42, textAlign: 'right' }}>{quota.toFixed(0)}%</span>
+                        <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, fontWeight: 600, ...tnum, minWidth: 42, textAlign: 'right' }}>{quota.toFixed(0)}%</span>
                       </div>
                     )}
                     <div style={{ height: 6, background: '#F0EAE6', borderRadius: 999, overflow: 'hidden' }}>
@@ -1336,13 +1317,13 @@ function HeaderPersonale({ orgId, isMobile, isTablet = false }) {
             boxShadow: k.hi ? '0 14px 34px rgba(110,14,26,0.32), inset 0 1px 0 rgba(255,255,255,0.18)' : '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)',
             display: 'flex', flexDirection: 'column',
           }}>
-            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase',
+            <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase',
               color: k.hi ? 'rgba(255,255,255,0.78)' : T.textSoft, marginBottom: 8,
               minHeight: 28, lineHeight: 1.25 }}>{k.lbl}</div>
             <div style={{ fontSize: isMobile ? 22 : 26, fontWeight: 800, letterSpacing: '-0.025em',
               color: k.hi ? T.textOnDark : k.color, lineHeight: 1.05, minHeight: isMobile ? 26 : 30,
               whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', ...tnum }}>{k.val}</div>
-            <div style={{ fontSize: 11, color: k.hi ? 'rgba(255,255,255,0.7)' : T.textSoft, marginTop: 6,
+            <div style={{ fontSize: typo.small.fontSize, color: k.hi ? 'rgba(255,255,255,0.7)' : T.textSoft, marginTop: 6,
               minHeight: 28, lineHeight: 1.35, fontWeight: 500 }}>{k.sub || ''}</div>
           </div>
         ))}
@@ -1673,7 +1654,7 @@ function LaboratoriSection({ orgId, sedi, notify, isMobile, nomeAttivita }) {
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 10 }}>
-        <div style={{ fontSize: 11, fontWeight: 800, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Laboratori attivi</div>
+        <div style={{ fontSize: typo.small.fontSize, fontWeight: 800, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Laboratori attivi</div>
         <button onClick={carica} title="Aggiorna" style={{ ...btnStyle(C.white, C.textMid, `1px solid ${C.border}`), padding: '5px 10px' }}><Icon name="refresh" size={12} />Aggiorna</button>
       </div>
       {laboratori.length === 0 && (
@@ -1690,13 +1671,13 @@ function LaboratoriSection({ orgId, sedi, notify, isMobile, nomeAttivita }) {
             <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '10px 14px', background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 10 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.nome_completo || d.email}</div>
-                <div style={{ fontSize: 11, color: C.textSoft, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div style={{ fontSize: typo.small.fontSize, color: C.textSoft, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {d.email}
                   {d.laboratorio_sede_nome && <span style={{ marginLeft: 8 }}>· sede: <b style={{ color: C.textMid }}>{d.laboratorio_sede_nome}</b></span>}
                   {lastLogin && <span style={{ marginLeft: 8 }}>· ultimo accesso {lastLogin}</span>}
                 </div>
               </div>
-              <span style={{ fontSize: 11, fontWeight: 800, padding: '3px 9px', borderRadius: 999, color: d.approvato ? C.green : C.amber, background: d.approvato ? `${C.green}14` : `${C.amber}18`, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ fontSize: typo.small.fontSize, fontWeight: 800, padding: '3px 9px', borderRadius: 999, color: d.approvato ? C.green : C.amber, background: d.approvato ? `${C.green}14` : `${C.amber}18`, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                 <Icon name={d.approvato ? 'checkCircle' : 'hourglass'} size={11} />{d.approvato ? 'Attivo' : 'Sospeso'}
               </span>
               <button onClick={() => setEditTarget(d)} disabled={busy === d.id}
@@ -1809,19 +1790,19 @@ function LaboratorioFormDialog({ orgId, sedi, nomeAttivita, existing = null, onC
           Un account condiviso per il tablet della sede. I dipendenti si loggano con email + password, poi mettono il proprio codice a 4 cifre.
         </div>
 
-        <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.textMid, marginBottom: 6 }}>Nome laboratorio</label>
+        <label style={{ display: 'block', fontSize: typo.small.fontSize, fontWeight: 700, color: C.textMid, marginBottom: 6 }}>Nome laboratorio</label>
         <input value={nome} onChange={e => setNome(e.target.value)}
           placeholder="Es. Laboratorio Torino"
           style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', minHeight: 40, fontSize: 14, border: `1px solid ${C.border}`, borderRadius: 8, marginBottom: 14 }} />
 
-        <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.textMid, marginBottom: 6 }}>Email account</label>
+        <label style={{ display: 'block', fontSize: typo.small.fontSize, fontWeight: 700, color: C.textMid, marginBottom: 6 }}>Email account</label>
         <input value={email} onChange={e => setEmail(e.target.value)}
           type="email" autoComplete="off" disabled={isEdit}
           placeholder="laboratorio-torino@tuodominio.it"
           style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', minHeight: 40, fontSize: 14, border: `1px solid ${C.border}`, borderRadius: 8, marginBottom: isEdit ? 4 : 14, background: isEdit ? C.bgSubtle : C.white, color: isEdit ? C.textSoft : C.text }} />
-        {isEdit && <div style={{ fontSize: 11, color: C.textSoft, marginBottom: 14 }}>L'email non e' modificabile.</div>}
+        {isEdit && <div style={{ fontSize: typo.small.fontSize, color: C.textSoft, marginBottom: 14 }}>L'email non e' modificabile.</div>}
 
-        <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.textMid, marginBottom: 6 }}>Sede fisica</label>
+        <label style={{ display: 'block', fontSize: typo.small.fontSize, fontWeight: 700, color: C.textMid, marginBottom: 6 }}>Sede fisica</label>
         <select value={sedeId} onChange={e => setSedeId(e.target.value)}
           style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', minHeight: 40, fontSize: 14, border: `1px solid ${C.border}`, borderRadius: 8, marginBottom: 14, background: C.white }}>
           {(sedi || []).map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
@@ -1835,12 +1816,12 @@ function LaboratorioFormDialog({ orgId, sedi, nomeAttivita, existing = null, onC
         )}
         {changePwd && (
           <>
-            <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.textMid, marginBottom: 6 }}>Password</label>
+            <label style={{ display: 'block', fontSize: typo.small.fontSize, fontWeight: 700, color: C.textMid, marginBottom: 6 }}>Password</label>
             <input value={password} onChange={e => setPassword(e.target.value)}
               type="text" autoComplete="new-password"
               placeholder="Almeno 8 caratteri con lettere e numeri"
               style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', minHeight: 40, fontSize: 14, border: `1px solid ${C.border}`, borderRadius: 8, marginBottom: 6 }} />
-            <div style={{ fontSize: 11, color: C.textSoft, marginBottom: 14, lineHeight: 1.5 }}>
+            <div style={{ fontSize: typo.small.fontSize, color: C.textSoft, marginBottom: 14, lineHeight: 1.5 }}>
               La comunichi <b>a voce</b> ai dipendenti che usano questo tablet. Non viene inviata via email in chiaro.
             </div>
           </>
@@ -1937,7 +1918,7 @@ function RubricaDipendentiSection({ orgId, notify, isMobile }) {
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 10 }}>
-        <div style={{ fontSize: 11, fontWeight: 800, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Rubrica</div>
+        <div style={{ fontSize: typo.small.fontSize, fontWeight: 800, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Rubrica</div>
         <button onClick={carica} title="Aggiorna" style={{ ...btnStyle(C.white, C.textMid, `1px solid ${C.border}`), padding: '5px 10px' }}><Icon name="refresh" size={12} />Aggiorna</button>
       </div>
       {lista.length === 0 && (
@@ -1956,7 +1937,7 @@ function RubricaDipendentiSection({ orgId, notify, isMobile }) {
                 <div style={{ fontSize: 13, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {[d.nome, d.cognome].filter(Boolean).join(' ') || '—'}
                 </div>
-                <div style={{ fontSize: 11, color: C.textSoft, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div style={{ fontSize: typo.small.fontSize, color: C.textSoft, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {d.ruolo && <span>{d.ruolo}</span>}
                   {lastUsed && <span style={{ marginLeft: 8 }}>· ultimo accesso {lastUsed}</span>}
                 </div>
@@ -1964,7 +1945,7 @@ function RubricaDipendentiSection({ orgId, notify, isMobile }) {
               <span style={{ fontSize: 15, fontWeight: 800, color: C.text, background: C.bgSubtle, padding: '4px 12px', borderRadius: 8, fontVariantNumeric: 'tabular-nums', letterSpacing: '0.15em' }}>
                 {d.codice_operativo || '—'}
               </span>
-              <span style={{ fontSize: 11, fontWeight: 800, padding: '3px 9px', borderRadius: 999, color: d.codice_attivo ? C.green : C.amber, background: d.codice_attivo ? `${C.green}14` : `${C.amber}18`, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ fontSize: typo.small.fontSize, fontWeight: 800, padding: '3px 9px', borderRadius: 999, color: d.codice_attivo ? C.green : C.amber, background: d.codice_attivo ? `${C.green}14` : `${C.amber}18`, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                 <Icon name={d.codice_attivo ? 'checkCircle' : 'hourglass'} size={11} />{d.codice_attivo ? 'Attivo' : 'Sospeso'}
               </span>
               <button onClick={() => setCodiceTarget(d)} disabled={busy === d.id}
@@ -2078,20 +2059,20 @@ function DipendenteOperativoFormDialog({ orgId, existing = null, soloAnagrafica 
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
           <div>
-            <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.textMid, marginBottom: 6 }}>Nome</label>
+            <label style={{ display: 'block', fontSize: typo.small.fontSize, fontWeight: 700, color: C.textMid, marginBottom: 6 }}>Nome</label>
             <input value={nome} onChange={e => setNome(e.target.value)}
               placeholder="Marco"
               style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', minHeight: 40, fontSize: 14, border: `1px solid ${C.border}`, borderRadius: 8 }} />
           </div>
           <div>
-            <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.textMid, marginBottom: 6 }}>Cognome</label>
+            <label style={{ display: 'block', fontSize: typo.small.fontSize, fontWeight: 700, color: C.textMid, marginBottom: 6 }}>Cognome</label>
             <input value={cognome} onChange={e => setCognome(e.target.value)}
               placeholder="Rossi"
               style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', minHeight: 40, fontSize: 14, border: `1px solid ${C.border}`, borderRadius: 8 }} />
           </div>
         </div>
 
-        <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.textMid, marginBottom: 6 }}>Ruolo (opzionale)</label>
+        <label style={{ display: 'block', fontSize: typo.small.fontSize, fontWeight: 700, color: C.textMid, marginBottom: 6 }}>Ruolo (opzionale)</label>
         <select value={ruolo} onChange={e => setRuolo(e.target.value)}
           style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', minHeight: 40, fontSize: 14, border: `1px solid ${C.border}`, borderRadius: 8, marginBottom: 14, background: C.white }}>
           <option value="">— non specificato —</option>
@@ -2103,12 +2084,12 @@ function DipendenteOperativoFormDialog({ orgId, existing = null, soloAnagrafica 
 
         {!isEdit && !soloAnagrafica && (
           <>
-            <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.textMid, marginBottom: 6 }}>Codice a 4 cifre</label>
+            <label style={{ display: 'block', fontSize: typo.small.fontSize, fontWeight: 700, color: C.textMid, marginBottom: 6 }}>Codice a 4 cifre</label>
             <input value={codice} onChange={e => setCodice(e.target.value.replace(/[^0-9]/g, '').slice(0, 4))}
               inputMode="numeric" maxLength={4} autoComplete="off"
               placeholder="Es. 0834"
               style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', minHeight: 40, fontSize: 18, letterSpacing: '0.4em', fontWeight: 700, border: `1px solid ${C.border}`, borderRadius: 8, marginBottom: 6, fontVariantNumeric: 'tabular-nums', textAlign: 'center' }} />
-            <div style={{ fontSize: 11, color: C.textSoft, marginBottom: 14, lineHeight: 1.5 }}>
+            <div style={{ fontSize: typo.small.fontSize, color: C.textSoft, marginBottom: 14, lineHeight: 1.5 }}>
               Scegli 4 cifre che il dipendente ricordera' (evita 0000, 1234, ecc.). Comunicaglielo <b>a voce</b>: non lo mandiamo via email.
             </div>
           </>
@@ -2164,7 +2145,7 @@ function CambiaCodiceDialog({ existing, onClose, onDone, notify }) {
           placeholder="Es. 0834"
           autoFocus
           style={{ width: '100%', boxSizing: 'border-box', padding: '12px 12px', minHeight: 48, fontSize: 22, letterSpacing: '0.4em', fontWeight: 700, border: `1px solid ${C.border}`, borderRadius: 8, marginBottom: 6, fontVariantNumeric: 'tabular-nums', textAlign: 'center' }} />
-        <div style={{ fontSize: 11, color: C.textSoft, marginBottom: 14, lineHeight: 1.5 }}>
+        <div style={{ fontSize: typo.small.fontSize, color: C.textSoft, marginBottom: 14, lineHeight: 1.5 }}>
           Comunicagli il nuovo codice <b>a voce</b>.
         </div>
         {err && <div style={{ fontSize: 12, color: C.red, background: `${C.red}12`, padding: '8px 12px', borderRadius: 8, marginBottom: 12 }}>{err}</div>}
@@ -2242,33 +2223,41 @@ function CalcoloLordoNetto({ lordo, netto, setForm }) {
   const fmt = (n) => `${Math.round(Number(n) || 0).toLocaleString('it-IT', { useGrouping: 'always' })} €`
   return (
     <div style={{ marginTop: 6, padding: '10px 12px', background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 8 }}>
-      <div style={{ fontSize: 10, fontWeight: 700, color: '#1E3A8A', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
-        Stima (13 mensilità + INPS + IRPEF a scaglioni)
+      <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, color: '#1E3A8A', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
+        Stima: 13 mensilità, INPS, IRPEF a scaglioni
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 8, fontSize: 11 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 8, fontSize: typo.small.fontSize }}>
         <div>
-          <div style={{ color: '#475264', marginBottom: 2 }}>Lordo</div>
-          <div style={{ fontWeight: 800, color: '#0E1726', fontSize: 13 }}>{fmt(result.lordo)}</div>
+          <div style={{ color: C.textMid, marginBottom: 2 }}>Lordo</div>
+          <div style={{ fontWeight: 800, color: '#0E1726', fontSize: 15 }}>{fmt(result.lordo)}</div>
+          <div style={{ color: C.textMid, marginTop: 2 }}>per mensilità</div>
         </div>
         <div>
-          <div style={{ color: '#475264', marginBottom: 2 }}>Netto stimato</div>
-          <div style={{ fontWeight: 800, color: '#15803D', fontSize: 13 }}>{fmt(result.netto)}</div>
+          <div style={{ color: C.textMid, marginBottom: 2 }}>Netto stimato</div>
+          <div style={{ fontWeight: 800, color: '#15803D', fontSize: 15 }}>{fmt(result.netto)}</div>
+          <div style={{ color: C.textMid, marginTop: 2 }}>in busta, per mensilità</div>
         </div>
         <div>
-          <div style={{ color: '#475264', marginBottom: 2 }}>Costo azienda</div>
-          <div style={{ fontWeight: 800, color: '#991B1B', fontSize: 13 }}>{fmt(result.costoAzienda)}</div>
+          <div style={{ color: C.textMid, marginBottom: 2 }}>Costo azienda</div>
+          <div style={{ fontWeight: 800, color: '#991B1B', fontSize: 15 }}>{fmt(result.costoAzienda)}</div>
+          {/* I tre numeri NON sono sulla stessa base, e prima non c'era modo
+              di saperlo: lordo e netto sono per mensilità (13 all'anno), il
+              costo azienda è quello che esce di cassa OGNI MESE, con la
+              tredicesima e il TFR già spalmati sui dodici. Senza queste tre
+              righe i numeri sembravano non tornare. */}
+          <div style={{ color: C.textMid, marginTop: 2 }}>ogni mese, 13ª e TFR compresi</div>
         </div>
       </div>
       {netto && !lordo && result.lordo > 0 && (
         <button type="button" onClick={() => setForm(f => ({ ...f, stipendio_lordo_mensile: result.lordo.toFixed(2), stipendio_netto_mensile: '' }))}
-          style={{ marginTop: 8, padding: '4px 10px', minHeight: 28, fontSize: 11, fontWeight: 700, color: '#1E3A8A', background: '#FFFFFF', border: '1px solid #BFDBFE', borderRadius: 6, cursor: 'pointer' }}>
-          ↑ Usa lordo {fmt(result.lordo)}
+          style={{ marginTop: 8, padding: '4px 10px', minHeight: 32, fontSize: typo.small.fontSize, fontWeight: 700, color: '#1E3A8A', display: 'inline-flex', alignItems: 'center', gap: 5, background: '#FFFFFF', border: '1px solid #BFDBFE', borderRadius: 6, cursor: 'pointer' }}>
+          <Icon name="arrowUp" size={12} /> Usa lordo {fmt(result.lordo)}
         </button>
       )}
       {lordo && !netto && result.netto > 0 && (
         <button type="button" onClick={() => setForm(f => ({ ...f, stipendio_netto_mensile: result.netto.toFixed(2), stipendio_lordo_mensile: '' }))}
-          style={{ marginTop: 8, padding: '4px 10px', minHeight: 28, fontSize: 11, fontWeight: 700, color: '#1E3A8A', background: '#FFFFFF', border: '1px solid #BFDBFE', borderRadius: 6, cursor: 'pointer' }}>
-          ↓ Usa netto {fmt(result.netto)}
+          style={{ marginTop: 8, padding: '4px 10px', minHeight: 32, fontSize: typo.small.fontSize, fontWeight: 700, color: '#1E3A8A', display: 'inline-flex', alignItems: 'center', gap: 5, background: '#FFFFFF', border: '1px solid #BFDBFE', borderRadius: 6, cursor: 'pointer' }}>
+          <Icon name="arrowDown" size={12} /> Usa netto {fmt(result.netto)}
         </button>
       )}
     </div>
