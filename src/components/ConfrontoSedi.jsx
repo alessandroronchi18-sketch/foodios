@@ -6,7 +6,8 @@ import PeriodCompareSelector from './PeriodCompareSelector'
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from 'recharts'
 import { sload } from '../lib/storage'
 import { supabase } from '../lib/supabase'
-import { color as T } from '../lib/theme'
+import { color as T, typo } from '../lib/theme'
+import { foodCostPesato, vocePerGruppo } from '../lib/confrontoSediCalc'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { caricaCostiAziendali, totaleMensile } from '../lib/costiAziendali'
 import { ChartTip } from '../views/_shared'
@@ -24,13 +25,16 @@ const CARD = T.bgCard
 const BORDER = T.border
 const tnum = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" };
 
+// Il simbolo € va DOPO la cifra: "1.477 €", non "€ 1.477". Qui stava davanti,
+// e in tre punti chi chiamava la funzione aggiungeva un secondo € in coda —
+// a schermo usciva "€ 1.234 €".
 function fmt(n) {
   if (n == null) return '-'
-  return '€ ' + Number(n).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return Number(n).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'
 }
 function fmt0(n) {
   if (n == null) return '-'
-  return '€ ' + Number(n).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })
+  return Number(n).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 }) + ' €'
 }
 function fmtInt(n) {
   if (n == null) return '-'
@@ -190,12 +194,15 @@ export default function ConfrontoSedi({ orgId, sedi }) {
             x.setHours(0, 0, 0, 0)
             return x >= a && x < b
           }
-          const ricaviCur = chiusureArr
-            .filter(c => inRange(c.data || 0, curStart, curEnd))
-            .reduce((s, c) => s + (c.kpi?.totV || 0), 0)
-          const ricaviPrev = chiusureArr
-            .filter(c => inRange(c.data || 0, prevStart, prevEnd))
-            .reduce((s, c) => s + (c.kpi?.totV || 0), 0)
+          // Si conta anche QUANTE chiusure ci sono nel periodo: zero chiusure
+          // non vuol dire zero incasso, vuol dire che nessuno ha chiuso la
+          // cassa. La differenza cambia tutto quello che viene dopo.
+          const chiusureCur = chiusureArr.filter(c => inRange(c.data || 0, curStart, curEnd))
+          const chiusurePrev = chiusureArr.filter(c => inRange(c.data || 0, prevStart, prevEnd))
+          const nChiusureCur = chiusureCur.length
+          const nChiusurePrev = chiusurePrev.length
+          const ricaviCur = chiusureCur.reduce((s, c) => s + (c.kpi?.totV || 0), 0)
+          const ricaviPrev = chiusurePrev.reduce((s, c) => s + (c.kpi?.totV || 0), 0)
 
           // Trend 8 settimane: somma cumulativa nel trend8 condiviso.
           for (const wk of trend8) {
@@ -206,38 +213,47 @@ export default function ConfrontoSedi({ orgId, sedi }) {
           }
 
           const giorArr = Array.isArray(giornaliero) ? giornaliero : []
-          // Food cost % nel periodo
-          let fcSum = 0, fcCount = 0
-          giorArr.forEach(sess => {
+          // Food cost in EURO e ricavi delle stesse giornate: il food cost in
+          // percentuale si fa dividendo i due totali, non facendo la media
+          // delle percentuali giorno per giorno.
+          //
+          // Prima era la media: una giornata da 50 € di incasso al 50% di food
+          // cost pesava come una da 3.000 € al 25%, e la percentuale che ne
+          // usciva non era quella di nessuno. Su quel numero la pagina alzava
+          // un allarme rosso a 38%.
+          const sessioniPeriodo = giorArr.filter(sess => {
             const d = new Date(sess.data || 0)
             d.setHours(0, 0, 0, 0)
-            if (d >= curStart && d < curEnd && sess.ricavoTot > 0) {
-              fcSum += (sess.fcTot / sess.ricavoTot) * 100
-              fcCount++
-            }
+            return d >= curStart && d < curEnd
           })
-          const foodCostPct = fcCount > 0 ? fcSum / fcCount : null
+          const fc = foodCostPesato(sessioniPeriodo)
+          const fcEuroCur = fc.fcEuro
+          const giornateConDato = fc.giornate
+          const foodCostPct = fc.pct
 
-          // Margine lordo periodo (ricavi - food cost €)
-          let fcEuroCur = 0
-          giorArr.forEach(sess => {
-            const d = new Date(sess.data || 0)
-            d.setHours(0, 0, 0, 0)
-            if (d >= curStart && d < curEnd) fcEuroCur += (sess.fcTot || 0)
-          })
-          const margineLordoCur = ricaviCur - fcEuroCur
+          // Margine lordo: si calcola solo se c'e' un incasso vero nel periodo.
+          //
+          // Prima era `ricavi - foodcost` sempre, anche con zero chiusure di
+          // cassa: per il design partner, che lavora col metodo inventario e
+          // non compila le chiusure, usciva 0 - 2,42 = margine NEGATIVO su
+          // tutte e tre le sedi, e la pagina alzava un allarme rosso
+          // "margine netto negativo" fisso, basato sul nulla.
+          const haIncasso = nChiusureCur > 0
+          const margineLordoCur = haIncasso ? ricaviCur - fcEuroCur : null
 
           // Costi aziendali ripartiti sul periodo
           const giorniPeriodo = Math.max(1, Math.round((curEnd - curStart) / (1000 * 60 * 60 * 24)))
           const costiPeriodo = (costiResults[sede.id] || 0) * (giorniPeriodo / 30)
-          const margineNettoCur = margineLordoCur - costiPeriodo
+          const margineNettoCur = margineLordoCur != null ? margineLordoCur - costiPeriodo : null
 
           const prodOggi = giorArr
             .filter(sess => (sess.data || '').startsWith(today))
             .reduce((s, sess) => s + (sess.prodotti || []).reduce((ps, p) => ps + (p.stampi || 0), 0), 0)
 
           results[sede.id] = {
-            ricaviCur, ricaviPrev,
+            ricaviCur: nChiusureCur > 0 ? ricaviCur : null,
+            ricaviPrev: nChiusurePrev > 0 ? ricaviPrev : null,
+            nChiusureCur, nChiusurePrev, giornateConDato,
             foodCostPct,
             margineLordoCur,
             margineNettoCur,
@@ -250,9 +266,15 @@ export default function ConfrontoSedi({ orgId, sedi }) {
             stockProdsCount: (stockProdsBySede[sede.id]?.size) || 0,
             trasfInArrivo: pendingBySede[sede.id] || 0,
           }
-        } catch {
+        } catch (e) {
+          // Prima il catch era muto: un errore di lettura e "nessun dato nel
+          // periodo" finivano entrambi in una fila di trattini, e non c'era
+          // modo di capire quale dei due fosse.
+          console.error(`[ConfrontoSedi] sede ${sede.nome || sede.id}:`, e)
           results[sede.id] = {
+            errore: (e?.message || 'errore di lettura').slice(0, 120),
             ricaviCur: null, ricaviPrev: null,
+            nChiusureCur: 0, nChiusurePrev: 0, giornateConDato: 0,
             foodCostPct: null,
             margineLordoCur: null, margineNettoCur: null, costiPeriodo: null,
             prodOggi: null,
@@ -291,8 +313,18 @@ export default function ConfrontoSedi({ orgId, sedi }) {
       if (k.trasfInArrivo > 0) {
         out.push({ sede: s, lvl: 'amber', icon: 'truck', msg: `${k.trasfInArrivo} trasferiment${k.trasfInArrivo === 1 ? 'o' : 'i'} in attesa di ricezione` })
       }
+      // Il margine negativo si segnala solo se c'e' un incasso vero da cui
+      // calcolarlo. Senza chiusure di cassa nel periodo, `margineNettoCur` e'
+      // null e questo allarme non parte: prima partiva sempre, perché zero
+      // incasso meno i costi fa sempre un numero negativo.
       if (k.margineNettoCur != null && k.margineNettoCur < 0) {
         out.push({ sede: s, lvl: 'red', icon: 'money', msg: `Margine netto negativo (${fmt0(k.margineNettoCur)})` })
+      }
+      // Cassa non chiusa: e' un promemoria, non un allarme sui conti.
+      if (k.errore) {
+        out.push({ sede: s, lvl: 'amber', icon: 'alert', msg: `Dati non caricati: ${k.errore}` })
+      } else if (k.nChiusureCur === 0) {
+        out.push({ sede: s, lvl: 'amber', icon: 'clock', msg: `Nessuna chiusura di cassa ${periodo === 'mese' ? 'questo mese' : 'questa settimana'}: ricavi e margini non si possono calcolare` })
       }
       if (k.ricaviCur != null && k.ricaviPrev != null && k.ricaviPrev > 0) {
         const calo = ((k.ricaviCur - k.ricaviPrev) / k.ricaviPrev) * 100
@@ -303,30 +335,13 @@ export default function ConfrontoSedi({ orgId, sedi }) {
   }, [kpiMap, sediAttive, periodo])
 
   // ── Consolidato gruppo (CFO view) ─────────────────────────────────────────
-  const consolidato = useMemo(() => {
-    let ricCur = 0, ricPrev = 0, margNetto = 0, margLordo = 0, costiPeriodo = 0
-    let fcSum = 0, fcCount = 0
-    let sediConData = 0
-    for (const s of sediAttive) {
-      const k = kpiMap[s.id]
-      if (!k) continue
-      sediConData++
-      if (k.ricaviCur != null) ricCur += k.ricaviCur
-      if (k.ricaviPrev != null) ricPrev += k.ricaviPrev
-      if (k.margineLordoCur != null) margLordo += k.margineLordoCur
-      if (k.margineNettoCur != null) margNetto += k.margineNettoCur
-      if (k.costiPeriodo != null) costiPeriodo += k.costiPeriodo
-      if (k.foodCostPct != null) { fcSum += k.foodCostPct; fcCount++ }
-    }
-    return {
-      ricCur, ricPrev,
-      deltaRicPct: ricPrev > 0 ? ((ricCur - ricPrev) / ricPrev) * 100 : null,
-      margNetto, margLordo, costiPeriodo,
-      foodCostMedio: fcCount > 0 ? fcSum / fcCount : null,
-      sediConData,
-      margineNettoPct: ricCur > 0 ? (margNetto / ricCur) * 100 : null,
-    }
-  }, [sediAttive, kpiMap])
+  // Il consolidato del gruppo lo calcola la libreria (provata dai test): il
+  // ciclo stava qui dentro e faceva la media del food cost FRA LE SEDI, così
+  // una sede da 500 € pesava come una da 5.000 €.
+  const consolidato = useMemo(
+    () => vocePerGruppo(sediAttive.map(s => kpiMap[s.id])),
+    [sediAttive, kpiMap],
+  )
 
   // ── Sede critica + Sede champion (con punteggio composito) ─────────────────
   // Punteggio composito per ogni sede (alto = bene):
@@ -338,6 +353,14 @@ export default function ConfrontoSedi({ orgId, sedi }) {
     return sediAttive.map(s => {
       const k = kpiMap[s.id]
       if (!k) return { sede: s, score: null }
+      // Senza incasso nel periodo NON si dà un voto.
+      //
+      // Prima il punteggio partiva da 50 e veniva corretto dai dati: con zero
+      // chiusure di cassa nessuna correzione scattava, e tutte le sedi
+      // restavano a 50 esatti. La pagina poi ordinava quei 50 tutti uguali e
+      // incoronava una "sede critica" — che in pratica era la prima
+      // dell'elenco. Un verdetto sul nulla, con l'aria di una misura.
+      if (k.ricaviCur == null) return { sede: s, score: null }
       let score = 50
       if (k.ricaviCur > 0 && k.margineNettoCur != null) {
         score += (k.margineNettoCur / k.ricaviCur) * 50
@@ -452,17 +475,42 @@ export default function ConfrontoSedi({ orgId, sedi }) {
     { key: 'fattureDaPagare', icon: 'fileText', label: 'Fatture da pagare',        fmt: v => v ?? 0, bw: bwFatture },
   ]
 
-  const headerStyle = { padding: isMobile ? '8px 10px' : '12px 16px', fontSize: 11, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: `1px solid ${BORDER}`, textAlign: 'center' }
+  const headerStyle = { padding: isMobile ? '8px 10px' : '12px 16px', fontSize: typo.small.fontSize, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: `1px solid ${BORDER}`, textAlign: 'center' }
   const tdL = { padding: isMobile ? '10px 10px' : '12px 16px', fontSize: 13, color: MID, borderTop: `1px solid ${BORDER}` }
   const tdC = { padding: isMobile ? '10px 10px' : '12px 16px', fontSize: 13, textAlign: 'center', borderTop: `1px solid ${BORDER}`, ...tnum }
 
+  // Sedi senza nemmeno una chiusura di cassa nel periodo: senza quelle non
+  // esistono ricavi, e senza ricavi non esistono margini, food cost e voti.
+  const sediSenzaCassa = sediAttive.filter(s => (kpiMap[s.id]?.nChiusureCur ?? 0) === 0 && !kpiMap[s.id]?.errore)
+
   return (
     <div style={{ maxWidth: 1080, padding: isMobile ? 12 : 0 }}>
+      {/* Perché mezza pagina è vuota. Prima non c'era scritto da nessuna
+          parte: la tabella mostrava trattini, il margine usciva negativo
+          (zero incasso meno i costi) e l'allarme rosso partiva su tutte le
+          sedi. Il design partner lavora col metodo inventario e non compila
+          le chiusure: per lui questa pagina era tutta rossa senza motivo. */}
+      {!loading && sediSenzaCassa.length > 0 && (
+        <div style={{
+          display: 'flex', alignItems: 'flex-start', gap: 9,
+          background: AMB_BG, border: `1px solid ${AMB}55`, borderRadius: 12,
+          padding: isMobile ? 12 : '12px 16px', marginBottom: 14,
+          fontSize: typo.small.fontSize, color: T.amberDark, lineHeight: 1.55,
+        }}>
+          <Icon name="clock" size={14} color={T.amberDark} style={{ flexShrink: 0, marginTop: 3 }} />
+          <span>
+            {sediSenzaCassa.length === sediAttive.length
+              ? <><strong>Nessuna chiusura di cassa {periodo === 'mese' ? 'questo mese' : 'questa settimana'}.</strong> Ricavi, margini e food cost di questa pagina arrivano dalle chiusure: finché non ne registri una restano vuoti, e non è un dato negativo — è un dato che manca.</>
+              : <><strong>{sediSenzaCassa.length === 1 ? 'Una sede non ha' : `${sediSenzaCassa.length} sedi non hanno`} chiusure di cassa {periodo === 'mese' ? 'questo mese' : 'questa settimana'}</strong> ({sediSenzaCassa.map(s => s.nome).join(', ')}): per {sediSenzaCassa.length === 1 ? 'quella' : 'quelle'} i ricavi e i margini restano vuoti, e il confronto è fra le altre.</>}
+          </span>
+        </div>
+      )}
+
       {/* Header + selettore periodo */}
       <div style={{ marginBottom: 14 }}>
-        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: RED, marginBottom: 6 }}>Analisi</div>
+        <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: RED, marginBottom: 6 }}>Analisi</div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <p style={{ margin: 0, fontSize: 12, color: SOFT, lineHeight: 1.5 }}>
+          <p style={{ margin: 0, fontSize: typo.small.fontSize, color: SOFT, lineHeight: 1.5 }}>
             <span style={{ color: GRN, fontWeight: 700 }}>Verde</span> = migliore &nbsp;·&nbsp;
             <span style={{ color: RED, fontWeight: 700 }}>Rosso</span> = peggiore &nbsp;·&nbsp;
             confronto con <strong>{periodo === 'mese' ? 'mese' : 'settimana'} precedente</strong>
@@ -475,7 +523,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                     padding: '6px 14px', borderRadius: 999, border: 'none',
                     background: periodo === p.id ? TXT : 'transparent',
                     color: periodo === p.id ? '#fff' : MID,
-                    fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                    fontSize: typo.small.fontSize, fontWeight: 700, cursor: 'pointer',
                   }}>
                   {p.lbl}
                 </button>
@@ -489,10 +537,10 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                 subtitle: `${sediAttive.length} sedi attive`,
                 periodo: `Periodo: ${periodo === 'mese' ? 'mese corrente' : 'settimana corrente'} vs ${periodo} precedente`,
                 kpi: consolidato ? [
-                  { label: 'Ricavi gruppo', value: `${fmt0(consolidato.ricCur)} €`, sub: consolidato.deltaRicPct != null ? `${consolidato.deltaRicPct >= 0 ? '+' : ''}${consolidato.deltaRicPct.toFixed(0)}% vs prec.` : '' },
-                  { label: 'Margine netto', value: `${fmt0(consolidato.margNetto)} €`, sub: consolidato.margineNettoPct != null ? `${consolidato.margineNettoPct.toFixed(1)}% dei ricavi` : '' },
+                  { label: 'Ricavi gruppo', value: `${fmt0(consolidato.ricCur)}`, sub: consolidato.deltaRicPct != null ? `${consolidato.deltaRicPct >= 0 ? '+' : ''}${consolidato.deltaRicPct.toFixed(0)}% vs prec.` : '' },
+                  { label: 'Margine netto', value: `${fmt0(consolidato.margNetto)}`, sub: consolidato.margineNettoPct != null ? `${consolidato.margineNettoPct.toFixed(1)}% dei ricavi` : '' },
                   { label: 'Food cost medio', value: consolidato.foodCostMedio != null ? consolidato.foodCostMedio.toFixed(1) + '%' : '-', sub: 'target < 33%' },
-                  { label: 'Costi azienda', value: `${fmt0(consolidato.costiPeriodo || 0)} €` },
+                  { label: 'Costi azienda', value: `${fmt0(consolidato.costiPeriodo || 0)}` },
                 ] : [],
                 sections: [
                   {
@@ -548,7 +596,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
             }}>
               <div style={{ position: 'absolute', top: -60, right: -30, width: 220, height: 220, borderRadius: '50%', background: 'radial-gradient(circle, rgba(110,14,26,0.22) 0%, transparent 70%)', pointerEvents: 'none' }}/>
               <div style={{ position: 'relative' }}>
-                <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.65)', marginBottom: 10 }}>
+                <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.65)', marginBottom: 10 }}>
                   Vista gruppo · {consolidato.sediConData} {consolidato.sediConData === 1 ? 'sede' : 'sedi'} attive
                 </div>
                 <div style={{
@@ -557,34 +605,34 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                   gap: isMobile ? 12 : 18,
                 }}>
                   <div>
-                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)', fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase', minHeight: 28, lineHeight: 1.2 }}>Ricavi {periodoLabel}</div>
+                    <div style={{ fontSize: typo.small.fontSize, color: 'rgba(255,255,255,0.55)', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', minHeight: 28, lineHeight: 1.2 }}>Ricavi {periodoLabel}</div>
                     <div style={{ fontSize: isMobile ? 22 : 28, fontWeight: 900, marginTop: 4, whiteSpace: 'nowrap', minHeight: 30, ...tnum }}>{fmt0(consolidato.ricCur)}</div>
-                    <div style={{ fontSize: 11, marginTop: 4, color: consolidato.deltaRicPct != null ? (consolidato.deltaRicPct >= 0 ? '#86EFAC' : '#FF6B6B') : 'rgba(255,255,255,0.45)', fontWeight: 700, minHeight: 16, ...tnum }}>
+                    <div style={{ fontSize: typo.small.fontSize, marginTop: 4, color: consolidato.deltaRicPct != null ? (consolidato.deltaRicPct >= 0 ? '#86EFAC' : '#FF6B6B') : 'rgba(255,255,255,0.45)', fontWeight: 700, minHeight: 16, ...tnum }}>
                       {consolidato.deltaRicPct != null ? `${consolidato.deltaRicPct >= 0 ? '+' : ''}${consolidato.deltaRicPct.toFixed(0)}% vs prec.` : '-'}
                     </div>
                   </div>
                   <div>
-                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)', fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase', minHeight: 28, lineHeight: 1.2 }}>Margine netto</div>
+                    <div style={{ fontSize: typo.small.fontSize, color: 'rgba(255,255,255,0.55)', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', minHeight: 28, lineHeight: 1.2 }}>Margine netto</div>
                     <div style={{ fontSize: isMobile ? 22 : 28, fontWeight: 900, marginTop: 4, color: consolidato.margNetto >= 0 ? '#FFF' : '#FF6B6B', whiteSpace: 'nowrap', minHeight: 30, ...tnum }}>
                       {fmt0(consolidato.margNetto)}
                     </div>
-                    <div style={{ fontSize: 11, marginTop: 4, color: 'rgba(255,255,255,0.65)', fontWeight: 600, minHeight: 16, ...tnum }}>
+                    <div style={{ fontSize: typo.small.fontSize, marginTop: 4, color: 'rgba(255,255,255,0.65)', fontWeight: 600, minHeight: 16, ...tnum }}>
                       {consolidato.margineNettoPct != null ? `${consolidato.margineNettoPct.toFixed(1)}% dei ricavi` : '-'}
                     </div>
                   </div>
                   <div>
-                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)', fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase', minHeight: 28, lineHeight: 1.2 }}>Food cost medio</div>
+                    <div style={{ fontSize: typo.small.fontSize, color: 'rgba(255,255,255,0.55)', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', minHeight: 28, lineHeight: 1.2 }}>Food cost medio</div>
                     <div style={{ fontSize: isMobile ? 22 : 28, fontWeight: 900, marginTop: 4, color: consolidato.foodCostMedio == null ? 'rgba(255,255,255,0.5)' : consolidato.foodCostMedio < 33 ? '#86EFAC' : consolidato.foodCostMedio < 38 ? '#FCD34D' : '#FF6B6B', whiteSpace: 'nowrap', minHeight: 30, ...tnum }}>
                       {consolidato.foodCostMedio != null ? consolidato.foodCostMedio.toFixed(1) + '%' : '-'}
                     </div>
-                    <div style={{ fontSize: 11, marginTop: 4, color: 'rgba(255,255,255,0.55)', minHeight: 16 }}>
+                    <div style={{ fontSize: typo.small.fontSize, marginTop: 4, color: 'rgba(255,255,255,0.55)', minHeight: 16 }}>
                       target &lt; 33%
                     </div>
                   </div>
                   <div>
-                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)', fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase', minHeight: 28, lineHeight: 1.2 }}>Costi azienda</div>
+                    <div style={{ fontSize: typo.small.fontSize, color: 'rgba(255,255,255,0.55)', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', minHeight: 28, lineHeight: 1.2 }}>Costi azienda</div>
                     <div style={{ fontSize: isMobile ? 22 : 28, fontWeight: 900, marginTop: 4, whiteSpace: 'nowrap', minHeight: 30, ...tnum }}>{fmt0(consolidato.costiPeriodo || 0)}</div>
-                    <div style={{ fontSize: 11, marginTop: 4, color: 'rgba(255,255,255,0.55)', minHeight: 16 }}>
+                    <div style={{ fontSize: typo.small.fontSize, marginTop: 4, color: 'rgba(255,255,255,0.55)', minHeight: 16 }}>
                       personalizzati
                     </div>
                   </div>
@@ -608,11 +656,11 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                   return (
                     <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.15)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
-                        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)' }}>
+                        <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)' }}>
                           Trend ricavi · ultime 8 settimane
                         </div>
                         {trendHoveredIdx != null && trend8w[trendHoveredIdx] && (
-                          <div style={{ fontSize: 11, color: '#FBD7C9', fontWeight: 700, ...tnum }}>
+                          <div style={{ fontSize: typo.small.fontSize, color: '#FBD7C9', fontWeight: 700, ...tnum }}>
                             {trend8w[trendHoveredIdx].label || `W${trendHoveredIdx + 1}`}: {fmt0(trend8w[trendHoveredIdx].ricavi)}
                           </div>
                         )}
@@ -656,7 +704,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                 <Icon name="sparkles" size={18} color="#B45309" />
               </div>
               <div>
-                <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#92400E', marginBottom: 4 }}>
+                <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#92400E', marginBottom: 4 }}>
                   Lettura AI del gruppo
                 </div>
                 <div style={{ fontSize: 13.5, color: '#451A03', lineHeight: 1.6, fontWeight: 500 }}>
@@ -680,7 +728,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                     <span style={{ fontSize: 22 }}>🚨</span>
-                    <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: RED }}>
+                    <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: RED }}>
                       Sede da gestire subito
                     </div>
                   </div>
@@ -703,7 +751,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                     <Icon name="award" size={22} color={GRN}/>
-                    <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: GRN }}>
+                    <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: GRN }}>
                       Sede champion (replica il modello)
                     </div>
                   </div>
@@ -746,13 +794,13 @@ export default function ConfrontoSedi({ orgId, sedi }) {
             return (
               <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 14, padding: isMobile ? 14 : 20, marginBottom: 16 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: SOFT }}>
+                  <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: SOFT }}>
                     Visualizzazione interattiva
                   </div>
                   <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                     {METRICS.map(m => (
                       <button key={m.id} onClick={() => setChartMetric(m.id)}
-                        style={{ padding: '5px 10px', borderRadius: 999, border: `1px solid ${chartMetric === m.id ? RED : BORDER}`, background: chartMetric === m.id ? RED : 'transparent', color: chartMetric === m.id ? '#FFF' : MID, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                        style={{ padding: '5px 10px', borderRadius: 999, border: `1px solid ${chartMetric === m.id ? RED : BORDER}`, background: chartMetric === m.id ? RED : 'transparent', color: chartMetric === m.id ? '#FFF' : MID, fontSize: typo.small.fontSize, fontWeight: 700, cursor: 'pointer' }}>
                         {m.lbl}
                       </button>
                     ))}
@@ -768,7 +816,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                       { id: 'pie',  lbl: 'Torta' },
                     ].map(t => (
                       <button key={t.id} onClick={() => setChartType(t.id)}
-                        style={{ padding: '5px 12px', borderRadius: 999, border: 'none', background: chartType === t.id ? TXT : 'transparent', color: chartType === t.id ? '#FFF' : MID, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                        style={{ padding: '5px 12px', borderRadius: 999, border: 'none', background: chartType === t.id ? TXT : 'transparent', color: chartType === t.id ? '#FFF' : MID, fontSize: typo.small.fontSize, fontWeight: 700, cursor: 'pointer' }}>
                         {t.lbl}
                       </button>
                     ))}
@@ -784,10 +832,10 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                     {chartType === 'bar' && (
                       <BarChart data={data} margin={isMobile ? { top: 8, right: 12, bottom: 8, left: 8 } : { top: 12, right: 24, bottom: 12, left: 12 }}>
                         <CartesianGrid strokeDasharray="4 4" stroke="#E5E9EF" vertical={false}/>
-                        <XAxis dataKey="sede" tick={{ fontSize: 11, fill: '#64748B' }} tickLine={false} axisLine={{ stroke: '#E5E9EF' }} />
-                        <YAxis tick={{ fontSize: 11, fill: '#64748B' }} tickLine={false} axisLine={false} tickFormatter={v => metricDef.fmt(v)} width={isMobile ? 56 : 72} />
+                        <XAxis dataKey="sede" tick={{ fontSize: typo.small.fontSize, fill: '#64748B' }} tickLine={false} axisLine={{ stroke: '#E5E9EF' }} />
+                        <YAxis tick={{ fontSize: typo.small.fontSize, fill: '#64748B' }} tickLine={false} axisLine={false} tickFormatter={v => metricDef.fmt(v)} width={isMobile ? 56 : 72} />
                         <Tooltip cursor={{ fill: 'rgba(110,14,26,0.04)' }} content={<ChartTip />} formatter={v => metricDef.fmt(v)} />
-                        <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} iconType="circle" />
+                        <Legend wrapperStyle={{ fontSize: typo.small.fontSize, paddingTop: 8 }} iconType="circle" />
                         <Bar dataKey="current" name={`${metricDef.lbl} (attuale)`} fill={RED} radius={[6, 6, 0, 0]} maxBarSize={56} />
                         {compareMode !== 'none' && prevKey && <Bar dataKey="compare" name={metricDef.lbl + ' (confronto)'} fill={COMPARE_COLOR} radius={[6, 6, 0, 0]} maxBarSize={56} />}
                       </BarChart>
@@ -795,10 +843,10 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                     {chartType === 'line' && (
                       <LineChart data={data} margin={isMobile ? { top: 8, right: 12, bottom: 8, left: 8 } : { top: 12, right: 24, bottom: 12, left: 12 }}>
                         <CartesianGrid strokeDasharray="4 4" stroke="#E5E9EF" vertical={false}/>
-                        <XAxis dataKey="sede" tick={{ fontSize: 11, fill: '#64748B' }} tickLine={false} axisLine={{ stroke: '#E5E9EF' }} />
-                        <YAxis tick={{ fontSize: 11, fill: '#64748B' }} tickLine={false} axisLine={false} tickFormatter={v => metricDef.fmt(v)} width={isMobile ? 56 : 72} />
+                        <XAxis dataKey="sede" tick={{ fontSize: typo.small.fontSize, fill: '#64748B' }} tickLine={false} axisLine={{ stroke: '#E5E9EF' }} />
+                        <YAxis tick={{ fontSize: typo.small.fontSize, fill: '#64748B' }} tickLine={false} axisLine={false} tickFormatter={v => metricDef.fmt(v)} width={isMobile ? 56 : 72} />
                         <Tooltip content={<ChartTip />} formatter={v => metricDef.fmt(v)} />
-                        <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} iconType="circle" />
+                        <Legend wrapperStyle={{ fontSize: typo.small.fontSize, paddingTop: 8 }} iconType="circle" />
                         <Line type="monotone" dataKey="current" name={`${metricDef.lbl} (attuale)`} stroke={RED} strokeWidth={2.5} dot={{ r: 4, fill: RED }} activeDot={{ r: 6 }} />
                         {compareMode !== 'none' && prevKey && <Line type="monotone" dataKey="compare" name={metricDef.lbl + ' (confronto)'} stroke={COMPARE_COLOR} strokeWidth={2} strokeDasharray="6 4" dot={{ r: 3 }} />}
                       </LineChart>
@@ -806,7 +854,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                     {chartType === 'pie' && (
                       <PieChart margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
                         <Tooltip content={<ChartTip />} formatter={v => metricDef.fmt(v)} />
-                        <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} iconType="circle" />
+                        <Legend wrapperStyle={{ fontSize: typo.small.fontSize, paddingTop: 8 }} iconType="circle" />
                         <Pie data={data} dataKey="current" nameKey="sede" outerRadius={isMobile ? 76 : 100} innerRadius={isMobile ? 36 : 50} paddingAngle={2} label={d => d.sede} labelLine={false}>
                           {data.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                         </Pie>
@@ -821,7 +869,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
           {/* RANKING ricavi */}
           {ranking.length >= 2 && (
             <div style={{ background: 'linear-gradient(180deg, #FFFEF0 0%, #FFF 80%)', border: `1px solid ${BORDER}`, borderRadius: 12, padding: isMobile ? 14 : 20, marginBottom: 16 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: SOFT, marginBottom: 10 }}>
+              <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: SOFT, marginBottom: 10 }}>
                 Classifica ricavi {periodoLabel}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -837,12 +885,12 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                         <div style={{ fontSize: 14, fontWeight: 800, color: TXT, display: 'flex', alignItems: 'center', gap: 6 }}>
                           <Icon name="pin" size={13} />{r.sede.nome}
                         </div>
-                        {r.sede.citta && <div style={{ fontSize: 11, color: SOFT }}>{r.sede.citta}</div>}
+                        {r.sede.citta && <div style={{ fontSize: typo.small.fontSize, color: SOFT }}>{r.sede.citta}</div>}
                       </div>
                       <div style={{ textAlign: 'right' }}>
                         <div style={{ fontSize: 16, fontWeight: 900, color: TXT, ...tnum }}>{fmt0(r.ricavi)}</div>
                         {delta && (
-                          <div style={{ fontSize: 11, fontWeight: 700, color: delta.positive ? GRN : RED, ...tnum }}>
+                          <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, color: delta.positive ? GRN : RED, ...tnum }}>
                             {delta.sign}{fmt0(delta.delta)}{delta.pct != null ? ` (${delta.sign}${delta.pct.toFixed(0)}%)` : ''}
                           </div>
                         )}
@@ -857,7 +905,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
           {/* ALERTS */}
           {alerts.length > 0 && (
             <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: isMobile ? 14 : 18, marginBottom: 16 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: SOFT, marginBottom: 10 }}>
+              <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: SOFT, marginBottom: 10 }}>
                 Alerts da gestire ({alerts.length})
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -868,8 +916,8 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                     <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: bg, borderRadius: 8 }}>
                       <Icon name={a.icon} size={15} color={col} />
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: TXT }}>{a.sede.nome}</div>
-                        <div style={{ fontSize: 11.5, color: MID }}>{a.msg}</div>
+                        <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, color: TXT }}>{a.sede.nome}</div>
+                        <div style={{ fontSize: typo.small.fontSize, color: MID }}>{a.msg}</div>
                       </div>
                     </div>
                   )
@@ -886,7 +934,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                 return (
                   <div key={s.id} style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: 16 }}>
                     <div style={{ fontSize: 14, fontWeight: 800, color: TXT, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="pin" size={14} />{s.nome}</div>
-                    {s.citta && <div style={{ fontSize: 11, color: SOFT, marginBottom: 12 }}>{s.citta}</div>}
+                    {s.citta && <div style={{ fontSize: typo.small.fontSize, color: SOFT, marginBottom: 12 }}>{s.citta}</div>}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                       {RIGHE_KPI.map(r => {
                         const cs = cellStyle(s.id, r.bw)
@@ -894,7 +942,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                         const col = cs.color || TXT
                         return (
                           <div key={r.key} style={{ background: bg, borderRadius: 8, padding: '10px 12px' }}>
-                            <div style={{ fontSize: 10, color: SOFT, marginBottom: 4, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}><Icon name={r.icon} size={12} />{r.label}</div>
+                            <div style={{ fontSize: typo.small.fontSize, color: SOFT, marginBottom: 4, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}><Icon name={r.icon} size={12} />{r.label}</div>
                             <div style={{ fontSize: 16, fontWeight: 800, color: col, ...tnum }}>{r.fmt(k[r.key])}</div>
                           </div>
                         )
@@ -913,7 +961,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                     {sediAttive.map(s => (
                       <th key={s.id} style={headerStyle}>
                         {s.nome}
-                        {s.citta && <div style={{ fontSize: 10, color: SOFT, fontWeight: 500, textTransform: 'none', letterSpacing: 0 }}>{s.citta}</div>}
+                        {s.citta && <div style={{ fontSize: typo.small.fontSize, color: SOFT, fontWeight: 500, textTransform: 'none', letterSpacing: 0 }}>{s.citta}</div>}
                       </th>
                     ))}
                   </tr>
@@ -929,7 +977,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                           <td key={s.id} style={{ ...tdC, ...cellStyle(s.id, r.bw) }}>
                             <div>{r.fmt(k[r.key])}</div>
                             {delta && (
-                              <div style={{ fontSize: 10, color: delta.positive ? GRN : RED, fontWeight: 700, marginTop: 2 }}>
+                              <div style={{ fontSize: typo.small.fontSize, color: delta.positive ? GRN : RED, fontWeight: 700, marginTop: 2 }}>
                                 {delta.sign}{r.fmt(delta.delta)}{delta.pct != null ? ` (${delta.sign}${delta.pct.toFixed(0)}%)` : ''}
                               </div>
                             )}
