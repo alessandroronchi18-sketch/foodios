@@ -246,9 +246,36 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
   const critici = Object.values(magazzino || {}).filter(m => m.giacenza_g === 0 || (m.soglia_g > 0 && m.giacenza_g <= m.soglia_g))
   const ultimeRicette = Object.values(ricettario?.ricette || {}).slice(-5).reverse()
 
+  // Da quanti giorni non si registra un incasso.
+  //
+  // Il promemoria diceva solo "Chiudi la cassa", e solo dopo le 14 del giorno
+  // stesso: con zero chiusure registrate compare una volta al giorno e viene
+  // ignorato, perché sembra un compito di oggi e non un buco che si allarga.
+  // Senza incassi, metà del tool lavora su stime: il conto economico, il
+  // confronto fra sedi, il food cost in percentuale.
+  const giorniSenzaCassa = (() => {
+    const conChiusura = new Set((chiusEff || []).map(c => String(c?.data || '').slice(0, 10)))
+    let n = 0
+    for (let i = 1; i <= 30; i++) {
+      const d = new Date(now); d.setDate(now.getDate() - i)
+      const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      if (!conChiusura.has(iso)) n++
+      else break   // si conta la striscia di giorni scoperti più recente
+    }
+    return n
+  })()
+
   const todos = []
   if (!hasProdOggi && ora >= 6) todos.push({ id: 'prod', label: 'Registra la produzione di oggi', view: 'giornaliero' })
-  if (!cassaOggi && ora >= 14) todos.push({ id: 'cassa', label: 'Chiudi la cassa', view: 'chiusura' })
+  if (giorniSenzaCassa >= 3) {
+    todos.push({
+      id: 'cassa-arretrata',
+      label: `Non registri l'incasso da ${giorniSenzaCassa} giorni: bastano dieci secondi al giorno`,
+      view: 'chiusura',
+    })
+  } else if (!cassaOggi && ora >= 14) {
+    todos.push({ id: 'cassa', label: 'Chiudi la cassa', view: 'chiusura' })
+  }
   if (critici.length > 0) todos.push({ id: 'mag', label: `${critici.length} ingredienti sotto soglia in magazzino`, view: 'magazzino' })
 
   const giornoLabel = now.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })

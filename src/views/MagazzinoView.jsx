@@ -1151,6 +1151,56 @@ export default function MagazzinoView({
     [righe],
   )
 
+  // Primo inventario: contare in una volta tutto quello che non è mai stato
+  // contato.
+  //
+  // Nel magazzino del design partner sono 40 ingredienti su 48. Finché non
+  // hanno una giacenza, la pagina non sa dire cosa sta finendo, gli ordini
+  // suggeriti non partono e il valore a magazzino è una frazione del vero.
+  // Aggiungerli uno per uno vuol dire quaranta volte apri-scrivi-salva:
+  // nessuno lo fa, ed è per questo che sono ancora quaranta.
+  const [inventarioAperto, setInventarioAperto] = useState(false)
+  const [conteggi, setConteggi] = useState({})   // chiave → quantità digitata
+
+  const salvaPrimoInventario = async () => {
+    if (saving) return
+    const daScrivere = Object.entries(conteggi)
+      .map(([k, v]) => [k, parseFloat(String(v).replace(',', '.'))])
+      .filter(([, q]) => Number.isFinite(q) && q >= 0)
+    if (daScrivere.length === 0) {
+      notify('Scrivi almeno una quantità', false)
+      return
+    }
+    setSaving(true)
+    const nm = { ...magazzino }
+    for (const [k, qtaKg] of daScrivere) {
+      const riga = righe.find(r => r.k === k)
+      // Si scrive in GRAMMI, come tutto il magazzino: l'utente digita i chili
+      // perché è così che si pesa in laboratorio.
+      nm[k] = {
+        ...(magazzino?.[k] || {}),
+        nome: riga?.nome || k,
+        giacenza_g: Math.round(qtaKg * 1000),
+        ultimoRifornimento: new Date().toISOString(),
+      }
+    }
+    try {
+      await ssave(SK_MAG, nm)
+    } catch (e) {
+      console.error('[magazzino] primo inventario:', e)
+      notify('Non ho potuto salvare il conteggio. Riprova', false)
+      setSaving(false)
+      return
+    }
+    setMagazzino(nm)
+    setConteggi({})
+    setSaving(false)
+    const rimasti = maiContati.length - daScrivere.length
+    notify(`${daScrivere.length === 1 ? 'Un ingrediente contato' : `${daScrivere.length} ingredienti contati`}.` +
+      (rimasti > 0 ? ` Ne restano ${rimasti}: puoi finire quando vuoi.` : ' Il magazzino è completo.'))
+    if (rimasti <= 0) setInventarioAperto(false)
+  }
+
   const applicaSogliePropose = async () => {
     if (saving || sogliePropose.length === 0) return
     setSaving(true)
@@ -1539,6 +1589,83 @@ export default function MagazzinoView({
       {/* Soglie di riordino mancanti: senza una soglia l'avviso non scatta mai,
           e la lista della spesa resta vuota anche quando un ingrediente è agli
           sgoccioli. Sul magazzino del design partner sono zero su nove. */}
+      {/* Primo inventario: quaranta ingredienti su quarantotto non sono mai
+          stati contati, e finché non lo sono la pagina non sa dire cosa sta
+          finendo. Aggiungerli uno per uno vuol dire quaranta volte
+          apri-scrivi-salva: è per questo che sono ancora quaranta. */}
+      {tab === 'giacenze' && maiContati.length > 0 && (
+        <div style={{
+          background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 14,
+          marginBottom: 16, overflow: 'hidden',
+        }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+            padding: isMobile ? 12 : '14px 16px',
+          }}>
+            <Icon name="clipboard" size={16} color={C.textSoft} style={{ flexShrink: 0 }} />
+            <span style={{ flex: 1, minWidth: 200, fontSize: typo.small.fontSize, color: C.textMid, lineHeight: 1.5 }}>
+              <strong style={{ color: C.text }}>
+                {maiContati.length === 1
+                  ? 'Un ingrediente non è mai stato contato'
+                  : `${maiContati.length} ingredienti non sono mai stati contati`}
+              </strong>
+              {' '}— finché non hanno una quantità non posso dirti cosa sta finendo,
+              e il valore a magazzino è una frazione del vero.
+            </span>
+            <button type="button" onClick={() => setInventarioAperto(v => !v)}
+              style={{
+                padding: '8px 14px', minHeight: 38, borderRadius: 9,
+                border: `1px solid ${C.borderStr}`, background: inventarioAperto ? C.bgSubtle : T.brand,
+                color: inventarioAperto ? C.textMid : '#FFF',
+                fontSize: typo.small.fontSize, fontWeight: 700, cursor: 'pointer', flexShrink: 0,
+              }}>
+              {inventarioAperto ? 'Chiudi' : 'Contali adesso'}
+            </button>
+          </div>
+
+          {inventarioAperto && (
+            <div style={{ borderTop: `1px solid ${C.borderSoft}` }}>
+              <div style={{ padding: isMobile ? '8px 12px' : '8px 16px', fontSize: typo.small.fontSize, color: C.textSoft }}>
+                Pesa e scrivi i chili. Quelli che salti restano qui: puoi finire domani.
+              </div>
+              {maiContati.map(r => (
+                <div key={r.k} style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  padding: isMobile ? '9px 12px' : '9px 16px',
+                  borderTop: `1px solid ${C.borderSoft}`,
+                }}>
+                  <span style={{ flex: 1, minWidth: 0, fontSize: 13, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {r.nome}
+                  </span>
+                  <input
+                    type="number" inputMode="decimal" min="0" step="0.1"
+                    value={conteggi[r.k] ?? ''}
+                    onChange={e => setConteggi(c => ({ ...c, [r.k]: e.target.value }))}
+                    placeholder="kg"
+                    aria-label={`Quantità di ${r.nome} in chili`}
+                    style={{
+                      width: 92, padding: '8px 10px', minHeight: 40, borderRadius: 8,
+                      border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 14,
+                      textAlign: 'right', fontVariantNumeric: 'tabular-nums', boxSizing: 'border-box',
+                    }} />
+                  <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, width: 22 }}>kg</span>
+                </div>
+              ))}
+              <div style={{ padding: isMobile ? 12 : '12px 16px', borderTop: `1px solid ${C.borderSoft}`, display: 'flex', justifyContent: 'flex-end' }}>
+                <button type="button" onClick={salvaPrimoInventario} disabled={saving}
+                  style={{
+                    padding: '10px 18px', minHeight: 42, borderRadius: 9, border: 'none',
+                    background: T.brand, color: '#FFF', fontSize: 13, fontWeight: 700,
+                    cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.6 : 1,
+                  }}>
+                  {saving ? 'Salvo…' : 'Salva il conteggio'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {tab === 'giacenze' && sogliePropose.length > 0 && (
         <div style={{
           display: 'flex', alignItems: 'flex-start', gap: 9, flexWrap: 'wrap',
