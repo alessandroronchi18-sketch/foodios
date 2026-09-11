@@ -100,7 +100,9 @@ function dettagliFromRow(r) {
     const ch = nd.changes
     for (const k of Object.keys(ch)) {
       const v = ch[k]
-      if (Array.isArray(v) && v.length === 2) out.push(`${k}: ${v[0]} → ${v[1]}`)
+      // "da X a Y" invece di "X → Y": è una frase, non un diagramma, e la
+      // freccia è un carattere tipografico che cambia forma fra i dispositivi.
+      if (Array.isArray(v) && v.length === 2) out.push(`${k}: da ${v[0]} a ${v[1]}`)
     }
   }
   return out
@@ -160,6 +162,7 @@ export default function RegistroAttivita({ orgId, sedi = [], notify }) {
   const [rows, setRows]       = useState([])
   const [loading, setLoading] = useState(true)
   const [hasMore, setHasMore] = useState(false)
+  const [totalePeriodo, setTotalePeriodo] = useState(null)  // conteggio vero dal database
   const [page, setPage]       = useState(0)
   const [utenti, setUtenti]   = useState([])
   const [stats,  setStats]    = useState({ total: 0, oggi: 0, topUser: null, topTable: null })
@@ -266,12 +269,17 @@ export default function RegistroAttivita({ orgId, sedi = [], notify }) {
     if (dataDa)  qb = qb.gte('created_at', `${dataDa}T00:00:00`)
     if (dataA)   qb = qb.lte('created_at', `${dataA}T23:59:59`)
 
-    qb.then(({ data, error }) => {
+    qb.then(({ data, error, count }) => {
       if (!alive) return
       if (error) {
         notifyRef.current?.(`Errore lettura registro: ${error.message}`, false)
-        setRows([]); setHasMore(false)
+        setRows([]); setHasMore(false); setTotalePeriodo(null)
       } else {
+        // Quante azioni ci sono DAVVERO nel periodo. La query lo chiede già
+        // (`count: 'exact'`) ma nessuno lo leggeva: la tessera "Azioni nel
+        // periodo" mostrava le righe della pagina caricata, cioè al massimo
+        // cinquanta, anche quando nel periodo ce n'erano tremila.
+        if (typeof count === 'number') setTotalePeriodo(count)
         let list = data || []
         if (sedeId) list = list.filter(r => r.new_data?.sede_id === sedeId)
         if (q.trim()) {
@@ -390,8 +398,10 @@ export default function RegistroAttivita({ orgId, sedi = [], notify }) {
         {/* KPI STRIP */}
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10 }}>
           {[
-            { lbl: 'Azioni nel periodo', val: stats.total, sub: `${dataDa} → ${dataA}`, color: T.text, hi: true },
-            { lbl: 'Azioni oggi',        val: stats.oggi,  sub: stats.oggi === 0 ? 'Nessuna attività' : 'modifiche registrate', color: T.text },
+            // Il conteggio vero viene dal database; `stats.total` (le righe
+            // caricate) resta solo come ripiego se il conteggio non arriva.
+            { lbl: 'Azioni nel periodo', val: totalePeriodo ?? stats.total, sub: `dal ${dataDa} al ${dataA}`, color: T.text, hi: true },
+            { lbl: 'Azioni oggi',        val: stats.oggi,  sub: stats.oggi === 0 ? 'nessuna, fra quelle caricate' : 'fra quelle caricate', color: T.text },
             { lbl: 'Utente più attivo',  val: stats.topUser?.email?.split('@')[0] || '-', sub: stats.topUser ? `${stats.topUser.count} azioni` : 'Nessun dato', color: T.brand },
             { lbl: 'Tipo più frequente', val: tableMeta(stats.topTable?.name).label,      sub: stats.topTable ? `${stats.topTable.count} azioni` : 'Nessun dato', color: T.amber },
           ].map((k, i) => (
