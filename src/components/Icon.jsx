@@ -96,6 +96,16 @@ const P = {
   // testo del bottone (↑ ↓): carattere tipografico invece di un'icona, che
   // cambia forma da un dispositivo all'altro e non si allinea col testo.
   arrowUp:    '<line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>',
+  // Aggiunte dopo un controllo automatico sui nomi usati nel progetto: 26
+  // punti puntavano a icone che non esistevano e disegnavano un pallino
+  // grigio. Fra queste l'occhio della password, sulla pagina di accesso.
+  eye:        '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>',
+  eyeOff:     '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-6.5 0-10-8-10-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c6.5 0 10 8 10 8a18.5 18.5 0 0 1-2.16 3.19"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="2" y1="2" x2="22" y2="22"/>',
+  info:       '<circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><line x1="12" y1="8" x2="12" y2="8"/>',
+  layers:     '<polygon points="12 3 3 8 12 13 21 8 12 3"/><polyline points="3 13 12 18 21 13"/>',
+  tool:       '<path d="M14.5 5.5a3.5 3.5 0 1 0 4 4L20 8l-4-4-1.5 1.5z"/><line x1="14.5" y1="9.5" x2="4" y2="20"/>',
+  coins:      '<ellipse cx="9" cy="7" rx="6" ry="3"/><path d="M3 7v4c0 1.66 2.69 3 6 3s6-1.34 6-3V7"/><path d="M15 11.5c2.5.3 6 1.4 6 3.5 0 1.66-2.69 3-6 3-1.2 0-2.3-.18-3.2-.48"/>',
+  award:      '<circle cx="12" cy="9" r="5"/><polyline points="9 13.5 8 21 12 19 16 21 15 13.5"/>',
   arrowDown:  '<line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/>',
   chevR:      '<polyline points="9 18 15 12 9 6"/>',
   chevDown:   '<polyline points="6 9 12 15 18 9"/>',
@@ -135,6 +145,15 @@ const ALIAS = {
   chart: 'barChart',
   pie: 'barChart',
   creditCard: 'card',
+  // Trovati dal controllo automatico sui nomi (tests/unit/iconeEsistenti):
+  // erano scritti così nel codice e disegnavano un pallino grigio.
+  chevD: 'chevDown',
+  chevU: 'chevUp',
+  alertCircle: 'alert',
+  pencil: 'edit',
+  map: 'pin',
+  integ: 'bolt',       // "Integrazioni" nel pannello admin
+  forecast: 'barChart', // la previsione della domanda
 }
 
 const FILLED = new Set(['dot', 'star', 'bolt', 'party', 'play', 'sparkles'])
