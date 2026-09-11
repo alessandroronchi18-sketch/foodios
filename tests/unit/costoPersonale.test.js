@@ -86,3 +86,41 @@ describe('costoPersonaleMensile', () => {
     expect(costoPersonaleMensile(null)).toEqual({ totale: 0, contati: 0, senzaDato: 0 })
   })
 })
+
+// ── Chi c'era in quel mese ────────────────────────────────────────────────
+//
+// Stesso problema dei costi aziendali: chi se n'è andato continuava a pesare
+// sul costo del lavoro, e l'unico modo di toglierlo era metterlo NON ATTIVO —
+// che però lo fa sparire anche dai mesi in cui lavorava davvero, facendoli
+// sembrare più redditizi di quanto sono stati.
+describe('costoPersonaleMensile — date di assunzione e di fine', () => {
+  const gente = [
+    { nome: 'Storico', attivo: true, stipendio_lordo_mensile: 2000, data_assunzione: '2024-01-01' },
+    { nome: 'Andato via', attivo: true, stipendio_lordo_mensile: 1500, data_assunzione: '2024-01-01', data_fine: '2026-04-30' },
+    { nome: 'Arrivato dopo', attivo: true, stipendio_lordo_mensile: 1800, data_assunzione: '2026-07-01' },
+  ]
+
+  it('a marzo c erano i primi due', () => {
+    const r = costoPersonaleMensile(gente, { asOf: '2026-03-31' })
+    expect(r.contati).toBe(2)
+    expect(r.totale).toBeCloseTo(costoAziendaMensile(2000) + costoAziendaMensile(1500), 2)
+  })
+
+  it('a giugno ne resta uno: uno è andato via e l altro non è ancora arrivato', () => {
+    const r = costoPersonaleMensile(gente, { asOf: '2026-06-30' })
+    expect(r.contati).toBe(1)
+    expect(r.totale).toBeCloseTo(costoAziendaMensile(2000), 2)
+  })
+
+  it('ad agosto sono due: lo storico e il nuovo', () => {
+    const r = costoPersonaleMensile(gente, { asOf: '2026-08-31' })
+    expect(r.contati).toBe(2)
+    expect(r.totale).toBeCloseTo(costoAziendaMensile(2000) + costoAziendaMensile(1800), 2)
+  })
+
+  it('senza mese di riferimento si contano tutti, come prima', () => {
+    // Le pagine che mostrano "quanto costa il personale adesso" non passano
+    // una data: il comportamento non cambia.
+    expect(costoPersonaleMensile(gente).contati).toBe(3)
+  })
+})

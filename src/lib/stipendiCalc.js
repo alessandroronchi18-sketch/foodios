@@ -115,12 +115,25 @@ export function calcolaStipendio({ lordo, netto, mensilita = 13 } = {}) {
 // oppure costo_orario + ore_settimana per i contratti a ore).
 // `opts.sedeId` = se passato, tiene i dipendenti di quella sede più quelli
 // senza sede (che valgono per tutta l'azienda).
+// `opts.asOf` (ISO) = mese di riferimento: serve al conto economico di un
+// periodo passato, per contare chi c'era ALLORA e non chi c'è adesso.
 export function costoPersonaleMensile(dipendenti, opts = {}) {
-  const { sedeId = null, mensilita = 13 } = opts
+  const { sedeId = null, mensilita = 13, asOf = null } = opts
+  const mese = (d) => String(d).slice(0, 7)
   let totale = 0, contati = 0, senzaDato = 0
   for (const d of (Array.isArray(dipendenti) ? dipendenti : [])) {
     if (!d || d.attivo === false) continue
     if (sedeId && d.sede_id && d.sede_id !== sedeId) continue
+    // Chi è stato assunto DOPO il mese guardato non pesa su quel mese, e chi
+    // se n'è andato PRIMA nemmeno.
+    //
+    // Prima l'unico modo di togliere qualcuno era metterlo non attivo, che lo
+    // fa sparire anche dai mesi in cui lavorava davvero: quei mesi
+    // risultavano più redditizi di quanto siano stati.
+    if (asOf) {
+      if (d.data_assunzione && mese(d.data_assunzione) > mese(asOf)) continue
+      if (d.data_fine && mese(d.data_fine) < mese(asOf)) continue
+    }
     const lordo = Number(d.stipendio_lordo_mensile) || 0
     if (lordo > 0) {
       totale += costoAziendaMensile(lordo, { mensilita })

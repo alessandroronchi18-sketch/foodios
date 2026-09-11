@@ -13,6 +13,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { sload } from '../lib/storage'
 import { supabase } from '../lib/supabase'
 import { color as T } from '../lib/theme'
+import Icon from './Icon'
 
 const SOFT = T.textSoft || '#8B95A7'
 const TXT = T.text || '#0E1726'
@@ -136,7 +137,7 @@ export default function ProductAutocomplete({
         }} />
       {showWarning && (
         <div style={{ marginTop: 4, fontSize: 12, color: '#92400E' }}>
-          ⚠️ Nessun match esatto. Seleziona da elenco o verifica il nome.
+          <Icon name="alert" size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} />Nessuna corrispondenza esatta: scegli dall&apos;elenco o controlla il nome.
         </div>
       )}
       {open && filtered.length > 0 && (

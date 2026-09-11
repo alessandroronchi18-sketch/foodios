@@ -77,7 +77,7 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
   const [form, setForm] = useState({
     nome:"", ruolo:"", tipo_contratto:"Full-time", costo_orario:"", ore_settimana:40,
     stipendio_lordo_mensile:"", stipendio_netto_mensile:"",
-    contratto_tipo:"", livello:"", data_assunzione:"",
+    contratto_tipo:"", livello:"", data_assunzione:"", data_fine:"",
     note:"", sede_id: "",
   })
   const [editId, setEditId] = useState(null)
@@ -168,6 +168,10 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
         contratto_tipo: form.contratto_tipo || null,
         livello: form.livello || null,
         data_assunzione: form.data_assunzione || null,
+        // Chi se n'è andato smette di pesare dal mese dopo, ma resta nei
+        // mesi in cui lavorava: `attivo = false` lo cancellerebbe anche da
+        // quelli, e li farebbe sembrare più redditizi di quanto sono stati.
+        data_fine: form.data_fine || null,
         note: form.note,
         sede_id: form.sede_id || null,
         organization_id: orgId,
@@ -218,7 +222,7 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
     setForm({
       nome:"", ruolo:"", tipo_contratto:"Full-time", costo_orario:"", ore_settimana:40,
       stipendio_lordo_mensile:"", stipendio_netto_mensile:"",
-      contratto_tipo:"", livello:"", data_assunzione:"",
+      contratto_tipo:"", livello:"", data_assunzione:"", data_fine:"",
       note:"", sede_id: sedeId || "", reparto1:"", reparto2:"",
     })
     setEditId(null); setShowForm(false)
@@ -233,6 +237,7 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
       contratto_tipo: d.contratto_tipo || "",
       livello: d.livello || "",
       data_assunzione: d.data_assunzione || "",
+      data_fine: d.data_fine || "",
       note: d.note || "", sede_id: d.sede_id || "",
       reparto1: reps[0] || "", reparto2: reps[1] || "",
     })
@@ -369,8 +374,19 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
             <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Data assunzione (opzionale)</div>
             <input type="date" value={form.data_assunzione} onChange={e => setForm(f => ({ ...f, data_assunzione: e.target.value }))} style={inputSt} />
           </div>
-          <div style={{ marginTop: 10, fontSize: typo.small.fontSize, color: C.textSoft, lineHeight: 1.45 }}>
-            ⚠️ I calcoli lordo↔netto sono stime semplificate (IRPEF + INPS commercio ~9,19% + addizionali 2%). Non sostituiscono il commercialista.
+          {/* Fine rapporto: chi se n'è andato smette di pesare sul costo del
+              lavoro dal mese dopo, ma resta nei mesi in cui lavorava. Toglierlo
+              con "non attivo" lo cancellerebbe anche da quelli, e farebbe
+              sembrare quei mesi più redditizi di quanto sono stati. */}
+          <div style={{ marginTop: 10 }}>
+            <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Fine rapporto (se non c&apos;è più)</div>
+            <input type="date" value={form.data_fine} onChange={e => setForm(f => ({ ...f, data_fine: e.target.value }))}
+              title="Lascia vuoto se la persona è ancora in forza. Mettendo una data, lo stipendio smette di pesare dal mese successivo e resta nei mesi passati."
+              style={inputSt} />
+          </div>
+          <div style={{ marginTop: 10, fontSize: typo.small.fontSize, color: C.textSoft, lineHeight: 1.45, display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+            <Icon name="alert" size={13} style={{ flexShrink: 0, marginTop: 2 }} />
+            <span>I calcoli lordo↔netto sono stime semplificate (IRPEF + INPS commercio ~9,19% + addizionali 2%). Non sostituiscono il commercialista.</span>
           </div>
         </div>
         {haPiuSedi && (

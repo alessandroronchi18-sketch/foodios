@@ -578,7 +578,7 @@ function DialogCambioMetodo({ info, onAnnulla, onConferma }) {
             width: 32, height: 32, borderRadius: 8, background: '#FEF3C7',
             color: '#92400E', display: 'inline-flex',
             alignItems: 'center', justifyContent: 'center', fontSize: 18,
-          }}>⚠️</span>
+          }}><Icon name="alert" size={13} /></span>
           <h2 id="dlg-cambio-metodo-title"
             style={{ margin: 0, fontSize: 17, fontWeight: 800, color: TXT, letterSpacing: '-0.01em' }}>
             {titolo}

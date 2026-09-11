@@ -197,7 +197,7 @@ Inventa 3 ricette diverse fra loro (es. una classica, una innovativa, una stagio
 
       {error && (
         <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 10, padding: 14, color: '#991B1B', fontSize: 13, marginBottom: 16 }}>
-          ⚠️ {error}
+          <Icon name="alert" size={13} style={{ verticalAlign: 'middle', marginRight: 5 }} />{error}
         </div>
       )}
 

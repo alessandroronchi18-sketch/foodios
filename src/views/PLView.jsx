@@ -739,13 +739,16 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
     if (!orgId) return
     let alive = true
     supabase.from('dipendenti')
-      .select('id, sede_id, attivo, stipendio_lordo_mensile, costo_orario, ore_settimana')
+      .select('id, sede_id, attivo, stipendio_lordo_mensile, costo_orario, ore_settimana, data_assunzione, data_fine')
       .eq('organization_id', orgId).eq('attivo', true)
       .then(({ data }) => {
-        if (alive) setPersonaleReale(costoPersonaleMensile(data || [], { sedeId }))
+        // `asOf: dateTo` = si conta chi c'era NEL PERIODO guardato, non chi
+        // c'è oggi: un conto economico di marzo non deve contenere qualcuno
+        // assunto a luglio.
+        if (alive) setPersonaleReale(costoPersonaleMensile(data || [], { sedeId, asOf: dateTo }))
       }, () => {})
     return () => { alive = false }
-  }, [orgId, sedeId])
+  }, [orgId, sedeId, dateTo])
 
   useEffect(() => {
     if (!orgId) return
