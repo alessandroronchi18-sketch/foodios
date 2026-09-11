@@ -33,7 +33,7 @@ import { loadXLSX } from '../lib/xlsx'
 // i conti che non tornavano, perdeva la giacenza di partenza a ogni giorno di
 // chiusura e ignorava i chili spediti alle altre sedi: questa pagina mostrava
 // un venduto diverso da Quadratura e dal conto economico sugli stessi giorni.
-import { totaliPerGusto } from '../lib/inventarioProduzione'
+import { totaliPerGusto, serieVendutoMultiSede } from '../lib/inventarioProduzione'
 import { calcolaFC, isRicettaValida, getR } from '../lib/foodcost'
 import { useRicavoFlat } from '../lib/useRicavoFlat'
 
@@ -157,21 +157,29 @@ export default function AnalisiInventarioSection({
       const [y, w] = k.split('-W')
       return `Sett ${w} '${y.slice(2)}`
     }
+    // Il grafico usa il venduto VERO, non un'approssimazione.
+    //
+    // Prima faceva `venduto = prodotto - scarto`, ignorando del tutto la
+    // rimanenza: per una gelateria, che ogni sera lascia gelato in vasca, quel
+    // numero è sistematicamente più alto del venduto reale. Nella stessa
+    // pagina la tabella diceva una cosa e il grafico ne diceva un'altra, e
+    // non c'era modo di capire quale delle due fosse giusta.
     const bucket = {}
-    for (const r of rows) {
-      const k = key(r.data)
-      if (!bucket[k]) bucket[k] = { key: k, label: labelOf(k), prod: 0, scarto: 0 }
-      bucket[k].prod += (Number(r.produzione_g) || 0) / 1000
-      bucket[k].scarto += (Number(r.scarto_g) || 0) / 1000
+    for (const celle of Object.values(serieVendutoMultiSede(rows))) {
+      for (const c of celle) {
+        // I giorni caricati prima del periodo servono solo come giacenza di
+        // partenza: non devono comparire come una colonna del grafico.
+        if (dateFrom && c.data < dateFrom) continue
+        if (dateTo && c.data > dateTo) continue
+        const k = key(c.data)
+        if (!bucket[k]) bucket[k] = { key: k, label: labelOf(k), prod: 0, scarto: 0, vend: 0 }
+        bucket[k].prod += (Number(c.prod) || 0) / 1000
+        bucket[k].scarto += (Number(c.scarto) || 0) / 1000
+        if (c.venduto != null) bucket[k].vend += (Number(c.venduto) || 0) / 1000
+      }
     }
-    // Approssimazione venduto: prod - scarto (semplificato per il chart)
-    return Object.values(bucket)
-      .sort((a, b) => a.key.localeCompare(b.key))
-      .map(v => ({
-        ...v,
-        vend: Math.max(0, v.prod - v.scarto),
-      }))
-  }, [rows, vista])
+    return Object.values(bucket).sort((a, b) => a.key.localeCompare(b.key))
+  }, [rows, vista, dateFrom, dateTo])
 
   const sorted = useMemo(() => {
     const arr = [...perGusto]

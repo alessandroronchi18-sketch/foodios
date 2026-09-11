@@ -30,7 +30,7 @@ import { SK_MAG } from '../lib/storageKeys'
 import {
   elencoGusti, caricaSettimana, salvaCella, calcolaVendutoSettimana,
   totaliVenduti, dettaglioVenduto, serieVendutoGusto, serieVendutoMultiSede,
-  GIORNI_RIPORTO_MAX, lunediDellaSettimana, normGusto,
+  totaliPerGusto, GIORNI_RIPORTO_MAX, lunediDellaSettimana, normGusto,
   scaloMagazzinoPerGusto, ricettaDelGusto,
   fetchAllInventarioProduzione, caricaStoricoMensile,
 } from '../lib/inventarioProduzione'
@@ -433,6 +433,24 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
   // PROD e delle RIMAN su tutti i gusti attualmente visibili, più il totale
   // di VENDUTO SETT. Segue gustiVisibili, quindi se filtro "Solo compilati"
   // e' attivo i totali riflettono solo i gusti in lista.
+  // Totali del MESE dal motore condiviso, per la banda KPI in alto. Serve che
+  // la banda e la tabella della vista Mese leggano lo stesso numero: prima la
+  // banda se lo ricalcolava con una formula sua e i due numeri non tornavano.
+  const totaliMese = useMemo(() => {
+    const righeMese = meseData?.righe || []
+    if (vista !== 'mese' || righeMese.length === 0) return { venduto: 0, celleNonQuadrate: 0, da: null, a: null }
+    const d = new Date(lunediIso)
+    const da = formatLocalDate(new Date(d.getFullYear(), d.getMonth(), 1))
+    const a = formatLocalDate(new Date(d.getFullYear(), d.getMonth() + 1, 0))
+    const tot = totaliPerGusto(righeMese, { da, a })
+    let venduto = 0, celleNonQuadrate = 0
+    for (const t of Object.values(tot)) {
+      venduto += t.vendTot
+      celleNonQuadrate += t.celleNonQuadrate
+    }
+    return { venduto, celleNonQuadrate, da, a }
+  }, [vista, meseData, lunediIso])
+
   const totaliColonnaSettimana = useMemo(() => {
     const perGiorno = {}
     for (let i = 0; i < 7; i++) {
@@ -965,10 +983,12 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
           rows={vista === 'settimana' ? righeSettimana : (meseData?.righe || [])}
           periodo={vista === 'settimana' ? 'questa settimana' : 'questo mese'}
           unita={unitaDisplay}
-          vendutoG={vista === 'settimana' ? totaliColonnaSettimana.venduto : null}
+          vendutoG={vista === 'settimana' ? totaliColonnaSettimana.venduto : totaliMese.venduto}
           celleNonQuadrate={vista === 'settimana'
             ? Object.values(dettaglio).reduce((a, d) => a + d.celleNonQuadrate, 0)
-            : 0}
+            : totaliMese.celleNonQuadrate}
+          da={vista === 'mese' ? totaliMese.da : null}
+          a={vista === 'mese' ? totaliMese.a : null}
         />
       )}
 
@@ -2310,7 +2330,10 @@ function DrilldownGustoModal({ gusto, orgId, sedeId, isAllSedi, sediProdIds, uni
   )
 }
 
-function KpiCompactBar({ rows, periodo, unita = 'g', vendutoG = null, celleNonQuadrate = 0 }) {
+// `da`/`a` delimitano il periodo: le righe arrivano con qualche giorno in più
+// davanti (la giacenza di partenza, che serve al conto del primo giorno) e
+// quei giorni non sono produzione del periodo.
+function KpiCompactBar({ rows, periodo, unita = 'g', vendutoG = null, celleNonQuadrate = 0, da = null, a = null }) {
   const stats = useMemo(() => {
     if (!Array.isArray(rows) || rows.length === 0) {
       return { prod: 0, venduto: 0, scarto: 0, scartoPct: 0, gustiN: 0, gustiRimanAlta: [] }
@@ -2319,6 +2342,8 @@ function KpiCompactBar({ rows, periodo, unita = 'g', vendutoG = null, celleNonQu
     // Aggreghiamo per gusto: prod totale, scarto totale, rimanenza finale.
     const perG = {}
     for (const r of rows) {
+      if (da && r.data < da) continue
+      if (a && r.data > a) continue
       const p = Number(r.produzione_g) || 0
       const s = Number(r.scarto_g) || 0
       const rm = Number(r.rimanenza_g) || 0
@@ -2337,17 +2362,16 @@ function KpiCompactBar({ rows, periodo, unita = 'g', vendutoG = null, celleNonQu
     const gustiRimanAlta = Object.entries(perG)
       .filter(([, v]) => v.prod > 0 && v.rimanFin > v.prod)
       .map(([g]) => g)
-    const rimanFinale = Object.values(perG).reduce((s, v) => s + v.rimanFin, 0)
-    // Il venduto lo passa la pagina (`vendutoG`), che lo prende dalla stessa
-    // matrice della tabella. Prima questa banda se lo ricalcolava a modo suo
-    // (prodotto - scarto - rimanenza finale, senza la rimanenza di partenza)
-    // e mostrava un numero diverso da quello della colonna "Tot. venduto"
-    // dieci centimetri sotto. La formula locale resta solo come ripiego
-    // quando il totale non arriva (vista Mese).
-    const venduto = vendutoG != null ? vendutoG : (prod - scarto - rimanFinale)
+    // Il venduto lo passa SEMPRE la pagina (`vendutoG`), che lo prende dal
+    // motore condiviso — la stessa fonte della colonna "Tot. venduto" dieci
+    // centimetri sotto. Qui c'era anche una formula di ripiego
+    // (prodotto - scarto - rimanenza finale, senza la giacenza di partenza)
+    // usata dalla vista Mese: era la sesta variante del conto nel progetto, e
+    // faceva sì che la banda in alto e la tabella sotto dicessero due numeri
+    // diversi. Ora la vista Mese passa il suo totale e il ripiego non serve.
     const scartoPct = prod > 0 ? (scarto / prod) * 100 : 0
-    return { prod, venduto, scarto, scartoPct, gustiN: Object.keys(perG).length, gustiRimanAlta }
-  }, [rows, vendutoG])
+    return { prod, venduto: vendutoG || 0, scarto, scartoPct, gustiN: Object.keys(perG).length, gustiRimanAlta }
+  }, [rows, vendutoG, da, a])
 
   const fmt = (g) => {
     if (g <= 0) return '0'

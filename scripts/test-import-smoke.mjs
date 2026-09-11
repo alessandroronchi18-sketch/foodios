@@ -31,7 +31,6 @@ import { validateRows, findMissingRequired, getLookupFields } from '../src/lib/i
 import { applyUnpivot, defaultGelateriaWideConfig } from '../src/lib/importUnpivot.js'
 import { guessMonthIsoFromFilename } from '../src/lib/importDateGuess.js'
 import { summarizeErrors } from '../src/lib/importErrorSummary.js'
-import { calcKpiStats } from '../src/lib/produzioneStats.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -406,47 +405,10 @@ function testSummarizeErrors() {
   console.log('  ✓ Test summarizeErrors PASSED')
 }
 
-// ── Test 9: calcKpiStats — produzione aggregata ─────────────────
-
-function testCalcKpiStats() {
-  console.log('\n=== TEST 9: calcKpiStats ===')
-
-  // 0 righe → tutto zero
-  const empty = calcKpiStats([])
-  if (empty.prod !== 0 || empty.venduto !== 0 || empty.scarto !== 0) throw new Error('Atteso tutto zero per rows vuoto')
-
-  // 2 gusti × 2 giorni: prod=10kg, scarto=1kg, rimanenza finale=3kg → venduto=6kg
-  const rows = [
-    { gusto_nome: 'NOCCIOLA', data: '2026-05-01', produzione_g: 3000, rimanenza_g: 1000, scarto_g: 200 },
-    { gusto_nome: 'NOCCIOLA', data: '2026-05-02', produzione_g: 2000, rimanenza_g: 1500, scarto_g: 300 },
-    { gusto_nome: 'FIOR DI PANNA', data: '2026-05-01', produzione_g: 3000, rimanenza_g: 800, scarto_g: 200 },
-    { gusto_nome: 'FIOR DI PANNA', data: '2026-05-02', produzione_g: 2000, rimanenza_g: 1500, scarto_g: 300 },
-  ]
-  const s = calcKpiStats(rows)
-  // prod = 3000+2000+3000+2000 = 10000
-  if (s.prod !== 10000) throw new Error(`prod=${s.prod}, atteso 10000`)
-  // scarto = 200+300+200+300 = 1000
-  if (s.scarto !== 1000) throw new Error(`scarto=${s.scarto}, atteso 1000`)
-  // rimanenza finale = 1500 (nocc) + 1500 (fior) = 3000 (ultima data per ogni gusto)
-  // venduto stimato = 10000 - 1000 - 3000 = 6000
-  if (s.venduto !== 6000) throw new Error(`venduto=${s.venduto}, atteso 6000`)
-  // scartoPct = 1000/10000 = 10%
-  if (Math.abs(s.scartoPct - 10) > 0.01) throw new Error(`scartoPct=${s.scartoPct}, atteso 10`)
-  if (s.gustiN !== 2) throw new Error(`gustiN=${s.gustiN}, atteso 2`)
-
-  // Gusto con rimanenza alta: rimanFin > prod
-  const stagnante = [
-    { gusto_nome: 'ARANCIA', data: '2026-05-01', produzione_g: 1000, rimanenza_g: 900, scarto_g: 0 },
-    { gusto_nome: 'ARANCIA', data: '2026-05-02', produzione_g: 500, rimanenza_g: 2000, scarto_g: 0 }, // riman > prod totale (1500)
-  ]
-  const s2 = calcKpiStats(stagnante)
-  if (!s2.gustiRimanAlta.includes('ARANCIA')) {
-    throw new Error(`Atteso ARANCIA in gustiRimanAlta, ho: ${JSON.stringify(s2.gustiRimanAlta)}`)
-  }
-
-  console.log('  ✓ Test calcKpiStats PASSED')
-}
-
+// Test 9 (calcKpiStats) rimosso insieme alla funzione: era la sesta variante
+// del conto del venduto (prodotto - scarto - rimanenza finale, senza la
+// giacenza di partenza) e nessuna pagina la usava.
+//
 // Test 10 (calcPerGustoDifferenziale) rimosso: quella funzione era la quarta
 // copia della regola del venduto e non esiste piu'. La regola sta in
 // inventarioProduzione.totaliPerGusto ed e' testata in
@@ -511,7 +473,6 @@ try {
   testMissingRequired()
   testMonthGuess()
   testSummarizeErrors()
-  testCalcKpiStats()
   testUnpivotDayInheritance()
   console.log('\n🎉 TUTTI I TEST PASSATI')
 } catch (e) {
