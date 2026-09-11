@@ -10,7 +10,7 @@ import { sload, ssave } from '../lib/storage'
 import { supabase } from '../lib/supabase'
 import { totaliPerGusto, normGusto, fetchAllInventarioProduzione } from '../lib/inventarioProduzione'
 import { caricaCostiAziendali, totaleMensile } from '../lib/costiAziendali'
-import { costoPersonaleMensile } from '../lib/stipendiCalc'
+import { costoPersonaleMensile, costoLavoroDaTurni } from '../lib/stipendiCalc'
 import { foodcostNoto } from '../lib/chiusure'
 import { totaliPeriodo as usciteCassaPeriodo } from '../lib/primaNota'
 import {
@@ -724,6 +724,10 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
   // libro paga — il conto economico contava zero costo del lavoro e l'utile
   // usciva più alto di circa 11.700 € al mese. Senza un avviso.
   const [personaleReale, setPersonaleReale] = useState({ totale: 0, contati: 0, senzaDato: 0 })
+  // Il costo del lavoro dai TURNI davvero lavorati. Lo stipendio mensile è
+  // giusto per un contratto fisso, ma non dice se un mese di straordinari si è
+  // mangiato il margine. I turni ci sono già: finora non alimentavano niente.
+  const [lavoroDaTurni, setLavoroDaTurni] = useState(null)
   // Uscite di cassa del periodo (prima nota). Sono soldi usciti davvero dal
   // cassetto — la frutta, la carta, la spesa al supermercato — e finora non
   // entravano in nessun conto: restavano scritte da qualche parte e l'utile
@@ -746,9 +750,21 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
         // c'è oggi: un conto economico di marzo non deve contenere qualcuno
         // assunto a luglio.
         if (alive) setPersonaleReale(costoPersonaleMensile(data || [], { sedeId, asOf: dateTo }))
+        // Turni del periodo guardato: due colonne, lettura leggera.
+        if (alive && dateFrom && dateTo) {
+          supabase.from('turni')
+            .select('data, ore, costo, dipendente_id')
+            .eq('organization_id', orgId)
+            .gte('data', dateFrom).lte('data', dateTo)
+            .then(({ data: turni }) => {
+              if (!alive) return
+              const r = costoLavoroDaTurni(turni || [], data || [], { da: dateFrom, a: dateTo })
+              setLavoroDaTurni(r.ore > 0 ? r : null)
+            }, () => {})
+        }
       }, () => {})
     return () => { alive = false }
-  }, [orgId, sedeId, dateTo])
+  }, [orgId, sedeId, dateFrom, dateTo])
 
   useEffect(() => {
     if (!orgId) return
@@ -1378,6 +1394,27 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
                       ? `Costo del personale (${plMese.personaleDipendentiN === 1 ? '1 dipendente' : `${plMese.personaleDipendentiN} dipendenti`})`
                       : 'Costo del personale'}
                     val={plMese.personale} pctv={plMese.lavPct} neg />
+                  {/* I turni davvero registrati nel periodo. Non sostituiscono
+                      lo stipendio: lo affiancano, ed è l'unico modo per vedere
+                      se un mese di straordinari si è mangiato il margine.
+                      Quando i turni coprono pochi giorni si dice, invece di
+                      spacciarli per il costo del mese. */}
+                  {lavoroDaTurni && (() => {
+                    const gg = plMese.giorniPeriodo || 0
+                    const copre = gg > 0 && lavoroDaTurni.giorni / gg >= 0.7
+                    const stimato = lavoroDaTurni.turniStimati > 0
+                    return (
+                      <div style={{ fontSize: typo.small.fontSize, color: T.textSoft, lineHeight: 1.55, margin: '2px 0 8px', paddingLeft: 2 }}>
+                        Turni registrati nel periodo: <b style={{ color: T.text }}>{lavoroDaTurni.ore.toLocaleString('it-IT')} ore</b> su {lavoroDaTurni.giorni === 1 ? '1 giorno' : `${lavoroDaTurni.giorni} giorni`}, per <b style={{ color: T.text }}>{fmt0(lavoroDaTurni.costo)}</b>
+                        {lavoroDaTurni.costoOrarioMedio ? ` (${lavoroDaTurni.costoOrarioMedio.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} € l'ora)` : ''}.
+                        {copre
+                          ? ` Sopra c'è il costo da contratto: se questo è più alto, la differenza sono straordinari.`
+                          : ` Coprono ${lavoroDaTurni.giorni} giorni su ${gg}, quindi non è il costo del mese: è quello che sono costati quei giorni.`}
+                        {stimato && ` Il costo orario di ${lavoroDaTurni.turniStimati === 1 ? 'un turno' : `${lavoroDaTurni.turniStimati} turni`} è ricavato dallo stipendio mensile, non scritto a mano: è una stima.`}
+                        {lavoroDaTurni.turniSenzaCosto > 0 && ` ${lavoroDaTurni.turniSenzaCosto === 1 ? 'Un turno è' : `${lavoroDaTurni.turniSenzaCosto} turni sono`} fuori dal conto: manca sia il costo del turno sia lo stipendio.`}
+                      </div>
+                    )
+                  })()}
                   <Row label="Costi fissi (affitto, utenze, altro)" val={plMese.costiFissi} pctv={plMese.cur.ricavi > 0 ? plMese.costiFissi / plMese.cur.ricavi * 100 : 0} neg />
                   {plMese.usciteCassa > 0 && (
                     <Row label="Uscite di cassa (prima nota)" val={plMese.usciteCassa}

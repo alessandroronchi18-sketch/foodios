@@ -159,3 +159,88 @@ export function costoPersonaleMensile(dipendenti, opts = {}) {
     senzaDato,
   }
 }
+
+// ── Costo del lavoro dai TURNI davvero lavorati ───────────────────────────
+//
+// Il conto economico usa lo stipendio mensile: è giusto per un contratto
+// fisso, ma non dice se un mese di straordinari si è mangiato il margine, né
+// quanto è costata davvero una settimana di ferragosto.
+//
+// I turni ci sono già (pagina Personale), con le ore pianificate e quelle
+// effettive. Finora non alimentavano niente: si registravano e restavano lì.
+//
+// `turni`       = righe della tabella turni del periodo (con `ore` e `costo`)
+// `dipendenti`  = per risalire al costo orario quando il turno non ce l'ha
+export function costoLavoroDaTurni(turni, dipendenti, { da = null, a = null, mensilita = 13 } = {}) {
+  const perId = new Map((Array.isArray(dipendenti) ? dipendenti : []).map(d => [d.id, d]))
+  let costo = 0, ore = 0, turniContati = 0, turniSenzaCosto = 0, turniStimati = 0
+  // I giorni DIVERSI con almeno un turno. Serve a chi legge per sapere se sta
+  // guardando il costo di un mese o il costo di quattro giorni: su Mara ci
+  // sono 4 turni registrati in un mese, e presentarli come "il costo del
+  // personale del mese" sarebbe un numero falso di quindici volte.
+  const giorni = new Set()
+  for (const t of (Array.isArray(turni) ? turni : [])) {
+    const d = String(t?.data || '').slice(0, 10)
+    if (da && d < da) continue
+    if (a && d > a) continue
+    const oreTurno = Number(t?.ore) || 0
+    if (oreTurno <= 0) continue
+    ore += oreTurno
+    giorni.add(d)
+    // Il costo scritto sul turno vince; se manca si ricava dal costo orario
+    // del dipendente. Se non c'è nemmeno quello il turno si conta a parte:
+    // "non lo so" e "costa zero" sono due cose diverse, e un turno senza
+    // costo abbassa il totale facendo sembrare il lavoro più economico.
+    const costoTurno = Number(t?.costo) || 0
+    if (costoTurno > 0) {
+      costo += costoTurno
+      turniContati++
+      continue
+    }
+    const dip = perId.get(t?.dipendente_id)
+    const oraria = Number(dip?.costo_orario) || 0
+    if (oraria > 0) {
+      costo += oraria * oreTurno
+      turniContati++
+      continue
+    }
+    // Terza strada: il costo orario ricavato dallo stipendio mensile.
+    //
+    // Serve davvero. Sui dati di Mara tutti e tre i dipendenti hanno lo
+    // stipendio scritto (2.000, 4.000 e 2.038,82 € lordi) ma il costo orario
+    // fermo a 0: senza questo passaggio i quattro turni registrati finivano
+    // tutti fra quelli "senza costo" e la pagina non mostrava niente.
+    //
+    // È una stima, non una misura: il conto è costo azienda del mese diviso
+    // le ore del mese da contratto (ore_settimana per 4,333 settimane). Chi
+    // legge deve saperlo, perciò si contano a parte in `turniStimati`.
+    const orariaStimata = costoOrarioDaStipendio(dip, mensilita)
+    if (orariaStimata > 0) {
+      costo += orariaStimata * oreTurno
+      turniContati++
+      turniStimati++
+    } else {
+      turniSenzaCosto++
+    }
+  }
+  return {
+    costo: Math.round(costo * 100) / 100,
+    ore: Math.round(ore * 10) / 10,
+    turniContati,
+    turniSenzaCosto,
+    turniStimati,
+    giorni: giorni.size,
+    costoOrarioMedio: ore > 0 && costo > 0 ? Math.round((costo / ore) * 100) / 100 : null,
+  }
+}
+
+// Costo orario ricavato dallo stipendio mensile: costo azienda del mese
+// (lordo + contributi + TFR) diviso le ore mensili da contratto.
+// Torna 0 quando manca lo stipendio o le ore settimanali.
+export function costoOrarioDaStipendio(d, mensilita = 13) {
+  const lordo = Number(d?.stipendio_lordo_mensile) || 0
+  const oreSett = Number(d?.ore_settimana) || 0
+  if (lordo <= 0 || oreSett <= 0) return 0
+  const oreMese = oreSett * (52 / 12)
+  return Math.round((costoAziendaMensile(lordo, { mensilita }) / oreMese) * 100) / 100
+}

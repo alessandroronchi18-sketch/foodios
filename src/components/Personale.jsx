@@ -7,9 +7,22 @@ import { useConfirm } from './ConfirmModal'
 import { sload, ssave, sloadAllSedi } from '../lib/storage'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { SkeletonList } from './Skeleton'
-import { calcolaStipendio } from '../lib/stipendiCalc'
+import { calcolaStipendio, costoOrarioDaStipendio, costoPersonaleMensile, costoLavoroDaTurni } from '../lib/stipendiCalc'
 import { toMin as _toMin, finMin as _finMin, hm as _hm, oreTurno, analizzaCopertura } from '../lib/turni'
 import { color as T, radius as R, shadow as S, motion as M, tnum, typo } from '../lib/theme'
+
+// Quanto costa un'ora di quel dipendente.
+//
+// Il costo orario scritto a mano vince. Se manca — e su Mara manca per tutti
+// e tre, e' fermo a 0,00 mentre gli stipendi ci sono (2.000, 4.000 e 2.038,82
+// € lordi) — si ricava dallo stipendio mensile. Senza questo passaggio la
+// pagina scriveva "0,00 €/h" e "0 €/mese" per tre persone davvero pagate, e
+// ogni turno salvato finiva sul database con costo 0.
+function oraria(d) {
+  const scritto = Number(d?.costo_orario) || 0
+  return scritto > 0 ? scritto : costoOrarioDaStipendio(d)
+}
+
 
 const C = {
   bg: T.bg, bgCard: T.bgCard, red: T.brand, redLight: T.brandLight,
@@ -246,7 +259,7 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
 
   // Audit 2026-06-22: costo_orario/ore_settimana sono numeric in Postgres → string da PostgREST.
   const _num = (x) => { const n = Number(x); return Number.isFinite(n) ? n : 0 }
-  const costoMeseTot = lista.reduce((s,d)=>s + _num(d.costo_orario)*_num(d.ore_settimana)*4.33, 0)
+  const costoMeseTot = costoPersonaleMensile(lista).totale
   const inputSt = { width:"100%", height: 40, padding: "0 12px", borderRadius: R.md, border:`1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 13, color:C.text, background: C.bgCard, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }
   const formVisible = !isMobile || showForm
 
@@ -448,9 +461,9 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:8 }}>
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ fontWeight:800, fontSize:14, color:C.text }}>{d.nome}</div>
-                <div style={{ fontSize:12, color:C.textMid, marginTop:2 }}>{d.ruolo || "-"} · {fmt(d.costo_orario)}/h</div>
+                <div style={{ fontSize:12, color:C.textMid, marginTop:2 }}>{d.ruolo || "-"} · {fmt(oraria(d))}/h{!(Number(d.costo_orario) > 0) && oraria(d) > 0 ? ' (dallo stipendio)' : ''}</div>
                 <div style={{ fontSize: typo.small.fontSize, color:C.textSoft, marginTop:2 }}>
-                  {d.ore_settimana}h/sett · <strong style={{ color:C.red }}>{fmt((d.costo_orario||0)*(d.ore_settimana||0)*4.33)}/mese</strong>
+                  {d.ore_settimana}h/sett · <strong style={{ color:C.red }}>{fmt(costoPersonaleMensile([d]).totale)}/mese</strong>
                 </div>
               </div>
               <span style={{ fontSize: typo.small.fontSize, fontWeight:700, padding:"3px 10px", borderRadius:12, background:C.amberLight, color:C.amber, whiteSpace:"nowrap" }}>{d.tipo_contratto}</span>
@@ -481,7 +494,7 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
                 </div>
                 {d.ruolo && <div style={{ fontSize: typo.small.fontSize, color:C.textMid, marginBottom:2, display:"inline-flex", alignItems:"center", gap:5 }}><Icon name="briefcase" size={12} />{d.ruolo}</div>}
                 <div style={{ fontSize: typo.small.fontSize, color:C.textSoft }}>
-                  {fmt(d.costo_orario)}/h · {d.ore_settimana}h/sett · <strong style={{ color:C.red }}>{fmt((d.costo_orario||0)*(d.ore_settimana||0)*4.33)}/mese</strong>
+                  {fmt(oraria(d))}/h · {d.ore_settimana}h/sett · <strong style={{ color:C.red }}>{fmt(costoPersonaleMensile([d]).totale)}/mese</strong>
                 </div>
                 {d.note && <div style={{ fontSize: typo.small.fontSize, color:C.textSoft, marginTop:3, fontStyle:"italic" }}>{d.note}</div>}
               </div>
@@ -558,9 +571,9 @@ function TurniTab({ orgId, notify, isMobile }) {
     if (!orgId) { setLoading(false); return }
     setLoading(true)
     const [{ data:t, error:et }, { data:d, error:ed }, org, cons] = await Promise.all([
-      supabase.from("turni").select("*, dipendenti(nome,costo_orario)").eq("organization_id", orgId)
+      supabase.from("turni").select("*, dipendenti(nome,costo_orario,stipendio_lordo_mensile,ore_settimana)").eq("organization_id", orgId)
         .gte("data", rng.from).lte("data", rng.to).order("data").order("ora_inizio"),
-      supabase.from("dipendenti").select("id,nome").eq("organization_id", orgId).eq("attivo", true).order("nome"),
+      supabase.from("dipendenti").select("id,nome,costo_orario,stipendio_lordo_mensile,ore_settimana").eq("organization_id", orgId).eq("attivo", true).order("nome"),
       sload(SK_ORG, orgId, null).catch(() => null),
       sload(SK_CONSUNTIVO, orgId, null).catch(() => null),
     ])
@@ -611,7 +624,7 @@ function TurniTab({ orgId, notify, isMobile }) {
     }
     const ore = calcOre(form.ora_inizio, form.ora_fine)
     const dip = dipendenti.find(d=>d.id===form.dipendente_id)
-    const costo = ore * (dip?.costo_orario||0)
+    const costo = ore * oraria(dip)
     const payload = {
       organization_id: orgId,
       dipendente_id: form.dipendente_id,
@@ -669,7 +682,7 @@ function TurniTab({ orgId, notify, isMobile }) {
   // (numeric) → `0 + "8.00"` concatena e la somma collassa in NaN.
   const numOk = (x) => { const n = Number(x); return Number.isFinite(n) ? n : 0 }
   const totOre = turni.reduce((s,t)=>s + numOk(t.ore), 0)
-  const totCosto = turni.reduce((s,t)=>s + numOk(t.costo), 0)
+  const totCosto = costoLavoroDaTurni(turni, dipendenti).costo
 
   const GIORNI = ["Lun","Mar","Mer","Gio","Ven","Sab","Dom"]
   const weekDays = days
@@ -796,7 +809,7 @@ function TurniTab({ orgId, notify, isMobile }) {
           {form.ora_inizio && form.ora_fine && (
             <div style={{ marginTop:8, fontSize: typo.small.fontSize, color:C.amber, fontWeight:700 }}>
               Ore: {fmtH(calcOre(form.ora_inizio, form.ora_fine))}
-              {form.dipendente_id && ` · Costo: ${fmt(calcOre(form.ora_inizio, form.ora_fine) * (dipendenti.find(d=>d.id===form.dipendente_id)?.costo_orario||0))}`}
+              {form.dipendente_id && ` · Costo: ${fmt(calcOre(form.ora_inizio, form.ora_fine) * oraria(dipendenti.find(d=>d.id===form.dipendente_id)))}`}
             </div>
           )}
         </div>
@@ -1069,8 +1082,8 @@ function AnalisiCostoTab({ orgId, isMobile, isTablet }) {
   // somma collassa in NaN, da cui "NaNh" nel KPI Ore piani. vs lavorate.
   const numOk = (x) => { const n = Number(x); return Number.isFinite(n) ? n : 0 }
   const totOre = turni.reduce((s,t)=>s + numOk(t.ore), 0)
-  const totCosto = turni.reduce((s,t)=>s + numOk(t.costo), 0)
-  const costoFissoMese = dipendenti.reduce((s,d)=>s + numOk(d.costo_orario)*numOk(d.ore_settimana)*4.33, 0)
+  const totCosto = costoLavoroDaTurni(turni, dipendenti).costo
+  const costoFissoMese = costoPersonaleMensile(dipendenti).totale
   const giorniLavorati = new Set(turni.map(t=>t.data)).size
   const costoMedioOra = totOre>0 ? totCosto/totOre : 0
   const costoGiorno = giorniLavorati>0 ? totCosto/giorniLavorati : 0
@@ -1101,11 +1114,21 @@ function AnalisiCostoTab({ orgId, isMobile, isTablet }) {
   // Costo per reparto: somma costo turni dei membri di ogni reparto (organigramma).
   const repartoDi = {}
   for (const r of (organigramma?.reparti || [])) for (const m of (r.membri || [])) repartoDi[m] = r.nome
+  // Il costo del singolo turno. Due motivi per non leggere t.costo e basta:
+  // i turni salvati quando il costo orario era 0 hanno 0 sul database, e le
+  // colonne numeric arrivano da PostgREST come stringhe (`0 + "8.00"` fa
+  // "08.00", e la somma diventa testo).
+  const perId = new Map(dipendenti.map(d => [d.id, d]))
+  const costoDi = (t) => {
+    const scritto = numOk(t.costo)
+    if (scritto > 0) return scritto
+    return numOk(t.ore) * oraria(perId.get(t.dipendente_id))
+  }
   const byReparto = {}
   for (const t of turni) {
     const nome = repartoDi[t.dipendente_id] || "Senza reparto"
     if (!byReparto[nome]) byReparto[nome] = { ore:0, costo:0 }
-    byReparto[nome].ore += t.ore||0; byReparto[nome].costo += t.costo||0
+    byReparto[nome].ore += numOk(t.ore); byReparto[nome].costo += costoDi(t)
   }
   const repRows = Object.entries(byReparto).sort(([,a],[,b])=>b.costo-a.costo)
   const maxCostoRep = Math.max(1, ...repRows.map(([,r])=>r.costo))
@@ -1113,7 +1136,7 @@ function AnalisiCostoTab({ orgId, isMobile, isTablet }) {
   const byDip = turni.reduce((acc,t)=>{
     const n = t.dipendenti?.nome||"?"
     if (!acc[n]) acc[n]={ore:0,costo:0}
-    acc[n].ore += t.ore||0; acc[n].costo += t.costo||0
+    acc[n].ore += numOk(t.ore); acc[n].costo += costoDi(t)
     return acc
   }, {})
   const dipRows = Object.entries(byDip).sort(([,a],[,b])=>b.costo-a.costo)
