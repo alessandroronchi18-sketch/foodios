@@ -7,6 +7,7 @@ import { onEnterAutoComplete } from '../lib/autocomplete'
 import { lessico } from '../lib/lessico'
 import Icon from './Icon'
 import { KPI, PageHeader } from '../views/_shared'
+import { buildIngCosti, calcolaFC, getR } from '../lib/foodcost'
 
 export const SK_EVENTI = 'pasticceria-eventi-v1'
 
@@ -168,16 +169,37 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
   const [eliminaPin, setEliminaPin] = useState('') // testo digitato per conferma
   const [archiviaId, setArchiviaId] = useState(null) // evento in attesa di conferma archivia
 
-  // Mappa ricette + costi per il calcolo FC
+  const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario])
+
+  // Mappa ricette col food cost CALCOLATO.
+  //
+  // Prima il costo si leggeva da `ric.foodCost` o `ric.fc`: due campi che una
+  // ricetta non ha. Il food cost in questo progetto non è un dato salvato, si
+  // calcola dagli ingredienti e dal listino (src/lib/foodcost.js). Controllato
+  // sul database vero: zero ricette su ventisette hanno quei campi, tutte e
+  // ventisette hanno gli ingredienti.
+  //
+  // Conseguenza: il costo di ogni riga usciva ZERO, quindi ogni evento
+  // mostrava food cost 0% e margine 100%. Un preventivo per un matrimonio da
+  // 3.000 € risultava tutto guadagno.
   const ricetteMap = useMemo(() => {
     const m = {}
     for (const r of Object.values(ricettario?.ricette || {})) {
-      // FC totale per stampo dal campo `fc` o calcolato; per semplicità usa r.foodCost o r.fc_totale
-      // Se non c'è, prova a stimare da ingredienti × prezzi.
-      m[r.nome] = r
+      let fcStampo = 0, fcNoto = false
+      try {
+        const info = calcolaFC(r, ingCosti, ricettario)
+        fcStampo = Number(info?.tot) || 0
+        // "Noto" vuol dire che nessun ingrediente è rimasto senza prezzo: se
+        // ne manca uno il costo è per forza più basso del vero, e va detto.
+        // `calcolaFC` restituisce { tot, mancanti }: `mancanti` è l'elenco dei
+        // nomi rimasti senza prezzo (le righe dettagliate le dà l'altra
+        // funzione, calcolaFCDettaglio).
+        fcNoto = fcStampo > 0 && (info?.mancanti || []).length === 0
+      } catch { /* ricetta malformata: resta senza costo, e si vede */ }
+      m[r.nome] = { ...r, _fcStampo: fcStampo, _fcNoto: fcNoto }
     }
     return m
-  }, [ricettario])
+  }, [ricettario, ingCosti])
 
   useEffect(() => {
     if (!orgId) return
@@ -275,15 +297,32 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
 
   function calcolaTotali(ev) {
     let totRicavo = 0, totFC = 0
+    let righeSenzaCosto = 0, righeConCosto = 0
     for (const r of (ev.righe || [])) {
       const ric = ricetteMap[r.nome]
-      const prezzo = Number(r.prezzo || ric?.reg?.prezzo || 0)
+      // Il prezzo della riga vince; se non c'è si prende quello di listino
+      // della ricetta (prima si leggeva `ric.reg.prezzo`, che su una ricetta
+      // non esiste: `reg` lo costruisce getR).
+      const prezzo = Number(r.prezzo) > 0
+        ? Number(r.prezzo)
+        : Number(getR(r.nome, ric)?.prezzo) || 0
       const qty = Number(r.qty || 0)
-      const fcStampo = Number(ric?.foodCost || ric?.fc || 0)
+      const fcStampo = Number(ric?._fcStampo) || 0
       totRicavo += qty * prezzo
       totFC += qty * fcStampo
+      if (qty > 0) {
+        if (ric?._fcNoto) righeConCosto++
+        else righeSenzaCosto++
+      }
     }
-    return { totRicavo, totFC, margine: totRicavo - totFC, margPct: totRicavo > 0 ? ((totRicavo - totFC) / totRicavo * 100) : 0 }
+    return {
+      totRicavo, totFC,
+      margine: totRicavo - totFC,
+      margPct: totRicavo > 0 ? ((totRicavo - totFC) / totRicavo * 100) : 0,
+      // Quante righe non hanno un costo attendibile: senza questo, un margine
+      // del 100% sembra un affare invece che un dato mancante.
+      righeSenzaCosto, righeConCosto,
+    }
   }
 
   if (loading) return <div style={{ fontSize: 13, color: T.textSoft, padding: 24 }}>Caricamento…</div>
@@ -319,8 +358,9 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
     acc.fc    += t.totFC
     acc.margine += t.margine
     acc.eventi += 1
+    acc.righeSenzaCosto += t.righeSenzaCosto
     return acc
-  }, { ricavi: 0, fc: 0, margine: 0, eventi: 0 })
+  }, { ricavi: 0, fc: 0, margine: 0, eventi: 0, righeSenzaCosto: 0 })
   kpiArchivio.fcPct = kpiArchivio.ricavi > 0 ? (kpiArchivio.fc / kpiArchivio.ricavi * 100) : 0
   kpiArchivio.margPct = kpiArchivio.ricavi > 0 ? (kpiArchivio.margine / kpiArchivio.ricavi * 100) : 0
 
@@ -391,8 +431,12 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: isMobile ? 10 : 16, marginBottom: 20 }}>
             <KPI label="Eventi" value={kpiArchivio.eventi} icon={<Icon name="calendar" size={18} />} color={T.text} />
             <KPI label="Ricavi" value={fmtEur(kpiArchivio.ricavi)} icon={<Icon name="euro" size={18} />} color={T.green} />
-            <KPI label="Food cost" value={fmtEur(kpiArchivio.fc)} sub={`${kpiArchivio.fcPct.toFixed(1)}% sui ricavi`} icon={<Icon name="receipt" size={18} />} color={T.amber} />
-            <KPI label="Margine" value={fmtEur(kpiArchivio.margine)} sub={`${kpiArchivio.margPct.toFixed(1)}% sui ricavi`} icon={<Icon name="trendUp" size={18} />} color={margC} />
+            {/* Se una riga usa una ricetta senza prezzi ingredienti il suo
+                costo è zero, e il margine sale: senza dirlo, un evento con
+                mezze ricette scoperte sembra molto più redditizio di quanto
+                sia. */}
+            <KPI label="Food cost" value={fmtEur(kpiArchivio.fc)} sub={kpiArchivio.righeSenzaCosto > 0 ? `${kpiArchivio.righeSenzaCosto} ${kpiArchivio.righeSenzaCosto === 1 ? 'riga senza costo' : 'righe senza costo'}` : `${kpiArchivio.fcPct.toFixed(1)}% sui ricavi`} icon={<Icon name="receipt" size={18} />} color={T.amber} />
+            <KPI label="Margine" value={fmtEur(kpiArchivio.margine)} sub={kpiArchivio.righeSenzaCosto > 0 ? `${kpiArchivio.margPct.toFixed(1)}% · più basso del vero` : `${kpiArchivio.margPct.toFixed(1)}% sui ricavi`} icon={<Icon name="trendUp" size={18} />} color={margC} />
           </div>
         )
       })()}
