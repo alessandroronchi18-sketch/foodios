@@ -79,7 +79,7 @@ function BarreRicavo({ rows, euro, pct }) {
                     ].map(({ lbl, val, c, tip }) => (
                       <Tip key={lbl} text={tip} width={250}>
                         <div style={{ cursor: 'help' }}>
-                          <div style={{ fontSize: 8, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: '1px dashed rgba(155,120,115,0.35)' }}>{lbl}</div>
+                          <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: '1px dashed rgba(155,120,115,0.35)' }}>{lbl}</div>
                           <div style={{ fontSize: 14, fontWeight: 900, color: c, ...TNUM }}>{val}</div>
                         </div>
                       </Tip>
@@ -189,8 +189,8 @@ function TopIngredientiTable({ ricettario, ingCosti, euro, pct }) {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, minWidth: 720 }}>
           <thead>
             <tr style={{ background: '#F8F4F2' }}>
-              <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 8, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>Ingrediente</th>
-              <th title="In quante ricette compare questo ingrediente" style={{ padding: '10px 14px', textAlign: 'left', fontSize: 8, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, textDecoration: 'underline dotted', textUnderlineOffset: 3, cursor: 'help' }}>Usato in</th>
+              <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>Ingrediente</th>
+              <th title="In quante ricette compare questo ingrediente" style={{ padding: '10px 14px', textAlign: 'left', fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, textDecoration: 'underline dotted', textUnderlineOffset: 3, cursor: 'help' }}>Usato in</th>
               <SortTH k="qty" right active={sortKey === 'qty'} dir={sortDir} onToggle={toggleSort} tip="Grammi totali dell'ingrediente sommando una porzione di ogni ricetta che lo usa">Qty tot. (g)</SortTH>
               <SortTH k="costoTot" right active={sortKey === 'costoTot'} dir={sortDir} onToggle={toggleSort} tip="Costo di questo ingrediente per stampo, sommato sulle ricette che lo usano">Costo/stampo</SortTH>
               <SortTH k="pctTot" right active={sortKey === 'pctTot'} dir={sortDir} onToggle={toggleSort} tip="Quanto pesa questo ingrediente sul food cost complessivo del ricettario">% FC totale</SortTH>
@@ -204,7 +204,7 @@ function TopIngredientiTable({ ricettario, ingCosti, euro, pct }) {
                 <tr key={ing.k} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.white : '#FDFAF7' }}>
                   <td style={{ padding: '10px 14px', fontWeight: 700, color: C.text }}>
                     {ing.nome}
-                    {ing.isStima && <span style={{ fontSize: 7, marginLeft: 5, background: C.amberLight, color: C.amber, padding: '1px 5px', borderRadius: 3, fontWeight: 700 }}>stima</span>}
+                    {ing.isStima && <span style={{ fontSize: 12, marginLeft: 5, background: C.amberLight, color: C.amber, padding: '1px 5px', borderRadius: 3, fontWeight: 700 }}>stima</span>}
                   </td>
                   <td style={{ padding: '10px 14px', position: 'relative', overflow: 'visible' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}
@@ -333,7 +333,7 @@ function ScenarioPrezzi({ rows, euro, pct }) {
                   <div style={{ fontSize: 12, color: C.textSoft, marginTop: 2 }}>{r.reg.unita} {labelPlurale(r.reg.tipo)}/stampo</div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 }}>
-                  <div style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: C.textSoft }}>Prezzo / {labelSingolare(r.reg.tipo)}</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: C.textSoft }}>Prezzo / {labelSingolare(r.reg.tipo)}</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span style={{ fontSize: 12, fontWeight: 700, color: C.textMid }}>€</span>
                     <input type="number" min="0" step="0.10" value={prezzi[r.nome]}
@@ -350,7 +350,7 @@ function ScenarioPrezzi({ rows, euro, pct }) {
                   background: !changed ? '#F0EAE6' : r.delta > 0 ? C.greenLight : C.redLight,
                   border: `1px solid ${!changed ? C.border : r.delta > 0 ? C.green : C.red}30` }}>
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: !changed ? C.textSoft : r.delta > 0 ? C.green : C.red, marginBottom: 2 }}>Variazione</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: !changed ? C.textSoft : r.delta > 0 ? C.green : C.red, marginBottom: 2 }}>Variazione</div>
                     <div style={{ fontSize: 15, fontWeight: 900, ...TNUM, color: !changed ? C.textSoft : r.delta > 0 ? C.green : C.red }}>
                       {!changed ? '-' : `${dSign}${fmtp(r.delta)}`}
                     </div>
@@ -359,14 +359,14 @@ function ScenarioPrezzi({ rows, euro, pct }) {
                 <div style={{ color: C.textSoft, fontSize: 16, flexShrink: 0 }}>→</div>
                 <div style={{ display: 'flex', gap: 8, flex: 1, flexWrap: 'wrap' }}>
                   <div style={{ background: '#F0EAE6', borderRadius: 8, padding: '8px 12px', textAlign: 'center', minWidth: 90 }}>
-                    <div style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.textSoft, marginBottom: 3 }}>Margine base</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.textSoft, marginBottom: 3 }}>Margine base</div>
                     <div style={{ fontSize: 13, fontWeight: 600, color: C.textMid, ...TNUM }}>{euro(r.margine)}</div>
                     <div style={{ fontSize: 12, color: C.textSoft, marginTop: 2 }}>{pct(r.margPct)}</div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', color: C.textSoft, fontSize: 14, flexShrink: 0 }}>→</div>
                   <div style={{ background: changed ? (r.newMarg > r.margine ? '#EAF5EE' : '#FDECEA') : '#F8F4F2', borderRadius: 8, padding: '8px 12px', textAlign: 'center', minWidth: 90,
                     border: changed ? `1px solid ${r.newMarg > r.margine ? C.green : C.red}30` : 'none' }}>
-                    <div style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.textSoft, marginBottom: 3 }}>Margine nuovo</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.textSoft, marginBottom: 3 }}>Margine nuovo</div>
                     <div style={{ fontSize: 13, fontWeight: 900, color: changed ? mc : C.textMid, ...TNUM }}>{euro(r.newMarg)}</div>
                     <div style={{ fontSize: 12, color: changed ? mc : C.textSoft, marginTop: 2 }}>{pct(r.newMargPct)}</div>
                   </div>
@@ -374,7 +374,7 @@ function ScenarioPrezzi({ rows, euro, pct }) {
                 <div style={{ padding: '8px 16px', borderRadius: 8, textAlign: 'center', flexShrink: 0, minWidth: 90,
                   background: !changed ? '#F0EAE6' : r.diffMarg > 0 ? C.greenLight : C.redLight,
                   border: `1px solid ${!changed ? C.border : r.diffMarg > 0 ? C.green : C.red}30` }}>
-                  <div style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: !changed ? C.textSoft : r.diffMarg > 0 ? C.green : C.red, marginBottom: 3 }}>Δ margine</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: !changed ? C.textSoft : r.diffMarg > 0 ? C.green : C.red, marginBottom: 3 }}>Δ margine</div>
                   <div style={{ fontSize: 18, fontWeight: 900, ...TNUM, color: !changed ? C.textSoft : r.diffMarg > 0 ? C.green : C.red }}>
                     {!changed ? '-' : (r.diffMarg > 0 ? '+' : '') + euro(r.diffMarg)}
                   </div>
@@ -418,7 +418,7 @@ function PLTable({ rows, euro, pct, totRicavo, totFC, totMargine, fcAvg, avgMarg
                 <SortTH k="margPct" right active={sortKey === 'margPct'} dir={sortDir} onToggle={toggleSort} tip="Margine lordo in percentuale sul ricavo">Marg. %</SortTH>
                 <SortTH k="fcUnita" right active={sortKey === 'fcUnita'} dir={sortDir} onToggle={toggleSort} tip="Food cost di un singolo pezzo/fetta">FC/un.</SortTH>
                 <SortTH k="mrgUnita" right active={sortKey === 'mrgUnita'} dir={sortDir} onToggle={toggleSort} tip="Margine lordo di un singolo pezzo/fetta">Marg./un.</SortTH>
-                <th title="Valutazione complessiva del margine del prodotto" style={{ padding: '10px 14px', fontSize: 8, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, textAlign: 'right', textDecoration: 'underline dotted', textUnderlineOffset: 3, cursor: 'help' }}>Rating</th>
+                <th title="Valutazione complessiva del margine del prodotto" style={{ padding: '10px 14px', fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, textAlign: 'right', textDecoration: 'underline dotted', textUnderlineOffset: 3, cursor: 'help' }}>Rating</th>
               </tr>
             </thead>
             <tbody>

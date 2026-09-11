@@ -708,11 +708,11 @@ function TurniTab({ orgId, notify, isMobile }) {
           <>
             <div style={{ marginLeft:"auto", display:"flex", gap:20 }}>
               <div style={{ textAlign:"center" }}>
-                <div style={{ fontSize:8, fontWeight:700, color:C.textSoft, textTransform:"uppercase" }}>Ore {periodo}</div>
+                <div style={{ fontSize: 12, fontWeight:700, color:C.textSoft, textTransform:"uppercase" }}>Ore {periodo}</div>
                 <div style={{ fontSize:18, fontWeight:900, color:C.text }}>{fmtH(totOre)}</div>
               </div>
               <div style={{ textAlign:"center" }}>
-                <div style={{ fontSize:8, fontWeight:700, color:C.textSoft, textTransform:"uppercase" }}>Costo lavoro</div>
+                <div style={{ fontSize: 12, fontWeight:700, color:C.textSoft, textTransform:"uppercase" }}>Costo lavoro</div>
                 <div style={{ fontSize:18, fontWeight:900, color:C.red, ...tnum }}>{fmt(totCosto)}</div>
               </div>
             </div>
@@ -820,7 +820,7 @@ function TurniTab({ orgId, notify, isMobile }) {
                       {ds.slice(0, isMobile ? 2 : 3).map(t => (
                         <span key={t.id} style={{ fontSize: typo.small.fontSize, fontWeight:600, color:"#fff", background:colorById[t.dipendente_id] || C.red, border:"1px solid #000", borderRadius:4, padding:"1px 4px", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{etichettaNome(t.dipendenti?.nome)} {_hm(_toMin(t.ora_inizio))}</span>
                       ))}
-                      {ds.length > (isMobile ? 2 : 3) && <span style={{ fontSize:8, color:C.textSoft, fontWeight:700 }}>+{ds.length - (isMobile ? 2 : 3)} altri</span>}
+                      {ds.length > (isMobile ? 2 : 3) && <span style={{ fontSize: 12, color:C.textSoft, fontWeight:700 }}>+{ds.length - (isMobile ? 2 : 3)} altri</span>}
                     </div>
                   </div>
                 )
@@ -1139,7 +1139,7 @@ function AnalisiCostoTab({ orgId, isMobile, isTablet }) {
                   <div style={{ width:64, height:64, borderRadius:"50%", background:`conic-gradient(${incidenza<=30?"#7BE0A6":incidenza<=40?"#FCD34D":"#FCA5A5"} ${Math.min(100,incidenza)*3.6}deg, rgba(255,255,255,0.12) 0)`, display:"flex", alignItems:"center", justifyContent:"center" }}>
                     <div style={{ width:46, height:46, borderRadius:"50%", background:"#2A0E0E", display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:800, color:"#fff" }}>{incidenza.toFixed(0)}%</div>
                   </div>
-                  <span style={{ fontSize:8, color:"rgba(255,255,255,0.5)", textTransform:"uppercase", letterSpacing:"0.05em" }}>target ≤30%</span>
+                  <span style={{ fontSize: 12, color:"rgba(255,255,255,0.5)", textTransform:"uppercase", letterSpacing:"0.05em" }}>target ≤30%</span>
                 </div>
               )}
             </div>

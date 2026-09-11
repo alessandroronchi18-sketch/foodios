@@ -66,7 +66,7 @@ const SHADOW_PREMIUM = '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42
 const STATUS = {
   completo: { color: T.green, label: 'Completo',     breve: 'OK' },
   parziale: { color: T.amber, label: 'Parziale',     breve: 'Metà' },
-  vuoto:    { color: T.red,   label: 'Da compilare', breve: '—' },
+  vuoto:    { color: T.red,   label: 'Da compilare', breve: 'Manca' },
   chiuso:   { color: T.textSoft, label: 'Chiuso',    breve: 'Chiuso' },
 }
 
@@ -587,7 +587,7 @@ export default function CalendarioOperativo({
           <Kpi icon="warning" label="Giorni con anomalie"
             value={String(diag.anomalie)} color={diag.anomalie ? T.amber : T.green}
             sub={diag.anomalie
-              ? `${diag.soloProd} senza cassa · ${diag.soloCassa} senza prod.`
+              ? `${diag.soloProd} senza cassa · ${diag.soloCassa} senza produzione`
               : 'nessuna anomalia'} />
           <Kpi icon="trendUp" label="Giorni di fila"
             value={String(diag.streak)} highlight
@@ -629,10 +629,12 @@ export default function CalendarioOperativo({
               )}
               <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: T.bgSubtle, border: `1px solid ${T.border}`, borderRadius: R.lg, padding: 3 }}>
                 <button onClick={prev} style={{ ...NAV_BTN, width: isMobile ? 40 : isTablet ? 44 : 34, height: isMobile ? 40 : isTablet ? 44 : 34 }} aria-label="Mese precedente">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                  {/* Era un SVG disegnato a mano: Icon ha già il chevron,
+                      e disegnarlo due volte vuol dire due tratti diversi. */}
+                  <Icon name="chevL" size={16} />
                 </button>
                 <button onClick={next} style={{ ...NAV_BTN, width: isMobile ? 40 : isTablet ? 44 : 34, height: isMobile ? 40 : isTablet ? 44 : 34 }} aria-label="Mese successivo">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                  <Icon name="chevR" size={16} />
                 </button>
               </div>
             </div>
@@ -727,7 +729,7 @@ export default function CalendarioOperativo({
                               ? <Pill bg={T.bgSubtle} color={T.textSoft}>In arrivo</Pill>
                               : <>
                                   <Pill bg={haProduzione(k) ? T.greenLight : T.bgSubtle} color={haProduzione(k) ? T.green : T.textSoft}>
-                                    <Icon name="package" size={12} /> {haProduzione(k) ? 'Prod.' : 'No prod.'}
+                                    <Icon name="package" size={12} /> {haProduzione(k) ? 'Produzione' : 'Manca produzione'}
                                   </Pill>
                                   <Pill bg={cassa ? T.blueLight : T.bgSubtle} color={cassa ? T.blue : T.textSoft}>
                                     <Icon name="receipt" size={12} /> {cassa ? 'Cassa' : 'No cassa'}
@@ -746,7 +748,18 @@ export default function CalendarioOperativo({
               })}
             </div>
           ) : (
-            <>
+            // Il pannello del dettaglio galleggia a destra (320px + 24 di
+            // margine) e su uno schermo da 1280-1440px si sovrapponeva alle
+            // ultime due colonne della griglia: sabato e domenica, cioè i due
+            // giorni che si confrontano più spesso, finivano sotto il pannello
+            // proprio mentre li si stava guardando.
+            //
+            // La griglia si tiene entro `100vw - 392px` quando lo schermo non
+            // è abbastanza largo. È un limite COSTANTE, non legato al fatto
+            // che il pannello sia aperto: così la griglia non cambia
+            // dimensione al clic — che è il problema per cui il pannello è
+            // stato messo a galleggiare in origine (vedi il commento sotto).
+            <div style={{ maxWidth: 'min(100%, calc(100vw - 392px))' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4, marginBottom: 4 }}>
               {GIORNI.map(g => (
                 <div key={g} style={{
@@ -808,9 +821,9 @@ export default function CalendarioOperativo({
                         {st.breve}
                       </div>
                     )}
-                    {status === 'futuro' && (
-                      <div style={{ fontSize: FS.small, color: T.textSoft, marginTop: 3, lineHeight: 1.2 }}>·</div>
-                    )}
+                    {/* Qui c'era un punto medio "·" come contenuto: un
+                        glifo che non dice niente e in certi font sparisce.
+                        Il giorno futuro si riconosce già dal fondo. */}
                     {hasNota && (
                       <div style={{ marginTop: 3, display: 'inline-flex', color: T.amber }}>
                         <Icon name="edit" size={12} />
@@ -825,7 +838,7 @@ export default function CalendarioOperativo({
                 )
               })}
             </div>
-            </>
+            </div>
           )}
 
           {/* Legenda */}
@@ -860,6 +873,7 @@ export default function CalendarioOperativo({
           casi: il pannello si sovrappone e si chiude quando hai finito. */}
       {!isMobile && !isTablet && sel && (
         <div style={{
+          // 84 = altezza della barra in cima (56) + 28 di respiro.
           position: 'fixed', top: 84, right: 24, width: 320, zIndex: 40,
           maxHeight: 'calc(100vh - 108px)', overflowY: 'auto',
           animation: 'fos_calSlideIn 0.16s ease',

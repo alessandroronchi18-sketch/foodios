@@ -468,7 +468,7 @@ function ThSort({ label, col, sortBy, sortDir, onSort, left, bg }) {
         minWidth: left ? 160 : 90,
       }}>
       {label}
-      {active && <span style={{ marginLeft: 4, fontSize: 12 }}>{sortDir === 'asc' ? '▲' : '▼'}</span>}
+      {active && <span style={{ marginLeft: 4, display: 'inline-flex' }}><Icon name={sortDir === 'asc' ? 'chevUp' : 'chevDown'} size={11} /></span>}
     </th>
   )
 }

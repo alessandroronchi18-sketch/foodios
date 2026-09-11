@@ -923,7 +923,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                           title="Ordina" aria-sort={sortBy===c.key?(sortDir==='asc'?'ascending':'descending'):'none'}
                           style={{padding:"12px 12px",textAlign:c.align==='left'?"left":"right",fontSize: typo.small.fontSize,fontWeight:700,letterSpacing:"0.05em",textTransform:"uppercase",color:sortBy===c.key?C.red:C.textSoft,borderBottom:`1px solid ${C.border}`,cursor:"pointer",userSelect:"none",whiteSpace:"nowrap",
                             ...(idx===0?{position:'sticky',left:0,background:'#F8F4F2',zIndex:1}:null)}}>
-                          {c.label}<span style={{opacity:sortBy===c.key?1:0.25,marginLeft:4}}>{sortBy===c.key?(sortDir==='asc'?'▲':'▼'):'↕'}</span>
+                          {c.label}<span style={{opacity:sortBy===c.key?1:0.35,marginLeft:4,display:'inline-flex'}}><Icon name={sortBy===c.key?(sortDir==='asc'?'chevUp':'chevDown'):'sortable'} size={11} /></span>
                         </th>
                       ))}
                     </tr>
@@ -1387,7 +1387,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                             aria-sort={chiSort.key===c.key?(chiSort.dir==='asc'?'ascending':'descending'):'none'}
                             style={{padding:"12px 12px",textAlign:c.align==='left'?"left":"right",fontSize: typo.small.fontSize,fontWeight:700,letterSpacing:"0.05em",textTransform:"uppercase",color:chiSort.key===c.key?C.red:C.textSoft,borderBottom:`1px solid ${C.border}`,cursor:"pointer",userSelect:"none",whiteSpace:"nowrap",
                               ...(idx===0?{position:'sticky',left:0,background:'#F8F4F2',zIndex:1}:null)}}>
-                            {c.h}<span style={{opacity:chiSort.key===c.key?1:0.25,marginLeft:4}}>{chiSort.key===c.key?(chiSort.dir==='asc'?'▲':'▼'):'↕'}</span>
+                            {c.h}<span style={{opacity:chiSort.key===c.key?1:0.35,marginLeft:4,display:'inline-flex'}}><Icon name={chiSort.key===c.key?(chiSort.dir==='asc'?'chevUp':'chevDown'):'sortable'} size={11} /></span>
                           </th>
                         ));
                       })()}

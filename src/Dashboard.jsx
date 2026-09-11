@@ -459,7 +459,7 @@ const TD = ({children,right,bold,color,mono,small}) => (
     whiteSpace:"nowrap"}}>{children}</td>
 );
 const TH = ({children,right}) => (
-  <th style={{padding:"10px 14px",textAlign:right?"right":"left",fontSize:8,fontWeight:700,
+  <th style={{padding:"10px 14px",textAlign:right?"right":"left",fontSize: 12,fontWeight:700,
     letterSpacing:"0.07em",textTransform:"uppercase",color:C.textSoft,
     borderBottom:`1px solid ${C.border}`,whiteSpace:"nowrap"}}>{children}</th>
 );
@@ -604,7 +604,7 @@ function ProduzioneView({ricettario,mese,onSave,onAddAction,nomeAttivita=''}) {
                 <thead>
                   <tr style={{background:"#F8F4F2"}}>
                     {["Prodotto","Prodotti","Venduti","Sell-T %","Ricavi €","Food Cost €","Margine €","Margine %"].map((h,i)=>(
-                      <th key={i} style={{padding:"10px 12px",textAlign:i===0?"left":"right",fontSize:8,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",color:C.textSoft,borderBottom:`1px solid ${C.border}`}}>{h}</th>
+                      <th key={i} style={{padding:"10px 12px",textAlign:i===0?"left":"right",fontSize: 12,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",color:C.textSoft,borderBottom:`1px solid ${C.border}`}}>{h}</th>
                     ))}
                   </tr>
                 </thead>

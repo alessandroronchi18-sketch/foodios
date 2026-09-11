@@ -1367,7 +1367,7 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
                     {COLS.map((c, i) => (
                       <th key={i} onClick={() => clickSort(c.key)} title="Ordina"
                         style={{ padding: '9px 12px', textAlign: c.align === 'left' ? 'left' : 'right', fontSize: FS.small, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: confrSort.key === c.key ? C.red : C.textSoft, borderBottom: `1px solid ${C.border}`, whiteSpace: 'nowrap', cursor: 'pointer', userSelect: 'none' }}>
-                        {c.h}<span style={{ opacity: confrSort.key === c.key ? 1 : 0.25 }}> {confrSort.key === c.key ? (confrSort.dir === 'asc' ? '▲' : '▼') : '↕'}</span>
+                        {c.h}<span style={{ opacity: confrSort.key === c.key ? 1 : 0.35, marginLeft: 4, display: 'inline-flex' }}><Icon name={confrSort.key === c.key ? (confrSort.dir === 'asc' ? 'chevUp' : 'chevDown') : 'sortable'} size={11} /></span>
                       </th>
                     ))}
                   </tr>

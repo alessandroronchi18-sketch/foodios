@@ -2143,7 +2143,7 @@ export default function AdminPage() {
         }}
       >
         {children}
-        {active && <span style={{ fontSize: 12 }}>{sortDir === 'asc' ? '▲' : '▼'}</span>}
+        {active && <Icon name={sortDir === 'asc' ? 'chevUp' : 'chevDown'} size={11} />}
       </button>
     )
   }

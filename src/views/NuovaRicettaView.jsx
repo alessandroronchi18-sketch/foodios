@@ -488,7 +488,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
           <h1 style={{ margin: 0, fontSize: isMobile ? 20 : 24, fontWeight: 800, color: C.text, letterSpacing: "-0.02em", lineHeight: 1.15 }}>
             {editMode ? <>Modifica <span style={{ color: T.brand }}>{editMode}</span></> : "Nuova ricetta"}
           </h1>
-          <p style={{ margin: "4px 0 0", fontSize: 12.5, color: T.textSoft, lineHeight: 1.45 }}>
+          <p style={{ margin: "4px 0 0", fontSize: 13, color: T.textSoft, lineHeight: 1.45 }}>
             {editMode
               ? "L'anteprima a destra ti dice subito se la ricetta regge i conti."
               : "Compila qui sotto: a destra vedi food cost e margine in tempo reale."}
@@ -498,7 +498,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
 
       {/* Banner "stai modificando" - resta in evidenza per non perdere il contesto. */}
       {editMode && (
-        <div style={{ marginBottom: 14, fontSize: 12.5, color: T.amber, display: "flex", alignItems: "center", justifyContent: 'space-between', gap: 10, padding: '10px 14px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.28)', borderRadius: 10, flexWrap: 'wrap' }}>
+        <div style={{ marginBottom: 14, fontSize: 13, color: T.amber, display: "flex", alignItems: "center", justifyContent: 'space-between', gap: 10, padding: '10px 14px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.28)', borderRadius: 10, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
             <Icon name="warning" size={12} /> Stai modificando <b style={{ fontWeight: 700, marginLeft: 4 }}>{editMode}</b> - il salvataggio sovrascrive.
           </div>
@@ -1050,7 +1050,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                     {scartoRilevante && (
                       <>
                         <div style={{ fontWeight: 600, marginBottom: 8 }}>
-                          Scarto {scartoPct.toFixed(1)}% ({sommaG > resaEff ? '+' : '−'}{scartoAssoluto.toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 1 })} g).
+                          Scarto {fmtp(scartoPct)} ({sommaG > resaEff ? '+' : '−'}{scartoAssoluto.toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 1 })} g).
                           {isGusto
                             ? " Verifica: perdita evaporazione? overrun d'aria? errore quantità?"
                             : ' Il peso stampo dichiarato differisce dalla somma ingredienti.'}
@@ -1300,7 +1300,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                     spazio del box, senza spostare l'incolonnamento. */}
                 {[
                   { lbl: 'Ricavo',         val: fmt(live.ricavo),     c: C.green, bg: C.greenLight, brd: `${C.green}25` },
-                  { lbl: 'Food cost',      val: live.affidabile ? `-${fmt(live.fc)}` : `-${fmt(live.fc)} parziale`, c: C.red, bg: C.redLight, brd: `${C.red}20` },
+                  { lbl: 'Food cost',      val: live.affidabile ? `−${fmt(live.fc)}` : `−${fmt(live.fc)} parziale`, c: C.red, bg: C.redLight, brd: `${C.red}20` },
                   { lbl: 'Margine lordo',  val: live.affidabile ? fmt(live.margine) : `max ${fmt(live.margine)}`,  c: sem.color, bg: sem.bg, brd: sem.border, prominent: true },
                   { lbl: 'Margine %',      val: live.affidabile ? fmtp(live.margPct) : `max ${fmtp(live.margPct)}`, c: sem.color, bg: sem.bg, brd: sem.border },
                 ].map((r, i) => (
@@ -1536,12 +1536,12 @@ function CommandBar({ isMobile, ricetteEsistenti, activeNome, onPickExisting, ac
               style={{
                 flex: 1, minWidth: 0,
                 border: 'none', outline: 'none', background: 'transparent',
-                fontSize: isMobile ? 14 : 13, color: C.text, fontFamily: 'inherit',
+                fontSize: isMobile ? 16 : 13, color: C.text, fontFamily: 'inherit',
               }}
             />
             {activeNome && (
               <span style={{ fontSize: 12, fontWeight: 800, color: T.brand, background: `${T.brand}12`, padding: '3px 8px', borderRadius: 6, whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                editing
+                in modifica
               </span>
             )}
           </div>
@@ -1609,45 +1609,9 @@ function CommandBar({ isMobile, ricetteEsistenti, activeNome, onPickExisting, ac
   )
 }
 
-function ActionChip({ icon, label, sub, active, onClick, color, isMobile }) {
-  const border = active ? color : 'rgba(15,23,42,0.10)'
-  const bg = active ? `${color}0F` : '#FFF'
-  return (
-    <button type="button" onClick={onClick} aria-expanded={!!active}
-      style={{
-        padding: isMobile ? '11px 14px' : '13px 16px',
-        background: bg,
-        border: `1px solid ${border}`,
-        borderRadius: 12,
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-        fontFamily: 'inherit',
-        color: active ? color : C.text,
-        transition: 'all 0.15s ease',
-        flex: isMobile ? '1 1 100%' : '0 0 auto',
-        minWidth: 0,
-        boxShadow: active ? `0 4px 12px ${color}22` : 'none',
-      }}>
-      <span style={{
-        display: 'inline-flex',
-        alignItems: 'center', justifyContent: 'center',
-        width: 30, height: 30, borderRadius: 8,
-        background: active ? color : `${color}15`,
-        color: active ? '#FFF' : color,
-        flexShrink: 0,
-      }}>
-        {icon}
-      </span>
-      <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: 0, textAlign: 'left' }}>
-        <span style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.2 }}>{label}</span>
-        {sub && <span style={{ fontSize: 12, color: active ? color : C.textSoft, fontWeight: 500, marginTop: 2, opacity: active ? 0.8 : 1 }}>{sub}</span>}
-      </span>
-      <Icon name="chevDown" size={12} color={active ? color : C.textSoft} />
-    </button>
-  )
-}
+// ActionChip viveva qui: definito e mai usato, residuo del refactor della
+// barra azioni (ora c'è CommandBar qui sopra). Trentanove righe di stili
+// morti che facevano cercare il componente sbagliato.
 
 // ─── RicettaPicker: pulsante che apre dropdown con ricerca interna ──────
 // Pattern futuristic-elegant: pulsante con icona + label + caret. Click apre
@@ -1821,7 +1785,7 @@ function RicettaPickerDelete({ ricette, deleteConf, setDeleteConf, deletePin, se
           position: 'relative', overflow: 'hidden',
         }}>
           <div aria-hidden="true" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, ${C.red} 0%, #FFB350 50%, ${C.red} 100%)`, opacity: 0.7 }}/>
-          <div style={{ fontSize: 12.5, fontWeight: 800, color: C.red, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ fontSize: 13, fontWeight: 800, color: C.red, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
             <Icon name="warning" size={14} /> Stai per eliminare <b style={{ fontWeight: 900, letterSpacing: '0.02em', textTransform: 'uppercase' }}>{deleteConf}</b>
           </div>
           <div style={{ fontSize: 12, color: C.textSoft, marginBottom: 10, lineHeight: 1.5 }}>

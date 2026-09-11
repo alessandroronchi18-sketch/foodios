@@ -1554,7 +1554,7 @@ function SortableHeader({ label, onClick, active, dir, style }) {
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
         {label}
         <span style={{ fontSize: 12, color: active ? T.brand : 'transparent', fontWeight: 800 }}>
-          {active ? (dir === 'asc' ? '▲' : '▼') : '▲'}
+          <Icon name={active ? (dir === 'asc' ? 'chevUp' : 'chevDown') : 'sortable'} size={11} />
         </span>
       </span>
     </th>
@@ -1582,7 +1582,9 @@ function SortChip({ label, color, active, dir, onClick }) {
         outlineOffset: 2,
       }}>
       {label}
-      {active && <span style={{ fontSize: 8 }}>{dir === 'asc' ? '▲' : '▼'}</span>}
+      {/* I triangolini erano i caratteri "▲" e "▼": caratteri tipografici
+          usati da icona. Il progetto ha chevUp/chevDown. */}
+      {active && <Icon name={dir === 'asc' ? 'chevUp' : 'chevDown'} size={11} />}
     </span>
   )
 }

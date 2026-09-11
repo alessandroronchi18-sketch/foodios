@@ -903,7 +903,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                           { h: 'Stampi prodotti', sub: 'quanti stampi/teglie' },
                           { h: 'Pezzi al banco', sub: 'esposti per la vendita' },
                         ].map(({ h, sub }, i) => (
-                          <th key={i} title={sub} style={{ padding: '10px 14px', textAlign: i < 2 ? 'left' : 'center', fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, cursor: 'help', textDecoration: 'underline dotted', textUnderlineOffset: 3 }}>
+                          <th key={i} title={sub} style={{ padding: '10px 14px', textAlign: i < 2 ? 'left' : i === 2 ? 'right' : 'center', fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, cursor: 'help', textDecoration: 'underline dotted', textUnderlineOffset: 3 }}>
                             {h}
                           </th>
                         ))}
@@ -940,10 +940,10 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                               <div style={{ display: 'flex', gap: 4, marginTop: 3, flexWrap: 'wrap', alignItems: 'center' }}>
                                 <span style={{ fontSize: 12, color: C.textSoft }}>
                                   {isSemi
-                                    ? <>1 batch → <b style={{ color: C.text }}>base per altre ricette</b></>
+                                    ? <>1 batch diventa <b style={{ color: C.text }}>base per altre ricette</b></>
                                     : isGustoTipo(reg.tipo)
-                                      ? <>1 batch → <b style={{ color: C.text }}>{reg.unita} kg di gusto</b> (prezzo su formati vendita)</>
-                                      : <>1 stampo → <b style={{ color: C.text }}>{reg.unita} {labelPlurale(reg.tipo)}</b> × {fmt(reg.prezzo)}</>
+                                      ? <>1 batch rende <b style={{ color: C.text }}>{reg.unita} kg di gusto</b> (prezzo su formati vendita)</>
+                                      : <>1 stampo rende <b style={{ color: C.text }}>{reg.unita} {labelPlurale(reg.tipo)}</b> × {fmt(reg.prezzo)}</>
                                   }
                                 </span>
                                 {q > 0 && reg.unita > 0 && (
@@ -954,7 +954,10 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                                 {cong && <span style={{ fontSize: 12, fontWeight: 700, background: '#E8F4FF', color: '#2980B9', padding: '2px 7px', borderRadius: 4, display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="snow" size={12} /> congelabile</span>}
                               </div>
                             </td>
-                            <td style={{ padding: '10px 14px', color: C.red }}>{fmt(fc)}</td>
+                            {/* Colonna di soldi: a destra e con le cifre a
+                                larghezza fissa, altrimenti i numeri ballano
+                                da una riga all'altra e non si confrontano. */}
+                            <td style={{ padding: '10px 14px', color: C.red, textAlign: 'right', ...TNUM }}>{fmt(fc)}</td>
                             <td style={{ padding: '10px 14px', textAlign: 'center' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
                                 <button aria-label="Diminuisci" onClick={() => setQ(ric.nome, Math.max(0, (qtaMap[ric.nome] || 0) - 1))} style={{ width: isMobile || isTablet ? 40 : 30, height: isMobile || isTablet ? 40 : 30, borderRadius: 5, border: `1px solid ${C.borderStr}`, background: C.white, cursor: 'pointer', color: C.textMid, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="minus" size={16} /></button>
@@ -1020,11 +1023,11 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                         <div key={ric.nome} style={{ fontSize: 12, padding: '6px 0', borderBottom: `1px solid ${C.border}` }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                             <span style={{ color: C.text, fontWeight: 700 }}>{q} stampi · {ric.nome}</span>
-                            {!isDipendente && <span style={{ fontWeight: 700, color: C.green }}>{fmt(qv * reg.unita * reg.prezzo)}</span>}
+                            {!isDipendente && <span style={{ fontWeight: 700, color: C.green, ...TNUM }}>{fmt(qv * reg.unita * reg.prezzo)}</span>}
                           </div>
                           {reg.unita > 1 && (
                             <div style={{ fontSize: 12, color: C.textSoft, marginTop: 2 }}>
-                              → <b style={{ color: C.red }}>{pezziVetrina.toLocaleString('it-IT', { useGrouping: 'always' })} {labelPlurale(reg.tipo)}</b> al banco
+                              <Icon name="arrowR" size={11} style={{ verticalAlign: 'middle' }} /> <b style={{ color: C.red }}>{pezziVetrina.toLocaleString('it-IT', { useGrouping: 'always' })} {labelPlurale(reg.tipo)}</b> al banco
                               {q !== qv && <span style={{ color: '#92400E', marginLeft: 6 }}>({qv} vendibili oggi, {q - qv} in freezer)</span>}
                             </div>
                           )}
@@ -1091,7 +1094,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                           <span style={{ fontWeight: 600, color: C.text, textTransform: 'capitalize' }}>{k}</span>
                           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                             <span style={{ color: C.red, fontWeight: 700 }}>−{fmtG(qty)}</span>
-                            <span style={{ color: ok ? C.green : C.red, fontSize: 12 }}>{ok ? `→ ${fmtG(giac - qty)}` : 'insuff.'}</span>
+                            <span style={{ color: ok ? C.green : C.red, fontSize: 12 }}>{ok ? `resta ${fmtG(giac - qty)}` : 'non basta'}</span>
                           </div>
                         </div>
                       )
@@ -1285,7 +1288,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
       {deleteSessConf && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           onClick={e => { if (e.target === e.currentTarget) { setDeleteSessConf(null); setDeleteSessPin('') } }}>
-          <div style={{ background: C.white, borderRadius: 14, padding: '28px 32px', maxWidth: 460, width: '90%', boxShadow: '0 8px 40px rgba(0,0,0,0.25)' }}>
+          <div style={{ background: C.white, borderRadius: 14, padding: isMobile ? '20px 18px' : '28px 32px', maxWidth: 460, width: '90%', maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 8px 40px rgba(0,0,0,0.25)' }}>
             <div style={{ fontSize: 14, fontWeight: 900, color: C.red, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 7 }}><Icon name="trash" size={16} />Elimina sessione di produzione</div>
             <div style={{ fontSize: 13, color: C.text, marginBottom: 4 }}>
               <b>{new Date(deleteSessConf.data).toLocaleDateString('it-IT', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}</b>

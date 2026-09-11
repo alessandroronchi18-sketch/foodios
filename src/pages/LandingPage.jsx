@@ -218,7 +218,7 @@ function DashboardPreview() {
               { l: 'Margine',     v: '618 €',  sub: '73% ricavo' },
             ].map((k, i) => (
               <div key={i} style={{ background: T.paper, borderRadius: 10, border: `1px solid ${T.border}`, padding: '9px 11px' }}>
-                <div style={{ fontSize: 8, fontWeight: 600, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{k.l}</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{k.l}</div>
                 <div style={{ fontFamily: SERIF, fontSize: 17, fontWeight: 700, color: T.ink, letterSpacing: '-0.02em', lineHeight: 1 }}>{k.v}</div>
                 <div style={{ fontSize: 12, color: T.green, marginTop: 4, fontWeight: 600 }}>↑ {k.sub}</div>
               </div>
@@ -228,7 +228,7 @@ function DashboardPreview() {
           <div style={{ background: T.paper, borderRadius: 10, border: `1px solid ${T.border}`, padding: '10px 12px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: T.ink }}>Ricette più redditizie</div>
-              <div style={{ fontSize: 8, color: T.textSoft }}>maggio 2026</div>
+              <div style={{ fontSize: 12, color: T.textSoft }}>maggio 2026</div>
             </div>
             {[
               { n: 'Sfogliatella riccia classica', fc: '24%', m: '2,15 €' },

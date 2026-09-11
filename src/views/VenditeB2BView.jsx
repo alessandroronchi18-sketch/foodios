@@ -14,7 +14,7 @@ import {
 } from '../lib/venditeB2B'
 import Icon from '../components/Icon'
 import { useConfirm } from '../components/ConfirmModal'
-import { C, PageHeader, KPI, fmt, fmt0, TNUM } from './_shared'
+import { C, PageHeader, KPI, fmt, fmt0, fmtp, TNUM } from './_shared'
 
 // Stati vendita: label + chip color. "consegnata" è il default operativo (consegnata, da fatturare).
 const STATI = {
@@ -303,7 +303,7 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
           icon={<Icon name="trendUp" size={18} />}
           label="Margine (mese)"
           value={fmt0(margineMese)}
-          sub={ricavoMese > 0 ? `${margPctMese.toFixed(1).replace('.', ',')}% sul ricavo` : 'in attesa di vendite'}
+          sub={ricavoMese > 0 ? `${fmtp(margPctMese)} sul ricavo` : 'in attesa di vendite'}
           color={C.green}
         />
         <KPI
@@ -385,7 +385,7 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
               <div style={{ padding: 28, textAlign: 'center', color: C.textSoft, fontSize: 13 }}>Nessuna vendita registrata.</div>
             ) : (
               <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', minWidth: 720, borderCollapse: 'collapse', fontSize: 12.5 }}>
+                <table style={{ width: '100%', minWidth: 720, borderCollapse: 'collapse', fontSize: 13 }}>
                   <thead>
                     <tr style={{ background: '#FAFAF8' }}>
                       {[
@@ -419,7 +419,7 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
                         }} title={g.nome}>{g.nome}</td>
                         <td style={{ padding: '12px 14px', textAlign: 'right', color: C.textMid, ...TNUM }}>{g.n.toLocaleString('it-IT', { useGrouping: 'always' })}</td>
                         <td style={{ padding: '12px 14px', textAlign: 'right', color: g.giorniDaUltimo > 30 ? C.amber : C.textSoft, ...TNUM, whiteSpace: 'nowrap' }}>
-                          {g.giorniDaUltimo != null ? `${g.giorniDaUltimo.toLocaleString('it-IT', { useGrouping: 'always' })}g fa` : '-'}
+                          {g.giorniDaUltimo != null ? `${g.giorniDaUltimo.toLocaleString('it-IT', { useGrouping: 'always' })} giorni fa` : '-'}
                         </td>
                         <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 700, color: C.text, ...TNUM, whiteSpace: 'nowrap' }}>{fmt(g.fatturato)}</td>
                         <td style={{ padding: '12px 14px', textAlign: 'right', color: C.green, ...TNUM, whiteSpace: 'nowrap' }}>
@@ -473,7 +473,7 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
                     <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                       <span title={p.nome} style={{
                         flex: '0 0 38%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                        fontSize: 12.5, fontWeight: i === 0 ? 700 : 500, color: C.text,
+                        fontSize: 13, fontWeight: i === 0 ? 700 : 500, color: C.text,
                       }}>{p.nome}</span>
                       <span style={{ flex: 1, height: 16, background: T.bgSubtle, borderRadius: 5, overflow: 'hidden' }}>
                         <span style={{ display: 'block', height: '100%', width: `${widthPct}%`, background: i === 0 ? C.green : 'rgba(31,122,72,0.5)' }} />
@@ -481,7 +481,7 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
                       <span style={{ flex: '0 0 70px', textAlign: 'right', fontSize: 12, color: C.textSoft, ...TNUM, whiteSpace: 'nowrap' }}>
                         {p.qta.toLocaleString('it-IT', { useGrouping: 'always' })} pz
                       </span>
-                      <span style={{ flex: '0 0 110px', textAlign: 'right', fontSize: 12.5, fontWeight: 700, color: C.text, ...TNUM, whiteSpace: 'nowrap' }}>
+                      <span style={{ flex: '0 0 110px', textAlign: 'right', fontSize: 13, fontWeight: 700, color: C.text, ...TNUM, whiteSpace: 'nowrap' }}>
                         {fmt(p.ricavo)}
                       </span>
                     </div>
@@ -523,7 +523,7 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
               }}>
                 {filterPill(fPeriodo === 'all',  'Sempre',     () => setFPeriodo('all'))}
                 {filterPill(fPeriodo === 'mese', 'Questo mese',() => setFPeriodo('mese'))}
-                {filterPill(fPeriodo === 'trim', 'Ultimi 90g', () => setFPeriodo('trim'))}
+                {filterPill(fPeriodo === 'trim', 'Ultimi 3 mesi', () => setFPeriodo('trim'))}
 
                 {/* Separatore verticale solo desktop */}
                 {!isMobile && <span style={{ width: 1, height: 22, background: C.border }} />}
@@ -819,7 +819,7 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
                           </div>
                         </div>
                         <div style={{ fontSize: 18, fontWeight: 800, color: C.text, ...TNUM, whiteSpace: 'nowrap', flexShrink: 0 }}>
-                          {fmt0(v.totale)}
+                          {fmt(v.totale)}
                         </div>
                       </div>
 
@@ -908,7 +908,7 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
                             background: v.pagata ? C.greenLight : '#FEE2E2',
                             color: v.pagata ? C.green : C.red,
                           }}>
-                          {v.pagata ? 'incassato' : 'da incassare'}
+                          {v.pagata ? 'Incassato' : 'Da incassare'}
                         </button>
                       )}
                     </div>

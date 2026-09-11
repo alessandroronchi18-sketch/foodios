@@ -107,7 +107,11 @@ const P = {
   coins:      '<ellipse cx="9" cy="7" rx="6" ry="3"/><path d="M3 7v4c0 1.66 2.69 3 6 3s6-1.34 6-3V7"/><path d="M15 11.5c2.5.3 6 1.4 6 3.5 0 1.66-2.69 3-6 3-1.2 0-2.3-.18-3.2-.48"/>',
   award:      '<circle cx="12" cy="9" r="5"/><polyline points="9 13.5 8 21 12 19 16 21 15 13.5"/>',
   arrowDown:  '<line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/>',
+  // "Si può ordinare, ma adesso non è ordinato": era il carattere "↕" in sei
+  // intestazioni di tabella.
+  sortable:   '<polyline points="8 9 12 5 16 9"/><polyline points="16 15 12 19 8 15"/>',
   chevR:      '<polyline points="9 18 15 12 9 6"/>',
+  chevL:      '<polyline points="15 18 9 12 15 6"/>',
   chevDown:   '<polyline points="6 9 12 15 18 9"/>',
   // chevUp e minus mancavano: senza di loro <Icon name="chevUp"> cadeva sul
   // pallino di ripiego. Servono per il verso dell'ordinamento nelle tabelle

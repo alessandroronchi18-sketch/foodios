@@ -156,7 +156,7 @@ function BandaDiagnosi({ orgId, sedeId, refreshKey, isMobile, isTablet, onVaiTab
         <div style={{ flex:1, minWidth:200 }}>
           <div style={{ fontSize: 12, fontWeight:700, letterSpacing: '0.05em', textTransform:'uppercase', color:T.textSoft }}>Come stai messo</div>
           <div style={{ fontSize:19, fontWeight:800, color:sem.c, letterSpacing:'-0.02em', marginTop:2 }}>{sem.lbl}</div>
-          <div style={{ fontSize:12.5, color:T.textMid, marginTop:3, lineHeight:1.45 }}>{sem.msg}</div>
+          <div style={{ fontSize:13, color:T.textMid, marginTop:3, lineHeight:1.45 }}>{sem.msg}</div>
         </div>
         {/* Semaforo grafico verde/ambra/rosso */}
         <div style={{ display:'flex', flexDirection:'column', gap:7, padding:'8px 10px', background:T.bgSubtle, borderRadius:R.lg }}>
@@ -178,7 +178,7 @@ function BandaDiagnosi({ orgId, sedeId, refreshKey, isMobile, isTablet, onVaiTab
           label="Temperature fuori range"
           value={nfmt(d.fuoriRange24h.length)}
           color={d.fuoriRange24h.length ? T.brand : T.green}
-          sub={d.fuoriRange24h.length ? 'ultime 24h · da verificare' : `ok · ${nfmt(d.nApparecchi)} apparecchi`}
+          sub={d.fuoriRange24h.length ? 'ultime 24 ore, da verificare' : `ok · ${nfmt(d.nApparecchi)} apparecchi`}
           onClick={() => onVaiTab('temperature')}
         />
         <KPI
@@ -194,7 +194,7 @@ function BandaDiagnosi({ orgId, sedeId, refreshKey, isMobile, isTablet, onVaiTab
           label="Completamento periodo"
           value={d.pctCompletamento === null ? '-' : `${Math.round(d.pctCompletamento)}%`}
           color={d.pctCompletamento === null ? T.textSoft : d.pctCompletamento >= 70 ? T.green : d.pctCompletamento >= 40 ? T.amber : T.brand}
-          sub="temperature + pulizie · 7gg"
+          sub="temperature e pulizie, ultimi 7 giorni"
         />
       </div>
 
@@ -209,11 +209,11 @@ function BandaDiagnosi({ orgId, sedeId, refreshKey, isMobile, isTablet, onVaiTab
                 <Icon name="snow" size={13} />Temperature fuori range
               </div>
               {d.fuoriRangeRecenti.length === 0 ? (
-                <div style={{ fontSize:12.5, color:T.green, display:'flex', alignItems:'center', gap:6 }}><Icon name="checkCircle" size={14} />Nessuna anomalia recente</div>
+                <div style={{ fontSize:13, color:T.green, display:'flex', alignItems:'center', gap:6 }}><Icon name="checkCircle" size={14} />Nessuna anomalia recente</div>
               ) : d.fuoriRangeRecenti.map(t => (
                 <div key={t.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, padding:'8px 12px', background:T.brandLight, borderRadius:R.md, marginBottom:6 }}>
                   <div style={{ minWidth:0 }}>
-                    <div style={{ fontSize:12.5, fontWeight:700, color:T.text, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{t.haccp_apparecchi?.nome || '-'}</div>
+                    <div style={{ fontSize:13, fontWeight:700, color:T.text, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{t.haccp_apparecchi?.nome || '-'}</div>
                     <div style={{ fontSize: 12, color:T.textSoft }}>{FmtDt(t.rilevato_at)}{t.operatore ? ` · ${t.operatore}` : ''}</div>
                   </div>
                   <span style={{ fontSize:14, fontWeight:800, color:T.brand, ...TNUM, whiteSpace:'nowrap', display:'inline-flex', alignItems:'center', gap:4 }}>
@@ -228,10 +228,10 @@ function BandaDiagnosi({ orgId, sedeId, refreshKey, isMobile, isTablet, onVaiTab
                 <Icon name="clock" size={13} />Pulizie da registrare
               </div>
               {d.taskScaduti.length === 0 ? (
-                <div style={{ fontSize:12.5, color:T.green, display:'flex', alignItems:'center', gap:6 }}><Icon name="checkCircle" size={14} />Tutte le pulizie sono in regola</div>
+                <div style={{ fontSize:13, color:T.green, display:'flex', alignItems:'center', gap:6 }}><Icon name="checkCircle" size={14} />Tutte le pulizie sono in regola</div>
               ) : d.taskScaduti.slice(0, 6).map(t => (
                 <div key={t.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, padding:'8px 12px', background:T.amberLight, borderRadius:R.md, marginBottom:6 }}>
-                  <span style={{ fontSize:12.5, fontWeight:700, color:T.text, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', minWidth:0 }}>{t.nome}</span>
+                  <span style={{ fontSize:13, fontWeight:700, color:T.text, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', minWidth:0 }}>{t.nome}</span>
                   <span style={{ fontSize: 12, fontWeight:700, color:T.amber, textTransform:'uppercase', letterSpacing:'0.04em', whiteSpace:'nowrap' }}>
                     {FREQUENZE.find(f=>f.id===t.frequenza)?.label || t.frequenza}
                   </span>
@@ -380,7 +380,7 @@ function TemperatureTab({ orgId, sedeId, isMobile, notify, onChanged }) {
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
           <div style={{ fontSize:15, fontWeight:700, color:T.text, display:'flex', alignItems:'center', gap:8 }}><Icon name="snow" size={18} color={T.brand} />Apparecchi monitorati ({nfmt(apparecchi.length)})</div>
           <button onClick={() => setShowAddApp(s => !s)}
-            style={{ height:34, padding:'0 14px', borderRadius:R.md, border:`1px solid ${T.borderStr}`, background:T.bgCard, color:T.text, fontSize:12, fontWeight:700, cursor:'pointer', display:'inline-flex', alignItems:'center', gap:6 }}>
+            style={{ height: isMobile ? 44 : 34, padding:'0 14px', borderRadius:R.md, border:`1px solid ${T.borderStr}`, background:T.bgCard, color:T.text, fontSize:12, fontWeight:700, cursor:'pointer', display:'inline-flex', alignItems:'center', gap:6 }}>
             <Icon name={showAddApp ? 'x' : 'plus'} size={13} />{showAddApp ? 'Annulla' : 'Aggiungi'}
           </button>
         </div>
@@ -433,7 +433,7 @@ function TemperatureTab({ orgId, sedeId, isMobile, notify, onChanged }) {
           </div>
         ) : (
           <div style={{ overflowX:'auto' }}>
-            <table style={{ width:'100%', borderCollapse:'separate', borderSpacing:0, fontSize:13 }}>
+            <table style={{ minWidth: 520, width:'100%', borderCollapse:'separate', borderSpacing:0, fontSize:13 }}>
               <thead>
                 <tr style={{ background:T.bgSubtle }}>
                   <th style={{ padding:'10px 14px', textAlign:'left', fontSize: 12, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.06em' }}>Data/ora</th>
@@ -614,11 +614,11 @@ function PulizieTab({ orgId, sedeId, isMobile, notify, onChanged }) {
                   </div>
                   <div style={{ display:'flex', gap:6, flexShrink:0 }}>
                     <button onClick={() => eseguiTpl(t.id)}
-                      style={{ height:32, padding:'0 12px', borderRadius:R.md, border:'none', background: done ? T.bgCard : T.text, color: done ? T.textMid : '#FFF', fontSize: 12, fontWeight:700, cursor:'pointer' }}>
+                      style={{ height: isMobile ? 44 : 32, padding:'0 14px', borderRadius:R.md, border:'none', background: done ? T.bgCard : T.text, color: done ? T.textMid : '#FFF', fontSize: 12, fontWeight:700, cursor:'pointer' }}>
                       {done ? 'Ripeti' : 'Segna fatto'}
                     </button>
                     <button onClick={() => rimuoviTpl(t.id)} title="Rimuovi task"
-                      style={{ height:32, width:32, display:'inline-flex', alignItems:'center', justifyContent:'center', borderRadius:R.md, border:`1px solid ${T.borderSoft}`, background:'transparent', color:T.textSoft, cursor:'pointer' }}><Icon name="trash" size={13} /></button>
+                      style={{ height: isMobile ? 44 : 32, width: isMobile ? 44 : 32, display:'inline-flex', alignItems:'center', justifyContent:'center', borderRadius:R.md, border:`1px solid ${T.borderSoft}`, background:'transparent', color:T.textSoft, cursor:'pointer' }}><Icon name="trash" size={13} /></button>
                   </div>
                 </div>
               )
@@ -695,7 +695,7 @@ function AllergeniTab({ ricettario, isMobile }) {
               <thead>
                 <tr>
                   <th style={{ padding:'4px 8px', textAlign:'left', fontSize: 12, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.05em', background:T.bgSubtle, borderBottom:`1px solid ${T.borderSoft}`, position:'sticky', left:0, zIndex:2 }}>
-                    Allergene \ Prodotto
+                    Allergene / Prodotto
                   </th>
                   {ricette.map(r => (
                     <th key={r.nome}
@@ -739,11 +739,11 @@ function AllergeniTab({ ricettario, isMobile }) {
                             background: presente ? T.brandLight : T.bgCard,
                             color: presente ? T.brand : T.borderSoft,
                             fontWeight: 700, fontSize: 12, lineHeight: 1,
-                            padding:'4px 0',
+                            padding:'6px 0', minHeight: 28,
                             borderLeft:`1px solid ${T.borderSoft}`,
                             borderBottom:`1px solid ${T.borderSoft}`,
                           }}>
-                          {presente ? <Icon name="dot" size={8} /> : ''}
+                          {presente ? <Icon name="check" size={13} /> : ''}
                         </td>
                       ))}
                     </tr>
