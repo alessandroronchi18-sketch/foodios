@@ -120,7 +120,7 @@ export default function PushNotificationToggle({ deviceLabel }) {
             : 'Attiva per ricevere reminder operativi su questo dispositivo.'}
         </div>
         {error && (
-          <div style={{ fontSize: 11.5, color: '#DC2626', marginTop: 6 }}>{error}</div>
+          <div style={{ fontSize: 12, color: '#DC2626', marginTop: 6 }}>{error}</div>
         )}
       </div>
       <button

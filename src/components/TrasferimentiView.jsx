@@ -505,12 +505,12 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
   }
 
   const inp = { width: '100%', padding: isMobile ? '12px 14px' : isTablet ? '10px 13px' : '8px 12px', minHeight: isMobile ? 44 : isTablet ? 44 : 'auto', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : isTablet ? 16 : 13, color: C.text, background: C.bgCard, boxSizing: 'border-box' }
-  const lbl = { fontSize: isMobile ? 11 : 9.5, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: isMobile ? 6 : 4 }
+  const lbl = { fontSize: isMobile ? 11 : 9.5, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: isMobile ? 6 : 4 }
 
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', width: '100%', boxSizing: 'border-box', padding: isMobile ? '0 4px 80px' : 0 }}>
       <div style={{ marginBottom: 6 }}>
-        <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: C.red, marginBottom: 6 }}>Operazioni multi-sede</div>
+        <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.red, marginBottom: 6 }}>Operazioni multi-sede</div>
         <p style={{ margin: 0, fontSize: 13, color: C.textSoft }}>
           Sposta prodotti finiti, semilavorati o materie prime da una sede all'altra. Lo stock si aggiorna automaticamente.
         </p>
@@ -618,7 +618,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
       {/* DA FARE ORA: solo se c'è qualcosa da gestire per la sede attiva */}
       {(azioniUrgenti.daRicevere.length > 0 || azioniUrgenti.bozzeInUscita.length > 0) && (
         <div style={{ background: '#FFFBEB', border: `1px solid ${C.amber}`, borderRadius: 12, padding: isMobile ? 14 : 18, marginTop: 18, marginBottom: 16 }}>
-          <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#92400E', marginBottom: 10, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: '#92400E', marginBottom: 10, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             <Icon name="warning" size={14} /> Da fare ora ({azioniUrgenti.daRicevere.length + azioniUrgenti.bozzeInUscita.length})
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -668,7 +668,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
             minHeight: isMobile ? 84 : isTablet ? 92 : 88,
             display: 'flex', flexDirection: 'column', justifyContent: 'center',
           }}>
-            <div style={{ fontSize: isMobile ? 10.5 : 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em' }}>{k.label}</div>
+            <div style={{ fontSize: isMobile ? 10.5 : 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{k.label}</div>
             <div style={{ fontSize: isMobile ? 26 : isTablet ? 28 : 30, fontWeight: 800, color: k.color, marginTop: 4, lineHeight: 1.05, letterSpacing: '-0.02em', ...tnum }}>{Number(k.val || 0).toLocaleString('it-IT', { useGrouping: 'always' })}</div>
           </div>
         ))}
@@ -843,7 +843,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
       {/* Flussi del mese (solo se scope tutte e ci sono dati) */}
       {scope === 'tutte' && flussiMese.length > 0 && !loading && (
         <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, padding: isMobile ? 14 : 18, marginBottom: 16 }}>
-          <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.textSoft, marginBottom: 10 }}>
+          <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, marginBottom: 10 }}>
             Flussi questo mese
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: 10 }}>
@@ -875,7 +875,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
       {/* Filtri lista */}
       {!loading && lista.length > 0 && (
         <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: typo.small.fontSize, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Filtri:</span>
+          <span style={{ fontSize: typo.small.fontSize, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Filtri:</span>
           <select value={filtroStato} onChange={e => setFiltroStato(e.target.value)}
             style={{ padding: isMobile ? '9px 12px' : '5px 10px', minHeight: isMobile ? 40 : 'auto', borderRadius: 8, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: isMobile ? 16 : 12 }}>
             <option value="all">Tutti gli stati</option>

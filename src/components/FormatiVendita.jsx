@@ -14,8 +14,8 @@ import { sload, ssave } from '../lib/storage'
 import { SK_FORMATI } from '../lib/storageKeys'
 import { buildIngCosti, isRicettaValida, getR } from '../lib/foodcost'
 import {
-  nuovoFormato, avgFCperGCategoria, fcStimatoFormato,
-  componentiNormalizzati, costoComponentiUnita,
+  nuovoFormato, avgFCperGCategoria, dettaglioFCperGCategoria, fcStimatoFormato,
+  componentiNormalizzati, costoComponentiUnita, ricetteSenzaCategoria,
 } from '../lib/formatiVendita'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { lessico } from '../lib/lessico'
@@ -36,7 +36,7 @@ const fmt3 = n => `${(Number.isFinite(Number(n)) ? Number(n) : 0).toLocaleString
 
 // fontSize 16 su mobile per evitare zoom automatico iOS (regola permanente CLAUDE.md).
 const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: R.md, border: `1px solid ${T.borderStr}`, fontSize: 16, color: T.text, boxSizing: 'border-box', fontFamily: 'inherit', background: T.bgCard }
-const labelStyle = { fontSize: typo.small.fontSize, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6, display: 'block' }
+const labelStyle = { fontSize: typo.small.fontSize, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6, display: 'block' }
 const cardStyle = { background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 16, boxShadow: SHADOW_PREMIUM }
 
 export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita, sedi = [] }) {
@@ -120,16 +120,32 @@ export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita
     notify?.('Formato eliminato')
   }
 
+  // Ricette che non entreranno in nessuna stima perché non hanno una categoria
+  // scritta. Sul design partner sono 25 su 27, e senza dirlo il proprietario
+  // non ha modo di capire perché le stime dei formati sono fragili.
+  const senzaCategoria = useMemo(() => ricetteSenzaCategoria(ricettario), [ricettario])
+  const nRicetteTotali = useMemo(() => {
+    let n = 0
+    for (const r of Object.values(ricettario?.ricette || {})) {
+      if (!isRicettaValida(r.nome)) continue
+      const tipo = getR(r.nome, r).tipo
+      if (tipo === 'semilavorato' || tipo === 'interno') continue
+      n++
+    }
+    return n
+  }, [ricettario])
+
   // ── Righe arricchite: costo materiali, FC categoria, FC stimato/unità, margine ─
   const rows = useMemo(() => formati.map(f => {
-    const avg = avgFCperGCategoria(f.categoria, ricettario, ingCosti)
+    const det = dettaglioFCperGCategoria(f.categoria, ricettario, ingCosti)
+    const avg = det.valore
     const componenti = componentiNormalizzati(f)
     const costoMateriali = costoComponentiUnita(f)
     const fcBase = (Number(f.baseQtaG) || 0) * (avg || 0)
     const fcUnit = fcStimatoFormato(f, avg || 0)
     const prezzo = Number(f.prezzoDefault) || 0
     const margPct = prezzo > 0 && fcUnit >= 0 ? (1 - fcUnit / prezzo) * 100 : null
-    return { f, avg, componenti, costoMateriali, fcBase, fcUnit, prezzo, margPct, fcKnown: avg != null }
+    return { f, avg, componenti, costoMateriali, fcBase, fcUnit, prezzo, margPct, fcKnown: avg != null, nUsate: det.nUsate }
   }), [formati, ricettario, ingCosti])
 
   // ── Diagnosi (banda KPI) ──────────────────────────────────────────────────────
@@ -244,6 +260,34 @@ export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita
           <KPI icon={<Icon name="receipt" size={18} />} label="Senza food cost" value={diag.senzaCategoria.toLocaleString('it-IT', { useGrouping: 'always' })}
             color={diag.senzaCategoria ? T.amber : T.green}
             sub={diag.senzaCategoria ? 'solo materiali stimati' : 'tutti collegati'} />
+        </div>
+      )}
+
+      {/* Perché le stime sono fragili. Il food cost di un cono o di una
+          vaschetta non si misura: si stima sul costo al grammo dei gusti
+          della sua categoria. Se le ricette non hanno una categoria scritta
+          restano fuori da ogni stima — sul design partner sono 25 su 27, e
+          senza dirlo il proprietario vede un numero in verde senza sapere
+          che si regge sul 7% del ricettario. */}
+      {!loading && senzaCategoria.length > 0 && formati.length > 0 && (
+        <div style={{
+          display: 'flex', alignItems: 'flex-start', gap: 9,
+          background: T.amberLight, border: `1px solid ${T.amber}55`, borderRadius: 12,
+          padding: isMobile ? 12 : '12px 16px', marginBottom: 24,
+          fontSize: typo.small.fontSize, color: T.amberDark, lineHeight: 1.55,
+        }}>
+          <Icon name="alert" size={14} color={T.amberDark} style={{ flexShrink: 0, marginTop: 3 }} />
+          <span>
+            <strong>
+              {senzaCategoria.length === 1
+                ? 'Una ricetta non ha una categoria'
+                : `${senzaCategoria.length} ricette su ${nRicetteTotali} non hanno una categoria`}
+            </strong>
+            {' '}e quindi non entrano nel food cost stimato dei formati qui sotto.
+            {senzaCategoria.length >= 3 && <> Le prime: {senzaCategoria.slice(0, 3).map(r => r.nome).join(', ')}.</>}
+            {' '}Scrivi una categoria nelle ricette (per una gelateria basta &quot;Gusto&quot;)
+            e le stime si appoggeranno su tutto il ricettario invece che su una parte.
+          </span>
         </div>
       )}
 
@@ -470,7 +514,9 @@ export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita
                         <BreakdownTot label="Materiali" val={fmt3(r.costoMateriali)} />
                         <BreakdownTot label={`Prodotto (${(Number(f.baseQtaG) || 0).toLocaleString('it-IT', { useGrouping: 'always' })}g)`}
                           val={r.fcKnown ? fmt3(r.fcBase) : '-'}
-                          hint={r.fcKnown ? `Food cost ${f.categoria}: ${fmtEuro(r.avg * 1000)}/kg` : `categoria senza ${LEX.prodotti} pesati`} />
+                          hint={r.fcKnown
+                            ? `Food cost ${f.categoria}: ${fmtEuro(r.avg * 1000)}/kg · su ${r.nUsate} ${r.nUsate === 1 ? 'ricetta' : 'ricette'}`
+                            : `categoria senza ${LEX.prodotti} pesati`} />
                         <BreakdownTot label="Food cost stimato / unità" val={fmt3(r.fcUnit)} color={r.fcKnown ? T.green : T.amber} big />
                         {r.prezzo > 0 && <BreakdownTot label={`Margine (prezzo ${fmtEuro(r.prezzo)})`} val={r.margPct != null ? `${r.margPct.toFixed(0)}%` : '-'} color={margCol} />}
                       </div>
@@ -546,7 +592,7 @@ function PreviewStat({ label, val, hint, color }) {
   // a minHeight + flex column.
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minHeight: 56 }}>
-      <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: T.textSoft, lineHeight: 1.2, minHeight: 30, overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</div>
+      <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: T.textSoft, lineHeight: 1.2, minHeight: 30, overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</div>
       <div style={{ fontSize: 18, fontWeight: 800, color: color || T.text, letterSpacing: '-0.02em', ...TNUM, lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{val}</div>
       {hint && <div style={{ fontSize: typo.small.fontSize, color: T.textSoft, lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{hint}</div>}
     </div>

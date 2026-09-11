@@ -227,7 +227,7 @@ export default function AiHubView({ orgId, setView, goToUpgrade, piano, userEmai
           {/* Eyebrow */}
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '6px 14px', borderRadius: 999,
             background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.20)',
-            fontSize: 10.5, fontWeight: 700, letterSpacing: '0.20em', textTransform: 'uppercase',
+            fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase',
             backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
             <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#22C55E', boxShadow: '0 0 10px #22C55E', animation: '_ai_pulse 2s ease-in-out infinite' }}/>
             <ChainBadge size={12}/> Intelligence layer · {totFeatures} funzioni live
@@ -335,7 +335,7 @@ function HeroStat({ n, l }) {
   return (
     <div>
       <div style={{ fontSize: 24, fontWeight: 800, color: '#FFF', letterSpacing: '-0.02em', lineHeight: 1, fontFeatureSettings: "'tnum'" }}>{n}</div>
-      <div style={{ fontSize: 10.5, fontWeight: 600, color: 'rgba(255,255,255,0.60)', letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: 4 }}>{l}</div>
+      <div style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.60)', letterSpacing: '0.05em', textTransform: 'uppercase', marginTop: 4 }}>{l}</div>
     </div>
   )
 }
@@ -354,7 +354,7 @@ function ClusterIntro({ idx, cluster, isChain }) {
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-          <span style={{ fontSize: 11, fontWeight: 700, color: isChain ? '#A16207' : cluster.accent, letterSpacing: '0.16em', textTransform: 'uppercase' }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: isChain ? '#A16207' : cluster.accent, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
             {cluster.label}
           </span>
           <span style={{ flex: 1, height: 1, background: `linear-gradient(90deg, ${isChain ? '#FFD86B' : cluster.accent}, transparent)`, opacity: 0.4, minWidth: 24 }}/>
@@ -421,14 +421,14 @@ function FeatureCard({ f, accent, idx, total, onClick, dark = false, locked = fa
       {/* Header row: index + status */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
         <span className="ai-index" style={{
-          fontSize: 10, fontWeight: 700, color: dark ? 'rgba(255,255,255,0.45)' : SOFT,
-          letterSpacing: '0.08em',
+          fontSize: 12, fontWeight: 700, color: dark ? 'rgba(255,255,255,0.45)' : SOFT,
+          letterSpacing: '0.05em',
         }}>
           {String(idx).padStart(2, '0')} / {String(total).padStart(2, '0')}
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           {f.shortcut && (
-            <kbd style={{ fontSize: 10, fontFamily: 'ui-monospace, monospace',
+            <kbd style={{ fontSize: 12, fontFamily: 'ui-monospace, monospace',
               color: dark ? 'rgba(255,255,255,0.65)' : SOFT,
               padding: '2px 7px',
               border: `1px solid ${dark ? 'rgba(255,255,255,0.15)' : BORDER}`,
@@ -438,7 +438,7 @@ function FeatureCard({ f, accent, idx, total, onClick, dark = false, locked = fa
             </kbd>
           )}
           <span style={{
-            fontSize: 9, fontWeight: 800, letterSpacing: '0.1em',
+            fontSize: 12, fontWeight: 800, letterSpacing: '0.1em',
             padding: '3px 8px', borderRadius: 999,
             background: status.bg, color: status.fg,
             border: `1px solid ${status.fg}33`,

@@ -119,7 +119,7 @@ function RicettaProduzione({ ric, serieMese, sellThrough, stagionale, totStag, g
           >
             {ric.nome}
           </div>
-          <div style={{ fontSize: 11, color: C.textSoft, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          <div style={{ fontSize: 12, color: C.textSoft, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
             <Icon name={trendIcon} size={12} color={trendColor} />
             <span style={{ color: trendColor, fontWeight: 700 }}>{trendTxt}</span>
             <span style={{ ...tnum }}>· media {nf1(media)} · previsione {nf1(prev)} stampi/mese</span>
@@ -135,7 +135,7 @@ function RicettaProduzione({ ric, serieMese, sellThrough, stagionale, totStag, g
             <Icon name={stIcon} size={14} color={stColor} />
             <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
               <div style={{ fontSize: 13, fontWeight: 900, color: stColor, ...tnum, lineHeight: 1 }}>{st == null ? '-' : `${nf(st.pct)}%`}</div>
-              <div style={{ fontSize: 9, fontWeight: 700, color: stColor, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 2, whiteSpace: 'nowrap' }}>{stMsg}</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: stColor, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 2, whiteSpace: 'nowrap' }}>{stMsg}</div>
             </div>
           </div>
         </Tip>
@@ -150,12 +150,12 @@ function RicettaProduzione({ ric, serieMese, sellThrough, stagionale, totStag, g
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start',
             minHeight: 92,
           }}>
-            <div style={{ fontSize: 9.5, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', minHeight: 14 }}>{g.label}</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', minHeight: 14 }}>{g.label}</div>
             <div style={{ fontSize: 20, fontWeight: 900, color: C.text, ...tnum, marginTop: 4, lineHeight: 1, minHeight: 22 }}>
               ≈ {nf(g.stima)}
             </div>
-            <div style={{ fontSize: 9.5, color: C.textSoft, marginTop: 2 }}>stampi</div>
-            <div style={{ fontSize: 9.5, color: C.textSoft, ...tnum, marginTop: 3 }}>
+            <div style={{ fontSize: 12, color: C.textSoft, marginTop: 2 }}>stampi</div>
+            <div style={{ fontSize: 12, color: C.textSoft, ...tnum, marginTop: 3 }}>
               {nf(g.lo)}–{nf(g.hi)}
             </div>
           </div>
@@ -523,8 +523,8 @@ export default function PrevisioneDomanda({ ricettario, giornaliero, chiusure, i
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false} />
-                  <XAxis dataKey="label" tick={{ fontSize: 11, fill: AXIS_COLOR }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: AXIS_COLOR }} axisLine={false} tickLine={false} width={42} tickFormatter={v => v.toLocaleString('it-IT', { useGrouping: 'always' })} />
+                  <XAxis dataKey="label" tick={{ fontSize: 12, fill: AXIS_COLOR }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 12, fill: AXIS_COLOR }} axisLine={false} tickLine={false} width={42} tickFormatter={v => v.toLocaleString('it-IT', { useGrouping: 'always' })} />
                   <Tooltip content={<ChartTip />} cursor={{ stroke: GRID_STROKE, strokeWidth: 1 }} />
                   <Area
                     type="monotone"
@@ -540,7 +540,7 @@ export default function PrevisioneDomanda({ ricettario, giornaliero, chiusure, i
                 </AreaChart>
               </ResponsiveContainer>
             </div>
-            <div style={{ marginTop: 10, fontSize: 11, color: C.textSoft, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            <div style={{ marginTop: 10, fontSize: 12, color: C.textSoft, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
               <Icon name="dot" size={9} color={C.amber} />
               <span>Punto arancione = previsione {nextMeseLabel} su {nf(serieTotale.length)} mesi di storico.</span>
             </div>
@@ -558,8 +558,8 @@ export default function PrevisioneDomanda({ ricettario, giornaliero, chiusure, i
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={stagionaleData} margin={{ top: 8, right: 12, left: isMobile ? -12 : 0, bottom: 4 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false} />
-                  <XAxis dataKey="label" tick={{ fontSize: 11, fill: AXIS_COLOR }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: AXIS_COLOR }} axisLine={false} tickLine={false} width={42} tickFormatter={v => v.toLocaleString('it-IT', { useGrouping: 'always' })} />
+                  <XAxis dataKey="label" tick={{ fontSize: 12, fill: AXIS_COLOR }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 12, fill: AXIS_COLOR }} axisLine={false} tickLine={false} width={42} tickFormatter={v => v.toLocaleString('it-IT', { useGrouping: 'always' })} />
                   <Tooltip content={<ChartTip />} cursor={{ fill: 'rgba(15,23,42,0.04)' }} />
                   <Bar
                     dataKey="stampi"
@@ -593,7 +593,7 @@ export default function PrevisioneDomanda({ ricettario, giornaliero, chiusure, i
       <div style={{
         marginTop: 28, padding: '12px 16px',
         background: C.amberLight, borderRadius: 12,
-        fontSize: 11, color: C.amber, lineHeight: 1.7,
+        fontSize: 12, color: C.amber, lineHeight: 1.7,
         display: 'flex', alignItems: 'flex-start', gap: 8,
         boxSizing: 'border-box',
       }}>

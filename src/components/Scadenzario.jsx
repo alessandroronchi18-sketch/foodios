@@ -1931,7 +1931,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                           }}>
                             <td style={{ padding: '7px 10px', fontSize: 12, color: T.text, fontWeight: 600, ...tnum, maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {f.numero_rif || '-'}
-                              {isNC && <span style={{ marginLeft: 4, fontSize: 11, padding: '1px 4px', background: '#DBEAFE', color: '#1E40AF', borderRadius: 3, fontWeight: 700 }}>NC</span>}
+                              {isNC && <span style={{ marginLeft: 4, fontSize: 12, padding: '1px 4px', background: '#DBEAFE', color: '#1E40AF', borderRadius: 3, fontWeight: 700 }}>NC</span>}
                             </td>
                             <td style={{ padding: '7px 10px', fontSize: 12, color: T.textMid, ...tnum }}>
                               {f.data_fattura ? new Date(f.data_fattura).toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: '2-digit' }) : '-'}
@@ -2202,7 +2202,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                 Stai per eliminare <b style={{ color: T.brand }}>{fatture.length} {fatture.length === 1 ? 'fattura' : 'fatture'}</b>{haPiuSedi ? (scopeSede === 'attiva' ? ' della sede attiva (e condivise)' : ' di tutte le sedi') : ''}. <b>L'azione è irreversibile</b>: una volta eliminate non si possono recuperare.
               </div>
               <div style={{ fontSize: 12, fontWeight: 600, color: T.textMid, marginBottom: 7 }}>
-                Per confermare scrivi <b style={{ color: T.brand, letterSpacing: '0.08em' }}>ELIMINA</b>
+                Per confermare scrivi <b style={{ color: T.brand, letterSpacing: '0.05em' }}>ELIMINA</b>
               </div>
               <input value={bulkConfirm} onChange={e => setBulkConfirm(e.target.value)} placeholder="ELIMINA" autoFocus
                 onKeyDown={e => { if (e.key === 'Enter' && bulkConfirm.trim().toUpperCase() === 'ELIMINA') eliminaTutte() }}
@@ -2266,7 +2266,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                 <style>{`@keyframes _fos_scadenzario_drop { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }`}</style>
                 <div aria-hidden="true" style={{ height: 2, margin: '-6px -6px 6px', background: 'linear-gradient(90deg, #E84B3A 0%, #FFB350 50%, #6E0E1A 100%)', opacity: 0.7 }}/>
                 {/* IMPORT alternativi */}
-                <div style={{ fontSize: 12, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.08em', padding: '6px 10px 4px' }}>Importa da altro</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '6px 10px 4px' }}>Importa da altro</div>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8, fontSize: 13, color: T.text, cursor: 'pointer', fontWeight: 500 }}
                   onMouseEnter={e => { e.currentTarget.style.background = '#F4EEEA' }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
@@ -2292,7 +2292,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                 {fatture.length > 0 && (
                   <>
                     <div style={{ height: 1, background: T.border, margin: '6px 4px' }}/>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.08em', padding: '6px 10px 4px' }}>Esporta</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '6px 10px 4px' }}>Esporta</div>
                     <button onClick={() => { setActionsOpen(false); exportExcel() }}
                       style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8, fontSize: 13, color: T.text, cursor: 'pointer', fontWeight: 500, width: '100%', textAlign: 'left', background: 'transparent', border: 'none', fontFamily: 'inherit' }}
                       onMouseEnter={e => { e.currentTarget.style.background = '#F4EEEA' }}
@@ -2393,7 +2393,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                 partivano da tre punti diversi e l'occhio non poteva
                 confrontarle. Ora sono a destra, con le altezze minime
                 uguali, come le altre bande del prodotto. */}
-            <div style={{ fontSize: font.size.sm, fontWeight: 600, color: T.textMid, textTransform: 'uppercase', letterSpacing: '0.08em', minHeight: 30, display: 'flex', alignItems: 'flex-start', lineHeight: 1.3, textAlign: 'left' }}>
+            <div style={{ fontSize: font.size.sm, fontWeight: 600, color: T.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', minHeight: 30, display: 'flex', alignItems: 'flex-start', lineHeight: 1.3, textAlign: 'left' }}>
               {k.label}
             </div>
             <div title={k.exact} style={{
@@ -3151,7 +3151,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                 <li><b>NON aprirlo con Word/Excel</b> (li mostra male). Lascialo dov'è.</li>
                 <li>Vai sul sito della tua banca (home banking), fai login</li>
                 <li>Cerca <b>"Bonifico multiplo"</b>, <b>"SEPA"</b> o <b>"Bonifico massivo"</b></li>
-                <li>Carica il file <code style={{ background: '#FFF', padding: '1px 5px', borderRadius: 4, border: `1px solid ${T.border}`, fontSize: 11 }}>.xml</code> appena scaricato (trascina o "Sfoglia")</li>
+                <li>Carica il file <code style={{ background: '#FFF', padding: '1px 5px', borderRadius: 4, border: `1px solid ${T.border}`, fontSize: 12 }}>.xml</code> appena scaricato (trascina o "Sfoglia")</li>
                 <li>La banca elenca tutti i pagamenti: verifica gli importi</li>
                 <li>Conferma con il <b>codice OTP / firma digitale</b> richiesto dalla banca</li>
                 <li>Torna in Foodos e clicca <b>"Segna pagata"</b> sulle fatture</li>

@@ -107,10 +107,10 @@ export default function DailyBriefCard({ orgId }) {
   // anche se hanno hint su 1 vs 2 righe.
   const kpiBox = (label, value, hint) => (
     <div style={{ background: '#FAFAF6', borderRadius: 8, padding: '10px 12px', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ fontSize: 10, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.07em', minHeight: 24, lineHeight: 1.2 }}>{label}</div>
+      <div style={{ fontSize: 12, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.05em', minHeight: 24, lineHeight: 1.2 }}>{label}</div>
       <div style={{ fontSize: 16, fontWeight: 800, color: TXT, marginTop: 4, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</div>
       {hint
-        ? <div style={{ fontSize: 10.5, color: SOFT, marginTop: 2, minHeight: 26, lineHeight: 1.35, overflow: 'hidden' }}>{hint}</div>
+        ? <div style={{ fontSize: 12, color: SOFT, marginTop: 2, minHeight: 26, lineHeight: 1.35, overflow: 'hidden' }}>{hint}</div>
         : <div style={{ minHeight: 26, marginTop: 2 }}/>}
     </div>
   )
@@ -132,10 +132,10 @@ export default function DailyBriefCard({ orgId }) {
             <Icon name="sun" size={14} />
           </span>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 10.5, fontWeight: 700, color: BRAND, letterSpacing: '0.12em', textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: BRAND, letterSpacing: '0.05em', textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {brief.tipo === 'settimanale' ? 'Brief della settimana' : 'Brief del mattino'}
             </div>
-            <div style={{ fontSize: 11, color: SOFT, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{new Date(brief.data + 'T00:00').toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}</div>
+            <div style={{ fontSize: 12, color: SOFT, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{new Date(brief.data + 'T00:00').toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}</div>
           </div>
         </div>
         <button onClick={dismiss} title="Chiudi (resta nello storico)" aria-label="Chiudi brief"

@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import Icon from './Icon'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 
-const lbl  = { fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, display: 'block' }
+const lbl  = { fontSize: 12, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, display: 'block' }
 // Audit 2026-06-24 UI mobile: fontSize input >=16 evita zoom iOS al focus.
 // minHeight 44 per touch target. Card padding ridotto su mobile.
 
@@ -156,11 +156,11 @@ export default function MfaSection({ notify }) {
             </div>
           </div>
           {verifiedFactors.length > 0 ? (
-            <span style={{ background: '#DCFCE7', color: '#166534', padding: '5px 12px', borderRadius: 999, fontSize: 11, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ background: '#DCFCE7', color: '#166534', padding: '5px 12px', borderRadius: 999, fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               <Icon name="dot" size={9} /> ATTIVO
             </span>
           ) : (
-            <span style={{ background: '#FEF3C7', color: '#92400E', padding: '5px 12px', borderRadius: 999, fontSize: 11, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ background: '#FEF3C7', color: '#92400E', padding: '5px 12px', borderRadius: 999, fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               <Icon name="dot" size={9} /> NON ATTIVO
             </span>
           )}
@@ -183,7 +183,7 @@ export default function MfaSection({ notify }) {
                 dangerouslySetInnerHTML={{ __html: enrolling.qrSvg }} />
             )}
             <div style={{ marginTop: 14 }}>
-              <div style={{ fontSize: 11, color: '#64748B', marginBottom: 6 }}>
+              <div style={{ fontSize: 12, color: '#64748B', marginBottom: 6 }}>
                 Oppure inserisci manualmente questa chiave:
               </div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -191,7 +191,7 @@ export default function MfaSection({ notify }) {
                   {enrolling.secret}
                 </code>
                 <button onClick={copySecret}
-                  style={{ padding: '7px 12px', background: '#0F172A', color: '#FFF', border: 'none', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                  style={{ padding: '7px 12px', background: '#0F172A', color: '#FFF', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
                   Copia
                 </button>
               </div>
@@ -225,7 +225,7 @@ export default function MfaSection({ notify }) {
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#0F172A' }}>
                     {f.friendly_name || 'TOTP'}
                   </div>
-                  <div style={{ fontSize: 11, color: '#64748B', marginTop: 2 }}>
+                  <div style={{ fontSize: 12, color: '#64748B', marginTop: 2 }}>
                     Attivato il {new Date(f.created_at).toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' })}
                   </div>
                 </div>

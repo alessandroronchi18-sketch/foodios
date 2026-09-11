@@ -135,7 +135,7 @@ Genera le 3 risposte come da istruzioni.`
       <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 14, padding: isMobile ? 16 : isTablet ? 18 : 22, marginBottom: 18 }}>
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr', gap: 12, marginBottom: 12 }}>
           <div>
-            <div style={{ fontSize: 10.5, fontWeight: 700, color: SOFT, letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: 5 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: SOFT, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 5 }}>
               Autore (opzionale)
             </div>
             <input value={autore} onChange={e => setAutore(e.target.value)}
@@ -143,7 +143,7 @@ Genera le 3 risposte come da istruzioni.`
               style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${BORDER}`, fontSize: 14, color: TXT, fontFamily: 'inherit', boxSizing: 'border-box' }}/>
           </div>
           <div>
-            <div style={{ fontSize: 10.5, fontWeight: 700, color: SOFT, letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: 5 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: SOFT, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 5 }}>
               Stelle
             </div>
             <div style={{ display: 'flex', gap: 4 }}>
@@ -155,7 +155,7 @@ Genera le 3 risposte come da istruzioni.`
           </div>
         </div>
         <div style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 10.5, fontWeight: 700, color: SOFT, letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: 5 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: SOFT, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 5 }}>
             Testo recensione *
           </div>
           <textarea value={recensione} onChange={e => setRecensione(e.target.value)}
@@ -190,7 +190,7 @@ Genera le 3 risposte come da istruzioni.`
               <div key={t.id} style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 800, color: TXT }}>{t.label}</div>
-                  <div style={{ fontSize: 11, color: SOFT, marginTop: 2 }}>{t.desc}</div>
+                  <div style={{ fontSize: 12, color: SOFT, marginTop: 2 }}>{t.desc}</div>
                 </div>
                 <div style={{ flex: 1, background: '#FAFAF6', borderRadius: 8, padding: '10px 12px', fontSize: 13, color: MID, lineHeight: 1.55, minHeight: 120 }}>
                   {txt}

@@ -55,13 +55,13 @@ function PanelHead({ icon, title, color = C.red, badge, sub }) {
         <div style={{ fontSize: 13, fontWeight: 700, color: C.text, letterSpacing: '-0.01em' }}>{title}</div>
         {badge}
       </div>
-      {sub && <div style={{ fontSize: 11, color: C.textSoft, marginTop: 6, lineHeight: 1.5 }}>{sub}</div>}
+      {sub && <div style={{ fontSize: 12, color: C.textSoft, marginTop: 6, lineHeight: 1.5 }}>{sub}</div>}
     </div>
   )
 }
 
 // Etichetta campo (uppercase tracking premium).
-const fieldLabel = { fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 }
+const fieldLabel = { fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }
 const inputBase = { width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 16, color: C.text, background: C.white, boxSizing: 'border-box' }
 
 export default function NuovaRicettaView({ ricettario, onSave, notify, editingRicetta, onEditConsumed, LEX = lessico(), tipoAttivita }) {
@@ -535,8 +535,8 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
       {/* Pannello contestuale: elimina — appare sotto la command bar */}
       {openAction === 'elimina' && ricetteEsistenti.length > 0 && (
         <div style={{ marginBottom: 18, padding: isMobile ? '12px 14px' : '14px 18px', background: '#FFF', border: '1px solid #991B1B22', borderRadius: 12, boxShadow: SHADOW_PREMIUM }}>
-          <div style={{ fontSize: 10.5, fontWeight: 700, color: '#991B1B', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>Elimina una ricetta esistente</div>
-          <div style={{ fontSize: 11.5, color: C.textMid, marginBottom: 10, lineHeight: 1.5 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#991B1B', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 8 }}>Elimina una ricetta esistente</div>
+          <div style={{ fontSize: 12, color: C.textMid, marginBottom: 10, lineHeight: 1.5 }}>
             Cancellazione definitiva. Conferma scrivendo <b>ELIMINA</b>.
           </div>
           <RicettaPickerDelete
@@ -555,8 +555,8 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
           e' già nella command bar sopra (rimosso banner arancione redundant). */}
       {openAction === 'foto' && (
         <div style={{ marginBottom: 18, padding: isMobile ? '12px 14px' : '14px 18px', background: '#FFF', border: `1px solid ${T.brand}22`, borderRadius: 12, boxShadow: SHADOW_PREMIUM }}>
-          <div style={{ fontSize: 10.5, fontWeight: 700, color: T.brand, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Estrai una ricetta da una foto</div>
-          <div style={{ fontSize: 11.5, color: C.textMid, marginBottom: 10, lineHeight: 1.5 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: T.brand, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 6 }}>Estrai una ricetta da una foto</div>
+          <div style={{ fontSize: 12, color: C.textMid, marginBottom: 10, lineHeight: 1.5 }}>
             Carica una foto della ricetta: leggo nome, ingredienti e quantità, poi confermi.
           </div>
       <FotoOCR mode="ricetta" notify={notify} ricettario={ricettario}
@@ -722,11 +722,11 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                     </>
                   )}
                 </select>
-                {form.tipo === "semilavorato" && <div style={{ marginTop: 6, padding: "6px 10px", background: "#F9F2FD", border: "1px solid #D4B0E8", borderRadius: 6, fontSize: 10, color: "#8E44AD", display: "flex", alignItems: "center", gap: 5 }}>
+                {form.tipo === "semilavorato" && <div style={{ marginTop: 6, padding: "6px 10px", background: "#F9F2FD", border: "1px solid #D4B0E8", borderRadius: 6, fontSize: 12, color: "#8E44AD", display: "flex", alignItems: "center", gap: 5 }}>
                   <Icon name="bulb" size={13} /> <span>Per i semilavorati usa la sezione dedicata <strong>"Semilavorati"</strong> in sidebar - ha template rapidi e import da foto.</span>
                 </div>}
                 {isGusto && form.tipo === "gusto" && (
-                  <div style={{ marginTop: 6, padding: "8px 10px", background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 6, fontSize: 10.5, color: "#1E3A8A", lineHeight: 1.5 }}>
+                  <div style={{ marginTop: 6, padding: "8px 10px", background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 6, fontSize: 12, color: "#1E3A8A", lineHeight: 1.5 }}>
                     Gli ingredienti sono per <b>1 kg di gusto finito</b>. Il prezzo di vendita del cono/coppetta/vaschetta si imposta in <b>Formati vendita</b>.
                   </div>
                 )}
@@ -812,10 +812,10 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                     <div style={{ position: "absolute", top: 2, left: form.congelabile ? 20 : 2, width: 18, height: 18, borderRadius: 9, background: "#FFF", transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
                   </div>
                   <div>
-                    <div style={{ fontSize: 11, fontWeight: 800, color: form.congelabile ? "#2980B9" : C.textMid, display: "flex", alignItems: "center", gap: 5 }}>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: form.congelabile ? "#2980B9" : C.textMid, display: "flex", alignItems: "center", gap: 5 }}>
                       <Icon name="snow" size={13} /> {form.congelabile ? "Si può congelare" : "Si può congelare?"}
                     </div>
-                    <div style={{ fontSize: 9, color: C.textSoft, marginTop: 1 }}>
+                    <div style={{ fontSize: 12, color: C.textSoft, marginTop: 1 }}>
                       {form.congelabile ? "Lo produci in anticipo, lo tieni in freezer, lo vendi nei giorni successivi." : "Attiva se lo produci e lo vendi in giorni diversi."}
                     </div>
                   </div>
@@ -836,7 +836,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                   <thead>
                     <tr style={{ background: "#F8F4F2" }}>
                       {[["Ingrediente", null], [isGusto ? "g / kg gusto" : "g / stampo", isGusto ? "Grammi di ingrediente per 1 kg di gusto finito" : "Grammi di ingrediente per uno stampo"], ["Costo €", isGusto ? "Costo dell'ingrediente per 1 kg" : "Costo dell'ingrediente per uno stampo"], ["", null]].map(([h, tip], i) => (
-                        <th key={i} title={tip || undefined} style={{ padding: "8px 10px", textAlign: i === 0 ? "left" : "right", fontSize: 10, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: C.textSoft, borderBottom: `1px solid ${C.border}`, whiteSpace: "nowrap", ...(tip ? { cursor: "help", textDecoration: "underline dotted", textUnderlineOffset: 3 } : null) }}>{h}</th>
+                        <th key={i} title={tip || undefined} style={{ padding: "8px 10px", textAlign: i === 0 ? "left" : "right", fontSize: 12, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: C.textSoft, borderBottom: `1px solid ${C.border}`, whiteSpace: "nowrap", ...(tip ? { cursor: "help", textDecoration: "underline dotted", textUnderlineOffset: 3 } : null) }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -913,11 +913,11 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                                 setForm(f => ({ ...f, ingredienti: n }));
                               }}
                               style={{ width: 80, padding: "7px 8px", borderRadius: 6, border: `1px solid ${C.borderStr}`, fontSize: 16, textAlign: "right", fontWeight: 700, color: C.text, background: C.white }} />
-                            <span style={{ fontSize: 10, color: C.textSoft, marginLeft: 4 }}>g</span>
+                            <span style={{ fontSize: 12, color: C.textSoft, marginLeft: 4 }}>g</span>
                           </td>
                           <td style={{ padding: "9px 10px", textAlign: "right", color: costo > 0 ? C.red : C.textSoft, fontWeight: 600, ...TNUM, whiteSpace: 'nowrap' }}>{costo > 0 ? fmt(costo) : "-"}</td>
                           <td style={{ padding: "6px 6px", textAlign: "right" }}>
-                            <button aria-label="Rimuovi ingrediente" onClick={() => removeIng(i)} style={{ padding: 0, width: 40, height: 40, borderRadius: 6, border: `1px solid ${C.border}`, background: C.white, color: C.textSoft, fontSize: 11, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: 'center' }}><Icon name="trash" size={14} /></button>
+                            <button aria-label="Rimuovi ingrediente" onClick={() => removeIng(i)} style={{ padding: 0, width: 40, height: 40, borderRadius: 6, border: `1px solid ${C.border}`, background: C.white, color: C.textSoft, fontSize: 12, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: 'center' }}><Icon name="trash" size={14} /></button>
                           </td>
                         </tr>
                       );
@@ -957,22 +957,22 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
               </summary>
               <div style={{ marginTop: 10, display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 6 : 14, lineHeight: 1.7 }}>
                 <div>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>Uova</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>Uova</div>
                   1 uovo medio ≈ 55 g<br />
                   1 tuorlo ≈ 18 g · 1 albume ≈ 33 g
                 </div>
                 <div>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>Liquidi (per ml)</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>Liquidi (per ml)</div>
                   Acqua, latte, panna ≈ 1 g<br />
                   Olio ≈ 0,92 g · Miele ≈ 1,4 g
                 </div>
                 <div>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>Cucchiai</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>Cucchiai</div>
                   1 cucchiaio ≈ 15 g<br />
                   1 cucchiaino ≈ 5 g
                 </div>
                 <div>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>Farina & zucchero</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>Farina & zucchero</div>
                   1 bicchiere farina 00 ≈ 130 g<br />
                   1 bicchiere zucchero ≈ 200 g
                 </div>
@@ -1028,7 +1028,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                       }}
                       placeholder={String(Math.round(resaDefault))}
                       style={{ ...inputBase, fontSize: isMobile ? 16 : 14 }} />
-                    <div style={{ fontSize: 10.5, color: C.textSoft, marginTop: 4 }}>
+                    <div style={{ fontSize: 12, color: C.textSoft, marginTop: 4 }}>
                       Default: <b>{Math.round(resaDefault)} g</b>{form.resa_g == null ? ' (auto)' : ''}
                     </div>
                   </div>
@@ -1056,7 +1056,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                             : ' Il peso stampo dichiarato differisce dalla somma ingredienti.'}
                         </div>
                         <button type="button" onClick={normalizza}
-                          style={{ padding: '7px 12px', borderRadius: 7, border: '1px solid #F59E0B', background: '#FFF', color: '#92400E', fontSize: 11.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                          style={{ padding: '7px 12px', borderRadius: 7, border: '1px solid #F59E0B', background: '#FFF', color: '#92400E', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
                           Normalizza ingredienti a {Math.round(resaEff)} g
                         </button>
                       </>
@@ -1070,11 +1070,11 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
           {/* 3. Allergeni - auto-rilevati */}
           <div style={cardStyle}>
             <PanelHead icon={<Icon name="warning" size={18} />} title="Allergeni presenti" color={C.amber}
-              badge={<span style={{ fontSize: 9, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: "#E0F2FE", color: "#0369A1", textTransform: "uppercase", letterSpacing: "0.05em" }}>Auto</span>}
+              badge={<span style={{ fontSize: 12, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: "#E0F2FE", color: "#0369A1", textTransform: "uppercase", letterSpacing: "0.05em" }}>Auto</span>}
               sub="Calcolati automaticamente dagli ingredienti (Reg. UE 1169/2011). Aggiungi manualmente quelli mancanti se necessario." />
 
             {autoAllergeni.length === 0 ? (
-              <div style={{ fontSize: 11, color: C.textSoft, padding: "10px 12px", background: "#FAF8F7", border: `1px dashed ${C.border}`, borderRadius: 8, marginBottom: 14 }}>
+              <div style={{ fontSize: 12, color: C.textSoft, padding: "10px 12px", background: "#FAF8F7", border: `1px dashed ${C.border}`, borderRadius: 8, marginBottom: 14 }}>
                 Nessun allergene rilevato dagli ingredienti attuali. Verifica gli ingredienti o aggiungi manualmente sotto.
               </div>
             ) : (
@@ -1084,7 +1084,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                   if (!a) return null;
                   return (
                     <span key={aid} title="Rilevato automaticamente dagli ingredienti"
-                      style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 11px", borderRadius: 20, background: `${ALLERGENE_COLORS[aid]}15`, color: ALLERGENE_COLORS[aid], border: `1.5px solid ${ALLERGENE_COLORS[aid]}55`, fontSize: 11, fontWeight: 700 }}>
+                      style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 11px", borderRadius: 20, background: `${ALLERGENE_COLORS[aid]}15`, color: ALLERGENE_COLORS[aid], border: `1.5px solid ${ALLERGENE_COLORS[aid]}55`, fontSize: 12, fontWeight: 700 }}>
                       <Icon name="check" size={11} />{a.label}
                     </span>
                   );
@@ -1142,7 +1142,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
               const isExpanded = showManualAllergeni || hasManual;
               if (disponibili.length === 0) {
                 return (
-                  <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 12, fontSize: 11, color: C.textSoft, fontStyle: "italic" }}>
+                  <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 12, fontSize: 12, color: C.textSoft, fontStyle: "italic" }}>
                     Tutti gli allergeni UE sono già stati rilevati automaticamente.
                   </div>
                 );
@@ -1158,7 +1158,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                         return (
                           <button key={id} type="button" aria-label={`Rimuovi ${a.label} dagli allergeni manuali`}
                             onClick={() => setForm(f => ({ ...f, allergeniManual: (f.allergeniManual || []).filter(x => x !== id) }))}
-                            style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 20, background: `${ALLERGENE_COLORS[id]}15`, color: ALLERGENE_COLORS[id], border: `1.5px solid ${ALLERGENE_COLORS[id]}55`, fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                            style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 20, background: `${ALLERGENE_COLORS[id]}15`, color: ALLERGENE_COLORS[id], border: `1.5px solid ${ALLERGENE_COLORS[id]}55`, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
                             {a.label}
                             <Icon name="x" size={10} />
                           </button>
@@ -1172,7 +1172,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                     <button type="button" onClick={() => setShowManualAllergeni(true)}
                       style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "#FFF", color: C.textMid, border: `1px dashed ${C.border}`, borderRadius: 8, fontSize: typo.small.fontSize, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
                       <Icon name="plus" size={12} /> Modifica manualmente
-                      <span style={{ fontSize: 10, color: C.textSoft, fontWeight: 500 }}>({disponibili.length} disponibili)</span>
+                      <span style={{ fontSize: 12, color: C.textSoft, fontWeight: 500 }}>({disponibili.length} disponibili)</span>
                     </button>
                   )}
 
@@ -1182,7 +1182,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                         <div style={fieldLabel}>{hasManual ? "Modifica selezione manuale" : "Seleziona allergeni aggiuntivi"}</div>
                         <button type="button" onClick={() => setShowManualAllergeni(false)}
-                          style={{ background: "transparent", border: "none", color: C.textSoft, fontSize: 11, fontWeight: 600, cursor: "pointer", padding: "4px 8px", fontFamily: "inherit" }}>
+                          style={{ background: "transparent", border: "none", color: C.textSoft, fontSize: 12, fontWeight: 600, cursor: "pointer", padding: "4px 8px", fontFamily: "inherit" }}>
                           Chiudi elenco
                         </button>
                       </div>
@@ -1193,7 +1193,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                             <label key={a.id} style={{ display: "flex", alignItems: "center", gap: 7, padding: "8px 10px", borderRadius: 7, cursor: "pointer", border: `1px solid ${sel ? ALLERGENE_COLORS[a.id] : "#E2D9D5"}`, background: sel ? `${ALLERGENE_COLORS[a.id]}10` : "#FDFAF8", transition: "all 0.15s" }}>
                               <input type="checkbox" checked={sel} style={{ display: "none" }}
                                 onChange={() => setForm(f => ({ ...f, allergeniManual: sel ? (f.allergeniManual || []).filter(x => x !== a.id) : [...(f.allergeniManual || []), a.id] }))} />
-                              <span style={{ fontSize: 11, fontWeight: sel ? 700 : 500, color: sel ? ALLERGENE_COLORS[a.id] : C.textMid }}>{a.label}</span>
+                              <span style={{ fontSize: 12, fontWeight: sel ? 700 : 500, color: sel ? ALLERGENE_COLORS[a.id] : C.textMid }}>{a.label}</span>
                               {sel && <span style={{ marginLeft: "auto", color: ALLERGENE_COLORS[a.id], display: "inline-flex" }}><Icon name="check" size={12} /></span>}
                             </label>
                           );
@@ -1212,7 +1212,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
               <div style={{ fontSize: typo.small.fontSize, fontWeight: 800, color: C.amber, marginBottom: 8, display: "flex", alignItems: "center", gap: 5 }}>
                 <Icon name="warning" size={14} /> "{overwriteConf}" esiste già - sovrascrivere?
               </div>
-              <div style={{ fontSize: 11, color: C.textMid, marginBottom: 10 }}>La ricetta esistente verrà sostituita con i nuovi ingredienti e dati.</div>
+              <div style={{ fontSize: 12, color: C.textMid, marginBottom: 10 }}>La ricetta esistente verrà sostituita con i nuovi ingredienti e dati.</div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 <button onClick={doSaveRicetta} disabled={saving} style={{ padding: isMobile ? "12px 18px" : "9px 18px", minHeight: isMobile ? 44 : 'auto', background: C.amber, color: C.white, border: "none", borderRadius: 8, fontWeight: 800, fontSize: isMobile ? 13 : 12, cursor: saving ? "default" : "pointer", opacity: saving ? 0.6 : 1, display: "inline-flex", alignItems: "center", gap: 6, flex: isMobile ? '1 1 auto' : 'unset', justifyContent: 'center' }}>
                   <Icon name="checkCircle" size={14} /> {saving ? "Salvataggio…" : "Sì, sovrascrivi"}
@@ -1238,28 +1238,28 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
 
             {isGusto ? (
               form.ingredienti.length === 0 ? (
-                <div style={{ color: C.textSoft, fontSize: 11, textAlign: "center", padding: "16px 0" }}>Aggiungi ingredienti per vedere il food cost</div>
+                <div style={{ color: C.textSoft, fontSize: 12, textAlign: "center", padding: "16px 0" }}>Aggiungi ingredienti per vedere il food cost</div>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   <div style={{ padding: '14px 16px', background: C.redLight, border: `1px solid ${C.red}20`, borderRadius: 10, textAlign: 'center' }}>
-                    <div style={{ fontSize: 10.5, fontWeight: 700, color: C.red, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Food cost al kg</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: C.red, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Food cost al kg</div>
                     <div style={{ fontSize: 30, fontWeight: 900, color: C.red, letterSpacing: '-0.02em', ...TNUM }}>{fmt(live.fcPerKg)}</div>
-                    <div style={{ fontSize: 10, color: C.textSoft, marginTop: 4 }}>materie prime per 1 kg di gusto finito</div>
+                    <div style={{ fontSize: 12, color: C.textSoft, marginTop: 4 }}>materie prime per 1 kg di gusto finito</div>
                     {/* Da dove viene il numero: senza questa riga un gusto scritto
                         sul batch da 5 kg sembra costare 5 volte tanto e non si
                         capisce perché. */}
                     {live.resaG > 0 && Math.abs(live.resaG - 1000) > 1 && (
-                      <div style={{ fontSize: 10, color: C.textSoft, marginTop: 6, paddingTop: 6, borderTop: `1px solid ${C.red}20` }}>
+                      <div style={{ fontSize: 12, color: C.textSoft, marginTop: 6, paddingTop: 6, borderTop: `1px solid ${C.red}20` }}>
                         {fmt(live.fc)} di ingredienti per {Math.round(live.resaG).toLocaleString('it-IT', { useGrouping: 'always' })} g di gusto
                       </div>
                     )}
                   </div>
-                  <div style={{ fontSize: 10.5, color: C.textSoft, lineHeight: 1.5, display: "flex", alignItems: "flex-start", gap: 6, padding: '4px 4px 0' }}>
+                  <div style={{ fontSize: 12, color: C.textSoft, lineHeight: 1.5, display: "flex", alignItems: "flex-start", gap: 6, padding: '4px 4px 0' }}>
                     <Icon name="bulb" size={12} />
                     <span>Il ricarico dipende dal formato di vendita (cono, coppetta, vaschetta). Impostalo in <b>Formati vendita</b>.</span>
                   </div>
                   {live.mancanti.length > 0 && (
-                    <div style={{ fontSize: 10.5, color: C.amber, background: C.amberLight, border: `1px solid ${C.amber}40`, borderRadius: 8, padding: "8px 10px", display: "flex", alignItems: "flex-start", gap: 6 }}>
+                    <div style={{ fontSize: 12, color: C.amber, background: C.amberLight, border: `1px solid ${C.amber}40`, borderRadius: 8, padding: "8px 10px", display: "flex", alignItems: "flex-start", gap: 6 }}>
                       <span style={{ flexShrink: 0, marginTop: 1 }}><Icon name="warning" size={12} /></span>
                       <span>Food cost sottostimato: manca il prezzo di {live.mancanti.join(", ")}. Caricalo nel listino prezzi.</span>
                     </div>
@@ -1275,7 +1275,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
               </span>
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 800, color: sem.color, letterSpacing: "-0.01em" }}>{sem.label}</div>
-                <div style={{ fontSize: 10.5, color: C.textSoft, marginTop: 1 }}>
+                <div style={{ fontSize: 12, color: C.textSoft, marginTop: 1 }}>
                   {live.ricavo <= 0
                     ? "Aggiungi ingredienti, unità e prezzo"
                     : !live.affidabile
@@ -1286,7 +1286,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
             </div>
 
             {form.ingredienti.length === 0 ? (
-              <div style={{ color: C.textSoft, fontSize: 11, textAlign: "center", padding: "12px 0 4px" }}>Aggiungi ingredienti per vedere il calcolo</div>
+              <div style={{ color: C.textSoft, fontSize: 12, textAlign: "center", padding: "12px 0 4px" }}>Aggiungi ingredienti per vedere il calcolo</div>
             ) : (
               // 4 righe perfettamente incolonnate: stessa altezza (44),
               // stessa fontSize per label (12) e value (15), grid 2col,
@@ -1313,11 +1313,11 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                   </div>
                 ))}
                 {/* Per unità: nota piccola sotto */}
-                <div style={{ fontSize: 10.5, color: C.textSoft, lineHeight: 1.5, display: "flex", alignItems: "center", gap: 6, marginTop: 2, padding: '0 4px' }}>
+                <div style={{ fontSize: 12, color: C.textSoft, lineHeight: 1.5, display: "flex", alignItems: "center", gap: 6, marginTop: 2, padding: '0 4px' }}>
                   <Icon name="bulb" size={12} /> Per unità: FC {fmt(live.fcUnit)} · Margine {fmt(form.unita > 0 ? live.margine / form.unita : 0)}
                 </div>
                 {live.mancanti.length > 0 && (
-                  <div style={{ fontSize: 10.5, color: C.amber, background: C.amberLight, border: `1px solid ${C.amber}40`, borderRadius: 8, padding: "8px 10px", display: "flex", alignItems: "flex-start", gap: 6 }}>
+                  <div style={{ fontSize: 12, color: C.amber, background: C.amberLight, border: `1px solid ${C.amber}40`, borderRadius: 8, padding: "8px 10px", display: "flex", alignItems: "flex-start", gap: 6 }}>
                     <span style={{ flexShrink: 0, marginTop: 1 }}><Icon name="warning" size={12} /></span>
                     <span>Food cost sottostimato: manca il prezzo di {live.mancanti.join(", ")}. Caricalo nel listino prezzi.</span>
                   </div>
@@ -1365,7 +1365,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                 <>
                   <div style={{ textAlign: "center", padding: "8px 0 12px" }}>
                     <div style={{ fontSize: 32, fontWeight: 800, color: C.text, letterSpacing: "-0.03em", ...TNUM }}>{fmt(live.prezzoConsigliato)}</div>
-                    <div style={{ fontSize: 10.5, color: C.textSoft, marginTop: 2 }}>prezzo minimo per {form.tipo === "pezzo" ? "pezzo" : "fetta/porzione"} · food cost al {targetPct}%</div>
+                    <div style={{ fontSize: 12, color: C.textSoft, marginTop: 2 }}>prezzo minimo per {form.tipo === "pezzo" ? "pezzo" : "fetta/porzione"} · food cost al {targetPct}%</div>
                   </div>
                   {/* Messaggio: alzare se sotto, OK se sopra/in linea. MAI suggerire di scendere. */}
                   {/* Con degli ingredienti senza prezzo il minimo e' sottostimato:
@@ -1377,15 +1377,15 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                       <span>Questo minimo è più basso del vero, perché {live.mancanti.length === 1 ? "manca il prezzo di un ingrediente" : `mancano i prezzi di ${live.mancanti.length} ingredienti`}. Caricali e il numero diventa affidabile.</span>
                     </div>
                   ) : live.deltaPrezzo > 0.01 ? (
-                    <div style={{ padding: "10px 12px", borderRadius: 8, background: C.amberLight, border: `1px solid ${C.amber}40`, fontSize: 11, color: C.amber, fontWeight: 600, lineHeight: 1.5 }}>
+                    <div style={{ padding: "10px 12px", borderRadius: 8, background: C.amberLight, border: `1px solid ${C.amber}40`, fontSize: 12, color: C.amber, fontWeight: 600, lineHeight: 1.5 }}>
                       Il prezzo attuale ({fmt(form.prezzo)}) è sotto il minimo: per centrare il food cost al {targetPct}% serve alzare di <b>{fmt(live.deltaPrezzo)}</b>.
                     </div>
                   ) : Math.abs(live.deltaPrezzo) < 0.01 ? (
-                    <div style={{ padding: "10px 12px", borderRadius: 8, background: C.greenLight, border: `1px solid ${C.green}40`, fontSize: 11, color: C.green, fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
+                    <div style={{ padding: "10px 12px", borderRadius: 8, background: C.greenLight, border: `1px solid ${C.green}40`, fontSize: 12, color: C.green, fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
                       <Icon name="checkCircle" size={14} /> Il prezzo attuale è in linea col target del {targetPct}%.
                     </div>
                   ) : (
-                    <div style={{ padding: "10px 12px", borderRadius: 8, background: C.greenLight, border: `1px solid ${C.green}40`, fontSize: 11, color: C.green, fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
+                    <div style={{ padding: "10px 12px", borderRadius: 8, background: C.greenLight, border: `1px solid ${C.green}40`, fontSize: 12, color: C.green, fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
                       <Icon name="checkCircle" size={14} /> Sei sopra il minimo: stai guadagnando più del target del {targetPct}%.
                     </div>
                   )}
@@ -1400,7 +1400,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                   )}
                 </>
               ) : (
-                <div style={{ color: C.textSoft, fontSize: 11, textAlign: "center", padding: "8px 0" }}>Aggiungi ingredienti con prezzo per il calcolo</div>
+                <div style={{ color: C.textSoft, fontSize: 12, textAlign: "center", padding: "8px 0" }}>Aggiungi ingredienti con prezzo per il calcolo</div>
               )}
             </div>
           )}
@@ -1498,7 +1498,7 @@ function CommandBar({ isMobile, ricetteEsistenti, activeNome, onPickExisting, ac
           position: 'absolute', top: -5, right: -5,
           minWidth: 18, height: 18, padding: '0 5px',
           background: '#FFF', color, border: `1px solid ${color}`,
-          borderRadius: 9, fontSize: 10, fontWeight: 800,
+          borderRadius: 9, fontSize: 12, fontWeight: 800,
           display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
         }}>{badge}</span>
       )}
@@ -1540,7 +1540,7 @@ function CommandBar({ isMobile, ricetteEsistenti, activeNome, onPickExisting, ac
               }}
             />
             {activeNome && (
-              <span style={{ fontSize: 10.5, fontWeight: 800, color: T.brand, background: `${T.brand}12`, padding: '3px 8px', borderRadius: 6, whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              <span style={{ fontSize: 12, fontWeight: 800, color: T.brand, background: `${T.brand}12`, padding: '3px 8px', borderRadius: 6, whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                 editing
               </span>
             )}
@@ -1583,7 +1583,7 @@ function CommandBar({ isMobile, ricetteEsistenti, activeNome, onPickExisting, ac
             background: forceOverwrite ? '#FEF3C7' : '#F8F7F5',
             border: `1px solid ${forceOverwrite ? '#F59E0B' : C.border}`,
             borderRadius: 999,
-            fontSize: 11, fontWeight: 700,
+            fontSize: 12, fontWeight: 700,
             color: forceOverwrite ? '#92400E' : C.textSoft,
             cursor: 'pointer',
             display: 'inline-flex', alignItems: 'center', gap: 6,
@@ -1642,7 +1642,7 @@ function ActionChip({ icon, label, sub, active, onClick, color, isMobile }) {
       </span>
       <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: 0, textAlign: 'left' }}>
         <span style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.2 }}>{label}</span>
-        {sub && <span style={{ fontSize: 10.5, color: active ? color : C.textSoft, fontWeight: 500, marginTop: 2, opacity: active ? 0.8 : 1 }}>{sub}</span>}
+        {sub && <span style={{ fontSize: 12, color: active ? color : C.textSoft, fontWeight: 500, marginTop: 2, opacity: active ? 0.8 : 1 }}>{sub}</span>}
       </span>
       <Icon name="chevDown" size={12} color={active ? color : C.textSoft} />
     </button>
@@ -1699,7 +1699,7 @@ function RicettaPicker({ label, icon, variant = 'primary', ricette, activeNome, 
         {icon}
         <span>{label}</span>
         {activeNome && !open && (
-          <span style={{ marginLeft: 4, padding: '2px 8px', background: isDelete ? 'transparent' : 'rgba(255,255,255,0.18)', color: isDelete ? accent : '#FFF', borderRadius: 6, fontSize: 11, fontWeight: 600, maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <span style={{ marginLeft: 4, padding: '2px 8px', background: isDelete ? 'transparent' : 'rgba(255,255,255,0.18)', color: isDelete ? accent : '#FFF', borderRadius: 6, fontSize: 12, fontWeight: 600, maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {activeNome}
           </span>
         )}
@@ -1824,7 +1824,7 @@ function RicettaPickerDelete({ ricette, deleteConf, setDeleteConf, deletePin, se
           <div style={{ fontSize: 12.5, fontWeight: 800, color: C.red, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
             <Icon name="warning" size={14} /> Stai per eliminare <b style={{ fontWeight: 900, letterSpacing: '0.02em', textTransform: 'uppercase' }}>{deleteConf}</b>
           </div>
-          <div style={{ fontSize: 11.5, color: C.textSoft, marginBottom: 10, lineHeight: 1.5 }}>
+          <div style={{ fontSize: 12, color: C.textSoft, marginBottom: 10, lineHeight: 1.5 }}>
             L'operazione è permanente. Scrivi <b style={{ color: C.red, letterSpacing: '0.05em' }}>ELIMINA</b> in maiuscolo per attivare il pulsante di conferma.
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', flexDirection: isMobile ? 'column' : 'row' }}>

@@ -107,7 +107,7 @@ function StatoBadge({ stato, giorni }) {
   return (
     <span style={{
       background: s.bg, color: s.fg, padding: '3px 10px',
-      borderRadius: 99, fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap',
+      borderRadius: 99, fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap',
       display: 'inline-flex', alignItems: 'center', gap: 4,
     }}><Icon name={s.icon} size={12} /> {s.lbl}</span>
   )
@@ -124,7 +124,7 @@ function Btn({ children, kind = 'primary', size = 'md', onClick, disabled, title
   }
   const p = palette[kind] || palette.primary
   const sizing = {
-    sm: { padding: '4px 10px', fontSize: 11 },
+    sm: { padding: '4px 10px', fontSize: 12 },
     md: { padding: '8px 14px', fontSize: 13 },
     lg: { padding: '10px 18px', fontSize: 14 },
   }[size]
@@ -147,14 +147,14 @@ function Btn({ children, kind = 'primary', size = 'md', onClick, disabled, title
 const KpiCard = React.memo(function KpiCard({ label, value, sub, color }) {
   return (
     <Card style={{ padding: '16px 18px' }}>
-      <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
         {label}
       </div>
       <div style={{ fontSize: 26, fontWeight: 900, color: color || COLORS.text, lineHeight: 1.1 }}>
         {value}
       </div>
       {sub && (
-        <div style={{ fontSize: 11, color: COLORS.textMute, marginTop: 4 }}>{sub}</div>
+        <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 4 }}>{sub}</div>
       )}
     </Card>
   )
@@ -213,7 +213,7 @@ function EmailModal({ cliente, onClose, onInvia }) {
   const tpl = (lbl, og, msg) => (
     <button onClick={() => { setOggetto(og); setMessaggio(msg) }} style={{
       padding: '4px 10px', background: '#F1F5F9', border: `1px solid ${COLORS.border}`,
-      borderRadius: 99, fontSize: 11, cursor: 'pointer', color: COLORS.textSoft,
+      borderRadius: 99, fontSize: 12, cursor: 'pointer', color: COLORS.textSoft,
     }}>{lbl}</button>
   )
 
@@ -441,10 +441,10 @@ function DemoCleanupModal({ cliente, matches, onClose, onConferma }) {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
               <thead style={{ background: '#FAFAFA' }}>
                 <tr>
-                  <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600, color: COLORS.textMute, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: `1px solid ${COLORS.border}` }}>Data</th>
-                  <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600, color: COLORS.textMute, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: `1px solid ${COLORS.border}` }}>Fornitore</th>
-                  <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600, color: COLORS.textMute, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: `1px solid ${COLORS.border}` }}>Numero</th>
-                  <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600, color: COLORS.textMute, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: `1px solid ${COLORS.border}` }}>Totale</th>
+                  <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600, color: COLORS.textMute, fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: `1px solid ${COLORS.border}` }}>Data</th>
+                  <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600, color: COLORS.textMute, fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: `1px solid ${COLORS.border}` }}>Fornitore</th>
+                  <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600, color: COLORS.textMute, fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: `1px solid ${COLORS.border}` }}>Numero</th>
+                  <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600, color: COLORS.textMute, fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: `1px solid ${COLORS.border}` }}>Totale</th>
                 </tr>
               </thead>
               <tbody>
@@ -452,7 +452,7 @@ function DemoCleanupModal({ cliente, matches, onClose, onConferma }) {
                   <tr key={f.id} style={{ borderBottom: i < matches.length - 1 ? `1px solid ${COLORS.border}` : 'none' }}>
                     <td style={{ padding: '8px 12px', color: COLORS.textSoft, whiteSpace: 'nowrap' }}>{f.data_fattura || '-'}</td>
                     <td style={{ padding: '8px 12px', color: COLORS.text, fontWeight: 500 }}>{f.fornitore}</td>
-                    <td style={{ padding: '8px 12px', color: COLORS.textSoft, fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 11 }}>{f.numero_rif || '-'}</td>
+                    <td style={{ padding: '8px 12px', color: COLORS.textSoft, fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 12 }}>{f.numero_rif || '-'}</td>
                     <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600, color: COLORS.text, whiteSpace: 'nowrap' }}>€ {Number(f.totale || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                   </tr>
                 ))}
@@ -515,7 +515,7 @@ function NuovoCodiceScontoModal({ onClose, onCreato }) {
     }
   }
 
-  const lbl = { display: 'block', fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }
+  const lbl = { display: 'block', fontSize: 12, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }
   const inp = { width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #E2E8F0', fontSize: 13, boxSizing: 'border-box' }
 
   return (
@@ -526,7 +526,7 @@ function NuovoCodiceScontoModal({ onClose, onCreato }) {
           <input value={codice} onChange={e => setCodice(e.target.value)}
             placeholder="Es. FOODOS2026"
             style={{ ...inp, fontFamily: 'monospace', fontWeight: 700, letterSpacing: '0.06em' }}/>
-          <div style={{ fontSize: 10, color: '#94A3B8', marginTop: 4 }}>
+          <div style={{ fontSize: 12, color: '#94A3B8', marginTop: 4 }}>
             {codNorm ? `Sarà salvato come: ${codNorm}` : 'Solo lettere, numeri, - e _'}
           </div>
         </div>
@@ -551,7 +551,7 @@ function NuovoCodiceScontoModal({ onClose, onCreato }) {
             value={valore} onChange={e => setValore(e.target.value)}
             style={{ ...inp, fontWeight: 700 }}/>
           {tipoSconto === 'percent' && valore == 100 && (
-            <div style={{ fontSize: 11, color: '#059669', fontWeight: 700, marginTop: 4 }}>
+            <div style={{ fontSize: 12, color: '#059669', fontWeight: 700, marginTop: 4 }}>
               <Icon name="gift" size={12} /> Sconto 100% = abbonamento gratis
             </div>
           )}
@@ -645,7 +645,7 @@ function RegalaMesiModal({ cliente, codici, onClose, onRegala }) {
       </div>
 
       <div style={{ marginBottom: 14 }}>
-        <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>
+        <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>
           Mesi da regalare (1-60)
         </label>
         <input type="number" min="1" max="60" value={mesi}
@@ -654,7 +654,7 @@ function RegalaMesiModal({ cliente, codici, onClose, onRegala }) {
       </div>
 
       <div style={{ marginBottom: 14 }}>
-        <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>
+        <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>
           Codice associato (opzionale, per audit)
         </label>
         <select value={codiceRif} onChange={e => setCodiceRif(e.target.value)}
@@ -695,7 +695,7 @@ function ImpersonaModal({ cliente, link, onClose }) {
       </div>
       <div style={{
         padding: '10px 12px', background: '#F1F5F9', borderRadius: 8,
-        fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 11, color: COLORS.text,
+        fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 12, color: COLORS.text,
         wordBreak: 'break-all', maxHeight: 120, overflow: 'auto',
       }}>{link}</div>
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
@@ -796,36 +796,36 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
         padding: '12px 14px', background: COLORS.rowAlt, borderRadius: 10, marginBottom: 16,
       }}>
         <div>
-          <div style={{ fontSize: 10, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Stato</div>
+          <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Stato</div>
           <StatoBadge stato={stato} giorni={giorni} />
         </div>
         <div>
-          <div style={{ fontSize: 10, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Salute</div>
-          <span style={{ background: healthBadge.bg, color: healthBadge.fg, padding: '3px 10px', borderRadius: 99, fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 4 }}>{healthBadge.dot && <Icon name="dot" size={9} color={healthBadge.dot} />}{healthBadge.lbl}</span>
+          <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Salute</div>
+          <span style={{ background: healthBadge.bg, color: healthBadge.fg, padding: '3px 10px', borderRadius: 99, fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 4 }}>{healthBadge.dot && <Icon name="dot" size={9} color={healthBadge.dot} />}{healthBadge.lbl}</span>
         </div>
         <div>
-          <div style={{ fontSize: 10, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Piano</div>
+          <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Piano</div>
           <div style={{ fontWeight: 700, fontSize: 14, textTransform: 'capitalize' }}>{cliente.piano || 'trial'}</div>
         </div>
         <div>
-          <div style={{ fontSize: 10, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Sedi · Record</div>
+          <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Sedi · Record</div>
           <div style={{ fontWeight: 700, fontSize: 14 }}>{cliente.num_sedi || 0} · {cliente.num_record || 0}</div>
         </div>
         <div>
-          <div style={{ fontSize: 10, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Registrata</div>
+          <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Registrata</div>
           <div style={{ fontSize: 12, color: COLORS.text }}>{fmtData(cliente.registrata_il)}</div>
         </div>
         <div>
-          <div style={{ fontSize: 10, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Ultimo accesso</div>
+          <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Ultimo accesso</div>
           <div style={{ fontSize: 12, color: COLORS.text }}>{cliente.ultimo_accesso ? fmtDataOra(cliente.ultimo_accesso) : '-'}</div>
         </div>
         <div>
-          <div style={{ fontSize: 10, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Trial scade</div>
+          <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Trial scade</div>
           <div style={{ fontSize: 12, color: COLORS.text }}>{cliente.trial_ends_at ? fmtData(cliente.trial_ends_at) : '-'}</div>
         </div>
         <div>
-          <div style={{ fontSize: 10, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Stripe</div>
-          <div style={{ fontSize: 11, color: COLORS.text }}>
+          <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Stripe</div>
+          <div style={{ fontSize: 12, color: COLORS.text }}>
             {org?.stripe_subscription_id
               ? <><b>{org.stripe_status || 'attivo'}</b>{org.stripe_current_period_end ? <> · al {fmtData(org.stripe_current_period_end)}</> : null}</>
               : <span style={{ color: COLORS.textMute }}>- (nessuna sub)</span>}
@@ -840,7 +840,7 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
             <h3 style={{ margin: 0, fontSize: 12, fontWeight: 800, color: COLORS.text }}>
               <Icon name="bolt" size={13} /> Activation · {activation.score}/{activation.totale}
             </h3>
-            <span style={{ fontSize: 10, color: COLORS.textMute }}>
+            <span style={{ fontSize: 12, color: COLORS.textMute }}>
               {counts?.fatture != null && `${counts.fatture} fatture`}
               {counts?.dipendenti != null && ` · ${counts.dipendenti} dipendenti`}
             </span>
@@ -853,7 +853,7 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
               }} />
             ))}
           </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, fontSize: 11 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, fontSize: 12 }}>
             {activation.steps.map(s => (
               <span key={s.key} style={{
                 padding: '2px 8px', borderRadius: 99,
@@ -891,7 +891,7 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
           <h3 style={{ margin: 0, fontSize: 12, fontWeight: 800, color: COLORS.text }}>
             <Icon name="edit" size={13} /> Note interne (solo admin)
           </h3>
-          <span style={{ fontSize: 10, color:
+          <span style={{ fontSize: 12, color:
             notaStatus === 'saving' ? COLORS.textMute :
             notaStatus === 'saved' ? COLORS.ok :
             notaStatus === 'error' ? COLORS.err : COLORS.textMute,
@@ -937,13 +937,13 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
                 {/* Integrazioni */}
                 {c360.integrazioni && (
                   <div style={{ padding: 10, background: COLORS.rowAlt, borderRadius: 8, border: `1px solid ${COLORS.border}` }}>
-                    <div style={{ fontSize: 10, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>
+                    <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>
                       <Icon name="integ" size={10} /> Integrazioni
                     </div>
                     <div style={{ fontSize: 18, fontWeight: 800, color: c360.integrazioni.n_attive > 0 ? COLORS.blue : COLORS.textMute, ...tnum }}>
-                      {c360.integrazioni.n_attive}<span style={{ fontSize: 11, color: COLORS.textMute, fontWeight: 500 }}>/{c360.integrazioni.n_totali}</span>
+                      {c360.integrazioni.n_attive}<span style={{ fontSize: 12, color: COLORS.textMute, fontWeight: 500 }}>/{c360.integrazioni.n_totali}</span>
                     </div>
-                    <div style={{ fontSize: 10, color: COLORS.textMute, marginTop: 2 }}>
+                    <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
                       {c360.integrazioni.items.filter(i => i.attiva).slice(0, 3).map(i => i.tipo).join(', ') || 'nessuna attiva'}
                     </div>
                   </div>
@@ -951,13 +951,13 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
                 {/* Vendite B2B */}
                 {c360.b2b && (
                   <div style={{ padding: 10, background: COLORS.rowAlt, borderRadius: 8, border: `1px solid ${COLORS.border}` }}>
-                    <div style={{ fontSize: 10, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>
+                    <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>
                       <Icon name="building" size={10} /> Vendite B2B (mese)
                     </div>
                     <div style={{ fontSize: 18, fontWeight: 800, color: c360.b2b.ricavo_mtd > 0 ? COLORS.ok : COLORS.textMute, ...tnum }}>
                       €{Number(c360.b2b.ricavo_mtd || 0).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })}
                     </div>
-                    <div style={{ fontSize: 10, color: COLORS.textMute, marginTop: 2 }}>
+                    <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
                       {c360.b2b.n_vendite_mtd} vendite · {c360.b2b.n_clienti_attivi} clienti attivi
                     </div>
                   </div>
@@ -965,13 +965,13 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
                 {/* POS scontrini */}
                 {c360.pos && (
                   <div style={{ padding: 10, background: COLORS.rowAlt, borderRadius: 8, border: `1px solid ${COLORS.border}` }}>
-                    <div style={{ fontSize: 10, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>
+                    <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>
                       <Icon name="creditCard" size={10} /> POS (mese)
                     </div>
                     <div style={{ fontSize: 18, fontWeight: 800, color: c360.pos.ricavo_mtd > 0 ? COLORS.ok : COLORS.textMute, ...tnum }}>
                       €{Number(c360.pos.ricavo_mtd || 0).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })}
                     </div>
-                    <div style={{ fontSize: 10, color: COLORS.textMute, marginTop: 2 }}>
+                    <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
                       {c360.pos.n_scontrini_mtd} scontrini
                       {c360.pos.providers.length > 0 && ` · ${c360.pos.providers.slice(0, 2).join(', ')}`}
                     </div>
@@ -980,13 +980,13 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
                 {/* Push subscriptions */}
                 {c360.push && (
                   <div style={{ padding: 10, background: COLORS.rowAlt, borderRadius: 8, border: `1px solid ${COLORS.border}` }}>
-                    <div style={{ fontSize: 10, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>
+                    <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>
                       <Icon name="bell" size={10} /> Push subs
                     </div>
                     <div style={{ fontSize: 18, fontWeight: 800, color: c360.push.n_attive > 0 ? COLORS.blue : COLORS.textMute, ...tnum }}>
                       {c360.push.n_attive}
                     </div>
-                    <div style={{ fontSize: 10, color: COLORS.textMute, marginTop: 2 }}>
+                    <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
                       {c360.push.devices.length > 0
                         ? c360.push.devices.slice(0, 2).map(d => d.label || 'tablet').join(', ')
                         : 'nessun dispositivo'}
@@ -996,13 +996,13 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
                 {/* Scadenzario fatture */}
                 {c360.scadenzario && (
                   <div style={{ padding: 10, background: c360.scadenzario.n_overdue > 0 ? COLORS.errBg : COLORS.rowAlt, borderRadius: 8, border: `1px solid ${c360.scadenzario.n_overdue > 0 ? COLORS.err : COLORS.border}` }}>
-                    <div style={{ fontSize: 10, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>
+                    <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>
                       <Icon name="warning" size={10} /> Fatture scadute
                     </div>
                     <div style={{ fontSize: 18, fontWeight: 800, color: c360.scadenzario.n_overdue > 0 ? COLORS.err : COLORS.textMute, ...tnum }}>
                       {c360.scadenzario.n_overdue}
                     </div>
-                    <div style={{ fontSize: 10, color: COLORS.textMute, marginTop: 2 }}>
+                    <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
                       {c360.scadenzario.n_overdue > 0
                         ? `€${Number(c360.scadenzario.totale_overdue).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })} non pagato`
                         : `${c360.scadenzario.n_prossime_7gg} in scadenza 7gg`}
@@ -1012,13 +1012,13 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
                 {/* Costi aziendali */}
                 {c360.costi && (
                   <div style={{ padding: 10, background: COLORS.rowAlt, borderRadius: 8, border: `1px solid ${COLORS.border}` }}>
-                    <div style={{ fontSize: 10, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>
+                    <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>
                       <Icon name="receipt" size={10} /> Costi mensili
                     </div>
                     <div style={{ fontSize: 18, fontWeight: 800, color: c360.costi.totale_mensile > 0 ? COLORS.warn : COLORS.textMute, ...tnum }}>
                       €{Number(c360.costi.totale_mensile || 0).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })}
                     </div>
-                    <div style={{ fontSize: 10, color: COLORS.textMute, marginTop: 2 }}>
+                    <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
                       {c360.costi.n_voci_attive} voci attive
                     </div>
                   </div>
@@ -1026,13 +1026,13 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
                 {/* Stipendi */}
                 {c360.stipendi && (
                   <div style={{ padding: 10, background: COLORS.rowAlt, borderRadius: 8, border: `1px solid ${COLORS.border}` }}>
-                    <div style={{ fontSize: 10, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>
+                    <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>
                       <Icon name="users" size={10} /> Stipendi (lordo/mese)
                     </div>
                     <div style={{ fontSize: 18, fontWeight: 800, color: c360.stipendi.lordo_mensile > 0 ? COLORS.warn : COLORS.textMute, ...tnum }}>
                       €{Number(c360.stipendi.lordo_mensile || 0).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })}
                     </div>
-                    <div style={{ fontSize: 10, color: COLORS.textMute, marginTop: 2 }}>
+                    <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
                       {c360.stipendi.n_dipendenti} dipendenti attivi
                     </div>
                   </div>
@@ -1043,19 +1043,19 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
                   integrazioni attive + dispositivi push. Solo se count > 0. */}
               {c360.integrazioni && c360.integrazioni.items?.filter(i => i.attiva).length > 0 && (
                 <div style={{ marginTop: 10, padding: 10, background: COLORS.bg || '#FAFAFA', border: `1px solid ${COLORS.border}`, borderRadius: 8 }}>
-                  <div style={{ fontSize: 10, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6, fontWeight: 700 }}>
+                  <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6, fontWeight: 700 }}>
                     Integrazioni attive - clic su × per revocare
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                     {c360.integrazioni.items.filter(i => i.attiva).map(i => (
                       <span key={i.id} style={{
                         display: 'inline-flex', alignItems: 'center', gap: 6,
-                        padding: '3px 4px 3px 10px', borderRadius: 99, fontSize: 11, fontWeight: 600,
+                        padding: '3px 4px 3px 10px', borderRadius: 99, fontSize: 12, fontWeight: 600,
                         background: COLORS.blueBg, color: COLORS.blue,
                         border: `1px solid ${COLORS.blue}`,
                       }}>
                         {i.tipo}
-                        {i.ultimo_sync && <span style={{ fontSize: 9, opacity: 0.7 }}>· {new Date(i.ultimo_sync).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })}</span>}
+                        {i.ultimo_sync && <span style={{ fontSize: 12, opacity: 0.7 }}>· {new Date(i.ultimo_sync).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })}</span>}
                         <button
                           onClick={() => onAzione('integrazione_disattiva', { integrazione_id: i.id, tipo: i.tipo })}
                           title={`Revoca integrazione ${i.tipo}`}
@@ -1071,14 +1071,14 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
               )}
               {c360.push && c360.push.devices?.length > 0 && (
                 <div style={{ marginTop: 10, padding: 10, background: COLORS.bg || '#FAFAFA', border: `1px solid ${COLORS.border}`, borderRadius: 8 }}>
-                  <div style={{ fontSize: 10, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6, fontWeight: 700 }}>
+                  <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6, fontWeight: 700 }}>
                     Dispositivi push sottoscritti - clic su × per revocare
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                     {c360.push.devices.map(d => (
                       <span key={d.id} style={{
                         display: 'inline-flex', alignItems: 'center', gap: 6,
-                        padding: '3px 4px 3px 10px', borderRadius: 99, fontSize: 11, fontWeight: 600,
+                        padding: '3px 4px 3px 10px', borderRadius: 99, fontSize: 12, fontWeight: 600,
                         background: COLORS.rowAlt, color: COLORS.text,
                         border: `1px solid ${COLORS.border}`,
                       }} title={d.ua_short || ''}>
@@ -1110,7 +1110,7 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 {sedi.map(s => (
                   <span key={s.id} style={{
-                    padding: '4px 10px', borderRadius: 99, fontSize: 11, fontWeight: 600,
+                    padding: '4px 10px', borderRadius: 99, fontSize: 12, fontWeight: 600,
                     background: s.attiva ? COLORS.okBg : COLORS.blockedBg,
                     color: s.attiva ? COLORS.ok : COLORS.blocked,
                     border: `1px solid ${s.attiva ? COLORS.ok : COLORS.border}`,
@@ -1136,10 +1136,10 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
                 <table style={{ width: '100%', minWidth: 480, borderCollapse: 'collapse', fontSize: 12 }}>
                   <thead>
                     <tr style={{ background: COLORS.rowAlt }}>
-                      <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: 10, fontWeight: 700, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Area</th>
-                      <th style={{ padding: '8px 12px', textAlign: 'right', fontSize: 10, fontWeight: 700, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Record</th>
-                      <th style={{ padding: '8px 12px', textAlign: 'right', fontSize: 10, fontWeight: 700, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Sedi</th>
-                      <th style={{ padding: '8px 12px', textAlign: 'right', fontSize: 10, fontWeight: 700, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Ultimo</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Area</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Record</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Sedi</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Ultimo</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1156,7 +1156,7 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
                               {LABEL_CHIAVE[u.data_key] || u.data_key}
                             </span>
                             {CHIAVI_OPERATIVE_SET.has(u.data_key) && (
-                              <span style={{ marginLeft: 6, fontSize: 9, padding: '1px 5px', borderRadius: 4, background: COLORS.blueBg, color: COLORS.blue, fontWeight: 700, textTransform: 'uppercase' }}>op</span>
+                              <span style={{ marginLeft: 6, fontSize: 12, padding: '1px 5px', borderRadius: 4, background: COLORS.blueBg, color: COLORS.blue, fontWeight: 700, textTransform: 'uppercase' }}>op</span>
                             )}
                           </td>
                           <td style={{ padding: '8px 12px', textAlign: 'right', color: COLORS.textSoft, fontWeight: 600 }}>{u.conteggio}</td>
@@ -1194,9 +1194,9 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
                         <td style={{ padding: '6px 10px', color: COLORS.textMute, whiteSpace: 'nowrap', width: 130 }}>
                           {fmtDataOra(e.when)}
                         </td>
-                        <td style={{ padding: '6px 10px', color: COLORS.textSoft, fontSize: 11, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={e.user_email || ''}>
+                        <td style={{ padding: '6px 10px', color: COLORS.textSoft, fontSize: 12, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={e.user_email || ''}>
                           {e.user_email || '-'}
-                          {e.ruolo === 'dipendente' && <span style={{ marginLeft: 4, fontSize: 9, padding: '1px 4px', borderRadius: 3, background: COLORS.warnBg, color: COLORS.warn, fontWeight: 700 }}>dip</span>}
+                          {e.ruolo === 'dipendente' && <span style={{ marginLeft: 4, fontSize: 12, padding: '1px 4px', borderRadius: 3, background: COLORS.warnBg, color: COLORS.warn, fontWeight: 700 }}>dip</span>}
                         </td>
                         <td style={{ padding: '6px 10px', color: COLORS.text }}>
                           {e.label || `${e.table_name} · ${e.operation}`}
@@ -2137,13 +2137,13 @@ export default function AdminPage() {
         }}
         style={{
           background: 'transparent', border: 'none', cursor: 'pointer',
-          padding: 0, fontSize: 11, fontWeight: 700, color: active ? COLORS.text : COLORS.textMute,
+          padding: 0, fontSize: 12, fontWeight: 700, color: active ? COLORS.text : COLORS.textMute,
           textTransform: 'uppercase', letterSpacing: '0.05em',
           display: 'inline-flex', alignItems: 'center', gap: 4,
         }}
       >
         {children}
-        {active && <span style={{ fontSize: 9 }}>{sortDir === 'asc' ? '▲' : '▼'}</span>}
+        {active && <span style={{ fontSize: 12 }}>{sortDir === 'asc' ? '▲' : '▼'}</span>}
       </button>
     )
   }
@@ -2163,7 +2163,7 @@ export default function AdminPage() {
           <div style={{ fontWeight: 900, fontSize: 17, color: COLORS.text }}>
             <Icon name="gift" size={17} /> Foodos <span style={{ color: COLORS.accent }}>Admin</span>
           </div>
-          <div style={{ fontSize: 11, color: COLORS.textMute, marginTop: 2 }}>
+          <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
             Pannello amministrazione · {lastFetch
               ? `aggiornato alle ${lastFetch.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`
               : 'caricamento…'}
@@ -2176,7 +2176,7 @@ export default function AdminPage() {
               padding: '6px 10px', fontSize: 12, color: COLORS.textMute, cursor: 'pointer',
               display: 'inline-flex', alignItems: 'center', gap: 6,
             }}>
-            <Icon name="search" size={12} /> Cerca <span style={{ fontFamily: 'monospace', fontSize: 10, padding: '1px 4px', background: '#FFF', borderRadius: 3, border: `1px solid ${COLORS.border}` }}>⌘K</span>
+            <Icon name="search" size={12} /> Cerca <span style={{ fontFamily: 'monospace', fontSize: 12, padding: '1px 4px', background: '#FFF', borderRadius: 3, border: `1px solid ${COLORS.border}` }}>⌘K</span>
           </button>
           <Btn kind="neutral" onClick={() => { fetchData(); fetchAudit() }} disabled={loading}>
             {loading ? '…' : <><Icon name="refresh" size={14} /> Aggiorna</>}
@@ -2235,7 +2235,7 @@ export default function AdminPage() {
                 {feedbackPending > 0 && (
                   <span style={{
                     background: COLORS.err || '#DC2626', color: '#FFF',
-                    fontSize: 10, fontWeight: 800,
+                    fontSize: 12, fontWeight: 800,
                     padding: '2px 7px', borderRadius: 999,
                     marginLeft: 4, minWidth: 18, textAlign: 'center',
                   }}>{feedbackPending}</span>
@@ -2327,7 +2327,7 @@ export default function AdminPage() {
           <Card style={{ padding: 20, marginBottom: 20 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
               <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800 }}><Icon name="trendUp" size={14} /> Crescita registrazioni</h3>
-              <div style={{ fontSize: 11, color: COLORS.textMute }}>Ultime 12 settimane</div>
+              <div style={{ fontSize: 12, color: COLORS.textMute }}>Ultime 12 settimane</div>
             </div>
             <div style={{ width: '100%', height: 220 }}>
               <ResponsiveContainer>
@@ -2356,7 +2356,7 @@ export default function AdminPage() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800 }}>
               <Icon name="card" size={14} /> MRR reale (Stripe)
-              <span style={{ fontSize: 11, fontWeight: 500, color: COLORS.textMute, marginLeft: 10 }}>
+              <span style={{ fontSize: 12, fontWeight: 500, color: COLORS.textMute, marginLeft: 10 }}>
                 calcolato dalle subscription Stripe, non da paganti × prezzo
               </span>
             </h3>
@@ -2367,7 +2367,7 @@ export default function AdminPage() {
           ) : stripeMrr?.unavailable ? (
             <div style={{ padding: '10px 14px', background: COLORS.warnBg, border: `1px solid ${COLORS.warn}`, borderRadius: 8, color: COLORS.warn, fontSize: 12 }}>
               <Icon name="pause" size={14} /> Stripe non disponibile: {stripeMrr.reason || 'configurazione mancante'}
-              <div style={{ fontSize: 11, marginTop: 6, opacity: 0.85 }}>
+              <div style={{ fontSize: 12, marginTop: 6, opacity: 0.85 }}>
                 Pre-revenue: aspettato. Configura <code>STRIPE_SECRET_KEY</code> su Vercel quando passi a Stripe live.
               </div>
             </div>
@@ -2382,29 +2382,29 @@ export default function AdminPage() {
               gap: 10
             }}>
               <div style={{ padding: '10px 12px', background: COLORS.okBg, borderRadius: 8 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: COLORS.ok, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>MRR fatturato</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.ok, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>MRR fatturato</div>
                 <div style={{ fontSize: 20, fontWeight: 900, color: COLORS.ok }}>{fmtEuro((stripeMrr.mrr_cents || 0) / 100)}</div>
-                <div style={{ fontSize: 10, color: COLORS.ok, opacity: 0.8 }}>{stripeMrr.sub_active} sub active</div>
+                <div style={{ fontSize: 12, color: COLORS.ok, opacity: 0.8 }}>{stripeMrr.sub_active} sub active</div>
               </div>
               <div style={{ padding: '10px 12px', background: COLORS.warnBg, borderRadius: 8 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: COLORS.warn, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>MRR in trial</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.warn, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>MRR in trial</div>
                 <div style={{ fontSize: 20, fontWeight: 900, color: COLORS.warn }}>{fmtEuro((stripeMrr.mrr_trialing_cents || 0) / 100)}</div>
-                <div style={{ fontSize: 10, color: COLORS.warn, opacity: 0.8 }}>{stripeMrr.sub_trialing} sub trialing</div>
+                <div style={{ fontSize: 12, color: COLORS.warn, opacity: 0.8 }}>{stripeMrr.sub_trialing} sub trialing</div>
               </div>
               <div style={{ padding: '10px 12px', background: COLORS.errBg, borderRadius: 8 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: COLORS.err, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Past due</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.err, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Past due</div>
                 <div style={{ fontSize: 20, fontWeight: 900, color: COLORS.err }}>{stripeMrr.sub_past_due}</div>
-                <div style={{ fontSize: 10, color: COLORS.err, opacity: 0.8 }}>sub in arretrato</div>
+                <div style={{ fontSize: 12, color: COLORS.err, opacity: 0.8 }}>sub in arretrato</div>
               </div>
               <div style={{ padding: '10px 12px', background: COLORS.errBg, borderRadius: 8 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: COLORS.err, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Charge falliti 30gg</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.err, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Charge falliti 30gg</div>
                 <div style={{ fontSize: 20, fontWeight: 900, color: COLORS.err }}>{stripeMrr.failed_30d}</div>
-                <div style={{ fontSize: 10, color: COLORS.err, opacity: 0.8 }}>da retrying / dunning</div>
+                <div style={{ fontSize: 12, color: COLORS.err, opacity: 0.8 }}>da retrying / dunning</div>
               </div>
               <div style={{ padding: '10px 12px', background: COLORS.blockedBg, borderRadius: 8 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: COLORS.blocked, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Canceled</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.blocked, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Canceled</div>
                 <div style={{ fontSize: 20, fontWeight: 900, color: COLORS.blocked }}>{stripeMrr.sub_canceled}</div>
-                <div style={{ fontSize: 10, color: COLORS.blocked, opacity: 0.8 }}>sub annullate</div>
+                <div style={{ fontSize: 12, color: COLORS.blocked, opacity: 0.8 }}>sub annullate</div>
               </div>
             </div>
           ) : (
@@ -2426,7 +2426,7 @@ export default function AdminPage() {
                 <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800 }}>
                   <Icon name="layers" size={14} /> Moduli &amp; operazioni (cross-cliente)
                 </h3>
-                <span style={{ fontSize: 11, color: COLORS.textMute }}>Mese in corso</span>
+                <span style={{ fontSize: 12, color: COLORS.textMute }}>Mese in corso</span>
               </div>
               <div style={{
                 display: 'grid',
@@ -2434,50 +2434,50 @@ export default function AdminPage() {
                 gap: 10,
               }}>
                 <div style={{ padding: '10px 12px', background: COLORS.blueBg, borderRadius: 8 }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: COLORS.blue, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.blue, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
                     <Icon name="integ" size={10} /> Integrazioni
                   </div>
                   <div style={{ fontSize: 20, fontWeight: 900, color: COLORS.blue }}>{i.n_attive_totali ?? 0}</div>
-                  <div style={{ fontSize: 10, color: COLORS.blue, opacity: 0.85 }}>
+                  <div style={{ fontSize: 12, color: COLORS.blue, opacity: 0.85 }}>
                     su {i.n_clienti ?? 0} clienti
                     {i.top_tipi?.length > 0 && ` · top: ${i.top_tipi.slice(0, 2).map(t => t.tipo).join(', ')}`}
                   </div>
                 </div>
                 <div style={{ padding: '10px 12px', background: COLORS.okBg, borderRadius: 8 }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: COLORS.ok, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.ok, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
                     <Icon name="building" size={10} /> B2B (mese)
                   </div>
                   <div style={{ fontSize: 20, fontWeight: 900, color: COLORS.ok }}>{fmtEuro(b.ricavo_mtd || 0)}</div>
-                  <div style={{ fontSize: 10, color: COLORS.ok, opacity: 0.85 }}>
+                  <div style={{ fontSize: 12, color: COLORS.ok, opacity: 0.85 }}>
                     {b.n_vendite_mtd ?? 0} vendite · {b.n_clienti_attivi_mtd ?? 0} clienti
                   </div>
                 </div>
                 <div style={{ padding: '10px 12px', background: COLORS.okBg, borderRadius: 8 }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: COLORS.ok, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.ok, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
                     <Icon name="creditCard" size={10} /> POS (mese)
                   </div>
                   <div style={{ fontSize: 20, fontWeight: 900, color: COLORS.ok }}>{fmtEuro(p.ricavo_mtd || 0)}</div>
-                  <div style={{ fontSize: 10, color: COLORS.ok, opacity: 0.85 }}>
+                  <div style={{ fontSize: 12, color: COLORS.ok, opacity: 0.85 }}>
                     {p.n_scontrini_mtd ?? 0} scontrini · {p.n_clienti_attivi_mtd ?? 0} clienti
                   </div>
                 </div>
                 <div style={{ padding: '10px 12px', background: COLORS.blueBg, borderRadius: 8 }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: COLORS.blue, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.blue, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
                     <Icon name="bell" size={10} /> Push subs
                   </div>
                   <div style={{ fontSize: 20, fontWeight: 900, color: COLORS.blue }}>{pu.n_dispositivi ?? 0}</div>
-                  <div style={{ fontSize: 10, color: COLORS.blue, opacity: 0.85 }}>
+                  <div style={{ fontSize: 12, color: COLORS.blue, opacity: 0.85 }}>
                     su {pu.n_clienti ?? 0} clienti
                   </div>
                 </div>
                 <div style={{ padding: '10px 12px', background: (s.n_clienti_overdue || 0) > 0 ? COLORS.errBg : COLORS.blockedBg, borderRadius: 8 }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: (s.n_clienti_overdue || 0) > 0 ? COLORS.err : COLORS.blocked, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: (s.n_clienti_overdue || 0) > 0 ? COLORS.err : COLORS.blocked, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
                     <Icon name="warning" size={10} /> Fatture scadute
                   </div>
                   <div style={{ fontSize: 20, fontWeight: 900, color: (s.n_clienti_overdue || 0) > 0 ? COLORS.err : COLORS.blocked }}>
                     {s.n_clienti_overdue ?? 0}
                   </div>
-                  <div style={{ fontSize: 10, color: (s.n_clienti_overdue || 0) > 0 ? COLORS.err : COLORS.blocked, opacity: 0.85 }}>
+                  <div style={{ fontSize: 12, color: (s.n_clienti_overdue || 0) > 0 ? COLORS.err : COLORS.blocked, opacity: 0.85 }}>
                     clienti · {fmtEuro(s.totale_overdue || 0)}
                   </div>
                 </div>
@@ -2680,20 +2680,20 @@ export default function AdminPage() {
                               }[s.status] || { bg: COLORS.rowAlt, fg: COLORS.textMute, txt: s.status }
                               return (
                                 <span title={s.detail} style={{
-                                  fontSize: 9, padding: '2px 6px', borderRadius: 99,
+                                  fontSize: 12, padding: '2px 6px', borderRadius: 99,
                                   background: cfg.bg, color: cfg.fg, fontWeight: 700,
                                   textTransform: 'uppercase', letterSpacing: '0.04em',
                                 }}>{cfg.txt}</span>
                               )
                             })()}
                           </div>
-                          {c.nome_completo && <div style={{ fontSize: 11, color: COLORS.textMute }}>{c.nome_completo}</div>}
+                          {c.nome_completo && <div style={{ fontSize: 12, color: COLORS.textMute }}>{c.nome_completo}</div>}
                         </td>
                         <td style={{ ...td(), color: COLORS.textSoft, textTransform: 'capitalize' }}>{c.tipo || '-'}</td>
                         <td style={{ ...td(), color: COLORS.textSoft }}>
                           {c.email}
                           {!c.email_confermata && (
-                            <div style={{ fontSize: 10, color: COLORS.warn, marginTop: 2 }}><Icon name="mail" size={11} /> non confermata</div>
+                            <div style={{ fontSize: 12, color: COLORS.warn, marginTop: 2 }}><Icon name="mail" size={11} /> non confermata</div>
                           )}
                         </td>
                         <td style={{ ...td(), color: COLORS.textSoft, whiteSpace: 'nowrap' }}>{fmtData(c.registrata_il)}</td>
@@ -2786,7 +2786,7 @@ export default function AdminPage() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 10 }}>
               <div>
                 <strong style={{ fontSize: 14 }}>⏳ Iscrizioni in attesa di approvazione</strong>
-                <div style={{ fontSize: 11, color: COLORS.textMute, marginTop: 2 }}>
+                <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
                   Nuove organizzazioni che hanno fatto signup. Approva quelle vere, rifiuta lo scam.
                 </div>
               </div>
@@ -2818,13 +2818,13 @@ export default function AdminPage() {
                     }}>
                       <div>
                         <div style={{ fontWeight: 800, fontSize: 14, color: COLORS.text, marginBottom: 4 }}>
-                          {o.nome} <span style={{ fontSize: 11, fontWeight: 400, color: COLORS.textMute, textTransform: 'capitalize' }}>· {o.tipo || 'attività'}</span>
+                          {o.nome} <span style={{ fontSize: 12, fontWeight: 400, color: COLORS.textMute, textTransform: 'capitalize' }}>· {o.tipo || 'attività'}</span>
                         </div>
                         <div style={{ fontSize: 12, color: COLORS.textSoft }}>
                           {o.titolare_email}
                           {o.titolare_nome && <> · <span style={{ color: COLORS.textMute }}>{o.titolare_nome}</span></>}
                         </div>
-                        <div style={{ fontSize: 11, color: isOld ? COLORS.warn : COLORS.textMute, marginTop: 4 }}>
+                        <div style={{ fontSize: 12, color: isOld ? COLORS.warn : COLORS.textMute, marginTop: 4 }}>
                           iscritta {ageLabel} fa {isOld && <strong>(da rispondere)</strong>}
                         </div>
                       </div>
@@ -2841,7 +2841,7 @@ export default function AdminPage() {
                 })}
               </div>
             )}
-            <div style={{ marginTop: 14, padding: 10, background: COLORS.blueBg, borderRadius: 8, fontSize: 11, color: COLORS.blue, border: `1px solid ${COLORS.blue}` }}>
+            <div style={{ marginTop: 14, padding: 10, background: COLORS.blueBg, borderRadius: 8, fontSize: 12, color: COLORS.blue, border: `1px solid ${COLORS.blue}` }}>
               <strong>Come funziona:</strong> ogni nuovo titolare che si registra parte con <code>in_attesa=true</code>. Vede una schermata "Stiamo verificando il tuo account" e non può usare l'app finché non lo approvi qui. Si refresha ogni 30s. Le org si possono anche bloccare/sbloccare dopo dalla tabella Clienti.
             </div>
           </Card>
@@ -2853,7 +2853,7 @@ export default function AdminPage() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
               <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800 }}>
                 <Icon name="bolt" size={14} /> Cosa succede adesso
-                <span style={{ fontSize: 11, fontWeight: 400, color: COLORS.textMute, marginLeft: 10 }}>
+                <span style={{ fontSize: 12, fontWeight: 400, color: COLORS.textMute, marginLeft: 10 }}>
                   ultimi 80 eventi · si aggiorna ogni 12 secondi
                 </span>
               </h3>
@@ -2889,16 +2889,16 @@ export default function AdminPage() {
                       cursor: cliente ? 'pointer' : 'default',
                     }} onClick={() => cliente && apriDettaglio(cliente)}>
                       <span style={{
-                        fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em',
+                        fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em',
                         color: sevColor, padding: '2px 6px', background: '#FFF', borderRadius: 4, textAlign: 'center',
                         border: `1px solid ${sevColor}`,
                       }}>{ev.kind}</span>
-                      <span style={{ color: COLORS.textMute, fontSize: 11, fontVariantNumeric: 'tabular-nums' }}>{ago}</span>
+                      <span style={{ color: COLORS.textMute, fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{ago}</span>
                       <div>
                         <div style={{ fontWeight: 600, color: COLORS.text }}>{ev.title}</div>
-                        {ev.detail && <div style={{ color: COLORS.textMute, fontSize: 11, marginTop: 2 }}>{ev.detail}</div>}
+                        {ev.detail && <div style={{ color: COLORS.textMute, fontSize: 12, marginTop: 2 }}>{ev.detail}</div>}
                       </div>
-                      <div style={{ color: COLORS.textMute, fontSize: 10, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <div style={{ color: COLORS.textMute, fontSize: 12, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {cliente ? cliente.nome_attivita : (ev.code || '')}
                       </div>
                     </div>
@@ -2937,7 +2937,7 @@ export default function AdminPage() {
               </div>
             ) : (
               <>
-                <div style={{ fontSize: 11, color: COLORS.textMute, marginBottom: 14 }}>
+                <div style={{ fontSize: 12, color: COLORS.textMute, marginBottom: 14 }}>
                   Base: <strong style={{ color: COLORS.text }}>{funnel.n}</strong> clienti registrati ultimi {funnel.days} giorni
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -2954,19 +2954,19 @@ export default function AdminPage() {
                             background: s.pct >= 75 ? COLORS.ok : s.pct >= 40 ? COLORS.blue : s.pct >= 20 ? COLORS.warn : COLORS.err,
                             transition: 'width 250ms',
                           }} />
-                          <span style={{ position: 'absolute', left: 8, top: 2, fontSize: 11, fontWeight: 700, color: '#FFF', textShadow: '0 1px 2px rgba(0,0,0,0.4)' }}>
+                          <span style={{ position: 'absolute', left: 8, top: 2, fontSize: 12, fontWeight: 700, color: '#FFF', textShadow: '0 1px 2px rgba(0,0,0,0.4)' }}>
                             {s.n}
                           </span>
                         </div>
                         <div style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 700, textAlign: 'right' }}>{s.pct}%</div>
-                        <div style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11, color: dropOff > 30 ? COLORS.err : COLORS.textMute, textAlign: 'right' }}>
+                        <div style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: dropOff > 30 ? COLORS.err : COLORS.textMute, textAlign: 'right' }}>
                           {prev && dropOff > 0 ? `-${dropOff}%` : ''}
                         </div>
                       </div>
                     )
                   })}
                 </div>
-                <div style={{ marginTop: 16, padding: 12, background: COLORS.warnBg, borderRadius: 8, fontSize: 11, color: COLORS.warn, border: `1px solid ${COLORS.warn}` }}>
+                <div style={{ marginTop: 16, padding: 12, background: COLORS.warnBg, borderRadius: 8, fontSize: 12, color: COLORS.warn, border: `1px solid ${COLORS.warn}` }}>
                   <strong>Drop-off grossi</strong>: i punti dove perdi più del 30% sono opportunità di copy/UX da rifinire.
                 </div>
               </>
@@ -3014,15 +3014,15 @@ export default function AdminPage() {
                     }}>
                       <div>
                         <div style={{ fontWeight: 600 }}>{c.nome_attivita}</div>
-                        <div style={{ color: COLORS.textMute, fontSize: 10 }}>{c.email}</div>
+                        <div style={{ color: COLORS.textMute, fontSize: 12 }}>{c.email}</div>
                       </div>
-                      <div style={{ color: COLORS.textMute, fontSize: 11, textAlign: 'right' }}>
+                      <div style={{ color: COLORS.textMute, fontSize: 12, textAlign: 'right' }}>
                         {c.ultimo_accesso ? `Ult. ${fmtData(c.ultimo_accesso)}` : 'Mai loggato'}
                       </div>
                     </div>
                   ))}
                   {metricheAvanzate.inattivi.length > 10 && (
-                    <div style={{ color: COLORS.textMute, fontSize: 11, padding: '6px 0' }}>
+                    <div style={{ color: COLORS.textMute, fontSize: 12, padding: '6px 0' }}>
                       …e altri {metricheAvanzate.inattivi.length - 10}
                     </div>
                   )}
@@ -3042,7 +3042,7 @@ export default function AdminPage() {
             <Btn kind="neutral" size="sm" onClick={fetchPricing} disabled={pricingLoading}>{pricingLoading ? '…' : <Icon name="refresh" size={14} />}</Btn>
           </div>
           <div style={{ padding: '14px 18px' }}>
-            <div style={{ fontSize: 11, color: COLORS.textMute, marginBottom: 12, lineHeight: 1.5 }}>
+            <div style={{ fontSize: 12, color: COLORS.textMute, marginBottom: 12, lineHeight: 1.5 }}>
               Modifica il prezzo mostrato. Per cambiare l'importo <b>realmente addebitato</b>, crea un nuovo Price su Stripe
               e incolla qui il suo ID (<code>price_…</code>): il checkout userà quello. Ogni modifica richiede una conferma esplicita.
             </div>
@@ -3060,14 +3060,14 @@ export default function AdminPage() {
                     <div style={{ flex: 1, minWidth: 200 }}>
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
                         <strong style={{ fontSize: 14 }}>{nomeAttuale}</strong>
-                        <span style={{ fontSize: 10, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em' }}>(DB: {plan})</span>
+                        <span style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em' }}>(DB: {plan})</span>
                         <span style={{ marginLeft: 6, fontSize: 18, fontWeight: 800, color: COLORS.accent }}>€{euroAttuale}</span>
-                        <span style={{ fontSize: 11, color: COLORS.textMute }}>/mese</span>
+                        <span style={{ fontSize: 12, color: COLORS.textMute }}>/mese</span>
                       </div>
-                      <div style={{ fontSize: 11, color: COLORS.textMute, marginTop: 4, lineHeight: 1.4 }}>
+                      <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 4, lineHeight: 1.4 }}>
                         {descrAttuale}
                       </div>
-                      <div style={{ fontSize: 10, color: COLORS.textMute, marginTop: 4 }}>
+                      <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 4 }}>
                         Stripe price: <code>{row.stripe_price_id || '- (usa env)'}</code>
                       </div>
                     </div>
@@ -3080,26 +3080,26 @@ export default function AdminPage() {
                   {inEdit && (
                     <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
                       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                        <label style={{ fontSize: 11, color: COLORS.textSoft }}>
+                        <label style={{ fontSize: 12, color: COLORS.textSoft }}>
                           Nome display
                           <input type="text" value={priceDraft.nome_display || ''} maxLength={60}
                             onChange={e => { setPriceDraft(d => ({ ...d, nome_display: e.target.value })); setPriceConfirm(false) }}
                             style={{ display: 'block', marginTop: 4, padding: '8px 10px', borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 13, fontWeight: 700, width: 180 }} />
                         </label>
-                        <label style={{ fontSize: 11, color: COLORS.textSoft }}>
+                        <label style={{ fontSize: 12, color: COLORS.textSoft }}>
                           Prezzo €/mese
                           <input type="number" min="0" step="0.01" value={priceDraft.euro}
                             onChange={e => { setPriceDraft(d => ({ ...d, euro: e.target.value })); setPriceConfirm(false) }}
                             style={{ display: 'block', marginTop: 4, padding: '8px 10px', borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 14, fontWeight: 700, width: 120 }} />
                         </label>
-                        <label style={{ fontSize: 11, color: COLORS.textSoft, flex: 1, minWidth: 200 }}>
+                        <label style={{ fontSize: 12, color: COLORS.textSoft, flex: 1, minWidth: 200 }}>
                           Stripe price ID (opzionale)
                           <input type="text" value={priceDraft.stripe_price_id} placeholder="price_..."
                             onChange={e => { setPriceDraft(d => ({ ...d, stripe_price_id: e.target.value })); setPriceConfirm(false) }}
                             style={{ display: 'block', marginTop: 4, padding: '8px 10px', borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 13, fontFamily: 'monospace', width: '100%', boxSizing: 'border-box' }} />
                         </label>
                       </div>
-                      <label style={{ fontSize: 11, color: COLORS.textSoft }}>
+                      <label style={{ fontSize: 12, color: COLORS.textSoft }}>
                         Descrizione (claim ROI)
                         <textarea value={priceDraft.descrizione || ''} maxLength={300} rows={2}
                           onChange={e => { setPriceDraft(d => ({ ...d, descrizione: e.target.value })); setPriceConfirm(false) }}
@@ -3115,7 +3115,7 @@ export default function AdminPage() {
                           <div style={{ fontSize: 12, color: '#7F1D1D', marginBottom: 8 }}>
                             Confermi piano <b>{plan}</b>: nome "{priceDraft.nome_display}" · prezzo <b>€{euroAttuale}</b> → <b>€{(parseFloat(String(priceDraft.euro).replace(',', '.')) || 0).toFixed(2)}</b>/mese?
                             {priceDraft.stripe_price_id && <> Stripe price <code>{priceDraft.stripe_price_id}</code>.</>}
-                            <div style={{ marginTop: 6, fontSize: 11, opacity: 0.85 }}>
+                            <div style={{ marginTop: 6, fontSize: 12, opacity: 0.85 }}>
                               ⚠ I clienti già abbonati restano al loro prezzo Stripe attuale finché non disdicono.
                               Le nuove sottoscrizioni useranno il nuovo prezzo.
                             </div>
@@ -3184,7 +3184,7 @@ export default function AdminPage() {
                         <td style={td()}>
                           <div style={{ fontFamily: 'monospace', fontWeight: 800, color: COLORS.text, letterSpacing: '0.04em' }}>{c.codice}</div>
                           {c.piani_validi && (
-                            <div style={{ fontSize: 10, color: COLORS.textMute, marginTop: 2 }}>
+                            <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
                               Solo: {c.piani_validi.join(', ')}
                             </div>
                           )}
@@ -3194,7 +3194,7 @@ export default function AdminPage() {
                             {c.tipo_sconto === 'percent' ? `-${c.valore_sconto}%` : `-€${Number(c.valore_sconto / 100).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                           </span>
                           {c.valore_sconto === 100 && c.tipo_sconto === 'percent' && (
-                            <div style={{ fontSize: 10, color: '#059669', fontWeight: 600 }}><Icon name="gift" size={11} /> Gratis</div>
+                            <div style={{ fontSize: 12, color: '#059669', fontWeight: 600 }}><Icon name="gift" size={11} /> Gratis</div>
                           )}
                         </td>
                         <td style={{ ...td(), color: COLORS.textSoft }}>
@@ -3210,11 +3210,11 @@ export default function AdminPage() {
                         </td>
                         <td style={td()}>
                           {!c.attivo ? <StatoBadge stato="bloccato" />
-                            : scaduto ? <span style={{ background: '#FEE2E2', color: '#991B1B', padding: '3px 10px', borderRadius: 99, fontSize: 11, fontWeight: 700 }}>Scaduto</span>
-                            : limiteRaggiunto ? <span style={{ background: '#FEF3C7', color: '#92400E', padding: '3px 10px', borderRadius: 99, fontSize: 11, fontWeight: 700 }}>Esaurito</span>
-                            : <span style={{ background: COLORS.okBg, color: COLORS.ok, padding: '3px 10px', borderRadius: 99, fontSize: 11, fontWeight: 700 }}>Attivo</span>}
+                            : scaduto ? <span style={{ background: '#FEE2E2', color: '#991B1B', padding: '3px 10px', borderRadius: 99, fontSize: 12, fontWeight: 700 }}>Scaduto</span>
+                            : limiteRaggiunto ? <span style={{ background: '#FEF3C7', color: '#92400E', padding: '3px 10px', borderRadius: 99, fontSize: 12, fontWeight: 700 }}>Esaurito</span>
+                            : <span style={{ background: COLORS.okBg, color: COLORS.ok, padding: '3px 10px', borderRadius: 99, fontSize: 12, fontWeight: 700 }}>Attivo</span>}
                         </td>
-                        <td style={{ ...td(), color: COLORS.textSoft, fontSize: 11, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={c.descrizione || ''}>
+                        <td style={{ ...td(), color: COLORS.textSoft, fontSize: 12, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={c.descrizione || ''}>
                           {c.descrizione || '-'}
                         </td>
                         <td style={td()}>
@@ -3265,7 +3265,7 @@ export default function AdminPage() {
           <div style={{ padding: '14px 18px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
             <div>
               <strong style={{ fontSize: 14 }}><Icon name="gift" size={14} /> Programma referral</strong>
-              <div style={{ fontSize: 11, color: COLORS.textMute, marginTop: 2 }}>
+              <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
                 Top referrer · mesi gratis distribuiti · cap anti-scam
               </div>
             </div>
@@ -3281,15 +3281,15 @@ export default function AdminPage() {
             <>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, padding: 14 }}>
                 <div style={{ padding: 12, background: COLORS.rowAlt, borderRadius: 8 }}>
-                  <div style={{ fontSize: 10, color: COLORS.textMute, textTransform: 'uppercase', fontWeight: 700 }}>Codici usati totali</div>
+                  <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', fontWeight: 700 }}>Codici usati totali</div>
                   <div style={{ fontSize: 22, fontWeight: 900 }}>{refAdmin.totale_utilizzi || 0}</div>
                 </div>
                 <div style={{ padding: 12, background: COLORS.okBg, borderRadius: 8 }}>
-                  <div style={{ fontSize: 10, color: COLORS.ok, textTransform: 'uppercase', fontWeight: 700 }}>Mesi gratis distribuiti</div>
+                  <div style={{ fontSize: 12, color: COLORS.ok, textTransform: 'uppercase', fontWeight: 700 }}>Mesi gratis distribuiti</div>
                   <div style={{ fontSize: 22, fontWeight: 900, color: COLORS.ok }}>{refAdmin.totale_mesi_distribuiti || 0}</div>
                 </div>
                 <div style={{ padding: 12, background: COLORS.blueBg, borderRadius: 8 }}>
-                  <div style={{ fontSize: 10, color: COLORS.blue, textTransform: 'uppercase', fontWeight: 700 }}>Top referrer attivi</div>
+                  <div style={{ fontSize: 12, color: COLORS.blue, textTransform: 'uppercase', fontWeight: 700 }}>Top referrer attivi</div>
                   <div style={{ fontSize: 22, fontWeight: 900, color: COLORS.blue }}>{(refAdmin.top || []).length}</div>
                 </div>
               </div>
@@ -3352,11 +3352,11 @@ export default function AdminPage() {
                         <td style={{ padding: '8px 18px', color: COLORS.textMute, whiteSpace: 'nowrap', width: 140 }}>
                           {fmtDataOra(new Date(e.created).toISOString())}
                         </td>
-                        <td style={{ padding: '8px 0', color: typeColor, fontWeight: 600, fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 11, whiteSpace: 'nowrap' }}>
+                        <td style={{ padding: '8px 0', color: typeColor, fontWeight: 600, fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 12, whiteSpace: 'nowrap' }}>
                           {e.type}
-                          {!e.livemode && <span style={{ marginLeft: 6, fontSize: 9, padding: '1px 5px', borderRadius: 3, background: COLORS.warnBg, color: COLORS.warn, fontWeight: 700, textTransform: 'uppercase' }}>test</span>}
+                          {!e.livemode && <span style={{ marginLeft: 6, fontSize: 12, padding: '1px 5px', borderRadius: 3, background: COLORS.warnBg, color: COLORS.warn, fontWeight: 700, textTransform: 'uppercase' }}>test</span>}
                         </td>
-                        <td style={{ padding: '8px 12px', color: COLORS.textSoft, fontSize: 11 }}>
+                        <td style={{ padding: '8px 12px', color: COLORS.textSoft, fontSize: 12 }}>
                           {e.customer_email || (e.customer_id ? <code>{e.customer_id.slice(0, 16)}…</code> : '-')}
                         </td>
                         <td style={{ padding: '8px 18px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>
@@ -3381,7 +3381,7 @@ export default function AdminPage() {
               </span>
             </div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <label style={{ fontSize: 11, color: COLORS.textSoft, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <label style={{ fontSize: 12, color: COLORS.textSoft, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                 <input type="checkbox" checked={feedbackSoloDaGestire} onChange={e => setFeedbackSoloDaGestire(e.target.checked)} />
                 Solo da gestire
               </label>
@@ -3410,18 +3410,18 @@ export default function AdminPage() {
                     opacity: f.gestito ? 0.7 : 1,
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
-                      <span style={{ background: s.bg, color: s.fg, padding: '2px 8px', borderRadius: 99, fontSize: 11, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name={s.icon} size={11} /> {s.lbl}</span>
+                      <span style={{ background: s.bg, color: s.fg, padding: '2px 8px', borderRadius: 99, fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name={s.icon} size={11} /> {s.lbl}</span>
                       <strong style={{ fontSize: 13, color: COLORS.text }}>{f.nome_attivita || '-'}</strong>
-                      <span style={{ fontSize: 11, color: COLORS.textMute }}>·</span>
-                      <span style={{ fontSize: 11, color: COLORS.textSoft }}>{f.user_email}</span>
-                      {f.ruolo === 'dipendente' && <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 4, background: COLORS.warnBg, color: COLORS.warn, fontWeight: 700, textTransform: 'uppercase' }}>dip</span>}
+                      <span style={{ fontSize: 12, color: COLORS.textMute }}>·</span>
+                      <span style={{ fontSize: 12, color: COLORS.textSoft }}>{f.user_email}</span>
+                      {f.ruolo === 'dipendente' && <span style={{ fontSize: 12, padding: '1px 5px', borderRadius: 4, background: COLORS.warnBg, color: COLORS.warn, fontWeight: 700, textTransform: 'uppercase' }}>dip</span>}
                       <span style={{ flex: 1 }} />
-                      <span style={{ fontSize: 11, color: COLORS.textMute }}>{fmtDataOra(f.created_at)}</span>
+                      <span style={{ fontSize: 12, color: COLORS.textMute }}>{fmtDataOra(f.created_at)}</span>
                     </div>
                     <div style={{ fontSize: 13, color: COLORS.text, whiteSpace: 'pre-wrap', lineHeight: 1.5, marginBottom: 8 }}>
                       {f.messaggio}
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: COLORS.textMute }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: COLORS.textMute }}>
                       {f.view_corrente && <span><Icon name="pin" size={11} /> {f.view_corrente}</span>}
                       {f.url && <a href={f.url} target="_blank" rel="noreferrer" style={{ color: COLORS.accent, textDecoration: 'none' }}>apri pagina</a>}
                       <span style={{ flex: 1 }} />
@@ -3461,7 +3461,7 @@ export default function AdminPage() {
             <Btn kind="neutral" size="sm" onClick={fetchBanners} disabled={bannersLoading}>{bannersLoading ? '…' : <Icon name="refresh" size={14} />}</Btn>
           </div>
           <div style={{ padding: '14px 18px', borderBottom: `1px solid ${COLORS.border}`, background: COLORS.rowAlt }}>
-            <div style={{ fontSize: 11, color: COLORS.textMute, marginBottom: 8 }}>Nuovo banner</div>
+            <div style={{ fontSize: 12, color: COLORS.textMute, marginBottom: 8 }}>Nuovo banner</div>
             <textarea
               value={nuovoBanner.messaggio}
               onChange={e => setNuovoBanner(b => ({ ...b, messaggio: e.target.value }))}
@@ -3485,7 +3485,7 @@ export default function AdminPage() {
                 onChange={e => setNuovoBanner(b => ({ ...b, scade_il: e.target.value }))}
                 style={{ padding: '6px 10px', borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 12 }}
                 title="Scadenza (opzionale)" />
-              <span style={{ fontSize: 10, color: COLORS.textMute }}>scadenza opzionale</span>
+              <span style={{ fontSize: 12, color: COLORS.textMute }}>scadenza opzionale</span>
               <span style={{ flex: 1 }} />
               <Btn kind="primary" size="sm" onClick={creaBanner} disabled={bannerSaving || !nuovoBanner.messaggio.trim()}>
                 {bannerSaving ? 'Pubblicazione…' : 'Pubblica'}
@@ -3514,16 +3514,16 @@ export default function AdminPage() {
                     opacity: !b.attivo || scaduto ? 0.6 : 1,
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
-                      <span style={{ background: t.bg, color: t.fg, padding: '2px 8px', borderRadius: 99, fontSize: 11, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>{t.icon && <Icon name={t.icon} size={11} />}{t.lbl}</span>
-                      {b.attivo && !scaduto && <span style={{ background: COLORS.okBg, color: COLORS.ok, padding: '2px 8px', borderRadius: 99, fontSize: 10, fontWeight: 700 }}>● live</span>}
-                      {!b.attivo && <span style={{ background: COLORS.blockedBg, color: COLORS.blocked, padding: '2px 8px', borderRadius: 99, fontSize: 10, fontWeight: 700 }}>spento</span>}
-                      {scaduto && <span style={{ background: COLORS.errBg, color: COLORS.err, padding: '2px 8px', borderRadius: 99, fontSize: 10, fontWeight: 700 }}>scaduto</span>}
+                      <span style={{ background: t.bg, color: t.fg, padding: '2px 8px', borderRadius: 99, fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>{t.icon && <Icon name={t.icon} size={11} />}{t.lbl}</span>
+                      {b.attivo && !scaduto && <span style={{ background: COLORS.okBg, color: COLORS.ok, padding: '2px 8px', borderRadius: 99, fontSize: 12, fontWeight: 700 }}>● live</span>}
+                      {!b.attivo && <span style={{ background: COLORS.blockedBg, color: COLORS.blocked, padding: '2px 8px', borderRadius: 99, fontSize: 12, fontWeight: 700 }}>spento</span>}
+                      {scaduto && <span style={{ background: COLORS.errBg, color: COLORS.err, padding: '2px 8px', borderRadius: 99, fontSize: 12, fontWeight: 700 }}>scaduto</span>}
                       <span style={{ flex: 1 }} />
-                      <span style={{ fontSize: 11, color: COLORS.textMute }}>{fmtDataOra(b.creato_il)}</span>
+                      <span style={{ fontSize: 12, color: COLORS.textMute }}>{fmtDataOra(b.creato_il)}</span>
                     </div>
                     <div style={{ fontSize: 13, color: COLORS.text, marginBottom: 6 }}>{b.messaggio}</div>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                      {b.scade_il && <span style={{ fontSize: 11, color: COLORS.textMute }}>Scade: {fmtDataOra(b.scade_il)}</span>}
+                      {b.scade_il && <span style={{ fontSize: 12, color: COLORS.textMute }}>Scade: {fmtDataOra(b.scade_il)}</span>}
                       <span style={{ flex: 1 }} />
                       {b.attivo && (
                         <Btn kind="warn" size="sm" onClick={async () => {
@@ -3567,7 +3567,7 @@ export default function AdminPage() {
             </Btn>
           </div>
           <div style={{ padding: '14px 18px', borderBottom: `1px solid ${COLORS.border}`, background: COLORS.rowAlt }}>
-            <div style={{ fontSize: 11, color: COLORS.textMute, marginBottom: 8 }}>
+            <div style={{ fontSize: 12, color: COLORS.textMute, marginBottom: 8 }}>
               Aggiungi un dominio (es. <code>mailinator.com</code>, <code>tempmail.io</code>): chi prova
               a registrarsi con un'email @dominio verrà respinto al signup. Il check è in
               <code> handle_new_user</code> trigger Supabase, fail-open su errori.
@@ -3631,7 +3631,7 @@ export default function AdminPage() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 10 }}>
             <div>
               <strong style={{ fontSize: 14 }}><Icon name="tool" size={14} /> SQL editor (read-only)</strong>
-              <div style={{ fontSize: 11, color: COLORS.textMute, marginTop: 2 }}>
+              <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
                 Solo SELECT/WITH · max 500 righe · whitelist tabelle · 0 DDL/DML
               </div>
             </div>
@@ -3640,7 +3640,7 @@ export default function AdminPage() {
             </Btn>
           </div>
           {/* Pre-built queries */}
-          <div style={{ fontSize: 11, color: COLORS.textMute, marginBottom: 6, fontWeight: 600 }}>Query rapide:</div>
+          <div style={{ fontSize: 12, color: COLORS.textMute, marginBottom: 6, fontWeight: 600 }}>Query rapide:</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
             {[
               { label: 'Top 20 paganti per MRR', q: `select o.id, o.nome, o.piano, o.stripe_status, o.created_at\nfrom organizations o\nwhere o.approvato = true\norder by o.created_at desc\nlimit 20` },
@@ -3653,7 +3653,7 @@ export default function AdminPage() {
               { label: 'Feedback non gestiti', q: `select id, sentiment, user_email, messaggio, created_at\nfrom feedback\nwhere coalesce(gestito, false) = false\norder by created_at desc\nlimit 30` },
             ].map((p, i) => (
               <button key={i} onClick={() => setSqlQuery(p.q)}
-                style={{ background: COLORS.rowAlt, border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: '4px 10px', fontSize: 11, color: COLORS.textSoft, cursor: 'pointer' }}>
+                style={{ background: COLORS.rowAlt, border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: '4px 10px', fontSize: 12, color: COLORS.textSoft, cursor: 'pointer' }}>
                 {p.label}
               </button>
             ))}
@@ -3674,7 +3674,7 @@ export default function AdminPage() {
             <div style={{ marginTop: 10, padding: '10px 12px', background: COLORS.errBg, color: COLORS.err, borderRadius: 8, fontSize: 12, border: `1px solid ${COLORS.err}` }}>
               <Icon name="warning" size={13} /> {sqlError}
               {sqlError.includes('admin_safe_select') && (
-                <div style={{ marginTop: 6, fontSize: 11 }}>
+                <div style={{ marginTop: 6, fontSize: 12 }}>
                   Applica la migration <code>20260704_admin_safe_select.sql</code> in Supabase SQL editor per abilitare l'editor.
                 </div>
               )}
@@ -3682,18 +3682,18 @@ export default function AdminPage() {
           )}
           {sqlResult && (
             <div style={{ marginTop: 12 }}>
-              <div style={{ fontSize: 11, color: COLORS.textMute, marginBottom: 6 }}>
-                {sqlResult.count} righe · query: <code style={{ fontSize: 10 }}>{(sqlResult.query || '').slice(0, 120)}…</code>
+              <div style={{ fontSize: 12, color: COLORS.textMute, marginBottom: 6 }}>
+                {sqlResult.count} righe · query: <code style={{ fontSize: 12 }}>{(sqlResult.query || '').slice(0, 120)}…</code>
               </div>
               {sqlResult.rows.length === 0 ? (
                 <div style={{ padding: 16, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>Nessuna riga.</div>
               ) : (
                 <div style={{ overflowX: 'auto', border: `1px solid ${COLORS.border}`, borderRadius: 8, maxHeight: 400, overflowY: 'auto' }}>
-                  <table style={{ width: '100%', fontSize: 11, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
+                  <table style={{ width: '100%', fontSize: 12, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
                     <thead>
                       <tr style={{ background: COLORS.rowAlt, borderBottom: `1px solid ${COLORS.border}` }}>
                         {Object.keys(sqlResult.rows[0]).map(col => (
-                          <th key={col} style={{ ...th(), fontSize: 10, fontFamily: 'inherit' }}>{col}</th>
+                          <th key={col} style={{ ...th(), fontSize: 12, fontFamily: 'inherit' }}>{col}</th>
                         ))}
                       </tr>
                     </thead>
@@ -3701,7 +3701,7 @@ export default function AdminPage() {
                       {sqlResult.rows.slice(0, 100).map((row, i) => (
                         <tr key={i} style={{ borderBottom: `1px solid ${COLORS.border}` }}>
                           {Object.values(row).map((v, j) => (
-                            <td key={j} style={{ ...td(), fontFamily: 'inherit', fontSize: 11, color: COLORS.textSoft, whiteSpace: 'nowrap', maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis' }}
+                            <td key={j} style={{ ...td(), fontFamily: 'inherit', fontSize: 12, color: COLORS.textSoft, whiteSpace: 'nowrap', maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis' }}
                               title={String(v)}>
                               {v === null ? <span style={{ color: COLORS.textMute, fontStyle: 'italic' }}>null</span>
                                 : typeof v === 'object' ? JSON.stringify(v).slice(0, 80)
@@ -3713,7 +3713,7 @@ export default function AdminPage() {
                     </tbody>
                   </table>
                   {sqlResult.rows.length > 100 && (
-                    <div style={{ padding: 8, textAlign: 'center', fontSize: 10, color: COLORS.textMute, background: COLORS.rowAlt }}>
+                    <div style={{ padding: 8, textAlign: 'center', fontSize: 12, color: COLORS.textMute, background: COLORS.rowAlt }}>
                       Mostro le prime 100 righe su {sqlResult.count}. Stringi la query per vedere tutto.
                     </div>
                   )}
@@ -3733,7 +3733,7 @@ export default function AdminPage() {
             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           }}>
             <strong style={{ fontSize: 14 }}><Icon name="clipboard" size={16} /> Log attività recenti</strong>
-            <span style={{ fontSize: 11, color: COLORS.textMute }}>{auditLog.length} eventi</span>
+            <span style={{ fontSize: 12, color: COLORS.textMute }}>{auditLog.length} eventi</span>
           </div>
           {auditLog.length === 0 ? (
             <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>
@@ -3750,7 +3750,7 @@ export default function AdminPage() {
                       </td>
                       <td style={{ padding: '8px 0', color: COLORS.textSoft, width: 180 }}>{r.actor}</td>
                       <td style={{ padding: '8px 0', fontWeight: 600 }}>{r.action}</td>
-                      <td style={{ padding: '8px 18px', color: COLORS.textMute, fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 10 }}>
+                      <td style={{ padding: '8px 18px', color: COLORS.textMute, fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 12 }}>
                         {r.target ? r.target.slice(0, 8) + '…' : ''}
                       </td>
                     </tr>
@@ -3769,7 +3769,7 @@ export default function AdminPage() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
             <div>
               <h3 style={{ margin: '0 0 4px', fontSize: 14, fontWeight: 800 }}><Icon name="lock" size={16} /> Migrazione integrazioni → AES-256-GCM</h3>
-              <div style={{ fontSize: 11, color: COLORS.textMute, maxWidth: 600 }}>
+              <div style={{ fontSize: 12, color: COLORS.textMute, maxWidth: 600 }}>
                 Cifra in batch tutte le righe <code>public.integrazioni</code> con <code>encryption_version=0</code> (legacy). Idempotente: ri-eseguire non tocca le righe già v=1. Richiede <code>INTEGRATIONS_ENCRYPTION_KEY</code> in Vercel.
               </div>
             </div>
@@ -3813,19 +3813,19 @@ export default function AdminPage() {
               {errori.map(e => (
                 <div key={e.id} style={{ padding: '10px 18px', borderBottom: `1px solid ${COLORS.border}` }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
-                    <span style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 11, padding: '1px 6px', background: COLORS.rowAlt, borderRadius: 4, color: COLORS.text, fontWeight: 600 }}>
+                    <span style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 12, padding: '1px 6px', background: COLORS.rowAlt, borderRadius: 4, color: COLORS.text, fontWeight: 600 }}>
                       {e.endpoint || '-'}{e.operation ? `:${e.operation}` : ''}
                     </span>
-                    {e.code && <span style={{ fontSize: 10, padding: '1px 5px', background: COLORS.errBg, color: COLORS.err, borderRadius: 4, fontWeight: 700 }}>{e.code}</span>}
-                    {e.status && <span style={{ fontSize: 10, padding: '1px 5px', background: COLORS.warnBg, color: COLORS.warn, borderRadius: 4, fontWeight: 700 }}>{e.status}</span>}
+                    {e.code && <span style={{ fontSize: 12, padding: '1px 5px', background: COLORS.errBg, color: COLORS.err, borderRadius: 4, fontWeight: 700 }}>{e.code}</span>}
+                    {e.status && <span style={{ fontSize: 12, padding: '1px 5px', background: COLORS.warnBg, color: COLORS.warn, borderRadius: 4, fontWeight: 700 }}>{e.status}</span>}
                     <span style={{ flex: 1 }} />
-                    <span style={{ fontSize: 11, color: COLORS.textMute }}>{fmtDataOra(e.created_at)}</span>
+                    <span style={{ fontSize: 12, color: COLORS.textMute }}>{fmtDataOra(e.created_at)}</span>
                   </div>
                   <div style={{ fontSize: 12, color: COLORS.text, fontFamily: "'JetBrains Mono', ui-monospace, monospace", lineHeight: 1.5, marginBottom: 4 }}>
                     {e.message || '(nessun messaggio)'}
                   </div>
                   {(e.org_id || e.user_id || e.hint) && (
-                    <div style={{ fontSize: 10, color: COLORS.textMute, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
+                    <div style={{ fontSize: 12, color: COLORS.textMute, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
                       {e.org_id && <>org: {e.org_id.slice(0, 8)}… </>}
                       {e.user_id && <>user: {e.user_id.slice(0, 8)}… </>}
                       {e.hint && <>· hint: {e.hint}</>}
@@ -3841,7 +3841,7 @@ export default function AdminPage() {
         <Card style={{ marginTop: 16, padding: 0 }}>
           <div style={{ padding: '12px 18px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <strong style={{ fontSize: 14 }}><Icon name="warning" size={14} /> Errori raggruppati</strong>
-            <span style={{ fontSize: 11, color: COLORS.textMute }}>per endpoint + codice · ultimi {errorsGroupedDays} giorni</span>
+            <span style={{ fontSize: 12, color: COLORS.textMute }}>per endpoint + codice · ultimi {errorsGroupedDays} giorni</span>
             <span style={{ flex: 1 }} />
             <select value={errorsGroupedDays} onChange={e => setErrorsGroupedDays(parseInt(e.target.value, 10))}
               style={{ fontSize: 12, padding: '4px 8px', border: `1px solid ${COLORS.border}`, borderRadius: 6, background: '#fff' }}>
@@ -3880,10 +3880,10 @@ export default function AdminPage() {
                       <td style={{ ...td(), textAlign: 'right', fontWeight: 700, color: g.count > 20 ? COLORS.err : COLORS.text, fontVariantNumeric: 'tabular-nums' }}>{g.count}</td>
                       <td style={{ ...td(), textAlign: 'right', color: COLORS.textMute, fontVariantNumeric: 'tabular-nums' }}>{g.n_users}</td>
                       <td style={{ ...td(), textAlign: 'right', color: COLORS.textMute, fontVariantNumeric: 'tabular-nums' }}>{g.n_orgs}</td>
-                      <td style={{ ...td(), fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 10 }}>
+                      <td style={{ ...td(), fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 12 }}>
                         <span style={{ padding: '1px 5px', background: COLORS.errBg, color: COLORS.err, borderRadius: 4, fontWeight: 700 }}>{g.code}</span>
                       </td>
-                      <td style={{ ...td(), fontSize: 11, color: COLORS.textSoft, maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={g.sample_message}>
+                      <td style={{ ...td(), fontSize: 12, color: COLORS.textSoft, maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={g.sample_message}>
                         {g.sample_message}
                       </td>
                     </tr>
@@ -3898,7 +3898,7 @@ export default function AdminPage() {
         <Card style={{ marginTop: 16, padding: 0 }}>
           <div style={{ padding: '12px 18px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <strong style={{ fontSize: 14 }}><Icon name="coins" size={14} /> Costi AI per cliente</strong>
-            <span style={{ fontSize: 11, color: COLORS.textMute }}>
+            <span style={{ fontSize: 12, color: COLORS.textMute }}>
               ultimi {aiCostDays} gg · totale {aiCost ? '$' + Number(aiCost.total_cost_usd || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}
             </span>
             <span style={{ flex: 1 }} />
@@ -3943,13 +3943,13 @@ export default function AdminPage() {
                           ${Number(c.total_cost_usd).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 3, maximumFractionDigits: 3 })}
                         </td>
                         <td style={{ ...td(), textAlign: 'right', color: COLORS.textMute, fontVariantNumeric: 'tabular-nums' }}>{c.total_calls}</td>
-                        <td style={{ ...td(), textAlign: 'right', color: COLORS.textMute, fontVariantNumeric: 'tabular-nums', fontSize: 10 }}>
+                        <td style={{ ...td(), textAlign: 'right', color: COLORS.textMute, fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>
                           {Math.round(c.tokens_in / 1000)}k / {Math.round(c.tokens_out / 1000)}k
                         </td>
-                        <td style={{ ...td(), fontSize: 11 }}>
+                        <td style={{ ...td(), fontSize: 12 }}>
                           {c.top_features.map(f => `${f.feature} $${Number(f.cost_usd).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}`).join(' · ')}
                         </td>
-                        <td style={{ ...td(), color: COLORS.textMute, fontSize: 11 }}>{c.last_call_at ? fmtDataOra(c.last_call_at) : '-'}</td>
+                        <td style={{ ...td(), color: COLORS.textMute, fontSize: 12 }}>{c.last_call_at ? fmtDataOra(c.last_call_at) : '-'}</td>
                       </tr>
                     )
                   })}
@@ -3967,7 +3967,7 @@ export default function AdminPage() {
           <div style={{ padding: '12px 18px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <div>
               <strong style={{ fontSize: 14 }}><Icon name="sparkles" size={16} /> AI Telemetry & Costs</strong>
-              <div style={{ fontSize: 11, color: COLORS.textMute, marginTop: 2 }}>
+              <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
                 Volumi e costo stimato per le 12+ feature AI (Claude API) negli ultimi {aiTelemetry?.periodo_giorni || aiTelemetryDays} giorni
               </div>
             </div>
@@ -3977,7 +3977,7 @@ export default function AdminPage() {
               <option value={7}>7 giorni</option>
               <option value={30}>30 giorni</option>
             </select>
-            <button onClick={() => fetchAiTelemetry()} style={{ fontSize: 11, padding: '4px 10px', background: COLORS.rowAlt, border: `1px solid ${COLORS.border}`, borderRadius: 6, cursor: 'pointer' }}>↻</button>
+            <button onClick={() => fetchAiTelemetry()} style={{ fontSize: 12, padding: '4px 10px', background: COLORS.rowAlt, border: `1px solid ${COLORS.border}`, borderRadius: 6, cursor: 'pointer' }}>↻</button>
           </div>
           {aiTelemetryLoading ? (
             <div style={{ padding: 18, fontSize: 12, color: COLORS.textMute }}>Caricamento telemetria…</div>
@@ -3987,38 +3987,38 @@ export default function AdminPage() {
             <>
               <div style={{ padding: '12px 18px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, borderBottom: `1px solid ${COLORS.border}`, background: COLORS.rowAlt }}>
                 <div>
-                  <div style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Costo stimato (USD)</div>
+                  <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Costo stimato (USD)</div>
                   <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontVariantNumeric: 'tabular-nums' }}>
                     ${(aiTelemetry.costi?.usd_estimated || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
-                  <div style={{ fontSize: 10, color: COLORS.textMute, marginTop: 2 }}>
+                  <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
                     ≈ € {(aiTelemetry.costi?.eur_estimated || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 </div>
                 <div>
-                  <div style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Daily Brief</div>
+                  <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Daily Brief</div>
                   <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.text, fontVariantNumeric: 'tabular-nums' }}>
                     {(aiTelemetry.daily_brief?.tot ?? 0).toLocaleString('it-IT', { useGrouping: 'always' })}
                   </div>
-                  <div style={{ fontSize: 10, color: COLORS.textMute, marginTop: 2 }}>
+                  <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
                     {aiTelemetry.daily_brief?.sent ?? 0} inviati · OR {aiTelemetry.daily_brief?.open_rate ?? '-'}%
                   </div>
                 </div>
                 <div>
-                  <div style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Brain msgs</div>
+                  <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Brain msgs</div>
                   <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.text, fontVariantNumeric: 'tabular-nums' }}>
                     {(aiTelemetry.brain?.messaggi_tot ?? 0).toLocaleString('it-IT', { useGrouping: 'always' })}
                   </div>
-                  <div style={{ fontSize: 10, color: COLORS.textMute, marginTop: 2 }}>
+                  <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
                     {aiTelemetry.brain?.conversazioni ?? 0} conv
                   </div>
                 </div>
                 <div>
-                  <div style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>OCR fatture</div>
+                  <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>OCR fatture</div>
                   <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.text, fontVariantNumeric: 'tabular-nums' }}>
                     {(aiTelemetry.ocr_fatture?.estratte ?? 0).toLocaleString('it-IT', { useGrouping: 'always' })}
                   </div>
-                  <div style={{ fontSize: 10, color: COLORS.textMute, marginTop: 2 }}>
+                  <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
                     avg conf {aiTelemetry.ocr_fatture?.avg_confidence ?? '-'}
                   </div>
                 </div>
@@ -4072,7 +4072,7 @@ export default function AdminPage() {
                 </table>
               </div>
               {aiTelemetry.costi?.detail && (
-                <div style={{ padding: '8px 18px', fontSize: 10, color: COLORS.textMute, borderTop: `1px solid ${COLORS.border}`, background: COLORS.rowAlt }}>
+                <div style={{ padding: '8px 18px', fontSize: 12, color: COLORS.textMute, borderTop: `1px solid ${COLORS.border}`, background: COLORS.rowAlt }}>
                   {aiTelemetry.costi.detail}
                 </div>
               )}
@@ -4088,12 +4088,12 @@ export default function AdminPage() {
           <div style={{ padding: '12px 18px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <div>
               <strong style={{ fontSize: 14 }}><Icon name="bolt" size={16} /> Health & Cron</strong>
-              <div style={{ fontSize: 11, color: COLORS.textMute, marginTop: 2 }}>
+              <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
                 Stato job notturni, ultime build Vercel e dimensioni tabelle critiche
               </div>
             </div>
             <span style={{ flex: 1 }} />
-            <button onClick={() => fetchHealth()} style={{ fontSize: 11, padding: '4px 10px', background: COLORS.rowAlt, border: `1px solid ${COLORS.border}`, borderRadius: 6, cursor: 'pointer' }}>↻ Aggiorna</button>
+            <button onClick={() => fetchHealth()} style={{ fontSize: 12, padding: '4px 10px', background: COLORS.rowAlt, border: `1px solid ${COLORS.border}`, borderRadius: 6, cursor: 'pointer' }}>↻ Aggiorna</button>
           </div>
           {healthLoading ? (
             <div style={{ padding: 18, fontSize: 12, color: COLORS.textMute }}>Caricamento snapshot…</div>
@@ -4102,7 +4102,7 @@ export default function AdminPage() {
           ) : (
             <>
               <div style={{ padding: '12px 18px', borderBottom: `1px solid ${COLORS.border}` }}>
-                <div style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Cron status</div>
+                <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Cron status</div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 8 }}>
                   {(healthSnap.cron || []).map(c => {
                     const ok = c.status === 'ok'
@@ -4111,35 +4111,35 @@ export default function AdminPage() {
                     return (
                       <div key={c.id} style={{ padding: '8px 10px', border: `1px solid ${COLORS.border}`, borderRadius: 6, background: bg }}>
                         <div style={{ fontSize: 12, fontWeight: 600 }}>{sym} {c.id}</div>
-                        <div style={{ fontSize: 10, color: COLORS.textMute, marginTop: 2 }}>
+                        <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
                           Tabella: <code>{c.table || '-'}</code> · atteso ~{c.expected_hour_utc ?? '?'}:00 UTC
                         </div>
-                        <div style={{ fontSize: 10, color: COLORS.textMute, marginTop: 2 }}>
+                        <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
                           Ultimo run: {c.last_run ? fmtDataOra(c.last_run) : '-'}{c.hours_ago != null ? ` (${c.hours_ago}h fa)` : ''}
                         </div>
-                        {c.error && <div style={{ fontSize: 10, color: '#dc2626', marginTop: 2 }}>{c.error}</div>}
+                        {c.error && <div style={{ fontSize: 12, color: '#dc2626', marginTop: 2 }}>{c.error}</div>}
                       </div>
                     )
                   })}
                 </div>
               </div>
               <div style={{ padding: '12px 18px', borderBottom: `1px solid ${COLORS.border}` }}>
-                <div style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Errori produzione 24h</div>
+                <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Errori produzione 24h</div>
                 <div style={{ fontSize: 18, fontWeight: 700, color: (healthSnap.errori_ultime_24h || 0) > 0 ? '#dc2626' : '#059669' }}>
                   {healthSnap.errori_ultime_24h ?? '-'}
                 </div>
               </div>
               <div style={{ padding: '12px 18px', borderBottom: `1px solid ${COLORS.border}` }}>
-                <div style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Build Vercel</div>
+                <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Build Vercel</div>
                 <div style={{ fontSize: 12, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
                   commit: <strong>{healthSnap.build?.git_commit || '-'}</strong> · branch: {healthSnap.build?.git_branch || '-'} · env: {healthSnap.build?.vercel_env || '-'}
                 </div>
               </div>
               <div style={{ padding: '12px 18px' }}>
-                <div style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Dimensioni tabelle</div>
+                <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Dimensioni tabelle</div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 6 }}>
                   {Object.entries(healthSnap.table_counts || {}).map(([t, n]) => (
-                    <div key={t} style={{ padding: '4px 8px', background: COLORS.rowAlt, borderRadius: 4, fontSize: 11, display: 'flex', justifyContent: 'space-between' }}>
+                    <div key={t} style={{ padding: '4px 8px', background: COLORS.rowAlt, borderRadius: 4, fontSize: 12, display: 'flex', justifyContent: 'space-between' }}>
                       <span style={{ color: COLORS.textMute }}>{t}</span>
                       <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{typeof n === 'number' ? n.toLocaleString('it-IT', { useGrouping: 'always' }) : (n ?? '-')}</span>
                     </div>
@@ -4158,7 +4158,7 @@ export default function AdminPage() {
           <div style={{ padding: '12px 18px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <div>
               <strong style={{ fontSize: 14 }}><Icon name="barChart" size={16} /> Utilizzo feature</strong>
-              <div style={{ fontSize: 11, color: COLORS.textMute, marginTop: 2 }}>
+              <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
                 Quali view/tool i clienti aprono di più o di meno (ultimi {usageStats?.periodo_giorni || usageDays} giorni)
               </div>
             </div>
@@ -4168,7 +4168,7 @@ export default function AdminPage() {
               <option value={30}>30 giorni</option>
               <option value={90}>90 giorni</option>
             </select>
-            <button onClick={() => fetchUsageStats()} style={{ fontSize: 11, padding: '4px 10px', background: COLORS.rowAlt, border: `1px solid ${COLORS.border}`, borderRadius: 6, cursor: 'pointer' }}>↻</button>
+            <button onClick={() => fetchUsageStats()} style={{ fontSize: 12, padding: '4px 10px', background: COLORS.rowAlt, border: `1px solid ${COLORS.border}`, borderRadius: 6, cursor: 'pointer' }}>↻</button>
           </div>
           {usageLoading ? (
             <div style={{ padding: 18, fontSize: 12, color: COLORS.textMute }}>Caricamento…</div>
@@ -4180,26 +4180,26 @@ export default function AdminPage() {
             <>
               <div style={{ padding: '12px 18px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10, borderBottom: `1px solid ${COLORS.border}`, background: COLORS.rowAlt }}>
                 <div>
-                  <div style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>View tracciate</div>
+                  <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>View tracciate</div>
                   <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontVariantNumeric: 'tabular-nums' }}>
                     {(usageStats.totale_view_tracciate || 0).toLocaleString('it-IT', { useGrouping: 'always' })}
                   </div>
                 </div>
                 <div>
-                  <div style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Picco DAU</div>
+                  <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Picco DAU</div>
                   <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontVariantNumeric: 'tabular-nums' }}>
                     {Math.max(0, ...(usageStats.dau_daily || []).map(d => d.dau || 0))}
                   </div>
                 </div>
                 <div>
-                  <div style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Giorni con attività</div>
+                  <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Giorni con attività</div>
                   <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontVariantNumeric: 'tabular-nums' }}>
                     {(usageStats.dau_daily?.length || 0)}
                   </div>
                 </div>
               </div>
               <div style={{ padding: '12px 18px', borderBottom: `1px solid ${COLORS.border}` }}>
-                <div style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Top 15 view più aperte</div>
+                <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Top 15 view più aperte</div>
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
                     <thead style={{ background: COLORS.rowAlt }}>
@@ -4229,7 +4229,7 @@ export default function AdminPage() {
               </div>
               {(usageStats.bottom_view?.length || 0) > 0 && (
                 <div style={{ padding: '12px 18px' }}>
-                  <div style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>10 view meno usate (candidate alla deprecazione o onboarding)</div>
+                  <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>10 view meno usate (candidate alla deprecazione o onboarding)</div>
                   <div style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
                       <thead style={{ background: COLORS.rowAlt }}>
@@ -4266,7 +4266,7 @@ export default function AdminPage() {
           <div style={{ padding: '12px 18px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <div>
               <strong style={{ fontSize: 14 }}><Icon name="shield" size={16} /> Sicurezza & Anomalie</strong>
-              <div style={{ fontSize: 11, color: COLORS.textMute, marginTop: 2 }}>
+              <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
                 Login attempts, brute-force suspect, anomalie comportamentali e log azioni admin
               </div>
             </div>
@@ -4276,7 +4276,7 @@ export default function AdminPage() {
               <option value={72}>3 giorni</option>
               <option value={168}>7 giorni</option>
             </select>
-            <button onClick={() => fetchSecurity()} style={{ fontSize: 11, padding: '4px 10px', background: COLORS.rowAlt, border: `1px solid ${COLORS.border}`, borderRadius: 6, cursor: 'pointer' }}>↻</button>
+            <button onClick={() => fetchSecurity()} style={{ fontSize: 12, padding: '4px 10px', background: COLORS.rowAlt, border: `1px solid ${COLORS.border}`, borderRadius: 6, cursor: 'pointer' }}>↻</button>
           </div>
           {securityLoading ? (
             <div style={{ padding: 18, fontSize: 12, color: COLORS.textMute }}>Caricamento…</div>
@@ -4286,25 +4286,25 @@ export default function AdminPage() {
             <>
               <div style={{ padding: '12px 18px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10, borderBottom: `1px solid ${COLORS.border}`, background: COLORS.rowAlt }}>
                 <div>
-                  <div style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Login OK</div>
+                  <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Login OK</div>
                   <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.ok, fontVariantNumeric: 'tabular-nums' }}>
                     {(securitySnap.login?.ok ?? 0).toLocaleString('it-IT', { useGrouping: 'always' })}
                   </div>
                 </div>
                 <div>
-                  <div style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Login falliti</div>
+                  <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Login falliti</div>
                   <div style={{ fontSize: 20, fontWeight: 700, color: (securitySnap.login?.failed ?? 0) > 0 ? COLORS.err : COLORS.text, fontVariantNumeric: 'tabular-nums' }}>
                     {(securitySnap.login?.failed ?? 0).toLocaleString('it-IT', { useGrouping: 'always' })}
                   </div>
                 </div>
                 <div>
-                  <div style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Anomalie</div>
+                  <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Anomalie</div>
                   <div style={{ fontSize: 20, fontWeight: 700, color: (securitySnap.anomalie?.length ?? 0) > 0 ? COLORS.warn : COLORS.text, fontVariantNumeric: 'tabular-nums' }}>
                     {(securitySnap.anomalie?.length ?? 0).toLocaleString('it-IT', { useGrouping: 'always' })}
                   </div>
                 </div>
                 <div>
-                  <div style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Azioni admin</div>
+                  <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Azioni admin</div>
                   <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontVariantNumeric: 'tabular-nums' }}>
                     {(securitySnap.admin_log?.length ?? 0).toLocaleString('it-IT', { useGrouping: 'always' })}
                   </div>
@@ -4312,7 +4312,7 @@ export default function AdminPage() {
               </div>
               {(securitySnap.login?.top_fail_emails?.length || 0) > 0 && (
                 <div style={{ padding: '12px 18px', borderBottom: `1px solid ${COLORS.border}` }}>
-                  <div style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Brute-force suspect (≥3 fallimenti/email)</div>
+                  <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Brute-force suspect (≥3 fallimenti/email)</div>
                   {securitySnap.login.top_fail_emails.map(r => (
                     <div key={r.email} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 12, borderTop: `1px dashed ${COLORS.border}` }}>
                       <span style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>{r.email}</span>
@@ -4323,24 +4323,24 @@ export default function AdminPage() {
               )}
               {(securitySnap.anomalie?.length || 0) > 0 && (
                 <div style={{ padding: '12px 18px', borderBottom: `1px solid ${COLORS.border}` }}>
-                  <div style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Anomalie rilevate</div>
+                  <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Anomalie rilevate</div>
                   {securitySnap.anomalie.slice(0, 20).map(a => (
                     <div key={a.id} style={{ padding: '6px 0', fontSize: 12, borderTop: `1px dashed ${COLORS.border}` }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 11 }}>{a.user_id ? a.user_id.slice(0, 8) + '…' : '-'}</span>
-                        <span style={{ color: COLORS.textMute, fontSize: 11 }}>{fmtDataOra(a.created_at)}</span>
+                        <span style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 12 }}>{a.user_id ? a.user_id.slice(0, 8) + '…' : '-'}</span>
+                        <span style={{ color: COLORS.textMute, fontSize: 12 }}>{fmtDataOra(a.created_at)}</span>
                       </div>
-                      <div style={{ fontSize: 11, color: COLORS.textMute, marginTop: 2 }}>{JSON.stringify(a.details || {}).slice(0, 200)}</div>
+                      <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>{JSON.stringify(a.details || {}).slice(0, 200)}</div>
                     </div>
                   ))}
                 </div>
               )}
               {(securitySnap.admin_log?.length || 0) > 0 && (
                 <div style={{ padding: '12px 18px' }}>
-                  <div style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Azioni admin recenti</div>
+                  <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Azioni admin recenti</div>
                   <div style={{ maxHeight: 300, overflowY: 'auto' }}>
                     {securitySnap.admin_log.slice(0, 50).map((l, i) => (
-                      <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 2fr auto', gap: 8, padding: '4px 0', fontSize: 11, borderTop: `1px dashed ${COLORS.border}` }}>
+                      <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 2fr auto', gap: 8, padding: '4px 0', fontSize: 12, borderTop: `1px dashed ${COLORS.border}` }}>
                         <span style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>{l.admin_email || '-'}</span>
                         <span style={{ color: COLORS.text }}>{l.azione || '-'}</span>
                         <span style={{ color: COLORS.textMute }}>{fmtDataOra(l.created_at)}</span>
@@ -4533,19 +4533,19 @@ export default function AdminPage() {
                 <div key={r.id} style={{ padding: '10px 12px', background: COLORS.rowAlt, borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: 13 }}>{r.nome_org || (r.organization_id || '').slice(0, 8) + '…'}</div>
-                    <div style={{ fontSize: 11, color: COLORS.textMute, marginTop: 2 }}>{fmtDataOra(r.utilizzato_il)}</div>
+                    <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>{fmtDataOra(r.utilizzato_il)}</div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ fontWeight: 700, color: COLORS.ok, fontSize: 13 }}>
                       €{Number((r.ammontare_scontato_cents || 0) / 100).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} scontati
                     </div>
                     {r.stripe_invoice_id && (
-                      <div style={{ fontSize: 10, color: COLORS.textMute, fontFamily: 'monospace' }}>{r.stripe_invoice_id.slice(0, 18)}…</div>
+                      <div style={{ fontSize: 12, color: COLORS.textMute, fontFamily: 'monospace' }}>{r.stripe_invoice_id.slice(0, 18)}…</div>
                     )}
                   </div>
                 </div>
               ))}
-              <div style={{ padding: 10, background: COLORS.blueBg, borderRadius: 8, fontSize: 11, color: COLORS.blue }}>
+              <div style={{ padding: 10, background: COLORS.blueBg, borderRadius: 8, fontSize: 12, color: COLORS.blue }}>
                 Totale risparmiato: <strong>€{Number(redemptions.reduce((s, r) => s + (r.ammontare_scontato_cents || 0), 0) / 100).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> · {redemptions.length} utilizzi
               </div>
             </div>
@@ -4562,7 +4562,7 @@ export default function AdminPage() {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <span style={{ fontSize: 11, color: COLORS.textMute, fontWeight: 700 }}>Cliente</span>
+              <span style={{ fontSize: 12, color: COLORS.textMute, fontWeight: 700 }}>Cliente</span>
               <select value={adHocForm.target_org_id} onChange={e => setAdHocForm({ ...adHocForm, target_org_id: e.target.value })}
                 style={{ padding: '8px 10px', borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 12, background: '#FFF' }}>
                 <option value="">- seleziona -</option>
@@ -4573,7 +4573,7 @@ export default function AdminPage() {
             </label>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <span style={{ fontSize: 11, color: COLORS.textMute, fontWeight: 700 }}>Tipo sconto</span>
+                <span style={{ fontSize: 12, color: COLORS.textMute, fontWeight: 700 }}>Tipo sconto</span>
                 <select value={adHocForm.tipo_sconto} onChange={e => setAdHocForm({ ...adHocForm, tipo_sconto: e.target.value })}
                   style={{ padding: '8px 10px', borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 12, background: '#FFF' }}>
                   <option value="percent">Percentuale</option>
@@ -4581,7 +4581,7 @@ export default function AdminPage() {
                 </select>
               </label>
               <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <span style={{ fontSize: 11, color: COLORS.textMute, fontWeight: 700 }}>
+                <span style={{ fontSize: 12, color: COLORS.textMute, fontWeight: 700 }}>
                   Valore {adHocForm.tipo_sconto === 'percent' ? '(1-100)' : '(cents, es. 1000 = €10)'}
                 </span>
                 <input type="number" value={adHocForm.valore_sconto} onChange={e => setAdHocForm({ ...adHocForm, valore_sconto: parseInt(e.target.value, 10) || 0 })}
@@ -4589,7 +4589,7 @@ export default function AdminPage() {
               </label>
             </div>
             <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <span style={{ fontSize: 11, color: COLORS.textMute, fontWeight: 700 }}>Durata</span>
+              <span style={{ fontSize: 12, color: COLORS.textMute, fontWeight: 700 }}>Durata</span>
               <select value={adHocForm.durata} onChange={e => setAdHocForm({ ...adHocForm, durata: e.target.value })}
                 style={{ padding: '8px 10px', borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 12, background: '#FFF' }}>
                 <option value="once">1 fattura (sconto una volta)</option>
@@ -4597,7 +4597,7 @@ export default function AdminPage() {
               </select>
             </label>
             <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <span style={{ fontSize: 11, color: COLORS.textMute, fontWeight: 700 }}>Note interne (opzionale)</span>
+              <span style={{ fontSize: 12, color: COLORS.textMute, fontWeight: 700 }}>Note interne (opzionale)</span>
               <input value={adHocForm.descrizione} onChange={e => setAdHocForm({ ...adHocForm, descrizione: e.target.value })}
                 placeholder="es. Pitch del 21/06, sconto post-incontro"
                 style={{ padding: '8px 10px', borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 12 }} />
@@ -4634,7 +4634,7 @@ export default function AdminPage() {
                 placeholder="Cerca cliente, errore, feedback, audit…"
                 style={{ flex: 1, border: 'none', outline: 'none', fontSize: 14, background: 'transparent' }}
               />
-              <span style={{ fontSize: 10, color: COLORS.textMute, padding: '2px 6px', background: COLORS.rowAlt, borderRadius: 4, fontFamily: 'monospace' }}>esc</span>
+              <span style={{ fontSize: 12, color: COLORS.textMute, padding: '2px 6px', background: COLORS.rowAlt, borderRadius: 4, fontFamily: 'monospace' }}>esc</span>
             </div>
             <div style={{ flex: 1, overflowY: 'auto', padding: 8 }}>
               {!cmdkResults && cmdkQuery.length < 2 && (
@@ -4659,7 +4659,7 @@ export default function AdminPage() {
                     if (items.length === 0) return null
                     return (
                       <div key={k} style={{ marginBottom: 10 }}>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '6px 8px' }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '6px 8px' }}>
                           <Icon name={icon} size={10} /> {label} ({items.length})
                         </div>
                         {items.map((it, i) => {
@@ -4691,7 +4691,7 @@ export default function AdminPage() {
                             }} onMouseEnter={e => e.currentTarget.style.background = COLORS.rowAlt}
                               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                               <div style={{ fontWeight: 600, color: COLORS.text }}>{title}</div>
-                              {subtitle && <div style={{ fontSize: 11, color: COLORS.textMute, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{subtitle}</div>}
+                              {subtitle && <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{subtitle}</div>}
                             </div>
                           )
                         })}
@@ -4728,7 +4728,7 @@ export default function AdminPage() {
 function th() {
   return {
     padding: '10px 12px', textAlign: 'left',
-    fontSize: 11, fontWeight: 700, color: COLORS.textMute,
+    fontSize: 12, fontWeight: 700, color: COLORS.textMute,
     textTransform: 'uppercase', letterSpacing: '0.05em',
   }
 }

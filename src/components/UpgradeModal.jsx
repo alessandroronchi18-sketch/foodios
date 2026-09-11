@@ -126,7 +126,7 @@ export default function UpgradeModal({
               padding: '4px 12px', borderRadius: 999,
               background: 'rgba(255,255,255,0.10)',
               border: '1px solid rgba(255,255,255,0.18)',
-              fontSize: 10, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase',
+              fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase',
               maxWidth: '100%',
               whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
             }}>
@@ -167,7 +167,7 @@ export default function UpgradeModal({
               width: 38, height: 38, borderRadius: 10,
               background: `linear-gradient(135deg, ${tier.color}, #E89B43)`,
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-              color: '#1C0A0A', fontWeight: 800, fontSize: 11, letterSpacing: '0.06em',
+              color: '#1C0A0A', fontWeight: 800, fontSize: 12, letterSpacing: '0.06em',
               boxShadow: `0 6px 14px ${tier.color}55`,
               flexShrink: 0,
             }}>
@@ -175,8 +175,8 @@ export default function UpgradeModal({
             </div>
             <div style={{ minWidth: 0, flex: 1 }}>
               <div style={{
-                fontSize: 11, fontWeight: 700, color: SOFT,
-                letterSpacing: '0.08em', textTransform: 'uppercase',
+                fontSize: 12, fontWeight: 700, color: SOFT,
+                letterSpacing: '0.05em', textTransform: 'uppercase',
                 overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
               }}>
                 Piano {tier.label}

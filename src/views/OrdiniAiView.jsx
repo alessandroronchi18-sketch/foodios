@@ -347,7 +347,7 @@ export default function OrdiniAiView({ orgId, sedeId, notify }) {
 
           {/* Preview testo ordine */}
           <div style={{ background: '#FAFAF6', border: `1px solid ${BORDER}`, borderRadius: 12, padding: 16 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: SOFT, letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: 8 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: SOFT, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 8 }}>
               {gruppiOrdine.length > 1 ? 'Testo pronto da inviare, diviso per fornitore' : 'Testo pronto da inviare'}
             </div>
             <pre style={{ fontFamily: 'inherit', fontSize: 13, color: TXT, whiteSpace: 'pre-wrap', margin: 0, lineHeight: 1.6 }}>

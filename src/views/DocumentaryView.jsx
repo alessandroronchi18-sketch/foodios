@@ -81,7 +81,7 @@ export default function DocumentaryView({ orgId, nomeAttivita }) {
               <button key={s.id} onClick={() => setSelected(s)}
                 style={{ textAlign: 'left', padding: 14, background: selected?.id === s.id ? '#FFF7ED' : CARD, border: `1px solid ${selected?.id === s.id ? BRAND : BORDER}`, borderRadius: 10, cursor: 'pointer' }}>
                 <div style={{ fontSize: 12, fontWeight: 700, color: BRAND }}>{s.periodo}</div>
-                <div style={{ fontSize: 11, color: SOFT, marginTop: 4 }}>
+                <div style={{ fontSize: 12, color: SOFT, marginTop: 4 }}>
                   {s.data_inizio} → {s.data_fine}
                 </div>
               </button>
@@ -91,7 +91,7 @@ export default function DocumentaryView({ orgId, nomeAttivita }) {
           {/* Detail */}
           {selected && (
             <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 14, padding: isMobile ? 18 : 28 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: BRAND, letterSpacing: '0.14em', textTransform: 'uppercase' }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: BRAND, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
                 {nomeAttivita} · {selected.periodo}
               </div>
               <h2 style={{ margin: '6px 0 20px', fontSize: isMobile ? 22 : 28, fontWeight: 800, color: TXT, letterSpacing: '-0.02em' }}>
@@ -108,7 +108,7 @@ export default function DocumentaryView({ orgId, nomeAttivita }) {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10, marginBottom: 20 }}>
                   {Object.entries(selected.contenuto.kpi).slice(0, 6).map(([k, v]) => (
                     <div key={k} style={{ background: '#FAFAF6', padding: 12, borderRadius: 8 }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: SOFT, textTransform: 'uppercase' }}>{k.replace(/_/g, ' ')}</div>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: SOFT, textTransform: 'uppercase' }}>{k.replace(/_/g, ' ')}</div>
                       <div style={{ fontSize: 18, fontWeight: 800, color: TXT, marginTop: 2 }}>{typeof v === 'number' ? v.toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 }) : String(v)}</div>
                     </div>
                   ))}
@@ -123,14 +123,14 @@ export default function DocumentaryView({ orgId, nomeAttivita }) {
 
               {selected.contenuto?.highlights && (
                 <div style={{ marginBottom: 20 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: SOFT, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>Highlight</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: SOFT, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 8 }}>Highlight</div>
                   <ul style={{ margin: 0, paddingLeft: 22, fontSize: 14, color: TXT, lineHeight: 1.7 }}>
                     {selected.contenuto.highlights.map((h, i) => <li key={i}>{h}</li>)}
                   </ul>
                 </div>
               )}
 
-              <div style={{ fontSize: 11, color: SOFT, marginTop: 24, paddingTop: 14, borderTop: `1px solid ${BORDER}` }}>
+              <div style={{ fontSize: 12, color: SOFT, marginTop: 24, paddingTop: 14, borderTop: `1px solid ${BORDER}` }}>
                 Riassunto dei tuoi numeri · {new Date(selected.created_at).toLocaleDateString('it-IT')}
               </div>
             </div>

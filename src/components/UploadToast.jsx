@@ -43,7 +43,7 @@ export default function UploadToast() {
                 }}>
                   {u.name}
                 </div>
-                <div style={{ fontSize: 11, color: STATUS_COLOR[u.status] }}>
+                <div style={{ fontSize: 12, color: STATUS_COLOR[u.status] }}>
                   {u.status === 'error' ? u.error : STATUS_LABEL[u.status]}
                 </div>
               </div>
@@ -70,7 +70,7 @@ export default function UploadToast() {
                   }} />
                 </div>
                 <div style={{
-                  fontSize: 10, color: '#94A3B8', marginTop: 3, textAlign: 'right',
+                  fontSize: 12, color: '#94A3B8', marginTop: 3, textAlign: 'right',
                 }}>
                   {u.progress}%
                 </div>

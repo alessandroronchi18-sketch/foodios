@@ -129,7 +129,7 @@ export default function WhatsAppView({ orgId, user }) {
 
       {/* Lista linkati */}
       <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: 16 }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: SOFT, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: SOFT, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 10 }}>
           Numeri collegati ({links.length})
         </div>
         {links.length === 0 ? (
@@ -141,7 +141,7 @@ export default function WhatsAppView({ orgId, user }) {
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: l.attivo ? GREEN : '#D97706' }}/>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: TXT, fontFamily: 'ui-monospace, monospace' }}>{l.phone_number}</div>
-              <div style={{ fontSize: 11, color: SOFT, marginTop: 2 }}>
+              <div style={{ fontSize: 12, color: SOFT, marginTop: 2 }}>
                 {l.attivo ? `Attivo${l.verificato_at ? ` · verificato il ${new Date(l.verificato_at).toLocaleDateString('it-IT')}` : ''}` : 'Da verificare: manda "aiuto" al numero Foodos'}
               </div>
             </div>
@@ -152,7 +152,7 @@ export default function WhatsAppView({ orgId, user }) {
         ))}
       </div>
 
-      <div style={{ marginTop: 24, fontSize: 11, color: SOFT, textAlign: 'center', lineHeight: 1.5 }}>
+      <div style={{ marginTop: 24, fontSize: 12, color: SOFT, textAlign: 'center', lineHeight: 1.5 }}>
         Funzioni complete in arrivo. Il costo per messaggio è compreso nel piano Insegna.
       </div>
     </div>

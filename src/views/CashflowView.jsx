@@ -380,7 +380,7 @@ export default function CashflowView({ orgId, sedeId, sedi = [], notify }) {
           <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: isMobile ? 14 : 16, marginBottom: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 12 : 16, flexWrap: 'wrap' }}>
               <div style={{ flex: isMobile ? '1 1 100%' : 'none' }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: SOFT, letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: 4 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: SOFT, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 4 }}>
                   Saldo cassa+banca oggi
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>

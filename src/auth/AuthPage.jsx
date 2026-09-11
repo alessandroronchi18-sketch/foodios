@@ -135,12 +135,12 @@ function PasswordStrength({ password }) {
         <div style={{ flex: 1, height: 4, background: T.creamDeep, borderRadius: 999 }}>
           <div style={{ width: `${(score / 5) * 100}%`, height: '100%', background: barColor, borderRadius: 999, transition: 'all 0.3s' }}/>
         </div>
-        <span style={{ fontSize: 11, fontWeight: 700, color: barColor, minWidth: 50, textAlign: 'right' }}>{label}</span>
+        <span style={{ fontSize: 12, fontWeight: 700, color: barColor, minWidth: 50, textAlign: 'right' }}>{label}</span>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(3, 1fr)', gap: '4px 10px' }}>
         {req.map(([ok, txt]) => (
-          <div key={txt} style={{ fontSize: 11, color: ok ? T.green : T.textSoft, display: 'flex', alignItems: 'center', gap: 4, fontWeight: ok ? 600 : 500 }}>
-            <span style={{ fontSize: 9 }}>{ok ? '●' : '○'}</span>{txt}
+          <div key={txt} style={{ fontSize: 12, color: ok ? T.green : T.textSoft, display: 'flex', alignItems: 'center', gap: 4, fontWeight: ok ? 600 : 500 }}>
+            <span style={{ fontSize: 12 }}>{ok ? '●' : '○'}</span>{txt}
           </div>
         ))}
       </div>
@@ -204,7 +204,7 @@ function Field({ label, hint, children, error, htmlFor }) {
       {label && (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 }}>
           <label htmlFor={htmlFor} style={{ fontSize: 12, fontWeight: 600, color: T.textMid, letterSpacing: '0.01em' }}>{label}</label>
-          {hint && <span style={{ fontSize: 11, color: T.textSoft }}>{hint}</span>}
+          {hint && <span style={{ fontSize: 12, color: T.textSoft }}>{hint}</span>}
         </div>
       )}
       {children}
@@ -945,7 +945,7 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
               </Field>
               <Field label="Password" htmlFor="login-pwd" hint={
                 <button type="button" onClick={() => { setMode('reset-request'); clear() }}
-                  style={{ background: 'none', border: 'none', color: T.red, fontSize: 11, fontWeight: 600, cursor: 'pointer', padding: 0 }}>
+                  style={{ background: 'none', border: 'none', color: T.red, fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 0 }}>
                   Dimenticata?
                 </button>
               }>
@@ -1098,7 +1098,7 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
                         onPrefisso={v => setReg(p => ({ ...p, prefisso: v }))}
                         onNumero={v => setReg(p => ({ ...p, telefono: v }))}
                       />
-                      <div style={{ fontSize: 11, color: T.textSoft, marginTop: 6, lineHeight: 1.4 }}>
+                      <div style={{ fontSize: 12, color: T.textSoft, marginTop: 6, lineHeight: 1.4 }}>
                         Ti invieremo un codice SMS di conferma. Useremo il numero per notifiche e 2FA.
                       </div>
                     </Field>
@@ -1128,7 +1128,7 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
                   <form onSubmit={verificaOtp}>
                     <Field label="Codice SMS" htmlFor="reg-otp"
                       hint={<button type="button" onClick={rinviaOtp} disabled={loading}
-                        style={{ background: 'none', border: 'none', color: T.red, fontSize: 11, fontWeight: 600, cursor: 'pointer', padding: 0 }}>
+                        style={{ background: 'none', border: 'none', color: T.red, fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 0 }}>
                         Rinvia codice
                       </button>}>
                       <Input id="reg-otp" icon="lock" type="text" inputMode="numeric" maxLength={6}
@@ -1136,7 +1136,7 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
                         value={otpCode}
                         onChange={e => setOtpCode(e.target.value.replace(/[^0-9]/g, ''))}
                         placeholder="123456"/>
-                      <div style={{ fontSize: 11, color: T.textSoft, marginTop: 6, lineHeight: 1.4 }}>
+                      <div style={{ fontSize: 12, color: T.textSoft, marginTop: 6, lineHeight: 1.4 }}>
                         Non hai ricevuto l'SMS? Controlla il numero o riprova tra qualche secondo.
                       </div>
                     </Field>

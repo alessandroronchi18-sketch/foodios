@@ -208,11 +208,11 @@ export default function OnboardingChat({ user, onComplete, onPreferWizard }) {
           </div>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 13, fontWeight: 800, color: TXT }}>Foodos · Ci conosciamo</div>
-            <div style={{ fontSize: 11, color: SOFT }}>5 domande veloci, poi lavori</div>
+            <div style={{ fontSize: 12, color: SOFT }}>5 domande veloci, poi lavori</div>
           </div>
           {onPreferWizard && (
             <button onClick={onPreferWizard}
-              style={{ background: 'transparent', border: `1px solid ${BORDER}`, color: SOFT, padding: '4px 10px', borderRadius: 6, fontSize: 11, cursor: 'pointer' }}>
+              style={{ background: 'transparent', border: `1px solid ${BORDER}`, color: SOFT, padding: '4px 10px', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}>
               Preferisco il modulo
             </button>
           )}
@@ -277,7 +277,7 @@ export default function OnboardingChat({ user, onComplete, onPreferWizard }) {
                 </button>
               </div>
             )}
-            <div style={{ marginTop: 10, fontSize: 10.5, color: SOFT, textAlign: 'center' }}>
+            <div style={{ marginTop: 10, fontSize: 12, color: SOFT, textAlign: 'center' }}>
               {step + 1} / {STEPS.length}
             </div>
           </div>

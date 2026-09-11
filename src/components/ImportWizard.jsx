@@ -657,7 +657,7 @@ function StepMapping({ schema, headers, sampleRows, detectInfo, mapping, setMapp
                   {f.label || f.name}
                   {f.required && <span style={{ color: T.red, marginLeft: 4 }}>*</span>}
                 </div>
-                <div style={{ fontSize: 11, color: T.textSoft, marginTop: 2, lineHeight: 1.35 }}>
+                <div style={{ fontSize: 12, color: T.textSoft, marginTop: 2, lineHeight: 1.35 }}>
                   {f.hint}
                 </div>
               </div>
@@ -681,7 +681,7 @@ function StepMapping({ schema, headers, sampleRows, detectInfo, mapping, setMapp
                 })}
               </select>
               {!isMobile && (
-                <div style={{ fontSize: 11, color: T.textSoft, whiteSpace: 'nowrap' }}>
+                <div style={{ fontSize: 12, color: T.textSoft, whiteSpace: 'nowrap' }}>
                   {current ? headerSampleValue(sampleRows, current) : ''}
                 </div>
               )}
@@ -895,7 +895,7 @@ function StepValidate({ schema, result, mapping = {}, onBack, onNext, isMobile, 
                 </div>
               ))}
               {invalid_rows.length > 20 && (
-                <div style={{ fontSize: 11, color: '#78350F', marginTop: 6, fontStyle: 'italic' }}>
+                <div style={{ fontSize: 12, color: '#78350F', marginTop: 6, fontStyle: 'italic' }}>
                   …e altre {invalid_rows.length - 20} righe con problemi simili
                 </div>
               )}

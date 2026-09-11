@@ -138,8 +138,8 @@ export const typo = {
   body:       { fontFamily: _stack, fontSize: 14, fontWeight: 400, letterSpacing: 0,          lineHeight: 1.5 },
   bodyStrong: { fontFamily: _stack, fontSize: 14, fontWeight: 600, letterSpacing: 0,          lineHeight: 1.5 },
   small:      { fontFamily: _stack, fontSize: 12, fontWeight: 500, letterSpacing: 0,          lineHeight: 1.4 },
-  caption:    { fontFamily: _stack, fontSize: 11, fontWeight: 500, letterSpacing: '0.01em',   lineHeight: 1.35 },
-  overline:   { fontFamily: _stack, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',   lineHeight: 1.3, textTransform: 'uppercase' },
+  caption:    { fontFamily: _stack, fontSize: 12, fontWeight: 500, letterSpacing: '0.01em',   lineHeight: 1.35 },
+  overline:   { fontFamily: _stack, fontSize: 12, fontWeight: 700, letterSpacing: '0.05em',   lineHeight: 1.3, textTransform: 'uppercase' },
 
   // Numerici (tabular-nums incluso)
   num:   { fontFamily: _stack, fontSize: 22, fontWeight: 700, letterSpacing: '-0.01em', lineHeight: 1.15,

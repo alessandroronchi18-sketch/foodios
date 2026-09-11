@@ -107,7 +107,7 @@ export default function WhatsAppReportPanel({ org, orgId, notify, onRefresh }) {
           </div>
         </div>
         <span style={{
-          padding:'4px 10px', borderRadius:999, fontSize:11, fontWeight:700,
+          padding:'4px 10px', borderRadius:999, fontSize: 12, fontWeight:700,
           background: isAttivo ? T.greenLight : T.bgSubtle,
           color: isAttivo ? T.green : T.textSoft,
         }}>
@@ -115,7 +115,7 @@ export default function WhatsAppReportPanel({ org, orgId, notify, onRefresh }) {
         </span>
       </div>
 
-      <div style={{ fontSize:11, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8 }}>
+      <div style={{ fontSize: 12, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8 }}>
         Numero WhatsApp del titolare
       </div>
       <div style={{ display:'flex', gap:8, marginBottom:12, position:'relative' }}>
@@ -143,7 +143,7 @@ export default function WhatsAppReportPanel({ org, orgId, notify, onRefresh }) {
           </div>
         )}
       </div>
-      <div style={{ fontSize:11, color:T.textSoft, marginBottom:16, lineHeight:1.5 }}>
+      <div style={{ fontSize: 12, color:T.textSoft, marginBottom:16, lineHeight:1.5 }}>
         Useremo questo numero solo per il report serale automatico. Se lo lasci vuoto, il cron non parte.
       </div>
 
@@ -164,7 +164,7 @@ export default function WhatsAppReportPanel({ org, orgId, notify, onRefresh }) {
         )}
       </div>
 
-      <div style={{ marginTop:18, padding:'12px 14px', background:T.bgSubtle, borderRadius:R.md, fontSize:11, color:T.textMid, lineHeight:1.6 }}>
+      <div style={{ marginTop:18, padding:'12px 14px', background:T.bgSubtle, borderRadius:R.md, fontSize: 12, color:T.textMid, lineHeight:1.6 }}>
         <strong>Nota tecnica:</strong> per la prima attivazione su WhatsApp Business potrebbe essere
         necessario approvare il sender Twilio o, in sandbox, inviare prima il messaggio di
         opt-in ("join &lt;codice&gt;") al numero Twilio.

@@ -199,7 +199,7 @@ export default function MenuEngineeringView({ orgId, sedeId, ricettario, sedeAtt
 
       {/* Periodo selector */}
       <div style={{ display: 'flex', gap: isMobile ? 8 : 6, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 11, color: SOFT, fontWeight: 600, marginRight: 6 }}>Periodo:</span>
+        <span style={{ fontSize: 12, color: SOFT, fontWeight: 600, marginRight: 6 }}>Periodo:</span>
         {[7, 14, 30, 60, 90].map(p => (
           <button key={p} onClick={() => setPeriodo(p)}
             style={{
@@ -351,7 +351,7 @@ export default function MenuEngineeringView({ orgId, sedeId, ricettario, sedeAtt
                 }
                 return (
                   <>
-                    <div style={{ fontSize: 11, color: SOFT, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8, fontWeight: 700 }}>
+                    <div style={{ fontSize: 12, color: SOFT, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8, fontWeight: 700 }}>
                       Top {Math.min(list.length, 15)} {meta.lbl.toLowerCase()}
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : isTablet ? 'repeat(auto-fill, minmax(220px, 1fr))' : 'repeat(auto-fill, minmax(260px, 1fr))', gap: 8 }}>
@@ -361,7 +361,7 @@ export default function MenuEngineeringView({ orgId, sedeId, ricettario, sedeAtt
                           borderRadius: 6, display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center',
                         }}>
                           <span style={{ color: TXT, fontWeight: 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={x.nome}>{x.nome}</span>
-                          <span style={{ color: SOFT, fontSize: 11, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+                          <span style={{ color: SOFT, fontSize: 12, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
                             {Number(x.qtaVenduta || 0).toLocaleString('it-IT', { useGrouping: 'always' })}pz · € {Number(x.margine || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}/pz
                           </span>
                         </div>

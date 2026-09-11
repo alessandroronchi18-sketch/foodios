@@ -52,7 +52,7 @@ function SemiCard({ sm, ricettario, ingCosti, onEdit, onDelete, LEX }) {
       <div style={{ padding: isMobile ? '14px 16px' : '18px 20px', display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', justifyContent: 'space-between', gap: isMobile ? 14 : 16 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: R.full, background: T.brandLight, color: T.brand, fontSize: 10, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: R.full, background: T.brandLight, color: T.brand, fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
               <Icon name="package" size={11} />Base
             </span>
             <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: T.text, letterSpacing: '-0.015em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>{sm.nome}</h3>
@@ -80,7 +80,7 @@ function SemiCard({ sm, ricettario, ingCosti, onEdit, onDelete, LEX }) {
           ? "Costo materie prime per chilo di semilavorato prodotto"
           : "Non si può calcolare: manca il prezzo di uno o più ingredienti. Caricali e il costo compare."} width={260}>
           <div style={{ background: T.brandLight, padding: '12px 18px', borderRadius: R.md, textAlign: 'center', minHeight: 56, minWidth: 130, cursor: 'help', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 5, border: `1px solid ${T.brand}25`, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.6)', flexShrink: 0 }}>
-            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: T.textSoft, lineHeight: 1, whiteSpace: 'nowrap' }}>Costo / kg</div>
+            <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: T.textSoft, lineHeight: 1, whiteSpace: 'nowrap' }}>Costo / kg</div>
             <div style={{ fontSize: sm.costoKg > 0 ? 17 : 13, fontWeight: sm.costoKg > 0 ? 900 : 700, color: sm.costoKg > 0 ? T.brand : T.textSoft, letterSpacing: '-0.015em', whiteSpace: 'nowrap', lineHeight: 1.1, ...TNUM }}>{sm.costoKg > 0 ? fmtKg(sm.costoKg) : 'da completare'}</div>
           </div>
         </Tip>
@@ -114,7 +114,7 @@ function SemiCard({ sm, ricettario, ingCosti, onEdit, onDelete, LEX }) {
       {tab === 'ingredienti' && (
         <div style={{ borderTop: `1px solid ${T.borderSoft}`, background: T.bgSubtle, padding: isMobile ? '14px 16px' : '16px 20px' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Composizione del costo del batch</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Composizione del costo del batch</div>
             <div style={{ fontSize: 12, color: T.textMid, ...TNUM, whiteSpace: 'nowrap' }}>Totale <b style={{ color: T.text, fontWeight: 800 }}>{fmtKg(fc)}</b></div>
           </div>
           {righe.length === 0 ? (
@@ -128,19 +128,19 @@ function SemiCard({ sm, ricettario, ingCosti, onEdit, onDelete, LEX }) {
                     <span style={{ flex: isMobile ? '0 0 38%' : '0 0 30%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: ing.mancante ? T.amber : T.text, fontWeight: j === 0 ? 700 : 600, textTransform: 'capitalize' }}>
                       {ing.nome}{ing.isSemilavorato ? ' (semilav.)' : ''}{ing.mancante ? ' · n/d' : ''}
                     </span>
-                    <span style={{ flex: '0 0 60px', textAlign: 'right', ...TNUM, color: T.textSoft, fontSize: 11, whiteSpace: 'nowrap' }}>{Math.round(ing.qty).toLocaleString('it-IT', { useGrouping: 'always' })} g</span>
+                    <span style={{ flex: '0 0 60px', textAlign: 'right', ...TNUM, color: T.textSoft, fontSize: 12, whiteSpace: 'nowrap' }}>{Math.round(ing.qty).toLocaleString('it-IT', { useGrouping: 'always' })} g</span>
                     <span style={{ flex: 1, height: 7, background: T.bgCard, borderRadius: 4, overflow: 'hidden', minWidth: 24 }}>
                       <span style={{ display: 'block', height: '100%', width: `${Math.min(100, pctCosto)}%`, background: j === 0 ? T.brand : 'rgba(110,14,26,0.45)', transition: 'width 240ms ease' }} />
                     </span>
                     <span style={{ flex: '0 0 72px', textAlign: 'right', ...TNUM, color: T.text, fontWeight: 700, whiteSpace: 'nowrap' }}>{fmtKg(ing.costo)}</span>
-                    <span style={{ flex: '0 0 44px', textAlign: 'right', ...TNUM, color: T.textSoft, fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}>{pctCosto.toFixed(0)}%</span>
+                    <span style={{ flex: '0 0 44px', textAlign: 'right', ...TNUM, color: T.textSoft, fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' }}>{pctCosto.toFixed(0)}%</span>
                   </div>
                 )
               })}
             </div>
           )}
           {mancanti.length > 0 && (
-            <div style={{ marginTop: 12, padding: '8px 11px', background: C.amberLight, borderRadius: 8, fontSize: 11, color: C.amber, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ marginTop: 12, padding: '8px 11px', background: C.amberLight, borderRadius: 8, fontSize: 12, color: C.amber, display: 'flex', alignItems: 'center', gap: 6 }}>
               <Icon name="warning" size={13} /> Prezzi mancanti: {mancanti.map(m => m.nome).join(', ')} - il costo è sottostimato.
             </div>
           )}
@@ -150,7 +150,7 @@ function SemiCard({ sm, ricettario, ingCosti, onEdit, onDelete, LEX }) {
       {/* Pannello: dove è usato */}
       {tab === 'usato' && (
         <div style={{ borderTop: `1px solid ${T.borderSoft}`, background: T.bgSubtle, padding: isMobile ? '14px 16px' : '16px 20px' }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
             Usato in {sm.nUsi} {sm.nUsi === 1 ? 'prodotto' : 'prodotti'}
           </div>
           {sm.usato.length === 0 ? (
@@ -162,7 +162,7 @@ function SemiCard({ sm, ricettario, ingCosti, onEdit, onDelete, LEX }) {
               {sm.usato.map(u => (
                 <div key={u.nome} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '6px 11px', background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: R.full, fontSize: 12 }}>
                   <span style={{ fontWeight: 600, color: T.text, textTransform: 'capitalize' }}>{u.nome.toLowerCase()}</span>
-                  <span style={{ ...TNUM, color: T.textSoft, fontSize: 11 }}>{Math.round(u.qty).toLocaleString('it-IT', { useGrouping: 'always' })} g</span>
+                  <span style={{ ...TNUM, color: T.textSoft, fontSize: 12 }}>{Math.round(u.qty).toLocaleString('it-IT', { useGrouping: 'always' })} g</span>
                 </div>
               ))}
             </div>
@@ -625,7 +625,7 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
                   <div style={{ padding: '12px 16px', background: C.redLight, borderRadius: 12, border: `1px solid rgba(110,14,26,0.25)` }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: C.red, marginBottom: 8 }}>Scrivi <strong>ELIMINA</strong> per confermare l'eliminazione di "{sm.nome}"</div>
                     {sm.nUsi > 0 && (
-                      <div style={{ fontSize: 11.5, color: C.red, marginBottom: 8, padding: '6px 10px', background: '#FEF3F2', border: '1px dashed rgba(110,14,26,0.4)', borderRadius: 6, display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+                      <div style={{ fontSize: 12, color: C.red, marginBottom: 8, padding: '6px 10px', background: '#FEF3F2', border: '1px dashed rgba(110,14,26,0.4)', borderRadius: 6, display: 'flex', alignItems: 'flex-start', gap: 6 }}>
                         <Icon name="warning" size={13} style={{ marginTop: 2, flexShrink: 0 }} />
                         <span>Questo semilavorato è usato in <strong>{sm.nUsi} {sm.nUsi === 1 ? 'ricetta' : 'ricette'}</strong>. Eliminandolo, quelle ricette troveranno l&rsquo;ingrediente &ldquo;{sm.nome}&rdquo; senza ricetta sorgente (il food cost potrebbe risultare diverso).</span>
                       </div>
@@ -715,7 +715,7 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
             {/* Template rapidi */}
             {!editMode && !form.nome && (
               <div style={{ marginBottom: 14 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}><Icon name="bolt" size={12} /> Template rapidi</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}><Icon name="bolt" size={12} /> Template rapidi</div>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                   {[
                     { nome: 'CREMA PASTICCERA', note: 'Mescola latte+uova+zucchero+amido. Cuoci a fuoco medio.', ings: [{ nome: 'latte intero', q: 500 }, { nome: 'tuorlo', q: 100 }, { nome: 'zucchero', q: 150 }, { nome: 'amido di mais', q: 40 }, { nome: 'bacca di vaniglia', q: 3 }] },
@@ -723,7 +723,7 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
                     { nome: 'PASTA FROLLA', note: 'Impasto base per crostate e biscotti.', ings: [{ nome: 'farina 00', q: 300 }, { nome: 'burro', q: 150 }, { nome: 'zucchero a velo', q: 100 }, { nome: 'tuorlo', q: 40 }, { nome: 'scorza di limone', q: 3 }] },
                   ].map(t => (
                     <button key={t.nome} onClick={() => setForm({ nome: t.nome, note: t.note, ingredienti: t.ings.map(i => ({ nome: i.nome, qty1stampo: i.q, costoPerG: 0, costo1stampo: 0 })) })}
-                      style={{ padding: '6px 11px', borderRadius: 8, border: `1px solid ${T.border}`, background: T.bgSubtle, color: T.textMid, fontSize: 11, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                      style={{ padding: '6px 11px', borderRadius: 8, border: `1px solid ${T.border}`, background: T.bgSubtle, color: T.textMid, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
                       {t.nome}
                     </button>
                   ))}
@@ -734,13 +734,13 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
                 <div>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 }}>Nome</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>Nome</div>
                   <input value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value.toUpperCase() }))}
                     placeholder="es. CREMA PASTICCERA"
                     style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 16, fontWeight: 700, color: C.text, boxSizing: 'border-box' }} />
                 </div>
                 <div>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 }}>Note</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>Note</div>
                   <input value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))}
                     placeholder="es. 180°C per 30 min"
                     style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 16, color: C.text, boxSizing: 'border-box' }} />
@@ -749,7 +749,7 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
 
               {/* Ingredienti */}
               <div>
-                <div style={{ fontSize: 10, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Ingredienti ({form.ingredienti.length})</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Ingredienti ({form.ingredienti.length})</div>
                 {form.ingredienti.map((ing, i) => (
                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 11px', background: T.bgSubtle, borderRadius: 8, marginBottom: 4 }}>
                     <span style={{ fontSize: 12, color: T.text, fontWeight: 600, textTransform: 'capitalize' }}>{ing.nome}</span>
@@ -787,7 +787,7 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
                     { lbl: 'Costo / kg', val: costoKgLive > 0 ? fmtKg(costoKgLive) : '-', c: T.brand },
                   ].map(({ lbl, val, c }) => (
                     <div key={lbl} style={{ padding: '10px 12px', background: T.bgSubtle, border: `1px solid ${T.border}`, borderRadius: 10 }}>
-                      <div style={{ fontSize: 9, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{lbl}</div>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{lbl}</div>
                       <div style={{ fontSize: 15, fontWeight: 800, color: c, ...TNUM }}>{val}</div>
                     </div>
                   ))}

@@ -110,7 +110,7 @@ export default function ForecastView({ orgId, sedeId, sedeAttiva, setView }) {
                   <div style={{ flex: 1, minWidth: 180 }}>
                     <div style={{ fontSize: 14, fontWeight: 800, color: TXT, textTransform: 'capitalize' }}>{labelGiorno}</div>
                     {m && (
-                      <div style={{ fontSize: 11.5, color: SOFT, marginTop: 2 }}>
+                      <div style={{ fontSize: 12, color: SOFT, marginTop: 2 }}>
                         Max {m.t_max?.toFixed(0)}°C · Min {m.t_min?.toFixed(0)}°C
                         {m.precip > 0 && ` · ${m.precip.toFixed(1)}mm pioggia`}
                       </div>
@@ -131,13 +131,13 @@ export default function ForecastView({ orgId, sedeId, sedeAttiva, setView }) {
                         <div style={{ flex: 1, fontSize: 13, color: TXT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {f.prodotto}
                         </div>
-                        <div style={{ fontSize: 11, color: SOFT, fontVariantNumeric: 'tabular-nums', minWidth: 80, textAlign: 'right' }}>
+                        <div style={{ fontSize: 12, color: SOFT, fontVariantNumeric: 'tabular-nums', minWidth: 80, textAlign: 'right' }}>
                           {Math.round(f.qta_min)} - {Math.round(f.qta_max)} pz
                         </div>
                         <div style={{ fontSize: 16, fontWeight: 800, color: TXT, fontVariantNumeric: 'tabular-nums', minWidth: 50, textAlign: 'right' }}>
                           {Math.round(f.qta_prevista)}
                         </div>
-                        <div style={{ fontSize: 10, padding: '2px 7px', borderRadius: 999, background: '#F1F5F9', color: confColor, fontWeight: 700, minWidth: 36, textAlign: 'center' }}>
+                        <div style={{ fontSize: 12, padding: '2px 7px', borderRadius: 999, background: '#F1F5F9', color: confColor, fontWeight: 700, minWidth: 36, textAlign: 'center' }}>
                           {Math.round(f.confidence * 100)}%
                         </div>
                       </div>
@@ -147,7 +147,7 @@ export default function ForecastView({ orgId, sedeId, sedeAttiva, setView }) {
               </div>
             )
           })}
-          <div style={{ fontSize: 11, color: SOFT, textAlign: 'center', padding: 8 }}>
+          <div style={{ fontSize: 12, color: SOFT, textAlign: 'center', padding: 8 }}>
             Previsioni indicative. Il modello migliora con più dati storici.
           </div>
         </div>

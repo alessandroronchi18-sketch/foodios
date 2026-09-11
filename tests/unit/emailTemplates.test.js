@@ -87,8 +87,10 @@ describe('Email templates — snapshot per non-regressione', () => {
     })
     expect(t.subject).toContain('2 fatture')
     // 1234.56 deve essere formattato con virgola decimale italiana
-    expect(t.html).toMatch(/€ 1\.?234,56/)
-    expect(t.html).toMatch(/€ 89,00/)
+    // Il simbolo € va DOPO la cifra, anche nelle email: "1.234,56 €".
+    // Il controllo cercava "€ 1.234,56" e fissava la violazione della regola.
+    expect(t.html).toMatch(/1\.?234,56 €/)
+    expect(t.html).toMatch(/89,00 €/)
   })
 
   it('fatture — singolare con 1 elemento', () => {
@@ -112,7 +114,7 @@ describe('Email templates — snapshot per non-regressione', () => {
     expect(t.html).toContain('Torta Sacher')
     expect(t.html).toContain('Bignè crema')
     expect(t.html).toContain('28.5%')
-    expect(t.html).toMatch(/€ 12\.?345,67/)
+        expect(t.html).toMatch(/12\.?345,67 €/)
     expect(t.html).toMatchSnapshot()
   })
 

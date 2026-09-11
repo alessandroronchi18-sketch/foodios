@@ -61,7 +61,7 @@ export default function ImportaDati({ onImportRicettario, ricettario, nomeAttivi
 
       {/* Sezione modelli */}
       <div style={{ marginBottom: 22 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: T.textSoft, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10 }}>Modelli Excel da scaricare</div>
+        <div style={{ fontSize: 12, fontWeight: 700, color: T.textSoft, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 10 }}>Modelli Excel da scaricare</div>
 
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(320px, 1fr))', gap: 12 }}>
           <div style={card}>
@@ -98,7 +98,7 @@ export default function ImportaDati({ onImportRicettario, ricettario, nomeAttivi
           senza ridigitare niente. */}
       {orgId && (
         <div style={{ marginBottom: 22 }}>
-          <div style={{ fontSize: typo.caption.fontSize, fontWeight: 700, color: T.textSoft, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10 }}>Incassi e spese dal tuo foglio</div>
+          <div style={{ fontSize: typo.caption.fontSize, fontWeight: 700, color: T.textSoft, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 10 }}>Incassi e spese dal tuo foglio</div>
           <div style={card}>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
               <div style={{ width: 40, height: 40, borderRadius: 10, background: `${T.green}15`, color: T.green, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -129,7 +129,7 @@ export default function ImportaDati({ onImportRicettario, ricettario, nomeAttivi
       {/* Import guidato per anagrafiche (fornitori, dipendenti) — client-side, privacy per costruzione */}
       {orgId && (
         <div style={{ marginBottom: 22 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: T.textSoft, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10 }}>Import guidato dei dati storici</div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: T.textSoft, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 10 }}>Import guidato dei dati storici</div>
           <div style={card}>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
               <div style={{ width: 40, height: 40, borderRadius: 10, background: `${T.brand}15`, color: T.brand, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -160,7 +160,7 @@ export default function ImportaDati({ onImportRicettario, ricettario, nomeAttivi
       {/* Sezione import legacy (ricettario Excel) */}
       {onImportRicettario && (
         <div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: T.textSoft, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10 }}>Ricettario da file esistente</div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: T.textSoft, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 10 }}>Ricettario da file esistente</div>
           <div style={card}>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
               <div style={{ width: 40, height: 40, borderRadius: 10, background: `${T.brand}15`, color: T.brand, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>

@@ -154,7 +154,7 @@ function BandaDiagnosi({ orgId, sedeId, refreshKey, isMobile, isTablet, onVaiTab
           <Icon name={sem.icon} size={24} />
         </span>
         <div style={{ flex:1, minWidth:200 }}>
-          <div style={{ fontSize:11, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:T.textSoft }}>Come stai messo</div>
+          <div style={{ fontSize: 12, fontWeight:700, letterSpacing: '0.05em', textTransform:'uppercase', color:T.textSoft }}>Come stai messo</div>
           <div style={{ fontSize:19, fontWeight:800, color:sem.c, letterSpacing:'-0.02em', marginTop:2 }}>{sem.lbl}</div>
           <div style={{ fontSize:12.5, color:T.textMid, marginTop:3, lineHeight:1.45 }}>{sem.msg}</div>
         </div>
@@ -205,7 +205,7 @@ function BandaDiagnosi({ orgId, sedeId, refreshKey, isMobile, isTablet, onVaiTab
           <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap:14 }}>
             {/* Temperature fuori range */}
             <div>
-              <div style={{ fontSize:11, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8, display:'flex', alignItems:'center', gap:6 }}>
+              <div style={{ fontSize: 12, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8, display:'flex', alignItems:'center', gap:6 }}>
                 <Icon name="snow" size={13} />Temperature fuori range
               </div>
               {d.fuoriRangeRecenti.length === 0 ? (
@@ -214,7 +214,7 @@ function BandaDiagnosi({ orgId, sedeId, refreshKey, isMobile, isTablet, onVaiTab
                 <div key={t.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, padding:'8px 12px', background:T.brandLight, borderRadius:R.md, marginBottom:6 }}>
                   <div style={{ minWidth:0 }}>
                     <div style={{ fontSize:12.5, fontWeight:700, color:T.text, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{t.haccp_apparecchi?.nome || '-'}</div>
-                    <div style={{ fontSize:11, color:T.textSoft }}>{FmtDt(t.rilevato_at)}{t.operatore ? ` · ${t.operatore}` : ''}</div>
+                    <div style={{ fontSize: 12, color:T.textSoft }}>{FmtDt(t.rilevato_at)}{t.operatore ? ` · ${t.operatore}` : ''}</div>
                   </div>
                   <span style={{ fontSize:14, fontWeight:800, color:T.brand, ...TNUM, whiteSpace:'nowrap', display:'inline-flex', alignItems:'center', gap:4 }}>
                     <Icon name="warning" size={13} />{nfmt(t.temperatura)}°C
@@ -224,7 +224,7 @@ function BandaDiagnosi({ orgId, sedeId, refreshKey, isMobile, isTablet, onVaiTab
             </div>
             {/* Task scaduti */}
             <div>
-              <div style={{ fontSize:11, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8, display:'flex', alignItems:'center', gap:6 }}>
+              <div style={{ fontSize: 12, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8, display:'flex', alignItems:'center', gap:6 }}>
                 <Icon name="clock" size={13} />Pulizie da registrare
               </div>
               {d.taskScaduti.length === 0 ? (
@@ -232,13 +232,13 @@ function BandaDiagnosi({ orgId, sedeId, refreshKey, isMobile, isTablet, onVaiTab
               ) : d.taskScaduti.slice(0, 6).map(t => (
                 <div key={t.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, padding:'8px 12px', background:T.amberLight, borderRadius:R.md, marginBottom:6 }}>
                   <span style={{ fontSize:12.5, fontWeight:700, color:T.text, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', minWidth:0 }}>{t.nome}</span>
-                  <span style={{ fontSize:11, fontWeight:700, color:T.amber, textTransform:'uppercase', letterSpacing:'0.04em', whiteSpace:'nowrap' }}>
+                  <span style={{ fontSize: 12, fontWeight:700, color:T.amber, textTransform:'uppercase', letterSpacing:'0.04em', whiteSpace:'nowrap' }}>
                     {FREQUENZE.find(f=>f.id===t.frequenza)?.label || t.frequenza}
                   </span>
                 </div>
               ))}
               {d.taskScaduti.length > 6 && (
-                <div style={{ fontSize:11.5, color:T.textSoft, marginTop:4 }}>+ altri {nfmt(d.taskScaduti.length - 6)} task</div>
+                <div style={{ fontSize: 12, color:T.textSoft, marginTop:4 }}>+ altri {nfmt(d.taskScaduti.length - 6)} task</div>
               )}
             </div>
           </div>
@@ -412,12 +412,12 @@ function TemperatureTab({ orgId, sedeId, isMobile, notify, onChanged }) {
           <div key={a.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 12px', background:T.bgSubtle, borderRadius:R.md, marginBottom:6 }}>
             <div>
               <div style={{ fontSize:13, fontWeight:700, color:T.text }}>{a.nome}</div>
-              <div style={{ fontSize:11, color:T.textSoft }}>
+              <div style={{ fontSize: 12, color:T.textSoft }}>
                 {TIPI_APPARECCHIO.find(t=>t.id===a.tipo)?.label || a.tipo} · Range {a.temp_min}°C – {a.temp_max}°C
               </div>
             </div>
             <button onClick={() => disattivaApp(a.id)}
-              style={{ padding:'6px 10px', borderRadius:R.md, border:`1px solid ${T.borderSoft}`, background:'transparent', color:T.textSoft, fontSize:11, cursor:'pointer' }}>
+              style={{ padding:'6px 10px', borderRadius:R.md, border:`1px solid ${T.borderSoft}`, background:'transparent', color:T.textSoft, fontSize: 12, cursor:'pointer' }}>
               Rimuovi
             </button>
           </div>
@@ -436,10 +436,10 @@ function TemperatureTab({ orgId, sedeId, isMobile, notify, onChanged }) {
             <table style={{ width:'100%', borderCollapse:'separate', borderSpacing:0, fontSize:13 }}>
               <thead>
                 <tr style={{ background:T.bgSubtle }}>
-                  <th style={{ padding:'10px 14px', textAlign:'left', fontSize:10, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.06em' }}>Data/ora</th>
-                  <th style={{ padding:'10px 14px', textAlign:'left', fontSize:10, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.06em' }}>Apparecchio</th>
-                  <th style={{ padding:'10px 14px', textAlign:'right', fontSize:10, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.06em' }}>Temp.</th>
-                  <th style={{ padding:'10px 14px', textAlign:'left', fontSize:10, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.06em' }}>Operatore</th>
+                  <th style={{ padding:'10px 14px', textAlign:'left', fontSize: 12, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.06em' }}>Data/ora</th>
+                  <th style={{ padding:'10px 14px', textAlign:'left', fontSize: 12, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.06em' }}>Apparecchio</th>
+                  <th style={{ padding:'10px 14px', textAlign:'right', fontSize: 12, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.06em' }}>Temp.</th>
+                  <th style={{ padding:'10px 14px', textAlign:'left', fontSize: 12, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.06em' }}>Operatore</th>
                 </tr>
               </thead>
               <tbody>
@@ -575,9 +575,9 @@ function PulizieTab({ orgId, sedeId, isMobile, notify, onChanged }) {
 
       {/* Operatore corrente */}
       <div style={cardStyle}>
-        <div style={{ fontSize:11, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:6 }}>Operatore in turno (opzionale)</div>
+        <div style={{ fontSize: 12, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:6 }}>Operatore in turno (opzionale)</div>
         <input style={inp} placeholder="Mario Rossi" value={operatore} onChange={e=>setOperatore(e.target.value)}/>
-        <div style={{ fontSize:11, color:T.textSoft, marginTop:6 }}>
+        <div style={{ fontSize: 12, color:T.textSoft, marginTop:6 }}>
           Quando registri un task, verrà associato a questo nome.
         </div>
       </div>
@@ -607,14 +607,14 @@ function PulizieTab({ orgId, sedeId, isMobile, notify, onChanged }) {
                       <div style={{ fontSize:13, fontWeight:700, color: done ? T.green : T.text }}>
                         {t.nome}
                       </div>
-                      <div style={{ fontSize:11, color:T.textSoft, marginTop:2 }}>
+                      <div style={{ fontSize: 12, color:T.textSoft, marginTop:2 }}>
                         {done ? `Fatto ${FmtDt(done.eseguito_at)}${done.operatore ? ' da ' + done.operatore : ''}` : 'Ancora da fare'}
                       </div>
                     </div>
                   </div>
                   <div style={{ display:'flex', gap:6, flexShrink:0 }}>
                     <button onClick={() => eseguiTpl(t.id)}
-                      style={{ height:32, padding:'0 12px', borderRadius:R.md, border:'none', background: done ? T.bgCard : T.text, color: done ? T.textMid : '#FFF', fontSize:11, fontWeight:700, cursor:'pointer' }}>
+                      style={{ height:32, padding:'0 12px', borderRadius:R.md, border:'none', background: done ? T.bgCard : T.text, color: done ? T.textMid : '#FFF', fontSize: 12, fontWeight:700, cursor:'pointer' }}>
                       {done ? 'Ripeti' : 'Segna fatto'}
                     </button>
                     <button onClick={() => rimuoviTpl(t.id)} title="Rimuovi task"
@@ -666,7 +666,7 @@ function AllergeniTab({ ricettario, isMobile }) {
                 padding:'12px 14px', background: count > 0 ? T.brandLight : T.bgSubtle,
                 borderRadius:R.md, border:`1px solid ${count > 0 ? T.brandSoft : T.borderSoft}`,
               }}>
-                <div style={{ fontSize:11, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.05em' }}>{a.label}</div>
+                <div style={{ fontSize: 12, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.05em' }}>{a.label}</div>
                 <div style={{ fontSize:18, fontWeight:800, color: count > 0 ? T.brand : T.textSoft, marginTop:4, ...TNUM }}>
                   {nfmt(count)} {count === 1 ? 'ricetta' : 'ricette'}
                 </div>
@@ -678,7 +678,7 @@ function AllergeniTab({ ricettario, isMobile }) {
 
       <div style={cardStyle}>
         <div style={{ fontSize:14, fontWeight:700, color:T.text, marginBottom:6, display:'flex', alignItems:'center', gap:8 }}><Icon name="clipboard" size={16} color={T.brand} />Matrice allergeni × prodotti</div>
-        <div style={{ fontSize:11, color:T.textSoft, marginBottom:10, lineHeight:1.45 }}>
+        <div style={{ fontSize: 12, color:T.textSoft, marginBottom:10, lineHeight:1.45 }}>
           Riga: allergene · Colonna: prodotto · pallino = presente. Scorri orizzontalmente se ci sono molti prodotti.
         </div>
         {ricette.length === 0 ? (
@@ -687,21 +687,21 @@ function AllergeniTab({ ricettario, isMobile }) {
           </div>
         ) : (
           <div style={{ overflowX:'auto', border:`1px solid ${T.borderSoft}`, borderRadius:R.md }}>
-            <table style={{ borderCollapse:'collapse', fontSize:10, tableLayout:'fixed' }}>
+            <table style={{ borderCollapse:'collapse', fontSize: 12, tableLayout:'fixed' }}>
               <colgroup>
                 <col style={{ width: 150 }}/>
                 {ricette.map(r => <col key={r.nome} style={{ width: 36 }}/>)}
               </colgroup>
               <thead>
                 <tr>
-                  <th style={{ padding:'4px 8px', textAlign:'left', fontSize:9, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.05em', background:T.bgSubtle, borderBottom:`1px solid ${T.borderSoft}`, position:'sticky', left:0, zIndex:2 }}>
+                  <th style={{ padding:'4px 8px', textAlign:'left', fontSize: 12, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.05em', background:T.bgSubtle, borderBottom:`1px solid ${T.borderSoft}`, position:'sticky', left:0, zIndex:2 }}>
                     Allergene \ Prodotto
                   </th>
                   {ricette.map(r => (
                     <th key={r.nome}
                       title={r.nome}
                       style={{
-                        padding:'4px 2px', fontSize:9, fontWeight:700, color:T.text,
+                        padding:'4px 2px', fontSize: 12, fontWeight:700, color:T.text,
                         background:T.bgSubtle, borderBottom:`1px solid ${T.borderSoft}`,
                         borderLeft:`1px solid ${T.borderSoft}`,
                         height: 96, verticalAlign:'bottom', whiteSpace:'nowrap',
@@ -725,7 +725,7 @@ function AllergeniTab({ ricettario, isMobile }) {
                   return (
                     <tr key={a.id}>
                       <td style={{
-                        padding:'4px 8px', color:T.text, fontWeight:600, fontSize:10,
+                        padding:'4px 8px', color:T.text, fontWeight:600, fontSize: 12,
                         background:T.bgCard, borderBottom:`1px solid ${T.borderSoft}`,
                         position:'sticky', left:0, zIndex:1, whiteSpace:'nowrap',
                       }}>
@@ -738,7 +738,7 @@ function AllergeniTab({ ricettario, isMobile }) {
                             textAlign:'center',
                             background: presente ? T.brandLight : T.bgCard,
                             color: presente ? T.brand : T.borderSoft,
-                            fontWeight: 700, fontSize: 11, lineHeight: 1,
+                            fontWeight: 700, fontSize: 12, lineHeight: 1,
                             padding:'4px 0',
                             borderLeft:`1px solid ${T.borderSoft}`,
                             borderBottom:`1px solid ${T.borderSoft}`,
@@ -819,7 +819,7 @@ function ExportTab({ orgId, sedeId, nomeAttivita, isMobile, notify }) {
         head: [['Apparecchio', 'Tipo', 'Range temperatura']],
         body: (app.data || []).map(a => [a.nome, a.tipo, `${a.temp_min}°C – ${a.temp_max}°C`]),
         headStyles: { fillColor: RED, textColor: [255,255,255], fontStyle: 'bold' },
-        bodyStyles: { fontSize: 9 },
+        bodyStyles: { fontSize: 12 },
         margin: { left: M_L, right: M_L },
       })
       y = doc.lastAutoTable.finalY + 10
@@ -892,11 +892,11 @@ function ExportTab({ orgId, sedeId, nomeAttivita, isMobile, notify }) {
         </div>
         <div style={{ display:'grid', gridTemplateColumns: isMobile?'1fr':'1fr 1fr auto', gap:10, alignItems:'end' }}>
           <div>
-            <div style={{ fontSize:11, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:4 }}>Dal</div>
+            <div style={{ fontSize: 12, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:4 }}>Dal</div>
             <input style={inp} type="date" value={from} onChange={e=>setFrom(e.target.value)}/>
           </div>
           <div>
-            <div style={{ fontSize:11, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:4 }}>Al</div>
+            <div style={{ fontSize: 12, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:4 }}>Al</div>
             <input style={inp} type="date" value={to} onChange={e=>setTo(e.target.value)}/>
           </div>
           <button onClick={esporta} disabled={busy}

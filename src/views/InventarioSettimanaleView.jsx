@@ -742,7 +742,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
             specifica dal selettore in alto.
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#1E3A8A', textTransform: 'uppercase', letterSpacing: '0.06em', marginRight: 4 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#1E3A8A', textTransform: 'uppercase', letterSpacing: '0.06em', marginRight: 4 }}>
               Aggrega:
             </span>
             {sediProduttive.map(s => {
@@ -882,7 +882,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
               <Icon name="check" size={14} color={soloCompilati ? '#FFFFFF' : C.textMid} />
               <span>Solo compilati</span>
               <span style={{
-                fontSize: 11, fontWeight: 800,
+                fontSize: 12, fontWeight: 800,
                 padding: '2px 7px', borderRadius: 999,
                 background: soloCompilati ? 'rgba(255,255,255,0.22)' : C.bgSubtle,
                 color: soloCompilati ? '#FFFFFF' : C.textSoft,
@@ -919,7 +919,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
           boxSizing: 'border-box',
         }}>
           <div style={{ flex: 1, textAlign: isMobile ? 'left' : 'center', order: isMobile ? 0 : 1 }}>
-            <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: C.textSoft }}>Settimana</div>
+            <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: C.textSoft }}>Settimana</div>
             <div style={{ fontSize: isMobile ? 16 : 15, fontWeight: 800, color: C.text, letterSpacing: '-0.01em' }}>{fmtRange(lunediIso)}</div>
           </div>
           <div style={{
@@ -953,7 +953,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
           boxSizing: 'border-box',
         }}>
           <div style={{ flex: 1, textAlign: isMobile ? 'left' : 'center', order: isMobile ? 0 : 1 }}>
-            <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: C.textSoft }}>Mese</div>
+            <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: C.textSoft }}>Mese</div>
             <div style={{ fontSize: isMobile ? 16 : 15, fontWeight: 800, color: C.text, letterSpacing: '-0.01em' }}>{meseLabel()}</div>
           </div>
           <div style={{
@@ -1113,7 +1113,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
                   return (
                     <th key={g} colSpan={2} style={{ ...thGiorno, borderLeft: `1px solid ${C.border}`, minWidth: 144 }}>
                       <div style={{
-                        fontSize: 11, fontWeight: 800, color: C.text,
+                        fontSize: 12, fontWeight: 800, color: C.text,
                         textTransform: 'uppercase', letterSpacing: '0.06em',
                         whiteSpace: 'nowrap', lineHeight: 1.2,
                       }}>
@@ -1243,7 +1243,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
                   <td style={{
                     ...tdGusto,
                     background: '#F1F5F9',
-                    fontSize: 11, fontWeight: 800,
+                    fontSize: 12, fontWeight: 800,
                     color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em',
                   }}>
                     Totali {soloCompilati ? '(filtrati)' : ''}
@@ -1312,7 +1312,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
         </div>
       )}
 
-      <div style={{ marginTop: 14, fontSize: 11.5, color: C.textSoft, lineHeight: 1.55, maxWidth: 720 }}>
+      <div style={{ marginTop: 14, fontSize: 12, color: C.textSoft, lineHeight: 1.55, maxWidth: 720 }}>
         Quantità in <strong>{unitaDisplay === 'kg' ? 'chilogrammi' : 'grammi'}</strong>. Salvataggio automatico uscendo dal campo (Tab o clic fuori).
       </div>
 
@@ -1449,7 +1449,7 @@ function DialogSpedizione({ state, setState, gusti, sedi, sedeOrigineId, righeOg
             })}
           </select>
           {state.gusto && (
-            <div style={{ fontSize: 11.5, color: C.textSoft, marginTop: 6 }}>
+            <div style={{ fontSize: 12, color: C.textSoft, marginTop: 6 }}>
               Disponibile oggi: <b style={{ color: dispKg > 0 ? '#166534' : '#B45309' }}>
                 {dispKg.toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 1 })} kg
               </b>
@@ -1525,7 +1525,7 @@ function DialogSpedizione({ state, setState, gusti, sedi, sedeOrigineId, righeOg
 // Rimpiazzati dal wizard universale in components/ImportWizard.jsx.
 
 
-const tdHead = { padding: '6px 10px', textAlign: 'left', color: T.textSoft, fontWeight: 700, fontSize: 10, textTransform: 'uppercase' }
+const tdHead = { padding: '6px 10px', textAlign: 'left', color: T.textSoft, fontWeight: 700, fontSize: 12, textTransform: 'uppercase' }
 const tdCell = { padding: '5px 10px', color: T.text }
 
 
@@ -1539,7 +1539,7 @@ const btnSecondary = {
   color: T.textMid, border: `1px solid ${T.border}`, borderRadius: 10,
   fontSize: 13, fontWeight: 600, cursor: 'pointer',
 }
-const lblForm = { display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: T.textSoft, marginBottom: 6 }
+const lblForm = { display: 'block', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: T.textSoft, marginBottom: 6 }
 const inpForm = {
   width: '100%', padding: '10px 12px', minHeight: 44,
   border: `1px solid ${T.border}`, borderRadius: 8,
@@ -1553,7 +1553,7 @@ function SortableHeader({ label, onClick, active, dir, style }) {
       style={{ ...style, cursor: 'pointer', userSelect: 'none' }}>
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
         {label}
-        <span style={{ fontSize: 9, color: active ? T.brand : 'transparent', fontWeight: 800 }}>
+        <span style={{ fontSize: 12, color: active ? T.brand : 'transparent', fontWeight: 800 }}>
           {active ? (dir === 'asc' ? '▲' : '▼') : '▲'}
         </span>
       </span>
@@ -1575,7 +1575,7 @@ function SortChip({ label, color, active, dir, onClick }) {
       title="Clicca (o premi Invio) per ordinare i gusti su questa colonna"
       style={{
         cursor: 'pointer', userSelect: 'none',
-        fontSize: 9, color: active ? T.brand : color, fontWeight: 700,
+        fontSize: 12, color: active ? T.brand : color, fontWeight: 700,
         padding: '2px 4px', borderRadius: 4,
         background: active ? '#FEE2E2' : 'transparent',
         display: 'inline-flex', alignItems: 'center', gap: 2,
@@ -1854,7 +1854,7 @@ function VistaMese({ gusti, righeMese, lunediIso, unita = 'g', onClickGusto }) {
 
   return (
     <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 14, padding: 18, boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
-      <div style={{ fontSize: 12, color: C.textSoft, marginBottom: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+      <div style={{ fontSize: 12, color: C.textSoft, marginBottom: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
         Riepilogo mensile · {meseLabel}
       </div>
       <div style={{ overflowX: 'auto' }}>
@@ -1929,7 +1929,7 @@ function VistaMese({ gusti, righeMese, lunediIso, unita = 'g', onClickGusto }) {
           </tbody>
         </table>
       </div>
-      <div style={{ marginTop: 12, fontSize: 11, color: C.textSoft, lineHeight: 1.5 }}>
+      <div style={{ marginTop: 12, fontSize: 12, color: C.textSoft, lineHeight: 1.5 }}>
         W1–W5 = settimane del mese. Il venduto e' calcolato dal differenziale di inventario; le settimane parziali a inizio/fine mese possono mostrare valori 0 se non hai compilato quei giorni.
       </div>
     </div>
@@ -2062,7 +2062,7 @@ function VistaStorico({ gusti, perMese, inizio, unita = 'g', onClickGusto, onOpe
   return (
     <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 14, padding: 18, boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
-        <div style={{ fontSize: 12, color: C.textSoft, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+        <div style={{ fontSize: 12, color: C.textSoft, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
           Storico vendite ({unita}) · Ultimi 6 mesi
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -2100,7 +2100,7 @@ function VistaStorico({ gusti, perMese, inizio, unita = 'g', onClickGusto, onOpe
                 label="Gusto"
                 onClick={() => toggleSort('nome')}
                 active={sort.by === 'nome'} dir={sort.dir}
-                style={{ padding: '10px 12px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', position: 'sticky', left: 0, background: '#F8FAFC' }}
+                style={{ padding: '10px 12px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', position: 'sticky', left: 0, background: '#F8FAFC' }}
               />
               {data.mesi.map(m => {
                 const key = { tipo: 'mese', meseKey: m.key }
@@ -2110,7 +2110,7 @@ function VistaStorico({ gusti, perMese, inizio, unita = 'g', onClickGusto, onOpe
                     label={m.label}
                     onClick={() => toggleSort(key)}
                     active={active} dir={sort.dir}
-                    style={{ padding: '10px 12px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', minWidth: 80 }}
+                    style={{ padding: '10px 12px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', minWidth: 80 }}
                   />
                 )
               })}
@@ -2165,7 +2165,7 @@ function VistaStorico({ gusti, perMese, inizio, unita = 'g', onClickGusto, onOpe
           </tbody>
         </table>
       </div>
-      <div style={{ marginTop: 12, fontSize: 11, color: C.textSoft, lineHeight: 1.5 }}>
+      <div style={{ marginTop: 12, fontSize: 12, color: C.textSoft, lineHeight: 1.5 }}>
         Quantità in kg. Le barre rossastre danno il peso visivo del mese più alto per ogni gusto. Scrolla orizzontalmente per i mesi precedenti.
       </div>
     </div>
@@ -2269,7 +2269,7 @@ function DrilldownGustoModal({ gusto, orgId, sedeId, isAllSedi, sediProdIds, uni
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, gap: 10 }}>
           <div>
-            <div style={{ fontSize: 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               Dettaglio gusto · Ultimi 90 giorni
             </div>
             <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: C.text, letterSpacing: '-0.01em' }}>{gusto}</h2>
@@ -2295,7 +2295,7 @@ function DrilldownGustoModal({ gusto, orgId, sedeId, isAllSedi, sediProdIds, uni
 
             {/* Sparkline giornaliera semplice: divs colorate */}
             <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
                 Andamento produzione ({stats.giorni} giorni con dati)
               </div>
               <div style={{
@@ -2319,7 +2319,7 @@ function DrilldownGustoModal({ gusto, orgId, sedeId, isAllSedi, sediProdIds, uni
                 background: '#F8FAFC', border: `1px solid ${C.border}`,
                 borderRadius: 10, padding: 12, marginBottom: 8, fontSize: 12.5, color: C.text, lineHeight: 1.5,
               }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Note dal ricettario</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Note dal ricettario</div>
                 {noteRicettario}
               </div>
             )}
@@ -2420,7 +2420,7 @@ function KpiCompactBar({ rows, periodo, unita = 'g', vendutoG = null, celleNonQu
               display: 'inline-flex', alignItems: 'center', gap: 4,
               background: '#FEF2F2', color: '#B91C1C',
               border: '1px solid #FCA5A5', borderRadius: 999,
-              padding: '3px 10px', fontSize: 11, fontWeight: 700,
+              padding: '3px 10px', fontSize: 12, fontWeight: 700,
             }} title="Lo scarto e' oltre il 5% del prodotto: probabilmente stai producendo piu di quanto vendi.">
               <Icon name="alert" size={12} color={T.red} /> Scarto sopra il 5%
             </span>
@@ -2459,7 +2459,7 @@ function KpiTile({ label, value, unit, color, bg }) {
       minHeight: 52,
     }}>
       <div style={{
-        fontSize: 10, fontWeight: 700, color: C.textSoft,
+        fontSize: 12, fontWeight: 700, color: C.textSoft,
         textTransform: 'uppercase', letterSpacing: '0.06em',
         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
       }}>{label}</div>
@@ -2538,7 +2538,7 @@ function VistaOggi({ gusti, matrice, saving, onSave, readOnly, unita = 'g', gior
                   {orfano && <IconaOrfano />}
                 </div>
                 {cell.venduto != null && (
-                  <div style={{ fontSize: 11, color: C.textSoft }}>
+                  <div style={{ fontSize: 12, color: C.textSoft }}>
                     venduto stimato: <strong style={{ color: T.brand, ...TNUM }}>
                       {unita === 'kg'
                         ? (Number(cell.venduto) / 1000).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 2 }) + ' kg'
@@ -2602,7 +2602,7 @@ function BigField({ label, accent, value, saving, onCommit, readOnly, unita = 'g
   }
   return (
     <label style={{ display: 'block' }}>
-      <div style={{ fontSize: 10.5, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6, minHeight: 28, lineHeight: 1.25 }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6, minHeight: 28, lineHeight: 1.25 }}>
         {label}
       </div>
       <div style={{
@@ -2700,15 +2700,15 @@ function CellInput({ value, saving, accent, onCommit, readOnly, unita = 'g' }) {
 // per cella input + sticky left sulla colonna GUSTO + minWidth tabella 1280
 // così su 375px lo scroll orizzontale funziona ma il contesto resta visibile.
 const thGusto = {
-  padding: '12px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700,
-  color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.08em',
+  padding: '12px 14px', textAlign: 'left', fontSize: 12, fontWeight: 700,
+  color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em',
   position: 'sticky', left: 0, background: '#F8FAFC', zIndex: 2,
   minWidth: 160,
   boxShadow: '2px 0 0 rgba(15,23,42,0.04)',
 }
 const thGiorno = { padding: '8px 4px', textAlign: 'center', whiteSpace: 'nowrap' }
 const thTot = {
-  padding: '12px 14px', textAlign: 'right', fontSize: 11, fontWeight: 800,
+  padding: '12px 14px', textAlign: 'right', fontSize: 12, fontWeight: 800,
   color: T.brand, textTransform: 'uppercase', letterSpacing: '0.06em',
   background: '#FEF3C7', minWidth: 120, whiteSpace: 'nowrap',
 }

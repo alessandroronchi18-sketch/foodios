@@ -74,7 +74,7 @@ export default function SedeSelector({ sedi, sedeAttiva, onSelect, variant = 'si
       <div style={{ margin: P.margin, padding: top ? '4px 10px 4px 5px' : '10px 12px', minHeight: top ? 36 : undefined, background: P.bg, border: `1px solid ${P.border}`, borderRadius: 10, display: 'flex', alignItems: 'center', gap: 9 }}>
         {iconBox(false)}
         <div style={{ minWidth: 0, flex: 1 }}>
-          <div style={{ fontSize: 9, fontWeight: 600, color: P.label, textTransform: 'uppercase', letterSpacing: '0.06em', lineHeight: 1 }}>Sede</div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: P.label, textTransform: 'uppercase', letterSpacing: '0.06em', lineHeight: 1 }}>Sede</div>
           <div style={{ fontSize: 12.5, color: P.txt, fontWeight: 600, marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: top ? 180 : 'none' }}>
             {sedeAttiva?.nome || sedi[0]?.nome || 'Sede'}
           </div>
@@ -105,7 +105,7 @@ export default function SedeSelector({ sedi, sedeAttiva, onSelect, variant = 'si
       >
         {iconBox(open)}
         <div style={{ minWidth: 0, flex: 1 }}>
-          <div style={{ fontSize: 9, fontWeight: 600, color: P.label, textTransform: 'uppercase', letterSpacing: '0.06em', lineHeight: 1 }}>Sede attiva</div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: P.label, textTransform: 'uppercase', letterSpacing: '0.06em', lineHeight: 1 }}>Sede attiva</div>
           <div style={{ fontSize: 12.5, color: P.txt, fontWeight: 600, marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>
             {sedeCorrente?.nome || 'Seleziona sede'}
           </div>
@@ -134,7 +134,7 @@ export default function SedeSelector({ sedi, sedeAttiva, onSelect, variant = 'si
               .fos-sedesel-led, .fos-sedesel-ring { animation: none !important }
             }
           `}</style>
-          <div style={{ padding: '8px 12px', fontSize: 9, fontWeight: 700, color: P.panelLabel, textTransform: 'uppercase', letterSpacing: '0.08em', borderBottom: `1px solid ${top ? '#F0EAE6' : 'rgba(255,255,255,0.05)'}` }}>
+          <div style={{ padding: '8px 12px', fontSize: 12, fontWeight: 700, color: P.panelLabel, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: `1px solid ${top ? '#F0EAE6' : 'rgba(255,255,255,0.05)'}` }}>
             Cambia sede · {sedi.length}
           </div>
           {/* Vista aggregata azienda: dati di TUTTE le sedi insieme */}
@@ -160,7 +160,7 @@ export default function SedeSelector({ sedi, sedeAttiva, onSelect, variant = 'si
                 </span>
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <div style={{ fontWeight: active ? 700 : 600, color: P.itemTxt }}>Tutte le sedi</div>
-                  <div style={{ fontSize: 10.5, color: P.itemSub, marginTop: 2 }}>vista azienda aggregata</div>
+                  <div style={{ fontSize: 12, color: P.itemSub, marginTop: 2 }}>vista azienda aggregata</div>
                 </div>
               </button>
             )
@@ -188,7 +188,7 @@ export default function SedeSelector({ sedi, sedeAttiva, onSelect, variant = 'si
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <div style={{ fontWeight: active ? 700 : 500, color: P.itemTxt, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sede.nome}</div>
                   {sede.citta && (
-                    <div style={{ fontSize: 10.5, color: P.itemSub, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sede.citta}</div>
+                    <div style={{ fontSize: 12, color: P.itemSub, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sede.citta}</div>
                   )}
                 </div>
               </button>

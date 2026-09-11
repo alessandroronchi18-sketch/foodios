@@ -815,7 +815,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
             borderRight:isMobile?'none':`1px solid rgba(255,255,255,0.10)`}}>
             <div style={{display:'flex',alignItems:'center',gap:6,minHeight:20}}>
               <span style={{display:'inline-flex',color:'rgba(255,255,255,0.55)'}}><Icon name={icon} size={14} /></span>
-              <span style={{fontSize: typo.small.fontSize,fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase',color:'rgba(255,255,255,0.7)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
+              <span style={{fontSize: typo.small.fontSize,fontWeight:700,letterSpacing: '0.05em',textTransform:'uppercase',color:'rgba(255,255,255,0.7)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
                 {tip ? <Tip text={tip}><span style={{cursor:'help',borderBottom:'1px dotted rgba(255,255,255,0.35)'}}>{label}</span></Tip> : label}
               </span>
             </div>

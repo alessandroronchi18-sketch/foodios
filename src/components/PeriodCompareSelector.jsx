@@ -24,7 +24,7 @@ export default function PeriodCompareSelector({ mode = 'none', onChange, compact
         border: `1px solid ${BORDER}`,
       }}>
       {!compact && (
-        <span style={{ fontSize: 11, color: SOFT, fontWeight: 700, padding: '0 10px', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+        <span style={{ fontSize: 12, color: SOFT, fontWeight: 700, padding: '0 10px', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
           Confronta
         </span>
       )}

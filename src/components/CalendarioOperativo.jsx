@@ -903,7 +903,7 @@ function Kpi({ icon, label, value, sub, color, highlight, bar, barColor }) {
           <Icon name={icon} size={18} />
         </span>
       </div>
-      <div style={{ position: 'relative', fontSize: FS.small, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase',
+      <div style={{ position: 'relative', fontSize: FS.small, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase',
         color: highlight ? 'rgba(255,255,255,0.76)' : T.textSoft, marginBottom: 6, lineHeight: 1.3,
         minHeight: 30 }}>{label}</div>
       <div style={{ position: 'relative', fontSize: FS.h1, fontWeight: 800, color: highlight ? T.textOnDark : accent,

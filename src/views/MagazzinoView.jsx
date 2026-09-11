@@ -269,7 +269,7 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
             <thead>
               <tr style={{ background: '#F8F4F2' }}>
                 {[LEX.Prodotto, 'Disponibili', 'Soglia', 'Aggiornato', ''].map((h, i) => (
-                  <th key={i} style={{ padding: '10px 14px', textAlign: i === 1 || i === 2 ? 'right' : 'left', ...typo.caption, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>{h}</th>
+                  <th key={i} style={{ padding: '10px 14px', textAlign: i === 1 || i === 2 ? 'right' : 'left', ...typo.caption, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -408,7 +408,7 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
             <div style={{ marginBottom: 12 }}>
               {/* L'unità della riga, non "(pz)" fisso: su una riga in grammi
                   si chiedeva di scartare "pezzi" di gelato sfuso. */}
-              <div style={{ ...typo.caption, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>
+              <div style={{ ...typo.caption, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
                 Quantità scartata ({scartoForm.unita === 'g' ? 'g' : 'pz'})
               </div>
               {/* Nello stato si tiene la STRINGA grezza, non il numero.
@@ -421,7 +421,7 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
                 style={{ width: '100%', padding: '12px 14px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 16, boxSizing: 'border-box' }}/>
             </div>
             <div style={{ marginBottom: 18 }}>
-              <div style={{ ...typo.caption, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Motivo (opzionale)</div>
+              <div style={{ ...typo.caption, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Motivo (opzionale)</div>
               <input value={scartoForm.note}
                 onChange={e => setScartoForm(f => ({ ...f, note: e.target.value }))}
                 placeholder="es. caduti per terra, scaduti, dati a omaggio"
@@ -560,7 +560,7 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
                 <thead>
                   <tr>
                     {['Modificato il', 'Ingrediente', 'Vale da', 'Vecchio', 'Nuovo', 'Differenza'].map((h, i) => (
-                      <th key={i} style={{ padding: '8px 12px', textAlign: i >= 3 ? 'right' : 'left', ...typo.caption, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, background: '#FDFAF7' }}>{h}</th>
+                      <th key={i} style={{ padding: '8px 12px', textAlign: i >= 3 ? 'right' : 'left', ...typo.caption, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, background: '#FDFAF7' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -623,9 +623,9 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, minWidth: 480 }}>
             <thead>
               <tr style={{ background: '#F8F4F2' }}>
-                <th style={{ padding: '10px 14px', textAlign: 'left', ...typo.caption, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>Ingrediente</th>
-                <th style={{ padding: '10px 14px', textAlign: 'right', ...typo.caption, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>Prezzo €/kg</th>
-                <th style={{ padding: '10px 14px', textAlign: 'right', ...typo.caption, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, width: 140 }}>Azioni</th>
+                <th style={{ padding: '10px 14px', textAlign: 'left', ...typo.caption, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>Ingrediente</th>
+                <th style={{ padding: '10px 14px', textAlign: 'right', ...typo.caption, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>Prezzo €/kg</th>
+                <th style={{ padding: '10px 14px', textAlign: 'right', ...typo.caption, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, width: 140 }}>Azioni</th>
               </tr>
             </thead>
             <tbody>
@@ -1404,7 +1404,7 @@ export default function MagazzinoView({
               </div>
               {costoStimato > 0 && (
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  <div style={{ ...typo.caption, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.65)' }}>Spesa stimata</div>
+                  <div style={{ ...typo.caption, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.65)' }}>Spesa stimata</div>
                   <div style={{ fontSize: 18, fontWeight: 800, color: '#fff', ...TNUM }}>{fmt0(costoStimato)}</div>
                 </div>
               )}
@@ -1417,7 +1417,7 @@ export default function MagazzinoView({
                         chiederlo. Il fornitore di un ingrediente si impara
                         registrando un ordine ricevuto in Fornitori. */}
                     {[['Ingrediente', 'left'], ['Da chi', 'left'], ['Giacenza', 'right'], ['Giorni scorta', 'right'], ['Da ordinare', 'right'], ['Costo stim.', 'right'], ['', 'right']].map(([h, al], i) => (
-                      <th key={i} style={{ padding: '9px 14px', textAlign: al, ...typo.caption, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>{h}</th>
+                      <th key={i} style={{ padding: '9px 14px', textAlign: al, ...typo.caption, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -1555,7 +1555,7 @@ export default function MagazzinoView({
                 { lbl: 'Giacenza (g)', val: newIngQty, set: setNewIngQty, ph: 'es. 1000', type: 'number' },
                 { lbl: 'Soglia alert (g)', val: newIngSoglia, set: setNewIngSoglia, ph: 'es. 500', type: 'number' }].map(({ lbl, val, set, ph, type }) => (
                 <div key={lbl}>
-                  <div style={{ ...typo.caption, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 }}>{lbl}</div>
+                  <div style={{ ...typo.caption, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>{lbl}</div>
                   <input type={type || 'text'} inputMode={type === 'number' ? 'decimal' : undefined} value={val} onChange={e => set(e.target.value)} placeholder={ph}
                     style={{ width: '100%', padding: '10px 12px', minHeight: 44, borderRadius: 7, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 13, color: C.text, boxSizing: 'border-box' }}/>
                 </div>
@@ -1843,7 +1843,7 @@ export default function MagazzinoView({
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
-                <label htmlFor="mag-ing-input" style={{ display: 'block', fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3, cursor: 'pointer' }}>Ingrediente</label>
+                <label htmlFor="mag-ing-input" style={{ display: 'block', fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 3, cursor: 'pointer' }}>Ingrediente</label>
                 <input id="mag-ing-input" type="text" value={formIng}
                   onChange={e => setFormIng(e.target.value)}
                   onKeyDown={onEnterAutoComplete(tuttiIngNomi, formIng, setFormIng, () => {
@@ -1879,14 +1879,14 @@ export default function MagazzinoView({
                 })()}
               </div>
               <div>
-                <label htmlFor="mag-qty-input" style={{ display: 'block', fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3, cursor: 'pointer' }}>
+                <label htmlFor="mag-qty-input" style={{ display: 'block', fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 3, cursor: 'pointer' }}>
                   Quantità (g) — {formMode === 'scarico' ? 'da rimuovere' : 'in arrivo'}
                 </label>
                 <input id="mag-qty-input" type="number" inputMode="decimal" value={formQty} onChange={e => setFormQty(e.target.value)} placeholder="es. 2000" min="0"
                   style={{ width: '100%', padding: '11px 12px', minHeight: 44, borderRadius: 8, border: `1px solid ${formMode === 'scarico' ? C.amber : C.borderStr}`, fontSize: isMobile ? 16 : 13, color: C.text, boxSizing: 'border-box' }}/>
               </div>
               <div>
-                <label htmlFor="mag-note-input" style={{ display: 'block', fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3, cursor: 'pointer' }}>Note (opzionale)</label>
+                <label htmlFor="mag-note-input" style={{ display: 'block', fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 3, cursor: 'pointer' }}>Note (opzionale)</label>
                 <input id="mag-note-input" type="text" value={formNote} onChange={e => setFormNote(e.target.value)} placeholder="es. Metro - bolla 1234"
                   style={{ width: '100%', padding: '11px 12px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 13, color: C.text, boxSizing: 'border-box' }}/>
               </div>
@@ -1936,7 +1936,7 @@ export default function MagazzinoView({
                 <thead>
                   <tr style={{ background: '#F8F4F2' }}>
                     {['Data', 'Ingrediente', 'Quantità', 'Note'].map((h, i) => (
-                      <th key={i} style={{ padding: '10px 14px', textAlign: i === 2 ? 'right' : 'left', ...typo.caption, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>{h}</th>
+                      <th key={i} style={{ padding: '10px 14px', textAlign: i === 2 ? 'right' : 'left', ...typo.caption, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>{h}</th>
                     ))}
                   </tr>
                 </thead>

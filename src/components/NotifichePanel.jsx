@@ -56,7 +56,7 @@ export default function NotifichePanel({ notifiche, nonLette, onSegnaLetta, onSe
             {nonLette > 0 && (
               <span style={{
                 background: T.brand, color: '#fff',
-                fontSize: 11, fontWeight: 700, padding: '2px 8px',
+                fontSize: 12, fontWeight: 700, padding: '2px 8px',
                 borderRadius: 9999, fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'",
               }}>{nonLette}</span>
             )}
@@ -138,12 +138,12 @@ export default function NotifichePanel({ notifiche, nonLette, onSegnaLetta, onSe
                       </div>
                     )}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <span style={{ fontSize: 11, color: T.textSoft, letterSpacing: '-0.005em' }}>
+                      <span style={{ fontSize: 12, color: T.textSoft, letterSpacing: '-0.005em' }}>
                         {fmtData(n.created_at)}
                       </span>
                       {n.link && (
                         <a href={n.link} style={{
-                          fontSize: 11, fontWeight: 600, color: T.brand,
+                          fontSize: 12, fontWeight: 600, color: T.brand,
                           textDecoration: 'none', letterSpacing: '-0.005em',
                           display: 'inline-flex', alignItems: 'center', gap: 3,
                         }}>

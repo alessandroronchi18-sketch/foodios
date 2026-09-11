@@ -177,7 +177,7 @@ Restituisci 3 varianti come da schema, italiano umano.`
       <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 14, padding: isMobile ? 16 : isTablet ? 18 : 22, marginBottom: 18 }}>
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : isTablet ? '1fr 1fr 140px' : '2fr 1fr 140px', gap: 12, alignItems: 'end' }}>
           <div>
-            <div style={{ fontSize: 10.5, fontWeight: 700, color: SOFT, letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: 5 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: SOFT, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 5 }}>
               Ricetta
             </div>
             <select value={ricSel} onChange={e => setRicSel(e.target.value)}
@@ -187,7 +187,7 @@ Restituisci 3 varianti come da schema, italiano umano.`
             </select>
           </div>
           <div>
-            <div style={{ fontSize: 10.5, fontWeight: 700, color: SOFT, letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: 5 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: SOFT, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 5 }}>
               Food cost target (%)
             </div>
             <input type="number" value={fcTarget} onChange={e => setFcTarget(e.target.value)}
@@ -222,7 +222,7 @@ Restituisci 3 varianti come da schema, italiano umano.`
           {varianti.map((v, i) => (
             <div key={i} style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div>
-                <div style={{ fontSize: 10.5, fontWeight: 700, color: BRAND, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: BRAND, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
                   {v.tipo}
                 </div>
                 <div style={{ fontSize: 14, fontWeight: 800, color: TXT, marginTop: 4 }}>{v.titolo}</div>
@@ -237,7 +237,7 @@ Restituisci 3 varianti come da schema, italiano umano.`
                 {v.spiegazione}
               </div>
               {Array.isArray(v.azioni) && v.azioni.length > 0 && (
-                <div style={{ fontSize: 11.5, color: SOFT }}>
+                <div style={{ fontSize: 12, color: SOFT }}>
                   <div style={{ marginBottom: 4, fontWeight: 700, color: MID }}>Azioni</div>
                   {v.azioni.map((a, j) => (
                     <div key={j} style={{ marginTop: 4, padding: '6px 10px', background: '#F1F5F9', borderRadius: 6, lineHeight: 1.5, wordBreak: 'break-word' }}>
@@ -252,7 +252,7 @@ Restituisci 3 varianti come da schema, italiano umano.`
         </div>
       )}
 
-      <div style={{ marginTop: 24, fontSize: 11, color: SOFT, textAlign: 'center', lineHeight: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+      <div style={{ marginTop: 24, fontSize: 12, color: SOFT, textAlign: 'center', lineHeight: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
         <Icon name="warning" size={12}/> <span>Le varianti sono stime. Validale con un test pratico prima di applicarle al ricettario.</span>
       </div>
     </div>

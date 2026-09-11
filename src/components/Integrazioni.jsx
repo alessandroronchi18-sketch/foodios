@@ -502,7 +502,7 @@ function StatoConnessioni({ notify }) {
             : isDegraded ? 'Backend degradato (DB rallentato)'
             : 'Backend non raggiungibile'}
         </div>
-        <div style={{ fontSize: 11, color: C.textMid, lineHeight: 1.5 }}>
+        <div style={{ fontSize: 12, color: C.textMid, lineHeight: 1.5 }}>
           {stato ? (
             <>
               Latenza: <b>{stato.latencyMs}ms</b> · DB Supabase: <b>{stato.db ? 'OK' : 'KO'}</b>
@@ -883,7 +883,7 @@ export default function Integrazioni({ orgId, sedeId }) {
 
       {categorie.map(cat => (
         <div key={cat} style={{ marginBottom: 28 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase',
+          <div style={{ fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase',
             letterSpacing: '0.1em', marginBottom: 10 }}>{cat}</div>
 
           {INTEGRAZIONI_CFG.filter(c => c.categoria === cat).map(cfg => {
@@ -902,7 +902,7 @@ export default function Integrazioni({ orgId, sedeId }) {
                   <div style={{ flexShrink: 0, color: C.textMid, display: 'flex' }}><Icon name={cfg.icona} size={22} /></div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: 14, color: C.text }}>{cfg.nome}</div>
-                    <div style={{ fontSize: 11, color: C.textSoft, marginTop: 2 }}>{cfg.descrizione}</div>
+                    <div style={{ fontSize: 12, color: C.textSoft, marginTop: 2 }}>{cfg.descrizione}</div>
                     <div style={{ marginTop: 6 }}>
                       <StatoBadge
                         stato={lastLog?.stato}
@@ -920,7 +920,7 @@ export default function Integrazioni({ orgId, sedeId }) {
                   <div style={{ borderTop: `1px solid ${C.border}`, padding: '16px 20px' }}>
                     {/* How-to */}
                     <div style={{ marginBottom: 16 }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: C.textMid, marginBottom: 6,
+                      <div style={{ fontSize: 12, fontWeight: 700, color: C.textMid, marginBottom: 6,
                         textTransform: 'uppercase', letterSpacing: '0.05em' }}>Come si usa</div>
                       <ol style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 4 }}>
                         {cfg.istruzioni.map((step, i) => (
@@ -937,9 +937,9 @@ export default function Integrazioni({ orgId, sedeId }) {
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                           <div>
-                            <div style={{ fontSize: 10, color: C.textSoft, marginBottom: 4, fontWeight: 600 }}>URL WEBHOOK</div>
+                            <div style={{ fontSize: 12, color: C.textSoft, marginBottom: 4, fontWeight: 600 }}>URL WEBHOOK</div>
                             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                              <code style={{ flex: 1, fontSize: 11, background: C.white, border: `1px solid ${C.border}`,
+                              <code style={{ flex: 1, fontSize: 12, background: C.white, border: `1px solid ${C.border}`,
                                 borderRadius: 8, padding: '8px 12px', color: C.text, display: 'block', wordBreak: 'break-all',
                                 minWidth: 0 }}>
                                 {window.location.origin}/api/webhook-zucchetti
@@ -953,15 +953,15 @@ export default function Integrazioni({ orgId, sedeId }) {
                             </div>
                           </div>
                           <div>
-                            <div style={{ fontSize: 10, color: C.textSoft, marginBottom: 4, fontWeight: 600 }}>HEADERS RICHIESTI</div>
-                            <code style={{ fontSize: 10, background: C.white, border: `1px solid ${C.border}`,
+                            <div style={{ fontSize: 12, color: C.textSoft, marginBottom: 4, fontWeight: 600 }}>HEADERS RICHIESTI</div>
+                            <code style={{ fontSize: 12, background: C.white, border: `1px solid ${C.border}`,
                               borderRadius: 8, padding: '8px 12px', color: C.textMid, display: 'block', lineHeight: 2 }}>
                               x-organization-id: {orgId}<br />
                               x-zucchetti-secret: {'<ZUCCHETTI_WEBHOOK_SECRET da Vercel env>'}<br />
                               Content-Type: application/json
                             </code>
                           </div>
-                          <div style={{ fontSize: 11, color: C.amber, padding: '8px 10px', background: C.amberLight,
+                          <div style={{ fontSize: 12, color: C.amber, padding: '8px 10px', background: C.amberLight,
                             borderRadius: 8, display: 'flex', alignItems: 'flex-start', gap: 6 }}>
                             <Icon name="warning" size={13} style={{ flexShrink: 0, marginTop: 1 }} />
                             <span>Imposta <code>ZUCCHETTI_WEBHOOK_SECRET</code> nelle variabili d'ambiente Vercel per proteggere l'endpoint.</span>
@@ -983,12 +983,12 @@ export default function Integrazioni({ orgId, sedeId }) {
                           />
                         </label>
                         {lastLog?.stato === 'ok' && (
-                          <span style={{ fontSize: 11, color: C.green }}>
+                          <span style={{ fontSize: 12, color: C.green }}>
                             <Icon name="check" size={11} /> Ultimo: {Number(lastLog.records_importati || 0).toLocaleString('it-IT', { useGrouping: 'always' })} record - {fmtTs(lastLog.created_at)}
                           </span>
                         )}
                         {lastLog?.stato === 'errore' && (
-                          <span style={{ fontSize: 11, color: C.red }}>
+                          <span style={{ fontSize: 12, color: C.red }}>
                             <Icon name="x" size={11} /> {lastLog.errore?.slice(0, 160)}
                           </span>
                         )}
@@ -1004,7 +1004,7 @@ export default function Integrazioni({ orgId, sedeId }) {
                             <div style={{ fontWeight: 700, fontSize: 12, color: C.green, marginBottom: 6 }}>
                               <Icon name="check" size={12} /> {risultato.movimenti.length} movimenti letti da Zucchetti Infinity
                             </div>
-                            <div style={{ display: 'flex', gap: 20, fontSize: 11, color: C.green }}>
+                            <div style={{ display: 'flex', gap: 20, fontSize: 12, color: C.green }}>
                               <span>Uscite: {risultato.movimenti.filter(m => m.tipo === 'uscita')
                                 .reduce((s, m) => s + m.importo, 0)
                                 .toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</span>
@@ -1019,7 +1019,7 @@ export default function Integrazioni({ orgId, sedeId }) {
                             <div style={{ fontWeight: 700, fontSize: 12, color: C.green, marginBottom: 6 }}>
                               <Icon name="check" size={12} /> {risultato.chiusure.length} giorni importati da Zucchetti Kassa
                             </div>
-                            <div style={{ fontSize: 11, color: C.green }}>
+                            <div style={{ fontSize: 12, color: C.green }}>
                               Totale: {risultato.chiusure.reduce((s, c) => s + c.totale, 0)
                                 .toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
                             </div>
@@ -1030,7 +1030,7 @@ export default function Integrazioni({ orgId, sedeId }) {
                             <div style={{ fontWeight: 700, fontSize: 12, color: C.green, marginBottom: 6 }}>
                               <Icon name="check" size={12} /> {risultato.righe.length} giorni · {risultato.ordini || risultato.righe.reduce((s,r)=>s+(r.ordini||r.righe||0),0)} record da {risultato.fonte}
                             </div>
-                            <div style={{ fontSize: 11, color: C.green }}>
+                            <div style={{ fontSize: 12, color: C.green }}>
                               Totale: {risultato.totale.toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} € · uniti alle chiusure cassa
                             </div>
                           </>
@@ -1040,12 +1040,12 @@ export default function Integrazioni({ orgId, sedeId }) {
 
                     {/* Sync log */}
                     <div>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: C.textMid, marginBottom: 8,
+                      <div style={{ fontSize: 12, fontWeight: 700, color: C.textMid, marginBottom: 8,
                         textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                         Ultimi sync{intLogs.length > 0 ? ` (${intLogs.length})` : ''}
                       </div>
                       {loading
-                        ? <div style={{ fontSize: 11, color: C.textSoft }}>Caricamento…</div>
+                        ? <div style={{ fontSize: 12, color: C.textSoft }}>Caricamento…</div>
                         : <LogTable logs={intLogs} />
                       }
                     </div>
@@ -1059,7 +1059,7 @@ export default function Integrazioni({ orgId, sedeId }) {
 
       {/* ── Roadmap integrazioni (in arrivo) ───────────────────────────── */}
       <div style={{ marginTop: 36 }}>
-        <div style={{ fontSize: 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 10 }}>In arrivo</div>
+        <div style={{ fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 10 }}>In arrivo</div>
         <div style={{ background: '#F8FAFC', border: `1px dashed ${C.border}`, borderRadius: 12, padding: '14px 18px' }}>
           <div style={{ fontSize: 12, color: C.textMid, lineHeight: 1.7 }}>
             Integrazioni pianificate ma in attesa di credenziali / file campione / accordi commerciali. Sblocco dettagliato in <code style={{ background: 'rgba(0,0,0,0.04)', padding: '1px 5px', borderRadius: 4 }}>ROADMAP.md</code>.
@@ -1096,7 +1096,7 @@ export default function Integrazioni({ orgId, sedeId }) {
                 <span style={{ color: C.textMid, display: 'flex', flexShrink: 0, marginTop: 1 }}><Icon name={icon} size={18} /></span>
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: C.text }}>{nome}</div>
-                  <div style={{ fontSize: 10, color: C.textSoft, marginTop: 2 }}>{why}</div>
+                  <div style={{ fontSize: 12, color: C.textSoft, marginTop: 2 }}>{why}</div>
                 </div>
               </div>
             ))}
@@ -1105,7 +1105,7 @@ export default function Integrazioni({ orgId, sedeId }) {
             <div style={{ fontSize: 12, fontWeight: 700, color: C.red, marginBottom: 4, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               <Icon name="bulb" size={14} /> Manca un'integrazione che ti serve?
             </div>
-            <div style={{ fontSize: 11, color: C.textMid, marginBottom: 8, lineHeight: 1.55 }}>
+            <div style={{ fontSize: 12, color: C.textMid, marginBottom: 8, lineHeight: 1.55 }}>
               Scrivici e attiviamo la sincronizzazione: di solito serve un file CSV/Excel campione o le credenziali API.
               Le integrazioni con catena distributiva &amp; gestionali italiani sono in alta priorità.
             </div>

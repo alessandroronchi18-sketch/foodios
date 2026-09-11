@@ -128,10 +128,10 @@ export default function AICard({
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 14, fontWeight: 800, color: C.text, lineHeight: 1.3 }}>{title}</div>
-          {subtitle && <div style={{ fontSize: 11, color: C.textSoft, marginTop: 2, lineHeight: 1.4 }}>{subtitle}</div>}
+          {subtitle && <div style={{ fontSize: 12, color: C.textSoft, marginTop: 2, lineHeight: 1.4 }}>{subtitle}</div>}
         </div>
         {generatedAt && state === 'ok' && (
-          <div style={{ fontSize: 10, color: C.textMute, flexShrink: 0 }}>{fmtAgo(generatedAt)}</div>
+          <div style={{ fontSize: 12, color: C.textMute, flexShrink: 0 }}>{fmtAgo(generatedAt)}</div>
         )}
       </div>
 

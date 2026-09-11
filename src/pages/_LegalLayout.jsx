@@ -13,7 +13,7 @@ function mkS(isMobile) {
     h2: { fontSize: isMobile ? 17 : 16, fontWeight: 800, marginTop: isMobile ? 28 : 36, marginBottom: 10, lineHeight: 1.3 },
     p:  { fontSize: isMobile ? 15 : 14, lineHeight: 1.75, color: '#4B3832', marginBottom: 12, wordBreak: 'break-word', overflowWrap: 'anywhere' },
     ul: { fontSize: isMobile ? 15 : 14, lineHeight: 1.85, color: '#4B3832', paddingLeft: 20, marginBottom: 12, wordBreak: 'break-word', overflowWrap: 'anywhere' },
-    badge: { display: 'inline-block', background: '#FEF2F2', color: '#6E0E1A', padding: '3px 10px', borderRadius: 6, fontSize: 11, fontWeight: 700, marginBottom: 24 },
+    badge: { display: 'inline-block', background: '#FEF2F2', color: '#6E0E1A', padding: '3px 10px', borderRadius: 6, fontSize: 12, fontWeight: 700, marginBottom: 24 },
     callout: { borderLeft: '3px solid #6E0E1A', background: '#FDF4F2', padding: isMobile ? '14px 16px' : '16px 20px', margin: '18px 0', borderRadius: '0 8px 8px 0' },
     calloutTitle: { fontSize: isMobile ? 15 : 14, fontWeight: 800, color: '#1C0A0A', marginBottom: 6 },
     calloutBody: { fontSize: isMobile ? 14 : 13, lineHeight: 1.7, color: '#4B3832' },
@@ -81,7 +81,7 @@ export default function LegalLayout({ title, updated, children, related = [] }) 
               ))}
             </div>
           )}
-          <div style={{ marginTop: 14, fontSize: 11 }}>© {new Date().getFullYear()} Foodos · Tutti i diritti riservati</div>
+          <div style={{ marginTop: 14, fontSize: 12 }}>© {new Date().getFullYear()} Foodos · Tutti i diritti riservati</div>
         </div>
       </div>
     </div>

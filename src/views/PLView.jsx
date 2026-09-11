@@ -67,7 +67,7 @@ function BarreRicavo({ rows, euro, pct }) {
                     <div style={{ width: 26, height: 26, borderRadius: 7,
                       background: i === 0 ? C.red : i === 1 ? '#E07040' : i === 2 ? C.amber : '#F0EAE6',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 10, fontWeight: 900, color: i < 3 ? C.white : C.textMid, flexShrink: 0 }}>{i + 1}</div>
+                      fontSize: 12, fontWeight: 900, color: i < 3 ? C.white : C.textMid, flexShrink: 0 }}>{i + 1}</div>
                     <span style={{ fontSize: 13, fontWeight: 800, color: C.text }}>{r.nome}</span>
                     <Tip text={`Valutazione margine: ${pct(r.margPct)}.`} width={260}><span style={{ cursor: 'help' }}>{margBadge(r.margPct)}</span></Tip>
                   </div>
@@ -79,7 +79,7 @@ function BarreRicavo({ rows, euro, pct }) {
                     ].map(({ lbl, val, c, tip }) => (
                       <Tip key={lbl} text={tip} width={250}>
                         <div style={{ cursor: 'help' }}>
-                          <div style={{ fontSize: 8, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: '1px dashed rgba(155,120,115,0.35)' }}>{lbl}</div>
+                          <div style={{ fontSize: 8, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: '1px dashed rgba(155,120,115,0.35)' }}>{lbl}</div>
                           <div style={{ fontSize: 14, fontWeight: 900, color: c, ...TNUM }}>{val}</div>
                         </div>
                       </Tip>
@@ -89,14 +89,14 @@ function BarreRicavo({ rows, euro, pct }) {
                 <div style={{ height: 34, borderRadius: 8, overflow: 'hidden', display: 'flex', cursor: 'crosshair', position: 'relative' }} data-barre-root="">
                   <div style={{ width: `${margW}%`, height: '100%', background: mc, opacity: 0.86, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'width 0.5s ease', position: 'relative' }}
                     onMouseMove={e => handleMouseOver(e, 'margine')}>
-                    {margW > 10 && <span style={{ fontSize: 11, fontWeight: 800, color: '#fff', pointerEvents: 'none' }}>{pct(margW)}</span>}
+                    {margW > 10 && <span style={{ fontSize: 12, fontWeight: 800, color: '#fff', pointerEvents: 'none' }}>{pct(margW)}</span>}
                   </div>
                   <div style={{ flex: 1, height: '100%', background: C.red, opacity: 0.82, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'width 0.5s ease' }}
                     onMouseMove={e => handleMouseOver(e, 'foodcost')}>
-                    {fcW > 10 && <span style={{ fontSize: 11, fontWeight: 800, color: '#fff', pointerEvents: 'none' }}>{pct(fcW)}</span>}
+                    {fcW > 10 && <span style={{ fontSize: 12, fontWeight: 800, color: '#fff', pointerEvents: 'none' }}>{pct(fcW)}</span>}
                   </div>
                 </div>
-                <div style={{ display: 'flex', marginTop: 4, fontSize: 9, fontWeight: 600, color: C.textSoft }}>
+                <div style={{ display: 'flex', marginTop: 4, fontSize: 12, fontWeight: 600, color: C.textSoft }}>
                   <div style={{ width: `${margW}%`, textAlign: 'center', overflow: 'hidden', whiteSpace: 'nowrap' }}>{margW > 18 ? 'margine lordo' : ''}</div>
                   <div style={{ flex: 1, textAlign: 'center' }}>{fcW > 18 ? 'costo ingredienti' : ''}</div>
                 </div>
@@ -113,8 +113,8 @@ function BarreRicavo({ rows, euro, pct }) {
             <div style={{ fontWeight: 900, fontSize: 13, color: C.text, marginBottom: 10 }}>{tooltip.nome}</div>
             {tooltip.segment === 'margine' ? (
               <>
-                <div style={{ fontSize: 11, color: C.green, fontWeight: 700, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}><Icon name="dot" size={10} color={C.green} />Margine lordo</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '4px 16px', fontSize: 11 }}>
+                <div style={{ fontSize: 12, color: C.green, fontWeight: 700, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}><Icon name="dot" size={10} color={C.green} />Margine lordo</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '4px 16px', fontSize: 12 }}>
                   <span style={{ color: C.textMid }}>Ricavo stampo</span>
                   <span style={{ fontWeight: 800, color: C.text, ...TNUM, textAlign: 'right' }}>{euro(tooltip.r.ricavo)}</span>
                   <span style={{ color: C.textMid }}>Meno costo ingredienti</span>
@@ -126,8 +126,8 @@ function BarreRicavo({ rows, euro, pct }) {
               </>
             ) : (
               <>
-                <div style={{ fontSize: 11, color: C.red, fontWeight: 700, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}><Icon name="dot" size={10} color={C.red} />Costo ingredienti</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '4px 16px', fontSize: 11 }}>
+                <div style={{ fontSize: 12, color: C.red, fontWeight: 700, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}><Icon name="dot" size={10} color={C.red} />Costo ingredienti</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '4px 16px', fontSize: 12 }}>
                   <span style={{ color: C.textMid }}>Food cost totale</span>
                   <span style={{ fontWeight: 800, color: C.red, ...TNUM, textAlign: 'right' }}>{euro(tooltip.r.fc)}</span>
                   <span style={{ color: C.textMid }}>Su ricavo</span>
@@ -144,11 +144,11 @@ function BarreRicavo({ rows, euro, pct }) {
         <div style={{ display: 'flex', gap: 20, marginTop: 24, paddingTop: 16, borderTop: `1px solid ${C.border}`, flexWrap: 'wrap', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <div style={{ width: 14, height: 14, borderRadius: 3, background: C.green, opacity: 0.86 }}/>
-            <span style={{ fontSize: 10, fontWeight: 600, color: C.textMid }}>Margine lordo</span>
+            <span style={{ fontSize: 12, fontWeight: 600, color: C.textMid }}>Margine lordo</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <div style={{ width: 14, height: 14, borderRadius: 3, background: C.red, opacity: 0.82 }}/>
-            <span style={{ fontSize: 10, fontWeight: 600, color: C.textMid }}>Costo ingredienti</span>
+            <span style={{ fontSize: 12, fontWeight: 600, color: C.textMid }}>Costo ingredienti</span>
           </div>
         </div>
       </div>
@@ -189,8 +189,8 @@ function TopIngredientiTable({ ricettario, ingCosti, euro, pct }) {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, minWidth: 720 }}>
           <thead>
             <tr style={{ background: '#F8F4F2' }}>
-              <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 8, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>Ingrediente</th>
-              <th title="In quante ricette compare questo ingrediente" style={{ padding: '10px 14px', textAlign: 'left', fontSize: 8, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, textDecoration: 'underline dotted', textUnderlineOffset: 3, cursor: 'help' }}>Usato in</th>
+              <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 8, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>Ingrediente</th>
+              <th title="In quante ricette compare questo ingrediente" style={{ padding: '10px 14px', textAlign: 'left', fontSize: 8, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, textDecoration: 'underline dotted', textUnderlineOffset: 3, cursor: 'help' }}>Usato in</th>
               <SortTH k="qty" right active={sortKey === 'qty'} dir={sortDir} onToggle={toggleSort} tip="Grammi totali dell'ingrediente sommando una porzione di ogni ricetta che lo usa">Qty tot. (g)</SortTH>
               <SortTH k="costoTot" right active={sortKey === 'costoTot'} dir={sortDir} onToggle={toggleSort} tip="Costo di questo ingrediente per stampo, sommato sulle ricette che lo usano">Costo/stampo</SortTH>
               <SortTH k="pctTot" right active={sortKey === 'pctTot'} dir={sortDir} onToggle={toggleSort} tip="Quanto pesa questo ingrediente sul food cost complessivo del ricettario">% FC totale</SortTH>
@@ -214,18 +214,18 @@ function TopIngredientiTable({ ricettario, ingCosti, euro, pct }) {
                         <div key={di} style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
                           background: ['#6E0E1A', '#E07040', '#B45309', '#5B8FCE', '#7B7B7B'][di % 5] }}/>
                       ))}
-                      <span style={{ fontSize: 10, fontWeight: 700, color: C.textMid }}>{nRic} {nRic === 1 ? 'ricetta' : 'ricette'}</span>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: C.textMid }}>{nRic} {nRic === 1 ? 'ricetta' : 'ricette'}</span>
                     </div>
                     {hovRic?.key === ing.k && (
                       <div style={{ position: 'absolute', zIndex: 9999, top: '100%', left: 0,
                         background: C.white, border: `1px solid ${C.border}`, borderRadius: 9,
                         padding: '10px 14px', boxShadow: '0 6px 24px rgba(0,0,0,0.13)',
                         minWidth: 180, pointerEvents: 'none', marginTop: 4 }}>
-                        <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: C.textSoft, marginBottom: 6 }}>Usato in</div>
+                        <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: C.textSoft, marginBottom: 6 }}>Usato in</div>
                         {ing.ricette.map((r, ri) => (
                           <div key={r} style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 4 }}>
                             <div style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, background: ['#6E0E1A', '#E07040', '#B45309', '#5B8FCE', '#7B7B7B'][ri % 5] }}/>
-                            <span style={{ fontSize: 11, fontWeight: 600, color: C.text }}>{r}</span>
+                            <span style={{ fontSize: 12, fontWeight: 600, color: C.text }}>{r}</span>
                           </div>
                         ))}
                       </div>
@@ -241,7 +241,7 @@ function TopIngredientiTable({ ricettario, ingCosti, euro, pct }) {
                       <span style={{ fontWeight: 700, color: C.text, width: 36, textAlign: 'right' }}>{pct(ing.pctTot)}</span>
                     </div>
                   </td>
-                  <td style={{ padding: '10px 14px', textAlign: 'right', fontSize: 10, color: C.textSoft, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
+                  <td style={{ padding: '10px 14px', textAlign: 'right', fontSize: 12, color: C.textSoft, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
                     {ing.costoG > 0 ? `${ing.costoG.toFixed(4)} €` : '-'}
                   </td>
                 </tr>
@@ -250,7 +250,7 @@ function TopIngredientiTable({ ricettario, ingCosti, euro, pct }) {
           </tbody>
           <tfoot>
             <tr style={{ background: '#F0EAE6', borderTop: `2px solid ${C.borderStr}` }}>
-              <td colSpan={3} style={{ padding: '10px 14px', fontWeight: 900, fontSize: 11, color: C.text }}>TOTALE FOOD COST</td>
+              <td colSpan={3} style={{ padding: '10px 14px', fontWeight: 900, fontSize: 12, color: C.text }}>TOTALE FOOD COST</td>
               <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 900, fontSize: 13, color: C.red, ...TNUM }}>{euro(grandTotal)}</td>
               <td colSpan={2}/>
             </tr>
@@ -293,10 +293,10 @@ function ScenarioPrezzi({ rows, euro, pct }) {
         <div style={{ width: 3, height: 18, background: C.red, borderRadius: 2, flexShrink: 0, alignSelf: 'center' }}/>
         <div style={{ flex: 1 }}>
           <h2 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: C.text }}>Simulatore Scenari di Prezzo</h2>
-          <div style={{ fontSize: 11, color: C.textSoft, marginTop: 2 }}>Inserisci il nuovo prezzo - la variazione % e il nuovo margine si calcolano in tempo reale</div>
+          <div style={{ fontSize: 12, color: C.textSoft, marginTop: 2 }}>Inserisci il nuovo prezzo - la variazione % e il nuovo margine si calcolano in tempo reale</div>
         </div>
         {hasChanges && (
-          <button onClick={reset} style={{ padding: '6px 14px', borderRadius: 7, border: `1px solid ${C.borderStr}`, background: 'transparent', fontSize: 11, fontWeight: 700, color: C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="refresh" size={12} />Reset tutto</button>
+          <button onClick={reset} style={{ padding: '6px 14px', borderRadius: 7, border: `1px solid ${C.borderStr}`, background: 'transparent', fontSize: 12, fontWeight: 700, color: C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="refresh" size={12} />Reset tutto</button>
         )}
       </div>
 
@@ -310,9 +310,9 @@ function ScenarioPrezzi({ rows, euro, pct }) {
               { lbl: 'Margine scenario', val: euro(totMargScen), c: totMargScen >= totMargBase ? C.green : C.red, sub: (totMargScen - totMargBase) !== 0 ? (totMargScen > totMargBase ? '+' : '') + euro(totMargScen - totMargBase) : null },
             ].map(({ lbl, val, c, sub }) => (
               <div key={lbl} style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: C.textSoft, marginBottom: 4 }}>{lbl}</div>
+                <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: C.textSoft, marginBottom: 4 }}>{lbl}</div>
                 <div style={{ fontSize: 16, fontWeight: 900, color: c, ...TNUM }}>{val}</div>
-                {sub && <div style={{ fontSize: 11, fontWeight: 800, color: c, marginTop: 2 }}>{sub}</div>}
+                {sub && <div style={{ fontSize: 12, fontWeight: 800, color: c, marginTop: 2 }}>{sub}</div>}
               </div>
             ))}
           </div>
@@ -330,10 +330,10 @@ function ScenarioPrezzi({ rows, euro, pct }) {
                 background: changed ? (r.delta > 0 ? '#F6FBF7' : '#FEF6F5') : C.white }}>
                 <div style={{ width: 180, flexShrink: 0 }}>
                   <div style={{ fontSize: 12, fontWeight: 800, color: C.text }}>{r.nome}</div>
-                  <div style={{ fontSize: 10, color: C.textSoft, marginTop: 2 }}>{r.reg.unita} {labelPlurale(r.reg.tipo)}/stampo</div>
+                  <div style={{ fontSize: 12, color: C.textSoft, marginTop: 2 }}>{r.reg.unita} {labelPlurale(r.reg.tipo)}/stampo</div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 }}>
-                  <div style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: C.textSoft }}>Prezzo / {labelSingolare(r.reg.tipo)}</div>
+                  <div style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: C.textSoft }}>Prezzo / {labelSingolare(r.reg.tipo)}</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span style={{ fontSize: 12, fontWeight: 700, color: C.textMid }}>€</span>
                     <input type="number" min="0" step="0.10" value={prezzi[r.nome]}
@@ -344,13 +344,13 @@ function ScenarioPrezzi({ rows, euro, pct }) {
                         fontSize: 14, fontWeight: 900, color: changed ? (r.delta > 0 ? C.green : C.red) : C.text,
                         ...TNUM, outline: 'none' }}/>
                   </div>
-                  <div style={{ fontSize: 9, color: C.textSoft }}>base: {euro(r.reg.prezzo)}</div>
+                  <div style={{ fontSize: 12, color: C.textSoft }}>base: {euro(r.reg.prezzo)}</div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 72, padding: '6px 12px', borderRadius: 8,
                   background: !changed ? '#F0EAE6' : r.delta > 0 ? C.greenLight : C.redLight,
                   border: `1px solid ${!changed ? C.border : r.delta > 0 ? C.green : C.red}30` }}>
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: !changed ? C.textSoft : r.delta > 0 ? C.green : C.red, marginBottom: 2 }}>Variazione</div>
+                    <div style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: !changed ? C.textSoft : r.delta > 0 ? C.green : C.red, marginBottom: 2 }}>Variazione</div>
                     <div style={{ fontSize: 15, fontWeight: 900, ...TNUM, color: !changed ? C.textSoft : r.delta > 0 ? C.green : C.red }}>
                       {!changed ? '-' : `${dSign}${fmtp(r.delta)}`}
                     </div>
@@ -361,20 +361,20 @@ function ScenarioPrezzi({ rows, euro, pct }) {
                   <div style={{ background: '#F0EAE6', borderRadius: 8, padding: '8px 12px', textAlign: 'center', minWidth: 90 }}>
                     <div style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.textSoft, marginBottom: 3 }}>Margine base</div>
                     <div style={{ fontSize: 13, fontWeight: 600, color: C.textMid, ...TNUM }}>{euro(r.margine)}</div>
-                    <div style={{ fontSize: 9, color: C.textSoft, marginTop: 2 }}>{pct(r.margPct)}</div>
+                    <div style={{ fontSize: 12, color: C.textSoft, marginTop: 2 }}>{pct(r.margPct)}</div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', color: C.textSoft, fontSize: 14, flexShrink: 0 }}>→</div>
                   <div style={{ background: changed ? (r.newMarg > r.margine ? '#EAF5EE' : '#FDECEA') : '#F8F4F2', borderRadius: 8, padding: '8px 12px', textAlign: 'center', minWidth: 90,
                     border: changed ? `1px solid ${r.newMarg > r.margine ? C.green : C.red}30` : 'none' }}>
                     <div style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.textSoft, marginBottom: 3 }}>Margine nuovo</div>
                     <div style={{ fontSize: 13, fontWeight: 900, color: changed ? mc : C.textMid, ...TNUM }}>{euro(r.newMarg)}</div>
-                    <div style={{ fontSize: 9, color: changed ? mc : C.textSoft, marginTop: 2 }}>{pct(r.newMargPct)}</div>
+                    <div style={{ fontSize: 12, color: changed ? mc : C.textSoft, marginTop: 2 }}>{pct(r.newMargPct)}</div>
                   </div>
                 </div>
                 <div style={{ padding: '8px 16px', borderRadius: 8, textAlign: 'center', flexShrink: 0, minWidth: 90,
                   background: !changed ? '#F0EAE6' : r.diffMarg > 0 ? C.greenLight : C.redLight,
                   border: `1px solid ${!changed ? C.border : r.diffMarg > 0 ? C.green : C.red}30` }}>
-                  <div style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: !changed ? C.textSoft : r.diffMarg > 0 ? C.green : C.red, marginBottom: 3 }}>Δ margine</div>
+                  <div style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: !changed ? C.textSoft : r.diffMarg > 0 ? C.green : C.red, marginBottom: 3 }}>Δ margine</div>
                   <div style={{ fontSize: 18, fontWeight: 900, ...TNUM, color: !changed ? C.textSoft : r.diffMarg > 0 ? C.green : C.red }}>
                     {!changed ? '-' : (r.diffMarg > 0 ? '+' : '') + euro(r.diffMarg)}
                   </div>
@@ -418,7 +418,7 @@ function PLTable({ rows, euro, pct, totRicavo, totFC, totMargine, fcAvg, avgMarg
                 <SortTH k="margPct" right active={sortKey === 'margPct'} dir={sortDir} onToggle={toggleSort} tip="Margine lordo in percentuale sul ricavo">Marg. %</SortTH>
                 <SortTH k="fcUnita" right active={sortKey === 'fcUnita'} dir={sortDir} onToggle={toggleSort} tip="Food cost di un singolo pezzo/fetta">FC/un.</SortTH>
                 <SortTH k="mrgUnita" right active={sortKey === 'mrgUnita'} dir={sortDir} onToggle={toggleSort} tip="Margine lordo di un singolo pezzo/fetta">Marg./un.</SortTH>
-                <th title="Valutazione complessiva del margine del prodotto" style={{ padding: '10px 14px', fontSize: 8, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, textAlign: 'right', textDecoration: 'underline dotted', textUnderlineOffset: 3, cursor: 'help' }}>Rating</th>
+                <th title="Valutazione complessiva del margine del prodotto" style={{ padding: '10px 14px', fontSize: 8, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, textAlign: 'right', textDecoration: 'underline dotted', textUnderlineOffset: 3, cursor: 'help' }}>Rating</th>
               </tr>
             </thead>
             <tbody>
@@ -1096,7 +1096,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
       />
 
       {gustiSenzaRicavo > 0 && (
-        <div style={{ marginBottom: 16, padding: '10px 14px', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 10, fontSize: 11.5, color: '#92400E', lineHeight: 1.5, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+        <div style={{ marginBottom: 16, padding: '10px 14px', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 10, fontSize: 12, color: '#92400E', lineHeight: 1.5, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
           <Icon name="bulb" size={13} />
           <span><b>{gustiSenzaRicavo} gusti gelateria</b> senza formato vendita di riferimento non appaiono in questo P&amp;L. Configura almeno un formato (cono/coppetta/vaschetta) per la loro categoria in <b>Cassa → Formati vendita</b> e verranno inclusi con ricavo/kg stimato.</span>
         </div>
@@ -1142,7 +1142,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
         <div style={{ ...cardP, padding: isMobile ? 14 : 18, marginBottom: 16, display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)', gap: isMobile ? 10 : 14, alignItems: 'end' }}>
           {[['affitto', 'Affitto / mese'], ['utenze', 'Utenze / mese'], ['altro', 'Altri costi fissi'], ['personale', 'Costo personale / mese']].map(([k, lbl]) => (
             <div key={k}>
-              <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: T.textSoft, marginBottom: 6 }}>{lbl}</div>
+              <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: T.textSoft, marginBottom: 6 }}>{lbl}</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, border: `1px solid ${T.border}`, borderRadius: 8, padding: '10px 12px', minHeight: 44, background: T.bgCard }}>
                 <span style={{ color: T.textSoft, fontSize: 13 }}>€</span>
                 <input type="number" inputMode="decimal" value={costi[k] || ''} onChange={e => setCosti(c => ({ ...c, [k]: e.target.value }))}
@@ -1317,9 +1317,9 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
             {(() => {
               const Row = ({ label, val, pctv, bold, neg, strong, sub }) => (
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: strong ? '12px 0' : '8px 0', borderTop: strong ? `2px solid ${T.text}` : 'none' }}>
-                  <span style={{ fontSize: strong ? 14 : 13, fontWeight: strong || bold ? 800 : 500, color: strong ? T.text : T.textMid, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}{sub && <span style={{ fontSize: 11, color: T.textSoft, fontWeight: 500 }}> · {sub}</span>}</span>
+                  <span style={{ fontSize: strong ? 14 : 13, fontWeight: strong || bold ? 800 : 500, color: strong ? T.text : T.textMid, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}{sub && <span style={{ fontSize: 12, color: T.textSoft, fontWeight: 500 }}> · {sub}</span>}</span>
                   <span style={{ display: 'flex', alignItems: 'baseline', gap: isMobile ? 8 : 12, flexShrink: 0 }}>
-                    {pctv != null && <span style={{ fontSize: 11.5, color: T.textSoft, ...TNUM, minWidth: 46, textAlign: 'right' }}>{pct(pctv)}</span>}
+                    {pctv != null && <span style={{ fontSize: 12, color: T.textSoft, ...TNUM, minWidth: 46, textAlign: 'right' }}>{pct(pctv)}</span>}
                     <span style={{ fontSize: strong ? (isMobile ? 18 : 20) : 14, fontWeight: strong || bold ? 800 : 600, color: strong ? (val >= 0 ? T.green : T.brand) : (neg ? T.brand : T.text), ...TNUM, minWidth: isMobile ? 80 : 100, textAlign: 'right' }}>
                       {neg && val !== 0 ? '−' : ''}{fmt0(Math.abs(val))}
                     </span>
@@ -1345,7 +1345,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
                         : `${uscite.numero} voci`} neg />
                   )}
                   <Row label={plMese.utile >= 0 ? 'UTILE DEL PERIODO' : 'PERDITA DEL PERIODO'} val={plMese.utile} pctv={plMese.margOpPct} strong />
-                  <div style={{ fontSize: 11.5, color: T.textSoft, marginTop: 10, lineHeight: 1.5 }}>
+                  <div style={{ fontSize: 12, color: T.textSoft, marginTop: 10, lineHeight: 1.5 }}>
                     Break-even: servono <b style={{ color: T.text }}>{fmt0(plMese.breakeven)}</b> di ricavi/mese per coprire personale e costi fissi
                     {(plMese.personale + plMese.costiFissi) === 0 && ' · imposta i costi fissi e il personale per un calcolo completo'}.
                   </div>
@@ -1394,7 +1394,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
                 <div style={{ width: 3, height: 18, background: C.red, borderRadius: 2, flexShrink: 0 }}/>
                 <h2 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: C.text, letterSpacing: '-0.01em' }}>Conto economico</h2>
               </div>
-              <span style={{ fontSize: 11, fontWeight: 600, color: C.textSoft, background: '#F8F4F2', padding: '4px 10px', borderRadius: 20 }}>a regime · prezzi di listino</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: C.textSoft, background: '#F8F4F2', padding: '4px 10px', borderRadius: 20 }}>a regime · prezzi di listino</span>
             </div>
 
             {/* Statement: griglia 3 colonne - voce | % | importo, tutto incolonnato
@@ -1425,16 +1425,16 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
                 <div style={{ width: `${gw}%`, background: margC, transition: 'width 0.45s cubic-bezier(0.4,0,0.2,1)' }}/>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 9 }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, color: margC }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700, color: margC }}>
                   <span style={{ width: 8, height: 8, borderRadius: '50%', background: margC }}/>
                   Margine {margPctTot.toFixed(0)}%
                 </span>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, color: C.red }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700, color: C.red }}>
                   Food cost {fcPct.toFixed(0)}%
                   <span style={{ width: 8, height: 8, borderRadius: '50%', background: C.red }}/>
                 </span>
               </div>
-              <div style={{ fontSize: 10.5, color: C.textSoft, marginTop: 10, lineHeight: 1.4 }}>
+              <div style={{ fontSize: 12, color: C.textSoft, marginTop: 10, lineHeight: 1.4 }}>
                 Margine lordo prima di personale, affitto e utenze.
               </div>
             </div>
@@ -1464,7 +1464,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
                     fontSize: 13, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                   }}>{palette.icon}</div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.08em', color: palette.fg, marginBottom: 3 }}>{palette.lbl}</div>
+                    <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.05em', color: palette.fg, marginBottom: 3 }}>{palette.lbl}</div>
                     <div style={{ fontSize: 12, color: C.text, lineHeight: 1.5, fontWeight: 500 }}>{ins.testo}</div>
                   </div>
                 </div>
@@ -1500,13 +1500,13 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
             display: 'flex', flexDirection: 'column',
             boxShadow: hi ? '0 4px 14px rgba(110,14,26,0.22)' : SHADOW_PREMIUM }}>
             <Tip text={tip} width={240}>
-              <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'help',
+              <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', cursor: 'help',
                 color: hi ? 'rgba(255,255,255,0.7)' : T.textSoft, marginBottom: 6, minHeight: 28, lineHeight: 1.25,
                 borderBottom: `1px dashed ${hi ? 'rgba(255,255,255,0.28)' : 'rgba(155,120,115,0.4)'}` }}>{lbl}</div>
             </Tip>
             <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em',
               color: hi ? T.textOnDark : color || T.text, lineHeight: 1.15, minHeight: 32, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', ...TNUM }}>{val}</div>
-            <div style={{ fontSize: 11, color: hi ? 'rgba(255,255,255,0.62)' : T.textSoft, marginTop: 5, minHeight: 16, maxHeight: 28, overflow: 'hidden', lineHeight: 1.4 }}>{sub}</div>
+            <div style={{ fontSize: 12, color: hi ? 'rgba(255,255,255,0.62)' : T.textSoft, marginTop: 5, minHeight: 16, maxHeight: 28, overflow: 'hidden', lineHeight: 1.4 }}>{sub}</div>
           </div>
         ))}
       </div>
@@ -1549,8 +1549,8 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
               return (
                 <div key={r.nome}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: C.text }}>{r.short}</span>
-                    <span style={{ fontSize: 11, fontWeight: 900, color: mc, ...TNUM }}>{pct(r.margPct)}</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: C.text }}>{r.short}</span>
+                    <span style={{ fontSize: 12, fontWeight: 900, color: mc, ...TNUM }}>{pct(r.margPct)}</span>
                   </div>
                   <div style={{ height: 10, background: '#F0EAE6', borderRadius: 5, overflow: 'hidden' }}>
                     <div style={{ height: '100%', width: `${Math.min(100, r.margPct)}%`, background: mc, borderRadius: 5 }}/>
@@ -1574,8 +1574,8 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
               margin={isMobile ? { top: 8, right: 16, left: 8, bottom: 32 } : { top: 12, right: 24, left: 12, bottom: 40 }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#E5E9EF" vertical={false} />
-              <XAxis type="number" tickFormatter={v => `${Math.round(v).toLocaleString('it-IT', { useGrouping: 'always' })} €`} tick={{ fill: '#64748B', fontSize: 11 }} axisLine={false} tickLine={false}/>
-              <YAxis type="category" dataKey="short" width={80} tick={{ fill: '#64748B', fontSize: 11 }} axisLine={false} tickLine={false}/>
+              <XAxis type="number" tickFormatter={v => `${Math.round(v).toLocaleString('it-IT', { useGrouping: 'always' })} €`} tick={{ fill: '#64748B', fontSize: 12 }} axisLine={false} tickLine={false}/>
+              <YAxis type="category" dataKey="short" width={80} tick={{ fill: '#64748B', fontSize: 12 }} axisLine={false} tickLine={false}/>
               <Tooltip content={<ChartTip />} />
               <Bar dataKey="ricavo" name="Ricavo" fill={C.green} fillOpacity={0.2} stroke="#6E0E1A" strokeOpacity={0.15} radius={[6, 6, 0, 0]}/>
               <Bar dataKey="margine" name="Margine" stroke="#6E0E1A" strokeOpacity={0.25} radius={[6, 6, 0, 0]}>
@@ -1591,17 +1591,17 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
       {/* Benchmark */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16, marginBottom: 12 }}>
         <div style={{ background: C.greenLight, border: `1px solid ${C.green}30`, borderRadius: 16, padding: '20px 24px', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
-          <div style={{ fontSize: 11, fontWeight: 800, color: C.green, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="checkCircle" size={13} />Benchmark pasticceria</div>
+          <div style={{ fontSize: 12, fontWeight: 800, color: C.green, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="checkCircle" size={13} />Benchmark pasticceria</div>
           {[['Food cost ideale', '< 28–30%'], ['Margine target', '70–72%'], ['Accettabile', '55–70%']].map(([k, v]) => (
-            <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: 11 }}>
+            <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: 12 }}>
               <span style={{ color: C.textMid }}>{k}</span><span style={{ color: C.green, fontWeight: 700 }}>{v}</span>
             </div>
           ))}
         </div>
         <div style={{ background: C.amberLight, border: `1px solid ${C.amber}30`, borderRadius: 16, padding: '20px 24px', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
-          <div style={{ fontSize: 11, fontWeight: 800, color: C.amber, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="bulb" size={13} />Leve di ottimizzazione</div>
+          <div style={{ fontSize: 12, fontWeight: 800, color: C.amber, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="bulb" size={13} />Leve di ottimizzazione</div>
           {[['Aumentare prezzo +0,50€/fetta', 'Margine sale ~8-12pp'], ['Ridurre FC del 10%', 'Negozia bulk'], ['Tagliare prodotti < 50% marg.', 'Sostituisci con migliori']].map(([k, v]) => (
-            <div key={k} style={{ padding: '6px 0', fontSize: 10 }}>
+            <div key={k} style={{ padding: '6px 0', fontSize: 12 }}>
               <div style={{ color: C.amber, fontWeight: 700 }}>{k}</div>
               <div style={{ color: C.textMid, lineHeight: 1.4 }}>{v}</div>
             </div>
@@ -1766,7 +1766,7 @@ function CostiNettoBanda({ costiAziendali, margineLordoPeriodo, giorniPeriodo = 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 14 }}>
         <div>
           <div style={{ fontSize: 13, fontWeight: 800, color: T.text }}>Costi extra-food &amp; margine netto stimato</div>
-          <div style={{ fontSize: 11.5, color: T.textSoft, marginTop: 2, lineHeight: 1.5 }}>
+          <div style={{ fontSize: 12, color: T.textSoft, marginTop: 2, lineHeight: 1.5 }}>
             {noConfig
               ? 'Aggiungi consumabili, utenze, manutenzione in "Costi aziendali" per vedere il margine netto.'
               : 'Margine lordo meno costi extra (consumabili, manutenzione, ammortamenti, utenze).'

@@ -110,7 +110,7 @@ export default function OcrFatturaButton({ orgId, sedeId, onSave, buttonLabel = 
                 <Icon name="sparkles" size={15} />
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 10.5, fontWeight: 700, color: BRAND, letterSpacing: '0.14em', textTransform: 'uppercase' }}>OCR Fattura</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: BRAND, letterSpacing: '0.05em', textTransform: 'uppercase' }}>OCR Fattura</div>
                 <div style={{ fontSize: 13, color: MID, marginTop: 2 }}>L'AI estrae i campi, tu verifichi e salvi</div>
               </div>
               <button onClick={close} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: SOFT, padding: 4 }}>
@@ -149,12 +149,12 @@ export default function OcrFatturaButton({ orgId, sedeId, onSave, buttonLabel = 
 
                 {Array.isArray(extracted.righe) && extracted.righe.length > 0 && (
                   <div style={{ marginBottom: 14 }}>
-                    <div style={{ fontSize: 10.5, fontWeight: 700, color: SOFT, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 5 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: SOFT, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 5 }}>
                       Righe estratte ({extracted.righe.length})
                     </div>
                     <div style={{ background: '#FAFAF6', borderRadius: 8, padding: 10, maxHeight: 180, overflowY: 'auto' }}>
                       {extracted.righe.slice(0, 30).map((r, i) => (
-                        <div key={i} style={{ fontSize: 11.5, color: MID, padding: '4px 0', borderTop: i > 0 ? `1px solid ${BORDER}` : 'none' }}>
+                        <div key={i} style={{ fontSize: 12, color: MID, padding: '4px 0', borderTop: i > 0 ? `1px solid ${BORDER}` : 'none' }}>
                           <strong>{r.descrizione}</strong> · {r.quantita} {r.unita} × €{r.prezzo_unit} = €{r.totale_riga}
                         </div>
                       ))}
@@ -184,7 +184,7 @@ export default function OcrFatturaButton({ orgId, sedeId, onSave, buttonLabel = 
 function Field({ label, value, onChange, type = 'text', highlight }) {
   return (
     <div>
-      <div style={{ fontSize: 10, fontWeight: 700, color: SOFT, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 4 }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: SOFT, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 4 }}>
         {label}
       </div>
       <input type={type} value={value} onChange={e => onChange(e.target.value)}

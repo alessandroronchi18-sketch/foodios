@@ -730,7 +730,7 @@ function DialogFormCosto({ form, setForm, sedi, isMobile, onClose, onSave }) {
   const selectStyle = { ...inpStyle, appearance: 'none', WebkitAppearance: 'none', cursor: 'pointer', paddingRight: 36 }
   const lblStyle = {
     display: 'block', fontSize: typo.small.fontSize, fontWeight: 700,
-    textTransform: 'uppercase', letterSpacing: '0.07em',
+    textTransform: 'uppercase', letterSpacing: '0.05em',
     color: T.textSoft, marginBottom: 7,
   }
   const btnPrimaryStyle = {

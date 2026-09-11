@@ -17,7 +17,7 @@ const BOR = '#E2E8F0'
 
 const card = { background: '#FFF', borderRadius: 12, padding: '16px 20px', border: `1px solid #E8DDD8`, marginBottom: 12 }
 const inp = { width: '100%', padding: '8px 12px', border: `1px solid ${BOR}`, borderRadius: 8, fontSize: 13, color: TXT, background: '#FAFAFA', outline: 'none', boxSizing: 'border-box' }
-const lbl = { fontSize: 11, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4, display: 'block' }
+const lbl = { fontSize: 12, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4, display: 'block' }
 const btn = (bg, col) => ({ padding: '8px 16px', background: bg, color: col, border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' })
 
 const SK_SCENARIO = 'pasticceria-scenario-operativo-v1'
@@ -77,7 +77,7 @@ function ScenarioOperativoCard({ orgId, scenarioCorrente, onCambia }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{ color: R, display: 'inline-flex' }}><Icon name={corrente.icon} size={22} /></span>
           <div>
-            <div style={{ fontSize: 10, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Scenario operativo</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Scenario operativo</div>
             <div style={{ fontSize: 14, fontWeight: 700, color: TXT, marginTop: 2 }}>{corrente.nome}</div>
           </div>
         </div>
@@ -91,7 +91,7 @@ function ScenarioOperativoCard({ orgId, scenarioCorrente, onCambia }) {
 
   return (
     <div style={{ background: '#FFFBEB', border: '2px dashed #FCD34D', borderRadius: 12, padding: 20, marginBottom: 18 }}>
-      <div style={{ fontSize: 11, fontWeight: 700, color: '#92400E', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: '#92400E', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
         <Icon name="gear" size={13} />Come lavora la tua attività?
       </div>
       <div style={{ fontSize: 13, color: MID, marginBottom: 16, lineHeight: 1.55 }}>
@@ -113,7 +113,7 @@ function ScenarioOperativoCard({ orgId, scenarioCorrente, onCambia }) {
               }}>
               <div style={{ marginBottom: 6, color: R }}><Icon name={s.icon} size={28} /></div>
               <div style={{ fontSize: 13, fontWeight: 800, color: TXT, marginBottom: 6, lineHeight: 1.25 }}>{s.nome}</div>
-              <div style={{ fontSize: 11, color: SOFT, lineHeight: 1.5 }}>{s.descr}</div>
+              <div style={{ fontSize: 12, color: SOFT, lineHeight: 1.5 }}>{s.descr}</div>
             </button>
           )
         })}
@@ -123,7 +123,7 @@ function ScenarioOperativoCard({ orgId, scenarioCorrente, onCambia }) {
         const s = SCENARI.find(x => x.id === scelta)
         return (
           <div style={{ background: '#FFF', borderRadius: 10, padding: '12px 14px', border: `1px solid ${BOR}`, marginBottom: 14 }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
               <Icon name="bulb" size={13} />Come configurarlo
             </div>
             <div style={{ fontSize: 12, color: MID, lineHeight: 1.6 }}>{s.setupHint}</div>
@@ -429,11 +429,11 @@ export default function ImpostazioniSedi({ orgId, onSediChange, metodoProduzione
                     onChange={e => setEditForm(f => ({ ...f, is_sede_produzione: e.target.checked }))} />
                   <span style={{ fontSize: 13, fontWeight: 600, color: TXT }}>Sede di produzione</span>
                 </label>
-                <div style={{ fontSize: 11.5, color: SOFT, marginTop: 4, marginLeft: 26, lineHeight: 1.5 }}>
+                <div style={{ fontSize: 12, color: SOFT, marginTop: 4, marginLeft: 26, lineHeight: 1.5 }}>
                   Attiva se in questa sede si produce. Le sedi solo riceventi (ricevono via trasferimenti) lasciano questa opzione disattiva.
                 </div>
                 {editForm.is_sede_produzione && (
-                  <div style={{ marginTop: 12, marginLeft: 26, padding: '10px 12px', background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 8, fontSize: 11.5, color: '#1E3A8A', lineHeight: 1.5, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                  <div style={{ marginTop: 12, marginLeft: 26, padding: '10px 12px', background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 8, fontSize: 12, color: '#1E3A8A', lineHeight: 1.5, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
                     <Icon name="info" size={13} />
                     <div>
                       Metodo di produzione: <b>{metodoProduzione === 'inventario' ? 'Inventario differenziale' : 'Stampi / unità'}</b>.
@@ -463,10 +463,10 @@ export default function ImpostazioniSedi({ orgId, onSediChange, metodoProduzione
                     partono sempre dalla stessa X e sono allineati verticalmente,
                     indipendentemente dalla lunghezza del nome sede. */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 6, minHeight: 20 }}>
-                  {sede.is_default && <span style={{ fontSize: 10, background: '#FEF3C7', color: '#92400E', padding: '2px 8px', borderRadius: 10, fontWeight: 700 }}>DEFAULT</span>}
-                  {sede.attiva === false && <span style={{ fontSize: 10, background: '#F1F5F9', color: '#94A3B8', padding: '2px 8px', borderRadius: 10, fontWeight: 700 }}>INATTIVA</span>}
+                  {sede.is_default && <span style={{ fontSize: 12, background: '#FEF3C7', color: '#92400E', padding: '2px 8px', borderRadius: 10, fontWeight: 700 }}>DEFAULT</span>}
+                  {sede.attiva === false && <span style={{ fontSize: 12, background: '#F1F5F9', color: '#94A3B8', padding: '2px 8px', borderRadius: 10, fontWeight: 700 }}>INATTIVA</span>}
                   {sede.is_sede_produzione && (
-                    <span style={{ fontSize: 10, background: '#E0F2FE', color: '#075985', padding: '2px 8px', borderRadius: 10, fontWeight: 700 }}>
+                    <span style={{ fontSize: 12, background: '#E0F2FE', color: '#075985', padding: '2px 8px', borderRadius: 10, fontWeight: 700 }}>
                       PRODUZIONE
                     </span>
                   )}
@@ -509,7 +509,7 @@ export default function ImpostazioniSedi({ orgId, onSediChange, metodoProduzione
         <div style={{ textAlign: 'center', padding: '32px 0', color: SOFT, fontSize: 13 }}>Nessuna sede trovata.</div>
       )}
 
-      <div style={{ fontSize: 11, color: SOFT, marginTop: 8, lineHeight: 1.6 }}>
+      <div style={{ fontSize: 12, color: SOFT, marginTop: 8, lineHeight: 1.6 }}>
         Ricarica la pagina dopo le modifiche per aggiornare il selettore sede nella sidebar.
       </div>
 
@@ -594,7 +594,7 @@ function DialogCambioMetodo({ info, onAnnulla, onConferma }) {
           padding: '12px 14px', background: '#F8FAFC',
           border: `1px solid ${BOR}`, borderRadius: 10, marginBottom: 16,
         }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
             Cosa cambia
           </div>
           <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12.5, color: TXT, lineHeight: 1.55 }}>

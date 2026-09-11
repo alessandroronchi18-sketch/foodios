@@ -57,7 +57,7 @@ export default function ExportPdfButton({
     return (
       <button onClick={handle} disabled={busy} title={err || label}
         style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 6, borderRadius: 8, color: BRAND, display: 'inline-flex' }}>
-        {busy ? <span style={{ fontSize: 10 }}>…</span> : <Icon name="fileText" size={15} />}
+        {busy ? <span style={{ fontSize: 12 }}>…</span> : <Icon name="fileText" size={15} />}
       </button>
     )
   }
@@ -81,7 +81,7 @@ export default function ExportPdfButton({
         <Icon name="fileText" size={13} /> {busy ? 'Genero PDF…' : label}
       </button>
       {err && (
-        <span style={{ marginTop: 4, color: '#B91C1C', fontSize: 10 }}>{err}</span>
+        <span style={{ marginTop: 4, color: '#B91C1C', fontSize: 12 }}>{err}</span>
       )}
     </span>
   )

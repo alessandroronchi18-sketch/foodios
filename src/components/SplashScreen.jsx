@@ -125,7 +125,7 @@ export default function SplashScreen({ subtitle = 'Caricamento' }) {
         <div style={{
           display: 'flex', alignItems: 'center', gap: 6,
           fontSize: 12, color: 'rgba(255,255,255,0.55)', fontWeight: 600,
-          letterSpacing: '0.14em', textTransform: 'uppercase',
+          letterSpacing: '0.05em', textTransform: 'uppercase',
         }}>
           <span>{subtitle}</span>
           <span className="fos-splash-dot" style={{ animation: '_fos_splash_dots 1.2s ease-in-out 0s infinite' }}>·</span>

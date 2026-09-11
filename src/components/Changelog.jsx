@@ -48,7 +48,7 @@ export function NovitaModal({ onClose, onVediTutte }) {
 
         {latest.novita.length > 0 && (
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: C.green, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: C.green, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
               <Icon name="star" size={12} />Nuove funzionalità
             </div>
             <ul style={{ margin: 0, padding: '0 0 0 18px' }}>
@@ -61,7 +61,7 @@ export function NovitaModal({ onClose, onVediTutte }) {
 
         {latest.fix.length > 0 && (
           <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
               <Icon name="gear" size={12} />Fix
             </div>
             <ul style={{ margin: 0, padding: '0 0 0 18px' }}>
@@ -133,7 +133,7 @@ export default function ChangelogView() {
                 {idx === 0 && (
                   <span style={{
                     background: C.redLight, color: C.red,
-                    fontSize: 9, fontWeight: 800, padding: '2px 8px',
+                    fontSize: 12, fontWeight: 800, padding: '2px 8px',
                     borderRadius: 10, textTransform: 'uppercase', letterSpacing: '0.05em',
                   }}>Ultima</span>
                 )}
@@ -143,7 +143,7 @@ export default function ChangelogView() {
 
               {entry.novita.length > 0 && (
                 <div style={{ marginBottom: entry.fix.length > 0 ? 12 : 0 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: C.green, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: C.green, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
                     <Icon name="star" size={12} />Nuove funzionalità
                   </div>
                   <ul style={{ margin: 0, padding: '0 0 0 18px' }}>
@@ -156,7 +156,7 @@ export default function ChangelogView() {
 
               {entry.fix.length > 0 && (
                 <div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
                     Fix e miglioramenti
                   </div>
                   <ul style={{ margin: 0, padding: '0 0 0 18px' }}>

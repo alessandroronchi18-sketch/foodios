@@ -983,7 +983,7 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
             <div style={{ fontSize: FS_INPUT_IOS, fontWeight: 900, color: C.text, marginBottom: 4, display: 'inline-flex', alignItems: 'center', gap: 8 }}><Icon name="scooter" size={18} />Importa da piattaforma delivery</div>
             <div style={{ fontSize: FS.small, color: C.textSoft, marginBottom: 18 }}>Seleziona la piattaforma e carica il file export CSV/Excel.</div>
             <div style={{ marginBottom: 14 }}>
-              <div style={{ fontSize: FS.small, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Piattaforma</div>
+              <div style={{ fontSize: FS.small, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Piattaforma</div>
               <select value={importPiattaforma} onChange={e => { setImportPiattaforma(e.target.value); setImportPreview(null) }}
                 style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, color: C.text, minHeight: 44 }}>
                 <option value="deliveroo">Deliveroo (CSV)</option>
@@ -1052,7 +1052,7 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
             <div style={{ fontSize: FS_INPUT_IOS, fontWeight: 900, color: C.text, marginBottom: 4, display: 'inline-flex', alignItems: 'center', gap: 8 }}><Icon name="tv" size={18} />Importa da sistema cassa</div>
             <div style={{ fontSize: FS.small, color: C.textSoft, marginBottom: 18 }}>Seleziona il sistema e carica il file export (CSV o XML).</div>
             <div style={{ marginBottom: 14 }}>
-              <div style={{ fontSize: FS.small, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Sistema cassa</div>
+              <div style={{ fontSize: FS.small, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Sistema cassa</div>
               <select value={importSistema} onChange={e => { setImportSistema(e.target.value); setImportPreview(null) }}
                 style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: FS.small, color: C.text }}>
                 <option value="cassaincloud">Cassa in Cloud (CSV)</option>
@@ -1102,7 +1102,7 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
 
       <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, padding: isMobile ? '14px 16px' : '16px 20px', marginBottom: 20, display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', gap: isMobile ? 12 : 20, flexWrap: 'wrap', boxShadow: SHADOW_PREMIUM }}>
         <div style={{ width: isMobile ? '100%' : 'auto' }}>
-          <div style={{ fontSize: FS.small, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 }}>Data chiusura</div>
+          <div style={{ fontSize: FS.small, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>Data chiusura</div>
           {isDipendente ? (
             // Il dipendente può registrare solo la chiusura di OGGI: niente giorni passati.
             <div style={{ padding: '9px 14px', borderRadius: 7, border: `1px solid ${C.border}`, background: C.bgSubtle, fontSize: isMobile ? 14 : 12, fontWeight: 700, color: C.text }}>

@@ -45,7 +45,7 @@ export default function AIFotoAnalisi({ dati, onConferma, onRianalizza, onAnnull
 
       {/* Nome ricetta */}
       <div style={{ marginBottom: 12 }}>
-        <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748B', marginBottom: 4, textTransform: 'uppercase' }}>
+        <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748B', marginBottom: 4, textTransform: 'uppercase' }}>
           Nome ricetta
         </label>
         <input
@@ -59,7 +59,7 @@ export default function AIFotoAnalisi({ dati, onConferma, onRianalizza, onAnnull
       {/* Categoria e porzioni */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
         <div>
-          <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748B', marginBottom: 4, textTransform: 'uppercase' }}>
+          <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748B', marginBottom: 4, textTransform: 'uppercase' }}>
             Categoria
           </label>
           <select style={INPUT} value={form.categoria || 'Altro'} onChange={e => setForm({ ...form, categoria: e.target.value })}>
@@ -67,7 +67,7 @@ export default function AIFotoAnalisi({ dati, onConferma, onRianalizza, onAnnull
           </select>
         </div>
         <div>
-          <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748B', marginBottom: 4, textTransform: 'uppercase' }}>
+          <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748B', marginBottom: 4, textTransform: 'uppercase' }}>
             Porzioni / unità
           </label>
           <input
@@ -82,7 +82,7 @@ export default function AIFotoAnalisi({ dati, onConferma, onRianalizza, onAnnull
 
       {/* Ingredienti */}
       <div style={{ marginBottom: 16 }}>
-        <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748B', marginBottom: 8, textTransform: 'uppercase' }}>
+        <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748B', marginBottom: 8, textTransform: 'uppercase' }}>
           Ingredienti ({ingredienti.length})
         </label>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -121,7 +121,7 @@ export default function AIFotoAnalisi({ dati, onConferma, onRianalizza, onAnnull
 
       {/* Procedimento */}
       <div style={{ marginBottom: 16 }}>
-        <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748B', marginBottom: 4, textTransform: 'uppercase' }}>
+        <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748B', marginBottom: 4, textTransform: 'uppercase' }}>
           Note procedimento
         </label>
         <textarea

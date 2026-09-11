@@ -102,7 +102,7 @@ export default function AiPageHero({
             padding: '5px 14px', borderRadius: 999,
             background: 'rgba(255,255,255,0.10)',
             border: '1px solid rgba(255,255,255,0.20)',
-            fontSize: 10.5, fontWeight: 700, letterSpacing: '0.18em',
+            fontSize: 12, fontWeight: 700, letterSpacing: '0.05em',
             textTransform: 'uppercase',
             backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
           }}>
@@ -169,9 +169,9 @@ export default function AiPageHero({
                   fontFeatureSettings: "'tnum'",
                 }}>{s.n}</div>
                 <div style={{
-                  fontSize: 10.5, fontWeight: 600,
+                  fontSize: 12, fontWeight: 600,
                   color: 'rgba(255,255,255,0.60)',
-                  letterSpacing: '0.08em',
+                  letterSpacing: '0.05em',
                   textTransform: 'uppercase',
                   marginTop: 4,
                 }}>{s.l}</div>

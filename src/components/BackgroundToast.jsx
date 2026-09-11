@@ -56,7 +56,7 @@ export default function BackgroundToast() {
                 }}>
                   {job.nome}
                 </div>
-                <div style={{ fontSize: 11, color: COLORI[job.status], display: 'flex', alignItems: 'center', gap: 4 }}>
+                <div style={{ fontSize: 12, color: COLORI[job.status], display: 'flex', alignItems: 'center', gap: 4 }}>
                   {job.status === 'pending' && 'In attesa…'}
                   {job.status === 'running' && `${job.progress}%`}
                   {job.status === 'done'    && <><Icon name="checkCircle" size={12} /><span>Completato</span></>}
@@ -80,7 +80,7 @@ export default function BackgroundToast() {
                     width: `${job.progress}%`, transition: 'width 0.35s ease',
                   }} />
                 </div>
-                <div style={{ fontSize: 10, color: '#94A3B8', marginTop: 3, textAlign: 'right' }}>
+                <div style={{ fontSize: 12, color: '#94A3B8', marginTop: 3, textAlign: 'right' }}>
                   {job.progress}%
                 </div>
               </div>
@@ -93,7 +93,7 @@ export default function BackgroundToast() {
                 style={{
                   marginTop: 6, width: '100%', padding: '4px 0',
                   background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8,
-                  color: '#DC2626', fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                  color: '#DC2626', fontSize: 12, fontWeight: 600, cursor: 'pointer',
                   display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                 }}
               >

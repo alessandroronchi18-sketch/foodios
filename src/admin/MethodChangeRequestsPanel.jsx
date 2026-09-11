@@ -73,7 +73,7 @@ export default function MethodChangeRequestsPanel({ onCountChange }) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 10 }}>
         <div>
           <strong style={{ fontSize: 14 }}><Icon name="settings" size={14}/> Richieste cambio metodo produzione</strong>
-          <div style={{ fontSize: 11, color: COLORS.textMute, marginTop: 2 }}>
+          <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
             Tenant che chiedono di passare stampi ↔ inventario. Approvi solo se hai verificato che i dati esistenti reggano il cambio.
           </div>
         </div>
@@ -112,7 +112,7 @@ export default function MethodChangeRequestsPanel({ onCountChange }) {
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontWeight: 800, fontSize: 14, color: COLORS.text, marginBottom: 4 }}>
                       {r.org_nome || r.organization_id.slice(0, 8)}
-                      {r.org_tipo && <span style={{ fontSize: 11, fontWeight: 400, color: COLORS.textMute, textTransform: 'capitalize' }}> · {r.org_tipo}</span>}
+                      {r.org_tipo && <span style={{ fontSize: 12, fontWeight: 400, color: COLORS.textMute, textTransform: 'capitalize' }}> · {r.org_tipo}</span>}
                     </div>
                     <div style={{ fontSize: 12.5, color: COLORS.textSoft, lineHeight: 1.5, marginBottom: 4 }}>
                       Vuole passare da <b>{labelMetodo(r.from_metodo)}</b> a <b>{labelMetodo(r.to_metodo)}</b>
@@ -122,7 +122,7 @@ export default function MethodChangeRequestsPanel({ onCountChange }) {
                         &ldquo;{r.motivazione}&rdquo;
                       </div>
                     )}
-                    <div style={{ fontSize: 11, color: isOld ? COLORS.warn : COLORS.textMute }}>
+                    <div style={{ fontSize: 12, color: isOld ? COLORS.warn : COLORS.textMute }}>
                       {r.requested_by_email || '—'} · richiesta {ageLabel} fa{isOld && <strong> · da rispondere</strong>}
                     </div>
                   </div>
@@ -141,7 +141,7 @@ export default function MethodChangeRequestsPanel({ onCountChange }) {
                 </div>
                 {rejecting && (
                   <div style={{ padding: 10, background: COLORS.errBg, border: `1px solid ${COLORS.err}`, borderRadius: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.err, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Motivo del rifiuto (visibile al tenant)</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.err, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Motivo del rifiuto (visibile al tenant)</div>
                     <textarea value={rejectNote} onChange={e => setRejectNote(e.target.value.slice(0, 500))}
                       placeholder="Es: prima di passare all'inventario dobbiamo migrare i tuoi 40 gusti — ti scrivo con la procedura"
                       rows={3}
@@ -164,7 +164,7 @@ export default function MethodChangeRequestsPanel({ onCountChange }) {
         </div>
       )}
 
-      <div style={{ marginTop: 14, padding: 10, background: COLORS.blueBg, borderRadius: 8, fontSize: 11, color: COLORS.blue, border: `1px solid ${COLORS.blue}` }}>
+      <div style={{ marginTop: 14, padding: 10, background: COLORS.blueBg, borderRadius: 8, fontSize: 12, color: COLORS.blue, border: `1px solid ${COLORS.blue}` }}>
         <strong>Cosa succede all'approvazione:</strong> aggiornamento <code>organizations.metodo_produzione</code> + sync <code>sedi.metodo_produzione</code> + seed di 3 formati vendita default se target=inventario e org non ne ha. Notifica in-app al tenant. La modifica cambia le viste operative (Produzione ↔ Inventario gusti) al prossimo reload.
       </div>
     </div>

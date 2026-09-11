@@ -93,7 +93,7 @@ const LEGACY_MAP = {
 }
 
 const inputS = { width: '100%', padding: '10px 12px', borderRadius: 9, border: `1px solid ${C.borderStr}`, fontSize: 16, color: C.text, boxSizing: 'border-box', fontFamily: 'inherit', background: C.white }
-const labelS = { fontSize: 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5, display: 'block' }
+const labelS = { fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5, display: 'block' }
 
 const fmt = n => `${(Number.isFinite(Number(n)) ? Number(n) : 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
 const fmt0 = n => { const v = Number(n); return `${Math.round(Number.isFinite(v) ? v : 0).toLocaleString('it-IT', { useGrouping: 'always' })} €` }
@@ -517,7 +517,7 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
       display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 11,
       background: t === 'spreco' ? C.amberLight : BLU_LIGHT,
       color: t === 'spreco' ? C.amber : BLU,
-      fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em',
+      fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em',
     }}>
       <Icon name={t === 'spreco' ? 'trash' : 'gift'} size={11} /> {t === 'spreco' ? 'perdita' : 'omaggio'}
     </span>
@@ -695,7 +695,7 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
           <input style={{ ...inputS, width: 'auto' }} type="month" value={mese} onChange={e => setMese(e.target.value)} />
         </div>
         {legacy.length > 0 && (
-          <div style={{ fontSize: 11.5, color: C.textSoft, paddingBottom: 8, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ fontSize: 12, color: C.textSoft, paddingBottom: 8, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             <Icon name="clipboard" size={13} /> Include {fmtN(legacy.length)} record storici da “Discrepanze”.
           </div>
         )}
@@ -804,7 +804,7 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
                     <span style={{ display: 'block', height: '100%', width: `${Math.max(4, pct)}%`, background: i === 0 ? col : `${col}73`, transition: 'width 0.3s' }} />
                   </span>
                   <span style={{ flex: '0 0 70px', textAlign: 'right', fontSize: 12.5, fontWeight: 700, color: C.text, ...TNUM }}>{fmt(c.eur)}</span>
-                  <span style={{ flex: '0 0 44px', textAlign: 'right', fontSize: 11.5, color: C.textSoft, ...TNUM }}>{fmtp(pct)}</span>
+                  <span style={{ flex: '0 0 44px', textAlign: 'right', fontSize: 12, color: C.textSoft, ...TNUM }}>{fmtp(pct)}</span>
                 </div>
               )
             })}
@@ -831,7 +831,7 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
                     <span style={{ display: 'block', height: '100%', width: `${Math.max(4, pct)}%`, background: i === 0 ? C.red : 'rgba(110,14,26,0.45)', transition: 'width 0.3s' }} />
                   </span>
                   <span style={{ flex: '0 0 70px', textAlign: 'right', fontSize: 12.5, fontWeight: 700, color: C.text, ...TNUM }}>{fmt(p.eur)}</span>
-                  {!isMobile && <span style={{ flex: '0 0 96px', textAlign: 'right', fontSize: 11.5, color: C.textSoft, ...TNUM }}>{qtaStr || `${fmtN(p.n)} reg.`}</span>}
+                  {!isMobile && <span style={{ flex: '0 0 96px', textAlign: 'right', fontSize: 12, color: C.textSoft, ...TNUM }}>{qtaStr || `${fmtN(p.n)} reg.`}</span>}
                 </div>
               )
             })}
@@ -902,8 +902,8 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
                     )}
                   </td>
                   <td style={{ padding: '11px 14px', color: C.textSoft, fontSize: 12 }}>
-                    {m._legacy ? <span style={{ padding: '1px 5px', borderRadius: 4, background: C.bgSubtle, color: C.textSoft, fontSize: 11, fontWeight: 700 }}>STORICO</span> : (m.autore_email || '-')}
-                    {m.autore_ruolo === 'dipendente' && <span style={{ marginLeft: 6, padding: '1px 5px', borderRadius: 4, background: C.amberLight, color: C.amber, fontSize: 11, fontWeight: 700 }}>DIP</span>}
+                    {m._legacy ? <span style={{ padding: '1px 5px', borderRadius: 4, background: C.bgSubtle, color: C.textSoft, fontSize: 12, fontWeight: 700 }}>STORICO</span> : (m.autore_email || '-')}
+                    {m.autore_ruolo === 'dipendente' && <span style={{ marginLeft: 6, padding: '1px 5px', borderRadius: 4, background: C.amberLight, color: C.amber, fontSize: 12, fontWeight: 700 }}>DIP</span>}
                   </td>
                   <td style={{ padding: '11px 14px' }}>
                     {!m._legacy && (

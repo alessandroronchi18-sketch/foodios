@@ -15,7 +15,7 @@ const SHADOW_PREMIUM = '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42
 const TNUM = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" }
 
 const card = { background: T.bgCard, borderRadius: 16, padding: '18px 20px', border: `1px solid ${T.border}`, boxShadow: SHADOW_PREMIUM, marginBottom: 16 }
-const lbl  = { fontSize: 11, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6, display: 'block' }
+const lbl  = { fontSize: 12, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6, display: 'block' }
 const inp  = { width: '100%', minHeight: 44, padding: '0 12px', border: `1px solid ${T.borderStr}`, borderRadius: R.md, fontSize: 16, color: T.text, background: T.bgCard, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', minWidth: 0 }
 const btn = (bg, fg) => ({ height: 36, padding: '0 14px', background: bg, color: fg, border: 'none', borderRadius: R.md, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, letterSpacing: '-0.005em', whiteSpace: 'nowrap', transition: 'background 120ms ease, opacity 120ms ease', fontFamily: 'inherit' })
 
@@ -81,8 +81,8 @@ async function exportSettimanaPDF(eventi, ricetteMap, nomeAttivita) {
     const body = (ev.righe || []).map(r => [r.nome, `${Number(r.qty || 0)} pz`])
     autoTable(doc, {
       startY: y + 3, head: [['Prodotto da produrre', 'Quantità']], body: body.length ? body : [['-', '-']],
-      headStyles: { fillColor: RED, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9 },
-      bodyStyles: { fontSize: 10 }, columnStyles: { 1: { halign: 'right', cellWidth: 40 } },
+      headStyles: { fillColor: RED, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 12 },
+      bodyStyles: { fontSize: 12 }, columnStyles: { 1: { halign: 'right', cellWidth: 40 } },
       margin: { left: 14, right: 14 },
     })
     y = doc.lastAutoTable.finalY + 12
@@ -126,7 +126,7 @@ async function exportPreventivoPDF(evento, ricetteMap, ingCosti, nomeAttivita) {
   autoTable(doc, {
     startY: 60, head, body,
     headStyles: { fillColor: RED, textColor: [255,255,255], fontStyle: 'bold' },
-    bodyStyles: { fontSize: 10 },
+    bodyStyles: { fontSize: 12 },
     margin: { left: 14, right: 14 },
   })
 
@@ -442,7 +442,7 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
                 ['Prezzo di vendita unitario', 'Prezzo a cui vendi al cliente'],
                 ['Food cost', 'Costo ingredienti'],
               ].map(([h, tip]) => (
-                <div key={h} title={tip} style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: T.textSoft, cursor: 'help', textDecoration: 'underline dotted', textUnderlineOffset: 3 }}>{h}</div>
+                <div key={h} title={tip} style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: T.textSoft, cursor: 'help', textDecoration: 'underline dotted', textUnderlineOffset: 3 }}>{h}</div>
               ))}
             </div>
           )}
@@ -479,7 +479,7 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
                   {isMobile && (
                     <label style={{ ...lbl, marginBottom: 4 }}>
                       Quantità da produrre
-                      <div style={{ fontSize: 10, color: T.textSoft, fontWeight: 500, textTransform: 'none', letterSpacing: 0, marginTop: 2 }}>N° pezzi/porzioni</div>
+                      <div style={{ fontSize: 12, color: T.textSoft, fontWeight: 500, textTransform: 'none', letterSpacing: 0, marginTop: 2 }}>N° pezzi/porzioni</div>
                     </label>
                   )}
                   <input type="number" min="0" step="1" value={r.qty}
@@ -491,7 +491,7 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
                   {isMobile && (
                     <label style={{ ...lbl, marginBottom: 4 }}>
                       Prezzo di vendita unitario
-                      <div style={{ fontSize: 10, color: T.textSoft, fontWeight: 500, textTransform: 'none', letterSpacing: 0, marginTop: 2 }}>Prezzo al cliente per pezzo</div>
+                      <div style={{ fontSize: 12, color: T.textSoft, fontWeight: 500, textTransform: 'none', letterSpacing: 0, marginTop: 2 }}>Prezzo al cliente per pezzo</div>
                     </label>
                   )}
                   <input type="number" min="0" step="0.01" value={r.prezzo}
@@ -500,10 +500,10 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
                     placeholder="Es. 4.50" style={inp} />
                 </div>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                  {isMobile && <span style={{ fontSize: 11, color: T.textMid, fontWeight: 600 }}>FC tot</span>}
-                  <div style={{ fontSize: 11, color: T.textMid, flex: 1, ...TNUM }} title="Costo ingredienti totale (quantità × food cost ricetta)">{fmtEur(fcStampo * Number(r.qty || 0))}</div>
+                  {isMobile && <span style={{ fontSize: 12, color: T.textMid, fontWeight: 600 }}>FC tot</span>}
+                  <div style={{ fontSize: 12, color: T.textMid, flex: 1, ...TNUM }} title="Costo ingredienti totale (quantità × food cost ricetta)">{fmtEur(fcStampo * Number(r.qty || 0))}</div>
                   <button onClick={() => rimuoviRiga(r.id)} aria-label="Rimuovi riga"
-                    style={{ padding: '6px 10px', background: T.brandLight, color: T.brand, border: `1px solid ${T.brandSoft}`, borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                    style={{ padding: '6px 10px', background: T.brandLight, color: T.brand, border: `1px solid ${T.brandSoft}`, borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
                     ×
                   </button>
                 </div>
@@ -582,8 +582,8 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
           display: 'flex', flexDirection: 'column',
         }
         const kpiLabel = {
-          fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
-          letterSpacing: '0.08em', color: T.textSoft,
+          fontSize: 12, fontWeight: 700, textTransform: 'uppercase',
+          letterSpacing: '0.05em', color: T.textSoft,
           minHeight: 14, lineHeight: 1.2,
         }
         const kpiValue = {
@@ -625,7 +625,7 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
               {!isArch && ft && (
                 <span title={`Evento ${fmtDate(ev.data)} - pianifica la produzione di conseguenza`}
                   style={{
-                    fontSize: 10, fontWeight: 800, padding: '4px 10px',
+                    fontSize: 12, fontWeight: 800, padding: '4px 10px',
                     borderRadius: 999, background: ft.bg, color: ft.fg,
                     letterSpacing: '0.04em', textTransform: 'uppercase',
                     display: 'inline-flex', alignItems: 'center', gap: 4,
@@ -636,7 +636,7 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
               )}
               {isArch && (
                 <span style={{
-                  fontSize: 10, background: T.bgSubtle, color: T.textSoft,
+                  fontSize: 12, background: T.bgSubtle, color: T.textSoft,
                   padding: '4px 10px', borderRadius: 999, fontWeight: 700,
                   letterSpacing: '0.06em', flexShrink: 0, whiteSpace: 'nowrap',
                 }}>
@@ -749,7 +749,7 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
                 <div style={{ fontSize: 12, fontWeight: 800, color: '#92400E', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
                   <Icon name="package" size={14} /> Archiviare "{ev.cliente || 'evento'}"?
                 </div>
-                <div style={{ fontSize: 11, color: T.textMid, marginBottom: 10, lineHeight: 1.5 }}>
+                <div style={{ fontSize: 12, color: T.textMid, marginBottom: 10, lineHeight: 1.5 }}>
                   L'evento sparirà dagli attivi e finirà in archivio. Nessun dato viene perso: potrai ripristinarlo in qualsiasi momento dalla scheda Archivio.
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -770,7 +770,7 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
                 <div style={{ fontSize: 12, fontWeight: 800, color: T.brand, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
                   <Icon name="warning" size={14} /> Eliminazione definitiva di "{ev.cliente || 'evento'}"
                 </div>
-                <div style={{ fontSize: 11, color: T.textMid, marginBottom: 8, lineHeight: 1.5 }}>
+                <div style={{ fontSize: 12, color: T.textMid, marginBottom: 8, lineHeight: 1.5 }}>
                   Questa azione è irreversibile: i dati dell'evento e il preventivo verranno rimossi per sempre.
                   Per confermare scrivi <b style={{ color: T.brand, letterSpacing: '0.06em' }}>ELIMINA</b> qui sotto.
                 </div>
@@ -778,7 +778,7 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
                   <input value={eliminaPin}
                     onChange={e => setEliminaPin(e.target.value)}
                     placeholder="ELIMINA"
-                    style={{ flex: 1, minWidth: 180, padding: '8px 12px', borderRadius: 8, border: `1.5px solid ${eliminaPin === 'ELIMINA' ? T.brand : T.brandSoft}`, fontSize: 13, fontWeight: 700, color: T.brand, letterSpacing: '0.08em', background: T.bgCard }} />
+                    style={{ flex: 1, minWidth: 180, padding: '8px 12px', borderRadius: 8, border: `1.5px solid ${eliminaPin === 'ELIMINA' ? T.brand : T.brandSoft}`, fontSize: 13, fontWeight: 700, color: T.brand, letterSpacing: '0.05em', background: T.bgCard }} />
                   <button onClick={confermaEliminazione} disabled={eliminaPin !== 'ELIMINA'}
                     style={{ padding: '8px 16px', background: eliminaPin === 'ELIMINA' ? T.brand : '#E5E7EB', color: eliminaPin === 'ELIMINA' ? '#FFF' : '#9CA3AF', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 800, cursor: eliminaPin === 'ELIMINA' ? 'pointer' : 'not-allowed' }}>
                     Elimina

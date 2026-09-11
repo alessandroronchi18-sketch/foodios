@@ -131,7 +131,7 @@ export default function HomeDipendente({
 
       {/* Header: saluto + sede + data */}
       <div style={{ maxWidth: 880, margin: '0 auto 20px' }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
           {partOfDayGreeting()}
         </div>
         <h1 style={{
@@ -253,7 +253,7 @@ export default function HomeDipendente({
         maxWidth: 880,
         margin: '40px auto 0',
         textAlign: 'center',
-        fontSize: 11, color: SOFT, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase',
+        fontSize: 12, color: SOFT, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase',
       }}>
         Foodos · modalità dipendente
       </div>

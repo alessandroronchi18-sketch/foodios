@@ -311,8 +311,8 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
           minWidth: 0,
         }}>
           <div style={{
-            fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase',
-            letterSpacing: '0.08em', color: C.textSoft, marginBottom: 2,
+            fontSize: 12, fontWeight: 700, textTransform: 'uppercase',
+            letterSpacing: '0.05em', color: C.textSoft, marginBottom: 2,
           }}>Settimana</div>
           <div style={{
             fontSize: isMobile ? 15 : 16, fontWeight: 700, color: C.text,
@@ -766,7 +766,7 @@ function SparklineTrend({ data }) {
 // ── Stili tabella drill-down per sede ─────────────────────────────────────
 const tdHeadSede = {
   padding: '10px 14px', textAlign: 'left',
-  fontSize: 10.5, fontWeight: 700, color: C.textSoft,
+  fontSize: 12, fontWeight: 700, color: C.textSoft,
   textTransform: 'uppercase', letterSpacing: '0.06em',
   whiteSpace: 'nowrap',
 }
@@ -804,8 +804,8 @@ function Tile({ icon, label, value, sub, tendVal, muted, color, bg, borderColor,
           <Icon name={icon} size={15} color={accent || C.red} />
         </span>
         <div style={{
-          fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase',
-          letterSpacing: '0.08em', color: C.textSoft, lineHeight: 1.25,
+          fontSize: 12, fontWeight: 700, textTransform: 'uppercase',
+          letterSpacing: '0.05em', color: C.textSoft, lineHeight: 1.25,
           minHeight: 28,
           display: 'flex', alignItems: 'center',
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
@@ -827,7 +827,7 @@ function Tile({ icon, label, value, sub, tendVal, muted, color, bg, borderColor,
 
       {/* Sub: minHeight uniforme così le tile restano allineate */}
       <div style={{
-        fontSize: 11.5, color: muted ? C.textSoft : C.textMid,
+        fontSize: 12, color: muted ? C.textSoft : C.textMid,
         marginTop: 6, lineHeight: 1.35,
         minHeight: 28,
         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
@@ -848,7 +848,7 @@ function Tile({ icon, label, value, sub, tendVal, muted, color, bg, borderColor,
       }}>
         {badge && (
           <span style={{
-            fontSize: 10, fontWeight: 700,
+            fontSize: 12, fontWeight: 700,
             color: accent || C.textMid,
             background: accent ? `${accent}1F` : 'rgba(15,23,42,0.05)',
             padding: '3px 8px', borderRadius: 999,
@@ -858,7 +858,7 @@ function Tile({ icon, label, value, sub, tendVal, muted, color, bg, borderColor,
         )}
         {tendVal != null && sub && (
           <span style={{
-            fontSize: 11, fontWeight: 600,
+            fontSize: 12, fontWeight: 600,
             color: tendVal >= 0 ? '#065F46' : '#991B1B',
             whiteSpace: 'nowrap',
           }}>
@@ -932,7 +932,7 @@ function PanelTop({ title, items, total, isMobile }) {
                 width: 22, height: 22, borderRadius: 6,
                 background: i === 0 ? '#FEF3C7' : C.bgSubtle,
                 color: i === 0 ? '#92400E' : C.textSoft,
-                fontSize: 11, fontWeight: 800, textAlign: 'center',
+                fontSize: 12, fontWeight: 800, textAlign: 'center',
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                 flexShrink: 0,
               }}>
@@ -964,7 +964,7 @@ function PanelTop({ title, items, total, isMobile }) {
                 {nKg(it.vendutoG)} kg
               </span>
               <span style={{
-                flex: '0 0 38px', fontSize: 11.5, color: C.textSoft,
+                flex: '0 0 38px', fontSize: 12, color: C.textSoft,
                 textAlign: 'right', ...TNUM, whiteSpace: 'nowrap',
               }}>
                 {pctVal.toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })}%
@@ -990,7 +990,7 @@ function PanelSofferenza({ sofferenza, zeroVenduto }) {
           border: '1px solid #FECACA',
         }}>
           <div style={{
-            fontSize: 10.5, fontWeight: 700, color: '#991B1B',
+            fontSize: 12, fontWeight: 700, color: '#991B1B',
             textTransform: 'uppercase', letterSpacing: '0.06em',
             marginBottom: 6,
             display: 'flex', alignItems: 'center', gap: 6,
@@ -1028,7 +1028,7 @@ function PanelSofferenza({ sofferenza, zeroVenduto }) {
               </span>
               <span style={{
                 color: C.textSoft, ...TNUM, whiteSpace: 'nowrap',
-                fontSize: 11.5,
+                fontSize: 12,
               }}>
                 residuo {nKg(x.residuoMedioG)} kg
               </span>
@@ -1036,7 +1036,7 @@ function PanelSofferenza({ sofferenza, zeroVenduto }) {
                 color: '#92400E', fontWeight: 700, ...TNUM,
                 minWidth: 52, textAlign: 'right', whiteSpace: 'nowrap',
                 background: '#FEF3C7', padding: '2px 8px', borderRadius: 999,
-                fontSize: 11.5,
+                fontSize: 12,
               }}>
                 {(x.ratio * 100).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })}%
               </span>
@@ -1045,7 +1045,7 @@ function PanelSofferenza({ sofferenza, zeroVenduto }) {
         </div>
       )}
       <div style={{
-        fontSize: 11, color: C.textSoft, marginTop: 12, lineHeight: 1.4,
+        fontSize: 12, color: C.textSoft, marginTop: 12, lineHeight: 1.4,
         paddingTop: 10, borderTop: `1px solid ${C.borderSoft}`,
       }}>
         Soglia &quot;sofferenza&quot;: residuo medio &ge; 50% della produzione giornaliera.
@@ -1072,6 +1072,6 @@ const panelStyle = {
   width: '100%', boxSizing: 'border-box',
 }
 const panelTitle = {
-  fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
-  letterSpacing: '0.08em', color: C.textSoft, marginBottom: 14,
+  fontSize: 12, fontWeight: 700, textTransform: 'uppercase',
+  letterSpacing: '0.05em', color: C.textSoft, marginBottom: 14,
 }

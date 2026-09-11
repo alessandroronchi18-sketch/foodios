@@ -117,7 +117,7 @@ export default function CittaAutocomplete({ value, onChange, inputStyle, placeho
         style={inpStyle}
       />
       {showError && (
-        <div style={{ fontSize: 11, color: RED, marginTop: 4 }}>
+        <div style={{ fontSize: 12, color: RED, marginTop: 4 }}>
           Seleziona un comune dalla lista
         </div>
       )}

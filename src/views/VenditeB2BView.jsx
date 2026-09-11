@@ -205,8 +205,8 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
   }
   // Label uniforme per i form.
   const lbl = {
-    fontSize: 10, fontWeight: 700, color: C.textSoft,
-    textTransform: 'uppercase', letterSpacing: '0.07em',
+    fontSize: 12, fontWeight: 700, color: C.textSoft,
+    textTransform: 'uppercase', letterSpacing: '0.05em',
     display: 'block', marginBottom: 5,
   }
   // Touch target generico per icon/button (40 mobile, 44 tablet)
@@ -267,7 +267,7 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
         <span style={{
           background: active ? 'rgba(255,255,255,0.2)' : C.bgSubtle,
           color: active ? C.white : C.textSoft,
-          padding: '1px 7px', borderRadius: 999, fontSize: 11, fontWeight: 700,
+          padding: '1px 7px', borderRadius: 999, fontSize: 12, fontWeight: 700,
           ...TNUM,
         }}>{count.toLocaleString('it-IT', { useGrouping: 'always' })}</span>
       )}
@@ -337,7 +337,7 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
               La vendita è stata salvata, ma alcuni prodotti sono ora in negativo in magazzino:
               <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 {stockWarn.map((w, i) => (
-                  <span key={i} style={{ background: '#FFEDD5', color: '#9A3412', fontWeight: 700, fontSize: 11, padding: '3px 9px', borderRadius: 8 }}>{w}</span>
+                  <span key={i} style={{ background: '#FFEDD5', color: '#9A3412', fontWeight: 700, fontSize: 12, padding: '3px 9px', borderRadius: 8 }}>{w}</span>
                 ))}
               </div>
               <div style={{ marginTop: 6, color: '#B45309' }}>
@@ -398,7 +398,7 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
                       ].map((h) => (
                         <th key={h.lbl} style={{
                           padding: '10px 14px', textAlign: h.align,
-                          fontSize: 10, fontWeight: 700, color: C.textSoft,
+                          fontSize: 12, fontWeight: 700, color: C.textSoft,
                           textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap',
                           borderBottom: `1px solid ${C.border}`,
                           position: h.sticky ? 'sticky' : 'static',
@@ -423,7 +423,7 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
                         </td>
                         <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 700, color: C.text, ...TNUM, whiteSpace: 'nowrap' }}>{fmt(g.fatturato)}</td>
                         <td style={{ padding: '12px 14px', textAlign: 'right', color: C.green, ...TNUM, whiteSpace: 'nowrap' }}>
-                          {fmt(g.margine)} <span style={{ color: C.textSoft, fontSize: 10 }}>{g.margPct.toFixed(0)}%</span>
+                          {fmt(g.margine)} <span style={{ color: C.textSoft, fontSize: 12 }}>{g.margPct.toFixed(0)}%</span>
                         </td>
                         <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 700, color: g.insoluto > 0 ? C.red : C.textSoft, ...TNUM, whiteSpace: 'nowrap' }}>
                           {g.insoluto > 0 ? fmt(g.insoluto) : '-'}
@@ -462,7 +462,7 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
                           <span style={{ flex: 1, height: 8, background: T.bgSubtle, borderRadius: 5, overflow: 'hidden' }}>
                             <span style={{ display: 'block', height: '100%', width: `${widthPct}%`, background: i === 0 ? C.green : 'rgba(31,122,72,0.5)' }} />
                           </span>
-                          <span style={{ fontSize: 11, color: C.textSoft, ...TNUM, whiteSpace: 'nowrap' }}>
+                          <span style={{ fontSize: 12, color: C.textSoft, ...TNUM, whiteSpace: 'nowrap' }}>
                             {p.qta.toLocaleString('it-IT', { useGrouping: 'always' })} pz
                           </span>
                         </div>
@@ -478,7 +478,7 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
                       <span style={{ flex: 1, height: 16, background: T.bgSubtle, borderRadius: 5, overflow: 'hidden' }}>
                         <span style={{ display: 'block', height: '100%', width: `${widthPct}%`, background: i === 0 ? C.green : 'rgba(31,122,72,0.5)' }} />
                       </span>
-                      <span style={{ flex: '0 0 70px', textAlign: 'right', fontSize: 11.5, color: C.textSoft, ...TNUM, whiteSpace: 'nowrap' }}>
+                      <span style={{ flex: '0 0 70px', textAlign: 'right', fontSize: 12, color: C.textSoft, ...TNUM, whiteSpace: 'nowrap' }}>
                         {p.qta.toLocaleString('it-IT', { useGrouping: 'always' })} pz
                       </span>
                       <span style={{ flex: '0 0 110px', textAlign: 'right', fontSize: 12.5, fontWeight: 700, color: C.text, ...TNUM, whiteSpace: 'nowrap' }}>
@@ -644,7 +644,7 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
                   <div style={{ minWidth: 540 }}>
                     <div style={{
                       display: 'grid', gridTemplateColumns: '1fr 80px 100px 90px 36px',
-                      gap: 8, fontSize: 10, fontWeight: 700, color: C.textSoft,
+                      gap: 8, fontSize: 12, fontWeight: 700, color: C.textSoft,
                       textTransform: 'uppercase', letterSpacing: '0.06em',
                       padding: '0 6px', marginBottom: 6,
                     }}>
@@ -738,11 +738,11 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
               </div>
 
               {sedeId ? (
-                <div style={{ fontSize: 11, color: C.textSoft, marginTop: 10 }}>
+                <div style={{ fontSize: 12, color: C.textSoft, marginTop: 10 }}>
                   Lo stock dei prodotti finiti verrà scaricato dalla sede attiva.
                 </div>
               ) : (
-                <div style={{ fontSize: 11, color: C.amber, marginTop: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ fontSize: 12, color: C.amber, marginTop: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
                   <Icon name="warning" size={13} /> Nessuna sede attiva: la vendita viene registrata ma lo stock non sarà scaricato.
                 </div>
               )}
@@ -777,10 +777,10 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
                   alignItems: 'center', gap: 12,
                   padding: '12px 18px', background: '#F8F4F2', borderBottom: `1px solid ${C.border}`,
                 }}>
-                  <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft }}>Cliente</span>
-                  <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, textAlign: 'center' }}>Stato</span>
-                  <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, textAlign: 'right' }}>Totale</span>
-                  <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, textAlign: 'right' }}>Azioni</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft }}>Cliente</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, textAlign: 'center' }}>Stato</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, textAlign: 'right' }}>Totale</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, textAlign: 'right' }}>Azioni</span>
                 </div>
               )}
 
@@ -810,10 +810,10 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
                             fontSize: 15, fontWeight: 700, color: C.text,
                             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                           }}>{v.clienti_b2b?.nome || 'Cliente eliminato'}</div>
-                          <div style={{ fontSize: 11.5, color: C.textSoft, marginTop: 3, lineHeight: 1.5 }}>
+                          <div style={{ fontSize: 12, color: C.textSoft, marginTop: 3, lineHeight: 1.5 }}>
                             {fmtData(v.data)} · {plural((v.righe || []).length, 'prodotto', 'prodotti')} · {(v.righe || []).reduce((s, r) => s + (Number(r.qta) || 0), 0).toLocaleString('it-IT', { useGrouping: 'always' })} pz
                           </div>
-                          <div style={{ fontSize: 11, color: C.textSoft, marginTop: 2 }}>
+                          <div style={{ fontSize: 12, color: C.textSoft, marginTop: 2 }}>
                             Margine <span style={{ fontWeight: 700, color: C.green, ...TNUM }}>{fmt(v.margine)}</span>
                             {v.margPct > 0 && <span style={{ color: C.textSoft, marginLeft: 4 }}>({v.margPct.toFixed(0)}%)</span>}
                           </div>
@@ -825,7 +825,7 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
 
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                         <span style={{
-                          fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 999,
+                          fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 999,
                           background: st.bg, color: st.fg, whiteSpace: 'nowrap',
                         }}>{st.lbl}</span>
                         {v.stato !== 'annullata' && (
@@ -833,7 +833,7 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
                             onClick={() => togglePagata(v)}
                             aria-label={v.pagata ? 'Segna come da incassare' : 'Segna come incassata'}
                             style={{
-                              fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 999,
+                              fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 999,
                               border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
                               background: v.pagata ? C.greenLight : '#FEE2E2',
                               color: v.pagata ? C.green : C.red,
@@ -885,7 +885,7 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
                         fontSize: 14, fontWeight: 700, color: C.text,
                         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                       }}>{v.clienti_b2b?.nome || 'Cliente eliminato'}</div>
-                      <div style={{ fontSize: 11.5, color: C.textSoft, marginTop: 3 }}>
+                      <div style={{ fontSize: 12, color: C.textSoft, marginTop: 3 }}>
                         {fmtData(v.data)} · {plural((v.righe || []).length, 'prodotto', 'prodotti')} · {(v.righe || []).reduce((s, r) => s + (Number(r.qta) || 0), 0).toLocaleString('it-IT', { useGrouping: 'always' })} pz
                         <span style={{ color: C.textSoft }}> · margine </span>
                         <span style={{ fontWeight: 700, color: C.green, ...TNUM }}>{fmt(v.margine)}</span>
@@ -894,7 +894,7 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
 
                     <div style={{ justifySelf: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
                       <span style={{
-                        fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 999,
+                        fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 999,
                         background: st.bg, color: st.fg, whiteSpace: 'nowrap',
                       }}>{st.lbl}</span>
                       {v.stato !== 'annullata' && (
@@ -903,7 +903,7 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
                           aria-label={v.pagata ? 'Segna come da incassare' : 'Segna come incassata'}
                           title={v.pagata ? 'Segna da incassare' : 'Segna incassata'}
                           style={{
-                            fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 999,
+                            fontSize: 12, fontWeight: 700, padding: '3px 9px', borderRadius: 999,
                             border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
                             background: v.pagata ? C.greenLight : '#FEE2E2',
                             color: v.pagata ? C.green : C.red,
@@ -1057,7 +1057,7 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
                         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                       }}>{c.nome}</div>
                       <div title={meta} style={{
-                        fontSize: 11.5, color: C.textSoft, marginTop: 3,
+                        fontSize: 12, color: C.textSoft, marginTop: 3,
                         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                       }}>{meta}</div>
                     </div>

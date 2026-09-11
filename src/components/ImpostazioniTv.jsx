@@ -7,7 +7,7 @@ import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 const TV_KEY = 'pasticceria-tv-token-v1'
 
 const card = { background:'#FFF', borderRadius: 12, padding:'24px 28px', boxShadow:'0 1px 4px rgba(0,0,0,0.07)', marginBottom:20 }
-const label = { fontSize:11, fontWeight:700, color:'#64748B', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8, display:'block' }
+const label = { fontSize: 12, fontWeight:700, color:'#64748B', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8, display:'block' }
 
 function generaToken() {
   // 24 char random base32-like (sicuro su URL)

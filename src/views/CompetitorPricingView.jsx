@@ -195,7 +195,7 @@ Valuta se sono sotto, in linea o sopra, e dimmi cosa farei al posto mio.`
 
       {/* Selettore ricetta */}
       <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: 16, marginBottom: 16 }}>
-        <div style={{ fontSize: 10.5, fontWeight: 700, color: SOFT, letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: 5 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: SOFT, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 5 }}>
           Prodotto da confrontare
         </div>
         <select value={ricSel} onChange={e => { setRicSel(e.target.value); setAiInsight(null) }}
@@ -210,7 +210,7 @@ Valuta se sono sotto, in linea o sopra, e dimmi cosa farei al posto mio.`
           {/* Tuo prezzo */}
           <div style={{ background: '#F0F9FF', border: '1px solid #BAE6FD', borderRadius: 12, padding: 16, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
             <div>
-              <div style={{ fontSize: 10.5, fontWeight: 700, color: '#0369A1', letterSpacing: '0.07em', textTransform: 'uppercase' }}>Il tuo prezzo</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#0369A1', letterSpacing: '0.05em', textTransform: 'uppercase' }}>Il tuo prezzo</div>
               <div style={{ fontSize: 24, fontWeight: 900, color: TXT, marginTop: 2 }}>€ {Number(fcInfo.prezzo).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
             </div>
             <div style={{ fontSize: 12, color: MID, lineHeight: 1.5 }}>
@@ -271,7 +271,7 @@ Valuta se sono sotto, in linea o sopra, e dimmi cosa farei al posto mio.`
                       )}
                       {typeof aiInsight.confidence === 'number' && (
                         <div title="Quanta certezza ha l'AI nel verdetto, sulla base del numero di competitor"
-                          style={{ fontSize: 10.5, padding: '2px 8px', borderRadius: 4, background: '#FFF', color: SOFT, fontWeight: 600 }}>
+                          style={{ fontSize: 12, padding: '2px 8px', borderRadius: 4, background: '#FFF', color: SOFT, fontWeight: 600 }}>
                           {Math.round(aiInsight.confidence * 100)}% sicurezza
                         </div>
                       )}
@@ -285,14 +285,14 @@ Valuta se sono sotto, in linea o sopra, e dimmi cosa farei al posto mio.`
                       </div>
                     )}
                     {typeof aiInsight.impatto_margine_pct === 'number' && aiInsight.impatto_margine_pct !== 0 && (
-                      <div style={{ fontSize: 11.5, color: SOFT, marginTop: 6 }}>
+                      <div style={{ fontSize: 12, color: SOFT, marginTop: 6 }}>
                         Impatto stimato sul margine: <strong style={{ color: aiInsight.impatto_margine_pct > 0 ? GREEN : BRAND }}>
                           {aiInsight.impatto_margine_pct > 0 ? '+' : ''}{Number(aiInsight.impatto_margine_pct).toFixed(1)} punti %
                         </strong>
                       </div>
                     )}
                     {aiInsight.rischio && (
-                      <div style={{ fontSize: 11.5, color: SOFT, marginTop: 6, fontStyle: 'italic', display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+                      <div style={{ fontSize: 12, color: SOFT, marginTop: 6, fontStyle: 'italic', display: 'flex', alignItems: 'flex-start', gap: 6 }}>
                         <Icon name="warning" size={12}/> <span>{aiInsight.rischio}</span>
                       </div>
                     )}
@@ -301,7 +301,7 @@ Valuta se sono sotto, in linea o sopra, e dimmi cosa farei al posto mio.`
               </div>
 
               <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: 14 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: SOFT, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: SOFT, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 10 }}>
                   Competitor monitorati per "{ricSel}"
                 </div>
                 {compFiltered.map(c => (
@@ -319,7 +319,7 @@ Valuta se sono sotto, in linea o sopra, e dimmi cosa farei al posto mio.`
         </>
       )}
 
-      <div style={{ marginTop: 24, fontSize: 11, color: SOFT, textAlign: 'center', lineHeight: 1.5 }}>
+      <div style={{ marginTop: 24, fontSize: 12, color: SOFT, textAlign: 'center', lineHeight: 1.5 }}>
         V2 in roadmap: scraping automatico menu pubblici (Google Maps / Just Eat) in raggio 1km dalla sede.
       </div>
     </div>
@@ -329,9 +329,9 @@ Valuta se sono sotto, in linea o sopra, e dimmi cosa farei al posto mio.`
 function Stat({ label, value, color, hint }) {
   return (
     <div>
-      <div style={{ fontSize: 10, fontWeight: 700, color: SOFT, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{label}</div>
+      <div style={{ fontSize: 12, fontWeight: 700, color: SOFT, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{label}</div>
       <div style={{ fontSize: 18, fontWeight: 800, color: color || TXT, marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>{value}</div>
-      {hint && <div style={{ fontSize: 10.5, color: SOFT, marginTop: 2 }}>{hint}</div>}
+      {hint && <div style={{ fontSize: 12, color: SOFT, marginTop: 2 }}>{hint}</div>}
     </div>
   )
 }

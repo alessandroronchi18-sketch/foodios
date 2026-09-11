@@ -94,7 +94,7 @@ exports[`Email templates — snapshot per non-regressione > report_mensile — c
         
     <div style="flex:1;background:#FFF;border:1px solid #E8DDD8;border-radius:8px;padding:14px 16px;">
       <div style="font-size:11px;color:#9C7B76;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Ricavi</div>
-      <div style="font-size:18px;font-weight:800;color:#1C0A0A;">€ 12.345,67</div>
+      <div style="font-size:18px;font-weight:800;color:#1C0A0A;">12.345,67 €</div>
     </div>
         
     <div style="flex:1;background:#FFF;border:1px solid #E8DDD8;border-radius:8px;padding:14px 16px;">

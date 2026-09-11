@@ -219,13 +219,13 @@ Inventa 3 ricette diverse fra loro (es. una classica, una innovativa, una stagio
           {ricette.map((r, i) => (
             <div key={i} style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: 18, display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: BRAND, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Ricetta #{i + 1}</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: BRAND, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Ricetta #{i + 1}</div>
                 <div style={{ fontSize: 18, fontWeight: 800, color: TXT, marginTop: 4, lineHeight: 1.3 }}>{r.nome}</div>
               </div>
               <div style={{ fontSize: 12.5, color: MID, lineHeight: 1.5, fontStyle: 'italic', background: '#FAFAF6', padding: 10, borderRadius: 8 }}>
                 {r.descrizione_plating}
               </div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', fontSize: 11 }}>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', fontSize: 12 }}>
                 {r.tempo_preparazione_min && <Chip>⏱ {r.tempo_preparazione_min} min</Chip>}
                 {r.porzioni && <Chip>👥 {r.porzioni} porzioni</Chip>}
                 {r.food_cost_stimato_pz && <Chip>FC € {Number(r.food_cost_stimato_pz).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}/pz</Chip>}
@@ -233,7 +233,7 @@ Inventa 3 ricette diverse fra loro (es. una classica, una innovativa, una stagio
               </div>
               {Array.isArray(r.ingredienti) && (
                 <div>
-                  <div style={{ fontSize: 10.5, fontWeight: 700, color: SOFT, letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: 4 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: SOFT, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 4 }}>
                     Ingredienti
                   </div>
                   <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: MID, lineHeight: 1.6 }}>
@@ -245,14 +245,14 @@ Inventa 3 ricette diverse fra loro (es. una classica, una innovativa, una stagio
               )}
               {Array.isArray(r.procedimento_steps) && (
                 <details>
-                  <summary style={{ fontSize: 11, fontWeight: 700, color: BRAND, cursor: 'pointer' }}>Procedimento ({r.procedimento_steps.length} passi)</summary>
+                  <summary style={{ fontSize: 12, fontWeight: 700, color: BRAND, cursor: 'pointer' }}>Procedimento ({r.procedimento_steps.length} passi)</summary>
                   <ol style={{ margin: '8px 0', paddingLeft: 20, fontSize: 12, color: MID, lineHeight: 1.6 }}>
                     {r.procedimento_steps.map((s, j) => <li key={j}>{s}</li>)}
                   </ol>
                 </details>
               )}
               {r.perche_funziona && (
-                <div style={{ fontSize: 11.5, color: SOFT, fontStyle: 'italic', borderTop: `1px solid ${BORDER}`, paddingTop: 8 }}>
+                <div style={{ fontSize: 12, color: SOFT, fontStyle: 'italic', borderTop: `1px solid ${BORDER}`, paddingTop: 8 }}>
                   {r.perche_funziona}
                 </div>
               )}
@@ -261,7 +261,7 @@ Inventa 3 ricette diverse fra loro (es. una classica, una innovativa, una stagio
         </div>
       )}
 
-      <div style={{ marginTop: 24, fontSize: 11, color: SOFT, textAlign: 'center', lineHeight: 1.5 }}>
+      <div style={{ marginTop: 24, fontSize: 12, color: SOFT, textAlign: 'center', lineHeight: 1.5 }}>
         Le ricette sono proposte AI. Testale sempre con piccole produzioni prima di metterle in vetrina.
       </div>
     </div>
@@ -269,9 +269,9 @@ Inventa 3 ricette diverse fra loro (es. una classica, una innovativa, una stagio
 }
 
 function Label({ children }) {
-  return <div style={{ fontSize: 10.5, fontWeight: 700, color: SOFT, letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: 6 }}>{children}</div>
+  return <div style={{ fontSize: 12, fontWeight: 700, color: SOFT, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 6 }}>{children}</div>
 }
 
 function Chip({ children, color }) {
-  return <span style={{ display: 'inline-block', padding: '3px 9px', background: '#F1F5F9', color: color || MID, borderRadius: 999, fontSize: 11, fontWeight: 600 }}>{children}</span>
+  return <span style={{ display: 'inline-block', padding: '3px 9px', background: '#F1F5F9', color: color || MID, borderRadius: 999, fontSize: 12, fontWeight: 600 }}>{children}</span>
 }

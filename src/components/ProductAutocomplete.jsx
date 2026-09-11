@@ -135,7 +135,7 @@ export default function ProductAutocomplete({
           fontSize: 14, color: TXT, fontFamily: 'inherit', boxSizing: 'border-box',
         }} />
       {showWarning && (
-        <div style={{ marginTop: 4, fontSize: 11, color: '#92400E' }}>
+        <div style={{ marginTop: 4, fontSize: 12, color: '#92400E' }}>
           ⚠️ Nessun match esatto. Seleziona da elenco o verifica il nome.
         </div>
       )}
@@ -157,7 +157,7 @@ export default function ProductAutocomplete({
                 fontSize: 13, color: TXT, textAlign: 'left', cursor: 'pointer',
               }}>
               <span style={{ fontWeight: 600 }}>{o.nome}</span>
-              {o.hint && <span style={{ fontSize: 10.5, color: SOFT, fontStyle: 'italic' }}>{o.hint}</span>}
+              {o.hint && <span style={{ fontSize: 12, color: SOFT, fontStyle: 'italic' }}>{o.hint}</span>}
             </button>
           ))}
         </div>

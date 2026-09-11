@@ -101,7 +101,7 @@ ${JSON.stringify(context, null, 2)}`
       <button onClick={ask}
         style={{
           background: 'transparent', border: `1px solid ${BORDER}`,
-          padding: '6px 12px', borderRadius: 8, fontSize: 11.5, fontWeight: 700,
+          padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700,
           color: BRAND, cursor: 'pointer',
           display: 'inline-flex', alignItems: 'center', gap: 5,
         }}>
@@ -143,7 +143,7 @@ function ExplainModal({ label, value, loading, explanation, error, onClose }) {
             <Icon name="sparkles" size={15} />
           </span>
           <div>
-            <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: BRAND }}>
+            <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: BRAND }}>
               Lettura AI
             </div>
             <div style={{ fontSize: 13, color: MID, marginTop: 1 }}>
@@ -171,7 +171,7 @@ function ExplainModal({ label, value, loading, explanation, error, onClose }) {
             ))}
           </div>
         )}
-        <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${BORDER}`, fontSize: 10.5, color: SOFT }}>
+        <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${BORDER}`, fontSize: 12, color: SOFT }}>
           Generato dall'AI in base ai tuoi dati. Verifica sempre prima di prendere decisioni.
         </div>
       </div>

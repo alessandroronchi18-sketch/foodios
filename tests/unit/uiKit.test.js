@@ -37,7 +37,11 @@ describe('uiCard / uiCardCompact', () => {
 
 describe('uiLabel / uiSectionTitle', () => {
   it('uiLabel ha fontSize + uppercase', () => {
-    expect(uiLabel.fontSize).toBe(11)
+    // 12, non 11: nessun testo sotto i 12px sui dati. L'etichetta è in
+    // maiuscolo, e le maiuscole piccole con le lettere spaziate sono la
+    // combinazione più faticosa da leggere — la pagina la usa un proprietario
+    // di sessant'anni.
+    expect(uiLabel.fontSize).toBe(12)
     expect(uiLabel.textTransform).toBe('uppercase')
   })
 

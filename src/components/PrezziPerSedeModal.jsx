@@ -159,7 +159,7 @@ export default function PrezziPerSedeModal({ open, onClose, orgId, sedi, target,
           </button>
         </div>
 
-        <div style={{ padding: '10px 14px', background: C.amberLight, borderBottom: `1px solid ${C.border}`, fontSize: 11.5, color: '#92400E', lineHeight: 1.5, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+        <div style={{ padding: '10px 14px', background: C.amberLight, borderBottom: `1px solid ${C.border}`, fontSize: 12, color: '#92400E', lineHeight: 1.5, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
           <Icon name="bulb" size={13}/>
           <span>Lascia vuoto per <b>ereditare</b> il prezzo base. Se cambi il base in futuro, le sedi senza override si aggiornano da sole.</span>
         </div>
@@ -174,12 +174,12 @@ export default function PrezziPerSedeModal({ open, onClose, orgId, sedi, target,
                 ? (isMobile ? '1fr 90px 78px 32px' : '1fr 130px 100px 40px')
                 : (isMobile ? '1fr 110px 32px' : '1fr 150px 40px'),
               gap: 8, alignItems: 'center', minWidth: 0 }}>
-              <div style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: C.textSoft }}>Sede</div>
-              <div style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: C.textSoft, textAlign: 'right' }}>
+              <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: C.textSoft }}>Sede</div>
+              <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: C.textSoft, textAlign: 'right' }}>
                 {isFormato ? 'Prezzo €' : isGusto ? 'Prezzo €/kg' : 'Prezzo €'}
               </div>
               {isRicetta && !isGusto && (
-                <div style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: C.textSoft, textAlign: 'right' }}>N° {baseReg?.tipo === 'fetta' ? 'fette' : 'pz'}</div>
+                <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: C.textSoft, textAlign: 'right' }}>N° {baseReg?.tipo === 'fetta' ? 'fette' : 'pz'}</div>
               )}
               <div/>
               {sediAttive.map(s => {
@@ -193,11 +193,11 @@ export default function PrezziPerSedeModal({ open, onClose, orgId, sedi, target,
                         {s.nome}{s.is_default ? ' *' : ''}
                       </div>
                       {(s.citta || s.indirizzo) && (
-                        <div style={{ fontSize: 10.5, color: C.textSoft, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <div style={{ fontSize: 12, color: C.textSoft, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {[s.indirizzo, s.citta].filter(Boolean).join(', ')}
                         </div>
                       )}
-                      {hasOv && <div style={{ fontSize: 9.5, color: C.brand, fontWeight: 700, marginTop: 2 }}>Override attivo</div>}
+                      {hasOv && <div style={{ fontSize: 12, color: C.brand, fontWeight: 700, marginTop: 2 }}>Override attivo</div>}
                     </div>
                     <input type="text" inputMode="decimal" value={v.prezzo}
                       onChange={e => setForm(f => ({ ...f, [s.id]: { ...(f[s.id] || {}), prezzo: e.target.value } }))}

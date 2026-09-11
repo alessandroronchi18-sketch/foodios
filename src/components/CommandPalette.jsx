@@ -163,13 +163,13 @@ Massimo 60 parole.`
               fontSize: 16, color: TXT, fontFamily: 'inherit',
             }}
           />
-          <kbd style={{ fontSize: 10.5, color: SOFT, padding: '2px 6px', borderRadius: 4, border: `1px solid ${BORDER}` }}>ESC</kbd>
+          <kbd style={{ fontSize: 12, color: SOFT, padding: '2px 6px', borderRadius: 4, border: `1px solid ${BORDER}` }}>ESC</kbd>
         </div>
 
         {/* Risultati rapidi (matching keyword) */}
         {hits.length > 0 && (
           <div style={{ padding: '6px 0' }}>
-            <div style={{ padding: '6px 18px', fontSize: 10.5, color: SOFT, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+            <div style={{ padding: '6px 18px', fontSize: 12, color: SOFT, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
               Vai a
             </div>
             {hits.map(h => (
@@ -191,13 +191,13 @@ Massimo 60 parole.`
         {q.trim() && (
           <div style={{ borderTop: hits.length > 0 ? `1px solid ${BORDER}` : 'none', padding: '12px 18px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: aiAnswer ? 10 : 0 }}>
-              <div style={{ fontSize: 11, color: SOFT, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+              <div style={{ fontSize: 12, color: SOFT, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
                 Chiedi all'AI
               </div>
               <button onClick={askAi} disabled={aiLoading}
                 style={{
                   background: BRAND, color: '#FFF', border: 'none',
-                  padding: '5px 14px', borderRadius: 7, fontSize: 11.5, fontWeight: 700,
+                  padding: '5px 14px', borderRadius: 7, fontSize: 12, fontWeight: 700,
                   cursor: aiLoading ? 'wait' : 'pointer',
                   display: 'inline-flex', alignItems: 'center', gap: 5,
                 }}>
@@ -232,7 +232,7 @@ Massimo 60 parole.`
         {!q.trim() && hits.length === 0 && (
           <div style={{ padding: '24px 20px', textAlign: 'center', color: SOFT, fontSize: 12.5, lineHeight: 1.6 }}>
             Cerca una sezione, una ricetta, o chiedi all'AI.<br/>
-            <span style={{ fontSize: 11 }}>Esempi: <em>"food cost"</em>, <em>"cannolo"</em>, <em>"quanto ho incassato oggi"</em></span>
+            <span style={{ fontSize: 12 }}>Esempi: <em>"food cost"</em>, <em>"cannolo"</em>, <em>"quanto ho incassato oggi"</em></span>
           </div>
         )}
       </div>

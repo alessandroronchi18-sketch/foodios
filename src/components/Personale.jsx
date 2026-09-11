@@ -977,11 +977,11 @@ function TurniTab({ orgId, notify, isMobile }) {
             </div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:16 }}>
               <div style={{ background:C.bg, borderRadius:12, padding:'10px 12px' }}>
-                <div style={{ fontSize: typo.small.fontSize, fontWeight:700, color:C.textSoft, textTransform:'uppercase', letterSpacing:'0.07em' }}>Orario</div>
+                <div style={{ fontSize: typo.small.fontSize, fontWeight:700, color:C.textSoft, textTransform:'uppercase', letterSpacing: '0.05em' }}>Orario</div>
                 <div style={{ fontSize:16, fontWeight:800, color:C.text, marginTop:4, ...tnum }}>{_hm(shiftPreview.ini)}–{_hm(shiftPreview.fin)}</div>
               </div>
               <div style={{ background:C.bg, borderRadius:12, padding:'10px 12px' }}>
-                <div style={{ fontSize: typo.small.fontSize, fontWeight:700, color:C.textSoft, textTransform:'uppercase', letterSpacing:'0.07em' }}>Ore</div>
+                <div style={{ fontSize: typo.small.fontSize, fontWeight:700, color:C.textSoft, textTransform:'uppercase', letterSpacing: '0.05em' }}>Ore</div>
                 <div style={{ fontSize:16, fontWeight:800, color:C.text, marginTop:4, ...tnum }}>
                   {fmtH(shiftPreview.ore || 0)}
                   {consuntivo[shiftPreview.id] != null && <span style={{ fontSize: typo.small.fontSize, color:C.amber, fontWeight:700, marginLeft:6 }}>eff. {fmtH(consuntivo[shiftPreview.id])}</span>}
@@ -1942,7 +1942,7 @@ function RubricaDipendentiSection({ orgId, notify, isMobile }) {
                   {lastUsed && <span style={{ marginLeft: 8 }}>· ultimo accesso {lastUsed}</span>}
                 </div>
               </div>
-              <span style={{ fontSize: 15, fontWeight: 800, color: C.text, background: C.bgSubtle, padding: '4px 12px', borderRadius: 8, fontVariantNumeric: 'tabular-nums', letterSpacing: '0.15em' }}>
+              <span style={{ fontSize: 15, fontWeight: 800, color: C.text, background: C.bgSubtle, padding: '4px 12px', borderRadius: 8, fontVariantNumeric: 'tabular-nums', letterSpacing: '0.05em' }}>
                 {d.codice_operativo || '—'}
               </span>
               <span style={{ fontSize: typo.small.fontSize, fontWeight: 800, padding: '3px 9px', borderRadius: 999, color: d.codice_attivo ? C.green : C.amber, background: d.codice_attivo ? `${C.green}14` : `${C.amber}18`, display: 'inline-flex', alignItems: 'center', gap: 4 }}>

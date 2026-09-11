@@ -173,7 +173,7 @@ export function templateFattureInScadenza({ nomeAttivita, fatture }) {
     <tr>
       <td style="padding:8px 12px;border-bottom:1px solid #E8DDD8;color:#1C0A0A;font-size:14px;">${escapeHtml(f.fornitore || '—')}</td>
       <td style="padding:8px 12px;border-bottom:1px solid #E8DDD8;color:#6B4C44;font-size:13px;">${escapeHtml(String(f.data_fattura || ''))}</td>
-      <td style="padding:8px 12px;border-bottom:1px solid #E8DDD8;color:#C0392B;font-size:14px;font-weight:700;text-align:right;">€ ${Number(f.totale || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #E8DDD8;color:#C0392B;font-size:14px;font-weight:700;text-align:right;">${Number(f.totale || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</td>
     </tr>`).join('')
   return {
     subject: `📄 ${items.length} fattur${items.length === 1 ? 'a' : 'e'} in scadenza — FoodOS`,
@@ -210,7 +210,7 @@ export function templateReportMensile({ nomeAttivita, mese, ricaviTotali, foodCo
         Ecco il riepilogo del mese per <strong>${escapeHtml(nomeAttivita || 'la tua attività')}</strong>:
       </p>
       <div style="display:flex;gap:10px;margin-bottom:14px;">
-        ${stat('Ricavi', '€ ' + Number(ricaviTotali || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 }))}
+        ${stat('Ricavi', Number(ricaviTotali || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €')}
         ${stat('Food cost medio', Number(foodCostMedio || 0).toFixed(1) + '%')}
       </div>
       ${piuVenduto ? `<p style="color:#6B4C44;font-size:14px;line-height:1.7;margin:0 0 6px;">🥇 Più venduto: <strong>${escapeHtml(piuVenduto)}</strong></p>` : ''}

@@ -207,7 +207,7 @@ export default function PrimiPassi({ orgId, sedeId, ricettario, magazzino, giorn
             </span>
             {!open && !allDone && (
               <span style={{
-                fontSize: 10, fontWeight: 600, color: SOFT, letterSpacing: '0.04em',
+                fontSize: 12, fontWeight: 600, color: SOFT, letterSpacing: '0.04em',
                 background: '#F8FAFC', border: `1px solid ${BORDER}`,
                 padding: '2px 7px', borderRadius: 999, flexShrink: 0,
               }}>tocca per aprire</span>

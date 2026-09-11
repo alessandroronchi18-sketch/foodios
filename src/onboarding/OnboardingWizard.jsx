@@ -622,7 +622,7 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
                   <div style={{ fontSize: 13, color: '#475264', lineHeight: 1.55, marginBottom: 8 }}>
                     Per chi produce <strong>per ricetta</strong>: torte, biscotti, croissant, paste. Ogni giorno registri quanti stampi/pezzi hai prodotto.
                   </div>
-                  <div style={{ fontSize: 11.5, color: '#8B95A7', lineHeight: 1.5 }}>
+                  <div style={{ fontSize: 12, color: '#8B95A7', lineHeight: 1.5 }}>
                     Indicato per: pasticceria classica, panificio, biscottificio, bar con prodotti finiti.
                   </div>
                 </div>
@@ -648,7 +648,7 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
                   <div style={{ fontSize: 13, color: '#475264', lineHeight: 1.55, marginBottom: 8 }}>
                     Per chi produce <strong>gusti</strong> ma vende <strong>formati</strong>: gelato in cono/coppetta/vaschetta, yogurt sfuso. Inserisci grammi prodotti e grammi rimasti - il venduto si calcola da solo.
                   </div>
-                  <div style={{ fontSize: 11.5, color: '#8B95A7', lineHeight: 1.5 }}>
+                  <div style={{ fontSize: 12, color: '#8B95A7', lineHeight: 1.5 }}>
                     Indicato per: gelateria, yogurteria, gastronomia con vaschette, laboratorio.
                   </div>
                 </div>
@@ -697,7 +697,7 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
                   return (
                     <div key={key} style={{ marginBottom: 12 }}>
                       <label htmlFor={inputId} style={{
-                        fontSize: 10.5, fontWeight: 700, color: '#8B95A7',
+                        fontSize: 12, fontWeight: 700, color: '#8B95A7',
                         textTransform: 'uppercase', letterSpacing: '0.06em',
                         marginBottom: 5, display: 'block',
                       }}>{label}</label>

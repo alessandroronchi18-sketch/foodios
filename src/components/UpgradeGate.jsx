@@ -33,7 +33,7 @@ export default function UpgradeGate({ view, onUpgrade }) {
           <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
         </svg>
       </div>
-      <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: T.brand, marginBottom: 8 }}>Piano {piano}</div>
+      <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: T.brand, marginBottom: 8 }}>Piano {piano}</div>
       <h2 style={{ margin: '0 0 10px', fontSize: 22, fontWeight: 800, color: T.text, letterSpacing: '-0.02em' }}>{nome} è inclusa nel piano {piano}</h2>
       <p style={{ margin: '0 auto 24px', maxWidth: 380, fontSize: 13, color: T.textSoft, lineHeight: 1.6 }}>
         Sblocca {nome.toLowerCase()} e le altre funzioni avanzate passando al piano {piano}. Puoi cambiare piano in qualsiasi momento dalle Impostazioni.

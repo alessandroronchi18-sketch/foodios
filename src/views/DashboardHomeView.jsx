@@ -104,11 +104,11 @@ function StockPFWidget({ isMobile, setView, viewAggregato, orgId, sedeId, LEX })
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: hasStock ? 16 : 8, gap: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
             <span style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(110,14,26,0.10)', color: T.brand, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Ico d={ICO.store} size={17} /></span>
-            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: T.textSoft, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: T.textSoft, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>
               Stock vetrina<span style={{ color: T.textFaint }}> · {viewAggregato ? 'tutte le sedi' : 'sede attiva'}</span>
             </div>
           </div>
-          <span style={{ fontSize: 11, color: T.textSoft, fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0 }}>{n0(inStock.length)} pz</span>
+          <span style={{ fontSize: 12, color: T.textSoft, fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0 }}>{n0(inStock.length)} pz</span>
         </div>
         {hasStock ? (
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '170px 1fr', gap: isMobile ? 14 : 28, alignItems: 'center' }}>
@@ -119,7 +119,7 @@ function StockPFWidget({ isMobile, setView, viewAggregato, orgId, sedeId, LEX })
             <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
               {top.map((r, i) => (
                 <div key={r.prodotto_nome} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: 11.5, fontWeight: 600, color: T.textMid, width: isMobile ? 110 : 128, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flexShrink: 0 }}>{r.prodotto_nome}</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: T.textMid, width: isMobile ? 110 : 128, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flexShrink: 0 }}>{r.prodotto_nome}</span>
                   <div style={{ flex: 1, height: 9, background: '#F0EAE6', borderRadius: 6, overflow: 'hidden', minWidth: 30 }}>
                     <div style={{ width: `${Math.max(5, Number(r.quantita) / maxQ * 100)}%`, height: '100%', background: BAR[i % BAR.length], borderRadius: 6 }} />
                   </div>
@@ -138,7 +138,7 @@ function StockPFWidget({ isMobile, setView, viewAggregato, orgId, sedeId, LEX })
       {inArrivo > 0 && !viewAggregato && (
         <div className="fos-tile" onClick={() => setView('trasferimenti')}
           style={{ background: 'linear-gradient(135deg,#FFFBEB,#FEF3C7)', border: '1px solid #FCD34D', borderRadius: 18, padding: isMobile ? '16px 16px' : '22px 24px', cursor: 'pointer' }}>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#92400E', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="truck" size={13} />In arrivo da altre sedi</div>
+          <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: '#92400E', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="truck" size={13} />In arrivo da altre sedi</div>
           <div style={{ fontSize: isMobile ? 32 : 48, fontWeight: 800, color: '#92400E', letterSpacing: '-0.04em', lineHeight: 1, ...TNUM }}>{n0(inArrivo)}</div>
           <div style={{ fontSize: 12.5, color: '#92400E', marginTop: 6, fontWeight: 600 }}>{inArrivo === 1 ? 'trasferimento da confermare' : 'trasferimenti da confermare'}</div>
         </div>
@@ -270,7 +270,7 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
         <span style={{ width: isMobile ? 30 : 36, height: isMobile ? 30 : 36, borderRadius: 10, background: tint.soft, color: tint.solid, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Ico d={icon} size={isMobile ? 15 : 18} /></span>
         <span style={{ color: T.textFaint }}><Ico d={ICO.chevron} size={isMobile ? 13 : 15} /></span>
       </div>
-      <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: T.textSoft, marginBottom: 6, position: 'relative', minHeight: 26, lineHeight: 1.25 }}>{label}</div>
+      <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: T.textSoft, marginBottom: 6, position: 'relative', minHeight: 26, lineHeight: 1.25 }}>{label}</div>
       <div style={{ fontSize: isMobile ? 24 : 32, fontWeight: 800, color: empty ? T.textFaint : (valueColor || T.text), lineHeight: 1.0, letterSpacing: '-0.035em', position: 'relative', minHeight: isMobile ? 26 : 32, ...TNUM }}>
         {empty ? '-' : value}
       </div>
@@ -311,7 +311,7 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
         </div>
         <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'flex-end', justifyContent: 'space-between', gap: isMobile ? 14 : 16 }}>
           <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.62)', textTransform: 'capitalize', fontWeight: 600, letterSpacing: '0.02em', marginBottom: 6 }}>{giornoLabel}</div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.62)', textTransform: 'capitalize', fontWeight: 600, letterSpacing: '0.02em', marginBottom: 6 }}>{giornoLabel}</div>
             <h1 style={{ margin: 0, fontSize: isMobile ? 24 : 42, fontWeight: 800, color: '#FFF', letterSpacing: '-0.04em', lineHeight: 1.1, wordBreak: 'break-word' }}>
               {saluto}{nomeAttivita ? <>,<br style={{ display: isMobile ? 'block' : 'none' }} /> <span style={{ color: '#FBD7C9' }}>{nomeAttivita}</span></> : ''}
             </h1>
@@ -348,7 +348,7 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
         <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 18, padding: isMobile ? '16px 16px 12px' : '20px 22px 14px', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: isMobile ? 10 : 14 }}>
             <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: T.text, letterSpacing: '-0.01em' }}>Ultime {LEX.ricette}</h2>
-            {ultimeRicette.length > 0 && <span style={{ fontSize: 11, color: T.textSoft, fontWeight: 600 }}>{Object.keys(ricettario?.ricette || {}).length} totali</span>}
+            {ultimeRicette.length > 0 && <span style={{ fontSize: 12, color: T.textSoft, fontWeight: 600 }}>{Object.keys(ricettario?.ricette || {}).length} totali</span>}
           </div>
           {ultimeRicette.length === 0
             ? <div style={{ padding: '24px 12px', textAlign: 'center' }}>
@@ -370,7 +370,7 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
                       <span style={{ width: 4, height: 30, borderRadius: 3, background: ricavo > 0 ? mC : T.borderStr, flexShrink: 0 }} />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontWeight: 600, fontSize: 13, color: T.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.nome}</div>
-                        <div style={{ fontSize: 11, color: T.textSoft, marginTop: 2, display: 'flex', alignItems: 'center', gap: 8, ...TNUM }}>
+                        <div style={{ fontSize: 12, color: T.textSoft, marginTop: 2, display: 'flex', alignItems: 'center', gap: 8, ...TNUM }}>
                           <span>FC {fcPct.toFixed(0)}%</span>
                           <span style={{ width: 3, height: 3, borderRadius: '50%', background: T.textFaint }} />
                           <span style={{ color: ricavo > 0 ? mC : T.textSoft, fontWeight: 700 }}>Margine {marg.toFixed(0)}%</span>
@@ -391,7 +391,7 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
         <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 18, padding: isMobile ? '16px 16px' : '20px 22px', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: isMobile ? 10 : 14 }}>
             <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: T.text, letterSpacing: '-0.01em' }}>Da fare oggi</h2>
-            {todos.length > 0 && <span style={{ fontSize: 11, fontWeight: 700, color: T.brand, background: T.brandLight, borderRadius: 999, padding: '2px 9px' }}>{todos.length}</span>}
+            {todos.length > 0 && <span style={{ fontSize: 12, fontWeight: 700, color: T.brand, background: T.brandLight, borderRadius: 999, padding: '2px 9px' }}>{todos.length}</span>}
           </div>
           {todos.length === 0
             ? <div style={{ padding: '28px 12px', textAlign: 'center' }}>

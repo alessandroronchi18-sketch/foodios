@@ -215,7 +215,7 @@ export function KPI({ label, value, sub, color, highlight, icon, onClick }) {
           leggibilità, e queste etichette stanno spesso su quel fondo.
           minHeight resta uniforme così le tessere affiancate restano
           incolonnate fra loro. */}
-      <div style={{ position: 'relative', fontSize: 12, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase',
+      <div style={{ position: 'relative', fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase',
         color: highlight ? 'rgba(255,255,255,0.82)' : T.textMid, marginBottom: 6,
         minHeight: 30, lineHeight: 1.25 }}>{label}</div>
       {/* Audit 2026-06-25: fontSize auto-shrink in base alla lunghezza del value.
@@ -286,7 +286,7 @@ export const ChartTip = ({ active, payload, label }) => {
   return (
     <div style={{
       background: C.white, border: `1px solid ${C.border}`, borderRadius: 8,
-      padding: '10px 14px', fontSize: 11,
+      padding: '10px 14px', fontSize: 12,
       boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
     }}>
       <div style={{ fontWeight: 700, color: C.text, marginBottom: 4 }}>{label}</div>
@@ -311,7 +311,7 @@ export function Badge({ label, color = 'green' }) {
   }[color] || { bg: '#F3F3F3', c: '#888' }
   return (
     <span style={{
-      background: s.bg, color: s.c, fontSize: 10, fontWeight: 600,
+      background: s.bg, color: s.c, fontSize: 12, fontWeight: 600,
       padding: '3px 8px', borderRadius: 12, letterSpacing: '0.04em',
       textTransform: 'uppercase', whiteSpace: 'nowrap',
     }}>{label}</span>
@@ -355,7 +355,7 @@ export function Tip({ text, children, width = 220 }) {
           zIndex: 99999,
           background: '#1C0A0A',
           color: 'rgba(255,255,255,0.92)',
-          fontSize: 11, fontWeight: 500, lineHeight: 1.55,
+          fontSize: 12, fontWeight: 500, lineHeight: 1.55,
           padding: '10px 14px', borderRadius: 8,
           width, pointerEvents: 'none',
           boxShadow: '0 4px 20px rgba(0,0,0,0.35)',
@@ -409,7 +409,7 @@ export const TH = ({ children, right }) => (
   // 10 con letterSpacing un po' ridotto resta compatto ma leggibile.
   <th style={{
     padding: '10px 14px', textAlign: right ? 'right' : 'left',
-    fontSize: 10, fontWeight: 700, letterSpacing: '0.05em',
+    fontSize: 12, fontWeight: 700, letterSpacing: '0.05em',
     textTransform: 'uppercase', color: C.textSoft,
     borderBottom: `1px solid ${C.border}`, whiteSpace: 'nowrap',
   }}>{children}</th>

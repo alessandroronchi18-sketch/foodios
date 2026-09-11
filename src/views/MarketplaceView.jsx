@@ -114,7 +114,7 @@ export default function MarketplaceView() {
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : isTablet ? 'repeat(auto-fill, minmax(260px, 1fr))' : 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 }}>
           {filtered.map(l => (
             <div key={l.id} style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: 16 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: SOFT, letterSpacing: '0.07em', textTransform: 'uppercase' }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: SOFT, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
                 {CATEGORIE.find(c => c.id === l.categoria)?.lbl?.split(' ').slice(1).join(' ') || l.categoria}
               </div>
               <div style={{ fontSize: 15, fontWeight: 800, color: TXT, marginTop: 4 }}>{l.prodotto}</div>
@@ -145,7 +145,7 @@ export default function MarketplaceView() {
         </div>
       )}
 
-      <div style={{ marginTop: 24, fontSize: 11, color: SOFT, textAlign: 'center', lineHeight: 1.5 }}>
+      <div style={{ marginTop: 24, fontSize: 12, color: SOFT, textAlign: 'center', lineHeight: 1.5 }}>
         Il marketplace cresce con i suggerimenti della community. Vuoi un fornitore aggiunto? <a href="mailto:support@foodos.it" style={{ color: BRAND }}>support@foodos.it</a>
       </div>
     </div>

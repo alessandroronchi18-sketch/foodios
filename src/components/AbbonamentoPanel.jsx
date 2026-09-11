@@ -181,7 +181,7 @@ export default function AbbonamentoPanel({ org, notify, isInline = false }) {
         borderRadius:R.lg, marginBottom:20,
       }}>
         <div>
-          <div style={{ fontSize:11, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:4 }}>
+          <div style={{ fontSize: 12, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:4 }}>
             Piano attuale
           </div>
           <div style={{ fontSize:18, fontWeight:800, color:T.text, letterSpacing:'-0.01em' }}>
@@ -192,7 +192,7 @@ export default function AbbonamentoPanel({ org, notify, isInline = false }) {
           {stateLabel && (
             <span style={{
               display:'inline-block', marginTop:6, padding:'3px 10px', borderRadius:999,
-              fontSize:11, fontWeight:700,
+              fontSize: 12, fontWeight:700,
               background: stateLabel.bg, color: stateLabel.color,
             }}>{stateLabel.text}</span>
           )}
@@ -242,7 +242,7 @@ export default function AbbonamentoPanel({ org, notify, isInline = false }) {
                 <span style={{
                   position: 'absolute', top: -10, left: 18, padding: '3px 10px',
                   borderRadius: 999, background: T.brand, color: '#FFF',
-                  fontSize: 10, fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase',
+                  fontSize: 12, fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase',
                 }}>Consigliato</span>
               )}
 
@@ -262,7 +262,7 @@ export default function AbbonamentoPanel({ org, notify, isInline = false }) {
                   display: 'inline-flex', alignItems: 'center', gap: 6, alignSelf: 'flex-start',
                   padding: '5px 10px', marginBottom: 12,
                   background: T.brandLight || '#FEF0EE', color: T.brand,
-                  borderRadius: 999, fontSize: 11, fontWeight: 700,
+                  borderRadius: 999, fontSize: 12, fontWeight: 700,
                   letterSpacing: '0.01em',
                 }}>
                   <span aria-hidden="true">↑</span>
@@ -283,7 +283,7 @@ export default function AbbonamentoPanel({ org, notify, isInline = false }) {
                       display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                       width: 16, height: 16, marginTop: 2, flexShrink: 0,
                       borderRadius: '50%', background: (T.greenLight || '#DCFCE7'),
-                      color: T.green, fontSize: 11, fontWeight: 900, lineHeight: 1,
+                      color: T.green, fontSize: 12, fontWeight: 900, lineHeight: 1,
                     }}>✓</span>
                     <span style={{ minWidth: 0 }}>{f}</span>
                   </li>
@@ -308,7 +308,7 @@ export default function AbbonamentoPanel({ org, notify, isInline = false }) {
         })}
       </div>
 
-      <p style={{ fontSize:11, color:T.textSoft, marginTop:16, lineHeight:1.5 }}>
+      <p style={{ fontSize: 12, color:T.textSoft, marginTop:16, lineHeight:1.5 }}>
         Pagamento sicuro tramite <strong>Stripe</strong>. Puoi disdire in qualsiasi momento dalla
         sezione "Gestisci abbonamento". Riceverai fattura automatica via email dopo ogni pagamento.
       </p>

@@ -5,7 +5,7 @@ import { loadXLSX } from '../lib/xlsx' // loader unico multi-CDN, no SRI
 import Icon from './Icon'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 
-const lbl  = { fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, display: 'block' }
+const lbl  = { fontSize: 12, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, display: 'block' }
 
 const SK_CHIUS = 'pasticceria-chiusure-v1'
 const IVA_DEFAULT_PCT = 10 // alimenti d'asporto: 10% - modificabile in UI

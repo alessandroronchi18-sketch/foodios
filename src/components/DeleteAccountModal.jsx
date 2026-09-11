@@ -164,7 +164,7 @@ export default function DeleteAccountModal({ open, onClose, auth, notify }) {
         <div style={{ padding: '20px 22px 14px', borderBottom: `1px solid ${T.borderSoft}`,
           display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: T.red || '#B91C1C', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: T.red || '#B91C1C', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
               Zona pericolosa
             </div>
             <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: T.text, letterSpacing: '-0.01em' }}>
@@ -245,7 +245,7 @@ export default function DeleteAccountModal({ open, onClose, auth, notify }) {
                 style={{ width: '100%', padding: '10px 12px', borderRadius: R.md,
                   border: `1px solid ${T.border}`, fontSize: isMobile ? 16 : 14, fontFamily: 'inherit', resize: 'vertical',
                   color: T.text, outline: 'none', boxSizing: 'border-box' }}/>
-              <div style={{ fontSize: 11, color: T.textFaint, textAlign: 'right', marginTop: 4 }}>
+              <div style={{ fontSize: 12, color: T.textFaint, textAlign: 'right', marginTop: 4 }}>
                 {feedback.length}/1000
               </div>
             </div>

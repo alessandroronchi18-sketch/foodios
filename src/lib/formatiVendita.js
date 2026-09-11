@@ -170,16 +170,52 @@ function ricetteDiCategoria(categoria, ricettario) {
 // con overrun/evaporazione (audit 2026-07-30). Ora un gusto con resa=1000g e
 // ingredienti=1010g ha fc/g calcolato su 1000g, come il ricavo.
 export function avgFCperGCategoria(categoria, ricettario, ingCosti) {
+  return dettaglioFCperGCategoria(categoria, ricettario, ingCosti).valore
+}
+
+// Come avgFCperGCategoria, ma dice anche SU QUANTO si regge la stima.
+//
+// Perché serve. Il food cost di un cono o di una vaschetta non si misura: si
+// stima, prendendo il costo al grammo dei gusti della sua categoria. Sul
+// design partner quella categoria ("Gusto") contiene DUE ricette su
+// ventisette: le altre venticinque non hanno una categoria scritta. Quindi il
+// food cost di tutti i coni e di tutte le vaschette veniva dal 7% del
+// ricettario — e la pagina lo mostrava come un numero buono, in verde.
+//
+// Ritorna:
+//   valore       → €/grammo medio, o null
+//   nUsate       → quante ricette sono entrate nel conto
+//   nCategoria   → quante ricette ha la categoria (anche quelle senza peso)
+//   nSenzaPeso   → quante sono state saltate perché senza resa o senza costo
+export function dettaglioFCperGCategoria(categoria, ricettario, ingCosti) {
   const ricette = ricetteDiCategoria(categoria, ricettario)
   const valori = []
+  let nSenzaPeso = 0
   for (const r of ricette) {
     const peso = resaGrammi(r)
-    if (peso <= 0) continue
+    if (peso <= 0) { nSenzaPeso++; continue }
     const { tot: fc } = calcolaFC(r, ingCosti, ricettario)
     if (Number.isFinite(fc) && fc > 0) valori.push(fc / peso)
+    else nSenzaPeso++
   }
-  if (valori.length === 0) return null
-  return valori.reduce((s, v) => s + v, 0) / valori.length
+  return {
+    valore: valori.length === 0 ? null : valori.reduce((s, v) => s + v, 0) / valori.length,
+    nUsate: valori.length,
+    nCategoria: ricette.length,
+    nSenzaPeso,
+  }
+}
+
+// Ricette che NON entreranno in nessuna stima perché non hanno una categoria
+// scritta. Sul design partner sono 25 su 27: senza dirlo, il proprietario non
+// ha modo di capire perché le stime dei formati sono fragili.
+export function ricetteSenzaCategoria(ricettario) {
+  return Object.values(ricettario?.ricette || {}).filter(r => {
+    if (!isRicettaValida(r.nome)) return false
+    const tipo = getR(r.nome, r).tipo
+    if (tipo === 'semilavorato' || tipo === 'interno') return false
+    return !String(r.categoria || '').trim()
+  })
 }
 
 // Prezzo medio di VENDITA (€/kg) dei gusti di una categoria, ricavato dai

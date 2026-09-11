@@ -117,7 +117,7 @@ export default function AISuggestionsBell({ orgId, onNavigate }) {
           <span style={{
             position: 'absolute', top: 0, right: 0,
             background: '#E84B3A', color: '#FFF',
-            fontSize: 9.5, fontWeight: 800, borderRadius: 10,
+            fontSize: 12, fontWeight: 800, borderRadius: 10,
             minWidth: 16, height: 16, padding: '0 4px',
             display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
             boxShadow: '0 0 0 2px rgba(110,14,26,0.95)',
@@ -142,7 +142,7 @@ export default function AISuggestionsBell({ orgId, onNavigate }) {
             <div style={{ fontSize: 12, fontWeight: 700, color: BRAND, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
               Suggerimenti AI
             </div>
-            <div style={{ marginLeft: 'auto', fontSize: 11, color: SOFT }}>{items.length}</div>
+            <div style={{ marginLeft: 'auto', fontSize: 12, color: SOFT }}>{items.length}</div>
           </div>
 
           {items.length === 0 ? (
@@ -177,7 +177,7 @@ export default function AISuggestionsBell({ orgId, onNavigate }) {
                         <button onClick={() => act(s)} disabled={busy === s.id}
                           style={{
                             padding: '5px 12px', borderRadius: 7, border: 'none',
-                            background: BRAND, color: '#FFF', fontSize: 11.5, fontWeight: 700,
+                            background: BRAND, color: '#FFF', fontSize: 12, fontWeight: 700,
                             cursor: 'pointer',
                           }}>
                           {s.cta_label || 'Vai'}
@@ -186,7 +186,7 @@ export default function AISuggestionsBell({ orgId, onNavigate }) {
                       <button onClick={() => dismiss(s)} disabled={busy === s.id}
                         style={{
                           padding: '5px 12px', borderRadius: 7, border: `1px solid ${BORDER}`,
-                          background: 'transparent', color: SOFT, fontSize: 11.5, fontWeight: 700,
+                          background: 'transparent', color: SOFT, fontSize: 12, fontWeight: 700,
                           cursor: 'pointer',
                         }}>
                         Non mi serve

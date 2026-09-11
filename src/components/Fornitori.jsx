@@ -481,7 +481,7 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
                         {v.nome}
                         {v.iban && <span style={{ marginLeft: 6, fontSize: typo.small.fontSize, fontWeight: 600, color: T.blue }}>{maskIban(v.iban)}</span>}
                         {v.nonMerce && (
-                          <span style={{ marginLeft: 6, padding: '1px 7px', borderRadius: 999, background: C.amberLight, color: C.amber, fontSize: 11, fontWeight: 700 }}
+                          <span style={{ marginLeft: 6, padding: '1px 7px', borderRadius: 999, background: C.amberLight, color: C.amber, fontSize: 12, fontWeight: 700 }}
                             title="Sembra un costo, non merce da ordinare: non l'ho spuntato. Se per te è un fornitore, spuntalo.">
                             {v.motivoNonMerce}
                           </span>
@@ -1019,7 +1019,7 @@ function OrdiniTab({ orgId, notify, isMobile, onMutate }) {
             <div key={o.id} className="fos-tile" style={{ background: C.bgCard, borderRadius: 16, border: `1px solid ${C.border}`, padding: "12px 14px", marginBottom: 8, boxShadow: S.lg }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 6 }}>
                 <div style={{ fontWeight: 800, fontSize: 13, color: C.text, flex: 1, minWidth: 0, wordBreak: "break-word" }}>{o.fornitori?.nome || "-"}</div>
-                <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 12, background: `${statoColor[o.stato]}20`, color: statoColor[o.stato], whiteSpace: "nowrap" }}>{statoLabel[o.stato] || o.stato}</span>
+                <span style={{ fontSize: 12, fontWeight: 700, padding: "3px 10px", borderRadius: 12, background: `${statoColor[o.stato]}20`, color: statoColor[o.stato], whiteSpace: "nowrap" }}>{statoLabel[o.stato] || o.stato}</span>
               </div>
               <div style={{ fontSize: typo.small.fontSize, color: C.textSoft, marginBottom: 8 }}>
                 {fmtDate(o.data_ordine)} · <strong style={{ color: C.text, ...tnum }}>{fmt(o.totale)}</strong>
@@ -1068,11 +1068,11 @@ function OrdiniTab({ orgId, notify, isMobile, onMutate }) {
                 <tr key={o.id} style={{ borderBottom: `1px solid ${C.borderSoft}` }}>
                   <td style={{ padding: '11px 16px', fontSize: 13, fontWeight: 700, color: C.text }}>
                     {o.fornitori?.nome || "-"}
-                    {o.note && <div style={{ fontSize: 10, color: C.textSoft, fontWeight: 400, fontStyle: 'italic', marginTop: 2 }}>{o.note}</div>}
+                    {o.note && <div style={{ fontSize: 12, color: C.textSoft, fontWeight: 400, fontStyle: 'italic', marginTop: 2 }}>{o.note}</div>}
                   </td>
                   <td style={{ padding: '11px 16px', fontSize: typo.small.fontSize, color: C.textMid, whiteSpace: 'nowrap', ...tnum }}>{fmtDate(o.data_ordine)}</td>
                   <td style={{ padding: '11px 16px' }}>
-                    <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: `${statoColor[o.stato]}20`, color: statoColor[o.stato] }}>{statoLabel[o.stato] || o.stato}</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: `${statoColor[o.stato]}20`, color: statoColor[o.stato] }}>{statoLabel[o.stato] || o.stato}</span>
                   </td>
                   <td style={{ padding: '11px 16px', textAlign: 'right', fontWeight: 800, fontSize: 13, color: C.text, ...tnum }}>{fmt(o.totale)}</td>
                   <td style={{ padding: '11px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>
@@ -1307,7 +1307,7 @@ function SpesaTab({ orgId, isMobile }) {
                   <div key={o.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px", background: C.bgCard, borderRadius: 12, border: `1px solid ${C.border}`, marginBottom: 8 }}>
                     <div>
                       <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{o.fornitori?.nome || "-"}</div>
-                      <div style={{ fontSize: 11, color: C.textSoft, marginTop: 2 }}>{fmtDate(o.data_ordine)}{catMap[o.fornitore_id] ? ` · ${catMap[o.fornitore_id]}` : ''}</div>
+                      <div style={{ fontSize: 12, color: C.textSoft, marginTop: 2 }}>{fmtDate(o.data_ordine)}{catMap[o.fornitore_id] ? ` · ${catMap[o.fornitore_id]}` : ''}</div>
                     </div>
                     <span style={{ fontSize: 14, fontWeight: 800, color: C.text, ...tnum }}>{fmt(o.totale)}</span>
                   </div>
@@ -1318,21 +1318,21 @@ function SpesaTab({ orgId, isMobile }) {
                     <thead>
                       <tr>
                         {['Fornitore', 'Categoria', 'Data'].map(h => (
-                          <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 10, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>{h}</th>
+                          <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 12, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>{h}</th>
                         ))}
-                        <th style={{ padding: '10px 16px', textAlign: 'right', fontSize: 10, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>Totale</th>
+                        <th style={{ padding: '10px 16px', textAlign: 'right', fontSize: 12, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>Totale</th>
                       </tr>
                     </thead>
                     <tbody>
                       {ordini.map(o => (
                         <tr key={o.id} style={{ borderBottom: `1px solid ${C.borderSoft}` }}>
                           <td style={{ padding: '10px 16px', fontSize: typo.small.fontSize, fontWeight: 700, color: C.text }}>{o.fornitori?.nome || "-"}</td>
-                          <td style={{ padding: '10px 16px', fontSize: 11, color: C.textMid }}>
+                          <td style={{ padding: '10px 16px', fontSize: 12, color: C.textMid }}>
                             {catMap[o.fornitore_id]
-                              ? <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 999, background: `${catColor(catMap[o.fornitore_id])}18`, color: catColor(catMap[o.fornitore_id]), fontWeight: 700 }}>{catMap[o.fornitore_id]}</span>
+                              ? <span style={{ fontSize: 12, padding: '2px 8px', borderRadius: 999, background: `${catColor(catMap[o.fornitore_id])}18`, color: catColor(catMap[o.fornitore_id]), fontWeight: 700 }}>{catMap[o.fornitore_id]}</span>
                               : <span style={{ color: C.textFaint }}>-</span>}
                           </td>
-                          <td style={{ padding: '10px 16px', fontSize: 11, color: C.textMid, whiteSpace: 'nowrap', ...tnum }}>{fmtDate(o.data_ordine)}</td>
+                          <td style={{ padding: '10px 16px', fontSize: 12, color: C.textMid, whiteSpace: 'nowrap', ...tnum }}>{fmtDate(o.data_ordine)}</td>
                           <td style={{ padding: '10px 16px', textAlign: 'right', fontSize: 13, fontWeight: 800, color: C.text, ...tnum }}>{fmt(o.totale)}</td>
                         </tr>
                       ))}

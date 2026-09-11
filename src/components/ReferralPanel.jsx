@@ -27,7 +27,7 @@ function getStyle(isMobile, isTablet) {
   const minH = isTablet ? 44 : 40
   return {
     card: { background: '#FFF', borderRadius: 12, padding: isMobile ? '18px 16px' : '24px 28px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', marginBottom: 20 },
-    label: { fontSize: 11, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, display: 'block' },
+    label: { fontSize: 12, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, display: 'block' },
     btn: { padding: '8px 14px', minHeight: minH, background: '#6E0E1A', color: '#FFF', border: 'none', borderRadius: 8, fontSize: isMobile ? 13 : 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 },
     btnGhost: { padding: '8px 14px', minHeight: minH, background: 'transparent', color: '#6E0E1A', border: '1px solid #6E0E1A', borderRadius: 8, fontSize: isMobile ? 13 : 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 },
   }
@@ -148,7 +148,7 @@ export default function ReferralPanel({ auth }) {
       <div style={STYLE.card}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 6 }}>
           <div style={{ fontWeight: 700, fontSize: 15, color: '#1C0A0A', display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="gift" size={16} />Programma Referral</div>
-          <div style={{ fontSize: 11, fontWeight: 600, color: '#6E0E1A', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 999, padding: '4px 10px', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: '#6E0E1A', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 999, padding: '4px 10px', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
             {livelloCorrente ? <><Icon name={livelloCorrente.icon} size={12} />{`Livello ${livelloCorrente.premio}`}</> : 'Inizia a invitare per sbloccare premi'}
           </div>
         </div>
@@ -166,7 +166,7 @@ export default function ReferralPanel({ auth }) {
               padding: '10px 18px',
               fontFamily: "'JetBrains Mono', ui-monospace, monospace",
               fontSize: isMobile ? 18 : 22, fontWeight: 900,
-              color: '#6E0E1A', letterSpacing: '0.12em',
+              color: '#6E0E1A', letterSpacing: '0.05em',
               flex: isMobile ? '1 1 100%' : '0 0 auto',
             }}>
               {data.codice}
@@ -183,7 +183,7 @@ export default function ReferralPanel({ auth }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
             <div style={{
               padding: '8px 12px', background: '#F8FAFC', border: '1px solid #E2E8F0',
-              borderRadius: 8, fontSize: 11, color: '#475569', fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+              borderRadius: 8, fontSize: 12, color: '#475569', fontFamily: "'JetBrains Mono', ui-monospace, monospace",
               wordBreak: 'break-all', flex: 1, minWidth: 0, width: isMobile ? '100%' : 'auto',
             }}>{data.url}</div>
             <button style={{ ...STYLE.btnGhost, width: isMobile ? '100%' : 'auto', justifyContent: 'center', display: 'inline-flex', alignItems: 'center' }} onClick={() => copy(data.url, 'url')}>
@@ -204,11 +204,11 @@ export default function ReferralPanel({ auth }) {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 18 }}>
           <div style={{ textAlign: 'center', padding: '16px 12px', background: '#FEF2F2', borderRadius: 10, minHeight: 92, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
             <div style={{ fontSize: isMobile ? 28 : 30, fontWeight: 900, color: '#6E0E1A', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{(utilizzi || 0).toLocaleString('it-IT', { useGrouping: 'always' })}</div>
-            <div style={{ fontSize: 11, color: '#9C7B76', fontWeight: 600, marginTop: 6 }}>amici invitati</div>
+            <div style={{ fontSize: 12, color: '#9C7B76', fontWeight: 600, marginTop: 6 }}>amici invitati</div>
           </div>
           <div style={{ textAlign: 'center', padding: '16px 12px', background: '#F0FDF4', borderRadius: 10, minHeight: 92, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
             <div style={{ fontSize: isMobile ? 28 : 30, fontWeight: 900, color: '#16A34A', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{(data.mesi_guadagnati || 0).toLocaleString('it-IT', { useGrouping: 'always' })}</div>
-            <div style={{ fontSize: 11, color: '#4B6860', fontWeight: 600, marginTop: 6 }}>mesi guadagnati</div>
+            <div style={{ fontSize: 12, color: '#4B6860', fontWeight: 600, marginTop: 6 }}>mesi guadagnati</div>
           </div>
         </div>
 
@@ -216,10 +216,10 @@ export default function ReferralPanel({ auth }) {
         {prossimo && (
           <div style={{ marginBottom: 18 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
-              <span style={{ fontSize: 11, color: '#64748B', fontWeight: 600 }}>
+              <span style={{ fontSize: 12, color: '#64748B', fontWeight: 600 }}>
                 Prossimo premio: <strong style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name={prossimo.icon} size={12} />{prossimo.premio}</strong>
               </span>
-              <span style={{ fontSize: 11, fontWeight: 700, color: '#6E0E1A' }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#6E0E1A' }}>
                 {mancanti} {mancanti === 1 ? 'invito' : 'inviti'} mancanti
               </span>
             </div>
@@ -247,14 +247,14 @@ export default function ReferralPanel({ auth }) {
                   borderRadius: 8,
                   opacity: raggiunto ? 1 : 0.85,
                 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: raggiunto ? '#16A34A' : '#64748B', marginBottom: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: raggiunto ? '#16A34A' : '#64748B', marginBottom: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
                     <Icon name={l.icon} size={12} />{l.soglia} inviti
                   </div>
-                  <div style={{ fontSize: 11, color: raggiunto ? '#065F46' : '#475569', fontWeight: 600, lineHeight: 1.3 }}>
+                  <div style={{ fontSize: 12, color: raggiunto ? '#065F46' : '#475569', fontWeight: 600, lineHeight: 1.3 }}>
                     {l.premio}
                   </div>
                   {raggiunto && (
-                    <div style={{ fontSize: 9, color: '#16A34A', fontWeight: 800, marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    <div style={{ fontSize: 12, color: '#16A34A', fontWeight: 800, marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                       ✓ Sbloccato
                     </div>
                   )}
@@ -284,7 +284,7 @@ export default function ReferralPanel({ auth }) {
               padding: '12px 14px', minHeight: isTablet ? 44 : 42,
               borderRadius: 8, border: '1px solid #E2E8F0',
               fontFamily: "'JetBrains Mono', ui-monospace, monospace",
-              fontSize: 16, fontWeight: 700, letterSpacing: '0.08em',
+              fontSize: 16, fontWeight: 700, letterSpacing: '0.05em',
               color: '#1C0A0A', background: '#F8FAFC', outline: 'none', boxSizing: 'border-box',
             }}
             onKeyDown={e => { if (e.key === 'Enter') applicaCodice() }}

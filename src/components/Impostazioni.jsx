@@ -200,13 +200,13 @@ function MetodoProduzioneSection({ orgId, metodoProduzione, notify }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
           <div style={{ fontSize: 14, fontWeight: 800, color: '#1C0A0A' }}>{titolo}</div>
           {selected && (
-            <span style={{ fontSize: 10, fontWeight: 700, color: '#6E0E1A', background: '#FFF', border: '1px solid #6E0E1A', padding: '2px 8px', borderRadius: 999, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#6E0E1A', background: '#FFF', border: '1px solid #6E0E1A', padding: '2px 8px', borderRadius: 999, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               Attivo
             </span>
           )}
         </div>
         <div style={{ fontSize: 12.5, color: '#4A3728', lineHeight: 1.55, marginBottom: 8 }}>{descrizione}</div>
-        <div style={{ fontSize: 11, color: '#9C7B76' }}>{esempi}</div>
+        <div style={{ fontSize: 12, color: '#9C7B76' }}>{esempi}</div>
       </button>
     )
   }
@@ -248,7 +248,7 @@ function MetodoProduzioneSection({ orgId, metodoProduzione, notify }) {
           'Gelaterie · Yogurterie · Pasta fresca · Panifici a peso')}
       </div>
 
-      <div style={{ padding: '10px 12px', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 11.5, color: '#4A3728', lineHeight: 1.5 }}>
+      <div style={{ padding: '10px 12px', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 12, color: '#4A3728', lineHeight: 1.5 }}>
         Il cambio metodo passa da <b>approvazione admin</b>: modifica in modo strutturale il ricettario e le analisi, quindi lo verifichiamo insieme prima di applicarlo. Di solito rispondiamo entro 24h lavorative.
       </div>
 
@@ -267,7 +267,7 @@ function MetodoProduzioneSection({ orgId, metodoProduzione, notify }) {
               Questa scelta cambia le viste operative (Produzione ↔ Inventario), la struttura delle ricette e le analisi. Meglio farlo con un solo utente collegato.
             </div>
             <label style={{ display: 'block', marginBottom: 12 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#4A3728', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 6 }}>Motivo del cambio (facoltativo)</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#4A3728', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 6 }}>Motivo del cambio (facoltativo)</div>
               <textarea value={motivazione} onChange={e => setMotivazione(e.target.value.slice(0, 500))}
                 placeholder="Es: apriamo la gelateria a giugno e vogliamo passare all'inventario differenziale"
                 rows={3}
@@ -408,7 +408,7 @@ function CambioPasswordForm({ notify }) {
       <FieldRow label="Nuova password" hint="Almeno 8 caratteri">
         <input style={{ ...inp, borderColor: troppoCorta ? T.red : T.borderStr }} type="password" autoComplete="new-password"
           value={pwd} onChange={e=>setPwd(e.target.value)} placeholder="••••••••"/>
-        {troppoCorta && <div style={{ fontSize:11, color:T.red, marginTop:5 }}>La password deve avere almeno 8 caratteri.</div>}
+        {troppoCorta && <div style={{ fontSize: 12, color:T.red, marginTop:5 }}>La password deve avere almeno 8 caratteri.</div>}
       </FieldRow>
       <FieldRow label="Conferma password">
         <div style={{ display:'flex', gap:8, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
@@ -418,7 +418,7 @@ function CambioPasswordForm({ notify }) {
             {saving ? '…' : 'Aggiorna password'}
           </button>
         </div>
-        {nonCombacia && <div style={{ fontSize:11, color:T.red, marginTop:5 }}>Le due password non combaciano.</div>}
+        {nonCombacia && <div style={{ fontSize: 12, color:T.red, marginTop:5 }}>Le due password non combaciano.</div>}
       </FieldRow>
     </div>
   )
@@ -433,7 +433,7 @@ function EmailCorrenteRow({ auth }) {
         <Icon name="mail" size={16} color={T.textSoft}/>
         <span style={{ flex:1, fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', minWidth: 0 }} title={auth?.user?.email || ''}>{auth?.user?.email || '-'}</span>
         {auth?.user?.email_confirmed_at && (
-          <span style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:11, fontWeight:700, color:T.green, padding:'2px 8px', borderRadius:999, background:T.greenLight, flexShrink:0 }}>
+          <span style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize: 12, fontWeight:700, color:T.green, padding:'2px 8px', borderRadius:999, background:T.greenLight, flexShrink:0 }}>
             <Icon name="check" size={12}/> Verificata
           </span>
         )}
@@ -581,7 +581,7 @@ function ReportMensiliSection({ orgId, notify }) {
     <SectionCard title="Report mensili via email"
       description="Ogni 1° del mese ricevi un PDF con i KPI del mese precedente, generato automaticamente da Foodos."
       action={<Toggle checked={enabled} onChange={toggle}/>}>
-      <div style={{ fontSize:11, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8 }}>
+      <div style={{ fontSize: 12, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8 }}>
         Storico report ({reports.length})
       </div>
       {loading ? (
@@ -702,7 +702,7 @@ function PacchettiAIPanel({ auth, notify }) {
 
       {/* Saldo residuo */}
       <div style={{ padding: 16, background: totaleResidue > 0 ? '#F0FDF4' : '#F8FAFC', borderRadius: 12, marginBottom: 18, border: `1px solid ${totaleResidue > 0 ? '#86EFAC' : '#E2E8F0'}`, minHeight: 90, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-        <div style={{ fontSize: 11, color: totaleResidue > 0 ? '#065F46' : '#64748B', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.05em' }}>Saldo foto AI</div>
+        <div style={{ fontSize: 12, color: totaleResidue > 0 ? '#065F46' : '#64748B', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.05em' }}>Saldo foto AI</div>
         <div style={{ fontSize: isMobile ? 28 : 32, fontWeight: 900, color: totaleResidue > 0 ? '#16A34A' : '#94A3B8', fontVariantNumeric: 'tabular-nums', marginTop: 4 }}>
           {(totaleResidue || 0).toLocaleString('it-IT', { useGrouping: 'always' })} <span style={{ fontSize: isMobile ? 14 : 16, fontWeight: 700, color: totaleResidue > 0 ? '#065F46' : '#94A3B8' }}>foto</span>
         </div>
@@ -723,7 +723,7 @@ function PacchettiAIPanel({ auth, notify }) {
             boxShadow: p.best ? '0 8px 24px rgba(110,14,26,0.10)' : '0 1px 2px rgba(15,23,42,0.04)',
           }}>
             {p.best && (
-              <div style={{ position: 'absolute', top: -10, left: 18, background: '#6E0E1A', color: '#FFF', padding: '3px 10px', borderRadius: 999, fontSize: 10, fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+              <div style={{ position: 'absolute', top: -10, left: 18, background: '#6E0E1A', color: '#FFF', padding: '3px 10px', borderRadius: 999, fontSize: 12, fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
                 Consigliato
               </div>
             )}
@@ -737,10 +737,10 @@ function PacchettiAIPanel({ auth, notify }) {
               <span style={{ fontSize: 12, color: '#64748B' }}>una tantum</span>
             </div>
             {/* Divisore + €/foto + eventuale risparmio */}
-            <div style={{ borderTop: '1px solid #E2E8F0', paddingTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: 11.5, color: '#64748B', marginBottom: 12 }}>
+            <div style={{ borderTop: '1px solid #E2E8F0', paddingTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: 12, color: '#64748B', marginBottom: 12 }}>
               <span>{p.per_call} a foto</span>
               {p.saving > 0 && (
-                <span style={{ background: '#DCFCE7', color: '#065F46', padding: '2px 8px', borderRadius: 999, fontSize: 10.5, fontWeight: 800, letterSpacing: '0.02em' }}>
+                <span style={{ background: '#DCFCE7', color: '#065F46', padding: '2px 8px', borderRadius: 999, fontSize: 12, fontWeight: 800, letterSpacing: '0.02em' }}>
                   −{p.saving}%
                 </span>
               )}
@@ -765,7 +765,7 @@ function PacchettiAIPanel({ auth, notify }) {
       {/* Storico acquisti */}
       {!loading && packs.length > 0 && (
         <div>
-          <div style={{ fontSize: 11, color: '#94A3B8', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.05em', marginBottom: 8 }}>
+          <div style={{ fontSize: 12, color: '#94A3B8', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.05em', marginBottom: 8 }}>
             Acquisti precedenti
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -791,7 +791,7 @@ function PacchettiAIPanel({ auth, notify }) {
                   <div style={{ color: esaurito ? '#DC2626' : '#16A34A', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
                     {esaurito ? 'esaurito' : `${(p.calls_remaining || 0).toLocaleString('it-IT', { useGrouping: 'always' })} / ${(p.calls_included || 0).toLocaleString('it-IT', { useGrouping: 'always' })} disp.`}
                   </div>
-                  <div style={{ color: '#94A3B8', fontSize: 11 }}>
+                  <div style={{ color: '#94A3B8', fontSize: 12 }}>
                     {new Date(p.acquistato_il).toLocaleDateString('it-IT')}
                     {scaduto && ' · scaduto'}
                   </div>
@@ -834,7 +834,7 @@ function ReseSection({ notify }) {
   return (
     <SectionCard title="Resa ingredienti"
       description="La resa indica quanta parte del peso lordo è effettivamente utilizzabile. Es. uova 85% → per 100g netti acquisti 118g lordi. Foodos applica la resa al food cost in automatico."
-      action={<span style={{ fontSize:11, fontWeight:700, color:T.textSoft, padding:'4px 10px', background:T.bgSubtle, borderRadius:999 }}>{nCustom} personalizzate</span>}>
+      action={<span style={{ fontSize: 12, fontWeight:700, color:T.textSoft, padding:'4px 10px', background:T.bgSubtle, borderRadius:999 }}>{nCustom} personalizzate</span>}>
       <input style={{ ...inp, marginBottom:14 }} value={filtro} onChange={e=>setFiltro(e.target.value)} placeholder="Filtra ingrediente…"/>
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(240px, 1fr))', gap:8 }}>
         {items.map(([k, v]) => {
@@ -850,7 +850,7 @@ function ReseSection({ notify }) {
             }}>
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ fontSize:12, fontWeight:700, color:T.text, textTransform:'capitalize', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{k}</div>
-                <div style={{ fontSize:10, color: isCustom ? T.brand : T.textSoft, fontWeight:600 }}>
+                <div style={{ fontSize: 12, color: isCustom ? T.brand : T.textSoft, fontWeight:600 }}>
                   {isCustom ? 'personalizzata' : 'default'}
                 </div>
               </div>
@@ -858,10 +858,10 @@ function ReseSection({ notify }) {
                 onBlur={e=>save(k, e.target.value)}
                 onKeyDown={e=>e.key==='Enter'&&save(k, e.target.value)}
                 style={{ width: isMobile ? 64 : 56, padding:'7px 8px', borderRadius:6, border:`1px solid ${T.borderStr}`, fontSize: isMobile ? 16 : 12, textAlign:'right', fontWeight:700, color:T.text, fontFamily:'inherit', background:T.bgCard }}/>
-              <span style={{ fontSize:11, color:T.textSoft }}>%</span>
+              <span style={{ fontSize: 12, color:T.textSoft }}>%</span>
               {isCustom && (
                 <button onClick={()=>reset(k)} title="Ripristina default"
-                  style={{ width:24, height:24, borderRadius:6, border:`1px solid ${T.borderSoft}`, background:'transparent', color:T.textSoft, cursor:'pointer', display:'inline-flex', alignItems:'center', justifyContent:'center', fontSize:11 }}><Icon name="undo" size={13}/></button>
+                  style={{ width:24, height:24, borderRadius:6, border:`1px solid ${T.borderSoft}`, background:'transparent', color:T.textSoft, cursor:'pointer', display:'inline-flex', alignItems:'center', justifyContent:'center', fontSize: 12 }}><Icon name="undo" size={13}/></button>
               )}
             </div>
           )
@@ -919,8 +919,8 @@ function FieldRow({ label, hint, children }) {
         justifyContent: isMobile ? 'flex-start' : 'space-between',
         alignItems: isMobile ? 'flex-start' : 'baseline',
         gap: isMobile ? 2 : 8, marginBottom:6 }}>
-        <label style={{ fontSize:11, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.05em' }}>{label}</label>
-        {hint && <span style={{ fontSize:11, color:T.textFaint, lineHeight: 1.3 }}>{hint}</span>}
+        <label style={{ fontSize: 12, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.05em' }}>{label}</label>
+        {hint && <span style={{ fontSize: 12, color:T.textFaint, lineHeight: 1.3 }}>{hint}</span>}
       </div>
       {children}
     </div>
@@ -1167,8 +1167,8 @@ export default function Impostazioni(props) {
         {sezioni.map((sec, gi) => (
           <div key={sec.id} style={{ marginBottom: gi < sezioni.length - 1 ? 12 : 0 }}>
             <div style={{
-              padding: '6px 12px 8px', fontSize: 10, fontWeight: 700, color: T.textSoft,
-              textTransform: 'uppercase', letterSpacing: '0.08em',
+              padding: '6px 12px 8px', fontSize: 12, fontWeight: 700, color: T.textSoft,
+              textTransform: 'uppercase', letterSpacing: '0.05em',
               display: 'flex', alignItems: 'center', gap: 6,
             }}>
               <Icon name={sec.icon} size={12} color={T.textSoft}/> {sec.label}
@@ -1283,7 +1283,7 @@ export default function Impostazioni(props) {
                 <Icon name={it.icon} size={16} color={T.textSoft}/>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: T.text }}>{it.label}</div>
-                  <div style={{ fontSize: 11, color: T.textSoft, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <div style={{ fontSize: 12, color: T.textSoft, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {it._group} · {it.summary}
                   </div>
                 </div>

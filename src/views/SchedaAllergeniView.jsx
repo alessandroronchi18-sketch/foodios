@@ -139,7 +139,7 @@ export default function SchedaAllergeniView({ ricettario, tipoAttivita }) {
     <div style={{maxWidth:1200, margin:'0 auto', width:'100%', boxSizing:'border-box'}}>
       <div style={{marginBottom:24,display:"flex",alignItems:"flex-start",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
         <div style={{flex:1,minWidth:0}}>
-          <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.12em",textTransform:"uppercase",color:T.brand,marginBottom:6}}>Sicurezza alimentare</div>
+          <div style={{fontSize: 12,fontWeight:700,letterSpacing:"0.12em",textTransform:"uppercase",color:T.brand,marginBottom:6}}>Sicurezza alimentare</div>
           <p style={{margin:0,fontSize:13,color:T.textSoft,letterSpacing:"-0.005em",lineHeight:1.5,fontWeight:500}}>Panoramica degli allergeni per tutte le {LEX.ricette} - Regolamento UE 1169/2011</p>
         </div>
         <button onClick={esportaPDF}
@@ -186,9 +186,9 @@ export default function SchedaAllergeniView({ ricettario, tipoAttivita }) {
             <table style={{width:"100%",borderCollapse:"collapse",minWidth: 140 + ALLERGENI.length * 52}}>
               <thead>
                 <tr style={{background:"#F8F4F2"}}>
-                  <th style={{padding:"10px 10px",textAlign:"left",fontSize:10,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",color:C.textSoft,borderBottom:`1px solid ${C.border}`,minWidth:140,maxWidth:140,position:"sticky",left:0,background:"#F8F4F2",zIndex:2,boxShadow:"4px 0 8px -4px rgba(15,23,42,0.12)"}}>Ricetta</th>
+                  <th style={{padding:"10px 10px",textAlign:"left",fontSize: 12,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",color:C.textSoft,borderBottom:`1px solid ${C.border}`,minWidth:140,maxWidth:140,position:"sticky",left:0,background:"#F8F4F2",zIndex:2,boxShadow:"4px 0 8px -4px rgba(15,23,42,0.12)"}}>Ricetta</th>
                   {ALLERGENI.map(a=>(
-                    <th key={a.id} title={a.label} style={{padding:"10px 4px",textAlign:"center",fontSize:9.5,fontWeight:700,color:C.text,borderBottom:`1px solid ${C.border}`,minWidth:48,maxWidth:60,lineHeight:1.2,whiteSpace:"normal",wordBreak:"break-word",verticalAlign:"middle"}}>
+                    <th key={a.id} title={a.label} style={{padding:"10px 4px",textAlign:"center",fontSize: 12,fontWeight:700,color:C.text,borderBottom:`1px solid ${C.border}`,minWidth:48,maxWidth:60,lineHeight:1.2,whiteSpace:"normal",wordBreak:"break-word",verticalAlign:"middle"}}>
                       {a.label.length>8?a.label.substring(0,7)+"…":a.label}
                     </th>
                   ))}
@@ -242,7 +242,7 @@ export default function SchedaAllergeniView({ ricettario, tipoAttivita }) {
           </div>
 
           {/* Disclaimer legale */}
-          <div style={{background:"#FFFBEB",border:"1px solid #FDE68A",borderRadius:10,padding:"14px 18px",fontSize:11,color:"#92400E",lineHeight:1.7}}>
+          <div style={{background:"#FFFBEB",border:"1px solid #FDE68A",borderRadius:10,padding:"14px 18px",fontSize: 12,color:"#92400E",lineHeight:1.7}}>
             <strong style={{display:"inline-flex",alignItems:"center",gap:4,verticalAlign:"middle"}}><Icon name="warning" size={13} />Disclaimer:</strong> Le informazioni sugli allergeni sono indicative e si basano sulle ricette inserite. Gli allergeni possono variare in base ai fornitori e alla contaminazione crociata durante la produzione. Verificare sempre le etichette dei singoli ingredienti e aggiornare la scheda ad ogni modifica di ricetta o fornitore. <em>Regolamento UE 1169/2011 - Art. 21.</em>
           </div>
         </>

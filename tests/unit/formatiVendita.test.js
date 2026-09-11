@@ -3,6 +3,7 @@ import {
   componentiNormalizzati, costoComponentiUnita, matchFormato,
   fcStimatoFormato, avgFCperGCategoria, riconciliaFormati,
   avgPrezzoPerKgCategoria, FORMATI_GELATERIA_DEFAULT,
+  dettaglioFCperGCategoria, ricetteSenzaCategoria,
 } from '../../src/lib/formatiVendita.js'
 import { buildIngCosti } from '../../src/lib/foodcost.js'
 
@@ -203,5 +204,68 @@ describe('riconciliaFormati — FIX: categoria case-insensitive (grammi prodotti
     // col bug case-sensitive gProdotti restava 0 e st diventava null
     expect(cat.gProdotti).toBeCloseTo(2000, 3)
     expect(cat.st).toBeCloseTo(100, 1) // sell-through 100%
+  })
+})
+
+// ── Su quanto si regge la stima del food cost ──────────────────────────────
+//
+// Il food cost di un cono o di una vaschetta non si misura: si stima, prendendo
+// il costo al grammo dei gusti della sua categoria. Sul design partner la
+// categoria "Gusto" contiene DUE ricette su ventisette — le altre venticinque
+// non hanno una categoria scritta. Quindi il food cost di tutti i coni e di
+// tutte le vaschette veniva dal 7% del ricettario, e la pagina lo mostrava
+// come un numero buono, in verde, senza dire su cosa si reggeva.
+describe('dettaglioFCperGCategoria — trasparenza della stima', () => {
+  const ricettario = {
+    ricette: {
+      a: { nome: 'NOCCIOLA', categoria: 'Gusto', tipo: 'gusto', resa_g: 1000, ingredienti: [{ nome: 'zucchero', qty1stampo: 200 }] },
+      b: { nome: 'PISTACCHIO', categoria: 'Gusto', tipo: 'gusto', resa_g: 1000, ingredienti: [{ nome: 'zucchero', qty1stampo: 400 }] },
+      c: { nome: 'LIMONE', categoria: '', tipo: 'gusto', resa_g: 1000, ingredienti: [{ nome: 'zucchero', qty1stampo: 100 }] },
+      d: { nome: 'BASE BIANCA', categoria: '', tipo: 'interno', resa_g: 1000, ingredienti: [{ nome: 'zucchero', qty1stampo: 100 }] },
+    },
+  }
+  const ingCosti = ic({ zucchero: 2 })
+
+  it('dice quante ricette sono entrate nel conto', () => {
+    const d = dettaglioFCperGCategoria('Gusto', ricettario, ingCosti)
+    expect(d.nUsate).toBe(2)
+    expect(d.nCategoria).toBe(2)
+    expect(d.valore).toBeGreaterThan(0)
+  })
+
+  it('categoria inesistente: nessun valore e nessuna ricetta', () => {
+    const d = dettaglioFCperGCategoria('Torte', ricettario, ingCosti)
+    expect(d.valore).toBeNull()
+    expect(d.nUsate).toBe(0)
+    expect(d.nCategoria).toBe(0)
+  })
+
+  it('avgFCperGCategoria continua a rispondere come prima', () => {
+    expect(avgFCperGCategoria('Gusto', ricettario, ingCosti))
+      .toBe(dettaglioFCperGCategoria('Gusto', ricettario, ingCosti).valore)
+  })
+})
+
+describe('ricetteSenzaCategoria', () => {
+  const ricettario = {
+    ricette: {
+      a: { nome: 'NOCCIOLA', categoria: 'Gusto', tipo: 'gusto' },
+      b: { nome: 'LIMONE', categoria: '', tipo: 'gusto' },
+      c: { nome: 'MANGO', tipo: 'gusto' },
+      // Le basi e i semilavorati non si vendono: non c'entrano con le stime
+      // dei formati e non vanno segnalati.
+      d: { nome: 'BASE BIANCA', categoria: '', tipo: 'interno' },
+      e: { nome: 'CREMA PASTICCERA', categoria: '', tipo: 'semilavorato' },
+    },
+  }
+
+  it('elenca solo i prodotti vendibili senza categoria', () => {
+    const senza = ricetteSenzaCategoria(ricettario).map(r => r.nome).sort()
+    expect(senza).toEqual(['LIMONE', 'MANGO'])
+  })
+
+  it('ricettario vuoto non fa esplodere niente', () => {
+    expect(ricetteSenzaCategoria(null)).toEqual([])
+    expect(ricetteSenzaCategoria({})).toEqual([])
   })
 })

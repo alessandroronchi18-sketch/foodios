@@ -58,7 +58,7 @@ function ModalShell({ title, subtitle, onClose, width = 780, children }) {
         <div style={{ padding: '16px 20px', borderBottom: `1px solid ${P.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
             <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: P.text }}>{title}</h2>
-            {subtitle && <div style={{ fontSize: 11, color: P.textMute, marginTop: 4 }}>{subtitle}</div>}
+            {subtitle && <div style={{ fontSize: 12, color: P.textMute, marginTop: 4 }}>{subtitle}</div>}
           </div>
           <button onClick={onClose} aria-label="Chiudi modale" style={{
             background: 'transparent', border: 'none', cursor: 'pointer',
@@ -87,9 +87,9 @@ function StepIndicator({ current }) {
             background: current >= s.n ? P.brand : P.border,
             color: current >= s.n ? '#FFF' : P.textMute,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 11, fontWeight: 700,
+            fontSize: 12, fontWeight: 700,
           }}>{s.n}</div>
-          <span style={{ fontSize: 11, fontWeight: 600, color: current === s.n ? P.text : P.textMute }}>{s.label}</span>
+          <span style={{ fontSize: 12, fontWeight: 600, color: current === s.n ? P.text : P.textMute }}>{s.label}</span>
           {i < steps.length - 1 && <div style={{ width: 18, height: 2, background: P.border, marginLeft: 2 }} />}
         </div>
       ))}
@@ -127,7 +127,7 @@ function Step1Input({ tab, setTab, images, setImages, text, setText, nomeAttivit
           color: tab === 'foto' ? P.brand : P.textMute,
           borderBottom: tab === 'foto' ? `2px solid ${P.brand}` : '2px solid transparent',
           marginBottom: -1,
-        }}><Icon name="camera" size={13} /> Foto listino <span style={{ fontSize: 10, fontWeight: 500, opacity: 0.7 }}>(consigliato)</span></button>
+        }}><Icon name="camera" size={13} /> Foto listino <span style={{ fontSize: 12, fontWeight: 500, opacity: 0.7 }}>(consigliato)</span></button>
         <button onClick={() => setTab('testo')} style={{
           background: 'transparent', border: 'none', cursor: 'pointer',
           padding: '8px 12px', fontSize: 13, fontWeight: 700,
@@ -159,7 +159,7 @@ function Step1Input({ tab, setTab, images, setImages, text, setText, nomeAttivit
             <div style={{ fontSize: 13, fontWeight: 700, color: P.text, marginBottom: 4 }}>
               Trascina qui le foto del listino
             </div>
-            <div style={{ fontSize: 11, color: P.textMute, marginBottom: 12 }}>
+            <div style={{ fontSize: 12, color: P.textMute, marginBottom: 12 }}>
               o seleziona dal computer (max 8 foto · resize automatico)
             </div>
             <input
@@ -184,7 +184,7 @@ function Step1Input({ tab, setTab, images, setImages, text, setText, nomeAttivit
                   <button onClick={() => setImages(images.filter((_, j) => j !== i))}
                     aria-label={`Rimuovi foto ${img.name || i + 1}`}
                     style={{ position: 'absolute', top: 2, right: 2, background: 'rgba(0,0,0,0.6)', color: '#FFF', border: 'none', borderRadius: 99, width: 24, height: 24, cursor: 'pointer', fontSize: 14, lineHeight: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
-                  <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.55)', color: '#FFF', fontSize: 9, padding: '1px 4px', textAlign: 'center' }}>{img.size_kb}KB</div>
+                  <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.55)', color: '#FFF', fontSize: 12, padding: '1px 4px', textAlign: 'center' }}>{img.size_kb}KB</div>
                 </div>
               ))}
             </div>
@@ -211,13 +211,13 @@ function Step1Input({ tab, setTab, images, setImages, text, setText, nomeAttivit
       {/* Campi opzionali nome attività + città */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
         <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <span style={{ fontSize: 11, color: P.textMute, fontWeight: 600 }}>Nome attività <span style={{ fontWeight: 400 }}>(opzionale, override DB)</span></span>
+          <span style={{ fontSize: 12, color: P.textMute, fontWeight: 600 }}>Nome attività <span style={{ fontWeight: 400 }}>(opzionale, override DB)</span></span>
           <input value={nomeAttivita} onChange={e => setNomeAttivita(e.target.value)}
             placeholder="es. Gelateria del Centro"
             style={{ padding: '8px 10px', borderRadius: 6, border: `1px solid ${P.border}`, fontSize: 12 }} />
         </label>
         <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <span style={{ fontSize: 11, color: P.textMute, fontWeight: 600 }}>Città <span style={{ fontWeight: 400 }}>(opzionale)</span></span>
+          <span style={{ fontSize: 12, color: P.textMute, fontWeight: 600 }}>Città <span style={{ fontWeight: 400 }}>(opzionale)</span></span>
           <input value={citta} onChange={e => setCitta(e.target.value)}
             placeholder="es. Cuneo"
             style={{ padding: '8px 10px', borderRadius: 6, border: `1px solid ${P.border}`, fontSize: 12 }} />
@@ -225,7 +225,7 @@ function Step1Input({ tab, setTab, images, setImages, text, setText, nomeAttivit
       </div>
 
       {/* Disclaimer privacy */}
-      <div style={{ fontSize: 10, color: P.textMute, marginBottom: 14, lineHeight: 1.5 }}>
+      <div style={{ fontSize: 12, color: P.textMute, marginBottom: 14, lineHeight: 1.5 }}>
         Privacy. Le foto/testo vengono processati da Anthropic Claude per estrarre i prodotti. Anthropic non li conserva oltre 30gg
         e non li usa per training. Niente dati sensibili (PII) - solo nomi e prezzi pubblici del listino.
       </div>
@@ -301,7 +301,7 @@ function Step2Review({ menu, setMenu, onBack, onSave, onCommit, saving, committi
   return (
     <div>
       {cached && (
-        <div style={{ padding: '8px 12px', background: P.blueBg, color: P.blue, borderRadius: 8, fontSize: 11, marginBottom: 14, border: `1px solid ${P.blue}` }}>
+        <div style={{ padding: '8px 12px', background: P.blueBg, color: P.blue, borderRadius: 8, fontSize: 12, marginBottom: 14, border: `1px solid ${P.blue}` }}>
           <Icon name="check" size={11} /> Caricato menu salvato {lastSavedAt && `(ultima modifica: ${new Date(lastSavedAt).toLocaleString('it-IT', { useGrouping: 'always' })})`}
         </div>
       )}
@@ -309,25 +309,25 @@ function Step2Review({ menu, setMenu, onBack, onSave, onCommit, saving, committi
       {/* KPI riepilogo */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 16 }}>
         <div style={{ padding: 10, background: P.rowAlt, borderRadius: 8 }}>
-          <div style={{ fontSize: 9, color: P.textMute, textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em' }}>Prodotti</div>
+          <div style={{ fontSize: 12, color: P.textMute, textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em' }}>Prodotti</div>
           <div style={{ fontSize: 20, fontWeight: 900, color: P.text }}>{menu.prodotti.length}</div>
         </div>
         <div style={{ padding: 10, background: P.rowAlt, borderRadius: 8 }}>
-          <div style={{ fontSize: 9, color: P.textMute, textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em' }}>Categorie</div>
+          <div style={{ fontSize: 12, color: P.textMute, textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em' }}>Categorie</div>
           <div style={{ fontSize: 20, fontWeight: 900, color: P.text }}>{Object.keys(groupedByCategoria).length}</div>
         </div>
         <div style={{ padding: 10, background: P.rowAlt, borderRadius: 8 }}>
-          <div style={{ fontSize: 9, color: P.textMute, textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em' }}>Prezzo medio</div>
+          <div style={{ fontSize: 12, color: P.textMute, textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em' }}>Prezzo medio</div>
           <div style={{ fontSize: 20, fontWeight: 900, color: P.text }}>€{(menu.prodotti.reduce((s, p) => s + p.prezzo, 0) / Math.max(1, menu.prodotti.length)).toFixed(2)}</div>
         </div>
         <div style={{ padding: 10, background: fcMedio > 35 ? P.warnBg : P.okBg, borderRadius: 8 }}>
-          <div style={{ fontSize: 9, color: fcMedio > 35 ? P.warn : P.ok, textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em' }}>FC medio stimato</div>
+          <div style={{ fontSize: 12, color: fcMedio > 35 ? P.warn : P.ok, textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em' }}>FC medio stimato</div>
           <div style={{ fontSize: 20, fontWeight: 900, color: fcMedio > 35 ? P.warn : P.ok }}>{fcMedio}%</div>
         </div>
       </div>
 
       {(menu.nome_attivita || menu.citta) && (
-        <div style={{ fontSize: 11, color: P.textMute, marginBottom: 12 }}>
+        <div style={{ fontSize: 12, color: P.textMute, marginBottom: 12 }}>
           {menu.nome_attivita && <><strong style={{ color: P.text }}>{menu.nome_attivita}</strong>{menu.citta && ' · '}</>}
           {menu.citta && menu.citta}
           {menu.tipo_attivita && <> · <em>{menu.tipo_attivita}</em></>}
@@ -338,7 +338,7 @@ function Step2Review({ menu, setMenu, onBack, onSave, onCommit, saving, committi
       <div style={{ border: `1px solid ${P.border}`, borderRadius: 8, overflow: 'hidden', marginBottom: 14 }}>
         {Object.entries(groupedByCategoria).map(([cat, prods]) => (
           <div key={cat}>
-            <div style={{ padding: '8px 12px', background: P.rowAlt, fontSize: 11, fontWeight: 700, color: P.textSoft, borderBottom: `1px solid ${P.border}` }}>
+            <div style={{ padding: '8px 12px', background: P.rowAlt, fontSize: 12, fontWeight: 700, color: P.textSoft, borderBottom: `1px solid ${P.border}` }}>
               {cat} <span style={{ color: P.textMute, fontWeight: 400 }}>({prods.length})</span>
             </div>
             {prods.map(p => (
@@ -347,7 +347,7 @@ function Step2Review({ menu, setMenu, onBack, onSave, onCommit, saving, committi
                   onChange={e => updateProdotto(p._idx, { nome: e.target.value.toUpperCase().slice(0, 45) })}
                   style={{ padding: '6px 8px', borderRadius: 6, border: `1px solid ${P.border}`, fontSize: 12, fontWeight: 600 }} />
                 <select value={p.tipo} onChange={e => updateProdotto(p._idx, { tipo: e.target.value, unita: e.target.value === 'fetta' ? 8 : 1 })}
-                  style={{ padding: '6px 8px', borderRadius: 6, border: `1px solid ${P.border}`, fontSize: 11, background: P.bg }}>
+                  style={{ padding: '6px 8px', borderRadius: 6, border: `1px solid ${P.border}`, fontSize: 12, background: P.bg }}>
                   <option value="pezzo">pezzo</option>
                   <option value="fetta">fetta</option>
                   <option value="gusto">gusto</option>
@@ -355,7 +355,7 @@ function Step2Review({ menu, setMenu, onBack, onSave, onCommit, saving, committi
                 <input type="number" step="0.1" min="0" value={p.unita || 1}
                   onChange={e => updateProdotto(p._idx, { unita: Math.max(1, Math.round(Number(e.target.value) || 1)) })}
                   title={descrizioneUnita(p.tipo)}
-                  style={{ padding: '6px 8px', borderRadius: 6, border: `1px solid ${P.border}`, fontSize: 11, textAlign: 'right' }} />
+                  style={{ padding: '6px 8px', borderRadius: 6, border: `1px solid ${P.border}`, fontSize: 12, textAlign: 'right' }} />
                 <input type="number" step="0.10" min="0.50" max="80" value={p.prezzo}
                   onChange={e => updateProdotto(p._idx, { prezzo: Math.max(0.5, Math.min(80, Number(e.target.value) || 0)) })}
                   title="prezzo €/unità"
@@ -387,7 +387,7 @@ function Step2Review({ menu, setMenu, onBack, onSave, onCommit, saving, committi
         </div>
       </div>
       {menu.prodotti.length < 3 && (
-        <div style={{ fontSize: 10, color: P.textMute, textAlign: 'right', marginTop: 6 }}>Minimo 3 prodotti per popolare la demo.</div>
+        <div style={{ fontSize: 12, color: P.textMute, textAlign: 'right', marginTop: 6 }}>Minimo 3 prodotti per popolare la demo.</div>
       )}
     </div>
   )
@@ -419,7 +419,7 @@ function Step3Done({ result, cliente, onImpersona, onClose }) {
       </div>
 
       {(ov.nome_aggiornato || ov.citta_aggiornata) && (
-        <div style={{ padding: 10, background: P.blueBg, color: P.blue, borderRadius: 8, fontSize: 11, marginBottom: 16, border: `1px solid ${P.blue}` }}>
+        <div style={{ padding: 10, background: P.blueBg, color: P.blue, borderRadius: 8, fontSize: 12, marginBottom: 16, border: `1px solid ${P.blue}` }}>
           <Icon name="check" size={11} /> Anagrafica aggiornata:
           {ov.nome_aggiornato && <> nome attività ✓</>}
           {ov.citta_aggiornata && <> · città ✓</>}
@@ -439,7 +439,7 @@ function Step3Done({ result, cliente, onImpersona, onClose }) {
 function KPI({ label, value }) {
   return (
     <div style={{ padding: 10, background: P.rowAlt, borderRadius: 8 }}>
-      <div style={{ fontSize: 9, color: P.textMute, textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em' }}>{label}</div>
+      <div style={{ fontSize: 12, color: P.textMute, textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em' }}>{label}</div>
       <div style={{ fontSize: 18, fontWeight: 900, color: P.text, fontVariantNumeric: 'tabular-nums' }}>{value ?? '-'}</div>
     </div>
   )

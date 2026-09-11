@@ -73,7 +73,7 @@ export default function FeedbackButton({ viewCorrente, externalOpen, onOpenChang
             color: '#FFF',
             padding: '4px 8px',
             borderRadius: 6,
-            fontSize: 11,
+            fontSize: 12,
             fontWeight: 600,
             whiteSpace: 'nowrap',
             boxShadow: '0 4px 12px rgba(0,0,0,0.18)',
@@ -162,7 +162,7 @@ export default function FeedbackButton({ viewCorrente, externalOpen, onOpenChang
                         }}
                       >
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name={s.icon} size={14}/> {s.label}</div>
-                        <div style={{ fontSize: 10, fontWeight: 400, opacity: 0.7, marginTop: 2 }}>{s.help}</div>
+                        <div style={{ fontSize: 12, fontWeight: 400, opacity: 0.7, marginTop: 2 }}>{s.help}</div>
                       </button>
                     ))}
                   </div>

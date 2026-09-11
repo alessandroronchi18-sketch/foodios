@@ -164,7 +164,7 @@ function DashboardPreview() {
         <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#5AB877' }}/>
         <div style={{ flex: 1, height: 22, borderRadius: 6, background: T.paper, marginLeft: 10,
           display:'flex', alignItems:'center', padding:'0 10px', minWidth: 0,
-          fontSize: 10, color: T.textSoft, letterSpacing:'0.02em',
+          fontSize: 12, color: T.textSoft, letterSpacing:'0.02em',
           border: `1px solid ${T.border}`,
           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
         }}>{isMobile ? 'app.foodos.it' : 'app.foodos.it · Pasticceria del Corso'}</div>
@@ -193,7 +193,7 @@ function DashboardPreview() {
           ].map(([n, active], i) => (
             <div key={i} style={{
               padding: '8px 14px',
-              fontSize: 11, fontWeight: active ? 600 : 400,
+              fontSize: 12, fontWeight: active ? 600 : 400,
               color: active ? '#FFF' : 'rgba(244,236,227,0.8)',
               background: active ? T.red : 'transparent',
               borderRadius: active ? '0 18px 18px 0' : 0,
@@ -204,7 +204,7 @@ function DashboardPreview() {
         )}
 
         <div style={{ flex: 1, padding: isMobile ? '14px 14px' : '18px 20px', minWidth: 0 }}>
-          <div style={{ fontSize: 9, fontWeight: 600, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 4 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
             Mercoledì · 13 maggio
           </div>
           <div style={{ fontFamily: SERIF, fontSize: 19, fontWeight: 600, color: T.ink, letterSpacing: '-0.02em', marginBottom: 14 }}>
@@ -213,27 +213,27 @@ function DashboardPreview() {
 
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 8, marginBottom: 14 }}>
             {[
-              { l: 'Ricavi oggi', v: '€ 847',  sub: '+12%' },
+              { l: 'Ricavi oggi', v: '847 €',  sub: '+12%' },
               { l: 'Food cost',   v: '26,8%',  sub: 'target 30%' },
-              { l: 'Margine',     v: '€ 618',  sub: '73% ricavo' },
+              { l: 'Margine',     v: '618 €',  sub: '73% ricavo' },
             ].map((k, i) => (
               <div key={i} style={{ background: T.paper, borderRadius: 10, border: `1px solid ${T.border}`, padding: '9px 11px' }}>
-                <div style={{ fontSize: 8, fontWeight: 600, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>{k.l}</div>
+                <div style={{ fontSize: 8, fontWeight: 600, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{k.l}</div>
                 <div style={{ fontFamily: SERIF, fontSize: 17, fontWeight: 700, color: T.ink, letterSpacing: '-0.02em', lineHeight: 1 }}>{k.v}</div>
-                <div style={{ fontSize: 9, color: T.green, marginTop: 4, fontWeight: 600 }}>↑ {k.sub}</div>
+                <div style={{ fontSize: 12, color: T.green, marginTop: 4, fontWeight: 600 }}>↑ {k.sub}</div>
               </div>
             ))}
           </div>
 
           <div style={{ background: T.paper, borderRadius: 10, border: `1px solid ${T.border}`, padding: '10px 12px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: T.ink }}>Ricette più redditizie</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: T.ink }}>Ricette più redditizie</div>
               <div style={{ fontSize: 8, color: T.textSoft }}>maggio 2026</div>
             </div>
             {[
-              { n: 'Sfogliatella riccia classica', fc: '24%', m: '€ 2,15' },
-              { n: 'Crostata frutta fresca',        fc: '31%', m: '€ 5,40' },
-              { n: 'Babà al rum',                   fc: '19%', m: '€ 1,85' },
+              { n: 'Sfogliatella riccia classica', fc: '24%', m: '2,15 €' },
+              { n: 'Crostata frutta fresca',        fc: '31%', m: '5,40 €' },
+              { n: 'Babà al rum',                   fc: '19%', m: '1,85 €' },
             ].map((r, i) => (
               <div key={i} style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -242,11 +242,11 @@ function DashboardPreview() {
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
                   <div style={{ width: 5, height: 18, borderRadius: 4, background: i === 0 ? T.red : i === 1 ? T.amber : T.green }}/>
-                  <div style={{ fontSize: 10, color: T.ink, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.n}</div>
+                  <div style={{ fontSize: 12, color: T.ink, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.n}</div>
                 </div>
                 <div style={{ display: 'flex', gap: 12, flexShrink: 0 }}>
-                  <div style={{ fontSize: 9, color: T.textSoft }}>FC <span style={{ color: T.ink, fontWeight: 700 }}>{r.fc}</span></div>
-                  <div style={{ fontFamily: SERIF, fontSize: 11, fontWeight: 700, color: T.ink }}>{r.m}</div>
+                  <div style={{ fontSize: 12, color: T.textSoft }}>FC <span style={{ color: T.ink, fontWeight: 700 }}>{r.fc}</span></div>
+                  <div style={{ fontFamily: SERIF, fontSize: 12, fontWeight: 700, color: T.ink }}>{r.m}</div>
                 </div>
               </div>
             ))}
@@ -330,7 +330,7 @@ function RoiCalculator() {
         gap: isMobile ? 28 : 36, alignItems: 'center',
       }}>
         <div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: T.red, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 14 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: T.red, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 14 }}>
             Calcola il tuo risparmio
           </div>
           <div style={{ fontSize: 13, color: T.textMid, marginBottom: 18, lineHeight: 1.6 }}>
@@ -346,7 +346,7 @@ function RoiCalculator() {
             value={ricavi} onChange={e => setRicavi(parseInt(e.target.value))}
             style={{ width: '100%', cursor: 'pointer', accentColor: T.red, height: 6 }}
           />
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: T.textSoft, marginTop: 6 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: T.textSoft, marginTop: 6 }}>
             <span>€ 5.000</span><span>€ 80.000+</span>
           </div>
         </div>
@@ -357,7 +357,7 @@ function RoiCalculator() {
         }
 
         <div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: T.green, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 14 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: T.green, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 14 }}>
             Risparmio stimato
           </div>
           <div style={{ fontSize: 13, color: T.textMid, marginBottom: 18, lineHeight: 1.6 }}>
@@ -404,16 +404,16 @@ function CardShell({ children, style }) {
 function VisualFoodCost() {
   return (
     <CardShell>
-      <div style={{ fontSize: 11, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 14 }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 14 }}>
         Tiramisù · 8 porzioni
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 18 }}>
         {[
-          ['Mascarpone 500g',  '€ 8,40', T.red],
-          ['Savoiardi 250g',   '€ 2,10', T.amber],
-          ['Uova fresche · 4', '€ 1,20', T.green],
-          ['Caffè espresso',   '€ 0,80', T.textMid],
-          ['Cacao amaro',      '€ 0,60', T.textSoft],
+          ['Mascarpone 500g',  '8,40 €', T.red],
+          ['Savoiardi 250g',   '2,10 €', T.amber],
+          ['Uova fresche · 4', '1,20 €', T.green],
+          ['Caffè espresso',   '0,80 €', T.textMid],
+          ['Cacao amaro',      '0,60 €', T.textSoft],
         ].map(([n, p, c], i) => (
           <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: i < 4 ? `1px solid ${T.borderSoft}` : 'none' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -429,11 +429,11 @@ function VisualFoodCost() {
         padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
       }}>
         <div>
-          <div style={{ fontSize: 11, color: T.textSoft, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Food cost</div>
+          <div style={{ fontSize: 12, color: T.textSoft, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Food cost</div>
           <div style={{ fontFamily: SERIF, fontSize: 26, fontWeight: 700, color: T.ink, letterSpacing: '-0.03em' }}>26,4%</div>
         </div>
         <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: 11, color: T.textSoft, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Costo / porzione</div>
+          <div style={{ fontSize: 12, color: T.textSoft, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Costo / porzione</div>
           <div style={{ fontFamily: SERIF, fontSize: 26, fontWeight: 700, color: T.red, letterSpacing: '-0.03em' }}>€ 1,64</div>
         </div>
       </div>
@@ -452,10 +452,10 @@ function VisualMargini() {
   return (
     <CardShell>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
           Ranking ricette · maggio
         </div>
-        <div style={{ fontSize: 11, fontWeight: 600, color: T.green, padding: '3px 10px', background: T.greenSoft, borderRadius: 999 }}>↑ +4 pt vs aprile</div>
+        <div style={{ fontSize: 12, fontWeight: 600, color: T.green, padding: '3px 10px', background: T.greenSoft, borderRadius: 999 }}>↑ +4 pt vs aprile</div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         {items.map((it, i) => (
@@ -466,7 +466,7 @@ function VisualMargini() {
                 <span style={{ fontSize: 14, color: T.ink, fontWeight: 500 }}>{it.n}</span>
               </div>
               <div style={{ display: 'flex', gap: 14, alignItems: 'baseline' }}>
-                <span style={{ fontSize: 11, color: T.textSoft, fontWeight: 500 }}>margine</span>
+                <span style={{ fontSize: 12, color: T.textSoft, fontWeight: 500 }}>margine</span>
                 <span style={{ fontFamily: SERIF, fontSize: 16, fontWeight: 700, color: T.ink, minWidth: 40, textAlign: 'right' }}>{it.m}%</span>
               </div>
             </div>
@@ -483,7 +483,7 @@ function VisualMargini() {
 function VisualProduzione() {
   return (
     <CardShell>
-      <div style={{ fontSize: 11, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 18 }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 18 }}>
         Chiusura del 13 maggio
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -502,7 +502,7 @@ function VisualProduzione() {
                   width: `${pct}%`, height: '100%',
                   background: r.color, borderRadius: 6,
                   display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
-                  paddingRight: 8, color: '#FFF', fontSize: 10, fontWeight: 700,
+                  paddingRight: 8, color: '#FFF', fontSize: 12, fontWeight: 700,
                 }}>{r.vend}/{r.prod}</div>
               </div>
               <div style={{ fontFamily: SERIF, fontSize: 13, fontWeight: 700, color: r.color, minWidth: 38, textAlign: 'right' }}>
@@ -540,7 +540,7 @@ function VisualAI() {
         </div>
         <div>
           <div style={{ fontFamily: SERIF, fontSize: 15, fontWeight: 700, color: T.ink }}>AI Assistant</div>
-          <div style={{ fontSize: 11, color: T.green, display: 'flex', alignItems: 'center', gap: 5 }}>
+          <div style={{ fontSize: 12, color: T.green, display: 'flex', alignItems: 'center', gap: 5 }}>
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: T.green }}/> Online · in italiano
           </div>
         </div>
@@ -792,7 +792,7 @@ export default function LandingPage({ onLogin, onRegister }) {
                       <Icon name="boltSm" size={18} color={T.green}/>
                     </div>
                     <div>
-                      <div style={{ fontSize: 10, color: T.textSoft, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Food cost</div>
+                      <div style={{ fontSize: 12, color: T.textSoft, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Food cost</div>
                       <div style={{ fontFamily: SERIF, fontSize: 16, fontWeight: 700, color: T.ink, letterSpacing: '-0.02em' }}>aggiornato in 2 sec</div>
                     </div>
                   </FloatBadge>
@@ -802,7 +802,7 @@ export default function LandingPage({ onLogin, onRegister }) {
                       <Icon name="receipt" size={18} color={T.red}/>
                     </div>
                     <div>
-                      <div style={{ fontSize: 10, color: T.textSoft, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Scontrino</div>
+                      <div style={{ fontSize: 12, color: T.textSoft, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Scontrino</div>
                       <div style={{ fontFamily: SERIF, fontSize: 16, fontWeight: 700, color: T.ink, letterSpacing: '-0.02em' }}>OCR in 3 secondi</div>
                     </div>
                   </FloatBadge>
@@ -821,7 +821,7 @@ export default function LandingPage({ onLogin, onRegister }) {
         padding: '48px 24px',
       }}>
         <div style={{ maxWidth: 1180, margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', fontSize: 11, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.18em', marginBottom: 32 }}>
+          <div style={{ textAlign: 'center', fontSize: 12, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 32 }}>
             Quanto ci metti
           </div>
           <div style={{
@@ -856,7 +856,7 @@ export default function LandingPage({ onLogin, onRegister }) {
         <div style={{ maxWidth: 1180, margin: '0 auto' }}>
           <Reveal>
             <div style={{ maxWidth: 720, marginBottom: 56 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: T.red, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 18 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: T.red, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 18 }}>
                 Suona familiare?
               </div>
               <h2 style={{
@@ -903,7 +903,7 @@ export default function LandingPage({ onLogin, onRegister }) {
               justifyContent: 'space-between', gap: 24,
             }}>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: T.red, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 10 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: T.red, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>
                   C'è un altro modo
                 </div>
                 <h3 style={{
@@ -934,7 +934,7 @@ export default function LandingPage({ onLogin, onRegister }) {
         <div style={{ maxWidth: 1180, margin: '0 auto' }}>
           <Reveal>
             <div style={{ textAlign: 'center', maxWidth: 680, margin: '0 auto 80px' }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: T.red, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 18 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: T.red, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 18 }}>
                 Funzionalità
               </div>
               <h2 style={{
@@ -968,7 +968,7 @@ export default function LandingPage({ onLogin, onRegister }) {
                     }}>
                       <Icon name={f.icon} size={22} color={T.red}/>
                     </div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: T.red, textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 12 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: T.red, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12 }}>
                       {f.eyebrow}
                     </div>
                     <h3 style={{
@@ -1002,7 +1002,7 @@ export default function LandingPage({ onLogin, onRegister }) {
         <div style={{ maxWidth: 1180, margin: '0 auto' }}>
           <Reveal>
             <div style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto 64px' }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: T.red, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 18 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: T.red, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 18 }}>
                 Come funziona
               </div>
               <h2 style={{
@@ -1051,7 +1051,7 @@ export default function LandingPage({ onLogin, onRegister }) {
         <div style={{ maxWidth: 1180, margin: '0 auto' }}>
           <Reveal>
             <div style={{ textAlign: 'center', maxWidth: 720, margin: '0 auto 64px' }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: T.red, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 18 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: T.red, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 18 }}>
                 Per chi è Foodos
               </div>
               <h2 style={{
@@ -1098,7 +1098,7 @@ export default function LandingPage({ onLogin, onRegister }) {
         <div style={{ maxWidth: 820, margin: '0 auto' }}>
           <Reveal>
             <div style={{ textAlign: 'center', marginBottom: 48 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: T.red, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 18 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: T.red, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 18 }}>
                 Trasparenza
               </div>
               <h2 style={{
@@ -1167,7 +1167,7 @@ export default function LandingPage({ onLogin, onRegister }) {
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
           <Reveal>
             <div style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto 56px' }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: T.red, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 18 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: T.red, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 18 }}>
                 Prezzo
               </div>
               <h2 style={{
@@ -1196,7 +1196,7 @@ export default function LandingPage({ onLogin, onRegister }) {
                 padding: isMobile ? '28px 24px' : '36px 28px',
                 display: 'flex', flexDirection: 'column',
               }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 20 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 20 }}>
                   Single shop
                 </div>
                 <div style={{ fontFamily: SERIF, fontWeight: 600, fontSize: 24, color: T.ink, letterSpacing: '-0.02em', marginBottom: 4 }}>
@@ -1249,9 +1249,9 @@ export default function LandingPage({ onLogin, onRegister }) {
                 <div style={{
                   display: 'inline-flex', alignSelf: 'flex-start',
                   background: T.red, color: '#FFF',
-                  fontSize: 10, fontWeight: 700,
+                  fontSize: 12, fontWeight: 700,
                   padding: '5px 12px', borderRadius: 999,
-                  letterSpacing: '0.12em', textTransform: 'uppercase',
+                  letterSpacing: '0.05em', textTransform: 'uppercase',
                   marginBottom: 20,
                 }}>Più scelto</div>
                 <div style={{
@@ -1299,7 +1299,7 @@ export default function LandingPage({ onLogin, onRegister }) {
                 padding: isMobile ? '28px 24px' : '36px 28px',
                 display: 'flex', flexDirection: 'column',
               }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 20 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 20 }}>
                   Multi-sede / catena
                 </div>
                 <div style={{ fontFamily: SERIF, fontWeight: 600, fontSize: 24, color: T.ink, letterSpacing: '-0.02em', marginBottom: 4 }}>
@@ -1351,7 +1351,7 @@ export default function LandingPage({ onLogin, onRegister }) {
         <div style={{ maxWidth: 820, margin: '0 auto' }}>
           <Reveal>
             <div style={{ textAlign: 'center', marginBottom: 48 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: T.red, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 18 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: T.red, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 18 }}>
                 FAQ
               </div>
               <h2 style={{
@@ -1447,7 +1447,7 @@ export default function LandingPage({ onLogin, onRegister }) {
 
             <div style={{ display: 'flex', gap: 56, flexWrap: 'wrap' }}>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(244,236,227,0.78)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 14 }}>Prodotto</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(244,236,227,0.78)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 14 }}>Prodotto</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <a onClick={onRegister} style={{ fontSize: 13, color: 'rgba(244,236,227,0.7)', cursor: 'pointer', textDecoration: 'none' }}>Prova gratis</a>
                   <a onClick={onLogin} style={{ fontSize: 13, color: 'rgba(244,236,227,0.7)', cursor: 'pointer', textDecoration: 'none' }}>Accedi</a>
@@ -1455,7 +1455,7 @@ export default function LandingPage({ onLogin, onRegister }) {
               </div>
 
               <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(244,236,227,0.78)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 14 }}>Supporto</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(244,236,227,0.78)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 14 }}>Supporto</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <a href="/contatti" style={{ fontSize: 13, color: 'rgba(244,236,227,0.7)', textDecoration: 'none' }}>Contatti</a>
                   <a href="/chi-siamo" style={{ fontSize: 13, color: 'rgba(244,236,227,0.7)', textDecoration: 'none' }}>Chi siamo</a>
@@ -1464,7 +1464,7 @@ export default function LandingPage({ onLogin, onRegister }) {
               </div>
 
               <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(244,236,227,0.78)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 14 }}>Legale</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(244,236,227,0.78)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 14 }}>Legale</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <a href="/privacy" style={{ fontSize: 13, color: 'rgba(244,236,227,0.7)', textDecoration: 'none' }}>Privacy Policy</a>
                   <a href="/termini" style={{ fontSize: 13, color: 'rgba(244,236,227,0.7)', textDecoration: 'none' }}>Termini di Servizio</a>
@@ -1476,10 +1476,10 @@ export default function LandingPage({ onLogin, onRegister }) {
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-            <div style={{ fontSize: 11, color: 'rgba(244,236,227,0.3)' }}>
+            <div style={{ fontSize: 12, color: 'rgba(244,236,227,0.3)' }}>
               © {new Date().getFullYear()} Foodos · Tutti i diritti riservati
             </div>
-            <div style={{ fontSize: 11, color: 'rgba(244,236,227,0.3)' }}>
+            <div style={{ fontSize: 12, color: 'rgba(244,236,227,0.3)' }}>
               Fatto in Italia
             </div>
           </div>

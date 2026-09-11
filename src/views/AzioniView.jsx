@@ -217,7 +217,7 @@ ${azioniStr}
           {/* Quick prompts */}
           {messages.length===0&&(
             <div>
-              <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.1em",color:C.textSoft,marginBottom:10}}>Domande rapide</div>
+              <div style={{fontSize: 12,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.1em",color:C.textSoft,marginBottom:10}}>Domande rapide</div>
               <div style={{display:"grid",gridTemplateColumns: isMobile ? "1fr" : isTablet ? "repeat(2,1fr)" : "repeat(3,1fr)",gap:8}}>
                 {QUICK_PROMPTS.map(({icon,label,q})=>(
                   <button key={label} onClick={()=>sendMessage(q)} className="fos-tile"
@@ -226,7 +226,7 @@ ${azioniStr}
                       boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
                     <span style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:34,height:34,borderRadius:11,background:"rgba(110,14,26,0.10)",color:C.red,marginBottom:8}}><Icon name={icon} size={17}/></span>
                     <div style={{fontSize:12,fontWeight:700,color:C.text,marginBottom:3,letterSpacing:"-0.01em"}}>{label}</div>
-                    <div style={{fontSize:10,color:C.textSoft,lineHeight:1.45}}>{q.slice(0,55)}…</div>
+                    <div style={{fontSize: 12,color:C.textSoft,lineHeight:1.45}}>{q.slice(0,55)}…</div>
                   </button>
                 ))}
               </div>
@@ -326,14 +326,14 @@ ${azioniStr}
           )}
           {aperte.length>0&&(
             <>
-              <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.1em",color:C.textSoft}}>Aperte / In corso · {aperte.length}</div>
+              <div style={{fontSize: 12,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.1em",color:C.textSoft}}>Aperte / In corso · {aperte.length}</div>
               <div style={{display:"flex",flexDirection:"column",gap:8}}>
                 {aperte.map(a=>(
                   <div key={a.id} className="fos-tile" style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding: isMobile ? "14px 16px" : "16px 20px",display:"flex",gap:14,alignItems:"flex-start",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)",flexDirection: isMobile ? "column" : "row"}}>
                     <div style={{flex:1, width: isMobile ? '100%' : 'auto', minWidth: 0}}>
                       <div style={{fontSize: isMobile ? 13 : 12,fontWeight:800,color:C.text,marginBottom:4}}>{a.label}</div>
                       <div style={{fontSize: isMobile ? 12 : 11,color:C.textMid,lineHeight:1.6}}>{a.azione}</div>
-                      <div style={{fontSize:10,color:C.textSoft,marginTop:6}}>{new Date(a.createdAt).toLocaleDateString("it-IT")}</div>
+                      <div style={{fontSize: 12,color:C.textSoft,marginTop:6}}>{new Date(a.createdAt).toLocaleDateString("it-IT")}</div>
                     </div>
                     <div style={{display:"flex",gap:6,flexShrink:0,flexWrap:"wrap",justifyContent: isMobile ? "flex-start" : "flex-end", width: isMobile ? '100%' : 'auto'}}>
                       {["aperta","in_corso","chiusa"].map(s=>(
@@ -357,7 +357,7 @@ ${azioniStr}
           )}
           {chiuse.length>0&&(
             <>
-              <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.1em",color:C.textSoft,marginTop:8}}>Completate · {chiuse.length}</div>
+              <div style={{fontSize: 12,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.1em",color:C.textSoft,marginTop:8}}>Completate · {chiuse.length}</div>
               <div style={{display:"flex",flexDirection:"column",gap: isMobile ? 6 : 5,opacity:0.55}}>
                 {chiuse.map(a=>(
                   <div key={a.id} style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:8,padding: isMobile ? "10px 14px" : "10px 16px",display:"flex",justifyContent:"space-between",alignItems:"center",gap:10}}>

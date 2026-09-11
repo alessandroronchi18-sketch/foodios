@@ -508,7 +508,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
 
       {/* Header + selettore periodo */}
       <div style={{ marginBottom: 14 }}>
-        <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: RED, marginBottom: 6 }}>Analisi</div>
+        <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: RED, marginBottom: 6 }}>Analisi</div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <p style={{ margin: 0, fontSize: typo.small.fontSize, color: SOFT, lineHeight: 1.5 }}>
             <span style={{ color: GRN, fontWeight: 700 }}>Verde</span> = migliore &nbsp;·&nbsp;
@@ -596,7 +596,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
             }}>
               <div style={{ position: 'absolute', top: -60, right: -30, width: 220, height: 220, borderRadius: '50%', background: 'radial-gradient(circle, rgba(110,14,26,0.22) 0%, transparent 70%)', pointerEvents: 'none' }}/>
               <div style={{ position: 'relative' }}>
-                <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.65)', marginBottom: 10 }}>
+                <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.65)', marginBottom: 10 }}>
                   Vista gruppo · {consolidato.sediConData} {consolidato.sediConData === 1 ? 'sede' : 'sedi'} attive
                 </div>
                 <div style={{

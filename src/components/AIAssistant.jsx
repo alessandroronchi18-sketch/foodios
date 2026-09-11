@@ -219,7 +219,7 @@ export default function AIAssistant({ externalOpen, onOpenChange, hideFab = fals
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 14, fontWeight: 700, letterSpacing: '-0.01em' }}>Assistente Foodos</div>
-              <div style={{ fontSize: 11, opacity: 0.82, marginTop: 1 }}>Sempre online · Risponde in italiano</div>
+              <div style={{ fontSize: 12, opacity: 0.82, marginTop: 1 }}>Sempre online · Risponde in italiano</div>
             </div>
             <button
               className="ai-close"
@@ -368,7 +368,7 @@ export default function AIAssistant({ externalOpen, onOpenChange, hideFab = fals
               color: '#FFF',
               padding: '4px 8px',
               borderRadius: 6,
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: 600,
               whiteSpace: 'nowrap',
               boxShadow: '0 4px 12px rgba(0,0,0,0.18)',

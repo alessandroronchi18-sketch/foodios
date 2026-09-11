@@ -9,7 +9,7 @@ export const WL_KEY = 'pasticceria-white-label-v1'
 
 const PIANI_CHAIN = new Set(['enterprise', 'chain'])
 
-const lbl  = { fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, display: 'block' }
+const lbl  = { fontSize: 12, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, display: 'block' }
 function mkCard(isMobile) {
   return { background: '#FFF', borderRadius: 12, padding: isMobile ? '18px 16px' : '24px 28px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', marginBottom: 20 }
 }
@@ -102,7 +102,7 @@ export default function WhiteLabel({ orgId, piano, notify }) {
           Parla con noi prima
         </a>
       </div>
-      <div style={{ fontSize: 10, color: '#94A3B8', marginTop: 12 }}>
+      <div style={{ fontSize: 12, color: '#94A3B8', marginTop: 12 }}>
         Pagamento sicuro via Stripe · puoi disdire in qualsiasi momento · fattura automatica via email.
       </div>
     </div>
@@ -196,7 +196,7 @@ export default function WhiteLabel({ orgId, piano, notify }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: 10, background: '#F8FAFC', borderRadius: 8, border: '1px solid #E2E8F0', marginBottom: 10 }}>
               <img src={logoData} alt="logo" style={{ maxHeight: 56, maxWidth: 120, objectFit: 'contain' }} />
               <button onClick={() => setLogoData(null)}
-                style={{ marginLeft: 'auto', padding: '6px 12px', background: '#FFF5F5', color: '#6E0E1A', border: '1px solid #FCA5A5', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                style={{ marginLeft: 'auto', padding: '6px 12px', background: '#FFF5F5', color: '#6E0E1A', border: '1px solid #FCA5A5', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
                 Rimuovi
               </button>
             </div>
@@ -233,7 +233,7 @@ export default function WhiteLabel({ orgId, piano, notify }) {
             )}
             <div style={{ flex: '1 1 auto', minWidth: 0 }}>
               <div style={{ fontSize: 16, fontWeight: 700, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{nomeApp || 'Foodos'}</div>
-              <div style={{ fontSize: 11, color: '#64748B' }}>Sidebar e topbar useranno questo brand.</div>
+              <div style={{ fontSize: 12, color: '#64748B' }}>Sidebar e topbar useranno questo brand.</div>
             </div>
             <button style={{ marginLeft: isMobile ? 0 : 'auto', padding: '8px 16px', minHeight: touchH, background: colorePrimario, color: '#FFF', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
               Bottone primario

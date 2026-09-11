@@ -189,7 +189,7 @@ REGOLE:
             style={{ background: BRAND, color: '#FFF', border: 'none', padding: '10px', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
             <Icon name="plus" size={13}/> Nuova conversazione
           </button>
-          <div style={{ fontSize: 10.5, fontWeight: 700, color: SOFT, letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: 8 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: SOFT, letterSpacing: '0.05em', textTransform: 'uppercase', marginTop: 8 }}>
             Precedenti
           </div>
           <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -197,7 +197,7 @@ REGOLE:
               <button key={c.id} onClick={() => carica(c)}
                 style={{ textAlign: 'left', padding: '8px 10px', background: c.id === activeId ? '#F0F9FF' : 'transparent', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 12, color: TXT }}>
                 <div style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.titolo || 'Senza titolo'}</div>
-                <div style={{ fontSize: 10, color: SOFT, marginTop: 2 }}>{new Date(c.ultimo_messaggio_at).toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })}</div>
+                <div style={{ fontSize: 12, color: SOFT, marginTop: 2 }}>{new Date(c.ultimo_messaggio_at).toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })}</div>
               </button>
             ))}
           </div>
@@ -212,7 +212,7 @@ REGOLE:
           </div>
           <div>
             <div style={{ fontSize: 13, fontWeight: 800, color: TXT }}>Foodos Brain</div>
-            <div style={{ fontSize: 11, color: SOFT, marginTop: 1 }}>Il tuo CFO/consulente AI personale</div>
+            <div style={{ fontSize: 12, color: SOFT, marginTop: 1 }}>Il tuo CFO/consulente AI personale</div>
           </div>
         </div>
 

@@ -166,7 +166,7 @@ function drawSection(doc, section, yStart, autoTableFn) {
       head: [section.table.columns],
       body: section.table.rows,
       theme: 'grid',
-      styles: { fontSize: 9, cellPadding: 3, textColor: [14, 23, 38] },
+      styles: { fontSize: 12, cellPadding: 3, textColor: [14, 23, 38] },
       headStyles: { fillColor: [248, 250, 252], textColor: [110, 14, 26], fontStyle: 'bold' },
       alternateRowStyles: { fillColor: [250, 250, 246] },
       columnStyles: (section.table.alignments || []).reduce((acc, a, i) => {

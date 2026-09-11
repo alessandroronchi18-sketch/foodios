@@ -256,7 +256,7 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
       />
 
       {gustiCount > 0 && (
-        <div style={{ marginBottom: 16, padding: '10px 14px', background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 10, fontSize: 11.5, color: '#1E3A8A', lineHeight: 1.5, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+        <div style={{ marginBottom: 16, padding: '10px 14px', background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 10, fontSize: 12, color: '#1E3A8A', lineHeight: 1.5, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
           <Icon name="bulb" size={13} />
           <span><b>{gustiCount} gusti gelateria</b> non appaiono qui: il loro prezzo di vendita non è sulla ricetta ma sui <b>Formati vendita</b> (cono/coppetta/vaschetta). Il margine dei gusti è visibile nel <b>Ricettario</b> e nel <b>P&amp;L</b>, calcolato dal ricavo/kg medio dei formati.</span>
         </div>
@@ -319,7 +319,7 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
         {/* Legenda semaforo - chip leggibili, non si rompono su mobile */}
         <div style={{
           display: 'flex', gap: isMobile ? 8 : 10, flexWrap: 'wrap',
-          fontSize: 11.5, color: T.textSoft, ...TNUM,
+          fontSize: 12, color: T.textSoft, ...TNUM,
         }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
             <span style={{ width: 8, height: 8, borderRadius: 2, background: T.green }} />
@@ -448,9 +448,9 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
                         }}>
                           <span style={{ fontWeight: 700, color: T.text }}>{fmt(r.prezzoConsigliato)}</span>
                           {r.deltaPrezzo > 0.01 ? (
-                            <span style={{ fontSize: 11, fontWeight: 700, color: T.brand, ...TNUM }}>+{fmt(r.deltaPrezzo)}</span>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: T.brand, ...TNUM }}>+{fmt(r.deltaPrezzo)}</span>
                           ) : (
-                            <span aria-label="Prezzo in linea con il target" style={{ fontSize: 11, color: T.green, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                            <span aria-label="Prezzo in linea con il target" style={{ fontSize: 12, color: T.green, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
                               <Icon name="check" size={11} />in linea
                             </span>
                           )}
@@ -463,7 +463,7 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
                     {open && (
                       <tr style={{ background: T.bgSubtle }}>
                         <td colSpan={7} style={{ padding: '8px 14px 18px' }}>
-                          <div style={{ fontSize: 11, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', margin: '6px 0 10px' }}>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', margin: '6px 0 10px' }}>
                             Composizione del costo · {r.reg.unita.toLocaleString('it-IT', { useGrouping: 'always' })} {labelPlurale(r.reg.tipo)}/stampo
                           </div>
                           {r.righe.length === 0 ? (
@@ -713,7 +713,7 @@ function SimSlider({ label, value, min, max, valueColor, accentColor, suffix = '
       />
       <div style={{
         display: 'flex', justifyContent: 'space-between',
-        marginTop: 4, fontSize: 11, color: T.textSoft, ...TNUM,
+        marginTop: 4, fontSize: 12, color: T.textSoft, ...TNUM,
       }}>
         <span>{min > 0 ? '+' : ''}{min}{suffix}</span>
         <span>+{max}{suffix}</span>
@@ -727,8 +727,8 @@ function SimStat({ label, val, c, delta }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column' }}>
       <div style={{
-        fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase',
-        letterSpacing: '0.08em', color: T.textSoft, marginBottom: 6,
+        fontSize: 12, fontWeight: 700, textTransform: 'uppercase',
+        letterSpacing: '0.05em', color: T.textSoft, marginBottom: 6,
         minHeight: 28, lineHeight: 1.3,
       }}>{label}</div>
       <div style={{

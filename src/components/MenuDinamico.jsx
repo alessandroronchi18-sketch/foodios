@@ -160,11 +160,11 @@ function MenuEditor({ ricettario, ingCosti, calcolaFC, getR, menuItems, setMenuI
                 color: sel ? T.brand : T.text, marginBottom:3, letterSpacing:"-0.005em" }}>
                 {r.nome}
               </div>
-              <div style={{ fontSize:11, color:T.textSoft, ...tnum }}>
+              <div style={{ fontSize: 12, color:T.textSoft, ...tnum }}>
                 {fmt(reg.prezzo)} · {reg.unita} {labelPlurale(reg.tipo)}
               </div>
               {sel && (
-                <div style={{ fontSize:10, fontWeight:600, color:T.brand, marginTop:5,
+                <div style={{ fontSize: 12, fontWeight:600, color:T.brand, marginTop:5,
                   display:"flex", alignItems:"center", gap:4, letterSpacing:"-0.005em" }}>
                   <Icon name="check" size={11} strokeWidth={3}/>
                   nel menù
@@ -251,14 +251,14 @@ function BCGMatrix({ menuItems, popVenduto, hasStorico, isMobile, isTablet }) {
                 <div style={{ fontSize:14, fontWeight:700, color:info.color, letterSpacing:"-0.01em" }}>
                   {meta.title}
                 </div>
-                <div style={{ fontSize:11, fontWeight:600, color:info.color, opacity:0.7, ...tnum }}>
+                <div style={{ fontSize: 12, fontWeight:600, color:info.color, opacity:0.7, ...tnum }}>
                   {byQ[q].length}
                 </div>
               </div>
-              <div style={{ fontSize:11, fontWeight:600, color:info.color, marginBottom:6, lineHeight:1.4 }}>
+              <div style={{ fontSize: 12, fontWeight:600, color:info.color, marginBottom:6, lineHeight:1.4 }}>
                 {meta.sub}
               </div>
-              <div style={{ fontSize:11, color:T.textMid, marginBottom:10, lineHeight:1.5 }}>
+              <div style={{ fontSize: 12, color:T.textMid, marginBottom:10, lineHeight:1.5 }}>
                 {meta.desc}
               </div>
               {/* Suggerimento azionabile */}
@@ -266,7 +266,7 @@ function BCGMatrix({ menuItems, popVenduto, hasStorico, isMobile, isTablet }) {
                 <span style={{
                   display:"inline-flex", alignItems:"center", gap:6, marginBottom:10,
                   padding:"5px 10px", borderRadius:R.full, background:`${info.color}1a`,
-                  color:info.color, fontSize:11, fontWeight:700, cursor:"help",
+                  color:info.color, fontSize: 12, fontWeight:700, cursor:"help",
                 }}>
                   <Icon name={sg.icon} size={12} color={info.color}/>{sg.label}
                 </span>
@@ -284,7 +284,7 @@ function BCGMatrix({ menuItems, popVenduto, hasStorico, isMobile, isTablet }) {
                   <span style={{ fontSize:12, fontWeight:500, color:T.text, letterSpacing:"-0.005em" }}>
                     {m.nome.length>22 ? m.nome.slice(0,21)+"…" : m.nome}
                   </span>
-                  <div style={{ display:"flex", gap:10, fontSize:11, color:T.textMid, ...tnum }}>
+                  <div style={{ display:"flex", gap:10, fontSize: 12, color:T.textMid, ...tnum }}>
                     <span>{fmt(m.prezzo)}</span>
                     <span style={{ fontWeight:600, color:info.color }}>{fmtp(m.margPct)}</span>
                   </div>
@@ -304,7 +304,7 @@ function BCGMatrix({ menuItems, popVenduto, hasStorico, isMobile, isTablet }) {
           <div style={{ fontSize:15, fontWeight:700, color:T.text, letterSpacing:"-0.01em" }}>
             Mappa prodotti
           </div>
-          <div style={{ fontSize:11, color:T.textSoft }}>margine % × popolarità</div>
+          <div style={{ fontSize: 12, color:T.textSoft }}>margine % × popolarità</div>
         </div>
         <div style={{
           position:"relative", width:"100%", paddingBottom: isMobile ? "82%" : "58%",
@@ -318,13 +318,13 @@ function BCGMatrix({ menuItems, popVenduto, hasStorico, isMobile, isTablet }) {
           {/* Linee quadrante */}
           <div style={{ position:"absolute", left:"50%", top:0, bottom:0, width:1, background:T.border }}/>
           <div style={{ position:"absolute", top:"50%", left:0, right:0, height:1, background:T.border }}/>
-          <div style={{ position:"absolute", top:6, left:8,  fontSize:10, fontWeight:700, color:T.blue }}>Puzzle</div>
-          <div style={{ position:"absolute", top:6, right:8, fontSize:10, fontWeight:700, color:T.green, display:"inline-flex", alignItems:"center", gap:3 }}><Icon name="star" size={10} color={T.green}/>Star</div>
-          <div style={{ position:"absolute", bottom:18, left:8,  fontSize:10, fontWeight:700, color:T.red }}>Dog</div>
-          <div style={{ position:"absolute", bottom:18, right:8, fontSize:10, fontWeight:700, color:T.amber }}>Plow</div>
+          <div style={{ position:"absolute", top:6, left:8,  fontSize: 12, fontWeight:700, color:T.blue }}>Puzzle</div>
+          <div style={{ position:"absolute", top:6, right:8, fontSize: 12, fontWeight:700, color:T.green, display:"inline-flex", alignItems:"center", gap:3 }}><Icon name="star" size={10} color={T.green}/>Star</div>
+          <div style={{ position:"absolute", bottom:18, left:8,  fontSize: 12, fontWeight:700, color:T.red }}>Dog</div>
+          <div style={{ position:"absolute", bottom:18, right:8, fontSize: 12, fontWeight:700, color:T.amber }}>Plow</div>
           {/* Captions assi */}
-          <div style={{ position:"absolute", bottom:3, left:"50%", transform:"translateX(-50%)", fontSize:9, color:T.textSoft }}>popolarità →</div>
-          <div style={{ position:"absolute", top:"50%", left:3, transform:"translateY(-50%) rotate(180deg)", writingMode:"vertical-rl", fontSize:9, color:T.textSoft }}>margine →</div>
+          <div style={{ position:"absolute", bottom:3, left:"50%", transform:"translateX(-50%)", fontSize: 12, color:T.textSoft }}>popolarità →</div>
+          <div style={{ position:"absolute", top:"50%", left:3, transform:"translateY(-50%) rotate(180deg)", writingMode:"vertical-rl", fontSize: 12, color:T.textSoft }}>margine →</div>
           {ranked.map((m,idx) => {
             const x = m.volRel * 90 + 5
             const y = 100 - (Math.min(100,m.margPct) / 100 * 90 + 5)
@@ -336,7 +336,7 @@ function BCGMatrix({ menuItems, popVenduto, hasStorico, isMobile, isTablet }) {
                 <Tip text={tipText} width={280}>
                   <div style={{
                     width:22, height:22, borderRadius:"50%", background:m.bcg.color, color:"#fff",
-                    display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:800,
+                    display:"flex", alignItems:"center", justifyContent:"center", fontSize: 12, fontWeight:800,
                     border:`2px solid ${T.bgCard}`, boxShadow:"0 2px 6px rgba(15,23,42,0.22)", cursor:"help",
                   }}>{idx+1}</div>
                 </Tip>
@@ -347,8 +347,8 @@ function BCGMatrix({ menuItems, popVenduto, hasStorico, isMobile, isTablet }) {
         {/* Legenda numerata: numero → prodotto → margine */}
         <div style={{ display:"grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(190px, 1fr))", gap:"6px 16px", marginTop:16 }}>
           {ranked.map((m,idx)=>(
-            <div key={m.nome} style={{ display:"flex", alignItems:"center", gap:8, fontSize:11, color:T.textMid }}>
-              <span style={{ width:17, height:17, borderRadius:"50%", background:m.bcg.color, color:"#fff", fontSize:9, fontWeight:800, display:"inline-flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>{idx+1}</span>
+            <div key={m.nome} style={{ display:"flex", alignItems:"center", gap:8, fontSize: 12, color:T.textMid }}>
+              <span style={{ width:17, height:17, borderRadius:"50%", background:m.bcg.color, color:"#fff", fontSize: 12, fontWeight:800, display:"inline-flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>{idx+1}</span>
               <span style={{ flex:1, minWidth:0, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{m.nome}</span>
               <span style={{ fontWeight:700, color:m.bcg.color, ...tnum }}>{fmtp(m.margPct)}</span>
             </div>
@@ -480,7 +480,7 @@ function MenuPreview({ menuItems, setMenuItems, nomeAttivita, isMobile }) {
                       {fmt(m.prezzo)}
                     </span>
                     <span style={{
-                      fontSize:11, padding:"2px 8px", borderRadius:R.full,
+                      fontSize: 12, padding:"2px 8px", borderRadius:R.full,
                       background: m.margPct>=55 ? T.greenLight : T.amberLight,
                       color: m.margPct>=55 ? T.green : T.amber,
                       fontWeight:600, letterSpacing:"-0.005em", whiteSpace:"nowrap", ...tnum,
@@ -519,7 +519,7 @@ function MenuPreview({ menuItems, setMenuItems, nomeAttivita, isMobile }) {
                   )}
                 </div>
                 <label style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer", flexShrink:0 }}>
-                  <span style={{ fontSize:11, color:T.textSoft, letterSpacing:"-0.005em" }}>
+                  <span style={{ fontSize: 12, color:T.textSoft, letterSpacing:"-0.005em" }}>
                     {m.visibile ? "visibile" : "nascosto"}
                   </span>
                   <div

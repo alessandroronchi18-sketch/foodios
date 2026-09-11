@@ -27,7 +27,7 @@ export const uiCardCompact = (opts = {}) => ({
 
 // ─── LABEL / SECTION HEADER ──────────────────────────────────────────────────
 export const uiLabel = {
-  fontSize: 11,
+  fontSize: 12,
   fontWeight: 700,
   color: T.textSoft,
   textTransform: 'uppercase',
@@ -87,7 +87,7 @@ const BTN_BASE = {
 
 export function uiBtn({ variant = 'primary', size = 'md', disabled = false, fullWidth = false } = {}) {
   const sizes = {
-    sm: { height: 28, padding: '0 10px', fontSize: 11 },
+    sm: { height: 28, padding: '0 10px', fontSize: 12 },
     md: { height: 36, padding: '0 14px', fontSize: 13 },
     lg: { height: 44, padding: '0 18px', fontSize: 14 },
   }
@@ -118,7 +118,7 @@ export const uiTable = {
 
 export const uiTh = {
   textAlign: 'left',
-  fontSize: 10,
+  fontSize: 12,
   fontWeight: 700,
   color: T.textSoft,
   textTransform: 'uppercase',
