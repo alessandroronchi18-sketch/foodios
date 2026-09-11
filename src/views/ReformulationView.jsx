@@ -241,8 +241,8 @@ Restituisci 3 varianti come da schema, italiano umano.`
                   <div style={{ marginBottom: 4, fontWeight: 700, color: MID }}>Azioni</div>
                   {v.azioni.map((a, j) => (
                     <div key={j} style={{ marginTop: 4, padding: '6px 10px', background: '#F1F5F9', borderRadius: 6, lineHeight: 1.5, wordBreak: 'break-word' }}>
-                      {a.ingrediente_attuale && <>{a.ingrediente_attuale} → <strong>{a.ingrediente_nuovo}</strong>{a.delta_grammi != null && ` (${a.delta_grammi > 0 ? '+' : ''}${Number(a.delta_grammi).toLocaleString('it-IT', { useGrouping: 'always' })}g)`}</>}
-                      {a.prezzo_attuale != null && <>Prezzo € {Number(a.prezzo_attuale).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} → <strong>€ {Number(a.prezzo_nuovo).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></>}
+                      {a.ingrediente_attuale && <>{a.ingrediente_attuale} <Icon name="arrowR" size={12} style={{ verticalAlign: 'middle', opacity: 0.7 }} /> <strong>{a.ingrediente_nuovo}</strong>{a.delta_grammi != null && ` (${a.delta_grammi > 0 ? '+' : ''}${Number(a.delta_grammi).toLocaleString('it-IT', { useGrouping: 'always' })}g)`}</>}
+                      {a.prezzo_attuale != null && <>Prezzo {Number(a.prezzo_attuale).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} € <Icon name="arrowR" size={12} style={{ verticalAlign: 'middle', opacity: 0.7 }} /> <strong>{Number(a.prezzo_nuovo).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</strong></>}
                     </div>
                   ))}
                 </div>

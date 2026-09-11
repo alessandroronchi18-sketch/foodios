@@ -41,7 +41,7 @@ const CLUSTERS = [
         body: 'Bottone "Spiegami" su ogni KPI: l\'AI scrive 2 paragrafi narrativi che spiegano il numero con i tuoi dati.',
         cta: 'Vai al P&L', status: 'LIVE' },
       { id: 'recensioni',   view: 'recensioni',   title: 'Rispondi alle recensioni',
-        body: 'Incolla una recensione → AI genera 3 risposte in italiano impeccabile (caldo, formale, fattuale).',
+        body: 'Incolla una recensione e l\'AI scrive 3 risposte in italiano impeccabile (caldo, formale, fattuale).',
         cta: 'Apri Recensioni AI', status: 'LIVE' },
     ],
   },
@@ -53,13 +53,13 @@ const CLUSTERS = [
     icon: 'trendUp',
     features: [
       { id: 'forecast',     view: 'forecast',     title: 'Forecast vendite 7gg',
-        body: 'Storico + meteo + stagionalità → previsione giornaliera per prodotto. Pre-compila la produzione del giorno.',
+        body: 'Storico, meteo e stagione: una previsione al giorno per prodotto. Pre-compila la produzione del giorno.',
         cta: 'Apri Forecast', status: 'LIVE' },
       { id: 'cashflow',     view: 'cashflow',     title: 'Cashflow predittivo',
         body: 'Cassa attesa 30/60/90 giorni con 3 scenari. Alert sui giorni in rosso prima che arrivino.',
         cta: 'Apri Cashflow', status: 'LIVE' },
       { id: 'menu-eng',     view: 'menu-engineering', title: 'Menu engineering',
-        body: 'Matrice Kasavana-Smith automatica: Star / Plowhorse / Puzzle / Dog con consigli AI per ognuno.',
+        body: 'Divide i prodotti in quattro gruppi — quelli che tirano, quelli che vendi tanto ma rendono poco, quelli che rendono ma vendi poco, e quelli da togliere — con un consiglio per ognuno.',
         cta: 'Apri Menu engineering', status: 'LIVE' },
       // Audit 2026-06-25: nascoste dal hub su richiesta utente (congelate).
       // { id: 'competitor', view: 'competitor-pricing', title: 'Pricing vs competitor', ... },
@@ -72,14 +72,14 @@ const CLUSTERS = [
     accent: '#16A34A',
     icon: 'bolt',
     features: [
-      { id: 'suggestions',  view: 'home',         title: 'AI Suggestions proattive',
+      { id: 'suggestions',  view: 'home',         title: 'Avvisi automatici',
         body: 'L\'AI controlla ogni mattina e ti avvisa di: scorte, fatture, food cost alto, ricavi in calo. Campanella in topbar.',
         cta: 'Vedi suggerimenti', status: 'LIVE' },
       { id: 'ordini-ai',    view: 'ordini-ai',    title: 'Ordini AI consigliati',
-        body: 'L\'AI calcola consumo medio + soglie minime + safety stock → testo ordine pronto da copiare al fornitore.',
+        body: 'L\'AI calcola consumo medio + soglie minime e la scorta di sicurezza, poi scrive l\'ordine pronto da copiare al fornitore.',
         cta: 'Apri Ordini AI', status: 'LIVE' },
       { id: 'ocr-fatture',  view: 'scadenzario',  title: 'OCR fatture in entrata',
-        body: 'Foto/PDF fattura → l\'AI estrae fornitore, P.IVA, scadenza, importi, righe. Conferma e salva in 5 secondi.',
+        body: 'Da una foto o un PDF della fattura l\'AI tira fuori fornitore, P.IVA, scadenza, importi, righe. Conferma e salva in 5 secondi.',
         cta: 'Vai a Scadenzario', status: 'LIVE' },
       { id: 'cmdk',         view: 'home',         title: 'Cerca/chiedi con Cmd+K',
         body: 'Premi Cmd+K (o Ctrl+K) ovunque. Cerca ricette, naviga, chiedi all\'AI in linguaggio naturale.',
@@ -89,7 +89,7 @@ const CLUSTERS = [
   {
     id: 'creativo',
     label: 'Creativo',
-    sub: 'L\'AI come pastry chef e art director',
+    sub: 'Ti aiuta a inventare e a presentare',
     accent: '#A21CAF',
     icon: 'lightbulb',
     features: [
@@ -103,7 +103,7 @@ const CLUSTERS = [
 const CHAIN_CLUSTER = {
   id: 'chain',
   label: 'Esclusive piano Chain',
-  sub: 'Le funzioni che giustificano il tier premium',
+  sub: 'Disponibili con il piano Insegna',
   accent: '#FFD86B',
   icon: 'sparkles',
   features: [
@@ -126,7 +126,7 @@ const CHAIN_CLUSTER = {
 const STATUS_STYLE = {
   LIVE: { bg: 'rgba(22,163,74,0.10)',   fg: '#15803D', label: 'LIVE' },
   BETA: { bg: 'rgba(217,119,6,0.10)',   fg: '#A16207', label: 'BETA' },
-  SOON: { bg: 'rgba(148,163,184,0.16)', fg: '#64748B', label: 'COMING SOON' },
+  SOON: { bg: 'rgba(148,163,184,0.16)', fg: '#64748B', label: 'IN ARRIVO' },
 }
 
 export default function AiHubView({ orgId, setView, goToUpgrade, piano, userEmail }) {
@@ -230,7 +230,7 @@ export default function AiHubView({ orgId, setView, goToUpgrade, piano, userEmai
             fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase',
             backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
             <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#22C55E', boxShadow: '0 0 10px #22C55E', animation: '_ai_pulse 2s ease-in-out infinite' }}/>
-            <ChainBadge size={12}/> Intelligence layer · {totFeatures} funzioni live
+            <ChainBadge size={12}/> Le funzioni AI di Foodos · {totFeatures} attive
           </div>
 
           <h1 style={{ margin: '20px 0 12px', fontSize: isMobile ? 30 : isTablet ? 38 : 52, fontWeight: 800, letterSpacing: '-0.045em', lineHeight: 1.05 }}>
@@ -253,7 +253,7 @@ export default function AiHubView({ orgId, setView, goToUpgrade, piano, userEmai
           <div style={{ display: 'flex', gap: isMobile ? 14 : 28, marginTop: 26, flexWrap: 'wrap' }}>
             <HeroStat n={`${totFeatures}`} l="Funzioni AI live"/>
             <HeroStat n="4" l="Modelli Claude attivi"/>
-            <HeroStat n="24/7" l="Cron orchestrati"/>
+            <HeroStat n="24/7" l="Controlli automatici, giorno e notte"/>
             <HeroStat n="0" l="Setup richiesto"/>
           </div>
 
@@ -266,7 +266,7 @@ export default function AiHubView({ orgId, setView, goToUpgrade, piano, userEmai
             </button>
             <button onClick={() => setView?.('home')}
               style={{ background: 'rgba(255,255,255,0.08)', color: '#FFF', border: '1px solid rgba(255,255,255,0.28)', padding: isMobile ? '14px 20px' : '13px 22px', minHeight: 48, borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: 'pointer', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', flex: isMobile ? '1 1 auto' : 'unset', justifyContent: 'center', display: 'inline-flex', alignItems: 'center' }}>
-              Vedi il Brief di oggi →
+              Vedi il Brief di oggi <Icon name="arrowR" size={14} />
             </button>
           </div>
         </div>
@@ -313,7 +313,12 @@ export default function AiHubView({ orgId, setView, goToUpgrade, piano, userEmai
 
       {/* Footer */}
       <div style={{ marginTop: 22, padding: '18px 14px', textAlign: 'center', borderTop: `1px solid ${BORDER}`, color: SOFT, fontSize: 12, lineHeight: 1.7 }}>
-        {totFeatures} funzioni AI integrate · Modelli: Claude Opus + Sonnet + Haiku + Whisper + Vision · Aggiornato 2026-06-13
+        {/* Qui c'era l'elenco dei modelli usati e una data scritta a mano
+            ("Aggiornato 2026-06-13"), vecchia di tre mesi e in formato
+            americano. Al proprietario di una gelateria i nomi dei modelli non
+            dicono niente, e una data che invecchia da sola è peggio di nessuna
+            data. */}
+        {totFeatures} funzioni AI integrate
       </div>
 
       {/* Upgrade modal: si apre quando si clicca una feature non accessibile */}
@@ -350,7 +355,11 @@ function ClusterIntro({ idx, cluster, isChain }) {
         border: `1px solid ${isChain ? 'rgba(255,216,107,0.30)' : `${cluster.accent}33`}`,
         flexShrink: 0,
       }}>
-        {String(idx + 1).padStart(2, '0')} / {String(idx + 1 + (isChain ? 0 : 0))}
+        {/* Era `{idx+1} / {idx+1 + (isChain ? 0 : 0)}`: quel `+ 0` in entrambi
+            i rami faceva stampare sempre numeratore uguale al denominatore
+            ("01 / 1", "02 / 2"), quindi la frazione non diceva niente. Ora il
+            denominatore è il numero vero di gruppi. */}
+        {String(idx + 1).padStart(2, '0')} / {String(CLUSTERS.length + 1).padStart(2, '0')}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
@@ -402,9 +411,15 @@ function FeatureCard({ f, accent, idx, total, onClick, dark = false, locked = fa
   // Per Base user → badge sia sui Pro che sui Chain.
   const showBadge = locked
   return (
+    // La card è l'elemento cliccabile principale della pagina, ma era un
+    // semplice <div onClick>: col mouse funziona, da tastiera non si
+    // raggiungeva e i lettori di schermo non la annunciavano come un bottone.
     <div
       className={`ai-card ${locked ? 'chain' : ''}`}
       onClick={onClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick?.() } }}
       style={{
         '--accent': accent,
         background: dark ? 'rgba(255,255,255,0.05)' : CARD,
@@ -457,7 +472,7 @@ function FeatureCard({ f, accent, idx, total, onClick, dark = false, locked = fa
 
       {/* Body */}
       <p style={{
-        margin: 0, fontSize: 12.5,
+        margin: 0, fontSize: 13,
         color: dark ? 'rgba(255,255,255,0.70)' : MID,
         lineHeight: 1.6, flex: 1,
       }}>{f.body}</p>
@@ -465,14 +480,14 @@ function FeatureCard({ f, accent, idx, total, onClick, dark = false, locked = fa
       {/* CTA */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span style={{
-          fontSize: 12.5, fontWeight: 700,
+          fontSize: 13, fontWeight: 700,
           color: dark ? '#FBD7C9' : accent,
           display: 'inline-flex', alignItems: 'center', gap: 6,
         }}>
           {f.cta}
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
-          </svg>
+          {/* Era la stessa freccia di Icon, ridisegnata a mano: due tratti
+              diversi per lo stesso simbolo nella stessa pagina. */}
+          <Icon name="arrowR" size={13} />
         </span>
       </div>
     </div>

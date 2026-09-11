@@ -211,11 +211,11 @@ Valuta se sono sotto, in linea o sopra, e dimmi cosa farei al posto mio.`
           <div style={{ background: '#F0F9FF', border: '1px solid #BAE6FD', borderRadius: 12, padding: 16, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
             <div>
               <div style={{ fontSize: 12, fontWeight: 700, color: '#0369A1', letterSpacing: '0.05em', textTransform: 'uppercase' }}>Il tuo prezzo</div>
-              <div style={{ fontSize: 24, fontWeight: 900, color: TXT, marginTop: 2 }}>€ {Number(fcInfo.prezzo).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+              <div style={{ fontSize: 24, fontWeight: 900, color: TXT, marginTop: 2 }}>{Number(fcInfo.prezzo).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</div>
             </div>
             <div style={{ fontSize: 12, color: MID, lineHeight: 1.5 }}>
-              Food cost € {Number(fcInfo.fcPezzo).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({(fcInfo.fcPezzo / fcInfo.prezzo * 100).toFixed(1)}%)<br/>
-              Margine lordo € {Number(fcInfo.prezzo - fcInfo.fcPezzo).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              Food cost {Number(fcInfo.fcPezzo).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} € ({(fcInfo.fcPezzo / fcInfo.prezzo * 100).toFixed(1)}%)<br/>
+              Margine lordo {Number(fcInfo.prezzo - fcInfo.fcPezzo).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
             </div>
           </div>
 
@@ -263,9 +263,9 @@ Valuta se sono sotto, in linea o sopra, e dimmi cosa farei al posto mio.`
                       </div>
                       {aiInsight.prezzo_consigliato && (
                         <div style={{ fontSize: 12.5, color: MID, fontWeight: 700 }}>
-                          → € {Number(aiInsight.prezzo_consigliato).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          <Icon name="arrowR" size={13} style={{ verticalAlign: 'middle', opacity: 0.7 }} /> {Number(aiInsight.prezzo_consigliato).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
                           {aiInsight.range_consigliato?.min && aiInsight.range_consigliato?.max && (
-                            <span style={{ fontWeight: 500, color: SOFT }}> (€ {Number(aiInsight.range_consigliato.min).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} – € {Number(aiInsight.range_consigliato.max).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })})</span>
+                            <span style={{ fontWeight: 500, color: SOFT }}> ({Number(aiInsight.range_consigliato.min).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} € – {Number(aiInsight.range_consigliato.max).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €)</span>
                           )}
                         </div>
                       )}
@@ -307,7 +307,7 @@ Valuta se sono sotto, in linea o sopra, e dimmi cosa farei al posto mio.`
                 {compFiltered.map(c => (
                   <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 6px', borderTop: `1px solid ${BORDER}` }}>
                     <span style={{ flex: 1, fontSize: 13, color: TXT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={c.competitor_nome}>{c.competitor_nome}</span>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: TXT, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>€ {Number(c.prezzo).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: TXT, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{Number(c.prezzo).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</span>
                     <button aria-label={`Rimuovi competitor ${c.competitor_nome}`} onClick={() => rimuoviCompetitor(c.id)} style={{ background: 'transparent', border: 'none', color: SOFT, cursor: 'pointer', padding: 0, width: 40, height: 40, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 6, flexShrink: 0 }}>
                       <Icon name="x" size={14}/>
                     </button>

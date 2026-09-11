@@ -8,7 +8,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { color as T } from '../lib/theme'
+import { color as T, typo } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from '../components/Icon'
 import AiPageHero from '../components/AiPageHero'
@@ -92,7 +92,7 @@ export default function ForecastView({ orgId, sedeId, sedeAttiva, setView }) {
         <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: 40, textAlign: 'center', color: SOFT, lineHeight: 1.6 }}>
           <Icon name="forecast" size={32} color={SOFT}/>
           <div style={{ marginTop: 12, fontSize: 14, fontWeight: 700, color: TXT }}>Forecast non ancora generato</div>
-          <div style={{ fontSize: 12, marginTop: 6 }}>
+          <div style={{ fontSize: typo.small.fontSize, marginTop: 6 }}>
             L'AI ha bisogno di almeno 30 giorni di chiusure per generare la previsione.<br/>
             Il cron gira ogni notte alle 07:00 UTC. Riprova domani.
           </div>
@@ -110,7 +110,7 @@ export default function ForecastView({ orgId, sedeId, sedeAttiva, setView }) {
                   <div style={{ flex: 1, minWidth: 180 }}>
                     <div style={{ fontSize: 14, fontWeight: 800, color: TXT, textTransform: 'capitalize' }}>{labelGiorno}</div>
                     {m && (
-                      <div style={{ fontSize: 12, color: SOFT, marginTop: 2 }}>
+                      <div style={{ fontSize: typo.small.fontSize, color: SOFT, marginTop: 2 }}>
                         Max {m.t_max?.toFixed(0)}°C · Min {m.t_min?.toFixed(0)}°C
                         {m.precip > 0 && ` · ${m.precip.toFixed(1)}mm pioggia`}
                       </div>
@@ -118,12 +118,22 @@ export default function ForecastView({ orgId, sedeId, sedeAttiva, setView }) {
                   </div>
                   {setView && (
                     <button onClick={() => setView('giornaliero')}
-                      style={{ background: BRAND, color: '#FFF', border: 'none', padding: '7px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
-                      Vai a produzione →
+                      style={{ background: BRAND, color: '#FFF', border: 'none', padding: '7px 14px', borderRadius: 8, fontSize: typo.small.fontSize, fontWeight: 700, cursor: 'pointer' }}>
+                      Vai a produzione <Icon name="arrowR" size={13} />
                     </button>
                   )}
                 </div>
                 <div style={{ padding: 12 }}>
+                  {/* Le tre colonne di numeri non avevano intestazione: si
+                      leggeva "120 - 180 pz", poi "150", poi "72%" e bisognava
+                      indovinare cosa fossero. Su una pagina di PREVISIONI, un
+                      numero senza etichetta viene letto come un dato certo. */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '0 6px 6px', fontSize: typo.small.fontSize, color: SOFT, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    <div style={{ flex: 1 }}>Prodotto</div>
+                    <div style={{ minWidth: 80, textAlign: 'right' }}>Fra</div>
+                    <div style={{ minWidth: 50, textAlign: 'right' }}>Previsti</div>
+                    <div style={{ minWidth: 44, textAlign: 'right' }} title="Quanto il modello si fida di questa previsione: sale con lo storico che hai registrato">Fiducia</div>
+                  </div>
                   {g.items.slice(0, 12).map(f => {
                     const confColor = f.confidence >= 0.7 ? '#16A34A' : f.confidence >= 0.5 ? '#D97706' : SOFT
                     return (
@@ -131,13 +141,13 @@ export default function ForecastView({ orgId, sedeId, sedeAttiva, setView }) {
                         <div style={{ flex: 1, fontSize: 13, color: TXT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {f.prodotto}
                         </div>
-                        <div style={{ fontSize: 12, color: SOFT, fontVariantNumeric: 'tabular-nums', minWidth: 80, textAlign: 'right' }}>
+                        <div style={{ fontSize: typo.small.fontSize, color: SOFT, fontVariantNumeric: 'tabular-nums', minWidth: 80, textAlign: 'right' }}>
                           {Math.round(f.qta_min)} - {Math.round(f.qta_max)} pz
                         </div>
                         <div style={{ fontSize: 16, fontWeight: 800, color: TXT, fontVariantNumeric: 'tabular-nums', minWidth: 50, textAlign: 'right' }}>
                           {Math.round(f.qta_prevista)}
                         </div>
-                        <div style={{ fontSize: 12, padding: '2px 7px', borderRadius: 999, background: '#F1F5F9', color: confColor, fontWeight: 700, minWidth: 36, textAlign: 'center' }}>
+                        <div style={{ fontSize: typo.small.fontSize, padding: '2px 7px', borderRadius: 999, background: '#F1F5F9', color: confColor, fontWeight: 700, minWidth: 36, textAlign: 'center' }}>
                           {Math.round(f.confidence * 100)}%
                         </div>
                       </div>
@@ -147,8 +157,8 @@ export default function ForecastView({ orgId, sedeId, sedeAttiva, setView }) {
               </div>
             )
           })}
-          <div style={{ fontSize: 12, color: SOFT, textAlign: 'center', padding: 8 }}>
-            Previsioni indicative. Il modello migliora con più dati storici.
+          <div style={{ fontSize: typo.small.fontSize, color: SOFT, textAlign: 'center', padding: 8 }}>
+            Sono previsioni, non numeri certi: servono a decidere quanto produrre, non a chiudere i conti. Migliorano man mano che registri le chiusure.
           </div>
         </div>
       )}

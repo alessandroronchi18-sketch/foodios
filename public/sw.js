@@ -10,7 +10,7 @@
 
 // IMPORTANT: bumpa questa versione ad ogni deploy con cambi UI/UX.
 // Altrimenti i client con SW attivo vedono il vecchio shell HTML/CSS.
-const CACHE_VERSION = 'foodos-2026-09-11-3391239';
+const CACHE_VERSION = 'foodos-2026-09-11-9f7af1e';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 

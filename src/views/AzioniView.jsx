@@ -309,7 +309,9 @@ ${azioniStr}
                   color:C.white,fontSize: isMobile ? 18 : 16,cursor:input.trim()&&!loading?"pointer":"default",
                   display:"flex",alignItems:"center",justifyContent:"center",
                   transition:"background 0.15s"}}>
-                ↑
+                {/* Era il carattere "↑": in un bottone tondo da 40px cambia
+                    posizione e dimensione da un sistema all'altro. */}
+                <Icon name="arrowUp" size={18} />
               </button>
             </div>
           </div>

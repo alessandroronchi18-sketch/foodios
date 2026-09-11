@@ -33,11 +33,18 @@ const BORDER = T.border || '#E5E9EF'
 const GREEN = T.green || '#16A34A'
 const AMBER = T.amber || '#D97706'
 
+// I quattro gruppi si chiamavano Star, Plowhorse, Puzzle e Dog: sono i nomi
+// della matrice di Kasavana-Smith, che nei libri di settore stanno in inglese.
+// A chi apre questa pagina — un gelataio a Torino — non dicono niente, e
+// costringono a leggere la descrizione ogni volta per ricordare quale sia
+// quale. I nomi nuovi dicono COSA FARE, che è il motivo per cui uno guarda
+// questa tabella. Il nome originale resta fra parentesi nella descrizione,
+// per chi conosce la matrice.
 const QUAD_LABEL = {
-  STAR:     { lbl: 'Star',      short: 'Star',      bg: '#F0FDF4', fg: GREEN,    desc: 'Vendono tanto e rendono. Tienteli stretti.' },
-  PLOWHORSE:{ lbl: 'Plowhorse', short: 'Plowhorse', bg: '#FEF3C7', fg: AMBER,    desc: 'Vendono ma il margine è basso. Alza il prezzo o taglia il costo.' },
-  PUZZLE:   { lbl: 'Puzzle',    short: 'Puzzle',    bg: '#E0F2FE', fg: '#0369A1',desc: 'Buon margine, pochi li comprano. Mettili più in vista.' },
-  DOG:      { lbl: 'Dog',       short: 'Dog',       bg: '#FEF2F2', fg: BRAND,    desc: 'Vendono poco e rendono poco. Da rivedere.' },
+  STAR:     { lbl: 'Da tenere',   short: 'Da tenere',   bg: '#F0FDF4', fg: GREEN,    desc: 'Vendono tanto e rendono. Tienteli stretti. (Star)' },
+  PLOWHORSE:{ lbl: 'Da rialzare', short: 'Da rialzare', bg: '#FEF3C7', fg: AMBER,    desc: 'Vendono ma il margine è basso. Alza il prezzo o taglia il costo. (Plowhorse)' },
+  PUZZLE:   { lbl: 'Da spingere', short: 'Da spingere', bg: '#E0F2FE', fg: '#0369A1',desc: 'Buon margine, pochi li comprano. Mettili più in vista. (Puzzle)' },
+  DOG:      { lbl: 'Da rivedere', short: 'Da rivedere', bg: '#FEF2F2', fg: BRAND,    desc: 'Vendono poco e rendono poco. Da rivedere. (Dog)' },
 }
 
 function classifica(popolarita, margine, mediaPop, mediaMarg) {
@@ -231,7 +238,7 @@ export default function MenuEngineeringView({ orgId, sedeId, ricettario, sedeAtt
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <AiExplainButton
                 label="Menu engineering"
-                value={`${stats.STAR.length} Star, ${stats.PLOWHORSE.length} Plowhorse, ${stats.PUZZLE.length} Puzzle, ${stats.DOG.length} Dog`}
+                value={`${stats.STAR.length} da tenere, ${stats.PLOWHORSE.length} da rialzare, ${stats.PUZZLE.length} da spingere, ${stats.DOG.length} Dog`}
                 context={{
                   periodo_giorni: periodo,
                   totale_prodotti: classified.length,
@@ -249,10 +256,10 @@ export default function MenuEngineeringView({ orgId, sedeId, ricettario, sedeAtt
                   subtitle: sedeAttiva?.nome || '',
                   periodo: `Ultimi ${periodo} giorni`,
                   kpi: [
-                    { label: 'Star', value: String(stats.STAR.length), sub: 'da tenere stretti' },
-                    { label: 'Plowhorse', value: String(stats.PLOWHORSE.length), sub: 'alza il prezzo' },
-                    { label: 'Puzzle', value: String(stats.PUZZLE.length), sub: 'metti in vista' },
-                    { label: 'Dog', value: String(stats.DOG.length), sub: 'da rivedere' },
+                    { label: 'Da tenere', value: String(stats.STAR.length), sub: 'vendono e rendono' },
+                    { label: 'Da rialzare', value: String(stats.PLOWHORSE.length), sub: 'margine basso' },
+                    { label: 'Da spingere', value: String(stats.PUZZLE.length), sub: 'rendono ma si vendono poco' },
+                    { label: 'Da rivedere', value: String(stats.DOG.length), sub: 'vendono poco e rendono poco' },
                   ],
                   sections: [
                     { title: 'Star — da tenere stretti',    table: { columns: ['Prodotto', 'Qta vendute', 'Margine/pz'], alignments: ['left','right','right'], rows: stats.STAR.slice(0, 10).map(x => [x.nome, x.qtaVenduta, '€' + Number(x.margine).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })]) } },
