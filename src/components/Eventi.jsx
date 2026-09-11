@@ -7,6 +7,7 @@ import { onEnterAutoComplete } from '../lib/autocomplete'
 import { lessico } from '../lib/lessico'
 import Icon from './Icon'
 import { KPI, PageHeader } from '../views/_shared'
+import { SK_GIOR } from '../lib/storageKeys'
 import { buildIngCosti, calcolaFC, getR } from '../lib/foodcost'
 
 export const SK_EVENTI = 'pasticceria-eventi-v1'
@@ -293,6 +294,57 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
     await salvaTutti(eventi.filter(e => e.id !== eliminaId))
     setEliminaId(null); setEliminaPin('')
     notify?.('Evento eliminato definitivamente')
+  }
+
+  // Porta un evento in produzione.
+  //
+  // Finora un evento accettato non generava niente: il giorno prima si
+  // riaprivano le righe del preventivo e si ridigitava tutto nella produzione
+  // giornaliera, a mano, rischiando di saltare una riga o di sbagliare le
+  // quantità. Il preventivo però SA già cosa serve e per quando.
+  //
+  // Le quantità dell'evento sono PEZZI (200 cannoli); la produzione conta
+  // STAMPI. La conversione usa le unità per stampo della ricetta, arrotondando
+  // per eccesso: mezzo stampo non si inforna.
+  const [portandoInProduzione, setPortandoInProduzione] = useState(null)
+
+  const portaInProduzione = async (ev) => {
+    if (portandoInProduzione) return
+    const righeValide = (ev.righe || []).filter(r => r?.nome && Number(r.qty) > 0)
+    if (righeValide.length === 0) {
+      notify?.('Questo evento non ha righe da produrre', false)
+      return
+    }
+    setPortandoInProduzione(ev.id)
+    try {
+      const prodotti = righeValide.map(r => {
+        const ric = ricetteMap[r.nome]
+        const perStampo = Number(getR(r.nome, ric)?.unita) || 1
+        const pezzi = Number(r.qty) || 0
+        const stampi = Math.max(1, Math.ceil(pezzi / perStampo))
+        return { nome: r.nome, stampi, vendibile: stampi, congelabile: false }
+      })
+      const sess = {
+        id: `g-evento-${ev.id}-${Date.now()}`,
+        data: ev.data || todayLocal(),
+        prodotti,
+        note: `Per l'evento: ${ev.nome || 'senza nome'}${ev.cliente ? ` (${ev.cliente})` : ''}`,
+        // Niente `ingredientiUsati` né `scalatoPerChiave`: questa sessione non
+        // ha scalato il magazzino. Chi la aprirà in Produzione lo farà da lì,
+        // con i controlli che quella pagina ha già. Inventare uno scalo qui
+        // vorrebbe dire togliere merce che nessuno ha ancora preso.
+        daEvento: ev.id,
+      }
+      const attuali = await sload(SK_GIOR, orgId, sedeId || null)
+      const lista = Array.isArray(attuali) ? attuali : []
+      // SAVE FIRST: se il salvataggio non riesce non si dice che è fatto.
+      await ssave(SK_GIOR, [sess, ...lista], orgId, sedeId || null)
+      notify?.(`${prodotti.length === 1 ? 'Una riga portata' : `${prodotti.length} righe portate`} in Produzione per il ${new Date((ev.data || todayLocal()) + 'T12:00:00').toLocaleDateString('it-IT', { day: 'numeric', month: 'long' })}. Aprila da lì per scalare il magazzino.`)
+    } catch (e) {
+      notify?.('Non ho potuto creare la produzione: ' + (e?.message || 'rete'), false)
+    } finally {
+      setPortandoInProduzione(null)
+    }
   }
 
   function calcolaTotali(ev) {
@@ -749,6 +801,17 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
                 style={btnAction('#EFF6FF', '#1E40AF', '#BFDBFE')}>
                 <Icon name="fileText" size={14} color="#1E40AF" />
                 Esporta PDF
+              </button>
+              {/* Un evento accettato non generava niente: il giorno prima si
+                  riaprivano le righe e si ridigitava tutto nella produzione,
+                  rischiando di saltarne una. Il preventivo sa già cosa serve
+                  e per quando. */}
+              <button onClick={() => portaInProduzione(ev)}
+                disabled={portandoInProduzione === ev.id}
+                title="Crea la sessione di produzione con le righe di questo evento. Il magazzino lo scalerai da Produzione, con i controlli di quella pagina."
+                style={{ ...btnAction(T.greenLight, T.green, `${T.green}55`), opacity: portandoInProduzione === ev.id ? 0.6 : 1 }}>
+                <Icon name="factory" size={14} color={T.green} />
+                {portandoInProduzione === ev.id ? 'Creo…' : 'Porta in produzione'}
               </button>
             </div>
 
