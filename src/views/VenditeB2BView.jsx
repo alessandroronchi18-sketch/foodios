@@ -32,7 +32,7 @@ const fmtData = (d) => {
 }
 const plural = (n, s, p) => `${n.toLocaleString('it-IT', { useGrouping: 'always' })} ${n === 1 ? s : p}`
 
-export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
+export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = null, ricettario, notify }) {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
   const confirmDialog = useConfirm()
@@ -54,11 +54,20 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
   const [fCliente, setFCliente] = useState('all')      // all | <cliente_id>
   const [fPagamento, setFPagamento] = useState('all')  // all | da_incassare | da_fatturare | fatturate
 
-  useEffect(() => { if (orgId) ricarica() }, [orgId])
+  // La sede conta.
+  //
+  // Il selettore delle sedi era in cima anche a questa pagina, ma la pagina
+  // caricava tutte le vendite dell'azienda e non si ricaricava mai al cambio
+  // sede: cambiare sede non cambiava niente, e i numeri (fatturato del mese,
+  // insoluti, classifica clienti) erano quelli di tutte e tre le sedi di Mara
+  // mentre l'intestazione diceva una sede sola.
+  const tutteLeSedi = !!sedeAttiva?._all
+  const sedeFiltro = tutteLeSedi ? null : sedeId
+  useEffect(() => { if (orgId) ricarica() }, [orgId, sedeFiltro])
   async function ricarica() {
     setLoading(true)
     try {
-      const [c, v] = await Promise.all([loadClientiB2B(orgId), loadVenditeB2B(orgId)])
+      const [c, v] = await Promise.all([loadClientiB2B(orgId), loadVenditeB2B(orgId, { sedeId: sedeFiltro })])
       setClienti(c); setVendite(v)
     } catch (e) { notify?.('Errore caricamento: ' + e.message, false) }
     setLoading(false)
@@ -68,29 +77,61 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
     .filter(r => isRicettaValida(r.nome) && getR(r.nome, r).tipo !== 'interno' && getR(r.nome, r).tipo !== 'semilavorato')
     .map(r => r.nome).sort(), [ricettario])
 
-  const mese = new Date().toISOString().slice(0, 7)
+  // Il mese LOCALE. Con toISOString il primo del mese, prima delle 2 del
+  // mattino, il conto girava ancora sul mese prima.
+  const mese = todayLocal().slice(0, 7)
   const ricavoMese = vendite.filter(v => (v.data || '').startsWith(mese)).reduce((s, v) => s + Number(v.totale || 0), 0)
   const daFatturare = vendite.filter(v => v.stato === 'consegnata')
   const totDaFatturare = daFatturare.reduce((s, v) => s + Number(v.totale || 0), 0)
 
   // Food cost per pezzo di ogni prodotto (dal ricettario) → margine per vendita.
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario])
+  // Il costo di un pezzo, per i prodotti di cui si puo' sapere.
+  //
+  // Chi non ha le unita' per stampo, o il cui costo non si riesce a calcolare,
+  // NON vale zero: resta fuori dalla mappa. Con lo zero il margine diventava
+  // ricavo meno niente, cioe' 100%, ed era il caso normale: sul ricettario di
+  // Mara solo 2 ricette su 27 hanno le unita' scritte. Venticinque prodotti su
+  // ventisette avrebbero mostrato "margine 100%".
   const fcUnit = useMemo(() => {
     const m = {}
     for (const r of Object.values(ricettario?.ricette || {})) {
       const reg = getR(r.nome, r)
-      const { tot } = calcolaFC(r, ingCosti, ricettario)
-      m[(r.nome || '').toUpperCase().trim()] = reg.unita > 0 ? tot / reg.unita : 0
+      if (!(reg.unita > 0)) continue
+      const { tot, mancanti } = calcolaFC(r, ingCosti, ricettario)
+      if ((mancanti || []).length > 0) continue
+      if (!(tot > 0)) continue
+      m[(r.nome || '').toUpperCase().trim()] = tot / reg.unita
     }
     return m
   }, [ricettario, ingCosti])
-  const fcVendita = (v) => (v.righe || []).reduce((s, r) => s + (fcUnit[(r.prodotto || '').toUpperCase().trim()] || 0) * (Number(r.qta) || 0), 0)
+
+  // Il food cost di una vendita, e quante righe non si sono potute contare.
+  const fcVendita = (v) => {
+    let costo = 0, senzaCosto = 0
+    for (const r of (v.righe || [])) {
+      const u = fcUnit[(r.prodotto || '').toUpperCase().trim()]
+      if (u == null) { senzaCosto++; continue }
+      costo += u * (Number(r.qta) || 0)
+    }
+    return { costo, senzaCosto, righe: (v.righe || []).length }
+  }
 
   // Vendite arricchite con margine + stato pagamento
   const venditeExt = useMemo(() => vendite.map(v => {
-    const foodcost = fcVendita(v)
+    const { costo, senzaCosto, righe } = fcVendita(v)
     const tot = Number(v.totale || 0)
-    return { ...v, foodcost, margine: tot - foodcost, margPct: tot > 0 ? (tot - foodcost) / tot * 100 : 0, nonPagata: v.stato !== 'annullata' && !v.pagata }
+    // Il margine si mostra solo se il costo di TUTTE le righe e' noto.
+    // Con anche una riga senza costo il margine uscirebbe più alto del vero.
+    const noto = righe > 0 && senzaCosto === 0 && tot > 0
+    return {
+      ...v,
+      foodcost: noto ? costo : null,
+      margine: noto ? tot - costo : null,
+      margPct: noto ? (tot - costo) / tot * 100 : null,
+      righeSenzaCosto: senzaCosto,
+      nonPagata: v.stato !== 'annullata' && !v.pagata,
+    }
   }), [vendite, fcUnit])
 
   // Vendite filtrate per la tab "vendite"
@@ -119,12 +160,15 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
       const k = v.cliente_id || v.clienti_b2b?.nome || 'sconosciuto'
       if (!m[k]) m[k] = { nome: v.clienti_b2b?.nome || clienti.find(c => c.id === v.cliente_id)?.nome || 'Cliente', n: 0, fatturato: 0, margine: 0, insoluto: 0, ultimo: '' }
       const g = m[k]
-      g.n++; g.fatturato += Number(v.totale || 0); g.margine += v.margine
+      g.n++; g.fatturato += Number(v.totale || 0)
+      // Solo le vendite col costo noto entrano nel margine, e si contano a
+      // parte: così la percentuale e' calcolata su quello che copre davvero.
+      if (v.margine != null) { g.margine += v.margine; g.fatturatoNoto = (g.fatturatoNoto || 0) + Number(v.totale || 0); g.nNoti = (g.nNoti || 0) + 1 }
       if (v.nonPagata) g.insoluto += Number(v.totale || 0)
       if (!g.ultimo || (v.data || '') > g.ultimo) g.ultimo = v.data || ''
     }
     return Object.values(m).map(g => ({
-      ...g, margPct: g.fatturato > 0 ? g.margine / g.fatturato * 100 : 0,
+      ...g, margPct: g.fatturatoNoto > 0 ? g.margine / g.fatturatoNoto * 100 : null,
       giorniDaUltimo: g.ultimo ? Math.round((new Date(oggi) - new Date(g.ultimo)) / 86400000) : null,
     })).sort((a, b) => b.fatturato - a.fatturato)
   }, [venditeExt, clienti])
@@ -145,10 +189,13 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
   }, [venditeExt])
 
   // KPI estesi
-  const margineMese  = venditeExt.filter(v => (v.data || '').startsWith(mese)).reduce((s, v) => s + v.margine, 0)
+  const venditeMeseNote = venditeExt.filter(v => (v.data || '').startsWith(mese) && v.margine != null)
+  const margineMese  = venditeMeseNote.reduce((s, v) => s + v.margine, 0)
+  const ricavoMeseNoto = venditeMeseNote.reduce((s, v) => s + Number(v.totale || 0), 0)
+  const venditeMeseSenzaCosto = venditeExt.filter(v => (v.data || '').startsWith(mese) && v.margine == null).length
   const totInsoluto  = venditeExt.filter(v => v.nonPagata).reduce((s, v) => s + Number(v.totale || 0), 0)
   const nInsoluti    = venditeExt.filter(v => v.nonPagata).length
-  const margPctMese  = ricavoMese > 0 ? margineMese / ricavoMese * 100 : 0
+  const margPctMese  = ricavoMeseNoto > 0 ? margineMese / ricavoMeseNoto * 100 : null
 
   if (!orgId) return <div style={{ padding: 24, color: C.textSoft, fontSize: 13 }}>Caricamento…</div>
 
@@ -302,8 +349,12 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
         <KPI
           icon={<Icon name="trendUp" size={18} />}
           label="Margine (mese)"
-          value={fmt0(margineMese)}
-          sub={ricavoMese > 0 ? `${fmtp(margPctMese)} sul ricavo` : 'in attesa di vendite'}
+          value={margPctMese == null ? '-' : fmt0(margineMese)}
+          sub={margPctMese == null
+            ? (ricavoMese > 0 ? 'manca il costo dei prodotti venduti' : 'in attesa di vendite')
+            : venditeMeseSenzaCosto > 0
+              ? `${fmtp(margPctMese)} su ${venditeMeseSenzaCosto === 1 ? 'tutte tranne una vendita' : `le vendite con il costo noto`}`
+              : `${fmtp(margPctMese)} sul ricavo`}
           color={C.green}
         />
         <KPI
@@ -423,7 +474,9 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
                         </td>
                         <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 700, color: C.text, ...TNUM, whiteSpace: 'nowrap' }}>{fmt(g.fatturato)}</td>
                         <td style={{ padding: '12px 14px', textAlign: 'right', color: C.green, ...TNUM, whiteSpace: 'nowrap' }}>
-                          {fmt(g.margine)} <span style={{ color: C.textSoft, fontSize: 12 }}>{g.margPct.toFixed(0)}%</span>
+                          {g.margPct == null
+                            ? <span style={{ color: C.textSoft }} title="Manca il costo dei prodotti venduti a questo cliente">-</span>
+                            : <>{fmt(g.margine)} <span style={{ color: C.textSoft, fontSize: 12 }}>{g.margPct.toFixed(0)}%</span></>}
                         </td>
                         <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 700, color: g.insoluto > 0 ? C.red : C.textSoft, ...TNUM, whiteSpace: 'nowrap' }}>
                           {g.insoluto > 0 ? fmt(g.insoluto) : '-'}
@@ -814,8 +867,10 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
                             {fmtData(v.data)} · {plural((v.righe || []).length, 'prodotto', 'prodotti')} · {(v.righe || []).reduce((s, r) => s + (Number(r.qta) || 0), 0).toLocaleString('it-IT', { useGrouping: 'always' })} pz
                           </div>
                           <div style={{ fontSize: 12, color: C.textSoft, marginTop: 2 }}>
-                            Margine <span style={{ fontWeight: 700, color: C.green, ...TNUM }}>{fmt(v.margine)}</span>
-                            {v.margPct > 0 && <span style={{ color: C.textSoft, marginLeft: 4 }}>({v.margPct.toFixed(0)}%)</span>}
+                            {v.margine == null
+                              ? <span>Margine non calcolabile: {v.righeSenzaCosto === 1 ? 'un prodotto non ha' : `${v.righeSenzaCosto} prodotti non hanno`} il costo</span>
+                              : <>Margine <span style={{ fontWeight: 700, color: C.green, ...TNUM }}>{fmt(v.margine)}</span>
+                                {v.margPct > 0 && <span style={{ color: C.textSoft, marginLeft: 4 }}>({v.margPct.toFixed(0)}%)</span>}</>}
                           </div>
                         </div>
                         <div style={{ fontSize: 18, fontWeight: 800, color: C.text, ...TNUM, whiteSpace: 'nowrap', flexShrink: 0 }}>
@@ -887,8 +942,12 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
                       }}>{v.clienti_b2b?.nome || 'Cliente eliminato'}</div>
                       <div style={{ fontSize: 12, color: C.textSoft, marginTop: 3 }}>
                         {fmtData(v.data)} · {plural((v.righe || []).length, 'prodotto', 'prodotti')} · {(v.righe || []).reduce((s, r) => s + (Number(r.qta) || 0), 0).toLocaleString('it-IT', { useGrouping: 'always' })} pz
-                        <span style={{ color: C.textSoft }}> · margine </span>
-                        <span style={{ fontWeight: 700, color: C.green, ...TNUM }}>{fmt(v.margine)}</span>
+                        {v.margine == null
+                          ? <span style={{ color: C.textSoft }} title={`${v.righeSenzaCosto === 1 ? 'Un prodotto non ha' : `${v.righeSenzaCosto} prodotti non hanno`} il costo nel ricettario`}> · margine non calcolabile</span>
+                          : <>
+                              <span style={{ color: C.textSoft }}> · margine </span>
+                              <span style={{ fontWeight: 700, color: C.green, ...TNUM }}>{fmt(v.margine)}</span>
+                            </>}
                       </div>
                     </div>
 

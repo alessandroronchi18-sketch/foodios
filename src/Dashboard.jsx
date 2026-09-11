@@ -3568,7 +3568,7 @@ export default function Dashboard({
         {view==="nuova-ricetta"&&<NuovaRicettaView ricettario={ricettario} notify={notify} onSave={handleSalvaRicetta} editingRicetta={editingRicetta} onEditConsumed={()=>setEditingRicetta(null)} LEX={LEX} tipoAttivita={tipoAttivita}/>}
         {view==="scheda-allergeni"&&!PAGINE_NASCOSTE.has("scheda-allergeni")&&<SchedaAllergeniView ricettario={ricettario} tipoAttivita={tipoAttivita}/>}
         {view==="fornitori"&&<Fornitori orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify}/>}
-        {view==="vendite-b2b"&&<VenditeB2BView orgId={orgId} sedeId={sedeId} ricettario={ricettario} notify={notify}/>}
+        {view==="vendite-b2b"&&<VenditeB2BView orgId={orgId} sedeId={sedeId} sedi={sedi} sedeAttiva={sedeAttiva} ricettario={ricettario} notify={notify}/>}
         {/* Personale espone stipendi: MAI per i dipendenti (oltre a sidebar gate + RLS solo-titolare). */}
         {view==="personale"&&!isDip&&<Personale orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify} adminNome={auth?.profile?.nome_completo || auth?.user?.email} nomeAttivita={nomeAttivita}/>}
         {view==="haccp"&&!PAGINE_NASCOSTE.has("haccp")&&<HaccpView orgId={orgId} sedeId={sedeId} ricettario={ricettario} nomeAttivita={nomeAttivita} notify={notify}/>}

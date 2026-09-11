@@ -98,13 +98,29 @@ export async function eliminaClienteB2B(id) {
 }
 
 // ── Vendite B2B ────────────────────────────────────────────────────────────
-export async function loadVenditeB2B(orgId) {
+// Le vendite B2B di una sede.
+//
+// `sedeId` mancante (o vista "tutte le sedi") = tutte. Con una sede scelta si
+// tengono le sue vendite PIÙ quelle senza sede: le righe vecchie sono state
+// salvate prima che il campo esistesse, e nasconderle vorrebbe dire far
+// sparire fatturato senza dirlo.
+//
+// Paginato: il server taglia a 1.000 righe qualunque select.
+export async function loadVenditeB2B(orgId, { sedeId = null } = {}) {
   if (!orgId) return []
-  const { data, error } = await supabase
-    .from('vendite_b2b').select('*, clienti_b2b(nome)')
-    .eq('organization_id', orgId).order('data', { ascending: false })
-  if (error) throw error
-  return data || []
+  const PAGINA = 1000
+  const righe = []
+  for (let offset = 0; ; offset += PAGINA) {
+    let q = supabase.from('vendite_b2b').select('*, clienti_b2b(nome)')
+      .eq('organization_id', orgId)
+    if (sedeId) q = q.or(`sede_id.eq.${sedeId},sede_id.is.null`)
+    const { data, error } = await q.order('data', { ascending: false }).range(offset, offset + PAGINA - 1)
+    if (error) throw error
+    const lotto = data || []
+    righe.push(...lotto)
+    if (lotto.length < PAGINA) break
+  }
+  return righe
 }
 
 // Crea (id assente) o MODIFICA (id presente) una vendita.
