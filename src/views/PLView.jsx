@@ -9,6 +9,7 @@ import React, { useState, useMemo, useEffect } from 'react'
 import { sload, ssave } from '../lib/storage'
 import { supabase } from '../lib/supabase'
 import { totaliPerGusto, normGusto, fetchAllInventarioProduzione } from '../lib/inventarioProduzione'
+import { caricaCostiAziendali, totaleMensile } from '../lib/costiAziendali'
 import { foodcostNoto } from '../lib/chiusure'
 import { totaliPeriodo as usciteCassaPeriodo } from '../lib/primaNota'
 import {
@@ -614,11 +615,12 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
   const [costiAziendali, setCostiAziendali] = useState([])
   useEffect(() => {
     if (!orgId) return
-    import('../lib/costiAziendali').then(({ caricaCostiAziendali, totaleMensile }) => {
-      caricaCostiAziendali(orgId, sedeId).then(arr => {
-        setCostiAziendali(arr)
-      })
-    }).catch(() => { /* tabella non ancora migrata: ignora */ })
+    // Import statico in testa al file: era dinamico, e dentro destrutturava
+    // anche `totaleMensile` senza usarlo, mentre la banda dei costi si
+    // riscriveva la normalizzazione a mano.
+    caricaCostiAziendali(orgId, sedeId)
+      .then(arr => setCostiAziendali(arr))
+      .catch(() => { /* tabella non ancora migrata: ignora */ })
   }, [orgId, sedeId])
 
   // Audit 2026-06-25: euro/pct delegano agli helper condivisi (`fmt`/`fmtp`)
@@ -1483,6 +1485,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
           mostra nessun margine netto: mostra solo i costi. */}
       <CostiNettoBanda
         costiAziendali={costiAziendali}
+        asOf={dateTo}
         margineLordoPeriodo={plMese.cur.giorni > 0 ? plMese.margineLordo : null}
         giorniPeriodo={plMese.cur.giorni}
         euro={euro}
@@ -1692,12 +1695,14 @@ function PLInventarioSection({ data, rangeLabel: rangeLbl, cardP, isMobile }) {
 // totMargine arriva dalla sezione P&L (ricavo - foodcost per ricetta).
 // Il margine NETTO sottrae i costi aziendali extra: consumabili, manutenzione,
 // ammortamenti, utenze, ecc. Stima informativa, non sostituisce un commercialista.
-function CostiNettoBanda({ costiAziendali, margineLordoPeriodo, giorniPeriodo = 0, euro, isMobile }) {
-  const totCostiMensili = (costiAziendali || []).reduce((s, v) => {
-    const x = Number(v.importo) || 0
-    if (v.periodicita === 'annuale' || v.periodicita === 'una_tantum') return s + x / 12
-    return s + x
-  }, 0)
+function CostiNettoBanda({ costiAziendali, margineLordoPeriodo, giorniPeriodo = 0, euro, isMobile, asOf = null }) {
+  // La normalizzazione a importo mensile la fa la libreria dei costi, non
+  // questa banda. La copia che stava qui divideva per 12 anche le spese "una
+  // tantum" SENZA il tetto dei 12 mesi: una spesa una tantum del 2024
+  // continuava a pesare sul conto economico per sempre. La libreria quel tetto
+  // ce l'ha da giugno, ma questa copia non era stata aggiornata — e siccome
+  // era la copia a essere mostrata, il difetto era ancora tutto lì.
+  const totCostiMensili = totaleMensile(costiAziendali || [], asOf)
   const totCostiAnnui = totCostiMensili * 12
   // Il margine netto si calcola solo se c'è un margine lordo vero del
   // periodo: senza chiusure di cassa non esiste un margine da cui sottrarre

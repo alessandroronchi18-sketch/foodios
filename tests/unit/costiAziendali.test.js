@@ -26,7 +26,7 @@ function mkChain(returnValue = { data: [], error: null }) {
 }
 
 import {
-  importoMensile, totaleMensile, aggregaPerCategoria,
+  importoMensile, totaleMensile, aggregaPerCategoria, statoVoce,
   CATEGORIE_DEFAULT, PERIODICITA,
   caricaCostiAziendali, salvaVoceCosto, eliminaVoceCosto,
 } from '../../src/lib/costiAziendali'
@@ -215,5 +215,95 @@ describe('CRUD wrappers Supabase', () => {
     })
     const chain = supabase.from.mock.results[0].value
     expect(chain.update).toHaveBeenCalled()
+  })
+})
+
+// ── Data di inizio: una voce non pesa sui mesi precedenti ──────────────────
+//
+// Prima il tetto valeva solo per le "una tantum". Un affitto inserito a
+// settembre 2026, con data di inizio settembre 2026, entrava anche nel conto
+// economico di gennaio 2026: guardando indietro, i mesi passati risultavano
+// più costosi del vero e i margini più bassi.
+describe('importoMensile — data di inizio', () => {
+  const affitto = { importo: 1200, periodicita: 'mensile', data_inizio: '2026-09-01' }
+
+  it('vale zero per un mese precedente all inizio', () => {
+    expect(importoMensile(affitto, '2026-01-31')).toBe(0)
+    expect(importoMensile(affitto, '2026-08-31')).toBe(0)
+  })
+
+  it('vale pieno dal mese di inizio in poi', () => {
+    expect(importoMensile(affitto, '2026-09-01')).toBe(1200)
+    expect(importoMensile(affitto, '2026-09-30')).toBe(1200)
+    expect(importoMensile(affitto, '2026-12-31')).toBe(1200)
+  })
+
+  it('una voce che parte a metà mese vale per tutto quel mese', () => {
+    // Il conto economico è mensile, non giornaliero: mezzo mese di affitto
+    // sarebbe una precisione finta.
+    const v = { importo: 300, periodicita: 'mensile', data_inizio: '2026-09-20' }
+    expect(importoMensile(v, '2026-09-05')).toBe(300)
+  })
+
+  it('senza mese di riferimento si comporta come prima', () => {
+    // Le pagine che mostrano "quanto costa adesso" non passano asOf.
+    expect(importoMensile(affitto)).toBe(1200)
+  })
+
+  it('vale anche per le annuali', () => {
+    const ass = { importo: 1200, periodicita: 'annuale', data_inizio: '2026-09-01' }
+    expect(importoMensile(ass, '2026-03-31')).toBe(0)
+    expect(importoMensile(ass, '2026-10-01')).toBe(100)
+  })
+
+  it('totaleMensile e aggregaPerCategoria passano il mese di riferimento', () => {
+    const voci = [
+      { categoria: 'affitti', importo: 1000, periodicita: 'mensile', data_inizio: '2026-09-01' },
+      { categoria: 'utenze', importo: 200, periodicita: 'mensile', data_inizio: '2026-01-01' },
+    ]
+    expect(totaleMensile(voci, '2026-03-31')).toBe(200)
+    expect(totaleMensile(voci, '2026-09-30')).toBe(1200)
+    const perCat = aggregaPerCategoria(voci, '2026-03-31')
+    expect(perCat.find(c => c.categoria === 'affitti').totaleMensile).toBe(0)
+    expect(perCat.find(c => c.categoria === 'utenze').totaleMensile).toBe(200)
+  })
+})
+
+// ── statoVoce: lo zero va spiegato, non mostrato ───────────────────────────
+//
+// Una spesa una tantum, passati i 12 mesi di spalmatura, mostrava
+// "0,00 €/mese" accanto al suo importo pieno (es. 3.000,00 €): sembrava un
+// errore del programma, e il totale in alto non tornava con la somma di quello
+// che si vedeva in elenco.
+describe('statoVoce', () => {
+  it('dice quando una una-tantum ha finito di spalmarsi', () => {
+    const v = { importo: 3000, periodicita: 'una_tantum', data_inizio: '2024-01-15' }
+    const st = statoVoce(v, '2026-09-30')
+    expect(st.stato).toBe('esaurita')
+    expect(st.mensile).toBe(0)
+  })
+
+  it('dice quanti mesi restano quando la fine è vicina', () => {
+    // Inizio ottobre 2025, riferimento luglio 2026: 9 mesi passati, ne
+    // restano 2 dopo quello in corso.
+    const v = { importo: 1200, periodicita: 'una_tantum', data_inizio: '2025-10-01' }
+    const st = statoVoce(v, '2026-07-15')
+    expect(st.stato).toBe('attiva')
+    expect(st.mensile).toBe(100)
+    expect(st.mesiRimasti).toBe(2)
+  })
+
+  it('dice quando una voce non è ancora partita', () => {
+    const v = { importo: 900, periodicita: 'mensile', data_inizio: '2026-12-01' }
+    const st = statoVoce(v, '2026-09-30')
+    expect(st.stato).toBe('non_iniziata')
+    expect(st.mensile).toBe(0)
+  })
+
+  it('una voce mensile normale è attiva e non parla di scadenze', () => {
+    const st = statoVoce({ importo: 400, periodicita: 'mensile' }, '2026-09-30')
+    expect(st.stato).toBe('attiva')
+    expect(st.mensile).toBe(400)
+    expect(st.mesiRimasti).toBeNull()
   })
 })

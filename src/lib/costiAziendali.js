@@ -110,6 +110,20 @@ export async function eliminaVoceCosto(id, soft = true) {
 // mesi dalla creazione voce; se nessun riferimento, comportamento legacy v/12.
 export function importoMensile(voce, asOfDate) {
   const v = Number(voce?.importo) || 0
+  // Una voce non pesa sui mesi PRIMA della sua data di inizio.
+  //
+  // Prima valeva solo per le una_tantum: un affitto inserito a settembre
+  // 2026, con data di inizio settembre 2026, entrava anche nel conto
+  // economico di gennaio 2026 come se il locale lo avessimo sempre avuto.
+  // Guardando indietro i mesi passati risultavano più costosi del vero, e i
+  // margini più bassi.
+  const inizio = voce?.data_inizio
+  if (inizio && asOfDate) {
+    // Confronto per mese: una voce che parte il 20 del mese vale per quel
+    // mese intero (il conto economico e' mensile, non giornaliero).
+    const mese = (d) => String(d).slice(0, 7)
+    if (mese(inizio) > mese(asOfDate)) return 0
+  }
   switch (voce?.periodicita) {
     case 'annuale': return v / 12
     case 'una_tantum': {
@@ -130,19 +144,60 @@ export function importoMensile(voce, asOfDate) {
   }
 }
 
+// Stato di una voce in un dato mese, per poterlo SCRIVERE invece di mostrare
+// uno zero muto.
+//
+// Serve perché una spesa una tantum, passati i 12 mesi di spalmatura, valeva
+// "0,00 €/mese" in elenco senza una riga di spiegazione: accanto all'importo
+// pieno (es. 3.000,00 €) sembrava un errore del programma, e il totale in alto
+// non tornava con la somma di quello che si vedeva.
+//
+// Ritorna { mensile, stato, mesiRimasti } con stato:
+//   'attiva'       → pesa sul mese chiesto
+//   'non_iniziata' → inizia dopo quel mese
+//   'esaurita'     → una tantum già spalmata per intero
+export function statoVoce(voce, asOfDate) {
+  const mensile = importoMensile(voce, asOfDate)
+  const mese = (d) => String(d).slice(0, 7)
+  const rif = asOfDate ? mese(asOfDate) : mese(new Date().toISOString())
+  const inizio = voce?.data_inizio
+  if (inizio && mese(inizio) > rif) {
+    return { mensile: 0, stato: 'non_iniziata', mesiRimasti: null }
+  }
+  if (voce?.periodicita === 'una_tantum' && mensile === 0) {
+    return { mensile: 0, stato: 'esaurita', mesiRimasti: 0 }
+  }
+  if (voce?.periodicita === 'una_tantum') {
+    const start = voce?.data_inizio || voce?.created_at || voce?.data
+    let mesiRimasti = null
+    if (start) {
+      const s = new Date(start)
+      const r = asOfDate ? new Date(asOfDate) : new Date()
+      if (Number.isFinite(s.getTime())) {
+        const passati = (r.getFullYear() - s.getFullYear()) * 12 + (r.getMonth() - s.getMonth())
+        mesiRimasti = Math.max(0, 12 - passati - 1)
+      }
+    }
+    return { mensile, stato: 'attiva', mesiRimasti }
+  }
+  return { mensile, stato: 'attiva', mesiRimasti: null }
+}
+
 // Totale costi aziendali mensili (somma tutte le voci attive).
-export function totaleMensile(voci) {
+// `asOfDate` = mese di riferimento: serve al conto economico di un periodo
+// passato, per non caricargli sopra voci nate dopo.
+export function totaleMensile(voci, asOfDate) {
   if (!Array.isArray(voci)) return 0
-  return voci.reduce((s, v) => s + importoMensile(v), 0)
+  return voci.reduce((s, v) => s + importoMensile(v, asOfDate), 0)
 }
 
 // Raggruppa per categoria, ognuna col proprio totale mensile.
-export function aggregaPerCategoria(voci) {
+export function aggregaPerCategoria(voci, asOfDate) {
   const map = {}
   for (const v of (voci || [])) {
     const cat = v.categoria || 'altro'
     if (!map[cat]) map[cat] = { categoria: cat, totaleMensile: 0, voci: [] }
-    map[cat].totaleMensile += importoMensile(v)
+    map[cat].totaleMensile += importoMensile(v, asOfDate)
     map[cat].voci.push(v)
   }
   return Object.values(map).sort((a, b) => b.totaleMensile - a.totaleMensile)

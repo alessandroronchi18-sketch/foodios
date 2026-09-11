@@ -4,7 +4,7 @@
 // calcolo P&L con importo MENSILE normalizzato (annuali/12, una_tantum/12).
 
 import React, { useEffect, useState, useMemo } from 'react'
-import { color as T, radius as R, shadow as S } from '../lib/theme'
+import { color as T, radius as R, shadow as S, typo } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from '../components/Icon'
 import { useConfirm } from '../components/ConfirmModal'
@@ -12,7 +12,7 @@ import { C, TNUM, PageHeader, fmt, fmt0 } from './_shared'
 import {
   CATEGORIE_DEFAULT, PERIODICITA,
   caricaCostiAziendali, salvaVoceCosto, eliminaVoceCosto,
-  importoMensile, totaleMensile, aggregaPerCategoria,
+  importoMensile, totaleMensile, aggregaPerCategoria, statoVoce,
 } from '../lib/costiAziendali'
 
 // Helper locali: fmt2 mantiene 2 decimali (per importi tabella).
@@ -170,7 +170,7 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
           }}/>
           <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', justifyContent: 'space-between', gap: 12 }}>
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: C.textSoft, marginBottom: 4 }}>Ambito visualizzazione</div>
+              <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: C.textSoft, marginBottom: 4 }}>Ambito visualizzazione</div>
               <div style={{ fontSize: 13, color: C.textMid, lineHeight: 1.4 }}>
                 {scope === 'all'
                   ? <>Stai vedendo <b style={{ color: C.text }}>tutti i costi dell'azienda</b> (globali + di tutte le sedi).</>
@@ -235,8 +235,8 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
           boxShadow: '0 1px 2px rgba(15,23,42,0.04)',
         }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: T.brand, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Voci più care del mese</div>
-            <div style={{ fontSize: 10.5, color: C.textSoft }}>top 3</div>
+            <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, color: T.brand, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Voci più care del mese</div>
+            <div style={{ fontSize: typo.small.fontSize, color: C.textSoft }}>top 3</div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 10 }}>
             {topVoci.map((v, i) => {
@@ -249,15 +249,15 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
                   display: 'flex', flexDirection: 'column', gap: 5, minHeight: 78,
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
-                    <span style={{ width: 22, height: 22, borderRadius: '50%', background: T.brand, color: '#FFF', fontSize: 11, fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{i + 1}</span>
+                    <span style={{ width: 22, height: 22, borderRadius: '50%', background: T.brand, color: '#FFF', fontSize: typo.small.fontSize, fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{i + 1}</span>
                     <div style={{ minWidth: 0, flex: 1 }}>
                       <div style={{ fontSize: 13, fontWeight: 700, color: C.text, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={v.voce}>{v.voce}</div>
-                      <div style={{ fontSize: 10.5, color: C.textSoft, marginTop: 2 }}>{catLbl}</div>
+                      <div style={{ fontSize: typo.small.fontSize, color: C.textSoft, marginTop: 2 }}>{catLbl}</div>
                     </div>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 'auto' }}>
                     <span style={{ fontSize: 15, fontWeight: 800, color: T.brand, ...TNUM, letterSpacing: '-0.015em' }}>{fmt0(v.mensile)}/mese</span>
-                    {pct > 0 && <span style={{ fontSize: 11, color: C.textSoft, ...TNUM, fontWeight: 600 }}>{pct.toFixed(0)}%</span>}
+                    {pct > 0 && <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, ...TNUM, fontWeight: 600 }}>{pct.toFixed(0)}%</span>}
                   </div>
                 </div>
               )
@@ -301,7 +301,7 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
           </select>
           <span aria-hidden style={{
             position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
-            pointerEvents: 'none', color: C.textSoft, fontSize: 10,
+            pointerEvents: 'none', color: C.textSoft, fontSize: typo.small.fontSize,
           }}>▼</span>
         </div>
         {filterCategoria && (
@@ -380,12 +380,12 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
                       minWidth: 0, flex: 1,
                     }}>
                       <span style={{
-                        fontSize: 12, fontWeight: 800, color: '#6E0E1A',
-                        textTransform: 'uppercase', letterSpacing: '0.08em',
+                        fontSize: typo.small.fontSize, fontWeight: 800, color: '#6E0E1A',
+                        textTransform: 'uppercase', letterSpacing: '0.05em',
                         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                       }}>{catLabel}</span>
                       <span style={{
-                        fontSize: 10, fontWeight: 600, color: C.textSoft,
+                        fontSize: typo.small.fontSize, fontWeight: 600, color: C.textSoft,
                         background: '#FFFFFF', border: `1px solid ${C.borderSoft}`,
                         padding: '2px 7px', borderRadius: 10, ...TNUM,
                         flexShrink: 0,
@@ -401,7 +401,7 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
                       }}>{fmt0(gruppo.totaleMensile)}/mese</span>
                       {totMese > 0 && (
                         <span style={{
-                          fontSize: 10.5, color: C.textSoft, ...TNUM, marginTop: 1,
+                          fontSize: typo.small.fontSize, color: C.textSoft, ...TNUM, marginTop: 1,
                         }}>{pctTot.toFixed(0)}% del totale</span>
                       )}
                     </div>
@@ -432,7 +432,7 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
               gap: 10,
             }}>
-              <span style={{ fontSize: 12, fontWeight: 700, color: C.text, letterSpacing: '-0.01em' }}>
+              <span style={{ fontSize: typo.small.fontSize, fontWeight: 700, color: C.text, letterSpacing: '-0.01em' }}>
                 Totale costi aziendali
               </span>
               <span style={{
@@ -457,8 +457,17 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
 
 // Riga singola voce. Su mobile va in colonna per evitare accavallamenti
 // fra descrizione (lunga) e importo. Bottoni icon-only con aria-label.
+// Mese in italiano breve, per dire "parte da set 2026".
+function meseTesto(iso) {
+  if (!iso) return ''
+  const d = new Date(String(iso).slice(0, 10) + 'T12:00:00')
+  if (!Number.isFinite(d.getTime())) return ''
+  return d.toLocaleDateString('it-IT', { month: 'short', year: 'numeric' })
+}
+
 function VoceRow({ v, sedi, isMobile, iconBtnSize = 40, onEdit, onDelete }) {
   const periodLabel = PERIODICITA.find(p => p.id === v.periodicita)?.label || v.periodicita
+  const stato = statoVoce(v)
   const sedeLabel = v.sede_id
     ? ((sedi || []).find(s => s.id === v.sede_id)?.nome || 'sede')
     : 'tutte le sedi'
@@ -487,13 +496,13 @@ function VoceRow({ v, sedi, isMobile, iconBtnSize = 40, onEdit, onDelete }) {
         }} title={v.voce}>{v.voce}</div>
         {v.note && (
           <div style={{
-            fontSize: 12, color: C.textSoft, marginTop: 3, lineHeight: 1.4,
+            fontSize: typo.small.fontSize, color: C.textSoft, marginTop: 3, lineHeight: 1.4,
             overflow: 'hidden', textOverflow: 'ellipsis',
             whiteSpace: isMobile ? 'normal' : 'nowrap',
           }} title={v.note}>{v.note}</div>
         )}
         <div style={{
-          fontSize: 11, color: C.textSoft, marginTop: 5,
+          fontSize: typo.small.fontSize, color: C.textSoft, marginTop: 5,
           display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center',
         }}>
           <span style={{
@@ -536,9 +545,22 @@ function VoceRow({ v, sedi, isMobile, iconBtnSize = 40, onEdit, onDelete }) {
           }}>{fmt2(v.importo)}</div>
           {v.periodicita !== 'mensile' && (
             <div style={{
-              fontSize: 11, color: T.brand, ...TNUM, marginTop: 3,
-              fontWeight: 600, whiteSpace: 'nowrap',
-            }}>{fmt2(importoMensile(v))}/mese</div>
+              fontSize: typo.small.fontSize, color: stato.stato === 'attiva' ? T.brand : C.textSoft,
+              ...TNUM, marginTop: 3, fontWeight: 600, whiteSpace: 'nowrap',
+            }}>
+              {stato.stato === 'esaurita'
+                ? 'spalmatura finita'
+                : stato.stato === 'non_iniziata'
+                  ? `parte da ${meseTesto(v.data_inizio)}`
+                  : `${fmt2(stato.mensile)}/mese`}
+            </div>
+          )}
+          {/* Quanto manca alla fine della spalmatura: senza questa riga, il
+              giorno in cui la voce passa a zero sembra un errore. */}
+          {stato.stato === 'attiva' && stato.mesiRimasti != null && stato.mesiRimasti <= 3 && (
+            <div style={{ fontSize: typo.small.fontSize, color: C.textSoft, marginTop: 2, whiteSpace: 'nowrap' }}>
+              {stato.mesiRimasti === 0 ? 'ultimo mese' : `ancora ${stato.mesiRimasti} mesi`}
+            </div>
           )}
         </div>
 
@@ -659,8 +681,8 @@ function KpiBox({ label, value, sub, accent, highlight }) {
       }} />
       <div style={{
         position: 'relative',
-        fontSize: 10.5, fontWeight: 700,
-        textTransform: 'uppercase', letterSpacing: '0.08em',
+        fontSize: typo.small.fontSize, fontWeight: 700,
+        textTransform: 'uppercase', letterSpacing: '0.05em',
         color: isHighlight ? 'rgba(255,255,255,0.78)' : C.textSoft,
         marginBottom: 8,
         minHeight: 26, lineHeight: 1.25,
@@ -677,7 +699,7 @@ function KpiBox({ label, value, sub, accent, highlight }) {
       }}>{value}</div>
       <div style={{
         position: 'relative',
-        fontSize: 11.5,
+        fontSize: typo.small.fontSize,
         color: isHighlight ? 'rgba(255,255,255,0.72)' : C.textSoft,
         marginTop: 6,
         fontWeight: 500, lineHeight: 1.35,
@@ -707,7 +729,7 @@ function DialogFormCosto({ form, setForm, sedi, isMobile, onClose, onSave }) {
   }
   const selectStyle = { ...inpStyle, appearance: 'none', WebkitAppearance: 'none', cursor: 'pointer', paddingRight: 36 }
   const lblStyle = {
-    display: 'block', fontSize: 11, fontWeight: 700,
+    display: 'block', fontSize: typo.small.fontSize, fontWeight: 700,
     textTransform: 'uppercase', letterSpacing: '0.07em',
     color: T.textSoft, marginBottom: 7,
   }
@@ -783,12 +805,12 @@ function DialogFormCosto({ form, setForm, sedi, isMobile, onClose, onSave }) {
             </select>
             <span aria-hidden style={{
               position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)',
-              pointerEvents: 'none', color: C.textSoft, fontSize: 10,
+              pointerEvents: 'none', color: C.textSoft, fontSize: typo.small.fontSize,
             }}>▼</span>
           </div>
           {catInfo?.esempi && (
             <div style={{
-              fontSize: 11.5, color: C.textSoft, marginTop: 6, lineHeight: 1.45,
+              fontSize: typo.small.fontSize, color: C.textSoft, marginTop: 6, lineHeight: 1.45,
             }}>es. {catInfo.esempi}</div>
           )}
         </div>
@@ -835,7 +857,7 @@ function DialogFormCosto({ form, setForm, sedi, isMobile, onClose, onSave }) {
               </select>
               <span aria-hidden style={{
                 position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)',
-                pointerEvents: 'none', color: C.textSoft, fontSize: 10,
+                pointerEvents: 'none', color: C.textSoft, fontSize: typo.small.fontSize,
               }}>▼</span>
             </div>
           </div>
@@ -854,10 +876,10 @@ function DialogFormCosto({ form, setForm, sedi, isMobile, onClose, onSave }) {
             </select>
             <span aria-hidden style={{
               position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)',
-              pointerEvents: 'none', color: C.textSoft, fontSize: 10,
+              pointerEvents: 'none', color: C.textSoft, fontSize: typo.small.fontSize,
             }}>▼</span>
           </div>
-          <div style={{ fontSize: 11, color: C.textSoft, marginTop: 6, lineHeight: 1.4 }}>
+          <div style={{ fontSize: typo.small.fontSize, color: C.textSoft, marginTop: 6, lineHeight: 1.4 }}>
             {!form.sede_id
               ? <>Esempi: commercialista, software, marketing centrale, stipendi titolare.</>
               : <>Esempi: affitto, luce, gas, addetti di quella sede specifica.</>}
@@ -885,7 +907,7 @@ function DialogFormCosto({ form, setForm, sedi, isMobile, onClose, onSave }) {
             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
             gap: 10, flexWrap: 'wrap',
           }}>
-            <span style={{ fontSize: 12, color: C.textMid, fontWeight: 600 }}>
+            <span style={{ fontSize: typo.small.fontSize, color: C.textMid, fontWeight: 600 }}>
               Impatto sul P&L mensile
             </span>
             <span style={{
