@@ -101,6 +101,8 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
       importo: '',
       periodicita: 'mensile',
       note: '',
+      data_inizio: '',
+      data_fine: '',
     })
   }
 
@@ -550,9 +552,11 @@ function VoceRow({ v, sedi, isMobile, iconBtnSize = 40, onEdit, onDelete }) {
             }}>
               {stato.stato === 'esaurita'
                 ? 'spalmatura finita'
-                : stato.stato === 'non_iniziata'
-                  ? `parte da ${meseTesto(v.data_inizio)}`
-                  : `${fmt2(stato.mensile)}/mese`}
+                : stato.stato === 'finita'
+                  ? `finito a ${meseTesto(v.data_fine)}`
+                  : stato.stato === 'non_iniziata'
+                    ? `parte da ${meseTesto(v.data_inizio)}`
+                    : `${fmt2(stato.mensile)}/mese`}
             </div>
           )}
           {/* Quanto manca alla fine della spalmatura: senza questa riga, il
@@ -858,8 +862,28 @@ function DialogFormCosto({ form, setForm, sedi, isMobile, onClose, onSave }) {
               <span aria-hidden style={{
                 position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)',
                 pointerEvents: 'none', color: C.textSoft, fontSize: typo.small.fontSize,
-              }}>▼</span>
+              }}><Icon name="chevDown" size={12} /></span>
             </div>
+          </div>
+        </div>
+
+        {/* Da quando e fino a quando il costo pesa.
+            Senza "fino a", l'unico modo di togliere un costo finito era
+            metterlo non attivo — che lo fa sparire ANCHE dai mesi in cui
+            c'era davvero, falsando lo storico nella direzione opposta. */}
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14, marginBottom: 14 }}>
+          <div>
+            <label style={lblStyle}>Da quando</label>
+            <input type="date" value={form.data_inizio || ''}
+              onChange={e => update('data_inizio', e.target.value)}
+              style={{ ...inpStyle, minHeight: 44 }} />
+          </div>
+          <div>
+            <label style={lblStyle}>Fino a quando (se è finito)</label>
+            <input type="date" value={form.data_fine || ''}
+              onChange={e => update('data_fine', e.target.value)}
+              title="Lascia vuoto se il costo è ancora in corso. Mettendo una data, la voce smette di pesare dal mese successivo e resta nei mesi passati."
+              style={{ ...inpStyle, minHeight: 44 }} />
           </div>
         </div>
 

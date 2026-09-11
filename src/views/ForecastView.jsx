@@ -20,15 +20,19 @@ const MID = T.textMid || '#475264'
 const CARD = T.bgCard || '#FFF'
 const BORDER = T.border || '#E5E9EF'
 
-function emojiMeteo(weatherCode) {
-  if (weatherCode == null) return '-'
-  if (weatherCode === 0) return '☀️'
-  if (weatherCode <= 3) return '⛅'
-  if (weatherCode <= 48) return '🌫️'
-  if (weatherCode <= 67) return '🌧️'
-  if (weatherCode <= 77) return '🌨️'
-  if (weatherCode <= 82) return '🌦️'
-  return '⛈️'
+// Icona del tempo dal codice meteo (standard WMO, quello di open-meteo).
+// Erano emoji (☀️ ⛅ 🌧️): contro la regola del progetto, e ogni sistema le
+// disegna a modo suo — su Windows il sole è giallo piatto, su Mac è un'altra
+// cosa, e in una colonna di tessere non si allineano.
+function iconaMeteo(weatherCode) {
+  if (weatherCode == null) return null
+  if (weatherCode === 0) return 'sun'
+  if (weatherCode <= 3) return 'nuvola'
+  if (weatherCode <= 48) return 'nebbia'
+  if (weatherCode <= 67) return 'pioggia'
+  if (weatherCode <= 77) return 'snow'
+  if (weatherCode <= 82) return 'pioggia'
+  return 'temporale'
 }
 
 export default function ForecastView({ orgId, sedeId, sedeAttiva, setView }) {
@@ -106,7 +110,11 @@ export default function ForecastView({ orgId, sedeId, sedeAttiva, setView }) {
             return (
               <div key={g.data} style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, overflow: 'hidden' }}>
                 <div style={{ padding: '12px 18px', background: '#FAFAF6', borderBottom: `1px solid ${BORDER}`, display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-                  <div style={{ fontSize: 26 }}>{emojiMeteo(m?.weather_code)}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 26 }}>
+                    {iconaMeteo(m?.weather_code)
+                      ? <Icon name={iconaMeteo(m.weather_code)} size={24} color={SOFT} />
+                      : <span style={{ color: SOFT }}>-</span>}
+                  </div>
                   <div style={{ flex: 1, minWidth: 180 }}>
                     <div style={{ fontSize: 14, fontWeight: 800, color: TXT, textTransform: 'capitalize' }}>{labelGiorno}</div>
                     {m && (

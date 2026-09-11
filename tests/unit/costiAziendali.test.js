@@ -307,3 +307,47 @@ describe('statoVoce', () => {
     expect(st.mesiRimasti).toBeNull()
   })
 })
+
+// ── Data di fine ──────────────────────────────────────────────────────────
+//
+// Un costo che è finito (un affitto disdetto, un software non più usato)
+// pesava per sempre. L'unico modo di toglierlo era metterlo NON ATTIVO — che
+// però lo fa sparire ANCHE dai mesi in cui c'era davvero: lo storico si
+// falsava nella direzione opposta, e i mesi vecchi sembravano più redditizi.
+describe('importoMensile — data di fine', () => {
+  const affitto = { importo: 1200, periodicita: 'mensile', data_inizio: '2026-01-01', data_fine: '2026-06-30' }
+
+  it('pesa nei mesi in cui c era', () => {
+    expect(importoMensile(affitto, '2026-01-31')).toBe(1200)
+    expect(importoMensile(affitto, '2026-06-15')).toBe(1200)
+  })
+
+  it('non pesa più dal mese dopo la fine', () => {
+    expect(importoMensile(affitto, '2026-07-01')).toBe(0)
+    expect(importoMensile(affitto, '2026-12-31')).toBe(0)
+  })
+
+  it('il mese della fine conta per intero', () => {
+    // Disdetto il 30 giugno: giugno si paga tutto. Il conto economico è
+    // mensile, mezzo mese di affitto sarebbe una precisione finta.
+    expect(importoMensile({ ...affitto, data_fine: '2026-06-02' }, '2026-06-30')).toBe(1200)
+  })
+
+  it('senza data di fine il costo è ancora in corso', () => {
+    expect(importoMensile({ ...affitto, data_fine: null }, '2027-01-01')).toBe(1200)
+  })
+
+  it('statoVoce lo dice a parole', () => {
+    expect(statoVoce(affitto, '2026-03-31').stato).toBe('attiva')
+    expect(statoVoce(affitto, '2026-09-30').stato).toBe('finita')
+  })
+
+  it('il totale del mese ne tiene conto', () => {
+    const voci = [
+      affitto,
+      { importo: 200, periodicita: 'mensile', data_inizio: '2026-01-01' },
+    ]
+    expect(totaleMensile(voci, '2026-03-31')).toBe(1400)
+    expect(totaleMensile(voci, '2026-09-30')).toBe(200)
+  })
+})

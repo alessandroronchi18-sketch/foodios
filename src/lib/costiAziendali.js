@@ -59,6 +59,7 @@ export async function salvaVoceCosto(voce) {
         importo: Number(voce.importo) || 0,
         periodicita: voce.periodicita, note: voce.note,
         data_inizio: voce.data_inizio || null,
+        data_fine: voce.data_fine || null,
         sede_id: voce.sede_id || null,
         attivo: voce.attivo !== false,
         // updated_at gestito dall'app (no trigger DB per evitare problemi
@@ -82,6 +83,7 @@ export async function salvaVoceCosto(voce) {
       periodicita: voce.periodicita || 'mensile',
       note: voce.note,
       data_inizio: voce.data_inizio || null,
+      data_fine: voce.data_fine || null,
     })
     .select()
     .single()
@@ -117,12 +119,22 @@ export function importoMensile(voce, asOfDate) {
   // economico di gennaio 2026 come se il locale lo avessimo sempre avuto.
   // Guardando indietro i mesi passati risultavano più costosi del vero, e i
   // margini più bassi.
+  const mese = (d) => String(d).slice(0, 7)
   const inizio = voce?.data_inizio
   if (inizio && asOfDate) {
     // Confronto per mese: una voce che parte il 20 del mese vale per quel
     // mese intero (il conto economico e' mensile, non giornaliero).
-    const mese = (d) => String(d).slice(0, 7)
     if (mese(inizio) > mese(asOfDate)) return 0
+  }
+  // E una voce FINITA non pesa sui mesi successivi.
+  //
+  // Prima l'unico modo di togliere un costo era metterlo non attivo, che però
+  // lo fa sparire anche dai mesi passati — quando c'era davvero. Così lo
+  // storico si falsava nella direzione opposta: un affitto disdetto a giugno
+  // spariva anche da gennaio, e i mesi vecchi sembravano più redditizi.
+  const fine = voce?.data_fine
+  if (fine && asOfDate) {
+    if (mese(fine) < mese(asOfDate)) return 0
   }
   switch (voce?.periodicita) {
     case 'annuale': return v / 12
@@ -163,6 +175,10 @@ export function statoVoce(voce, asOfDate) {
   const inizio = voce?.data_inizio
   if (inizio && mese(inizio) > rif) {
     return { mensile: 0, stato: 'non_iniziata', mesiRimasti: null }
+  }
+  const fine = voce?.data_fine
+  if (fine && mese(fine) < rif) {
+    return { mensile: 0, stato: 'finita', mesiRimasti: 0 }
   }
   if (voce?.periodicita === 'una_tantum' && mensile === 0) {
     return { mensile: 0, stato: 'esaurita', mesiRimasti: 0 }

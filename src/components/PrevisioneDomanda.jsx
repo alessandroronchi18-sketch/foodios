@@ -1,7 +1,8 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart, BarChart, Bar } from 'recharts'
-import { color as T, tnum } from '../lib/theme'
+import { color as T, tnum, typo } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
+import { correzioneMeteo, spiegaCorrezione, meteoProssimiGiorni } from '../lib/meteoCorrezione'
 import { KPI, SH, PageHeader, Tip, ChartTip, C } from '../views/_shared'
 import Icon from './Icon'
 
@@ -51,6 +52,19 @@ function calcolaPoiStagionale(giornaliero) {
   return byDow.map(vals => vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0)
 }
 
+// Icona del tempo dal codice meteo (standard WMO di open-meteo). Stessa
+// tabella della pagina Forecast: una sola lettura del codice in tutto il tool.
+function iconaMeteo(weatherCode) {
+  if (weatherCode == null) return null
+  if (weatherCode === 0) return 'sun'
+  if (weatherCode <= 3) return 'nuvola'
+  if (weatherCode <= 48) return 'nebbia'
+  if (weatherCode <= 67) return 'pioggia'
+  if (weatherCode <= 77) return 'snow'
+  if (weatherCode <= 82) return 'pioggia'
+  return 'temporale'
+}
+
 const DAYS_IT = ["Dom", "Lun", "Mar", "Mer", "Gio", "Ven", "Sab"]
 const DAYS_FULL = ["Domenica", "Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "Sabato"]
 const MONTHS_IT = ["Gen","Feb","Mar","Apr","Mag","Giu","Lug","Ago","Set","Ott","Nov","Dic"]
@@ -91,7 +105,9 @@ function RicettaProduzione({ ric, serieMese, sellThrough, stagionale, totStag, g
   // Previsione per ciascuno dei prossimi giorni, pesata per indice stagionale del DOW.
   const giorniPrev = prossimiGiorni.map(g => {
     const peso = totStag > 0 ? (stagionale[g.dow] * 7) / totStag : 1
-    const stima = prevGiornaliera == null ? null : prevGiornaliera * peso
+    // La correzione meteo entra QUI, sulla stima del singolo giorno: è lì che
+    // serve, perché è quel numero che diventa "quanto impasto domani".
+    const stima = prevGiornaliera == null ? null : prevGiornaliera * peso * (g.correzione ?? 1)
     const banda = stima == null ? null : stima * (1 - confidence) * 0.6
     return { ...g, stima, lo: stima == null ? null : Math.max(0, stima - banda), hi: stima == null ? null : stima + banda }
   })
@@ -134,7 +150,7 @@ function RicettaProduzione({ ric, serieMese, sellThrough, stagionale, totStag, g
           >
             {ric.nome}
           </div>
-          <div style={{ fontSize: 12, color: C.textSoft, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          <div style={{ fontSize: typo.small.fontSize, color: C.textSoft, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
             <Icon name={trendIcon} size={12} color={trendColor} />
             <span style={{ color: trendColor, fontWeight: 700 }}>{trendTxt}</span>
             <span style={{ ...tnum }}>· media {nf1(media)} · {prev == null ? 'ancora nessuna previsione' : `previsione ${nf1(prev)} stampi/mese`}</span>
@@ -150,7 +166,7 @@ function RicettaProduzione({ ric, serieMese, sellThrough, stagionale, totStag, g
             <Icon name={stIcon} size={14} color={stColor} />
             <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
               <div style={{ fontSize: 13, fontWeight: 900, color: stColor, ...tnum, lineHeight: 1 }}>{st == null ? '-' : `${nf(st.pct)}%`}</div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: stColor, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 2, whiteSpace: 'nowrap' }}>{stMsg}</div>
+              <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, color: stColor, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 2, whiteSpace: 'nowrap' }}>{stMsg}</div>
             </div>
           </div>
         </Tip>
@@ -165,14 +181,33 @@ function RicettaProduzione({ ric, serieMese, sellThrough, stagionale, totStag, g
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start',
             minHeight: 92,
           }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', minHeight: 14 }}>{g.label}</div>
+            <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', minHeight: 14 }}>{g.label}</div>
             <div style={{ fontSize: 20, fontWeight: 900, color: g.stima == null ? C.textSoft : C.text, ...tnum, marginTop: 4, lineHeight: 1, minHeight: 22 }}>
               {g.stima == null ? '—' : `≈ ${nf(g.stima)}`}
             </div>
-            <div style={{ fontSize: 12, color: C.textSoft, marginTop: 2 }}>{g.stima == null ? 'senza storico' : 'stampi'}</div>
-            <div style={{ fontSize: 12, color: C.textSoft, ...tnum, marginTop: 3, minHeight: 16 }}>
+            <div style={{ fontSize: typo.small.fontSize, color: C.textSoft, marginTop: 2 }}>{g.stima == null ? 'senza storico' : 'stampi'}</div>
+            <div style={{ fontSize: typo.small.fontSize, color: C.textSoft, ...tnum, marginTop: 3, minHeight: 16 }}>
               {g.stima == null ? '' : `${nf(g.lo)}–${nf(g.hi)}`}
             </div>
+            {/* Il meteo va SCRITTO accanto al numero: una correzione del 15%
+                applicata di nascosto è un numero di cui non ci si fida. */}
+            {g.meteo && (
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+                marginTop: 5, fontSize: typo.small.fontSize, color: g.perche ? T.brand : C.textSoft,
+                minHeight: 18,
+              }} title={g.perche
+                ? `${g.perche}: previsione corretta del ${g.correzione > 1 ? '+' : ''}${Math.round((g.correzione - 1) * 100)}%`
+                : 'tempo nella norma: nessuna correzione'}>
+                {iconaMeteo(g.meteo.weather_code) && <Icon name={iconaMeteo(g.meteo.weather_code)} size={13} />}
+                <span style={{ ...tnum }}>{Math.round(g.meteo.t_max)}°</span>
+                {g.perche && (
+                  <span style={{ fontWeight: 700 }}>
+                    {g.correzione > 1 ? '+' : ''}{Math.round((g.correzione - 1) * 100)}%
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -180,7 +215,7 @@ function RicettaProduzione({ ric, serieMese, sellThrough, stagionale, totStag, g
   )
 }
 
-export default function PrevisioneDomanda({ ricettario, giornaliero, chiusure, ingCosti, calcolaFC, getR }) {
+export default function PrevisioneDomanda({ ricettario, giornaliero, chiusure, ingCosti, calcolaFC, getR, citta, tipoAttivita }) {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
   const [filtroRic, setFiltroRic] = useState("")
@@ -256,15 +291,41 @@ export default function PrevisioneDomanda({ ricettario, giornaliero, chiusure, i
   const totForecast = serieTotale.length >= 2 ? previsione(serieTotale.map(s => s.stampi), 1) : { prev: null, trend: "flat", confidence: 0 }
 
   // Prossimi 5 giorni (da oggi) con DOW + label
+  // Meteo dei prossimi giorni.
+  //
+  // Per una gelateria il tempo che farà è la variabile più forte dopo il
+  // giorno della settimana: trenta gradi e sole non sono la stessa giornata di
+  // quindici gradi e pioggia, e chi impasta la mattina decide su quello. La
+  // regola di correzione esisteva già, ma girava SOLO di notte sul server per
+  // riempire un'altra tabella: questa pagina dava lo stesso numero col sole e
+  // col diluvio.
+  const [meteo, setMeteo] = useState([])
+  useEffect(() => {
+    if (!citta) return
+    let vivo = true
+    meteoProssimiGiorni(citta, 7).then(m => { if (vivo) setMeteo(m) })
+    return () => { vivo = false }
+  }, [citta])
+
   const prossimiGiorni = useMemo(() => {
     const out = []
     const oggi = new Date()
+    const perData = new Map((meteo || []).map(m => [m.data, m]))
     for (let i = 0; i < 5; i++) {
       const d = new Date(oggi); d.setDate(oggi.getDate() + i)
-      out.push({ dow: d.getDay(), label: i === 0 ? 'Oggi' : i === 1 ? 'Domani' : DAYS_IT[d.getDay()] })
+      const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      const m = perData.get(iso) || null
+      out.push({
+        dow: d.getDay(),
+        data: iso,
+        label: i === 0 ? 'Oggi' : i === 1 ? 'Domani' : DAYS_IT[d.getDay()],
+        meteo: m,
+        correzione: correzioneMeteo(m, tipoAttivita),
+        perche: spiegaCorrezione(m, tipoAttivita),
+      })
     }
     return out
-  }, [])
+  }, [meteo, tipoAttivita])
 
   // Previsione produzione totale prossima settimana (stampi) = prevGiornaliera totale su 7 giorni pesati
   const prodNextWeek = useMemo(() => {
@@ -326,7 +387,7 @@ export default function PrevisioneDomanda({ ricettario, giornaliero, chiusure, i
         <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: '48px 24px', textAlign: 'center', boxShadow: SHADOW_PREMIUM, boxSizing: 'border-box' }}>
           <Icon name="bulb" size={28} color={C.textSoft} />
           <div style={{ color: C.textMid, fontSize: 14, fontWeight: 700, marginTop: 12 }}>Carica il ricettario per iniziare</div>
-          <div style={{ color: C.textSoft, fontSize: 12, marginTop: 6 }}>Servono almeno 2 mesi di produzione registrata per ottenere previsioni.</div>
+          <div style={{ color: C.textSoft, fontSize: typo.small.fontSize, marginTop: 6 }}>Servono almeno 2 mesi di produzione registrata per ottenere previsioni.</div>
         </div>
       </div>
     )
@@ -339,7 +400,7 @@ export default function PrevisioneDomanda({ ricettario, giornaliero, chiusure, i
         <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: '48px 24px', textAlign: 'center', boxShadow: SHADOW_PREMIUM, boxSizing: 'border-box' }}>
           <Icon name="calendar" size={28} color={C.textSoft} />
           <div style={{ color: C.textMid, fontSize: 14, fontWeight: 700, marginTop: 12 }}>Storico insufficiente</div>
-          <div style={{ color: C.textSoft, fontSize: 12, marginTop: 6 }}>
+          <div style={{ color: C.textSoft, fontSize: typo.small.fontSize, marginTop: 6 }}>
             Registra almeno 2 mesi di produzione nella sezione "Produzione" per attivare le previsioni.
             {serieTotale.length === 1 && ' Al momento hai 1 mese di dati.'}
           </div>
@@ -539,8 +600,8 @@ export default function PrevisioneDomanda({ ricettario, giornaliero, chiusure, i
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false} />
-                  <XAxis dataKey="label" tick={{ fontSize: 12, fill: AXIS_COLOR }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 12, fill: AXIS_COLOR }} axisLine={false} tickLine={false} width={42} tickFormatter={v => v.toLocaleString('it-IT', { useGrouping: 'always' })} />
+                  <XAxis dataKey="label" tick={{ fontSize: typo.small.fontSize, fill: AXIS_COLOR }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: typo.small.fontSize, fill: AXIS_COLOR }} axisLine={false} tickLine={false} width={42} tickFormatter={v => v.toLocaleString('it-IT', { useGrouping: 'always' })} />
                   <Tooltip content={<ChartTip />} cursor={{ stroke: GRID_STROKE, strokeWidth: 1 }} />
                   <Area
                     type="monotone"
@@ -556,7 +617,7 @@ export default function PrevisioneDomanda({ ricettario, giornaliero, chiusure, i
                 </AreaChart>
               </ResponsiveContainer>
             </div>
-            <div style={{ marginTop: 10, fontSize: 12, color: C.textSoft, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            <div style={{ marginTop: 10, fontSize: typo.small.fontSize, color: C.textSoft, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
               <Icon name="dot" size={9} color={C.amber} />
               <span>Punto arancione = previsione {nextMeseLabel} su {nf(serieTotale.length)} mesi di storico.</span>
             </div>
@@ -574,8 +635,8 @@ export default function PrevisioneDomanda({ ricettario, giornaliero, chiusure, i
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={stagionaleData} margin={{ top: 8, right: 12, left: isMobile ? -12 : 0, bottom: 4 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false} />
-                  <XAxis dataKey="label" tick={{ fontSize: 12, fill: AXIS_COLOR }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 12, fill: AXIS_COLOR }} axisLine={false} tickLine={false} width={42} tickFormatter={v => v.toLocaleString('it-IT', { useGrouping: 'always' })} />
+                  <XAxis dataKey="label" tick={{ fontSize: typo.small.fontSize, fill: AXIS_COLOR }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: typo.small.fontSize, fill: AXIS_COLOR }} axisLine={false} tickLine={false} width={42} tickFormatter={v => v.toLocaleString('it-IT', { useGrouping: 'always' })} />
                   <Tooltip content={<ChartTip />} cursor={{ fill: 'rgba(15,23,42,0.04)' }} />
                   <Bar
                     dataKey="stampi"
@@ -590,7 +651,7 @@ export default function PrevisioneDomanda({ ricettario, giornaliero, chiusure, i
             {totStag > 0 && dowPicco >= 0 && (
               <div style={{
                 marginTop: 14, padding: '12px 14px', background: C.bgSubtle, borderRadius: 10,
-                fontSize: 12, color: C.textMid, lineHeight: 1.6,
+                fontSize: typo.small.fontSize, color: C.textMid, lineHeight: 1.6,
                 display: 'flex', alignItems: 'flex-start', gap: 8,
               }}>
                 <Icon name="bulb" size={14} color={C.amber} style={{ marginTop: 2, flexShrink: 0 }} />
@@ -609,7 +670,7 @@ export default function PrevisioneDomanda({ ricettario, giornaliero, chiusure, i
       <div style={{
         marginTop: 28, padding: '12px 16px',
         background: C.amberLight, borderRadius: 12,
-        fontSize: 12, color: C.amber, lineHeight: 1.7,
+        fontSize: typo.small.fontSize, color: C.amber, lineHeight: 1.7,
         display: 'flex', alignItems: 'flex-start', gap: 8,
         boxSizing: 'border-box',
       }}>

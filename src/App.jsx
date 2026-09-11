@@ -360,6 +360,7 @@ export default function App() {
         onSetSedeAttiva={auth.setSedeAttiva}
         nomeAttivita={auth.org?.nome || 'La mia attività'}
         tipoAttivita={auth.org?.tipo || 'bar'}
+        citta={auth.org?.citta || ''}
         metodoProduzione={auth.org?.metodo_produzione || 'stampi'}
         piano={auth.org?.piano || 'trial'}
         isTrialAttivo={auth.isTrialAttivo}

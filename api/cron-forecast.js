@@ -18,6 +18,7 @@ export const config = { runtime: 'edge' }
 
 import { verifyBearerSecret } from './lib/cryptoCompare.js'
 import { safeError } from './lib/safeError.js'
+import { correzioneMeteo } from '../src/lib/meteoCorrezione.js'
 
 const MAX_ORG_PER_RUN = 20
 const FORECAST_DAYS = 7
@@ -59,23 +60,10 @@ async function meteoFor(citta, days = 7) {
   } catch { return null }
 }
 
-function correzioneMeteo(meteo, tipoBusiness) {
-  if (!meteo) return 1
-  let mult = 1
-  // Caldo (>28C): +15% gelato/freddi, -5% caldo/caffe
-  if (meteo.t_max >= 28) {
-    if (tipoBusiness === 'gelateria') mult *= 1.15
-    else mult *= 0.97
-  }
-  // Freddo (<10C): -5% gelato, +10% caldo
-  if (meteo.t_max <= 10) {
-    if (tipoBusiness === 'gelateria') mult *= 0.80
-    else mult *= 1.05
-  }
-  // Pioggia significativa (>5mm): -15%
-  if (meteo.precip > 5) mult *= 0.85
-  return mult
-}
+// La regola sta in src/lib/meteoCorrezione.js: la usa anche la pagina
+// "Previsione domanda", che il titolare guarda la mattina prima di impastare.
+// Prima questa correzione girava solo qui, di notte, e quella pagina dava lo
+// stesso numero col sole e col diluvio.
 
 export default async function handler(req) {
   const auth = verifyBearerSecret(
