@@ -10,6 +10,7 @@ import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 import { buildIngCosti, calcolaFC, getR } from '../lib/foodcost'
 import { loadStockPF, loadStockPFAllSedi } from '../lib/stockPF'
 import { lessico } from '../lib/lessico'
+import { formatLocalDate } from '../lib/dateLocal'
 import SedeSelector from '../components/SedeSelector'
 import DailyBriefCard from '../components/DailyBriefCard'
 import PrimiPassi from '../components/PrimiPassi'
@@ -108,7 +109,10 @@ function StockPFWidget({ isMobile, setView, viewAggregato, orgId, sedeId, LEX })
               Stock vetrina<span style={{ color: T.textFaint }}> · {viewAggregato ? 'tutte le sedi' : 'sede attiva'}</span>
             </div>
           </div>
-          <span style={{ fontSize: 12, color: T.textSoft, fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0 }}>{n0(inStock.length)} pz</span>
+          {/* Qui si contano i prodotti DIVERSI, non i pezzi: il numero grande
+              sotto ("pezzi al banco") somma le quantita'. Scritti tutti e due
+              "pz" si leggevano come lo stesso dato in contraddizione. */}
+          <span style={{ fontSize: 12, color: T.textSoft, fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0 }}>{n0(inStock.length)} {inStock.length === 1 ? 'prodotto' : 'prodotti'}</span>
         </div>
         {hasStock ? (
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '170px 1fr', gap: isMobile ? 14 : 28, alignItems: 'center' }}>
@@ -152,7 +156,14 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
   const now = new Date()
-  const today = now.toISOString().slice(0, 10)
+  // Il giorno LOCALE, non quello UTC.
+  //
+  // toISOString() torna l'ora di Greenwich: in Italia d'estate siamo due ore
+  // avanti, quindi fra mezzanotte e le 2 la home considerava "oggi" il giorno
+  // prima. Per una gelateria che chiude all'una e registra l'incasso subito
+  // dopo, l'incasso finiva nel giorno sbagliato e i ricavi di oggi restavano a
+  // zero.
+  const today = formatLocalDate(now)
   const ora = now.getHours()
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario])
 
@@ -201,8 +212,8 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
   useEffect(() => {
     if (!orgId) return
     const oggi = new Date()
-    const inizioMese = new Date(oggi.getFullYear(), oggi.getMonth(), 1).toISOString().slice(0, 10)
-    const fineMese = new Date(oggi.getFullYear(), oggi.getMonth() + 1, 1).toISOString().slice(0, 10)
+    const inizioMese = formatLocalDate(new Date(oggi.getFullYear(), oggi.getMonth(), 1))
+    const fineMese = formatLocalDate(new Date(oggi.getFullYear(), oggi.getMonth() + 1, 1))
     let q = supabase.from('vendite_b2b').select('data, totale, sede_id')
       .eq('organization_id', orgId).gte('data', inizioMese).lt('data', fineMese)
     if (!viewAggregato && sedeId) q = q.eq('sede_id', sedeId)
@@ -230,20 +241,41 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
 
   const ricette = Object.values(ricettario?.ricette || {})
     .filter(r => getR(r.nome, r).tipo !== 'interno' && getR(r.nome, r).tipo !== 'semilavorato')
-  const fcMedio = ricette.length === 0 ? 0 : (() => {
-    let tot = 0, cnt = 0
+  // Il food cost del ricettario.
+  //
+  // Due cose non andavano, e sui dati di Mara si vedevano bene. Delle 26
+  // ricette NESSUNA ha un prezzo di vendita scritto: tutte e 26 venivano
+  // saltate, il conto restava a zero e la card scriveva "0,0%" in VERDE.
+  // La prima cosa che il titolare legge la mattina era il food cost migliore
+  // possibile, prodotto dal fatto che non c'era un solo prezzo.
+  //
+  // Poi la media: sommare le percentuali e dividere per il numero di ricette
+  // da' lo stesso peso a un cono da 3 € e a una torta da 40. Il food cost
+  // vero e' costo totale diviso ricavo totale.
+  const fcInfo = useMemo(() => {
+    let costo = 0, ricavo = 0, dentro = 0
     for (const ric of ricette) {
       const reg = getR(ric.nome, ric)
       if (!reg.unita || !reg.prezzo) continue
+      const r = reg.unita * reg.prezzo
+      if (r <= 0) continue
       const { tot: fc } = calcolaFC(ric, ingCosti, ricettario)
-      const ricavo = reg.unita * reg.prezzo
-      if (ricavo > 0) { tot += fc / ricavo; cnt++ }
+      costo += fc; ricavo += r; dentro++
     }
-    return cnt > 0 ? tot / cnt : 0
-  })()
-  const fcColor = fcMedio < 0.30 ? T.green : fcMedio < 0.35 ? T.amber : T.red
+    return { pct: ricavo > 0 ? costo / ricavo : null, dentro, fuori: ricette.length - dentro }
+  }, [ricette, ingCosti, ricettario])
+  const fcMedio = fcInfo.pct ?? 0
+  const fcColor = fcInfo.pct == null ? T.textFaint : fcMedio < 0.30 ? T.green : fcMedio < 0.35 ? T.amber : T.red
 
-  const critici = Object.values(magazzino || {}).filter(m => m.giacenza_g === 0 || (m.soglia_g > 0 && m.giacenza_g <= m.soglia_g))
+  // Magazzino: "a zero perché mai contato" e "sotto la soglia" sono due
+  // problemi diversi e si risolvono in modi diversi. Su Mara le 9 voci sono
+  // TUTTE a zero e NESSUNA ha una soglia: la card diceva "9 critici · sotto
+  // soglia", che manda a cercare un riordino quando la cosa da fare e'
+  // contare il magazzino la prima volta.
+  const vociMag = Object.values(magazzino || {})
+  const sottoSoglia = vociMag.filter(m => Number(m.soglia_g) > 0 && Number(m.giacenza_g || 0) <= Number(m.soglia_g))
+  const maiContati = vociMag.filter(m => !(Number(m.soglia_g) > 0) && !(Number(m.giacenza_g) > 0))
+  const critici = [...sottoSoglia, ...maiContati]
   const ultimeRicette = Object.values(ricettario?.ricette || {}).slice(-5).reverse()
 
   // Da quanti giorni non si registra un incasso.
@@ -256,6 +288,8 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
   const giorniSenzaCassa = (() => {
     const conChiusura = new Set((chiusEff || []).map(c => String(c?.data || '').slice(0, 10)))
     let n = 0
+    // Si guarda indietro 30 giorni: oltre, il messaggio direbbe "30" a chi e'
+    // fermo da tre mesi. Se la striscia arriva al fondo si scrive "oltre".
     for (let i = 1; i <= 30; i++) {
       const d = new Date(now); d.setDate(now.getDate() - i)
       const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -270,13 +304,14 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
   if (giorniSenzaCassa >= 3) {
     todos.push({
       id: 'cassa-arretrata',
-      label: `Non registri l'incasso da ${giorniSenzaCassa} giorni: bastano dieci secondi al giorno`,
+      label: `Non registri l'incasso da ${giorniSenzaCassa >= 30 ? 'oltre 30' : giorniSenzaCassa} giorni: bastano dieci secondi al giorno`,
       view: 'chiusura',
     })
   } else if (!cassaOggi && ora >= 14) {
     todos.push({ id: 'cassa', label: 'Chiudi la cassa', view: 'chiusura' })
   }
-  if (critici.length > 0) todos.push({ id: 'mag', label: `${critici.length} ingredienti sotto soglia in magazzino`, view: 'magazzino' })
+  if (sottoSoglia.length > 0) todos.push({ id: 'mag', label: `${sottoSoglia.length === 1 ? 'Un ingrediente è' : `${sottoSoglia.length} ingredienti sono`} sotto soglia in magazzino`, view: 'magazzino' })
+  if (maiContati.length > 0) todos.push({ id: 'mag-zero', label: `${maiContati.length === 1 ? 'Un ingrediente non è' : `${maiContati.length} ingredienti non sono`} mai stati contati: il magazzino non sa cosa c'è`, view: 'magazzino' })
 
   const giornoLabel = now.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })
   const saluto = ora < 13 ? 'Buongiorno' : ora < 18 ? 'Buon pomeriggio' : 'Buonasera'
@@ -308,7 +343,7 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
     green: { soft: 'rgba(16,163,74,0.12)', solid: T.green },
     blue: { soft: 'rgba(37,99,235,0.12)', solid: '#2563EB' },
     red: { soft: 'rgba(110,14,26,0.12)', solid: T.brand },
-    fc: { soft: fcMedio < 0.30 ? 'rgba(16,163,74,0.12)' : fcMedio < 0.35 ? 'rgba(217,119,6,0.14)' : 'rgba(110,14,26,0.12)', solid: fcColor },
+    fc: { soft: fcInfo.pct == null ? 'rgba(15,23,42,0.06)' : fcMedio < 0.30 ? 'rgba(16,163,74,0.12)' : fcMedio < 0.35 ? 'rgba(217,119,6,0.14)' : 'rgba(110,14,26,0.12)', solid: fcColor },
   }
 
   return (
@@ -363,9 +398,29 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
             ? `B2B mese ${fmt0(b2bMese)}`
             : (cassaOggi ? 'incassati oggi' : 'non ancora registrati')}
           onClick={() => setView('chiusura')} />
-        <KpiCard label="Food Cost" icon={ICO.pie} tint={TINT.fc} value={`${(fcMedio * 100).toFixed(1)}%`} valueColor={fcColor} empty={ricette.length === 0} sub={ricette.length > 0 ? 'medio ricettario' : 'non disponibile'} onClick={() => setView('simulatore')} />
+        <KpiCard label="Food Cost" icon={ICO.pie} tint={TINT.fc}
+          value={fcInfo.pct == null ? '-' : `${(fcMedio * 100).toFixed(1)}%`}
+          valueColor={fcColor}
+          empty={fcInfo.pct == null}
+          sub={fcInfo.pct == null
+            ? (ricette.length === 0 ? 'nessuna ricetta' : `${ricette.length === 1 ? 'la ricetta non ha' : `nessuna delle ${ricette.length} ricette ha`} un prezzo di vendita`)
+            : (fcInfo.fuori > 0 ? `su ${fcInfo.dentro} di ${ricette.length} ricette` : 'sul ricettario')}
+          onClick={() => setView('simulatore')} />
         <KpiCard label="Produzione" icon={ICO.box} tint={TINT.blue} value={<>{n0(prodCount)}<span style={{ fontSize: isMobile ? 12 : 15, fontWeight: 600, color: T.textSoft, marginLeft: 6 }}>pz</span></>} valueColor="#2563EB" empty={!hasProdOggi} sub={hasProdOggi ? 'prodotti oggi' : 'non registrata'} onClick={() => setView('giornaliero')} />
-        <KpiCard label="Magazzino" icon={ICO.alert} tint={critici.length > 0 ? TINT.red : TINT.green} value={critici.length > 0 ? <>{critici.length}<span style={{ fontSize: isMobile ? 12 : 15, fontWeight: 600, color: T.textSoft, marginLeft: 6 }}>critici</span></> : 'OK'} valueColor={critici.length > 0 ? T.brand : T.green} alert={critici.length > 0} sub={critici.length > 0 ? 'sotto soglia' : 'livelli in ordine'} onClick={() => setView('magazzino')} />
+        <KpiCard label="Magazzino" icon={ICO.alert}
+          tint={critici.length > 0 ? TINT.red : TINT.green}
+          value={critici.length > 0
+            ? <>{critici.length}<span style={{ fontSize: isMobile ? 12 : 15, fontWeight: 600, color: T.textSoft, marginLeft: 6 }}>da guardare</span></>
+            : (vociMag.length === 0 ? '-' : 'OK')}
+          valueColor={critici.length > 0 ? T.brand : T.green}
+          empty={vociMag.length === 0}
+          alert={critici.length > 0}
+          sub={vociMag.length === 0 ? 'magazzino vuoto'
+            : sottoSoglia.length > 0 && maiContati.length > 0 ? `${sottoSoglia.length} sotto soglia, ${maiContati.length} mai contati`
+            : sottoSoglia.length > 0 ? 'sotto soglia'
+            : maiContati.length > 0 ? (maiContati.length === 1 ? 'mai contato' : 'mai contati')
+            : 'livelli in ordine'}
+          onClick={() => setView('magazzino')} />
       </div>
 
       <StockPFWidget isMobile={isMobile} setView={setView} viewAggregato={viewAggregato} orgId={orgId} sedeId={sedeId} LEX={LEX} />
@@ -397,10 +452,17 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
                       <span style={{ width: 4, height: 30, borderRadius: 3, background: ricavo > 0 ? mC : T.borderStr, flexShrink: 0 }} />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontWeight: 600, fontSize: 13, color: T.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.nome}</div>
+                        {/* Senza prezzo di vendita il margine non e' zero: non
+                            si sa. Scritto "Margine 0%" sembrava una ricetta in
+                            perdita, e su Mara valeva per tutte e 26. */}
                         <div style={{ fontSize: 12, color: T.textSoft, marginTop: 2, display: 'flex', alignItems: 'center', gap: 8, ...TNUM }}>
-                          <span>FC {fcPct.toFixed(0)}%</span>
-                          <span style={{ width: 3, height: 3, borderRadius: '50%', background: T.textFaint }} />
-                          <span style={{ color: ricavo > 0 ? mC : T.textSoft, fontWeight: 700 }}>Margine {marg.toFixed(0)}%</span>
+                          {ricavo > 0 ? (<>
+                            <span>FC {fcPct.toFixed(0)}%</span>
+                            <span style={{ width: 3, height: 3, borderRadius: '50%', background: T.textFaint }} />
+                            <span style={{ color: mC, fontWeight: 700 }}>Margine {marg.toFixed(0)}%</span>
+                          </>) : (
+                            <span>Manca il prezzo di vendita</span>
+                          )}
                         </div>
                       </div>
                       <span style={{ color: T.textFaint }}><Ico d={ICO.chevron} size={14} /></span>
