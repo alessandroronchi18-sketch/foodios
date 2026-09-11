@@ -5,7 +5,7 @@ import { SkeletonList, SkeletonGrid } from './Skeleton'
 import ProductAutocomplete from './ProductAutocomplete'
 import { supabase } from '../lib/supabase'
 import { sload, ssave } from '../lib/storage'
-import { color as T, radius as R, motion as M } from '../lib/theme'
+import { color as T, radius as R, motion as M, typo } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { todayLocal } from '../lib/dateLocal'
 import {
@@ -240,12 +240,30 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
 
   async function azInvia(t) {
     setBusyId(t.id)
+    // Per le materie prime l'invio sono DUE scritture separate (scala il
+    // magazzino di partenza, poi segna "inviato"), perché il magazzino MP non
+    // passa dalla funzione del database che fa tutto in un colpo — quella
+    // vale solo per i prodotti finiti.
+    //
+    // Il difetto: se la seconda scrittura falliva, il magazzino era già stato
+    // scalato ma il trasferimento restava in bozza, e il messaggio diceva
+    // "Errore invio" come se non fosse successo niente. Al secondo tentativo
+    // il magazzino veniva scalato UNA SECONDA VOLTA, e la giacenza della sede
+    // di partenza restava sbagliata per sempre.
+    //
+    // Ora: non si riscala niente se è già stato fatto (`stock_applicato`), e
+    // se la seconda scrittura fallisce si rimette a posto il magazzino.
+    let mpScalatoOra = false
     try {
       if (t.tipo === 'materia_prima') {
-        await scaricoMP({ orgId, sedeId: t.sede_da, ingrediente: t.prodotto, quantita: mpGrammi(t) })
-        await supabase.from('trasferimenti')
+        if (!t.stock_applicato) {
+          await scaricoMP({ orgId, sedeId: t.sede_da, ingrediente: t.prodotto, quantita: mpGrammi(t) })
+          mpScalatoOra = true
+        }
+        const { error } = await supabase.from('trasferimenti')
           .update({ stato: 'inviato', stock_applicato: true, data_invio: new Date().toISOString() })
           .eq('id', t.id)
+        if (error) throw error
       } else {
         // 'prodotto' e 'semilavorato' (per ora solo log) passano da RPC.
         // RPC con tipo='semilavorato' non scala stock ma aggiorna stato.
@@ -254,7 +272,19 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
       notify?.('Invio registrato')
       await carica()
     } catch (e) {
-      notify?.('Errore invio: ' + e.message, false)
+      if (mpScalatoOra) {
+        try {
+          await caricoMP({ orgId, sedeId: t.sede_da, ingrediente: t.prodotto, quantita: mpGrammi(t) })
+          notify?.('Invio non riuscito, magazzino rimesso a posto: ' + e.message, false)
+        } catch (rbErr) {
+          console.error('[Trasferimenti] rimessa a posto del magazzino FALLITA dopo invio non riuscito', {
+            orgId, sedeDa: t.sede_da, prodotto: t.prodotto, grammi: mpGrammi(t), errore: rbErr?.message,
+          })
+          notify?.(`ATTENZIONE: "${t.prodotto}" è stato scalato dal magazzino di partenza ma l'invio non è riuscito, e non sono riuscito a rimetterlo a posto. Controlla la giacenza a mano.`, false)
+        }
+      } else {
+        notify?.('Errore invio: ' + e.message, false)
+      }
     } finally { setBusyId(null) }
   }
 
@@ -271,19 +301,29 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
       return
     }
     setBusyId(t.id)
+    // Stessa storia dell'invio, dal lato di chi riceve: prima si carica il
+    // magazzino della sede di arrivo, poi si segna "ricevuto". Se la seconda
+    // scrittura falliva, la merce era già entrata in magazzino ma il
+    // trasferimento restava "inviato": al secondo tentativo entrava di nuovo,
+    // e la sede di arrivo si trovava il doppio della merce.
+    let mpCaricataOra = 0
     try {
       if (t.tipo === 'materia_prima') {
         // qty è nell'unità del trasferimento (g o kg). Converti in grammi per il magazzino.
         const qtyGrammi = t.unita === 'kg' ? qty * 1000 : qty
-        if (qty > 0) await caricoMP({ orgId, sedeId: t.sede_a, ingrediente: t.prodotto, quantita: qtyGrammi })
+        if (qty > 0) {
+          await caricoMP({ orgId, sedeId: t.sede_a, ingrediente: t.prodotto, quantita: qtyGrammi })
+          mpCaricataOra = qtyGrammi
+        }
         const scarto = Number(t.quantita) - qty
-        await supabase.from('trasferimenti').update({
+        const { error } = await supabase.from('trasferimenti').update({
           stato: 'ricevuto',
           quantita_ricevuta: qty,
           scarto_qty: scarto,
           scarto_note: note?.trim() || null,
           data_ricezione: new Date().toISOString(),
         }).eq('id', t.id)
+        if (error) throw error
       } else {
         await riceviTrasferimento(t.id, { quantitaRicevuta: qty, scartoNote: note?.trim() || null })
       }
@@ -291,7 +331,19 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
       setRiceviModal(null)
       await carica()
     } catch (e) {
-      notify?.('Errore ricezione: ' + e.message, false)
+      if (mpCaricataOra > 0) {
+        try {
+          await scaricoMP({ orgId, sedeId: t.sede_a, ingrediente: t.prodotto, quantita: mpCaricataOra })
+          notify?.('Ricezione non riuscita, magazzino rimesso a posto: ' + e.message, false)
+        } catch (rbErr) {
+          console.error('[Trasferimenti] rimessa a posto del magazzino FALLITA dopo ricezione non riuscita', {
+            orgId, sedeA: t.sede_a, prodotto: t.prodotto, grammi: mpCaricataOra, errore: rbErr?.message,
+          })
+          notify?.(`ATTENZIONE: "${t.prodotto}" è entrato nel magazzino di arrivo ma la ricezione non è stata registrata, e non sono riuscito a rimetterlo a posto. Controlla la giacenza a mano.`, false)
+        }
+      } else {
+        notify?.('Errore ricezione: ' + e.message, false)
+      }
     } finally { setBusyId(null) }
   }
 
@@ -387,7 +439,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
   const accuratezzaMese = useMemo(() => {
     const oggi = new Date()
     const inizioMese = new Date(oggi.getFullYear(), oggi.getMonth(), 1)
-    let tot = 0, ricevutiOk = 0, scartoQty = 0, scartoValore = 0
+    let tot = 0, ricevutiOk = 0, scartoQty = 0, scartoValore = 0, scartoSenzaValore = 0
     let valTrasferito = 0
     for (const t of lista) {
       const d = new Date(t.data || 0)
@@ -401,8 +453,11 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
         const scarto = Number(t.scarto_qty || 0)
         if (scarto <= 0) ricevutiOk++
         scartoQty += scarto
-        // valore scarto: scarto * valore_unit (se disponibile)
-        scartoValore += scarto * Number(t.valore_unit || 0)
+        // valore scarto: scarto * valore_unit. Se il valore unitario non c'è,
+        // lo scarto si conta a parte invece di sommare zero euro.
+        const vu = Number(t.valore_unit || 0)
+        if (scarto > 0 && vu <= 0) scartoSenzaValore++
+        scartoValore += scarto * vu
       }
     }
     return {
@@ -414,6 +469,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
       }).length,
       scartoQty,
       scartoValore,
+      scartoSenzaValore,
       valTrasferito,
       accuracyPct: (() => {
         const ric = lista.filter(t => {
@@ -454,7 +510,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', width: '100%', boxSizing: 'border-box', padding: isMobile ? '0 4px 80px' : 0 }}>
       <div style={{ marginBottom: 6 }}>
-        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: C.red, marginBottom: 6 }}>Operazioni multi-sede</div>
+        <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: C.red, marginBottom: 6 }}>Operazioni multi-sede</div>
         <p style={{ margin: 0, fontSize: 13, color: C.textSoft }}>
           Sposta prodotti finiti, semilavorati o materie prime da una sede all'altra. Lo stock si aggiorna automaticamente.
         </p>
@@ -466,7 +522,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
           background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12,
           padding: isMobile ? 14 : 18, marginTop: 18, marginBottom: 16,
         }}>
-          <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.textSoft, marginBottom: 10 }}>
+          <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.textSoft, marginBottom: 10 }}>
             Accuratezza mese
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : isTablet ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: isMobile ? 10 : 12 }}>
@@ -499,9 +555,21 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
                   <div style={kpiCell}>
                     <div style={labelStyle}>Valore sprecato</div>
                     <div style={valStyle(accuratezzaMese.scartoValore > 0 ? C.red : C.text)}>
-                      {accuratezzaMese.scartoValore > 0 ? `${Math.round(accuratezzaMese.scartoValore).toLocaleString('it-IT', { useGrouping: 'always' })} €` : '€ 0'}
+                      {accuratezzaMese.scartoValore > 0
+                        ? `${Math.round(accuratezzaMese.scartoValore).toLocaleString('it-IT', { useGrouping: 'always' })} €`
+                        : (accuratezzaMese.scartoSenzaValore > 0 ? '-' : '0 €')}
                     </div>
-                    <div style={subStyle}>perso in scarti</div>
+                    {/* Uno scarto senza il valore unitario inserito non vale
+                        zero euro: vale un numero che non sappiamo. Mostrare
+                        "0 €" in nero faceva sembrare che non si fosse perso
+                        niente. */}
+                    <div style={subStyle}>
+                      {accuratezzaMese.scartoValore > 0
+                        ? 'perso in scarti'
+                        : (accuratezzaMese.scartoSenzaValore > 0
+                          ? `${accuratezzaMese.scartoSenzaValore === 1 ? 'uno scarto senza' : `${accuratezzaMese.scartoSenzaValore} scarti senza`} valore inserito`
+                          : 'perso in scarti')}
+                    </div>
                   </div>
                 </>
               )
@@ -517,10 +585,10 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
           padding: isMobile ? 12 : 14, marginBottom: 16,
         }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
-            <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#0369A1' }}>
+            <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#0369A1' }}>
               Trasferimenti rapidi salvati
             </div>
-            <div style={{ fontSize: 11, color: '#075985' }}>1 click → form pre-compilato</div>
+            <div style={{ fontSize: typo.small.fontSize, color: '#075985' }}>1 click → form pre-compilato</div>
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {templates.map(t => {
@@ -534,7 +602,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
                 }}>
                   <button onClick={() => applicaTemplate(t)}
                     style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, fontSize: 12.5, color: '#0E1726', fontWeight: 700 }}>
-                    {t.nome} <span style={{ fontWeight: 500, color: C.textSoft, fontSize: 11 }}>· {sda?.nome || '?'} → {sa?.nome || '?'}</span>
+                    {t.nome} <span style={{ fontWeight: 500, color: C.textSoft, fontSize: typo.small.fontSize }}>· {sda?.nome || '?'} → {sa?.nome || '?'}</span>
                   </button>
                   <button onClick={() => eliminaTemplate(t.id)} title="Elimina template"
                     style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 4, color: C.textSoft, display: 'inline-flex' }}>
@@ -550,7 +618,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
       {/* DA FARE ORA: solo se c'è qualcosa da gestire per la sede attiva */}
       {(azioniUrgenti.daRicevere.length > 0 || azioniUrgenti.bozzeInUscita.length > 0) && (
         <div style={{ background: '#FFFBEB', border: `1px solid ${C.amber}`, borderRadius: 12, padding: isMobile ? 14 : 18, marginTop: 18, marginBottom: 16 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#92400E', marginBottom: 10, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#92400E', marginBottom: 10, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             <Icon name="warning" size={14} /> Da fare ora ({azioniUrgenti.daRicevere.length + azioniUrgenti.bozzeInUscita.length})
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -559,7 +627,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
                 <Icon name="package" size={16} color={C.amber} />
                 <div style={{ flex: 1, minWidth: 180 }}>
                   <div style={{ fontSize: 12.5, fontWeight: 800, color: C.text }}>{t.prodotto} · {fmtQty(t.quantita, t.unita)}</div>
-                  <div style={{ fontSize: 11, color: C.textSoft }}>In arrivo da <strong>{sediMap[t.sede_da]?.nome || '-'}</strong> · {fmtData(t.data)}</div>
+                  <div style={{ fontSize: typo.small.fontSize, color: C.textSoft }}>In arrivo da <strong>{sediMap[t.sede_da]?.nome || '-'}</strong> · {fmtData(t.data)}</div>
                 </div>
                 <button onClick={() => apriRicevi(t)} disabled={busyId === t.id}
                   style={{ padding: isMobile ? '10px 16px' : '6px 14px', minHeight: isMobile ? 40 : 'auto', borderRadius: 8, border: 'none', background: C.green, color: C.white, fontSize: isMobile ? 13 : 12, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
@@ -572,7 +640,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
                 <Icon name="save" size={15} color={C.textSoft} />
                 <div style={{ flex: 1, minWidth: 180 }}>
                   <div style={{ fontSize: 12.5, fontWeight: 800, color: C.text }}>{t.prodotto} · {fmtQty(t.quantita, t.unita)}</div>
-                  <div style={{ fontSize: 11, color: C.textSoft }}>Bozza verso <strong>{sediMap[t.sede_a]?.nome || '-'}</strong> · pronta da inviare</div>
+                  <div style={{ fontSize: typo.small.fontSize, color: C.textSoft }}>Bozza verso <strong>{sediMap[t.sede_a]?.nome || '-'}</strong> · pronta da inviare</div>
                 </div>
                 <button onClick={() => azInvia(t)} disabled={busyId === t.id}
                   style={{ padding: isMobile ? '10px 16px' : '6px 14px', minHeight: isMobile ? 40 : 'auto', borderRadius: 8, border: 'none', background: C.red, color: C.white, fontSize: isMobile ? 13 : 12, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
@@ -701,7 +769,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
           </div>
 
           {/* Info movimentazione stock */}
-          <div style={{ marginBottom: 14, padding: '10px 12px', background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 8, fontSize: 11, color: '#1E40AF', lineHeight: 1.5 }}>
+          <div style={{ marginBottom: 14, padding: '10px 12px', background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 8, fontSize: typo.small.fontSize, color: '#1E40AF', lineHeight: 1.5 }}>
             {form.tipo === 'prodotto' && <><Icon name="package" size={13} /> All'invio: scala stock prodotti finiti di <strong>{sediMap[form.sede_da]?.nome || 'partenza'}</strong>. Alla ricezione: incrementa stock di <strong>{sediMap[form.sede_a]?.nome || 'destinazione'}</strong>.</>}
             {form.tipo === 'materia_prima' && <><Icon name="package" size={13} /> All'invio: scala magazzino materie prime di <strong>{sediMap[form.sede_da]?.nome || 'partenza'}</strong>. Alla ricezione: incrementa magazzino di <strong>{sediMap[form.sede_a]?.nome || 'destinazione'}</strong>.</>}
             {form.tipo === 'semilavorato' && <><Icon name="gift" size={13} /> Trasferimento di semilavorato. Solo log, lo stock semilavorati non è ancora gestito automaticamente.</>}
@@ -748,7 +816,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
                 onChange={e => setRiceviModal(m => ({ ...m, qtyRic: e.target.value }))}
                 style={inp}/>
               {parseFloat(riceviModal.qtyRic) < Number(riceviModal.t.quantita) && (
-                <div style={{ marginTop: 6, fontSize: 11, color: C.amber, display: 'inline-flex', alignItems: 'center', gap: 5, ...tnum }}>
+                <div style={{ marginTop: 6, fontSize: typo.small.fontSize, color: C.amber, display: 'inline-flex', alignItems: 'center', gap: 5, ...tnum }}>
                   <Icon name="warning" size={12} /> Scarto: {(Number(riceviModal.t.quantita) - parseFloat(riceviModal.qtyRic || 0)).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 2 })} {riceviModal.t.unita}
                 </div>
               )}
@@ -775,7 +843,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
       {/* Flussi del mese (solo se scope tutte e ci sono dati) */}
       {scope === 'tutte' && flussiMese.length > 0 && !loading && (
         <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, padding: isMobile ? 14 : 18, marginBottom: 16 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.textSoft, marginBottom: 10 }}>
+          <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.textSoft, marginBottom: 10 }}>
             Flussi questo mese
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: 10 }}>
@@ -788,12 +856,12 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
                   <div style={{ fontSize: 12.5, fontWeight: 700, color: C.text, marginBottom: 4 }}>
                     {da} <span style={{ color: C.textSoft }}>→</span> {a}
                   </div>
-                  <div style={{ fontSize: 11, color: C.textMid, ...tnum }}>
+                  <div style={{ fontSize: typo.small.fontSize, color: C.textMid, ...tnum }}>
                     <strong>{f.n}</strong> trasferiment{f.n === 1 ? 'o' : 'i'}
                     {f.valore > 0 && <> · valore stimato <strong>{fmtEuro(f.valore)}</strong></>}
                   </div>
                   {topProd.length > 0 && (
-                    <div style={{ fontSize: 10.5, color: C.textSoft, marginTop: 4 }}>
+                    <div style={{ fontSize: typo.small.fontSize, color: C.textSoft, marginTop: 4 }}>
                       Top: {topProd.map(([p, q]) => `${p} (${q})`).join(' · ')}
                     </div>
                   )}
@@ -807,7 +875,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
       {/* Filtri lista */}
       {!loading && lista.length > 0 && (
         <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 11, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Filtri:</span>
+          <span style={{ fontSize: typo.small.fontSize, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Filtri:</span>
           <select value={filtroStato} onChange={e => setFiltroStato(e.target.value)}
             style={{ padding: isMobile ? '9px 12px' : '5px 10px', minHeight: isMobile ? 40 : 'auto', borderRadius: 8, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: isMobile ? 16 : 12 }}>
             <option value="all">Tutti gli stati</option>
@@ -823,11 +891,11 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
           </select>
           {(filtroStato !== 'all' || filtroTipo !== 'all') && (
             <button onClick={() => { setFiltroStato('all'); setFiltroTipo('all') }}
-              style={{ padding: isMobile ? '8px 12px' : '5px 10px', minHeight: isMobile ? 40 : 'auto', borderRadius: 8, border: `1px solid ${C.border}`, background: 'transparent', color: C.textMid, fontSize: isMobile ? 12 : 11, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+              style={{ padding: isMobile ? '8px 12px' : '5px 10px', minHeight: isMobile ? 40 : 'auto', borderRadius: 8, border: `1px solid ${C.border}`, background: 'transparent', color: C.textMid, fontSize: typo.small.fontSize, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
               <Icon name="x" size={11} /> Rimuovi filtri
             </button>
           )}
-          <span style={{ marginLeft: 'auto', fontSize: 11, color: C.textSoft }}>
+          <span style={{ marginLeft: 'auto', fontSize: typo.small.fontSize, color: C.textSoft }}>
             {listaFiltrata.length} di {lista.length}
           </span>
         </div>
@@ -838,8 +906,26 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
         <SkeletonList count={5} />
       ) : listaFiltrata.length === 0 ? (
         <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, padding: '40px 20px', textAlign: 'center', color: C.textSoft, fontSize: 13 }}>
+          {/* La pagina vuota diceva solo "Nessun trasferimento" e si fermava
+              lì. Per un'azienda con più sedi che non l'ha mai usata — è il
+              caso del design partner — quella frase non dice né a cosa serve
+              la pagina né come si comincia. */}
           {lista.length === 0
-            ? <>Nessun trasferimento{scope === 'attiva' ? ' per la sede attiva' : ''}.</>
+            ? (
+              <>
+                <div style={{ marginBottom: 10 }}><Icon name="truck" size={40} color={C.textSoft} /></div>
+                <div style={{ fontWeight: 700, color: C.text, marginBottom: 6 }}>
+                  Nessun trasferimento{scope === 'attiva' ? ' per questa sede' : ''}
+                </div>
+                <div style={{ maxWidth: 420, margin: '0 auto', lineHeight: 1.55 }}>
+                  Qui si registra la merce che passa da una sede all&apos;altra: chi la manda
+                  la scarica dal suo magazzino, chi la riceve la carica nel proprio.
+                  Serve perché altrimenti le giacenze delle due sedi restano sbagliate
+                  entrambe.
+                  {sedi.length > 1 && <> Usa <strong style={{ color: C.text }}>Nuovo trasferimento</strong> qui sopra.</>}
+                </div>
+              </>
+            )
             : <>Nessun trasferimento corrisponde ai filtri.</>
           }
         </div>
@@ -862,13 +948,13 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                     <span title={t.prodotto} style={{ fontSize: 13, fontWeight: 700, color: C.text, maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.prodotto}</span>
-                    <span style={{ fontSize: 11, color: C.textMid, whiteSpace: 'nowrap', ...tnum }}>{fmtQty(t.quantita, t.unita)}</span>
-                    {t.valore_unit > 0 && <span style={{ fontSize: 11, color: C.textSoft, whiteSpace: 'nowrap', ...tnum }}>· {fmtEuro(t.quantita * t.valore_unit)}</span>}
-                    <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: statoCfg.bg, color: statoCfg.color }}>
+                    <span style={{ fontSize: typo.small.fontSize, color: C.textMid, whiteSpace: 'nowrap', ...tnum }}>{fmtQty(t.quantita, t.unita)}</span>
+                    {t.valore_unit > 0 && <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, whiteSpace: 'nowrap', ...tnum }}>· {fmtEuro(t.quantita * t.valore_unit)}</span>}
+                    <span style={{ fontSize: typo.small.fontSize, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: statoCfg.bg, color: statoCfg.color }}>
                       {statoCfg.label}
                     </span>
                     {t.scarto_qty > 0 && (
-                      <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: '#FEE2E2', color: '#991B1B' }}>
+                      <span style={{ fontSize: typo.small.fontSize, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: '#FEE2E2', color: '#991B1B' }}>
                         Scarto: {t.scarto_qty} {t.unita}
                       </span>
                     )}
@@ -877,40 +963,40 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
                     {t.stato === 'bozza' && (
                       <>
                         <button onClick={() => azInvia(t)} disabled={busy} title="Invia" aria-label="Invia trasferimento"
-                          style={{ padding: isMobile ? '9px 14px' : '5px 12px', minHeight: isMobile ? 40 : 'auto', borderRadius: 8, border: 'none', background: C.red, color: C.white, fontSize: isMobile ? 12 : 11, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                          style={{ padding: isMobile ? '9px 14px' : '5px 12px', minHeight: isMobile ? 40 : 'auto', borderRadius: 8, border: 'none', background: C.red, color: C.white, fontSize: typo.small.fontSize, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                           <Icon name="truck" size={12} /> Invia
                         </button>
                         <button onClick={() => azElimina(t)} disabled={busy} title="Elimina bozza" aria-label="Elimina bozza"
-                          style={{ padding: isMobile ? '9px 12px' : '5px 10px', minHeight: isMobile ? 40 : 'auto', minWidth: isMobile ? 40 : 'auto', borderRadius: 8, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="trash" size={13} /></button>
+                          style={{ padding: isMobile ? '9px 12px' : '5px 10px', minHeight: isMobile ? 40 : 'auto', minWidth: isMobile ? 40 : 'auto', borderRadius: 8, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: typo.small.fontSize, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="trash" size={13} /></button>
                       </>
                     )}
                     {t.stato === 'inviato' && (
                       <>
                         <button onClick={() => apriRicevi(t)} disabled={busy} title="Conferma ricezione" aria-label="Conferma ricezione"
-                          style={{ padding: isMobile ? '9px 14px' : '5px 12px', minHeight: isMobile ? 40 : 'auto', borderRadius: 8, border: 'none', background: C.green, color: C.white, fontSize: isMobile ? 12 : 11, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                          style={{ padding: isMobile ? '9px 14px' : '5px 12px', minHeight: isMobile ? 40 : 'auto', borderRadius: 8, border: 'none', background: C.green, color: C.white, fontSize: typo.small.fontSize, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                           <Icon name="check" size={12} /> Ricevuto
                         </button>
                         <button onClick={() => azAnnulla(t)} disabled={busy} title="Annulla (rollback stock)" aria-label="Annulla trasferimento"
-                          style={{ padding: isMobile ? '9px 12px' : '5px 10px', minHeight: isMobile ? 40 : 'auto', minWidth: isMobile ? 40 : 'auto', borderRadius: 8, border: `1px solid ${C.amber}`, background: '#FEF3C7', color: '#92400E', fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="xCircle" size={13} /></button>
+                          style={{ padding: isMobile ? '9px 12px' : '5px 10px', minHeight: isMobile ? 40 : 'auto', minWidth: isMobile ? 40 : 'auto', borderRadius: 8, border: `1px solid ${C.amber}`, background: '#FEF3C7', color: '#92400E', fontSize: typo.small.fontSize, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="xCircle" size={13} /></button>
                       </>
                     )}
                     {(t.stato === 'ricevuto' || t.stato === 'completato') && (
                       <>
-                        <span style={{ fontSize: 11, color: C.textSoft, alignSelf: 'center' }}>{t.data_ricezione ? fmtData(t.data_ricezione) : ''}</span>
+                        <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, alignSelf: 'center' }}>{t.data_ricezione ? fmtData(t.data_ricezione) : ''}</span>
                         <button onClick={() => ripetiTrasferimento(t)}
                           title="Pre-compila lo stesso trasferimento con la data di oggi"
-                          style={{ padding: isMobile ? '9px 12px' : '5px 10px', minHeight: isMobile ? 40 : 'auto', borderRadius: 8, border: `1px solid ${C.border}`, background: 'transparent', color: C.textMid, fontSize: isMobile ? 12 : 11, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                          style={{ padding: isMobile ? '9px 12px' : '5px 10px', minHeight: isMobile ? 40 : 'auto', borderRadius: 8, border: `1px solid ${C.border}`, background: 'transparent', color: C.textMid, fontSize: typo.small.fontSize, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                           <Icon name="copy" size={12} /> Ripeti
                         </button>
                       </>
                     )}
                     {t.stato === 'annullato' && (
                       <button onClick={() => azElimina(t)} title="Elimina" aria-label="Elimina trasferimento"
-                        style={{ padding: isMobile ? '9px 12px' : '5px 10px', minHeight: isMobile ? 40 : 'auto', minWidth: isMobile ? 40 : 'auto', borderRadius: 8, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="trash" size={13} /></button>
+                        style={{ padding: isMobile ? '9px 12px' : '5px 10px', minHeight: isMobile ? 40 : 'auto', minWidth: isMobile ? 40 : 'auto', borderRadius: 8, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: typo.small.fontSize, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="trash" size={13} /></button>
                     )}
                   </div>
                 </div>
-                <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: C.textSoft, flexWrap: 'wrap' }}>
+                <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 8, fontSize: typo.small.fontSize, color: C.textSoft, flexWrap: 'wrap' }}>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="calendar" size={12} /> {fmtData(t.data)}</span>
                   <span>•</span>
                   <span>{TIPO_LABEL[t.tipo] || t.tipo}</span>
