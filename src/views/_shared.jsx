@@ -24,9 +24,20 @@ export const C = {
   greenLight: T.greenLight,
   amber:      T.amber,
   amberLight: T.amberLight,
+  // Il bordeaux del marchio. È il colore delle AZIONI: pulsanti principali,
+  // voce di menu attiva, link. Si chiama `red` per ragioni storiche.
   red:        T.brand,
   redLight:   T.brandLight,
   redDark:    T.brandDark,
+  // Il rosso degli ALLARMI, che è un'altra cosa: giacenza sotto zero, scorta
+  // finita, margine negativo, salvataggio fallito.
+  //
+  // Scelta del titolare, 14/09/2026. Prima i due lavori li faceva lo stesso
+  // bordeaux: in una pagina con un allarme vero, il riquadro rosso dell'errore
+  // e il pulsante rosso dell'azione avevano lo stesso colore, e l'occhio non
+  // sapeva dove guardare. Due colori, due significati.
+  alert:      T.red,
+  alertLight: T.redLight,
 }
 
 // Formattazione monospaced numerica

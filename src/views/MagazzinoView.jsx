@@ -230,8 +230,8 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
   if (loading) return <div style={{ padding: 24, textAlign: 'center', color: C.textSoft, fontSize: 13 }}>Caricamento…</div>
   // Quando il dato non c'è non si mostrano zeri: si dice che non si è letto.
   if (erroreLettura) return (
-    <div style={{ background: C.bgCard, border: `1px solid ${C.red}40`, borderRadius: 18, padding: '32px 24px', textAlign: 'center', boxShadow: SHADOW_PREMIUM }}>
-      <div style={{ marginBottom: 10, color: C.red }}><Icon name="alert" size={30} /></div>
+    <div style={{ background: C.bgCard, border: `1px solid ${C.alert}40`, borderRadius: 18, padding: '32px 24px', textAlign: 'center', boxShadow: SHADOW_PREMIUM }}>
+      <div style={{ marginBottom: 10, color: C.alert }}><Icon name="alert" size={30} /></div>
       <div style={{ ...typo.body, fontWeight: 700, color: C.text, marginBottom: 6 }}>
         Non riesco a leggere lo stock di questa sede
       </div>
@@ -320,7 +320,7 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
             ? `più ${(totGrammi / 1000).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg sfusi`
             : ''}/>
         <KPI icon={<Icon name="warning" size={18} />} label="Sotto soglia" value={sottoSoglia.length} color={sottoSoglia.length > 0 ? C.amber : C.green}/>
-        <KPI icon={<Icon name="alert" size={18} />} label="Stock negativo" value={negativi.length} color={negativi.length > 0 ? C.red : C.green} sub={negativi.length > 0 ? 'più vendite che carico' : ''}/>
+        <KPI icon={<Icon name="alert" size={18} />} label="Stock negativo" value={negativi.length} color={negativi.length > 0 ? C.alert : C.green} sub={negativi.length > 0 ? 'più vendite che carico' : ''}/>
       </div>
 
       {stock.length === 0 ? (
@@ -358,7 +358,7 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
                 return (
                   <tr key={r.id} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.white : '#FDFAF7' }}>
                     <td style={{ padding: '10px 14px', fontWeight: 700, color: C.text }}>{r.prodotto_nome}</td>
-                    <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 800, color: neg ? C.red : sotto ? C.amber : C.text, ...TNUM }}>
+                    <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 800, color: neg ? C.alert : sotto ? C.amber : C.text, ...TNUM }}>
                       {q.toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 2 })} {r.unita}
                     </td>
                     <td style={{ padding: '10px 14px', textAlign: 'right', color: C.textSoft, ...TNUM }}>
@@ -462,7 +462,7 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
                           NUMERO: `{d}` stampava il valore grezzo, quindi un
                           delta di 8400 grammi usciva "-8400" invece di
                           "-8.400" (regola dei numeri italiani). */}
-                      <td style={{ padding: '8px 14px', textAlign: 'right', fontWeight: 800, color: m.causale === 'scarto' ? C.red : C.text, ...TNUM, whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '8px 14px', textAlign: 'right', fontWeight: 800, color: m.causale === 'scarto' ? C.alert : C.text, ...TNUM, whiteSpace: 'nowrap' }}>
                         {d > 0 ? '+' : d < 0 ? '−' : ''}{Math.abs(d).toLocaleString('it-IT', { useGrouping: 'always' })}{unitaDi(m.prodotto_nome) ? ` ${unitaDi(m.prodotto_nome)}` : ''}
                       </td>
                       <td style={{ padding: '8px 14px', fontSize: typo.small.fontSize, color: C.textSoft, fontStyle: 'italic' }}>{m.note || ''}</td>
@@ -1474,8 +1474,8 @@ export default function MagazzinoView({
   // 'mai_contato' e' grigio, non rosso: non e' un allarme ma un'informazione.
   // Nel magazzino reale di Mara sono 40 ingredienti su 48, e quando l'allarme
   // e' sempre acceso copre i tre che sono davvero finiti.
-  const statoColor = s => s === 'negativo' ? C.red : s === 'mai_contato' ? C.textSoft : s === 'esaurito' ? C.red : s === 'critico' ? C.amber : s === 'attenzione' ? C.textMid : C.green
-  const statoBg = s => s === 'negativo' ? C.redLight : s === 'mai_contato' ? C.bgSubtle : s === 'esaurito' ? C.redLight : s === 'critico' ? C.amberLight : s === 'attenzione' ? C.bgSubtle : C.greenLight
+  const statoColor = s => s === 'negativo' ? C.alert : s === 'mai_contato' ? C.textSoft : s === 'esaurito' ? C.alert : s === 'critico' ? C.amber : s === 'attenzione' ? C.textMid : C.green
+  const statoBg = s => s === 'negativo' ? C.alertLight : s === 'mai_contato' ? C.bgSubtle : s === 'esaurito' ? C.alertLight : s === 'critico' ? C.amberLight : s === 'attenzione' ? C.bgSubtle : C.greenLight
   // "Critico" per un ingrediente che ha toccato la soglia di riordino e' la
   // parola sbagliata: la soglia esiste proprio per dire quando ordinare, e
   // arrivarci non e' una crisi. "Da ordinare" dice la stessa cosa e dice anche
@@ -1619,8 +1619,8 @@ export default function MagazzinoView({
           const nIng = (n) => `${n} ${n === 1 ? 'ingrediente' : 'ingredienti'}`
           const sem = salute === 'critico'
             ? negativi.length > 0
-              ? { col: C.red, bg: 'rgba(220,38,38,0.10)', lbl: negativi.length === 1 ? 'Una giacenza è sotto zero' : 'Giacenze sotto zero', ic: 'alert' }
-              : { col: C.red, bg: 'rgba(220,38,38,0.10)', lbl: esauriti.length === 1 ? 'Un ingrediente è finito' : 'Ingredienti finiti', ic: 'alert' }
+              ? { col: C.alert, bg: 'rgba(220,38,38,0.10)', lbl: negativi.length === 1 ? 'Una giacenza è sotto zero' : 'Giacenze sotto zero', ic: 'alert' }
+              : { col: C.alert, bg: 'rgba(220,38,38,0.10)', lbl: esauriti.length === 1 ? 'Un ingrediente è finito' : 'Ingredienti finiti', ic: 'alert' }
             : salute === 'attenzione'
             ? { col: C.textMid, bg: T.bgSubtle, lbl: 'Da mettere in lista', ic: 'cart' }
             : { col: C.green, bg: 'rgba(22,163,74,0.12)', lbl: 'Scorte in equilibrio', ic: 'checkCircle' }
@@ -1684,7 +1684,7 @@ export default function MagazzinoView({
           <KPI icon={<Icon name={esauriti.length > 0 ? 'alert' : 'cart'} size={18} />}
             label="Da ordinare"
             value={sottoSoglia.length + esauriti.filter(r => !sottoSoglia.includes(r)).length}
-            color={esauriti.length > 0 ? C.red : sottoSoglia.length > 0 ? C.amber : C.green}
+            color={esauriti.length > 0 ? C.alert : sottoSoglia.length > 0 ? C.amber : C.green}
             sub={critici.length > 0
               ? 'clicca per vedere cosa ordinare'
               : maiContati.length > 0

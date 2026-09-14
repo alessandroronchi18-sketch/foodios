@@ -378,7 +378,7 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
           const segs = [
             { n: diag.sani, c: T.green, lbl: 'Sani' },
             { n: diag.occhio, c: T.amber, lbl: 'Da tenere d’occhio' },
-            { n: diag.critici, c: T.brand, lbl: 'Critici' },
+            { n: diag.critici, c: T.red, lbl: 'Critici' },
           ]
           return (
             <>

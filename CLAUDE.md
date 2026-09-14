@@ -119,6 +119,18 @@ Esempio: `ProduzioneGiornalieraView.handleConferma` (riga ~100).
   - Touch target ≥ ~40px; font input ≥ 16px su mobile (evita lo zoom iOS).
   - Verifica che nessuna riga/etichetta vada a capo in modo rotto e che i numeri restino allineati.
 - **Formattazione numeri — REGOLA PERMANENTE**: importi e numeri a schermo SEMPRE con separatore migliaia IT (`toLocaleString('it-IT')`). Usa gli helper in `src/views/_shared.jsx`: `fmt` (€ 2 decimali), `fmt0` (€ arrotondato all'unità), `fmtp` (%). I box/KPI grandi vanno arrotondati all'unità; i dettagli in tabella possono avere 2 decimali; le percentuali restano %. Celle numeriche con `fontVariantNumeric: 'tabular-nums'` e allineate a destra. Etichette con abbreviazioni criptiche → `title` (tooltip) + `cursor: 'help'`.
+- **I due rossi — REGOLA PERMANENTE** (scelta del titolare, 14/09/2026): il
+  bordeaux del marchio (`T.brand` / `C.red`, #6E0E1A) è il colore delle
+  **azioni** — pulsanti principali, voce di menu attiva, link, valori di costo
+  in evidenza. Il rosso segnale (`T.red` / `C.alert`, #DC2626) è il colore
+  degli **allarmi**: giacenza sotto zero, ingrediente esaurito, fattura
+  scaduta, salvataggio fallito, scorte insufficienti. Prima li faceva lo stesso
+  bordeaux, e in una pagina con un allarme vero l'occhio non sapeva dove
+  guardare. Il test `dueRossi.test.js` tiene la regola sugli stati principali.
+- **Le pagine AI usano l'intestazione di tutti** (`AiPageHero`, riscritta il
+  14/09/2026): nome della pagina nella scala del tema, una riga che dice cosa
+  fa, i numeri in linea, un filo sotto. Niente gradienti animati, aloni o
+  titoli in oro sfumato: facevano sembrare quelle pagine un'altra applicazione.
 - **Console.log**: vengono droppati in build di produzione (vite.config.js). Solo `console.error` / `console.warn` sopravvivono.
 
 ---

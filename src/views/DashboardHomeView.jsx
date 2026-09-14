@@ -439,7 +439,7 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
           value={critici.length > 0
             ? <>{critici.length}<span style={{ fontSize: isMobile ? 12 : 15, fontWeight: 600, color: T.textSoft, marginLeft: 6 }}>da guardare</span></>
             : (vociMag.length === 0 ? '-' : 'OK')}
-          valueColor={critici.length > 0 ? T.brand : T.green}
+          valueColor={critici.length > 0 ? T.red : T.green}
           empty={vociMag.length === 0}
           alert={critici.length > 0}
           sub={vociMag.length === 0 ? 'magazzino vuoto'

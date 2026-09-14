@@ -78,7 +78,7 @@ function computeUrgenza(f, now = new Date()) {
 }
 
 const URGENZA_CFG = {
-  scaduta:   { label: 'SCADUTA',          pillBg: '#FEE2E2',   pillFg: '#991B1B', accent: T.brand,    order: 0, header: 'Scadute',          sub: 'da pagare con urgenza' },
+  scaduta:   { label: 'SCADUTA',          pillBg: '#FEE2E2',   pillFg: '#991B1B', accent: T.red,    order: 0, header: 'Scadute',          sub: 'da pagare con urgenza' },
   settimana: { label: 'QUESTA SETTIMANA', pillBg: '#FFEDD5',   pillFg: '#9A3412', accent: '#F97316',  order: 1, header: 'Questa settimana', sub: 'entro 7 giorni' },
   mese:      { label: 'QUESTO MESE',      pillBg: '#FEF3C7',   pillFg: '#92400E', accent: T.amber,    order: 2, header: 'Questo mese',      sub: 'entro 30 giorni' },
   futura:    { label: 'FUTURA',           pillBg: T.bgSubtle,  pillFg: T.textMid, accent: T.textSoft, order: 3, header: 'Future',           sub: 'oltre 30 giorni' },
@@ -1491,7 +1491,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
     if (isPag) {
       return (
         <React.Fragment key={f.id}>
-          <tr style={{ borderBottom: `none`, background: baseBg, boxShadow: isScaduta ? `inset 3px 0 0 0 ${T.brand}` : 'none' }}>
+          <tr style={{ borderBottom: `none`, background: baseBg, boxShadow: isScaduta ? `inset 3px 0 0 0 ${T.red}` : 'none' }}>
             <td style={{ padding: '8px 12px 6px', fontWeight: 600, color: T.text, maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', position: 'sticky', left: 0, background: baseBg, zIndex: 1 }}>
               <span title={f.fornitore}>{f.fornitore}</span>
             </td>
@@ -1515,7 +1515,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
       <tr style={{
         borderBottom: last ? 'none' : `1px solid ${T.border}`,
         background: isSel ? '#FFF8F7' : baseBg,
-        boxShadow: isScaduta ? `inset 3px 0 0 0 ${T.brand}` : 'none',
+        boxShadow: isScaduta ? `inset 3px 0 0 0 ${T.red}` : 'none',
       }}>
         <td style={{ padding: '10px 12px', fontWeight: 600, color: T.text, maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', position: 'sticky', left: 0, background: isSel ? '#FFF8F7' : baseBg, zIndex: 1 }}>
           {/* Checkbox SEPA per singola fattura (vista Per scadenza) */}
@@ -1549,7 +1549,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                 title={f.dueStimata ? 'Data calcolata: data fattura + 30 giorni. Il documento del fornitore non la porta scritta.' : undefined}>
                 {fmtDate(f.dueIso)}{f.dueStimata && <span style={{ color: T.textSoft, fontWeight: 400 }}> *</span>}
               </span>
-              <span style={{ fontSize: 12, color: isScaduta ? T.brand : T.textSoft, fontWeight: isScaduta ? 600 : 500 }}>
+              <span style={{ fontSize: 12, color: isScaduta ? T.red : T.textSoft, fontWeight: isScaduta ? 600 : 500 }}>
                 {relDayLabel(f.dueDays)}
               </span>
             </div>
@@ -1560,7 +1560,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         <td style={{
           padding: '10px 12px', textAlign: 'right',
           fontWeight: isScaduta ? 800 : 700,
-          color: isScaduta ? T.brand : T.text,
+          color: isScaduta ? T.red : T.text,
           letterSpacing: '-0.015em', whiteSpace: 'nowrap', ...tnum,
         }}>
           {fmtEuro(f.totale)}
@@ -1615,7 +1615,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
           {f.stato !== 'pagata' && f.dueIso && (
             <>
               {' · '}
-              <span style={{ color: isScaduta ? T.brand : T.textMid, fontWeight: isScaduta ? 600 : 500 }}>
+              <span style={{ color: isScaduta ? T.red : T.textMid, fontWeight: isScaduta ? 600 : 500 }}>
                 scadenza {fmtDate(f.dueIso)} ({relDayLabel(f.dueDays)})
               </span>
             </>
@@ -1624,7 +1624,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <div style={{
             fontSize: 18, fontWeight: isScaduta ? 800 : 700,
-            color: isScaduta ? T.brand : T.text,
+            color: isScaduta ? T.red : T.text,
             letterSpacing: '-0.02em', ...tnum,
           }}>
             {fmtEuro(f.totale)}

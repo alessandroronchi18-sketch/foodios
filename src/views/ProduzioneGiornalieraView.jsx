@@ -1168,7 +1168,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
 
               {problemi.length > 0 && !isDipendente && (
                 <div style={{ background: C.redLight, border: `1px solid ${C.red}25`, borderRadius: 10, padding: '14px 16px' }}>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: C.red, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="warning" size={15} />Scorte insufficienti</div>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: C.alert, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="warning" size={15} />Scorte insufficienti</div>
                   {problemi.map(p => (
                     <div key={p.nome} style={{ fontSize: 12, color: C.red, marginBottom: 4 }}>
                       <b style={{ textTransform: 'capitalize' }}>{p.nome}</b>: servono {fmtG(p.richiesto)}, disponibili {fmtG(p.disponibile)}

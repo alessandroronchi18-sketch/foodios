@@ -45,7 +45,10 @@ describe('colori: il rosso solo dove c è da agire', () => {
   it('nei movimenti il rosso è riservato agli scarti', () => {
     // Ogni chiusura scrive una vendita per prodotto: i delta negativi sono la
     // normalità, e colorarli di rosso rendeva rossa tutta la pagina.
-    expect(src).toMatch(/m\.causale === 'scarto' \? C\.red : C\.text/)
+    // Dal 14/09 il rosso degli allarmi è distinto da quello del marchio: lo
+    // scarto è l'unica causale su cui c'è da intervenire, quindi prende
+    // `C.alert` (rosso segnale), non il bordeaux delle azioni.
+    expect(src).toMatch(/m\.causale === 'scarto' \? C\.alert : C\.text/)
   })
 
   it('"Inviato" non è rosso: mandare merce a un altra sede è normale', () => {
