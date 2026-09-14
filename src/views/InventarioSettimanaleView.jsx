@@ -2549,7 +2549,7 @@ function VistaOggi({ gusti, matrice, saving, onSave, readOnly, unita = 'g', gior
                   </div>
                 )}
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 10 }}>
                 <BigField
                   label="PROD oggi"
                   accent="#0EA5E9"
@@ -2603,7 +2603,10 @@ function BigField({ label, accent, value, saving, onCommit, readOnly, unita = 'g
     setFocused(false)
   }
   return (
-    <label style={{ display: 'block' }}>
+    // Audit layout 2026-09-14: senza `minWidth: 0` la colonna della griglia si
+    // allarga fino al contenuto più lungo e la pagina scorre di lato: su
+    // telefono l'inventario sforava di 124px.
+    <label style={{ display: 'block', minWidth: 0 }}>
       <div style={{ fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6, minHeight: 28, lineHeight: 1.25 }}>
         {label}
       </div>
