@@ -372,7 +372,10 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
   }
 
   // Audit 2026-07-01 MEDIUM: parseFloat('1,5') tronca a 1 (locale IT).
-  const parseIT = (val) => parseFloat(String(val).replace(',', '.')) || 0
+  // Audit 2026-09-14: un numero negativo passava. "-5" stampi non si scrive per
+  // scelta, si scrive per un tasto premuto male, e portava in giro un ricavo
+  // negativo e una sessione con quantità impossibili.
+  const parseIT = (val) => Math.max(0, parseFloat(String(val).replace(',', '.')) || 0)
   const setQ = (nome, val) => {
     const n = parseIT(val)
     setQtaMap(m => ({ ...m, [nome]: n }))
@@ -439,12 +442,28 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
     return out
   }, [magazzino])
 
+  // Audit 2026-09-14: la giacenza veniva letta da `magazzino[k]`, cioè dalla
+  // chiave canonica. Ma il magazzino conserva le chiavi come le ha scritte
+  // l'utente — "uova" mentre il calcolo usa "uovo" — e su quelle voci la
+  // giacenza risultava zero: la pagina dichiarava "scorte insufficienti" su un
+  // ingrediente che c'era, e lo faceva ogni singolo giorno. Lo scarico era già
+  // stato corretto il 9 set; l'allarme leggeva ancora nel posto sbagliato.
+  const giacenzaDi = (k) => {
+    const grezze = magazzino?.[k] ? [k] : (chiaviSalvate[k] || [])
+    return grezze.reduce((tot, raw) => tot + (Number(magazzino?.[raw]?.giacenza_g) || 0), 0)
+  }
   const problemi = useMemo(() => {
-    return Object.entries(riepilogo.ings).filter(([k, qty]) => {
-      const giac = magazzino?.[k]?.giacenza_g || 0
-      return giac < qty
-    }).map(([k, qty]) => ({ nome: k, richiesto: qty, disponibile: magazzino?.[k]?.giacenza_g || 0 }))
-  }, [riepilogo, magazzino])
+    return Object.entries(riepilogo.ings).filter(([k, qty]) => giacenzaDi(k) < qty)
+      .map(([k, qty]) => ({ nome: k, richiesto: qty, disponibile: giacenzaDi(k) }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [riepilogo, magazzino, chiaviSalvate])
+
+  // Le sessioni già registrate per il giorno scelto: registrarne una seconda è
+  // legittimo (mattina e pomeriggio), ma va detto — senza avviso si finisce per
+  // registrare due volte la stessa.
+  const sessioniStessoGiorno = useMemo(
+    () => (giornaliero || []).filter(g => g?.data === data),
+    [giornaliero, data])
 
   const hasQta = Object.values(qtaMap).some(v => v > 0) || Object.values(vendibileMap).some(v => v > 0)
 
@@ -554,7 +573,11 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
       }
       sessioneIdRef.current = null
       const orfani = Array.isArray(resp.stockOrfani) ? resp.stockOrfani : []
-      setQtaMap({}); setVendMap({}); setSessNote(''); setConfermando(false); setSalvando(false)
+      // Audit 2026-09-14: la destinazione restava impostata dopo il
+      // salvataggio. La produzione dopo partiva per l'altra sede senza che
+      // nessuno l'avesse chiesto, e il campo è in fondo alla pagina: chi non
+      // scorre non lo vede.
+      setQtaMap({}); setVendMap({}); setSessNote(''); setDestinazioneSedeId(null); setConfermando(false); setSalvando(false)
       const msgDest = destinazioneSedeId && destinazioneSedeId !== sedeAttiva?.id ? ` - trasferimento inviato a ${sediMapProd[destinazioneSedeId]?.nome || 'destinazione'}` : ''
       if (orfani.length > 0) {
         notify(`Produzione registrata${msgDest}, ma ${orfani.length} prodotti non hanno aggiornato lo stock vetrina (riconciliare a mano)`, false)
@@ -678,7 +701,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
       erroriMovimenti = [...stockErrors, ...transferErrors]
     }
 
-    setQtaMap({}); setVendMap({}); setSessNote(''); setConfermando(false); setSalvando(false)
+    setQtaMap({}); setVendMap({}); setSessNote(''); setDestinazioneSedeId(null); setConfermando(false); setSalvando(false)
     // UN SOLO messaggio.
     //
     // Prima l'avviso sui movimenti falliti veniva emesso qui sopra e subito
@@ -874,11 +897,25 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                 <div style={{ padding: isMobile ? '14px 16px' : '16px 20px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: isMobile ? 'stretch' : 'flex-end', gap: isMobile ? 12 : 16, flexDirection: isMobile ? 'column' : 'row' }}>
                   <div style={{ flex: '0 0 auto', minWidth: 0 }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>Data produzione</div>
-                    <input type="date" value={data} onChange={e => setData(e.target.value)}
+                    {/* Audit 2026-09-14: la data si poteva svuotare (e allora la
+                        sessione finiva senza data) e si poteva mettere nel
+                        futuro. Il tetto è oggi: una produzione di domani non
+                        esiste ancora. */}
+                    <input type="date" value={data} max={todayLocal()}
+                      onChange={e => setData(e.target.value || todayLocal())}
                       style={{ padding: isMobile ? '10px 12px' : '9px 12px', borderRadius: 7, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, color: C.text, boxSizing: 'border-box', width: isMobile ? '100%' : 'auto', maxWidth: isMobile ? '100%' : undefined }}/>
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>Cerca prodotto</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>Cerca prodotto
+                    {sessioniStessoGiorno.length > 0 && (
+                      <div style={{ marginTop: 6, fontSize: typo.small.fontSize, color: C.amber, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <Icon name="warning" size={12} />
+                        {sessioniStessoGiorno.length === 1
+                          ? 'Per questo giorno una sessione c\'è già: questa si aggiunge, non la sostituisce.'
+                          : `Per questo giorno ci sono già ${sessioniStessoGiorno.length} sessioni: questa si aggiunge.`}
+                      </div>
+                    )}
+                  </div>
                     <div style={{ position: 'relative' }}>
                       <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: C.textSoft, display: 'inline-flex', pointerEvents: 'none' }}>
                         <Icon name="search" size={14} />
@@ -976,10 +1013,10 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                             <td style={{ padding: '10px 14px', textAlign: 'center' }}>
                               {cong ? (
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
-                                  <button aria-label="Diminuisci vendibile" onClick={() => setV(ric.nome, Math.max(0, (vendibileMap[ric.nome] || q) - 1))} style={{ width: isMobile || isTablet ? 40 : 30, height: isMobile || isTablet ? 40 : 30, borderRadius: 5, border: '1px solid #BDE', background: '#F0F8FF', cursor: 'pointer', color: '#2980B9', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="minus" size={16} /></button>
+                                  <button aria-label="Diminuisci vendibile" onClick={() => setV(ric.nome, Math.max(0, (vendibileMap[ric.nome] != null ? vendibileMap[ric.nome] : q) - 1))} style={{ width: isMobile || isTablet ? 40 : 30, height: isMobile || isTablet ? 40 : 30, borderRadius: 5, border: '1px solid #BDE', background: '#F0F8FF', cursor: 'pointer', color: '#2980B9', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="minus" size={16} /></button>
                                   <input type="number" min="0" value={vq || ''} onChange={e => setV(ric.nome, e.target.value)}
                                     style={{ width: 56, padding: '8px 4px', borderRadius: 5, border: `1px solid ${vq > 0 ? '#2980B9' : C.borderStr}`, background: '#F0F8FF', fontSize: isMobile || isTablet ? 16 : 14, textAlign: 'center', fontWeight: 800, color: vq > 0 ? '#2980B9' : C.text }}/>
-                                  <button aria-label="Aumenta vendibile" onClick={() => setV(ric.nome, (vendibileMap[ric.nome] || q) + 1)} style={{ width: isMobile || isTablet ? 40 : 30, height: isMobile || isTablet ? 40 : 30, borderRadius: 5, border: '1px solid #BDE', background: '#F0F8FF', cursor: 'pointer', color: '#2980B9', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="plus" size={16} /></button>
+                                  <button aria-label="Aumenta vendibile" onClick={() => setV(ric.nome, (vendibileMap[ric.nome] != null ? vendibileMap[ric.nome] : q) + 1)} style={{ width: isMobile || isTablet ? 40 : 30, height: isMobile || isTablet ? 40 : 30, borderRadius: 5, border: '1px solid #BDE', background: '#F0F8FF', cursor: 'pointer', color: '#2980B9', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="plus" size={16} /></button>
                                 </div>
                               ) : (
                                 <span style={{ fontSize: 12, color: C.textSoft }}>= {LEX.prodotti}</span>

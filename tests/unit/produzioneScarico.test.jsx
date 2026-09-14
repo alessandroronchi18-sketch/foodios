@@ -129,3 +129,35 @@ describe('produzione — lo scarico trova gli ingredienti col nome vecchio', () 
     expect(sess.scalatoPerChiave['farina 00']).toBe(1000)
   })
 })
+
+describe('produzione — i difetti verificati il 14/09', () => {
+  it('non dichiara "scorte insufficienti" su un ingrediente che c\'è', async () => {
+    // L'allarme leggeva la giacenza dalla chiave canonica ("uovo") mentre il
+    // magazzino la tiene al plurale ("uova"): risultato zero, allarme rosso
+    // ogni giorno su un ingrediente pieno. Lo scarico era stato corretto il 9
+    // set, l'allarme no.
+    const v = render(<Produzione {...props} />)
+    await waitFor(() => expect(v.container.textContent).toContain('PASTA FROLLA'))
+    const campi = [...v.container.querySelectorAll('input[type="number"], input[inputmode="decimal"]')]
+    fireEvent.change(campi[0], { target: { value: '2' } })
+    await waitFor(() => expect(v.container.textContent).toContain('Riepilogo'))
+    expect(v.container.textContent).not.toContain('Scorte insufficienti')
+  })
+
+  it('una quantità negativa non entra nella sessione', async () => {
+    const v = render(<Produzione {...props} />)
+    await waitFor(() => expect(v.container.textContent).toContain('PASTA FROLLA'))
+    const campi = [...v.container.querySelectorAll('input[type="number"], input[inputmode="decimal"]')]
+    fireEvent.change(campi[0], { target: { value: '-5' } })
+    // Zero, non meno cinque: un numero negativo non si scrive per scelta.
+    expect(campi[0].value === '' || Number(campi[0].value) >= 0).toBe(true)
+    expect(v.container.textContent).not.toContain('-5 stampi')
+  })
+
+  it('avvisa se per quel giorno una sessione c\'è già', async () => {
+    const oggi = new Date().toISOString().slice(0, 10)
+    const v = render(<Produzione {...props} giornaliero={[{ id: 'g1', data: oggi, prodotti: [], ingredientiUsati: {} }]} />)
+    await waitFor(() => expect(v.container.textContent).toContain('PASTA FROLLA'))
+    expect(v.container.textContent).toContain('una sessione c\'è già')
+  })
+})

@@ -483,3 +483,33 @@ Prova:
 (foodcost.js 936-941): 100 ricette x ~10 ingredienti x 100 chiavi a ogni
 carattere digitato nella ricerca o nelle note. Su un 
 ```
+
+---
+
+## Form nuova sessione — verificato il 14/09/2026
+
+> I 17 difetti raccolti dai parziali sono stati verificati sul codice di oggi:
+> **10 risultavano già corretti** fra il 9 e l'11 set, **6 corretti il 14/09**,
+> **1 rifiutato con un fatto**.
+>
+> Corretti il 14/09:
+> - "Scorte insufficienti" su un ingrediente che c'è: l'allarme leggeva la
+>   giacenza dalla chiave canonica ("uovo") mentre il magazzino la tiene come
+>   l'ha scritta l'utente ("uova"). Lo scarico era stato corretto il 9 set,
+>   l'allarme no: restava rosso ogni giorno su un ingrediente pieno.
+> - Una quantità negativa passava: "-5" stampi non si scrive per scelta, si
+>   scrive per un tasto premuto male.
+> - I tasti +/- dei pezzi al banco partivano dal numero sbagliato quando il
+>   campo era a zero.
+> - La destinazione restava impostata dopo il salvataggio: la produzione dopo
+>   partiva per l'altra sede senza che nessuno l'avesse chiesto.
+> - La data si poteva svuotare e mettere nel futuro.
+> - Nessun avviso quando per quel giorno una sessione esiste già: registrarne
+>   due è legittimo (mattina e pomeriggio), ma va detto.
+>
+> **Rifiutato**: "leggere `porzioni` quando manca `unita`". Il difetto diceva
+> che le ricette vere hanno `porzioni` e non `unita`. Sui dati di produzione è
+> il contrario: **zero ricette su 69 hanno `porzioni`**, e chi ha `unita` ce
+> l'ha su tutte (23/23 Pasticceria Mara 1, 15/15 Gelateria Demo). Leggere un
+> campo che nessuno compila non corregge niente. Il difetto vero dietro —
+> il prezzo di vendita inventato a 4 € — era già stato corretto il 9 set.
