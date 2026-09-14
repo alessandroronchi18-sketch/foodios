@@ -4,7 +4,7 @@
 > e, dal 7 set, su query al database di produzione: quando qui c'e' un numero di
 > righe, di fatture o di letture, e' stato contato, non stimato.
 >
-> **Composito al 14/09 notte: Prodotto 94 · Ingegneria 97 · Business 42 · Maturita' ~67.**
+> **Composito al 14/09 notte: Prodotto 95 · Ingegneria 97 · Business 42 · Maturita' ~67.**
 >
 > L'aggiornamento della notte e' tutto di **sicurezza**: otto buchi trovati e
 > chiusi (sezione 0ter), ognuno provato dall'esterno con la sola chiave
@@ -15,6 +15,13 @@
 > uguale per tutti i clienti. Nessun dato e' uscito — le stanze erano vuote —
 > tranne lo storico dei prezzi d'acquisto, che i dipendenti potevano leggere.
 > **Sicurezza 88 -> 97**, e Ingegneria sale a 97 con lei.
+>
+> **Prodotto +1** per le sette sezioni sotto l'80, chiuse nella stessa notte
+> (sezione 8): non erano difetti di impaginazione, erano pagine che dicevano
+> cose false — un numero di telefono inventato da salvare in rubrica, un piano
+> che non e' piu' in listino dentro i Termini di servizio, una prova gratuita
+> raccontata meno della meta' di quello che e'. Media UI 84,6 -> **85,0**, e
+> per la prima volta **nessuna sezione sotto l'80**.
 > Il prodotto non sale per funzioni nuove: sale perche' ha smesso di dire cose
 > false e perche' l'arretrato degli audit e' stato passato uno per uno invece
 > di restare una lista. Ingegneria sale a 96 per lo stesso motivo — i 117
@@ -38,7 +45,7 @@
 | Data | Prodotto | Ingegneria | Business | Maturità azienda | Δ note |
 |---|---:|---:|---:|---:|---|
 | 2026-06-05 | 76 | 70 | 22 | ~30 | baseline |
-| **2026-09-14 (notte)** | **94** | **97** | **42** | **~67** | **AUDIT DI SICUREZZA PROFONDO — otto buchi trovati e chiusi.** 12 commit, test 2.258 → **2.335** su 165 file, 8 migration di sicurezza applicate e verificate in produzione. Ognuno provato **dall'esterno con la sola chiave pubblica del sito** prima e dopo la correzione. (1) Sei funzioni interne chiamabili senza account: sovrascrivere ricettario, magazzino e chiusure di un'attività conoscendone l'id, alterare lo stock, **cancellare tutto il registro delle modifiche**. (2) I trasferimenti fra sedi comandabili da anonimi, perché il controllo di proprietà era `x <> get_user_org_id()` e in SQL `x <> NULL` non è falso, è NULL — un `if` con condizione NULL non scatta. (3) Deposito delle foto pubblico: scaricabile **ed elencabile** da chiunque. (4) Lo storico dei prezzi d'acquisto leggibile dai dipendenti — l'unico dei otto dove c'erano dati veri. (5) Un titolare poteva mettersi `approvato = true` dal browser e sbloccare tutto senza pagare. (6) Sul proprio profilo si poteva creare un account di laboratorio da soli. (7) TRUNCATE concesso ai ruoli pubblici: ignora le regole di isolamento per costruzione. (8) La cassa entrava con una parola d'ordine **uguale per tutti i clienti** e dichiarava lei l'attività: chi l'aveva scriveva incassi nella cassa di chiunque. **Nessun dato uscito** tranne il punto 4: deposito foto vuoto, zero integrazioni cassa attive. Tenuti da `audit-sicurezza.mjs` (12 controlli in produzione), una prova d'attacco con la chiave pubblica e 50 test. **Sicurezza 88 → 97**, Ingegneria 96 → 97 |
+| **2026-09-14 (notte)** | **95** | **97** | **42** | **~67** | **AUDIT DI SICUREZZA PROFONDO — otto buchi trovati e chiusi.** 12 commit, test 2.258 → **2.335** su 165 file, 8 migration di sicurezza applicate e verificate in produzione. Ognuno provato **dall'esterno con la sola chiave pubblica del sito** prima e dopo la correzione. (1) Sei funzioni interne chiamabili senza account: sovrascrivere ricettario, magazzino e chiusure di un'attività conoscendone l'id, alterare lo stock, **cancellare tutto il registro delle modifiche**. (2) I trasferimenti fra sedi comandabili da anonimi, perché il controllo di proprietà era `x <> get_user_org_id()` e in SQL `x <> NULL` non è falso, è NULL — un `if` con condizione NULL non scatta. (3) Deposito delle foto pubblico: scaricabile **ed elencabile** da chiunque. (4) Lo storico dei prezzi d'acquisto leggibile dai dipendenti — l'unico dei otto dove c'erano dati veri. (5) Un titolare poteva mettersi `approvato = true` dal browser e sbloccare tutto senza pagare. (6) Sul proprio profilo si poteva creare un account di laboratorio da soli. (7) TRUNCATE concesso ai ruoli pubblici: ignora le regole di isolamento per costruzione. (8) La cassa entrava con una parola d'ordine **uguale per tutti i clienti** e dichiarava lei l'attività: chi l'aveva scriveva incassi nella cassa di chiunque. **Nessun dato uscito** tranne il punto 4: deposito foto vuoto, zero integrazioni cassa attive. Tenuti da `audit-sicurezza.mjs` (12 controlli in produzione), una prova d'attacco con la chiave pubblica e 50 test. **Sicurezza 88 → 97**, Ingegneria 96 → 97  **Poi le sette sezioni sotto l'80**, chiuse nella stessa notte: WhatsApp mostrava un numero di cellulare INVENTATO e diceva di salvarlo in rubrica e scrivergli; le stelle delle Recensioni partivano da 5 e l'AI ci credeva, quindi rispondeva da cliente contento a una recensione da una stella; due schede di Impostazioni parlavano di "rotazione token", "il cron non parte" e "approvare il sender Twilio, o in sandbox l'opt-in"; la pagina della prova scaduta prometteva che i dati restassero "al sicuro per 60 giorni", lasciando capire che poi sparissero. **OnboardingChat rimossa**: non era raggiungibile da quando e' nata il 12/06, e se il salvataggio falliva a meta' creava una seconda organizzazione. Fuori dalle sette: i **Termini di servizio** — il contratto — elencavano due piani inesistenti a due prezzi sbagliati, e i vecchi nomi erano offerti in 8 punti da tre mesi; il pannello invito prometteva "60 giorni invece di 30" quando la prova vera ne dura 90 e il codice ne aggiunge 60; il dominio **foodos.it non esiste** (NXDOMAIN) e ci sono 46 indirizzi che ci puntano. Media UI 84,6 → **85,0**, nessuna sezione sotto l'80 |
 | **2026-09-14 (sera)** | **94** | **96** | **42** | **~66** | **ARRETRATO DEGLI AUDIT CHIUSO + AUDIT DI IMPAGINAZIONE + DUE SCELTE DI STILE.** 22 commit, test 1.721 → 2.258. **Prodotto +1**: i 117 difetti "sostenuti e mai verificati" di Magazzino e Produzione sono stati passati uno per uno (52 risultavano già corretti e il documento era rimasto indietro, 59 corretti, 2 rifiutati con un fatto). Dentro c'erano cose che nessuno vedeva: il percorso del DIPENDENTE era rimasto indietro rispetto a quello del titolare — il server non scendeva nei semilavorati, saltava gli ingredienti salvati al plurale, e non aveva idempotenza (tablet che perde la rete, messaggio "riprova", stessa produzione registrata due volte e magazzino scalato due volte); "Azzera" registrava una correzione di giacenza come merce buttata; la home diceva "8.409 pezzi al banco" sommando 6 torte e 8,4 kg di gelato. **Ingegneria +1**: i difetti non verificati erano il motivo per cui il 14/09 mattina l'ingegneria non saliva, e ora sono verificati. Più: **due migration mai applicate in produzione** trovate confrontando le 37 RPC chiamate dal codice con quelle esistenti nel database (ogni vendita all'ingrosso scaricava il magazzino come una vendita al banco, con un ripiego silenzioso); **il gate pre-push non bloccava il build dal 7 set** (`| tail -5` mangiava l'esito) e la produzione è rimasta ferma tre commit indietro senza nessun segnale — corretto, più `npm run push` che verifica che il commit sia davvero online. **Impaginazione 80 → 88**: scala tipografica unica tenuta da un test (261 misure fuori scala, compresi testi a 8-10px), colonne di numeri incolonnate, 32 viste rese in due versioni e misurate. **Due scelte di stile del titolare**: le undici pagine AI usano l'intestazione di tutte le altre (via gradienti e titoli in oro: erano le uniche che sembravano generate), e il rosso del marchio si separa da quello d'allarme. **Business fermo a 42**: nessun blocco esterno tolto. Media UI 84,6 → **84,9** |
 | 2026-06-06 | 79 | 75 | 22 | ~31 | Personale rifondato, home+nav premium, +68 test |
 | 2026-06-11 | 84 | 78 | 27 | ~33 | Inventario gusti, costi azienda P&L, stipendi CCNL, Confronto/Trasferimenti rimodellati, Skeleton, SDI scaffolding |
@@ -190,9 +197,19 @@ da `api/`, con un test di guardia); e tutte e due le decisioni di prodotto in
 attesa — l'azzeramento dei prodotti finiti e' una rettifica e non uno spreco, e
 una riga di carico sbagliata si annulla scrivendone una uguale e contraria.
 
-Fuori da questo elenco, dalla notte del 14/09 restano i tre punti di sicurezza
-della sezione 0ter: bypass MFA del fondatore, nessun backup indipendente da
-Supabase, 72 `catch` silenziosi.
+Fuori da questo elenco, dalla notte del 14/09 restano:
+
+- i tre punti di sicurezza della sezione 0ter: **bypass MFA del fondatore**,
+  **nessun backup indipendente da Supabase** (~25 €/mese, l'unico rischio
+  sistemico rimasto sui dati), 72 `catch` silenziosi;
+- il **dominio `foodos.it` che non esiste** (NXDOMAIN). Ci puntano 46 indirizzi
+  dentro il prodotto, e la posta transazionale parte da `noreply@foodos.it`,
+  che nessun servizio puo' consegnare senza un dominio verificato. Non si
+  corregge scrivendo codice: si compra il dominio e si verificano le caselle.
+  Finche' non succede, **nessuna email che Foodos manda arriva**, e i tre
+  indirizzi sulla pagina Contatti rimbalzano;
+- **PEC e sede legale** sono ancora segnaposto nelle pagine legali, e il foro
+  competente nei Termini di servizio dice `[INSERIRE CITTÀ SEDE LEGALE]`.
 
 ### Composito sessione: Prodotto 93 / Ingegneria 95 / Business 42 / Maturita' ~65
 
@@ -1069,7 +1086,7 @@ Tutto il resto chiuso:
 | 60-69 | Software gestionali da agenzia regionale |
 | <60 | Software gestionali tradizionali on-premise (1990-2010) |
 
-**FoodOS post-sessione 25 giu sera: media ricalibrata 83/100** (ricontata: 83,3). **Post 8 set: 83,6/100 su 112 sezioni. Post 14 set: 84,6/100 su 118 sezioni scorate** (piu' 3 spente e 4 congelate, fuori conto). Buon prodotto pre-revenue con design system coerente ma non rivoluzionario, sopra i competitor italiani di settore (~75 media), sotto top tier mondiale (90+) per mancanza di team design dedicato.
+**FoodOS post-sessione 25 giu sera: media ricalibrata 83/100** (ricontata: 83,3). **Post 8 set: 83,6/100 su 112 sezioni. Post 14 set sera: 84,6/100 su 118 sezioni. Post 14 set notte: 85,0/100 su 117 sezioni scorate** (OnboardingChat rimossa perché irraggiungibile; nessuna sezione resta sotto l'80) (piu' 3 spente e 4 congelate, fuori conto). Buon prodotto pre-revenue con design system coerente ma non rivoluzionario, sopra i competitor italiani di settore (~75 media), sotto top tier mondiale (90+) per mancanza di team design dedicato.
 
 ### Aree pubbliche / pre-login
 
@@ -1080,7 +1097,7 @@ Tutto il resto chiuso:
 | 3 | Privacy Policy | 85 | Stesso |
 | 4 | Cookie Policy | 83 | Stesso |
 | 5 | Rimborsi | 80 | Standard, copy non emozionale |
-| 6 | Contatti | 78 | Form base. Manca chat live, calendly |
+| 6 | Contatti | 78 → **84** | **14 set (notte)**: accenti scritti con l'apostrofo su una pagina pubblica (funzionalita', e'); il canale che funziona davvero — il bottone Feedback dentro l'app — era citato per ultimo, dopo tre caselle di posta. Ora è il primo, e dice anche che allega la pagina da cui scrivi. Resta sotto 90 per un motivo che non è di codice: **il dominio foodos.it non esiste** (NXDOMAIN), quindi le tre caselle rimbalzano |
 | 7 | Chi siamo | 80 | Storia ok. Manca foto team reale, missione visiva |
 | 8 | Auth / Login | 89 | Field a11y, icon-eye allineato, password show/hide. **7 set**: attesa progressiva invece del muro dopo 5 errori, e fine dei logout a ogni ricaricamento |
 | 9 | Reset password | 82 | Flow basic, funziona |
@@ -1094,7 +1111,7 @@ Tutto il resto chiuso:
 | 12 | Onboarding Step 2 (path) | 85 | 3 box uniformi (Excel/Demo/Vuoto). Buona scelta UX |
 | 13 | Onboarding Step 3a (metodo produzione) | 86 | Nuovo step con 2 box esplicativi (Stampi vs Inventario gusti). Sopra media |
 | 14 | Onboarding Step 3b (multi-sede) | 80 | Form sede ok ma poco visuale |
-| 15 | OnboardingChat | 70 | Variante chat raramente usata, copy AI-tone residua |
+| 15 | ~~OnboardingChat~~ | **rimossa** | **14 set (notte)**: non era raggiungibile da nessuna parte — mai importata da quando è nata il 12/06, toccata solo dalle passate globali che la rilucidavano senza che nessuno la potesse aprire. Diceva "ti chiedo 5 cose" e ne chiedeva 6; il commento dichiarava un parsing con Claude che non c'è mai stato; creava l'organizzazione (cosa che oggi avviene alla registrazione) e se il salvataggio del profilo falliva a metà ne creava una **seconda**. Fuori dal punteggio |
 | 16 | PrimiPassi (checklist) | 82 | Tap 40/44, progress bar, auto-hide. Solido |
 
 ### Layout & Navigation
@@ -1165,10 +1182,10 @@ Tutto il resto chiuso:
 | 56 | Documentary AI | 80 | Hero + sezioni, copy AI-tone, Recharts da rivedere. **11 set**: parla italiano. **14 set**: via il pannello col gradiente animato e il titolo in oro sfumato — era la ragione principale per cui la pagina sembrava generata |
 | 57 | Forecast | 87 | Eredita pattern PrevisioneDomanda, ResponsiveContainer. **11 set**: numeri IT dichiarati tali. **14 set**: intestazione allineata al resto del tool |
 | 58 | OrdiniAi | 85 | Padding 16 tablet, grafici ok ma copy AI-tone. **11 set**: quanto ordinare lo decide la cadenza vera del fornitore (consegna il martedi' = copertura fino al martedi' dopo), non piu' una finestra fissa uguale per tutti. **14 set**: intestazione allineata al resto del tool |
-| 59 | WhatsAppView | 79 | Card padding, input 44px. Manca preview chat. **11 set**: copy e numeri. **14 set**: intestazione allineata al resto del tool |
+| 59 | WhatsAppView | 79 → **86** | **14 set (notte)**: mostrava un numero di cellulare **inventato**, scritto nel codice come "placeholder finché non attivi Twilio", e diceva al titolare di salvarlo in rubrica e di mandargli "aiuto". Quel numero, se esiste, è di un'altra persona. Ora la pagina dice che il collegamento non è ancora acceso, raccoglie il numero di chi vuole esserci per primo, e le istruzioni compaiono da sole il giorno che c'è un numero vero. Il bot rispondeva citando "il piano Chain", sparito dal listino il 21/06 |
 | 60 | Marketplace | — | Congelata |
 | 61 | RecipeInventor | — | Congelata |
-| 62 | Recensioni AI | 79 | 3 toni → 1 col tablet, copy AI-tone visibile. **11 set**: copy e numeri. **14 set**: intestazione allineata al resto del tool |
+| 62 | Recensioni AI | 79 → **86** | **14 set (notte)**: le stelle erano il carattere ★ dentro un bottone senza etichetta (uno screen reader leggeva "stella stella stella stella stella") e partono da 5 — chi incolla una recensione da una stella e non tocca niente faceva scrivere all'AI la risposta di un cliente contento. Ora icone con etichetta e il conto scritto accanto. Il prompt chiedeva "italiano impeccabile" scrivendo attivita' e dara'. Aggiunto un limite di 2.000 caratteri, visibile prima di sbatterci contro |
 
 ### Magazzino & approvvigionamento
 
@@ -1205,10 +1222,10 @@ Tutto il resto chiuso:
 | 77 | Impostazioni Profilo attività | 82 | FieldRow column mobile |
 | 78 | Impostazioni Account (zona pericolosa) | 88 | Modal cancellazione multi-step + alternative contestuali. Pattern Stripe/Linear |
 | 79 | Impostazioni Sedi | 84 | Layout column mobile, bottoni touch, indirizzi nowrap |
-| 80 | Impostazioni TV | 78 | Card padding 20x22 tablet |
+| 80 | Impostazioni TV | 78 → **86** | **14 set (notte)**: parlava la lingua di chi l'ha scritta — "non funzionera piu (rotazione token)", "la dashboard pubblica non sara piu accessibile finche non rigeneri": quattro accenti mancanti e due parole da programmatore in un dialogo di conferma. Gli errori sparivano dentro "Errore generazione link". La data di creazione si salvava e non si leggeva: ora dice da quando gira quel link. I quattro bottoni erano di quattro colori diversi (navy, verde, ambra, rosso); la tavolozza era ancora quella grigio-blu di prima dei token |
 | 81 | Impostazioni Abbonamento | 84 | Piani 3 tier, current state chip |
 | 82 | Impostazioni Pacchetti AI | 82 | Saldo card minHeight 90, pack cards 1 col mobile |
-| 83 | Impostazioni WhatsApp Report | 78 | Card padding, input 44 |
+| 83 | Impostazioni WhatsApp Report | 78 → **85** | **14 set (notte)**: aveva il testo peggiore del tool — «per la prima attivazione su WhatsApp Business potrebbe essere necessario approvare il sender Twilio o, in sandbox, inviare prima il messaggio di opt-in ("join &lt;codice&gt;")». E "se lo lasci vuoto, il cron non parte", "non riceverai piu il riepilogo KPI". Un numero di due cifre si salvava con scritto "riceverai il report alle 22:00". La tendina dei prefissi non si chiudeva cliccando fuori e copriva il campo del numero |
 | 84 | Impostazioni Notifiche | 80 | Toggle row |
 | 85 | Impostazioni MFA TOTP | 84 | Enroll/challenge/unenroll, QR code |
 | 86 | Impostazioni Esporta dati GDPR | 82 | Excel button 2-col grid mobile |
@@ -1218,7 +1235,7 @@ Tutto il resto chiuso:
 | 90 | Impostazioni WhiteLabel (Chain) | 80 | Upgrade card, color picker wrap |
 | 91 | Impostazioni Changelog | 80 | Lista release leggibile |
 | 92 | Impostazioni Breadcrumb mobile | 84 | "‹ Tutte le impostazioni" 1 freccia |
-| 93 | TrialScadutoPage | 78 | Padding/font isMobile, logout 44 |
+| 93 | TrialScadutoPage | 78 → **85** | **14 set (notte)**: diceva "i tuoi dati restano al sicuro per **60 giorni**", che lascia capire che al sessantunesimo spariscano — non c'è niente, in tutto il prodotto, che li cancelli. Ora dice quello che è vero: non cancelliamo niente, e se vuoi chiudere ti mandiamo i dati in Excel. `isMobile` si leggeva una volta sola al primo render: girando il telefono l'impaginazione restava sbagliata |
 
 ### Pagine che mancavano in questa tabella (aggiunte il 14 set)
 
@@ -1339,19 +1356,55 @@ misura — il ritmo verticale, la gerarchia, la personalità delle pagine AI, ch
 sembrano ancora generate — è lavoro di mano, e va visto e approvato, non
 dedotto da uno script.
 
-### Sezioni residue da polishare (sotto 80)
+### Sezioni sotto l'80 — chiuse la notte del 14/09
 
-Ricontate il 14/09 sera: sono **sette**, erano dodici la mattina e dodici prima.
+Erano **sette** la sera del 14/09, dodici la mattina. Adesso sono **zero**.
 
-- OnboardingChat 70 — variante chat dell'onboarding, raramente usata, copy AI-tone
-- WhatsAppView 79, Recensioni AI 79 — il testo e' italiano, i numeri sono giusti e dalla sera del 14 anche l'intestazione e' quella del resto del tool. Quello che resta e' il mestiere: la pagina fa il suo lavoro, non lo fa bene
-- Contatti 78 — form base, niente chat ne' calendario
-- Impostazioni TV 78, Impostazioni WhatsApp Report 78 — funzionali, visual fermo a giugno
-- TrialScadutoPage 78 — si vede una volta sola e si vede male
+| Sezione | Prima | Dopo | Δ | Cosa diceva di falso |
+|---|---:|---:|---:|---|
+| WhatsAppView | 79 | **86** | +7 | Un numero di cellulare inventato, da salvare in rubrica |
+| Recensioni AI | 79 | **86** | +7 | Le stelle partivano da 5 e l'AI ci credeva |
+| Impostazioni TV | 78 | **86** | +8 | "non funzionera piu (rotazione token)" |
+| Impostazioni WhatsApp Report | 78 | **85** | +7 | "approvare il sender Twilio o, in sandbox, l'opt-in" |
+| TrialScadutoPage | 78 | **85** | +7 | "i tuoi dati restano al sicuro per 60 giorni" |
+| Contatti | 78 | **84** | +6 | Tre caselle su un dominio che non esiste |
+| OnboardingChat | 70 | **rimossa** | — | "ti chiedo 5 cose", e ne chiedeva 6. E nessuno poteva aprirla |
 
-Uscite dalla lista con un fatto, non con un ritocco: NuovaRicetta 78 → 84,
-OrdiniAi 76 → 83, Fornitori 80 → 86, Sprechi 80 → 85, Menu Engineering 80 → 81,
-Documentary 75 → 77. HACCP 78 e' uscita perche' la pagina e' spenta.
+**Media delle sei che restano: 78,3 → 85,3 (+7,0).**
+
+Il filo comune non era estetico. Erano pagine che dicevano al cliente cose non
+vere, e nessuna di quelle cose era un errore di battitura: erano promesse fatte
+al futuro e mai tolte quando il futuro non è arrivato. Il numero di telefono
+"placeholder" è il caso limite — un cliente che l'avesse salvato avrebbe
+scritto a uno sconosciuto.
+
+Perché nessuna arriva a 90: quello che è stato corretto è la **verità** di
+queste pagine e il loro **italiano**. La mano — il ritmo, la gerarchia, il
+disegno — è a posto ma non memorabile, e quella si vede e si approva, non si
+deduce da uno script.
+
+### Trovati strada facendo, fuori dalle sette
+
+Tre cose che non erano nella lista e pesavano più delle sette:
+
+- **Il listino nel contratto era sbagliato.** I Termini di servizio — il
+  documento che il cliente accetta — elencavano due piani, "Pro €89" e "Chain
+  €149", rinominati e riprezzati il 21/06/2026. Il listino vero è
+  Bottega 69 / Maestro 149 / Insegna 399. In tutto, i vecchi nomi erano ancora
+  offerti al cliente in **otto punti** del prodotto, per tre mesi. Ora tutte le
+  etichette leggono `PLAN_LABEL` e i prezzi `PLAN_PRICE_EUR`.
+- **La prova gratuita era raccontata meno della metà.** Il pannello invito
+  prometteva «60 giorni invece di 30». La prova vera ne dura **90** (è il
+  default del database) e il codice invito ne **aggiunge** 60: fanno 150. I 30
+  giorni di partenza non sono mai esistiti.
+- **Il dominio `foodos.it` non esiste.** Non "non ha le caselle": NXDOMAIN, non
+  risolve. Ci sono **46 indirizzi @foodos.it** sparsi nel prodotto — sulle
+  pagine legali, sulla landing, nella pagina Contatti — e `api/send-email.js`
+  spedisce **da** `noreply@foodos.it`, che Resend non può consegnare senza un
+  dominio verificato. Non è un difetto di codice e non si corregge scrivendo:
+  si corregge comprando il dominio. Intanto le due scritture della stessa
+  casella (`support@` in 16 punti, `supporto@` in 5) sono state unificate,
+  perché quando il dominio ci sarà una delle due rimbalzerebbe comunque.
 
 ---
 
