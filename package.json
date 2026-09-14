@@ -25,7 +25,9 @@
     "check": "npm run lint && npm run test && npm run build",
     "prepush": "npm run lint && npm test && npm run build",
     "hooks:install": "bash scripts/install-hooks.sh",
-    "postinstall": "bash scripts/install-hooks.sh"
+    "postinstall": "bash scripts/install-hooks.sh",
+    "verifica:deploy": "node scripts/verifica-deploy.mjs",
+    "push": "git push && node scripts/verifica-deploy.mjs"
   },
   "dependencies": {
     "@sentry/react": "^10.53.1",

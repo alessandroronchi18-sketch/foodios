@@ -175,9 +175,28 @@ branches 60) da quando il calcolo include `src/components` e `src/views`.
 ## Deploy
 
 ```bash
+npm run push                # git push + verifica che il deploy sia ANDATO
 git push                    # autodeploy GitHub → Vercel (1-2 min)
 vercel --prod --yes         # deploy forzato dal locale
 ```
+
+**Usa `npm run push`, non `git push` liscio.** Il 14/09/2026 due push sono
+passati dal gate pre-push con il build rotto: su Vercel il deploy è fallito in
+quattro secondi, due volte, e la produzione è rimasta ferma tre commit indietro
+senza nessun segnale. Il push dice "ok", il deploy muore in silenzio, e l'unico
+modo di accorgersene è che il sito non cambia.
+
+Due strati di protezione, da allora:
+1. il gate pre-push ora fa contare davvero l'esito del build (`set -o pipefail`:
+   prima il risultato passava per `| tail -5`, e in una pipeline conta l'ultimo
+   comando, che riesce sempre);
+2. `npm run push` dopo il push aspetta che la produzione serva **quel** commit
+   (lo legge da `CACHE_VERSION` in `/sw.js`) e, se non arriva, dice cosa
+   guardare (`npx vercel ls`, `npx vercel inspect --logs`).
+
+Il sospetto numero uno quando il deploy fallisce è il **prebuild**: controllo
+grammaticale italiano e cricchetto sui token di design. In locale girano solo
+con `npm run build` — `npx vite build` li salta.
 
 ⚠️ **Vercel CLI deploya il working tree LOCALE**, NON il branch remote. Se hai modifiche non pushate, finiscono in prod.
 
