@@ -93,9 +93,32 @@ function StockPFWidget({ isMobile, setView, viewAggregato, orgId, sedeId, LEX })
   if (loading) return null
 
   const inStock = stock.filter(r => Number(r.quantita || 0) > 0)
-  const totPezzi = inStock.reduce((s, r) => s + Number(r.quantita || 0), 0)
+  // Audit layout 2026-09-14: pezzi e grammi non si sommano.
+  //
+  // Questo riquadro faceva la somma di tutte le righe ignorando l'unità: 6
+  // torte più 8.400 g di gelato diventavano "8.409 pezzi al banco". È lo stesso
+  // difetto corretto nella scheda Prodotti finiti il 7 set, rimasto qui.
+  // Anche le barre: una riga in grammi schiaccia a zero tutte quelle in pezzi,
+  // perché il confronto è fra numeri di grandezze diverse.
+  const inPezzi = inStock.filter(r => (r.unita || 'pz') !== 'g')
+  const inGrammi = inStock.filter(r => (r.unita || 'pz') === 'g')
+  const totPezzi = inPezzi.reduce((s, r) => s + Number(r.quantita || 0), 0)
+  const totGrammi = inGrammi.reduce((s, r) => s + Number(r.quantita || 0), 0)
   const top = [...inStock].sort((a, b) => Number(b.quantita) - Number(a.quantita)).slice(0, 5)
-  const maxQ = Math.max(1, ...top.map(r => Number(r.quantita || 0)))
+  // Il massimo si prende dentro la stessa unità di misura, non fra tutte.
+  const maxPz = Math.max(1, ...inPezzi.map(r => Number(r.quantita || 0)))
+  const maxG = Math.max(1, ...inGrammi.map(r => Number(r.quantita || 0)))
+  const quotaBarra = (r) => {
+    const q = Number(r.quantita || 0)
+    return ((r.unita || 'pz') === 'g' ? q / maxG : q / maxPz) * 100
+  }
+  const qtaLeggibile = (r) => {
+    const q = Number(r.quantita || 0)
+    if ((r.unita || 'pz') !== 'g') return `${n0(q)} pz`
+    return q >= 1000
+      ? `${(q / 1000).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg`
+      : `${n0(q)} g`
+  }
   const hasStock = inStock.length > 0
   const BAR = ['#6E0E1A', '#C2410C', '#2563EB', '#16A34A', '#7C3AED']
 
@@ -119,16 +142,19 @@ function StockPFWidget({ isMobile, setView, viewAggregato, orgId, sedeId, LEX })
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '170px 1fr', gap: isMobile ? 14 : 28, alignItems: 'center' }}>
             <div>
               <div style={{ fontSize: isMobile ? 32 : 48, fontWeight: 800, color: T.text, letterSpacing: '-0.04em', lineHeight: 1, ...TNUM }}>{n0(totPezzi)}</div>
-              <div style={{ fontSize: 12, color: T.textSoft, fontWeight: 500, marginTop: 4 }}>pezzi al banco</div>
+              <div style={{ fontSize: 12, color: T.textSoft, fontWeight: 500, marginTop: 4 }}>
+                pezzi al banco
+                {totGrammi > 0 && <><br/>più {(totGrammi / 1000).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg sfusi</>}
+              </div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
               {top.map((r, i) => (
                 <div key={r.prodotto_nome} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <span style={{ fontSize: 12, fontWeight: 600, color: T.textMid, width: isMobile ? 110 : 128, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flexShrink: 0 }}>{r.prodotto_nome}</span>
                   <div style={{ flex: 1, height: 9, background: '#F0EAE6', borderRadius: 6, overflow: 'hidden', minWidth: 30 }}>
-                    <div style={{ width: `${Math.max(5, Number(r.quantita) / maxQ * 100)}%`, height: '100%', background: BAR[i % BAR.length], borderRadius: 6 }} />
+                    <div style={{ width: `${Math.max(5, quotaBarra(r))}%`, height: '100%', background: BAR[i % BAR.length], borderRadius: 6 }} />
                   </div>
-                  <span style={{ fontSize: 12, fontWeight: 800, color: T.text, minWidth: 44, textAlign: 'right', ...TNUM }}>{n0(r.quantita)}</span>
+                  <span style={{ fontSize: 12, fontWeight: 800, color: T.text, minWidth: 56, textAlign: 'right', ...TNUM, whiteSpace: 'nowrap' }}>{qtaLeggibile(r)}</span>
                 </div>
               ))}
             </div>

@@ -378,10 +378,16 @@ export function PageHeader({ subtitle, action }) {
 
 // Tabella primitives (PLTable, SensTable, etc.)
 export const TD = ({ children, right, bold, color, mono, small }) => (
+  // Audit layout 2026-09-14: le cifre tabellari si mettevano solo con `mono`,
+  // quindi nella stessa tabella la colonna dei ricavi era incolonnata e quella
+  // delle percentuali no — e le percentuali sono proprio quelle che si leggono
+  // una sotto l'altra. Le cifre tabellari non fanno danno sul testo (agiscono
+  // solo sui numeri), quindi valgono per tutte le celle. `mono` resta per
+  // compatibilità con i callsite, ma non cambia più niente.
   <td style={{
     padding: '10px 14px', textAlign: right ? 'right' : 'left',
     fontWeight: bold ? 700 : 500, color: color || C.text,
-    ...(mono ? TNUM : null),
+    ...TNUM,
     fontSize: small ? 12 : 12, whiteSpace: 'nowrap',
   }}>{children}</td>
 )

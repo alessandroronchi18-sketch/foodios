@@ -1187,6 +1187,45 @@ Sprechi +5, Inventario settimanale +4, Quadratura +4, OrdiniAi +7, Sede
 selector +4, Scadenzario +3. Tre pagine escono dal conto perche' sono spente
 (Scheda allergeni, HACCP, Menu dinamico).
 
+### Impaginazione — il giro del 14/09 (sera)
+
+> Questa sezione misura una cosa sola: **l'impaginazione**, cioè quello che
+> rende una pagina ordinata o storta a prescindere da cosa dice. Prima del
+> 14/09 la darei **80/100**, dopo **88/100**. Il salto non è estetico: è che da
+> oggi un difetto di impaginazione **fallisce come un test**, invece di essere
+> una cosa che si scopre guardando (e infatti non si scopriva).
+
+**Cosa non andava, contato:**
+- **2.924 misure di carattere scritte a mano su 27 valori diversi**: 12, 12,5,
+  13, 13,5, 14, 14,5, 15, 16, 17, 18, 19, 20… Mezzo pixel non si vede su una
+  riga; si vede quando due riquadri affiancati hanno l'etichetta uno da 12 e
+  uno da 12,5 e le parole non partono dalla stessa altezza.
+- **261 valori fuori scala**, di cui 70 nascosti dentro le espressioni
+  (`fontSize: isMobile ? 11 : 12`), compresi **testi a 8, 9 e 10 pixel** in
+  Personale: non è testo piccolo, è testo che nessuno legge.
+- **`font.size.xs` e `2xs` valevano 11 e 10 px**: erano il modo in cui il testo
+  minuscolo rientrava dalla finestra senza che nessuno se ne accorgesse.
+- **65 celle numeriche senza cifre tabellari**: "1.111" e "8.888" occupano
+  larghezze diverse, quindi le colonne di numeri ballavano.
+- **Due pagine scorrevano di lato sul telefono** (P&L 85px, inventario
+  settimanale 124px) e nessuno lo sapeva.
+
+**Cosa c'è adesso:**
+- Una scala sola (12, 13, 14, 15, 16, 18, 20, 22, 24, 26, 28, 32, 36, 40, 48),
+  tenuta da `scalaTipografica.test.js`, che legge anche dentro le espressioni.
+- Ogni colonna di numeri incolonnata, comprese le date.
+- **32 viste rese due volte** — versione da tavolo e versione telefono, con
+  `useIsMobile` forzato — fotografate a 1440 e 420 px e misurate da
+  `scripts/audit-layout.mjs`: riquadri affiancati di altezza diversa, elementi
+  accavallati, testi sotto i 12px, celle non incolonnate, sforamenti.
+  **Zero difetti misurabili su 31 viste**; sulla trentaduesima resta uno
+  scarto di 15px fra un campo e un pannello, accettato.
+
+**Perché 88 e non 95**: quello che si misura è a posto. Quello che non si
+misura — il ritmo verticale, la gerarchia, la personalità delle pagine AI, che
+sembrano ancora generate — è lavoro di mano, e va visto e approvato, non
+dedotto da uno script.
+
 ### Sezioni residue da polishare (sotto 80)
 
 Ricontate il 14/09: sono **otto**, erano dodici.
