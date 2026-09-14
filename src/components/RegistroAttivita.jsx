@@ -532,26 +532,26 @@ export default function RegistroAttivita({ orgId, sedi = [], notify }) {
           <label style={{ fontSize: 12, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5, display: 'block' }}>Cerca</label>
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="es. mario, chiusura…"
             style={{ width: '100%', padding: '8px 11px', borderRadius: R.md, border: `1px solid ${T.border}`,
-              fontSize: 12.5, color: T.text, background: T.bgCard, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', letterSpacing: '-0.005em' }}/>
+              fontSize: 12, color: T.text, background: T.bgCard, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', letterSpacing: '-0.005em' }}/>
         </div>
         {periodo === 'custom' && (
           <>
             <div>
               <label style={{ fontSize: 12, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5, display: 'block' }}>Da</label>
               <input type="date" value={dataDa} onChange={e => setDataDa(e.target.value)}
-                style={{ width: '100%', padding: '8px 11px', borderRadius: R.md, border: `1px solid ${T.border}`, fontSize: 12.5, color: T.text, background: T.bgCard, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}/>
+                style={{ width: '100%', padding: '8px 11px', borderRadius: R.md, border: `1px solid ${T.border}`, fontSize: 12, color: T.text, background: T.bgCard, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}/>
             </div>
             <div>
               <label style={{ fontSize: 12, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5, display: 'block' }}>A</label>
               <input type="date" value={dataA} onChange={e => setDataA(e.target.value)}
-                style={{ width: '100%', padding: '8px 11px', borderRadius: R.md, border: `1px solid ${T.border}`, fontSize: 12.5, color: T.text, background: T.bgCard, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}/>
+                style={{ width: '100%', padding: '8px 11px', borderRadius: R.md, border: `1px solid ${T.border}`, fontSize: 12, color: T.text, background: T.bgCard, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}/>
             </div>
           </>
         )}
         <div>
           <label style={{ fontSize: 12, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5, display: 'block' }}>Utente</label>
           <select value={utente} onChange={e => setUtente(e.target.value)}
-            style={{ width: '100%', padding: '8px 11px', borderRadius: R.md, border: `1px solid ${T.border}`, fontSize: 12.5, color: T.text, background: T.bgCard, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', cursor: 'pointer' }}>
+            style={{ width: '100%', padding: '8px 11px', borderRadius: R.md, border: `1px solid ${T.border}`, fontSize: 12, color: T.text, background: T.bgCard, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', cursor: 'pointer' }}>
             <option value="">Tutti gli utenti</option>
             {utenti.map(u => (
               <option key={u.id} value={u.id}>
@@ -563,7 +563,7 @@ export default function RegistroAttivita({ orgId, sedi = [], notify }) {
         <div>
           <label style={{ fontSize: 12, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5, display: 'block' }}>Tipo dati</label>
           <select value={tabella} onChange={e => setTabella(e.target.value)}
-            style={{ width: '100%', padding: '8px 11px', borderRadius: R.md, border: `1px solid ${T.border}`, fontSize: 12.5, color: T.text, background: T.bgCard, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', cursor: 'pointer' }}>
+            style={{ width: '100%', padding: '8px 11px', borderRadius: R.md, border: `1px solid ${T.border}`, fontSize: 12, color: T.text, background: T.bgCard, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', cursor: 'pointer' }}>
             <option value="">Tutti i tipi</option>
             {Object.entries(TABLE_META).map(([k, v]) => (
               <option key={k} value={k}>{v.label}</option>
@@ -574,7 +574,7 @@ export default function RegistroAttivita({ orgId, sedi = [], notify }) {
           <div>
             <label style={{ fontSize: 12, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5, display: 'block' }}>Sede</label>
             <select value={sedeId} onChange={e => setSedeId(e.target.value)}
-              style={{ width: '100%', padding: '8px 11px', borderRadius: R.md, border: `1px solid ${T.border}`, fontSize: 12.5, color: T.text, background: T.bgCard, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', cursor: 'pointer' }}>
+              style={{ width: '100%', padding: '8px 11px', borderRadius: R.md, border: `1px solid ${T.border}`, fontSize: 12, color: T.text, background: T.bgCard, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', cursor: 'pointer' }}>
               <option value="">Tutte le sedi</option>
               {sedi.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
             </select>
@@ -587,7 +587,7 @@ export default function RegistroAttivita({ orgId, sedi = [], notify }) {
           <div>
             <label style={{ fontSize: 12, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5, display: 'block' }}>Dipendente</label>
             <select value={dipendente} onChange={e => setDipendente(e.target.value)}
-              style={{ width: '100%', padding: '8px 11px', borderRadius: R.md, border: `1px solid ${T.border}`, fontSize: 12.5, color: T.text, background: T.bgCard, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', cursor: 'pointer' }}>
+              style={{ width: '100%', padding: '8px 11px', borderRadius: R.md, border: `1px solid ${T.border}`, fontSize: 12, color: T.text, background: T.bgCard, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', cursor: 'pointer' }}>
               <option value="">Tutti i dipendenti</option>
               {Object.entries(dipMap)
                 .sort((a, b) => (a[1].cognome || '').localeCompare(b[1].cognome || ''))
@@ -614,7 +614,7 @@ export default function RegistroAttivita({ orgId, sedi = [], notify }) {
           <div style={{ fontSize: 14, fontWeight: 600, color: T.text, marginBottom: 6, letterSpacing: '-0.01em' }}>
             Nessuna attività trovata
           </div>
-          <div style={{ fontSize: 12.5, color: T.textSoft, lineHeight: 1.5, maxWidth: 380, margin: '0 auto' }}>
+          <div style={{ fontSize: 12, color: T.textSoft, lineHeight: 1.5, maxWidth: 380, margin: '0 auto' }}>
             {hasActiveFilters
               ? 'Nessun risultato con i filtri attuali. Prova a allargare il periodo o rimuovere i filtri.'
               : 'Il registro inizia a popolarsi appena qualcuno modifica i dati (produzione, cassa, magazzino, ricettario, ecc).'}
@@ -679,7 +679,7 @@ export default function RegistroAttivita({ orgId, sedi = [], notify }) {
                       <div style={{ flex: 1, minWidth: 0 }}>
                         {/* Riga 1: utente · ora · chip operazione · chip tipo */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
-                          <span style={{ fontSize: 12.5, fontWeight: 600, color: T.text, letterSpacing: '-0.005em' }}>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: T.text, letterSpacing: '-0.005em' }}>
                             {displayName}
                           </span>
                           {isDip && (
@@ -721,7 +721,7 @@ export default function RegistroAttivita({ orgId, sedi = [], notify }) {
                               <Icon name="building" size={11} /> {sedeNome}
                             </span>
                           )}
-                          <span style={{ fontSize: 12.5, color: T.text, letterSpacing: '-0.005em', fontWeight: 500 }}>
+                          <span style={{ fontSize: 12, color: T.text, letterSpacing: '-0.005em', fontWeight: 500 }}>
                             {labelFromRow(r)}
                           </span>
                         </div>
@@ -755,7 +755,7 @@ export default function RegistroAttivita({ orgId, sedi = [], notify }) {
             style={{
               padding: '10px 22px', background: T.bgCard, color: T.textMid,
               border: `1px solid ${T.border}`, borderRadius: R.md,
-              fontSize: 12.5, fontWeight: 500, cursor: 'pointer',
+              fontSize: 12, fontWeight: 500, cursor: 'pointer',
               letterSpacing: '-0.005em', boxShadow: S.sm,
             }}>
             {loading ? 'Caricamento…' : `Carica altre ${PAGE}`}

@@ -558,7 +558,7 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
                 style={{ padding: '8px 12px', borderRadius: 9, border: `1.5px solid ${form.causale === c.id ? (form.tipo === 'spreco' ? C.amber : BLU) : C.border}`,
                   background: form.causale === c.id ? (form.tipo === 'spreco' ? C.amberLight : BLU_LIGHT) : C.bgCard,
                   color: form.causale === c.id ? (form.tipo === 'spreco' ? C.amber : BLU) : C.textMid,
-                  fontSize: 12.5, fontWeight: 700, cursor: 'pointer', minHeight: 40 }}>
+                  fontSize: 12, fontWeight: 700, cursor: 'pointer', minHeight: 40 }}>
                 {c.label}
               </button>
             ))}
@@ -610,7 +610,7 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
         </div>
       </div>
 
-      <div style={{ marginTop: 14, padding: '11px 14px', background: C.bgSubtle, border: `1px dashed ${C.border}`, borderRadius: 10, fontSize: 12.5, color: C.textMid }}>
+      <div style={{ marginTop: 14, padding: '11px 14px', background: C.bgSubtle, border: `1px dashed ${C.border}`, borderRadius: 10, fontSize: 12, color: C.textMid }}>
         Costo totale: <b style={{ color: C.text, ...TNUM }}>{fmt((Number(form.fcUnit) || 0) * (Number(form.qta) || 0))}</b>
         {form.tipo === 'omaggio' && Number(form.valoreOmaggio) > 0 && (
           <> · ricavo mancato: <b style={{ color: BLU, ...TNUM }}>{fmt((Number(form.valoreOmaggio) || 0) * (Number(form.qta) || 0))}</b></>
@@ -619,11 +619,11 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
 
       <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
         <button onClick={salva}
-          style={{ padding: '11px 22px', background: C.green, color: '#fff', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 13.5, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+          style={{ padding: '11px 22px', background: C.green, color: '#fff', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 13, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
           <Icon name="plus" size={15} /> Registra
         </button>
         <button onClick={() => setForm(null)}
-          style={{ padding: '11px 22px', background: 'transparent', color: C.textSoft, border: `1px solid ${C.border}`, borderRadius: 10, fontSize: 13.5, cursor: 'pointer' }}>
+          style={{ padding: '11px 22px', background: 'transparent', color: C.textSoft, border: `1px solid ${C.border}`, borderRadius: 10, fontSize: 13, cursor: 'pointer' }}>
           Annulla
         </button>
       </div>
@@ -796,13 +796,13 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
               const col = c.tipo === 'omaggio' ? BLU : C.amber
               return (
                 <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 12 }}>
-                  <span style={{ flex: isMobile ? '0 0 40%' : '0 0 32%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 12.5, fontWeight: i === 0 ? 700 : 500, color: C.text }} title={CAUSALE_LABEL[c.id] || c.id}>
+                  <span style={{ flex: isMobile ? '0 0 40%' : '0 0 32%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 12, fontWeight: i === 0 ? 700 : 500, color: C.text }} title={CAUSALE_LABEL[c.id] || c.id}>
                     {CAUSALE_LABEL[c.id] || c.id}
                   </span>
                   <span style={{ flex: 1, height: 18, background: C.bgSubtle, borderRadius: 6, overflow: 'hidden', minWidth: 40 }}>
                     <span style={{ display: 'block', height: '100%', width: `${Math.max(4, pct)}%`, background: i === 0 ? col : `${col}73`, transition: 'width 0.3s' }} />
                   </span>
-                  <span style={{ flex: '0 0 70px', textAlign: 'right', fontSize: 12.5, fontWeight: 700, color: C.text, ...TNUM }}>{fmt(c.eur)}</span>
+                  <span style={{ flex: '0 0 70px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: C.text, ...TNUM }}>{fmt(c.eur)}</span>
                   <span style={{ flex: '0 0 44px', textAlign: 'right', fontSize: 12, color: C.textSoft, ...TNUM }}>{fmtp0(pct)}</span>
                 </div>
               )
@@ -825,11 +825,11 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
               const qtaStr = [p.qtaG ? `${fmtN(p.qtaG)} g` : null, p.qtaPz ? `${fmtN(p.qtaPz)} pz` : null].filter(Boolean).join(' · ')
               return (
                 <div key={p.nome} style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 12 }}>
-                  <span style={{ flex: isMobile ? '0 0 38%' : '0 0 30%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 12.5, fontWeight: i === 0 ? 700 : 500, color: C.text }} title={p.nome}>{p.nome}</span>
+                  <span style={{ flex: isMobile ? '0 0 38%' : '0 0 30%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 12, fontWeight: i === 0 ? 700 : 500, color: C.text }} title={p.nome}>{p.nome}</span>
                   <span style={{ flex: 1, height: 18, background: C.bgSubtle, borderRadius: 6, overflow: 'hidden', minWidth: 40 }}>
                     <span style={{ display: 'block', height: '100%', width: `${Math.max(4, pct)}%`, background: i === 0 ? C.red : 'rgba(110,14,26,0.45)', transition: 'width 0.3s' }} />
                   </span>
-                  <span style={{ flex: '0 0 70px', textAlign: 'right', fontSize: 12.5, fontWeight: 700, color: C.text, ...TNUM }}>{fmt(p.eur)}</span>
+                  <span style={{ flex: '0 0 70px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: C.text, ...TNUM }}>{fmt(p.eur)}</span>
                   {!isMobile && <span style={{ flex: '0 0 96px', textAlign: 'right', fontSize: 12, color: C.textSoft, ...TNUM }}>{qtaStr || `${fmtN(p.n)} reg.`}</span>}
                 </div>
               )
@@ -870,7 +870,7 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
               larghezza minima. Su tablet le colonne si schiacciavano una
               sull'altra invece di far scorrere. Convenzione della casa:
               minWidth sulla table dentro un contenitore overflowX auto. */}
-          <table style={{ width: '100%', minWidth: 780, borderCollapse: 'collapse', fontSize: 12.5 }}>
+          <table style={{ width: '100%', minWidth: 780, borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr>
                 {['Quando', 'Tipo', 'Cosa', 'Qta', 'Causale', 'Costo', 'Autore', ''].map((h, i) => (

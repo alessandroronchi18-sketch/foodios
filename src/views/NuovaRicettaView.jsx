@@ -915,7 +915,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                               style={{ width: 80, padding: "7px 8px", borderRadius: 6, border: `1px solid ${C.borderStr}`, fontSize: 16, textAlign: "right", fontWeight: 700, color: C.text, background: C.white }} />
                             <span style={{ fontSize: 12, color: C.textSoft, marginLeft: 4 }}>g</span>
                           </td>
-                          <td style={{ padding: "9px 10px", textAlign: "right", color: costo > 0 ? C.red : C.textSoft, fontWeight: 600, ...TNUM, whiteSpace: 'nowrap' }}>{costo > 0 ? fmt(costo) : "-"}</td>
+                          <td style={{ ...TNUM, padding: "9px 10px", textAlign: "right", color: costo > 0 ? C.red : C.textSoft, fontWeight: 600, ...TNUM, whiteSpace: 'nowrap' }}>{costo > 0 ? fmt(costo) : "-"}</td>
                           <td style={{ padding: "6px 6px", textAlign: "right" }}>
                             <button aria-label="Rimuovi ingrediente" onClick={() => removeIng(i)} style={{ padding: 0, width: 40, height: 40, borderRadius: 6, border: `1px solid ${C.border}`, background: C.white, color: C.textSoft, fontSize: 12, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: 'center' }}><Icon name="trash" size={14} /></button>
                           </td>
@@ -1243,7 +1243,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   <div style={{ padding: '14px 16px', background: C.redLight, border: `1px solid ${C.red}20`, borderRadius: 10, textAlign: 'center' }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: C.red, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Food cost al kg</div>
-                    <div style={{ fontSize: 30, fontWeight: 900, color: C.red, letterSpacing: '-0.02em', ...TNUM }}>{fmt(live.fcPerKg)}</div>
+                    <div style={{ fontSize: 28, fontWeight: 900, color: C.red, letterSpacing: '-0.02em', ...TNUM }}>{fmt(live.fcPerKg)}</div>
                     <div style={{ fontSize: 12, color: C.textSoft, marginTop: 4 }}>materie prime per 1 kg di gusto finito</div>
                     {/* Da dove viene il numero: senza questa riga un gusto scritto
                         sul batch da 5 kg sembra costare 5 volte tanto e non si
@@ -1414,7 +1414,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
         onClick={(e) => { if (e.target === e.currentTarget && !priceModal.saving) setPriceModal(null); }}
         style={{ position: "fixed", inset: 0, background: "rgba(28,10,10,0.55)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
         <div style={{ background: C.bgCard, borderRadius: 14, boxShadow: "0 20px 60px rgba(0,0,0,0.25)", maxWidth: 420, width: "100%", padding: isMobile ? 20 : 24 }}>
-          <div id="prezzo-ing-titolo" style={{ fontSize: 17, fontWeight: 800, color: C.text, marginBottom: 6, letterSpacing: "-0.01em" }}>
+          <div id="prezzo-ing-titolo" style={{ fontSize: 16, fontWeight: 800, color: C.text, marginBottom: 6, letterSpacing: "-0.01em" }}>
             Imposta prezzo di questo ingrediente
           </div>
           <div style={{ fontSize: 13, color: C.textMid, marginBottom: 16, lineHeight: 1.5 }}>

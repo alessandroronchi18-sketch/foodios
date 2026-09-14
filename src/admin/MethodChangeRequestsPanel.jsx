@@ -114,7 +114,7 @@ export default function MethodChangeRequestsPanel({ onCountChange }) {
                       {r.org_nome || r.organization_id.slice(0, 8)}
                       {r.org_tipo && <span style={{ fontSize: 12, fontWeight: 400, color: COLORS.textMute, textTransform: 'capitalize' }}> · {r.org_tipo}</span>}
                     </div>
-                    <div style={{ fontSize: 12.5, color: COLORS.textSoft, lineHeight: 1.5, marginBottom: 4 }}>
+                    <div style={{ fontSize: 12, color: COLORS.textSoft, lineHeight: 1.5, marginBottom: 4 }}>
                       Vuole passare da <b>{labelMetodo(r.from_metodo)}</b> a <b>{labelMetodo(r.to_metodo)}</b>
                     </div>
                     {r.motivazione && (
@@ -129,11 +129,11 @@ export default function MethodChangeRequestsPanel({ onCountChange }) {
                   {!rejecting && (
                     <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
                       <button onClick={() => approva(r.id)} disabled={busyId === r.id}
-                        style={{ padding: '8px 12px', background: '#059669', color: '#FFF', border: 'none', borderRadius: 6, fontSize: 12.5, fontWeight: 700, cursor: busyId === r.id ? 'wait' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                        style={{ padding: '8px 12px', background: '#059669', color: '#FFF', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: busyId === r.id ? 'wait' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                         <Icon name="check" size={13}/> Approva
                       </button>
                       <button onClick={() => { setRejectingId(r.id); setRejectNote(''); setErr(null) }} disabled={busyId === r.id}
-                        style={{ padding: '8px 12px', background: '#DC2626', color: '#FFF', border: 'none', borderRadius: 6, fontSize: 12.5, fontWeight: 700, cursor: busyId === r.id ? 'wait' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                        style={{ padding: '8px 12px', background: '#DC2626', color: '#FFF', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: busyId === r.id ? 'wait' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                         <Icon name="x" size={13}/> Rifiuta
                       </button>
                     </div>

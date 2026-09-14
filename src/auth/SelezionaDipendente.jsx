@@ -124,7 +124,7 @@ export default function SelezionaDipendente({ nomeLaboratorio, nomeSede, onSignO
               disabled={submitting}
               style={{
                 aspectRatio: '1', minHeight: 64,
-                fontSize: 30, fontWeight: 700,
+                fontSize: 28, fontWeight: 700,
                 background: 'rgba(255,255,255,0.10)',
                 color: '#FFF', border: '1px solid rgba(255,255,255,0.14)',
                 borderRadius: 14, cursor: submitting ? 'wait' : 'pointer',
@@ -147,7 +147,7 @@ export default function SelezionaDipendente({ nomeLaboratorio, nomeSede, onSignO
             aria-label="Cifra 0"
             style={{
               aspectRatio: '1', minHeight: 64,
-              fontSize: 30, fontWeight: 700,
+              fontSize: 28, fontWeight: 700,
               background: 'rgba(255,255,255,0.10)',
               color: '#FFF', border: '1px solid rgba(255,255,255,0.14)',
               borderRadius: 14, cursor: submitting ? 'wait' : 'pointer',

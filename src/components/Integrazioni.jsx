@@ -578,7 +578,7 @@ function LogTable({ logs }) {
                   : l.stato === 'errore' ? <><Icon name="x" size={11} /> Errore</> : l.stato}
               </span>
             </td>
-            <td style={{ padding: '6px 10px', color: C.text, fontWeight: 600 }}>
+            <td style={{ textAlign: 'right', ...tnum, padding: '6px 10px', color: C.text, fontWeight: 600 }}>
               {l.records_importati == null ? '-' : Number(l.records_importati).toLocaleString('it-IT', { useGrouping: 'always' })}
             </td>
             {/* L'errore va LETTO, non troncato a 200px in una riga sola:
@@ -868,7 +868,7 @@ export default function Integrazioni({ orgId, sedeId }) {
           davvero non risponde, ed è scritto per chi lo legge. */}
       {registroMancante && (
         <div style={{ background: C.blueLight, border: `1px solid ${C.blue}40`, borderRadius: 10,
-          padding: '12px 16px', marginBottom: 20, fontSize: 12.5 }}>
+          padding: '12px 16px', marginBottom: 20, fontSize: 12 }}>
           <div style={{ fontWeight: 700, color: C.blue, marginBottom: 3 }}>
             Il registro degli import non è attivo
           </div>

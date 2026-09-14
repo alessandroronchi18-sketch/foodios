@@ -525,7 +525,7 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
             <div style={{ fontSize: 14, fontWeight: 700, color: T.text, letterSpacing: '-0.01em' }}>Prodotti dell'evento</div>
             <button onClick={aggiungiRiga} style={{ ...btn(T.text, '#FFF'), minHeight: 40, whiteSpace: 'nowrap' }}>+ Aggiungi riga</button>
           </div>
-          <div style={{ fontSize: 12.5, color: T.textMid, marginBottom: 12, lineHeight: 1.55 }}>
+          <div style={{ fontSize: 12, color: T.textMid, marginBottom: 12, lineHeight: 1.55 }}>
             Per ogni prodotto specifica <b>quanti pezzi produrre</b> e <b>a che prezzo li vendi</b> al cliente.
             <br/>Il margine si calcola automaticamente in base al food cost della ricetta.
           </div>
@@ -744,7 +744,7 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
 
             {/* Riga data + count prodotti */}
             <div style={{
-              fontSize: 12.5, color: T.textMid,
+              fontSize: 12, color: T.textMid,
               display: 'inline-flex', alignItems: 'center', gap: 6,
               marginBottom: ev.note ? 6 : 12,
             }}>

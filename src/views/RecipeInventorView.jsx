@@ -207,7 +207,7 @@ Inventa 3 ricette diverse fra loro (es. una classica, una innovativa, una stagio
             <Icon name="sparkles" size={26} color={BRAND}/>
           </div>
           <div style={{ fontSize: 15, fontWeight: 700, color: TXT, marginBottom: 6 }}>Pronto a inventare ricette nuove?</div>
-          <div style={{ fontSize: 12.5, maxWidth: 460, margin: '0 auto' }}>
+          <div style={{ fontSize: 12, maxWidth: 460, margin: '0 auto' }}>
             Scegli tipo + mood qui sopra, poi clicca <strong>Genera 3 ricette</strong>.
             Lo chef AI ti darà 3 proposte con ingredienti precisi, procedimento, food cost stimato.
           </div>
@@ -222,7 +222,7 @@ Inventa 3 ricette diverse fra loro (es. una classica, una innovativa, una stagio
                 <div style={{ fontSize: 12, fontWeight: 700, color: BRAND, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Ricetta #{i + 1}</div>
                 <div style={{ fontSize: 18, fontWeight: 800, color: TXT, marginTop: 4, lineHeight: 1.3 }}>{r.nome}</div>
               </div>
-              <div style={{ fontSize: 12.5, color: MID, lineHeight: 1.5, fontStyle: 'italic', background: '#FAFAF6', padding: 10, borderRadius: 8 }}>
+              <div style={{ fontSize: 12, color: MID, lineHeight: 1.5, fontStyle: 'italic', background: '#FAFAF6', padding: 10, borderRadius: 8 }}>
                 {r.descrizione_plating}
               </div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', fontSize: 12 }}>

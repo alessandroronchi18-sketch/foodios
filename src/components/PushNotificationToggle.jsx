@@ -132,7 +132,7 @@ export default function PushNotificationToggle({ deviceLabel }) {
           color: subscribed ? T.text : '#FFF',
           border: subscribed ? `1px solid ${T.border}` : 'none',
           borderRadius: 9,
-          fontSize: 12.5, fontWeight: 700,
+          fontSize: 12, fontWeight: 700,
           cursor: busy ? 'wait' : 'pointer',
         }}>
         {busy ? '...' : (subscribed ? 'Disattiva' : 'Attiva')}

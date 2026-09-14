@@ -181,7 +181,7 @@ Massimo 60 parole.`
                 style={{
                   display: 'flex', alignItems: 'center', gap: 10, width: '100%',
                   padding: '10px 18px', background: 'transparent', border: 'none',
-                  cursor: 'pointer', fontSize: 13.5, color: TXT, textAlign: 'left',
+                  cursor: 'pointer', fontSize: 13, color: TXT, textAlign: 'left',
                 }}
                 onMouseEnter={e => e.currentTarget.style.background = '#F8FAFC'}
                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
@@ -225,7 +225,7 @@ Massimo 60 parole.`
               </div>
             )}
             {aiAnswer?.kind === 'error' && (
-              <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '10px 12px', fontSize: 12.5, color: '#991B1B' }}>
+              <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '10px 12px', fontSize: 12, color: '#991B1B' }}>
                 {aiAnswer.text}
               </div>
             )}
@@ -234,7 +234,7 @@ Massimo 60 parole.`
 
         {/* Hint */}
         {!q.trim() && hits.length === 0 && (
-          <div style={{ padding: '24px 20px', textAlign: 'center', color: SOFT, fontSize: 12.5, lineHeight: 1.6 }}>
+          <div style={{ padding: '24px 20px', textAlign: 'center', color: SOFT, fontSize: 12, lineHeight: 1.6 }}>
             Cerca una sezione, una ricetta, o chiedi all'AI.<br/>
             <span style={{ fontSize: 12 }}>Esempi: <em>"food cost"</em>, <em>"cannolo"</em>, <em>"quanto ho incassato oggi"</em></span>
           </div>

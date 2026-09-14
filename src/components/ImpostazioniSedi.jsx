@@ -580,7 +580,7 @@ function DialogCambioMetodo({ info, onAnnulla, onConferma }) {
             alignItems: 'center', justifyContent: 'center', fontSize: 18,
           }}><Icon name="alert" size={13} /></span>
           <h2 id="dlg-cambio-metodo-title"
-            style={{ margin: 0, fontSize: 17, fontWeight: 800, color: TXT, letterSpacing: '-0.01em' }}>
+            style={{ margin: 0, fontSize: 16, fontWeight: 800, color: TXT, letterSpacing: '-0.01em' }}>
             {titolo}
           </h2>
         </div>
@@ -597,7 +597,7 @@ function DialogCambioMetodo({ info, onAnnulla, onConferma }) {
           <div style={{ fontSize: 12, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
             Cosa cambia
           </div>
-          <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12.5, color: TXT, lineHeight: 1.55 }}>
+          <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: TXT, lineHeight: 1.55 }}>
             {cosaCambia.map((t, i) => <li key={i} style={{ marginBottom: 4 }}>{t}</li>)}
           </ul>
         </div>
@@ -605,7 +605,7 @@ function DialogCambioMetodo({ info, onAnnulla, onConferma }) {
         <div style={{
           padding: '12px 14px', background: '#FEF9EB',
           border: '1px solid #FDE68A', borderRadius: 10, marginBottom: 18,
-          fontSize: 12.5, color: '#78350F', lineHeight: 1.55,
+          fontSize: 12, color: '#78350F', lineHeight: 1.55,
         }}>
           <strong>Nessun dato verrà cancellato.</strong>&nbsp;
           Se hai dubbi prima di confermare,&nbsp;
@@ -619,7 +619,7 @@ function DialogCambioMetodo({ info, onAnnulla, onConferma }) {
             style={{
               padding: '11px 22px', minHeight: 44,
               background: '#FFFFFF', border: `1px solid ${BOR}`, borderRadius: 10,
-              fontSize: 13.5, fontWeight: 700, color: TXT, cursor: 'pointer',
+              fontSize: 13, fontWeight: 700, color: TXT, cursor: 'pointer',
             }}>
             Annulla
           </button>
@@ -627,7 +627,7 @@ function DialogCambioMetodo({ info, onAnnulla, onConferma }) {
             style={{
               padding: '11px 22px', minHeight: 44,
               background: R, border: 'none', borderRadius: 10,
-              fontSize: 13.5, fontWeight: 700, color: '#FFFFFF', cursor: 'pointer',
+              fontSize: 13, fontWeight: 700, color: '#FFFFFF', cursor: 'pointer',
             }}>
             Ho letto, confermo
           </button>

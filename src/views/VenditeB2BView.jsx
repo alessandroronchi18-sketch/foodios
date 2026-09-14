@@ -470,7 +470,7 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
                           position: 'sticky', left: 0, background: C.bgCard, zIndex: 1,
                         }} title={g.nome}>{g.nome}</td>
                         <td style={{ padding: '12px 14px', textAlign: 'right', color: C.textMid, ...TNUM }}>{g.n.toLocaleString('it-IT', { useGrouping: 'always' })}</td>
-                        <td style={{ padding: '12px 14px', textAlign: 'right', color: g.giorniDaUltimo > 30 ? C.amber : C.textSoft, ...TNUM, whiteSpace: 'nowrap' }}>
+                        <td style={{ ...TNUM, padding: '12px 14px', textAlign: 'right', color: g.giorniDaUltimo > 30 ? C.amber : C.textSoft, ...TNUM, whiteSpace: 'nowrap' }}>
                           {g.giorniDaUltimo != null ? `${g.giorniDaUltimo.toLocaleString('it-IT', { useGrouping: 'always' })} giorni fa` : '-'}
                         </td>
                         <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 700, color: C.text, ...TNUM, whiteSpace: 'nowrap' }}>{fmt(g.fatturato)}</td>
@@ -479,7 +479,7 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
                             ? <span style={{ color: C.textSoft }} title="Manca il costo dei prodotti venduti a questo cliente">-</span>
                             : <>{fmt(g.margine)} <span style={{ color: C.textSoft, fontSize: 12 }}>{fmtp0(g.margPct)}</span></>}
                         </td>
-                        <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 700, color: g.insoluto > 0 ? C.red : C.textSoft, ...TNUM, whiteSpace: 'nowrap' }}>
+                        <td style={{ ...TNUM, padding: '12px 14px', textAlign: 'right', fontWeight: 700, color: g.insoluto > 0 ? C.red : C.textSoft, ...TNUM, whiteSpace: 'nowrap' }}>
                           {g.insoluto > 0 ? fmt(g.insoluto) : '-'}
                         </td>
                       </tr>

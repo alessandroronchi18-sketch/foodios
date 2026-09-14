@@ -37,7 +37,7 @@ function renderBriefBullets(text) {
     <ul style={{ margin: 0, padding: '0 0 0 18px', listStyle: 'none' }}>
       {parts.map((p, i) => (
         <li key={i} style={{
-          position: 'relative', padding: '4px 0 4px 14px', fontSize: 14.5, lineHeight: 1.55,
+          position: 'relative', padding: '4px 0 4px 14px', fontSize: 14, lineHeight: 1.55,
         }}>
           <span style={{
             position: 'absolute', left: 0, top: 12, width: 5, height: 5, borderRadius: '50%',

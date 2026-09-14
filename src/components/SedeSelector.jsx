@@ -75,7 +75,7 @@ export default function SedeSelector({ sedi, sedeAttiva, onSelect, variant = 'si
         {iconBox(false)}
         <div style={{ minWidth: 0, flex: 1 }}>
           <div style={{ fontSize: 12, fontWeight: 600, color: P.label, textTransform: 'uppercase', letterSpacing: '0.06em', lineHeight: 1 }}>Sede</div>
-          <div style={{ fontSize: 12.5, color: P.txt, fontWeight: 600, marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: top ? 180 : 'none' }}>
+          <div style={{ fontSize: 12, color: P.txt, fontWeight: 600, marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: top ? 180 : 'none' }}>
             {sedeAttiva?.nome || sedi[0]?.nome || 'Sede'}
           </div>
         </div>
@@ -98,7 +98,7 @@ export default function SedeSelector({ sedi, sedeAttiva, onSelect, variant = 'si
           minHeight: top ? 40 : undefined,
           background: open ? P.bgOpen : hover ? P.bgHover : P.bg,
           border: `1px solid ${open ? P.borderOpen : P.border}`,
-          borderRadius: 10, color: P.txt, fontSize: 12.5, cursor: 'pointer',
+          borderRadius: 10, color: P.txt, fontSize: 12, cursor: 'pointer',
           display: 'flex', alignItems: 'center', gap: 9,
           transition: 'background 120ms ease, border-color 120ms ease', textAlign: 'left',
         }}
@@ -106,7 +106,7 @@ export default function SedeSelector({ sedi, sedeAttiva, onSelect, variant = 'si
         {iconBox(open)}
         <div style={{ minWidth: 0, flex: 1 }}>
           <div style={{ fontSize: 12, fontWeight: 600, color: P.label, textTransform: 'uppercase', letterSpacing: '0.06em', lineHeight: 1 }}>Sede attiva</div>
-          <div style={{ fontSize: 12.5, color: P.txt, fontWeight: 600, marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>
+          <div style={{ fontSize: 12, color: P.txt, fontWeight: 600, marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>
             {sedeCorrente?.nome || 'Seleziona sede'}
           </div>
         </div>
@@ -150,7 +150,7 @@ export default function SedeSelector({ sedi, sedeAttiva, onSelect, variant = 'si
                   background: active ? (top ? 'rgba(110,14,26,0.10)' : 'rgba(110,14,26,0.22)') : 'transparent',
                   border: 'none', borderLeft: active ? `2px solid ${BRAND}` : '2px solid transparent',
                   borderBottom: `1px solid ${top ? '#F0EAE6' : 'rgba(255,255,255,0.05)'}`,
-                  color: P.itemTxt, fontSize: 12.5, cursor: 'pointer', transition: 'background 100ms ease',
+                  color: P.itemTxt, fontSize: 12, cursor: 'pointer', transition: 'background 100ms ease',
                 }}
               >
                 <span className={active ? 'fos-sedesel-led' : undefined} style={{ width: 20, height: 20, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: active ? BRAND : (top ? '#EDE6E2' : 'rgba(255,255,255,0.08)'), flexShrink: 0, animation: active ? '_fos_sedesel_led 2.4s ease-in-out infinite' : undefined }}>
@@ -177,7 +177,7 @@ export default function SedeSelector({ sedi, sedeAttiva, onSelect, variant = 'si
                   display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '10px 12px', textAlign: 'left',
                   background: active ? (top ? 'rgba(110,14,26,0.10)' : 'rgba(110,14,26,0.22)') : 'transparent',
                   border: 'none', borderLeft: active ? `2px solid ${BRAND}` : '2px solid transparent',
-                  color: P.itemTxt, fontSize: 12.5, cursor: 'pointer', transition: 'background 100ms ease',
+                  color: P.itemTxt, fontSize: 12, cursor: 'pointer', transition: 'background 100ms ease',
                 }}
               >
                 <span className={active ? 'fos-sedesel-led' : undefined} style={{ width: 20, height: 20, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: active ? BRAND : (top ? '#EDE6E2' : 'rgba(255,255,255,0.08)'), flexShrink: 0, animation: active ? '_fos_sedesel_led 2.4s ease-in-out infinite' : undefined }}>

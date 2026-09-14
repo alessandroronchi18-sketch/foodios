@@ -1212,7 +1212,7 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
                         onChange={e => setReg(p => ({ ...p, accept_terms: e.target.checked }))}
                         style={{ marginTop: 3, flexShrink: 0, cursor: 'pointer', accentColor: T.red }}
                       />
-                      <span style={{ fontSize: 12.5, color: T.textMid, lineHeight: 1.55 }}>
+                      <span style={{ fontSize: 12, color: T.textMid, lineHeight: 1.55 }}>
                         Confermo di aver letto e di accettare i{' '}
                         <a href="/termini" target="_blank" rel="noreferrer" style={{ color: T.red, textDecoration: 'underline', fontWeight: 600 }}>Termini di servizio</a>
                         {' '}e la{' '}

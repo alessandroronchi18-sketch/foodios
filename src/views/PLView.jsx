@@ -1147,7 +1147,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
           per restare consistenti con il resto della dashboard. */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: T.textMid, fontWeight: 600 }}>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: T.textMid, fontWeight: 600 }}>
             Dal
             <input
               type="date"
@@ -1157,7 +1157,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
               style={{ padding: '8px 12px', borderRadius: R.md, border: `1px solid ${T.border}`, background: T.bgCard, fontSize: 13, color: T.text, fontWeight: 600, minHeight: 40, fontVariantNumeric: 'tabular-nums' }}
             />
           </label>
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: T.textMid, fontWeight: 600 }}>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: T.textMid, fontWeight: 600 }}>
             Al
             <input
               type="date"
@@ -1170,7 +1170,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
         </div>
         <div style={{ flex: 1 }} />
         <button onClick={() => setEditCosti(v => !v)}
-          style={{ padding: '8px 14px', borderRadius: R.md, border: `1px solid ${T.border}`, background: T.bgCard, fontSize: 12.5, fontWeight: 600, color: T.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          style={{ padding: '8px 14px', borderRadius: R.md, border: `1px solid ${T.border}`, background: T.bgCard, fontSize: 12, fontWeight: 600, color: T.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
           <Icon name="gear" size={14} /> Costi fissi & personale
         </button>
       </div>
@@ -1727,7 +1727,7 @@ function PLInventarioSection({ data, rangeLabel: rangeLbl, cardP, isMobile }) {
       {(data.senzaRicetta.length > 0 || data.senzaPrezzo.length > 0 || data.fcParziali.length > 0) && (
         <div style={{
           background: T.amberLight, border: `1px solid ${T.amber}55`, borderRadius: 10,
-          padding: 10, marginBottom: 14, fontSize: 12.5, color: '#78350F', lineHeight: 1.55,
+          padding: 10, marginBottom: 14, fontSize: 12, color: '#78350F', lineHeight: 1.55,
         }}>
           {data.senzaRicetta.length > 0 && (
             <div>
@@ -1753,7 +1753,7 @@ function PLInventarioSection({ data, rangeLabel: rangeLbl, cardP, isMobile }) {
       )}
       {/* Tabella per gusto */}
       <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 800, fontSize: 12.5 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 800, fontSize: 12 }}>
           <thead>
             <tr style={{ background: '#F8FAFC' }}>
               <TH style={{ position: 'sticky', left: 0, background: '#F8FAFC', minWidth: 180 }}>Gusto</TH>
@@ -1875,7 +1875,7 @@ function CostiNettoBanda({ costiAziendali, margineLordoPeriodo, giorniPeriodo = 
         />
       </div>
       {!haMargine && (
-        <div style={{ marginTop: 12, padding: '10px 14px', background: T.blueLight, border: `1px solid ${T.blue}40`, borderRadius: 10, fontSize: 12.5, color: T.blue, lineHeight: 1.5 }}>
+        <div style={{ marginTop: 12, padding: '10px 14px', background: T.blueLight, border: `1px solid ${T.blue}40`, borderRadius: 10, fontSize: 12, color: T.blue, lineHeight: 1.5 }}>
           Nel periodo scelto non ci sono chiusure di cassa, quindi non c'è un margine
           lordo da cui togliere i costi. Qui sopra vedi solo quanto ti costano al mese e
           all'anno: il margine netto compare appena registri le prime giornate.

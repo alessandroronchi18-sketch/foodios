@@ -155,7 +155,7 @@ function BandaDiagnosi({ orgId, sedeId, refreshKey, isMobile, isTablet, onVaiTab
         </span>
         <div style={{ flex:1, minWidth:200 }}>
           <div style={{ fontSize: 12, fontWeight:700, letterSpacing: '0.05em', textTransform:'uppercase', color:T.textSoft }}>Come stai messo</div>
-          <div style={{ fontSize:19, fontWeight:800, color:sem.c, letterSpacing:'-0.02em', marginTop:2 }}>{sem.lbl}</div>
+          <div style={{ fontSize: 18, fontWeight:800, color:sem.c, letterSpacing:'-0.02em', marginTop:2 }}>{sem.lbl}</div>
           <div style={{ fontSize:13, color:T.textMid, marginTop:3, lineHeight:1.45 }}>{sem.msg}</div>
         </div>
         {/* Semaforo grafico verde/ambra/rosso */}
@@ -724,7 +724,7 @@ function AllergeniTab({ ricettario, isMobile }) {
                   if (totale === 0) return null // riga vuota: omessa per compattezza
                   return (
                     <tr key={a.id}>
-                      <td style={{
+                      <td style={{ textAlign: 'right', ...TNUM,
                         padding:'4px 8px', color:T.text, fontWeight:600, fontSize: 12,
                         background:T.bgCard, borderBottom:`1px solid ${T.borderSoft}`,
                         position:'sticky', left:0, zIndex:1, whiteSpace:'nowrap',

@@ -288,7 +288,7 @@ export default function AnalisiInventarioSection({
               style={{
                 padding: '8px 14px', minHeight: 36, background: '#FFF',
                 color: T.text, border: `1px solid ${T.border}`, borderRadius: 8,
-                fontSize: 12.5, fontWeight: 600, cursor: 'pointer',
+                fontSize: 12, fontWeight: 600, cursor: 'pointer',
                 display: 'inline-flex', alignItems: 'center', gap: 6,
               }}>
               <Icon name="chevD" size={12} /> Torna alla Produzione
@@ -298,7 +298,7 @@ export default function AnalisiInventarioSection({
             style={{
               padding: '8px 14px', minHeight: 36, background: '#FFF',
               color: T.brand, border: `1px solid ${T.brand}55`, borderRadius: 8,
-              fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
+              fontSize: 12, fontWeight: 700, cursor: 'pointer',
               display: 'inline-flex', alignItems: 'center', gap: 6,
             }}>
             <Icon name="download" size={13} /> Esporta Excel
@@ -366,11 +366,11 @@ export default function AnalisiInventarioSection({
             {top10.map((r, i) => (
               <div key={r.gusto} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{ width: 20, fontSize: 12, color: T.textSoft, fontWeight: 700, textAlign: 'right' }}>{i + 1}</div>
-                <div style={{ minWidth: isMobile ? 90 : 160, fontSize: 12.5, color: T.text, fontWeight: 700 }}>{r.gusto}</div>
+                <div style={{ minWidth: isMobile ? 90 : 160, fontSize: 12, color: T.text, fontWeight: 700 }}>{r.gusto}</div>
                 <div style={{ flex: 1, height: 12, background: '#F1F5F9', borderRadius: 6, overflow: 'hidden' }}>
                   <div style={{ width: `${(r.vendKg / top10Max) * 100}%`, height: '100%', background: T.brand, borderRadius: 6 }}/>
                 </div>
-                <div style={{ minWidth: 90, textAlign: 'right', fontSize: 12.5, color: T.text, fontWeight: 700, ...TNUM }}>{kg(r.vendKg)} kg</div>
+                <div style={{ minWidth: 90, textAlign: 'right', fontSize: 12, color: T.text, fontWeight: 700, ...TNUM }}>{kg(r.vendKg)} kg</div>
               </div>
             ))}
           </div>
@@ -383,7 +383,7 @@ export default function AnalisiInventarioSection({
           Dettaglio per gusto (clicca sulle intestazioni per ordinare)
         </div>
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 720, fontSize: 12.5 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 720, fontSize: 12 }}>
             <thead>
               <tr style={{ background: '#F8FAFC' }}>
                 <ThSort label="Gusto" col="gusto" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} left/>

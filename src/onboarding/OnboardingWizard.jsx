@@ -78,7 +78,7 @@ const BTN_PRIMARY = {
   padding: '14px 30px',
   background: `linear-gradient(135deg, ${BRAND} 0%, ${BRAND_DARK} 100%)`,
   color: '#FFF', border: 'none', borderRadius: 11,
-  fontSize: 14.5, fontWeight: 600, letterSpacing: '-0.005em',
+  fontSize: 14, fontWeight: 600, letterSpacing: '-0.005em',
   cursor: 'pointer', textDecoration: 'none',
   boxShadow: `0 6px 18px rgba(110,14,26,0.30)`,
   transition: 'transform 0.12s cubic-bezier(0.32,0.72,0,1), box-shadow 0.18s',
@@ -346,14 +346,14 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
               color: '#FFF', boxShadow: '0 14px 36px rgba(110,14,26,0.36)',
               marginBottom: 28,
             }}>
-              <span style={{ fontSize: 34, fontWeight: 800, letterSpacing: '-1.5px' }}>F</span>
+              <span style={{ fontSize: 32, fontWeight: 800, letterSpacing: '-1.5px' }}>F</span>
             </div>
             <h1 id="onboard-h1" style={{ fontSize: 32, fontWeight: 700, color: '#0E1726',
               margin: '0 0 14px', letterSpacing: '-0.03em', lineHeight: 1.1 }}>
               Benvenuto{nomeAttivita ? ', ' : ''}<br/>
               <span style={{ color: BRAND }}>{nomeAttivita || 'la tua attività'}</span>
             </h1>
-            <p style={{ color: '#475264', fontSize: 17, lineHeight: 1.7,
+            <p style={{ color: '#475264', fontSize: 16, lineHeight: 1.7,
               marginBottom: 24, letterSpacing: '-0.005em', textAlign: 'center' }}>
               In <strong style={{ color: '#0E1726', fontWeight: 600 }}>2 minuti</strong> sei operativo.<br/>
               Hai <strong style={{ color: '#0E1726', fontWeight: 600 }}>3 mesi gratuiti</strong> per esplorare.
@@ -373,7 +373,7 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
                 ['package',  'Magazzino e sprechi'],
               ].map(([ico, txt]) => (
                 <div key={txt} style={{ display: 'flex', alignItems: 'center', gap: 8,
-                  fontSize: 12.5, color: '#475264', fontWeight: 500, justifyContent: 'flex-start',
+                  fontSize: 12, color: '#475264', fontWeight: 500, justifyContent: 'flex-start',
                   minWidth: 0 }}>
                   <Icon name={ico} size={16} color={BRAND} />
                   <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{txt}</span>

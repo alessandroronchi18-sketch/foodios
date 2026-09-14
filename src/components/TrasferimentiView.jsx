@@ -622,7 +622,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
                   padding: '6px 6px 6px 14px',
                 }}>
                   <button onClick={() => applicaTemplate(t)}
-                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, fontSize: 12.5, color: '#0E1726', fontWeight: 700 }}>
+                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, fontSize: 12, color: '#0E1726', fontWeight: 700 }}>
                     {t.nome} <span style={{ fontWeight: 500, color: C.textSoft, fontSize: typo.small.fontSize }}>· {sda?.nome || '?'} → {sa?.nome || '?'}</span>
                   </button>
                   <button onClick={() => eliminaTemplate(t.id)} title="Elimina template"
@@ -647,7 +647,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
               <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: '#fff', borderRadius: 8, border: `1px solid ${C.amber}`, flexWrap: 'wrap' }}>
                 <Icon name="package" size={16} color={C.amber} />
                 <div style={{ flex: 1, minWidth: 180 }}>
-                  <div style={{ fontSize: 12.5, fontWeight: 800, color: C.text }}>{t.prodotto} · {fmtQty(t.quantita, t.unita)}</div>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: C.text }}>{t.prodotto} · {fmtQty(t.quantita, t.unita)}</div>
                   <div style={{ fontSize: typo.small.fontSize, color: C.textSoft }}>In arrivo da <strong>{sediMap[t.sede_da]?.nome || '-'}</strong> · {fmtData(t.data)}</div>
                 </div>
                 <button onClick={() => apriRicevi(t)} disabled={busyId === t.id}
@@ -660,7 +660,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
               <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: '#fff', borderRadius: 8, border: `1px solid ${C.border}`, flexWrap: 'wrap' }}>
                 <Icon name="save" size={15} color={C.textSoft} />
                 <div style={{ flex: 1, minWidth: 180 }}>
-                  <div style={{ fontSize: 12.5, fontWeight: 800, color: C.text }}>{t.prodotto} · {fmtQty(t.quantita, t.unita)}</div>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: C.text }}>{t.prodotto} · {fmtQty(t.quantita, t.unita)}</div>
                   <div style={{ fontSize: typo.small.fontSize, color: C.textSoft }}>Bozza verso <strong>{sediMap[t.sede_a]?.nome || '-'}</strong> · pronta da inviare</div>
                 </div>
                 <button onClick={() => azInvia(t)} disabled={busyId === t.id}
@@ -874,7 +874,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
               const topProd = Object.entries(f.prodotti).sort((x, y) => y[1] - x[1]).slice(0, 2)
               return (
                 <div key={i} style={{ padding: '10px 12px', background: '#F8FAFC', borderRadius: 8, border: `1px solid ${C.border}` }}>
-                  <div style={{ fontSize: 12.5, fontWeight: 700, color: C.text, marginBottom: 4 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: C.text, marginBottom: 4 }}>
                     {da} <span style={{ color: C.textSoft }}>→</span> {a}
                   </div>
                   <div style={{ fontSize: typo.small.fontSize, color: C.textMid, ...tnum }}>

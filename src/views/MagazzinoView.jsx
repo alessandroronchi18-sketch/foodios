@@ -58,7 +58,7 @@ const SHADOW_PREMIUM = '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42
 function SectHead({ icon, title, sub, right }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-      <span style={{ width: 36, height: 36, borderRadius: 11, background: 'rgba(110,14,26,0.10)', color: T.brand, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 17, flexShrink: 0 }}>{icon}</span>
+      <span style={{ width: 36, height: 36, borderRadius: 11, background: 'rgba(110,14,26,0.10)', color: T.brand, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>{icon}</span>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 15, fontWeight: 700, color: T.text, letterSpacing: '-0.01em' }}>{title}</div>
         {sub && <div style={{ fontSize: 12, color: T.textSoft, marginTop: 1 }}>{sub}</div>}
@@ -1643,7 +1643,7 @@ export default function MagazzinoView({
                 <Icon name={sem.ic} size={16} />
               </span>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13.5, fontWeight: 800, color: sem.col, letterSpacing: '-0.01em' }}>{sem.lbl}</div>
+                <div style={{ fontSize: 13, fontWeight: 800, color: sem.col, letterSpacing: '-0.01em' }}>{sem.lbl}</div>
                 <div style={{ fontSize: 12, color: T.textMid, marginTop: 1 }}>{msg}</div>
               </div>
             </div>
@@ -2450,7 +2450,7 @@ export default function MagazzinoView({
                           - `textTransform: capitalize` rompe le maiuscole vere:
                             "FARINA 00" diventava "Farina 00" e "IGP" diventava
                             "Igp". Il nome si mostra come l'utente l'ha scritto. */}
-                      <td style={{ padding: '10px 14px', color: C.textMid, whiteSpace: 'nowrap' }}>{new Date(r.data).toLocaleString('it-IT', { useGrouping: 'always', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
+                      <td style={{ textAlign: 'right', ...TNUM, padding: '10px 14px', color: C.textMid, whiteSpace: 'nowrap' }}>{new Date(r.data).toLocaleString('it-IT', { useGrouping: 'always', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
                       <td style={{ padding: '10px 14px', fontWeight: 600, color: C.text }}>
                         {r.ingrediente}
                         {/* Chi l'ha registrato: su un magazzino che tocca più di

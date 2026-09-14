@@ -664,7 +664,7 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
           <SH sub="Ordina per costo, peso o numero di utilizzi.">Riepilogo</SH>
           <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 16, overflow: 'hidden', boxShadow: SHADOW_PREMIUM, marginBottom: 28 }}>
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                 <thead>
                   <tr>
                     <SortTH k="nome" active={sortKey === 'nome'} dir={sortDir} onToggle={toggleSort}>Semilavorato</SortTH>

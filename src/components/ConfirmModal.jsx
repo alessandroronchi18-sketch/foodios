@@ -126,7 +126,7 @@ function Overlay({ title, message, confirmLabel, cancelLabel, destructive, onCon
           </div>
         </div>
         {message && (
-          <div style={{ padding: '16px 20px', fontSize: 13.5, color: '#1F2937', lineHeight: 1.55 }}>
+          <div style={{ padding: '16px 20px', fontSize: 13, color: '#1F2937', lineHeight: 1.55 }}>
             {message}
           </div>
         )}

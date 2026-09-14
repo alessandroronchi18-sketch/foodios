@@ -193,7 +193,7 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
                       borderRadius: 8, border: 'none', cursor: 'pointer',
                       background: active ? '#FFFFFF' : 'transparent',
                       color: active ? T.brand : C.textMid,
-                      fontSize: 12.5, fontWeight: active ? 800 : 600,
+                      fontSize: 12, fontWeight: active ? 800 : 600,
                       letterSpacing: '0.01em',
                       boxShadow: active ? '0 1px 3px rgba(15,23,42,0.10), 0 0 0 1px rgba(110,14,26,0.08)' : 'none',
                       transition: 'background 140ms ease, color 140ms ease',

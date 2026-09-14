@@ -198,7 +198,7 @@ export default function HomeDipendente({
 
             <div>
               <div style={{
-                fontSize: 19, fontWeight: 800,
+                fontSize: 18, fontWeight: 800,
                 letterSpacing: '-0.01em',
                 lineHeight: 1.15,
                 whiteSpace: 'pre-line',
@@ -237,7 +237,7 @@ export default function HomeDipendente({
           }}>
             <Icon name="phone" size={18} />
           </div>
-          <div style={{ flex: 1, fontSize: 12.5, color: SOFT, lineHeight: 1.5 }}>
+          <div style={{ flex: 1, fontSize: 12, color: SOFT, lineHeight: 1.5 }}>
             <strong style={{ color: TXT }}>Suggerimento</strong>: aggiungi Foodos alla schermata Home per accedere come app
             <span style={{ fontStyle: 'italic' }}> (tocca il menu del browser e scegli "Aggiungi a Home")</span>.
           </div>

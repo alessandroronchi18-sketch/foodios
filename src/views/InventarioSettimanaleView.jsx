@@ -736,7 +736,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
           padding: '12px 14px', background: '#EFF6FF',
           border: '1px solid #BFDBFE', borderRadius: 10, marginBottom: 12,
         }}>
-          <div style={{ fontSize: 12.5, color: '#1E3A8A', lineHeight: 1.5, marginBottom: 10 }}>
+          <div style={{ fontSize: 12, color: '#1E3A8A', lineHeight: 1.5, marginBottom: 10 }}>
             <Icon name="store" size={13} style={{ marginRight: 6, verticalAlign: 'middle' }}/><strong>Vista aggregata</strong> - Somma delle sedi selezionate qui sotto.
             Compilazione e import disabilitati: per modificare i dati, seleziona una sede
             specifica dal selettore in alto.
@@ -762,7 +762,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
                     border: `1px solid ${sel ? '#1D4ED8' : '#BFDBFE'}`,
                     background: sel ? '#1D4ED8' : '#FFFFFF',
                     color: sel ? '#FFFFFF' : '#1E3A8A',
-                    borderRadius: 20, fontSize: 12.5, fontWeight: 600,
+                    borderRadius: 20, fontSize: 12, fontWeight: 600,
                     cursor: 'pointer',
                     display: 'inline-flex', alignItems: 'center', gap: 4,
                   }}>
@@ -791,7 +791,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
             return (
               <button key={k} onClick={() => setVista(k)}
                 style={{
-                  padding: isTablet ? '10px 18px' : '8px 16px', minHeight: isTablet ? 44 : 40, fontSize: 12.5, fontWeight: 700,
+                  padding: isTablet ? '10px 18px' : '8px 16px', minHeight: isTablet ? 44 : 40, fontSize: 12, fontWeight: 700,
                   border: 'none', borderRadius: 8, cursor: 'pointer',
                   background: sel ? C.bgCard : 'transparent',
                   color: sel ? C.text : C.textMid,
@@ -807,7 +807,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
             padding: '8px 16px', minHeight: 40,
             background: isAllSedi ? '#94A3B8' : T.brand,
             color: '#FFFFFF', border: 'none', borderRadius: 8,
-            fontSize: 12.5, fontWeight: 700,
+            fontSize: 12, fontWeight: 700,
             cursor: isAllSedi ? 'not-allowed' : 'pointer',
             display: 'inline-flex', alignItems: 'center', gap: 6,
             opacity: isAllSedi ? 0.6 : 1,
@@ -829,7 +829,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
               padding: '8px 16px', minHeight: 40,
               background: '#FFFFFF', color: T.brand,
               border: `1px solid ${T.brand}`, borderRadius: 8,
-              fontSize: 12.5, fontWeight: 700,
+              fontSize: 12, fontWeight: 700,
               cursor: Object.keys(saving).length > 0 ? 'wait' : 'pointer',
               display: 'inline-flex', alignItems: 'center', gap: 6,
               opacity: Object.keys(saving).length > 0 ? 0.6 : 1,
@@ -845,7 +845,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
               padding: '8px 16px', minHeight: 40,
               background: '#FFFFFF', color: T.brand,
               border: `1px solid ${T.brand}`, borderRadius: 8,
-              fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
+              fontSize: 12, fontWeight: 700, cursor: 'pointer',
               display: 'inline-flex', alignItems: 'center', gap: 6,
             }}>
             <Icon name="truck" size={14} color={T.brand} />
@@ -874,7 +874,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
                 color: soloCompilati ? '#FFFFFF' : C.textMid,
                 border: `1px solid ${soloCompilati ? T.brand : C.border}`,
                 borderRadius: 8,
-                fontSize: 12.5, fontWeight: 700,
+                fontSize: 12, fontWeight: 700,
                 cursor: attivabile ? 'pointer' : 'not-allowed',
                 opacity: attivabile ? 1 : 0.5,
                 display: 'inline-flex', alignItems: 'center', gap: 8,
@@ -899,7 +899,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
             padding: '8px 12px', minHeight: 40, marginLeft: 'auto',
             background: '#F8FAFC', color: C.textMid,
             border: `1px solid ${C.border}`, borderRadius: 8,
-            fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
+            fontSize: 12, fontWeight: 700, cursor: 'pointer',
             display: 'inline-flex', alignItems: 'center', gap: 4,
           }}>
           <span style={{ color: unitaDisplay === 'g' ? T.brand : C.textSoft }}>g</span>
@@ -1033,14 +1033,14 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
           borderRadius: 10, padding: 12, marginBottom: 12,
           display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap',
         }}>
-          <div style={{ fontSize: 12.5, color: '#1E3A8A', flex: 1, lineHeight: 1.45 }}>
+          <div style={{ fontSize: 12, color: '#1E3A8A', flex: 1, lineHeight: 1.45 }}>
             Sul cellulare la tabella settimanale scorre in orizzontale. Per compilare in fretta usa <b>Oggi</b>.
           </div>
           <button onClick={() => setVista('oggi')}
             style={{
               padding: '10px 16px', minHeight: 40,
               background: '#1D4ED8', color: '#FFFFFF',
-              border: 'none', borderRadius: 8, fontSize: 12.5, fontWeight: 700,
+              border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700,
               cursor: 'pointer',
             }}>
             Vai a Oggi
@@ -1064,7 +1064,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
             style={{
               padding: '8px 14px', minHeight: 36,
               background: T.brand, color: '#FFFFFF',
-              border: 'none', borderRadius: 8, fontSize: 12.5, fontWeight: 700,
+              border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700,
               cursor: 'pointer',
             }}>
             Mostra tutti i gusti
@@ -1256,7 +1256,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
                       <React.Fragment key={dIso}>
                         <td style={{
                           padding: '10px 6px', textAlign: 'center',
-                          fontSize: 12.5, fontWeight: 800, color: '#0369A1',
+                          fontSize: 12, fontWeight: 800, color: '#0369A1',
                           background: '#F1F5F9',
                           borderLeft: `1px solid ${C.border}`,
                           fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'",
@@ -1266,7 +1266,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
                         </td>
                         <td style={{
                           padding: '10px 6px', textAlign: 'center',
-                          fontSize: 12.5, fontWeight: 800, color: '#B45309',
+                          fontSize: 12, fontWeight: 800, color: '#B45309',
                           background: '#F1F5F9',
                           fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'",
                           whiteSpace: 'nowrap',
@@ -1427,9 +1427,9 @@ function DialogSpedizione({ state, setState, gusti, sedi, sedeOrigineId, righeOg
       <div style={{ background: '#FFFFFF', borderRadius: 16, maxWidth: 460, width: '100%', padding: '24px 26px', boxShadow: '0 20px 60px rgba(15,23,42,0.30)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
           <Icon name="truck" size={20} color={T.brand} />
-          <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: C.text }}>Spedisci kg a un'altra sede</h2>
+          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: C.text }}>Spedisci kg a un'altra sede</h2>
         </div>
-        <p style={{ margin: '0 0 16px', fontSize: 12.5, color: C.textSoft, lineHeight: 1.5 }}>
+        <p style={{ margin: '0 0 16px', fontSize: 12, color: C.textSoft, lineHeight: 1.5 }}>
           I chili spediti vengono sottratti dalla disponibilità di oggi della sede attuale
           (colonna interna &quot;spedito&quot;, non scarto). La sede destinataria li riceve come
           rimanenza (se in metodo inventario) o come stock vetrina (se in metodo stampi).
@@ -1655,14 +1655,14 @@ function OnboardingInventario({ onClose }) {
           <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: C.text, letterSpacing: '-0.01em', marginBottom: 10 }}>
             {s.titolo}
           </h2>
-          <p style={{ margin: 0, fontSize: 13.5, color: C.textMid, lineHeight: 1.55 }}>
+          <p style={{ margin: 0, fontSize: 13, color: C.textMid, lineHeight: 1.55 }}>
             {s.testo}
           </p>
         </div>
 
         <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between', alignItems: 'center', marginTop: 22 }}>
           <button onClick={onClose}
-            style={{ padding: '10px 14px', minHeight: 40, background: 'transparent', border: 'none', color: C.textSoft, fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>
+            style={{ padding: '10px 14px', minHeight: 40, background: 'transparent', border: 'none', color: C.textSoft, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
             Salta
           </button>
           <div style={{ display: 'flex', gap: 8 }}>
@@ -1907,7 +1907,7 @@ function VistaMese({ gusti, righeMese, lunediIso, unita = 'g', onClickGusto }) {
                     <NomeGustoConFlag nome={nome} orfano={orfano} onClick={onClickGusto} />
                   </td>
                   {r.per_sett.map((v, i) => (
-                    <td key={i} style={{ padding: '8px 12px', textAlign: 'right', ...TNUM, color: v > 0 ? C.text : C.textSoft, fontSize: 12.5 }}>
+                    <td key={i} style={{ padding: '8px 12px', textAlign: 'right', ...TNUM, color: v > 0 ? C.text : C.textSoft, fontSize: 12 }}>
                       {fmtVal(v)}
                     </td>
                   ))}
@@ -2074,7 +2074,7 @@ function VistaStorico({ gusti, perMese, inizio, unita = 'g', onClickGusto, onOpe
               style={{
                 padding: '8px 14px', minHeight: 36,
                 background: T.brand, color: '#FFFFFF', border: 'none', borderRadius: 8,
-                fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
+                fontSize: 12, fontWeight: 700, cursor: 'pointer',
                 display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'inherit',
               }}>
               <Icon name="barChart" size={13} color="#FFFFFF"/>
@@ -2086,7 +2086,7 @@ function VistaStorico({ gusti, perMese, inizio, unita = 'g', onClickGusto, onOpe
             style={{
               padding: '8px 14px', minHeight: 36,
               background: '#FFFFFF', color: T.brand, border: `1px solid ${T.brand}55`, borderRadius: 8,
-              fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
+              fontSize: 12, fontWeight: 700, cursor: 'pointer',
               display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'inherit',
             }}>
             <Icon name="download" size={13} color={T.brand}/>
@@ -2319,7 +2319,7 @@ function DrilldownGustoModal({ gusto, orgId, sedeId, isAllSedi, sediProdIds, uni
             {noteRicettario && (
               <div style={{
                 background: '#F8FAFC', border: `1px solid ${C.border}`,
-                borderRadius: 10, padding: 12, marginBottom: 8, fontSize: 12.5, color: C.text, lineHeight: 1.5,
+                borderRadius: 10, padding: 12, marginBottom: 8, fontSize: 12, color: C.text, lineHeight: 1.5,
               }}>
                 <div style={{ fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Note dal ricettario</div>
                 {noteRicettario}

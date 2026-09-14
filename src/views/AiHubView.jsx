@@ -464,7 +464,7 @@ function FeatureCard({ f, accent, idx, total, onClick, dark = false, locked = fa
 
       {/* Title */}
       <h3 style={{
-        margin: 0, fontSize: 17, fontWeight: 800,
+        margin: 0, fontSize: 16, fontWeight: 800,
         color: dark ? '#FFF' : TXT,
         letterSpacing: '-0.018em',
         lineHeight: 1.25,

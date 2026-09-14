@@ -252,7 +252,7 @@ export default function AbbonamentoPanel({ org, notify, isInline = false }) {
 
               {/* Prezzo */}
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 16 }}>
-                <span style={{ fontSize: 30, fontWeight: 900, color: T.text, letterSpacing: '-0.02em', lineHeight: 1 }}>{p.prezzo}</span>
+                <span style={{ fontSize: 28, fontWeight: 900, color: T.text, letterSpacing: '-0.02em', lineHeight: 1 }}>{p.prezzo}</span>
                 <span style={{ fontSize: 13, color: T.textSoft }}>{p.periodo}</span>
               </div>
 

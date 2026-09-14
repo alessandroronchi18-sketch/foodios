@@ -137,7 +137,7 @@ export default function UpgradeModal({
             </div>
 
             <h2 style={{
-              margin: '14px 0 6px', fontSize: 19, fontWeight: 800,
+              margin: '14px 0 6px', fontSize: 18, fontWeight: 800,
               letterSpacing: '-0.02em', lineHeight: 1.25,
               overflowWrap: 'break-word', hyphens: 'auto',
             }}>
@@ -187,7 +187,7 @@ export default function UpgradeModal({
             </div>
           </div>
 
-          <div style={{ fontSize: 12.5, color: MID, lineHeight: 1.6, marginBottom: 18 }}>
+          <div style={{ fontSize: 12, color: MID, lineHeight: 1.6, marginBottom: 18 }}>
             Con il piano <strong style={{ color: TXT }}>{tier.label}</strong> sblocchi questa funzione e tutte le altre marcate con
             <span style={{ display: 'inline-block', verticalAlign: 'middle', margin: '0 4px' }}><ChainBadge size={11}/></span>
             nella tua dashboard.

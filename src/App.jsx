@@ -307,7 +307,7 @@ export default function App() {
     return (
       <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'#FAF7F5', padding:24 }}>
         <div style={{ maxWidth:480, width:'100%', background:'#FFF', border:'1px solid #E8DDD8', borderRadius:16, padding:'36px 32px', textAlign:'center', boxShadow:'0 10px 28px rgba(15,23,42,0.06)' }}>
-          <div style={{ fontSize:30, marginBottom:14 }}>⏳</div>
+          <div style={{ fontSize: 28, marginBottom:14 }}>⏳</div>
           <div style={{ fontSize:20, fontWeight:800, color:'#3F2D29', marginBottom:12 }}>
             Stiamo verificando il tuo account
           </div>

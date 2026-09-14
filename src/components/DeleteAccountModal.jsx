@@ -212,19 +212,19 @@ export default function DeleteAccountModal({ open, onClose, auth, notify }) {
                 <div style={{ fontSize: 14, fontWeight: 700, color: '#075985', marginBottom: 8, letterSpacing: '-0.01em' }}>
                   {alt.titolo}
                 </div>
-                <div style={{ fontSize: 13.5, color: '#0C4A6E', lineHeight: 1.55 }}>
+                <div style={{ fontSize: 13, color: '#0C4A6E', lineHeight: 1.55 }}>
                   {alt.body}
                 </div>
               </div>
               <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 8 }}>
                 <button onClick={alt.mail ? vaiAlternativaMailto : vaiEsportaDati}
                   style={{ flex: 1, padding: '11px 16px', borderRadius: R.md, border: 'none',
-                    background: T.brand, color: '#FFF', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>
+                    background: T.brand, color: '#FFF', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
                   {alt.cta}
                 </button>
                 <button onClick={() => setStep(3)}
                   style={{ flex: 1, padding: '11px 16px', borderRadius: R.md, border: `1px solid ${T.border}`,
-                    background: '#FFF', color: T.textSoft, fontSize: 13.5, fontWeight: 600, cursor: 'pointer' }}>
+                    background: '#FFF', color: T.textSoft, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                   Continua a cancellare
                 </button>
               </div>
@@ -259,7 +259,7 @@ export default function DeleteAccountModal({ open, onClose, auth, notify }) {
                   <Icon name="alertCircle" size={16} color="#991B1B"/>
                   Stai per cancellare l'account
                 </div>
-                <ul style={{ margin: 0, padding: '0 0 0 18px', fontSize: 12.5, color: '#7F1D1D', lineHeight: 1.6 }}>
+                <ul style={{ margin: 0, padding: '0 0 0 18px', fontSize: 12, color: '#7F1D1D', lineHeight: 1.6 }}>
                   <li>Verrai disconnesso immediatamente</li>
                   <li>I tuoi collaboratori non potranno più accedere</li>
                   <li>I dati restano archiviati per 90 giorni: entro questo periodo possiamo riattivare l'account su tua richiesta</li>
@@ -288,13 +288,13 @@ export default function DeleteAccountModal({ open, onClose, auth, notify }) {
           {step > 1 ? (
             <button onClick={() => setStep(s => Math.max(1, s - 1))} disabled={submitting}
               style={{ padding: '10px 16px', minHeight: isMobile ? 44 : 40, borderRadius: R.md, border: `1px solid ${T.border}`,
-                background: '#FFF', color: T.textSoft, fontSize: 13.5, fontWeight: 600, cursor: 'pointer' }}>
+                background: '#FFF', color: T.textSoft, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
               ← Indietro
             </button>
           ) : (
             <button onClick={chiudi} disabled={submitting}
               style={{ padding: '10px 16px', minHeight: isMobile ? 44 : 40, borderRadius: R.md, border: `1px solid ${T.border}`,
-                background: '#FFF', color: T.textSoft, fontSize: 13.5, fontWeight: 600, cursor: 'pointer' }}>
+                background: '#FFF', color: T.textSoft, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
               Annulla
             </button>
           )}
@@ -303,14 +303,14 @@ export default function DeleteAccountModal({ open, onClose, auth, notify }) {
             <button onClick={() => setStep(2)} disabled={!motivo}
               style={{ padding: '10px 18px', borderRadius: R.md, border: 'none',
                 background: motivo ? T.text : '#CBD5E1', color: '#FFF',
-                fontSize: 13.5, fontWeight: 700, cursor: motivo ? 'pointer' : 'not-allowed' }}>
+                fontSize: 13, fontWeight: 700, cursor: motivo ? 'pointer' : 'not-allowed' }}>
               Avanti →
             </button>
           )}
           {step === 3 && (
             <button onClick={() => setStep(4)}
               style={{ padding: '10px 18px', borderRadius: R.md, border: 'none',
-                background: T.text, color: '#FFF', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>
+                background: T.text, color: '#FFF', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
               Avanti →
             </button>
           )}
@@ -319,7 +319,7 @@ export default function DeleteAccountModal({ open, onClose, auth, notify }) {
               disabled={!confermaOk || submitting}
               style={{ padding: '10px 18px', borderRadius: R.md, border: 'none',
                 background: confermaOk && !submitting ? '#B91C1C' : '#FCA5A5', color: '#FFF',
-                fontSize: 13.5, fontWeight: 700, cursor: confermaOk && !submitting ? 'pointer' : 'not-allowed' }}>
+                fontSize: 13, fontWeight: 700, cursor: confermaOk && !submitting ? 'pointer' : 'not-allowed' }}>
               {submitting ? 'Cancellazione…' : 'Cancella definitivamente'}
             </button>
           )}

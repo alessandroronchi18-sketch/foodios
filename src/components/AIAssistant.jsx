@@ -16,7 +16,7 @@ function renderRich(text) {
     if (t === '') return <div key={idx} style={{ height: 6 }} />
     if (/^---+$/.test(t)) return <div key={idx} style={{ borderTop: '1px solid rgba(0,0,0,0.10)', margin: '8px 0' }} />
     const h = t.match(/^(#{1,4})\s+(.*)$/)
-    if (h) return <div key={idx} style={{ fontWeight: 800, fontSize: 13.5, margin: '6px 0 2px' }}>{inlineMd(h[2])}</div>
+    if (h) return <div key={idx} style={{ fontWeight: 800, fontSize: 13, margin: '6px 0 2px' }}>{inlineMd(h[2])}</div>
     const b = t.match(/^[-*•]\s+(.*)$/)
     if (b) return (
       <div key={idx} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', margin: '1px 0' }}>

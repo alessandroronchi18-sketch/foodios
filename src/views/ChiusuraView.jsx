@@ -1394,9 +1394,9 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
                         ) : '-'}
                       </td>
                       <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 700, color: C.green, fontVariantNumeric: 'tabular-nums' }}>{fmt(r.rv)}</td>
-                      {!isDipendente && <td style={{ padding: '9px 12px', textAlign: 'right', color: C.red }}>{fmt(r.fcV)}</td>}
+                      {!isDipendente && <td style={{ fontVariantNumeric: 'tabular-nums', padding: '9px 12px', textAlign: 'right', color: C.red }}>{fmt(r.fcV)}</td>}
                       {!isDipendente && <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 800, color: margColor(r.rv > 0 ? (r.marg / r.rv * 100) : 0), fontVariantNumeric: 'tabular-nums' }}>{fmt(r.marg)}</td>}
-                      {!isDipendente && <td style={{ padding: '9px 12px', textAlign: 'right', color: r.spreco > 2 ? C.red : C.textSoft, fontWeight: r.spreco > 2 ? 700 : 400 }}>{r.spreco > 0.01 ? fmt(r.spreco) : '-'}</td>}
+                      {!isDipendente && <td style={{ fontVariantNumeric: 'tabular-nums', padding: '9px 12px', textAlign: 'right', color: r.spreco > 2 ? C.red : C.textSoft, fontWeight: r.spreco > 2 ? 700 : 400 }}>{r.spreco > 0.01 ? fmt(r.spreco) : '-'}</td>}
                     </tr>
                   ))}
                 </tbody>
@@ -1404,9 +1404,9 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
                   <tr style={{ background: '#F0EAE6', borderTop: `2px solid ${C.borderStr}` }}>
                     <td colSpan={5} style={{ padding: '9px 12px', fontWeight: 900, color: C.text, fontSize: FS.small }}>TOTALE GIORNATA</td>
                     <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 900, color: C.green, fontVariantNumeric: 'tabular-nums', fontSize: FS.body }}>{fmt(totV)}</td>
-                    {!isDipendente && <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 700, color: C.red }}>{fmt(totFC)}</td>}
+                    {!isDipendente && <td style={{ fontVariantNumeric: 'tabular-nums', padding: '9px 12px', textAlign: 'right', fontWeight: 700, color: C.red }}>{fmt(totFC)}</td>}
                     {!isDipendente && <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 900, color: margColor(totMP), fontVariantNumeric: 'tabular-nums', fontSize: FS.body }}>{fmt(totM)}</td>}
-                    {!isDipendente && <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 700, color: totS > 5 ? C.red : C.textSoft }}>{fmt(totS)}</td>}
+                    {!isDipendente && <td style={{ fontVariantNumeric: 'tabular-nums', padding: '9px 12px', textAlign: 'right', fontWeight: 700, color: totS > 5 ? C.red : C.textSoft }}>{fmt(totS)}</td>}
                   </tr>
                 </tfoot>
               </table>
@@ -1436,7 +1436,7 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
                         <td style={{ padding: '9px 12px', color: C.textMid }}>{r.categoria || '-'}</td>
                         <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 700, color: C.text }}>{r.unitaV}</td>
                         <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 700, color: C.green, fontVariantNumeric: 'tabular-nums' }}>{fmt(r.rv)}</td>
-                        {!isDipendente && <td style={{ padding: '9px 12px', textAlign: 'right', color: C.red }}>{fmt(r.fcV)}</td>}
+                        {!isDipendente && <td style={{ fontVariantNumeric: 'tabular-nums', padding: '9px 12px', textAlign: 'right', color: C.red }}>{fmt(r.fcV)}</td>}
                         {!isDipendente && <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 800, color: margColor(r.rv > 0 ? (r.marg / r.rv * 100) : 0), fontVariantNumeric: 'tabular-nums' }}>{fmt(r.marg)}</td>}
                       </tr>
                     ))}

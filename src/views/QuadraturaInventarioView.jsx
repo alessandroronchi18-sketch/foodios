@@ -489,7 +489,7 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
             <Icon name="warning" size={18} color="#92400E" style={{ flexShrink: 0, marginTop: 1 }} />
             <div>
               <div style={{ fontWeight: 700, marginBottom: 2 }}>Imposta i formati di vendita</div>
-              <div style={{ fontSize: 12.5, color: '#78350F' }}>
+              <div style={{ fontSize: 12, color: '#78350F' }}>
                 Servono per calcolare il €/kg medio e abilitare la quadratura con la cassa.
               </div>
             </div>
@@ -501,7 +501,7 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
               aria-label="Vai a formati di vendita"
               style={{
                 background: '#92400E', color: '#FFF', border: 'none',
-                borderRadius: 10, padding: '10px 16px', fontSize: 13.5, fontWeight: 700,
+                borderRadius: 10, padding: '10px 16px', fontSize: 13, fontWeight: 700,
                 cursor: 'pointer', display: 'inline-flex', alignItems: 'center',
                 justifyContent: 'center', gap: 8,
                 whiteSpace: 'nowrap', minHeight: tapMin,
@@ -563,7 +563,7 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
               <div style={{
                 marginTop: 14, padding: isMobile ? 12 : '12px 16px',
                 background: '#F0F9FF', border: '1px solid #BAE6FD', borderRadius: 12,
-                fontSize: 12.5, color: '#075985',
+                fontSize: 12, color: '#075985',
                 display: 'flex', alignItems: isMobile ? 'flex-start' : 'center',
                 justifyContent: 'space-between', gap: 12,
                 flexDirection: isMobile ? 'column' : 'row',
@@ -705,7 +705,7 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
               <div style={{ overflowX: 'auto', width: '100%', WebkitOverflowScrolling: 'touch' }}>
                 <table style={{
                   width: '100%', borderCollapse: 'collapse', minWidth: 600,
-                  fontSize: 12.5,
+                  fontSize: 12,
                 }}>
                   <thead>
                     <tr style={{ background: '#F8FAFC' }}>
@@ -994,7 +994,7 @@ function DiagnosiDrift({ driftEur, driftPct, isMobile }) {
     <div style={{
       marginTop: 14, padding: isMobile ? 14 : '14px 16px',
       background: '#FEF2F2', border: '1px solid #FECACA',
-      borderRadius: 12, fontSize: 12.5, color: '#7F1D1D', lineHeight: 1.55,
+      borderRadius: 12, fontSize: 12, color: '#7F1D1D', lineHeight: 1.55,
       width: '100%', boxSizing: 'border-box',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
@@ -1062,7 +1062,7 @@ function PanelTop({ title, items, total, isMobile }) {
                 }} />
               </div>
               <span style={{
-                flex: '0 0 64px', fontSize: 12.5, fontWeight: 700,
+                flex: '0 0 64px', fontSize: 12, fontWeight: 700,
                 textAlign: 'right', ...TNUM, color: C.text,
                 whiteSpace: 'nowrap',
               }}>
@@ -1104,7 +1104,7 @@ function PanelSofferenza({ sofferenza, zeroVenduto }) {
             Zero venduto ({zeroVenduto.length.toLocaleString('it-IT', { useGrouping: 'always' })})
           </div>
           <div style={{
-            fontSize: 12.5, color: '#7F1D1D', lineHeight: 1.55,
+            fontSize: 12, color: '#7F1D1D', lineHeight: 1.55,
           }}>
             {zeroVenduto.slice(0, 8).map(x => x.gusto).join(' · ')}
             {zeroVenduto.length > 8 ? ` · +${(zeroVenduto.length - 8).toLocaleString('it-IT', { useGrouping: 'always' })} altri` : ''}
@@ -1113,14 +1113,14 @@ function PanelSofferenza({ sofferenza, zeroVenduto }) {
       )}
 
       {sofferenza.length === 0 ? (
-        <div style={{ fontSize: 12.5, color: C.textSoft, lineHeight: 1.5 }}>
+        <div style={{ fontSize: 12, color: C.textSoft, lineHeight: 1.5 }}>
           Nessun gusto con residuo persistente. Buon equilibrio produzione/vendita.
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {sofferenza.slice(0, 6).map(x => (
             <div key={x.gusto} style={{
-              display: 'flex', alignItems: 'center', gap: 10, fontSize: 12.5,
+              display: 'flex', alignItems: 'center', gap: 10, fontSize: 12,
               padding: '6px 0',
               borderBottom: `1px dashed ${C.borderSoft}`,
             }}>

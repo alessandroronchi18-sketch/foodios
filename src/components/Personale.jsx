@@ -999,7 +999,7 @@ function TurniTab({ orgId, notify, isMobile }) {
             <div style={{ display:'flex', alignItems:'flex-start', gap:12, marginBottom:16 }}>
               <span style={{ width:14, height:14, borderRadius:4, background: repartoDi(shiftPreview.dipId).color || C.red, marginTop:5, flexShrink:0, border:'1px solid rgba(0,0,0,0.15)' }}/>
               <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontSize:17, fontWeight:800, color:C.text, lineHeight:1.25 }}>{etichettaNome(shiftPreview.nome)}</div>
+                <div style={{ fontSize: 16, fontWeight:800, color:C.text, lineHeight:1.25 }}>{etichettaNome(shiftPreview.nome)}</div>
                 <div style={{ fontSize:12, color:C.textSoft, marginTop:2 }}>{repartoDi(shiftPreview.dipId).nome}</div>
               </div>
               <button onClick={() => setShiftPreview(null)} aria-label="Chiudi"
@@ -1597,7 +1597,7 @@ function AccessiTab({ orgId, sedi, notify, isMobile, nomeAttivita }) {
               padding: '8px 14px', border: 'none', borderRadius: 7,
               background: sub === id ? C.white : 'transparent',
               color: sub === id ? C.text : C.textMid,
-              fontSize: 12.5, fontWeight: sub === id ? 700 : 500, cursor: 'pointer',
+              fontSize: 12, fontWeight: sub === id ? 700 : 500, cursor: 'pointer',
               display: 'inline-flex', alignItems: 'center', gap: 6,
               boxShadow: sub === id ? '0 1px 3px rgba(15,23,42,0.06)' : 'none',
             }}>
@@ -1823,10 +1823,10 @@ function LaboratorioFormDialog({ orgId, sedi, nomeAttivita, existing = null, onC
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }} onClick={onClose}>
       <div onClick={e => e.stopPropagation()} style={{ background: C.white, borderRadius: 14, padding: 24, maxWidth: 460, width: '100%', boxShadow: '0 20px 50px rgba(0,0,0,0.3)' }}>
-        <div style={{ fontSize: 17, fontWeight: 800, color: C.text, marginBottom: 6 }}>
+        <div style={{ fontSize: 16, fontWeight: 800, color: C.text, marginBottom: 6 }}>
           {isEdit ? 'Modifica laboratorio' : 'Nuovo laboratorio'}
         </div>
-        <div style={{ fontSize: 12.5, color: C.textSoft, marginBottom: 18, lineHeight: 1.55 }}>
+        <div style={{ fontSize: 12, color: C.textSoft, marginBottom: 18, lineHeight: 1.55 }}>
           Un account condiviso per il tablet della sede. I dipendenti si loggano con email + password, poi mettono il proprio codice a 4 cifre.
         </div>
 
@@ -2088,10 +2088,10 @@ function DipendenteOperativoFormDialog({ orgId, existing = null, soloAnagrafica 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }} onClick={onClose}>
       <div onClick={e => e.stopPropagation()} style={{ background: C.white, borderRadius: 14, padding: 24, maxWidth: 440, width: '100%', boxShadow: '0 20px 50px rgba(0,0,0,0.3)' }}>
-        <div style={{ fontSize: 17, fontWeight: 800, color: C.text, marginBottom: 6 }}>
+        <div style={{ fontSize: 16, fontWeight: 800, color: C.text, marginBottom: 6 }}>
           {isEdit ? 'Modifica dipendente' : 'Nuovo dipendente'}
         </div>
-        <div style={{ fontSize: 12.5, color: C.textSoft, marginBottom: 18, lineHeight: 1.55 }}>
+        <div style={{ fontSize: 12, color: C.textSoft, marginBottom: 18, lineHeight: 1.55 }}>
           {isEdit
             ? 'Cambia nome, cognome o ruolo. Il codice a 4 cifre si cambia da "Cambia codice".'
             : 'Aggiungi una persona alla rubrica. Il codice a 4 cifre lo scegli tu e glielo dici a voce.'}
@@ -2176,8 +2176,8 @@ function CambiaCodiceDialog({ existing, onClose, onDone, notify }) {
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }} onClick={onClose}>
       <div onClick={e => e.stopPropagation()} style={{ background: C.white, borderRadius: 14, padding: 24, maxWidth: 400, width: '100%', boxShadow: '0 20px 50px rgba(0,0,0,0.3)' }}>
-        <div style={{ fontSize: 17, fontWeight: 800, color: C.text, marginBottom: 6 }}>Cambia codice</div>
-        <div style={{ fontSize: 12.5, color: C.textSoft, marginBottom: 18, lineHeight: 1.55 }}>
+        <div style={{ fontSize: 16, fontWeight: 800, color: C.text, marginBottom: 6 }}>Cambia codice</div>
+        <div style={{ fontSize: 12, color: C.textSoft, marginBottom: 18, lineHeight: 1.55 }}>
           Nuovo codice a 4 cifre per <b>{[existing.nome, existing.cognome].filter(Boolean).join(' ')}</b>. Il codice vecchio smette di funzionare subito.
         </div>
         <input value={codice} onChange={e => setCodice(e.target.value.replace(/[^0-9]/g, '').slice(0, 4))}

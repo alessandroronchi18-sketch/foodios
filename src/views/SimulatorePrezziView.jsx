@@ -391,7 +391,7 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
               </div>
               <div style={{ display: 'flex', gap: isMobile ? 14 : 22, marginTop: 12, flexWrap: 'wrap' }}>
                 {segs.map((s, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12.5, color: T.textMid }}>
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: T.textMid }}>
                     <span style={{ width: 10, height: 10, borderRadius: 3, background: s.c, flexShrink: 0 }} />
                     <b style={{ color: T.text, ...TNUM }}>{s.n.toLocaleString('it-IT', { useGrouping: 'always' })}</b> {s.lbl}
                   </div>
@@ -445,8 +445,8 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
                           </Tip>
                         )}
                       </td>
-                      <td style={{ ...cellNum, color: T.textMid }}>{fmt(r.reg.prezzo)}</td>
-                      <td style={{ ...cellNum, color: T.text, fontWeight: 600 }}>{fmt(r.fc)}</td>
+                      <td style={{ textAlign: 'right', ...TNUM, ...cellNum, color: T.textMid }}>{fmt(r.reg.prezzo)}</td>
+                      <td style={{ textAlign: 'right', ...TNUM, ...cellNum, color: T.text, fontWeight: 600 }}>{fmt(r.fc)}</td>
                       <td style={cellNum}>
                         {naf ? <span style={{ color: T.textSoft }}>-</span> : (
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, justifyContent: 'flex-end' }}>
@@ -457,7 +457,7 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
                           </span>
                         )}
                       </td>
-                      <td style={{ ...cellNum, color: T.textMid }}>{naf ? '-' : fmtp(r.margPct)}</td>
+                      <td style={{ textAlign: 'right', ...TNUM, ...cellNum, color: T.textMid }}>{naf ? '-' : fmtp(r.margPct)}</td>
                       <td style={cellNum}>
                         <div style={{
                           display: 'inline-flex',
@@ -486,13 +486,13 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
                             Composizione del costo · {r.reg.unita.toLocaleString('it-IT', { useGrouping: 'always' })} {labelPlurale(r.reg.tipo)}/stampo
                           </div>
                           {r.righe.length === 0 ? (
-                            <div style={{ fontSize: 12.5, color: T.textSoft }}>Nessun ingrediente con quantità nel ricettario.</div>
+                            <div style={{ fontSize: 12, color: T.textSoft }}>Nessun ingrediente con quantità nel ricettario.</div>
                           ) : (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                               {r.righe.map((ing, j) => {
                                 const pctCosto = r.fc > 0 ? (ing.costo / r.fc * 100) : 0
                                 return (
-                                  <div key={j} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12.5 }}>
+                                  <div key={j} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12 }}>
                                     <span style={{
                                       flex: isMobile ? '0 0 44%' : '0 0 38%',
                                       minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
@@ -590,7 +590,7 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
           marginTop: 22,
           flexWrap: 'wrap',
         }}>
-          <span style={{ fontSize: 12.5, color: T.textSoft, fontWeight: 500 }}>Proiezione su</span>
+          <span style={{ fontSize: 12, color: T.textSoft, fontWeight: 500 }}>Proiezione su</span>
           <div role="radiogroup" aria-label="Orizzonte proiezione in giorni" style={{
             display: 'flex', gap: 2, padding: 3, background: T.bgSubtle,
             borderRadius: R.md, width: isMobile ? '100%' : 'auto', boxSizing: 'border-box',
@@ -666,7 +666,7 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
           <div role="alert" style={{
             marginTop: 14, padding: '12px 14px',
             background: T.amberLight, border: `1px solid ${T.amber}33`,
-            borderRadius: R.md, fontSize: 12.5, color: '#92400E',
+            borderRadius: R.md, fontSize: 12, color: '#92400E',
             lineHeight: 1.5, boxSizing: 'border-box',
           }}>
             <b>{sim.sofferenti.length.toLocaleString('it-IT', { useGrouping: 'always' })}</b> {sim.sofferenti.length === 1 ? 'prodotto va' : 'prodotti vanno'} in sofferenza con +{mpPct}% materie prime: {sim.sofferenti.slice(0, 4).map(r => r.nome).join(', ')}{sim.sofferenti.length > 4 ? '…' : ''}

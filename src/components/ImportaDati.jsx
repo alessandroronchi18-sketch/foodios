@@ -53,7 +53,7 @@ export default function ImportaDati({ onImportRicettario, ricettario, nomeAttivi
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <h1 style={{ margin: 0, fontSize: isMobile ? 20 : 24, fontWeight: 800, color: C.text, letterSpacing: '-0.02em' }}>Modelli e import dati</h1>
-          <p style={{ margin: '4px 0 0', fontSize: 12.5, color: T.textSoft, lineHeight: 1.45 }}>
+          <p style={{ margin: '4px 0 0', fontSize: 12, color: T.textSoft, lineHeight: 1.45 }}>
             Scarica i modelli standard per compilare i dati offline o carica un file Excel esistente.
           </p>
         </div>
@@ -80,7 +80,7 @@ export default function ImportaDati({ onImportRicettario, ricettario, nomeAttivi
                     padding: '9px 14px', minHeight: 40,
                     background: loading === 'produzione' ? '#CBD5E1' : T.brand,
                     color: '#FFF', border: 'none', borderRadius: 8,
-                    fontSize: 12.5, fontWeight: 700, cursor: loading === 'produzione' ? 'not-allowed' : 'pointer',
+                    fontSize: 12, fontWeight: 700, cursor: loading === 'produzione' ? 'not-allowed' : 'pointer',
                     display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'inherit',
                   }}>
                   <Icon name="download" size={13} />
@@ -145,7 +145,7 @@ export default function ImportaDati({ onImportRicettario, ricettario, nomeAttivi
                   style={{
                     padding: '9px 14px', minHeight: 40,
                     background: T.brand, color: '#FFF', border: 'none', borderRadius: 8,
-                    fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
+                    fontSize: 12, fontWeight: 700, cursor: 'pointer',
                     display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'inherit',
                   }}>
                   <Icon name="upload" size={13} />
@@ -175,7 +175,7 @@ export default function ImportaDati({ onImportRicettario, ricettario, nomeAttivi
                   padding: '9px 14px', minHeight: 40,
                   background: '#FFF', color: T.brand,
                   border: `1px solid ${T.brand}55`, borderRadius: 8,
-                  fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
+                  fontSize: 12, fontWeight: 700, cursor: 'pointer',
                   display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'inherit',
                 }}>
                   <Icon name="upload" size={13} />

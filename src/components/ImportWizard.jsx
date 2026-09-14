@@ -791,7 +791,7 @@ function StepValidate({ schema, result, mapping = {}, onBack, onNext, isMobile, 
           display: 'flex', gap: 12, alignItems: 'flex-start',
         }}>
           <Icon name="info" size={18} color="#B45309"/>
-          <div style={{ fontSize: 13.5, color: '#78350F', lineHeight: 1.55 }}>
+          <div style={{ fontSize: 13, color: '#78350F', lineHeight: 1.55 }}>
             <div style={{ fontWeight: 700, marginBottom: 4 }}>{problem.title}</div>
             <div>{problem.hint}</div>
           </div>
@@ -993,7 +993,7 @@ function StepInsert({ loading, progress, result, schema, onFinish, onAnother, is
       {failedCount > 0 && (
         <div style={{
           background: '#FEE2E2', border: `1px solid #FCA5A5`,
-          borderRadius: 10, padding: 12, marginBottom: 18, fontSize: 12.5, color: '#7F1D1D', lineHeight: 1.5,
+          borderRadius: 10, padding: 12, marginBottom: 18, fontSize: 12, color: '#7F1D1D', lineHeight: 1.5,
         }}>
           <div style={{ fontWeight: 700, marginBottom: 6 }}>Dettaglio degli intoppi:</div>
           {result.failed.slice(0, 5).map((f, i) => (

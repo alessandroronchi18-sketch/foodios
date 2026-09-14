@@ -298,7 +298,7 @@ function BulkEmailModal({ clienti, onClose, onInvia }) {
     <Modal title={`Email a ${clienti.length} clienti`} onClose={busy ? () => {} : onClose} width={620}>
       {done ? (
         <div style={{ textAlign: 'center', padding: '20px 0' }}>
-          <div style={{ fontSize: 40 }}>{progress.ko === 0 ? <Icon name="checkCircle" size={40} color={COLORS.ok} /> : <Icon name="warning" size={40} color={COLORS.warn} />}</div>
+          <div>{progress.ko === 0 ? <Icon name="checkCircle" size={40} color={COLORS.ok} /> : <Icon name="warning" size={40} color={COLORS.warn} />}</div>
           <div style={{ fontSize: 14, color: COLORS.text, fontWeight: 700, marginTop: 12 }}>
             Inviate {progress.ok} email · {progress.ko} errori
           </div>
@@ -453,7 +453,7 @@ function DemoCleanupModal({ cliente, matches, onClose, onConferma }) {
                     <td style={{ padding: '8px 12px', color: COLORS.textSoft, whiteSpace: 'nowrap' }}>{f.data_fattura || '-'}</td>
                     <td style={{ padding: '8px 12px', color: COLORS.text, fontWeight: 500 }}>{f.fornitore}</td>
                     <td style={{ padding: '8px 12px', color: COLORS.textSoft, fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 12 }}>{f.numero_rif || '-'}</td>
-                    <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600, color: COLORS.text, whiteSpace: 'nowrap' }}>€ {Number(f.totale || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td style={{ ...tnum, padding: '8px 12px', textAlign: 'right', fontWeight: 600, color: COLORS.text, whiteSpace: 'nowrap' }}>€ {Number(f.totale || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                   </tr>
                 ))}
               </tbody>
@@ -2160,7 +2160,7 @@ export default function AdminPage() {
         padding: '14px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
         <div>
-          <div style={{ fontWeight: 900, fontSize: 17, color: COLORS.text }}>
+          <div style={{ fontWeight: 900, fontSize: 16, color: COLORS.text }}>
             <Icon name="gift" size={17} /> Foodos <span style={{ color: COLORS.accent }}>Admin</span>
           </div>
           <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
@@ -3359,7 +3359,7 @@ export default function AdminPage() {
                         <td style={{ padding: '8px 12px', color: COLORS.textSoft, fontSize: 12 }}>
                           {e.customer_email || (e.customer_id ? <code>{e.customer_id.slice(0, 16)}…</code> : '-')}
                         </td>
-                        <td style={{ padding: '8px 18px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                        <td style={{ ...tnum, padding: '8px 18px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>
                           {e.amount_cents != null ? `${Number(e.amount_cents / 100).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${(e.currency || 'EUR').toUpperCase()}` : ''}
                         </td>
                       </tr>
@@ -3939,14 +3939,14 @@ export default function AdminPage() {
                         <td style={{ ...td(), fontWeight: 600 }}>
                           {c.nome || (c.organization_id || '').slice(0, 8) + '…'}
                         </td>
-                        <td style={{ ...td(), textAlign: 'right', fontWeight: 700, color: c.total_cost_usd > 5 ? COLORS.err : c.total_cost_usd > 1 ? COLORS.warn : COLORS.text, fontVariantNumeric: 'tabular-nums' }}>
+                        <td style={{ ...tnum, ...td(), textAlign: 'right', fontWeight: 700, color: c.total_cost_usd > 5 ? COLORS.err : c.total_cost_usd > 1 ? COLORS.warn : COLORS.text, fontVariantNumeric: 'tabular-nums' }}>
                           ${Number(c.total_cost_usd).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 3, maximumFractionDigits: 3 })}
                         </td>
                         <td style={{ ...td(), textAlign: 'right', color: COLORS.textMute, fontVariantNumeric: 'tabular-nums' }}>{c.total_calls}</td>
                         <td style={{ ...td(), textAlign: 'right', color: COLORS.textMute, fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>
                           {Math.round(c.tokens_in / 1000)}k / {Math.round(c.tokens_out / 1000)}k
                         </td>
-                        <td style={{ ...td(), fontSize: 12 }}>
+                        <td style={{ textAlign: 'right', ...tnum, ...td(), fontSize: 12 }}>
                           {c.top_features.map(f => `${f.feature} $${Number(f.cost_usd).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}`).join(' · ')}
                         </td>
                         <td style={{ ...td(), color: COLORS.textMute, fontSize: 12 }}>{c.last_call_at ? fmtDataOra(c.last_call_at) : '-'}</td>

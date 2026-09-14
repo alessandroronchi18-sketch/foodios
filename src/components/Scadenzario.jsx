@@ -1495,7 +1495,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
             <td style={{ padding: '8px 12px 6px', fontWeight: 600, color: T.text, maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', position: 'sticky', left: 0, background: baseBg, zIndex: 1 }}>
               <span title={f.fornitore}>{f.fornitore}</span>
             </td>
-            <td colSpan={5} style={{ padding: '8px 12px 6px', color: T.textSoft, fontSize: 12 }}>
+            <td colSpan={5} style={{ textAlign: 'right', ...tnum, padding: '8px 12px 6px', color: T.textSoft, fontSize: 12 }}>
               {f.numero_rif || '-'} · {fmtDate(f.data_fattura)} · {f.dueStimata ? 'scadenza calcolata' : 'scade'} {fmtDate(f.dueIso)} · totale <span style={{ color: T.text, fontWeight: 700, ...tnum }}>{fmtEuro(f.totale)}</span>
             </td>
             <td style={{ padding: '8px 12px 6px' }} />
@@ -1638,7 +1638,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         )}
         {isDel && (
           <div style={{ marginTop: 12, padding: '12px 14px', background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 10 }}>
-            <div style={{ fontSize: 12.5, color: T.brand, fontWeight: 600, marginBottom: 10 }}>
+            <div style={{ fontSize: 12, color: T.brand, fontWeight: 600, marginBottom: 10 }}>
               Sei sicuro? L'azione non è reversibile.
             </div>
             {ActionsCell({ f })}
@@ -1740,7 +1740,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                 </div>
               ) : (
                 <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-                  <table style={{ width: '100%', minWidth: 880, borderCollapse: 'collapse', fontSize: 12.5, ...tnum }}>
+                  <table style={{ width: '100%', minWidth: 880, borderCollapse: 'collapse', fontSize: 12, ...tnum }}>
                     <thead>
                       <tr style={{ background: '#FAFAF8' }}>
                         {[
@@ -1781,7 +1781,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                   padding: '14px 16px', textAlign: 'center',
                   borderTop: `1px solid ${T.border}`, background: '#FAFAF6',
                 }}>
-                  <div style={{ fontSize: 12.5, color: T.textSoft, marginBottom: 10, ...tnum }}>
+                  <div style={{ fontSize: 12, color: T.textSoft, marginBottom: 10, ...tnum }}>
                     Mostrate <strong>{view.length.toLocaleString('it-IT', { useGrouping: 'always' })}</strong> di <strong>{items.length.toLocaleString('it-IT', { useGrouping: 'always' })}</strong> fatture.
                   </div>
                   <button onClick={() => setShownAll(true)}
@@ -1941,7 +1941,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                                 {f.dueIso ? new Date(f.dueIso).toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: '2-digit' }) : '-'}
                               </td>
                             )}
-                            <td style={{ padding: '7px 10px', textAlign: 'right', fontSize: 12.5, fontWeight: 700, color: isNC ? T.green : T.text, ...tnum }}>
+                            <td style={{ padding: '7px 10px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: isNC ? T.green : T.text, ...tnum }}>
                               {fmtEuro(f.importoNetto)}
                             </td>
                             <td style={{ padding: '7px 10px', textAlign: 'center' }}>
@@ -2097,7 +2097,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                     </td>
                     <td style={{ padding: '10px 12px', textAlign: 'right', color: T.textMid, ...tnum, whiteSpace: 'nowrap' }}>{fmtEuro(r.mediaImporto)}</td>
                     <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, color: T.text, ...tnum, whiteSpace: 'nowrap' }}>{ultima ? fmtEuro(ultima.importo) : '-'}</td>
-                    <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: fuori ? 800 : 500, color: !ultima ? T.textSoft : fuori ? (diff > 0 ? T.brand : T.green) : T.textSoft, ...tnum, whiteSpace: 'nowrap' }}>
+                    <td style={{ ...tnum, padding: '10px 12px', textAlign: 'right', fontWeight: fuori ? 800 : 500, color: !ultima ? T.textSoft : fuori ? (diff > 0 ? T.brand : T.green) : T.textSoft, ...tnum, whiteSpace: 'nowrap' }}>
                       {ultima ? `${diff > 0 ? '+' : ''}${fmtEuro0(diff)}` : '-'}
                     </td>
                     <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
@@ -2613,7 +2613,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         </span>
         {!editAzienda ? (
           <>
-            <span title={ibanIsValid(azienda.iban) ? `${azienda.nome ? azienda.nome + ' · ' : ''}${normalizeIban(azienda.iban)}` : ''} style={{ fontSize: 12.5, color: ibanIsValid(azienda.iban) ? T.text : T.textSoft, ...tnum, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <span title={ibanIsValid(azienda.iban) ? `${azienda.nome ? azienda.nome + ' · ' : ''}${normalizeIban(azienda.iban)}` : ''} style={{ fontSize: 12, color: ibanIsValid(azienda.iban) ? T.text : T.textSoft, ...tnum, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {ibanIsValid(azienda.iban) ? `${azienda.nome ? azienda.nome + ' · ' : ''}${normalizeIban(azienda.iban)}` : 'IBAN azienda non impostato - serve per generare i bonifici SEPA'}
             </span>
             {/* CTA: se IBAN mancante, bottone primario (rosso) ben visibile.
@@ -2958,7 +2958,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         )}
         <div style={{ flex: 1 }} />
         {totaliFiltrati.n > 0 && (
-          <div style={{ fontSize: 12.5, color: T.textSoft, letterSpacing: '-0.005em', ...tnum, marginLeft: 'auto', whiteSpace: 'nowrap' }}>
+          <div style={{ fontSize: 12, color: T.textSoft, letterSpacing: '-0.005em', ...tnum, marginLeft: 'auto', whiteSpace: 'nowrap' }}>
             <strong style={{ color: T.text }}>{totaliFiltrati.n.toLocaleString('it-IT', { useGrouping: 'always' })}</strong> {totaliFiltrati.n === 1 ? 'fattura' : 'fatture'} · <strong style={{ color: T.text }}>{fmtEuro(totaliFiltrati.tot)}</strong>
           </div>
         )}
@@ -2974,8 +2974,8 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
               <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
             </svg>
           </div>
-          <div style={{ fontWeight: 700, fontSize: 19, color: T.text, marginBottom: 8, letterSpacing: '-0.015em' }}>Nessuna fattura</div>
-          <div style={{ fontSize: 13.5, color: T.textSoft, marginBottom: 24, maxWidth: 420, margin: '0 auto 24px', lineHeight: 1.55 }}>
+          <div style={{ fontWeight: 700, fontSize: 18, color: T.text, marginBottom: 8, letterSpacing: '-0.015em' }}>Nessuna fattura</div>
+          <div style={{ fontSize: 13, color: T.textSoft, marginBottom: 24, maxWidth: 420, margin: '0 auto 24px', lineHeight: 1.55 }}>
             Importa l'export Excel di FatturaSMART o un file XML SDI per iniziare a tenere traccia delle scadenze.
           </div>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
@@ -3103,14 +3103,14 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
               <span style={{ width: 44, height: 44, borderRadius: 12, background: '#FEE2E2', color: T.brand, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <Icon name="warning" size={24} />
               </span>
-              <div style={{ fontSize: 17, fontWeight: 900, color: T.brand, letterSpacing: '-0.01em' }}>Attenzione: IBAN identico</div>
+              <div style={{ fontSize: 16, fontWeight: 900, color: T.brand, letterSpacing: '-0.01em' }}>Attenzione: IBAN identico</div>
             </div>
-            <div style={{ fontSize: 13.5, color: T.text, lineHeight: 1.6, marginBottom: 14 }}>
+            <div style={{ fontSize: 13, color: T.text, lineHeight: 1.6, marginBottom: 14 }}>
               {ibanAlert.tipo === 'azienda'
                 ? <>L'IBAN che stai impostando per <b>la tua azienda</b> è esattamente uguale a quello del fornitore <b>{ibanAlert.fornitore}</b>. Sarebbe come pagare te stesso. Probabile errore di copia-incolla.</>
                 : <>L'IBAN che stai impostando per il fornitore <b>{ibanAlert.fornitore}</b> è esattamente uguale all'IBAN della tua azienda. Sarebbe come pagare te stesso. Probabile errore di copia-incolla.</>}
             </div>
-            <div style={{ background: T.bgSubtle || '#F8FAFC', border: `1px solid ${T.border}`, borderRadius: 10, padding: '11px 14px', fontSize: 12.5, color: T.textMid, lineHeight: 1.55, marginBottom: 18 }}>
+            <div style={{ background: T.bgSubtle || '#F8FAFC', border: `1px solid ${T.border}`, borderRadius: 10, padding: '11px 14px', fontSize: 12, color: T.textMid, lineHeight: 1.55, marginBottom: 18 }}>
               <b style={{ color: T.text }}>Cosa fare:</b> ricontrolla l'IBAN su una fattura cartacea / PEC del fornitore e inseriscilo correttamente. Se davvero usi lo stesso conto (raro), forza il salvataggio - ma sappi che il bonifico SEPA fallirà perché la banca rifiuta debtor == creditor.
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
@@ -3139,12 +3139,12 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                 <div style={{ fontSize: 12, color: T.textSoft, marginTop: 2 }}>{sepaConfirm.items.length} {sepaConfirm.items.length === 1 ? 'pagamento' : 'pagamenti'} · <b style={{ color: T.brand }}>{fmtEuro(sepaConfirm.totale)}</b></div>
               </div>
             </div>
-            <div style={{ fontSize: 13.5, color: T.text, lineHeight: 1.6, marginBottom: 14 }}>
+            <div style={{ fontSize: 13, color: T.text, lineHeight: 1.6, marginBottom: 14 }}>
               Sto per scaricare un file <b>bonifico_sepa_*.xml</b>. È un foglio bancario: tu lo dai alla tua banca e la banca paga i fornitori per te.
               <br /><br />
               <b style={{ color: T.brand }}>Foodos non invia soldi</b>: prepara solo il file. Sei tu che dici alla tua banca di pagare.
             </div>
-            <div style={{ background: T.bgSubtle || '#F8FAFC', border: `1px solid ${T.border}`, borderRadius: 10, padding: '12px 14px', marginBottom: 14, fontSize: 12.5, color: T.textMid, lineHeight: 1.65 }}>
+            <div style={{ background: T.bgSubtle || '#F8FAFC', border: `1px solid ${T.border}`, borderRadius: 10, padding: '12px 14px', marginBottom: 14, fontSize: 12, color: T.textMid, lineHeight: 1.65 }}>
               <div style={{ fontWeight: 700, color: T.text, marginBottom: 6 }}>Come fare passo passo:</div>
               <ol style={{ margin: 0, paddingLeft: 20 }}>
                 <li>Clicca "Scarica" qui sotto - il file finisce nei tuoi <b>Download</b></li>

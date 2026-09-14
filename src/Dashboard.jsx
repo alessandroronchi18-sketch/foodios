@@ -488,7 +488,7 @@ function KPI({label,value,sub,color,highlight,icon,iconName}) {
         color:highlight?"rgba(255,255,255,0.76)":T.textSoft,marginBottom:10}}>
         {iconName?<span style={{marginRight:6,display:"inline-flex",verticalAlign:"-2px"}}><Icon name={iconName} size={13}/></span>:icon&&<span style={{marginRight:6}}>{icon}</span>}{label}
       </div>
-      <div style={{fontSize:30,fontWeight:700,color:highlight?T.textOnDark:color||T.text,
+      <div style={{fontSize: 28,fontWeight:700,color:highlight?T.textOnDark:color||T.text,
         letterSpacing:"-0.03em",lineHeight:1.05,
         fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>
         {value}
@@ -616,10 +616,10 @@ function ProduzioneView({ricettario,mese,onSave,onAddAction,nomeAttivita=''}) {
                       <td style={{padding:"10px 12px",fontWeight:700,color:C.text}}>{r.ricettaNome}</td>
                       <td style={{padding:"10px 12px",textAlign:"right",color:C.textMid}}>{r.stampiProdotti}</td>
                       <td style={{padding:"10px 12px",textAlign:"right",color:C.textMid}}>{r.stampiVenduti}</td>
-                      <td style={{padding:"10px 12px",textAlign:"right",fontWeight:700,color:r.st>=80?C.green:r.st>=60?C.amber:C.red}}>{fmtp(r.st)}</td>
-                      <td style={{padding:"10px 12px",textAlign:"right",fontWeight:600,color:C.text}}>{fmt(r.ricavi)}</td>
-                      <td style={{padding:"10px 12px",textAlign:"right",color:C.red}}>{fmt(r.fcTot)}</td>
-                      <td style={{padding:"10px 12px",textAlign:"right",fontWeight:800,color:r.marg>=0?C.green:C.red,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{fmt(r.marg)}</td>
+                      <td style={{ ...TNUM,padding:"10px 12px",textAlign:"right",fontWeight:700,color:r.st>=80?C.green:r.st>=60?C.amber:C.red}}>{fmtp(r.st)}</td>
+                      <td style={{ ...TNUM,padding:"10px 12px",textAlign:"right",fontWeight:600,color:C.text}}>{fmt(r.ricavi)}</td>
+                      <td style={{ ...TNUM,padding:"10px 12px",textAlign:"right",color:C.red}}>{fmt(r.fcTot)}</td>
+                      <td style={{ ...TNUM,padding:"10px 12px",textAlign:"right",fontWeight:800,color:r.marg>=0?C.green:C.red,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{fmt(r.marg)}</td>
                       <td style={{padding:"10px 12px",textAlign:"right"}}>{margBadge(r.margPct)}</td>
                     </tr>
                   ))}
@@ -629,9 +629,9 @@ function ProduzioneView({ricettario,mese,onSave,onAddAction,nomeAttivita=''}) {
                     <td style={{padding:"10px 12px",fontWeight:900,color:C.text}}>TOTALE</td>
                     <td style={{padding:"10px 12px",textAlign:"right",fontWeight:700}}>{totP}</td>
                     <td style={{padding:"10px 12px",textAlign:"right",fontWeight:700}}>{totV}</td>
-                    <td style={{padding:"10px 12px",textAlign:"right",fontWeight:700,color:margColor(st)}}>{fmtp(st)}</td>
+                    <td style={{ ...TNUM,padding:"10px 12px",textAlign:"right",fontWeight:700,color:margColor(st)}}>{fmtp(st)}</td>
                     <td style={{padding:"10px 12px",textAlign:"right",fontWeight:900,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{fmt(totR)}</td>
-                    <td style={{padding:"10px 12px",textAlign:"right",fontWeight:700,color:C.red}}>{fmt(totFC)}</td>
+                    <td style={{ ...TNUM,padding:"10px 12px",textAlign:"right",fontWeight:700,color:C.red}}>{fmt(totFC)}</td>
                     <td style={{padding:"10px 12px",textAlign:"right",fontWeight:900,color:margColor(totMP),fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{fmt(totM)}</td>
                     <td style={{padding:"10px 12px",textAlign:"right"}}>{margBadge(totMP)}</td>
                   </tr>
@@ -660,12 +660,12 @@ function ProduzioneView({ricettario,mese,onSave,onAddAction,nomeAttivita=''}) {
                   const reg=getR(e.ricettaNome, ricettario?.ricette?.[e.ricettaNome]);
                   return (
                     <tr key={e.ricettaNome} style={{borderBottom:`1px solid ${C.border}`,background:i%2===0?C.white:"#FDFAF7"}}>
-                      <td style={{padding:"10px 14px",fontWeight:700,color:C.text}}>
+                      <td style={{ textAlign: 'right', ...TNUM,padding:"10px 14px",fontWeight:700,color:C.text}}>
                         {e.ricettaNome}
                         <div style={{fontSize: 12,color:C.textSoft,marginTop:1}}>{reg.unita} {labelPlurale(reg.tipo)} × {fmt(reg.prezzo)}</div>
                       </td>
-                      <td style={{padding:"10px 14px",textAlign:"center",fontWeight:700,color:C.green}}>{fmt(rs)}</td>
-                      <td style={{padding:"10px 14px",textAlign:"center",color:C.red}}>{fmt(e.fc)}</td>
+                      <td style={{ ...TNUM,padding:"10px 14px",textAlign:"center",fontWeight:700,color:C.green}}>{fmt(rs)}</td>
+                      <td style={{ ...TNUM,padding:"10px 14px",textAlign:"center",color:C.red}}>{fmt(e.fc)}</td>
                       {["stampiProdotti","stampiVenduti","spreco"].map(f=>(
                         <td key={f} style={{padding:"6px 8px",textAlign:"center"}}>
                           <input type="number" min="0" step="1" value={e[f]||""} onChange={ev=>upd(i,f,ev.target.value)}
@@ -1153,7 +1153,7 @@ class ErrorBoundary extends React.Component {
       <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#F8FAFC",padding:24,fontFamily:"'Inter',system-ui,sans-serif"}}>
         <div style={{maxWidth:420,textAlign:"center",background:"#fff",border:"1px solid #E8E0DC",borderRadius:16,padding:"36px 28px",boxShadow:"0 4px 20px rgba(15,23,42,0.08)"}}>
           <div style={{marginBottom:12}}><Icon name="refresh" size={38} color="#6E0E1A" /></div>
-          <h1 style={{margin:"0 0 10px",fontSize:19,fontWeight:800,color:"#1C0A0A"}}>È disponibile una nuova versione</h1>
+          <h1 style={{margin:"0 0 10px",fontSize: 18,fontWeight:800,color:"#1C0A0A"}}>È disponibile una nuova versione</h1>
           <p style={{margin:"0 0 22px",fontSize:14,color:"#6B4C44",lineHeight:1.6}}>Ricarico la pagina per aggiornare Foodos all'ultima versione…</p>
           <button onClick={()=>window.location.reload()} style={{padding:"12px 26px",background:"#6E0E1A",color:"#fff",border:"none",borderRadius:10,fontWeight:800,fontSize:14,cursor:"pointer"}}>Ricarica ora</button>
         </div>
@@ -1165,7 +1165,7 @@ class ErrorBoundary extends React.Component {
       <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#F8FAFC",padding:24,fontFamily:"'Inter',system-ui,sans-serif"}}>
         <div style={{maxWidth:420,textAlign:"center",background:"#fff",border:"1px solid #E8E0DC",borderRadius:16,padding:"36px 28px",boxShadow:"0 4px 20px rgba(15,23,42,0.08)"}}>
           <div style={{marginBottom:12,color:C.textSoft}}><Icon name="frown" size={38} /></div>
-          <h1 style={{margin:"0 0 10px",fontSize:19,fontWeight:800,color:"#1C0A0A"}}>Qualcosa è andato storto</h1>
+          <h1 style={{margin:"0 0 10px",fontSize: 18,fontWeight:800,color:"#1C0A0A"}}>Qualcosa è andato storto</h1>
           <p style={{margin:"0 0 22px",fontSize:14,color:"#6B4C44",lineHeight:1.6}}>L'errore è stato segnalato automaticamente. Ricarica la pagina per continuare.</p>
           <button onClick={()=>window.location.reload()} style={{padding:"12px 26px",background:"#6E0E1A",color:"#fff",border:"none",borderRadius:10,fontWeight:800,fontSize:14,cursor:"pointer"}}>Ricarica</button>
         </div>
@@ -2415,7 +2415,7 @@ export default function Dashboard({
           return (
             <button key={it.id} onClick={()=>go(it.id)}
               style={{display:"flex",alignItems:"center",gap:9,width:"100%",textAlign:"left",padding:"8px 12px",borderRadius:8,border:"none",cursor:"pointer",
-                background:act?C.redLight:"transparent",color:act?C.red:C.text,fontSize:12.5,fontWeight:act?700:500,fontFamily:"inherit"}}
+                background:act?C.redLight:"transparent",color:act?C.red:C.text,fontSize: 12,fontWeight:act?700:500,fontFamily:"inherit"}}
               onMouseEnter={e=>{if(!act)e.currentTarget.style.background="#F4EEEA";}} onMouseLeave={e=>{if(!act)e.currentTarget.style.background="transparent";}}>
               <span style={{color:act?C.red:C.textSoft,display:"flex"}}>{ic(ICONS[it.icon],15)}</span>
               <span style={{flex:1,whiteSpace:"nowrap"}}>{it.label}</span>
@@ -2460,7 +2460,7 @@ export default function Dashboard({
               : <Logo size={26} style={{borderRadius:6, boxShadow:"0 4px 14px rgba(232,75,58,0.55), inset 0 1px 0 rgba(255,255,255,0.16)"}}/>
             }
             {!isTablet && <span style={{
-              fontSize:13.5, fontWeight:800,
+              fontSize: 13, fontWeight:800,
               letterSpacing:"0.02em", textTransform:"uppercase", whiteSpace:"nowrap",
               backgroundImage:"linear-gradient(180deg, #FFFFFF 0%, rgba(255,255,255,0.6) 100%)",
               backgroundClip:"text", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent",
@@ -2620,14 +2620,14 @@ export default function Dashboard({
               <div onClick={()=>setProfileOpen(false)} style={{position:"fixed",inset:0,zIndex:55}}/>
               <div style={{position:"absolute",top:"100%",right:0,marginTop:6,width:248,background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,boxShadow:"0 16px 40px rgba(15,23,42,0.22)",padding:8,zIndex:60}}>
                 <div style={{padding:"8px 10px 10px",borderBottom:`1px solid ${C.border}`,marginBottom:6}}>
-                  <div style={{fontSize:12.5,fontWeight:700,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{auth?.user?.email||"Account"}</div>
+                  <div style={{fontSize: 12,fontWeight:700,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{auth?.user?.email||"Account"}</div>
                   <div style={{fontSize: 12,color:C.textSoft,marginTop:2}}>{nomeAttivita||"La mia attività"}</div>
                 </div>
                 {[
                   {lbl:"Impostazioni",ic:"settings",on:()=>go("impostazioni")},
                   {lbl:"Novità",ic:"bell",on:()=>go("changelog")},
                 ].map(r=>(
-                  <button key={r.lbl} onClick={r.on} style={{display:"flex",alignItems:"center",gap:10,width:"100%",textAlign:"left",padding:"8px 12px",borderRadius:8,border:"none",background:"transparent",cursor:"pointer",fontSize:12.5,fontWeight:500,color:C.text,fontFamily:"inherit"}}
+                  <button key={r.lbl} onClick={r.on} style={{display:"flex",alignItems:"center",gap:10,width:"100%",textAlign:"left",padding:"8px 12px",borderRadius:8,border:"none",background:"transparent",cursor:"pointer",fontSize: 12,fontWeight:500,color:C.text,fontFamily:"inherit"}}
                     onMouseEnter={e=>e.currentTarget.style.background="#F4EEEA"} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                     <span style={{color:C.textSoft,display:"flex"}}>{ic(ICONS[r.ic],15)}</span>{r.lbl}
                   </button>
@@ -2641,7 +2641,7 @@ export default function Dashboard({
                     <button onClick={()=>stepZoom(1)} style={{width:24,height:24,borderRadius:6,border:`1px solid ${C.borderStr}`,background:C.white,fontSize:14,fontWeight:800,color:C.textMid,cursor:"pointer",lineHeight:1}}>+</button>
                   </div>
                 </div>
-                <button onClick={()=>{setProfileOpen(false);onSignOut&&onSignOut();}} style={{display:"flex",alignItems:"center",gap:10,width:"100%",textAlign:"left",padding:"8px 12px",borderRadius:8,border:"none",background:"transparent",cursor:"pointer",fontSize:12.5,fontWeight:600,color:C.red,fontFamily:"inherit"}}
+                <button onClick={()=>{setProfileOpen(false);onSignOut&&onSignOut();}} style={{display:"flex",alignItems:"center",gap:10,width:"100%",textAlign:"left",padding:"8px 12px",borderRadius:8,border:"none",background:"transparent",cursor:"pointer",fontSize: 12,fontWeight:600,color:C.red,fontFamily:"inherit"}}
                   onMouseEnter={e=>e.currentTarget.style.background=C.redLight} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                   <span style={{display:"flex"}}>{ic(ICONS.logOut,15)}</span>Esci
                 </button>
@@ -3188,7 +3188,7 @@ export default function Dashboard({
                       }}/>
                   </div>
                   <div style={{flex:1,minWidth:0,overflow:"hidden"}}>
-                    <div style={{fontSize:12.5,color:"#FFFFFF",fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",letterSpacing:"-0.005em"}}>{auth.user.email}</div>
+                    <div style={{fontSize: 12,color:"#FFFFFF",fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",letterSpacing:"-0.005em"}}>{auth.user.email}</div>
                     <div style={{fontSize: 12,color:"rgba(255,255,255,0.55)",fontWeight:500,marginTop:2,display:"flex",alignItems:"center",gap:6,letterSpacing:"0.02em"}}>
                       Connesso
                     </div>
@@ -3669,7 +3669,7 @@ export default function Dashboard({
             <div id="dirty-guard-title" style={{ fontSize: 18, fontWeight: 800, color: "#1C0A0A", marginBottom: 8, letterSpacing: "-0.01em" }}>
               Hai modifiche non salvate
             </div>
-            <div style={{ fontSize: 13.5, color: "#4B3832", lineHeight: 1.55, marginBottom: 20 }}>
+            <div style={{ fontSize: 13, color: "#4B3832", lineHeight: 1.55, marginBottom: 20 }}>
               Se esci ora perdi le modifiche fatte in questa pagina. Vuoi salvarle prima di cambiare pagina?
             </div>
             {/* 3 bottoni su un'unica riga (audit 2026-07-28): niente flexWrap

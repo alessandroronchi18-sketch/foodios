@@ -119,7 +119,7 @@ function StockPFWidget({ isMobile, setView, viewAggregato, orgId, sedeId, LEX })
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '170px 1fr', gap: isMobile ? 14 : 28, alignItems: 'center' }}>
             <div>
               <div style={{ fontSize: isMobile ? 34 : 48, fontWeight: 800, color: T.text, letterSpacing: '-0.04em', lineHeight: 1, ...TNUM }}>{n0(totPezzi)}</div>
-              <div style={{ fontSize: 12.5, color: T.textSoft, fontWeight: 500, marginTop: 4 }}>pezzi al banco</div>
+              <div style={{ fontSize: 12, color: T.textSoft, fontWeight: 500, marginTop: 4 }}>pezzi al banco</div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
               {top.map((r, i) => (
@@ -145,7 +145,7 @@ function StockPFWidget({ isMobile, setView, viewAggregato, orgId, sedeId, LEX })
           style={{ background: 'linear-gradient(135deg,#FFFBEB,#FEF3C7)', border: '1px solid #FCD34D', borderRadius: 18, padding: isMobile ? '16px 16px' : '22px 24px', cursor: 'pointer' }}>
           <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: '#92400E', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="truck" size={13} />In arrivo da altre sedi</div>
           <div style={{ fontSize: isMobile ? 32 : 48, fontWeight: 800, color: '#92400E', letterSpacing: '-0.04em', lineHeight: 1, ...TNUM }}>{n0(inArrivo)}</div>
-          <div style={{ fontSize: 12.5, color: '#92400E', marginTop: 6, fontWeight: 600 }}>{inArrivo === 1 ? 'trasferimento da confermare' : 'trasferimenti da confermare'}</div>
+          <div style={{ fontSize: 12, color: '#92400E', marginTop: 6, fontWeight: 600 }}>{inArrivo === 1 ? 'trasferimento da confermare' : 'trasferimenti da confermare'}</div>
         </div>
       )}
     </div>
@@ -486,7 +486,7 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
           {todos.length === 0
             ? <div style={{ padding: '28px 12px', textAlign: 'center' }}>
                 <span style={{ display: 'inline-flex', width: 44, height: 44, borderRadius: '50%', background: 'rgba(16,163,74,0.12)', color: T.green, alignItems: 'center', justifyContent: 'center', marginBottom: 10 }}><Ico d={ICO.check} size={22} /></span>
-                <div style={{ fontSize: 13.5, color: T.text, fontWeight: 600 }}>Tutto fatto per oggi</div>
+                <div style={{ fontSize: 13, color: T.text, fontWeight: 600 }}>Tutto fatto per oggi</div>
                 <div style={{ fontSize: 12, color: T.textSoft, marginTop: 4 }}>Goditi la giornata.</div>
               </div>
             : <div style={{ display: 'flex', flexDirection: 'column' }}>

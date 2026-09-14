@@ -276,7 +276,7 @@ Valuta se sono sotto, in linea o sopra, e dimmi cosa farei al posto mio.`
                         Verdetto: {(aiInsight.verdetto || '').replace('_', ' ')}
                       </div>
                       {aiInsight.prezzo_consigliato && (
-                        <div style={{ fontSize: 12.5, color: MID, fontWeight: 700 }}>
+                        <div style={{ fontSize: 12, color: MID, fontWeight: 700 }}>
                           <Icon name="arrowR" size={13} style={{ verticalAlign: 'middle', opacity: 0.7 }} /> {Number(aiInsight.prezzo_consigliato).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
                           {aiInsight.range_consigliato?.min && aiInsight.range_consigliato?.max && (
                             <span style={{ fontWeight: 500, color: SOFT }}> ({Number(aiInsight.range_consigliato.min).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} € – {Number(aiInsight.range_consigliato.max).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €)</span>
@@ -291,10 +291,10 @@ Valuta se sono sotto, in linea o sopra, e dimmi cosa farei al posto mio.`
                       )}
                     </div>
                     {aiInsight.spiegazione && (
-                      <div style={{ fontSize: 12.5, color: MID, lineHeight: 1.55 }}>{aiInsight.spiegazione}</div>
+                      <div style={{ fontSize: 12, color: MID, lineHeight: 1.55 }}>{aiInsight.spiegazione}</div>
                     )}
                     {aiInsight.azione && (
-                      <div style={{ fontSize: 12.5, color: TXT, marginTop: 8, fontWeight: 700 }}>
+                      <div style={{ fontSize: 12, color: TXT, marginTop: 8, fontWeight: 700 }}>
                         → {aiInsight.azione}
                       </div>
                     )}

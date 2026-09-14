@@ -406,7 +406,7 @@ export default function FormatiVendita({ orgId, ricettario, onSaveRicettario, no
                       onChange={e => setForm(f => ({ ...f, componenti: f.componenti.map((x, j) => j === i ? { ...x, qta: e.target.value } : x) }))}/>
                     <input style={{ ...inputStyle, textAlign: 'right', ...TNUM }} type="number" min="0" step="0.001" value={c.costo ?? ''} placeholder="es. 0,060"
                       onChange={e => setForm(f => ({ ...f, componenti: f.componenti.map((x, j) => j === i ? { ...x, costo: e.target.value } : x) }))}/>
-                    {!isMobile && <span style={{ textAlign: 'right', fontSize: 12.5, fontWeight: 700, color: T.textMid, ...TNUM }}>{fmt3(subtot)}</span>}
+                    {!isMobile && <span style={{ textAlign: 'right', fontSize: 12, fontWeight: 700, color: T.textMid, ...TNUM }}>{fmt3(subtot)}</span>}
                     <button onClick={() => setForm(f => ({ ...f, componenti: f.componenti.filter((_, j) => j !== i) }))} title="Rimuovi materiale"
                       style={{ padding: '8px 0', width: 36, background: T.brandLight, color: T.brand, border: 'none', borderRadius: R.sm, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
                       <Icon name="trash" size={14} />
@@ -415,7 +415,7 @@ export default function FormatiVendita({ orgId, ricettario, onSaveRicettario, no
                 )
               })}
               <button onClick={() => setForm(f => ({ ...f, componenti: [...(f.componenti || []), { nome: '', qta: '', costo: '' }] }))}
-                style={{ alignSelf: 'flex-start', marginTop: 4, padding: '8px 14px', background: 'transparent', color: T.textMid, border: `1px dashed ${T.borderStr}`, borderRadius: R.md, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                style={{ alignSelf: 'flex-start', marginTop: 4, padding: '8px 14px', background: 'transparent', color: T.textMid, border: `1px dashed ${T.borderStr}`, borderRadius: R.md, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                 <Icon name="plus" size={13} />Aggiungi materiale
               </button>
             </div>
@@ -425,7 +425,7 @@ export default function FormatiVendita({ orgId, ricettario, onSaveRicettario, no
           {previewFC && (
             <div style={{ marginTop: 18, padding: '14px 16px', background: previewFC.avg == null ? T.amberLight : T.greenLight, border: `1px solid ${previewFC.avg == null ? T.amber : T.green}33`, borderRadius: R.md }}>
               {previewFC.avg == null ? (
-                <div style={{ display: 'flex', gap: 9, alignItems: 'flex-start', fontSize: 12.5, color: '#78350F', lineHeight: 1.55 }}>
+                <div style={{ display: 'flex', gap: 9, alignItems: 'flex-start', fontSize: 12, color: '#78350F', lineHeight: 1.55 }}>
                   <span style={{ flexShrink: 0, marginTop: 1, color: T.amber }}><Icon name="warning" size={15} /></span>
                   <span>Nessuna {LEX.ricetta} con categoria <b>"{form.categoria}"</b> (con peso definito): il food cost coprirà solo i materiali di confezionamento. Assegna la categoria ai {LEX.prodotti} nel {LEX.Ricettario} per stimare anche il prodotto.</span>
                 </div>
@@ -445,11 +445,11 @@ export default function FormatiVendita({ orgId, ricettario, onSaveRicettario, no
 
           <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
             <button onClick={salva}
-              style={{ padding: '11px 20px', background: T.green, color: '#fff', border: 'none', borderRadius: R.md, fontWeight: 700, fontSize: 13.5, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+              style={{ padding: '11px 20px', background: T.green, color: '#fff', border: 'none', borderRadius: R.md, fontWeight: 700, fontSize: 13, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
               <Icon name="check" size={15} />Salva formato
             </button>
             <button onClick={() => setForm(null)}
-              style={{ padding: '11px 20px', background: 'transparent', color: T.textSoft, border: `1px solid ${T.border}`, borderRadius: R.md, fontSize: 13.5, fontWeight: 500, cursor: 'pointer' }}>Annulla</button>
+              style={{ padding: '11px 20px', background: 'transparent', color: T.textSoft, border: `1px solid ${T.border}`, borderRadius: R.md, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Annulla</button>
           </div>
         </div>
       )}
@@ -501,12 +501,12 @@ export default function FormatiVendita({ orgId, ricettario, onSaveRicettario, no
                         {hasMultiSede && (
                           <button onClick={(e) => { e.stopPropagation(); setPrezziSedeTarget(f) }}
                             title="Prezzi diversi per sede"
-                            style={{ padding: '8px 12px', background: 'transparent', color: T.textMid, border: `1px solid ${T.border}`, borderRadius: R.sm, fontSize: 12.5, fontWeight: 500, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                            style={{ padding: '8px 12px', background: 'transparent', color: T.textMid, border: `1px solid ${T.border}`, borderRadius: R.sm, fontSize: 12, fontWeight: 500, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                             <Icon name="pin" size={13} />Prezzi / sede
                           </button>
                         )}
                         <button onClick={(e) => { e.stopPropagation(); apriEditor(f) }}
-                          style={{ padding: '8px 12px', background: 'transparent', color: T.textMid, border: `1px solid ${T.border}`, borderRadius: R.sm, fontSize: 12.5, fontWeight: 500, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                          style={{ padding: '8px 12px', background: 'transparent', color: T.textMid, border: `1px solid ${T.border}`, borderRadius: R.sm, fontSize: 12, fontWeight: 500, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                           <Icon name="edit" size={13} />Modifica
                         </button>
                         {/* L'eliminazione non deve gridare su ogni riga.
@@ -537,14 +537,14 @@ export default function FormatiVendita({ orgId, ricettario, onSaveRicettario, no
 
                       {/* materiali di confezionamento */}
                       {r.componenti.length === 0 ? (
-                        <div style={{ fontSize: 12.5, color: T.textSoft, marginBottom: 12 }}>Nessun materiale di confezionamento definito.</div>
+                        <div style={{ fontSize: 12, color: T.textSoft, marginBottom: 12 }}>Nessun materiale di confezionamento definito.</div>
                       ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
                           {r.componenti.map((c, j) => {
                             const subtot = c.qta * c.costo
                             const pctCosto = r.fcUnit > 0 ? subtot / r.fcUnit * 100 : 0
                             return (
-                              <div key={j} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12.5 }}>
+                              <div key={j} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12 }}>
                                 <span style={{ flex: '0 0 38%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: T.text, fontWeight: 500 }}>
                                   {c.nome} <span style={{ color: T.textSoft, ...TNUM }}>· {c.qta.toLocaleString('it-IT', { useGrouping: 'always' })} × {fmt3(c.costo)}</span>
                                 </span>
@@ -619,7 +619,7 @@ function MiniStat({ label, val, color, title }) {
   return (
     <div style={{ textAlign: 'right' }} title={title}>
       <div style={{ fontSize: typo.small.fontSize, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, whiteSpace: 'nowrap', cursor: title ? 'help' : 'default' }}>{label}</div>
-      <div style={{ fontSize: 14.5, fontWeight: 800, color: color || T.text, ...TNUM }}>{val}</div>
+      <div style={{ fontSize: 14, fontWeight: 800, color: color || T.text, ...TNUM }}>{val}</div>
     </div>
   )
 }

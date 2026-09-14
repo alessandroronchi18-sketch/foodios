@@ -502,7 +502,7 @@ export default function CashflowView({ orgId, sedeId, sedi = [], notify }) {
                 <div style={{ fontSize: 13, fontWeight: 800, color: BRAND, marginBottom: 4 }}>
                   Attenzione: cassa attesa negativa il {new Date(primoGiornoRosso.iso).toLocaleDateString('it-IT', { day: 'numeric', month: 'long' })}
                 </div>
-                <div style={{ fontSize: 12.5, color: MID, lineHeight: 1.5 }}>
+                <div style={{ fontSize: 12, color: MID, lineHeight: 1.5 }}>
                   Saldo previsto: <strong>{fmt0(primoGiornoRosso.saldoAtteso)}</strong>.
                   Sposta scadenze, anticipa entrate, oppure parla col tuo commercialista.
                 </div>

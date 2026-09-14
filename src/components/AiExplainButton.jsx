@@ -160,7 +160,7 @@ function ExplainModal({ label, value, loading, explanation, error, onClose }) {
           </div>
         )}
         {error && (
-          <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '10px 12px', color: '#991B1B', fontSize: 12.5 }}>
+          <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '10px 12px', color: '#991B1B', fontSize: 12 }}>
             {error}
           </div>
         )}

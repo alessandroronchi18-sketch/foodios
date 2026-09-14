@@ -746,7 +746,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                 <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#92400E', marginBottom: 4 }}>
                   Lettura AI del gruppo
                 </div>
-                <div style={{ fontSize: 13.5, color: '#451A03', lineHeight: 1.6, fontWeight: 500 }}>
+                <div style={{ fontSize: 13, color: '#451A03', lineHeight: 1.6, fontWeight: 500 }}>
                   {verdict}
                 </div>
               </div>
@@ -774,7 +774,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                   <div style={{ fontSize: 18, fontWeight: 800, color: TXT, marginBottom: 6 }}>
                     <Icon name="pin" size={14} /> {sedeCritica.sede.nome}
                   </div>
-                  <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12.5, color: MID, lineHeight: 1.6 }}>
+                  <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: MID, lineHeight: 1.6 }}>
                     {sedeCritica.k?.foodCostPct > 38 && <li>Food cost <strong>{fmtp(sedeCritica.k.foodCostPct)}</strong> sopra soglia</li>}
                     {sedeCritica.k?.margineNettoCur < 0 && <li>Margine netto <strong>{fmt0(sedeCritica.k.margineNettoCur)}</strong></li>}
                     {sedeCritica.k?.ricaviCur != null && sedeCritica.k?.ricaviPrev > 0 && ((sedeCritica.k.ricaviCur - sedeCritica.k.ricaviPrev) / sedeCritica.k.ricaviPrev * 100) <= -10 && <li>Ricavi in calo <strong>{fmtp0(((sedeCritica.k.ricaviCur - sedeCritica.k.ricaviPrev) / sedeCritica.k.ricaviPrev) * 100)}</strong></li>}
@@ -797,7 +797,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                   <div style={{ fontSize: 18, fontWeight: 800, color: TXT, marginBottom: 6 }}>
                     <Icon name="pin" size={14} /> {sedeChampion.sede.nome}
                   </div>
-                  <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12.5, color: MID, lineHeight: 1.6 }}>
+                  <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: MID, lineHeight: 1.6 }}>
                     {sedeChampion.k?.foodCostPct != null && sedeChampion.k.foodCostPct < 33 && <li>Food cost <strong>{fmtp(sedeChampion.k.foodCostPct)}</strong> sotto target</li>}
                     {sedeChampion.k?.margineNettoCur > 0 && sedeChampion.k?.ricaviCur > 0 && <li>Margine netto <strong>{fmtp0((sedeChampion.k.margineNettoCur / sedeChampion.k.ricaviCur) * 100)}</strong> dei ricavi</li>}
                     {sedeChampion.k?.ricaviCur != null && sedeChampion.k?.ricaviPrev > 0 && ((sedeChampion.k.ricaviCur - sedeChampion.k.ricaviPrev) / sedeChampion.k.ricaviPrev * 100) >= 10 && <li>Ricavi in crescita <strong>+{fmtp0(((sedeChampion.k.ricaviCur - sedeChampion.k.ricaviPrev) / sedeChampion.k.ricaviPrev) * 100)}</strong></li>}

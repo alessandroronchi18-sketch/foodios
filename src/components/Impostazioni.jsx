@@ -205,7 +205,7 @@ function MetodoProduzioneSection({ orgId, metodoProduzione, notify }) {
             </span>
           )}
         </div>
-        <div style={{ fontSize: 12.5, color: '#4A3728', lineHeight: 1.55, marginBottom: 8 }}>{descrizione}</div>
+        <div style={{ fontSize: 12, color: '#4A3728', lineHeight: 1.55, marginBottom: 8 }}>{descrizione}</div>
         <div style={{ fontSize: 12, color: '#9C7B76' }}>{esempi}</div>
       </button>
     )
@@ -213,13 +213,13 @@ function MetodoProduzioneSection({ orgId, metodoProduzione, notify }) {
 
   return (
     <div>
-      <div style={{ marginBottom: 16, fontSize: 12.5, color: '#4A3728', lineHeight: 1.6 }}>
+      <div style={{ marginBottom: 16, fontSize: 12, color: '#4A3728', lineHeight: 1.6 }}>
         Come registri la produzione nella tua attività. Questa scelta vale per <b>tutte le sedi</b> — ricettario, formati di vendita e analisi consolidate presuppongono un modello unico.
       </div>
 
       {/* Banner: richiesta pending o esito recente (informativo). */}
       {!loadingReq && richiestaPending && (
-        <div style={{ marginBottom: 14, padding: '12px 14px', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 10, fontSize: 12.5, color: '#92400E', lineHeight: 1.55 }}>
+        <div style={{ marginBottom: 14, padding: '12px 14px', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 10, fontSize: 12, color: '#92400E', lineHeight: 1.55 }}>
           <div style={{ fontWeight: 700, marginBottom: 4 }}>Richiesta in attesa di approvazione</div>
           <div>Vuoi passare da <b>{labelMetodo(richiestaPending.from_metodo)}</b> a <b>{labelMetodo(richiestaPending.to_metodo)}</b>. Inviata il {new Date(richiestaPending.created_at).toLocaleDateString('it-IT')}.</div>
           {richiestaPending.motivazione && <div style={{ marginTop: 6, fontStyle: 'italic', color: '#78350F' }}>Motivo: {richiestaPending.motivazione}</div>}
@@ -232,7 +232,7 @@ function MetodoProduzioneSection({ orgId, metodoProduzione, notify }) {
         </div>
       )}
       {!loadingReq && !richiestaPending && ultimaDecisa?.status === 'rejected' && (
-        <div style={{ marginBottom: 14, padding: '12px 14px', background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 10, fontSize: 12.5, color: '#7F1D1D', lineHeight: 1.55 }}>
+        <div style={{ marginBottom: 14, padding: '12px 14px', background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 10, fontSize: 12, color: '#7F1D1D', lineHeight: 1.55 }}>
           <div style={{ fontWeight: 700, marginBottom: 4 }}>Ultima richiesta non approvata</div>
           <div>Passaggio a <b>{labelMetodo(ultimaDecisa.to_metodo)}</b> del {new Date(ultimaDecisa.decided_at || ultimaDecisa.created_at).toLocaleDateString('it-IT')}.</div>
           {ultimaDecisa.admin_note && <div style={{ marginTop: 6, fontStyle: 'italic' }}>Motivo: {ultimaDecisa.admin_note}</div>}
@@ -752,7 +752,7 @@ function PacchettiAIPanel({ auth, notify }) {
                 background: p.best ? '#6E0E1A' : '#FFF',
                 color: p.best ? '#FFF' : '#6E0E1A',
                 border: `1px solid #6E0E1A`,
-                fontSize: 13.5, fontWeight: 800, cursor: busy ? 'wait' : 'pointer',
+                fontSize: 13, fontWeight: 800, cursor: busy ? 'wait' : 'pointer',
                 opacity: busy ? 0.6 : 1,
                 letterSpacing: '-0.005em',
               }}>

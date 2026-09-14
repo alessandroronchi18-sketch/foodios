@@ -965,7 +965,7 @@ function OrdiniTab({ orgId, notify, isMobile, onMutate }) {
             </div>
           </div>
           <div style={{ marginBottom: 14 }}>
-            <div style={{ fontSize: 12.5, fontWeight: 700, color: C.text, marginBottom: 8 }}>Prodotti ordinati</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: C.text, marginBottom: 8 }}>Prodotti ordinati</div>
             {!isMobile && (
               <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 80px 1fr auto", gap: 6, marginBottom: 6 }}>
                 {["Prodotto", "Quantità", "Unità", "€/unità", ""].map((h, i) => (

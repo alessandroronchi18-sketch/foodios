@@ -1525,11 +1525,11 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                             <td style={{padding:"10px 12px",fontWeight:700,color:C.text,whiteSpace:'nowrap',position:'sticky',left:0,background:rowBg,zIndex:1}}>{fmtKey(k)}</td>
                             <td style={{padding:"10px 12px",textAlign:"right",color:C.textSoft,fontVariantNumeric:'tabular-nums'}}>{pp?fmt(pp.ricavoTot):"-"}</td>
                             <td style={{padding:"10px 12px",textAlign:"right",fontWeight:700,color:C.green,fontVariantNumeric:'tabular-nums'}}>{pv?fmt(pv.rvTot):"-"}</td>
-                            <td style={{padding:"10px 12px",textAlign:"right",fontWeight:700,color:diff>=0?C.green:C.red,fontVariantNumeric:'tabular-nums'}}>{pp&&pv?(diff>=0?"+":"")+fmt(diff):"-"}</td>
+                            <td style={{ padding:"10px 12px",textAlign:"right",fontWeight:700,color:diff>=0?C.green:C.red,fontVariantNumeric:'tabular-nums'}}>{pp&&pv?(diff>=0?"+":"")+fmt(diff):"-"}</td>
                             <td style={{padding:"10px 12px",textAlign:"right",color:C.textSoft,fontVariantNumeric:'tabular-nums'}}>{pp?fmt(pp.margine):"-"}</td>
-                            <td style={{padding:"10px 12px",textAlign:"right",fontWeight:800,color:pv?margColor(pv.margTot>0&&pv.rvTot>0?(pv.margTot/pv.rvTot*100):0):C.textSoft,fontVariantNumeric:'tabular-nums'}}>{pv?fmt(pv.margTot):"-"}</td>
-                            <td style={{padding:"10px 12px",textAlign:"right"}}>{pv?<span style={{fontWeight:700,color:pv.avgST>=85?C.green:pv.avgST>=65?C.amber:C.red,fontVariantNumeric:'tabular-nums'}}>{fmtp(pv.avgST)}</span>:"-"}</td>
-                            <td style={{padding:"10px 12px",textAlign:"right",color:pv?.sproTot>5?C.red:C.textSoft,fontVariantNumeric:'tabular-nums'}}>{pv?fmt(pv.sproTot):"-"}</td>
+                            <td style={{ padding:"10px 12px",textAlign:"right",fontWeight:800,color:pv?margColor(pv.margTot>0&&pv.rvTot>0?(pv.margTot/pv.rvTot*100):0):C.textSoft,fontVariantNumeric:'tabular-nums'}}>{pv?fmt(pv.margTot):"-"}</td>
+                            <td style={{ padding:"10px 12px",textAlign:"right"}}>{pv?<span style={{fontWeight:700,color:pv.avgST>=85?C.green:pv.avgST>=65?C.amber:C.red,fontVariantNumeric:'tabular-nums'}}>{fmtp(pv.avgST)}</span>:"-"}</td>
+                            <td style={{ padding:"10px 12px",textAlign:"right",color:pv?.sproTot>5?C.red:C.textSoft,fontVariantNumeric:'tabular-nums'}}>{pv?fmt(pv.sproTot):"-"}</td>
                           </tr>
                         );
                       })}
