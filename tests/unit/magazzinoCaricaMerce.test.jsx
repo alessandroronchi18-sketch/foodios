@@ -51,6 +51,8 @@ async function apriCarica() {
 }
 
 beforeEach(() => {
+  // La scheda aperta si ricorda in sessionStorage: fra un test e l'altro si azzera.
+  try { sessionStorage.clear() } catch { /* niente */ }
   cleanup()
   salvato.length = 0
   magazzino = { burro: { nome: 'Burro', giacenza_g: 4000, soglia_g: 1000 } }

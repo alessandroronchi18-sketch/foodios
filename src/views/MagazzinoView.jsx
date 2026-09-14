@@ -938,7 +938,16 @@ export default function MagazzinoView({
 }) {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
-  const [tab, setTab] = useState('giacenze')
+  // Audit 2026-09-14: la scheda aperta non veniva ricordata. Chi lavora sui
+  // prezzi e passa un attimo su un'altra pagina, tornando ricominciava da
+  // "Materie prime" e doveva ritrovare il punto. Si ricorda per sede.
+  const [tab, _setTab] = useState(() => {
+    try { return sessionStorage.getItem(`foodos_mag_tab_${sedeId || '_'}`) || 'giacenze' } catch { return 'giacenze' }
+  })
+  const setTab = useCallback((t) => {
+    _setTab(t)
+    try { sessionStorage.setItem(`foodos_mag_tab_${sedeId || '_'}`, t) } catch { /* private browsing */ }
+  }, [sedeId])
   // Toggle unità: 'kg' tutto kg (anche 0,80 kg), 'g' tutto grammi (28.000 g).
   // Default 'kg' che è il più comodo per ingredienti grandi (farine, latte).
   const [unitMode, setUnitMode] = useState('kg')
@@ -1589,12 +1598,11 @@ export default function MagazzinoView({
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
       <PageHeader
-        subtitle={[
-          `${tuttiIngNomi.length} ingredienti`,
-          negativi.length > 0 ? `${negativi.length} sotto zero` : null,
-          esauriti.length > 0 ? `${esauriti.length} a zero` : null,
-          sottoSoglia.length > 0 ? `${sottoSoglia.length} da ordinare` : null,
-        ].filter(Boolean).join(' · ')}
+        /* Audit 2026-09-14: qui c'erano gli stessi numeri che il semaforo
+           ripete sotto e le tessere ripetono ancora sotto: nei primi 300px di
+           pagina "3 a zero · 5 da ordinare" compariva tre volte, e la prima
+           riga di dati veri arrivava dopo 800px. Un numero, un posto solo. */
+        subtitle={`${tuttiIngNomi.length} ingredienti`}
         action={onImportPrezzi && (
           <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 16px',
             background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: R.md, cursor: 'pointer', boxShadow: S.sm }}>
@@ -1667,9 +1675,15 @@ export default function MagazzinoView({
               return parti.join(' · ')
             })()}/>
           )}
+          {/* Audit 2026-09-14: questa tessera cambiava identita'. Quando
+              qualcosa andava a zero diventava "A zero" e il numero "da
+              ordinare" spariva: due giorni di fila non si potevano confrontare,
+              perché il riquadro nello stesso posto misurava due cose diverse.
+              Ora dice sempre quanto c'e' da comprare, e quanti di quelli sono
+              già finiti lo dice la riga sotto. */}
           <KPI icon={<Icon name={esauriti.length > 0 ? 'alert' : 'cart'} size={18} />}
-            label={esauriti.length > 0 ? 'A zero' : 'Da ordinare'}
-            value={esauriti.length > 0 ? esauriti.length : sottoSoglia.length}
+            label="Da ordinare"
+            value={sottoSoglia.length + esauriti.filter(r => !sottoSoglia.includes(r)).length}
             color={esauriti.length > 0 ? C.red : sottoSoglia.length > 0 ? C.amber : C.green}
             sub={critici.length > 0
               ? 'clicca per vedere cosa ordinare'
@@ -1942,7 +1956,10 @@ export default function MagazzinoView({
         style={{ display: 'flex', gap: 2, marginBottom: 24, borderBottom: `1px solid ${T.border}`, overflowX: 'auto', WebkitOverflowScrolling: 'touch',
           maskImage: isMobile ? 'linear-gradient(to right, #000 88%, transparent 100%)' : undefined,
           WebkitMaskImage: isMobile ? 'linear-gradient(to right, #000 88%, transparent 100%)' : undefined }}>
-        {[['giacenze', 'Materie prime'], ['pf', 'Prodotti finiti'], ['prezzi', 'Prezzi ingredienti'], ['carica', 'Carica merce'], ['log', 'Storico carichi']].filter(([id]) => !(isDipendente && id === 'prezzi')).map(([id, lbl]) => (
+        {/* L'ordine e' quello di quanto si usano: le giacenze e il carico merce
+            sono di tutti i giorni, i prezzi si toccano una volta al mese. Prima
+            i prezzi stavano prima del carico. */}
+        {[['giacenze', 'Materie prime'], ['carica', 'Carica merce'], ['pf', 'Prodotti finiti'], ['prezzi', 'Prezzi ingredienti'], ['log', 'Storico carichi']].filter(([id]) => !(isDipendente && id === 'prezzi')).map(([id, lbl]) => (
           <button key={id} onClick={() => setTab(id)}
             role="tab" aria-selected={tab === id} id={`mag-tab-${id}`}
             style={{ padding: '12px 16px', minHeight: 44, border: 'none', background: 'transparent', cursor: 'pointer',

@@ -399,15 +399,16 @@ Cosa ho verificato riga per riga in /Users/aler/foodos/src/views/MagazzinoView.j
 
 ---
 
-## NON VERIFICATI — sostenuti da un agente, mai messi in dubbio
+## VERIFICATI TUTTI il 14/09/2026 — erano 84 "sostenuti e mai messi in dubbio"
 
 > Aggiornamento 14/09/2026: dei 84 iniziali, i 19 di "Prodotti finiti" sono
 > stati verificati (11 risultavano già corretti, 8 corretti oggi, 0 rifiutati) e
 > così i 5 di "Materie prime" (2 già corretti, 2 corretti oggi, 1 metà e metà)
 > e i 10 di "Carica merce" (4 già corretti, 6 corretti oggi) e i 20 di
 > "Prezzi ingredienti" (16 già corretti, 4 corretti oggi) e i 13 dello
-> "Storico carichi" (9 già corretti, 4 corretti oggi).
-> **Restano 17**, tutti su struttura ed etichette.
+> "Storico carichi" (9 già corretti, 4 corretti oggi) e i 17 di "Struttura
+> ed etichette" (12 già corretti, 4 corretti oggi, 1 rifiutato).
+> **Restano 0: la verifica di questo audit è chiusa.**
 
 
 ### Prodotti finiti — 19, verificati il 14/09/2026
@@ -760,72 +761,89 @@ Cosa ho verificato riga per riga in /Users/aler/foodos/src/views/MagazzinoView.j
   - proposta: Maiuscola solo sulla prima lettera (`::first-letter` o una piccola funzione `capitalizzaPrima(nome)` condivisa), lasciando il resto come l'utente l'ha scritto. Vale anche per le altre celle che usano lo stesso capitalize in questa view (righe 1149, 411).
 
 
-### Struttura e etichette — 17 da verificare
+### Struttura e etichette — 17, verificati il 14/09/2026
 
-- **alta** · riga `971` · struttura — Tutto il cappello (sottotitolo, banner, 4 tessere, lista di riordino) è fuori dalle schede: appare anche su Prodotti finiti, Prezzi e Log
+> **Esito: 12 erano già stati corretti il 9 set, 4 corretti oggi, 1 rifiutato.**
+>
+> I quattro di oggi: gli stessi due numeri scritti tre volte nei primi 300px di
+> pagina (sottotitolo, semaforo, tessere — la prima riga di dati veri arrivava
+> dopo 800px; ora il sottotitolo dice solo quanti ingredienti ci sono); la
+> seconda tessera che cambiava identità, diventando "A zero" quando qualcosa
+> finiva e facendo sparire il numero di cosa ordinare, così due giorni di fila
+> non si potevano confrontare; l'ordine delle schede, che metteva i prezzi —
+> che si toccano una volta al mese — prima del carico merce, che è di tutti i
+> giorni; e la scheda aperta che non veniva ricordata.
+>
+> **Rifiutato**: "due tessere in ambra mentre il banner dice che non c'è niente
+> di rotto". Il banner ambra non dice che va tutto bene: dice "Da mettere in
+> lista" e spiega che è la lista della spesa, che è esattamente quello che
+> l'ambra delle tessere significa. Non è una contraddizione, è la stessa cosa
+> detta due volte con due gradi di dettaglio.
+
+- **[GIÀ RISOLTO il 09/09]** · alta · riga `971` · struttura — Tutto il cappello (sottotitolo, banner, 4 tessere, lista di riordino) è fuori dalle schede: appare anche su Prodotti finiti, Prezzi e Log
   - Sono dati di materie prime. Chi apre "Prodotti finiti" per vedere quanti bignè ha in vetrina si trova prima il valore del magazzino ingredienti, il banner sulle scorte e la lista della spesa della farina: quattro blocchi che non c'entrano con quello che ha chiesto. Sulla scheda "Prodotti finiti" le 
   - proposta: Spostare banner + 4 tessere + lista di riordino DENTRO il ramo `tab === 'giacenze'`, subito sotto la barra delle schede. Sopra la barra resta solo il sottotitolo con il conteggio. Così la barra è visibile entro i primi 150px in qualsiasi stato, la lista non spinge più niente, e ogni scheda mostra so
 
-- **alta** · riga `1054` · struttura — La lista di riordino aperta non ha tetto d'altezza: con 56 ingredienti spinge la barra delle schede circa 2.000px più in basso
+- **[GIÀ RISOLTO il 09/09]** · alta · riga `1054` · struttura — La lista di riordino aperta non ha tetto d'altezza: con 56 ingredienti spinge la barra delle schede circa 2.000px più in basso
   - Il limite a 6 righe esiste (`RIORDINO_VISIBILI = 6`) e regge, ma appena il pasticcere premte "Vedi gli altri 47 da ordinare" la lista si apre per intero: la lista include esauriti + sotto soglia + in calo, quindi su un'org con 56 ingredienti può arrivare a più di 50 righe da ~37px, cioè circa 1.900p
   - proposta: Dare al contenitore della tabella `maxHeight: isMobile ? 320 : 420, overflowY: 'auto'` quando `riordinoTutti` è true: la lista scorre dentro il suo riquadro e la pagina non si allunga di un pixel. In più, portare il pulsante di apri/chiudi nell'intestazione scura del blocco (accanto a "Spesa stimata
 
-- **alta** · riga `63` · correttezza — Due tessere dicono "clicca per vedere" ma non sono cliccabili: la KPI locale non ha la prop onClick
+- **[GIÀ RISOLTO il 09/09]** · alta · riga `63` · correttezza — Due tessere dicono "clicca per vedere" ma non sono cliccabili: la KPI locale non ha la prop onClick
   - La tessera "Da ordinare" scrive sotto al numero "clicca per vedere cosa ordinare" e la tessera "In esaurimento" scrive "clicca per vedere quali". Il pasticcere clicca e non succede nulla: nessuno scorrimento, nemmeno il cursore a manina, perché la copia locale della KPI non riceve `onClick` e non im
   - proposta: Cancellare la KPI locale (righe 43-72) e importare quella condivisa: `import { C, TNUM, PageHeader, useSortable, SortTH, fmt0, KPI } from './_shared'`. Il click funziona subito, il cursore diventa una manina e le due scritte tornano vere.
 
-- **alta** · riga `43` · mobile — La KPI locale è una copia vecchia della condivisa: su telefono il valore sfora e i numeri delle tessere non sono incolonnati
+- **[GIÀ RISOLTO il 09/09]** · alta · riga `43` · mobile — La KPI locale è una copia vecchia della condivisa: su telefono il valore sfora e i numeri delle tessere non sono incolonnati
   - La copia locale ha perso tre cose che la condivisa ha: il `minHeight` sull'etichetta, il ridimensionamento del valore e l'altezza piena. Su telefono la griglia va a due colonne, quindi ogni tessera è larga circa 175px e ne restano 135 dentro le imbottiture: "VALORE A MAGAZZINO" va a capo su due righ
   - proposta: Eliminare le righe 43-72 e usare la KPI di `_shared.jsx`. Una sola tessera per tutta l'app: etichette a altezza fissa, valori incolonnati, testo che si adatta alla larghezza. Se serve una differenza, si cambia nella condivisa così vale su Chiusura e Produzione.
 
-- **alta** · riga `63` · tipografia — Le etichette delle quattro tessere sono a 10,5px, sotto il minimo di 12
+- **[GIÀ RISOLTO il 09/09]** · alta · riga `63` · tipografia — Le etichette delle quattro tessere sono a 10,5px, sotto il minimo di 12
   - L'etichetta è l'unica cosa che dice cosa significa il numerone: senza "VALORE A MAGAZZINO" quel 12.480 può essere qualsiasi cosa. È scritta a 10,5px, tutta maiuscola e con le lettere distanziate di 0,09em, che è la combinazione più faticosa da leggere: maiuscoletto spaziato piccolo. Dietro il banco,
   - proposta: Portare l'etichetta a 12px e scendere con la spaziatura a 0,06em (`fontSize: 12, letterSpacing: '0.06em'`). A 12px "VALORE A MAGAZZINO" resta su una riga anche nella tessera stretta da 135px se si tiene il `minHeight` a due righe. Correzione in `_shared.jsx` riga 210, così vale per tutte le pagine.
 
-- **alta** · riga `966` · correttezza — Senza storico di produzione i giorni di scorta sono calcolati su un consumo inventato, e la tessera li presenta come misurati
+- **[GIÀ RISOLTO il 09/09 e rifatto il 14/09]** · alta · riga `966` · correttezza — Senza storico di produzione i giorni di scorta sono calcolati su un consumo inventato, e la tessera li presenta come misurati
   - Se non ci sono sessioni di produzione, il fabbisogno viene stimato a "1 stampo per ricetta a settimana": un numero inventato dal codice, non misurato. Da lì escono i giorni di scorta, la copertura media, la colonna "Giorni scorta" della tabella e la quantità "Da ordinare" della lista della spesa. La
   - proposta: Portare fuori un flag dal calcolo (`fabbisognoStimato = ultimi7.length === 0`) e usarlo: se è stimato, la tessera scrive `sub: 'stima, ancora senza storico'` e la lista di riordino scrive in intestazione "quantità stimate: registra qualche produzione e diventano vere". Come già si fa per i prezzi (`
 
-- **media** · riga `886` · struttura — Gli stessi due numeri sono scritti tre volte nei primi 300px, e la prima riga di dati arriva a circa 840px
+- **[CORRETTO il 14/09]** · media · riga `886` · struttura — Gli stessi due numeri sono scritti tre volte nei primi 300px, e la prima riga di dati arriva a circa 840px
   - "3 a zero · 12 da ordinare" compare nel sottotitolo, poi nel banner colorato riformulato a parole, poi come numero nelle tessere due e tre. Tre modi di dire la stessa cosa costano circa 310px e non aggiungono una informazione. Sommando: sottotitolo 64px, banner 73, tessere 177, lista di riordino chi
   - proposta: Togliere il banner (le tessere due e tre dicono già gli stessi numeri con lo stesso colore) e togliere la SectHead "Materie prime" a riga 1089, spostando il toggle kg/g e il pulsante "+ Aggiungi ingrediente" sulla destra della barra delle schede. Si recuperano circa 120px e la prima riga di dati sal
 
-- **media** · riga `963` · correttezza — La tessera "Copertura media" non dice niente di azionabile e può essere verde mentre un ingrediente finisce domani
+- **[GIÀ RISOLTO il 09/09]** · media · riga `963` · correttezza — La tessera "Copertura media" non dice niente di azionabile e può essere verde mentre un ingrediente finisce domani
   - È la media aritmetica dei giorni di scorta di tutti gli ingredienti che hanno uno storico: mette insieme la vaniglia che dura otto mesi e il latte che dura un giorno. Con 50 ingredienti a 60 giorni e il latte a 1, la media viene 58 e la tessera si accende verde: il pasticcere legge "58 gg" e sta tra
   - proposta: Sostituirla con il numero che si può usare: "Prima scadenza" = il minimo dei giorni di scorta con il nome dell'ingrediente sotto (`sub` = il nome). "2 gg — panna" dice cosa fare stamattina; "58 gg" non dice niente. Il minimo non si può nemmeno mediare via.
 
-- **media** · riga `948` · struttura — La seconda tessera cambia identità: quando qualcosa va a zero il numero "da ordinare" spariscere
+- **[CORRETTO il 14/09]** · media · riga `948` · struttura — La seconda tessera cambia identità: quando qualcosa va a zero il numero "da ordinare" spariscere
   - La stessa casella, nella stessa posizione, un giorno si chiama "Da ordinare" e mostra 12, il giorno dopo si chiama "A zero" e mostra 2. Il pasticcere impara la posizione, non l'etichetta: guarda nell'angolo e legge un numero che è diventato un'altra cosa. E lo scambio avviene nel momento peggiore: q
   - proposta: Etichetta fissa "Da ordinare" con `value={sottoSoglia.length + esauriti.length}` e `sub` che scompone: `${esauriti.length} già a zero` quando ce ne sono, altrimenti "nessuno a zero". Il numero in quella posizione significa sempre la stessa cosa, e l'urgenza la porta il colore rosso più la riga sotto
 
-- **media** · riga `1074` · copy — "Log rifornimenti": "log" è parola da informatico, e la scheda contiene anche gli scarichi
+- **[GIÀ RISOLTO il 09/09 (nome), CORRETTO il 14/09 (ordine delle schede)]** · media · riga `1074` · copy — "Log rifornimenti": "log" è parola da informatico, e la scheda contiene anche gli scarichi
   - Nessuno in laboratorio ha mai chiamato "log" un registro. Ed è anche imprecisa: dentro non ci sono solo rifornimenti, ci sono gli scarichi manuali e le rettifiche, che il form salva nella stessa lista con quantità negativa. Il sottotitolo della sezione lo ammette ("Storico carichi e scarichi"), quin
   - proposta: Etichetta "Carichi e scarichi" e titolo di sezione uguale, sottotitolo "Tutto quello che è entrato e uscito dal magazzino". Due parole che un pasticcere usa già, e coprono davvero il contenuto.
 
-- **media** · riga `1344` · colore — Nello storico le quantità sono sempre verdi, anche gli scarichi negativi
+- **[GIÀ RISOLTO il 09/09]** · media · riga `1344` · colore — Nello storico le quantità sono sempre verdi, anche gli scarichi negativi
   - Il verde nel resto della pagina vuol dire merce entrata (a riga 268 la stessa tabella dei movimenti prodotti finiti usa verde per il più e rosso per il meno). Qui il colore è fisso: uno scarico di 2 chili di burro si legge "-2,00 kg" in verde, con lo stesso aspetto di un carico. Chi scorre la colonn
   - proposta: `color: r.quantita_g < 0 ? C.red : C.green` e il segno esplicito anche sul positivo (`+2,00 kg`), come già fa la tabella movimenti a riga 269. In più una colonna o una pillola "Carico / Scarico", che è la cosa che si cerca per prima.
 
-- **media** · riga `1074` · struttura — "Carica merce" è un'azione messa in fila a quattro luoghi, e la si raggiunge solo passando per una scheda
+- **[GIÀ RISOLTO il 09/09 (nome), CORRETTO il 14/09 (ordine delle schede)]** · media · riga `1074` · struttura — "Carica merce" è un'azione messa in fila a quattro luoghi, e la si raggiunge solo passando per una scheda
   - Le altre quattro schede sono posti dove si guarda; questa è un gesto che si fa. Metterla in mezzo obbliga a un cambio di modo mentale, e soprattutto la rende raggiungibile solo se sei già dentro Magazzino sulla scheda giusta: registrare una bolla è la cosa che un pasticcere fa più spesso qui dentro,
   - proposta: Togliere "Carica merce" dalla barra e farne un pulsante primario sempre visibile accanto a "Importa prezzi" nell'intestazione ("Registra carico"), che apre il form in un pannello laterale: funziona da qualsiasi scheda e il pulsante "Carica" della lista di riordino lo apre già precompilato, senza cam
 
-- **media** · riga `1074` · struttura — L'ordine delle schede non segue la frequenza d'uso: i prezzi stanno prima del carico merce
+- **[GIÀ RISOLTO il 09/09 (nome), CORRETTO il 14/09 (ordine delle schede)]** · media · riga `1074` · struttura — L'ordine delle schede non segue la frequenza d'uso: i prezzi stanno prima del carico merce
   - L'ordine è: giacenze, prodotti finiti, prezzi, carico, storico. Ma un pasticcere guarda le giacenze ogni giorno, registra la merce che arriva ogni giorno o quasi, controlla lo stock dei prodotti finiti ogni giorno, e tocca i prezzi degli ingredienti quando arriva un aumento dal fornitore: qualche vo
   - proposta: Riordinare per frequenza: Materie prime, Prodotti finiti, Carichi e scarichi, Prezzi ingredienti. Se "Carica merce" diventa il pulsante sempre visibile, restano quattro schede, tutte luoghi: Materie prime, Prodotti finiti, Carichi e scarichi, Prezzi ingredienti — che stanno su una riga anche su un t
 
-- **media** · riga `1073` · mobile — Su telefono due schede su cinque restano fuori schermo e niente dice che la barra si scorre
+- **[GIÀ RISOLTO il 09/09]** · media · riga `1073` · mobile — Su telefono due schede su cinque restano fuori schermo e niente dice che la barra si scorre
   - Le cinque etichette a 13px con 32px di imbottitura fanno circa 650px di larghezza; su un telefono ne sono disponibili circa 360. Si vedono "Materie prime", "Prodotti finiti" e mezza "Prezzi ingredienti": "Carica merce" e "Log rifornimenti" non esistono. La barra scorre in orizzontale, ma non c'è nes
   - proposta: Due mosse insieme: ridurre a quattro schede con nomi corti ("Materie prime", "Prodotti finiti", "Carichi", "Prezzi") e su telefono aggiungere la sfumatura di taglio a destra (un gradiente da trasparente a bianco, 24px, `pointerEvents: 'none'`) che scompare quando si è a fondo scorrimento. Così si ca
 
-- **media** · riga `957` · colore — Due tessere si accendono in ambra mentre il banner sopra dice "niente di rotto"
+- **[RIFIUTATO il 14/09]** · media · riga `957` · colore — Due tessere si accendono in ambra mentre il banner sopra dice "niente di rotto"
   - Nello stato normale di una pasticceria che ordina una volta a settimana ci sono sempre qualche ingrediente sotto soglia e qualcuno che scenderà nei sette giorni. Il banner ha già fatto la scelta giusta: colore neutro e la frase "Niente di rotto: è la lista della spesa". Ma dieci pixel più sotto le t
   - proposta: Lasciare "Da ordinare" e "In esaurimento" in colore neutro (`C.textMid`) e riservare l'ambra a chi ha meno di 3 giorni di scorta e il rosso solo agli esauriti. Sotto i numeri, `sub` con l'azione ("metti in lista"), non un colore. Coerente con la scelta già fatta sul banner e con il commento a riga 8
 
-- **bassa** · riga `1073` · accessibilita — La barra delle schede è fatta di cinque bottoni senza ruolo: da tastiera e da lettore di schermo non è una barra
+- **[GIÀ RISOLTO il 09/09]** · bassa · riga `1073` · accessibilita — La barra delle schede è fatta di cinque bottoni senza ruolo: da tastiera e da lettore di schermo non è una barra
   - Non c'è `role="tablist"`, non c'è `role="tab"`, non c'è `aria-selected`: chi usa un lettore di schermo sente cinque pulsanti generici uno dopo l'altro, senza sapere quale è quello attivo (l'informazione è affidata solo al colore del testo e a un bordino da 2px). Da tastiera le frecce destra/sinistra
   - proposta: `role="tablist"` sul contenitore, e su ogni pulsante `role="tab"`, `aria-selected={tab === id}`, `id={`tab-${id}`}`, `aria-controls={`pane-${id}`}`; il contenitore del contenuto con `role="tabpanel"`. Due righe di attributi, nessun cambio visivo.
 
-- **bassa** · riga `576` · struttura — La scheda aperta non viene ricordata: si torna sempre su "Materie prime"
+- **[CORRETTO il 14/09]** · bassa · riga `576` · struttura — La scheda aperta non viene ricordata: si torna sempre su "Materie prime"
   - Chi sta registrando bolle apre "Carica merce", va a controllare una ricetta in un'altra pagina e torna: la vista viene smontata e rimontata, quindi si ritrova su "Materie prime" e deve rifare il percorso. Con dieci bolle da inserire e qualche controllo in mezzo, sono dieci tocchi in più.
   - proposta: Ricordare la scheda per sessione: inizializzare da `sessionStorage.getItem('mag-tab')` con fallback 'giacenze' e salvarla in `setTab`. Sono tre righe e chi lavora a raffica non perde più il punto.

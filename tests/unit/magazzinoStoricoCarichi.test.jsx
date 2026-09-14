@@ -53,6 +53,8 @@ async function apriStorico() {
 }
 
 beforeEach(() => {
+  // La scheda aperta si ricorda in sessionStorage: fra un test e l'altro si azzera.
+  try { sessionStorage.clear() } catch { /* niente */ }
   cleanup()
   scritture.length = 0
   window.confirm = () => true

@@ -49,7 +49,10 @@ async function apriPrezzi(extra = {}) {
   return v
 }
 
-beforeEach(() => cleanup())
+beforeEach(() => {
+  cleanup()
+  try { sessionStorage.clear() } catch { /* niente */ }
+})
 
 describe('prezzi ingredienti — il log non deve far cadere la scheda', () => {
   it('una riga di log senza `delta` non porta via la pagina', async () => {
