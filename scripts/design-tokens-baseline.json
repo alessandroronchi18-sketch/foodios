@@ -9,7 +9,7 @@
   },
   "src/admin/AdminPage.jsx": {
     "colore-a-mano": 88,
-    "testo-a-mano": 444
+    "testo-a-mano": 442
   },
   "src/admin/MethodChangeRequestsPanel.jsx": {
     "colore-a-mano": 17,
@@ -67,9 +67,6 @@
     "colore-a-mano": 23,
     "testo-a-mano": 12
   },
-  "src/components/CalendarioOperativo.jsx": {
-    "testo-a-mano": 26
-  },
   "src/components/CameraButton.jsx": {
     "colore-a-mano": 1
   },
@@ -94,7 +91,7 @@
   },
   "src/components/ConfrontoSedi.jsx": {
     "colore-a-mano": 43,
-    "testo-a-mano": 53
+    "testo-a-mano": 15
   },
   "src/components/DailyBriefCard.jsx": {
     "colore-a-mano": 6,
@@ -128,12 +125,12 @@
     "colore-a-mano": 2
   },
   "src/components/FormatiVendita.jsx": {
-    "colore-a-mano": 2,
-    "testo-a-mano": 34
+    "colore-a-mano": 1,
+    "testo-a-mano": 22
   },
   "src/components/Fornitori.jsx": {
     "colore-a-mano": 32,
-    "testo-a-mano": 64
+    "testo-a-mano": 49
   },
   "src/components/FotoOCR.jsx": {
     "colore-a-mano": 5,
@@ -167,7 +164,7 @@
     "testo-a-mano": 5
   },
   "src/components/Integrazioni.jsx": {
-    "colore-a-mano": 7,
+    "colore-a-mano": 5,
     "testo-a-mano": 45
   },
   "src/components/Logo.jsx": {
@@ -192,12 +189,12 @@
     "testo-a-mano": 2
   },
   "src/components/Personale.jsx": {
-    "colore-a-mano": 82,
-    "testo-a-mano": 177
+    "colore-a-mano": 79,
+    "testo-a-mano": 97
   },
   "src/components/PrevisioneDomanda.jsx": {
     "colore-a-mano": 2,
-    "testo-a-mano": 21
+    "testo-a-mano": 7
   },
   "src/components/PrezziPerSedeModal.jsx": {
     "colore-a-mano": 13,
@@ -228,8 +225,7 @@
     "testo-a-mano": 81
   },
   "src/components/SedeContextBanner.jsx": {
-    "colore-a-mano": 8,
-    "testo-a-mano": 4
+    "colore-a-mano": 2
   },
   "src/components/SedeSelector.jsx": {
     "colore-a-mano": 24,
@@ -252,7 +248,7 @@
   },
   "src/components/TrasferimentiView.jsx": {
     "colore-a-mano": 21,
-    "testo-a-mano": 36
+    "testo-a-mano": 12
   },
   "src/components/UpgradeGate.jsx": {
     "testo-a-mano": 4
@@ -302,7 +298,7 @@
   },
   "src/pages/LandingPage.jsx": {
     "colore-a-mano": 21,
-    "testo-a-mano": 121
+    "testo-a-mano": 123
   },
   "src/pages/TvDashboard.jsx": {
     "colore-a-mano": 4,
@@ -318,7 +314,7 @@
   },
   "src/views/AnalisiInventarioSection.jsx": {
     "colore-a-mano": 37,
-    "testo-a-mano": 22
+    "testo-a-mano": 21
   },
   "src/views/AzioniView.jsx": {
     "colore-a-mano": 2,
@@ -330,11 +326,10 @@
   },
   "src/views/CashflowView.jsx": {
     "colore-a-mano": 19,
-    "testo-a-mano": 20
+    "testo-a-mano": 19
   },
   "src/views/ChiusuraView.jsx": {
-    "colore-a-mano": 21,
-    "testo-a-mano": 92
+    "colore-a-mano": 20
   },
   "src/views/CompetitorPricingView.jsx": {
     "colore-a-mano": 15,
@@ -342,7 +337,7 @@
   },
   "src/views/CostiAziendaliView.jsx": {
     "colore-a-mano": 44,
-    "testo-a-mano": 40
+    "testo-a-mano": 17
   },
   "src/views/DashboardHomeView.jsx": {
     "colore-a-mano": 19,
@@ -354,19 +349,19 @@
   },
   "src/views/ForecastView.jsx": {
     "colore-a-mano": 9,
-    "testo-a-mano": 11
+    "testo-a-mano": 4
   },
   "src/views/HomeDipendente.jsx": {
-    "colore-a-mano": 26,
+    "colore-a-mano": 23,
     "testo-a-mano": 7
   },
   "src/views/InventarioSettimanaleView.jsx": {
-    "colore-a-mano": 126,
-    "testo-a-mano": 94
+    "colore-a-mano": 125,
+    "testo-a-mano": 91
   },
   "src/views/MagazzinoView.jsx": {
-    "colore-a-mano": 31,
-    "testo-a-mano": 105
+    "colore-a-mano": 28,
+    "testo-a-mano": 73
   },
   "src/views/MarketplaceView.jsx": {
     "colore-a-mano": 5,
@@ -378,23 +373,23 @@
   },
   "src/views/NuovaRicettaView.jsx": {
     "colore-a-mano": 52,
-    "testo-a-mano": 81
+    "testo-a-mano": 69
   },
   "src/views/OrdiniAiView.jsx": {
-    "colore-a-mano": 11,
-    "testo-a-mano": 17
+    "colore-a-mano": 10,
+    "testo-a-mano": 12
   },
   "src/views/PLView.jsx": {
-    "colore-a-mano": 71,
+    "colore-a-mano": 70,
     "testo-a-mano": 105
   },
   "src/views/ProduzioneGiornalieraView.jsx": {
     "colore-a-mano": 41,
-    "testo-a-mano": 76
+    "testo-a-mano": 72
   },
   "src/views/QuadraturaInventarioView.jsx": {
-    "colore-a-mano": 54,
-    "testo-a-mano": 31
+    "colore-a-mano": 53,
+    "testo-a-mano": 30
   },
   "src/views/RecensioniView.jsx": {
     "colore-a-mano": 13,
@@ -413,12 +408,12 @@
     "testo-a-mano": 56
   },
   "src/views/SchedaAllergeniView.jsx": {
-    "colore-a-mano": 9,
-    "testo-a-mano": 9
+    "colore-a-mano": 7,
+    "testo-a-mano": 8
   },
   "src/views/SemilavoratiView.jsx": {
     "colore-a-mano": 1,
-    "testo-a-mano": 45
+    "testo-a-mano": 15
   },
   "src/views/SimulatorePrezziView.jsx": {
     "colore-a-mano": 6,
@@ -426,7 +421,7 @@
   },
   "src/views/StoricoProduzioneView.jsx": {
     "colore-a-mano": 38,
-    "testo-a-mano": 99
+    "testo-a-mano": 22
   },
   "src/views/VenditeB2BView.jsx": {
     "colore-a-mano": 17,

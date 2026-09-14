@@ -294,10 +294,10 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
     // le due causali delle vendite all'ingrosso, che da oggi vengono scritte
     // davvero (la funzione che le scriveva non era mai stata creata in
     // produzione). Senza etichetta, in tabella compariva la sigla grezza.
-    vendita_b2b: { lbl: 'Vendita ingrosso', ic: 'building', col: '#2563EB' },
-    annullo_vendita_b2b: { lbl: 'Annullo ingrosso', ic: 'undo', col: '#94A3B8' },
-    rettifica_manuale: { lbl: 'Correzione', ic: 'edit', col: '#475569' },
-    rettifica_admin: { lbl: 'Correzione (assistenza)', ic: 'edit', col: '#475569' },
+    vendita_b2b: { lbl: 'Vendita ingrosso', ic: 'building', col: T.blue },
+    annullo_vendita_b2b: { lbl: 'Annullo ingrosso', ic: 'undo', col: C.textSoft },
+    rettifica_manuale: { lbl: 'Correzione', ic: 'edit', col: C.textMid },
+    rettifica_admin: { lbl: 'Correzione (assistenza)', ic: 'edit', col: C.textMid },
   }
 
   // L'unita' di misura non sta sui movimenti (la tabella non ha la colonna):

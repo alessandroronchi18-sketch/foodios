@@ -66,6 +66,12 @@ fi
 # 3) Build production
 echo
 echo "[3/3] Build production…"
+# NB: il pipe verso `tail` mangiava l'esito del build — in una pipeline conta
+# l'uscita dell'ULTIMO comando, e `tail` riesce sempre. Il 14/09/2026 due push
+# sono passati da qui con il build rotto (il cricchetto sui token di design lo
+# bocciava) e la produzione e' rimasta ferma tre commit indietro senza che
+# nessuno lo sapesse. `pipefail` fa contare il primo comando che fallisce.
+set -o pipefail
 if ! npm run build --silent 2>&1 | tail -5; then
   echo
   echo "Build production fallito. Push abortito."
