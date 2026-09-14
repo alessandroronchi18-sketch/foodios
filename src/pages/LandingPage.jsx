@@ -152,7 +152,7 @@ function DashboardPreview() {
     <div style={{
       background: T.paper, borderRadius: 18, overflow: 'hidden',
       boxShadow: '0 30px 80px rgba(15,9,7,0.18), 0 8px 24px rgba(15,9,7,0.08), 0 0 0 1px rgba(15,9,7,0.04)',
-      maxWidth: 640, width: '100%',
+      maxWidth: 940, width: '100%', margin: '0 auto',
     }}>
       <div style={{
         background: T.cream, padding: '10px 14px',
@@ -683,6 +683,20 @@ export default function LandingPage({ onLogin, onRegister }) {
               Foodos
             </span>
           </div>
+          {/* I link alle sezioni al centro: la pagina è lunga e senza questi si
+              naviga solo scorrendo. Impaginazione presa da notco.ai. */}
+          {!isMobile && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 28 }}>
+              {[['come-funziona', 'Come funziona'], ['prezzi', 'Prezzi'], ['domande', 'Domande']].map(([id, lbl]) => (
+                <button key={id} onClick={() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer', fontFamily: SANS,
+                    fontSize: 14, fontWeight: 500, color: T.textMid, padding: '8px 0', whiteSpace: 'nowrap',
+                  }}>{lbl}</button>
+              ))}
+            </div>
+          )}
+
           <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 4 : 6, flexShrink: 0 }}>
             <button onClick={onLogin} style={{
               padding: isMobile ? '10px 12px' : '8px 16px',
@@ -698,117 +712,119 @@ export default function LandingPage({ onLogin, onRegister }) {
         </div>
       </nav>
 
-      {/* HERO */}
+      {/* HERO
+          Impaginazione rifatta il 14/09/2026 sul modello di notco.ai: una
+          schermata intera, tutto centrato, il titolo alla misura più grande
+          della pagina, e il prodotto che si affaccia sotto la piega invece di
+          stare di fianco al testo. Contenuto e colori sono quelli di prima. */}
       <section style={{ position: 'relative', overflow: 'hidden' }}>
         <div aria-hidden style={{
           position: 'absolute', inset: 0,
-          background: 'radial-gradient(circle at 80% 0%, rgba(110,14,26,0.06), transparent 50%), radial-gradient(circle at 0% 80%, rgba(110,14,26,0.04), transparent 50%)',
+          background: 'radial-gradient(circle at 50% -10%, rgba(110,14,26,0.07), transparent 55%), radial-gradient(circle at 0% 80%, rgba(110,14,26,0.04), transparent 45%)',
           pointerEvents: 'none',
         }}/>
 
         <div style={{
-          maxWidth: 1180, margin: '0 auto',
-          padding: isMobile ? '40px 24px 80px' : '72px 24px 100px',
           position: 'relative',
+          maxWidth: 1180, margin: '0 auto',
+          padding: isMobile ? '48px 24px 0' : '96px 24px 0',
+          minHeight: isMobile ? 'auto' : 'calc(100vh - 64px)',
+          display: 'flex', flexDirection: 'column', alignItems: 'center',
         }}>
           <div style={{
-            display: 'grid',
-            gridTemplateColumns: isMobile ? '1fr' : '1.05fr 1fr',
-            gap: isMobile ? 32 : 56, alignItems: 'center',
+            width: '100%', maxWidth: 880, textAlign: 'center',
+            opacity: heroIn ? 1 : 0,
+            transform: heroIn ? 'translateY(0)' : 'translateY(24px)',
+            transition: 'opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1)',
           }}>
-
             <div style={{
-              minWidth: 0,
-              opacity: heroIn ? 1 : 0,
-              transform: heroIn ? 'translateY(0)' : 'translateY(24px)',
-              transition: 'opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1)',
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              padding: '6px 14px',
+              background: T.paper, border: `1px solid ${T.border}`, borderRadius: 999,
+              fontSize: 12, fontWeight: 500, color: T.textMid,
+              marginBottom: isMobile ? 24 : 32, boxShadow: '0 2px 8px rgba(15,9,7,0.04)',
             }}>
-              <div style={{
-                display: 'inline-flex', alignItems: 'center', gap: 8,
-                padding: '6px 14px',
-                background: T.paper, border: `1px solid ${T.border}`, borderRadius: 999,
-                fontSize: 12, fontWeight: 500, color: T.textMid,
-                marginBottom: 28, boxShadow: '0 2px 8px rgba(15,9,7,0.04)',
-              }}>
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: T.green, boxShadow: `0 0 0 4px ${T.greenSoft}` }}/>
-                Beta privata · Made in Italy
-              </div>
-
-              <h1 style={{
-                fontFamily: SERIF,
-                fontSize: isMobile ? 'clamp(38px, 9vw, 52px)' : 'clamp(44px, 5.2vw, 70px)',
-                fontWeight: 500, lineHeight: 1.02, letterSpacing: '-0.035em',
-                color: T.ink, margin: '0 0 24px',
-              }}>
-                Sai quanto<br/>
-                <em style={{ fontStyle: 'italic', fontWeight: 400, color: T.red }}>guadagni davvero</em><br/>
-                su ogni piatto?
-              </h1>
-
-              <p style={{
-                fontSize: isMobile ? 16 : 19, color: T.textMid,
-                lineHeight: 1.6, maxWidth: 520, margin: '0 0 36px',
-                wordBreak: 'break-word', overflowWrap: 'anywhere',
-              }}>
-                Carichi le ricette, fotografi le fatture, chiudi la giornata dal cellulare.
-                <strong style={{ color: T.ink, fontWeight: 600 }}> Food cost e margini reali, in automatico.</strong>
-              </p>
-
-              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 24 }}>
-                <Button variant="primary" size="lg" onClick={onRegister}>
-                  Inizia 3 mesi gratis <Icon name="arrowR" size={16} color="#FFF"/>
-                </Button>
-                <Button variant="secondary" size="lg" onClick={() => {
-                  document.getElementById('come-funziona')?.scrollIntoView({ behavior: 'smooth' })
-                }}>
-                  <Icon name="play" size={12} color={T.ink}/> Vedi come funziona
-                </Button>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap', fontSize: 13, color: T.textMid }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  <Icon name="checkCirc" size={16} color={T.green}/> 3 mesi gratuiti
-                </span>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  <Icon name="checkCirc" size={16} color={T.green}/> Disdici quando vuoi
-                </span>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  <Icon name="checkCirc" size={16} color={T.green}/> In italiano
-                </span>
-              </div>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: T.green, boxShadow: `0 0 0 4px ${T.greenSoft}` }}/>
+              Beta privata · Made in Italy
             </div>
 
-            <div style={{
-              position: 'relative', minWidth: 0,
-              opacity: heroIn ? 1 : 0,
-              transform: heroIn ? 'translateY(0)' : 'translateY(40px)',
-              transition: 'opacity 0.9s 0.15s cubic-bezier(0.16, 1, 0.3, 1), transform 0.9s 0.15s cubic-bezier(0.16, 1, 0.3, 1)',
+            <h1 style={{
+              fontFamily: SERIF,
+              fontSize: isMobile ? 'clamp(40px, 11vw, 56px)' : 'clamp(56px, 6.4vw, 84px)',
+              fontWeight: 500, lineHeight: 1.0, letterSpacing: '-0.04em',
+              color: T.ink, margin: '0 auto 24px', maxWidth: 900,
             }}>
-              <DashboardPreview/>
-              {!isMobile && (
-                <>
-                  <FloatBadge style={{ top: -18, left: -28 }}>
-                    <div style={{ width: 38, height: 38, borderRadius: 12, background: T.greenSoft, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Icon name="boltSm" size={18} color={T.green}/>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 12, color: T.textSoft, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Food cost</div>
-                      <div style={{ fontFamily: SERIF, fontSize: 16, fontWeight: 700, color: T.ink, letterSpacing: '-0.02em' }}>aggiornato in 2 sec</div>
-                    </div>
-                  </FloatBadge>
+              Sai quanto <em style={{ fontStyle: 'italic', fontWeight: 400, color: T.red }}>guadagni davvero</em><br/>
+              su ogni piatto?
+            </h1>
 
-                  <FloatBadge style={{ bottom: 24, right: -32 }}>
-                    <div style={{ width: 38, height: 38, borderRadius: 12, background: T.redSoft, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Icon name="receipt" size={18} color={T.red}/>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 12, color: T.textSoft, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Scontrino</div>
-                      <div style={{ fontFamily: SERIF, fontSize: 16, fontWeight: 700, color: T.ink, letterSpacing: '-0.02em' }}>OCR in 3 secondi</div>
-                    </div>
-                  </FloatBadge>
-                </>
-              )}
+            <p style={{
+              fontSize: isMobile ? 16 : 20, color: T.textMid,
+              lineHeight: 1.6, maxWidth: 620, margin: '0 auto 36px',
+              wordBreak: 'break-word', overflowWrap: 'anywhere',
+            }}>
+              Carichi le ricette, fotografi le fatture, chiudi la giornata dal cellulare.
+              <strong style={{ color: T.ink, fontWeight: 600 }}> Food cost e margini reali, in automatico.</strong>
+            </p>
+
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center', marginBottom: 20 }}>
+              <Button variant="primary" size="lg" onClick={onRegister}>
+                Inizia 3 mesi gratis <Icon name="arrowR" size={16} color="#FFF"/>
+              </Button>
+              <Button variant="secondary" size="lg" onClick={() => {
+                document.getElementById('come-funziona')?.scrollIntoView({ behavior: 'smooth' })
+              }}>
+                <Icon name="play" size={12} color={T.ink}/> Vedi come funziona
+              </Button>
             </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 18, flexWrap: 'wrap', fontSize: 13, color: T.textMid }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <Icon name="checkCirc" size={16} color={T.green}/> 3 mesi gratuiti
+              </span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <Icon name="checkCirc" size={16} color={T.green}/> Disdici quando vuoi
+              </span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <Icon name="checkCirc" size={16} color={T.green}/> In italiano
+              </span>
+            </div>
+          </div>
+
+          {/* Il prodotto sotto il titolo, centrato e tagliato dal bordo della
+              schermata: si vede che c'è e invita a scorrere, senza rubare
+              spazio alle parole. */}
+          <div style={{
+            position: 'relative', width: '100%', maxWidth: 980,
+            margin: isMobile ? '40px auto 0' : '64px auto 0',
+            opacity: heroIn ? 1 : 0,
+            transform: heroIn ? 'translateY(0)' : 'translateY(40px)',
+            transition: 'opacity 0.9s 0.15s cubic-bezier(0.16, 1, 0.3, 1), transform 0.9s 0.15s cubic-bezier(0.16, 1, 0.3, 1)',
+          }}>
+            <DashboardPreview/>
+            {!isMobile && (
+              <>
+                <FloatBadge style={{ top: 112, left: 0, transform: 'translateX(-52%)' }}>
+                  <div style={{ width: 38, height: 38, borderRadius: 12, background: T.greenSoft, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <Icon name="boltSm" size={18} color={T.green}/>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 12, color: T.textSoft, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Food cost</div>
+                    <div style={{ fontFamily: SERIF, fontSize: 16, fontWeight: 700, color: T.ink, letterSpacing: '-0.02em' }}>aggiornato in 3 sec</div>
+                  </div>
+                </FloatBadge>
+
+                <FloatBadge style={{ bottom: 96, right: 0, transform: 'translateX(52%)' }}>
+                  <div style={{ width: 38, height: 38, borderRadius: 12, background: T.redSoft, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <Icon name="receipt" size={18} color={T.red}/>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 12, color: T.textSoft, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Fattura</div>
+                    <div style={{ fontFamily: SERIF, fontSize: 16, fontWeight: 700, color: T.ink, letterSpacing: '-0.02em' }}>OCR in 3 secondi</div>
+                  </div>
+                </FloatBadge>
+              </>
+            )}
           </div>
         </div>
       </section>
@@ -855,7 +871,10 @@ export default function LandingPage({ onLogin, onRegister }) {
       <section style={{ padding: isMobile ? '80px 24px' : '120px 24px', background: T.cream }}>
         <div style={{ maxWidth: 1180, margin: '0 auto' }}>
           <Reveal>
-            <div style={{ maxWidth: 720, marginBottom: 56 }}>
+            {/* Audit layout 2026-09-14: era l'unica intestazione di sezione
+                allineata a sinistra: tutte le altre sono centrate, e la pagina
+                sembrava cambiare impaginazione a metà. */}
+            <div style={{ maxWidth: 720, margin: '0 auto 56px', textAlign: 'center' }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: T.red, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 18 }}>
                 Suona familiare?
               </div>
@@ -1028,12 +1047,15 @@ export default function LandingPage({ onLogin, onRegister }) {
               { n: '03', t: 'Leggi i numeri che contano', d: 'Dashboard, P&L mensile e consigli AI sempre aggiornati. Decidi prezzi, menù e turni guardando i fatti.' },
             ].map((s, i) => (
               <Reveal key={s.n} delay={i * 100}>
-                <div style={{ padding: isMobile ? 0 : '0 8px' }}>
+                <div style={{ padding: isMobile ? 0 : '0 8px', height: '100%' }}>
+                  {/* Il numero, e sotto una riga che lega i tre passi: si legge
+                      che sono una sequenza, non tre riquadri qualsiasi. */}
                   <div style={{
                     fontFamily: SERIF, fontSize: 80, fontWeight: 500,
                     color: T.creamDeep, letterSpacing: '-0.05em',
-                    lineHeight: 0.85, marginBottom: 24,
+                    lineHeight: 0.85, marginBottom: 20,
                   }}>{s.n}</div>
+                  <div aria-hidden style={{ height: 1, background: T.border, marginBottom: 24 }}/>
                   <h3 style={{
                     fontFamily: SERIF, fontSize: 24, fontWeight: 500,
                     color: T.ink, letterSpacing: '-0.02em', lineHeight: 1.2, margin: '0 0 12px',
@@ -1078,9 +1100,10 @@ export default function LandingPage({ onLogin, onRegister }) {
                 <div style={{
                   background: T.paper, border: `1px solid ${T.border}`,
                   borderRadius: 18, padding: '28px 24px',
-                  height: '100%', textAlign: 'center',
+                  height: '100%', textAlign: 'center', boxSizing: 'border-box',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center',
                 }}>
-                  <div style={{ marginBottom: 14, color: T.ink, display: 'flex', justifyContent: 'center' }}><CatIcon name={item.icon} size={44} strokeWidth={1.6} /></div>
+                  <div style={{ height: 44, marginBottom: 14, alignItems: 'center', color: T.ink, display: 'flex', justifyContent: 'center' }}><CatIcon name={item.icon} size={44} strokeWidth={1.6} /></div>
                   <h3 style={{
                     fontFamily: SERIF, fontSize: 20, fontWeight: 600,
                     color: T.ink, letterSpacing: '-0.02em', margin: '0 0 8px',
@@ -1160,7 +1183,7 @@ export default function LandingPage({ onLogin, onRegister }) {
       </section>
 
       {/* PRICING */}
-      <section style={{
+      <section id="prezzi" style={{
         padding: isMobile ? '80px 24px' : '120px 24px',
         background: T.paper, borderTop: `1px solid ${T.border}`,
       }}>
@@ -1196,23 +1219,30 @@ export default function LandingPage({ onLogin, onRegister }) {
                 padding: isMobile ? '28px 24px' : '36px 28px',
                 display: 'flex', flexDirection: 'column',
               }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 20 }}>
+                {/* Audit layout 2026-09-14: le tre tessere avevano fasce di
+                    altezza diversa (etichetta, nome, prezzo, pulsante), quindi
+                    niente era incolonnato: il prezzo della seconda stava 23px
+                    più in basso degli altri due e gli elenchi partivano da tre
+                    righe diverse. Ora le fasce hanno la stessa altezza in tutte
+                    e tre, e la tessera centrale si distingue col colore, non
+                    con misure diverse. */}
+                <div style={{ minHeight: 28, display: 'flex', alignItems: 'center', fontSize: 12, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 16 }}>
                   Single shop
                 </div>
-                <div style={{ fontFamily: SERIF, fontWeight: 600, fontSize: 24, color: T.ink, letterSpacing: '-0.02em', marginBottom: 4 }}>
+                <div style={{ fontFamily: SERIF, fontWeight: 600, fontSize: 26, color: T.ink, letterSpacing: '-0.02em', marginBottom: 4, lineHeight: 1.2 }}>
                   {prezzi.nome?.base || 'Bottega'}
                 </div>
-                <div style={{ fontSize: 13, color: T.textMid, marginBottom: 20 }}>
+                <div style={{ fontSize: 13, color: T.textMid, marginBottom: 20, minHeight: 38, lineHeight: 1.45 }}>
                   {prezzi.desc?.base || 'Una sede, l\'essenziale.'}
                 </div>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 4 }}>
-                  <span style={{ fontFamily: SERIF, fontSize: 48, fontWeight: 600, color: T.ink, letterSpacing: '-0.045em', lineHeight: 1 }}>€{fmtPrezzo(prezzi.base)}</span>
-                  <span style={{ fontSize: 13, color: T.textSoft }}>/ mese</span>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 4, minHeight: 58 }}>
+                  <span style={{ fontFamily: SERIF, fontSize: 56, fontWeight: 600, color: T.ink, letterSpacing: '-0.045em', lineHeight: 1 }}>€{fmtPrezzo(prezzi.base)}</span>
+                  <span style={{ fontSize: 14, color: T.textSoft }}>/ mese</span>
                 </div>
-                <div style={{ fontSize: 12, color: T.textSoft, marginBottom: 20 }}>
+                <div style={{ fontSize: 13, color: T.textSoft, marginBottom: 20, minHeight: 20 }}>
                   IVA esclusa · 3 mesi gratis
                 </div>
-                <Button variant="secondary" onClick={onRegister} style={{ marginBottom: 20, justifyContent: 'center' }}>
+                <Button variant="secondary" size="lg" onClick={onRegister} style={{ marginBottom: 24, justifyContent: 'center' }}>
                   Inizia gratis
                 </Button>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -1250,25 +1280,25 @@ export default function LandingPage({ onLogin, onRegister }) {
                   display: 'inline-flex', alignSelf: 'flex-start',
                   background: T.red, color: '#FFF',
                   fontSize: 12, fontWeight: 700,
-                  padding: '5px 12px', borderRadius: 999,
+                  padding: '0 12px', borderRadius: 999,
                   letterSpacing: '0.05em', textTransform: 'uppercase',
-                  marginBottom: 20,
+                  alignItems: 'center', height: 28, marginBottom: 16, lineHeight: 1,
                 }}>Più scelto</div>
                 <div style={{
                   fontFamily: SERIF, fontWeight: 600,
-                  fontSize: 26, color: T.cream, letterSpacing: '-0.02em', marginBottom: 4,
+                  fontSize: 26, color: T.cream, letterSpacing: '-0.02em', marginBottom: 4, lineHeight: 1.2,
                 }}>{prezzi.nome?.pro || 'Maestro'}</div>
-                <div style={{ fontSize: 13, color: 'rgba(244,236,227,0.65)', marginBottom: 20 }}>
+                <div style={{ fontSize: 13, color: 'rgba(244,236,227,0.65)', marginBottom: 20, minHeight: 38, lineHeight: 1.45 }}>
                   {prezzi.desc?.pro || 'Sostituisce un controller part-time.'}
                 </div>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 4 }}>
-                  <span style={{ fontFamily: SERIF, fontSize: isMobile ? 56 : 64, fontWeight: 600, color: '#FFF', letterSpacing: '-0.045em', lineHeight: 1 }}>€{fmtPrezzo(prezzi.pro)}</span>
-                  <span style={{ fontSize: 15, color: 'rgba(244,236,227,0.8)' }}>/ mese</span>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 4, minHeight: 58 }}>
+                  <span style={{ fontFamily: SERIF, fontSize: 56, fontWeight: 600, color: '#FFF', letterSpacing: '-0.045em', lineHeight: 1 }}>€{fmtPrezzo(prezzi.pro)}</span>
+                  <span style={{ fontSize: 14, color: 'rgba(244,236,227,0.8)' }}>/ mese</span>
                 </div>
-                <div style={{ fontSize: 13, color: 'rgba(244,236,227,0.78)', marginBottom: 24 }}>
+                <div style={{ fontSize: 13, color: 'rgba(244,236,227,0.78)', marginBottom: 20, minHeight: 20 }}>
                   IVA esclusa · 3 mesi gratis
                 </div>
-                <Button variant="primary" size="lg" onClick={onRegister} style={{ marginBottom: 24 }}>
+                <Button variant="primary" size="lg" onClick={onRegister} style={{ marginBottom: 24, justifyContent: 'center' }}>
                   Inizia gratis <Icon name="arrowR" size={16} color="#FFF"/>
                 </Button>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -1299,23 +1329,23 @@ export default function LandingPage({ onLogin, onRegister }) {
                 padding: isMobile ? '28px 24px' : '36px 28px',
                 display: 'flex', flexDirection: 'column',
               }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 20 }}>
+                <div style={{ minHeight: 28, display: 'flex', alignItems: 'center', fontSize: 12, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 16 }}>
                   Multi-sede / catena
                 </div>
-                <div style={{ fontFamily: SERIF, fontWeight: 600, fontSize: 24, color: T.ink, letterSpacing: '-0.02em', marginBottom: 4 }}>
+                <div style={{ fontFamily: SERIF, fontWeight: 600, fontSize: 26, color: T.ink, letterSpacing: '-0.02em', marginBottom: 4, lineHeight: 1.2 }}>
                   {prezzi.nome?.chain || 'Insegna'}
                 </div>
-                <div style={{ fontSize: 13, color: T.textMid, marginBottom: 20 }}>
+                <div style={{ fontSize: 13, color: T.textMid, marginBottom: 20, minHeight: 38, lineHeight: 1.45 }}>
                   {prezzi.desc?.chain || 'Sostituisce 1 controller + IT contractor.'}
                 </div>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 4 }}>
-                  <span style={{ fontFamily: SERIF, fontSize: 48, fontWeight: 600, color: T.ink, letterSpacing: '-0.045em', lineHeight: 1 }}>€{fmtPrezzo(prezzi.chain)}</span>
-                  <span style={{ fontSize: 13, color: T.textSoft }}>/ mese</span>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 4, minHeight: 58 }}>
+                  <span style={{ fontFamily: SERIF, fontSize: 56, fontWeight: 600, color: T.ink, letterSpacing: '-0.045em', lineHeight: 1 }}>€{fmtPrezzo(prezzi.chain)}</span>
+                  <span style={{ fontSize: 14, color: T.textSoft }}>/ mese</span>
                 </div>
-                <div style={{ fontSize: 12, color: T.textSoft, marginBottom: 20 }}>
+                <div style={{ fontSize: 13, color: T.textSoft, marginBottom: 20, minHeight: 20 }}>
                   IVA esclusa · 3 mesi gratis
                 </div>
-                <Button variant="secondary" onClick={onRegister} style={{ marginBottom: 20, justifyContent: 'center' }}>
+                <Button variant="secondary" size="lg" onClick={onRegister} style={{ marginBottom: 24, justifyContent: 'center' }}>
                   Parla con noi
                 </Button>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -1347,7 +1377,7 @@ export default function LandingPage({ onLogin, onRegister }) {
       </section>
 
       {/* FAQ */}
-      <section style={{ padding: isMobile ? '80px 24px' : '120px 24px', background: T.cream }}>
+      <section id="domande" style={{ padding: isMobile ? '80px 24px' : '120px 24px', background: T.cream }}>
         <div style={{ maxWidth: 820, margin: '0 auto' }}>
           <Reveal>
             <div style={{ textAlign: 'center', marginBottom: 48 }}>
@@ -1430,9 +1460,15 @@ export default function LandingPage({ onLogin, onRegister }) {
       {/* FOOTER */}
       <footer style={{ background: '#070302', padding: '48px 24px 32px', borderTop: '1px solid rgba(244,236,227,0.06)' }}>
         <div style={{ maxWidth: 1180, margin: '0 auto' }}>
+          {/* Audit layout 2026-09-14: le colonne stavano in un flex con
+              spaziatura fissa, quindi la loro larghezza dipendeva dalla
+              lunghezza delle parole e i titoli non erano incolonnati. Griglia
+              a quattro colonne: il marchio nella prima, i link nelle altre. */}
           <div style={{
-            display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
-            flexWrap: 'wrap', gap: 32, marginBottom: 36, paddingBottom: 32,
+            display: 'grid',
+            gridTemplateColumns: isMobile ? '1fr' : '1.6fr 1fr 1fr 1fr',
+            alignItems: 'start',
+            gap: isMobile ? 32 : 40, marginBottom: 36, paddingBottom: 32,
             borderBottom: '1px solid rgba(244,236,227,0.06)',
           }}>
             <div style={{ maxWidth: 320 }}>
@@ -1445,7 +1481,7 @@ export default function LandingPage({ onLogin, onRegister }) {
               </p>
             </div>
 
-            <div style={{ display: 'flex', gap: 56, flexWrap: 'wrap' }}>
+            <>
               <div>
                 <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(244,236,227,0.78)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 14 }}>Prodotto</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -1472,7 +1508,7 @@ export default function LandingPage({ onLogin, onRegister }) {
                   <a href="/rimborsi" style={{ fontSize: 13, color: 'rgba(244,236,227,0.7)', textDecoration: 'none' }}>Rimborsi</a>
                 </div>
               </div>
-            </div>
+            </>
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
