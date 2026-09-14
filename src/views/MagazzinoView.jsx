@@ -15,7 +15,7 @@ import { SK_MAG, SK_EXCL, SK_LOGRIF } from '../lib/storageKeys'
 import { lessico } from '../lib/lessico'
 import FotoOCR from '../components/FotoOCR'
 import Icon from '../components/Icon'
-import { loadStockPF, loadMovimentiPF, scartoPF } from '../lib/stockPF'
+import { loadStockPF, loadMovimentiPF, scartoPF, rettificaPF } from '../lib/stockPF'
 import {
   C, TNUM, KPI, PageHeader, useSortable, SortTH, fmt0, fmtp,
 } from './_shared'
@@ -122,9 +122,19 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
   const [movimenti, setMovimenti] = useState([])
   const [saving, setSaving] = useState(false)
 
+  // Audit 2026-09-14: `notify` era fra le dipendenze di questo useCallback ma
+  // non viene usato qui dentro. `notify` in Dashboard.jsx e' una funzione
+  // ricreata a ogni render (riga 1579), quindi `carica` cambiava identita' di
+  // continuo e l'useEffect qui sotto rileggeva stock e movimenti a ogni render
+  // del Dashboard — anche solo per un toast comparso da un'altra parte. Con
+  // `setLoading(true)` davanti, la tabella spariva da sotto gli occhi e tornava
+  // "Caricamento…", perdendo il punto in cui si stava guardando.
+  const primaLettura = useRef(true)
   const carica = useCallback(async () => {
     if (!orgId || !sedeId) { setLoading(false); return }
-    setLoading(true)
+    // Solo la prima volta si svuota lo schermo: gli aggiornamenti successivi
+    // lasciano a video quello che c'e' già.
+    if (primaLettura.current) setLoading(true)
     setErroreLettura(null)
     try {
       const [s, m] = await Promise.all([
@@ -137,8 +147,8 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
       setErroreLettura(e.message || 'rete')
       setStock([])
       setMovimenti([])
-    } finally { setLoading(false) }
-  }, [orgId, sedeId, notify])
+    } finally { setLoading(false); primaLettura.current = false }
+  }, [orgId, sedeId])
 
   useEffect(() => { carica() }, [carica])
 
@@ -157,8 +167,19 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
     if (!scartoForm?.prodotto || !(qta > 0)) return
     setSaving(true)
     try {
-      await scartoPF({ sedeId, prodotto: scartoForm.prodotto, quantita: qta, note: scartoForm.note || null })
-      notify('Scarto registrato')
+      // Audit 2026-09-14: l'azzeramento scriveva un movimento con causale
+      // 'scarto', cioe' dichiarava buttata della merce che non c'era mai
+      // stata. Il registro delle perdite si gonfiava di roba mai prodotta, e
+      // chi puliva un dato sbagliato si vedeva peggiorare i numeri degli
+      // sprechi. Ora l'azzeramento e' una rettifica (causale
+      // 'rettifica_manuale'), lo scarto resta scarto.
+      if (scartoForm.azzera) {
+        await rettificaPF({ sedeId, prodotto: scartoForm.prodotto, delta: -qta, note: scartoForm.note || 'Correzione della giacenza' })
+        notify('Giacenza corretta')
+      } else {
+        await scartoPF({ sedeId, prodotto: scartoForm.prodotto, quantita: qta, note: scartoForm.note || null })
+        notify('Scarto registrato')
+      }
       setScartoForm(null)
       await carica()
     } catch (e) {
@@ -231,13 +252,31 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
     vendita: { lbl: 'Vendita', ic: 'cart', col: '#2563EB' },
     scarto: { lbl: 'Scarto', ic: 'warning', col: '#92400E' },
     annullo_trasferimento: { lbl: 'Annullo', ic: 'undo', col: '#94A3B8' },
-    rettifica: { lbl: 'Rettifica', ic: 'edit', col: '#475569' },
+    // Audit 2026-09-14: qui c'era 'rettifica', che nel database non esiste: il
+    // vincolo ammette 'rettifica_manuale' e 'rettifica_admin'. Mancavano anche
+    // le due causali delle vendite all'ingrosso, che da oggi vengono scritte
+    // davvero (la funzione che le scriveva non era mai stata creata in
+    // produzione). Senza etichetta, in tabella compariva la sigla grezza.
+    vendita_b2b: { lbl: 'Vendita ingrosso', ic: 'building', col: '#2563EB' },
+    annullo_vendita_b2b: { lbl: 'Annullo ingrosso', ic: 'undo', col: '#94A3B8' },
+    rettifica_manuale: { lbl: 'Correzione', ic: 'edit', col: '#475569' },
+    rettifica_admin: { lbl: 'Correzione (assistenza)', ic: 'edit', col: '#475569' },
   }
+
+  // L'unita' di misura non sta sui movimenti (la tabella non ha la colonna):
+  // si prende dalla riga di stock dello stesso prodotto, così un delta di
+  // 8.400 grammi non si legge come 8.400 pezzi.
+  const unitaDi = (nome) => stock.find(r => r.prodotto_nome === nome)?.unita || ''
 
   return (
     <div>
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10, marginBottom: 20 }}>
-        <KPI icon={<Icon name="package" size={18} />} label={`${LEX.Prodotti} in stock`} value={stock.length}/>
+        {/* Audit 2026-09-14: contava tutte le righe, comprese quelle a zero.
+            La sera, con la vetrina svuotata, diceva ancora "12 prodotti in
+            stock": un numero che non cambia mai non e' un'informazione. */}
+        <KPI icon={<Icon name="package" size={18} />} label={`${LEX.Prodotti} in stock`}
+          value={stock.filter(r => Number(r.quantita || 0) > 0).length}
+          sub={stock.length > 0 ? `su ${stock.length} censiti` : ''}/>
         <KPI icon={<Icon name="barChart" size={18} />} label="Pezzi totali"
           value={`${totPezzi.toLocaleString('it-IT', { maximumFractionDigits: 0, useGrouping: 'always' })} pz`}
           sub={totGrammi > 0
@@ -291,18 +330,26 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
                     <td style={{ padding: '10px 14px', fontSize: typo.small.fontSize, color: C.textSoft, whiteSpace: 'nowrap' }}>
                       {dataLeggibile(r.updated_at)}
                     </td>
+                    {/* Audit 2026-09-14: su telefono i due pulsanti stavano
+                        appiccicati (4px) e "Azzera" era il più piccolo dei
+                        due, pur essendo l'unico distruttivo: col tablet in
+                        laboratorio e le mani unte si centrava per sbaglio. E
+                        "Scarto" spento non diceva perché era spento. */}
                     <td style={{ padding: '10px 14px', textAlign: 'right' }}>
-                      <button onClick={() => setScartoForm({ prodotto: r.prodotto_nome, qty: '', note: '', azzera: false, unita: r.unita || 'pz', disponibile: q })} disabled={q <= 0}
-                        style={{ padding: '9px 12px', minHeight: 40, borderRadius: 6, border: `1px solid ${C.border}`, background: C.bgCard, color: q <= 0 ? C.textSoft : C.amber, fontSize: 12, fontWeight: 700, cursor: q <= 0 ? 'not-allowed' : 'pointer', marginRight: 4 }}>
-                        Scarto
-                      </button>
-                      {q > 0 && (
-                        <button onClick={() => setScartoForm({ prodotto: r.prodotto_nome, qty: String(q), note: 'Azzeramento stock (dato fantasma o reset)', azzera: true, unita: r.unita || 'pz', disponibile: q })}
-                          title="Porta a zero lo stock di questo prodotto"
-                          style={{ padding: '9px 10px', minHeight: 40, marginLeft: 6, borderRadius: 6, border: `1px solid ${C.red}`, background: '#FFF5F5', color: C.red, fontSize: typo.small.fontSize, fontWeight: 700, cursor: 'pointer' }}>
-                          Azzera
+                      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexDirection: isMobile ? 'column' : 'row' }}>
+                        <button onClick={() => setScartoForm({ prodotto: r.prodotto_nome, qty: '', note: '', azzera: false, unita: r.unita || 'pz', disponibile: q, valoreUnit: Number(r.valore_unit || 0) })} disabled={q <= 0}
+                          title={q <= 0 ? 'Giacenza a zero: non c\'è niente da scartare' : 'Registra merce buttata'}
+                          style={{ padding: '9px 12px', minHeight: 44, borderRadius: 6, border: `1px solid ${C.border}`, background: C.bgCard, color: q <= 0 ? C.textSoft : C.amber, fontSize: 12, fontWeight: 700, cursor: q <= 0 ? 'not-allowed' : 'pointer' }}>
+                          Scarto
                         </button>
-                      )}
+                        {q > 0 && (
+                          <button onClick={() => setScartoForm({ prodotto: r.prodotto_nome, qty: String(q), note: '', azzera: true, unita: r.unita || 'pz', disponibile: q, valoreUnit: Number(r.valore_unit || 0) })}
+                            title="La giacenza è sbagliata: portala a zero senza contarla fra gli sprechi"
+                            style={{ padding: '9px 10px', minHeight: 44, borderRadius: 6, border: `1px solid ${C.red}`, background: '#FFF5F5', color: C.red, fontSize: typo.small.fontSize, fontWeight: 700, cursor: 'pointer' }}>
+                            Azzera
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 )
@@ -312,7 +359,16 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
         </div>
       )}
 
-      {movimenti.length > 0 && (
+      {/* Audit 2026-09-14: a zero movimenti la sezione spariva del tutto. Chi
+          cerca lo scarto registrato lunedi' e non trova nemmeno il riquadro
+          non sa se ha sbagliato a cercare o se non l'ha mai registrato, e lo
+          registra di nuovo: una doppia scrittura vera nei dati. */}
+      {movimenti.length === 0 ? (
+        <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, padding: '22px 20px', textAlign: 'center', color: C.textSoft, fontSize: typo.small.fontSize, boxShadow: SHADOW_PREMIUM }}>
+          Ancora nessun movimento in questa sede. Qui compaiono le produzioni, le
+          vendite, gli scarti e i trasferimenti, dal più recente.
+        </div>
+      ) : (
         <div>
           {/* Audit 2026-09-09: la lista si fermava a 30 movimenti senza dirlo.
               Chi cerca lo scarto di lunedi e non lo trova lo registra di nuovo,
@@ -370,7 +426,7 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
                           delta di 8400 grammi usciva "-8400" invece di
                           "-8.400" (regola dei numeri italiani). */}
                       <td style={{ padding: '8px 14px', textAlign: 'right', fontWeight: 800, color: m.causale === 'scarto' ? C.red : C.text, ...TNUM, whiteSpace: 'nowrap' }}>
-                        {d > 0 ? '+' : d < 0 ? '−' : ''}{Math.abs(d).toLocaleString('it-IT', { useGrouping: 'always' })}
+                        {d > 0 ? '+' : d < 0 ? '−' : ''}{Math.abs(d).toLocaleString('it-IT', { useGrouping: 'always' })}{unitaDi(m.prodotto_nome) ? ` ${unitaDi(m.prodotto_nome)}` : ''}
                       </td>
                       <td style={{ padding: '8px 14px', fontSize: typo.small.fontSize, color: C.textSoft, fontStyle: 'italic' }}>{m.note || ''}</td>
                     </tr>
@@ -397,15 +453,29 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
         // salvataggio era in corso — buttando via quello che il pasticcere aveva
         // scritto senza dire com'era finita — e all'apertura il cursore non
         // finiva nel campo, quindi bisognava cliccarci.
-        <div role="dialog" aria-modal="true" aria-label="Registra scarto"
+        <div role="dialog" aria-modal="true" aria-label={scartoForm.azzera ? 'Porta a zero la giacenza' : 'Registra scarto'}
           tabIndex={-1}
           ref={el => { if (el && !el.dataset.visto) { el.dataset.visto = '1'; el.focus() } }}
           onKeyDown={e => { if (e.key === 'Escape' && !saving) setScartoForm(null) }}
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}
           onClick={() => { if (!saving) setScartoForm(null) }}>
           <div onClick={e => e.stopPropagation()} style={{ background: C.bgCard, borderRadius: 16, padding: 24, maxWidth: 420, width: '100%', boxShadow: '0 24px 60px rgba(15,23,42,0.28)' }}>
-            <h3 style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 800, color: C.text, display: 'inline-flex', alignItems: 'center', gap: 8 }}><Icon name="warning" size={18} />Registra scarto</h3>
-            <p style={{ margin: '0 0 16px', fontSize: 12, color: C.textSoft }}>{LEX.Prodotto}: <strong>{scartoForm.prodotto}</strong></p>
+            {/* Audit 2026-09-14: "Azzera" apriva la stessa finestra dello
+                scarto, con lo stesso titolo. Chi correggeva una giacenza
+                fantasma leggeva "Registra scarto" e non capiva se stava
+                dichiarando di aver buttato la merce. */}
+            <h3 style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 800, color: C.text, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <Icon name={scartoForm.azzera ? 'edit' : 'warning'} size={18} />
+              {scartoForm.azzera ? 'Porta a zero la giacenza' : 'Registra scarto'}
+            </h3>
+            <p style={{ margin: '0 0 16px', fontSize: 12, color: C.textSoft }}>
+              {LEX.Prodotto}: <strong>{scartoForm.prodotto}</strong>
+              {scartoForm.azzera && <>
+                <br/>
+                Risultano <strong>{Number(scartoForm.disponibile || 0).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 2 })} {scartoForm.unita}</strong>: li porti a zero.
+                Non finisce fra gli sprechi: è una correzione, non merce buttata.
+              </>}
+            </p>
             <div style={{ marginBottom: 12 }}>
               {/* L'unità della riga, non "(pz)" fisso: su una riga in grammi
                   si chiedeva di scartare "pezzi" di gelato sfuso. */}
@@ -420,12 +490,22 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
               <input type="text" inputMode="decimal" value={scartoForm.qty}
                 onChange={e => setScartoForm(f => ({ ...f, qty: e.target.value }))}
                 style={{ width: '100%', padding: '12px 14px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 16, boxSizing: 'border-box' }}/>
+              {/* Audit 2026-09-14: il costo unitario era già in mano
+                  (`valore_unit`, letto da loadStockPF) e non veniva usato da
+                  nessuna parte. E' l'unico momento in cui ci si ferma a pensare
+                  a quello che si sta buttando: vedere "sono 34 €" cambia il
+                  gesto, vedere un numero di pezzi no. */}
+              {!scartoForm.azzera && scartoForm.valoreUnit > 0 && parseFloat(String(scartoForm.qty ?? '').replace(',', '.')) > 0 && (
+                <div style={{ marginTop: 6, ...typo.small, color: C.textMid }}>
+                  Valore di quello che scarti: <strong>{fmt0(parseFloat(String(scartoForm.qty).replace(',', '.')) * scartoForm.valoreUnit)}</strong>
+                </div>
+              )}
             </div>
             <div style={{ marginBottom: 18 }}>
               <div style={{ ...typo.caption, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Motivo (opzionale)</div>
               <input value={scartoForm.note}
                 onChange={e => setScartoForm(f => ({ ...f, note: e.target.value }))}
-                placeholder="es. caduti per terra, scaduti, dati a omaggio"
+                placeholder={scartoForm.azzera ? 'es. carico registrato due volte' : 'es. caduti per terra, scaduti, dati a omaggio'}
                 style={{ width: '100%', padding: '12px 14px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 16, boxSizing: 'border-box' }}/>
             </div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
@@ -434,7 +514,7 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
                 disabled={saving || !(parseFloat(String(scartoForm.qty ?? '').replace(',', '.')) > 0)}
                 style={{ padding: '10px 18px', minHeight: 44, background: C.red, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 13,
                   cursor: (saving || !(parseFloat(String(scartoForm.qty ?? '').replace(',', '.')) > 0)) ? 'not-allowed' : 'pointer',
-                  opacity: (saving || !(parseFloat(String(scartoForm.qty ?? '').replace(',', '.')) > 0)) ? 0.5 : 1 }}>{saving ? 'Registrazione…' : 'Registra scarto'}</button>
+                  opacity: (saving || !(parseFloat(String(scartoForm.qty ?? '').replace(',', '.')) > 0)) ? 0.5 : 1 }}>{saving ? 'Salvataggio…' : (scartoForm.azzera ? 'Porta a zero' : 'Registra scarto')}</button>
             </div>
           </div>
         </div>

@@ -130,6 +130,29 @@ export async function scartoPF({ sedeId, prodotto, quantita, note = null, dipend
   return data
 }
 
+// Rettifica di una giacenza sbagliata (NON e' uno scarto).
+//
+// Serve a cancellare merce che il sistema crede di avere e che in cella non c'e'
+// mai stata. Scriverla come scarto gonfiava il registro delle perdite con roba
+// mai prodotta: chi puliva un dato sbagliato si vedeva peggiorare i numeri degli
+// sprechi. Il delta puo' essere negativo (ne risultava più del vero) o positivo
+// (ce n'e' più di quanto registrato).
+export async function rettificaPF({ sedeId, prodotto, delta, note = null, dipendenteOpId }) {
+  if (!Number.isFinite(delta) || delta === 0) {
+    throw new Error('La rettifica deve cambiare qualcosa')
+  }
+  const dipOp = dipendenteOpId !== undefined ? dipendenteOpId : readDipendenteOpId()
+  const { data, error } = await supabase.rpc('stock_pf_rettifica', {
+    p_sede: sedeId,
+    p_prodotto: prodotto,
+    p_delta: delta,
+    p_note: note,
+    p_dipendente_op: dipOp,
+  })
+  throwIfError(error)
+  return data
+}
+
 // ── Utility: applica un batch di carichi (es. fine sessione produzione) ────
 // items = [{ prodotto, quantita, unita }]
 // Ritorna { ok, errors: [...] }.

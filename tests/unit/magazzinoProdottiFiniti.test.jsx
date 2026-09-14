@@ -1,37 +1,28 @@
 // @vitest-environment happy-dom
 //
-// Scheda "Prodotti finiti": quattro difetti confermati dall'audit del 7/09.
+// Scheda "Prodotti finiti": i difetti verificati il 14/09/2026 sull'elenco
+// rimasto senza verifica dall'audit dell'8 set.
 //
-// Il più insidioso e' il primo. I due caricatori dello stock restituivano un
-// array vuoto ANCHE quando la lettura falliva (rete giù, permesso mancante):
-// la scheda diceva "Nessun prodotto in stock per questa sede" e i contatori
-// mostravano zero in verde. Chi guardava poteva rimettersi a produrre merce
-// che aveva già in cella.
+// Il piu' costoso non si vede a schermo: il pulsante "Azzera", che serve a
+// cancellare una giacenza fantasma, scriveva un movimento con causale 'scarto'.
+// Cioe' dichiarava buttata della merce che non era mai esistita, e gonfiava il
+// registro degli sprechi con roba mai prodotta.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, cleanup, fireEvent, waitFor } from '@testing-library/react'
 import React from 'react'
 
-const stato = { stock: [], movimenti: [], errore: false, scarti: [] }
+const scartoPF = vi.fn(async () => 0)
+const rettificaPF = vi.fn(async () => 0)
+let STOCK = []
+let MOVIMENTI = []
 
 vi.mock('../../src/lib/stockPF', () => ({
-  loadStockPF: async (o, s, opts = {}) => {
-    if (stato.errore) {
-      if (opts.rilancia) throw new Error('rete non raggiungibile')
-      return []
-    }
-    return stato.stock
-  },
-  loadMovimentiPF: async (o, s, opts = {}) => {
-    if (stato.errore) {
-      if (opts.rilancia) throw new Error('rete non raggiungibile')
-      return []
-    }
-    return stato.movimenti
-  },
-  scartoPF: async (a) => { stato.scarti.push(a) },
+  loadStockPF: async () => STOCK,
+  loadMovimentiPF: async () => MOVIMENTI,
+  scartoPF: (...a) => scartoPF(...a),
+  rettificaPF: (...a) => rettificaPF(...a),
 }))
-
 function fluente(res = { data: [], error: null }) {
   const h = { get(_t, p) {
     if (p === 'then') return (r) => r(res)
@@ -53,103 +44,95 @@ vi.mock('../../src/lib/storage', () => ({
 
 const { default: MagazzinoView } = await import('../../src/views/MagazzinoView.jsx')
 
-const props = {
-  ricettario: { ricette: {}, ingredienti_costi: {} }, magazzino: {}, setMagazzino: () => {},
-  logRif: [], setLogRif: () => {}, logPrezzi: [], giornaliero: [],
-  notify: () => {}, orgId: 'org-1', sedeId: 's1',
+const base = {
+  ricettario: { ricette: {}, ingredienti_costi: {} },
+  magazzino: {}, setMagazzino: () => {}, logRif: [], setLogRif: () => {},
+  giornaliero: [], logPrezzi: [], notify: () => {}, orgId: 'org-1', sedeId: 's1',
 }
 
-/** Apre la scheda Prodotti finiti. */
-async function apri(extra = {}) {
-  const v = render(<MagazzinoView {...props} {...extra} />)
+async function apriProdottiFiniti() {
+  const v = render(<MagazzinoView {...base} />)
   await waitFor(() => expect(v.container.textContent).toContain('Prodotti finiti'))
   fireEvent.click(v.getByText('Prodotti finiti'))
+  await waitFor(() => expect(v.container.textContent).not.toContain('Caricamento…'))
   return v
 }
 
 beforeEach(() => {
-  stato.stock = []; stato.movimenti = []; stato.errore = false; stato.scarti = []
   cleanup()
+  scartoPF.mockClear()
+  rettificaPF.mockClear()
+  STOCK = []
+  MOVIMENTI = []
 })
 
-describe('prodotti finiti — vuoto non è lo stesso di illeggibile', () => {
-  it('se la lettura fallisce lo dice, invece di mostrare "nessun prodotto"', async () => {
-    stato.errore = true
-    const v = await apri()
-    await waitFor(() => expect(v.container.textContent).toContain('Non riesco a leggere lo stock'))
-    // La frase che mentiva non c'e' piu'.
-    expect(v.container.textContent).not.toContain('Nessun prodotto in stock')
-    // E non si mostrano contatori a zero come se fossero un dato.
-    expect(v.container.textContent).not.toContain('Pezzi totali')
-    expect(v.container.textContent).toContain('Riprova')
-  })
-
-  it('con il magazzino davvero vuoto continua a dirlo', async () => {
-    const v = await apri()
-    await waitFor(() => expect(v.container.textContent).toContain('Nessun prodotto in stock'))
-    expect(v.container.textContent).not.toContain('Non riesco a leggere')
-  })
-})
-
-describe('prodotti finiti — pezzi e grammi', () => {
-  it('non somma i pezzi con i grammi in un unico numero', async () => {
-    // 20 torte a pezzi + 8.400 g di gelato sfuso. Prima: "8.420 pezzi totali".
-    stato.stock = [
-      { id: 1, prodotto_nome: 'SACHER', quantita: 20, unita: 'pz', soglia_min: 0, updated_at: null },
-      { id: 2, prodotto_nome: 'NOCCIOLA', quantita: 8400, unita: 'g', soglia_min: 0, updated_at: null },
+describe('prodotti finiti — quello che dicono i numeri in cima', () => {
+  it('"Prodotti in stock" non conta le righe a zero', async () => {
+    // La sera, con la vetrina svuotata e tutte le righe a zero, il KPI diceva
+    // ancora "12 prodotti in stock": un numero che non cambia mai.
+    STOCK = [
+      { id: 'a', prodotto_nome: 'SACHER', quantita: 4, unita: 'pz', valore_unit: 12, soglia_min: 0, updated_at: new Date().toISOString() },
+      { id: 'b', prodotto_nome: 'BIGNE', quantita: 0, unita: 'pz', valore_unit: 2, soglia_min: 0, updated_at: new Date().toISOString() },
+      { id: 'c', prodotto_nome: 'TIRAMISU', quantita: 0, unita: 'pz', valore_unit: 5, soglia_min: 0, updated_at: new Date().toISOString() },
     ]
-    const v = await apri()
-    await waitFor(() => expect(v.container.textContent).toContain('Pezzi totali'))
-    expect(v.container.textContent).toContain('20 pz')
-    expect(v.container.textContent).toContain('8,40 kg sfusi')
-    expect(v.container.textContent).not.toContain('8.420')
+    const v = await apriProdottiFiniti()
+    expect(v.container.textContent).toContain('su 3 censiti')
+    const kpi = [...v.container.querySelectorAll('div')].find(d => d.textContent.trim().startsWith('Prodotti in stock'))
+    expect(kpi?.textContent).toContain('1')
+  })
+})
+
+describe('prodotti finiti — azzerare non e\' buttare', () => {
+  it('"Azzera" scrive una rettifica, non uno scarto', async () => {
+    STOCK = [{ id: 'a', prodotto_nome: 'SACHER', quantita: 6, unita: 'pz', valore_unit: 12, soglia_min: 0, updated_at: new Date().toISOString() }]
+    const v = await apriProdottiFiniti()
+    fireEvent.click(v.getByText('Azzera'))
+    await waitFor(() => expect(v.container.textContent).toContain('Porta a zero la giacenza'))
+    fireEvent.click(v.getByText('Porta a zero'))
+    await waitFor(() => expect(rettificaPF).toHaveBeenCalledTimes(1))
+    expect(scartoPF).not.toHaveBeenCalled()
+    expect(rettificaPF.mock.calls[0][0]).toMatchObject({ prodotto: 'SACHER', delta: -6 })
   })
 
-  it('il modale dello scarto chiede i grammi su una riga in grammi', async () => {
-    stato.stock = [{ id: 2, prodotto_nome: 'NOCCIOLA', quantita: 8400, unita: 'g', soglia_min: 0, updated_at: null }]
-    const v = await apri()
-    await waitFor(() => expect(v.container.textContent).toContain('NOCCIOLA'))
+  it('lo scarto vero resta uno scarto, e dice quanto vale', async () => {
+    STOCK = [{ id: 'a', prodotto_nome: 'SACHER', quantita: 6, unita: 'pz', valore_unit: 12, soglia_min: 0, updated_at: new Date().toISOString() }]
+    const v = await apriProdottiFiniti()
     fireEvent.click(v.getByText('Scarto'))
     await waitFor(() => expect(v.container.textContent).toContain('Registra scarto'))
-    expect(v.container.textContent).toContain('Quantità scartata (g)')
-    expect(v.container.textContent).not.toContain('Quantità scartata (pz)')
+    const campo = v.container.querySelector('input[inputmode="decimal"]')
+    fireEvent.change(campo, { target: { value: '2' } })
+    // 2 pezzi da 12 € = 24 €, simbolo dopo la cifra
+    await waitFor(() => expect(v.container.textContent).toContain('24 €'))
+    // "Registra scarto" e' sia il titolo della finestra sia il pulsante
+    const conferma = v.getAllByText('Registra scarto').find(e => e.tagName === 'BUTTON')
+    fireEvent.click(conferma)
+    await waitFor(() => expect(scartoPF).toHaveBeenCalledTimes(1))
+    expect(rettificaPF).not.toHaveBeenCalled()
   })
 })
 
-describe('prodotti finiti — i decimali nel campo dello scarto', () => {
-  it('si può scrivere una virgola senza che venga mangiata', async () => {
-    stato.stock = [{ id: 2, prodotto_nome: 'NOCCIOLA', quantita: 8400, unita: 'g', soglia_min: 0, updated_at: null }]
-    const v = await apri()
-    await waitFor(() => expect(v.container.textContent).toContain('NOCCIOLA'))
-    fireEvent.click(v.getByText('Scarto'))
-    const campo = await waitFor(() => {
-      const i = [...v.container.querySelectorAll('input')].find(x => x.inputMode === 'decimal')
-      expect(i).toBeTruthy(); return i
-    })
-    // Prima: "1," passava da parseFloat, diventava 1 e la virgola sparuva.
-    fireEvent.change(campo, { target: { value: '1,' } })
-    expect(campo.value).toBe('1,')
-    fireEvent.change(campo, { target: { value: '1,5' } })
-    expect(campo.value).toBe('1,5')
-
-    const salva = [...v.container.querySelectorAll('button')].find(b => b.textContent.trim() === 'Registra scarto')
-    fireEvent.click(salva)
-    await waitFor(() => expect(stato.scarti.length).toBe(1))
-    // E arriva al salvataggio come numero, non come stringa.
-    expect(stato.scarti[0].quantita).toBe(1.5)
+describe('prodotti finiti — i movimenti', () => {
+  it('senza movimenti la sezione resta, e lo dice', async () => {
+    // Sparendo del tutto, chi cercava lo scarto di lunedi non sapeva se aveva
+    // sbagliato a cercare o se non l'aveva mai registrato: e lo registrava di nuovo.
+    STOCK = [{ id: 'a', prodotto_nome: 'SACHER', quantita: 2, unita: 'pz', valore_unit: 12, soglia_min: 0, updated_at: new Date().toISOString() }]
+    const v = await apriProdottiFiniti()
+    expect(v.container.textContent).toContain('Ancora nessun movimento in questa sede')
   })
 
-  it('a campo vuoto non compare uno zero, e non si può salvare', async () => {
-    stato.stock = [{ id: 1, prodotto_nome: 'SACHER', quantita: 20, unita: 'pz', soglia_min: 0, updated_at: null }]
-    const v = await apri()
-    await waitFor(() => expect(v.container.textContent).toContain('SACHER'))
-    fireEvent.click(v.getByText('Scarto'))
-    const campo = await waitFor(() => [...v.container.querySelectorAll('input')].find(x => x.inputMode === 'decimal'))
-    expect(campo.value).toBe('')
-    const salva = [...v.container.querySelectorAll('button')].find(b => b.textContent.trim() === 'Registra scarto')
-    expect(salva.disabled).toBe(true)
-    fireEvent.click(salva)
-    await new Promise(r => setTimeout(r, 0))
-    expect(stato.scarti).toHaveLength(0)
+  it('una vendita all\'ingrosso ha un nome, non la sigla del database', async () => {
+    STOCK = [{ id: 'a', prodotto_nome: 'SACHER', quantita: 2, unita: 'pz', valore_unit: 12, soglia_min: 0, updated_at: new Date().toISOString() }]
+    MOVIMENTI = [{ id: 'm1', prodotto_nome: 'SACHER', delta: -3, causale: 'vendita_b2b', note: '', created_at: new Date().toISOString() }]
+    const v = await apriProdottiFiniti()
+    expect(v.container.textContent).toContain('Vendita ingrosso')
+    expect(v.container.textContent).not.toContain('vendita_b2b')
+  })
+
+  it('il delta porta l\'unita\' di misura della riga', async () => {
+    // Un trasferimento di 8.400 grammi si leggeva "-8.400", identico a 8.400 pezzi.
+    STOCK = [{ id: 'a', prodotto_nome: 'NOCCIOLA', quantita: 1200, unita: 'g', valore_unit: 0.02, soglia_min: 0, updated_at: new Date().toISOString() }]
+    MOVIMENTI = [{ id: 'm1', prodotto_nome: 'NOCCIOLA', delta: -8400, causale: 'trasferimento_invio', note: '', created_at: new Date().toISOString() }]
+    const v = await apriProdottiFiniti()
+    expect(v.container.textContent).toContain('8.400 g')
   })
 })

@@ -39,7 +39,7 @@ export const margColor = pct => pct >= 60 ? C.green : pct >= 40 ? C.amber : C.re
 //
 // Le definizioni vivono in `lib/formatIt.js`, che non e' un modulo React e
 // quindi lo possono importare anche `api/` e la generazione dei PDF. Qui
-// restano solo i ri-export, cosi' i callsite esistenti non cambiano.
+// restano solo i ri-export, così i callsite esistenti non cambiano.
 export { fmt, fmt0, fmtp, fmtp0, fmtpSegno, fmtp0Segno } from '../lib/formatIt'
 
 // CSS futuristic-clean per tile/KPI shared. Iniettato una volta (idempotente

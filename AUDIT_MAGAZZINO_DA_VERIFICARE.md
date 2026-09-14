@@ -399,84 +399,99 @@ Cosa ho verificato riga per riga in /Users/aler/foodos/src/views/MagazzinoView.j
 
 ---
 
-## NON VERIFICATI (84) — sostenuti da un agente, mai messi in dubbio
+## NON VERIFICATI — sostenuti da un agente, mai messi in dubbio
+
+> Aggiornamento 14/09/2026: dei 84 iniziali, i 19 di "Prodotti finiti" sono
+> stati verificati (11 risultavano già corretti, 8 corretti oggi, 0 rifiutati).
+> **Restano 65.**
 
 
-### Prodotti finiti — 19 da verificare
+### Prodotti finiti — 19, verificati il 14/09/2026
 
-- **media** · riga `268` · colore — La lista movimenti è tutta rossa in una giornata normale
+> **Esito: 11 erano già stati corretti il 9-10 set senza aggiornare questo
+> documento, 8 erano ancora aperti e sono stati corretti oggi. Nessuno
+> rifiutato.** Le righe citate qui sotto sono quelle del file all'8 set: oggi
+> non corrispondono più, la verifica è stata fatta sul contenuto.
+>
+> Gli otto corretti oggi: il KPI che contava le righe a zero, l'azzeramento
+> registrato come spreco, la pagina che si ricaricava da sola a ogni toast, i
+> due pulsanti appiccicati su telefono, il pulsante spento che non diceva
+> perché, il valore in euro di quello che si butta, la sezione movimenti che
+> spariva quando era vuota, il delta senza unità di misura.
+
+- **[GIÀ RISOLTO il 09/09]** · media · riga `268` · colore — La lista movimenti è tutta rossa in una giornata normale
   - Vendere e spedire fanno scendere lo stock: il delta negativo è la normalità, non un problema. Così il pasticcere apre i movimenti e vede venti righe rosse ogni giorno. Un allarme che suona sempre insegna a spegnere gli allarmi, e il giorno che c'è davvero un ammanco quella riga rossa non la guarda n
   - proposta: Delta in grigio scuro col segno (-20, +40), rosso solo quando quel movimento porta la giacenza sotto zero. "Inviato" in blu o grigio come "Vendita": è un fatto normale, non un guasto.
 
-- **media** · riga `205` · mobile — Su telefono la tabella dello stock si schiaccia invece di scorrere
+- **[GIÀ RISOLTO il 09/09]** · media · riga `205` · mobile — Su telefono la tabella dello stock si schiaccia invece di scorrere
   - Il contenitore ha lo scroll orizzontale ma la tabella non supera mai la sua larghezza, quindi non scorre: le cinque colonne si comprimono, la data va a capo e i due pulsanti si accavallano. Dietro il banco, col telefono in mano, la riga diventa illeggibile.
   - proposta: Aggiungere `minWidth: 580` alla table di riga 205, come già fatto nelle altre tre tabelle del file.
 
-- **media** · riga `255` · mobile — La tabella dei movimenti è dentro overflow hidden: non scorre e taglia le note
+- **[GIÀ RISOLTO il 09/09]** · media · riga `255` · mobile — La tabella dei movimenti è dentro overflow hidden: non scorre e taglia le note
   - Cinque colonne, di cui una è una nota scritta a mano libera, in un contenitore che non scorre e che taglia. Su tablet la colonna della nota si riduce a due parole: il motivo dello scarto, cioè l'unica informazione utile di quella riga, non si legge.
   - proposta: Wrapper esterno col bordo e il raggio, dentro un div con `overflowX: 'auto'` e la table a `minWidth: 620`. La nota va a capo su due righe, non tagliata.
 
-- **media** · riga `238` · mobile — "Azzera" è alto 23px e sta a 4px da "Scarto": si sbaglia col dito
+- **[CORRETTO il 14/09]** · media · riga `238` · mobile — "Azzera" è alto 23px e sta a 4px da "Scarto": si sbaglia col dito
   - Il pulsante che porta a zero la giacenza è il più piccolo della riga e sta appiccicato all'altro. Sul tablet in laboratorio, con le mani unte, si centra per sbaglio. È l'unico pulsante distruttivo della scheda e non ha nessuna conferma dedicata: il modale che si apre è lo stesso dello scarto, con la
   - proposta: Su mobile e tablet i due pulsanti a piena larghezza, uno sotto l'altro, `minHeight: 44` e gap 8. Il modale aperto da "Azzera" deve avere titolo suo ("Porta a zero la giacenza") e dire quanto sta azzerando.
 
-- **media** · riga `263` · tipografia — Data e note dei movimenti a 10px
+- **[GIÀ RISOLTO il 09/09]** · media · riga `263` · tipografia — Data e note dei movimenti a 10px
   - Dieci pixel non è testo piccolo, è testo che nessuno leggerà: lo dice il commento in cima a questo stesso file. E qui sotto i 12px non ci sono micro-etichette in maiuscoletto, ma il contenuto: quando è avvenuto il movimento e perché.
   - proposta: Data, causale e nota a 12, nome prodotto a 13. Se la larghezza non basta, sacrificare la colonna della nota mandandola a capo sotto il nome, non rimpicciolire il testo.
 
-- **media** · riga `236` · correttezza — "Azzera" registra una correzione tecnica come spreco vero
+- **[CORRETTO il 14/09]** · media · riga `236` · correttezza — "Azzera" registra una correzione tecnica come spreco vero
   - L'azzeramento serve a cancellare un dato sbagliato, non a dire che il prodotto è stato buttato. Ma finisce a DB con causale scarto, quindi gonfia le perdite: il pasticcere pulisce una giacenza fantasma e si vede peggiorare i numeri degli sprechi. E la nota precompilata è gergo informatico, non itali
   - proposta: Aggiungere una `rettificaPF` che scrive causale 'rettifica' e usarla per l'azzeramento; nota di default "Correzione della giacenza". Il conto degli sprechi deve contenere solo roba buttata per davvero.
 
-- **media** · riga `172` · struttura — Ogni ricarica cancella la schermata e mostra "Caricamento…", anche quando non serve
+- **[CORRETTO il 14/09]** · media · riga `172` · struttura — Ogni ricarica cancella la schermata e mostra "Caricamento…", anche quando non serve
   - Il pasticcere sta guardando la tabella e questa sparisce da sotto gli occhi, sostituita da una scritta grigia, per poi tornare. Succede dopo ogni scarto e anche senza che lui tocchi niente: basta che l'app mostri un avviso qualsiasi. Perde il punto in cui era, e sul telefono perde anche la posizione
   - proposta: Tenere `notify` in una useRef dentro il componente (o avvolgerlo in useCallback in Dashboard) e togliere la dipendenza da `carica`. Distinguere primo caricamento da aggiornamento: al refresh lasciare la tabella a schermo con un piccolo "aggiorno…" nell'intestazione.
 
-- **media** · riga `228` · correttezza — Date senza anno: una giacenza vecchia di un anno sembra aggiornata oggi
+- **[GIÀ RISOLTO il 09/09]** · media · riga `228` · correttezza — Date senza anno: una giacenza vecchia di un anno sembra aggiornata oggi
   - La colonna "Aggiornato" serve esattamente a capire se un numero è ancora vero. Scritta senza anno, una riga ferma dal settembre scorso mostra "07/09, 14:32", identica a una di stamattina: la giacenza fantasma diventa invisibile proprio nella colonna che dovrebbe smascherarla.
   - proposta: Formato relativo quando è vicino ("oggi 14:32", "ieri 18:05", "3 giorni fa") e data completa con l'anno oltre la settimana. In grigio se è più vecchia di 7 giorni, così si vede a occhio quale riga non è stata toccata.
 
-- **media** · riga `251` · struttura — Nessun movimento: la sezione sparisce senza dire niente, e i movimenti sono tagliati a 30 senza avvisare
+- **[CORRETTO il 14/09]** · media · riga `251` · struttura — Nessun movimento: la sezione sparisce senza dire niente, e i movimenti sono tagliati a 30 senza avvisare
   - Chi cerca lo scarto registrato lunedì e non lo trova pensa di non averlo registrato, e lo registra di nuovo. Il taglio ai 30 più recenti non è scritto da nessuna parte e non c'è modo di vedere oltre. Se poi i movimenti sono zero, al posto della sezione c'è il vuoto: non si capisce se non è mai succe
   - proposta: Sezione sempre presente. A zero movimenti: "Ancora nessun movimento in questa sede." Nel sottotitolo scrivere "ultimi 30 movimenti" e mettere un pulsante "Mostra i precedenti" che alza il limite.
 
-- **media** · riga `282` · accessibilita — Il modale scarto non si chiude con Esc, si chiude toccando fuori anche mentre salva, e non mette il cursore nel campo
+- **[GIÀ RISOLTO il 09/09]** · media · riga `282` · accessibilita — Il modale scarto non si chiude con Esc, si chiude toccando fuori anche mentre salva, e non mette il cursore nel campo
   - Il tocco fuori dal riquadro butta via quello che è stato scritto senza chiedere niente, e se capita durante il salvataggio il modale scompare mentre la scrittura va avanti: il pasticcere crede di aver annullato e invece lo scarto è passato, così lo registra di nuovo. Chi lavora da tastiera non ha Es
   - proposta: autoFocus sul campo quantità; Escape che chiude; backdrop inerte quando `saving` è true; `role="dialog" aria-modal="true"` con aria-label "Registra scarto".
 
-- **media** · riga `269` · tipografia — Il delta dei movimenti è un numero grezzo, senza punto delle migliaia e senza unità
+- **[CORRETTO il 14/09]** · media · riga `269` · tipografia — Il delta dei movimenti è un numero grezzo, senza punto delle migliaia e senza unità
   - Un trasferimento di ottomila grammi si legge "+8000", che a colpo d'occhio si confonde con 800. E senza unità non si sa se sono pezzi o grammi: nella tabella sopra l'unità c'è (riga 222), qui è scomparsa. Sono due numeri della stessa scheda scritti con due regole diverse.
   - proposta: `{d > 0 ? '+' : ''}{d.toLocaleString('it-IT')}` e aggiungere `unita` al select di loadMovimentiPF per stampare "+8.000 g".
 
-- **media** · riga `191` · correttezza — "Prodotti in stock" conta anche le righe a zero
+- **[CORRETTO il 14/09]** · media · riga `191` · correttezza — "Prodotti in stock" conta anche le righe a zero
   - È il primo numero che il proprietario legge entrando. La sera, con la vetrina svuotata e tutte le righe a zero, dice ancora "12 prodotti in stock". Un KPI che non cambia mai non è un'informazione.
   - proposta: Contare solo `stock.filter(r => Number(r.quantita) > 0).length`, con sub "su 12 prodotti censiti" per non perdere l'altro dato.
 
-- **bassa** · riga `184` · tipografia — Freccia testuale al posto dell'Icon nell'etichetta "Annullo"
+- **[GIÀ RISOLTO il 09/09]** · bassa · riga `184` · tipografia — Freccia testuale al posto dell'Icon nell'etichetta "Annullo"
   - Tutte le altre sei causali usano il componente Icon; questa infila un glifo dentro la stringa. Su Windows e su Android quel carattere si rende in modo diverso, a volte come emoji colorata, a volte come quadratino. Ed è l'unica riga della legenda senza icona, quindi l'incolonnamento della colonna cau
   - proposta: `annullo_trasferimento: { lbl: 'Annullo', ic: 'undo', col: '#94A3B8' }` (o l'icona equivalente già presente in components/Icon), e toglere il glifo dal testo del toast.
 
-- **bassa** · riga `201` · copy — Lo stato vuoto spiega solo metà di come si popola lo stock, e lo dice da software
+- **[GIÀ RISOLTO il 09/09]** · bassa · riga `201` · copy — Lo stato vuoto spiega solo metà di come si popola lo stock, e lo dice da software
   - "Lo stock si popola automaticamente" non è come parla una pasticcera: si popola è roba da programmatori. E la frase è anche incompleta, perché i prodotti arrivano pure dalle spedizioni tra sedi: chi aspetta la merce dall'altro punto vendita legge questa frase e va a cercare l'errore nella produzione
   - proposta: "Qui non c'è ancora niente. I prodotti compaiono quando chiudi una produzione o quando ricevi una spedizione da un'altra sede."
 
-- **bassa** · riga `194` · copy — Il sottotitolo dello stock negativo usa la notazione matematica "vendite > carico"
+- **[GIÀ RISOLTO il 09/09]** · bassa · riga `194` · copy — Il sottotitolo dello stock negativo usa la notazione matematica "vendite > carico"
   - Il maggiore matematico non si legge a colpo d'occhio dietro un banco, e comunque non dice cosa fare. Quel KPI è rosso, quindi è il momento in cui la frase deve spiegare il problema in italiano.
   - proposta: "Hai venduto più di quello che risulta caricato: controlla la produzione di questi prodotti."
 
-- **bassa** · riga `231` · copy — Il pulsante "Scarto" disabilitato non dice perché
+- **[CORRETTO il 14/09]** · bassa · riga `231` · copy — Il pulsante "Scarto" disabilitato non dice perché
   - Chi ha buttato via merce che il sistema non vede (giacenza a zero perché il carico non è mai stato registrato) trova il pulsante spento, ci clicca due o tre volte e non capisce. Il pulsante accanto ha un title, questo no.
   - proposta: `title="Giacenza a zero: non c'è niente da scartare"` e, se serve poterlo fare comunque, lasciarlo attivo avvisando che la giacenza andrà sotto zero.
 
-- **bassa** · riga `165` · copy — I messaggi d'errore arrivano in inglese tecnico
+- **[GIÀ RISOLTO il 09/09]** · bassa · riga `165` · copy — I messaggi d'errore arrivano in inglese tecnico
   - Se salta la rete mentre registra lo scarto, il pasticcere legge "Errore: Failed to fetch". Non capisce se lo scarto è passato o no, e non sa cosa fare. Esiste già l'helper che traduce, e qui non viene usato.
   - proposta: `notify(friendlyErrorMessage(e), false)` con fallback "Non sono riuscito a registrare lo scarto. Controlla la connessione e riprova: lo stock non è stato toccato."
 
-- **bassa** · riga `284` · struttura — Il modale non dice quanto vale lo scarto, pur avendo già il dato in mano
+- **[CORRETTO il 14/09]** · bassa · riga `284` · struttura — Il modale non dice quanto vale lo scarto, pur avendo già il dato in mano
   - È l'unico momento in cui il pasticcere si ferma a pensare a quello che sta buttando. Vedere "stai buttando circa 34 €" cambia il comportamento; vedere solo un numero di pezzi no. Il costo unitario è già stato letto dal database e non viene usato da nessuna parte.
   - proposta: Portare `valore_unit` nello scartoForm e sotto il campo quantità scrivere il valore aggiornato mentre si digita: "Valore di quello che scarti: 34 €" (simbolo dopo la cifra).
 
-- **bassa** · riga `147` · struttura — Funzione di focus morta dentro il componente: punta a un campo di un'altra scheda
+- **[GIÀ RISOLTO il 09/09]** · bassa · riga `147` · struttura — Funzione di focus morta dentro il componente: punta a un campo di un'altra scheda
   - Tredici righe che non fanno niente, con un timer e un cleanup, in un componente che si legge già male. Chi domani cerca di capire perché il cursore non finisce nel campo quantità del modale trova questa funzione, crede che il problema sia qui, e perde tempo.
   - proposta: Cancellare le righe 142-153 (funzione, ref e useEffect di cleanup) e mettere `autoFocus` sull'input di riga 289, che è il comportamento che quella funzione voleva ottenere.
 
