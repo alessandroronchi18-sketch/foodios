@@ -36,31 +36,62 @@
 
 ## Da fare, in quest'ordine
 
+Tutte fatte. Le prime tre hanno avuto un esito diverso da "corretta":
+
 1. [x] **Scheda allergeni** — corretta, poi **nascosta** su decisione del
        titolare: e' un documento con valore legale (Reg. UE 1169/2011) e il
-       riconoscimento non copriva gli ingredienti reali. Nascosto anche HACCP.
+       riconoscimento non copriva gli ingredienti reali. Nascosto anche HACCP,
+       e il 14/09 sono state chiuse le tre strade che ci portavano ancora.
 2. [x] **Formati di vendita** — seme demo che parlava una lingua diversa dalla
        pagina, tessera che dichiarava il falso, 9 testi sotto i 12px
 3. [x] ~~Menù del giorno~~ — **nascosta** il 09/09: nessun cliente reale l'ha
        mai usata (solo il demo, ultimo salvataggio 26/06), e meta' della pagina
        duplica la matrice di Menu engineering
-4. [ ] Nuova ricetta
-5. [ ] Ricettario / gusti
-6. [ ] Semilavorati
-7. [ ] Fornitori
-8. [ ] Importa dati
-9. [ ] Perdite e cessioni
-10. [ ] Scadenzario fatture
+4. [x] Nuova ricetta — 09/09
+5. [x] Ricettario / gusti — 09/09
+6. [x] Semilavorati — 09/09
+7. [x] Fornitori — 09-10/09
+8. [x] Importa dati — 10/09
+9. [x] Perdite e cessioni — 09-10/09
+10. [x] Scadenzario fatture — 10/09 (audit sulle 3.520 fatture vere)
 
-## Lavoro arretrato che resta aperto
+## Lavoro arretrato — chiuso il 14/09/2026
 
-- **Produzione**: 3 aree mai lette (storico/modifica/eliminazione — la più
-  importante, perché tocca la restituzione al magazzino; foto OCR; struttura e
-  testo) + 12 difetti sostenuti e non verificati.
-  Riprendere: `Workflow({scriptPath: '~/.claude/projects/-Users-aler-foodos/9f6951b3-*/workflows/scripts/audit-produzione-profondo-wf_39f23348-967.js', resumeFromRunId: 'wf_39f23348-967'})`
-- **Magazzino**: 84 difetti sostenuti e non verificati
-  (`AUDIT_MAGAZZINO_DA_VERIFICARE.md`), più due decisioni di prodotto in attesa:
-  lo scarto dei prodotti finiti che non entra nel registro sprechi, e una riga
-  di carico sbagliata che non si può correggere.
-- **113 formattatori di percentuale scritti a mano** in 20 file, tutti col
-  punto invece della virgola. Bonifica a sé.
+- [x] **Magazzino, 84 difetti mai verificati**: verificati uno per uno sul
+      codice di oggi. 52 risultavano già corretti fra il 7 e il 10 set (il
+      documento non era stato aggiornato), 26 corretti il 14/09, 4 corretti a
+      metà e finiti, 2 rifiutati con un fatto.
+- [x] **Produzione, 3 aree mai lette + 33 difetti**: verificati. Il filo comune
+      era che le correzioni del 9 set erano state fatte sulla pagina del
+      titolare, e il percorso del dipendente — che passa dal server — era
+      rimasto indietro: non scendeva nei semilavorati, saltava le chiavi al
+      plurale, non aveva idempotenza (un secondo invio registrava due volte).
+- [x] **113 formattatori di percentuale scritti a mano**: erano 124, in 30
+      file. Ora c'è `lib/formatIt.js`, importabile anche da `api/` — che era il
+      motivo per cui erano stati riscritti a mano — e un test di guardia.
+- [x] **Le due decisioni di prodotto in attesa**: lo scarto dei prodotti finiti
+      che non entrava nel registro sprechi (ora l'azzeramento è una rettifica,
+      non uno spreco) e la riga di carico sbagliata che non si poteva
+      correggere (ora si annulla scrivendo una riga uguale e contraria).
+- [ ] **Allergeni, 74 difetti**: fermi per scelta. Riguardano la scheda, che è
+      spenta, e riaprirla dipende da una copertura verificata degli ingredienti
+      reali — un problema di dati, non di codice. Il difetto della libreria che
+      toccava anche le pagine vive ("zucchero semolato" dichiarato con glutine)
+      è stato corretto il 14/09.
+
+## Impaginazione — il giro del 14/09
+
+Vedi `ANALISI_PRODOTTO.md`, sezione "Impaginazione". In breve: una scala
+tipografica sola tenuta da un test (261 misure fuori scala corrette, compresi
+testi a 8-10px), ogni colonna di numeri incolonnata, e **32 viste rese due
+volte** (versione da tavolo e versione telefono) fotografate a 1440 e 420 px e
+misurate da `scripts/audit-layout.mjs`.
+
+Come rifarlo:
+
+```bash
+DUMP_LAYOUT=1 npx vitest run tests/unit/layoutViste.test.jsx tests/unit/layoutVisteMobile.test.jsx
+node scripts/audit-layout.mjs                 # versione da tavolo, 1440px
+DIR_VISTE=.../viste-mobile LARGH=420 node scripts/audit-layout.mjs
+node scripts/foto-layout.mjs                  # le fotografie, da guardare
+```

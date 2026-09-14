@@ -3,34 +3,26 @@
 > Questo documento elenca **solo le azioni che richiedono chiavi/account esterni, decisioni umane, soldi o tempo offline**.
 > Il codice e' allineato; gli step elencati qui non sono dentro git per loro natura.
 >
-> Aggiornato: **2026-09-11**.
+> Aggiornato: **2026-09-14**.
 
 ---
 
-## STATO DEPLOY (7 set 2026)
+## STATO DEPLOY (14 set 2026)
 
 - Vercel **Pro** attivo. Autodeploy su push a `main` (~1-2 min).
-- Prod live: `foodos-rose.vercel.app` (risponde 200), **allineata a `main` HEAD
-  `4172405`** — verificato il 7/09 sera leggendo `CACHE_VERSION` da
-  `/sw.js` in produzione (`foodos-2026-09-07-4172405`). I 19 commit della giornata
-  sono deployati. Fuori dalla prod resta solo il lotto prima nota / import
-  registro, committato ma non ancora pushato: il push lo allinea (autodeploy 1-2 min).
-- **Test suite 1721/1721 verdi** (99 file, 46s) — ESLint pulito su `src/` e `api/`,
-  build Vite 19s, grammar check OK, cricchetto sui token di design OK.
-- **Lighthouse CI** attivo (su PR + cron settimanale lunedi 08:00).
-- Migration **tutte applicate in prod fino a `20260907f_prima_nota_cassa`** (84 in
-  repo), riverificato via SQL diretto il 7/09 sera: colonne `incasso_pos/contanti/
-  delivery` su `chiusure_cassa`, tabelle `movimenti_cassa`, `chiusure_ricorrenti`,
-  `chiusure_periodo`, RPC `movimenti_cassa_periodo`, indice unico
-  `uq_chiusure_org_sede_data` (NULLS NOT DISTINCT) su cui si appoggia l'upsert.
-  Nessuna migration da applicare prima del prossimo push.
-- Migration applicate in prod fino a `20260904_storico_inventario_rpc`,
-  verificato il 7 set con `CHECK_MIGRATIONS_STATO.sql` (7/7 e 3/3).
-  La `20260904` risultava mancante ed e' stata applicata quel giorno: indice
-  `idx_inv_prod_org_sede_data` + RPC `storico_inventario_per_mese` + grant.
-  Collaudo su dati reali: 7.011 righe grezze aggregate in 101 righe su 4 mesi.
-- Env vars Vercel attive: VAPID×3, VITE_VAPID_PUBLIC_KEY, INTERNAL_SECRET, ADMIN_PROD_MFA_BYPASS (temporaneo).
-- Pricing 3-tier configurato: **Bottega €69 · Maestro €149 · Insegna €399**.
+- Prod live: `foodos-rose.vercel.app`, allineata a `main`.
+- **Test 2.255 verdi** (155 file), ESLint pulito su `src/` e `api/`, build ~20s,
+  grammar check OK, cricchetto sui token di design OK.
+- Migration **tutte applicate e verificate in produzione** via SQL diretto il
+  14/09, comprese due che mancavano da mesi:
+  - `20260621_stock_b2b_rpc` — le due funzioni delle vendite all'ingrosso non
+    erano mai state create: ogni vendita B2B scaricava il magazzino come una
+    vendita al banco, e il codice aveva un ripiego silenzioso che nascondeva la
+    cosa. Trovata controllando tutte le 37 RPC chiamate dal codice contro
+    quelle presenti nel database (le altre 35 ci sono tutte).
+  - `20260914_stock_pf_rettifica` — nuova: serve per correggere una giacenza
+    sbagliata senza dichiararla merce buttata.
+- Lighthouse CI attivo (su PR + cron settimanale lunedì 08:00).
 
 ### Nota su dove si lavora
 
