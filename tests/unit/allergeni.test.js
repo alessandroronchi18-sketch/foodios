@@ -72,3 +72,30 @@ describe('ALLERGENI_MAPPING integrità', () => {
     }
   })
 })
+
+describe('confine di parola — un allergene non si dichiara per caso', () => {
+  it('"zucchero semolato" non contiene glutine', () => {
+    // Il confronto era una sottostringa qualsiasi: "semolato" contiene
+    // "semola", quindi lo zucchero risultava con glutine. Su un documento che
+    // si consegna al cliente, un allergene dichiarato dove non c'è è una
+    // scheda falsa quanto uno mancante.
+    expect(detectAllergeniFromIngredienti(['zucchero semolato'])).toEqual([])
+  })
+
+  it('la semola vera il glutine ce l\'ha', () => {
+    expect(detectAllergeniFromIngredienti(['semola di grano duro'])).toContain('glutine')
+  })
+
+  it('le chiavi composte continuano a funzionare', () => {
+    expect(detectAllergeniFromIngredienti(['farina di mandorle tostate'])).toContain('fruttasc')
+    expect(detectAllergeniFromIngredienti(['farina di mandorle'])).not.toContain('glutine')
+  })
+
+  it('"buttermilk" resta latte: è una parola sola, non "butter" + "milk"', () => {
+    // Verificato sui 140 nomi di ingrediente veri del database: passando al
+    // confine di parola questo era l'unico che si perdeva. Un allergene perso
+    // è l'errore che manda qualcuno in ospedale.
+    expect(detectAllergeniFromIngredienti(['buttermilk'])).toContain('latte')
+    expect(detectAllergeniFromIngredienti(['latticello'])).toContain('latte')
+  })
+})

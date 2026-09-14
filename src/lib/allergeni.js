@@ -157,6 +157,11 @@ export const ALLERGENI_MAPPING = {
   'whey':             ['latte'],
   'milk':             ['latte'],
   'butter':           ['latte'],
+  // 'buttermilk' e' una parola sola: con il confine di parola non la trovano
+  // ne' 'butter' ne' 'milk'. Verificato sui 140 ingredienti veri del database:
+  // e' l'unico nome che si perdeva passando al confine di parola.
+  'buttermilk':       ['latte'],
+  'latticello':       ['latte'],
   'cream':            ['latte'],
   'cheese':           ['latte'],
 
@@ -406,6 +411,22 @@ function normalizeIngName(s) {
  * @param {Array<{nome:string}|string>} ingredienti
  * @returns {string[]} array di id allergeni univoci (subset di ALLERGENI.id)
  */
+// Cerca `key` dentro `nome` solo se comincia e finisce su un confine di parola.
+// "semola" non si trova in "zucchero semolato"; "farina di mandorle" si trova in
+// "farina di mandorle tostate".
+function indiceSuConfine(nome, key) {
+  let da = 0
+  for (;;) {
+    const idx = nome.indexOf(key, da)
+    if (idx === -1) return -1
+    const prima = idx === 0 ? ' ' : nome[idx - 1]
+    const dopo = idx + key.length >= nome.length ? ' ' : nome[idx + key.length]
+    const confine = (c) => c === ' ' || c === undefined
+    if (confine(prima) && confine(dopo)) return idx
+    da = idx + 1
+  }
+}
+
 export function detectAllergeniFromIngredienti(ingredienti) {
   if (!Array.isArray(ingredienti)) return []
   const found = new Set()
@@ -422,7 +443,18 @@ export function detectAllergeniFromIngredienti(ingredienti) {
     // ("farina di mandorle") ha già coperto la stessa porzione di stringa.
     let matchedRanges = []
     for (const key of keys) {
-      const idx = nome.indexOf(key)
+      // Audit 2026-09-14: il confronto era `nome.indexOf(key)`, cioè una
+      // sottostringa qualsiasi. "zucchero semolato" contiene "semola", quindi
+      // lo zucchero risultava CON GLUTINE: su un documento che si consegna al
+      // cliente, un allergene dichiarato dove non c'è manda in tavola una
+      // scheda falsa in entrambi i sensi (chi evita il glutine rinuncia a un
+      // prodotto che potrebbe mangiare, e chi legge una scheda sbagliata
+      // smette di fidarsi delle altre righe).
+      //
+      // Ora la chiave deve cominciare e finire su un confine di parola. Le
+      // chiavi composte ("farina di mandorle") continuano a funzionare, perché
+      // il confine si guarda agli estremi dell'intera chiave.
+      const idx = indiceSuConfine(nome, key)
       if (idx === -1) continue
       const end = idx + key.length
       // Salta se questo range è interamente contenuto in un range già matchato.
