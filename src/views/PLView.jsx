@@ -34,6 +34,7 @@ import {
 import Icon from '../components/Icon'
 import AiExplainButton from '../components/AiExplainButton'
 import ExportPdfButton from '../components/ExportPdfButton'
+import { fmtp0 } from '../lib/formatIt'
 
 // Ombra premium coerente con la Dashboard home (card/contenitori principali).
 const SHADOW_PREMIUM = '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)'
@@ -1077,7 +1078,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
       out.push({ tipo: 'critical', testo: `${vulnerabili.length} ${vulnerabili.length === 1 ? 'prodotto ha' : 'prodotti hanno'} headroom < 25%: con un aumento del 10–20% delle materie prime vanno in perdita.` })
     }
     if (topIngredienti[0] && topIngredienti[0].perc > 25) {
-      out.push({ tipo: 'warn', testo: `${topIngredienti[0].nome} pesa ${topIngredienti[0].perc.toFixed(0)}% del food cost totale - concentrazione alta su un singolo ingrediente.` })
+      out.push({ tipo: 'warn', testo: `${topIngredienti[0].nome} pesa ${fmtp0(topIngredienti[0].perc)} del food cost totale - concentrazione alta su un singolo ingrediente.` })
     }
     return out
   }, [rows, topIngredienti, metodoProduzione])
@@ -1506,10 +1507,10 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 9 }}>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700, color: margC }}>
                   <span style={{ width: 8, height: 8, borderRadius: '50%', background: margC }}/>
-                  Margine {margPctTot.toFixed(0)}%
+                  Margine {fmtp0(margPctTot)}
                 </span>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700, color: C.red }}>
-                  Food cost {fcPct.toFixed(0)}%
+                  Food cost {fmtp0(fcPct)}
                   <span style={{ width: 8, height: 8, borderRadius: '50%', background: C.red }}/>
                 </span>
               </div>

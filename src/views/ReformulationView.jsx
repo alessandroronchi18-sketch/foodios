@@ -21,6 +21,7 @@ import { useRicavoFlat } from '../lib/useRicavoFlat'
 import { callAi } from '../lib/aiClient'
 import Icon from '../components/Icon'
 import AiPageHero from '../components/AiPageHero'
+import { fmtp, fmtp0 } from '../lib/formatIt'
 
 const BRAND = T.brand || '#6E0E1A'
 const SOFT = T.textSoft || '#8B95A7'
@@ -124,9 +125,9 @@ Restituisci SOLO JSON valido (niente markdown):
     const userMsg = `Ricetta: ${ricCurrent.nome}
 
 Stato attuale:
-- Food cost: ${_e(fcAttuale.fcPezzo)}/pezzo (${fcAttuale.fcPct.toFixed(1)}% del prezzo)
+- Food cost: ${_e(fcAttuale.fcPezzo)}/pezzo (${fmtp(fcAttuale.fcPct)} del prezzo)
 - Prezzo vendita: ${_e(fcAttuale.prezzo)}
-- Margine lordo per pezzo: ${_e(fcAttuale.prezzo - fcAttuale.fcPezzo)} (${(100-fcAttuale.fcPct).toFixed(1)}%)
+- Margine lordo per pezzo: ${_e(fcAttuale.prezzo - fcAttuale.fcPezzo)} (${fmtp(100-fcAttuale.fcPct)})
 
 Target:
 - Food cost desiderato: ${fcTarget}% (= ${_e(fcEurTarget)} per pezzo)
@@ -205,7 +206,7 @@ Restituisci 3 varianti come da schema, italiano umano.`
             <strong style={{ display: 'block', marginBottom: isMobile ? 4 : 0 }}>Stato attuale:</strong>
             <span style={{ display: isMobile ? 'block' : 'inline' }}>
               <span style={{ display: 'inline-block', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', verticalAlign: 'bottom' }}>{ricCurrent.nome}</span>
-              {' · '}FC € {Number(fcAttuale.fcPezzo).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}/pz ({fcAttuale.fcPct.toFixed(1)}%) · Prezzo € {Number(fcAttuale.prezzo).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {' · '}FC € {Number(fcAttuale.fcPezzo).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}/pz ({fmtp(fcAttuale.fcPct)}) · Prezzo € {Number(fcAttuale.prezzo).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </div>
         )}
@@ -229,9 +230,9 @@ Restituisci 3 varianti come da schema, italiano umano.`
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 12 }}>
                 <Stat label="Differenza food cost" value={`${v.delta_fc_eur > 0 ? '+' : ''}${Number(v.delta_fc_eur || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`} color={v.delta_fc_eur >= 0 ? GREEN : BRAND} />
-                <Stat label="Food cost finale" value={`${(v.fc_risultante_pct || 0).toFixed(1)}%`} />
+                <Stat label="Food cost finale" value={fmtp(v.fc_risultante_pct || 0)} />
                 <Stat label="Rischio gusto" value={v.rischio_gusto || '-'} color={v.rischio_gusto === 'basso' ? GREEN : v.rischio_gusto === 'alto' ? BRAND : MID} />
-                <Stat label="Impatto vendite" value={`${(v.impatto_vendite_pct || 0).toFixed(0)}%`} color={v.impatto_vendite_pct < -5 ? BRAND : MID} />
+                <Stat label="Impatto vendite" value={fmtp0(v.impatto_vendite_pct || 0)} color={v.impatto_vendite_pct < -5 ? BRAND : MID} />
               </div>
               <div style={{ fontSize: 12, color: MID, lineHeight: 1.55, background: '#FAFAF6', padding: 10, borderRadius: 8 }}>
                 {v.spiegazione}

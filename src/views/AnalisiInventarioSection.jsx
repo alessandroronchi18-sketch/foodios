@@ -36,6 +36,7 @@ import { loadXLSX } from '../lib/xlsx'
 import { totaliPerGusto, serieVendutoMultiSede } from '../lib/inventarioProduzione'
 import { calcolaFC, isRicettaValida, getR } from '../lib/foodcost'
 import { useRicavoFlat } from '../lib/useRicavoFlat'
+import { fmtp } from '../lib/formatIt'
 
 /**
  * @param {Object} props
@@ -204,7 +205,7 @@ export default function AnalisiInventarioSection({
 
   const eur = (n) => (Number(n) || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' €'
   const kg = (n) => (Number(n) || 0).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 1 })
-  const pct = (n) => (Number(n) || 0).toFixed(1) + '%'
+  const pct = (n) => fmtp(Number(n) || 0)
   const deltaPct = (cur, prev) => {
     if (prev == null || prev === 0) return null
     return ((cur - prev) / prev) * 100
@@ -445,7 +446,7 @@ function KpiCell({ label, value, delta, deltaLabel = 'vs periodo prec.', highlig
       <div style={{ fontSize: 20, fontWeight: 800, color, ...TNUM, lineHeight: 1.1 }}>{value}</div>
       {delta != null && deltaLabel && (
         <div style={{ fontSize: 12, color: deltaColor, fontWeight: 700, marginTop: 4, ...TNUM }}>
-          {deltaSymbol} {Math.abs(delta).toFixed(1)}% {deltaLabel}
+          {deltaSymbol} {fmtp(Math.abs(delta))} {deltaLabel}
         </div>
       )}
     </div>

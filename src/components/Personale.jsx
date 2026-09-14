@@ -10,6 +10,7 @@ import { SkeletonList } from './Skeleton'
 import { calcolaStipendio, costoOrarioDaStipendio, costoPersonaleMensile, costoLavoroDaTurni } from '../lib/stipendiCalc'
 import { toMin as _toMin, finMin as _finMin, hm as _hm, oreTurno, analizzaCopertura } from '../lib/turni'
 import { color as T, radius as R, shadow as S, motion as M, tnum, typo } from '../lib/theme'
+import { fmtp, fmtp0 } from '../lib/formatIt'
 
 // Quanto costa un'ora di quel dipendente.
 //
@@ -1168,7 +1169,7 @@ function AnalisiCostoTab({ orgId, isMobile, isTablet }) {
               <div style={{ flex:1, minWidth:200 }}>
                 <div style={{ fontSize: typo.small.fontSize, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase", color:"rgba(255,255,255,0.6)", marginBottom:6 }}>Incidenza costo lavoro</div>
                 <div style={{ display:"flex", alignItems:"baseline", gap:10 }}>
-                  <span style={{ fontSize: isMobile?34:44, fontWeight:900, color: incidenza==null?"rgba(255,255,255,0.5)":(incidenza<=30?"#7BE0A6":incidenza<=40?"#FCD34D":"#FCA5A5"), lineHeight:1, ...tnum }}>{incidenza==null?"-":`${incidenza.toFixed(1)}%`}</span>
+                  <span style={{ fontSize: isMobile?34:44, fontWeight:900, color: incidenza==null?"rgba(255,255,255,0.5)":(incidenza<=30?"#7BE0A6":incidenza<=40?"#FCD34D":"#FCA5A5"), lineHeight:1, ...tnum }}>{incidenza==null?"-":fmtp(incidenza)}</span>
                   {incidenza!=null && <span style={{ fontSize:12, color:"rgba(255,255,255,0.7)" }}>del fatturato ({fmt0(ricavi)})</span>}
                 </div>
                 <div style={{ fontSize:12, color:"rgba(255,255,255,0.82)", marginTop:10, lineHeight:1.5, maxWidth:560 }}>{incVerdetto}</div>
@@ -1176,7 +1177,7 @@ function AnalisiCostoTab({ orgId, isMobile, isTablet }) {
               {incidenza!=null && (
                 <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
                   <div style={{ width:64, height:64, borderRadius:"50%", background:`conic-gradient(${incidenza<=30?"#7BE0A6":incidenza<=40?"#FCD34D":"#FCA5A5"} ${Math.min(100,incidenza)*3.6}deg, rgba(255,255,255,0.12) 0)`, display:"flex", alignItems:"center", justifyContent:"center" }}>
-                    <div style={{ width:46, height:46, borderRadius:"50%", background:"#2A0E0E", display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:800, color:"#fff" }}>{incidenza.toFixed(0)}%</div>
+                    <div style={{ width:46, height:46, borderRadius:"50%", background:"#2A0E0E", display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:800, color:"#fff" }}>{fmtp0(incidenza)}</div>
                   </div>
                   <span style={{ fontSize: 12, color:"rgba(255,255,255,0.5)", textTransform:"uppercase", letterSpacing:"0.05em" }}>target ≤30%</span>
                 </div>
@@ -1192,7 +1193,7 @@ function AnalisiCostoTab({ orgId, isMobile, isTablet }) {
               { lbl:"Fatturato / ora", val: ricavi>0?fmt0(fatturatoPerOra):"-", c: fatturatoPerOra>=costoMedioOra*2.5?C.green:C.text, sub:"produttività del lavoro" },
               { lbl:"Costo medio orario", val:fmt(costoMedioOra), c:C.text, sub:"per ora lavorata" },
               { lbl:"Ore pian. vs lavorate", val: fmtH(oreEffettive), c: Math.abs(deltaOre)<2?C.green:deltaOre>0?C.amber:C.text, sub: `pianificate ${fmtH(totOre)}${Math.abs(deltaOre)>=0.5?` · ${deltaOre>0?'+':''}${fmtH(deltaOre)}`:''}` },
-              { lbl:"Effettivo vs contratto", val:`${scost>=0?"+":""}${fmt0(scost)}`, c: Math.abs(scostPct)<8?C.green:scost>0?C.red:C.amber, sub: scost>0?`+${scostPct.toFixed(0)}% (straordinari?)`:`${scostPct.toFixed(0)}% sotto teorico` },
+              { lbl:"Effettivo vs contratto", val:`${scost>=0?"+":""}${fmt0(scost)}`, c: Math.abs(scostPct)<8?C.green:scost>0?C.red:C.amber, sub: scost>0?`+${fmtp0(scostPct)} (straordinari?)`:`${fmtp0(scostPct)} sotto teorico` },
               { lbl:"Proiezione annua", val:fmt0(costoFissoMese*12), c:C.amber, sub:"costo fisso × 12" },
             ].map(({lbl,val,c,sub})=>(
               <div key={lbl} className="fos-tile" style={{ background:C.bgCard, borderRadius:16, border:`1px solid ${C.border}`, padding: isMobile ? "14px 14px" : "16px 18px", boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)", display:'flex', flexDirection:'column' }}>
@@ -1222,7 +1223,7 @@ function AnalisiCostoTab({ orgId, isMobile, isTablet }) {
                         </div>
                         <div style={{ display:'grid', gridTemplateColumns:'1fr auto', gap: 8, alignItems: 'baseline', marginTop: 2, marginBottom: 6 }}>
                           <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{fmtH(d.ore)} · {fmt(oraEff)}/h</span>
-                          <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, fontWeight: 600, ...tnum }}>{quota.toFixed(0)}%</span>
+                          <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, fontWeight: 600, ...tnum }}>{fmtp0(quota)}</span>
                         </div>
                       </>
                     ) : (
@@ -1230,7 +1231,7 @@ function AnalisiCostoTab({ orgId, isMobile, isTablet }) {
                         <span style={{ fontSize: 13, fontWeight: 700, color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{nome}</span>
                         <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, whiteSpace: 'nowrap' }}>{fmtH(d.ore)} · {fmt(oraEff)}/h</span>
                         <span style={{ fontSize: 13, fontWeight: 800, color: C.red, ...tnum, minWidth: 96, textAlign: 'right' }}>{fmt(d.costo)}</span>
-                        <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, fontWeight: 600, ...tnum, minWidth: 42, textAlign: 'right' }}>{quota.toFixed(0)}%</span>
+                        <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, fontWeight: 600, ...tnum, minWidth: 42, textAlign: 'right' }}>{fmtp0(quota)}</span>
                       </div>
                     )}
                     <div style={{ height: 6, background: '#F0EAE6', borderRadius: 999, overflow: 'hidden' }}>
@@ -1259,7 +1260,7 @@ function AnalisiCostoTab({ orgId, isMobile, isTablet }) {
                         </div>
                         <div style={{ display:'grid', gridTemplateColumns:'1fr auto', gap: 8, alignItems: 'baseline', marginTop: 2, marginBottom: 6 }}>
                           <span style={{ fontSize: typo.small.fontSize, color: C.textSoft }}>{fmtH(r.ore)}</span>
-                          <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, fontWeight: 600, ...tnum }}>{quota.toFixed(0)}%</span>
+                          <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, fontWeight: 600, ...tnum }}>{fmtp0(quota)}</span>
                         </div>
                       </>
                     ) : (
@@ -1267,7 +1268,7 @@ function AnalisiCostoTab({ orgId, isMobile, isTablet }) {
                         <span style={{ fontSize: 13, fontWeight: 700, color: nome==="Senza reparto" ? C.textSoft : C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{nome}</span>
                         <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, whiteSpace: 'nowrap' }}>{fmtH(r.ore)}</span>
                         <span style={{ fontSize: 13, fontWeight: 800, color: colore, ...tnum, minWidth: 96, textAlign: 'right' }}>{fmt(r.costo)}</span>
-                        <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, fontWeight: 600, ...tnum, minWidth: 42, textAlign: 'right' }}>{quota.toFixed(0)}%</span>
+                        <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, fontWeight: 600, ...tnum, minWidth: 42, textAlign: 'right' }}>{fmtp0(quota)}</span>
                       </div>
                     )}
                     <div style={{ height: 6, background: '#F0EAE6', borderRadius: 999, overflow: 'hidden' }}>
@@ -1336,7 +1337,7 @@ function HeaderPersonale({ orgId, isMobile, isTablet = false }) {
   const kpis = [
     { lbl: 'Dipendenti attivi', val: d.nDip, color: T.text, sub: ' ' },
     { lbl: 'Costo lavoro (mese)', val: fmt0(costo), color: T.brand, hi: true, sub: d.costoMese > 0 ? 'effettivo dai turni' : 'stima da contratti' },
-    { lbl: 'Incidenza su fatturato', val: incidenza == null ? '-' : `${incidenza.toFixed(1)}%`, color: incColor, sub: incidenza == null ? 'registra le chiusure' : 'sano ≤ 30%' },
+    { lbl: 'Incidenza su fatturato', val: incidenza == null ? '-' : fmtp(incidenza), color: incColor, sub: incidenza == null ? 'registra le chiusure' : 'sano ≤ 30%' },
     { lbl: 'Fatturato / ora', val: prod > 0 ? fmt0(prod) : '-', color: T.text, sub: 'produttività del lavoro' },
   ]
 

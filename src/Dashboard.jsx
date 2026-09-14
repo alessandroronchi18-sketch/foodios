@@ -1,6 +1,7 @@
 import React from 'react'
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import * as Sentry from '@sentry/react'
+import { fmt, fmtp } from './lib/formatIt'
 import { lazyWithReload } from './lib/lazyWithReload'
 import { getUnsavedGuardCurrent } from './lib/useUnsavedGuard'
 import { parseRicettarioSmart } from './lib/parseRicettarioAI'
@@ -23,6 +24,7 @@ import SplashScreen from './components/SplashScreen'
 import { useAutoLogoutDipendente } from './auth/useAutoLogoutDipendente'
 import { useDipendenteOperativo } from './hooks/useDipendenteOperativo'
 import { mergeArr as _mergeArr, mergeMag as _mergeMag } from './lib/multiSediMerge'
+import { fmtp0 } from './lib/formatIt'
 import { analizzaFotoAI } from './lib/analizzaFotoAI'
 import { supabase } from './lib/supabase'
 import { caricoProduzionePF, scaricoVenditaPF } from './lib/stockPF'
@@ -424,8 +426,8 @@ const C = {
   shadowMed:"0 4px 12px rgba(15,23,42,0.06), 0 1px 3px rgba(15,23,42,0.04)",
   shadowLg:"0 10px 30px rgba(15,23,42,0.08), 0 2px 6px rgba(15,23,42,0.04)",
 };
-const fmt  = v => `${Number(v).toLocaleString('it-IT', { useGrouping: 'always',minimumFractionDigits:2,maximumFractionDigits:2})} €`;
-const fmtp = v => `${Number(v).toFixed(1)}%`;
+// fmt e fmtp stanno in lib/formatIt: erano riscritti qui a mano, e fmtp
+// usava toFixed(1), cioe' il punto decimale invece della virgola.
 const PIE_COLORS = [C.red,"#E07040","#D4A030","#5B8FCE","#7B7B7B","#A0522D"];
 
 // ─── PRIMITIVES ───────────────────────────────────────────────────────────────
@@ -556,7 +558,7 @@ function ProduzioneView({ricettario,mese,onSave,onAddAction,nomeAttivita=''}) {
   const st=totP>0?(totV/totP*100):0;
 
   const _eur = (n) => `€${Math.round(Number(n)||0).toLocaleString('it-IT', { useGrouping: 'always' })}`
-  const aiPrompt=`${nomeAttivita} - ${mese.label}. Ricavi totali ${_eur(totR)}, food cost ${_eur(totFC)}, margine lordo ${totMP.toFixed(1)}%. Stampi prodotti ${totP.toLocaleString('it-IT', { useGrouping: 'always' })}, venduti ${totV.toLocaleString('it-IT', { useGrouping: 'always' })}, sell-through ${st.toFixed(1)}%. Prodotti: ${rows.filter(r=>r.stampiProdotti>0).map(r=>`${r.ricettaNome} ${r.stampiProdotti}prod/${r.stampiVenduti}vend marg${r.margPct.toFixed(0)}%`).join(", ")}. ${mese.meteo?`Meteo: ${mese.meteo.tempMean}°C, ${mese.meteo.giorniSole}gg sole.`:""} Suggerisci 3 azioni concrete.`;
+  const aiPrompt=`${nomeAttivita} - ${mese.label}. Ricavi totali ${_eur(totR)}, food cost ${_eur(totFC)}, margine lordo ${fmtp(totMP)}. Stampi prodotti ${totP.toLocaleString('it-IT', { useGrouping: 'always' })}, venduti ${totV.toLocaleString('it-IT', { useGrouping: 'always' })}, sell-through ${fmtp(st)}. Prodotti: ${rows.filter(r=>r.stampiProdotti>0).map(r=>`${r.ricettaNome} ${r.stampiProdotti}prod/${r.stampiVenduti}vend marg${fmtp0(r.margPct)}`).join(", ")}. ${mese.meteo?`Meteo: ${mese.meteo.tempMean}°C, ${mese.meteo.giorniSole}gg sole.`:""} Suggerisci 3 azioni concrete.`;
   const runAI=async()=>{ setAiLoad(true); setAiData(await getAI(aiPrompt,`mese-${mese.key}`,sload,ssave)); setAiLoad(false); };
 
   return (

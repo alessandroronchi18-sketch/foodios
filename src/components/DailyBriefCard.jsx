@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { color as T } from '../lib/theme'
 import Icon from './Icon'
+import { fmtp } from '../lib/formatIt'
 
 // Card del Brief del mattino - appare in alto nella Home se il brief di
 // oggi e' stato generato dal cron. Riassume in 3-4 frasi la situazione.
@@ -163,8 +164,8 @@ export default function DailyBriefCard({ orgId }) {
         <div style={{ marginTop: 14, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10 }}>
           {k.ricaviIeri > 0 && kpiBox('Ricavi ieri', `${Number(k.ricaviIeri).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })} €`)}
           {k.ricaviSettCorr > 0 && kpiBox('Settimana in corso', `${Number(k.ricaviSettCorr).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })} €`,
-            k.ricaviSettPrec > 0 ? `${(((k.ricaviSettCorr - k.ricaviSettPrec) / k.ricaviSettPrec) * 100).toFixed(1)}% vs prec.` : null)}
-          {k.foodCostMedio != null && kpiBox('Food cost', `${k.foodCostMedio.toFixed(1)}%`, 'media 7gg')}
+            k.ricaviSettPrec > 0 ? `${fmtp(((k.ricaviSettCorr - k.ricaviSettPrec) / k.ricaviSettPrec) * 100)} vs prec.` : null)}
+          {k.foodCostMedio != null && kpiBox('Food cost', fmtp(k.foodCostMedio), 'media 7gg')}
           {k.topProdotto && kpiBox('Bestseller', k.topProdotto.nome, `${Number(k.topProdotto.qta || 0).toLocaleString('it-IT', { useGrouping: 'always' })} pz`)}
           {k.mpSottoSoglia?.length > 0 && kpiBox('MP sotto soglia', `${k.mpSottoSoglia.length}`, k.mpSottoSoglia.slice(0, 2).map(m => m.nome).join(', '))}
           {k.fattureScadute?.length > 0 && kpiBox('Fatture scadute', `${k.fattureScadute.length}`, 'attenzione')}

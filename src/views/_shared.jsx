@@ -36,29 +36,11 @@ export const TNUM = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "
 export const margColor = pct => pct >= 60 ? C.green : pct >= 40 ? C.amber : C.red
 
 // Formattazione valuta / percentuale.
-// Guard su NaN/undefined: chiusure batch/import possono avere kpi parziali
-// (es. kpi:{} senza totV) → senza guard si mostrava "€ NaN".
-// Separatore migliaia IT (1.234,56) ovunque, così gli importi grandi sono leggibili.
 //
-// CRITICAL FIX 2026-06-25: in alcuni runtime (Node senza ICU full, Safari iOS
-// in private browsing) `toLocaleString('it-IT')` SENZA opzioni esplicite
-// ritorna "9628" senza separatore migliaia. Forziamo `useGrouping: 'always'`
-// + `maximumFractionDigits: 0/2` esplicito su tutti i 3 helper per garantire
-// l'output IT-style su qualsiasi runtime.
-const NF_IT_2DEC = new Intl.NumberFormat('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: 'always' })
-const NF_IT_0DEC = new Intl.NumberFormat('it-IT', { minimumFractionDigits: 0, maximumFractionDigits: 0, useGrouping: 'always' })
-
-export const fmt = v => { const n = Number(v); return `${NF_IT_2DEC.format(Number.isFinite(n) ? n : 0)} €` }
-// Percentuale con la virgola, come si scrive in italiano.
-//
-// Prima era `toFixed(1)`, che usa SEMPRE il punto: nella stessa schermata si
-// leggeva "418,30 €" di incasso e "71.0%" di margine. Il punto decimale in un
-// prodotto italiano si nota, e accanto a un importo con la virgola sembra un
-// errore di battitura.
-const NF_IT_PCT = new Intl.NumberFormat('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
-export const fmtp = v => { const n = Number(v); return `${NF_IT_PCT.format(Number.isFinite(n) ? n : 0)}%` }
-// Valuta arrotondata all'unità con separatore migliaia (es. 1.234 €). Per box/KPI.
-export const fmt0 = v => { const n = Number(v); return `${NF_IT_0DEC.format(Math.round(Number.isFinite(n) ? n : 0))} €` }
+// Le definizioni vivono in `lib/formatIt.js`, che non e' un modulo React e
+// quindi lo possono importare anche `api/` e la generazione dei PDF. Qui
+// restano solo i ri-export, cosi' i callsite esistenti non cambiano.
+export { fmt, fmt0, fmtp, fmtp0, fmtpSegno, fmtp0Segno } from '../lib/formatIt'
 
 // CSS futuristic-clean per tile/KPI shared. Iniettato una volta (idempotente
 // se il browser carica più volte _shared - il selettore di style id evita

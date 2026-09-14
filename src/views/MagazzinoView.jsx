@@ -20,6 +20,7 @@ import {
   C, TNUM, KPI, PageHeader, useSortable, SortTH, fmt0, fmtp,
 } from './_shared'
 import { fornitoreDiIngrediente } from '../lib/fornitoreIngrediente'
+import { fmtp0 } from '../lib/formatIt'
 
 // Ombra premium coerente con la Dashboard home (card/contenitori principali).
 const SHADOW_PREMIUM = '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)'
@@ -774,7 +775,7 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
               </div>
               {deltaPct != null && Math.abs(deltaPct) > 50 && (
                 <div style={{ background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: 8, padding: '10px 12px', marginBottom: 16, fontSize: typo.small.fontSize, color: '#78350F', lineHeight: 1.5 }}>
-                  <b style={{ display: 'inline-flex', alignItems: 'center', gap: 5, verticalAlign: 'middle' }}><Icon name="warning" size={12} />Variazione importante</b> - la modifica del {Math.abs(deltaPct).toFixed(0)}% influenzerà il food cost di tutte le ricette che usano questo ingrediente (a partire dalla decorrenza scelta).
+                  <b style={{ display: 'inline-flex', alignItems: 'center', gap: 5, verticalAlign: 'middle' }}><Icon name="warning" size={12} />Variazione importante</b> - la modifica del {fmtp0(Math.abs(deltaPct))} influenzerà il food cost di tutte le ricette che usano questo ingrediente (a partire dalla decorrenza scelta).
                 </div>
               )}
               <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>

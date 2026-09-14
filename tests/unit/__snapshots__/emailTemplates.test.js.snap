@@ -99,7 +99,7 @@ exports[`Email templates — snapshot per non-regressione > report_mensile — c
         
     <div style="flex:1;background:#FFF;border:1px solid #E8DDD8;border-radius:8px;padding:14px 16px;">
       <div style="font-size:11px;color:#9C7B76;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Food cost medio</div>
-      <div style="font-size:18px;font-weight:800;color:#1C0A0A;">28.5%</div>
+      <div style="font-size:18px;font-weight:800;color:#1C0A0A;">28,5%</div>
     </div>
       </div>
       <p style="color:#6B4C44;font-size:14px;line-height:1.7;margin:0 0 6px;"> Più venduto: <strong>Torta Sacher</strong></p>

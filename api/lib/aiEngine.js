@@ -10,6 +10,7 @@
 //   dedupKey({ orgId, sedeId, tipo, entity })
 
 import { safeFetchLLM } from './safeFetch.js'
+import { fmtp, fmtp0 } from '../../src/lib/formatIt.js'
 
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages'
 const DEFAULT_MODEL = 'claude-haiku-4-5-20251001'  // economico per cron volumi
@@ -341,7 +342,7 @@ export function ruleBasedSuggestions(snap, { orgId, sedeId } = {}) {
       organization_id: orgId, sede_id: sedeId || null,
       tipo: 'food_cost_alto',
       severita: snap.foodCostMedio > 42 ? 'critical' : 'warning',
-      titolo: `Food cost medio ${snap.foodCostMedio.toFixed(1)}%`,
+      titolo: `Food cost medio ${fmtp(snap.foodCostMedio)}`,
       descrizione: `Sopra la soglia 38%. Controlla rese, scarti e prezzi ingredienti per le ricette più vendute.`,
       cta_view: 'pl', cta_label: 'Vai al P&L',
       payload: { foodCost: snap.foodCostMedio },
@@ -356,7 +357,7 @@ export function ruleBasedSuggestions(snap, { orgId, sedeId } = {}) {
       organization_id: orgId, sede_id: sedeId || null,
       tipo: 'prodotto_in_calo',
       severita: 'info',
-      titolo: `${p.nome}: ${p.deltaPct.toFixed(0)}% vs settimana scorsa`,
+      titolo: `${p.nome}: ${fmtp0(p.deltaPct)} vs settimana scorsa`,
       descrizione: `Venduti ${p.sett} pz vs ${p.prec} la settimana prec. Valuta promo, ricambio in vetrina o sostituzione.`,
       cta_view: 'storico', cta_label: 'Apri storico',
       payload: p,
@@ -403,7 +404,7 @@ export function ruleBasedSuggestions(snap, { orgId, sedeId } = {}) {
         organization_id: orgId, sede_id: sedeId || null,
         tipo: 'ricavi_in_crescita',
         severita: 'opportunity',
-        titolo: `Settimana +${deltaPct.toFixed(0)}% vs precedente`,
+        titolo: `Settimana +${fmtp0(deltaPct)} vs precedente`,
         descrizione: `Ricavi €${snap.ricaviSettCorr.toFixed(0)} vs €${snap.ricaviSettPrec.toFixed(0)}. Capitalizza con promo o nuova referenza.`,
         cta_view: 'pl', cta_label: 'Apri P&L',
         payload: { delta: deltaPct, cur: snap.ricaviSettCorr, prev: snap.ricaviSettPrec },
@@ -415,7 +416,7 @@ export function ruleBasedSuggestions(snap, { orgId, sedeId } = {}) {
         organization_id: orgId, sede_id: sedeId || null,
         tipo: 'ricavi_in_calo',
         severita: 'warning',
-        titolo: `Settimana ${deltaPct.toFixed(0)}% vs precedente`,
+        titolo: `Settimana ${fmtp0(deltaPct)} vs precedente`,
         descrizione: `Ricavi €${snap.ricaviSettCorr.toFixed(0)} vs €${snap.ricaviSettPrec.toFixed(0)}. Verifica meteo/eventi/concorrenza zona.`,
         cta_view: 'pl', cta_label: 'Apri P&L',
         payload: { delta: deltaPct, cur: snap.ricaviSettCorr, prev: snap.ricaviSettPrec },

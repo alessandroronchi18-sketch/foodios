@@ -20,6 +20,7 @@ const isoMeno = (d, giorni) => isoDi(new Date(new Date(d).getTime() - giorni * 8
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { caricaCostiAziendali, totaleMensile } from '../lib/costiAziendali'
 import { ChartTip } from '../views/_shared'
+import { fmtp, fmtp0 } from '../lib/formatIt'
 
 const TXT = T.text
 const SOFT = T.textSoft
@@ -51,7 +52,7 @@ function fmtInt(n) {
 }
 function fmtPct(n) {
   if (n == null) return '-'
-  return Number(n).toFixed(1) + '%'
+  return fmtp(Number(n))
 }
 function fmtDelta(prev, curr, fmtter) {
   if (prev == null || curr == null) return null
@@ -337,9 +338,9 @@ export default function ConfrontoSedi({ orgId, sedi }) {
       const k = kpiMap[s.id]
       if (!k) continue
       if (k.foodCostPct != null && k.foodCostPct > 38) {
-        out.push({ sede: s, lvl: 'red', icon: 'receipt', msg: `Food cost ${k.foodCostPct.toFixed(1)}% sopra soglia (38%)` })
+        out.push({ sede: s, lvl: 'red', icon: 'receipt', msg: `Food cost ${fmtp(k.foodCostPct)} sopra soglia (38%)` })
       } else if (k.foodCostPct != null && k.foodCostPct > 33) {
-        out.push({ sede: s, lvl: 'amber', icon: 'receipt', msg: `Food cost ${k.foodCostPct.toFixed(1)}% - monitorare` })
+        out.push({ sede: s, lvl: 'amber', icon: 'receipt', msg: `Food cost ${fmtp(k.foodCostPct)} - monitorare` })
       }
       if (k.fattureScadute > 0) {
         out.push({ sede: s, lvl: 'red', icon: 'fileText', msg: `${k.fattureScadute} fattur${k.fattureScadute === 1 ? 'a scaduta' : 'e scadute'} da pagare` })
@@ -362,7 +363,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
       }
       if (k.ricaviCur != null && k.ricaviPrev != null && k.ricaviPrev > 0) {
         const calo = ((k.ricaviCur - k.ricaviPrev) / k.ricaviPrev) * 100
-        if (calo < -15) out.push({ sede: s, lvl: 'red', icon: 'trendDown', msg: `Ricavi -${Math.abs(calo).toFixed(0)}% vs ${periodo === 'mese' ? 'mese' : 'settimana'} precedente` })
+        if (calo < -15) out.push({ sede: s, lvl: 'red', icon: 'trendDown', msg: `Ricavi -${fmtp0(Math.abs(calo))} vs ${periodo === 'mese' ? 'mese' : 'settimana'} precedente` })
       }
     }
     return out
@@ -433,8 +434,8 @@ export default function ConfrontoSedi({ orgId, sedi }) {
     const pieces = []
     if (consolidato.deltaRicPct != null && Math.abs(consolidato.deltaRicPct) >= 5) {
       pieces.push(consolidato.deltaRicPct >= 0
-        ? `Gruppo in crescita: +${consolidato.deltaRicPct.toFixed(0)}% vs ${periodo === 'mese' ? 'mese' : 'settimana'} precedente`
-        : `Gruppo in calo: ${consolidato.deltaRicPct.toFixed(0)}% vs ${periodo === 'mese' ? 'mese' : 'settimana'} precedente`)
+        ? `Gruppo in crescita: +${fmtp0(consolidato.deltaRicPct)} vs ${periodo === 'mese' ? 'mese' : 'settimana'} precedente`
+        : `Gruppo in calo: ${fmtp0(consolidato.deltaRicPct)} vs ${periodo === 'mese' ? 'mese' : 'settimana'} precedente`)
     }
     if (sedeChampion && sedeCritica) {
       pieces.push(`${sedeChampion.sede.nome} traina, ${sedeCritica.sede.nome} richiede attenzione`)
@@ -445,10 +446,10 @@ export default function ConfrontoSedi({ orgId, sedi }) {
     }
     if (consolidato.margineNettoPct != null) {
       pieces.push(consolidato.margineNettoPct >= 15
-        ? `margine netto sano (${consolidato.margineNettoPct.toFixed(0)}%)`
+        ? `margine netto sano (${fmtp0(consolidato.margineNettoPct)})`
         : consolidato.margineNettoPct >= 5
-          ? `margine sotto target (${consolidato.margineNettoPct.toFixed(0)}%)`
-          : `margine critico (${consolidato.margineNettoPct.toFixed(0)}%)`)
+          ? `margine sotto target (${fmtp0(consolidato.margineNettoPct)})`
+          : `margine critico (${fmtp0(consolidato.margineNettoPct)})`)
     }
     return pieces.length > 0 ? pieces.join('. ') + '.' : null
   }, [consolidato, sedeChampion, sedeCritica, periodo])
@@ -575,9 +576,9 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                 subtitle: `${sediAttive.length} sedi attive`,
                 periodo: `Periodo: ${periodo === 'mese' ? 'mese corrente' : 'settimana corrente'} vs ${periodo} precedente`,
                 kpi: consolidato ? [
-                  { label: 'Ricavi gruppo', value: `${fmt0(consolidato.ricCur)}`, sub: consolidato.deltaRicPct != null ? `${consolidato.deltaRicPct >= 0 ? '+' : ''}${consolidato.deltaRicPct.toFixed(0)}% vs prec.` : '' },
-                  { label: 'Margine netto', value: `${fmt0(consolidato.margNetto)}`, sub: consolidato.margineNettoPct != null ? `${consolidato.margineNettoPct.toFixed(1)}% dei ricavi` : '' },
-                  { label: 'Food cost medio', value: consolidato.foodCostMedio != null ? consolidato.foodCostMedio.toFixed(1) + '%' : '-', sub: 'target < 33%' },
+                  { label: 'Ricavi gruppo', value: `${fmt0(consolidato.ricCur)}`, sub: consolidato.deltaRicPct != null ? `${consolidato.deltaRicPct >= 0 ? '+' : ''}${fmtp0(consolidato.deltaRicPct)} vs prec.` : '' },
+                  { label: 'Margine netto', value: `${fmt0(consolidato.margNetto)}`, sub: consolidato.margineNettoPct != null ? `${fmtp(consolidato.margineNettoPct)} dei ricavi` : '' },
+                  { label: 'Food cost medio', value: consolidato.foodCostMedio != null ? fmtp(consolidato.foodCostMedio) : '-', sub: 'target < 33%' },
                   { label: 'Costi azienda', value: `${fmt0(consolidato.costiPeriodo || 0)}` },
                 ] : [],
                 sections: [
@@ -591,7 +592,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                         return [
                           s.nome,
                           fmt0(k.ricaviCur),
-                          k.foodCostPct != null ? k.foodCostPct.toFixed(1) + '%' : '-',
+                          k.foodCostPct != null ? fmtp(k.foodCostPct) : '-',
                           fmt0(k.margineNettoCur),
                           String(k.trasfInArrivo || 0),
                           String(k.fattureScadute || 0),
@@ -646,7 +647,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                     <div style={{ fontSize: typo.small.fontSize, color: 'rgba(255,255,255,0.55)', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', minHeight: 28, lineHeight: 1.2 }}>Ricavi {periodoLabel}</div>
                     <div style={{ fontSize: isMobile ? 22 : 28, fontWeight: 900, marginTop: 4, whiteSpace: 'nowrap', minHeight: 30, ...tnum }}>{fmt0(consolidato.ricCur)}</div>
                     <div style={{ fontSize: typo.small.fontSize, marginTop: 4, color: consolidato.deltaRicPct != null ? (consolidato.deltaRicPct >= 0 ? '#86EFAC' : '#FF6B6B') : 'rgba(255,255,255,0.45)', fontWeight: 700, minHeight: 16, ...tnum }}>
-                      {consolidato.deltaRicPct != null ? `${consolidato.deltaRicPct >= 0 ? '+' : ''}${consolidato.deltaRicPct.toFixed(0)}% vs prec.` : '-'}
+                      {consolidato.deltaRicPct != null ? `${consolidato.deltaRicPct >= 0 ? '+' : ''}${fmtp0(consolidato.deltaRicPct)} vs prec.` : '-'}
                     </div>
                   </div>
                   <div>
@@ -655,13 +656,13 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                       {fmt0(consolidato.margNetto)}
                     </div>
                     <div style={{ fontSize: typo.small.fontSize, marginTop: 4, color: 'rgba(255,255,255,0.65)', fontWeight: 600, minHeight: 16, ...tnum }}>
-                      {consolidato.margineNettoPct != null ? `${consolidato.margineNettoPct.toFixed(1)}% dei ricavi` : '-'}
+                      {consolidato.margineNettoPct != null ? `${fmtp(consolidato.margineNettoPct)} dei ricavi` : '-'}
                     </div>
                   </div>
                   <div>
                     <div style={{ fontSize: typo.small.fontSize, color: 'rgba(255,255,255,0.55)', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', minHeight: 28, lineHeight: 1.2 }}>Food cost medio</div>
                     <div style={{ fontSize: isMobile ? 22 : 28, fontWeight: 900, marginTop: 4, color: consolidato.foodCostMedio == null ? 'rgba(255,255,255,0.5)' : consolidato.foodCostMedio < 33 ? '#86EFAC' : consolidato.foodCostMedio < 38 ? '#FCD34D' : '#FF6B6B', whiteSpace: 'nowrap', minHeight: 30, ...tnum }}>
-                      {consolidato.foodCostMedio != null ? consolidato.foodCostMedio.toFixed(1) + '%' : '-'}
+                      {consolidato.foodCostMedio != null ? fmtp(consolidato.foodCostMedio) : '-'}
                     </div>
                     <div style={{ fontSize: typo.small.fontSize, marginTop: 4, color: 'rgba(255,255,255,0.55)', minHeight: 16 }}>
                       target &lt; 33%
@@ -774,9 +775,9 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                     <Icon name="pin" size={14} /> {sedeCritica.sede.nome}
                   </div>
                   <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12.5, color: MID, lineHeight: 1.6 }}>
-                    {sedeCritica.k?.foodCostPct > 38 && <li>Food cost <strong>{sedeCritica.k.foodCostPct.toFixed(1)}%</strong> sopra soglia</li>}
+                    {sedeCritica.k?.foodCostPct > 38 && <li>Food cost <strong>{fmtp(sedeCritica.k.foodCostPct)}</strong> sopra soglia</li>}
                     {sedeCritica.k?.margineNettoCur < 0 && <li>Margine netto <strong>{fmt0(sedeCritica.k.margineNettoCur)}</strong></li>}
-                    {sedeCritica.k?.ricaviCur != null && sedeCritica.k?.ricaviPrev > 0 && ((sedeCritica.k.ricaviCur - sedeCritica.k.ricaviPrev) / sedeCritica.k.ricaviPrev * 100) <= -10 && <li>Ricavi in calo <strong>{(((sedeCritica.k.ricaviCur - sedeCritica.k.ricaviPrev) / sedeCritica.k.ricaviPrev) * 100).toFixed(0)}%</strong></li>}
+                    {sedeCritica.k?.ricaviCur != null && sedeCritica.k?.ricaviPrev > 0 && ((sedeCritica.k.ricaviCur - sedeCritica.k.ricaviPrev) / sedeCritica.k.ricaviPrev * 100) <= -10 && <li>Ricavi in calo <strong>{fmtp0(((sedeCritica.k.ricaviCur - sedeCritica.k.ricaviPrev) / sedeCritica.k.ricaviPrev) * 100)}</strong></li>}
                     {sedeCritica.k?.fattureScadute > 0 && <li><strong>{sedeCritica.k.fattureScadute}</strong> fatture scadute</li>}
                     {sedeCritica.k?.trasfInArrivo > 0 && <li><strong>{sedeCritica.k.trasfInArrivo}</strong> trasferimenti in attesa</li>}
                   </ul>
@@ -797,9 +798,9 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                     <Icon name="pin" size={14} /> {sedeChampion.sede.nome}
                   </div>
                   <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12.5, color: MID, lineHeight: 1.6 }}>
-                    {sedeChampion.k?.foodCostPct != null && sedeChampion.k.foodCostPct < 33 && <li>Food cost <strong>{sedeChampion.k.foodCostPct.toFixed(1)}%</strong> sotto target</li>}
-                    {sedeChampion.k?.margineNettoCur > 0 && sedeChampion.k?.ricaviCur > 0 && <li>Margine netto <strong>{((sedeChampion.k.margineNettoCur / sedeChampion.k.ricaviCur) * 100).toFixed(0)}%</strong> dei ricavi</li>}
-                    {sedeChampion.k?.ricaviCur != null && sedeChampion.k?.ricaviPrev > 0 && ((sedeChampion.k.ricaviCur - sedeChampion.k.ricaviPrev) / sedeChampion.k.ricaviPrev * 100) >= 10 && <li>Ricavi in crescita <strong>+{(((sedeChampion.k.ricaviCur - sedeChampion.k.ricaviPrev) / sedeChampion.k.ricaviPrev) * 100).toFixed(0)}%</strong></li>}
+                    {sedeChampion.k?.foodCostPct != null && sedeChampion.k.foodCostPct < 33 && <li>Food cost <strong>{fmtp(sedeChampion.k.foodCostPct)}</strong> sotto target</li>}
+                    {sedeChampion.k?.margineNettoCur > 0 && sedeChampion.k?.ricaviCur > 0 && <li>Margine netto <strong>{fmtp0((sedeChampion.k.margineNettoCur / sedeChampion.k.ricaviCur) * 100)}</strong> dei ricavi</li>}
+                    {sedeChampion.k?.ricaviCur != null && sedeChampion.k?.ricaviPrev > 0 && ((sedeChampion.k.ricaviCur - sedeChampion.k.ricaviPrev) / sedeChampion.k.ricaviPrev * 100) >= 10 && <li>Ricavi in crescita <strong>+{fmtp0(((sedeChampion.k.ricaviCur - sedeChampion.k.ricaviPrev) / sedeChampion.k.ricaviPrev) * 100)}</strong></li>}
                     {sedeChampion.k?.fattureDaPagare === 0 && <li>Nessuna fattura scaduta</li>}
                   </ul>
                 </div>
@@ -811,7 +812,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
           {sediAttive.length >= 2 && (() => {
             const METRICS = [
               { id: 'ricaviCur',       lbl: 'Ricavi',       fmt: v => '€' + fmt0(v) },
-              { id: 'foodCostPct',     lbl: 'Food cost %',  fmt: v => v != null ? v.toFixed(1) + '%' : '-' },
+              { id: 'foodCostPct',     lbl: 'Food cost %',  fmt: v => v != null ? fmtp(v) : '-' },
               { id: 'margineNettoCur', lbl: 'Margine netto',fmt: v => '€' + fmt0(v) },
               { id: 'fattureScadute',  lbl: 'Fatture scadute', fmt: v => String(v) },
               { id: 'stockPF',         lbl: 'Stock vetrina (pz)', fmt: v => String(v) },
@@ -929,7 +930,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                         <div style={{ fontSize: 16, fontWeight: 900, color: TXT, ...tnum }}>{fmt0(r.ricavi)}</div>
                         {delta && (
                           <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, color: delta.positive ? GRN : RED, ...tnum }}>
-                            {delta.sign}{fmt0(delta.delta)}{delta.pct != null ? ` (${delta.sign}${delta.pct.toFixed(0)}%)` : ''}
+                            {delta.sign}{fmt0(delta.delta)}{delta.pct != null ? ` (${delta.sign}${fmtp0(delta.pct)})` : ''}
                           </div>
                         )}
                       </div>
@@ -1016,7 +1017,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                             <div>{r.fmt(k[r.key])}</div>
                             {delta && (
                               <div style={{ fontSize: typo.small.fontSize, color: delta.positive ? GRN : RED, fontWeight: 700, marginTop: 2 }}>
-                                {delta.sign}{r.fmt(delta.delta)}{delta.pct != null ? ` (${delta.sign}${delta.pct.toFixed(0)}%)` : ''}
+                                {delta.sign}{r.fmt(delta.delta)}{delta.pct != null ? ` (${delta.sign}${fmtp0(delta.pct)})` : ''}
                               </div>
                             )}
                           </td>

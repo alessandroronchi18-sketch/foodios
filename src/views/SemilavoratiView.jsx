@@ -15,6 +15,7 @@ import { trovaBasiNonDichiarate } from '../lib/basiNonDichiarate'
 import FotoOCR from '../components/FotoOCR'
 import Icon from '../components/Icon'
 import { C, KPI, SH, PageHeader, Tip, Badge, TNUM, useSortable, SortTH } from './_shared'
+import { fmtp0 } from '../lib/formatIt'
 
 const SHADOW_PREMIUM = '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)'
 const SHADOW_HOVER = '0 1px 2px rgba(15,23,42,0.06), 0 18px 40px rgba(15,23,42,0.10)'
@@ -133,7 +134,7 @@ function SemiCard({ sm, ricettario, ingCosti, onEdit, onDelete, LEX }) {
                       <span style={{ display: 'block', height: '100%', width: `${Math.min(100, pctCosto)}%`, background: j === 0 ? T.brand : 'rgba(110,14,26,0.45)', transition: 'width 240ms ease' }} />
                     </span>
                     <span style={{ flex: '0 0 72px', textAlign: 'right', ...TNUM, color: T.text, fontWeight: 700, whiteSpace: 'nowrap' }}>{fmtKg(ing.costo)}</span>
-                    <span style={{ flex: '0 0 44px', textAlign: 'right', ...TNUM, color: T.textSoft, fontSize: typo.small.fontSize, fontWeight: 600, whiteSpace: 'nowrap' }}>{pctCosto.toFixed(0)}%</span>
+                    <span style={{ flex: '0 0 44px', textAlign: 'right', ...TNUM, color: T.textSoft, fontSize: typo.small.fontSize, fontWeight: 600, whiteSpace: 'nowrap' }}>{fmtp0(pctCosto)}</span>
                   </div>
                 )
               })}

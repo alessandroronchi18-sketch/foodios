@@ -17,6 +17,7 @@
 export const config = { runtime: 'edge' }
 
 import { verifyBearerSecret } from './lib/cryptoCompare.js'
+import { fmtp } from '../src/lib/formatIt.js'
 
 async function getSupabase() {
   const { createClient } = await import('@supabase/supabase-js')
@@ -27,7 +28,7 @@ function fmtEur(n) {
   return `€${Number(n || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 function fmtPct(n) {
-  return `${Number(n || 0).toFixed(1)}%`
+  return fmtp(Number(n || 0))
 }
 
 // Costruisce KPI del giorno per un'organizzazione

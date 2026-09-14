@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import Icon from './Icon'
 import { sload, ssave } from '../lib/storage'
 import { apiFetch } from '../lib/apiFetch'
+import { fmtp } from '../lib/formatIt'
 
 export const BMK_KEY = 'pasticceria-benchmark-optin-v1'
 const SK_CHIUS = 'pasticceria-chiusure-v1'
@@ -133,7 +134,7 @@ export default function BenchmarkOptin({ orgId, sedeId, tipoAttivita, sedi, noti
             {lastResult && (
               <div style={{ fontSize: 12, color: lastResult.ok ? '#166534' : '#92400E', marginTop: 10 }}>
                 {lastResult.ok
-                  ? `✓ Inviato (FC ${lastResult.fcPct?.toFixed(1)}%, ${lastResult.sample} sessioni)`
+                  ? `✓ Inviato (FC ${fmtp(lastResult.fcPct)}, ${lastResult.sample} sessioni)`
                   : `Non inviato${lastResult.reason ? ': ' + lastResult.reason : ''}`}
               </div>
             )}
@@ -175,7 +176,7 @@ export function BenchmarkBadge({ tipoAttivita, miaFcPct, citta }) {
           Media settore{data.media_citta ? ` · ${citta}` : ''}
         </div>
         <div style={{ fontSize: 18, fontWeight: 800, color: '#0F172A', fontVariantNumeric: 'tabular-nums' }}>
-          {(data.media_citta?.valore ?? media).toFixed(1)}%
+          {fmtp(data.media_citta?.valore ?? media)}
         </div>
         <div style={{ fontSize: 12, color: '#94A3B8' }}>n={data.media_citta?.sample ?? data.sample}</div>
       </div>
@@ -183,7 +184,7 @@ export function BenchmarkBadge({ tipoAttivita, miaFcPct, citta }) {
         <div style={{ borderLeft: '1px solid #E2E8F0', paddingLeft: 14 }}>
           <div style={{ fontSize: 12, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>Tu sei a</div>
           <div style={{ fontSize: 18, fontWeight: 800, color, fontVariantNumeric: 'tabular-nums' }}>
-            {miaFcPct.toFixed(1)}%
+            {fmtp(miaFcPct)}
           </div>
           {delta != null && (
             <div style={{ fontSize: 12, color, fontWeight: 600 }}>

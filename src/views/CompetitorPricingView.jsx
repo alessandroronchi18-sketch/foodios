@@ -15,6 +15,7 @@ import { buildIngCosti, calcolaFC, getR } from '../lib/foodcost'
 import { callAi } from '../lib/aiClient'
 import Icon from '../components/Icon'
 import AiPageHero from '../components/AiPageHero'
+import { fmtp } from '../lib/formatIt'
 
 const BRAND = T.brand || '#6E0E1A'
 const SOFT = T.textSoft || '#8B95A7'
@@ -162,13 +163,13 @@ Restituisci SOLO JSON valido (no markdown), con questi campi esatti:
 
 Tuo posizionamento attuale:
 - Tuo prezzo: ${_e(fcInfo.prezzo)}
-- Tuo food cost: ${_e(fcInfo.fcPezzo)} (${fcPct.toFixed(1)}% del prezzo)
-- Tuo margine lordo: ${yourMargPct.toFixed(1)}% (benchmark sano: ${100-targetFC}%)
+- Tuo food cost: ${_e(fcInfo.fcPezzo)} (${fmtp(fcPct)} del prezzo)
+- Tuo margine lordo: ${fmtp(yourMargPct)} (benchmark sano: ${100-targetFC}%)
 
 Competitor in zona (${compStats.n} ${compStats.n === 1 ? 'rilevato' : 'rilevati'}):
-- Min: ${_e(compStats.min)} (tu sei ${distMin >= 0 ? '+' : ''}${distMin.toFixed(1)}% rispetto al min)
-- Max: ${_e(compStats.max)} (tu sei ${distMax >= 0 ? '+' : ''}${distMax.toFixed(1)}% rispetto al max)
-- Media: ${_e(compStats.media)} (tu sei ${distMed >= 0 ? '+' : ''}${distMed.toFixed(1)}% rispetto alla media)
+- Min: ${_e(compStats.min)} (tu sei ${distMin >= 0 ? '+' : ''}${fmtp(distMin)} rispetto al min)
+- Max: ${_e(compStats.max)} (tu sei ${distMax >= 0 ? '+' : ''}${fmtp(distMax)} rispetto al max)
+- Media: ${_e(compStats.media)} (tu sei ${distMed >= 0 ? '+' : ''}${fmtp(distMed)} rispetto alla media)
 
 Confidence calibration: ${compStats.n} competitor → confidence max ${Math.min(0.95, 0.3 + compStats.n * 0.15).toFixed(2)}.
 Valuta se sono sotto, in linea o sopra, e dimmi cosa farei al posto mio.`
@@ -227,7 +228,7 @@ Valuta se sono sotto, in linea o sopra, e dimmi cosa farei al posto mio.`
               <div style={{ fontSize: 24, fontWeight: 900, color: TXT, marginTop: 2 }}>{Number(fcInfo.prezzo).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</div>
             </div>
             <div style={{ fontSize: 12, color: MID, lineHeight: 1.5 }}>
-              Food cost {Number(fcInfo.fcPezzo).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} € ({(fcInfo.fcPezzo / fcInfo.prezzo * 100).toFixed(1)}%)<br/>
+              Food cost {Number(fcInfo.fcPezzo).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} € ({fmtp(fcInfo.fcPezzo / fcInfo.prezzo * 100)})<br/>
               Margine lordo {Number(fcInfo.prezzo - fcInfo.fcPezzo).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
             </div>
           </div>

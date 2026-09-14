@@ -2,6 +2,7 @@
 // TortaCard è il card espandibile usato sia dal Ricettario che dai Semilavorati.
 
 import React, { useEffect, useMemo, useState } from 'react'
+import { fmtp0 } from '../lib/formatIt'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 import {
@@ -617,7 +618,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
                             <div style={{ width: 44, height: 5, background: '#EEE', borderRadius: 3, flexShrink: 0 }}>
                               <div style={{ width: `${Math.min(100, ing.pct)}%`, height: 5, background: ing.pct > 30 ? C.red : ing.pct > 15 ? C.amber : '#AAB', borderRadius: 3 }}/>
                             </div>
-                            <span style={{ fontSize: 12, color: C.textMid, width: 30, textAlign: 'right', fontWeight: 700, ...TNUM }}>{ing.pct.toFixed(0)}%</span>
+                            <span style={{ fontSize: 12, color: C.textMid, width: 30, textAlign: 'right', fontWeight: 700, ...TNUM }}>{fmtp0(ing.pct)}</span>
                           </div>
                         )}
                       </td>
@@ -671,7 +672,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 78px 44px', alignItems: 'baseline', gap: 10, fontSize: 12, marginBottom: 4 }}>
                       <span style={{ color: C.text, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{formatNome(ing.nome)}</span>
                       <span style={{ color: C.textMid, fontWeight: 700, ...TNUM, whiteSpace: 'nowrap', textAlign: 'right' }}>{fmt(ing.costoCalc)}</span>
-                      <span style={{ color: C.textSoft, fontWeight: 600, ...TNUM, whiteSpace: 'nowrap', textAlign: 'right' }}>{pct.toFixed(0)}%</span>
+                      <span style={{ color: C.textSoft, fontWeight: 600, ...TNUM, whiteSpace: 'nowrap', textAlign: 'right' }}>{fmtp0(pct)}</span>
                     </div>
                     <div style={{ height: 6, background: 'rgba(0,0,0,0.06)', borderRadius: 3, overflow: 'hidden' }}>
                       <div style={{ height: '100%', width: `${Math.min(100, pct)}%`, background: col, borderRadius: 3, transition: 'width 320ms cubic-bezier(.32,.72,0,1)' }}/>
@@ -1009,11 +1010,11 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   <div style={{ padding: '10px 12px', background: T.bgSubtle, borderRadius: R.md }}>
                     <div style={{ fontSize: 12, color: T.textSoft, fontWeight: 600, textTransform: 'uppercase', marginBottom: 4 }}>Margine</div>
-                    <div style={{ fontSize: 18, fontWeight: 700, color: mC, ...TNUM }}>{marg.toFixed(0)}%</div>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: mC, ...TNUM }}>{fmtp0(marg)}</div>
                   </div>
                   <div style={{ padding: '10px 12px', background: T.bgSubtle, borderRadius: R.md }}>
                     <div title="Food Cost: rapporto costo ingredienti / ricavo. Target tipico 25-35% in pasticceria, 22-30% in gelateria." style={{ fontSize: 12, color: T.textSoft, fontWeight: 600, textTransform: 'uppercase', marginBottom: 4, cursor: 'help' }}>Food cost</div>
-                    <div style={{ fontSize: 18, fontWeight: 700, color: fC, ...TNUM }}>{fcPct.toFixed(0)}%</div>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: fC, ...TNUM }}>{fmtp0(fcPct)}</div>
                   </div>
                 </div>
               </div>

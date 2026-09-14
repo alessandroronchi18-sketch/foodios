@@ -2,6 +2,7 @@
 // Genera report PDF mensile per ogni org attiva e lo invia via email
 
 import { verifyBearerSecret } from './lib/cryptoCompare.js'
+import { fmtp } from '../src/lib/formatIt.js'
 
 const FROM = 'FoodOS <noreply@foodos.it>'
 const MESI_IT = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre']
@@ -93,7 +94,7 @@ async function generaPDF(org, dati, periodo) {
 
   const kpiItems = [
     ['Ricavi totali', `${Number(kpiTotV).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`],
-    ['Food cost medio', `${kpiFoodCost.toFixed(1)}%`],
+    ['Food cost medio', fmtp(kpiFoodCost)],
     ['Prodotto più venduto', dati.topProdotto || '—'],
     ['Fatture pagate', String(fatturePagate)],
   ]
@@ -126,7 +127,7 @@ async function generaPDF(org, dati, periodo) {
     y += 7
     for (const [i, p] of prodotti5.entries()) {
       addLine(`${i + 1}. ${p.nome}`, 14, y, 10, 'normal', [15, 23, 42])
-      addLine(`${p.margine.toFixed(1)}%`, 160, y, 10, 'bold', [192, 57, 43])
+      addLine(fmtp(p.margine), 160, y, 10, 'bold', [192, 57, 43])
       y += 7
     }
   }
@@ -151,7 +152,7 @@ async function generaPDF(org, dati, periodo) {
     addLine('CONFRONTO CON MESE PRECEDENTE', 14, y, 9, 'bold', [148, 163, 184])
     y += 7
     const deltaV = mesePrecKpi.totV > 0 ? ((kpiTotV - mesePrecKpi.totV) / mesePrecKpi.totV * 100) : null
-    const segno = deltaV === null ? '—' : (deltaV >= 0 ? `+${deltaV.toFixed(1)}%` : `${deltaV.toFixed(1)}%`)
+    const segno = deltaV === null ? '—' : (deltaV >= 0 ? `+${fmtp(deltaV)}` : fmtp(deltaV))
     const colore = deltaV === null ? [71, 85, 105] : deltaV >= 0 ? [22, 163, 74] : [192, 57, 43]
     addLine('Variazione ricavi:', 14, y, 10, 'normal', [71, 85, 105])
     addLine(segno, 100, y, 11, 'bold', colore)

@@ -5,6 +5,7 @@ import { getCorsHeaders, handleOptions, getClientIP } from './lib/cors.js'
 import { sanitize, sanitizeStrict, validateEmail } from './lib/validate.js'
 import { verifyRawSecret } from './lib/cryptoCompare.js'
 import { safeError } from './lib/safeError.js'
+import { fmtp } from '../src/lib/formatIt.js'
 
 const FROM = 'FoodOS <noreply@foodos.it>'
 const SUPPORT = 'support@foodos.it'
@@ -372,7 +373,7 @@ export default async function handler(req) {
             </p>
             <div style="display:flex;gap:10px;margin-bottom:14px;">
               ${stat('Ricavi', Number(ricavi).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €')}
-              ${stat('Food cost medio', Number(fcMedio).toFixed(1) + '%')}
+              ${stat('Food cost medio', fmtp(Number(fcMedio)))}
             </div>
             ${piuVenduto ? `<p style="color:#6B4C44;font-size:14px;line-height:1.7;margin:0 0 6px;"> Più venduto: <strong>${escapeHtml(piuVenduto)}</strong></p>` : ''}
             ${menoVenduto ? `<p style="color:#6B4C44;font-size:14px;line-height:1.7;margin:0;"> Meno venduto: <strong>${escapeHtml(menoVenduto)}</strong></p>` : ''}

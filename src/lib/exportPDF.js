@@ -2,6 +2,7 @@
 // Senza questo lazy-load il chunk pdf (649KB) veniva fetchato al mount.
 import { resaGrammi, pesoIngredientiG } from './foodcost'
 import { scadenzaFattura } from './fatture'
+import { fmtp, fmtp0 } from './formatIt'
 
 let _jsPDF = null
 let _autoTable = null
@@ -180,7 +181,7 @@ export async function exportRicettaPDF(ricetta, foodCost, ingCosti, nomeAttivita
     ['Categoria', ricetta.categoria || '-'],
     ['Porzioni', String(ricetta.porzioni || ricetta.unita || 1)],
     ['Prezzo di vendita', fmt(ricetta.prezzo)],
-    ['Food cost %', foodCost?.perc != null ? `${Number(foodCost.perc).toFixed(1)}%` : '-'],
+    ['Food cost %', foodCost?.perc != null ? fmtp(Number(foodCost.perc)) : '-'],
   ]
   if (sommaG > 0) info.push(['Somma ingredienti', fmtGrammi(sommaG)])
   if (resaG > 0 && Math.abs(resaG - sommaG) > 0.5) {
@@ -233,7 +234,7 @@ export async function exportRicettaPDF(ricetta, foodCost, ingCosti, nomeAttivita
     head: [['Riepilogo economico', '']],
     body: [
       ['Food cost totale', fmt(costoTotale)],
-      ['Food cost %', `${percFC.toFixed(1)}%`],
+      ['Food cost %', fmtp(percFC)],
       ['Prezzo vendita suggerito', fmt(prezzoVendita)],
       ['Margine lordo', fmt(margine)],
     ],
@@ -287,7 +288,7 @@ export async function exportPLMensile(dati, mese, anno, nomeAttivita, emailUtent
   doc.setTextColor(...DARK)
   doc.text('Costi materie prime', 14, y2)
 
-  const costi = (dati.costi || []).map(c => [c.categoria || '-', fmt(c.costo), `${(c.perc || 0).toFixed(1)}%`])
+  const costi = (dati.costi || []).map(c => [c.categoria || '-', fmt(c.costo), fmtp(c.perc || 0)])
   const totCosti = (dati.costi || []).reduce((s, c) => s + (c.costo || 0), 0)
   autoTable(doc, {
     startY: y2 + 5,
@@ -313,7 +314,7 @@ export async function exportPLMensile(dati, mese, anno, nomeAttivita, emailUtent
       ['Ricavi totali', fmt(totRicavi)],
       ['Costi materie prime', fmt(totCosti)],
       ['Margine lordo', fmt(margine)],
-      ['Margine %', `${percMargine.toFixed(1)}%`],
+      ['Margine %', fmtp(percMargine)],
     ],
     theme: 'plain',
     headStyles: { fillColor: RED, textColor: [255, 255, 255], fontSize: 12, fontStyle: 'bold' },
@@ -362,8 +363,8 @@ export async function exportPLCompleto(dati, nomeAttivita, emailUtente) {
   const totMargine= Number(dati.totMargine || 0)
   const kpis = [
     ['Ricavo/stampo',   fmt(totRicavo),    'somma listino'],
-    ['Food cost tot.',  fmt(totFC),        `FC ratio ${fcAvg.toFixed(1)}%`],
-    ['Margine lordo',   fmt(totMargine),   `${avgMarg.toFixed(1)}% medio`],
+    ['Food cost tot.',  fmt(totFC),        `FC ratio ${fmtp(fcAvg)}`],
+    ['Margine lordo',   fmt(totMargine),   `${fmtp(avgMarg)} medio`],
     ['Prodotti',        String(rows.length), 'nel listino'],
   ]
   const cardW = (210 - 14 - 14 - 9) / 4
@@ -434,17 +435,17 @@ export async function exportPLCompleto(dati, nomeAttivita, emailUtente) {
       fmt(r.reg?.prezzo),
       fmt(r.ricavo),
       fmt(r.fc),
-      `${(r.fcPct || 0).toFixed(1)}%`,
+      fmtp(r.fcPct || 0),
       fmt(r.margine),
-      `${(r.margPct || 0).toFixed(1)}%`,
+      fmtp(r.margPct || 0),
     ]).concat([
       [
         { content: 'TOTALE / MEDIA', colSpan: 3, styles: { fontStyle: 'bold' } },
         { content: fmt(totRicavo), styles: { fontStyle: 'bold' } },
         { content: fmt(totFC),     styles: { fontStyle: 'bold' } },
-        { content: `${fcAvg.toFixed(1)}%`, styles: { fontStyle: 'bold' } },
+        { content: fmtp(fcAvg), styles: { fontStyle: 'bold' } },
         { content: fmt(totMargine), styles: { fontStyle: 'bold' } },
-        { content: `${avgMarg.toFixed(1)}%`, styles: { fontStyle: 'bold' } },
+        { content: fmtp(avgMarg), styles: { fontStyle: 'bold' } },
       ],
     ]),
     theme: 'striped',
@@ -488,7 +489,7 @@ export async function exportPLCompleto(dati, nomeAttivita, emailUtente) {
       const m10 = (r.ricavo || 0) - (r.fc || 0) * 1.10
       const m20 = (r.ricavo || 0) - (r.fc || 0) * 1.20
       const headroom = r.fc > 0 ? ((r.ricavo / r.fc - 1) * 100) : 0
-      return [r.nome, fmt(r.margine), fmt(m10), fmt(m20), `+${headroom.toFixed(0)}%`]
+      return [r.nome, fmt(r.margine), fmt(m10), fmt(m20), `+${fmtp0(headroom)}`]
     }),
     theme: 'striped',
     headStyles: { fillColor: DARK, textColor: [255, 255, 255], fontSize: 8, fontStyle: 'bold' },
@@ -513,7 +514,7 @@ export async function exportPLCompleto(dati, nomeAttivita, emailUtente) {
         String(i + 1),
         ing.nome,
         fmt(ing.costoTot || ing.costo),
-        `${(ing.perc || 0).toFixed(1)}%`,
+        fmtp(ing.perc || 0),
       ]),
       theme: 'striped',
       headStyles: { fillColor: DARK, textColor: [255, 255, 255], fontSize: 8, fontStyle: 'bold' },
@@ -610,7 +611,7 @@ export async function exportSimulatorePrezzi(dati, nomeAttivita, emailUtente) {
       r.nome,
       fmt(r.reg?.prezzo),
       fmt(r.newPrezzo),
-      r.changed ? `${r.delta > 0 ? '+' : ''}${(r.delta || 0).toFixed(1)}%` : '-',
+      r.changed ? `${r.delta > 0 ? '+' : ''}${fmtp(r.delta || 0)}` : '-',
       fmt(r.margine),
       fmt(r.newMarg),
       r.changed ? `${r.diffMarg > 0 ? '+' : ''}${fmt(r.diffMarg)}` : '-',

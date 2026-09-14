@@ -113,8 +113,12 @@ describe('Email templates — snapshot per non-regressione', () => {
     expect(t.subject).toBe('Report giugno 2026 — FoodOS')
     expect(t.html).toContain('Torta Sacher')
     expect(t.html).toContain('Bignè crema')
-    expect(t.html).toContain('28.5%')
-        expect(t.html).toMatch(/12\.?345,67 €/)
+    // Il food cost si scrive all'italiana: 28,5% e non 28.5%. Nella stessa
+    // email c'e' "12.345,67 €" con la virgola, e leggere "28.5%" due righe
+    // sotto sembrava un errore di battitura.
+    expect(t.html).toContain('28,5%')
+    expect(t.html).not.toContain('28.5%')
+    expect(t.html).toMatch(/12\.?345,67 €/)
     expect(t.html).toMatchSnapshot()
   })
 

@@ -12,6 +12,7 @@ import { useListinoSede, getRegSede } from '../lib/listinoSede'
 import { lessico } from '../lib/lessico'
 import Icon from '../components/Icon'
 import { C, KPI, SH, margColor, margBadge, fmt, fmt0, fmtp, ChartTip, Tip } from './_shared'
+import { fmtp0 } from '../lib/formatIt'
 
 // Audit UI 2026-06-24:
 // - assi grafici: fontSize 11, color #64748B, grid stroke #E5E9EF dashed
@@ -585,7 +586,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
   const ContoTooltip = ({ active, label }) => {
     const d = active && contoByDay[label];
     if (!d) return null;
-    const pctOf = x => d.ricavo>0 ? `${(x/d.ricavo*100).toFixed(0)}%` : '-';
+    const pctOf = x => d.ricavo>0 ? fmtp0(x/d.ricavo*100) : '-';
     const Row = (col, nome, val, sub) => (
       <div style={{ display:'flex', justifyContent:'space-between', gap:16, alignItems:'baseline', padding:'2px 0' }}>
         <span style={{ fontSize: typo.small.fontSize, fontWeight:600, color:col, display:'flex', alignItems:'center', gap:6 }}><span style={{width:9,height:9,borderRadius:2,background:col,display:'inline-block'}}/>{nome}</span>
@@ -611,7 +612,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
   const EcoProdTooltip = ({ active, label }) => {
     const d = active && ecoProdByDay[label];
     if (!d) return null;
-    const pctOf = x => d.ricavo>0 ? `${(x/d.ricavo*100).toFixed(0)}%` : '-';
+    const pctOf = x => d.ricavo>0 ? fmtp0(x/d.ricavo*100) : '-';
     const Row = (col, nome, val, sub) => (
       <div style={{ display:'flex', justifyContent:'space-between', gap:16, alignItems:'baseline', padding:'2px 0' }}>
         <span style={{ fontSize: typo.small.fontSize, fontWeight:600, color:col, display:'flex', alignItems:'center', gap:6 }}><span style={{width:9,height:9,borderRadius:2,background:col,display:'inline-block'}}/>{nome}</span>
@@ -856,7 +857,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                 color={cur.spreco==null?undefined:cur.spreco>cur.rv*0.05?C.amber:'#fff'}
                 tip="Valore (a food cost) dell'invenduto buttato. Sopra il 5% dei ricavi è un campanello d'allarme."
                 delta={prev && cur.spreco!=null && prev.spreco!=null && <Delta now={cur.spreco} before={prev.spreco} invert />}
-                sub={cur.spreco!=null && cur.rv>0 ? `${(cur.spreco/cur.rv*100).toFixed(1)}% dei ricavi` : (cur.spreco==null?'serve una chiusura cassa':undefined)} />
+                sub={cur.spreco!=null && cur.rv>0 ? `${fmtp(cur.spreco/cur.rv*100)} dei ricavi` : (cur.spreco==null?'serve una chiusura cassa':undefined)} />
             </div>
           </div>
         );
@@ -980,7 +981,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                   value={avgST==null?'—':fmtp(avgST)}
                   sub={avgST==null?'nessuna giornata con il confronto prodotti':undefined}
                   color={avgST==null?C.textSoft:avgST>=85?C.green:avgST>=65?C.amber:C.red}/>
-                <KPI icon={<Icon name="trash" size={18} />} label="Spreco"        value={eur0(totSV)}  sub={totRV>0?`${(totSV/totRV*100).toFixed(1)}% dei ricavi`:undefined} color={totRV>0&&totSV/totRV>0.05?C.red:C.amber}/>
+                <KPI icon={<Icon name="trash" size={18} />} label="Spreco"        value={eur0(totSV)}  sub={totRV>0?`${fmtp(totSV/totRV*100)} dei ricavi`:undefined} color={totRV>0&&totSV/totRV>0.05?C.red:C.amber}/>
               </div>
 
               <SH sub={`Top 5 prodotti per ricavo + altri · per ${vista==="giornaliero"?"giorno":vista}`}>Ricavi Reali per {vista==="giornaliero"?"Giorno":vista==="settimana"?"Settimana":"Mese"}</SH>
@@ -1014,7 +1015,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                     <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false}/>
                     <XAxis dataKey="label" tick={AXIS_TICK} axisLine={false} tickLine={false}/>
                     <YAxis domain={[stZoom,100]} allowDataOverflow tickFormatter={yPCT} tick={AXIS_TICK} axisLine={false} tickLine={false} width={isMobile?38:46}/>
-                    <Tooltip content={<ChartTip/>} formatter={(v)=>[`${Number(v).toFixed(1)}%`,"Sell-through"]} cursor={{fill:'rgba(110,14,26,0.04)'}}/>
+                    <Tooltip content={<ChartTip/>} formatter={(v)=>[fmtp(Number(v)),"Sell-through"]} cursor={{fill:'rgba(110,14,26,0.04)'}}/>
                     <ReferenceLine y={85} stroke={C.green} strokeDasharray="4 4" label={{value:"85%",fill:C.green,fontSize: typo.small.fontSize}}/>
                     <ReferenceLine y={65} stroke={C.amber} strokeDasharray="4 4" label={{value:"65%",fill:C.amber,fontSize: typo.small.fontSize}}/>
                     <Bar dataKey="Sell-Through" fill={C.red} radius={BAR_RADIUS_TOP}>
@@ -1121,7 +1122,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
             const giorni = [...(chiusure||[])].sort((a,b)=>a.data.localeCompare(b.data));
             const n = giorni.length;
             const euro = v => v==null?"-":`${_NF2_S.format(Number(v))} €`;
-            const pct  = v => v==null?"-":`${Number(v).toFixed(1)}%`;
+            const pct  = v => v==null?"-":fmtp(Number(v));
 
             // Aggregati totali
             const totRicavi  = giorni.reduce((s,g)=>s+(g.kpi?.totV||g.venduto?.reduce((ss,p)=>ss+(p.totale||0),0)||0),0);
@@ -1207,7 +1208,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                       border:`1px solid ${trendPct>=0?C.green+"40":C.red+"40"}`}}>
                       <span style={{display:"inline-flex",color:trendPct>=0?C.green:C.red}}><Icon name={trendPct>=0?"trendUp":"trendDown"} size={14} /></span>
                       <span style={{fontSize: typo.small.fontSize,fontWeight:800,color:trendPct>=0?C.green:C.red}}>
-                        {trendPct>=0?"+":""}{trendPct.toFixed(1)}% ricavo medio (2ª metà vs 1ª)
+                        {trendPct>=0?"+":""}{fmtp(trendPct)} ricavo medio (2ª metà vs 1ª)
                       </span>
                     </div>
                   )}

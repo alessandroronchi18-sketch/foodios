@@ -8,6 +8,7 @@ import { callAi } from '../lib/aiClient'
 import { lessico } from '../lib/lessico'
 import Icon from '../components/Icon'
 import { C, PageHeader } from './_shared'
+import { fmtp } from '../lib/formatIt'
 
 // Benchmark food cost realistici per tipo attivita' (range comuni della
 // letteratura settore IT). Servono solo per orientare il prompt AI; sopra
@@ -97,7 +98,7 @@ export default function AzioniView({ actions, onUpdate, onDelete, ricettario, gi
     const ultimeChiusure = [...(chiusure || [])].sort((a,b) => b.data?.localeCompare(a.data)).slice(0, 5);
     const _eur = (n) => `€${Math.round(Number(n)||0).toLocaleString('it-IT', { useGrouping: 'always' })}`
     const chiusureRec = ultimeChiusure.map(c =>
-      `- ${c.data}: venduto ${_eur(c.kpi?.totV)}, FC ${_eur(c.kpi?.totFC)}, margine ${_eur(c.kpi?.totM)} (${(c.kpi?.totMP ?? 0).toFixed(1)}%)`
+      `- ${c.data}: venduto ${_eur(c.kpi?.totV)}, FC ${_eur(c.kpi?.totFC)}, margine ${_eur(c.kpi?.totM)} (${fmtp(c.kpi?.totMP ?? 0)})`
     ).join("\n");
 
     // Magazzino alert

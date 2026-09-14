@@ -9,6 +9,7 @@ import Icon from './Icon'
 import { KPI, PageHeader } from '../views/_shared'
 import { SK_GIOR } from '../lib/storageKeys'
 import { buildIngCosti, calcolaFC, getR } from '../lib/foodcost'
+import { fmtp, fmtp0 } from '../lib/formatIt'
 
 export const SK_EVENTI = 'pasticceria-eventi-v1'
 
@@ -487,8 +488,8 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
                 costo è zero, e il margine sale: senza dirlo, un evento con
                 mezze ricette scoperte sembra molto più redditizio di quanto
                 sia. */}
-            <KPI label="Food cost" value={fmtEur(kpiArchivio.fc)} sub={kpiArchivio.righeSenzaCosto > 0 ? `${kpiArchivio.righeSenzaCosto} ${kpiArchivio.righeSenzaCosto === 1 ? 'riga senza costo' : 'righe senza costo'}` : `${kpiArchivio.fcPct.toFixed(1)}% sui ricavi`} icon={<Icon name="receipt" size={18} />} color={T.amber} />
-            <KPI label="Margine" value={fmtEur(kpiArchivio.margine)} sub={kpiArchivio.righeSenzaCosto > 0 ? `${kpiArchivio.margPct.toFixed(1)}% · più basso del vero` : `${kpiArchivio.margPct.toFixed(1)}% sui ricavi`} icon={<Icon name="trendUp" size={18} />} color={margC} />
+            <KPI label="Food cost" value={fmtEur(kpiArchivio.fc)} sub={kpiArchivio.righeSenzaCosto > 0 ? `${kpiArchivio.righeSenzaCosto} ${kpiArchivio.righeSenzaCosto === 1 ? 'riga senza costo' : 'righe senza costo'}` : `${fmtp(kpiArchivio.fcPct)} sui ricavi`} icon={<Icon name="receipt" size={18} />} color={T.amber} />
+            <KPI label="Margine" value={fmtEur(kpiArchivio.margine)} sub={kpiArchivio.righeSenzaCosto > 0 ? `${fmtp(kpiArchivio.margPct)} · più basso del vero` : `${fmtp(kpiArchivio.margPct)} sui ricavi`} icon={<Icon name="trendUp" size={18} />} color={margC} />
           </div>
         )
       })()}
@@ -626,7 +627,7 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
               <div style={{ marginTop: 18, padding: 16, background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 12, boxShadow: T.bgSubtle ? 'inset 0 1px 2px rgba(15,23,42,0.03)' : undefined }}>
                 <div><div style={lbl}>Totale</div><div style={{ fontSize: 18, fontWeight: 800, color: T.text, ...TNUM }}>{fmtEur(t.totRicavo)}</div></div>
                 <div><div style={lbl}>Food cost</div><div style={{ fontSize: 18, fontWeight: 800, color: T.amber, ...TNUM }}>{fmtEur(t.totFC)}</div></div>
-                <div><div style={lbl}>Margine</div><div style={{ fontSize: 18, fontWeight: 800, color: t.margPct >= 50 ? T.green : t.margPct >= 30 ? T.amber : T.brand, ...TNUM }}>{fmtEur(t.margine)} ({t.margPct.toFixed(0)}%)</div></div>
+                <div><div style={lbl}>Margine</div><div style={{ fontSize: 18, fontWeight: 800, color: t.margPct >= 50 ? T.green : t.margPct >= 30 ? T.amber : T.brand, ...TNUM }}>{fmtEur(t.margine)} ({fmtp0(t.margPct)})</div></div>
                 <div><div style={lbl}>Saldo</div><div style={{ fontSize: 18, fontWeight: 800, color: T.brand, ...TNUM }}>{fmtEur(saldo)}</div></div>
               </div>
             )
@@ -778,8 +779,8 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
               </div>
               <div style={kpiBox}>
                 <div style={kpiLabel}>Margine</div>
-                <div style={{ ...kpiValue, color: margColore }} title={`${fmtEur(t.margine)} (${t.margPct.toFixed(1)}%)`}>
-                  {t.margPct.toFixed(0)}%
+                <div style={{ ...kpiValue, color: margColore }} title={`${fmtEur(t.margine)} (${fmtp(t.margPct)})`}>
+                  {fmtp0(t.margPct)}
                 </div>
               </div>
               <div style={kpiBox}>

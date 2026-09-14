@@ -16,6 +16,7 @@ import DailyBriefCard from '../components/DailyBriefCard'
 import PrimiPassi from '../components/PrimiPassi'
 import { C, TNUM } from './_shared'
 import Icon from '../components/Icon'
+import { fmtp, fmtp0 } from '../lib/formatIt'
 
 const fmt = v => `${Number(v).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
 const fmt0 = v => `${Math.round(Number(v) || 0).toLocaleString('it-IT', { useGrouping: 'always' })} €`
@@ -399,7 +400,7 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
             : (cassaOggi ? 'incassati oggi' : 'non ancora registrati')}
           onClick={() => setView('chiusura')} />
         <KpiCard label="Food Cost" icon={ICO.pie} tint={TINT.fc}
-          value={fcInfo.pct == null ? '-' : `${(fcMedio * 100).toFixed(1)}%`}
+          value={fcInfo.pct == null ? '-' : fmtp(fcMedio * 100)}
           valueColor={fcColor}
           empty={fcInfo.pct == null}
           sub={fcInfo.pct == null
@@ -457,9 +458,9 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
                             perdita, e su Mara valeva per tutte e 26. */}
                         <div style={{ fontSize: 12, color: T.textSoft, marginTop: 2, display: 'flex', alignItems: 'center', gap: 8, ...TNUM }}>
                           {ricavo > 0 ? (<>
-                            <span>FC {fcPct.toFixed(0)}%</span>
+                            <span>FC {fmtp0(fcPct)}</span>
                             <span style={{ width: 3, height: 3, borderRadius: '50%', background: T.textFaint }} />
-                            <span style={{ color: mC, fontWeight: 700 }}>Margine {marg.toFixed(0)}%</span>
+                            <span style={{ color: mC, fontWeight: 700 }}>Margine {fmtp0(marg)}</span>
                           </>) : (
                             <span>Manca il prezzo di vendita</span>
                           )}

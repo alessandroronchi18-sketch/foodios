@@ -4,6 +4,7 @@
 // calcolo P&L con importo MENSILE normalizzato (annuali/12, una_tantum/12).
 
 import React, { useEffect, useState, useMemo } from 'react'
+import { fmtp0 } from '../lib/formatIt'
 import { color as T, radius as R, shadow as S, typo } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from '../components/Icon'
@@ -223,7 +224,7 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
         <KpiBox
           label="Categoria principale"
           value={topCategoria ? fmt0(topCategoria.value) : '-'}
-          sub={topCategoria ? `${topCategoria.label} · ${topCategoria.pct.toFixed(0)}% del totale` : 'Aggiungi voci per vedere il dettaglio'}
+          sub={topCategoria ? `${topCategoria.label} · ${fmtp0(topCategoria.pct)} del totale` : 'Aggiungi voci per vedere il dettaglio'}
           accent={C.textMid}
         />
       </div>
@@ -259,7 +260,7 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 'auto' }}>
                     <span style={{ fontSize: 15, fontWeight: 800, color: T.brand, ...TNUM, letterSpacing: '-0.015em' }}>{fmt0(v.mensile)}/mese</span>
-                    {pct > 0 && <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, ...TNUM, fontWeight: 600 }}>{pct.toFixed(0)}%</span>}
+                    {pct > 0 && <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, ...TNUM, fontWeight: 600 }}>{fmtp0(pct)}</span>}
                   </div>
                 </div>
               )
@@ -404,7 +405,7 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
                       {totMese > 0 && (
                         <span style={{
                           fontSize: typo.small.fontSize, color: C.textSoft, ...TNUM, marginTop: 1,
-                        }}>{pctTot.toFixed(0)}% del totale</span>
+                        }}>{fmtp0(pctTot)} del totale</span>
                       )}
                     </div>
                   </div>

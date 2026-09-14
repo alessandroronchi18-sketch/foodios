@@ -15,6 +15,7 @@ import {
 import Icon from '../components/Icon'
 import { useConfirm } from '../components/ConfirmModal'
 import { C, PageHeader, KPI, fmt, fmt0, fmtp, TNUM } from './_shared'
+import { fmtp0 } from '../lib/formatIt'
 
 // Stati vendita: label + chip color. "consegnata" è il default operativo (consegnata, da fatturare).
 const STATI = {
@@ -476,7 +477,7 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
                         <td style={{ padding: '12px 14px', textAlign: 'right', color: C.green, ...TNUM, whiteSpace: 'nowrap' }}>
                           {g.margPct == null
                             ? <span style={{ color: C.textSoft }} title="Manca il costo dei prodotti venduti a questo cliente">-</span>
-                            : <>{fmt(g.margine)} <span style={{ color: C.textSoft, fontSize: 12 }}>{g.margPct.toFixed(0)}%</span></>}
+                            : <>{fmt(g.margine)} <span style={{ color: C.textSoft, fontSize: 12 }}>{fmtp0(g.margPct)}</span></>}
                         </td>
                         <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 700, color: g.insoluto > 0 ? C.red : C.textSoft, ...TNUM, whiteSpace: 'nowrap' }}>
                           {g.insoluto > 0 ? fmt(g.insoluto) : '-'}
@@ -870,7 +871,7 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
                             {v.margine == null
                               ? <span>Margine non calcolabile: {v.righeSenzaCosto === 1 ? 'un prodotto non ha' : `${v.righeSenzaCosto} prodotti non hanno`} il costo</span>
                               : <>Margine <span style={{ fontWeight: 700, color: C.green, ...TNUM }}>{fmt(v.margine)}</span>
-                                {v.margPct > 0 && <span style={{ color: C.textSoft, marginLeft: 4 }}>({v.margPct.toFixed(0)}%)</span>}</>}
+                                {v.margPct > 0 && <span style={{ color: C.textSoft, marginLeft: 4 }}>({fmtp0(v.margPct)})</span>}</>}
                           </div>
                         </div>
                         <div style={{ fontSize: 18, fontWeight: 800, color: C.text, ...TNUM, whiteSpace: 'nowrap', flexShrink: 0 }}>

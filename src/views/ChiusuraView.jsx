@@ -25,6 +25,7 @@ import { parseFile as parseCassaFile, mergeInChiusureCassa } from '../lib/import
 import { todayLocal } from '../lib/dateLocal'
 import { lessico } from '../lib/lessico'
 import Icon from '../components/Icon'
+import { fmtp0 } from '../lib/formatIt'
 import { useConfirm } from '../components/ConfirmModal'
 import PrimaNotaCassa from '../components/PrimaNotaCassa'
 import { C, KPI, PageHeader, margColor, fmt, fmt0, fmtp } from './_shared'
@@ -854,7 +855,7 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
       // i 1200ms → notify stale o doppio.
       if (driftTimerRef.current) clearTimeout(driftTimerRef.current)
       driftTimerRef.current = setTimeout(() => {
-        notify(`Drift critico ${peggiore.categoria}: ${segno}${peggiore.driftPct.toFixed(0)}% - ${tipo}${anomalieDrift.length > 1 ? ` (e altre ${anomalieDrift.length - 1} categorie)` : ''}`, false)
+        notify(`Drift critico ${peggiore.categoria}: ${segno}${fmtp0(peggiore.driftPct)} - ${tipo}${anomalieDrift.length > 1 ? ` (e altre ${anomalieDrift.length - 1} categorie)` : ''}`, false)
         driftTimerRef.current = null
       }, 1200)
     }
@@ -1388,7 +1389,7 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
                         {r.st !== null ? (
                           <div style={{ display: 'flex', alignItems: 'center', gap: 5, justifyContent: 'flex-end' }}>
                             <div style={{ width: 34, height: 5, background: '#EEE', borderRadius: 3 }}><div style={{ width: `${Math.min(100, r.st)}%`, height: 5, background: stC(r.st), borderRadius: 3 }}/></div>
-                            <span style={{ fontWeight: 700, color: stC(r.st), minWidth: 28, textAlign: 'right' }}>{r.st.toFixed(0)}%</span>
+                            <span style={{ fontWeight: 700, color: stC(r.st), minWidth: 28, textAlign: 'right' }}>{fmtp0(r.st)}</span>
                           </div>
                         ) : '-'}
                       </td>
@@ -1464,7 +1465,7 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
                         <span style={{ fontWeight: 800, color: driftColor(c.driftPct), whiteSpace: 'nowrap' }}>
                           {c.driftPct == null ? '-' : (
                             <>
-                              drift {c.drift >= 0 ? '+' : ''}{fmtKg(c.drift)} ({c.driftPct >= 0 ? '+' : ''}{c.driftPct.toFixed(0)}%)
+                              drift {c.drift >= 0 ? '+' : ''}{fmtKg(c.drift)} ({c.driftPct >= 0 ? '+' : ''}{fmtp0(c.driftPct)})
                             </>
                           )}
                         </span>
@@ -1539,7 +1540,7 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
                 <div style={{ width: nameW, fontSize: FS.small, fontWeight: 600, color: C.text, flexShrink: 0, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.nome}</div>
                 <div style={{ flex: 1, height: 20, background: '#F0EAE6', borderRadius: 4, overflow: 'hidden' }}>
                   <div style={{ height: 20, width: `${Math.min(100, r.st)}%`, background: stC(r.st), borderRadius: 4, display: 'flex', alignItems: 'center', paddingLeft: 7, minWidth: r.st > 8 ? 32 : 0 }}>
-                    {r.st > 8 && <span style={{ fontSize: FS.small, fontWeight: 800, color: C.white }}>{r.st.toFixed(0)}%</span>}
+                    {r.st > 8 && <span style={{ fontSize: FS.small, fontWeight: 800, color: C.white }}>{fmtp0(r.st)}</span>}
                   </div>
                 </div>
                 <div style={{ width: vendW, flexShrink: 0, textAlign: 'right', fontSize: FS.small, fontVariantNumeric: 'tabular-nums' }}>

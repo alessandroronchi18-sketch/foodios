@@ -15,6 +15,7 @@ import {
   STATO_LABEL, TIPO_LABEL,
 } from '../lib/trasferimenti'
 import { scaricoMP, caricoMP } from '../lib/movimentoMP'
+import { fmtp0 } from '../lib/formatIt'
 
 const C = {
   bg: T.bg, bgCard: T.bgCard, red: T.brand, redLight: T.brandLight,
@@ -561,7 +562,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
                   <div style={kpiCell}>
                     <div style={labelStyle}>Ricevuti puntuali</div>
                     <div style={valStyle(accuratezzaMese.accuracyPct == null ? C.textSoft : accuratezzaMese.accuracyPct >= 95 ? C.green : accuratezzaMese.accuracyPct >= 85 ? '#D97706' : C.red)}>
-                      {accuratezzaMese.accuracyPct != null ? `${accuratezzaMese.accuracyPct.toFixed(0)}%` : '-'}
+                      {accuratezzaMese.accuracyPct != null ? fmtp0(accuratezzaMese.accuracyPct) : '-'}
                     </div>
                     <div style={{ ...subStyle, ...tnum }}>{accuratezzaMese.ricevutiOk}/{accuratezzaMese.ricevuti} senza scarto</div>
                   </div>

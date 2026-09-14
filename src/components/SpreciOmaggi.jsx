@@ -29,6 +29,7 @@ import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from './Icon'
 import { useConfirm } from './ConfirmModal'
 import { KPI, SH, PageHeader } from '../views/_shared'
+import { fmt, fmt0, fmtp0 } from '../lib/formatIt'
 import { buildIngCosti, calcolaFC, getR, isRicettaValida, normIng } from '../lib/foodcost'
 import { sload } from '../lib/storage'
 import { supabase } from '../lib/supabase'
@@ -95,9 +96,7 @@ const LEGACY_MAP = {
 const inputS = { width: '100%', padding: '10px 12px', borderRadius: 9, border: `1px solid ${C.borderStr}`, fontSize: 16, color: C.text, boxSizing: 'border-box', fontFamily: 'inherit', background: C.white }
 const labelS = { fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5, display: 'block' }
 
-const fmt = n => `${(Number.isFinite(Number(n)) ? Number(n) : 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
-const fmt0 = n => { const v = Number(n); return `${Math.round(Number.isFinite(v) ? v : 0).toLocaleString('it-IT', { useGrouping: 'always' })} €` }
-const fmtp = n => `${(Number.isFinite(Number(n)) ? Number(n) : 0).toFixed(0)}%`
+// fmt, fmt0 e le percentuali stanno in lib/formatIt (erano riscritti qui).
 const fmtQta = (q, u) => `${(Number(q) || 0).toLocaleString('it-IT', { useGrouping: 'always' })} ${u || ''}`.trim()
 const fmtN = n => (Number(n) || 0).toLocaleString('it-IT', { useGrouping: 'always' })
 const fmtTs = iso => new Date(iso).toLocaleString('it-IT', { useGrouping: 'always', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -714,7 +713,7 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
           <Icon name="warning" size={18} color={sogliaInfo.livello === 'alto' ? '#DC2626' : '#CA8A04'} />
           <div style={{ flex: 1, minWidth: 200, fontSize: 13, lineHeight: 1.5 }}>
             <strong>{sogliaInfo.livello === 'alto' ? 'Sprechi elevati' : 'Attenzione sprechi'}</strong>:
-            stai perdendo <strong>{fmtp(sogliaInfo.pct)}</strong> dei ricavi del mese
+            stai perdendo <strong>{fmtp0(sogliaInfo.pct)}</strong> dei ricavi del mese
             ({fmt0(diag.totPerso)} su {fmt0(sogliaInfo.ricavi)}).
             {sogliaInfo.livello === 'alto'
               ? ' Sopra 5% indica un problema strutturale: rivedi porzioni, scorte, scarti produzione.'
@@ -736,12 +735,12 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
             ? `${fmt0(diag.valSpreco)} perdite · ${fmt0(diag.valOmaggio)} omaggi · ${fmt0(diag.ricavoMancato)} di incasso mancato`
             : `${fmt0(diag.valSpreco)} perdite · ${fmt0(diag.valOmaggio)} omaggi`} />
         <KPI icon={<Icon name="receipt" size={18} />} label="Incidenza sul food cost"
-          value={incidenza == null ? '—' : fmtp(incidenza)} color={incColor}
+          value={incidenza == null ? '—' : fmtp0(incidenza)} color={incColor}
           sub={incidenza == null
             ? 'registra le chiusure e il conto si fa da sé'
             : `${incLabel} · su ${fcPeriodo.giorni} ${fcPeriodo.giorni === 1 ? 'giorno' : 'giorni'} di cassa`} />
         <KPI icon={<Icon name="warning" size={18} />} label="Causa principale" value={diag.causaPrinc ? (CAUSALE_LABEL[diag.causaPrinc.id] || diag.causaPrinc.id) : '-'} color={T.text}
-          sub={diag.causaPrinc ? `${fmtp(diag.causaPct)} · ${fmt0(diag.causaPrinc.eur)}` : 'nessun evento'} />
+          sub={diag.causaPrinc ? `${fmtp0(diag.causaPct)} · ${fmt0(diag.causaPrinc.eur)}` : 'nessun evento'} />
         <KPI icon={<Icon name="clipboard" size={18} />} label="Eventi nel mese" value={fmtN(diag.nTot)} color={T.brand}
           sub={`${fmtN(diag.nSpreco)} perdite · ${fmtN(diag.nOmaggio)} omaggi`} />
         {residuoChiusure.valore > 0 && (
@@ -804,7 +803,7 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
                     <span style={{ display: 'block', height: '100%', width: `${Math.max(4, pct)}%`, background: i === 0 ? col : `${col}73`, transition: 'width 0.3s' }} />
                   </span>
                   <span style={{ flex: '0 0 70px', textAlign: 'right', fontSize: 12.5, fontWeight: 700, color: C.text, ...TNUM }}>{fmt(c.eur)}</span>
-                  <span style={{ flex: '0 0 44px', textAlign: 'right', fontSize: 12, color: C.textSoft, ...TNUM }}>{fmtp(pct)}</span>
+                  <span style={{ flex: '0 0 44px', textAlign: 'right', fontSize: 12, color: C.textSoft, ...TNUM }}>{fmtp0(pct)}</span>
                 </div>
               )
             })}

@@ -13,6 +13,7 @@ export const config = { runtime: 'edge' }
 import { verifyBearerSecret } from './lib/cryptoCompare.js'
 import { safeError } from './lib/safeError.js'
 import { callClaude, collectOrgSnapshot } from './lib/aiEngine.js'
+import { fmtp, fmtp0 } from '../src/lib/formatIt.js'
 
 const MAX_ORG_PER_RUN = 30
 const BRIEF_MODEL = 'claude-haiku-4-5-20251001'
@@ -69,13 +70,13 @@ function buildUserPayload(snap, orgName) {
     lines.push(`Ricavi settimana scorsa: €${fmtIt0(snap.ricaviSettPrec)}`)
     if (snap.ricaviSettPrec > 0) {
       const dPct = ((snap.ricaviSettCorr - snap.ricaviSettPrec) / snap.ricaviSettPrec) * 100
-      lines.push(`Delta vs settimana scorsa: ${dPct >= 0 ? '+' : ''}${dPct.toFixed(1)}%`)
+      lines.push(`Delta vs settimana scorsa: ${dPct >= 0 ? '+' : ''}${fmtp(dPct)}`)
     }
   }
-  if (snap.foodCostMedio != null) lines.push(`Food cost medio settimana: ${snap.foodCostMedio.toFixed(1)}%`)
-  if (snap.foodCostIeri != null) lines.push(`Food cost ieri: ${snap.foodCostIeri.toFixed(1)}%`)
+  if (snap.foodCostMedio != null) lines.push(`Food cost medio settimana: ${fmtp(snap.foodCostMedio)}`)
+  if (snap.foodCostIeri != null) lines.push(`Food cost ieri: ${fmtp(snap.foodCostIeri)}`)
   if (snap.topProdotto) lines.push(`Top prodotto settimana: ${snap.topProdotto.nome} (${snap.topProdotto.qta} pz, €${fmtIt0(snap.topProdotto.ricavo)})`)
-  if (snap.prodottiInCalo.length > 0) lines.push(`Prodotti in calo: ${snap.prodottiInCalo.slice(0, 3).map(p => `${p.nome} (${p.deltaPct.toFixed(0)}%)`).join(', ')}`)
+  if (snap.prodottiInCalo.length > 0) lines.push(`Prodotti in calo: ${snap.prodottiInCalo.slice(0, 3).map(p => `${p.nome} (${fmtp0(p.deltaPct)})`).join(', ')}`)
   if (snap.mpSottoSoglia.length > 0) lines.push(`Materie prime sotto soglia: ${snap.mpSottoSoglia.slice(0, 3).map(m => `${m.nome} (${m.giacenza}g/${m.soglia}g)`).join(', ')}`)
   if (snap.fattureScadute.length > 0) lines.push(`Fatture scadute: ${snap.fattureScadute.length} (totale €${fmtIt0(snap.fattureScadute.reduce((s, f) => s + f.importo, 0))})`)
   if (snap.fattureInScadenza7gg.length > 0) lines.push(`Fatture in scadenza 7gg: ${snap.fattureInScadenza7gg.length}`)

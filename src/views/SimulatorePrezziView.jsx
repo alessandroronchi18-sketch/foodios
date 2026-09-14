@@ -15,6 +15,7 @@ import { gateExport, getExportCtx } from '../lib/exportGuard'
 import { lessico } from '../lib/lessico'
 import { KPI, SH, PageHeader, Tip, useSortable, SortTH, TNUM, fmt, fmt0, fmtp } from './_shared'
 import Icon from '../components/Icon'
+import { fmtp0 } from '../lib/formatIt'
 
 const SHADOW_PREMIUM = '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)'
 
@@ -504,7 +505,7 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
                                       <span style={{ display: 'block', height: '100%', width: `${Math.min(100, pctCosto)}%`, background: j === 0 ? T.brand : 'rgba(110,14,26,0.45)' }} />
                                     </span>
                                     <span style={{ flex: '0 0 72px', textAlign: 'right', ...TNUM, color: T.text, fontWeight: 600 }}>{fmt(ing.costo)}</span>
-                                    <span style={{ flex: '0 0 48px', textAlign: 'right', ...TNUM, color: T.textSoft }}>{pctCosto.toFixed(0)}%</span>
+                                    <span style={{ flex: '0 0 48px', textAlign: 'right', ...TNUM, color: T.textSoft }}>{fmtp0(pctCosto)}</span>
                                   </div>
                                 )
                               })}
@@ -537,7 +538,7 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
                   <span aria-hidden="true" style={{ flex: 1, height: 18, background: T.bgSubtle, borderRadius: 6, overflow: 'hidden' }}>
                     <span style={{ display: 'block', height: '100%', width: `${Math.min(100, ing.pct)}%`, background: i === 0 ? T.brand : 'rgba(110,14,26,0.5)', transition: 'width 0.3s' }} />
                   </span>
-                  <span style={{ flex: '0 0 56px', textAlign: 'right', fontSize: 13, fontWeight: 700, color: T.text, ...TNUM }}>{ing.pct.toFixed(1)}%</span>
+                  <span style={{ flex: '0 0 56px', textAlign: 'right', fontSize: 13, fontWeight: 700, color: T.text, ...TNUM }}>{fmtp(ing.pct)}</span>
                   {hasStorico && !isMobile && (
                     <span style={{ flex: '0 0 96px', textAlign: 'right', fontSize: 12, color: T.textSoft, ...TNUM }}>{fmt0(ing.val)}/mese</span>
                   )}

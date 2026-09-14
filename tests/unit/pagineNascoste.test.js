@@ -71,7 +71,7 @@ describe('pagine nascoste', () => {
     // modello risponde NAVIGATE:haccp e la palette ci naviga davvero.
     // Solo l'elenco positivo: la riga "NON esistono piu'" nomina le nascoste
     // apposta, per dire al modello di non proporle.
-    const elenco = (palette.split('View-id disponibili:')[1] || '').split("NON esistono piu'")[0]
+    const elenco = (palette.split('View-id disponibili:')[1] || '').split('NON esistono')[0]
     expect(elenco.length).toBeGreaterThan(50)
     for (const id of NASCOSTE) {
       expect(elenco).not.toMatch(new RegExp(`(^|[\\s,])${id}[,.\\s]`))

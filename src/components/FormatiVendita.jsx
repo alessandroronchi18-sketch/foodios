@@ -22,6 +22,7 @@ import { lessico } from '../lib/lessico'
 import { KPI, fmt as fmtEuro, PageHeader, SH } from '../views/_shared'
 import Icon from './Icon'
 import PrezziPerSedeModal from './PrezziPerSedeModal'
+import { fmtp0 } from '../lib/formatIt'
 
 // Nessun testo sotto i 12px. Qui ce n'erano nove, due dei quali a 9 e 9,5:
 // etichette in maiuscolo con letter-spacing, che sono la cosa più faticosa da
@@ -436,7 +437,7 @@ export default function FormatiVendita({ orgId, ricettario, onSaveRicettario, no
                   <PreviewStat label="Materiali" val={fmt3(previewFC.fcComponenti)} />
                   <PreviewStat label={`Prodotto (${previewFC.baseG.toLocaleString('it-IT', { useGrouping: 'always' })}g)`} val={fmt3(previewFC.baseG * previewFC.avg)} hint={`Food cost ${form.categoria}: ${fmtEuro(previewFC.avg * 1000)}/kg`} />
                   <PreviewStat label="Food cost stimato / unità" val={fmt3(previewFC.fcUnit)} color={T.green} />
-                  {previewFC.margPct != null && <PreviewStat label="Margine stimato" val={`${previewFC.margPct.toFixed(0)}%`} color={previewFC.margPct >= 60 ? T.green : previewFC.margPct >= 40 ? T.amber : T.brand} />}
+                  {previewFC.margPct != null && <PreviewStat label="Margine stimato" val={fmtp0(previewFC.margPct)} color={previewFC.margPct >= 60 ? T.green : previewFC.margPct >= 40 ? T.amber : T.brand} />}
                 </div>
               )}
             </div>
@@ -492,7 +493,7 @@ export default function FormatiVendita({ orgId, ricettario, onSaveRicettario, no
                     <div style={{ display: 'flex', gap: isMobile ? 16 : 26, alignItems: 'center' }}>
                       <MiniStat label="Confezione" val={fmt3(r.costoMateriali)} />
                       <MiniStat label="Food cost / unità" val={fmt3(r.fcUnit)} color={r.fcKnown ? T.text : T.amber} title={r.fcKnown ? undefined : 'Stima sui soli materiali: categoria senza gusti pesati'} />
-                      {r.margPct != null && <MiniStat label="Margine" val={`${r.margPct.toFixed(0)}%`} color={margCol} />}
+                      {r.margPct != null && <MiniStat label="Margine" val={fmtp0(r.margPct)} color={margCol} />}
                     </div>
 
                     {!isMobile && (
@@ -551,7 +552,7 @@ export default function FormatiVendita({ orgId, ricettario, onSaveRicettario, no
                                   <span style={{ display: 'block', height: '100%', width: `${Math.min(100, pctCosto)}%`, background: 'rgba(110,14,26,0.45)' }} />
                                 </span>
                                 <span style={{ flex: '0 0 70px', textAlign: 'right', ...TNUM, color: T.text, fontWeight: 600 }}>{fmt3(subtot)}</span>
-                                <span style={{ flex: '0 0 44px', textAlign: 'right', ...TNUM, color: T.textSoft }}>{pctCosto.toFixed(0)}%</span>
+                                <span style={{ flex: '0 0 44px', textAlign: 'right', ...TNUM, color: T.textSoft }}>{fmtp0(pctCosto)}</span>
                               </div>
                             )
                           })}
@@ -567,7 +568,7 @@ export default function FormatiVendita({ orgId, ricettario, onSaveRicettario, no
                             ? `Food cost ${f.categoria}: ${fmtEuro(r.avg * 1000)}/kg · su ${r.nUsate} ${r.nUsate === 1 ? 'ricetta' : 'ricette'}`
                             : `categoria senza ${LEX.prodotti} pesati`} />
                         <BreakdownTot label="Food cost stimato / unità" val={fmt3(r.fcUnit)} color={r.fcKnown ? T.green : T.amber} big />
-                        {r.prezzo > 0 && <BreakdownTot label={`Margine (prezzo ${fmtEuro(r.prezzo)})`} val={r.margPct != null ? `${r.margPct.toFixed(0)}%` : '-'} color={margCol} />}
+                        {r.prezzo > 0 && <BreakdownTot label={`Margine (prezzo ${fmtEuro(r.prezzo)})`} val={r.margPct != null ? fmtp0(r.margPct) : '-'} color={margCol} />}
                       </div>
 
                       {/* azioni su mobile (nel breakdown per non affollare la riga) */}
