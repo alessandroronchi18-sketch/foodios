@@ -1173,7 +1173,10 @@ export default function MagazzinoView({
 
   const handleCarica = async () => {
     if (saving) return
-    if (!formIng || !formQty) return
+    // Audit 2026-09-14: il controllo era su `!formIng`, quindi un nome fatto di
+    // soli spazi passava e finiva in magazzino come riga senza nome, con dentro
+    // dei grammi veri. Sul tablet la barra spaziatrice si sfiora facile.
+    if (!formIng.trim() || !formQty) return
     const k = normIng(formIng.toLowerCase().trim())
     // Audit 2026-07-01 MEDIUM: locale IT usa la virgola decimale.
     const qty = parseFloat(String(formQty).replace(',', '.'))
@@ -2094,7 +2097,7 @@ export default function MagazzinoView({
                       <td style={{ padding: '6px 10px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
                           <button
-                            onClick={() => { setQuickLoad(r.k); setFormIng(r.nome); setTab('carica'); focusQtyDeferred() }}
+                            onClick={() => { setQuickLoad(r.k); setFormMode('carico'); setFormIng(r.nome); setTab('carica'); focusQtyDeferred() }}
                             title={`Carica ${r.nome} in magazzino`}
                             style={{ padding: '0 10px', minHeight: isMobile ? 40 : 30, borderRadius: 6, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap', flexShrink: 0 }}>
                             <Icon name="plus" size={11} />Carica
@@ -2144,15 +2147,17 @@ export default function MagazzinoView({
             const scartati = (res.ingredienti || []).length - newLogs.length
             if (newLogs.length === 0) {
               notify('Dalla foto non si legge nessuna quantità: niente è stato caricato. Prova con una foto più nitida, o inserisci a mano.', false)
-              return
+              return false
             }
             const updLogs = [...newLogs, ...(logRif || [])]
             try {
               await ssave(SK_MAG, nm)
               await ssave(SK_LOGRIF, updLogs)
             } catch (e) {
-              console.error('[magazzino] OCR:', e); notify('Non ho potuto salvare i dati letti dalla foto. Riprova', false)
-              return
+              // `false` = non ho salvato: FotoOCR tiene la foto e l'elenco
+              // riconosciuto, così "Riprova" vuol dire davvero riprovare.
+              console.error('[magazzino] OCR:', e); notify('Non ho potuto salvare i dati letti dalla foto: sono ancora qui, riprova', false)
+              return false
             }
             setMagazzino(nm)
             setLogRif(updLogs)
@@ -2161,7 +2166,7 @@ export default function MagazzinoView({
               : `Caricati ${newLogs.length} ingredienti in magazzino`, scartati === 0)
           }}/>
           <FotoOCR mode="prezzi" notify={notify} ricettario={ricettario} onResult={async res => {
-            if (!ricettario) { notify('Carica prima il ricettario', false); return }
+            if (!ricettario) { notify('Carica prima il ricettario', false); return false }
             // Il prezzo va normalizzato a numero PRIMA di usarlo.
             //
             // Bug confermato: il filtro `i.prezzo_kg > 0` passava anche la
@@ -2183,7 +2188,7 @@ export default function MagazzinoView({
             }
             if (letti === 0) {
               notify('Dalla foto non si legge nessun prezzo. Prova con una foto più nitida.', false)
-              return
+              return false
             }
             if (onImportPrezziOCR) onImportPrezziOCR(nuoviCosti)
             notify(scartati > 0
@@ -2244,7 +2249,12 @@ export default function MagazzinoView({
                 <label htmlFor="mag-qty-input" style={{ display: 'block', fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 3, cursor: 'pointer' }}>
                   Quantità (g) — {formMode === 'scarico' ? 'da rimuovere' : 'in arrivo'}
                 </label>
-                <input id="mag-qty-input" type="number" inputMode="decimal" value={formQty} onChange={e => setFormQty(e.target.value)} placeholder="es. 2000" min="0"
+                {/* Audit 2026-09-14: era type="number". Sul tablet la tastiera
+                    numerica italiana ha la virgola, e un campo number scarta
+                    "1,5": il pulsante restava grigio e il programma sembrava
+                    rotto. La virgola la normalizza già handleCarica. */}
+                <input id="mag-qty-input" type="text" inputMode="decimal" value={formQty} onChange={e => setFormQty(e.target.value)} placeholder="es. 2000"
+                  onKeyDown={e => { if (e.key === 'Enter' && formIng.trim() && formQty && !saving) handleCarica() }}
                   style={{ width: '100%', padding: '11px 12px', minHeight: 44, borderRadius: 8, border: `1px solid ${formMode === 'scarico' ? C.amber : C.borderStr}`, fontSize: isMobile ? 16 : 13, color: C.text, boxSizing: 'border-box' }}/>
               </div>
               <div>
@@ -2252,11 +2262,16 @@ export default function MagazzinoView({
                 <input id="mag-note-input" type="text" value={formNote} onChange={e => setFormNote(e.target.value)} placeholder="es. Metro - bolla 1234"
                   style={{ width: '100%', padding: '11px 12px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 13, color: C.text, boxSizing: 'border-box' }}/>
               </div>
-              <datalist id="ing-list">{tuttiIngNomi.map(k => <option key={k} value={k}/>)}</datalist>
-              <button onClick={handleCarica} disabled={!formIng || !formQty || saving}
-                style={{ padding: '12px', border: 'none', borderRadius: 9, fontWeight: 800, fontSize: 13, cursor: (formIng && formQty && !saving) ? 'pointer' : 'default',
-                  background: (formIng && formQty && !saving) ? (formMode === 'scarico' ? C.amber : C.red) : '#DDD',
-                  color: (formIng && formQty && !saving) ? C.white : C.textMid, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+              {/* Audit 2026-09-14: la lista proponeva la CHIAVE normalizzata.
+                  Chi scriveva "uova" si vedeva proporre "uovo", accettava con
+                  Invio, e da quel momento l'ingrediente in tabella si chiamava
+                  "uovo": il programma correggeva il nome di casa. Ora si
+                  propone il nome come e' scritto in magazzino. */}
+              <datalist id="ing-list">{righe.map(r => <option key={r.k} value={r.nome}/>)}</datalist>
+              <button onClick={handleCarica} disabled={!formIng.trim() || !formQty || saving}
+                style={{ padding: '12px', border: 'none', borderRadius: 9, fontWeight: 800, fontSize: 13, cursor: (formIng.trim() && formQty && !saving) ? 'pointer' : 'default',
+                  background: (formIng.trim() && formQty && !saving) ? (formMode === 'scarico' ? C.amber : C.red) : '#DDD',
+                  color: (formIng.trim() && formQty && !saving) ? C.white : C.textMid, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
                 {saving ? 'Salvataggio…' : (formMode === 'scarico' ? <><Icon name="trash" size={14} />Rimuovi dal magazzino</> : <><Icon name="plus" size={14} />Aggiungi al magazzino</>)}
               </button>
             </div>

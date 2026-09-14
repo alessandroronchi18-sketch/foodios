@@ -30,6 +30,7 @@ export default function FotoOCR({ mode, onResult, onBatchSave, notify, ricettari
   const [preview, setPreview] = useState(null)
   const [loading, setLoading] = useState(false)
   const [parsed, setParsed] = useState(null)
+  const [confermando, setConfermando] = useState(false)
   const [error, setError] = useState(null)
   const [multiResults, setMultiResults] = useState([])
   const [mediaType, setMediaType] = useState('image/jpeg')
@@ -208,11 +209,26 @@ Instructions:
     })
   }
 
-  const handleConferma = () => {
-    if (!parsed) return
-    onResult(parsed)
-    setImg(null); setPreview(null); setParsed(null)
-    if (inputRef.current) inputRef.current.value = ''
+  // Audit 2026-09-14: i dati letti dalla foto venivano buttati SUBITO, prima di
+  // sapere se il salvataggio era andato a buon fine. Se falliva, il messaggio
+  // diceva "Riprova" ma non c'era più niente da riprovare: la foto e l'elenco
+  // riconosciuto erano spariti, e bisognava rifare la foto della bolla.
+  //
+  // Contratto con chi ci passa `onResult`: se lancia, o se restituisce `false`,
+  // vuol dire che NON ha salvato, e qui non si cancella niente.
+  const handleConferma = async () => {
+    if (!parsed || confermando) return
+    setConfermando(true)
+    try {
+      const esito = await onResult(parsed)
+      if (esito === false) return
+      setImg(null); setPreview(null); setParsed(null)
+      if (inputRef.current) inputRef.current.value = ''
+    } catch (e) {
+      notify?.(e.friendly || e.message || 'Non ho potuto salvare quello che ho letto dalla foto: i dati sono ancora qui, riprova', false)
+    } finally {
+      setConfermando(false)
+    }
   }
 
   const reset = () => {
@@ -328,7 +344,7 @@ Instructions:
                   </div>
                 )}
                 <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                  <button onClick={handleConferma} style={{ flex: 1, padding: '9px', background: C.green, color: C.white, border: 'none', borderRadius: 7, fontWeight: 800, fontSize: 12, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Icon name="checkCircle" size={13} color={C.white} /> Usa questi dati</button>
+                  <button onClick={handleConferma} disabled={confermando} style={{ flex: 1, padding: '9px', background: confermando ? C.textSoft : C.green, color: C.white, border: 'none', borderRadius: 7, fontWeight: 800, fontSize: 12, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Icon name="checkCircle" size={13} color={C.white} /> Usa questi dati</button>
                   <button onClick={() => setParsed(null)} style={{ padding: '9px 14px', background: C.white, color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Rianalizza</button>
                 </div>
               </div>

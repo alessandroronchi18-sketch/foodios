@@ -403,8 +403,9 @@ Cosa ho verificato riga per riga in /Users/aler/foodos/src/views/MagazzinoView.j
 
 > Aggiornamento 14/09/2026: dei 84 iniziali, i 19 di "Prodotti finiti" sono
 > stati verificati (11 risultavano già corretti, 8 corretti oggi, 0 rifiutati) e
-> così i 5 di "Materie prime" (2 già corretti, 2 corretti oggi, 1 metà e metà).
-> **Restano 60.**
+> così i 5 di "Materie prime" (2 già corretti, 2 corretti oggi, 1 metà e metà)
+> e i 10 di "Carica merce" (4 già corretti, 6 corretti oggi).
+> **Restano 50.**
 
 
 ### Prodotti finiti — 19, verificati il 14/09/2026
@@ -533,45 +534,56 @@ Cosa ho verificato riga per riga in /Users/aler/foodos/src/views/MagazzinoView.j
   - proposta: Se `isDipendente`, non rendere la colonna Valore (né il suo SortTH a riga 1135) e sostituire il KPI "Valore a magazzino" con qualcosa di utile a lui, per esempio "Ingredienti da contare". Stessa decisione anche per il pulsante Elimina di riga 1211, che oggi un dipendente puo' usare su ogni ingredien
 
 
-### Carica merce — 10 da verificare
+### Carica merce — 10, verificati il 14/09/2026
 
-- **media** · riga `1248` · copy — Il messaggio d'errore dell'OCR dice "Riprova" ma i dati letti sono gia' stati buttati
+> **Esito: 4 erano già stati corretti il 9 set, 6 corretti oggi. Nessuno
+> rifiutato.** Quattro dei sei nascono dallo stesso posto, il tablet appoggiato
+> al bancone: la virgola della tastiera italiana che il campo scartava, la barra
+> spaziatrice sfiorata che creava una riga senza nome, il modo "scarico" che
+> restava impostato anche dopo aver cliccato un altro ingrediente, e l'Invio che
+> non confermava (dodici righe di bolla, dodici volte a cercare il pulsante).
+>
+> Il sesto e' il più fastidioso: l'OCR buttava via foto ed elenco riconosciuto
+> PRIMA di sapere se il salvataggio era riuscito, e poi diceva "Riprova". Non
+> c'era niente da riprovare: bisognava rifare la foto della bolla.
+
+- **[CORRETTO il 14/09]** · media · riga `1248` · copy — Il messaggio d'errore dell'OCR dice "Riprova" ma i dati letti sono gia' stati buttati
   - Non c'e' nulla da riprovare: nel momento in cui compare quel messaggio la foto e l'elenco riconosciuto non ci sono piu', quindi bisogna rifare la foto della bolla. Un messaggio che chiede un gesto impossibile fa perdere fiducia in tutto il resto dei messaggi.
   - proposta: In FotoOCR: `await onResult(parsed)` e azzerare preview/parsed solo se non ha lanciato. Cosi' "Riprova" torna vero, e il pulsante conferma resta li' con i dati dentro.
 
-- **media** · riga `811` · correttezza — Il modo carico/scarico resta impostato dopo il salvataggio e il clic rapido non lo resetta
+- **[GIÀ RISOLTO il 09/09 sul salvataggio, CORRETTO il 14/09 sul clic della riga]** · media · riga `811` · correttezza — Il modo carico/scarico resta impostato dopo il salvataggio e il clic rapido non lo resetta
   - Il caso reale: la sera si scarica quello che si e' consumato, la mattina arriva il fornitore. Si clicca sul nome dell'ingrediente nella tabella per precompilare, si digita 2000 e si tocca il pulsante: il form e' ancora in scarico e invece di caricare 2 kg li toglie. Il pasticcere lo scopre giorni do
   - proposta: Aggiungere `setFormMode('carico')` alla riga 811 dopo il salvataggio e al clic della riga 1154. Il modo distruttivo si sceglie ogni volta, non si eredita.
 
-- **media** · riga `1297` · mobile — Campo quantita' type=number: su iPad la virgola decimale non arriva mai
+- **[CORRETTO il 14/09]** · media · riga `1297` · mobile — Campo quantita' type=number: su iPad la virgola decimale non arriva mai
   - Sul tablet la tastiera numerica italiana ha la virgola. Chi scrive "1,5" su Safari vede il pulsante restare grigio e non capisce perche': il campo sembra pieno e il programma sembra rotto. Su iPad dietro il banco e' il caso normale, non un caso limite.
   - proposta: `type="text" inputMode="decimal"` (che tiene la tastiera numerica su iOS e Android) e lasciare la normalizzazione della virgola alla riga 782, che e' gia' scritta. In piu' cosi' si puo' dare un messaggio quando il testo non e' un numero, invece di un pulsante grigio muto.
 
-- **media** · riga `1305` · struttura — I suggerimenti propongono la chiave normalizzata, e il carico rinomina l'ingrediente
+- **[CORRETTO il 14/09]** · media · riga `1305` · struttura — I suggerimenti propongono la chiave normalizzata, e il carico rinomina l'ingrediente
   - Il pasticcere scrive "uova", il campo gli propone "uovo", accetta con Invio e da quel momento l'ingrediente in tabella si chiama "Uovo". Lo stesso vale per le maiuscole: "Farina 00 Caputo" torna "farina 00 caputo". Il programma corregge il nome che ha scelto lui, senza dirglielo e senza motivo visib
   - proposta: Alimentare la datalist e l'autocomplete con i nomi visualizzati (`righe.map(r => r.nome)`), e alla riga 795 conservare il nome gia' salvato quando la voce esiste: `nome: gruppo.nome || formIng.trim()`.
 
-- **media** · riga `1297` · struttura — Non si conferma con Invio: il flusso da tastiera si interrompe all'ultimo passo
+- **[CORRETTO il 14/09]** · media · riga `1297` · struttura — Non si conferma con Invio: il flusso da tastiera si interrompe all'ultimo passo
   - Chi carica una bolla da dodici righe fa dodici volte: scrivi ingrediente, Invio, scrivi quantita', e qui deve mollare la tastiera e cercare il pulsante col mouse o col dito. Poi deve tornare col mouse sul primo campo, perche' dopo il salvataggio il fuoco non torna da nessuna parte. Su un lavoro ripe
   - proposta: Su quantita' e note: `onKeyDown={e => { if (e.key === 'Enter' && formIng && formQty && !saving) handleCarica() }}`. Dopo il salvataggio riportare il fuoco sul campo ingrediente (serve dargli un id, oggi non ce l'ha).
 
-- **media** · riga `1293` · struttura — Il form non mostra la giacenza attuale dell'ingrediente scelto
+- **[GIÀ RISOLTO il 09/09]** · media · riga `1293` · struttura — Il form non mostra la giacenza attuale dell'ingrediente scelto
   - Lo scarico si registra alla cieca. Il campo dice "Quantita' (g) - da rimuovere" e chi lo compila non ha davanti quanto ce n'e': deve tornare alla scheda giacenze, guardare, tornare qui. E' anche il motivo per cui si finisce sotto zero.
   - proposta: Sotto il campo quantita', quando `formIng` corrisponde a una voce nota: "In magazzino ora: 4.500 g" e, in modo scarico con quantita' inserita, "Dopo lo scarico: 4.000 g" (in ambra se va sotto zero). Testo a 12px, formattato con fmtG.
 
-- **media** · riga `1344` · colore — Nel log rifornimenti gli scarichi sono scritti in verde come i carichi
+- **[GIÀ RISOLTO il 09/09]** · media · riga `1344` · colore — Nel log rifornimenti gli scarichi sono scritti in verde come i carichi
   - Il log e' il posto dove si va a controllare cos'e' successo quando la giacenza non torna. Se carichi e scarichi hanno lo stesso colore, l'unico segno che li distingue e' un meno piccolo davanti al numero: si scorre venti righe verdi e si legge un carico dove c'era un'uscita.
   - proposta: `color: r.quantita_g < 0 ? C.amber : C.green` e segno esplicito (`+2,00 kg` / `−0,50 kg`), coerente con l'ambra che questa pagina usa gia' per lo scarico.
 
-- **bassa** · riga `810` · tipografia — La spunta "✓" nel messaggio di conferma e' un carattere nel testo, non l'Icon
+- **[GIÀ RISOLTO il 09/09]** · bassa · riga `810` · tipografia — La spunta "✓" nel messaggio di conferma e' un carattere nel testo, non l'Icon
   - E' la regola del progetto: i simboli nella UI si fanno col componente Icon, anche nelle notifiche. Un glifo dentro la stringa viene reso dal font di sistema, quindi cambia forma tra desktop e tablet e su iOS puo' colorarsi come un'emoji, dentro un toast che ha gia' il suo colore per dire se e' andat
   - proposta: Togliere il carattere dal testo e lasciare che l'esito lo dica il toast (colore + eventuale Icon name="check" nel componente del toast, una volta sola per tutta l'app).
 
-- **bassa** · riga `779` · correttezza — Un nome fatto di soli spazi passa la validazione e crea una voce vuota in magazzino
+- **[CORRETTO il 14/09]** · bassa · riga `779` · correttezza — Un nome fatto di soli spazi passa la validazione e crea una voce vuota in magazzino
   - Sul tablet si sfiora la barra spaziatrice per errore molto piu' facilmente che sul desktop. Il risultato e' una riga senza nome in mezzo alla dispensa, con dentro dei grammi veri, che si porta dietro il suo stato e il suo valore e non si capisce come togliere.
   - proposta: Validare sul trim: `const nome = formIng.trim(); if (!nome || !formQty) return` e `disabled={!formIng.trim() || !formQty || saving}`.
 
-- **bassa** · riga `1283` · accessibilita — Le etichette dei campi non sono <label>: toccarle non porta il cursore nel campo
+- **[GIÀ RISOLTO il 09/09]** · bassa · riga `1283` · accessibilita — Le etichette dei campi non sono <label>: toccarle non porta il cursore nel campo
   - Su tablet il bersaglio utile diventa solo la casella: la parola sopra, che e' la cosa piu' grande e ovvia da toccare, non fa niente. E chi ingrandisce la pagina o usa la lettura vocale non sente a cosa si riferisce la casella.
   - proposta: Trasformarle in `<label htmlFor="mag-ing-input">` / `htmlFor="mag-qty-input"` / `htmlFor="mag-note-input"` e dare gli id ai tre input. Zero cambiamenti visivi, e il tocco sull'etichetta apre la tastiera sul campo giusto.
 

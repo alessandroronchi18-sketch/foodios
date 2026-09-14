@@ -114,11 +114,19 @@ describe('operazioni che si possono sbagliare', () => {
 })
 
 describe('quello che la pagina dichiara di non sapere', () => {
-  it('dice quando giorni di scorta e riordino sono stime', () => {
-    // Senza sessioni di produzione registrate il consumo è un'ipotesi del
-    // software: un impasto per ricetta a settimana.
-    expect(src).toMatch(/stimato: ultimi7\.length === 0/)
+  it('dice da dove viene il consumo, in tutti e quattro i casi', () => {
+    // Senza sessioni registrate il consumo è un'ipotesi del software (un
+    // impasto per ricetta a settimana) e la pagina lo scrive.
     expect(src).toMatch(/sono stime/)
+    // Dal 14/09 la finestra è fatta di giorni veri, non delle ultime 7
+    // sessioni: dopo la chiusura di agosto la somma di luglio veniva chiamata
+    // "settimana". I casi sono quattro e ognuno si dichiara a schermo.
+    expect(src).toMatch(/base: 'settimana'/)
+    expect(src).toMatch(/base: 'media4settimane'/)
+    expect(src).toMatch(/base: 'nessuno'/)
+    expect(src).toMatch(/Consumo sulla media delle ultime 4 settimane/)
+    expect(src).toMatch(/Niente produzione nelle ultime 4 settimane/)
+    // E il conto vero è coperto da magazzinoFabbisogno.test.js.
   })
 
   it('distingue il prezzo che hai scritto da quello di mercato', () => {
