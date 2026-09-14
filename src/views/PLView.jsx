@@ -41,6 +41,11 @@ const SHADOW_PREMIUM = '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42
 
 // ─── BARRE RICAVO (stacked margine vs food cost) ─────────────────────────────
 function BarreRicavo({ rows, euro, pct }) {
+  // Audit layout 2026-09-14: su telefono questa riga sforava di 85px e la
+  // pagina scorreva di lato. Il nome della ricetta e i tre numeri (ricavo,
+  // ingredienti, margine) stavano sulla stessa riga con 24px di spazio fisso
+  // fra loro: a 420px non ci stanno, e non andavano a capo.
+  const isMobile = useIsMobile()
   const [tooltip, setTooltip] = useState(null)
 
   return (
@@ -63,7 +68,7 @@ function BarreRicavo({ rows, euro, pct }) {
             }
             return (
               <div key={r.nome} data-barre-root="">
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, flexWrap: 'wrap', gap: 8 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <div style={{ width: 26, height: 26, borderRadius: 7,
                       background: i === 0 ? C.red : i === 1 ? '#E07040' : i === 2 ? C.amber : '#F0EAE6',
@@ -72,7 +77,7 @@ function BarreRicavo({ rows, euro, pct }) {
                     <span style={{ fontSize: 13, fontWeight: 800, color: C.text }}>{r.nome}</span>
                     <Tip text={`Valutazione margine: ${pct(r.margPct)}.`} width={260}><span style={{ cursor: 'help' }}>{margBadge(r.margPct)}</span></Tip>
                   </div>
-                  <div style={{ display: 'flex', gap: 24, textAlign: 'right' }}>
+                  <div style={{ display: 'flex', gap: isMobile ? 16 : 24, textAlign: 'right', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                     {[
                       { lbl: 'Ricavo', val: euro(r.ricavo), c: C.text, tip: `Ricavo per stampo = ${r.reg.unita} × ${euro(r.reg.prezzo)}.` },
                       { lbl: 'Ingredienti', val: `−${euro(r.fc)}`, c: C.red, tip: `Food cost totale. FC ratio: ${pct(r.fcPct)}.` },
@@ -234,7 +239,7 @@ function TopIngredientiTable({ ricettario, ingCosti, euro, pct }) {
                   </td>
                   <td style={{ padding: '10px 14px', textAlign: 'right', fontFamily: "'JetBrains Mono', ui-monospace, monospace", color: C.textMid }}>{Math.round(ing.qty)}g</td>
                   <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 800, color: C.red, ...TNUM }}>{euro(ing.costoTot)}</td>
-                  <td style={{ padding: '10px 14px', textAlign: 'right' }}>
+                  <td style={{ ...TNUM, padding: '10px 14px', textAlign: 'right' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'flex-end' }}>
                       <div style={{ width: 60, height: 5, background: '#EEE', borderRadius: 3 }}>
                         <div style={{ width: `${Math.min(100, ing.pctTot * 3)}%`, height: 5, background: C.red, opacity: 0.7, borderRadius: 3 }}/>
@@ -469,7 +474,7 @@ function PLTable({ rows, euro, pct, totRicavo, totFC, totMargine, fcAvg, avgMarg
             </tbody>
             <tfoot>
               <tr style={{ background: '#F0EAE6', borderTop: `2px solid ${C.borderStr}` }}>
-                <td colSpan={3} style={{ padding: '12px 14px', fontWeight: 800, fontSize: 12, color: C.text }}>
+                <td colSpan={3} style={{ textAlign: 'right', ...TNUM, padding: '12px 14px', fontWeight: 800, fontSize: 12, color: C.text }}>
                   TOTALE / MEDIA
                   {nSenzaPrezzo > 0 && (
                     <div style={{ fontWeight: 500, fontSize: font.size.sm, color: C.textSoft, marginTop: 2, textTransform: 'none', letterSpacing: 0 }}>
@@ -480,9 +485,9 @@ function PLTable({ rows, euro, pct, totRicavo, totFC, totMargine, fcAvg, avgMarg
                 </td>
                 <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 800, fontSize: 13, color: C.green, ...TNUM }}>{fmt0(totRicavo)}</td>
                 <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 800, fontSize: 13, color: C.red, ...TNUM }}>{euro(totFC)}</td>
-                <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 800, color: fcAvg < 30 ? C.green : fcAvg < 40 ? C.amber : C.red }}>{pct(fcAvg)}</td>
+                <td style={{ ...TNUM, padding: '12px 14px', textAlign: 'right', fontWeight: 800, color: fcAvg < 30 ? C.green : fcAvg < 40 ? C.amber : C.red }}>{pct(fcAvg)}</td>
                 <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 800, fontSize: 13, color: margColor(avgMarg), ...TNUM }}>{fmt0(totMargine)}</td>
-                <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 800, color: margColor(avgMarg) }}>{pct(avgMarg)}</td>
+                <td style={{ ...TNUM, padding: '12px 14px', textAlign: 'right', fontWeight: 800, color: margColor(avgMarg) }}>{pct(avgMarg)}</td>
                 <td colSpan={3}/>
               </tr>
             </tfoot>
@@ -534,7 +539,7 @@ function SensTable({ rows, euro, pct }) {
                   <TD right bold color={r.marg10 > 0 ? C.green : C.red} mono>{euro(r.marg10)}</TD>
                   <TD right bold color={r.marg20 > 0 ? C.green : C.red} mono>{euro(r.marg20)}</TD>
                   <TD right color={C.textMid} mono>{euro(r.ricavo)}</TD>
-                  <td style={{ padding: '10px 14px', textAlign: 'right' }}>
+                  <td style={{ ...TNUM, padding: '10px 14px', textAlign: 'right' }}>
                     <span style={{ background: r.headroom > 50 ? C.greenLight : r.headroom > 25 ? C.amberLight : C.redLight,
                       color: r.headroom > 50 ? C.green : r.headroom > 25 ? C.amber : C.red,
                       fontSize: 12, fontWeight: 700, padding: '3px 8px', borderRadius: 6 }}>
@@ -1907,7 +1912,7 @@ function BoxKpi({ label, value, color, highlight, small, sub }) {
           sul tablet del laboratorio. Le tre altezze minime restano uniformi
           così i box affiancati sono incolonnati fra loro. */}
       <div style={{ fontSize: font.size.sm, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4, minHeight: 30, lineHeight: 1.3 }}>{label}</div>
-      <div style={{ fontSize: small ? 17 : 20, fontWeight: 800, color, ...TNUM, letterSpacing: '-0.02em', minHeight: 32, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</div>
+      <div style={{ fontSize: small ? 16 : 20, fontWeight: 800, color, ...TNUM, letterSpacing: '-0.02em', minHeight: 32, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</div>
       {sub != null && (
         <div style={{ fontSize: font.size.sm, color: T.textSoft, marginTop: 3, minHeight: 30, lineHeight: 1.35 }}>{sub}</div>
       )}

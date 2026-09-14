@@ -659,7 +659,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                     const sel = (form.categoria || "").trim().toLowerCase() === c.toLowerCase();
                     return (
                       <button key={c} type="button" onClick={() => setForm(f => ({ ...f, categoria: c }))}
-                        style={{ padding: isMobile ? "10px 14px" : "4px 11px", minHeight: isMobile ? 40 : 'auto', borderRadius: R.full, border: `1px solid ${sel ? C.red : C.border}`, background: sel ? C.redLight : C.white, color: sel ? C.red : C.textMid, fontSize: isMobile ? 13 : 11, fontWeight: sel ? 700 : 500, cursor: "pointer" }}>
+                        style={{ padding: isMobile ? "10px 14px" : "4px 11px", minHeight: isMobile ? 40 : 'auto', borderRadius: R.full, border: `1px solid ${sel ? C.red : C.border}`, background: sel ? C.redLight : C.white, color: sel ? C.red : C.textMid, fontSize: isMobile ? 13 : 12, fontWeight: sel ? 700 : 500, cursor: "pointer" }}>
                         {c}
                       </button>
                     );
@@ -1654,7 +1654,7 @@ function RicettaPicker({ label, icon, variant = 'primary', ricette, activeNome, 
           color: open ? accent : (isDelete ? accent : '#FFF'),
           border: `1px solid ${isDelete ? `${accent}40` : accent}`,
           borderRadius: 10,
-          fontSize: isMobile ? 13 : 12.5, fontWeight: 700,
+          fontSize: isMobile ? 13 : 12, fontWeight: 700,
           cursor: 'pointer', letterSpacing: '0.01em',
           boxShadow: open ? 'none' : (isDelete ? 'none' : `0 6px 16px ${accent}28`),
           transition: `background ${M.durFast} ${M.ease}, color ${M.durFast} ${M.ease}, box-shadow ${M.durFast} ${M.ease}`,

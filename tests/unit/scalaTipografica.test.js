@@ -18,7 +18,7 @@ const RADICE = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 
 // I gradini ammessi a schermo. Sotto i 12 non si scende: è la soglia di
 // leggibilità che questo progetto si è dato.
-const SCALA = new Set([12, 13, 14, 15, 16, 18, 20, 22, 24, 26, 28, 32])
+const SCALA = new Set([12, 13, 14, 15, 16, 18, 20, 22, 24, 26, 28, 32, 36, 40, 48])
 
 // Fuori dal conto, con motivo:
 const ESENTI = [
@@ -44,9 +44,13 @@ describe('scala tipografica', () => {
       const rel = relative(RADICE, p).replace(/\\/g, '/')
       if (ESENTI.includes(rel)) continue
       readFileSync(p, 'utf8').split('\n').forEach((riga, i) => {
-        for (const m of riga.matchAll(/fontSize: *([0-9]+(?:\.[0-9]+)?)/g)) {
-          const v = Number(m[1])
-          if (!SCALA.has(v)) fuori.push(`${rel}:${i + 1} → ${v}px`)
+        // Anche dentro le espressioni: `fontSize: isMobile ? 11 : 12` è il
+        // modo in cui le misure fuori scala erano sopravvissute al primo giro.
+        for (const m of riga.matchAll(/fontSize: ([^,}\n]+)/g)) {
+          for (const n of m[1].matchAll(/(?<![\w.])(\d+(?:\.\d+)?)(?![\w.])/g)) {
+            const v = Number(n[1])
+            if (v >= 8 && v <= 90 && !SCALA.has(v)) fuori.push(`${rel}:${i + 1} → ${v}px (${m[1].trim().slice(0, 40)})`)
+          }
         }
       })
     }

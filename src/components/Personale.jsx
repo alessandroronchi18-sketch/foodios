@@ -802,7 +802,7 @@ function TurniTab({ orgId, notify, isMobile }) {
               ) },
             ].map(({lbl,el},i)=>(
               <div key={i}>
-                <div style={{ fontSize: isMobile ? 10 : 8, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:4 }}>{lbl}</div>
+                <div style={{ fontSize: isMobile ? 12 : 12, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:4 }}>{lbl}</div>
                 {el}
               </div>
             ))}
@@ -827,7 +827,7 @@ function TurniTab({ orgId, notify, isMobile }) {
         return (
           <div style={{ background:C.bgCard, borderRadius:16, border:`1px solid ${C.border}`, boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)", overflow:"hidden" }}>
             <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", borderBottom:`1px solid ${C.border}` }}>
-              {GIORNI.map(g => <div key={g} style={{ padding:"8px 4px", textAlign:"center", fontSize: isMobile ? 11 : 10, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing: '0.06em' }}>{g}</div>)}
+              {GIORNI.map(g => <div key={g} style={{ padding:"8px 4px", textAlign:"center", fontSize: isMobile ? 12 : 12, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing: '0.06em' }}>{g}</div>)}
             </div>
             <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)" }}>
               {cells.map((dIso, idx) => {
@@ -930,7 +930,7 @@ function TurniTab({ orgId, notify, isMobile }) {
                 <div key={dIso} style={{ display:"grid", gridTemplateColumns:`${labelW}px 1fr`, borderTop:`2px solid ${C.borderStr}`, background: oggi ? "#FFFCF7" : "transparent" }}>
                   <div style={{ padding: isMobile ? "10px 10px" : "8px 10px", borderRight:`1px solid ${C.border}` }}>
                     <div style={{ fontSize: isMobile ? 13 : 12, fontWeight:800, color: oggi ? C.red : C.text }}>{GIORNI[(dd.getDay()+6)%7]} {dd.getDate()}</div>
-                    <div style={{ fontSize: isMobile ? 10 : 9, color: C.textSoft, marginTop:2, lineHeight:1.3 }}>
+                    <div style={{ fontSize: isMobile ? 12 : 12, color: C.textSoft, marginTop:2, lineHeight:1.3 }}>
                       {labelPersone(cov, dayShifts.length > 0)}
                     </div>
                     {/* Copertura per reparto: evidenzia i buchi (es. 0 in produzione) */}
@@ -973,7 +973,7 @@ function TurniTab({ orgId, notify, isMobile }) {
                             style={{ position:"absolute", left:pos(s.ini), width:`calc(${((s.fin - s.ini) / span) * 100}% - 4px)`, top: s.lane * laneSpacing + 4, height: isMobile ? 40 : 26, background:col, border:"none", borderRadius:6, color:"#fff", display:"flex", alignItems:"center", gap:4, padding: isMobile ? "0 8px" : "0 6px", overflow:"hidden", cursor:"pointer", boxShadow: selez ? "inset 0 0 0 2px rgba(255,255,255,0.95)" : "none" }}>
                             {/* Mobile: solo NOME (più leggibile, niente troncamento di "06:00…").
                                 Desktop: nome + orari come prima. */}
-                            <span style={{ fontSize: isMobile ? 11 : 10, fontWeight:700, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", flex:1 }}>
+                            <span style={{ fontSize: isMobile ? 12 : 12, fontWeight:700, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", flex:1 }}>
                               {isMobile ? etichettaNome(s.nome) : `${etichettaNome(s.nome)} · ${_hm(s.ini)}–${_hm(s.fin)}`}
                             </span>
                             {eff != null && <span title="Ore consuntivate" style={{ fontSize: typo.small.fontSize, fontWeight:800, background:straord > 0 ? "#F59E0B" : "rgba(255,255,255,0.3)", color:"#fff", borderRadius:4, padding:"0 4px", flexShrink:0 }}>{straord > 0 ? `+${straord}h` : "✓"}</span>}
@@ -1169,7 +1169,7 @@ function AnalisiCostoTab({ orgId, isMobile, isTablet }) {
               <div style={{ flex:1, minWidth:200 }}>
                 <div style={{ fontSize: typo.small.fontSize, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase", color:"rgba(255,255,255,0.6)", marginBottom:6 }}>Incidenza costo lavoro</div>
                 <div style={{ display:"flex", alignItems:"baseline", gap:10 }}>
-                  <span style={{ fontSize: isMobile?34:44, fontWeight:900, color: incidenza==null?"rgba(255,255,255,0.5)":(incidenza<=30?"#7BE0A6":incidenza<=40?"#FCD34D":"#FCA5A5"), lineHeight:1, ...tnum }}>{incidenza==null?"-":fmtp(incidenza)}</span>
+                  <span style={{ fontSize: isMobile?32:40, fontWeight:900, color: incidenza==null?"rgba(255,255,255,0.5)":(incidenza<=30?"#7BE0A6":incidenza<=40?"#FCD34D":"#FCA5A5"), lineHeight:1, ...tnum }}>{incidenza==null?"-":fmtp(incidenza)}</span>
                   {incidenza!=null && <span style={{ fontSize:12, color:"rgba(255,255,255,0.7)" }}>del fatturato ({fmt0(ricavi)})</span>}
                 </div>
                 <div style={{ fontSize:12, color:"rgba(255,255,255,0.82)", marginTop:10, lineHeight:1.5, maxWidth:560 }}>{incVerdetto}</div>

@@ -733,7 +733,7 @@ function PacchettiAIPanel({ auth, notify }) {
             </div>
             {/* Prezzo grande sotto il titolo */}
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 6, marginBottom: 10 }}>
-              <span style={{ fontSize: isMobile ? 30 : 34, fontWeight: 900, color: '#1C0A0A', letterSpacing: '-0.02em', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{p.prezzo}</span>
+              <span style={{ fontSize: isMobile ? 28 : 32, fontWeight: 900, color: '#1C0A0A', letterSpacing: '-0.02em', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{p.prezzo}</span>
               <span style={{ fontSize: 12, color: '#64748B' }}>una tantum</span>
             </div>
             {/* Divisore + €/foto + eventuale risparmio */}

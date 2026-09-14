@@ -364,7 +364,7 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
                     <td style={{ padding: '10px 14px', textAlign: 'right', color: C.textSoft, ...TNUM }}>
                       {r.soglia_min > 0 ? Number(r.soglia_min).toLocaleString('it-IT', { useGrouping: 'always' }) : '-'}
                     </td>
-                    <td style={{ padding: '10px 14px', fontSize: typo.small.fontSize, color: C.textSoft, whiteSpace: 'nowrap' }}>
+                    <td style={{ ...TNUM, padding: '10px 14px', fontSize: typo.small.fontSize, color: C.textSoft, whiteSpace: 'nowrap' }}>
                       {dataLeggibile(r.updated_at)}
                     </td>
                     {/* Audit 2026-09-14: su telefono i due pulsanti stavano
@@ -446,7 +446,7 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
                   const d = Number(m.delta)
                   return (
                     <tr key={m.id} style={{ borderBottom: `1px solid ${C.border}` }}>
-                      <td style={{ padding: '8px 14px', fontSize: 12, color: C.textSoft, whiteSpace: 'nowrap' }}>
+                      <td style={{ ...TNUM, padding: '8px 14px', fontSize: 12, color: C.textSoft, whiteSpace: 'nowrap' }}>
                         {dataLeggibile(m.created_at)}
                       </td>
                       <td style={{ padding: '8px 14px', fontWeight: 700, color: C.text }}>{m.prodotto_nome}</td>
@@ -692,7 +692,7 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
                 <tbody>
                   {logPrezzi.slice(0, 50).map(l => (
                     <tr key={l.id} style={{ borderBottom: `1px solid ${C.border}` }}>
-<td style={{ padding: '7px 12px', color: C.textMid, whiteSpace: 'nowrap' }}>
+<td style={{ textAlign: 'right', ...TNUM, padding: '7px 12px', color: C.textMid, whiteSpace: 'nowrap' }}>
                         {new Date(l.data).toLocaleString('it-IT', { useGrouping: 'always', day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
                         {/* Audit 2026-09-09: chi ha cambiato il prezzo non si
                             vedeva, e il campo `utente` era già nel log. Su un
@@ -2131,7 +2131,7 @@ export default function MagazzinoView({
                           nove avevano l'header a destra e i numeri al centro:
                           le migliaia non stavano una sopra l'altra e per
                           confrontare due righe bisognava leggerle una a una. */}
-                      <td style={{ padding: '10px 14px', textAlign: 'right' }}>
+                      <td style={{ ...TNUM, padding: '10px 14px', textAlign: 'right' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
                           <span style={{ fontWeight: 800, fontSize: 12, color: statoColor(r.stato), ...TNUM }}>{fmtG(r.giacenza)}</span>
                           {r.fabb > 0 && (
@@ -2173,7 +2173,7 @@ export default function MagazzinoView({
                           <span style={{ color: C.textSoft }}>-</span>
                         )}
                       </td>
-                      <td style={{ padding: '10px 14px', textAlign: 'right' }}>
+                      <td style={{ ...TNUM, padding: '10px 14px', textAlign: 'right' }}>
                         {editSoglia?.nome === r.k ? (
                           <div style={{ display: 'flex', gap: 4, alignItems: 'center', justifyContent: 'flex-end' }}>
                             {/* L'unità scritta accanto al campo.
@@ -2206,7 +2206,7 @@ export default function MagazzinoView({
                       <td style={{ padding: '10px 14px', textAlign: 'left' }}>
                         <span style={{ background: statoBg(r.stato), color: statoColor(r.stato), fontSize: 12, fontWeight: 700, padding: '3px 9px', borderRadius: 10, letterSpacing: '0.06em', textTransform: 'uppercase', whiteSpace: 'nowrap', display: 'inline-block' }}>{statoLabel(r.stato)}</span>
                       </td>
-                      <td style={{ padding: '10px 14px', textAlign: 'right', color: C.textSoft, fontSize: 12 }}>
+                      <td style={{ ...TNUM, padding: '10px 14px', textAlign: 'right', color: C.textSoft, fontSize: 12 }}>
                         {r.ultimoRif ? new Date(r.ultimoRif).toLocaleDateString('it-IT') : '-'}
                       </td>
                       {/* Una colonna sola per le azioni, allineata a destra:

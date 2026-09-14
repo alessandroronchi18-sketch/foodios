@@ -233,7 +233,7 @@ export default function AiHubView({ orgId, setView, goToUpgrade, piano, userEmai
             <ChainBadge size={12}/> Le funzioni AI di Foodos · {totFeatures} attive
           </div>
 
-          <h1 style={{ margin: '20px 0 12px', fontSize: isMobile ? 30 : isTablet ? 38 : 52, fontWeight: 800, letterSpacing: '-0.045em', lineHeight: 1.05 }}>
+          <h1 style={{ margin: '20px 0 12px', fontSize: isMobile ? 28 : isTablet ? 36 : 48, fontWeight: 800, letterSpacing: '-0.045em', lineHeight: 1.05 }}>
             Foodos<br/>
             <span style={{
               background: 'linear-gradient(120deg, #FFD86B 0%, #FBD7C9 45%, #E89B43 75%, #FFD86B 100%)',

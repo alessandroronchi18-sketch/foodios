@@ -144,7 +144,7 @@ export default function AiPageHero({
         {subtitle && (
           <p style={{
             margin: 0, maxWidth: 680,
-            fontSize: compact ? 13.5 : 14.5,
+            fontSize: compact ? 13 : 14,
             lineHeight: 1.65,
             color: 'rgba(255,255,255,0.78)',
           }}>

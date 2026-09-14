@@ -329,7 +329,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
             <h3 onClick={onEdit ? () => onEdit(ric.nome) : undefined}
               style={{
                 margin: 0,
-                fontSize: isMobile ? 15 : 17,
+                fontSize: isMobile ? 15 : 16,
                 fontWeight: 800,
                 letterSpacing: '0.02em',
                 textTransform: 'uppercase',
@@ -445,7 +445,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
               display: 'flex', flexDirection: 'column', justifyContent: 'center', overflow: 'hidden',
             }}>
               <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.textSoft, marginBottom: 3, lineHeight: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{lbl}</div>
-              <div style={{ fontSize: isMobile ? 11.5 : 13, fontWeight: bold ? 900 : 700, color: c, ...TNUM, lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{val}</div>
+              <div style={{ fontSize: isMobile ? 12 : 13, fontWeight: bold ? 900 : 700, color: c, ...TNUM, lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{val}</div>
             </div>
           ))}
         </div>
@@ -612,7 +612,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
                       <td style={{ padding: '9px 12px', textAlign: 'right', color: C.textMid, ...TNUM, whiteSpace: 'nowrap' }}>{ing.qty1stampo}</td>
                       <td style={{ padding: '9px 12px', textAlign: 'right', color: C.textSoft, ...TNUM, fontSize: 12, whiteSpace: 'nowrap' }}>{ing.costoPerGCalc > 0 ? ing.costoPerGCalc.toLocaleString('it-IT', { minimumFractionDigits: 4, maximumFractionDigits: 4 }) : '-'}</td>
                       <td style={{ ...TNUM, padding: '9px 12px', textAlign: 'right', fontWeight: 600, color: ing.costoCalc > 0 ? C.text : C.textSoft, ...TNUM, whiteSpace: 'nowrap' }}>{ing.costoCalc > 0 ? fmt(ing.costoCalc) : '-'}</td>
-                      <td style={{ padding: '9px 12px', textAlign: 'right' }}>
+                      <td style={{ ...TNUM, padding: '9px 12px', textAlign: 'right' }}>
                         {ing.pct > 0 && (
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
                             <div style={{ width: 44, height: 5, background: '#EEE', borderRadius: 3, flexShrink: 0 }}>

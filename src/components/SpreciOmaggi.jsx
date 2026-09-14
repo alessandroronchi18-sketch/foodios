@@ -847,7 +847,7 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
         <div>
           <label style={labelS}>Tipo</label>
           <select
-            style={{ ...inputS, width: 'auto', fontSize: isMobile ? 16 : 12.5, padding: isMobile ? '10px 12px' : '8px 32px 8px 12px' }}
+            style={{ ...inputS, width: 'auto', fontSize: isMobile ? 16 : 12, padding: isMobile ? '10px 12px' : '8px 32px 8px 12px' }}
             value={filtroTipo} onChange={e => { setFiltroTipo(e.target.value); setFiltroCausale('tutte') }}>
             <option value="tutti">Tutti</option>
             <option value="spreco">Solo perdite</option>
@@ -857,7 +857,7 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
         <div>
           <label style={labelS}>Causale</label>
           <select
-            style={{ ...inputS, width: 'auto', fontSize: isMobile ? 16 : 12.5, padding: isMobile ? '10px 12px' : '8px 32px 8px 12px' }}
+            style={{ ...inputS, width: 'auto', fontSize: isMobile ? 16 : 12, padding: isMobile ? '10px 12px' : '8px 32px 8px 12px' }}
             value={filtroCausale} onChange={e => setFiltroCausale(e.target.value)}>
             <option value="tutte">Tutte</option>
             {causaliFiltro.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}

@@ -844,7 +844,7 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
                 const btnAct = {
                   padding: isMobile ? '10px 12px' : '7px 12px',
                   borderRadius: 8, border: `1px solid ${C.border}`,
-                  background: C.white, fontSize: isMobile ? 12 : 11.5,
+                  background: C.white, fontSize: isMobile ? 12 : 12,
                   fontWeight: 700, color: C.textMid, cursor: 'pointer',
                   minHeight: minTT, whiteSpace: 'nowrap',
                   display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 4,

@@ -1013,7 +1013,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                         const k = kpiMap[s.id] || {}
                         const delta = r.prevKey ? fmtDelta(k[r.prevKey], k[r.key], r.fmt) : null
                         return (
-                          <td key={s.id} style={{ ...tdC, ...cellStyle(s.id, r.bw) }}>
+                          <td key={s.id} style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', ...tdC, ...cellStyle(s.id, r.bw) }}>
                             <div>{r.fmt(k[r.key])}</div>
                             {delta && (
                               <div style={{ fontSize: typo.small.fontSize, color: delta.positive ? GRN : RED, fontWeight: 700, marginTop: 2 }}>

@@ -481,7 +481,7 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
                     </tr>
                     {open && (
                       <tr style={{ background: T.bgSubtle }}>
-                        <td colSpan={7} style={{ padding: '8px 14px 18px' }}>
+                        <td colSpan={7} style={{ textAlign: 'right', ...TNUM, padding: '8px 14px 18px' }}>
                           <div style={{ fontSize: 12, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', margin: '6px 0 10px' }}>
                             Composizione del costo · {r.reg.unita.toLocaleString('it-IT', { useGrouping: 'always' })} {labelPlurale(r.reg.tipo)}/stampo
                           </div>

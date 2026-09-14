@@ -82,7 +82,7 @@ function SemiCard({ sm, ricettario, ingCosti, onEdit, onDelete, LEX }) {
           : "Non si può calcolare: manca il prezzo di uno o più ingredienti. Caricali e il costo compare."} width={260}>
           <div style={{ background: T.brandLight, padding: '12px 18px', borderRadius: R.md, textAlign: 'center', minHeight: 56, minWidth: 130, cursor: 'help', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 5, border: `1px solid ${T.brand}25`, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.6)', flexShrink: 0 }}>
             <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: T.textSoft, lineHeight: 1, whiteSpace: 'nowrap' }}>Costo / kg</div>
-            <div style={{ fontSize: sm.costoKg > 0 ? 17 : 13, fontWeight: sm.costoKg > 0 ? 900 : 700, color: sm.costoKg > 0 ? T.brand : T.textSoft, letterSpacing: '-0.015em', whiteSpace: 'nowrap', lineHeight: 1.1, ...TNUM }}>{sm.costoKg > 0 ? fmtKg(sm.costoKg) : 'da completare'}</div>
+            <div style={{ fontSize: sm.costoKg > 0 ? 16 : 13, fontWeight: sm.costoKg > 0 ? 900 : 700, color: sm.costoKg > 0 ? T.brand : T.textSoft, letterSpacing: '-0.015em', whiteSpace: 'nowrap', lineHeight: 1.1, ...TNUM }}>{sm.costoKg > 0 ? fmtKg(sm.costoKg) : 'da completare'}</div>
           </div>
         </Tip>
 

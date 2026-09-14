@@ -1028,7 +1028,7 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
                     <div key={key}>
                       <div style={{ fontSize: FS.small, fontWeight: 700, color: C.textSoft, marginBottom: 4 }}>{label}</div>
                       <select value={importGenericMapping[key] || ''} onChange={e => setImportGenericMapping(m => ({ ...m, [key]: e.target.value }))}
-                        style={{ width: '100%', padding: '9px 10px', borderRadius: 6, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 11, minHeight: 40 }}>
+                        style={{ width: '100%', padding: '9px 10px', borderRadius: 6, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, minHeight: 40 }}>
                         <option value="">-</option>
                         {(importPreview.headers || []).map(h => <option key={h} value={h}>{h}</option>)}
                       </select>
@@ -1385,7 +1385,7 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
                       <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: r.unitaR > 0 ? 700 : 400, color: r.unitaR > 0 ? C.amber : C.green }}>
                         {r.inProd ? (r.unitaR > 0 ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, justifyContent: 'flex-end' }}>{r.unitaR} <Icon name="warning" size={11} /></span> : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, justifyContent: 'flex-end' }}>0 <Icon name="checkCircle" size={11} /></span>) : '-'}
                       </td>
-                      <td style={{ padding: '9px 12px', textAlign: 'right' }}>
+                      <td style={{ fontVariantNumeric: 'tabular-nums', padding: '9px 12px', textAlign: 'right' }}>
                         {r.st !== null ? (
                           <div style={{ display: 'flex', alignItems: 'center', gap: 5, justifyContent: 'flex-end' }}>
                             <div style={{ width: 34, height: 5, background: '#EEE', borderRadius: 3 }}><div style={{ width: `${Math.min(100, r.st)}%`, height: 5, background: stC(r.st), borderRadius: 3 }}/></div>

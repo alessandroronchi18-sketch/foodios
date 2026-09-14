@@ -976,7 +976,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                         const cong = isCongelabile(ric.nome)
                         return (
                           <tr key={ric.nome} style={{ borderBottom: `1px solid ${C.border}`, background: (q > 0 || vq > 0) ? '#FFF9F9' : i % 2 === 0 ? C.white : '#FDFAF7' }}>
-                            <td style={{ padding: '10px 14px', fontWeight: 700, color: C.text }}>
+                            <td style={{ textAlign: 'right', ...TNUM, padding: '10px 14px', fontWeight: 700, color: C.text }}>
                               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                                 {ric.nome}
                                 {isSemi && <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase', padding: '2px 7px', borderRadius: 4, background: '#F0E4FA', color: '#8E44AD' }}>Semi</span>}
@@ -1294,7 +1294,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                       </div>
                       {(sess.prodotti || []).map(p => (
                         <div key={p.nome} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 70px 70px' : '1fr 90px 90px', gap: 8, alignItems: 'center', marginBottom: 6 }}>
-                          <span style={{ fontSize: isMobile ? 12 : 11, fontWeight: 600, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.nome}</span>
+                          <span style={{ fontSize: isMobile ? 12 : 12, fontWeight: 600, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.nome}</span>
                           <input type="number" min="0" inputMode="decimal" value={editRows[p.nome]?.stampi ?? ''} disabled={editConfirm}
                             onChange={e => setEditRows(m => ({ ...m, [p.nome]: { ...m[p.nome], stampi: e.target.value } }))}
                             style={{ padding: '8px', borderRadius: 7, border: `1px solid ${C.border}`, fontSize: isMobile ? 16 : 12, color: C.text, background: C.white, textAlign: 'right', minHeight: isMobile ? 40 : 'auto' }}/>

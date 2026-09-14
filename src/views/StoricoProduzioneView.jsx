@@ -935,7 +935,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                       const rowBg = i%2===0?C.white:"#FDFAF7";
                       return (
                         <tr key={p.key} style={{borderBottom:`1px solid ${C.border}`,background:rowBg}}>
-                          <td style={{padding:"10px 12px",fontWeight:700,color:C.text,whiteSpace:'nowrap',position:'sticky',left:0,background:rowBg,zIndex:1}}>
+                          <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums',padding:"10px 12px",fontWeight:700,color:C.text,whiteSpace:'nowrap',position:'sticky',left:0,background:rowBg,zIndex:1}}>
                             <div>{p.label}</div>
                             {/* Barra intuitiva: ricavo del periodo rapportato al migliore */}
                             <div title={`Ricavo ${eur0(p.ricavoTot)} · ${Math.round(p.ricavoTot/maxRicPeriodo*100)}% del periodo migliore`} style={{marginTop:4,height:5,width:96,maxWidth:"100%",background:"#F0EAE6",borderRadius:3,overflow:"hidden"}}>
@@ -1409,7 +1409,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                         <td style={{padding:"10px 12px",textAlign:"right",color:C.red,fontVariantNumeric:'tabular-nums'}}>{eur0(ch.kpi.totFC)}</td>
                         <td style={{padding:"10px 12px",textAlign:"right",fontWeight:800,color:margColor(ch.kpi.totMP),fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{eur0(ch.kpi.totM)}</td>
                         <td style={{padding:"10px 12px",textAlign:"right"}}>{margBadge(ch.kpi.totMP)}</td>
-                        <td style={{padding:"10px 12px",textAlign:"right"}}>
+                        <td style={{ fontVariantNumeric: 'tabular-nums',padding:"10px 12px",textAlign:"right"}}>
                           {/* "—" e non "0,0%": una giornata registrata col solo
                               totale non ha un sell-through da mostrare. */}
                           <span title={ch.kpi.avgST==null?'Questa giornata è stata registrata col solo incasso: non c\'è il confronto fra prodotto e venduto.':undefined}
@@ -1528,7 +1528,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                             <td style={{ padding:"10px 12px",textAlign:"right",fontWeight:700,color:diff>=0?C.green:C.red,fontVariantNumeric:'tabular-nums'}}>{pp&&pv?(diff>=0?"+":"")+fmt(diff):"-"}</td>
                             <td style={{padding:"10px 12px",textAlign:"right",color:C.textSoft,fontVariantNumeric:'tabular-nums'}}>{pp?fmt(pp.margine):"-"}</td>
                             <td style={{ padding:"10px 12px",textAlign:"right",fontWeight:800,color:pv?margColor(pv.margTot>0&&pv.rvTot>0?(pv.margTot/pv.rvTot*100):0):C.textSoft,fontVariantNumeric:'tabular-nums'}}>{pv?fmt(pv.margTot):"-"}</td>
-                            <td style={{ padding:"10px 12px",textAlign:"right"}}>{pv?<span style={{fontWeight:700,color:pv.avgST>=85?C.green:pv.avgST>=65?C.amber:C.red,fontVariantNumeric:'tabular-nums'}}>{fmtp(pv.avgST)}</span>:"-"}</td>
+                            <td style={{ fontVariantNumeric: 'tabular-nums', padding:"10px 12px",textAlign:"right"}}>{pv?<span style={{fontWeight:700,color:pv.avgST>=85?C.green:pv.avgST>=65?C.amber:C.red,fontVariantNumeric:'tabular-nums'}}>{fmtp(pv.avgST)}</span>:"-"}</td>
                             <td style={{ padding:"10px 12px",textAlign:"right",color:pv?.sproTot>5?C.red:C.textSoft,fontVariantNumeric:'tabular-nums'}}>{pv?fmt(pv.sproTot):"-"}</td>
                           </tr>
                         );

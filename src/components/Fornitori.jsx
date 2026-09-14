@@ -998,7 +998,7 @@ function OrdiniTab({ orgId, notify, isMobile, onMutate }) {
                 </div>
               )
             ))}
-            <button onClick={addRiga} style={{ padding: isMobile ? "10px 14px" : "6px 14px", background: C.white, border: `1px solid ${C.borderStr}`, borderRadius: 8, fontSize: isMobile ? 13 : 11, color: C.textMid, cursor: "pointer", width: isMobile ? "100%" : "auto" }}>+ Riga</button>
+            <button onClick={addRiga} style={{ padding: isMobile ? "10px 14px" : "6px 14px", background: C.white, border: `1px solid ${C.borderStr}`, borderRadius: 8, fontSize: isMobile ? 13 : 12, color: C.textMid, cursor: "pointer", width: isMobile ? "100%" : "auto" }}>+ Riga</button>
           </div>
           <div style={{ marginBottom: 14 }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>Note</div>

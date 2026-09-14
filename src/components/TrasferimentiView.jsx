@@ -526,7 +526,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
   }
 
   const inp = { width: '100%', padding: isMobile ? '12px 14px' : isTablet ? '10px 13px' : '8px 12px', minHeight: isMobile ? 44 : isTablet ? 44 : 'auto', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : isTablet ? 16 : 13, color: C.text, background: C.bgCard, boxSizing: 'border-box' }
-  const lbl = { fontSize: isMobile ? 11 : 9.5, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: isMobile ? 6 : 4 }
+  const lbl = { fontSize: isMobile ? 12 : 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: isMobile ? 6 : 4 }
 
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', width: '100%', boxSizing: 'border-box', padding: isMobile ? '0 4px 80px' : 0 }}>
@@ -549,9 +549,9 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : isTablet ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: isMobile ? 10 : 12 }}>
             {(() => {
               const kpiCell = { minHeight: isMobile ? 92 : isTablet ? 100 : 96, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }
-              const labelStyle = { fontSize: isMobile ? 10.5 : 10, color: C.textSoft, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', minHeight: 14 }
-              const valStyle = (color) => ({ fontSize: isMobile ? 26 : isTablet ? 28 : 30, fontWeight: 800, color, marginTop: 4, lineHeight: 1.05, letterSpacing: '-0.02em', ...tnum, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })
-              const subStyle = { fontSize: isMobile ? 11.5 : 10.5, color: C.textSoft, marginTop: 2 }
+              const labelStyle = { fontSize: isMobile ? 12 : 12, color: C.textSoft, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', minHeight: 14 }
+              const valStyle = (color) => ({ fontSize: isMobile ? 26 : isTablet ? 28 : 28, fontWeight: 800, color, marginTop: 4, lineHeight: 1.05, letterSpacing: '-0.02em', ...tnum, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })
+              const subStyle = { fontSize: isMobile ? 12 : 12, color: C.textSoft, marginTop: 2 }
               return (
                 <>
                   <div style={kpiCell}>
@@ -689,8 +689,8 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
             minHeight: isMobile ? 84 : isTablet ? 92 : 88,
             display: 'flex', flexDirection: 'column', justifyContent: 'center',
           }}>
-            <div style={{ fontSize: isMobile ? 10.5 : 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{k.label}</div>
-            <div style={{ fontSize: isMobile ? 26 : isTablet ? 28 : 30, fontWeight: 800, color: k.color, marginTop: 4, lineHeight: 1.05, letterSpacing: '-0.02em', ...tnum }}>{Number(k.val || 0).toLocaleString('it-IT', { useGrouping: 'always' })}</div>
+            <div style={{ fontSize: isMobile ? 12 : 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{k.label}</div>
+            <div style={{ fontSize: isMobile ? 26 : isTablet ? 28 : 28, fontWeight: 800, color: k.color, marginTop: 4, lineHeight: 1.05, letterSpacing: '-0.02em', ...tnum }}>{Number(k.val || 0).toLocaleString('it-IT', { useGrouping: 'always' })}</div>
           </div>
         ))}
       </div>
@@ -812,7 +812,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
               const nome = prompt('Nome template (es. "Lab → Via Roma mattutino"):', `${form.prodotto.slice(0, 20)}`)
               if (nome) salvaTemplate(nome)
             }} disabled={saving}
-              style={{ padding: isMobile ? '11px 16px' : '10px 16px', minHeight: isMobile ? 44 : 'auto', background: 'transparent', color: '#0369A1', border: '1px solid #BAE6FD', borderRadius: 8, fontWeight: 700, fontSize: isMobile ? 13 : 12.5, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, marginLeft: isMobile ? 0 : 'auto', flex: isMobile ? '1 1 100%' : '0 0 auto', justifyContent: 'center' }}
+              style={{ padding: isMobile ? '11px 16px' : '10px 16px', minHeight: isMobile ? 44 : 'auto', background: 'transparent', color: '#0369A1', border: '1px solid #BAE6FD', borderRadius: 8, fontWeight: 700, fontSize: isMobile ? 13 : 12, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, marginLeft: isMobile ? 0 : 'auto', flex: isMobile ? '1 1 100%' : '0 0 auto', justifyContent: 'center' }}
               title="Salva queste impostazioni come template ricorrente">
               <Icon name="save" size={13} /> Salva come template
             </button>

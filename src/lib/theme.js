@@ -93,8 +93,13 @@ export const font = {
 
   numeric: { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum', 'cv11', 'ss01'" },
 
+  // Audit layout 2026-09-14: `2xs` e `xs` valevano 10 e 11 px, cioè sotto la
+  // soglia di leggibilità che questo progetto si è dato (12). Erano il modo in
+  // cui il testo minuscolo rientrava dalla finestra: chi scriveva
+  // `font.size.xs` non stava scegliendo 11px, stava scegliendo "piccolo".
+  // I nomi restano, così nessun callsite cambia; il valore no.
   size: {
-    '2xs': 10, xs: 11, sm: 12, base: 13, md: 14, lg: 16,
+    '2xs': 12, xs: 12, sm: 12, base: 13, md: 14, lg: 16,
     xl: 18, '2xl': 22, '3xl': 28, '4xl': 36, '5xl': 48,
   },
 

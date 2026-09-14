@@ -684,7 +684,7 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
           minHeight: 14, lineHeight: 1.2,
         }
         const kpiValue = {
-          fontSize: isMobile ? 16 : 17, fontWeight: 800, letterSpacing: '-0.015em',
+          fontSize: isMobile ? 16 : 16, fontWeight: 800, letterSpacing: '-0.015em',
           marginTop: 4, lineHeight: 1.1, minHeight: isMobile ? 19 : 20,
           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
           ...TNUM,
@@ -712,7 +712,7 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
             }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{
-                  fontSize: isMobile ? 17 : 18, fontWeight: 800, color: T.text,
+                  fontSize: isMobile ? 16 : 18, fontWeight: 800, color: T.text,
                   letterSpacing: '-0.015em', lineHeight: 1.25,
                   whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                 }} title={ev.cliente || 'Cliente'}>

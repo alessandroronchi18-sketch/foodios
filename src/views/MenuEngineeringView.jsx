@@ -344,7 +344,7 @@ export default function MenuEngineeringView({ orgId, sedeId, ricettario, sedeAtt
                     <div style={{ fontSize: isMobile ? 13 : 13, fontWeight: 800, color: active ? meta.fg : MID, marginBottom: 2 }}>
                       {meta.lbl} <span style={{ fontWeight: 500, color: SOFT, fontVariantNumeric: 'tabular-nums' }}>· {list.length}</span>
                     </div>
-                    <div style={{ fontSize: isMobile ? 10.5 : 10.5, color: active ? MID : SOFT, lineHeight: 1.35 }}>{meta.desc}</div>
+                    <div style={{ fontSize: isMobile ? 12 : 12, color: active ? MID : SOFT, lineHeight: 1.35 }}>{meta.desc}</div>
                   </button>
                 )
               })}

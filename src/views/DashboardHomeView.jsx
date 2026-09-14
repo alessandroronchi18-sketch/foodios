@@ -118,7 +118,7 @@ function StockPFWidget({ isMobile, setView, viewAggregato, orgId, sedeId, LEX })
         {hasStock ? (
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '170px 1fr', gap: isMobile ? 14 : 28, alignItems: 'center' }}>
             <div>
-              <div style={{ fontSize: isMobile ? 34 : 48, fontWeight: 800, color: T.text, letterSpacing: '-0.04em', lineHeight: 1, ...TNUM }}>{n0(totPezzi)}</div>
+              <div style={{ fontSize: isMobile ? 32 : 48, fontWeight: 800, color: T.text, letterSpacing: '-0.04em', lineHeight: 1, ...TNUM }}>{n0(totPezzi)}</div>
               <div style={{ fontSize: 12, color: T.textSoft, fontWeight: 500, marginTop: 4 }}>pezzi al banco</div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
@@ -337,7 +337,7 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
       <div style={{ fontSize: isMobile ? 24 : 32, fontWeight: 800, color: empty ? T.textFaint : (valueColor || T.text), lineHeight: 1.0, letterSpacing: '-0.035em', position: 'relative', minHeight: isMobile ? 26 : 32, ...TNUM }}>
         {empty ? '-' : value}
       </div>
-      <div title={typeof sub === 'string' ? sub : undefined} style={{ fontSize: isMobile ? 11.5 : 12.5, color: T.textSoft, marginTop: 7, fontWeight: 500, position: 'relative', minHeight: isMobile ? 30 : 32, lineHeight: 1.35, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</div>
+      <div title={typeof sub === 'string' ? sub : undefined} style={{ fontSize: isMobile ? 12 : 12, color: T.textSoft, marginTop: 7, fontWeight: 500, position: 'relative', minHeight: isMobile ? 30 : 32, lineHeight: 1.35, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</div>
     </div>
   )
   const TINT = {
@@ -375,7 +375,7 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
         <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'flex-end', justifyContent: 'space-between', gap: isMobile ? 14 : 16 }}>
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.62)', textTransform: 'capitalize', fontWeight: 600, letterSpacing: '0.02em', marginBottom: 6 }}>{giornoLabel}</div>
-            <h1 style={{ margin: 0, fontSize: isMobile ? 24 : 42, fontWeight: 800, color: '#FFF', letterSpacing: '-0.04em', lineHeight: 1.1, wordBreak: 'break-word' }}>
+            <h1 style={{ margin: 0, fontSize: isMobile ? 24 : 40, fontWeight: 800, color: '#FFF', letterSpacing: '-0.04em', lineHeight: 1.1, wordBreak: 'break-word' }}>
               {saluto}{nomeAttivita ? <>,<br style={{ display: isMobile ? 'block' : 'none' }} /> <span style={{ color: '#FBD7C9' }}>{nomeAttivita}</span></> : ''}
             </h1>
           </div>

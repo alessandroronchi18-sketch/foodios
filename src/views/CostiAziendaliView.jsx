@@ -778,7 +778,7 @@ function DialogFormCosto({ form, setForm, sedi, isMobile, onClose, onSave }) {
           gap: 12, marginBottom: 20,
         }}>
           <h2 id="costo-dialog-title" style={{
-            margin: 0, fontSize: isMobile ? 18 : 17, fontWeight: 800,
+            margin: 0, fontSize: isMobile ? 18 : 16, fontWeight: 800,
             color: C.text, letterSpacing: '-0.015em', lineHeight: 1.2,
           }}>
             {isEdit ? 'Modifica voce di costo' : 'Nuova voce di costo'}

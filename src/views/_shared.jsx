@@ -382,7 +382,7 @@ export const TD = ({ children, right, bold, color, mono, small }) => (
     padding: '10px 14px', textAlign: right ? 'right' : 'left',
     fontWeight: bold ? 700 : 500, color: color || C.text,
     ...(mono ? TNUM : null),
-    fontSize: small ? 10 : 11, whiteSpace: 'nowrap',
+    fontSize: small ? 12 : 12, whiteSpace: 'nowrap',
   }}>{children}</td>
 )
 

@@ -1850,7 +1850,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                 <div style={{ minWidth: 0, flex: 1, cursor: 'pointer' }}
                   onClick={() => toggleExpandForn(g.nome_norm)}
                   title="Mostra tutte le fatture di questo fornitore">
-                  <div style={{ fontWeight: 700, fontSize: isMobile ? 14 : 13.5, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ fontWeight: 700, fontSize: isMobile ? 14 : 13, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span aria-hidden="true" style={{ color: T.textSoft, transition: 'transform .15s ease', display: 'inline-flex', alignItems: 'center', transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)', flexShrink: 0 }}><Icon name="chevR" size={13} color={T.textSoft} /></span>
                     <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.nome}</span>
                   </div>
@@ -2399,7 +2399,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
             <div title={k.exact} style={{
               // Su tablet il corpo scende: con importi a sette cifre il
               // numero a 28px veniva troncato coi puntini.
-              fontSize: isMobile ? font.size['3xl'] : isTablet ? font.size['3xl'] : 30, fontWeight: 700, color: k.color, lineHeight: 1.05,
+              fontSize: isMobile ? font.size['3xl'] : isTablet ? font.size['3xl'] : 28, fontWeight: 700, color: k.color, lineHeight: 1.05,
               letterSpacing: '-0.025em', ...tnum,
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
               minHeight: isMobile ? 34 : 38, display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
