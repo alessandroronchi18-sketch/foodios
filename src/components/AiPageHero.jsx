@@ -56,8 +56,7 @@ export default function AiPageHero({
           {(eyebrow || chainOnly) && (
             <div style={{
               display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap',
-              fontSize: 12, fontWeight: 700, letterSpacing: '0.05em',
-              textTransform: 'uppercase', color: T.textSoft,
+              ...typo.overline, color: T.textSoft,
             }}>
               {chainOnly && <ChainBadge size={12}/>}
               {eyebrow}
@@ -66,7 +65,7 @@ export default function AiPageHero({
                   display: 'inline-flex', alignItems: 'center', gap: 5,
                   padding: '0 8px', height: 20, borderRadius: 999,
                   background: `${stato.col}14`, color: stato.col,
-                  fontSize: 12, fontWeight: 700, letterSpacing: '0.02em', textTransform: 'none',
+                  ...typo.small, fontWeight: 700, letterSpacing: '0.02em', textTransform: 'none',
                 }}>
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: stato.col }}/>
                   {stato.lbl}
@@ -86,7 +85,7 @@ export default function AiPageHero({
           {subtitle && (
             <p style={{
               margin: '6px 0 0', maxWidth: 680,
-              fontSize: 13, lineHeight: 1.5, fontWeight: 500, color: T.textSoft,
+              ...typo.h3, fontWeight: 500, lineHeight: 1.5, color: T.textSoft,
             }}>
               {subtitle}
             </p>
@@ -105,13 +104,12 @@ export default function AiPageHero({
           {stats.map((s, i) => (
             <div key={i}>
               <div style={{
-                fontSize: 18, fontWeight: 800, color: T.text,
+                ...typo.h2, fontWeight: 800, color: T.text,
                 letterSpacing: '-0.02em', lineHeight: 1.2,
                 fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'",
               }}>{s.n}</div>
               <div style={{
-                fontSize: 12, fontWeight: 600, color: T.textSoft,
-                letterSpacing: '0.05em', textTransform: 'uppercase', marginTop: 2,
+                ...typo.overline, fontWeight: 600, color: T.textSoft, marginTop: 2,
               }}>{s.l}</div>
             </div>
           ))}
