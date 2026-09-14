@@ -402,8 +402,9 @@ Cosa ho verificato riga per riga in /Users/aler/foodos/src/views/MagazzinoView.j
 ## NON VERIFICATI — sostenuti da un agente, mai messi in dubbio
 
 > Aggiornamento 14/09/2026: dei 84 iniziali, i 19 di "Prodotti finiti" sono
-> stati verificati (11 risultavano già corretti, 8 corretti oggi, 0 rifiutati).
-> **Restano 65.**
+> stati verificati (11 risultavano già corretti, 8 corretti oggi, 0 rifiutati) e
+> così i 5 di "Materie prime" (2 già corretti, 2 corretti oggi, 1 metà e metà).
+> **Restano 60.**
 
 
 ### Prodotti finiti — 19, verificati il 14/09/2026
@@ -496,25 +497,38 @@ Cosa ho verificato riga per riga in /Users/aler/foodos/src/views/MagazzinoView.j
   - proposta: Cancellare le righe 142-153 (funzione, ref e useEffect di cleanup) e mettere `autoFocus` sull'input di riga 289, che è il comportamento che quella funzione voleva ottenere.
 
 
-### Materie prime — 5 da verificare
+### Materie prime — 5, verificati il 14/09/2026
 
-- **alta** · riga `597` · correttezza — L'ordinamento di default mette gli ingredienti OK in cima e gli esauriti in fondo
+> **Esito: 2 erano già stati corretti il 10 set, 2 corretti oggi, 1 mezzo e
+> mezzo.** Il piu' grave era il fabbisogno settimanale: prendeva le ultime 7
+> SESSIONI, non gli ultimi 7 giorni. Dopo la chiusura di agosto la somma di
+> luglio veniva chiamata "settimana", e da li' uscivano giorni di scorta in
+> rosso, stato critico e una lista di riordino con la spesa. Ora la finestra e'
+> fatta di giorni veri e dichiara da dove viene il numero: settimana misurata,
+> media di 4 settimane, oppure niente (meglio nessun numero che uno inventato).
+>
+> **La paginazione della tabella e' stata rifiutata con un fatto**: il magazzino
+> più grande in produzione ha 56 ingredienti (Pasticceria Mara 1), gli altri 30,
+> 9 e 5. La ricerca c'è dal 10 set. Una paginazione su 56 righe aggiunge un
+> comando da capire e non toglie niente.
+
+- **[GIÀ RISOLTO il 10/09]** · alta · riga `597` · correttezza — L'ordinamento di default mette gli ingredienti OK in cima e gli esauriti in fondo
   - E' la prima schermata del magazzino. Con 100 ingredienti il pasticcere apre la scheda, vede le prime venti righe verdi "OK" e deve scorrere fino in fondo per trovare il burro finito. La colonna Stato esiste proprio per portare in cima quello che ferma la produzione, e fa l'opposto.
   - proposta: `useSortable('stato', 'asc')`, oppure invertire la mappa (`{ esaurito: 3, critico: 2, attenzione: 1, ok: 0 }`) lasciando 'desc'. La freccia ▼ accanto a "Stato" deve corrispondere a "prima i problemi".
 
-- **alta** · riga `1144` · struttura — Con 100 ingredienti la tabella rende 100 righe: nessuna ricerca e nessuna paginazione, mentre la scheda Prezzi ha entrambe
+- **[RISOLTO A METÀ — ricerca aggiunta il 10/09, paginazione RIFIUTATA il 14/09]** · alta · riga `1144` · struttura — Con 100 ingredienti la tabella rende 100 righe: nessuna ricerca e nessuna paginazione, mentre la scheda Prezzi ha entrambe
   - E' la tabella piu' pesante delle cinque: 10 colonne per riga, un pulsante soglia, un pulsante elimina, una barra di avanzamento. Per trovare "vaniglia" in un ricettario da 200 voci l'unica strada e' Ctrl+F del browser, che su tablet dietro il banco non esiste. E il commento della scheda accanto dice
   - proposta: Portare lo stesso schema della scheda Prezzi: campo "Cerca ingrediente" sopra la tabella (che bypassa il limite) + `maxVisible` 80 con il piede "Mostrati 80 di 214" e "Mostra altri 80" già scritto alle righe 487-505.
 
-- **alta** · riga `725` · colore — Un ingrediente mai inventariato viene mostrato ESAURITO in rosso e conteggiato tra quelli a zero
+- **[GIÀ RISOLTO il 10/09]** · alta · riga `725` · colore — Un ingrediente mai inventariato viene mostrato ESAURITO in rosso e conteggiato tra quelli a zero
   - Un cliente nuovo carica il ricettario e apre Materie prime: tutte le righe rosse "ESAURITO", la banda rossa "Ingredienti finiti", il KPI "A zero: 35" e una lista di riordino di tutto il magazzino. Non e' vero: quella roba c'e', non e' ancora stata contata. Un allarme che suona alla prima apertura in
   - proposta: Distinguere "contato e a zero" da "mai contato": la stessa riga ha già il dato (`m.ultimoRifornimento` undefined → colonna Ultimo riforn. mostra "-"). Aggiungere uno stato 'mai_contato' grigio con etichetta "Da contare", escluso da `esauriti`, dalla banda rossa e dalla lista di riordino.
 
-- **alta** · riga `1133` · correttezza — "Fabb. sett." e "Giorni scorta" usano le ultime 7 SESSIONI, non gli ultimi 7 giorni: il tooltip dell'header dice il falso
+- **[CORRETTO il 14/09]** · alta · riga `1133` · correttezza — "Fabb. sett." e "Giorni scorta" usano le ultime 7 SESSIONI, non gli ultimi 7 giorni: il tooltip dell'header dice il falso
   - La pasticceria chiude tre settimane ad agosto. Al rientro la pagina prende le ultime 7 giornate di produzione (luglio), le divide per 7 come se fossero una settimana e annuncia "2 gg di scorta" in rosso, con una lista di riordino e una spesa stimata. Il numero e' inventato ma e' presentato come misu
   - proposta: Filtrare per data reale: `.filter(s => s.data >= dataMenoGiorni(todayLocal(), 7))` e dividere per i giorni effettivamente coperti, non per 7 fisso. Se le sessioni nella finestra sono zero, colonna "-" e stato senza copertura (come già fa `giorniScorta === null`). Il tooltip va riscritto solo dopo ch
 
-- **alta** · riga `1057` · struttura — Al dipendente e' nascosta la scheda "Prezzi ingredienti" ma la colonna Valore gli mostra ogni €/kg e il valore totale del magazzino
+- **[CORRETTO il 14/09]** · alta · riga `1057` · struttura — Al dipendente e' nascosta la scheda "Prezzi ingredienti" ma la colonna Valore gli mostra ogni €/kg e il valore totale del magazzino
   - Se si e' deciso che un dipendente non deve vedere i costi d'acquisto, nasconderli in una scheda e stamparli nella scheda che apre per prima non protegge niente: e' la stessa informazione, riga per riga, più il totale in cima. E fa sembrare che il permesso funzioni.
   - proposta: Se `isDipendente`, non rendere la colonna Valore (né il suo SortTH a riga 1135) e sostituire il KPI "Valore a magazzino" con qualcosa di utile a lui, per esempio "Ingredienti da contare". Stessa decisione anche per il pulsante Elimina di riga 1211, che oggi un dipendente puo' usare su ogni ingredien
 

@@ -8,7 +8,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S, motion as M, typo } from '../lib/theme'
 import { ssave as _ssave } from '../lib/storage'
-import { todayLocal } from '../lib/dateLocal'
+import { todayLocal, formatLocalDate } from '../lib/dateLocal'
 import { normIng, getR, translateIngredienteEN, buildIngCosti } from '../lib/foodcost'
 import { onEnterAutoComplete } from '../lib/autocomplete'
 import { SK_MAG, SK_EXCL, SK_LOGRIF } from '../lib/storageKeys'
@@ -68,27 +68,66 @@ function SectHead({ icon, title, sub, right }) {
 }
 
 // ─── Calcolo fabbisogno settimanale (helper) ─────────────────────────────────
-function calcolaFabbisognoSettimana(ricettario, giornaliero) {
-  const ultimi7 = [...(giornaliero || [])].sort((a, b) => b.data.localeCompare(a.data)).slice(0, 7)
-  const fabb = {}
-  for (const sess of ultimi7) {
-    for (const prod of (sess.prodotti || [])) {
-      const ric = Object.values(ricettario?.ricette || {}).find(r => r.nome === prod.nome)
-      if (!ric) continue
-      for (const ing of (ric.ingredienti || [])) {
-        const k = normIng(ing.nome)
-        fabb[k] = (fabb[k] || 0) + ing.qty1stampo * prod.stampi
+export function calcolaFabbisognoSettimana(ricettario, giornaliero, oggi = todayLocal()) {
+  // Audit 2026-09-14: prima si prendevano le ULTIME 7 SESSIONI, non gli ultimi
+  // 7 giorni, e la somma veniva presentata come "fabbisogno settimanale".
+  //
+  // Sulle pasticcerie che chiudono tre settimane ad agosto il conto diventava
+  // una bugia: al rientro le ultime 7 sessioni erano di luglio, la loro somma
+  // veniva chiamata "settimana" e da li' uscivano i giorni di scorta ("2 gg" in
+  // rosso), lo stato critico e una lista di riordino con la spesa stimata. Il
+  // tooltip della colonna diceva "consumo degli ultimi 7 giorni": diceva il falso.
+  //
+  // Ora la finestra e' fatta di giorni veri. Tre casi, e ognuno si dichiara:
+  //   settimana        → c'e' produzione negli ultimi 7 giorni: consumo misurato
+  //   media4settimane  → niente nell'ultima settimana ma qualcosa nel mese:
+  //                      media settimanale sulle 4 settimane
+  //   nessuno          → nessuna produzione nel mese: non si stima niente, le
+  //                      colonne restano "-" invece di inventare un'urgenza
+  //   stima            → nessuna sessione in assoluto: il vecchio fallback
+  //                      (un impasto per ricetta a settimana), dichiarato
+  const giorniFa = (n) => {
+    const d = new Date(`${oggi}T00:00:00`)
+    d.setDate(d.getDate() - n)
+    return formatLocalDate(d)
+  }
+  const sessioni = [...(giornaliero || [])].filter(s => s?.data).sort((a, b) => b.data.localeCompare(a.data))
+
+  const sommaSu = (elenco, divisore = 1) => {
+    const out = {}
+    for (const sess of elenco) {
+      for (const prod of (sess.prodotti || [])) {
+        const ric = Object.values(ricettario?.ricette || {}).find(r => r.nome === prod.nome)
+        if (!ric) continue
+        for (const ing of (ric.ingredienti || [])) {
+          const k = normIng(ing.nome)
+          out[k] = (out[k] || 0) + (ing.qty1stampo * prod.stampi) / divisore
+        }
       }
     }
+    return out
   }
-  // Audit 2026-09-09: quando lo storico non c'e', questo fallback inventa un
-  // consumo di "1 stampo per ricetta a settimana". Da quel numero nascono i
-  // giorni di scorta, lo stato (critico/attenzione) e la quantita' suggerita di
-  // riordino — tutti presentati come misurati. Un pasticcere che ordina su quei
-  // numeri ordina su un'ipotesi del software.
-  // Il fallback resta (un ordine di grandezza e' meglio di niente), ma da ora
-  // chi lo usa sa che e' una stima e lo scrive a schermo.
-  if (ultimi7.length === 0 && ricettario) {
+
+  const settimana = sessioni.filter(s => s.data >= giorniFa(7))
+  if (settimana.length > 0) {
+    return { fabb: sommaSu(settimana), base: 'settimana', stimato: false, sessioniUsate: settimana.length }
+  }
+
+  const mese = sessioni.filter(s => s.data >= giorniFa(28))
+  if (mese.length > 0) {
+    // Quattro settimane di consumo divise per quattro: una settimana media.
+    return { fabb: sommaSu(mese, 4), base: 'media4settimane', stimato: false, sessioniUsate: mese.length }
+  }
+
+  if (sessioni.length > 0) {
+    // C'e' uno storico, ma e' vecchio: meglio nessun numero che un numero finto.
+    return { fabb: {}, base: 'nessuno', stimato: false, sessioniUsate: 0 }
+  }
+
+  // Nessuna sessione mai registrata: resta il fallback, dichiarato come stima.
+  // Un ordine di grandezza e' meglio di niente, purche' chi guarda lo sappia.
+  const fabb = {}
+  if (ricettario) {
     for (const ric of Object.values(ricettario.ricette || {})) {
       if (getR(ric.nome, ric).tipo === 'interno') continue
       for (const ing of (ric.ingredienti || [])) {
@@ -97,10 +136,7 @@ function calcolaFabbisognoSettimana(ricettario, giornaliero) {
       }
     }
   }
-  // `stimato`: il consumo non viene dallo storico ma dal fallback. Chi mostra i
-  // giorni di scorta o il riordino deve dirlo, invece di far passare un'ipotesi
-  // per una misura.
-  return { fabb, stimato: ultimi7.length === 0, giorniStorico: ultimi7.length }
+  return { fabb, base: 'stima', stimato: true, sessioniUsate: 0 }
 }
 
 // ─── ProdottiFinitiTab (stock prodotti finiti per sede) ──────────────────────
@@ -1030,7 +1066,7 @@ export default function MagazzinoView({
     return [...new Set([...fromRic, ...fromMag])].filter(k => !esclusi.has(k)).sort()
   }, [ricettario, magPerNorm, esclusi])
 
-  const { fabb: fabbisogno, stimato: consumoStimato, giorniStorico } = useMemo(
+  const { fabb: fabbisogno, stimato: consumoStimato, base: baseConsumo } = useMemo(
     () => calcolaFabbisognoSettimana(ricettario, giornaliero), [ricettario, giornaliero])
 
   // Mappa costi €/kg (€/g): prezzi utente (ingredienti_costi) con fallback HORECA.
@@ -1502,6 +1538,18 @@ export default function MagazzinoView({
         })()}
 
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10 }}>
+          {/* Audit 2026-09-14: al dipendente e' nascosta la scheda "Prezzi
+              ingredienti" e la colonna Valore riga per riga, ma questo box gli
+              dava comunque il valore totale del magazzino. Se l'azienda ha
+              deciso che i costi d'acquisto non li vede, nasconderli in due
+              punti su tre non protegge niente: fa solo sembrare che il permesso
+              funzioni. Al suo posto il numero che a lui serve davvero. */}
+          {isDipendente ? (
+            <KPI icon={<Icon name="clipboard" size={18} />} label="Da contare"
+              value={maiContati.length}
+              color={maiContati.length > 0 ? C.amber : C.green}
+              sub={maiContati.length > 0 ? 'mai pesati: la giacenza non è vera' : 'tutti gli ingredienti sono stati contati'}/>
+          ) : (
           <KPI icon={<Icon name="money" size={18} />} label="Valore a magazzino" value={fmt0(valoreStock)} highlight
             sub={(() => {
               const conValore = righe.filter(r => r.valore > 0)
@@ -1513,6 +1561,7 @@ export default function MagazzinoView({
               else if (senza > 0) parti.push(`${senza} senza prezzo`)
               return parti.join(' · ')
             })()}/>
+          )}
           <KPI icon={<Icon name={esauriti.length > 0 ? 'alert' : 'cart'} size={18} />}
             label={esauriti.length > 0 ? 'A zero' : 'Da ordinare'}
             value={esauriti.length > 0 ? esauriti.length : sottoSoglia.length}
@@ -1859,20 +1908,38 @@ export default function MagazzinoView({
             </div>
           )}
           <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, overflow: 'hidden', boxShadow: SHADOW_PREMIUM }}>
-            {/* Audit 2026-09-09: senza sessioni di produzione registrate il consumo
-              e' una stima del software (un impasto per ricetta a settimana), e da
-              quella nascono giorni di scorta, stato e quantita' da ordinare: tre
-              colonne su sei. Un tooltip lo legge chi ci passa sopra; questo lo
-              vedono tutti. */}
-          {consumoStimato && righe.length > 0 && (
+            {/* Da dove viene il consumo, detto a chi guarda e non solo in un
+              tooltip: da quel numero nascono giorni di scorta, stato e quantita'
+              da ordinare, tre colonne su sei.
+              Audit 2026-09-09: il caso "nessuna sessione registrata" era una
+              stima del software presentata come misura.
+              Audit 2026-09-14: gli altri due casi. Le ultime 7 SESSIONI non sono
+              gli ultimi 7 giorni, e dopo tre settimane di chiusura ad agosto la
+              somma di luglio veniva chiamata "settimana". */}
+          {baseConsumo !== 'settimana' && righe.length > 0 && (
             <div style={{ background: C.amberLight, border: `1px solid ${C.amber}40`, borderRadius: 10, padding: '10px 14px', marginBottom: 10, fontSize: typo.small.fontSize, color: C.textMid, lineHeight: 1.5, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
               <span style={{ flexShrink: 0, marginTop: 1, color: C.amber }}><Icon name="warning" size={14} /></span>
+              {baseConsumo === 'media4settimane' ? (
+                <span>
+                  <b style={{ color: C.text }}>Consumo sulla media delle ultime 4 settimane.</b>{' '}
+                  Negli ultimi 7 giorni non hai registrato produzione, quindi per i giorni di
+                  scorta uso la media del mese. Dopo una chiusura lunga il numero va guardato
+                  con l'occhio, non seguito alla lettera.
+                </span>
+              ) : baseConsumo === 'nessuno' ? (
+                <span>
+                  <b style={{ color: C.text }}>Niente produzione nelle ultime 4 settimane.</b>{' '}
+                  Senza consumo recente non calcolo giorni di scorta né quantità da ordinare:
+                  le colonne restano vuote finché non registri una giornata in Produzione.
+                  Meglio nessun numero che un numero inventato.
+                </span>
+              ) : (
               <span>
                 <b style={{ color: C.text }}>Giorni scorta, stato e quantità da ordinare sono stime.</b>{' '}
                 Non hai ancora sessioni di produzione registrate, quindi il consumo lo calcolo
                 ipotizzando un impasto per ricetta a settimana. Registra qualche giornata in
                 Produzione e questi numeri diventano i tuoi.
-              </span>
+              </span>)}
             </div>
           )}
           <div style={{ overflowX: 'auto' }}>
@@ -1881,7 +1948,10 @@ export default function MagazzinoView({
                   <tr style={{ background: '#F8F4F2' }}>
                     <SortTH k="nome" active={magKey === 'nome'} dir={magDir} onToggle={magToggle}>Ingrediente</SortTH>
                     <SortTH k="giacenza" right active={magKey === 'giacenza'} dir={magDir} onToggle={magToggle}>Giacenza</SortTH>
-                    <SortTH k="fabb" right active={magKey === 'fabb'} dir={magDir} onToggle={magToggle} tip="Fabbisogno settimanale stimato dal consumo degli ultimi 7 giorni">Fabb. sett.</SortTH>
+                    <SortTH k="fabb" right active={magKey === 'fabb'} dir={magDir} onToggle={magToggle} tip={baseConsumo === 'settimana' ? 'Quanto ne hai consumato negli ultimi 7 giorni'
+                      : baseConsumo === 'media4settimane' ? 'Media settimanale sulle ultime 4 settimane: negli ultimi 7 giorni non c\'e\' produzione registrata'
+                      : baseConsumo === 'nessuno' ? 'Nessuna produzione registrata nelle ultime 4 settimane: non c\'e\' niente da misurare'
+                      : 'Stima del software (un impasto per ricetta a settimana): non hai ancora sessioni di produzione'}>Fabb. sett.</SortTH>
                     <SortTH k="giorniScorta" right active={magKey === 'giorniScorta'} dir={magDir} onToggle={magToggle} tip={consumoStimato ? "ATTENZIONE: non hai ancora sessioni di produzione registrate, quindi il consumo e' una stima del software (un impasto per ricetta a settimana). Registra qualche giornata e questi numeri diventano tuoi." : "Giorni di scorta rimanenti al ritmo di consumo attuale"}>Giorni scorta</SortTH>
                     <SortTH k="valore" right active={magKey === 'valore'} dir={magDir} onToggle={magToggle} tip="Valore della giacenza = quantità × prezzo €/kg">Valore</SortTH>
                     <SortTH k="riordino" right active={magKey === 'riordino'} dir={magDir} onToggle={magToggle} tip="Quantità consigliata da ordinare per coprire ~14 giorni di consumo">Da ordinare</SortTH>
