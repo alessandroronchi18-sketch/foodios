@@ -12,7 +12,7 @@ import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from '../components/Icon'
 import ChainBadge from '../components/ChainBadge'
 import UpgradeModal from '../components/UpgradeModal'
-import { canAccessView, VIEW_MIN_PLAN, viewDisplayLabel } from '../lib/planAccess'
+import { canAccessView, VIEW_MIN_PLAN, viewDisplayLabel, PLAN_LABEL } from '../lib/planAccess'
 
 const BRAND      = T.brand     || '#6E0E1A'
 const BRAND_DARK = '#4A0612'
@@ -102,7 +102,7 @@ const CLUSTERS = [
 // Le 5 Chain-exclusive in cluster dedicato finale
 const CHAIN_CLUSTER = {
   id: 'chain',
-  label: 'Esclusive piano Chain',
+  label: `Esclusive piano ${PLAN_LABEL.enterprise}`,
   sub: 'Disponibili con il piano Insegna',
   accent: '#FFD86B',
   icon: 'sparkles',

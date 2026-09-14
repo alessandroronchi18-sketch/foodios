@@ -27,50 +27,59 @@ import FloatingActions from './components/FloatingActions'
 import { supabase } from './lib/supabase'
 import { DipendenteOperativoProvider, useDipendenteOperativo } from './hooks/useDipendenteOperativo'
 import SelezionaDipendente from './auth/SelezionaDipendente'
+import useIsMobile from './lib/useIsMobile'
+import { color as T, radius as R, typo, typoMobile } from './lib/theme'
 
 function TrialScadutoPage({ org, onSignOut }) {
-  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
-  const nome = org?.nome || 'la tua attivita\''
+  // Prima `isMobile` si leggeva una volta sola al primo render: girando il
+  // telefono, o su uno schermo ridimensionato, l'impaginazione restava quella
+  // sbagliata. Ora usa lo stesso hook di tutto il resto del tool.
+  const isMobile = useIsMobile()
+  const nome = org?.nome || 'la tua attività'
   return (
     <div style={{
       minHeight: '100vh',
-      background: '#F8FAFC',
+      background: T.bg,
       padding: isMobile ? '24px 14px' : '40px 20px',
       fontFamily: "'Inter', system-ui, sans-serif",
     }}>
       <div style={{ maxWidth: 880, margin: '0 auto' }}>
         <div style={{ textAlign: 'center', marginBottom: isMobile ? 22 : 32 }}>
           <Logo size={isMobile ? 48 : 56} style={{ display: 'inline-block', borderRadius: 14, boxShadow: '0 10px 30px rgba(110,14,26,0.30)', marginBottom: 16 }} />
-          <h1 style={{ color: '#1C0A0A', margin: '0 0 8px', fontSize: isMobile ? 22 : 26, letterSpacing: '-0.02em' }}>
-            Il tuo periodo di prova e' finito
+          <h1 style={{ ...(isMobile ? typoMobile.h1 : typo.h1), color: T.text, margin: '0 0 8px' }}>
+            La prova è finita
           </h1>
-          <p style={{ color: '#6B4C44', lineHeight: 1.6, fontSize: 14, margin: 0, padding: '0 4px' }}>
-            Attiva un abbonamento per riprendere da dove hai lasciato con {nome}.
+          <p style={{ ...typo.body, color: T.textMid, margin: 0, padding: '0 4px' }}>
+            Attiva un abbonamento e riprendi da dove avevi lasciato con {nome}.
           </p>
         </div>
         <div style={{
           maxWidth: 640, margin: '0 auto 20px',
-          background: '#FDF4F2', border: '1px solid #F0D4CE',
-          borderRadius: 10, padding: isMobile ? '12px 14px' : '14px 18px',
-          fontSize: 13, color: '#4B3832', lineHeight: 1.6,
+          background: T.brandLight, border: `1px solid ${T.brandSoft}`,
+          borderRadius: R.lg, padding: isMobile ? '12px 14px' : '14px 18px',
+          ...typo.small, color: T.textMid, lineHeight: 1.6,
         }}>
-          I tuoi dati restano al sicuro per <strong>60 giorni</strong>. Se attivi
-          l'abbonamento entro questa finestra ritrovi tutto esattamente come lo avevi
-          lasciato: ricette, magazzino, chiusure, storico.
+          {/* Prima diceva "i tuoi dati restano al sicuro per 60 giorni", e
+              lasciava capire che al sessantunesimo sparissero. Non è così: non
+              c'è niente che li cancella. Quello che è vero è che restano dove
+              sono e che li puoi portare via quando vuoi. */}
+          Non cancelliamo niente. Ricette, magazzino, chiusure e storico restano
+          dove sono: il giorno che riattivi, ritrovi tutto com'era. Se invece
+          vuoi chiudere qui, scrivici e ti mandiamo i tuoi dati in Excel.
         </div>
         <AbbonamentoPanel org={org} isInline />
         <div style={{ textAlign: 'center', marginTop: 24, display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center' }}>
-          <div style={{ fontSize: 13, color: '#6B4C44' }}>
+          <div style={{ ...typo.small, color: T.textMid }}>
             Hai una domanda prima di decidere?{' '}
-            <a href="mailto:support@foodos.it" style={{ color: '#6E0E1A', fontWeight: 600 }}>
+            <a href="mailto:support@foodos.it" style={{ color: T.brand, fontWeight: 600 }}>
               Scrivici
             </a>
-            , rispondiamo subito.
+            , rispondiamo noi.
           </div>
           <button onClick={onSignOut} style={{
             padding: '12px 20px', minHeight: 44,
-            background: 'transparent', color: '#6B4C44',
-            border: '1px solid #E8DDD8', borderRadius: 10, fontSize: 14, cursor: 'pointer',
+            background: 'transparent', color: T.textMid,
+            border: `1px solid ${T.border}`, borderRadius: R.lg, ...typo.body, cursor: 'pointer',
             fontFamily: 'inherit',
           }}>Esci dall'account</button>
         </div>
@@ -292,7 +301,7 @@ export default function App() {
           <div style={{ fontSize:14, color:'#6B4C44', lineHeight:1.6, marginBottom:22 }}>
             Hai cancellato l'account il {auth.org?.deleted_at ? new Date(auth.org.deleted_at).toLocaleDateString('it-IT') : '-'}. I dati sono conservati per <b>90 giorni</b>.
             <br/><br/>
-            Hai cambiato idea? Scrivici a <a href="mailto:supporto@foodos.it?subject=Recupero%20account" style={{ color:'#6E0E1A', fontWeight:700 }}>supporto@foodos.it</a> e ripristiniamo tutto.
+            Hai cambiato idea? Scrivici a <a href="mailto:support@foodos.it?subject=Recupero%20account" style={{ color:'#6E0E1A', fontWeight:700 }}>support@foodos.it</a> e ripristiniamo tutto.
           </div>
           <button onClick={() => auth.signOut()} style={{ padding:'10px 20px', background:'transparent', color:'#6B4C44', border:'1px solid #E8DDD8', borderRadius:10, fontSize:13, cursor:'pointer' }}>
             Esci
@@ -318,7 +327,7 @@ export default function App() {
           </div>
           <div style={{ display:'flex', flexDirection:'column', gap:8, fontSize:12, color:'#94785D', marginBottom:24, background:'#FBF6F1', borderRadius:10, padding:'14px 16px', textAlign:'left' }}>
             <div><strong style={{ color:'#3F2D29' }}>Hai dubbi o vuoi velocizzare?</strong></div>
-            <div>Scrivici a <a href="mailto:supporto@foodos.it" style={{ color:'#6E0E1A', fontWeight:700 }}>supporto@foodos.it</a> raccontando della tua attività.</div>
+            <div>Scrivici a <a href="mailto:support@foodos.it" style={{ color:'#6E0E1A', fontWeight:700 }}>support@foodos.it</a> raccontando della tua attività.</div>
           </div>
           <button onClick={() => auth.signOut()} style={{ padding:'10px 20px', background:'transparent', color:'#6B4C44', border:'1px solid #E8DDD8', borderRadius:10, fontSize:13, cursor:'pointer' }}>
             Esci

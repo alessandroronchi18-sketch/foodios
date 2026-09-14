@@ -2,7 +2,7 @@
 // Invita all'upgrade invece di nascondere (o dare errore) la funzione.
 import React from 'react'
 import { color as T, radius as R, shadow as S } from '../lib/theme'
-import { requiredPlanLabel } from '../lib/planAccess'
+import { requiredPlanLabel, PLAN_LABEL } from '../lib/planAccess'
 
 const VIEW_LABELS = {
   'confronto-sedi':     'Confronto sedi',
@@ -22,7 +22,7 @@ const VIEW_LABELS = {
 }
 
 export default function UpgradeGate({ view, onUpgrade }) {
-  const piano = requiredPlanLabel(view) || 'Chain'
+  const piano = requiredPlanLabel(view) || PLAN_LABEL.enterprise
   const nome = VIEW_LABELS[view] || 'Questa funzione'
   return (
     <div style={{ maxWidth: 520, margin: '60px auto', textAlign: 'center', padding: '40px 28px',

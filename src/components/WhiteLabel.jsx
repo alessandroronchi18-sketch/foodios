@@ -4,6 +4,7 @@ import { useConfirm } from './ConfirmModal'
 import { sload, ssave } from '../lib/storage'
 import { supabase } from '../lib/supabase'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
+import { PLAN_LABEL } from '../lib/planAccess'
 
 export const WL_KEY = 'pasticceria-white-label-v1'
 
@@ -81,7 +82,7 @@ export default function WhiteLabel({ orgId, piano, notify }) {
       <div style={{ fontSize: 12, color: '#64748B', lineHeight: 1.6, marginBottom: 14 }}>
         Sì, Foodos permette di applicare il tuo <strong>logo, il nome dell'app e il colore del brand</strong> all'interfaccia:
         compaiono nella sidebar e nell'intestazione, e il nome custom sostituisce "Foodos" anche nel titolo del browser.
-        È incluso nel piano <strong>Chain</strong> - puoi attivarlo subito senza dover scrivere a nessuno.
+        È incluso nel piano <strong>{PLAN_LABEL.enterprise}</strong> - puoi attivarlo subito senza dover scrivere a nessuno.
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, alignItems: 'center', marginBottom: 14 }}>
         <ul style={{ flex: '1 1 240px', margin: 0, padding: '0 0 0 18px', fontSize: 12, color: '#475569', lineHeight: 1.7 }}>
@@ -95,7 +96,7 @@ export default function WhiteLabel({ orgId, piano, notify }) {
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
         <button onClick={upgradeChain}
           style={{ padding: '10px 22px', minHeight: touchH, background: '#6E0E1A', color: '#FFF', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', flex: isMobile ? '1 1 100%' : '0 0 auto' }}>
-          Passa al piano Chain
+          Passa al piano {PLAN_LABEL.enterprise}
         </button>
         <a href="mailto:support@foodos.it?subject=Personalizzazione%20Foodos"
           style={{ padding: '10px 18px', minHeight: touchH, background: '#FFF', color: '#6E0E1A', border: '1px solid #6E0E1A', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flex: isMobile ? '1 1 100%' : '0 0 auto' }}>
@@ -169,7 +170,7 @@ export default function WhiteLabel({ orgId, piano, notify }) {
       <div style={card}>
         <div style={{ fontWeight: 700, fontSize: 15, color: '#0F172A', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="palette" size={16} />Personalizzazione</div>
         <div style={{ fontSize: 12, color: '#64748B', marginBottom: 18, lineHeight: 1.6 }}>
-          Esclusiva piano Chain. Applica logo, nome app e colore del brand all'interfaccia (sidebar, intestazione, navigazione e titolo del browser) per gli utenti della tua organizzazione.
+          Esclusiva piano {PLAN_LABEL.enterprise}. Applica logo, nome app e colore del brand all'interfaccia (sidebar, intestazione, navigazione e titolo del browser) per gli utenti della tua organizzazione.
         </div>
 
         <div style={{ marginBottom: 16 }}>

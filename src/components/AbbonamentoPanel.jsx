@@ -11,6 +11,7 @@ import { color as T, radius as R, shadow as S } from '../lib/theme'
 import { apiFetch } from '../lib/apiFetch'
 import usePlanPricing, { fmtPrezzo } from '../lib/usePlanPricing'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
+import { PLAN_LABEL } from '../lib/planAccess'
 
 // Audit 2026-06-21: 3-tier Bottega/Maestro/Insegna con ROI claim.
 // Fallback statico - viene sovrascritto dalla query plan_pricing al mount
@@ -186,7 +187,7 @@ export default function AbbonamentoPanel({ org, notify, isInline = false }) {
           </div>
           <div style={{ fontSize:18, fontWeight:800, color:T.text, letterSpacing:'-0.01em' }}>
             {isPagante
-              ? (org?.piano === 'enterprise' ? 'Chain' : 'Pro')
+              ? (PLAN_LABEL[org?.piano] || 'Attivo')
               : 'Trial gratuito'}
           </div>
           {stateLabel && (

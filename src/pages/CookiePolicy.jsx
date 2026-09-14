@@ -21,15 +21,15 @@ export default function CookiePolicy() {
         Foodos utilizza esclusivamente <strong>cookie tecnici di prima parte strettamente necessari</strong>:
       </LegalP>
       <LegalUl items={[
-        <><strong>Cookie di sessione di autenticazione</strong> (Supabase Auth): conservano il token JWT che ti tiene loggato. Scadono alla chiusura del browser o al logout esplicito. Senza questi cookie, l'accesso al servizio non e' possibile.</>,
+        <><strong>Cookie di sessione di autenticazione</strong> (Supabase Auth): conservano il token JWT che ti tiene loggato. Scadono alla chiusura del browser o al logout esplicito. Senza questi cookie, l'accesso al servizio non è possibile.</>,
         <><strong>localStorage / sessionStorage</strong>: contengono preferenze interfaccia (es. stato apertura sezioni menu) e cache temporanea dei dati per ridurre i tempi di caricamento. Sono dati esclusivamente locali, non vengono trasmessi a server di terze parti.</>,
       ]} />
 
       <LegalH2>3. Cookie di terze parti</LegalH2>
       <LegalP>
-        Quando attivi il pagamento, il flusso di checkout puo' utilizzare cookie tecnici di
+        Quando attivi il pagamento, il flusso di checkout può utilizzare cookie tecnici di
         <strong> Stripe Payments</strong> esclusivamente per la sicurezza della transazione
-        (fraud prevention). Stripe e' certificato PCI-DSS L1. Vedi la{' '}
+        (fraud prevention). Stripe è certificato PCI-DSS L1. Vedi la{' '}
         <LegalLink href="https://stripe.com/cookies-policy/legal" target="_blank">Cookie Policy di Stripe</LegalLink>.
       </LegalP>
       <LegalP>
@@ -41,7 +41,7 @@ export default function CookiePolicy() {
       <LegalP>
         I cookie tecnici e quelli strettamente necessari NON richiedono il consenso preventivo
         dell'utente ai sensi dell'art. 122 D.Lgs. 196/2003 e del Provvedimento del Garante
-        dell'8 maggio 2014. Poiche' Foodos utilizza solo questa categoria di cookie, non e' presente
+        dell'8 maggio 2014. Poiché Foodos utilizza solo questa categoria di cookie, non è presente
         un banner di gestione del consenso.
       </LegalP>
 
@@ -60,8 +60,8 @@ export default function CookiePolicy() {
 
       <LegalH2>6. Modifiche</LegalH2>
       <LegalP>
-        La presente Cookie Policy puo' essere aggiornata periodicamente. La data dell'ultimo
-        aggiornamento e' indicata in cima alla pagina.
+        La presente Cookie Policy può essere aggiornata periodicamente. La data dell'ultimo
+        aggiornamento è indicata in cima alla pagina.
       </LegalP>
 
       <LegalH2>7. Contatti</LegalH2>

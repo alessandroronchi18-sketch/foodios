@@ -52,7 +52,7 @@ export default function Rimborsi() {
       <LegalH2>5. Diritto di recesso B2C</LegalH2>
       <LegalP>
         Il recesso di 14 giorni previsto dal Codice del Consumo (D.Lgs. 206/2005)
-        non si applica: Foodos e' un servizio B2B rivolto a partite IVA.
+        non si applica: Foodos è un servizio B2B rivolto a partite IVA.
       </LegalP>
 
       <LegalH2>6. Contestazioni</LegalH2>

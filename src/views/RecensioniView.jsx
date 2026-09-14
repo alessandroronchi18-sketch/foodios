@@ -8,7 +8,7 @@
 
 import React, { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { color as T } from '../lib/theme'
+import { color as T, radius as R, typo } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { callAi } from '../lib/aiClient'
 import Icon from '../components/Icon'
@@ -20,6 +20,9 @@ const TXT = T.text || '#0E1726'
 const MID = T.textMid || '#475264'
 const CARD = T.bgCard || '#FFF'
 const BORDER = T.border || '#E5E9EF'
+
+// Oltre questa lunghezza non è più una recensione: è un incolla sbagliato.
+const MAX_RECENSIONE = 2000
 
 const TONI = [
   { id: 'caldo',    label: 'Caldo', desc: 'Empatico, parole gentili, come parli al banco' },
@@ -39,15 +42,20 @@ export default function RecensioniView({ nomeAttivita }) {
   const [copiato, setCopiato] = useState(null)
 
   async function genera() {
-    if (!recensione.trim()) return
+    const testo = recensione.trim()
+    if (!testo) return
+    if (testo.length > MAX_RECENSIONE) {
+      setError(`Questa è lunga ${testo.length.toLocaleString('it-IT')} caratteri: le recensioni vere stanno sotto i ${MAX_RECENSIONE.toLocaleString('it-IT')}. Incolla solo la recensione.`)
+      return
+    }
     setLoading(true); setError(null); setRisposte(null)
     try {
       const { data: { session } } = await supabase.auth.getSession()
       const token = session?.access_token
       if (!token) throw new Error('Sessione scaduta')
 
-      const system = `Sei un consulente di customer experience per attivita' di
-ristorazione/pasticceria/gelateria italiana. L'utente ti dara' una recensione
+      const system = `Sei un consulente di customer experience per attività di
+ristorazione/pasticceria/gelateria italiana. L'utente ti darà una recensione
 ricevuta su una piattaforma pubblica. Devi generare ESATTAMENTE 3 risposte in
 italiano corretto, una per ogni tono indicato dall'utente. Ogni risposta:
 - Max 80 parole
@@ -65,12 +73,12 @@ Output in JSON ESATTAMENTE in questo formato:
 
 NIENTE testo prima o dopo il JSON. NIENTE markdown.`
 
-      const userMsg = `Attivita': ${nomeAttivita || 'pasticceria/gelateria'}
+      const userMsg = `Attività: ${nomeAttivita || 'pasticceria/gelateria'}
 Autore recensione: ${autore || 'cliente anonimo'}
 Stelle (1-5): ${stelle}
 
 Testo della recensione:
-"${recensione.trim()}"
+"${testo}"
 
 Genera le 3 risposte come da istruzioni.`
 
@@ -135,37 +143,54 @@ Genera le 3 risposte come da istruzioni.`
       <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 14, padding: isMobile ? 16 : isTablet ? 18 : 22, marginBottom: 18 }}>
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr', gap: 12, marginBottom: 12 }}>
           <div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: SOFT, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 5 }}>
-              Autore (opzionale)
-            </div>
-            <input value={autore} onChange={e => setAutore(e.target.value)}
+            <label htmlFor="rec-autore" style={{ ...typo.overline, color: SOFT, marginBottom: 5, display: 'block' }}>
+              Chi l'ha scritta (se lo sai)
+            </label>
+            <input id="rec-autore" value={autore} onChange={e => setAutore(e.target.value)}
               placeholder="es. Maria L."
               style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${BORDER}`, fontSize: 14, color: TXT, fontFamily: 'inherit', boxSizing: 'border-box' }}/>
           </div>
           <div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: SOFT, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 5 }}>
-              Stelle
+            <div style={{ ...typo.overline, color: SOFT, marginBottom: 5 }}>
+              Quante stelle ti ha dato
             </div>
-            <div style={{ display: 'flex', gap: 4 }}>
+            <div role="radiogroup" aria-label="Stelle della recensione"
+              style={{ display: 'flex', gap: 2, alignItems: 'center' }}>
               {[1,2,3,4,5].map(n => (
-                <button key={n} onClick={() => setStelle(n)}
-                  style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 22, padding: 2, opacity: n <= stelle ? 1 : 0.25 }}>★</button>
+                <button key={n} type="button" role="radio" aria-checked={n === stelle}
+                  aria-label={n === 1 ? '1 stella' : `${n} stelle`}
+                  onClick={() => setStelle(n)}
+                  style={{ background: 'transparent', border: 'none', cursor: 'pointer',
+                    padding: 6, minHeight: 44, minWidth: 36, display: 'inline-flex',
+                    alignItems: 'center', justifyContent: 'center', lineHeight: 0 }}>
+                  <Icon name="star" size={20} color={n <= stelle ? T.amber : T.border} />
+                </button>
               ))}
+              <span style={{ ...typo.small, color: MID, marginLeft: 6, whiteSpace: 'nowrap' }}>
+                {stelle === 1 ? '1 stella' : `${stelle} stelle`}
+              </span>
             </div>
           </div>
         </div>
         <div style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: SOFT, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 5 }}>
-            Testo recensione *
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, marginBottom: 5 }}>
+            <label htmlFor="rec-testo" style={{ ...typo.overline, color: SOFT }}>
+              Testo della recensione
+            </label>
+            {recensione.length > MAX_RECENSIONE * 0.75 && (
+              <span style={{ ...typo.small, color: recensione.length > MAX_RECENSIONE ? T.red : SOFT }}>
+                {recensione.length.toLocaleString('it-IT')} / {MAX_RECENSIONE.toLocaleString('it-IT')}
+              </span>
+            )}
           </div>
-          <textarea value={recensione} onChange={e => setRecensione(e.target.value)}
+          <textarea id="rec-testo" value={recensione} onChange={e => { setRecensione(e.target.value); if (error) setError(null) }}
             placeholder="Incolla qui il testo della recensione che hai ricevuto…"
             rows={6}
             style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: `1px solid ${BORDER}`, fontSize: 14, color: TXT, fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical', lineHeight: 1.5 }}/>
         </div>
         <button onClick={genera} disabled={loading || !recensione.trim()}
           style={{
-            background: recensione.trim() && !loading ? BRAND : '#CBD5E1',
+            background: recensione.trim() && !loading ? BRAND : T.borderStr,
             color: '#FFF', border: 'none', padding: '12px 22px',
             borderRadius: 10, fontSize: 14, fontWeight: 700,
             cursor: recensione.trim() && !loading ? 'pointer' : 'not-allowed',
@@ -176,8 +201,8 @@ Genera le 3 risposte come da istruzioni.`
       </div>
 
       {error && (
-        <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 10, padding: '12px 16px', marginBottom: 16, color: '#991B1B', fontSize: 13, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Icon name="alert" size={14} color="#991B1B"/> {error}
+        <div style={{ background: T.redLight, border: `1px solid ${T.red}33`, borderRadius: R.lg, padding: '12px 16px', marginBottom: 16, color: T.red, ...typo.small, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Icon name="alert" size={14} color={T.red}/> {error}
         </div>
       )}
 
@@ -192,12 +217,12 @@ Genera le 3 risposte come da istruzioni.`
                   <div style={{ fontSize: 13, fontWeight: 800, color: TXT }}>{t.label}</div>
                   <div style={{ fontSize: 12, color: SOFT, marginTop: 2 }}>{t.desc}</div>
                 </div>
-                <div style={{ flex: 1, background: '#FAFAF6', borderRadius: 8, padding: '10px 12px', fontSize: 13, color: MID, lineHeight: 1.55, minHeight: 120 }}>
+                <div style={{ flex: 1, background: T.bgSubtle, borderRadius: R.md, padding: '10px 12px', ...typo.small, color: MID, lineHeight: 1.55, minHeight: 120 }}>
                   {txt}
                 </div>
                 <button onClick={() => copia(t.id, txt)}
                   style={{
-                    background: copiato === t.id ? '#16A34A' : '#0E1726', color: '#FFF',
+                    background: copiato === t.id ? T.green : T.text, color: T.white,
                     border: 'none', padding: '9px 14px', borderRadius: 8,
                     fontSize: 12, fontWeight: 700, cursor: 'pointer',
                     display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,

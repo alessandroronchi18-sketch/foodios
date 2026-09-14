@@ -7,6 +7,7 @@ import { color as T, radius as R, shadow as S, motion as M, tnum as _tnum, typo 
 import { useToast } from '../components/Toast'
 import { apiFetch } from '../lib/apiFetch'
 import Icon from '../components/Icon'
+import { PLAN_LABEL, PLAN_PRICE_EUR } from '../lib/planAccess'
 import PersonalizeDemoModal from './PersonalizeDemoModal'
 import MethodChangeRequestsPanel from './MethodChangeRequestsPanel'
 
@@ -604,7 +605,7 @@ function NuovoCodiceScontoModal({ onClose, onCreato }) {
                   background: selected ? '#FEF7F5' : '#FFF',
                   color: selected ? '#6E0E1A' : '#64748B', cursor: 'pointer',
                 }}>
-                {selected && '✓ '}{p === 'pro' ? 'Pro (€89)' : 'Chain (€149)'}
+                {selected && '✓ '}{PLAN_LABEL[p] || p} ({PLAN_PRICE_EUR[p] ?? '—'} €)
               </button>
             )
           })}

@@ -15,13 +15,13 @@ export default function PrivacyPolicy() {
       <LegalP>
         <strong>[RAGIONE SOCIALE]</strong> - sede legale: [INDIRIZZO COMPLETO], C.F./P.IVA [INSERIRE].<br />
         Email del titolare: <LegalLink href="mailto:support@foodos.it">support@foodos.it</LegalLink>.<br />
-        Non e' nominato un DPO obbligatorio ai sensi dell'art. 37 GDPR. Per richieste relative
+        Non è nominato un DPO obbligatorio ai sensi dell'art. 37 GDPR. Per richieste relative
         ai dati personali contatta il titolare all'indirizzo email indicato.
       </LegalP>
 
       <LegalH2>2. Categorie di dati raccolti</LegalH2>
       <LegalUl items={[
-        <><strong>Dati identificativi e di contatto:</strong> email, nome, cognome, telefono (facoltativo), nome dell'attivita', tipo di attivita', citta'.</>,
+        <><strong>Dati identificativi e di contatto:</strong> email, nome, cognome, telefono (facoltativo), nome dell'attività, tipo di attività, città.</>,
         <><strong>Dati di fatturazione (B2B):</strong> ragione sociale, P.IVA, codice fiscale, codice destinatario SDI / PEC, indirizzo completo. Necessari per emettere fattura elettronica.</>,
         <><strong>Dati operativi inseriti dall'utente:</strong> ricette, ingredienti, costi, dati di produzione, chiusure cassa, fatture fornitori, dati HACCP, anagrafica personale. Sono dati di tua proprieta'.</>,
         <><strong>Dati di accesso e tecnici:</strong> indirizzo IP, user-agent, timestamp degli accessi, log di rate limiting (necessari per sicurezza).</>,
@@ -30,7 +30,7 @@ export default function PrivacyPolicy() {
 
       <LegalH2>3. Finalita' e base giuridica</LegalH2>
       <LegalUl items={[
-        <><strong>Erogazione del servizio</strong> (esecuzione del contratto, art. 6.1.b GDPR): account, sincronizzazione dati, accesso alle funzionalita', supporto.</>,
+        <><strong>Erogazione del servizio</strong> (esecuzione del contratto, art. 6.1.b GDPR): account, sincronizzazione dati, accesso alle funzionalità, supporto.</>,
         <><strong>Fatturazione elettronica</strong> (obbligo di legge, art. 6.1.c GDPR): emissione fattura via Sistema di Interscambio (SDI).</>,
         <><strong>Comunicazioni transazionali</strong> (esecuzione del contratto): conferma registrazione, attivazione, scadenza trial, ricevute, avvisi pagamento.</>,
         <><strong>Miglioramento del servizio</strong> (legittimo interesse, art. 6.1.f GDPR): analisi aggregata e anonima degli utilizzi, audit log per sicurezza.</>,
@@ -86,7 +86,7 @@ export default function PrivacyPolicy() {
         <><strong>Vercel Inc.</strong> (USA, regione di esecuzione Europa) - hosting CDN, serverless functions. SCC applicabili.</>,
         <><strong>Stripe Payments Europe</strong> (Irlanda) - gestione pagamenti e subscription. Certificato PCI-DSS Livello 1.</>,
         <><strong>Resend Inc.</strong> (USA) - invio email transazionali. SCC applicabili.</>,
-        <><strong>Anthropic, PBC</strong> (USA) - funzionalita' AI Assistant facoltative. I dati inviati all'AI non vengono usati per training (vedi privacy Anthropic). SCC applicabili.</>,
+        <><strong>Anthropic, PBC</strong> (USA) - funzionalità AI Assistant facoltative. I dati inviati all'AI non vengono usati per training (vedi privacy Anthropic). SCC applicabili.</>,
         <><strong>[PROVIDER SDI]</strong> (Italia) - emissione fattura elettronica via Sistema di Interscambio. Riceve dati di fatturazione strettamente necessari.</>,
         <><strong>GitHub Inc. / Sentry / log providers</strong> - log di sistema anonimi per debug.</>,
       ]} />
@@ -96,20 +96,20 @@ export default function PrivacyPolicy() {
         Foodos utilizza esclusivamente <strong>cookie tecnici</strong> necessari al funzionamento del
         servizio (gestione della sessione autenticata, preferenze interfaccia). Non utilizziamo cookie
         di profilazione, tracciamento pubblicitario o analytics di terze parti. Per i cookie tecnici
-        non e' richiesto il consenso ai sensi del Provvedimento del Garante dell'8 maggio 2014.
+        non è richiesto il consenso ai sensi del Provvedimento del Garante dell'8 maggio 2014.
         Maggiori dettagli nella <LegalLink href="/cookie">Cookie Policy</LegalLink>.
       </LegalP>
 
       <LegalH2>9. Minori</LegalH2>
       <LegalP>
-        Il servizio e' destinato a soggetti maggiorenni titolari di un'attivita' di ristorazione o
+        Il servizio è destinato a soggetti maggiorenni titolari di un'attività di ristorazione o
         pasticceria. Non raccogliamo consapevolmente dati di minori di 18 anni.
       </LegalP>
 
       <LegalH2>10. Modifiche alla presente Privacy Policy</LegalH2>
       <LegalP>
         Eventuali modifiche sostanziali verranno comunicate via email con almeno 30 giorni di
-        preavviso. La data dell'ultimo aggiornamento e' indicata in cima a questa pagina.
+        preavviso. La data dell'ultimo aggiornamento è indicata in cima a questa pagina.
       </LegalP>
 
       <LegalH2>11. Contatti</LegalH2>

@@ -127,7 +127,7 @@ export default async function handler(req) {
 
     // Risposta default in attesa di tool-use AI completo
     return twimlResponse(
-`Ho ricevuto: "${text.slice(0, 60)}"\n\nIl bot AI completo arriva con il piano Chain.\nScrivi "aiuto" per i comandi.`
+`Ho ricevuto: "${text.slice(0, 60)}"\n\nPer ora so fare poco: scrivi "aiuto" e ti elenco cosa.`
     )
   } catch (e) {
     const safe = safeError(e, { endpoint: 'whatsapp-webhook' })

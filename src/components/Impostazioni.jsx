@@ -29,6 +29,7 @@ import DeleteAccountModal from './DeleteAccountModal'
 
 import { getAllRese, getStoreRese, setResaIngrediente, salvaRese } from '../lib/rese'
 import { lazyWithReload } from '../lib/lazyWithReload'
+import { PLAN_LABEL } from '../lib/planAccess'
 
 // Integrazioni caricata lazy (bundle ~35KB): solo se l'utente apre la
 // sezione da Impostazioni → Notifiche & Integrazioni.
@@ -944,10 +945,10 @@ function Toggle({ checked, onChange }) {
 
 function PianoBadge({ piano, approvato }) {
   const label = ({
-    trial:      { txt: 'Trial', color: T.amber,  bg: T.amberLight },
-    base:       { txt: 'Base',  color: T.textMid, bg: T.bgSubtle },
-    pro:        { txt: 'Pro',   color: T.green,  bg: T.greenLight },
-    enterprise: { txt: 'Chain', color: T.green,  bg: T.greenLight },
+    trial:      { txt: PLAN_LABEL.trial,      color: T.amber,   bg: T.amberLight },
+    base:       { txt: PLAN_LABEL.base,       color: T.textMid, bg: T.bgSubtle },
+    pro:        { txt: PLAN_LABEL.pro,        color: T.green,   bg: T.greenLight },
+    enterprise: { txt: PLAN_LABEL.enterprise, color: T.green,   bg: T.greenLight },
   })[piano] || { txt: piano || 'Trial', color: T.textMid, bg: T.bgSubtle }
   return (
     <span style={{
@@ -983,7 +984,7 @@ function buildSezioni({ auth, nomeAttivita, tipoAttivita, metodoProduzione = 'st
 
   // ─── TITOLARE ───
   const isPagante = auth?.org?.approvato === true && auth?.org?.stripe_subscription_id
-  // White-label disponibile solo sul piano Chain (enterprise).
+  // Personalizzazione del marchio: solo sul piano piu alto (enterprise).
   const whiteLabelOk = piano === 'enterprise'
 
   const attivitaItems = [
@@ -1023,7 +1024,7 @@ function buildSezioni({ auth, nomeAttivita, tipoAttivita, metodoProduzione = 'st
       items: [
         {
           id: 'abbonamento', label: 'Piano e abbonamento', icon: 'creditCard',
-          summary: isPagante ? (piano === 'enterprise' ? 'Chain attivo' : 'Pro attivo') : 'Trial / non attivo',
+          summary: isPagante ? `${PLAN_LABEL[piano] || 'Piano'} attivo` : 'In prova',
           render: () => <AbbonamentoPanel org={auth?.org} notify={notify}/>,
         },
         {

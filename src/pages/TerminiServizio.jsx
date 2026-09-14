@@ -14,15 +14,15 @@ export default function TerminiServizio() {
       <LegalUl items={[
         <><strong>Cliente:</strong> persona fisica o giuridica che si registra al Servizio per scopi di lavoro o professione (B2B).</>,
         <><strong>Account:</strong> profilo personale del Cliente, accessibile tramite credenziali.</>,
-        <><strong>Piano:</strong> tipologia di abbonamento sottoscritta (Trial, Pro, Chain).</>,
+        <><strong>Piano:</strong> tipologia di abbonamento sottoscritta (Prova, Bottega, Maestro, Insegna).</>,
         <><strong>Periodo di prova (Trial):</strong> 3 mesi gratuiti dalla registrazione, senza richiesta di carta di credito.</>,
       ]} />
 
       <LegalH2>2. Oggetto del contratto</LegalH2>
       <LegalP>
         Il Fornitore concede al Cliente, in modalita' Software-as-a-Service, il diritto non
-        esclusivo di accedere e utilizzare le funzionalita' del Servizio per la durata
-        dell'abbonamento sottoscritto. Le funzionalita' includono: gestione ricettario, food cost
+        esclusivo di accedere e utilizzare le funzionalità del Servizio per la durata
+        dell'abbonamento sottoscritto. Le funzionalità includono: gestione ricettario, food cost
         analysis, produzione giornaliera, magazzino, casse, fatturazione fornitori, HACCP,
         multi-sede, AI Assistant, integrazioni con sistemi terzi.
       </LegalP>
@@ -40,13 +40,14 @@ export default function TerminiServizio() {
         Alla registrazione il Cliente ha diritto a <strong>3 mesi di prova gratuita</strong>. Al termine
         del periodo di prova, l'accesso al Servizio richiede l'attivazione di un piano a pagamento.
         I dati inseriti durante il trial vengono conservati per 12 mesi (vedi Privacy Policy).
-        Non e' richiesta carta di credito per attivare il trial.
+        Non è richiesta carta di credito per attivare il trial.
       </LegalP>
 
       <LegalH2>5. Piani e prezzi</LegalH2>
       <LegalUl items={[
-        <><strong>Pro</strong> - €89/mese (IVA esclusa). Una sede fisica, utenti illimitati per la sede, tutte le funzionalita' core.</>,
-        <><strong>Chain</strong> - €149/mese (IVA esclusa). Sedi illimitate, gestione multi-sede, trasferimenti, consolidamento dati.</>,
+        <><strong>Bottega</strong> - €69/mese (IVA esclusa). Una sede, un utente. Ricettario, food cost, magazzino, scadenzario, chiusure di cassa.</>,
+        <><strong>Maestro</strong> - €149/mese (IVA esclusa). Fino a 2 sedi e 3 utenti. Tutto Bottega, più le funzioni di analisi assistita.</>,
+        <><strong>Insegna</strong> - €399/mese (IVA esclusa). Sedi e utenti illimitati. Tutto Maestro, più collegamento in tempo reale con le casse, trasferimenti fra sedi e personalizzazione del marchio.</>,
       ]} />
       <LegalP>
         I prezzi indicati sono per pagamento mensile in modalita' subscription. La fatturazione
@@ -66,9 +67,9 @@ export default function TerminiServizio() {
 
       <LegalH2>7. Diritto di recesso e rimborsi</LegalH2>
       <LegalP>
-        Il Cliente, essendo soggetto B2B, NON e' un consumatore ai sensi del Codice del Consumo
+        Il Cliente, essendo soggetto B2B, NON è un consumatore ai sensi del Codice del Consumo
         (D.Lgs. 206/2005). Non si applicano pertanto i 14 giorni di recesso previsti per il B2C.
-        Tuttavia il Cliente puo' disdire l'abbonamento in qualsiasi momento dalle Impostazioni;
+        Tuttavia il Cliente può disdire l'abbonamento in qualsiasi momento dalle Impostazioni;
         la disdetta diventa effettiva al termine del periodo già pagato (no proration di rimborso).
         Per casi particolari (es. malfunzionamento prolungato del Servizio), il Fornitore valuta
         rimborsi caso per caso - vedi <LegalLink href="/rimborsi">policy rimborsi</LegalLink>.
@@ -76,7 +77,7 @@ export default function TerminiServizio() {
 
       <LegalH2>8. Livello di servizio (SLA)</LegalH2>
       <LegalP>
-        Il Fornitore si impegna a garantire una disponibilita' indicativa del 99% su base mensile,
+        Il Fornitore si impegna a garantire una disponibilità indicativa del 99% su base mensile,
         esclusi gli interventi di manutenzione programmata (comunicati con almeno 24 ore di preavviso
         via banner in-app) e cause di forza maggiore. Eventuali interruzioni significative del
         Servizio possono dar luogo a crediti commerciali da valutare caso per caso.
@@ -86,15 +87,15 @@ export default function TerminiServizio() {
       <LegalP>
         Tutti i dati inseriti dal Cliente (ricette, ingredienti, fatture, dati di produzione, dati
         del personale, ecc.) restano <strong>di proprieta' esclusiva del Cliente</strong>. Il Fornitore
-        agisce esclusivamente come responsabile del trattamento ex art. 28 GDPR. Il Cliente puo'
+        agisce esclusivamente come responsabile del trattamento ex art. 28 GDPR. Il Cliente può
         esportare i propri dati in qualsiasi momento (formato JSON/CSV) tramite l'apposita
-        funzionalita' in Impostazioni → Esporta dati.
+        funzionalità in Impostazioni → Esporta dati.
       </LegalP>
 
       <LegalH2>10. Proprieta' del Servizio</LegalH2>
       <LegalP>
         Codice sorgente, design, marchi, contenuti del sito e della piattaforma sono di proprieta'
-        esclusiva del Fornitore. Al Cliente e' concessa solo una licenza d'uso non esclusiva, non
+        esclusiva del Fornitore. Al Cliente è concessa solo una licenza d'uso non esclusiva, non
         cedibile e revocabile, limitata alla durata dell'abbonamento.
       </LegalP>
 
@@ -113,12 +114,12 @@ export default function TerminiServizio() {
         diritto a rimborso.
       </LegalP>
 
-      <LegalH2>12. Limitazione di responsabilita'</LegalH2>
+      <LegalH2>12. Limitazione di responsabilità</LegalH2>
       <LegalP>
-        Il Servizio e' fornito "as is". Nei limiti consentiti dalla legge, il Fornitore non
+        Il Servizio è fornito "as is". Nei limiti consentiti dalla legge, il Fornitore non
         risponde di danni indiretti, perdita di profitti, perdita di dati derivante da uso
-        improprio o da forza maggiore. La responsabilita' complessiva del Fornitore verso il
-        Cliente, per qualsiasi causa, e' limitata all'importo pagato dal Cliente nei 12 mesi
+        improprio o da forza maggiore. La responsabilità complessiva del Fornitore verso il
+        Cliente, per qualsiasi causa, è limitata all'importo pagato dal Cliente nei 12 mesi
         precedenti l'evento dannoso.
       </LegalP>
 
@@ -130,15 +131,15 @@ export default function TerminiServizio() {
 
       <LegalH2>14. Modifica dei Termini</LegalH2>
       <LegalP>
-        Il Fornitore puo' modificare i presenti Termini con preavviso di 30 giorni via email. In
-        caso di modifiche sostanziali non gradite il Cliente puo' disdire l'abbonamento prima
+        Il Fornitore può modificare i presenti Termini con preavviso di 30 giorni via email. In
+        caso di modifiche sostanziali non gradite il Cliente può disdire l'abbonamento prima
         dell'entrata in vigore senza penalita'.
       </LegalP>
 
       <LegalH2>15. Legge applicabile e foro competente</LegalH2>
       <LegalP>
-        Il presente contratto e' regolato dalla legge italiana. Per ogni controversia il foro
-        competente in via esclusiva e' quello di <strong>[CITTA' SEDE LEGALE]</strong>.
+        Il presente contratto è regolato dalla legge italiana. Per ogni controversia il foro
+        competente in via esclusiva è quello di <strong>[INSERIRE CITTÀ SEDE LEGALE]</strong>.
       </LegalP>
 
       <LegalH2>16. Contatti</LegalH2>

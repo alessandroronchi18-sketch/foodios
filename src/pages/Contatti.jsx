@@ -16,23 +16,25 @@ export default function Contatti() {
       </LegalP>
 
       <LegalCallout title="Il modo più veloce">
-        Per qualsiasi cosa scrivi a{' '}
+        Se sei già dentro Foodos, usa il bottone <strong>Feedback</strong> in basso
+        a destra: arriva diretto a chi scrive il programma, con già allegato in
+        che pagina eri. È la strada più corta.
+        <br /><br />
+        Se non sei ancora utente, scrivi a{' '}
         <LegalLink href="mailto:support@foodos.it">support@foodos.it</LegalLink>.
-        Se sei già utente, il bottone <strong>Feedback</strong> in basso a destra
-        dentro l'app va direttamente a chi sviluppa - più rapido dell'email.
       </LegalCallout>
 
       <LegalH2>Supporto tecnico</LegalH2>
       <LegalP>
-        Bug, domande sull'utilizzo, richieste di funzionalita':{' '}
+        Problemi, domande su come si usa, cose che vorresti ci fossero:{' '}
         <LegalLink href="mailto:support@foodos.it">support@foodos.it</LegalLink>.
-        Rispondiamo entro 24 ore lavorative (lun-ven, 9-19).
+        Rispondiamo in giornata, dal lunedì al venerdì. Il sabato e la domenica leggiamo, ma rispondiamo il lunedì.
       </LegalP>
 
       <LegalH2>Vendite, demo e partnership</LegalH2>
       <LegalP>
-        Sei una pasticceria, gelateria, bar o rete di locali e vuoi vedere Foodos
-        dal vivo? Vuoi proporre un'integrazione?{' '}
+        Sei una pasticceria, gelateria, bar o un gruppo di locali e vuoi vedere
+        Foodos dal vivo, con i tuoi numeri? Oppure vuoi collegarci la tua cassa?{' '}
         <LegalLink href="mailto:hello@foodos.it">hello@foodos.it</LegalLink>.
       </LegalP>
 
@@ -55,9 +57,9 @@ export default function Contatti() {
 
       <LegalH2>Design partner</LegalH2>
       <LegalP>
-        Foodos e' costruito col feedback di chi lavora al banco tutti i giorni.
-        Se sei disposto a raccontarci come lo usi con una call ogni tanto,
-        ti diamo <strong>12 mesi gratis</strong>. Scrivi a{' '}
+        Foodos è costruito con chi lavora al banco tutti i giorni.
+        Se ci racconti come lo usi — una chiacchierata ogni tanto, anche al
+        telefono — ti diamo <strong>12 mesi gratis</strong>. Scrivi a{' '}
         <LegalLink href="mailto:hello@foodos.it">hello@foodos.it</LegalLink>{' '}
         con oggetto "Design Partner".
       </LegalP>

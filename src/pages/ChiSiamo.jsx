@@ -6,7 +6,7 @@ export default function ChiSiamo() {
     <LegalLayout title="Chi siamo" updated="2026-05-29" related={[['Contatti', '/contatti']]}>
       <LegalP>
         Foodos nasce da un problema concreto: <strong>gestire una pasticceria, una gelateria o un
-        ristorante artigianale e' un casino di Excel, post-it e WhatsApp</strong>. Tra ricette,
+        ristorante artigianale è un casino di Excel, post-it e WhatsApp</strong>. Tra ricette,
         food cost, scontrini e fornitori, ogni settimana si perdono ore a fare quello che un
         software dovrebbe fare da solo.
       </LegalP>
@@ -22,7 +22,7 @@ export default function ChiSiamo() {
       <LegalH2>Per chi</LegalH2>
       <LegalP>
         Pasticcerie, gelaterie, bar e ristoranti artigianali italiani — con partita IVA — che
-        vogliono capire i numeri della propria attivita' senza diventare contabili. Lavoriamo
+        vogliono capire i numeri della propria attività senza diventare contabili. Lavoriamo
         meglio con chi ha tra <strong>1 e 6 sedi</strong>: ogni sede ha la sua dashboard, dal
         backoffice vedi tutto consolidato.
       </LegalP>
@@ -30,14 +30,14 @@ export default function ChiSiamo() {
       <LegalH2>Da dove veniamo</LegalH2>
       <LegalP>
         Foodos nasce dall'esperienza diretta in laboratorio: tutto quello che vedi nel software
-        e' nato da un problema concreto del banco, del laboratorio o della cassa.
+        è nato da un problema concreto del banco, del laboratorio o della cassa.
         La filosofia: niente feature inutili, niente AI per il gusto di averla,
         solo cose che fanno risparmiare tempo e ridurre errori.
       </LegalP>
 
       <LegalH2>Come lavoriamo</LegalH2>
       <LegalP>
-        Foodos e' guidato dai feedback di chi lo usa davvero: <strong>chi sta dietro il banco
+        Foodos è guidato dai feedback di chi lo usa davvero: <strong>chi sta dietro il banco
         decide le prossime feature</strong>. Ogni settimana raccogliamo bug, idee, frustrazioni.
         Le più urgenti diventano release nello stesso giorno; le altre entrano in roadmap.
       </LegalP>
@@ -51,7 +51,7 @@ export default function ChiSiamo() {
 
       <LegalH2>Trasparenza</LegalH2>
       <LegalP>
-        Foodos non e' finanziato da venture capital. Cresciamo con i ricavi reali dei nostri
+        Foodos non è finanziato da venture capital. Cresciamo con i ricavi reali dei nostri
         clienti. Questo significa: niente pressione a fare crescita a tutti i costi, niente
         vendita dei tuoi dati, niente cambio di prezzi improvvisi. Se decidiamo di chiudere il
         servizio (improbabile, ma onesti) ti garantiamo l'export integrale dei tuoi dati

@@ -11,6 +11,7 @@ import React, { useEffect, useState } from 'react'
 import Icon from './Icon'
 import { apiFetch } from '../lib/apiFetch'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
+import { PLAN_LABEL } from '../lib/planAccess'
 
 const APP_NAME = 'Foodos'
 
@@ -20,7 +21,7 @@ const LIVELLI = [
   { soglia: 3,  premio: '3 mesi gratis',     icon: 'star' },
   { soglia: 5,  premio: '6 mesi gratis',     icon: 'star' },
   { soglia: 10, premio: '1 anno gratis',     icon: 'trophy' },
-  { soglia: 25, premio: 'Piano Chain gratis 1 anno', icon: 'trophy' },
+  { soglia: 25, premio: `Piano ${PLAN_LABEL.enterprise} gratis 1 anno`, icon: 'trophy' },
 ]
 
 function getStyle(isMobile, isTablet) {
@@ -73,7 +74,7 @@ export default function ReferralPanel({ auth }) {
   }
 
   function messaggioInvito() {
-    return `Prova ${APP_NAME}, il gestionale food cost per la ristorazione: gestione ricette, magazzino, P&L e HACCP - usa il mio codice ${data.codice} e ottieni 60 giorni di prova gratuita invece di 30 → ${data.url}`
+    return `Prova ${APP_NAME}, il gestionale food cost per la ristorazione: gestione ricette, magazzino, P&L e HACCP - usa il mio codice ${data.codice} e ai tre mesi di prova te ne aggiungono altri due → ${data.url}`
   }
 
   function shareWhatsApp() {
@@ -107,7 +108,7 @@ export default function ReferralPanel({ auth }) {
         method: 'POST',
         body: JSON.stringify({ codice: codiceNorm }),
       })
-      setApplicaMsg({ ok: true, txt: '✓ Codice applicato! Hai 60 giorni di trial gratis.' })
+      setApplicaMsg({ ok: true, txt: 'Fatto: due mesi di prova in più, sopra a quelli che avevi.' })
       setCodiceInput('')
     } catch (e) {
       setApplicaMsg({ ok: false, txt: e.message })
@@ -153,7 +154,7 @@ export default function ReferralPanel({ auth }) {
           </div>
         </div>
         <p style={{ fontSize: 12, color: '#64748B', margin: '0 0 18px', lineHeight: 1.55 }}>
-          Più colleghi invitano <strong>{APP_NAME}</strong>, più mesi gratuiti aggiungi al tuo abbonamento. Il tuo amico ottiene 60 giorni di trial invece di 30.
+          Più colleghi invitano <strong>{APP_NAME}</strong>, più mesi gratuiti aggiungi al tuo abbonamento. Il tuo amico si ritrova due mesi di prova in più, sopra ai tre che ha già.
         </p>
 
         {/* Codice */}
@@ -271,7 +272,7 @@ export default function ReferralPanel({ auth }) {
           Hai ricevuto un codice da un collega?
         </div>
         <div style={{ fontSize: 12, color: '#64748B', marginBottom: 12, lineHeight: 1.55 }}>
-          Inseriscilo qui per estendere il tuo trial a 60 giorni. Funziona una volta sola, prima dell'attivazione di un abbonamento.
+          Inseriscilo qui e ti aggiungiamo due mesi di prova. Funziona una volta sola, e solo prima di attivare un abbonamento.
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <input

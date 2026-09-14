@@ -3,11 +3,12 @@ import Icon from './Icon'
 import { useConfirm } from './ConfirmModal'
 import { sload, ssave } from '../lib/storage'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
+import { color as T, radius as R, typo } from '../lib/theme'
 
 const TV_KEY = 'pasticceria-tv-token-v1'
 
-const card = { background:'#FFF', borderRadius: 12, padding:'24px 28px', boxShadow:'0 1px 4px rgba(0,0,0,0.07)', marginBottom:20 }
-const label = { fontSize: 12, fontWeight:700, color:'#64748B', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8, display:'block' }
+const card = { background:T.bgCard, borderRadius:R.xl, border:`1px solid ${T.border}`, padding:'24px 28px', boxShadow:'0 1px 4px rgba(0,0,0,0.07)', marginBottom:20 }
+const label = { ...typo.overline, color:T.textSoft, marginBottom:8, display:'block' }
 
 function generaToken() {
   // 24 char random base32-like (sicuro su URL)
@@ -31,6 +32,7 @@ export default function ImpostazioniTv({ orgId, sedi, notify }) {
   const isTablet = useIsTablet()
   const confirmDialog = useConfirm()
   const [token, setToken] = useState(null)
+  const [generatoIl, setGeneratoIl] = useState(null)
   const [loading, setLoading] = useState(true)
   const [sedeSel, setSedeSel] = useState('')
 
@@ -38,15 +40,16 @@ export default function ImpostazioniTv({ orgId, sedi, notify }) {
     if (!orgId) return
     sload(TV_KEY, orgId, null).then(v => {
       setToken(v?.token || null)
+      setGeneratoIl(v?.generato_il || null)
       setLoading(false)
     })
   }, [orgId])
 
   async function rigenera() {
     const ok = await confirmDialog({
-      title: 'Generare un nuovo link TV?',
-      message: 'Il link precedente non funzionera piu (rotazione token).',
-      confirmLabel: 'Genera nuovo', cancelLabel: 'Annulla',
+      title: 'Cambiare il link della TV?',
+      message: 'Il link di adesso smette di funzionare subito: la TV resta nera finché non le dai quello nuovo.',
+      confirmLabel: 'Cambia link', cancelLabel: 'Annulla',
     })
     if (!ok) return
     const nuovo = generaToken()
@@ -54,25 +57,29 @@ export default function ImpostazioniTv({ orgId, sedi, notify }) {
     try {
       await ssave(TV_KEY, { token: nuovo, token_hash: hash, generato_il: new Date().toISOString() }, orgId, null)
       setToken(nuovo)
-      notify?.('Nuovo link TV generato')
+      setGeneratoIl(new Date().toISOString())
+      notify?.('Fatto. Copia il link e aprilo sulla TV.')
     } catch (e) {
-      notify?.('Errore generazione link', false)
+      // Prima diceva solo "Errore generazione link" e il motivo spariva:
+      // senza quello non si capiva se era la rete o i permessi.
+      notify?.('Non sono riuscito a creare il link: ' + (e?.message || 'riprova fra un minuto'), false)
     }
   }
 
   async function revoca() {
     const ok = await confirmDialog({
-      title: 'Disattivare link TV?',
-      message: 'La dashboard pubblica non sara piu accessibile finche non rigeneri.',
-      confirmLabel: 'Disattiva', cancelLabel: 'Annulla', destructive: true,
+      title: 'Spegnere lo schermo?',
+      message: 'Lo schermo si spegne e il link smette di funzionare. Puoi riaccenderlo quando vuoi, con un link nuovo.',
+      confirmLabel: 'Spegni', cancelLabel: 'Annulla', destructive: true,
     })
     if (!ok) return
     try {
       await ssave(TV_KEY, { token: null, revocato_il: new Date().toISOString() }, orgId, null)
       setToken(null)
-      notify?.('Link TV revocato')
+      setGeneratoIl(null)
+      notify?.('Schermo spento. Il link non funziona più.')
     } catch (e) {
-      notify?.('Errore revoca link', false)
+      notify?.('Non sono riuscito a spegnerlo: ' + (e?.message || 'riprova fra un minuto'), false)
     }
   }
 
@@ -89,7 +96,7 @@ export default function ImpostazioniTv({ orgId, sedi, notify }) {
     )
   }
 
-  if (loading) return <div style={{ fontSize: 13, color: '#94A3B8', padding: 24 }}>Caricamento…</div>
+  if (loading) return <div style={{ ...typo.small, color: T.textFaint, padding: 24 }}>Caricamento…</div>
 
   // Audit mobile 2026-06-24: input + bottoni in colonna su mobile per evitare
   // overflow del link lungo; touch target 44px; font input >=16px per non
@@ -97,13 +104,13 @@ export default function ImpostazioniTv({ orgId, sedi, notify }) {
   const cardResp = { ...card, padding: isMobile ? '18px 16px' : isTablet ? '20px 22px' : '24px 28px' }
   const inputBase = {
     width: '100%', boxSizing: 'border-box',
-    padding: '12px 14px', border: '1px solid #E2E8F0', borderRadius: 8,
-    fontSize: isMobile ? 16 : 13, color: '#0F172A', background: '#FAFAFA', outline: 'none',
+    padding: '12px 14px', border: `1px solid ${T.borderStr}`, borderRadius: R.md,
+    fontSize: isMobile ? 16 : 13, color: T.text, background: T.bgSubtle, outline: 'none',
     minHeight: 44,
   }
   const btnBase = {
-    padding: '12px 18px', border: 'none', borderRadius: 8,
-    fontSize: isMobile ? 14 : 13, fontWeight: 700, cursor: 'pointer',
+    padding: '12px 18px', border: 'none', borderRadius: R.md,
+    fontSize: isMobile ? 14 : 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
     minHeight: 44, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
   }
 
@@ -111,34 +118,34 @@ export default function ImpostazioniTv({ orgId, sedi, notify }) {
     <div>
       <div style={cardResp}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-          <div style={{ width: 44, height: 44, borderRadius: 12, background: '#FFF7ED', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <Icon name="tv" size={22} color="#6E0E1A"/>
+          <div style={{ width: 44, height: 44, borderRadius: R.xl, background: T.brandLight, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Icon name="tv" size={22} color={T.brand}/>
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontWeight: 700, fontSize: 16, color: '#0F172A' }}>Schermo in laboratorio</div>
-            <div style={{ fontSize: 12, color: '#64748B', marginTop: 2 }}>
+            <div style={{ ...typo.h2, color: T.text }}>Schermo in laboratorio</div>
+            <div style={{ ...typo.small, color: T.textSoft, marginTop: 2 }}>
               {token
-                ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: '#16A34A' }}/> Attivo</span>
-                : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: '#94A3B8' }}/> Spento</span>
+                ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: T.green }}/> Acceso{generatoIl ? ` · link creato il ${new Date(generatoIl).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' })}` : ''}</span>
+                : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: T.textFaint }}/> Spento</span>
               }
             </div>
           </div>
         </div>
-        <div style={{ fontSize: 13, color: '#475569', marginBottom: 18, lineHeight: 1.6 }}>
-          Una pagina a tutto schermo per la TV in laboratorio o in sala: produzione del giorno e stock vetrina, aggiornati ogni 5 minuti. Il link è protetto da un token — chi ce l'ha, vede. Se serve, lo rigeneri.
+        <div style={{ ...typo.small, color: T.textMid, marginBottom: 18, lineHeight: 1.6 }}>
+          Una pagina a tutto schermo per la TV del laboratorio o della sala: produzione del giorno e cosa c'è in vetrina, aggiornati ogni 5 minuti. Chi ha il link vede — non serve nessuna password, quindi non mandarlo in giro. Se finisce dove non deve, lo cambi in due clic e il vecchio smette di funzionare.
         </div>
 
         {!token ? (
           <button onClick={rigenera}
-            style={{ ...btnBase, width: isMobile ? '100%' : 'auto', background: '#6E0E1A', color: '#FFF' }}>
-            <Icon name="plus" size={14} color="#FFF"/> Accendi lo schermo
+            style={{ ...btnBase, width: isMobile ? '100%' : 'auto', background: T.brand, color: T.white }}>
+            <Icon name="plus" size={14} color={T.white}/> Accendi lo schermo
           </button>
         ) : (
           <>
             {sedi && sedi.length > 1 && (
               <div style={{ marginBottom: 14 }}>
-                <label style={label}>Sede da mostrare (opzionale)</label>
-                <select value={sedeSel} onChange={e => setSedeSel(e.target.value)}
+                <label htmlFor="tv-sede" style={label}>Sede da mostrare (opzionale)</label>
+                <select id="tv-sede" value={sedeSel} onChange={e => setSedeSel(e.target.value)}
                   style={inputBase}>
                   <option value="">Tutte le sedi</option>
                   {sedi.map(s => <option key={s.id} value={s.id}>{s.nome}{s.citta ? ` - ${s.citta}` : ''}</option>)}
@@ -146,28 +153,28 @@ export default function ImpostazioniTv({ orgId, sedi, notify }) {
               </div>
             )}
 
-            <label style={label}>Link da aprire sulla TV</label>
+            <label htmlFor="tv-link" style={label}>Link da aprire sulla TV</label>
             <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 8, marginBottom: 14 }}>
-              <input readOnly value={fullUrl} onFocus={e => e.target.select()}
-                style={{ ...inputBase, flex: 1, fontSize: isMobile ? 16 : 12, color: '#0F172A', background: '#F1F5F9', fontFamily: 'monospace' }} />
+              <input id="tv-link" readOnly value={fullUrl} onFocus={e => e.target.select()}
+                style={{ ...inputBase, ...typo.code, flex: 1, fontSize: isMobile ? 16 : 12, color: T.text, background: T.bgSubtle }} />
               <button onClick={copia}
-                style={{ ...btnBase, background: '#0F172A', color: '#FFF', whiteSpace: 'nowrap', width: isMobile ? '100%' : 'auto' }}>
-                <Icon name="copy" size={14} color="#FFF"/> Copia
+                style={{ ...btnBase, background: T.brand, color: T.white, whiteSpace: 'nowrap', width: isMobile ? '100%' : 'auto' }}>
+                <Icon name="copy" size={14} color={T.white}/> Copia
               </button>
             </div>
 
             <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 8, flexWrap: 'wrap' }}>
               <a href={fullUrl} target="_blank" rel="noreferrer"
-                style={{ ...btnBase, background: '#10B981', color: '#FFF', textDecoration: 'none', width: isMobile ? '100%' : 'auto' }}>
-                <Icon name="play" size={14} color="#FFF"/> Apri lo schermo
+                style={{ ...btnBase, background: T.bgCard, color: T.text, border: `1px solid ${T.borderStr}`, textDecoration: 'none', width: isMobile ? '100%' : 'auto' }}>
+                <Icon name="play" size={14} color={T.text}/> Apri lo schermo
               </a>
               <button onClick={rigenera}
-                style={{ ...btnBase, background: '#FFFBEB', color: '#92400E', border: '1px solid #FDE68A', width: isMobile ? '100%' : 'auto' }}>
-                <Icon name="refresh" size={14} color="#92400E"/> Rigenera link
+                style={{ ...btnBase, background: T.bgCard, color: T.textMid, border: `1px solid ${T.borderStr}`, width: isMobile ? '100%' : 'auto' }}>
+                <Icon name="refresh" size={14} color={T.textMid}/> Cambia link
               </button>
               <button onClick={revoca}
-                style={{ ...btnBase, background: '#FFF5F5', color: '#6E0E1A', border: '1px solid #FCA5A5', width: isMobile ? '100%' : 'auto' }}>
-                <Icon name="trash" size={14} color="#6E0E1A"/> Spegni
+                style={{ ...btnBase, background: T.redLight, color: T.red, border: `1px solid ${T.red}33`, width: isMobile ? '100%' : 'auto' }}>
+                <Icon name="trash" size={14} color={T.red}/> Spegni
               </button>
             </div>
           </>

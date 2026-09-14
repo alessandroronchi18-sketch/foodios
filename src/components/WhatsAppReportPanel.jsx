@@ -1,12 +1,12 @@
 // WhatsAppReportPanel - Impostazioni → WhatsApp
-// Permette al titolare di configurare il numero per ricevere il report serale
-// alle 22:00 con KPI giornalieri. Se nessun numero è impostato, il cron salta.
+// Il titolare lascia qui il numero su cui vuole il riepilogo della sera.
+// Senza numero non parte niente.
 //
 // API usate:
 //   - update organizations.telefono_whatsapp (via supabase client)
 //   - POST /api/whatsapp-test (invia messaggio di prova)
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import Icon from './Icon'
 import { useConfirm } from './ConfirmModal'
 import { supabase } from '../lib/supabase'
@@ -24,6 +24,13 @@ const PREFISSI = [
   { code: '+49',  label: 'Germania' },
   { code: '+44',  label: 'Regno Unito' },
 ]
+
+// Un numero di cellulare, in Italia e nei paesi qui accanto, sta fra 6 e 13
+// cifre dopo il prefisso. Non serve di più: serve non far salvare "1".
+function numeroPlausibile(numero) {
+  const cifre = String(numero || '').replace(/\D/g, '')
+  return cifre.length >= 6 && cifre.length <= 13
+}
 
 function splitPhone(full) {
   if (!full) return { prefisso: '+39', numero: '' }
@@ -43,6 +50,21 @@ export default function WhatsAppReportPanel({ org, orgId, notify, onRefresh }) {
   const [saving, setSaving]     = useState(false)
   const [testing, setTesting]   = useState(false)
   const [open, setOpen]         = useState(false)
+  const prefissoRef = useRef(null)
+
+  // La tendina dei prefissi restava aperta: cliccando fuori non si chiudeva e
+  // copriva il campo del numero. Ora si chiude col clic fuori e con Esc.
+  useEffect(() => {
+    if (!open) return
+    const fuori = (e) => { if (!prefissoRef.current?.contains(e.target)) setOpen(false) }
+    const esc = (e) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('mousedown', fuori)
+    document.addEventListener('keydown', esc)
+    return () => {
+      document.removeEventListener('mousedown', fuori)
+      document.removeEventListener('keydown', esc)
+    }
+  }, [open])
 
   useEffect(() => {
     const s = splitPhone(org?.telefono_whatsapp)
@@ -50,6 +72,10 @@ export default function WhatsAppReportPanel({ org, orgId, notify, onRefresh }) {
   }, [org?.telefono_whatsapp])
 
   async function salva() {
+    if (numero && !numeroPlausibile(numero)) {
+      notify?.('Questo numero mi sembra corto: controlla che ci siano tutte le cifre.', false)
+      return
+    }
     setSaving(true)
     try {
       const full = numero ? `${prefisso}${numero}` : null
@@ -57,7 +83,9 @@ export default function WhatsAppReportPanel({ org, orgId, notify, onRefresh }) {
         telefono_whatsapp: full,
       }).eq('id', orgId)
       if (error) throw error
-      notify?.(full ? 'Numero salvato, riceverai il report alle 22:00' : 'Report WhatsApp disattivato')
+      notify?.(full
+        ? 'Salvato. Stasera alle 22 ti arriva il primo messaggio — se vuoi controllare subito, manda quello di prova.'
+        : 'Numero tolto: alle 22 non ti scriviamo più.')
       onRefresh?.()
     } catch (e) { notify?.(e.message, false) }
     finally { setSaving(false) }
@@ -65,9 +93,9 @@ export default function WhatsAppReportPanel({ org, orgId, notify, onRefresh }) {
 
   async function disattiva() {
     const ok = await confirmDialog({
-      title: 'Disattivare report WhatsApp serale?',
-      message: 'Il numero verra rimosso e non riceverai piu il riepilogo KPI alle 22:00.',
-      confirmLabel: 'Disattiva', cancelLabel: 'Annulla',
+      title: 'Non mandare più il riepilogo della sera?',
+      message: 'Tolgo il numero e alle 22 non ti arriva più niente. Puoi rimetterlo quando vuoi.',
+      confirmLabel: 'Non mandarlo più', cancelLabel: 'Annulla',
     })
     if (!ok) return
     setNumero('')
@@ -75,7 +103,7 @@ export default function WhatsAppReportPanel({ org, orgId, notify, onRefresh }) {
     try {
       const { error } = await supabase.from('organizations').update({ telefono_whatsapp: null }).eq('id', orgId)
       if (error) throw error
-      notify?.('Report disattivato')
+      notify?.('Fatto: alle 22 non ti arriva più niente.')
       onRefresh?.()
     } catch (e) { notify?.(e.message, false) }
     finally { setSaving(false) }
@@ -85,7 +113,7 @@ export default function WhatsAppReportPanel({ org, orgId, notify, onRefresh }) {
     setTesting(true)
     try {
       await apiFetch('/api/whatsapp-test', { method: 'POST' })
-      notify?.('Messaggio di test inviato, controlla WhatsApp')
+      notify?.('Mandato. Se entro un minuto non arriva, guarda la nota qui sotto.')
     } catch (e) { notify?.(e.message, false) }
     finally { setTesting(false) }
   }
@@ -102,28 +130,33 @@ export default function WhatsAppReportPanel({ org, orgId, notify, onRefresh }) {
         <div style={{ flex:1, minWidth:240 }}>
           <div style={{ fontSize:15, fontWeight:700, color:T.text, marginBottom:6, display:'flex', alignItems:'center', gap:6 }}><Icon name="chat" size={16} />Report serale WhatsApp</div>
           <div style={{ fontSize:13, color:T.textSoft, lineHeight:1.55 }}>
-            Ogni sera alle 22:00 riceverai un messaggio con: ricavi del giorno, food cost %,
-            margine, prodotto top e prodotto da rivedere.
+            Ogni sera alle 22 ti arriva un messaggio con quanto hai incassato,
+            quanto ti è costata la materia prima, quanto è rimasto, il prodotto
+            che è andato meglio e quello su cui conviene tornare.
           </div>
         </div>
         <span style={{
           padding:'4px 10px', borderRadius:999, fontSize: 12, fontWeight:700,
+          display:'inline-flex', alignItems:'center', gap:6, whiteSpace:'nowrap',
           background: isAttivo ? T.greenLight : T.bgSubtle,
           color: isAttivo ? T.green : T.textSoft,
         }}>
-          {isAttivo ? '● Attivo' : '○ Non attivo'}
+          <span style={{ width: 7, height: 7, borderRadius: '50%', display: 'inline-block',
+            background: isAttivo ? T.green : T.textFaint }} />
+          {isAttivo ? 'Attivo' : 'Non attivo'}
         </span>
       </div>
 
-      <div style={{ fontSize: 12, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8 }}>
+      <label htmlFor="wa-report-numero" style={{ display:'block', fontSize: 12, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8 }}>
         Numero WhatsApp del titolare
-      </div>
-      <div style={{ display:'flex', gap:8, marginBottom:12, position:'relative' }}>
+      </label>
+      <div ref={prefissoRef} style={{ display:'flex', gap:8, marginBottom:12, position:'relative' }}>
         <button type="button" onClick={() => setOpen(o=>!o)}
+          aria-expanded={open} aria-haspopup="listbox" aria-label={`Prefisso ${prefisso}, cambia paese`}
           style={{ height: btnH, padding:'0 12px', borderRadius:R.md, border:`1px solid ${T.borderStr}`, background:T.bgCard, fontSize:14, fontWeight:600, color:T.text, cursor:'pointer', display:'flex', alignItems:'center', gap:8, minWidth:96 }}>
           <span>{prefisso}</span>
         </button>
-        <input style={{ ...inp, flex:1 }} type="tel" inputMode="numeric" maxLength={15}
+        <input id="wa-report-numero" style={{ ...inp, flex:1 }} type="tel" inputMode="numeric" maxLength={15}
           placeholder="333 1234567"
           value={numero} onChange={e => setNumero(e.target.value.replace(/\D/g, ''))}/>
         {open && (
@@ -131,9 +164,9 @@ export default function WhatsAppReportPanel({ org, orgId, notify, onRefresh }) {
             position:'absolute', top:'calc(100% + 4px)', left:0, zIndex:50,
             background:T.bgCard, border:`1px solid ${T.border}`, borderRadius:R.md,
             boxShadow:S.lg, minWidth:220, maxHeight:240, overflowY:'auto',
-          }}>
+          }} role="listbox">
             {PREFISSI.map(p => (
-              <button key={p.code} type="button"
+              <button key={p.code} type="button" role="option" aria-selected={p.code === prefisso}
                 onMouseDown={e => { e.preventDefault(); setPrefisso(p.code); setOpen(false) }}
                 style={{ display:'flex', alignItems:'center', gap:10, width:'100%', padding:'10px 12px', background:p.code===prefisso?T.bgSubtle:'transparent', border:'none', cursor:'pointer', fontSize:13, color:T.text, textAlign:'left', fontFamily:'inherit' }}>
                 <span style={{ fontWeight:600, minWidth:48 }}>{p.code}</span>
@@ -144,13 +177,13 @@ export default function WhatsAppReportPanel({ org, orgId, notify, onRefresh }) {
         )}
       </div>
       <div style={{ fontSize: 12, color:T.textSoft, marginBottom:16, lineHeight:1.5 }}>
-        Useremo questo numero solo per il report serale automatico. Se lo lasci vuoto, il cron non parte.
+        Questo numero lo usiamo solo per il messaggio della sera, per niente altro. Se lo lasci vuoto, non ti scriviamo.
       </div>
 
       <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
         <button onClick={salva} disabled={saving}
           style={{ height: btnH, padding:'0 18px', borderRadius:R.md, border:'none', background:T.brand, color:'#FFF', fontSize:13, fontWeight:800, cursor: saving?'not-allowed':'pointer' }}>
-          {saving ? '…' : 'Salva numero'}
+          {saving ? 'Salvo…' : 'Salva numero'}
         </button>
         <button onClick={inviaTest} disabled={testing || !isAttivo}
           style={{ height: btnH, padding:'0 18px', borderRadius:R.md, border:`1px solid ${T.borderStr}`, background:T.bgCard, color:T.text, fontSize:13, fontWeight:700, cursor: (testing||!isAttivo)?'not-allowed':'pointer', opacity: !isAttivo ? 0.5 : 1 }}>
@@ -159,15 +192,15 @@ export default function WhatsAppReportPanel({ org, orgId, notify, onRefresh }) {
         {isAttivo && (
           <button onClick={disattiva} disabled={saving}
             style={{ height: btnH, padding:'0 14px', borderRadius:R.md, border:`1px solid ${T.borderSoft}`, background:'transparent', color:T.textMid, fontSize:12, cursor:'pointer' }}>
-            Disattiva report
+            Non mandarlo più
           </button>
         )}
       </div>
 
       <div style={{ marginTop:18, padding:'12px 14px', background:T.bgSubtle, borderRadius:R.md, fontSize: 12, color:T.textMid, lineHeight:1.6 }}>
-        <strong>Nota tecnica:</strong> per la prima attivazione su WhatsApp Business potrebbe essere
-        necessario approvare il sender Twilio o, in sandbox, inviare prima il messaggio di
-        opt-in ("join &lt;codice&gt;") al numero Twilio.
+        <strong>La prima volta:</strong> WhatsApp non lascia scrivere a un numero che non ha
+        mai risposto. Manda il messaggio di prova qui sopra: se non arriva entro
+        un minuto scrivici e lo sblocchiamo noi — è una pratica da fare una volta sola.
       </div>
     </div>
   )

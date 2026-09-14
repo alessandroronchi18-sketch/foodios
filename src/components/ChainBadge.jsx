@@ -1,11 +1,14 @@
-// ChainBadge - badge SVG che marca le feature esclusive del piano Chain.
+// ChainBadge - il bollino che marca le funzioni del piano piu alto.
+// Il nome del componente resta storico: il piano si chiama Insegna dal
+// 21/06/2026, e l etichetta mostrata arriva da PLAN_LABEL.
 //
 // Non e' una emoji ma un SVG nitido a ogni resolution (gradient bordeaux→oro
 // + sparkle). Pensato per stare a fianco del label nel menu.
 
 import React from 'react'
+import { PLAN_LABEL } from '../lib/planAccess'
 
-export default function ChainBadge({ active = false, size = 14, title = 'Funzione esclusiva piano Chain' }) {
+export default function ChainBadge({ active = false, size = 14, title = `Funzione esclusiva piano ${PLAN_LABEL.enterprise}` }) {
   const id = React.useId().replace(/:/g, '')
   // Colore: più "premium" quando NON active (cosi spicca su sfondo chiaro).
   // Quando active (item selezionato in red light bg), virata su tono caldo neutro.
