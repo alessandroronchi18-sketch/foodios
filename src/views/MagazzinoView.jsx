@@ -15,6 +15,7 @@ import { SK_MAG, SK_EXCL, SK_LOGRIF } from '../lib/storageKeys'
 import { lessico } from '../lib/lessico'
 import FotoOCR from '../components/FotoOCR'
 import Icon from '../components/Icon'
+import { useConfirm } from '../components/ConfirmModal'
 import { loadStockPF, loadMovimentiPF, scartoPF, rettificaPF } from '../lib/stockPF'
 import {
   C, TNUM, KPI, PageHeader, useSortable, SortTH, fmt0, fmtp,
@@ -933,7 +934,7 @@ export default function MagazzinoView({
   ricettario, magazzino, setMagazzino, logRif, setLogRif,
   logPrezzi = [], onUpdatePrezzoIng, giornaliero, notify,
   esclusi = new Set(), setEsclusi, onImportPrezzi, onImportPrezziOCR,
-  orgId, sedeId, isDipendente = false, LEX = lessico(),
+  orgId, sedeId, isDipendente = false, utente = null, LEX = lessico(),
 }) {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
@@ -941,6 +942,7 @@ export default function MagazzinoView({
   // Toggle unità: 'kg' tutto kg (anche 0,80 kg), 'g' tutto grammi (28.000 g).
   // Default 'kg' che è il più comodo per ingredienti grandi (farine, latte).
   const [unitMode, setUnitMode] = useState('kg')
+  const confirm = useConfirm()
   const [deleteIngConf, setDeleteIngConf] = useState(null)
   const [deleteIngPin, setDeleteIngPin] = useState('')
   const [formIng, setFormIng] = useState('')
@@ -1229,7 +1231,10 @@ export default function MagazzinoView({
       soglia_g: gruppo.soglia_g || 0,
       ultimoRifornimento: now,
     }
-    const logEntry = { id: `r-${Date.now()}`, data: now, ingrediente: formIng.trim(), quantita_g: formMode === 'scarico' ? -qty : qty, note: formNote || (formMode === 'scarico' ? 'scarico manuale' : '') }
+    // Audit 2026-09-14: chi ha registrato il movimento non veniva scritto, e
+    // lo storico dei prezzi accanto lo fa da giorni. Su un magazzino con più
+    // persone che lo toccano, "chi" e' meta' dell'informazione.
+    const logEntry = { id: `r-${Date.now()}`, data: now, ingrediente: formIng.trim(), quantita_g: formMode === 'scarico' ? -qty : qty, note: formNote || (formMode === 'scarico' ? 'scarico manuale' : ''), utente }
     const log = [logEntry, ...(logRif || [])]
     // SAVE FIRST: se ssave fallisce non vogliamo state desincronizzato dal DB.
     setSaving(true)
@@ -1469,6 +1474,83 @@ export default function MagazzinoView({
   const statoLabel = s => s === 'negativo' ? 'Da correggere' : s === 'mai_contato' ? 'Mai contato' : s === 'esaurito' ? 'Esaurito' : s === 'critico' ? 'Da ordinare' : s === 'attenzione' ? 'In calo' : 'OK'
   // fmtG: rispetta unitMode utente. 'kg' -> sempre kg (anche piccoli, "0,80 kg").
   // 'g' -> sempre grammi (anche grandi, "28.000 g"). Niente piu mix.
+  // Nello storico dei carichi l'unita' non segue il pulsante kg/g, che sta solo
+  // nella scheda delle giacenze: qui sotto il chilo si scrivono i grammi e sopra
+  // i chili. Così "500 g" non diventa "0,500 kg" in una riga di storico dove
+  // non c'e' nessun pulsante per cambiarlo.
+  const fmtGauto = g => {
+    const n = Math.abs(Number(g) || 0)
+    if (n < 1000) return `${Math.round(n).toLocaleString('it-IT', { useGrouping: 'always' })} g`
+    return `${(n / 1000).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg`
+  }
+
+  // Storico ordinato per davvero.
+  //
+  // Audit 2026-09-14: la tabella si fidava dell'ordine in cui le righe erano
+  // arrivate. Funziona finche' scrive una persona sola da un dispositivo solo;
+  // basta un import, o due tablet che salvano a pochi secondi l'uno dall'altro,
+  // e in cima compare una riga di tre giorni fa.
+  const logOrdinato = useMemo(
+    () => [...(logRif || [])].sort((a, b) => String(b.data || '').localeCompare(String(a.data || ''))),
+    [logRif])
+
+  // Annullare una riga sbagliata, senza cancellare niente.
+  //
+  // Era l'ultimo difetto aperto di questa scheda: un carico sbagliato (250 g
+  // invece di 2.500, il fornitore giusto sull'ingrediente sbagliato) restava
+  // li' per sempre e la giacenza restava sbagliata con lui. L'unica strada era
+  // registrare uno scarico "finto" della stessa quantita', che sporca lo
+  // storico esattamente come l'errore.
+  //
+  // Qui non si cancella una riga: se ne scrive una uguale e contraria, legata
+  // alla prima. Lo storico resta vero — quello che e' successo e' successo — e
+  // la giacenza torna giusta.
+  const annullaRiga = async (r) => {
+    if (saving || r.annullata || r.annulla_id) return
+    const qta = Number(r.quantita_g) || 0
+    if (!qta) return
+    const ok = await confirm({
+      title: 'Annullo questa riga?',
+      message: `${r.ingrediente}: ${qta > 0 ? 'entrata' : 'uscita'} di ${fmtGauto(qta)} del ${new Date(r.data).toLocaleDateString('it-IT')}. `
+        + `Scrivo una riga uguale e contraria e rimetto a posto la giacenza. La riga sbagliata resta nello storico, segnata come annullata.`,
+      confirmLabel: 'Annulla la riga',
+      cancelLabel: 'Lascia stare',
+      destructive: true,
+    })
+    if (!ok) return
+    const k = normIng(String(r.ingrediente || '').toLowerCase().trim())
+    const gruppo = magPerNorm[k] || {}
+    const attuale = gruppo.giacenza_g || 0
+    const now = new Date().toISOString()
+    const nm = { ...magazzino }
+    for (const raw of (gruppo.chiaviRaw || [])) delete nm[raw]
+    nm[k] = {
+      nome: gruppo.nome || r.ingrediente,
+      giacenza_g: attuale - qta,
+      soglia_g: gruppo.soglia_g || 0,
+      ultimoRifornimento: gruppo.ultimoRifornimento || now,
+    }
+    const contraria = {
+      id: `r-${Date.now()}`, data: now, ingrediente: r.ingrediente,
+      quantita_g: -qta,
+      note: `annullo della riga del ${new Date(r.data).toLocaleDateString('it-IT')}`,
+      annulla_id: r.id, utente,
+    }
+    const log = [contraria, ...(logRif || []).map(x => x.id === r.id ? { ...x, annullata: true } : x)]
+    setSaving(true)
+    try {
+      await ssave(SK_MAG, nm); await ssave(SK_LOGRIF, log)
+    } catch (e) {
+      console.error('[magazzino] annullo riga:', e)
+      notify('Non ho potuto annullare la riga: non è cambiato niente. Riprova', false)
+      setSaving(false)
+      return
+    }
+    setMagazzino(nm); setLogRif(log)
+    notify(`Riga annullata. ${gruppo.nome || r.ingrediente}: in magazzino ora ${fmtG(attuale - qta)}`)
+    setSaving(false)
+  }
+
   const fmtG = g => {
     const n = Number(g) || 0
     if (unitMode === 'g') return `${Math.round(n).toLocaleString('it-IT', { useGrouping: 'always' })} g`
@@ -2153,7 +2235,7 @@ export default function MagazzinoView({
               const qtaG = Number.isFinite(qg) ? qg : 0
               if (qtaG <= 0) continue
               nm[k] = { nome: ing.nome.trim(), giacenza_g: (nm[k]?.giacenza_g || 0) + qtaG, soglia_g: nm[k]?.soglia_g || 0, ultimoRifornimento: now }
-              newLogs.push({ id: `r-${Date.now()}-${k}`, data: now, ingrediente: ing.nome.trim(), quantita_g: qtaG, note: 'da foto' })
+              newLogs.push({ id: `r-${Date.now()}-${k}`, data: now, ingrediente: ing.nome.trim(), quantita_g: qtaG, note: 'da foto', utente })
             }
             // Si contano i CARICATI, non le righe lette dalla foto.
             //
@@ -2332,13 +2414,13 @@ export default function MagazzinoView({
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: typo.small.fontSize, minWidth: 560 }}>
                 <thead>
                   <tr style={{ background: '#F8F4F2' }}>
-                    {['Data', 'Ingrediente', 'Quantità', 'Note'].map((h, i) => (
+                    {['Data', 'Ingrediente', 'Quantità', 'Note', ''].map((h, i) => (
                       <th key={i} style={{ padding: '10px 14px', textAlign: i === 2 ? 'right' : 'left', ...typo.caption, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {logRif.slice(0, logLimite).map((r, i) => (
+                  {logOrdinato.slice(0, logLimite).map((r, i) => (
                     <tr key={r.id} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.white : '#FDFAF7' }}>
                       {/* Audit 2026-09-09, quattro difetti in questa riga:
                           - le quantità NEGATIVE (gli scarichi) erano scritte in
@@ -2352,11 +2434,32 @@ export default function MagazzinoView({
                             "FARINA 00" diventava "Farina 00" e "IGP" diventava
                             "Igp". Il nome si mostra come l'utente l'ha scritto. */}
                       <td style={{ padding: '10px 14px', color: C.textMid, whiteSpace: 'nowrap' }}>{new Date(r.data).toLocaleString('it-IT', { useGrouping: 'always', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
-                      <td style={{ padding: '10px 14px', fontWeight: 600, color: C.text }}>{r.ingrediente}</td>
-                      <td style={{ padding: '10px 14px', fontWeight: 700, textAlign: 'right', whiteSpace: 'nowrap', ...TNUM, color: Number(r.quantita_g) < 0 ? C.amber : C.green }}>
-                        {Number(r.quantita_g) < 0 ? '−' : '+'}{fmtG(Math.abs(Number(r.quantita_g) || 0))}
+                      <td style={{ padding: '10px 14px', fontWeight: 600, color: C.text }}>
+                        {r.ingrediente}
+                        {/* Chi l'ha registrato: su un magazzino che tocca più di
+                            una persona, "chi" e' meta' dell'informazione. */}
+                        {r.utente && <div style={{ ...typo.caption, color: C.textSoft, fontWeight: 400 }}>{String(r.utente).split('@')[0]}</div>}
                       </td>
-                      <td style={{ padding: '10px 14px', color: C.textSoft }}>{r.note || '-'}</td>
+                      <td style={{ padding: '10px 14px', fontWeight: 700, textAlign: 'right', whiteSpace: 'nowrap', ...TNUM, color: r.annullata ? C.textSoft : Number(r.quantita_g) < 0 ? C.amber : C.green, textDecoration: r.annullata ? 'line-through' : 'none' }}>
+                        {Number(r.quantita_g) < 0 ? '−' : '+'}{fmtGauto(r.quantita_g)}
+                      </td>
+                      <td style={{ padding: '10px 14px', color: C.textSoft }}>
+                        {r.note || '-'}
+                        {r.annullata && <span style={{ marginLeft: 6, ...typo.caption, fontWeight: 700, color: C.amber }}>annullata</span>}
+                      </td>
+                      <td style={{ padding: '10px 14px', textAlign: 'right' }}>
+                        {/* Audit 2026-09-14: una riga sbagliata non si poteva ne'
+                            correggere ne' annullare, e la giacenza restava
+                            sbagliata con lei. Qui non si cancella niente: si
+                            scrive una riga uguale e contraria. */}
+                        {!r.annullata && !r.annulla_id && !isDipendente && (
+                          <button type="button" onClick={() => annullaRiga(r)} disabled={saving}
+                            title="Scrive una riga uguale e contraria e rimette a posto la giacenza"
+                            style={{ padding: '7px 10px', minHeight: 36, borderRadius: 6, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: typo.small.fontSize, fontWeight: 700, cursor: saving ? 'default' : 'pointer' }}>
+                            Annulla
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -2365,10 +2468,10 @@ export default function MagazzinoView({
               {/* Audit 2026-09-09: lo storico non aveva né limite né modo di
                   scorrere: con qualche centinaio di carichi la pagina si
                   appesantiva e non si trovava più niente. */}
-              {logRif.length > logLimite && (
+              {logOrdinato.length > logLimite && (
                 <div style={{ padding: '10px 14px', borderTop: `1px solid ${C.border}`, textAlign: 'center' }}>
                   <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, marginRight: 10 }}>
-                    {logLimite} di {logRif.length.toLocaleString('it-IT', { useGrouping: 'always' })}
+                    {logLimite} di {logOrdinato.length.toLocaleString('it-IT', { useGrouping: 'always' })}
                   </span>
                   <button type="button" onClick={() => setLogLimite(l => l + 100)}
                     style={{ padding: '9px 16px', minHeight: 40, borderRadius: 8, border: `1px solid ${C.borderStr}`, background: C.bgCard, fontSize: typo.small.fontSize, fontWeight: 700, color: C.textMid, cursor: 'pointer' }}>

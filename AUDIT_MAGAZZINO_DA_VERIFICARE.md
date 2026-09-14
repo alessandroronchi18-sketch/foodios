@@ -405,8 +405,9 @@ Cosa ho verificato riga per riga in /Users/aler/foodos/src/views/MagazzinoView.j
 > stati verificati (11 risultavano già corretti, 8 corretti oggi, 0 rifiutati) e
 > così i 5 di "Materie prime" (2 già corretti, 2 corretti oggi, 1 metà e metà)
 > e i 10 di "Carica merce" (4 già corretti, 6 corretti oggi) e i 20 di
-> "Prezzi ingredienti" (16 già corretti, 4 corretti oggi).
-> **Restano 30.**
+> "Prezzi ingredienti" (16 già corretti, 4 corretti oggi) e i 13 dello
+> "Storico carichi" (9 già corretti, 4 corretti oggi).
+> **Restano 17**, tutti su struttura ed etichette.
 
 
 ### Prodotti finiti — 19, verificati il 14/09/2026
@@ -687,57 +688,74 @@ Cosa ho verificato riga per riga in /Users/aler/foodos/src/views/MagazzinoView.j
   - proposta: Larghezza fissa piu' troncamento: `width: 180, flex: '0 0 180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'` con `title={row.nome}` per il nome intero. Oppure due colonne di tabella separate, nome e stato.
 
 
-### Log rifornimenti — 13 da verificare
+### Storico carichi — 13, verificati il 14/09/2026
 
-- **alta** · riga `1344` · colore — Gli scarichi sono verdi come i carichi: si distinguono solo dal segno meno a 11px
+> **Esito: 9 erano già stati corretti il 9 set, 4 corretti oggi.**
+>
+> Il più importante era anche l'ultimo difetto aperto della scheda: **una riga
+> sbagliata non si poteva correggere né annullare**. Un carico di 250 g battuto
+> al posto di 2.500 restava lì per sempre, e la giacenza restava sbagliata con
+> lui: l'unica strada era registrare uno scarico finto, che sporca lo storico
+> esattamente come l'errore. Ora c'è "Annulla", e non cancella niente: scrive
+> una riga uguale e contraria, legata alla prima, e segna l'originale come
+> annullata. Quello che è successo è successo.
+>
+> Gli altri tre: l'ordinamento (la tabella si fidava dell'ordine in cui le righe
+> erano arrivate — basta un import o due tablet che salvano insieme e in cima
+> compare una riga di tre giorni fa), chi ha registrato il movimento (lo storico
+> dei prezzi accanto lo scrive già), e l'unità di misura — il pulsante kg/g sta
+> solo nella scheda delle giacenze, quindi qui "500 g" si leggeva "0,500 kg" e
+> non c'era modo di cambiarlo.
+
+- **[GIÀ RISOLTO il 09/09]** · alta · riga `1344` · colore — Gli scarichi sono verdi come i carichi: si distinguono solo dal segno meno a 11px
   - Il sottotitolo promette "Storico carichi e scarichi", ma la colonna Quantità è verde fissa per tutte le righe. Chi rilegge il log per capire dove è finito il burro vede una colonna tutta verde e deve accorgersi di un trattino largo tre pixel, dietro il banco, su una tabella a 11px. Carico e scarico 
   - proposta: Aggiungere una colonna "Tipo" con etichetta testuale ("Carico" / "Scarico") e colorare la quantità in base al segno: carico in C.text (nero) con "+", scarico in C.amber con "−". Il verde non serve: un carico è la normalità, non un evento positivo da festeggiare. Esempio: `const isScarico = r.quantit
 
-- **alta** · riga `872` · tipografia — Migliaia senza punto: un sacco da 2 kg si legge "2000 g" invece di "2.000 g"
+- **[GIÀ RISOLTO il 09/09]** · alta · riga `872` · tipografia — Migliaia senza punto: un sacco da 2 kg si legge "2000 g" invece di "2.000 g"
   - È esattamente il bug che _shared.jsx dice di aver già corretto sugli importi. `toLocaleString('it-IT')` senza opzioni non raggruppa i numeri a 4 cifre: tutte le quantità tra 1.000 e 9.999 (cioè quasi tutti i rifornimenti reali: 2 kg di burro, 5 kg di farina) perdono il punto delle migliaia proprio n
   - proposta: Riusare lo stesso pattern di _shared.jsx: due `Intl.NumberFormat('it-IT', { useGrouping: 'always', … })` precostruiti dentro fmtG (uno a 0 decimali per i grammi, uno a 2/3 per i kg) invece di `toLocaleString` nudo. Cambia una riga e sistema tutta la pagina, non solo il log.
 
-- **alta** · riga `1340` · struttura — Nessuna paginazione né limite: con anni di storico la scheda stampa tutte le righe
+- **[GIÀ RISOLTO il 09/09]** · alta · riga `1340` · struttura — Nessuna paginazione né limite: con anni di storico la scheda stampa tutte le righe
   - `logRif.map` renderizza l'array intero. Ogni carico, ogni scarico, ogni riga da foto, dal primo giorno. Mara carica merce 2-3 volte a settimana su ~60 ingredienti: dopo due anni sono migliaia di <tr> in un colpo, il tablet si impunta e — peggio — non c'è modo di arrivare a quello che cerchi. Il log 
   - proposta: Testa di tabella con il conteggio ("1.284 movimenti · mostro gli ultimi 100"), un filtro ingrediente (la datalist `ing-list` esiste già, riga 1304) e un filtro mese/anno, più un "Mostra altri 100" in fondo. Ordinare e filtrare prima di stampare, con `useMemo`.
 
-- **alta** · riga `1341` · correttezza — Una riga sbagliata non si può correggere né annullare
+- **[CORRETTO il 14/09]** · alta · riga `1341` · correttezza — Una riga sbagliata non si può correggere né annullare
   - Battere 20000 invece di 2000 sul form carico è l'errore più comune di questa pagina, e il log è il posto dove uno va a cercarlo. Ma la riga non ha nessuna azione: né modifica, né annullo, né storno. La giacenza resta gonfia di 18 kg di burro che non esistono, il valore a magazzino è falso e l'unico 
   - proposta: Azione per riga "Annulla questo movimento" che NON cancella la storia ma scrive lo storno: nuova riga con quantità opposta, `note: 'rettifica del 08/09/2026 14:30'`, e la giacenza aggiornata di conseguenza — save-first (await ssave(SK_MAG) e ssave(SK_LOGRIF) prima dei setState, come handleCarica a r
 
-- **alta** · riga `1330` · mobile — La tabella non scorre in orizzontale: sul telefono le 4 colonne vengono schiacciate
+- **[GIÀ RISOLTO il 09/09]** · alta · riga `1330` · mobile — La tabella non scorre in orizzontale: sul telefono le 4 colonne vengono schiacciate
   - Il contenitore ha `overflow: 'hidden'` e la tabella non ha `minWidth` né wrapper scrollabile: su un telefono da 360px le colonne Data, Ingrediente, Quantità e Note si compattano fino a rompersi, e le note tipo "Metro - bolla 1234" spariscono o spezzano la riga. È la regola scritta in CLAUDE.md ("mai
   - proposta: Avvolgere la tabella in `<div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>` e dare `minWidth: 560` alla table, identico al pattern di riga 1129. Meglio ancora: su `isMobile` mostrare card a due righe (data + ingrediente sopra, quantità grande sotto) invece della tabella.
 
-- **media** · riga `1331` · accessibilita — Tutta la tabella del log è a 11px, sotto il minimo di progetto
+- **[GIÀ RISOLTO il 09/09]** · media · riga `1331` · accessibilita — Tutta la tabella del log è a 11px, sotto il minimo di progetto
   - Il testo del log — date, ingredienti, quantità, note — è a 11px, e le intestazioni pure, in maiuscoletto spaziato che a 11px è ancora più chiuso. Chi legge ha sessant'anni e sta in piedi in laboratorio con le mani sporche. Il file stesso, in testa, dice che gli 11 residui restano da alzare.
   - proposta: Table a `fontSize: 13`, th a 12 (le th sono 4, non nove come nelle giacenze: c'è tutto lo spazio). La quantità, che è il numero che si cerca, a 14 e in grassetto.
 
-- **media** · riga `1342` · mobile — La data va a capo spezzata, mentre nel log prezzi lo stesso valore è protetto
+- **[GIÀ RISOLTO il 09/09]** · media · riga `1342` · mobile — La data va a capo spezzata, mentre nel log prezzi lo stesso valore è protetto
   - "08/09/2026, 14:30" senza `whiteSpace: 'nowrap'` si rompe in "08/09/2026," più "14:30" appena la colonna si stringe (e si stringe, vedi il difetto della tabella non scrollabile). Una data spezzata su due righe in un log da rileggere in fretta è rumore, e disallinea tutta la riga.
   - proposta: Aggiungere `whiteSpace: 'nowrap'` e togliere la virgola dell'anno completo: data su una riga ("08/09/2026") e ora sotto in grigio piccolo ("14:30"), come si legge una bolla. Oppure `year: '2-digit'` come già fa il log prezzi.
 
-- **media** · riga `1344` · tipografia — I numeri della colonna Quantità non sono incolonnati né tabellari
+- **[GIÀ RISOLTO il 09/09]** · media · riga `1344` · tipografia — I numeri della colonna Quantità non sono incolonnati né tabellari
   - La cella è allineata a sinistra e senza `TNUM`: una colonna di "2,00 kg", "−28,000 kg", "0,500 kg" resta a bandiera con cifre di larghezza diversa, quindi non si confrontano a occhio due carichi dello stesso ingrediente — che è il motivo per cui si apre questa scheda. Tutte le celle numeriche delle 
   - proposta: `textAlign: 'right'` su th e td della colonna Quantità (la th di riga 1335 forza `textAlign: 'left'` su tutte e quattro: passare a `textAlign: i === 2 ? 'right' : 'left'`, come fa la th del log prezzi a riga 403) e aggiungere `...TNUM`.
 
-- **media** · riga `1340` · correttezza — Nessun ordinamento esplicito: la scheda si fida dell'ordine in cui i dati sono arrivati
+- **[CORRETTO il 14/09]** · media · riga `1340` · correttezza — Nessun ordinamento esplicito: la scheda si fida dell'ordine in cui i dati sono arrivati
   - La tabella stampa l'array così com'è. Funziona per caso, perché i due writer mettono le nuove righe davanti; ma niente garantisce l'ordine dopo un merge o un import, e le intestazioni non sono cliccabili — mentre il resto della pagina ha le colonne ordinabili. Un log di magazzino che potrebbe mostra
   - proposta: Ordinare in un `useMemo`: `[...(logRif||[])].sort((a,b) => new Date(b.data) - new Date(a.data))`, e rendere ordinabili Data / Ingrediente / Quantità con SortTH già disponibile nel file, così "tutti i carichi di burro" si trovano con un click.
 
-- **media** · riga `1327` · copy — Lo stato vuoto è un vicolo cieco: dice che non c'è niente e non dice cosa fare
+- **[GIÀ RISOLTO il 09/09]** · media · riga `1327` · copy — Lo stato vuoto è un vicolo cieco: dice che non c'è niente e non dice cosa fare
   - Al primo accesso — cioè quando la frase la legge chi non ha ancora capito il flusso — la scheda mostra un'icona e "Nessun rifornimento registrato", e finisce lì. Il posto dove si registra un rifornimento è la scheda accanto, e nessuno glielo dice. Costa un bottone.
   - proposta: Due righe: "Qui finisce ogni carico e ogni scarico di materie prime. Per ora non c'è niente." più un bottone "Registra un carico" che fa `setTab('carica')`. Testo a 13, bottone con altezza 44 su mobile.
 
-- **media** · riga `797` · struttura — Il log non dice chi ha registrato il movimento
+- **[CORRETTO il 14/09]** · media · riga `797` · struttura — Il log non dice chi ha registrato il movimento
   - In un laboratorio con due o tre dipendenti la domanda vera davanti al log è "chi ha scaricato 8 kg di panna martedì?". La riga salvata non contiene l'utente, quindi la domanda non ha risposta — e la scheda è visibile anche ai dipendenti (il filtro dei tab esclude solo "Prezzi ingredienti"). Un regis
   - proposta: Aggiungere `utente` all'entry (nome o email del profilo, già disponibile nel Dashboard che passa le prop) e una colonna "Registrato da". Le righe vecchie senza campo mostrano "-": non si inventa un nome, si lascia vuoto.
 
-- **bassa** · riga `872` · correttezza — L'unità è kg per default e dal log non si può cambiare: 500 g diventano "0,500 kg"
+- **[CORRETTO il 14/09]** · bassa · riga `872` · correttezza — L'unità è kg per default e dal log non si può cambiare: 500 g diventano "0,500 kg"
   - `unitMode` parte da 'kg' e il selettore kg/g sta solo dentro la scheda "Materie prime": chi apre il log senza passare da là legge ogni quantità in chilogrammi, quindi un carico di 500 g di gelatina — digitato in grammi, perché il form chiede i grammi — compare come "0,500 kg". Tre decimali per un nu
   - proposta: Portare il toggle kg/g accanto al titolo del log (SectHead accetta già `right`, vedi riga 1088) oppure, più semplice, nel log mostrare i grammi sotto il chilo e i kg sopra, con l'unità sempre scritta accanto al numero.
 
-- **bassa** · riga `1343` · tipografia — Il nome ingrediente in capitalize spezza le maiuscole delle parole reali
+- **[GIÀ RISOLTO il 09/09]** · bassa · riga `1343` · tipografia — Il nome ingrediente in capitalize spezza le maiuscole delle parole reali
   - `textTransform: 'capitalize'` mette l'iniziale maiuscola a ogni parola: "olio di semi" diventa "Olio Di Semi", "pasta di nocciole" diventa "Pasta Di Nocciole". Non è italiano, e in un elenco lungo lo si nota subito.
   - proposta: Maiuscola solo sulla prima lettera (`::first-letter` o una piccola funzione `capitalizzaPrima(nome)` condivisa), lasciando il resto come l'utente l'ha scritto. Vale anche per le altre celle che usano lo stesso capitalize in questa view (righe 1149, 411).
 
