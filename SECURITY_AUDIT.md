@@ -101,7 +101,6 @@ Audit completo di `api/`, `src/lib/`, `src/components/`, `vercel.json` e schema 
 
 **Azione richiesta**: configurare su Vercel **(obbligatorio per il funzionamento)**:
 - `CRON_SECRET` — usato dai 3 cron Vercel
-- `ZUCCHETTI_WEBHOOK_SECRET` — solo se si abilita il webhook Zucchetti
 - `INTERNAL_API_SECRET` — usato per chiamate server→server (es. admin.js → send-email.js per 'approvazione')
 
 ### C2. User enumeration via admin.js
@@ -212,7 +211,6 @@ Il file legge `key='magazzino'` ma la chiave reale è `data_key='pasticceria-mag
 1. **Configurare le env vars su Vercel** (obbligatorio):
    - `CRON_SECRET` (≥ 32 caratteri random)
    - `INTERNAL_API_SECRET` (≥ 32 caratteri random)
-   - `ZUCCHETTI_WEBHOOK_SECRET` (solo se si usa l'integrazione)
    - Senza queste, i cron e i webhook **rifiuteranno tutto** (fail-closed).
 
 2. **Rilanciare `supabase_security_audit.sql`** su Supabase SQL Editor:

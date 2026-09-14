@@ -2,15 +2,23 @@
 // POST /api/webhook-pos
 //
 // Riceve dati real-time da QUALSIASI cassa che sa fare POST HTTP.
-// Generalizza il pattern di webhook-zucchetti.js per supportare piu provider.
 //
 // Headers richiesti:
 //   x-pos-provider:   id del provider in minuscolo (es. 'tilby',
 //                     'cassaincloud', 'rch',
 //                     'olivetti', 'custom', 'salvi', 'indaco', 'polotouch',
 //                     'ekopos', 'wolf', 'zucchetti')
-//   x-pos-secret:     shared secret per autenticare (env vars per provider)
-//   x-organization-id: UUID org FoodOS
+//   x-webhook-token:  la chiave del cliente, generata dalla pagina Integrazioni
+//                     (accettata anche come `x-pos-secret` o
+//                     `Authorization: Bearer ...`, per i registratori già
+//                     configurati con quei nomi)
+//
+// L'organizzazione NON si dichiara: si deduce dalla chiave. Fino al 14/09/2026
+// esisteva una parola d'ordine per marca di cassa e l'attività arrivava
+// nell'intestazione `x-organization-id`, quindi chi aveva la parola d'ordine di
+// una marca poteva scrivere incassi nella cassa di chiunque. Adesso ogni
+// cliente ha la sua chiave e la chiave dice da sola a chi appartiene;
+// `x-organization-id`, se mandato, viene solo confrontato.
 //
 // Body JSON (formato universale):
 //   {
@@ -38,28 +46,34 @@ export const config = { runtime: 'edge' }
 import { checkRateLimit, rateLimitResponse } from './lib/rateLimit.js'
 import { getCorsHeaders, handleOptions, getClientIP } from './lib/cors.js'
 import { sanitizeStrict, validateUUID } from './lib/validate.js'
-import { verifyRawSecret } from './lib/cryptoCompare.js'
+import { leggiToken, risolviToken, segnaUso, organizzazioneAttiva } from './lib/webhookToken.js'
 
-// Mapping provider → env var secret. Aggiungere qui nuovi provider.
-// Pattern env var: POS_<PROVIDER>_SECRET (es. POS_TILBY_SECRET).
-const PROVIDER_SECRET_ENV = {
-  tilby:        'POS_TILBY_SECRET',
-  // Tutto minuscolo: la riga 82 normalizza l'header con .toLowerCase(), e con
-  // la chiave scritta 'cassainCloud' la ricerca nella mappa non trovava
-  // niente. Ogni chiamata di Cassa in Cloud veniva rifiutata con
-  // "x-pos-provider non valido", sempre, per un maiuscolo. Il vecchio valore
-  // resta accettato come alias per non rompere chi lo manda già così.
-  cassaincloud: 'POS_CASSAINCLOUD_SECRET',
-  cassainCloud: 'POS_CASSAINCLOUD_SECRET',
-  rch:          'POS_RCH_SECRET',
-  olivetti:     'POS_OLIVETTI_SECRET',
-  custom:       'POS_CUSTOM_SECRET',
-  salvi:        'POS_SALVI_SECRET',
-  indaco:       'POS_INDACO_SECRET',
-  polotouch:    'POS_POLOTOUCH_SECRET',
-  ekopos:       'POS_EKOPOS_SECRET',
-  wolf:         'POS_WOLF_SECRET',
-  zucchetti:    'ZUCCHETTI_WEBHOOK_SECRET',  // alias storico
+// Marche di cassa accettate. Aggiungere qui quando se ne collega una nuova:
+// non c'è più un segreto per marca da configurare sul server, la chiave la
+// genera il cliente dalla pagina Integrazioni.
+export const PROVIDER_VALIDI = [
+  'tilby',
+  'cassaincloud',
+  'rch',
+  'olivetti',
+  'custom',
+  'salvi',
+  'indaco',
+  'polotouch',
+  'ekopos',
+  'wolf',
+  'zucchetti',
+]
+
+// Scritture storiche accettate come sinonimo. 'cassainCloud' arrivava con la
+// maiuscola e la riga che normalizza l'header la perdeva.
+const ALIAS_PROVIDER = { cassaincloud: 'cassaincloud', zucchetti: 'zucchetti' }
+
+export function normalizzaProvider(raw) {
+  const p = String(raw || '').trim().toLowerCase()
+  if (!p) return null
+  const canonico = ALIAS_PROVIDER[p] || p
+  return PROVIDER_VALIDI.includes(canonico) ? canonico : null
 }
 
 async function getSupabase() {
@@ -86,31 +100,30 @@ export default async function handler(req) {
   if (!rl.allowed) return rateLimitResponse(rl.retryAfter)
 
   // Provider discrimination
-  const provider = sanitizeStrict(req.headers.get('x-pos-provider') || '', 32).toLowerCase()
-  if (!provider || !PROVIDER_SECRET_ENV[provider]) {
+  const provider = normalizzaProvider(sanitizeStrict(req.headers.get('x-pos-provider') || '', 32))
+  if (!provider) {
     return jsonResponse(req, { error: 'x-pos-provider non valido o mancante' }, 400)
   }
 
-  // Secret verification (fail-closed)
-  const expectedSecret = process.env[PROVIDER_SECRET_ENV[provider]]
-  if (!expectedSecret) {
-    return jsonResponse(req, { error: `Provider ${provider} non configurato sul server` }, 503)
-  }
-  const provided = req.headers.get('x-pos-secret')
-    || (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '')
-  const check = verifyRawSecret(provided, expectedSecret)
-  if (!check.ok) return jsonResponse(req, { error: 'Unauthorized' }, 401)
+  // La chiave del cliente, e da lì l'organizzazione (fail-closed).
+  const auth = await risolviToken(supabase, leggiToken(req), provider)
+  if (!auth.ok) return jsonResponse(req, { error: 'Unauthorized' }, 401)
+  const orgId = auth.organizationId
 
   // Body parsing
   let body
   try { body = await req.json() } catch { return jsonResponse(req, { error: 'JSON non valido' }, 400) }
 
-  // Organization
-  const rawOrgId = req.headers.get('x-organization-id') || body.organization_id
-  const orgId = sanitizeStrict(rawOrgId || '', 36)
-  if (!orgId || !validateUUID(orgId)) {
-    return jsonResponse(req, { error: 'x-organization-id non valido' }, 400)
+  // Se la cassa dichiara comunque un'organizzazione, deve essere la sua.
+  // Non è un permesso in più: è un modo per accorgersi di una cassa
+  // configurata con la chiave sbagliata invece di scrivere nel posto errato.
+  const dichiarata = sanitizeStrict(req.headers.get('x-organization-id') || body.organization_id || '', 36)
+  if (dichiarata && validateUUID(dichiarata) && dichiarata !== orgId) {
+    return jsonResponse(req, { error: 'La chiave non appartiene a questa organizzazione' }, 403)
   }
+
+  const org = await organizzazioneAttiva(supabase, orgId)
+  if (!org.ok) return jsonResponse(req, { error: org.errore }, org.stato)
 
   // Required fields
   const data = sanitizeStrict(body.data || body.date || '', 10)
@@ -128,7 +141,6 @@ export default async function handler(req) {
   // Idempotency: se ricevo lo stesso numero_scontrino per stesso provider/org
   // nello stesso giorno, ritorno il record esistente.
   const numeroScontrino = sanitizeStrict(body.numero_scontrino || '', 64) || null
-  let existing = null
   if (numeroScontrino) {
     const { data: prev } = await supabase
       .from('pos_scontrini')
@@ -190,6 +202,8 @@ export default async function handler(req) {
     stato: 'ok',
     records_importati: 1,
   }).catch(() => {})
+
+  await segnaUso(supabase, auth.tokenId)
 
   return jsonResponse(req, { ok: true, scontrino_id: inserted.id, provider }, 200)
 }

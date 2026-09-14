@@ -1,15 +1,20 @@
 // Zucchetti enterprise webhook receiver
 // POST /api/webhook-zucchetti
 // Receives real-time sales data from Zucchetti Infinity/Kassa enterprise tier
-// Headers: x-zucchetti-secret, x-organization-id
+// Headers: x-webhook-token (o x-zucchetti-secret, o Authorization: Bearer ...)
+//
+// L'organizzazione si deduce dalla chiave, non dall'intestazione
+// `x-organization-id`: prima la chiave era una sola per tutti i clienti
+// Zucchetti e l'attività arrivava in chiaro, quindi chi aveva quella chiave
+// poteva scrivere chiusure cassa a chiunque. Vedi api/lib/webhookToken.js.
 
 export const config = { runtime: 'edge' }
 
 import { checkRateLimit, rateLimitResponse } from './lib/rateLimit.js'
 import { getCorsHeaders, handleOptions, getClientIP } from './lib/cors.js'
 import { sanitizeStrict, validateUUID } from './lib/validate.js'
-import { verifyRawSecret } from './lib/cryptoCompare.js'
 import { safeError } from './lib/safeError.js'
+import { leggiToken, risolviToken, segnaUso, organizzazioneAttiva } from './lib/webhookToken.js'
 
 async function getSupabase() {
   const { createClient } = await import('@supabase/supabase-js')
@@ -32,16 +37,15 @@ export default async function handler(request) {
   const rl = await checkRateLimit(supabase, `webhook-zucchetti:${ip}`, 60, 60)
   if (!rl.allowed) return rateLimitResponse(rl.retryAfter)
 
-  // Verify webhook secret (FAIL-CLOSED + constant-time compare)
-  const provided = request.headers.get('x-zucchetti-secret')
-    || (request.headers.get('authorization') || '').replace(/^Bearer\s+/i, '')
-  const secretCheck = verifyRawSecret(provided, process.env.ZUCCHETTI_WEBHOOK_SECRET)
-  if (!secretCheck.ok) {
+  // La chiave del cliente, e da lì l'organizzazione (fail-closed).
+  const auth = await risolviToken(supabase, leggiToken(request), 'zucchetti')
+  if (!auth.ok) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
       headers: { 'Content-Type': 'application/json' },
     })
   }
+  const orgId = auth.organizationId
 
   let body
   try {
@@ -53,37 +57,20 @@ export default async function handler(request) {
     })
   }
 
-  const rawOrgId = request.headers.get('x-organization-id') || body.organization_id
-  const orgId = sanitizeStrict(rawOrgId || '', 36)
-  if (!orgId || !validateUUID(orgId)) {
-    return new Response(JSON.stringify({ error: 'x-organization-id non valido' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
+  // Se la cassa dichiara comunque un'organizzazione, deve essere la sua:
+  // serve ad accorgersi di una cassa configurata con la chiave sbagliata,
+  // non a concedere niente in più.
+  const dichiarata = sanitizeStrict(request.headers.get('x-organization-id') || body.organization_id || '', 36)
+  if (dichiarata && validateUUID(dichiarata) && dichiarata !== orgId) {
+    return new Response(JSON.stringify({ error: 'La chiave non appartiene a questa organizzazione' }), {
+      status: 403, headers: { 'Content-Type': 'application/json' },
     })
   }
 
-  // ── Verifica che l'org esista e sia attiva ────────────────────────────
-  // Senza questo check, un attaccante con il secret valido può scrivere
-  // chiusure cassa a org arbitrarie (purché l'UUID esista).
-  try {
-    const { data: org, error: orgErr } = await supabase
-      .from('organizations')
-      .select('id, attivo')
-      .eq('id', orgId)
-      .maybeSingle()
-    if (orgErr || !org) {
-      return new Response(JSON.stringify({ error: 'Organizzazione non trovata' }), {
-        status: 404, headers: { 'Content-Type': 'application/json' },
-      })
-    }
-    if (org.attivo === false) {
-      return new Response(JSON.stringify({ error: 'Organizzazione disattivata' }), {
-        status: 403, headers: { 'Content-Type': 'application/json' },
-      })
-    }
-  } catch {
-    return new Response(JSON.stringify({ error: 'Verifica organizzazione fallita' }), {
-      status: 500, headers: { 'Content-Type': 'application/json' },
+  const org = await organizzazioneAttiva(supabase, orgId)
+  if (!org.ok) {
+    return new Response(JSON.stringify({ error: org.errore }), {
+      status: org.stato, headers: { 'Content-Type': 'application/json' },
     })
   }
 
@@ -136,6 +123,8 @@ export default async function handler(request) {
       stato: 'ok',
       records_importati: records,
     })
+
+    await segnaUso(supabase, auth.tokenId)
 
     return new Response(JSON.stringify({ ok: true, records_importati: records }), {
       status: 200,

@@ -76,6 +76,27 @@ const controlli = [
     perche: 'un bucket pubblico serve i file senza autenticazione, a chiunque abbia l indirizzo',
   },
   {
+    nome: 'le chiavi delle casse non si leggono senza essere loggati',
+    sql: `select count(*) from information_schema.role_table_grants
+          where grantee='anon' and table_schema='public' and table_name='webhook_token'`,
+    atteso: '0',
+    perche: 'con la chiave di un cliente si scriverebbero incassi nella sua cassa',
+  },
+  {
+    nome: 'le chiavi delle casse non si scrivono dal browser',
+    sql: `select count(*) from information_schema.role_table_grants
+          where grantee in ('anon','authenticated') and table_schema='public'
+            and table_name='webhook_token' and privilege_type in ('INSERT','UPDATE','DELETE')`,
+    atteso: '0',
+    perche: 'la chiave la genera il server: dal browser si potrebbe scriverne una per un altra azienda',
+  },
+  {
+    nome: 'la chiave di una cassa non si genera senza essere loggati',
+    sql: `select case when has_function_privilege('anon', 'public.webhook_token_genera(text)', 'EXECUTE') then 1 else 0 end`,
+    atteso: '0',
+    perche: 'chi la genera senza account non ha un azienda a cui legarla',
+  },
+  {
     nome: 'i dati di lavoro non si scrivono senza essere loggati',
     sql: `select case when has_function_privilege('anon', 'public.fos_user_data_set_batch(jsonb,uuid)', 'EXECUTE') then 1 else 0 end`,
     atteso: '0',

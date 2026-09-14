@@ -9,7 +9,7 @@ import { caricaChiusure, upsertChiusure, importaChiusureIncassi } from '../lib/c
 import { pickFattura, dedupFatture, insertFattureResilient, chiaviFattureEsistenti } from '../lib/fattureImport'
 import Icon from './Icon'
 
-import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
+import { color as T, radius as R, shadow as S, motion as M, typo } from '../lib/theme'
 
 const C = {
   red: T.brand, redLight: T.brandLight,
@@ -121,14 +121,15 @@ const INTEGRAZIONI_CFG = [
   },
   {
     id: 'zucchetti_webhook',
+    providerWebhook: 'zucchetti',
     nome: 'Zucchetti Webhook (Enterprise)',
     icona: 'bolt',
     categoria: 'Cassa',
     descrizione: 'Ricezione dati in real-time da Zucchetti Infinity/Kassa Enterprise tramite webhook POST.',
     istruzioni: [
       'Disponibile solo con licenza Zucchetti Enterprise',
-      'Configura l\'URL webhook nel pannello Zucchetti: Impostazioni › Integrazioni › Webhook',
-      'Inserisci l\'URL e il secret qui sotto - i dati arriveranno automaticamente',
+      'Crea la chiave qui sotto: è tua e vale solo per la tua attività',
+      'Nel pannello Zucchetti (Impostazioni › Integrazioni › Webhook) incolla indirizzo e chiave - poi i dati arrivano da soli',
     ],
     tipo: 'webhook',
   },
@@ -136,12 +137,13 @@ const INTEGRAZIONI_CFG = [
   // ── Casse italiane food (15 marche piu diffuse) ────────────────────────────
   {
     id: 'tilby',
+    providerWebhook: 'tilby',
     nome: 'Tilby POS',
     icona: 'store',
     categoria: 'Cassa',
     descrizione: 'POS leader nel food artigianale italiano. Real-time webhook + export CSV.',
     istruzioni: [
-      'Per webhook real-time (consigliato): Tilby Web → Impostazioni → Integrazioni → Webhook esterni → URL: https://foodos-rose.vercel.app/api/webhook-pos · Headers: x-pos-provider: tilby · x-pos-secret: <chiedi a Foodos>',
+      'Per il collegamento in tempo reale (consigliato): crea la chiave qui sotto, poi Tilby Web → Impostazioni → Integrazioni → Webhook esterni, e incolla lì indirizzo e chiave',
       'Per import manuale CSV: Tilby Web → Report → Esporta vendite (CSV)',
       'Carica il file qui - l\'AI auto-rileva il formato',
     ],
@@ -152,6 +154,7 @@ const INTEGRAZIONI_CFG = [
   },
   {
     id: 'cassa_in_cloud',
+    providerWebhook: 'cassaincloud',
     nome: 'Cassa in Cloud',
     icona: 'store',
     categoria: 'Cassa',
@@ -168,6 +171,7 @@ const INTEGRAZIONI_CFG = [
   },
   {
     id: 'rch_atos',
+    providerWebhook: 'rch',
     nome: 'RCH Atos / Print&Pay',
     icona: 'store',
     categoria: 'Cassa',
@@ -184,6 +188,7 @@ const INTEGRAZIONI_CFG = [
   },
   {
     id: 'olivetti',
+    providerWebhook: 'olivetti',
     nome: 'Olivetti Form / Nettuna',
     icona: 'store',
     categoria: 'Cassa',
@@ -200,6 +205,7 @@ const INTEGRAZIONI_CFG = [
   },
   {
     id: 'custom_q3x',
+    providerWebhook: 'custom',
     nome: 'Custom Q3X / Epson FP-90',
     icona: 'store',
     categoria: 'Cassa',
@@ -216,6 +222,7 @@ const INTEGRAZIONI_CFG = [
   },
   {
     id: 'salvi_cassa',
+    providerWebhook: 'salvi',
     nome: 'Salvi Cassa',
     icona: 'store',
     categoria: 'Cassa',
@@ -231,6 +238,7 @@ const INTEGRAZIONI_CFG = [
   },
   {
     id: 'indaco',
+    providerWebhook: 'indaco',
     nome: 'Indaco POS',
     icona: 'store',
     categoria: 'Cassa',
@@ -246,6 +254,7 @@ const INTEGRAZIONI_CFG = [
   },
   {
     id: 'polotouch',
+    providerWebhook: 'polotouch',
     nome: 'Polotouch',
     icona: 'store',
     categoria: 'Cassa',
@@ -261,6 +270,7 @@ const INTEGRAZIONI_CFG = [
   },
   {
     id: 'eko_pos',
+    providerWebhook: 'ekopos',
     nome: 'Eko POS',
     icona: 'store',
     categoria: 'Cassa',
@@ -276,6 +286,7 @@ const INTEGRAZIONI_CFG = [
   },
   {
     id: 'wolf_pos',
+    providerWebhook: 'wolf',
     nome: 'Wolf POS',
     icona: 'store',
     categoria: 'Cassa',
@@ -541,6 +552,131 @@ function StatoBadge({ stato, errore, lastSync }) {
       <span style={{ width: 8, height: 8, borderRadius: '50%', background: C.green, display: 'inline-block' }} />
       Connessa - ultimo import: {fmtTs(lastSync)}
     </span>
+  )
+}
+
+// La chiave con cui la cassa entra in Foodos.
+//
+// Fino al 14/09/2026 la parola d'ordine era una per marca di cassa, uguale per
+// tutti i clienti, e l'attività a cui scrivere gli incassi arrivava scritta
+// nell'intestazione della richiesta. Chi aveva quella parola d'ordine poteva
+// scrivere incassi nella cassa di chiunque. Adesso ogni attività ha la sua
+// chiave, e la chiave dice da sola di chi è.
+//
+// La chiave in chiaro si vede una volta sola, appena creata: nel database c'è
+// solo la sua impronta. Se si perde se ne fa una nuova, e la vecchia smette di
+// funzionare nello stesso momento.
+function ChiaveWebhook({ provider, endpoint, notify, btnStyle }) {
+  const [riga, setRiga] = useState(null)
+  const [chiaro, setChiaro] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const [letta, setLetta] = useState(false)
+
+  useEffect(() => {
+    let vivo = true
+    setChiaro(null); setLetta(false); setRiga(null)
+    supabase.from('webhook_token')
+      .select('token_prefisso, creato_il, ultimo_uso_il')
+      .eq('provider', provider)
+      .is('revocato_il', null)
+      .maybeSingle()
+      .then(({ data }) => { if (vivo) { setRiga(data || null); setLetta(true) } },
+            () => { if (vivo) setLetta(true) })
+    return () => { vivo = false }
+  }, [provider])
+
+  const genera = async () => {
+    setBusy(true)
+    try {
+      const { data, error } = await supabase.rpc('webhook_token_genera', { p_provider: provider })
+      if (error) throw error
+      setChiaro(data)
+      setRiga({ token_prefisso: String(data).slice(0, 6), creato_il: new Date().toISOString(), ultimo_uso_il: null })
+      notify('Chiave creata. Copiala adesso: dopo non si rivede più.')
+    } catch (e) {
+      notify(messaggioLeggibile(e), false)
+    } finally { setBusy(false) }
+  }
+
+  const copia = (testo, cosa) => navigator.clipboard?.writeText(testo)
+    .then(() => notify(cosa + ' copiato negli appunti'))
+
+  const boxCodice = {
+    ...typo.code, flex: 1, background: C.white, border: `1px solid ${C.border}`,
+    borderRadius: 8, padding: '8px 12px', color: C.text, display: 'block',
+    wordBreak: 'break-all', minWidth: 0,
+  }
+
+  return (
+    <div style={{ background: C.bg, borderRadius: 8, padding: 14, marginBottom: 16 }}>
+      <div style={{ ...typo.small, fontWeight: 700, color: C.textMid, marginBottom: 10 }}>
+        Collegamento in tempo reale
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div>
+          <div style={{ ...typo.small, color: C.textSoft, marginBottom: 4, fontWeight: 600 }}>INDIRIZZO A CUI SCRIVERE</div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <code style={boxCodice}>{endpoint}</code>
+            <button onClick={() => copia(endpoint, 'Indirizzo')} style={{ ...btnStyle(false), flexShrink: 0 }}>
+              <Icon name="clipboard" size={13} /> Copia
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <div style={{ ...typo.small, color: C.textSoft, marginBottom: 4, fontWeight: 600 }}>LA TUA CHIAVE</div>
+          {chiaro ? (
+            <>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <code style={{ ...boxCodice, ...tnum }}>{chiaro}</code>
+                <button onClick={() => copia(chiaro, 'Chiave')} style={{ ...btnStyle(true), flexShrink: 0 }}>
+                  <Icon name="clipboard" size={13} /> Copia
+                </button>
+              </div>
+              <div style={{ ...typo.small, color: C.amber, marginTop: 6, display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+                <Icon name="warning" size={13} style={{ flexShrink: 0, marginTop: 1 }} />
+                <span>Copiala adesso e incollala nella cassa: quando chiudi questa pagina non si rivede più. Se la perdi, ne generi una nuova.</span>
+              </div>
+            </>
+          ) : riga ? (
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <code style={{ ...boxCodice, color: C.textSoft, ...tnum }}>
+                {riga.token_prefisso}··········  ·  creata il {fmtTs(riga.creato_il)}
+                {riga.ultimo_uso_il ? `  ·  ultimo scontrino ${fmtTs(riga.ultimo_uso_il)}` : '  ·  non ancora usata'}
+              </code>
+              <button onClick={genera} disabled={busy} style={{ ...btnStyle(false), flexShrink: 0, opacity: busy ? 0.6 : 1 }}>
+                <Icon name="refresh" size={13} /> {busy ? 'Creo…' : 'Rigenera'}
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <span style={{ ...typo.small, color: C.textSoft, flex: 1, minWidth: 0 }}>
+                {letta ? 'Non ne hai ancora una.' : 'Controllo…'}
+              </span>
+              <button onClick={genera} disabled={busy || !letta} style={{ ...btnStyle(true), flexShrink: 0, opacity: (busy || !letta) ? 0.6 : 1 }}>
+                <Icon name="key" size={13} /> {busy ? 'Creo…' : 'Crea la chiave'}
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div>
+          <div style={{ ...typo.small, color: C.textSoft, marginBottom: 4, fontWeight: 600 }}>DA SCRIVERE NELLA CASSA</div>
+          <code style={{ ...typo.code, background: C.white, border: `1px solid ${C.border}`,
+            borderRadius: 8, padding: '8px 12px', color: C.textMid, display: 'block', lineHeight: 2,
+            wordBreak: 'break-all' }}>
+            x-pos-provider: {provider}<br />
+            x-webhook-token: {chiaro || (riga ? riga.token_prefisso + '··········' : '<la chiave qui sopra>')}<br />
+            Content-Type: application/json
+          </code>
+        </div>
+
+        <div style={{ ...typo.small, color: C.textSoft, lineHeight: 1.55 }}>
+          Rigenerare la chiave spegne subito la precedente: la cassa smette di
+          mandare finché non le scrivi quella nuova.
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -929,46 +1065,17 @@ export default function Integrazioni({ orgId, sedeId }) {
                       </ol>
                     </div>
 
-                    {/* Webhook info */}
-                    {cfg.tipo === 'webhook' ? (
-                      <div style={{ background: C.bg, borderRadius: 8, padding: 14, marginBottom: 16 }}>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: C.textMid, marginBottom: 10 }}>
-                          Configurazione Zucchetti Enterprise
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                          <div>
-                            <div style={{ fontSize: 12, color: C.textSoft, marginBottom: 4, fontWeight: 600 }}>URL WEBHOOK</div>
-                            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                              <code style={{ flex: 1, fontSize: 12, background: C.white, border: `1px solid ${C.border}`,
-                                borderRadius: 8, padding: '8px 12px', color: C.text, display: 'block', wordBreak: 'break-all',
-                                minWidth: 0 }}>
-                                {window.location.origin}/api/webhook-zucchetti
-                              </code>
-                              <button
-                                onClick={() => navigator.clipboard?.writeText(window.location.origin + '/api/webhook-zucchetti')
-                                  .then(() => notify('URL copiato negli appunti'))}
-                                style={{ ...btnStyle(false), flexShrink: 0 }}>
-                                <Icon name="clipboard" size={13} /> Copia
-                              </button>
-                            </div>
-                          </div>
-                          <div>
-                            <div style={{ fontSize: 12, color: C.textSoft, marginBottom: 4, fontWeight: 600 }}>HEADERS RICHIESTI</div>
-                            <code style={{ fontSize: 12, background: C.white, border: `1px solid ${C.border}`,
-                              borderRadius: 8, padding: '8px 12px', color: C.textMid, display: 'block', lineHeight: 2 }}>
-                              x-organization-id: {orgId}<br />
-                              x-zucchetti-secret: {'<ZUCCHETTI_WEBHOOK_SECRET da Vercel env>'}<br />
-                              Content-Type: application/json
-                            </code>
-                          </div>
-                          <div style={{ fontSize: 12, color: C.amber, padding: '8px 10px', background: C.amberLight,
-                            borderRadius: 8, display: 'flex', alignItems: 'flex-start', gap: 6 }}>
-                            <Icon name="warning" size={13} style={{ flexShrink: 0, marginTop: 1 }} />
-                            <span>Imposta <code>ZUCCHETTI_WEBHOOK_SECRET</code> nelle variabili d'ambiente Vercel per proteggere l'endpoint.</span>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
+                    {/* La chiave del cliente per il collegamento in tempo reale */}
+                    {cfg.providerWebhook && (
+                      <ChiaveWebhook
+                        provider={cfg.providerWebhook}
+                        endpoint={window.location.origin + (cfg.providerWebhook === 'zucchetti' ? '/api/webhook-zucchetti' : '/api/webhook-pos')}
+                        notify={notify}
+                        btnStyle={btnStyle}
+                      />
+                    )}
+
+                    {cfg.tipo === 'webhook' ? null : (
                       /* File upload area */
                       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
                         <label style={{ ...btnStyle(true), cursor: 'pointer' }}>

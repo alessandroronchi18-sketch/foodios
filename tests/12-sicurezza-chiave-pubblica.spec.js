@@ -80,6 +80,23 @@ test.describe('con la sola chiave pubblica non si fa niente', () => {
     expect(String(ricevi.corpo.message || '')).toContain('Utente senza organizzazione')
   })
 
+  test('non si leggono le chiavi delle casse', async () => {
+    // Con la chiave di un cliente si scriverebbero incassi nella sua cassa.
+    // Nella tabella c'è solo l'impronta, ma non deve uscire nemmeno quella.
+    const r = await fetch(`${URL}/rest/v1/webhook_token?select=*&limit=1`, {
+      headers: { apikey: ANON, Authorization: `Bearer ${ANON}` },
+    })
+    const corpo = await r.json().catch(() => ({}))
+    if (Array.isArray(corpo)) expect(corpo.length).toBe(0)
+    else expect(corpo.code).toBe('42501')
+  })
+
+  test('non si genera la chiave di una cassa senza account', async () => {
+    const { corpo } = await chiama('rpc/webhook_token_genera', { p_provider: 'tilby' })
+    expect(corpo.code).toBe('42501')
+    expect(String(corpo.message || '')).toContain('permission denied')
+  })
+
   test('non si inserisce una fattura in un\'azienda altrui', async () => {
     const { corpo } = await chiama('fatture', { fornitore: 'intruso', totale: 1, organization_id: ORG_FINTA })
     expect(['42501', '23503']).toContain(corpo.code)

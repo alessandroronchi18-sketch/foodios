@@ -43,14 +43,15 @@ Totale: **15 sistemi cassa italiani direttamente supportati** + parser fallback 
 ```
 Setup iniziale (15 min, una tantum):
   1. Apri https://foodos-rose.vercel.app/ → Integrazioni → [scegli cassa]
-  2. Genera SECRET (FoodOS te lo mostra)
+  2. "Crea la chiave": FoodOS la mostra UNA volta sola, copiala subito
   3. Vai sul pannello cassa → Impostazioni → Webhook esterni
   4. URL:     https://foodos-rose.vercel.app/api/webhook-pos
      Headers:
-       x-pos-provider: tilby  (o cassainCloud / zucchetti / etc.)
-       x-pos-secret: <secret-generato>
-       x-organization-id: <tuo-org-uuid>
+       x-pos-provider: tilby  (o cassaincloud / zucchetti / etc.)
+       x-webhook-token: <la chiave copiata al punto 2>
   5. Salva configurazione
+
+  L'organizzazione non si dichiara: la chiave dice da sola a chi appartiene.
 
 Utilizzo quotidiano (0 sec/giorno):
   - Apri negozio, accendi cassa normale
@@ -110,8 +111,7 @@ Tempo: 3-5 minuti.
 | Header | Valore | Esempio |
 |---|---|---|
 | `x-pos-provider` | id cassa | `tilby`, `cassainCloud`, `rch`, `olivetti`, `custom`, `salvi`, `indaco`, `polotouch`, `ekopos`, `wolf`, `zucchetti` |
-| `x-pos-secret` | shared secret | (env var lato server: `POS_TILBY_SECRET` ecc.) |
-| `x-organization-id` | UUID org FoodOS | `61a4c0e2-...` |
+| `x-webhook-token` | la chiave del cliente, generata da Integrazioni | `9f3c…` (64 caratteri) |
 | `Content-Type` | `application/json` | |
 
 ### Body JSON (formato universale)
@@ -170,25 +170,44 @@ API: `import { autoDetectCassaFormat } from '@/lib/importCassa'`
 
 ---
 
-## Setup secret per ogni provider (lato server)
+## La chiave del cliente
 
-Per attivare un webhook real-time bisogna settare l'env var corrispondente su Vercel:
+Non c'è niente da configurare lato server: nessuna env var, nessun secret per
+marca. La chiave la genera il cliente dalla pagina Integrazioni, con il pulsante
+"Crea la chiave" sulla scheda della sua cassa.
 
-| Provider | Env var Vercel |
-|---|---|
-| `tilby` | `POS_TILBY_SECRET` |
-| `cassainCloud` | `POS_CASSAINCLOUD_SECRET` |
-| `rch` | `POS_RCH_SECRET` |
-| `olivetti` | `POS_OLIVETTI_SECRET` |
-| `custom` | `POS_CUSTOM_SECRET` |
-| `salvi` | `POS_SALVI_SECRET` |
-| `indaco` | `POS_INDACO_SECRET` |
-| `polotouch` | `POS_POLOTOUCH_SECRET` |
-| `ekopos` | `POS_EKOPOS_SECRET` |
-| `wolf` | `POS_WOLF_SECRET` |
-| `zucchetti` | `ZUCCHETTI_WEBHOOK_SECRET` (legacy) |
+Come funziona:
 
-I secret sono **per organizzazione**: ogni cliente FoodOS che attiva una cassa real-time ha il suo secret unico. La generazione del secret avviene quando il cliente clicca "Genera webhook" nella UI Integrazioni.
+- una chiave attiva per **attività e marca di cassa** (`webhook_token`,
+  indice unico su `(organization_id, provider)` quando `revocato_il is null`);
+- nel database c'è solo l'**impronta SHA-256**, mai la chiave: se un domani
+  qualcuno leggesse quella tabella non ci troverebbe niente di utilizzabile;
+- il chiaro si vede **una volta sola**, appena creata. Se si perde se ne fa una
+  nuova, e la precedente smette di funzionare nello stesso istante;
+- il webhook ricava l'organizzazione **dalla chiave**. Se la richiesta porta
+  anche `x-organization-id`, viene solo confrontato: se non corrisponde,
+  risposta 403.
+
+Le intestazioni storiche `x-pos-secret`, `x-zucchetti-secret` e
+`Authorization: Bearer …` restano accettate come contenitore della chiave, così
+chi ha già configurato il registratore cambia solo il valore e non il nome del
+campo.
+
+### Cosa c'era prima, e perché è cambiato — 14/09/2026
+
+C'era **una parola d'ordine per marca di cassa**, uguale per tutti i clienti
+(`POS_TILBY_SECRET`, `POS_RCH_SECRET`…), e l'attività a cui scrivere gli
+incassi arrivava nell'intestazione `x-organization-id`, creduta sulla parola.
+Chi aveva la parola d'ordine di una marca — il fornitore della cassa, o
+chiunque se la facesse dare da lui — poteva scrivere incassi nella cassa di
+qualsiasi cliente FoodOS, cambiando quell'id.
+
+Questo stesso documento dichiarava già «i secret sono **per organizzazione**»:
+era il progetto giusto, ma il codice non l'aveva mai fatto. Adesso lo fa.
+
+Nessun cliente è stato esposto: quando è stato corretto non c'era nessuna
+integrazione attiva (`integrazioni` vuota, `pos_scontrini` vuota, nessuna riga
+di webhook in `sync_log`) e quei segreti li aveva solo il fondatore.
 
 ---
 

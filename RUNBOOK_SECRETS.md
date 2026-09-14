@@ -15,7 +15,6 @@ Procedura per ruotare ogni secret usato dall'app **senza downtime**. Tutti i sec
 | `RESEND_API_KEY` | `/api/send-email`, `cron-report-mensile`, `cron-notifiche`, `anomaly-detect` | Ogni 180 giorni | Le email non parte finché non aggiornata | Vedi §3 |
 | `CRON_SECRET` | Vercel cron triggers (`cron-*`, `sync-delivery`, `anomaly-detect`) | Ogni 180 giorni | I cron si fermano finché non aggiornato | Vedi §4 |
 | `INTERNAL_API_SECRET` | Chiamate server→server (es. admin.js → send-email.js per approvazione) | Ogni 180 giorni | Email transazionali non partono | Vedi §4 |
-| `ZUCCHETTI_WEBHOOK_SECRET` | `/api/webhook-zucchetti` | Su richiesta cliente Zucchetti | Webhook respingono fino sync | Vedi §5 |
 | `ADMIN_EMAIL` | `api/admin.js`, `cron-report-mensile`, `anomaly-detect` | Mai (è l'email titolare) | Solo titolare cambia | Aggiorna su Vercel + ridepoy |
 | `ADMIN_IPS` (opzionale) | `api/admin.js` allowlist IP admin | Quando cambi sede | L'admin viene bloccato finché non aggiornata | Vedi §6 |
 | `SENTRY_DSN` (opzionale) | `/api/error-report` | Mai (è il progetto Sentry) | Senza, errori vanno solo su audit_log | Crea progetto su sentry.io |
@@ -93,16 +92,20 @@ Sono secret interni al sistema FoodOS, generati localmente.
 
 ---
 
-## §5. Rotazione `ZUCCHETTI_WEBHOOK_SECRET`
+## §5. Le chiavi delle casse non si ruotano da qui
 
-Coordinarsi con il cliente Zucchetti.
+Dal 14/09/2026 i webhook delle casse (`/api/webhook-pos`,
+`/api/webhook-zucchetti`) **non usano più nessuna env var**. Ogni cliente ha la
+sua chiave, la genera lui dalla pagina Integrazioni, e nel database c'è solo
+l'impronta SHA-256.
 
-1. Genera nuovo secret (vedi §4)
-2. **Vercel**: aggiorna `ZUCCHETTI_WEBHOOK_SECRET`
-3. **Comunica al cliente** il nuovo secret da impostare nel pannello Zucchetti Enterprise (Impostazioni → Webhook → Secret)
-4. Tra il punto 2 e il 3, i webhook in arrivo vengono respinti con 401. Sono accodati lato Zucchetti, ritrasmessi quando il secret è coerente
+Rotazione: il cliente clicca "Rigenera" sulla scheda della sua cassa e incolla
+la nuova chiave nel pannello del registratore. La precedente smette di valere
+nell'istante in cui nasce la nuova.
 
-**Downtime previsto:** finestra di alcuni minuti durante l'aggiornamento.
+`ZUCCHETTI_WEBHOOK_SECRET` e le `POS_*_SECRET` **si possono cancellare da
+Vercel**: nessun endpoint le legge più. Perché sono sparite, vedi
+`INTEGRAZIONI_CASSE.md`, "Cosa c'era prima, e perché è cambiato".
 
 ---
 
