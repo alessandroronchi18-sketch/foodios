@@ -78,3 +78,34 @@ describe('percentuali in italiano', () => {
     expect(fmt(0).startsWith('€')).toBe(false)
   })
 })
+
+describe('i numeri nei casi difficili', () => {
+  it('arrotonda come ci si aspetta, senza mangiarsi il centesimo', () => {
+    expect(fmt(0.005)).toBe('0,01 €')
+    expect(fmt(1234.565)).toBe('1.234,57 €')
+    expect(fmt0(0.5)).toBe('1 €')
+    expect(fmtp(33.35)).toBe('33,4%')
+    expect(fmtp0(33.5)).toBe('34%')
+  })
+
+  it('i negativi tengono il segno davanti, non in mezzo', () => {
+    expect(fmt(-12.5)).toBe('-12,50 €')
+    expect(fmtp(-4.25)).toBe('-4,3%')
+    expect(fmtpSegno(-4)).toBe('-4,0%')
+    expect(fmtpSegno(0)).toBe('+0,0%')
+  })
+
+  it('i numeri grandi hanno il punto delle migliaia', () => {
+    expect(fmt0(1234567)).toBe('1.234.567 €')
+    expect(fmtp0(1500)).toBe('1.500%')
+  })
+
+  it('una stringa con la virgola non diventa zero per sbaglio', () => {
+    // I valori arrivano spesso da un campo di testo: "12,5" è quello che
+    // l'utente scrive, e Number("12,5") è NaN.
+    expect(fmt('12.5')).toBe('12,50 €')
+    expect(fmt('')).toBe('0,00 €')
+    expect(fmt(null)).toBe('0,00 €')
+    expect(fmt(Infinity)).toBe('0,00 €')
+  })
+})

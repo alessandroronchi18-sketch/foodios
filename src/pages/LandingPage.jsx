@@ -65,6 +65,12 @@ function Reveal({ children, delay = 0, style }) {
       opacity: visible ? 1 : 0,
       transform: visible ? 'translateY(0)' : 'translateY(20px)',
       transition: `opacity 0.7s ${delay}ms cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s ${delay}ms cubic-bezier(0.16, 1, 0.3, 1)`,
+      // Questo involucro sta fra la griglia e la tessera. Senza altezza piena,
+      // una tessera con `height: 100%` dentro non ha più niente a cui
+      // riferirsi: basta che un domani la griglia smetta di allungare i figli
+      // (un `align-items` diverso) e i riquadri affiancati tornano alti in modo
+      // diverso, coi titoli fuori riga. Dichiararla costa nulla.
+      height: '100%',
       ...style,
     }}>{children}</div>
   )

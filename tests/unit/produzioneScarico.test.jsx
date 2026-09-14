@@ -161,3 +161,29 @@ describe('produzione — i difetti verificati il 14/09', () => {
     expect(v.container.textContent).toContain('una sessione c\'è già')
   })
 })
+
+describe('produzione — quello che resta impostato e quello che no', () => {
+  it('la destinazione non si eredita dalla sessione successiva', async () => {
+    // Chi spedisce a un'altra sede una volta, il giorno dopo si ritrovava il
+    // campo ancora impostato — e il campo è in fondo alla pagina. La produzione
+    // partiva per l'altra sede senza che nessuno l'avesse chiesto.
+    const { readFileSync } = await import('node:fs')
+    const { fileURLToPath } = await import('node:url')
+    const { dirname, join } = await import('node:path')
+    const radice = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
+    const src = readFileSync(join(radice, 'src', 'views', 'ProduzioneGiornalieraView.jsx'), 'utf8')
+    const reset = src.match(/setQtaMap\(\{\}\); setVendMap\(\{\}\); setSessNote\(''\);[^\n]*/g) || []
+    expect(reset.length).toBeGreaterThan(0)
+    for (const riga of reset) expect(riga).toContain('setDestinazioneSedeId(null)')
+  })
+
+  it('la data non si può svuotare né mettere nel futuro', async () => {
+    const v = render(<Produzione {...props} />)
+    await waitFor(() => expect(v.container.textContent).toContain('PASTA FROLLA'))
+    const data = v.container.querySelector('input[type="date"]')
+    expect(data).toBeTruthy()
+    expect(data.getAttribute('max')).toBeTruthy()
+    fireEvent.change(data, { target: { value: '' } })
+    expect(data.value).not.toBe('')
+  })
+})

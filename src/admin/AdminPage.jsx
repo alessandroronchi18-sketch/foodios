@@ -4733,5 +4733,8 @@ function th() {
   }
 }
 function td() {
-  return { padding: '10px 12px', verticalAlign: 'middle' }
+  // Cifre tabellari su tutte le celle: in admin le colonne sono quasi tutte
+  // numeriche (importi, conteggi, date), e senza queste "1.111" e "8.888"
+  // occupano larghezze diverse e la colonna balla.
+  return { padding: '10px 12px', verticalAlign: 'middle', fontVariantNumeric: 'tabular-nums' }
 }
