@@ -47,9 +47,13 @@ export default function HomeDipendente({
   const nomeDip = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'collega'
   const standalone = isStandalonePWA()
 
-  // 6 azioni operative principali. L'ordine riflette il flusso di una giornata:
+  // 5 azioni operative principali. L'ordine riflette il flusso di una giornata:
   // 1) inventario mattutino o produzione, 2) chiusura, 3) magazzino, 4) sprechi,
-  // 5) HACCP, 6) calendario.
+  // 5) calendario.
+  //
+  // L'HACCP era la quinta ed e' uscito il 14/09/2026: la pagina e' nascosta
+  // (vedi PAGINE_NASCOSTE in Dashboard.jsx) e il pulsante portava su uno
+  // schermo bianco.
   const azioni = useMemo(() => [
     {
       id: isInventario ? 'inventario-gusti' : 'giornaliero',
@@ -82,14 +86,6 @@ export default function HomeDipendente({
       icon: 'trash',
       bg: 'linear-gradient(135deg, #B45309 0%, #D97706 100%)',
       iconColor: '#FEF3C7',
-    },
-    {
-      id: 'haccp',
-      label: 'HACCP',
-      hint: 'Temperature + checklist',
-      icon: 'thermometer',
-      bg: 'linear-gradient(135deg, #1E40AF 0%, #3B82F6 100%)',
-      iconColor: '#DBEAFE',
     },
     {
       id: 'calendario',
@@ -150,7 +146,7 @@ export default function HomeDipendente({
         </div>
       </div>
 
-      {/* Griglia 6 azioni - 2 colonne su mobile, 3 su tablet+ */}
+      {/* Griglia azioni - 2 colonne su mobile, 3 su tablet+ */}
       <div className="fos-dip-grid" style={{
         maxWidth: 880,
         margin: '0 auto',

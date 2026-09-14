@@ -1365,6 +1365,14 @@ export default function Dashboard({
   // altrimenti naviga normalmente. Zero refactor sui 30+ callsite di setView.
   const setView = useCallback((v) => {
     if (typeof v === 'function') { _setViewRaw(v); return; }
+    // Una pagina nascosta non si apre da nessuna strada: ne' da un vecchio
+    // link, ne' dalla ricerca Cmd+K, ne' da una risposta dell'assistente che
+    // inventa un view-id. Senza questa riga il render gated lascia lo schermo
+    // bianco, che e' peggio di una pagina che non c'e'. (14/09/2026)
+    if (typeof v === 'string' && PAGINE_NASCOSTE.has(v)) {
+      _setViewRaw(auth?.ruolo === 'dipendente' ? 'home-dipendente' : 'home');
+      return;
+    }
     try {
       const g = getUnsavedGuardCurrent();
       const dirty = g?.ref?.current?.isDirty?.();
@@ -1374,7 +1382,7 @@ export default function Dashboard({
       }
     } catch {}
     _setViewRaw(v);
-  }, [view]);
+  }, [view, auth?.ruolo]);
   useEffect(() => {
     try { sessionStorage.setItem(`foodos_view_${orgId||'_'}`, view); } catch {}
   }, [view, orgId]);

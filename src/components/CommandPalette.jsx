@@ -22,6 +22,10 @@ const CARD = T.bgCard || '#FFF'
 const BORDER = T.border || '#E5E9EF'
 
 // Mapping: parole -> view-id. Usato come fallback rapido senza chiamare AI.
+//
+// Le pagine nascoste (PAGINE_NASCOSTE in Dashboard.jsx) non vanno elencate qui:
+// la ricerca le troverebbe e il click aprirebbe uno schermo bianco. L'HACCP e'
+// uscito il 14/09/2026 per questo motivo.
 const QUICK_NAV = [
   { keys: ['food cost', 'foodcost', 'fc', 'profitti', 'p&l', 'pl'], view: 'pl', label: 'Profitti (P&L)' },
   { keys: ['ricettario', 'ricette', 'ricetta'], view: 'ricettario', label: 'Ricettario' },
@@ -35,7 +39,6 @@ const QUICK_NAV = [
   { keys: ['confronto', 'sedi', 'confronto sedi'], view: 'confronto-sedi', label: 'Confronto sedi' },
   { keys: ['trasferimenti', 'trasferimento', 'spostare'], view: 'trasferimenti', label: 'Trasferimenti sedi' },
   { keys: ['costi azienda', 'costi aziendali', 'consumabili', 'utenze'], view: 'costi-aziendali', label: 'Costi aziendali' },
-  { keys: ['haccp', 'temperatura', 'frigo'], view: 'haccp', label: 'HACCP' },
   { keys: ['impostazioni', 'configurazione', 'config'], view: 'impostazioni', label: 'Impostazioni' },
   { keys: ['novita', 'changelog', 'nuove'], view: 'changelog', label: 'Novità' },
   { keys: ['home', 'dashboard', 'inizio'], view: 'home', label: 'Home' },
@@ -96,8 +99,9 @@ Compito:
    View-id disponibili: home, ricettario, semilavorati, nuova-ricetta, pl,
    simulatore, costi-aziendali, storico, previsione, giornaliero, chiusura,
    magazzino, scadenzario, sprechi-omaggi, fornitori, vendite-b2b,
-   importa-dati, personale, haccp, registro-attivita, confronto-sedi,
+   importa-dati, personale, registro-attivita, confronto-sedi,
    trasferimenti, impostazioni, changelog.
+   NON esistono più: haccp, scheda-allergeni, menu (pagine nascoste).
 2. Se la domanda chiede un DATO (es. ricavi oggi, food cost), rispondi:
    DATA: <descrizione di cosa servirebbe interrogare> (l'utente capira').
 3. Altrimenti rispondi con: TEXT: <risposta breve in italiano>

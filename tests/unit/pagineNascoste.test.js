@@ -21,6 +21,8 @@ import { dirname, join } from 'node:path'
 
 const RADICE = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const dash = readFileSync(join(RADICE, 'src', 'Dashboard.jsx'), 'utf8')
+const palette = readFileSync(join(RADICE, 'src', 'components', 'CommandPalette.jsx'), 'utf8')
+const homeDip = readFileSync(join(RADICE, 'src', 'views', 'HomeDipendente.jsx'), 'utf8')
 
 const NASCOSTE = ['scheda-allergeni', 'haccp', 'menu']
 
@@ -57,6 +59,33 @@ describe('pagine nascoste', () => {
 
   it('una pagina nascosta salvata in sessione non riapre uno schermo bianco', () => {
     expect(dash).toContain("if (stored && !PAGINE_NASCOSTE.has(stored)) return stored")
+  })
+
+  it('non si raggiungono dalla ricerca Cmd+K', () => {
+    // Il 14/09/2026 l'HACCP era ancora nella mappa QUICK_NAV: chi cercava
+    // "frigo" ci finiva sopra e vedeva uno schermo bianco.
+    for (const id of NASCOSTE) {
+      expect(palette).not.toMatch(new RegExp(`view: '${id}'`))
+    }
+    // E nemmeno dall'assistente: se l'id resta nell'elenco del prompt, il
+    // modello risponde NAVIGATE:haccp e la palette ci naviga davvero.
+    // Solo l'elenco positivo: la riga "NON esistono piu'" nomina le nascoste
+    // apposta, per dire al modello di non proporle.
+    const elenco = (palette.split('View-id disponibili:')[1] || '').split("NON esistono piu'")[0]
+    expect(elenco.length).toBeGreaterThan(50)
+    for (const id of NASCOSTE) {
+      expect(elenco).not.toMatch(new RegExp(`(^|[\\s,])${id}[,.\\s]`))
+    }
+  })
+
+  it('non si raggiungono dai pulsantoni della Home dipendente', () => {
+    for (const id of NASCOSTE) {
+      expect(homeDip).not.toMatch(new RegExp(`id: '${id}'`))
+    }
+  })
+
+  it('chi ci prova comunque torna a casa, non su uno schermo bianco', () => {
+    expect(dash).toContain("if (typeof v === 'string' && PAGINE_NASCOSTE.has(v))")
   })
 
   it('il codice delle pagine NON e\' stato cancellato', () => {
