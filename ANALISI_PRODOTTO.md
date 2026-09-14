@@ -1,15 +1,17 @@
 # FoodOS — Analisi prodotto (stile McKinsey, scoring 1–100)
 
-> Aggiornato: 2026-09-14 · Basata su evidenza diretta dal codice (LOC, test, migration, pattern)
+> Aggiornato: 2026-09-14 (sera) · Basata su evidenza diretta dal codice (LOC, test, migration, pattern)
 > e, dal 7 set, su query al database di produzione: quando qui c'e' un numero di
 > righe, di fatture o di letture, e' stato contato, non stimato.
 >
-> **Composito al 14/09: Prodotto 93 · Ingegneria 95 · Business 42 · Maturita' ~65.**
-> Il salto di prodotto non viene da funzioni nuove: viene da pagine che
-> mostravano numeri falsi e adesso mostrano quelli veri. Ingegneria resta a 95
-> con i test cresciuti da 1.721 a 2.212, perche' l'arretrato non verificato
-> (158 difetti sostenuti dagli agenti e mai passati al vaglio) pesa quanto i
-> test nuovi. Business resta a 42: nessuno dei blocchi esterni e' stato tolto.
+> **Composito al 14/09 sera: Prodotto 94 · Ingegneria 96 · Business 42 · Maturita' ~66.**
+> Il prodotto non sale per funzioni nuove: sale perche' ha smesso di dire cose
+> false e perche' l'arretrato degli audit e' stato passato uno per uno invece
+> di restare una lista. Ingegneria sale a 96 per lo stesso motivo — i 117
+> difetti mai verificati erano il freno — piu' i test da 1.721 a 2.258, due
+> migration mancanti trovate con un confronto sistematico, e il gate di deploy
+> che dal 7 set non bloccava niente. Business resta a 42: nessuno dei blocchi
+> esterni e' stato tolto, e non dipendono dal codice.
 >
 > **Il 7/09 la scala e' stata ricalibrata.** La notazione `99++++` non era piu'
 > informativa: saliva a ogni sessione senza che ci fosse spazio sopra, e la
@@ -26,6 +28,7 @@
 | Data | Prodotto | Ingegneria | Business | Maturità azienda | Δ note |
 |---|---:|---:|---:|---:|---|
 | 2026-06-05 | 76 | 70 | 22 | ~30 | baseline |
+| **2026-09-14 (sera)** | **94** | **96** | **42** | **~66** | **ARRETRATO DEGLI AUDIT CHIUSO + AUDIT DI IMPAGINAZIONE + DUE SCELTE DI STILE.** 22 commit, test 1.721 → 2.258. **Prodotto +1**: i 117 difetti "sostenuti e mai verificati" di Magazzino e Produzione sono stati passati uno per uno (52 risultavano già corretti e il documento era rimasto indietro, 59 corretti, 2 rifiutati con un fatto). Dentro c'erano cose che nessuno vedeva: il percorso del DIPENDENTE era rimasto indietro rispetto a quello del titolare — il server non scendeva nei semilavorati, saltava gli ingredienti salvati al plurale, e non aveva idempotenza (tablet che perde la rete, messaggio "riprova", stessa produzione registrata due volte e magazzino scalato due volte); "Azzera" registrava una correzione di giacenza come merce buttata; la home diceva "8.409 pezzi al banco" sommando 6 torte e 8,4 kg di gelato. **Ingegneria +1**: i difetti non verificati erano il motivo per cui il 14/09 mattina l'ingegneria non saliva, e ora sono verificati. Più: **due migration mai applicate in produzione** trovate confrontando le 37 RPC chiamate dal codice con quelle esistenti nel database (ogni vendita all'ingrosso scaricava il magazzino come una vendita al banco, con un ripiego silenzioso); **il gate pre-push non bloccava il build dal 7 set** (`| tail -5` mangiava l'esito) e la produzione è rimasta ferma tre commit indietro senza nessun segnale — corretto, più `npm run push` che verifica che il commit sia davvero online. **Impaginazione 80 → 88**: scala tipografica unica tenuta da un test (261 misure fuori scala, compresi testi a 8-10px), colonne di numeri incolonnate, 32 viste rese in due versioni e misurate. **Due scelte di stile del titolare**: le undici pagine AI usano l'intestazione di tutte le altre (via gradienti e titoli in oro: erano le uniche che sembravano generate), e il rosso del marchio si separa da quello d'allarme. **Business fermo a 42**: nessun blocco esterno tolto. Media UI 84,6 → **84,9** |
 | 2026-06-06 | 79 | 75 | 22 | ~31 | Personale rifondato, home+nav premium, +68 test |
 | 2026-06-11 | 84 | 78 | 27 | ~33 | Inventario gusti, costi azienda P&L, stipendi CCNL, Confronto/Trasferimenti rimodellati, Skeleton, SDI scaffolding |
 | 2026-06-12 (AM) | 90 | 82 | 30 | ~37 | 18 feature AI implementate + Export PDF universale + compare temporale + autocomplete + audit 3 agenti + 13 fix HIGH/CRITICAL + 30 test unit (329 passing) |
@@ -962,7 +965,7 @@ Tutto il resto chiuso:
 
 | # | Sezione | Score | Note |
 |---:|---|---:|---|
-| 1 | Landing pubblica | 84 | Hero pulito, pricing tier chiari, niente "senza carta". Manca: video demo, prove sociali (testimonials), heatmap dati reali |
+| 1 | Landing pubblica | 89 | Hero pulito, pricing tier chiari, niente "senza carta". Manca: video demo, prove sociali (testimonials), heatmap dati reali. **14 set**: impaginazione rifatta sul modello di notco.ai — apertura a schermata intera tutta centrata col titolo alla misura più grande della pagina, il prodotto che si affaccia sotto la piega, barra con i link alle sezioni al centro (prima c'erano solo "Accedi" e "Prova gratis" su una pagina lunga nove schermate), tessere e piani con le fasce incolonnate, piè di pagina a quattro colonne. Contenuto e colori invariati |
 | 2 | Termini di servizio | 85 | Layout legal 70ch, ben formattato. Standard |
 | 3 | Privacy Policy | 85 | Stesso |
 | 4 | Cookie Policy | 83 | Stesso |
@@ -1002,7 +1005,7 @@ Tutto il resto chiuso:
 
 | # | Sezione | Score | Note |
 |---:|---|---:|---|
-| 26 | KPI Ricavi/FoodCost/Produzione/Magazzino | 89 | Auto-shrink length-based + accent strip animato + sheen sweep. Sopra media. **11 set**: con zero chiusure la home scriveva "food cost 0,0%" in verde, cioe' il risultato migliore possibile, quando il dato non c'era; ora dice che non c'e'. Aggiunti i giorni di autonomia del magazzino |
+| 26 | KPI Ricavi/FoodCost/Produzione/Magazzino | 90 | Auto-shrink length-based + accent strip animato + sheen sweep. Sopra media. **11 set**: con zero chiusure la home scriveva "food cost 0,0%" in verde, cioe' il risultato migliore possibile, quando il dato non c'era; ora dice che non c'e'. Aggiunti i giorni di autonomia del magazzino. **14 set**: lo stock in vetrina sommava pezzi e grammi — 6 torte più 8,4 kg di gelato facevano "8.409 pezzi al banco", ed è il primo numero che si legge entrando |
 | 27 | Stock vetrina widget | 85 | Header icona+nowrap, barre top 5, numeri 1.234 |
 | 28 | In arrivo da altre sedi | 80 | Card amber, count |
 | 29 | DailyBriefCard | 80 | AI insight ok, copy a volte AI-tone. **11 set**: il testo e i numeri sono italiani (era "1477 EUR" e percentuali col punto) |
@@ -1015,14 +1018,14 @@ Tutto il resto chiuso:
 | 31 | Calendario griglia mese | 86 | 7 col + sticky, semaforo verde/ambra/rosso. **7 set**: chiusure a periodi (ferie, feste) con finestra di validita' — cambiare abitudine non riscrive il passato; griglia immobile al tocco |
 | 32 | Calendario mobile lista | 88 | Bug fix mobileList anno/mese + ordine crescente |
 | 33 | Calendario dettaglio giorno inline | 88 | INLINE sotto card cliccata, niente più "in fondo". **7 set**: il dettaglio galleggia sulla card, la griglia non si sposta sotto il dito |
-| 34 | Produzione giornaliera | 83 | Touch +/- 40px, box border-box. Funzionale. **9 set**: produrre una crostata non scaricava niente dal magazzino se la ricetta era un prodotto finito, e in un altro caso il magazzino si gonfiava invece di scendere. Resta il punto piu' scoperto del tool: 3 aree su 5 non sono mai state lette (`AUDIT_PRODUZIONE_DA_FINIRE.md`), fra cui la restituzione al magazzino quando si elimina una sessione |
+| 34 | Produzione giornaliera | 88 | Touch +/- 40px, box border-box. Funzionale. **9 set**: produrre una crostata non scaricava niente dal magazzino se la ricetta era un prodotto finito, e in un altro caso il magazzino si gonfiava invece di scendere. Resta il punto piu' scoperto del tool: 3 aree su 5 non sono mai state lette (`AUDIT_PRODUZIONE_DA_FINIRE.md`), fra cui la restituzione al magazzino quando si elimina una sessione. **14 set**: il percorso del dipendente era rimasto indietro rispetto a quello del titolare — il server non scendeva nei semilavorati, saltava gli ingredienti salvati al plurale e non aveva idempotenza (un secondo invio dopo una risposta persa registrava due volte). Più: "zero pezzi al banco" letto come campo vuoto in tre punti, 53 righe di codice morto che contenevano l'unica protezione contro lo stock fantasma, e l'allarme "scorte insufficienti" che scattava su ingredienti pieni |
 | 35 | Chiusura cassa | 88 | **Rifondata il 7 set.** ⚠️ Era 89 con il redesign dell'8 set, **annullato su decisione dell'utente**: il punteggio scende di 2 perche' l'impaginazione e' tornata quella di prima (restano tutte le funzioni e le correzioni di difetto). Su tutto il database esistevano 2 chiusure reali: inserire ogni prodotto con quantita' e prezzo chiedeva mezz'ora al giorno. Ora basta il totale (il dettaglio resta possibile, non e' piu' il pedaggio), incasso scomposto POS/contanti/delivery con somma automatica, prima nota nella stessa pagina. OCR scontrino e import delivery/cassa invariati. **10 set**: una giornata importata dal registro entrava nel P&L come food cost noto pari a zero; aggiunto lo scontrino medio |
 | 111 | Prima nota di cassa | 88 | **Nuova il 7 set.** Le uscite di giornata — "limoni 10 euro", "carrefour 11,56" — non avevano casa: `costi_aziendali` e' fatto per i costi ricorrenti mensili con periodicita', non per l'acquisto di limoni del 3 luglio. Il campo `documento` (fattura / senza / da verificare) e' preso di peso dalla notazione con cui il design partner tiene il registro da anni, e separa cio' che il commercialista puo' scaricare da cio' che non puo'. Sta dentro la pagina Cassa perche' si compila quando si conta il cassetto |
 | 112 | Import registro incassi | 88 | **Nuova il 7 set.** Legge il foglio Excel del mese COM'E': tabelle affiancate separate da colonne vuote, intestazioni scritte a mano ("Berthollet- Contanti"), colonna dei giorni anche senza etichetta, spese in testo libero con piu' voci per cella. Abbina da solo i nomi del foglio ai punti vendita, deduce il mese dal nome del file e lo fa confermare, segnala le somme che non tornano invece di scegliere in silenzio. Reimportare lo stesso mese non raddoppia. −1 perche' un foglio alla volta e nessuna memoria del mapping fra un mese e l'altro. **10 set**: 26 difetti, i piu' gravi distruttivi (reimportare cancellava movimenti non suoi) |
 | 36 | Vendite B2B | 86 | Mobile column-first, sticky col cliente, filtri pill. Rebuild agent. **11 set**: il selettore sede non filtrava niente — tre sedi, gli stessi numeri — e il margine di ogni riga risultava 100% perche' il costo non veniva mai letto |
 | 37 | Trasferimenti | 85 | KPI italianizzati, form 4→2 col tablet. **11 set**: un invio non riuscito scalava comunque il magazzino, e al secondo tentativo lo scalava due volte; ora un trasferimento scrive da solo i chili spediti nell'inventario |
 | 38 | Quadratura inventario | 87 | Rebuild agent: tile minHeight 132, sparkline gridline. **11 set**: sui dati del design partner 604 celle su 7.012 non tornavano (−2.650 kg) e restavano rosse per sempre, mescolate agli errori di compilazione. Ora si accettano una per una con la nota del perche' (omaggio, rottura, assaggio) e la pagina dichiara quante caselle restano da guardare |
-| 39 | Inventario settimanale | 86 | Tabella minWidth 1280, sticky col GUSTO. Funzionale ma denso. **10-11 set**: la settimana cominciava di domenica (venduto del lunedi' fuori conto), la vista mese dava numeri diversi dalla vista settimana sugli stessi giorni, il grafico diceva una cosa e la tabella un'altra. Il 42% dei chili non aveva food cost e ora e' scritto |
+| 39 | Inventario settimanale | 87 | Tabella minWidth 1280, sticky col GUSTO. Funzionale ma denso. **10-11 set**: la settimana cominciava di domenica (venduto del lunedi' fuori conto), la vista mese dava numeri diversi dalla vista settimana sugli stessi giorni, il grafico diceva una cosa e la tabella un'altra. Il 42% dei chili non aveva food cost e ora e' scritto. **14 set**: sforava di 124px su telefono (griglia senza `minWidth: 0`), quindi la pagina scorreva di lato |
 | 40 | Storico produzione | 86 | Rebuild agent: 8 chart con stesso radius, tabelle aria-sort. **11 set**: il venduto si calcolava in quattro punti diversi con quattro formule; ora e' un conto solo |
 
 ### Ricettario & costi
@@ -1036,7 +1039,7 @@ Tutto il resto chiuso:
 | 45 | NuovaRicetta form | 84 | Form 30+ campi ok, ma denso. Migliorabile. **9 set**: un salvataggio fallito veniva raccontato come riuscito (la ricetta spariva al ricaricamento), il food cost al kg era sbagliato, i verdetti erano generosi per costruzione. Gli allergeni incerti si chiedono quando hai l'etichetta in mano, non dopo |
 | 46 | P&L view (era Food cost) | 92 | Rebuild agent: date range, 5 card fos-card-glow, grafici standardizzati. **7 set**: non conta piu' come zero il food cost che non conosce (era il bug piu' costoso della pagina — gonfiava il margine di tutto l'incasso), dichiara su quanti giorni e' misurato, e le uscite di cassa entrano nella cascata. **10-11 set**: 15 difetti, fra cui l'affitto del mese sottratto a un chilo di gelato; il costo del personale ora arriva dai turni invece di essere zero; il conto economico funziona anche senza chiusure di cassa |
 | 47 | Simulatore prezzi | 84 | SimSlider 24px touch, role=radiogroup. Funzionale |
-| 48 | Menu Engineering BCG | 81 | Matrice BCG, quadranti ok ma "vecchio" come visual. **11 set**: tipografia sotto i 12px e icone mancanti |
+| 48 | Menu Engineering BCG | 83 | Matrice BCG, quadranti ok ma "vecchio" come visual. **11 set**: tipografia sotto i 12px e icone mancanti. **14 set**: intestazione allineata al resto del tool |
 | 49 | Reformulation | — | Congelata da menu |
 | 50 | Competitor Pricing | — | Congelata |
 
@@ -1044,29 +1047,29 @@ Tutto il resto chiuso:
 
 | # | Sezione | Score | Note |
 |---:|---|---:|---|
-| 51 | AI Hub home | 81 | Feature cards, cluster vuoto dopo congelamenti. **11 set**: copy italiano |
-| 52 | Brain (chat libera) | 84 | Sidebar 210 tablet, input 44/16. Funzionale. **11 set**: la chat rispondeva "nessun ingrediente sotto soglia" sempre, anche con mezzo magazzino sotto scorta, e l'assistente dava errore su ogni domanda (modelli non aggiornati) |
+| 51 | AI Hub home | 83 | Feature cards, cluster vuoto dopo congelamenti. **11 set**: copy italiano. **14 set**: intestazione allineata al resto del tool |
+| 52 | Brain (chat libera) | 86 | Sidebar 210 tablet, input 44/16. Funzionale. **11 set**: la chat rispondeva "nessun ingrediente sotto soglia" sempre, anche con mezzo magazzino sotto scorta, e l'assistente dava errore su ogni domanda (modelli non aggiornati). **14 set**: intestazione allineata al resto del tool |
 | 53 | Azioni (chat suggerimenti) | 83 | Grid 3→2 col tablet, "Scrivi una domanda". **11 set**: copy italiano e numeri IT |
 | 54 | AI Assistant panel | 84 | Full-bleed sotto 600px, fontSize 16 |
 | 55 | AICard (loading/error/idle) | 82 | minHeight 200, copy clear/retry 44px |
-| 56 | Documentary AI | 77 | Hero + sezioni, copy AI-tone, Recharts da rivedere. **11 set**: parla italiano |
-| 57 | Forecast | 85 | Eredita pattern PrevisioneDomanda, ResponsiveContainer. **11 set**: numeri IT dichiarati tali |
-| 58 | OrdiniAi | 83 | Padding 16 tablet, grafici ok ma copy AI-tone. **11 set**: quanto ordinare lo decide la cadenza vera del fornitore (consegna il martedi' = copertura fino al martedi' dopo), non piu' una finestra fissa uguale per tutti |
-| 59 | WhatsAppView | 77 | Card padding, input 44px. Manca preview chat. **11 set**: copy e numeri |
+| 56 | Documentary AI | 80 | Hero + sezioni, copy AI-tone, Recharts da rivedere. **11 set**: parla italiano. **14 set**: via il pannello col gradiente animato e il titolo in oro sfumato — era la ragione principale per cui la pagina sembrava generata |
+| 57 | Forecast | 87 | Eredita pattern PrevisioneDomanda, ResponsiveContainer. **11 set**: numeri IT dichiarati tali. **14 set**: intestazione allineata al resto del tool |
+| 58 | OrdiniAi | 85 | Padding 16 tablet, grafici ok ma copy AI-tone. **11 set**: quanto ordinare lo decide la cadenza vera del fornitore (consegna il martedi' = copertura fino al martedi' dopo), non piu' una finestra fissa uguale per tutti. **14 set**: intestazione allineata al resto del tool |
+| 59 | WhatsAppView | 79 | Card padding, input 44px. Manca preview chat. **11 set**: copy e numeri. **14 set**: intestazione allineata al resto del tool |
 | 60 | Marketplace | — | Congelata |
 | 61 | RecipeInventor | — | Congelata |
-| 62 | Recensioni AI | 77 | 3 toni → 1 col tablet, copy AI-tone visibile. **11 set**: copy e numeri |
+| 62 | Recensioni AI | 79 | 3 toni → 1 col tablet, copy AI-tone visibile. **11 set**: copy e numeri. **14 set**: intestazione allineata al resto del tool |
 
 ### Magazzino & approvvigionamento
 
 | # | Sezione | Score | Note |
 |---:|---|---:|---|
-| 63 | Magazzino — Materie prime | 92 | Paginazione 80/load, tabular-nums, accent strip statico. **7-8 set, audit a fondo (26 difetti corretti)**: righe fantasma da chiavi non canoniche (in produzione 5 chiavi su 35 di un'azienda, con ricette che le usano al plurale — righe doppie, contatore critici gonfiato, banner rosso su merce presente, prezzi non trovati); soglia che non si poteva abbassare; campo soglia che non diceva l'unita' ("0,500 kg" fuori, "500" dentro); aggiungere un ingrediente esistente ne azzerava la giacenza; giacenza negativa mostrata "OK" in verde; prezzi stimati indistinguibili da quelli inseriti; rosso riservato all'esaurito ("Da ordinare" invece di "Critico"); 51 testi sotto i 12px azzerati; lista di riordino senza limite che spingeva le schede a 1.834px (due schermate) — ora 6 righe ordinate per urgenza vera con il totale su tutte. **10-11 set**: 40 ingredienti su 48 risultavano ESAURITI solo perche' nessuno li aveva mai pesati — allarme rosso su un magazzino pieno. Ora si conta tutto in una volta e si vedono i giorni di autonomia |
-| 115 | Magazzino — Prodotti finiti | 87 | **7-8 set**: se la lettura falliva diceva "nessun prodotto in stock" con i contatori a zero in verde, indistinguibile da un magazzino vuoto (si poteva riprodurre merce presente in cella); "Pezzi totali" sommava pezzi e grammi (20 torte + 8.400 g = "8.420 pezzi"); il modale scarto chiedeva "pezzi" su righe in grammi; nel campo quantita' la virgola veniva mangiata. Resta aperto: lo scarto non entra nel registro sprechi. **10 set**: chiusi gli ultimi difetti di rifinitura. Resta aperto: lo scarto non entra nel registro sprechi |
-| 116 | Magazzino — Prezzi ingredienti | 87 | **7-8 set**: crash della scheda su una riga di storico priva del campo delta; doppio clic su "Conferma e salva" scriveva due volte (storico prezzi incoerente = P&L incoerente); prezzo malformato rifiutato in silenzio; euro prima della cifra e percentuali col punto; `isMobile` mai usato quindi zoom iOS a ogni tocco; "Log modifiche" → "Storico modifiche" |
-| 113 | Magazzino — Carica merce | 89 | **7-8 set**: lo scarico leggeva la giacenza da una chiave diversa da quella della tabella, quindi partiva da zero e dava un falso allarme; l'avviso "sotto zero" veniva cancellato dal messaggio di conferma (barra a slot unico) e non si vedeva mai; numeri non italiani ("+25000g", "-0.09999999999999998g"); dopo l'OCR contava anche le righe scartate ("caricati 12", in magazzino 7); import prezzi da foto morto in silenzio su un prezzo come stringa. **10 set**: numeri col punto decimale e glifi al posto delle icone |
-| 114 | Magazzino — Storico carichi | 82 | **7-8 set**: rinominata da "Log rifornimenti" (gergo). Restano da verificare: nessun limite di righe con anni di storico, nessuno scorrimento orizzontale su telefono, una riga sbagliata non si puo' correggere. **10 set**: eliminata una copia di codice che faceva divergere due schede. Resta: una riga sbagliata non si puo' ancora correggere |
-| 64 | Scadenzario fatture | 90 | Rebuild agent: pill role=tablist, sticky 880, inline edit pagamento. **9-10 set, audit sulle 3.520 fatture vere**: "Segna pagata" non funzionava su 151 delle 211 fatture scadute, il bonifico era inerte, il pagamento non arrivava in Cassa. Aggiunti: pagamento cumulativo di piu' fatture, termini di pagamento imparati dal fornitore, fatture ricorrenti fisse, IBAN raccolto dai documenti, abbinamento dei pagamenti dell'estratto conto |
+| 63 | Magazzino — Materie prime | 93 | Paginazione 80/load, tabular-nums, accent strip statico. **7-8 set, audit a fondo (26 difetti corretti)**: righe fantasma da chiavi non canoniche (in produzione 5 chiavi su 35 di un'azienda, con ricette che le usano al plurale — righe doppie, contatore critici gonfiato, banner rosso su merce presente, prezzi non trovati); soglia che non si poteva abbassare; campo soglia che non diceva l'unita' ("0,500 kg" fuori, "500" dentro); aggiungere un ingrediente esistente ne azzerava la giacenza; giacenza negativa mostrata "OK" in verde; prezzi stimati indistinguibili da quelli inseriti; rosso riservato all'esaurito ("Da ordinare" invece di "Critico"); 51 testi sotto i 12px azzerati; lista di riordino senza limite che spingeva le schede a 1.834px (due schermate) — ora 6 righe ordinate per urgenza vera con il totale su tutte. **10-11 set**: 40 ingredienti su 48 risultavano ESAURITI solo perche' nessuno li aveva mai pesati — allarme rosso su un magazzino pieno. Ora si conta tutto in una volta e si vedono i giorni di autonomia. **14 set**: il fabbisogno settimanale prendeva le ultime 7 SESSIONI invece degli ultimi 7 giorni — dopo la chiusura di agosto la somma di luglio veniva chiamata "settimana", e da lì uscivano giorni di scorta in rosso e una lista di riordino. Al dipendente, che non vede i prezzi, il box in cima dava comunque il valore totale del magazzino |
+| 115 | Magazzino — Prodotti finiti | 89 | **7-8 set**: se la lettura falliva diceva "nessun prodotto in stock" con i contatori a zero in verde, indistinguibile da un magazzino vuoto (si poteva riprodurre merce presente in cella); "Pezzi totali" sommava pezzi e grammi (20 torte + 8.400 g = "8.420 pezzi"); il modale scarto chiedeva "pezzi" su righe in grammi; nel campo quantita' la virgola veniva mangiata. Resta aperto: lo scarto non entra nel registro sprechi. **10 set**: chiusi gli ultimi difetti di rifinitura. Resta aperto: lo scarto non entra nel registro sprechi. **14 set**: "Azzera" registrava una correzione di giacenza come merce buttata e gonfiava gli sprechi (ora è una rettifica, con una RPC sua); la pagina si ricaricava da sola a ogni toast; il KPI contava le righe a zero; la sezione movimenti spariva quando era vuota; il delta non aveva unità |
+| 116 | Magazzino — Prezzi ingredienti | 88 | **7-8 set**: crash della scheda su una riga di storico priva del campo delta; doppio clic su "Conferma e salva" scriveva due volte (storico prezzi incoerente = P&L incoerente); prezzo malformato rifiutato in silenzio; euro prima della cifra e percentuali col punto; `isMobile` mai usato quindi zoom iOS a ogni tocco; "Log modifiche" → "Storico modifiche". **14 set**: un ingrediente senza prezzo dichiarava "0,00 €/kg" nella finestra di conferma; il prezzo cliccabile era alto 22px, sotto la soglia del dito |
+| 113 | Magazzino — Carica merce | 90 | **7-8 set**: lo scarico leggeva la giacenza da una chiave diversa da quella della tabella, quindi partiva da zero e dava un falso allarme; l'avviso "sotto zero" veniva cancellato dal messaggio di conferma (barra a slot unico) e non si vedeva mai; numeri non italiani ("+25000g", "-0.09999999999999998g"); dopo l'OCR contava anche le righe scartate ("caricati 12", in magazzino 7); import prezzi da foto morto in silenzio su un prezzo come stringa. **10 set**: numeri col punto decimale e glifi al posto delle icone. **14 set**: l'OCR buttava foto ed elenco riconosciuto prima di sapere se il salvataggio era riuscito, e poi diceva "Riprova"; il campo quantità scartava la virgola della tastiera italiana; non si confermava con Invio; un nome di soli spazi creava una riga senza nome |
+| 114 | Magazzino — Storico carichi | 87 | **7-8 set**: rinominata da "Log rifornimenti" (gergo). Restano da verificare: nessun limite di righe con anni di storico, nessuno scorrimento orizzontale su telefono, una riga sbagliata non si puo' correggere. **10 set**: eliminata una copia di codice che faceva divergere due schede. Resta: una riga sbagliata non si puo' ancora correggere. **14 set**: una riga sbagliata non si poteva correggere né annullare — ora si annulla scrivendo una riga uguale e contraria, senza cancellare niente. Aggiunti l'ordinamento esplicito, chi ha registrato il movimento e l'unità di misura leggibile |
+| 64 | Scadenzario fatture | 91 | Rebuild agent: pill role=tablist, sticky 880, inline edit pagamento. **9-10 set, audit sulle 3.520 fatture vere**: "Segna pagata" non funzionava su 151 delle 211 fatture scadute, il bonifico era inerte, il pagamento non arrivava in Cassa. Aggiunti: pagamento cumulativo di piu' fatture, termini di pagamento imparati dal fornitore, fatture ricorrenti fisse, IBAN raccolto dai documenti, abbinamento dei pagamenti dell'estratto conto. **14 set**: una fattura scaduta usa il rosso d'allarme, non il bordeaux del marchio: prima il riquadro dell'errore e il pulsante dell'azione avevano lo stesso colore |
 | 65 | Scadenzario inline pay | 87 | Input 16+44, bottoni Icon name=check/x. **10 set**: i fornitori si leggono a colonne, non con select(*) — su 3.520 righe la differenza si vede |
 | 66 | Fornitori manager | 86 | Tabs 44, form+lista 1 col tablet, KPI auto-shrink (Top fornitore). **9-10 set**: l'anagrafica si compila da sola dalle fatture gia' caricate, l'ingrediente e' legato al fornitore che lo vende, i prodotti degli ordini erano invisibili |
 | 67 | Sprechi/Omaggi | 85 | KPI band, causali ASL espanse. **9 set**: l'incidenza diceva 297% invece di 3%, il costo unitario sbagliava di 8 volte fra due gusti identici, e con 19 movimenti registrati la pagina si complimentava ("Ottimo controllo") |
@@ -1076,7 +1079,7 @@ Tutto il resto chiuso:
 
 | # | Sezione | Score | Note |
 |---:|---|---:|---|
-| 69 | Cashflow | 87 | Grafici Recharts standardizzati, KPI italianizzati. **10 set**: 14 difetti, e l'arretrato scaduto che non compariva da nessuna parte |
+| 69 | Cashflow | 88 | Grafici Recharts standardizzati, KPI italianizzati. **10 set**: 14 difetti, e l'arretrato scaduto che non compariva da nessuna parte. **14 set**: intestazione allineata al resto del tool |
 | 70 | P&L (cross-ref con #46) | 92 | Rebuild completo, 5 card fos-card-glow. Vedi #46 per i lift del 7 set e del 10-11 set |
 | 71 | Costi aziendali | 86 | Rebuild agent: KPI minHeight 26/34/32, filtro count. **11 set**: i costi hanno una data di fine, quindi un affitto chiuso a marzo non pesa piu' su settembre |
 | 72 | Confronto sedi | 88 | Sfondo slate, pallini cliccabili tooltip, filtri segmented control. **11 set**: senza un dato la pagina si colorava tutta di rosso, e il food cost non era di nessuna sede in particolare |
@@ -1153,13 +1156,13 @@ Tutto il resto chiuso:
 > precedenti sommavano 109 sezioni su 106 esistenti e sovrastimavano le bande
 > alte: la media 83 era giusta, la distribuzione no.
 
-| Banda | Sezioni (25 giu) | Sezioni (7 set) | Sezioni (14 set) | Quota |
+| Banda | Sezioni (25 giu) | Sezioni (7 set) | Sezioni (14 set, sera) | Quota |
 |---|---:|---:|---:|---|
 | 95-100 (world-class) | 1 | 1 | 1 | 1% |
-| 90-94 (forte top-tier) | 4 | 6 | 8 | 7% |
-| 85-89 (sopra media B2B) | 30 | 32 | 52 | 44% |
-| 80-84 (solido professionale) | 59 | 57 | 49 | 42% |
-| 75-79 (decente migliorabile) | 11 | 11 | 7 | 6% |
+| 90-94 (forte top-tier) | 4 | 6 | 10 | 8% |
+| 85-89 (sopra media B2B) | 30 | 32 | 55 | 47% |
+| 80-84 (solido professionale) | 59 | 57 | 45 | 38% |
+| 75-79 (decente migliorabile) | 11 | 11 | 6 | 5% |
 | 70-74 (gap evidenti) | 1 | 1 | 1 | 1% |
 | <70 | 0 | 0 | 0 | 0% |
 | **Totale scorate** | **106** | **108** | **118** | |
@@ -1170,8 +1173,8 @@ Tutto il resto chiuso:
 > 14/09, e aggiunte 9 pagine che esistevano nel prodotto e non erano mai
 > state scorate.
 
-**Score UI complessivo medio: 84,6/100** (era 83,6 l'8 set, su 112 sezioni; ora
-118). Il punto vuole essere letto per quello che e': **quasi niente di questo
+**Score UI complessivo medio: 84,9/100** (era 83,6 l'8 set su 112 sezioni; 84,6
+la mattina del 14; ora 118 sezioni). Il punto vuole essere letto per quello che e': **quasi niente di questo
 guadagno viene dal disegno**. Viene da pagine che dicevano il falso e adesso
 dicono il vero — il margine del 100% su ogni preventivo, il food cost 0,0% in
 verde su zero chiusure, i 40 ingredienti su 48 dichiarati esauriti perche'
@@ -1228,10 +1231,10 @@ dedotto da uno script.
 
 ### Sezioni residue da polishare (sotto 80)
 
-Ricontate il 14/09: sono **otto**, erano dodici.
+Ricontate il 14/09 sera: sono **sette**, erano dodici la mattina e dodici prima.
 
 - OnboardingChat 70 — variante chat dell'onboarding, raramente usata, copy AI-tone
-- Documentary AI 77, WhatsAppView 77, Recensioni AI 77 — il testo ora e' italiano e i numeri sono giusti, ma la pagina resta quella di un generatore: manca il mestiere
+- WhatsAppView 79, Recensioni AI 79 — il testo e' italiano, i numeri sono giusti e dalla sera del 14 anche l'intestazione e' quella del resto del tool. Quello che resta e' il mestiere: la pagina fa il suo lavoro, non lo fa bene
 - Contatti 78 — form base, niente chat ne' calendario
 - Impostazioni TV 78, Impostazioni WhatsApp Report 78 — funzionali, visual fermo a giugno
 - TrialScadutoPage 78 — si vede una volta sola e si vede male
