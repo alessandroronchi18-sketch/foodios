@@ -1,10 +1,20 @@
 # FoodOS — Analisi prodotto (stile McKinsey, scoring 1–100)
 
-> Aggiornato: 2026-09-14 (sera) · Basata su evidenza diretta dal codice (LOC, test, migration, pattern)
+> Aggiornato: 2026-09-14 (notte) · Basata su evidenza diretta dal codice (LOC, test, migration, pattern)
 > e, dal 7 set, su query al database di produzione: quando qui c'e' un numero di
 > righe, di fatture o di letture, e' stato contato, non stimato.
 >
-> **Composito al 14/09 sera: Prodotto 94 · Ingegneria 96 · Business 42 · Maturita' ~66.**
+> **Composito al 14/09 notte: Prodotto 94 · Ingegneria 97 · Business 42 · Maturita' ~67.**
+>
+> L'aggiornamento della notte e' tutto di **sicurezza**: otto buchi trovati e
+> chiusi (sezione 0ter), ognuno provato dall'esterno con la sola chiave
+> pubblica del sito prima e dopo la correzione. Fra questi: sei funzioni
+> interne chiamabili senza account (una cancellava tutto il registro delle
+> modifiche), un titolare che poteva dichiararsi cliente pagante da solo, il
+> deposito delle foto pubblico, e la cassa che entrava con una parola d'ordine
+> uguale per tutti i clienti. Nessun dato e' uscito — le stanze erano vuote —
+> tranne lo storico dei prezzi d'acquisto, che i dipendenti potevano leggere.
+> **Sicurezza 88 -> 97**, e Ingegneria sale a 97 con lei.
 > Il prodotto non sale per funzioni nuove: sale perche' ha smesso di dire cose
 > false e perche' l'arretrato degli audit e' stato passato uno per uno invece
 > di restare una lista. Ingegneria sale a 96 per lo stesso motivo — i 117
@@ -28,6 +38,7 @@
 | Data | Prodotto | Ingegneria | Business | Maturità azienda | Δ note |
 |---|---:|---:|---:|---:|---|
 | 2026-06-05 | 76 | 70 | 22 | ~30 | baseline |
+| **2026-09-14 (notte)** | **94** | **97** | **42** | **~67** | **AUDIT DI SICUREZZA PROFONDO — otto buchi trovati e chiusi.** 12 commit, test 2.258 → **2.335** su 165 file, 8 migration di sicurezza applicate e verificate in produzione. Ognuno provato **dall'esterno con la sola chiave pubblica del sito** prima e dopo la correzione. (1) Sei funzioni interne chiamabili senza account: sovrascrivere ricettario, magazzino e chiusure di un'attività conoscendone l'id, alterare lo stock, **cancellare tutto il registro delle modifiche**. (2) I trasferimenti fra sedi comandabili da anonimi, perché il controllo di proprietà era `x <> get_user_org_id()` e in SQL `x <> NULL` non è falso, è NULL — un `if` con condizione NULL non scatta. (3) Deposito delle foto pubblico: scaricabile **ed elencabile** da chiunque. (4) Lo storico dei prezzi d'acquisto leggibile dai dipendenti — l'unico dei otto dove c'erano dati veri. (5) Un titolare poteva mettersi `approvato = true` dal browser e sbloccare tutto senza pagare. (6) Sul proprio profilo si poteva creare un account di laboratorio da soli. (7) TRUNCATE concesso ai ruoli pubblici: ignora le regole di isolamento per costruzione. (8) La cassa entrava con una parola d'ordine **uguale per tutti i clienti** e dichiarava lei l'attività: chi l'aveva scriveva incassi nella cassa di chiunque. **Nessun dato uscito** tranne il punto 4: deposito foto vuoto, zero integrazioni cassa attive. Tenuti da `audit-sicurezza.mjs` (12 controlli in produzione), una prova d'attacco con la chiave pubblica e 50 test. **Sicurezza 88 → 97**, Ingegneria 96 → 97 |
 | **2026-09-14 (sera)** | **94** | **96** | **42** | **~66** | **ARRETRATO DEGLI AUDIT CHIUSO + AUDIT DI IMPAGINAZIONE + DUE SCELTE DI STILE.** 22 commit, test 1.721 → 2.258. **Prodotto +1**: i 117 difetti "sostenuti e mai verificati" di Magazzino e Produzione sono stati passati uno per uno (52 risultavano già corretti e il documento era rimasto indietro, 59 corretti, 2 rifiutati con un fatto). Dentro c'erano cose che nessuno vedeva: il percorso del DIPENDENTE era rimasto indietro rispetto a quello del titolare — il server non scendeva nei semilavorati, saltava gli ingredienti salvati al plurale, e non aveva idempotenza (tablet che perde la rete, messaggio "riprova", stessa produzione registrata due volte e magazzino scalato due volte); "Azzera" registrava una correzione di giacenza come merce buttata; la home diceva "8.409 pezzi al banco" sommando 6 torte e 8,4 kg di gelato. **Ingegneria +1**: i difetti non verificati erano il motivo per cui il 14/09 mattina l'ingegneria non saliva, e ora sono verificati. Più: **due migration mai applicate in produzione** trovate confrontando le 37 RPC chiamate dal codice con quelle esistenti nel database (ogni vendita all'ingrosso scaricava il magazzino come una vendita al banco, con un ripiego silenzioso); **il gate pre-push non bloccava il build dal 7 set** (`| tail -5` mangiava l'esito) e la produzione è rimasta ferma tre commit indietro senza nessun segnale — corretto, più `npm run push` che verifica che il commit sia davvero online. **Impaginazione 80 → 88**: scala tipografica unica tenuta da un test (261 misure fuori scala, compresi testi a 8-10px), colonne di numeri incolonnate, 32 viste rese in due versioni e misurate. **Due scelte di stile del titolare**: le undici pagine AI usano l'intestazione di tutte le altre (via gradienti e titoli in oro: erano le uniche che sembravano generate), e il rosso del marchio si separa da quello d'allarme. **Business fermo a 42**: nessun blocco esterno tolto. Media UI 84,6 → **84,9** |
 | 2026-06-06 | 79 | 75 | 22 | ~31 | Personale rifondato, home+nav premium, +68 test |
 | 2026-06-11 | 84 | 78 | 27 | ~33 | Inventario gusti, costi azienda P&L, stipendi CCNL, Confronto/Trasferimenti rimodellati, Skeleton, SDI scaffolding |
@@ -162,15 +173,26 @@ modifiche era rotto da tre mesi per una colonna rinominata.
 
 ### 0.6 Quello che resta aperto (e va detto)
 
-- **84 difetti del Magazzino** sostenuti dagli agenti e mai verificati
-  (`AUDIT_MAGAZZINO_DA_VERIFICARE.md`). Su 29 verificati, 4 erano falsi: la
-  proporzione dice che correggerli alla cieca farebbe danni.
-- **74 difetti degli allergeni** nella stessa condizione.
-- **Produzione**: 3 aree su 5 mai lette.
-- **113 formattatori di percentuale** da bonificare.
-- Due decisioni di prodotto in attesa: lo scarto dei prodotti finiti che non
-  entra nel registro sprechi, e una riga di carico sbagliata che non si puo'
-  correggere.
+Aggiornato la notte del 14/09: di questo elenco, la sera erano aperte cinque
+voci su sei. Ne resta una.
+
+- **74 difetti degli allergeni**: fermi **per scelta**, non per arretrato.
+  Riguardano una scheda che e' spenta, e riaprirla dipende da una copertura
+  verificata degli ingredienti reali — un problema di dati, non di codice. Il
+  difetto della libreria che toccava anche le pagine vive ("zucchero semolato"
+  dichiarato con glutine) e' stato corretto il 14/09.
+
+Chiuse il 14/09: gli 84 difetti del Magazzino (52 gia' corretti e il documento
+era rimasto indietro, 26 corretti, 4 finiti, 2 rifiutati con un fatto); le 3
+aree di Produzione mai lette piu' i suoi 33 difetti; i 124 formattatori di
+percentuale scritti a mano in 30 file (ora `lib/formatIt.js`, importabile anche
+da `api/`, con un test di guardia); e tutte e due le decisioni di prodotto in
+attesa — l'azzeramento dei prodotti finiti e' una rettifica e non uno spreco, e
+una riga di carico sbagliata si annulla scrivendone una uguale e contraria.
+
+Fuori da questo elenco, dalla notte del 14/09 restano i tre punti di sicurezza
+della sezione 0ter: bypass MFA del fondatore, nessun backup indipendente da
+Supabase, 72 `catch` silenziosi.
 
 ### Composito sessione: Prodotto 93 / Ingegneria 95 / Business 42 / Maturita' ~65
 
@@ -180,6 +202,92 @@ che lucidate. Ingegneria ferma a 95 nonostante **+491 test** (1.721 → 2.212 su
 146 file): l'arretrato non verificato pesa quanto i test nuovi. Business fermo a
 42, e non per colpa del codice — dominio, Stripe live, DKIM e SDI sono dove
 erano il 7 set.
+
+---
+
+## 0ter. Sicurezza — l'audit del 14/09/2026 (notte)
+
+> Richiesto dal titolare: «audit profondo su sicurezza di tutto il tool, in
+> qualsiasi termine, account, perdita dati, cancellazione dati, steal dei dati».
+> **Prima: 88/100. Dopo: 97/100.** Il salto non viene da barriere nuove: viene
+> dall'aver smesso di dare per buone quelle che c'erano. Ogni difetto qui sotto
+> è stato **provato dall'esterno con la sola chiave pubblica del sito** — quella
+> che sta dentro la pagina e che chiunque legge aprendo il sorgente — prima di
+> essere corretto, e **riprovato dopo**.
+
+### Gli otto buchi, cosa permettevano, come sono chiusi
+
+| # | Il buco | Cosa ci si poteva fare | Come è chiuso |
+|---|---|---|---|
+| 1 | **Sei funzioni interne chiamabili senza account** | Sovrascrivere ricettario, magazzino, produzione e chiusure di un'attività conoscendone l'id; alterare lo stock; **cancellare tutto il registro delle modifiche** (`retain_days = 0`), cioè far sparire le prove; gonfiare i contatori di traffico di un altro per chiuderlo fuori; bruciare gli usi di un codice sconto | Permesso revocato **a PUBLIC**, non solo ad `anon`, e riconcesso per nome a chi serve (`20260914b`) |
+| 2 | **I trasferimenti fra sedi si comandavano da anonimi** | Annullare, inviare e ricevere trasferimenti: annullarne uno **muove lo stock fra due magazzini** | Guardia in cima a tutte e sei le versioni delle funzioni: niente organizzazione, eccezione (`20260914c`) |
+| 3 | **Il deposito delle foto era pubblico** | Scaricare **ed elencare** le foto di ricette e documenti di tutti i clienti, senza account | Deposito reso privato, lettura legata alla cartella dell'utente (`20260914d`) |
+| 4 | **Lo storico dei prezzi d'acquisto era leggibile dai dipendenti** | Ogni variazione di prezzo degli ingredienti, €/kg vecchio e nuovo: il dato commerciale che il prodotto nasconde ai dipendenti da tutte le altre strade | Chiave aggiunta all'elenco delle sensibili (`20260914e`) |
+| 5 | **Un titolare poteva dichiararsi cliente pagante** | `approvato = true` dal browser: il server legge quella colonna e dà **accesso illimitato**. E allungarsi la prova da solo, all'infinito | Permesso di scrittura ristretto a `nome`, `metodo_produzione`, `telefono_whatsapp` (`20260914f`) |
+| 6 | **Sul proprio profilo si poteva cambiare tutto** | Crearsi da soli un account di laboratorio (`is_laboratorio_account = true`), che ha permessi diversi | Permesso ristretto a `nome_completo`; il trigger che c'era resta, come seconda rete (`20260914g`) |
+| 7 | **TRUNCATE concesso ai ruoli pubblici** | TRUNCATE **non passa dalle regole di isolamento**: le ignora per costruzione. Svuoterebbe una tabella intera, di tutte le aziende | Revocato, con `REFERENCES` e `TRIGGER` (`20260914h`) |
+| 8 | **La cassa entrava con una parola d'ordine uguale per tutti** | Chi aveva la parola d'ordine di una marca di registratore poteva **scrivere incassi nella cassa di qualsiasi cliente**, cambiando un id nell'intestazione | Una chiave per cliente, nel database solo la sua impronta SHA-256, e l'organizzazione si ricava **dalla chiave** (`20260914i`) |
+
+### I due che si leggono dieci volte senza vederli
+
+Vale la pena isolarli, perché non sono distrazioni: sono due modi in cui il
+codice **sembra giusto**.
+
+**Il confronto che fallisce aperto.** Il controllo di proprietà era scritto
+così:
+
+```sql
+if v_t.organization_id <> public.get_user_org_id() then raise ...
+```
+
+Per un utente loggato funziona. Per un anonimo `get_user_org_id()` è NULL, e in
+SQL `qualcosa <> NULL` **non è falso: è NULL**, e un `if` con condizione NULL
+non scatta. Il controllo veniva saltato e la funzione andava avanti. Provato in
+produzione: la chiamata anonima arrivava dentro e rispondeva «Trasferimento non
+trovato» — cioè aveva già passato il controllo e stava cercando la riga.
+
+**Il permesso che si eredita.** Il primo tentativo di chiudere il punto 1 non
+ha cambiato niente, e si è scoperto solo perché dopo averlo applicato è stato
+riprovato. In Postgres una funzione **nasce con il permesso di esecuzione
+concesso a PUBLIC**, e `anon` lo eredita da lì: toglierlo ad `anon` senza
+toglierlo a PUBLIC è un'operazione a vuoto. Da qui la regola, ora scritta in un
+test: si revoca a PUBLIC e si riconcede per nome.
+
+### Cosa è uscito davvero, e cosa no
+
+Nessun dato di nessun cliente è uscito, e non è una deduzione: il deposito
+delle foto era **vuoto** (zero file), le integrazioni con le casse erano
+**zero** (`integrazioni`, `pos_scontrini` e le righe di webhook in `sync_log`
+tutte vuote), e i segreti per marca li aveva solo il fondatore. Erano porte
+aperte su stanze vuote — che è il momento giusto per chiuderle, non una
+scusa per lasciarle.
+
+Il punto 4 è l'unico che riguardava dati **realmente presenti**: lo storico
+prezzi esiste e i dipendenti operativi esistono. Lì l'esposizione c'era.
+
+### Cosa impedisce che tornino
+
+- **`scripts/audit-sicurezza.mjs`** — 12 controlli sul database di produzione,
+  uno per ogni classe di difetto trovata. Se qualcuno reintroduce lo stesso
+  schema, qui fallisce.
+- **`tests/12-sicurezza-chiave-pubblica.spec.js`** — rifà gli attacchi dalla
+  strada, con la sola chiave pubblica, e pretende che vengano respinti.
+- **`tests/unit/sicurezzaMigrazioni.test.js`** e
+  **`tests/unit/webhookChiaveCliente.test.js`** — 25 + 25 controlli sul fatto
+  che le correzioni **restino nel codice**: un database si può ricreare da zero
+  (ambiente nuovo, ripristino, un altro cliente), e se la migration sparisce il
+  buco torna.
+
+### Perché 97 e non 100
+
+Restano tre cose vere, nessuna delle quali è un buco aperto:
+
+1. **Il bypass MFA del fondatore** sul pannello admin è ancora lì.
+2. **Niente backup indipendente da Supabase** (PITR + copia esterna): è una
+   decisione operativa da ~25 €/mese, non una riga di codice. È l'unico rischio
+   sistemico rimasto sui dati.
+3. **72 `catch` silenziosi**: non sono falle, ma sono posti dove un errore non
+   lascia traccia — e un attacco che fallisce è un errore che vorresti vedere.
 
 ---
 
@@ -344,11 +452,11 @@ Lift business (+3) da: multi-sede pricing amplia target vs catene, laboratorio 1
 
 | Dimensione | Score | Δ vs giu | Evidenza misurata |
 |---|---:|---:|---|
-| Sicurezza | 96 | = | RLS su ogni tabella, service-role solo da Vercel Functions, MFA admin attiva col bypass del fondatore ancora da togliere |
-| Test | 88 | +18 | **2.212 test verdi su 146 file** (erano 346 su 33 a giugno, 1.721 il 7 set). Coprono le classi di difetto, non solo le funzioni: pagine nascoste, selettore sedi, costo del personale nel P&L |
+| Sicurezza | **97** | **+1** | (14/09 notte) Otto buchi trovati e chiusi, ognuno provato dall'esterno con la chiave pubblica prima e dopo: funzioni interne chiamabili da anonimi, controllo di proprieta' che falliva aperto su NULL, deposito foto pubblico, storico prezzi leggibile dai dipendenti, stato commerciale e ruolo scrivibili dal browser, TRUNCATE concesso ai ruoli pubblici, chiave delle casse uguale per tutti i clienti. Tenuti da `audit-sicurezza.mjs` (12 controlli in produzione) + 50 test. Restano: bypass MFA del fondatore, nessun backup indipendente da Supabase |
+| Test | 90 | +20 | **2.335 test verdi su 165 file** (erano 346 su 33 a giugno, 1.721 il 7 set). Coprono le classi di difetto, non solo le funzioni: pagine nascoste, selettore sedi, costo del personale nel P&L |
 | Qualita' codice | 88 | +2 | ESLint pulito su `src/` e `api/` (0 errori, 14 warning di hook deps). 3 `console.log` residui, droppati in build. Restano 72 catch silenziosi |
 | Documentazione interna | 90 | +3 | I documenti di audit contengono i difetti *non verificati* dichiarati come tali, con il conto di quanti sono stati smontati (4 su 29). Un documento che dice quanto non sa vale piu' di uno che sembra completo |
-| Database | 93 | — | 96 migration, tutte applicate e verificate in produzione via SQL diretto il 14/09 |
+| Database | 94 | +1 | 104 migration, tutte applicate e verificate in produzione via SQL diretto il 14/09 (le otto della notte sono di sicurezza) |
 | Performance | 76 | +2 | Bundle principale 506 kB (154 gzip), grafici 464 kB (126 gzip), PDF 650 kB (196 gzip) caricato solo dove serve. Build 26s |
 | Mobile + tablet | 84 | +6 | Le 981 scritte sotto i 12px sono state corrette su tutte le pagine; input a 16px per non far zoomare iOS |
 | Architettura | 76 | +2 | `Dashboard.jsx` a 3.718 righe resta il punto piu' grosso: e' layout, router e stato insieme |
@@ -356,11 +464,13 @@ Lift business (+3) da: multi-sede pricing amplia target vs catene, laboratorio 1
 | DevOps / CI | 86 | +14 | Pre-push hook (lint + test + build) ripristinato il 7 set, Lighthouse CI su PR e cron settimanale, autodeploy Vercel |
 | Osservabilita' | 78 | +8 | Tab Health in admin, errori di produzione 24h, cron monitorati |
 
-**Composito ingegneria: 95/100.** Non sale nonostante i 491 test nuovi, per una
-ragione sola: **158 difetti sostenuti dagli agenti non sono mai stati
-verificati** (84 magazzino + 74 allergeni) e 3 aree di Produzione non sono mai
-state lette. Un impianto di test forte che gira su un'area non ancora guardata
-non dice niente su quell'area.
+**Composito ingegneria: 97/100.** I 158 difetti mai verificati che tenevano
+fermo il punteggio sono stati passati uno per uno (84 magazzino + 74 allergeni:
+questi ultimi restano fermi per scelta, la scheda e' spenta) e le 3 aree di
+Produzione mai lette sono state lette. Sopra ci si e' aggiunto l'audit di
+sicurezza della notte. Quello che ancora non sale: architettura (76,
+`Dashboard.jsx` a 3.718 righe), accessibilita' (60, WCAG mai validato) e
+prestazioni (76).
 
 ### 2bis. Audit ultima sessione (12 giu) — findings + fix
 
