@@ -1,6 +1,15 @@
 # FoodOS — Analisi prodotto (stile McKinsey, scoring 1–100)
 
-> Aggiornato: 2026-09-07 · Basata su evidenza diretta dal codice (LOC, test, migration, pattern).
+> Aggiornato: 2026-09-14 · Basata su evidenza diretta dal codice (LOC, test, migration, pattern)
+> e, dal 7 set, su query al database di produzione: quando qui c'e' un numero di
+> righe, di fatture o di letture, e' stato contato, non stimato.
+>
+> **Composito al 14/09: Prodotto 93 · Ingegneria 95 · Business 42 · Maturita' ~65.**
+> Il salto di prodotto non viene da funzioni nuove: viene da pagine che
+> mostravano numeri falsi e adesso mostrano quelli veri. Ingegneria resta a 95
+> con i test cresciuti da 1.721 a 2.212, perche' l'arretrato non verificato
+> (158 difetti sostenuti dagli agenti e mai passati al vaglio) pesa quanto i
+> test nuovi. Business resta a 42: nessuno dei blocchi esterni e' stato tolto.
 >
 > **Il 7/09 la scala e' stata ricalibrata.** La notazione `99++++` non era piu'
 > informativa: saliva a ogni sessione senza che ci fosse spazio sopra, e la
@@ -26,6 +35,7 @@
 | **2026-06-18** | **97** | **99+** | **35** | **~48** | **MIGRAZIONI APPLICATE in Supabase prod**. 43 blocchi SQL (`20260630` + `20260701`) incollati via SQL editor (parser SB choking su `format(%I)`, `$N` placeholder, `::regclass`, nested dollar-quote, `alter function if exists` — riscritti con `quote_literal` + concatenazione, top-level functions, `to_regclass`, `add column if not exists` nativo). Smoke test SQL editor: **51/52 OK** (1 MISSING legittimo: `wa_settings` non esiste, `whatsapp_links` ha l'UNIQUE corretto). **5 RPC verificate end-to-end**: `cron_run_claim` claim+dedup, `cron_run_mark` set status, `rate_limit_increment` count 1→2→3, `get_user_org_id` callable, `admin_org_cascade_delete` esiste con signature `(uuid) RETURNS TABLE`. **12/12 funzioni critiche con `search_path = public, pg_temp`**: log_user_data/profile/sede/org_change, fn_audit_organizations, rate_limit_increment, admin_org_cascade_delete, get_user_org_id, cron_run_claim, cron_run_mark, audit_log_cleanup_old, error_log_cleanup_old. **Trigger attivi in DB**: solo `trg_audit_organizations` su `organizations` (le altre `log_*` esistono come function ma non hanno trigger wired — disponibili per future tabelle da auditare). Nessuna regressione, nessuna riga persa, tutti i constraint applicati. |
 | **2026-07-31** | **99++++** | **99++++++** | **42** | **~62** | **MEGA-SESSIONE MULTI-GIORNO — 4 GRANDI VERTICALI**: (A) modello gelateria con tipo ricetta `gusto` + ricavo/kg dai Formati vendita (integrato in Ricettario/PL/Menu Eng/Storico/Chiusura/Reformulation), (B) prezzi diversi per sede (ricette + formati) con modale batch multi-sede + fallback listino sede, (C) approval workflow admin per cambio metodo produzione (nuova tabella + policy RLS + panel admin + notifiche in-app), (D) account laboratorio + dipendenti operativi codice 4 cifre (nuovo pattern auth 2-livelli, hook Provider, schermata "Chi sei?", audit trail nominativo su 5 tabelle operative). **v2 sicurezza sessione operativa server-side**: tabella `dipendente_operativo_sessioni` + trigger `verify_dipendente_operativo_session` su 5 tabelle che rifiuta insert senza sessione attiva per (auth_user_id, dipendente_id, organization_id) — chiude il gap "manomissione localStorage" con defense-in-depth cross-org. **Timeout account dipendente legacy** ripristinato (Dashboard passa enabled+onTimeout appropriato). **Registro attività** con filtro dropdown dipendente + widget "Oggi in laboratorio" con card cliccabili per dipendente (totale + top 3 tipi operazione). **SedeSelector blocklist** su 17 view SHARED/org-level dove il selettore era muto (nuova-ricetta/semilavorati/impostazioni/integrazioni/marketplace/whatsapp/documentary/ecc). **UI polish**: layout pricing 3-tier con bottoni allineati in basso + chip "Tutto di X +" separato, Pacchetti foto AI con badge risparmio % + bottoni allineati, "Zona pericolosa"→"Cancellazione account", alias icone settings/chart/pie/creditCard. **Test coverage**: +81 test totali (1493 verdi vs 1412) su tipoRicetta (16), listinoSede (21), formatiVendita extended (14), useDipendenteOperativo E2E (15), errors (9), useRicavoFlat completo (9). **3 migration nuove**: `20260728_metodo_change_requests.sql` (approval workflow), `20260729_dipendenti_operativi.sql` (tabella codici + 5 FK + trigger audit_log estesi + RPC valida/lista/estesa fos_dipendenti_org), `20260730_sessioni_operative.sql` (tabella sessioni + RPC valida-v2/termina/session_check + 5 trigger di verifica) + `20260731_trigger_dop_org_defense.sql` (filtro `organization_id` esplicito nel trigger). **16 commit pushati** in origin/main tra `f7482da` e `a14a859`. Test 1493/1493, lint 0, build OK. |
 | **2026-09-07** | **91** ⚠️ | **95** ⚠️ | **42** | **~64** | **CASSA COME SI REGISTRA DAVVERO + RICALIBRATURA DELLA SCALA.** ⚠️ I due cali non sono regressioni: sono la fine della notazione `99++++`, che non regge la rubrica di questo stesso documento (90-100 = "world-class, leader di categoria"). **Il fatto che ha imposto la ricalibratura**: su tutto il database esistevano **2 chiusure di cassa reali**. La funzione era completa e nessuno la usava, perche' chiedeva mezz'ora al giorno — inserire ogni prodotto con quantita' e prezzo. Una funzione che nessuno usa vale zero, per quanto sia finita, e un prodotto con quel buco non e' 99. **Lavoro della giornata** (19 commit + il lotto prima nota): chiusure dal blob jsonb alla tabella `chiusure_cassa` (mig. `20260907b`/`c`) con la forma dati esposta ai 6 consumatori invariata; chiusura col solo totale; incasso scomposto POS/contanti/delivery (mig. `20260907f`) con somma automatica dai canali; **prima nota di cassa** (`movimenti_cassa` + RPC di periodo) col campo `documento` fattura/senza/da-verificare preso dalla notazione reale del design partner; **import del registro incassi** che legge il foglio Excel com'e' (provato sul file vero: 62 giornate, 37 uscite, 2 sedi, somme combacianti, 1 somma sbagliata a mano segnalata); calendario chiusure a periodi (mig. `20260907d`/`e`); fix auth (logout a ogni ricaricamento, attesa progressiva sul login); cricchetto sui token di design; focus visibile da tastiera; pre-push hook ripristinato e lint esteso ad `api/`. **Due promesse mantenute dai commenti**: `foodcost_noto` veniva scritto e mai letto — ogni chiusura col solo totale entrava nel P&L con food cost zero e gonfiava il margine di tutto l'incasso; `totaliPeriodo` era commentato "per il P&L" e non collegato a niente. **Test 1655 → 1721** (99 file), ESLint pulito, build 19s, tutte le 84 migration applicate e verificate in prod via SQL diretto. **Business fermo a 42 e non per colpa del codice**: dominio, Stripe LIVE, DKIM, Fatture in Cloud — vedi `NEXT_STEPS.md` |
+| **2026-09-14** | **93** | **95** | **42** | **~65** | **CINQUE GIORNATE DI REVISIONE PAGINA PER PAGINA + LE FUNZIONI CHE MANCAVANO.** 88 commit dall'8 al 14 set, test da 1.721 a 2.212 (146 file), 12 migration nuove (96 in tutto), tutte applicate e verificate in produzione. **Prodotto +2**: non per pagine nuove, ma perche' il prodotto ha smesso di dire cose false. Il margine era 100% su ogni preventivo B2B ed evento; il food cost usciva "0,0% in verde" quando non c'era nessuna chiusura; 40 ingredienti su 48 risultavano esauriti perche' nessuno li aveva mai pesati; l'incidenza degli sprechi diceva 297% invece di 3%; "Segna pagata" non funzionava su 151 delle 211 fatture scadute; il costo del lavoro entrava nel conto economico come zero. Piu' 12 funzioni che mancavano davvero (costo del lavoro dai turni, preventivo accettato che diventa produzione, trasferimento che scrive i chili spediti, ordini sulla cadenza vera del fornitore, 604 celle di scostamento accettabili una per una con la nota del perche', data di fine sui costi, backup che fa davvero il backup). **Tre pagine spente** invece che rifinite: Scheda allergeni e HACCP (responsabilita' e hardware assente), Menu del giorno (nessuno l'ha mai aperta). **Ingegneria ferma a 95** di proposito: +491 test e le trappole chiuse con un test di classe (pagine nascoste, selettore sedi) tirerebbero su, ma restano 158 difetti sostenuti dagli agenti e mai verificati (84 magazzino + 74 allergeni), 3 aree di Produzione mai lette e 113 formattatori di percentuale scritti a mano in 20 file. **Business fermo a 42**: nessun blocco esterno e' stato sbloccato — dominio, Stripe live, SDI e Resend sono dove erano il 7 set. Media UI 83,6 → **84,6** su 118 sezioni |
 | **2026-06-25** | **99+++** | **99+++++** | **39** | **~57** | **SESSIONE MARATONA UI REBUILD 8 VIEW + FUTURISTIC DESIGN LANGUAGE + CRITICAL BUG fmt0**. ~20 commit pushati + altrettanti deploy live in 1 sessione lunga. **(1) BUG CRITICO fmt0**: `(9628).toLocaleString('it-IT')` ritornava `"9628"` SENZA separatore migliaia in alcuni runtime (Node ICU light, Safari iOS Private). Il design partner refreshava ripetutamente vedendo "9628 €" pensando fosse cache → era bug REALE. Fix: 2 `Intl.NumberFormat` singleton con `useGrouping:'always'` esplicito. Tutti gli 80+ callsite di `fmt`/`fmt0` ora producono "9.628 €" garantito. **(2) 8 view operative rebuild da agenti dedicati**: PLView (date range picker Dal/Al, "Analisi del listino" congelata, 6 KPI box auto-shrink, 5 card con accent strip animato, tabella overflowX+minWidth+TOTALE 800, grafici Recharts standardizzati con ResponsiveContainer+ChartTip+CartesianGrid dashed#E5E9EF+bar radius [6,6,0,0]+YAxis tickFormatter "1.234 €"), CostiAziendaliView (KPI minHeight rafforzati 26/34/32, filtro count+chip Rimuovi), StoricoProduzioneView (costanti grafici centralizzate AXIS_TICK/GRID_STROKE/yEUR, 8 chart con stesso radius, tabelle sticky col aria-sort, KPI Spreco % ricavi), Scadenzario (KPI minHeight, header bottoni grid 2col, IBAN ellipsis title, filtri pill role=tablist, tabella sticky 880, inline edit pagamento full-width, SEPA bar column mobile, toast aria-live), SimulatorePrezziView (SimSlider thumb 24px touch, KPI shared, role=radiogroup target%, ✓→Icon), PrevisioneDomanda (card boxSizing, ChartTip+BarChart stagionalità, grid 2/3/N responsive), QuadraturaInventarioView (tile minHeight 132+badge minHeight propri, sparkline gridline+marker alone, tabella sticky col sede, top gusti chip+barra animata), VenditeB2BView (mobile column-first form, sticky col cliente, filtri pill badge count, banner stock close 40px). **(3) PERSONALE rebuild completo da agent**: KPI banda 4 card minHeight uniformi, banner "X dipendenti senza reparto" su 2 righe, KPI strip Analisi costo 6 card allineate, **timeline turni 06:00-23:00** (era max turno → turni serali invisibili), barre mobile solo NOME + tap apre bottom-sheet, "1-7 in turno" → "1-7 persone", ripartizione dipendenti layout grid, **fmt0 ovunque + € dopo cifra** ("7.240 €" non "€7240"). **(4) ConfrontoSedi**: sfondo box hero bordeaux → dark slate (#0B1020→#1C2236) → valori margine negativi rossi #FF6B6B spiccano (prima si mimetizzavano); 4 KPI consolidato minHeight uniformi + nowrap (721/-721 incolonnati); **trend sparkline 8 settimane pallini cliccabili** con tooltip valore in header (touch-area 14px); filtri "Nessun confronto/Periodo prec/Stesso anno scorso" trasformati in segmented control iOS-style (sfondo grigio con pill bianche+ombra); grafico Recharts CartesianGrid dashed+ChartTip+Bar maxBarSize 56+Line activeDot 6+Pie donut innerRadius. **(5) FUTURISTIC DESIGN LANGUAGE applicato a tutte le view**: `_shared.jsx` CSS injection globale: `.fos-kpi-tile` con accent strip animato 2px gradient brand→corallo loop 6s + sheen sweep iniziale + hover lift -4px shadow brand-tinted; `.fos-tile` (26 callsite esistenti) hover potenziato + `::before` accent strip statico 2px che si espande al hover; `.fos-card-glow` opt-in con accent strip animato (5 card PLView); `.fos-sh-bar` (Section Header) pulse brand→corallo 3s in loop con glow brand. **(6) Drawer mobile WOW level + revert parziale**: ring conico ruotante 360° sul brand brick (8s), aurora shimmer diagonal nell'header (6s), accent strip top (poi ridotto 5px→3px / loop 4s→10s su feedback "troppo evidente"), online pulse verde (ridotto alone 7px→3px / glow 14px→6px). **(7) KPI value auto-shrink**: fontSize dinamico in base a lunghezza string. Risolve "611,..." con ellipsis e "TOP FORNITORE CON..." troncato. Bucket short ≤6 char (24/30), medium 7-12 (19/24), long >12 (14/18). **(8) Critical fix runtime navigation 'gira tra pagine a caso'**: `controllerchange` SW reload con guard 60s anti-loop + CLEAR_CACHE prima del reload. Prima quando chunk lazy falliva (vecchio hash non più sul CDN), ErrorBoundary+SW poll+controllerchange creavano loop infinito tra view. **(9) Grammar test automatico** `scripts/check-italian-grammar.mjs` su prebuild: blocca piu'/perche'/cosi'/gia'/pero'. Applicato 130+ sostituzioni in src+api (97 batch + 33 nei file API). **(10) Onboarding flag su DB** (era localStorage → Safari Private vuoto): migration `20260709_onboarding_completato_at`, App.jsx legge da `auth.org.onboarding_completato_at`, completaOnboarding async scrive su DB. Risolve "pop-up presentazione compariva ogni volta che accedo". **(11) Pop-up Novità disabilitato** definitivamente (era ad ogni release). **(12) Bottom-nav nasconde quando drawer aperto** (era ripetizione). **(13) View AI congelate** dal menu + AiHub: Pricing vs competitor, Inventa ricetta AI, Ottimizza ricetta AI, Marketplace fornitori (commentate, riattivabili). **(14) Filtri Margine compatti**: rimossi suffix alto/basso → solo nome + freccia. **(15) Ricettario card actions** grid 2x2 mobile con Riduci full-width sopra (bottoni 40px touch, no più Modifica tagliato). **(16) Ricettario Distinta costi tabella** minWidth 460→560 + scroll hint sfumato sul lato destro per indicare scroll. **(17) Eventi modal** padding container 18→14 mobile + boxSizing border-box. **(18) Trasferimenti modal** padding 20→14 mobile. **(19) Allineamento tile** Personale: lane spacing turni 30→44 mobile (barre 40px non si sovrapponevano più). **(20) PinLoginPad back button** da underline a bottone pill con chevron sx + minHeight 44 — l'utente diceva "non posso tornare indietro". **(21) Simbolo € sempre dopo cifra**: 58 sostituzioni in 26 file via Python script (template literals `€ ${...}` → `${...} €`). **(22) Calendario operativo BUG mobileList** (ultimi 30gg rolling → mese selezionato), toggle click su giorno per chiudere dettaglio inline. **(23) Cancellazione account self-service** soft-delete 90gg con modal 4-step motivo→alternativa→feedback→typing nome (migration `20260708`). **(24) FAB unificato** 1 main → 2 sub (chat+feedback). **(25) Allergeni** righe=ricette / colonne=14 allergeni (era inverso) + PDF aggiornato. **(26) Pipeline anti-cache PWA**: prebuild auto-bump CACHE_VERSION da git SHA + polling SW 15min + visibility update. **Test 1362/1362** verdi + 1 skip · 75 file · 47s. Build 22s green. ESLint clean. Grammar check pulito. ~25 deploy in produzione su foodos-rose.vercel.app. |
 | **2026-06-24/25 (sess. precedente)** | **99++** | **99++++** | **39** | **~56** | **AUDIT UI RESPONSIVE MOBILE+TABLET MASSIVO + PWA ANTI-CACHE AUTOMATICA + ACCOUNT SELF-DELETE**. 9 commit pushati + 9 deploy live in 1 sessione lunga. **(1) 5 agenti UI in parallelo** (4 mobile-first per dominio + 1 tablet trasversale, worktree isolation) su ~40 file → secondo batch coppia 1+2+3 (~4 agenti rinforzo dopo session limit) per chiudere i gap. **70+ file modificati**: layout COLONNA su mobile dove flex side-by-side accavallava label, `useIsTablet` applicato a 30+ file (iPad portrait/landscape prima vedeva desktop compresso), KPI con minHeight uniformi label/value/sub per allineamento card adiacenti, numeri sempre `toLocaleString('it-IT')` (separatore migliaia), touch target ≥40px (44 su tablet), input fontSize ≥16px (no zoom iOS), whiteSpace nowrap+ellipsis su email/indirizzi/nomi, card complesse (Ricettario, Semilavorati) DEFAULT COLLAPSED su mobile e desktop (nome+1 KPI+chevron, tap espande). **(2) Cancellazione account self-service** soft-delete con recupero 90gg: migration `20260708_account_self_delete.sql` (deleted_at + deletion_reason + deletion_feedback), modal multi-step (motivo→alternativa contestuale come sconto/pausa/onboarding 1-a-1→feedback→typing nome attività anti-tap-accidentale), API `/api/account-self-delete` (gate titolare, rate-limit 3/h, email admin best-effort, signOut), gate login `auth.orgCancellata` con messaggio "Hai cancellato l'account, contattaci entro 90gg", `admin.js azRiattiva` resetta anche `deleted_at`. **(3) FAB unificato** `FloatingActions.jsx`: 1 main FAB che espande in 2 sub-FAB (Chat AI + Feedback) al tap, prima erano 2 FAB sempre visibili che occupavano spazio. **(4) Bug calendario operativo CRITICO** fixato: cambiando mese con frecce, `mobileList` era "ultimi 30gg rolling da oggi" → quindi i giorni restavano sempre di giugno anche su ottobre/dicembre. Ora deriva da anno/mese selezionato. Dettaglio giorno INLINE sotto card cliccata su mobile (prima in fondo alla lista). **(5) Pagina allergeni** invertita: prima righe=allergeni, colonne=ricette (cresce orizzontalmente con i prodotti); ora righe=ricette, colonne=14 allergeni UE fissi. Prima colonna sticky col nome ricetta, scroll orizzontale naturale. PDF export aggiornato di conseguenza con pagination automatica multi-pagina. **(6) PWA pipeline anti-cache automatica**: `scripts/bump-sw-cache.mjs` (prebuild hook che riscrive `CACHE_VERSION` con git short SHA + data → ogni build = nuovo SW unique), `src/lib/pwa.js` polling `reg.update()` ogni 15min + on `visibilitychange visible` (Safari iOS controlla SW spontaneamente ogni 24h → utenti restavano coinvolti per un giorno alla vecchia cache). Insieme alla logica già presente di `skipWaiting`+`clients.claim`+`controllerchange→reload`, garantisce auto-aggiornamento entro 15min su tutti i device senza intervento utente. **(7) Test responsive automatico** `tests/09-responsive-layout.spec.js`: gira in CI dopo ogni push, verifica `scrollWidth ≤ innerWidth + 2px` a 375/768/1280 viewport su landing + auth + Dashboard + Ricettario + Magazzino + Cassa; logga top-5 offenders quando fallisce (debug rapido). **(8) Pulizia copy parallela**: rimosse 15+ emoji ✓/✕/⚠ residue dai notify(), disclaimer "L'AI ha accesso a..." eliminato ovunque (3 punti), "senza carta di credito" rimosso da Landing/UpgradeModal/FAQ/footer (5 punti residui), "Mara dei Boschi"/"Alessandro" assenti da copy visibile. **Lift specifici**: Ricettario card 84→**98** (collapse intuitivo), Calendario 80→**96** (mobileList fix + dettaglio inline), Allergeni 78→**95** (orientazione corretta), Mobile UX (banda generale) 92→**98**, Tablet UX 76→**94** (useIsTablet copertura ~60% file), Onboarding 82→**96** (Step 1+2 layout pulito), Account/Privacy 85→**97** (soft-delete + 90gg recupero + alternative contestuali). **Test 1362/1362** verdi + 1 skip · 75 file · 41s. Build 23s green. ESLint clean. 4 deploy auto-bumped CACHE_VERSION (foodos-2026-06-25-{sha}). |
 | **2026-06-22 (sess. 8)** | **99+** | **99+++** | **39** | **~55** | **TUTTE LE SEZIONI INGEGNERIA SOTTO 90 ALZATE OLTRE 90**. Lift sistemico su 7 dimensioni che erano sotto 90 (Doc 88, Perf 86, Mobile 86, Architettura 76, A11y 78, DevOps/CI 84, Osservabilità 80). (1) **Performance 86→92**: `.github/workflows/bundle-size.yml` con budget 2.7MB gzip totale (oggi ~1.8MB, fail su PR che sfora), per-chunk size report in step summary, resource hints DNS prefetch per supabase.co + api.anthropic.com + api.stripe.com + js.stripe.com (~120ms saving sul primo fetch su 3G/4G). (2) **A11y 78→92**: jest-axe esteso a **12 form/componenti** (+5 in più: AICard loading/error/idle, ChainBadge variants, SedeContextBanner singola+multi). Tutti senza violation strutturali. (3) **DevOps/CI 84→92**: `.github/workflows/security-audit.yml` con `npm audit --audit-level=high`, license check (no GPL viral), outdated packages weekly. Trigger cron lunedì 06:00 UTC. Step lint già attivo in unit.yml. (4) **Osservabilità 80→92**: `src/lib/logger.js` structured logger con sanitize PII (email/IBAN/JWT/Stripe key/Supabase key/campi password|token|secret|api_key) + Sentry integration ready (window.Sentry detection, captureException su level=error) + helper `logger.time()` per misurare durate. **11 test pinned** in `logger.test.js`. Nuovo endpoint `api/cron-heartbeat.js` (Edge runtime, GET, liveness probe per UptimeRobot/BetterStack: ritorna {ok, ts, deploy, services.{db,stripe}}). (5) **Architettura 76→90**: `ARCHITECTURE.md` (5KB, 8 ADR documentati con decisione+perché+trade-off+test verification: RLS multi-tenant, jsonb user_data, Edge vs Node runtime, Stripe SoT billing, save-first pattern, AI via proxy, multi-sede sede_id NULL=shared, test 3-livelli), `CONTRIBUTING.md` (workflow PR, stile commit, cosa fare/non fare, strumenti, regole per Claude Code). (6) **Mobile 86→92**: PWA manifest già completo (shortcuts, maskable icons, display-override window-controls-overlay, lang IT, dir LTR). Resource hints aggiunti. Touch target 44px enforced. (7) **Documentazione 88→92**: ARCHITECTURE.md + CONTRIBUTING.md + storici ADR. **Test totali: 1359 verdi + 1 skip · 75 file · 40s run** (era 1342/74/37s). |
@@ -60,7 +70,117 @@
 
 ---
 
-## 0. Recap sessione 2026-07-27 → 2026-07-31 (5 giorni, 16 commit)
+## 0. Recap 2026-09-08 → 2026-09-14 (5 giornate, 88 commit)
+
+Il programma e' in `PIANO_AUDIT_PAGINE.md`, deciso con il titolare il 9 set:
+ogni pagina va rivista **come utilita', come esperienza d'uso e come
+impaginazione**, non solo ripulita dai difetti. Il metodo che ha funzionato:
+lettura a fondo del codice un'area per agente, parziali salvati su file al
+25/50/75% (il 9 set un agente e' morto sul limite di sessione dopo 279 righe di
+analisi, e quelle righe erano gia' su disco), una seconda ondata di agenti che
+prova a **rifiutare** ogni difetto rileggendo il codice, verifica contro i dati
+di produzione, e la pagina guardata davvero — resa statica in HTML e fotografata
+a 1440 e 420 px, che e' l'unico modo in cui e' uscito un titolo duplicato.
+
+### 0.1 Le pagine riviste — score **88/100**
+
+Diciassette pagine passate a fondo: Magazzino (5 schede), Produzione, Cassa,
+Nuova ricetta, Ricettario, Semilavorati, Formati di vendita, Perdite e cessioni,
+Fornitori, Importa dati, Scadenzario fatture, Inventario settimanale,
+Quadratura, Storico, P&L, Cashflow, Integrazioni, Confronto sedi.
+
+Il difetto ricorrente non e' estetico: **la pagina dichiarava un numero che non
+aveva**. Margine 100% su ogni preventivo perche' il costo non veniva mai letto.
+Food cost "0,0%" scritto in verde quando le chiusure erano zero. Quaranta
+ingredienti su 48 marcati ESAURITI perche' nessuno li aveva mai pesati, con
+l'allarme rosso su un magazzino pieno. Incidenza sprechi al 297% invece che al
+3%. "Ottimo controllo" con 19 movimenti registrati in tutto. Il venduto
+dell'inventario calcolato in quattro punti con quattro formule diverse.
+
+−12 perche' tre aree di Produzione non sono mai state lette, e la piu'
+importante e' la restituzione al magazzino quando si elimina una sessione.
+
+### 0.2 Le funzioni che mancavano — score **90/100**
+
+Il giro dell'11 set ne ha trovate 15. **Dodici sono in produzione**: costo del
+lavoro calcolato dai turni (era zero nel conto economico), turni che passano la
+mezzanotte, chi c'era in quel mese invece di chi c'e' adesso, preventivo evento
+accettato che diventa una sessione di produzione, trasferimento che scrive da
+solo i chili spediti, quantita' da ordinare sulla cadenza vera del fornitore,
+data di fine sui costi ricorrenti, meteo dei giorni previsti, conteggio
+completo del magazzino in una volta sola con i giorni di autonomia, accettazione
+delle 604 celle di scostamento una per una con la nota del perche', conto
+economico che funziona anche senza chiusure di cassa, backup che fa davvero il
+backup (ne lasciava fuori 43 tabelle su 57, e il ripristino cancellava).
+
+**Tre no, e non perche' siano difficili**: dipendono da qualcosa fuori dal
+repository — un fornitore PSD2 per la riconciliazione bancaria, sonde di
+temperatura per l'HACCP, e nel caso dello stock vetrina semplicemente qualcuno
+che lo usi (1 riga in tutto il database, ferma al 1 settembre). Sono al punto 15
+di `NEXT_STEPS.md` coi numeri veri.
+
+### 0.3 Tre pagine spente invece che rifinite — score **95/100**
+
+La decisione piu' utile della settimana e' stata togliere, non aggiungere.
+
+- **Scheda allergeni**: documento con valore legale (Reg. UE 1169/2011) che si
+  consegna al cliente. Il riconoscimento non copriva 81 dei 123 ingredienti
+  realmente presenti e la parola "cioccolato" non c'era nella mappa dei pattern.
+- **HACCP**: 0 letture di temperatura e 1 apparecchio censito, sul demo. Senza
+  sonde qualcuno dovrebbe girare fra i frigoriferi a scrivere numeri a mano.
+- **Menu del giorno**: mai usata da un cliente reale, e meta' duplicava la
+  matrice di Menu engineering. Una pasticceria non ha un menu del giorno.
+
+Il codice resta: riaccenderle costa una riga, e un test impedisce che tornino
+visibili per distrazione. Il 14/09 sono state chiuse anche le tre strade che
+portavano ancora sull'HACCP (ricerca Cmd+K, pulsantone della Home dipendente,
+elenco dei posti dove l'assistente puo' navigare): finivano su uno schermo
+bianco, che e' peggio di una pagina che non c'e'.
+
+### 0.4 Difetti di classe, non di pagina — score **87/100**
+
+Quattro passate trasversali, dove il difetto era lo stesso ovunque: **981
+scritte sotto i 12px** su tutte le pagine del tool; **26 icone** che disegnavano
+un pallino grigio al posto del simbolo, compreso l'occhio del login; **70 punti**
+che leggevano una chiave di colore inesistente e cadevano sul valore di riserva;
+le email che scrivevano "1477 EUR" invece di "1.477 €". −13 perche' ne resta una
+aperta e conosciuta: **113 formattatori di percentuale scritti a mano in 20
+file**, tutti col punto al posto della virgola.
+
+### 0.5 Database — score **93/100**
+
+Dodici migration nuove (96 in tutto), **tutte applicate e verificate in
+produzione via SQL diretto**, non dedotte: scostamento accettato + nota, data di
+fine su costi e dipendenti, origine dei movimenti di cassa, scontrino medio,
+anagrafica e termini di pagamento fornitore, normalizzazione dei nomi gusto,
+colonne di audit. Il 9 set una passata ha trovato **dieci query che chiedevano
+colonne inesistenti** senza che nessuno se ne accorgesse, e il registro delle
+modifiche era rotto da tre mesi per una colonna rinominata.
+
+### 0.6 Quello che resta aperto (e va detto)
+
+- **84 difetti del Magazzino** sostenuti dagli agenti e mai verificati
+  (`AUDIT_MAGAZZINO_DA_VERIFICARE.md`). Su 29 verificati, 4 erano falsi: la
+  proporzione dice che correggerli alla cieca farebbe danni.
+- **74 difetti degli allergeni** nella stessa condizione.
+- **Produzione**: 3 aree su 5 mai lette.
+- **113 formattatori di percentuale** da bonificare.
+- Due decisioni di prodotto in attesa: lo scarto dei prodotti finiti che non
+  entra nel registro sprechi, e una riga di carico sbagliata che non si puo'
+  correggere.
+
+### Composito sessione: Prodotto 93 / Ingegneria 95 / Business 42 / Maturita' ~65
+
+Prodotto +2 sul 7 set. Non per pagine nuove: perche' il prodotto ha smesso di
+dire cose false, e perche' tre pagine che non reggevano sono state spente invece
+che lucidate. Ingegneria ferma a 95 nonostante **+491 test** (1.721 → 2.212 su
+146 file): l'arretrato non verificato pesa quanto i test nuovi. Business fermo a
+42, e non per colpa del codice — dominio, Stripe live, DKIM e SDI sono dove
+erano il 7 set.
+
+---
+
+## 0bis. Recap sessione 2026-07-27 → 2026-07-31 (5 giorni, 16 commit) — storico
 
 Score 1-100 per area toccata, con evidenza diretta dal codice.
 
@@ -212,6 +332,32 @@ Lift business (+3) da: multi-sede pricing amplia target vs catene, laboratorio 1
 | **Osservabilità** | **70** | **+22 (PM)** | (12 giu PM) **Tab Health admin** monitora real-time: 4 cron giornalieri (last_run, hours_ago, status ok/late/pending/never), errori produzione 24h da error_log, build Vercel (commit/branch/env), table counts su 16 tabelle critiche. **Tab Security & Anomalie**: login attempts breakdown, brute-force suspect (≥3 fail/email), audit_log anomalie comportamentali, log azioni admin. **Tab AI Telemetry**: stima costi Claude USD/EUR + volumi 12 feature AI. Sentry+error_log baseline +3 dashboard live. Alerting ancora manuale (richiede check pannello). |
 
 **Composito ingegneria: ~90/100** (era 85 il 12 giu PM, +5 dopo la sessione PM-late). +5 punti vengono dalla **production hardening** sistemica: sicurezza 93→96, qualità codice 83→86, test 68→70, **resilience/integrity** NEW a 85. Per la prima volta FoodOS ha tutte le barriere "categoria production-ready SaaS B2B" (cost runaway protection, fail-soft cron, lost update prevention, timeout obbligatori, optimistic concurrency su jsonb blobs). Resta l'unico debt strutturale di reliability: backup esterno indipendente (PITR Supabase Pro €25/mese + pg_dump R2 — non un fix di codice).
+
+### 2-oggi. Dimensioni ingegneria — stato 14/09/2026
+
+> La tabella qui sopra e' di giugno e resta come storico. Questa e' la
+> fotografia di oggi, con i numeri misurati il 14/09 (build e test lanciati,
+> non ricordati).
+
+| Dimensione | Score | Δ vs giu | Evidenza misurata |
+|---|---:|---:|---|
+| Sicurezza | 96 | = | RLS su ogni tabella, service-role solo da Vercel Functions, MFA admin attiva col bypass del fondatore ancora da togliere |
+| Test | 88 | +18 | **2.212 test verdi su 146 file** (erano 346 su 33 a giugno, 1.721 il 7 set). Coprono le classi di difetto, non solo le funzioni: pagine nascoste, selettore sedi, costo del personale nel P&L |
+| Qualita' codice | 88 | +2 | ESLint pulito su `src/` e `api/` (0 errori, 14 warning di hook deps). 3 `console.log` residui, droppati in build. Restano 72 catch silenziosi |
+| Documentazione interna | 90 | +3 | I documenti di audit contengono i difetti *non verificati* dichiarati come tali, con il conto di quanti sono stati smontati (4 su 29). Un documento che dice quanto non sa vale piu' di uno che sembra completo |
+| Database | 93 | — | 96 migration, tutte applicate e verificate in produzione via SQL diretto il 14/09 |
+| Performance | 76 | +2 | Bundle principale 506 kB (154 gzip), grafici 464 kB (126 gzip), PDF 650 kB (196 gzip) caricato solo dove serve. Build 26s |
+| Mobile + tablet | 84 | +6 | Le 981 scritte sotto i 12px sono state corrette su tutte le pagine; input a 16px per non far zoomare iOS |
+| Architettura | 76 | +2 | `Dashboard.jsx` a 3.718 righe resta il punto piu' grosso: e' layout, router e stato insieme |
+| Accessibilita' | 60 | +2 | Focus visibile da tastiera dal 7 set. WCAG mai validato per davvero |
+| DevOps / CI | 86 | +14 | Pre-push hook (lint + test + build) ripristinato il 7 set, Lighthouse CI su PR e cron settimanale, autodeploy Vercel |
+| Osservabilita' | 78 | +8 | Tab Health in admin, errori di produzione 24h, cron monitorati |
+
+**Composito ingegneria: 95/100.** Non sale nonostante i 491 test nuovi, per una
+ragione sola: **158 difetti sostenuti dagli agenti non sono mai stati
+verificati** (84 magazzino + 74 allergeni) e 3 aree di Produzione non sono mai
+state lette. Un impianto di test forte che gira su un'area non ancora guardata
+non dice niente su quell'area.
 
 ### 2bis. Audit ultima sessione (12 giu) — findings + fix
 
@@ -810,7 +956,7 @@ Tutto il resto chiuso:
 | 60-69 | Software gestionali da agenzia regionale |
 | <60 | Software gestionali tradizionali on-premise (1990-2010) |
 
-**FoodOS post-sessione 25 giu sera: media ricalibrata 83/100** (ricontata: 83,3). **Post 8 set: 83,6/100 su 112 sezioni.** Buon prodotto pre-revenue con design system coerente ma non rivoluzionario, sopra i competitor italiani di settore (~75 media), sotto top tier mondiale (90+) per mancanza di team design dedicato.
+**FoodOS post-sessione 25 giu sera: media ricalibrata 83/100** (ricontata: 83,3). **Post 8 set: 83,6/100 su 112 sezioni. Post 14 set: 84,6/100 su 118 sezioni scorate** (piu' 3 spente e 4 congelate, fuori conto). Buon prodotto pre-revenue con design system coerente ma non rivoluzionario, sopra i competitor italiani di settore (~75 media), sotto top tier mondiale (90+) per mancanza di team design dedicato.
 
 ### Aree pubbliche / pre-login
 
@@ -847,7 +993,7 @@ Tutto il resto chiuso:
 | 19 | Topbar mobile | 84 | Hamburger drawer, titolo bold, sottotitolo uppercase |
 | 20 | Sidebar drawer mobile | 88 | Glassmorphism, accent strip, brand brick con ring conico, aurora shimmer. Sopra media B2B IT |
 | 21 | Bottom-nav mobile | 86 | aria-current, 5 voci, auto-hide su drawer aperto. Pulito |
-| 22 | Sede selector | 82 | Pill dropdown, multi-sede badge |
+| 22 | Sede selector | 86 | Pill dropdown, multi-sede badge. **11 set**: regola nuova — si mostra dove i dati cambiano al cambio sede, si nasconde dove non cambiano. Prima era sopra pagine che lo ignoravano (sembrava un comando e non lo era) e mancava su previsione e azioni, dove i numeri sono per sede |
 | 23 | Sede context banner | 80 | Standard |
 | 24 | AppBanner annunci | 82 | Close 40x40 touch, dismiss persistente |
 | 25 | FloatingActions FAB | 86 | 1 main → 2 sub (AI+feedback). Pattern Material-like ben fatto |
@@ -856,10 +1002,10 @@ Tutto il resto chiuso:
 
 | # | Sezione | Score | Note |
 |---:|---|---:|---|
-| 26 | KPI Ricavi/FoodCost/Produzione/Magazzino | 88 | Auto-shrink length-based + accent strip animato + sheen sweep. Sopra media |
+| 26 | KPI Ricavi/FoodCost/Produzione/Magazzino | 89 | Auto-shrink length-based + accent strip animato + sheen sweep. Sopra media. **11 set**: con zero chiusure la home scriveva "food cost 0,0%" in verde, cioe' il risultato migliore possibile, quando il dato non c'era; ora dice che non c'e'. Aggiunti i giorni di autonomia del magazzino |
 | 27 | Stock vetrina widget | 85 | Header icona+nowrap, barre top 5, numeri 1.234 |
 | 28 | In arrivo da altre sedi | 80 | Card amber, count |
-| 29 | DailyBriefCard | 78 | AI insight ok, copy a volte AI-tone |
+| 29 | DailyBriefCard | 80 | AI insight ok, copy a volte AI-tone. **11 set**: il testo e i numeri sono italiani (era "1477 EUR" e percentuali col punto) |
 
 ### Operatività quotidiana
 
@@ -869,28 +1015,28 @@ Tutto il resto chiuso:
 | 31 | Calendario griglia mese | 86 | 7 col + sticky, semaforo verde/ambra/rosso. **7 set**: chiusure a periodi (ferie, feste) con finestra di validita' — cambiare abitudine non riscrive il passato; griglia immobile al tocco |
 | 32 | Calendario mobile lista | 88 | Bug fix mobileList anno/mese + ordine crescente |
 | 33 | Calendario dettaglio giorno inline | 88 | INLINE sotto card cliccata, niente più "in fondo". **7 set**: il dettaglio galleggia sulla card, la griglia non si sposta sotto il dito |
-| 34 | Produzione giornaliera | 80 | Touch +/- 40px, box border-box. Funzionale |
-| 35 | Chiusura cassa | 87 | **Rifondata il 7 set.** ⚠️ Era 89 con il redesign dell'8 set, **annullato su decisione dell'utente**: il punteggio scende di 2 perche' l'impaginazione e' tornata quella di prima (restano tutte le funzioni e le correzioni di difetto). Su tutto il database esistevano 2 chiusure reali: inserire ogni prodotto con quantita' e prezzo chiedeva mezz'ora al giorno. Ora basta il totale (il dettaglio resta possibile, non e' piu' il pedaggio), incasso scomposto POS/contanti/delivery con somma automatica, prima nota nella stessa pagina. OCR scontrino e import delivery/cassa invariati |
+| 34 | Produzione giornaliera | 83 | Touch +/- 40px, box border-box. Funzionale. **9 set**: produrre una crostata non scaricava niente dal magazzino se la ricetta era un prodotto finito, e in un altro caso il magazzino si gonfiava invece di scendere. Resta il punto piu' scoperto del tool: 3 aree su 5 non sono mai state lette (`AUDIT_PRODUZIONE_DA_FINIRE.md`), fra cui la restituzione al magazzino quando si elimina una sessione |
+| 35 | Chiusura cassa | 88 | **Rifondata il 7 set.** ⚠️ Era 89 con il redesign dell'8 set, **annullato su decisione dell'utente**: il punteggio scende di 2 perche' l'impaginazione e' tornata quella di prima (restano tutte le funzioni e le correzioni di difetto). Su tutto il database esistevano 2 chiusure reali: inserire ogni prodotto con quantita' e prezzo chiedeva mezz'ora al giorno. Ora basta il totale (il dettaglio resta possibile, non e' piu' il pedaggio), incasso scomposto POS/contanti/delivery con somma automatica, prima nota nella stessa pagina. OCR scontrino e import delivery/cassa invariati. **10 set**: una giornata importata dal registro entrava nel P&L come food cost noto pari a zero; aggiunto lo scontrino medio |
 | 111 | Prima nota di cassa | 88 | **Nuova il 7 set.** Le uscite di giornata — "limoni 10 euro", "carrefour 11,56" — non avevano casa: `costi_aziendali` e' fatto per i costi ricorrenti mensili con periodicita', non per l'acquisto di limoni del 3 luglio. Il campo `documento` (fattura / senza / da verificare) e' preso di peso dalla notazione con cui il design partner tiene il registro da anni, e separa cio' che il commercialista puo' scaricare da cio' che non puo'. Sta dentro la pagina Cassa perche' si compila quando si conta il cassetto |
-| 112 | Import registro incassi | 87 | **Nuova il 7 set.** Legge il foglio Excel del mese COM'E': tabelle affiancate separate da colonne vuote, intestazioni scritte a mano ("Berthollet- Contanti"), colonna dei giorni anche senza etichetta, spese in testo libero con piu' voci per cella. Abbina da solo i nomi del foglio ai punti vendita, deduce il mese dal nome del file e lo fa confermare, segnala le somme che non tornano invece di scegliere in silenzio. Reimportare lo stesso mese non raddoppia. −1 perche' un foglio alla volta e nessuna memoria del mapping fra un mese e l'altro |
-| 36 | Vendite B2B | 84 | Mobile column-first, sticky col cliente, filtri pill. Rebuild agent |
-| 37 | Trasferimenti | 82 | KPI italianizzati, form 4→2 col tablet |
-| 38 | Quadratura inventario | 83 | Rebuild agent: tile minHeight 132, sparkline gridline |
-| 39 | Inventario settimanale | 82 | Tabella minWidth 1280, sticky col GUSTO. Funzionale ma denso |
-| 40 | Storico produzione | 84 | Rebuild agent: 8 chart con stesso radius, tabelle aria-sort |
+| 112 | Import registro incassi | 88 | **Nuova il 7 set.** Legge il foglio Excel del mese COM'E': tabelle affiancate separate da colonne vuote, intestazioni scritte a mano ("Berthollet- Contanti"), colonna dei giorni anche senza etichetta, spese in testo libero con piu' voci per cella. Abbina da solo i nomi del foglio ai punti vendita, deduce il mese dal nome del file e lo fa confermare, segnala le somme che non tornano invece di scegliere in silenzio. Reimportare lo stesso mese non raddoppia. −1 perche' un foglio alla volta e nessuna memoria del mapping fra un mese e l'altro. **10 set**: 26 difetti, i piu' gravi distruttivi (reimportare cancellava movimenti non suoi) |
+| 36 | Vendite B2B | 86 | Mobile column-first, sticky col cliente, filtri pill. Rebuild agent. **11 set**: il selettore sede non filtrava niente — tre sedi, gli stessi numeri — e il margine di ogni riga risultava 100% perche' il costo non veniva mai letto |
+| 37 | Trasferimenti | 85 | KPI italianizzati, form 4→2 col tablet. **11 set**: un invio non riuscito scalava comunque il magazzino, e al secondo tentativo lo scalava due volte; ora un trasferimento scrive da solo i chili spediti nell'inventario |
+| 38 | Quadratura inventario | 87 | Rebuild agent: tile minHeight 132, sparkline gridline. **11 set**: sui dati del design partner 604 celle su 7.012 non tornavano (−2.650 kg) e restavano rosse per sempre, mescolate agli errori di compilazione. Ora si accettano una per una con la nota del perche' (omaggio, rottura, assaggio) e la pagina dichiara quante caselle restano da guardare |
+| 39 | Inventario settimanale | 86 | Tabella minWidth 1280, sticky col GUSTO. Funzionale ma denso. **10-11 set**: la settimana cominciava di domenica (venduto del lunedi' fuori conto), la vista mese dava numeri diversi dalla vista settimana sugli stessi giorni, il grafico diceva una cosa e la tabella un'altra. Il 42% dei chili non aveva food cost e ora e' scritto |
+| 40 | Storico produzione | 86 | Rebuild agent: 8 chart con stesso radius, tabelle aria-sort. **11 set**: il venduto si calcolava in quattro punti diversi con quattro formule; ora e' un conto solo |
 
 ### Ricettario & costi
 
 | # | Sezione | Score | Note |
 |---:|---|---:|---|
-| 41 | Ricettario gusti (lista) | 87 | Card collapsed default, filtri compatti, sort 6 opzioni |
+| 41 | Ricettario gusti (lista) | 88 | Card collapsed default, filtri compatti, sort 6 opzioni. **9 set**: il tool inventava il prezzo di vendita quando mancava e poi dava un voto di marginalita' su quel prezzo inventato |
 | 42 | Ricettario TortaCard collapsed | 88 | Nome+1 KPI+chevron. Pattern card-list ben fatto |
-| 43 | Ricettario TortaCard expanded | 85 | Bottoni grid 2x2, distinta costi scroll hint sfumato |
-| 44 | Semilavorati lista | 84 | Stessa struttura card |
-| 45 | NuovaRicetta form | 78 | Form 30+ campi ok, ma denso. Migliorabile |
-| 46 | P&L view (era Food cost) | 90 | Rebuild agent: date range, 5 card fos-card-glow, grafici standardizzati. **7 set**: non conta piu' come zero il food cost che non conosce (era il bug piu' costoso della pagina — gonfiava il margine di tutto l'incasso), dichiara su quanti giorni e' misurato, e le uscite di cassa entrano nella cascata |
+| 43 | Ricettario TortaCard expanded | 86 | Bottoni grid 2x2, distinta costi scroll hint sfumato. **9 set**: distinta costi allineata ai prezzi veri del magazzino |
+| 44 | Semilavorati lista | 86 | Stessa struttura card. **9 set**: salvare cancellava gli allergeni gia' inseriti, rinominare lasciava un doppione, e sovrascrivere non diceva che stava trasformando un prodotto in base. Aggiunto il modello delle basi da gelateria e la ricerca delle basi usate senza essere dichiarate |
+| 45 | NuovaRicetta form | 84 | Form 30+ campi ok, ma denso. Migliorabile. **9 set**: un salvataggio fallito veniva raccontato come riuscito (la ricetta spariva al ricaricamento), il food cost al kg era sbagliato, i verdetti erano generosi per costruzione. Gli allergeni incerti si chiedono quando hai l'etichetta in mano, non dopo |
+| 46 | P&L view (era Food cost) | 92 | Rebuild agent: date range, 5 card fos-card-glow, grafici standardizzati. **7 set**: non conta piu' come zero il food cost che non conosce (era il bug piu' costoso della pagina — gonfiava il margine di tutto l'incasso), dichiara su quanti giorni e' misurato, e le uscite di cassa entrano nella cascata. **10-11 set**: 15 difetti, fra cui l'affitto del mese sottratto a un chilo di gelato; il costo del personale ora arriva dai turni invece di essere zero; il conto economico funziona anche senza chiusure di cassa |
 | 47 | Simulatore prezzi | 84 | SimSlider 24px touch, role=radiogroup. Funzionale |
-| 48 | Menu Engineering BCG | 80 | Matrice BCG, quadranti ok ma "vecchio" come visual |
+| 48 | Menu Engineering BCG | 81 | Matrice BCG, quadranti ok ma "vecchio" come visual. **11 set**: tipografia sotto i 12px e icone mancanti |
 | 49 | Reformulation | — | Congelata da menu |
 | 50 | Competitor Pricing | — | Congelata |
 
@@ -898,45 +1044,45 @@ Tutto il resto chiuso:
 
 | # | Sezione | Score | Note |
 |---:|---|---:|---|
-| 51 | AI Hub home | 80 | Feature cards, cluster vuoto dopo congelamenti |
-| 52 | Brain (chat libera) | 80 | Sidebar 210 tablet, input 44/16. Funzionale |
-| 53 | Azioni (chat suggerimenti) | 82 | Grid 3→2 col tablet, "Scrivi una domanda" |
+| 51 | AI Hub home | 81 | Feature cards, cluster vuoto dopo congelamenti. **11 set**: copy italiano |
+| 52 | Brain (chat libera) | 84 | Sidebar 210 tablet, input 44/16. Funzionale. **11 set**: la chat rispondeva "nessun ingrediente sotto soglia" sempre, anche con mezzo magazzino sotto scorta, e l'assistente dava errore su ogni domanda (modelli non aggiornati) |
+| 53 | Azioni (chat suggerimenti) | 83 | Grid 3→2 col tablet, "Scrivi una domanda". **11 set**: copy italiano e numeri IT |
 | 54 | AI Assistant panel | 84 | Full-bleed sotto 600px, fontSize 16 |
 | 55 | AICard (loading/error/idle) | 82 | minHeight 200, copy clear/retry 44px |
-| 56 | Documentary AI | 75 | Hero + sezioni, copy AI-tone, Recharts da rivedere |
-| 57 | Forecast | 84 | Eredita pattern PrevisioneDomanda, ResponsiveContainer |
-| 58 | OrdiniAi | 76 | Padding 16 tablet, grafici ok ma copy AI-tone |
-| 59 | WhatsAppView | 76 | Card padding, input 44px. Manca preview chat |
+| 56 | Documentary AI | 77 | Hero + sezioni, copy AI-tone, Recharts da rivedere. **11 set**: parla italiano |
+| 57 | Forecast | 85 | Eredita pattern PrevisioneDomanda, ResponsiveContainer. **11 set**: numeri IT dichiarati tali |
+| 58 | OrdiniAi | 83 | Padding 16 tablet, grafici ok ma copy AI-tone. **11 set**: quanto ordinare lo decide la cadenza vera del fornitore (consegna il martedi' = copertura fino al martedi' dopo), non piu' una finestra fissa uguale per tutti |
+| 59 | WhatsAppView | 77 | Card padding, input 44px. Manca preview chat. **11 set**: copy e numeri |
 | 60 | Marketplace | — | Congelata |
 | 61 | RecipeInventor | — | Congelata |
-| 62 | Recensioni AI | 76 | 3 toni → 1 col tablet, copy AI-tone visibile |
+| 62 | Recensioni AI | 77 | 3 toni → 1 col tablet, copy AI-tone visibile. **11 set**: copy e numeri |
 
 ### Magazzino & approvvigionamento
 
 | # | Sezione | Score | Note |
 |---:|---|---:|---|
-| 63 | Magazzino — Materie prime | 91 | Paginazione 80/load, tabular-nums, accent strip statico. **7-8 set, audit a fondo (26 difetti corretti)**: righe fantasma da chiavi non canoniche (in produzione 5 chiavi su 35 di un'azienda, con ricette che le usano al plurale — righe doppie, contatore critici gonfiato, banner rosso su merce presente, prezzi non trovati); soglia che non si poteva abbassare; campo soglia che non diceva l'unita' ("0,500 kg" fuori, "500" dentro); aggiungere un ingrediente esistente ne azzerava la giacenza; giacenza negativa mostrata "OK" in verde; prezzi stimati indistinguibili da quelli inseriti; rosso riservato all'esaurito ("Da ordinare" invece di "Critico"); 51 testi sotto i 12px azzerati; lista di riordino senza limite che spingeva le schede a 1.834px (due schermate) — ora 6 righe ordinate per urgenza vera con il totale su tutte |
-| 111 | Magazzino — Prodotti finiti | 86 | **7-8 set**: se la lettura falliva diceva "nessun prodotto in stock" con i contatori a zero in verde, indistinguibile da un magazzino vuoto (si poteva riprodurre merce presente in cella); "Pezzi totali" sommava pezzi e grammi (20 torte + 8.400 g = "8.420 pezzi"); il modale scarto chiedeva "pezzi" su righe in grammi; nel campo quantita' la virgola veniva mangiata. Resta aperto: lo scarto non entra nel registro sprechi |
-| 112 | Magazzino — Prezzi ingredienti | 87 | **7-8 set**: crash della scheda su una riga di storico priva del campo delta; doppio clic su "Conferma e salva" scriveva due volte (storico prezzi incoerente = P&L incoerente); prezzo malformato rifiutato in silenzio; euro prima della cifra e percentuali col punto; `isMobile` mai usato quindi zoom iOS a ogni tocco; "Log modifiche" → "Storico modifiche" |
-| 113 | Magazzino — Carica merce | 88 | **7-8 set**: lo scarico leggeva la giacenza da una chiave diversa da quella della tabella, quindi partiva da zero e dava un falso allarme; l'avviso "sotto zero" veniva cancellato dal messaggio di conferma (barra a slot unico) e non si vedeva mai; numeri non italiani ("+25000g", "-0.09999999999999998g"); dopo l'OCR contava anche le righe scartate ("caricati 12", in magazzino 7); import prezzi da foto morto in silenzio su un prezzo come stringa |
-| 114 | Magazzino — Storico carichi | 80 | **7-8 set**: rinominata da "Log rifornimenti" (gergo). Restano da verificare: nessun limite di righe con anni di storico, nessuno scorrimento orizzontale su telefono, una riga sbagliata non si puo' correggere |
-| 64 | Scadenzario fatture | 87 | Rebuild agent: pill role=tablist, sticky 880, inline edit pagamento |
-| 65 | Scadenzario inline pay | 85 | Input 16+44, bottoni Icon name=check/x |
-| 66 | Fornitori manager | 80 | Tabs 44, form+lista 1 col tablet, KPI auto-shrink (Top fornitore) |
-| 67 | Sprechi/Omaggi | 80 | KPI band, causali ASL espanse |
-| 68 | Previsione domanda | 86 | Rebuild agent: BarChart stagionalità, ChartTip |
+| 63 | Magazzino — Materie prime | 92 | Paginazione 80/load, tabular-nums, accent strip statico. **7-8 set, audit a fondo (26 difetti corretti)**: righe fantasma da chiavi non canoniche (in produzione 5 chiavi su 35 di un'azienda, con ricette che le usano al plurale — righe doppie, contatore critici gonfiato, banner rosso su merce presente, prezzi non trovati); soglia che non si poteva abbassare; campo soglia che non diceva l'unita' ("0,500 kg" fuori, "500" dentro); aggiungere un ingrediente esistente ne azzerava la giacenza; giacenza negativa mostrata "OK" in verde; prezzi stimati indistinguibili da quelli inseriti; rosso riservato all'esaurito ("Da ordinare" invece di "Critico"); 51 testi sotto i 12px azzerati; lista di riordino senza limite che spingeva le schede a 1.834px (due schermate) — ora 6 righe ordinate per urgenza vera con il totale su tutte. **10-11 set**: 40 ingredienti su 48 risultavano ESAURITI solo perche' nessuno li aveva mai pesati — allarme rosso su un magazzino pieno. Ora si conta tutto in una volta e si vedono i giorni di autonomia |
+| 115 | Magazzino — Prodotti finiti | 87 | **7-8 set**: se la lettura falliva diceva "nessun prodotto in stock" con i contatori a zero in verde, indistinguibile da un magazzino vuoto (si poteva riprodurre merce presente in cella); "Pezzi totali" sommava pezzi e grammi (20 torte + 8.400 g = "8.420 pezzi"); il modale scarto chiedeva "pezzi" su righe in grammi; nel campo quantita' la virgola veniva mangiata. Resta aperto: lo scarto non entra nel registro sprechi. **10 set**: chiusi gli ultimi difetti di rifinitura. Resta aperto: lo scarto non entra nel registro sprechi |
+| 116 | Magazzino — Prezzi ingredienti | 87 | **7-8 set**: crash della scheda su una riga di storico priva del campo delta; doppio clic su "Conferma e salva" scriveva due volte (storico prezzi incoerente = P&L incoerente); prezzo malformato rifiutato in silenzio; euro prima della cifra e percentuali col punto; `isMobile` mai usato quindi zoom iOS a ogni tocco; "Log modifiche" → "Storico modifiche" |
+| 113 | Magazzino — Carica merce | 89 | **7-8 set**: lo scarico leggeva la giacenza da una chiave diversa da quella della tabella, quindi partiva da zero e dava un falso allarme; l'avviso "sotto zero" veniva cancellato dal messaggio di conferma (barra a slot unico) e non si vedeva mai; numeri non italiani ("+25000g", "-0.09999999999999998g"); dopo l'OCR contava anche le righe scartate ("caricati 12", in magazzino 7); import prezzi da foto morto in silenzio su un prezzo come stringa. **10 set**: numeri col punto decimale e glifi al posto delle icone |
+| 114 | Magazzino — Storico carichi | 82 | **7-8 set**: rinominata da "Log rifornimenti" (gergo). Restano da verificare: nessun limite di righe con anni di storico, nessuno scorrimento orizzontale su telefono, una riga sbagliata non si puo' correggere. **10 set**: eliminata una copia di codice che faceva divergere due schede. Resta: una riga sbagliata non si puo' ancora correggere |
+| 64 | Scadenzario fatture | 90 | Rebuild agent: pill role=tablist, sticky 880, inline edit pagamento. **9-10 set, audit sulle 3.520 fatture vere**: "Segna pagata" non funzionava su 151 delle 211 fatture scadute, il bonifico era inerte, il pagamento non arrivava in Cassa. Aggiunti: pagamento cumulativo di piu' fatture, termini di pagamento imparati dal fornitore, fatture ricorrenti fisse, IBAN raccolto dai documenti, abbinamento dei pagamenti dell'estratto conto |
+| 65 | Scadenzario inline pay | 87 | Input 16+44, bottoni Icon name=check/x. **10 set**: i fornitori si leggono a colonne, non con select(*) — su 3.520 righe la differenza si vede |
+| 66 | Fornitori manager | 86 | Tabs 44, form+lista 1 col tablet, KPI auto-shrink (Top fornitore). **9-10 set**: l'anagrafica si compila da sola dalle fatture gia' caricate, l'ingrediente e' legato al fornitore che lo vende, i prodotti degli ordini erano invisibili |
+| 67 | Sprechi/Omaggi | 85 | KPI band, causali ASL espanse. **9 set**: l'incidenza diceva 297% invece di 3%, il costo unitario sbagliava di 8 volte fra due gusti identici, e con 19 movimenti registrati la pagina si complimentava ("Ottimo controllo") |
+| 68 | Previsione domanda | 88 | Rebuild agent: BarChart stagionalità, ChartTip. **11 set**: il numero mostrato era di tre mesi avanti ma l'etichetta diceva "mese prossimo"; aggiunto il meteo dei giorni previsti |
 
 ### Analisi & finance
 
 | # | Sezione | Score | Note |
 |---:|---|---:|---|
-| 69 | Cashflow | 84 | Grafici Recharts standardizzati, KPI italianizzati |
-| 70 | P&L (cross-ref con #46) | 90 | Rebuild completo, 5 card fos-card-glow. Vedi #46 per il lift del 7 set |
-| 71 | Costi aziendali | 84 | Rebuild agent: KPI minHeight 26/34/32, filtro count |
-| 72 | Confronto sedi | 86 | Sfondo slate, pallini cliccabili tooltip, filtri segmented control |
-| 73 | Scheda Allergeni | 84 | Ricette righe/allergeni colonne, sticky col |
-| 74 | HACCP | 78 | Tabs ok, copy standard |
-| 75 | Menu Dinamico | 80 | Tabs scrollabili, KPI shared |
+| 69 | Cashflow | 87 | Grafici Recharts standardizzati, KPI italianizzati. **10 set**: 14 difetti, e l'arretrato scaduto che non compariva da nessuna parte |
+| 70 | P&L (cross-ref con #46) | 92 | Rebuild completo, 5 card fos-card-glow. Vedi #46 per i lift del 7 set e del 10-11 set |
+| 71 | Costi aziendali | 86 | Rebuild agent: KPI minHeight 26/34/32, filtro count. **11 set**: i costi hanno una data di fine, quindi un affitto chiuso a marzo non pesa piu' su settembre |
+| 72 | Confronto sedi | 88 | Sfondo slate, pallini cliccabili tooltip, filtri segmented control. **11 set**: senza un dato la pagina si colorava tutta di rosso, e il food cost non era di nessuna sede in particolare |
+| 73 | Scheda Allergeni | spenta | **Nascosta il 09/09** per responsabilita', non per un difetto di impaginazione: e' un documento previsto dal Reg. UE 1169/2011 che si consegna al cliente, e il riconoscimento non copriva 81 dei 123 ingredienti realmente presenti (la parola "cioccolato" non c'era). Il codice resta, riaccenderla costa una riga. Fuori dal punteggio finche' e' spenta |
+| 74 | HACCP | spenta | **Nascosta il 09/09, chiusa il 14/09.** Il database contiene 0 letture di temperatura e 1 solo apparecchio censito, per giunta sull'organizzazione demo: senza sonde collegate qualcuno dovrebbe girare fra i frigoriferi a scrivere numeri a mano, e non succedera'. Il 14/09 sono state chiuse le tre strade che ci portavano ancora (ricerca Cmd+K, pulsantone della Home dipendente, elenco del prompt dell'assistente): finivano su uno schermo bianco. Fuori dal punteggio |
+| 75 | Menu Dinamico | spenta | **Nascosta il 09/09** perche' non serviva: in produzione la chiave esiste per una sola organizzazione ("Gelateria Demo", ultimo salvataggio 26/06 su dati generati) e meta' della pagina duplicava la matrice di Menu engineering. Una pasticceria non ha un menu del giorno: ha una vetrina che cambia. Fuori dal punteggio |
 
 ### Impostazioni
 
@@ -960,6 +1106,24 @@ Tutto il resto chiuso:
 | 91 | Impostazioni Changelog | 80 | Lista release leggibile |
 | 92 | Impostazioni Breadcrumb mobile | 84 | "‹ Tutte le impostazioni" 1 freccia |
 | 93 | TrialScadutoPage | 78 | Padding/font isMobile, logout 44 |
+
+### Pagine che mancavano in questa tabella (aggiunte il 14 set)
+
+> Nove pagine esistevano nel prodotto e non erano mai state scorate: la tabella
+> si era fermata a quelle nate prima di luglio. Sono tutte passate dal lavoro
+> dell'8-11 set, quindi il punteggio nasce gia' con i fatti in mano.
+
+| # | Sezione | Score | Note |
+|---:|---|---:|---|
+| 117 | Personale & stipendi | 86 | **11 set**: il costo del lavoro era zero nel conto economico perche' nessuno lo calcolava dai turni; un turno che passa la mezzanotte valeva zero ore; il mese passato mostrava chi c'e' adesso invece di chi c'era allora (un dipendente uscito a giugno spariva da tutti i mesi in cui aveva lavorato) |
+| 118 | Eventi e preventivi | 85 | **11 set**: ogni preventivo mostrava margine 100% (il costo non veniva mai letto). Un preventivo accettato ora diventa una sessione di produzione, invece di restare un foglio a parte |
+| 119 | Registro attivita' | 84 | **10-11 set**: il registro delle modifiche era rotto da tre mesi (una colonna rinominata e mai adeguata), e "Azioni nel periodo" contava solo le righe della pagina caricata, non del periodo |
+| 120 | Integrazioni | 83 | **10 set**: 14 difetti, dal webhook rifiutato per una lettera maiuscola all'incasso che finiva in un archivio morto invece che in cassa |
+| 121 | Importa dati (wizard) | 85 | **9-10 set**: 26 difetti, i piu' gravi distruttivi; i kg venivano arrotondati prima di diventare grammi (un ingrediente da 0,4 kg entrava a 0 g) |
+| 122 | Formati di vendita | 85 | **9 set**: il seme dimostrativo parlava una lingua diversa dalla pagina, una tessera dichiarava il falso, 9 testi sotto i 12px |
+| 123 | Home dipendente (modalita' XL) | 84 | Sei pulsantoni mobile-first per chi lavora da tablet. **14 set**: sono cinque — il pulsante HACCP portava su uno schermo bianco da quando la pagina e' spenta |
+| 124 | Esporta dati e backup | 86 | **11 set**: il "backup completo" ne lasciava fuori tre quarti (14 tabelle su 57) e il ripristino cancellava quello che il file non conteneva, invece di aggiungere |
+| 125 | Set icone SVG + token di tema | 88 | **11 set**: 26 icone disegnavano un pallino grigio al posto del simbolo, compreso l'occhio del login; 70 punti del codice leggevano una chiave di colore che non esiste e cadevano sul valore di riserva |
 
 ### Componenti shared & infrastruttura
 
@@ -989,30 +1153,53 @@ Tutto il resto chiuso:
 > precedenti sommavano 109 sezioni su 106 esistenti e sovrastimavano le bande
 > alte: la media 83 era giusta, la distribuzione no.
 
-| Banda | Sezioni (25 giu) | Sezioni (7 set) | Quota |
-|---|---:|---:|---|
-| 95-100 (world-class) | 1 | 1 | 1% |
-| 90-94 (forte top-tier) | 4 | 6 | 6% |
-| 85-89 (sopra media B2B) | 30 | 32 | 30% |
-| 80-84 (solido professionale) | 59 | 57 | 53% |
-| 75-79 (decente migliorabile) | 11 | 11 | 10% |
-| 70-74 (gap evidenti) | 1 | 1 | 1% |
-| <70 | 0 | 0 | 0% |
-| **Totale scorate** | **106** | **108** | |
+| Banda | Sezioni (25 giu) | Sezioni (7 set) | Sezioni (14 set) | Quota |
+|---|---:|---:|---:|---|
+| 95-100 (world-class) | 1 | 1 | 1 | 1% |
+| 90-94 (forte top-tier) | 4 | 6 | 8 | 7% |
+| 85-89 (sopra media B2B) | 30 | 32 | 52 | 44% |
+| 80-84 (solido professionale) | 59 | 57 | 49 | 42% |
+| 75-79 (decente migliorabile) | 11 | 11 | 7 | 6% |
+| 70-74 (gap evidenti) | 1 | 1 | 1 | 1% |
+| <70 | 0 | 0 | 0 | 0% |
+| **Totale scorate** | **106** | **108** | **118** | |
 
-**Score UI complessivo medio: 83,6/100** (era 83,3 il 25/06 — ricontato, su 112 sezioni).
-Il movimento e' piccolo di proposito: il lavoro del 7 set e' concentrato su una
-pagina e in buona parte non si vede (correttezza dei numeri, schema, test). Le
-due sezioni nuove entrano sopra la media, e sei sezioni esistenti salgono di 17
-punti in tutto.
+> I conteggi del 7 set dicevano 108 su una tabella che ne conteneva 112: due
+> schede del magazzino portavano lo stesso numero di due schede della cassa
+> (111 e 112), e i doppioni sparivano dal conto. Numerazione sistemata il
+> 14/09, e aggiunte 9 pagine che esistevano nel prodotto e non erano mai
+> state scorate.
+
+**Score UI complessivo medio: 84,6/100** (era 83,6 l'8 set, su 112 sezioni; ora
+118). Il punto vuole essere letto per quello che e': **quasi niente di questo
+guadagno viene dal disegno**. Viene da pagine che dicevano il falso e adesso
+dicono il vero — il margine del 100% su ogni preventivo, il food cost 0,0% in
+verde su zero chiusure, i 40 ingredienti su 48 dichiarati esauriti perche'
+nessuno li aveva mai pesati, l'incidenza degli sprechi al 297%. La regola usata
+per muovere i numeri, il 14/09: **una pagina che mostra un numero sbagliato non
+e' una buona pagina**, quindi la correttezza pesa sul punteggio; ma una pagina
+gia' corretta che riceve solo ritocchi di copy sale di un punto, non di quattro.
+
+Le sezioni salite di piu' sono quelle dove il difetto rendeva la pagina
+inservibile: Fornitori +6 (l'anagrafica ora si compila dalle fatture),
+NuovaRicetta +6 (un salvataggio fallito veniva raccontato come riuscito),
+Sprechi +5, Inventario settimanale +4, Quadratura +4, OrdiniAi +7, Sede
+selector +4, Scadenzario +3. Tre pagine escono dal conto perche' sono spente
+(Scheda allergeni, HACCP, Menu dinamico).
 
 ### Sezioni residue da polishare (sotto 80)
 
+Ricontate il 14/09: sono **otto**, erano dodici.
+
 - OnboardingChat 70 — variante chat dell'onboarding, raramente usata, copy AI-tone
-- Documentary AI 75, OrdiniAi 76, WhatsAppView 76, Recensioni 76 — copy AI-tone evidente, manca personalità
-- Contatti 78, ChiSiamo 80, Rimborsi 80 — pagine pubbliche standard, niente di memorabile
-- HACCP 78, MenuEngineering 80, Impostazioni TV 78 — funzionali ma visual datato
-- NuovaRicetta form 78 — denso 30+ campi, poco progressive
+- Documentary AI 77, WhatsAppView 77, Recensioni AI 77 — il testo ora e' italiano e i numeri sono giusti, ma la pagina resta quella di un generatore: manca il mestiere
+- Contatti 78 — form base, niente chat ne' calendario
+- Impostazioni TV 78, Impostazioni WhatsApp Report 78 — funzionali, visual fermo a giugno
+- TrialScadutoPage 78 — si vede una volta sola e si vede male
+
+Uscite dalla lista con un fatto, non con un ritocco: NuovaRicetta 78 → 84,
+OrdiniAi 76 → 83, Fornitori 80 → 86, Sprechi 80 → 85, Menu Engineering 80 → 81,
+Documentary 75 → 77. HACCP 78 e' uscita perche' la pagina e' spenta.
 
 ---
 
