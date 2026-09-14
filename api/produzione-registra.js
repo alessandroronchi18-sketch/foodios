@@ -10,6 +10,7 @@ export const config = { runtime: 'edge' }
 import { verificaToken } from './lib/auth.js'
 import { handleOptions, json } from './lib/cors.js'
 import { buildIngCosti, calcolaFC, getR, normIng } from '../src/lib/foodcost.js'
+import { ingredientiDaScaricare } from '../src/lib/scaricoIngredienti.js'
 
 const SK_RIC = 'pasticceria-ricettario-v1'
 const SK_MAG = 'pasticceria-magazzino-v1'
@@ -65,6 +66,17 @@ export default async function handler(req) {
   let body
   try { body = await req.json() } catch { return json({ error: 'Body non valido' }, 400, req) }
   const { sedeId, data, prodotti, note, destinazioneSedeId, destinazioneSedeNome } = body || {}
+  // Id della sessione generato dal CLIENT.
+  //
+  // Audit 2026-09-14: l'id lo faceva il server (`g-${Date.now()}`) e la
+  // sessione veniva sempre aggiunta in testa. Il tablet in laboratorio perde la
+  // rete a metà: il salvataggio è andato, la risposta no, e il messaggio dice
+  // "I dati non sono stati persi, riprova". Chi riprova registra la stessa
+  // produzione due volte, e il magazzino viene scalato due volte. Con l'id dal
+  // client, il secondo invio trova la sessione già scritta e non tocca niente.
+  const sessioneId = typeof body?.sessioneId === 'string' && /^[A-Za-z0-9_-]{6,64}$/.test(body.sessioneId)
+    ? body.sessioneId
+    : `g-${Date.now()}`
 
   if (!sedeId || typeof sedeId !== 'string') return json({ error: 'sedeId mancante' }, 400, req)
   if (!data || !/^\d{4}-\d{2}-\d{2}$/.test(data)) return json({ error: 'data non valida' }, 400, req)
@@ -96,10 +108,37 @@ export default async function handler(req) {
   }
   if (!ricettario?.ricette) return json({ error: 'Ricettario non disponibile' }, 409, req)
 
+  // Se questa sessione è già stata scritta, non si riscrive niente: si
+  // restituisce lo stato attuale, che è esattamente quello che il client si
+  // aspetta dopo un salvataggio riuscito.
+  if (Array.isArray(giornaliero) && giornaliero.some(g => g?.id === sessioneId)) {
+    const gia = giornaliero.find(g => g?.id === sessioneId)
+    return json({
+      ok: true,
+      giaRegistrata: true,
+      magazzino,
+      giornaliero: giornaliero.map(stripSessione),
+      sessione: stripSessione(gia),
+      stockOrfani: [],
+    }, 200, req)
+  }
+
   const ingCosti = buildIngCosti(ricettario?.ingredienti_costi || {})
 
   // ── Stessa logica di computeSessione (titolare), ma server-side ─────────────
+  // Le chiavi con cui il magazzino e' salvato davvero: "uova" accanto a "uovo".
+  // Serve la stessa mappa che usa il client, altrimenti lo scarico salta le
+  // voci non canoniche — cinque su trentacinque su un'azienda vera.
+  const chiaviSalvate = {}
+  for (const raw of Object.keys(magazzino || {})) {
+    const k = normIng(raw)
+    if (!chiaviSalvate[k]) chiaviSalvate[k] = []
+    chiaviSalvate[k].push(raw)
+  }
+  const inMagazzino = new Set(Object.keys(chiaviSalvate))
+
   const ings = {}
+  const nonEspandibiliTot = []
   let fcTot = 0, ricavoTot = 0
   const prodottiSess = []
   for (const p of prodotti) {
@@ -113,26 +152,58 @@ export default async function handler(req) {
     ricavoTot += qv * (Number(reg.unita) || 0) * (Number(reg.prezzo) || 0)
     const { tot: fc } = calcolaFC(ric, ingCosti, ricettario)
     fcTot += q * fc
-    for (const ing of (ric.ingredienti || [])) {
-      const k = normIng(ing.nome)
-      ings[k] = (ings[k] || 0) + (Number(ing.qty1stampo) || 0) * q
+    // Audit 2026-09-14: qui si prendevano gli ingredienti della ricetta COSI'
+    // COME SONO SCRITTI, mentre il percorso del titolare dal 9 set scende nei
+    // semilavorati. Stesso gesto, due magazzini diversi a seconda di chi
+    // registra la produzione: il dipendente produceva una crostata e la frolla
+    // non scaricava niente, perché in magazzino una voce "frolla" non c'e'.
+    const espanso = ingredientiDaScaricare(ric, q, ricettario, inMagazzino)
+    for (const [k, g] of Object.entries(espanso.ings)) ings[k] = (ings[k] || 0) + g
+    for (const nd of espanso.nonEspandibili) {
+      if (!nonEspandibiliTot.some(x => x.nome === nd.nome)) nonEspandibiliTot.push(nd)
     }
     prodottiSess.push({ nome, stampi: q, vendibile: qv, congelabile: !!(p.congelabile ?? ric.congelabile) })
   }
   if (prodottiSess.length === 0) return json({ error: 'Nessun prodotto valido nel ricettario' }, 400, req)
 
   // Scala magazzino (immutabile, come il client titolare).
+  //
+  // Audit 2026-09-14: `if (nm[k])` saltava in silenzio ogni ingrediente salvato
+  // con una chiave non canonica, e non registrava quanto era stato scalato
+  // davvero — così l'eliminazione della sessione restituiva quantita' teoriche
+  // su chiavi inventate, e il magazzino cresceva di merce mai entrata.
   const nm = { ...magazzino }
+  const scalatoPerChiave = {}
+  const nonTrovati = []
   for (const [k, qty] of Object.entries(ings)) {
-    if (nm[k]) nm[k] = { ...nm[k], giacenza_g: Math.max(0, (nm[k].giacenza_g || 0) - qty) }
+    const grezze = chiaviSalvate[k] && chiaviSalvate[k].length ? chiaviSalvate[k] : (nm[k] ? [k] : [])
+    if (grezze.length === 0) { nonTrovati.push(k); continue }
+    let residuo = qty
+    for (const raw of grezze) {
+      if (residuo <= 0) break
+      const disp = Number(nm[raw]?.giacenza_g) || 0
+      const preso = Math.min(disp, residuo)
+      if (preso <= 0) continue
+      nm[raw] = { ...nm[raw], giacenza_g: disp - preso }
+      scalatoPerChiave[raw] = (scalatoPerChiave[raw] || 0) + preso
+      residuo -= preso
+    }
+    if (residuo > 0) {
+      const raw = grezze[0]
+      const disp = Number(nm[raw]?.giacenza_g) || 0
+      nm[raw] = { ...nm[raw], giacenza_g: disp - residuo }
+      scalatoPerChiave[raw] = (scalatoPerChiave[raw] || 0) + residuo
+    }
   }
 
   const sess = {
-    id: `g-${Date.now()}`,
+    id: sessioneId,
     data,
     prodotti: prodottiSess,
     note: (note || '').toString().slice(0, 500),
     ingredientiUsati: ings,
+    scalatoPerChiave,
+    nonTrovati,
     fcTot,
     ricavoTot,
     destinazioneSedeId: destinazioneSedeId || null,

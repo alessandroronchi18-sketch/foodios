@@ -2,7 +2,7 @@
 // Scala il magazzino, carica stock PF, gestisce trasferimenti auto verso altre sedi,
 // OCR foto appunto produzione. Richiede orgId/sedeId per persistenza e stock.
 
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState, useRef } from 'react'
 import { ssave as _ssave, ssaveBatch as _ssaveBatch } from '../lib/storage'
 import { supabase } from '../lib/supabase'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
@@ -11,6 +11,7 @@ import { buildIngCosti, calcolaFC, getR, isRicettaValida, normIng, translateProd
 import { labelPlurale, isGustoTipo } from '../lib/tipoRicetta'
 import { caricoProduzionePF, scartoPF } from '../lib/stockPF'
 import { friendlyErrorMessage } from '../lib/errors'
+import { useConfirm } from '../components/ConfirmModal'
 import { creaTrasferimento } from '../lib/trasferimenti'
 import { SK_GIOR, SK_MAG } from '../lib/storageKeys'
 import { exportProduzione } from '../lib/exportPDF'
@@ -146,9 +147,25 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
   const salvaModificheSessione = async (sess) => {
     if (savingEdit) return
     setSavingEdit(true)
-    const nuoviProdotti = (sess.prodotti || [])
+    const prodottiModificati = (sess.prodotti || [])
       .map(p => { const e = editRows[p.nome] || {}; return { ...p, stampi: Number(e.stampi) || 0, vendibile: Number(e.vendibile) || 0 } })
-      .filter(p => p.stampi > 0 || p.vendibile > 0)
+    const nuoviProdotti = prodottiModificati.filter(p => p.stampi > 0 || p.vendibile > 0)
+    // Audit 2026-09-14: un prodotto portato a zero spariva dalla sessione senza
+    // che nessuno lo dicesse. Chi svuota il campo per correggere una cifra si
+    // ritrova la riga cancellata, e per rimetterla deve rifare la sessione.
+    const tolti = prodottiModificati.filter(p => !(p.stampi > 0 || p.vendibile > 0)).map(p => p.nome)
+    if (tolti.length > 0) {
+      const ok = await confirm({
+        title: tolti.length === 1 ? 'Tolgo questo prodotto dalla sessione?' : `Tolgo ${tolti.length} prodotti dalla sessione?`,
+        message: tolti.length === 1
+          ? `"${tolti[0]}" resta senza quantità. Se l'hai svuotato per sbaglio, rimettici il numero.`
+          : `Restano senza quantità: ${tolti.slice(0, 4).join(', ')}${tolti.length > 4 ? ` e altri ${tolti.length - 4}` : ''}. Se li hai svuotati per sbaglio, rimettici i numeri.`,
+        confirmLabel: 'Toglili',
+        cancelLabel: 'Torna indietro',
+        destructive: true,
+      })
+      if (!ok) { setSavingEdit(false); return }
+    }
     const agg = computeSessione(nuoviProdotti)
     const oldIngs = sess.ingredientiUsati || {}
     // magazzino: parti dall'attuale, ri-aggiungi i vecchi ingredienti, sottrai i nuovi.
@@ -183,7 +200,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
       await ssaveBatch([{ key: SK_GIOR, value: ng }, { key: SK_MAG, value: nm }])
     } catch (e) {
       setSavingEdit(false)
-      notify(`Impossibile salvare le modifiche: ${e.message || 'errore di rete'}. Riprova.`, false)
+      notify(`Non ho potuto salvare le modifiche: ${friendlyErrorMessage(e)} Le modifiche non sono state applicate.`, false)
       return
     }
 
@@ -192,8 +209,9 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
     const destDiversa = sess.destinazioneSedeId && sess.destinazioneSedeId !== sedeProduttiva
     const stockErrors = []
     if (orgId && sedeProduttiva && !destDiversa) {
-      const oldVend = {}; for (const p of (sess.prodotti || [])) oldVend[p.nome] = Number(p.vendibile || 0) || Number(p.stampi || 0)
-      const newVend = {}; for (const p of nuoviProdotti) newVend[p.nome] = Number(p.vendibile || 0) || Number(p.stampi || 0)
+      const vendDi = (p) => p?.vendibile != null ? Math.max(0, Number(p.vendibile) || 0) : Number(p?.stampi || 0)
+      const oldVend = {}; for (const p of (sess.prodotti || [])) oldVend[p.nome] = vendDi(p)
+      const newVend = {}; for (const p of nuoviProdotti) newVend[p.nome] = vendDi(p)
       const allNomi = new Set([...Object.keys(oldVend), ...Object.keys(newVend)])
       for (const nome of allNomi) {
         const ric = ricettario?.ricette?.[nome] || ricettario?.ricette?.[(nome || '').toUpperCase().trim()]
@@ -260,7 +278,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
       await ssaveBatch(nm ? [{ key: SK_GIOR, value: ng }, { key: SK_MAG, value: nm }] : [{ key: SK_GIOR, value: ng }])
     } catch (e) {
       setDeletingSess(false)
-      notify(`Impossibile eliminare la sessione: ${e.message || 'errore di rete'}. Riprova.`, false)
+      notify(`Non ho potuto eliminare la sessione: ${friendlyErrorMessage(e)} Niente è cambiato.`, false)
       return
     }
 
@@ -276,7 +294,8 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
     const sedeScarto = destDiversa ? sess.destinazioneSedeId : sedeProduttiva
     if (orgId && sedeScarto) {
       for (const p of (sess.prodotti || [])) {
-        const vendibile = Number(p.vendibile || 0) || Number(p.stampi || 0)
+        // Zero al banco vuol dire zero in vetrina: non c'è niente da scartare.
+        const vendibile = p.vendibile != null ? Math.max(0, Number(p.vendibile) || 0) : Number(p.stampi || 0)
         if (vendibile <= 0) continue
         const ric = ricettario?.ricette?.[p.nome] || ricettario?.ricette?.[(p.nome || '').toUpperCase().trim()]
         const reg = ric ? getR(p.nome, ric) : null
@@ -322,7 +341,10 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
   // di "nessuna destinazione" e ssave persiste null in `sess.destinazioneSedeId`.
   const [destinazioneSedeId, setDestinazioneSedeId] = useState(null)
   const [confermando, setConfermando] = useState(false)
-  const [salvando, setSalvando] = useState(false)  // distinto da `confermando` (UI conferma) per evitare double-submit
+  const [salvando, setSalvando] = useState(false)
+  // Id della sessione in corso: si azzera solo dopo un salvataggio riuscito.
+  const sessioneIdRef = useRef(null)
+  const confirm = useConfirm()
 
   // Escape chiude la modal di delete se aperta (a meno che sia in corso una
   // operazione che non possiamo annullare a meta').
@@ -445,7 +467,13 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
     const errors = []
     for (const r of ricette) {
       const stampi = qtaMap[r.nome] || 0
-      const vendibile = vendibileMap[r.nome] || stampi
+      // Audit 2026-09-14: `|| stampi` leggeva lo zero come "campo non
+      // compilato". Chi produce dieci stampi e ne mette a banco zero (tutto
+      // in congelatore) si vedeva caricare in vetrina, o spedire all'altra
+      // sede, dieci stampi di merce che al banco non c'è. Il percorso del
+      // titolare era stato corretto il 9 set, questi no: stesso dato, due
+      // risultati diversi a seconda di chi registra.
+      const vendibile = vendibileMap[r.nome] != null ? vendibileMap[r.nome] : stampi
       if (vendibile <= 0) continue
       const reg = getR(r.nome, r)
       // Audit 2026-09-09: un batch di semilavorato finiva nello stock dei
@@ -468,52 +496,14 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
     if (errors.length) notify('Alcuni trasferimenti falliti: ' + errors.slice(0, 2).join('; '), false)
   }
 
-  const eseguiStockPF = async () => {
-    const sedeProduttiva = sedeAttiva?.id
-    if (!orgId || !sedeProduttiva) return
-    const sedeDest = destinazioneSedeId && destinazioneSedeId !== sedeProduttiva ? destinazioneSedeId : null
-    const stockErrors = [], transferErrors = []
-    // Tracking carichi riusciti per registrare orfani in caso di rollback fallito.
-    const caricati = []
-    for (const r of ricette) {
-      const stampi = qtaMap[r.nome] || 0
-      const vendibile = vendibileMap[r.nome] || stampi
-      if (vendibile <= 0) continue
-      const reg = getR(r.nome, r)
-      // Audit 2026-09-09: un batch di semilavorato finiva nello stock dei
-      // PRODOTTI FINITI, cioè nella vetrina da cui la cassa scarica le vendite.
-      // Ma una crema pasticcera non si vende al banco: la vetrina si riempiva
-      // di righe che nessuno avrebbe mai scaricato, e i suoi conti non
-      // tornavano più. Il semilavorato resta nella sessione (va registrato, e
-      // il suo food cost va contato) ma non entra in vetrina.
-      if (reg.tipo === 'semilavorato') continue
-      const unitaFactor = Number(reg.unita)
-      const pezzi = vendibile * (Number.isFinite(unitaFactor) && unitaFactor > 0 ? unitaFactor : 1)
-      if (pezzi <= 0) continue
-      const prodottoKey = r.nome.toUpperCase().trim()
-      try {
-        await caricoProduzionePF({ sedeId: sedeProduttiva, prodotto: prodottoKey, quantita: pezzi, unita: 'pz', note: `Sessione ${data}${sessNote ? ' · ' + sessNote : ''}` })
-        caricati.push({ prodotto: prodottoKey, pezzi })
-      } catch (e) { stockErrors.push(`${r.nome}: ${friendlyErrorMessage(e)}`); continue }
-      if (sedeDest) {
-        try {
-          await creaTrasferimento({ orgId, sedeDa: sedeProduttiva, sedeA: sedeDest, tipo: 'prodotto', prodotto: prodottoKey, quantita: pezzi, unita: 'pz', note: `Da produzione del ${data}`, autoInvia: true })
-        } catch (e) {
-          transferErrors.push(`${r.nome}: ${e.message}`)
-          try {
-            await scartoPF({ sedeId: sedeProduttiva, prodotto: prodottoKey, quantita: pezzi, note: 'Rollback trasferimento fallito' })
-          } catch (rb) {
-            // Audit 2026-06-17 CRITICAL: se anche scartoPF fallisce, ghost stock
-            // permanente. Salviamo l'orfano in tabella per recupero manuale.
-            await registraStockOrfano({ sedeId: sedeProduttiva, prodotto: prodottoKey, pezzi, motivo: `rollback trasferimento fallito + scarto fallito: ${rb?.message || rb}` })
-          }
-        }
-      }
-    }
-    if (stockErrors.length || transferErrors.length) {
-      notify('Alcuni movimenti stock falliti: ' + [...stockErrors, ...transferErrors].slice(0, 2).join('; '), false)
-    }
-  }
+  // Qui c'era `eseguiStockPF`, 45 righe che nessuno chiamava.
+  //
+  // Audit 2026-09-14: era una copia del carico in vetrina, tenuta in vita da
+  // nessuno. Dentro c'era però l'unica protezione seria contro lo stock
+  // fantasma — se il trasferimento fallisce e anche lo storno fallisce, la
+  // merce resta in vetrina senza che nessuno lo sappia — e quella protezione,
+  // stando in una funzione morta, non è mai entrata in funzione. Ora sta dentro
+  // `handleConferma`, che è il percorso vero.
 
   const handleConferma = async () => {
     if (!hasQta || salvando) return
@@ -524,9 +514,18 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
     // restituisce dati SANITIZZATI (senza composizione/costi). Lo stock PF resta
     // qui (non richiede gli ingredienti). Save-first garantito dal server.
     if (isDipendente) {
+      // L'id della sessione lo fa il client, una volta sola, e resta lo stesso
+      // se si riprova.
+      //
+      // Audit 2026-09-14: il tablet in laboratorio perde la rete a metà. Il
+      // server ha scritto, la risposta non arriva, e il messaggio diceva "I
+      // dati non sono stati persi, riprova": chi riprovava registrava la stessa
+      // produzione due volte, e il magazzino veniva scalato due volte. Ora al
+      // secondo invio il server trova la sessione già scritta e non tocca nulla.
+      if (!sessioneIdRef.current) sessioneIdRef.current = `g-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
       const prodottiPayload = ricette
         .filter(r => (qtaMap[r.nome] || 0) > 0 || (vendibileMap[r.nome] || 0) > 0)
-        .map(r => ({ nome: r.nome, stampi: qtaMap[r.nome] || 0, vendibile: vendibileMap[r.nome] || qtaMap[r.nome] || 0, congelabile: isCongelabile(r.nome) }))
+        .map(r => ({ nome: r.nome, stampi: qtaMap[r.nome] || 0, vendibile: vendibileMap[r.nome] != null ? vendibileMap[r.nome] : (qtaMap[r.nome] || 0), congelabile: isCongelabile(r.nome) }))
       let resp
       try {
         const { data: { session } } = await supabase.auth.getSession()
@@ -534,7 +533,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
           body: JSON.stringify({
-            sedeId, data, prodotti: prodottiPayload, note: sessNote,
+            sedeId, data, prodotti: prodottiPayload, note: sessNote, sessioneId: sessioneIdRef.current,
             destinazioneSedeId: destinazioneSedeId || null,
             destinazioneSedeNome: destinazioneSedeId ? (sediMapProd[destinazioneSedeId]?.nome || null) : null,
           }),
@@ -543,7 +542,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
         if (!res.ok || !resp?.ok) throw new Error(resp?.error || `errore server (${res.status})`)
       } catch (e) {
         setSalvando(false)
-        notify(`Salvataggio fallito: ${e.message || 'errore di rete'}. I dati non sono stati persi, riprova.`, false)
+        notify(`Non ho potuto registrare la produzione: ${friendlyErrorMessage(e)} Quello che hai scritto è ancora qui: riprova.`, false)
         return
       }
       setMagazzino(resp.magazzino); setGiornaliero(resp.giornaliero)
@@ -553,6 +552,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
       if (destinazioneSedeId && destinazioneSedeId !== sedeAttiva?.id) {
         await eseguiTrasferimentoAuto()
       }
+      sessioneIdRef.current = null
       const orfani = Array.isArray(resp.stockOrfani) ? resp.stockOrfani : []
       setQtaMap({}); setVendMap({}); setSessNote(''); setConfermando(false); setSalvando(false)
       const msgDest = destinazioneSedeId && destinazioneSedeId !== sedeAttiva?.id ? ` - trasferimento inviato a ${sediMapProd[destinazioneSedeId]?.nome || 'destinazione'}` : ''
@@ -664,7 +664,14 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
             transferErrors.push(`${r.nome}: ${e.message}`)
             try {
               await scartoPF({ sedeId: sedeProduttiva, prodotto: prodottoKey, quantita: pezzi, note: 'Rollback trasferimento fallito' })
-            } catch (rb) { console.error('Rollback carico fallito:', rb) }
+            } catch (rb) {
+              // Il carico in vetrina è passato, il trasferimento no, e non si è
+              // riusciti nemmeno a stornarlo: quei pezzi restano in vetrina
+              // senza essere mai stati venduti né spediti. Si registra l'orfano,
+              // così esiste da qualche parte e si può recuperare a mano.
+              console.error('Rollback carico fallito:', rb)
+              await registraStockOrfano({ sedeId: sedeProduttiva, prodotto: prodottoKey, pezzi, motivo: `rollback trasferimento fallito + storno fallito: ${rb?.message || 'errore'}` })
+            }
           }
         }
       }
@@ -1287,7 +1294,13 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
 
       {deleteSessConf && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-          onClick={e => { if (e.target === e.currentTarget) { setDeleteSessConf(null); setDeleteSessPin('') } }}>
+          onClick={e => {
+            // Audit 2026-09-14: lo sfondo chiudeva la finestra anche mentre
+            // l'eliminazione era in corso. Chi tocca fuori crede di aver
+            // annullato, e invece la sessione sta sparendo lo stesso.
+            if (deletingSess) return
+            if (e.target === e.currentTarget) { setDeleteSessConf(null); setDeleteSessPin('') }
+          }}>
           <div style={{ background: C.white, borderRadius: 14, padding: isMobile ? '20px 18px' : '28px 32px', maxWidth: 460, width: '90%', maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 8px 40px rgba(0,0,0,0.25)' }}>
             <div style={{ fontSize: 14, fontWeight: 900, color: C.red, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 7 }}><Icon name="trash" size={16} />Elimina sessione di produzione</div>
             <div style={{ fontSize: 13, color: C.text, marginBottom: 4 }}>

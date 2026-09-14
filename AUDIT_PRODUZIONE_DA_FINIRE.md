@@ -1,4 +1,48 @@
-# Audit Produzione — parziale, da finire
+# Audit Produzione — verificato e chiuso il 14/09/2026
+
+> **STATO: CHIUSO.** I 16 difetti "sostenuti e mai verificati" del 9 set sono
+> stati verificati uno per uno sul codice di oggi: **9 risultavano già corretti**
+> fra il 9 e l'11 set (il documento non era stato aggiornato), **7 erano ancora
+> aperti e sono stati corretti il 14/09**.
+>
+> Il filo comune dei sette: **il percorso del dipendente era rimasto indietro
+> rispetto a quello del titolare**. Le correzioni del 9 set erano state fatte
+> sulla pagina del titolare; il dipendente registra la produzione passando dal
+> server (`api/produzione-registra.js`), che faceva tre cose diverse — non
+> scendeva nei semilavorati, saltava gli ingredienti salvati col nome al
+> plurale, e non aveva idempotenza. Stesso gesto, due magazzini diversi a
+> seconda di chi lo faceva.
+>
+> Corretti il 14/09:
+> 1. il server non scendeva nei semilavorati (una crostata non scaricava la
+>    farina della frolla: in magazzino una voce "frolla" non c'è);
+> 2. il server saltava le chiavi al plurale ("uova" mentre il calcolo cerca
+>    "uovo") e non registrava quanto aveva scalato davvero;
+> 3. nessuna idempotenza: il tablet perde la rete dopo la scrittura, il
+>    messaggio dice "riprova", e il secondo invio registrava la produzione due
+>    volte scalando il magazzino due volte. Ora l'id della sessione lo fa il
+>    client e il server riconosce il doppione;
+> 4. "zero pezzi al banco" veniva letto come "campo non compilato" e sostituito
+>    dagli stampi, in tre punti rimasti (trasferimento automatico, payload del
+>    dipendente, eliminazione della sessione);
+> 5. `eseguiStockPF`, 53 righe che nessuno chiamava, conteneva l'unica
+>    protezione contro lo stock fantasma: la funzione è stata tolta e la
+>    protezione spostata nel percorso vero;
+> 6. un prodotto portato a zero spariva dalla sessione senza dirlo;
+> 7. il testo grezzo dell'errore del database finiva a schermo, e lo sfondo
+>    chiudeva la finestra mentre l'eliminazione era in corso.
+>
+> Già corretti fra il 9 e l'11 set, verificati oggi: il doppio messaggio che si
+> cancellava, lo scarico che saltava le chiavi al plurale (lato titolare), la
+> restituzione che gonfiava il magazzino, i semilavorati lato titolare, il
+> semilavorato caricato in vetrina, la virgola che azzerava la giacenza, le
+> scritte a 9-10px, i chili col punto, il margine col punto.
+>
+> **Test**: `produzioneRegistraServer.test.js` (5 casi sul server, compresi
+> semilavorati, plurali e doppio invio).
+
+---
+
 
 > `src/views/ProduzioneGiornalieraView.jsx` (~1150 righe). Pagina dove si
 > registra cosa si è prodotto ogni giorno e da cui si scarica il magazzino.
