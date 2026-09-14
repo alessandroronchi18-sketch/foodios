@@ -404,8 +404,9 @@ Cosa ho verificato riga per riga in /Users/aler/foodos/src/views/MagazzinoView.j
 > Aggiornamento 14/09/2026: dei 84 iniziali, i 19 di "Prodotti finiti" sono
 > stati verificati (11 risultavano già corretti, 8 corretti oggi, 0 rifiutati) e
 > così i 5 di "Materie prime" (2 già corretti, 2 corretti oggi, 1 metà e metà)
-> e i 10 di "Carica merce" (4 già corretti, 6 corretti oggi).
-> **Restano 50.**
+> e i 10 di "Carica merce" (4 già corretti, 6 corretti oggi) e i 20 di
+> "Prezzi ingredienti" (16 già corretti, 4 corretti oggi).
+> **Restano 30.**
 
 
 ### Prodotti finiti — 19, verificati il 14/09/2026
@@ -588,85 +589,100 @@ Cosa ho verificato riga per riga in /Users/aler/foodos/src/views/MagazzinoView.j
   - proposta: Trasformarle in `<label htmlFor="mag-ing-input">` / `htmlFor="mag-qty-input"` / `htmlFor="mag-note-input"` e dare gli id ai tre input. Zero cambiamenti visivi, e il tocco sull'etichetta apre la tastiera sul campo giusto.
 
 
-### Prezzi ingredienti — 20 da verificare
+### Prezzi ingredienti — 20, verificati il 14/09/2026
 
-- **alta** · riga `415` · correttezza — Il log dei prezzi va in crash se una riga non ha il campo delta
+> **Esito: 16 erano già stati corretti fra il 7 e il 9 set, 4 corretti oggi.**
+> Questa scheda era già passata due volte, e si vede: il crash dello storico, il
+> doppio salvataggio, il prezzo scritto male che non diceva niente, la
+> decorrenza futura invisibile, il simbolo € prima della cifra, chi ha cambiato
+> il prezzo — tutto già chiuso.
+>
+> I quattro di oggi: un ingrediente senza prezzo che nella finestra di conferma
+> dichiarava "0,00 €/kg" (zero e "non lo so" sono due cose diverse, e questo
+> dato muove il food cost di tutte le ricette); il prezzo cliccabile alto 22px,
+> sotto la soglia del dito su tablet, che è la strada principale per cambiare un
+> prezzo; il testo di istruzioni scritto come un manuale ("richiede conferma
+> esplicita", "viene registrata nello storico"); e il limite di righe che si
+> disattivava appena si cercava qualcosa — cercando "a" su 500 ingredienti la
+> pagina ne rendeva 400 proprio mentre si sta scrivendo.
+
+- **[GIÀ RISOLTO il 7-9/09]** · alta · riga `415` · correttezza — Il log dei prezzi va in crash se una riga non ha il campo delta
   - Basta premere "Log modifiche" e la scheda muore: schermata bianca o errore, e il pasticcere non ha piu' nessun modo di vedere lo storico prezzi ne' di lavorare in quella scheda finche' non ricarica. Le due righe sopra (412-413) si difendono con `|| 0`, questa no.
   - proposta: Calcolare il delta in modo difensivo prima del render: `const dl = Number.isFinite(Number(l.delta)) ? Number(l.delta) : (Number(l.prezzoNuovo)||0) - (Number(l.prezzoVecchio)||0)` e usare `dl` sia per il colore (riga 414) sia per il testo. Stessa cosa per `deltaPct`, ricalcolandolo da prezzoVecchio q
 
-- **alta** · riga `412` · tipografia — Simbolo € prima della cifra in tutti i punti della scheda, e percentuali col punto
+- **[GIÀ RISOLTO il 7-9/09]** · alta · riga `412` · tipografia — Simbolo € prima della cifra in tutti i punti della scheda, e percentuali col punto
   - E' la regola scritta del progetto e qui e' violata sei volte di fila, nell'unico posto dove il pasticcere legge dei prezzi. Nella stessa pagina la scheda Giacenze scrive "8,50 €/kg" (riga 1176) e qui si legge "€ 8,50/kg": due modi diversi nella stessa schermata. E "+€ 1,50" (riga 534) non e' italian
   - proposta: Importare `fmt` e `fmtp` da ./_shared e sostituire tutte le formattazioni a mano: `{fmt(l.prezzoVecchio)}/kg`, `{fmt(confirmVal)}/kg`, `{delta > 0 ? '+' : ''}{fmt(delta)}`, `({deltaPct > 0 ? '+' : ''}{fmtp(deltaPct)})`. Risolve in un colpo posizione dell'euro, virgola decimale e separatore migliaia 
 
-- **alta** · riga `330` · correttezza — La scheda non distingue prezzo inserito da prezzo stimato: chi ha una stima HORECA in uso vede "-"
+- **[GIÀ RISOLTO il 7-9/09]** · alta · riga `330` · correttezza — La scheda non distingue prezzo inserito da prezzo stimato: chi ha una stima HORECA in uso vede "-"
   - Il food cost gira su un prezzo indovinato (farina 0,88 €/kg dal listino hardcoded) e la scheda dei prezzi - l'unico posto dove si va a sistemare - dice solo "Prezzo da impostare" senza mostrare quale numero sta girando nel frattempo. Il pasticcere non ha modo di capire se il suo food cost e' misurat
   - proposta: Costruire la lista da `buildIngCosti(ricettario?.ingredienti_costi)` e portare `isStima` nella riga. Per gli stimati mostrare il valore vero con l'etichetta "stima" (stesso trattamento della riga 1177) invece di "-", e cambiare il chip in "Stima di mercato" cliccabile; tenere "Prezzo da impostare" s
 
-- **alta** · riga `557` · correttezza — Nessun blocco sul doppio clic di "Conferma e salva": la prima riga di log si perde
+- **[GIÀ RISOLTO il 7-9/09]** · alta · riga `557` · correttezza — Nessun blocco sul doppio clic di "Conferma e salva": la prima riga di log si perde
   - Dietro il banco, con la rete lenta, il secondo clic e' la norma. Il risultato non e' un doppione innocuo: la seconda scrittura ricostruisce il log dalla lista vecchia e cancella la riga appena scritta. Lo storico prezzi e' quello che regge i food cost retroattivi, perderci una riga significa un P&L 
   - proposta: Aggiungere `const [saving, setSaving] = useState(false)` nella tab; in `confermaSalva` uscire subito se `saving`, mettere `setSaving(true)` prima dell'await e `setSaving(false)` in finally; sul pulsante `disabled={saving}` con testo "Salvataggio…". Chiudere la modale solo se la scrittura e' andata a
 
-- **alta** · riga `543` · correttezza — Prezzo con decorrenza futura: si salva e non si vede niente, ne' in tabella ne' nel log
+- **[GIÀ RISOLTO il 7-9/09]** · alta · riga `543` · correttezza — Prezzo con decorrenza futura: si salva e non si vede niente, ne' in tabella ne' nel log
   - E' la funzione centrale di questa modale. Il pasticcere imposta il burro a 9,20 €/kg dal 1 ottobre, conferma, e la tabella continua a mostrare 7,20 €/kg senza una parola. Pensa che non sia salvato e ripete l'operazione: tre righe di log, tre prezzi programmati. Un errore di battitura sull'anno (2062
   - proposta: Nella riga della tabella, se esiste una entry di log con `pianificato === true` per quella chiave, mostrare sotto il prezzo attuale una seconda riga tipo "dal 01/10: 9,20 €/kg" con un pulsante per annullarla. Nel log, aggiungere la colonna "Decorre da" (il dato c'e' gia': `decorre_da`, Dashboard.jsx
 
-- **alta** · riga `356` · correttezza — Prezzo scritto male: il pulsante Salva non fa niente e non dice niente
+- **[GIÀ RISOLTO il 7-9/09]** · alta · riga `356` · correttezza — Prezzo scritto male: il pulsante Salva non fa niente e non dice niente
   - Chi scrive "7,20" con la virgola (cioe' chiunque, in Italia, e sull'iPad il tastierino mostra la virgola) rischia un campo che il browser considera non valido: clicca Salva, non succede nulla, nessun messaggio, la riga resta aperta in modifica. Da fuori sembra il gestionale rotto. Lo stesso vale per
   - proposta: Passare `notify` alla tab (c'e' gia' fra le props di MagazzinoView, riga 570) e in `tentaSalva` avvisare: `notify('Scrivi il prezzo al chilo, per esempio 7,20', false)`. Meglio ancora: `type="text"` con `inputMode="decimal"`, cosi' la virgola arriva sempre e il `replace` funziona, e bordo rosso sul 
 
-- **alta** · riga `545` · tipografia — Testo a 10px sulla spiegazione della decorrenza, e 11px su chip e pulsante
+- **[GIÀ RISOLTO il 7-9/09]** · alta · riga `545` · tipografia — Testo a 10px sulla spiegazione della decorrenza, e 11px su chip e pulsante
   - Quelle tre righe a 10px sono l'unico posto dove si spiega che il prezzo vale da una data in poi e che le produzioni vecchie tengono il prezzo storico. E' il concetto piu' delicato della scheda, scritto nel corpo piu' piccolo della pagina: chi ha sessant'anni non lo legge e sbaglia la data. Il file s
   - proposta: Portare riga 545 a 12px (e' testo, non micro-etichetta) e a 12px anche il chip di riga 453, il pulsante di riga 381 e la percentuale di riga 416. Se la modale diventa troppo alta, accorciare il testo invece di rimpicciolirlo: "Il prezzo vale dal giorno che scegli. Le produzioni di prima tengono il p
 
-- **alta** · riga `378` · mobile — Su tablet e telefono i campi zoomano: isMobile arriva alla tab e non viene mai usato
+- **[GIÀ RISOLTO il 7-9/09]** · alta · riga `378` · mobile — Su tablet e telefono i campi zoomano: isMobile arriva alla tab e non viene mai usato
   - Su iPad e iPhone, toccare un input sotto i 16px fa zoomare la pagina: il pasticcere tocca il prezzo del burro, la schermata salta, deve pinchare per tornare indietro, e lo fa per ogni ingrediente. Nello stesso file i campi della scheda Carica/Scarica sono fatti giusti, qui no.
   - proposta: Applicare lo stesso pattern gia' usato nel file: `fontSize: isMobile ? 16 : 13` sul campo prezzo (riga 465) e sulla ricerca (riga 378), e `fontSize: isMobile ? 16 : 13` anche sull'input data della modale (riga 544).
 
-- **media** · riga `467` · mobile — Bersagli da toccare sotto i 40px: il prezzo cliccabile e' alto 22px
+- **[CORRETTO il 14/09]** · media · riga `467` · mobile — Bersagli da toccare sotto i 40px: il prezzo cliccabile e' alto 22px
   - Il modo principale per modificare un prezzo e' toccare il numero, e su tablet quel numero e' un bersaglio da 22px: si sbaglia riga e si apre in modifica l'ingrediente sbagliato. Anche i pulsanti Salva/Annulla/Modifica restano sotto la soglia. Sul desktop 36px vanno benissimo, il problema e' solo che
   - proposta: `minHeight: isMobile ? 40 : 36` sui tre pulsanti (476, 477, 480), `padding: isMobile ? '10px 12px' : '4px 8px'` con `minHeight: isMobile ? 40 : 0` sullo span del prezzo, `padding: isMobile ? '12px 14px' : '9px 14px'` sulla ricerca. Come nella riga 1213 dello stesso file, che usa gia' `isMobile ? 40 
 
-- **media** · riga `402` · struttura — Il log non dice da quando vale il prezzo, ne' chi l'ha cambiato
+- **[GIÀ RISOLTO il 7-9/09]** · media · riga `402` · struttura — Il log non dice da quando vale il prezzo, ne' chi l'ha cambiato
   - Il log serve a due domande vere: "da quando pago il burro 9,20?" e "chi l'ha cambiato?". Mostra solo il momento del salvataggio, quindi una modifica registrata il 28 settembre e decorrente dal 1 ottobre appare come se fosse in vigore dal 28: quando il commercialista chiede perche' il food cost di se
   - proposta: Colonne: "Modificato il" | "Vale dal" (`l.decorre_da || l.data`) | "Ingrediente" | "Vecchio" | "Nuovo" | "Differenza" | "Chi" (`l.utente`). Sulle righe con `pianificato === true` un'etichetta "programmato".
 
-- **media** · riga `408` · correttezza — Il log dice "ultime 50" ma non ordina: con i dati esistenti mostra le piu' vecchie
+- **[GIÀ RISOLTO il 7-9/09]** · media · riga `408` · correttezza — Il log dice "ultime 50" ma non ordina: con i dati esistenti mostra le piu' vecchie
   - Chi apre lo storico si aspetta in cima l'ultima modifica, quella che gli serve. Se l'array arriva in ordine cronologico crescente, il taglio a 50 tiene le piu' vecchie e butta via proprio le recenti: con 60 righe di storico le ultime 10 modifiche diventano invisibili, e l'intestazione afferma il con
   - proposta: Ordinare prima di tagliare: `[...(logPrezzi||[])].sort((a,b) => new Date(b.decorre_da||b.data) - new Date(a.decorre_da||a.data)).slice(0, 50)`.
 
-- **media** · riga `340` · correttezza — Cerco "farina 00" e non lo trova, e in tabella si legge "Farina_00"
+- **[GIÀ RISOLTO il 7-9/09]** · media · riga `340` · correttezza — Cerco "farina 00" e non lo trova, e in tabella si legge "Farina_00"
   - Con 200-500 ingredienti la ricerca e' l'unico modo di arrivare alla riga giusta, e fallisce sul nome piu' comune di una pasticceria perche' il pasticcere scrive lo spazio e il dato ha il trattino basso. Nel frattempo la colonna nome mostra sigle da database ("Farina_00", "Marmellata_albicocca"), che
   - proposta: Nome leggibile alla riga 335: `nome: k.replace(/_/g, ' ')`. Ricerca su testo normalizzato: costruire per ogni riga un `haystack = normIng(row.nome).replace(/_/g,' ')` e confrontarlo con `normIng(search)` ripulito dai trattini bassi, cosi' "farina 00", "farina_00" e "uovo/uova" (che `normIng` mappa) 
 
-- **media** · riga `525` · correttezza — La modale dichiara "Prezzo attuale 0,00 €/kg" per un ingrediente che non ha prezzo
+- **[CORRETTO il 14/09]** · media · riga `525` · correttezza — La modale dichiara "Prezzo attuale 0,00 €/kg" per un ingrediente che non ha prezzo
   - Zero non e' il prezzo del burro, e' l'assenza del prezzo: mostrarlo come misurato fa credere che il food cost fin qui girasse a costo zero (mentre girava sulla stima HORECA). Di conseguenza anche la riga "Variazione" mostra "+ 12,50 €" come se fosse un aumento, quando e' semplicemente il primo inser
   - proposta: Se `!row.haPrezzo`: scrivere "Prezzo attuale: mai inserito" (o il valore di stima con l'etichetta "stima", vedi il difetto sul distinguo stimato/inserito), nascondere la riga "Variazione" e cambiare il titolo in "Conferma il primo prezzo".
 
-- **media** · riga `414` · colore — Verde per una variazione di zero, rosso col colore del marchio
+- **[GIÀ RISOLTO il 7-9/09]** · media · riga `414` · colore — Verde per una variazione di zero, rosso col colore del marchio
   - Una modifica che lascia il prezzo dov'era viene dipinta di verde come se fosse un risparmio, e il pasticcere legge il colore prima del numero. In piu' il "rosso" degli aumenti e' lo stesso colore del pulsante Salva e dell'intera identita' della pagina, quindi non segnala nulla: e' un allarme che suo
   - proposta: Tre rami espliciti: `delta > 0 ? C.amber : delta < 0 ? C.green : C.textMid`. Ambra per l'aumento (e' un'informazione da guardare, non un'emergenza), verde solo per un calo vero, grigio per zero. E tenere C.red per i pulsanti.
 
-- **media** · riga `382` · tipografia — Glifi ✕ e ✓ al posto del componente Icon
+- **[GIÀ RISOLTO il 7-9/09]** · media · riga `382` · tipografia — Glifi ✕ e ✓ al posto del componente Icon
   - Sono caratteri tipografici messi dove il progetto vuole SVG: cambiano forma e allineamento da un dispositivo all'altro (su Android il ✓ puo' arrivare colorato come emoji) e nello stesso pulsante convivono con un'icona vera, quindi si vede la differenza di peso. Le icone che servono esistono gia'.
   - proposta: Riga 382: `<><Icon name="x" size={13} />Chiudi lo storico</>`. Riga 557: `<><Icon name="check" size={13} />Conferma e salva</>`.
 
-- **media** · riga `387` · copy — Copy da manuale del software: "richiede conferma esplicita", "registrata nel log"
+- **[CORRETTO il 14/09]** · media · riga `387` · copy — Copy da manuale del software: "richiede conferma esplicita", "registrata nel log"
   - E' la prima frase che si legge nella scheda e suona scritta da un programma, non da chi lavora in pasticceria: "conferma esplicita", "registrata nel log", "con un click" (sul tablet si tocca). Poi il pulsante dice "Log modifiche" e il riquadro che apre dice "Storico modifiche prezzi": due nomi per l
   - proposta: Riga 387: "Tocca il prezzo per cambiarlo. Prima di salvare ti chiediamo conferma, e ogni cambio resta nello storico." Riga 382: "Storico prezzi · N", uguale al titolo del riquadro. Riga 520: "Aggiorno il prezzo di X?". Riga 402: "Differenza" invece di "Δ", con l'unita' (€/kg) nella cella o nell'inte
 
-- **media** · riga `351` · correttezza — Salvare senza toccare il campo puo' cambiare il prezzo di nascosto
+- **[GIÀ RISOLTO il 7-9/09]** · media · riga `351` · correttezza — Salvare senza toccare il campo puo' cambiare il prezzo di nascosto
   - I prezzi sono salvati con quattro decimali, il campo di modifica li mostra arrotondati a due. Chi apre una riga per controllare e poi preme Salva per uscire scrive un prezzo diverso da quello che c'era, si becca una conferma con "Variazione + 0,00 €" (che sembra dire "non e' cambiato niente") e lasc
   - proposta: Confrontare sui centesimi, non sul valore pieno: `if (Math.abs(v - row.prezzoKg) < 0.005) { cancelEdit(); return }`, cosi' "non ho cambiato nulla" chiude e basta. E nascondere il pulsante Conferma quando la variazione arrotondata e' zero.
 
-- **bassa** · riga `348` · struttura — La paginazione salta proprio quando servirebbe: la ricerca mostra tutto
+- **[CORRETTO il 14/09]** · bassa · riga `348` · struttura — La paginazione salta proprio quando servirebbe: la ricerca mostra tutto
   - Il commento sopra dice che i risultati filtrati sono comunque pochi, ma su un ricettario da 500 ingredienti basta cercare "a" (o cancellare a meta' una parola) per far comparire quasi tutte le righe con dentro i campi di modifica: sul tablet la digitazione si incolla, ed e' l'unico momento in cui il
   - proposta: Applicare il limite sempre: `const isPaginated = filtered.length > maxVisible`, e nel piede scrivere "Mostrati 80 di 214. Scrivi qualche lettera in piu' per restringere." Il contatore e il pulsante ci sono gia' (righe 493-503).
 
-- **bassa** · riga `509` · accessibilita — La modale si comanda solo col mouse: Invio e Esc non funzionano
+- **[GIÀ RISOLTO il 7-9/09]** · bassa · riga `509` · accessibilita — La modale si comanda solo col mouse: Invio e Esc non funzionano
   - Il flusso da tastiera si interrompe a meta': in laboratorio si scrive il prezzo e si preme Invio, la conferma si apre, e da li' Invio non conferma piu' e Esc non chiude - bisogna mollare la tastiera e cercare il pulsante. Chi inserisce venti prezzi di fila lo fa venti volte.
   - proposta: Nella modale: `role="dialog" aria-modal="true"`, un `useEffect` che su `keydown` chiama `confermaSalva` per Enter e `setConfirmKey(null)` per Escape mentre `confirmKey` e' attivo, e focus iniziale sul pulsante di conferma.
 
-- **bassa** · riga `452` · struttura — Il chip "Prezzo da impostare" non resta incolonnato con i nomi lunghi
+- **[GIÀ RISOLTO il 7-9/09]** · bassa · riga `452` · struttura — Il chip "Prezzo da impostare" non resta incolonnato con i nomi lunghi
   - Il commento sopra promette che il badge sta sempre alla stessa distanza dal bordo, e infatti con nomi corti e' cosi'; ma con "cioccolato fondente 70% Valrhona" scivola a destra e la colonna dei chip diventa una scaletta. In una lista di 80 righe l'occhio cerca i chip in colonna e li perde.
   - proposta: Larghezza fissa piu' troncamento: `width: 180, flex: '0 0 180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'` con `title={row.nome}` per il nome intero. Oppure due colonne di tabella separate, nome e stato.
 

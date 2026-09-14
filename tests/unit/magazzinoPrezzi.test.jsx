@@ -137,3 +137,36 @@ describe('prezzi ingredienti — modificare un prezzo', () => {
     expect(conferma.textContent).not.toContain('✓')
   })
 })
+
+describe('prezzi ingredienti — i difetti verificati il 14/09', () => {
+  it('un ingrediente senza prezzo non ne dichiara uno da 0,00 €/kg', async () => {
+    // Zero e "non lo so" sono due cose diverse, e questo dato muove il food
+    // cost di tutte le ricette che usano quell'ingrediente.
+    const v = await apriPrezzi({ ricettario: { ...ricettario, ingredienti_costi: {} } })
+    await waitFor(() => expect(v.container.textContent).toContain('burro'))
+    fireEvent.click(v.getByTitle('Clicca per modificare'))
+    const campo = await waitFor(() => v.getByLabelText('Prezzo per chilo di burro'))
+    fireEvent.change(campo, { target: { value: '9,50' } })
+    fireEvent.keyDown(campo, { key: 'Enter' })
+    await waitFor(() => expect(v.container.textContent).toContain('Conferma modifica prezzo'))
+    expect(v.container.textContent).toContain('mai impostato')
+    expect(v.container.textContent).not.toContain('0,00 €/kg')
+    expect(v.container.textContent).toContain('Primo prezzo')
+  })
+
+  it('il prezzo si tocca col dito: bersaglio da 40px, non da 22', async () => {
+    const v = await apriPrezzi()
+    await waitFor(() => expect(v.container.textContent).toContain('burro'))
+    const bersaglio = v.getByTitle('Clicca per modificare')
+    expect(bersaglio.style.minHeight).toBe('40px')
+    // E si arriva anche da tastiera.
+    expect(bersaglio.getAttribute('role')).toBe('button')
+  })
+
+  it('il testo di istruzioni non parla come un manuale', async () => {
+    const v = await apriPrezzi()
+    expect(v.container.textContent).not.toContain('richiede conferma esplicita')
+    expect(v.container.textContent).not.toContain('registrata nello storico')
+    expect(v.container.textContent).toContain('Clicca sul prezzo per cambiarlo')
+  })
+})

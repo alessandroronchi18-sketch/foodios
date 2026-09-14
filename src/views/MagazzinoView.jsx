@@ -599,7 +599,11 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
   // bypassa il limite (i risultati filtrati sono comunque pochi).
   const [maxVisible, setMaxVisible] = useState(80)
   useEffect(() => { setMaxVisible(80) }, [search])
-  const isPaginated = !search.trim() && filtered.length > maxVisible
+  // Audit 2026-09-14: il limite si disattivava appena si cercava qualcosa, con
+  // l'idea che "i risultati filtrati sono comunque pochi". Cercando "a" su 500
+  // ingredienti non lo sono: la pagina rendeva 400 righe proprio nel momento in
+  // cui si sta scrivendo, cioe' quando deve restare reattiva.
+  const isPaginated = filtered.length > maxVisible
   const visibleRows = isPaginated ? filtered.slice(0, maxVisible) : filtered
 
   const startEdit = (row) => { setEditKey(row.key); setEditVal(row.prezzoKg ? row.prezzoKg.toFixed(2) : '') }
@@ -661,7 +665,10 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
       </div>
 
       <div style={{ fontSize: 12, color: C.textSoft, marginBottom: 14, lineHeight: 1.5 }}>
-        Modifica il <b>prezzo €/kg</b> di un ingrediente con un click. La modifica richiede conferma esplicita per evitare errori e viene registrata nello storico.
+        {/* Audit 2026-09-14: "richiede conferma esplicita" e "viene registrata
+            nello storico" e' come parla un manuale, non una pasticcera. */}
+        Clicca sul prezzo per cambiarlo. Prima di salvare te lo faccio rivedere, e ogni
+        modifica resta scritta con la data: serve quando il food cost di un mese non torna.
       </div>
 
       {showLog && (
@@ -788,8 +795,13 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
                         )}
                         </>
                       ) : (
+                        // Audit 2026-09-14: il prezzo cliccabile era alto 22px. Su
+                        // tablet e' sotto la soglia di quello che si centra col
+                        // dito, ed e' la strada principale per cambiare un prezzo.
                         <span onClick={() => startEdit(row)} title="Clicca per modificare"
-                          style={{ cursor: 'pointer', padding: '4px 8px', borderRadius: 5, display: 'inline-block' }}>
+                          role="button" tabIndex={0}
+                          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startEdit(row) } }}
+                          style={{ cursor: 'pointer', padding: '10px 10px', borderRadius: 6, display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', minHeight: 40, minWidth: 88 }}>
                           {row.prezzoKg > 0 ? `${row.prezzoKg.toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €` : '-'}
                         </span>
                       )}
@@ -857,15 +869,23 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
               </div>
               <div style={{ background: '#F8F4F2', borderRadius: 10, padding: '14px 16px', marginBottom: 18 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, fontWeight: 600 }}>Prezzo attuale</span>
-                  <span style={{ fontSize: 14, color: C.textMid, ...TNUM, fontWeight: 700 }}>{row.prezzoKg.toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/kg</span>
+                  <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, fontWeight: 600 }}>{row.prezzoKg > 0 ? 'Prezzo attuale' : 'Prezzo di adesso'}</span>
+                  {/* Audit 2026-09-14: per un ingrediente senza prezzo qui
+                      compariva "0,00 €/kg", cioe' un prezzo dichiarato. Zero e
+                      "non lo so" sono due cose diverse, e su un dato che muove
+                      il food cost di tutte le ricette la differenza conta. */}
+                  <span style={{ fontSize: 14, color: row.prezzoKg > 0 ? C.textMid : C.textSoft, ...TNUM, fontWeight: 700 }}>
+                    {row.prezzoKg > 0
+                      ? `${row.prezzoKg.toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/kg`
+                      : 'mai impostato'}
+                  </span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                   <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, fontWeight: 600 }}>Nuovo prezzo</span>
                   <span style={{ fontSize: 14, color: C.red, ...TNUM, fontWeight: 800 }}>{confirmVal.toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/kg</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 6, borderTop: `1px solid ${C.border}` }}>
-                  <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, fontWeight: 600 }}>Variazione</span>
+                  <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, fontWeight: 600 }}>{row.prezzoKg > 0 ? 'Variazione' : 'Primo prezzo'}</span>
                   {/* Audit 2026-09-09: `delta > 0 ? rosso : verde` colorava di
                       VERDE anche una variazione di zero, come se non cambiare
                       prezzo fosse un risparmio. E il rosso era quello del
@@ -873,7 +893,7 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
                       "allarme": per un prezzo che sale serve il rosso di
                       allarme. */}
                   <span style={{ fontSize: 13, color: delta > 0 ? C.red : delta < 0 ? C.green : C.textSoft, ...TNUM, fontWeight: 800 }}>
-                    {delta > 0 ? '+' : ''}{delta.toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} € {deltaPct != null && <span style={{ fontSize: 12, marginLeft: 4, opacity: 0.85 }}>({deltaPct > 0 ? '+' : ''}{fmtp(deltaPct)})</span>}
+                    {row.prezzoKg > 0 && delta > 0 ? '+' : ''}{(row.prezzoKg > 0 ? delta : confirmVal).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} € {deltaPct != null && <span style={{ fontSize: 12, marginLeft: 4, opacity: 0.85 }}>({deltaPct > 0 ? '+' : ''}{fmtp(deltaPct)})</span>}
                   </span>
                 </div>
               </div>
