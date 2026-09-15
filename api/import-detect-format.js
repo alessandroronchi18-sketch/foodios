@@ -13,6 +13,7 @@ import { verificaToken, rallentaSeNecessario } from './lib/auth.js'
 import { checkRateLimit, rateLimitResponse } from './lib/rateLimit.js'
 import { handleOptions, getClientIP, json } from './lib/cors.js'
 import { getEntitySchema, listEntities } from '../src/lib/importSchemas.js'
+import { checkAndIncrementAiBudget } from './lib/aiBudget.js'
 
 const MIN_MS = 200
 const MAX_ROWS_PER_SHEET = 20
@@ -144,6 +145,21 @@ export default async function handler(req) {
 
   if (!process.env.ANTHROPIC_API_KEY) {
     return json({ error: 'ANTHROPIC_API_KEY non configurata' }, 503, req)
+  }
+
+  // Anche il riconoscimento del formato del file passa dal contatore di spesa.
+  // Prima no: il contatore era chiamato solo da api/ai.js, e tutte le altre
+  // chiamate a Claude — questa, la lettura delle fatture, i due lavori
+  // notturni — spendevano senza risultare da nessuna parte.
+  const budget = await checkAndIncrementAiBudget({
+    supabase: admin, orgId: profile.organization_id, feature: 'import_format', model: 'claude-sonnet-5',
+    piano: profile?.piano || 'trial',
+  })
+  if (!budget.allowed) {
+    return json({
+      error: 'Hai raggiunto il limite giornaliero di letture automatiche. Riprova domani, oppure scrivici.',
+      limite_raggiunto: true,
+    }, 429, req)
   }
 
   const ctrl = new AbortController()

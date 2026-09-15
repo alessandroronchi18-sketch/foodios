@@ -148,6 +148,7 @@ ${topProds.map((p, i) => `${i + 1}. ${p.nome} (${p.qta} pz, €${p.ricavo.toFixe
           messages: [{ role: 'user', content: userMsg }],
           max_tokens: 800,
           temperature: 0.55,
+          supabase, orgId: org.id, feature: 'documentary',
         })
         const text = (cl.text || '').trim()
         const m2 = text.match(/\{[\s\S]*\}/)

@@ -10,6 +10,7 @@
 //   dedupKey({ orgId, sedeId, tipo, entity })
 
 import { safeFetchLLM } from './safeFetch.js'
+import { registraSpesaAi } from './aiBudget.js'
 import { fmtp, fmtp0 } from '../../src/lib/formatIt.js'
 
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages'
@@ -17,12 +18,27 @@ const DEFAULT_MODEL = 'claude-haiku-4-5-20251001'  // economico per cron volumi
 const DEFAULT_MAX_TOKENS = 700
 
 // Wrapper fetch Anthropic per chiamate server-to-server (cron, webhook).
+/**
+ * Chiamata a Claude per i lavori notturni.
+ *
+ * Passando `supabase`, `orgId` e `feature` la spesa finisce nel contatore,
+ * che è il modo in cui il pannello admin sa quanto costa un cliente. Finora
+ * nessuno di questi tre arrivava e i lavori notturni spendevano senza
+ * lasciare traccia: `ai_usage_daily` era vuota mentre erano già stati
+ * generati 1.301 suggerimenti e 96 riepiloghi del mattino.
+ *
+ * Qui si registra e basta, non si blocca: un riepilogo che si ferma a metà
+ * per un tetto di spesa fa più danno della spesa.
+ */
 export async function callClaude({
   system,
   messages,
   model = DEFAULT_MODEL,
   max_tokens = DEFAULT_MAX_TOKENS,
   temperature = 0.4,
+  supabase = null,
+  orgId = null,
+  feature = null,
 } = {}) {
   if (!process.env.ANTHROPIC_API_KEY) {
     throw new Error('ANTHROPIC_API_KEY non configurata')
@@ -46,6 +62,9 @@ export async function callClaude({
   }
   const json = await res.json()
   const text = (json.content || []).find(c => c.type === 'text')?.text || ''
+  if (supabase && orgId) {
+    await registraSpesaAi({ supabase, orgId, feature: feature || 'generic', model: json.model || model, usage: json.usage })
+  }
   return { text, usage: json.usage, model: json.model }
 }
 

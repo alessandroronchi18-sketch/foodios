@@ -247,6 +247,9 @@ export default async function handler(req) {
           model: BRIEF_MODEL,
           max_tokens: 280,
           temperature: 0.35,
+          // Perché la spesa finisca nel contatore: senza questi tre, il
+          // riepilogo del mattino costava e non risultava da nessuna parte.
+          supabase, orgId: org.id, feature: 'daily_brief',
         })
         briefText = (cl.text || '').trim() || `Niente di urgente oggi per ${orgName}.`
         modelUsed = cl.model
@@ -339,6 +342,7 @@ export default async function handler(req) {
               model: BRIEF_MODEL,
               max_tokens: 420,
               temperature: 0.4,
+              supabase, orgId: org.id, feature: 'daily_brief',
             })
             return (cl.text || '').trim()
           })()

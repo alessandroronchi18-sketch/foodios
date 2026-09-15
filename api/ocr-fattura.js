@@ -10,6 +10,7 @@ export const config = { runtime: 'edge' }
 // estratto al client che lo presenta editabile prima di salvare la fattura.
 
 import { verificaToken, rallentaSeNecessario } from './lib/auth.js'
+import { checkAndIncrementAiBudget } from './lib/aiBudget.js'
 import { checkRateLimit, rateLimitResponse } from './lib/rateLimit.js'
 import { getCorsHeaders, handleOptions, getClientIP, json } from './lib/cors.js'
 import { safeError } from './lib/safeError.js'
@@ -86,6 +87,24 @@ export default async function handler(req) {
   // Chiamata Claude Vision
   if (!process.env.ANTHROPIC_API_KEY) {
     return json({ error: 'ANTHROPIC_API_KEY non configurata' }, 503, req)
+  }
+
+  // Il tetto di spesa vale anche qui. Leggere una fattura con l'AI è la
+  // chiamata più cara del prodotto (circa 0,03 $ l'una, quasi quattro volte
+  // una richiesta normale), ed era l'unica che non passava dal contatore:
+  // `api/lib/aiBudget.js` era chiamato SOLO da api/ai.js. Un cliente poteva
+  // caricare fotografie tutto il giorno senza che risultasse da nessuna parte
+  // e senza che nessun tetto scattasse.
+  const budget = await checkAndIncrementAiBudget({
+    supabase, orgId, feature: 'ocr_invoice', model: 'claude-sonnet-5',
+    piano: profile?.piano || 'trial',
+  })
+  if (!budget.allowed) {
+    await rallentaSeNecessario(start, MIN_MS)
+    return json({
+      error: 'Hai raggiunto il limite giornaliero di letture automatiche. Riprova domani, oppure scrivici.',
+      limite_raggiunto: true,
+    }, 429, req)
   }
 
   // Timeout 25s (sotto il limite Edge Function di 30s).

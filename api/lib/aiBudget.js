@@ -145,3 +145,50 @@ export async function checkAndIncrementAiBudget({ supabase, orgId, feature, mode
   }
   return { allowed: true, used: Math.round(used * 100) / 100, cap, charged: cost }
 }
+
+/**
+ * Registra una spesa AI **senza** bloccare nulla.
+ *
+ * Serve ai lavori notturni (riepilogo del mattino, fotografia del mese): li
+ * fa partire il sistema, non il cliente, e fermarli a metà per un tetto di
+ * spesa farebbe più danno della spesa stessa. Ma vanno contati, altrimenti
+ * il pannello «quanto mi costa questo cliente» dice un numero che è una
+ * frazione del vero.
+ *
+ * Fino al 15/09/2026 `ai_usage_daily` non contava niente di tutto questo:
+ * il contatore era chiamato SOLO da api/ai.js, mentre la stessa chiave di
+ * Anthropic veniva usata anche dai due lavori notturni, dalla lettura delle
+ * fatture e da due passaggi dell'importazione. In produzione: 1.301
+ * suggerimenti e 96 riepiloghi generati, e zero righe di consumo.
+ *
+ * @param {Object} a
+ * @param {Object} a.supabase   client con service_role
+ * @param {string} a.orgId
+ * @param {string} a.feature    nome della funzione (per il pannello)
+ * @param {string} [a.model]
+ * @param {Object} [a.usage]    { input_tokens, output_tokens } se li conosci
+ */
+export async function registraSpesaAi({ supabase, orgId, feature, model, usage } = {}) {
+  if (!supabase || !orgId) {
+    console.warn('[aiBudget] spesa non registrata: manca', !supabase ? 'il client' : "l'organizzazione", '-', feature)
+    return { registrato: false }
+  }
+  const cost = estimateCostForCall({ feature, model })
+  try {
+    const { error } = await supabase.rpc('ai_usage_increment_org', {
+      p_org: orgId,
+      p_feature: feature || 'generic',
+      p_tokens_in: Number(usage?.input_tokens) || 0,
+      p_tokens_out: Number(usage?.output_tokens) || 0,
+      p_cost_usd: cost,
+    })
+    if (error) {
+      console.error('[aiBudget] spesa non registrata:', feature, error.message?.slice(0, 120))
+      return { registrato: false }
+    }
+    return { registrato: true, costo: cost }
+  } catch (e) {
+    console.error('[aiBudget] spesa non registrata:', feature, e?.message?.slice(0, 120))
+    return { registrato: false }
+  }
+}
