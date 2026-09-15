@@ -157,6 +157,24 @@ const controlli = [
     atteso: '0',
     perche: 'è la funzione che scrive ricettario, magazzino, produzione e chiusure',
   },
+  // ── 15/09/2026: l'editor SQL del pannello admin ─────────────────────────
+  {
+    nome: 'l editor SQL dell admin gira in sola lettura',
+    sql: `select case when pg_get_functiondef(p.oid) like '%transaction_read_only%' then 1 else 0 end
+          from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+          where n.nspname='public' and p.proname='admin_safe_select'`,
+    atteso: '1',
+    perche: 'senza, `select una_funzione_che_scrive()` passa tutti i controlli e cancella un cliente',
+  },
+  {
+    nome: 'l editor SQL non si chiama dal browser',
+    sql: `select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+          where n.nspname='public' and p.proname='admin_safe_select'
+            and (has_function_privilege('anon', p.oid, 'EXECUTE')
+              or has_function_privilege('authenticated', p.oid, 'EXECUTE'))`,
+    atteso: '0',
+    perche: 'esegue SQL arbitrario come postgres: deve restare solo al server',
+  },
 ]
 
 let rotti = 0
