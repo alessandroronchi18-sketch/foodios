@@ -2,29 +2,12 @@ import React, { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import FoodosLogo from '../components/FoodosLogo'
 import COMUNI_ITALIANI from '../lib/comuniItaliani'
+import { temaPubblico, SERIF_PUBBLICO, SANS_PUBBLICO } from '../lib/temaPubblico'
+import { useCaptcha } from './Captcha'
 
-const T = {
-  cream:      '#FBF8F4',
-  creamDeep:  '#F4ECE3',
-  paper:      '#FFFFFF',
-  ink:        '#0F0907',
-  inkSoft:    '#1A0F0D',
-  textMid:    '#5C4842',
-  textSoft:   '#9C887F',
-  textOnDark: '#F4ECE3',
-  red:        '#6E0E1A',
-  redDeep:    '#8B2415',
-  redSoft:    '#FDF2EE',
-  green:      '#1F7A48',
-  greenSoft:  '#E8F4ED',
-  amber:      '#E6BD5A',
-  border:     '#EBE3DC',
-  danger:     '#DC2626',
-  dangerSoft: '#FEF2F2',
-}
-
-const SERIF = "'Fraunces', 'Iowan Old Style', 'Apple Garamond', Georgia, serif"
-const SANS  = "'Inter', system-ui, -apple-system, sans-serif"
+const T = temaPubblico
+const SERIF = SERIF_PUBBLICO
+const SANS  = SANS_PUBBLICO
 
 // {label mostrato, slug stabile salvato su organizations.tipo}.
 // Lo slug è la chiave usata da src/lib/lessico.js per la terminologia.
@@ -97,6 +80,18 @@ const Icon = ({ name, size = 18, color = 'currentColor', stroke = 1.7 }) => {
   )
 }
 
+// Gli errori di Supabase arrivano in inglese e tecnici. Qui diventano una
+// frase che dice cosa fare, non cosa e' successo dentro.
+function messaggioPassword(err) {
+  const m = String(err?.message || '')
+  if (/same.*password|should be different/i.test(m)) return 'Questa è già la tua password di adesso: scegline una diversa.'
+  if (/weak|should be at least|too short/i.test(m)) return 'Password troppo corta: servono almeno 8 caratteri.'
+  if (/expired|invalid.*token|not found/i.test(m)) return 'Questo link è scaduto. Chiedine uno nuovo dalla pagina di accesso.'
+  if (/rate limit|too many/i.test(m)) return 'Hai riprovato troppe volte di fila. Aspetta qualche minuto.'
+  if (/network|fetch|timeout/i.test(m)) return 'Connessione caduta a metà. Riprova.'
+  return 'Non sono riuscito a salvare la password. Riprova fra un momento.'
+}
+
 function checkPwd(p) {
   return {
     length:  p.length >= 8,
@@ -140,7 +135,8 @@ function PasswordStrength({ password }) {
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(3, 1fr)', gap: '4px 10px' }}>
         {req.map(([ok, txt]) => (
           <div key={txt} style={{ fontSize: 12, color: ok ? T.green : T.textSoft, display: 'flex', alignItems: 'center', gap: 4, fontWeight: ok ? 600 : 500 }}>
-            <span style={{ fontSize: 12 }}>{ok ? '●' : '○'}</span>{txt}
+            <span style={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0, display: 'inline-block',
+              background: ok ? T.green : 'transparent', border: ok ? 'none' : `1.5px solid ${T.border}` }}/>{txt}
           </div>
         ))}
       </div>
@@ -430,6 +426,7 @@ export function ResetPasswordPage({ onDone }) {
   const [loading, setLoading] = useState(false)
   const [errore, setErrore]   = useState('')
   const [successo, setSuccesso] = useState(false)
+
   // Audit 2026-07-01 HIGH: cleanup setTimeout. Se il componente unmounta nei
   // 2s post-success, signOut/onDone partirebbero su componente smontato.
   const signoutTimerRef = useRef(null)
@@ -441,7 +438,7 @@ export function ResetPasswordPage({ onDone }) {
     e.preventDefault()
     setErrore('')
     if (!Object.values(checkPwd(pwd)).every(Boolean)) {
-      setErrore('La password non soddisfa tutti i requisiti di sicurezza'); return
+      setErrore('Alla password manca ancora qualcosa: guarda i pallini qui sotto.'); return
     }
     if (pwd !== conf) { setErrore('Le password non coincidono'); return }
     setLoading(true)
@@ -455,7 +452,7 @@ export function ResetPasswordPage({ onDone }) {
         onDone()
       }, 2000)
     } catch (err) {
-      setErrore(err.message || 'Errore nell\'aggiornamento della password')
+      setErrore(messaggioPassword(err))
     } finally { setLoading(false) }
   }
 
@@ -542,12 +539,14 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
   const [loginEmail, setLoginEmail] = useState('')
   const [loginPwd, setLoginPwd]     = useState('')
 
-  const [loginAttempts, setLoginAttempts] = useState(() => {
-    try { return parseInt(localStorage.getItem('foodos-login-attempts') || '0', 10) } catch { return 0 }
-  })
-  const [lockoutUntil, setLockoutUntil] = useState(() => {
-    try { return parseInt(localStorage.getItem('foodos-lockout-until') || '0', 10) } catch { return 0 }
-  })
+  // Fino al 15/09/2026 qui c'era un secondo blocco, tenuto nel browser: dopo 5
+  // errori scriveva una scadenza in localStorage e non lasciava più premere
+  // "Accedi" per un quarto d'ora. Non fermava nessuno — chi attacca non usa il
+  // nostro modulo, e in ogni caso bastava svuotare i dati del sito — mentre
+  // chiudeva fuori sul serio il titolare che aveva appena ricordato la
+  // password giusta, e il blocco gli restava addosso anche riaprendo il
+  // browser. Il conto serio lo tiene il server (api/login-guard), che sa
+  // distinguere il tempo fra un tentativo e l'altro. Qui non si tiene niente.
 
   const [resetEmail, setResetEmail] = useState('')
   const [newPwd, setNewPwd]         = useState('')
@@ -559,11 +558,11 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
     email: '', password: '', codice_invito: initialReferralCode,
     accept_terms: false,
   })
-  const [otpCode, setOtpCode]   = useState('')
-  const [otpSent, setOtpSent]   = useState(false)
-  const [otpVerified, setOtpVerified] = useState(false)
-  const [otpSkipped, setOtpSkipped]   = useState(false)
   const [successo, setSuccesso] = useState(false)
+
+  // Il controllo "sei una persona?". Senza VITE_TURNSTILE_SITE_KEY non disegna
+  // niente e `pronto` è sempre vero: la pagina si comporta come prima.
+  const { token: captchaToken, pronto: captchaPronto, reset: resetCaptcha, Widget: Captcha } = useCaptcha()
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
@@ -578,80 +577,56 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
   function setR(field) { return e => setReg(p => ({ ...p, [field]: e.target.value })) }
   function clear() { setErrore(''); setMsg(''); setEmailEsistente('') }
 
-  function getLockoutMessage(until) {
-    const secs = Math.ceil((until - Date.now()) / 1000)
-    if (secs <= 0) return ''
-    if (secs < 120) return `Troppi tentativi. Riprova tra ${secs} secondi.`
-    return `Troppi tentativi. Riprova tra ${Math.ceil(secs / 60)} minuti.`
+  // Quanto manca, detto come lo direbbe una persona.
+  function quandoRiprovare(secondi) {
+    const s = Math.max(1, Math.ceil(secondi))
+    if (s < 60) return `${s} second${s === 1 ? 'o' : 'i'}`
+    const m = Math.ceil(s / 60)
+    return `${m} minut${m === 1 ? 'o' : 'i'}`
   }
 
   async function handleLogin(e) {
     e.preventDefault(); clear()
-    const now = Date.now()
-    if (lockoutUntil > now) { setErrore(getLockoutMessage(lockoutUntil)); return }
     setLoading(true)
     try {
-      // ── Server-side brute-force check (PRIMA del signIn) ──
-      // Il lockout client-side è bypassabile (localStorage.clear()): il server è la fonte di verità.
+      // Il server tiene il conto degli errori recenti e dice se bisogna
+      // aspettare. Attesa progressiva, non muro: dopo i primi errori servono
+      // pochi secondi, e solo insistendo si allunga. Il messaggio deve dirlo
+      // con calma — chi ha appena sbagliato la password non deve sentirsi
+      // accusato di essere un intruso.
       try {
         const guard = await fetch('/api/login-guard', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'check', email: loginEmail }),
         })
-        // Attesa progressiva, non blocco: dopo i primi errori servono pochi
-        // secondi, e solo insistendo l'attesa si allunga. Il messaggio deve
-        // dirlo in modo tranquillo — chi ha appena sbagliato la password non
-        // deve sentirsi accusato di essere un intruso.
         if (guard.status === 423) {
           const j = await guard.json().catch(() => ({}))
           const sec = Math.max(1, Number(j.retryAfter) || 5)
-          const quando = sec < 60
-            ? `${sec} second${sec === 1 ? 'o' : 'i'}`
-            : `${Math.ceil(sec / 60)} minut${Math.ceil(sec / 60) === 1 ? 'o' : 'i'}`
-          setErrore(
-            sec <= 60
-              ? `Password non corretta. Riprova fra ${quando}.`
-              : `Password sbagliata più volte. Per sicurezza riprova fra ${quando}, oppure usa "Password dimenticata" qui sotto per reimpostarla.`
-          )
+          setErrore(sec <= 60
+            ? `Aspetta ${quandoRiprovare(sec)} e riprova.`
+            : `Hai sbagliato password più volte. Riprova fra ${quandoRiprovare(sec)}, oppure usa "Dimenticata?" qui sopra per rifarla.`)
           setLoading(false)
           return
         }
-      } catch { /* guard giù: fail-open, supabase rate-limit interno è il fallback */ }
+      } catch { /* guardiano giù: si va avanti, il limite di Supabase resta */ }
 
-      await onSignIn(loginEmail, loginPwd)
-      // Notifica successo (fire-and-forget): serve per resettare contatore e per anomaly detection
+      await onSignIn(loginEmail, loginPwd, captchaToken || undefined)
       fetch('/api/login-guard', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'success', email: loginEmail }),
       }).catch(() => {})
-      setLoginAttempts(0); setLockoutUntil(0)
-      localStorage.removeItem('foodos-login-attempts')
-      localStorage.removeItem('foodos-lockout-until')
     } catch (err) {
-      // Log fail server-side (fire-and-forget). Soglia raggiunta = notifica email al titolare.
       fetch('/api/login-guard', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'fail', email: loginEmail }),
       }).catch(() => {})
-
-      const next = loginAttempts + 1
-      setLoginAttempts(next)
-      try { localStorage.setItem('foodos-login-attempts', String(next)) } catch {}
-      let blockMs = 0
-      if (next >= 10) blockMs = 60 * 60 * 1000
-      else if (next >= 5) blockMs = 15 * 60 * 1000
-      else if (next >= 3) blockMs = 60 * 1000
-      if (blockMs > 0) {
-        const until = Date.now() + blockMs
-        setLockoutUntil(until)
-        try { localStorage.setItem('foodos-lockout-until', String(until)) } catch {}
-        setErrore(getLockoutMessage(until))
-      } else {
-        setErrore(err.message)
-      }
+      setErrore(err.message)
+      // Un captcha si usa una volta sola: dopo un tentativo fallito ne serve
+      // uno nuovo, altrimenti il secondo "Accedi" viene rifiutato.
+      resetCaptcha()
     } finally { setLoading(false) }
   }
 
@@ -659,12 +634,21 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
     e.preventDefault(); clear(); setLoading(true)
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-        redirectTo: 'https://foodos-rose.vercel.app',
+        // Era inchiodato all'indirizzo di Vercel: il link di reimpostazione
+        // portava sempre lì, anche a chi aveva aperto Foodos altrove.
+        redirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
+        ...(captchaToken ? { captchaToken } : {}),
       })
       if (error) throw error
-      setMsg(`Link di reset inviato a ${resetEmail}. Controlla la posta.`)
+      // Non si dice mai se quell'indirizzo ha un account: sarebbe un modo per
+      // scoprire chi è cliente di Foodos provando indirizzi a caso.
+      setMsg(`Se ${resetEmail} ha un account, fra poco arriva il link per rifare la password. Controlla anche nello spam.`)
     } catch (err) {
-      setErrore(err.message || 'Errore nell\'invio del link')
+      // Anche in caso di errore vero (rete, limite del provider) non si
+      // racconta al visitatore cosa è successo dentro.
+      setMsg(`Se ${resetEmail} ha un account, fra poco arriva il link per rifare la password. Controlla anche nello spam.`)
+      if (import.meta.env?.DEV) console.warn('[reset password]', err?.message)
+      resetCaptcha()
     } finally { setLoading(false) }
   }
 
@@ -672,7 +656,7 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
     e.preventDefault(); clear()
     const c = checkPwd(newPwd)
     if (!Object.values(c).every(Boolean)) {
-      setErrore('La password non soddisfa tutti i requisiti di sicurezza'); return
+      setErrore('Alla password manca ancora qualcosa: guarda i pallini qui sotto.'); return
     }
     if (newPwd !== newPwdConf) { setErrore('Le password non coincidono'); return }
     setLoading(true)
@@ -682,7 +666,7 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
       setMsg('Password aggiornata! Puoi ora effettuare il login.')
       setMode('login')
     } catch (err) {
-      setErrore(err.message || 'Errore nell\'aggiornamento della password')
+      setErrore(messaggioPassword(err))
     } finally { setLoading(false) }
   }
 
@@ -697,7 +681,7 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
   }
 
   // Regole nome/cognome: solo lettere (anche accentate), apostrofi e spazi, niente cifre.
-  const NAME_RX = /^[A-Za-zÀ-ÖØ-öø-ÿ' \-]+$/
+  const NAME_RX = /^[A-Za-zÀ-ÖØ-öø-ÿ' -]+$/
   function isNomeValido(s) {
     const v = (s || '').trim()
     return v.length >= 3 && NAME_RX.test(v)
@@ -721,84 +705,33 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
     return !!(reg.nome_attivita.trim().length >= 2 && reg.citta.trim().length >= 2 && reg.tipo_attivita && reg.accept_terms)
   }
 
-  async function nextRegStep(e) {
+  // Il passo di verifica del telefono via SMS è stato tolto il 15/09/2026.
+  //
+  // Chiedeva a Supabase un accesso via codice SMS con l'opzione "non creare
+  // l'utente se non esiste". Ma in registrazione l'utente NON esiste ancora,
+  // per definizione: quindi la chiamata falliva sempre e il codice andava
+  // dritto al passo 2. Quel passo non poteva riuscire nemmeno una volta. In
+  // compenso faceva due cose che non doveva:
+  //
+  //   - diceva se un numero è già registrato. Se il numero apparteneva a un
+  //     utente, l'SMS partiva e compariva il campo del codice; se no, si
+  //     saltava al passo 2. Bastava guardare quale delle due schermate usciva
+  //     per sapere se una persona ha un account Foodos.
+  //   - faceva partire una richiesta SMS vera a ogni registrazione, con il
+  //     costo e i limiti che comporta.
+  //
+  // Il numero si continua a raccogliere e a salvare: serve per il riepilogo
+  // della sera su WhatsApp. Semplicemente non si finge di averlo verificato.
+  function nextRegStep(e) {
     e.preventDefault(); clear()
     if (!isNomeValido(reg.nome)) { setErrore('Il nome deve contenere almeno 3 lettere.'); return }
     if (!isCognomeValido(reg.cognome)) { setErrore('Il cognome deve contenere almeno 2 lettere.'); return }
     if (!isEmailValida(reg.email)) { setErrore('Inserisci un indirizzo email valido.'); return }
-    if (!isNumeroValido(reg.telefono)) { setErrore('Numero di telefono non valido (6-15 cifre).'); return }
+    if (!isNumeroValido(reg.telefono)) { setErrore('Il numero di telefono non sembra giusto: servono dalle 6 alle 15 cifre.'); return }
     if (!Object.values(checkPwd(reg.password)).every(Boolean)) {
-      setErrore('La password non soddisfa tutti i requisiti di sicurezza.'); return
+      setErrore('La password non ha ancora tutto quello che serve: guarda i pallini qui sotto.'); return
     }
-    if (!regStep1Valid()) {
-      setErrore('Compila tutti i campi e scegli una password sicura.'); return
-    }
-    // Tenta invio OTP SMS. Se il backend (Supabase Phone Auth) non è configurato,
-    // saltiamo la verifica e procediamo: il numero viene comunque salvato.
-    setLoading(true)
-    try {
-      const { error } = await supabase.auth.signInWithOtp({
-        phone: telefonoCompleto(),
-        options: { shouldCreateUser: false },
-      })
-      if (error) {
-        // Backend non configurato o numero non collegato a un user: skip verifica
-        setOtpSkipped(true)
-        setRegStep(2)
-      } else {
-        setOtpSent(true)
-        setRegStep(1.5)
-      }
-    } catch {
-      setOtpSkipped(true)
-      setRegStep(2)
-    } finally { setLoading(false) }
-  }
-
-  async function verificaOtp(e) {
-    e.preventDefault(); clear()
-    if (!/^[0-9]{6}$/.test(otpCode)) {
-      setErrore('Il codice deve essere di 6 cifre.'); return
-    }
-    setLoading(true)
-    try {
-      const { error } = await supabase.auth.verifyOtp({
-        phone: telefonoCompleto(),
-        token: otpCode,
-        type: 'sms',
-      })
-      if (error) throw error
-      // Verifica OK: sign out della sessione OTP per non interferire col signUp
-      // email+password. Se il signOut fallisce il signup successivo userebbe
-      // l'utente OTP (telefono-only) come parent - bloccato in fase di insert
-      // sui profili. Loggiamo + abortiamo invece di silenziare.
-      try {
-        const { error: outErr } = await supabase.auth.signOut()
-        if (outErr) throw outErr
-      } catch (e) {
-        console.error('[OTP signOut]', e?.message)
-        setErrore('Errore interno (logout sessione OTP). Ricarica la pagina e riprova.')
-        return
-      }
-      setOtpVerified(true)
-      setRegStep(2)
-    } catch (err) {
-      setErrore(err.message || 'Codice non valido o scaduto.')
-    } finally { setLoading(false) }
-  }
-
-  async function rinviaOtp() {
-    clear(); setLoading(true)
-    try {
-      const { error } = await supabase.auth.signInWithOtp({
-        phone: telefonoCompleto(),
-        options: { shouldCreateUser: false },
-      })
-      if (error) throw error
-      setMsg('Codice rinviato.')
-    } catch (err) {
-      setErrore(err.message || 'Errore nel rinvio.')
-    } finally { setLoading(false) }
+    setRegStep(2)
   }
 
   async function handleRegistrazione(e) {
@@ -819,19 +752,20 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
     try {
       const telNorm = telefonoCompleto()
 
-      await onSignUp(reg.email, reg.password, {
+      await onSignUp(reg.email, reg.password, captchaToken || undefined, {
         nome_completo: `${reg.nome.trim()} ${reg.cognome.trim()}`.trim(),
         nome_attivita: reg.nome_attivita,
         tipo_attivita: reg.tipo_attivita, // già uno slug stabile (vedi TIPI_ATTIVITA)
         citta: reg.citta,
         telefono: telNorm,
-        telefono_verificato: otpVerified,
+        telefono_verificato: false,
         ...(reg.codice_invito.trim() && { codice_invito: reg.codice_invito.trim() }),
       })
       setSuccesso(true)
     } catch (err) {
       if (err.message === 'EMAIL_ESISTENTE') setEmailEsistente(reg.email)
       else setErrore(err.message)
+      resetCaptcha()
     } finally { setLoading(false) }
   }
 
@@ -919,16 +853,14 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
                 color: T.ink, letterSpacing: '-0.025em',
                 margin: '0 0 6px',
               }}>
-                {mode === 'login' ? 'Accedi al tuo account' : (regStep === 1 ? 'Crea il tuo account' : regStep === 1.5 ? 'Verifica il telefono' : 'Parlaci della tua attività')}
+                {mode === 'login' ? 'Accedi al tuo account' : (regStep === 1 ? 'Crea il tuo account' : 'Parlaci della tua attività')}
               </h2>
               <p style={{ fontSize: 14, color: T.textMid, margin: 0, lineHeight: 1.55 }}>
                 {mode === 'login'
                   ? 'Inserisci email e password per continuare.'
                   : (regStep === 1
                     ? 'Bastano 30 secondi.'
-                    : regStep === 1.5
-                      ? `Inserisci il codice di 6 cifre inviato al ${reg.prefisso} ${reg.telefono}.`
-                      : "Ultimo passo per personalizzare la tua Foodos.")}
+                    : 'Ultimo passo, poi entri.')}
               </p>
             </div>
           )}
@@ -953,7 +885,8 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
                   onChange={e => setLoginPwd(e.target.value)}
                   placeholder="••••••••" autoComplete="current-password"/>
               </Field>
-              <PrimaryBtn disabled={loading || lockoutUntil > Date.now()}>
+              <Captcha />
+              <PrimaryBtn disabled={loading || !captchaPronto}>
                 {loading ? 'Accesso in corso…' : <>Accedi <Icon name="arrowR" size={15} color="#FFF"/></>}
               </PrimaryBtn>
 
@@ -977,8 +910,9 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
                   onChange={e => setResetEmail(e.target.value)}
                   placeholder="tua@email.com" autoComplete="email"/>
               </Field>
-              <PrimaryBtn disabled={loading}>
-                {loading ? 'Invio in corso…' : <>Invia link di reset <Icon name="arrowR" size={15} color="#FFF"/></>}
+              <Captcha />
+              <PrimaryBtn disabled={loading || !captchaPronto}>
+                {loading ? 'Invio in corso…' : <>Mandami il link <Icon name="arrowR" size={15} color="#FFF"/></>}
               </PrimaryBtn>
               <div style={{ textAlign: 'center', marginTop: 20 }}>
                 <button type="button"
@@ -1064,12 +998,6 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
                   <StepDot active={regStep === 1} done={regStep > 1}>1</StepDot>
                   <div style={{ flex: 1, height: 1.5, background: regStep > 1 ? T.ink : T.border, transition: 'background 0.3s' }}/>
-                  <StepDot active={regStep === 1.5} done={regStep > 1.5}>
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="6" y="3" width="12" height="18" rx="2.5"/><line x1="11" y1="18" x2="13" y2="18"/>
-                    </svg>
-                  </StepDot>
-                  <div style={{ flex: 1, height: 1.5, background: regStep > 1.5 ? T.ink : T.border, transition: 'background 0.3s' }}/>
                   <StepDot active={regStep === 2} done={false}>2</StepDot>
                 </div>
 
@@ -1099,7 +1027,7 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
                         onNumero={v => setReg(p => ({ ...p, telefono: v }))}
                       />
                       <div style={{ fontSize: 12, color: T.textSoft, marginTop: 6, lineHeight: 1.4 }}>
-                        Ti invieremo un codice SMS di conferma. Useremo il numero per notifiche e 2FA.
+                        Serve per il riepilogo della sera su WhatsApp e per ritrovarti se hai un problema. Non lo diamo a nessuno.
                       </div>
                     </Field>
                     <Field label="Password" htmlFor="reg-pwd">
@@ -1120,43 +1048,6 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
                       }}>
                         Accedi
                       </button>
-                    </div>
-                  </form>
-                )}
-
-                {regStep === 1.5 && (
-                  <form onSubmit={verificaOtp}>
-                    <Field label="Codice SMS" htmlFor="reg-otp"
-                      hint={<button type="button" onClick={rinviaOtp} disabled={loading}
-                        style={{ background: 'none', border: 'none', color: T.red, fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 0 }}>
-                        Rinvia codice
-                      </button>}>
-                      <Input id="reg-otp" icon="lock" type="text" inputMode="numeric" maxLength={6}
-                        required autoComplete="one-time-code"
-                        value={otpCode}
-                        onChange={e => setOtpCode(e.target.value.replace(/[^0-9]/g, ''))}
-                        placeholder="123456"/>
-                      <div style={{ fontSize: 12, color: T.textSoft, marginTop: 6, lineHeight: 1.4 }}>
-                        Non hai ricevuto l'SMS? Controlla il numero o riprova tra qualche secondo.
-                      </div>
-                    </Field>
-
-                    <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
-                      <button type="button" aria-label="Indietro" onClick={() => { setRegStep(1); clear(); setOtpCode(''); setOtpSent(false) }} style={{
-                        padding: '14px 18px', minHeight: 48,
-                        background: 'transparent', color: T.textMid,
-                        border: `1.5px solid ${T.border}`, borderRadius: 12,
-                        fontSize: 14, fontWeight: 600, cursor: 'pointer',
-                        fontFamily: SANS, display: 'flex', alignItems: 'center', gap: 6,
-                        flexShrink: 0,
-                      }}>
-                        <Icon name="arrowL" size={14} color={T.textMid}/>
-                      </button>
-                      <div style={{ flex: 1 }}>
-                        <PrimaryBtn disabled={loading || otpCode.length !== 6}>
-                          {loading ? 'Verifica…' : <>Verifica e continua <Icon name="arrowR" size={15} color="#FFF"/></>}
-                        </PrimaryBtn>
-                      </div>
                     </div>
                   </form>
                 )}
@@ -1217,9 +1108,11 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
                         <a href="/termini" target="_blank" rel="noreferrer" style={{ color: T.red, textDecoration: 'underline', fontWeight: 600 }}>Termini di servizio</a>
                         {' '}e la{' '}
                         <a href="/privacy" target="_blank" rel="noreferrer" style={{ color: T.red, textDecoration: 'underline', fontWeight: 600 }}>Privacy Policy</a>.
-                        Dichiaro di essere maggiorenne e di registrarmi per finalita' professionali (B2B).
+                        Dichiaro di essere maggiorenne e di registrarmi per finalità professionali (B2B).
                       </span>
                     </label>
+
+                    <Captcha style={{ marginTop: 14, marginBottom: 0 }} />
 
                     <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
                       <button type="button" aria-label="Indietro" onClick={() => { setRegStep(1); clear() }} style={{
@@ -1233,7 +1126,7 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
                         <Icon name="arrowL" size={14} color={T.textMid}/>
                       </button>
                       <div style={{ flex: 1 }}>
-                        <PrimaryBtn disabled={loading || !regStep2Valid()}>
+                        <PrimaryBtn disabled={loading || !regStep2Valid() || !captchaPronto}>
                           {loading ? 'Creazione account…' : <>Crea il mio account <Icon name="arrowR" size={15} color="#FFF"/></>}
                         </PrimaryBtn>
                       </div>

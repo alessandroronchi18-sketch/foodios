@@ -32,6 +32,15 @@ export default function SelezionaDipendente({ nomeLaboratorio, nomeSede, onSignO
         setError('Il codice deve essere di 4 cifre.')
       } else if (res.error === 'codice_non_valido') {
         setError('Codice non valido. Chiedi al titolare di verificare il tuo codice.')
+      } else if (res.error === 'troppi_tentativi') {
+        // Dopo qualche codice sbagliato si aspetta un po', e l'attesa cresce.
+        // Serve a rendere impossibile provare le diecimila combinazioni di un
+        // codice a 4 cifre; chi ha solo sbagliato a digitare aspetta tre
+        // secondi e non se ne accorge nemmeno.
+        const s = Math.max(1, Number(res.attesaSec) || 5)
+        setError(s < 60
+          ? `Aspetta ${s} second${s === 1 ? 'o' : 'i'} e riprova.`
+          : `Troppi codici sbagliati. Riprova fra ${Math.ceil(s / 60)} minut${Math.ceil(s / 60) === 1 ? 'o' : 'i'}, o chiedi al titolare.`)
       } else if (res.error === 'not_authenticated' || res.error === 'no_org') {
         setError('Sessione scaduta. Ricarica la pagina.')
       } else {

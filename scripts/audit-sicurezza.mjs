@@ -97,6 +97,23 @@ const controlli = [
     perche: 'chi la genera senza account non ha un azienda a cui legarla',
   },
   {
+    nome: 'il codice del dipendente non si prova all infinito',
+    sql: `select case when pg_get_functiondef(p.oid) ilike '%dipendente_codice_tentativi%'
+                  then 1 else 0 end
+          from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+          where n.nspname='public' and p.proname='dipendente_operativo_valida'`,
+    atteso: '1',
+    perche: 'quattro cifre sono diecimila combinazioni: senza attesa si prova a essere un collega',
+  },
+  {
+    nome: 'i tentativi sul codice dipendente non si leggono dal browser',
+    sql: `select count(*) from information_schema.role_table_grants
+          where grantee in ('anon','authenticated') and table_schema='public'
+            and table_name='dipendente_codice_tentativi'`,
+    atteso: '0',
+    perche: 'cancellando le righe si azzererebbe l attesa e si tornerebbe a provare in fretta',
+  },
+  {
     nome: 'i dati di lavoro non si scrivono senza essere loggati',
     sql: `select case when has_function_privilege('anon', 'public.fos_user_data_set_batch(jsonb,uuid)', 'EXECUTE') then 1 else 0 end`,
     atteso: '0',

@@ -107,7 +107,7 @@ export function DipendenteOperativoProvider({ userScope, enabled, children }) {
     if (!codice) return { ok: false, error: 'codice_mancante' }
     const { data, error } = await supabase.rpc('dipendente_operativo_valida', { p_codice: codice })
     if (error) return { ok: false, error: 'rpc_error', message: error.message }
-    if (!data?.ok) return { ok: false, error: data?.error || 'codice_non_valido' }
+    if (!data?.ok) return { ok: false, error: data?.error || 'codice_non_valido', attesaSec: data?.attesa_sec }
     const next = {
       id: data.id,
       nome: data.nome || '',

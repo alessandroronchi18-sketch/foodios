@@ -33,6 +33,10 @@ const AGGIORNA = process.argv.includes('--aggiorna')
 // I file che DEFINISCONO i token possono ovviamente contenere valori grezzi.
 const ESENTI = new Set([
   'src/lib/theme.js',
+  // La tavolozza delle pagine pubbliche (presentazione, accesso). È un file di
+  // token come theme.js: qui i colori esadecimali CI DEVONO stare, è il posto
+  // dove sono definiti una volta sola invece di essere copiati a mano.
+  'src/lib/temaPubblico.js',
   'src/lib/uiKit.js',
   'src/lib/icons.jsx',
   'src/styles/global.css',

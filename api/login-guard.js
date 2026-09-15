@@ -11,8 +11,29 @@ import { sanitizeStrict, validateEmail } from './lib/validate.js'
 //   2) DOPO signIn fallito → POST { action: 'fail', email }
 //   3) DOPO signIn riuscito → POST { action: 'success', email } (reset contatore)
 //
-// L'IP è loggato (per anomaly detection) ma non è la chiave di blocco — un attaccante
-// può ruotare IP, un utente legittimo non può ruotare email. Quindi blocchiamo l'email.
+// ── Perché si blocca su (email + IP) e non sull'email da sola ───────────────
+//
+// Fino al 15/09/2026 l'attesa si calcolava sull'EMAIL da sola. Il ragionamento
+// scritto qui sopra era: "un attaccante può ruotare IP, un utente legittimo non
+// può ruotare email, quindi blocchiamo l'email". Sembra giusto e invece apriva
+// un buco grosso: questo endpoint non ha autenticazione, e `fail` è una cosa
+// che **il client dichiara**. Chiunque conosca l'indirizzo email di un cliente
+// poteva mandare dieci POST da un terminale e lasciarlo fuori dal suo
+// gestionale per un quarto d'ora. Ripetendo la chiamata ogni tanto, per
+// sempre. Provato in produzione il 15/09: cinque curl senza nessuna
+// credenziale e la risposta a `check` diventa 423.
+//
+// La regola adesso: **l'attesa la paga chi sbaglia, non chi viene nominato**.
+// Il conteggio che BLOCCA è quello della coppia (email, IP): chi dichiara
+// fallimenti finti rallenta solo se stesso, e il vero titolare che entra dal
+// suo ufficio non se ne accorge nemmeno. Il conteggio per email rimane, ma
+// serve solo ad AVVISARE il titolare che qualcuno sta provando: informa, non
+// chiude.
+//
+// Contro un attacco distribuito, che gira gli IP per non pagare l'attesa, la
+// difesa non è questa: è il captcha (vedi VITE_TURNSTILE_SITE_KEY) e la
+// password lunga. Questo endpoint serve a rendere lenta la forza bruta banale
+// e a far sapere al titolare che sta succedendo.
 //
 // ── Attesa progressiva invece del muro ──────────────────────────────────────
 //
@@ -58,23 +79,34 @@ async function getSupabase() {
   return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
 }
 
-async function recentFails(supabase, email) {
+// Due conteggi diversi, con due scopi diversi:
+//   perIp   → quanti fallimenti ha collezionato QUESTO IP su QUESTA email.
+//             È il numero che decide l'attesa. Chi mente rallenta se stesso.
+//   perMail → quanti ne ha collezionati l'email da chiunque, per sapere se
+//             vale la pena avvisare il titolare. Non blocca niente.
+async function recentFails(supabase, email, ip) {
   const sinceIso = new Date(Date.now() - WINDOW_SEC * 1000).toISOString()
   try {
     const { data, error } = await supabase
       .from('login_attempts')
-      .select('created_at, success')
+      .select('created_at, success, ip')
       .eq('email', email)
       .gte('created_at', sinceIso)
       .order('created_at', { ascending: false })
-      .limit(20)
+      .limit(200)
     if (error) {
-      // Se tabella non esiste, fail-soft: niente blocco. La sicurezza extra è opt-in via SQL.
-      if (error.code === '42P01') return { rows: [], available: false }
-      return { rows: [], available: false }
+      // Tabella assente o query fallita: fail-soft, nessun blocco. Meglio un
+      // login non rallentato che un cliente chiuso fuori da un errore nostro.
+      return { perIp: [], perMail: [], available: false }
     }
-    return { rows: data || [], available: true }
-  } catch { return { rows: [], available: false } }
+    const righe = data || []
+    const falliti = righe.filter(r => r.success === false)
+    return {
+      perIp: ip ? falliti.filter(r => r.ip === ip) : falliti,
+      perMail: falliti,
+      available: true,
+    }
+  } catch { return { perIp: [], perMail: [], available: false } }
 }
 
 async function notifyTitolare(supabase, req, email, ip, ua) {
@@ -89,13 +121,14 @@ async function notifyTitolare(supabase, req, email, ip, ua) {
     if (!process.env.INTERNAL_API_SECRET) return // nessun secret = niente invio (evita spam)
 
     const messaggio = [
-      `Sono stati registrati ${SOGLIA_AVVISO} tentativi di accesso falliti per il tuo account.`,
-      `L'accesso non è bloccato, ma dopo ogni errore serve attendere qualche secondo in più.`,
+      `Negli ultimi minuti ci sono stati ${SOGLIA_AVVISO} tentativi di accesso sbagliati sul tuo account Foodos.`,
       ``,
-      `IP del tentativo: ${ip}`,
-      `Browser: ${(ua || '').slice(0, 120)}`,
+      `Se sei stato tu che non ricordavi la password, va tutto bene: non sei bloccato, al massimo dopo qualche errore serve aspettare qualche secondo prima di riprovare. Se non la ricordi, usa "Password dimenticata" nella pagina di accesso.`,
       ``,
-      `Se non sei stato tu, cambia subito la password.`,
+      `Se NON sei stato tu, cambia la password adesso: qualcuno sta provando a indovinarla.`,
+      ``,
+      `Da dove arrivavano i tentativi: ${ip}`,
+      `Con che programma: ${(ua || '').slice(0, 120)}`,
     ].join('\n')
 
     await fetch(new URL('/api/send-email', req.url).toString(), {
@@ -107,7 +140,7 @@ async function notifyTitolare(supabase, req, email, ip, ua) {
       body: JSON.stringify({
         tipo: 'custom',
         email: prof.email,
-        oggetto: ' FoodOS: tentativi di accesso falliti',
+        oggetto: 'Foodos: qualcuno ha provato a entrare nel tuo account',
         messaggio,
       }),
     })
@@ -138,30 +171,32 @@ export default async function handler(req) {
     return json({ error: 'action non valida' }, 400, req)
   }
 
-  const { rows, available } = await recentFails(supabase, email)
+  const { perIp, perMail, available } = await recentFails(supabase, email, ip)
   if (!available) return json({ allowed: true, available: false }, 200, req)
 
-  const fails = rows.filter(r => r.success === false)
-
   if (action === 'check') {
-    const attesa = attesaDopo(fails.length)
+    // L'attesa la decide quello che ha fatto QUESTO IP: chi dichiara
+    // fallimenti per conto di un altro rallenta solo se stesso.
+    const attesa = attesaDopo(perIp.length)
     if (attesa > 0) {
       // L'attesa si conta dal tentativo più RECENTE, non dal più vecchio:
       // altrimenti basterebbe aspettare che la finestra scivoli via per
       // ricominciare da capo ogni quarto d'ora.
-      const ultimo = new Date(fails[0].created_at).getTime()
+      const ultimo = new Date(perIp[0].created_at).getTime()
       const fine = ultimo + attesa * 1000
       const adesso = Date.now()
       if (adesso < fine) {
         return json({
           allowed: false,
           retryAfter: Math.ceil((fine - adesso) / 1000),
-          tentativiFalliti: fails.length,
           reason: 'attesa_progressiva',
         }, 423, req)
       }
     }
-    return json({ allowed: true, tentativiFalliti: fails.length }, 200, req)
+    // Non si restituisce più il conteggio: era un modo per chiedere a questo
+    // endpoint, senza nessuna credenziale, quanti errori di accesso ha
+    // collezionato l'indirizzo di un altro.
+    return json({ allowed: true }, 200, req)
   }
 
   if (action === 'success') {
@@ -180,7 +215,7 @@ export default async function handler(req) {
         email, success: false, ip, country, user_agent: ua.slice(0, 256),
       })
     } catch {}
-    const newFailCount = fails.length + 1
+    const newFailCount = perMail.length + 1
     // Soglia raggiunta → log + notifica. Non blocca: informa il titolare che
     // qualcuno sta provando, così può reagire se non è stato lui.
     if (newFailCount === SOGLIA_AVVISO) {
@@ -195,11 +230,9 @@ export default async function handler(req) {
       } catch {}
       notifyTitolare(supabase, req, email, ip, ua) // fire-and-forget
     }
-    return json({
-      ok: true,
-      fails_recenti: newFailCount,
-      attesaSec: attesaDopo(newFailCount),
-    }, 200, req)
+    // Anche qui: niente conteggi nella risposta. Al client serve solo sapere
+    // quanto deve aspettare LUI, e glielo dice `check`.
+    return json({ ok: true, attesaSec: attesaDopo(perIp.length + 1) }, 200, req)
   }
 
   return json({ error: 'action non gestita' }, 400, req)

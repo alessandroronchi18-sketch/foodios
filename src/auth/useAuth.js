@@ -216,18 +216,30 @@ export function useAuth() {
     }
   }
 
-  async function signIn(email, password) {
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+  // `captchaToken` arriva dal widget Turnstile quando è acceso (vedi
+  // src/auth/Captcha.jsx). Se il CAPTCHA non è configurato è `undefined` e
+  // Supabase ignora il campo: la chiamata resta identica a prima.
+  async function signIn(email, password, captchaToken) {
+    const { error } = await supabase.auth.signInWithPassword({
+      email, password,
+      ...(captchaToken ? { options: { captchaToken } } : {}),
+    })
     if (error) throw new Error(tradurciErrore(error.message))
   }
 
-  async function signUp(email, password, meta) {
+  async function signUp(email, password, captchaToken, meta) {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: meta,
-        emailRedirectTo: 'https://foodos-rose.vercel.app',
+        // Prima era inchiodato a https://foodos-rose.vercel.app. Il giorno che
+        // il prodotto risponde su un altro indirizzo — il dominio vero, un
+        // deploy di prova — il link di conferma dell'email porterebbe il
+        // cliente su un sito diverso da quello dove si è registrato. Si usa
+        // l'indirizzo da cui la pagina è stata aperta.
+        emailRedirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
+        ...(captchaToken ? { captchaToken } : {}),
       }
     })
     if (error) {

@@ -1,7 +1,7 @@
 {
   "src/App.jsx": {
-    "colore-a-mano": 46,
-    "testo-a-mano": 25
+    "colore-a-mano": 36,
+    "testo-a-mano": 21
   },
   "src/Dashboard.jsx": {
     "colore-a-mano": 147,
@@ -20,8 +20,8 @@
     "testo-a-mano": 42
   },
   "src/auth/AuthPage.jsx": {
-    "colore-a-mano": 18,
-    "testo-a-mano": 45
+    "colore-a-mano": 1,
+    "testo-a-mano": 41
   },
   "src/auth/SelezionaDipendente.jsx": {
     "colore-a-mano": 6,
@@ -50,10 +50,6 @@
   "src/components/AiExplainButton.jsx": {
     "colore-a-mano": 9,
     "testo-a-mano": 7
-  },
-  "src/components/AiPageHero.jsx": {
-    "colore-a-mano": 15,
-    "testo-a-mano": 2
   },
   "src/components/AppBanner.jsx": {
     "colore-a-mano": 12,
@@ -159,13 +155,9 @@
     "colore-a-mano": 46,
     "testo-a-mano": 33
   },
-  "src/components/ImpostazioniTv.jsx": {
-    "colore-a-mano": 25,
-    "testo-a-mano": 5
-  },
   "src/components/Integrazioni.jsx": {
     "colore-a-mano": 5,
-    "testo-a-mano": 45
+    "testo-a-mano": 39
   },
   "src/components/Logo.jsx": {
     "colore-a-mano": 5
@@ -288,16 +280,12 @@
     "colore-a-mano": 6,
     "testo-a-mano": 3
   },
-  "src/onboarding/OnboardingChat.jsx": {
-    "colore-a-mano": 12,
-    "testo-a-mano": 10
-  },
   "src/onboarding/OnboardingWizard.jsx": {
     "colore-a-mano": 80,
     "testo-a-mano": 37
   },
   "src/pages/LandingPage.jsx": {
-    "colore-a-mano": 21,
+    "colore-a-mano": 4,
     "testo-a-mano": 123
   },
   "src/pages/TvDashboard.jsx": {
@@ -392,8 +380,8 @@
     "testo-a-mano": 30
   },
   "src/views/RecensioniView.jsx": {
-    "colore-a-mano": 13,
-    "testo-a-mano": 12
+    "colore-a-mano": 5,
+    "testo-a-mano": 6
   },
   "src/views/RecipeInventorView.jsx": {
     "colore-a-mano": 12,
@@ -428,8 +416,7 @@
     "testo-a-mano": 61
   },
   "src/views/WhatsAppView.jsx": {
-    "colore-a-mano": 12,
-    "testo-a-mano": 11
+    "testo-a-mano": 1
   },
   "src/views/_shared.jsx": {
     "colore-a-mano": 17,

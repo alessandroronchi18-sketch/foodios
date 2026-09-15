@@ -2,33 +2,15 @@ import React, { useEffect, useRef, useState } from 'react'
 import Logo from '../components/Logo'
 import CatIcon from '../components/Icon'
 import usePlanPricing, { fmtPrezzo } from '../lib/usePlanPricing'
+import { temaPubblico, SERIF_PUBBLICO, SANS_PUBBLICO } from '../lib/temaPubblico'
 
 
 /* ────────────────────────────────────────────────────────────────────────────
    DESIGN TOKENS - warm italian premium
 ─────────────────────────────────────────────────────────────────────────── */
-const T = {
-  cream:      '#FBF8F4',
-  creamDeep:  '#F4ECE3',
-  paper:      '#FFFFFF',
-  ink:        '#0F0907',
-  inkSoft:    '#1A0F0D',
-  text:       '#0F0907',
-  textMid:    '#5C4842',
-  textSoft:   '#9C887F',
-  textOnDark: '#F4ECE3',
-  red:        '#6E0E1A',
-  redDeep:    '#8B2415',
-  redSoft:    '#FDF2EE',
-  green:      '#1F7A48',
-  greenSoft:  '#E8F4ED',
-  amber:      '#E6BD5A',
-  border:     '#EBE3DC',
-  borderSoft: '#F4ECE3',
-}
-
-const SERIF = "'Fraunces', 'Iowan Old Style', 'Apple Garamond', Georgia, serif"
-const SANS  = "'Inter', system-ui, -apple-system, sans-serif"
+const T = temaPubblico
+const SERIF = SERIF_PUBBLICO
+const SANS  = SANS_PUBBLICO
 
 /* ────────────────────────────────────────────────────────────────────────────
    HOOKS
