@@ -13,9 +13,23 @@ export default defineConfig({
     environment: 'node',
     include: ['tests/unit/**/*.test.{js,jsx}'],
     globals: true,
-    // singleThread per evitare race su coverage temp dir su macOS.
+    // I test girano in parallelo su tutti i core.
+    //
+    // Prima c'era `threads: { singleThread: true }`, messo per evitare una
+    // corsa sulla cartella temporanea del calcolo della COPERTURA su macOS. Ma
+    // la copertura si calcola solo con `npm run test:coverage`: nella suite
+    // normale quel vincolo non serviva, e teneva 2.531 test in fila su un core
+    // solo mentre gli altri tre stavano fermi.
+    //
+    // La sintassi era anche vecchia (Vitest 1.x): dalla 2 in poi si scrive
+    // sotto `poolOptions`, quindi quella riga non faceva nemmeno quello che
+    // diceva. Qui la forma è quella giusta, e il vincolo resta solo dove serve.
     pool: 'threads',
-    threads: { singleThread: true },
+    poolOptions: {
+      threads: {
+        singleThread: !!process.env.VITEST_COVERAGE,
+      },
+    },
     // Audit 2026-06-24: timeout esteso per i test dynamic-import (universal-
     // import-smoke, views-render-smoke, accessibility-axe) che caricano file
     // grandi (Dashboard 2900 righe, AdminPage 3300 righe) e in CI sotto carico
