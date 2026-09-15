@@ -70,17 +70,27 @@ describe('pagine nascoste', () => {
     for (const id of NASCOSTE) {
       expect(palette).not.toMatch(new RegExp(`view: '${id}'`))
     }
-    // E nemmeno dall'assistente. Dal 15/09 l'elenco dato al modello non e'
-    // piu' scritto dentro il prompt: si costruisce da `QUICK_NAV` filtrato
-    // per ruolo (`elencoViste`), quindi una pagina nascosta non puo' entrarci
-    // se non e' in QUICK_NAV — ed e' quello che controlla il ciclo qui sopra.
+    // E nemmeno dall'assistente. Dal 15/09/2026 non c'è più nessun elenco
+    // scritto a mano: sia la ricerca sia l'elenco dato al modello si
+    // costruiscono dal menu (src/lib/menuFoodos.js). Una pagina nascosta non
+    // può entrarci perché non è una voce di menu — è il controllo qui sotto,
+    // che guarda la sorgente vera invece del testo di questo file.
     expect(palette).toContain('View-id disponibili: ${elencoViste}')
-    // Resta un elenco scritto a mano: quello di riserva per il titolare.
-    // Se una pagina nascosta finisse li', il modello la proporrebbe.
-    const riserva = (palette.split('? QUICK_NAV.filter')[1] || '').split('.join(')[0]
-    expect(riserva.length).toBeGreaterThan(200)
+    expect(palette).not.toMatch(/const QUICK_NAV = \[/)
+  })
+
+  it('non stanno nel menu, quindi la ricerca non può trovarle', async () => {
+    const { costruisciMenu, vociMenu, cercaVoci } = await import('../../src/lib/menuFoodos')
+    const menu = costruisciMenu({ metodoInventario: true, sedeDiProduzione: true, piuSedi: true })
+    const raggiungibili = new Set(
+      vociMenu(menu, true).flatMap(v => [v.id, ...(v.schede || []).map(t => t.id)])
+    )
     for (const id of NASCOSTE) {
-      expect(riserva, `${id} e' ancora nell'elenco di riserva`).not.toContain(`'${id}'`)
+      expect(raggiungibili.has(id), `"${id}" è tornata nel menu`).toBe(false)
+      // E nemmeno cercandola per nome.
+      for (const v of cercaVoci(id, menu)) {
+        expect(v.id, `cercando "${id}" si arriva a una pagina nascosta`).not.toBe(id)
+      }
     }
   })
 

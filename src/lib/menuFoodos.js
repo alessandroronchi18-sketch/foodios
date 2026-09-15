@@ -101,55 +101,98 @@ export function costruisciMenu(ctx = {}) {
   const mostraQuadratura = (metodoInventario && sedeDiProduzione) || vistaCorrente === 'quadratura-inventario'
 
   const sezioni = [
+    // ─── 1. OGGI ────────────────────────────────────────────────────────
+    // Quello che si fa ogni mattina. È il 92% delle aperture di Mara, e qui
+    // **non cambia niente**: stessi nomi, stesso posto.
     { id: 'oggi', label: 'Oggi', icona: 'today', voci: [
       { id: vistaProduzione, label: 'Produzione', icona: 'cal', allarme: prodOggiMancante },
       { id: 'chiusura',   label: 'Cassa',      icona: 'creditCard', allarme: cassaMancante },
       { id: 'magazzino',  label: 'Magazzino',  icona: 'pkg', badge: scorteCritiche, allarme: scorteCritiche > 0 },
-      { id: 'calendario', label: 'Calendario', icona: 'cal' },
+      { id: 'calendario', label: 'Calendario e ordinazioni', icona: 'cal', labelBreve: 'Calendario',
+        sinonimi: ['eventi', 'ordinazioni', 'torte su ordinazione', 'prenotazioni'],
+        schede: [
+          { id: 'calendario', label: 'Calendario' },
+          { id: 'eventi',     label: 'Ordinazioni e eventi' },
+        ] },
     ] },
-    { id: 'ricette', label: 'Ricette & Menù', icona: 'chefHat', voci: [
-      { id: 'ricettario',       label: lex.Ricettario || 'Ricettario', icona: 'book' },
-      { id: 'semilavorati',     label: 'Semilavorati',        icona: 'layers' },
-      { id: 'nuova-ricetta',    label: lex.nuovaRicetta || 'Nuova ricetta', icona: 'pencil' },
-      { id: 'formati-vendita',  label: 'Formati di vendita',  icona: 'coins' },
+
+    // ─── 2. RICETTE E PREZZI ────────────────────────────────────────────
+    // Quello che decidi una volta e poi usi tutti i giorni.
+    { id: 'ricette', label: 'Ricette e prezzi', icona: 'chefHat', voci: [
+      { id: 'ricettario', label: lex.Ricettario || 'Ricettario', icona: 'book',
+        sinonimi: ['semilavorati', 'basi', 'nuova ricetta', 'nuovo gusto', 'ricette'],
+        schede: [
+          { id: 'ricettario',   label: lex.Prodotti || 'Prodotti' },
+          { id: 'semilavorati', label: 'Semilavorati' },
+        ] },
+      { id: 'formati-vendita', label: 'Pezzature e prezzi', icona: 'coins',
+        // «Formati di vendita» è una parola da gestionale: al banco si dice
+        // vaschetta, coppetta, teglia.
+        sinonimi: ['formati di vendita', 'formati', 'vaschette', 'listino'] },
+      { id: 'simulatore', label: 'Costo dei prodotti', icona: 'barChart', labelBreve: 'Costo prodotti',
+        sinonimi: ['food cost', 'foodcost', 'menu engineering', 'marginalità', 'quanto rende'],
+        schede: [
+          { id: 'simulatore',       label: 'Quanto costa' },
+          { id: 'menu-engineering', label: 'Quali rendono' },
+        ] },
     ] },
-    { id: 'acquisti', label: 'Acquisti & Fornitori', icona: 'shopping', voci: [
-      { id: 'sprechi-omaggi', label: 'Perdite & cessioni',   icona: 'sparkles', labelBreve: 'Perdite' },
-      { id: 'scadenzario',    label: 'Scadenzario fatture',  icona: 'fileText', labelBreve: 'Scadenzario' },
-      { id: 'fornitori',      label: 'Fornitori',            icona: 'truck' },
-      { id: 'importa-dati',   label: 'Importa dati',         icona: 'download' },
+
+    // ─── 3. FORNITORI E SPESE ───────────────────────────────────────────
+    // I soldi che escono. Quattro voci di menu stavano sopra le stesse
+    // fatture: da pagare, chi te le manda, cosa ordinare.
+    { id: 'acquisti', label: 'Fornitori e spese', icona: 'shopping', voci: [
+      { id: 'scadenzario', label: 'Fatture e fornitori', icona: 'fileText', labelBreve: 'Fatture',
+        sinonimi: ['scadenzario', 'fatture', 'fornitori', 'ordini', 'da pagare', 'scadenze'],
+        schede: [
+          { id: 'scadenzario', label: 'Da pagare' },
+          { id: 'fornitori',   label: 'Fornitori' },
+          { id: 'ordini-ai',   label: 'Cosa ordinare' },
+        ] },
+      { id: 'sprechi-omaggi', label: 'Sprechi e regali', icona: 'sparkles', labelBreve: 'Sprechi',
+        // «Cessione» non si dice al banco.
+        sinonimi: ['perdite', 'cessioni', 'omaggi', 'buttato', 'scarti'] },
     ] },
-    { id: 'numeri', label: 'Analisi & Numeri', icona: 'coins', voci: [
-      { id: 'pl',              label: 'Profitti (P&L)',        icona: 'trendUp', labelBreve: 'Profitti' },
-      { id: 'costi-aziendali', label: 'Costi aziendali',       icona: 'coins' },
-      { id: 'storico',         label: 'Storico produzione',    icona: 'activity', labelBreve: 'Storico' },
-      ...(mostraQuadratura ? [{ id: 'quadratura-inventario', label: 'Quadratura inventario', icona: 'check', labelBreve: 'Quadratura' }] : []),
-      { id: 'simulatore',      label: 'Food Cost simulatore',  icona: 'barChart', labelBreve: 'Food Cost' },
-      { id: 'previsione',      label: 'Previsione domanda',    icona: 'forecast', labelBreve: 'Previsione' },
+
+    // ─── 4. I CONTI ─────────────────────────────────────────────────────
+    // Come sta andando.
+    { id: 'numeri', label: 'I conti', icona: 'coins', voci: [
+      { id: 'pl', label: 'Conto del mese', icona: 'trendUp', labelBreve: 'Il conto',
+        // Accorpare P&L e Costi aziendali non è solo ordine: i costi fissi
+        // stanno in una pagina che nessuno collega al conto, e per il primo
+        // cliente quella tabella è **vuota** — il conto economico è per forza
+        // sbagliato e non se ne accorge nessuno.
+        sinonimi: ['p&l', 'pl', 'profitti', 'conto economico', 'costi aziendali', 'affitto', 'utenze'],
+        schede: [
+          { id: 'pl',              label: 'Il conto' },
+          { id: 'costi-aziendali', label: 'Spese fisse' },
+        ] },
+      { id: 'storico', label: 'Storico', icona: 'activity',
+        sinonimi: ['quadratura', 'inventario', 'torna il conto', 'storico produzione'],
+        schede: [
+          { id: 'storico', label: 'Produzione' },
+          ...(mostraQuadratura ? [{ id: 'quadratura-inventario', label: 'Torna il conto?' }] : []),
+        ] },
+      { id: 'previsione', label: 'Quanto venderò', icona: 'forecast',
+        sinonimi: ['previsione domanda', 'forecast', 'previsioni', 'quanto produco'] },
+      { id: 'vendite-b2b', label: 'Vendite all\'ingrosso', icona: 'building', labelBreve: 'Vendite ingrosso',
+        sinonimi: ['b2b', 'vendite b2b', 'clienti b2b', 'bar', 'ristoranti'] },
     ] },
-    { id: 'clienti', label: 'Vendite & Clienti', icona: 'users', voci: [
-      { id: 'vendite-b2b', label: 'Vendite B2B', icona: 'building' },
-      { id: 'eventi',      label: 'Eventi',      icona: 'cal' },
-      { id: 'recensioni',  label: 'Recensioni',  icona: 'sparkles' },
-    ] },
-    { id: 'team', label: 'Sedi & Team', icona: 'briefcase', voci: [
+
+    // ─── 5. IL NEGOZIO ──────────────────────────────────────────────────
+    // Le persone e i muri.
+    { id: 'team', label: 'Il negozio', icona: 'briefcase', voci: [
+      { id: 'personale', label: 'Personale e stipendi', icona: 'users', labelBreve: 'Personale',
+        sinonimi: ['dipendenti', 'turni', 'stipendi', 'paghe', 'orari'] },
+      { id: 'registro-attivita', label: 'Chi ha fatto cosa', icona: 'fileText', labelBreve: 'Chi ha fatto',
+        sinonimi: ['registro attività', 'log', 'modifiche', 'chi ha cambiato'] },
       ...(piuSedi ? [
-        { id: 'confronto-sedi', label: 'Confronto sedi',        icona: 'building' },
-        { id: 'trasferimenti',  label: 'Trasferimenti tra sedi', icona: 'truck', labelBreve: 'Trasferimenti' },
+        { id: 'confronto-sedi', label: 'Confronto tra negozi', icona: 'building', labelBreve: 'Confronto',
+          sinonimi: ['confronto sedi', 'sedi', 'negozi'] },
+        { id: 'trasferimenti',  label: 'Merce spostata tra negozi', icona: 'truck', labelBreve: 'Merce spostata',
+          sinonimi: ['trasferimenti', 'trasferimenti tra sedi', 'spostamenti', 'furgone'] },
       ] : []),
-      { id: 'personale',         label: 'Personale & stipendi', icona: 'users', labelBreve: 'Personale' },
-      { id: 'registro-attivita', label: 'Registro attività',    icona: 'fileText', labelBreve: 'Registro' },
-    ] },
-    { id: 'ai', label: 'AI', icona: 'sparkles', headerView: 'ai-hub', badge: azioniAperte, voci: [
-      { id: 'ai-hub',           label: 'Panoramica AI',        icona: 'sparkles' },
-      { id: 'ai-brain',         label: 'Foodos Brain (chat)',  icona: 'sparkles', badgeCatena: true, labelBreve: 'Foodos Brain' },
-      { id: 'forecast',         label: 'Forecast vendite 7gg', icona: 'forecast', labelBreve: 'Forecast' },
-      { id: 'cashflow',         label: 'Cashflow predittivo',  icona: 'trendUp', labelBreve: 'Cashflow' },
-      { id: 'menu-engineering', label: 'Menu engineering',     icona: 'barChart', labelBreve: 'Menu eng.' },
-      { id: 'ordini-ai',        label: 'Ordini AI consigliati', icona: 'truck', labelBreve: 'Ordini AI' },
-      { id: 'whatsapp',         label: 'WhatsApp Bot',         icona: 'bell', badgeCatena: true },
-      { id: 'documentary',      label: 'Documentary AI',       icona: 'barChart', badgeCatena: true },
-      { id: 'azioni',           label: 'Azioni consigliate',   icona: 'sparkles', badge: azioniAperte, labelBreve: 'Azioni' },
+      { id: 'recensioni', label: 'Rispondi alle recensioni', icona: 'sparkles', labelBreve: 'Recensioni',
+        sinonimi: ['recensioni', 'google', 'tripadvisor'] },
     ] },
   ]
 
@@ -160,30 +203,89 @@ export function costruisciMenu(ctx = {}) {
     .filter(s => s.voci.length > 0)
 }
 
-/** Le voci del menu in fila, senza le sezioni. */
-export function vociMenu(sezioni) {
-  return sezioni.flatMap(s => s.voci)
+// ─── Le pagine in fondo, senza sezione ──────────────────────────────────────
+//
+// Non sono una sezione: stanno sotto una riga, come "Impostazioni" in ogni
+// programma. Le si tiene qui perché anche loro hanno schede e sinonimi.
+export function vociInFondo() {
+  return [
+    { id: 'ai-brain', label: 'Chiedi a Foodos', icona: 'sparkles', labelBreve: 'Chiedi',
+      // Erano due chat separate, «Foodos Brain» e «Azioni consigliate», con
+      // 5 e 3 aperture in tre mesi su tutti i clienti. Sono la stessa cosa
+      // vista da due lati: una domanda e una lista di cose da fare.
+      sinonimi: ['foodos brain', 'brain', 'assistente', 'ai', 'azioni consigliate', 'chat'],
+      schede: [
+        { id: 'ai-brain', label: 'Chiedi' },
+        { id: 'azioni',   label: 'Cose da fare' },
+      ] },
+    { id: 'impostazioni', label: 'Impostazioni', icona: 'settings',
+      sinonimi: ['importa dati', 'importa', 'carica excel', 'sedi', 'sicurezza', 'abbonamento', 'integrazioni'] },
+    { id: 'changelog', label: 'Novità', icona: 'bell', sinonimi: ['novità', 'cosa è cambiato', 'aggiornamenti'] },
+  ]
 }
 
-/** Mappa `pagina → id della sezione`, per aprire il gruppo giusto. */
+/** Le voci del menu in fila, senza le sezioni (comprese quelle in fondo). */
+export function vociMenu(sezioni, conFondo = false) {
+  const v = sezioni.flatMap(s => s.voci)
+  return conFondo ? [...v, ...vociInFondo()] : v
+}
+
+// Tutte le pagine che una voce apre: se stessa, e le sue schede.
+function pagineDi(voce) {
+  const ids = new Set([voce.id])
+  for (const t of voce.schede || []) ids.add(t.id)
+  return [...ids]
+}
+
+/**
+ * Mappa `pagina → id della sezione`, per aprire il gruppo giusto.
+ * Le schede contano come la voce che le contiene: stando su «Spese fisse»,
+ * la sezione aperta dev'essere quella di «Conto del mese».
+ */
 export function sezionePerVista(sezioni) {
   const m = {}
-  for (const s of sezioni) for (const v of s.voci) m[v.id] = s.id
+  for (const s of sezioni) for (const v of s.voci) for (const id of pagineDi(v)) m[id] = s.id
   return m
 }
 
 /** Mappa `pagina → nome della sezione`, per la riga sopra il titolo. */
 export function gruppoPerVista(sezioni) {
   const m = {}
-  for (const s of sezioni) for (const v of s.voci) m[v.id] = s.label
+  for (const s of sezioni) for (const v of s.voci) for (const id of pagineDi(v)) m[id] = s.label
   return m
 }
 
-/** Mappa `pagina → etichetta della voce`, come si chiama nel menu. */
+/**
+ * Mappa `pagina → etichetta`. Per una scheda il nome è quello della scheda:
+ * stando su «Spese fisse» il titolo dice «Spese fisse», non «Conto del mese».
+ */
 export function etichettaPerVista(sezioni) {
   const m = {}
-  for (const s of sezioni) for (const v of s.voci) m[v.id] = v.label
+  for (const s of [...sezioni, { label: '', voci: vociInFondo() }]) {
+    for (const v of s.voci) {
+      m[v.id] = v.label
+      for (const t of v.schede || []) m[t.id] = t.label
+    }
+  }
   return m
+}
+
+/**
+ * La voce di menu che contiene questa pagina, con le sue schede. Serve al
+ * Dashboard per disegnare la striscia delle schede sopra la pagina.
+ *
+ * @returns {{voce: object, schede: Array, attiva: string}|null}
+ */
+export function schedeDiVista(vista, sezioni) {
+  for (const s of [...sezioni, { voci: vociInFondo() }]) {
+    for (const v of s.voci) {
+      if (!v.schede || v.schede.length < 2) continue
+      if (v.schede.some(t => t.id === vista)) {
+        return { voce: v, schede: v.schede, attiva: vista }
+      }
+    }
+  }
+  return null
 }
 
 // Le pagine che esistono ma non stanno nel menu: ci si arriva da un bottone,
@@ -192,17 +294,90 @@ export function etichettaPerVista(sezioni) {
 export const VISTE_FUORI_MENU = {
   home: { label: 'Dashboard', gruppo: '', labelBreve: 'Oggi' },
   'home-dipendente': { label: 'La tua giornata', gruppo: '' },
-  impostazioni: { label: 'Impostazioni', gruppo: '' },
-  changelog: { label: 'Novità', gruppo: '' },
-  integrazioni: { label: 'Integrazioni', gruppo: 'Impostazioni' },
-  'scheda-allergeni': { label: 'Scheda allergeni', gruppo: 'Ricette & Menù', labelBreve: 'Allergeni' },
-  menu: { label: 'Menù', gruppo: 'Ricette & Menù' },
-  haccp: { label: 'HACCP', gruppo: 'Sedi & Team' },
+  // «Nuova ricetta» non è più una voce di menu: è il bottone grande in cima
+  // al Ricettario. Era l'ottava pagina più aperta (63 volte), quindi il
+  // bottone dev'essere il primo che si vede, non nascosto in un sottomenu.
+  'nuova-ricetta': { label: 'Nuova ricetta', gruppo: 'Ricette e prezzi' },
+  // «Importa dati» è entrata in Impostazioni (11 aperture), e resta
+  // raggiungibile anche dal Magazzino e dai Primi passi.
+  'importa-dati': { label: 'Porta dentro i dati', gruppo: 'Impostazioni' },
+  integrazioni: { label: 'Collegamenti', gruppo: 'Impostazioni' },
+  'scheda-allergeni': { label: 'Scheda allergeni', gruppo: 'Ricette e prezzi', labelBreve: 'Allergeni' },
+  menu: { label: 'Menù', gruppo: 'Ricette e prezzi' },
+  haccp: { label: 'HACCP', gruppo: 'Il negozio' },
   'inventario-gusti': { label: 'Produzione', gruppo: 'Oggi' },
   giornaliero: { label: 'Produzione', gruppo: 'Oggi' },
-  'quadratura-inventario': { label: 'Quadratura inventario', gruppo: 'Analisi & Numeri', labelBreve: 'Quadratura' },
-  trasferimenti: { label: 'Trasferimenti tra sedi', gruppo: 'Sedi & Team' },
-  'confronto-sedi': { label: 'Confronto sedi', gruppo: 'Sedi & Team' },
+  'quadratura-inventario': { label: 'Torna il conto?', gruppo: 'I conti', labelBreve: 'Quadratura' },
+  // ── Pagine tolte dal menu il 15/09/2026 ──────────────────────────────────
+  //
+  // Restano nel codice e raggiungibili, ma non si offrono più: sono pagine
+  // che non possono funzionare, e una voce di menu che porta a una pagina
+  // vuota è peggio di una voce che non c'è.
+  //
+  //   • Previsione 7 giorni  — `forecast_giornaliero` ha ZERO righe su tutto
+  //     il database: si costruisce dal venduto per prodotto delle chiusure, e
+  //     nessun cliente ha quel dettaglio. 2 aperture in tre mesi.
+  //   • WhatsApp Bot         — il collegamento non è acceso. 1 apertura.
+  //   • Documentary AI       — nessun dato per nessuno. 1 apertura.
+  //   • Panoramica AI        — era l'indice di una sezione che non c'è più.
+  //   • Marketplace          — non raggiungibile nemmeno prima.
+  forecast: { label: 'Previsione 7 giorni', gruppo: 'I conti', ritirata: true },
+  whatsapp: { label: 'WhatsApp', gruppo: '', ritirata: true },
+  documentary: { label: 'Fotografia del mese', gruppo: '', ritirata: true },
+  'ai-hub': { label: 'Panoramica assistente', gruppo: '', ritirata: true },
+  marketplace: { label: 'Marketplace', gruppo: '', ritirata: true },
+  reformulation: { label: 'Ottimizza ricette', gruppo: 'Ricette e prezzi', ritirata: true },
+  'competitor-pricing': { label: 'Prezzi dei concorrenti', gruppo: 'I conti', ritirata: true },
+  'ricette-ai': { label: 'Inventa ricette', gruppo: 'Ricette e prezzi', ritirata: true },
+  cashflow: { label: 'Soldi in cassa nei prossimi giorni', gruppo: 'I conti', ritirata: true },
+}
+
+// ─── Dove si trova adesso una pagina che si è spostata ─────────────────────
+//
+// Per sessanta giorni dalla riorganizzazione, chi apre una pagina accorpata
+// legge una riga che dice dov'è finita. Una volta per pagina, poi sparisce.
+//
+// Mara dei Boschi ci lavora tutti i giorni: cambiarle il menu senza dirglielo
+// è il modo per farle perdere dieci minuti a cercare una cosa che sa fare a
+// occhi chiusi.
+export const DATA_RIORGANIZZAZIONE = '2026-09-15'
+export const GIORNI_AVVISO_SPOSTAMENTO = 60
+
+export const SPOSTAMENTI = {
+  'nuova-ricetta':   'Adesso è il bottone «Nuova ricetta» in cima al Ricettario.',
+  semilavorati:      'Adesso è una scheda del Ricettario.',
+  eventi:            'Adesso è una scheda di «Calendario e ordinazioni».',
+  'costi-aziendali': 'Adesso è la scheda «Spese fisse» dentro «Conto del mese».',
+  pl:                'Adesso si chiama «Conto del mese», e contiene anche le spese fisse.',
+  fornitori:         'Adesso è una scheda di «Fatture e fornitori».',
+  scadenzario:       'Adesso si chiama «Fatture e fornitori» e contiene anche i fornitori.',
+  'menu-engineering':'Adesso è la scheda «Quali rendono» dentro «Costo dei prodotti».',
+  simulatore:        'Adesso si chiama «Costo dei prodotti».',
+  'formati-vendita': 'Adesso si chiama «Pezzature e prezzi».',
+  'quadratura-inventario': 'Adesso è una scheda dello Storico.',
+  'sprechi-omaggi':  'Adesso si chiama «Sprechi e regali».',
+  'vendite-b2b':     'Adesso si chiama «Vendite all\'ingrosso».',
+  'registro-attivita': 'Adesso si chiama «Chi ha fatto cosa».',
+  trasferimenti:     'Adesso si chiama «Merce spostata tra negozi».',
+  'confronto-sedi':  'Adesso si chiama «Confronto tra negozi».',
+  'importa-dati':    'Adesso si trova dentro Impostazioni.',
+  'ordini-ai':       'Adesso è la scheda «Cosa ordinare» dentro «Fatture e fornitori».',
+  azioni:            'Adesso è la scheda «Cose da fare» dentro «Chiedi a Foodos».',
+  'ai-brain':        'Adesso si chiama «Chiedi a Foodos» e contiene anche le cose da fare.',
+  previsione:        'Adesso si chiama «Quanto venderò».',
+}
+
+/**
+ * La riga da mostrare in cima a una pagina che si è spostata, o null.
+ * Passata la finestra dei sessanta giorni non compare più per nessuno.
+ */
+export function avvisoSpostamento(vista, oggi = new Date()) {
+  const testo = SPOSTAMENTI[vista]
+  if (!testo) return null
+  const fine = new Date(DATA_RIORGANIZZAZIONE)
+  fine.setDate(fine.getDate() + GIORNI_AVVISO_SPOSTAMENTO)
+  if (oggi > fine) return null
+  return testo
 }
 
 /**
@@ -230,8 +405,13 @@ export function descriviVista(vista, sezioni) {
  * il menu diceva «Forecast vendite 7gg».
  */
 export function etichettaBreve(vista, sezioni) {
-  for (const s of sezioni) {
-    for (const v of s.voci) if (v.id === vista) return v.labelBreve || v.label
+  // Anche le voci in fondo (l'assistente, le impostazioni, le novità) e le
+  // schede: la barra stretta del telefono le apre come tutte le altre.
+  for (const s of [...sezioni, { voci: vociInFondo() }]) {
+    for (const v of s.voci) {
+      if (v.id === vista) return v.labelBreve || v.label
+      for (const t of v.schede || []) if (t.id === vista) return t.label
+    }
   }
   const fuori = VISTE_FUORI_MENU[vista]
   return fuori?.labelBreve || fuori?.label || null
@@ -243,6 +423,43 @@ export function etichettaBreve(vista, sezioni) {
  */
 export function menuTelefono(sezioni) {
   const oggi = sezioni.find(s => s.id === 'oggi')
-  const voci = (oggi?.voci || []).slice(0, 4)
+  // La barra in basso è larga un quinto di schermo per voce: si usa il nome
+  // corto. «Calendario e ordinazioni» non ci sta, «Calendario» sì.
+  const voci = (oggi?.voci || []).slice(0, 4).map(v => ({ ...v, label: v.labelBreve || v.label }))
   return [...voci, { id: '__altro', label: 'Altro', icona: 'menu' }]
+}
+
+/**
+ * Cerca una pagina per nome, per nome vecchio o per una parola che ci
+ * assomiglia.
+ *
+ * La ricerca guardava solo l'etichetta e l'identificativo. Dopo una
+ * riorganizzazione che cambia dodici nomi, chi cerca «scadenzario» o «p&l» —
+ * cioè come si chiamavano fino a ieri — non trovava più niente. I `sinonimi`
+ * di ogni voce contengono apposta i nomi vecchi.
+ *
+ * @returns {Array} le voci che corrispondono, con `scheda` valorizzata
+ *                  quando la corrispondenza è su una scheda interna.
+ */
+export function cercaVoci(query, sezioni, { conFondo = true } = {}) {
+  const q = String(query || '').toLowerCase().trim()
+  if (!q) return []
+  const esiti = []
+  const visti = new Set()
+  for (const v of vociMenu(sezioni, conFondo)) {
+    const campi = [v.label, v.id, v.labelBreve, ...(v.sinonimi || [])]
+    if (campi.some(c => String(c || '').toLowerCase().includes(q))) {
+      if (!visti.has(v.id)) { visti.add(v.id); esiti.push(v) }
+      continue
+    }
+    // Una scheda che corrisponde apre direttamente quella scheda.
+    for (const t of v.schede || []) {
+      if (![t.label, t.id].some(c => String(c || '').toLowerCase().includes(q))) continue
+      if (visti.has(t.id)) continue
+      visti.add(t.id)
+      esiti.push({ ...v, id: t.id, label: t.label, dentro: v.label })
+      break
+    }
+  }
+  return esiti
 }

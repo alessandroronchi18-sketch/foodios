@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { color as T } from '../lib/theme'
 import { callAi } from '../lib/aiClient'
 import Icon from './Icon'
+import { costruisciMenu, cercaVoci, vociMenu } from '../lib/menuFoodos'
 
 // Command Palette (Cmd+K / Ctrl+K) - search globale con intent parser AI.
 //
@@ -26,23 +27,18 @@ const BORDER = T.border || '#E5E9EF'
 // Le pagine nascoste (PAGINE_NASCOSTE in Dashboard.jsx) non vanno elencate qui:
 // la ricerca le troverebbe e il click aprirebbe uno schermo bianco. L'HACCP e'
 // uscito il 14/09/2026 per questo motivo.
-const QUICK_NAV = [
-  { keys: ['food cost', 'foodcost', 'fc', 'profitti', 'p&l', 'pl'], view: 'pl', label: 'Profitti (P&L)' },
-  { keys: ['ricettario', 'ricette', 'ricetta'], view: 'ricettario', label: 'Ricettario' },
-  { keys: ['produzione', 'produrre', 'prod'], view: 'giornaliero', label: 'Produzione' },
-  { keys: ['cassa', 'chiusura', 'incasso', 'scontrino', 'scontrini'], view: 'chiusura', label: 'Chiusura cassa' },
-  { keys: ['magazzino', 'scorta', 'scorte', 'ingredienti'], view: 'magazzino', label: 'Magazzino' },
-  { keys: ['scadenzario', 'fatture', 'fornitore', 'fornitori'], view: 'scadenzario', label: 'Scadenzario fornitori' },
-  { keys: ['personale', 'dipendenti', 'turni', 'stipendi'], view: 'personale', label: 'Personale' },
-  { keys: ['sprechi', 'omaggi', 'spreco'], view: 'sprechi-omaggi', label: 'Sprechi e omaggi' },
-  { keys: ['storico', 'archivio'], view: 'storico', label: 'Storico produzione' },
-  { keys: ['confronto', 'sedi', 'confronto sedi'], view: 'confronto-sedi', label: 'Confronto sedi' },
-  { keys: ['trasferimenti', 'trasferimento', 'spostare'], view: 'trasferimenti', label: 'Trasferimenti sedi' },
-  { keys: ['costi azienda', 'costi aziendali', 'consumabili', 'utenze'], view: 'costi-aziendali', label: 'Costi aziendali' },
-  { keys: ['impostazioni', 'configurazione', 'config'], view: 'impostazioni', label: 'Impostazioni' },
-  { keys: ['novita', 'changelog', 'nuove'], view: 'changelog', label: 'Novità' },
-  { keys: ['home', 'dashboard', 'inizio'], view: 'home', label: 'Home' },
-]
+// L'elenco delle pagine viene da src/lib/menuFoodos.js, lo stesso del menu.
+//
+// Prima era scritto qui a mano — ottava copia della stessa informazione — e
+// dopo la riorganizzazione del 15/09/2026 sarebbe rimasto coi nomi vecchi:
+// la ricerca rapida avrebbe offerto «Profitti (P&L)» e «Scadenzario
+// fornitori», pagine che si chiamano in un altro modo.
+//
+// I nomi vecchi restano cercabili lo stesso: stanno nei `sinonimi` di ogni
+// voce, che è dove devono stare.
+const MENU_COMPLETO = costruisciMenu({
+  metodoInventario: true, sedeDiProduzione: true, piuSedi: true,
+})
 
 // `permesse` = insieme delle pagine che questo utente puo' aprire, oppure null
 // per il titolare (tutte). Senza questo filtro un dipendente scriveva
@@ -51,14 +47,10 @@ const QUICK_NAV = [
 // c'era, e vedere il nome di una pagina che non dovresti avere e' già un
 // pezzo di informazione che non ti spetta.
 function quickMatch(q, permesse) {
-  if (!q) return []
-  const qLow = q.toLowerCase().trim()
-  const hits = []
-  for (const item of QUICK_NAV) {
-    if (permesse && !permesse.has(item.view)) continue
-    if (item.keys.some(k => qLow.includes(k))) hits.push(item)
-  }
-  return hits.slice(0, 5)
+  return cercaVoci(q, MENU_COMPLETO)
+    .filter(v => !permesse || permesse.has(v.id))
+    .map(v => ({ view: v.id, label: v.label, dentro: v.dentro }))
+    .slice(0, 5)
 }
 
 export default function CommandPalette({ open, onClose, onNavigate, orgId, vistePermesse = null }) {
@@ -103,14 +95,13 @@ export default function CommandPalette({ open, onClose, onNavigate, orgId, viste
       // dipendente si elencano anche P&L e Personale, prima o poi gliele
       // propone — e il solo vederle nominate dice che esistono e che lui non
       // le ha.
-      const elencoViste = (vistePermesse
-        ? QUICK_NAV.filter(i => vistePermesse.has(i.view)).map(i => i.view)
-        : ['home', 'ricettario', 'semilavorati', 'nuova-ricetta', 'pl', 'simulatore',
-           'costi-aziendali', 'storico', 'previsione', 'giornaliero', 'chiusura',
-           'magazzino', 'scadenzario', 'sprechi-omaggi', 'fornitori', 'vendite-b2b',
-           'importa-dati', 'personale', 'registro-attivita', 'confronto-sedi',
-           'trasferimenti', 'impostazioni', 'changelog']
-      ).join(', ')
+      // Anche l'elenco per l'assistente viene dal menu: era una nona copia
+      // scritta a mano, e nominava pagine che nel frattempo si erano spostate.
+      const tutteLeViste = vociMenu(MENU_COMPLETO, true)
+        .flatMap(v => [v.id, ...(v.schede || []).map(t => t.id)])
+      const elencoViste = ['home', ...new Set(tutteLeViste)]
+        .filter(id => !vistePermesse || vistePermesse.has(id))
+        .join(', ')
 
       const system = `Sei un assistente per chi lavora in una pasticceria/gelateria
 italiana e usa Foodos. Riceverai una domanda libera dell'utente.
@@ -211,7 +202,11 @@ Massimo 60 parole.`
                 }}
                 onMouseEnter={e => e.currentTarget.style.background = '#F8FAFC'}
                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                <Icon name="chevR" size={12} color={SOFT} /> {h.label}
+                <Icon name="chevR" size={12} color={SOFT} />
+                <span>{h.label}</span>
+                {/* Se la pagina è una scheda dentro un'altra, si dice dove:
+                    «Spese fisse» da solo non fa capire che sta nel conto. */}
+                {h.dentro && <span style={{ color: SOFT }}>in «{h.dentro}»</span>}
               </button>
             ))}
           </div>

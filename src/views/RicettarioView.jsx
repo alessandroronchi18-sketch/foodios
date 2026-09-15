@@ -812,7 +812,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
 }
 
 // ─── RicettarioView ──────────────────────────────────────────────────────────
-export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, onEditRicetta, orgId, sedi = [], sedeAttiva = null, notify = null, LEX = lessico(), metodoProduzione = 'stampi' }) {
+export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, onEditRicetta, onNuovaRicetta, orgId, sedi = [], sedeAttiva = null, notify = null, LEX = lessico(), metodoProduzione = 'stampi' }) {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario])
@@ -912,6 +912,24 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
     </label>
   )
 
+  // «Nuova ricetta» era una voce di menu a sé, l'ottava pagina più aperta del
+  // programma (63 volte in tre mesi). Con la riorganizzazione del 15/09/2026
+  // è diventata un bottone qui: dev'essere il primo che si vede, non una cosa
+  // da cercare. Accanto al bottone che carica il file, non al posto suo.
+  const nuovaBtn = onNuovaRicetta && (
+    <button onClick={() => onNuovaRicetta()}
+      style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 16px',
+        background: T.bgCard, border: `1.5px solid ${T.brand}`, borderRadius: R.md, cursor: 'pointer',
+        fontWeight: 700, color: T.brand,
+        whiteSpace: 'nowrap', alignSelf: isMobile ? 'stretch' : 'auto', flexShrink: 0, fontFamily: 'inherit',
+        minHeight: 44 }}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+        <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+      </svg>
+      {LEX.nuovaRicetta || 'Nuova ricetta'}
+    </button>
+  )
+
   return (
     <div onContextMenu={e => e.preventDefault()} onDragStart={e => e.preventDefault()}
       style={{ maxWidth: 1200, margin: '0 auto', userSelect: 'none' }}>
@@ -924,7 +942,10 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
                 : LEX.nessunaRicetta}
             </div>
           </div>
-          {aggiornaBtn}
+          <div style={{ display: 'flex', gap: 10, flexDirection: isMobile ? 'column' : 'row', alignItems: 'stretch' }}>
+            {nuovaBtn}
+            {aggiornaBtn}
+          </div>
         </div>
 
         {ricette.length > 0 && (() => {

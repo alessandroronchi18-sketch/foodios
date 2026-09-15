@@ -103,19 +103,23 @@ afterEach(() => cleanup())
 describe('la barra in alto del computer', () => {
   // Sul computer c'è solo la barra in alto: i nomi delle sezioni sempre
   // visibili, le voci dentro un menu che si apre passandoci sopra.
-  it('mostra i titoli delle sette sezioni', async () => {
+  it('mostra i titoli delle cinque sezioni', async () => {
     const { container } = await monta()
     const tutti = testi(container)
-    for (const sez of ['Oggi', 'Ricette & Menù', 'Acquisti & Fornitori',
-                       'Analisi & Numeri', 'Vendite & Clienti', 'Sedi & Team']) {
+    for (const sez of ['Oggi', 'Ricette e prezzi', 'Fornitori e spese',
+                       'I conti', 'Il negozio']) {
       expect(tutti.some(t => t === sez), `manca la sezione "${sez}"`).toBe(true)
     }
   })
 
   it('al dipendente mostra solo le sezioni che gli restano', async () => {
+    // Al dipendente restano: le quattro cose di «Oggi», gli sprechi, e la
+    // merce che arriva dalle altre sedi (decisione del titolare, 15/09/2026:
+    // è lui che scarica il furgone). Niente conti, niente ricette, niente
+    // prezzi.
     const { container } = await monta({ auth: { user: { id: 'd', email: 'dip@x.it' }, ruolo: 'dipendente' } })
     const tutti = testi(container)
-    for (const sez of ['Analisi & Numeri', 'AI', 'Vendite & Clienti', 'Ricette & Menù']) {
+    for (const sez of ['I conti', 'Ricette e prezzi']) {
       expect(tutti.some(t => t === sez), `il dipendente vede la sezione "${sez}"`).toBe(false)
     }
     expect(tutti.some(t => t === 'Oggi'), 'al dipendente manca perfino "Oggi"').toBe(true)
@@ -154,18 +158,18 @@ describe('la barra laterale del telefono', () => {
 
   it('con due sedi attive compaiono Confronto sedi e Trasferimenti', async () => {
     const { container } = await sulTelefono()
-    apriGruppo(container, 'Sedi & Team')
+    apriGruppo(container, 'Il negozio')
     const tutti = testi(container)
-    expect(tutti.some(t => t === 'Confronto sedi')).toBe(true)
-    expect(tutti.some(t => t === 'Trasferimenti tra sedi')).toBe(true)
+    expect(tutti.some(t => t === 'Confronto tra negozi')).toBe(true)
+    expect(tutti.some(t => t === 'Merce spostata tra negozi')).toBe(true)
   })
 
   it('con una sola sede quelle due voci non ci sono', async () => {
     const { container } = await sulTelefono({ sedi: [SEDI[0]], sedeAttiva: SEDI[0] })
-    apriGruppo(container, 'Sedi & Team')
+    apriGruppo(container, 'Il negozio')
     const tutti = testi(container)
-    expect(tutti.some(t => t === 'Confronto sedi')).toBe(false)
-    expect(tutti.some(t => t === 'Trasferimenti tra sedi')).toBe(false)
+    expect(tutti.some(t => t === 'Confronto tra negozi')).toBe(false)
+    expect(tutti.some(t => t === 'Merce spostata tra negozi')).toBe(false)
   })
 
   it('con una sede archiviata è come averne una sola', async () => {
@@ -173,8 +177,8 @@ describe('la barra laterale del telefono', () => {
     // solo le attive, e la voce compariva in una e non nell'altra.
     const archiviata = [{ ...SEDI[0] }, { ...SEDI[1], attiva: false }]
     const { container } = await sulTelefono({ sedi: archiviata })
-    apriGruppo(container, 'Sedi & Team')
-    expect(testi(container).some(t => t === 'Trasferimenti tra sedi')).toBe(false)
+    apriGruppo(container, 'Il negozio')
+    expect(testi(container).some(t => t === 'Merce spostata tra negozi')).toBe(false)
   })
 })
 
@@ -185,10 +189,10 @@ describe('il dipendente vede solo le sue pagine, anche a schermo', () => {
   it('nessuna voce di soldi o di persone compare da nessuna parte', async () => {
     const { container } = await sulTelefono(dip)
     const tutti = testi(container)
-    for (const vietata of ['Profitti (P&L)', 'Costi aziendali', 'Personale & stipendi',
-                           'Fornitori', 'Scadenzario fatture', 'Vendite B2B',
-                           'Food Cost simulatore', 'Confronto sedi', 'Registro attività',
-                           'Foodos Brain (chat)', 'Cashflow predittivo', 'Importa dati']) {
+    for (const vietata of ['Conto del mese', 'Personale e stipendi',
+                           'Fatture e fornitori', 'Vendite all\'ingrosso',
+                           'Costo dei prodotti', 'Confronto tra negozi', 'Chi ha fatto cosa',
+                           'Chiedi a Foodos', 'Pezzature e prezzi']) {
       expect(tutti.some(t => t === vietata), `il dipendente vede "${vietata}"`).toBe(false)
     }
   })
@@ -204,7 +208,7 @@ describe('il dipendente vede solo le sue pagine, anche a schermo', () => {
   it('una sezione con una voce sola non mostra il titolo', async () => {
     // Leggeva «Acquisti & Fornitori» e sotto trovava una riga.
     const { container } = await sulTelefono(dip)
-    expect(testi(container).some(t => t === 'Acquisti & Fornitori')).toBe(false)
+    expect(testi(container).some(t => t === 'Fornitori e spese')).toBe(false)
   })
 })
 
@@ -232,13 +236,13 @@ describe('i gruppi della barra laterale si aprono e si chiudono', () => {
     const cassetto = container.querySelector('.fos-drawer-shell')
     const voci = [...cassetto.querySelectorAll('button')].map(b => (b.textContent || '').trim())
     // Aperte: si vedono le voci dentro.
-    expect(voci).toContain('Cassa')            // Oggi
-    expect(voci).toContain('Semilavorati')     // Ricette & Menù
+    expect(voci).toContain('Cassa')                  // Oggi
+    expect(voci).toContain('Pezzature e prezzi')     // Ricette e prezzi
     // Chiuse: si vede solo il titolo.
-    expect(voci).toContain('Analisi & Numeri')
-    expect(voci).not.toContain('Profitti (P&L)')
-    expect(voci).toContain('Acquisti & Fornitori')
-    expect(voci).not.toContain('Fornitori')
+    expect(voci).toContain('I conti')
+    expect(voci).not.toContain('Conto del mese')
+    expect(voci).toContain('Fornitori e spese')
+    expect(voci).not.toContain('Fatture e fornitori')
   })
 
   it('le chiavi di partenza sono quelle delle sezioni vere', async () => {

@@ -23,6 +23,7 @@ import { join } from 'node:path'
 import {
   costruisciMenu, vociMenu, sezionePerVista, gruppoPerVista, etichettaPerVista,
   descriviVista, menuTelefono, etichettaBreve, VISTE_DIPENDENTE, VISTE_FUORI_MENU,
+  vociInFondo, schedeDiVista, cercaVoci, avvisoSpostamento, SPOSTAMENTI,
 } from '../../src/lib/menuFoodos'
 
 const RADICE = join(import.meta.dirname, '../..')
@@ -36,9 +37,13 @@ const pieno = () => costruisciMenu({
 })
 
 describe('la forma del menu', () => {
-  it('ha sette sezioni, ognuna con un nome e almeno una voce', () => {
+  it('ha cinque sezioni, ognuna con un nome e almeno una voce', () => {
+    // Riorganizzazione del 15/09/2026, decisa dal titolare sui dati d'uso:
+    // da sette sezioni a cinque, per momento della giornata invece che per
+    // come è fatto il software. La sezione "AI" da sola aveva tredici voci e
+    // trentacinque aperture in tre mesi su tutti i clienti.
     const s = pieno()
-    expect(s.map(x => x.id)).toEqual(['oggi', 'ricette', 'acquisti', 'numeri', 'clienti', 'team', 'ai'])
+    expect(s.map(x => x.id)).toEqual(['oggi', 'ricette', 'acquisti', 'numeri', 'team'])
     for (const sec of s) {
       expect(typeof sec.label, sec.id).toBe('string')
       expect(sec.label.length, sec.id).toBeGreaterThanOrEqual(2)
@@ -116,7 +121,9 @@ describe('«Produzione» apre una pagina sola', () => {
 
 describe('le voci che compaiono solo a certe condizioni', () => {
   it('Quadratura inventario c\'è solo nel mondo a inventario', () => {
-    const ha = (ctx) => vociMenu(costruisciMenu(ctx)).some(v => v.id === 'quadratura-inventario')
+    // Ora è una scheda dello Storico, non una voce a sé.
+    const ha = (ctx) => vociMenu(costruisciMenu(ctx))
+      .some(v => (v.schede || []).some(t => t.id === 'quadratura-inventario'))
     expect(ha({ metodoInventario: true, sedeDiProduzione: true })).toBe(true)
     expect(ha({ metodoInventario: false, sedeDiProduzione: true })).toBe(false)
     expect(ha({ metodoInventario: true, sedeDiProduzione: false })).toBe(false)
@@ -156,8 +163,10 @@ describe('il dipendente vede solo le sue pagine', () => {
   })
 
   it('il titolare invece le vede tutte', () => {
-    const tutte = new Set(vociMenu(pieno()).map(v => v.id))
-    for (const v of ['pl', 'personale', 'fornitori', 'ai-brain']) expect(tutte.has(v), v).toBe(true)
+    const s = pieno()
+    const tutte = new Set(vociMenu(s, true).flatMap(v => [v.id, ...(v.schede || []).map(t => t.id)]))
+    for (const v of ['pl', 'costi-aziendali', 'personale', 'fornitori', 'scadenzario', 'ai-brain', 'azioni'])
+      expect(tutte.has(v), v).toBe(true)
   })
 })
 
@@ -168,7 +177,18 @@ describe('le mappe si ricavano dal menu, non si riscrivono', () => {
     for (const v of vociMenu(s)) {
       expect(perSez[v.id], v.id).toBeTruthy()
       expect(perGruppo[v.id], v.id).toBeTruthy()
-      expect(perEtichetta[v.id], v.id).toBe(v.label)
+      // Quando la voce e la sua prima scheda hanno lo stesso identificativo,
+      // il nome è quello della scheda: stando su «Calendario» il titolo dice
+      // «Calendario», non «Calendario e ordinazioni».
+      const schedaOmonima = (v.schede || []).find(t => t.id === v.id)
+      expect(perEtichetta[v.id], v.id).toBe(schedaOmonima ? schedaOmonima.label : v.label)
+      // Anche le schede: stando su «Spese fisse», la sezione aperta dev'essere
+      // quella di «Conto del mese».
+      for (const t of v.schede || []) {
+        expect(perSez[t.id], t.id).toBe(perSez[v.id])
+        expect(perGruppo[t.id], t.id).toBe(perGruppo[v.id])
+        expect(perEtichetta[t.id], t.id).toBe(t.label)
+      }
     }
   })
 
@@ -191,6 +211,7 @@ describe('le mappe si ricavano dal menu, non si riscrivono', () => {
     const nomiVeri = new Set([
       ...s.map(x => x.label),
       ...Object.values(VISTE_FUORI_MENU).map(d => d.label),
+      ...vociInFondo().map(v => v.label),
       '',
     ])
     for (const [vista, d] of Object.entries(VISTE_FUORI_MENU)) {
@@ -242,13 +263,17 @@ describe('i nomi corti del telefono', () => {
   })
 
   it('il nome corto è riconducibile a quello lungo', () => {
-    // Prima erano due elenchi indipendenti: «AI Assistant» contro «Azioni
-    // consigliate», «Forecast AI» contro «Forecast vendite 7gg».
+    // Prima erano due elenchi indipendenti, e i nomi si erano allontanati:
+    // «AI Assistant» contro «Azioni consigliate», «Forecast AI» contro
+    // «Forecast vendite 7gg». Qui basta che almeno una parola del nome corto
+    // compaia in quello lungo: «Il conto» per «Conto del mese» va bene,
+    // «Preferiti» per «Conto del mese» no.
+    const parole = (t) => t.toLowerCase().replace(/[^a-zàèéìòù ]/g, '').split(/\s+/).filter(x => x.length > 2)
     const s = pieno()
-    for (const v of vociMenu(s)) {
-      const breve = etichettaBreve(v.id, s).toLowerCase().replace(/\.$/, '')
-      const lungo = v.label.toLowerCase()
-      expect(lungo.includes(breve.split(' ')[0]), `"${breve}" non c'entra con "${v.label}"`).toBe(true)
+    for (const v of vociMenu(s, true)) {
+      const breve = etichettaBreve(v.id, s)
+      const comuni = parole(breve).filter(p => parole(v.label).includes(p))
+      expect(comuni.length, `"${breve}" non c'entra con "${v.label}"`).toBeGreaterThan(0)
     }
   })
 })

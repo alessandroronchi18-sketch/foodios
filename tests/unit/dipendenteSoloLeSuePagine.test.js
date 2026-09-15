@@ -68,14 +68,34 @@ describe('la pagina vietata non viene nemmeno disegnata', () => {
 
 describe('la ricerca rapida non offre pagine che non sono sue', () => {
   it('i risultati sono filtrati per ruolo', () => {
+    // Dal 15/09/2026 la ricerca rapida legge l'elenco del menu
+    // (src/lib/menuFoodos.js) invece di una copia scritta a mano, ma il
+    // filtro per ruolo resta il punto: qui si verifica che ci sia e che il
+    // Dashboard gli passi le pagine del dipendente.
     expect(PALETTE).toMatch(/function quickMatch\(q, permesse\)/)
-    expect(PALETTE).toMatch(/if \(permesse && !permesse\.has\(item\.view\)\) continue/)
+    expect(PALETTE).toMatch(/\.filter\(v => !permesse \|\| permesse\.has\(v\.id\)\)/)
     expect(DASH).toMatch(/vistePermesse=\{isDip \? DIPENDENTE_VIEWS : null\}/)
+  })
+
+  it('e il filtro funziona davvero, non solo sulla carta', async () => {
+    // Il comportamento, non il testo del codice: un dipendente che cerca
+    // «stipendi», «food cost» o «affitto» non deve trovare niente.
+    const { costruisciMenu, cercaVoci } = await import('../../src/lib/menuFoodos')
+    const menu = costruisciMenu({ metodoInventario: true, sedeDiProduzione: true, piuSedi: true })
+    const suo = new Set(elencoPermesse())
+    for (const q of ['stipendi', 'food cost', 'affitto', 'p&l', 'fornitori', 'b2b', 'ingrosso']) {
+      const trovati = cercaVoci(q, menu).filter(v => suo.has(v.id))
+      expect(trovati, `un dipendente che cerca "${q}" trova ${trovati.map(v => v.label).join(', ')}`).toEqual([])
+    }
+    // Mentre quello che è suo lo trova.
+    for (const q of ['magazzino', 'cassa', 'sprechi']) {
+      expect(cercaVoci(q, menu).filter(v => suo.has(v.id)).length, q).toBeGreaterThan(0)
+    }
   })
 
   it('l\'assistente conosce solo le pagine di chi sta chiedendo', () => {
     expect(PALETTE).toMatch(/View-id disponibili: \$\{elencoViste\}/)
-    expect(PALETTE).toMatch(/QUICK_NAV\.filter\(i => vistePermesse\.has\(i\.view\)\)/)
+    expect(PALETTE).toMatch(/\.filter\(id => !vistePermesse \|\| vistePermesse\.has\(id\)\)/)
   })
 
   it('e se sbaglia comunque, la scorciatoia non compare e il clic non passa', () => {
@@ -172,5 +192,23 @@ describe('nessuna pagina permessa è una porta murata', () => {
     for (const v of elencoPermesse()) {
       expect(chiuse.has(v), `"${v}" è fra le pagine del dipendente ma è una pagina chiusa`).toBe(false)
     }
+  })
+})
+
+
+describe('nessuna pagina si monta guardando `view` invece di `vista`', () => {
+  it('il blocco che disegna le pagine usa sempre quella effettiva', () => {
+    // `vista` è la pagina **effettiva**: per un dipendente che chiede una
+    // pagina non sua vale 'home-dipendente'. Una riga rimasta a `view`
+    // disegnerebbe la pagina vietata comunque. Il 15/09/2026 ne era rimasta
+    // una: il Calendario — innocua, perché il calendario è fra le sue, ma la
+    // riga era quella sbagliata e sarebbe bastato un copia-incolla.
+    const inizio = DASH.indexOf('vista==="home"&&<DashboardHomeView')
+    const fine = DASH.indexOf('<CommandPalette open={cmdkOpen}')
+    expect(inizio).toBeGreaterThan(-1)
+    expect(fine).toBeGreaterThan(inizio)
+    const blocco = DASH.slice(inizio, fine)
+    const superstiti = [...blocco.matchAll(/\{view===["']([a-z0-9-]+)["']/g)].map(m => m[1])
+    expect(superstiti, `pagine ancora montate su "view": ${superstiti.join(', ')}`).toEqual([])
   })
 })

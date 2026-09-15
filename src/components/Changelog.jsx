@@ -141,6 +141,25 @@ export default function ChangelogView() {
                 <div style={{ fontSize: 12, color: C.textSoft }}>{fmtData(entry.data)}</div>
               </div>
 
+              {/* Dove è finita una cosa che prima era altrove. Solo la voce
+                  della riorganizzazione ce l'ha: è una tabella «prima →
+                  adesso», non un elenco di novità. */}
+              {Array.isArray(entry.spostamenti) && entry.spostamenti.length > 0 && (
+                <div style={{ marginBottom: 14, padding: '12px 14px', background: C.bgSubtle, borderRadius: 10 }}>
+                  <div style={{ fontWeight: 700, color: C.text, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Icon name="search" size={13} />Dove trovo quello che cercavo
+                  </div>
+                  <div style={{ display: 'grid', gap: 6 }}>
+                    {entry.spostamenti.map(([prima, adesso], i) => (
+                      <div key={i} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', lineHeight: 1.5 }}>
+                        <span style={{ fontWeight: 700, color: C.text }}>{prima}</span>
+                        <span style={{ color: C.textSoft }}>{adesso}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {entry.novita.length > 0 && (
                 <div style={{ marginBottom: entry.fix.length > 0 ? 12 : 0 }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: C.green, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>

@@ -115,6 +115,7 @@ import { trackViewOpen } from './lib/usageTracking'
 import { impostaVistaCorrente } from './lib/vistaCorrente'
 import {
   costruisciMenu, sezionePerVista, descriviVista, menuTelefono, etichettaBreve,
+  vociInFondo, schedeDiVista, cercaVoci, avvisoSpostamento,
   VISTE_DIPENDENTE,
 } from './lib/menuFoodos'
 const MagazzinoView = lazyWithReload(() => import('./views/MagazzinoView'))
@@ -1285,6 +1286,52 @@ const SEDE_SELECTOR_MULTI_ONLY = new Set(['ricettario'])
 // richiedono di scegliere prima una sede specifica.
 const SEDE_RICHIESTA = new Set(['giornaliero','chiusura','magazzino','sprechi-omaggi','trasferimenti']);
 
+
+// ─── «Questa pagina si è spostata» ──────────────────────────────────────────
+//
+// Una riga sola, in cima alla pagina, che dice dov'è finita una cosa che
+// prima era altrove. Si mostra una volta per pagina — chi l'ha letta non la
+// rivede — e comunque non oltre sessanta giorni dalla riorganizzazione.
+//
+// Il ricordo sta nel browser di chi guarda (`localStorage`): è una comodità
+// personale, non un dato da conservare. Se il browser non lo concede — finestra
+// anonima, dati puliti — l'avviso ricompare, che è il verso giusto in cui
+// sbagliare.
+function AvvisoSpostamento({ vista }) {
+  const testo = avvisoSpostamento(vista)
+  const chiave = `foodos-spostamento-${vista}`
+  const [letto, setLetto] = useState(() => {
+    try { return localStorage.getItem(chiave) === '1' } catch { return false }
+  })
+  useEffect(() => {
+    try { setLetto(localStorage.getItem(`foodos-spostamento-${vista}`) === '1') } catch { setLetto(false) }
+  }, [vista])
+  if (!testo || letto) return null
+  const chiudi = () => {
+    try { localStorage.setItem(chiave, '1') } catch { /* va bene lo stesso */ }
+    setLetto(true)
+  }
+  return (
+    <div style={{
+      maxWidth: 1200, margin: '0 auto 16px', padding: '10px 14px',
+      background: T.blueLight, border: `1px solid ${T.blue}33`,
+      borderRadius: 10, display: 'flex', alignItems: 'center', gap: 10,
+      color: T.textMid, lineHeight: 1.5,
+    }}>
+      <span style={{ color: T.blue, display: 'inline-flex', flexShrink: 0 }}>
+        <Icon name="info" size={16} />
+      </span>
+      <span style={{ flex: 1, minWidth: 0 }}>{testo}</span>
+      <button onClick={chiudi} aria-label="Ho capito, non mostrarlo più"
+        style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: T.textSoft,
+          padding: 8, minHeight: 36, minWidth: 36, display: 'inline-flex', alignItems: 'center',
+          justifyContent: 'center', flexShrink: 0, fontFamily: 'inherit' }}>
+        <Icon name="x" size={14} />
+      </button>
+    </div>
+  )
+}
+
 export default function Dashboard({
   auth,
   orgId = null,
@@ -1540,7 +1587,7 @@ export default function Dashboard({
     // 30/07/2026: due chiavi che non decidevano più niente, mentre le tre
     // sezioni nuove (clienti, team, ai) non erano nominate e restavano
     // aperte tutte e tre — la barra laterale si apriva lunga il doppio.
-    return { oggi: true, ricette: true, acquisti: false, numeri: false, clienti: false, team: false, ai: false }
+    return { oggi: true, ricette: true, acquisti: false, numeri: false, team: false }
   });
   // Persisti aperto/chiuso dei gruppi della sidebar
   useEffect(() => {
@@ -2407,7 +2454,16 @@ export default function Dashboard({
         };
         const activeSec = NAV.find(s=>s.items.some(it=>it.id===view))?.id;
         const q = sidebarQuery;
-        const searchHits = q ? NAV.flatMap(s=>s.items).filter(it=>it.label.toLowerCase().includes(q)||it.id.toLowerCase().includes(q)) : [];
+        // La ricerca guarda anche i NOMI VECCHI. Dopo la riorganizzazione del
+        // 15/09/2026 dodici pagine si chiamano in un altro modo: chi cerca
+        // «scadenzario», «p&l» o «cessioni» — cioè come si chiamavano fino a
+        // ieri — non avrebbe più trovato niente. I sinonimi stanno accanto
+        // alla voce, in src/lib/menuFoodos.js.
+        const searchHits = q
+          ? cercaVoci(q, SEZIONI).map(v => ({
+              id: v.id, label: v.label, icon: v.icona, dentro: v.dentro,
+            }))
+          : [];
 
         // Bottone voce dentro un mega-menu o nei risultati ricerca.
         const ItemBtn = (it) => {
@@ -2553,8 +2609,15 @@ export default function Dashboard({
             {q&&(
               <div style={{position:"absolute",top:"100%",right:0,marginTop:4,minWidth:240,maxHeight:340,overflowY:"auto",background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,boxShadow:"0 12px 32px rgba(15,23,42,0.18)",padding:6,zIndex:60}}>
                 {searchHits.length?(<>
-                  {searchHits.map(ItemBtn)}
-                  <div style={{padding:"6px 10px 2px",fontSize: 12,color:C.textSoft,borderTop:`1px solid ${C.border}`,marginTop:4}}>↵ Invio apre il primo</div>
+                  {searchHits.map(it => (
+                    <div key={it.id}>
+                      {ItemBtn(it)}
+                      {it.dentro && (
+                        <div style={{padding:"0 10px 6px 34px",color:C.textSoft}}>dentro «{it.dentro}»</div>
+                      )}
+                    </div>
+                  ))}
+                  <div style={{padding:"6px 10px 2px",fontSize: 12,color:C.textSoft,borderTop:`1px solid ${C.border}`,marginTop:4}}>Invio apre il primo</div>
                 </>):<div style={{padding:"10px 12px",fontSize:12,color:C.textSoft}}>Nessuna sezione trovata.</div>}
               </div>
             )}
@@ -3070,10 +3133,12 @@ export default function Dashboard({
                 }</React.Fragment>
               ))}
 
-              {/* In fondo, senza gruppo: impostazioni e novità */}
+              {/* In fondo, senza sezione. Anche queste dallo stesso elenco:
+                  «Chiedi a Foodos» ha due schede (la domanda e le cose da
+                  fare), che prima erano due voci di menu separate con 5 e 3
+                  aperture in tre mesi su tutti i clienti. */}
               <div style={{ height: 1, background:"rgba(255,255,255,0.06)", margin:"12px 16px 8px" }}/>
-              {navItem("impostazioni","settings","Impostazioni")}
-              {navItem("changelog","bell","Novità")}
+              {vociInFondo().map(v => navItem(v.id, v.icona, v.label))}
 
             </div>
 
@@ -3456,6 +3521,44 @@ export default function Dashboard({
           </div>
         )}
 
+        {/* ── Le schede della pagina, quando ce ne sono ────────────────────
+            Riorganizzazione del 15/09/2026: undici pagine che rispondevano
+            alla stessa domanda sono diventate schede di una pagina sola.
+            Esempio: «Profitti» e «Costi aziendali» erano due voci di menu,
+            e i costi fissi del primo cliente erano rimasti a zero perché
+            nessuno collegava le due cose — il conto economico era per forza
+            sbagliato. Le pagine sotto non sono cambiate: qui sopra si
+            aggiunge solo la fila delle schede. */}
+        {(() => {
+          const g = schedeDiVista(vista, SEZIONI)
+          if (!g) return null
+          return (
+            <div style={{ maxWidth: 1200, margin: "0 auto 18px", display: "flex", gap: 4, flexWrap: "wrap",
+              borderBottom: `1px solid ${C.border}`, paddingBottom: 0 }}>
+              {g.schede.map(t => {
+                const att = t.id === vista
+                return (
+                  <button key={t.id} onClick={() => setView(t.id)}
+                    aria-current={att ? "page" : undefined}
+                    style={{ padding: "10px 16px", minHeight: 44, border: "none", background: "transparent",
+                      cursor: "pointer", fontFamily: "inherit",
+                      fontWeight: att ? 800 : 600, color: att ? C.brand : C.textSoft,
+                      borderBottom: `2px solid ${att ? C.brand : "transparent"}`, marginBottom: -1 }}>
+                    {t.label}
+                  </button>
+                )
+              })}
+            </div>
+          )
+        })()}
+
+        {/* ── «Questa pagina si è spostata» ────────────────────────────────
+            Per sessanta giorni dalla riorganizzazione. Una volta per pagina,
+            poi non compare più. Mara ci lavora tutti i giorni: cambiarle il
+            menu senza dirglielo è il modo per farle perdere dieci minuti a
+            cercare una cosa che sa fare a occhi chiusi. */}
+        <AvvisoSpostamento vista={vista} />
+
         {/* Home dashboard (titolare) */}
         {vista==="home"&&<DashboardHomeView ricettario={ricettario} magazzino={magazzino} giornaliero={giornaliero} chiusure={chiusure} actions={actions} setView={setView} orgId={orgId} sedeId={sedeId} nomeAttivita={nomeAttivita} isTrialAttivo={isTrialAttivo} auth={auth} sedi={sedi} sedeAttiva={sedeAttiva} LEX={LEX}/>}
 
@@ -3489,7 +3592,7 @@ export default function Dashboard({
             </label>
           </div>
         )}
-        {ricettario&&vista==="ricettario"&&<RicettarioView metodoProduzione={metodoProduzione} ricettario={ricettario} onUpdateRegola={handleUpdateRegola} onUpload={files=>handleFile(files)} onEditRicetta={(nome)=>{setEditingRicetta(nome);setView("nuova-ricetta");}} orgId={orgId} sedi={sedi} sedeAttiva={sedeAttiva} notify={notify} LEX={LEX}/>}
+        {ricettario&&vista==="ricettario"&&<RicettarioView metodoProduzione={metodoProduzione} ricettario={ricettario} onUpdateRegola={handleUpdateRegola} onUpload={files=>handleFile(files)} onEditRicetta={(nome)=>{setEditingRicetta(nome);setView("nuova-ricetta");}} onNuovaRicetta={()=>{setEditingRicetta(null);setView("nuova-ricetta");}} orgId={orgId} sedi={sedi} sedeAttiva={sedeAttiva} notify={notify} LEX={LEX}/>}
         {ricettario&&vista==="semilavorati"&&<SemilavoratiView ricettario={ricettario} onSave={handleSalvaRicetta} notify={notify} tipoAttivita={tipoAttivita}/>}
         {ricettario&&vista==="pl"&&<PLView metodoProduzione={metodoProduzione} ricettario={ricettario} chiusure={chiusure} orgId={orgId} sedeId={sedeId} onUpdateRegola={handleUpdateRegola} notify={notify}/>}
         {ricettario&&vista==="simulatore"&&<SimulatorePrezziView ricettario={ricettario} giornaliero={giornaliero} tipoAttivita={tipoAttivita} sedi={sedi} orgId={orgId} sedeId={sedeId}/>}
@@ -3550,7 +3653,7 @@ export default function Dashboard({
             onCta={goToUpgrade}
           />
         )}
-        {view==="calendario"&&<CalendarioOperativo giornaliero={giornaliero} chiusure={chiusure} orgId={orgId} sedeId={sedeId} setView={setView} notify={notify} isMobile={isMobile} isDipendente={isDip} metodoProduzione={metodoProduzione}/>}
+        {vista==="calendario"&&<CalendarioOperativo giornaliero={giornaliero} chiusure={chiusure} orgId={orgId} sedeId={sedeId} setView={setView} notify={notify} isMobile={isMobile} isDipendente={isDip} metodoProduzione={metodoProduzione}/>}
         {currentMese&&!["home","home-dipendente","ricettario","semilavorati","pl","simulatore","azioni","magazzino","giornaliero","nuova-ricetta","storico","chiusura","impostazioni","confronto-sedi","trasferimenti","integrazioni","scadenzario","calendario","changelog","scheda-allergeni","fornitori","personale","menu","previsione","eventi","importa-dati","recensioni","menu-engineering","cashflow","ai-brain","forecast","reformulation","ordini-ai","competitor-pricing","ricette-ai","marketplace","documentary","whatsapp"].includes(view)&&(
           <ProduzioneView key={view} ricettario={ricettario} mese={currentMese} onSave={e=>handleSave(view,e)} onAddAction={handleAddAct} nomeAttivita={nomeAttivita}/>
         )}
