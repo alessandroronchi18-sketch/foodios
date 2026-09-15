@@ -13,9 +13,16 @@ export function coerceString(v) {
 export function coerceNumber(v) {
   if (v == null || v === '') return null
   if (typeof v === 'number') return Number.isFinite(v) ? v : null
+  // Solo testo: un oggetto o un elenco non sono un numero. `String([])` è la
+  // stringa vuota, e `Number('')` è **zero**: una cella con dentro un elenco
+  // vuoto diventava 0 ed entrava nel conto come un dato vero, non come un
+  // dato mancante. Stessa cosa per una cella di soli spazi.
+  if (typeof v !== 'string') return null
+  let s = v.trim()
+  if (s === '') return null
   // Accetta "1.234,56" (formato IT) o "1234.56" o "12,50 €"
-  let s = String(v).trim()
   s = s.replace(/€|EUR|eur/g, '').trim()
+  if (s === '') return null
   const hasComma = s.includes(',')
   const hasDot = s.includes('.')
   if (hasComma && hasDot) {
