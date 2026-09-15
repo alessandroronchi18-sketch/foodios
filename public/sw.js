@@ -10,9 +10,54 @@
 
 // IMPORTANT: bumpa questa versione ad ogni deploy con cambi UI/UX.
 // Altrimenti i client con SW attivo vedono il vecchio shell HTML/CSS.
-const CACHE_VERSION = 'foodos-2026-09-15-9b90779';
+const CACHE_VERSION = 'foodos-2026-09-15-dc926d7';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
+
+// ── Il magazzino dei file che non cambiano ───────────────────────────────────
+//
+// Vite mette il contenuto nel nome del file: `index-DNeLJPZJ.js` cambia nome
+// solo se cambia dentro. Un file col nome diverso è un file diverso, e uno
+// con lo stesso nome è identico per definizione — quindi tenerlo non può
+// mai servire una versione vecchia.
+//
+// Prima non era così. Il nome della cache conteneva la versione, e `activate`
+// cancellava tutto quello che non cominciava con la versione nuova: **a ogni
+// rilascio il telefono buttava via tutto e riscaricava 1,5 MB**, compresi i
+// 635 kB del modulo PDF e i 453 kB dei grafici che non erano cambiati di una
+// virgola. In negozio, con la rete del telefono, è la differenza fra aprire
+// l'app e aspettare.
+//
+// Ora i file con l'impronta nel nome stanno in un magazzino a parte che non
+// si svuota mai per versione: dopo un rilascio si scarica solo quello che è
+// davvero cambiato. Il magazzino ha un tetto, o crescerebbe a ogni rilascio.
+const ASSET_CACHE = 'foodos-assets-v1';
+const MAX_ASSET_ENTRIES = 120;
+
+// Un file "con l'impronta" è un file il cui nome contiene un pezzo di hash
+// generato dalla compilazione: `nome-A1b2C3d4.js`.
+//
+// Il riconoscimento è per **cartella**, non per forma del nome: la
+// compilazione mette in `/assets/` soltanto file con l'impronta — verificato
+// il 15/09/2026, tutti e 105 — mentre quelli che possono cambiare restando
+// con lo stesso nome (favicon.svg, logo.svg, manifest.json, index.html)
+// stanno alla radice. Riconoscerli dal nome era fragile: l'impronta di Vite
+// può contenere un trattino (`AdminPage-Ds8yKJ-s.js`), e una regola che lo
+// ammette scambia per impronta anche `mio-file-normale.js`.
+function haImpronta(pathname) {
+  return pathname.startsWith('/assets/');
+}
+
+// Tetto al magazzino: si buttano le più vecchie, non a caso.
+async function sfoltisci(cache) {
+  try {
+    const chiavi = await cache.keys();
+    if (chiavi.length <= MAX_ASSET_ENTRIES) return;
+    for (const k of chiavi.slice(0, chiavi.length - MAX_ASSET_ENTRIES)) {
+      await cache.delete(k);
+    }
+  } catch (e) { /* un magazzino che non si sfoltisce è meglio di uno rotto */ }
+}
 
 // Asset critici per il primo render (precachato in install).
 // Aggiungi qui i path stabili — Vite genera asset con hash, quindi
@@ -51,7 +96,9 @@ self.addEventListener('activate', (event) => {
       const keys = await caches.keys();
       await Promise.all(
         keys
-          .filter((k) => !k.startsWith(CACHE_VERSION))
+          // Il magazzino dei file con l'impronta sopravvive ai rilasci: è il
+          // motivo per cui dopo un aggiornamento non si riscarica tutto.
+          .filter((k) => k !== ASSET_CACHE && !k.startsWith(CACHE_VERSION))
           .map((k) => caches.delete(k))
       );
       await self.clients.claim();
@@ -84,11 +131,38 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Asset statici (js/css/png/svg/font) → stale-while-revalidate.
+  // File con l'impronta nel nome: si servono dal magazzino, e se non ci sono
+  // si scaricano una volta sola. Non serve nemmeno controllare se sono
+  // cambiati — se cambiano, cambia il nome.
+  if (url.origin === self.location.origin && haImpronta(url.pathname)) {
+    event.respondWith(dalMagazzino(request));
+    return;
+  }
+
+  // Tutto il resto (favicon, logo, manifest) → stale-while-revalidate.
   if (url.origin === self.location.origin) {
     event.respondWith(staleWhileRevalidate(request));
   }
 });
+
+async function dalMagazzino(request) {
+  const cache = await caches.open(ASSET_CACHE);
+  const cached = await cache.match(request);
+  if (cached) return cached;
+  try {
+    const res = await fetch(request);
+    if (res && res.ok) {
+      await cache.put(request, res.clone());
+      sfoltisci(cache);
+    }
+    return res;
+  } catch (e) {
+    // Senza rete e senza copia non si può fare niente: si lascia fallire
+    // come farebbe il browser, invece di restituire una pagina di errore
+    // dove il browser si aspetta uno script.
+    throw e;
+  }
+}
 
 async function networkFirstHTML(request) {
   try {
