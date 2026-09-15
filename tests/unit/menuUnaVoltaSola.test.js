@@ -23,7 +23,7 @@ import { join } from 'node:path'
 import {
   costruisciMenu, vociMenu, sezionePerVista, gruppoPerVista, etichettaPerVista,
   descriviVista, menuTelefono, etichettaBreve, VISTE_DIPENDENTE, VISTE_FUORI_MENU,
-  vociInFondo, schedeDiVista, cercaVoci, avvisoSpostamento, SPOSTAMENTI,
+  vociInFondo, schedeDiVista, cercaVoci, avvisoSpostamento, SPOSTAMENTI, nomeCompletoVista,
 } from '../../src/lib/menuFoodos'
 
 const RADICE = join(import.meta.dirname, '../..')
@@ -306,5 +306,53 @@ describe('Dashboard.jsx non ha più le copie a mano', () => {
   it('l\'elenco delle pagine del dipendente non è duplicato qui', () => {
     expect(DASH_VIVO).toMatch(/export const DIPENDENTE_VIEWS = VISTE_DIPENDENTE/)
     expect(DASH_VIVO).not.toMatch(/DIPENDENTE_VIEWS = new Set\(\[/)
+  })
+})
+
+
+describe('il nome intero, per quando si nomina una pagina da fuori', () => {
+  // `descriviVista` dà il nome della SCHEDA quando ci sei sopra, ed è giusto
+  // per il titolo in cima alla pagina. Ma in un messaggio «questa funzione è
+  // nel piano superiore» serve il nome per intero: «Conto del mese» si
+  // capisce, «Il conto» no.
+  const s = pieno()
+
+  it('una scheda risponde col nome della pagina che la contiene', () => {
+    expect(nomeCompletoVista('pl', s)).toBe('Conto del mese')
+    expect(nomeCompletoVista('costi-aziendali', s)).toBe('Conto del mese')
+    expect(nomeCompletoVista('simulatore', s)).toBe('Costo dei prodotti')
+    expect(nomeCompletoVista('menu-engineering', s)).toBe('Costo dei prodotti')
+    expect(nomeCompletoVista('fornitori', s)).toBe('Fatture e fornitori')
+  })
+
+  it('anche le voci in fondo', () => {
+    expect(nomeCompletoVista('ai-brain', s)).toBe('Chiedi a Foodos')
+    expect(nomeCompletoVista('azioni', s)).toBe('Chiedi a Foodos')
+  })
+
+  it('e le pagine fuori dal menu hanno comunque un nome', () => {
+    expect(nomeCompletoVista('forecast', s)).toBe('Previsione 7 giorni')
+    expect(nomeCompletoVista('nuova-ricetta', s)).toBe('Nuova ricetta')
+  })
+
+  it('una pagina sconosciuta dà null, e chi chiama ricade sull\'identificativo', () => {
+    expect(nomeCompletoVista('pagina-inventata', s)).toBe(null)
+  })
+
+  it('i messaggi di sblocco non usano più nomi di prima della riorganizzazione', async () => {
+    const { viewDisplayLabel } = await import('../../src/lib/planAccess')
+    for (const v of ['ai-brain', 'cashflow', 'trasferimenti', 'confronto-sedi', 'pl']) {
+      const nome = viewDisplayLabel(v)
+      expect(nome, v).not.toMatch(/Foodos Brain|Cashflow predittivo|Trasferimenti tra sedi|Confronto sedi|P&L/)
+      expect(nome, v).not.toBe(v)
+    }
+  })
+
+  it('e nessuno dei due elenchi a mano è tornato', async () => {
+    const { readFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const r = (f) => readFileSync(join(import.meta.dirname, '../..', f), 'utf8')
+    expect(r('src/lib/planAccess.js')).not.toMatch(/const VIEW_DISPLAY_LABELS = \{/)
+    expect(r('src/components/UpgradeGate.jsx')).not.toMatch(/const VIEW_LABELS = \{/)
   })
 })

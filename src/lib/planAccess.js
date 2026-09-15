@@ -1,3 +1,7 @@
+// L'estensione `.js` è obbligatoria: questo file lo importa anche
+// `api/stripe-checkout.js`, che gira su Node, dove un percorso senza
+// estensione non si risolve. Vite lo accetta in entrambi i modi.
+import { costruisciMenu, nomeCompletoVista } from './menuFoodos.js'
 // Gating pagine/feature in base al piano di abbonamento.
 //
 // ───────────────────────────────────────────────────────────────────────────
@@ -208,24 +212,17 @@ export function requiredPlanLabel(view) {
   return PLAN_LABEL[need] || need
 }
 
-// Label leggibile della view per i prompt di upgrade. Solo le view-id
-// utilizzate effettivamente in NAV; fallback al view-id grezzo.
-const VIEW_DISPLAY_LABELS = {
-  'confronto-sedi':     'Confronto sedi',
-  'trasferimenti':      'Trasferimenti tra sedi',
-  'integrazioni':       'Integrazioni',
-  'ai-brain':           'Foodos Brain (chat AI)',
-  'whatsapp':           'WhatsApp Bot',
-  'ricette-ai':         'Inventa ricetta AI',
-  'marketplace':        'Marketplace fornitori',
-  'documentary':        'Documentary AI',
-  'forecast':           'Forecast AI 7 giorni',
-  'menu-engineering':   'Menu engineering',
-  'cashflow':           'Cashflow predittivo',
-  'reformulation':      'Ottimizza ricetta AI',
-  'competitor-pricing': 'Pricing vs competitor',
-  'ordini-ai':          'Ordini AI fornitori',
-}
+// Come si chiama una pagina nei messaggi «questa funzione è nel piano
+// superiore».
+//
+// Qui c'era una copia a mano dei nomi — la **nona** dello stesso elenco in
+// questo progetto — e dopo la riorganizzazione del 15/09/2026 era rimasta
+// indietro: un cliente che toccava una funzione bloccata leggeva «Foodos
+// Brain (chat AI)», «Cashflow predittivo», «Pricing vs competitor», nomi che
+// nel prodotto non esistono più. Adesso viene dal menu, come tutto il resto.
 export function viewDisplayLabel(view) {
-  return VIEW_DISPLAY_LABELS[view] || view
+  const sezioni = costruisciMenu({ metodoInventario: true, sedeDiProduzione: true, piuSedi: true })
+  // Il nome intero, non quello della scheda: in un messaggio di sblocco
+  // «Conto del mese» si capisce, «Il conto» no.
+  return nomeCompletoVista(view, sezioni) || view
 }

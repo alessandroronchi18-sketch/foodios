@@ -2,28 +2,15 @@
 // Invita all'upgrade invece di nascondere (o dare errore) la funzione.
 import React from 'react'
 import { color as T, radius as R, shadow as S } from '../lib/theme'
-import { requiredPlanLabel, PLAN_LABEL } from '../lib/planAccess'
+import { requiredPlanLabel, PLAN_LABEL, viewDisplayLabel } from '../lib/planAccess'
 
-const VIEW_LABELS = {
-  'confronto-sedi':     'Confronto sedi',
-  'trasferimenti':      'Trasferimenti tra sedi',
-  'integrazioni':       'Integrazioni',
-  'ai-brain':           'Foodos Brain (chat AI)',
-  'whatsapp':           'WhatsApp Bot',
-  'ricette-ai':         'Inventa ricette AI',
-  'marketplace':        'Marketplace fornitori',
-  'documentary':        'Documentary AI',
-  'forecast':           'Forecast AI 7 giorni',
-  'menu-engineering':   'Menu engineering',
-  'cashflow':           'Cashflow predittivo',
-  'reformulation':      'Ottimizza ricette AI',
-  'competitor-pricing': 'Pricing vs competitor',
-  'ordini-ai':          'Ordini AI fornitori',
-}
+// I nomi vengono dal menu (src/lib/menuFoodos.js): qui c'era la decima copia
+// a mano dello stesso elenco, rimasta coi nomi di prima della
+// riorganizzazione del 15/09/2026.
 
 export default function UpgradeGate({ view, onUpgrade }) {
   const piano = requiredPlanLabel(view) || PLAN_LABEL.enterprise
-  const nome = VIEW_LABELS[view] || 'Questa funzione'
+  const nome = viewDisplayLabel(view) || 'Questa funzione'
   return (
     <div style={{ maxWidth: 520, margin: '60px auto', textAlign: 'center', padding: '40px 28px',
       background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: R.xl, boxShadow: S.sm }}>

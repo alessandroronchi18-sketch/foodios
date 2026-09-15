@@ -463,3 +463,22 @@ export function cercaVoci(query, sezioni, { conFondo = true } = {}) {
   }
   return esiti
 }
+
+/**
+ * Il nome **intero** di una pagina, non quello della scheda.
+ *
+ * `descriviVista` dà il nome della scheda quando ci sei sopra, ed è giusto
+ * per il titolo in cima alla pagina: stando su «Spese fisse» il titolo dice
+ * «Spese fisse». Ma quando si nomina la pagina *da fuori* — un messaggio
+ * «questa funzione è nel piano superiore», un risultato di ricerca — serve
+ * il nome per intero: «Conto del mese», non «Il conto».
+ */
+export function nomeCompletoVista(vista, sezioni) {
+  for (const s of [...sezioni, { voci: vociInFondo() }]) {
+    for (const v of s.voci) {
+      if (v.id === vista) return v.label
+      if ((v.schede || []).some(t => t.id === vista)) return v.label
+    }
+  }
+  return VISTE_FUORI_MENU[vista]?.label || null
+}
