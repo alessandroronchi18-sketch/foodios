@@ -17,26 +17,45 @@
 // più un layout di scontrino particolare: si spiega cosa cercare, non dove
 // trovarlo.
 
-// Cosa vende chi, per dire all'AI su cosa concentrarsi. La chiave arriva da
-// organizations.tipo (pasticceria, gelateria, bar, panificio...).
-const CATEGORIE_PER_ATTIVITA = {
-  gelateria:   'gelato, semifreddi, coni, coppette, vaschette, granite, torte gelato',
-  pasticceria: 'pasticceria, torte, monoporzioni, biscotteria, lievitati',
-  panificio:   'pane, focacce, pizza al taglio, lievitati, biscotteria',
-  bar:         'caffetteria, pasticceria da colazione, tramezzini, bibite',
+// Cosa vende chi, per dire all'AI su cosa concentrarsi, e come si chiama
+// l'attività in italiano corrente.
+//
+// Il nome esteso non è un vezzo: la chiave che arriva da `organizations.tipo` è
+// uno slug, e finiva dentro la frase così com'era. Con i dieci tipi che si
+// possono scegliere in registrazione venivano fuori «una panificio italiana»,
+// «una ristorante italiana», «una pasta_fresca italiana» e — per chi sceglie
+// "Altro", che è il caso più probabile fra quelli non previsti — «una altro
+// italiana». Cinque tipi su dieci davano una frase sgrammaticata, e due non
+// erano nemmeno parole. È la prima riga delle istruzioni al lettore
+// automatico: comincia dicendogli una cosa che non sta in piedi.
+const ATTIVITA = {
+  pasticceria:   { nome: 'una pasticceria',            categorie: 'pasticceria, torte, monoporzioni, biscotteria, lievitati' },
+  gelateria:     { nome: 'una gelateria',              categorie: 'gelato, semifreddi, coni, coppette, vaschette, granite, torte gelato' },
+  cioccolateria: { nome: 'una cioccolateria',          categorie: 'cioccolato, praline, tavolette, uova, creme spalmabili, pasticceria al cioccolato' },
+  panificio:     { nome: 'un panificio',               categorie: 'pane, focacce, pizza al taglio, lievitati, biscotteria' },
+  pizzeria:      { nome: 'una pizzeria',               categorie: 'pizze, focacce, fritti, bibite' },
+  pasta_fresca:  { nome: 'un laboratorio di pasta fresca', categorie: 'pasta fresca, ripieni, sughi, gastronomia' },
+  gastronomia:   { nome: 'una gastronomia',            categorie: 'gastronomia, rosticceria, piatti pronti, fritti, contorni' },
+  bar:           { nome: 'un bar',                     categorie: 'caffetteria, pasticceria da colazione, tramezzini, bibite' },
+  ristorante:    { nome: 'un ristorante',              categorie: 'piatti, coperti, bevande, dolci' },
+  altro:         { nome: 'un locale alimentare',       categorie: 'tutti i prodotti alimentari venduti' },
 }
 const CATEGORIE_DEFAULT = 'tutti i prodotti alimentari venduti'
+const NOME_DEFAULT = 'un locale alimentare'
+
+function attivita(tipoAttivita) {
+  const tipo = String(tipoAttivita || '').toLowerCase().trim()
+  return ATTIVITA[tipo] || { nome: NOME_DEFAULT, categorie: CATEGORIE_DEFAULT }
+}
 
 /**
  * Istruzioni per l'estrazione, adattate all'attività.
  * @param {string} tipoAttivita  valore di organizations.tipo
  */
 export function promptScontrino(tipoAttivita) {
-  const tipo = String(tipoAttivita || '').toLowerCase().trim()
-  const categorie = CATEGORIE_PER_ATTIVITA[tipo] || CATEGORIE_DEFAULT
-  const chiSono = tipo ? `una ${tipo} italiana` : 'un locale alimentare italiano'
+  const { nome, categorie } = attivita(tipoAttivita)
 
-  return `Sei un lettore di scontrini di chiusura di ${chiSono}.
+  return `Sei un lettore di scontrini di chiusura di ${nome} in Italia.
 
 Estrai queste informazioni dallo scontrino fotografato.
 
@@ -74,6 +93,10 @@ Rispondi SOLO con JSON valido, senza markdown e senza testo aggiuntivo:
 
 /** Categorie che verranno cercate, per spiegarlo all'utente prima della foto. */
 export function categorieLette(tipoAttivita) {
-  const tipo = String(tipoAttivita || '').toLowerCase().trim()
-  return CATEGORIE_PER_ATTIVITA[tipo] || CATEGORIE_DEFAULT
+  return attivita(tipoAttivita).categorie
+}
+
+/** Come si chiama l'attività in una frase, articolo compreso: «un bar», «una gelateria». */
+export function nomeAttivita(tipoAttivita) {
+  return attivita(tipoAttivita).nome
 }

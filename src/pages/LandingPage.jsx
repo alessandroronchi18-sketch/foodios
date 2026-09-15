@@ -3,7 +3,7 @@ import Logo from '../components/Logo'
 import CatIcon from '../components/Icon'
 import usePlanPricing, { fmtPrezzo } from '../lib/usePlanPricing'
 import { temaPubblico, SERIF_PUBBLICO, SANS_PUBBLICO } from '../lib/temaPubblico'
-import { pianoInVendita, PLAN_LABEL } from '../lib/planAccess'
+import { inVendita, PLAN_LABEL } from '../lib/planAccess'
 
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -578,16 +578,10 @@ function FeatureVisual({ index }) {
 ═══════════════════════════════════════════════════════════════════════════ */
 export default function LandingPage({ onLogin, onRegister }) {
   const prezzi = usePlanPricing()
-  // Quali piani si mostrano in vetrina. Due sorgenti, e devono concordare:
-  // `attivo` sulla riga di plan_pricing (che il titolare cambia dal pannello
-  // admin) e `PIANI_IN_VENDITA` nel codice. Se una delle due dice di no, la
-  // tessera non compare: meglio nascondere un piano per errore che venderne
-  // uno che non esiste.
-  const mostraPiano = (chiave) => {
-    if (!pianoInVendita(chiave)) return false
-    const riga = prezzi?.meta?.[chiave]
-    return riga ? riga.attivo !== false : true
-  }
+  // Quali piani si mostrano in vetrina. Comanda `attivo` sulla riga di
+  // plan_pricing, che il titolare cambia dal pannello admin; l'elenco nel
+  // codice interviene solo se quella riga non si riesce a leggere.
+  const mostraPiano = (chiave) => inVendita(chiave, prezzi?.meta?.[chiave])
   const nPianiMostrati = ['base', 'pro', 'chain'].filter(mostraPiano).length
   const [openFaq, setOpenFaq] = useState(0)
   const [scrolled, setScrolled] = useState(false)

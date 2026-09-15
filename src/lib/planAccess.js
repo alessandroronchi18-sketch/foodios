@@ -103,14 +103,30 @@ export const PLAN_LABEL = {
   chain:      'Ultra',  // alias storico della chiave
 }
 
-// Quali piani si possono comprare OGGI. Il resto del codice continua a
-// conoscerli tutti e tre: questo elenco dice solo cosa si mostra in vetrina.
-// Per riaprirne uno basta rimetterlo qui (e riaccenderlo in `plan_pricing`).
+// Quali piani si possono comprare quando il database non risponde.
+//
+// A decidere è il titolare, dal pannello admin: la colonna `attivo` sulla
+// riga di `plan_pricing`. Questo elenco è la scorta, per il caso in cui la
+// riga non ci sia o la lettura fallisca — non la regola. Prima era il
+// contrario, e l'interruttore sul database non serviva a niente: per aprire
+// un piano bisognava mettere le mani nel codice e rifare un rilascio.
 export const PIANI_IN_VENDITA = ['pro']
 
 export function pianoInVendita(plan) {
   const k = String(plan || '').toLowerCase().trim()
   return PIANI_IN_VENDITA.includes(k === 'chain' ? 'enterprise' : k)
+}
+
+/**
+ * Se un piano è acquistabile. **Comanda il database**; l'elenco qui sopra
+ * interviene solo se la riga manca o non dice niente.
+ *
+ * @param {string} plan          'base' | 'pro' | 'chain' (o 'enterprise')
+ * @param {{attivo?: boolean}} [riga]  la riga di plan_pricing, se disponibile
+ */
+export function inVendita(plan, riga) {
+  if (riga && typeof riga.attivo === 'boolean') return riga.attivo
+  return pianoInVendita(plan)
 }
 
 // Prezzo €/mese per piano (sorgente di verita` per la UI).

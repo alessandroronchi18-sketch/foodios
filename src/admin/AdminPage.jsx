@@ -12,8 +12,65 @@ import PersonalizeDemoModal from './PersonalizeDemoModal'
 import MethodChangeRequestsPanel from './MethodChangeRequestsPanel'
 
 // ─── Costanti ──────────────────────────────────────────────────────────────
-const PIANI = ['trial', 'base', 'pro', 'enterprise']
-const PIANO_PREZZO = { trial: 0, base: 39, pro: 89, enterprise: 199 }
+// Le chiavi dei piani come stanno sul database. `chain` è il nome vero della
+// riga in `plan_pricing`: il pannello scriveva `enterprise`, e una modifica
+// al prezzo di Ultra creava una riga che nessuno legge mai — sul sito Ultra
+// restava al prezzo di prima. `enterprise` resta accettato in lettura perché
+// è il valore storico di `organizations.piano`.
+const PIANI = ['trial', 'base', 'pro', 'chain']
+// I prezzi non si riscrivono qui: la fonte è `src/lib/planAccess.js`, che era
+// già importata e non veniva usata. Il listino locale era fermo a 39/89/199,
+// prezzi mai più in vigore.
+
+// Come si chiamano in italiano le tabelle che spariscono quando si cancella
+// un cliente. Serve alla finestra di eliminazione: «user_data: 412» non dice
+// niente, «Dati operativi (ricette, magazzino, chiusure): 412» sì.
+const LABEL_TABELLA = {
+  user_data: 'Dati operativi (ricette, magazzino, chiusure, produzione)',
+  turni: 'Turni di lavoro',
+  dipendenti: 'Dipendenti',
+  dipendenti_stipendio: 'Stipendi',
+  fornitori: 'Fornitori',
+  ordini_fornitori: 'Ordini ai fornitori',
+  notifiche: 'Avvisi nell\'app',
+  integrazioni: 'Collegamenti esterni',
+  sync_log: 'Registro sincronizzazioni',
+  sedi: 'Punti vendita',
+  fatture: 'Fatture',
+  note_giornaliere: 'Note del giorno',
+  referral: 'Segnalazioni',
+  daily_briefs: 'Riepiloghi del mattino',
+  ai_suggestions: 'Suggerimenti',
+  brain_conversations: 'Conversazioni con l\'assistente',
+  recipe_inventions: 'Ricette proposte',
+  forecast_giornaliero: 'Previsioni di vendita',
+  cashflow_eventi: 'Movimenti previsti',
+  competitor_prices: 'Prezzi dei concorrenti',
+  documentary_snapshots: 'Fotografie del mese',
+  whatsapp_links: 'Collegamenti WhatsApp',
+  extracted_invoices: 'Fatture lette automaticamente',
+  pos_scontrini: 'Scontrini di cassa',
+  haccp_temperature: 'Temperature HACCP',
+  costi_aziendali: 'Spese fisse',
+  scadenzario_pagamenti: 'Pagamenti in scadenza',
+  inventario_produzione: 'Produzione a inventario',
+  stock_prodotti_finiti: 'Giacenze di prodotto finito',
+  vendite_b2b: 'Vendite all\'ingrosso',
+  sdi_invoice_log: 'Fatture elettroniche',
+  trasferimenti: 'Merce spostata tra sedi',
+  ai_usage_daily: 'Consumo assistente',
+  view_usage_daily: 'Pagine aperte',
+  feedback: 'Segnalazioni inviate',
+  audit_log: 'Registro modifiche',
+  error_log: 'Registro errori',
+  plan_pricing_log: 'Storico prezzi',
+  discount_redemptions: 'Sconti usati',
+  sdi_emission_queue: 'Fatture da inviare',
+  login_attempts: 'Tentativi di accesso',
+  rate_limits: 'Limiti di frequenza',
+  profiles: 'Utenti che entrano nell\'app',
+  organizations: 'L\'anagrafica dell\'attività',
+}
 
 // Etichette per le chiavi di user_data - allineate ai label scritti dai trigger
 // di audit (mig. 20260606). Tenere in sync se cambiano lì.
@@ -70,7 +127,10 @@ const fmtDataOra = iso => iso ? new Date(iso).toLocaleString('it-IT', { useGroup
 // useGrouping:'always' obbligatorio: senza, "4715" appare senza separatore migliaia
 // su Safari iOS private / Node senza ICU full. Vedi _shared.jsx.
 const _ADMIN_NF = new Intl.NumberFormat('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })
-const fmtEuro = n => '€' + _ADMIN_NF.format(Number(n || 0))
+// Il simbolo dopo la cifra, come si scrive in italiano: "1.477 €", non
+// "€ 1.477". È la regola del progetto, e questo file era rimasto l'unico
+// posto che la violava — in undici punti, tutti passanti da qui.
+const fmtEuro = n => _ADMIN_NF.format(Number(n || 0)) + ' €'
 
 function statoCliente(c) {
   const now = new Date()
@@ -354,16 +414,40 @@ function BulkEmailModal({ clienti, onClose, onInvia }) {
   )
 }
 
-function DeleteModal({ cliente, onClose, onConferma }) {
+function DeleteModal({ cliente, onClose, onConferma, apriAnteprima }) {
   const [conferma, setConferma] = useState('')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
+  // Cosa sparisce davvero, contato sul database prima di cancellare.
+  //
+  // L'endpoint `elimina_preview` esisteva dal 01/07/2026 e **non lo chiamava
+  // nessuno**: la finestra elencava a parole «ricette, dipendenti, turni…» e
+  // mandava la cancellazione senza nessun conteggio. Di conseguenza anche il
+  // controllo che il server fa — «lo stato è cambiato rispetto a quello che
+  // hai visto» — non scattava mai, perché senza numero atteso non ha niente
+  // da confrontare. Una cancellazione irreversibile, alla cieca.
+  const [anteprima, setAnteprima] = useState(null)
+  const [caricando, setCaricando] = useState(true)
+
+  useEffect(() => {
+    let vivo = true
+    setCaricando(true)
+    apriAnteprima(cliente.org_id)
+      .then(a => { if (vivo) { setAnteprima(a); setCaricando(false) } })
+      .catch(e => { if (vivo) { setErr('Non riesco a contare i dati di questo cliente: ' + (e.message || e)); setCaricando(false) } })
+    return () => { vivo = false }
+  }, [cliente.org_id, apriAnteprima])
 
   async function submit() {
     setBusy(true); setErr('')
-    try { await onConferma(conferma); onClose() }
+    try { await onConferma(conferma, anteprima?.totale ?? null); onClose() }
     catch (e) { setErr(e.message); setBusy(false) }
   }
+
+  // Le righe con qualcosa dentro, dalla più numerosa, con i nomi in italiano.
+  const righe = Object.entries(anteprima?.counts || {})
+    .filter(([, n]) => n > 0)
+    .sort((a, b) => b[1] - a[1])
 
   return (
     <Modal title={`Elimina ${cliente.nome_attivita}`} onClose={onClose}>
@@ -372,12 +456,30 @@ function DeleteModal({ cliente, onClose, onConferma }) {
         borderRadius: 8, color: COLORS.err, fontSize: 13, marginBottom: 16,
       }}>
         <strong>Attenzione</strong>: questa azione è <strong>irreversibile</strong>.
-        Verranno eliminati:
-        <ul style={{ margin: '8px 0 0 18px', padding: 0, fontSize: 12, lineHeight: 1.7 }}>
-          <li>Tutti i dati operativi (ricette, dipendenti, turni, fornitori, ordini, fatture, note…)</li>
-          <li>Le sedi e i profili utente</li>
-          <li>L'organizzazione e gli account auth associati</li>
-        </ul>
+        {caricando ? (
+          <div style={{ marginTop: 8 }}>Conto cosa verrebbe cancellato…</div>
+        ) : anteprima ? (
+          <>
+            <div style={{ marginTop: 8 }}>
+              Spariscono <strong>{(anteprima.totale || 0).toLocaleString('it-IT')}</strong> righe,
+              più gli account per entrare.
+            </div>
+            <div style={{ maxHeight: 160, overflowY: 'auto', marginTop: 8, lineHeight: 1.7 }}>
+              {righe.map(([tabella, n]) => (
+                <div key={tabella} style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                  <span>{LABEL_TABELLA[tabella] || tabella}</span>
+                  <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 700 }}>{n.toLocaleString('it-IT')}</span>
+                </div>
+              ))}
+              {righe.length === 0 && <div>Nessun dato operativo: solo l'anagrafica e gli account.</div>}
+            </div>
+          </>
+        ) : (
+          <div style={{ marginTop: 8 }}>
+            Non sono riuscito a contare i dati. Verranno eliminati tutti i dati operativi,
+            le sedi, i profili e gli account per entrare.
+          </div>
+        )}
       </div>
       <div style={{ fontSize: 13, color: COLORS.textSoft, marginBottom: 8 }}>
         Per confermare, scrivi <code style={{ background: '#F1F5F9', padding: '2px 6px', borderRadius: 4, color: COLORS.err, fontWeight: 700 }}>ELIMINA</code>:
@@ -424,7 +526,7 @@ function DemoCleanupModal({ cliente, matches, onClose, onConferma }) {
           border: `1px solid ${COLORS.green || '#16A34A'}`, borderRadius: 8,
           color: COLORS.green || '#15803D', fontSize: 13,
         }}>
-          ✓ Nessuna fattura demo trovata per questo cliente. Niente da eliminare.
+          Nessuna fattura demo trovata per questo cliente. Niente da eliminare.
         </div>
       ) : (
         <>
@@ -605,7 +707,7 @@ function NuovoCodiceScontoModal({ onClose, onCreato }) {
                   background: selected ? '#FEF7F5' : '#FFF',
                   color: selected ? '#6E0E1A' : '#64748B', cursor: 'pointer',
                 }}>
-                {selected && '✓ '}{PLAN_LABEL[p] || p} ({PLAN_PRICE_EUR[p] ?? '—'} €)
+                {selected && <Icon name="check" size={11} />} {PLAN_LABEL[p] || p} ({PLAN_PRICE_EUR[p] ?? '—'} €)
               </button>
             )
           })}
@@ -701,7 +803,7 @@ function ImpersonaModal({ cliente, link, onClose }) {
       }}>{link}</div>
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
         <Btn kind="neutral" onClick={onClose}>Chiudi</Btn>
-        <Btn kind="primary" onClick={copia}>{copiato ? '✓ Copiato' : 'Copia link'}</Btn>
+        <Btn kind="primary" onClick={copia}>{copiato ? <><Icon name="check" size={13} /> Copiato</> : 'Copia link'}</Btn>
         <Btn kind="warn" onClick={() => window.open(link, '_blank')}>Apri link</Btn>
       </div>
     </Modal>
@@ -863,7 +965,7 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
                 fontWeight: s.done ? 600 : 400,
                 border: `1px solid ${s.done ? COLORS.ok : COLORS.border}`,
               }}>
-                {s.done ? '✓' : '○'} {s.label}
+                <Icon name={s.done ? 'check' : 'dot'} size={11} /> {s.label}
               </span>
             ))}
           </div>
@@ -882,7 +984,7 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
         </Btn>
         {/* Audit 2026-06-20: bottone demo personalizzata (pitch-ready) */}
         <Btn kind="warn" size="sm" onClick={() => onAzione('personalize_demo')} title="Pre-pitch: estrai menu reale del cliente da foto/testo e popola la demo con i SUOI prodotti">
-          <Icon name="sparkles" size={13} /> 🪄 Demo personalizzata
+          <Icon name="sparkles" size={13} /> Demo personalizzata
         </Btn>
       </div>
 
@@ -898,9 +1000,9 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
             notaStatus === 'error' ? COLORS.err : COLORS.textMute,
             fontWeight: 600,
           }}>
-            {notaStatus === 'dirty'  && '○ modifiche non salvate'}
+            {notaStatus === 'dirty'  && <><Icon name="dot" size={10} /> modifiche non salvate</>}
             {notaStatus === 'saving' && <><Icon name="hourglass" size={10} /> salvataggio…</>}
-            {notaStatus === 'saved'  && '✓ salvato'}
+            {notaStatus === 'saved'  && <><Icon name="check" size={10} /> salvato</>}
             {notaStatus === 'error'  && <><Icon name="warning" size={10} /> errore salvataggio</>}
           </span>
         </div>
@@ -956,7 +1058,7 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
                       <Icon name="building" size={10} /> Vendite B2B (mese)
                     </div>
                     <div style={{ fontSize: 18, fontWeight: 800, color: c360.b2b.ricavo_mtd > 0 ? COLORS.ok : COLORS.textMute, ...tnum }}>
-                      €{Number(c360.b2b.ricavo_mtd || 0).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })}
+                      {Number(c360.b2b.ricavo_mtd || 0).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })} €
                     </div>
                     <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
                       {c360.b2b.n_vendite_mtd} vendite · {c360.b2b.n_clienti_attivi} clienti attivi
@@ -970,7 +1072,7 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
                       <Icon name="creditCard" size={10} /> POS (mese)
                     </div>
                     <div style={{ fontSize: 18, fontWeight: 800, color: c360.pos.ricavo_mtd > 0 ? COLORS.ok : COLORS.textMute, ...tnum }}>
-                      €{Number(c360.pos.ricavo_mtd || 0).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })}
+                      {Number(c360.pos.ricavo_mtd || 0).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })} €
                     </div>
                     <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
                       {c360.pos.n_scontrini_mtd} scontrini
@@ -1017,7 +1119,7 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
                       <Icon name="receipt" size={10} /> Costi mensili
                     </div>
                     <div style={{ fontSize: 18, fontWeight: 800, color: c360.costi.totale_mensile > 0 ? COLORS.warn : COLORS.textMute, ...tnum }}>
-                      €{Number(c360.costi.totale_mensile || 0).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })}
+                      {Number(c360.costi.totale_mensile || 0).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })} €
                     </div>
                     <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
                       {c360.costi.n_voci_attive} voci attive
@@ -1031,7 +1133,7 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
                       <Icon name="users" size={10} /> Stipendi (lordo/mese)
                     </div>
                     <div style={{ fontSize: 18, fontWeight: 800, color: c360.stipendi.lordo_mensile > 0 ? COLORS.warn : COLORS.textMute, ...tnum }}>
-                      €{Number(c360.stipendi.lordo_mensile || 0).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })}
+                      {Number(c360.stipendi.lordo_mensile || 0).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })} €
                     </div>
                     <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
                       {c360.stipendi.n_dipendenti} dipendenti attivi
@@ -1427,6 +1529,7 @@ export default function AdminPage() {
           stripe_price_id: priceDraft.stripe_price_id || '',
           nome_display: priceDraft.nome_display || '',
           descrizione: priceDraft.descrizione || '',
+          attivo: !!priceDraft.attivo,
         }),
       })
       setPriceDraft(null); setPriceConfirm(false)
@@ -2195,7 +2298,7 @@ export default function AdminPage() {
         <div style={{ maxWidth: 1400, margin: '0 auto', padding: '0 24px', display: 'flex', gap: 2, overflowX: 'auto' }}>
           {[
             { id: 'overview',  label: 'Overview',  icon: 'home',     desc: 'KPI, MRR, crescita, customer 360 globale' },
-            { id: 'pending',   label: '⏳ In attesa', icon: 'hourglass', desc: 'Approva o rifiuta nuove iscrizioni (anti-scam gate)' },
+            { id: 'pending',   label: 'In attesa', icon: 'hourglass', desc: 'Approva o rifiuta nuove iscrizioni (anti-scam gate)' },
             { id: 'clienti',   label: 'Clienti',   icon: 'users',    desc: 'Tabella con badge hot/silent/churning, filtri, bulk' },
             { id: 'activity',  label: 'Attività',  icon: 'bolt',     desc: 'Live feed eventi: errori, audit, feedback, azioni admin' },
             { id: 'funnel',    label: 'Funnel',    icon: 'trendUp',  desc: 'Onboarding step funnel, drop-off, time-to-value' },
@@ -2575,7 +2678,7 @@ export default function AdminPage() {
               <option value="silent">Silent - trial inattivo</option>
               <option value="churning">Churn risk - pagante in calo</option>
               <option value="new_value">New value - primo wow</option>
-              <option value="errors">⚠ Errors - bug ricorrenti</option>
+              <option value="errors">Con errori ricorrenti</option>
             </select>
           </div>
 
@@ -2676,7 +2779,7 @@ export default function AdminPage() {
                                 silent: { bg: '#E0E7FF', fg: '#3730A3', txt: 'silent' },
                                 churning: { bg: COLORS.errBg, fg: COLORS.err, txt: 'churn' },
                                 new_value: { bg: COLORS.okBg, fg: COLORS.ok, txt: 'new value' },
-                                errors: { bg: COLORS.errBg, fg: COLORS.err, txt: '⚠ errors' },
+                                errors: { bg: COLORS.errBg, fg: COLORS.err, txt: 'con errori' },
                                 blocked: { bg: COLORS.blockedBg, fg: COLORS.blocked, txt: 'blocked' },
                               }[s.status] || { bg: COLORS.rowAlt, fg: COLORS.textMute, txt: s.status }
                               return (
@@ -2721,8 +2824,8 @@ export default function AdminPage() {
                           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                             {!c.org_approvata && (
                               <Btn kind="success" size="sm" onClick={() => azione(c.org_id, 'approva')} disabled={inAzione('approva')}
-                                title="Approva attività: imposta org_approvata=true. Il cliente diventa 'pagante' e perde il limite del trial." aria-label="Approva">
-                                ✓
+                                title="Approva l'attività: il cliente diventa pagante e perde il limite della prova." aria-label="Approva">
+                                <Icon name="check" size={13} />
                               </Btn>
                             )}
                             {c.attivo === false ? (
@@ -2786,7 +2889,7 @@ export default function AdminPage() {
           <Card style={{ marginBottom: 20, padding: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 10 }}>
               <div>
-                <strong style={{ fontSize: 14 }}>⏳ Iscrizioni in attesa di approvazione</strong>
+                <strong style={{ fontSize: 14 }}><Icon name="hourglass" size={16} /> Iscrizioni in attesa di approvazione</strong>
                 <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
                   Nuove organizzazioni che hanno fatto signup. Approva quelle vere, rifiuta lo scam.
                 </div>
@@ -3047,14 +3150,19 @@ export default function AdminPage() {
               Modifica il prezzo mostrato. Per cambiare l'importo <b>realmente addebitato</b>, crea un nuovo Price su Stripe
               e incolla qui il suo ID (<code>price_…</code>): il checkout userà quello. Ogni modifica richiede una conferma esplicita.
             </div>
-            {['base', 'pro', 'enterprise'].map(plan => {
-              const defaults = { base: { prezzo_mese_cents: 6900, nome_display: PLAN_LABEL.base, descrizione: 'Per il banco singolo' }, pro: { prezzo_mese_cents: 14900, nome_display: PLAN_LABEL.pro, descrizione: 'Tutto Foodos, senza limiti di sede o di utenti' }, enterprise: { prezzo_mese_cents: 39900, nome_display: PLAN_LABEL.enterprise, descrizione: 'Per gruppi e catene' } }
+            {['base', 'pro', 'chain'].map(plan => {
+              const defaults = { base: { prezzo_mese_cents: PLAN_PRICE_EUR.base * 100, nome_display: PLAN_LABEL.base, descrizione: 'Per il banco singolo' }, pro: { prezzo_mese_cents: PLAN_PRICE_EUR.pro * 100, nome_display: PLAN_LABEL.pro, descrizione: 'Tutto Foodos, senza limiti di sede o di utenti' }, chain: { prezzo_mese_cents: PLAN_PRICE_EUR.chain * 100, nome_display: PLAN_LABEL.chain, descrizione: 'Per gruppi e catene' } }
               const def = defaults[plan]
               const row = pricing.find(p => p.plan === plan) || { plan, ...def, stripe_price_id: null }
               const inEdit = priceDraft?.plan === plan
               const euroAttuale = Number(row.prezzo_mese_cents / 100).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })
               const nomeAttuale = row.nome_display || def.nome_display
               const descrAttuale = row.descrizione || def.descrizione
+              // In vendita o no. È l'interruttore che decide se il piano
+              // compare in vetrina e se si può comprare: esisteva sul
+              // database e non era né mostrato né modificabile, quindi per
+              // cambiarlo bisognava mettere le mani nel codice.
+              const inVendita = row.attivo !== false
               return (
                 <div key={plan} style={{ border: `1px solid ${COLORS.border}`, borderRadius: 10, padding: '12px 14px', marginBottom: 10, background: inEdit ? '#FFFBEB' : COLORS.card }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
@@ -3062,7 +3170,12 @@ export default function AdminPage() {
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
                         <strong style={{ fontSize: 14 }}>{nomeAttuale}</strong>
                         <span style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em' }}>(DB: {plan})</span>
-                        <span style={{ marginLeft: 6, fontSize: 18, fontWeight: 800, color: COLORS.accent }}>€{euroAttuale}</span>
+                        <span style={{
+                          padding: '2px 8px', borderRadius: 999, fontWeight: 700,
+                          background: inVendita ? COLORS.okBg : COLORS.rowAlt,
+                          color: inVendita ? COLORS.ok : COLORS.textMute,
+                        }}>{inVendita ? 'In vendita' : 'Non in vendita'}</span>
+                        <span style={{ marginLeft: 6, fontSize: 18, fontWeight: 800, color: COLORS.accent }}>{euroAttuale} €</span>
                         <span style={{ fontSize: 12, color: COLORS.textMute }}>/mese</span>
                       </div>
                       <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 4, lineHeight: 1.4 }}>
@@ -3073,7 +3186,7 @@ export default function AdminPage() {
                       </div>
                     </div>
                     {!inEdit && (
-                      <Btn kind="neutral" size="sm" onClick={() => { setPriceDraft({ plan, euro: euroAttuale, stripe_price_id: row.stripe_price_id || '', nome_display: nomeAttuale, descrizione: descrAttuale }); setPriceConfirm(false) }}>
+                      <Btn kind="neutral" size="sm" onClick={() => { setPriceDraft({ plan, euro: euroAttuale, stripe_price_id: row.stripe_price_id || '', nome_display: nomeAttuale, descrizione: descrAttuale, attivo: inVendita }); setPriceConfirm(false) }}>
                         <Icon name="edit" size={14} /> Modifica
                       </Btn>
                     )}
@@ -3100,6 +3213,15 @@ export default function AdminPage() {
                             style={{ display: 'block', marginTop: 4, padding: '8px 10px', borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 13, fontFamily: 'monospace', width: '100%', boxSizing: 'border-box' }} />
                         </label>
                       </div>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: COLORS.text, fontWeight: 600 }}>
+                        <input type="checkbox" checked={!!priceDraft.attivo}
+                          onChange={e => { setPriceDraft(d => ({ ...d, attivo: e.target.checked })); setPriceConfirm(false) }}
+                          style={{ width: 18, height: 18 }} />
+                        In vendita
+                        <span style={{ fontWeight: 400, color: COLORS.textMute, fontSize: 12 }}>
+                          — se tolto, il piano sparisce dalla vetrina e dal pannello abbonamento, e non si può più comprare nemmeno chiamando il server a mano.
+                        </span>
+                      </label>
                       <label style={{ fontSize: 12, color: COLORS.textSoft }}>
                         Descrizione (claim ROI)
                         <textarea value={priceDraft.descrizione || ''} maxLength={300} rows={2}
@@ -3114,15 +3236,15 @@ export default function AdminPage() {
                       ) : (
                         <div style={{ background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 8, padding: '10px 12px' }}>
                           <div style={{ fontSize: 12, color: '#7F1D1D', marginBottom: 8 }}>
-                            Confermi piano <b>{plan}</b>: nome "{priceDraft.nome_display}" · prezzo <b>€{euroAttuale}</b> → <b>€{(parseFloat(String(priceDraft.euro).replace(',', '.')) || 0).toFixed(2)}</b>/mese?
+                            Confermi piano <b>{plan}</b>: nome "{priceDraft.nome_display}" · prezzo <b>{euroAttuale} €</b> → <b>{(parseFloat(String(priceDraft.euro).replace(',', '.')) || 0).toFixed(2)} €</b>/mese · <b>{priceDraft.attivo ? 'in vendita' : 'NON in vendita'}</b>?
                             {priceDraft.stripe_price_id && <> Stripe price <code>{priceDraft.stripe_price_id}</code>.</>}
                             <div style={{ marginTop: 6, fontSize: 12, opacity: 0.85 }}>
-                              ⚠ I clienti già abbonati restano al loro prezzo Stripe attuale finché non disdicono.
+                              I clienti già abbonati restano al loro prezzo Stripe attuale finché non disdicono.
                               Le nuove sottoscrizioni useranno il nuovo prezzo.
                             </div>
                           </div>
                           <div style={{ display: 'flex', gap: 8 }}>
-                            <Btn kind="primary" size="sm" onClick={salvaPrezzo} disabled={priceSaving}>{priceSaving ? 'Salvataggio…' : '✓ Conferma e salva'}</Btn>
+                            <Btn kind="primary" size="sm" onClick={salvaPrezzo} disabled={priceSaving}>{priceSaving ? 'Salvataggio…' : 'Conferma e salva'}</Btn>
                             <Btn kind="neutral" size="sm" onClick={() => setPriceConfirm(false)}>← Indietro</Btn>
                           </div>
                         </div>
@@ -3280,6 +3402,16 @@ export default function AdminPage() {
             </div>
           ) : (
             <>
+              {refAdmin.programma_attivo === false && (
+                /* Prima qui compariva una classifica vuota, identica a
+                   «nessuno ha ancora invitato nessuno». In realtà la parte
+                   che genera i codici non è mai stata costruita: non c'è
+                   niente da distribuire e non ci sarà finché non si fa. */
+                <div style={{ margin: 14, padding: '12px 14px', background: COLORS.warnBg, border: `1px solid ${COLORS.warn}`, borderRadius: 8, color: COLORS.warn, lineHeight: 1.6 }}>
+                  <strong>Il programma inviti non è attivo.</strong> {refAdmin.motivo}
+                  {' '}I numeri qui sotto restano a zero fino ad allora.
+                </div>
+              )}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, padding: 14 }}>
                 <div style={{ padding: 12, background: COLORS.rowAlt, borderRadius: 8 }}>
                   <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', fontWeight: 700 }}>Codici usati totali</div>
@@ -3428,7 +3560,7 @@ export default function AdminPage() {
                       <span style={{ flex: 1 }} />
                       {f.gestito ? (
                         <>
-                          <span style={{ color: COLORS.ok, fontWeight: 600 }}>✓ Gestito da {f.gestito_by} il {fmtData(f.gestito_at)}</span>
+                          <span style={{ color: COLORS.ok, fontWeight: 600 }}><Icon name="check" size={12} /> Gestito da {f.gestito_by} il {fmtData(f.gestito_at)}</span>
                           <Btn kind="ghost" size="sm" onClick={async () => {
                             try {
                               await apiCall('/api/admin', { method: 'POST', body: JSON.stringify({ tipo: 'feedback_marca_gestito', id: f.id, gestito: false }) })
@@ -3442,7 +3574,7 @@ export default function AdminPage() {
                             await apiCall('/api/admin', { method: 'POST', body: JSON.stringify({ tipo: 'feedback_marca_gestito', id: f.id, gestito: true }) })
                             fetchFeedback()
                           } catch (e) { toast.error(e.message) }
-                        }}>✓ Segna gestito</Btn>
+                        }}><Icon name="check" size={13} /> Segna gestito</Btn>
                       )}
                     </div>
                   </div>
@@ -3780,7 +3912,7 @@ export default function AdminPage() {
                 try {
                   const res = await apiCall('/api/admin?action=migrate_integrazioni')
                   const data = await res.json()
-                  toast.success(`✓ Migrate ${data.migrated}/${data.total} integrazioni - errori: ${data.errors?.length || 0}`)
+                  toast.success(`Migrate ${data.migrated}/${data.total} integrazioni - errori: ${data.errors?.length || 0}`)
                   if (data.errors?.length) console.error('migrate errors:', data.errors)
                 } catch (e) {
                   toast.error(`Errore migrazione: ${e.message}`)
@@ -3800,14 +3932,29 @@ export default function AdminPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <strong style={{ fontSize: 14 }}><Icon name="bug" size={16} /> Errori produzione</strong>
               <span style={{ fontSize: 12, color: COLORS.textMute }}>
-                {errori.length} eventi · raccolti via safeError(supabase) da edge functions
+                {errori.length} eventi · il registro tiene gli ultimi 90 giorni
               </span>
             </div>
             <Btn kind="neutral" size="sm" onClick={fetchErrori} disabled={erroriLoading}>{erroriLoading ? '…' : <Icon name="refresh" size={14} />}</Btn>
           </div>
           {errori.length === 0 ? (
-            <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>
-              {erroriLoading ? 'Caricamento…' : 'Nessun errore catturato. Bene così.'}
+            <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, lineHeight: 1.6 }}>
+              {erroriLoading ? 'Caricamento…' : (
+                <>
+                  {/* «Bene così» era una conclusione, non un dato: un registro
+                      vuoto e un registro rotto si leggono identici, e questo
+                      pannello è il solo posto dove ci si accorgerebbe della
+                      differenza. Oggi è vuoto perché la pulizia automatica ha
+                      tolto 1.642 righe più vecchie di 90 giorni. */}
+                  <div style={{ fontWeight: 700, color: COLORS.text }}>Nessun errore negli ultimi 90 giorni.</div>
+                  <div style={{ marginTop: 6 }}>
+                    Il registro tiene 90 giorni: quello che c'era prima è stato cancellato dalla
+                    pulizia notturna. Se questo riquadro resta vuoto per settimane, controlla
+                    nella scheda Ops che la pulizia giornaliera stia girando — un registro
+                    vuoto e un registro che non scrive si vedono uguali da qui.
+                  </div>
+                </>
+              )}
             </div>
           ) : (
             <div style={{ maxHeight: 400, overflowY: 'auto' }}>
@@ -4108,10 +4255,10 @@ export default function AdminPage() {
                   {(healthSnap.cron || []).map(c => {
                     const ok = c.status === 'ok'
                     const bg = ok ? '#ecfdf5' : c.status === 'late' || c.status === 'error' ? '#fef2f2' : '#fffbeb'
-                    const sym = ok ? '✓' : c.status === 'pending' ? '⏳' : '✗'
+                    const segno = ok ? 'check' : c.status === 'pending' ? 'hourglass' : 'x'
                     return (
                       <div key={c.id} style={{ padding: '8px 10px', border: `1px solid ${COLORS.border}`, borderRadius: 6, background: bg }}>
-                        <div style={{ fontSize: 12, fontWeight: 600 }}>{sym} {c.id}</div>
+                        <div style={{ fontSize: 12, fontWeight: 600 }}><Icon name={segno} size={12} /> {c.id}</div>
                         <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
                           Tabella: <code>{c.table || '-'}</code> · atteso ~{c.expected_hour_utc ?? '?'}:00 UTC
                         </div>
@@ -4388,10 +4535,21 @@ export default function AdminPage() {
         <DeleteModal
           cliente={deleteFor}
           onClose={() => setDeleteFor(null)}
-          onConferma={async conferma => {
+          apriAnteprima={async (orgId) => {
+            const r = await apiCall('/api/admin', {
+              method: 'POST',
+              body: JSON.stringify({ orgId, tipo: 'elimina_preview' }),
+            })
+            return await r.json()
+          }}
+          onConferma={async (conferma, totaleAtteso) => {
             await apiCall('/api/admin', {
               method: 'POST',
-              body: JSON.stringify({ orgId: deleteFor.org_id, tipo: 'elimina', conferma }),
+              // `expected_count` è quello che il server confronta con lo stato
+              // di adesso: se nel frattempo il cliente ha inserito qualcosa,
+              // la cancellazione si ferma invece di partire su dati diversi
+              // da quelli che sono stati mostrati.
+              body: JSON.stringify({ orgId: deleteFor.org_id, tipo: 'elimina', conferma, expected_count: totaleAtteso }),
             })
             await fetchData()
             fetchAudit()
@@ -4429,7 +4587,7 @@ export default function AdminPage() {
             })
             await fetchData()
             fetchAudit()
-            toast.success(`✓ ${mesi} mese/i regalati a ${regalaFor.nome_attivita}`)
+            toast.success(`${mesi} mese/i regalati a ${regalaFor.nome_attivita}`)
           }}
         />
       )}
@@ -4514,7 +4672,7 @@ export default function AdminPage() {
             await fetchData()
             fetchAudit()
             if (data?.deleted >= 0) {
-              toast.success(`✓ Eliminate ${data.deleted} fatture demo`)
+              toast.success(`Eliminate ${data.deleted} fatture demo`)
             }
           }}
         />
@@ -4538,7 +4696,7 @@ export default function AdminPage() {
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ fontWeight: 700, color: COLORS.ok, fontSize: 13 }}>
-                      €{Number((r.ammontare_scontato_cents || 0) / 100).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} scontati
+                      {Number((r.ammontare_scontato_cents || 0) / 100).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} € scontati
                     </div>
                     {r.stripe_invoice_id && (
                       <div style={{ fontSize: 12, color: COLORS.textMute, fontFamily: 'monospace' }}>{r.stripe_invoice_id.slice(0, 18)}…</div>
@@ -4547,7 +4705,7 @@ export default function AdminPage() {
                 </div>
               ))}
               <div style={{ padding: 10, background: COLORS.blueBg, borderRadius: 8, fontSize: 12, color: COLORS.blue }}>
-                Totale risparmiato: <strong>€{Number(redemptions.reduce((s, r) => s + (r.ammontare_scontato_cents || 0), 0) / 100).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> · {redemptions.length} utilizzi
+                Totale risparmiato: <strong>{Number(redemptions.reduce((s, r) => s + (r.ammontare_scontato_cents || 0), 0) / 100).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</strong> · {redemptions.length} utilizzi
               </div>
             </div>
           )}

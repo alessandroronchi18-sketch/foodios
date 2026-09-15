@@ -107,12 +107,32 @@ Alternativa: **Iubenda** (€27/anno) genera Privacy/Cookie/Termini compliant + 
 
 ---
 
-### 7. Rimuovere `ADMIN_PROD_MFA_BYPASS`
-Il bypass temporaneo `ADMIN_PROD_MFA_BYPASS=true` + `ADMIN_PROD_MFA_BYPASS_EMAILS=alessandro.ronchi18@gmail.com` permette al fondatore di entrare in `/admin` senza MFA. Va rimosso quando si costruisce una UI MFA TOTP dedicata.
+### 7. Attivare il secondo fattore e chiudere `ADMIN_PROD_MFA_BYPASS`
+Finché non c'è un secondo fattore, **l'accesso al pannello admin è protetto
+da una sola password**: chi entra nella Gmail del fondatore entra nel
+pannello, e da lì vede tutti i clienti, può entrare nei loro account e
+cancellarli. Sul database, oggi, `auth.mfa_factors` è vuota: nessuno dei
+1.977 utenti ha un secondo fattore.
+
+**Due cose che questa pagina diceva sbagliate** (corrette il 15/09/2026):
+- `ADMIN_PROD_MFA_BYPASS_EMAILS` **non esiste**. Il codice legge le email
+  direttamente da `ADMIN_PROD_MFA_BYPASS`. Se qualcuno seguisse le vecchie
+  istruzioni e scrivesse `ADMIN_PROD_MFA_BYPASS=true`, il fondatore
+  resterebbe chiuso fuori dal suo pannello: "true" verrebbe letto come un
+  indirizzo email, e nessuno corrisponde.
+- La schermata per attivare il secondo fattore **c'è già**: è
+  `src/components/Mfa.jsx`, in Impostazioni → Sicurezza. Mostra il codice QR
+  per Google Authenticator, Authy o 1Password. Non è mai stata usata.
+
+Dal 15/09/2026 la deroga **si spegne da sola**: `api/lib/auth.js` la applica
+solo finché sul conto non c'è un secondo fattore verificato. Appena viene
+attivato, da quel momento viene richiesto, senza dover toccare niente su
+Vercel. Togliere la variabile resta comunque la cosa pulita da fare dopo.
 
 **Cosa fare:**
-- [ ] Decidere quando costruire la UI MFA enrollment proper (al momento NON c'è schermata di setup TOTP dentro l'app)
-- [ ] Quando pronta: Vercel env vars → rimuovere `ADMIN_PROD_MFA_BYPASS` + `ADMIN_PROD_MFA_BYPASS_EMAILS`
+- [ ] Impostazioni → Sicurezza → attivare il 2FA col telefono (5 minuti)
+- [ ] Verificare l'ingresso in `/admin`: deve chiedere il codice a 6 cifre
+- [ ] Vercel env vars → rimuovere `ADMIN_PROD_MFA_BYPASS`
 - [ ] Redeploy
 
 ---

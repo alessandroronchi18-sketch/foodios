@@ -61,12 +61,15 @@ export function publicErrorMessage(error) {
 }
 
 /**
- * Persiste l'errore nella tabella public.error_log (fire-and-forget).
- * Best-effort: se la query fallisce, ignoriamo (non vogliamo loop di errori).
+ * Persiste l'errore nella tabella public.error_log.
+ * Best-effort: se la query fallisce non si propaga (non vogliamo loop di
+ * errori), ma **si vede**: vedi sotto.
  * supabase deve essere un client con service_role (no RLS check).
+ *
+ * @returns {Promise<void>} la scrittura, per chi vuole aspettarla
  */
 function persistToDb(supabase, error, context) {
-  if (!supabase) return
+  if (!supabase) return Promise.resolve()
   try {
     const row = {
       endpoint: context.endpoint || null,
@@ -80,9 +83,22 @@ function persistToDb(supabase, error, context) {
       stack: (error?.stack || '').slice(0, 2000),
       context: context,
     }
-    // .then chain con catch per silenziare promise rejection unhandled
-    supabase.from('error_log').insert(row).then(() => {}, () => {})
-  } catch { /* ignore */ }
+    // Prima era `.then(() => {}, () => {})`: se l'inserimento falliva, la cosa
+    // spariva senza lasciare traccia da nessuna parte. Il registro degli
+    // errori è esattamente il posto dove un guasto silenzioso costa di più —
+    // il pannello admin scrive "Nessun errore catturato. Bene così." e non
+    // c'è modo di distinguerlo da "il registro è rotto". Ora l'esito si
+    // guarda: se non riesce, finisce nei log di Vercel.
+    return supabase.from('error_log').insert(row).then(
+      ({ error: err } = {}) => {
+        if (err) console.error('[safeError] registro errori non scritto:', err.message || err)
+      },
+      (e) => console.error('[safeError] registro errori non raggiungibile:', e?.message || e),
+    )
+  } catch (e) {
+    console.error('[safeError] registro errori, eccezione:', e?.message || e)
+    return Promise.resolve()
+  }
 }
 
 /**
@@ -100,11 +116,17 @@ function persistToDb(supabase, error, context) {
  */
 export function safeError(error, context = {}, fallbackStatus = 500, supabase = null) {
   captureForMonitoring(error, context)
-  persistToDb(supabase, error, context)
+  // `scritto` è la scrittura sul registro. Chi risponde da un runtime Edge —
+  // dove l'esecuzione può essere congelata appena parte la risposta — può
+  // aspettarla prima di restituire, e così la riga arriva davvero:
+  //     const { body, status, scritto } = safeError(e, ctx, 500, supabase)
+  //     await scritto
+  const scritto = persistToDb(supabase, error, context)
   const status = error?.status || error?.statusCode || fallbackStatus
   return {
     body: { error: publicErrorMessage(error) },
     status: typeof status === 'number' && status >= 400 && status < 600 ? status : 500,
+    scritto,
   }
 }
 

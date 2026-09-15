@@ -158,21 +158,40 @@ export async function verificaAdmin(req, supabase) {
         }
       }
     }
-    // PROD BYPASS founder-only (audit 2026-06-20):
-    // Accettato regresso security temporaneo: pre-revenue, founder unico admin,
-    // no MFA UI di enrollment ancora costruita. Da rimuovere quando UI pronta.
-    // L'env ADMIN_PROD_MFA_BYPASS contiene email comma-separated che skippano
-    // l'aal2 check anche in prod. Log esplicito nel reason per audit_log.
+    // ── Deroga in produzione, solo per il fondatore ──────────────────────
+    //
+    // `ADMIN_PROD_MFA_BYPASS` contiene le email, separate da virgola, che
+    // entrano nel pannello senza secondo fattore. Era nata il 20/06/2026 come
+    // regresso accettato: pre-ricavi, un solo amministratore, e la schermata
+    // per attivare il secondo fattore non ancora costruita.
+    //
+    // Quella schermata adesso c'è (src/components/Mfa.jsx, in Impostazioni →
+    // Sicurezza). Ma toglierla di colpo chiuderebbe fuori il fondatore dal
+    // suo stesso pannello, quindi **la deroga si disattiva da sola**: vale
+    // solo finché sul conto non c'è nessun secondo fattore verificato. Il
+    // giorno in cui lo attiva dal telefono, da quel momento glielo si chiede,
+    // senza che nessuno debba ricordarsi di cambiare una variabile.
+    //
+    // Fino ad allora, l'accesso all'admin è protetto da una sola password.
     const prodBypassRaw = process.env.ADMIN_PROD_MFA_BYPASS || ''
-    if (prodBypassRaw) {
+    const aalLevel = decodeJwtClaim(token, 'aal')
+    if (prodBypassRaw && aalLevel !== 'aal2') {
       const prodBypass = prodBypassRaw
         .split(',').map(e => e.toLowerCase().trim()).filter(Boolean)
       const userEmail = (user.email || '').toLowerCase().trim()
       if (prodBypass.includes(userEmail)) {
-        return { user, reason: 'ok_mfa_prod_bypass_founder' }
+        // Se un secondo fattore c'è, la deroga non vale più: si passa oltre e
+        // il controllo qui sotto lo pretende.
+        let haFattore = false
+        try {
+          const { data: f, error } = await supabase.auth.admin.mfa.listFactors({ userId: user.id })
+          if (!error) haFattore = (f?.factors || []).some(x => x.status === 'verified')
+        } catch { /* se non si riesce a leggere, la deroga resta valida */ }
+        if (!haFattore) {
+          return { user, reason: 'ok_mfa_prod_bypass_founder_senza_secondo_fattore' }
+        }
       }
     }
-    const aalLevel = decodeJwtClaim(token, 'aal')
     if (aalLevel !== 'aal2') {
       // Audit 2026-07-01 HIGH: distinguere "exception (transient)" da "factors
       // empty (clean)". Su transient diciamo "errore temporaneo" invece di

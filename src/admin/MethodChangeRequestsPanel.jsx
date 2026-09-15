@@ -27,6 +27,7 @@ export default function MethodChangeRequestsPanel({ onCountChange }) {
   const [rejectingId, setRejectingId] = useState(null) // id per cui e' aperto il form rifiuto
   const [rejectNote, setRejectNote] = useState('')
   const [err, setErr] = useState(null)
+  const [avvisi, setAvvisi] = useState([])
 
   const fetchRichieste = useCallback(async () => {
     setLoading(true); setErr(null)
@@ -43,12 +44,19 @@ export default function MethodChangeRequestsPanel({ onCountChange }) {
 
   async function approva(id) {
     if (busyId) return
-    setBusyId(id); setErr(null)
+    setBusyId(id); setErr(null); setAvvisi([])
     try {
-      await apiFetch('/api/admin', {
+      const r = await apiFetch('/api/admin', {
         method: 'POST',
         body: JSON.stringify({ tipo: 'metodo_richiesta_approva', richiesta_id: id }),
       })
+      // L'approvazione fa tre cose oltre a cambiare il metodo: allinea le
+      // sedi, crea i formati di vendita predefiniti e avvisa il cliente
+      // nell'app. Quando una delle tre non riesce, l'approvazione vale lo
+      // stesso — ma va detto, invece di finire in un avviso nei log del
+      // server che nessuno legge.
+      const dati = await r.json().catch(() => ({}))
+      if (Array.isArray(dati?.avvisi) && dati.avvisi.length) setAvvisi(dati.avvisi)
       await fetchRichieste()
     } catch (e) { setErr(e.message || 'errore') } finally { setBusyId(null) }
   }
@@ -82,6 +90,22 @@ export default function MethodChangeRequestsPanel({ onCountChange }) {
           <Icon name="refresh" size={13}/> {loading ? '…' : 'Aggiorna'}
         </button>
       </div>
+
+      {avvisi.length > 0 && (
+
+        <div style={{ background: COLORS.warnBg, border: `1px solid ${COLORS.warn}`, borderRadius: 8, padding: '10px 12px', marginBottom: 10, color: COLORS.warn, lineHeight: 1.5 }}>
+
+          <strong>Approvata, ma con qualcosa da sistemare a mano:</strong>
+
+          <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>
+
+            {avvisi.map((a, i) => <li key={i}>{a}</li>)}
+
+          </ul>
+
+        </div>
+
+      )}
 
       {err && (
         <div style={{ marginBottom: 10, padding: '8px 12px', background: COLORS.errBg, color: COLORS.err, border: `1px solid ${COLORS.err}`, borderRadius: 8, fontSize: 12, fontWeight: 600 }}>{err}</div>

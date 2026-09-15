@@ -11,7 +11,7 @@ import { color as T, radius as R, shadow as S, ui3, ui } from '../lib/theme'
 import { apiFetch } from '../lib/apiFetch'
 import usePlanPricing, { fmtPrezzo } from '../lib/usePlanPricing'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
-import { PLAN_LABEL } from '../lib/planAccess'
+import { PLAN_LABEL, inVendita } from '../lib/planAccess'
 
 // Audit 2026-06-21: 3-tier Bottega/Maestro/Insegna con ROI claim.
 // Fallback statico - viene sovrascritto dalla query plan_pricing al mount
@@ -89,7 +89,18 @@ export default function AbbonamentoPanel({ org, notify, isInline = false }) {
   // L'admin modifica `plan_pricing` → /api/pricing → hook → tutto si aggiorna
   // automaticamente (landing, abbonamento, modali, email).
   const planMeta = usePlanPricing()
-  const PIANI = PIANI_DEFAULT.map(p => {
+  // Quali tessere si mostrano. Stesso criterio della vetrina pubblica
+  // (LandingPage.jsx): comanda `attivo` sulla riga di plan_pricing, che il
+  // titolare cambia dal pannello admin.
+  //
+  // Prima questo pannello — quello che vede il cliente **dentro** l'app —
+  // mostrava tutti e tre i piani con il bottone "Abbonati", anche i due che il
+  // titolare aveva chiuso. Il bottone di Standard rispondeva «Piano non
+  // valido: base» (il server accetta solo pro e chain), quello di Ultra
+  // avrebbe aperto davvero un pagamento da 399 € al mese per un piano che non
+  // è in vendita. La vetrina pubblica filtrava già; questo no.
+  const mostraPiano = (id) => inVendita(id, planMeta?.meta?.[id === 'enterprise' ? 'chain' : id])
+  const PIANI = PIANI_DEFAULT.filter(p => mostraPiano(p.id)).map(p => {
     // Alias retro-compat: 'enterprise' = 'chain' in plan_pricing.
     const key = p.id === 'enterprise' ? 'chain' : p.id
     const dynPrezzo = planMeta[key]
@@ -217,7 +228,11 @@ export default function AbbonamentoPanel({ org, notify, isInline = false }) {
           chip separatore per rendere chiara la struttura incrementale. */}
       <div style={{
         display:'grid',
-        gridTemplateColumns: isMobile ? '1fr' : isTablet ? '1fr' : 'repeat(auto-fit, minmax(260px, 1fr))',
+        // Con un piano solo in vendita `auto-fit` stirava l'unica tessera per
+        // tutta la larghezza del pannello: un riquadro da 900px con dentro un
+        // prezzo. Sopra il telefono la si tiene larga come sarebbe in fila.
+        gridTemplateColumns: (isMobile || isTablet) ? '1fr' : 'repeat(auto-fit, minmax(260px, 1fr))',
+        maxWidth: (!isMobile && !isTablet && PIANI.length === 1) ? 380 : undefined,
         gap: isTablet ? 14 : 16,
         alignItems: 'stretch',
       }}>

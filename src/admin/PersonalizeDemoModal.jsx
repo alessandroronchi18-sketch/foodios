@@ -421,8 +421,8 @@ function Step3Done({ result, cliente, onImpersona, onClose }) {
       {(ov.nome_aggiornato || ov.citta_aggiornata) && (
         <div style={{ padding: 10, background: P.blueBg, color: P.blue, borderRadius: 8, fontSize: 12, marginBottom: 16, border: `1px solid ${P.blue}` }}>
           <Icon name="check" size={11} /> Anagrafica aggiornata:
-          {ov.nome_aggiornato && <> nome attività ✓</>}
-          {ov.citta_aggiornata && <> · città ✓</>}
+          {ov.nome_aggiornato && <> nome attività aggiornato</>}
+          {ov.citta_aggiornata && <> · città aggiornata</>}
         </div>
       )}
 
@@ -572,7 +572,7 @@ export default function PersonalizeDemoModal({ cliente, apiCall, toast, onClose,
 
   return (
     <ModalShell
-      title={`🪄 Demo personalizzata · ${cliente.nome_attivita}`}
+      title={`Demo personalizzata · ${cliente.nome_attivita}`}
       subtitle="Popola un'org di test con i prodotti reali del cliente, pronto per il pitch"
       onClose={onClose}
       width={840}>

@@ -18,6 +18,7 @@ import {
   getCodiciSconto, creaCodiceSconto, disattivaCodiceSconto,
   eliminaCodiceSconto, applicaCodiceManuale,
 } from './lib/admin/codiciSconto.js'
+import { PLAN_PRICE_EUR } from '../src/lib/planAccess.js'
 
 // ADMIN_EMAIL deve essere configurato su Vercel come env var.
 // Nessun default hardcoded: se manca, l'endpoint rifiuta SEMPRE.
@@ -86,7 +87,7 @@ async function getClienti(supabase) {
   const todayIso = new Date().toISOString().slice(0, 10)
   const [overviewRes, usersRes, integR, pushR, scadR] = await Promise.all([
     supabase.from('admin_overview').select('*').order('registrata_il', { ascending: false }),
-    supabase.auth.admin.listUsers({ perPage: 1000 }),
+    tuttiGliUtenti(supabase),
     fetchSafe(supabase.from('integrazioni').select('organization_id').eq('attiva', true)),
     fetchSafe(supabase.from('push_subscriptions').select('organization_id').eq('active', true)),
     fetchSafe(supabase.from('fatture').select('organization_id, totale, importo_pagato, tipo')
@@ -225,6 +226,51 @@ async function getGlobalCustomer360(supabase) {
   }
 }
 
+// Il listino vero: `plan_pricing` sul database, che il titolare comanda dal
+// pannello. Se la tabella non risponde si usa il listino del codice. Un piano
+// che non è in vendita (trial, o un nome mai visto) vale zero.
+// Tutti gli utenti, non i primi mille.
+//
+// `listUsers({ perPage: 1000 })` si ferma alla prima pagina. In produzione ci
+// sono 1.977 utenti (1.602 dei quali sono conti di prova lasciati indietro
+// dai test automatici), quindi **nove clienti veri restavano fuori**: nella
+// tabella del pannello risultavano "Mai loggato" e con l'email non
+// confermata pur non essendolo, perché il loro utente non arrivava mai. E il
+// numero peggiorava a ogni giro di test.
+async function tuttiGliUtenti(supabase, maxPagine = 25) {
+  const tutti = []
+  for (let pagina = 1; pagina <= maxPagine; pagina++) {
+    const { data, error } = await supabase.auth.admin.listUsers({ page: pagina, perPage: 1000 })
+    if (error) {
+      // Meglio quello che si è riusciti a leggere che niente: chi chiama usa
+      // questi utenti per arricchire la tabella, non per autorizzare.
+      console.error('[admin] elenco utenti, pagina', pagina, error.message)
+      break
+    }
+    const lotto = data?.users || []
+    tutti.push(...lotto)
+    if (lotto.length < 1000) break
+  }
+  return { data: { users: tutti } }
+}
+
+async function listinoPiani(supabase) {
+  const prezzi = { ...PLAN_PRICE_EUR }
+  try {
+    const { data } = await supabase.from('plan_pricing').select('plan, prezzo_mese_cents')
+    for (const r of data || []) {
+      if (Number.isFinite(r?.prezzo_mese_cents)) prezzi[r.plan] = r.prezzo_mese_cents / 100
+    }
+    // `chain` ed `enterprise` sono lo stesso piano con due nomi storici.
+    if (prezzi.chain != null && prezzi.enterprise == null) prezzi.enterprise = prezzi.chain
+    if (prezzi.enterprise != null && prezzi.chain == null) prezzi.chain = prezzi.enterprise
+  } catch { /* resta il listino del codice */ }
+  return (piano) => {
+    const v = prezzi[String(piano || '').toLowerCase()]
+    return Number.isFinite(v) ? v : 0
+  }
+}
+
 async function getStats(supabase, clienti) {
   const now = new Date()
   const sevenDaysAgo = new Date(now.getTime() - 7 * 86400000)
@@ -238,11 +284,20 @@ async function getStats(supabase, clienti) {
   const nuoviSettimana = clienti.filter(c => c.registrata_il && new Date(c.registrata_il) > sevenDaysAgo).length
   const nuoviMese = clienti.filter(c => c.registrata_il && new Date(c.registrata_il) > thirtyDaysAgo).length
 
-  // MRR stimato: paganti × prezzo base €39
-  const PREZZO_PIANO = { base: 39, pro: 89, enterprise: 199, trial: 0 }
+  // Ricavo mensile ricorrente stimato.
+  //
+  // Qui c'era un listino scritto a mano — 39 / 89 / 199 — fermo a prezzi mai
+  // più usati: quelli veri sono 69 / 149 / 399. E il valore di scorta era 39,
+  // così ogni cliente su un piano non elencato (per esempio `trial`, che è il
+  // piano di **tutti** e 375 i clienti di oggi) contava 39 €. Il pannello
+  // mostrava 78 € di ricavo mensile: un numero che non corrisponde a niente.
+  //
+  // Ora il listino è uno solo, quello di `plan_pricing`, con `PLAN_PRICE_EUR`
+  // come scorta; e un piano sconosciuto vale zero, non 39.
+  const prezzoDi = await listinoPiani(supabase)
   const mrrStimato = clienti
     .filter(c => c.org_approvata)
-    .reduce((acc, c) => acc + (PREZZO_PIANO[c.piano] || 39), 0)
+    .reduce((acc, c) => acc + prezzoDi(c.piano), 0)
 
   // Giorni medi rimanenti per i trial attivi
   const trialAttivi = clienti.filter(c => !c.org_approvata && c.trial_ends_at && new Date(c.trial_ends_at) > now)
@@ -1238,10 +1293,15 @@ async function azInviaEmail(req, body, supabase) {
 
 // ─── PREZZI PIANI ──────────────────────────────────────────────────────────
 async function getPlanPricing(supabase) {
+  // `nome_display`, `descrizione` e `attivo` mancavano dalla select: il
+  // pannello mostrava le descrizioni scritte a mano nel suo codice mentre ai
+  // clienti ne andava un'altra, e l'interruttore «in vendita» — che esiste
+  // sul database ed è quello che decide cosa si può comprare — non era né
+  // visibile né modificabile.
   const { data, error } = await supabase
     .from('plan_pricing')
-    .select('plan, prezzo_mese_cents, valuta, stripe_price_id, label, aggiornato_da, aggiornato_il')
-    .order('plan')
+    .select('plan, prezzo_mese_cents, valuta, stripe_price_id, label, nome_display, descrizione, attivo, aggiornato_da, aggiornato_il')
+    .order('prezzo_mese_cents')
   if (error) throw new Error(error.message)
   return data || []
 }
@@ -1249,9 +1309,15 @@ async function getPlanPricing(supabase) {
 async function setPlanPricing(supabase, body, adminEmail) {
   // Audit 2026-06-21: aggiunto 'base' (Bottega) ai piani gestibili + nome_display
   // + descrizione modificabili dall'admin senza migrazione DB.
-  const VALID_PLANS = new Set(['base', 'pro', 'enterprise', 'chain'])
-  const plan = VALID_PLANS.has(body.plan) ? body.plan : null
-  if (!plan) throw new Error('Piano non valido (base|pro|enterprise)')
+  // Le righe di `plan_pricing` si chiamano base / pro / chain (c'è un vincolo
+  // sul database che non ne accetta altre). `enterprise` è il nome storico
+  // dello stesso piano e continua ad arrivare da qualche chiamata vecchia:
+  // si accetta, ma si scrive su `chain`. Prima creava una riga `enterprise`
+  // che nessuno legge mai — il prezzo cambiava nel pannello e sul sito no.
+  const ALIAS = { enterprise: 'chain' }
+  const chiesto = String(body.plan || '').toLowerCase().trim()
+  const plan = ({ base: 'base', pro: 'pro', chain: 'chain', ...ALIAS })[chiesto] || null
+  if (!plan) throw new Error('Piano non valido (base|pro|chain)')
 
   // Importo in centesimi: intero positivo, max 100.000 €/mese (sanity guard).
   const cents = parseInt(body.prezzo_mese_cents, 10)
@@ -1270,18 +1336,25 @@ async function setPlanPricing(supabase, body, adminEmail) {
   const descrizione = body.descrizione ? sanitize(body.descrizione, 300) : null
 
   const { data: prev } = await supabase
-    .from('plan_pricing').select('prezzo_mese_cents').eq('plan', plan).maybeSingle()
+    .from('plan_pricing')
+    .select('prezzo_mese_cents, label, nome_display, descrizione, attivo').eq('plan', plan).maybeSingle()
 
   const patch = {
     plan,
     prezzo_mese_cents: cents,
     stripe_price_id: stripePriceId,
-    label: nomeDisplay || (plan === 'base' ? 'Bottega' : plan === 'pro' ? 'Maestro' : 'Insegna'),
+    // Se il nome non viene toccato resta quello che c'era. Prima ricadeva su
+    // Bottega / Maestro / Insegna, i nomi di tre listini fa: salvare un
+    // prezzo lasciando vuoto il nome faceva tornare "Plus" a chiamarsi
+    // "Maestro", sul sito e nelle email, senza che nessuno l'avesse chiesto.
+    label: nomeDisplay || prev?.label || prev?.nome_display || null,
     aggiornato_da: adminEmail,
     aggiornato_il: new Date().toISOString(),
   }
   if (nomeDisplay) patch.nome_display = nomeDisplay
   if (descrizione) patch.descrizione = descrizione
+  // Chi decide quali piani sono in vendita è il titolare, da qui.
+  if (body.attivo !== undefined) patch.attivo = !!body.attivo
 
   const { data: row, error } = await supabase
     .from('plan_pricing')
@@ -1334,22 +1407,32 @@ async function azPulisciDemoFatture(supabase, orgId, valore) {
 // NB: in azElimina ora preferiamo la RPC `admin_org_cascade_delete` (atomica,
 // migration 20260630) e fallback solo se la RPC non esiste — questa lista
 // resta come fonte per il PREVIEW.
+// Le tabelle che si svuotano quando si cancella un cliente.
+//
+// Verificato sul database il 15/09/2026: tre nomi qui dentro non
+// corrispondevano a nessuna tabella (`referral`, `dipendenti_stipendio`,
+// `scadenzario_pagamenti`) e quattro tabelle non hanno una colonna
+// `organization_id`, quindi non si possono filtrare per cliente
+// (`login_attempts`, `rate_limits`, `plan_pricing_log`,
+// `sdi_emission_queue`). Il conteggio le saltava in silenzio e il totale
+// mostrato era più basso del vero. Tolte da qui.
+//
+// `error_log` usa `org_id`: ci pensa la chiave esterna, che al momento della
+// cancellazione lo mette a nullo da sola.
 const TABELLE_ELIMINA_ORG = [
-  'user_data', 'turni', 'dipendenti', 'dipendenti_stipendio',
+  'user_data', 'turni', 'dipendenti',
   'fornitori', 'ordini_fornitori', 'notifiche', 'integrazioni',
-  'sync_log', 'sedi', 'fatture', 'note_giornaliere', 'referral',
-  // Tabelle AI nuove (post Daily Brief 2026-06)
+  'sync_log', 'sedi', 'fatture', 'note_giornaliere',
+  // Tabelle AI (post Daily Brief 2026-06)
   'daily_briefs', 'ai_suggestions', 'brain_conversations',
   'recipe_inventions', 'forecast_giornaliero', 'cashflow_eventi',
   'competitor_prices', 'documentary_snapshots', 'whatsapp_links',
   'extracted_invoices', 'pos_scontrini',
-  // Tabelle aggiunte audit 2026-07-01 (residui post-audit):
-  'haccp_temperature', 'costi_aziendali', 'scadenzario_pagamenti',
+  // Residui audit 2026-07-01
+  'haccp_temperature', 'costi_aziendali',
   'inventario_produzione', 'stock_prodotti_finiti', 'vendite_b2b',
   'sdi_invoice_log', 'trasferimenti', 'ai_usage_daily',
-  'view_usage_daily', 'feedback', 'audit_log', 'error_log',
-  'plan_pricing_log', 'discount_redemptions', 'sdi_emission_queue',
-  'cashflow_eventi', 'login_attempts', 'rate_limits',
+  'view_usage_daily', 'feedback', 'audit_log', 'discount_redemptions',
 ]
 
 // Conta i record che verrebbero eliminati (dry-run). Usato dall'UI admin per
@@ -1395,7 +1478,20 @@ async function azElimina(supabase, orgId, conferma, expectedCount) {
   // tutte le tabelle figlie in UNA TRANSAZIONE — niente timeout-mezzo-eliminato,
   // rollback automatico su errore. Fallback al loop sequenziale solo se la RPC
   // non e' deployata (DB pre-20260630).
-  const { error: rpcErr } = await supabase.rpc('admin_org_cascade_delete', { p_org_id: orgId })
+  const { data: esitoCascata, error: rpcErr } = await supabase.rpc('admin_org_cascade_delete', { p_org_id: orgId })
+  // La funzione restituisce una riga per tabella, e segna con -1 quelle su cui
+  // la cancellazione è fallita (per esempio perché la tabella non ha una
+  // colonna `organization_id`: `error_log` usa `org_id`, e `login_attempts`,
+  // `rate_limits`, `plan_pricing_log` e `sdi_emission_queue` non ce l'hanno
+  // affatto). Quelle righe restano lì. Finora nessuno guardava questo
+  // risultato: si controllava solo se l'intera chiamata fosse fallita, e
+  // un'eliminazione «riuscita» poteva lasciarsi dietro dati del cliente.
+  const tabelleNonRipulite = (esitoCascata || [])
+    .filter(r => Number(r?.rows_deleted) === -1)
+    .map(r => r.table_name)
+  if (tabelleNonRipulite.length > 0) {
+    console.error('[azElimina] tabelle non ripulite per', orgId, ':', tabelleNonRipulite.join(', '))
+  }
   if (rpcErr) {
     // Fallback: la RPC potrebbe non esistere (migration non applicata) o aver
     // fallito per motivi specifici. Logghiamo e procediamo con DELETE manuali
@@ -1422,15 +1518,26 @@ async function azElimina(supabase, orgId, conferma, expectedCount) {
     }
   }
   if (fallitiAuth.length > 0) {
-    // Log su error_log per recovery manuale; non interrompe la pipeline.
-    try {
-      await supabase.from('error_log').insert({
-        endpoint: 'admin.azElimina',
-        status_code: 500,
-        error_message: `auth.admin.deleteUser fallita per ${fallitiAuth.length} utenti dell'org ${orgId}`,
-        context: { orgId, fallitiAuth },
-      })
-    } catch { /* error_log opzionale */ }
+    // Le colonne di error_log sono `status` e `message`, non `status_code` e
+    // `error_message`: questo inserimento falliva sempre, dentro un catch
+    // vuoto. Risultato: un utente rimasto senza organizzazione — che può
+    // ancora fare accesso — non veniva segnalato in nessun posto.
+    const { error: eLog } = await supabase.from('error_log').insert({
+      endpoint: 'admin.azElimina',
+      operation: 'auth.admin.deleteUser',
+      org_id: orgId,
+      status: 500,
+      message: `Cancellazione utente fallita per ${fallitiAuth.length} account dell'organizzazione ${orgId}: possono ancora entrare.`,
+      context: { orgId, fallitiAuth },
+    })
+    if (eLog) console.error('[azElimina] utenti orfani non registrati:', eLog.message, fallitiAuth)
+  }
+
+  // Quello che non è riuscito torna a chi ha premuto il bottone, invece di
+  // restare in un log del server.
+  return {
+    tabelle_non_ripulite: tabelleNonRipulite,
+    utenti_non_cancellati: fallitiAuth.map(f => f.email).filter(Boolean),
   }
 }
 
@@ -1689,7 +1796,7 @@ async function getCustomerSignals(supabase) {
     supabase.from('organizations')
       .select('id, nome, approvato, attivo, trial_ends_at, stripe_status, created_at')
       .limit(1000),
-    supabase.auth.admin.listUsers({ perPage: 1000 }),
+    tuttiGliUtenti(supabase),
     fetchSafe(supabase.from('user_data')
       .select('organization_id, updated_at')
       .gte('updated_at', thirtyDaysAgo)
@@ -1808,7 +1915,7 @@ async function getOnboardingFunnel(supabase, days = 60) {
     supabase.from('organizations')
       .select('id, created_at, approvato, attivo, trial_ends_at')
       .gte('created_at', since).limit(2000),
-    supabase.auth.admin.listUsers({ perPage: 1000 }),
+    tuttiGliUtenti(supabase),
   ])
   if (orgsR.error) throw new Error(orgsR.error.message)
   const userByEmail = {}
@@ -2138,11 +2245,19 @@ export default async function handler(req) {
         return json({ items }, 200, req)
       }
       if (action === 'referral_admin') {
-        // Audit 2026-06-21: leaderboard referral + mesi bonus distribuiti
-        const { data: ref } = await supabase.from('referral')
+        // Classifica di chi ha portato clienti, e mesi regalati.
+        //
+        // La tabella `referral` **non esiste** sul database: c'è solo il
+        // pezzo sull'altro lato (`organizations.referral_code_usato` e
+        // `mesi_bonus`). La libreria di Supabase non solleva eccezioni,
+        // restituisce un errore che nessuno guardava, e il pannello mostrava
+        // una classifica vuota per sempre — indistinguibile da «nessuno ha
+        // ancora invitato nessuno». Ora si dice quale delle due cose è.
+        const { data: ref, error: refErr } = await supabase.from('referral')
           .select('organization_id, codice, utilizzi, mesi_guadagnati')
           .order('utilizzi', { ascending: false })
           .limit(100)
+        const programmaAttivo = !refErr
         const orgIds = (ref || []).map(r => r.organization_id)
         const orgMap = {}
         if (orgIds.length > 0) {
@@ -2167,6 +2282,8 @@ export default async function handler(req) {
           top,
           totale_utilizzi: tot_codici_usati || 0,
           totale_mesi_distribuiti: tot_mesi,
+          programma_attivo: programmaAttivo,
+          motivo: programmaAttivo ? null : 'La parte che genera i codici invito non è mai stata costruita: non esiste nessun codice da distribuire.',
         }, 200, req)
       }
 
@@ -2489,23 +2606,35 @@ export default async function handler(req) {
     const orgId = sanitizeStrict(body.orgId || '', 36)
     const tipo = sanitizeStrict(body.tipo || '', 50)
 
-    // azioni che non richiedono orgId
-    const azioniSenzaOrgId = [
-      'invia_email',
-      'crea_codice_sconto',
-      'disattiva_codice_sconto',
-      'elimina_codice_sconto',
-      'set_plan_pricing',
-      'feedback_marca_gestito',
-      'banner_crea',
-      'banner_disattiva',
-      'banner_elimina',
-      'cleanup_e2e',   // batch: opera su tutte le org E2E in una shot
-    ]
+    // Quali azioni hanno bisogno di sapere SU QUALE CLIENTE agire.
+    //
+    // Prima qui c'era l'elenco opposto — le azioni che NON vogliono l'orgId —
+    // e ogni comando nuovo nasceva rotto, perché chi lo scriveva non sapeva
+    // di dover aggiungere il proprio nome a un elenco di eccezioni in un
+    // altro punto del file. Sei comandi erano in quello stato:
+    // editor SQL, blocca dominio, sblocca dominio, codice sconto ad-hoc, e
+    // i due di approvazione del cambio metodo. Tutti rispondevano
+    // «orgId mancante» e basta. Riscontro indipendente: in `admin_log`, su
+    // tutto lo storico, nessuno dei sei è mai andato a buon fine.
+    //
+    // Con l'elenco scritto in positivo un comando nuovo funziona di suo, e
+    // quelli che agiscono su un cliente preciso dichiarano di volerlo.
+    const azioniConOrgId = new Set([
+      'approva', 'approva_signup', 'rifiuta_signup',
+      'blocca', 'riattiva', 'elimina', 'elimina_preview',
+      'cambia_piano', 'estendi_trial', 'regala_mesi',
+      'impersona', 'reset_password', 'salva_note_admin',
+      'integrazione_disattiva', 'push_sub_revoca',
+      'pulisci_demo_fatture', 'save_demo_menu',
+      'seed_demo_full', 'seed_demo_personalized',
+    ])
     if (!tipo) return json({ error: 'Parametro tipo mancante' }, 400, req)
-    if (!azioniSenzaOrgId.includes(tipo)) {
+    if (azioniConOrgId.has(tipo)) {
       if (!orgId) return json({ error: 'orgId mancante' }, 400, req)
       if (!validateUUID(orgId)) return json({ error: 'orgId non valido' }, 400, req)
+    } else if (orgId && !validateUUID(orgId)) {
+      // Se lo manda lo stesso, dev'essere comunque un identificativo vero.
+      return json({ error: 'orgId non valido' }, 400, req)
     }
 
     // Rate limit per-azione: oltre al limit globale 60/min, ogni azione "delicata"
@@ -2580,11 +2709,14 @@ export default async function handler(req) {
           result = { ok: true, ...(await azEliminaPreview(supabase, orgId)) }
           break
         case 'elimina':
-          await azElimina(
-            supabase, orgId,
-            sanitizeStrict(body.conferma || '', 20),
-            body.expected_count != null ? Number(body.expected_count) : null
-          )
+          result = {
+            ok: true,
+            ...(await azElimina(
+              supabase, orgId,
+              sanitizeStrict(body.conferma || '', 20),
+              body.expected_count != null ? Number(body.expected_count) : null
+            )),
+          }
           break
         case 'cleanup_e2e':
           // Audit 2026-07-01 HIGH: passa expectedCount dal preview (UI).
@@ -2690,6 +2822,10 @@ export default async function handler(req) {
           // Audit 2026-07-28: admin approva un cambio metodo produzione.
           // Applica: organizations.metodo_produzione + sync sedi + notifica
           // in-app. Se target='inventario' seeda i formati default se mancano.
+          //
+          // Quello che non riesce non deve sparire: finisce in `avvisi` e
+          // torna a chi ha premuto il bottone.
+          const avvisi = []
           const richiestaId = body?.richiesta_id
           if (!richiestaId) throw new Error('richiesta_id richiesto')
           const { data: rq, error: rqErr } = await supabase.from('metodo_change_requests')
@@ -2721,13 +2857,26 @@ export default async function handler(req) {
                   id: `fmt-${now}-${i}-${Math.random().toString(36).slice(2, 6)}`,
                   ...f,
                 }))
-                await supabase.from('user_data').upsert({
+                // Le colonne di user_data sono `data_key` e `data_value`.
+                // Qui era stata corretta solo la lettura, non la scrittura:
+                // l'upsert rispondeva 42703 («colonna chiave inesistente»)
+                // dentro un try/catch che scriveva soltanto un avviso nei
+                // log. Risultato: il cliente passava al metodo inventario e
+                // trovava la pagina dei formati vuota.
+                const { error: eFmt } = await supabase.from('user_data').upsert({
                   organization_id: rq.organization_id, sede_id: null,
-                  chiave: 'pasticceria-formati-vendita-v1', valore: nuovi,
+                  data_key: 'pasticceria-formati-vendita-v1', data_value: nuovi,
                   updated_at: new Date().toISOString(),
-                }, { onConflict: 'organization_id,sede_id,chiave' })
+                }, { onConflict: 'organization_id,sede_id,data_key' })
+                // La libreria di Supabase non solleva eccezioni: restituisce
+                // l'errore. Senza guardarlo, il `catch` qui sotto non serviva
+                // a niente.
+                if (eFmt) throw new Error(`formati di vendita non creati: ${eFmt.message}`)
               }
-            } catch (e) { console.warn('seed formati skipped:', e?.message) }
+            } catch (e) {
+              console.error('[admin] cambio metodo: formati di vendita non creati:', e?.message)
+              avvisi.push('I formati di vendita predefiniti non sono stati creati: il cliente troverà la pagina "Pezzature" vuota.')
+            }
           }
           // Marca richiesta approved
           const { error: e2 } = await supabase.from('metodo_change_requests')
@@ -2743,8 +2892,11 @@ export default async function handler(req) {
               messaggio: `La tua richiesta di passaggio a "${rq.to_metodo === 'inventario' ? 'Inventario differenziale' : 'Stampi / unità'}" è stata approvata. Ricarica l'app per vedere le viste operative aggiornate.`,
               link: '/impostazioni#section=metodo-produzione',
             })
-          } catch (e) { console.warn('notifica skipped:', e?.message) }
-          result = { ok: true, applied: { org: rq.organization_id, metodo: rq.to_metodo } }
+          } catch (e) {
+            console.error('[admin] cambio metodo: avviso al cliente non inviato:', e?.message)
+            avvisi.push('Il cliente non ha ricevuto l\'avviso nell\'app: diglielo tu.')
+          }
+          result = { ok: true, applied: { org: rq.organization_id, metodo: rq.to_metodo }, avvisi }
           break
         }
         case 'metodo_richiesta_rifiuta': {

@@ -5,6 +5,7 @@ import { getCorsHeaders, handleOptions, getClientIP } from './lib/cors.js'
 import { sanitize, sanitizeStrict, validateEmail } from './lib/validate.js'
 import { verifyRawSecret } from './lib/cryptoCompare.js'
 import { safeError } from './lib/safeError.js'
+import { verificaAdmin } from './lib/auth.js'
 import { fmtp } from '../src/lib/formatIt.js'
 
 const FROM = 'FoodOS <noreply@foodos.it>'
@@ -26,14 +27,19 @@ async function sendEmail({ to, subject, html, replyTo }) {
   })
 }
 
+// Chi chiede è l'amministratore?
+//
+// Prima qui si confrontava soltanto l'indirizzo email, senza secondo fattore:
+// era la seconda porta di casa, con una serratura diversa e più debole di
+// quella dell'ingresso. Da qui si mandano email a nome di FoodOS a qualsiasi
+// cliente registrato. Ora si usa lo stesso controllo del pannello admin
+// (`verificaAdmin`), che oltre all'indirizzo pretende il secondo fattore —
+// con la stessa deroga temporanea per il fondatore, che si spegne da sola
+// appena lui lo attiva.
 async function isAdminRequest(req, supabase) {
-  const authHeader = req.headers.get('Authorization') || req.headers.get('authorization')
-  if (!authHeader || !authHeader.startsWith('Bearer ')) return false
-  const token = authHeader.replace('Bearer ', '').trim()
-  if (!token) return false
   try {
-    const { data: { user } } = await supabase.auth.getUser(token)
-    return (user?.email || '').toLowerCase() === ADMIN_EMAIL
+    const { user } = await verificaAdmin(req, supabase)
+    return !!user
   } catch { return false }
 }
 

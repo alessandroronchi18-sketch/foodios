@@ -64,8 +64,11 @@ describe('in vendita ce n\'è uno solo', () => {
 
   it('la vetrina mostra solo le tessere in vendita', () => {
     const L = leggi('src', 'pages', 'LandingPage.jsx')
-    expect(L).toMatch(/const mostraPiano = \(chiave\) => \{/)
-    expect(L).toMatch(/if \(!pianoInVendita\(chiave\)\) return false/)
+    // Dal 15/09/2026 il criterio sta tutto in `inVendita`, che fa comandare
+    // la riga del database (l'interruttore del pannello admin) e usa
+    // l'elenco nel codice solo come scorta. Prima erano due controlli in AND
+    // scritti qui, e l'interruttore da solo non bastava ad aprire un piano.
+    expect(L).toMatch(/const mostraPiano = \(chiave\) => inVendita\(chiave, prezzi\?\.meta\?\.\[chiave\]\)/)
     for (const k of ['base', 'pro', 'chain']) {
       expect(L, `la tessera ${k} non è dietro il controllo`).toContain(`{mostraPiano('${k}') && (`)
     }

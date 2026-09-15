@@ -9,7 +9,7 @@
 // se irrigidire, non a dare una falsa sensazione di sicurezza.
 
 import { describe, it, expect } from 'vitest'
-import { validateSafeSelectSQL } from '../../api/lib/admin/sqlEditor.js'
+import { validateSafeSelectSQL, spogliaLetterali } from '../../api/lib/admin/sqlEditor.js'
 
 const ok = q => validateSafeSelectSQL(q).ok
 const err = q => validateSafeSelectSQL(q).error
@@ -120,9 +120,90 @@ describe('maglie larghe note, documentate di proposito', () => {
     expect(ok(q)).toBe(true)
   })
 
-  it('i commenti SQL non vengono rimossi prima dei controlli', () => {
-    // Il testo dentro un commento viene comunque analizzato: qui la query e'
-    // innocua ma viene rifiutata perché contiene la parola vietata.
-    expect(ok('select id from organizations -- drop table x')).toBe(false)
+  it('i commenti SQL ora vengono rimossi prima dei controlli', () => {
+    // Era una maglia larga documentata: il testo dentro un commento veniva
+    // analizzato lo stesso, e una query innocua finiva rifiutata. Dal
+    // 15/09/2026 commenti e testo fra apici si tolgono prima dei controlli,
+    // quindi questa passa — e una parola vietata nascosta in una stringa non
+    // aiuta comunque a scrivere, perché a bloccare è il database.
+    expect(ok('select id from organizations -- drop table x')).toBe(true)
+    expect(ok('select id from organizations /* drop table x */')).toBe(true)
+  })
+})
+
+describe('sola lettura: le funzioni che scrivono', () => {
+  // Il buco vero, trovato il 15/09/2026. Questa query comincia con SELECT,
+  // non contiene nessuna parola vietata e non nomina nessuna tabella: passava
+  // tutti e tre i controlli, e cancella un cliente intero.
+  it('una funzione che scrive è rifiutata per nome', () => {
+    const r = validateSafeSelectSQL("select admin_org_cascade_delete('00000000-0000-0000-0000-000000000000')")
+    expect(r.ok).toBe(false)
+    expect(r.error).toMatch(/Funzione non permessa: admin_org_cascade_delete/)
+  })
+
+  it('vale per qualunque funzione del progetto, non solo per quella', () => {
+    for (const f of ['webhook_token_genera', 'applica_delta_stock_pf', 'admin_safe_select',
+                     'trasferimento_invia', 'ai_credit_consuma', 'dipendente_crea']) {
+      expect(ok(`select ${f}('x')`), f).toBe(false)
+    }
+  })
+
+  it('le funzioni di lettura normali continuano a funzionare', () => {
+    const buone = [
+      "select date_trunc('day', created_at) g, count(*) n from admin_log group by 1 order by 1 desc",
+      "select jsonb_build_object('quante', count(*)) from sedi",
+      'select coalesce(sum(1), 0) from organizations',
+      "select upper(trim(nome)) from fornitori where nome is not null",
+      'with recenti as (select * from organizations) select count(*) from recenti',
+      'select o.nome from organizations o left join profiles p on p.organization_id = o.id',
+      'select nome from organizations where id in (select organization_id from sedi)',
+    ]
+    for (const q of buone) {
+      const r = validateSafeSelectSQL(q)
+      expect(r.ok, `${q}\n${r.error || ''}`).toBe(true)
+    }
+  })
+
+  it('una parola vietata nascosta in una stringa non passa per una scrittura...', () => {
+    // ...e nemmeno blocca una ricerca di testo legittima.
+    expect(ok("select count(*) from feedback where messaggio ilike '%update del prezzo%'")).toBe(true)
+  })
+
+  it('un solo statement per volta', () => {
+    expect(ok('select 1 from organizations; drop table sedi')).toBe(false)
+    expect(ok('select 1 from organizations;')).toBe(true)  // il ; finale si tollera
+  })
+
+  it('SELECT ... INTO, che crea una tabella, è bloccato', () => {
+    expect(ok('select * into copia from organizations')).toBe(false)
+  })
+
+  it('il dollar quoting non serve a nascondere niente', () => {
+    expect(ok('select $$ drop table sedi $$ from organizations')).toBe(true)
+    // (passa perché il contenuto viene spogliato; a scrivere non riesce
+    // comunque, la transazione sul database è di sola lettura)
+  })
+})
+
+describe('spogliaLetterali', () => {
+  it('lascia la query intatta quando non c\'è niente da togliere', () => {
+    expect(spogliaLetterali('select a from b').trim()).toBe('select a from b')
+  })
+
+  it('non cambia la lunghezza del testo (le posizioni restano quelle)', () => {
+    for (const q of [
+      "select 'ciao' from x",
+      'select a from b -- commento\nwhere c = 1',
+      'select /* nota */ a from b',
+      "select 'apice '' dentro' from x",
+    ]) {
+      expect(spogliaLetterali(q).length, q).toBe(q.length)
+    }
+  })
+
+  it('toglie il contenuto delle stringhe ma non le righe', () => {
+    const r = spogliaLetterali("select a from b -- drop\nwhere c = 'drop'")
+    expect(r).not.toMatch(/drop/)
+    expect(r.split('\n').length).toBe(2)
   })
 })

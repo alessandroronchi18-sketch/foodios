@@ -10,6 +10,7 @@
 export const config = { runtime: 'nodejs' }
 
 import { verificaToken } from './lib/auth.js'
+import { inVendita } from '../src/lib/planAccess.js'
 
 const PLAN_PRICE_MAP = {
   pro:   process.env.STRIPE_PRO_PRICE_ID,
@@ -68,6 +69,23 @@ export default async function handler(req, res) {
 
   const { plan } = req.body || {}
   if (plan !== 'pro' && plan !== 'chain') return res.status(400).json({ error: `Piano non valido: ${plan}` })
+
+  // Un piano che non è in vendita non si può comprare nemmeno chiamando
+  // l'endpoint a mano. Finora il controllo stava solo nelle pagine: chiuso
+  // Ultra, la vetrina smetteva di mostrarlo ma questa riga lo accettava
+  // ancora, e una richiesta scritta a mano apriva un pagamento vero da 399 €
+  // al mese per un piano che il titolare aveva deciso di non vendere. Chi
+  // decide cosa è in vendita è il titolare, da `plan_pricing.attivo` nel
+  // pannello admin; `PIANI_IN_VENDITA` è la seconda serratura nel codice.
+  let rigaPiano = null
+  try {
+    const { data } = await auth.supabase
+      .from('plan_pricing').select('attivo').eq('plan', plan).maybeSingle()
+    rigaPiano = data || null
+  } catch { /* se plan_pricing non risponde decide l'elenco nel codice */ }
+  if (!inVendita(plan, rigaPiano)) {
+    return res.status(400).json({ error: 'Questo piano non è al momento disponibile. Scrivi a support@foodos.it.' })
+  }
 
   const { default: Stripe } = await import('stripe')
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2024-06-20' })

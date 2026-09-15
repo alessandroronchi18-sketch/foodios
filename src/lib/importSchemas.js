@@ -279,7 +279,16 @@ export const IMPORT_SCHEMAS = {
  * @returns {EntitySchema | null}
  */
 export function getEntitySchema(entity) {
-  return IMPORT_SCHEMAS[entity] || null
+  // `entity` arriva dal corpo della richiesta (api/import-execute.js,
+  // import-validate.js, import-map.js e altri due): è testo scelto da chi
+  // chiama. Con il semplice `IMPORT_SCHEMAS[entity]`, passare "constructor" o
+  // "toString" restituiva una **funzione** ereditata dal prototipo di Object —
+  // che è vera, quindi superava il controllo `if (!schema)` e faceva esplodere
+  // la riga dopo (`schema.fields.map`) con un 500 invece del 400 «entity non
+  // supportato». Qui si guardano solo le chiavi scritte davvero qui sopra.
+  if (typeof entity !== 'string') return null
+  if (!Object.prototype.hasOwnProperty.call(IMPORT_SCHEMAS, entity)) return null
+  return IMPORT_SCHEMAS[entity]
 }
 
 /**
