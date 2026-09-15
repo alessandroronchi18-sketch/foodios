@@ -8,7 +8,7 @@ import Icon from './Icon'
 
 const SHADOW_PREMIUM = '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)'
 const GRID_STROKE = '#E5E9EF'
-const AXIS_COLOR = '#64748B'
+const AXIS_COLOR = '#5A6B80'
 
 // ── Algoritmo previsione (Holt, smoothing esponenziale doppio) ───────────────
 // NON MODIFICARE la firma: riusata da RicettaProduzione e dai calcoli globali.

@@ -31,7 +31,7 @@ const MID = T.textMid || '#475264'
 const CARD = T.bgCard || '#FFF'
 const BORDER = T.border || '#E5E9EF'
 const GREEN = T.green || '#16A34A'
-const AMBER = T.amber || '#D97706'
+const AMBER = T.amber || '#B45309'
 
 // I quattro gruppi si chiamavano Star, Plowhorse, Puzzle e Dog: sono i nomi
 // della matrice di Kasavana-Smith, che nei libri di settore stanno in inglese.

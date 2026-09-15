@@ -11,7 +11,7 @@ export const WL_KEY = 'pasticceria-white-label-v1'
 
 const PIANI_CHAIN = new Set(['enterprise', 'chain'])
 
-const lbl  = { fontSize: 12, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, display: 'block' }
+const lbl  = { fontSize: 12, fontWeight: 700, color: '#5A6B80', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, display: 'block' }
 function mkCard(isMobile) {
   return { background: '#FFF', borderRadius: 12, padding: isMobile ? '18px 16px' : '24px 28px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', marginBottom: 20 }
 }
@@ -84,7 +84,7 @@ export default function WhiteLabel({ orgId, piano, notify }) {
   if (!piaIsChain) return (
     <div style={card}>
       <div style={{ fontWeight: 700, fontSize: 15, color: '#0F172A', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="palette" size={16} />Personalizzazione</div>
-      <div style={{ fontSize: 12, color: '#64748B', lineHeight: 1.6, marginBottom: 14 }}>
+      <div style={{ fontSize: 12, color: '#5A6B80', lineHeight: 1.6, marginBottom: 14 }}>
         Sì, Foodos permette di applicare il tuo <strong>logo, il nome dell'app e il colore del brand</strong> all'interfaccia:
         compaiono nella sidebar e nell'intestazione, e il nome custom sostituisce "Foodos" anche nel titolo del browser.
         È incluso nel piano <strong>{PLAN_LABEL.enterprise}</strong>{ultraInVendita ? ' - puoi attivarlo subito senza dover scrivere a nessuno.' : ', che al momento non è in vendita: scrivici e lo attiviamo noi.'}
@@ -183,7 +183,7 @@ export default function WhiteLabel({ orgId, piano, notify }) {
     <div>
       <div style={card}>
         <div style={{ fontWeight: 700, fontSize: 15, color: '#0F172A', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="palette" size={16} />Personalizzazione</div>
-        <div style={{ fontSize: 12, color: '#64748B', marginBottom: 18, lineHeight: 1.6 }}>
+        <div style={{ fontSize: 12, color: '#5A6B80', marginBottom: 18, lineHeight: 1.6 }}>
           Esclusiva piano {PLAN_LABEL.enterprise}. Applica logo, nome app e colore del brand all'interfaccia (sidebar, intestazione, navigazione e titolo del browser) per gli utenti della tua organizzazione.
         </div>
 
@@ -229,7 +229,7 @@ export default function WhiteLabel({ orgId, piano, notify }) {
             {saving ? '…' : 'Salva personalizzazione'}
           </button>
           <button onClick={reset} disabled={saving}
-            style={{ padding: '10px 18px', minHeight: touchH, background: 'transparent', color: '#64748B', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', flex: isMobile ? '1 1 100%' : '0 0 auto' }}>
+            style={{ padding: '10px 18px', minHeight: touchH, background: 'transparent', color: '#5A6B80', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', flex: isMobile ? '1 1 100%' : '0 0 auto' }}>
             Ripristina default
           </button>
         </div>
@@ -248,7 +248,7 @@ export default function WhiteLabel({ orgId, piano, notify }) {
             )}
             <div style={{ flex: '1 1 auto', minWidth: 0 }}>
               <div style={{ fontSize: 16, fontWeight: 700, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{nomeApp || 'Foodos'}</div>
-              <div style={{ fontSize: 12, color: '#64748B' }}>Sidebar e topbar useranno questo brand.</div>
+              <div style={{ fontSize: 12, color: '#5A6B80' }}>Sidebar e topbar useranno questo brand.</div>
             </div>
             <button style={{ marginLeft: isMobile ? 0 : 'auto', padding: '8px 16px', minHeight: touchH, background: colorePrimario, color: '#FFF', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
               Bottone primario

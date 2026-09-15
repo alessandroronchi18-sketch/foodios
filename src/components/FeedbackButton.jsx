@@ -161,14 +161,14 @@ export default function FeedbackButton({ viewCorrente, externalOpen, onOpenChang
             <div style={{ padding: 20 }}>
               {sent ? (
                 <div style={{ textAlign: 'center', padding: '20px 0' }}>
-                  <div style={{ color: '#0E9F6E' }}><Icon name="checkCircle" size={40}/></div>
+                  <div style={{ color: '#0A7350' }}><Icon name="checkCircle" size={40}/></div>
                   <div style={{ fontSize: 14, color: '#065F46', fontWeight: 600, marginTop: 8 }}>
                     Grazie! Abbiamo ricevuto il tuo feedback.
                   </div>
                 </div>
               ) : (
                 <>
-                  <div style={{ fontSize: 12, color: '#64748B', marginBottom: 12, lineHeight: 1.5 }}>
+                  <div style={{ fontSize: 12, color: '#5A6B80', marginBottom: 12, lineHeight: 1.5 }}>
                     Scrivi liberamente. Le leggiamo noi, una per una. Se lasci un modo per ricontattarti, ti rispondiamo.
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6, marginBottom: 12 }}>

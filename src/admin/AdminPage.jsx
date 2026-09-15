@@ -532,7 +532,7 @@ function DemoCleanupModal({ cliente, matches, onClose, onConferma }) {
         <>
           <div style={{
             padding: '12px 14px', background: COLORS.accentSoft || '#FEF9C3',
-            border: `1px solid ${COLORS.amber || '#D97706'}`, borderRadius: 8,
+            border: `1px solid ${COLORS.amber || '#B45309'}`, borderRadius: 8,
             color: '#92400E', fontSize: 13, marginBottom: 14,
           }}>
             Trovate <strong>{matches.length}</strong> fatture demo. Verranno eliminate definitivamente dal database. L'azione non è reversibile.
@@ -618,7 +618,7 @@ function NuovoCodiceScontoModal({ onClose, onCreato }) {
     }
   }
 
-  const lbl = { display: 'block', fontSize: 12, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }
+  const lbl = { display: 'block', fontSize: 12, fontWeight: 700, color: '#5A6B80', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }
   const inp = { width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #E2E8F0', fontSize: 13, boxSizing: 'border-box' }
 
   return (
@@ -705,7 +705,7 @@ function NuovoCodiceScontoModal({ onClose, onCreato }) {
                   padding: '6px 14px', borderRadius: 99, fontSize: 12, fontWeight: 700,
                   border: `1px solid ${selected ? '#6E0E1A' : '#E2E8F0'}`,
                   background: selected ? '#FEF7F5' : '#FFF',
-                  color: selected ? '#6E0E1A' : '#64748B', cursor: 'pointer',
+                  color: selected ? '#6E0E1A' : '#5A6B80', cursor: 'pointer',
                 }}>
                 {selected && <Icon name="check" size={11} />} {PLAN_LABEL[p] || p} ({PLAN_PRICE_EUR[p] ?? '—'} €)
               </button>
@@ -742,13 +742,13 @@ function RegalaMesiModal({ cliente, codici, onClose, onRegala }) {
 
   return (
     <Modal title={`Regala mesi · ${cliente.nome_attivita}`} onClose={onClose} width={500}>
-      <div style={{ fontSize: 13, color: '#64748B', marginBottom: 14, lineHeight: 1.55 }}>
+      <div style={{ fontSize: 13, color: '#5A6B80', marginBottom: 14, lineHeight: 1.55 }}>
         Estende la subscription Stripe (o il trial interno) per <strong>{cliente.nome_attivita}</strong> senza addebiti.
         Se l'utente ha già un abbonamento attivo, Stripe applicherà <code>trial_end</code> alla data calcolata.
       </div>
 
       <div style={{ marginBottom: 14 }}>
-        <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>
+        <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#5A6B80', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>
           Mesi da regalare (1-60)
         </label>
         <input type="number" min="1" max="60" value={mesi}
@@ -757,7 +757,7 @@ function RegalaMesiModal({ cliente, codici, onClose, onRegala }) {
       </div>
 
       <div style={{ marginBottom: 14 }}>
-        <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>
+        <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#5A6B80', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>
           Codice associato (opzionale, per audit)
         </label>
         <select value={codiceRif} onChange={e => setCodiceRif(e.target.value)}
@@ -863,8 +863,8 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
     const ref = cliente.ultimo_accesso || cliente.registrata_il
     const d = giorniDa(ref)
     if (d == null) return { bg: COLORS.blockedBg, fg: COLORS.blocked, dot: null, lbl: '- Sconosciuto' }
-    if (d <= 2) return { bg: COLORS.okBg, fg: COLORS.ok, dot: '#0E9F6E', lbl: 'Attivo' }
-    if (d <= 7) return { bg: COLORS.warnBg, fg: COLORS.warn, dot: '#D97706', lbl: `A rischio (${d}gg)` }
+    if (d <= 2) return { bg: COLORS.okBg, fg: COLORS.ok, dot: '#0A7350', lbl: 'Attivo' }
+    if (d <= 7) return { bg: COLORS.warnBg, fg: COLORS.warn, dot: '#B45309', lbl: `A rischio (${d}gg)` }
     return { bg: COLORS.errBg, fg: COLORS.err, dot: '#6E0E1A', lbl: `Dormiente (${d}gg)` }
   })()
 
@@ -2365,7 +2365,7 @@ export default function AdminPage() {
             onClick={() => setAdminTab('ops')}
             style={{
               background: 'linear-gradient(135deg, #FEF3C7, #FDE68A)',
-              border: `1px solid ${COLORS.warn || '#D97706'}`,
+              border: `1px solid ${COLORS.warn || '#B45309'}`,
               borderRadius: 12, padding: '14px 18px', marginBottom: 16,
               display: 'flex', alignItems: 'center', gap: 12,
               cursor: 'pointer',

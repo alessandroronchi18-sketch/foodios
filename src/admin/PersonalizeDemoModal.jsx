@@ -13,7 +13,7 @@ import { descrizioneUnita } from '../lib/tipoRicetta'
 // ─── Palette locale (stesso look di AdminPage) ────────────────────────────
 const P = {
   bg: '#FFFFFF', card: '#FFFFFF', border: '#E2E8F0', rowAlt: '#F8FAFC',
-  text: '#0F172A', textSoft: '#334155', textMute: '#64748B',
+  text: '#0F172A', textSoft: '#334155', textMute: '#5A6B80',
   ok: '#065F46', okBg: '#D1FAE5',
   warn: '#92400E', warnBg: '#FEF3C7',
   err: '#991B1B', errBg: '#FEE2E2',

@@ -225,7 +225,7 @@ export default function ForecastView({ orgId, sedeId, sedeAttiva, setView }) {
                     <div style={{ minWidth: 44, textAlign: 'right' }} title="Quanto il modello si fida di questa previsione: sale con lo storico che hai registrato">Fiducia</div>
                   </div>
                   {g.items.slice(0, 12).map(f => {
-                    const confColor = f.confidence >= 0.7 ? '#16A34A' : f.confidence >= 0.5 ? '#D97706' : SOFT
+                    const confColor = f.confidence >= 0.7 ? '#16A34A' : f.confidence >= 0.5 ? '#B45309' : SOFT
                     return (
                       <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '7px 6px', borderTop: `1px solid ${BORDER}` }}>
                         <div style={{ flex: 1, fontSize: 13, color: TXT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

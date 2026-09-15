@@ -425,7 +425,7 @@ const C = {
   border:"#E5E9EF", borderStr:"#CBD5E1", borderSoft:"#EEF1F6",
   red:"#6E0E1A", redDark:"#580814", redLight:"#FEF2F2", redSoft:"#FCE7E4",
   green:"#16A34A", greenLight:"#F0FDF4",
-  amber:"#D97706", amberLight:"#FFFBEB",
+  amber:"#B45309", amberLight:"#FFFBEB",
   text:"#0F172A", textMid:"#475569", textSoft:"#94A3B8",
   white:"#FFFFFF",
   shadowSoft:"0 1px 2px rgba(15,23,42,0.04), 0 1px 3px rgba(15,23,42,0.04)",

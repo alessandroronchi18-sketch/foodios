@@ -3,7 +3,7 @@
 // Una volta che tutto è migrato, alcune potranno diventare componenti dedicati in components/.
 
 import React, { useState, useRef, useCallback } from 'react'
-import { color as T } from '../lib/theme'
+import { color as T, radius as R } from '../lib/theme'
 import useIsMobile from '../lib/useIsMobile'
 import Icon from '../components/Icon'
 
@@ -37,6 +37,10 @@ export const C = {
   // e il pulsante rosso dell'azione avevano lo stesso colore, e l'occhio non
   // sapeva dove guardare. Due colori, due significati.
   alert:      T.red,
+  // Per il TESTO rosso sopra un fondo rosso chiaro: il rosso segnale su
+  // `alertLight` fa 4.41 di contrasto, appena sotto la soglia, e a 12px si
+  // fatica. Il fondo e le icone restano `alert`.
+  alertDark:  T.redDark,
   alertLight: T.redLight,
 }
 
@@ -98,49 +102,30 @@ if (typeof document !== 'undefined' && !document.getElementById('fos-kpi-css')) 
     .fos-sh-bar {
       animation: _fos_shBarPulse 3s ease-in-out infinite;
     }
-    /* Tile generiche (.fos-tile usata in 26 punti del codice): hover lift
-       potenziato + ombra brand-tinted per coerenza con KPI futuristic.
-       ::before aggiunge accent strip top 2px gradient brand (statico, non
-       animato per non distrarre quando la pagina ha tante tile). */
+    /* Tile generiche (.fos-tile usata in 26 punti del codice).
+       Qui sopra ogni tessera aveva una lineetta decorativa di 2px in cima,
+       sfumata dal bordeaux a un corallo acceso. Fotografata a 390px si vede
+       per quello che è: una riga rossa sopra il bordo arrotondato, su schede
+       che parlano di verde (Ricavi) o di blu (Produzione), in un colore
+       (#E84B3A) che nel resto del prodotto non esiste. Sei tessere nella home,
+       sei righe rosse. Tolta: il colore del marchio torna a voler dire
+       qualcosa. L'alzata al passaggio del mouse resta, e sul telefono non
+       c'entra comunque niente perché il mouse non c'è. */
     .fos-tile {
       position: relative;
-    }
-    .fos-tile::before {
-      content: '';
-      position: absolute;
-      top: 0; left: 14%; right: 14%;
-      height: 2px;
-      border-radius: 0 0 2px 2px;
-      background: linear-gradient(90deg, transparent, rgba(110,14,26,0.85) 30%, rgba(232,75,58,1) 50%, rgba(110,14,26,0.85) 70%, transparent);
-      pointer-events: none;
-      z-index: 1;
     }
     .fos-tile:hover {
       box-shadow: 0 1px 2px rgba(15,23,42,0.04), 0 20px 44px rgba(110,14,26,0.12), 0 2px 8px rgba(110,14,26,0.06) !important;
       border-color: rgba(110,14,26,0.15) !important;
     }
-    .fos-tile:hover::before {
-      left: 6%; right: 6%;
-      transition: left 0.22s ease, right 0.22s ease;
-    }
-    /* Page container futuristic-clean: per le card grandi non-KPI (Conto
-       economico, Costi extra-food, Tabella riepilogativa, ecc.).
-       Aggiungere className="fos-card-glow" al div per ottenere accent strip
-       top + hover lift. */
+    /* Page container per le card grandi non-KPI (Conto economico, Costi
+       extra-food, Tabella riepilogativa, ecc.): alzata al passaggio del
+       mouse. Aveva anche lei la lineetta corallo in cima, per giunta
+       animata in ciclo di 7 secondi: cinque schede di conto economico con
+       cinque lucine che pulsano. Tolta insieme a quella delle tessere. */
     .fos-card-glow {
       position: relative;
       transition: transform 0.22s cubic-bezier(.32,.72,0,1), box-shadow 0.22s ease, border-color 0.22s ease;
-    }
-    .fos-card-glow::before {
-      content: '';
-      position: absolute;
-      top: 0; left: 12%; right: 12%;
-      height: 2px;
-      border-radius: 0 0 2px 2px;
-      background: linear-gradient(90deg, transparent, #6E0E1A 30%, #E84B3A 50%, #6E0E1A 70%, transparent);
-      background-size: 200% 100%;
-      animation: _fos_kpiAccent 7s ease-in-out infinite;
-      pointer-events: none;
     }
     .fos-card-glow:hover {
       transform: translateY(-2px);
@@ -150,16 +135,29 @@ if (typeof document !== 'undefined' && !document.getElementById('fos-kpi-css')) 
     @media (prefers-reduced-motion: reduce) {
       .fos-kpi-tile, .fos-tile, .fos-card-glow { transition: none; }
       .fos-kpi-tile:hover, .fos-tile:hover, .fos-card-glow:hover { transform: none; }
-      .fos-kpi-accent, .fos-kpi-sheen, .fos-sh-bar, .fos-card-glow::before { animation: none !important; }
+      .fos-kpi-accent, .fos-kpi-sheen, .fos-sh-bar { animation: none !important; }
     }
   `
   document.head.appendChild(s)
 }
 
-// KPI card grande premium (usata da Magazzino, Chiusura, Produzione, ecc.)
+// KPI card grande (usata da Magazzino, Chiusura, Produzione, Ricettario, ecc.)
 // Look coerente con la Dashboard home: decoro radiale, chip icona, accento colore.
-// Audit 2026-06-25: aggiunto accent strip animato superiore + sheen sweep iniziale
-// + hover lift più drammatico con shadow brand. Futuristico ma professionale.
+//
+// ── 15/09/2026, riordino per il telefono ────────────────────────────────────
+// Due cose tolte e una spostata.
+//
+// Tolti: la lineetta animata in cima (2px, bordeaux→corallo, ciclo di 6s) e il
+// riflesso che attraversava la tessera al primo disegno. Su un telefono queste
+// tessere stanno tre o quattro per schermata: erano tre o quattro lucine che
+// pulsano e altrettanti bagliori che passano, ogni volta che si apre la
+// pagina. Sono decorazioni che promettono un significato che non c'è.
+//
+// Spostata: sul telefono l'icona sta sulla stessa riga dell'etichetta invece
+// che sopra. La tessera passa da 187px a circa 130, e su Ricettario le tre
+// tessere smettono di occupare mezzo schermo prima della ricerca. Le
+// minHeight di etichetta / valore / sottotitolo restano, così le tessere
+// affiancate restano incolonnate fra loro.
 export function KPI({ label, value, sub, color, highlight, icon, onClick }) {
   const isMobile = useIsMobile()
   const accent = color || T.brand
@@ -169,33 +167,15 @@ export function KPI({ label, value, sub, color, highlight, icon, onClick }) {
     <div className={`fos-tile fos-kpi-tile${highlight ? ' fos-kpi-highlight' : ''}`} onClick={onClick} style={{
       position: 'relative', overflow: 'hidden', cursor: onClick ? 'pointer' : 'default',
       background: highlight ? 'linear-gradient(135deg, #6E0E1A 0%, #4A0612 100%)' : T.bgCard,
-      border: `1px solid ${highlight ? '#4A0612' : T.border}`, borderRadius: 18,
-      padding: '18px 20px',
+      border: `1px solid ${highlight ? '#4A0612' : T.border}`, borderRadius: R['2xl'],
+      padding: isMobile ? '14px 16px' : '18px 20px',
       boxShadow: highlight ? '0 14px 34px rgba(110,14,26,0.32), inset 0 1px 0 rgba(255,255,255,0.18)' : '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)',
       display: 'flex', flexDirection: 'column', height: '100%',
     }}>
-      {/* Accent strip animato superiore (2px) - gradient brand→corallo→brand
-          in loop 6s. Crea "vivo / connesso" senza essere invadente. */}
-      <div className="fos-kpi-accent" aria-hidden="true" style={{
-        position: 'absolute', top: 0, left: 0, right: 0, height: 2,
-        background: highlight
-          ? 'linear-gradient(90deg, rgba(255,180,140,0.0), rgba(255,180,140,0.85) 50%, rgba(255,180,140,0.0))'
-          : `linear-gradient(90deg, transparent, ${accent} 50%, transparent)`,
-        backgroundSize: '200% 100%',
-        pointerEvents: 'none',
-      }}/>
-      {/* Sheen sweep iniziale - diagonal light pass una volta sola al mount */}
-      <div className="fos-kpi-sheen" aria-hidden="true" style={{
-        position: 'absolute', top: -20, bottom: -20, width: 80, pointerEvents: 'none',
-        background: highlight
-          ? 'linear-gradient(90deg, transparent, rgba(255,255,255,0.22), transparent)'
-          : 'linear-gradient(90deg, transparent, rgba(110,14,26,0.08), transparent)',
-        filter: 'blur(8px)',
-      }}/>
       {/* decoro radiale d'angolo */}
       <div style={{ position: 'absolute', top: -28, right: -28, width: 92, height: 92, borderRadius: '50%',
         background: highlight ? 'rgba(255,255,255,0.07)' : `${accent}14`, opacity: 0.6, pointerEvents: 'none' }}/>
-      {icon && (
+      {icon && !isMobile && (
         <div style={{ position: 'relative', marginBottom: 12 }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, borderRadius: 11, background: chipBg, color: chipColor, fontSize: 16,
             boxShadow: highlight ? 'inset 0 1px 0 rgba(255,255,255,0.14)' : `0 4px 12px ${accent}28` }}>{icon}</span>
@@ -210,7 +190,13 @@ export function KPI({ label, value, sub, color, highlight, icon, onClick }) {
           incolonnate fra loro. */}
       <div style={{ position: 'relative', fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase',
         color: highlight ? 'rgba(255,255,255,0.82)' : T.textMid, marginBottom: 6,
-        minHeight: 30, lineHeight: 1.25 }}>{label}</div>
+        minHeight: 30, lineHeight: 1.25,
+        display: 'flex', alignItems: 'center', gap: 8 }}>
+        {icon && isMobile && (
+          <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: R.md, background: chipBg, color: chipColor, fontSize: 13, flexShrink: 0 }}>{icon}</span>
+        )}
+        <span style={{ minWidth: 0 }}>{label}</span>
+      </div>
       {/* Audit 2026-06-25: fontSize auto-shrink in base alla lunghezza del value.
           Risolve due bug:
           (1) Valori numerici con 2 decimali (es. "611,50 €") troncati con "..."
@@ -232,8 +218,8 @@ export function KPI({ label, value, sub, color, highlight, icon, onClick }) {
         )
       })()}
       {sub
-        ? <div style={{ position: 'relative', fontSize: 12, color: highlight ? 'rgba(255,255,255,0.7)' : T.textSoft, marginTop: 7, fontWeight: 500, minHeight: 32, lineHeight: 1.35 }}>{sub}</div>
-        : <div style={{ minHeight: 32, marginTop: 7 }}/>
+        ? <div style={{ position: 'relative', fontSize: 12, color: highlight ? 'rgba(255,255,255,0.7)' : T.textSoft, marginTop: 6, fontWeight: 500, minHeight: isMobile ? 28 : 32, lineHeight: 1.35 }}>{sub}</div>
+        : <div style={{ minHeight: isMobile ? 28 : 32, marginTop: 6 }}/>
       }
     </div>
   )

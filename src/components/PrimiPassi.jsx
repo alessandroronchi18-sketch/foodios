@@ -175,7 +175,10 @@ export default function PrimiPassi({ orgId, sedeId, ricettario, magazzino, giorn
     <div role="region" aria-label="Primi passi"
       style={{
         background: '#FFF', border: `1px solid ${BORDER}`,
-        borderRadius: 14, marginBottom: 16,
+        // Stesso raggio delle altre schede della home (16). Era 14: la prima
+        // scheda della pagina aveva l'angolo diverso da tutte quelle sotto,
+        // e affiancate si vede.
+        borderRadius: 16, marginBottom: 16,
         overflow: 'hidden', boxShadow: '0 1px 3px rgba(15,23,42,0.04)',
       }}
     >
@@ -190,7 +193,7 @@ export default function PrimiPassi({ orgId, sedeId, ricettario, magazzino, giorn
           display: 'flex', alignItems: 'center', gap: isMobile ? 12 : 14,
         }}>
         <div style={{
-          width: 40, height: 40, borderRadius: 12, flexShrink: 0,
+          width: 40, height: 40, borderRadius: 10, flexShrink: 0,
           background: allDone ? GREEN : '#FEF3C7',
           color: allDone ? '#FFF' : '#92400E',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -198,9 +201,13 @@ export default function PrimiPassi({ orgId, sedeId, ricettario, magazzino, giorn
           <Icon name={allDone ? 'check' : 'sparkles'} size={18}/>
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
+          {/* `flexWrap`: sul telefono la pastiglia "tocca per aprire" si
+              prendeva 114px dei 248 della riga e il titolo veniva tagliato a
+              metà del numero — "Primi passi · 4/6…". Adesso, quando non ci
+              sta, è la pastiglia che va a capo. */}
           <div style={{
             fontSize: 14, fontWeight: 800, color: TXT, marginBottom: 4,
-            display: 'flex', alignItems: 'center', gap: 8,
+            display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap',
           }}>
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {allDone ? 'Hai completato i Primi passi!' : `Primi passi · ${completati}/${totale} completati`}

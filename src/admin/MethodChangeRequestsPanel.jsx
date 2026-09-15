@@ -11,7 +11,7 @@ import { apiFetch } from '../lib/apiFetch'
 
 const COLORS = {
   card: '#FFF', border: '#E2E8F0', text: '#0F172A', textSoft: '#334155',
-  textMute: '#64748B', brand: '#6E0E1A', brandSoft: '#FEF0EE',
+  textMute: '#5A6B80', brand: '#6E0E1A', brandSoft: '#FEF0EE',
   warn: '#B45309', warnBg: '#FEF3C7',
   ok: '#065F46', okBg: '#D1FAE5',
   err: '#B91C1C', errBg: '#FEE2E2',

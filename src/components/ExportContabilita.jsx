@@ -6,7 +6,7 @@ import Icon from './Icon'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { ui3, ui } from '../lib/theme'
 
-const lbl  = { fontSize: 12, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, display: 'block' }
+const lbl  = { fontSize: 12, fontWeight: 700, color: '#5A6B80', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, display: 'block' }
 
 const SK_CHIUS = 'pasticceria-chiusure-v1'
 const IVA_DEFAULT_PCT = 10 // alimenti d'asporto: 10% - modificabile in UI
@@ -283,7 +283,7 @@ export default function ExportContabilita({ orgId, sedi = [], nomeAttivita, noti
     <div>
       <div style={card}>
         <div style={{ fontWeight: 700, fontSize: 15, color: '#0F172A', marginBottom: 8, display: 'inline-flex', alignItems: 'center', gap: 8 }}><Icon name="barChart" size={16} /> Export contabilità</div>
-        <div style={{ fontSize: 12, color: '#64748B', marginBottom: 18, lineHeight: 1.6 }}>
+        <div style={{ fontSize: 12, color: '#5A6B80', marginBottom: 18, lineHeight: 1.6 }}>
           Estrae corrispettivi giornalieri (chiusure cassa) e fatture passive del periodo selezionato,
           con calcolo IVA basato sull'aliquota indicata. Verifica i totali con il tuo commercialista prima dell'invio fiscale.
         </div>

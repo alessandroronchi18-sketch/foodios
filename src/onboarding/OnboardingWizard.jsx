@@ -390,7 +390,7 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
               </button>
               <button onClick={onSkip} style={{
                 background: 'transparent', border: 'none', cursor: 'pointer',
-                color: '#64748B', fontSize: 14, fontWeight: 600,
+                color: '#5A6B80', fontSize: 14, fontWeight: 600,
                 padding: '10px 16px', minHeight: 40, textDecoration: 'underline',
                 fontFamily: 'inherit',
               }}>
@@ -407,7 +407,7 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
               margin: '20px 0 16px', letterSpacing: '-0.025em' }}>
               Come vuoi iniziare?
             </h1>
-            <p style={{ color: '#64748B', fontSize: 14, lineHeight: 1.55, marginBottom: 32,
+            <p style={{ color: '#5A6B80', fontSize: 14, lineHeight: 1.55, marginBottom: 32,
               maxWidth: 420, marginLeft: 'auto', marginRight: 'auto' }}>
               Tutto si modifica dopo. Puoi saltare e tornare quando vuoi.
             </p>
@@ -557,7 +557,7 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
                   background: '#FFFFFF',
                   border: '1px solid #E5E9EF',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: '#64748B',
+                  color: '#5A6B80',
                 }}>
                   <Icon name="bolt" size={22}/>
                 </div>

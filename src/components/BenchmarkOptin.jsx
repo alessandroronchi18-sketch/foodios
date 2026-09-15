@@ -117,7 +117,7 @@ export default function BenchmarkOptin({ orgId, sedeId, tipoAttivita, sedi, noti
             <span style={{ position: 'absolute', top: 3, left: optin ? 22 : 3, width: 18, height: 18, borderRadius: '50%', background: '#FFF', transition: 'left 0.2s' }} />
           </button>
         </div>
-        <div style={{ fontSize: 12, color: '#64748B', lineHeight: 1.7 }}>
+        <div style={{ fontSize: 12, color: '#5A6B80', lineHeight: 1.7 }}>
           Se attivo, Foodos invierà <strong style={{ color: '#0F172A' }}>solo dati aggregati</strong> e anonimi (food cost %, tipo attività, città) per costruire benchmark di settore. Niente nome attività, indirizzi, ricette o numeri privati.
           In cambio, vedrai nella sezione <strong>Food Cost</strong> la media del tuo settore confrontata con la tua.
         </div>
@@ -164,7 +164,7 @@ export function BenchmarkBadge({ tipoAttivita, miaFcPct, citta }) {
 
   const media = data.media_settore
   const delta = miaFcPct != null ? (miaFcPct - media) : null
-  const color = delta == null ? '#64748B' : delta < -1 ? '#10B981' : delta > 1 ? '#6E0E1A' : '#92400E'
+  const color = delta == null ? '#5A6B80' : delta < -1 ? '#10B981' : delta > 1 ? '#6E0E1A' : '#92400E'
 
   return (
     <div style={{
@@ -172,7 +172,7 @@ export function BenchmarkBadge({ tipoAttivita, miaFcPct, citta }) {
       background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 12,
     }}>
       <div>
-        <div style={{ fontSize: 12, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>
+        <div style={{ fontSize: 12, color: '#5A6B80', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>
           Media settore{data.media_citta ? ` · ${citta}` : ''}
         </div>
         <div style={{ fontSize: 18, fontWeight: 800, color: '#0F172A', fontVariantNumeric: 'tabular-nums' }}>
@@ -182,7 +182,7 @@ export function BenchmarkBadge({ tipoAttivita, miaFcPct, citta }) {
       </div>
       {miaFcPct != null && (
         <div style={{ borderLeft: '1px solid #E2E8F0', paddingLeft: 14 }}>
-          <div style={{ fontSize: 12, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>Tu sei a</div>
+          <div style={{ fontSize: 12, color: '#5A6B80', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>Tu sei a</div>
           <div style={{ fontSize: 18, fontWeight: 800, color, fontVariantNumeric: 'tabular-nums' }}>
             {fmtp(miaFcPct)}
           </div>

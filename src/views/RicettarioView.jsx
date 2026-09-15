@@ -236,7 +236,9 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
         className="fos-tile"
         style={{
           background: isSemi ? SEMI.bg : T.bgCard, border: `1px solid ${isSemi ? SEMI.border : T.border}`,
-          borderRadius: 18, overflow: 'hidden', cursor: 'pointer',
+          // 16 come le tessere qui sopra: la pagina aveva schede con angoli
+          // da 18 sotto tessere con angoli da 16, e in colonna si vede.
+          borderRadius: R['2xl'], overflow: 'hidden', cursor: 'pointer',
           boxShadow: isSemi ? '0 1px 2px rgba(142,68,173,0.05), 0 10px 28px rgba(142,68,173,0.07)' : '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)',
           padding: isMobile ? '14px 16px' : '14px 20px',
           display: 'flex', alignItems: 'center', gap: 12,
@@ -265,7 +267,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
         </div>
         <div style={{ textAlign: 'right', flexShrink: 0 }}>
           <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, lineHeight: 1 }}>{kpiPrim.lbl}</div>
-          <div style={{ fontSize: 18, fontWeight: 900, color: kpiPrim.c, marginTop: 4, ...TNUM, lineHeight: 1 }}>{kpiPrim.val}</div>
+          <div style={{ fontSize: 18, fontWeight: 800, color: kpiPrim.c, marginTop: 4, ...TNUM, lineHeight: 1 }}>{kpiPrim.val}</div>
         </div>
         <div style={{ flexShrink: 0, color: C.textSoft, lineHeight: 0 }}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
@@ -288,7 +290,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
     <div className={open ? undefined : 'fos-tile'} style={{
       background: isSemi ? SEMI.bg : T.bgCard,
       border: `1px solid ${isSemi ? SEMI.border : T.border}`,
-      borderRadius: 18, overflow: 'hidden',
+      borderRadius: R['2xl'], overflow: 'hidden',
       boxShadow: isSemi ? '0 1px 2px rgba(142,68,173,0.05), 0 10px 28px rgba(142,68,173,0.07)' : '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)',
       position: 'relative',
     }}>
@@ -934,7 +936,7 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
     <div onContextMenu={e => e.preventDefault()} onDragStart={e => e.preventDefault()}
       style={{ maxWidth: 1200, margin: '0 auto', userSelect: 'none' }}>
       <div style={{ marginBottom: isMobile ? 16 : 24 }}>
-        <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'flex-end', justifyContent: 'space-between', gap: isMobile ? 12 : 14, marginBottom: ricette.length > 0 ? 18 : 14 }}>
+        <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'flex-end', justifyContent: 'space-between', gap: isMobile ? 12 : 14, marginBottom: 16 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 13, color: T.textSoft, lineHeight: 1.5, fontWeight: 500 }}>
               {ricette.length > 0
@@ -965,13 +967,20 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
                   : fcMedioSu < ric
                     ? `su ${fcMedioSu} ${fcMedioSu === 1 ? 'ricetta' : 'ricette'} di ${ric}: le altre non hanno prezzo`
                     : 'media non pesata sulle ricette'} />
-              <KPI label="Semilavorati" value={semi} icon={<Icon name="gift" size={18} />} color="#8E44AD" sub="basi e impasti interni" />
+              {/* Sul telefono le tessere stanno su due colonne: la terza
+                  restava sola a metà riga, con mezzo schermo vuoto accanto.
+                  Presa la riga intera si legge come una scelta.
+                  Il viola #8E44AD era l'unico viola del prodotto: adesso è
+                  scuro come "Ricette", che è la stessa specie di numero. */}
+              <div style={{ gridColumn: isMobile ? '1 / -1' : 'auto' }}>
+                <KPI label="Semilavorati" value={semi} icon={<Icon name="gift" size={18} />} color={T.text} sub="basi e impasti interni" />
+              </div>
             </div>
           )
         })()}
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: isMobile ? 16 : 20, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: isMobile ? 16 : 20, flexWrap: 'wrap' }}>
         <div style={{ flex: 1, minWidth: 200, position: 'relative' }}>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder={`Cerca ${LEX.ricetta}…`}
             style={{ width: '100%', padding: '10px 12px', minHeight: isMobile || isTablet ? 44 : 'auto', border: `1px solid ${T.border}`, borderRadius: R.md,
@@ -988,13 +997,16 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
           <option value="nome_az">Nome A → Z</option>
           <option value="nome_za">Nome Z → A</option>
         </select>
+        {/* I due bottoni lista/griglia erano 34x32: sotto la misura di un
+            polpastrello, e attaccati fra loro. Adesso sono 44 e altrettanto
+            alti degli altri controlli della riga. */}
         <div style={{ display: 'flex', gap: 2, padding: 3, background: T.bgSubtle, borderRadius: R.md }}>
-          <button onClick={() => setGridView(false)} style={{ width: 34, height: 32, padding: 0, border: 'none', borderRadius: R.sm, background: !gridView ? T.bgCard : 'transparent', cursor: 'pointer', color: !gridView ? T.text : T.textSoft, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <button onClick={() => setGridView(false)} aria-label="Vista a elenco" style={{ width: 44, height: 44, padding: 0, border: 'none', borderRadius: R.sm, background: !gridView ? T.bgCard : 'transparent', cursor: 'pointer', color: !gridView ? T.text : T.textSoft, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
               <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
             </svg>
           </button>
-          <button onClick={() => setGridView(true)} style={{ width: 34, height: 32, padding: 0, border: 'none', borderRadius: R.sm, background: gridView ? T.bgCard : 'transparent', cursor: 'pointer', color: gridView ? T.text : T.textSoft, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <button onClick={() => setGridView(true)} aria-label="Vista a schede" style={{ width: 44, height: 44, padding: 0, border: 'none', borderRadius: R.sm, background: gridView ? T.bgCard : 'transparent', cursor: 'pointer', color: gridView ? T.text : T.textSoft, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
             </svg>
@@ -1043,7 +1055,7 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
           })}
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 32 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 32 }}>
           {filtered.map(ric => <TortaCard metodoProduzione={metodoProduzione} key={ric.nome} ric={ric} ingCosti={ingCosti} ricettario={ricettario} onUpdateRegola={onUpdateRegola} onEdit={onEditRicetta} ricavoFlatKg={ricavoFlatFor(ric)} sedi={sedi} orgId={orgId} notify={notify} listinoSede={listinoSede} sedeAttivaNome={sedeAttiva?.nome}/>)}
         </div>
       ))}
@@ -1057,7 +1069,7 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
             </div>
             <span style={{ padding: '4px 10px', borderRadius: 999, background: '#F5EBFB', color: '#8E44AD', fontSize: 12, fontWeight: 600 }}>{semilavorati.length}</span>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {semilavorati.map(ric => (
               <TortaCard metodoProduzione={metodoProduzione} key={ric.nome} ric={ric} ingCosti={ingCosti} ricettario={ricettario} onUpdateRegola={onUpdateRegola} onEdit={onEditRicetta} variant="semilavorato"/>
             ))}

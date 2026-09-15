@@ -696,14 +696,14 @@ function PacchettiAIPanel({ auth, notify }) {
 
   return (
     <div>
-      <p style={{ fontSize: 13, color: '#64748B', lineHeight: 1.55, marginBottom: 18 }}>
+      <p style={{ fontSize: 13, color: '#5A6B80', lineHeight: 1.55, marginBottom: 18 }}>
         Hai finito le foto AI incluse nel piano? Compra un pacchetto extra. Valido 12 mesi,
         si consuma quando l'app legge scontrini, fatture, listini concorrenti, menu OCR.
       </p>
 
       {/* Saldo residuo */}
       <div style={{ padding: 16, background: totaleResidue > 0 ? '#F0FDF4' : '#F8FAFC', borderRadius: 12, marginBottom: 18, border: `1px solid ${totaleResidue > 0 ? '#86EFAC' : '#E2E8F0'}`, minHeight: 90, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-        <div style={{ fontSize: 12, color: totaleResidue > 0 ? '#065F46' : '#64748B', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.05em' }}>Saldo foto AI</div>
+        <div style={{ fontSize: 12, color: totaleResidue > 0 ? '#065F46' : '#5A6B80', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.05em' }}>Saldo foto AI</div>
         <div style={{ fontSize: isMobile ? 28 : 32, fontWeight: 900, color: totaleResidue > 0 ? '#16A34A' : '#94A3B8', fontVariantNumeric: 'tabular-nums', marginTop: 4 }}>
           {(totaleResidue || 0).toLocaleString('it-IT', { useGrouping: 'always' })} <span style={{ fontSize: isMobile ? 14 : 16, fontWeight: 700, color: totaleResidue > 0 ? '#065F46' : '#94A3B8' }}>foto</span>
         </div>
@@ -735,10 +735,10 @@ function PacchettiAIPanel({ auth, notify }) {
             {/* Prezzo grande sotto il titolo */}
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 6, marginBottom: 10 }}>
               <span style={{ fontSize: isMobile ? 28 : 32, fontWeight: 900, color: '#1C0A0A', letterSpacing: '-0.02em', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{p.prezzo}</span>
-              <span style={{ fontSize: 12, color: '#64748B' }}>una tantum</span>
+              <span style={{ fontSize: 12, color: '#5A6B80' }}>una tantum</span>
             </div>
             {/* Divisore + €/foto + eventuale risparmio */}
-            <div style={{ borderTop: '1px solid #E2E8F0', paddingTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: 12, color: '#64748B', marginBottom: 12 }}>
+            <div style={{ borderTop: '1px solid #E2E8F0', paddingTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: 12, color: '#5A6B80', marginBottom: 12 }}>
               <span>{p.per_call} a foto</span>
               {p.saving > 0 && (
                 <span style={{ background: '#DCFCE7', color: '#065F46', padding: '2px 8px', borderRadius: 999, fontSize: 12, fontWeight: 800, letterSpacing: '0.02em' }}>
@@ -787,7 +787,7 @@ function PacchettiAIPanel({ auth, notify }) {
                 }}>
                   <div>
                     <strong>{(p.calls_included || 0).toLocaleString('it-IT', { useGrouping: 'always' })} foto</strong>
-                    <span style={{ color: '#64748B', marginLeft: 8 }}>€{(p.amount_paid_cents / 100).toFixed(2)}</span>
+                    <span style={{ color: '#5A6B80', marginLeft: 8 }}>€{(p.amount_paid_cents / 100).toFixed(2)}</span>
                   </div>
                   <div style={{ color: esaurito ? '#DC2626' : '#16A34A', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
                     {esaurito ? 'esaurito' : `${(p.calls_remaining || 0).toLocaleString('it-IT', { useGrouping: 'always' })} / ${(p.calls_included || 0).toLocaleString('it-IT', { useGrouping: 'always' })} disp.`}

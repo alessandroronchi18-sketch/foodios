@@ -132,7 +132,7 @@ export default function ProductAutocomplete({
         placeholder={placeholder}
         style={{
           width: '100%', padding: '10px 12px', borderRadius: 8,
-          border: `1px solid ${showWarning ? '#D97706' : BORDER}`,
+          border: `1px solid ${showWarning ? '#B45309' : BORDER}`,
           fontSize: 14, color: TXT, fontFamily: 'inherit', boxSizing: 'border-box',
         }} />
       {showWarning && (

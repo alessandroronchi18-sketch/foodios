@@ -16,7 +16,7 @@ export const ALLERGENI = [
 ]
 
 export const ALLERGENE_COLORS = {
-  glutine:   '#D97706',
+  glutine:   '#B45309',
   crostacei: '#DC2626',
   uova:      '#CA8A04',
   pesce:     '#2563EB',

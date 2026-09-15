@@ -828,7 +828,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                 compare: compareMode !== 'none' && prevKey ? (Number(k[prevKey]) || 0) : null,
               }
             })
-            const COLORS = ['#6E0E1A', '#D97706', '#16A34A', '#0369A1', '#7E22CE', '#BE185D']
+            const COLORS = ['#6E0E1A', '#B45309', '#16A34A', '#0369A1', '#7E22CE', '#BE185D']
             const COMPARE_COLOR = '#94A3B8'
             return (
               <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 14, padding: isMobile ? 14 : 20, marginBottom: 16 }}>
@@ -871,8 +871,8 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                     {chartType === 'bar' && (
                       <BarChart data={data} margin={isMobile ? { top: 8, right: 12, bottom: 8, left: 8 } : { top: 12, right: 24, bottom: 12, left: 12 }}>
                         <CartesianGrid strokeDasharray="4 4" stroke="#E5E9EF" vertical={false}/>
-                        <XAxis dataKey="sede" tick={{ fontSize: typo.small.fontSize, fill: '#64748B' }} tickLine={false} axisLine={{ stroke: '#E5E9EF' }} />
-                        <YAxis tick={{ fontSize: typo.small.fontSize, fill: '#64748B' }} tickLine={false} axisLine={false} tickFormatter={v => metricDef.fmt(v)} width={isMobile ? 56 : 72} />
+                        <XAxis dataKey="sede" tick={{ fontSize: typo.small.fontSize, fill: '#5A6B80' }} tickLine={false} axisLine={{ stroke: '#E5E9EF' }} />
+                        <YAxis tick={{ fontSize: typo.small.fontSize, fill: '#5A6B80' }} tickLine={false} axisLine={false} tickFormatter={v => metricDef.fmt(v)} width={isMobile ? 56 : 72} />
                         <Tooltip cursor={{ fill: 'rgba(110,14,26,0.04)' }} content={<ChartTip />} formatter={v => metricDef.fmt(v)} />
                         <Legend wrapperStyle={{ fontSize: typo.small.fontSize, paddingTop: 8 }} iconType="circle" />
                         <Bar dataKey="current" name={`${metricDef.lbl} (attuale)`} fill={RED} radius={[6, 6, 0, 0]} maxBarSize={56} />
@@ -882,8 +882,8 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                     {chartType === 'line' && (
                       <LineChart data={data} margin={isMobile ? { top: 8, right: 12, bottom: 8, left: 8 } : { top: 12, right: 24, bottom: 12, left: 12 }}>
                         <CartesianGrid strokeDasharray="4 4" stroke="#E5E9EF" vertical={false}/>
-                        <XAxis dataKey="sede" tick={{ fontSize: typo.small.fontSize, fill: '#64748B' }} tickLine={false} axisLine={{ stroke: '#E5E9EF' }} />
-                        <YAxis tick={{ fontSize: typo.small.fontSize, fill: '#64748B' }} tickLine={false} axisLine={false} tickFormatter={v => metricDef.fmt(v)} width={isMobile ? 56 : 72} />
+                        <XAxis dataKey="sede" tick={{ fontSize: typo.small.fontSize, fill: '#5A6B80' }} tickLine={false} axisLine={{ stroke: '#E5E9EF' }} />
+                        <YAxis tick={{ fontSize: typo.small.fontSize, fill: '#5A6B80' }} tickLine={false} axisLine={false} tickFormatter={v => metricDef.fmt(v)} width={isMobile ? 56 : 72} />
                         <Tooltip content={<ChartTip />} formatter={v => metricDef.fmt(v)} />
                         <Legend wrapperStyle={{ fontSize: typo.small.fontSize, paddingTop: 8 }} iconType="circle" />
                         <Line type="monotone" dataKey="current" name={`${metricDef.lbl} (attuale)`} stroke={RED} strokeWidth={2.5} dot={{ r: 4, fill: RED }} activeDot={{ r: 6 }} />

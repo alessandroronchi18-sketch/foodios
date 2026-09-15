@@ -37,7 +37,7 @@ export default function AIFotoAnalisi({ dati, onConferma, onRianalizza, onAnnull
         </div>
         <button onClick={onRianalizza} style={{
           padding: '6px 12px', background: '#FFF', border: '1px solid #E2E8F0',
-          borderRadius: 8, fontSize: 12, cursor: 'pointer', color: '#64748B'
+          borderRadius: 8, fontSize: 12, cursor: 'pointer', color: '#5A6B80'
         }}>
           Rianalizza
         </button>
@@ -45,7 +45,7 @@ export default function AIFotoAnalisi({ dati, onConferma, onRianalizza, onAnnull
 
       {/* Nome ricetta */}
       <div style={{ marginBottom: 12 }}>
-        <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748B', marginBottom: 4, textTransform: 'uppercase' }}>
+        <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#5A6B80', marginBottom: 4, textTransform: 'uppercase' }}>
           Nome ricetta
         </label>
         <input
@@ -59,7 +59,7 @@ export default function AIFotoAnalisi({ dati, onConferma, onRianalizza, onAnnull
       {/* Categoria e porzioni */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
         <div>
-          <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748B', marginBottom: 4, textTransform: 'uppercase' }}>
+          <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#5A6B80', marginBottom: 4, textTransform: 'uppercase' }}>
             Categoria
           </label>
           <select style={INPUT} value={form.categoria || 'Altro'} onChange={e => setForm({ ...form, categoria: e.target.value })}>
@@ -67,7 +67,7 @@ export default function AIFotoAnalisi({ dati, onConferma, onRianalizza, onAnnull
           </select>
         </div>
         <div>
-          <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748B', marginBottom: 4, textTransform: 'uppercase' }}>
+          <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#5A6B80', marginBottom: 4, textTransform: 'uppercase' }}>
             Porzioni / unità
           </label>
           <input
@@ -82,7 +82,7 @@ export default function AIFotoAnalisi({ dati, onConferma, onRianalizza, onAnnull
 
       {/* Ingredienti */}
       <div style={{ marginBottom: 16 }}>
-        <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748B', marginBottom: 8, textTransform: 'uppercase' }}>
+        <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#5A6B80', marginBottom: 8, textTransform: 'uppercase' }}>
           Ingredienti ({ingredienti.length})
         </label>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -113,7 +113,7 @@ export default function AIFotoAnalisi({ dati, onConferma, onRianalizza, onAnnull
         </div>
         <button
           onClick={aggiungiIngrediente}
-          style={{ marginTop: 8, padding: '6px 12px', background: '#FFF', border: '1px dashed #CBD5E1', borderRadius: 8, cursor: 'pointer', fontSize: 12, color: '#64748B', width: '100%' }}
+          style={{ marginTop: 8, padding: '6px 12px', background: '#FFF', border: '1px dashed #CBD5E1', borderRadius: 8, cursor: 'pointer', fontSize: 12, color: '#5A6B80', width: '100%' }}
         >
           + Aggiungi ingrediente
         </button>
@@ -121,7 +121,7 @@ export default function AIFotoAnalisi({ dati, onConferma, onRianalizza, onAnnull
 
       {/* Procedimento */}
       <div style={{ marginBottom: 16 }}>
-        <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748B', marginBottom: 4, textTransform: 'uppercase' }}>
+        <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#5A6B80', marginBottom: 4, textTransform: 'uppercase' }}>
           Note procedimento
         </label>
         <textarea
@@ -146,7 +146,7 @@ export default function AIFotoAnalisi({ dati, onConferma, onRianalizza, onAnnull
         {onAnnulla && (
           <button
             onClick={onAnnulla}
-            style={{ padding: '12px 16px', background: '#FFF', border: '1px solid #E2E8F0', borderRadius: 8, cursor: 'pointer', fontSize: 13, color: '#64748B' }}
+            style={{ padding: '12px 16px', background: '#FFF', border: '1px solid #E2E8F0', borderRadius: 8, cursor: 'pointer', fontSize: 13, color: '#5A6B80' }}
           >
             Annulla
           </button>

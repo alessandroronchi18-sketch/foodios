@@ -84,7 +84,7 @@ export default function HomeDipendente({
       label: 'Sprechi\nomaggi',
       hint: 'Registra perdita o regalo',
       icon: 'trash',
-      bg: 'linear-gradient(135deg, #B45309 0%, #D97706 100%)',
+      bg: 'linear-gradient(135deg, #B45309 0%, #B45309 100%)',
       iconColor: '#FEF3C7',
     },
     {

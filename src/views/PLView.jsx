@@ -93,11 +93,11 @@ function BarreRicavo({ rows, euro, pct }) {
                   </div>
                 </div>
                 <div style={{ height: 34, borderRadius: 8, overflow: 'hidden', display: 'flex', cursor: 'crosshair', position: 'relative' }} data-barre-root="">
-                  <div style={{ width: `${margW}%`, height: '100%', background: mc, opacity: 0.86, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'width 0.5s ease', position: 'relative' }}
+                  <div style={{ width: `${margW}%`, height: '100%', background: mc, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'width 0.5s ease', position: 'relative' }}
                     onMouseMove={e => handleMouseOver(e, 'margine')}>
                     {margW > 10 && <span style={{ fontSize: 12, fontWeight: 800, color: '#fff', pointerEvents: 'none' }}>{pct(margW)}</span>}
                   </div>
-                  <div style={{ flex: 1, height: '100%', background: C.red, opacity: 0.82, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'width 0.5s ease' }}
+                  <div style={{ flex: 1, height: '100%', background: C.red, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'width 0.5s ease' }}
                     onMouseMove={e => handleMouseOver(e, 'foodcost')}>
                     {fcW > 10 && <span style={{ fontSize: 12, fontWeight: 800, color: '#fff', pointerEvents: 'none' }}>{pct(fcW)}</span>}
                   </div>
@@ -153,7 +153,7 @@ function BarreRicavo({ rows, euro, pct }) {
             <span style={{ fontSize: 12, fontWeight: 600, color: C.textMid }}>Margine lordo</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <div style={{ width: 14, height: 14, borderRadius: 3, background: C.red, opacity: 0.82 }}/>
+            <div style={{ width: 14, height: 14, borderRadius: 3, background: C.red }}/>
             <span style={{ fontSize: 12, fontWeight: 600, color: C.textMid }}>Costo ingredienti</span>
           </div>
         </div>
@@ -1659,8 +1659,8 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
               margin={isMobile ? { top: 8, right: 16, left: 8, bottom: 32 } : { top: 12, right: 24, left: 12, bottom: 40 }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#E5E9EF" vertical={false} />
-              <XAxis type="number" tickFormatter={v => `${Math.round(v).toLocaleString('it-IT', { useGrouping: 'always' })} €`} tick={{ fill: '#64748B', fontSize: 12 }} axisLine={false} tickLine={false}/>
-              <YAxis type="category" dataKey="short" width={80} tick={{ fill: '#64748B', fontSize: 12 }} axisLine={false} tickLine={false}/>
+              <XAxis type="number" tickFormatter={v => `${Math.round(v).toLocaleString('it-IT', { useGrouping: 'always' })} €`} tick={{ fill: '#5A6B80', fontSize: 12 }} axisLine={false} tickLine={false}/>
+              <YAxis type="category" dataKey="short" width={80} tick={{ fill: '#5A6B80', fontSize: 12 }} axisLine={false} tickLine={false}/>
               <Tooltip content={<ChartTip />} />
               <Bar dataKey="ricavo" name="Ricavo" fill={C.green} fillOpacity={0.2} stroke="#6E0E1A" strokeOpacity={0.15} radius={[6, 6, 0, 0]}/>
               <Bar dataKey="margine" name="Margine" stroke="#6E0E1A" strokeOpacity={0.25} radius={[6, 6, 0, 0]}>

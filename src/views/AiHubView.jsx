@@ -32,6 +32,7 @@ const CLUSTERS = [
     label: 'Consulente AI',
     sub: 'Capisce i tuoi dati e ti spiega cosa fare',
     accent: '#E84B3A',
+    accentTesto: '#B3321F',
     icon: 'sparkles',
     features: [
       { id: 'daily-brief',  view: 'home',         title: 'Brief del mattino',
@@ -49,7 +50,8 @@ const CLUSTERS = [
     id: 'previsione',
     label: 'Previsione & Strategia',
     sub: 'Vedi prima cosa succede e prepara la mossa',
-    accent: '#D97706',
+    accent: '#B45309',
+    accentTesto: '#96470A',
     icon: 'trendUp',
     features: [
       { id: 'forecast',     view: 'forecast',     title: 'Forecast vendite 7gg',
@@ -70,6 +72,7 @@ const CLUSTERS = [
     label: 'Automazioni operative',
     sub: 'Le cose noiose le fa lui per te',
     accent: '#16A34A',
+    accentTesto: '#0A7350',
     icon: 'bolt',
     features: [
       { id: 'suggestions',  view: 'home',         title: 'Avvisi automatici',
@@ -105,6 +108,7 @@ const CHAIN_CLUSTER = {
   label: `Esclusive piano ${PLAN_LABEL.enterprise}`,
   sub: `Disponibili con il piano ${PLAN_LABEL.enterprise}`,
   accent: '#FFD86B',
+  accentTesto: '#7A5C10',
   icon: 'sparkles',
   features: [
     { id: 'ai-brain',     view: 'ai-brain',     title: 'Foodos Brain',
@@ -126,7 +130,7 @@ const CHAIN_CLUSTER = {
 const STATUS_STYLE = {
   LIVE: { bg: 'rgba(22,163,74,0.10)',   fg: '#15803D', label: 'LIVE' },
   BETA: { bg: 'rgba(217,119,6,0.10)',   fg: '#A16207', label: 'BETA' },
-  SOON: { bg: 'rgba(148,163,184,0.16)', fg: '#64748B', label: 'IN ARRIVO' },
+  SOON: { bg: 'rgba(148,163,184,0.16)', fg: '#5A6B80', label: 'IN ARRIVO' },
 }
 
 export default function AiHubView({ orgId, setView, goToUpgrade, piano, userEmail }) {
@@ -349,7 +353,11 @@ function ClusterIntro({ idx, cluster, isChain }) {
   return (
     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: 4 }}>
       <div className="ai-index" style={{
-        fontSize: 13, fontWeight: 700, color: isChain ? '#FFD86B' : cluster.accent,
+        // Il numero va sopra il suo stesso colore all'8%: scritto con
+        // l'accento pieno faceva 1.24–3.23 di contrasto (l'oro su crema era
+        // praticamente invisibile). Il fondo e il bordo restano l'accento,
+        // cambia solo il testo.
+        fontSize: 13, fontWeight: 700, color: isChain ? '#7A5C10' : (cluster.accentTesto || cluster.accent),
         background: isChain ? 'rgba(255,216,107,0.12)' : `${cluster.accent}14`,
         padding: '6px 12px', borderRadius: 8,
         border: `1px solid ${isChain ? 'rgba(255,216,107,0.30)' : `${cluster.accent}33`}`,
@@ -363,7 +371,7 @@ function ClusterIntro({ idx, cluster, isChain }) {
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: isChain ? '#A16207' : cluster.accent, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: isChain ? '#7A5C10' : (cluster.accentTesto || cluster.accent), letterSpacing: '0.05em', textTransform: 'uppercase' }}>
             {cluster.label}
           </span>
           <span style={{ flex: 1, height: 1, background: `linear-gradient(90deg, ${isChain ? '#FFD86B' : cluster.accent}, transparent)`, opacity: 0.4, minWidth: 24 }}/>

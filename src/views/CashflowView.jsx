@@ -28,7 +28,7 @@ const MID = T.textMid || '#475264'
 const CARD = T.bgCard || '#FFF'
 const BORDER = T.border || '#E5E9EF'
 const GREEN = T.green || '#16A34A'
-const AMBER = T.amber || '#D97706'
+const AMBER = T.amber || '#B45309'
 
 const SK_CASH_SETTINGS = 'pasticceria-cashflow-settings-v1'  // { saldoOggi, fissi: [{label, importo, frequenza}] }
 

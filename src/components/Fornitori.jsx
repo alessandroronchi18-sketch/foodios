@@ -29,7 +29,7 @@ function maskIban(iban) {
 const CATEGORIE_SUGG = ['Farine', 'Latticini', 'Frutta', 'Frutta secca', 'Cioccolato', 'Zuccheri', 'Uova', 'Lieviti', 'Aromi', 'Imballaggi', 'Bevande', 'Surgelati', 'Pulizia', 'Attrezzature', 'Altro']
 
 // Palette stabile per chip categoria / barre breakdown
-const PALETTE = ['#6E0E1A', '#0E9F6E', '#D97706', '#2563EB', '#7C3AED', '#0891B2', '#BE185D', '#65A30D', '#C2410C', '#4338CA']
+const PALETTE = ['#6E0E1A', '#0A7350', '#B45309', '#2563EB', '#7C3AED', '#0891B2', '#BE185D', '#65A30D', '#C2410C', '#4338CA']
 function catColor(name) {
   if (!name) return '#94A3B8'
   let h = 0

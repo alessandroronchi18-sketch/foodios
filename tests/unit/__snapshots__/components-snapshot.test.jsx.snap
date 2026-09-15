@@ -328,7 +328,7 @@ exports[`Snapshot markup — componenti puri ad alta riusabilita > ToastProvider
 >
   <div
     role="status"
-    style="background: #0E9F6E; color: #FFFFFF; border: 1px solid #0C7C56; border-radius: 10px; padding: 10px 14px; min-width: 280px; max-width: 420px; box-shadow: 0 10px 25px rgba(0,0,0,0.18); display: flex; align-items: flex-start; gap: 10px; font-family: Inter, system-ui, sans-serif; font-size: 13px; line-height: 1.45; pointer-events: auto; animation: fos-toast-in 0.22s cubic-bezier(0.16, 1, 0.3, 1); position: relative; overflow: hidden;"
+    style="background: #0A7350; color: #FFFFFF; border: 1px solid #0C7C56; border-radius: 10px; padding: 10px 14px; min-width: 280px; max-width: 420px; box-shadow: 0 10px 25px rgba(0,0,0,0.18); display: flex; align-items: flex-start; gap: 10px; font-family: Inter, system-ui, sans-serif; font-size: 13px; line-height: 1.45; pointer-events: auto; animation: fos-toast-in 0.22s cubic-bezier(0.16, 1, 0.3, 1); position: relative; overflow: hidden;"
   >
     <span
       style="flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; background: rgba(255, 255, 255, 0.22); display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px;"
@@ -355,7 +355,7 @@ exports[`Snapshot markup — componenti puri ad alta riusabilita > ToastProvider
   </div>
   <div
     role="status"
-    style="background: #D97706; color: #FFFFFF; border: 1px solid #A65906; border-radius: 10px; padding: 10px 14px; min-width: 280px; max-width: 420px; box-shadow: 0 10px 25px rgba(0,0,0,0.18); display: flex; align-items: flex-start; gap: 10px; font-family: Inter, system-ui, sans-serif; font-size: 13px; line-height: 1.45; pointer-events: auto; animation: fos-toast-in 0.22s cubic-bezier(0.16, 1, 0.3, 1); position: relative; overflow: hidden;"
+    style="background: #B45309; color: #FFFFFF; border: 1px solid #A65906; border-radius: 10px; padding: 10px 14px; min-width: 280px; max-width: 420px; box-shadow: 0 10px 25px rgba(0,0,0,0.18); display: flex; align-items: flex-start; gap: 10px; font-family: Inter, system-ui, sans-serif; font-size: 13px; line-height: 1.45; pointer-events: auto; animation: fos-toast-in 0.22s cubic-bezier(0.16, 1, 0.3, 1); position: relative; overflow: hidden;"
   >
     <span
       style="flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; background: rgba(255, 255, 255, 0.22); display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px;"
@@ -668,7 +668,7 @@ exports[`Snapshot markup — componenti puri ad alta riusabilita > UpgradeModal 
           style="min-width: 0; flex-grow: 1; flex-shrink: 1; flex-basis: 0%;"
         >
           <div
-            style="font-size: 12px; font-weight: 700; color: #64748B; letter-spacing: 0.05em; text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
+            style="font-size: 12px; font-weight: 700; color: #5A6B80; letter-spacing: 0.05em; text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
           >
             Piano 
             Ultra
@@ -1030,7 +1030,7 @@ exports[`Snapshot markup — componenti puri ad alta riusabilita > UpgradeModal 
           style="min-width: 0; flex-grow: 1; flex-shrink: 1; flex-basis: 0%;"
         >
           <div
-            style="font-size: 12px; font-weight: 700; color: #64748B; letter-spacing: 0.05em; text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
+            style="font-size: 12px; font-weight: 700; color: #5A6B80; letter-spacing: 0.05em; text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
           >
             Piano 
             Plus

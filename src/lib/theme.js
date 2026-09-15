@@ -23,12 +23,29 @@ export const color = {
   bgSideRaised: '#11151E',
 
   // Text
+  //
   // Audit 2026-06-24: textSoft passato da #8B95A7 (ratio 3.0 su #FFF) a
   // #64748B (ratio 4.6 su #FFF) per soddisfare WCAG AA su body text.
+  //
+  // 15/09/2026 — **la misura era giusta e il fondo sbagliato**. #64748B fa
+  // 4.6 su bianco puro, ma le pagine di Foodos non sono bianche: il fondo è
+  // #FAF7F2, le tessere #FDFAF7, le tabelle #F8F4F2, i riquadri #F1F4F8. Su
+  // quei fondi il rapporto scende a 4.31–4.45, sotto la soglia di 4.5.
+  //
+  // Non è un cavillo: chi usa Foodos ha spesso sessant'anni, lavora sotto i
+  // neon di un laboratorio e guarda il telefono con le mani infarinate. Una
+  // scritta grigio chiaro su panna lì non si legge.
+  //
+  // Misurato in un browser vero con axe-core (`scripts/audit-contrasto.mjs`),
+  // non in happy-dom: i test di accessibilità del progetto girano senza
+  // disegnare niente, e axe salta il controllo del contrasto. Erano 467
+  // scritte sotto soglia su 32 pagine, e 291 venivano da questo solo colore.
+  //
+  // #5A6B80 fa 4.95 sul fondo peggiore, e a occhio è lo stesso grigio.
   // textFaint resta solo per metadati/timestamp non critici.
   text:         '#0E1726',
   textMid:      '#475264',
-  textSoft:     '#64748B',
+  textSoft:     '#5A6B80',
   textFaint:    '#94A3B8',
   textOnDark:        '#FFFFFF',
   textOnDarkStrong:  'rgba(255,255,255,0.94)',
@@ -45,9 +62,18 @@ export const color = {
   borderOnDarkSoft:  'rgba(255,255,255,0.04)',
 
   // Semantic
-  green:      '#0E9F6E',
+  //
+  // Verde e ambra sono scesi di tono il 15/09/2026 per lo stesso motivo del
+  // grigio: misurati in un browser vero, #0E9F6E faceva 2.84–3.38 e #D97706
+  // faceva 3.02–3.18 sui fondi dell'app, contro i 4.5 richiesti. Sono i
+  // colori con cui si scrive «Margine 99%» e «In scadenza»: due delle poche
+  // cose che si leggono di sfuggita, di corsa, in laboratorio.
+  //
+  // I nuovi fanno 4.92 e 4.75 sul fondo peggiore. La tinta è la stessa: in
+  // affiancata si vede che sono più scuri, da soli no.
+  green:      '#0A7350',
   greenLight: '#E7F6F0',
-  amber:      '#D97706',
+  amber:      '#B45309',
   // Ambra scura per il TESTO sopra amberLight: l'ambra normale su quel fondo
   // ha poco contrasto. Quattro punti del progetto scrivevano già
   // `T.amberDark || T.amber` aspettandosi questo colore, e ricadevano sempre
@@ -55,6 +81,16 @@ export const color = {
   amberDark:  '#92400E',
   amberLight: '#FFF8EB',
   red:        '#DC2626',
+  // Rosso scuro per il TESTO sopra redLight, come `amberDark` sta a `amber`.
+  //
+  // Il rosso segnale resta #DC2626 — è la scelta del titolare del 14/09/2026,
+  // e non cambia: è il colore che dice «guarda qui». Ma scritto a 12–13px
+  // sopra il suo stesso fondo chiaro fa 4.41 di contrasto, appena sotto la
+  // soglia: «Urgente» e «~ 3,00 kg» nel magazzino erano fra le scritte meno
+  // leggibili di tutto il programma, e sono esattamente quelle che si leggono
+  // di corsa. Il fondo, il bordo e le icone restano #DC2626; cambia solo il
+  // testo che ci sta sopra.
+  redDark:    '#B91C1C',
   redLight:   '#FEF2F2',
   blue:       '#2563EB',
   blueLight:  '#EFF6FF',

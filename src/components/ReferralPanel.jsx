@@ -153,7 +153,7 @@ export default function ReferralPanel({ auth }) {
             {livelloCorrente ? <><Icon name={livelloCorrente.icon} size={12} />{`Livello ${livelloCorrente.premio}`}</> : 'Inizia a invitare per sbloccare premi'}
           </div>
         </div>
-        <p style={{ fontSize: 12, color: '#64748B', margin: '0 0 18px', lineHeight: 1.55 }}>
+        <p style={{ fontSize: 12, color: '#5A6B80', margin: '0 0 18px', lineHeight: 1.55 }}>
           Più colleghi invitano <strong>{APP_NAME}</strong>, più mesi gratuiti aggiungi al tuo abbonamento. Il tuo amico si ritrova due mesi di prova in più, sopra ai tre che ha già.
         </p>
 
@@ -217,7 +217,7 @@ export default function ReferralPanel({ auth }) {
         {prossimo && (
           <div style={{ marginBottom: 18 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
-              <span style={{ fontSize: 12, color: '#64748B', fontWeight: 600 }}>
+              <span style={{ fontSize: 12, color: '#5A6B80', fontWeight: 600 }}>
                 Prossimo premio: <strong style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name={prossimo.icon} size={12} />{prossimo.premio}</strong>
               </span>
               <span style={{ fontSize: 12, fontWeight: 700, color: '#6E0E1A' }}>
@@ -248,7 +248,7 @@ export default function ReferralPanel({ auth }) {
                   borderRadius: 8,
                   opacity: raggiunto ? 1 : 0.85,
                 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: raggiunto ? '#16A34A' : '#64748B', marginBottom: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: raggiunto ? '#16A34A' : '#5A6B80', marginBottom: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
                     <Icon name={l.icon} size={12} />{l.soglia} inviti
                   </div>
                   <div style={{ fontSize: 12, color: raggiunto ? '#065F46' : '#475569', fontWeight: 600, lineHeight: 1.3 }}>
@@ -271,7 +271,7 @@ export default function ReferralPanel({ auth }) {
         <div style={{ fontWeight: 700, fontSize: 14, color: '#1C0A0A', marginBottom: 4 }}>
           Hai ricevuto un codice da un collega?
         </div>
-        <div style={{ fontSize: 12, color: '#64748B', marginBottom: 12, lineHeight: 1.55 }}>
+        <div style={{ fontSize: 12, color: '#5A6B80', marginBottom: 12, lineHeight: 1.55 }}>
           Inseriscilo qui e ti aggiungiamo due mesi di prova. Funziona una volta sola, e solo prima di attivare un abbonamento.
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

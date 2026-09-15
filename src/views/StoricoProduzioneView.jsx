@@ -15,7 +15,7 @@ import { C, KPI, SH, margColor, margBadge, fmt, fmt0, fmtp, ChartTip, Tip } from
 import { fmtp0 } from '../lib/formatIt'
 
 // Audit UI 2026-06-24:
-// - assi grafici: fontSize 11, color #64748B, grid stroke #E5E9EF dashed
+// - assi grafici: fontSize 11, color #5A6B80, grid stroke #E5E9EF dashed
 // - bar radius [6,6,0,0] in cima allo stack
 // - € DOPO la cifra ovunque ("1.234 €")
 // - numeri ≥ 1000 con separatore migliaia IT
@@ -23,7 +23,7 @@ import { fmtp0 } from '../lib/formatIt'
 // - sort header keyboard accessibili + touch target ≥ 40px
 // - tabelle larghe scrollabili con minWidth + sticky prima colonna
 // - input date font ≥ 16px su mobile per evitare zoom iOS
-const AXIS_TICK    = { fill:'#64748B', fontSize: typo.small.fontSize }
+const AXIS_TICK    = { fill:'#5A6B80', fontSize: typo.small.fontSize }
 const GRID_STROKE  = '#E5E9EF'
 const BAR_RADIUS_TOP = [6,6,0,0]
 // Formattatori asse Y: importo in IT, € dopo la cifra.
@@ -882,7 +882,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                   <BarChart data={dataProdTop} margin={{top:4,right:16,left:0,bottom:0}} barCategoryGap="28%">
                     <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false}/>
                     <XAxis dataKey="label" tick={AXIS_TICK} axisLine={false} tickLine={false}/>
-                    <YAxis tick={AXIS_TICK} axisLine={false} tickLine={false} allowDecimals={false} width={isMobile?38:46} label={{ value:'stampi', angle:-90, position:'insideLeft', fill:'#64748B', fontSize: typo.small.fontSize, dy:24 }}/>
+                    <YAxis tick={AXIS_TICK} axisLine={false} tickLine={false} allowDecimals={false} width={isMobile?38:46} label={{ value:'stampi', angle:-90, position:'insideLeft', fill:'#5A6B80', fontSize: typo.small.fontSize, dy:24 }}/>
                     <Tooltip content={<ProdTooltip/>} cursor={{fill:'rgba(110,14,26,0.04)'}}/>
                     <Legend wrapperStyle={{fontSize: typo.small.fontSize,paddingTop:12}}/>
                     {seriesProd.map((n,i)=>(

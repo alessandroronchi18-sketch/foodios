@@ -626,7 +626,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
                   </div>
                   <div style={kpiCell}>
                     <div style={labelStyle}>Ricevuti puntuali</div>
-                    <div style={valStyle(accuratezzaMese.accuracyPct == null ? C.textSoft : accuratezzaMese.accuracyPct >= 95 ? C.green : accuratezzaMese.accuracyPct >= 85 ? '#D97706' : C.red)}>
+                    <div style={valStyle(accuratezzaMese.accuracyPct == null ? C.textSoft : accuratezzaMese.accuracyPct >= 95 ? C.green : accuratezzaMese.accuracyPct >= 85 ? '#B45309' : C.red)}>
                       {accuratezzaMese.accuracyPct != null ? fmtp0(accuratezzaMese.accuracyPct) : '-'}
                     </div>
                     <div style={{ ...subStyle, ...tnum }}>{accuratezzaMese.ricevutiOk}/{accuratezzaMese.ricevuti} senza scarto</div>
