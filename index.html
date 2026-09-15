@@ -26,10 +26,24 @@
     <link rel="manifest" href="/manifest.json" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <!-- Performance hints: anticipa DNS resolution + handshake TLS verso
-         Supabase. Anche se l'URL effettivo è dinamico via env, il TLD principale
-         supabase.co è prevedibile. Risparmio ~120ms sul primo fetch dati. -->
-    <link rel="dns-prefetch" href="https://supabase.co">
+    <!-- Anticipare il collegamento al database.
+         
+         C'era `dns-prefetch` verso `supabase.co`, e non serviva a niente per
+         due ragioni. La prima: l'indirizzo vero è un **sottodominio**
+         (`<progetto>.supabase.co`), e risolvere il dominio principale non
+         risolve il sottodominio — sono due voci DNS diverse. La seconda:
+         `dns-prefetch` fa solo la risoluzione del nome; il pezzo lungo è
+         l'apertura del collegamento sicuro, che su una rete mobile in negozio
+         sono due o trecento millisecondi.
+         
+         `preconnect` fa tutto: nome, collegamento e cifratura. E l'indirizzo
+         si può scrivere davvero, perché Vite sostituisce %VITE_SUPABASE_URL%
+         al momento della compilazione.
+         
+         Sta fra il momento in cui si tocca l'icona e il momento in cui si
+         vedono i propri dati: succede a **ogni** apertura dell'app. -->
+    <link rel="preconnect" href="%VITE_SUPABASE_URL%" crossorigin>
+    <link rel="dns-prefetch" href="%VITE_SUPABASE_URL%">
     <link rel="dns-prefetch" href="https://api.anthropic.com">
     <link rel="dns-prefetch" href="https://api.stripe.com">
     <link rel="dns-prefetch" href="https://js.stripe.com">
