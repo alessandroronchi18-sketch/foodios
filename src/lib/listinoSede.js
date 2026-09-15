@@ -59,7 +59,10 @@ export function getPrezzoFormatoSede(formato, listino) {
 // presente). Così le funzioni downstream (avgPrezzoPerKgCategoria, riconcilia
 // formati, ecc.) non hanno bisogno di sapere del listino sede.
 export function applicaListinoAiFormati(formati, listino) {
-  if (!Array.isArray(formati) || formati.length === 0) return formati || []
+  // Se non è un elenco si restituisce un elenco vuoto, non il valore
+  // ricevuto: chi chiama fa `.map()` sul risultato, e un `return formati` con
+  // dentro una stringa o un oggetto gli esplodeva in mano.
+  if (!Array.isArray(formati) || formati.length === 0) return []
   return formati.map(f => ({
     ...f,
     prezzoDefault: getPrezzoFormatoSede(f, listino),

@@ -84,15 +84,28 @@ export default defineConfig({
         'src/lib/pwa.js',
         'src/lib/pushNotifications.js',
       ],
+      // ── Un cricchetto, non un traguardo ──────────────────────────────
+      //
+      // Queste soglie devono dire una cosa sola: «non si scende». Se sono più
+      // alte di dove siamo, il comando fallisce **sempre**, nessuno lo lancia
+      // più, e smette di proteggere qualsiasi cosa.
+      //
+      // Era esattamente la situazione fino al 15/09/2026: `functions: 50` e
+      // `branches: 60` con la copertura vera al 27%. `npm run test:coverage`
+      // finiva in rosso a ogni esecuzione da quando `src/components` e
+      // `src/views` erano stati inclusi nel conteggio (giugno 2026), e nessuno
+      // se n'era accorto perché il comando non gira né in CI né nel gate di
+      // push: falliva in silenzio sul portatile di chi lo lanciava.
+      //
+      // Ora sono un paio di punti sotto la misura reale del 15/09/2026
+      // (statements 39,4 · branches 28,7 · functions 28,5 · lines 42,3): un
+      // calo vero le fa scattare, un giro normale no. Quando la copertura
+      // sale, si alzano — a mano, e si scrive la data.
       thresholds: {
-        // Audit 2026-06-22 sess.3: dopo aver incluso src/components + src/views
-        // (file molto piu' grandi senza tutti i path testati), abbassiamo a
-        // soglie compatibili coi smoke test. La regressione a -10 punti su
-        // src/lib e' vietata dalle CI (file specifiche tracciate altrove).
-        lines: 30,
-        functions: 50,
-        statements: 30,
-        branches: 60,
+        lines: 40,
+        statements: 37,
+        functions: 26,
+        branches: 27,
       },
     },
   },

@@ -1,145 +1,226 @@
-import { describe, it, expect } from 'vitest'
-import {
+// Prezzi diversi da una sede all'altra.
+//
+// Il ricettario è uno per tutta l'azienda, ma la fetta di Sacher in centro
+// può costare 5 € e in periferia 3,50. Questo modulo tiene gli scostamenti
+// per sede, con una regola importante: se la sede non dice niente, eredita
+// il prezzo base. Così una sede nuova parte già col listino giusto.
+//
+// 147 righe al 32% di copertura fino al 15/09/2026: la parte pura — quella
+// che decide quale prezzo si applica — non era verificata.
+
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+
+const salvataggi = []
+vi.mock('../../src/lib/storage', () => ({
+  sload: async (_k, _o, sedeId) => salvataggi.find(s => s.sedeId === sedeId)?.valore ?? null,
+  ssave: async (_k, valore, _o, sedeId) => {
+    const i = salvataggi.findIndex(s => s.sedeId === sedeId)
+    if (i >= 0) salvataggi[i].valore = valore; else salvataggi.push({ sedeId, valore })
+  },
+}))
+
+const {
   getRegSede, getPrezzoFormatoSede, applicaListinoAiFormati, haOverridePerRicetta,
-} from '../../src/lib/listinoSede.js'
+  saveOverrideRicettaSede, saveOverrideFormatoSede, SK_LISTINO_SEDE,
+} = await import('../../src/lib/listinoSede')
 
-// Ricetta minima (getR fa fallback quando reg non e' presettato in REGOLE).
-const RIC_FETTA = { nome: 'TORTA CIOCCOLATO', tipo: 'fetta', unita: 8, prezzo: 4, ingredienti: [] }
-const RIC_GUSTO = { nome: 'PISTACCHIO', tipo: 'gusto', unita: 1, prezzo: 0, ingredienti: [], categoria: 'Gusto' }
+// `getR(nome, ricetta)` riceve LA ricetta, non il ricettario intero.
+const SACHER = { nome: 'SACHER', tipo: 'fetta', unita: 8, prezzo: 30 }
+const BIGNE  = { nome: 'BIGNÈ', tipo: 'pezzo', unita: 1, prezzo: 1.5 }
 
-describe('getRegSede', () => {
-  it('senza listino ritorna reg base', () => {
-    const r = getRegSede('TORTA CIOCCOLATO', RIC_FETTA, null)
-    expect(r.prezzo).toBe(4)
-    expect(r.unita).toBe(8)
+beforeEach(() => { salvataggi.length = 0 })
+
+describe('quale prezzo si applica', () => {
+  it('senza listino della sede vale quello base', () => {
+    expect(getRegSede('SACHER', SACHER, null).prezzo).toBe(30)
+    expect(getRegSede('SACHER', SACHER, {}).prezzo).toBe(30)
+    expect(getRegSede('SACHER', SACHER, { ricette: {} }).prezzo).toBe(30)
+  })
+
+  it('con lo scostamento vale quello della sede', () => {
+    const r = getRegSede('SACHER', SACHER, { ricette: { SACHER: { prezzo: 36 } } })
+    expect(r.prezzo).toBe(36)
+    expect(r.unita).toBe(8)      // l'unità resta quella base
     expect(r.tipo).toBe('fetta')
   })
-  it('listino vuoto ritorna reg base', () => {
-    expect(getRegSede('TORTA CIOCCOLATO', RIC_FETTA, {})).toMatchObject({ prezzo: 4, unita: 8 })
-    expect(getRegSede('TORTA CIOCCOLATO', RIC_FETTA, { ricette: {} })).toMatchObject({ prezzo: 4, unita: 8 })
-  })
-  it('override prezzo E unita', () => {
-    const listino = { ricette: { 'TORTA CIOCCOLATO': { prezzo: 5.5, unita: 10 } } }
-    const r = getRegSede('TORTA CIOCCOLATO', RIC_FETTA, listino)
-    expect(r.prezzo).toBe(5.5)
+
+  it('si può cambiare solo il numero di fette', () => {
+    const r = getRegSede('SACHER', SACHER, { ricette: { SACHER: { unita: 10 } } })
     expect(r.unita).toBe(10)
-    expect(r.tipo).toBe('fetta') // tipo NON overridabile
+    expect(r.prezzo).toBe(30)
   })
-  it('override solo prezzo (unita conserva base)', () => {
-    const listino = { ricette: { 'TORTA CIOCCOLATO': { prezzo: 3.5 } } }
-    const r = getRegSede('TORTA CIOCCOLATO', RIC_FETTA, listino)
-    expect(r.prezzo).toBe(3.5)
-    expect(r.unita).toBe(8) // base
+
+  it('il tipo non si cambia da una sede all\'altra', () => {
+    // Il tipo dice com\'è fatta la ricetta, non quanto costa: se una sede
+    // potesse cambiarlo, la stessa ricetta si calcolerebbe in due modi.
+    const r = getRegSede('SACHER', SACHER, { ricette: { SACHER: { tipo: 'pezzo', prezzo: 5 } } })
+    expect(r.tipo).toBe('fetta')
   })
-  it('override solo unita (prezzo conserva base)', () => {
-    const listino = { ricette: { 'TORTA CIOCCOLATO': { unita: 6 } } }
-    const r = getRegSede('TORTA CIOCCOLATO', RIC_FETTA, listino)
-    expect(r.unita).toBe(6)
-    expect(r.prezzo).toBe(4)
+
+  it('valori non validi non sovrascrivono il base', () => {
+    for (const v of [null, undefined, NaN, Infinity, '36', {}, []]) {
+      const r = getRegSede('SACHER', SACHER, { ricette: { SACHER: { prezzo: v } } })
+      expect(r.prezzo, String(v)).toBe(30)
+    }
   })
-  it('override prezzo=0 valido (deve stare, non fallback al base)', () => {
-    const listino = { ricette: { 'TORTA CIOCCOLATO': { prezzo: 0 } } }
-    const r = getRegSede('TORTA CIOCCOLATO', RIC_FETTA, listino)
-    expect(r.prezzo).toBe(0)
+
+  it('zero è un prezzo valido (un omaggio si può mettere a zero)', () => {
+    expect(getRegSede('SACHER', SACHER, { ricette: { SACHER: { prezzo: 0 } } }).prezzo).toBe(0)
   })
-  it('override con valori non-finiti (NaN/undefined) → base', () => {
-    const listino = { ricette: { 'TORTA CIOCCOLATO': { prezzo: NaN, unita: undefined } } }
-    const r = getRegSede('TORTA CIOCCOLATO', RIC_FETTA, listino)
-    expect(r.prezzo).toBe(4)
-    expect(r.unita).toBe(8)
+
+  it('una ricetta senza regola base ma con prezzo di sede non è più «senza regola»', () => {
+    const senza = { nome: 'NUOVA', tipo: 'pezzo' }
+    const base = getRegSede('NUOVA', senza, null)
+    const conPrezzo = getRegSede('NUOVA', senza, { ricette: { NUOVA: { prezzo: 4 } } })
+    if (base.senzaRegola) expect(conPrezzo.senzaRegola).toBeUndefined()
+    expect(conPrezzo.prezzo).toBe(4)
   })
-  it('ricetta senza override nel listino → base', () => {
-    const listino = { ricette: { 'ALTRA': { prezzo: 99 } } }
-    const r = getRegSede('TORTA CIOCCOLATO', RIC_FETTA, listino)
-    expect(r.prezzo).toBe(4)
+
+  it('lo scostamento di un\'altra ricetta non tocca questa', () => {
+    const l = { ricette: { BIGNÈ: { prezzo: 2 } } }
+    expect(getRegSede('SACHER', SACHER, l).prezzo).toBe(30)
+    expect(getRegSede('BIGNÈ', BIGNE, l).prezzo).toBe(2)
   })
 })
 
-describe('getPrezzoFormatoSede', () => {
-  const F = { id: 'fmt-1', nome: 'Cono piccolo', prezzoDefault: 2.5, baseQtaG: 80 }
+describe('il prezzo di un formato di vendita', () => {
+  const vaschetta = { id: 'f1', nome: 'Vaschetta 500g', prezzoDefault: 12 }
 
-  it('senza listino ritorna prezzoDefault base', () => {
-    expect(getPrezzoFormatoSede(F, null)).toBe(2.5)
-    expect(getPrezzoFormatoSede(F, {})).toBe(2.5)
+  it('senza scostamento vale quello base', () => {
+    expect(getPrezzoFormatoSede(vaschetta, null)).toBe(12)
+    expect(getPrezzoFormatoSede(vaschetta, { formati: {} })).toBe(12)
   })
-  it('override prezzoDefault viene applicato', () => {
-    const listino = { formati: { 'fmt-1': { prezzoDefault: 3.2 } } }
-    expect(getPrezzoFormatoSede(F, listino)).toBe(3.2)
+
+  it('con lo scostamento vale quello della sede', () => {
+    expect(getPrezzoFormatoSede(vaschetta, { formati: { f1: { prezzoDefault: 14 } } })).toBe(14)
   })
-  it('override prezzoDefault=0 → 0 (valido)', () => {
-    const listino = { formati: { 'fmt-1': { prezzoDefault: 0 } } }
-    expect(getPrezzoFormatoSede(F, listino)).toBe(0)
-  })
-  it('override id diverso → base', () => {
-    const listino = { formati: { 'altro-id': { prezzoDefault: 99 } } }
-    expect(getPrezzoFormatoSede(F, listino)).toBe(2.5)
-  })
-  it('formato senza id o senza prezzo → 0 (edge)', () => {
+
+  it('un formato senza prezzo vale zero, non «NaN»', () => {
     expect(getPrezzoFormatoSede({ id: 'x' }, null)).toBe(0)
+    expect(getPrezzoFormatoSede({ id: 'x', prezzoDefault: 'dodici' }, null)).toBe(0)
     expect(getPrezzoFormatoSede(null, null)).toBe(0)
   })
-})
 
-describe('applicaListinoAiFormati', () => {
-  const formati = [
-    { id: 'f1', nome: 'Cono', prezzoDefault: 2.5, baseQtaG: 80 },
-    { id: 'f2', nome: 'Vaschetta', prezzoDefault: 10, baseQtaG: 500 },
-  ]
+  it('applicare il listino a tutti i formati non ne perde nessuno', () => {
+    const formati = [vaschetta, { id: 'f2', nome: 'Coppetta', prezzoDefault: 3 }]
+    const r = applicaListinoAiFormati(formati, { formati: { f1: { prezzoDefault: 14 } } })
+    expect(r).toHaveLength(2)
+    expect(r[0].prezzoDefault).toBe(14)
+    expect(r[1].prezzoDefault).toBe(3)
+    expect(r[0].nome).toBe('Vaschetta 500g')   // il resto della scheda resta
+  })
 
-  it('array vuoto o non-array → passa through', () => {
+  it('non modifica gli originali', () => {
+    const formati = [{ ...vaschetta }]
+    applicaListinoAiFormati(formati, { formati: { f1: { prezzoDefault: 99 } } })
+    expect(formati[0].prezzoDefault).toBe(12)
+  })
+
+  it('regge un elenco vuoto o storto', () => {
     expect(applicaListinoAiFormati([], null)).toEqual([])
-    expect(applicaListinoAiFormati(undefined, null)).toEqual([])
     expect(applicaListinoAiFormati(null, null)).toEqual([])
-  })
-  it('senza listino ritorna copia con prezzi base', () => {
-    const out = applicaListinoAiFormati(formati, null)
-    expect(out.map(f => f.prezzoDefault)).toEqual([2.5, 10])
-    // non muta l'originale
-    expect(out).not.toBe(formati)
-    expect(formati[0].prezzoDefault).toBe(2.5)
-  })
-  it('override sostituisce solo i formati matched', () => {
-    const listino = { formati: { 'f1': { prezzoDefault: 3.2 } } }
-    const out = applicaListinoAiFormati(formati, listino)
-    expect(out.find(f => f.id === 'f1').prezzoDefault).toBe(3.2)
-    expect(out.find(f => f.id === 'f2').prezzoDefault).toBe(10) // invariato
-    // altri campi preservati
-    expect(out.find(f => f.id === 'f1').baseQtaG).toBe(80)
+    expect(applicaListinoAiFormati('non un elenco', null)).toEqual([])
+    expect(applicaListinoAiFormati(undefined, null)).toEqual([])
   })
 })
 
-describe('haOverridePerRicetta', () => {
-  it('false se nessuna sede ha override per quella ricetta', () => {
-    const listini = {
-      'sede-a': { ricette: { 'ALTRA': { prezzo: 5 } } },
-      'sede-b': { ricette: {} },
-    }
-    expect(haOverridePerRicetta('TORTA', listini)).toBe(false)
+describe('la spia «questa ricetta ha prezzi diversi fra le sedi»', () => {
+  it('vera se almeno una sede ha uno scostamento', () => {
+    const listini = { s1: { ricette: {} }, s2: { ricette: { SACHER: { prezzo: 36 } } } }
+    expect(haOverridePerRicetta('SACHER', listini)).toBe(true)
+    expect(haOverridePerRicetta('BIGNÈ', listini)).toBe(false)
   })
-  it('true se almeno una sede ha override', () => {
-    const listini = {
-      'sede-a': { ricette: {} },
-      'sede-b': { ricette: { 'TORTA': { prezzo: 3.5 } } },
-    }
-    expect(haOverridePerRicetta('TORTA', listini)).toBe(true)
-  })
-  it('input null/undefined → false', () => {
-    expect(haOverridePerRicetta('TORTA', null)).toBe(false)
-    expect(haOverridePerRicetta('TORTA', undefined)).toBe(false)
-    expect(haOverridePerRicetta('TORTA', {})).toBe(false)
+
+  it('falsa se non ci sono listini', () => {
+    expect(haOverridePerRicetta('SACHER', null)).toBe(false)
+    expect(haOverridePerRicetta('SACHER', {})).toBe(false)
+    expect(haOverridePerRicetta('SACHER', { s1: null })).toBe(false)
   })
 })
 
-describe('getRegSede — smoke gusto', () => {
-  it('gusto: prezzo=0 (base) resta 0 senza override', () => {
-    const r = getRegSede('PISTACCHIO', RIC_GUSTO, null)
-    expect(r.prezzo).toBe(0)
-    expect(r.tipo).toBe('gusto')
+describe('salvare uno scostamento per una sede', () => {
+  const args = { orgId: 'o1', sedeId: 's1', nome: 'SACHER', ricettaBase: SACHER }
+
+  it('scrive il prezzo della sede', async () => {
+    const l = await saveOverrideRicettaSede({ ...args, patch: { prezzo: 36 } })
+    expect(l.ricette.SACHER).toEqual({ prezzo: 36 })
+    expect(salvataggi[0].valore.ricette.SACHER.prezzo).toBe(36)
   })
-  it('gusto: override prezzo (es. Milano 25 €/kg) applicato', () => {
-    const listino = { ricette: { 'PISTACCHIO': { prezzo: 25 } } }
-    const r = getRegSede('PISTACCHIO', RIC_GUSTO, listino)
-    expect(r.prezzo).toBe(25)
-    expect(r.tipo).toBe('gusto') // invariante
+
+  it('uno scostamento identico al base viene tolto, non salvato', () => {
+    // Altrimenti restano «scostamenti fantasma» uguali al prezzo base, e la
+    // spia «prezzi differenziati» si accende dove non c'è nessuna differenza.
+    return (async () => {
+      await saveOverrideRicettaSede({ ...args, patch: { prezzo: 36 } })
+      const l = await saveOverrideRicettaSede({ ...args, patch: { prezzo: 30 } })
+      expect(l.ricette.SACHER).toBeUndefined()
+    })()
+  })
+
+  it('due modifiche di fila si sommano invece di sostituirsi', async () => {
+    await saveOverrideRicettaSede({ ...args, patch: { prezzo: 36 } })
+    const l = await saveOverrideRicettaSede({ ...args, patch: { unita: 10 } })
+    expect(l.ricette.SACHER).toEqual({ prezzo: 36, unita: 10 })
+  })
+
+  it('un valore non valido non cancella quello che c\'è', async () => {
+    await saveOverrideRicettaSede({ ...args, patch: { prezzo: 36 } })
+    const l = await saveOverrideRicettaSede({ ...args, patch: { prezzo: 'trentasei' } })
+    expect(l.ricette.SACHER).toEqual({ prezzo: 36 })
+  })
+
+  it('senza organizzazione, sede o nome non scrive niente', async () => {
+    for (const rotto of [{ orgId: null }, { sedeId: null }, { nome: '' }]) {
+      expect(await saveOverrideRicettaSede({ ...args, ...rotto, patch: { prezzo: 1 } })).toBe(null)
+    }
+    expect(salvataggi).toHaveLength(0)
+  })
+
+  it('gli scostamenti di una sede non toccano quelli di un\'altra', async () => {
+    await saveOverrideRicettaSede({ ...args, sedeId: 's1', patch: { prezzo: 36 } })
+    await saveOverrideRicettaSede({ ...args, sedeId: 's2', patch: { prezzo: 25 } })
+    expect(salvataggi.find(s => s.sedeId === 's1').valore.ricette.SACHER.prezzo).toBe(36)
+    expect(salvataggi.find(s => s.sedeId === 's2').valore.ricette.SACHER.prezzo).toBe(25)
+  })
+
+  it('i formati già salvati non si perdono salvando una ricetta', async () => {
+    await saveOverrideFormatoSede({ orgId: 'o1', sedeId: 's1', formatoId: 'f1', patch: { prezzoDefault: 14 }, formatoBase: { prezzoDefault: 12 } })
+    const l = await saveOverrideRicettaSede({ ...args, patch: { prezzo: 36 } })
+    expect(l.formati.f1.prezzoDefault).toBe(14)
+    expect(l.ricette.SACHER.prezzo).toBe(36)
+  })
+})
+
+describe('salvare il prezzo di un formato per una sede', () => {
+  const args = { orgId: 'o1', sedeId: 's1', formatoId: 'f1', formatoBase: { prezzoDefault: 12 } }
+
+  it('scrive il prezzo della sede', async () => {
+    const l = await saveOverrideFormatoSede({ ...args, patch: { prezzoDefault: 14 } })
+    expect(l.formati.f1).toEqual({ prezzoDefault: 14 })
+  })
+
+  it('tornare al prezzo base toglie lo scostamento', async () => {
+    await saveOverrideFormatoSede({ ...args, patch: { prezzoDefault: 14 } })
+    const l = await saveOverrideFormatoSede({ ...args, patch: { prezzoDefault: 12 } })
+    expect(l.formati.f1).toBeUndefined()
+  })
+
+  it('senza organizzazione, sede o formato non scrive niente', async () => {
+    for (const rotto of [{ orgId: null }, { sedeId: null }, { formatoId: '' }]) {
+      expect(await saveOverrideFormatoSede({ ...args, ...rotto, patch: { prezzoDefault: 1 } })).toBe(null)
+    }
+  })
+
+  it('le ricette già salvate non si perdono salvando un formato', async () => {
+    await saveOverrideRicettaSede({ orgId: 'o1', sedeId: 's1', nome: 'SACHER', patch: { prezzo: 36 }, ricettaBase: SACHER })
+    const l = await saveOverrideFormatoSede({ ...args, patch: { prezzoDefault: 14 } })
+    expect(l.ricette.SACHER.prezzo).toBe(36)
+  })
+})
+
+describe('la chiave di salvataggio', () => {
+  it('è per-sede, e non cambia di nascosto', () => {
+    // Cambiarla farebbe sparire tutti i listini già salvati dai clienti.
+    expect(SK_LISTINO_SEDE).toBe('pasticceria-listino-sede-v1')
   })
 })

@@ -75,7 +75,13 @@ export async function organizzazioneAttiva(supabase, orgId) {
       .select('id, attivo')
       .eq('id', orgId)
       .maybeSingle()
-    if (error || !data) return { ok: false, stato: 404, errore: 'Organizzazione non trovata' }
+    // Un guasto del database e un'organizzazione che non esiste sono due
+    // cose diverse, e per un registratore di cassa fanno una differenza
+    // grossa: davanti a un 404 smette di riprovare («questo cliente non
+    // c'è»), davanti a un 500 ritenta più tardi. Confondendoli, mezz'ora di
+    // database lento faceva buttare via gli scontrini di quella mezz'ora.
+    if (error) return { ok: false, stato: 500, errore: 'Verifica organizzazione fallita' }
+    if (!data) return { ok: false, stato: 404, errore: 'Organizzazione non trovata' }
     if (data.attivo === false) return { ok: false, stato: 403, errore: 'Organizzazione disattivata' }
     return { ok: true }
   } catch {
