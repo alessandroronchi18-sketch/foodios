@@ -412,6 +412,54 @@ export function cellaVenduto(byKey, gustoKey, dataIso) {
 // lunedi target (serve la rimanenza di partenza).
 //
 // Ritorna { [GUSTO]: { [dataIso]: cella } } con le celle di cellaVenduto().
+// Da quanto riparte la giornata: per ogni gusto, l'ultima rimanenza scritta
+// prima della data indicata.
+//
+// Serve alla schermata di inserimento del dipendente, che prima non lo
+// mostrava: si compilavano PROD e RIMAN senza vedere con quanto si era aperto
+// il banco. Sapere che ieri sera erano rimasti 3 kg cambia il modo in cui si
+// guarda il numero che si sta scrivendo.
+//
+// Non guarda solo il giorno prima, ma risale fino a GIORNI_RIPORTO_MAX giorni:
+// è la stessa regola che usa `cellaVenduto`, e va detta uguale. Se una
+// gelateria chiude il lunedì, martedì riparte dalla rimanenza di domenica, e
+// dire "ieri non è stato compilato" sarebbe un falso allarme.
+//
+// Perché non si legge dalla matrice: `calcolaVendutoSettimana` copre i 7
+// giorni dal lunedì, quindi di lunedì la domenica precedente non c'è — e
+// allargarla a 8 romperebbe i totali settimanali, che sommano tutte le celle.
+// Qui si guardano le righe grezze, che caricaSettimana carica già con 7 giorni
+// di margine prima del lunedì.
+//
+// Ritorna { [GUSTO]: { grammi, dataIso, giorniIndietro } }. Un gusto assente
+// vuol dire che negli ultimi 7 giorni non è mai stato registrato: in quel caso
+// il venduto davvero non si può calcolare, ed è giusto dirlo.
+export function rimanenzaDiPartenza(righe, dataIso) {
+  const out = {}
+  if (!Array.isArray(righe) || !dataIso) return out
+  const byKey = {}
+  for (const r of righe) {
+    if (!r || !r.data) continue
+    const g = normGusto(r.gusto_nome)
+    if (!g) continue
+    const k = `${g}|${r.data}`
+    // Più sedi o più righe per lo stesso gusto e giorno: si sommano, come fa
+    // l'indicizzazione usata per il venduto.
+    byKey[k] = (byKey[k] || 0) + (Number(r.rimanenza_g) || 0)
+  }
+  const gusti = [...new Set(righe.map(r => normGusto(r?.gusto_nome)).filter(Boolean))]
+  for (const g of gusti) {
+    for (let k = 1; k <= GIORNI_RIPORTO_MAX; k++) {
+      const d = piuGiorni(dataIso, -k)
+      if (Object.prototype.hasOwnProperty.call(byKey, `${g}|${d}`)) {
+        out[g] = { grammi: byKey[`${g}|${d}`], dataIso: d, giorniIndietro: k }
+        break
+      }
+    }
+  }
+  return out
+}
+
 export function calcolaVendutoSettimana(righe, lunediIso) {
   if (!Array.isArray(righe) || !lunediIso) return {}
   const byKey = indicizzaPerGustoGiorno(righe)

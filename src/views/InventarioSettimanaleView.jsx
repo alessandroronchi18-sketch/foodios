@@ -29,6 +29,7 @@ import { ssave, sload } from '../lib/storage'
 import { SK_MAG } from '../lib/storageKeys'
 import {
   elencoGusti, caricaSettimana, salvaCella, calcolaVendutoSettimana,
+  rimanenzaDiPartenza,
   totaliVenduti, dettaglioVenduto, serieVendutoGusto, serieVendutoMultiSede,
   totaliPerGusto, GIORNI_RIPORTO_MAX, lunediDellaSettimana, normGusto,
   scaloMagazzinoPerGusto, ricettaDelGusto,
@@ -337,6 +338,12 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
   }, [vista, orgId, sediKey, isAllSedi])
 
   const matrice = useMemo(() => calcolaVendutoSettimana(righe, lunediIso), [righe, lunediIso])
+  // Quanto era rimasto il giorno prima di quello che si sta compilando. Si
+  // legge dalle righe grezze e non dalla matrice, che copre solo i 7 giorni
+  // dal lunedì: di lunedì la domenica precedente non ci sarebbe.
+  const rimanenzaIeri = useMemo(
+    () => rimanenzaDiPartenza(righe, giornoOggi),
+    [righe, giornoOggi])
   const totali = useMemo(() => totaliVenduti(matrice), [matrice])
   // Quante celle non tornano e quante non si possono calcolare, per gusto:
   // il totale del venduto non va mostrato muto quando dietro c'e' un giorno
@@ -1081,6 +1088,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
           unita={unitaDisplay}
           giornoIso={giornoOggi}
           onCambiaGiorno={setGiornoOggi}
+          rimanenzaIeri={rimanenzaIeri}
         />
       ) : vista === 'mese' ? (
         <VistaMese gusti={gustiVisibili} righeMese={meseData?.righe || []} lunediIso={lunediIso} unita={unitaDisplay} onClickGusto={setDrilldownGusto} />
@@ -2486,9 +2494,15 @@ function KpiTile({ label, value, unit, color, bg }) {
 // telefono, quella che la pagina stessa consiglia per compilare in fretta.
 // Senza la rimanenza di ieri il venduto di oggi non si calcola, quindi un
 // giorno dimenticato ne rovinava due.
-function VistaOggi({ gusti, matrice, saving, onSave, readOnly, unita = 'g', giornoIso, onCambiaGiorno }) {
+function VistaOggi({ gusti, matrice, saving, onSave, readOnly, unita = 'g', giornoIso, onCambiaGiorno, rimanenzaIeri = {} }) {
   const oggiIso = giornoIso || todayLocal()
   const isOggi = oggiIso === todayLocal()
+  // Il giorno prima. Serve per mostrare accanto a ogni gusto quanto era
+  // rimasto ieri sera: e' il numero da cui riparte la giornata.
+  const ieriIso = (() => {
+    const d = new Date(oggiIso + 'T12:00'); d.setDate(d.getDate() - 1)
+    return formatLocalDate(d)
+  })()
   const nomeGiorno = new Date(oggiIso + 'T12:00').toLocaleDateString('it-IT', { weekday: 'long', day: '2-digit', month: 'long' })
   const spostaGiorno = (delta) => {
     if (!onCambiaGiorno) return
@@ -2526,6 +2540,12 @@ function VistaOggi({ gusti, matrice, saving, onSave, readOnly, unita = 'g', gior
           const gKey = normGusto(nome)
           const byData = matrice[gKey] || {}
           const cell = byData[oggiIso] || { prod: 0, riman: 0, venduto: null }
+          // Quanto era rimasto ieri sera. `undefined` = ieri non e' stato
+          // compilato per niente, ed e' una cosa diversa da "era rimasto zero":
+          // senza quel numero il venduto di oggi non si puo' calcolare.
+          const ieri = rimanenzaIeri[gKey]
+          const rimanIeri = ieri ? ieri.grammi : null
+          const ieriMancante = !ieri
           const kProd = `${gKey}|${oggiIso}|produzione_g`
           const kRim = `${gKey}|${oggiIso}|rimanenza_g`
           return (
@@ -2547,6 +2567,44 @@ function VistaOggi({ gusti, matrice, saving, onSave, readOnly, unita = 'g', gior
                         : Number(cell.venduto).toLocaleString('it-IT', { useGrouping: 'always' }) + ' g'}
                     </strong>
                   </div>
+                )}
+              </div>
+              {/* Da quanto si riparte. Prima questa riga non c'era, e il
+                  dipendente inseriva i numeri alla cieca: non sapeva con
+                  quanto gelato aveva aperto il banco, e soprattutto non si
+                  accorgeva se ieri nessuno aveva chiuso i conti — che e' il
+                  caso in cui il venduto di oggi esce sbagliato. */}
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap',
+                marginBottom: 10, padding: '7px 10px', borderRadius: R.md,
+                background: ieriMancante ? T.amberLight : C.bgSubtle,
+                border: `1px solid ${ieriMancante ? `${T.amber}55` : C.border}`,
+                fontSize: TS.sm, color: ieriMancante ? (T.amberDark || T.amber) : C.textMid,
+              }}>
+                {ieriMancante ? (
+                  <>
+                    <Icon name="warning" size={12} color={T.amberDark || T.amber} />
+                    <span>Non risulta nessuna rimanenza negli ultimi giorni: il venduto di oggi non si calcola.</span>
+                  </>
+                ) : (
+                  <>
+                    <Icon name="arrowR" size={12} color={C.textSoft} />
+                    <span>{ieri.giorniIndietro === 1 ? 'Ieri sera ne era rimasto' : 'Ultima rimanenza scritta'}</span>
+                    <strong style={{ color: C.text, ...TNUM }}>
+                      {unita === 'kg'
+                        ? (rimanIeri / 1000).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 2 }) + ' kg'
+                        : rimanIeri.toLocaleString('it-IT', { useGrouping: 'always' }) + ' g'}
+                    </strong>
+                    {/* Se l'ultimo dato non e' di ieri lo si dice: il venduto
+                        di oggi comprendera' anche i giorni in mezzo, e chi
+                        legge deve sapere perché il numero è grosso. */}
+                    {ieri.giorniIndietro > 1 && (
+                      <span style={{ color: T.amberDark || T.amber }}>
+                        di {new Date(ieri.dataIso + 'T12:00').toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: '2-digit' })}
+                        {' '}— i {ieri.giorniIndietro - 1} giorn{ieri.giorniIndietro === 2 ? 'o' : 'i'} in mezzo non {ieri.giorniIndietro === 2 ? 'è' : 'sono'} stat{ieri.giorniIndietro === 2 ? 'o' : 'i'} compilat{ieri.giorniIndietro === 2 ? 'o' : 'i'}
+                      </span>
+                    )}
+                  </>
                 )}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 10 }}>

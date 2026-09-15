@@ -1352,7 +1352,11 @@ export default function Dashboard({
       // Una pagina nascosta salvata in sessione tornerebbe fuori al ricarico,
       // e resterebbe uno schermo bianco: le voci di menu non ci sono più e il
       // render è gated. Meglio riportare a casa.
-      if (stored && !PAGINE_NASCOSTE.has(stored)) return stored;
+      const isDipIniziale = auth?.ruolo === 'dipendente';
+      // Alla ricarica, la pagina salvata in sessione va filtrata con le stesse
+      // regole: un dipendente che era su una pagina non sua (o che ha
+      // modificato la sessione a mano) non deve ritrovarcisi.
+      if (stored && !PAGINE_NASCOSTE.has(stored) && (!isDipIniziale || DIPENDENTE_VIEWS.has(stored))) return stored;
       // Default: 'home' titolare, 'home-dipendente' dipendente.
       // Nota: auth.ruolo è disponibile a questo punto perché useAuth risolve prima del mount Dashboard.
       return auth?.ruolo === 'dipendente' ? "home-dipendente" : "home";
@@ -1373,6 +1377,20 @@ export default function Dashboard({
     // bianco, che e' peggio di una pagina che non c'e'. (14/09/2026)
     if (typeof v === 'string' && PAGINE_NASCOSTE.has(v)) {
       _setViewRaw(auth?.ruolo === 'dipendente' ? 'home-dipendente' : 'home');
+      return;
+    }
+    // Un dipendente non apre una pagina che non e' sua, da nessuna strada.
+    //
+    // Prima il controllo stava solo in un useEffect più sotto, cioè DOPO che
+    // React aveva già disegnato la pagina vietata: per un fotogramma il P&L o
+    // gli stipendi comparivano davvero, e le loro richieste al database
+    // partivano lo stesso. E la ricerca Cmd+K offriva la scorciatoia: si
+    // scriveva "stipendi" e usciva "Personale".
+    //
+    // Qui si chiude la porta per tutte le strade insieme: i bottoni, la
+    // ricerca, l'assistente che inventa un nome di pagina, un vecchio link.
+    if (typeof v === 'string' && auth?.ruolo === 'dipendente' && !DIPENDENTE_VIEWS.has(v)) {
+      _setViewRaw('home-dipendente');
       return;
     }
     try {
@@ -1480,6 +1498,13 @@ export default function Dashboard({
       ? () => { try { onSignOut?.() } catch { /* noop */ } }
       : dipOp.deseleziona,
   });
+  // La pagina che si disegna davvero. Le guardie dentro setView coprono chi
+  // naviga; questa copre tutto il resto, e lo fa DURANTE il render: così la
+  // pagina vietata non viene mai montata nemmeno per un fotogramma, e le sue
+  // richieste al database non partono. Prima il controllo stava solo
+  // nell'useEffect qui sotto, che React esegue DOPO aver disegnato.
+  const vista = (isDip && !DIPENDENTE_VIEWS.has(view)) ? 'home-dipendente' : view
+
   // Defense-in-depth: se un dipendente finisce su una vista non consentita (es.
   // ripristinata da sessionStorage o via link), riportalo alla produzione.
   useEffect(() => {
@@ -3556,10 +3581,10 @@ export default function Dashboard({
         )}
 
         {/* Home dashboard (titolare) */}
-        {view==="home"&&<DashboardHomeView ricettario={ricettario} magazzino={magazzino} giornaliero={giornaliero} chiusure={chiusure} actions={actions} setView={setView} orgId={orgId} sedeId={sedeId} nomeAttivita={nomeAttivita} isTrialAttivo={isTrialAttivo} auth={auth} sedi={sedi} sedeAttiva={sedeAttiva} LEX={LEX}/>}
+        {vista==="home"&&<DashboardHomeView ricettario={ricettario} magazzino={magazzino} giornaliero={giornaliero} chiusure={chiusure} actions={actions} setView={setView} orgId={orgId} sedeId={sedeId} nomeAttivita={nomeAttivita} isTrialAttivo={isTrialAttivo} auth={auth} sedi={sedi} sedeAttiva={sedeAttiva} LEX={LEX}/>}
 
         {/* Home Dipendente - Modalità Dipendente XL: 6 pulsantoni mobile-first */}
-        {view==="home-dipendente"&&<HomeDipendente
+        {vista==="home-dipendente"&&<HomeDipendente
           user={auth?.user}
           sedeAttiva={sedeAttiva}
           isInventario={sedeAttiva?.is_sede_produzione === true && isMetodoInv}
@@ -3568,16 +3593,16 @@ export default function Dashboard({
         />}
 
         {/* Formati di vendita (prodotti generici senza dettaglio gusto) */}
-        {view==="formati-vendita"&&<FormatiVendita orgId={orgId} ricettario={ricettario} onSaveRicettario={handleSalvaRicetta} notify={notify} tipoAttivita={tipoAttivita} sedi={sedi}/>}
+        {vista==="formati-vendita"&&<FormatiVendita orgId={orgId} ricettario={ricettario} onSaveRicettario={handleSalvaRicetta} notify={notify} tipoAttivita={tipoAttivita} sedi={sedi}/>}
 
         {/* Registro attività - solo titolare (RLS + DIPENDENTE_VIEWS gate). */}
-        {view==="registro-attivita"&&<RegistroAttivita orgId={orgId} sedi={sedi} notify={notify}/>}
+        {vista==="registro-attivita"&&<RegistroAttivita orgId={orgId} sedi={sedi} notify={notify}/>}
 
         {/* Perdite & cessioni - titolare e dipendente, per-sede */}
-        {view==="sprechi-omaggi"&&!isAllSedi&&<SpreciOmaggi orgId={orgId} sedeId={sedeId} sedeAttiva={sedeAttiva} ricettario={ricettario} chiusure={chiusure} auth={auth} notify={notify}/>}
+        {vista==="sprechi-omaggi"&&!isAllSedi&&<SpreciOmaggi orgId={orgId} sedeId={sedeId} sedeAttiva={sedeAttiva} ricettario={ricettario} chiusure={chiusure} auth={auth} notify={notify}/>}
 
         {/* Ricettario - mostra upload se non ancora caricato */}
-        {view==="ricettario"&&!ricettario&&(
+        {vista==="ricettario"&&!ricettario&&(
           <div style={{maxWidth:500,margin:"80px auto",textAlign:"center"}}>
             <div style={{marginBottom:18}}><Icon name="book" size={52} color={C.red} /></div>
             <h2 style={{margin:"0 0 10px",fontSize:24,fontWeight:900,color:C.text}}>Carica il {LEX.Ricettario.toLowerCase()}</h2>
@@ -3588,29 +3613,29 @@ export default function Dashboard({
             </label>
           </div>
         )}
-        {ricettario&&view==="ricettario"&&<RicettarioView metodoProduzione={metodoProduzione} ricettario={ricettario} onUpdateRegola={handleUpdateRegola} onUpload={files=>handleFile(files)} onEditRicetta={(nome)=>{setEditingRicetta(nome);setView("nuova-ricetta");}} orgId={orgId} sedi={sedi} sedeAttiva={sedeAttiva} notify={notify} LEX={LEX}/>}
-        {ricettario&&view==="semilavorati"&&<SemilavoratiView ricettario={ricettario} onSave={handleSalvaRicetta} notify={notify} tipoAttivita={tipoAttivita}/>}
-        {ricettario&&view==="pl"&&<PLView metodoProduzione={metodoProduzione} ricettario={ricettario} chiusure={chiusure} orgId={orgId} sedeId={sedeId} onUpdateRegola={handleUpdateRegola} notify={notify}/>}
-        {ricettario&&view==="simulatore"&&<SimulatorePrezziView ricettario={ricettario} giornaliero={giornaliero} tipoAttivita={tipoAttivita} sedi={sedi} orgId={orgId} sedeId={sedeId}/>}
-        {view==="nuova-ricetta"&&<NuovaRicettaView ricettario={ricettario} notify={notify} onSave={handleSalvaRicetta} editingRicetta={editingRicetta} onEditConsumed={()=>setEditingRicetta(null)} LEX={LEX} tipoAttivita={tipoAttivita}/>}
-        {view==="scheda-allergeni"&&!PAGINE_NASCOSTE.has("scheda-allergeni")&&<SchedaAllergeniView ricettario={ricettario} tipoAttivita={tipoAttivita}/>}
-        {view==="fornitori"&&<Fornitori orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify}/>}
-        {view==="vendite-b2b"&&<VenditeB2BView orgId={orgId} sedeId={sedeId} sedi={sedi} sedeAttiva={sedeAttiva} ricettario={ricettario} notify={notify}/>}
+        {ricettario&&vista==="ricettario"&&<RicettarioView metodoProduzione={metodoProduzione} ricettario={ricettario} onUpdateRegola={handleUpdateRegola} onUpload={files=>handleFile(files)} onEditRicetta={(nome)=>{setEditingRicetta(nome);setView("nuova-ricetta");}} orgId={orgId} sedi={sedi} sedeAttiva={sedeAttiva} notify={notify} LEX={LEX}/>}
+        {ricettario&&vista==="semilavorati"&&<SemilavoratiView ricettario={ricettario} onSave={handleSalvaRicetta} notify={notify} tipoAttivita={tipoAttivita}/>}
+        {ricettario&&vista==="pl"&&<PLView metodoProduzione={metodoProduzione} ricettario={ricettario} chiusure={chiusure} orgId={orgId} sedeId={sedeId} onUpdateRegola={handleUpdateRegola} notify={notify}/>}
+        {ricettario&&vista==="simulatore"&&<SimulatorePrezziView ricettario={ricettario} giornaliero={giornaliero} tipoAttivita={tipoAttivita} sedi={sedi} orgId={orgId} sedeId={sedeId}/>}
+        {vista==="nuova-ricetta"&&<NuovaRicettaView ricettario={ricettario} notify={notify} onSave={handleSalvaRicetta} editingRicetta={editingRicetta} onEditConsumed={()=>setEditingRicetta(null)} LEX={LEX} tipoAttivita={tipoAttivita}/>}
+        {vista==="scheda-allergeni"&&!PAGINE_NASCOSTE.has("scheda-allergeni")&&<SchedaAllergeniView ricettario={ricettario} tipoAttivita={tipoAttivita}/>}
+        {vista==="fornitori"&&<Fornitori orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify}/>}
+        {vista==="vendite-b2b"&&<VenditeB2BView orgId={orgId} sedeId={sedeId} sedi={sedi} sedeAttiva={sedeAttiva} ricettario={ricettario} notify={notify}/>}
         {/* Personale espone stipendi: MAI per i dipendenti (oltre a sidebar gate + RLS solo-titolare). */}
-        {view==="personale"&&!isDip&&<Personale orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify} adminNome={auth?.profile?.nome_completo || auth?.user?.email} nomeAttivita={nomeAttivita}/>}
-        {view==="haccp"&&!PAGINE_NASCOSTE.has("haccp")&&<HaccpView orgId={orgId} sedeId={sedeId} ricettario={ricettario} nomeAttivita={nomeAttivita} notify={notify}/>}
-        {view==="menu"&&!PAGINE_NASCOSTE.has("menu")&&<MenuDinamico ricettario={ricettario} ingCosti={ingCostiMain} calcolaFC={calcolaFC} getR={getR} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita} chiusure={chiusure} orgId={orgId} sedeId={sedeId}/>}
-        {view==="previsione"&&<PrevisioneDomanda ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} ingCosti={ingCostiMain} calcolaFC={calcolaFC} getR={getR} citta={citta} tipoAttivita={tipoAttivita}/>}
-        {view==="chiusura"&&!isAllSedi&&<ChiusuraView ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} setChiusure={setChiusure} notify={notify} orgId={orgId} sedeId={sedeId} isDipendente={isDip} metodoProduzione={metodoProduzione} tipoAttivita={tipoAttivita} onNavigate={setView} LEX={LEX}/>}
-        {view==="storico"&&<StoricoProduzioneView ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} logPrezzi={logPrezzi} orgId={orgId} sedeId={sedeId} sedi={sedi} metodoProduzione={metodoProduzione} onNavigate={setView} LEX={LEX}/>}
-        {view==="magazzino"&&!isAllSedi&&<MagazzinoView utente={auth?.user?.email||null} ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} logRif={logRif} setLogRif={setLogRif} logPrezzi={logPrezzi} onUpdatePrezzoIng={handleUpdatePrezzoIng} giornaliero={giornaliero} notify={notify} esclusi={esclusi} setEsclusi={setEsclusi} onImportPrezzi={handleImportPrezzi} onImportPrezziOCR={handleImportPrezziOCR} orgId={orgId} sedeId={sedeId} isDipendente={isDip} LEX={LEX}/>}
-        {view==="giornaliero"&&!isAllSedi&&<ProduzioneGiornalieraView ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} giornaliero={giornaliero} setGiornaliero={setGiornaliero} notify={notify} sedi={sedi} sedeAttiva={sedeAttiva} orgId={orgId} sedeId={sedeId} isDipendente={isDip} nomeAttivita={nomeAttivita} LEX={LEX}/>}
-        {view==="inventario-gusti"&&<InventarioSettimanaleView orgId={orgId} sedeId={sedeId} sedi={sedi} sedeAttiva={sedeAttiva} ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} tipoAttivita={tipoAttivita} metodoProduzione={metodoProduzione} notify={notify} onNavigate={setView}/>}
-        {view==="quadratura-inventario"&&<QuadraturaInventarioView orgId={orgId} sedeId={sedeId} sedi={sedi} sedeAttiva={sedeAttiva} chiusure={chiusure} metodoProduzione={metodoProduzione} onNavigate={setView} notify={notify}/>}
-        {view==="costi-aziendali"&&<CostiAziendaliView orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify}/>}
-        {view==="azioni"&&<AzioniView actions={actions} onUpdate={handleUpdAct} onDelete={handleDelAct} ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} magazzino={magazzino} nomeAttivita={auth?.org?.nome} tipoAttivita={tipoAttivita}/>}
-        {view==="impostazioni"&&<Impostazioni auth={auth} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita} metodoProduzione={metodoProduzione} piano={piano} orgId={orgId} sedi={sedi} sedeId={sedeId} onImportPrezzi={handleImportPrezzi} notify={notify} onChangelogOpen={()=>setView("changelog")} initialTab={impostazioniInitialTab}/>}
-        {view==="importa-dati"&&<ImportaDatiView
+        {vista==="personale"&&!isDip&&<Personale orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify} adminNome={auth?.profile?.nome_completo || auth?.user?.email} nomeAttivita={nomeAttivita}/>}
+        {vista==="haccp"&&!PAGINE_NASCOSTE.has("haccp")&&<HaccpView orgId={orgId} sedeId={sedeId} ricettario={ricettario} nomeAttivita={nomeAttivita} notify={notify}/>}
+        {vista==="menu"&&!PAGINE_NASCOSTE.has("menu")&&<MenuDinamico ricettario={ricettario} ingCosti={ingCostiMain} calcolaFC={calcolaFC} getR={getR} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita} chiusure={chiusure} orgId={orgId} sedeId={sedeId}/>}
+        {vista==="previsione"&&<PrevisioneDomanda ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} ingCosti={ingCostiMain} calcolaFC={calcolaFC} getR={getR} citta={citta} tipoAttivita={tipoAttivita}/>}
+        {vista==="chiusura"&&!isAllSedi&&<ChiusuraView ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} setChiusure={setChiusure} notify={notify} orgId={orgId} sedeId={sedeId} isDipendente={isDip} metodoProduzione={metodoProduzione} tipoAttivita={tipoAttivita} onNavigate={setView} LEX={LEX}/>}
+        {vista==="storico"&&<StoricoProduzioneView ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} logPrezzi={logPrezzi} orgId={orgId} sedeId={sedeId} sedi={sedi} metodoProduzione={metodoProduzione} onNavigate={setView} LEX={LEX}/>}
+        {vista==="magazzino"&&!isAllSedi&&<MagazzinoView utente={auth?.user?.email||null} ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} logRif={logRif} setLogRif={setLogRif} logPrezzi={logPrezzi} onUpdatePrezzoIng={handleUpdatePrezzoIng} giornaliero={giornaliero} notify={notify} esclusi={esclusi} setEsclusi={setEsclusi} onImportPrezzi={handleImportPrezzi} onImportPrezziOCR={handleImportPrezziOCR} orgId={orgId} sedeId={sedeId} isDipendente={isDip} LEX={LEX}/>}
+        {vista==="giornaliero"&&!isAllSedi&&<ProduzioneGiornalieraView ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} giornaliero={giornaliero} setGiornaliero={setGiornaliero} notify={notify} sedi={sedi} sedeAttiva={sedeAttiva} orgId={orgId} sedeId={sedeId} isDipendente={isDip} nomeAttivita={nomeAttivita} LEX={LEX}/>}
+        {vista==="inventario-gusti"&&<InventarioSettimanaleView orgId={orgId} sedeId={sedeId} sedi={sedi} sedeAttiva={sedeAttiva} ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} tipoAttivita={tipoAttivita} metodoProduzione={metodoProduzione} notify={notify} onNavigate={setView}/>}
+        {vista==="quadratura-inventario"&&<QuadraturaInventarioView orgId={orgId} sedeId={sedeId} sedi={sedi} sedeAttiva={sedeAttiva} chiusure={chiusure} metodoProduzione={metodoProduzione} onNavigate={setView} notify={notify}/>}
+        {vista==="costi-aziendali"&&<CostiAziendaliView orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify}/>}
+        {vista==="azioni"&&<AzioniView actions={actions} onUpdate={handleUpdAct} onDelete={handleDelAct} ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} magazzino={magazzino} nomeAttivita={auth?.org?.nome} tipoAttivita={tipoAttivita}/>}
+        {vista==="impostazioni"&&<Impostazioni auth={auth} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita} metodoProduzione={metodoProduzione} piano={piano} orgId={orgId} sedi={sedi} sedeId={sedeId} onImportPrezzi={handleImportPrezzi} notify={notify} onChangelogOpen={()=>setView("changelog")} initialTab={impostazioniInitialTab}/>}
+        {vista==="importa-dati"&&<ImportaDatiView
           orgId={orgId}
           sedi={sedi}
           onImportRicettario={handleFile}
@@ -3621,26 +3646,26 @@ export default function Dashboard({
           ricettario={ricettario}
           nomeAttivita={nomeAttivita}
           notify={notify}/>}
-        {view==="confronto-sedi"&&(canAccessView("confronto-sedi",piano,auth?.user?.email)?<ConfrontoSedi orgId={orgId} sedi={sedi}/>:<UpgradeGate view="confronto-sedi" onUpgrade={goToUpgrade}/>)}
-        {view==="eventi"&&<EventiView orgId={orgId} sedeId={sedeId} ricettario={ricettario} notify={notify} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita}/>}
-        {view==="trasferimenti"&&!isAllSedi&&(canAccessView("trasferimenti",piano,auth?.user?.email)?<TrasferimentiView orgId={orgId} sedi={sedi} sedeAttiva={sedeAttiva} notify={notify} metodoProduzione={metodoProduzione}/>:<UpgradeGate view="trasferimenti" onUpgrade={goToUpgrade}/>)}
-        {view==="integrazioni"&&(canAccessView("integrazioni",piano,auth?.user?.email)?<Integrazioni orgId={orgId} sedeId={sedeId} notify={notify}/>:<UpgradeGate view="integrazioni" onUpgrade={goToUpgrade}/>)}
-        {view==="scadenzario"&&<Scadenzario orgId={orgId} sedeId={sedeId} sedi={sedi}/>}
-        {view==="changelog"&&<ChangelogView/>}
-        {view==="recensioni"&&<RecensioniView nomeAttivita={nomeAttivita}/>}
-        {view==="menu-engineering"&&<MenuEngineeringView orgId={orgId} sedeId={sedeId} ricettario={ricettario} sedeAttiva={sedeAttiva}/>}
-        {view==="cashflow"&&<CashflowView orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify}/>}
-        {view==="forecast"&&<ForecastView orgId={orgId} sedeId={sedeId} sedeAttiva={sedeAttiva} setView={setView}/>}
-        {view==="reformulation"&&<ReformulationView ricettario={ricettario} orgId={orgId} sedeId={sedeId} notify={notify}/>}
-        {view==="ordini-ai"&&<OrdiniAiView orgId={orgId} sedeId={sedeId} notify={notify}/>}
-        {view==="competitor-pricing"&&<CompetitorPricingView orgId={orgId} sedeId={sedeId} ricettario={ricettario} notify={notify}/>}
-        {view==="ai-brain"&&(canAccessView("ai-brain",piano,auth?.user?.email)?<BrainView orgId={orgId} sedeId={sedeId} user={auth?.user} nomeAttivita={nomeAttivita}/>:<UpgradeGate view="ai-brain" onUpgrade={goToUpgrade}/>)}
-        {view==="ricette-ai"&&(canAccessView("ricette-ai",piano,auth?.user?.email)?<RecipeInventorView orgId={orgId} user={auth?.user} nomeAttivita={nomeAttivita}/>:<UpgradeGate view="ricette-ai" onUpgrade={goToUpgrade}/>)}
-        {view==="marketplace"&&(canAccessView("marketplace",piano,auth?.user?.email)?<MarketplaceView/>:<UpgradeGate view="marketplace" onUpgrade={goToUpgrade}/>)}
-        {view==="whatsapp"&&(canAccessView("whatsapp",piano,auth?.user?.email)?<WhatsAppView orgId={orgId} user={auth?.user}/>:<UpgradeGate view="whatsapp" onUpgrade={goToUpgrade}/>)}
-        {view==="documentary"&&(canAccessView("documentary",piano,auth?.user?.email)?<DocumentaryView orgId={orgId} nomeAttivita={nomeAttivita}/>:<UpgradeGate view="documentary" onUpgrade={goToUpgrade}/>)}
-        {view==="ai-hub"&&<AiHubView orgId={orgId} setView={setView} goToUpgrade={goToUpgrade} piano={piano} userEmail={auth?.user?.email}/>}
-        <CommandPalette open={cmdkOpen} onClose={()=>setCmdkOpen(false)} onNavigate={(v)=>setView(v)} orgId={orgId}/>
+        {vista==="confronto-sedi"&&(canAccessView("confronto-sedi",piano,auth?.user?.email)?<ConfrontoSedi orgId={orgId} sedi={sedi}/>:<UpgradeGate view="confronto-sedi" onUpgrade={goToUpgrade}/>)}
+        {vista==="eventi"&&<EventiView orgId={orgId} sedeId={sedeId} ricettario={ricettario} notify={notify} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita}/>}
+        {vista==="trasferimenti"&&!isAllSedi&&(canAccessView("trasferimenti",piano,auth?.user?.email)?<TrasferimentiView orgId={orgId} sedi={sedi} sedeAttiva={sedeAttiva} notify={notify} metodoProduzione={metodoProduzione}/>:<UpgradeGate view="trasferimenti" onUpgrade={goToUpgrade}/>)}
+        {vista==="integrazioni"&&(canAccessView("integrazioni",piano,auth?.user?.email)?<Integrazioni orgId={orgId} sedeId={sedeId} notify={notify}/>:<UpgradeGate view="integrazioni" onUpgrade={goToUpgrade}/>)}
+        {vista==="scadenzario"&&<Scadenzario orgId={orgId} sedeId={sedeId} sedi={sedi}/>}
+        {vista==="changelog"&&<ChangelogView/>}
+        {vista==="recensioni"&&<RecensioniView nomeAttivita={nomeAttivita}/>}
+        {vista==="menu-engineering"&&<MenuEngineeringView orgId={orgId} sedeId={sedeId} ricettario={ricettario} sedeAttiva={sedeAttiva}/>}
+        {vista==="cashflow"&&<CashflowView orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify}/>}
+        {vista==="forecast"&&<ForecastView orgId={orgId} sedeId={sedeId} sedeAttiva={sedeAttiva} setView={setView}/>}
+        {vista==="reformulation"&&<ReformulationView ricettario={ricettario} orgId={orgId} sedeId={sedeId} notify={notify}/>}
+        {vista==="ordini-ai"&&<OrdiniAiView orgId={orgId} sedeId={sedeId} notify={notify}/>}
+        {vista==="competitor-pricing"&&<CompetitorPricingView orgId={orgId} sedeId={sedeId} ricettario={ricettario} notify={notify}/>}
+        {vista==="ai-brain"&&(canAccessView("ai-brain",piano,auth?.user?.email)?<BrainView orgId={orgId} sedeId={sedeId} user={auth?.user} nomeAttivita={nomeAttivita}/>:<UpgradeGate view="ai-brain" onUpgrade={goToUpgrade}/>)}
+        {vista==="ricette-ai"&&(canAccessView("ricette-ai",piano,auth?.user?.email)?<RecipeInventorView orgId={orgId} user={auth?.user} nomeAttivita={nomeAttivita}/>:<UpgradeGate view="ricette-ai" onUpgrade={goToUpgrade}/>)}
+        {vista==="marketplace"&&(canAccessView("marketplace",piano,auth?.user?.email)?<MarketplaceView/>:<UpgradeGate view="marketplace" onUpgrade={goToUpgrade}/>)}
+        {vista==="whatsapp"&&(canAccessView("whatsapp",piano,auth?.user?.email)?<WhatsAppView orgId={orgId} user={auth?.user}/>:<UpgradeGate view="whatsapp" onUpgrade={goToUpgrade}/>)}
+        {vista==="documentary"&&(canAccessView("documentary",piano,auth?.user?.email)?<DocumentaryView orgId={orgId} nomeAttivita={nomeAttivita}/>:<UpgradeGate view="documentary" onUpgrade={goToUpgrade}/>)}
+        {vista==="ai-hub"&&<AiHubView orgId={orgId} setView={setView} goToUpgrade={goToUpgrade} piano={piano} userEmail={auth?.user?.email}/>}
+        <CommandPalette open={cmdkOpen} onClose={()=>setCmdkOpen(false)} onNavigate={(v)=>setView(v)} orgId={orgId} vistePermesse={isDip ? DIPENDENTE_VIEWS : null}/>
         {upgradeModal && (
           <UpgradeModal
             featureName={upgradeModal.featureName}

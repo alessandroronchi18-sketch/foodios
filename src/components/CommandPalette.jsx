@@ -44,17 +44,24 @@ const QUICK_NAV = [
   { keys: ['home', 'dashboard', 'inizio'], view: 'home', label: 'Home' },
 ]
 
-function quickMatch(q) {
+// `permesse` = insieme delle pagine che questo utente puo' aprire, oppure null
+// per il titolare (tutte). Senza questo filtro un dipendente scriveva
+// "stipendi" e la ricerca gli offriva Personale; scriveva "food cost" e gli
+// offriva il P&L. La navigazione veniva poi respinta, ma la scorciatoia
+// c'era, e vedere il nome di una pagina che non dovresti avere e' già un
+// pezzo di informazione che non ti spetta.
+function quickMatch(q, permesse) {
   if (!q) return []
   const qLow = q.toLowerCase().trim()
   const hits = []
   for (const item of QUICK_NAV) {
+    if (permesse && !permesse.has(item.view)) continue
     if (item.keys.some(k => qLow.includes(k))) hits.push(item)
   }
   return hits.slice(0, 5)
 }
 
-export default function CommandPalette({ open, onClose, onNavigate, orgId }) {
+export default function CommandPalette({ open, onClose, onNavigate, orgId, vistePermesse = null }) {
   const [q, setQ] = useState('')
   const [aiLoading, setAiLoading] = useState(false)
   const [aiAnswer, setAiAnswer] = useState(null)
@@ -82,7 +89,7 @@ export default function CommandPalette({ open, onClose, onNavigate, orgId }) {
     return () => document.removeEventListener('keydown', onKey)
   }, [open, onClose])
 
-  const hits = quickMatch(q)
+  const hits = quickMatch(q, vistePermesse)
 
   async function askAi() {
     if (!q.trim()) return
@@ -92,16 +99,27 @@ export default function CommandPalette({ open, onClose, onNavigate, orgId }) {
       const token = session?.access_token
       if (!token) throw new Error('Sessione scaduta')
 
-      const system = `Sei un assistente per il titolare di una pasticceria/gelateria
-italiana che usa Foodos. Riceverai una domanda libera dell'utente.
+      // All'assistente si elencano SOLO le pagine di chi sta chiedendo. Se a un
+      // dipendente si elencano anche P&L e Personale, prima o poi gliele
+      // propone — e il solo vederle nominate dice che esistono e che lui non
+      // le ha.
+      const elencoViste = (vistePermesse
+        ? QUICK_NAV.filter(i => vistePermesse.has(i.view)).map(i => i.view)
+        : ['home', 'ricettario', 'semilavorati', 'nuova-ricetta', 'pl', 'simulatore',
+           'costi-aziendali', 'storico', 'previsione', 'giornaliero', 'chiusura',
+           'magazzino', 'scadenzario', 'sprechi-omaggi', 'fornitori', 'vendite-b2b',
+           'importa-dati', 'personale', 'registro-attivita', 'confronto-sedi',
+           'trasferimenti', 'impostazioni', 'changelog']
+      ).join(', ')
+
+      const system = `Sei un assistente per chi lavora in una pasticceria/gelateria
+italiana e usa Foodos. Riceverai una domanda libera dell'utente.
 Compito:
 1. Se la domanda chiede di NAVIGARE a una sezione, rispondi con: NAVIGATE:<view-id>
-   View-id disponibili: home, ricettario, semilavorati, nuova-ricetta, pl,
-   simulatore, costi-aziendali, storico, previsione, giornaliero, chiusura,
-   magazzino, scadenzario, sprechi-omaggi, fornitori, vendite-b2b,
-   importa-dati, personale, registro-attivita, confronto-sedi,
-   trasferimenti, impostazioni, changelog.
-   NON esistono più: haccp, scheda-allergeni, menu (pagine nascoste).
+   View-id disponibili: ${elencoViste}.
+   NON esistono altre pagine: se la domanda ne chiede una fuori da questo
+   elenco NON usare NAVIGATE. Rispondi TEXT dicendo che quella parte non è
+   disponibile, senza spiegare perché e senza nominare pagine non elencate.
 2. Se la domanda chiede un DATO (es. ricavi oggi, food cost), rispondi:
    DATA: <descrizione di cosa servirebbe interrogare> (l'utente capira').
 3. Altrimenti rispondi con: TEXT: <risposta breve in italiano>
@@ -119,7 +137,14 @@ Massimo 60 parole.`
       // Parsing: prefix navigate/data/text
       if (txt.toUpperCase().startsWith('NAVIGATE:')) {
         const view = txt.substring(9).trim().replace(/\.$/, '')
-        setAiAnswer({ kind: 'navigate', view })
+        // Ultima rete: un modello puo' sempre inventare o ricordare male. Se
+        // propone una pagina che questo utente non ha, la scorciatoia non si
+        // mostra — nemmeno per farla poi respingere.
+        if (vistePermesse && !vistePermesse.has(view)) {
+          setAiAnswer({ kind: 'text', text: 'Quella parte non fa parte delle tue pagine.' })
+        } else {
+          setAiAnswer({ kind: 'navigate', view })
+        }
       } else if (txt.toUpperCase().startsWith('DATA:')) {
         setAiAnswer({ kind: 'data', text: txt.substring(5).trim() })
       } else {
@@ -133,6 +158,7 @@ Massimo 60 parole.`
   }
 
   function doNavigate(view) {
+    if (vistePermesse && !vistePermesse.has(view)) { onClose?.(); return }
     onNavigate?.(view)
     onClose?.()
   }

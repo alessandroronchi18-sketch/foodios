@@ -53,12 +53,15 @@ describe('pagine nascoste', () => {
     // Un indirizzo vecchio, un link condiviso o una sessione salvata non
     // devono poter aprire comunque la pagina.
     for (const id of NASCOSTE) {
-      expect(dash).toMatch(new RegExp(`view==="${id}"&&!PAGINE_NASCOSTE\\.has\\("${id}"\\)`))
+      expect(dash).toMatch(new RegExp(`vista==="${id}"&&!PAGINE_NASCOSTE\\.has\\("${id}"\\)`))
     }
   })
 
   it('una pagina nascosta salvata in sessione non riapre uno schermo bianco', () => {
-    expect(dash).toContain("if (stored && !PAGINE_NASCOSTE.has(stored)) return stored")
+    // Dal 15/09 la stessa riga filtra anche per ruolo: un dipendente non si
+    // ritrova su una pagina non sua nemmeno ricaricando.
+    expect(dash).toContain("stored && !PAGINE_NASCOSTE.has(stored)")
+    expect(dash).toContain("DIPENDENTE_VIEWS.has(stored)")
   })
 
   it('non si raggiungono dalla ricerca Cmd+K', () => {
@@ -67,14 +70,17 @@ describe('pagine nascoste', () => {
     for (const id of NASCOSTE) {
       expect(palette).not.toMatch(new RegExp(`view: '${id}'`))
     }
-    // E nemmeno dall'assistente: se l'id resta nell'elenco del prompt, il
-    // modello risponde NAVIGATE:haccp e la palette ci naviga davvero.
-    // Solo l'elenco positivo: la riga "NON esistono piu'" nomina le nascoste
-    // apposta, per dire al modello di non proporle.
-    const elenco = (palette.split('View-id disponibili:')[1] || '').split('NON esistono')[0]
-    expect(elenco.length).toBeGreaterThan(50)
+    // E nemmeno dall'assistente. Dal 15/09 l'elenco dato al modello non e'
+    // piu' scritto dentro il prompt: si costruisce da `QUICK_NAV` filtrato
+    // per ruolo (`elencoViste`), quindi una pagina nascosta non puo' entrarci
+    // se non e' in QUICK_NAV — ed e' quello che controlla il ciclo qui sopra.
+    expect(palette).toContain('View-id disponibili: ${elencoViste}')
+    // Resta un elenco scritto a mano: quello di riserva per il titolare.
+    // Se una pagina nascosta finisse li', il modello la proporrebbe.
+    const riserva = (palette.split('? QUICK_NAV.filter')[1] || '').split('.join(')[0]
+    expect(riserva.length).toBeGreaterThan(200)
     for (const id of NASCOSTE) {
-      expect(elenco).not.toMatch(new RegExp(`(^|[\\s,])${id}[,.\\s]`))
+      expect(riserva, `${id} e' ancora nell'elenco di riserva`).not.toContain(`'${id}'`)
     }
   })
 

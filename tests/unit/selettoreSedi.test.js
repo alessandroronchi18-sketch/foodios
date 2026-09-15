@@ -32,7 +32,7 @@ function leggiSet(nome) {
 // Le viste montate: view==="xxx" && <Componente ...props... />
 function vistaMontate() {
   const out = []
-  for (const m of dash.matchAll(/view==="([a-z0-9-]+)"\s*&&[^\n]*?<([A-Z][A-Za-z0-9_]*)([\s\S]*?)\/>/g)) {
+  for (const m of dash.matchAll(/vista==="([a-z0-9-]+)"\s*&&[^\n]*?<([A-Z][A-Za-z0-9_]*)([\s\S]*?)\/>/g)) {
     out.push({ vista: m[1], componente: m[2], props: m[3] })
   }
   return out
