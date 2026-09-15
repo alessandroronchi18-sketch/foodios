@@ -35,11 +35,42 @@ function iconaMeteo(weatherCode) {
   return 'temporale'
 }
 
+// Perché non c'è previsione. Tre risposte possibili, e sono molto diverse
+// fra loro: «non hai ancora registrato chiusure», «le hai registrate ma
+// senza il dettaglio dei prodotti» (e allora aspettare non serve a niente),
+// «ci sei quasi, mancano N giorni».
+const GIORNI_MINIMI = 30
+
+async function diagnosi(orgId, sedeId) {
+  try {
+    const { data } = await supabase
+      .from('user_data').select('data_value')
+      .eq('organization_id', orgId).eq('sede_id', sedeId)
+      .eq('data_key', 'pasticceria-chiusure-v1').maybeSingle()
+    const chiusure = Array.isArray(data?.data_value) ? data.data_value : []
+    if (chiusure.length === 0) return { caso: 'niente_chiusure' }
+    const limite = new Date(Date.now() - 60 * 86400000)
+    const recenti = chiusure.filter(c => new Date(c?.data || 0) >= limite)
+    const conProdotti = recenti.filter(c => {
+      const r = Array.isArray(c?.prodotti) ? c.prodotti : Array.isArray(c?.righe) ? c.righe : []
+      return r.length > 0
+    })
+    if (conProdotti.length === 0) return { caso: 'senza_dettaglio', chiusure: recenti.length }
+    if (conProdotti.length < GIORNI_MINIMI) return { caso: 'pochi_giorni', giorni: conProdotti.length }
+    return { caso: 'attesa_calcolo', giorni: conProdotti.length }
+  } catch {
+    return null
+  }
+}
+
 export default function ForecastView({ orgId, sedeId, sedeAttiva, setView }) {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
   const [forecasts, setForecasts] = useState([])
   const [loading, setLoading] = useState(true)
+  // Perché la pagina è vuota. Senza questo si diceva sempre la stessa cosa —
+  // «riprova domani» — anche quando domani non sarebbe cambiato niente.
+  const [perche, setPerche] = useState(null)
 
   useEffect(() => {
     if (!orgId || !sedeId) { setLoading(false); return }
@@ -55,10 +86,13 @@ export default function ForecastView({ orgId, sedeId, sedeAttiva, setView }) {
         .gte('data', oggi)
         .order('data')
         .order('qta_prevista', { ascending: false })
-      if (alive) {
-        setForecasts(data || [])
-        setLoading(false)
-      }
+      if (!alive) return
+      setForecasts(data || [])
+      // Se non c'è niente da mostrare, si va a vedere **perché**: la
+      // previsione si costruisce dal venduto per prodotto delle chiusure di
+      // cassa, e senza quello non arriverà mai, per quanti giorni si aspetti.
+      if ((data || []).length === 0) setPerche(await diagnosi(orgId, sedeId))
+      setLoading(false)
     }
     load()
     return () => { alive = false }
@@ -82,7 +116,7 @@ export default function ForecastView({ orgId, sedeId, sedeAttiva, setView }) {
         title="Previsione vendite"
         accentText="7 giorni"
         subtitle={`Storico vendite + meteo cittadino + stagionalità. Aggiornato ogni notte alle 7:00.${sedeAttiva?.nome ? ` · ${sedeAttiva.nome}` : ''}`}
-        statusBadge="LIVE"
+        statusBadge={forecasts.length > 0 ? 'LIVE' : null}
         stats={[
           { n: '7gg', l: 'Orizzonte' },
           { n: 'Open-Meteo', l: 'Dati meteo' },
@@ -95,11 +129,59 @@ export default function ForecastView({ orgId, sedeId, sedeAttiva, setView }) {
       ) : giorni.length === 0 ? (
         <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: 40, textAlign: 'center', color: SOFT, lineHeight: 1.6 }}>
           <Icon name="forecast" size={32} color={SOFT}/>
-          <div style={{ marginTop: 12, fontSize: 14, fontWeight: 700, color: TXT }}>Forecast non ancora generato</div>
-          <div style={{ fontSize: typo.small.fontSize, marginTop: 6 }}>
-            L'AI ha bisogno di almeno 30 giorni di chiusure per generare la previsione.<br/>
-            Il cron gira ogni notte alle 07:00 UTC. Riprova domani.
-          </div>
+          {/* Diceva sempre «riprova domani». Se manca il dettaglio dei
+              prodotti nelle chiusure, domani non cambia niente: la previsione
+              si costruisce prodotto per prodotto, e senza quel dettaglio non
+              arriverà mai. Meglio dire cosa manca. */}
+          {perche?.caso === 'niente_chiusure' ? (
+            <>
+              <div style={{ marginTop: 12, fontWeight: 700, color: TXT }}>Non c'è ancora niente da cui prevedere</div>
+              <div style={{ fontSize: typo.small.fontSize, marginTop: 6 }}>
+                La previsione si costruisce dalle chiusure di cassa: quanto hai venduto,
+                prodotto per prodotto, giorno per giorno.<br/>
+                Registra le chiusure per qualche settimana e questa pagina si riempie da sola.
+              </div>
+              {setView && (
+                <button onClick={() => setView('chiusura')}
+                  style={{ marginTop: 14, background: BRAND, color: '#FFF', border: 'none', padding: '9px 16px', borderRadius: 8, fontSize: typo.small.fontSize, fontWeight: 700, cursor: 'pointer' }}>
+                  Vai alla cassa
+                </button>
+              )}
+            </>
+          ) : perche?.caso === 'senza_dettaglio' ? (
+            <>
+              <div style={{ marginTop: 12, fontWeight: 700, color: TXT }}>Alle tue chiusure manca il dettaglio dei prodotti</div>
+              <div style={{ fontSize: typo.small.fontSize, marginTop: 6 }}>
+                Hai {perche.chiusure} chiusure negli ultimi due mesi, ma con i soli totali
+                di giornata. Per prevedere quanto venderai di ogni prodotto serve sapere
+                quanto ne hai venduto: si registra dalla cassa, riga per riga, oppure
+                fotografando lo scontrino di chiusura.<br/>
+                <strong>Finché manca quel dettaglio questa pagina resta vuota</strong>, per quanti
+                giorni si aspetti.
+              </div>
+              {setView && (
+                <button onClick={() => setView('chiusura')}
+                  style={{ marginTop: 14, background: BRAND, color: '#FFF', border: 'none', padding: '9px 16px', borderRadius: 8, fontSize: typo.small.fontSize, fontWeight: 700, cursor: 'pointer' }}>
+                  Vai alla cassa
+                </button>
+              )}
+            </>
+          ) : perche?.caso === 'pochi_giorni' ? (
+            <>
+              <div style={{ marginTop: 12, fontWeight: 700, color: TXT }}>Ci sei quasi</div>
+              <div style={{ fontSize: typo.small.fontSize, marginTop: 6 }}>
+                Hai {perche.giorni} giorni di venduto per prodotto; ne servono {GIORNI_MINIMI}.
+                Continua a registrare le chiusure: mancano circa {GIORNI_MINIMI - perche.giorni} giorni.
+              </div>
+            </>
+          ) : (
+            <>
+              <div style={{ marginTop: 12, fontWeight: 700, color: TXT }}>La previsione non è ancora stata calcolata</div>
+              <div style={{ fontSize: typo.small.fontSize, marginTop: 6 }}>
+                Lo storico c'è. Il calcolo gira ogni notte: domani mattina la trovi qui.
+              </div>
+            </>
+          )}
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>

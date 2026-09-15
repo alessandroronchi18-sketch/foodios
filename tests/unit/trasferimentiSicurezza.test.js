@@ -9,6 +9,7 @@
 // pagina. Nessun magazzino è già sbagliato: i difetti erano tutti latenti.
 
 import { describe, it, expect } from 'vitest'
+import { costruisciMenu } from '../../src/lib/menuFoodos'
 import { readFileSync, readdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
@@ -195,9 +196,26 @@ describe('una sede non si archivia con la merce in mezzo alla strada', () => {
     expect(VIEW).toMatch(/const sediMap = Object\.fromEntries\(\(sedi \|\| \[\]\)\.map/)
   })
 
-  it('la voce di menu conta le sedi attive, non tutte', () => {
+  it('la voce di menu conta le sedi attive, non tutte — e una volta sola', () => {
+    // La condizione stava in due posti (barra in alto e barra laterale) e i
+    // due non erano d'accordo: quella in alto contava tutte le sedi, quella
+    // di lato solo le attive. Con una sede archiviata la voce compariva in
+    // una barra e non nell'altra. Dal 15/09/2026 è scritta una volta sola,
+    // in src/lib/menuFoodos.js, e le barre la leggono da lì.
     const D = leggi('src', 'Dashboard.jsx')
-    expect(D).toMatch(/\(sedi\|\|\[\]\)\.filter\(x=>x\.attiva!==false\)\.length>1\) && navItem\("trasferimenti"/)
+    expect(D).toMatch(/piuSedi:.*\(sedi\|\|\[\]\)\.filter\(x=>x\.attiva!==false\)\.length>1/)
+    // E non ne è rimasta una seconda copia da qualche parte.
+    const copie = (D.match(/attiva!==false\)\.length>1/g) || []).length
+    expect(copie, 'la condizione delle sedi attive è scritta in più di un posto').toBe(1)
+  })
+
+  it('la voce compare solo con due sedi attive, e non compare con una sola', () => {
+    // Il comportamento, non il testo del codice.
+    const conDue = costruisciMenu({ piuSedi: true })
+    const conUna = costruisciMenu({ piuSedi: false })
+    const idDi = (sez) => sez.flatMap(s => s.voci).map(v => v.id)
+    expect(idDi(conDue)).toContain('trasferimenti')
+    expect(idDi(conUna)).not.toContain('trasferimenti')
   })
 })
 

@@ -113,6 +113,10 @@ const FotoOCR = lazyWithReload(() => import('./components/FotoOCR'))
 import { compressImage } from './lib/imageUtils'
 import { trackViewOpen } from './lib/usageTracking'
 import { impostaVistaCorrente } from './lib/vistaCorrente'
+import {
+  costruisciMenu, sezionePerVista, descriviVista, menuTelefono, etichettaBreve,
+  VISTE_DIPENDENTE,
+} from './lib/menuFoodos'
 const MagazzinoView = lazyWithReload(() => import('./views/MagazzinoView'))
 const ChiusuraView = lazyWithReload(() => import('./views/ChiusuraView'))
 const ProduzioneGiornalieraView = lazyWithReload(() => import('./views/ProduzioneGiornalieraView'))
@@ -1192,24 +1196,10 @@ class ErrorBoundary extends React.Component {
 // menu, semilavorati, importa dati, nuova ricetta, eventi, ricettario, ecc.) è
 // NASCOSTO - sia in UI (questo set) sia a livello DB (RLS, vedi migration
 // 20260607_dipendente_no_lettura_sensibili.sql).
-export const DIPENDENTE_VIEWS = new Set([
-  'home-dipendente', // Modalità Dipendente XL: landing 6 pulsantoni mobile-first.
-  'giornaliero',     // Produzione - "caricare i prodotti" (solo oggi)
-  'inventario-gusti',// Inventario differenziale per gelaterie/yogurt (alternativa a giornaliero)
-  'chiusura',        // Cassa (solo oggi)
-  'magazzino',       // Stock e rifornimenti
-  'sprechi-omaggi',  // Operativo: sia titolare sia dipendente registrano
-  // Decisione del titolare, 15/09/2026: è il dipendente che scarica il furgone
-  // alla sede, quindi deve poter confermare cosa è arrivato. Ma **solo
-  // ricevere**: non crea, non invia, non annulla — quello lo impediscono le
-  // funzioni sul database (20260915f), non solo questa lista. E vede i
-  // trasferimenti della SUA sede, non quelli delle altre.
-  'trasferimenti',
-  'calendario',      // solo oggi/futuro
-  'haccp',
-  'changelog',
-  'impostazioni',    // solo il proprio account (nome, cambio password, 2FA) - vista role-aware
-]);
+// L'elenco delle pagine del dipendente vive ora in src/lib/menuFoodos.js,
+// insieme al menu che lo usa: era una delle otto copie a mano della stessa
+// informazione. Qui resta il nome con cui lo importa il resto del progetto.
+export const DIPENDENTE_VIEWS = VISTE_DIPENDENTE;
 
 // Viste dove il SedeSelector va NASCOSTO (audit 2026-07-29): dati SHARED
 // (ricettario, formati vendita, azioni, ecc.) oppure org-level (impostazioni,
@@ -1544,7 +1534,13 @@ export default function Dashboard({
       const saved = JSON.parse(localStorage.getItem('foodos-sidebar-sec') || 'null')
       if (saved && typeof saved === 'object') return saved
     } catch {}
-    return { oggi:true, ricette:true, numeri:false, acquisti:false, azienda:false, strumenti:false }
+    // Aperte le due che si usano ogni giorno, chiuse le altre.
+    //
+    // Qui dentro c'erano ancora `azienda` e `strumenti`, sezioni abolite il
+    // 30/07/2026: due chiavi che non decidevano più niente, mentre le tre
+    // sezioni nuove (clienti, team, ai) non erano nominate e restavano
+    // aperte tutte e tre — la barra laterale si apriva lunga il doppio.
+    return { oggi: true, ricette: true, acquisti: false, numeri: false, clienti: false, team: false, ai: false }
   });
   // Persisti aperto/chiuso dei gruppi della sidebar
   useEffect(() => {
@@ -1556,18 +1552,40 @@ export default function Dashboard({
   const [sidebarSearch, setSidebarSearch] = useState('');
   const sidebarQuery = sidebarSearch.trim().toLowerCase();
 
+  // ─── Il menu, una volta sola ──────────────────────────────────────────────
+  //
+  // Le tre barre (in alto, laterale, in basso sul telefono) e le due mappe
+  // «in che sezione sta questa pagina» / «come si chiama» leggono tutte da
+  // qui. Prima erano otto elenchi scritti a mano dentro questo file, già
+  // divergenti fra loro: la stessa etichetta apriva due pagine diverse, una
+  // voce compariva in una barra e non nell'altra, e le mappe delle sezioni
+  // erano ferme ai gruppi aboliti il 30/07/2026.
+  const oggiIso = todayLocal();
+  const segnaliMenu = useMemo(() => ({
+    prodOggiMancante: !(giornaliero||[]).some(x=>x.data===oggiIso&&(x.prodotti||[]).length>0) && new Date().getHours()>=6,
+    cassaMancante: !(chiusure||[]).some(c=>c.data===oggiIso) && new Date().getHours()>=14,
+    scorteCritiche: Object.values(magazzino||{}).filter(m=>m.giacenza_g===0||(m.soglia_g>0&&m.giacenza_g<=m.soglia_g)).length,
+    azioniAperte: (actions||[]).filter(a=>a.stato!=="chiusa").length,
+  }), [giornaliero, chiusure, magazzino, actions, oggiIso]);
+
+  const sedeCorrente = useMemo(
+    () => (sedi||[]).find(x=>x.id===sedeAttiva?.id) || sedeAttiva,
+    [sedi, sedeAttiva]
+  );
+  const SEZIONI = useMemo(() => costruisciMenu({
+    metodoInventario: isMetodoInv,
+    sedeDiProduzione: sedeCorrente?.is_sede_produzione === true,
+    // Le sedi ATTIVE, non tutte: con due sedi di cui una archiviata la voce
+    // «Trasferimenti» compariva in una barra e non nell'altra.
+    piuSedi: (auth?.user?.email === 'demo@maradeiboschi.com') || (sedi||[]).filter(x=>x.attiva!==false).length>1,
+    isDipendente: isDip,
+    vistaCorrente: view,
+    lex: LEX,
+    segnali: segnaliMenu,
+  }), [isMetodoInv, sedeCorrente, sedi, auth?.user?.email, isDip, view, LEX, segnaliMenu]);
+
   // Mappa view → gruppo della sidebar (per auto-aprire il gruppo della view attiva)
-  const VIEW_TO_SEC = useMemo(() => ({
-    giornaliero:'oggi', chiusura:'oggi', eventi:'oggi', calendario:'oggi',
-    ricettario:'ricette', semilavorati:'ricette', 'nuova-ricetta':'ricette',
-    'scheda-allergeni':'ricette', menu:'ricette',
-    simulatore:'numeri', pl:'numeri', storico:'numeri', previsione:'numeri', 'menu-engineering':'ai', cashflow:'ai', forecast:'ai', reformulation:'ai', 'competitor-pricing':'ai', 'ordini-ai':'ai', 'ai-brain':'ai', 'ricette-ai':'ai', marketplace:'ai', whatsapp:'ai', documentary:'ai', 'ai-hub':'ai', recensioni:'ai',
-    magazzino:'acquisti', scadenzario:'acquisti', fornitori:'acquisti', 'vendite-b2b':'acquisti', 'importa-dati':'acquisti',
-    // Audit 2026-06-22: rimosso `recensioni:'azienda'` (duplicato col rigo sopra
-    // che lo metteva in 'ai' - la seconda chiave sovrascriveva, hiding ai sidebar).
-    personale:'azienda', haccp:'azienda', 'confronto-sedi':'azienda', trasferimenti:'azienda',
-    azioni:'strumenti', integrazioni:'strumenti',
-  }), []);
+  const VIEW_TO_SEC = useMemo(() => sezionePerVista(SEZIONI), [SEZIONI]);
   useEffect(() => {
     const sec = VIEW_TO_SEC[view];
     if (sec && sidebarSec[sec] === false) {
@@ -2367,67 +2385,13 @@ export default function Dashboard({
         // Menu riorganizzato 2026-07-30: 7 macro-sezioni per affinità
         // funzionale + frequenza d'uso. "Inventario gusti" mostrato sempre
         // come "Produzione" (route interna resta invariata).
-        const NAV = [
-          // 1) OGGI — le 4 azioni giornaliere più frequenti
-          { id:"oggi", label:"Oggi", items:[
-            ...(isMetodoInventario
-              ? [{id:"inventario-gusti",label:"Produzione",icon:"cal",alert:!hasProdOggi&&new Date().getHours()>=6}]
-              : [{id:"giornaliero",label:"Produzione",icon:"cal",alert:!hasProdOggi&&new Date().getHours()>=6}]),
-            {id:"chiusura",label:"Cassa",icon:"creditCard",alert:cassaMancante},
-            {id:"magazzino",label:"Magazzino",icon:"pkg",badge:criticeMag,alert:criticeMag>0},
-            {id:"calendario",label:"Calendario",icon:"cal"},
-          ]},
-          // 2) RICETTE & MENÙ — invariato
-          { id:"ricette", label:"Ricette & Menù", items:[
-            {id:"ricettario",label:LEX.Ricettario,icon:"book"},
-            {id:"semilavorati",label:"Semilavorati",icon:"layers"},
-            {id:"nuova-ricetta",label:"Nuova ricetta",icon:"pencil"},
-            {id:"formati-vendita",label:"Formati di vendita",icon:"coins"},
-          ]},
-          // 3) ACQUISTI & FORNITORI — magazzino sale in Oggi, resta il "back office"
-          { id:"acquisti", label:"Acquisti & Fornitori", items:[
-            {id:"sprechi-omaggi",label:"Perdite & cessioni",icon:"sparkles"},
-            {id:"scadenzario",label:"Scadenzario fatture",icon:"fileText"},
-            {id:"fornitori",label:"Fornitori",icon:"truck"},
-            {id:"importa-dati",label:"Importa dati",icon:"download"},
-          ]},
-          // 4) ANALISI & NUMERI — Vendite B2B esce (va in Vendite & Clienti)
-          { id:"numeri", label:"Analisi & Numeri", items:[
-            {id:"pl",label:"Profitti (P&L)",icon:"trendUp"},
-            {id:"costi-aziendali",label:"Costi aziendali",icon:"coins"},
-            {id:"storico",label:"Storico produzione",icon:"activity"},
-            ...(isMetodoInventario ? [{id:"quadratura-inventario",label:"Quadratura inventario",icon:"check"}] : []),
-            {id:"simulatore",label:"Food Cost simulatore",icon:"barChart"},
-            {id:"previsione",label:"Previsione domanda",icon:"forecast"},
-          ]},
-          // 5) VENDITE & CLIENTI — nuova: dove arrivano i soldi che non sono cassa
-          { id:"clienti", label:"Vendite & Clienti", items:[
-            {id:"vendite-b2b",label:"Vendite B2B",icon:"building"},
-            {id:"eventi",label:"Eventi",icon:"cal"},
-            {id:"recensioni",label:"Recensioni",icon:"sparkles"},
-          ]},
-          // 6) SEDI & TEAM — Integrazioni esce (va in Impostazioni)
-          { id:"team", label:"Sedi & Team", items:[
-            ...(showMultiSede
-              ? [{id:"confronto-sedi",label:"Confronto sedi",icon:"building"},
-                 {id:"trasferimenti",label:"Trasferimenti tra sedi",icon:"truck"}]
-              : []),
-            {id:"personale",label:"Personale & stipendi",icon:"users"},
-            {id:"registro-attivita",label:"Registro attività",icon:"fileText"},
-          ]},
-          // 7) AI — Recensioni esce (va in Vendite & Clienti). Congelate a parte.
-          { id:"ai", label:"AI", headerView:"ai-hub", badge:azioniAperte, items:[
-            {id:"ai-hub",label:"Panoramica AI",icon:"sparkles"},
-            {id:"ai-brain",label:"Foodos Brain (chat)",icon:"sparkles"},
-            {id:"forecast",label:"Forecast vendite 7gg",icon:"forecast"},
-            {id:"cashflow",label:"Cashflow predittivo",icon:"trendUp"},
-            {id:"menu-engineering",label:"Menu engineering",icon:"barChart"},
-            {id:"ordini-ai",label:"Ordini AI consigliati",icon:"truck"},
-            {id:"whatsapp",label:"WhatsApp Bot",icon:"bell"},
-            {id:"documentary",label:"Documentary AI",icon:"barChart"},
-            {id:"azioni",label:"Azioni consigliate",icon:"sparkles",badge:azioniAperte},
-          ]},
-        ].map(sec=>({ ...sec, items: sec.items.filter(it=>!isDip||DIPENDENTE_VIEWS.has(it.id)) })).filter(sec=>sec.items.length>0);
+        // Il menu si costruisce in un posto solo (src/lib/menuFoodos.js) e si
+        // calcola una volta sola, sopra: qui si adatta solo ai nomi che il
+        // disegno di questa barra usa da sempre.
+        const NAV = SEZIONI.map(sec=>({
+          id: sec.id, label: sec.label, headerView: sec.headerView, badge: sec.badge,
+          items: sec.voci.map(v=>({ id: v.id, label: v.label, icon: v.icona, badge: v.badge, alert: v.allarme })),
+        }));
 
         const go = id => {
           // Se la view richiede un piano superiore al corrente, apri modal upgrade.
@@ -3082,85 +3046,29 @@ export default function Dashboard({
                   definiti nello scope del render, come elementi JSX cambierebbero
                   identità a ogni render → React rimonterebbe tutte le sezioni,
                   azzerando lo scroll del menu (bug "torna in cima") e ri-animando. */}
-              {/* Sidebar allineata 1:1 con NAV topbar (2026-06-13 v2) */}
-
-              {/* Sidebar allineata 1:1 al NAV topbar (riorganizzazione 2026-07-30) */}
-
-              {/* 1) OGGI — 4 azioni giornaliere principali */}
-              {Group({ id:"oggi", iconKey:"today", label:"Oggi",
-                alert:(!hasProdOggi && new Date().getHours()>=6) || cassaMancante || criticeMag>0,
-                children:[
-                  ...(((sedi||[]).find(s=>s.id===sedeAttiva?.id)?.is_sede_produzione && isMetodoInv) || view === 'inventario-gusti'
-                    ? [navItem("inventario-gusti","cal","Produzione",0,!hasProdOggi&&new Date().getHours()>=6)]
-                    : [navItem("giornaliero","cal","Produzione",0,!hasProdOggi&&new Date().getHours()>=6)]),
-                  navItem("chiusura","creditCard","Cassa",0,cassaMancante),
-                  navItem("magazzino","pkg","Magazzino",criticeMag,criticeMag>0),
-                  navItem("calendario","cal","Calendario"),
-                ] })}
-
-              {/* 2) RICETTE & MENÙ */}
-              {Group({ id:"ricette", iconKey:"chefHat", label:"Ricette & Menù",
-                children:[
-                  navItem("ricettario","book",LEX.Ricettario),
-                  navItem("semilavorati","layers","Semilavorati"),
-                  navItem("nuova-ricetta","pencil","Nuova ricetta"),
-                  navItem("formati-vendita","coins","Formati di vendita"),
-                ] })}
-
-              {/* 3) ACQUISTI & FORNITORI — magazzino sale in Oggi */}
-              {Group({ id:"acquisti", iconKey:"shopping", label:"Acquisti & Fornitori",
-                children:[
-                  navItem("sprechi-omaggi","sparkles","Perdite & cessioni"),
-                  navItem("scadenzario","fileText","Scadenzario fatture"),
-                  navItem("fornitori","truck","Fornitori"),
-                  navItem("importa-dati","download","Importa dati"),
-                ] })}
-
-              {/* 4) ANALISI & NUMERI — Vendite B2B esce (va in Vendite & Clienti) */}
-              {Group({ id:"numeri", iconKey:"coins", label:"Analisi & Numeri",
-                children:[
-                  navItem("pl","trendUp","Profitti (P&L)"),
-                  navItem("costi-aziendali","package","Costi aziendali"),
-                  navItem("storico","activity","Storico produzione"),
-                  ...(((sedi||[]).find(s=>s.id===sedeAttiva?.id)?.is_sede_produzione && isMetodoInv) || view === 'quadratura-inventario'
-                    ? [navItem("quadratura-inventario","check","Quadratura inventario")] : []),
-                  navItem("simulatore","barChart","Food Cost simulatore"),
-                  navItem("previsione","forecast","Previsione domanda"),
-                ] })}
-
-              {/* 5) VENDITE & CLIENTI — nuova sezione */}
-              {Group({ id:"clienti", iconKey:"users", label:"Vendite & Clienti",
-                children:[
-                  navItem("vendite-b2b","building","Vendite B2B"),
-                  navItem("eventi","cal","Eventi"),
-                  navItem("recensioni","sparkles","Recensioni"),
-                ] })}
-
-              {/* 6) SEDI & TEAM — Integrazioni esce (va in Impostazioni) */}
-              {Group({ id:"team", iconKey:"briefcase", label:"Sedi & Team",
-                children:[
-                  ((auth?.user?.email === 'demo@maradeiboschi.com') || (sedi||[]).length>1) && navItem("confronto-sedi","building","Confronto sedi"),
-                  // Le sedi ATTIVE, non tutte: con due sedi di cui una archiviata la voce
-                  // compariva, e la pagina diceva "Aggiungi almeno 2 sedi".
-                  ((auth?.user?.email === 'demo@maradeiboschi.com') || (sedi||[]).filter(x=>x.attiva!==false).length>1) && navItem("trasferimenti","truck","Trasferimenti tra sedi"),
-                  navItem("personale","users","Personale & stipendi"),
-                  navItem("registro-attivita","fileText","Registro attività"),
-                ] })}
-
-              {/* 7) AI — Recensioni esce (va in Vendite & Clienti) */}
-              {Group({ id:"ai", iconKey:"sparkles", label:"AI",
-                badge:azioniAperte,
-                children:[
-                  navItem("ai-hub","sparkles","Panoramica AI"),
-                  navItem("ai-brain","sparkles","Foodos Brain (chat)", 0, false, true),
-                  navItem("forecast","sun","Forecast vendite 7gg"),
-                  navItem("cashflow","trendUp","Cashflow predittivo"),
-                  navItem("menu-engineering","barChart","Menu engineering"),
-                  navItem("ordini-ai","truck","Ordini AI consigliati"),
-                  navItem("whatsapp","bell","WhatsApp Bot", 0, false, true),
-                  navItem("documentary","barChart","Documentary AI", 0, false, true),
-                  navItem("azioni","sparkles","Azioni consigliate",azioniAperte),
-                ] })}
+              {/* La barra laterale disegna le stesse sezioni della barra in
+                  alto, prese dallo stesso elenco (src/lib/menuFoodos.js).
+                  Prima erano due elenchi scritti a mano, e si erano già
+                  allontanati: «Produzione» apriva due pagine diverse a
+                  seconda di quale delle due si toccava, «Trasferimenti»
+                  compariva in una e non nell'altra con una sede archiviata,
+                  e due voci avevano icone diverse. */}
+              {SEZIONI.map(sec => (
+                <React.Fragment key={sec.id}>{
+                sec.voci.length === 1
+                  // Una sezione con una voce sola non merita un titolo che si
+                  // apre e si chiude: si mostra la voce e basta. Capita al
+                  // dipendente, che leggeva «Acquisti & Fornitori» e sotto
+                  // trovava una riga.
+                  ? navItem(sec.voci[0].id, sec.voci[0].icona, sec.voci[0].label,
+                            sec.voci[0].badge || 0, !!sec.voci[0].allarme, !!sec.voci[0].badgeCatena)
+                  : Group({
+                      id: sec.id, iconKey: sec.icona, label: sec.label, badge: sec.badge || 0,
+                      alert: sec.voci.some(v => v.allarme),
+                      children: sec.voci.map(v => navItem(v.id, v.icona, v.label, v.badge || 0, !!v.allarme, !!v.badgeCatena)),
+                    })
+                }</React.Fragment>
+              ))}
 
               {/* In fondo, senza gruppo: impostazioni e novità */}
               <div style={{ height: 1, background:"rgba(255,255,255,0.06)", margin:"12px 16px 8px" }}/>
@@ -3293,15 +3201,15 @@ export default function Dashboard({
             // Bottom nav mobile allineata alla nuova sezione "Oggi" del NAV:
             // 4 azioni (Produzione, Cassa, Magazzino, Calendario) + "Altro".
             // "Inventario gusti" → label "Produzione" per uniformità.
-            const BOTTOM_NAV = [
-              isInv
-                ? {id:"inventario-gusti", icon:"cal", label:"Produzione", alert:!hasProdOggi&&new Date().getHours()>=6}
-                : {id:"giornaliero", icon:"cal", label:"Produzione", alert:!hasProdOggi&&new Date().getHours()>=6},
-              {id:"chiusura",    icon:"creditCard", label:"Cassa",      alert:cassaMancante},
-              {id:"magazzino",   icon:"pkg",        label:"Magazzino",  badge:criticeMag},
-              {id:"calendario",  icon:"cal",        label:"Calendario"},
-              {id:"__more",      icon:"menu",       label:"Altro"},
-            ].filter(item => item.id === "__more" || !isDip || DIPENDENTE_VIEWS.has(item.id) || item.id === 'inventario-gusti');
+            // Le cinque voci in basso sono le prime quattro di "Oggi" più
+            // "Altro", prese dallo stesso elenco delle altre due barre: sono
+            // le cose che si *fanno* ogni giorno. Prima erano riscritte qui
+            // a mano, quinta copia della stessa informazione.
+            const BOTTOM_NAV = menuTelefono(SEZIONI).map(v => ({
+              id: v.id === '__altro' ? '__more' : v.id,
+              icon: v.icona, label: v.label,
+              badge: v.badge, alert: v.allarme,
+            }));
             return (
               <nav style={{position:"fixed",bottom:0,left:0,right:0,zIndex:Z.bottomNav,
                 background:"rgba(255,255,255,0.94)",
@@ -3377,43 +3285,12 @@ export default function Dashboard({
             contenuto (trasparente, niente bordo, NON sticky) → niente più "barra
             grigia" che resta in alto. Nascosta sulla home (l'hero fa da intestazione). */}
         {!isMobile&&view!=="home"&&(()=>{
-          const VIEW_LABELS = {
-            home:"Dashboard", giornaliero:"Produzione", "inventario-gusti":"Produzione",
-            "quadratura-inventario":"Quadratura inventario",
-            chiusura:"Cassa", eventi:"Eventi",
-            ricettario:LEX.Ricettario, semilavorati:"Semilavorati", "nuova-ricetta":LEX.nuovaRicetta,
-            simulatore:"Food Cost", pl:"P&L", "costi-aziendali":"Costi aziendali",
-            magazzino:"Magazzino", scadenzario:"Scadenzario", fornitori:"Fornitori", "vendite-b2b":"Vendite B2B",
-            personale:"Personale", haccp:"HACCP", menu:"Menù",
-            azioni:"AI Assistant", integrazioni:"Integrazioni", storico:"Storico",
-            calendario:"Calendario", previsione:"Previsioni",
-            "scheda-allergeni":"Scheda allergeni", impostazioni:"Impostazioni",
-            "sprechi-omaggi":"Perdite & cessioni",
-            "confronto-sedi":"Confronto sedi", trasferimenti:"Trasferimenti", changelog:"Novità",
-            "importa-dati":"Importa dati", "registro-attivita":"Registro attività",
-            // Audit 2026-06-22: rimosso blocco duplicato (le chiavi seconde
-            // sovrascrivevano le prime, ma alcune label avevano testo migliore).
-            // Mantenuti i label migliori del set "18 feature AI 2026-06".
-            recensioni:"Recensioni AI", "menu-engineering":"Menu engineering", cashflow:"Cashflow",
-            forecast:"Forecast AI", reformulation:"Ottimizza ricette AI", "ordini-ai":"Ordini AI fornitori",
-            "competitor-pricing":"Pricing vs competitor", "ai-brain":"Foodos Brain", "ricette-ai":"Inventa ricette AI",
-            marketplace:"Marketplace", whatsapp:"WhatsApp Bot", documentary:"Documentary AI",
-            "ai-hub":"AI",
-          };
-          const VIEW_GROUPS = {
-            home:"", giornaliero:"Oggi", chiusura:"Oggi", eventi:"Oggi", calendario:"Oggi",
-            ricettario:"Ricette & Menù", semilavorati:"Ricette & Menù", "nuova-ricetta":"Ricette & Menù",
-            "scheda-allergeni":"Ricette & Menù", menu:"Ricette & Menù",
-            simulatore:"Analisi & Numeri", pl:"Analisi & Numeri", "costi-aziendali":"Analisi & Numeri", storico:"Analisi & Numeri", previsione:"Analisi & Numeri", "vendite-b2b":"Analisi & Numeri",
-            magazzino:"Magazzino & Fornitori", scadenzario:"Magazzino & Fornitori", "sprechi-omaggi":"Magazzino & Fornitori",
-            fornitori:"Magazzino & Fornitori", "importa-dati":"Magazzino & Fornitori",
-            personale:"Azienda & Team", haccp:"Azienda & Team", "registro-attivita":"Azienda & Team", "confronto-sedi":"Azienda & Team", trasferimenti:"Azienda & Team", integrazioni:"Azienda & Team",
-            // Sezione AI (tutte le 23 funzioni)
-            "ai-hub":"AI", "ai-brain":"AI", forecast:"AI", cashflow:"AI", "menu-engineering":"AI", "competitor-pricing":"AI", "ordini-ai":"AI", reformulation:"AI", "ricette-ai":"AI", recensioni:"AI", whatsapp:"AI", marketplace:"AI", documentary:"AI", azioni:"AI",
-            impostazioni:"", changelog:"",
-          };
-          const label = VIEW_LABELS[view] || (typeof view==="string"?view:"");
-          const group = VIEW_GROUPS[view] || "";
+          // Come si chiama questa pagina e in che sezione sta. Prima erano
+          // due mappe scritte a mano qui dentro, e si erano scordate la
+          // riorganizzazione del 30/07/2026: citavano «Magazzino &
+          // Fornitori» e «Azienda & Team», sezioni che non esistono più.
+          // La riga sopra il titolo diceva quindi un nome sbagliato.
+          const { label, gruppo: group } = descriviVista(view, SEZIONI);
           return (
             // maxWidth 1200 + padding orizzontale = 0 sul desktop così:
             //   - title h1 left edge = left edge del subtitle/KPI cards/tabelle sotto
@@ -3473,26 +3350,12 @@ export default function Dashboard({
         })()}
         {/* Mobile topbar - sticky, flat */}
         {isMobile&&(()=>{
-          const MOBILE_LABELS = {
-            home:"Oggi", giornaliero:"Produzione", "inventario-gusti":"Produzione",
-            "quadratura-inventario":"Quadratura",
-            chiusura:"Cassa", eventi:"Eventi",
-            ricettario:LEX.Ricettario, semilavorati:"Semilavorati", "nuova-ricetta":LEX.nuovaRicetta,
-            simulatore:"Food Cost", pl:"P&L", "costi-aziendali":"Costi aziendali",
-            magazzino:"Magazzino", scadenzario:"Scadenzario", fornitori:"Fornitori", "vendite-b2b":"Vendite B2B",
-            personale:"Personale", haccp:"HACCP", menu:"Menù",
-            azioni:"AI Assistant", integrazioni:"Integrazioni", storico:"Storico",
-            calendario:"Calendario", previsione:"Previsioni",
-            forecast:"Forecast AI", cashflow:"Cashflow", "menu-engineering":"Menu eng.",
-            reformulation:"Ottimizza ricette", "competitor-pricing":"Pricing competitor",
-            "ai-brain":"Brain AI", "ricette-ai":"Inventa ricette", marketplace:"Marketplace",
-            whatsapp:"WhatsApp", documentary:"Documentary",
-            "ordini-ai":"Ordini AI", recensioni:"Recensioni AI",
-            "scheda-allergeni":"Allergeni", impostazioni:"Impostazioni", "sprechi-omaggi":"Perdite & cessioni",
-            "confronto-sedi":"Confronto sedi", trasferimenti:"Trasferimenti", changelog:"Novità",
-            "importa-dati":"Importa dati", "registro-attivita":"Registro attività",
-          };
-          const titolo = MOBILE_LABELS[view] || nomeAttivita || "Foodos";
+          // Il nome corto della pagina, per la barra stretta del telefono.
+          // Era la sesta copia dell'elenco delle pagine, con nomi che si
+          // erano allontanati da quelli del menu: qui si leggeva «AI
+          // Assistant» dove il menu diceva «Azioni consigliate», e «Forecast
+          // AI» dove il menu diceva «Forecast vendite 7gg».
+          const titolo = etichettaBreve(view, SEZIONI) || nomeAttivita || "Foodos";
           return (
             <div style={{position:"sticky",top:0,zIndex:Z.topbar,
               background:"rgba(247,248,250,0.86)",

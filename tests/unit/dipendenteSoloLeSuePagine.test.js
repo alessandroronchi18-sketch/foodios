@@ -28,9 +28,18 @@ const MIGR = readFileSync(
 
 // L'elenco vero, letto dal codice: se qualcuno ci aggiunge una pagina, i
 // controlli qui sotto lo seguono invece di restare fermi su una copia.
+//
+// Dal 15/09/2026 l'elenco sta in src/lib/menuFoodos.js, insieme al menu che
+// lo usa: era una delle otto copie a mano della stessa informazione dentro
+// Dashboard.jsx, e quelle copie erano già divergenti fra loro.
+const MENU = leggi('src', 'lib', 'menuFoodos.js')
+
 function elencoPermesse() {
-  const blocco = DASH.split('const DIPENDENTE_VIEWS = new Set([')[1].split('])')[0]
-  return [...blocco.matchAll(/'([a-z0-9-]+)'/g)].map(m => m[1])
+  const blocco = MENU.split('export const VISTE_DIPENDENTE = new Set([')[1].split('])')[0]
+  // Via i commenti, o si finisce per contare le pagine citate nelle
+  // spiegazioni invece di quelle davvero permesse.
+  const vive = blocco.split('\n').filter(r => !/^\s*\/\//.test(r)).join('\n')
+  return [...vive.matchAll(/'([a-z0-9-]+)'/g)].map(m => m[1])
 }
 
 describe('la pagina vietata non viene nemmeno disegnata', () => {
@@ -129,8 +138,13 @@ describe('le pagine del dipendente sono quelle e basta', () => {
     // dipendente che scarica il furgone alla sede. Ma **solo ricevere** — non
     // crea, non invia, non annulla: quello lo impediscono le funzioni sul
     // database (20260915f), non questa lista.
+    //
+    // 'haccp' tolto lo stesso giorno: era una voce morta. La pagina è in
+    // PAGINE_NASCOSTE dal 09/09/2026 e non si apre per nessuno — il
+    // dipendente se la vedeva elencata fra i suoi permessi e non ci sarebbe
+    // mai potuto entrare.
     expect(permesse.sort()).toEqual([
-      'calendario', 'changelog', 'chiusura', 'giornaliero', 'haccp',
+      'calendario', 'changelog', 'chiusura', 'giornaliero',
       'home-dipendente', 'impostazioni', 'inventario-gusti', 'magazzino',
       'sprechi-omaggi', 'trasferimenti',
     ])
@@ -142,6 +156,21 @@ describe('le pagine del dipendente sono quelle e basta', () => {
                      'storico', 'confronto-sedi', 'vendite-b2b', 'ricettario',
                      'simulatore', 'previsione']) {
       expect(permesse.has(v), `${v} non deve essere una pagina del dipendente`).toBe(false)
+    }
+  })
+})
+
+
+describe('nessuna pagina permessa è una porta murata', () => {
+  it('le pagine del dipendente si aprono davvero', () => {
+    // Una pagina che è fra i suoi permessi ma sta in PAGINE_NASCOSTE non si
+    // apre per nessuno: è una promessa che il programma non mantiene. È
+    // successo con 'haccp', rimasto in elenco dopo che la pagina era stata
+    // chiusa il 09/09/2026.
+    const nascoste = DASH.split('const PAGINE_NASCOSTE = new Set([')[1].split('])')[0]
+    const chiuse = new Set([...nascoste.matchAll(/'([a-z0-9-]+)'/g)].map(m => m[1]))
+    for (const v of elencoPermesse()) {
+      expect(chiuse.has(v), `"${v}" è fra le pagine del dipendente ma è una pagina chiusa`).toBe(false)
     }
   })
 })
