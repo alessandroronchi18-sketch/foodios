@@ -51,8 +51,22 @@ export function registerServiceWorker({ onUpdateAvailable } = {}) {
       // proposto con l'avviso "Nuova versione disponibile · Aggiorna".
       setTimeout(() => { _autoUpdateConsentito = false }, 60_000)
 
-      // Notifica se c'è già un SW in waiting.
-      if (reg.waiting) notifyUpdate()
+      // C'è già un aggiornamento pronto da un'altra volta?
+      //
+      // Qui si limitava a **proporlo**, e quello era il motivo per cui si
+      // riapriva l'app e si vedeva ancora la versione di ieri: l'aggiornamento
+      // era lì, pronto, dietro un avviso che si può non notare — e su un
+      // telefono, dove l'app si riapre venti volte al giorno, restava dietro
+      // quell'avviso per giorni.
+      //
+      // All'avvio non c'è niente da perdere: nessun modulo a metà, nessuna
+      // riga che stai scrivendo. Si applica e basta. È la stessa regola già
+      // scritta più sopra per il primo minuto, semplicemente non veniva
+      // applicata al caso più comune di tutti.
+      if (reg.waiting) {
+        if (_autoUpdateConsentito) applyUpdate()
+        else notifyUpdate()
+      }
 
       // Watch per nuovi SW che diventano installati.
       reg.addEventListener('updatefound', () => {
@@ -129,7 +143,14 @@ export function registerServiceWorker({ onUpdateAvailable } = {}) {
         _nascostaDa = null
         _autoUpdateConsentito = nascostaPer >= AUTO_UPDATE_DOPO_MS
 
-        if (Date.now() - _ultimoControllo < MIN_TRA_CONTROLLI_MS) return
+        // Se un aggiornamento è già pronto e si può applicare, si applica —
+        // senza aspettare il prossimo controllo. Chi riapre l'app dopo mezza
+        // giornata deve trovare la versione nuova, non un avviso.
+        if (_autoUpdateConsentito && reg.waiting) { applyUpdate(); return }
+
+        // Il freno sui controlli non vale quando si torna dopo tanto tempo:
+        // è esattamente il momento in cui vale la pena guardare.
+        if (!_autoUpdateConsentito && Date.now() - _ultimoControllo < MIN_TRA_CONTROLLI_MS) return
         _ultimoControllo = Date.now()
         reg.update().catch(() => {})
       })

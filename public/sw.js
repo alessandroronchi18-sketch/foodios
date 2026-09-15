@@ -10,7 +10,7 @@
 
 // IMPORTANT: bumpa questa versione ad ogni deploy con cambi UI/UX.
 // Altrimenti i client con SW attivo vedono il vecchio shell HTML/CSS.
-const CACHE_VERSION = 'foodos-2026-09-15-369de55';
+const CACHE_VERSION = 'foodos-2026-09-15-31beaee';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
@@ -249,8 +249,20 @@ self.addEventListener('notificationclick', (event) => {
 self.addEventListener('message', (event) => {
   if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
   if (event.data?.type === 'CLEAR_CACHE') {
+    // Si svuota tutto TRANNE il magazzino dei file con l'impronta.
+    //
+    // Prima cancellava anche quello, e annullava da solo il motivo per cui
+    // esiste: dopo ogni aggiornamento il telefono riscaricava 1,5 MB, compresi
+    // i file che non erano cambiati di una virgola. Un file il cui nome
+    // contiene l'impronta del contenuto non può MAI essere obsoleto — se
+    // cambia, cambia il nome — quindi buttarlo è lavoro sprecato e basta.
+    //
+    // Quello che va davvero buttato è la pagina HTML e i file dal nome
+    // stabile: lì una copia vecchia è un problema vero.
     event.waitUntil(
-      caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k))))
+      caches.keys().then((keys) => Promise.all(
+        keys.filter((k) => k !== ASSET_CACHE).map((k) => caches.delete(k))
+      ))
     );
   }
 });
