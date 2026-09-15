@@ -22,8 +22,8 @@
 > contrario.
 >
 > Ma la cosa che ha spostato di piu' il giudizio non e' nessuno di quei
-> difetti: e' che **tre strumenti di misura del progetto sono stati verificati
-> e trovati rotti**. Il comando che misura la copertura falliva a ogni
+> difetti: e' che **quattro strumenti di misura del progetto sono stati
+> verificati e trovati rotti**. Il comando che misura la copertura falliva a ogni
 > esecuzione da giugno. I test di accessibilita' giravano senza disegnare
 > niente, quindi il controllo del contrasto non veniva fatto — 467 scritte
 > illeggibili che nessuno poteva vedere. Il pannello di salute non sapeva
@@ -848,6 +848,13 @@ titolare del 14/09 e resta quello del fondo, del bordo e delle icone.
 Non è un cavillo da spuntare: chi usa Foodos ha spesso sessant'anni, lavora
 sotto i neon di un laboratorio e guarda il telefono con le mani infarinate.
 
+**Un quarto attrezzo trovato rotto**, e con questo sono quattro in due giorni.
+Il banco di prova che rende le pagine mostrava **166 campi di testo incorniciati
+di nero spesso**, su tutte le pagine. Non era il prodotto: happy-dom scrive
+`border: none` come `border: none none`, che è CSS non valido, e Chromium
+scarta la riga e rimette il bordo di sistema. Nel browser vero quel bordo non
+c'è. Senza verificarlo si sarebbero «corretti» 166 bordi che non esistono.
+
 **Una cosa che non ho corretto**, e conta: l'attrezzo segnalava tre scritte
 bianche su tessere bordeaux come «rapporto 1.05, invisibili». Non lo sono —
 axe non sa risalire il fondo quando c'è una sfumatura o un velo semitrasparente
@@ -914,13 +921,29 @@ E **`npm run test:coverage` falliva sempre**, da giugno 2026: le soglie erano
 finisce in rosso a ogni esecuzione smette di proteggere qualsiasi cosa, e
 nessuno se n'era accorto perché non gira né in CI né nel gate di push.
 
+### 12. Le date, per la terza volta
+
+Un test è fallito alle 00:30 del 16/09. Usava `new Date().toISOString().slice(0, 10)`,
+che dà la data in **UTC**, mentre il programma usa quella **locale**: in Italia,
+fra mezzanotte e le due, in UTC è ancora ieri. La sessione era datata 15 e la
+pagina cercava il 16.
+
+Corretto in quattro file di prova. Ma il punto non è il test: **è la terza
+volta che questa classe compare nel progetto**. La stessa conversione faceva
+salvare il 1° maggio come 30 aprile in tutti gli import (corretta il
+09/09/2026), e prima ancora nelle chiusure di cassa.
+
+Un test che usa UTC dove il programma usa la data locale non verifica il
+programma: verifica il fuso orario di chi lo lancia, e passa vent'ore su
+ventiquattro.
+
 ### Numeri della giornata
 
 | | Prima | Dopo |
 |---|---:|---:|
-| Test | 2.578 | **3.029** |
-| File di test | 180 | **201** |
-| Copertura (istruzioni) | 37,5% | **39,4%** |
+| Test | 2.578 | **3.121** |
+| File di test | 180 | **205** |
+| Copertura (istruzioni) | 37,5% | **40,0%** |
 | Scritte illeggibili | 467 | **0** |
 | `api/admin.js` | 3.035 righe | **2.357** |
 | Elenchi del menu scritti a mano | 8 | **1** |
@@ -934,11 +957,12 @@ erano vere — due piani in vendita che non si potevano comprare, un menu che
 prometteva cinque pagine che non possono funzionare, una demo che poteva
 mostrare i prodotti del cliente a cinquanta centesimi.
 
-**Ingegneria +1**: non per il numero di difetti, ma perché tre strumenti di
-misura del progetto sono stati **verificati e trovati rotti** — la copertura
+**Ingegneria +1**: non per il numero di difetti, ma perché quattro strumenti
+di misura del progetto sono stati **verificati e trovati rotti** — la copertura
 falliva sempre, l'accessibilità non misurava il contrasto, il pannello non
-sapeva distinguere un lavoro fermo da uno senza dati. Un progetto che si accorge
-che i propri strumenti mentono vale più di uno che ne aggiunge altri.
+sapeva distinguere un lavoro fermo da uno senza dati, e il banco di prova
+disegnava bordi che non esistono. Un progetto che si accorge che i propri
+strumenti mentono vale più di uno che ne aggiunge altri.
 
 **Business +1**: l'interruttore di quali piani sono in vendita è passato dal
 codice al pannello. È la differenza fra «per cambiare listino serve un
@@ -1112,12 +1136,12 @@ Lift business (+3) da: multi-sede pricing amplia target vs catene, laboratorio 1
 | Dimensione | Score | Δ 14/09 | Evidenza misurata |
 |---|---:|---:|---|
 | Sicurezza | **98** | **+1** | (15/09 sera) L'editor SQL del pannello **scriveva davvero**: `select admin_org_cascade_delete('<id>')` supera tutti e tre i controlli — comincia con SELECT, nessuna parola vietata, nessuna tabella nominata — e cancella un cliente intero. Provato in produzione dentro una transazione annullata: il valore è passato da 1 a 77. Chiuso su due livelli indipendenti, e quello che regge da solo è il database (transazione di sola lettura), non la regex. Più: l'invio email a nome di FoodOS non chiedeva il secondo fattore, e il testo delle query eseguite non finiva in nessun registro. **Resta il buco più importante: `auth.mfa_factors` ha zero righe su 2.025 utenti** — l'accesso all'admin è protetto da una sola password. La deroga ora si spegne da sola appena il fondatore attiva il secondo fattore (cinque minuti, schermata già pronta da giugno) |
-| Test | **95** | **+4** | **3.029 test verdi su 201 file** (2.578 su 180 stamattina, 346 su 33 a giugno). Ma il salto non è il numero: `npm run test:coverage` **falliva sempre** da giugno 2026 — soglie a 50 e 60 con la copertura vera al 27% — e nessuno se n'era accorto perché non gira né in CI né nel gate di push. Ora le soglie sono un cricchetto onesto (due punti sotto la misura reale) e il comando passa. Copertura 37,5% → 39,4%. `Dashboard.jsx`, il file più grande del progetto, ha finalmente 13 test che lo **montano** invece di leggerne il testo |
+| Test | **95** | **+4** | **3.121 test verdi su 205 file** (2.578 su 180 stamattina, 346 su 33 a giugno). Ma il salto non è il numero: `npm run test:coverage` **falliva sempre** da giugno 2026 — soglie a 50 e 60 con la copertura vera al 27% — e nessuno se n'era accorto perché non gira né in CI né nel gate di push. Ora le soglie sono un cricchetto onesto (due punti sotto la misura reale) e il comando passa. Copertura 37,5% → 40,0%. `Dashboard.jsx`, il file più grande del progetto, ha finalmente 13 test che lo **montano** invece di leggerne il testo |
 | Qualità codice | 89 | +1 | ESLint pulito su `src/` e `api/` (0 errori). Tre difetti di forma corretti scrivendo i test: un `if` che non poteva mai scattare, un `catch` che nascondeva un errore di scrittura, un confronto `=== 0` che su una colonna nulla non scattava mai |
 | Documentazione interna | 91 | +1 | `NEXT_STEPS.md` diceva due cose sbagliate sul secondo fattore, e seguirle alla lettera avrebbe **chiuso fuori il fondatore dal suo pannello**. Corrette. Il criterio resta: un documento che dichiara quanto non sa vale più di uno che sembra completo |
 | Database | 94 | = | 113 migration, tutte applicate e verificate in produzione via SQL diretto. Quella di oggi (`20260915h`) è di sicurezza |
 | **Prestazioni** | **85** | **+9** | Il pacchetto principale non è cambiato (516 kB, 159 gzip): sono cambiate due cose che si sentono di più. **A ogni rilascio ogni cliente riscaricava 1,5 MB** — il service worker teneva i file in una cache col nome della versione dentro e all'avvio cancellava il resto, mentre i nomi dei file contengono già l'impronta del contenuto: un file con lo stesso nome è identico per definizione. E il `dns-prefetch` verso `supabase.co` non serviva a niente (l'indirizzo vero è un sottodominio, e comunque il pezzo lungo è il collegamento sicuro, non il nome): ora c'è un `preconnect` all'indirizzo vero, fra il momento in cui si tocca l'icona e quello in cui si vedono i dati. **Per salire oltre**: il pacchetto principale a 516 kB, che non si spezza finché `Dashboard.jsx` non scende |
-| Mobile + tablet | 86 | +2 | Zero campi di testo sotto i 16px e zero pagine che scorrono di lato a 320/375/768/1440 px, rimisurate oggi. Il lavoro di rifinitura grafica delle pagine più usate è in corso a parte |
+| **Mobile + tablet** | **90** | **+6** | Zero campi di testo sotto i 16px e zero pagine che scorrono di lato a 320/375/768/1440 px. Più la rifinitura grafica delle **otto pagine più aperte**, fatta guardando le fotografie a 390px e non il codice. La peggiore: in Magazzino la tabella delle materie prime ha nove colonne e 760px di larghezza minima — su un telefono da 390 se ne vedevano tre e mezza, con l'intestazione tagliata a metà parola («GIOI SCOR»); adesso è una scheda per ingrediente. E nella pagina più usata di tutte (Produzione, 1.732 aperture) la striscia del giorno era gialla **tutti i giorni**, con sotto un riquadro giallo pieno per ogni gusto: con trenta gusti, trenta rettangoli d'allarme su una pagina dove non c'è niente che non va. Più 17 bersagli da 40px invece di 44, tutti con la stessa causa — la misura giusta scritta nel ramo sbagliato (`isTablet ? 44 : 40`), il tablet a posto e il telefono no |
 | **Architettura** | **85** | **+9** | `api/admin.js` da 3.035 a **2.357 righe**, sei moduli scorporati, nessuno oltre le trecento. Il menu tolto da `Dashboard.jsx` e messo in un file di soli dati. Non è ordine per l'ordine: **i difetti peggiori di oggi stavano tutti e due in quei file**, e nessuno era nascosto bene — erano nascosti dalla dimensione. Un test tiene la cosa: tetto di righe, nessun modulo che torna indietro a prendersi qualcosa dal file grande, nessun modulo scritto e mai usato. **Per salire oltre**: `Dashboard.jsx` a 3.724 righe resta layout, router e stato insieme |
 | **Accessibilità** | **88** | **+28** | Era 60 con la nota «WCAG mai validato per davvero», e il motivo era preciso: i test girano in happy-dom, che **non disegna niente**, quindi axe salta il controllo del contrasto e lo dichiara «incompleto», non «superato». Misurato in Chromium vero: **467 scritte sotto la soglia su 32 pagine**, di cui 291 da un solo colore — scelto misurandolo su bianco puro, mentre le pagine di Foodos sono panna. **Adesso sono zero**, rimisurate a lavoro finito: 32 pagine, due larghezze ciascuna. **Per salire oltre**: i lettori di schermo non sono mai stati provati, e non lo si può dichiarare senza averlo fatto |
 | DevOps / CI | 88 | +2 | Il gate pre-push (lint + test + build) ha fermato tre push oggi, ogni volta per un motivo vero. Il cricchetto sui token di design ha fermato sei crescite. Il comando di copertura è tornato utilizzabile |
