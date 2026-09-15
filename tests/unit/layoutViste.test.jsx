@@ -18,7 +18,10 @@ import React from 'react'
 import { mkdirSync, writeFileSync } from 'node:fs'
 
 const ATTIVO = !!process.env.DUMP_LAYOUT
-const FUORI = '/private/tmp/claude-501/-Users-aler/7259be07-0e07-42ba-9be1-e672e3a32c10/scratchpad/viste'
+// Dove finiscono le pagine rese. Si può cambiare con DIR_VISTE, che è come
+// gira in CI: là la cartella temporanea di questo computer non esiste.
+const FUORI = process.env.DIR_VISTE
+  || '/private/tmp/claude-501/-Users-aler/7259be07-0e07-42ba-9be1-e672e3a32c10/scratchpad/viste'
 
 function fluente(res = { data: [], error: null }) {
   const h = { get(_t, p) {

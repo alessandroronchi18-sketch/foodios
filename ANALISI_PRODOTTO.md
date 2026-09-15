@@ -840,8 +840,9 @@ il calcolo con cui era stato scelto nel giugno 2026 — ma le pagine di Foodos
 non sono bianche: il fondo è `#FAF7F2`, le tessere `#FDFAF7`, le tabelle
 `#F8F4F2`. Lì scendeva a 4.31. Da quel solo colore venivano **291 delle 467**.
 
-Tre token corretti, e ne cadono 434 su 467. Più `redDark` per il testo sopra il
-rosso chiaro — il rosso segnale `#DC2626` **non cambia**, è la scelta del
+Tre token corretti, e ne cadono 434 su 467. Le ultime 30 sono cadute con la
+rifinitura grafica delle due pagine più usate: **rimisurato a lavoro finito, il
+conteggio è zero**. Più `redDark` per il testo sopra il rosso chiaro — il rosso segnale `#DC2626` **non cambia**, è la scelta del
 titolare del 14/09 e resta quello del fondo, del bordo e delle icone.
 
 Non è un cavillo da spuntare: chi usa Foodos ha spesso sessant'anni, lavora
@@ -920,7 +921,7 @@ nessuno se n'era accorto perché non gira né in CI né nel gate di push.
 | Test | 2.578 | **3.029** |
 | File di test | 180 | **201** |
 | Copertura (istruzioni) | 37,5% | **39,4%** |
-| Scritte illeggibili | 467 | **30** |
+| Scritte illeggibili | 467 | **0** |
 | `api/admin.js` | 3.035 righe | **2.357** |
 | Elenchi del menu scritti a mano | 8 | **1** |
 | Comandi admin che non partivano | 6 | **0** |
@@ -1118,7 +1119,7 @@ Lift business (+3) da: multi-sede pricing amplia target vs catene, laboratorio 1
 | **Prestazioni** | **85** | **+9** | Il pacchetto principale non è cambiato (516 kB, 159 gzip): sono cambiate due cose che si sentono di più. **A ogni rilascio ogni cliente riscaricava 1,5 MB** — il service worker teneva i file in una cache col nome della versione dentro e all'avvio cancellava il resto, mentre i nomi dei file contengono già l'impronta del contenuto: un file con lo stesso nome è identico per definizione. E il `dns-prefetch` verso `supabase.co` non serviva a niente (l'indirizzo vero è un sottodominio, e comunque il pezzo lungo è il collegamento sicuro, non il nome): ora c'è un `preconnect` all'indirizzo vero, fra il momento in cui si tocca l'icona e quello in cui si vedono i dati. **Per salire oltre**: il pacchetto principale a 516 kB, che non si spezza finché `Dashboard.jsx` non scende |
 | Mobile + tablet | 86 | +2 | Zero campi di testo sotto i 16px e zero pagine che scorrono di lato a 320/375/768/1440 px, rimisurate oggi. Il lavoro di rifinitura grafica delle pagine più usate è in corso a parte |
 | **Architettura** | **85** | **+9** | `api/admin.js` da 3.035 a **2.357 righe**, sei moduli scorporati, nessuno oltre le trecento. Il menu tolto da `Dashboard.jsx` e messo in un file di soli dati. Non è ordine per l'ordine: **i difetti peggiori di oggi stavano tutti e due in quei file**, e nessuno era nascosto bene — erano nascosti dalla dimensione. Un test tiene la cosa: tetto di righe, nessun modulo che torna indietro a prendersi qualcosa dal file grande, nessun modulo scritto e mai usato. **Per salire oltre**: `Dashboard.jsx` a 3.724 righe resta layout, router e stato insieme |
-| **Accessibilità** | **85** | **+25** | Era 60 con la nota «WCAG mai validato per davvero», e il motivo era preciso: i test girano in happy-dom, che **non disegna niente**, quindi axe salta il controllo del contrasto e lo dichiara «incompleto», non «superato». Misurato in Chromium vero: **467 scritte sotto la soglia su 32 pagine**, di cui 291 da un solo colore — scelto misurandolo su bianco puro, mentre le pagine di Foodos sono panna. Adesso sono 30, tutte in due pagine in lavorazione. **Per salire oltre**: i lettori di schermo non sono mai stati provati, e non lo si può dichiarare senza averlo fatto |
+| **Accessibilità** | **88** | **+28** | Era 60 con la nota «WCAG mai validato per davvero», e il motivo era preciso: i test girano in happy-dom, che **non disegna niente**, quindi axe salta il controllo del contrasto e lo dichiara «incompleto», non «superato». Misurato in Chromium vero: **467 scritte sotto la soglia su 32 pagine**, di cui 291 da un solo colore — scelto misurandolo su bianco puro, mentre le pagine di Foodos sono panna. **Adesso sono zero**, rimisurate a lavoro finito: 32 pagine, due larghezze ciascuna. **Per salire oltre**: i lettori di schermo non sono mai stati provati, e non lo si può dichiarare senza averlo fatto |
 | DevOps / CI | 88 | +2 | Il gate pre-push (lint + test + build) ha fermato tre push oggi, ogni volta per un motivo vero. Il cricchetto sui token di design ha fermato sei crescite. Il comando di copertura è tornato utilizzabile |
 | **Osservabilità** | **88** | **+10** | Dei sette lavori notturni **non restava traccia di nessuno**: il pannello capiva se uno funzionava guardando se la sua tabella avesse righe nuove, ed è il motivo per cui «la previsione non ha dati» e «la previsione non gira» si leggevano identici. Ora ogni passo lascia la sua riga e il pannello dice tre cose diverse. Più: il registro errori non nasconde più i propri fallimenti, e le chiamate all'AI sono contate tutte e cinque invece di una |
 

@@ -42,6 +42,25 @@ jobs:
           TEST_ORG_ID: ${{ vars.TEST_ORG_ID }}
         run: npx playwright test
 
+      # ── Il contrasto dei colori, in un browser vero ────────────────────
+      #
+      # I test di accessibilità della suite girano in happy-dom, che non
+      # disegna niente: axe salta il controllo del contrasto e lo dichiara
+      # «incompleto», non «superato». È il motivo per cui il 15/09/2026 sono
+      # state trovate 467 scritte illeggibili che nessuno poteva vedere.
+      #
+      # Qui gira in Chromium: rende le 32 pagine, le apre a due larghezze e
+      # misura. Se qualcuno sceglie un colore guardandolo su bianco — che è
+      # esattamente l'errore di partenza, perché le pagine di Foodos sono
+      # panna — questo passo lo ferma.
+      - name: Contrasto colori (32 pagine, due larghezze)
+        env:
+          VITE_SUPABASE_URL: https://test.supabase.co
+          VITE_SUPABASE_ANON_KEY: test
+        run: |
+          DUMP_LAYOUT=1 DIR_VISTE="$RUNNER_TEMP/viste" npx vitest run tests/unit/layoutViste.test.jsx
+          DIR_VISTE="$RUNNER_TEMP/viste" node scripts/audit-contrasto.mjs
+
       - name: Upload Playwright report
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
