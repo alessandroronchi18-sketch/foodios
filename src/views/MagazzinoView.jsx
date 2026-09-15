@@ -6,7 +6,9 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
-import { color as T, radius as R, shadow as S, motion as M, typo, ui3, ui } from '../lib/theme'
+import { color as T, radius as R, shadow as S, motion as M, typo, font, ui3, ui } from '../lib/theme'
+// Scorciatoia alle misure del testo dai token (font.size).
+const FS = font.size
 import { ssave as _ssave } from '../lib/storage'
 import { todayLocal, formatLocalDate } from '../lib/dateLocal'
 import { normIng, getR, translateIngredienteEN, buildIngCosti } from '../lib/foodcost'
@@ -56,13 +58,32 @@ const SHADOW_PREMIUM = '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42
 
 // ─── Section header con barra brand (gerarchia premium) ──────────────────────
 function SectHead({ icon, title, sub, right }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-      <span style={{ width: 36, height: 36, borderRadius: 11, background: 'rgba(110,14,26,0.10)', color: T.brand, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>{icon}</span>
+  const isMobile = useIsMobile()
+  // Sul telefono i comandi a destra vanno sotto, non accanto.
+  // Con "kg | g" e "+ Aggiungi" appoggiati al bordo destro, al titolo
+  // restavano 150px: "Giacenze, soglie di riordino e giorni di scorta"
+  // scendeva su quattro righe in una colonnina, e il riquadro cresceva in
+  // altezza per far posto a due bottoni larghi in tutto 150.
+  const testa = (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, flex: 1 }}>
+      <span style={{ width: 36, height: 36, borderRadius: R.lg, background: 'rgba(110,14,26,0.10)', color: T.brand, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>{icon}</span>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 15, fontWeight: 700, color: T.text, letterSpacing: '-0.01em' }}>{title}</div>
         {sub && <div style={{ fontSize: 12, color: T.textSoft, marginTop: 1 }}>{sub}</div>}
       </div>
+    </div>
+  )
+  if (isMobile && right) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 12 }}>
+        {testa}
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>{right}</div>
+      </div>
+    )
+  }
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+      {testa}
       {right}
     </div>
   )
@@ -230,7 +251,7 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
   if (loading) return <div style={{ padding: 24, textAlign: 'center', color: C.textSoft, fontSize: 13 }}>Caricamento…</div>
   // Quando il dato non c'è non si mostrano zeri: si dice che non si è letto.
   if (erroreLettura) return (
-    <div style={{ background: C.bgCard, border: `1px solid ${C.alert}40`, borderRadius: 18, padding: '32px 24px', textAlign: 'center', boxShadow: SHADOW_PREMIUM }}>
+    <div style={{ background: C.bgCard, border: `1px solid ${C.alert}40`, borderRadius: R['2xl'], padding: '32px 24px', textAlign: 'center', boxShadow: SHADOW_PREMIUM }}>
       <div style={{ marginBottom: 10, color: C.alert }}><Icon name="alert" size={30} /></div>
       <div style={{ ...typo.body, fontWeight: 700, color: C.text, marginBottom: 6 }}>
         Non riesco a leggere lo stock di questa sede
@@ -324,7 +345,7 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
       </div>
 
       {stock.length === 0 ? (
-        <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, padding: '40px 20px', textAlign: 'center', color: C.textSoft, fontSize: 13, boxShadow: SHADOW_PREMIUM }}>
+        <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: R['2xl'], padding: '40px 20px', textAlign: 'center', color: C.textSoft, fontSize: 13, boxShadow: SHADOW_PREMIUM }}>
           <div style={{ marginBottom: 8, color: C.textSoft }}><Icon name="package" size={36} /></div>
           Nessun prodotto in stock per questa sede.<br/>
           {/* Audit 2026-09-09: diceva solo "alla conferma di una sessione di
@@ -336,7 +357,7 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
           settimanale se hai attivato quel metodo.
         </div>
       ) : (
-        <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, overflowX: 'auto', marginBottom: 20, boxShadow: SHADOW_PREMIUM }}>
+        <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: R['2xl'], overflowX: 'auto', marginBottom: 20, boxShadow: SHADOW_PREMIUM }}>
           {/* Audit 2026-09-09: il wrapper ha overflowX auto ma la tabella era
               a width 100% senza minWidth, quindi non superava mai il contenitore
               e lo scroll non partiva: su telefono cinque colonne si schiacciano
@@ -401,7 +422,7 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
           non sa se ha sbagliato a cercare o se non l'ha mai registrato, e lo
           registra di nuovo: una doppia scrittura vera nei dati. */}
       {movimenti.length === 0 ? (
-        <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, padding: '22px 20px', textAlign: 'center', color: C.textSoft, fontSize: typo.small.fontSize, boxShadow: SHADOW_PREMIUM }}>
+        <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: R['2xl'], padding: '22px 20px', textAlign: 'center', color: C.textSoft, fontSize: typo.small.fontSize, boxShadow: SHADOW_PREMIUM }}>
           Ancora nessun movimento in questa sede. Qui compaiono le produzioni, le
           vendite, gli scarti e i trasferimenti, dal più recente.
         </div>
@@ -416,7 +437,7 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
               ? `Gli ultimi ${movLimite}: ce ne sono altri più indietro`
               : `Tutti i ${movimenti.length} movimenti di questa sede`} />
 
-          <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, overflow: 'hidden', boxShadow: SHADOW_PREMIUM }}>
+          <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: R['2xl'], overflow: 'hidden', boxShadow: SHADOW_PREMIUM }}>
             {/* Audit 2026-09-09: il wrapper esterno e' `overflow: hidden` e la
                 tabella non aveva minWidth. Le celle data e causale hanno
                 whiteSpace nowrap, quindi spingono la larghezza oltre il
@@ -743,7 +764,7 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
         </div>
       )}
 
-      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, overflow: 'hidden', boxShadow: SHADOW_PREMIUM }}>
+      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: R['2xl'], overflow: 'hidden', boxShadow: SHADOW_PREMIUM }}>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, minWidth: 480 }}>
             <thead>
@@ -930,6 +951,155 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
 }
 
 // ─── MagazzinoView (main) ────────────────────────────────────────────────────
+
+// ─── Magazzino sul telefono: schede, non una tabella da nove colonne ────────
+//
+// La tabella delle materie prime ha nove colonne più le azioni e una larghezza
+// minima di 760px. Su un telefono da 390 sta dentro un contenitore che scorre
+// di lato: nella fotografia si vedono tre colonne e mezza, l'intestazione
+// tagliata a metà parola ("GIOI SCOR"), e per leggere il valore di un
+// ingrediente bisogna trascinare la tabella e poi ritrovare la riga giusta.
+// Una tabella larga su uno schermo stretto non è una tabella: è un cassetto.
+//
+// Qui gli stessi dati, con le stesse parole delle intestazioni, diventano una
+// scheda per ingrediente. Le tre cose che si guardano in laboratorio — nome,
+// quanto ce n'è, per quanti giorni basta — stanno in alto e grandi; il resto
+// sotto, in una riga di dettagli; le azioni in fondo, dove arriva il pollice.
+// L'ordinamento non si perde: le stesse nove chiavi della tabella stanno in un
+// menù a tendina, come nel Ricettario.
+function SchedeMagazzino({ righe, vuoto, consumoStimato, isDipendente, editSoglia, setEditSoglia,
+  onSoglia, onAggiungi, onCarica, onElimina, chiave, dir, onOrdina, f }) {
+  const COLONNE = [
+    ['stato', 'Stato'], ['nome', 'Ingrediente'], ['giacenza', 'Giacenza'],
+    ['fabb', 'Fabb. sett.'], ['giorniScorta', 'Giorni scorta'], ['valore', 'Valore'],
+    ['riordino', 'Da ordinare'], ['soglia', 'Soglia alert'], ['ultimoRif', 'Ultimo riforn.'],
+  ]
+  if (vuoto) {
+    return (
+      <div style={{ padding: '36px 20px', textAlign: 'center' }}>
+        <div style={{ color: C.textSoft, marginBottom: 10 }}><Icon name="package" size={30} /></div>
+        <div style={{ ...typo.body, fontWeight: 700, color: C.text, marginBottom: 6 }}>Il magazzino è vuoto</div>
+        <div style={{ ...typo.small, color: C.textSoft, lineHeight: 1.55, maxWidth: 420, margin: '0 auto 14px' }}>
+          Aggiungi il primo ingrediente, oppure carica il ricettario: gli ingredienti delle ricette compaiono qui da soli.
+        </div>
+        <button onClick={onAggiungi}
+          style={{ padding: '0 16px', minHeight: 44, background: C.red, color: C.white, border: 'none', borderRadius: R.md, ...typo.small, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+          Aggiungi ingrediente
+        </button>
+      </div>
+    )
+  }
+  return (
+    <div>
+      {/* L'ordinamento della tabella non si perde passando alle schede: le
+          stesse nove chiavi stanno qui, con un bottone per il verso.
+          Il bottone serve davvero: scegliendo dal menù la voce già scelta il
+          browser non avvisa nessuno, e il verso non si potrebbe più girare. */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+        <select value={chiave} onChange={e => onOrdina(e.target.value)}
+          aria-label="Ordina gli ingredienti"
+          style={{ flex: 1, minWidth: 0, padding: '10px 32px 10px 12px', minHeight: 44,
+            border: `1px solid ${C.border}`, borderRadius: R.md, fontSize: FS.lg,
+            color: C.text, background: C.bgCard, cursor: 'pointer', fontFamily: 'inherit', outline: 'none' }}>
+          {COLONNE.map(([k, lbl]) => <option key={k} value={k}>{lbl}</option>)}
+        </select>
+        <button onClick={() => onOrdina(chiave)}
+          aria-label={dir === 'asc' ? 'Ordina dal più grande' : 'Ordina dal più piccolo'}
+          style={{ width: 44, height: 44, flexShrink: 0, border: `1px solid ${C.border}`, borderRadius: R.md,
+            background: C.bgCard, color: C.textMid, fontSize: FS.lg, fontWeight: 700, cursor: 'pointer' }}>
+          {dir === 'asc' ? '↑' : '↓'}
+        </button>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {righe.map(r => {
+          const col = f.statoColor(r.stato)
+          const daOrdinare = (r.stato === 'critico' || r.stato === 'esaurito' || r.stato === 'attenzione') && f.fmtRiordino(r.riordinoG)
+          return (
+            <div key={r.k} style={{
+              background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: R['2xl'],
+              padding: 16, boxShadow: S.xs,
+            }}>
+              {/* Nome e stato: la prima cosa e la più importante. */}
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 12 }}>
+                <div style={{ fontSize: FS.lg, fontWeight: 700, color: C.text, textTransform: 'capitalize', letterSpacing: '-0.01em', minWidth: 0 }}>{r.nome}</div>
+                <span style={{ background: f.statoBg(r.stato), color: col, fontSize: FS.sm, fontWeight: 700,
+                  padding: '3px 9px', borderRadius: R.lg, letterSpacing: '0.06em', textTransform: 'uppercase',
+                  whiteSpace: 'nowrap', flexShrink: 0 }}>{f.statoLabel(r.stato)}</span>
+              </div>
+
+              {/* Quanto ce n'è e per quanti giorni basta: i due numeri per cui
+                  si apre il magazzino. Incolonnati fra loro e a destra. */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontSize: FS.sm, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textMid, minHeight: 18 }}>Giacenza</div>
+                  <div style={{ fontSize: FS.xl, fontWeight: 800, color: col, ...TNUM, lineHeight: 1.2 }}>{f.fmtG(r.giacenza)}</div>
+                  {r.fabb > 0 && (
+                    <div style={{ width: '100%', maxWidth: 90, height: 4, background: C.borderStr, borderRadius: R.full, marginTop: 6 }}>
+                      <div style={{ width: `${Math.min(100, (r.giacenza / r.fabb) * 100)}%`, height: 4, background: col, borderRadius: R.full }}/>
+                    </div>
+                  )}
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: FS.sm, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textMid, minHeight: 18 }}>Giorni scorta</div>
+                  <div style={{ fontSize: FS.xl, fontWeight: 800, color: col, ...TNUM, lineHeight: 1.2 }}>{f.fmtGiorniScorta(r.giorniScorta, consumoStimato)}</div>
+                </div>
+              </div>
+
+              {/* Il resto delle colonne, in chiaro invece che da cercare
+                  trascinando la tabella di lato. */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 14px', fontSize: FS.sm, color: C.textSoft, ...TNUM, marginBottom: 12 }}>
+                <span>Fabb. sett. <b style={{ color: C.textMid }}>{r.fabb > 0 ? f.fmtG(r.fabb) : '-'}</b></span>
+                <span>Valore <b style={{ color: r.valore > 0 ? C.text : C.textSoft }}>{r.valore > 0 ? fmt0(r.valore) : '-'}</b>
+                  {!isDipendente && r.valore > 0 && r.costoKg > 0 && (
+                    <> ({r.costoKg.toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/kg{r.prezzoStimato ? ' · stima' : ''})</>
+                  )}
+                </span>
+                <span>Ultimo riforn. <b style={{ color: C.textMid }}>{r.ultimoRif ? new Date(r.ultimoRif).toLocaleDateString('it-IT') : '-'}</b></span>
+              </div>
+
+              {daOrdinare && (
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: R.md,
+                  background: f.statoBg(r.stato), color: col, fontWeight: 800, fontSize: FS.sm, marginBottom: 12, ...TNUM }}>
+                  <Icon name="truck" size={11} /><span style={{ whiteSpace: 'nowrap' }}>Da ordinare ~ {f.fmtRiordino(r.riordinoG)}</span>
+                </div>
+              )}
+
+              {/* Le azioni in fondo, alla portata del pollice, tutte da 44px. */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, borderTop: `1px solid ${C.borderSoft}`, paddingTop: 12 }}>
+                {editSoglia?.nome === r.k ? (
+                  <>
+                    <input type="number" value={editSoglia.val} min="0" step="1"
+                      aria-label="Soglia di riordino in grammi" placeholder="es. 500"
+                      onChange={e => setEditSoglia({ ...editSoglia, val: e.target.value })}
+                      style={{ flex: 1, minWidth: 0, padding: '5px 10px', minHeight: 44, borderRadius: R.md, border: `1px solid ${C.borderStr}`, fontSize: FS.lg, textAlign: 'right' }}/>
+                    <span style={{ fontSize: FS.sm, color: C.textSoft, fontWeight: 600 }}>g</span>
+                    <button onClick={() => onSoglia(r.k, editSoglia.val)} aria-label="Conferma la soglia"
+                      style={{ width: 44, height: 44, background: C.green, color: C.white, border: 'none', borderRadius: R.md, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Icon name="check" size={15} /></button>
+                  </>
+                ) : (
+                  <>
+                    <button onClick={() => setEditSoglia({ nome: r.k, val: r.soglia || '' })}
+                      style={{ flex: 1, minWidth: 0, padding: '0 10px', minHeight: 44, borderRadius: R.md, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: FS.sm, fontWeight: 600, cursor: 'pointer', ...TNUM, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      Soglia alert {r.soglia > 0 ? f.fmtG(r.soglia) : ''}
+                    </button>
+                    <button onClick={() => onCarica(r)} title={`Carica ${r.nome} in magazzino`}
+                      style={{ padding: '0 14px', minHeight: 44, borderRadius: R.md, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: FS.sm, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                      <Icon name="plus" size={12} />Carica
+                    </button>
+                    <button aria-label={`Elimina ${r.nome}`} onClick={() => onElimina(r)} title="Elimina questo ingrediente"
+                      style={{ width: 44, height: 44, borderRadius: R.md, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textSoft, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Icon name="trash" size={14} /></button>
+                  </>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 export default function MagazzinoView({
   ricettario, magazzino, setMagazzino, logRif, setLogRif,
   logPrezzi = [], onUpdatePrezzoIng, giornaliero, notify,
@@ -1474,7 +1644,10 @@ export default function MagazzinoView({
   // 'mai_contato' e' grigio, non rosso: non e' un allarme ma un'informazione.
   // Nel magazzino reale di Mara sono 40 ingredienti su 48, e quando l'allarme
   // e' sempre acceso copre i tre che sono davvero finiti.
-  const statoColor = s => s === 'negativo' ? C.alert : s === 'mai_contato' ? C.textSoft : s === 'esaurito' ? C.alert : s === 'critico' ? C.amber : s === 'attenzione' ? C.textMid : C.green
+  // Il testo va sopra `statoBg`, che per «negativo» ed «esaurito» è rosso
+  // chiaro: lì serve il rosso scuro, o la scritta più importante della pagina
+  // è quella che si legge peggio.
+  const statoColor = s => s === 'negativo' ? C.alertDark : s === 'mai_contato' ? C.textSoft : s === 'esaurito' ? C.alertDark : s === 'critico' ? C.amber : s === 'attenzione' ? C.textMid : C.green
   const statoBg = s => s === 'negativo' ? C.alertLight : s === 'mai_contato' ? C.bgSubtle : s === 'esaurito' ? C.alertLight : s === 'critico' ? C.amberLight : s === 'attenzione' ? C.bgSubtle : C.greenLight
   // "Critico" per un ingrediente che ha toccato la soglia di riordino e' la
   // parola sbagliata: la soglia esiste proprio per dire quando ordinare, e
@@ -1619,8 +1792,8 @@ export default function MagazzinoView({
           const nIng = (n) => `${n} ${n === 1 ? 'ingrediente' : 'ingredienti'}`
           const sem = salute === 'critico'
             ? negativi.length > 0
-              ? { col: C.alert, bg: 'rgba(220,38,38,0.10)', lbl: negativi.length === 1 ? 'Una giacenza è sotto zero' : 'Giacenze sotto zero', ic: 'alert' }
-              : { col: C.alert, bg: 'rgba(220,38,38,0.10)', lbl: esauriti.length === 1 ? 'Un ingrediente è finito' : 'Ingredienti finiti', ic: 'alert' }
+              ? { col: C.alertDark, bg: 'rgba(220,38,38,0.10)', lbl: negativi.length === 1 ? 'Una giacenza è sotto zero' : 'Giacenze sotto zero', ic: 'alert' }
+              : { col: C.alertDark, bg: 'rgba(220,38,38,0.10)', lbl: esauriti.length === 1 ? 'Un ingrediente è finito' : 'Ingredienti finiti', ic: 'alert' }
             : salute === 'attenzione'
             ? { col: C.textMid, bg: T.bgSubtle, lbl: 'Da mettere in lista', ic: 'cart' }
             : { col: C.green, bg: 'rgba(22,163,74,0.12)', lbl: 'Scorte in equilibrio', ic: 'checkCircle' }
@@ -1638,7 +1811,7 @@ export default function MagazzinoView({
             : 'Le giacenze coprono il fabbisogno previsto.'
           return (
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', marginBottom: 14,
-              background: sem.bg, border: `1px solid ${sem.col}33`, borderRadius: 14 }}>
+              background: sem.bg, border: `1px solid ${sem.col}33`, borderRadius: R['2xl'] }}>
               <span style={{ width: 30, height: 30, borderRadius: '50%', background: sem.col, color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <Icon name={sem.ic} size={16} />
               </span>
@@ -1738,7 +1911,7 @@ export default function MagazzinoView({
         const nascosti = Math.max(0, daRiordinare.length - RIORDINO_VISIBILI)
         const visibili = riordinoTutti ? daRiordinare : daRiordinare.slice(0, RIORDINO_VISIBILI)
         return (
-          <div id="riordino-urgente" style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, overflow: 'hidden', marginBottom: 24, boxShadow: SHADOW_PREMIUM, scrollMarginTop: 70 }}>
+          <div id="riordino-urgente" style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: R['2xl'], overflow: 'hidden', marginBottom: 24, boxShadow: SHADOW_PREMIUM, scrollMarginTop: 70 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 18px', borderBottom: `1px solid ${C.border}`,
               background: 'linear-gradient(135deg, #6E0E1A 0%, #4A0612 100%)' }}>
               <span style={{ width: 32, height: 32, borderRadius: 10, background: 'rgba(255,255,255,0.16)', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -1758,6 +1931,44 @@ export default function MagazzinoView({
                 </div>
               )}
             </div>
+            {/* La lista della spesa sul telefono: una riga per ingrediente,
+                non sei colonne dentro un cassetto che scorre. Nella
+                fotografia a 390px l'intestazione arrivava tagliata a metà
+                parola ("GIOI SCOR") e la quantità da ordinare — che è il
+                motivo per cui questo riquadro esiste — stava fuori dallo
+                schermo. Le parole sono le stesse della tabella. */}
+            {isMobile ? (
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {visibili.map((r, i) => (
+                  <div key={r.k} style={{ padding: '12px 14px', borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.white : C.bgSubtle }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, marginBottom: 6 }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontWeight: 700, color: C.text, textTransform: 'capitalize', fontSize: FS.md, minWidth: 0 }}>
+                        <span style={{ width: 7, height: 7, borderRadius: '50%', background: statoColor(r.stato), flexShrink: 0 }}/>
+                        {r.nome}
+                      </span>
+                      <span style={{ fontWeight: 800, color: C.text, fontSize: FS.lg, whiteSpace: 'nowrap', flexShrink: 0, ...TNUM }}>
+                        {fmtRiordino(r.riordinoG) ? `~ ${fmtRiordino(r.riordinoG)}` : '-'}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 12px', fontSize: FS.sm, color: C.textSoft, marginBottom: 10, ...TNUM }}>
+                      <span>Giacenza <b style={{ color: statoColor(r.stato) }}>{fmtG(r.giacenza)}</b></span>
+                      <span>Giorni scorta <b style={{ color: statoColor(r.stato) }}>{fmtGiorniScorta(r.giorniScorta, consumoStimato)}</b></span>
+                      <span>Costo stim. <b style={{ color: C.textMid }}>{r.costoG > 0 ? fmt0(r.riordinoG * r.costoG) : '-'}</b></span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                      <span style={{ fontSize: FS.sm, color: fornitorePerNome(r.nome) ? C.textMid : C.textSoft, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        Da chi: {fornitorePerNome(r.nome) || 'da collegare'}
+                      </span>
+                      <button onClick={() => { setQuickLoad(r.k); setFormMode('carico'); setFormIng(r.nome); setTab('carica'); focusQtyDeferred() }}
+                        title={`Carica ${r.nome} in magazzino`}
+                        style={{ padding: '0 14px', minHeight: 44, borderRadius: R.md, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: FS.sm, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                        <Icon name="plus" size={12} />Carica
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, minWidth: 540 }}>
                 <thead>
@@ -1814,6 +2025,7 @@ export default function MagazzinoView({
                 </tbody>
               </table>
             </div>
+            )}
             {nascosti > 0 && (
               <button onClick={() => setRiordinoTutti(v => !v)}
                 aria-expanded={riordinoTutti}
@@ -1844,7 +2056,7 @@ export default function MagazzinoView({
           apri-scrivi-salva: è per questo che sono ancora quaranta. */}
       {tab === 'giacenze' && maiContati.length > 0 && (
         <div style={{
-          background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 14,
+          background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: R['2xl'],
           marginBottom: 16, overflow: 'hidden',
         }}>
           <div style={{
@@ -1863,7 +2075,7 @@ export default function MagazzinoView({
             </span>
             <button type="button" onClick={() => setInventarioAperto(v => !v)}
               style={{
-                padding: '8px 14px', minHeight: 38, borderRadius: 9,
+                padding: '8px 14px', minHeight: 44, borderRadius: R.md,
                 border: `1px solid ${C.borderStr}`, background: inventarioAperto ? C.bgSubtle : T.brand,
                 color: inventarioAperto ? C.textMid : '#FFF',
                 fontSize: typo.small.fontSize, fontWeight: 700, cursor: 'pointer', flexShrink: 0,
@@ -1935,7 +2147,7 @@ export default function MagazzinoView({
           </span>
           <button type="button" onClick={applicaSogliePropose} disabled={saving}
             style={{
-              padding: '8px 14px', minHeight: 38, borderRadius: 9,
+              padding: '8px 14px', minHeight: 44, borderRadius: R.md,
               border: 'none', background: T.amberDark, color: '#FFF',
               fontSize: typo.small.fontSize, fontWeight: 700,
               cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.6 : 1, flexShrink: 0,
@@ -1982,7 +2194,7 @@ export default function MagazzinoView({
                 <div style={{ display: 'inline-flex', padding: 3, background: C.bgSubtle, borderRadius: 8 }}>
                   {['kg', 'g'].map(u => (
                     <button key={u} onClick={() => setUnitMode(u)}
-                      style={{ padding: '0 14px', minHeight: 38, borderRadius: 6, border: 'none', cursor: 'pointer',
+                      style={{ padding: '0 14px', minHeight: 38, borderRadius: 6, border: 'none', cursor: 'pointer', minWidth: 44,
                         background: unitMode === u ? C.bgCard : 'transparent',
                         color: unitMode === u ? C.red : C.textSoft,
                         fontSize: 12, fontWeight: 700,
@@ -1991,7 +2203,7 @@ export default function MagazzinoView({
                       }}>{u}</button>
                   ))}
                 </div>
-                <button onClick={() => setShowAddIng(true)} title="Aggiungi ingrediente" style={{ padding: isMobile ? '0 12px' : '0 16px', minHeight: 44, background: C.red, color: C.white, border: 'none', borderRadius: 9, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 2px 8px rgba(110,14,26,0.2)', display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}><Icon name="plus" size={12} />{isMobile ? 'Aggiungi' : 'Aggiungi ingrediente'}</button>
+                <button onClick={() => setShowAddIng(true)} title="Aggiungi ingrediente" style={{ padding: isMobile ? '0 12px' : '0 16px', minHeight: 44, background: C.red, color: C.white, border: 'none', borderRadius: R.md, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 2px 8px rgba(110,14,26,0.2)', display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}><Icon name="plus" size={12} />{isMobile ? 'Aggiungi' : 'Aggiungi ingrediente'}</button>
               </div>
             } />
           {/* [15] Ricerca: con 35 ingredienti e oltre non c'era modo di
@@ -2011,7 +2223,7 @@ export default function MagazzinoView({
           )}
 
           {showAddIng && (
-            <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, padding: '16px 20px', marginBottom: 16, // Su iPad in verticale (768-1023px) quattro colonne non ci stanno:
+            <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: R['2xl'], padding: '16px 20px', marginBottom: 16, // Su iPad in verticale (768-1023px) quattro colonne non ci stanno:
             // il caso d'uso reale è proprio il tablet appoggiato al bancone.
             display: 'grid', gridTemplateColumns: isMobile ? '1fr' : isTablet ? '1fr 1fr' : '1fr 120px 120px auto', gap: 10, alignItems: 'flex-end', boxShadow: SHADOW_PREMIUM }}>
               {[{ lbl: 'Nome ingrediente', val: newIngNome, set: setNewIngNome, ph: 'es. burro' },
@@ -2029,7 +2241,7 @@ export default function MagazzinoView({
               </div>
             </div>
           )}
-          <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, overflow: 'hidden', boxShadow: SHADOW_PREMIUM }}>
+          <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: R['2xl'], overflow: 'hidden', boxShadow: SHADOW_PREMIUM }}>
             {/* Da dove viene il consumo, detto a chi guarda e non solo in un
               tooltip: da quel numero nascono giorni di scorta, stato e quantita'
               da ordinare, tre colonne su sei.
@@ -2064,6 +2276,24 @@ export default function MagazzinoView({
               </span>)}
             </div>
           )}
+          {(() => {
+            const ordinate = sortMag(righeFiltrate, (r, k) => ({
+              nome: r.nome, giacenza: r.giacenza, fabb: r.fabb,
+              giorniScorta: r.giorniScorta ?? 9999, soglia: r.soglia,
+              valore: r.valore, riordino: r.riordinoG,
+              stato: ({ negativo: 0, esaurito: 1, critico: 2, attenzione: 3, ok: 4, mai_contato: 5 }[r.stato] ?? 4),
+              ultimoRif: r.ultimoRif ? new Date(r.ultimoRif).getTime() : 0,
+            })[k] ?? 0)
+            if (isMobile) return <SchedeMagazzino
+              righe={ordinate} vuoto={righe.length === 0} consumoStimato={consumoStimato}
+              isDipendente={isDipendente} editSoglia={editSoglia} setEditSoglia={setEditSoglia}
+              onSoglia={handleSoglia} onAggiungi={() => setShowAddIng(true)}
+              onCarica={r => { setQuickLoad(r.k); setFormMode('carico'); setFormIng(r.nome); setTab('carica'); focusQtyDeferred() }}
+              onElimina={r => { setDeleteIngConf(r.k); setDeleteIngPin('') }}
+              chiave={magKey} dir={magDir} onOrdina={magToggle}
+              f={{ fmtG, fmtGiorniScorta, fmtRiordino, statoColor, statoBg, statoLabel }}
+            />
+            return (
           <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: typo.small.fontSize, minWidth: 760 }}>
                 <thead>
@@ -2105,15 +2335,11 @@ export default function MagazzinoView({
                       </td>
                     </tr>
                   )}
-                  {sortMag(righeFiltrate, (r, k) => ({
-                    nome: r.nome, giacenza: r.giacenza, fabb: r.fabb,
-                    giorniScorta: r.giorniScorta ?? 9999, soglia: r.soglia,
-                    valore: r.valore, riordino: r.riordinoG,
-                    // 'mai_contato' sta in fondo: non e' un'urgenza, e' una
-                    // riga che aspetta il primo inventario.
-                    stato: ({ negativo: 0, esaurito: 1, critico: 2, attenzione: 3, ok: 4, mai_contato: 5 }[r.stato] ?? 4),
-                    ultimoRif: r.ultimoRif ? new Date(r.ultimoRif).getTime() : 0,
-                  })[k] ?? 0).map((r, i) => (
+                  {/* 'mai_contato' sta in fondo: non e' un'urgenza, e' una
+                      riga che aspetta il primo inventario. L'ordinamento è
+                      calcolato sopra, in `ordinate`: lo usano sia la tabella
+                      sia le schede del telefono. */}
+                  {ordinate.map((r, i) => (
                     <tr key={r.k} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.white : '#FDFAF7' }}>
                       {/* Il nome è solo testo.
                           Prima tutta la cella era cliccabile e cambiava scheda,
@@ -2231,6 +2457,8 @@ export default function MagazzinoView({
                 </tbody>
               </table>
             </div>
+            )
+          })()}
           </div>
         </div>
       )}
@@ -2314,7 +2542,7 @@ export default function MagazzinoView({
               ? `${letti} prezzi aggiornati. Altri ${scartati} non erano leggibili.`
               : `${letti} prezzi aggiornati`, scartati === 0)
           }}/>
-          <div style={{ background: C.bgCard, border: `1px solid ${formMode === 'scarico' ? C.amber : C.border}`, borderRadius: 18, padding: isMobile ? '18px' : '28px', boxShadow: SHADOW_PREMIUM }}>
+          <div style={{ background: C.bgCard, border: `1px solid ${formMode === 'scarico' ? C.amber : C.border}`, borderRadius: R['2xl'], padding: isMobile ? '18px' : '28px', boxShadow: SHADOW_PREMIUM }}>
             <div style={{ display: 'flex', gap: 6, marginBottom: 18 }}>
               {[['carico', 'plus', 'Carico merce', 'Rifornimento in entrata'], ['scarico', 'trash', 'Scarico / Rettifica', 'Rimuovi quantità']].map(([m, ic, lbl, sub]) => (
                 <button key={m} onClick={() => setFormMode(m)}
@@ -2422,7 +2650,7 @@ export default function MagazzinoView({
               </button>
             </div>
           ) : (
-            <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, overflow: 'hidden', boxShadow: SHADOW_PREMIUM }}>
+            <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: R['2xl'], overflow: 'hidden', boxShadow: SHADOW_PREMIUM }}>
               {/* Audit 2026-09-09: la tabella non scorreva in orizzontale su
                   telefono (wrapper in overflow hidden, nessun minWidth) e
                   l'intestazione della quantità era a sinistra mentre i numeri

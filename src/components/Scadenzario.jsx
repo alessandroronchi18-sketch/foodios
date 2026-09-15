@@ -1342,9 +1342,13 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
   const pill = (active) => ({
     padding: isMobile ? '9px 16px' : '7px 14px',
     minHeight: minTouch,
-    borderRadius: 9999, border: `1px solid ${active ? T.text : T.border}`, cursor: 'pointer',
+    // Lo stato scelto è bordeaux, come ogni stato attivo del prodotto. Era
+    // T.text, cioè quasi nero: la pastiglia "Tutte" riempita di nero era la
+    // cosa più scura della pagina, e quello che gridava era un filtro fermo
+    // sul valore di partenza.
+    borderRadius: 9999, border: `1px solid ${active ? T.brand : T.border}`, cursor: 'pointer',
     fontSize: isMobile ? 13 : 12, fontWeight: active ? 600 : 500, letterSpacing: '-0.005em',
-    background: active ? T.text : T.bgCard,
+    background: active ? T.brand : T.bgCard,
     color: active ? T.textOnDark : T.textMid,
     display: 'inline-flex', alignItems: 'center',
     transition: `background ${M.durFast} ${M.ease}, border-color ${M.durFast} ${M.ease}, color ${M.durFast} ${M.ease}`,
@@ -2333,7 +2337,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
       <div style={{
         display: 'grid',
         gridTemplateColumns: isMobile ? '1fr' : isTablet ? 'repeat(3, 1fr)' : 'repeat(3, 1fr)',
-        gap: isMobile ? 10 : 14,
+        gap: isMobile ? 12 : 14,
         marginBottom: isMobile ? 16 : 22,
       }}>
         {[
@@ -2379,8 +2383,19 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
               cursor: 'pointer',
               font: 'inherit',
               position: 'relative',
-              minHeight: isMobile ? 124 : isTablet ? 130 : 138,
+              // Sul telefono le tre tessere sono impilate a tutta larghezza:
+              // non c'è niente di affiancato da incolonnare, e con l'etichetta
+              // in alto a sinistra e la cifra in basso a destra restava un
+              // vuoto largo mezza pagina in diagonale. 124px per scrivere
+              // "0 €" per tre volte, cioè quasi mezzo schermo di telefono
+              // prima della prima fattura.
+              minHeight: isMobile ? 0 : isTablet ? 130 : 138,
+              // Sul telefono etichetta e cifra stanno sulla stessa riga e la
+              // riga di spiegazione va sotto: le cifre delle tre tessere
+              // impilate cadono comunque tutte alla stessa ascissa, che è il
+              // motivo per cui erano a destra.
               display: 'flex', flexDirection: 'column',
+              ...(isMobile ? { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 10 } : null),
               borderLeft: `4px solid ${k.accent}`,
               boxShadow: k.urgent ? '0 1px 2px rgba(110,14,26,0.08), 0 10px 28px rgba(110,14,26,0.10)' : '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)',
               transition: `box-shadow ${M.durBase} ${M.ease}, transform ${M.durBase} ${M.ease}`,
@@ -2393,7 +2408,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                 partivano da tre punti diversi e l'occhio non poteva
                 confrontarle. Ora sono a destra, con le altezze minime
                 uguali, come le altre bande del prodotto. */}
-            <div style={{ fontSize: font.size.sm, fontWeight: 600, color: T.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', minHeight: 30, display: 'flex', alignItems: 'flex-start', lineHeight: 1.3, textAlign: 'left' }}>
+            <div style={{ fontSize: font.size.sm, fontWeight: 600, color: T.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', minHeight: isMobile ? 0 : 30, display: 'flex', alignItems: isMobile ? 'center' : 'flex-start', lineHeight: 1.3, textAlign: 'left', flex: isMobile ? 1 : 'none', minWidth: 0 }}>
               {k.label}
             </div>
             <div title={k.exact} style={{
@@ -2402,9 +2417,9 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
               fontSize: isMobile ? font.size['3xl'] : isTablet ? font.size['3xl'] : 28, fontWeight: 700, color: k.color, lineHeight: 1.05,
               letterSpacing: '-0.025em', ...tnum,
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              minHeight: isMobile ? 34 : 38, display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
+              minHeight: isMobile ? 0 : 38, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', flexShrink: 0,
             }}>{k.val}</div>
-            <div style={{ fontSize: font.size.sm, color: T.textSoft, letterSpacing: '-0.005em', lineHeight: 1.35, minHeight: 34, marginTop: 6, display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end', textAlign: 'right' }}>{k.sub}</div>
+            <div style={{ fontSize: font.size.sm, color: T.textSoft, letterSpacing: '-0.005em', lineHeight: 1.35, minHeight: isMobile ? 0 : 34, marginTop: isMobile ? 4 : 6, width: isMobile ? '100%' : 'auto', display: 'flex', alignItems: 'flex-end', justifyContent: isMobile ? 'flex-start' : 'flex-end', textAlign: isMobile ? 'left' : 'right' }}>{k.sub}</div>
           </button>
         ))}
       </div>
@@ -2604,7 +2619,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
       )}
 
       {/* Conto pagamenti azienda (debtor del bonifico SEPA) */}
-      <div style={{ ...card, padding: isMobile ? '12px 14px' : '12px 18px', marginBottom: 14, display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', gap: isMobile ? 10 : 14 }}>
+      <div style={{ ...card, padding: isMobile ? '12px 14px' : '12px 18px', marginBottom: 16, display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', gap: isMobile ? 12 : 14 }}>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10, fontSize: 12, color: T.textMid, fontWeight: 600, flexShrink: 0 }}>
           <span aria-hidden="true" style={{ width: 32, height: 32, borderRadius: 9, background: ibanIsValid(azienda.iban) ? '#EFF6FF' : T.bgSubtle, color: ibanIsValid(azienda.iban) ? '#1D4ED8' : T.textSoft, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
@@ -2613,7 +2628,12 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         </span>
         {!editAzienda ? (
           <>
-            <span title={ibanIsValid(azienda.iban) ? `${azienda.nome ? azienda.nome + ' · ' : ''}${normalizeIban(azienda.iban)}` : ''} style={{ fontSize: 12, color: ibanIsValid(azienda.iban) ? T.text : T.textSoft, ...tnum, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {/* Sul telefono la frase va a capo invece di troncarsi: "serve
+                per generare i …" non dice niente, e questa è la riga che
+                spiega perché il bottone rosso qui accanto esiste. L'IBAN vero
+                resta su una riga sola, che è un codice e a capo si legge
+                peggio. */}
+            <span title={ibanIsValid(azienda.iban) ? `${azienda.nome ? azienda.nome + ' · ' : ''}${normalizeIban(azienda.iban)}` : ''} style={{ fontSize: 12, color: ibanIsValid(azienda.iban) ? T.text : T.textSoft, ...tnum, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: (isMobile && !ibanIsValid(azienda.iban)) ? 'normal' : 'nowrap', lineHeight: 1.45 }}>
               {ibanIsValid(azienda.iban) ? `${azienda.nome ? azienda.nome + ' · ' : ''}${normalizeIban(azienda.iban)}` : 'IBAN azienda non impostato - serve per generare i bonifici SEPA'}
             </span>
             {/* CTA: se IBAN mancante, bottone primario (rosso) ben visibile.
@@ -2649,7 +2669,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
       </div>
 
       {/* Toggle vista + ricerca */}
-      <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', gap: 10, marginBottom: 14 }}>
+      <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', gap: 12, marginBottom: 16 }}>
         <div style={{ display: 'flex', background: T.bgSubtle, border: `1px solid ${T.border}`, borderRadius: 10, padding: 3, gap: 2, width: isMobile ? '100%' : 'auto' }}>
           {[
             { id: 'scadenza', label: 'Per scadenza', icon: 'calendar' },
@@ -2913,7 +2933,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
 
       {/* Filtri rapidi - solo nella vista per scadenza */}
       {vista === 'scadenza' && (<>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
         <div role="tablist" aria-label="Filtra fatture" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {FILTRI.map(f => {
             const active = filtro === f.id

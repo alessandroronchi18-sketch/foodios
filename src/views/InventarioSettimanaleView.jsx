@@ -20,11 +20,12 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { color as T, radius as R, shadow as S, font } from '../lib/theme'
+import { color as T, radius as R, shadow as S, font, space as SP, typo, ui, ui3 } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from '../components/Icon'
 import { C, TNUM, PageHeader } from './_shared'
 import ImportWizard from '../components/ImportWizard'
+import Skeleton from '../components/Skeleton'
 import { ssave, sload } from '../lib/storage'
 import { SK_MAG } from '../lib/storageKeys'
 import {
@@ -65,6 +66,21 @@ function fmtG(n) {
 // Scorciatoia per le dimensioni del testo dai token (font.size).
 const TS = font.size
 
+// ── I due colori che distinguono PROD da RIMAN ──────────────────────────────
+//
+// Nella tabella della settimana ci sono sette giorni per due colonne: senza un
+// segno che le distingua, seguire la colonna giusta scorrendo di lato è un
+// lavoro. Il colore lì serve davvero.
+//
+// Erano un azzurro e un arancione scritti a mano in sei punti. Misurati in un browser
+// vero sul fondo della pagina facevano 2,64 e 2,05 contro i 4,5 richiesti: il
+// secondo è un giallo su quasi-bianco, praticamente invisibile — e sono
+// intestazioni CLICCABILI, quindi chi non le vedeva non sapeva nemmeno di poter
+// ordinare la tabella. Adesso fanno 5,4 e 4,9 sul fondo peggiore, e sono
+// scritti in un posto solo.
+const COL_PROD = '#0369A1'
+const COL_RIMAN = '#8F6109'
+
 export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAttiva, ricettario, magazzino, setMagazzino, tipoAttivita, metodoProduzione = 'stampi', notify, onNavigate }) {
   // "Tutte le sedi" attivo: vista AGGREGATA read-only. Somma PROD/RIMAN di
   // tutte le sedi produttive dell'org (il metodo e' org-level, quindi tutte
@@ -86,6 +102,10 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
   }, [isAllSedi, sediProduttive, sediFiltro])
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
+  // Quanto è alto un controllo che si tocca. Un polpastrello misura 44px: qui
+  // c'erano dieci `minHeight: altCtrl` scritti a mano, e 40 non è una misura, è
+  // "quasi". Adesso la misura è una sola e sta in theme.js.
+  const altCtrl = ui3(isMobile, isTablet, ui.ctrlH)
   // Gusti per cui abbiamo già detto "non ha una ricetta": una volta basta.
   const avvisatiSenzaRicetta = useRef(new Set())
   // Giorno mostrato dalla vista "Oggi": si può tornare a ieri per chiudere
@@ -788,7 +808,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
                     return next
                   })}
                   style={{
-                    padding: '8px 14px', minHeight: 40,
+                    padding: '8px 14px', minHeight: altCtrl,
                     border: `1px solid ${sel ? '#1D4ED8' : '#BFDBFE'}`,
                     background: sel ? '#1D4ED8' : '#FFFFFF',
                     color: sel ? '#FFFFFF' : '#1E3A8A',
@@ -802,7 +822,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
             })}
             {sediProduttive.length > 1 && sediFiltro && sediFiltro.size < sediProduttive.length && (
               <button onClick={() => setSediFiltro(new Set(sediProduttive.map(s => s.id)))}
-                style={{ padding: '8px 12px', minHeight: 40, fontSize: 12, fontWeight: 600, color: '#1E3A8A', background: 'transparent', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
+                style={{ padding: '8px 12px', minHeight: altCtrl, fontSize: 12, fontWeight: 600, color: '#1E3A8A', background: 'transparent', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
                 Seleziona tutte
               </button>
             )}
@@ -825,7 +845,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
             return (
               <button key={k} onClick={() => setVista(k)}
                 style={{
-                  padding: isTablet ? '10px 18px' : '8px 16px', minHeight: isTablet ? 44 : 40, fontSize: 12, fontWeight: 700,
+                  padding: isTablet ? '10px 18px' : '8px 16px', minHeight: altCtrl, fontSize: 12, fontWeight: 700,
                   border: 'none', borderRadius: 8, cursor: 'pointer',
                   background: sel ? C.bgCard : 'transparent',
                   color: sel ? C.text : C.textMid,
@@ -838,7 +858,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
           disabled={isAllSedi}
           title={isAllSedi ? 'Per importare, seleziona prima una sede specifica' : 'Apri il caricamento guidato per fogli di produzione'}
           style={{
-            padding: '8px 16px', minHeight: 40,
+            padding: '8px 16px', minHeight: altCtrl,
             background: isAllSedi ? '#94A3B8' : T.brand,
             color: '#FFFFFF', border: 'none', borderRadius: 8,
             fontSize: 12, fontWeight: 700,
@@ -860,7 +880,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
             disabled={Object.keys(saving).length > 0}
             title="Copia i valori di PRODUZIONE dalla settimana scorsa in questa settimana. Sovrascrive solo le celle vuote."
             style={{
-              padding: '8px 16px', minHeight: 40,
+              padding: '8px 16px', minHeight: altCtrl,
               background: '#FFFFFF', color: T.brand,
               border: `1px solid ${T.brand}`, borderRadius: 8,
               fontSize: 12, fontWeight: 700,
@@ -873,16 +893,21 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
           </button>
         )}
 
+        {/* Un bordeaux solo per schermata. Accanto al bottone pieno di
+            "Carica foglio produzione" questo era bordeaux anche lui, bordo e
+            scritta: due azioni principali affiancate sono zero azioni
+            principali, e su una pagina che serve a scrivere due numeri il
+            colore del marchio finiva su tutto tranne che sui numeri. */}
         {!isAllSedi && (sedi || []).filter(s => s.id !== sedeId && s.attiva !== false).length > 0 && (
           <button onClick={() => setShipDlg({ gusto: '', kg: '', destSedeId: '' })}
             style={{
-              padding: '8px 16px', minHeight: 40,
-              background: '#FFFFFF', color: T.brand,
-              border: `1px solid ${T.brand}`, borderRadius: 8,
-              fontSize: 12, fontWeight: 700, cursor: 'pointer',
+              padding: '8px 16px', minHeight: altCtrl,
+              background: C.white, color: C.textMid,
+              border: `1px solid ${C.border}`, borderRadius: 8,
+              fontSize: TS.sm, fontWeight: 700, cursor: 'pointer',
               display: 'inline-flex', alignItems: 'center', gap: 6,
             }}>
-            <Icon name="truck" size={14} color={T.brand} />
+            <Icon name="truck" size={14} color={C.textMid} />
             Spedisci a sede
           </button>
         )}
@@ -903,7 +928,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
                 ? 'Mostra di nuovo tutti i gusti del ricettario'
                 : 'Nascondi i gusti senza alcun dato nel periodo visualizzato'}
               style={{
-                padding: '8px 14px', minHeight: 40,
+                padding: '8px 14px', minHeight: altCtrl,
                 background: soloCompilati ? T.brand : '#FFFFFF',
                 color: soloCompilati ? '#FFFFFF' : C.textMid,
                 border: `1px solid ${soloCompilati ? T.brand : C.border}`,
@@ -930,7 +955,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
         <button onClick={toggleUnita}
           title={`Visualizza in ${unitaDisplay === 'g' ? 'kg' : 'g'}`}
           style={{
-            padding: '8px 12px', minHeight: 40, marginLeft: 'auto',
+            padding: '8px 12px', minHeight: altCtrl, marginLeft: 'auto',
             background: '#F8FAFC', color: C.textMid,
             border: `1px solid ${C.border}`, borderRadius: 8,
             fontSize: 12, fontWeight: 700, cursor: 'pointer',
@@ -1049,7 +1074,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
           {onNavigate && (
             <button onClick={() => onNavigate('ricettario')}
               style={{
-                padding: '9px 14px', minHeight: 40, background: C.white, color: T.amberDark || T.amber,
+                padding: '9px 14px', minHeight: altCtrl, background: C.white, color: T.amberDark || T.amber,
                 border: `1px solid ${T.amber}55`, borderRadius: R.md, fontSize: TS.base, fontWeight: 700,
                 cursor: 'pointer', whiteSpace: 'nowrap',
               }}>
@@ -1072,7 +1097,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
           </div>
           <button onClick={() => setVista('oggi')}
             style={{
-              padding: '10px 16px', minHeight: 40,
+              padding: '10px 16px', minHeight: altCtrl,
               background: '#1D4ED8', color: '#FFFFFF',
               border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700,
               cursor: 'pointer',
@@ -1106,7 +1131,33 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
         </div>
       )}
 
-      {loading ? (
+      {loading && vista === 'oggi' ? (
+        /* Mentre i dati arrivano si vedono le schede, vuote: quando arrivano
+           si riempiono e basta. Prima c'era la scritta "Caricamento…" in
+           mezzo alla pagina, poi di colpo tre schede alte 190px: il contenuto
+           saltava sotto il pollice, ed è la cosa che fa sembrare un'app fatta
+           male. */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: SP[3] }} aria-busy="true">
+          {[0, 1, 2].map(i => (
+            <div key={i} style={{
+              background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: R.xl,
+              padding: SP[4], boxShadow: S.xs,
+            }}>
+              <Skeleton width="58%" height={19} radius={R.sm} style={{ marginBottom: SP[3] }} />
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: SP[3] }}>
+                <div>
+                  <Skeleton width="70%" height={12} radius={R.xs} style={{ marginBottom: 6 }} />
+                  <Skeleton height={52} radius={R.lg} />
+                </div>
+                <div>
+                  <Skeleton width="70%" height={12} radius={R.xs} style={{ marginBottom: 6 }} />
+                  <Skeleton height={52} radius={R.lg} />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : loading ? (
         <div style={{ padding: 40, textAlign: 'center', color: C.textSoft }}>Caricamento…</div>
       ) : vista === 'oggi' ? (
         <VistaOggi
@@ -1155,11 +1206,11 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
                         {g} {giornoN}
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: 6, gap: 4 }}>
-                        <SortChip label="PROD" color="#0EA5E9"
+                        <SortChip label="PROD" color={COL_PROD}
                           active={sort.by?.tipo === 'prod' && sort.by?.giorno === i} dir={sort.dir}
                           onClick={() => toggleSort({ tipo: 'prod', giorno: i })}
                         />
-                        <SortChip label="RIMAN" color="#F59E0B"
+                        <SortChip label="RIMAN" color={COL_RIMAN}
                           active={sort.by?.tipo === 'riman' && sort.by?.giorno === i} dir={sort.dir}
                           onClick={() => toggleSort({ tipo: 'riman', giorno: i })}
                         />
@@ -1204,7 +1255,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
                             <CellInput
                               value={cell.prod || ''}
                               saving={!!saving[kProd]}
-                              accent="#0EA5E9" readOnly={isAllSedi}
+                              accent={COL_PROD} readOnly={isAllSedi}
                               unita={unitaDisplay}
                               onCommit={v => handleSave(gustoKey, dIso, 'produzione_g', v)}
                             />
@@ -1229,7 +1280,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
                             <CellInput
                               value={cell.riman || ''}
                               saving={!!saving[kRim]}
-                              accent={cell.quadra === false ? T.red : '#F59E0B'} readOnly={isAllSedi}
+                              accent={cell.quadra === false ? T.red : COL_RIMAN} readOnly={isAllSedi}
                               unita={unitaDisplay}
                               onCommit={v => handleSave(gustoKey, dIso, 'rimanenza_g', v)}
                             />
@@ -1347,7 +1398,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
         </div>
       )}
 
-      <div style={{ marginTop: 14, fontSize: 12, color: C.textSoft, lineHeight: 1.55, maxWidth: 720 }}>
+      <div style={{ marginTop: SP[4], fontSize: TS.sm, color: C.textSoft, lineHeight: 1.55, maxWidth: 720 }}>
         Quantità in <strong>{unitaDisplay === 'kg' ? 'chilogrammi' : 'grammi'}</strong>. Salvataggio automatico uscendo dal campo (Tab o clic fuori).
       </div>
 
@@ -1697,7 +1748,7 @@ function OnboardingInventario({ onClose }) {
 
         <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between', alignItems: 'center', marginTop: 22 }}>
           <button onClick={onClose}
-            style={{ padding: '10px 14px', minHeight: 40, background: 'transparent', border: 'none', color: C.textSoft, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+            style={{ padding: '10px 14px', minHeight: 44, background: 'transparent', border: 'none', color: C.textSoft, fontSize: TS.sm, fontWeight: 600, cursor: 'pointer' }}>
             Salta
           </button>
           <div style={{ display: 'flex', gap: 8 }}>
@@ -2543,7 +2594,7 @@ function VistaOggi({ gusti, matrice, saving, onSave, readOnly, unita = 'g', gior
   return (
     <div>
       {onCambiaGiorno && (
-        <div style={{ display: 'grid', gridTemplateColumns: '44px 1fr 44px', gap: 8, alignItems: 'center', marginBottom: 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '44px 1fr 44px', gap: SP[2], alignItems: 'center', marginBottom: SP[3] }}>
           <button onClick={() => spostaGiorno(-1)} aria-label="Giorno prima"
             style={{ minHeight: 44, borderRadius: R.md, border: `1px solid ${C.border}`, background: C.white, cursor: 'pointer', fontSize: TS.lg, color: C.textMid }}>←</button>
           <div style={{ textAlign: 'center' }}>
@@ -2554,15 +2605,23 @@ function VistaOggi({ gusti, matrice, saving, onSave, readOnly, unita = 'g', gior
             style={{ minHeight: 44, borderRadius: R.md, border: `1px solid ${C.border}`, background: isOggi ? C.bgSubtle : C.white, cursor: isOggi ? 'default' : 'pointer', fontSize: TS.lg, color: isOggi ? C.textSoft : C.textMid }}>→</button>
         </div>
       )}
+      {/* Il giorno normale non è un avviso.
+          Prima questa striscia era gialla TUTTI i giorni, e sotto c'erano tre
+          (o trenta) riquadri gialli uno sotto l'altro: la pagina in cui non
+          c'è niente che non va era la più allarmata del prodotto, e quando
+          qualcosa non andava davvero non si distingueva. Adesso il giorno
+          corrente è una riga neutra e il giallo resta a chi sta compilando un
+          giorno passato, che è il caso fuori dall'ordinario. */}
       <div style={{
-        background: isOggi ? T.amberLight : T.blueLight || '#EFF6FF',
-        border: `1px solid ${isOggi ? T.amber : T.blue}55`, borderRadius: R.lg,
-        padding: '10px 14px', marginBottom: 14, fontSize: TS.sm, color: isOggi ? (T.amberDark || T.amber) : T.blue,
+        background: isOggi ? C.bgSubtle : T.amberLight,
+        border: `1px solid ${isOggi ? C.border : `${T.amber}55`}`, borderRadius: R.lg,
+        padding: `${SP[3]}px ${SP[4]}px`, marginBottom: SP[3], fontSize: TS.sm,
+        lineHeight: 1.5, color: isOggi ? C.textMid : (T.amberDark || T.amber),
       }}>
-        <strong style={{ textTransform: 'capitalize' }}>{isOggi ? `Oggi ${nomeGiorno}` : nomeGiorno}</strong>
+        <strong style={{ textTransform: 'capitalize', color: isOggi ? C.text : 'inherit' }}>{isOggi ? `Oggi ${nomeGiorno}` : nomeGiorno}</strong>
         &nbsp;- Compila PROD (quanto hai prodotto) e RIMAN (quanto e' rimasto a fine giornata). I valori si salvano automaticamente.
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: SP[3] }}>
         {gusti.map(({ nome, orfano }) => {
           const gKey = normGusto(nome)
           const byData = matrice[gKey] || {}
@@ -2577,12 +2636,15 @@ function VistaOggi({ gusti, matrice, saving, onSave, readOnly, unita = 'g', gior
           const kRim = `${gKey}|${oggiIso}|rimanenza_g`
           return (
             <div key={gKey} style={{
-              background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12,
-              padding: '14px 16px',
-              boxShadow: '0 1px 2px rgba(15,23,42,0.04)',
+              background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: R.xl,
+              padding: SP[4],
+              boxShadow: S.xs,
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                <div style={{ fontSize: 15, fontWeight: 700, color: C.text, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              {/* Il nome del gusto è la cosa che si cerca scorrendo trenta
+                  schede uguali: stava a 15px, cioè tre pixel sopra le
+                  etichette, e scorrendo non emergeva. */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: SP[2], marginBottom: SP[3] }}>
+                <div style={{ fontSize: TS.lg, fontWeight: 700, color: C.text, letterSpacing: '-0.01em', display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
                   {nome}
                   {orfano && <IconaOrfano />}
                 </div>
@@ -2601,17 +2663,30 @@ function VistaOggi({ gusti, matrice, saving, onSave, readOnly, unita = 'g', gior
                   quanto gelato aveva aperto il banco, e soprattutto non si
                   accorgeva se ieri nessuno aveva chiuso i conti — che e' il
                   caso in cui il venduto di oggi esce sbagliato. */}
+              {/* Da quanto si riparte: nel caso normale è una riga di testo,
+                  non un riquadro. Con un riquadro pieno per gusto, una
+                  gelateria con trenta gusti aveva trenta rettangoli colorati e
+                  due campi da compilare: il contorno pesava più del lavoro.
+                  Quando il dato manca resta un filo giallo a sinistra — si
+                  vede scorrendo, e non riempie la scheda. */}
               <div style={{
-                display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap',
-                marginBottom: 10, padding: '7px 10px', borderRadius: R.md,
-                background: ieriMancante ? T.amberLight : C.bgSubtle,
-                border: `1px solid ${ieriMancante ? `${T.amber}55` : C.border}`,
-                fontSize: TS.sm, color: ieriMancante ? (T.amberDark || T.amber) : C.textMid,
+                display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap',
+                marginBottom: SP[3],
+                padding: ieriMancante ? `${SP[2]}px ${SP[3]}px` : 0,
+                borderRadius: ieriMancante ? R.sm : 0,
+                background: ieriMancante ? T.amberLight : 'transparent',
+                borderLeft: ieriMancante ? `3px solid ${T.amber}` : 'none',
+                fontSize: TS.sm, lineHeight: 1.45,
+                color: ieriMancante ? (T.amberDark || T.amber) : C.textSoft,
               }}>
                 {ieriMancante ? (
                   <>
+                    {/* `flex: 1` sul testo: senza, la frase è troppo lunga
+                        per stare accanto all'icona, va tutta a capo e
+                        l'icona resta da sola su una riga sua. Tre righe
+                        invece di due, per ogni gusto. */}
                     <Icon name="warning" size={12} color={T.amberDark || T.amber} />
-                    <span>Non risulta nessuna rimanenza negli ultimi giorni: il venduto di oggi non si calcola.</span>
+                    <span style={{ flex: 1, minWidth: 0 }}>Non risulta nessuna rimanenza negli ultimi giorni: il venduto di oggi non si calcola.</span>
                   </>
                 ) : (
                   <>
@@ -2634,10 +2709,9 @@ function VistaOggi({ gusti, matrice, saving, onSave, readOnly, unita = 'g', gior
                   </>
                 )}
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 10 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: SP[3] }}>
                 <BigField
                   label="PROD oggi"
-                  accent="#0EA5E9"
                   value={cell.prod || 0}
                   saving={!!saving[kProd]} readOnly={readOnly}
                   unita={unita}
@@ -2645,7 +2719,6 @@ function VistaOggi({ gusti, matrice, saving, onSave, readOnly, unita = 'g', gior
                 />
                 <BigField
                   label="RIMAN. fine giornata"
-                  accent="#F59E0B"
                   value={cell.riman || 0}
                   saving={!!saving[kRim]} readOnly={readOnly}
                   unita={unita}
@@ -2663,7 +2736,7 @@ function VistaOggi({ gusti, matrice, saving, onSave, readOnly, unita = 'g', gior
 // Campo grande per la VistaOggi: input touch-friendly con label sopra.
 // Su blur formattiamo con punto migliaia IT (1.100, 2.000, 3.500). Su focus
 // togliamo il punto così l'utente può editare senza confusione.
-function BigField({ label, accent, value, saving, onCommit, readOnly, unita = 'g' }) {
+function BigField({ label, value, saving, onCommit, readOnly, unita = 'g' }) {
   const [focused, setFocused] = useState(false)
   // Formato visualizzato (in focus = numero "grezzo" senza migliaia, fuori focus = migliaia IT)
   const toDisplay = (g, withSeparator) => {
@@ -2692,14 +2765,22 @@ function BigField({ label, accent, value, saving, onCommit, readOnly, unita = 'g
     // allarga fino al contenuto più lungo e la pagina scorre di lato: su
     // telefono l'inventario sforava di 124px.
     <label style={{ display: 'block', minWidth: 0 }}>
-      <div style={{ fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6, minHeight: 28, lineHeight: 1.25 }}>
+      {/* minHeight fisso: le due etichette affiancate restano incolonnate
+          anche quando una va a capo e l'altra no. */}
+      <div style={{ fontSize: TS.sm, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6, minHeight: 28, lineHeight: 1.25 }}>
         {label}
       </div>
+      {/* Pieno o vuoto, non azzurro o arancione.
+          Il bordo del campo compilato era azzurro per PROD e arancione per
+          RIMAN: due colori che nel resto del prodotto non esistono, e uno dei
+          due è lo stesso arancione che qui accanto vuol dire "attenzione". I
+          due campi si distinguono già dall'etichetta e dalla posizione;
+          quello che serve vedere è se il numero c'è. */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 4,
-        background: saving ? 'rgba(110,14,26,0.04)' : (readOnly ? '#F1F5F9' : '#FAFBFC'),
-        border: `2px solid ${local ? accent : C.border}`,
-        borderRadius: 10, padding: '0 10px',
+        background: saving ? T.brandLight : (readOnly ? C.bgSubtle : (local ? C.white : C.bgSubtle)),
+        border: `2px solid ${local ? C.borderStr : C.border}`,
+        borderRadius: R.lg, padding: `0 ${SP[3]}px`,
         minHeight: 52,
       }}>
         <input
@@ -2714,13 +2795,13 @@ function BigField({ label, accent, value, saving, onCommit, readOnly, unita = 'g
           placeholder="0"
           style={{
             flex: 1, border: 'none', outline: 'none', background: 'transparent',
-            fontSize: 18, fontWeight: 700, color: C.text, textAlign: 'right',
+            fontSize: TS.xl, fontWeight: 700, color: C.text, textAlign: 'right',
             padding: '12px 0', minWidth: 0,
             cursor: readOnly ? 'default' : 'text',
             ...TNUM,
           }}
         />
-        <span style={{ fontSize: 12, color: C.textSoft, fontWeight: 600 }}>{unita}</span>
+        <span style={{ fontSize: TS.sm, color: C.textSoft, fontWeight: 600 }}>{unita}</span>
       </div>
     </label>
   )

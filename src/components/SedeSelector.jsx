@@ -95,7 +95,9 @@ export default function SedeSelector({ sedi, sedeAttiva, onSelect, variant = 'si
         style={{
           width: top ? 'auto' : '100%', minWidth: top ? 168 : undefined,
           padding: top ? '4px 10px 4px 5px' : '10px 12px',
-          minHeight: top ? 40 : undefined,
+          // 44 anche nella variante della barra in alto: ci sta dentro i
+          // 56px della barra, e sotto i 44 il bersaglio si sbaglia.
+          minHeight: top ? 44 : undefined,
           background: open ? P.bgOpen : hover ? P.bgHover : P.bg,
           border: `1px solid ${open ? P.borderOpen : P.border}`,
           borderRadius: 10, color: P.txt, fontSize: 12, cursor: 'pointer',

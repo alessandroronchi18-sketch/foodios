@@ -120,22 +120,30 @@ function StockPFWidget({ isMobile, setView, viewAggregato, orgId, sedeId, LEX })
       : `${n0(q)} g`
   }
   const hasStock = inStock.length > 0
-  const BAR = ['#6E0E1A', '#C2410C', '#2563EB', '#16A34A', '#7C3AED']
+  // Le barre misurano tutte la stessa cosa — quanti pezzi di quel prodotto ci
+  // sono al banco — e prima erano di cinque colori diversi a rotazione: rosso,
+  // arancio, blu, verde, viola. Il colore prometteva un significato che non
+  // c'era (blu = ?), e in una schermata che ha già verde/blu/rosso nelle
+  // tessere sopra faceva rumore. Una serie, un colore; la lunghezza è il dato.
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : (inArrivo > 0 ? '1.7fr 1fr' : '1fr'), gap: isMobile ? 12 : 16, marginBottom: isMobile ? 18 : 24 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : (inArrivo > 0 ? '1.7fr 1fr' : '1fr'), gap: isMobile ? 12 : 16, marginBottom: isMobile ? 16 : 24 }}>
       {/* `minWidth: 0`: senza, una tessera dentro una griglia non si lascia
           stringere sotto la larghezza del suo contenuto, e spinge tutta la
           pagina fuori dallo schermo. Misurato il 15/09/2026: su un telefono da
           360px questa tessera era larga 356 dentro uno spazio di 344, e la
           pagina si trascinava di lato di 7px. */}
       <div className="fos-tile" onClick={() => setView('magazzino')}
-        style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 18, padding: isMobile ? '18px 16px' : '22px 26px', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 30px rgba(15,23,42,0.05)', cursor: 'pointer', minWidth: 0, overflow: 'hidden' }}>
+        style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: R['2xl'], padding: isMobile ? '18px 16px' : '22px 26px', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 30px rgba(15,23,42,0.05)', cursor: 'pointer', minWidth: 0, overflow: 'hidden' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: hasStock ? 16 : 8, gap: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
             <span style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(110,14,26,0.10)', color: T.brand, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Ico d={ICO.store} size={17} /></span>
             <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: T.textSoft, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>
-              Stock vetrina<span style={{ color: T.textFaint }}> · {viewAggregato ? 'tutte le sedi' : 'sede attiva'}</span>
+              {/* Quale sede stai guardando non è un metadato: dice se i
+                  numeri sotto sono di un negozio o di tutti. In textFaint
+                  (#94A3B8) su bianco fa 2,56 di rapporto — si legge solo se
+                  già sai cosa c'è scritto. */}
+              Stock vetrina<span style={{ color: T.textSoft }}> · {viewAggregato ? 'tutte le sedi' : 'sede attiva'}</span>
             </div>
           </div>
           {/* Qui si contano i prodotti DIVERSI, non i pezzi: il numero grande
@@ -161,8 +169,8 @@ function StockPFWidget({ isMobile, setView, viewAggregato, orgId, sedeId, LEX })
                       trascinava di lato (misurato il 15/09/2026). Ora ha una
                       larghezza di partenza e può scendere fino a 64px. */}
                   <span style={{ fontSize: 12, fontWeight: 600, color: T.textMid, flex: isMobile ? '1 1 90px' : '0 0 128px', minWidth: 64, maxWidth: isMobile ? 110 : 128, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.prodotto_nome}</span>
-                  <div style={{ flex: 1, height: 9, background: '#F0EAE6', borderRadius: 6, overflow: 'hidden', minWidth: 24 }}>
-                    <div style={{ width: `${Math.max(5, quotaBarra(r))}%`, height: '100%', background: BAR[i % BAR.length], borderRadius: 6 }} />
+                  <div style={{ flex: 1, height: 9, background: T.bgSubtle, borderRadius: R.full, overflow: 'hidden', minWidth: 24 }}>
+                    <div style={{ width: `${Math.max(5, quotaBarra(r))}%`, height: '100%', background: T.brand, borderRadius: R.full }} />
                   </div>
                   <span style={{ fontSize: 12, fontWeight: 800, color: T.text, minWidth: isMobile ? 48 : 56, textAlign: 'right', flexShrink: 0, ...TNUM, whiteSpace: 'nowrap' }}>{qtaLeggibile(r)}</span>
                 </div>
@@ -178,7 +186,7 @@ function StockPFWidget({ isMobile, setView, viewAggregato, orgId, sedeId, LEX })
 
       {inArrivo > 0 && !viewAggregato && (
         <div className="fos-tile" onClick={() => setView('trasferimenti')}
-          style={{ background: 'linear-gradient(135deg,#FFFBEB,#FEF3C7)', border: '1px solid #FCD34D', borderRadius: 18, padding: isMobile ? '16px 16px' : '22px 24px', cursor: 'pointer' }}>
+          style={{ background: 'linear-gradient(135deg,#FFFBEB,#FEF3C7)', border: '1px solid #FCD34D', borderRadius: R['2xl'], padding: isMobile ? '16px 16px' : '22px 24px', cursor: 'pointer' }}>
           <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: '#92400E', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="truck" size={13} />In arrivo da altre sedi</div>
           <div style={{ fontSize: isMobile ? 32 : 48, fontWeight: 800, color: '#92400E', letterSpacing: '-0.04em', lineHeight: 1, ...TNUM }}>{n0(inArrivo)}</div>
           <div style={{ fontSize: 12, color: '#92400E', marginTop: 6, fontWeight: 600 }}>{inArrivo === 1 ? 'trasferimento da confermare' : 'trasferimenti da confermare'}</div>
@@ -360,7 +368,7 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
   const KpiCard = ({ label, value, sub, valueColor, icon, tint, onClick, empty, alert }) => (
     <div className="fos-tile" onClick={onClick}
       style={{ background: T.bgCard, border: `1px solid ${alert ? 'rgba(110,14,26,0.25)' : T.border}`,
-        borderRadius: 18, padding: isMobile ? '14px 14px' : '20px 22px',
+        borderRadius: R['2xl'], padding: isMobile ? '14px 14px' : '20px 22px',
         boxShadow: alert ? '0 1px 2px rgba(110,14,26,0.06), 0 10px 28px rgba(110,14,26,0.10)' : '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)',
         cursor: 'pointer', position: 'relative', overflow: 'hidden',
         display: 'flex', flexDirection: 'column', minHeight: isMobile ? 140 : 'auto' }}>
@@ -399,31 +407,59 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
       <DailyBriefCard orgId={orgId} />
 
       {/* HERO brand */}
-      <div className="fos-rise" style={{ position: 'relative', zIndex: 30, borderRadius: isMobile ? 18 : 22, padding: isMobile ? '18px 18px' : '30px 34px', marginBottom: isMobile ? 16 : 24,
+      <div className="fos-rise" style={{ position: 'relative', zIndex: 30, borderRadius: isMobile ? R['2xl'] : 22, padding: isMobile ? '16px' : '30px 34px', marginBottom: isMobile ? 16 : 24,
         background: 'linear-gradient(135deg, #1C0A0A 0%, #4A0612 52%, #6E0E1A 100%)',
         boxShadow: '0 14px 40px rgba(110,14,26,0.32)' }}>
         {/* Layer decorativo ritagliato a parte: NON clippa il dropdown del selettore
             (che vive nel contenuto, fuori da questo overflow:hidden). */}
-        <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', borderRadius: isMobile ? 18 : 22, pointerEvents: 'none' }}>
+        <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', borderRadius: isMobile ? R['2xl'] : 22, pointerEvents: 'none' }}>
           <div style={{ position: 'absolute', top: -60, right: -40, width: 260, height: 260, borderRadius: '50%', background: 'radial-gradient(circle, rgba(232,75,58,0.35) 0%, transparent 70%)' }} />
           <div style={{ position: 'absolute', bottom: -90, left: '30%', width: 240, height: 240, borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,255,255,0.06) 0%, transparent 70%)' }} />
         </div>
-        <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'flex-end', justifyContent: 'space-between', gap: isMobile ? 14 : 16 }}>
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.62)', textTransform: 'capitalize', fontWeight: 600, letterSpacing: '0.02em', marginBottom: 6 }}>{giornoLabel}</div>
-            <h1 style={{ margin: 0, fontSize: isMobile ? 24 : 40, fontWeight: 800, color: '#FFF', letterSpacing: '-0.04em', lineHeight: 1.1, wordBreak: 'break-word' }}>
+        {/* Sul telefono il saluto costava 190px in cima alla pagina: la data
+            su una riga, il saluto su due, il selettore della sede su una
+            quarta. Quattro righe per dire che ore sono e come ti chiami,
+            prima di qualunque numero. Adesso data e selettore stanno sulla
+            stessa riga — c'è posto — e il saluto è uno sotto. Sul computer
+            resta com'era: lì lo spazio non manca. */}
+        {(() => {
+          const rigaGiorno = (
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.62)', textTransform: 'capitalize', fontWeight: 600, letterSpacing: '0.02em', marginBottom: 4, minWidth: 0 }}>{giornoLabel}</div>
+          )
+          const titolo = (
+            <h1 style={{ margin: 0, fontSize: isMobile ? 20 : 40, fontWeight: 800, color: '#FFF', letterSpacing: '-0.04em', lineHeight: 1.15, wordBreak: 'break-word' }}>
               {saluto}{nomeAttivita ? <>,<br style={{ display: isMobile ? 'block' : 'none' }} /> <span style={{ color: '#FBD7C9' }}>{nomeAttivita}</span></> : ''}
             </h1>
-          </div>
-          {sediAttiveAll.length > 1 && (
-            // Stesso selettore sede usato in tutta l'app (variante scura per l'hero).
-            <SedeSelector sedi={sedi} sedeAttiva={sedeAttiva} onSelect={auth?.setSedeAttiva} variant="topbarDark" />
-          )}
-        </div>
+          )
+          // Stesso selettore sede usato in tutta l'app (variante scura per l'hero).
+          const selettore = sediAttiveAll.length > 1
+            ? <SedeSelector sedi={sedi} sedeAttiva={sedeAttiva} onSelect={auth?.setSedeAttiva} variant="topbarDark" />
+            : null
+          if (isMobile) {
+            return (
+              <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ minWidth: 0 }}>
+                  {rigaGiorno}
+                  {titolo}
+                </div>
+                {selettore}
+              </div>
+            )
+          }
+          return (
+            <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16 }}>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                {rigaGiorno}
+                {titolo}
+              </div>
+              {selettore}
+            </div>
+          )
+        })()}
       </div>
 
       {/* KPI */}
-      <div style={{ display: 'grid', gridTemplateColumns: ui3(isMobile, isTablet, ui.grid4), gap: isMobile ? 10 : 16, marginBottom: isMobile ? 18 : 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: ui3(isMobile, isTablet, ui.grid4), gap: isMobile ? 12 : 16, marginBottom: isMobile ? 16 : 24 }}>
         <KpiCard
           label="Ricavi"
           icon={ICO.euro}
@@ -463,8 +499,8 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
       <StockPFWidget isMobile={isMobile} setView={setView} viewAggregato={viewAggregato} orgId={orgId} sedeId={sedeId} LEX={LEX} />
 
       {/* Liste */}
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 14 : 18 }}>
-        <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 18, padding: isMobile ? '16px 16px 12px' : '20px 22px 14px', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 16 : 18 }}>
+        <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: R['2xl'], padding: isMobile ? '16px 16px 12px' : '20px 22px 14px', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: isMobile ? 10 : 14 }}>
             <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: T.text, letterSpacing: '-0.01em' }}>Ultime {LEX.ricette}</h2>
             {ultimeRicette.length > 0 && <span style={{ fontSize: 12, color: T.textSoft, fontWeight: 600 }}>{Object.keys(ricettario?.ricette || {}).length} totali</span>}
@@ -486,7 +522,7 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
                     <div key={r.nome} className="fos-row" onClick={() => setView('ricettario')}
                       style={{ padding: '11px 8px', margin: '0 -8px', borderRadius: 10,
                         borderTop: i === 0 ? 'none' : `1px solid ${T.borderSoft}`, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <span style={{ width: 4, height: 30, borderRadius: 3, background: ricavo > 0 ? mC : T.borderStr, flexShrink: 0 }} />
+                      <span style={{ width: 4, height: 30, borderRadius: R.full, background: ricavo > 0 ? mC : T.borderStr, flexShrink: 0 }} />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontWeight: 600, fontSize: 13, color: T.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.nome}</div>
                         {/* Senza prezzo di vendita il margine non e' zero: non
@@ -509,12 +545,12 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
               </div>
           }
           <button onClick={() => setView('ricettario')}
-            style={{ marginTop: isMobile ? 12 : 16, padding: '11px 12px', background: 'transparent', border: `1px solid ${T.border}`, borderRadius: 12, fontSize: 13, fontWeight: 600, color: T.textMid, cursor: 'pointer', width: '100%' }}>
+            style={{ marginTop: isMobile ? 12 : 16, minHeight: ui3(isMobile, isTablet, ui.ctrlH), padding: '11px 12px', background: 'transparent', border: `1px solid ${T.border}`, borderRadius: R.lg, fontSize: 13, fontWeight: 600, color: T.textMid, cursor: 'pointer', width: '100%' }}>
             Apri il {LEX.Ricettario} →
           </button>
         </div>
 
-        <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 18, padding: isMobile ? '16px 16px' : '20px 22px', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
+        <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: R['2xl'], padding: isMobile ? '16px 16px' : '20px 22px', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: isMobile ? 10 : 14 }}>
             <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: T.text, letterSpacing: '-0.01em' }}>Da fare oggi</h2>
             {todos.length > 0 && <span style={{ fontSize: 12, fontWeight: 700, color: T.brand, background: T.brandLight, borderRadius: 999, padding: '2px 9px' }}>{todos.length}</span>}
@@ -530,7 +566,7 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
                   <div key={t.id} className="fos-row" onClick={() => setView(t.view)}
                     style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 8px', margin: '0 -8px', borderRadius: 10,
                       borderTop: i === 0 ? 'none' : `1px solid ${T.borderSoft}`, cursor: 'pointer' }}>
-                    <span style={{ width: 22, height: 22, borderRadius: 7, background: T.brandLight, color: T.brand, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Ico d={ICO.alert} size={13} /></span>
+                    <span style={{ width: 22, height: 22, borderRadius: R.md, background: T.brandLight, color: T.brand, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Ico d={ICO.alert} size={13} /></span>
                     <span style={{ fontSize: 13, color: T.text, flex: 1, fontWeight: 500 }}>{t.label}</span>
                     <span style={{ color: T.textFaint }}><Ico d={ICO.chevron} size={14} /></span>
                   </div>

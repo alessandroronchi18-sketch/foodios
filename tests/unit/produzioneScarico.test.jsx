@@ -15,6 +15,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, cleanup, fireEvent, waitFor } from '@testing-library/react'
 import React from 'react'
+import { todayLocal } from '../../src/lib/dateLocal'
 
 const scritte = { mag: null, gior: null }
 
@@ -155,7 +156,18 @@ describe('produzione — i difetti verificati il 14/09', () => {
   })
 
   it('avvisa se per quel giorno una sessione c\'è già', async () => {
-    const oggi = new Date().toISOString().slice(0, 10)
+    // `todayLocal()`, non `toISOString().slice(0,10)`.
+    //
+    // La seconda dà la data in UTC: in Italia, fra mezzanotte e le due, è
+    // ancora ieri. Questo test è fallito la notte del 16/09/2026 alle 00:30
+    // per questo — la sessione era datata 15 e la pagina cercava il 16.
+    //
+    // È la terza volta che questa classe di difetto compare nel progetto: la
+    // stessa conversione faceva salvare il 1° maggio come 30 aprile in tutti
+    // gli import (corretto il 09/09/2026). Un test che usa UTC dove il
+    // programma usa la data locale non verifica il programma: verifica il
+    // fuso orario di chi lo lancia.
+    const oggi = todayLocal()
     const v = render(<Produzione {...props} giornaliero={[{ id: 'g1', data: oggi, prodotti: [], ingredientiUsati: {} }]} />)
     await waitFor(() => expect(v.container.textContent).toContain('PASTA FROLLA'))
     expect(v.container.textContent).toContain('una sessione c\'è già')

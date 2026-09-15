@@ -18,6 +18,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { render } from '@testing-library/react'
 import React from 'react'
 import { mkdirSync, writeFileSync } from 'node:fs'
+import { todayLocal, formatLocalDate } from '../../src/lib/dateLocal'
 
 const ATTIVO = !!process.env.DUMP_LAYOUT
 const FUORI = '/private/tmp/claude-501/-Users-aler/7259be07-0e07-42ba-9be1-e672e3a32c10/scratchpad/viste-tablet'
@@ -97,8 +98,13 @@ const magazzino = {
   'latte intero': { nome: 'Latte intero', giacenza_g: 12000, soglia_g: 4000, ultimoRifornimento: new Date().toISOString() },
   'pasta nocciola': { nome: 'Pasta nocciola', giacenza_g: 3400, soglia_g: 1500 },
 }
-const oggi = new Date().toISOString().slice(0, 10)
-const ieri = new Date(Date.now() - 86400000).toISOString().slice(0, 10)
+// `todayLocal()`, non `toISOString().slice(0,10)`: la seconda dà la data in
+// UTC, e in Italia fra mezzanotte e le due è ancora ieri. Un dato datato
+// «ieri» non è più «oggi» per le pagine, e quello che si misura cambia a
+// seconda dell'ora in cui si lancia la suite. È già capitato il 16/09/2026
+// alle 00:30.
+const oggi = todayLocal()
+const ieri = formatLocalDate(new Date(Date.now() - 86400000))
 const giornaliero = [
   { id: 'g1', data: oggi, prodotti: [{ nome: 'SACHER', stampi: 3, vendibile: 24 }, { nome: 'CROSTATA FRUTTA FRESCA', stampi: 2, vendibile: 20 }], ingredientiUsati: { 'farina 00': 2300, burro: 1300 }, fcTot: 41.2, ricavoTot: 232, note: '' },
   { id: 'g2', data: ieri, prodotti: [{ nome: 'SACHER', stampi: 2, vendibile: 16 }], ingredientiUsati: { 'farina 00': 1000, burro: 600 }, fcTot: 18.4, ricavoTot: 120, note: '' },

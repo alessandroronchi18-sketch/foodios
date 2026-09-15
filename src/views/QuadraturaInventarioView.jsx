@@ -12,7 +12,7 @@
 // suggerisce dove guardare per chiudere il gap.
 
 import React, { useEffect, useMemo, useState } from 'react'
-import { color as T, typo } from '../lib/theme'
+import { color as T, typo, ui3, ui } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { sload } from '../lib/storage'
 import { supabase } from '../lib/supabase'
@@ -138,7 +138,10 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
   const [loading, setLoading] = useState(true)
 
   // Touch target minimo: ≥40 mobile, ≥44 tablet (regola permanente CLAUDE.md)
-  const tapMin = isTablet ? 44 : 40
+  // Era `isTablet ? 44 : 40`: il tablet aveva la misura giusta e il telefono
+  // no, che è lo stesso verso sbagliato già visto sui campi di testo. La
+  // misura sta in theme.js (ui.ctrlH) e vale 44 su tutto quello che si tocca.
+  const tapMin = ui3(isMobile, isTablet, ui.ctrlH)
 
   useEffect(() => {
     let alive = true

@@ -105,9 +105,9 @@ export default function PrimaNotaCassa({ orgId, sedeId, data, notify }) {
   return (
     <div style={{
       background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: R.xl,
-      padding: isMobile ? '16px 16px' : '18px 20px', marginBottom: 20,
+      padding: isMobile ? '16px 16px' : '18px 20px', marginBottom: 16,
     }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 12 }}>
         <div style={{
           width: 30, height: 30, borderRadius: R.md, background: T.bgSubtle, color: T.textMid,
           display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
@@ -128,12 +128,12 @@ export default function PrimaNotaCassa({ orgId, sedeId, data, notify }) {
       ) : righe.length === 0 ? (
         <div style={{
           ...typo.small, color: T.textSoft, background: T.bgSubtle, borderRadius: R.md,
-          padding: '12px 14px', marginBottom: 14, lineHeight: 1.5,
+          padding: '12px 14px', marginBottom: 12, lineHeight: 1.5,
         }}>
           Nessuna uscita segnata per questo giorno. Se non è uscito niente dal cassetto va bene così.
         </div>
       ) : (
-        <div style={{ marginBottom: 14, border: `1px solid ${T.borderSoft}`, borderRadius: R.md, overflow: 'hidden' }}>
+        <div style={{ marginBottom: 12, border: `1px solid ${T.borderSoft}`, borderRadius: R.md, overflow: 'hidden' }}>
           {righe.map((r, i) => (
             <div key={r.id} style={{
               display: 'flex', alignItems: 'center', gap: 10,
@@ -222,11 +222,19 @@ export default function PrimaNotaCassa({ orgId, sedeId, data, notify }) {
                 aria-pressed={attivo}
                 style={{
                   flex: isMobile ? '1 1 30%' : '0 0 auto', minHeight: isMobile ? 44 : 34,
-                  padding: '0 14px', borderRadius: R.md, cursor: 'pointer',
+                  // Imbottitura più stretta sul telefono: con 14px per lato
+                  // "Senza fattura" andava a capo e delle tre pastiglie una
+                  // sola era su due righe.
+                  padding: isMobile ? '0 8px' : '0 14px', borderRadius: R.md, cursor: 'pointer',
                   ...typo.small, fontWeight: 700, fontFamily: 'inherit',
-                  background: attivo ? T.text : T.bgCard,
+                  // Il colore della scelta fatta è il bordeaux del marchio,
+                  // come ovunque nel prodotto. Era T.text, cioè quasi nero:
+                  // in una pagina di riquadri bianchi e verdi la pastiglia
+                  // nera era la cosa più scura dello schermo, e quello che
+                  // gridava era il valore di partenza di un campo.
+                  background: attivo ? T.brand : T.bgCard,
                   color: attivo ? T.textOnDark : T.textMid,
-                  border: `1px solid ${attivo ? T.text : T.borderStr}`,
+                  border: `1px solid ${attivo ? T.brand : T.borderStr}`,
                 }}>
                 {d.etichetta}
               </button>
@@ -240,7 +248,7 @@ export default function PrimaNotaCassa({ orgId, sedeId, data, notify }) {
           lungo tutta la pagina si perdono. */}
       <button type="button" onClick={aggiungi} disabled={!valido || salvando}
         style={{
-          marginTop: 14, width: isMobile ? '100%' : 'auto',
+          marginTop: 12, width: isMobile ? '100%' : 'auto',
           padding: isMobile ? '13px 0' : '0 18px', minHeight: isMobile ? 48 : 40,
           background: valido && !salvando ? T.brand : T.bgMuted,
           color: valido && !salvando ? T.textOnDark : T.textSoft,

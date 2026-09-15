@@ -51,7 +51,7 @@ function PanelHead({ icon, title, color = C.red, badge, sub }) {
   return (
     <div style={{ marginBottom: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <span style={{ width: 30, height: 30, borderRadius: 9, background: `${color}14`, color, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{icon}</span>
+        <span style={{ width: 30, height: 30, borderRadius: R.lg, background: `${color}14`, color, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{icon}</span>
         <div style={{ fontSize: 13, fontWeight: 700, color: C.text, letterSpacing: '-0.01em' }}>{title}</div>
         {badge}
       </div>
@@ -62,7 +62,11 @@ function PanelHead({ icon, title, color = C.red, badge, sub }) {
 
 // Etichetta campo (uppercase tracking premium).
 const fieldLabel = { fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }
-const inputBase = { width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 16, color: C.text, background: C.white, boxSizing: 'border-box' }
+// Il campo, misurato una volta sola.
+// Questa è la pagina che serve a scrivere: sette campi, e ognuno era alto 40px
+// — quattro meno di un polpastrello. In una pagina di moduli il bersaglio più
+// importante è il campo, non il bottone.
+const inputBase = { width: '100%', padding: '10px 12px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 16, color: C.text, background: C.white, boxSizing: 'border-box' }
 
 export default function NuovaRicettaView({ ricettario, onSave, notify, editingRicetta, onEditConsumed, LEX = lessico(), tipoAttivita }) {
   const isMobile = useIsMobile();
@@ -480,7 +484,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
     <>
     <div style={{ maxWidth: 1200, margin: "0 auto" }}>
       {/* Hero + titolo: da' peso all'inserimento manuale che e' il flusso primario. */}
-      <div style={{ marginBottom: 18, display: "flex", alignItems: "center", gap: 14 }}>
+      <div style={{ marginBottom: 16, display: "flex", alignItems: "center", gap: 14 }}>
         <div style={{ width: isMobile ? 44 : 52, height: isMobile ? 44 : 52, borderRadius: R.lg, background: `linear-gradient(135deg, ${T.brand}, #4A0612)`, display: "flex", alignItems: "center", justifyContent: "center", color: "#FFF", flexShrink: 0, boxShadow: `0 8px 24px ${T.brand}33` }}>
           <Icon name={editMode ? "edit" : "plus"} size={isMobile ? 20 : 24} />
         </div>
@@ -534,7 +538,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
 
       {/* Pannello contestuale: elimina — appare sotto la command bar */}
       {openAction === 'elimina' && ricetteEsistenti.length > 0 && (
-        <div style={{ marginBottom: 18, padding: isMobile ? '12px 14px' : '14px 18px', background: '#FFF', border: '1px solid #991B1B22', borderRadius: 12, boxShadow: SHADOW_PREMIUM }}>
+        <div style={{ marginBottom: 16, padding: isMobile ? '12px 14px' : '14px 18px', background: '#FFF', border: '1px solid #991B1B22', borderRadius: 12, boxShadow: SHADOW_PREMIUM }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: '#991B1B', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 8 }}>Elimina una ricetta esistente</div>
           <div style={{ fontSize: 12, color: C.textMid, marginBottom: 10, lineHeight: 1.5 }}>
             Cancellazione definitiva. Conferma scrivendo <b>ELIMINA</b>.
@@ -554,7 +558,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
       {/* Pannello contestuale: "Parti da una foto" — compatto, il toggle sovrascrivi
           e' già nella command bar sopra (rimosso banner arancione redundant). */}
       {openAction === 'foto' && (
-        <div style={{ marginBottom: 18, padding: isMobile ? '12px 14px' : '14px 18px', background: '#FFF', border: `1px solid ${T.brand}22`, borderRadius: 12, boxShadow: SHADOW_PREMIUM }}>
+        <div style={{ marginBottom: 16, padding: isMobile ? '12px 14px' : '14px 18px', background: '#FFF', border: `1px solid ${T.brand}22`, borderRadius: 12, boxShadow: SHADOW_PREMIUM }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: T.brand, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 6 }}>Estrai una ricetta da una foto</div>
           <div style={{ fontSize: 12, color: C.textMid, marginBottom: 10, lineHeight: 1.5 }}>
             Carica una foto della ricetta: leggo nome, ingredienti e quantità, poi confermi.
@@ -659,7 +663,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                     const sel = (form.categoria || "").trim().toLowerCase() === c.toLowerCase();
                     return (
                       <button key={c} type="button" onClick={() => setForm(f => ({ ...f, categoria: c }))}
-                        style={{ padding: isMobile ? "10px 14px" : "4px 11px", minHeight: isMobile ? 40 : 'auto', borderRadius: R.full, border: `1px solid ${sel ? C.red : C.border}`, background: sel ? C.redLight : C.white, color: sel ? C.red : C.textMid, fontSize: isMobile ? 13 : 12, fontWeight: sel ? 700 : 500, cursor: "pointer" }}>
+                        style={{ padding: isMobile ? "10px 14px" : "4px 11px", minHeight: isMobile ? 44 : 'auto', borderRadius: R.full, border: `1px solid ${sel ? C.red : C.border}`, background: sel ? C.redLight : C.white, color: sel ? C.red : C.textMid, fontSize: isMobile ? 13 : 12, fontWeight: sel ? 700 : 500, cursor: "pointer" }}>
                         {c}
                       </button>
                     );
@@ -788,7 +792,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
             {!showMore && !form.note && !form.congelabile && (
               <button type="button" onClick={() => setShowMore(true)}
                 style={{
-                  marginTop: 14, padding: '10px 14px',
+                  marginTop: 12, padding: '10px 14px', minHeight: 44,
                   background: 'transparent', border: `1px dashed ${C.border}`,
                   borderRadius: 8, color: C.textMid, cursor: 'pointer',
                   fontSize: typo.small.fontSize, fontWeight: 600, fontFamily: 'inherit',
@@ -1070,7 +1074,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
           {/* 3. Allergeni - auto-rilevati */}
           <div style={cardStyle}>
             <PanelHead icon={<Icon name="warning" size={18} />} title="Allergeni presenti" color={C.amber}
-              badge={<span style={{ fontSize: 12, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: "#E0F2FE", color: "#0369A1", textTransform: "uppercase", letterSpacing: "0.05em" }}>Auto</span>}
+              badge={<span style={{ fontSize: 12, fontWeight: 700, padding: "2px 8px", borderRadius: R.full, background: "#E0F2FE", color: "#0369A1", textTransform: "uppercase", letterSpacing: "0.05em" }}>Auto</span>}
               sub="Calcolati automaticamente dagli ingredienti (Reg. UE 1169/2011). Aggiungi manualmente quelli mancanti se necessario." />
 
             {autoAllergeni.length === 0 ? (
@@ -1084,7 +1088,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                   if (!a) return null;
                   return (
                     <span key={aid} title="Rilevato automaticamente dagli ingredienti"
-                      style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 11px", borderRadius: 20, background: `${ALLERGENE_COLORS[aid]}15`, color: ALLERGENE_COLORS[aid], border: `1.5px solid ${ALLERGENE_COLORS[aid]}55`, fontSize: 12, fontWeight: 700 }}>
+                      style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 11px", borderRadius: R.full, background: `${ALLERGENE_COLORS[aid]}15`, color: ALLERGENE_COLORS[aid], border: `1.5px solid ${ALLERGENE_COLORS[aid]}55`, fontSize: 12, fontWeight: 700 }}>
                       <Icon name="check" size={11} />{a.label}
                     </span>
                   );
@@ -1115,7 +1119,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                       <button key={aid} type="button"
                         onClick={() => setForm(f => ({ ...f, allergeniManual: [...(f.allergeniManual || []), aid] }))}
                         title={`Confermo che contiene ${a.label}`}
-                        style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "0 12px", minHeight: isMobile ? 40 : 32, borderRadius: 20, background: T.bgCard, border: `1.5px dashed ${T.amber}`, color: T.amber, ...typo.small, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                        style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "0 12px", minHeight: isMobile ? 44 : 32, borderRadius: R.full, background: T.bgCard, border: `1.5px dashed ${T.amber}`, color: T.amber, ...typo.small, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
                         <Icon name="plus" size={12} />{a.label}
                       </button>
                     );
@@ -1158,7 +1162,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                         return (
                           <button key={id} type="button" aria-label={`Rimuovi ${a.label} dagli allergeni manuali`}
                             onClick={() => setForm(f => ({ ...f, allergeniManual: (f.allergeniManual || []).filter(x => x !== id) }))}
-                            style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 20, background: `${ALLERGENE_COLORS[id]}15`, color: ALLERGENE_COLORS[id], border: `1.5px solid ${ALLERGENE_COLORS[id]}55`, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                            style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: R.full, background: `${ALLERGENE_COLORS[id]}15`, color: ALLERGENE_COLORS[id], border: `1.5px solid ${ALLERGENE_COLORS[id]}55`, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
                             {a.label}
                             <Icon name="x" size={10} />
                           </button>
@@ -1170,7 +1174,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                   {/* Toggle "Modifica manualmente" */}
                   {!isExpanded && (
                     <button type="button" onClick={() => setShowManualAllergeni(true)}
-                      style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "#FFF", color: C.textMid, border: `1px dashed ${C.border}`, borderRadius: 8, fontSize: typo.small.fontSize, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+                      style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 14px", minHeight: 44, background: "#FFF", color: C.textMid, border: `1px dashed ${C.border}`, borderRadius: 8, fontSize: typo.small.fontSize, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
                       <Icon name="plus" size={12} /> Modifica manualmente
                       <span style={{ fontSize: 12, color: C.textSoft, fontWeight: 500 }}>({disponibili.length} disponibili)</span>
                     </button>
@@ -1346,7 +1350,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                 <div style={{ display: "flex", gap: 3, padding: 3, background: C.bgSubtle, borderRadius: R.md }}>
                   {[25, 28, 30, 33, 35].map(t => (
                     <button key={t} onClick={() => setTargetPct(t)}
-                      style={{ flex: 1, padding: isMobile ? "10px 4px" : "6px 4px", minHeight: isMobile ? 40 : 'auto', borderRadius: R.sm, border: "none", cursor: "pointer", fontSize: isMobile ? 13 : 12, fontWeight: targetPct === t ? 700 : 500, ...TNUM, background: targetPct === t ? C.bgCard : "transparent", color: targetPct === t ? C.red : C.textSoft, boxShadow: targetPct === t ? "0 1px 2px rgba(15,23,42,0.08)" : "none" }}>{t}%</button>
+                      style={{ flex: 1, padding: isMobile ? "10px 4px" : "6px 4px", minHeight: isMobile ? 44 : 'auto', borderRadius: R.sm, border: "none", cursor: "pointer", fontSize: isMobile ? 13 : 12, fontWeight: targetPct === t ? 700 : 500, ...TNUM, background: targetPct === t ? C.bgCard : "transparent", color: targetPct === t ? C.red : C.textSoft, boxShadow: targetPct === t ? "0 1px 2px rgba(15,23,42,0.08)" : "none" }}>{t}%</button>
                   ))}
                 </div>
               </div>
@@ -1413,7 +1417,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
       <div role="dialog" aria-modal="true" aria-labelledby="prezzo-ing-titolo"
         onClick={(e) => { if (e.target === e.currentTarget && !priceModal.saving) setPriceModal(null); }}
         style={{ position: "fixed", inset: 0, background: "rgba(28,10,10,0.55)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-        <div style={{ background: C.bgCard, borderRadius: 14, boxShadow: "0 20px 60px rgba(0,0,0,0.25)", maxWidth: 420, width: "100%", padding: isMobile ? 20 : 24 }}>
+        <div style={{ background: C.bgCard, borderRadius: R['2xl'], boxShadow: "0 20px 60px rgba(0,0,0,0.25)", maxWidth: 420, width: "100%", padding: isMobile ? 20 : 24 }}>
           <div id="prezzo-ing-titolo" style={{ fontSize: 16, fontWeight: 800, color: C.text, marginBottom: 6, letterSpacing: "-0.01em" }}>
             Imposta prezzo di questo ingrediente
           </div>
@@ -1580,9 +1584,10 @@ function CommandBar({ isMobile, ricetteEsistenti, activeNome, onPickExisting, ac
           title={forceOverwrite ? 'Le foto sovrascrivono le ricette con lo stesso nome' : 'Le ricette esistenti vengono saltate'}
           style={{
             padding: isMobile ? '8px 12px' : '7px 12px',
+            minHeight: isMobile ? 44 : 'auto',
             background: forceOverwrite ? '#FEF3C7' : '#F8F7F5',
             border: `1px solid ${forceOverwrite ? '#F59E0B' : C.border}`,
-            borderRadius: 999,
+            borderRadius: R.full,
             fontSize: 12, fontWeight: 700,
             color: forceOverwrite ? '#92400E' : C.textSoft,
             cursor: 'pointer',
@@ -1591,7 +1596,7 @@ function CommandBar({ isMobile, ricetteEsistenti, activeNome, onPickExisting, ac
             transition: 'background 0.15s ease',
           }}>
           <span style={{
-            width: 8, height: 8, borderRadius: 999,
+            width: 8, height: 8, borderRadius: R.full,
             background: forceOverwrite ? '#F59E0B' : '#CBD5E1',
           }} />
           Sovrascrivi da foto

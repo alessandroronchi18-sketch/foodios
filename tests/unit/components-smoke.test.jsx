@@ -51,26 +51,26 @@ vi.mock('../../src/lib/useIsMobile', () => ({
 }))
 
 // Theme/style modules — pass-through fittizi
-vi.mock('../../src/lib/theme', () => ({
-  color: { bg:'#fff', bgCard:'#fff', bgSubtle:'#f8f8f8', bgMuted:'#eee', text:'#000', textMid:'#444', textSoft:'#666', white:'#fff',
-    border:'#ddd', borderSoft:'#eee', borderStr:'#ccc', brand:'#6E0E1A', brandLight:'#FEE', green:'#0a0', greenLight:'#dfd',
-    amber:'#a80', amberLight:'#ffd', red:'#a00', blueLight:'#dde' },
-  radius: { sm: 4, md: 8, lg: 12 },
-  shadow: { sm: 'none', md: 'none', lg: 'none' },
-  motion: { durFast: '150ms', ease: 'ease' },
-  tnum: { fontVariantNumeric: 'tabular-nums' },
-  // typo era `{}`: un mock più povero del modulo vero. Ogni componente che
-  // leggeva `typo.small.fontSize` — cioè quelli che usano il token invece di
-  // una dimensione scritta a mano, come vuole il gate del design — crashava
-  // QUI dentro e non nell'app. Un test che punisce la cosa giusta.
-  typo: {
-    display:    { fontSize: 32 }, h1: { fontSize: 24 }, h2: { fontSize: 18 },
-    h3:         { fontSize: 15 }, body: { fontSize: 14 }, bodyStrong: { fontSize: 14 },
-    small:      { fontSize: 12 }, caption: { fontSize: 11 }, overline: { fontSize: 10 },
-    num:        { fontSize: 22 }, numSm: { fontSize: 14 },
-  },
-  getTypo: () => ({ fontSize: 14 }),
-}))
+// Il tema VERO, con solo ombre e animazioni spente.
+//
+// Qui c'era una copia a mano dei token: un elenco di chiavi scritte a mano che
+// per forza restava indietro rispetto a theme.js. È già successo due volte —
+// prima con `typo`, che era `{}` e faceva crashare ogni componente che usa
+// `typo.small.fontSize` invece di una misura scritta a mano; poi con `font`,
+// che non c'era proprio. Ogni volta il test puniva chi usava i token, cioè
+// esattamente la cosa che il cricchetto del design chiede di fare.
+//
+// Adesso si parte dal modulo vero e si spengono le due cose che a un test di
+// render non servono (ombre e transizioni). Un token nuovo in theme.js non può
+// più rompere questo file.
+vi.mock('../../src/lib/theme', async (importOriginal) => {
+  const vero = await importOriginal()
+  return {
+    ...vero,
+    shadow: { ...vero.shadow, xs: 'none', sm: 'none', md: 'none', lg: 'none', xl: 'none' },
+    motion: { ...vero.motion, durFast: '150ms', ease: 'ease' },
+  }
+})
 
 // Helper renderer che cattura il crash come fallback (verifica che NON cada in fallback)
 function renderSafe(jsx) {

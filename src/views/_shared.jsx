@@ -3,7 +3,7 @@
 // Una volta che tutto è migrato, alcune potranno diventare componenti dedicati in components/.
 
 import React, { useState, useRef, useCallback } from 'react'
-import { color as T, radius as R } from '../lib/theme'
+import { color as T, radius as R, font } from '../lib/theme'
 import useIsMobile from '../lib/useIsMobile'
 import Icon from '../components/Icon'
 
@@ -193,7 +193,7 @@ export function KPI({ label, value, sub, color, highlight, icon, onClick }) {
         minHeight: 30, lineHeight: 1.25,
         display: 'flex', alignItems: 'center', gap: 8 }}>
         {icon && isMobile && (
-          <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: R.md, background: chipBg, color: chipColor, fontSize: 13, flexShrink: 0 }}>{icon}</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: R.md, background: chipBg, color: chipColor, fontSize: font.size.base, flexShrink: 0 }}>{icon}</span>
         )}
         <span style={{ minWidth: 0 }}>{label}</span>
       </div>

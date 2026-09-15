@@ -12,7 +12,7 @@ import { backgroundManager, uploadManager } from '../lib/backgroundManager'
 import { compressImage } from '../lib/imageUtils'
 import { callAi, parseAiJson } from '../lib/aiClient'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
-import { color as T, typo } from '../lib/theme'
+import { color as T, typo, radius as R } from '../lib/theme'
 import { buildIngCosti, calcolaFC, getR, isRicettaValida } from '../lib/foodcost'
 import { labelPlurale, isGustoTipo } from '../lib/tipoRicetta'
 import { useListinoSede, applicaListinoAiFormati, getRegSede } from '../lib/listinoSede'
@@ -935,7 +935,7 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
   const vendutoBox = () => {
     if (!venduto || loading) return null
     return (
-      <div style={{ background: C.white, border: `1px solid ${C.green}30`, borderRadius: 18, padding: '16px', boxShadow: SHADOW_PREMIUM }}>
+      <div style={{ background: C.white, border: `1px solid ${C.green}30`, borderRadius: R['2xl'], padding: '16px', boxShadow: SHADOW_PREMIUM }}>
         <div style={{ fontSize: FS.small, fontWeight: 800, color: C.green, marginBottom: 2, display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="checkCircle" size={13} />{venduto.length} prodotti pronti per il confronto</div>
         {!salvato && <div style={{ fontSize: FS.small, color: C.textSoft, marginBottom: 8 }}>Rimuovi una riga sbagliata prima di salvare</div>}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 3, maxHeight: 180, overflowY: 'auto', marginBottom: 10 }}>
@@ -1101,7 +1101,7 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
         </div>
       )}
 
-      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, padding: isMobile ? '14px 16px' : '16px 20px', marginBottom: 20, display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', gap: isMobile ? 12 : 20, flexWrap: 'wrap', boxShadow: SHADOW_PREMIUM }}>
+      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: R['2xl'], padding: isMobile ? '14px 16px' : '16px 20px', marginBottom: 16, display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', gap: isMobile ? 12 : 20, flexWrap: 'wrap', boxShadow: SHADOW_PREMIUM }}>
         <div style={{ width: isMobile ? '100%' : 'auto' }}>
           <div style={{ fontSize: FS.small, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>Data chiusura</div>
           {isDipendente ? (
@@ -1137,7 +1137,7 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
         )}
       </div>
 
-      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, overflow: 'hidden', marginBottom: 20, boxShadow: SHADOW_PREMIUM }}>
+      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: R['2xl'], overflow: 'hidden', marginBottom: 16, boxShadow: SHADOW_PREMIUM }}>
         <SectHead icon={<Icon name="receipt" size={16} />} title="Registra l'incassato"
           sub="Basta il totale della giornata. Il dettaglio prodotto per prodotto è facoltativo." />
         <div style={{ padding: '18px 20px' }}>
@@ -1329,7 +1329,7 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
             return [...confronto].sort((a, b) => { const va = col.get(a), vb = col.get(b); return (col.str ? String(va).localeCompare(String(vb), 'it') : (va - vb)) * dir })
           })()
           if (isMetodoInventario) return (
-            <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, overflow: 'hidden', marginBottom: 20, boxShadow: SHADOW_PREMIUM }}>
+            <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: R['2xl'], overflow: 'hidden', marginBottom: 16, boxShadow: SHADOW_PREMIUM }}>
               <SectHead icon={<Icon name="barChart" size={16} />} title="Confronto con la produzione"
                 sub="Con il metodo inventario si fa nella Quadratura" />
               <div style={{ padding: '18px 20px' }}>
@@ -1351,7 +1351,7 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
             </div>
           )
           return (
-          <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, overflow: 'hidden', marginBottom: 20, boxShadow: SHADOW_PREMIUM }}>
+          <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: R['2xl'], overflow: 'hidden', marginBottom: 16, boxShadow: SHADOW_PREMIUM }}>
             <SectHead icon={<Icon name="barChart" size={16} />} title="Produzione vs Venduto"
               sub="Quanto hai prodotto, quanto hai venduto e cosa è rimasto · clicca un'intestazione per ordinare"
               right={
@@ -1415,7 +1415,7 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
           )})()}
 
           {formatiRiconc.righe.length > 0 && (
-            <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, overflow: 'hidden', marginBottom: 20, boxShadow: SHADOW_PREMIUM }}>
+            <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: R['2xl'], overflow: 'hidden', marginBottom: 16, boxShadow: SHADOW_PREMIUM }}>
               <SectHead icon={<Icon name="cart" size={16} />} title="Formati di vendita" sub="Righe senza dettaglio gusto/ripieno · food cost stimato sulla media della categoria" />
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: FS.small }}>
@@ -1483,7 +1483,7 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
           )}
 
           {!isDipendente && confronto.filter(r => r.spreco > 2).length > 0 && (
-            <div style={{ background: '#FFF8EE', border: `1px solid ${C.amber}30`, borderRadius: 18, padding: '18px 20px', marginBottom: 20, boxShadow: SHADOW_PREMIUM }}>
+            <div style={{ background: '#FFF8EE', border: `1px solid ${C.amber}30`, borderRadius: R['2xl'], padding: '18px 20px', marginBottom: 16, boxShadow: SHADOW_PREMIUM }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 11, marginBottom: 14 }}>
                 <span style={{ width: 34, height: 34, borderRadius: 10, background: C.amberLight, color: C.amber, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: FS_INPUT_IOS, flexShrink: 0 }}><Icon name="bulb" size={17} /></span>
                 <div>
@@ -1522,7 +1522,7 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
           )}
 
           {confronto.length > 0 && (
-          <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, padding: '20px', boxShadow: SHADOW_PREMIUM }}>
+          <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: R['2xl'], padding: '20px', boxShadow: SHADOW_PREMIUM }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 11, marginBottom: 14 }}>
               <span style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(110,14,26,0.10)', color: C.red, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: FS_INPUT_IOS, flexShrink: 0 }}><Icon name="target" size={17} /></span>
               <div style={{ fontSize: FS.body, fontWeight: 700, color: C.text, letterSpacing: '-0.01em' }}>Sell-through per {LEX.prodotto}</div>
@@ -1562,7 +1562,7 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
       )}
 
       {venduto?.length > 0 && confronto.length === 0 && formatiRiconc.righe.length === 0 && !loading && (
-        <div style={{ textAlign: 'center', padding: '36px', background: C.bgCard, borderRadius: 18, border: `1px solid ${C.border}`, boxShadow: SHADOW_PREMIUM }}>
+        <div style={{ textAlign: 'center', padding: '36px', background: C.bgCard, borderRadius: R['2xl'], border: `1px solid ${C.border}`, boxShadow: SHADOW_PREMIUM }}>
           <div style={{ marginBottom: 10, color: C.textSoft }}><Icon name="search" size={30} /></div>
           <div style={{ fontSize: FS.body, fontWeight: 700, color: C.text, marginBottom: 6 }}>Nessun prodotto del ricettario trovato</div>
           <div style={{ fontSize: FS.small, color: C.textSoft, marginBottom: 8 }}>I nomi sullo scontrino non corrispondono alle ricette. Se la cassa batte prodotti generici (cono, vaschetta, panino…), configura i <b>Formati di vendita</b>.</div>

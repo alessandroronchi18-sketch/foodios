@@ -60,7 +60,9 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
   const target = targetPct / 100
 
   // Touch target minimo (tablet 44, mobile 40, desktop 36)
-  const TT = isTablet ? 44 : isMobile ? 40 : 36
+  // Era `isTablet ? 44 : isMobile ? 40 : 36`: undici bersagli da 40px su
+  // telefono e 44 su iPad, cioè la misura giusta scritta nel ramo sbagliato.
+  const TT = ui3(isMobile, isTablet, ui.ctrlH)
 
   // Colore semaforo food cost rispetto al target
   const fcColor = (fcPct) => fcPct <= targetPct ? T.green : fcPct <= targetPct + 10 ? T.amber : T.brand

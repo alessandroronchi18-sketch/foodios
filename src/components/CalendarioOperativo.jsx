@@ -574,7 +574,7 @@ export default function CalendarioOperativo({
         <div style={{
           display: 'grid',
           gridTemplateColumns: ui3(isMobile, isTablet, ui.grid4),
-          gap: isMobile ? 10 : 16, marginBottom: isMobile ? 14 : 18,
+          gap: isMobile ? 12 : 16, marginBottom: isMobile ? 16 : 18,
         }}>
           <Kpi icon="checkCircle" label={`Giorni completi · ${MESI[mese]}`}
             value={`${diag.completi}/${diag.totPassati}`} color={T.text}
@@ -606,7 +606,7 @@ export default function CalendarioOperativo({
 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, gap: 12, flexWrap: 'wrap' }}>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, borderRadius: 11, background: T.brandLight, color: T.brand, flexShrink: 0 }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, borderRadius: R.lg, background: T.brandLight, color: T.brand, flexShrink: 0 }}>
                 <Icon name="calendar" size={18} />
               </span>
               <div style={{ minWidth: 0 }}>
@@ -644,12 +644,16 @@ export default function CalendarioOperativo({
               perché è qui che ci si accorge del problema: guardando i lunedì
               tutti rossi. */}
           {!isDipendente && (
-            <div style={{ marginBottom: 14 }}>
+            <div style={{ marginBottom: 12 }}>
               <button
                 onClick={() => setApriChiusure(v => !v)}
                 aria-expanded={apriChiusure}
                 style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 36,
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  // ctrlH e non ctrlHsm: questo non è una pastiglia dentro
+                  // un gruppo, è un bottone che sta da solo in mezzo alla
+                  // pagina. Era 36px.
+                  minHeight: ui3(isMobile, isTablet, ui.ctrlH),
                   padding: '7px 11px', borderRadius: R.md, cursor: 'pointer',
                   border: `1px solid ${T.border}`, background: T.bgSubtle,
                   fontSize: FS.small, fontWeight: 600, color: T.textMid,
@@ -694,7 +698,7 @@ export default function CalendarioOperativo({
           {isMobile ? (
             /* ── Lista mobile: tutti i giorni del mese selezionato ──
                 Dettaglio inserito INLINE subito sotto la card cliccata. */
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {mobileList.map(k => {
                 const status  = getStatus(k, true)
                 const isOggi  = k === oggiStr
@@ -912,7 +916,7 @@ function Kpi({ icon, label, value, sub, color, highlight, bar, barColor }) {
       <div style={{ position: 'absolute', top: -28, right: -28, width: 84, height: 84, borderRadius: '50%',
         background: highlight ? 'rgba(255,255,255,0.07)' : `${accent}14`, opacity: 0.6, pointerEvents: 'none' }} />
       <div style={{ position: 'relative', marginBottom: 11 }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, borderRadius: 11,
+        <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, borderRadius: R.lg,
           background: highlight ? 'rgba(255,255,255,0.14)' : 'rgba(110,14,26,0.10)', color: highlight ? '#fff' : accent }}>
           <Icon name={icon} size={18} />
         </span>
@@ -925,8 +929,8 @@ function Kpi({ icon, label, value, sub, color, highlight, bar, barColor }) {
         {value}
       </div>
       {bar != null && (
-        <div style={{ position: 'relative', height: 5, borderRadius: 3, background: highlight ? 'rgba(255,255,255,0.2)' : T.bgSubtle, marginTop: 9, overflow: 'hidden' }}>
-          <div style={{ height: '100%', width: `${Math.min(100, Math.max(0, bar))}%`, background: barColor || accent, borderRadius: 3, transition: `width ${M.durSlow} ${M.ease}` }} />
+        <div style={{ position: 'relative', height: 5, borderRadius: R.full, background: highlight ? 'rgba(255,255,255,0.2)' : T.bgSubtle, marginTop: 9, overflow: 'hidden' }}>
+          <div style={{ height: '100%', width: `${Math.min(100, Math.max(0, bar))}%`, background: barColor || accent, borderRadius: R.full, transition: `width ${M.durSlow} ${M.ease}` }} />
         </div>
       )}
       {sub

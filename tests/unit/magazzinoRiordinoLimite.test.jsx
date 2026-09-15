@@ -14,6 +14,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, cleanup, fireEvent, waitFor } from '@testing-library/react'
 import React from 'react'
+import { todayLocal } from '../../src/lib/dateLocal'
 
 function fluente(res = { data: [], error: null }) {
   const h = { get(_t, p) {
@@ -126,7 +127,12 @@ describe('lista di riordino — in che ordine', () => {
       },
       ingredienti_costi: {},
     }
-    const oggi = new Date().toISOString().slice(0, 10)
+    // `todayLocal()`, non `toISOString().slice(0,10)`: la seconda dà la data in
+// UTC, e in Italia fra mezzanotte e le due è ancora ieri. Un dato datato
+// «ieri» non è più «oggi» per le pagine, e quello che si misura cambia a
+// seconda dell'ora in cui si lancia la suite. È già capitato il 16/09/2026
+// alle 00:30.
+const oggi = todayLocal()
     const v = render(<MagazzinoView {...props}
       ricettario={ricettario}
       giornaliero={[{ data: oggi, prodotti: [{ nome: 'TORTA', stampi: 5 }] }]}

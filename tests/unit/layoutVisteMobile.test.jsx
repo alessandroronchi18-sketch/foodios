@@ -16,6 +16,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { render } from '@testing-library/react'
 import React from 'react'
 import { mkdirSync, writeFileSync } from 'node:fs'
+import { todayLocal, formatLocalDate } from '../../src/lib/dateLocal'
 
 const ATTIVO = !!process.env.DUMP_LAYOUT
 const FUORI = '/private/tmp/claude-501/-Users-aler/7259be07-0e07-42ba-9be1-e672e3a32c10/scratchpad/viste-mobile'
@@ -91,8 +92,13 @@ const magazzino = {
   'latte intero': { nome: 'Latte intero', giacenza_g: 12000, soglia_g: 4000, ultimoRifornimento: new Date().toISOString() },
   'pasta nocciola': { nome: 'Pasta nocciola', giacenza_g: 3400, soglia_g: 1500 },
 }
-const oggi = new Date().toISOString().slice(0, 10)
-const ieri = new Date(Date.now() - 86400000).toISOString().slice(0, 10)
+// `todayLocal()`, non `toISOString().slice(0,10)`: la seconda dà la data in
+// UTC, e in Italia fra mezzanotte e le due è ancora ieri. Un dato datato
+// «ieri» non è più «oggi» per le pagine, e quello che si misura cambia a
+// seconda dell'ora in cui si lancia la suite. È già capitato il 16/09/2026
+// alle 00:30.
+const oggi = todayLocal()
+const ieri = formatLocalDate(new Date(Date.now() - 86400000))
 const giornaliero = [
   { id: 'g1', data: oggi, prodotti: [{ nome: 'SACHER', stampi: 3, vendibile: 24 }, { nome: 'CROSTATA FRUTTA FRESCA', stampi: 2, vendibile: 20 }], ingredientiUsati: { 'farina 00': 2300, burro: 1300 }, fcTot: 41.2, ricavoTot: 232, note: '' },
   { id: 'g2', data: ieri, prodotti: [{ nome: 'SACHER', stampi: 2, vendibile: 16 }], ingredientiUsati: { 'farina 00': 1000, burro: 600 }, fcTot: 18.4, ricavoTot: 120, note: '' },
@@ -103,6 +109,25 @@ const chiusure = [
 ]
 
 const comuni = { ricettario, magazzino, giornaliero, chiusure, orgId: 'org-1', sedeId: 's1', notify: () => {} }
+
+// Le finestrelle di primo accesso coprono la pagina e la rendono
+// infotografabile: qui interessa la pagina, non il benvenuto.
+try { localStorage.setItem('foodos_inventario_onboarding_v1', '1') } catch { /* happy-dom senza storage */ }
+
+// Un difetto DEL BANCO DI PROVA, non del prodotto: happy-dom serializza
+// `border: 'none'` come "border: none none", che è CSS **non valido**.
+// Chromium scarta la dichiarazione e rimette il bordo di sistema: nelle
+// fotografie 166 campi comparivano incorniciati di nero spesso, e nel browser
+// vero — dove React scrive "border: none" — quel bordo non esiste. Qui si
+// riscrive la stessa cosa in CSS valido, così la fotografia mostra la pagina
+// vera. (Provato: una regola `!important` nel foglio di stile NON basta, il
+// bordo nativo torna lo stesso; deve essere valida nell'attributo `style`.)
+function ripuliscilo(html) {
+  return html
+    .replace(/border: none none/g, 'border: none')
+    .replace(/border-color: none none/g, 'border-color: transparent transparent')
+    .replace(/outline-color: none; outline-style: none; outline-width: initial;/g, 'outline: none;')
+}
 
 async function scrivi(nome, elemento) {
   const v = render(elemento)
@@ -126,12 +151,18 @@ ${document.head.innerHTML}
   button[aria-label]:not([class*="inline"]) { min-width: 44px; min-height: 44px; }
 }
 @media (max-width: 767px) { table { width: 100%; } }
-body{margin:0;background:#FAF7F2;font-family:Inter,system-ui,sans-serif;}
+/* Il fondo VERO della pagina: C.bg in Dashboard.jsx, cioè #F8FAFC. Qui
+   c'era un crema (#FAF7F2) che nell'app non esiste da nessuna parte: le
+   schede bianche sopra un crema sembrano staccate, sopra il grigio-azzurro
+   vero quasi no, ed è proprio il contrasto scheda/fondo che si stava
+   giudicando. */
+body{margin:0;background:#F8FAFC;color:#0F172A;font-family:Inter,system-ui,sans-serif;
+  font-feature-settings:'cv11','ss01','ss03';-webkit-font-smoothing:antialiased;}
 /* Il margine VERO della pagina sul telefono. Era 24px: si misuravano
    16px di sforamento per lato che nell'app non esistono. */
 .schermo{padding:16px;}
 </style>
-</head><body><div class="schermo">${v.container.innerHTML}</div></body></html>`
+</head><body><div class="schermo">${ripuliscilo(v.container.innerHTML)}</div></body></html>`
   writeFileSync(`${FUORI}/${nome}.html`, html)
   v.unmount()
   return html.length
@@ -175,6 +206,8 @@ describe('fotografia delle viste — telefono', () => {
     n.push(await scrivi('perdite', <SpreciOmaggi {...comuni} sedeAttiva={sedeAttiva} auth={{ user: { email: 'anita@maradeiboschi.com' } }} />))
     n.push(await scrivi('personale', <Personale orgId="org-1" sedeId="s1" sedi={sedi} notify={() => {}} adminNome="Anita" nomeAttivita="Pasticceria del Corso" />))
     n.push(await scrivi('scadenzario', <Scadenzario orgId="org-1" sedeId="s1" sedi={sedi} />))
+    const { default: CalendarioOperativo } = await import('../../src/components/CalendarioOperativo.jsx')
+    n.push(await scrivi('calendario', <CalendarioOperativo {...comuni} setView={() => {}} isMobile />))
     n.push(await scrivi('costi-aziendali', <CostiAziendaliView orgId="org-1" sedeId="s1" sedi={sedi} notify={() => {}} />))
     n.push(await scrivi('vendite-b2b', <VenditeB2BView orgId="org-1" sedeId="s1" sedi={sedi} sedeAttiva={sedeAttiva} ricettario={ricettario} notify={() => {}} />))
     n.push(await scrivi('fornitori', <Fornitori orgId="org-1" sedeId="s1" sedi={sedi} notify={() => {}} />))
