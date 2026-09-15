@@ -4,7 +4,7 @@
 > e, dal 7 set, su query al database di produzione: quando qui c'e' un numero di
 > righe, di fatture o di letture, e' stato contato, non stimato.
 >
-> **Composito al 15/09 (sera): Prodotto 96 · Ingegneria 98 · Business 43 · Maturita' ~68.**
+> **Composito al 15/09 (sera): Prodotto 96 · Ingegneria 98 · Business 43 · Maturita' ~69.**
 >
 > Il 15/09 (sezione 0quater) sei lavori chiesti dal titolare, tutti in
 > produzione. **Prodotto +1** perche' sono state tolte tre cose che il prodotto
@@ -66,7 +66,7 @@
 | Data | Prodotto | Ingegneria | Business | Maturità azienda | Δ note |
 |---|---:|---:|---:|---:|---|
 | 2026-06-05 | 76 | 70 | 22 | ~30 | baseline |
-| **2026-09-15** | **96** | **98** | **43** | **~68** | **SEI LAVORI: ACCESSO, DIPENDENTE, PIANI, INTEGRAZIONI.** 5 commit, test 2.394 → **2.485** su 176 file, 5 migrazioni nuove applicate e verificate. **(1) Accesso**: `/api/login-guard` non ha autenticazione e «questo accesso e' fallito» era una cosa che il BROWSER dichiarava — chiunque conoscesse l'email di un cliente poteva lasciarlo fuori dal gestionale, per sempre. Provato in produzione: cinque richieste senza credenziali e l'account e' bloccato. Piu' il **codice a 4 cifre dei dipendenti provabile all'infinito** (10.000 combinazioni, nessun limite: ci si presentava come un collega), il passo SMS in registrazione che **non poteva riuscire** e nel fallire diceva se un numero e' registrato, e altri quattro. **reCAPTCHA non si puo' usare** (Supabase accetta solo hCaptcha e Turnstile, perche' l'accesso non passa dai nostri server): messo **Turnstile**, spento. **(2) Dipendente «solo le sue pagine»**: il filtro girava DOPO il disegno della pagina, e la ricerca rapida offriva la scorciatoia. Ma il buco vero era nel database — **leggeva affitti e utenze** (8 righe vere), perche' `fatture` era chiusa e `extracted_invoices` no. La porta principale chiusa e la finestra di lato aperta. **(3) Produzione**: la rimanenza del giorno prima non era a schermo, si inseriva alla cieca. **(4) Piani → Standard/Plus/Ultra, solo il Plus in vendita**: e correggendo e' uscito che `plan_pricing` era ferma al 27/05 e **la pagina pubblica mostrava 89 € e 149 € invece di 149 € e 399 €, da tre mesi** — Termini di servizio compresi. **(5) Quattro difetti nelle integrazioni**: l'auto-riconoscimento dei CSV di cassa **dichiarato su 13 marche e mai collegato** (e dentro i parser, i metodi di pagamento sempre vuoti e RCH che leggeva 0 € su una giornata da 100 €); il **dettaglio riga di 3.520 fatture** letto e buttato; i `.p7m` accettati e sempre falliti; il registro a una riga per scontrino (140.000 l'anno). Piu' il **lettore ZIP** che apre gli archivi dell'Agenzia delle Entrate, dove le fatture hanno dentro tutto. **(6) «Settimana precedente» non tornava indietro**, segnalato dal titolare: un effetto che correggeva uno stato guardandone un altro, e i due comandi si combattevano  **POMERIGGIO — altri tre audit profondi.** **(7) La spesa dell'AI non aveva nessun tetto che funzionasse**: le funzioni del contatore cercavano l'azienda con `auth.uid()`, vuoto quando chiama il server, quindi non scrivevano mai e il totale tornava sempre 0 — `0 >= tetto` non e' mai vero, e il limite non e' mai scattato per nessuno. La prova: `ai_usage_daily` VUOTA con 327 organizzazioni e sette chiavi `ai:…` in `rate_limits` che dimostrano che le chiamate c'erano state. Anche il pannello admin leggeva quella tabella e mostrava 0 € per tutti: non c'era modo di accorgersene. Tetto a 5 $/giorno, e i pacchetti comprati adesso si consumano davvero. **(8) Trasferimenti fra sedi** (mai usati da nessuno: zero righe, 108 aziende con i requisiti): **la merce poteva essere scalata due volte** in silenzio, due conferme insieme caricavano due volte, e il dipendente **non vedeva niente ma poteva fare tutto** — le funzioni saltano le regole di isolamento e guardavano l'azienda, non il ruolo. Piu' chili e pezzi sommati fra loro, il valore perso all'arrivo, le due sedi che potevano essere di aziende diverse. **(9) I due bottoni assistente e feedback**: la chat **smetteva di ascoltare dall'undicesima domanda**, l'assistente spiegava al dipendente come arrivare alle pagine chiuse, mandava su pagine spente, non aveva nessun divieto di inventare numeri, e le chiamate AI **non lasciavano nessuna traccia** (9.825 righe di registro, zero per l'AI). **(10)** La suite girava su un core solo per un vincolo che serviva solo al calcolo della copertura: 2m58 -> 2m23. Test 2.394 -> **2.531** su 178 file, audit-sicurezza 19/19, 7 migrazioni |
+| **2026-09-15** | **96** | **98** | **43** | **~68** | **SEI LAVORI: ACCESSO, DIPENDENTE, PIANI, INTEGRAZIONI.** 5 commit, test 2.394 → **2.485** su 176 file, 5 migrazioni nuove applicate e verificate. **(1) Accesso**: `/api/login-guard` non ha autenticazione e «questo accesso e' fallito» era una cosa che il BROWSER dichiarava — chiunque conoscesse l'email di un cliente poteva lasciarlo fuori dal gestionale, per sempre. Provato in produzione: cinque richieste senza credenziali e l'account e' bloccato. Piu' il **codice a 4 cifre dei dipendenti provabile all'infinito** (10.000 combinazioni, nessun limite: ci si presentava come un collega), il passo SMS in registrazione che **non poteva riuscire** e nel fallire diceva se un numero e' registrato, e altri quattro. **reCAPTCHA non si puo' usare** (Supabase accetta solo hCaptcha e Turnstile, perche' l'accesso non passa dai nostri server): messo **Turnstile**, spento. **(2) Dipendente «solo le sue pagine»**: il filtro girava DOPO il disegno della pagina, e la ricerca rapida offriva la scorciatoia. Ma il buco vero era nel database — **leggeva affitti e utenze** (8 righe vere), perche' `fatture` era chiusa e `extracted_invoices` no. La porta principale chiusa e la finestra di lato aperta. **(3) Produzione**: la rimanenza del giorno prima non era a schermo, si inseriva alla cieca. **(4) Piani → Standard/Plus/Ultra, solo il Plus in vendita**: e correggendo e' uscito che `plan_pricing` era ferma al 27/05 e **la pagina pubblica mostrava 89 € e 149 € invece di 149 € e 399 €, da tre mesi** — Termini di servizio compresi. **(5) Quattro difetti nelle integrazioni**: l'auto-riconoscimento dei CSV di cassa **dichiarato su 13 marche e mai collegato** (e dentro i parser, i metodi di pagamento sempre vuoti e RCH che leggeva 0 € su una giornata da 100 €); il **dettaglio riga di 3.520 fatture** letto e buttato; i `.p7m` accettati e sempre falliti; il registro a una riga per scontrino (140.000 l'anno). Piu' il **lettore ZIP** che apre gli archivi dell'Agenzia delle Entrate, dove le fatture hanno dentro tutto. **(6) «Settimana precedente» non tornava indietro**, segnalato dal titolare: un effetto che correggeva uno stato guardandone un altro, e i due comandi si combattevano  **POMERIGGIO — altri tre audit profondi.** **(7) La spesa dell'AI non aveva nessun tetto che funzionasse**: le funzioni del contatore cercavano l'azienda con `auth.uid()`, vuoto quando chiama il server, quindi non scrivevano mai e il totale tornava sempre 0 — `0 >= tetto` non e' mai vero, e il limite non e' mai scattato per nessuno. La prova: `ai_usage_daily` VUOTA con 327 organizzazioni e sette chiavi `ai:…` in `rate_limits` che dimostrano che le chiamate c'erano state. Anche il pannello admin leggeva quella tabella e mostrava 0 € per tutti: non c'era modo di accorgersene. Tetto a 5 $/giorno, e i pacchetti comprati adesso si consumano davvero. **(8) Trasferimenti fra sedi** (mai usati da nessuno: zero righe, 108 aziende con i requisiti): **la merce poteva essere scalata due volte** in silenzio, due conferme insieme caricavano due volte, e il dipendente **non vedeva niente ma poteva fare tutto** — le funzioni saltano le regole di isolamento e guardavano l'azienda, non il ruolo. Piu' chili e pezzi sommati fra loro, il valore perso all'arrivo, le due sedi che potevano essere di aziende diverse. **(9) I due bottoni assistente e feedback**: la chat **smetteva di ascoltare dall'undicesima domanda**, l'assistente spiegava al dipendente come arrivare alle pagine chiuse, mandava su pagine spente, non aveva nessun divieto di inventare numeri, e le chiamate AI **non lasciavano nessuna traccia** (9.825 righe di registro, zero per l'AI). **(10)** La suite girava su un core solo per un vincolo che serviva solo al calcolo della copertura: 2m58 -> 2m23. Test 2.394 -> **2.531** su 178 file, audit-sicurezza 19/19, 7 migrazioni  **(11) Telefono e tablet**: le due regole che salvano il telefono (niente zoom automatico nei campi, bersagli da 44px) si fermavano a 767px, cioe' **un pixel prima dell'iPad** — 95 campi di testo sotto i 16px su tablet contro 8 sul telefono, e 306 bersagli su 404 troppo piccoli. La soglia era scritta in PIXEL invece che sul tipo di dispositivo: ora e' `pointer: coarse` e dopo la correzione i campi sono **0**. E **l'attrezzo misurava una pagina diversa da quella vera**: niente foglio di stile globale (ogni riquadro 38px piu' alto), margine sbagliato, niente meta viewport, e **nessuna variante tablet** — il buco dove il difetto si nascondeva. Pagine che si trascinavano di lato: 320px 3→0, 360px 1→0. Due attrezzi nuovi e due regole di cricchetto (109 misure scritte tre volte, 101 anti-zoom a mano) |
 | **2026-09-14 (notte)** | **95** | **97** | **42** | **~67** | **AUDIT DI SICUREZZA PROFONDO — otto buchi trovati e chiusi.** 12 commit, test 2.258 → **2.335** su 165 file, 8 migration di sicurezza applicate e verificate in produzione. Ognuno provato **dall'esterno con la sola chiave pubblica del sito** prima e dopo la correzione. (1) Sei funzioni interne chiamabili senza account: sovrascrivere ricettario, magazzino e chiusure di un'attività conoscendone l'id, alterare lo stock, **cancellare tutto il registro delle modifiche**. (2) I trasferimenti fra sedi comandabili da anonimi, perché il controllo di proprietà era `x <> get_user_org_id()` e in SQL `x <> NULL` non è falso, è NULL — un `if` con condizione NULL non scatta. (3) Deposito delle foto pubblico: scaricabile **ed elencabile** da chiunque. (4) Lo storico dei prezzi d'acquisto leggibile dai dipendenti — l'unico dei otto dove c'erano dati veri. (5) Un titolare poteva mettersi `approvato = true` dal browser e sbloccare tutto senza pagare. (6) Sul proprio profilo si poteva creare un account di laboratorio da soli. (7) TRUNCATE concesso ai ruoli pubblici: ignora le regole di isolamento per costruzione. (8) La cassa entrava con una parola d'ordine **uguale per tutti i clienti** e dichiarava lei l'attività: chi l'aveva scriveva incassi nella cassa di chiunque. **Nessun dato uscito** tranne il punto 4: deposito foto vuoto, zero integrazioni cassa attive. Tenuti da `audit-sicurezza.mjs` (12 controlli in produzione), una prova d'attacco con la chiave pubblica e 50 test. **Sicurezza 88 → 97**, Ingegneria 96 → 97  **Poi le sette sezioni sotto l'80**, chiuse nella stessa notte: WhatsApp mostrava un numero di cellulare INVENTATO e diceva di salvarlo in rubrica e scrivergli; le stelle delle Recensioni partivano da 5 e l'AI ci credeva, quindi rispondeva da cliente contento a una recensione da una stella; due schede di Impostazioni parlavano di "rotazione token", "il cron non parte" e "approvare il sender Twilio, o in sandbox l'opt-in"; la pagina della prova scaduta prometteva che i dati restassero "al sicuro per 60 giorni", lasciando capire che poi sparissero. **OnboardingChat rimossa**: non era raggiungibile da quando e' nata il 12/06, e se il salvataggio falliva a meta' creava una seconda organizzazione. Fuori dalle sette: i **Termini di servizio** — il contratto — elencavano due piani inesistenti a due prezzi sbagliati, e i vecchi nomi erano offerti in 8 punti da tre mesi; il pannello invito prometteva "60 giorni invece di 30" quando la prova vera ne dura 90 e il codice ne aggiunge 60; il dominio **foodos.it non esiste** (NXDOMAIN) e ci sono 46 indirizzi che ci puntano. Media UI 84,6 → **85,0**, nessuna sezione sotto l'80 |
 | **2026-09-14 (sera)** | **94** | **96** | **42** | **~66** | **ARRETRATO DEGLI AUDIT CHIUSO + AUDIT DI IMPAGINAZIONE + DUE SCELTE DI STILE.** 22 commit, test 1.721 → 2.258. **Prodotto +1**: i 117 difetti "sostenuti e mai verificati" di Magazzino e Produzione sono stati passati uno per uno (52 risultavano già corretti e il documento era rimasto indietro, 59 corretti, 2 rifiutati con un fatto). Dentro c'erano cose che nessuno vedeva: il percorso del DIPENDENTE era rimasto indietro rispetto a quello del titolare — il server non scendeva nei semilavorati, saltava gli ingredienti salvati al plurale, e non aveva idempotenza (tablet che perde la rete, messaggio "riprova", stessa produzione registrata due volte e magazzino scalato due volte); "Azzera" registrava una correzione di giacenza come merce buttata; la home diceva "8.409 pezzi al banco" sommando 6 torte e 8,4 kg di gelato. **Ingegneria +1**: i difetti non verificati erano il motivo per cui il 14/09 mattina l'ingegneria non saliva, e ora sono verificati. Più: **due migration mai applicate in produzione** trovate confrontando le 37 RPC chiamate dal codice con quelle esistenti nel database (ogni vendita all'ingrosso scaricava il magazzino come una vendita al banco, con un ripiego silenzioso); **il gate pre-push non bloccava il build dal 7 set** (`| tail -5` mangiava l'esito) e la produzione è rimasta ferma tre commit indietro senza nessun segnale — corretto, più `npm run push` che verifica che il commit sia davvero online. **Impaginazione 80 → 88**: scala tipografica unica tenuta da un test (261 misure fuori scala, compresi testi a 8-10px), colonne di numeri incolonnate, 32 viste rese in due versioni e misurate. **Due scelte di stile del titolare**: le undici pagine AI usano l'intestazione di tutte le altre (via gradienti e titoli in oro: erano le uniche che sembravano generate), e il rosso del marchio si separa da quello d'allarme. **Business fermo a 42**: nessun blocco esterno tolto. Media UI 84,6 → **84,9** |
 | 2026-06-06 | 79 | 75 | 22 | ~31 | Personale rifondato, home+nav premium, +68 test |
@@ -554,6 +554,58 @@ del calcolo della **copertura** su macOS. Ma la copertura si calcola solo con
 2.531 test in fila mentre tre core su quattro stavano fermi. In più la sintassi
 era quella di Vitest 1.x, quindi quella riga non faceva nemmeno quello che
 diceva. Da **2m58 a 2m23**, e il vincolo resta acceso dove serviva.
+
+
+### 11. Telefono e tablet — il tablet era un computer usato con le dita
+
+Il titolare aveva messo per primo il requisito giusto: **le tre versioni non
+devono divergere.** Ed è lì che stava il difetto.
+
+In `index.html` le due regole che salvano il telefono — niente zoom automatico
+nei campi, bersagli da 44px — stavano dentro `@media (max-width: 767px)`.
+**L'iPad comincia a 768.** Misurato: **95 campi di testo sotto i 16px** su
+tablet contro 8 sul telefono, e 306 bersagli su 404 sotto i 44px — quasi gli
+stessi numeri del computer (343). Sotto i 16px Safari ingrandisce la pagina da
+sola appena ci si scrive dentro.
+
+Nessuno l'aveva deciso: succedeva perché la soglia era scritta **in pixel**
+invece che **sul tipo di dispositivo**. Adesso è `@media (pointer: coarse)` —
+"si tocca col dito" — e vale per telefono e tablet insieme. Dopo: **0 campi
+sotto i 16px**, bersagli da 306 a 1.
+
+**E l'attrezzo misurava una pagina diversa da quella vera.** Vale più di molti
+difetti di codice: se il metro mente, ogni audit futuro parte da numeri
+sbagliati.
+
+- Il banco di prova scriveva HTML **senza il foglio di stile globale**: senza
+  `box-sizing: border-box` ogni riquadro risultava 38px più alto del vero.
+- Usava 24px di margine anche per il telefono, che ne ha 16: 16px di
+  sforamento inventati per lato, più della metà di quelli trovati.
+- Non dichiarava il meta viewport: in emulazione il browser impaginava a 980px.
+- **Non esisteva una variante tablet**, che è esattamente il buco dove il
+  difetto si nascondeva.
+- E misurando senza emulare il tocco, Chromium dichiara `pointer: fine`: le
+  regole nuove non si applicavano e sembravano non funzionare.
+
+Due attrezzi nuovi: `audit-scorrimento.mjs` risponde alla domanda vera — la
+pagina si trascina di lato? — perché `audit-layout.mjs` segnala anche i cerchi
+decorativi messi apposta a sbordare dall'angolo delle tessere, già ritagliati da
+`overflow: hidden`. E `audit-tocco.mjs` misura campi e bersagli.
+
+**Pagine che si trascinavano di lato, col metro corretto:** 320px 3 → 0,
+360px 1 → 0, da 375 in su già zero. Tre cause della stessa famiglia — qualcosa
+che non si lascia stringere: due file di pastiglie che non andavano a capo, una
+tessera larga 356px dentro uno spazio di 344 (manca `minWidth: 0`), un bottone
+da 174px che non si accorciava.
+
+**Il cricchetto**: due regole nuove con la fotografia di partenza — 109 misure
+scritte tre volte e 101 regole anti-zoom scritte a mano. Possono solo scendere.
+
+**Resta aperto, ed è una decisione di prodotto**: portare la misura in un posto
+solo, così le tre versioni si aggiornano insieme per costruzione.
+`getTypo(isMobile)` esiste ed è usato **una volta sola** in tutto il progetto;
+`src/lib/uiKit.js` esiste con **zero importatori**. ~1,5 giornate per
+l'impianto, ~8 per gli otto file che contengono il 38% delle misure ripetute.
 
 
 ---
@@ -1567,7 +1619,7 @@ Sprechi +5, Inventario settimanale +4, Quadratura +4, OrdiniAi +7, Sede
 selector +4, Scadenzario +3. Tre pagine escono dal conto perche' sono spente
 (Scheda allergeni, HACCP, Menu dinamico).
 
-### Impaginazione — il giro del 14/09 (sera)
+### Impaginazione — il giro del 14/09 (sera) e il seguito del 15/09
 
 > Questa sezione misura una cosa sola: **l'impaginazione**, cioè quello che
 > rende una pagina ordinata o storta a prescindere da cosa dice. Prima del
@@ -1601,7 +1653,16 @@ selector +4, Scadenzario +3. Tre pagine escono dal conto perche' sono spente
   **Zero difetti misurabili su 31 viste**; sulla trentaduesima resta uno
   scarto di 15px fra un campo e un pannello, accettato.
 
-**Perché 88 e non 95**: quello che si misura è a posto. Quello che non si
+**15/09 — il seguito.** Quel giro aveva misurato solo computer e telefono, e
+con un metro che sbagliava: niente foglio di stile globale nelle pagine di
+prova (ogni riquadro 38px più alto del vero), margine sbagliato, niente meta
+viewport, **e nessuna variante tablet**. Il difetto più grosso stava proprio
+lì: le regole del tocco si fermavano un pixel prima dell'iPad, e sul tablet
+c'erano 95 campi di testo sotto i 16px. Corretto il metro e corretto il
+difetto, oggi **nessuna pagina si trascina di lato a nessuna larghezza** (da
+320px in su) e non c'è nessun campo sotto i 16px. **Impaginazione 88 → 91.**
+
+**Perché 88 e non 95** (scritto il 14/09): quello che si misura è a posto. Quello che non si
 misura — il ritmo verticale, la gerarchia, la personalità delle pagine AI, che
 sembrano ancora generate — è lavoro di mano, e va visto e approvato, non
 dedotto da uno script.
