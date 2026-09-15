@@ -51,8 +51,8 @@ function addDays(dateIso, n) {
 }
 
 function fmtRange(lunediIso) {
-  const lun = new Date(lunediIso)
-  const dom = new Date(lunediIso); dom.setDate(dom.getDate() + 6)
+  const lun = new Date(lunediIso + 'T12:00')
+  const dom = new Date(lunediIso + 'T12:00'); dom.setDate(dom.getDate() + 6)
   const f = d => d.toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })
   return `${f(lun)} - ${f(dom)} ${dom.getFullYear()}`
 }
@@ -177,15 +177,30 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
   // Lista gusti = unione di ricettario + gusti orfani (presenti in DB ma
   // non nel ricettario). Così un file importato con nomi non ancora a
   // ricettario non viene "nascosto" nel foglio settimanale.
-  // Se il giorno scelto nella vista "Oggi" esce dalla settimana caricata, si
-  // sposta la settimana: la matrice contiene solo i 7 giorni caricati, e
-  // senza questo la cella di ieri risulterebbe vuota pur avendo un dato.
-  useEffect(() => {
-    const fine = addDays(lunediIso, 6)
-    if (giornoOggi < lunediIso || giornoOggi > fine) {
-      setLunediIso(lunediDellaSettimana(giornoOggi))
-    }
-  }, [giornoOggi, lunediIso])
+  // Cambiare il giorno nella vista "Oggi" sposta anche la settimana caricata,
+  // perché la matrice contiene solo i 7 giorni caricati.
+  //
+  // Prima questo stava in un useEffect che guardava sia `giornoOggi` sia
+  // `lunediIso`, e il risultato era che **i bottoni "settimana precedente" e
+  // "mese precedente" non funzionavano**: si premeva, `lunediIso` tornava
+  // indietro, l'effetto scattava, vedeva che `giornoOggi` (cioè oggi) era
+  // fuori da quella settimana e riportava tutto al punto di partenza. Dalla
+  // settimana corrente non si usciva.
+  //
+  // È il difetto classico dell'effetto che "corregge" uno stato guardandone un
+  // altro: due comandi che scrivono la stessa variabile si combattono, e vince
+  // quello che parte per ultimo. La correzione non è aggiustare la condizione,
+  // è non avere l'effetto: chi cambia il giorno sposta anche la settimana, in
+  // un gesto solo, e chi cambia la settimana non viene disturbato.
+  const cambiaGiorno = useCallback((nuovoGiorno) => {
+    setGiornoOggi(nuovoGiorno)
+    setLunediIso(prec => {
+      const fine = addDays(prec, 6)
+      return (nuovoGiorno < prec || nuovoGiorno > fine)
+        ? lunediDellaSettimana(nuovoGiorno)
+        : prec
+    })
+  }, [])
 
   // I 7 giorni della settimana mostrata. `righe` ne contiene di più: i
   // giorni PRIMA del lunedi servono come rimanenza di partenza per il calcolo
@@ -289,7 +304,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
   useEffect(() => {
     if (vista !== 'mese' || !orgId || sediProdIds.length === 0) return
     let alive = true
-    const d = new Date(lunediIso)
+    const d = new Date(lunediIso + 'T12:00')
     const inizio = formatLocalDate(new Date(d.getFullYear(), d.getMonth(), 1))
     const fine = formatLocalDate(new Date(d.getFullYear(), d.getMonth() + 1, 1))
     // fine e' esclusivo → sottraggo 1 giorno per usare lte
@@ -381,7 +396,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
         return sgn * ((totaliProdSettimana[ak] || 0) - (totaliProdSettimana[bk] || 0))
       }
       // { tipo: 'prod'|'riman', giorno }
-      const dIso = (() => { const d = new Date(lunediIso); d.setDate(d.getDate() + key.giorno); return formatLocalDate(d) })()
+      const dIso = (() => { const d = new Date(lunediIso + 'T12:00'); d.setDate(d.getDate() + key.giorno); return formatLocalDate(d) })()
       const av = (matrice[ak]?.[dIso] || {})[key.tipo === 'prod' ? 'prod' : 'riman'] || 0
       const bv = (matrice[bk]?.[dIso] || {})[key.tipo === 'prod' ? 'prod' : 'riman'] || 0
       return sgn * (av - bv)
@@ -446,7 +461,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
   const totaliMese = useMemo(() => {
     const righeMese = meseData?.righe || []
     if (vista !== 'mese' || righeMese.length === 0) return { venduto: 0, celleNonQuadrate: 0, da: null, a: null }
-    const d = new Date(lunediIso)
+    const d = new Date(lunediIso + 'T12:00')
     const da = formatLocalDate(new Date(d.getFullYear(), d.getMonth(), 1))
     const a = formatLocalDate(new Date(d.getFullYear(), d.getMonth() + 1, 0))
     const tot = totaliPerGusto(righeMese, { da, a })
@@ -656,23 +671,31 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
     }
   }
 
-  const mesePrec = () => {
-    const d = new Date(lunediIso)
-    const primo = new Date(d.getFullYear(), d.getMonth() - 1, 1)
-    setLunediIso(formatLocalDate(primo))
+  // Spostarsi di un mese.
+  //
+  // `lunediIso` è il cursore di tutta la pagina, e il suo nome dice che deve
+  // essere un lunedì: la vista Settimana ci conta sopra per disegnare i sette
+  // giorni. Prima la navigazione per mese lo metteva sul PRIMO del mese, che è
+  // lunedì una volta su sette: tornando alla scheda Settimana la tabella
+  // partiva da un mercoledì qualunque.
+  //
+  // Si punta al lunedì della settimana che contiene il 15. Il 15 è sempre
+  // dentro il mese, e il lunedì di quella settimana cade fra il 9 e il 15 —
+  // quindi è sempre nello stesso mese, e l'etichetta in cima resta giusta.
+  // Il mezzogiorno serve a non farsi spostare di un giorno dal fuso orario.
+  const vaiAlMese = (anno, mese) => {
+    const dentroIlMese = new Date(anno, mese, 15, 12, 0, 0)
+    setLunediIso(lunediDellaSettimana(formatLocalDate(dentroIlMese)))
   }
-  const meseSucc = () => {
-    const d = new Date(lunediIso)
-    const primo = new Date(d.getFullYear(), d.getMonth() + 1, 1)
-    setLunediIso(formatLocalDate(primo))
+  const meseDelCursore = () => {
+    const d = new Date(lunediIso + 'T12:00')
+    return { anno: d.getFullYear(), mese: d.getMonth() }
   }
-  const meseCorrente = () => {
-    const d = new Date()
-    const primo = new Date(d.getFullYear(), d.getMonth(), 1)
-    setLunediIso(formatLocalDate(primo))
-  }
+  const mesePrec = () => { const { anno, mese } = meseDelCursore(); vaiAlMese(anno, mese - 1) }
+  const meseSucc = () => { const { anno, mese } = meseDelCursore(); vaiAlMese(anno, mese + 1) }
+  const meseCorrente = () => { const d = new Date(); vaiAlMese(d.getFullYear(), d.getMonth()) }
   const meseLabel = () => {
-    const d = new Date(lunediIso)
+    const d = new Date(lunediIso + 'T12:00')
     const nomi = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno',
                   'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre']
     return `${nomi[d.getMonth()].charAt(0).toUpperCase() + nomi[d.getMonth()].slice(1)} ${d.getFullYear()}`
@@ -1087,7 +1110,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
           onSave={handleSave} readOnly={isAllSedi}
           unita={unitaDisplay}
           giornoIso={giornoOggi}
-          onCambiaGiorno={setGiornoOggi}
+          onCambiaGiorno={cambiaGiorno}
           rimanenzaIeri={rimanenzaIeri}
         />
       ) : vista === 'mese' ? (
@@ -1806,7 +1829,7 @@ function VistaMese({ gusti, righeMese, lunediIso, unita = 'g', onClickGusto }) {
     // giorno non registrato (non solo dopo una settimana), troncava a zero i
     // conti che non tornavano, e ignorava i chili spediti alle altre sedi.
     const serie = serieVendutoMultiSede(righeMese || [])
-    const start = new Date(lunediIso)
+    const start = new Date(lunediIso + 'T12:00')
     const annoMese = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}`
     const out = {}
     for (const { nome } of (gusti || [])) {
@@ -1858,7 +1881,7 @@ function VistaMese({ gusti, righeMese, lunediIso, unita = 'g', onClickGusto }) {
   }, [gusti, sort, m])
 
   const meseLabel = (() => {
-    const d = new Date(lunediIso)
+    const d = new Date(lunediIso + 'T12:00')
     return `${MESI_LABEL[d.getMonth()]} ${d.getFullYear()}`
   })()
 
