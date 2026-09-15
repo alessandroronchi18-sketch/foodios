@@ -11,11 +11,13 @@
 //   - la funzione non esplode quando una tabella manca (catch silenziosi)
 
 import { describe, it, expect, vi } from 'vitest'
-import {
-  getSecuritySnapshot,
-  getHealthSnapshot,
-  getAiTelemetry,
-} from '../../api/admin.js'
+// Dal 15/09/2026 queste tre aree stanno in moduli loro: api/admin.js era
+// arrivato a 3.035 righe, ed è dove si nascondevano i difetti peggiori
+// trovati nell'audit di oggi — sei comandi che non partivano da mesi, un
+// listino fermo a tre listini fa, un editor SQL che scriveva.
+import { getSecuritySnapshot } from '../../api/lib/admin/sicurezzaPannello.js'
+import { getHealthSnapshot } from '../../api/lib/admin/salute.js'
+import { getAiTelemetry } from '../../api/lib/admin/telemetriaAi.js'
 
 // ── Mock Supabase fluent builder ──────────────────────────────────────────
 // `tables` è una mappa { 'login_attempts': [...], 'audit_log': [...] }
@@ -169,41 +171,102 @@ describe('getSecuritySnapshot', () => {
 })
 
 // ── getHealthSnapshot ─────────────────────────────────────────────────────
+//
+// Dal 15/09/2026 lo stato di un lavoro notturno viene dal **registro delle
+// esecuzioni** (`cron_runs`), non dal fatto che la sua tabella di
+// destinazione abbia righe nuove.
+//
+// Il motivo: le due cose non sono la stessa. `forecast_giornaliero` è vuota
+// su tutto il database di produzione, e col vecchio criterio il pannello
+// diceva «mai girato» — mentre il lavoro gira ogni notte e semplicemente non
+// trova niente da scrivere, perché nessun cliente registra il venduto per
+// prodotto. Ci sono voluti dieci minuti di interrogazioni al database per
+// stabilire quale delle due fosse.
 describe('getHealthSnapshot', () => {
-  it('marca cron "ok" se ha girato negli ultimi 24h', async () => {
-    const now = new Date().toISOString()
+  const OGGI = new Date().toISOString().slice(0, 10)
+  const giro = (id, quandoIso, status = 'ok', errore = null) => ({
+    job_name: id, run_date: OGGI, completed_at: quandoIso, status, error_message: errore,
+  })
+  const LAVORI = ['cron-notifiche', 'cron-daily-brief', 'cron-ai-suggestions',
+    'cron-forecast', 'cron-documentary', 'anomaly-detect',
+    'cleanup-audit-log', 'cleanup-error-log']
+
+  it('marca un lavoro "ok" se ha girato nelle ultime 24 ore', async () => {
+    const ora = new Date().toISOString()
     const supa = makeSupabase({
-      daily_briefs:           [{ created_at: now }],
-      ai_suggestions:         [{ created_at: now }],
-      forecast_giornaliero:   [{ created_at: now }],
-      documentary_snapshots:  [{ created_at: now }],
+      cron_runs: LAVORI.map(id => giro(id, ora)),
+      daily_briefs: [{ created_at: ora }], ai_suggestions: [{ created_at: ora }],
+      forecast_giornaliero: [{ created_at: ora }], documentary_snapshots: [{ created_at: ora }],
       error_log: [],
     })
     const snap = await getHealthSnapshot(supa)
-    expect(snap.cron).toHaveLength(4)
-    for (const c of snap.cron) expect(c.status).toBe('ok')
+    expect(snap.cron).toHaveLength(8)
+    for (const c of snap.cron) expect(c.status, c.id).toBe('ok')
   })
 
-  it('marca cron "late" se ultimo run > 26h fa', async () => {
-    const tooOld = new Date(Date.now() - 30 * 3600000).toISOString()
+  it('marca "late" se l\'ultimo giro è più vecchio di 26 ore', async () => {
+    const vecchio = new Date(Date.now() - 30 * 3600000).toISOString()
     const supa = makeSupabase({
-      daily_briefs:           [{ created_at: tooOld }],
-      ai_suggestions:         [{ created_at: tooOld }],
-      forecast_giornaliero:   [{ created_at: tooOld }],
-      documentary_snapshots:  [{ created_at: tooOld }],
-      error_log: [],
-    })
-    const snap = await getHealthSnapshot(supa)
-    for (const c of snap.cron) expect(c.status).toBe('late')
-  })
-
-  it('marca cron "never" se la tabella è vuota', async () => {
-    const supa = makeSupabase({
+      cron_runs: LAVORI.map(id => giro(id, vecchio)),
       daily_briefs: [], ai_suggestions: [], forecast_giornaliero: [], documentary_snapshots: [],
       error_log: [],
     })
     const snap = await getHealthSnapshot(supa)
-    for (const c of snap.cron) expect(c.status).toBe('never')
+    for (const c of snap.cron) expect(c.status, c.id).toBe('late')
+    expect(snap.cron[0].nota).toMatch(/giorni fa/)
+  })
+
+  it('marca "mai_registrato" se del lavoro non c\'è traccia', async () => {
+    const supa = makeSupabase({
+      cron_runs: [],
+      daily_briefs: [], ai_suggestions: [], forecast_giornaliero: [], documentary_snapshots: [],
+      error_log: [],
+    })
+    const snap = await getHealthSnapshot(supa)
+    for (const c of snap.cron) expect(c.status, c.id).toBe('mai_registrato')
+    expect(snap.cron[0].nota).toMatch(/non ha ancora lasciato traccia/i)
+  })
+
+  it('marca "error" se l\'ultimo giro è fallito, e riporta il motivo', async () => {
+    const ora = new Date().toISOString()
+    const supa = makeSupabase({
+      cron_runs: LAVORI.map(id => giro(id, ora, 'error', 'Claude 429: rate limited')),
+      daily_briefs: [], ai_suggestions: [], forecast_giornaliero: [], documentary_snapshots: [],
+      error_log: [],
+    })
+    const snap = await getHealthSnapshot(supa)
+    for (const c of snap.cron) expect(c.status, c.id).toBe('error')
+    expect(snap.cron[0].nota).toMatch(/Claude 429/)
+  })
+
+  it('distingue «gira ma non scrive» da «non gira»', async () => {
+    // È il caso della previsione vendite: il lavoro gira ogni notte e la sua
+    // tabella è vuota da sempre. Col vecchio criterio si leggeva «mai
+    // girato», che è un'altra cosa e porta a cercare il guasto dove non c'è.
+    const ora = new Date().toISOString()
+    const supa = makeSupabase({
+      cron_runs: LAVORI.map(id => giro(id, ora)),
+      daily_briefs: [{ created_at: ora }], ai_suggestions: [{ created_at: ora }],
+      forecast_giornaliero: [],            // gira, ma non ha niente da scrivere
+      documentary_snapshots: [{ created_at: ora }],
+      error_log: [],
+    })
+    const snap = await getHealthSnapshot(supa)
+    const previsione = snap.cron.find(c => c.id === 'cron-forecast')
+    expect(previsione.status, 'il lavoro gira: non è un guasto').toBe('ok')
+    expect(previsione.ultima_scrittura).toBe(null)
+    expect(previsione.nota).toMatch(/non ha mai scritto niente/)
+    // Mentre uno che scrive non ha nessuna nota.
+    expect(snap.cron.find(c => c.id === 'cron-daily-brief').nota).toBe(null)
+  })
+
+  it('ogni lavoro ha un nome in italiano, non l\'identificativo', async () => {
+    const supa = makeSupabase({ cron_runs: [], error_log: [] })
+    const snap = await getHealthSnapshot(supa)
+    for (const c of snap.cron) {
+      expect(c.etichetta, c.id).toBeTruthy()
+      expect(c.etichetta, c.id).not.toMatch(/^cron-/)
+    }
   })
 
   it('include build info dalle env Vercel', async () => {

@@ -22,7 +22,9 @@ const vive = (t) => t.replace(/\/\*[\s\S]*?\*\//g, '')
   .split('\n').filter(r => !/^\s*(\/\/|\*)/.test(r)).join('\n')
 
 const CRON = vive(leggi('api/cron-giornaliero.js'))
-const ADMIN = vive(leggi('api/admin.js'))
+// Dal 15/09/2026 lo stato del sistema sta in un modulo suo: api/admin.js era
+// arrivato a 3.035 righe ed è stato scorporato nello stesso giorno.
+const ADMIN = vive(leggi('api/lib/admin/salute.js'))
 const UI = vive(leggi('src/admin/AdminPage.jsx'))
 
 describe('ogni passo scrive il suo esito', () => {
@@ -69,28 +71,28 @@ describe('ogni passo scrive il suo esito', () => {
 
 describe('il pannello distingue «non gira» da «non ha dati»', () => {
   it('lo stato viene dal registro, non dalla tabella di destinazione', () => {
-    const f = ADMIN.slice(ADMIN.indexOf('async function getCronStatus'), ADMIN.indexOf('export async function getHealthSnapshot'))
+    const f = ADMIN.slice(ADMIN.indexOf('export async function getCronStatus'), ADMIN.indexOf('export async function getHealthSnapshot'))
     expect(f).toMatch(/\.from\('cron_runs'\)/)
     expect(f).toMatch(/const status = r == null \? 'mai_registrato'/)
   })
 
   it('e la tabella di destinazione resta come conferma, non come prova', () => {
-    const f = ADMIN.slice(ADMIN.indexOf('async function getCronStatus'), ADMIN.indexOf('export async function getHealthSnapshot'))
+    const f = ADMIN.slice(ADMIN.indexOf('export async function getCronStatus'), ADMIN.indexOf('export async function getHealthSnapshot'))
     expect(f).toMatch(/ultima_scrittura/)
   })
 
   it('un lavoro che gira e non scrive niente lo dice a parole', () => {
-    const f = ADMIN.slice(ADMIN.indexOf('async function getCronStatus'), ADMIN.indexOf('export async function getHealthSnapshot'))
+    const f = ADMIN.slice(ADMIN.indexOf('export async function getCronStatus'), ADMIN.indexOf('export async function getHealthSnapshot'))
     expect(f).toMatch(/Gira regolarmente ma non ha mai scritto niente/)
   })
 
   it('e un lavoro fermo da giorni pure', () => {
-    const f = ADMIN.slice(ADMIN.indexOf('async function getCronStatus'), ADMIN.indexOf('export async function getHealthSnapshot'))
+    const f = ADMIN.slice(ADMIN.indexOf('export async function getCronStatus'), ADMIN.indexOf('export async function getHealthSnapshot'))
     expect(f).toMatch(/Ha girato l'ultima volta \$\{Math\.round\(oreDaGiro \/ 24\)\} giorni fa/)
   })
 
   it('legge il registro con una query sola, non una per lavoro', () => {
-    const f = ADMIN.slice(ADMIN.indexOf('async function getCronStatus'), ADMIN.indexOf('export async function getHealthSnapshot'))
+    const f = ADMIN.slice(ADMIN.indexOf('export async function getCronStatus'), ADMIN.indexOf('export async function getHealthSnapshot'))
     expect((f.match(/\.from\('cron_runs'\)/g) || []).length).toBe(1)
   })
 })
@@ -99,7 +101,7 @@ describe('tutti i lavori notturni sono elencati', () => {
   it('gli otto passi che gira il lavoro notturno stanno nel pannello', () => {
     // Prima ce n'erano quattro: i quattro con una tabella loro. Gli altri
     // (avvisi, anomalie, le due pulizie) non risultavano da nessuna parte.
-    const elenco = ADMIN.slice(ADMIN.indexOf('const CRON_SIGNATURES'), ADMIN.indexOf('async function getCronStatus'))
+    const elenco = ADMIN.slice(ADMIN.indexOf('const CRON_SIGNATURES'), ADMIN.indexOf('export async function getCronStatus'))
     for (const id of ['cron-notifiche', 'cron-daily-brief', 'cron-ai-suggestions',
                       'cron-forecast', 'cron-documentary', 'anomaly-detect',
                       'cleanup-audit-log', 'cleanup-error-log']) {
@@ -111,7 +113,7 @@ describe('tutti i lavori notturni sono elencati', () => {
     // Se uno dei due elenchi cambia senza l'altro, il pannello mostra un
     // lavoro che non esiste o ne nasconde uno che c'è.
     const elencoPannello = new Set(
-      [...ADMIN.slice(ADMIN.indexOf('const CRON_SIGNATURES'), ADMIN.indexOf('async function getCronStatus'))
+      [...ADMIN.slice(ADMIN.indexOf('const CRON_SIGNATURES'), ADMIN.indexOf('export async function getCronStatus'))
         .matchAll(/id: '([a-z-]+)'/g)].map(m => m[1])
     )
     const eseguiti = new Set([
@@ -126,7 +128,7 @@ describe('tutti i lavori notturni sono elencati', () => {
   })
 
   it('ogni lavoro ha un nome in italiano, non l\'identificativo tecnico', () => {
-    const elenco = ADMIN.slice(ADMIN.indexOf('const CRON_SIGNATURES'), ADMIN.indexOf('async function getCronStatus'))
+    const elenco = ADMIN.slice(ADMIN.indexOf('const CRON_SIGNATURES'), ADMIN.indexOf('export async function getCronStatus'))
     const etichette = [...elenco.matchAll(/etichetta: '([^']+)'/g)].map(m => m[1])
     expect(etichette.length).toBeGreaterThanOrEqual(8)
     for (const e of etichette) {
