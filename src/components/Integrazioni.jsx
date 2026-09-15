@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
-import { parseFatturaXML, parseFatturaSMART } from '../lib/parseFatturaXML'
+import { parseFatturaXML, parseFatturaSMART, estraiXmlDaP7m } from '../lib/parseFatturaXML'
+import { estraiZipTesto, sembraZip } from '../lib/zip'
 import { parseZucchettiInfinity, parseZucchettiKassa } from '../lib/importZucchetti'
-import { parseSumUp, parseSatispay, parseSquare } from '../lib/importCassa'
+import { parseSumUp, parseSatispay, parseSquare, autoDetectCassaFormat } from '../lib/importCassa'
 import { parseUberEats, parseDeliveroo, parseJustEat, parseGlovo, mergeInChiusure } from '../lib/importDelivery'
 import { parseShopifyOrders, parseWooCommerceOrders, mergeOrdiniInChiusure } from '../lib/importEcommerce'
 import { caricaChiusure, upsertChiusure, importaChiusureIncassi } from '../lib/chiusure'
@@ -62,26 +63,38 @@ const INTEGRAZIONI_CFG = [
     nome: 'Fattura Elettronica SDI',
     icona: 'fileText',
     categoria: 'Fatturazione',
-    descrizione: 'Importa file XML dalle fatture elettroniche italiane (formato FatturaPA) ricevute dallo SDI.',
+    descrizione: 'Le fatture dei tuoi fornitori, con dentro anche il dettaglio riga: prodotto, quantità e prezzo unitario. È da qui che si capisce quanto costa davvero un ingrediente.',
     istruzioni: [
-      'Accedi al portale SDI o al tuo provider di fatturazione (es. Aruba, Fatture in Cloud)',
-      'Scarica le fatture passive in formato XML o P7M',
-      'Carica il file qui sotto - supporta sia fatture singole che lotti',
+      'Entra con SPID su ivaservizi.agenziaentrate.gov.it → Fatture e Corrispettivi → Consultazione → "Consultazione e download massivi"',
+      'Richieste → Fatture elettroniche → scegli il periodo e "ricevute" → genera e invia la richiesta',
+      'Dopo qualche minuto, in Risposte → File Prodotti, scarica lo ZIP e caricalo qui sotto',
+      'Va bene anche una fattura sola (.xml o .p7m), o il file che ti manda il commercialista',
     ],
-    tipoFile: '.xml,.p7m',
-    tipoLabel: 'XML / P7M',
+    tipoFile: '.zip,.xml,.p7m',
+    tipoLabel: 'ZIP, XML o P7M',
     multiplo: true,
   },
   {
     id: 'fattura_smart',
-    nome: 'TeamSystem FatturaSMART',
+    // 15/09/2026: la scheda diceva "TeamSystem FatturaSMART" e mandava il
+    // cliente a cercare "In TeamSystem: Contabilità › Fatture passive", un
+    // percorso che in Fattura Smart non esiste. Fattura Smart è di **Wolters
+    // Kluwer**: lo dichiara la pagina di accesso di webdesk.it, che avvisa
+    // testualmente «Le sue credenziali di webdesk/Fattura Smart sono
+    // personali» e riporta il copyright Wolters Kluwer in fondo.
+    //
+    // Cautela sul parser, non sul nome: `parseFatturaSMART` legge un Excel a
+    // colonne in posizione fissa e non sappiamo su quale export reale sia
+    // stato tarato. Il nome si corregge subito perché è verificato; le
+    // istruzioni restano prudenti finché non vediamo un file vero.
+    nome: 'Fattura Smart (Wolters Kluwer)',
     icona: 'barChart',
     categoria: 'Fatturazione',
-    descrizione: 'Importa l\'export Excel dal gestionale TeamSystem FatturaSMART (fatture passive).',
+    descrizione: 'L\'export Excel di Fattura Smart / webdesk, il portale che usi col commercialista. Porta dentro le fatture ma non il dettaglio delle righe: per quello usa lo ZIP dell\'Agenzia qui sopra.',
     istruzioni: [
-      'In TeamSystem: Contabilità › Fatture passive',
-      'Filtra per periodo desiderato',
-      'Clicca "Esporta Excel" - il file avrà colonne Numero, Fornitore, Totale, ecc.',
+      'Entra su webdesk.it e apri l\'area delle fatture di acquisto',
+      'Filtra il periodo e usa l\'esportazione in Excel',
+      'Carica qui il file. Se le colonne non tornano scrivici: ci serve un file vero per tararlo',
     ],
     tipoFile: '.xlsx,.xls',
     tipoLabel: 'Excel (.xlsx)',
@@ -820,9 +833,42 @@ export default function Integrazioni({ orgId, sedeId }) {
       let nFile = 0
       try {
         if (cfg.id === 'fattura_elettronica_xml' || cfg.id === 'fattura_smart') {
-          const records = cfg.id === 'fattura_elettronica_xml'
-            ? parseFatturaXML(await file.text())
-            : await parseFatturaSMART(file)
+          let records
+          if (cfg.id === 'fattura_smart') {
+            records = await parseFatturaSMART(file)
+          } else {
+            // Un archivio ZIP di fatture, oppure un singolo XML.
+            //
+            // Lo ZIP è la strada buona: dal portale dell'Agenzia delle Entrate
+            // (Fatture e Corrispettivi → Consultazione → download massivi) le
+            // fatture ricevute si scaricano in un archivio di XML, e lì dentro
+            // c'è tutto — dettaglio riga, IBAN, scadenze. Prima Foodos sapeva
+            // aprire gli XML uno per uno ma non l'archivio, e quella strada
+            // restava chiusa per un tappo di venti righe.
+            const bytes = new Uint8Array(await file.arrayBuffer())
+            if (sembraZip(bytes)) {
+              const dentro = await estraiZipTesto(bytes, { soloEstensioni: ['.xml'] })
+              if (!dentro.length) throw new Error("Dentro questo archivio non ci sono file XML: controlla di aver scaricato le fatture e non le ricevute di consegna.")
+              records = []
+              const illeggibili = []
+              for (const f of dentro) {
+                // Una fattura malformata dentro un archivio da trecento non
+                // deve far fallire tutto l'archivio: si salta e si dice quale.
+                try { records.push(...parseFatturaXML(f.testo)) }
+                catch { illeggibili.push(f.nome) }
+              }
+              if (illeggibili.length) {
+                notify(`${illeggibili.length} file dell'archivio non li ho saputi leggere (${illeggibili.slice(0, 3).join(', ')}${illeggibili.length > 3 ? '…' : ''}). Gli altri sono entrati.`, false)
+              }
+            } else if (/\.p7m$/i.test(file.name)) {
+              // Fattura firmata: l'XML sta dentro una busta binaria.
+              const xml = estraiXmlDaP7m(bytes)
+              if (!xml) throw new Error('Questa fattura firmata non si lascia aprire: mandaci il file e ci pensiamo noi.')
+              records = parseFatturaXML(xml)
+            } else {
+              records = parseFatturaXML(new TextDecoder('utf-8').decode(bytes))
+            }
+          }
           // pickFattura tiene solo le colonne che la tabella ha e mette la
           // sede (le fatture importate da qui avevano sede_id NULL, e con tre
           // negozi sparivano dal Confronto sedi); dedupFatture scarta quelle
@@ -868,6 +914,46 @@ export default function Integrazioni({ orgId, sedeId }) {
           }
           setRisultato({ tipo: 'kassa', chiusure: chiusure_giornaliere, cfgId: cfg.id, vendite: vendite.length })
 
+        } else if (cfg.tipo === 'kassa' || cfg.id === 'pos_universal') {
+          // L'auto-riconoscimento dei file di cassa.
+          //
+          // `autoDetectCassaFormat` esiste in src/lib/importCassa.js dal
+          // giorno uno, riconosce dodici formati e **non era chiamato da
+          // nessuna parte**. INTEGRAZIONI_CASSE.md lo dava per fatto con una
+          // spunta verde su tredici marche. Nei fatti chi caricava un CSV da
+          // Tilby, RCH, Olivetti, Custom, Salvi, Indaco, Polotouch, Eko, Wolf,
+          // Cassa in Cloud, Cassanova o "Cassa generica" cadeva fuori da tutti
+          // i rami e leggeva "Questo file non l'ho saputo leggere": la
+          // funzione c'era, il filo no.
+          const testo = await file.text()
+          const rilevato = autoDetectCassaFormat(testo)
+          if (!rilevato) throw new Error('Questo file non sembra un export di cassa.')
+          const giornate = rilevato.parser(testo) || []
+          if (!giornate.length) {
+            throw new Error(`L'ho letto come ${rilevato.provider} ma non ci ho trovato nessuna giornata: controlla di aver esportato le vendite e non gli articoli.`)
+          }
+          // Le giornate vanno nella tabella delle chiusure, come fa il ramo
+          // Zucchetti Kassa qui sopra: i `metodi` del registratore diventano i
+          // canali della chiusura (POS, contanti).
+          const righeChiusura = giornate.map(g => ({
+            data: g.data,
+            totale: Number(g.importo) || 0,
+            pos: sommaMetodi(g.metodi, ['carta', 'carte', 'pos', 'bancomat', 'card']),
+            contanti: sommaMetodi(g.metodi, ['contanti', 'cash', 'contante']),
+          }))
+          const esito = await importaChiusureIncassi(orgId, sedeId, righeChiusura)
+          nFile += (esito.nuove + esito.aggiornate); imported += (esito.nuove + esito.aggiornate)
+          // Quando il riconoscimento è incerto si dice, invece di far passare
+          // una lettura a caso per una certezza.
+          if (rilevato.confidence < 0.6) {
+            notify(`Non ero sicuro del formato: l'ho letto come ${rilevato.provider}. Controlla i totali prima di fidarti.`, true)
+          }
+          setRisultato({
+            tipo: 'kassa', cfgId: cfg.id,
+            chiusure: giornate.map(g => ({ data: g.data, totale: g.importo, per_metodo: g.metodi })),
+            vendite: giornate.reduce((s2, g) => s2 + (g.righe || 0), 0),
+            formatoRilevato: rilevato.provider,
+          })
         } else if (['sumup','satispay','square','deliveroo','justeat','uber_eats','glovo','shopify','woocommerce'].includes(cfg.id)) {
           // Pattern unificato: parser → aggregati per giorno → merge nelle chiusure (tabella chiusure_cassa, per sede)
           let aggregati = []

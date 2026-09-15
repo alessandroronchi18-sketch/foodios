@@ -88,6 +88,39 @@ function jsonResponse(req, body, status = 200) {
   })
 }
 
+// Una riga di registro per giorno e per collegamento, con il contatore che
+// cresce. Se qualcosa va storto non si ferma la richiesta: il registro è una
+// nota, non un controllo — lo scontrino è già entrato.
+async function registraSync(supabase, orgId, sedeId, integrazione) {
+  try {
+    const inizioGiornata = new Date(); inizioGiornata.setUTCHours(0, 0, 0, 0)
+    const { data: esistente } = await supabase
+      .from('sync_log')
+      .select('id, records_importati')
+      .eq('organization_id', orgId)
+      .eq('integrazione', integrazione)
+      .eq('stato', 'ok')
+      .gte('created_at', inizioGiornata.toISOString())
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (esistente) {
+      await supabase.from('sync_log')
+        .update({ records_importati: (esistente.records_importati || 0) + 1 })
+        .eq('id', esistente.id)
+    } else {
+      await supabase.from('sync_log').insert({
+        organization_id: orgId,
+        sede_id: sedeId || null,
+        integrazione,
+        stato: 'ok',
+        records_importati: 1,
+      })
+    }
+  } catch { /* nota, non controllo */ }
+}
+
 export default async function handler(req) {
   if (req.method === 'OPTIONS') return handleOptions(req)
   if (req.method !== 'POST') return jsonResponse(req, { error: 'Method not allowed' }, 405)
@@ -191,17 +224,18 @@ export default async function handler(req) {
     return jsonResponse(req, { error: 'DB error: ' + error.message }, 500)
   }
 
-  // Ogni scontrino accettato lascia una traccia nel registro, come fa
-  // webhook-zucchetti.js: prima gli scontrini finivano in pos_scontrini e la
-  // pagina del cliente non aveva modo di sapere che il collegamento
-  // funzionava (nessuna riga in sync_log, targhetta ferma).
-  await supabase.from('sync_log').insert({
-    organization_id: orgId,
-    sede_id: sedeId || null,
-    integrazione: `${provider}_webhook`,
-    stato: 'ok',
-    records_importati: 1,
-  }).catch(() => {})
+  // Il registro dei collegamenti: una riga al giorno, non una per scontrino.
+  //
+  // Serve a far vedere al cliente che la cassa sta parlando con Foodos: senza
+  // nessuna riga la targhetta in Integrazioni resta ferma e sembra tutto
+  // spento. Ma scriverne una per OGNI scontrino vuol dire, in una gelateria
+  // che ne batte quattrocento al giorno, quattrocento righe di registro al
+  // giorno — centoquarantamila l'anno, per dire quattrocento volte la stessa
+  // cosa. La pagina ne mostra le ultime dieci.
+  //
+  // Quindi: si aggiorna la riga di oggi se c'è già, e se ne apre una nuova
+  // solo al primo scontrino della giornata.
+  await registraSync(supabase, orgId, sedeId, `${provider}_webhook`)
 
   await segnaUso(supabase, auth.tokenId)
 

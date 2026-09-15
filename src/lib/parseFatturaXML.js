@@ -52,6 +52,58 @@ function normalizeStato(v) {
   return 'da_pagare'
 }
 
+// Tira fuori l'XML da una fattura firmata (.p7m).
+//
+// Una fattura "firmata digitalmente" è l'XML chiuso dentro una busta
+// crittografica (CAdES/PKCS#7). La busta è binaria, l'XML dentro è in chiaro:
+// non serve verificare la firma per leggere il contenuto, e non è compito
+// nostro farlo — quello lo ha già fatto lo SDI prima di consegnarla.
+//
+// Prima il `.p7m` era nell'elenco dei file accettati (Scadenzario e
+// Integrazioni) ma veniva letto con `file.text()` e passato al parser XML:
+// dentro una busta binaria `<FatturaElettronica` non si trova mai in quel
+// modo, quindi **falliva sempre**. Promesso e mai mantenuto.
+//
+// Due forme in giro: busta binaria (DER) con l'XML dentro in chiaro, e busta
+// codificata in Base64. Qui si coprono entrambe.
+export function estraiXmlDaP7m(bytes) {
+  const b = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes)
+  // `latin1` conserva il valore di ogni byte: serve per cercare il testo
+  // dentro dei dati binari senza che la decodifica lo rovini.
+  const grezzo = new TextDecoder('latin1').decode(b)
+
+  const ritaglia = (testo) => {
+    const inizio = testo.search(/<\?xml|<[A-Za-z0-9_]*:?FatturaElettronica[\s>]/)
+    if (inizio < 0) return null
+    const chiusura = testo.lastIndexOf('FatturaElettronica>')
+    if (chiusura < 0) return null
+    return testo.slice(inizio, chiusura + 'FatturaElettronica>'.length)
+  }
+
+  const diretto = ritaglia(grezzo)
+  if (diretto) {
+    // Ritagliato dai byte grezzi: va riletto come UTF-8, altrimenti gli
+    // accenti dei nomi dei fornitori escono sbagliati.
+    const da = grezzo.indexOf(diretto)
+    return new TextDecoder('utf-8').decode(b.subarray(da, da + diretto.length))
+  }
+
+  // Busta in Base64: si ripulisce e si decodifica.
+  const soloBase64 = grezzo.replace(/-----[A-Z ]+-----/g, '').replace(/\s+/g, '')
+  if (/^[A-Za-z0-9+/=]{100,}$/.test(soloBase64)) {
+    try {
+      const bin = atob(soloBase64)
+      const dec = Uint8Array.from(bin, c => c.charCodeAt(0))
+      const dentro = ritaglia(new TextDecoder('latin1').decode(dec))
+      if (dentro) {
+        const da = new TextDecoder('latin1').decode(dec).indexOf(dentro)
+        return new TextDecoder('utf-8').decode(dec.subarray(da, da + dentro.length))
+      }
+    } catch { /* non era Base64 */ }
+  }
+  return null
+}
+
 // Parse FatturaPA XML (SDI) - returns array of invoices compatible with Foodos fatture table
 export function parseFatturaXML(xmlString) {
   const parser = new DOMParser()
@@ -60,8 +112,16 @@ export function parseFatturaXML(xmlString) {
   const parseError = doc.querySelector('parsererror')
   if (parseError) throw new Error('XML non valido: ' + parseError.textContent.slice(0, 120))
 
-  if (!doc.querySelector('FatturaElettronica')) {
-    throw new Error('Elemento <FatturaElettronica> non trovato - verifica che sia una fattura elettronica italiana (formato FatturaPA)')
+  // Le fatture che escono dallo SDI hanno quasi sempre la radice con il
+  // prefisso: `<p:FatturaElettronica versione="FPR12" xmlns:p="...">`. Un
+  // browser, con un selettore senza prefisso, guarda il nome locale e la
+  // trova lo stesso — ma è una gentilezza su cui non vale la pena appoggiare
+  // il controllo che decide se un file intero entra o viene respinto. Qui si
+  // guarda il nome locale in modo esplicito.
+  const radice = doc.documentElement
+  const nomeRadice = radice?.localName || radice?.nodeName?.split(':').pop() || ''
+  if (nomeRadice !== 'FatturaElettronica' && !doc.querySelector('FatturaElettronica')) {
+    throw new Error('Questo file non sembra una fattura elettronica italiana: non ci trovo il blocco <FatturaElettronica>.')
   }
 
   // Header: cedente/prestatore
@@ -125,11 +185,44 @@ export function parseFatturaXML(xmlString) {
       })
     }
 
-    // Collect line items descriptions for note field
+    // Il dettaglio riga: prodotto, quantità, prezzo unitario, aliquota.
+    //
+    // Prima di qui si scorreva già questo blocco, ma si tenevano SOLO le prime
+    // tre descrizioni, incollate nel campo `note`. Quantità, prezzi e codici
+    // articolo — cioè il dato con cui si calcola quanto costa davvero un
+    // ingrediente e come cambia nel tempo — venivano scartati. Su 3.520
+    // fatture già importate, il dettaglio è passato dal browser ed è finito
+    // nel cestino.
     const descrizioni = []
+    const righe = []
     body.querySelectorAll('DettaglioLinee').forEach(l => {
-      const desc = l.querySelector('Descrizione')?.textContent?.trim()
+      const testo = (sel) => l.querySelector(sel)?.textContent?.trim() || null
+      const numero = (sel) => {
+        const v = testo(sel)
+        if (v == null || v === '') return null
+        const n = Number(String(v).replace(',', '.'))
+        return Number.isFinite(n) ? n : null
+      }
+      const desc = testo('Descrizione')
       if (desc) descrizioni.push(desc)
+      // Il codice articolo del fornitore sta annidato: <CodiceArticolo>
+      // contiene <CodiceTipo> e <CodiceValore>, e possono essercene più di uno.
+      const codice = l.querySelector('CodiceArticolo CodiceValore')?.textContent?.trim() || null
+      const q = numero('Quantita')
+      const pu = numero('PrezzoUnitario')
+      const tot = numero('PrezzoTotale')
+      righe.push({
+        n: numero('NumeroLinea'),
+        codice,
+        descrizione: desc,
+        quantita: q,
+        unita: testo('UnitaMisura'),
+        prezzo_unitario: pu,
+        // Se il totale riga manca lo si ricava, che è quello che farebbe
+        // chiunque guardando la carta.
+        totale: tot != null ? tot : (q != null && pu != null ? Math.round(q * pu * 100) / 100 : null),
+        iva_pct: numero('AliquotaIVA'),
+      })
     })
 
     fatture.push({
@@ -146,6 +239,7 @@ export function parseFatturaXML(xmlString) {
       totale,
       stato: 'da_pagare',
       note: descrizioni.slice(0, 3).join('; ') + (descrizioni.length > 3 ? '…' : ''),
+      righe,
     })
   }
 

@@ -42,6 +42,9 @@ export default [
         WebSocket: 'readonly', EventSource: 'readonly',
         performance: 'readonly', queueMicrotask: 'readonly',
         DOMParser: 'readonly', XMLSerializer: 'readonly', XPathResult: 'readonly',
+        // Decompressione nativa del browser: la usa src/lib/zip.js per aprire
+        // gli archivi di fatture scaricati dall'Agenzia delle Entrate.
+        DecompressionStream: 'readonly', CompressionStream: 'readonly',
         Node: 'readonly', NodeList: 'readonly', Element: 'readonly',
         SVGElement: 'readonly', HTMLCanvasElement: 'readonly',
         HTMLImageElement: 'readonly', HTMLInputElement: 'readonly',

@@ -12,6 +12,26 @@
 
 ---
 
+## Come si caricano i file di cassa
+
+Dal 15/09/2026 il riconoscimento automatico è **collegato davvero**: si carica
+il CSV sulla scheda della propria cassa (o su "Cassa generica") e Foodos capisce
+da solo il formato, legge le giornate e le porta nelle chiusure, compresi i
+canali POS e contanti.
+
+Fino a quel giorno la funzione esisteva in `src/lib/importCassa.js` e **non era
+chiamata da nessuna parte**: questa tabella metteva la spunta su tredici marche
+e il cliente leggeva «Questo file non l'ho saputo leggere». Collegandola sono
+usciti altri due difetti dentro i parser stessi, corretti insieme: i nomi delle
+colonne si cercavano con maiuscole e punteggiatura esatte (quindi i metodi di
+pagamento uscivano sempre vuoti), e per RCH l'importo si cercava solo sotto
+"Totale" mentre l'export scrive "Importo" — una giornata da 100 € entrava come
+0 €, che è peggio di un errore perché sembra un dato.
+
+Quando il riconoscimento non è sicuro, la pagina lo dice invece di far passare
+una lettura a caso per una certezza. E un file di cui non si trova la colonna
+della data o dell'importo viene respinto, non importato a zero.
+
 ## Matrice supporto
 
 | Marca cassa | Real-time webhook | Import CSV auto-detect | Note |

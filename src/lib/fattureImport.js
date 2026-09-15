@@ -17,6 +17,10 @@
 export const FATTURA_COLS_SICURE = [
   'numero_rif', 'data_fattura', 'data_scadenza', 'tipo', 'fornitore', 'piva', 'cf',
   'iban', 'imponibile', 'imposta', 'totale', 'stato', 'importo_pagato', 'note',
+  // Il dettaglio riga (quantità, prezzi unitari, aliquote). Senza questa voce
+  // il parser lo legge e `pickFattura` lo butta via in silenzio: è il passo
+  // che si dimentica sempre quando si aggiunge una colonna.
+  'righe',
 ]
 
 // Colonne "core", presenti anche prima della migrazione dello scadenzario.

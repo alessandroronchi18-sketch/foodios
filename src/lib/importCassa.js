@@ -83,7 +83,61 @@ function parseCSV(text) {
   return { headers, rows };
 }
 
+// Trova la colonna giusta anche se il registratore la scrive a modo suo.
+//
+// Prima ogni parser cercava i nomi delle colonne con `rows[0]['Metodo
+// Pagamento']`: confronto esatto, maiuscole comprese. Un export che scrive
+// "Metodo pagamento" con la p minuscola — o "Tipo pag." invece di "Tipo Pag."
+// — non veniva trovato, e la colonna finiva silenziosamente a null. Provato il
+// 15/09 su tre file di esempio: i metodi di pagamento uscivano SEMPRE vuoti,
+// quindi POS e contanti della chiusura restavano a zero pur avendo il dato nel
+// file; e per RCH, che scrive "Importo" dove il parser cercava "Totale", tutta
+// la giornata usciva a 0 €.
+//
+// Ora il confronto normalizza: minuscole, via accenti, punteggiatura e spazi.
+// "Metodo Pagamento", "metodo pagamento", "Metodo_Pagamento" e "MetodoPagamento"
+// diventano la stessa cosa. Se ancora non trova, prova per contenimento —
+// "Tipo pag." trova "pagamento" — che è l'ultima rete prima di arrendersi.
+function normalizzaIntestazione(h) {
+  return String(h || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+}
+
+export function trovaColonna(intestazioni, candidati) {
+  if (!intestazioni) return null
+  // Accetta sia l'elenco delle intestazioni sia una riga (di cui prende le
+  // chiavi): i parser hanno entrambe le cose sottomano.
+  const chiavi = Array.isArray(intestazioni) ? intestazioni : Object.keys(intestazioni)
+  if (!chiavi.length) return null
+  const mappa = new Map(chiavi.map(k => [normalizzaIntestazione(k), k]))
+  for (const c of candidati) {
+    const trovata = mappa.get(normalizzaIntestazione(c))
+    if (trovata !== undefined) return trovata
+  }
+  // Ultima rete: contenimento in una direzione o nell'altra.
+  for (const c of candidati) {
+    const n = normalizzaIntestazione(c)
+    if (!n) continue
+    for (const [k, originale] of mappa) {
+      if (k.includes(n) || n.includes(k)) return originale
+    }
+  }
+  return null
+}
+
 function aggrega(righe, dateKey, importoKey, ivaKey, metodoKey, fonte) {
+  // Senza la colonna della data o quella dell'importo non c'è niente da
+  // leggere. Prima si andava avanti lo stesso: `r[null]` è `undefined`,
+  // `parseNum(undefined)` è 0, e il file entrava con tutte le giornate a zero
+  // euro — che è peggio di un errore, perché sembra un dato.
+  // Un file senza righe non è un errore: non c'è semplicemente niente da
+  // importare, e dirlo con un'eccezione confonderebbe chi ha esportato un
+  // periodo in cui era chiuso.
+  if (!righe || righe.length === 0) return []
+  if (!dateKey) throw new Error(`Non trovo la colonna della data in questo export ${fonte}.`)
+  if (!importoKey) throw new Error(`Non trovo la colonna dell'importo in questo export ${fonte}.`)
   const map = {};
   for (const r of righe) {
     const data = parseItalianDate(r[dateKey]);
@@ -110,10 +164,10 @@ function aggrega(righe, dateKey, importoKey, ivaKey, metodoKey, fonte) {
 // ── 4a. Zucchetti (Infinity / Kassa) ─────────────────────────────────────────
 
 export function parseZucchettiCSV(csvText) {
-  const { rows } = parseCSV(csvText);
-  const dateKey  = ['Data', 'DATE'].find(k => rows[0]?.[k] !== undefined) || 'Data';
-  const impKey   = ['Importo', 'Totale', 'Amount'].find(k => rows[0]?.[k] !== undefined) || 'Importo';
-  const ivaKey   = ['IVA', 'Iva', 'VAT'].find(k => rows[0]?.[k] !== undefined);
+  const { headers, rows } = parseCSV(csvText);
+  const dateKey = trovaColonna(headers, ['Data', 'DATE']);
+  const impKey = trovaColonna(headers, ['Importo', 'Totale', 'Amount']);
+  const ivaKey = trovaColonna(headers, ['IVA', 'Iva', 'VAT']);
   return aggrega(rows, dateKey, impKey, ivaKey || null, null, 'Zucchetti');
 }
 
@@ -134,17 +188,17 @@ export function parseZucchettiXML(xmlText) {
 // ── 4b. Cassa in Cloud ────────────────────────────────────────────────────────
 // Colonne: Data, Ora, Prodotto, Quantità, Prezzo, Totale, Metodo pagamento
 export function parseCassaInCloud(csvText) {
-  const { rows } = parseCSV(csvText);
-  const dateKey = ['Data', 'Date'].find(k => rows[0]?.[k] !== undefined) || 'Data';
-  const impKey  = ['Totale', 'Total', 'Prezzo'].find(k => rows[0]?.[k] !== undefined) || 'Totale';
-  const metKey  = ['Metodo pagamento', 'Metodo', 'Payment'].find(k => rows[0]?.[k] !== undefined);
+  const { headers, rows } = parseCSV(csvText);
+  const dateKey = trovaColonna(headers, ['Data', 'Date']);
+  const impKey = trovaColonna(headers, ['Totale', 'Total', 'Prezzo']);
+  const metKey = trovaColonna(headers, ['Metodo pagamento', 'Metodo', 'Payment']);
   return aggrega(rows, dateKey, impKey, null, metKey || null, 'Cassa in Cloud');
 }
 
 // ── 4c. SumUp ────────────────────────────────────────────────────────────────
 // Colonne: Date, Time, Type, Amount, Currency, Status
 export function parseSumUp(csvText) {
-  const { rows } = parseCSV(csvText);
+  const { headers, rows } = parseCSV(csvText);
   // Filtra solo SALE + SUCCESSFUL
   const filtered = rows.filter(r => {
     const type   = (r['Type'] || r['Tipo'] || '').toUpperCase();
@@ -160,10 +214,10 @@ export function parseSumUp(csvText) {
 // ── 4d. Lightspeed ───────────────────────────────────────────────────────────
 // Colonne: Date, Receipt number, Total incl. tax, Payment method
 export function parseLightspeed(csvText) {
-  const { rows } = parseCSV(csvText);
-  const dateKey = ['Date', 'Data'].find(k => rows[0]?.[k] !== undefined) || 'Date';
-  const impKey  = ['Total incl. tax', 'Total', 'Totale'].find(k => rows[0]?.[k] !== undefined) || 'Total incl. tax';
-  const metKey  = ['Payment method', 'Metodo'].find(k => rows[0]?.[k] !== undefined);
+  const { headers, rows } = parseCSV(csvText);
+  const dateKey = trovaColonna(headers, ['Date', 'Data']);
+  const impKey = trovaColonna(headers, ['Total incl. tax', 'Total', 'Totale']);
+  const metKey = trovaColonna(headers, ['Payment method', 'Metodo']);
   return aggrega(rows, dateKey, impKey, null, metKey || null, 'Lightspeed');
 }
 
@@ -172,9 +226,9 @@ export function parseLightspeed(csvText) {
 // Colonne tipiche: Data, ID Transazione, Tipo, Stato, Importo (€), Commissione (€), Nome Cliente.
 // Lo status "ACCEPTED" identifica i pagamenti effettivamente riscossi.
 export function parseSatispay(csvText) {
-  const { rows } = parseCSV(csvText);
-  const dateKey   = ['Data', 'Date', 'Data Movimento'].find(k => rows[0]?.[k] !== undefined) || 'Data';
-  const impKey    = ['Importo', 'Amount', 'Importo (€)', 'Importo (EUR)'].find(k => rows[0]?.[k] !== undefined) || 'Importo';
+  const { headers, rows } = parseCSV(csvText);
+  const dateKey = trovaColonna(headers, ['Data', 'Date', 'Data Movimento']);
+  const impKey = trovaColonna(headers, ['Importo', 'Amount', 'Importo (€)', 'Importo (EUR)']);
   const stateKey  = ['Stato', 'Status'].find(k => rows[0]?.[k] !== undefined);
   const commKey   = ['Commissione', 'Commissione (€)', 'Fee'].find(k => rows[0]?.[k] !== undefined);
 
@@ -203,9 +257,9 @@ export function parseSatispay(csvText) {
 // ── 4e. Square ───────────────────────────────────────────────────────────────
 // Colonne: Date, Time, Category, Description, Amount, Fee
 export function parseSquare(csvText) {
-  const { rows } = parseCSV(csvText);
-  const dateKey = ['Date', 'Data'].find(k => rows[0]?.[k] !== undefined) || 'Date';
-  const impKey  = ['Amount', 'Importo', 'Total'].find(k => rows[0]?.[k] !== undefined) || 'Amount';
+  const { headers, rows } = parseCSV(csvText);
+  const dateKey = trovaColonna(headers, ['Date', 'Data']);
+  const impKey = trovaColonna(headers, ['Amount', 'Importo', 'Total']);
   const feeKey  = ['Fee', 'Commissione'].find(k => rows[0]?.[k] !== undefined);
   // sottrai commissione da importo
   const result = aggrega(rows, dateKey, impKey, null, null, 'Square');
@@ -227,11 +281,11 @@ export function parseSquare(csvText) {
 // Tilby esporta CSV con colonne: Data, Ora, Tipo, Reparto, Articolo, Quantita,
 // Prezzo Unit, Totale, IVA %, Metodo Pagamento, Cassiere, Numero scontrino
 export function parseTilby(csvText) {
-  const { rows } = parseCSV(csvText)
-  const dateKey = ['Data', 'Date', 'Data Vendita'].find(k => rows[0]?.[k] !== undefined) || 'Data'
-  const impKey  = ['Totale', 'Total', 'Importo', 'Prezzo'].find(k => rows[0]?.[k] !== undefined) || 'Totale'
-  const ivaKey  = ['IVA', 'Iva', 'IVA %', 'VAT'].find(k => rows[0]?.[k] !== undefined)
-  const metKey  = ['Metodo Pagamento', 'Metodo', 'Payment Method'].find(k => rows[0]?.[k] !== undefined)
+  const { headers, rows } = parseCSV(csvText)
+  const dateKey = trovaColonna(headers, ['Data', 'Date', 'Data Vendita'])
+  const impKey = trovaColonna(headers, ['Totale', 'Total', 'Importo', 'Prezzo'])
+  const ivaKey = trovaColonna(headers, ['IVA', 'Iva', 'IVA %', 'VAT'])
+  const metKey = trovaColonna(headers, ['Metodo Pagamento', 'Metodo', 'Payment Method'])
   return aggrega(rows, dateKey, impKey, ivaKey || null, metKey || null, 'Tilby')
 }
 
@@ -239,34 +293,37 @@ export function parseTilby(csvText) {
 // Export "Chiusura giornaliera" da casse RCH (Atos/Print&Pay):
 // Data, Ora, Numero, Reparto1...N, Totale, IVA, Pagamento
 export function parseRCH(csvText) {
-  const { rows } = parseCSV(csvText)
-  const dateKey = ['Data', 'DATA'].find(k => rows[0]?.[k] !== undefined) || 'Data'
-  const impKey  = ['Totale', 'TOTALE', 'Tot.'].find(k => rows[0]?.[k] !== undefined) || 'Totale'
-  const ivaKey  = ['IVA', 'Iva'].find(k => rows[0]?.[k] !== undefined)
-  const metKey  = ['Pagamento', 'PAGAMENTO', 'Tipo Pag.'].find(k => rows[0]?.[k] !== undefined)
+  const { headers, rows } = parseCSV(csvText)
+  const dateKey = trovaColonna(headers, ['Data', 'DATA'])
+  const impKey = trovaColonna(headers, ['Totale', 'Importo', 'Tot.', 'Incasso'])
+  const ivaKey = trovaColonna(headers, ['IVA', 'Imposta'])
+  const metKey = trovaColonna(headers, ['Pagamento', 'Tipo Pag.', 'Tipo pagamento', 'Modalita'])
   return aggrega(rows, dateKey, impKey, ivaKey || null, metKey || null, 'RCH')
 }
 
 // ── 4e-quater. Olivetti (cassa fiscale Form/Nettuna) ────────────────────────
 // Export TXT/CSV: separatore variabile, header in maiuscolo, formati italiani.
 export function parseOlivetti(csvText) {
-  const { rows } = parseCSV(csvText)
+  const { headers, rows } = parseCSV(csvText)
   // Olivetti spesso usa "DATA OPERAZIONE" + "TOTALE €" + "ALIQ. IVA"
-  const dateKey = ['DATA OPERAZIONE', 'Data Operazione', 'DATA', 'Data'].find(k => rows[0]?.[k] !== undefined) || 'DATA'
-  const impKey  = ['TOTALE €', 'TOTALE', 'Totale', 'IMPORTO'].find(k => rows[0]?.[k] !== undefined) || 'TOTALE'
-  const ivaKey  = ['ALIQ. IVA', 'IVA', 'Aliquota'].find(k => rows[0]?.[k] !== undefined)
-  return aggrega(rows, dateKey, impKey, ivaKey || null, null, 'Olivetti')
+  const dateKey = trovaColonna(headers, ['DATA OPERAZIONE', 'Data Operazione', 'DATA', 'Data'])
+  const impKey = trovaColonna(headers, ['TOTALE €', 'TOTALE', 'Totale', 'IMPORTO'])
+  const ivaKey = trovaColonna(headers, ['ALIQ. IVA', 'IVA', 'Aliquota'])
+  // Il metodo di pagamento era passato come `null` fisso: anche quando la
+  // colonna c'era, POS e contanti della chiusura restavano vuoti.
+  const metKey = trovaColonna(headers, ['PAGAMENTO', 'Tipo Pagamento', 'Modalita', 'Metodo'])
+  return aggrega(rows, dateKey, impKey, ivaKey || null, metKey || null, 'Olivetti')
 }
 
 // ── 4e-cinque. Custom Q3X / FP-90 (telematici Epson/Custom) ─────────────────
 // Custom Q3X esporta CSV con colonne brevi:
 // dt, ora, num, tot, iva, pag (lowercase, ASCII)
 export function parseCustom(csvText) {
-  const { rows } = parseCSV(csvText)
-  const dateKey = ['dt', 'data', 'date', 'Data'].find(k => rows[0]?.[k] !== undefined) || 'dt'
-  const impKey  = ['tot', 'totale', 'total', 'amount'].find(k => rows[0]?.[k] !== undefined) || 'tot'
-  const ivaKey  = ['iva', 'vat'].find(k => rows[0]?.[k] !== undefined)
-  const metKey  = ['pag', 'pagamento', 'payment'].find(k => rows[0]?.[k] !== undefined)
+  const { headers, rows } = parseCSV(csvText)
+  const dateKey = trovaColonna(headers, ['dt', 'data', 'date', 'Data'])
+  const impKey = trovaColonna(headers, ['tot', 'totale', 'total', 'amount'])
+  const ivaKey = trovaColonna(headers, ['iva', 'vat'])
+  const metKey = trovaColonna(headers, ['pag', 'pagamento', 'payment'])
   return aggrega(rows, dateKey, impKey, ivaKey || null, metKey || null, 'Custom Q3X')
 }
 
@@ -274,11 +331,11 @@ export function parseCustom(csvText) {
 // Tre casse molto simili, stesso schema CSV:
 // Data;Scontrino;Reparto;Articolo;Qta;Prezzo;Totale;IVA;Pagamento
 export function parseSalviIndacoPolo(csvText, fonte = 'Salvi') {
-  const { rows } = parseCSV(csvText)
-  const dateKey = ['Data', 'DATA', 'Data Vendita'].find(k => rows[0]?.[k] !== undefined) || 'Data'
-  const impKey  = ['Totale', 'TOTALE', 'Importo'].find(k => rows[0]?.[k] !== undefined) || 'Totale'
-  const ivaKey  = ['IVA', 'Iva'].find(k => rows[0]?.[k] !== undefined)
-  const metKey  = ['Pagamento', 'Tipo Pag.', 'Modalita'].find(k => rows[0]?.[k] !== undefined)
+  const { headers, rows } = parseCSV(csvText)
+  const dateKey = trovaColonna(headers, ['Data', 'DATA', 'Data Vendita'])
+  const impKey = trovaColonna(headers, ['Totale', 'TOTALE', 'Importo'])
+  const ivaKey = trovaColonna(headers, ['IVA', 'Iva'])
+  const metKey = trovaColonna(headers, ['Pagamento', 'Tipo Pag.', 'Modalita'])
   return aggrega(rows, dateKey, impKey, ivaKey || null, metKey || null, fonte)
 }
 export const parseSalvi    = (t) => parseSalviIndacoPolo(t, 'Salvi Cassa')
