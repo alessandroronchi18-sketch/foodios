@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from './auth/useAuth'
 import AuthPage, { ResetPasswordPage } from './auth/AuthPage'
-import Dashboard from './Dashboard'
+import Dashboard, { DIPENDENTE_VIEWS } from './Dashboard'
 import Icon from './components/Icon'
 import { lazyWithReload } from './lib/lazyWithReload'
 // Lazy: AdminPage 2581 righe, OnboardingWizard usato solo first-login
@@ -375,7 +375,13 @@ export default function App() {
         isTrialAttivo={auth.isTrialAttivo}
         onSignOut={auth.signOut}
       />
-      <FloatingActions />
+      {/* La pagina in cui si trova l'utente e le pagine che può aprire.
+          Senza la prima, ogni segnalazione "questa cosa non funziona" arrivava
+          senza sapere in quale schermata fosse — su un canale che serve a
+          capire i guasti, è il campo più importante. Senza la seconda,
+          l'assistente spiegava a un dipendente come arrivare a Profitti e
+          Personale, cioè le pagine che gli sono state chiuse. */}
+      <FloatingActions vistePermesse={auth.profile?.ruolo === 'dipendente' ? DIPENDENTE_VIEWS : null} />
     </>
   )
 

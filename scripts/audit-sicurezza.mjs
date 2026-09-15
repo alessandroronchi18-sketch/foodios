@@ -114,6 +114,44 @@ const controlli = [
     perche: 'cancellando le righe si azzererebbe l attesa e si tornerebbe a provare in fretta',
   },
   {
+    nome: 'i trasferimenti bloccano la riga mentre la leggono',
+    sql: `select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+          where n.nspname='public' and p.proname in ('trasferimento_invia','trasferimento_annulla','trasferimento_ricevi')
+            and pg_get_functiondef(p.oid) not ilike '%where id = p_id for update%'`,
+    atteso: '0',
+    perche: 'senza il blocco, due conferme insieme applicano due volte lo stesso carico di merce',
+  },
+  {
+    nome: 'i trasferimenti non si comandano senza essere loggati',
+    sql: `select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+          where n.nspname='public' and p.proname like 'trasferimento%'
+            and has_function_privilege('anon', p.oid, 'EXECUTE')`,
+    atteso: '0',
+    perche: 'la guardia dentro la funzione e una sola difesa: il permesso va tolto lo stesso',
+  },
+  {
+    nome: 'lo stock dei prodotti finiti ha una funzione sola, non tre sovrapposte',
+    sql: `select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+          where n.nspname='public' and p.proname='applica_delta_stock_pf'`,
+    atteso: '1',
+    perche: 'con tre versioni tutte con valori predefiniti, una chiamata combacia con due e Postgres rifiuta',
+  },
+  {
+    nome: 'il contatore della spesa AI riceve l organizzazione',
+    sql: `select case when exists (select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+            where n.nspname='public' and p.proname='ai_usage_today_total_org') then 1 else 0 end`,
+    atteso: '1',
+    perche: 'senza, cerca l azienda con auth.uid() che dal server e vuoto: il tetto non scatta mai',
+  },
+  {
+    nome: 'le funzioni del contatore AI non si chiamano dal browser',
+    sql: `select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+          where n.nspname='public' and p.proname in ('ai_usage_increment_org','ai_usage_today_total_org','ai_credit_consuma')
+            and has_function_privilege('authenticated', p.oid, 'EXECUTE')`,
+    atteso: '0',
+    perche: 'con l organizzazione come parametro si scriverebbe nel contatore di un altra azienda',
+  },
+  {
     nome: 'i dati di lavoro non si scrivono senza essere loggati',
     sql: `select case when has_function_privilege('anon', 'public.fos_user_data_set_batch(jsonb,uuid)', 'EXECUTE') then 1 else 0 end`,
     atteso: '0',

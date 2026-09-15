@@ -221,6 +221,7 @@ export default async function handler(req) {
     if (newFailCount === SOGLIA_AVVISO) {
       try {
         await supabase.from('audit_log').insert({
+          table_name: 'login',
           operation: 'login_blocked_brute_force',
           user_email: email,
           user_agent: ua.slice(0, 256),

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
-import { supabase } from '../lib/supabase'
 import useIsMobile from '../lib/useIsMobile'
 import { callAi } from '../lib/aiClient'
+import { color as T, z } from '../lib/theme'
 
 // Mini-renderer markdown (l'AI risponde in markdown: **grassetto**, ##, elenchi).
 // Senza, gli asterischi/cancelletti apparivano letterali. Niente librerie esterne.
@@ -35,24 +35,98 @@ function renderRich(text) {
   })
 }
 
-const SYSTEM_PROMPT = `Sei l'assistente di Foodos, un gestionale food cost per la ristorazione italiana.
-Aiuta l'utente a capire come usare le funzionalità dell'app: ricettario, food cost, P&L, produzione giornaliera, cassa, magazzino, scadenzario, fornitori, personale, menù, previsioni, integrazioni delivery (Deliveroo, JustEat, Glovo), scheda allergeni, AI foto analisi ricette.
+// Le pagine dell'applicazione, col nome ESATTO che compare nel menu.
+//
+// Prima questo elenco era scritto dentro il testo delle istruzioni, a mano, e
+// aveva smesso da un pezzo di somigliare al menu vero: citava la "scheda
+// allergeni" e il "Menù", che sono spenti dal 09/09/2026, e sbagliava quasi
+// tutti gli altri nomi — diceva "Food Cost" dove c'è "Food Cost simulatore",
+// "P&L" dove c'è "Profitti (P&L)", "Personale" dove c'è "Personale &
+// stipendi", "Integrazioni" che non è più una voce di menu (sta dentro
+// Impostazioni). L'utente cercava nella barra laterale una voce che non c'era,
+// e concludeva che il programma fosse rotto o che non ci capiva niente.
+const PAGINE = {
+  'home': 'Home',
+  'ricettario': 'Ricettario',
+  'nuova-ricetta': 'Nuova ricetta',
+  'semilavorati': 'Semilavorati',
+  'giornaliero': 'Produzione',
+  'inventario-gusti': 'Inventario settimanale',
+  'chiusura': 'Chiusura cassa',
+  'magazzino': 'Magazzino',
+  'sprechi-omaggi': 'Perdite e cessioni',
+  'calendario': 'Calendario',
+  'simulatore': 'Food Cost simulatore',
+  'pl': 'Profitti (P&L)',
+  'costi-aziendali': 'Costi aziendali',
+  'storico': 'Storico produzione',
+  'previsione': 'Previsione domanda',
+  'scadenzario': 'Scadenzario fatture',
+  'fornitori': 'Fornitori',
+  'personale': 'Personale & stipendi',
+  'confronto-sedi': 'Confronto sedi',
+  'trasferimenti': 'Trasferimenti tra sedi',
+  'impostazioni': 'Impostazioni',
+  'changelog': 'Novità',
+}
 
-Stile: risposte brevi, concrete, in italiano. Usa elenchi puntati quando aiutano. Quando indichi una sezione, riferisciti al nome esatto della voce in sidebar (es. "Produzione", "Cassa", "Ricettario", "Food Cost", "P&L", "Magazzino", "Scadenzario", "Fornitori", "Personale", "Menù", "Previsioni", "Integrazioni", "Storico", "Calendario").
+/**
+ * Le istruzioni dell'assistente, costruite su misura per chi sta chiedendo.
+ *
+ * Prima erano una stringa fissa uguale per tutti, e questo apriva un buco: a un
+ * DIPENDENTE l'assistente spiegava come arrivare a Profitti, Costi aziendali e
+ * Personale — cioè esattamente le pagine che il 15/09/2026 gli sono state
+ * chiuse. I numeri non poteva darglieli (non li ha), ma la mappa sì. La ricerca
+ * rapida (Cmd+K) questa regola ce l'aveva già, con la nota che la spiega:
+ * «vedere il nome di una pagina che non dovresti avere è già un pezzo di
+ * informazione che non ti spetta». Qui non era mai stata applicata.
+ */
+export function costruisciIstruzioni(vistePermesse = null) {
+  const voci = Object.entries(PAGINE)
+    .filter(([id]) => !vistePermesse || vistePermesse.has(id))
+    .map(([, nome]) => nome)
 
-Se l'utente chiede qualcosa fuori scope (es. ricette dettagliate, consulenza fiscale), rispondi gentilmente che il tuo focus è l'uso dell'app.`
+  return `Sei l'assistente di Foodos, un gestionale per la ristorazione italiana.
+Aiuti chi lo usa a capire COME si fa una cosa dentro il programma.
 
+Le pagine che questa persona può aprire, col nome esatto che legge nel menu:
+${voci.join(', ')}.
+Non nominare nessun'altra pagina: quelle che non sono in questo elenco, per lei
+non esistono. Se chiede di qualcosa che non c'è, dille semplicemente che quella
+parte non fa parte delle sue pagine, senza spiegare perché.
+
+NON HAI ACCESSO AI DATI dell'attività: non sai quanto ha incassato, qual è il
+suo food cost, cosa c'è in magazzino. Se ti chiede un numero,
+**non inventarlo**: dille in quale pagina lo trova.
+
+Come scrivere:
+- italiano semplice, frasi brevi, come parlerebbe un collega. Mai "Certamente!",
+  "Ecco a te!", "Spero ti sia utile".
+- niente emoji, mai.
+- i numeri all'italiana: il punto per le migliaia (1.477, non 1,477) e l'euro
+  DOPO la cifra (1.477 €, non € 1.477).
+- niente tabelle: non si vedono bene qui. Se serve un elenco, usa righe corte.
+- rispondi in tre o quattro frasi. Se serve una procedura, elenca i passi.
+
+Se chiede cose fuori tema (ricette di cucina, consulenza fiscale), dille con
+gentilezza che tu sai aiutarla solo sull'uso del programma.`
+}
+
+
+// Dai token, non scritti a mano. `#8B95A7` era proprio il valore che
+// theme.js dichiara di aver abbandonato perché sotto la soglia di contrasto
+// WCAG AA: chi ha la vista stanca non leggeva i testi secondari.
 const COLORS = {
-  brand: '#6E0E1A',
-  brandDark: '#8A1726',
-  text: '#0E1726',
-  textMid: '#475264',
-  textSoft: '#8B95A7',
-  bg: '#FFFFFF',
-  bgSoft: '#F7F8FA',
-  border: '#E5E9EF',
-  bubbleUser: '#6E0E1A',
-  bubbleAI: '#F1F4F8',
+  brand: T.brand,
+  brandDark: T.brandDark,
+  text: T.text,
+  textMid: T.textMid,
+  textSoft: T.textSoft,
+  bg: T.bgCard,
+  bgSoft: T.bg,
+  border: T.border,
+  bubbleUser: T.brand,
+  bubbleAI: T.bgSubtle,
 }
 
 function ChatIcon({ size = 24 }) {
@@ -81,7 +155,10 @@ function SendIcon({ size = 16 }) {
   )
 }
 
-export default function AIAssistant({ externalOpen, onOpenChange, hideFab = false }) {
+export default function AIAssistant({ externalOpen, onOpenChange, hideFab = false, vistePermesse = null }) {
+  // Le istruzioni cambiano con chi sta chiedendo: a un dipendente si elencano
+  // solo le sue pagine.
+  const istruzioni = React.useMemo(() => costruisciIstruzioni(vistePermesse), [vistePermesse])
   const isMobile = useIsMobile()
   const isControlled = typeof externalOpen === 'boolean'
   const [internalOpen, setInternalOpen] = useState(false)
@@ -94,7 +171,7 @@ export default function AIAssistant({ externalOpen, onOpenChange, hideFab = fals
   const [fabHover, setFabHover] = useState(false)
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState([
-    { role: 'assistant', content: 'Ciao! Sono l\'assistente di Foodos. Posso aiutarti a capire come usare l\'app - chiedi pure ' }
+    { role: 'assistant', content: 'Ciao! Sono l\'assistente di Foodos. Posso aiutarti a capire come usare l\'app - chiedi pure.' }
   ])
   const [loading, setLoading] = useState(false)
   const scrollRef = useRef(null)
@@ -110,6 +187,15 @@ export default function AIAssistant({ externalOpen, onOpenChange, hideFab = fals
       return () => clearTimeout(t)
     }
   }, [open, isMobile])
+
+  // Esc chiude, come in ogni finestra. Prima non la chiudeva niente da
+  // tastiera: bisognava per forza cliccare col mouse.
+  useEffect(() => {
+    if (!open) return
+    const esc = (e) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('keydown', esc)
+    return () => document.removeEventListener('keydown', esc)
+  }, [open])
 
   const send = useCallback(async () => {
     const text = input.trim()
@@ -129,7 +215,7 @@ export default function AIAssistant({ externalOpen, onOpenChange, hideFab = fals
       const { text } = await callAi({
         feature: 'ai-assistant',
         model: 'claude-sonnet-5',
-        system: SYSTEM_PROMPT,
+        system: istruzioni,
         messages: apiMessages,
         maxTokens: 800,
         timeoutMs: 40_000,
@@ -201,7 +287,9 @@ export default function AIAssistant({ externalOpen, onOpenChange, hideFab = fals
             display: 'flex',
             flexDirection: 'column',
             overflow: 'hidden',
-            zIndex: 1000,
+            // Dal token: 1000 scritto a mano teneva il pannello sopra a tutto,
+            // compresi i modali che devono stare davanti.
+            zIndex: z.modal,
             border: `1px solid ${COLORS.border}`,
             fontFamily: "'Inter',system-ui,sans-serif",
             animation: '_ai_pop 0.18s ease-out',
@@ -225,7 +313,7 @@ export default function AIAssistant({ externalOpen, onOpenChange, hideFab = fals
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 14, fontWeight: 700, letterSpacing: '-0.01em' }}>Assistente Foodos</div>
-              <div style={{ fontSize: 12, opacity: 0.82, marginTop: 1 }}>Sempre online · Risponde in italiano</div>
+              <div style={{ fontSize: 12, opacity: 0.82, marginTop: 1 }}>Ti spiego come si fa · Risponde in italiano</div>
             </div>
             <button
               className="ai-close"
@@ -362,7 +450,7 @@ export default function AIAssistant({ externalOpen, onOpenChange, hideFab = fals
             position: 'fixed',
             bottom: fabBottom,
             right: fabRight,
-            zIndex: 1001,
+            zIndex: z.modal,
             display: 'flex', alignItems: 'center', gap: 10,
           }}
           onMouseEnter={() => setFabHover(true)}

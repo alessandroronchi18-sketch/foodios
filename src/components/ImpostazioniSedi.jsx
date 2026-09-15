@@ -305,17 +305,27 @@ export default function ImpostazioniSedi({ orgId, onSediChange, metodoProduzione
         // corso prima di archiviare una sede non veniva mai fatto.
         .select('id, sede_da, sede_a, stato')
         .or(`sede_da.eq.${id},sede_a.eq.${id}`)
-        .eq('stato', 'inviato')
+        // Anche le BOZZE, non solo i trasferimenti già partiti.
+        //
+        // Prima passavano: si disattivava la sede, la bozza restava, e chi
+        // cliccava "Invia" ci riusciva — né la pagina né la funzione del
+        // database controllano che la sede sia ancora attiva. Risultato: merce
+        // scalata dalla partenza e accreditata a una sede che nell'interfaccia
+        // non esiste più, che nessuno può confermare. Magazzino sbagliato in
+        // due sedi contemporaneamente.
+        .in('stato', ['bozza', 'inviato'])
       if (tErr) throw tErr
       if ((pending || []).length > 0) {
         return notify(
-          `Ci sono ${pending.length} trasferimento/i pending su questa sede. Gestiscili (ricevi o annulla) prima di disattivare.`,
+          pending.length === 1
+            ? 'C\'è un trasferimento aperto su questa sede: ricevilo, annullalo o cancella la bozza prima di archiviarla.'
+            : `Ci sono ${pending.length} trasferimenti aperti su questa sede: ricevili, annullali o cancella le bozze prima di archiviarla.`,
           false,
         )
       }
     } catch (e) {
       // Se il check fallisce (RLS / rete), meglio non procedere con la disattivazione.
-      return notify('Errore verifica trasferimenti: ' + e.message, false)
+      return notify('Non sono riuscito a controllare i trasferimenti aperti su questa sede, quindi non la archivio: riprova fra un momento.', false)
     }
     const ok = await confirmDialog({
       title: `Disattivare la sede "${nome}"?`,

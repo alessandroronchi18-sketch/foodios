@@ -9,12 +9,20 @@
 // Override via env AI_BUDGET_USD_<PIANO> (es. AI_BUDGET_USD_BASE=2.5).
 // Admin (email match) bypassa sempre il cap.
 
+// Tetto giornaliero per azienda, in dollari. Deciso dal titolare il
+// 15/09/2026: 5 $, cioè circa 400 richieste al giorno — molto più di un uso
+// normale, ma abbastanza da fermare subito un abuso. Se un cliente vero lo
+// tocca si vede nel pannello admin e si alza.
+//
+// Fino a oggi questi numeri non contavano niente: il contatore era scollegato
+// (vedi il commento sotto e la migration 20260915e) e il tetto non è mai
+// scattato per nessuno.
 const DEFAULT_BUDGETS_USD = {
-  trial: 1.0,
-  base: 1.0,
-  pro: 3.0,
-  chain: 10.0,
-  enterprise: 10.0,
+  trial: 5.0,
+  base: 5.0,
+  pro: 5.0,
+  chain: 5.0,
+  enterprise: 5.0,
 }
 
 // Costo stimato medio per feature (USD per call). Allineato con
@@ -54,36 +62,86 @@ export function estimateCostForCall({ feature, model }) {
  *
  * NB: usa l'auth.uid() del Bearer token corrente (RPC security definer).
  */
-export async function checkAndIncrementAiBudget({ supabase, feature, model, piano = 'trial', adminBypass = false }) {
+/**
+ * Controlla il tetto giornaliero e registra la spesa.
+ *
+ * ── Perché serve `orgId` ─────────────────────────────────────────────────
+ *
+ * Prima si chiamavano `ai_usage_today_total()` e `ai_usage_increment()` senza
+ * argomenti: erano loro a cercare l'azienda con
+ * `select organization_id from profiles where id = auth.uid()`. Ma qui chi
+ * chiama è il server con la chiave di servizio, dove `auth.uid()` è **vuoto**.
+ * Quindi l'incremento usciva subito senza scrivere e il totale tornava sempre
+ * 0: `0 >= tetto` non è mai vero, e il limite non è mai scattato per nessuno.
+ *
+ * Provato sul database il 15/09/2026: `ai_usage_daily` vuota con 327
+ * organizzazioni, e in `rate_limits` sette chiavi `ai:…` che dimostrano che le
+ * chiamate c'erano state. Si spendeva, e il contatore restava a zero — compreso
+ * quello del pannello admin, che legge la stessa tabella.
+ */
+export async function checkAndIncrementAiBudget({ supabase, orgId, feature, model, piano = 'trial', adminBypass = false }) {
   if (adminBypass) return { allowed: true, bypass: 'admin' }
+  // Senza organizzazione non si può contare niente. Si lascia passare — non è
+  // colpa di chi sta chiedendo — ma lo si dice forte, perché è la condizione
+  // in cui il tetto non protegge.
+  if (!orgId) {
+    console.warn('[aiBudget] chiamata senza organizzazione: spesa non conteggiata')
+    return { allowed: true, error: 'org_mancante' }
+  }
+
   const cap = Number(process.env[`AI_BUDGET_USD_${piano.toUpperCase()}`])
     || DEFAULT_BUDGETS_USD[piano] || DEFAULT_BUDGETS_USD.trial
-  // Leggi totale corrente
+  const cost = estimateCostForCall({ feature, model })
+
+  // ── I pacchetti comprati vengono prima del tetto ────────────────────────
+  // La migration del 06/07 lo dichiarava già ("se org ha credit_remaining > 0,
+  // NON conta sul cap giornaliero") ma quel codice non era mai stato scritto, e
+  // la funzione sul database non esisteva. Un cliente che paga per mille
+  // chiamate sarebbe stato tagliato fuori lo stesso.
+  try {
+    const { data: usato } = await supabase.rpc('ai_credit_consuma', { p_org: orgId })
+    if (usato === true) {
+      // Si registra lo stesso, per vedere il consumo nel pannello, ma a costo
+      // zero: quella chiamata è già stata pagata a parte.
+      await supabase.rpc('ai_usage_increment_org', {
+        p_org: orgId, p_feature: feature || 'generic',
+        p_tokens_in: 0, p_tokens_out: 0, p_cost_usd: 0,
+      })
+      return { allowed: true, daPacchetto: true, charged: 0 }
+    }
+  } catch (e) {
+    console.warn('[aiBudget] pacchetti non leggibili:', e.message?.slice(0, 80))
+  }
+
   let used = 0
   try {
-    const { data } = await supabase.rpc('ai_usage_today_total')
+    const { data, error } = await supabase.rpc('ai_usage_today_total_org', { p_org: orgId })
+    if (error) throw new Error(error.message)
     used = Number(data) || 0
   } catch (e) {
-    // Fail-open su read error (la tabella potrebbe non esistere ancora se
-    // la migration non e' stata eseguita). Logga ma non bloccare.
-    console.warn('[aiBudget] read failed, allowing:', e.message?.slice(0, 80))
+    // Si lascia passare: meglio una chiamata non conteggiata che un cliente
+    // bloccato da un guasto nostro. Ma resta scritto nel log.
+    console.warn('[aiBudget] lettura fallita, passo comunque:', e.message?.slice(0, 80))
     return { allowed: true, error: 'budget_read_failed' }
   }
+
   if (used >= cap) {
     return { allowed: false, reason: 'budget_exceeded', used: Math.round(used * 100) / 100, cap }
   }
-  // Increment ottimistico (UPSERT atomico). Lo facciamo PRIMA della chiamata
-  // Claude per evitare race su chiamate parallele.
-  const cost = estimateCostForCall({ feature, model })
+
+  // Si registra PRIMA della chiamata a Claude: due richieste in parallelo
+  // devono contare due volte, non una.
   try {
-    await supabase.rpc('ai_usage_increment', {
+    const { error } = await supabase.rpc('ai_usage_increment_org', {
+      p_org: orgId,
       p_feature: feature || 'generic',
       p_tokens_in: 0,
       p_tokens_out: 0,
       p_cost_usd: cost,
     })
+    if (error) console.warn('[aiBudget] scrittura fallita:', error.message?.slice(0, 80))
   } catch (e) {
-    console.warn('[aiBudget] increment failed:', e.message?.slice(0, 80))
+    console.warn('[aiBudget] scrittura fallita:', e.message?.slice(0, 80))
   }
   return { allowed: true, used: Math.round(used * 100) / 100, cap, charged: cost }
 }

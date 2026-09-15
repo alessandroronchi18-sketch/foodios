@@ -42,7 +42,11 @@ function fmtEuro(v) {
   return `${Number(v || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
 }
 
-export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null, notify, metodoProduzione = 'stampi' }) {
+// `soloRicezione`: il dipendente conferma quello che è arrivato alla sua sede e
+// segna gli scarti, ma non crea, non invia e non annulla. Non è solo un bottone
+// nascosto — le funzioni sul database rifiutano comunque (migration 20260915f);
+// qui si evita di mostrargli comandi che poi gli darebbero errore.
+export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null, notify, metodoProduzione = 'stampi', soloRicezione = false }) {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
   const confirmDialog = useConfirm()
@@ -70,7 +74,11 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
   const [saving, setSaving] = useState(false)
 
   const sediAttive = (sedi || []).filter(s => s.attiva !== false)
-  const sediMap = Object.fromEntries(sediAttive.map(s => [s.id, s]))
+  // Le tendine del form mostrano solo le sedi attive: non ha senso spedire a
+  // una sede archiviata. Ma per LEGGERE i nomi servono tutte, comprese quelle
+  // disattivate: un trasferimento vecchio verso una sede poi archiviata
+  // mostrava «Bozza verso —», e non si capiva più dove stesse andando la merce.
+  const sediMap = Object.fromEntries((sedi || []).map(s => [s.id, s]))
 
   useEffect(() => {
     if (sedeAttiva?.id && !form.sede_da) setForm(f => ({ ...f, sede_da: sedeAttiva.id }))
@@ -115,7 +123,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
       setTemplates(next)
     } catch (e) {
       console.error('[Trasferimenti] eliminaTemplate fallito:', e?.message)
-      notify?.('Errore eliminando template, riprova', 'error')
+      notify?.('Non sono riuscito a cancellare il modello, riprova', false)
     }
   }
 
@@ -205,14 +213,59 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
         autoInvia: autoInvia && form.tipo === 'prodotto', // RPC scala stock per prodotti
       })
 
-      // Per MP autoInvia, marchiamo a mano lo stato inviato (lo stock è già scalato).
+      // Per le materie prime lo stock è già stato scalato qui sopra: resta da
+      // segnare la riga come inviata.
+      //
+      // Prima questo `update` non controllava l'esito. La libreria di Supabase
+      // NON lancia eccezioni: restituisce un oggetto con dentro `error`. Se la
+      // scrittura falliva — rete che cade, permesso negato — il codice andava
+      // avanti fino a «Trasferimento inviato», ma la riga restava **bozza** con
+      // `stock_applicato = false`. L'utente vedeva una bozza che dice "non
+      // ancora inviata", cliccava "Invia", e il controllo `if (!t.stock_applicato)`
+      // era falso: **il magazzino veniva scalato una seconda volta**. Dieci chili
+      // partiti, venti tolti dalla sede. In silenzio.
+      //
+      // Venti righe più sotto lo stesso identico update aveva già il controllo
+      // giusto, col commento che spiegava perché: la correzione era stata
+      // applicata a un percorso e non all'altro.
       if (autoInvia && form.tipo === 'materia_prima') {
-        await supabase.from('trasferimenti')
+        const { error: errInvio, data: righeTocche } = await supabase.from('trasferimenti')
           .update({ stato: 'inviato', stock_applicato: true, data_invio: new Date().toISOString() })
           .eq('id', created.id)
+          // Solo se è ancora una bozza: se qualcun altro ha già agito, non si passa.
+          .eq('stato', 'bozza')
+          .select('id')
+        if (errInvio) throw errInvio
+        if (!righeTocche || righeTocche.length === 0) {
+          throw new Error('Il trasferimento risulta già inviato da qualcun altro: ricarica la pagina prima di riprovare.')
+        }
       }
 
-      notify?.(autoInvia ? 'Trasferimento inviato' : 'Bozza salvata')
+      // I chili partiti vanno segnati nell'inventario della sede di partenza,
+      // altrimenti risultano **venduti al banco** e il calo, gli scarti e il
+      // margine di quella sede escono falsati.
+      //
+      // Lo faceva solo `azInvia`, cioè il percorso "salva bozza → poi invia".
+      // Il pulsante grande rosso "Invia subito" passava dritto alla funzione
+      // del database e saltava quel passaggio: stesso trasferimento, due
+      // strade, due risultati diversi — e quella sbagliata era il bottone più
+      // visibile. Il commento in `azInvia` dichiarava il problema risolto.
+      let invScritto = 0
+      if (autoInvia && metodoProduzione === 'inventario' && form.tipo === 'prodotto') {
+        const grammi = form.unita === 'kg' ? qty * 1000 : qty
+        try {
+          invScritto = await aggiungiSpedito(orgId, form.sede_da, prodottoSalvato, form.data || todayLocal(), grammi) || 0
+        } catch (e) {
+          console.error('[Trasferimenti] spedito non scritto in inventario:', e)
+          notify?.(`Trasferimento inviato, ma non ho potuto segnare i chili spediti nell'inventario di ${sediMap[form.sede_da]?.nome || 'partenza'}: scrivili a mano.`, false)
+        }
+      }
+
+      notify?.(autoInvia
+        ? (invScritto > 0
+          ? `Trasferimento inviato. Nell'inventario di ${sediMap[form.sede_da]?.nome || 'partenza'} ho segnato ${(invScritto / 1000).toLocaleString('it-IT', { maximumFractionDigits: 1 })} kg spediti.`
+          : 'Trasferimento inviato')
+        : 'Bozza salvata')
       setForm(f => ({ ...f, prodotto: '', quantita: '', valore_unit: '', note: '' }))
       setShowForm(false)
       await carica()
@@ -380,7 +433,19 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
       if (t.stato === 'inviato' && t.tipo === 'materia_prima' && t.stock_applicato) {
         // Rollback MP client-side: rimetti l'MP nella sede di partenza.
         await caricoMP({ orgId, sedeId: t.sede_da, ingrediente: t.prodotto, quantita: mpGrammi(t) })
-        await supabase.from('trasferimenti').update({ stato: 'annullato', stock_applicato: false }).eq('id', t.id)
+        // Stesso buco del percorso d'invio, nel verso opposto: senza il
+        // controllo dell'esito, la merce tornava nella sede di partenza, la
+        // riga restava "inviato", e il secondo clic su annulla la rimetteva
+        // dentro **una seconda volta**. Magazzino gonfiato del doppio.
+        const { error: errAnn, data: righeTocche } = await supabase.from('trasferimenti')
+          .update({ stato: 'annullato', stock_applicato: false })
+          .eq('id', t.id)
+          .eq('stato', 'inviato')
+          .select('id')
+        if (errAnn) throw errAnn
+        if (!righeTocche || righeTocche.length === 0) {
+          throw new Error('Questo trasferimento è già stato annullato o ricevuto: ricarica la pagina.')
+        }
       } else {
         await annullaTrasferimento(t.id)
       }
@@ -663,10 +728,10 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
                   <div style={{ fontSize: 12, fontWeight: 800, color: C.text }}>{t.prodotto} · {fmtQty(t.quantita, t.unita)}</div>
                   <div style={{ fontSize: typo.small.fontSize, color: C.textSoft }}>Bozza verso <strong>{sediMap[t.sede_a]?.nome || '-'}</strong> · pronta da inviare</div>
                 </div>
-                <button onClick={() => azInvia(t)} disabled={busyId === t.id}
+                {!soloRicezione && <button onClick={() => azInvia(t)} disabled={busyId === t.id}
                   style={{ padding: isMobile ? '10px 16px' : '6px 14px', minHeight: isMobile ? 40 : 'auto', borderRadius: 8, border: 'none', background: C.red, color: C.white, fontSize: isMobile ? 13 : 12, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                   <Icon name="truck" size={13} /> Invia ora
-                </button>
+                </button>}
               </div>
             ))}
           </div>
@@ -697,12 +762,12 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
 
       {/* Toolbar */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
-        <button onClick={() => setShowForm(s => !s)}
+        {!soloRicezione && <button onClick={() => setShowForm(s => !s)}
           style={{ padding: isMobile ? '11px 18px' : '8px 16px', minHeight: isMobile ? 44 : 'auto',
             background: showForm ? C.bgCard : C.red, color: showForm ? C.textMid : C.white,
             border: showForm ? `1px solid ${C.border}` : 'none', borderRadius: 8, fontWeight: 700, fontSize: isMobile ? 14 : 13, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
           {showForm ? <><Icon name="x" size={14} /> Annulla</> : <><Icon name="plus" size={14} /> Nuovo trasferimento</>}
-        </button>
+        </button>}
         <div style={{ flex: 1 }} />
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {[['attiva','pin','Sede attiva'], ['tutte','building','Tutte le sedi']].map(([id, ic, lbl2]) => (
@@ -997,18 +1062,21 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
                           style={{ padding: isMobile ? '9px 14px' : '5px 12px', minHeight: isMobile ? 40 : 'auto', borderRadius: 8, border: 'none', background: C.green, color: C.white, fontSize: typo.small.fontSize, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                           <Icon name="check" size={12} /> Ricevuto
                         </button>
-                        <button onClick={() => azAnnulla(t)} disabled={busy} title="Annulla (rollback stock)" aria-label="Annulla trasferimento"
-                          style={{ padding: isMobile ? '9px 12px' : '5px 10px', minHeight: isMobile ? 40 : 'auto', minWidth: isMobile ? 40 : 'auto', borderRadius: 8, border: `1px solid ${C.amber}`, background: '#FEF3C7', color: '#92400E', fontSize: typo.small.fontSize, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="xCircle" size={13} /></button>
+                        {/* Annullare un trasferimento in viaggio rimette la merce
+                            nella sede di partenza: è una decisione di chi
+                            comanda il magazzino, non di chi scarica il furgone. */}
+                        {!soloRicezione && <button onClick={() => azAnnulla(t)} disabled={busy} title="Annulla il trasferimento e rimetti la merce nella sede di partenza" aria-label="Annulla trasferimento"
+                          style={{ padding: isMobile ? '9px 12px' : '5px 10px', minHeight: isMobile ? 40 : 'auto', minWidth: isMobile ? 40 : 'auto', borderRadius: 8, border: `1px solid ${C.amber}`, background: T.amberLight, color: T.amberDark || T.amber, fontSize: typo.small.fontSize, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="xCircle" size={13} /></button>}
                       </>
                     )}
                     {(t.stato === 'ricevuto' || t.stato === 'completato') && (
                       <>
                         <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, alignSelf: 'center' }}>{t.data_ricezione ? fmtData(t.data_ricezione) : ''}</span>
-                        <button onClick={() => ripetiTrasferimento(t)}
+                        {!soloRicezione && <button onClick={() => ripetiTrasferimento(t)}
                           title="Pre-compila lo stesso trasferimento con la data di oggi"
                           style={{ padding: isMobile ? '9px 12px' : '5px 10px', minHeight: isMobile ? 40 : 'auto', borderRadius: 8, border: `1px solid ${C.border}`, background: 'transparent', color: C.textMid, fontSize: typo.small.fontSize, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                           <Icon name="copy" size={12} /> Ripeti
-                        </button>
+                        </button>}
                       </>
                     )}
                     {t.stato === 'annullato' && (

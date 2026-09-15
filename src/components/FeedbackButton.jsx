@@ -1,7 +1,8 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { apiFetch } from '../lib/apiFetch'
 import useIsMobile from '../lib/useIsMobile'
 import Icon from './Icon'
+import { z } from '../lib/theme'
 
 // Bottone floating + modale per inviare feedback all'admin.
 // L'utente non vede una "casella feedback" dopo l'invio: e' uno strumento
@@ -13,6 +14,18 @@ const SENTIMENTS = [
   { key: 'feedback',    icon: 'chat',  label: 'Feedback',     help: 'Un\'osservazione generica' },
   { key: 'complimento', icon: 'party', label: 'Complimento',  help: 'Mi piace come funziona' },
 ]
+
+// Gli errori, detti come li direbbe una persona.
+function messaggioUmano(e) {
+  const m = String(e?.message || '')
+  if (/failed to fetch|load failed|networkerror|network request/i.test(m)) {
+    return 'Non sono riuscito a mandarlo: controlla la connessione e riprova. Quello che hai scritto è ancora qui.'
+  }
+  if (/429|too many|rate limit/i.test(m)) return 'Hai mandato diverse segnalazioni di fila: aspetta un minuto.'
+  if (/401|403|non autorizzat/i.test(m)) return 'La sessione è scaduta: ricarica la pagina e riprova.'
+  if (/timeout|abort/i.test(m)) return 'Ci ha messo troppo. Riprova fra un momento.'
+  return 'Non sono riuscito a mandarlo. Riprova fra un momento — quello che hai scritto è ancora qui.'
+}
 
 export default function FeedbackButton({ viewCorrente, externalOpen, onOpenChange, hideFab = false }) {
   const isMobile = useIsMobile()
@@ -48,11 +61,23 @@ export default function FeedbackButton({ viewCorrente, externalOpen, onOpenChang
       setMessaggio('')
       setTimeout(() => { setOpen(false); setSent(false); setSentiment('feedback') }, 1500)
     } catch (e) {
-      setErr(e.message)
+      // Prima usciva il messaggio grezzo del browser: senza rete diventa
+      // "Failed to fetch" su Chrome e "Load failed" su Safari, in inglese,
+      // dentro un riquadro rosso, a un pasticcere.
+      setErr(messaggioUmano(e))
     } finally {
       setSending(false)
     }
   }
+
+  // Esc chiude, come in ogni finestra. Prima non la chiudeva niente da
+  // tastiera: bisognava per forza cliccare col mouse.
+  useEffect(() => {
+    if (!open) return
+    const esc = (e) => { if (e.key === 'Escape' && !sending) setOpen(false) }
+    document.addEventListener('keydown', esc)
+    return () => document.removeEventListener('keydown', esc)
+  }, [open, sending])
 
   return (
     <>
@@ -62,7 +87,7 @@ export default function FeedbackButton({ viewCorrente, externalOpen, onOpenChang
             position: 'fixed',
             bottom: isMobile ? 132 : 78,
             right: isMobile ? 16 : 20,
-            zIndex: 1002,
+            zIndex: z.fab,
             display: 'flex', alignItems: 'center', gap: 8,
           }}
           onMouseEnter={() => setHover(true)}
@@ -109,11 +134,12 @@ export default function FeedbackButton({ viewCorrente, externalOpen, onOpenChang
           style={{
             position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            padding: 20, zIndex: 100,
+            padding: 20, zIndex: z.modal,
           }}
         >
           <div
             onClick={e => e.stopPropagation()}
+            role="dialog" aria-modal="true" aria-labelledby="fb-titolo"
             style={{
               background: '#FFF', borderRadius: 14, width: '100%', maxWidth: 480,
               boxShadow: '0 20px 60px rgba(0,0,0,0.3)', overflow: 'hidden',
@@ -121,13 +147,16 @@ export default function FeedbackButton({ viewCorrente, externalOpen, onOpenChang
             }}
           >
             <div style={{ padding: '16px 20px', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: '#1C0A0A', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+              <h2 id="fb-titolo" style={{ margin: 0, fontSize: 15, fontWeight: 800, color: '#1C0A0A', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
                 <Icon name="chat" size={16} color="#6E0E1A"/> Mandaci un feedback
               </h2>
-              <button onClick={() => setOpen(false)} disabled={sending} style={{
-                background: 'transparent', border: 'none', fontSize: 22, color: '#94A3B8',
-                cursor: sending ? 'not-allowed' : 'pointer', lineHeight: 1,
-              }}>×</button>
+              <button onClick={() => setOpen(false)} disabled={sending}
+                aria-label="Chiudi" title="Chiudi" style={{
+                background: 'transparent', border: 'none', color: '#94A3B8',
+                cursor: sending ? 'not-allowed' : 'pointer', lineHeight: 0,
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                padding: 8, minHeight: 36, minWidth: 36,
+              }}><Icon name="x" size={16}/></button>
             </div>
             <div style={{ padding: 20 }}>
               {sent ? (
@@ -140,7 +169,7 @@ export default function FeedbackButton({ viewCorrente, externalOpen, onOpenChang
               ) : (
                 <>
                   <div style={{ fontSize: 12, color: '#64748B', marginBottom: 12, lineHeight: 1.5 }}>
-                    Scrivi liberamente. Le segnalazioni arrivano direttamente al team - leggiamo tutto.
+                    Scrivi liberamente. Le leggiamo noi, una per una. Se lasci un modo per ricontattarti, ti rispondiamo.
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6, marginBottom: 12 }}>
                     {SENTIMENTS.map(s => (

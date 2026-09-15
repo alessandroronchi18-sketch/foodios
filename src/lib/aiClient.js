@@ -133,6 +133,11 @@ export async function callAi(opts) {
   const body = {
     model,
     max_tokens: maxTokens,
+    // La funzione che sta chiamando. Il server la riceveva come argomento ma
+    // non finiva nel corpo della richiesta, quindi addebitava sempre la tariffa
+    // più cara (`ai_proxy`, 0,012 $) anche alla ricerca rapida, che usa un
+    // modello quindici volte più economico.
+    ...(feature ? { feature } : {}),
     ...(system ? { system } : {}),
     messages: messages || [{ role: 'user', content: prompt || '' }],
     ...(extra || {}),

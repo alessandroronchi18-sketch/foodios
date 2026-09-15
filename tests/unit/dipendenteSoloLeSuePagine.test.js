@@ -82,7 +82,6 @@ describe('il database rispecchia l\'interfaccia', () => {
     ['costi_aziendali', 'affitti, utenze, costi fissi — 8 righe vere in produzione'],
     ['extracted_invoices', 'sono fatture: `fatture` era già chiusa, questa no'],
     ['competitor_prices', 'prezzi dei concorrenti'],
-    ['trasferimenti', 'la pagina Trasferimenti non è sua'],
     ['benchmarks_anonimi', 'confronti di settore'],
   ]
 
@@ -111,18 +110,29 @@ describe('il database rispecchia l\'interfaccia', () => {
     }
   })
 
-  it('la migrazione dice a chi legge dove tornare se le regole cambiano', () => {
+  it('sui trasferimenti la regola è cambiata lo stesso giorno, e si vede', () => {
+    // La mattina del 15/09 erano stati chiusi al dipendente perché la pagina
+    // non era nella sua lista. Il pomeriggio il titolare ha deciso che deve
+    // poter ricevere: la regola nuova sta in 20260915f e sostituisce questa.
     expect(MIGR).toMatch(/Trasferimenti si aprirà al[\s\S]{0,200}questa è la riga/)
+    const successiva = readFileSync(
+      join(DIR, readdirSync(DIR).find(f => f.includes('trasferimenti_blocco_riga_e_ruoli'))), 'utf8')
+    expect(successiva).toMatch(/drop policy if exists trasferimenti_own/)
+    expect(successiva).toMatch(/create policy trasferimenti_lettura/)
   })
 })
 
 describe('le pagine del dipendente sono quelle e basta', () => {
   it('l\'elenco non è cresciuto di nascosto', () => {
     const permesse = elencoPermesse()
+    // 'trasferimenti' aggiunto il 15/09/2026 su decisione del titolare: è il
+    // dipendente che scarica il furgone alla sede. Ma **solo ricevere** — non
+    // crea, non invia, non annulla: quello lo impediscono le funzioni sul
+    // database (20260915f), non questa lista.
     expect(permesse.sort()).toEqual([
       'calendario', 'changelog', 'chiusura', 'giornaliero', 'haccp',
       'home-dipendente', 'impostazioni', 'inventario-gusti', 'magazzino',
-      'sprechi-omaggi',
+      'sprechi-omaggi', 'trasferimenti',
     ])
   })
 
@@ -130,7 +140,7 @@ describe('le pagine del dipendente sono quelle e basta', () => {
     const permesse = new Set(elencoPermesse())
     for (const v of ['pl', 'personale', 'scadenzario', 'fornitori', 'costi-aziendali',
                      'storico', 'confronto-sedi', 'vendite-b2b', 'ricettario',
-                     'trasferimenti', 'simulatore', 'previsione']) {
+                     'simulatore', 'previsione']) {
       expect(permesse.has(v), `${v} non deve essere una pagina del dipendente`).toBe(false)
     }
   })

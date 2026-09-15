@@ -37,6 +37,7 @@ export default async function handler(req) {
     // Log del tentativo bloccato (utile per indagine sicurezza)
     try {
       await supabase.from('audit_log').insert({
+        table_name: 'sistema',
         organization_id: orgId,
         user_id: user.id,
         user_email: user.email,
@@ -52,6 +53,7 @@ export default async function handler(req) {
   // Audit log (fail-soft: se la tabella non c'è, ritorna comunque OK)
   try {
     await supabase.from('audit_log').insert({
+      table_name: 'sistema',
       organization_id: orgId,
       user_id: user.id,
       user_email: user.email,

@@ -112,6 +112,7 @@ const PushNotificationToggle = lazyWithReload(() => import('./components/PushNot
 const FotoOCR = lazyWithReload(() => import('./components/FotoOCR'))
 import { compressImage } from './lib/imageUtils'
 import { trackViewOpen } from './lib/usageTracking'
+import { impostaVistaCorrente } from './lib/vistaCorrente'
 const MagazzinoView = lazyWithReload(() => import('./views/MagazzinoView'))
 const ChiusuraView = lazyWithReload(() => import('./views/ChiusuraView'))
 const ProduzioneGiornalieraView = lazyWithReload(() => import('./views/ProduzioneGiornalieraView'))
@@ -1191,13 +1192,19 @@ class ErrorBoundary extends React.Component {
 // menu, semilavorati, importa dati, nuova ricetta, eventi, ricettario, ecc.) è
 // NASCOSTO - sia in UI (questo set) sia a livello DB (RLS, vedi migration
 // 20260607_dipendente_no_lettura_sensibili.sql).
-const DIPENDENTE_VIEWS = new Set([
+export const DIPENDENTE_VIEWS = new Set([
   'home-dipendente', // Modalità Dipendente XL: landing 6 pulsantoni mobile-first.
   'giornaliero',     // Produzione - "caricare i prodotti" (solo oggi)
   'inventario-gusti',// Inventario differenziale per gelaterie/yogurt (alternativa a giornaliero)
   'chiusura',        // Cassa (solo oggi)
   'magazzino',       // Stock e rifornimenti
   'sprechi-omaggi',  // Operativo: sia titolare sia dipendente registrano
+  // Decisione del titolare, 15/09/2026: è il dipendente che scarica il furgone
+  // alla sede, quindi deve poter confermare cosa è arrivato. Ma **solo
+  // ricevere**: non crea, non invia, non annulla — quello lo impediscono le
+  // funzioni sul database (20260915f), non solo questa lista. E vede i
+  // trasferimenti della SUA sede, non quelli delle altre.
+  'trasferimenti',
   'calendario',      // solo oggi/futuro
   'haccp',
   'changelog',
@@ -1504,6 +1511,10 @@ export default function Dashboard({
   // richieste al database non partono. Prima il controllo stava solo
   // nell'useEffect qui sotto, che React esegue DOPO aver disegnato.
   const vista = (isDip && !DIPENDENTE_VIEWS.has(view)) ? 'home-dipendente' : view
+
+  // La pagina corrente, leggibile dai due bottoni flottanti, che stanno fuori
+  // da questo albero (vedi src/lib/vistaCorrente.js).
+  useEffect(() => { impostaVistaCorrente(vista) }, [vista])
 
   // Defense-in-depth: se un dipendente finisce su una vista non consentita (es.
   // ripristinata da sessionStorage o via link), riportalo alla produzione.
@@ -3129,7 +3140,9 @@ export default function Dashboard({
               {Group({ id:"team", iconKey:"briefcase", label:"Sedi & Team",
                 children:[
                   ((auth?.user?.email === 'demo@maradeiboschi.com') || (sedi||[]).length>1) && navItem("confronto-sedi","building","Confronto sedi"),
-                  ((auth?.user?.email === 'demo@maradeiboschi.com') || (sedi||[]).length>1) && navItem("trasferimenti","truck","Trasferimenti tra sedi"),
+                  // Le sedi ATTIVE, non tutte: con due sedi di cui una archiviata la voce
+                  // compariva, e la pagina diceva "Aggiungi almeno 2 sedi".
+                  ((auth?.user?.email === 'demo@maradeiboschi.com') || (sedi||[]).filter(x=>x.attiva!==false).length>1) && navItem("trasferimenti","truck","Trasferimenti tra sedi"),
                   navItem("personale","users","Personale & stipendi"),
                   navItem("registro-attivita","fileText","Registro attività"),
                 ] })}
@@ -3648,7 +3661,7 @@ export default function Dashboard({
           notify={notify}/>}
         {vista==="confronto-sedi"&&(canAccessView("confronto-sedi",piano,auth?.user?.email)?<ConfrontoSedi orgId={orgId} sedi={sedi}/>:<UpgradeGate view="confronto-sedi" onUpgrade={goToUpgrade}/>)}
         {vista==="eventi"&&<EventiView orgId={orgId} sedeId={sedeId} ricettario={ricettario} notify={notify} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita}/>}
-        {vista==="trasferimenti"&&!isAllSedi&&(canAccessView("trasferimenti",piano,auth?.user?.email)?<TrasferimentiView orgId={orgId} sedi={sedi} sedeAttiva={sedeAttiva} notify={notify} metodoProduzione={metodoProduzione}/>:<UpgradeGate view="trasferimenti" onUpgrade={goToUpgrade}/>)}
+        {vista==="trasferimenti"&&!isAllSedi&&(canAccessView("trasferimenti",piano,auth?.user?.email)?<TrasferimentiView orgId={orgId} sedi={sedi} sedeAttiva={sedeAttiva} notify={notify} metodoProduzione={metodoProduzione} soloRicezione={isDip}/>:<UpgradeGate view="trasferimenti" onUpgrade={goToUpgrade}/>)}
         {vista==="integrazioni"&&(canAccessView("integrazioni",piano,auth?.user?.email)?<Integrazioni orgId={orgId} sedeId={sedeId} notify={notify}/>:<UpgradeGate view="integrazioni" onUpgrade={goToUpgrade}/>)}
         {vista==="scadenzario"&&<Scadenzario orgId={orgId} sedeId={sedeId} sedi={sedi}/>}
         {vista==="changelog"&&<ChangelogView/>}

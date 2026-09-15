@@ -11,14 +11,23 @@
 import React, { useState, useRef, useEffect, Suspense, lazy } from 'react'
 import useIsMobile from '../lib/useIsMobile'
 import Icon from './Icon'
+import { color as T, z } from '../lib/theme'
+import { leggiVistaCorrente, iscrivitiVistaCorrente } from '../lib/vistaCorrente'
 import FeedbackButton from './FeedbackButton'
 
 const AIAssistant = lazy(() => import('./AIAssistant'))
 
-const BRAND = '#6E0E1A'
-const BRAND_DARK = '#4A0810'
+// I colori dai token, non scritti a mano: `#4A0810` non esiste in theme.js —
+// il token è `brandDarker: #4A0612` — e il bottone dell'assistente usava un
+// gradiente diverso da questo, a 54px di distanza. Due gradienti per due
+// bottoni della stessa famiglia.
+const BRAND = T.brand
+const BRAND_DARK = T.brandDarker
 
-export default function FloatingActions({ viewCorrente }) {
+export default function FloatingActions({ vistePermesse = null }) {
+  // La pagina in cui si trova l'utente, per allegarla alla segnalazione.
+  const [viewCorrente, setViewCorrente] = useState(leggiVistaCorrente())
+  useEffect(() => iscrivitiVistaCorrente(setViewCorrente), [])
   const isMobile = useIsMobile()
   const [expanded, setExpanded] = useState(false)
   const [aiOpen, setAiOpen] = useState(false)
@@ -41,6 +50,15 @@ export default function FloatingActions({ viewCorrente }) {
     }
   }, [expanded, aiOpen, feedbackOpen])
 
+  // Esc chiude il menu. Prima non lo chiudeva niente da tastiera: restava
+  // aperto sopra la pagina finché non si cliccava col mouse.
+  useEffect(() => {
+    if (!expanded) return
+    const esc = (e) => { if (e.key === 'Escape') setExpanded(false) }
+    document.addEventListener('keydown', esc)
+    return () => document.removeEventListener('keydown', esc)
+  }, [expanded])
+
   // Quando uno dei modali si chiude, ricomprimi anche il menu.
   useEffect(() => {
     if (!aiOpen && !feedbackOpen && expanded) {
@@ -49,7 +67,10 @@ export default function FloatingActions({ viewCorrente }) {
     }
   }, [aiOpen, feedbackOpen, expanded])
 
-  const mainBottom = isMobile ? 78 : 24
+  // Su iPhone la barra di navigazione è alta 56px più la barretta di sistema
+  // (34px): 78px non bastavano e i due si sovrapponevano di una dozzina di
+  // pixel. `env(safe-area-inset-bottom)` è la misura che la conosce.
+  const mainBottom = isMobile ? 'calc(78px + env(safe-area-inset-bottom, 0px))' : 24
   const mainRight = isMobile ? 16 : 24
 
   // Sub-FAB: stack verticale sopra il main. 56px di spacing per touch.
@@ -60,11 +81,20 @@ export default function FloatingActions({ viewCorrente }) {
       <div ref={wrapperRef} style={{
         position: 'fixed',
         bottom: mainBottom, right: mainRight,
-        zIndex: 1003,
+        // Dai token, non 1003 scritto a mano: con quel valore il bottone
+        // restava sopra la ricerca rapida, sopra la finestra di upgrade e
+        // sopra il modale del feedback stesso — cliccabile sopra il velo
+        // scuro. E si nasconde del tutto quando un modale è aperto.
+        zIndex: z.fab,
+        display: (aiOpen || feedbackOpen) ? 'none' : 'block',
       }}>
         {/* Sub-FAB Assistente AI */}
         <button
           aria-label="Apri assistente AI"
+          // Da chiuso non deve essere raggiungibile col Tab: con `opacity: 0` e
+          // `pointerEvents: none` il mouse non lo vedeva, ma la tastiera sì —
+          // si tabulava su un bottone invisibile e premendo Invio si apriva.
+          tabIndex={expanded ? 0 : -1}
           onClick={() => { setAiOpen(true); setExpanded(false) }}
           style={{
             position: 'absolute', right: 0,
@@ -75,6 +105,7 @@ export default function FloatingActions({ viewCorrente }) {
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             boxShadow: '0 4px 14px rgba(110,14,26,0.36)',
             opacity: expanded ? 1 : 0,
+            visibility: expanded ? 'visible' : 'hidden',
             pointerEvents: expanded ? 'auto' : 'none',
             transition: 'bottom 0.22s cubic-bezier(.4,.2,.2,1), opacity 0.18s ease',
           }}>
@@ -84,6 +115,10 @@ export default function FloatingActions({ viewCorrente }) {
         {/* Sub-FAB Feedback */}
         <button
           aria-label="Invia feedback"
+          // Da chiuso non deve essere raggiungibile col Tab: con `opacity: 0` e
+          // `pointerEvents: none` il mouse non lo vedeva, ma la tastiera sì —
+          // si tabulava su un bottone invisibile e premendo Invio si apriva.
+          tabIndex={expanded ? 0 : -1}
           onClick={() => { setFeedbackOpen(true); setExpanded(false) }}
           style={{
             position: 'absolute', right: 0,
@@ -94,6 +129,7 @@ export default function FloatingActions({ viewCorrente }) {
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             boxShadow: '0 4px 14px rgba(110,14,26,0.18)',
             opacity: expanded ? 1 : 0,
+            visibility: expanded ? 'visible' : 'hidden',
             pointerEvents: expanded ? 'auto' : 'none',
             transition: 'bottom 0.22s cubic-bezier(.4,.2,.2,1) 0.04s, opacity 0.18s ease 0.04s',
           }}>
@@ -124,7 +160,7 @@ export default function FloatingActions({ viewCorrente }) {
 
       {/* Modali (con hideFab=true, il FAB interno non viene renderizzato) */}
       <Suspense fallback={null}>
-        <AIAssistant externalOpen={aiOpen} onOpenChange={setAiOpen} hideFab/>
+        <AIAssistant externalOpen={aiOpen} onOpenChange={setAiOpen} hideFab vistePermesse={vistePermesse}/>
       </Suspense>
       <FeedbackButton
         viewCorrente={viewCorrente}

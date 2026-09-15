@@ -67,13 +67,22 @@ export default async function handler(req) {
         .select('piano').eq('id', profile.organization_id).maybeSingle()
       if (org?.piano) piano = org.piano
     } catch {}
+    // `orgId`: senza, il contatore non sa di chi è la spesa e non scrive nulla.
+    // `feature`: la manda il client, e dice quale funzione sta chiamando. Prima
+    // si addebitava sempre 'ai_proxy' (0,012 $) anche alla ricerca rapida, che
+    // usa un modello quindici volte più economico.
     const budget = await checkAndIncrementAiBudget({
-      supabase, feature: 'ai_proxy', model: null, piano, adminBypass: isAdminEmail,
+      supabase,
+      orgId: profile.organization_id,
+      feature: typeof body?.feature === 'string' ? body.feature.slice(0, 40) : 'ai_proxy',
+      model: typeof body?.model === 'string' ? body.model.slice(0, 60) : null,
+      piano,
+      adminBypass: isAdminEmail,
     })
     if (!budget.allowed) {
       await rallentaSeNecessario(startTime, MIN_RESPONSE_MS)
       return errResponse(
-        `Limite AI giornaliero raggiunto ($${budget.used} su $${budget.cap}). Riprova domani o passa a un piano superiore.`,
+        `Per oggi l'assistente ha lavorato abbastanza (${budget.used} $ su ${budget.cap} $). Riprende domani mattina. Se ti serve di più, scrivici e alziamo il limite.`,
         429, req
       )
     }
@@ -104,6 +113,7 @@ export default async function handler(req) {
   if (body.organization_id && body.organization_id !== profile.organization_id) {
     try {
       await supabase.from('audit_log').insert({
+        table_name: 'ai',
         organization_id: profile.organization_id,
         user_id: user.id,
         user_email: user.email,
@@ -121,6 +131,7 @@ export default async function handler(req) {
   // (no payload del prompt — può contenere dati sensibili)
   try {
     await supabase.from('audit_log').insert({
+      table_name: 'ai',
       organization_id: profile.organization_id,
       user_id: user.id,
       user_email: user.email,
@@ -137,7 +148,14 @@ export default async function handler(req) {
     // Un role 'system' iniettato dal client potrebbe sovrascrivere istruzioni
     // di sistema applicate altrove → filtriamo qui per sicurezza.
     const messaggiValidi = body.messages
-      .slice(0, MAX_MESSAGES)
+      // Gli ULTIMI venti, non i primi.
+      //
+      // Con `slice(0, MAX_MESSAGES)`, superata la ventesima riga di
+      // conversazione la domanda appena scritta veniva tagliata via e l'ultimo
+      // messaggio rimasto era una risposta dell'assistente: Claude proseguiva
+      // la vecchia risposta invece di rispondere alla nuova domanda. Dopo dieci
+      // scambi la chat smetteva di ascoltare, e sembrava impazzita.
+      .slice(-MAX_MESSAGES)
       .filter(m => m && (m.role === 'user' || m.role === 'assistant') && m.content != null)
     // La conversazione deve COMINCIARE con un messaggio dell'utente: se il
     // primo è dell'assistente, l'API risponde 400 e la funzione non parte.
@@ -177,6 +195,7 @@ export default async function handler(req) {
         const hashBuf = await crypto.subtle.digest('SHA-256', encoder.encode(body.system))
         const hashHex = Array.from(new Uint8Array(hashBuf)).slice(0, 8).map(b => b.toString(16).padStart(2, '0')).join('')
         await supabase.from('audit_log').insert({
+          table_name: 'ai',
           organization_id: profile.organization_id,
           user_id: user.id, user_email: user.email,
           operation: 'ai_system_override',
