@@ -1,10 +1,23 @@
 # FoodOS — Analisi prodotto (stile McKinsey, scoring 1–100)
 
-> Aggiornato: 2026-09-14 (notte) · Basata su evidenza diretta dal codice (LOC, test, migration, pattern)
+> Aggiornato: 2026-09-15 · Basata su evidenza diretta dal codice (LOC, test, migration, pattern)
 > e, dal 7 set, su query al database di produzione: quando qui c'e' un numero di
 > righe, di fatture o di letture, e' stato contato, non stimato.
 >
-> **Composito al 14/09 notte: Prodotto 95 · Ingegneria 97 · Business 42 · Maturita' ~67.**
+> **Composito al 15/09: Prodotto 96 · Ingegneria 97 · Business 43 · Maturita' ~68.**
+>
+> Il 15/09 (sezione 0quater) sei lavori chiesti dal titolare, tutti in
+> produzione. **Prodotto +1** perche' sono state tolte tre cose che il prodotto
+> diceva e non erano vere, e tutte e tre riguardavano soldi: il **prezzo
+> pubblico sbagliato da tre mesi** (89 € e 149 € dove il listino diceva 149 € e
+> 399 €, compresi i Termini di servizio, che sono il contratto); l'import CSV
+> delle casse **dichiarato su tredici marche e collegato a niente**; il
+> **dettaglio riga di 3.520 fatture** letto e buttato. **Business +1**: non per
+> un blocco tolto, ma perche' il listino adesso e' uno, giusto e leggibile —
+> prima non si poteva vendere un prodotto il cui prezzo a schermo non era
+> quello vero. Ingegneria resta 97: i difetti erano tanti e grossi, ma la
+> macchina che li ha trovati (verifica contro il database vero, prova
+> dall'esterno, test di guardia) e' la stessa gia' contata il 14.
 >
 > L'aggiornamento della notte e' tutto di **sicurezza**: otto buchi trovati e
 > chiusi (sezione 0ter), ognuno provato dall'esterno con la sola chiave
@@ -45,6 +58,7 @@
 | Data | Prodotto | Ingegneria | Business | Maturità azienda | Δ note |
 |---|---:|---:|---:|---:|---|
 | 2026-06-05 | 76 | 70 | 22 | ~30 | baseline |
+| **2026-09-15** | **96** | **97** | **43** | **~68** | **SEI LAVORI: ACCESSO, DIPENDENTE, PIANI, INTEGRAZIONI.** 5 commit, test 2.394 → **2.485** su 176 file, 5 migrazioni nuove applicate e verificate. **(1) Accesso**: `/api/login-guard` non ha autenticazione e «questo accesso e' fallito» era una cosa che il BROWSER dichiarava — chiunque conoscesse l'email di un cliente poteva lasciarlo fuori dal gestionale, per sempre. Provato in produzione: cinque richieste senza credenziali e l'account e' bloccato. Piu' il **codice a 4 cifre dei dipendenti provabile all'infinito** (10.000 combinazioni, nessun limite: ci si presentava come un collega), il passo SMS in registrazione che **non poteva riuscire** e nel fallire diceva se un numero e' registrato, e altri quattro. **reCAPTCHA non si puo' usare** (Supabase accetta solo hCaptcha e Turnstile, perche' l'accesso non passa dai nostri server): messo **Turnstile**, spento. **(2) Dipendente «solo le sue pagine»**: il filtro girava DOPO il disegno della pagina, e la ricerca rapida offriva la scorciatoia. Ma il buco vero era nel database — **leggeva affitti e utenze** (8 righe vere), perche' `fatture` era chiusa e `extracted_invoices` no. La porta principale chiusa e la finestra di lato aperta. **(3) Produzione**: la rimanenza del giorno prima non era a schermo, si inseriva alla cieca. **(4) Piani → Standard/Plus/Ultra, solo il Plus in vendita**: e correggendo e' uscito che `plan_pricing` era ferma al 27/05 e **la pagina pubblica mostrava 89 € e 149 € invece di 149 € e 399 €, da tre mesi** — Termini di servizio compresi. **(5) Quattro difetti nelle integrazioni**: l'auto-riconoscimento dei CSV di cassa **dichiarato su 13 marche e mai collegato** (e dentro i parser, i metodi di pagamento sempre vuoti e RCH che leggeva 0 € su una giornata da 100 €); il **dettaglio riga di 3.520 fatture** letto e buttato; i `.p7m` accettati e sempre falliti; il registro a una riga per scontrino (140.000 l'anno). Piu' il **lettore ZIP** che apre gli archivi dell'Agenzia delle Entrate, dove le fatture hanno dentro tutto. **(6) «Settimana precedente» non tornava indietro**, segnalato dal titolare: un effetto che correggeva uno stato guardandone un altro, e i due comandi si combattevano |
 | **2026-09-14 (notte)** | **95** | **97** | **42** | **~67** | **AUDIT DI SICUREZZA PROFONDO — otto buchi trovati e chiusi.** 12 commit, test 2.258 → **2.335** su 165 file, 8 migration di sicurezza applicate e verificate in produzione. Ognuno provato **dall'esterno con la sola chiave pubblica del sito** prima e dopo la correzione. (1) Sei funzioni interne chiamabili senza account: sovrascrivere ricettario, magazzino e chiusure di un'attività conoscendone l'id, alterare lo stock, **cancellare tutto il registro delle modifiche**. (2) I trasferimenti fra sedi comandabili da anonimi, perché il controllo di proprietà era `x <> get_user_org_id()` e in SQL `x <> NULL` non è falso, è NULL — un `if` con condizione NULL non scatta. (3) Deposito delle foto pubblico: scaricabile **ed elencabile** da chiunque. (4) Lo storico dei prezzi d'acquisto leggibile dai dipendenti — l'unico dei otto dove c'erano dati veri. (5) Un titolare poteva mettersi `approvato = true` dal browser e sbloccare tutto senza pagare. (6) Sul proprio profilo si poteva creare un account di laboratorio da soli. (7) TRUNCATE concesso ai ruoli pubblici: ignora le regole di isolamento per costruzione. (8) La cassa entrava con una parola d'ordine **uguale per tutti i clienti** e dichiarava lei l'attività: chi l'aveva scriveva incassi nella cassa di chiunque. **Nessun dato uscito** tranne il punto 4: deposito foto vuoto, zero integrazioni cassa attive. Tenuti da `audit-sicurezza.mjs` (12 controlli in produzione), una prova d'attacco con la chiave pubblica e 50 test. **Sicurezza 88 → 97**, Ingegneria 96 → 97  **Poi le sette sezioni sotto l'80**, chiuse nella stessa notte: WhatsApp mostrava un numero di cellulare INVENTATO e diceva di salvarlo in rubrica e scrivergli; le stelle delle Recensioni partivano da 5 e l'AI ci credeva, quindi rispondeva da cliente contento a una recensione da una stella; due schede di Impostazioni parlavano di "rotazione token", "il cron non parte" e "approvare il sender Twilio, o in sandbox l'opt-in"; la pagina della prova scaduta prometteva che i dati restassero "al sicuro per 60 giorni", lasciando capire che poi sparissero. **OnboardingChat rimossa**: non era raggiungibile da quando e' nata il 12/06, e se il salvataggio falliva a meta' creava una seconda organizzazione. Fuori dalle sette: i **Termini di servizio** — il contratto — elencavano due piani inesistenti a due prezzi sbagliati, e i vecchi nomi erano offerti in 8 punti da tre mesi; il pannello invito prometteva "60 giorni invece di 30" quando la prova vera ne dura 90 e il codice ne aggiunge 60; il dominio **foodos.it non esiste** (NXDOMAIN) e ci sono 46 indirizzi che ci puntano. Media UI 84,6 → **85,0**, nessuna sezione sotto l'80 |
 | **2026-09-14 (sera)** | **94** | **96** | **42** | **~66** | **ARRETRATO DEGLI AUDIT CHIUSO + AUDIT DI IMPAGINAZIONE + DUE SCELTE DI STILE.** 22 commit, test 1.721 → 2.258. **Prodotto +1**: i 117 difetti "sostenuti e mai verificati" di Magazzino e Produzione sono stati passati uno per uno (52 risultavano già corretti e il documento era rimasto indietro, 59 corretti, 2 rifiutati con un fatto). Dentro c'erano cose che nessuno vedeva: il percorso del DIPENDENTE era rimasto indietro rispetto a quello del titolare — il server non scendeva nei semilavorati, saltava gli ingredienti salvati al plurale, e non aveva idempotenza (tablet che perde la rete, messaggio "riprova", stessa produzione registrata due volte e magazzino scalato due volte); "Azzera" registrava una correzione di giacenza come merce buttata; la home diceva "8.409 pezzi al banco" sommando 6 torte e 8,4 kg di gelato. **Ingegneria +1**: i difetti non verificati erano il motivo per cui il 14/09 mattina l'ingegneria non saliva, e ora sono verificati. Più: **due migration mai applicate in produzione** trovate confrontando le 37 RPC chiamate dal codice con quelle esistenti nel database (ogni vendita all'ingrosso scaricava il magazzino come una vendita al banco, con un ripiego silenzioso); **il gate pre-push non bloccava il build dal 7 set** (`| tail -5` mangiava l'esito) e la produzione è rimasta ferma tre commit indietro senza nessun segnale — corretto, più `npm run push` che verifica che il commit sia davvero online. **Impaginazione 80 → 88**: scala tipografica unica tenuta da un test (261 misure fuori scala, compresi testi a 8-10px), colonne di numeri incolonnate, 32 viste rese in due versioni e misurate. **Due scelte di stile del titolare**: le undici pagine AI usano l'intestazione di tutte le altre (via gradienti e titoli in oro: erano le uniche che sembravano generate), e il rosso del marchio si separa da quello d'allarme. **Business fermo a 42**: nessun blocco esterno tolto. Media UI 84,6 → **84,9** |
 | 2026-06-06 | 79 | 75 | 22 | ~31 | Personale rifondato, home+nav premium, +68 test |
@@ -210,6 +224,10 @@ Fuori da questo elenco, dalla notte del 14/09 restano:
   indirizzi sulla pagina Contatti rimbalzano;
 - **PEC e sede legale** sono ancora segnaposto nelle pagine legali, e il foro
   competente nei Termini di servizio dice `[INSERIRE CITTÀ SEDE LEGALE]`.
+- **Il CAPTCHA è pronto ma spento**: per accenderlo servono un account
+  Cloudflare, la chiave pubblica su Vercel e quella segreta su Supabase, **in
+  quest'ordine** — se si inverte, si resta fuori tutti.
+- **Gli allergeni**, 74 difetti, fermi per scelta (la scheda è spenta).
 
 ### Composito sessione: Prodotto 93 / Ingegneria 95 / Business 42 / Maturita' ~65
 
@@ -305,6 +323,149 @@ Restano tre cose vere, nessuna delle quali è un buco aperto:
    sistemico rimasto sui dati.
 3. **72 `catch` silenziosi**: non sono falle, ma sono posti dove un errore non
    lascia traccia — e un attacco che fallisce è un errore che vorresti vedere.
+
+---
+
+## 0quater. La giornata del 15/09/2026 — accesso, dipendente, piani, integrazioni
+
+> Sei lavori chiesti dal titolare, tutti chiusi e in produzione. Il filo comune
+> è lo stesso della notte precedente, e ormai è una regola del progetto:
+> **il posto dove si nasconde un difetto è il punto in cui due cose dovrebbero
+> dire la stessa cosa e nessuno ha mai controllato che lo facciano.** Il menu e
+> il database. Il listino e la tabella dei prezzi. Il documento e il codice.
+
+### 1. L'accesso — chiunque poteva chiudere fuori chiunque
+
+`/api/login-guard` non ha autenticazione, e **«questo accesso è fallito» era una
+cosa che il browser dichiarava**: il server la scriveva e faceva crescere
+l'attesa su quell'indirizzo email. Chi conosceva l'email di un cliente poteva
+lasciarlo fuori dal suo gestionale — e ripetendo la chiamata ogni tanto, per
+sempre.
+
+Provato in produzione su un indirizzo finto: **cinque richieste senza nessuna
+credenziale e l'account risulta bloccato**. Adesso l'attesa la paga chi sbaglia,
+non chi viene nominato: il conteggio che blocca è quello della coppia (email,
+indirizzo di rete).
+
+Altri sei difetti nella stessa sezione:
+
+- **Il codice a 4 cifre dei dipendenti si poteva provare all'infinito.**
+  Diecimila combinazioni, nessun limite: chi ha il tablet in mano poteva
+  presentarsi come un collega, in un registro che serve proprio a sapere chi ha
+  fatto cosa. I documenti interni dichiaravano un blocco dentro una funzione
+  che **nel database non esiste**. Ora un'attesa che cresce (3s → 2 min): a due
+  minuti, provarle tutte richiede 13,9 giorni senza mai staccare.
+- **Il passo di verifica via SMS non poteva riuscire.** Chiedeva un accesso col
+  codice con l'opzione "non creare l'utente se non esiste", ma in registrazione
+  l'utente non esiste ancora: falliva sempre. E il modo in cui falliva diceva
+  se un numero è già registrato.
+- Il blocco tenuto nel browser si aggirava svuotando i dati del sito, e intanto
+  chiudeva fuori sul serio chi aveva appena ricordato la password.
+- I link di conferma e reimpostazione erano inchiodati all'indirizzo di Vercel.
+- Il recupero password diceva «Link inviato a X», confermando che quell'indirizzo
+  è cliente Foodos.
+- I venti colori della faccia pubblica erano copiati a mano in due file e
+  avevano già cominciato a divergere.
+
+**Sul CAPTCHA.** Il titolare ha chiesto di valutare reCAPTCHA: **non si può
+usare**, e non è una preferenza. Supabase accetta solo hCaptcha e Turnstile, per
+un motivo strutturale — la richiesta di accesso va dal browser DIRETTAMENTE a
+Supabase e non passa dai nostri server, quindi un reCAPTCHA che dovremmo
+verificare noi resterebbe un disegno, aggirabile chiamando l'API da un
+terminale. Implementato **Turnstile**, e lasciato **spento**: finché
+`VITE_TURNSTILE_SITE_KEY` è vuota non disegna e non blocca niente.
+
+### 2. Il dipendente — «solo le sue pagine» era una porta di legno
+
+Condizione posta come assoluta dal titolare. Il filtro c'era, ma il controllo
+girava in un `useEffect`, cioè **dopo** che React aveva già disegnato la pagina
+vietata: per un fotogramma il P&L compariva e le sue richieste al database
+partivano. E la ricerca rapida offriva la scorciatoia — si scriveva "stipendi" e
+usciva "Personale".
+
+La parete vera però è il database, e lì c'era il buco. Provato su
+un'organizzazione con dati veri, dentro una transazione annullata: **un
+dipendente leggeva 8 righe di `costi_aziendali`** — affitti, utenze, costi
+fissi. Non da una pagina: con una chiamata diretta.
+
+**Il pattern, che è quello da imparare: la porta principale era chiusa e la
+finestra di lato no.** `fatture` escludeva il dipendente, `extracted_invoices`
+— le stesse fatture lette dall'OCR — no. `ordini_fornitori` lo escludeva, e
+`righe_ordine`, dove ci sono i prezzi unitari d'acquisto, si salvava solo perché
+la sua regola passa dalla tabella padre.
+
+Chiuse cinque tabelle, verificato dopo: 8 → 0 per il dipendente, 8 per il
+titolare. E restano aperte quelle che servono alle sue pagine.
+
+### 3. Produzione — la rimanenza del giorno prima
+
+Chi compila col metodo inventario scrive quanto ha prodotto e quanto è rimasto.
+Ma il venduto è «rimanenza di ieri + prodotto oggi − rimanenza di oggi», e
+quella di ieri non era da nessuna parte a schermo.
+
+Il punto delicato: la matrice settimanale copre i 7 giorni dal lunedì, quindi
+**di lunedì la domenica precedente non c'è** e avrebbe detto "ieri non
+compilato" per sbaglio. Allargarla a 8 giorni avrebbe rotto i totali
+settimanali. Fatto con un helper dedicato che risale fino a 7 giorni, come fa il
+calcolo del venduto, e quando il dato non è di ieri lo dichiara.
+
+### 4. I piani — il prezzo pubblico era sbagliato da tre mesi
+
+Rinominati in **Standard / Plus / Ultra**, e per ora se ne vende **uno solo**, il
+Plus, con tutto sbloccato.
+
+Correggendo è uscito il difetto più grosso della giornata: `plan_pricing` era
+**ferma al 27/05/2026**, con `pro` a 89 € e `chain` a 149 €. Il 21/06 i piani
+sono stati rinominati e riprezzati (69 / 149 / 399) ma quella tabella non è mai
+stata aggiornata — e **la riga del database vince su quella scritta nel codice**.
+Risultato: la pagina pubblica ha mostrato **89 € e 149 €** per tre mesi. E i
+**Termini di servizio**, il contratto che il cliente accetta, elencavano quei due
+piani inesistenti a quei due prezzi sbagliati.
+
+### 5. Integrazioni — quattro promesse scritte e non mantenute
+
+Trovate da un agente mandato a studiare tutt'altro (il portale Webdesk).
+
+- **L'auto-riconoscimento dei file di cassa non era collegato a niente.** La
+  funzione esiste dal giorno uno e riconosce dodici formati;
+  `INTEGRAZIONI_CASSE.md` la dava per fatta con la spunta verde su tredici
+  marche. Nei fatti chi caricava un CSV da Tilby, RCH, Olivetti e altre nove
+  leggeva «Questo file non l'ho saputo leggere». Collegandola sono usciti **altri
+  due difetti dentro i parser**: i nomi delle colonne si cercavano con maiuscole
+  e punteggiatura esatte (quindi i metodi di pagamento uscivano **sempre**
+  vuoti), e per RCH una giornata da 100 € entrava come **0 €** — peggio di un
+  errore, perché sembra un dato.
+- **Il dettaglio riga delle fatture veniva letto e buttato.** Quantità, prezzi
+  unitari, aliquote, codici articolo: il dato con cui si calcola quanto costa
+  davvero un ingrediente. Su **3.520 fatture** già importate è passato dal
+  browser ed è finito nel cestino.
+- **Le fatture firmate (.p7m) erano accettate e fallivano sempre**: la busta è
+  binaria e veniva letta come testo.
+- **Il registro scriveva una riga per ogni scontrino**: 400 al giorno in una
+  gelateria, 140.000 l'anno, per dire 400 volte la stessa cosa.
+
+**E il tappo che chiudeva la strada migliore.** Dal portale dell'Agenzia delle
+Entrate le fatture ricevute si scaricano in uno **ZIP di XML**, e lì dentro c'è
+tutto: dettaglio riga, IBAN, scadenze. È il modo con cui il titolare se le porta
+via da solo, con lo SPID, senza dipendere né da Wolters Kluwer né dal
+commercialista. Foodos leggeva gli XML uno per uno ma **non un archivio**.
+Risolto con ottanta righe e zero dipendenze: il pezzo difficile lo sa già fare
+il browser.
+
+### 6. Il bottone che non tornava indietro
+
+Segnalato dal titolare in produzione: «settimana precedente» e «mese precedente»
+non andavano indietro.
+
+Un `useEffect` che guardava sia il giorno scelto sia la settimana caricata, e
+riportava la settimana sul giorno. Si premeva "indietro", la settimana tornava
+di sette giorni, l'effetto vedeva che **oggi** era fuori e riportava tutto al
+punto di partenza. Dalla settimana corrente non si usciva.
+
+È il difetto classico dell'effetto che «corregge» uno stato guardandone un
+altro: due comandi che scrivono la stessa variabile si combattono, e vince
+quello che parte per ultimo. La correzione non è aggiustare la condizione, è
+togliere l'effetto.
 
 ---
 
@@ -469,11 +630,11 @@ Lift business (+3) da: multi-sede pricing amplia target vs catene, laboratorio 1
 
 | Dimensione | Score | Δ vs giu | Evidenza misurata |
 |---|---:|---:|---|
-| Sicurezza | **97** | **+1** | (14/09 notte) Otto buchi trovati e chiusi, ognuno provato dall'esterno con la chiave pubblica prima e dopo: funzioni interne chiamabili da anonimi, controllo di proprieta' che falliva aperto su NULL, deposito foto pubblico, storico prezzi leggibile dai dipendenti, stato commerciale e ruolo scrivibili dal browser, TRUNCATE concesso ai ruoli pubblici, chiave delle casse uguale per tutti i clienti. Tenuti da `audit-sicurezza.mjs` (12 controlli in produzione) + 50 test. Restano: bypass MFA del fondatore, nessun backup indipendente da Supabase |
-| Test | 90 | +20 | **2.335 test verdi su 165 file** (erano 346 su 33 a giugno, 1.721 il 7 set). Coprono le classi di difetto, non solo le funzioni: pagine nascoste, selettore sedi, costo del personale nel P&L |
+| Sicurezza | **97** | **+1** | (15/09) Altri tre buchi chiusi: chiunque poteva **chiudere fuori dal gestionale** un cliente conoscendone l'email (`/api/login-guard` senza autenticazione, provato in produzione); il **codice a 4 cifre** del dipendente si provava all'infinito; un **dipendente leggeva affitti e utenze** (la porta principale chiusa e la finestra di lato aperta: `fatture` sì, `extracted_invoices` no). Turnstile pronto e spento. (14/09 notte) Otto buchi trovati e chiusi, ognuno provato dall'esterno con la chiave pubblica prima e dopo: funzioni interne chiamabili da anonimi, controllo di proprieta' che falliva aperto su NULL, deposito foto pubblico, storico prezzi leggibile dai dipendenti, stato commerciale e ruolo scrivibili dal browser, TRUNCATE concesso ai ruoli pubblici, chiave delle casse uguale per tutti i clienti. Tenuti da `audit-sicurezza.mjs` (12 controlli in produzione) + 50 test. Restano: bypass MFA del fondatore, nessun backup indipendente da Supabase |
+| Test | 91 | +21 | **2.485 test verdi su 176 file** (erano 346 su 33 a giugno, 1.721 il 7 set). Coprono le classi di difetto, non solo le funzioni: pagine nascoste, selettore sedi, costo del personale nel P&L |
 | Qualita' codice | 88 | +2 | ESLint pulito su `src/` e `api/` (0 errori, 14 warning di hook deps). 3 `console.log` residui, droppati in build. Restano 72 catch silenziosi |
 | Documentazione interna | 90 | +3 | I documenti di audit contengono i difetti *non verificati* dichiarati come tali, con il conto di quanti sono stati smontati (4 su 29). Un documento che dice quanto non sa vale piu' di uno che sembra completo |
-| Database | 94 | +1 | 104 migration, tutte applicate e verificate in produzione via SQL diretto il 14/09 (le otto della notte sono di sicurezza) |
+| Database | 94 | +1 | 109 migration, tutte applicate e verificate in produzione via SQL diretto il 14/09 (le otto della notte sono di sicurezza) |
 | Performance | 76 | +2 | Bundle principale 506 kB (154 gzip), grafici 464 kB (126 gzip), PDF 650 kB (196 gzip) caricato solo dove serve. Build 26s |
 | Mobile + tablet | 84 | +6 | Le 981 scritte sotto i 12px sono state corrette su tutte le pagine; input a 16px per non far zoomare iOS |
 | Architettura | 76 | +2 | `Dashboard.jsx` a 3.718 righe resta il punto piu' grosso: e' layout, router e stato insieme |
@@ -1086,7 +1247,7 @@ Tutto il resto chiuso:
 | 60-69 | Software gestionali da agenzia regionale |
 | <60 | Software gestionali tradizionali on-premise (1990-2010) |
 
-**FoodOS post-sessione 25 giu sera: media ricalibrata 83/100** (ricontata: 83,3). **Post 8 set: 83,6/100 su 112 sezioni. Post 14 set sera: 84,6/100 su 118 sezioni. Post 14 set notte: 85,0/100 su 117 sezioni scorate** (OnboardingChat rimossa perché irraggiungibile; nessuna sezione resta sotto l'80) (piu' 3 spente e 4 congelate, fuori conto). Buon prodotto pre-revenue con design system coerente ma non rivoluzionario, sopra i competitor italiani di settore (~75 media), sotto top tier mondiale (90+) per mancanza di team design dedicato.
+**FoodOS post-sessione 25 giu sera: media ricalibrata 83/100** (ricontata: 83,3). **Post 8 set: 83,6. Post 14 set sera: 84,6. Post 14 set notte: 85,0. Post 15 set: 85,2/100 su 117 sezioni scorate** (OnboardingChat rimossa perché irraggiungibile; nessuna sezione resta sotto l'80) (piu' 3 spente e 4 congelate, fuori conto). Buon prodotto pre-revenue con design system coerente ma non rivoluzionario, sopra i competitor italiani di settore (~75 media), sotto top tier mondiale (90+) per mancanza di team design dedicato.
 
 ### Aree pubbliche / pre-login
 
@@ -1099,7 +1260,7 @@ Tutto il resto chiuso:
 | 5 | Rimborsi | 80 | Standard, copy non emozionale |
 | 6 | Contatti | 78 → **84** | **14 set (notte)**: accenti scritti con l'apostrofo su una pagina pubblica (funzionalita', e'); il canale che funziona davvero — il bottone Feedback dentro l'app — era citato per ultimo, dopo tre caselle di posta. Ora è il primo, e dice anche che allega la pagina da cui scrivi. Resta sotto 90 per un motivo che non è di codice: **il dominio foodos.it non esiste** (NXDOMAIN), quindi le tre caselle rimbalzano |
 | 7 | Chi siamo | 80 | Storia ok. Manca foto team reale, missione visiva |
-| 8 | Auth / Login | 89 | Field a11y, icon-eye allineato, password show/hide. **7 set**: attesa progressiva invece del muro dopo 5 errori, e fine dei logout a ogni ricaricamento |
+| 8 | Auth / Login | 89 → **93** | Field a11y, icon-eye allineato, password show/hide. **7 set**: attesa progressiva invece del muro dopo 5 errori, e fine dei logout a ogni ricaricamento **15 set**: audit profondo. Chiunque poteva **chiudere fuori dal gestionale** un cliente conoscendone l'email — `/api/login-guard` non ha autenticazione e «questo accesso è fallito» era una cosa che il browser dichiarava; provato in produzione, cinque richieste senza credenziali e l'account è bloccato. Il passo di verifica via SMS in registrazione **non poteva riuscire** (chiedeva un accesso col codice a un utente che non esiste ancora) e nel fallire diceva se un numero è già registrato. Il blocco tenuto nel browser si aggirava svuotando i dati del sito e intanto chiudeva fuori chi aveva appena ricordato la password. Link di conferma e reimpostazione inchiodati all'indirizzo di Vercel. Il recupero password confermava che un indirizzo è cliente Foodos. **Turnstile** pronto e spento (reCAPTCHA non è utilizzabile: Supabase non lo accetta, e l'accesso non passa dai nostri server) |
 | 9 | Reset password | 82 | Flow basic, funziona |
 | 10 | Sign-up | 86 | 2-step, validazione P.IVA, blocklist domini. Manca social login |
 
@@ -1152,7 +1313,7 @@ Tutto il resto chiuso:
 | 36 | Vendite B2B | 86 | Mobile column-first, sticky col cliente, filtri pill. Rebuild agent. **11 set**: il selettore sede non filtrava niente — tre sedi, gli stessi numeri — e il margine di ogni riga risultava 100% perche' il costo non veniva mai letto |
 | 37 | Trasferimenti | 85 | KPI italianizzati, form 4→2 col tablet. **11 set**: un invio non riuscito scalava comunque il magazzino, e al secondo tentativo lo scalava due volte; ora un trasferimento scrive da solo i chili spediti nell'inventario |
 | 38 | Quadratura inventario | 87 | Rebuild agent: tile minHeight 132, sparkline gridline. **11 set**: sui dati del design partner 604 celle su 7.012 non tornavano (−2.650 kg) e restavano rosse per sempre, mescolate agli errori di compilazione. Ora si accettano una per una con la nota del perche' (omaggio, rottura, assaggio) e la pagina dichiara quante caselle restano da guardare |
-| 39 | Inventario settimanale | 87 | Tabella minWidth 1280, sticky col GUSTO. Funzionale ma denso. **10-11 set**: la settimana cominciava di domenica (venduto del lunedi' fuori conto), la vista mese dava numeri diversi dalla vista settimana sugli stessi giorni, il grafico diceva una cosa e la tabella un'altra. Il 42% dei chili non aveva food cost e ora e' scritto. **14 set**: sforava di 124px su telefono (griglia senza `minWidth: 0`), quindi la pagina scorreva di lato |
+| 39 | Inventario settimanale | 87 → **91** | Tabella minWidth 1280, sticky col GUSTO. Funzionale ma denso. **10-11 set**: la settimana cominciava di domenica (venduto del lunedi' fuori conto), la vista mese dava numeri diversi dalla vista settimana sugli stessi giorni, il grafico diceva una cosa e la tabella un'altra. Il 42% dei chili non aveva food cost e ora e' scritto. **14 set**: sforava di 124px su telefono (griglia senza `minWidth: 0`), quindi la pagina scorreva di lato **15 set**: «settimana precedente» e «mese precedente» **non andavano indietro** (segnalato in produzione): un effetto riportava la settimana sul giorno di oggi, e i due comandi si combattevano. La navigazione per mese metteva il cursore sul primo del mese, che è lunedì una volta su sette. E la **rimanenza del giorno prima** non era a schermo: si compilava alla cieca, senza sapere con quanto si era aperto il banco |
 | 40 | Storico produzione | 86 | Rebuild agent: 8 chart con stesso radius, tabelle aria-sort. **11 set**: il venduto si calcolava in quattro punti diversi con quattro formule; ora e' un conto solo |
 
 ### Ricettario & costi
@@ -1245,10 +1406,10 @@ Tutto il resto chiuso:
 
 | # | Sezione | Score | Note |
 |---:|---|---:|---|
-| 117 | Personale & stipendi | 86 | **11 set**: il costo del lavoro era zero nel conto economico perche' nessuno lo calcolava dai turni; un turno che passa la mezzanotte valeva zero ore; il mese passato mostrava chi c'e' adesso invece di chi c'era allora (un dipendente uscito a giugno spariva da tutti i mesi in cui aveva lavorato) |
+| 117 | Personale & stipendi | 86 → **90** | **11 set**: il costo del lavoro era zero nel conto economico perche' nessuno lo calcolava dai turni; un turno che passa la mezzanotte valeva zero ore; il mese passato mostrava chi c'e' adesso invece di chi c'era allora (un dipendente uscito a giugno spariva da tutti i mesi in cui aveva lavorato) **15 set**: audit del percorso completo del dipendente. Il **codice a 4 cifre si poteva provare all'infinito** — diecimila combinazioni, nessun limite: chi aveva il tablet in mano poteva presentarsi come un collega, in un registro che serve proprio a sapere chi ha fatto cosa. I documenti dichiaravano un blocco dentro una funzione che nel database **non esiste**. Ora un'attesa che cresce, non un muro (il tablet è condiviso: un muro fermerebbe tutto il banco). Il resto del percorso — invito, codici unici per azienda, codici banali vietati, doppioni respinti — regge |
 | 118 | Eventi e preventivi | 85 | **11 set**: ogni preventivo mostrava margine 100% (il costo non veniva mai letto). Un preventivo accettato ora diventa una sessione di produzione, invece di restare un foglio a parte |
 | 119 | Registro attivita' | 84 | **10-11 set**: il registro delle modifiche era rotto da tre mesi (una colonna rinominata e mai adeguata), e "Azioni nel periodo" contava solo le righe della pagina caricata, non del periodo |
-| 120 | Integrazioni | 83 | **10 set**: 14 difetti, dal webhook rifiutato per una lettera maiuscola all'incasso che finiva in un archivio morto invece che in cassa |
+| 120 | Integrazioni | 83 → **90** | **10 set**: 14 difetti, dal webhook rifiutato per una lettera maiuscola all'incasso che finiva in un archivio morto invece che in cassa **15 set**: l'auto-riconoscimento dei CSV di cassa era **dichiarato su tredici marche e non collegato a niente** — chi caricava un file da Tilby, RCH o Olivetti leggeva «non l'ho saputo leggere». Collegandolo sono usciti altri due difetti dentro i parser: i nomi delle colonne si cercavano con maiuscole esatte (metodi di pagamento **sempre** vuoti) e per RCH una giornata da 100 € entrava come **0 €**. Il **dettaglio riga delle fatture** veniva letto e buttato (3.520 fatture). I `.p7m` erano accettati e fallivano sempre. Il registro scriveva una riga per scontrino. Aggiunto il **lettore ZIP** per gli archivi dell'Agenzia delle Entrate, dove le fatture hanno dentro quantità, prezzi unitari e IBAN — la strada più completa, e non dipende dal commercialista |
 | 121 | Importa dati (wizard) | 85 | **9-10 set**: 26 difetti, i piu' gravi distruttivi; i kg venivano arrotondati prima di diventare grammi (un ingrediente da 0,4 kg entrava a 0 g) |
 | 122 | Formati di vendita | 85 | **9 set**: il seme dimostrativo parlava una lingua diversa dalla pagina, una tessera dichiarava il falso, 9 testi sotto i 12px |
 | 123 | Home dipendente (modalita' XL) | 84 | Sei pulsantoni mobile-first per chi lavora da tablet. **14 set**: sono cinque — il pulsante HACCP portava su uno schermo bianco da quando la pagina e' spenta |
