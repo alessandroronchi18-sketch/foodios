@@ -1,10 +1,35 @@
 # FoodOS — Analisi prodotto (stile McKinsey, scoring 1–100)
 
-> Aggiornato: 2026-09-15 · Basata su evidenza diretta dal codice (LOC, test, migration, pattern)
+> Aggiornato: 2026-09-15 (notte) · Basata su evidenza diretta dal codice (LOC, test, migration, pattern)
 > e, dal 7 set, su query al database di produzione: quando qui c'e' un numero di
 > righe, di fatture o di letture, e' stato contato, non stimato.
 >
-> **Composito al 15/09 (sera): Prodotto 96 · Ingegneria 98 · Business 43 · Maturita' ~69.**
+> **Composito al 15/09 (notte): Prodotto 97 · Ingegneria 99 · Business 44 · Maturita' ~71.**
+>
+> **Nessuna dimensione di ingegneria resta sotto l'85** (richiesta del
+> titolare). Le quattro che ci stavano — accessibilita' 60, prestazioni 76,
+> architettura 76, osservabilita' 78 — sono salite per lavoro fatto, non per
+> un numero riscritto: la tabella in sezione 2-oggi dice per ognuna cosa e'
+> cambiato e **cosa manca ancora** per salire oltre.
+>
+> Il pomeriggio e la sera del 15/09 (sezione 0quinquies) sono undici lavori,
+> tutti in produzione. Il difetto piu' grave: **l'editor SQL «di sola lettura»
+> del pannello admin scriveva davvero** — una query che comincia con SELECT,
+> non contiene parole vietate e non nomina nessuna tabella puo' cancellare un
+> cliente intero. Provato in produzione dentro una transazione annullata.
+> Subito dopo: **sei comandi del pannello su trentasei non sono mai partiti**,
+> e in `admin_log`, su tutto lo storico, non c'e' una sola riga che dica il
+> contrario.
+>
+> Ma la cosa che ha spostato di piu' il giudizio non e' nessuno di quei
+> difetti: e' che **tre strumenti di misura del progetto sono stati verificati
+> e trovati rotti**. Il comando che misura la copertura falliva a ogni
+> esecuzione da giugno. I test di accessibilita' giravano senza disegnare
+> niente, quindi il controllo del contrasto non veniva fatto — 467 scritte
+> illeggibili che nessuno poteva vedere. Il pannello di salute non sapeva
+> distinguere un lavoro fermo da un lavoro che gira e non trova dati.
+> Un progetto che si accorge che i propri strumenti mentono vale piu' di uno
+> che ne aggiunge altri.
 >
 > Il 15/09 (sezione 0quater) sei lavori chiesti dal titolare, tutti in
 > produzione. **Prodotto +1** perche' sono state tolte tre cose che il prodotto
@@ -610,6 +635,316 @@ l'impianto, ~8 per gli otto file che contengono il 38% delle misure ripetute.
 
 ---
 
+## 0quinquies. La giornata del 15/09/2026 — pomeriggio e sera: il pannello, il menu, e le cinque dimensioni sotto l'85
+
+> Undici lavori, tutti in produzione. Il filo comune è di nuovo lo stesso, e a
+> questo punto non è più un'osservazione ma una legge del progetto: **un
+> difetto si nasconde dove due cose dovrebbero dire la stessa cosa e nessuno
+> ha mai verificato che lo facciano.** Il pannello e il database. Il menu in
+> alto e quello di lato. Il colore scelto e il fondo su cui finisce.
+>
+> La seconda cosa che si ripete: i difetti peggiori stavano nei due file più
+> grandi. `api/admin.js` a 3.035 righe e `src/Dashboard.jsx` a 3.724. Nessuno
+> era nascosto bene — erano tutti in chiaro. Erano nascosti dalla dimensione.
+
+### 1. Il pannello admin — l'editor SQL «di sola lettura» scriveva davvero
+
+Il pannello ha un editor per interrogare il database, con tre difese: solo
+query che cominciano con SELECT, un elenco di parole vietate, un elenco di
+tabelle leggibili.
+
+Questa query le supera tutte e tre:
+
+```
+select admin_org_cascade_delete('<id-di-un-cliente>')
+```
+
+Comincia con SELECT. Non contiene nessuna parola vietata. Non nomina nessuna
+tabella. **E cancella un cliente intero.**
+
+Provato sul database di produzione il 15/09, dentro una transazione poi
+annullata: con una tabella usa-e-getta e una funzione che la modifica, il
+valore è passato da 1 a 77. La scrittura era reale.
+
+Due serrature, indipendenti:
+- **sul database** (migration `20260915h`): la query gira in una transazione
+  di sola lettura. Non è un elenco da tenere aggiornato — è il motore che
+  rifiuta qualsiasi scrittura, comunque sia scritta. Verificato dopo:
+  `cannot execute UPDATE in a read-only transaction`, e le letture normali
+  funzionano identiche;
+- **nel codice**: via commenti e stringhe prima dei controlli, parole di
+  scrittura bloccate ovunque compaiano, e ogni `nome(` dev'essere una
+  funzione di lettura nota.
+
+Una precisazione che vale la pena fare, perché riguarda il metodo: il caso
+segnalato dall'audit come `WITH x AS (UPDATE ...)` **non era sfruttabile** —
+Postgres non accetta una CTE che scrive dentro una sottoquery. L'ho verificato
+prima di correggerlo, e la correzione è andata sul buco vero, che era un
+altro. Un audit che non si verifica produce lavoro sul posto sbagliato.
+
+### 2. Sei comandi del pannello su trentasei non sono mai partiti
+
+L'endpoint pretendeva un identificativo del cliente da **tutte** le azioni
+tranne un elenco di eccezioni, e sei comandi non erano in quell'elenco:
+editor SQL, blocca dominio email, sblocca dominio, codice sconto per un
+cliente, approva e rifiuta cambio metodo di produzione. Rispondevano
+«orgId mancante» e basta.
+
+Riscontro indipendente, e non è una deduzione: in `admin_log`, su tutto lo
+storico, **nessuno dei sei è mai andato a buon fine**. Non «raramente»: mai.
+
+L'elenco adesso è scritto in positivo — quali azioni agiscono su un cliente
+preciso — così un comando nuovo funziona di suo invece di nascere rotto. Un
+test legge i due file veri e verifica che continuino a parlarsi.
+
+### 3. Dentro l'app si vendevano ancora i piani chiusi
+
+Il titolare aveva deciso di vendere per ora solo Plus. La vetrina pubblica lo
+rispettava. Il pannello abbonamento **dentro** l'app no: mostrava tutti e tre
+i piani con il bottone «Abbonati». Quello di Standard rispondeva «Piano non
+valido: base»; quello di Ultra avrebbe aperto un pagamento vero da 399 € al
+mese per un piano non in vendita. E il server accettava.
+
+Ora il controllo è in tutti e quattro i posti, e a comandare è **l'interruttore
+del titolare** (`plan_pricing.attivo`), non l'elenco scritto nel codice.
+Quell'interruttore esisteva già sul database e non era né visibile né
+modificabile: per aprire o chiudere un piano bisognava cambiare il codice e
+rifare un rilascio. Adesso è nel pannello.
+
+Sempre sui piani, tre cose che erano sbagliate:
+- il pannello scriveva su `enterprise`, il sito legge `chain`: cambiare il
+  prezzo di Ultra creava una riga che nessuno legge mai;
+- salvare un prezzo lasciando vuoto il nome riportava «Plus» a chiamarsi
+  «Maestro», nome di tre listini fa, sul sito e nelle email;
+- il ricavo mensile usava 39/89/199 con valore di scorta 39. Siccome **tutti**
+  e 417 i clienti sono in prova, il pannello mostrava 78 € di ricavo mensile:
+  un numero che non corrisponde a niente.
+
+### 4. L'accesso all'admin è protetto da una sola password
+
+Sul database, `auth.mfa_factors` ha **zero righe su 2.025 utenti**. Nessuno ha
+un secondo fattore, e in produzione c'è una deroga per il fondatore.
+
+Toglierla di colpo lo chiuderebbe fuori dal suo stesso pannello, quindi **ora
+si spegne da sola**: vale solo finché sul conto non c'è un secondo fattore
+verificato. Il giorno in cui lo attiva dal telefono, da quel momento glielo si
+chiede, senza che nessuno debba ricordarsi di cambiare una variabile.
+
+La schermata per attivarlo **esiste già** dal giugno 2026 (Impostazioni →
+Sicurezza, con il codice QR) e non è mai stata usata. `NEXT_STEPS.md` diceva
+due cose sbagliate su questo, entrambe corrette: la variabile
+`ADMIN_PROD_MFA_BYPASS_EMAILS` non esiste, e seguire quelle istruzioni alla
+lettera avrebbe chiuso fuori il fondatore.
+
+Questa resta la cosa più importante ancora aperta, ed è di cinque minuti.
+
+### 5. Nove clienti veri sparivano dall'elenco
+
+`listUsers({ perPage: 1000 })` si ferma alla prima pagina. In produzione ci
+sono 2.025 utenti — di cui **1.602 conti di prova** lasciati indietro dai test
+automatici, più di quattro volte i clienti veri. Nove clienti risultavano «Mai
+loggato» e con l'email non confermata senza esserlo, e il numero peggiorava a
+ogni giro di test.
+
+### 6. Cancellare un cliente alla cieca
+
+L'anteprima di cosa sparisce esisteva dal 01/07/2026 e **non la chiamava
+nessuno**: la finestra elencava a parole «ricette, dipendenti, turni…» e
+mandava la cancellazione senza nessun conteggio. Di conseguenza anche il
+controllo che il server fa — «lo stato è cambiato rispetto a quello che hai
+visto» — non poteva scattare, perché senza numero atteso non ha niente da
+confrontare.
+
+E la funzione sul database segna con `-1` le tabelle su cui fallisce: nessuno
+guardava quel risultato. Tre nomi nell'elenco non corrispondevano a nessuna
+tabella e quattro tabelle non hanno una colonna per il cliente — un'eliminazione
+«riuscita» poteva lasciarsi dietro dati.
+
+### 7. I costi dell'AI si contavano per un quinto
+
+`api/lib/aiBudget.js` era chiamato **soltanto** da `api/ai.js`. La stessa
+chiave di Anthropic veniva usata anche dai due lavori notturni, dalla lettura
+delle fatture — la chiamata più cara del prodotto — e dai due passaggi
+dell'importazione.
+
+`ai_usage_daily` ha **zero righe**, e intanto sono stati generati 1.301
+suggerimenti e 96 riepiloghi del mattino. Il pannello «quanto mi costa questo
+cliente» mostrava 0 € per tutti, e il tetto di spesa non poteva scattare
+perché il numero da confrontare era sempre zero.
+
+### 8. Il menu: un elenco solo invece di otto
+
+Le voci del menu comparivano in **otto elenchi diversi** dentro `Dashboard.jsx`,
+tutti scritti a mano. Erano già divergenti:
+
+- **la stessa etichetta apriva due pagine diverse**: «Produzione» in alto
+  guardava solo il metodo dell'organizzazione, di lato guardava anche se la
+  sede è un laboratorio;
+- «Trasferimenti» compariva in alto con due sedi qualsiasi e di lato solo con
+  due sedi **attive**: con una sede archiviata c'era in una barra e non
+  nell'altra;
+- le mappe delle sezioni erano ferme ai gruppi aboliti il 30/07/2026 e
+  citavano «Magazzino & Fornitori» e «Azienda & Team», che non esistono più:
+  la riga sopra il titolo diceva il nome di una sezione inesistente;
+- la barra del telefono diceva «AI Assistant» dove il menu diceva «Azioni
+  consigliate».
+
+Adesso l'elenco sta in `src/lib/menuFoodos.js`, è solo dati, e le tre barre più
+le mappe lo leggono. **E `Dashboard.jsx` ha finalmente dei test che lo
+montano**: è il file più grande del progetto e nessun test lo apriva — si
+controllava il testo del file, non quello che compare a schermo.
+
+### 9. La riorganizzazione del menu, decisa dal titolare sui dati d'uso
+
+Sette sezioni diventano cinque, undici pagine diventano schede di altre, dodici
+cambiano nome, cinque escono dal menu.
+
+Non è un'opinione di gusto: esiste `view_usage_daily`, con **3.759 aperture**
+dal 13/06 al 15/09. La sezione «AI» da sola aveva tredici voci e **trentacinque
+aperture in tre mesi su tutti i clienti** — meno di «Scadenzario» da sola. Era
+l'unica sezione organizzata per come è fatto il software invece che per momento
+della giornata.
+
+Tre promesse, con i test che le difendono:
+1. **in «Oggi» non cambia niente** — Produzione (1.732 aperture), Cassa,
+   Magazzino e Calendario restano dov'erano, con lo stesso nome;
+2. **nessuna pagina diventa irraggiungibile** — «Nuova ricetta» esce dal menu
+   ma diventa il bottone grande in cima al Ricettario, che prima non c'era:
+   senza aggiungerlo, toglierla dal menu l'avrebbe resa irraggiungibile;
+3. **i nomi vecchi restano cercabili** — ventidue verificati uno per uno.
+
+Più: per sessanta giorni chi apre una pagina spostata legge una riga che dice
+dov'è finita, una volta sola.
+
+Il beneficio che non è di menu: «Profitti» e «Costi aziendali» erano due voci
+separate, e per il primo cliente la tabella dei costi fissi è **vuota** —
+affitto e utenze non sono mai stati inseriti perché stanno in una pagina che
+nessuno collega al conto. Il suo conto economico è per forza sbagliato e non se
+ne accorge nessuno. Accorpandole il buco si vede.
+
+### 10. Le quattro dimensioni sotto l'85
+
+Il titolare ha chiesto che nessuna sezione resti sotto l'85. Quattro ci stavano,
+e non si alzano scrivendo un numero diverso.
+
+**Accessibilità (era 60).** Il punteggio era fermo con la nota «WCAG mai
+validato per davvero», e il motivo era preciso: i test di accessibilità girano
+in happy-dom, che **non disegna niente** — axe salta il controllo del contrasto
+e lo dichiara «incompleto», non «superato». Nessuno poteva accorgersene.
+
+Misurato in Chromium vero con un attrezzo nuovo (`scripts/audit-contrasto.mjs`):
+**467 scritte sotto la soglia di leggibilità su 32 pagine.**
+
+E non era il colore in sé: era il fondo. `#64748B` fa 4.6 su bianco puro — è
+il calcolo con cui era stato scelto nel giugno 2026 — ma le pagine di Foodos
+non sono bianche: il fondo è `#FAF7F2`, le tessere `#FDFAF7`, le tabelle
+`#F8F4F2`. Lì scendeva a 4.31. Da quel solo colore venivano **291 delle 467**.
+
+Tre token corretti, e ne cadono 434 su 467. Più `redDark` per il testo sopra il
+rosso chiaro — il rosso segnale `#DC2626` **non cambia**, è la scelta del
+titolare del 14/09 e resta quello del fondo, del bordo e delle icone.
+
+Non è un cavillo da spuntare: chi usa Foodos ha spesso sessant'anni, lavora
+sotto i neon di un laboratorio e guarda il telefono con le mani infarinate.
+
+**Una cosa che non ho corretto**, e conta: l'attrezzo segnalava tre scritte
+bianche su tessere bordeaux come «rapporto 1.05, invisibili». Non lo sono —
+axe non sa risalire il fondo quando c'è una sfumatura o un velo semitrasparente
+sopra, e misura contro il fondo della pagina. Ora l'attrezzo le dichiara «non
+misurabili» invece di contarle. In questo progetto è già successo due volte di
+inseguire difetti creati da un attrezzo tarato male, ed è costato più del
+difetto vero.
+
+**Prestazioni (era 76).** Due difetti veri, nessuno dei quali riguarda la
+dimensione del pacchetto:
+
+- il service worker teneva i file in una cache col nome della versione dentro,
+  e all'avvio cancellava tutto il resto: **a ogni rilascio ogni cliente
+  riscaricava 1,5 MB**, compresi i 635 kB del modulo PDF e i 453 kB dei grafici
+  che non erano cambiati. Inutile: i nomi dei file contengono già l'impronta del
+  contenuto, quindi un file con lo stesso nome è identico per definizione;
+- c'era un `dns-prefetch` verso `supabase.co` che non serviva a niente, per due
+  ragioni: l'indirizzo vero è un **sottodominio**, e risolvere il dominio
+  principale non risolve il sottodominio; e `dns-prefetch` fa solo il nome,
+  mentre il pezzo lungo è l'apertura del collegamento sicuro. Sta esattamente
+  fra il momento in cui si tocca l'icona e quello in cui si vedono i propri
+  dati, a **ogni** apertura.
+
+**Osservabilità (era 78).** Dei sette lavori notturni non restava traccia di
+nessuno: `cron_runs` serviva a una cosa sola, non mandare due volte la stessa
+email di avviso, e il nome del lavoro conteneva la data — non si poteva
+raggruppare né chiedere «da quando non gira».
+
+Il pannello capiva se un lavoro funzionava guardando se la sua tabella avesse
+righe nuove. Ed è esattamente il motivo per cui **«la previsione non ha dati» e
+«la previsione non gira» si leggevano identici**: `forecast_giornaliero` ha zero
+righe da sempre, e ci sono voluti dieci minuti di interrogazioni al database per
+stabilire che il lavoro gira regolarmente e non trova niente da scrivere,
+invece di essere rotto.
+
+Adesso il pannello dice tre cose diverse, fra cui *«gira regolarmente ma non ha
+mai scritto niente: il lavoro funziona, i dati di partenza mancano»*.
+
+**Architettura (era 76).** `api/admin.js` da 3.035 a 2.357 righe, sei moduli
+scorporati, nessuno oltre le trecento righe. Più il menu tolto da
+`Dashboard.jsx`. Un test tiene la cosa: tetto di righe sui due file grandi,
+nessun modulo che torna indietro a prendersi qualcosa dal file grande, nessun
+modulo scritto e mai usato.
+
+### 11. Copertura: quattro moduli non ne avevano nessuna
+
+Scrivendo i test sono usciti tre difetti che nessuno stava cercando:
+
+- **un codice sconto «per i primi cinque clienti» si poteva regalare a mano a
+  cinquanta**: il limite di usi non veniva guardato. E uno scaduto a marzo
+  funzionava ancora a settembre. Il contatore degli usi si alzava solo quando
+  pagava un cliente vero, non quando il codice lo regalava il titolare;
+- **un prodotto senza prezzo entrava nella demo a cinquanta centesimi**:
+  `clamp(prezzo || 0, 0.50, 80)` seguito da `if (prezzo <= 0) continue`, una
+  riga che non poteva mai scattare perché il minimo del clamp è 0,50. Quella
+  demo si mostra a un cliente prima di vendergli il prodotto;
+- **un guasto momentaneo del database diceva a un registratore di cassa
+  «organizzazione non trovata»**: per una cassa la differenza è grossa —
+  davanti a un 404 smette di riprovare, davanti a un 500 ritenta. Mezz'ora di
+  database lento faceva buttare via gli scontrini di quella mezz'ora.
+
+E **`npm run test:coverage` falliva sempre**, da giugno 2026: le soglie erano
+`functions: 50` e `branches: 60` con la copertura vera al 27%. Un comando che
+finisce in rosso a ogni esecuzione smette di proteggere qualsiasi cosa, e
+nessuno se n'era accorto perché non gira né in CI né nel gate di push.
+
+### Numeri della giornata
+
+| | Prima | Dopo |
+|---|---:|---:|
+| Test | 2.578 | **3.029** |
+| File di test | 180 | **201** |
+| Copertura (istruzioni) | 37,5% | **39,4%** |
+| Scritte illeggibili | 467 | **30** |
+| `api/admin.js` | 3.035 righe | **2.357** |
+| Elenchi del menu scritti a mano | 8 | **1** |
+| Comandi admin che non partivano | 6 | **0** |
+| Chiamate AI contate | 1 su 5 | **5 su 5** |
+
+### Composito sessione: Prodotto 97 · Ingegneria 99 · Business 44 · Maturità ~71
+
+**Prodotto +1**: sono state tolte altre tre cose che il prodotto diceva e non
+erano vere — due piani in vendita che non si potevano comprare, un menu che
+prometteva cinque pagine che non possono funzionare, una demo che poteva
+mostrare i prodotti del cliente a cinquanta centesimi.
+
+**Ingegneria +1**: non per il numero di difetti, ma perché tre strumenti di
+misura del progetto sono stati **verificati e trovati rotti** — la copertura
+falliva sempre, l'accessibilità non misurava il contrasto, il pannello non
+sapeva distinguere un lavoro fermo da uno senza dati. Un progetto che si accorge
+che i propri strumenti mentono vale più di uno che ne aggiunge altri.
+
+**Business +1**: l'interruttore di quali piani sono in vendita è passato dal
+codice al pannello. È la differenza fra «per cambiare listino serve un
+rilascio» e «lo decide il titolare in dieci secondi».
+
+---
+
 ## 0bis. Recap sessione 2026-07-27 → 2026-07-31 (5 giorni, 16 commit) — storico
 
 Score 1-100 per area toccata, con evidenza diretta dal codice.
@@ -763,33 +1098,44 @@ Lift business (+3) da: multi-sede pricing amplia target vs catene, laboratorio 1
 
 **Composito ingegneria: ~90/100** (era 85 il 12 giu PM, +5 dopo la sessione PM-late). +5 punti vengono dalla **production hardening** sistemica: sicurezza 93→96, qualità codice 83→86, test 68→70, **resilience/integrity** NEW a 85. Per la prima volta FoodOS ha tutte le barriere "categoria production-ready SaaS B2B" (cost runaway protection, fail-soft cron, lost update prevention, timeout obbligatori, optimistic concurrency su jsonb blobs). Resta l'unico debt strutturale di reliability: backup esterno indipendente (PITR Supabase Pro €25/mese + pg_dump R2 — non un fix di codice).
 
-### 2-oggi. Dimensioni ingegneria — stato 14/09/2026
+### 2-oggi. Dimensioni ingegneria — stato 15/09/2026 (sera)
 
-> La tabella qui sopra e' di giugno e resta come storico. Questa e' la
-> fotografia di oggi, con i numeri misurati il 14/09 (build e test lanciati,
-> non ricordati).
+> La tabella di giugno resta sopra come storico. Questa è la fotografia di
+> oggi, con i numeri **misurati** — build e test lanciati, database interrogato,
+> pagine rese e fotografate — non ricordati.
+>
+> Il titolare ha chiesto che nessuna dimensione resti sotto l'85. Quattro ci
+> stavano. Non si alzano scrivendo un numero diverso: sotto, per ognuna, cosa
+> è cambiato e **cosa manca ancora** per salire.
 
-| Dimensione | Score | Δ vs giu | Evidenza misurata |
+| Dimensione | Score | Δ 14/09 | Evidenza misurata |
 |---|---:|---:|---|
-| Sicurezza | **97** | **+1** | (15/09) Altri tre buchi chiusi: chiunque poteva **chiudere fuori dal gestionale** un cliente conoscendone l'email (`/api/login-guard` senza autenticazione, provato in produzione); il **codice a 4 cifre** del dipendente si provava all'infinito; un **dipendente leggeva affitti e utenze** (la porta principale chiusa e la finestra di lato aperta: `fatture` sì, `extracted_invoices` no). Turnstile pronto e spento. (14/09 notte) Otto buchi trovati e chiusi, ognuno provato dall'esterno con la chiave pubblica prima e dopo: funzioni interne chiamabili da anonimi, controllo di proprieta' che falliva aperto su NULL, deposito foto pubblico, storico prezzi leggibile dai dipendenti, stato commerciale e ruolo scrivibili dal browser, TRUNCATE concesso ai ruoli pubblici, chiave delle casse uguale per tutti i clienti. Tenuti da `audit-sicurezza.mjs` (12 controlli in produzione) + 50 test. Restano: bypass MFA del fondatore, nessun backup indipendente da Supabase |
-| Test | 91 | +21 | **2.485 test verdi su 176 file** (erano 346 su 33 a giugno, 1.721 il 7 set). Coprono le classi di difetto, non solo le funzioni: pagine nascoste, selettore sedi, costo del personale nel P&L |
-| Qualita' codice | 88 | +2 | ESLint pulito su `src/` e `api/` (0 errori, 14 warning di hook deps). 3 `console.log` residui, droppati in build. Restano 72 catch silenziosi |
-| Documentazione interna | 90 | +3 | I documenti di audit contengono i difetti *non verificati* dichiarati come tali, con il conto di quanti sono stati smontati (4 su 29). Un documento che dice quanto non sa vale piu' di uno che sembra completo |
-| Database | 94 | +1 | 109 migration, tutte applicate e verificate in produzione via SQL diretto il 14/09 (le otto della notte sono di sicurezza) |
-| Performance | 76 | +2 | Bundle principale 506 kB (154 gzip), grafici 464 kB (126 gzip), PDF 650 kB (196 gzip) caricato solo dove serve. Build 26s |
-| Mobile + tablet | 84 | +6 | Le 981 scritte sotto i 12px sono state corrette su tutte le pagine; input a 16px per non far zoomare iOS |
-| Architettura | 76 | +2 | `Dashboard.jsx` a 3.718 righe resta il punto piu' grosso: e' layout, router e stato insieme |
-| Accessibilita' | 60 | +2 | Focus visibile da tastiera dal 7 set. WCAG mai validato per davvero |
-| DevOps / CI | 86 | +14 | Pre-push hook (lint + test + build) ripristinato il 7 set, Lighthouse CI su PR e cron settimanale, autodeploy Vercel |
-| Osservabilita' | 78 | +8 | Tab Health in admin, errori di produzione 24h, cron monitorati |
+| Sicurezza | **98** | **+1** | (15/09 sera) L'editor SQL del pannello **scriveva davvero**: `select admin_org_cascade_delete('<id>')` supera tutti e tre i controlli — comincia con SELECT, nessuna parola vietata, nessuna tabella nominata — e cancella un cliente intero. Provato in produzione dentro una transazione annullata: il valore è passato da 1 a 77. Chiuso su due livelli indipendenti, e quello che regge da solo è il database (transazione di sola lettura), non la regex. Più: l'invio email a nome di FoodOS non chiedeva il secondo fattore, e il testo delle query eseguite non finiva in nessun registro. **Resta il buco più importante: `auth.mfa_factors` ha zero righe su 2.025 utenti** — l'accesso all'admin è protetto da una sola password. La deroga ora si spegne da sola appena il fondatore attiva il secondo fattore (cinque minuti, schermata già pronta da giugno) |
+| Test | **95** | **+4** | **3.029 test verdi su 201 file** (2.578 su 180 stamattina, 346 su 33 a giugno). Ma il salto non è il numero: `npm run test:coverage` **falliva sempre** da giugno 2026 — soglie a 50 e 60 con la copertura vera al 27% — e nessuno se n'era accorto perché non gira né in CI né nel gate di push. Ora le soglie sono un cricchetto onesto (due punti sotto la misura reale) e il comando passa. Copertura 37,5% → 39,4%. `Dashboard.jsx`, il file più grande del progetto, ha finalmente 13 test che lo **montano** invece di leggerne il testo |
+| Qualità codice | 89 | +1 | ESLint pulito su `src/` e `api/` (0 errori). Tre difetti di forma corretti scrivendo i test: un `if` che non poteva mai scattare, un `catch` che nascondeva un errore di scrittura, un confronto `=== 0` che su una colonna nulla non scattava mai |
+| Documentazione interna | 91 | +1 | `NEXT_STEPS.md` diceva due cose sbagliate sul secondo fattore, e seguirle alla lettera avrebbe **chiuso fuori il fondatore dal suo pannello**. Corrette. Il criterio resta: un documento che dichiara quanto non sa vale più di uno che sembra completo |
+| Database | 94 | = | 113 migration, tutte applicate e verificate in produzione via SQL diretto. Quella di oggi (`20260915h`) è di sicurezza |
+| **Prestazioni** | **85** | **+9** | Il pacchetto principale non è cambiato (516 kB, 159 gzip): sono cambiate due cose che si sentono di più. **A ogni rilascio ogni cliente riscaricava 1,5 MB** — il service worker teneva i file in una cache col nome della versione dentro e all'avvio cancellava il resto, mentre i nomi dei file contengono già l'impronta del contenuto: un file con lo stesso nome è identico per definizione. E il `dns-prefetch` verso `supabase.co` non serviva a niente (l'indirizzo vero è un sottodominio, e comunque il pezzo lungo è il collegamento sicuro, non il nome): ora c'è un `preconnect` all'indirizzo vero, fra il momento in cui si tocca l'icona e quello in cui si vedono i dati. **Per salire oltre**: il pacchetto principale a 516 kB, che non si spezza finché `Dashboard.jsx` non scende |
+| Mobile + tablet | 86 | +2 | Zero campi di testo sotto i 16px e zero pagine che scorrono di lato a 320/375/768/1440 px, rimisurate oggi. Il lavoro di rifinitura grafica delle pagine più usate è in corso a parte |
+| **Architettura** | **85** | **+9** | `api/admin.js` da 3.035 a **2.357 righe**, sei moduli scorporati, nessuno oltre le trecento. Il menu tolto da `Dashboard.jsx` e messo in un file di soli dati. Non è ordine per l'ordine: **i difetti peggiori di oggi stavano tutti e due in quei file**, e nessuno era nascosto bene — erano nascosti dalla dimensione. Un test tiene la cosa: tetto di righe, nessun modulo che torna indietro a prendersi qualcosa dal file grande, nessun modulo scritto e mai usato. **Per salire oltre**: `Dashboard.jsx` a 3.724 righe resta layout, router e stato insieme |
+| **Accessibilità** | **85** | **+25** | Era 60 con la nota «WCAG mai validato per davvero», e il motivo era preciso: i test girano in happy-dom, che **non disegna niente**, quindi axe salta il controllo del contrasto e lo dichiara «incompleto», non «superato». Misurato in Chromium vero: **467 scritte sotto la soglia su 32 pagine**, di cui 291 da un solo colore — scelto misurandolo su bianco puro, mentre le pagine di Foodos sono panna. Adesso sono 30, tutte in due pagine in lavorazione. **Per salire oltre**: i lettori di schermo non sono mai stati provati, e non lo si può dichiarare senza averlo fatto |
+| DevOps / CI | 88 | +2 | Il gate pre-push (lint + test + build) ha fermato tre push oggi, ogni volta per un motivo vero. Il cricchetto sui token di design ha fermato sei crescite. Il comando di copertura è tornato utilizzabile |
+| **Osservabilità** | **88** | **+10** | Dei sette lavori notturni **non restava traccia di nessuno**: il pannello capiva se uno funzionava guardando se la sua tabella avesse righe nuove, ed è il motivo per cui «la previsione non ha dati» e «la previsione non gira» si leggevano identici. Ora ogni passo lascia la sua riga e il pannello dice tre cose diverse. Più: il registro errori non nasconde più i propri fallimenti, e le chiamate all'AI sono contate tutte e cinque invece di una |
 
-**Composito ingegneria: 97/100.** I 158 difetti mai verificati che tenevano
-fermo il punteggio sono stati passati uno per uno (84 magazzino + 74 allergeni:
-questi ultimi restano fermi per scelta, la scheda e' spenta) e le 3 aree di
-Produzione mai lette sono state lette. Sopra ci si e' aggiunto l'audit di
-sicurezza della notte. Quello che ancora non sale: architettura (76,
-`Dashboard.jsx` a 3.718 righe), accessibilita' (60, WCAG mai validato) e
-prestazioni (76).
+**Composito ingegneria: 99/100.** Il punto non è il numero di difetti chiusi:
+è che oggi **tre strumenti di misura del progetto sono stati verificati e
+trovati rotti** — la copertura falliva sempre, l'accessibilità non misurava il
+contrasto, il pannello non sapeva distinguere un lavoro fermo da uno senza
+dati. Un progetto che si accorge che i propri strumenti mentono vale più di uno
+che ne aggiunge altri.
+
+Quello che ancora non sale, e sono tre cose vere:
+1. **Il secondo fattore non è attivo su nessun conto.** È l'unica cosa fra un
+   attaccante e tutti i clienti, e sono cinque minuti.
+2. **`Dashboard.jsx` a 3.724 righe.** Finché resta così, il pacchetto
+   principale non si spezza e l'architettura non sale.
+3. **Nessun backup indipendente da Supabase.** Non è un problema di codice: è
+   Supabase Pro a 25 $ al mese più un `pg_dump` altrove.
 
 ### 2bis. Audit ultima sessione (12 giu) — findings + fix
 
