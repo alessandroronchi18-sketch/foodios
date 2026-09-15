@@ -903,7 +903,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                         esiste ancora. */}
                     <input type="date" value={data} max={todayLocal()}
                       onChange={e => setData(e.target.value || todayLocal())}
-                      style={{ padding: isMobile ? '10px 12px' : '9px 12px', borderRadius: 7, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, color: C.text, boxSizing: 'border-box', width: isMobile ? '100%' : 'auto', maxWidth: isMobile ? '100%' : undefined }}/>
+                      style={{ padding: isMobile ? '10px 12px' : '9px 12px', borderRadius: 7, border: `1px solid ${C.borderStr}`, fontSize: 12, color: C.text, boxSizing: 'border-box', width: isMobile ? '100%' : 'auto', maxWidth: isMobile ? '100%' : undefined }}/>
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>Cerca prodotto
@@ -923,7 +923,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                       <input type="text" value={ricSearch} onChange={e => setRicSearch(e.target.value)}
                         placeholder={`Filtra fra ${ricette.length} ${ricette.length === 1 ? 'prodotto' : 'prodotti'}...`}
                         aria-label="Cerca prodotto"
-                        style={{ padding: isMobile ? '10px 12px 10px 32px' : '9px 12px 9px 32px', borderRadius: 7, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 13, color: C.text, boxSizing: 'border-box', width: '100%' }} />
+                        style={{ padding: isMobile ? '10px 12px 10px 32px' : '9px 12px 9px 32px', borderRadius: 7, border: `1px solid ${C.borderStr}`, fontSize: 13, color: C.text, boxSizing: 'border-box', width: '100%' }} />
                       {ricSearch && (
                         <button type="button" onClick={() => setRicSearch('')} aria-label="Pulisci ricerca"
                           style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', width: 26, height: 26, background: 'transparent', border: 'none', color: C.textSoft, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 4 }}>
@@ -1033,13 +1033,13 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                   <div style={{ flex: isMobile ? '1 1 auto' : '1 1 240px', width: isMobile ? '100%' : 'auto', minWidth: 0 }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Note sessione</div>
                     <input type="text" value={sessNote} onChange={e => setSessNote(e.target.value)} placeholder="es. produzione weekend, teglia extra…"
-                      style={{ width: '100%', padding: '10px 12px', borderRadius: 7, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, color: C.text, boxSizing: 'border-box' }}/>
+                      style={{ width: '100%', padding: '10px 12px', borderRadius: 7, border: `1px solid ${C.borderStr}`, fontSize: 12, color: C.text, boxSizing: 'border-box' }}/>
                   </div>
                   {haPiuSedi && (
                     <div style={{ flex: isMobile ? '1 1 auto' : '1 1 200px', width: isMobile ? '100%' : 'auto', minWidth: 0 }}>
                       <div style={{ fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Destinazione</div>
                       <select value={destinazioneSedeId || ''} onChange={e => setDestinazioneSedeId(e.target.value || null)}
-                        style={{ width: '100%', padding: '10px 12px', borderRadius: 7, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, color: C.text, background: C.bgCard, boxSizing: 'border-box' }}>
+                        style={{ width: '100%', padding: '10px 12px', borderRadius: 7, border: `1px solid ${C.borderStr}`, fontSize: 12, color: C.text, background: C.bgCard, boxSizing: 'border-box' }}>
                         <option value="">Questa sede ({sedeAttiva?.nome || '-'})</option>
                         {sediAttive.filter(s => s.id !== sedeAttiva?.id).map(s => (
                           <option key={s.id} value={s.id}>Per: {s.nome}{s.citta ? ` · ${s.citta}` : ''}</option>
@@ -1294,13 +1294,13 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                       </div>
                       {(sess.prodotti || []).map(p => (
                         <div key={p.nome} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 70px 70px' : '1fr 90px 90px', gap: 8, alignItems: 'center', marginBottom: 6 }}>
-                          <span style={{ fontSize: isMobile ? 12 : 12, fontWeight: 600, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.nome}</span>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.nome}</span>
                           <input type="number" min="0" inputMode="decimal" value={editRows[p.nome]?.stampi ?? ''} disabled={editConfirm}
                             onChange={e => setEditRows(m => ({ ...m, [p.nome]: { ...m[p.nome], stampi: e.target.value } }))}
-                            style={{ padding: '8px', borderRadius: 7, border: `1px solid ${C.border}`, fontSize: isMobile ? 16 : 12, color: C.text, background: C.white, textAlign: 'right', minHeight: isMobile ? 40 : 'auto' }}/>
+                            style={{ padding: '8px', borderRadius: 7, border: `1px solid ${C.border}`, fontSize: 12, color: C.text, background: C.white, textAlign: 'right', minHeight: isMobile ? 40 : 'auto' }}/>
                           <input type="number" min="0" inputMode="decimal" value={editRows[p.nome]?.vendibile ?? ''} disabled={editConfirm}
                             onChange={e => setEditRows(m => ({ ...m, [p.nome]: { ...m[p.nome], vendibile: e.target.value } }))}
-                            style={{ padding: '8px', borderRadius: 7, border: `1px solid ${C.border}`, fontSize: isMobile ? 16 : 12, color: C.text, background: C.white, textAlign: 'right', minHeight: isMobile ? 40 : 'auto' }}/>
+                            style={{ padding: '8px', borderRadius: 7, border: `1px solid ${C.border}`, fontSize: 12, color: C.text, background: C.white, textAlign: 'right', minHeight: isMobile ? 40 : 'auto' }}/>
                         </div>
                       ))}
                       {!editConfirm ? (
@@ -1374,7 +1374,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
             <input autoFocus value={deleteSessPin} onChange={e => setDeleteSessPin(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') handleDeleteSessione(deleteSessConf) }}
               placeholder="ELIMINA"
-              style={{ width: '100%', boxSizing: 'border-box', padding: '12px 14px', borderRadius: 7, border: `2px solid ${deleteSessPin === 'ELIMINA' ? C.red : '#DDD'}`, fontSize: isMobile ? 16 : 14, fontWeight: 800, color: C.red, letterSpacing: '0.1em', marginBottom: 16, outline: 'none', minHeight: 44 }}/>
+              style={{ width: '100%', boxSizing: 'border-box', padding: '12px 14px', borderRadius: 7, border: `2px solid ${deleteSessPin === 'ELIMINA' ? C.red : '#DDD'}`, fontSize: 14, fontWeight: 800, color: C.red, letterSpacing: '0.1em', marginBottom: 16, outline: 'none', minHeight: 44 }}/>
             <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 10 }}>
               <button onClick={() => handleDeleteSessione(deleteSessConf)}
                 disabled={deleteSessPin !== 'ELIMINA' || deletingSess}

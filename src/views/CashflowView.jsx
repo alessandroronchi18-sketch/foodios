@@ -13,7 +13,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { sload, ssave } from '../lib/storage'
 import { caricaChiusure } from '../lib/chiusure'
 import { supabase } from '../lib/supabase'
-import { color as T, font } from '../lib/theme'
+import { color as T, font, ui3, ui } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from '../components/Icon'
 import AiExplainButton from '../components/AiExplainButton'
@@ -422,7 +422,7 @@ export default function CashflowView({ orgId, sedeId, sedi = [], notify }) {
           </div>
 
           {/* KPI scenari */}
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : isTablet ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 12, marginBottom: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: ui3(isMobile, isTablet, ui.grid4), gap: 12, marginBottom: 16 }}>
             {finaleAtteso && (
               <>
                 <KPI label={`Cassa fra ${orizzonte}gg (atteso)`} value={fmt0(finaleAtteso.saldoAtteso)} color={finaleAtteso.saldoAtteso >= 0 ? GREEN : BRAND} />
@@ -590,16 +590,16 @@ export default function CashflowView({ orgId, sedeId, sedi = [], notify }) {
             {showAddEvento && (
               <div style={{ background: '#FAFAF6', borderRadius: 8, padding: 12, marginBottom: 12, display: 'grid', gridTemplateColumns: isMobile ? '1fr' : isTablet ? 'repeat(2, 1fr)' : 'repeat(5, 1fr)', gap: 8, alignItems: 'end' }}>
                 <select value={newEv.tipo} onChange={e => setNewEv(s => ({ ...s, tipo: e.target.value }))}
-                  style={{ padding: '10px 12px', minHeight: 44, borderRadius: 7, border: `1px solid ${BORDER}`, fontSize: isMobile ? 16 : 13, background: '#FFF' }}>
+                  style={{ padding: '10px 12px', minHeight: 44, borderRadius: 7, border: `1px solid ${BORDER}`, fontSize: 13, background: '#FFF' }}>
                   {TIPI_EVENTO.map(t => <option key={t.id} value={t.id}>{t.lbl}</option>)}
                 </select>
                 <input value={newEv.descrizione} onChange={e => setNewEv(s => ({ ...s, descrizione: e.target.value }))} placeholder="Descrizione"
-                  style={{ padding: '10px 12px', minHeight: 44, borderRadius: 7, border: `1px solid ${BORDER}`, fontSize: isMobile ? 16 : 13, gridColumn: isMobile ? 'auto' : 'span 2' }}/>
+                  style={{ padding: '10px 12px', minHeight: 44, borderRadius: 7, border: `1px solid ${BORDER}`, fontSize: 13, gridColumn: isMobile ? 'auto' : 'span 2' }}/>
                 <input type="date" value={newEv.data_attesa} onChange={e => setNewEv(s => ({ ...s, data_attesa: e.target.value }))}
-                  style={{ padding: '10px 12px', minHeight: 44, borderRadius: 7, border: `1px solid ${BORDER}`, fontSize: isMobile ? 16 : 13 }}/>
+                  style={{ padding: '10px 12px', minHeight: 44, borderRadius: 7, border: `1px solid ${BORDER}`, fontSize: 13 }}/>
                 <div style={{ display: 'flex', gap: 6 }}>
                   <input type="number" inputMode="decimal" value={newEv.importo} onChange={e => setNewEv(s => ({ ...s, importo: e.target.value }))} placeholder="€"
-                    style={{ width: '70%', padding: '10px 12px', minHeight: 44, borderRadius: 7, border: `1px solid ${BORDER}`, fontSize: isMobile ? 16 : 13 }}/>
+                    style={{ width: '70%', padding: '10px 12px', minHeight: 44, borderRadius: 7, border: `1px solid ${BORDER}`, fontSize: 13 }}/>
                   <button onClick={aggiungiEvento} disabled={savingEvento}
                     style={{ flex: 1, minHeight: 44, background: savingEvento ? BORDER : GREEN, color: '#FFF', border: 'none', borderRadius: 7, fontSize: 13, fontWeight: 700, cursor: savingEvento ? 'default' : 'pointer' }}>
                     {savingEvento ? 'Salvo…' : 'OK'}

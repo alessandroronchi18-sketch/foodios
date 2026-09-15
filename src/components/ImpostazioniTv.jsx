@@ -3,7 +3,7 @@ import Icon from './Icon'
 import { useConfirm } from './ConfirmModal'
 import { sload, ssave } from '../lib/storage'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
-import { color as T, radius as R, typo } from '../lib/theme'
+import { color as T, radius as R, typo, ui3, ui } from '../lib/theme'
 
 const TV_KEY = 'pasticceria-tv-token-v1'
 
@@ -101,7 +101,7 @@ export default function ImpostazioniTv({ orgId, sedi, notify }) {
   // Audit mobile 2026-06-24: input + bottoni in colonna su mobile per evitare
   // overflow del link lungo; touch target 44px; font input >=16px per non
   // triggerare lo zoom auto di Safari iOS.
-  const cardResp = { ...card, padding: isMobile ? '18px 16px' : isTablet ? '20px 22px' : '24px 28px' }
+  const cardResp = { ...card, padding: ui3(isMobile, isTablet, ui.cardPad) }
   const inputBase = {
     width: '100%', boxSizing: 'border-box',
     padding: '12px 14px', border: `1px solid ${T.borderStr}`, borderRadius: R.md,
@@ -156,7 +156,7 @@ export default function ImpostazioniTv({ orgId, sedi, notify }) {
             <label htmlFor="tv-link" style={label}>Link da aprire sulla TV</label>
             <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 8, marginBottom: 14 }}>
               <input id="tv-link" readOnly value={fullUrl} onFocus={e => e.target.select()}
-                style={{ ...inputBase, ...typo.code, flex: 1, fontSize: isMobile ? 16 : 12, color: T.text, background: T.bgSubtle }} />
+                style={{ ...inputBase, ...typo.code, flex: 1, fontSize: 12, color: T.text, background: T.bgSubtle }} />
               <button onClick={copia}
                 style={{ ...btnBase, background: T.brand, color: T.white, whiteSpace: 'nowrap', width: isMobile ? '100%' : 'auto' }}>
                 <Icon name="copy" size={14} color={T.white}/> Copia

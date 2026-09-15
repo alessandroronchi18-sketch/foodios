@@ -7,7 +7,7 @@
 
 import React, { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { color as T, radius as R, shadow as S } from '../lib/theme'
+import { color as T, radius as R, shadow as S, ui3, ui } from '../lib/theme'
 import { apiFetch } from '../lib/apiFetch'
 import usePlanPricing, { fmtPrezzo } from '../lib/usePlanPricing'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
@@ -159,7 +159,7 @@ export default function AbbonamentoPanel({ org, notify, isInline = false }) {
   })[stato] || null
 
   const Wrapper = isInline ? React.Fragment : 'div'
-  const wrapperProps = isInline ? {} : { style: { background:T.bgCard, borderRadius:R.xl, padding: isMobile ? '18px 16px' : isTablet ? '20px 22px' : '24px 28px', border:`1px solid ${T.border}`, boxShadow:S.sm, marginBottom:20 } }
+  const wrapperProps = isInline ? {} : { style: { background:T.bgCard, borderRadius:R.xl, padding: ui3(isMobile, isTablet, ui.cardPad), border:`1px solid ${T.border}`, boxShadow:S.sm, marginBottom:20 } }
 
   return (
     <Wrapper {...wrapperProps}>

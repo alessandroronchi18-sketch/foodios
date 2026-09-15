@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import Icon from './Icon'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
+import { ui3, ui } from '../lib/theme'
 
 const lbl  = { fontSize: 12, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, display: 'block' }
 // Audit 2026-06-24 UI mobile: fontSize input >=16 evita zoom iOS al focus.
@@ -12,7 +13,7 @@ const lbl  = { fontSize: 12, fontWeight: 700, color: '#64748B', textTransform: '
 export default function MfaSection({ notify }) {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
-  const card = { background: '#FFF', borderRadius: 12, padding: isMobile ? '18px 16px' : isTablet ? '20px 22px' : '24px 28px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', marginBottom: 20 }
+  const card = { background: '#FFF', borderRadius: 12, padding: ui3(isMobile, isTablet, ui.cardPad), boxShadow: '0 1px 4px rgba(0,0,0,0.07)', marginBottom: 20 }
   const inp  = { width: '100%', padding: '12px 14px', minHeight: 48, border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 16, color: '#0F172A', background: '#FAFAFA', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }
   const [loading, setLoading] = useState(true)
   const [factors, setFactors] = useState([])

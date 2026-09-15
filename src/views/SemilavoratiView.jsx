@@ -7,7 +7,7 @@
 // 4) Form nuovo/modifica + OCR foto (logica di salvataggio invariata).
 import React, { useState, useMemo } from 'react'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
-import { color as T, radius as R, shadow as S, motion as M, typo } from '../lib/theme'
+import { color as T, radius as R, shadow as S, motion as M, typo, ui3, ui } from '../lib/theme'
 import { buildIngCosti, calcolaFC, calcolaFCDettaglio, getR, isRicettaValida, normIng, resaGrammi, PREZZI_HORECA, translateIngredienteEN, translateProdottoEN } from '../lib/foodcost'
 import { onEnterAutoComplete } from '../lib/autocomplete'
 import { lessico } from '../lib/lessico'
@@ -506,7 +506,7 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
     </button>
   )
 
-  const kpiCols = isMobile ? '1fr 1fr' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)'
+  const kpiCols = ui3(isMobile, isTablet, ui.grid4)
 
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto' }}>
@@ -648,7 +648,7 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
                     )}
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       <input value={deletePin} onChange={e => setDeletePin(e.target.value)} placeholder="ELIMINA"
-                        style={{ flex: 1, minWidth: 120, padding: '11px 12px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 13 }} />
+                        style={{ flex: 1, minWidth: 120, padding: '11px 12px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 13 }} />
                       <button onClick={() => handleDelete(sm.nome)}
                         style={{ padding: '8px 14px', background: C.red, color: '#fff', border: 'none', borderRadius: 8, fontSize: typo.small.fontSize, fontWeight: 700, cursor: 'pointer' }}>Conferma</button>
                       <button onClick={() => { setDeleteConf(null); setDeletePin('') }}

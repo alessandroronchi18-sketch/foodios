@@ -861,7 +861,7 @@ function ReseSection({ notify, orgId }) {
               <input type="number" min="1" max="100" defaultValue={pct} inputMode="numeric"
                 onBlur={e=>save(k, e.target.value)}
                 onKeyDown={e=>e.key==='Enter'&&save(k, e.target.value)}
-                style={{ width: isMobile ? 64 : 56, padding:'7px 8px', borderRadius:6, border:`1px solid ${T.borderStr}`, fontSize: isMobile ? 16 : 12, textAlign:'right', fontWeight:700, color:T.text, fontFamily:'inherit', background:T.bgCard }}/>
+                style={{ width: isMobile ? 64 : 56, padding:'7px 8px', borderRadius:6, border:`1px solid ${T.borderStr}`, fontSize: 12, textAlign:'right', fontWeight:700, color:T.text, fontFamily:'inherit', background:T.bgCard }}/>
               <span style={{ fontSize: 12, color:T.textSoft }}>%</span>
               {isCustom && (
                 <button onClick={()=>reset(k)} title="Ripristina default"
@@ -1251,7 +1251,7 @@ export default function Impostazioni(props) {
               style={{
                 width: '100%', height: 40, padding: '0 12px 0 36px',
                 border: `1px solid ${T.borderStr}`, borderRadius: R.md,
-                fontSize: isMobile ? 16 : 13, color: T.text, background: T.bgCard, outline: 'none',
+                fontSize: 13, color: T.text, background: T.bgCard, outline: 'none',
                 boxSizing: 'border-box', fontFamily: 'inherit',
               }}/>
             <span style={{ position: 'absolute', left: 12, top: 12, pointerEvents: 'none' }}>

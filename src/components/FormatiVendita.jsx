@@ -9,7 +9,7 @@
 // riconcilia produzione e cassa. Vedi src/lib/formatiVendita.js.
 
 import React, { useEffect, useMemo, useState } from 'react'
-import { color as T, radius as R, shadow as S, typo } from '../lib/theme'
+import { color as T, radius as R, shadow as S, typo, ui3, ui } from '../lib/theme'
 import { sload, ssave } from '../lib/storage'
 import { SK_FORMATI } from '../lib/storageKeys'
 import { buildIngCosti, isRicettaValida, getR } from '../lib/foodcost'
@@ -276,7 +276,7 @@ export default function FormatiVendita({ orgId, ricettario, onSaveRicettario, no
 
       {/* ① DIAGNOSI */}
       {diag.n > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: isMobile ? 10 : 16, marginBottom: 26 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: ui3(isMobile, isTablet, ui.grid4), gap: isMobile ? 10 : 16, marginBottom: 26 }}>
           <KPI icon={<Icon name="package" size={18} />} label="Formati configurati" value={diag.n.toLocaleString('it-IT', { useGrouping: 'always' })}
             sub={diag.n === 1 ? 'formato di vendita' : 'formati di vendita'} />
           <KPI icon={<Icon name="money" size={18} />} label="Confezionamento medio"

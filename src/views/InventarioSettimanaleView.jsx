@@ -2772,7 +2772,7 @@ function CellInput({ value, saving, accent, onCommit, readOnly, unita = 'g' }) {
       onKeyDown={e => { if (e.key === 'Enter') e.target.blur() }}
       style={{
         width: '100%', minWidth: 64, padding: '10px 8px', textAlign: 'right',
-        fontSize: isMobile ? 16 : 13, fontFamily: 'inherit', boxSizing: 'border-box',
+        fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box',
         border: 'none', outline: 'none',
         background: saving ? 'rgba(110,14,26,0.05)' : 'transparent',
         color: C.text, fontWeight: local ? 700 : 400,

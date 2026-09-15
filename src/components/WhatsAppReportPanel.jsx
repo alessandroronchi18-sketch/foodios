@@ -11,7 +11,7 @@ import Icon from './Icon'
 import { useConfirm } from './ConfirmModal'
 import { supabase } from '../lib/supabase'
 import { apiFetch } from '../lib/apiFetch'
-import { color as T, radius as R, shadow as S } from '../lib/theme'
+import { color as T, radius as R, shadow as S, ui3, ui } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 
 const PREFISSI = [
@@ -118,7 +118,7 @@ export default function WhatsAppReportPanel({ org, orgId, notify, onRefresh }) {
     finally { setTesting(false) }
   }
 
-  const card = { background:T.bgCard, borderRadius:R.xl, padding: isMobile ? '18px 16px' : isTablet ? '20px 22px' : '24px 28px', border:`1px solid ${T.border}`, boxShadow:S.sm, marginBottom:20 }
+  const card = { background:T.bgCard, borderRadius:R.xl, padding: ui3(isMobile, isTablet, ui.cardPad), border:`1px solid ${T.border}`, boxShadow:S.sm, marginBottom:20 }
   const inp = { width:'100%', height: isMobile || isTablet ? 44 : 40, padding:'0 12px', border:`1px solid ${T.borderStr}`, borderRadius:R.md, fontSize: isMobile || isTablet ? 16 : 13, color:T.text, background:T.bgCard, outline:'none', boxSizing:'border-box', fontFamily:'inherit' }
   const btnH = isMobile || isTablet ? 44 : 40
 

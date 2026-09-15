@@ -251,7 +251,7 @@ export default function PrimiPassi({ orgId, sedeId, ricettario, magazzino, giorn
                   textDecoration: t.done ? 'line-through' : 'none',
                   lineHeight: 1.35,
                 }}>{t.label}</div>
-                <div style={{ fontSize: isMobile ? 12 : 12, color: SOFT, marginTop: 2, lineHeight: 1.4 }}>{t.hint}</div>
+                <div style={{ fontSize: 12, color: SOFT, marginTop: 2, lineHeight: 1.4 }}>{t.hint}</div>
               </div>
               {!t.done && onNavigate && (
                 <button onClick={() => onNavigate(t.view)}
@@ -274,13 +274,13 @@ export default function PrimiPassi({ orgId, sedeId, ricettario, magazzino, giorn
             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
             paddingTop: 12, marginTop: 4, gap: 8, flexWrap: 'wrap',
           }}>
-            <div style={{ fontSize: isMobile ? 12 : 12, color: SOFT }}>
+            <div style={{ fontSize: 12, color: SOFT }}>
               {allDone ? 'Sparisce automaticamente.' : 'Nascondi questo widget'}
             </div>
             <button onClick={dismiss}
               style={{
                 background: 'transparent', border: 'none', cursor: 'pointer',
-                color: SOFT, fontSize: isMobile ? 12 : 12, fontWeight: 600,
+                color: SOFT, fontSize: 12, fontWeight: 600,
                 padding: isMobile ? '8px 6px' : 0, minHeight: isMobile ? 36 : 'auto',
               }}>
               Non mostrare più

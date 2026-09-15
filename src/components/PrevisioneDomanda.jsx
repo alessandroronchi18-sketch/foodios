@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart, BarChart, Bar } from 'recharts'
-import { color as T, tnum, typo } from '../lib/theme'
+import { color as T, tnum, typo, ui3, ui } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { correzioneMeteo, spiegaCorrezione, meteoProssimiGiorni } from '../lib/meteoCorrezione'
 import { KPI, SH, PageHeader, Tip, ChartTip, C } from '../views/_shared'
@@ -439,7 +439,7 @@ export default function PrevisioneDomanda({ ricettario, giornaliero, chiusure, i
       {/* ── BANDA DIAGNOSI ──────────────────────────────────────────────────── */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)',
+        gridTemplateColumns: ui3(isMobile, isTablet, ui.grid4),
         gap: isMobile ? 10 : 14,
         marginBottom: 28,
       }}>
@@ -531,7 +531,7 @@ export default function PrevisioneDomanda({ ricettario, giornaliero, chiusure, i
                 minHeight: isMobile ? 44 : 40,
                 borderRadius: 10,
                 border: `1px solid ${C.borderStr}`,
-                fontSize: isMobile ? 16 : 14,
+                fontSize: 14,
                 color: C.text,
                 boxSizing: 'border-box',
                 background: C.bgCard,

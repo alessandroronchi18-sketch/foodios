@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { sload, ssave } from '../lib/storage'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
-import { color as T, radius as R } from '../lib/theme'
+import { color as T, radius as R, ui3, ui } from '../lib/theme'
 import { todayLocal } from '../lib/dateLocal'
 import { onEnterAutoComplete } from '../lib/autocomplete'
 import { lessico } from '../lib/lessico'
@@ -481,7 +481,7 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
       {editing == null && tab === 'archivio' && eventiArchivioFiltrati.length > 0 && (() => {
         const margC = kpiArchivio.margPct >= 50 ? T.green : kpiArchivio.margPct >= 30 ? T.amber : T.brand
         return (
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: isMobile ? 10 : 16, marginBottom: 20 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: ui3(isMobile, isTablet, ui.grid4), gap: isMobile ? 10 : 16, marginBottom: 20 }}>
             <KPI label="Eventi" value={kpiArchivio.eventi} icon={<Icon name="calendar" size={18} />} color={T.text} />
             <KPI label="Ricavi" value={fmtEur(kpiArchivio.ricavi)} icon={<Icon name="euro" size={18} />} color={T.green} />
             {/* Se una riga usa una ricetta senza prezzi ingredienti il suo
@@ -624,7 +624,7 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
             const t = calcolaTotali(draft)
             const saldo = t.totRicavo - Number(draft.acconto || 0)
             return (
-              <div style={{ marginTop: 18, padding: 16, background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 12, boxShadow: T.bgSubtle ? 'inset 0 1px 2px rgba(15,23,42,0.03)' : undefined }}>
+              <div style={{ marginTop: 18, padding: 16, background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, display: 'grid', gridTemplateColumns: ui3(isMobile, isTablet, ui.grid4), gap: 12, boxShadow: T.bgSubtle ? 'inset 0 1px 2px rgba(15,23,42,0.03)' : undefined }}>
                 <div><div style={lbl}>Totale</div><div style={{ fontSize: 18, fontWeight: 800, color: T.text, ...TNUM }}>{fmtEur(t.totRicavo)}</div></div>
                 <div><div style={lbl}>Food cost</div><div style={{ fontSize: 18, fontWeight: 800, color: T.amber, ...TNUM }}>{fmtEur(t.totFC)}</div></div>
                 <div><div style={lbl}>Margine</div><div style={{ fontSize: 18, fontWeight: 800, color: t.margPct >= 50 ? T.green : t.margPct >= 30 ? T.amber : T.brand, ...TNUM }}>{fmtEur(t.margine)} ({fmtp0(t.margPct)})</div></div>
@@ -684,7 +684,7 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
           minHeight: 14, lineHeight: 1.2,
         }
         const kpiValue = {
-          fontSize: isMobile ? 16 : 16, fontWeight: 800, letterSpacing: '-0.015em',
+          fontSize: 16, fontWeight: 800, letterSpacing: '-0.015em',
           marginTop: 4, lineHeight: 1.1, minHeight: isMobile ? 19 : 20,
           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
           ...TNUM,

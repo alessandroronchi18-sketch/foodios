@@ -24,7 +24,7 @@
 // restituire; aggiorniamo lo state solo dopo. Firma export e shape movimento immutate.
 
 import React, { useEffect, useMemo, useState } from 'react'
-import { color as T, typo } from '../lib/theme'
+import { color as T, typo, ui3, ui } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from './Icon'
 import { useConfirm } from './ConfirmModal'
@@ -723,7 +723,7 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
       )}
 
       {/* (1) DIAGNOSI - banda KPI del mese */}
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: isMobile ? 10 : 16, marginBottom: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: ui3(isMobile, isTablet, ui.grid4), gap: isMobile ? 10 : 16, marginBottom: 14 }}>
         {/* Il prezzo di vendita dell'omaggio si chiede nel form da sempre, si
             sommava in diag.ricavoMancato e non veniva mostrato in nessun
             punto della pagina: un dato chiesto all'utente e buttato via.
@@ -847,7 +847,7 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
         <div>
           <label style={labelS}>Tipo</label>
           <select
-            style={{ ...inputS, width: 'auto', fontSize: isMobile ? 16 : 12, padding: isMobile ? '10px 12px' : '8px 32px 8px 12px' }}
+            style={{ ...inputS, width: 'auto', fontSize: 12, padding: isMobile ? '10px 12px' : '8px 32px 8px 12px' }}
             value={filtroTipo} onChange={e => { setFiltroTipo(e.target.value); setFiltroCausale('tutte') }}>
             <option value="tutti">Tutti</option>
             <option value="spreco">Solo perdite</option>
@@ -857,7 +857,7 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
         <div>
           <label style={labelS}>Causale</label>
           <select
-            style={{ ...inputS, width: 'auto', fontSize: isMobile ? 16 : 12, padding: isMobile ? '10px 12px' : '8px 32px 8px 12px' }}
+            style={{ ...inputS, width: 'auto', fontSize: 12, padding: isMobile ? '10px 12px' : '8px 32px 8px 12px' }}
             value={filtroCausale} onChange={e => setFiltroCausale(e.target.value)}>
             <option value="tutte">Tutte</option>
             {causaliFiltro.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}

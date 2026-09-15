@@ -4,6 +4,7 @@ import { sloadAllSedi } from '../lib/storage'
 import { loadXLSX } from '../lib/xlsx' // loader unico multi-CDN, no SRI
 import Icon from './Icon'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
+import { ui3, ui } from '../lib/theme'
 
 const lbl  = { fontSize: 12, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, display: 'block' }
 
@@ -225,7 +226,7 @@ async function exportCommercialistaXLSX(corrispettivi, fatturePassive, ivaPct, s
 export default function ExportContabilita({ orgId, sedi = [], nomeAttivita, notify }) {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
-  const card = { background: '#FFF', borderRadius: 12, padding: isMobile ? '18px 16px' : isTablet ? '20px 22px' : '24px 28px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', marginBottom: 20 }
+  const card = { background: '#FFF', borderRadius: 12, padding: ui3(isMobile, isTablet, ui.cardPad), boxShadow: '0 1px 4px rgba(0,0,0,0.07)', marginBottom: 20 }
   const inp  = { width: '100%', padding: isMobile || isTablet ? '12px 14px' : '10px 14px', minHeight: isMobile || isTablet ? 44 : 40, border: '1px solid #E2E8F0', borderRadius: 8, fontSize: isMobile || isTablet ? 16 : 13, color: '#0F172A', background: '#FAFAFA', outline: 'none', boxSizing: 'border-box' }
   const today = new Date()
   const defaultMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`

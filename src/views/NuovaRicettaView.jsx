@@ -770,7 +770,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                     aria-label="Costo al kg della base in euro"
                     onChange={e => setCostoBaseKg(e.target.value)}
                     placeholder={costoBaseEsistente != null ? String(costoBaseEsistente).replace('.', ',') : 'es. 2,10'}
-                    style={{ ...inputBase, fontSize: isMobile ? 16 : 14 }} />
+                    style={{ ...inputBase, fontSize: 14 }} />
                   <div style={{ fontSize: typo.small.fontSize, color: C.textSoft, marginTop: 5, lineHeight: 1.5 }}>
                     Quanto ti costano gli ingredienti per fare un chilo di questa base.
                     Le quantità qui sopra non servono al calcolo: elencare gli ingredienti serve
@@ -803,7 +803,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                 <div>
                   <div style={fieldLabel}>Note (cottura, temperatura…)</div>
                   <input value={form.note} aria-label="Note ricetta (cottura, temperatura)" onChange={e => setForm(f => ({ ...f, note: e.target.value }))} placeholder="es. 180°C per 45 min"
-                    style={{ ...inputBase, fontSize: isMobile ? 16 : 14 }} />
+                    style={{ ...inputBase, fontSize: 14 }} />
                 </div>
 
                 <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: form.congelabile ? "#EEF8FF" : "#F8F4F2", borderRadius: 8, border: `1px solid ${form.congelabile ? "#BDE" : "#E8E0DC"}`, cursor: "pointer" }}
@@ -934,14 +934,14 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                   onChange={e => setNewIngNome(e.target.value)}
                   onKeyDown={onEnterAutoComplete(tuttiIng, newIngNome, setNewIngNome, () => { if (newIngQty) addIng() })}
                   placeholder="es. burro" list="ing-autocomplete"
-                  style={{ ...inputBase, fontSize: isMobile ? 16 : 14, padding: "9px 11px" }} />
+                  style={{ ...inputBase, fontSize: 14, padding: "9px 11px" }} />
                 <datalist id="ing-autocomplete">{tuttiIng.map(k => <option key={k} value={k} />)}</datalist>
               </div>
               <div>
                 <div style={fieldLabel}>Grammi</div>
                 <input type="number" min="0" value={newIngQty} aria-label="Grammi di ingrediente da aggiungere" onChange={e => setNewIngQty(e.target.value)} onKeyDown={e => e.key === "Enter" && addIng()}
                   placeholder="es. 200"
-                  style={{ ...inputBase, fontSize: isMobile ? 16 : 14, padding: "9px 11px" }} />
+                  style={{ ...inputBase, fontSize: 14, padding: "9px 11px" }} />
               </div>
               <button onClick={addIng} aria-label="Aggiungi ingrediente alla ricetta" style={{ padding: "10px 16px", background: C.red, color: C.white, border: "none", borderRadius: 8, fontSize: isMobile ? 14 : 12, fontWeight: 700, cursor: "pointer", height: isMobile ? 46 : 42, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, width: isMobile ? '100%' : 'auto' }}>
                 <Icon name="plus" size={14} /> Aggiungi
@@ -1027,7 +1027,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                         setForm(f => ({ ...f, resa_g: v }))
                       }}
                       placeholder={String(Math.round(resaDefault))}
-                      style={{ ...inputBase, fontSize: isMobile ? 16 : 14 }} />
+                      style={{ ...inputBase, fontSize: 14 }} />
                     <div style={{ fontSize: 12, color: C.textSoft, marginTop: 4 }}>
                       Default: <b>{Math.round(resaDefault)} g</b>{form.resa_g == null ? ' (auto)' : ''}
                     </div>
@@ -1536,7 +1536,7 @@ function CommandBar({ isMobile, ricetteEsistenti, activeNome, onPickExisting, ac
               style={{
                 flex: 1, minWidth: 0,
                 border: 'none', outline: 'none', background: 'transparent',
-                fontSize: isMobile ? 16 : 13, color: C.text, fontFamily: 'inherit',
+                fontSize: 13, color: C.text, fontFamily: 'inherit',
               }}
             />
             {activeNome && (
@@ -1707,7 +1707,7 @@ function RicettaPicker({ label, icon, variant = 'primary', ricette, activeNome, 
                 style={{
                   width: '100%', padding: '10px 12px 10px 36px',
                   border: `1px solid ${C.border}`, borderRadius: 8,
-                  fontSize: isMobile ? 16 : 13, color: C.text,
+                  fontSize: 13, color: C.text,
                   background: '#FAFAFA', outline: 'none',
                   fontFamily: 'inherit', boxSizing: 'border-box',
                 }}/>

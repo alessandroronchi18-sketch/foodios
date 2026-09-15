@@ -6,7 +6,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
-import { color as T, radius as R, shadow as S, motion as M, typo } from '../lib/theme'
+import { color as T, radius as R, shadow as S, motion as M, typo, ui3, ui } from '../lib/theme'
 import { ssave as _ssave } from '../lib/storage'
 import { todayLocal, formatLocalDate } from '../lib/dateLocal'
 import { normIng, getR, translateIngredienteEN, buildIngCosti } from '../lib/foodcost'
@@ -307,7 +307,7 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
 
   return (
     <div>
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: ui3(isMobile, isTablet, ui.grid4), gap: 10, marginBottom: 20 }}>
         {/* Audit 2026-09-14: contava tutte le righe, comprese quelle a zero.
             La sera, con la vetrina svuotata, diceva ancora "12 prodotti in
             stock": un numero che non cambia mai non e' un'informazione. */}
@@ -653,7 +653,7 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
       <div style={{ display: 'flex', gap: 10, marginBottom: 14, alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{ flex: 1, minWidth: 200, position: 'relative' }}>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Cerca ingrediente…"
-            style={{ width: '100%', padding: '11px 14px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.border}`, fontSize: isMobile ? 16 : 13, background: C.white, color: C.text, outline: 'none', boxSizing: 'border-box' }}/>
+            style={{ width: '100%', padding: '11px 14px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 13, background: C.white, color: C.text, outline: 'none', boxSizing: 'border-box' }}/>
         </div>
         <button onClick={() => setShowLog(s => !s)}
           style={{ padding: '0 14px', minHeight: 40, borderRadius: 8, border: `1px solid ${C.borderStr}`, background: showLog ? C.redLight : 'transparent', fontSize: 12, fontWeight: 700, color: showLog ? C.red : C.textMid, cursor: 'pointer', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
@@ -790,7 +790,7 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
                           }}
                           autoFocus
                           aria-label={`Prezzo per chilo di ${row.nome}`}
-                          style={{ width: isMobile ? 116 : 96, padding: isMobile ? '9px 10px' : '6px 8px', minHeight: isMobile ? 44 : 32, borderRadius: 6, border: `1px solid ${C.red}`, fontSize: isMobile ? 16 : 13, fontWeight: 700, color: C.text, textAlign: 'right', outline: 'none' }}/>
+                          style={{ width: isMobile ? 116 : 96, padding: isMobile ? '9px 10px' : '6px 8px', minHeight: isMobile ? 44 : 32, borderRadius: 6, border: `1px solid ${C.red}`, fontSize: 13, fontWeight: 700, color: C.text, textAlign: 'right', outline: 'none' }}/>
                         {errEdit && (
                           <div style={{ fontSize: 12, color: C.red, marginTop: 4, textAlign: 'right', maxWidth: 200, lineHeight: 1.4 }}>{errEdit}</div>
                         )}
@@ -1650,7 +1650,7 @@ export default function MagazzinoView({
           )
         })()}
 
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: ui3(isMobile, isTablet, ui.grid4), gap: 10 }}>
           {/* Audit 2026-09-14: al dipendente e' nascosta la scheda "Prezzi
               ingredienti" e la colonna Valore riga per riga, ma questo box gli
               dava comunque il valore totale del magazzino. Se l'azienda ha
@@ -1894,7 +1894,7 @@ export default function MagazzinoView({
                     aria-label={`Quantità di ${r.nome} in chili`}
                     style={{
                       width: 92, padding: '8px 10px', minHeight: 40, borderRadius: 8,
-                      border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 14,
+                      border: `1px solid ${C.borderStr}`, fontSize: 14,
                       textAlign: 'right', fontVariantNumeric: 'tabular-nums', boxSizing: 'border-box',
                     }} />
                   <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, width: 22 }}>kg</span>
@@ -2001,7 +2001,7 @@ export default function MagazzinoView({
               <input value={magSearch} onChange={e => setMagSearch(e.target.value)}
                 placeholder="Cerca un ingrediente…"
                 aria-label="Cerca un ingrediente fra le giacenze"
-                style={{ width: '100%', maxWidth: 340, padding: isMobile ? '11px 12px' : '9px 12px', minHeight: 40, borderRadius: 9, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 13, color: C.text, background: C.white }} />
+                style={{ width: '100%', maxWidth: 340, padding: isMobile ? '11px 12px' : '9px 12px', minHeight: 40, borderRadius: 9, border: `1px solid ${C.borderStr}`, fontSize: 13, color: C.text, background: C.white }} />
               {magSearch.trim() && (
                 <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, marginLeft: 10 }}>
                   {righeFiltrate.length} di {righe.length}
@@ -2020,7 +2020,7 @@ export default function MagazzinoView({
                 <div key={lbl}>
                   <div style={{ ...typo.caption, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>{lbl}</div>
                   <input type={type || 'text'} inputMode={type === 'number' ? 'decimal' : undefined} value={val} onChange={e => set(e.target.value)} placeholder={ph}
-                    style={{ width: '100%', padding: '10px 12px', minHeight: 44, borderRadius: 7, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 13, color: C.text, boxSizing: 'border-box' }}/>
+                    style={{ width: '100%', padding: '10px 12px', minHeight: 44, borderRadius: 7, border: `1px solid ${C.borderStr}`, fontSize: 13, color: C.text, boxSizing: 'border-box' }}/>
                 </div>
               ))}
               <div style={{ display: 'flex', gap: 6 }}>
@@ -2190,7 +2190,7 @@ export default function MagazzinoView({
                             <input type="number" value={editSoglia.val} min="0" step="1"
                               aria-label="Soglia di riordino in grammi" placeholder="es. 500"
                               onChange={e => setEditSoglia({ ...editSoglia, val: e.target.value })}
-                              style={{ width: 74, padding: '5px 6px', minHeight: isMobile ? 40 : 30, borderRadius: 5, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, textAlign: 'center' }}/>
+                              style={{ width: 74, padding: '5px 6px', minHeight: isMobile ? 40 : 30, borderRadius: 5, border: `1px solid ${C.borderStr}`, fontSize: 12, textAlign: 'center' }}/>
                             <span style={{ fontSize: 12, color: C.textSoft, fontWeight: 600 }}>g</span>
                             <button onClick={() => handleSoglia(r.k, editSoglia.val)}
                               aria-label="Conferma la soglia"
@@ -2338,7 +2338,7 @@ export default function MagazzinoView({
                   })}
                   placeholder="es. burro"
                   aria-label="Nome dell'ingrediente da caricare o scaricare"
-                  list="ing-list" style={{ width: '100%', padding: '11px 12px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 13, color: C.text, boxSizing: 'border-box' }}/>
+                  list="ing-list" style={{ width: '100%', padding: '11px 12px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 13, color: C.text, boxSizing: 'border-box' }}/>
                 {/* Audit 2026-09-09: il form non diceva quanto ce n'e' adesso.
                     Chi carica non sa da dove parte, e chi scarica non sa se sta
                     per andare sotto zero — cosa che succede davvero, tanto che
@@ -2374,12 +2374,12 @@ export default function MagazzinoView({
                     rotto. La virgola la normalizza già handleCarica. */}
                 <input id="mag-qty-input" type="text" inputMode="decimal" value={formQty} onChange={e => setFormQty(e.target.value)} placeholder="es. 2000"
                   onKeyDown={e => { if (e.key === 'Enter' && formIng.trim() && formQty && !saving) handleCarica() }}
-                  style={{ width: '100%', padding: '11px 12px', minHeight: 44, borderRadius: 8, border: `1px solid ${formMode === 'scarico' ? C.amber : C.borderStr}`, fontSize: isMobile ? 16 : 13, color: C.text, boxSizing: 'border-box' }}/>
+                  style={{ width: '100%', padding: '11px 12px', minHeight: 44, borderRadius: 8, border: `1px solid ${formMode === 'scarico' ? C.amber : C.borderStr}`, fontSize: 13, color: C.text, boxSizing: 'border-box' }}/>
               </div>
               <div>
                 <label htmlFor="mag-note-input" style={{ display: 'block', fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 3, cursor: 'pointer' }}>Note (opzionale)</label>
                 <input id="mag-note-input" type="text" value={formNote} onChange={e => setFormNote(e.target.value)} placeholder="es. Metro - bolla 1234"
-                  style={{ width: '100%', padding: '11px 12px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 13, color: C.text, boxSizing: 'border-box' }}/>
+                  style={{ width: '100%', padding: '11px 12px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 13, color: C.text, boxSizing: 'border-box' }}/>
               </div>
               {/* Audit 2026-09-14: la lista proponeva la CHIAVE normalizzata.
                   Chi scriveva "uova" si vedeva proporre "uovo", accettava con

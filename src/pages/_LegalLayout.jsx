@@ -10,7 +10,7 @@ function mkS(isMobile) {
     header: { background: '#1C0A0A', color: '#FFF', padding: isMobile ? '14px 16px' : '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
     body: { maxWidth: '70ch', margin: '0 auto', padding: isMobile ? '28px 18px 64px' : '48px 24px 80px' },
     h1: { fontSize: isMobile ? 24 : 28, fontWeight: 900, marginBottom: 8, marginTop: 0, lineHeight: 1.2 },
-    h2: { fontSize: isMobile ? 16 : 16, fontWeight: 800, marginTop: isMobile ? 28 : 36, marginBottom: 10, lineHeight: 1.3 },
+    h2: { fontSize: 16, fontWeight: 800, marginTop: isMobile ? 28 : 36, marginBottom: 10, lineHeight: 1.3 },
     p:  { fontSize: isMobile ? 15 : 14, lineHeight: 1.75, color: '#4B3832', marginBottom: 12, wordBreak: 'break-word', overflowWrap: 'anywhere' },
     ul: { fontSize: isMobile ? 15 : 14, lineHeight: 1.85, color: '#4B3832', paddingLeft: 20, marginBottom: 12, wordBreak: 'break-word', overflowWrap: 'anywhere' },
     badge: { display: 'inline-block', background: '#FEF2F2', color: '#6E0E1A', padding: '3px 10px', borderRadius: 6, fontSize: 12, fontWeight: 700, marginBottom: 24 },

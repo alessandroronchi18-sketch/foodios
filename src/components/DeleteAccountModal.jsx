@@ -243,7 +243,7 @@ export default function DeleteAccountModal({ open, onClose, auth, notify }) {
                 maxLength={1000}
                 rows={5}
                 style={{ width: '100%', padding: '10px 12px', borderRadius: R.md,
-                  border: `1px solid ${T.border}`, fontSize: isMobile ? 16 : 14, fontFamily: 'inherit', resize: 'vertical',
+                  border: `1px solid ${T.border}`, fontSize: 14, fontFamily: 'inherit', resize: 'vertical',
                   color: T.text, outline: 'none', boxSizing: 'border-box' }}/>
               <div style={{ fontSize: 12, color: T.textFaint, textAlign: 'right', marginTop: 4 }}>
                 {feedback.length}/1000
@@ -276,7 +276,7 @@ export default function DeleteAccountModal({ open, onClose, auth, notify }) {
                 autoComplete="off"
                 style={{ width: '100%', padding: '10px 12px', borderRadius: R.md,
                   border: `1.5px solid ${confermaOk ? '#86EFAC' : T.border}`,
-                  fontSize: isMobile ? 16 : 14, fontFamily: 'inherit', color: T.text, outline: 'none', boxSizing: 'border-box',
+                  fontSize: 14, fontFamily: 'inherit', color: T.text, outline: 'none', boxSizing: 'border-box',
                   background: confermaOk ? '#F0FDF4' : '#FFF' }}/>
             </div>
           )}

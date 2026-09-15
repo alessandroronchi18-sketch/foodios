@@ -986,7 +986,7 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
             <div style={{ marginBottom: 14 }}>
               <div style={{ fontSize: FS.small, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Piattaforma</div>
               <select value={importPiattaforma} onChange={e => { setImportPiattaforma(e.target.value); setImportPreview(null) }}
-                style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, color: C.text, minHeight: 44 }}>
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 12, color: C.text, minHeight: 44 }}>
                 <option value="deliveroo">Deliveroo (CSV)</option>
                 <option value="justeat">JustEat (CSV)</option>
                 <option value="glovo">Glovo / Foodinho (Excel)</option>
@@ -1028,7 +1028,7 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
                     <div key={key}>
                       <div style={{ fontSize: FS.small, fontWeight: 700, color: C.textSoft, marginBottom: 4 }}>{label}</div>
                       <select value={importGenericMapping[key] || ''} onChange={e => setImportGenericMapping(m => ({ ...m, [key]: e.target.value }))}
-                        style={{ width: '100%', padding: '9px 10px', borderRadius: 6, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, minHeight: 40 }}>
+                        style={{ width: '100%', padding: '9px 10px', borderRadius: 6, border: `1px solid ${C.borderStr}`, fontSize: 12, minHeight: 40 }}>
                         <option value="">-</option>
                         {(importPreview.headers || []).map(h => <option key={h} value={h}>{h}</option>)}
                       </select>
@@ -1111,7 +1111,7 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
             </div>
           ) : (
             <input type="date" value={dataFiltro} onChange={e => { setDataFiltro(e.target.value); setVenduto(null); setPreview(null); setImg(null); setSalvato(false) }}
-              style={{ width: isMobile ? '100%' : 'auto', boxSizing: 'border-box', padding: '9px 12px', borderRadius: 7, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, color: C.text, minHeight: isMobile ? 44 : 'auto' }}/>
+              style={{ width: isMobile ? '100%' : 'auto', boxSizing: 'border-box', padding: '9px 12px', borderRadius: 7, border: `1px solid ${C.borderStr}`, fontSize: 12, color: C.text, minHeight: isMobile ? 44 : 'auto' }}/>
           )}
         </div>
         <div style={{ flex: 1, minWidth: isMobile ? 0 : 220 }}>
@@ -1239,13 +1239,13 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
                 <div key={i} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 56px 76px 32px' : '1fr 64px 92px 28px', gap: 6, alignItems: 'center' }}>
                   <input list="ric-cassa-list" value={row.nome} placeholder="es. SACHER"
                     onChange={e => setManualRows(rows => rows.map((r, j) => j === i ? { ...r, nome: e.target.value } : r))}
-                    style={{ padding: '8px 10px', borderRadius: 7, border: `1px solid ${C.border}`, fontSize: isMobile ? 16 : 12, color: C.text, background: C.white, fontWeight: 600 }}/>
+                    style={{ padding: '8px 10px', borderRadius: 7, border: `1px solid ${C.border}`, fontSize: 12, color: C.text, background: C.white, fontWeight: 600 }}/>
                   <input type="number" inputMode="decimal" value={row.qta} placeholder="0"
                     onChange={e => setManualRows(rows => rows.map((r, j) => j === i ? { ...r, qta: e.target.value } : r))}
-                    style={{ padding: '8px', borderRadius: 7, border: `1px solid ${C.border}`, fontSize: isMobile ? 16 : 12, color: C.text, background: C.white, textAlign: 'right' }}/>
+                    style={{ padding: '8px', borderRadius: 7, border: `1px solid ${C.border}`, fontSize: 12, color: C.text, background: C.white, textAlign: 'right' }}/>
                   <input type="number" inputMode="decimal" value={row.prezzo} placeholder="auto"
                     onChange={e => setManualRows(rows => rows.map((r, j) => j === i ? { ...r, prezzo: e.target.value } : r))}
-                    style={{ padding: '8px', borderRadius: 7, border: `1px solid ${C.border}`, fontSize: isMobile ? 16 : 12, color: C.text, background: C.white, textAlign: 'right' }}/>
+                    style={{ padding: '8px', borderRadius: 7, border: `1px solid ${C.border}`, fontSize: 12, color: C.text, background: C.white, textAlign: 'right' }}/>
                   <button onClick={() => setManualRows(rows => rows.length > 1 ? rows.filter((_, j) => j !== i) : rows)}
                     title="Rimuovi riga" disabled={manualRows.length <= 1}
                     aria-label="Elimina riga"

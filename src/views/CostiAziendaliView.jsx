@@ -5,7 +5,7 @@
 
 import React, { useEffect, useState, useMemo } from 'react'
 import { fmtp0 } from '../lib/formatIt'
-import { color as T, radius as R, shadow as S, typo } from '../lib/theme'
+import { color as T, radius as R, shadow as S, typo, ui3, ui } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from '../components/Icon'
 import { useConfirm } from '../components/ConfirmModal'
@@ -139,7 +139,7 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
   }
 
   // KPI grid: 1 col mobile, 2 tablet, 3 desktop (uniforme col resto dell'app).
-  const kpiCols = isMobile ? '1fr' : isTablet ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)'
+  const kpiCols = ui3(isMobile, isTablet, ui.grid3)
 
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
@@ -287,7 +287,7 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
               width: '100%', boxSizing: 'border-box',
               padding: '10px 36px 10px 14px',
               minHeight: isMobile ? 44 : isTablet ? 44 : 40,
-              fontSize: isMobile ? 16 : 13,
+              fontSize: 13,
               border: `1px solid ${filterCategoria ? T.brand : C.border}`, borderRadius: 10,
               background: '#FFFFFF', color: C.text,
               appearance: 'none', WebkitAppearance: 'none',
@@ -534,7 +534,7 @@ function VoceRow({ v, sedi, isMobile, iconBtnSize = 40, onEdit, onDelete }) {
           insieme ai bottoni; su desktop a destra. */}
       <div style={{
         display: 'flex',
-        flexDirection: isMobile ? 'row' : 'row',
+        flexDirection: 'row',
         alignItems: 'center',
         justifyContent: isMobile ? 'space-between' : 'flex-end',
         gap: 10,

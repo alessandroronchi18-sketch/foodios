@@ -6,7 +6,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { sloadAllSedi } from '../lib/storage'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
-import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
+import { color as T, radius as R, shadow as S, motion as M, ui3, ui } from '../lib/theme'
 import { buildIngCosti, calcolaFC, getR } from '../lib/foodcost'
 import { loadStockPF, loadStockPFAllSedi } from '../lib/stockPF'
 import { lessico } from '../lib/lessico'
@@ -373,7 +373,7 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
       <div style={{ fontSize: isMobile ? 24 : 32, fontWeight: 800, color: empty ? T.textFaint : (valueColor || T.text), lineHeight: 1.0, letterSpacing: '-0.035em', position: 'relative', minHeight: isMobile ? 26 : 32, ...TNUM }}>
         {empty ? '-' : value}
       </div>
-      <div title={typeof sub === 'string' ? sub : undefined} style={{ fontSize: isMobile ? 12 : 12, color: T.textSoft, marginTop: 7, fontWeight: 500, position: 'relative', minHeight: isMobile ? 30 : 32, lineHeight: 1.35, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</div>
+      <div title={typeof sub === 'string' ? sub : undefined} style={{ fontSize: 12, color: T.textSoft, marginTop: 7, fontWeight: 500, position: 'relative', minHeight: isMobile ? 30 : 32, lineHeight: 1.35, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</div>
     </div>
   )
   const TINT = {
@@ -423,7 +423,7 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
       </div>
 
       {/* KPI */}
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: isMobile ? 10 : 16, marginBottom: isMobile ? 18 : 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: ui3(isMobile, isTablet, ui.grid4), gap: isMobile ? 10 : 16, marginBottom: isMobile ? 18 : 24 }}>
         <KpiCard
           label="Ricavi"
           icon={ICO.euro}

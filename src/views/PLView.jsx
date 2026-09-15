@@ -18,7 +18,7 @@ import {
   ResponsiveContainer, Cell,
 } from 'recharts'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
-import { color as T, radius as R, shadow as S, motion as M, typo, font } from '../lib/theme'
+import { color as T, radius as R, shadow as S, motion as M, typo, font, ui3, ui } from '../lib/theme'
 import {
   buildIngCosti, calcolaFC, getR, isRicettaValida, normIng, resaGrammi,
 } from '../lib/foodcost'
@@ -308,7 +308,7 @@ function ScenarioPrezzi({ rows, euro, pct }) {
 
       <div className="fos-card-glow" style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: '24px', marginBottom: 28, position: 'relative', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
         {hasChanges && (
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10, marginBottom: 24, padding: '16px 20px', background: '#F8F4F2', borderRadius: 10, border: `1px solid ${C.border}` }}>
+          <div style={{ display: 'grid', gridTemplateColumns: ui3(isMobile, isTablet, ui.grid4), gap: 10, marginBottom: 24, padding: '16px 20px', background: '#F8F4F2', borderRadius: 10, border: `1px solid ${C.border}` }}>
             {[
               { lbl: 'Ricavo base', val: euro(totRicavoBase), c: C.textMid },
               { lbl: 'Ricavo scenario', val: euro(totRicavoScen), c: totRicavoScen >= totRicavoBase ? C.green : C.red, sub: (totRicavoScen - totRicavoBase) !== 0 ? (totRicavoScen > totRicavoBase ? '+' : '') + euro(totRicavoScen - totRicavoBase) : null },
@@ -1189,7 +1189,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
                 <span style={{ color: T.textSoft, fontSize: 13 }}>€</span>
                 <input type="number" inputMode="decimal" value={costi[k] || ''} onChange={e => setCosti(c => ({ ...c, [k]: e.target.value }))}
                   placeholder={k === 'personale' && personaleReale.totale > 0 ? String(Math.round(personaleReale.totale)) : '0'}
-                  style={{ border: 'none', outline: 'none', width: '100%', fontSize: isMobile ? 16 : 14, fontWeight: 700, color: T.text, background: 'transparent', ...TNUM }} />
+                  style={{ border: 'none', outline: 'none', width: '100%', fontSize: 14, fontWeight: 700, color: T.text, background: 'transparent', ...TNUM }} />
               </div>
               {/* Il campo del personale non è più un buco: se resta vuoto si
                   usa il costo dei dipendenti inseriti, e qui c'è scritto. */}

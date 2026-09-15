@@ -33,7 +33,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import Icon from './Icon'
 import { fmtp } from '../views/_shared'
 import { supabase } from '../lib/supabase'
-import { color as T, radius as R, shadow as S, motion as M, typo } from '../lib/theme'
+import { color as T, radius as R, shadow as S, motion as M, typo, ui3, ui } from '../lib/theme'
 import { useIsTablet } from '../lib/useIsMobile'
 import { giorniConProduzione } from '../lib/inventarioProduzione'
 import {
@@ -573,7 +573,7 @@ export default function CalendarioOperativo({
       {!isDipendente && (
         <div style={{
           display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr 1fr' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)',
+          gridTemplateColumns: ui3(isMobile, isTablet, ui.grid4),
           gap: isMobile ? 10 : 16, marginBottom: isMobile ? 14 : 18,
         }}>
           <Kpi icon="checkCircle" label={`Giorni completi · ${MESI[mese]}`}
@@ -620,7 +620,7 @@ export default function CalendarioOperativo({
               {!isMeseCorrente && (
                 <button onClick={goOggi} style={{
                   display: 'inline-flex', alignItems: 'center', gap: 5,
-                  padding: isMobile ? '8px 12px' : '6px 11px', minHeight: isMobile ? 40 : isTablet ? 44 : 34,
+                  padding: isMobile ? '8px 12px' : '6px 11px', minHeight: ui3(isMobile, isTablet, ui.ctrlHsm),
                   borderRadius: R.md, border: `1px solid ${T.border}`, background: T.bgCard,
                   fontSize: FS.small, fontWeight: 600, color: T.textMid, cursor: 'pointer', boxShadow: S.sm,
                 }}>
@@ -628,12 +628,12 @@ export default function CalendarioOperativo({
                 </button>
               )}
               <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: T.bgSubtle, border: `1px solid ${T.border}`, borderRadius: R.lg, padding: 3 }}>
-                <button onClick={prev} style={{ ...NAV_BTN, width: isMobile ? 40 : isTablet ? 44 : 34, height: isMobile ? 40 : isTablet ? 44 : 34 }} aria-label="Mese precedente">
+                <button onClick={prev} style={{ ...NAV_BTN, width: ui3(isMobile, isTablet, ui.ctrlHsm), height: ui3(isMobile, isTablet, ui.ctrlHsm) }} aria-label="Mese precedente">
                   {/* Era un SVG disegnato a mano: Icon ha già il chevron,
                       e disegnarlo due volte vuol dire due tratti diversi. */}
                   <Icon name="chevL" size={16} />
                 </button>
-                <button onClick={next} style={{ ...NAV_BTN, width: isMobile ? 40 : isTablet ? 44 : 34, height: isMobile ? 40 : isTablet ? 44 : 34 }} aria-label="Mese successivo">
+                <button onClick={next} style={{ ...NAV_BTN, width: ui3(isMobile, isTablet, ui.ctrlHsm), height: ui3(isMobile, isTablet, ui.ctrlHsm) }} aria-label="Mese successivo">
                   <Icon name="chevR" size={16} />
                 </button>
               </div>

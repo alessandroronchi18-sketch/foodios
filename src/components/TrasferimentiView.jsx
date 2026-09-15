@@ -5,7 +5,7 @@ import { SkeletonList, SkeletonGrid } from './Skeleton'
 import ProductAutocomplete from './ProductAutocomplete'
 import { supabase } from '../lib/supabase'
 import { sload, ssave } from '../lib/storage'
-import { color as T, radius as R, motion as M, typo } from '../lib/theme'
+import { color as T, radius as R, motion as M, typo, ui3, ui } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { todayLocal } from '../lib/dateLocal'
 import { aggiungiSpedito } from '../lib/inventarioProduzione'
@@ -591,7 +591,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
   }
 
   const inp = { width: '100%', padding: isMobile ? '12px 14px' : isTablet ? '10px 13px' : '8px 12px', minHeight: isMobile ? 44 : isTablet ? 44 : 'auto', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : isTablet ? 16 : 13, color: C.text, background: C.bgCard, boxSizing: 'border-box' }
-  const lbl = { fontSize: isMobile ? 12 : 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: isMobile ? 6 : 4 }
+  const lbl = { fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: isMobile ? 6 : 4 }
 
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', width: '100%', boxSizing: 'border-box', padding: isMobile ? '0 4px 80px' : 0 }}>
@@ -611,12 +611,12 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
           <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.textSoft, marginBottom: 10 }}>
             Accuratezza mese
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : isTablet ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: isMobile ? 10 : 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: ui3(isMobile, isTablet, ui.grid4), gap: isMobile ? 10 : 12 }}>
             {(() => {
               const kpiCell = { minHeight: isMobile ? 92 : isTablet ? 100 : 96, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }
-              const labelStyle = { fontSize: isMobile ? 12 : 12, color: C.textSoft, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', minHeight: 14 }
+              const labelStyle = { fontSize: 12, color: C.textSoft, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', minHeight: 14 }
               const valStyle = (color) => ({ fontSize: isMobile ? 26 : isTablet ? 28 : 28, fontWeight: 800, color, marginTop: 4, lineHeight: 1.05, letterSpacing: '-0.02em', ...tnum, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })
-              const subStyle = { fontSize: isMobile ? 12 : 12, color: C.textSoft, marginTop: 2 }
+              const subStyle = { fontSize: 12, color: C.textSoft, marginTop: 2 }
               return (
                 <>
                   <div style={kpiCell}>
@@ -739,7 +739,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
       )}
 
       {/* KPI */}
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : isTablet ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: isMobile ? 10 : 12, marginTop: 20, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: ui3(isMobile, isTablet, ui.grid4), gap: isMobile ? 10 : 12, marginTop: 20, marginBottom: 20 }}>
         {[
           { label: 'Totale', val: kpi.tot, color: C.text },
           { label: 'In uscita', val: kpi.inUscita, color: C.red },
@@ -754,7 +754,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
             minHeight: isMobile ? 84 : isTablet ? 92 : 88,
             display: 'flex', flexDirection: 'column', justifyContent: 'center',
           }}>
-            <div style={{ fontSize: isMobile ? 12 : 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{k.label}</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{k.label}</div>
             <div style={{ fontSize: isMobile ? 26 : isTablet ? 28 : 28, fontWeight: 800, color: k.color, marginTop: 4, lineHeight: 1.05, letterSpacing: '-0.02em', ...tnum }}>{Number(k.val || 0).toLocaleString('it-IT', { useGrouping: 'always' })}</div>
           </div>
         ))}
@@ -963,7 +963,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
         <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <span style={{ fontSize: typo.small.fontSize, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Filtri:</span>
           <select value={filtroStato} onChange={e => setFiltroStato(e.target.value)}
-            style={{ padding: isMobile ? '9px 12px' : '5px 10px', minHeight: isMobile ? 40 : 'auto', borderRadius: 8, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: isMobile ? 16 : 12 }}>
+            style={{ padding: isMobile ? '9px 12px' : '5px 10px', minHeight: isMobile ? 40 : 'auto', borderRadius: 8, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: 12 }}>
             <option value="all">Tutti gli stati</option>
             <option value="bozza">Bozza</option>
             <option value="inviato">Inviato</option>
@@ -971,7 +971,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
             <option value="annullato">Annullato</option>
           </select>
           <select value={filtroTipo} onChange={e => setFiltroTipo(e.target.value)}
-            style={{ padding: isMobile ? '9px 12px' : '5px 10px', minHeight: isMobile ? 40 : 'auto', borderRadius: 8, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: isMobile ? 16 : 12 }}>
+            style={{ padding: isMobile ? '9px 12px' : '5px 10px', minHeight: isMobile ? 40 : 'auto', borderRadius: 8, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: 12 }}>
             <option value="all">Tutti i tipi</option>
             {TIPI.map(t => <option key={t.id} value={t.id}>{t.lbl}</option>)}
           </select>

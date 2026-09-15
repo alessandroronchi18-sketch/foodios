@@ -16,19 +16,23 @@ import { dirname, join } from 'node:path'
 
 const RADICE = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const CFG = readFileSync(join(RADICE, 'vitest.config.js'), 'utf8')
+// Solo le righe vive: i commenti del file spiegano il difetto e contengono per
+// forza le forme vecchie.
+const VIVE = CFG.split('\n').filter(r => !r.trim().startsWith('//')).join('\n')
 const PKG = JSON.parse(readFileSync(join(RADICE, 'package.json'), 'utf8'))
 
 describe('la configurazione dei test', () => {
   it('non forza più il thread singolo nella suite normale', () => {
-    // Solo le righe vive: il commento nel file mostra apposta la forma vecchia.
-    const vive = CFG.split('\n').filter(r => !r.trim().startsWith('//')).join('\n')
-    expect(vive).not.toMatch(/threads: \{ singleThread: true \}/)
-    expect(CFG).toMatch(/singleThread: !!process\.env\.VITEST_COVERAGE/)
+    expect(VIVE).not.toMatch(/singleThread/)
   })
 
   it('usa la forma di configurazione che Vitest legge davvero', () => {
-    // `threads: {...}` al primo livello è la sintassi vecchia e viene ignorata.
-    expect(CFG).toMatch(/poolOptions:\s*\{\s*\n\s*threads:/)
+    // Due sintassi vecchie in fila: `threads: { singleThread }` era di
+    // Vitest 1, `poolOptions` è stato rimosso nella 4. Tutte e due danno un
+    // avviso e vengono IGNORATE — cioè la riga sembra decidere qualcosa e non
+    // decide niente, che è lo stesso problema che doveva risolvere.
+    expect(VIVE).not.toMatch(/poolOptions/)
+    expect(VIVE).toMatch(/fileParallelism: !process\.env\.VITEST_COVERAGE/)
   })
 
   it('e il vincolo resta acceso dove serviva: nel calcolo della copertura', () => {

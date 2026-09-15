@@ -184,7 +184,7 @@ export default function WhiteLabel({ orgId, piano, notify }) {
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
             <input type="color" value={isHexColor(colorePrimario) ? colorePrimario : '#6E0E1A'}
               onChange={e => setColorePrimario(e.target.value)}
-              style={{ width: isMobile ? 56 : 56, height: isMobile ? 44 : 40, border: '1px solid #E2E8F0', borderRadius: 8, cursor: 'pointer', padding: 0, flexShrink: 0 }} />
+              style={{ width: 56, height: isMobile ? 44 : 40, border: '1px solid #E2E8F0', borderRadius: 8, cursor: 'pointer', padding: 0, flexShrink: 0 }} />
             <input value={colorePrimario} onChange={e => setColorePrimario(e.target.value)} maxLength={7}
               placeholder="#6E0E1A" style={{ ...inp, fontFamily: 'monospace', maxWidth: 160, flex: '1 1 auto' }} />
             <div style={{ width: 36, height: 36, borderRadius: 8, background: isHexColor(colorePrimario) ? colorePrimario : '#6E0E1A', border: '1px solid #E2E8F0', flexShrink: 0 }} />

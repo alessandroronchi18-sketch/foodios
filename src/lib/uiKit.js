@@ -1,11 +1,25 @@
-// Foodos UI kit - stili condivisi per garantire allineamento e coerenza visiva
-// fra tutti i componenti. Importare come:
-//   import { uiCard, uiInput, uiBtn, uiLabel, uiTable } from '../lib/uiKit'
+// Foodos UI kit — gli stili condivisi, perché la stessa cosa si veda uguale
+// dappertutto. Si importa così:
+//   import { useDevice } from './useIsMobile'
+//   import { uiCard, uiInput, uiBtn } from './uiKit'
+//   const dev = useDevice()
+//   <input style={uiInput(dev)} />
 //
-// Tutti i valori derivano dai design token in theme.js. NON aggiungere stili
-// hardcoded qui - fanno parte del sistema.
+// Tutti i valori vengono dai token di theme.js. Qui dentro NON si scrivono
+// misure a mano: è il posto dove la misura sta scritta una volta sola.
+//
+// ── Nota del 15/09/2026 ────────────────────────────────────────────────────
+// Questo file esisteva da mesi con **zero importatori**: 181 righe scritte
+// apposta per non ripetere le misure, e nel frattempo le misure erano ripetute
+// 1.619 volte altrove. Era anche fermo al mondo a due versioni (`isMobile`
+// vero o falso), quindi il tablet prendeva sempre i valori del computer — che
+// è precisamente il difetto trovato quel giorno.
+//
+// Adesso prende il dispositivo (`'telefono' | 'tablet' | 'computer'`) e i
+// valori li legge da `ui` in theme.js. Le vecchie firme booleane continuano a
+// funzionare, così chi le usava non si rompe.
 
-import { color as T, radius as R, shadow as S } from './theme'
+import { color as T, radius as R, shadow as S, ui, per } from './theme'
 
 // ─── CARD ────────────────────────────────────────────────────────────────────
 export const uiCard = (opts = {}) => ({
@@ -45,23 +59,35 @@ export const uiSectionTitle = {
 }
 
 // ─── INPUT ───────────────────────────────────────────────────────────────────
-export const uiInput = (isMobile = false) => ({
+// Accetta sia il dispositivo (`'telefono'`) sia il vecchio booleano, così i
+// chiamanti esistenti non si rompono mentre si converte.
+function dispositivo(v) {
+  if (v === 'telefono' || v === 'tablet' || v === 'computer') return v
+  return v ? 'telefono' : 'computer'
+}
+
+export const uiInput = (dev = 'computer') => {
+  const u = per(dispositivo(dev))
+  return {
   width: '100%',
-  height: 40,
+  height: u(ui.ctrlH),
   padding: '0 12px',
   borderRadius: R.md,                 // 8 - input standard
   border: `1px solid ${T.borderStr}`,
-  fontSize: isMobile ? 16 : 13,       // 16 mobile per disattivare zoom iOS
+  // 16px su tutto quello che si tocca, telefono E tablet: sotto quella soglia
+  // iOS ingrandisce la pagina da solo appena ci si scrive dentro.
+  fontSize: u(ui.inputFs),
   color: T.text,
   background: T.bgCard,
   outline: 'none',
   boxSizing: 'border-box',
   fontFamily: 'inherit',
   transition: 'border-color 140ms ease, box-shadow 140ms ease',
-})
+  }
+}
 
-export const uiTextarea = (isMobile = false) => ({
-  ...uiInput(isMobile),
+export const uiTextarea = (dev = 'computer') => ({
+  ...uiInput(dev),
   height: 'auto',
   minHeight: 64,
   padding: '10px 12px',
@@ -85,11 +111,15 @@ const BTN_BASE = {
   fontFamily: 'inherit',
 }
 
-export function uiBtn({ variant = 'primary', size = 'md', disabled = false, fullWidth = false } = {}) {
+export function uiBtn({ variant = 'primary', size = 'md', disabled = false, fullWidth = false, dev = 'computer' } = {}) {
+  const d = dispositivo(dev)
+  const u = per(d)
+  // Su quello che si tocca il bottone normale sale a 44px: è la misura di un
+  // polpastrello. Col mouse 36 bastano e si guadagna spazio.
   const sizes = {
-    sm: { height: 28, padding: '0 10px', fontSize: 12 },
-    md: { height: 36, padding: '0 14px', fontSize: 13 },
-    lg: { height: 44, padding: '0 18px', fontSize: 14 },
+    sm: { height: d === 'computer' ? 28 : 36, padding: '0 10px', fontSize: 12 },
+    md: { height: u(ui.ctrlH),               padding: '0 14px', fontSize: 13 },
+    lg: { height: 44,                        padding: '0 18px', fontSize: 14 },
   }
   const variants = {
     primary:   { background: T.brand,    color: '#FFF',     boxShadow: '0 1px 2px rgba(110,14,26,0.18)' },

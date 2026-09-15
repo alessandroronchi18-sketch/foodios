@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from './Icon'
 import { useConfirm } from './ConfirmModal'
-import { color as T, radius as R, shadow as S, motion as M, typo } from '../lib/theme'
+import { color as T, radius as R, shadow as S, motion as M, typo, ui3, ui } from '../lib/theme'
 import { todayLocal } from '../lib/dateLocal'
 import { ibanIsValid } from '../lib/sepa'
 import { marcaNonMerce, raggruppaFornitoriDaFatture, spesaDaFatture } from '../lib/fornitoriDaFatture'
@@ -110,7 +110,7 @@ function BandaDiagnosi({ orgId, sedeId, sedi = [], isMobile, isTablet, refreshKe
   const multiSede = Array.isArray(sedi) && sedi.filter(x => x?.attiva !== false).length > 1
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : isTablet ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: isMobile ? 10 : 14, marginBottom: isMobile ? 16 : 24 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: ui3(isMobile, isTablet, ui.grid4), gap: isMobile ? 10 : 14, marginBottom: isMobile ? 16 : 24 }}>
       {/* Audit 2026-09-09: questi KPI non filtrano per sede, mentre la lista sotto
           si', quando lo scope e' "sede attiva". I numeri potevano contraddirsi senza
           che si capisse perché. Lo dichiariamo invece di lasciarlo intuire: i
@@ -661,7 +661,7 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
         <div style={{ position: 'relative', marginBottom: 10 }}>
           <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: C.textSoft, display: 'inline-flex' }}><Icon name="search" size={15} /></span>
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="Cerca per nome, categoria o referente…"
-            style={{ width: '100%', height: 40, padding: '0 12px 0 36px', borderRadius: R.md, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 13, color: C.text, background: C.bgCard, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }} />
+            style={{ width: '100%', height: 40, padding: '0 12px 0 36px', borderRadius: R.md, border: `1px solid ${C.borderStr}`, fontSize: 13, color: C.text, background: C.bgCard, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }} />
         </div>
 
         {/* Toggle Attivi / Archivio */}
@@ -1230,7 +1230,7 @@ function SpesaTab({ orgId, isMobile }) {
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
         <select value={range} onChange={e => setRange(e.target.value)}
-          style={{ padding: isMobile ? "10px 14px" : "8px 12px", borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, color: C.text, width: isMobile ? "100%" : "auto", background: C.bgCard, fontFamily: 'inherit' }}>
+          style={{ padding: isMobile ? "10px 14px" : "8px 12px", borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 12, color: C.text, width: isMobile ? "100%" : "auto", background: C.bgCard, fontFamily: 'inherit' }}>
           <option value="7">Ultimi 7 giorni</option>
           <option value="30">Ultimi 30 giorni</option>
           <option value="90">Ultimi 90 giorni</option>

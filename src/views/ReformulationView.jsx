@@ -202,7 +202,7 @@ Restituisci 3 varianti come da schema, italiano umano.`
         </div>
 
         {fcAttuale && (
-          <div style={{ marginTop: 14, padding: '12px 14px', background: '#F1F5F9', borderRadius: 8, fontSize: isMobile ? 12 : 12, color: MID, lineHeight: 1.6 }}>
+          <div style={{ marginTop: 14, padding: '12px 14px', background: '#F1F5F9', borderRadius: 8, fontSize: 12, color: MID, lineHeight: 1.6 }}>
             <strong style={{ display: 'block', marginBottom: isMobile ? 4 : 0 }}>Stato attuale:</strong>
             <span style={{ display: isMobile ? 'block' : 'inline' }}>
               <span style={{ display: 'inline-block', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', verticalAlign: 'bottom' }}>{ricCurrent.nome}</span>

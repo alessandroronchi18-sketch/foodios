@@ -1971,12 +1971,12 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                 <div style={{ marginTop: 12, padding: 14, background: T.bgSubtle, borderRadius: 12, display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 8, flexWrap: 'wrap', alignItems: isMobile ? 'stretch' : 'center' }}>
                   <input placeholder="IBAN fornitore" value={editFornData.iban} onChange={e => setEditFornData(d => ({ ...d, iban: e.target.value }))}
                     aria-label="IBAN fornitore"
-                    style={{ padding: '10px 12px', minHeight: minTouch, border: `1px solid ${editFornData.iban && !ibanIsValid(editFornData.iban) ? T.brand : T.border}`, borderRadius: 9, fontSize: isMobile ? 16 : 13, flex: isMobile ? '1 1 100%' : '1 1 240px', minWidth: 0, width: isMobile ? '100%' : 'auto', boxSizing: 'border-box', ...tnum }} />
+                    style={{ padding: '10px 12px', minHeight: minTouch, border: `1px solid ${editFornData.iban && !ibanIsValid(editFornData.iban) ? T.brand : T.border}`, borderRadius: 9, fontSize: 13, flex: isMobile ? '1 1 100%' : '1 1 240px', minWidth: 0, width: isMobile ? '100%' : 'auto', boxSizing: 'border-box', ...tnum }} />
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4, width: isMobile ? '100%' : 'auto' }}>
                     <input type="number" inputMode="numeric" placeholder="Termini (gg)" value={editFornData.termini} onChange={e => setEditFornData(d => ({ ...d, termini: e.target.value }))}
                       title="Giorni di pagamento (per derivare la scadenza quando non è nell'XML)"
                       aria-label="Termini di pagamento in giorni"
-                      style={{ padding: '10px 12px', minHeight: minTouch, border: `1px solid ${T.border}`, borderRadius: 9, fontSize: isMobile ? 16 : 13, width: isMobile ? '100%' : 120, boxSizing: 'border-box' }} />
+                      style={{ padding: '10px 12px', minHeight: minTouch, border: `1px solid ${T.border}`, borderRadius: 9, fontSize: 13, width: isMobile ? '100%' : 120, boxSizing: 'border-box' }} />
                     {/* I termini VERI, imparati da come hai pagato: la mediana
                         dei giorni fra fattura e pagamento su questo fornitore.
                         Non li scriviamo noi — si propongono, e li confermi tu:
@@ -2006,13 +2006,13 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                   <select value={editFornData.terminiTipo || 'netti'}
                     onChange={e => setEditFornData(d => ({ ...d, terminiTipo: e.target.value }))}
                     aria-label="Come si contano i giorni di pagamento"
-                    style={{ padding: '10px 12px', minHeight: minTouch, border: `1px solid ${T.border}`, borderRadius: 9, fontSize: isMobile ? 16 : 13, width: isMobile ? '100%' : 'auto', color: T.text, background: T.bgCard, cursor: 'pointer' }}>
+                    style={{ padding: '10px 12px', minHeight: minTouch, border: `1px solid ${T.border}`, borderRadius: 9, fontSize: 13, width: isMobile ? '100%' : 'auto', color: T.text, background: T.bgCard, cursor: 'pointer' }}>
                     <option value="netti">giorni dalla data fattura</option>
                     <option value="fine_mese">giorni dalla fine del mese</option>
                   </select>
                   <input placeholder="Categoria (opz.)" value={editFornData.categoria} onChange={e => setEditFornData(d => ({ ...d, categoria: e.target.value }))}
                     aria-label="Categoria fornitore"
-                    style={{ padding: '10px 12px', minHeight: minTouch, border: `1px solid ${T.border}`, borderRadius: 9, fontSize: isMobile ? 16 : 13, flex: isMobile ? '1 1 100%' : '1 1 160px', minWidth: 0, width: isMobile ? '100%' : 'auto', boxSizing: 'border-box' }} />
+                    style={{ padding: '10px 12px', minHeight: minTouch, border: `1px solid ${T.border}`, borderRadius: 9, fontSize: 13, flex: isMobile ? '1 1 100%' : '1 1 160px', minWidth: 0, width: isMobile ? '100%' : 'auto', boxSizing: 'border-box' }} />
                   <div style={{ display: 'flex', gap: 8, width: isMobile ? '100%' : 'auto' }}>
                     <button onClick={() => salvaFornitore(g.nome, { iban: editFornData.iban, termini_pagamento: Number(editFornData.termini) || 30, termini_tipo: editFornData.terminiTipo || 'netti', categoria: editFornData.categoria })}
                       style={{ ...primaryBtn, flex: isMobile ? 1 : '0 0 auto' }}>Salva</button>
@@ -2206,7 +2206,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
               </div>
               <input value={bulkConfirm} onChange={e => setBulkConfirm(e.target.value)} placeholder="ELIMINA" autoFocus
                 onKeyDown={e => { if (e.key === 'Enter' && bulkConfirm.trim().toUpperCase() === 'ELIMINA') eliminaTutte() }}
-                style={{ width: '100%', padding: '11px 12px', minHeight: isMobile ? 44 : 'auto', border: `1px solid ${bulkConfirm && bulkConfirm.trim().toUpperCase() !== 'ELIMINA' ? '#F3C7C2' : T.border}`, borderRadius: 9, fontSize: isMobile ? 16 : 14, boxSizing: 'border-box', letterSpacing: '0.06em', textTransform: 'uppercase', outline: 'none' }} />
+                style={{ width: '100%', padding: '11px 12px', minHeight: isMobile ? 44 : 'auto', border: `1px solid ${bulkConfirm && bulkConfirm.trim().toUpperCase() !== 'ELIMINA' ? '#F3C7C2' : T.border}`, borderRadius: 9, fontSize: 14, boxSizing: 'border-box', letterSpacing: '0.06em', textTransform: 'uppercase', outline: 'none' }} />
             </div>
             <div style={{ padding: '14px 22px', borderTop: `1px solid ${T.border}`, display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
               <button onClick={() => { setBulkOpen(false); setBulkConfirm('') }} disabled={bulkDeleting} style={{ ...ghostBtn, flex: isMobile ? 1 : '0 0 auto' }}>Annulla</button>
@@ -2243,7 +2243,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
             <input type="file" accept=".xlsx,.xls" multiple style={{ display: 'none' }}
               onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length) handleImportExcel(files) }} />
           </label>
-          <div ref={actionsRef} style={{ position: 'relative', flex: isMobile ? '0 0 auto' : '0 0 auto' }}>
+          <div ref={actionsRef} style={{ position: 'relative', flex: '0 0 auto' }}>
             <button onClick={() => setActionsOpen(o => !o)}
               aria-label="Altre azioni" aria-expanded={actionsOpen}
               style={{ ...ghostBtn, padding: isMobile ? '10px 14px' : '8px 14px', display: 'inline-flex', alignItems: 'center', gap: 7, whiteSpace: 'nowrap' }}>
@@ -2429,7 +2429,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 10 }}>
                   <select value={sedeScelta} onChange={e => setSedeScelta(e.target.value)}
                     aria-label="Punto vendita da assegnare"
-                    style={{ padding: '10px 12px', minHeight: 44, borderRadius: 8, border: `1px solid ${T.border}`, fontSize: isMobile ? 16 : 13, color: T.text, background: T.bgCard }}>
+                    style={{ padding: '10px 12px', minHeight: 44, borderRadius: 8, border: `1px solid ${T.border}`, fontSize: 13, color: T.text, background: T.bgCard }}>
                     <option value="">Scegli il punto vendita…</option>
                     {(sedi || []).filter(x => x?.attiva !== false).map(x => (
                       <option key={x.id} value={x.id}>{x.nome}</option>
@@ -2635,11 +2635,11 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         ) : (
           <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 8, flexWrap: 'wrap', alignItems: isMobile ? 'stretch' : 'center', flex: 1, width: '100%' }}>
             <input placeholder="Intestatario conto (azienda)" value={azienda.nome} onChange={e => setAzienda(a => ({ ...a, nome: e.target.value }))}
-              style={{ padding: '10px 12px', minHeight: minTouch, border: `1px solid ${T.border}`, borderRadius: 9, fontSize: isMobile ? 16 : 13, minWidth: 0, flex: isMobile ? '1 1 100%' : '1 1 200px', width: isMobile ? '100%' : 'auto', boxSizing: 'border-box' }} />
+              style={{ padding: '10px 12px', minHeight: minTouch, border: `1px solid ${T.border}`, borderRadius: 9, fontSize: 13, minWidth: 0, flex: isMobile ? '1 1 100%' : '1 1 200px', width: isMobile ? '100%' : 'auto', boxSizing: 'border-box' }} />
             <input placeholder="IBAN azienda" value={azienda.iban} onChange={e => setAzienda(a => ({ ...a, iban: e.target.value }))}
-              style={{ padding: '10px 12px', minHeight: minTouch, border: `1px solid ${azienda.iban && !ibanIsValid(azienda.iban) ? T.brand : T.border}`, borderRadius: 9, fontSize: isMobile ? 16 : 13, minWidth: 0, flex: isMobile ? '1 1 100%' : '1 1 240px', width: isMobile ? '100%' : 'auto', boxSizing: 'border-box', ...tnum }} />
+              style={{ padding: '10px 12px', minHeight: minTouch, border: `1px solid ${azienda.iban && !ibanIsValid(azienda.iban) ? T.brand : T.border}`, borderRadius: 9, fontSize: 13, minWidth: 0, flex: isMobile ? '1 1 100%' : '1 1 240px', width: isMobile ? '100%' : 'auto', boxSizing: 'border-box', ...tnum }} />
             <input placeholder="BIC (opz.)" value={azienda.bic} onChange={e => setAzienda(a => ({ ...a, bic: e.target.value }))}
-              style={{ padding: '10px 12px', minHeight: minTouch, border: `1px solid ${T.border}`, borderRadius: 9, fontSize: isMobile ? 16 : 13, width: isMobile ? '100%' : 130, boxSizing: 'border-box' }} />
+              style={{ padding: '10px 12px', minHeight: minTouch, border: `1px solid ${T.border}`, borderRadius: 9, fontSize: 13, width: isMobile ? '100%' : 130, boxSizing: 'border-box' }} />
             <div style={{ display: 'flex', gap: 8, flexShrink: 0, width: isMobile ? '100%' : 'auto' }}>
               <button onClick={() => salvaAzienda(azienda)} disabled={!ibanIsValid(azienda.iban)} style={{ ...primaryBtn, flex: isMobile ? 1 : '0 0 auto', opacity: !ibanIsValid(azienda.iban) ? 0.5 : 1 }}>Salva</button>
               <button onClick={() => { setEditAzienda(false); loadAzienda() }} style={{ ...ghostBtn, flex: isMobile ? 1 : '0 0 auto' }}>Annulla</button>
@@ -2665,7 +2665,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                 aria-pressed={active}
                 aria-label={`Vista ${v.label}`}
                 style={{ padding: isMobile ? '9px 8px' : '8px 14px', minHeight: minTouch, borderRadius: 8, border: 'none', cursor: 'pointer',
-                  fontSize: isMobile ? 12 : 12, fontWeight: active ? 700 : 500, letterSpacing: '-0.005em',
+                  fontSize: 12, fontWeight: active ? 700 : 500, letterSpacing: '-0.005em',
                   display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                   flex: isMobile ? 1 : '0 0 auto',
                   background: active ? T.bgCard : 'transparent', color: active ? T.text : T.textMid,
@@ -2681,7 +2681,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
           </label>
           <input id="scad-search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Cerca fornitore o numero…"
             aria-label="Cerca fornitore o numero"
-            style={{ width: '100%', padding: isMobile ? '11px 12px 11px 36px' : '10px 14px 10px 36px', minHeight: minTouch, borderRadius: 9, border: `1px solid ${T.border}`, fontSize: isMobile ? 16 : 13, color: T.text, boxSizing: 'border-box', outline: 'none' }} />
+            style={{ width: '100%', padding: isMobile ? '11px 12px 11px 36px' : '10px 14px 10px 36px', minHeight: minTouch, borderRadius: 9, border: `1px solid ${T.border}`, fontSize: 13, color: T.text, boxSizing: 'border-box', outline: 'none' }} />
         </div>
       </div>
 
@@ -2812,7 +2812,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                       onChange={e => setPagCum(p => ({ ...p, testo: e.target.value }))}
                       placeholder={String(Math.round(Math.max(0, dovuto)))}
                       aria-label="Importo pagato al fornitore"
-                      style={{ padding: '10px 12px', minHeight: minTouch, width: 150, borderRadius: 8, border: `1px solid ${T.border}`, fontSize: isMobile ? 16 : 15, fontWeight: 700, color: T.text, ...tnum }} />
+                      style={{ padding: '10px 12px', minHeight: minTouch, width: 150, borderRadius: 8, border: `1px solid ${T.border}`, fontSize: 15, fontWeight: 700, color: T.text, ...tnum }} />
                     <span style={{ fontSize: 16, fontWeight: 700, color: T.textMid }}>€</span>
                   </div>
                 </div>
@@ -2820,7 +2820,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                   <div style={{ ...typo.small, fontWeight: 700, color: T.textSoft, marginBottom: 4 }}>Quando</div>
                   <input type="date" value={dataPag} onChange={e => setDataPag(e.target.value)}
                     aria-label="Data del pagamento"
-                    style={{ padding: '9px 11px', minHeight: minTouch, borderRadius: 8, border: `1px solid ${T.border}`, fontSize: isMobile ? 16 : 13, color: T.text }} />
+                    style={{ padding: '9px 11px', minHeight: minTouch, borderRadius: 8, border: `1px solid ${T.border}`, fontSize: 13, color: T.text }} />
                 </div>
                 {dovuto > 0 && (
                   <button type="button" onClick={() => setPagCum(p => ({ ...p, testo: String(Math.round(dovuto * 100) / 100).replace('.', ',') }))}
@@ -3035,7 +3035,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                     <div style={{ ...typo.small, fontWeight: 700, color: T.textSoft, marginBottom: 4 }}>Data del pagamento</div>
                     <input type="date" value={dataPag} onChange={e => setDataPag(e.target.value)}
                       aria-label="Data del pagamento per tutte le fatture selezionate"
-                      style={{ padding: '9px 11px', minHeight: minTouch, borderRadius: 8, border: `1px solid ${T.border}`, fontSize: isMobile ? 16 : 13, color: T.text }} />
+                      style={{ padding: '9px 11px', minHeight: minTouch, borderRadius: 8, border: `1px solid ${T.border}`, fontSize: 13, color: T.text }} />
                   </div>
                   <button type="button" onClick={() => segnaPagateInBlocco(bloccoConf.items, dataPag)} disabled={bloccoLoading || !dataPag}
                     style={{ padding: '10px 16px', minHeight: minTouch, borderRadius: 8, border: 'none', background: (bloccoLoading || !dataPag) ? T.border : T.brand, color: '#fff', ...typo.body, fontWeight: 800, cursor: (bloccoLoading || !dataPag) ? 'default' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
@@ -3072,7 +3072,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         const numFornitori = new Set(selItems.map(f => normNome(f.fornitore))).size
         return (
           <div style={{ position: 'fixed', left: 0, right: 0, bottom: isMobile ? 64 : 0, zIndex: 900, background: T.bgCard, borderTop: `1px solid ${T.border}`, boxShadow: '0 -6px 24px rgba(15,23,42,0.14)', padding: isMobile ? '12px 14px' : '14px 28px', display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', gap: isMobile ? 10 : 14 }}>
-            <div style={{ fontSize: isMobile ? 13 : 13, color: T.text, fontWeight: 600, ...tnum, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <div style={{ fontSize: 13, color: T.text, fontWeight: 600, ...tnum, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {selItems.length.toLocaleString('it-IT', { useGrouping: 'always' })} fattur{selItems.length === 1 ? 'a' : 'e'} pagabil{selItems.length === 1 ? 'e' : 'i'} · {numFornitori} fornitor{numFornitori === 1 ? 'e' : 'i'} · <span style={{ color: T.brand, fontWeight: 800 }}>{fmtEuro(tot)}</span>
             </div>
             {!isMobile && <div style={{ flex: 1 }} />}

@@ -6,7 +6,7 @@
 
 import React, { useMemo, useState } from 'react'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
-import { color as T, radius as R, shadow as S } from '../lib/theme'
+import { color as T, radius as R, shadow as S, ui3, ui } from '../lib/theme'
 import { buildIngCosti, calcolaFCDettaglio, getR, isRicettaValida } from '../lib/foodcost'
 import { labelPlurale, isGustoTipo } from '../lib/tipoRicetta'
 import { useListinoSede, getRegSede } from '../lib/listinoSede'
@@ -353,7 +353,7 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
       {/* ① DIAGNOSI */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: isMobile ? '1fr 1fr' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)',
+        gridTemplateColumns: ui3(isMobile, isTablet, ui.grid4),
         gap: isMobile ? 10 : 16, marginBottom: 14,
       }}>
         <KPI icon={<Icon name="receipt" size={17} />} label="Food cost medio" value={fmtp(diag.fcMedio)} color={fcColor(diag.fcMedio)}

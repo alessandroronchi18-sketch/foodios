@@ -25,11 +25,17 @@ export default defineConfig({
     // sotto `poolOptions`, quindi quella riga non faceva nemmeno quello che
     // diceva. Qui la forma è quella giusta, e il vincolo resta solo dove serve.
     pool: 'threads',
-    poolOptions: {
-      threads: {
-        singleThread: !!process.env.VITEST_COVERAGE,
-      },
-    },
+    // In Vitest 4 `poolOptions` è stato rimosso e queste opzioni stanno al
+    // primo livello: scriverlo alla vecchia maniera non dava errore, dava un
+    // avviso di deprecazione e veniva **ignorato**. Cioè lo stesso genere di
+    // problema che c'era prima — una riga che sembra decidere qualcosa e non
+    // decide niente.
+    //
+    // `fileParallelism: false` è l'equivalente del vecchio thread singolo, e
+    // serve solo quando si calcola la copertura (su macOS due processi si
+    // contendono la stessa cartella temporanea). Nella suite normale i file
+    // girano in parallelo su tutti i core.
+    fileParallelism: !process.env.VITEST_COVERAGE,
     // Audit 2026-06-24: timeout esteso per i test dynamic-import (universal-
     // import-smoke, views-render-smoke, accessibility-axe) che caricano file
     // grandi (Dashboard 2900 righe, AdminPage 3300 righe) e in CI sotto carico

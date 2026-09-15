@@ -4,7 +4,7 @@
 // filtri pill wrap, helper fmt/fmt0 IT.
 import React, { useEffect, useMemo, useState } from 'react'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
-import { color as T, radius as R, shadow as S } from '../lib/theme'
+import { color as T, radius as R, shadow as S, ui3, ui } from '../lib/theme'
 import { isRicettaValida, getR, buildIngCosti, calcolaFC } from '../lib/foodcost'
 import { todayLocal } from '../lib/dateLocal'
 import {
@@ -337,7 +337,7 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
       {/* ── KPI: griglia uniforme (2 col mobile/tablet, 4 col desktop) ── */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)',
+        gridTemplateColumns: ui3(isMobile, isTablet, ui.grid4),
         gap: isMobile ? 10 : 16, marginBottom: 18,
       }}>
         <KPI
@@ -600,7 +600,7 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
                       padding: isMobile ? '10px 12px' : '8px 12px',
                       minHeight: minTT,
                       borderRadius: 999,
-                      fontSize: isMobile ? 16 : 12,
+                      fontSize: 12,
                       fontWeight: 600,
                       color: fCliente === 'all' ? C.textMid : C.text,
                     }}>
@@ -844,7 +844,7 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
                 const btnAct = {
                   padding: isMobile ? '10px 12px' : '7px 12px',
                   borderRadius: 8, border: `1px solid ${C.border}`,
-                  background: C.white, fontSize: isMobile ? 12 : 12,
+                  background: C.white, fontSize: 12,
                   fontWeight: 700, color: C.textMid, cursor: 'pointer',
                   minHeight: minTT, whiteSpace: 'nowrap',
                   display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 4,
@@ -1127,7 +1127,7 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
                       style={{
                         padding: isMobile ? '9px 14px' : '7px 14px',
                         borderRadius: 8, border: `1px solid ${C.border}`,
-                        background: C.white, fontSize: isMobile ? 12 : 12,
+                        background: C.white, fontSize: 12,
                         fontWeight: 700, color: C.textMid, cursor: 'pointer',
                         minHeight: minTT, whiteSpace: 'nowrap',
                       }}>

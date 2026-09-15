@@ -148,7 +148,7 @@ export default function WhatsAppView({ orgId, user }) {
             onKeyDown={e => { if (e.key === 'Enter' && phone.trim() && !saving) aggiungi() }}
             placeholder="+39 339 1234567"
             style={{ flex: 1, minWidth: 0, padding: '11px 14px', minHeight: 44, borderRadius: R.md,
-              border: `1px solid ${T.borderStr}`, fontSize: isMobile ? 16 : 14, fontFamily: 'inherit',
+              border: `1px solid ${T.borderStr}`, fontSize: 14, fontFamily: 'inherit',
               color: T.text, boxSizing: 'border-box' }} />
           <button onClick={aggiungi} disabled={saving || !phone.trim()}
             style={{ background: phone.trim() && !saving ? T.brand : T.borderStr, color: T.white,

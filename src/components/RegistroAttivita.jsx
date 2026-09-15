@@ -14,7 +14,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import Icon from './Icon'
 import { supabase } from '../lib/supabase'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
-import { color as T, radius as R, shadow as S, motion as M, tnum } from '../lib/theme'
+import { color as T, radius as R, shadow as S, motion as M, tnum, ui3, ui } from '../lib/theme'
 import { todayLocal } from '../lib/dateLocal'
 
 const PAGE = 50
@@ -396,7 +396,7 @@ export default function RegistroAttivita({ orgId, sedi = [], notify }) {
         </div>
 
         {/* KPI STRIP */}
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: ui3(isMobile, isTablet, ui.grid4), gap: 10 }}>
           {[
             // Il conteggio vero viene dal database; `stats.total` (le righe
             // caricate) resta solo come ripiego se il conteggio non arriva.

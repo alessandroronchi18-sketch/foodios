@@ -217,6 +217,81 @@ export const z = {
   popover: 300,
 };
 
+// ─── Le misure che cambiano fra le tre versioni ──────────────────────────────
+//
+// **Un valore, tre versioni, scritto una volta sola.**
+//
+// Il problema che risolve, misurato il 15/09/2026: 109 punti in 51 file
+// scrivevano la stessa misura tre volte — `isMobile ? X : isTablet ? Y : Z` — e
+// 1.619 la scrivevano due. Chi ne cambia una sola fa divergere le altre, ed è
+// esattamente quello che era successo: il tablet aveva 95 campi di testo sotto
+// i 16px perché la regola anti-zoom era scritta `isMobile ? 16 : 13`, e su iPad
+// `isMobile` è falso. Nessuno l'aveva deciso.
+//
+// Come si usa:
+//
+//     import { useDevice } from '../lib/useIsMobile'
+//     import { ui, per } from '../lib/theme'
+//
+//     const dev = useDevice(), u = per(dev)
+//     <button style={{ minHeight: u(ui.ctrlH), padding: u(ui.cardPad) }}>
+//
+// Da qui in poi chi cambia l'altezza dei controlli la cambia in un posto, e le
+// tre versioni si muovono insieme **per costruzione**.
+//
+// I valori qui sotto non sono inventati: sono quelli già più usati nel
+// progetto, contati sulle occorrenze reali.
+export const ui = {
+  // Altezza dei controlli che si toccano. 44px è la misura di un polpastrello:
+  // vale per telefono E tablet, che è il punto che si era perso.
+  ctrlH:    { telefono: 44, tablet: 44, computer: 36 },
+  // Altezza dei controlli secondari (pastiglie, filtri).
+  ctrlHsm:  { telefono: 40, tablet: 44, computer: 34 },
+  // Testo dentro i campi. Sotto i 16px iOS ingrandisce la pagina da solo:
+  // la regola globale in index.html lo impedisce già per tutto quello che si
+  // tocca, questo serve dove il campo non è un <input>.
+  inputFs:  { telefono: 16, tablet: 16, computer: 13 },
+  // Imbottitura delle schede.
+  cardPad:  { telefono: '18px 16px', tablet: '20px 22px', computer: '24px 28px' },
+  cardPadSm:{ telefono: '14px 16px', tablet: '16px 18px', computer: '16px 20px' },
+  // Griglie: quante colonne stanno bene.
+  grid2:    { telefono: '1fr',      tablet: 'repeat(2, 1fr)', computer: 'repeat(2, 1fr)' },
+  grid3:    { telefono: '1fr',      tablet: 'repeat(2, 1fr)', computer: 'repeat(3, 1fr)' },
+  grid4:    { telefono: '1fr 1fr',  tablet: 'repeat(2, 1fr)', computer: 'repeat(4, 1fr)' },
+  // Spazi fra gli elementi.
+  gapSm:    { telefono: 8,  tablet: 10, computer: 12 },
+  gap:      { telefono: 10, tablet: 14, computer: 16 },
+  // Margine laterale della pagina. Il fondo del telefono tiene conto della
+  // barra di navigazione.
+  pagePad:  { telefono: '16px 16px 88px', tablet: '16px 20px 28px', computer: '16px 0 28px' },
+}
+
+/**
+ * Prende il valore giusto per il dispositivo.
+ *
+ *     const u = per(useDevice())
+ *     u(ui.ctrlH)   // 44 su telefono e tablet, 36 su computer
+ *
+ * Se il dispositivo non è fra i tre (non dovrebbe succedere) ricade sul
+ * computer, che è la versione più conservativa.
+ */
+export const per = (dispositivo) => (tripla) =>
+  (tripla && (tripla[dispositivo] ?? tripla.computer))
+
+/**
+ * La stessa cosa di `per`, ma partendo dai due booleani che i componenti hanno
+ * già sottomano. Serve a convertire i punti esistenti senza doverli
+ * riscrivere: la misura si sposta qui dentro subito, e il passaggio a
+ * `useDevice()` si fa con calma.
+ *
+ *     padding: ui3(isMobile, isTablet, ui.cardPad)
+ *
+ * invece di `isMobile ? '18px 16px' : isTablet ? '20px 22px' : '24px 28px'`,
+ * che è la forma in cui chi cambia un valore fa divergere gli altri due.
+ */
+export const ui3 = (isMobile, isTablet, tripla) =>
+  per(isMobile ? 'telefono' : isTablet ? 'tablet' : 'computer')(tripla)
+
 export const layout = {
   sidebarWidth:    240,
   topbarHeight:    56,

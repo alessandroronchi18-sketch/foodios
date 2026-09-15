@@ -6,7 +6,7 @@ import PeriodCompareSelector from './PeriodCompareSelector'
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from 'recharts'
 import { sload } from '../lib/storage'
 import { supabase } from '../lib/supabase'
-import { color as T, typo } from '../lib/theme'
+import { color as T, typo, ui3, ui } from '../lib/theme'
 import { foodCostPesato, vocePerGruppo } from '../lib/confrontoSediCalc'
 import { ricaviDaInventario, fetchAllInventarioProduzione, GIORNI_RIPORTO_MAX } from '../lib/inventarioProduzione'
 import { SK_FORMATI } from '../lib/storageKeys'
@@ -640,7 +640,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                 </div>
                 <div style={{
                   display: 'grid',
-                  gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : isTablet ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
+                  gridTemplateColumns: ui3(isMobile, isTablet, ui.grid4),
                   gap: isMobile ? 12 : 18,
                 }}>
                   <div>

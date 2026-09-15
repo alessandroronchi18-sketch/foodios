@@ -479,7 +479,7 @@ function Steppers({ step, isMobile }) {
             padding: isMobile ? '10px 4px' : '10px 8px',
             background: isActive ? '#FFF' : 'transparent',
             border: isActive ? '1px solid #E5E9EF' : '1px solid transparent',
-            borderRadius: 8, fontSize: isMobile ? 12 : 12,
+            borderRadius: 8, fontSize: 12,
             fontWeight: 700, color: isDone ? '#16A34A' : isActive ? '#6E0E1A' : '#8B95A7',
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
@@ -665,7 +665,7 @@ function StepMapping({ schema, headers, sampleRows, detectInfo, mapping, setMapp
                 aria-label={`Colonna per ${f.label || f.name}`}
                 style={{
                   padding: isMobile ? '12px 10px' : '10px 12px',
-                  fontSize: isMobile ? 16 : 14,
+                  fontSize: 14,
                   border: `1px solid ${current ? T.border : '#FCA5A5'}`,
                   borderRadius: 8, background: '#FFF', color: T.text,
                   width: '100%', boxSizing: 'border-box',
