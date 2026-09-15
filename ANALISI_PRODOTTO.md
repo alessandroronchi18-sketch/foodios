@@ -1336,7 +1336,7 @@ Tutto il resto chiuso:
 | 60-69 | Software gestionali da agenzia regionale |
 | <60 | Software gestionali tradizionali on-premise (1990-2010) |
 
-**FoodOS post-sessione 25 giu sera: media ricalibrata 83/100** (ricontata: 83,3). **Post 8 set: 83,6. Post 14 set sera: 84,6. Post 14 set notte: 85,0. Post 15 set: 85,2/100 su 117 sezioni scorate** (OnboardingChat rimossa perché irraggiungibile; nessuna sezione resta sotto l'80) (piu' 3 spente e 4 congelate, fuori conto). Buon prodotto pre-revenue con design system coerente ma non rivoluzionario, sopra i competitor italiani di settore (~75 media), sotto top tier mondiale (90+) per mancanza di team design dedicato.
+**FoodOS post-sessione 25 giu sera: media ricalibrata 83/100** (ricontata: 83,3). **Post 8 set: 83,6. Post 14 set sera: 84,6. Post 14 set notte: 85,0. Post 15 set: **85,7**/100 su 117 sezioni scorate** (media ricontata sui voti veri, non stimata: le tre sezioni del pomeriggio — Trasferimenti, assistente AI e i bottoni flottanti — l'hanno spostata di mezzo punto) (OnboardingChat rimossa perché irraggiungibile; nessuna sezione resta sotto l'80) (piu' 3 spente e 4 congelate, fuori conto). Buon prodotto pre-revenue con design system coerente ma non rivoluzionario, sopra i competitor italiani di settore (~75 media), sotto top tier mondiale (90+) per mancanza di team design dedicato.
 
 ### Aree pubbliche / pre-login
 
