@@ -19,70 +19,30 @@ import {
   imputaPagamento, terminiOsservati, ricorrenti, fattureAnomale, testoEstrattoConto,
 } from '../lib/pagamentiFornitore'
 import { leggiEstrattoConto, proponiAbbinamenti } from '../lib/riconciliazioneBanca'
+import {
+  normNome, dataScadenza as dueDateObj, isoScadenza as dueDateISO,
+  giorniAllaScadenza as diffDays, urgenza as computeUrgenza, quandoScade as relDayLabel,
+  arricchisci, perUrgenza, riepilogo, FASCE, FILTRI,
+} from '../lib/scadenzeFatture'
 
 // Chiave storage per i dati di pagamento dell'azienda (intestatario + IBAN da
 // cui partono i bonifici). Shared a livello org (sede null).
 const SK_AZIENDA_PAG = 'azienda-pagamenti-v1'
 
-// Normalizza il nome fornitore per il match con l'anagrafica.
-const normNome = s => String(s || '').trim().toUpperCase().replace(/\s+/g, ' ')
-
 const tnum = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" }
 
-// Termine di pagamento standard usato per derivare la data di scadenza
-// quando in DB non e' specificata: 30 giorni dalla data fattura.
-const PAYMENT_TERMS_DAYS = 30
-
-// loadXLSX importato da ../lib/xlsx (loader unico multi-CDN, no SRI)
-
-// ─── Date / numero helpers ────────────────────────────────────────────────────
-function dueDateObj(f) {
-  // 1) Scadenza REALE dall'XML (DatiPagamento) se presente.
-  if (f?.data_scadenza && /^\d{4}-\d{2}-\d{2}/.test(f.data_scadenza)) {
-    const d = new Date(f.data_scadenza.slice(0, 10) + 'T12:00:00')
-    if (!isNaN(d.getTime())) return d
-  }
-  // 2) Altrimenti deriva da data_fattura + termini (per-fornitore se noti, else 30gg).
-  if (!f?.data_fattura) return null
-  const d = new Date(f.data_fattura + 'T12:00:00')
-  if (isNaN(d.getTime())) return null
-  const termini = Number.isFinite(f?._termini) ? f._termini : PAYMENT_TERMS_DAYS
-  d.setDate(d.getDate() + termini)
-  return d
-}
-function dueDateISO(f) {
-  const d = dueDateObj(f)
-  if (!d) return null
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
-}
-function diffDays(dateObj, now = new Date()) {
-  if (!dateObj) return null
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  const due = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate())
-  return Math.floor((due - today) / 86400000)
-}
-
-// Classifica ogni fattura in una "band" di urgenza
-function computeUrgenza(f, now = new Date()) {
-  if (f.stato === 'pagata') return 'pagata'
-  const dd = dueDateObj(f)
-  if (!dd) return 'futura'
-  const days = diffDays(dd, now)
-  if (days < 0)   return 'scaduta'
-  if (days <= 7)  return 'settimana'
-  if (days <= 30) return 'mese'
-  return 'futura'
-}
-
+// I conti sulle scadenze stanno in src/lib/scadenzeFatture.js dal 16/09/2026.
+// Erano qui dentro, in un file da 3.199 righe coperto dai test all'1%: sono
+// i numeri che dicono al titolare a chi deve dei soldi e da quanto, e non li
+// verificava niente. Scorporandoli è venuto fuori che questa pagina calcolava
+// «30 giorni fine mese» come «30 giorni netti» — fino a ventotto giorni di
+// differenza — mentre la previsione di cassa lo calcolava giusto.
 const URGENZA_CFG = {
-  scaduta:   { label: 'SCADUTA',          pillBg: '#FEE2E2',   pillFg: '#991B1B', accent: T.red,    order: 0, header: 'Scadute',          sub: 'da pagare con urgenza' },
-  settimana: { label: 'QUESTA SETTIMANA', pillBg: '#FFEDD5',   pillFg: '#9A3412', accent: '#F97316',  order: 1, header: 'Questa settimana', sub: 'entro 7 giorni' },
-  mese:      { label: 'QUESTO MESE',      pillBg: '#FEF3C7',   pillFg: '#92400E', accent: T.amber,    order: 2, header: 'Questo mese',      sub: 'entro 30 giorni' },
-  futura:    { label: 'FUTURA',           pillBg: T.bgSubtle,  pillFg: T.textMid, accent: T.textSoft, order: 3, header: 'Future',           sub: 'oltre 30 giorni' },
-  pagata:    { label: 'PAGATA',           pillBg: '#DCFCE7',   pillFg: '#166534', accent: T.green,    order: 4, header: 'Pagate',           sub: 'già saldate' },
+  scaduta:   { ...FASCE.scaduta,   pillBg: '#FEE2E2',  pillFg: '#991B1B', accent: T.red },
+  settimana: { ...FASCE.settimana, pillBg: '#FFEDD5',  pillFg: '#9A3412', accent: '#C2410C' },
+  mese:      { ...FASCE.mese,      pillBg: '#FEF3C7',  pillFg: '#92400E', accent: T.amber },
+  futura:    { ...FASCE.futura,    pillBg: T.bgSubtle, pillFg: T.textMid, accent: T.textSoft },
+  pagata:    { ...FASCE.pagata,    pillBg: '#DCFCE7',  pillFg: '#166534', accent: T.green },
 }
 
 // useGrouping:'always' obbligatorio: senza, alcuni runtime (Safari iOS private,
@@ -93,21 +53,6 @@ const fmtEuro = v => `${_NF2.format(Number(v || 0))} €`
 const fmtEuro0 = v => `${_NF0.format(Math.round(Number(v || 0)))} €`
 const fmtDate = d =>
   d ? new Date(d + 'T12:00:00').toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-'
-
-function relDayLabel(days) {
-  if (days === null || days === undefined) return ''
-  if (days < 0)   return Math.abs(days) === 1 ? '1 giorno fa' : `${Math.abs(days)} giorni fa`
-  if (days === 0) return 'oggi'
-  if (days === 1) return 'domani'
-  return `tra ${days} giorni`
-}
-
-const FILTRI = [
-  { id: 'tutte',       label: 'Tutte',       gruppi: ['scaduta', 'settimana', 'mese', 'futura'] },
-  { id: 'scadute',     label: 'Scadute',     gruppi: ['scaduta'] },
-  { id: 'in_scadenza', label: 'In scadenza', gruppi: ['settimana', 'mese'] },
-  { id: 'pagate',      label: 'Pagate',      gruppi: ['pagata'] },
-]
 
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
@@ -994,86 +939,12 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
   }
 
   // ── Computed ────────────────────────────────────────────────────────────────
-  const fattureExt = useMemo(() => {
-    const now = new Date()
-    return fatture.map(f => {
-      // Arricchimento da anagrafica fornitore: termini di pagamento (per la
-      // scadenza derivata) e IBAN di default (per il bonifico).
-      const anag = fornitoriMap[normNome(f.fornitore)]
-      const fEnriched = {
-        ...f,
-        _termini: Number.isFinite(anag?.termini_pagamento) ? anag.termini_pagamento : undefined,
-        // Come si contano quei giorni: dalla data fattura o dalla fine del mese.
-        // Senza questo, "30 gg fine mese" veniva calcolato come "30 gg netti" e
-        // ogni scadenza risultava fino a 30 giorni prima del vero.
-        _terminiTipo: anag?.termini_tipo || 'netti',
-        iban: f.iban || anag?.iban || '',
-      }
-      const dd = dueDateObj(fEnriched)
-      const segno = f.tipo === 'nota_credito' ? -1 : 1
-      const importoNetto = segno * (Number(f.totale) || 0)       // NC = negativo
-      const pagato = Number(f.importo_pagato) || 0
-      // Residuo da pagare: per le NC è un credito (negativo); per le fatture è
-      // totale - quanto già pagato (acconti). Le pagate hanno residuo 0.
-      const residuo = f.stato === 'pagata' ? 0 : importoNetto - segno * pagato
-      return {
-        ...fEnriched,
-        urgenza: computeUrgenza(fEnriched, now),
-        dueIso: dueDateISO(fEnriched),
-        // Audit 2026-09-09: `data_scadenza` e' vuota su 418 fatture su 418 (gli
-        // XML di questi fornitori non portano il blocco DatiPagamento), quindi
-        // la data mostrata e' SEMPRE derivata da data_fattura + 30 giorni. La
-        // pagina la scriveva come un fatto ("scade il 31/01/2026 · 5 giorni
-        // fa"): chi programma i pagamenti su quelle date lavora su una
-        // convenzione, non su un accordo col fornitore. 106 di quelle date
-        // cadono di sabato o domenica, che e' un altro segnale che non vengono
-        // dal documento.
-        dueStimata: !(f.data_scadenza && /^\d{4}-\d{2}-\d{2}/.test(String(f.data_scadenza))),
-        dueDays: dd ? diffDays(dd, now) : null,
-        segno,
-        isNC: segno < 0,
-        importoNetto,
-        pagato,
-        residuo,
-        ibanValido: ibanIsValid(f.iban || anag?.iban || ''),
-      }
-    })
-  }, [fatture, fornitoriMap])
-
-  // Gruppi: date ASC poi totale DESC (le più vecchie e grosse in testa al gruppo)
-  const gruppi = useMemo(() => {
-    const out = { scaduta: [], settimana: [], mese: [], futura: [], pagata: [] }
-    for (const f of fattureExt) {
-      if (out[f.urgenza]) out[f.urgenza].push(f)
-    }
-    for (const k of Object.keys(out)) {
-      out[k].sort((a, b) => {
-        const da = a.dueIso || '0000-00-00'
-        const db = b.dueIso || '0000-00-00'
-        if (da !== db) return da.localeCompare(db)
-        return (b.totale || 0) - (a.totale || 0)
-      })
-    }
-    return out
-  }, [fattureExt])
-
-  // Riepilogo finanziario (sempre globale, non filtrato)
-  const summary = useMemo(() => {
-    // Netto (NC comprese): usa il residuo firmato di ogni fattura.
-    const sum = arr => arr.reduce((s, f) => s + (f.residuo || 0), 0)
-    const aperte = [...gruppi.scaduta, ...gruppi.settimana, ...gruppi.mese, ...gruppi.futura]
-    const creditiNC = aperte.filter(f => f.isNC).reduce((s, f) => s + Math.abs(f.residuo || 0), 0)
-    return {
-      daPagare:     sum(aperte),               // netto NC
-      scaduto:      sum(gruppi.scaduta),
-      settimanaTot: sum(gruppi.settimana),
-      creditiNC,                               // crediti da note di credito ancora aperte
-      nDaPagare:    aperte.filter(f => !f.isNC).length,
-      nScadute:     gruppi.scaduta.filter(f => !f.isNC).length,
-      nSettimana:   gruppi.settimana.filter(f => !f.isNC).length,
-      nNC:          aperte.filter(f => f.isNC).length,
-    }
-  }, [gruppi])
+  const fattureExt = useMemo(
+    () => arricchisci(fatture, fornitoriMap, new Date()).map(f => ({ ...f, ibanValido: ibanIsValid(f.iban) })),
+    [fatture, fornitoriMap]
+  )
+  const gruppi = useMemo(() => perUrgenza(fattureExt), [fattureExt])
+  const summary = useMemo(() => riepilogo(gruppi), [gruppi])
 
   // Termini di pagamento IMPARATI da come hai pagato finora, per fornitore.
   // Nei dati veri nessuna fattura porta la scadenza, quindi la pagina le

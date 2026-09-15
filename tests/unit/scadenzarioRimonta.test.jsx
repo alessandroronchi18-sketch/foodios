@@ -117,7 +117,11 @@ describe('Scadenziario — numeri, date e testi', () => {
     // data_scadenza è vuota su 418 fatture su 418: la data mostrata è sempre
     // data_fattura + 30 giorni, ma veniva scritta come un fatto. 106 di quelle
     // date cadono di sabato o domenica.
-    expect(src).toMatch(/dueStimata:/)
+    // `dueStimata` è passato in src/lib/scadenzeFatture.js con lo scorporo
+    // del 16/09/2026: il conto sta lì, la pagina lo mostra.
+    const lib = readFileSync(join(RADICE, 'src/lib/scadenzeFatture.js'), 'utf8')
+    expect(lib).toMatch(/dueStimata: stimata/)
+    expect(src).toMatch(/dueStimata/)
     expect(src).toMatch(/scadenza calcolata/)
     expect(src).toMatch(/Data calcolata: data fattura \+ 30 giorni/)
   })

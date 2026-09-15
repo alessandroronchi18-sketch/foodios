@@ -39,7 +39,10 @@ describe('i due rossi', () => {
 
   it('una fattura scaduta usa il rosso d\'allarme, non quello del marchio', () => {
     const src = readFileSync(join(RADICE, 'src', 'components', 'Scadenzario.jsx'), 'utf8')
-    expect(src).toMatch(/label: 'SCADUTA',[^}]*accent: T\.red/)
+    // Dal 16/09/2026 i nomi delle fasce stanno in src/lib/scadenzeFatture.js
+    // (FASCE); qui resta il colore, che è il punto della regola: la fascia
+    // «scaduta» usa il rosso d'allarme, non il bordeaux delle azioni.
+    expect(src).toMatch(/scaduta:\s*\{ \.\.\.FASCE\.scaduta,[^}]*accent: T\.red/)
     expect(src).not.toMatch(/isScaduta \? T\.brand/)
   })
 })
