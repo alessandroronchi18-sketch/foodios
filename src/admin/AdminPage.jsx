@@ -3048,7 +3048,7 @@ export default function AdminPage() {
               e incolla qui il suo ID (<code>price_…</code>): il checkout userà quello. Ogni modifica richiede una conferma esplicita.
             </div>
             {['base', 'pro', 'enterprise'].map(plan => {
-              const defaults = { base: { prezzo_mese_cents: 6900, nome_display: 'Bottega', descrizione: 'Per il banco singolo' }, pro: { prezzo_mese_cents: 14900, nome_display: 'Maestro', descrizione: 'Sostituisce un controller part-time' }, enterprise: { prezzo_mese_cents: 39900, nome_display: 'Insegna', descrizione: 'Per chi ha 3+ sedi' } }
+              const defaults = { base: { prezzo_mese_cents: 6900, nome_display: PLAN_LABEL.base, descrizione: 'Per il banco singolo' }, pro: { prezzo_mese_cents: 14900, nome_display: PLAN_LABEL.pro, descrizione: 'Tutto Foodos, senza limiti di sede o di utenti' }, enterprise: { prezzo_mese_cents: 39900, nome_display: PLAN_LABEL.enterprise, descrizione: 'Per gruppi e catene' } }
               const def = defaults[plan]
               const row = pricing.find(p => p.plan === plan) || { plan, ...def, stripe_price_id: null }
               const inEdit = priceDraft?.plan === plan

@@ -103,7 +103,7 @@ const CLUSTERS = [
 const CHAIN_CLUSTER = {
   id: 'chain',
   label: `Esclusive piano ${PLAN_LABEL.enterprise}`,
-  sub: 'Disponibili con il piano Insegna',
+  sub: `Disponibili con il piano ${PLAN_LABEL.enterprise}`,
   accent: '#FFD86B',
   icon: 'sparkles',
   features: [

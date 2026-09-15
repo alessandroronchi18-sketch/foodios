@@ -82,13 +82,23 @@ describe('i nomi dei piani sono quelli del listino', () => {
     expect(s).not.toMatch(/'Chain \(€149\)'/)
   })
 
-  it('i termini di servizio elencano i tre piani veri, ai prezzi veri', async () => {
+  it('i termini di servizio elencano il piano in vendita, al prezzo vero', async () => {
+    // 15/09/2026: in vendita c'è solo il Plus. Il contratto deve descrivere
+    // quello che si vende davvero — prima elencava due piani che non
+    // esistevano più (Pro €89, Chain €149) da tre mesi.
     const s = leggi('src', 'pages', 'TerminiServizio.jsx')
-    const { PLAN_LABEL, PLAN_PRICE_EUR } = await import('../../src/lib/planAccess.js')
-    for (const chiave of ['base', 'pro', 'enterprise']) {
+    const { PLAN_LABEL, PLAN_PRICE_EUR, PIANI_IN_VENDITA } = await import('../../src/lib/planAccess.js')
+    for (const chiave of PIANI_IN_VENDITA) {
       expect(s, `manca il piano ${PLAN_LABEL[chiave]}`).toContain(PLAN_LABEL[chiave])
       expect(s, `prezzo sbagliato per ${PLAN_LABEL[chiave]}`).toContain(`€${PLAN_PRICE_EUR[chiave]}/mese`)
     }
+    // E non deve promettere piani che non si possono comprare.
+    for (const chiave of ['base', 'enterprise']) {
+      if (PIANI_IN_VENDITA.includes(chiave)) continue
+      expect(s, `${PLAN_LABEL[chiave]} non è in vendita: non va offerto nel contratto`)
+        .not.toContain(`<strong>${PLAN_LABEL[chiave]}</strong> - €`)
+    }
+    expect(s).toMatch(/offre un solo piano/)
   })
 })
 

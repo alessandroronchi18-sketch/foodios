@@ -3,6 +3,7 @@ import Logo from '../components/Logo'
 import CatIcon from '../components/Icon'
 import usePlanPricing, { fmtPrezzo } from '../lib/usePlanPricing'
 import { temaPubblico, SERIF_PUBBLICO, SANS_PUBBLICO } from '../lib/temaPubblico'
+import { pianoInVendita, PLAN_LABEL } from '../lib/planAccess'
 
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -301,7 +302,7 @@ function RoiCalculator() {
   const fcReduzione = 2
   const risparmio = Math.round(ricavi * (fcReduzione / 100))
   const annualSavings = risparmio * 12
-  // Audit 2026-06-24: prezzo aggiornato a Maestro €149 (era €89 vecchio piano).
+  // Audit 2026-06-24: prezzo aggiornato a 149 € (era 89 €, vecchio piano).
   const annualCost = 149 * 12
   const netGain = annualSavings - annualCost
   const roi = Math.round((annualSavings / annualCost - 1) * 100)
@@ -577,6 +578,17 @@ function FeatureVisual({ index }) {
 ═══════════════════════════════════════════════════════════════════════════ */
 export default function LandingPage({ onLogin, onRegister }) {
   const prezzi = usePlanPricing()
+  // Quali piani si mostrano in vetrina. Due sorgenti, e devono concordare:
+  // `attivo` sulla riga di plan_pricing (che il titolare cambia dal pannello
+  // admin) e `PIANI_IN_VENDITA` nel codice. Se una delle due dice di no, la
+  // tessera non compare: meglio nascondere un piano per errore che venderne
+  // uno che non esiste.
+  const mostraPiano = (chiave) => {
+    if (!pianoInVendita(chiave)) return false
+    const riga = prezzi?.meta?.[chiave]
+    return riga ? riga.attivo !== false : true
+  }
+  const nPianiMostrati = ['base', 'pro', 'chain'].filter(mostraPiano).length
   const [openFaq, setOpenFaq] = useState(0)
   const [scrolled, setScrolled] = useState(false)
   const [heroIn, setHeroIn] = useState(false)
@@ -635,7 +647,7 @@ export default function LandingPage({ onLogin, onRegister }) {
     { q: 'Devo essere bravo con i computer?', a: 'No. Se sai usare WhatsApp, sai usare Foodos. È pensato per essere usato dal titolare, non dal nipote bravo con la tecnologia. Niente formule, niente Excel da non rompere.' },
     { q: 'Posso importare il mio ricettario esistente?', a: "Sì. Carichi un file Excel o CSV e Foodos lo converte in automatico. L'AI sa leggere anche foto di ricette scritte a mano sul quaderno e immagini delle etichette per registrare i costi automaticamente." },
     { q: 'Quanto dura la prova gratuita?', a: 'Tre mesi pieni, gratis. Se dopo i tre mesi non ti convince, scarichi i tuoi dati e basta. Nessun addebito automatico, mai.' },
-    { q: 'Posso gestire più sedi o brand?', a: "Sì. Il piano Maestro gestisce fino a 2 sedi con 3 utenti, perfetto per chi ha laboratorio + punto vendita o sta crescendo. Il piano Insegna è invece pensato per catene piccole e gruppi: sedi e utenti illimitati, integrazioni real-time con le casse, API e white-label." },
+    { q: 'Posso gestire più sedi o brand?', a: "Sì, senza limiti: sedi e utenti illimitati, con i dati separati per sede e il ricettario in comune. Ci sono dentro anche il confronto fra sedi, i trasferimenti di merce e il collegamento in tempo reale con le casse. Non c'è un piano più alto da comprare per averli." },
     { q: 'Cosa succede ai miei dati se smetto?', a: 'Sono tuoi. Puoi esportarli in Excel/PDF in qualsiasi momento, anche durante il trial. Non li condividiamo con nessuno e non li usiamo per addestrare AI di terzi.' },
   ]
 
@@ -1196,10 +1208,16 @@ export default function LandingPage({ onLogin, onRegister }) {
           <Reveal delay={100}>
             <div style={{
               display: 'grid',
-              gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
+              // Quante tessere ci sono davvero. Con un piano solo in vendita,
+              // tre colonne lascerebbero due buchi e la tessera sola
+              // sembrerebbe messa storta.
+              gridTemplateColumns: isMobile ? '1fr' : `repeat(${nPianiMostrati}, minmax(0, 1fr))`,
+              maxWidth: nPianiMostrati === 1 ? 420 : nPianiMostrati === 2 ? 760 : 'none',
+              margin: nPianiMostrati < 3 ? '0 auto' : undefined,
               gap: isMobile ? 16 : 20, alignItems: 'stretch',
             }}>
-              {/* BOTTEGA - piano entry singola sede (nome+desc da admin) */}
+              {/* Standard — si mostra solo se torna in vendita */}
+              {mostraPiano('base') && (
               <div style={{
                 background: T.cream,
                 border: `1px solid ${T.border}`,
@@ -1218,7 +1236,7 @@ export default function LandingPage({ onLogin, onRegister }) {
                   Single shop
                 </div>
                 <div style={{ fontFamily: SERIF, fontWeight: 600, fontSize: 26, color: T.ink, letterSpacing: '-0.02em', marginBottom: 4, lineHeight: 1.2 }}>
-                  {prezzi.nome?.base || 'Bottega'}
+                  {prezzi.nome?.base || PLAN_LABEL.base}
                 </div>
                 <div style={{ fontSize: 13, color: T.textMid, marginBottom: 20, minHeight: 38, lineHeight: 1.45 }}>
                   {prezzi.desc?.base || 'Una sede, l\'essenziale.'}
@@ -1250,7 +1268,9 @@ export default function LandingPage({ onLogin, onRegister }) {
                 </div>
               </div>
 
-              {/* MAESTRO - piano standard evidenziato */}
+              )}
+              {/* Plus — l'unico in vendita oggi */}
+              {mostraPiano('pro') && (
               <div style={{
                 background: T.inkSoft,
                 borderRadius: 24,
@@ -1275,7 +1295,7 @@ export default function LandingPage({ onLogin, onRegister }) {
                 <div style={{
                   fontFamily: SERIF, fontWeight: 600,
                   fontSize: 26, color: T.cream, letterSpacing: '-0.02em', marginBottom: 4, lineHeight: 1.2,
-                }}>{prezzi.nome?.pro || 'Maestro'}</div>
+                }}>{prezzi.nome?.pro || PLAN_LABEL.pro}</div>
                 <div style={{ fontSize: 13, color: 'rgba(244,236,227,0.65)', marginBottom: 20, minHeight: 38, lineHeight: 1.45 }}>
                   {prezzi.desc?.pro || 'Sostituisce un controller part-time.'}
                 </div>
@@ -1292,7 +1312,7 @@ export default function LandingPage({ onLogin, onRegister }) {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {[
                     '2 sedi, 3 utenti',
-                    'Tutto il Bottega +',
+                    `Tutto il ${PLAN_LABEL.base} +`,
                     '23 feature AI complete',
                     '100 foto AI/mese',
                     'Brain (chat AI persistente)',
@@ -1309,7 +1329,9 @@ export default function LandingPage({ onLogin, onRegister }) {
                 </div>
               </div>
 
-              {/* INSEGNA - piano premium multi-sede */}
+              )}
+              {/* Ultra — si mostra solo se torna in vendita */}
+              {mostraPiano('chain') && (
               <div style={{
                 background: T.cream,
                 border: `1px solid ${T.border}`,
@@ -1321,7 +1343,7 @@ export default function LandingPage({ onLogin, onRegister }) {
                   Multi-sede / catena
                 </div>
                 <div style={{ fontFamily: SERIF, fontWeight: 600, fontSize: 26, color: T.ink, letterSpacing: '-0.02em', marginBottom: 4, lineHeight: 1.2 }}>
-                  {prezzi.nome?.chain || 'Insegna'}
+                  {prezzi.nome?.chain || PLAN_LABEL.enterprise}
                 </div>
                 <div style={{ fontSize: 13, color: T.textMid, marginBottom: 20, minHeight: 38, lineHeight: 1.45 }}>
                   {prezzi.desc?.chain || 'Sostituisce 1 controller + IT contractor.'}
@@ -1339,7 +1361,7 @@ export default function LandingPage({ onLogin, onRegister }) {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {[
                     'Sedi e utenti illimitati',
-                    'Tutto il Maestro +',
+                    `Tutto il ${PLAN_LABEL.pro} +`,
                     'Integrazioni casse real-time',
                     '500 foto AI/mese',
                     'WhatsApp Bot',
@@ -1355,6 +1377,7 @@ export default function LandingPage({ onLogin, onRegister }) {
                   ))}
                 </div>
               </div>
+              )}
             </div>
 
             <div style={{ textAlign: 'center', marginTop: 28, fontSize: 13, color: T.textSoft, padding: '0 16px' }}>

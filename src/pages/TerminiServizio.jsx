@@ -14,7 +14,7 @@ export default function TerminiServizio() {
       <LegalUl items={[
         <><strong>Cliente:</strong> persona fisica o giuridica che si registra al Servizio per scopi di lavoro o professione (B2B).</>,
         <><strong>Account:</strong> profilo personale del Cliente, accessibile tramite credenziali.</>,
-        <><strong>Piano:</strong> tipologia di abbonamento sottoscritta (Prova, Bottega, Maestro, Insegna).</>,
+        <><strong>Piano:</strong> tipologia di abbonamento sottoscritta (Prova, Plus).</>,
         <><strong>Periodo di prova (Trial):</strong> 3 mesi gratuiti dalla registrazione, senza richiesta di carta di credito.</>,
       ]} />
 
@@ -45,13 +45,16 @@ export default function TerminiServizio() {
 
       <LegalH2>5. Piani e prezzi</LegalH2>
       <LegalUl items={[
-        <><strong>Bottega</strong> - €69/mese (IVA esclusa). Una sede, un utente. Ricettario, food cost, magazzino, scadenzario, chiusure di cassa.</>,
-        <><strong>Maestro</strong> - €149/mese (IVA esclusa). Fino a 2 sedi e 3 utenti. Tutto Bottega, più le funzioni di analisi assistita.</>,
-        <><strong>Insegna</strong> - €399/mese (IVA esclusa). Sedi e utenti illimitati. Tutto Maestro, più collegamento in tempo reale con le casse, trasferimenti fra sedi e personalizzazione del marchio.</>,
+        <><strong>Plus</strong> - €149/mese (IVA esclusa). Sedi e utenti illimitati, tutte le funzioni del Servizio: ricettario e food cost, magazzino, scadenzario, chiusure di cassa, analisi assistita, confronto fra sedi, trasferimenti, collegamento in tempo reale con le casse.</>,
       ]} />
       <LegalP>
-        I prezzi indicati sono per pagamento mensile in modalita' subscription. La fatturazione
-        avviene con periodicita' mensile, con addebito automatico sul metodo di pagamento registrato.
+        Al momento il Fornitore offre un solo piano. Eventuali piani ulteriori,
+        con perimetro e prezzo diversi, saranno pubblicati su questa pagina prima
+        di essere resi disponibili.
+      </LegalP>
+      <LegalP>
+        I prezzi indicati sono per pagamento mensile in modalità subscription. La fatturazione
+        avviene con periodicità mensile, con addebito automatico sul metodo di pagamento registrato.
         Il Fornitore si riserva il diritto di modificare i prezzi con preavviso di 30 giorni
         comunicato via email; le modifiche non si applicano al periodo già pagato.
       </LegalP>

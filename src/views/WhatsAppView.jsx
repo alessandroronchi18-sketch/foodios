@@ -18,6 +18,7 @@ import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from '../components/Icon'
 import AiPageHero from '../components/AiPageHero'
 import { useConfirm } from '../components/ConfirmModal'
+import { PLAN_LABEL } from '../lib/planAccess'
 
 // Il numero vero, quando ci sarà. Vuoto = collegamento non ancora acceso.
 const WA_NUMERO = (import.meta.env?.VITE_WA_NUMERO || '').trim()
@@ -198,8 +199,8 @@ export default function WhatsAppView({ orgId, user }) {
 
       <div style={{ marginTop: 24, ...typo.small, color: T.textSoft, textAlign: 'center', lineHeight: 1.5 }}>
         {ACCESO
-          ? 'Il costo dei messaggi è compreso nel piano Insegna.'
-          : 'Quando sarà acceso, il costo dei messaggi è compreso nel piano Insegna.'}
+          ? `Il costo dei messaggi è compreso nel piano ${PLAN_LABEL.enterprise}.`
+          : `Quando sarà acceso, il costo dei messaggi è compreso nel piano ${PLAN_LABEL.enterprise}.`}
       </div>
     </div>
   )

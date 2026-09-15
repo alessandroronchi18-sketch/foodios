@@ -89,15 +89,19 @@ describe('le tessere restano della stessa altezza', () => {
     expect(tessere).toMatch(/flexDirection: 'column'/)
   })
 
-  it('i tre piani hanno le stesse fasce, e si distinguono col colore', () => {
+  it('le tessere dei piani hanno le stesse fasce, e si distinguono col colore', () => {
     const v = render(<LandingPage onLogin={() => {}} onRegister={() => {}} />)
     const t = v.container.textContent
-    expect(t).toContain('Bottega')
-    expect(t).toContain('Maestro')
-    expect(t).toContain('Insegna')
-    // Etichetta 28, descrizione 38, prezzo 58: le stesse misure in tutte e tre,
-    // altrimenti il prezzo centrale scivola più in basso degli altri due.
-    const prezzi = SRC.slice(SRC.indexOf('{/* BOTTEGA'), SRC.indexOf('Esigenze custom'))
+    // Dal 15/09/2026 in vetrina c'è un piano solo, il Plus: gli altri due
+    // restano scritti nel codice ma non si mostrano finché non tornano in
+    // vendita (PIANI_IN_VENDITA in planAccess.js).
+    expect(t).toContain('Plus')
+    expect(t).not.toContain('Bottega')
+    expect(t).not.toContain('Maestro')
+    expect(t).not.toContain('Insegna')
+    // Le misure delle fasce restano identiche in tutte e tre le tessere: il
+    // giorno che se ne riaccende una, torna già incolonnata con le altre.
+    const prezzi = SRC.slice(SRC.indexOf('{/* Standard'), SRC.indexOf('Esigenze custom'))
     expect((prezzi.match(/minHeight: 28/g) || []).length).toBeGreaterThanOrEqual(2)
     expect((prezzi.match(/minHeight: 38/g) || []).length).toBe(3)
     expect((prezzi.match(/minHeight: 58/g) || []).length).toBe(3)

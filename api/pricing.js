@@ -11,12 +11,12 @@ import { getClientIP } from './lib/cors.js'
 // così la landing e il pannello abbonamento mostrano qualcosa di sensato
 // anche se il DB non risponde (cold start, RLS, downtime Supabase).
 const FALLBACK = {
-  base:  { plan: 'base',  prezzo_mese_cents: 6900,  valuta: 'eur', label: 'Bottega',
-           nome_display: 'Bottega', descrizione: 'Una sede, l\'essenziale.' },
-  pro:   { plan: 'pro',   prezzo_mese_cents: 14900, valuta: 'eur', label: 'Maestro',
-           nome_display: 'Maestro', descrizione: 'Sostituisce un controller part-time.' },
-  chain: { plan: 'chain', prezzo_mese_cents: 39900, valuta: 'eur', label: 'Insegna',
-           nome_display: 'Insegna', descrizione: 'Sostituisce 1 controller + IT contractor.' },
+  base:  { plan: 'base',  prezzo_mese_cents: 6900,  valuta: 'eur', label: 'Standard', attivo: false,
+           nome_display: 'Standard', descrizione: 'Una sede, l\'essenziale.' },
+  pro:   { plan: 'pro',   prezzo_mese_cents: 14900, valuta: 'eur', label: 'Plus', attivo: true,
+           nome_display: 'Plus', descrizione: 'Tutto Foodos, senza limiti di sede o di utenti.' },
+  chain: { plan: 'chain', prezzo_mese_cents: 39900, valuta: 'eur', label: 'Ultra', attivo: false,
+           nome_display: 'Ultra', descrizione: 'Per gruppi e catene.' },
 }
 
 export default async function handler(req) {
@@ -35,7 +35,7 @@ export default async function handler(req) {
   try {
     const { data, error } = await supabase
       .from('plan_pricing')
-      .select('plan, prezzo_mese_cents, valuta, label, nome_display, descrizione')
+      .select('plan, prezzo_mese_cents, valuta, label, nome_display, descrizione, attivo')
     if (!error && Array.isArray(data) && data.length > 0) {
       const map = { ...FALLBACK }
       // Merge DB su fallback: se DB ha NULL su nome_display/descrizione,

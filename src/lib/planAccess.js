@@ -38,9 +38,11 @@
 // Cosa NON fa: la tabella VIEW_MIN_PLAN resta intatta, quindi PER TORNARE
 // COME PRIMA basta rimettere `false` qui sotto. Nient'altro da toccare.
 //
-// ⚠️ Da rimettere a false prima di far entrare clienti veri a pagamento:
-// finché è true, il piano Bottega (69 €/mese) vede anche le funzioni di
-// Maestro (149 €) e Insegna (399 €).
+// 15/09/2026: resta true per scelta. Si vende un piano solo, il Plus, e chi lo
+// prende ha tutto. Il giorno che si riaprono Standard e Ultra questa riga
+// torna a false e `VIEW_MIN_PLAN` qui sotto riprende a decidere chi vede cosa:
+// la divisione delle funzioni fra i tre livelli è già scritta, e va solo
+// rivista.
 export const SBLOCCO_TUTTE_LE_PAGINE = true
 
 export const PLAN_RANK = {
@@ -85,12 +87,30 @@ export const VIEW_MIN_PLAN = {
 // `plan_pricing.nome_display` modificabile dall'admin. Per leggere il nome
 // dinamico usa `getPlanLabel(plan)` da `./usePlanPricing.js` (sync, cache)
 // oppure `usePlanPricing().nome.{base,pro,chain}` (hook React).
+// 15/09/2026, decisione del titolare: i piani si chiamano Standard, Plus e
+// Ultra, e per ora se ne offre **uno solo**, il Plus, con tutto sbloccato.
+// Gli altri due restano definiti qui perché il giorno che si riaprono non si
+// riparte da zero — e perché un'organizzazione che avesse già `base` o
+// `enterprise` sul database deve comunque leggere un nome sensato.
+//
+// La gerarchia non cambia: Standard < Plus < Ultra, come prima
+// Bottega < Maestro < Insegna. Cambiano le parole, non i livelli.
 export const PLAN_LABEL = {
   trial:      'Prova',
-  base:       'Bottega',
-  pro:        'Maestro',
-  enterprise: 'Insegna',
-  chain:      'Insegna',  // alias storico
+  base:       'Standard',
+  pro:        'Plus',
+  enterprise: 'Ultra',
+  chain:      'Ultra',  // alias storico della chiave
+}
+
+// Quali piani si possono comprare OGGI. Il resto del codice continua a
+// conoscerli tutti e tre: questo elenco dice solo cosa si mostra in vetrina.
+// Per riaprirne uno basta rimetterlo qui (e riaccenderlo in `plan_pricing`).
+export const PIANI_IN_VENDITA = ['pro']
+
+export function pianoInVendita(plan) {
+  const k = String(plan || '').toLowerCase().trim()
+  return PIANI_IN_VENDITA.includes(k === 'chain' ? 'enterprise' : k)
 }
 
 // Prezzo €/mese per piano (sorgente di verita` per la UI).

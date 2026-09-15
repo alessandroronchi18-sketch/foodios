@@ -15,9 +15,9 @@ import { useState, useEffect } from 'react'
 // cached 60s lato CDN Vercel.
 
 const FALLBACK_FULL = {
-  base:  { prezzo_mese_cents: 6900,  nome_display: 'Bottega', descrizione: 'Una sede, l\'essenziale.',                       label: 'Bottega' },
-  pro:   { prezzo_mese_cents: 14900, nome_display: 'Maestro', descrizione: 'Sostituisce un controller part-time.',           label: 'Maestro' },
-  chain: { prezzo_mese_cents: 39900, nome_display: 'Insegna', descrizione: 'Sostituisce 1 controller + IT contractor.',     label: 'Insegna' },
+  base:  { prezzo_mese_cents: 6900,  nome_display: 'Standard', descrizione: 'Una sede, l\'essenziale.',                     label: 'Standard', attivo: false },
+  pro:   { prezzo_mese_cents: 14900, nome_display: 'Plus',     descrizione: 'Tutto Foodos, senza limiti di sede o di utenti.', label: 'Plus', attivo: true },
+  chain: { prezzo_mese_cents: 39900, nome_display: 'Ultra',    descrizione: 'Per gruppi e catene.',                          label: 'Ultra', attivo: false },
 }
 
 let _cache = null
@@ -43,6 +43,10 @@ function buildMeta(piani) {
       nome_display:      row.nome_display      || fb.nome_display || row.label,
       descrizione:       row.descrizione       || fb.descrizione  || '',
       label:             row.label             || row.nome_display || fb.label,
+      // Se il piano è in vendita. Si perdeva qui: la riga del database ce
+      // l'aveva e l'oggetto costruito no, quindi la vetrina non poteva
+      // sapere quali tessere mostrare.
+      attivo:            row.attivo !== false,
     }
   }
   return out

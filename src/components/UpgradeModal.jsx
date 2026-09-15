@@ -13,6 +13,7 @@ import Icon from './Icon'
 import ChainBadge from './ChainBadge'
 import usePlanPricing, { fmtPrezzo } from '../lib/usePlanPricing'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
+import { PLAN_LABEL } from '../lib/planAccess'
 
 const BRAND      = T.brand   || '#6E0E1A'
 const TXT        = T.text    || '#0E1726'
@@ -41,7 +42,7 @@ export default function UpgradeModal({
   const planMeta = usePlanPricing()
   // Alias retro-compat: 'enterprise' = 'chain' in plan_pricing.
   const dynKey = requiredPlan === 'enterprise' ? 'chain' : requiredPlan
-  const dynLabel = planMeta.nome?.[dynKey] || (requiredPlan === 'enterprise' ? 'Insegna' : 'Maestro')
+  const dynLabel = planMeta.nome?.[dynKey] || PLAN_LABEL[requiredPlan] || PLAN_LABEL.pro
   const dynPrezzo = planMeta[dynKey] // numero in euro
   const tier = {
     label:  dynLabel,

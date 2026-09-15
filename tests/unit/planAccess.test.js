@@ -40,7 +40,7 @@ describe('planAccess', () => {
   })
 
   it('requiredPlanLabel: etichetta solo per view gated', () => {
-    expect(requiredPlanLabel('confronto-sedi')).toBe('Insegna')
+    expect(requiredPlanLabel('confronto-sedi')).toBe('Ultra')
     expect(requiredPlanLabel('ricettario')).toBeNull()
   })
 

@@ -69,10 +69,10 @@ exports[`Snapshot markup — componenti puri ad alta riusabilita > ChainBadge ac
 
 exports[`Snapshot markup — componenti puri ad alta riusabilita > ChainBadge default 1`] = `
 <span
-  aria-label="Funzione esclusiva piano Insegna"
+  aria-label="Funzione esclusiva piano Ultra"
   role="img"
   style="display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;"
-  title="Funzione esclusiva piano Insegna"
+  title="Funzione esclusiva piano Ultra"
 >
   <svg
     height="14"
@@ -439,7 +439,7 @@ exports[`Snapshot markup — componenti puri ad alta riusabilita > ToastProvider
 
 exports[`Snapshot markup — componenti puri ad alta riusabilita > UpgradeModal piano base -> insegna 1`] = `
 <div
-  aria-label="Upgrade richiesto al piano Insegna"
+  aria-label="Upgrade richiesto al piano Ultra"
   aria-modal="true"
   role="dialog"
   style="position: fixed; z-index: 300; background: rgba(11, 4, 8, 0.66); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; padding: 16px; animation: _upg_fade 0.18s ease-out;"
@@ -507,10 +507,10 @@ exports[`Snapshot markup — componenti puri ad alta riusabilita > UpgradeModal 
           style="display: inline-flex; align-items: center; gap: 8px; padding: 4px 12px; border-radius: 999px; background: rgba(255, 255, 255, 0.10); border: 1px solid rgba(255, 255, 255, 0.18); font-size: 12px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
         >
           <span
-            aria-label="Funzione esclusiva piano Insegna"
+            aria-label="Funzione esclusiva piano Ultra"
             role="img"
             style="display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;"
-            title="Funzione esclusiva piano Insegna"
+            title="Funzione esclusiva piano Ultra"
           >
             <svg
               height="11"
@@ -574,7 +574,7 @@ exports[`Snapshot markup — componenti puri ad alta riusabilita > UpgradeModal 
             style="overflow: hidden; text-overflow: ellipsis;"
           >
             Piano 
-            Insegna
+            Ultra
           </span>
         </div>
         <h2
@@ -600,10 +600,10 @@ exports[`Snapshot markup — componenti puri ad alta riusabilita > UpgradeModal 
           style="width: 38px; height: 38px; border-radius: 10px; background: linear-gradient(135deg, #FFD86B, #E89B43); display: inline-flex; align-items: center; justify-content: center; color: #1C0A0A; font-weight: 800; font-size: 12px; letter-spacing: 0.06em; box-shadow: 0 6px 14px #FFD86B55; flex-shrink: 0;"
         >
           <span
-            aria-label="Insegna"
+            aria-label="Ultra"
             role="img"
             style="display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;"
-            title="Insegna"
+            title="Ultra"
           >
             <svg
               height="20"
@@ -671,7 +671,7 @@ exports[`Snapshot markup — componenti puri ad alta riusabilita > UpgradeModal 
             style="font-size: 12px; font-weight: 700; color: #64748B; letter-spacing: 0.05em; text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
           >
             Piano 
-            Insegna
+            Ultra
           </div>
           <div
             style="font-size: 14px; font-weight: 700; color: #0E1726; margin-top: 1px; font-feature-settings: 'tnum';"
@@ -687,17 +687,17 @@ exports[`Snapshot markup — componenti puri ad alta riusabilita > UpgradeModal 
         <strong
           style="color: #0E1726;"
         >
-          Insegna
+          Ultra
         </strong>
          sblocchi questa funzione e tutte le altre marcate con
         <span
           style="display: inline-block; vertical-align: middle; margin: 0px 4px;"
         >
           <span
-            aria-label="Funzione esclusiva piano Insegna"
+            aria-label="Funzione esclusiva piano Ultra"
             role="img"
             style="display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;"
-            title="Funzione esclusiva piano Insegna"
+            title="Funzione esclusiva piano Ultra"
           >
             <svg
               height="11"
@@ -801,7 +801,7 @@ exports[`Snapshot markup — componenti puri ad alta riusabilita > UpgradeModal 
 
 exports[`Snapshot markup — componenti puri ad alta riusabilita > UpgradeModal piano base -> pro 1`] = `
 <div
-  aria-label="Upgrade richiesto al piano Maestro"
+  aria-label="Upgrade richiesto al piano Plus"
   aria-modal="true"
   role="dialog"
   style="position: fixed; z-index: 300; background: rgba(11, 4, 8, 0.66); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; padding: 16px; animation: _upg_fade 0.18s ease-out;"
@@ -869,10 +869,10 @@ exports[`Snapshot markup — componenti puri ad alta riusabilita > UpgradeModal 
           style="display: inline-flex; align-items: center; gap: 8px; padding: 4px 12px; border-radius: 999px; background: rgba(255, 255, 255, 0.10); border: 1px solid rgba(255, 255, 255, 0.18); font-size: 12px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
         >
           <span
-            aria-label="Funzione esclusiva piano Insegna"
+            aria-label="Funzione esclusiva piano Ultra"
             role="img"
             style="display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;"
-            title="Funzione esclusiva piano Insegna"
+            title="Funzione esclusiva piano Ultra"
           >
             <svg
               height="11"
@@ -936,7 +936,7 @@ exports[`Snapshot markup — componenti puri ad alta riusabilita > UpgradeModal 
             style="overflow: hidden; text-overflow: ellipsis;"
           >
             Piano 
-            Maestro
+            Plus
           </span>
         </div>
         <h2
@@ -962,10 +962,10 @@ exports[`Snapshot markup — componenti puri ad alta riusabilita > UpgradeModal 
           style="width: 38px; height: 38px; border-radius: 10px; background: linear-gradient(135deg, #E89B43, #E89B43); display: inline-flex; align-items: center; justify-content: center; color: #1C0A0A; font-weight: 800; font-size: 12px; letter-spacing: 0.06em; box-shadow: 0 6px 14px #E89B4355; flex-shrink: 0;"
         >
           <span
-            aria-label="Maestro"
+            aria-label="Plus"
             role="img"
             style="display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;"
-            title="Maestro"
+            title="Plus"
           >
             <svg
               height="20"
@@ -1033,7 +1033,7 @@ exports[`Snapshot markup — componenti puri ad alta riusabilita > UpgradeModal 
             style="font-size: 12px; font-weight: 700; color: #64748B; letter-spacing: 0.05em; text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
           >
             Piano 
-            Maestro
+            Plus
           </div>
           <div
             style="font-size: 14px; font-weight: 700; color: #0E1726; margin-top: 1px; font-feature-settings: 'tnum';"
@@ -1049,17 +1049,17 @@ exports[`Snapshot markup — componenti puri ad alta riusabilita > UpgradeModal 
         <strong
           style="color: #0E1726;"
         >
-          Maestro
+          Plus
         </strong>
          sblocchi questa funzione e tutte le altre marcate con
         <span
           style="display: inline-block; vertical-align: middle; margin: 0px 4px;"
         >
           <span
-            aria-label="Funzione esclusiva piano Insegna"
+            aria-label="Funzione esclusiva piano Ultra"
             role="img"
             style="display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;"
-            title="Funzione esclusiva piano Insegna"
+            title="Funzione esclusiva piano Ultra"
           >
             <svg
               height="11"

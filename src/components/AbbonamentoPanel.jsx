@@ -19,7 +19,7 @@ import { PLAN_LABEL } from '../lib/planAccess'
 const PIANI_DEFAULT = [
   {
     id: 'base',
-    label: 'Bottega',
+    label: PLAN_LABEL.base,
     prezzo: '€69',
     periodo: '/mese',
     desc: 'Per il banco singolo. Smetti di sbagliare i prezzi. Già il primo mese ti ripaghi.',
@@ -38,12 +38,12 @@ const PIANI_DEFAULT = [
   },
   {
     id: 'pro',
-    label: 'Maestro',
+    label: PLAN_LABEL.pro,
     prezzo: '€149',
     periodo: '/mese',
     desc: 'Sostituisce un controller part-time. Le 23 feature AI lavorano per te 24/7.',
     features: [
-      'Tutto di Bottega +',
+      `Tutto di ${PLAN_LABEL.base} +`,
       '2 sedi · 3 utenti (col PIN tablet)',
       'Daily Brief AI ogni mattina',
       'Forecast vendite 7gg (meteo + eventi)',
@@ -59,12 +59,12 @@ const PIANI_DEFAULT = [
   },
   {
     id: 'enterprise',
-    label: 'Insegna',
+    label: PLAN_LABEL.enterprise,
     prezzo: '€399',
     periodo: '/mese',
     desc: 'Sostituisce 1 controller dedicato + l\'IT contractor. Per chi ha 3+ sedi.',
     features: [
-      'Tutto di Maestro +',
+      `Tutto di ${PLAN_LABEL.pro} +`,
       'Sedi illimitate · Utenti illimitati',
       'Confronto sedi + Trasferimenti',
       'Integrazioni real-time (Tilby, Zucchetti)',
@@ -257,7 +257,7 @@ export default function AbbonamentoPanel({ org, notify, isInline = false }) {
                 <span style={{ fontSize: 13, color: T.textSoft }}>{p.periodo}</span>
               </div>
 
-              {/* Chip separatore per il piano che eredita ("Tutto di Bottega +") */}
+              {/* Chip separatore per il piano che eredita ("Tutto di Standard +") */}
               {inheritsFeature && (
                 <div style={{
                   display: 'inline-flex', alignItems: 'center', gap: 6, alignSelf: 'flex-start',
