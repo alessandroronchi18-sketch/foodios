@@ -4,7 +4,7 @@
 > e, dal 7 set, su query al database di produzione: quando qui c'e' un numero di
 > righe, di fatture o di letture, e' stato contato, non stimato.
 >
-> **Composito al 15/09: Prodotto 96 · Ingegneria 97 · Business 43 · Maturita' ~68.**
+> **Composito al 15/09 (sera): Prodotto 96 · Ingegneria 98 · Business 43 · Maturita' ~68.**
 >
 > Il 15/09 (sezione 0quater) sei lavori chiesti dal titolare, tutti in
 > produzione. **Prodotto +1** perche' sono state tolte tre cose che il prodotto
@@ -18,6 +18,14 @@
 > quello vero. Ingegneria resta 97: i difetti erano tanti e grossi, ma la
 > macchina che li ha trovati (verifica contro il database vero, prova
 > dall'esterno, test di guardia) e' la stessa gia' contata il 14.
+>
+> **Ingegneria 97 -> 98 nel pomeriggio**, per una ragione sola: e' stato chiuso
+> il difetto che costava **soldi veri senza limite superiore** — il tetto di
+> spesa dell'AI non contava niente, e nemmeno il pannello che avrebbe dovuto
+> farlo vedere. Piu' i trasferimenti, dove due scritture senza controllo
+> dell'esito potevano **scalare il magazzino due volte in silenzio**. Sono le
+> due categorie che in un gestionale fanno la differenza fra uno strumento e un
+> problema: quello che costa e quello che perde merce.
 >
 > L'aggiornamento della notte e' tutto di **sicurezza**: otto buchi trovati e
 > chiusi (sezione 0ter), ognuno provato dall'esterno con la sola chiave
@@ -58,7 +66,7 @@
 | Data | Prodotto | Ingegneria | Business | Maturità azienda | Δ note |
 |---|---:|---:|---:|---:|---|
 | 2026-06-05 | 76 | 70 | 22 | ~30 | baseline |
-| **2026-09-15** | **96** | **97** | **43** | **~68** | **SEI LAVORI: ACCESSO, DIPENDENTE, PIANI, INTEGRAZIONI.** 5 commit, test 2.394 → **2.485** su 176 file, 5 migrazioni nuove applicate e verificate. **(1) Accesso**: `/api/login-guard` non ha autenticazione e «questo accesso e' fallito» era una cosa che il BROWSER dichiarava — chiunque conoscesse l'email di un cliente poteva lasciarlo fuori dal gestionale, per sempre. Provato in produzione: cinque richieste senza credenziali e l'account e' bloccato. Piu' il **codice a 4 cifre dei dipendenti provabile all'infinito** (10.000 combinazioni, nessun limite: ci si presentava come un collega), il passo SMS in registrazione che **non poteva riuscire** e nel fallire diceva se un numero e' registrato, e altri quattro. **reCAPTCHA non si puo' usare** (Supabase accetta solo hCaptcha e Turnstile, perche' l'accesso non passa dai nostri server): messo **Turnstile**, spento. **(2) Dipendente «solo le sue pagine»**: il filtro girava DOPO il disegno della pagina, e la ricerca rapida offriva la scorciatoia. Ma il buco vero era nel database — **leggeva affitti e utenze** (8 righe vere), perche' `fatture` era chiusa e `extracted_invoices` no. La porta principale chiusa e la finestra di lato aperta. **(3) Produzione**: la rimanenza del giorno prima non era a schermo, si inseriva alla cieca. **(4) Piani → Standard/Plus/Ultra, solo il Plus in vendita**: e correggendo e' uscito che `plan_pricing` era ferma al 27/05 e **la pagina pubblica mostrava 89 € e 149 € invece di 149 € e 399 €, da tre mesi** — Termini di servizio compresi. **(5) Quattro difetti nelle integrazioni**: l'auto-riconoscimento dei CSV di cassa **dichiarato su 13 marche e mai collegato** (e dentro i parser, i metodi di pagamento sempre vuoti e RCH che leggeva 0 € su una giornata da 100 €); il **dettaglio riga di 3.520 fatture** letto e buttato; i `.p7m` accettati e sempre falliti; il registro a una riga per scontrino (140.000 l'anno). Piu' il **lettore ZIP** che apre gli archivi dell'Agenzia delle Entrate, dove le fatture hanno dentro tutto. **(6) «Settimana precedente» non tornava indietro**, segnalato dal titolare: un effetto che correggeva uno stato guardandone un altro, e i due comandi si combattevano |
+| **2026-09-15** | **96** | **98** | **43** | **~68** | **SEI LAVORI: ACCESSO, DIPENDENTE, PIANI, INTEGRAZIONI.** 5 commit, test 2.394 → **2.485** su 176 file, 5 migrazioni nuove applicate e verificate. **(1) Accesso**: `/api/login-guard` non ha autenticazione e «questo accesso e' fallito» era una cosa che il BROWSER dichiarava — chiunque conoscesse l'email di un cliente poteva lasciarlo fuori dal gestionale, per sempre. Provato in produzione: cinque richieste senza credenziali e l'account e' bloccato. Piu' il **codice a 4 cifre dei dipendenti provabile all'infinito** (10.000 combinazioni, nessun limite: ci si presentava come un collega), il passo SMS in registrazione che **non poteva riuscire** e nel fallire diceva se un numero e' registrato, e altri quattro. **reCAPTCHA non si puo' usare** (Supabase accetta solo hCaptcha e Turnstile, perche' l'accesso non passa dai nostri server): messo **Turnstile**, spento. **(2) Dipendente «solo le sue pagine»**: il filtro girava DOPO il disegno della pagina, e la ricerca rapida offriva la scorciatoia. Ma il buco vero era nel database — **leggeva affitti e utenze** (8 righe vere), perche' `fatture` era chiusa e `extracted_invoices` no. La porta principale chiusa e la finestra di lato aperta. **(3) Produzione**: la rimanenza del giorno prima non era a schermo, si inseriva alla cieca. **(4) Piani → Standard/Plus/Ultra, solo il Plus in vendita**: e correggendo e' uscito che `plan_pricing` era ferma al 27/05 e **la pagina pubblica mostrava 89 € e 149 € invece di 149 € e 399 €, da tre mesi** — Termini di servizio compresi. **(5) Quattro difetti nelle integrazioni**: l'auto-riconoscimento dei CSV di cassa **dichiarato su 13 marche e mai collegato** (e dentro i parser, i metodi di pagamento sempre vuoti e RCH che leggeva 0 € su una giornata da 100 €); il **dettaglio riga di 3.520 fatture** letto e buttato; i `.p7m` accettati e sempre falliti; il registro a una riga per scontrino (140.000 l'anno). Piu' il **lettore ZIP** che apre gli archivi dell'Agenzia delle Entrate, dove le fatture hanno dentro tutto. **(6) «Settimana precedente» non tornava indietro**, segnalato dal titolare: un effetto che correggeva uno stato guardandone un altro, e i due comandi si combattevano  **POMERIGGIO — altri tre audit profondi.** **(7) La spesa dell'AI non aveva nessun tetto che funzionasse**: le funzioni del contatore cercavano l'azienda con `auth.uid()`, vuoto quando chiama il server, quindi non scrivevano mai e il totale tornava sempre 0 — `0 >= tetto` non e' mai vero, e il limite non e' mai scattato per nessuno. La prova: `ai_usage_daily` VUOTA con 327 organizzazioni e sette chiavi `ai:…` in `rate_limits` che dimostrano che le chiamate c'erano state. Anche il pannello admin leggeva quella tabella e mostrava 0 € per tutti: non c'era modo di accorgersene. Tetto a 5 $/giorno, e i pacchetti comprati adesso si consumano davvero. **(8) Trasferimenti fra sedi** (mai usati da nessuno: zero righe, 108 aziende con i requisiti): **la merce poteva essere scalata due volte** in silenzio, due conferme insieme caricavano due volte, e il dipendente **non vedeva niente ma poteva fare tutto** — le funzioni saltano le regole di isolamento e guardavano l'azienda, non il ruolo. Piu' chili e pezzi sommati fra loro, il valore perso all'arrivo, le due sedi che potevano essere di aziende diverse. **(9) I due bottoni assistente e feedback**: la chat **smetteva di ascoltare dall'undicesima domanda**, l'assistente spiegava al dipendente come arrivare alle pagine chiuse, mandava su pagine spente, non aveva nessun divieto di inventare numeri, e le chiamate AI **non lasciavano nessuna traccia** (9.825 righe di registro, zero per l'AI). **(10)** La suite girava su un core solo per un vincolo che serviva solo al calcolo della copertura: 2m58 -> 2m23. Test 2.394 -> **2.531** su 178 file, audit-sicurezza 19/19, 7 migrazioni |
 | **2026-09-14 (notte)** | **95** | **97** | **42** | **~67** | **AUDIT DI SICUREZZA PROFONDO — otto buchi trovati e chiusi.** 12 commit, test 2.258 → **2.335** su 165 file, 8 migration di sicurezza applicate e verificate in produzione. Ognuno provato **dall'esterno con la sola chiave pubblica del sito** prima e dopo la correzione. (1) Sei funzioni interne chiamabili senza account: sovrascrivere ricettario, magazzino e chiusure di un'attività conoscendone l'id, alterare lo stock, **cancellare tutto il registro delle modifiche**. (2) I trasferimenti fra sedi comandabili da anonimi, perché il controllo di proprietà era `x <> get_user_org_id()` e in SQL `x <> NULL` non è falso, è NULL — un `if` con condizione NULL non scatta. (3) Deposito delle foto pubblico: scaricabile **ed elencabile** da chiunque. (4) Lo storico dei prezzi d'acquisto leggibile dai dipendenti — l'unico dei otto dove c'erano dati veri. (5) Un titolare poteva mettersi `approvato = true` dal browser e sbloccare tutto senza pagare. (6) Sul proprio profilo si poteva creare un account di laboratorio da soli. (7) TRUNCATE concesso ai ruoli pubblici: ignora le regole di isolamento per costruzione. (8) La cassa entrava con una parola d'ordine **uguale per tutti i clienti** e dichiarava lei l'attività: chi l'aveva scriveva incassi nella cassa di chiunque. **Nessun dato uscito** tranne il punto 4: deposito foto vuoto, zero integrazioni cassa attive. Tenuti da `audit-sicurezza.mjs` (12 controlli in produzione), una prova d'attacco con la chiave pubblica e 50 test. **Sicurezza 88 → 97**, Ingegneria 96 → 97  **Poi le sette sezioni sotto l'80**, chiuse nella stessa notte: WhatsApp mostrava un numero di cellulare INVENTATO e diceva di salvarlo in rubrica e scrivergli; le stelle delle Recensioni partivano da 5 e l'AI ci credeva, quindi rispondeva da cliente contento a una recensione da una stella; due schede di Impostazioni parlavano di "rotazione token", "il cron non parte" e "approvare il sender Twilio, o in sandbox l'opt-in"; la pagina della prova scaduta prometteva che i dati restassero "al sicuro per 60 giorni", lasciando capire che poi sparissero. **OnboardingChat rimossa**: non era raggiungibile da quando e' nata il 12/06, e se il salvataggio falliva a meta' creava una seconda organizzazione. Fuori dalle sette: i **Termini di servizio** — il contratto — elencavano due piani inesistenti a due prezzi sbagliati, e i vecchi nomi erano offerti in 8 punti da tre mesi; il pannello invito prometteva "60 giorni invece di 30" quando la prova vera ne dura 90 e il codice ne aggiunge 60; il dominio **foodos.it non esiste** (NXDOMAIN) e ci sono 46 indirizzi che ci puntano. Media UI 84,6 → **85,0**, nessuna sezione sotto l'80 |
 | **2026-09-14 (sera)** | **94** | **96** | **42** | **~66** | **ARRETRATO DEGLI AUDIT CHIUSO + AUDIT DI IMPAGINAZIONE + DUE SCELTE DI STILE.** 22 commit, test 1.721 → 2.258. **Prodotto +1**: i 117 difetti "sostenuti e mai verificati" di Magazzino e Produzione sono stati passati uno per uno (52 risultavano già corretti e il documento era rimasto indietro, 59 corretti, 2 rifiutati con un fatto). Dentro c'erano cose che nessuno vedeva: il percorso del DIPENDENTE era rimasto indietro rispetto a quello del titolare — il server non scendeva nei semilavorati, saltava gli ingredienti salvati al plurale, e non aveva idempotenza (tablet che perde la rete, messaggio "riprova", stessa produzione registrata due volte e magazzino scalato due volte); "Azzera" registrava una correzione di giacenza come merce buttata; la home diceva "8.409 pezzi al banco" sommando 6 torte e 8,4 kg di gelato. **Ingegneria +1**: i difetti non verificati erano il motivo per cui il 14/09 mattina l'ingegneria non saliva, e ora sono verificati. Più: **due migration mai applicate in produzione** trovate confrontando le 37 RPC chiamate dal codice con quelle esistenti nel database (ogni vendita all'ingrosso scaricava il magazzino come una vendita al banco, con un ripiego silenzioso); **il gate pre-push non bloccava il build dal 7 set** (`| tail -5` mangiava l'esito) e la produzione è rimasta ferma tre commit indietro senza nessun segnale — corretto, più `npm run push` che verifica che il commit sia davvero online. **Impaginazione 80 → 88**: scala tipografica unica tenuta da un test (261 misure fuori scala, compresi testi a 8-10px), colonne di numeri incolonnate, 32 viste rese in due versioni e misurate. **Due scelte di stile del titolare**: le undici pagine AI usano l'intestazione di tutte le altre (via gradienti e titoli in oro: erano le uniche che sembravano generate), e il rosso del marchio si separa da quello d'allarme. **Business fermo a 42**: nessun blocco esterno tolto. Media UI 84,6 → **84,9** |
 | 2026-06-06 | 79 | 75 | 22 | ~31 | Personale rifondato, home+nav premium, +68 test |
@@ -466,6 +474,87 @@ punto di partenza. Dalla settimana corrente non si usciva.
 altro: due comandi che scrivono la stessa variabile si combattono, e vince
 quello che parte per ultimo. La correzione non è aggiustare la condizione, è
 togliere l'effetto.
+
+### 7. La spesa dell'AI — il difetto che costava soldi veri
+
+Il tetto giornaliero **non era alto: era scollegato.** Le due funzioni che
+tengono il conto cercavano l'azienda con
+`select organization_id from profiles where id = auth.uid()`, ma chi le chiama è
+il **server**, con la chiave di servizio, dove `auth.uid()` è vuoto. L'incremento
+usciva subito senza scrivere e il totale del giorno tornava sempre 0: `0 >= cap`
+non è mai vero, quindi il messaggio «limite raggiunto» **non è mai comparso a
+nessuno**.
+
+La prova sta in due righe del database che si contraddicono: `ai_usage_daily`
+**vuota** con 327 organizzazioni, e sette chiavi `ai:…` in `rate_limits` che
+dimostrano che le chiamate sono state fatte davvero. Si spendeva, e il contatore
+restava a zero — compreso quello del pannello admin, che legge la stessa tabella
+e mostrava 0 € per tutti. Quindi non c'era nemmeno modo di accorgersene.
+
+L'unica difesa rimasta erano dieci richieste al minuto per utente+IP: cambiando
+rete, il contatore ripartiva.
+
+Corretto con l'organizzazione passata in modo esplicito, e funzioni eseguibili
+**solo dal server** (dal browser quel parametro sarebbe un modo per scrivere nel
+contatore di un'altra azienda). Tetto a **5 $ al giorno**, scelto dal titolare.
+E i pacchetti di crediti comprati adesso si consumano prima del tetto: la
+migration del 06/07 lo dichiarava già ma quel codice non era mai stato scritto, e
+la funzione sul database non esisteva.
+
+### 8. Trasferimenti fra sedi
+
+Zero righe in produzione: 108 organizzazioni hanno i requisiti per usare la
+pagina e **non l'ha mai usata nessuno**. Nessun magazzino è già sbagliato.
+
+- **La merce poteva essere scalata due volte.** Due scritture senza controllo
+  dell'esito — la libreria di Supabase non lancia eccezioni, restituisce un
+  oggetto con dentro `error`. A schermo usciva «Trasferimento inviato» mentre la
+  riga restava bozza: l'utente ricliccava "Invia" e il magazzino veniva scalato
+  di nuovo. Dieci chili partiti, venti tolti, in silenzio. **Venti righe sotto lo
+  stesso comando aveva già il controllo giusto**: la correzione era stata
+  applicata a un percorso e non all'altro.
+- **Due conferme insieme applicavano due volte lo stesso carico** (nessun blocco
+  sulla riga mentre la si legge). Non è un caso di laboratorio: è il wifi lento
+  del negozio, la pagina ricaricata, il secondo clic.
+- **Il dipendente non vedeva niente e poteva fare tutto.** La lettura era stata
+  chiusa la mattina stessa, ma quelle funzioni saltano le regole di isolamento e
+  guardavano l'azienda, non il ruolo. Bastava leggere gli id dei trasferimenti
+  da Magazzino, che è una sua pagina. Decisione del titolare: **riceve e basta**.
+- Chili e pezzi **si sommavano fra loro**; il valore della merce si perdeva
+  all'arrivo; le due sedi potevano essere di aziende diverse; «Invia subito» non
+  scriveva i chili spediti nell'inventario, che risultavano venduti al banco.
+
+### 9. I due bottoni: assistente e feedback
+
+- **La chat smetteva di ascoltare dopo dieci scambi**: si tenevano i PRIMI venti
+  messaggi invece degli ultimi, quindi la domanda appena scritta veniva tagliata
+  via e il modello proseguiva la vecchia risposta. Sembrava impazzito.
+- **L'assistente spiegava al dipendente come arrivare alle pagine che gli sono
+  chiuse.** I numeri non li ha — non li riceve — ma la mappa sì. La ricerca
+  rapida questa regola ce l'aveva già, con la nota che la spiega.
+- Mandava su **pagine spente dal 09/09** e sbagliava quasi tutti i nomi delle
+  voci di menu: l'utente cercava una voce che non c'era e concludeva che il
+  programma fosse rotto.
+- **Nessun divieto di inventare numeri**, mentre il fratello maggiore (Foodos
+  Brain) ce l'ha scritto. Nessuna regola su emoji o su «1.477 €».
+- Le chiamate AI **non lasciavano nessuna traccia**: una colonna obbligatoria che
+  nessuno valorizzava faceva fallire ogni scrittura nel registro, e il risultato
+  non veniva controllato. 9.825 righe di registro, **zero** per l'AI. Il blocco
+  «richiesta sui dati di un'altra azienda» è scritto apposta per lasciare una
+  prova, e non ne lasciava nessuna.
+- Il feedback **non diceva da quale schermata arrivava**.
+- I due bottoni stavano sopra a tutto, Esc non chiudeva niente, si raggiungevano
+  col Tab da nascosti, e sull'iPhone finivano sotto la barra di sistema.
+
+### 10. La suite di test girava su un core solo
+
+`threads: { singleThread: true }`, messo per una corsa sulla cartella temporanea
+del calcolo della **copertura** su macOS. Ma la copertura si calcola solo con
+`npm run test:coverage`: nella suite normale quel vincolo non serviva, e teneva
+2.531 test in fila mentre tre core su quattro stavano fermi. In più la sintassi
+era quella di Vitest 1.x, quindi quella riga non faceva nemmeno quello che
+diceva. Da **2m58 a 2m23**, e il vincolo resta acceso dove serviva.
+
 
 ---
 
@@ -1287,7 +1376,7 @@ Tutto il resto chiuso:
 | 22 | Sede selector | 86 | Pill dropdown, multi-sede badge. **11 set**: regola nuova — si mostra dove i dati cambiano al cambio sede, si nasconde dove non cambiano. Prima era sopra pagine che lo ignoravano (sembrava un comando e non lo era) e mancava su previsione e azioni, dove i numeri sono per sede |
 | 23 | Sede context banner | 80 | Standard |
 | 24 | AppBanner annunci | 82 | Close 40x40 touch, dismiss persistente |
-| 25 | FloatingActions FAB | 86 | 1 main → 2 sub (AI+feedback). Pattern Material-like ben fatto |
+| 25 | FloatingActions FAB | 86 → **92** | 1 main → 2 sub (AI+feedback). Pattern Material-like ben fatto **15 set**: stavano **sopra a tutto** — sopra la ricerca rapida, la finestra di upgrade e persino il modale del feedback stesso, cliccabili sopra il velo scuro. I due bottoncini nascosti si raggiungevano col Tab (invisibili al mouse, non alla tastiera). Esc non chiudeva niente. Sull'iPhone finivano sotto la barra di sistema. E il feedback **non diceva da quale schermata arrivava**: su un canale che serve a capire i guasti è il campo più importante |
 
 ### Dashboard Home
 
@@ -1311,7 +1400,7 @@ Tutto il resto chiuso:
 | 111 | Prima nota di cassa | 88 | **Nuova il 7 set.** Le uscite di giornata — "limoni 10 euro", "carrefour 11,56" — non avevano casa: `costi_aziendali` e' fatto per i costi ricorrenti mensili con periodicita', non per l'acquisto di limoni del 3 luglio. Il campo `documento` (fattura / senza / da verificare) e' preso di peso dalla notazione con cui il design partner tiene il registro da anni, e separa cio' che il commercialista puo' scaricare da cio' che non puo'. Sta dentro la pagina Cassa perche' si compila quando si conta il cassetto |
 | 112 | Import registro incassi | 88 | **Nuova il 7 set.** Legge il foglio Excel del mese COM'E': tabelle affiancate separate da colonne vuote, intestazioni scritte a mano ("Berthollet- Contanti"), colonna dei giorni anche senza etichetta, spese in testo libero con piu' voci per cella. Abbina da solo i nomi del foglio ai punti vendita, deduce il mese dal nome del file e lo fa confermare, segnala le somme che non tornano invece di scegliere in silenzio. Reimportare lo stesso mese non raddoppia. −1 perche' un foglio alla volta e nessuna memoria del mapping fra un mese e l'altro. **10 set**: 26 difetti, i piu' gravi distruttivi (reimportare cancellava movimenti non suoi) |
 | 36 | Vendite B2B | 86 | Mobile column-first, sticky col cliente, filtri pill. Rebuild agent. **11 set**: il selettore sede non filtrava niente — tre sedi, gli stessi numeri — e il margine di ogni riga risultava 100% perche' il costo non veniva mai letto |
-| 37 | Trasferimenti | 85 | KPI italianizzati, form 4→2 col tablet. **11 set**: un invio non riuscito scalava comunque il magazzino, e al secondo tentativo lo scalava due volte; ora un trasferimento scrive da solo i chili spediti nell'inventario |
+| 37 | Trasferimenti | 85 → **92** | KPI italianizzati, form 4→2 col tablet. **11 set**: un invio non riuscito scalava comunque il magazzino, e al secondo tentativo lo scalava due volte; ora un trasferimento scrive da solo i chili spediti nell'inventario **15 set**: audit profondo, e la pagina non era mai stata usata da nessuno (zero righe in produzione, 108 aziende con i requisiti). **La merce poteva essere scalata due volte**: due scritture senza controllo dell'esito — a schermo usciva «Trasferimento inviato» ma la riga restava bozza, e il secondo clic scalava di nuovo. In silenzio. Venti righe sotto lo stesso comando aveva già il controllo giusto. **Due conferme insieme caricavano due volte** (nessun blocco sulla riga): il wifi lento del negozio, la pagina ricaricata, il secondo clic. **Il dipendente non vedeva niente e poteva fare tutto**: le funzioni saltano le regole di isolamento e guardavano l'azienda, non il ruolo — bastava leggere gli id da Magazzino, che è una sua pagina. Ora riceve e basta, per decisione del titolare. Più: chili e pezzi che si sommavano fra loro, il valore della merce perso all'arrivo, le due sedi che potevano essere di aziende diverse, «Invia subito» che non scriveva i chili spediti nell'inventario (risultavano venduti al banco), una sede archiviabile con una bozza aperta verso di lei, e un errore mostrato in verde come una conferma |
 | 38 | Quadratura inventario | 87 | Rebuild agent: tile minHeight 132, sparkline gridline. **11 set**: sui dati del design partner 604 celle su 7.012 non tornavano (−2.650 kg) e restavano rosse per sempre, mescolate agli errori di compilazione. Ora si accettano una per una con la nota del perche' (omaggio, rottura, assaggio) e la pagina dichiara quante caselle restano da guardare |
 | 39 | Inventario settimanale | 87 → **91** | Tabella minWidth 1280, sticky col GUSTO. Funzionale ma denso. **10-11 set**: la settimana cominciava di domenica (venduto del lunedi' fuori conto), la vista mese dava numeri diversi dalla vista settimana sugli stessi giorni, il grafico diceva una cosa e la tabella un'altra. Il 42% dei chili non aveva food cost e ora e' scritto. **14 set**: sforava di 124px su telefono (griglia senza `minWidth: 0`), quindi la pagina scorreva di lato **15 set**: «settimana precedente» e «mese precedente» **non andavano indietro** (segnalato in produzione): un effetto riportava la settimana sul giorno di oggi, e i due comandi si combattevano. La navigazione per mese metteva il cursore sul primo del mese, che è lunedì una volta su sette. E la **rimanenza del giorno prima** non era a schermo: si compilava alla cieca, senza sapere con quanto si era aperto il banco |
 | 40 | Storico produzione | 86 | Rebuild agent: 8 chart con stesso radius, tabelle aria-sort. **11 set**: il venduto si calcolava in quattro punti diversi con quattro formule; ora e' un conto solo |
@@ -1338,7 +1427,7 @@ Tutto il resto chiuso:
 | 51 | AI Hub home | 83 | Feature cards, cluster vuoto dopo congelamenti. **11 set**: copy italiano. **14 set**: intestazione allineata al resto del tool |
 | 52 | Brain (chat libera) | 86 | Sidebar 210 tablet, input 44/16. Funzionale. **11 set**: la chat rispondeva "nessun ingrediente sotto soglia" sempre, anche con mezzo magazzino sotto scorta, e l'assistente dava errore su ogni domanda (modelli non aggiornati). **14 set**: intestazione allineata al resto del tool |
 | 53 | Azioni (chat suggerimenti) | 83 | Grid 3→2 col tablet, "Scrivi una domanda". **11 set**: copy italiano e numeri IT |
-| 54 | AI Assistant panel | 84 | Full-bleed sotto 600px, fontSize 16 |
+| 54 | AI Assistant panel | 84 → **91** | Full-bleed sotto 600px, fontSize 16 **15 set**: audit dei due bottoni. Il difetto più caro non era qui ma sotto — **il tetto di spesa AI non contava niente**: le funzioni cercavano l'azienda con `auth.uid()`, vuoto quando chiama il server, quindi il contatore non scriveva mai e `0 ≥ tetto` non era mai vero. Nessun limite è mai scattato per nessuno, e il pannello admin mostrava 0 € per tutti. Qui invece: **dall'undicesima domanda la chat smetteva di ascoltare** (si tenevano i PRIMI venti messaggi, non gli ultimi, quindi la domanda appena scritta veniva tagliata e il modello proseguiva la vecchia risposta); l'assistente **spiegava al dipendente come arrivare alle pagine che gli sono chiuse**; mandava su pagine spente dal 09/09 e sbagliava quasi tutti i nomi delle voci di menu; **non aveva nessun divieto di inventare numeri** (il fratello maggiore ce l'ha); nessuna regola su emoji ed euro dopo la cifra. Le chiamate non lasciavano **nessuna traccia** nel registro (una colonna obbligatoria mai scritta: 9.825 righe e zero per l'AI) |
 | 55 | AICard (loading/error/idle) | 82 | minHeight 200, copy clear/retry 44px |
 | 56 | Documentary AI | 80 | Hero + sezioni, copy AI-tone, Recharts da rivedere. **11 set**: parla italiano. **14 set**: via il pannello col gradiente animato e il titolo in oro sfumato — era la ragione principale per cui la pagina sembrava generata |
 | 57 | Forecast | 87 | Eredita pattern PrevisioneDomanda, ResponsiveContainer. **11 set**: numeri IT dichiarati tali. **14 set**: intestazione allineata al resto del tool |
