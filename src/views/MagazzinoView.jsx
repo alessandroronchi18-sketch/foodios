@@ -1991,7 +1991,7 @@ export default function MagazzinoView({
                       }}>{u}</button>
                   ))}
                 </div>
-                <button onClick={() => setShowAddIng(true)} style={{ padding: '0 16px', minHeight: 44, background: C.red, color: C.white, border: 'none', borderRadius: 9, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 2px 8px rgba(110,14,26,0.2)', display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="plus" size={12} />Aggiungi ingrediente</button>
+                <button onClick={() => setShowAddIng(true)} title="Aggiungi ingrediente" style={{ padding: isMobile ? '0 12px' : '0 16px', minHeight: 44, background: C.red, color: C.white, border: 'none', borderRadius: 9, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 2px 8px rgba(110,14,26,0.2)', display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}><Icon name="plus" size={12} />{isMobile ? 'Aggiungi' : 'Aggiungi ingrediente'}</button>
               </div>
             } />
           {/* [15] Ricerca: con 35 ingredienti e oltre non c'era modo di

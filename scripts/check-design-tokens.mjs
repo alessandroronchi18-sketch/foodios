@@ -53,6 +53,25 @@ const REGOLE = [
     re: /fontSize:\s*'?\d+/g,
     spiega: 'dimensione del testo scritta a mano invece di typo/getTypo in theme.js',
   },
+  {
+    // La stessa misura scritta tre volte: computer, tablet, telefono. Chi ne
+    // cambia una sola fa divergere le altre due, ed è già successo — il
+    // 15/09/2026 il tablet aveva 95 campi di testo sotto i 16px perché la
+    // regola anti-zoom era scritta `isMobile ? 16 : 13` e su iPad prendeva il
+    // valore del computer.
+    id: 'tripla-a-mano',
+    re: /is(?:Mobile|Tablet)\s*\?[^?:\n]{0,70}:\s*is(?:Tablet|Mobile)\s*\?/g,
+    spiega: 'misura scritta tre volte (computer/tablet/telefono): usa getTypo(isMobile) o un token a tre vie',
+  },
+  {
+    // La regola che impedisce a iOS di ingrandire la pagina, scritta a mano.
+    // `isMobile` è falso su iPad, quindi questa forma salta SEMPRE il tablet.
+    // Dal 15/09/2026 la regola sta in index.html sotto `@media (pointer: coarse)`
+    // e vale per telefono e tablet insieme: qui non serve più scriverla.
+    id: 'antizoom-a-mano',
+    re: /fontSize:\s*isMobile\s*\?\s*16\s*:/g,
+    spiega: "regola anti-zoom scritta a mano: salta il tablet. Sta gia' in index.html per tutti i dispositivi a tocco",
+  },
 ]
 
 function raccogliFile(dir, out = []) {

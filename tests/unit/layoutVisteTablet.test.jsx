@@ -8,8 +8,10 @@
 // Otto difetti dell'audit del 9 set erano usciti solo così: sul DOM non si
 // vedono, in una fotografia sì.
 //
+// La variante TABLET delle viste, da misurare a 768 e 1024 px.
+//
 // Gira solo con DUMP_LAYOUT=1, così non rallenta la suite:
-//   DUMP_LAYOUT=1 npx vitest run tests/layout/viste.test.jsx
+//   DUMP_LAYOUT=1 npx vitest run tests/unit/layoutVisteTablet.test.jsx
 //   node scripts/foto-layout.mjs
 
 import { describe, it, expect, vi } from 'vitest'
@@ -18,7 +20,7 @@ import React from 'react'
 import { mkdirSync, writeFileSync } from 'node:fs'
 
 const ATTIVO = !!process.env.DUMP_LAYOUT
-const FUORI = '/private/tmp/claude-501/-Users-aler/7259be07-0e07-42ba-9be1-e672e3a32c10/scratchpad/viste-mobile'
+const FUORI = '/private/tmp/claude-501/-Users-aler/7259be07-0e07-42ba-9be1-e672e3a32c10/scratchpad/viste-tablet'
 
 function fluente(res = { data: [], error: null }) {
   const h = { get(_t, p) {
@@ -37,12 +39,16 @@ vi.mock('../../src/lib/supabase', () => ({
     channel: () => ({ on: () => ({ subscribe: () => ({ unsubscribe() {} }) }) }), removeChannel: () => {},
   },
 }))
-// Qui si rende la variante TELEFONO: `useIsMobile` decide metà
-// dell'impaginazione, e misurare il layout da tavolo dentro una finestra da
-// 420px direbbe cose false.
+// Qui si rende la variante TABLET.
+//
+// Fino al 15/09/2026 questa variante **non esisteva**: si misuravano solo la
+// versione da tavolo e quella da telefono, e il tablet restava un buco. Che è
+// esattamente il posto dove si è poi trovato il difetto più grosso — 95 campi
+// di testo sotto i 16px, perché la regola anti-zoom si fermava un pixel prima
+// dell'iPad e nessuno aveva mai guardato lì.
 vi.mock('../../src/lib/useIsMobile', () => ({
-  default: () => true,
-  useIsTablet: () => false,
+  default: () => false,
+  useIsTablet: () => true,
 }))
 vi.mock('../../src/lib/storage', () => ({
   ssave: async () => {}, sload: async () => null, ssaveBatch: async () => {}, sloadAllSedi: async () => ({}),
@@ -127,9 +133,8 @@ ${document.head.innerHTML}
 }
 @media (max-width: 767px) { table { width: 100%; } }
 body{margin:0;background:#FAF7F2;font-family:Inter,system-ui,sans-serif;}
-/* Il margine VERO della pagina sul telefono. Era 24px: si misuravano
-   16px di sforamento per lato che nell'app non esistono. */
-.schermo{padding:16px;}
+/* Il margine vero della pagina su tablet. */
+.schermo{padding:20px;}
 </style>
 </head><body><div class="schermo">${v.container.innerHTML}</div></body></html>`
   writeFileSync(`${FUORI}/${nome}.html`, html)
@@ -137,7 +142,7 @@ body{margin:0;background:#FAF7F2;font-family:Inter,system-ui,sans-serif;}
   return html.length
 }
 
-describe('fotografia delle viste — telefono', () => {
+describe('fotografia delle viste (tablet) — telefono', () => {
   it('scrive l\'HTML delle viste principali in versione telefono', async () => {
     if (!ATTIVO) { expect(true).toBe(true); return }
     const { default: MagazzinoView } = await import('../../src/views/MagazzinoView.jsx')

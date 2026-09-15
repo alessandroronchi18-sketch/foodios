@@ -61,8 +61,21 @@
       @keyframes _fos_fadeIn { from { opacity: 0; } to { opacity: 1; } }
       .fos-page { animation: _fos_pageIn 0.22s ease-out; }
       .fos-fade { animation: _fos_fadeIn 0.18s ease-out; }
-      @media (max-width: 767px) {
+      /* Niente zoom automatico quando si scrive in un campo.
+         Safari su iOS ingrandisce la pagina da solo se il testo del campo è
+         sotto i 16px, e poi tocca rimpicciolire a mano ogni volta.
+
+         Era `max-width: 767px`, cioè si fermava **un pixel prima dell'iPad**:
+         misurato il 15/09/2026, 95 campi sotto i 16px su tablet contro 8 sul
+         telefono. Nessuno l'aveva deciso — succedeva perché la soglia era
+         scritta in pixel invece che sul tipo di dispositivo.
+
+         `pointer: coarse` vuol dire "si tocca col dito": vale per telefono e
+         tablet, e non tocca chi usa il mouse. */
+      @media (pointer: coarse) {
         input, textarea, select { font-size: 16px !important; }
+      }
+      @media (max-width: 767px) {
         table { width: 100%; }
       }
 
@@ -119,9 +132,13 @@
         html, body { background: #F8FAFC; color: #0E1726; }
       }
 
-      /* Touch target minimo 44px su mobile per bottoni standalone (icon-only).
-         I bottoni in form usano lo style del componente. */
-      @media (max-width: 767px) {
+      /* Un bersaglio da toccare non sta sotto i 44px: è la misura di un
+         polpastrello. Vale per i bottoni con la sola icona; quelli dentro i
+         moduli hanno già la loro misura nel componente.
+
+         Anche qui era `max-width: 767px` e si fermava prima dell'iPad, dove il
+         15/09/2026 sono stati misurati 262 bersagli su 361 sotto i 44px. */
+      @media (pointer: coarse) {
         button[aria-label]:not([class*="inline"]) {
           min-width: 44px;
           min-height: 44px;

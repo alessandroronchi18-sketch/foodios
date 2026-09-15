@@ -812,8 +812,12 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
 
       {/* Segmented control Oggi/Settimana + bottone Importa file */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
+        {/* Le quattro schede. Il contenitore fuori va già a capo, questo no:
+            su un telefono da 320px "Storico" finiva fuori dallo schermo e la
+            pagina si trascinava di lato di 10px (misurato il 15/09/2026). */}
         <div style={{
-          display: 'inline-flex', gap: 2, padding: 4,
+          display: 'inline-flex', gap: 2, padding: 4, flexWrap: 'wrap',
+          maxWidth: '100%', minWidth: 0,
           background: C.bgSubtle, borderRadius: 10,
         }}>
           {[['oggi','Oggi'], ['settimana','Settimana'], ['mese','Mese'], ['storico','Storico']].map(([k, lbl]) => {

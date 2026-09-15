@@ -102,10 +102,27 @@ async function scrivi(nome, elemento) {
   await new Promise(r => setTimeout(r, 60))
   mkdirSync(FUORI, { recursive: true })
   const html = `<!doctype html><html lang="it"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 ${document.head.innerHTML}
-<style>body{margin:0;background:#FAF7F2;font-family:Inter,system-ui,sans-serif;} .schermo{padding:24px;}</style>
+<style>
+/* Le regole del foglio di stile vero (index.html) che al banco di prova
+   mancavano. Senza la prima, il padding si somma FUORI dalla larghezza e ogni
+   riquadro risulta più alto del vero: il 15/09/2026 un riquadro di Produzione
+   sembrava sbordare di 38px su tutte le larghezze, e con box-sizing sborda di
+   zero. Una misura sbagliata è peggio di nessuna misura, perché ci si lavora
+   sopra. */
+*, *::before, *::after { box-sizing: border-box; }
+@media (pointer: coarse) {
+  input, textarea, select { font-size: 16px !important; }
+  button[aria-label]:not([class*="inline"]) { min-width: 44px; min-height: 44px; }
+}
+@media (max-width: 767px) { table { width: 100%; } }
+body{margin:0;background:#FAF7F2;font-family:Inter,system-ui,sans-serif;}
+/* Il margine vero della pagina da computer. */
+.schermo{padding:24px;}
+</style>
 </head><body><div class="schermo">${v.container.innerHTML}</div></body></html>`
   writeFileSync(`${FUORI}/${nome}.html`, html)
   v.unmount()

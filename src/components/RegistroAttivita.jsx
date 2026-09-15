@@ -484,7 +484,15 @@ export default function RegistroAttivita({ orgId, sedi = [], notify }) {
 
       {/* QUICK FILTERS - pill periodo + search */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
-        <div style={{ display: 'flex', gap: 4, padding: 4, background: T.bgSubtle, borderRadius: R.lg, border: `1px solid ${T.borderSoft}` }}>
+        {/* La fila dei periodi.
+            Il contenitore esterno va già a capo (`flexWrap`), ma QUESTO no: le
+            cinque pastiglie restano su una riga sola e su un telefono piccolo
+            l'ultima — "Personalizzato", 106px — finisce fuori dallo schermo,
+            e tutta la pagina si trascina di lato. Misurato il 15/09/2026: 21px
+            fuori a 360px, 26px a 320.
+            Va a capo anche lui, e sui telefoni stretti si può scorrere. */}
+        <div style={{ display: 'flex', gap: 4, padding: 4, background: T.bgSubtle, borderRadius: R.lg, border: `1px solid ${T.borderSoft}`,
+          flexWrap: 'wrap', maxWidth: '100%', minWidth: 0 }}>
           {PRESET_PERIODS.map(p => {
             const active = periodo === p.id
             return (
@@ -493,7 +501,7 @@ export default function RegistroAttivita({ orgId, sedi = [], notify }) {
                   background: active ? T.bgCard : 'transparent',
                   color: active ? T.text : T.textSoft,
                   fontSize: 12, fontWeight: active ? 600 : 500,
-                  borderRadius: R.md, letterSpacing: '-0.005em',
+                  borderRadius: R.md, letterSpacing: '-0.005em', whiteSpace: 'nowrap',
                   boxShadow: active ? S.sm : 'none',
                   transition: `background ${M.durFast} ${M.ease}, color ${M.durFast} ${M.ease}` }}>
                 {p.label}
@@ -505,7 +513,7 @@ export default function RegistroAttivita({ orgId, sedi = [], notify }) {
               background: periodo === 'custom' ? T.bgCard : 'transparent',
               color: periodo === 'custom' ? T.text : T.textSoft,
               fontSize: 12, fontWeight: periodo === 'custom' ? 600 : 500,
-              borderRadius: R.md, letterSpacing: '-0.005em',
+              borderRadius: R.md, letterSpacing: '-0.005em', whiteSpace: 'nowrap',
               boxShadow: periodo === 'custom' ? S.sm : 'none' }}>
             Personalizzato
           </button>

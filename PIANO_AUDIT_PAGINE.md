@@ -90,8 +90,36 @@ misurate da `scripts/audit-layout.mjs`.
 Come rifarlo:
 
 ```bash
-DUMP_LAYOUT=1 npx vitest run tests/unit/layoutViste.test.jsx tests/unit/layoutVisteMobile.test.jsx
-node scripts/audit-layout.mjs                 # versione da tavolo, 1440px
-DIR_VISTE=.../viste-mobile LARGH=420 node scripts/audit-layout.mjs
+# Le tre versioni. Il timeout esteso serve: con quello di default il dump
+# muore a metà e lascia file HTML incompleti, che poi si misurano lo stesso.
+DUMP_LAYOUT=1 npx vitest run \
+  tests/unit/layoutViste.test.jsx \
+  tests/unit/layoutVisteMobile.test.jsx \
+  tests/unit/layoutVisteTablet.test.jsx --testTimeout=900000
+
+# La prova VERA: la pagina si trascina di lato?
+node scripts/audit-scorrimento.mjs <cartella>/viste-mobile 320
+node scripts/audit-scorrimento.mjs <cartella>/viste-tablet 768
+
+# Quanto è comodo toccarla: campi sotto i 16px (iOS zooma da solo) e
+# bersagli sotto i 44px.
+node scripts/audit-tocco.mjs <cartella>/viste-mobile 375
+node scripts/audit-tocco.mjs <cartella>/viste-tablet 768
+
+# Le misure fini (riquadri disallineati, testi piccoli, celle non incolonnate)
+node scripts/audit-layout.mjs
+DIR_VISTE=<cartella>/viste-mobile LARGH=390 node scripts/audit-layout.mjs
+
 node scripts/foto-layout.mjs                  # le fotografie, da guardare
 ```
+
+**Due trappole, imparate il 15/09/2026:**
+
+1. **`audit-layout.mjs` segnala anche quello che è già ritagliato.** Un cerchio
+   decorativo messo apposta a sbordare dall'angolo di una tessera con
+   `overflow: hidden` risulta "fuori" ma non fa scorrere niente.
+   `audit-scorrimento.mjs` risponde alla domanda vera.
+2. **Senza emulare il tocco si misura un dispositivo che non esiste.** Chromium
+   dichiara `pointer: fine` (il mouse) e le regole scritte
+   `@media (pointer: coarse)` non si applicano: si vedono 95 campi "sbagliati"
+   che su un iPad vero sono a posto.

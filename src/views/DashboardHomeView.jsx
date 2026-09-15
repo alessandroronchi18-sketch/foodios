@@ -124,8 +124,13 @@ function StockPFWidget({ isMobile, setView, viewAggregato, orgId, sedeId, LEX })
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : (inArrivo > 0 ? '1.7fr 1fr' : '1fr'), gap: isMobile ? 12 : 16, marginBottom: isMobile ? 18 : 24 }}>
+      {/* `minWidth: 0`: senza, una tessera dentro una griglia non si lascia
+          stringere sotto la larghezza del suo contenuto, e spinge tutta la
+          pagina fuori dallo schermo. Misurato il 15/09/2026: su un telefono da
+          360px questa tessera era larga 356 dentro uno spazio di 344, e la
+          pagina si trascinava di lato di 7px. */}
       <div className="fos-tile" onClick={() => setView('magazzino')}
-        style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 18, padding: isMobile ? '18px 18px' : '22px 26px', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 30px rgba(15,23,42,0.05)', cursor: 'pointer' }}>
+        style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 18, padding: isMobile ? '18px 16px' : '22px 26px', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 30px rgba(15,23,42,0.05)', cursor: 'pointer', minWidth: 0, overflow: 'hidden' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: hasStock ? 16 : 8, gap: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
             <span style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(110,14,26,0.10)', color: T.brand, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Ico d={ICO.store} size={17} /></span>
@@ -149,12 +154,17 @@ function StockPFWidget({ isMobile, setView, viewAggregato, orgId, sedeId, LEX })
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
               {top.map((r, i) => (
-                <div key={r.prodotto_nome} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: T.textMid, width: isMobile ? 110 : 128, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flexShrink: 0 }}>{r.prodotto_nome}</span>
-                  <div style={{ flex: 1, height: 9, background: '#F0EAE6', borderRadius: 6, overflow: 'hidden', minWidth: 30 }}>
+                <div key={r.prodotto_nome} style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 10, minWidth: 0 }}>
+                  {/* Il nome del prodotto: largo quanto serve, ma pronto a
+                      stringersi. Con una larghezza fissa di 110px, su un
+                      telefono da 320 la riga non ci stava e tutta la pagina si
+                      trascinava di lato (misurato il 15/09/2026). Ora ha una
+                      larghezza di partenza e può scendere fino a 64px. */}
+                  <span style={{ fontSize: 12, fontWeight: 600, color: T.textMid, flex: isMobile ? '1 1 90px' : '0 0 128px', minWidth: 64, maxWidth: isMobile ? 110 : 128, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.prodotto_nome}</span>
+                  <div style={{ flex: 1, height: 9, background: '#F0EAE6', borderRadius: 6, overflow: 'hidden', minWidth: 24 }}>
                     <div style={{ width: `${Math.max(5, quotaBarra(r))}%`, height: '100%', background: BAR[i % BAR.length], borderRadius: 6 }} />
                   </div>
-                  <span style={{ fontSize: 12, fontWeight: 800, color: T.text, minWidth: 56, textAlign: 'right', ...TNUM, whiteSpace: 'nowrap' }}>{qtaLeggibile(r)}</span>
+                  <span style={{ fontSize: 12, fontWeight: 800, color: T.text, minWidth: isMobile ? 48 : 56, textAlign: 'right', flexShrink: 0, ...TNUM, whiteSpace: 'nowrap' }}>{qtaLeggibile(r)}</span>
                 </div>
               ))}
             </div>
