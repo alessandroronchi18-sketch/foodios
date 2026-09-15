@@ -138,7 +138,9 @@ export async function eliminaCodiceSconto(supabase, codiceId) {
       await stripe.promotionCodes.update(row.stripe_promo_code_id, { active: false })
     } catch (e) { /* ignore */ }
   }
-  if (row.stripe_coupon_id && row.redemptions === 0) {
+  // `redemptions` può essere nullo su righe vecchie: con `=== 0` il coupon
+  // su Stripe non veniva mai cancellato.
+  if (row.stripe_coupon_id && !(row.redemptions > 0)) {
     try {
       const stripe = await getStripe()
       await stripe.coupons.del(row.stripe_coupon_id)
@@ -153,9 +155,22 @@ export async function applicaCodiceManuale(supabase, orgId, codice, mesi) {
   // Applicazione manuale dell'admin: regala N mesi gratis a un'organizzazione
   // estendendo direttamente la subscription Stripe via "trial_end" o "discount" inline.
   const codNorm = normalizzaCodice(codice)
+  let codiceUsato = null
   if (codNorm) {
     const { data: cod } = await supabase.from('discount_codes').select('*').eq('codice', codNorm).maybeSingle()
     if (!cod || !cod.attivo) throw new Error('Codice non valido o disattivato')
+    // Il codice si controllava solo per «esiste ed è acceso». Le due
+    // condizioni che il titolare imposta quando lo crea — quando scade e
+    // quante volte si può usare — non venivano guardate: un codice pensato
+    // per i primi cinque clienti si poteva regalare a mano a cinquanta, e
+    // uno scaduto a marzo funzionava ancora a settembre.
+    if (cod.scade_il && new Date(cod.scade_il) <= new Date()) {
+      throw new Error(`Il codice "${codNorm}" è scaduto il ${new Date(cod.scade_il).toLocaleDateString('it-IT')}`)
+    }
+    if (cod.max_redemptions != null && (cod.redemptions || 0) >= cod.max_redemptions) {
+      throw new Error(`Il codice "${codNorm}" è già stato usato ${cod.redemptions} volte su ${cod.max_redemptions}`)
+    }
+    codiceUsato = cod
   }
   const nMesi = Math.max(1, Math.min(60, parseInt(mesi, 10) || 1))
 
@@ -184,9 +199,23 @@ export async function applicaCodiceManuale(supabase, orgId, codice, mesi) {
     }).eq('id', orgId)
   }
 
-  await supabase.from('discount_redemptions').insert({
+  const { error: errRed } = await supabase.from('discount_redemptions').insert({
     codice: codNorm || `ADMIN_GIFT_${nMesi}M`,
     organization_id: orgId,
   })
-  return { mesi: nMesi }
+  if (errRed) console.error('[codiciSconto] uso non registrato:', errRed.message)
+
+  // Il contatore degli usi si alzava solo quando pagava un cliente vero (dal
+  // webhook di Stripe): gli usi regalati a mano non contavano. Così il
+  // pannello mostrava «0 volte usato» per un codice già dato a dieci clienti,
+  // il limite di usi non arrivava mai, e l'eliminazione credeva che il coupon
+  // su Stripe fosse intatto.
+  if (codiceUsato) {
+    const { error: errCnt } = await supabase.from('discount_codes')
+      .update({ redemptions: (codiceUsato.redemptions || 0) + 1 })
+      .eq('id', codiceUsato.id)
+      .eq('redemptions', codiceUsato.redemptions || 0)   // non sovrascrive un conteggio cambiato nel frattempo
+    if (errCnt) console.error('[codiciSconto] contatore usi non aggiornato:', errCnt.message)
+  }
+  return { mesi: nMesi, codice: codNorm || null }
 }

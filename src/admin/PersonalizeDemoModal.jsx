@@ -306,6 +306,17 @@ function Step2Review({ menu, setMenu, onBack, onSave, onCommit, saving, committi
         </div>
       )}
 
+      {/* Cosa non è entrato nella demo, e perché. Prima non si diceva: un
+          prodotto senza prezzo veniva messo a 50 centesimi, e ci si accorgeva
+          del listino sbagliato davanti al cliente. */}
+      {Array.isArray(menu.scartati) && menu.scartati.length > 0 && (
+        <div style={{ marginBottom: 14, padding: '10px 12px', background: P.warnBg, border: `1px solid ${P.warn}`, borderRadius: 8, color: P.warn, lineHeight: 1.5 }}>
+          <strong>{menu.scartati.length} prodott{menu.scartati.length === 1 ? 'o' : 'i'} non {menu.scartati.length === 1 ? 'è entrato' : 'sono entrati'} nella demo:</strong>{' '}
+          {menu.scartati.map(x => `${x.nome || '(senza nome)'} (${x.motivo})`).join(' · ')}
+          <div style={{ marginTop: 4 }}>Puoi aggiungerli a mano qui sotto, o rifare la lettura con una foto più nitida.</div>
+        </div>
+      )}
+
       {/* KPI riepilogo */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 16 }}>
         <div style={{ padding: 10, background: P.rowAlt, borderRadius: 8 }}>

@@ -113,6 +113,7 @@ export function normalizeMenu(rawJson) {
     throw new Error('Nessun prodotto estratto dal listino. Riprova con una foto più chiara o aggiungi del testo.')
   }
   const prodotti = []
+  const scartati = []
   const seen = new Set()
   for (const p of prodottiRaw) {
     const nome = sanitizeNome(p?.nome)
@@ -127,8 +128,21 @@ export function normalizeMenu(rawJson) {
     const unita = tipo === 'fetta'
       ? clamp(Math.round(Number(p?.unita) || 8), 4, 16)
       : 1
-    const prezzo = clamp(Number(p?.prezzo) || 0, 0.50, 80)
-    if (prezzo <= 0) continue
+    // Il prezzo si accetta solo se c'è davvero.
+    //
+    // Prima era `clamp(Number(p?.prezzo) || 0, 0.50, 80)` seguito da
+    // `if (prezzo <= 0) continue`: la riga dopo non poteva mai scattare,
+    // perché il minimo del clamp è 0,50. Un prodotto senza prezzo — o con un
+    // prezzo che l'AI non è riuscita a leggere — entrava nella demo a
+    // **50 centesimi**. Questa demo si mostra a un cliente prima di
+    // vendergli il prodotto: una Sacher a 0,50 € è peggio di una Sacher che
+    // non c'è.
+    const prezzoLetto = Number(p?.prezzo)
+    if (!Number.isFinite(prezzoLetto) || prezzoLetto <= 0) {
+      scartati.push({ nome, motivo: 'senza prezzo' })
+      continue
+    }
+    const prezzo = clamp(prezzoLetto, 0.50, 80)
     const categoria = CATEGORIE_VALIDE.has(p?.categoria) ? p.categoria : 'Altro'
     // Ingredienti: max 8, qty 5-3000g
     const ingrediRaw = Array.isArray(p?.ingredienti) ? p.ingredienti.slice(0, 8) : []
@@ -139,7 +153,7 @@ export function normalizeMenu(rawJson) {
       if (!ingNome || qty <= 0) continue
       ingredienti.push({ nome: ingNome, qty1stampo: qty })
     }
-    if (ingredienti.length === 0) continue // skip prodotti senza ingredienti
+    if (ingredienti.length === 0) { scartati.push({ nome, motivo: 'senza ingredienti' }); continue }
     prodotti.push({ nome, categoria, tipo, unita, prezzo: Math.round(prezzo * 100) / 100, ingredienti })
   }
   if (prodotti.length === 0) {
@@ -150,6 +164,9 @@ export function normalizeMenu(rawJson) {
     citta: String(rawJson?.citta || '').slice(0, 60),
     tipo_attivita: String(rawJson?.tipo_attivita || '').slice(0, 30),
     prodotti,
+    // Cosa è stato lasciato fuori e perché: chi prepara la demo deve poterlo
+    // vedere, invece di accorgersene davanti al cliente.
+    scartati,
   }
 }
 
