@@ -97,15 +97,17 @@ export default defineConfig({
       // se n'era accorto perché il comando non gira né in CI né nel gate di
       // push: falliva in silenzio sul portatile di chi lo lanciava.
       //
-      // Ora sono un paio di punti sotto la misura reale del 15/09/2026
-      // (statements 39,4 · branches 28,7 · functions 28,5 · lines 42,3): un
-      // calo vero le fa scattare, un giro normale no. Quando la copertura
-      // sale, si alzano — a mano, e si scrive la data.
+      // Sono un paio di punti sotto la misura reale, e si alzano a mano
+      // quando la copertura sale: un calo vero le fa scattare, un giro
+      // normale no.
+      //
+      //   15/09/2026 mattina: statements 37,5 · branches 27,2 · functions 27,3 · lines 40,4
+      //   15/09/2026 notte:   statements 40,0 · branches 29,2 · functions 29,1 · lines 42,9
       thresholds: {
-        lines: 40,
-        statements: 37,
-        functions: 26,
-        branches: 27,
+        lines: 41,
+        statements: 38,
+        functions: 28,
+        branches: 28,
       },
     },
   },
