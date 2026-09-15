@@ -4250,22 +4250,34 @@ export default function AdminPage() {
           ) : (
             <>
               <div style={{ padding: '12px 18px', borderBottom: `1px solid ${COLORS.border}` }}>
-                <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Cron status</div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 8 }}>
+                <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Lavori notturni</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 8 }}>
                   {(healthSnap.cron || []).map(c => {
+                    // Lo stato dice del LAVORO, non del suo risultato. Prima
+                    // si guardava solo se la tabella di destinazione avesse
+                    // righe nuove, e «non ha dati» e «non gira» si leggevano
+                    // identici: `forecast_giornaliero` è vuota da sempre, e
+                    // il pannello non sapeva dire quale delle due fosse.
                     const ok = c.status === 'ok'
-                    const bg = ok ? '#ecfdf5' : c.status === 'late' || c.status === 'error' ? '#fef2f2' : '#fffbeb'
-                    const segno = ok ? 'check' : c.status === 'pending' ? 'hourglass' : 'x'
+                    const male = c.status === 'error' || c.status === 'late' || c.status === 'mai_registrato'
+                    const bg = ok ? COLORS.okBg : male ? COLORS.errBg : COLORS.warnBg
+                    const segno = ok ? 'check' : c.status === 'mai_registrato' ? 'hourglass' : 'x'
                     return (
-                      <div key={c.id} style={{ padding: '8px 10px', border: `1px solid ${COLORS.border}`, borderRadius: 6, background: bg }}>
-                        <div style={{ fontSize: 12, fontWeight: 600 }}><Icon name={segno} size={12} /> {c.id}</div>
-                        <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
-                          Tabella: <code>{c.table || '-'}</code> · atteso ~{c.expected_hour_utc ?? '?'}:00 UTC
+                      <div key={c.id} style={{ padding: '10px 12px', border: `1px solid ${COLORS.border}`, borderRadius: 8, background: bg }}>
+                        <div style={{ fontWeight: 700 }}><Icon name={segno} size={12} /> {c.etichetta || c.id}</div>
+                        <div style={{ color: COLORS.textMute, marginTop: 3 }}>
+                          {c.last_run
+                            ? <>Ultimo giro: {fmtDataOra(c.last_run)}{c.hours_ago != null ? ` · ${c.hours_ago} ore fa` : ''}</>
+                            : 'Nessun giro registrato'}
                         </div>
-                        <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
-                          Ultimo run: {c.last_run ? fmtDataOra(c.last_run) : '-'}{c.hours_ago != null ? ` (${c.hours_ago}h fa)` : ''}
-                        </div>
-                        {c.error && <div style={{ fontSize: 12, color: '#dc2626', marginTop: 2 }}>{c.error}</div>}
+                        {c.table && (
+                          <div style={{ color: COLORS.textMute, marginTop: 2 }}>
+                            Ultimo dato scritto: {c.ultima_scrittura ? fmtData(c.ultima_scrittura) : 'mai'}
+                          </div>
+                        )}
+                        {c.nota && (
+                          <div style={{ color: male ? COLORS.err : COLORS.textSoft, marginTop: 4, lineHeight: 1.45 }}>{c.nota}</div>
+                        )}
                       </div>
                     )
                   })}

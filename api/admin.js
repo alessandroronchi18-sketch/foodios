@@ -805,37 +805,92 @@ export async function getSecuritySnapshot(supabase, hours = 24) {
 //  - audit_log per identificare audit cleanup recente
 //  - env build-time per deploy info Vercel
 const CRON_SIGNATURES = [
-  { id: 'cron-daily-brief',    table: 'daily_briefs',           dateCol: 'created_at',  expectedHour: 7 },
-  { id: 'cron-ai-suggestions', table: 'ai_suggestions',         dateCol: 'created_at',  expectedHour: 7 },
-  { id: 'cron-forecast',       table: 'forecast_giornaliero',   dateCol: 'created_at',  expectedHour: 7 },
-  { id: 'cron-documentary',    table: 'documentary_snapshots',  dateCol: 'created_at',  expectedHour: 7 },
+  { id: 'cron-notifiche',      etichetta: 'Avvisi (scorte, fatture in scadenza)', table: null },
+  { id: 'cron-daily-brief',    etichetta: 'Riepilogo del mattino',     table: 'daily_briefs' },
+  { id: 'cron-ai-suggestions', etichetta: 'Suggerimenti',              table: 'ai_suggestions' },
+  { id: 'cron-forecast',       etichetta: 'Previsione vendite',        table: 'forecast_giornaliero' },
+  { id: 'cron-documentary',    etichetta: 'Fotografia del mese',       table: 'documentary_snapshots' },
+  { id: 'anomaly-detect',      etichetta: 'Numeri fuori dal solito',   table: null },
+  { id: 'cleanup-audit-log',   etichetta: 'Pulizia registro modifiche', table: null },
+  { id: 'cleanup-error-log',   etichetta: 'Pulizia registro errori',   table: null },
 ]
 
+/**
+ * Lo stato dei lavori notturni.
+ *
+ * **Come si capiva prima**: guardando se la tabella di destinazione aveva
+ * righe nuove. È il motivo per cui «la previsione non ha dati» e «la
+ * previsione non gira» si leggevano identici — e infatti
+ * `forecast_giornaliero` ha zero righe da sempre, senza che il pannello
+ * potesse dire quale delle due cose fosse.
+ *
+ * **Come si capisce adesso**: ogni passo scrive il suo esito in `cron_runs`
+ * (api/cron-giornaliero.js). Quindi si possono dire due cose diverse:
+ * «ha girato stanotte e non ha prodotto niente» e «non gira da undici
+ * giorni». La tabella di destinazione resta come conferma, non come prova.
+ */
 async function getCronStatus(supabase) {
+  // Un colpo solo sul registro, invece di una query per lavoro.
+  let registro = {}
+  try {
+    const da = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10)
+    const { data } = await supabase
+      .from('cron_runs')
+      .select('job_name, run_date, completed_at, status, error_message')
+      .gte('run_date', da)
+      .order('run_date', { ascending: false })
+    for (const r of data || []) {
+      if (!registro[r.job_name]) registro[r.job_name] = r
+    }
+  } catch (e) {
+    console.error('[admin] registro dei lavori non leggibile:', e?.message)
+  }
+
   const results = []
   for (const cron of CRON_SIGNATURES) {
-    try {
-      const { data: latest } = await supabase
-        .from(cron.table)
-        .select(cron.dateCol)
-        .order(cron.dateCol, { ascending: false })
-        .limit(1)
-        .maybeSingle()
-      const lastRun = latest?.[cron.dateCol] || null
-      const hoursAgo = lastRun ? (Date.now() - new Date(lastRun).getTime()) / 3600000 : null
-      // Status: ok se ha girato negli ultimi 26h (cron giornaliero + margine)
-      const status = hoursAgo == null ? 'never' : hoursAgo > 26 ? 'late' : hoursAgo > 24 ? 'pending' : 'ok'
-      results.push({
-        id: cron.id,
-        table: cron.table,
-        last_run: lastRun,
-        hours_ago: hoursAgo ? Math.round(hoursAgo * 10) / 10 : null,
-        status,
-        expected_hour_utc: cron.expectedHour,
-      })
-    } catch (e) {
-      results.push({ id: cron.id, status: 'error', error: e.message?.slice(0, 100) })
+    const r = registro[cron.id]
+    const oreDaGiro = r?.completed_at ? (Date.now() - new Date(r.completed_at).getTime()) / 3600000 : null
+
+    // Quando ha scritto qualcosa l'ultima volta (se ha una tabella sua).
+    let ultimaScrittura = null
+    if (cron.table) {
+      try {
+        const { data } = await supabase
+          .from(cron.table).select('created_at')
+          .order('created_at', { ascending: false }).limit(1).maybeSingle()
+        ultimaScrittura = data?.created_at || null
+      } catch { /* la tabella potrebbe non esistere */ }
     }
+
+    // Lo stato dice del LAVORO, non del suo risultato.
+    const status = r == null ? 'mai_registrato'
+      : r.status === 'error' ? 'error'
+      : oreDaGiro > 26 ? 'late'
+      : 'ok'
+
+    // E una riga in italiano che distingue le due cose.
+    let nota = null
+    if (status === 'mai_registrato') {
+      nota = 'Non ha ancora lasciato traccia: o non gira, o il registro è stato acceso dopo.'
+    } else if (status === 'error') {
+      nota = `Ultimo giro fallito: ${r.error_message || 'senza messaggio'}`
+    } else if (status === 'late') {
+      nota = `Ha girato l'ultima volta ${Math.round(oreDaGiro / 24)} giorni fa.`
+    } else if (cron.table && !ultimaScrittura) {
+      nota = 'Gira regolarmente ma non ha mai scritto niente: il lavoro funziona, i dati di partenza mancano.'
+    }
+
+    results.push({
+      id: cron.id,
+      etichetta: cron.etichetta,
+      table: cron.table,
+      last_run: r?.completed_at || null,
+      hours_ago: oreDaGiro != null ? Math.round(oreDaGiro * 10) / 10 : null,
+      ultima_scrittura: ultimaScrittura,
+      status,
+      nota,
+      expected_hour_utc: 7,
+    })
   }
   return results
 }

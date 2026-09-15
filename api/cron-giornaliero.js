@@ -42,8 +42,44 @@ function makeInternalReq(realUrl, path) {
 // <10s normalmente, 18s e' margine di sicurezza.
 const STEP_TIMEOUT_MS = 18_000
 
+// ─── Il registro dei lavori notturni ────────────────────────────────────────
+//
+// `cron_runs` esisteva ma serviva a una cosa sola: non mandare due volte la
+// stessa email di avviso nello stesso giorno. Il nome del lavoro conteneva la
+// data (`cron-giornaliero-alert-2026-09-15`), quindi ogni esecuzione creava
+// una riga con un nome diverso e non si poteva raggruppare né interrogare.
+//
+// Conseguenza: dei **sette lavori** che girano ogni notte non restava traccia
+// di nessuno. Il pannello admin capiva se un lavoro funzionava guardando se
+// la sua tabella di destinazione aveva righe nuove — che è esattamente il
+// motivo per cui «la previsione non ha dati» e «la previsione non gira» si
+// leggevano identici. (`forecast_giornaliero` ha zero righe: ci sono voluti
+// dieci minuti di database per capire che il lavoro gira e non trova niente
+// da scrivere, invece di essere rotto.)
+//
+// Adesso ogni passo lascia la sua riga, con un nome stabile. Il registro non
+// deve mai far fallire il lavoro: se non si riesce a scrivere, si va avanti.
+async function segnaEsito(name, esito) {
+  try {
+    const { createClient } = await import('@supabase/supabase-js')
+    const sup = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
+    const { error } = await sup.from('cron_runs').upsert({
+      job_name: name,
+      run_date: new Date().toISOString().slice(0, 10),
+      started_at: new Date(Date.now() - (esito.ms || 0)).toISOString(),
+      completed_at: new Date().toISOString(),
+      status: esito.ok ? 'ok' : 'error',
+      error_message: esito.ok ? null : String(esito.error || `HTTP ${esito.status}`).slice(0, 500),
+    }, { onConflict: 'job_name,run_date' })
+    if (error) console.error('[cron] registro non scritto per', name, error.message)
+  } catch (e) {
+    console.error('[cron] registro non raggiungibile per', name, e?.message)
+  }
+}
+
 async function runStep(name, fn) {
   const start = Date.now()
+  let esito
   try {
     const stepPromise = fn()
     const timeoutPromise = new Promise((_, reject) =>
@@ -53,10 +89,12 @@ async function runStep(name, fn) {
     const ms = Date.now() - start
     let body = null
     try { body = await res.clone().json() } catch {}
-    return { step: name, ok: res.ok, status: res.status, ms, body }
+    esito = { step: name, ok: res.ok, status: res.status, ms, body }
   } catch (e) {
-    return { step: name, ok: false, error: (e.message || String(e)).slice(0, 200), ms: Date.now() - start }
+    esito = { step: name, ok: false, error: (e.message || String(e)).slice(0, 200), ms: Date.now() - start }
   }
+  await segnaEsito(name, esito)
+  return esito
 }
 
 export default async function handler(req) {
