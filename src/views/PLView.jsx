@@ -2123,6 +2123,7 @@ function CostiNettoBanda({ costiAziendali, margineLordoPeriodo, giorniPeriodo = 
             : 'senza chiusure non c\'è un margine da cui togliere i costi'}
           color={!haMargine ? T.textSoft : margineNetto >= 0 ? T.green : T.brand}
           highlight={haMargine}
+          small
         />
       </div>
       {!haMargine && (

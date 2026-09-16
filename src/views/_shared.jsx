@@ -188,14 +188,27 @@ export function KPI({ label, value, sub, color, highlight, icon, onClick }) {
           leggibilità, e queste etichette stanno spesso su quel fondo.
           minHeight resta uniforme così le tessere affiancate restano
           incolonnate fra loro. */}
+      {/* 16/09/2026, misurando le tessere dentro l'account vero: nel
+          Ricettario «GUSTI» e «FOOD COST MEDIO» partivano a 8px di distanza
+          l'una dall'altra, affiancate.
+          Il motivo era qui: `alignItems: center`. L'altezza minima di 30px
+          tiene incolonnati i VALORI (ed è giusta), ma il testo dentro quel
+          riquadro veniva centrato: un'etichetta corta su una riga sola
+          resta a mezz'aria e parte 7,5px più in basso, una lunga va a capo,
+          riempie i 30px e parte da zero. Due tessere accanto, due quote
+          diverse — e si vede.
+          Con `flex-start` ogni etichetta parte dallo stesso punto, che vada
+          a capo o no. Sul telefono il pallino dell'icona sta dentro questa
+          riga ed è alto 26 contro i 15 di una riga di testo: i 5px di
+          spinta sul testo lo rimettono in asse con la prima riga. */}
       <div style={{ position: 'relative', fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase',
         color: highlight ? 'rgba(255,255,255,0.82)' : T.textMid, marginBottom: 6,
         minHeight: 30, lineHeight: 1.25,
-        display: 'flex', alignItems: 'center', gap: 8 }}>
+        display: 'flex', alignItems: 'flex-start', gap: 8 }}>
         {icon && isMobile && (
           <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: R.md, background: chipBg, color: chipColor, fontSize: font.size.base, flexShrink: 0 }}>{icon}</span>
         )}
-        <span style={{ minWidth: 0 }}>{label}</span>
+        <span style={{ minWidth: 0, paddingTop: (icon && isMobile) ? 5 : 0 }}>{label}</span>
       </div>
       {/* Audit 2026-06-25: fontSize auto-shrink in base alla lunghezza del value.
           Risolve due bug:
