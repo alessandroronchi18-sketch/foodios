@@ -40,12 +40,12 @@ if [ "$push_main" -ne 1 ]; then
   exit 0
 fi
 
-echo "▶ pre-push: lint + test + build prima di pushare su main"
+echo "▶ pre-push: lint + test + build + migrazioni prima di pushare su main"
 echo
 
 # 1) ESLint — src/ E api/. Il 04/09 un `no-undef` in api/lib/validate.js e'
 # passato inosservato perche' il gate guardava solo src/.
-echo "[1/3] ESLint…"
+echo "[1/4] ESLint…"
 if ! npx eslint src/ api/ --max-warnings 200; then
   echo
   echo "ESLint ha trovato errori. Push abortito."
@@ -55,7 +55,7 @@ fi
 
 # 2) Test
 echo
-echo "[2/3] Unit tests (vitest)…"
+echo "[2/4] Unit tests (vitest)…"
 if ! npm test --silent; then
   echo
   echo "Test falliti. Push abortito."
@@ -65,7 +65,7 @@ fi
 
 # 3) Build production
 echo
-echo "[3/3] Build production…"
+echo "[3/4] Build production…"
 # NB: il pipe verso `tail` mangiava l'esito del build — in una pipeline conta
 # l'uscita dell'ULTIMO comando, e `tail` riesce sempre. Il 14/09/2026 due push
 # sono passati da qui con il build rotto (il cricchetto sui token di design lo
@@ -75,6 +75,26 @@ set -o pipefail
 if ! npm run build --silent 2>&1 | tail -5; then
   echo
   echo "Build production fallito. Push abortito."
+  echo "Per pushare comunque (sconsigliato): git push --no-verify"
+  exit 1
+fi
+
+# 4) Le migrazioni scritte sono davvero nel database?
+#
+# 16/09/2026: la procedura di benvenuto ricompariva al titolare a ogni
+# dispositivo nuovo perche' `organizations.onboarding_completato_at` non
+# esisteva: la migrazione che la crea era ferma nel repo dal 09/07, mai
+# applicata. Il controllo che c'era (`migration-check.yml`) scatta solo sulle
+# pull request, e qui si pubblica spingendo dritto su main: non e' mai partito.
+#
+# Questo passo non blocca per le migrazioni inutilizzate (funzioni mai
+# costruite): blocca solo se manca qualcosa che il programma usa davvero.
+# Senza credenziali del database non fallisce, avvisa e basta.
+echo
+echo "[4/4] Migrazioni applicate…"
+if ! node scripts/check-migrazioni-applicate.mjs; then
+  echo
+  echo "Push abortito: il database non ha qualcosa che il codice usa."
   echo "Per pushare comunque (sconsigliato): git push --no-verify"
   exit 1
 fi
