@@ -1,10 +1,30 @@
 # FoodOS — Analisi prodotto (stile McKinsey, scoring 1–100)
 
-> Aggiornato: 2026-09-15 (notte) · Basata su evidenza diretta dal codice (LOC, test, migration, pattern)
+> Aggiornato: 2026-09-16 (sera) · Basata su evidenza diretta dal codice (LOC, test, migration, pattern)
 > e, dal 7 set, su query al database di produzione: quando qui c'e' un numero di
 > righe, di fatture o di letture, e' stato contato, non stimato.
 >
-> **Composito al 15/09 (notte): Prodotto 97 · Ingegneria 99 · Business 44 · Maturita' ~71.**
+> **Composito al 16/09 (sera): Prodotto 97 · Ingegneria 99 · Business 44 · Maturita' ~72.**
+>
+> **Il 16/09 il metodo è cambiato: l'audit è stato fatto ENTRANDO in produzione
+> con le credenziali del titolare di Mara dei Boschi**, percorrendo le 19 pagine
+> a 1440 e a 390 px in sola lettura e misurando quello che appariva a schermo.
+> Sette difetti su otto non erano visibili compilando. Due di quelli mostravano
+> **numeri falsi in una pagina di bilancio**: «MANGO JERRY SPICY +51.654% FC
+> tollerabile» nel P&L e «FOOD COST MEDIO 4,8%» nel Ricettario, tutti e due in
+> verde, tutti e due perché un food cost calcolato su ingredienti senza prezzo
+> veniva trattato come un food cost basso invece che come un food cost che non
+> si conosce. Dettaglio in sezione 0sexies.
+>
+> **Nuova sezione 10: il dossier per un investitore.** È la prima volta che il
+> lato business viene misurato invece che stimato, e il risultato è duro: 0 €
+> di ricavi, 0 clienti paganti, **0 clienti esterni** — l'unico utente attivo è
+> l'attività dei fondatori — e i tre piani a listino non sono collegati a
+> Stripe, quindi nessuno può pagare nemmeno volendo. Il valore oggi sta
+> nell'asset (90–180k € di costo di ricostruzione) e nella velocità del team,
+> non nell'azienda. La tesi, in una riga: *il prodotto non è il problema; il
+> problema è che far entrare i dati di un cliente costa tre giorni, e finché
+> costa tre giorni non esiste un'azienda.*
 >
 > **Nessuna dimensione di ingegneria resta sotto l'85** (richiesta del
 > titolare). Le quattro che ci stavano — accessibilita' 60, prestazioni 76,
@@ -967,6 +987,149 @@ strumenti mentono vale più di uno che ne aggiunge altri.
 **Business +1**: l'interruttore di quali piani sono in vendita è passato dal
 codice al pannello. È la differenza fra «per cambiare listino serve un
 rilascio» e «lo decide il titolare in dieci secondi».
+
+---
+
+## 0sexies. La giornata del 16/09/2026 — dentro l'account di un cliente vero
+
+La differenza di questa sessione rispetto alle precedenti: **non è stata fatta
+leggendo il codice, ma entrando in produzione con le credenziali del titolare di
+Mara dei Boschi**, percorrendo le 19 pagine a 1440px e a 390px, in sola lettura,
+e misurando quello che appariva a schermo. Sette difetti su otto sono stati
+trovati guardando, non compilando.
+
+### 1. I due numeri impossibili — score **96/100**
+
+Due schermate dichiaravano numeri che non potevano essere veri, e li
+dichiaravano **in verde**.
+
+| Dove | Diceva | Perché |
+|---|---|---|
+| P&L, sensibilità | `MANGO JERRY SPICY +51.654% FC tollerabile` | `ricavo ÷ food cost` con un costo a briciole |
+| Ricettario, tessera | `FOOD COST MEDIO 4,8%` | media calcolata su costi quasi tutti mancanti |
+
+La causa è **una sola e si ripete**: entrambi i conti filtravano su `costo > 0`.
+Con 94 ingredienti su 99 senza prezzo, bastava **un** ingrediente prezzato su
+dodici perché la ricetta passasse il filtro con un costo finto.
+
+Un costo incompleto non è un costo basso. La regola sta ora in due moduli con un
+nome che dice cosa decidono — `plSensibilita.js` e `mediaFoodCost.js` — e quando
+non c'è niente da dire restituiscono `null`, non `0`: un food cost sconosciuto
+non è gratis. Gli esclusi si contano **divisi per motivo**, perché «manca il
+prezzo di vendita» si risolve nel Listino e «manca il prezzo di un ingrediente»
+nel Ricettario: due lavori diversi, per due persone diverse.
+
+Dopo la correzione, in produzione: `FOOD COST MEDIO 8,5% — su 4 ricette di 55 ·
+51 con ingredienti senza prezzo`.
+
+### 2. La migrazione ferma da due mesi — score **94/100**
+
+Entrando, la prima schermata era **la procedura di benvenuto** — quella del
+primo accesso — a un'attività che usa Foodos da mesi e ha 3.104 fatture
+caricate.
+
+La catena: `App.jsx` legge `organizations.onboarding_completato_at`; quella
+colonna nel database **non esisteva**; la migrazione che la crea era nel repo dal
+**09/07/2026**, mai applicata; il salvataggio del flag stava in un `try/catch`
+silenzioso e falliva a ogni tentativo. L'unica cosa che nascondeva la procedura
+era il `localStorage`: finestra privata o dispositivo nuovo, e ricompariva.
+
+Il commento di quella migrazione **descrive esattamente questo problema** e dice
+di volerlo risolvere. Non l'ha risolto perché nessuno l'ha applicata.
+
+Perché nessuno se n'era accorto: `migration-check.yml` scattava `on:
+pull_request`, ma qui si pubblica spingendo dritto su `main` — **non è mai
+partito nemmeno una volta**. E non esiste `supabase_migrations.schema_migrations`:
+nessun registro di cosa sia stato applicato.
+
+Correzione: colonna applicata, più `scripts/check-migrazioni-applicate.mjs` nel
+cancello pre-push. Confronta le 113 migrazioni con lo schema vero e divide in
+due: **rosso** (blocca) se manca qualcosa che il codice usa, **giallo** (segnala)
+se manca ma nessuno lo usa — oggi 14 oggetti del PIN dipendenti e dei crediti AI,
+funzioni mai costruite. La divisione è il punto: un controllo che si lamenta
+anche di ciò che non serve viene ignorato dopo tre volte, ed è esattamente la
+fine che avevano fatto le soglie di copertura.
+
+### 3. Il disegno, misurato invece che guardato — score **92/100**
+
+Richiesta del titolare: «tutto incolonnato bene, caratteri di grandezza uguale,
+colori uguali quando è necessario, collocati uguali quando necessario».
+
+Il primo rilevatore ha prodotto **19 falsi allarmi**: confrontava il pannello del
+menu (fuori schermo) con il contenuto. Tarato — solo elementi visibili, con una
+veste grafica vera, di larghezza simile — ne restavano **due**:
+
+* **Ricettario, telefono.** «GUSTI» e «FOOD COST MEDIO» partivano a 8px di
+  distanza. `alignItems: center` nell'etichetta: l'altezza minima di 30px
+  incolonna i valori, ma il testo dentro veniva centrato — una riga sola resta a
+  mezz'aria, due righe riempiono e partono da zero.
+* **P&L, monitor.** Nella fila dei quattro riquadri dei costi l'ultimo aveva
+  dimenticato `small`: bordo interno 14px invece di 10, numero 20px invece di 16.
+
+La seconda è la classe più insidiosa: **una proprietà che vale per una fila
+intera, scritta una tessera alla volta**. Il test la controlla come fila, e
+verifica anche il proprio metodo — un raggruppatore che non trova niente
+passerebbe senza controllare niente.
+
+Al primo tentativo di correzione avevo introdotto io uno sfasamento di 5px sui
+numeri; l'ho misurato **sul sito pubblicato** e tolto. Verifica finale in
+produzione: **zero disallineamenti a 390 e a 1440**.
+
+### 4. I difetti diffusi, su tutte le pagine — score **95/100**
+
+* **Piè di pagina**: Privacy · Termini · Cookie · Contatti a **11px** (sotto il
+  minimo di 12 che il progetto si è dato), area alta **24px** invece di 44, al
+  28% di bianco — il testo meno leggibile del prodotto, su ogni pagina. Non li
+  proteggeva la regola CSS dei 44px perché quella vale per `button[aria-label]`
+  e questi sono link `<a>`.
+* **Sentry**: «Invalid Sentry Dsn» in console a ogni caricamento. La guardia
+  c'era e spegneva il servizio, ma gli passava lo stesso l'indirizzo sbagliato —
+  e Sentry lo analizza **prima** di guardare `enabled`. Mezza correzione fatta
+  due giorni prima; questa è l'altra metà.
+* **Data del database a schermo**: «dal 2026-09-09 al 2026-09-16» nel Registro
+  attività, due righe sotto una pagina che scrive «Mercoledì 16 Settembre». La
+  funzione giusta (`nomePeriodo`) esisteva già.
+
+Verificato in produzione: **zero testi sotto i 12px, zero errori in console,
+zero chiamate di rete rotte su 19 pagine**.
+
+### 5. Il fuso orario dei test — score **97/100**
+
+La suite passava sul portatile e falliva su GitHub **da sei giri di fila**,
+sempre gli stessi 3 test su 3.586. Non era rotto il prodotto: erano rotte le
+righe di *contrasto* dei test sulle date, quelle che dimostrano «calcolato in UTC
+verrebbe il giorno sbagliato». A Roma è vero; su un runner già in UTC mezzanotte
+locale e mezzanotte UTC sono lo stesso istante, non c'è differenza da dimostrare
+e l'asserzione cade.
+
+Ancora il righello, non l'oggetto. `vitest.config.js` fissa ora `TZ=Europe/Rome`
+— il fuso di chi usa Foodos — e un test di taratura si rompe subito se qualcuno
+toglie quella riga.
+
+Nello stesso giro, `tests/12-sicurezza-chiave-pubblica` falliva da giorni perché
+pretendeva un messaggio di rifiuto preciso: nel frattempo ad `anon` era stato
+tolto l'EXECUTE sulle funzioni dei trasferimenti e la risposta era diventata
+«permission denied» — **più sicuro di prima**. Il test bocciava un
+miglioramento.
+
+### 6. Il cancello che sembrava aperto — score **90/100**
+
+Tre pubblicazioni sono state date per riuscite mentre erano state **bloccate dal
+cancello** (un errore di compilazione e sei accenti italiani nei commenti).
+Il motivo per cui non se n'è accorto nessuno: il comando mandava l'uscita dentro
+`tail`, e in una catena conta l'esito dell'ultimo comando — `tail` riesce sempre.
+
+È **lo stesso identico difetto** documentato dentro `.git/hooks/pre-push` il
+14/09, quando due push erano passati con il build rotto. Documentato, corretto lì
+dentro, e ripetuto fuori tre settimane dopo da chi l'aveva scritto.
+
+### Composito sessione: Prodotto 95 · Ingegneria 96 · Business 44 · Maturità ~72
+
+Il lavoro di oggi sposta il prodotto e l'ingegneria di poco perché erano già
+alti. Sposta invece **il metodo**: la differenza fra leggere il codice ed entrare
+nell'applicazione con i dati veri di un cliente vale, a occhio, più di una
+settimana di audit statico. Sette difetti su otto non erano visibili compilando,
+e due di quelli mostravano numeri falsi al titolare in una pagina di bilancio.
 
 ---
 
@@ -2181,3 +2344,260 @@ Tre cose che non erano nella lista e pesavano più delle sette:
 - ❌ **−8 a −15 punti dal top mondiale** (Stripe, Linear, Figma) — gap strutturale di risorse, non recuperabile senza investimento
 
 **Implicazione strategica**: nel mercato italiano food/restaurant gestionali, FoodOS è **probabilmente il prodotto con la migliore UI/UX disponibile**. Questo è arma di vendita più che vantaggio di prodotto: il pasticcere che valuta in 5 secondi sceglierà FoodOS contro Tilby/Cassa in Cloud per "feel premium" anche se le funzionalità sono comparabili. Da qui parte il pricing premium (€89-149-399 vs €30-50 dei competitor IT).
+
+---
+
+## 10. Dossier per un investitore — 16/09/2026
+
+> Tutti i numeri di questa sezione sono **misurati** sul database di produzione
+> il 16/09/2026, salvo quelli marcati *stima*. Dove un numero è imbarazzante,
+> è scritto lo stesso: un dossier che nasconde i buchi non regge la due
+> diligence, e il primo a perderci è chi lo firma.
+
+### 10.1 Sintesi per chi decide
+
+FoodOS è un gestionale verticale per gelaterie e pasticcerie artigianali, che
+risponde a una domanda sola: **quanto mi costa davvero quello che vendo, e
+quanto ci guadagno**. In quattro mesi ha prodotto un prodotto profondo — 47
+pagine, 45 endpoint, 3.649 test automatici — e **zero euro di ricavi**.
+
+La tesi in una riga: *il prodotto non è il problema; il problema è che far
+entrare i dati di un cliente costa tre giorni di lavoro, e finché costa tre
+giorni non esiste un'azienda.*
+
+| | |
+|---|---|
+| Ricavi ricorrenti | **0 €** |
+| Clienti paganti | **0** |
+| Clienti esterni (non del fondatore) | **0** |
+| Organizzazioni vere sul database | 10, di cui **1 attiva** |
+| Persone che hanno usato il prodotto | **5**, in 32 giorni su 95 |
+| Abbonamenti Stripe attivi | **0** — e i tre piani **non sono collegati** a Stripe: nessuno può pagare nemmeno volendo |
+
+### 10.2 Dove siamo davvero
+
+**Le organizzazioni.** Sul database ci sono 573 organizzazioni: **563 sono
+account di prova automatici** (`E2E %`), 10 no. Di quelle 10:
+
+| Organizzazione | Dati caricati | Ultimo uso | Che cos'è |
+|---|---:|---|---|
+| Mara dei Boschi | 9 chiavi, 3.104 fatture | **oggi** | L'attività di famiglia dei fondatori |
+| Gelateria Demo | 17 chiavi, 201 fatture | 26/06 | Account dimostrativo |
+| Pasticceria Mara 1 | 6 chiavi | 13/07 | Prova dello stesso gruppo |
+| Mara | 215 fatture | mai | Prova dello stesso gruppo |
+| «La mia attività» ×4 | quasi vuote | 2 su 4 mai | Iscrizioni abbandonate |
+| Casa Anita | 1 chiave | 09/06 | Abbandonata |
+| Cioccolateria | 0 | mai | Abbandonata |
+
+Il fatto che conta, detto senza giri: **l'unico utente vero è l'attività dei
+fondatori.** Gli indirizzi email di chi usa il prodotto sono
+`@maradeiboschi.com`. Un fondo lo scopre in dieci minuti di due diligence, e se
+non l'ha letto nel dossier smette di credere al resto.
+
+**L'uso.** 4.293 aperture di pagina, 5 persone, dal 13/06 al 16/09:
+
+| Mese | Organizzazioni attive | Aperture | Giorni con attività |
+|---|---:|---:|---:|
+| giugno 2026 | 4 | 2.845 | 12 |
+| luglio 2026 | 4 | 327 | 7 |
+| agosto 2026 | 2 | **11** | 2 |
+| settembre 2026 | 2 | 1.110 | 11 |
+
+Non è una curva di crescita: è la curva di chi costruisce il proprio strumento.
+Le tre pagine più aperte — Produzione (1.746), Dashboard (926), Ricettario (510)
+— dicono però una cosa utile: **il cuore del prodotto è dove si consuma il
+tempo**, e quello è il posto giusto.
+
+### 10.3 L'asset: cosa è stato costruito, e quanto vale ricostruirlo
+
+| | |
+|---|---:|
+| Righe di prodotto (`src/`) | 94.199 |
+| Righe di server (`api/`) | 14.236 |
+| Righe di test | 40.598 |
+| Test automatici che girano a ogni pubblicazione | **3.649** |
+| Migrazioni di database | 113 |
+| Endpoint server | 45 |
+| Pagine disegnate | 47 |
+| Commit | 939, in **53 giorni di lavoro**, da 3 autori |
+| Dal primo commit | 11/05/2026 — **quattro mesi** |
+
+Due cose che un investitore tecnico nota subito, e che qui sono vere:
+
+1. **Il rapporto test/codice è 0,43** (40.598 righe di test su 94.199 di
+   prodotto). Per un prodotto di quattro mesi è alto: normalmente a questo stadio
+   si trova zero.
+2. **Il progetto verifica i propri strumenti di misura.** Nell'ultima settimana
+   sono stati trovati e corretti sei strumenti che mentivano — il comando della
+   copertura che falliva da giugno, i test di contrasto che non disegnavano
+   niente, il controllo delle migrazioni agganciato a una porta mai usata, il
+   cancello di pubblicazione il cui esito veniva mangiato da `tail`. Un progetto
+   che scopre che i propri strumenti mentono vale più di uno che ne aggiunge
+   altri.
+
+**Costo di ricostruzione** (*stima*): 9–15 mesi-uomo di lavoro senior, cioè
+**90.000–180.000 €** a costo pieno italiano. È un pavimento, non una
+valutazione: nessuno compra codice, si compra un'azienda.
+
+### 10.4 Il mercato
+
+| | |
+|---|---:|
+| Punti vendita in Italia (gelaterie + pasticcerie) | **21.300** (9.300 + 12.000) |
+| Totale con i bar | 39.000 |
+| Fatturato del gelato artigianale in Italia | ~3 miliardi €, +0,7% sul 2023 |
+| Ristoranti italiani con gestionale strutturato | **meno del 40%** |
+| Riduzione di food cost documentata con un gestionale | **4–8%** |
+
+L'Italia è **prima in Europa** per gelato artigianale, davanti a Germania
+(9.000 punti vendita) e Spagna (2.200): il mercato domestico è il più grande, e
+l'espansione naturale è verso quei due.
+
+**Il numero che vende il prodotto** è l'ultimo: una gelateria con 300.000 € di
+ricavi e un food cost del 30% spende 90.000 € di materie prime. Un
+miglioramento del 5% sono **4.500 € l'anno**, contro un abbonamento da **1.788 €
+l'anno**. Il ritorno è 2,5 volte, ed è argomentabile con numeri suoi.
+
+**SAM realistico:** 21.300 attività × 1.506 € l'anno (listino misto) ≈ **32
+milioni € l'anno** a penetrazione totale. Con l'1–3% — che è la quota che un
+verticale nuovo può sperare in cinque anni — si parla di **210–640 clienti** e
+**320.000–960.000 € di ricavi ricorrenti**.
+
+*Fonti: [Universofood, numeri del settore 2025](https://www.universofood.net/2025/01/20/gelato-artigianale-numeri-settore-italia-2025/) · [SIGEP / Guida Gelaterie d'Italia 2025](https://www.sigep.it/it/dettaglio-news/Gelaterie%20d%E2%80%99Italia%202025:%20ricerca%20del%20gusto,%20diversificazione%20emodelli%20imprenditoriali%20pi%C3%B9%20sostenibili,%20per%20l%E2%80%99ambiente%20e%20per%20il%20lavoratore?newsId=341093) · [Performa Digital, gestionali ristorazione 2026](https://performadigital.it/blog/software-gestionale-ristorazione)*
+
+### 10.5 Il modello economico — e il collo di bottiglia vero
+
+**Listino** (misurato in `plan_pricing`): Standard 69 €, Plus 149 €, Ultra 399 €
+al mese. Solo Plus è attivo. Mix ipotizzato 45/50/5 → **ARPA 126 €/mese, 1.506 €
+l'anno**.
+
+**Margine lordo sull'infrastruttura: ~99%.** Vercel, Supabase e Resend costano
+oggi **65 € al mese in tutto**, e il costo per cliente in più è sotto 1,10 €.
+La spesa AI registrata su tutto lo storico è **zero**.
+
+Ed è proprio qui che il dossier deve dire la cosa scomoda: **quel 99% è una
+bugia utile**. Il costo vero di questo prodotto non è l'infrastruttura, è **far
+entrare i dati del cliente**.
+
+| | Oggi, a mano | Con l'import delle fatture elettroniche |
+|---|---:|---:|
+| Giorni per attivare un cliente | **3** (*stima ottimistica*) | **0,25** |
+| Costo di attivazione | 660 € | 55 € |
+| Mesi per ripagarlo | **5,3** | **0,4** |
+| Clienti attivabili da una persona in un anno | **73** | **880** |
+
+La stima dei tre giorni è **generosa**: Mara dei Boschi usa Foodos da mesi e ha
+ancora **94 ingredienti su 99 senza prezzo** e **0 ricette su 58 con un prezzo di
+vendita**. Se il cliente più motivato del mondo — che è di casa — non ha finito
+in tre mesi, tre giorni con un operatore dedicato è il limite inferiore.
+
+**Questa è la tesi d'investimento in una tabella.** Non si sta comprando un
+gestionale in più: si sta comprando la possibilità che l'attivazione passi da tre
+giorni a un'ora. In Italia ogni fattura B2B esiste già come XML nel Sistema di
+Interscambio, con dentro ogni riga, quantità e prezzo unitario. Mara ha **3.104
+fatture da 322 fornitori dal 2023**, importate però come soli totali: **zero
+righe di dettaglio**. Il giacimento c'è, la condotta no.
+
+### 10.6 Le proiezioni, per clienti acquisiti
+
+Non sono previsioni: non c'è un solo cliente esterno da cui estrapolare. Sono
+**scenari**, cioè «se succedesse questo, varrebbe quello».
+
+| Scenario | 6 mesi | 12 mesi | 24 mesi |
+|---|---:|---:|---:|
+| **Pessimistico** — l'import non arriva, si vende a mano | 3 clienti | 10 | 25 |
+| **Base** — import fatture live entro 3 mesi, vendita diretta in Piemonte | 8 | 30 | 120 |
+| **Ottimistico** — import + un canale (consorzi, fornitori, commercialisti) | 20 | 70 | 300 |
+
+Tradotto in ricavi ricorrenti e valore d'impresa:
+
+| Scenario | Quando | Clienti | Ricavi ricorrenti | Multiplo | Valore d'impresa |
+|---|---|---:|---:|---:|---:|
+| Pessimistico | 12 mesi | 10 | 15.060 € | — | *non si valuta su ARR* |
+| Pessimistico | 24 mesi | 25 | 37.650 € | 3× | **113.000 €** |
+| Base | 12 mesi | 30 | 45.180 € | 6× | **271.000 €** |
+| Base | 24 mesi | 120 | 180.720 € | 8× | **1.446.000 €** |
+| Ottimistico | 12 mesi | 70 | 105.420 € | 6× | **633.000 €** |
+| Ottimistico | 24 mesi | 300 | 451.800 € | 8× | **3.614.000 €** |
+
+I multipli: sotto i 5 milioni di ricavi il mercato europeo paga **3–5×** se la
+crescita è sotto il 20%, **7–10×** sopra il 40%, con uno **sconto Europa del
+30–50%** rispetto agli Stati Uniti. Sotto i 20 clienti non si valuta su multiplo
+di ricavo: si valuta il team e l'asset.
+
+*Fonti: [Aventis Advisors, SaaS valuation multiples](https://aventis-advisors.com/saas-valuation-multiples/) · [Value Add VC, sconto europeo 2026](https://valueaddvc.com/blog/european-vc-2026-why-valuations-are-still-3050-lower-than-the-us-for-the-same-metrics)*
+
+**Le soglie che contano davvero**, più dei multipli:
+
+| Clienti | Ricavi ricorrenti | Margine dopo infrastruttura | Che cosa significa |
+|---:|---:|---:|---|
+| 8 | 12.048 € | 930 €/mese | Si paga il server e poco altro |
+| **20** | 30.120 € | 2.423 €/mese | **La prima soglia vera: si può parlare di ARR** |
+| 35 | 52.710 € | 4.289 €/mese | Mezzo stipendio |
+| 60 | 90.360 € | 7.399 €/mese | Uno stipendio pieno |
+| 120 | 180.720 € | 14.863 €/mese | Due persone, l'azienda esiste |
+
+### 10.7 Quanto vale oggi
+
+**Fra 250.000 e 600.000 € post-money, come pre-seed** — e molti fondi non
+guarderebbero affatto prima del primo cliente pagante.
+
+Il ragionamento, in chiaro:
+
+* **Non si può valutare sui ricavi**: sono zero.
+* **Non si può valutare sulla trazione**: zero clienti esterni, e l'unico attivo
+  è l'attività dei fondatori.
+* **Si può valutare l'asset**: 90.000–180.000 € di costo di ricostruzione, con un
+  livello di qualità ingegneristica (3.649 test, 113 migrazioni, sicurezza
+  verificata sul campo) che a questo stadio non si trova.
+* **Si può valutare la velocità**: 47 pagine e 45 endpoint in 53 giorni di
+  lavoro sono un dato sul team, non sul prodotto. È la cosa che un investitore
+  pre-seed compra davvero.
+* **Si può valutare l'opzione**: un verticale con 21.300 attività, meno del 40%
+  digitalizzate, in un paese dove la fattura elettronica è obbligatoria per legge
+  — cioè dove il dato che serve **esiste già per tutti**.
+
+Il riferimento europeo per un seed B2B SaaS è 14–16 milioni di dollari
+pre-money, ma quello vale con trazione. Senza clienti si sta **due stadi prima**,
+ed è corretto che si stia.
+
+*Fonte: [Flowjam / dati Carta 2026 sui seed](https://www.flowjam.com/blog/seed-round-valuation-2025-complete-founders-guide)*
+
+### 10.8 I quattro rischi che chiudono la trattativa
+
+1. **Il design partner è parte correlata.** L'unico utente attivo è l'azienda dei
+   fondatori. Finché è così, non esiste evidenza che qualcuno *estraneo* paghi.
+   È il rischio numero uno e non si risolve con il prodotto: si risolve con tre
+   clienti veri.
+2. **Non si può incassare.** I tre piani non hanno un identificativo Stripe:
+   nessuno può pagare. È mezza giornata di lavoro, ma finché non è fatta il
+   ricavo è strutturalmente zero, non «zero per ora».
+3. **L'azienda non è raggiungibile.** `foodos.it` non risolve: **nessuna email
+   parte e nessuna arriva**, e 45 punti del prodotto rimandano a indirizzi
+   `@foodos.it`. Un cliente che chiede assistenza non riceve risposta.
+4. **Il codice è pubblico.** Il repository è aperto: chiunque legge tutto. La
+   chiave del database che era finita dentro è stata neutralizzata oggi
+   (spegnendo le chiavi vecchie su Supabase, che la rende inservibile per
+   sempre), ma la proprietà intellettuale resta esposta.
+
+Tutti e quattro sono **a costo quasi zero e a tempo quasi zero**. Il fatto che
+siano ancora aperti è, per un investitore, un segnale su cosa riceve attenzione:
+il prodotto sì, l'azienda no.
+
+### 10.9 I 90 giorni che decidono tutto
+
+Non c'è niente da aggiungere al prodotto per rispondere alla domanda «vale
+qualcosa». C'è da rispondere a una domanda sola: **un estraneo paga?**
+
+| Settimane | Che cosa | Perché |
+|---|---|---|
+| 1 | Stripe collegato, dominio comprato, repository chiuso, 2FA | Togliere i quattro rischi. Costo: ~2 giorni e 30 € l'anno |
+| 2–5 | **Import delle fatture elettroniche** | Porta l'attivazione da 3 giorni a un'ora. È la funzione che rende possibile tutto il resto |
+| 4–12 | **Tre clienti paganti estranei**, a prezzo pieno | L'unica cosa che sposta la valutazione di un ordine di grandezza |
+| in parallelo | Un caso concreto su Mara dei Boschi: food cost prima/dopo, in euro | Il materiale di vendita che nessun concorrente ha |
+
+**La soglia da raggiungere prima di parlare con un fondo sono 20 clienti
+paganti** — 30.000 € di ricavi ricorrenti. Sotto quella cifra la conversazione è
+su un progetto; sopra, è su un'azienda. Ed è a portata: 20 clienti su 21.300
+attività è lo **0,09%** del mercato.
+
