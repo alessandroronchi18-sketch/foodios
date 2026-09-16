@@ -13,6 +13,7 @@ import { caricaCostiAziendali, totaleMensile } from '../lib/costiAziendali'
 import { costoPersonaleMensile, costoLavoroDaTurni } from '../lib/stipendiCalc'
 import { foodcostNoto } from '../lib/chiusure'
 import { usciteDaSottrarre } from '../lib/primaNota'
+import { righeSensibilita, margineDiSicurezza } from '../lib/plSensibilita'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell,
@@ -614,13 +615,29 @@ function SensTable({ rows, euro, pct }) {
   // risposta. Prima 24 prodotti su 26 mostravano "+-100% FC tollerabile",
   // perché con ricavo 0 il conto fa (0/fc - 1) = -100%, e il segno "+" era
   // scritto a mano nel testo: usciva "+-100%".
-  const validi = rows.filter(r => r.ricavo > 0 && r.fc > 0)
-  const nEsclusi = rows.length - validi.length
+  // ── E nemmeno quelli con il costo a meta' ────────────────────────────
+  //
+  // 16/09/2026, guardando la pagina dentro l'account vero: «MANGO JERRY
+  // SPICY  +51.654% FC tollerabile». Cinquantunmila per cento.
+  //
+  // Non e' un prodotto miracoloso: e' `(ricavo / fc - 1) * 100` con un food
+  // cost quasi zero, perche' a quella ricetta mancavano i prezzi di quasi
+  // tutti gli ingredienti. Il costo non e' basso, e' INCOMPLETO — e la
+  // differenza, per chi legge, e' tutta.
+  //
+  // Il filtro `fc > 0` non bastava: bastava un ingrediente con un prezzo
+  // perche' il costo fosse «maggiore di zero» e la riga passasse. Le righe
+  // sanno gia' quali ingredienti non hanno prezzo (`fcParziale`, calcolato
+  // qualche centinaio di righe piu' giu'): qui va solo guardato.
+  //
+  // Vale per tutta la riga, non solo per l'ultima colonna: con un costo a
+  // meta' sono sbagliati anche «se sale del 10%» e «se sale del 20%».
+  const { validi, senzaPrezzo, costoIncompleto, nEsclusi } = righeSensibilita(rows)
   const sensRows = validi.map(r => ({
     ...r,
     marg10: parseFloat((r.ricavo - r.fc * 1.10).toFixed(2)),
     marg20: parseFloat((r.ricavo - r.fc * 1.20).toFixed(2)),
-    headroom: parseFloat(((r.ricavo / r.fc - 1) * 100).toFixed(1)),
+    headroom: margineDiSicurezza(r),
   }))
   const { sort, sortKey, sortDir, toggleSort } = useSortable('headroom')
   const ss = sort(sensRows, (r, k) => k === 'nome' ? r.nome : (r[k] || 0))
@@ -694,8 +711,20 @@ function SensTable({ rows, euro, pct }) {
         />
         {nEsclusi > 0 && (
           <div style={{ padding: '10px 14px', borderTop: `1px solid ${C.border}`, fontSize: font.size.sm, color: C.textSoft, lineHeight: 1.5 }}>
-            {nEsclusi} {nEsclusi === 1 ? 'prodotto è fuori' : 'prodotti sono fuori'} da questa tabella: senza un prezzo
-            di vendita non si può dire di quanto possono salire i costi prima di andare in perdita.
+            {senzaPrezzo > 0 && (
+              <div>
+                {senzaPrezzo} {senzaPrezzo === 1 ? 'prodotto è fuori' : 'prodotti sono fuori'} da questa tabella: senza un prezzo
+                di vendita non si può dire di quanto possono salire i costi prima di andare in perdita.
+              </div>
+            )}
+            {costoIncompleto > 0 && (
+              <div style={{ marginTop: senzaPrezzo > 0 ? 6 : 0 }}>
+                {costoIncompleto} {costoIncompleto === 1 ? 'prodotto è fuori' : 'prodotti sono fuori'} perché {costoIncompleto === 1 ? 'ha' : 'hanno'} il
+                food cost incompleto: {costoIncompleto === 1 ? 'manca' : 'mancano'} il prezzo di qualche ingrediente.
+                Il costo che risulta non è basso, è <b style={{ color: C.text }}>parziale</b>, e su un costo parziale
+                questo conto darebbe numeri senza senso.
+              </div>
+            )}
           </div>
         )}
       </div>

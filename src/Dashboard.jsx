@@ -41,7 +41,7 @@ import { parseFile as parseCassaFile, mergeInChiusureCassa } from './lib/importC
 import useIsMobile, { useIsTablet } from './lib/useIsMobile'
 import { useOnlineStatus } from './lib/useOnlineStatus'
 import { useNotifiche } from './lib/useNotifiche'
-import { color as T, radius as R, shadow as S, motion as M, layout as L, z as Z, keyframes as KF, typo, tnum as TNUM } from './lib/theme'
+import { color as T, radius as R, shadow as S, motion as M, layout as L, z as Z, keyframes as KF, typo, tnum as TNUM, font } from './lib/theme'
 const ImpostazioniSedi = lazyWithReload(() => import('./components/ImpostazioniSedi'))
 const ImpostazioniTv = lazyWithReload(() => import('./components/ImpostazioniTv'))
 const ExportContabilita = lazyWithReload(() => import('./components/ExportContabilita'))
@@ -2800,10 +2800,17 @@ export default function Dashboard({
               {isMobile && (
               <div style={{display:"flex",justifyContent:"center",gap:10,paddingTop:6,flexWrap:"wrap",
                 borderTop:"1px solid rgba(255,255,255,0.05)"}}>
+                {/* 16/09/2026, misurato dentro l'account vero su tutte e 19 le
+                    pagine: questi quattro link erano scritti a 11px — sotto il
+                    minimo di 12 che il progetto si e' dato — dentro un'area
+                    alta 24px, quando un bersaglio da dito ne vuole 44. Erano
+                    l'unico testo fuori scala del prodotto, ed erano su OGNI
+                    pagina. Il colore all'28% di bianco li rendeva anche il
+                    testo meno leggibile in assoluto. */}
                 {[["Privacy","/privacy"],["Termini","/termini"],["Cookie","/cookie"],["Contatti","/contatti"]].map(([l,h])=>(
                   <a key={h} href={h} target="_blank" rel="noreferrer"
-                    style={{fontSize:11,color:"rgba(255,255,255,0.28)",textDecoration:"none",letterSpacing:"0.02em",
-                      padding:"4px 0", minHeight:24, display:"inline-flex", alignItems:"center"}}>{l}</a>
+                    style={{fontSize:font.size.xs,color:"rgba(255,255,255,0.45)",textDecoration:"none",letterSpacing:"0.02em",
+                      padding:"0 6px", minHeight:44, display:"inline-flex", alignItems:"center"}}>{l}</a>
                 ))}
               </div>
               )}

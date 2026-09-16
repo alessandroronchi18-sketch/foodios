@@ -158,3 +158,47 @@ describe('gli attrezzi di misura restano nel progetto', () => {
     expect(s).toMatch(/pointer: fine/)
   })
 })
+
+// ── Il piè di pagina, l'ultimo testo fuori scala ───────────────────────
+//
+// 16/09/2026, misurando le 19 pagine dentro l'account vero del titolare: su
+// OGNI pagina uscivano «4 testi sotto i 12px». Erano sempre gli stessi —
+// Privacy, Termini, Cookie, Contatti — scritti a 11px dentro un'area alta
+// 24px, e colorati al 28% di bianco.
+//
+// Tre cose sbagliate insieme: sotto il minimo di leggibilità che il progetto
+// si è dato (12px), sotto il bersaglio da dito (44px), e il testo col
+// contrasto più basso di tutto il prodotto.
+//
+// Non li proteggeva la regola CSS dei 44px, perché quella vale per
+// `button[aria-label]` e questi sono link `<a>`: nessuno l'aveva notato
+// perché la regola *sembra* coprire tutto ciò che si tocca.
+describe('il piè di pagina si legge e si tocca', () => {
+  const DASH = leggi('src', 'Dashboard.jsx')
+  // Il blocco dei quattro link legali nella versione telefono. I piè di
+  // pagina sono due — quello della finestra larga e quello del telefono — e
+  // quello del telefono è il secondo nel file.
+  const CHIAVE = '["Privacy","/privacy"],["Termini","/termini"],["Cookie","/cookie"],["Contatti","/contatti"]'
+  const blocco = DASH.slice(DASH.lastIndexOf(CHIAVE), DASH.lastIndexOf(CHIAVE) + 900)
+
+  it('non è più scritto a 11px', () => {
+    expect(blocco).not.toContain('fontSize:11')
+  })
+
+  it('usa la scala tipografica, che ha 12px come minimo', () => {
+    expect(blocco).toContain('fontSize:font.size.xs')
+  })
+
+  it('e l’area da toccare arriva ai 44px', () => {
+    expect(blocco).toContain('minHeight:44')
+    expect(blocco).not.toContain('minHeight:24')
+  })
+
+  it('la regola CSS dei 44px non copre i link: per questo serviva scriverlo', () => {
+    // Se un domani la regola venisse estesa agli `a`, questo test lo dice —
+    // e allora il minHeight scritto a mano si può togliere.
+    expect(HTML).toMatch(/@media \(pointer: coarse\) \{[\s\S]{0,120}button\[aria-label\]/)
+    const regola = HTML.slice(HTML.indexOf('button[aria-label]'), HTML.indexOf('button[aria-label]') + 160)
+    expect(regola).not.toMatch(/\ba\[href\]|^\s*a\s*,/m)
+  })
+})
