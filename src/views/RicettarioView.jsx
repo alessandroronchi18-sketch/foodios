@@ -16,6 +16,7 @@ import PrezziPerSedeModal from '../components/PrezziPerSedeModal'
 import { exportRicettaPDF } from '../lib/exportPDF'
 import { gateExport, getExportCtx } from '../lib/exportGuard'
 import Icon from '../components/Icon'
+import { mediaFoodCost } from '../lib/mediaFoodCost'
 import {
   C, TNUM, margColor, margBadge, Badge, Tip, KPI, fmtp,
 } from './_shared'
@@ -862,18 +863,27 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
   // reale sono 24 su 27: senza dirlo, "Food cost medio 28%" sembra il food cost
   // dell'azienda mentre riguarda 3 ricette. Prima era anche peggio, perché il
   // prezzo inventato di 4,00 € le faceva entrare tutte e usciva 5,6% in verde.
-  const { valore: fcMedio, conteggio: fcMedioSu } = ricette.length === 0
-    ? { valore: 0, conteggio: 0 }
-    : (() => {
-        let tot = 0, cnt = 0
-        for (const ric of ricette) {
-          const ricavo = ricavoEffettivo(ric)
-          if (ricavo <= 0) continue
-          const { tot: fc } = calcolaFC(ric, ingCosti, ricettario)
-          tot += fc / ricavo; cnt++
-        }
-        return { valore: cnt > 0 ? tot / cnt : 0, conteggio: cnt }
-      })()
+  // 16/09/2026 — la seconda metà dello stesso controllo.
+  //
+  // Escludere le ricette senza prezzo di vendita non basta: bisogna escludere
+  // anche quelle di cui non si conosce il COSTO. Nell'archivio vero di Mara,
+  // aperto oggi, questa tessera diceva «FOOD COST MEDIO 4,8%» in verde — per
+  // una gelateria è un numero impossibile, il normale sta fra il 25 e il 35 —
+  // mentre 94 ingredienti su 99 non avevano un prezzo. Il costo non era basso:
+  // mancava.
+  //
+  // È lo stesso difetto trovato lo stesso giorno nella tabella della
+  // sensibilità del P&L («MANGO JERRY SPICY +51.654% FC tollerabile»): una
+  // famiglia, non un caso isolato. Dove si divide per un costo, il costo deve
+  // essere completo, non solo diverso da zero.
+  //
+  // `calcolaFC` dice già quali ingredienti sono senza prezzo (`mancanti`).
+  const { media: fcMediaGrezza, su: fcMedioSu, senzaPrezzoVendita, costoIncompleto } =
+    mediaFoodCost(ricette.map(ric => {
+      const { tot, mancanti } = calcolaFC(ric, ingCosti, ricettario)
+      return { ricavo: ricavoEffettivo(ric), costo: tot, mancanti }
+    }))
+  const fcMedio = fcMediaGrezza ?? 0
 
   const filtered = useMemo(() => {
     let arr = ricette.filter(r => r.nome.toLowerCase().includes(search.toLowerCase()))
@@ -963,9 +973,13 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
                 icon={<Icon name="barChart" size={18} />}
                 color={fcMedioSu === 0 ? T.textSoft : fcMedio < 0.30 ? T.green : fcMedio < 0.35 ? T.amber : T.brand}
                 sub={fcMedioSu === 0
-                  ? 'serve il prezzo di vendita di almeno una ricetta'
+                  ? (costoIncompleto > 0
+                      ? `manca il prezzo di qualche ingrediente in tutt${costoIncompleto === 1 ? 'a la ricetta' : 'e e ' + costoIncompleto + ' le ricette'}`
+                      : 'serve il prezzo di vendita di almeno una ricetta')
                   : fcMedioSu < ric
-                    ? `su ${fcMedioSu} ${fcMedioSu === 1 ? 'ricetta' : 'ricette'} di ${ric}: le altre non hanno prezzo`
+                    ? `su ${fcMedioSu} ${fcMedioSu === 1 ? 'ricetta' : 'ricette'} di ${ric}` +
+                      (costoIncompleto > 0 ? ` · ${costoIncompleto} con ingredienti senza prezzo` : '') +
+                      (senzaPrezzoVendita > 0 ? ` · ${senzaPrezzoVendita} senza prezzo di vendita` : '')
                     : 'media non pesata sulle ricette'} />
               {/* Sul telefono le tessere stanno su due colonne: la terza
                   restava sola a metà riga, con mezzo schermo vuoto accanto.
