@@ -372,19 +372,36 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
   // da' lo stesso peso a un cono da 3 € e a una torta da 40. Il food cost
   // vero e' costo totale diviso ricavo totale.
   const fcInfo = useMemo(() => {
-    let costo = 0, ricavo = 0, dentro = 0
+    let costo = 0, ricavo = 0, dentro = 0, conBuchi = 0, ingredientiSenzaPrezzo = 0
     for (const ric of ricette) {
       const reg = getR(ric.nome, ric)
       if (!reg.unita || !reg.prezzo) continue
       const r = reg.unita * reg.prezzo
       if (r <= 0) continue
-      const { tot: fc } = calcolaFC(ric, ingCosti, ricettario)
+      const { tot: fc, mancanti } = calcolaFC(ric, ingCosti, ricettario)
       costo += fc; ricavo += r; dentro++
+      // Quante di queste ricette hanno ingredienti senza prezzo. Un
+      // ingrediente senza prezzo entra nel conto valendo ZERO, quindi ogni
+      // buco spinge il food cost verso il basso e il margine verso l'alto.
+      if ((mancanti || []).length > 0) { conBuchi++; ingredientiSenzaPrezzo += mancanti.length }
     }
-    return { pct: ricavo > 0 ? costo / ricavo : null, dentro, fuori: ricette.length - dentro }
+    return {
+      pct: ricavo > 0 ? costo / ricavo : null,
+      dentro, fuori: ricette.length - dentro,
+      conBuchi, ingredientiSenzaPrezzo,
+    }
   }, [ricette, ingCosti, ricettario])
   const fcMedio = fcInfo.pct ?? 0
-  const fcColor = fcInfo.pct == null ? T.textFaint : fcMedio < 0.30 ? T.green : fcMedio < 0.35 ? T.amber : T.red
+  // Col food cost sottostimato il semaforo NON è verde.
+  //
+  // È la parte peggiore del difetto: gli ingredienti senza prezzo tirano giù
+  // la percentuale, la percentuale bassa accende il verde, e il verde dice
+  // «va tutto bene» su un numero che non è vero. Sui dati del primo cliente
+  // il food cost usciva 3,6% — verde pieno — su un'azienda il cui food cost
+  // vero sta fra il 25 e il 35%. Meglio grigio: «non lo so ancora».
+  const fcColor = (fcInfo.pct == null || fcInfo.conBuchi > 0)
+    ? T.textSoft
+    : fcMedio < 0.30 ? T.green : fcMedio < 0.35 ? T.amber : T.red
 
   // Magazzino: "a zero perché mai contato" e "sotto la soglia" sono due
   // problemi diversi e si risolvono in modi diversi. Su Mara le 9 voci sono
@@ -462,7 +479,7 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
     green: { soft: 'rgba(16,163,74,0.12)', solid: T.green },
     blue: { soft: 'rgba(37,99,235,0.12)', solid: '#2563EB' },
     red: { soft: 'rgba(110,14,26,0.12)', solid: T.brand },
-    fc: { soft: fcInfo.pct == null ? 'rgba(15,23,42,0.06)' : fcMedio < 0.30 ? 'rgba(16,163,74,0.12)' : fcMedio < 0.35 ? 'rgba(217,119,6,0.14)' : 'rgba(110,14,26,0.12)', solid: fcColor },
+    fc: { soft: (fcInfo.pct == null || fcInfo.conBuchi > 0) ? 'rgba(15,23,42,0.06)' : fcMedio < 0.30 ? 'rgba(16,163,74,0.12)' : fcMedio < 0.35 ? 'rgba(217,119,6,0.14)' : 'rgba(110,14,26,0.12)', solid: fcColor },
   }
 
   return (
@@ -553,7 +570,15 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
           empty={fcInfo.pct == null}
           sub={fcInfo.pct == null
             ? (ricette.length === 0 ? 'nessuna ricetta' : `${ricette.length === 1 ? 'la ricetta non ha' : `nessuna delle ${ricette.length} ricette ha`} un prezzo di vendita`)
-            : (fcInfo.fuori > 0 ? `su ${fcInfo.dentro} di ${ricette.length} ricette` : 'sul ricettario')}
+            // Un ingrediente senza prezzo entra nel conto valendo ZERO: ogni
+            // buco tira il food cost verso il basso e il margine verso l'alto.
+            // Sui dati veri del primo cliente sono 124 ingredienti su 253, e
+            // il food cost usciva 3,6% con un margine lordo del 96,4% — su
+            // numeri così si decidono i prezzi di vendita. Meglio dire che è
+            // più basso del vero che lasciarlo sembrare una misura.
+            : (fcInfo.conBuchi > 0
+              ? `più basso del vero: ${fcInfo.ingredientiSenzaPrezzo} ingredienti senza prezzo`
+              : (fcInfo.fuori > 0 ? `su ${fcInfo.dentro} di ${ricette.length} ricette` : 'sul ricettario'))}
           onClick={() => setView('simulatore')} />
         <KpiCard label="Produzione" icon={ICO.box} tint={TINT.blue} value={<>{n0(prodCount)}<span style={{ fontSize: isMobile ? 12 : 15, fontWeight: 600, color: T.textSoft, marginLeft: 6 }}>pz</span></>} valueColor="#2563EB" empty={!hasProdOggi}
           sub={hasProdOggi

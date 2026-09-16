@@ -994,8 +994,33 @@ export function calcolaFC(ricetta, ingCosti, ricettario, _depth, _path, _lordo) 
     const qty = ing.qty1stampo || 0
     if (!qty) continue
 
+    // ── Il prezzo che ha scritto il titolare vince sul calcolo ─────────────
+    //
+    // Un semilavorato può avere DUE fonti di costo: la sua ricetta (da cui il
+    // programma lo calcola) e un prezzo al chilo che il titolare ha scritto a
+    // mano nel listino. Fino al 16/09/2026 vinceva sempre il calcolo, perché
+    // il ramo del semilavorato stava prima del listino.
+    //
+    // Misurato sui dati veri di Mara dei Boschi: «BASE BIANCA» ha un prezzo
+    // suo (2,31 €/kg) e una ricetta i cui ingredienti sono per il 20% del peso
+    // senza prezzo. Vinceva il calcolo — 1,22 €/kg — e **24 ricette su 58
+    // uscivano con un food cost sottostimato dell'88,7%**, con un margine
+    // lordo del 96,4% su un'azienda che di margine ne fa la metà.
+    //
+    // Chi ha ragione non è in dubbio: un prezzo scritto dal titolare è una
+    // misura, un calcolo su ingredienti metà dei quali non hanno prezzo è una
+    // stima al ribasso. È anche il modo in cui lavora una gelateria — le
+    // quantità di una base sono il segreto del laboratorio, e il costo al
+    // chilo si scrive a mano: è la ragione per cui esiste il tipo «interno».
+    //
+    // La stima automatica di mercato (`isStima`) NON vince: quella è un
+    // ripiego nostro, e fra due stime è meglio quella fatta sugli ingredienti
+    // veri della ricetta.
+    const prezzoDichiarato = ingCosti[normIng(ing.nome)]
+    const dichiaratoDallUtente = prezzoDichiarato && !prezzoDichiarato.isStima && Number(prezzoDichiarato.costoG) > 0
+
     // Semilavorato? Ricorsione max 3 livelli, ciclo-detect via path
-    if (ricettario?.ricette) {
+    if (ricettario?.ricette && !dichiaratoDallUtente) {
       const semiKey = Object.keys(ricettario.ricette).find(k => {
         const r = ricettario.ricette[k]
         if (r.tipo !== 'semilavorato') return false
@@ -1019,7 +1044,16 @@ export function calcolaFC(ricetta, ingCosti, ricettario, _depth, _path, _lordo) 
         // volta sola): se ha resa propria (o siamo in lordo) ricorri in lordo.
         const semiHasResa = hasResaIngrediente(nomeNorm)
         const recurseLordo = _lordo || semiHasResa
-        const { tot: semiTot } = calcolaFC(semiRic, ingCosti, ricettario, depth + 1, [...path, semiKey], recurseLordo)
+        const { tot: semiTot, mancanti: semiMancanti } = calcolaFC(semiRic, ingCosti, ricettario, depth + 1, [...path, semiKey], recurseLordo)
+        // Gli ingredienti senza prezzo DENTRO la base sono ingredienti senza
+        // prezzo di questa ricetta: il loro costo manca lo stesso.
+        //
+        // Prima la ricorsione restituiva anche `mancanti` e chi chiamava lo
+        // buttava via. Risultato: la scheda diceva «0 ingredienti senza
+        // prezzo» mentre il costo era sottostimato, e l'avviso che avrebbe
+        // fatto scoprire il margine al 96,4% non compariva mai. Il nome si
+        // scrive con la base davanti, perché è lì che si va a correggerlo.
+        for (const m of (semiMancanti || [])) mancanti.push(`${ing.nome} › ${m}`)
         const semiPeso = (semiRic.ingredienti || []).reduce((s, i) => s + (i.qty1stampo || 0), 0)
         // Se semiPeso=0 (semilavorato senza ingredienti o ingredienti senza
         // qty1stampo) il costoG sarebbe 0 e il padre risulterebbe gratis →
@@ -1037,7 +1071,7 @@ export function calcolaFC(ricetta, ingCosti, ricettario, _depth, _path, _lordo) 
       }
     }
 
-    const c = ingCosti[normIng(ing.nome)]
+    const c = prezzoDichiarato
     if (!c) { mancanti.push(ing.nome); continue }
     tot += qty * (_lordo ? c.costoG : costoNettoPerG(c.costoG, nomeNorm))
   }
