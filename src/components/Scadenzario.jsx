@@ -346,7 +346,22 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         movimenti, avvisi, abbinamenti, nonAbbinati,
         // I "certi" partono spuntati, gli altri no: la conferma è un gesto,
         // non un automatismo.
-        scelti: new Set(abbinamenti.filter(a => a.certezza === 'certo').map((a, i) => i)),
+        // Gli indici devono essere quelli di `abbinamenti`, non della lista
+        // filtrata.
+        //
+        // Prima era `.filter(certo).map((a, i) => i)`: l'indice contato sulla
+        // lista FILTRATA. Con tre uscite [incerta, certa, certa] il filtro dà
+        // due elementi e gli indici {0, 1}, che nella lista intera puntano
+        // alla PRIMA (incerta) e alla seconda. Risultato: partiva spuntata
+        // un'uscita da controllare, e una sicura restava fuori — e alla
+        // conferma venivano segnate pagate **le fatture sbagliate**.
+        //
+        // Si vedeva solo quando la prima uscita del file non era sicura,
+        // motivo per cui era rimasto lì.
+        scelti: new Set(abbinamenti.reduce((acc, a, i) => {
+          if (a.certezza === 'certo') acc.push(i)
+          return acc
+        }, [])),
       })
       const nCerti = abbinamenti.filter(a => a.certezza === 'certo').length
       notify(`${movimenti.length} uscite lette · ${abbinamenti.length} abbinate (${nCerti} sicure) · ${nonAbbinati.length} da guardare`)
