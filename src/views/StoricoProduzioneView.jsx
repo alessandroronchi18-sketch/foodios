@@ -42,6 +42,31 @@ function giorniPrimaDi(dataIso, n) {
   return d.toISOString().slice(0, 10)
 }
 
+// Quando si guarda «per giorno della settimana», una colonna costruita su un
+// martedì solo non è una media: è un martedì. E chi legge «il martedì incassi
+// 400 €» decide la produzione su quel numero.
+//
+// Sotto le quattro occorrenze si dice quante ce ne sono, invece di disegnare
+// una colonna che sembra una risposta. È la stessa cautela che il programma
+// usa già sul food cost delle giornate registrate col solo totale.
+function AvvisoPochiGiorni({ vista, periodi }) {
+  if (vista !== 'giornosett') return null
+  const scarsi = (periodi || []).filter(p => (p.nGiorni || 0) > 0 && p.nGiorni < 4)
+  if (scarsi.length === 0) return null
+  const elenco = scarsi.map(p => `${p.label} (${p.nGiorni})`).join(', ')
+  return (
+    <div style={{
+      background: T.amberLight, border: `1px solid ${T.amber}55`, borderRadius: 10,
+      padding: '10px 12px', marginBottom: 12,
+      fontSize: typo.small.fontSize, color: T.amberDark || T.amber, lineHeight: 1.45,
+    }}>
+      Su {scarsi.length === 1 ? 'un giorno' : 'questi giorni'} ci sono meno di quattro
+      giornate registrate: {elenco}. Con così poche, quella colonna è una
+      giornata, non una media — guardala per quello che è.
+    </div>
+  )
+}
+
 export default function StoricoProduzioneView({ ricettario, giornaliero, chiusure, logPrezzi = [], orgId, sedeId, sedi = [], metodoProduzione = 'stampi', onNavigate, LEX = lessico() }) {
   // Ricavo effettivo per gusti (gelateria): stimato dai Formati vendita.
   // Prima di questo hook, i gusti nello storico avevano ricavo=0 e falsavano
@@ -192,10 +217,34 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
     const wn = Math.ceil((((tmp-ys)/86400000)+1)/7);
     return `${tmp.getUTCFullYear()}-W${String(wn).padStart(2,"0")}`;
   };
+  // Come si chiama il raggruppamento scelto, dentro una frase o come titolo.
+  // Erano tre condizionali sparsi che si fermavano a «Mese»: aggiungendo il
+  // giorno della settimana, due dicevano «giornosett» e uno «Mese».
+  const nomeVista  = { giornaliero:'giorno', settimana:'settimana', mese:'mese', giornosett:'giorno della settimana' };
+  const TitoloVista = { giornaliero:'Giorno', settimana:'Settimana', mese:'Mese', giornosett:'Giorno della settimana' };
   const getMonthKey = d => d.slice(0,7);
   const getDayKey   = d => d.slice(0,10);
-  const getKey      = d => vista==="giornaliero"?getDayKey(d):vista==="settimana"?getWeekKey(d):getMonthKey(d);
+  // ── Il giorno della settimana ─────────────────────────────────────────────
+  //
+  // «Come vanno i lunedì» è la domanda che un gelatiere si fa davvero: quanto
+  // produco per il martedì, quanta gente metto in turno la domenica, conviene
+  // aprire il lunedì. I dati c'erano tutti e non si potevano leggere così.
+  //
+  // La chiave è `dow-1`…`dow-7` (lunedì…domenica) apposta: si ordina da sola
+  // come stringa, senza una tabella a parte, e l'ordine che esce è quello
+  // della settimana e non quello alfabetico.
+  //
+  // Il giorno si legge a mezzogiorno (`T12:00`): `new Date('2026-09-16')` è
+  // mezzanotte UTC, cioè le 02:00 italiane, e in un fuso a ovest darebbe il
+  // giorno prima. A mezzogiorno nessun fuso del mondo cambia la data.
+  const GIORNI_SETT = ['Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato','Domenica'];
+  const getDowKey   = d => {
+    const g = new Date(String(d).slice(0,10) + 'T12:00').getDay();   // 0 = domenica
+    return `dow-${g === 0 ? 7 : g}`;
+  };
+  const getKey      = d => vista==="giornaliero"?getDayKey(d):vista==="settimana"?getWeekKey(d):vista==="giornosett"?getDowKey(d):getMonthKey(d);
   const fmtKey      = k => {
+    if (vista==="giornosett") return GIORNI_SETT[Number(k.split('-')[1]) - 1] || k;
     if (vista==="giornaliero") {
       const [y,m,dd] = k.split("-");
       return `${dd}/${m}/${y.slice(2)}`;
@@ -210,8 +259,12 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
     const sessFiltered = filterByDate(giornaliero||[], s=>s.data);
     for (const sess of sessFiltered) {
       const k = getKey(sess.data);
-      if (!map[k]) map[k]={ key:k, sessioni:[], stampiTot:0, ricavoTot:0, fcTot:0, byRicetta:{} };
+      if (!map[k]) map[k]={ key:k, sessioni:[], giorni:new Set(), stampiTot:0, ricavoTot:0, fcTot:0, byRicetta:{} };
       map[k].sessioni.push(sess);
+      // Quante GIORNATE distinte stanno dietro alla barra. Serve solo al
+      // raggruppamento per giorno della settimana, dove una colonna costruita
+      // su un martedì solo non è una media: è un martedì.
+      map[k].giorni.add(String(sess.data).slice(0,10));
       for (const prod of (sess.prodotti||[])) {
         // Fallback su uppercase per nomi legacy: se cerchiamo per esatto e non
         // c'e' match, riproviamo con UPPER().trim() - altrimenti getR cade su
@@ -244,7 +297,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
       }
     }
     return Object.values(map).sort((a,b)=>a.key.localeCompare(b.key)).map(p=>({
-      ...p, margine:p.ricavoTot-p.fcTot, margPct:p.ricavoTot>0?((p.ricavoTot-p.fcTot)/p.ricavoTot*100):0, label:fmtKey(p.key)
+      ...p, nGiorni:p.giorni.size, margine:p.ricavoTot-p.fcTot, margPct:p.ricavoTot>0?((p.ricavoTot-p.fcTot)/p.ricavoTot*100):0, label:fmtKey(p.key)
     }));
   // ricavoFlatFor cambia se cambiano i Formati vendita → storico gusti si aggiorna.
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -256,8 +309,9 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
     const chiusureFiltered = filterByDate(chiusure||[], c=>c.data);
     for (const ch of chiusureFiltered) {
       const k = getKey(ch.data);
-      if (!map[k]) map[k]={ key:k, chiusure:[], rvTot:0, fcTot:0, margTot:0, sproTot:0, byProd:{}, stSum:0, stCnt:0, pezziProdotti:0, pezziVenduti:0 };
+      if (!map[k]) map[k]={ key:k, chiusure:[], giorni:new Set(), rvTot:0, fcTot:0, margTot:0, sproTot:0, byProd:{}, stSum:0, stCnt:0, pezziProdotti:0, pezziVenduti:0 };
       map[k].chiusure.push(ch);
+      map[k].giorni.add(String(ch.data).slice(0,10));
       map[k].rvTot   += ch.kpi.totV||0;
       map[k].fcTot   += ch.kpi.totFC||0;
       map[k].margTot += ch.kpi.totM||0;
@@ -287,6 +341,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
     }
     return Object.values(map).sort((a,b)=>a.key.localeCompare(b.key)).map(p=>({
       ...p,
+      nGiorni: p.giorni.size,
       margPct: p.rvTot>0 ? (p.margTot/p.rvTot*100) : 0,
       // Sell-through pesato sui pezzi. Il vecchio `stSum/stCnt` (media delle
       // percentuali giornaliere) resta solo come ripiego per le chiusure
@@ -396,12 +451,32 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
     ? (pezziVendTot / pezziProdTot) * 100
     : (conST.length>0 ? conST.reduce((s,p)=>s+p.avgST,0)/conST.length : null);
 
+  // ── Lo scontrino medio ────────────────────────────────────────────────────
+  //
+  // Il dato si chiede in chiusura, si salva nel database e **non lo leggeva
+  // nessuna schermata**. È l'unica misura che distingue «è passata meno
+  // gente» da «la stessa gente ha speso meno»: due problemi diversi con due
+  // rimedi diversi — uno si risolve in vetrina, l'altro sul listino.
+  //
+  // Si calcola solo sulle giornate che l'hanno, e si dice su quante: una media
+  // fatta su tre giornate su trenta non è la media del mese, ed è lo stesso
+  // criterio che il programma usa già per il food cost.
+  const giornateConScontrino = periodiVend.flatMap(p => p.chiusure || [])
+    .filter(c => Number(c?.kpi?.scontrinoMedio) > 0);
+  const giornateTotali = periodiVend.reduce((s, p) => s + (p.chiusure || []).length, 0);
+  const scontrinoMedio = giornateConScontrino.length > 0
+    ? giornateConScontrino.reduce((s, c) => s + Number(c.kpi.scontrinoMedio), 0) / giornateConScontrino.length
+    : null;
+
   // Formattazione box grandi: arrotonda all'unità + separatore migliaia IT (1.000).
   // useGrouping:'always' obbligatorio: senza, "4715" appare senza separatore migliaia
   // su Safari iOS private / Node senza ICU full. Vedi _shared.jsx.
   const _NF0_S = new Intl.NumberFormat('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 });
   const _NF2_S = new Intl.NumberFormat('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const eur0 = n => `${_NF0_S.format(Math.round(Number(n)||0))} €`;
+  // Lo scontrino medio va coi centesimi: la differenza fra 8,40 e 8,90 è
+  // esattamente quello che si guarda, e arrotondata all'unità sparisce.
+  const eur2 = n => `${_NF2_S.format(Number(n)||0)} €`;
   const n0   = n => `${_NF0_S.format(Math.round(Number(n)||0))}`;
   // Tabelle: € con separatore migliaia IT + 2 decimali (es. € 1.234,56).
   const eurIT = v => `${_NF2_S.format(Number(v)||0)} €`;
@@ -791,7 +866,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
       {/* Vista temporale - centrata, secondaria */}
       <div style={{display:"flex",justifyContent:"center",marginBottom:18}}>
         <div style={{display:"flex",background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:10,padding:3,gap:2,boxShadow:"0 1px 2px rgba(15,23,42,0.04)"}}>
-          {[["giornaliero","Giorno"],["settimana","Settimana"],["mese","Mese"]].map(([id,lbl])=>(
+          {[["giornaliero","Giorno"],["settimana","Settimana"],["mese","Mese"],["giornosett","Giorno della settimana"]].map(([id,lbl])=>(
             <button key={id} onClick={()=>setVista(id)} aria-pressed={vista===id}
               style={{padding:"9px 18px",minHeight:40,borderRadius:7,border:"none",cursor:"pointer",fontWeight:600,fontSize:12,background:vista===id?C.redLight:"transparent",color:vista===id?C.red:C.textMid,transition:"all 0.15s"}}>
               {lbl}
@@ -876,7 +951,8 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                 <KPI icon={<Icon name="trendUp" size={18} />} label="Margine"    value={eur0(totRP-totFP)} color={margColor(totRP>0?((totRP-totFP)/totRP*100):0)}/>
                 <KPI icon={<Icon name="trophy" size={18} />} label="Top"        value={topP?topP[0].replace("TORTA DI ",""):"-"} sub={topP?`${n0(topP[1])} stampi`:""} color={C.amber}/>
               </div>
-              <SH sub={`Stampi totali per ${vista==="giornaliero"?"giorno":vista} · top 5 prodotti + altri`}>Produzione per {vista==="giornaliero"?"Giorno":vista==="settimana"?"Settimana":"Mese"}</SH>
+              <SH sub={`Stampi totali per ${nomeVista[vista]} · top 5 prodotti + altri`}>Produzione per {TitoloVista[vista]}</SH>
+              <AvvisoPochiGiorni vista={vista} periodi={periodiProd} />
               <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:isMobile?"14px":"20px",marginBottom:12,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
                 <ResponsiveContainer width="100%" height={isMobile?220:280}>
                   <BarChart data={dataProdTop} margin={{top:4,right:16,left:0,bottom:0}} barCategoryGap="28%">
@@ -893,7 +969,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-              <SH sub={`Ogni colonna è il ricavo stimato del periodo: in verde il margine, in rosso il food cost · per ${vista==="giornaliero"?"giorno":vista}`}>Andamento Economico (stimato)</SH>
+              <SH sub={`Ogni colonna è il ricavo stimato del periodo: in verde il margine, in rosso il food cost · per ${nomeVista[vista]}`}>Andamento Economico (stimato)</SH>
               <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:isMobile?"14px":"20px",marginBottom:24,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
                 <ResponsiveContainer width="100%" height={isMobile?200:250}>
                   <BarChart data={dataKPI} margin={{top:8,right:16,left:0,bottom:0}} barCategoryGap="32%">
@@ -1002,9 +1078,16 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                   sub={avgST==null?'nessuna giornata con il confronto prodotti':undefined}
                   color={avgST==null?C.textSoft:avgST>=85?C.green:avgST>=65?C.amber:C.red}/>
                 <KPI icon={<Icon name="trash" size={18} />} label="Spreco"        value={eur0(totSV)}  sub={totRV>0?`${fmtp(totSV/totRV*100)} dei ricavi`:undefined} color={totRV>0&&totSV/totRV>0.05?C.red:C.amber}/>
+                <KPI icon={<Icon name="receipt" size={18} />} label="Scontrino medio"
+                  value={scontrinoMedio == null ? '—' : eur2(scontrinoMedio)}
+                  sub={scontrinoMedio == null
+                    ? 'scrivi il numero di scontrini in chiusura e compare qui'
+                    : `su ${giornateConScontrino.length} giornat${giornateConScontrino.length === 1 ? 'a' : 'e'}${giornateConScontrino.length < giornateTotali ? ` di ${giornateTotali}` : ''}`}
+                  color={scontrinoMedio == null ? C.textSoft : C.text}/>
               </div>
 
-              <SH sub={`Top 5 prodotti per ricavo + altri · per ${vista==="giornaliero"?"giorno":vista}`}>Ricavi Reali per {vista==="giornaliero"?"Giorno":vista==="settimana"?"Settimana":"Mese"}</SH>
+              <SH sub={`Top 5 prodotti per ricavo + altri · per ${nomeVista[vista]}`}>Ricavi Reali per {TitoloVista[vista]}</SH>
+              <AvvisoPochiGiorni vista={vista} periodi={periodiVend} />
               <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:isMobile?"14px":"20px",marginBottom:12,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
                 <ResponsiveContainer width="100%" height={isMobile?210:260}>
                   <BarChart data={dataVendTop} margin={{top:4,right:16,left:0,bottom:0}} barCategoryGap="28%">
