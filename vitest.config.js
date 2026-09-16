@@ -1,5 +1,25 @@
 import { defineConfig } from 'vitest/config'
 
+// ── Il fuso orario dei test è quello di chi usa Foodos ──────────────────
+//
+// 16/09/2026: la suite passava sul portatile (Europe/Rome) e falliva su
+// GitHub da sei giri di fila, sempre gli stessi 3 test su 3.586. Non era un
+// difetto del prodotto: erano le righe di *contrasto* dei test sulle date —
+// quelle che dimostrano «calcolato in UTC verrebbe il giorno sbagliato».
+// A Roma è vero; su un runner che gira già in UTC mezzanotte locale e
+// mezzanotte UTC coincidono, non c'è nessuna differenza da dimostrare e
+// l'asserzione cade.
+//
+// Lo stesso errore di misura visto altre volte: il righello, non l'oggetto.
+// Foodos lo usano pasticcerie italiane, il browser gira in ora italiana, e
+// tutta la logica delle date (`soloData`, `finestraScorciatoia`, le
+// scorciatoie di periodo) è scritta per l'ora locale. Il banco di prova
+// fedele è quello, non UTC.
+//
+// Va messo prima che qualunque `Date` venga creata, quindi qui in cima al
+// file di configurazione: i worker ereditano `process.env`.
+process.env.TZ = process.env.TZ_TEST || 'Europe/Rome'
+
 // Unit test della logica pura (src/lib + api/lib). Ambiente 'node' di default;
 // i test che toccano window/sessionStorage dichiarano
 // `// @vitest-environment happy-dom` in cima al file.
@@ -11,6 +31,8 @@ import { defineConfig } from 'vitest/config'
 export default defineConfig({
   test: {
     environment: 'node',
+    // Ridondante ma esplicito: vale anche per i worker.
+    env: { TZ: process.env.TZ },
     include: ['tests/unit/**/*.test.{js,jsx}'],
     globals: true,
     // I test girano in parallelo su tutti i core.
