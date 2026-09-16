@@ -1,5 +1,6 @@
 // Foodos v1
 import React, { useState, useEffect } from 'react'
+import logger from './lib/logger'
 import { useAuth } from './auth/useAuth'
 import AuthPage, { ResetPasswordPage } from './auth/AuthPage'
 import Dashboard, { DIPENDENTE_VIEWS } from './Dashboard'
@@ -167,12 +168,37 @@ export default function App() {
     if (auth.orgId) {
       try { localStorage.setItem(`onboarding_seen_${auth.orgId}`, '1') } catch {}
       // Persisti su DB così il flag sopravvive cambio device/browser/privata.
+      //
+      // 16/09/2026 — questo blocco è il motivo per cui un difetto è vissuto
+      // due mesi. La colonna `onboarding_completato_at` non esisteva (la
+      // migrazione era ferma nel repo dal 09/07, mai applicata), quindi questa
+      // scrittura falliva a OGNI tentativo. Il `catch` vuoto la ingoiava, e
+      // l'unica cosa che nascondeva la procedura di benvenuto era il
+      // localStorage: cambio dispositivo o finestra privata, e ricompariva al
+      // titolare di un'attività che usa Foodos da mesi.
+      //
+      // Il «fail-soft» era anche la scelta giusta: non ha senso bloccare
+      // l'utente perché un flag non si salva. Sbagliato era tacere. Supabase
+      // per di più NON lancia su errore di query, lo restituisce in `error`:
+      // il `catch` non lo vedeva nemmeno.
+      //
+      // Ora il comportamento per l'utente è lo stesso — non si blocca niente —
+      // ma l'errore si vede. La cintura sta in `scripts/check-migrazioni-
+      // applicate.mjs`, che blocca la pubblicazione se il codice usa una
+      // colonna che nel database non c'è; queste sono le bretelle.
       try {
-        await supabase.from('organizations')
+        const { error } = await supabase.from('organizations')
           .update({ onboarding_completato_at: new Date().toISOString() })
           .eq('id', auth.orgId)
+        if (error) {
+          logger.warn('Benvenuto: flag non salvato sul database', {
+            context: 'onboarding', codice: error.code, messaggio: error.message,
+          })
+        }
         await auth.refreshOrg?.()
-      } catch { /* fail-soft: localStorage già setato sopra */ }
+      } catch (e) {
+        logger.warn('Benvenuto: flag non salvato sul database', { context: 'onboarding', errore: String(e?.message || e) })
+      }
     }
     setOnboardingVisto(true)
   }
