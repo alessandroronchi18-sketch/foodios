@@ -183,7 +183,7 @@ describe('le mappe si ricavano dal menu, non si riscrivono', () => {
       const schedaOmonima = (v.schede || []).find(t => t.id === v.id)
       expect(perEtichetta[v.id], v.id).toBe(schedaOmonima ? schedaOmonima.label : v.label)
       // Anche le schede: stando su «Spese fisse», la sezione aperta dev'essere
-      // quella di «Conto del mese».
+      // quella di «P&L».
       for (const t of v.schede || []) {
         expect(perSez[t.id], t.id).toBe(perSez[v.id])
         expect(perGruppo[t.id], t.id).toBe(perGruppo[v.id])
@@ -266,12 +266,15 @@ describe('i nomi corti del telefono', () => {
     // Prima erano due elenchi indipendenti, e i nomi si erano allontanati:
     // «AI Assistant» contro «Azioni consigliate», «Forecast AI» contro
     // «Forecast vendite 7gg». Qui basta che almeno una parola del nome corto
-    // compaia in quello lungo: «Il conto» per «Conto del mese» va bene,
-    // «Preferiti» per «Conto del mese» no.
+    // compaia in quello lungo: «Registro» per «Registro attività» va bene,
+    // «Preferiti» per «Registro attività» no.
     const parole = (t) => t.toLowerCase().replace(/[^a-zàèéìòù ]/g, '').split(/\s+/).filter(x => x.length > 2)
     const s = pieno()
     for (const v of vociMenu(s, true)) {
       const breve = etichettaBreve(v.id, s)
+      // Da quando i nomi sono di una o due parole, quasi tutti non hanno più
+      // un nome corto diverso: se sono lo stesso nome la domanda non si pone.
+      if (breve === v.label) continue
       const comuni = parole(breve).filter(p => parole(v.label).includes(p))
       expect(comuni.length, `"${breve}" non c'entra con "${v.label}"`).toBeGreaterThan(0)
     }
@@ -317,21 +320,21 @@ describe('Dashboard.jsx non ha più le copie a mano', () => {
 describe('il nome intero, per quando si nomina una pagina da fuori', () => {
   // `descriviVista` dà il nome della SCHEDA quando ci sei sopra, ed è giusto
   // per il titolo in cima alla pagina. Ma in un messaggio «questa funzione è
-  // nel piano superiore» serve il nome per intero: «Conto del mese» si
+  // nel piano superiore» serve il nome per intero: «P&L» si
   // capisce, «Il conto» no.
   const s = pieno()
 
   it('una scheda risponde col nome della pagina che la contiene', () => {
-    expect(nomeCompletoVista('pl', s)).toBe('Conto del mese')
-    expect(nomeCompletoVista('costi-aziendali', s)).toBe('Conto del mese')
-    expect(nomeCompletoVista('simulatore', s)).toBe('Costo dei prodotti')
-    expect(nomeCompletoVista('menu-engineering', s)).toBe('Costo dei prodotti')
-    expect(nomeCompletoVista('fornitori', s)).toBe('Fatture e fornitori')
+    expect(nomeCompletoVista('pl', s)).toBe('P&L')
+    expect(nomeCompletoVista('costi-aziendali', s)).toBe('P&L')
+    expect(nomeCompletoVista('simulatore', s)).toBe('Food cost')
+    expect(nomeCompletoVista('menu-engineering', s)).toBe('Food cost')
+    expect(nomeCompletoVista('fornitori', s)).toBe('Fornitori')
   })
 
   it('anche le voci in fondo', () => {
-    expect(nomeCompletoVista('ai-brain', s)).toBe('Chiedi a Foodos')
-    expect(nomeCompletoVista('azioni', s)).toBe('Chiedi a Foodos')
+    expect(nomeCompletoVista('ai-brain', s)).toBe('Assistente AI')
+    expect(nomeCompletoVista('azioni', s)).toBe('Assistente AI')
   })
 
   it('e le pagine fuori dal menu hanno comunque un nome', () => {
@@ -343,12 +346,22 @@ describe('il nome intero, per quando si nomina una pagina da fuori', () => {
     expect(nomeCompletoVista('pagina-inventata', s)).toBe(null)
   })
 
-  it('i messaggi di sblocco non usano più nomi di prima della riorganizzazione', async () => {
+  it('i messaggi di sblocco chiamano le pagine come le chiama il menu', async () => {
+    // Qui c'era un elenco dei nomi VECCHI da non usare più. Un elenco del
+    // genere invecchia insieme ai nomi: il 16/09/2026 il titolare ha chiesto
+    // di tornare ai termini del mestiere («P&L», «Confronto sedi») e il test
+    // ha bocciato i nomi giusti, perché erano nella sua lista nera.
+    //
+    // Quello che conta davvero non è quali nomi sono vietati, è che ce ne sia
+    // UNO SOLO: il messaggio di sblocco deve chiamare la pagina esattamente
+    // come la chiama il menu, qualunque nome sia oggi.
     const { viewDisplayLabel } = await import('../../src/lib/planAccess')
+    const s = pieno()
     for (const v of ['ai-brain', 'cashflow', 'trasferimenti', 'confronto-sedi', 'pl']) {
       const nome = viewDisplayLabel(v)
-      expect(nome, v).not.toMatch(/Foodos Brain|Cashflow predittivo|Trasferimenti tra sedi|Confronto sedi|P&L/)
       expect(nome, v).not.toBe(v)
+      const dalMenu = nomeCompletoVista(v, s)
+      if (dalMenu) expect(nome, v).toBe(dalMenu)
     }
   })
 

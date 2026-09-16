@@ -107,27 +107,31 @@ describe('promessa 2 — nessuna pagina diventa irraggiungibile', () => {
 
 describe('promessa 3 — i nomi vecchi restano cercabili', () => {
   const casi = [
-    ['scadenzario',        'Fatture e fornitori'],
-    ['fornitori',          'Fatture e fornitori'],
-    ['p&l',                'Conto del mese'],
-    ['profitti',           'Conto del mese'],
-    ['costi aziendali',    'Conto del mese'],
-    ['affitto',            'Conto del mese'],
-    ['food cost',          'Costo dei prodotti'],
-    ['menu engineering',   'Costo dei prodotti'],
-    ['formati di vendita', 'Pezzature e prezzi'],
-    ['cessioni',           'Sprechi e regali'],
-    ['perdite',            'Sprechi e regali'],
-    ['vendite b2b',        'Vendite all\'ingrosso'],
-    ['previsione domanda', 'Quanto venderò'],
-    ['registro attività',  'Chi ha fatto cosa'],
-    ['trasferimenti',      'Merce spostata tra negozi'],
-    ['confronto sedi',     'Confronto tra negozi'],
+    ['scadenzario',        'Fornitori'],
+    ['fatture',            'Fornitori'],
+    ['p&l',                'P&L'],
+    ['profitti',           'P&L'],
+    ['conto del mese',     'P&L'],
+    ['costi aziendali',    'P&L'],
+    ['affitto',            'P&L'],
+    ['food cost',          'Food cost'],
+    ['menu engineering',   'Food cost'],
+    ['formati di vendita', 'Listino'],
+    ['pezzature',          'Listino'],
+    ['cessioni',           'Sprechi'],
+    ['perdite',            'Sprechi'],
+    ['vendite b2b',        'Vendite B2B'],
+    ['ingrosso',           'Vendite B2B'],
+    ['previsione domanda', 'Previsioni'],
+    ['registro attività',  'Registro attività'],
+    ['trasferimenti',      'Trasferimenti'],
+    ['confronto sedi',     'Confronto sedi'],
     ['semilavorati',       'Ricettario'],
     ['nuovo gusto',        'Ricettario'],
-    ['eventi',             'Calendario e ordinazioni'],
-    ['foodos brain',       'Chiedi a Foodos'],
-    ['azioni consigliate', 'Chiedi a Foodos'],
+    ['eventi',             'Calendario'],
+    ['ordinazioni',        'Calendario'],
+    ['foodos brain',       'Assistente AI'],
+    ['azioni consigliate', 'Assistente AI'],
     ['importa dati',       'Impostazioni'],
   ]
 
@@ -143,9 +147,9 @@ describe('promessa 3 — i nomi vecchi restano cercabili', () => {
   })
 
   it('cercando il nome di una scheda si arriva alla scheda, non alla pagina', () => {
-    const r = cercaVoci('spese fisse', menu())
+    const r = cercaVoci('costi fissi', menu())
     expect(r[0].id).toBe('costi-aziendali')
-    expect(r[0].dentro).toBe('Conto del mese')
+    expect(r[0].dentro).toBe('P&L')
   })
 })
 
@@ -220,8 +224,14 @@ describe('le schede sopra le pagine accorpate', () => {
   it('le schede hanno nomi che dicono cosa ci trovi', () => {
     for (const v of vociMenu(menu(), true)) {
       for (const t of v.schede || []) {
-        expect(t.label.length, `${v.id}.${t.id}`).toBeGreaterThan(3)
-        expect(t.label, `${v.id}.${t.id}`).not.toMatch(/^[a-z-]+$/)  // non l'identificativo
+        // La misura era «più di tre lettere», che è un modo storto di dire
+        // «non è l'identificativo». Da quando le sigle del mestiere sono
+        // ammesse quella misura boccia «P&L», che di lettere ne ha tre ed è
+        // il nome che il titolare usa. Quello che conta è che l'etichetta
+        // non sia l'identificativo scritto tale e quale.
+        expect(t.label.length, `${v.id}.${t.id}`).toBeGreaterThan(1)
+        expect(t.label, `${v.id}.${t.id}`).not.toBe(t.id)
+        expect(t.label, `${v.id}.${t.id}`).not.toMatch(/^[a-z][a-z-]*$/)
       }
     }
   })
@@ -246,11 +256,32 @@ describe('le cinque sezioni nuove', () => {
     }
   })
 
-  it('nessuna voce di menu ha una sigla nel nome', () => {
-    const consentite = [/\(P&L\)/]  // nessuna, per ora
+  // Regola cambiata dal titolare il 16/09/2026, testuale: «non mi piacciono
+  // i nuovi nomi delle sezioni, troppo informali. voglio siano una massimo
+  // due parole ma esplicative. es. non vendite all'ingrosso ma vendite b2b,
+  // non conto del mese ma P&L».
+  //
+  // Il 15/09 la regola era l'opposta — niente sigle, italiano parlato — e
+  // questo test la teneva ferma. Chi decide come si chiamano le pagine è chi
+  // le usa tutti i giorni: le sigle del mestiere (P&L, B2B, HACCP) gli dicono
+  // subito cosa c'è dentro, «Conto del mese» lo costringe ad aprirlo per
+  // ricordarselo. Restano fuori le sigle NOSTRE, quelle del software: un
+  // cliente non sa cosa sia OCR o KPI.
+  it('i nomi sono corti: al massimo due parole', () => {
     for (const v of vociMenu(menu(), true)) {
-      if (consentite.some(r => r.test(v.label))) continue
-      expect(v.label, v.id).not.toMatch(/\b(AI|B2B|KPI|OCR|FC)\b/)
+      const parole = v.label.split(/\s+/).filter(Boolean)
+      expect(parole.length, `${v.id} → "${v.label}"`).toBeLessThanOrEqual(2)
+    }
+  })
+
+  it('le sigle ammesse sono quelle del mestiere, non quelle del software', () => {
+    const delMestiere = /^(P&L|B2B|HACCP|AI)$/
+    for (const v of vociMenu(menu(), true)) {
+      for (const parola of v.label.split(/\s+/)) {
+        if (!/^[A-Z&]{2,}$/.test(parola)) continue   // non è una sigla
+        expect(parola, v.id).toMatch(delMestiere)
+      }
+      expect(v.label, v.id).not.toMatch(/\b(KPI|OCR|FC|CRUD|API)\b/)
     }
   })
 
@@ -278,8 +309,12 @@ describe('il racconto di cosa è cambiato', () => {
 
   it('nomina tutte le pagine che si sono spostate', () => {
     const c = leggi('src/lib/changelog.js')
-    for (const nome of ['Costi aziendali', 'Fornitori', 'Semilavorati', 'Eventi',
-                        'Formati di vendita', 'Vendite B2B', 'Importa dati']) {
+    // «Fornitori» e «Vendite B2B» sono usciti dall'elenco il 16/09/2026: non
+    // si sono spostati, sono TORNATI al nome di prima (il titolare ha chiesto
+    // i termini del mestiere). Una riga che dice «Fornitori adesso si chiama
+    // Fornitori» non aiuta nessuno.
+    for (const nome of ['Costi aziendali', 'Semilavorati', 'Eventi',
+                        'Formati di vendita', 'Importa dati']) {
       expect(c, `il racconto non dice dov'è finito "${nome}"`).toContain(nome)
     }
   })

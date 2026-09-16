@@ -108,91 +108,91 @@ export function costruisciMenu(ctx = {}) {
       { id: vistaProduzione, label: 'Produzione', icona: 'cal', allarme: prodOggiMancante },
       { id: 'chiusura',   label: 'Cassa',      icona: 'creditCard', allarme: cassaMancante },
       { id: 'magazzino',  label: 'Magazzino',  icona: 'pkg', badge: scorteCritiche, allarme: scorteCritiche > 0 },
-      { id: 'calendario', label: 'Calendario e ordinazioni', icona: 'cal', labelBreve: 'Calendario',
-        sinonimi: ['eventi', 'ordinazioni', 'torte su ordinazione', 'prenotazioni'],
+      { id: 'calendario', label: 'Calendario', icona: 'cal',
+        sinonimi: ['eventi', 'ordinazioni', 'torte su ordinazione', 'prenotazioni', 'calendario e ordinazioni'],
         schede: [
           { id: 'calendario', label: 'Calendario' },
-          { id: 'eventi',     label: 'Ordinazioni e eventi' },
+          { id: 'eventi',     label: 'Ordinazioni' },
         ] },
     ] },
 
     // ─── 2. RICETTE E PREZZI ────────────────────────────────────────────
     // Quello che decidi una volta e poi usi tutti i giorni.
-    { id: 'ricette', label: 'Ricette e prezzi', icona: 'chefHat', voci: [
+    { id: 'ricette', label: 'Ricette', icona: 'chefHat', voci: [
       { id: 'ricettario', label: lex.Ricettario || 'Ricettario', icona: 'book',
         sinonimi: ['semilavorati', 'basi', 'nuova ricetta', 'nuovo gusto', 'ricette'],
         schede: [
           { id: 'ricettario',   label: lex.Prodotti || 'Prodotti' },
           { id: 'semilavorati', label: 'Semilavorati' },
         ] },
-      { id: 'formati-vendita', label: 'Pezzature e prezzi', icona: 'coins',
+      { id: 'formati-vendita', label: 'Listino', icona: 'coins',
         // «Formati di vendita» è una parola da gestionale: al banco si dice
         // vaschetta, coppetta, teglia.
-        sinonimi: ['formati di vendita', 'formati', 'vaschette', 'listino'] },
-      { id: 'simulatore', label: 'Costo dei prodotti', icona: 'barChart', labelBreve: 'Costo prodotti',
-        sinonimi: ['food cost', 'foodcost', 'menu engineering', 'marginalità', 'quanto rende'],
+        sinonimi: ['formati di vendita', 'formati', 'vaschette', 'listino', 'pezzature', 'pezzature e prezzi'] },
+      { id: 'simulatore', label: 'Food cost', icona: 'barChart',
+        sinonimi: ['food cost', 'foodcost', 'menu engineering', 'marginalità', 'quanto rende', 'costo dei prodotti', 'quanto costa'],
         schede: [
-          { id: 'simulatore',       label: 'Quanto costa' },
-          { id: 'menu-engineering', label: 'Quali rendono' },
+          { id: 'simulatore',       label: 'Food cost' },
+          { id: 'menu-engineering', label: 'Menu engineering' },
         ] },
     ] },
 
     // ─── 3. FORNITORI E SPESE ───────────────────────────────────────────
     // I soldi che escono. Quattro voci di menu stavano sopra le stesse
     // fatture: da pagare, chi te le manda, cosa ordinare.
-    { id: 'acquisti', label: 'Fornitori e spese', icona: 'shopping', voci: [
-      { id: 'scadenzario', label: 'Fatture e fornitori', icona: 'fileText', labelBreve: 'Fatture',
-        sinonimi: ['scadenzario', 'fatture', 'fornitori', 'ordini', 'da pagare', 'scadenze'],
+    { id: 'acquisti', label: 'Acquisti', icona: 'shopping', voci: [
+      { id: 'scadenzario', label: 'Fornitori', icona: 'fileText',
+        sinonimi: ['scadenzario', 'fatture', 'fornitori', 'ordini', 'da pagare', 'scadenze', 'fatture e fornitori', 'cosa ordinare'],
         schede: [
-          { id: 'scadenzario', label: 'Da pagare' },
-          { id: 'fornitori',   label: 'Fornitori' },
-          { id: 'ordini-ai',   label: 'Cosa ordinare' },
+          { id: 'scadenzario', label: 'Scadenzario' },
+          { id: 'fornitori',   label: 'Anagrafica' },
+          { id: 'ordini-ai',   label: 'Riordino' },
         ] },
-      { id: 'sprechi-omaggi', label: 'Sprechi e regali', icona: 'sparkles', labelBreve: 'Sprechi',
+      { id: 'sprechi-omaggi', label: 'Sprechi', icona: 'sparkles',
         // «Cessione» non si dice al banco.
-        sinonimi: ['perdite', 'cessioni', 'omaggi', 'buttato', 'scarti'] },
+        sinonimi: ['perdite', 'cessioni', 'omaggi', 'buttato', 'scarti', 'regali', 'sprechi e regali'] },
     ] },
 
     // ─── 4. I CONTI ─────────────────────────────────────────────────────
     // Come sta andando.
-    { id: 'numeri', label: 'I conti', icona: 'coins', voci: [
-      { id: 'pl', label: 'Conto del mese', icona: 'trendUp', labelBreve: 'Il conto',
+    { id: 'numeri', label: 'Analisi', icona: 'coins', voci: [
+      { id: 'pl', label: 'P&L', icona: 'trendUp',
         // Accorpare P&L e Costi aziendali non è solo ordine: i costi fissi
         // stanno in una pagina che nessuno collega al conto, e per il primo
         // cliente quella tabella è **vuota** — il conto economico è per forza
         // sbagliato e non se ne accorge nessuno.
-        sinonimi: ['p&l', 'pl', 'profitti', 'conto economico', 'costi aziendali', 'affitto', 'utenze'],
+        sinonimi: ['p&l', 'pl', 'profitti', 'conto economico', 'costi aziendali', 'affitto', 'utenze', 'conto del mese', 'il conto', 'spese fisse'],
         schede: [
-          { id: 'pl',              label: 'Il conto' },
-          { id: 'costi-aziendali', label: 'Spese fisse' },
+          { id: 'pl',              label: 'P&L' },
+          { id: 'costi-aziendali', label: 'Costi fissi' },
         ] },
       { id: 'storico', label: 'Storico', icona: 'activity',
         sinonimi: ['quadratura', 'inventario', 'torna il conto', 'storico produzione'],
         schede: [
           { id: 'storico', label: 'Produzione' },
-          ...(mostraQuadratura ? [{ id: 'quadratura-inventario', label: 'Torna il conto?' }] : []),
+          ...(mostraQuadratura ? [{ id: 'quadratura-inventario', label: 'Quadratura' }] : []),
         ] },
-      { id: 'previsione', label: 'Quanto venderò', icona: 'forecast',
-        sinonimi: ['previsione domanda', 'forecast', 'previsioni', 'quanto produco'] },
-      { id: 'vendite-b2b', label: 'Vendite all\'ingrosso', icona: 'building', labelBreve: 'Vendite ingrosso',
-        sinonimi: ['b2b', 'vendite b2b', 'clienti b2b', 'bar', 'ristoranti'] },
+      { id: 'previsione', label: 'Previsioni', icona: 'forecast',
+        sinonimi: ['previsione domanda', 'forecast', 'previsioni', 'quanto produco', 'quanto venderò'] },
+      { id: 'vendite-b2b', label: 'Vendite B2B', icona: 'building',
+        sinonimi: ['b2b', 'vendite b2b', 'clienti b2b', 'bar', 'ristoranti', 'ingrosso', 'vendite all\'ingrosso'] },
     ] },
 
     // ─── 5. IL NEGOZIO ──────────────────────────────────────────────────
     // Le persone e i muri.
-    { id: 'team', label: 'Il negozio', icona: 'briefcase', voci: [
-      { id: 'personale', label: 'Personale e stipendi', icona: 'users', labelBreve: 'Personale',
-        sinonimi: ['dipendenti', 'turni', 'stipendi', 'paghe', 'orari'] },
-      { id: 'registro-attivita', label: 'Chi ha fatto cosa', icona: 'fileText', labelBreve: 'Chi ha fatto',
-        sinonimi: ['registro attività', 'log', 'modifiche', 'chi ha cambiato'] },
+    { id: 'team', label: 'Azienda', icona: 'briefcase', voci: [
+      { id: 'personale', label: 'Personale', icona: 'users',
+        sinonimi: ['dipendenti', 'turni', 'stipendi', 'paghe', 'orari', 'personale e stipendi'] },
+      { id: 'registro-attivita', label: 'Registro attività', icona: 'fileText', labelBreve: 'Registro',
+        sinonimi: ['registro attività', 'log', 'modifiche', 'chi ha cambiato', 'chi ha fatto cosa'] },
       ...(piuSedi ? [
-        { id: 'confronto-sedi', label: 'Confronto tra negozi', icona: 'building', labelBreve: 'Confronto',
-          sinonimi: ['confronto sedi', 'sedi', 'negozi'] },
-        { id: 'trasferimenti',  label: 'Merce spostata tra negozi', icona: 'truck', labelBreve: 'Merce spostata',
-          sinonimi: ['trasferimenti', 'trasferimenti tra sedi', 'spostamenti', 'furgone'] },
+        { id: 'confronto-sedi', label: 'Confronto sedi', icona: 'building', labelBreve: 'Confronto',
+          sinonimi: ['confronto sedi', 'sedi', 'negozi', 'confronto tra negozi'] },
+        { id: 'trasferimenti',  label: 'Trasferimenti', icona: 'truck',
+          sinonimi: ['trasferimenti', 'trasferimenti tra sedi', 'spostamenti', 'furgone', 'merce spostata', 'merce spostata tra negozi'] },
       ] : []),
-      { id: 'recensioni', label: 'Rispondi alle recensioni', icona: 'sparkles', labelBreve: 'Recensioni',
-        sinonimi: ['recensioni', 'google', 'tripadvisor'] },
+      { id: 'recensioni', label: 'Recensioni', icona: 'sparkles',
+        sinonimi: ['recensioni', 'google', 'tripadvisor', 'rispondi alle recensioni'] },
     ] },
   ]
 
@@ -209,14 +209,14 @@ export function costruisciMenu(ctx = {}) {
 // programma. Le si tiene qui perché anche loro hanno schede e sinonimi.
 export function vociInFondo() {
   return [
-    { id: 'ai-brain', label: 'Chiedi a Foodos', icona: 'sparkles', labelBreve: 'Chiedi',
+    { id: 'ai-brain', label: 'Assistente AI', icona: 'sparkles', labelBreve: 'Assistente',
       // Erano due chat separate, «Foodos Brain» e «Azioni consigliate», con
       // 5 e 3 aperture in tre mesi su tutti i clienti. Sono la stessa cosa
       // vista da due lati: una domanda e una lista di cose da fare.
-      sinonimi: ['foodos brain', 'brain', 'assistente', 'ai', 'azioni consigliate', 'chat'],
+      sinonimi: ['foodos brain', 'brain', 'assistente', 'ai', 'azioni consigliate', 'chat', 'chiedi a foodos', 'cose da fare'],
       schede: [
         { id: 'ai-brain', label: 'Chiedi' },
-        { id: 'azioni',   label: 'Cose da fare' },
+        { id: 'azioni',   label: 'Da fare' },
       ] },
     { id: 'impostazioni', label: 'Impostazioni', icona: 'settings',
       sinonimi: ['importa dati', 'importa', 'carica excel', 'sedi', 'sicurezza', 'abbonamento', 'integrazioni'] },
@@ -297,17 +297,17 @@ export const VISTE_FUORI_MENU = {
   // «Nuova ricetta» non è più una voce di menu: è il bottone grande in cima
   // al Ricettario. Era l'ottava pagina più aperta (63 volte), quindi il
   // bottone dev'essere il primo che si vede, non nascosto in un sottomenu.
-  'nuova-ricetta': { label: 'Nuova ricetta', gruppo: 'Ricette e prezzi' },
+  'nuova-ricetta': { label: 'Nuova ricetta', gruppo: 'Ricette' },
   // «Importa dati» è entrata in Impostazioni (11 aperture), e resta
   // raggiungibile anche dal Magazzino e dai Primi passi.
   'importa-dati': { label: 'Porta dentro i dati', gruppo: 'Impostazioni' },
   integrazioni: { label: 'Collegamenti', gruppo: 'Impostazioni' },
-  'scheda-allergeni': { label: 'Scheda allergeni', gruppo: 'Ricette e prezzi', labelBreve: 'Allergeni' },
-  menu: { label: 'Menù', gruppo: 'Ricette e prezzi' },
-  haccp: { label: 'HACCP', gruppo: 'Il negozio' },
+  'scheda-allergeni': { label: 'Scheda allergeni', gruppo: 'Ricette', labelBreve: 'Allergeni' },
+  menu: { label: 'Menù', gruppo: 'Ricette' },
+  haccp: { label: 'HACCP', gruppo: 'Azienda' },
   'inventario-gusti': { label: 'Produzione', gruppo: 'Oggi' },
   giornaliero: { label: 'Produzione', gruppo: 'Oggi' },
-  'quadratura-inventario': { label: 'Torna il conto?', gruppo: 'I conti', labelBreve: 'Quadratura' },
+  'quadratura-inventario': { label: 'Torna il conto?', gruppo: 'Analisi', labelBreve: 'Quadratura' },
   // ── Pagine tolte dal menu il 15/09/2026 ──────────────────────────────────
   //
   // Restano nel codice e raggiungibili, ma non si offrono più: sono pagine
@@ -321,15 +321,15 @@ export const VISTE_FUORI_MENU = {
   //   • Documentary AI       — nessun dato per nessuno. 1 apertura.
   //   • Panoramica AI        — era l'indice di una sezione che non c'è più.
   //   • Marketplace          — non raggiungibile nemmeno prima.
-  forecast: { label: 'Previsione 7 giorni', gruppo: 'I conti', ritirata: true },
+  forecast: { label: 'Previsione 7 giorni', gruppo: 'Analisi', ritirata: true },
   whatsapp: { label: 'WhatsApp', gruppo: '', ritirata: true },
   documentary: { label: 'Fotografia del mese', gruppo: '', ritirata: true },
   'ai-hub': { label: 'Panoramica assistente', gruppo: '', ritirata: true },
   marketplace: { label: 'Marketplace', gruppo: '', ritirata: true },
-  reformulation: { label: 'Ottimizza ricette', gruppo: 'Ricette e prezzi', ritirata: true },
-  'competitor-pricing': { label: 'Prezzi dei concorrenti', gruppo: 'I conti', ritirata: true },
-  'ricette-ai': { label: 'Inventa ricette', gruppo: 'Ricette e prezzi', ritirata: true },
-  cashflow: { label: 'Soldi in cassa nei prossimi giorni', gruppo: 'I conti', ritirata: true },
+  reformulation: { label: 'Ottimizza ricette', gruppo: 'Ricette', ritirata: true },
+  'competitor-pricing': { label: 'Prezzi dei concorrenti', gruppo: 'Analisi', ritirata: true },
+  'ricette-ai': { label: 'Inventa ricette', gruppo: 'Ricette', ritirata: true },
+  cashflow: { label: 'Soldi in cassa nei prossimi giorni', gruppo: 'Analisi', ritirata: true },
 }
 
 // ─── Dove si trova adesso una pagina che si è spostata ─────────────────────
@@ -346,25 +346,25 @@ export const GIORNI_AVVISO_SPOSTAMENTO = 60
 export const SPOSTAMENTI = {
   'nuova-ricetta':   'Adesso è il bottone «Nuova ricetta» in cima al Ricettario.',
   semilavorati:      'Adesso è una scheda del Ricettario.',
-  eventi:            'Adesso è una scheda di «Calendario e ordinazioni».',
-  'costi-aziendali': 'Adesso è la scheda «Spese fisse» dentro «Conto del mese».',
-  pl:                'Adesso si chiama «Conto del mese», e contiene anche le spese fisse.',
-  fornitori:         'Adesso è una scheda di «Fatture e fornitori».',
-  scadenzario:       'Adesso si chiama «Fatture e fornitori» e contiene anche i fornitori.',
-  'menu-engineering':'Adesso è la scheda «Quali rendono» dentro «Costo dei prodotti».',
-  simulatore:        'Adesso si chiama «Costo dei prodotti».',
-  'formati-vendita': 'Adesso si chiama «Pezzature e prezzi».',
-  'quadratura-inventario': 'Adesso è una scheda dello Storico.',
-  'sprechi-omaggi':  'Adesso si chiama «Sprechi e regali».',
-  'vendite-b2b':     'Adesso si chiama «Vendite all\'ingrosso».',
-  'registro-attivita': 'Adesso si chiama «Chi ha fatto cosa».',
-  trasferimenti:     'Adesso si chiama «Merce spostata tra negozi».',
-  'confronto-sedi':  'Adesso si chiama «Confronto tra negozi».',
+  eventi:            'Adesso è la scheda «Ordinazioni» del Calendario.',
+  'costi-aziendali': 'Adesso è la scheda «Costi fissi» dentro P&L.',
+  pl:                'Adesso si chiama P&L, e contiene anche i costi fissi.',
+  fornitori:         'Adesso è la scheda «Anagrafica» dentro Fornitori.',
+  scadenzario:       'Adesso è la scheda «Scadenzario» dentro Fornitori.',
+  'menu-engineering':'Adesso è la scheda «Menu engineering» dentro Food cost.',
+  simulatore:        'Adesso si chiama Food cost.',
+  'formati-vendita': 'Adesso si chiama Listino.',
+  'quadratura-inventario': 'Adesso è la scheda «Quadratura» dentro Storico.',
+  'sprechi-omaggi':  'Adesso si chiama Sprechi.',
+  'vendite-b2b':     'Adesso si chiama Vendite B2B.',
+  'registro-attivita': 'Adesso si chiama Registro attività.',
+  trasferimenti:     'Adesso si chiama Trasferimenti e sta in Azienda.',
+  'confronto-sedi':  'Adesso si chiama Confronto sedi.',
   'importa-dati':    'Adesso si trova dentro Impostazioni.',
-  'ordini-ai':       'Adesso è la scheda «Cosa ordinare» dentro «Fatture e fornitori».',
-  azioni:            'Adesso è la scheda «Cose da fare» dentro «Chiedi a Foodos».',
-  'ai-brain':        'Adesso si chiama «Chiedi a Foodos» e contiene anche le cose da fare.',
-  previsione:        'Adesso si chiama «Quanto venderò».',
+  'ordini-ai':       'Adesso è la scheda «Riordino» dentro Fornitori.',
+  azioni:            'Adesso è la scheda «Da fare» dentro Assistente AI.',
+  'ai-brain':        'Adesso si chiama Assistente AI e contiene anche le cose da fare.',
+  previsione:        'Adesso si chiama Previsioni.',
 }
 
 /**
