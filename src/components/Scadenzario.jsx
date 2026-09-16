@@ -2541,7 +2541,16 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
 
       {/* Toggle vista + ricerca */}
       <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', gap: 12, marginBottom: 16 }}>
-        <div style={{ display: 'flex', background: T.bgSubtle, border: `1px solid ${T.border}`, borderRadius: 10, padding: 3, gap: 2, width: isMobile ? '100%' : 'auto' }}>
+        {/* Sul telefono le tre (o quattro) viste vanno su due colonne, non
+            tutte in fila. In fila ognuna aveva 71px: «Cassa in uscita» ne
+            chiede 80 e finiva tagliata a «Cassa in usc…», che è un'etichetta
+            che non dice più cosa fa. */}
+        <div style={{
+          display: isMobile ? 'grid' : 'flex',
+          gridTemplateColumns: isMobile ? '1fr 1fr' : undefined,
+          background: T.bgSubtle, border: `1px solid ${T.border}`, borderRadius: 10,
+          padding: 3, gap: isMobile ? 3 : 2, width: isMobile ? '100%' : 'auto',
+        }}>
           {[
             { id: 'scadenza', label: 'Per scadenza', icon: 'calendar' },
             { id: 'fornitore', label: 'Per fornitore', icon: 'factory' },

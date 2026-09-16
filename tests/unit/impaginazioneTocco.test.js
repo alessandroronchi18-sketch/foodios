@@ -110,9 +110,16 @@ describe('le tessere si lasciano stringere', () => {
     expect(s).toMatch(/cursor: 'pointer', minWidth: 0, overflow: 'hidden' \}\}>/)
   })
 
-  it('e il nome del prodotto si stringe invece di avere una larghezza fissa', () => {
+  it('e sul telefono il nome del prodotto sta su una riga sua, intero', () => {
+    // Prima nome, barra e quantità stavano tutti e tre affiancati e al nome
+    // restavano 110px: «GELATO NOCCIOLA» ne chiede 115 e usciva «GELATO
+    // NOCCIO…». Di un numero tagliato ci si accorge; di un nome tagliato si
+    // legge l'inizio e si crede di aver letto tutto, e in un ricettario i nomi
+    // si somigliano. Ora sul telefono la riga si sdoppia: nome e quantità
+    // sopra, barra sotto a tutta larghezza. Sul computer restano in fila.
     const s = leggi('src', 'views', 'DashboardHomeView.jsx')
-    expect(s).toMatch(/flex: isMobile \? '1 1 90px' : '0 0 128px'/)
+    expect(s).toMatch(/overflowWrap: 'anywhere' \}\}>\{r\.prodotto_nome\}/)
+    expect(s).not.toMatch(/maxWidth: isMobile \? 110/)
   })
 
   it('il bottone del magazzino accorcia la scritta sul telefono', () => {

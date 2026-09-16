@@ -207,8 +207,12 @@ export function KPI({ label, value, sub, color, highlight, icon, onClick }) {
       {(() => {
         const valStr = typeof value === 'string' || typeof value === 'number' ? String(value) : ''
         const len = valStr.length || 6
+        // I gradini stanno sulla scala del progetto (theme.js). Il 19 che
+        // c'era qui non è un gradino: nella stessa schermata, due riquadri
+        // affiancati con valori di lunghezza diversa uscivano uno a 19 e uno
+        // a 18 o 20, e le cifre non partivano dalla stessa altezza.
         const fs = isMobile
-          ? (len <= 6 ? 24 : len <= 12 ? 19 : 14)
+          ? (len <= 6 ? 24 : len <= 12 ? 18 : 14)
           : (len <= 6 ? 30 : len <= 14 ? 24 : 18)
         return (
           <div style={{ position: 'relative', fontSize: fs, fontWeight: 800, color: highlight ? T.textOnDark : color || T.text,
@@ -478,6 +482,144 @@ export function SH({ children, sub }) {
         <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: T.text, letterSpacing: '-0.015em' }}>{children}</h2>
         {sub && <div style={{ fontSize: 12, color: T.textSoft, marginTop: 3, letterSpacing: '-0.005em', lineHeight: 1.55 }}>{sub}</div>}
       </div>
+    </div>
+  )
+}
+
+// ── Una tabella che sul telefono diventa un elenco di schede ────────────────
+//
+// Il problema, detto dal titolare guardando «Produzione» dal telefono: «non
+// riesco a leggere nulla, la tabella è troppo grande». Misurate, le tabelle
+// larghe rimaste nel programma erano sei, da 720 a 1.215 pixel, dentro uno
+// schermo da 390: da due a tre schermate di scorrimento laterale per leggere
+// una riga sola, e nel frattempo l'intestazione della colonna è sparita a
+// sinistra, quindi non si sa nemmeno più che numero si sta guardando.
+//
+// Una tabella è una griglia: si legge per colonne, confrontando righe fra
+// loro. Su uno schermo alto e stretto quel confronto non è possibile e basta,
+// e allungare la pagina di lato non lo rende possibile: lo rende faticoso.
+// Quindi sul telefono si cambia mestiere — una scheda per riga, con i numeri
+// uno sotto l'altro accanto al loro nome. Si perde il confronto a colpo
+// d'occhio fra righe (che sul telefono non c'era comunque) e si guadagna che
+// ogni singola riga si legge tutta, senza muovere niente.
+//
+// Come si usa:
+//
+//   <TabellaOSchede
+//     righe={list} chiave={(r) => r.k} minWidth={720}
+//     titolo={(r) => r.nome}
+//     colonne={[
+//       { k: 'qty',      label: 'Qty tot.',  destra: true, cella: (r) => `${r.qty}g` },
+//       { k: 'costoTot', label: 'Costo',     destra: true, cella: (r) => euro(r.costoTot), forte: true },
+//     ]}
+//     intestazione={<tr>…</tr>}          // la thead vera, solo per il computer
+//     piede={<tr>…</tr>}                 // la tfoot vera, solo per il computer
+//     riassunto={(r) => …}               // opzionale: cosa mostrare in cima alla scheda
+//   />
+//
+// Le colonne con `nascondiSuTelefono` restano solo nella tabella: servono a
+// chi confronta (una barra di avanzamento, un pallino colorato) e in una
+// scheda sono rumore.
+export function TabellaOSchede({
+  righe, chiave, colonne, titolo, riassunto,
+  minWidth, intestazione, piede, corpo,
+  dettaglio, apriEtichetta = 'Apri il dettaglio',
+  // La riga dei totali in fondo alla tabella: nelle schede non può essere una
+  // riga, quindi la si passa già fatta (di solito una scheda in più).
+  riepilogoTelefono,
+  vuoto = 'Niente da mostrare.',
+}) {
+  const isMobile = useIsMobile()
+  // `dettaglio` = la riga che sul computer si apre cliccandoci sopra. Nelle
+  // schede diventa un pulsante esplicito: su una scheda intera «cliccabile»
+  // non si capisce dove finisce il bersaglio, e scorrendo col pollice si apre
+  // per sbaglio.
+  const [aperte, setAperte] = useState(() => new Set())
+
+  if (!isMobile) {
+    return (
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.size.sm, minWidth }}>
+          {intestazione}
+          {corpo}
+          {piede}
+        </table>
+      </div>
+    )
+  }
+
+  if (!righe || righe.length === 0) {
+    return <div style={{ padding: 20, textAlign: 'center', color: C.textSoft, fontSize: font.size.base }}>{vuoto}</div>
+  }
+
+  const visibili = colonne.filter(c => !c.nascondiSuTelefono)
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {righe.map((r, i) => (
+        <div key={chiave ? chiave(r, i) : i} style={{
+          border: `1px solid ${C.border}`, borderRadius: 12,
+          background: C.bgCard, overflow: 'hidden',
+          display: 'flex', flexDirection: 'column',
+        }}>
+          <div style={{
+            padding: '10px 12px', borderBottom: `1px solid ${C.borderSoft}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+            order: 0,
+          }}>
+            <div style={{ fontSize: font.size.md, fontWeight: 800, color: C.text, minWidth: 0, flex: 1 }}>
+              {titolo ? titolo(r, i) : null}
+            </div>
+            {riassunto ? <div style={{ flexShrink: 0 }}>{riassunto(r, i)}</div> : null}
+          </div>
+          {dettaglio && (
+            <button
+              onClick={() => setAperte(prev => {
+                const n = new Set(prev); const k = chiave ? chiave(r, i) : i
+                if (n.has(k)) n.delete(k); else n.add(k)
+                return n
+              })}
+              aria-expanded={aperte.has(chiave ? chiave(r, i) : i)}
+              style={{
+                width: '100%', minHeight: 44, padding: '10px 12px',
+                border: 'none', borderTop: `1px solid ${C.borderSoft}`,
+                background: C.bgSubtle, color: C.textSoft,
+                fontSize: font.size.sm, fontWeight: 700, fontFamily: 'inherit',
+                textTransform: 'uppercase', letterSpacing: '0.04em',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                cursor: 'pointer', order: 2,
+              }}>
+              {apriEtichetta}
+              <Icon name={aperte.has(chiave ? chiave(r, i) : i) ? 'chevUp' : 'chevDown'} size={12} />
+            </button>
+          )}
+          {dettaglio && aperte.has(chiave ? chiave(r, i) : i) && (
+            <div style={{ padding: '12px', borderTop: `1px solid ${C.borderSoft}`, order: 3 }}>
+              {dettaglio(r, i)}
+            </div>
+          )}
+          <div style={{ order: 1 }}>
+            {visibili.map((c, ci) => (
+              <div key={c.k || ci} style={{
+                display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
+                gap: 12, padding: '8px 12px',
+                borderTop: ci === 0 ? 'none' : `1px solid ${C.borderSoft}`,
+              }}>
+                <span style={{
+                  fontSize: font.size.sm, fontWeight: 700, color: C.textSoft,
+                  textTransform: 'uppercase', letterSpacing: '0.04em',
+                  flexShrink: 0, maxWidth: '55%',
+                }}>{c.label}</span>
+                <span style={{
+                  fontSize: font.size.base, fontWeight: c.forte ? 800 : 600,
+                  color: c.colore || C.text, textAlign: 'right',
+                  minWidth: 0, ...TNUM,
+                }}>{c.cella(r, i)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+      {riepilogoTelefono}
     </div>
   )
 }

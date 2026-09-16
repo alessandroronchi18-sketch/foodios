@@ -11,7 +11,7 @@ import { useRicavoFlat } from '../lib/useRicavoFlat'
 import { useListinoSede, getRegSede } from '../lib/listinoSede'
 import { lessico } from '../lib/lessico'
 import Icon from '../components/Icon'
-import { C, KPI, SH, margColor, margBadge, fmt, fmt0, fmtp, ChartTip, Tip } from './_shared'
+import { C, KPI, SH, margColor, margBadge, fmt, fmt0, fmtp, ChartTip, Tip, TabellaOSchede } from './_shared'
 import { fmtp0 } from '../lib/formatIt'
 
 // Audit UI 2026-06-24:
@@ -821,7 +821,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
               </span>
             </div>
             <div style={{display:'flex',alignItems:'baseline',gap:8,flexWrap:'wrap',minHeight:isMobile?24:28}}>
-              <span style={{fontSize:isMobile?19:22,fontWeight:900,color:color||C.white,letterSpacing:'-0.02em',fontVariantNumeric:'tabular-nums'}}>{value}</span>
+              <span style={{fontSize:isMobile?18:22,fontWeight:900,color:color||C.white,letterSpacing:'-0.02em',fontVariantNumeric:'tabular-nums'}}>{value}</span>
               {delta}
             </div>
             <div style={{fontSize: typo.small.fontSize,color:'rgba(255,255,255,0.55)',lineHeight:1.4,minHeight:16}}>{sub||''}</div>
@@ -913,8 +913,28 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
               </div>
               <SH sub="Dettaglio per periodo">Riepilogo Periodi</SH>
               <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,overflow:"hidden",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
-                <div style={{overflowX:'auto'}}>
-                <table style={{width:"100%",minWidth:720,borderCollapse:"collapse",fontSize: typo.small.fontSize}}>
+                {/* Otto colonne, 953px sul telefono: due schermate e
+                    mezza di scorrimento laterale per leggere un periodo. Sul
+                    telefono diventa un elenco di schede. */}
+                <TabellaOSchede
+                  minWidth={720}
+                  righe={sortedPeriodi}
+                  chiave={(p)=>p.key}
+                  vuoto="Nessun periodo con produzione."
+                  titolo={(p)=>p.label}
+                  riassunto={(p)=>margBadge(p.margPct)}
+                  colonne={[
+                    { k:'sessioni', label:'Sessioni', cella:(p)=>p.sessioni.length },
+                    { k:'stampi', label:'Stampi', cella:(p)=>n0(p.stampiTot) },
+                    { k:'ricavo', label:'Ricavo stimato', forte:true, colore:C.green, cella:(p)=>eur0(p.ricavoTot) },
+                    { k:'fc', label:'Food cost', colore:C.red, cella:(p)=>eur0(p.fcTot) },
+                    { k:'margine', label:'Margine', forte:true, cella:(p)=><span style={{color:margColor(p.margPct)}}>{eur0(p.margine)}</span> },
+                    { k:'top', label:'Prodotto più fatto', cella:(p)=>{
+                      const top=Object.entries(p.byRicetta).sort((a,b)=>b[1]-a[1])[0];
+                      return top?`${top[0].replace("TORTA DI ","")} (${top[1]})`:"-";
+                    } },
+                  ]}
+                  intestazione={
                   <thead>
                     <tr style={{background:"#F8F4F2"}}>
                       {COLS_RIEP.map((c,idx)=>(
@@ -929,7 +949,8 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                       ))}
                     </tr>
                   </thead>
-                  <tbody>
+                  }
+                  corpo={                  <tbody>
                     {sortedPeriodi.map((p,i)=>{
                       const top=Object.entries(p.byRicetta).sort((a,b)=>b[1]-a[1])[0];
                       const rowBg = i%2===0?C.white:"#FDFAF7";
@@ -952,9 +973,8 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                         </tr>
                       );
                     })}
-                  </tbody>
-                </table>
-                </div>
+                  </tbody>}
+                />
               </div>
             </>
           )}

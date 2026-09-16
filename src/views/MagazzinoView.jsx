@@ -20,7 +20,7 @@ import Icon from '../components/Icon'
 import { useConfirm } from '../components/ConfirmModal'
 import { loadStockPF, loadMovimentiPF, scartoPF, rettificaPF } from '../lib/stockPF'
 import {
-  C, TNUM, KPI, PageHeader, useSortable, SortTH, fmt0, fmtp,
+  C, TNUM, KPI, PageHeader, useSortable, SortTH, fmt0, fmtp, TabellaOSchede,
 } from './_shared'
 import { fornitoreDiIngrediente } from '../lib/fornitoreIngrediente'
 import { fmtp0 } from '../lib/formatIt'
@@ -363,15 +363,53 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
               e lo scroll non partiva: su telefono cinque colonne si schiacciano
               e la data va a capo spezzata. Le altre tre tabelle del file il
               minWidth ce l'hanno già (480, 540, 760). */}
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, minWidth: 580 }}>
-            <thead>
+          <TabellaOSchede
+
+          minWidth={580}
+          righe={stock}
+          chiave={(r) => r.id}
+          vuoto="Niente in vetrina."
+          titolo={(r) => r.prodotto_nome}
+          riassunto={(r) => {
+            const q = Number(r.quantita || 0)
+            const sotto = r.soglia_min > 0 && q <= Number(r.soglia_min)
+            return (
+              <span style={{ fontWeight: 800, color: q < 0 ? C.alert : sotto ? C.amber : C.text, ...TNUM, whiteSpace: 'nowrap' }}>
+                {q.toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 2 })} {r.unita}
+              </span>
+            )
+          }}
+          colonne={[
+            { k: 'soglia', label: 'Soglia minima', cella: (r) => r.soglia_min > 0 ? Number(r.soglia_min).toLocaleString('it-IT', { useGrouping: 'always' }) : '-' },
+            { k: 'agg', label: 'Aggiornato', cella: (r) => dataLeggibile(r.updated_at) },
+            { k: 'az', label: '', cella: (r) => {
+              const q = Number(r.quantita || 0)
+              return (
+                <span style={{ display: 'inline-flex', gap: 8 }}>
+                  <button onClick={() => setScartoForm({ prodotto: r.prodotto_nome, qty: '', note: '', azzera: false, unita: r.unita || 'pz', disponibile: q, valoreUnit: Number(r.valore_unit || 0) })} disabled={q <= 0}
+                    title={q <= 0 ? 'Giacenza a zero: non c\'è niente da scartare' : 'Registra merce buttata'}
+                    style={{ padding: '9px 12px', minHeight: 44, borderRadius: 6, border: `1px solid ${C.border}`, background: C.bgCard, color: q <= 0 ? C.textSoft : C.amber, fontSize: font.size.sm, fontWeight: 700, cursor: q <= 0 ? 'not-allowed' : 'pointer' }}>
+                    Scarto
+                  </button>
+                  {q > 0 && (
+                    <button onClick={() => setScartoForm({ prodotto: r.prodotto_nome, qty: String(q), note: '', azzera: true, unita: r.unita || 'pz', disponibile: q, valoreUnit: Number(r.valore_unit || 0) })}
+                      title="La giacenza è sbagliata: portala a zero senza contarla fra gli sprechi"
+                      style={{ padding: '9px 10px', minHeight: 44, borderRadius: 6, border: `1px solid ${C.red}`, background: C.redLight, color: C.red, fontSize: font.size.sm, fontWeight: 700, cursor: 'pointer' }}>
+                      Azzera
+                    </button>
+                  )}
+                </span>
+              )
+            } },
+          ]}
+          intestazione={<><thead>
               <tr style={{ background: '#F8F4F2' }}>
                 {[LEX.Prodotto, 'Disponibili', 'Soglia', 'Aggiornato', ''].map((h, i) => (
                   <th key={i} style={{ padding: '10px 14px', textAlign: i === 1 || i === 2 ? 'right' : 'left', ...typo.caption, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>{h}</th>
                 ))}
               </tr>
-            </thead>
-            <tbody>
+            </thead></>}
+          corpo={<><tbody>
               {stock.map((r, i) => {
                 const q = Number(r.quantita || 0)
                 const sotto = r.soglia_min > 0 && q <= Number(r.soglia_min)
@@ -397,7 +435,7 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
                       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexDirection: isMobile ? 'column' : 'row' }}>
                         <button onClick={() => setScartoForm({ prodotto: r.prodotto_nome, qty: '', note: '', azzera: false, unita: r.unita || 'pz', disponibile: q, valoreUnit: Number(r.valore_unit || 0) })} disabled={q <= 0}
                           title={q <= 0 ? 'Giacenza a zero: non c\'è niente da scartare' : 'Registra merce buttata'}
-                          style={{ padding: '9px 12px', minHeight: 44, borderRadius: 6, border: `1px solid ${C.border}`, background: C.bgCard, color: q <= 0 ? C.textSoft : C.amber, fontSize: 12, fontWeight: 700, cursor: q <= 0 ? 'not-allowed' : 'pointer' }}>
+                          style={{ padding: '9px 12px', minHeight: 44, borderRadius: 6, border: `1px solid ${C.border}`, background: C.bgCard, color: q <= 0 ? C.textSoft : C.amber, fontSize: font.size.sm, fontWeight: 700, cursor: q <= 0 ? 'not-allowed' : 'pointer' }}>
                           Scarto
                         </button>
                         {q > 0 && (
@@ -412,8 +450,8 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
                   </tr>
                 )
               })}
-            </tbody>
-          </table>
+            </tbody></>}
+        />
         </div>
       )}
 
@@ -446,28 +484,47 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
                 Il pattern giusto e' già nel file (righe 517-519): wrapper con
                 bordo e raggio, dentro un div che scorre, tabella con minWidth. */}
             <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: typo.small.fontSize, minWidth: 620 }}>
-              {/* L'intestazione mancava: cinque colonne senza nome, e la
-                  colonna dei numeri non diceva se era una quantità o un
-                  valore in euro. */}
-              <thead>
+            <TabellaOSchede
+
+          minWidth={620}
+          righe={movimenti}
+          chiave={(m) => m.id}
+          vuoto="Nessun movimento."
+          titolo={(m) => m.prodotto_nome}
+          riassunto={(m) => {
+            const d = Number(m.delta)
+            return (
+              <span style={{ fontWeight: 800, color: m.causale === 'scarto' ? C.alert : C.text, ...TNUM, whiteSpace: 'nowrap' }}>
+                {d > 0 ? '+' : d < 0 ? '−' : ''}{Math.abs(d).toLocaleString('it-IT', { useGrouping: 'always' })}{unitaDi(m.prodotto_nome) ? ` ${unitaDi(m.prodotto_nome)}` : ''}
+              </span>
+            )
+          }}
+          colonne={[
+            { k: 'quando', label: 'Quando', cella: (m) => dataLeggibile(m.created_at) },
+            { k: 'causale', label: 'Perché', cella: (m) => {
+              const c = CAUSALE_LBL[m.causale] || { lbl: m.causale, col: C.textSoft }
+              return <span style={{ color: c.col, display: 'inline-flex', alignItems: 'center', gap: 5 }}>{c.ic && <Icon name={c.ic} size={12} />}{c.lbl}</span>
+            } },
+            { k: 'nota', label: 'Nota', cella: (m) => m.note || '—' },
+          ]}
+          intestazione={<><thead>
                 <tr style={{ background: '#F8F4F2' }}>
                   {[['Quando', 'left'], ['Prodotto', 'left'], ['Perché', 'left'], ['Quantità', 'right'], ['Nota', 'left']].map(([h, al]) => (
                     <th key={h} style={{
-                      padding: '9px 14px', textAlign: al, fontSize: 12, fontWeight: 700,
+                      padding: '9px 14px', textAlign: al, fontSize: font.size.sm, fontWeight: 700,
                       letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textMid,
                       borderBottom: `1px solid ${C.border}`, whiteSpace: 'nowrap',
                     }}>{h}</th>
                   ))}
                 </tr>
-              </thead>
-              <tbody>
+              </thead></>}
+          corpo={<><tbody>
                 {movimenti.map(m => {
                   const c = CAUSALE_LBL[m.causale] || { lbl: m.causale, col: C.textSoft }
                   const d = Number(m.delta)
                   return (
                     <tr key={m.id} style={{ borderBottom: `1px solid ${C.border}` }}>
-                      <td style={{ ...TNUM, padding: '8px 14px', fontSize: 12, color: C.textSoft, whiteSpace: 'nowrap' }}>
+                      <td style={{ ...TNUM, padding: '8px 14px', fontSize: font.size.sm, color: C.textSoft, whiteSpace: 'nowrap' }}>
                         {dataLeggibile(m.created_at)}
                       </td>
                       <td style={{ padding: '8px 14px', fontWeight: 700, color: C.text }}>{m.prodotto_nome}</td>
@@ -490,8 +547,8 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
                     </tr>
                   )
                 })}
-              </tbody>
-            </table>
+              </tbody></>}
+        />
             </div>
             {movimenti.length >= movLimite && (
               <div style={{ padding: '10px 14px', borderTop: `1px solid ${C.border}`, textAlign: 'center' }}>
@@ -766,17 +823,35 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
 
       <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: R['2xl'], overflow: 'hidden', boxShadow: SHADOW_PREMIUM }}>
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, minWidth: 480 }}>
-            <thead>
+          <TabellaOSchede
+
+          minWidth={480}
+          righe={visibleRows}
+          chiave={(row) => row.nome}
+          vuoto={search.trim() ? `Nessun ingrediente che corrisponde a "${search}".` : 'Nessun ingrediente disponibile.'}
+          titolo={(row) => <span style={{ textTransform: 'capitalize' }}>{row.nome}</span>}
+          colonne={[
+            { k: 'prezzo', label: 'Prezzo al chilo', forte: true,
+              cella: (row) => row.prezzoKg > 0
+                ? `${row.prezzoKg.toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
+                : '—' },
+            { k: 'az', label: '', cella: (row) => (
+              <button onClick={() => startEdit(row)}
+                style={{ padding: '10px 14px', minHeight: 44, borderRadius: 6, border: `1px solid ${C.borderStr}`, background: 'transparent', fontSize: font.size.sm, fontWeight: 700, color: C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                <Icon name="edit" size={13} />Modifica
+              </button>
+            ) },
+          ]}
+          intestazione={<><thead>
               <tr style={{ background: '#F8F4F2' }}>
                 <th style={{ padding: '10px 14px', textAlign: 'left', ...typo.caption, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>Ingrediente</th>
                 <th style={{ padding: '10px 14px', textAlign: 'right', ...typo.caption, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>Prezzo €/kg</th>
                 <th style={{ padding: '10px 14px', textAlign: 'right', ...typo.caption, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, width: 140 }}>Azioni</th>
               </tr>
-            </thead>
-            <tbody>
+            </thead></>}
+          corpo={<><tbody>
               {filtered.length === 0 && (
-                <tr><td colSpan={3} style={{ padding: '40px 16px', textAlign: 'center', fontSize: 13, color: C.textSoft }}>
+                <tr><td colSpan={3} style={{ padding: '40px 16px', textAlign: 'center', fontSize: font.size.base, color: C.textSoft }}>
                   {search.trim() ? `Nessun ingrediente che corrisponde a "${search}".` : 'Nessun ingrediente disponibile.'}
                 </td></tr>
               )}
@@ -811,9 +886,9 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
                           }}
                           autoFocus
                           aria-label={`Prezzo per chilo di ${row.nome}`}
-                          style={{ width: isMobile ? 116 : 96, padding: isMobile ? '9px 10px' : '6px 8px', minHeight: isMobile ? 44 : 32, borderRadius: 6, border: `1px solid ${C.red}`, fontSize: 13, fontWeight: 700, color: C.text, textAlign: 'right', outline: 'none' }}/>
+                          style={{ width: isMobile ? 116 : 96, padding: isMobile ? '9px 10px' : '6px 8px', minHeight: isMobile ? 44 : 32, borderRadius: 6, border: `1px solid ${C.red}`, fontSize: font.size.base, fontWeight: 700, color: C.text, textAlign: 'right', outline: 'none' }}/>
                         {errEdit && (
-                          <div style={{ fontSize: 12, color: C.red, marginTop: 4, textAlign: 'right', maxWidth: 200, lineHeight: 1.4 }}>{errEdit}</div>
+                          <div style={{ fontSize: font.size.sm, color: C.red, marginTop: 4, textAlign: 'right', maxWidth: 200, lineHeight: 1.4 }}>{errEdit}</div>
                         )}
                         </>
                       ) : (
@@ -831,18 +906,18 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
                     <td style={{ padding: '10px 14px', textAlign: 'right', whiteSpace: 'nowrap' }}>
                       {editing ? (
                         <>
-                          <button onClick={() => tentaSalva(row)} style={{ padding: '8px 14px', minHeight: 40, borderRadius: 6, border: 'none', background: C.red, color: C.white, fontSize: 12, fontWeight: 800, cursor: 'pointer', marginRight: 4 }}>Salva</button>
-                          <button onClick={cancelEdit} style={{ padding: '8px 12px', minHeight: 40, borderRadius: 6, border: `1px solid ${C.borderStr}`, background: 'transparent', fontSize: 12, fontWeight: 700, color: C.textMid, cursor: 'pointer' }}>Annulla</button>
+                          <button onClick={() => tentaSalva(row)} style={{ padding: '8px 14px', minHeight: 40, borderRadius: 6, border: 'none', background: C.red, color: C.white, fontSize: font.size.sm, fontWeight: 800, cursor: 'pointer', marginRight: 4 }}>Salva</button>
+                          <button onClick={cancelEdit} style={{ padding: '8px 12px', minHeight: 40, borderRadius: 6, border: `1px solid ${C.borderStr}`, background: 'transparent', fontSize: font.size.sm, fontWeight: 700, color: C.textMid, cursor: 'pointer' }}>Annulla</button>
                         </>
                       ) : (
-                        <button onClick={() => startEdit(row)} style={{ padding: '8px 14px', minHeight: 40, borderRadius: 6, border: `1px solid ${C.borderStr}`, background: 'transparent', fontSize: 12, fontWeight: 700, color: C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="edit" size={13} />Modifica</button>
+                        <button onClick={() => startEdit(row)} style={{ padding: '8px 14px', minHeight: 40, borderRadius: 6, border: `1px solid ${C.borderStr}`, background: 'transparent', fontSize: font.size.sm, fontWeight: 700, color: C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="edit" size={13} />Modifica</button>
                       )}
                     </td>
                   </tr>
                 )
               })}
-            </tbody>
-          </table>
+            </tbody></>}
+        />
           {isPaginated && (
             <div style={{
               padding: '14px 18px', textAlign: 'center',
@@ -1970,8 +2045,33 @@ export default function MagazzinoView({
               </div>
             ) : (
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, minWidth: 540 }}>
-                <thead>
+              <TabellaOSchede
+
+          minWidth={540}
+          righe={visibili}
+          chiave={(r) => r.k}
+          vuoto="Niente da ordinare."
+          titolo={(r) => (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, textTransform: 'capitalize' }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: statoColor(r.stato), flexShrink: 0 }}/>
+              {r.nome}
+            </span>
+          )}
+          riassunto={(r) => (
+            <button onClick={() => { setQuickLoad(r.k); setFormMode('carico'); setFormIng(r.nome); setTab('carica'); focusQtyDeferred() }}
+              title={`Carica ${r.nome} in magazzino`}
+              style={{ padding: '0 12px', minHeight: 44, borderRadius: 6, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: font.size.sm, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <Icon name="plus" size={11} />Carica
+            </button>
+          )}
+          colonne={[
+            { k: 'ord', label: 'Da ordinare', forte: true, cella: (r) => fmtRiordino(r.riordinoG) ? `~ ${fmtRiordino(r.riordinoG)}` : '-' },
+            { k: 'giacenza', label: 'Giacenza', cella: (r) => <span style={{ color: statoColor(r.stato), fontWeight: 700 }}>{fmtG(r.giacenza)}</span> },
+            { k: 'gg', label: 'Giorni di scorta', cella: (r) => <span style={{ color: statoColor(r.stato), fontWeight: 700 }}>{fmtGiorniScorta(r.giorniScorta, consumoStimato)}</span> },
+            { k: 'costo', label: 'Costo stimato', cella: (r) => r.costoG > 0 ? fmt0(r.riordinoG * r.costoG) : '-' },
+            { k: 'forn', label: 'Da chi', cella: (r) => fornitorePerNome(r.nome) || 'da collegare' },
+          ]}
+          intestazione={<><thead>
                   <tr style={{ background: '#F8F4F2' }}>
                     {/* "Da chi": la lista diceva quanto ordinare e non a chi
                         chiederlo. Il fornitore di un ingrediente si impara
@@ -1980,8 +2080,8 @@ export default function MagazzinoView({
                       <th key={i} style={{ padding: '9px 14px', textAlign: al, ...typo.caption, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>{h}</th>
                     ))}
                   </tr>
-                </thead>
-                <tbody>
+                </thead></>}
+          corpo={<><tbody>
                   {visibili.map((r, i) => (
                     <tr key={r.k} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.white : '#FDFAF7' }}>
                       <td style={{ padding: '10px 14px', fontWeight: 700, color: C.text, textTransform: 'capitalize' }}>
@@ -2016,14 +2116,14 @@ export default function MagazzinoView({
                       <td style={{ padding: '8px 10px', paddingRight: 10 + (isMobile ? 40 : 30) + 6, textAlign: 'right' }}>
                         <button onClick={() => { setQuickLoad(r.k); setFormMode('carico'); setFormIng(r.nome); setTab('carica'); focusQtyDeferred() }}
                           title={`Carica ${r.nome} in magazzino`}
-                          style={{ padding: '0 10px', minHeight: isMobile ? 40 : 30, borderRadius: 6, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                          style={{ padding: '0 10px', minHeight: isMobile ? 40 : 30, borderRadius: 6, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: font.size.sm, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
                           <Icon name="plus" size={11} />Carica
                         </button>
                       </td>
                     </tr>
                   ))}
-                </tbody>
-              </table>
+                </tbody></>}
+        />
             </div>
             )}
             {nascosti > 0 && (
@@ -2295,8 +2395,56 @@ export default function MagazzinoView({
             />
             return (
           <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: typo.small.fontSize, minWidth: 760 }}>
-                <thead>
+              <TabellaOSchede
+
+          minWidth={760}
+          righe={righe}
+          chiave={(r) => r.k}
+          vuoto="Il magazzino è vuoto. Aggiungi il primo ingrediente, oppure carica il ricettario: gli ingredienti delle ricette compaiono qui da soli."
+          apriEtichetta="Soglia, valore, ultimo carico"
+          titolo={(r) => <span style={{ textTransform: 'capitalize' }}>{r.nome}</span>}
+          riassunto={(r) => (
+            <span style={{ background: statoBg(r.stato), color: statoColor(r.stato), fontSize: font.size.sm, fontWeight: 700, padding: '3px 9px', borderRadius: 10, letterSpacing: '0.06em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{statoLabel(r.stato)}</span>
+          )}
+          colonne={[
+            { k: 'giacenza', label: 'Giacenza', forte: true, cella: (r) => <span style={{ color: statoColor(r.stato) }}>{fmtG(r.giacenza)}</span> },
+            { k: 'gg', label: 'Giorni di scorta', cella: (r) => <span style={{ color: statoColor(r.stato), fontWeight: 700 }}>{fmtGiorniScorta(r.giorniScorta, consumoStimato)}</span> },
+            { k: 'ord', label: 'Da ordinare', cella: (r) => (r.stato === 'critico' || r.stato === 'esaurito' || r.stato === 'attenzione') && fmtRiordino(r.riordinoG) ? `~ ${fmtRiordino(r.riordinoG)}` : '-' },
+            { k: 'az', label: '', cella: (r) => (
+              <span style={{ display: 'inline-flex', gap: 6 }}>
+                <button onClick={() => { setQuickLoad(r.k); setFormMode('carico'); setFormIng(r.nome); setTab('carica'); focusQtyDeferred() }}
+                  title={`Carica ${r.nome} in magazzino`}
+                  style={{ padding: '0 12px', minHeight: 44, borderRadius: 6, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: font.size.sm, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' }}>
+                  <Icon name="plus" size={11} />Carica
+                </button>
+                <button aria-label={`Elimina ${r.nome}`} onClick={() => { setDeleteIngConf(r.k); setDeleteIngPin('') }}
+                  title="Elimina questo ingrediente"
+                  style={{ width: 44, height: 44, borderRadius: 6, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textSoft, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="trash" size={13} /></button>
+              </span>
+            ) },
+          ]}
+          dettaglio={(r) => (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
+                <span style={{ color: C.textSoft }}>Soglia di riordino</span>
+                <button onClick={() => setEditSoglia({ nome: r.k, val: r.soglia || '' })}
+                  style={{ padding: '10px 12px', minHeight: 44, minWidth: 90, borderRadius: 6, border: `1px solid ${C.border}`, background: C.white, color: C.textMid, fontSize: font.size.sm, fontWeight: 700, cursor: 'pointer', ...TNUM }}>
+                  {r.soglia > 0 ? fmtG(r.soglia) : 'Imposta'}
+                </button>
+              </div>
+              {[
+                ['Consumo a settimana', r.fabb > 0 ? fmtG(r.fabb) : '-'],
+                ['Valore della giacenza', r.valore > 0 ? fmt0(r.valore) : '-'],
+                ['Ultimo carico', r.ultimoRif ? new Date(r.ultimoRif).toLocaleDateString('it-IT') : '-'],
+              ].map(([et, v]) => (
+                <div key={et} style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                  <span style={{ color: C.textSoft }}>{et}</span>
+                  <span style={{ fontWeight: 700, color: C.text, ...TNUM }}>{v}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          intestazione={<><thead>
                   <tr style={{ background: '#F8F4F2' }}>
                     <SortTH k="nome" active={magKey === 'nome'} dir={magDir} onToggle={magToggle}>Ingrediente</SortTH>
                     <SortTH k="giacenza" right active={magKey === 'giacenza'} dir={magDir} onToggle={magToggle}>Giacenza</SortTH>
@@ -2313,10 +2461,10 @@ export default function MagazzinoView({
                     {/* Stesse misure delle altre nove intestazioni, che
                         passano da SortTH: prima questa era scritta a mano e
                         la testata aveva due dimensioni diverse. */}
-                    <th style={{ padding: '10px 16px', textAlign: 'right', fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textMid, borderBottom: `1px solid ${C.border}`, whiteSpace: 'nowrap' }}>Azioni</th>
+                    <th style={{ padding: '10px 16px', textAlign: 'right', fontSize: font.size.sm, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textMid, borderBottom: `1px solid ${C.border}`, whiteSpace: 'nowrap' }}>Azioni</th>
                   </tr>
-                </thead>
-                <tbody>
+                </thead></>}
+          corpo={<><tbody>
                   {/* Con l'elenco vuoto restava una card con la sola riga di
                       intestazione e nove colonne senza niente sotto: sembrava
                       un errore di caricamento. */}
@@ -2359,7 +2507,7 @@ export default function MagazzinoView({
                           confrontare due righe bisognava leggerle una a una. */}
                       <td style={{ ...TNUM, padding: '10px 14px', textAlign: 'right' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
-                          <span style={{ fontWeight: 800, fontSize: 12, color: statoColor(r.stato), ...TNUM }}>{fmtG(r.giacenza)}</span>
+                          <span style={{ fontWeight: 800, fontSize: font.size.sm, color: statoColor(r.stato), ...TNUM }}>{fmtG(r.giacenza)}</span>
                           {r.fabb > 0 && (
                             <div style={{ width: 60, height: 4, background: C.borderStr, borderRadius: 2 }}>
                               <div style={{ width: `${Math.min(100, (r.giacenza / r.fabb) * 100)}%`, height: 4, background: statoColor(r.stato), borderRadius: 2 }}/>
@@ -2416,21 +2564,21 @@ export default function MagazzinoView({
                             <input type="number" value={editSoglia.val} min="0" step="1"
                               aria-label="Soglia di riordino in grammi" placeholder="es. 500"
                               onChange={e => setEditSoglia({ ...editSoglia, val: e.target.value })}
-                              style={{ width: 74, padding: '5px 6px', minHeight: isMobile ? 40 : 30, borderRadius: 5, border: `1px solid ${C.borderStr}`, fontSize: 12, textAlign: 'center' }}/>
-                            <span style={{ fontSize: 12, color: C.textSoft, fontWeight: 600 }}>g</span>
+                              style={{ width: 74, padding: '5px 6px', minHeight: isMobile ? 40 : 30, borderRadius: 5, border: `1px solid ${C.borderStr}`, fontSize: font.size.sm, textAlign: 'center' }}/>
+                            <span style={{ fontSize: font.size.sm, color: C.textSoft, fontWeight: 600 }}>g</span>
                             <button onClick={() => handleSoglia(r.k, editSoglia.val)}
                               aria-label="Conferma la soglia"
                               style={{ width: isMobile ? 40 : 30, height: isMobile ? 40 : 30, background: C.green, color: C.white, border: 'none', borderRadius: 5, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="check" size={13} /></button>
                           </div>
                         ) : (
                           <button onClick={() => setEditSoglia({ nome: r.k, val: r.soglia || '' })}
-                            style={{ padding: '5px 10px', minWidth: 84, borderRadius: 6, border: `1px solid ${C.border}`, background: C.white, color: C.textMid, fontSize: 12, fontWeight: 600, cursor: 'pointer', ...TNUM, textAlign: 'center', whiteSpace: 'nowrap' }}>
+                            style={{ padding: '5px 10px', minWidth: 84, borderRadius: 6, border: `1px solid ${C.border}`, background: C.white, color: C.textMid, fontSize: font.size.sm, fontWeight: 600, cursor: 'pointer', ...TNUM, textAlign: 'center', whiteSpace: 'nowrap' }}>
                             {r.soglia > 0 ? fmtG(r.soglia) : 'Imposta'}
                           </button>
                         )}
                       </td>
                       <td style={{ padding: '10px 14px', textAlign: 'left' }}>
-                        <span style={{ background: statoBg(r.stato), color: statoColor(r.stato), fontSize: 12, fontWeight: 700, padding: '3px 9px', borderRadius: 10, letterSpacing: '0.06em', textTransform: 'uppercase', whiteSpace: 'nowrap', display: 'inline-block' }}>{statoLabel(r.stato)}</span>
+                        <span style={{ background: statoBg(r.stato), color: statoColor(r.stato), fontSize: font.size.sm, fontWeight: 700, padding: '3px 9px', borderRadius: 10, letterSpacing: '0.06em', textTransform: 'uppercase', whiteSpace: 'nowrap', display: 'inline-block' }}>{statoLabel(r.stato)}</span>
                       </td>
                       <td style={{ ...TNUM, padding: '10px 14px', textAlign: 'right', color: C.textSoft, fontSize: 12 }}>
                         {r.ultimoRif ? new Date(r.ultimoRif).toLocaleDateString('it-IT') : '-'}
@@ -2444,7 +2592,7 @@ export default function MagazzinoView({
                           <button
                             onClick={() => { setQuickLoad(r.k); setFormMode('carico'); setFormIng(r.nome); setTab('carica'); focusQtyDeferred() }}
                             title={`Carica ${r.nome} in magazzino`}
-                            style={{ padding: '0 10px', minHeight: isMobile ? 40 : 30, borderRadius: 6, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                            style={{ padding: '0 10px', minHeight: isMobile ? 40 : 30, borderRadius: 6, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: font.size.sm, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap', flexShrink: 0 }}>
                             <Icon name="plus" size={11} />Carica
                           </button>
                           <button aria-label={`Elimina ${r.nome}`} onClick={() => { setDeleteIngConf(r.k); setDeleteIngPin('') }}
@@ -2454,8 +2602,8 @@ export default function MagazzinoView({
                       </td>
                     </tr>
                   ))}
-                </tbody>
-              </table>
+                </tbody></>}
+        />
             </div>
             )
           })()}
@@ -2656,15 +2804,44 @@ export default function MagazzinoView({
                   l'intestazione della quantità era a sinistra mentre i numeri
                   stanno a destra. */}
               <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: typo.small.fontSize, minWidth: 560 }}>
-                <thead>
+              <TabellaOSchede
+
+          minWidth={560}
+          righe={logOrdinato.slice(0, logLimite)}
+          chiave={(r) => r.id}
+          vuoto="Nessun carico registrato."
+          titolo={(r) => (
+            <span>
+              {r.ingrediente}
+              {r.utente && <div style={{ ...typo.caption, color: C.textSoft, fontWeight: 400 }}>{String(r.utente).split('@')[0]}</div>}
+            </span>
+          )}
+          riassunto={(r) => (
+            <span style={{ fontWeight: 700, ...TNUM, whiteSpace: 'nowrap', color: r.annullata ? C.textSoft : Number(r.quantita_g) < 0 ? C.amber : C.green, textDecoration: r.annullata ? 'line-through' : 'none' }}>
+              {Number(r.quantita_g) < 0 ? '−' : '+'}{fmtGauto(r.quantita_g)}
+            </span>
+          )}
+          colonne={[
+            { k: 'data', label: 'Quando', cella: (r) => new Date(r.data).toLocaleString('it-IT', { useGrouping: 'always', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) },
+            { k: 'note', label: 'Note', cella: (r) => (
+              <>{r.note || '-'}{r.annullata && <span style={{ marginLeft: 6, ...typo.caption, fontWeight: 700, color: C.amber }}>annullata</span>}</>
+            ) },
+            { k: 'az', label: '', cella: (r) => (!r.annullata && !r.annulla_id && !isDipendente) ? (
+              <button type="button" onClick={() => annullaRiga(r)} disabled={saving}
+                title="Scrive una riga uguale e contraria e rimette a posto la giacenza"
+                style={{ padding: '10px 12px', minHeight: 44, borderRadius: 6, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: font.size.sm, fontWeight: 700, cursor: saving ? 'default' : 'pointer' }}>
+                Annulla
+              </button>
+            ) : '—' },
+          ]}
+          intestazione={<><thead>
                   <tr style={{ background: '#F8F4F2' }}>
                     {['Data', 'Ingrediente', 'Quantità', 'Note', ''].map((h, i) => (
                       <th key={i} style={{ padding: '10px 14px', textAlign: i === 2 ? 'right' : 'left', ...typo.caption, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>{h}</th>
                     ))}
                   </tr>
-                </thead>
-                <tbody>
+                </thead></>}
+          corpo={<><tbody>
                   {logOrdinato.slice(0, logLimite).map((r, i) => (
                     <tr key={r.id} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.white : '#FDFAF7' }}>
                       {/* Audit 2026-09-09, quattro difetti in questa riga:
@@ -2707,8 +2884,8 @@ export default function MagazzinoView({
                       </td>
                     </tr>
                   ))}
-                </tbody>
-              </table>
+                </tbody></>}
+        />
               </div>
               {/* Audit 2026-09-09: lo storico non aveva né limite né modo di
                   scorrere: con qualche centinaio di carichi la pagina si

@@ -1179,6 +1179,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
           soloCompilati={soloCompilati}
         />
       ) : (
+        // telefono: schede — vedi SchedeSettimana, il ramo `isMobile` qui sopra.
         // Settimana × 7 giorni × 2 colonne (PROD/RIMAN) + GUSTO + TOT = 16 colonne.
         // Su 375px non ci stanno, quindi tabella scrolla orizzontalmente e
         // la prima colonna GUSTO è sticky (left:0) per non perdere il contesto.
@@ -2039,6 +2040,7 @@ function VistaMese({ gusti, righeMese, lunediIso, unita = 'g', onClickGusto }) {
           })}
         </div>
       ) : (
+      // telefono: schede — vedi il ramo `isMobile` qui sopra.
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 680 }}>
           <thead>

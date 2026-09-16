@@ -6,7 +6,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { sloadAllSedi } from '../lib/storage'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
-import { color as T, radius as R, shadow as S, motion as M, ui3, ui } from '../lib/theme'
+import { color as T, radius as R, shadow as S, motion as M, font, ui3, ui } from '../lib/theme'
 import { buildIngCosti, calcolaFC, getR } from '../lib/foodcost'
 import { loadStockPF, loadStockPFAllSedi } from '../lib/stockPF'
 import { lessico } from '../lib/lessico'
@@ -162,18 +162,33 @@ function StockPFWidget({ isMobile, setView, viewAggregato, orgId, sedeId, LEX })
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
               {top.map((r, i) => (
-                <div key={r.prodotto_nome} style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 10, minWidth: 0 }}>
-                  {/* Il nome del prodotto: largo quanto serve, ma pronto a
-                      stringersi. Con una larghezza fissa di 110px, su un
-                      telefono da 320 la riga non ci stava e tutta la pagina si
-                      trascinava di lato (misurato il 15/09/2026). Ora ha una
-                      larghezza di partenza e può scendere fino a 64px. */}
-                  <span style={{ fontSize: 12, fontWeight: 600, color: T.textMid, flex: isMobile ? '1 1 90px' : '0 0 128px', minWidth: 64, maxWidth: isMobile ? 110 : 128, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.prodotto_nome}</span>
+                // Sul telefono il nome sta su una riga sua, con la quantità in
+                // fondo, e la barra sotto a tutta larghezza. Prima erano tutti
+                // e tre affiancati e al nome restavano 110px: «GELATO
+                // NOCCIOLA» ne chiede 115 e diventava «GELATO NOCCIO…». Di un
+                // numero tagliato ci si accorge; di un nome tagliato si legge
+                // l'inizio e si crede di aver letto tutto — e qui i nomi si
+                // somigliano («CROSTATA FRUTTA FRESCA», «CROSTATA FRUTTI DI
+                // BOSCO»). Sul computer lo spazio c'è e restano in fila.
+                isMobile ? (
+                  <div key={r.prodotto_nome} style={{ display: 'flex', flexDirection: 'column', gap: 5, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
+                      <span style={{ fontSize: font.size.sm, fontWeight: 600, color: T.textMid, minWidth: 0, overflowWrap: 'anywhere' }}>{r.prodotto_nome}</span>
+                      <span style={{ fontSize: font.size.sm, fontWeight: 800, color: T.text, flexShrink: 0, ...TNUM, whiteSpace: 'nowrap' }}>{qtaLeggibile(r)}</span>
+                    </div>
+                    <div style={{ height: 9, background: T.bgSubtle, borderRadius: R.full, overflow: 'hidden' }}>
+                      <div style={{ width: `${Math.max(5, quotaBarra(r))}%`, height: '100%', background: T.brand, borderRadius: R.full }} />
+                    </div>
+                  </div>
+                ) : (
+                <div key={r.prodotto_nome} style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: T.textMid, flex: '0 0 128px', minWidth: 64, maxWidth: 128, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.prodotto_nome}</span>
                   <div style={{ flex: 1, height: 9, background: T.bgSubtle, borderRadius: R.full, overflow: 'hidden', minWidth: 24 }}>
                     <div style={{ width: `${Math.max(5, quotaBarra(r))}%`, height: '100%', background: T.brand, borderRadius: R.full }} />
                   </div>
-                  <span style={{ fontSize: 12, fontWeight: 800, color: T.text, minWidth: isMobile ? 48 : 56, textAlign: 'right', flexShrink: 0, ...TNUM, whiteSpace: 'nowrap' }}>{qtaLeggibile(r)}</span>
+                  <span style={{ fontSize: 12, fontWeight: 800, color: T.text, minWidth: 56, textAlign: 'right', flexShrink: 0, ...TNUM, whiteSpace: 'nowrap' }}>{qtaLeggibile(r)}</span>
                 </div>
+                )
               ))}
             </div>
           </div>

@@ -24,11 +24,11 @@
 // restituire; aggiorniamo lo state solo dopo. Firma export e shape movimento immutate.
 
 import React, { useEffect, useMemo, useState } from 'react'
-import { color as T, typo, ui3, ui } from '../lib/theme'
+import { color as T, typo, font, ui3, ui } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from './Icon'
 import { useConfirm } from './ConfirmModal'
-import { KPI, SH, PageHeader } from '../views/_shared'
+import { KPI, SH, PageHeader, TabellaOSchede } from '../views/_shared'
 import { fmt, fmt0, fmtp0 } from '../lib/formatIt'
 import { buildIngCosti, calcolaFC, getR, isRicettaValida, normIng } from '../lib/foodcost'
 import { sload } from '../lib/storage'
@@ -865,21 +865,59 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
         </div>
       </div>
       <div style={{ ...cardStyle(), overflow: 'hidden' }}>
-        <div style={{ overflowX: 'auto' }}>
-          {/* minWidth: e' l'unica tabella a 8 colonne del prodotto senza una
-              larghezza minima. Su tablet le colonne si schiacciavano una
-              sull'altra invece di far scorrere. Convenzione della casa:
-              minWidth sulla table dentro un contenitore overflowX auto. */}
-          <table style={{ width: '100%', minWidth: 780, borderCollapse: 'collapse', fontSize: 12 }}>
+        {/* Sul telefono questa tabella a otto colonne è larga 780px dentro
+            uno schermo da 390: due schermate di scorrimento laterale per
+            leggere una riga, e intanto l'intestazione della colonna è uscita
+            a sinistra. Diventa un elenco di schede — vedi TabellaOSchede. */}
+        <TabellaOSchede
+          minWidth={780}
+          righe={loading || lista.length === 0 ? [] : lista}
+          chiave={(m) => m.id}
+          vuoto={loading ? 'Caricamento…' : 'Nessun movimento nel mese selezionato.'}
+          titolo={(m) => (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              {tipoBadge(m.tipo)}
+              <span style={{ minWidth: 0 }}>{m.prodotto || m.categoria || '-'}</span>
+            </div>
+          )}
+          colonne={[
+            { k: 'quando', label: 'Quando', cella: (m) => fmtTs(m.ts) },
+            { k: 'qta', label: 'Quantità', cella: (m) => fmtQta(m.qta, m.unita) },
+            { k: 'causale', label: 'Causale', cella: (m) => CAUSALE_LABEL[m.causale] || m.causale || '-' },
+            { k: 'costo', label: 'Costo', forte: true,
+              cella: (m) => (
+                <span style={{ color: m.tipo === 'spreco' ? C.amber : BLU }}>
+                  {fmt(m.fcTot)}
+                  {m.tipo === 'omaggio' && Number(m.valoreOmaggio) > 0 && (
+                    <span style={{ color: C.textSoft, fontWeight: 400, marginLeft: 6 }}>(− {fmt(m.valoreOmaggio)} ricavo)</span>
+                  )}
+                </span>
+              ) },
+            { k: 'note', label: 'Nota', cella: (m) => m.note || '—' },
+            { k: 'autore', label: 'Chi', cella: (m) => (
+              <>
+                {m._legacy ? <span style={{ padding: '1px 5px', borderRadius: 4, background: C.bgSubtle, color: C.textSoft, fontSize: font.size.sm, fontWeight: 700 }}>STORICO</span> : (m.autore_email || '-')}
+                {m.autore_ruolo === 'dipendente' && <span style={{ marginLeft: 6, padding: '1px 5px', borderRadius: 4, background: C.amberLight, color: C.amber, fontSize: font.size.sm, fontWeight: 700 }}>DIP</span>}
+              </>
+            ) },
+            { k: 'azione', label: '', cella: (m) => m._legacy ? '—' : (
+              <button onClick={() => elimina(m)} title="Elimina"
+                style={{ padding: '9px 12px', minHeight: 44, background: 'transparent', color: C.red, border: `1px solid ${C.redLight}`, borderRadius: 7, fontSize: font.size.sm, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                <Icon name="trash" size={12} /> Elimina
+              </button>
+            ) },
+          ]}
+          intestazione={
             <thead>
               <tr>
                 {['Quando', 'Tipo', 'Cosa', 'Qta', 'Causale', 'Costo', 'Autore', ''].map((h, i) => (
                   <th key={i} title={h === 'Qta' ? 'Quantità (grammi o pezzi)' : h === 'Costo' ? 'Food cost del prodotto perso/omaggiato' : undefined}
-                    style={{ padding: '11px 14px', textAlign: (i === 3 || i === 5) ? 'right' : 'left', fontSize: 12, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, whiteSpace: 'nowrap', ...((h === 'Qta' || h === 'Costo') ? { cursor: 'help', textDecoration: 'underline dotted', textUnderlineOffset: 3 } : null) }}>{h}</th>
+                    style={{ padding: '11px 14px', textAlign: (i === 3 || i === 5) ? 'right' : 'left', fontSize: font.size.sm, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, whiteSpace: 'nowrap', ...((h === 'Qta' || h === 'Costo') ? { cursor: 'help', textDecoration: 'underline dotted', textUnderlineOffset: 3 } : null) }}>{h}</th>
                 ))}
               </tr>
             </thead>
-            <tbody>
+          }
+          corpo={<tbody>
               {loading ? (
                 <tr><td colSpan={8} style={{ padding: 36, textAlign: 'center', color: C.textSoft }}>Caricamento…</td></tr>
               ) : lista.length === 0 ? (
@@ -901,22 +939,21 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
                     )}
                   </td>
                   <td style={{ padding: '11px 14px', color: C.textSoft, fontSize: 12 }}>
-                    {m._legacy ? <span style={{ padding: '1px 5px', borderRadius: 4, background: C.bgSubtle, color: C.textSoft, fontSize: 12, fontWeight: 700 }}>STORICO</span> : (m.autore_email || '-')}
-                    {m.autore_ruolo === 'dipendente' && <span style={{ marginLeft: 6, padding: '1px 5px', borderRadius: 4, background: C.amberLight, color: C.amber, fontSize: 12, fontWeight: 700 }}>DIP</span>}
+                    {m._legacy ? <span style={{ padding: '1px 5px', borderRadius: 4, background: C.bgSubtle, color: C.textSoft, fontSize: font.size.sm, fontWeight: 700 }}>STORICO</span> : (m.autore_email || '-')}
+                    {m.autore_ruolo === 'dipendente' && <span style={{ marginLeft: 6, padding: '1px 5px', borderRadius: 4, background: C.amberLight, color: C.amber, fontSize: font.size.sm, fontWeight: 700 }}>DIP</span>}
                   </td>
                   <td style={{ padding: '11px 14px' }}>
                     {!m._legacy && (
                       <button onClick={() => elimina(m)} title="Elimina"
-                        style={{ padding: '9px 12px', minHeight: 40, background: 'transparent', color: C.red, border: `1px solid ${C.redLight}`, borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                        style={{ padding: '9px 12px', minHeight: 40, background: 'transparent', color: C.red, border: `1px solid ${C.redLight}`, borderRadius: 7, fontSize: font.size.sm, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                         <Icon name="trash" size={12} /> Elimina
                       </button>
                     )}
                   </td>
                 </tr>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </tbody>}
+        />
       </div>
     </div>
   )

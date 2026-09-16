@@ -6,14 +6,14 @@
 
 import React, { useMemo, useState } from 'react'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
-import { color as T, radius as R, shadow as S, ui3, ui } from '../lib/theme'
+import { color as T, radius as R, shadow as S, font, ui3, ui } from '../lib/theme'
 import { buildIngCosti, calcolaFCDettaglio, getR, isRicettaValida } from '../lib/foodcost'
 import { labelPlurale, isGustoTipo } from '../lib/tipoRicetta'
 import { useListinoSede, getRegSede } from '../lib/listinoSede'
 import { exportSimulatorePrezzi } from '../lib/exportPDF'
 import { gateExport, getExportCtx } from '../lib/exportGuard'
 import { lessico } from '../lib/lessico'
-import { KPI, SH, PageHeader, Tip, useSortable, SortTH, TNUM, fmt, fmt0, fmtp } from './_shared'
+import { KPI, SH, PageHeader, Tip, useSortable, SortTH, TNUM, TabellaOSchede, fmt, fmt0, fmtp } from './_shared'
 import Icon from '../components/Icon'
 import { fmtp0 } from '../lib/formatIt'
 
@@ -407,8 +407,76 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
       {/* ③ TABELLA PRODOTTI */}
       <SH sub="Tocca una riga per vedere come è composto il costo. Il prezzo consigliato porta il food cost al target.">I tuoi prodotti</SH>
       <div style={{ ...cardStyle(), overflow: 'hidden', marginBottom: 28 }}>
-        <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-          <table style={{ width: '100%', minWidth: isMobile ? 720 : 'unset', borderCollapse: 'collapse', fontSize: 13 }}>
+        {/* Sette colonne. Sul telefono la tabella era larga 720px dentro uno
+            schermo da 390 — quasi due schermate di scorrimento laterale — e
+            per di più `minWidth` era attivo SOLO sul telefono: sul computer,
+            dove lo spazio c'è, non c'era. Sul telefono diventa un elenco di
+            schede, con «Composizione del costo» dentro ciascuna. */}
+        <TabellaOSchede
+          minWidth={720}
+          righe={rowsSorted}
+          chiave={(r) => r.nome}
+          vuoto="Nessun prodotto a listino."
+          apriEtichetta="Com'è composto il costo"
+          titolo={(r) => (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              {r.nome}
+              {r.mancanti.length > 0 && (
+                <span aria-label="Prezzi ingredienti mancanti" title={`Ingredienti senza prezzo: ${r.mancanti.map(m => m.nome).join(', ')}. Il food cost è sottostimato.`}
+                  style={{ color: T.amber, display: 'inline-flex' }}>
+                  <Icon name="warning" size={13} />
+                </span>
+              )}
+            </span>
+          )}
+          colonne={[
+            { k: 'prezzo', label: 'Prezzo', cella: (r) => fmt(r.reg.prezzo) },
+            { k: 'fc', label: 'Food cost', cella: (r) => fmt(r.fc) },
+            { k: 'fcPct', label: 'Food cost %', forte: true,
+              cella: (r) => r.ricavo <= 0 ? '-' : <span style={{ color: fcColor(r.fcPct) }}>{fmtp(r.fcPct)}</span> },
+            { k: 'margPct', label: 'Margine %', cella: (r) => r.ricavo <= 0 ? '-' : fmtp(r.margPct) },
+            { k: 'consigliato', label: 'Prezzo consigliato', forte: true,
+              cella: (r) => (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  {fmt(r.prezzoConsigliato)}
+                  {r.deltaPrezzo > 0.01 ? (
+                    <span style={{ fontSize: font.size.sm, fontWeight: 700, color: T.brand }}>+{fmt(r.deltaPrezzo)}</span>
+                  ) : (
+                    <span style={{ fontSize: font.size.sm, color: T.green, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                      <Icon name="check" size={11} />in linea
+                    </span>
+                  )}
+                </span>
+              ) },
+          ]}
+          dettaglio={(r) => (
+            <>
+              <div style={{ fontSize: font.size.sm, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
+                {r.reg.unita.toLocaleString('it-IT', { useGrouping: 'always' })} {labelPlurale(r.reg.tipo)}/stampo
+              </div>
+              {r.righe.length === 0 ? (
+                <div style={{ fontSize: font.size.sm, color: T.textSoft }}>Nessun ingrediente con quantità nel ricettario.</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {r.righe.map((ing, j) => (
+                    <div key={j} style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, fontSize: 12 }}>
+                      <span style={{
+                        minWidth: 0, flex: 1, color: ing.mancante ? T.amber : T.text,
+                        fontWeight: j === 0 ? 700 : 500,
+                      }}>
+                        {ing.nome}{ing.isSemilavorato ? ' (semilav.)' : ''}{ing.mancante ? ' · prezzo mancante' : ''}
+                      </span>
+                      <span style={{ ...TNUM, color: T.text, fontWeight: 600, flexShrink: 0 }}>{fmt(ing.costo)}</span>
+                      <span style={{ ...TNUM, color: T.textSoft, flexShrink: 0, width: 40, textAlign: 'right' }}>
+                        {fmtp0(r.fc > 0 ? (ing.costo / r.fc * 100) : 0)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+          intestazione={
             <thead>
               <tr>
                 <SortTH k="nome" active={sortKey === 'nome'} dir={sortDir} onToggle={toggleSort}>Prodotto</SortTH>
@@ -420,7 +488,8 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
                 <th style={{ width: 32 }} aria-hidden="true" />
               </tr>
             </thead>
-            <tbody>
+          }
+          corpo={            <tbody>
               {rowsSorted.map((r, i) => {
                 const open = expanded === r.nome
                 const col = fcColor(r.fcPct)
@@ -469,26 +538,29 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
                         }}>
                           <span style={{ fontWeight: 700, color: T.text }}>{fmt(r.prezzoConsigliato)}</span>
                           {r.deltaPrezzo > 0.01 ? (
-                            <span style={{ fontSize: 12, fontWeight: 700, color: T.brand, ...TNUM }}>+{fmt(r.deltaPrezzo)}</span>
+                            <span style={{ fontSize: font.size.sm, fontWeight: 700, color: T.brand, ...TNUM }}>+{fmt(r.deltaPrezzo)}</span>
                           ) : (
-                            <span aria-label="Prezzo in linea con il target" style={{ fontSize: 12, color: T.green, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                            <span aria-label="Prezzo in linea con il target" style={{ fontSize: font.size.sm, color: T.green, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
                               <Icon name="check" size={11} />in linea
                             </span>
                           )}
                         </div>
                       </td>
+                      {/* Erano i caratteri "▾" e "▸": caratteri tipografici
+                          usati da icona, che cambiano forma da un dispositivo
+                          all'altro. Il progetto ha chevUp/chevDown. */}
                       <td style={{ textAlign: 'center', color: T.textSoft, padding: '0 8px' }} aria-hidden="true">
-                        {open ? '▾' : '▸'}
+                        <Icon name={open ? 'chevDown' : 'chevR'} size={12} />
                       </td>
                     </tr>
                     {open && (
                       <tr style={{ background: T.bgSubtle }}>
                         <td colSpan={7} style={{ textAlign: 'right', ...TNUM, padding: '8px 14px 18px' }}>
-                          <div style={{ fontSize: 12, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', margin: '6px 0 10px' }}>
+                          <div style={{ fontSize: font.size.sm, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', margin: '6px 0 10px' }}>
                             Composizione del costo · {r.reg.unita.toLocaleString('it-IT', { useGrouping: 'always' })} {labelPlurale(r.reg.tipo)}/stampo
                           </div>
                           {r.righe.length === 0 ? (
-                            <div style={{ fontSize: 12, color: T.textSoft }}>Nessun ingrediente con quantità nel ricettario.</div>
+                            <div style={{ fontSize: font.size.sm, color: T.textSoft }}>Nessun ingrediente con quantità nel ricettario.</div>
                           ) : (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                               {r.righe.map((ing, j) => {
@@ -519,9 +591,8 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
                   </React.Fragment>
                 )
               })}
-            </tbody>
-          </table>
-        </div>
+            </tbody>}
+        />
       </div>
 
       {/* ④ TOP INGREDIENTI */}

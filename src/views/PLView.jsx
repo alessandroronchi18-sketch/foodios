@@ -29,7 +29,7 @@ import { exportPLCompleto } from '../lib/exportPDF'
 import { gateExport, getExportCtx } from '../lib/exportGuard'
 import {
   C, TNUM, margColor, margBadge, Badge, Tip, PageHeader, SH, TD, TH,
-  useSortable, SortTH, fmt, fmt0, fmtp, KPI, ChartTip,
+  useSortable, SortTH, fmt, fmt0, fmtp, KPI, ChartTip, TabellaOSchede,
 } from './_shared'
 import Icon from '../components/Icon'
 import AiExplainButton from '../components/AiExplainButton'
@@ -192,25 +192,66 @@ function TopIngredientiTable({ ricettario, ingCosti, euro, pct }) {
         {/* minWidth: senza una larghezza minima lo scorrimento orizzontale
             non parte mai, e sul telefono le ultime colonne restavano tagliate
             fuori senza modo di raggiungerle. Sei colonne come in PLTable. */}
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, minWidth: 720 }}>
+        {/* Sei colonne, 720px sul telefono. Diventa un elenco di schede:
+            la barra dell'incidenza e i pallini delle ricette restano solo
+            nella tabella — servono a confrontare le righe fra loro, e in una
+            scheda per volta non confrontano niente. */}
+        <TabellaOSchede
+          minWidth={720}
+          righe={list}
+          chiave={(ing) => ing.k}
+          vuoto="Nessun ingrediente con un costo."
+          titolo={(ing) => (
+            <span>
+              {ing.nome}
+              {ing.isStima && <span style={{ fontSize: font.size.sm, marginLeft: 5, background: C.amberLight, color: C.amber, padding: '1px 5px', borderRadius: 3, fontWeight: 700 }}>stima</span>}
+            </span>
+          )}
+          apriEtichetta="Quantità e costo al grammo"
+          colonne={[
+            { k: 'pct', label: 'Quanto pesa sul food cost', forte: true, cella: (ing) => pct(ing.pctTot) },
+            { k: 'costo', label: 'Costo per stampo', forte: true, colore: C.red, cella: (ing) => euro(ing.costoTot) },
+          ]}
+          dettaglio={(ing) => (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12 }}>
+              {[
+                ['Quantità totale', `${Math.round(ing.qty)} g`],
+                ['Costo al grammo', ing.costoG > 0 ? `${ing.costoG.toFixed(4)} €` : '-'],
+                ['Usato in', ing.ricette.join(', ')],
+              ].map(([et, v]) => (
+                <div key={et} style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                  <span style={{ color: C.textSoft, flexShrink: 0 }}>{et}</span>
+                  <span style={{ fontWeight: 700, color: C.text, textAlign: 'right', ...TNUM }}>{v}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          riepilogoTelefono={
+            <div style={{ border: `1px solid ${C.borderStr}`, borderRadius: 12, background: C.bgSubtle, padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 }}>
+              <span style={{ fontSize: font.size.sm, fontWeight: 800, color: C.text, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Totale food cost</span>
+              <span style={{ fontSize: font.size.lg, fontWeight: 900, color: C.red, ...TNUM }}>{euro(grandTotal)}</span>
+            </div>
+          }
+          intestazione={
           <thead>
             <tr style={{ background: '#F8F4F2' }}>
-              <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>Ingrediente</th>
-              <th title="In quante ricette compare questo ingrediente" style={{ padding: '10px 14px', textAlign: 'left', fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, textDecoration: 'underline dotted', textUnderlineOffset: 3, cursor: 'help' }}>Usato in</th>
+              <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: font.size.sm, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>Ingrediente</th>
+              <th title="In quante ricette compare questo ingrediente" style={{ padding: '10px 14px', textAlign: 'left', fontSize: font.size.sm, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, textDecoration: 'underline dotted', textUnderlineOffset: 3, cursor: 'help' }}>Usato in</th>
               <SortTH k="qty" right active={sortKey === 'qty'} dir={sortDir} onToggle={toggleSort} tip="Grammi totali dell'ingrediente sommando una porzione di ogni ricetta che lo usa">Qty tot. (g)</SortTH>
               <SortTH k="costoTot" right active={sortKey === 'costoTot'} dir={sortDir} onToggle={toggleSort} tip="Costo di questo ingrediente per stampo, sommato sulle ricette che lo usano">Costo/stampo</SortTH>
               <SortTH k="pctTot" right active={sortKey === 'pctTot'} dir={sortDir} onToggle={toggleSort} tip="Quanto pesa questo ingrediente sul food cost complessivo del ricettario">% FC totale</SortTH>
               <SortTH k="costoG" right active={sortKey === 'costoG'} dir={sortDir} onToggle={toggleSort} tip="Costo di un singolo grammo dell'ingrediente">€ / g</SortTH>
             </tr>
           </thead>
-          <tbody>
+          }
+          corpo={          <tbody>
             {list.map((ing, i) => {
               const nRic = ing.ricette.length
               return (
                 <tr key={ing.k} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.white : '#FDFAF7' }}>
                   <td style={{ padding: '10px 14px', fontWeight: 700, color: C.text }}>
                     {ing.nome}
-                    {ing.isStima && <span style={{ fontSize: 12, marginLeft: 5, background: C.amberLight, color: C.amber, padding: '1px 5px', borderRadius: 3, fontWeight: 700 }}>stima</span>}
+                    {ing.isStima && <span style={{ fontSize: font.size.sm, marginLeft: 5, background: C.amberLight, color: C.amber, padding: '1px 5px', borderRadius: 3, fontWeight: 700 }}>stima</span>}
                   </td>
                   <td style={{ padding: '10px 14px', position: 'relative', overflow: 'visible' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}
@@ -220,18 +261,18 @@ function TopIngredientiTable({ ricettario, ingCosti, euro, pct }) {
                         <div key={di} style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
                           background: ['#6E0E1A', '#E07040', '#B45309', '#5B8FCE', '#7B7B7B'][di % 5] }}/>
                       ))}
-                      <span style={{ fontSize: 12, fontWeight: 700, color: C.textMid }}>{nRic} {nRic === 1 ? 'ricetta' : 'ricette'}</span>
+                      <span style={{ fontSize: font.size.sm, fontWeight: 700, color: C.textMid }}>{nRic} {nRic === 1 ? 'ricetta' : 'ricette'}</span>
                     </div>
                     {hovRic?.key === ing.k && (
                       <div style={{ position: 'absolute', zIndex: 9999, top: '100%', left: 0,
                         background: C.white, border: `1px solid ${C.border}`, borderRadius: 9,
                         padding: '10px 14px', boxShadow: '0 6px 24px rgba(0,0,0,0.13)',
                         minWidth: 180, pointerEvents: 'none', marginTop: 4 }}>
-                        <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: C.textSoft, marginBottom: 6 }}>Usato in</div>
+                        <div style={{ fontSize: font.size.sm, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: C.textSoft, marginBottom: 6 }}>Usato in</div>
                         {ing.ricette.map((r, ri) => (
                           <div key={r} style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 4 }}>
                             <div style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, background: ['#6E0E1A', '#E07040', '#B45309', '#5B8FCE', '#7B7B7B'][ri % 5] }}/>
-                            <span style={{ fontSize: 12, fontWeight: 600, color: C.text }}>{r}</span>
+                            <span style={{ fontSize: font.size.sm, fontWeight: 600, color: C.text }}>{r}</span>
                           </div>
                         ))}
                       </div>
@@ -247,21 +288,21 @@ function TopIngredientiTable({ ricettario, ingCosti, euro, pct }) {
                       <span style={{ fontWeight: 700, color: C.text, width: 36, textAlign: 'right' }}>{pct(ing.pctTot)}</span>
                     </div>
                   </td>
-                  <td style={{ padding: '10px 14px', textAlign: 'right', fontSize: 12, color: C.textSoft, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
+                  <td style={{ padding: '10px 14px', textAlign: 'right', fontSize: font.size.sm, color: C.textSoft, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
                     {ing.costoG > 0 ? `${ing.costoG.toFixed(4)} €` : '-'}
                   </td>
                 </tr>
               )
             })}
-          </tbody>
-          <tfoot>
+          </tbody>}
+          piede={          <tfoot>
             <tr style={{ background: '#F0EAE6', borderTop: `2px solid ${C.borderStr}` }}>
-              <td colSpan={3} style={{ padding: '10px 14px', fontWeight: 900, fontSize: 12, color: C.text }}>TOTALE FOOD COST</td>
-              <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 900, fontSize: 13, color: C.red, ...TNUM }}>{euro(grandTotal)}</td>
+              <td colSpan={3} style={{ padding: '10px 14px', fontWeight: 900, fontSize: font.size.sm, color: C.text }}>TOTALE FOOD COST</td>
+              <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 900, fontSize: font.size.base, color: C.red, ...TNUM }}>{euro(grandTotal)}</td>
               <td colSpan={2}/>
             </tr>
-          </tfoot>
-        </table>
+          </tfoot>}
+        />
       </div>
     </>
   )
@@ -410,8 +451,74 @@ function PLTable({ rows, euro, pct, totRicavo, totFC, totMargine, fcAvg, avgMarg
           consentire lo scroll orizzontale su mobile/tablet senza tagliare i
           numeri; numeri tabular-nums e allineati a destra; riga TOTALE 800. */}
       <div className="fos-card-glow" style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, overflowX: 'auto', marginBottom: 28, position: 'relative', boxShadow: SHADOW_PREMIUM }}>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, minWidth: 760 }}>
+        {/* Undici colonne: sul telefono la tabella è larga 760px e la
+            pagina ne scorre quasi due schermate di lato. Diventa un elenco di
+            schede — quattro numeri in chiaro (prezzo, ricavo, margine,
+            margine %) e gli altri sette dietro «Tutti i numeri», altrimenti
+            una scheda sarebbe alta trecento pixel e trenta prodotti farebbero
+            nove metri di pagina. */}
+        <TabellaOSchede
+          minWidth={760}
+          righe={sorted}
+          chiave={(r) => r.nome}
+          vuoto="Nessun prodotto a listino."
+          apriEtichetta="Tutti i numeri"
+          titolo={(r) => r.nome}
+          riassunto={(r) => r.senzaPrezzo
+            ? <span title="Manca il prezzo di vendita: senza quello non c'è un margine da valutare." style={{ fontSize: font.size.sm, color: C.textSoft }}>prezzo mancante</span>
+            : margBadge(r.margPct)}
+          colonne={[
+            { k: 'prezzo', label: 'Prezzo a pezzo', forte: true,
+              cella: (r) => r.senzaPrezzo ? '—' : euro(r.reg.prezzo) },
+            { k: 'ricavo', label: 'Ricavo per stampo', colore: C.green,
+              cella: (r) => r.senzaPrezzo ? '—' : fmt0(r.ricavo) },
+            { k: 'margine', label: 'Margine per stampo', forte: true,
+              cella: (r) => r.senzaPrezzo ? '—' : <span style={{ color: margColor(r.margPct) }}>{fmt0(r.margine)}</span> },
+            { k: 'margPct', label: 'Margine %', forte: true,
+              cella: (r) => r.senzaPrezzo ? '—' : <span style={{ color: margColor(r.margPct) }}>{pct(r.margPct)}</span> },
+          ]}
+          dettaglio={(r) => (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12 }}>
+              {[
+                ['Pezzi per stampo', r.senzaPrezzo && !r.isGusto ? '—' : `${r.reg.unita} ${labelPlurale(r.reg.tipo)}`],
+                ['Food cost per stampo', euro(r.fc)],
+                ['Food cost sul ricavo', r.senzaPrezzo ? '—' : pct(r.fcPct)],
+                ['Food cost a pezzo', r.senzaPrezzo && !r.isGusto ? '—' : euro(r.fcUnita)],
+                ['Margine a pezzo', r.senzaPrezzo ? '—' : euro(r.mrgUnita)],
+              ].map(([et, v]) => (
+                <div key={et} style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                  <span style={{ color: C.textSoft }}>{et}</span>
+                  <span style={{ fontWeight: 700, color: C.text, ...TNUM }}>{v}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          riepilogoTelefono={
+            <div style={{ border: `1px solid ${C.borderStr}`, borderRadius: 12, background: C.bgSubtle, padding: '12px 14px' }}>
+              <div style={{ fontSize: font.size.sm, fontWeight: 800, color: C.text, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+                Totale / media
+              </div>
+              {[
+                ['Ricavo', fmt0(totRicavo), C.green],
+                ['Food cost', euro(totFC), C.red],
+                ['Food cost sul ricavo', pct(fcAvg), fcAvg < 30 ? C.green : fcAvg < 40 ? C.amber : C.red],
+                ['Margine', fmt0(totMargine), margColor(avgMarg)],
+                ['Margine %', pct(avgMarg), margColor(avgMarg)],
+              ].map(([et, v, col]) => (
+                <div key={et} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '4px 0', fontSize: 13 }}>
+                  <span style={{ color: C.textSoft, fontWeight: 600 }}>{et}</span>
+                  <span style={{ fontWeight: 800, color: col, ...TNUM }}>{v}</span>
+                </div>
+              ))}
+              {nSenzaPrezzo > 0 && (
+                <div style={{ fontWeight: 500, fontSize: font.size.sm, color: C.textSoft, marginTop: 8, lineHeight: 1.45 }}>
+                  su {rows.length - nSenzaPrezzo} {rows.length - nSenzaPrezzo === 1 ? 'prodotto' : 'prodotti'} con un prezzo di vendita.
+                  {' '}{nSenzaPrezzo} {nSenzaPrezzo === 1 ? 'è fuori' : 'sono fuori'} dal conto{fcSenzaPrezzo > 0 ? `, per ${euro(fcSenzaPrezzo)} di materie prime` : ''}.
+                </div>
+              )}
+            </div>
+          }
+          intestazione={
             <thead>
               <tr style={{ background: '#F8F4F2' }}>
                 <SortTH k="nome" active={sortKey === 'nome'} dir={sortDir} onToggle={toggleSort}>Prodotto</SortTH>
@@ -424,10 +531,11 @@ function PLTable({ rows, euro, pct, totRicavo, totFC, totMargine, fcAvg, avgMarg
                 <SortTH k="margPct" right active={sortKey === 'margPct'} dir={sortDir} onToggle={toggleSort} tip="Margine lordo in percentuale sul ricavo">Marg. %</SortTH>
                 <SortTH k="fcUnita" right active={sortKey === 'fcUnita'} dir={sortDir} onToggle={toggleSort} tip="Food cost di un singolo pezzo/fetta">FC/un.</SortTH>
                 <SortTH k="mrgUnita" right active={sortKey === 'mrgUnita'} dir={sortDir} onToggle={toggleSort} tip="Margine lordo di un singolo pezzo/fetta">Marg./un.</SortTH>
-                <th title="Valutazione complessiva del margine del prodotto" style={{ padding: '10px 14px', fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, textAlign: 'right', textDecoration: 'underline dotted', textUnderlineOffset: 3, cursor: 'help' }}>Rating</th>
+                <th title="Valutazione complessiva del margine del prodotto" style={{ padding: '10px 14px', fontSize: font.size.sm, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, textAlign: 'right', textDecoration: 'underline dotted', textUnderlineOffset: 3, cursor: 'help' }}>Rating</th>
               </tr>
             </thead>
-            <tbody>
+          }
+          corpo={            <tbody>
               {sorted.map((r, i) => (
                 <tr key={r.nome} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.white : '#FDFAF7' }}>
                   {/* Senza un prezzo di vendita salvato non si mostra un
@@ -466,15 +574,15 @@ function PLTable({ rows, euro, pct, totRicavo, totFC, totMargine, fcAvg, avgMarg
                   </TD>
                   <td style={{ padding: '10px 14px', textAlign: 'right' }}>
                     {r.senzaPrezzo
-                      ? <span title="Manca il prezzo di vendita: senza quello non c'è un margine da valutare." style={{ fontSize: 12, color: C.textSoft, cursor: 'help' }}>prezzo mancante</span>
+                      ? <span title="Manca il prezzo di vendita: senza quello non c'è un margine da valutare." style={{ fontSize: font.size.sm, color: C.textSoft, cursor: 'help' }}>prezzo mancante</span>
                       : margBadge(r.margPct)}
                   </td>
                 </tr>
               ))}
-            </tbody>
-            <tfoot>
+            </tbody>}
+          piede={            <tfoot>
               <tr style={{ background: '#F0EAE6', borderTop: `2px solid ${C.borderStr}` }}>
-                <td colSpan={3} style={{ textAlign: 'right', ...TNUM, padding: '12px 14px', fontWeight: 800, fontSize: 12, color: C.text }}>
+                <td colSpan={3} style={{ textAlign: 'right', ...TNUM, padding: '12px 14px', fontWeight: 800, fontSize: font.size.sm, color: C.text }}>
                   TOTALE / MEDIA
                   {nSenzaPrezzo > 0 && (
                     <div style={{ fontWeight: 500, fontSize: font.size.sm, color: C.textSoft, marginTop: 2, textTransform: 'none', letterSpacing: 0 }}>
@@ -483,16 +591,15 @@ function PLTable({ rows, euro, pct, totRicavo, totFC, totMargine, fcAvg, avgMarg
                     </div>
                   )}
                 </td>
-                <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 800, fontSize: 13, color: C.green, ...TNUM }}>{fmt0(totRicavo)}</td>
-                <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 800, fontSize: 13, color: C.red, ...TNUM }}>{euro(totFC)}</td>
+                <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 800, fontSize: font.size.base, color: C.green, ...TNUM }}>{fmt0(totRicavo)}</td>
+                <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 800, fontSize: font.size.base, color: C.red, ...TNUM }}>{euro(totFC)}</td>
                 <td style={{ ...TNUM, padding: '12px 14px', textAlign: 'right', fontWeight: 800, color: fcAvg < 30 ? C.green : fcAvg < 40 ? C.amber : C.red }}>{pct(fcAvg)}</td>
-                <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 800, fontSize: 13, color: margColor(avgMarg), ...TNUM }}>{fmt0(totMargine)}</td>
+                <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 800, fontSize: font.size.base, color: margColor(avgMarg), ...TNUM }}>{fmt0(totMargine)}</td>
                 <td style={{ ...TNUM, padding: '12px 14px', textAlign: 'right', fontWeight: 800, color: margColor(avgMarg) }}>{pct(avgMarg)}</td>
                 <td colSpan={3}/>
               </tr>
-            </tfoot>
-          </table>
-        </div>
+            </tfoot>}
+        />
       </div>
     </>
   )
@@ -519,8 +626,40 @@ function SensTable({ rows, euro, pct }) {
     <>
       <SH sub="Cosa succede se i costi materie prime salgono">Sensitivity: Impatto Aumento Costi</SH>
       <div className="fos-card-glow" style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, overflow: 'hidden', overflowX: 'auto', marginBottom: 28, position: 'relative', boxShadow: SHADOW_PREMIUM }}>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, minWidth: 580 }}>
+        {/* Sei colonne, 580px: sul telefono diventa un elenco di schede. */}
+        <TabellaOSchede
+          minWidth={580}
+          righe={ss}
+          chiave={(r) => r.nome}
+          vuoto="Nessun prodotto con un prezzo di vendita."
+          titolo={(r) => r.nome}
+          riassunto={(r) => (
+            <span style={{ background: r.headroom > 50 ? C.greenLight : r.headroom > 25 ? C.amberLight : C.redLight,
+              color: r.headroom > 50 ? C.green : r.headroom > 25 ? C.amber : C.red,
+              fontSize: font.size.sm, fontWeight: 700, padding: '3px 8px', borderRadius: 6, whiteSpace: 'nowrap' }}>
+              {r.headroom > 0 ? '+' : ''}{r.headroom.toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })}% FC
+            </span>
+          )}
+          apriEtichetta="Se i costi salgono"
+          colonne={[
+            { k: 'oggi', label: 'Margine oggi', forte: true,
+              cella: (r) => <span style={{ color: margColor(r.margPct) }}>{euro(r.margine)} ({pct(r.margPct)})</span> },
+          ]}
+          dettaglio={(r) => (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12 }}>
+              {[
+                ['Se il food cost sale del 10%', euro(r.marg10), r.marg10 > 0 ? C.green : C.red],
+                ['Se sale del 20%', euro(r.marg20), r.marg20 > 0 ? C.green : C.red],
+                ['Ricavo per stampo', euro(r.ricavo), C.text],
+              ].map(([et, v, col]) => (
+                <div key={et} style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                  <span style={{ color: C.textSoft }}>{et}</span>
+                  <span style={{ fontWeight: 700, color: col, ...TNUM }}>{v}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          intestazione={
             <thead>
               <tr style={{ background: '#F8F4F2' }}>
                 <SortTH k="nome" active={sortKey === 'nome'} dir={sortDir} onToggle={toggleSort}>Prodotto</SortTH>
@@ -531,7 +670,8 @@ function SensTable({ rows, euro, pct }) {
                 <SortTH k="headroom" right active={sortKey === 'headroom'} dir={sortDir} onToggle={toggleSort} tip="Margine di sicurezza: quanto possono salire i costi prima di erodere la redditività">Headroom</SortTH>
               </tr>
             </thead>
-            <tbody>
+          }
+          corpo={            <tbody>
               {ss.map((r, i) => (
                 <tr key={r.nome} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.white : '#FDFAF7' }}>
                   <TD bold>{r.nome}</TD>
@@ -542,15 +682,14 @@ function SensTable({ rows, euro, pct }) {
                   <td style={{ ...TNUM, padding: '10px 14px', textAlign: 'right' }}>
                     <span style={{ background: r.headroom > 50 ? C.greenLight : r.headroom > 25 ? C.amberLight : C.redLight,
                       color: r.headroom > 50 ? C.green : r.headroom > 25 ? C.amber : C.red,
-                      fontSize: 12, fontWeight: 700, padding: '3px 8px', borderRadius: 6 }}>
+                      fontSize: font.size.sm, fontWeight: 700, padding: '3px 8px', borderRadius: 6 }}>
                       {r.headroom > 0 ? '+' : ''}{r.headroom.toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })}% FC tollerabile
                     </span>
                   </td>
                 </tr>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </tbody>}
+        />
         {nEsclusi > 0 && (
           <div style={{ padding: '10px 14px', borderTop: `1px solid ${C.border}`, fontSize: font.size.sm, color: C.textSoft, lineHeight: 1.5 }}>
             {nEsclusi} {nEsclusi === 1 ? 'prodotto è fuori' : 'prodotti sono fuori'} da questa tabella: senza un prezzo
@@ -1589,8 +1728,15 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
                 color: hi ? 'rgba(255,255,255,0.7)' : T.textSoft, marginBottom: 6, minHeight: 28, lineHeight: 1.25,
                 borderBottom: `1px dashed ${hi ? 'rgba(255,255,255,0.28)' : 'rgba(155,120,115,0.4)'}` }}>{lbl}</div>
             </Tip>
+            {/* Va a capo invece di finire nei puntini: in questi riquadri il
+                valore a volte è il NOME di un prodotto («il più redditizio»),
+                e «Crostata Frutta Fresca» in 139px diventava «Crostata Frutta
+                Fre…». Di un numero tagliato ci si accorge; di un nome tagliato
+                si legge l'inizio e si crede di aver letto tutto — e in un
+                ricettario i nomi si somigliano. */}
             <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em',
-              color: hi ? T.textOnDark : color || T.text, lineHeight: 1.15, minHeight: 32, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', ...TNUM }}>{val}</div>
+              color: hi ? T.textOnDark : color || T.text, lineHeight: 1.2, minHeight: 32,
+              overflowWrap: 'anywhere', ...TNUM }}>{val}</div>
             <div style={{ fontSize: 12, color: hi ? 'rgba(255,255,255,0.62)' : T.textSoft, marginTop: 5, minHeight: 16, maxHeight: 28, overflow: 'hidden', lineHeight: 1.4 }}>{sub}</div>
           </div>
         ))}
@@ -1912,7 +2058,19 @@ function BoxKpi({ label, value, color, highlight, small, sub }) {
           sul tablet del laboratorio. Le tre altezze minime restano uniformi
           così i box affiancati sono incolonnati fra loro. */}
       <div style={{ fontSize: font.size.sm, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4, minHeight: 30, lineHeight: 1.3 }}>{label}</div>
-      <div style={{ fontSize: small ? 16 : 20, fontWeight: 800, color, ...TNUM, letterSpacing: '-0.02em', minHeight: 32, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</div>
+      {/* Il valore va a capo invece di finire nei puntini.
+          Questi riquadri di solito contengono un numero, e per un numero i
+          puntini vanno benissimo. Ma alcuni contengono il NOME di un prodotto
+          («il più redditizio»), e «Crostata Frutta Fresca» in 139px diventava
+          «Crostata Frutta Fre…»: di un numero tagliato ci si accorge, di un
+          nome tagliato si legge l'inizio e si crede di aver letto tutto.
+          L'altezza minima sale a due righe, così i riquadri affiancati restano
+          incolonnati anche quando uno solo va a capo. */}
+      <div style={{
+        fontSize: small ? 16 : 20, fontWeight: 800, color, ...TNUM,
+        letterSpacing: '-0.02em', minHeight: 32, lineHeight: 1.2,
+        overflowWrap: 'anywhere',
+      }}>{value}</div>
       {sub != null && (
         <div style={{ fontSize: font.size.sm, color: T.textSoft, marginTop: 3, minHeight: 30, lineHeight: 1.35 }}>{sub}</div>
       )}
