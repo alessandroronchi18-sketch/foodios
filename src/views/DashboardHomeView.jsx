@@ -299,6 +299,65 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
     ? (cassaOggi?.totale || 0)
     : totaleChiusura(cassaOggi)
 
+  // ── Rispetto a quando? ────────────────────────────────────────────────────
+  //
+  // «Oggi 1.477 €» da solo non è un'informazione: è un numero. Diventa
+  // un'informazione con un riferimento — e per un negozio il riferimento non è
+  // ieri, è **lo stesso giorno della settimana scorsa**: un martedì contro un
+  // martedì. Confrontare un lunedì col sabato precedente dice solo che il
+  // sabato si lavora di più, cosa che si sapeva.
+  //
+  // Se quel giorno non c'è, si ripiega su ieri dicendolo. Se non c'è nemmeno
+  // quello non si scrive niente: un confronto inventato è peggio di nessun
+  // confronto.
+  const settimanaScorsa = useMemo(() => {
+    const [y, m, d] = String(today).split('-').map(Number)
+    return formatLocalDate(new Date(y, m - 1, d - 7))
+  }, [today])
+  const ieri = useMemo(() => {
+    const [y, m, d] = String(today).split('-').map(Number)
+    return formatLocalDate(new Date(y, m - 1, d - 1))
+  }, [today])
+
+  const confrontoRicavi = useMemo(() => {
+    const totaleDi = (giorno) => {
+      const righe = (chiusEff || []).filter(c => c.data === giorno)
+      if (righe.length === 0) return null
+      return righe.reduce((s, c) => s + totaleChiusura(c), 0)
+    }
+    const perGiorno = [
+      { giorno: settimanaScorsa, etichetta: 'la settimana scorsa' },
+      { giorno: ieri, etichetta: 'ieri' },
+    ]
+    for (const { giorno, etichetta } of perGiorno) {
+      const tot = totaleDi(giorno)
+      if (tot != null && tot > 0) {
+        const delta = (ricaviOggi + b2bOggi) - tot
+        return { tot, delta, etichetta, pct: tot > 0 ? (delta / tot) * 100 : null }
+      }
+    }
+    return null
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chiusEff, settimanaScorsa, ieri, ricaviOggi, b2bOggi])
+
+  // Stessa cosa per la produzione: «120 pezzi» diventa un'informazione solo
+  // accanto a quanti se ne facevano lo stesso giorno la settimana prima.
+  const confrontoProduzione = useMemo(() => {
+    const pezziDi = (giorno) => {
+      const sess = (giornaliero || []).filter(s => s.data === giorno)
+      if (sess.length === 0) return null
+      return sess.reduce((acc, s) => acc + (s.prodotti || []).reduce((a, p) => a + (Number(p.vendibile) || Number(p.stampi) || 0), 0), 0)
+    }
+    for (const { giorno, etichetta } of [
+      { giorno: settimanaScorsa, etichetta: 'la settimana scorsa' },
+      { giorno: ieri, etichetta: 'ieri' },
+    ]) {
+      const n = pezziDi(giorno)
+      if (n != null && n > 0) return { n, delta: prodCount - n, etichetta }
+    }
+    return null
+  }, [giornaliero, settimanaScorsa, ieri, prodCount])
+
   const ricette = Object.values(ricettario?.ricette || {})
     .filter(r => getR(r.nome, r).tipo !== 'interno' && getR(r.nome, r).tipo !== 'semilavorato')
   // Il food cost del ricettario.
@@ -482,9 +541,11 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
           value={fmt0(ricaviOggi + b2bOggi)}
           valueColor={T.green}
           empty={!cassaOggi && b2bOggi === 0}
-          sub={b2bMese > 0
-            ? `B2B mese ${fmt0(b2bMese)}`
-            : (cassaOggi ? 'incassati oggi' : 'non ancora registrati')}
+          sub={confrontoRicavi
+            ? `${confrontoRicavi.delta >= 0 ? '+' : ''}${fmt0(confrontoRicavi.delta)} rispetto a ${confrontoRicavi.etichetta}`
+            : (b2bMese > 0
+              ? `B2B mese ${fmt0(b2bMese)}`
+              : (cassaOggi ? 'incassati oggi' : 'non ancora registrati'))}
           onClick={() => setView('chiusura')} />
         <KpiCard label="Food Cost" icon={ICO.pie} tint={TINT.fc}
           value={fcInfo.pct == null ? '-' : fmtp(fcMedio * 100)}
@@ -494,7 +555,13 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
             ? (ricette.length === 0 ? 'nessuna ricetta' : `${ricette.length === 1 ? 'la ricetta non ha' : `nessuna delle ${ricette.length} ricette ha`} un prezzo di vendita`)
             : (fcInfo.fuori > 0 ? `su ${fcInfo.dentro} di ${ricette.length} ricette` : 'sul ricettario')}
           onClick={() => setView('simulatore')} />
-        <KpiCard label="Produzione" icon={ICO.box} tint={TINT.blue} value={<>{n0(prodCount)}<span style={{ fontSize: isMobile ? 12 : 15, fontWeight: 600, color: T.textSoft, marginLeft: 6 }}>pz</span></>} valueColor="#2563EB" empty={!hasProdOggi} sub={hasProdOggi ? 'prodotti oggi' : 'non registrata'} onClick={() => setView('giornaliero')} />
+        <KpiCard label="Produzione" icon={ICO.box} tint={TINT.blue} value={<>{n0(prodCount)}<span style={{ fontSize: isMobile ? 12 : 15, fontWeight: 600, color: T.textSoft, marginLeft: 6 }}>pz</span></>} valueColor="#2563EB" empty={!hasProdOggi}
+          sub={hasProdOggi
+            ? (confrontoProduzione
+              ? `${confrontoProduzione.delta >= 0 ? '+' : ''}${n0(confrontoProduzione.delta)} pz rispetto a ${confrontoProduzione.etichetta}`
+              : 'prodotti oggi')
+            : 'non registrata'}
+          onClick={() => setView('giornaliero')} />
         <KpiCard label="Magazzino" icon={ICO.alert}
           tint={critici.length > 0 ? TINT.red : TINT.green}
           value={critici.length > 0
