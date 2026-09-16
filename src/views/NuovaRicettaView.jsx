@@ -10,7 +10,7 @@
 // totImpasto1, foodCost1, ingredienti, note, unita, prezzo, tipo, congelabile, allergeni).
 import React, { useState, useMemo, useEffect, useRef } from 'react'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
-import { color as T, radius as R, motion as M, typo } from '../lib/theme'
+import { color as T, radius as R, motion as M, typo, font } from '../lib/theme'
 import { buildIngCosti, calcolaFC, costoRigaIngrediente, getR, isRicettaValida, mergeIngredientiPerNorm, normIng, PREZZI_HORECA, resaGrammi, translateIngredienteEN, translateProdottoEN } from '../lib/foodcost'
 import { ALLERGENI, ALLERGENE_COLORS, detectAllergeniFromIngredienti, analizzaAllergeni, mergeAllergeni } from '../lib/allergeni'
 import { onEnterAutoComplete } from '../lib/autocomplete'
@@ -19,6 +19,7 @@ import FotoOCR from '../components/FotoOCR'
 import AIFotoAnalisi from '../components/AIFotoAnalisi'
 import Icon from '../components/Icon'
 import { C, fmt, fmtp, TNUM, CampoConElenco } from './_shared'
+import { isSemiOInterno } from '../lib/tipoRicetta'
 import { useUnsavedGuard } from '../lib/useUnsavedGuard'
 
 // Ombra premium coerente con la Dashboard home.
@@ -224,6 +225,51 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
       notify("Errore salvataggio prezzo, riprova", false);
     }
   };
+
+  // «Parti da una che hai già»: copia ingredienti, categoria e tipo di una
+  // ricetta esistente in un modulo NUOVO, lasciando il nome da scrivere.
+  //
+  // In «Nuovo semilavorato» ci sono tre template rapidi (crema pasticcera,
+  // pasta frolla, frutta per crostate): sono ricette standard del mestiere,
+  // uguali per tutti. Per un gusto di gelato non è così — le quantità di una
+  // base sono il segreto del laboratorio, e inventarle qui vorrebbe dire
+  // scrivere nel ricettario del cliente una ricetta che non è sua. Quindi i
+  // punti di partenza sono i SUOI: un gusto nuovo, in gelateria, nasce quasi
+  // sempre da uno che c'è già.
+  const partiDa = nome => {
+    const r = ricettario?.ricette?.[nome];
+    if (!r) return;
+    const reg = getR(nome, r);
+    const ings = (r.ingredienti || []).map(i => ({ ...i }));
+    const copia = {
+      ...empty,
+      nome: "",
+      categoria: r.categoria || empty.categoria,
+      tipo: reg.tipoPresunto ? empty.tipo : reg.tipo,
+      unita: reg.tipoPresunto ? empty.unita : reg.unita,
+      prezzo: reg.prezzo,
+      ingredienti: ings,
+      resa_g: (typeof r.resa_g === 'number' && r.resa_g > 0) ? r.resa_g : null,
+    };
+    setForm(copia);
+    setEditMode(null);
+    initialFormRef.current = copia;
+    notify(`Partito da ${nome}: ${ings.length} ${ings.length === 1 ? 'ingrediente' : 'ingredienti'}. Dai un nome e cambia quello che serve.`);
+    scrollToFormDeferred(100);
+  };
+
+  // Le tre da cui si parte più volentieri: quelle con più ingredienti, che
+  // sono quelle in cui c'è più lavoro da riusare. Escluse le basi e i
+  // semilavorati: quelli hanno la loro pagina.
+  const ricettePerPartire = useMemo(() => {
+    const tutte = Object.values(ricettario?.ricette || {});
+    return tutte
+      .filter(r => r?.nome && Array.isArray(r.ingredienti) && r.ingredienti.length > 0)
+      .filter(r => !isSemiOInterno(getR(r.nome, r).tipo))
+      .sort((a, b) => b.ingredienti.length - a.ingredienti.length)
+      .slice(0, 3)
+      .map(r => r.nome);
+  }, [ricettario]);
 
   const loadForEdit = nome => {
     const r = ricettario?.ricette?.[nome];
@@ -546,6 +592,11 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
   };
 
   const cardStyle = { background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: isMobile ? '16px' : '20px', boxShadow: SHADOW_PREMIUM };
+  // Le sezioni del modulo stanno dentro UN riquadro solo, come in «Nuovo
+  // semilavorato»: si separano con un filo, non con sei cornici. Prima ogni
+  // sezione era un riquadro con bordo e ombra, e una scheda con gli stessi
+  // campi dell'altra sembrava il doppio del lavoro.
+  const sezione = { paddingTop: isMobile ? 16 : 20, marginTop: isMobile ? 16 : 20, borderTop: `1px solid ${C.borderSoft}` };
 
   return (
     <>
@@ -710,11 +761,37 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
           allergeni, e in fondo quanto costa — che è l'ordine in cui si fa il
           lavoro. */}
       <div ref={formRef} style={{ display: "flex", flexDirection: "column", gap: isTablet ? 18 : 20 }}>
-        {/* ── Form (sinistra) ──────────────────────────────────────────────── */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        {/* Il modulo: un riquadro solo, con le sezioni separate da un filo. */}
+        <div style={{ ...cardStyle, display: "flex", flexDirection: "column" }}>
+
+          {/* Punti di partenza rapidi, come i «Template rapidi» dei
+              semilavorati — solo che qui non sono ricette inventate da noi:
+              sono le sue. Compaiono solo con il modulo vuoto, e spariscono
+              appena si comincia a scrivere. */}
+          {!editMode && !form.nome && ricettePerPartire.length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ ...fieldLabel, display: 'flex', alignItems: 'center', gap: 5 }}>
+                <Icon name="bolt" size={12} /> Parti da una che hai già
+              </div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {ricettePerPartire.map(n => (
+                  <button key={n} type="button" onClick={() => partiDa(n)}
+                    title={`Copia ingredienti e impostazioni di ${n} in una ricetta nuova`}
+                    style={{
+                      padding: isMobile ? '10px 13px' : '8px 12px', minHeight: isMobile ? 44 : 'auto',
+                      borderRadius: 8, border: `1px solid ${C.border}`, background: C.bgSubtle,
+                      color: C.textMid, fontSize: font.size.sm, fontWeight: 700, cursor: 'pointer',
+                      whiteSpace: 'nowrap', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis',
+                    }}>
+                    {n}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* 1. Informazioni prodotto */}
-          <div style={cardStyle}>
+          <div>
             <PanelHead icon={<Icon name="clipboard" size={18} />} title={`Informazioni ${LEX.prodotto}`} color={C.text} />
             <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "2fr 2fr", gap: 14 }}>
               {/* Nome - full width */}
@@ -903,7 +980,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
           </div>
 
           {/* 2. Ingredienti */}
-          <div style={cardStyle}>
+          <div style={sezione}>
             <PanelHead icon={<Icon name="receipt" size={18} />} title="Ingredienti"
               sub={isGusto
                 ? "Aggiungi ogni ingrediente in grammi per 1 kg di gusto finito. Il costo viene preso dal tuo listino prezzi (o dalla stima HoReCa)."
@@ -1092,7 +1169,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
               }))
             }
             return (
-              <div style={cardStyle}>
+              <div style={sezione}>
                 <PanelHead icon={<Icon name="package" size={18} />} title="Resa" sub={sub} />
                 <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '180px 1fr', gap: 12, alignItems: 'flex-start' }}>
                   <div>
@@ -1146,7 +1223,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
           })()}
 
           {/* 3. Allergeni - auto-rilevati */}
-          <div style={cardStyle}>
+          <div style={sezione}>
             <PanelHead icon={<Icon name="warning" size={18} />} title="Allergeni presenti" color={C.amber}
               badge={<span style={{ fontSize: 12, fontWeight: 700, padding: "2px 8px", borderRadius: R.full, background: "#E0F2FE", color: "#0369A1", textTransform: "uppercase", letterSpacing: "0.05em" }}>Auto</span>}
               sub="Calcolati automaticamente dagli ingredienti (Reg. UE 1169/2011). Aggiungi manualmente quelli mancanti se necessario." />
@@ -1301,7 +1378,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
               </div>
             </div>
           )}
-          <button onClick={handleSave} disabled={saving} style={{ padding: isMobile ? "16px" : "14px", minHeight: isMobile ? 52 : 'auto', background: C.red, color: C.white, border: "none", borderRadius: 10, fontWeight: 900, fontSize: isMobile ? 15 : 14, cursor: saving ? "default" : "pointer", opacity: saving ? 0.65 : 1, boxShadow: "0 2px 10px rgba(110,14,26,0.25)", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, width: isMobile ? '100%' : 'auto' }}>
+          <button onClick={handleSave} disabled={saving} style={{ marginTop: isMobile ? 16 : 20, padding: isMobile ? "16px" : "14px", minHeight: isMobile ? 52 : 'auto', background: C.red, color: C.white, border: "none", borderRadius: 10, fontWeight: 900, fontSize: isMobile ? 15 : 14, cursor: saving ? "default" : "pointer", opacity: saving ? 0.65 : 1, boxShadow: "0 2px 10px rgba(110,14,26,0.25)", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, width: isMobile ? '100%' : 'auto' }}>
             <Icon name="save" size={16} /> <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{saving ? "Salvataggio…" : (editMode ? `Salva modifiche a ${editMode}` : `Salva ${LEX.nuovaRicetta.toLowerCase()}`)}</span>
           </button>
         </div>

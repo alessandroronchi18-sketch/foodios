@@ -51,3 +51,49 @@ describe('la scheda della ricetta', () => {
     expect(RICETTA).not.toMatch(/L'anteprima a destra/)
   })
 })
+
+describe('un riquadro solo, come nei semilavorati', () => {
+  it('le sezioni del modulo si separano con un filo, non con sei cornici', () => {
+    // Sei riquadri con bordo e ombra facevano sembrare il doppio del lavoro
+    // una scheda che ha gli stessi campi dell'altra.
+    expect(RICETTA).toMatch(/const sezione = \{ paddingTop:/)
+    expect(RICETTA).toMatch(/borderTop: `1px solid \$\{C\.borderSoft\}`/)
+    // Restano solo i due riquadri dei risultati (costo e prezzo minimo).
+    const quanti = (RICETTA.match(/style=\{cardStyle\}/g) || []).length
+    expect(quanti, 'riquadri con cornice rimasti').toBeLessThanOrEqual(2)
+  })
+})
+
+describe('i punti di partenza rapidi', () => {
+  it('ci sono, come i «Template rapidi» dei semilavorati', () => {
+    expect(RICETTA).toMatch(/Parti da una che hai già/)
+    expect(RICETTA).toMatch(/const partiDa = nome =>/)
+  })
+
+  it('ma partono dalle SUE ricette, non da ricette inventate da noi', () => {
+    // In «Nuovo semilavorato» i template sono ricette standard del mestiere
+    // (crema pasticcera, pasta frolla), uguali per tutti. Per un gusto di
+    // gelato non è così: le quantità di una base sono il segreto del
+    // laboratorio, e scriverne una qui vorrebbe dire mettere nel ricettario
+    // del cliente una ricetta che non è sua.
+    expect(RICETTA).toMatch(/const ricettePerPartire = useMemo/)
+    expect(RICETTA).toMatch(/Object\.values\(ricettario\?\.ricette \|\| \{\}\)/)
+  })
+
+  it('copiano gli ingredienti ma NON il nome: quello si scrive', () => {
+    const fn = RICETTA.slice(RICETTA.indexOf('const partiDa = nome =>'), RICETTA.indexOf('const loadForEdit'))
+    expect(fn).toMatch(/nome: ""/)
+    expect(fn).toMatch(/ingredienti: ings/)
+    // E non si entra in modifica: è una ricetta nuova, non quella di partenza.
+    expect(fn).toMatch(/setEditMode\(null\)/)
+  })
+
+  it('e non propongono basi o semilavorati: quelli hanno la loro pagina', () => {
+    const memo = RICETTA.slice(RICETTA.indexOf('const ricettePerPartire'), RICETTA.indexOf('const loadForEdit'))
+    expect(memo).toMatch(/!isSemiOInterno\(getR\(r\.nome, r\)\.tipo\)/)
+  })
+
+  it('spariscono appena si comincia a scrivere', () => {
+    expect(RICETTA).toMatch(/\{!editMode && !form\.nome && ricettePerPartire\.length > 0 &&/)
+  })
+})
