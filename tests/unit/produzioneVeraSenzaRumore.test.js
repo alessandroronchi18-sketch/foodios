@@ -78,3 +78,30 @@ describe('il controllo degli errori è acceso solo se è vero', () => {
     expect(MAIN).not.toMatch(/enabled: import\.meta\.env\.PROD && !!import\.meta\.env\.VITE_SENTRY_DSN/)
   })
 })
+
+describe('le chiavi nuove di Supabase non finiscono nei log', () => {
+  // Supabase sta sostituendo le chiavi in formato JWT (`eyJ...`) con le nuove
+  // `sb_secret_...` e `sb_publishable_...`. Il giorno in cui si passa alle
+  // nuove, una chiave che apre tutto il database non deve poter uscire in
+  // chiaro dentro una segnalazione d'errore — sarebbe la seconda volta, dopo
+  // quella finita su GitHub.
+  const LOGGER = readFileSync(join(RADICE, 'src', 'lib', 'logger.js'), 'utf8')
+
+  it('la segnalazione degli errori nasconde la chiave segreta nuova', () => {
+    expect(MAIN).toMatch(/sb_secret_\[\\w-\]\{10,\}/)
+  })
+
+  it('e anche quella pubblica', () => {
+    expect(MAIN).toMatch(/sb_publishable_\[\\w-\]\{10,\}/)
+  })
+
+  it('il registro degli eventi le nasconde tutte e due', () => {
+    expect(LOGGER).toMatch(/sb_secret_/)
+    expect(LOGGER).toMatch(/sb_publishable_/)
+  })
+
+  it('e continua a nascondere il formato vecchio, che resta in giro', () => {
+    expect(MAIN).toMatch(/eyJ\[\\w-\]\{20,\}/)
+    expect(LOGGER).toMatch(/eyJ/)
+  })
+})

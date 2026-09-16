@@ -195,3 +195,51 @@ export async function eliminaMovimentiPeriodo(orgId, sedeId, from, to, origine =
   if (error) throw new Error(error.message)
   return count || 0
 }
+
+/**
+ * Le uscite di cassa che il conto economico deve davvero sottrarre.
+ *
+ * NON tutte. Le uscite nate dal pagamento di una fattura fornitore
+ * (`origine = 'fattura-pagata'`) sono l'acquisto delle materie prime, e quelle
+ * il conto economico le conta già — dentro il food cost, che viene dalle
+ * chiusure di cassa. Sottrarre tutte e due vuol dire **contare la merce due
+ * volte**.
+ *
+ * Misurato in produzione il 16/09/2026: **tutti e 909 i movimenti di cassa
+ * del database, per 557.139,06 €, hanno origine `fattura-pagata`** — il
+ * backlog delle fatture vecchie segnato pagato in blocco. Il conto economico
+ * li sottraeva in aggiunta al food cost: su un mese con 22.100 € di ricavi,
+ * 4.500 di food cost, 6.000 di personale, 3.000 di fissi e 5.200 di fatture
+ * segnate pagate, l'utile a schermo faceva 3.400 € contro i ~7.900 € veri.
+ *
+ * Quello che resta — e che va sottratto — sono i soldi usciti dal cassetto per
+ * cose che nel food cost non ci sono: i limoni al mercato, la carta, la spesa
+ * al supermercato. È esattamente il motivo per cui la prima nota esiste.
+ *
+ * Torna anche `daFatture`, perché la pagina deve poter dire quanto ha escluso
+ * e perché: un numero che sparisce senza spiegazione è peggio di un numero
+ * sbagliato.
+ */
+export async function usciteDaSottrarre(orgId, sedeIds, from, to) {
+  const vuoto = { totale: 0, daFatture: 0, numero: 0, numeroDaFatture: 0 }
+  if (!orgId || !from || !to) return vuoto
+  let q = supabase.from('movimenti_cassa')
+    .select('importo, origine')
+    .eq('organization_id', orgId)
+    .gte('data', from)
+    .lte('data', to)
+  if (sedeIds != null) {
+    const ids = Array.isArray(sedeIds) ? sedeIds : [sedeIds]
+    if (ids.length) q = q.in('sede_id', ids)
+  }
+  const { data, error } = await q
+  if (error) { console.error('usciteDaSottrarre:', error); return vuoto }
+  let totale = 0, daFatture = 0, numero = 0, numeroDaFatture = 0
+  for (const r of (data || [])) {
+    const v = Number(r?.importo) || 0
+    if (r?.origine === ORIGINE_FATTURA) { daFatture += v; numeroDaFatture++; continue }
+    totale += v; numero++
+  }
+  const c2 = (n) => Math.round(n * 100) / 100
+  return { totale: c2(totale), daFatture: c2(daFatture), numero, numeroDaFatture }
+}

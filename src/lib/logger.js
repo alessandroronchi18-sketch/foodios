@@ -26,7 +26,8 @@ const PII_PATTERNS = [
   /\bIT\s?\d{2}\s?[A-Z]\s?\d{5}\s?\d{5}\s?\d{12}\b/gi,           // IBAN IT
   /\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g,     // JWT
   /\bsk_(?:live|test)_[A-Za-z0-9]+\b/g,                          // Stripe key
-  /\bsb_secret_[A-Za-z0-9_-]+\b/g,                                // Supabase service key
+  /\bsb_secret_[A-Za-z0-9_-]+\b/g,                                // Supabase: chiave segreta (nuovo formato)
+  /\bsb_publishable_[A-Za-z0-9_-]+\b/g,                           // Supabase: chiave pubblica (nuovo formato)
 ]
 
 function sanitize(value, depth = 0) {

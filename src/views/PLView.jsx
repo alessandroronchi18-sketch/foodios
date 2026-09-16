@@ -12,7 +12,7 @@ import { totaliPerGusto, normGusto, fetchAllInventarioProduzione } from '../lib/
 import { caricaCostiAziendali, totaleMensile } from '../lib/costiAziendali'
 import { costoPersonaleMensile, costoLavoroDaTurni } from '../lib/stipendiCalc'
 import { foodcostNoto } from '../lib/chiusure'
-import { totaliPeriodo as usciteCassaPeriodo } from '../lib/primaNota'
+import { usciteDaSottrarre } from '../lib/primaNota'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell,
@@ -885,7 +885,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
   // entravano in nessun conto: restavano scritte da qualche parte e l'utile
   // le ignorava. Vengono sommate nel database e non nel browser, perché un
   // mese di prima nota sono centinaia di righe che qui non servono a nulla.
-  const [uscite, setUscite] = useState({ totale: 0, conFattura: 0, senzaFattura: 0, daVerificare: 0, numero: 0 })
+  const [uscite, setUscite] = useState({ totale: 0, daFatture: 0, numero: 0, numeroDaFatture: 0 })
   const [editCosti, setEditCosti] = useState(false)
   const [savingCosti, setSavingCosti] = useState(false)
   const [exportingPdf, setExportingPdf] = useState(false)
@@ -1013,9 +1013,13 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
   useEffect(() => {
     if (!orgId || !dateFrom || !dateTo) return
     let vivo = true
-    usciteCassaPeriodo(orgId, sedeId, dateFrom, dateTo)
+    // NON tutte le uscite di cassa: quelle nate dal pagamento di una fattura
+    // fornitore sono l'acquisto delle materie prime, che il conto economico
+    // conta già dentro il food cost. Sottrarre tutte e due vuol dire contare
+    // la merce due volte — e in produzione sono 557.139 € su 557.139.
+    usciteDaSottrarre(orgId, sedeId, dateFrom, dateTo)
       .then(t => { if (vivo) setUscite(t) })
-      .catch(() => { if (vivo) setUscite({ totale: 0, conFattura: 0, senzaFattura: 0, daVerificare: 0, numero: 0 }) })
+      .catch(() => { if (vivo) setUscite({ totale: 0, daFatture: 0, numero: 0, numeroDaFatture: 0 }) })
     return () => { vivo = false }
   }, [orgId, sedeId, dateFrom, dateTo])
 
@@ -1470,7 +1474,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
                 costo_lavoro_eur: plMese.personale,
                 costo_lavoro_pct: plMese.lavPct,
                 uscite_cassa_eur: plMese.usciteCassa,
-                uscite_cassa_senza_fattura_eur: uscite.senzaFattura,
+                uscite_gia_nel_foodcost_eur: uscite.daFatture,
                 giornate_senza_foodcost: plMese.cur.giorniSenzaFc,
                 target_lavoro_pct: targetLavoro,
                 margine_operativo_pct: plMese.margOpPct,
@@ -1581,9 +1585,20 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
                   {plMese.usciteCassa > 0 && (
                     <Row label="Uscite di cassa (prima nota)" val={plMese.usciteCassa}
                       pctv={plMese.cur.ricavi > 0 ? plMese.usciteCassa / plMese.cur.ricavi * 100 : 0}
-                      sub={uscite.senzaFattura > 0
-                        ? `${uscite.numero} voci · ${fmt0(uscite.senzaFattura)} senza fattura`
-                        : `${uscite.numero} voci`} neg />
+                      sub={`${uscite.numero} ${uscite.numero === 1 ? 'voce' : 'voci'}`} neg />
+                  )}
+                  {/* Quello che NON è stato sottratto, e perché. Un numero che
+                      sparisce senza spiegazione è peggio di un numero
+                      sbagliato: chi guarda la prima nota vede un totale e qui
+                      ne vede un altro, e senza questa riga non sa quale
+                      credere. */}
+                  {uscite.daFatture > 0 && (
+                    <div style={{ fontSize: 12, color: T.textSoft, marginTop: 6, lineHeight: 1.5 }}>
+                      Fuori dal conto: <b style={{ color: T.text }}>{fmt0(uscite.daFatture)}</b> di
+                      {' '}{uscite.numeroDaFatture === 1 ? 'una fattura fornitore segnata pagata' : `${uscite.numeroDaFatture} fatture fornitore segnate pagate`}.
+                      Sono l'acquisto delle materie prime, che il food cost qui sopra conta già:
+                      sottrarle di nuovo vorrebbe dire contare la merce due volte.
+                    </div>
                   )}
                   <Row label={plMese.utile >= 0 ? 'UTILE DEL PERIODO' : 'PERDITA DEL PERIODO'} val={plMese.utile} pctv={plMese.margOpPct} strong />
                   <div style={{ fontSize: 12, color: T.textSoft, marginTop: 10, lineHeight: 1.5 }}>

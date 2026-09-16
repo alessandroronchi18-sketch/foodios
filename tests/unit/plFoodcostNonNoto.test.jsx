@@ -58,10 +58,13 @@ vi.mock('../../src/lib/aiClient', () => ({
 
 // Le uscite di cassa arrivano da una somma fatta nel database: qui la
 // pilotiamo per verificare che entrino nel conto.
-const uscitePeriodo = vi.fn(() => Promise.resolve({ totale: 0, conFattura: 0, senzaFattura: 0, daVerificare: 0, numero: 0 }))
+// Il conto economico NON somma tutte le uscite di cassa: quelle nate dal
+// pagamento di una fattura fornitore sono l'acquisto delle materie prime, che
+// il food cost conta già. Da qui la funzione dedicata.
+const uscitePeriodo = vi.fn(() => Promise.resolve({ totale: 0, daFatture: 0, numero: 0, numeroDaFatture: 0 }))
 vi.mock('../../src/lib/primaNota', async () => {
   const real = await vi.importActual('../../src/lib/primaNota')
-  return { ...real, totaliPeriodo: (...a) => uscitePeriodo(...a) }
+  return { ...real, usciteDaSottrarre: (...a) => uscitePeriodo(...a) }
 })
 
 const { default: PLView } = await import('../../src/views/PLView.jsx')
@@ -167,22 +170,19 @@ describe('P&L — food cost non noto', () => {
 
 describe('P&L — uscite di cassa', () => {
   it('sottrae le uscite di cassa dall\'utile e le mostra nella cascata', async () => {
-    uscitePeriodo.mockResolvedValue({
-      totale: 827.19, conFattura: 300, senzaFattura: 500, daVerificare: 27.19, numero: 37,
-    })
+    uscitePeriodo.mockResolvedValue({ totale: 827.19, daFatture: 0, numero: 37, numeroDaFatture: 0 })
     const v = monta([conDettaglio(g(1), 1000, 300)])
     await waitFor(() => expect(v.container.textContent).toContain('Uscite di cassa (prima nota)'))
 
     // 1.000 di ricavo − 300 di food cost − 827,19 di uscite = perdita di 127,19.
     expect(v.container.textContent).toContain('PERDITA DEL PERIODO')
     expect(v.container.textContent).toContain('127 €')
-    // Quante voci sono e quanto di quelle non ha fattura: serve al commercialista.
+    // Quante voci sono.
     expect(v.container.textContent).toContain('37 voci')
-    expect(v.container.textContent).toContain('500 € senza fattura')
   })
 
   it('chiede al database solo il periodo e la sede mostrati', async () => {
-    uscitePeriodo.mockResolvedValue({ totale: 0, conFattura: 0, senzaFattura: 0, daVerificare: 0, numero: 0 })
+    uscitePeriodo.mockResolvedValue({ totale: 0, daFatture: 0, numero: 0, numeroDaFatture: 0 })
     monta([conDettaglio(g(1), 1000, 300)])
     await waitFor(() => expect(uscitePeriodo).toHaveBeenCalled())
     const [orgId, sedeId, from, to] = uscitePeriodo.mock.calls[0]
@@ -193,7 +193,7 @@ describe('P&L — uscite di cassa', () => {
   })
 
   it('senza uscite non aggiunge una riga da zero euro', async () => {
-    uscitePeriodo.mockResolvedValue({ totale: 0, conFattura: 0, senzaFattura: 0, daVerificare: 0, numero: 0 })
+    uscitePeriodo.mockResolvedValue({ totale: 0, daFatture: 0, numero: 0, numeroDaFatture: 0 })
     const v = monta([conDettaglio(g(1), 1000, 300)])
     await waitFor(() => expect(v.container.textContent).toContain('Ricavi'))
     expect(v.container.textContent).not.toContain('Uscite di cassa (prima nota)')
@@ -205,5 +205,49 @@ describe('P&L — uscite di cassa', () => {
     const v = monta([conDettaglio(g(1), 1000, 300)])
     await waitFor(() => expect(v.container.textContent).toContain('UTILE DEL PERIODO'))
     expect(v.container.textContent).not.toContain('Uscite di cassa (prima nota)')
+  })
+})
+
+// ── La merce non si conta due volte ────────────────────────────────────────
+//
+// Trovato il 16/09/2026 nell'audit dei conti. Il conto economico faceva
+// `utile = (ricavi − foodcost) − personale − costiFissi − usciteCassa`, dove
+// `usciteCassa` era la somma di TUTTI i movimenti di prima nota del periodo.
+//
+// Dentro ci sono le uscite che lo Scadenzario scrive quando si segna pagata
+// una fattura fornitore: sono l'acquisto delle materie prime, che il food cost
+// conta già. In produzione **tutti e 909 i movimenti del database, per
+// 557.139,06 €, hanno origine `fattura-pagata`** — il backlog delle fatture
+// vecchie segnato pagato in blocco con la spunta «registra in Cassa», che
+// parte accesa. Il conto economico li sottraeva in aggiunta al food cost.
+
+describe('P&L — la merce non si conta due volte', () => {
+  it('le uscite nate da una fattura pagata non si sottraggono di nuovo', async () => {
+    // 5.200 € di fatture segnate pagate + 120 € di spese vere dal cassetto.
+    uscitePeriodo.mockResolvedValue({ totale: 120, daFatture: 5200, numero: 3, numeroDaFatture: 41 })
+    const v = monta([conDettaglio(g(1), 1000, 300)])
+    await waitFor(() => expect(v.container.textContent).toContain('Uscite di cassa (prima nota)'))
+    // 1.000 − 300 − 120 = 580 di utile. Con le fatture dentro sarebbero
+    // −4.620, cioè una perdita su una giornata che ha guadagnato.
+    expect(v.container.textContent).toContain('UTILE DEL PERIODO')
+    expect(v.container.textContent).not.toContain('PERDITA DEL PERIODO')
+  })
+
+  it('e la pagina dice quanto ha escluso e perché', async () => {
+    // Un numero che sparisce senza spiegazione è peggio di un numero
+    // sbagliato: chi guarda la prima nota vede un totale e qui ne vede un
+    // altro, e senza questa riga non sa quale credere.
+    uscitePeriodo.mockResolvedValue({ totale: 120, daFatture: 5200, numero: 3, numeroDaFatture: 41 })
+    const v = monta([conDettaglio(g(1), 1000, 300)])
+    await waitFor(() => expect(v.container.textContent).toContain('Fuori dal conto'))
+    expect(v.container.textContent).toContain('41 fatture fornitore segnate pagate')
+    expect(v.container.textContent).toContain('contare la merce due volte')
+  })
+
+  it('senza fatture pagate nel periodo non compare nessuna spiegazione', async () => {
+    uscitePeriodo.mockResolvedValue({ totale: 120, daFatture: 0, numero: 3, numeroDaFatture: 0 })
+    const v = monta([conDettaglio(g(1), 1000, 300)])
+    await waitFor(() => expect(v.container.textContent).toContain('Uscite di cassa (prima nota)'))
+    expect(v.container.textContent).not.toContain('Fuori dal conto')
   })
 })

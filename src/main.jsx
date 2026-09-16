@@ -21,7 +21,16 @@ import { registerServiceWorker, setupInstallPrompt } from './lib/pwa'
 
 // Pattern di chiavi sensibili da scrubbare (case-insensitive)
 const SENSITIVE_KEY_RX = /^(password|passwd|pwd|token|access_token|refresh_token|api[_-]?key|secret|authorization|cookie|session|jwt|bearer|x[_-]?internal[_-]?secret|x[_-]?zucchetti[_-]?secret|cron[_-]?secret|service[_-]?key|anthropic|resend)/i
-const SENSITIVE_VALUE_RX = /(eyJ[\w-]{20,}|sk-ant-\w{20,}|sk-\w{20,}|re_\w{10,}|Bearer\s+[\w-]+)/g
+// I formati di chiave che non devono MAI finire in un log o in una
+// segnalazione d'errore.
+//
+// `sb_secret_` e `sb_publishable_` sono le chiavi nuove di Supabase, che
+// sostituiscono le vecchie in formato JWT (`eyJ...`). Senza questi due pezzi,
+// il giorno in cui si passa alle chiavi nuove una chiave che apre tutto il
+// database potrebbe uscire in chiaro dentro una segnalazione d'errore — e
+// sarebbe la seconda volta che succede, dopo quella finita su GitHub.
+// `logger.js` li nascondeva già: qui no.
+const SENSITIVE_VALUE_RX = /(eyJ[\w-]{20,}|sb_secret_[\w-]{10,}|sb_publishable_[\w-]{10,}|sk-ant-\w{20,}|sk-\w{20,}|re_\w{10,}|Bearer\s+[\w-]+)/g
 
 // Scrub ricorsivo di un oggetto: nasconde valori di chiavi sensibili e maschera token in stringhe.
 function scrubObject(obj, depth = 0) {
