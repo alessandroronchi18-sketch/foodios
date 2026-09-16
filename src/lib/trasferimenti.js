@@ -6,6 +6,7 @@
 //   - tipo='materia_prima' → client-side via movimentoMP.js (chiamato dalla UI)
 //   - tipo='semilavorato'  → solo log per ora
 import { supabase } from './supabase'
+import { todayLocal } from './dateLocal'
 
 // Legge l'identita' operativa attiva (impostata da useDipendenteOperativo).
 function readDipendenteOpId() {
@@ -70,7 +71,10 @@ export async function creaTrasferimento({
     quantita, unita,
     valore_unit: valoreUnit,
     note,
-    data: data || new Date().toISOString().slice(0, 10),
+    // `toISOString()` dà la data UTC: fra mezzanotte e le due, in Italia, è
+    // ancora ieri. Un trasferimento fatto all'una di notte veniva datato al
+    // giorno prima, e chi lo cercava nella giornata di oggi non lo trovava.
+    data: data || todayLocal(),
     stato: 'bozza',
     dipendente_operativo_id: readDipendenteOpId(),
   }

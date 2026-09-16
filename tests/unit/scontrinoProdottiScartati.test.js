@@ -63,3 +63,35 @@ describe('e la pagina li fa vedere', () => {
     }
   })
 })
+
+describe('la lettura in blocco dice quali foto non sono entrate', () => {
+  it('l\'esito foto per foto viene disegnato, non solo raccolto', () => {
+    // `batchResults` veniva riempito e non lo leggeva nessuno: dopo dieci
+    // scontrini l'utente riceveva solo «7 chiusure salvate · 3 saltate», e
+    // non sapeva QUALI tre, né perché, né quali rifotografare.
+    expect(SRC).toMatch(/\{batchResults\.length > 0 && !loading && \(/)
+    expect(SRC).toMatch(/batchResults\.map\(\(r, i\) =>/)
+    expect(SRC).toMatch(/Scontrino per scontrino/)
+  })
+
+  it('e dice cosa fare di quelle che non sono entrate', () => {
+    expect(SRC).toMatch(/rifotografale da vicino/)
+  })
+})
+
+describe('lo scontrino di un\'altra sede non finisce su questa', () => {
+  it('il risultato in sospeso è marchiato con la sede e l\'attività', () => {
+    // Il risultato dell'analisi sta fuori da React apposta, per sopravvivere
+    // se si cambia pagina mentre l'AI legge. Ma senza il marchio se lo
+    // prendeva il primo montaggio successivo, anche dopo un cambio di sede —
+    // e con esso la data estratta dallo scontrino: si riapriva la Cassa di
+    // un'altra sede e ci si ritrovava lo scontrino di prima, su una data
+    // spostata.
+    expect(SRC).toMatch(/perSede: sedeId, perOrg: orgId/)
+  })
+
+  it('e se non è di questa sede si butta, invece di applicarlo', () => {
+    expect(SRC).toMatch(/if \(\(p\.perSede != null && p\.perSede !== sedeId\) \|\| \(p\.perOrg != null && p\.perOrg !== orgId\)\)/)
+    expect(SRC).toMatch(/_receiptPending\.current = null\n      return/)
+  })
+})

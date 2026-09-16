@@ -5,9 +5,9 @@ import { SkeletonList, SkeletonGrid } from './Skeleton'
 import ProductAutocomplete from './ProductAutocomplete'
 import { supabase } from '../lib/supabase'
 import { sload, ssave } from '../lib/storage'
-import { color as T, radius as R, motion as M, typo, ui3, ui } from '../lib/theme'
+import { color as T, radius as R, motion as M, typo, font, ui3, ui } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
-import { todayLocal } from '../lib/dateLocal'
+import { todayLocal, soloData, primoDelMeseLocal } from '../lib/dateLocal'
 import { aggiungiSpedito } from '../lib/inventarioProduzione'
 import {
   loadTrasferimenti, creaTrasferimento,
@@ -56,6 +56,11 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
   const [scope, setScope] = useState('attiva')
   const [busyId, setBusyId] = useState(null)
   const [riceviModal, setRiceviModal] = useState(null) // { t, qtyRic, note }
+  // Il nome del template si chiede con una finestrella del programma, non con
+  // `prompt()` del browser: quella finestra su iOS arriva senza il nome
+  // dell'applicazione, non si può leggere in due righe sul telefono, e non
+  // assomiglia a nessun'altra domanda che questo programma fa.
+  const [nomeTemplate, setNomeTemplate] = useState(null)
   const [filtroStato, setFiltroStato] = useState('all') // all|bozza|inviato|ricevuto|annullato
   const [filtroTipo, setFiltroTipo] = useState('all')   // all|prodotto|semilavorato|materia_prima
   const [templates, setTemplates] = useState([])         // [{id, nome, tipo, sede_da, sede_a, prodotto, quantita, unita, valore_unit}]
@@ -210,7 +215,17 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
         valoreUnit: parseFloat(form.valore_unit) || 0,
         note: form.note?.trim() || null,
         data: form.data,
-        autoInvia: autoInvia && form.tipo === 'prodotto', // RPC scala stock per prodotti
+        // La materia prima è già stata scalata qui sopra e viene segnata
+        // inviata a mano più giù; per tutto il resto fa la RPC — che per il
+        // semilavorato non tocca lo stock ma **aggiorna lo stato**, che è
+        // esattamente quello che serve.
+        //
+        // Prima questa riga diceva `=== 'prodotto'`, quindi con «Invia
+        // subito» su un semilavorato non partiva niente: nessuna RPC, nessun
+        // aggiornamento, restava una bozza. E il messaggio diceva
+        // «Trasferimento inviato». Chi lo leggeva andava a cercare la merce
+        // dall'altra parte.
+        autoInvia: autoInvia && form.tipo !== 'materia_prima',
       })
 
       // Per le materie prime lo stock è già stato scalato qui sopra: resta da
@@ -442,8 +457,26 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
           .eq('id', t.id)
           .eq('stato', 'inviato')
           .select('id')
-        if (errAnn) throw errAnn
-        if (!righeTocche || righeTocche.length === 0) {
+        // Se la riga non si è aggiornata, la merce è già tornata nella sede di
+        // partenza e va ritolta: altrimenti resta un trasferimento «inviato»
+        // con la merce contata due volte.
+        //
+        // Il percorso della ricezione (`confermaRicezione`) questa rimessa a
+        // posto ce l'aveva; qui mancava. Riprodotto: dieci chili rientrati,
+        // riga invariata, e un messaggio «Errore annullamento» che non diceva
+        // che il magazzino era stato toccato.
+        if (errAnn || !righeTocche || righeTocche.length === 0) {
+          const grammiTornati = mpGrammi(t)
+          try {
+            await scaricoMP({ orgId, sedeId: t.sede_da, ingrediente: t.prodotto, quantita: grammiTornati })
+          } catch (rbErr) {
+            console.error('[Trasferimenti] rimessa a posto del magazzino FALLITA dopo annullamento non riuscito', {
+              orgId, sedeDa: t.sede_da, prodotto: t.prodotto, grammi: grammiTornati, errore: rbErr?.message,
+            })
+            notify?.(`ATTENZIONE: "${t.prodotto}" è rientrato nel magazzino di ${sediMap[t.sede_da]?.nome || 'partenza'} ma l'annullamento non è stato registrato, e non sono riuscito a ritoglierlo. Controlla la giacenza a mano.`, false)
+            throw errAnn || new Error('Annullamento non registrato')
+          }
+          if (errAnn) throw errAnn
           throw new Error('Questo trasferimento è già stato annullato o ricevuto: ricarica la pagina.')
         }
       } else {
@@ -500,12 +533,18 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
 
   // ── Flussi del mese corrente: sede_da -> sede_a aggregato ───────────────
   const flussiMese = useMemo(() => {
-    const oggi = new Date()
-    const inizioMese = new Date(oggi.getFullYear(), oggi.getMonth(), 1)
+    // Si confrontano i GIORNI come stringhe, non oggetti `Date`.
+    //
+    // `new Date('2026-09-16')` si legge come mezzanotte UTC, cioè le 02:00
+    // italiane: fra mezzanotte e le due un trasferimento di oggi risultava
+    // «nel futuro» rispetto a `new Date()` e **spariva** da questo riquadro e
+    // dal conto dell'accuratezza qui sotto. Con le stringhe il fuso non
+    // c'entra più.
+    const oggiIso = todayLocal()
+    const inizioMese = primoDelMeseLocal()
     const inMese = (d) => {
-      if (!d) return false
-      const x = new Date(d)
-      return x >= inizioMese && x <= oggi
+      const x = soloData(d)
+      return !!x && x >= inizioMese && x <= oggiIso
     }
     const map = {}
     for (const t of lista) {
@@ -523,13 +562,14 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
 
   // ── KPI accuratezza mese (per il proprietario CFO) ──────────────────────
   const accuratezzaMese = useMemo(() => {
-    const oggi = new Date()
-    const inizioMese = new Date(oggi.getFullYear(), oggi.getMonth(), 1)
+    // Stessa cosa del riquadro qui sopra: giorni come stringhe.
+    const oggiIso = todayLocal()
+    const inizioMese = primoDelMeseLocal()
     let tot = 0, ricevutiOk = 0, scartoQty = 0, scartoValore = 0, scartoSenzaValore = 0
     let valTrasferito = 0
     for (const t of lista) {
-      const d = new Date(t.data || 0)
-      if (d < inizioMese || d > oggi) continue
+      const d = soloData(t.data)
+      if (!d || d < inizioMese || d > oggiIso) continue
       if (t.stato === 'annullato') continue
       tot++
       const qta = Number(t.quantita || 0)
@@ -550,8 +590,8 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
       tot,
       ricevutiOk,
       ricevuti: lista.filter(t => {
-        const d = new Date(t.data || 0)
-        return d >= inizioMese && d <= oggi && (t.stato === 'ricevuto' || t.stato === 'completato')
+        const d = soloData(t.data)
+        return !!d && d >= inizioMese && d <= oggiIso && (t.stato === 'ricevuto' || t.stato === 'completato')
       }).length,
       scartoQty,
       scartoValore,
@@ -559,8 +599,8 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
       valTrasferito,
       accuracyPct: (() => {
         const ric = lista.filter(t => {
-          const d = new Date(t.data || 0)
-          return d >= inizioMese && d <= oggi && (t.stato === 'ricevuto' || t.stato === 'completato')
+          const d = soloData(t.data)
+          return !!d && d >= inizioMese && d <= oggiIso && (t.stato === 'ricevuto' || t.stato === 'completato')
         }).length
         return ric > 0 ? (ricevutiOk / ric) * 100 : null
       })(),
@@ -874,13 +914,50 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
               if (!form.prodotto?.trim() || !form.sede_da || !form.sede_a) {
                 notify?.('Compila prodotto + sedi prima di salvare template', false); return
               }
-              const nome = prompt('Nome template (es. "Lab → Via Roma mattutino"):', `${form.prodotto.slice(0, 20)}`)
-              if (nome) salvaTemplate(nome)
+              setNomeTemplate(form.prodotto.slice(0, 20))
             }} disabled={saving}
               style={{ padding: isMobile ? '11px 16px' : '10px 16px', minHeight: isMobile ? 44 : 'auto', background: 'transparent', color: '#0369A1', border: '1px solid #BAE6FD', borderRadius: 8, fontWeight: 700, fontSize: isMobile ? 13 : 12, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, marginLeft: isMobile ? 0 : 'auto', flex: isMobile ? '1 1 100%' : '0 0 auto', justifyContent: 'center' }}
               title="Salva queste impostazioni come template ricorrente">
               <Icon name="save" size={13} /> Salva come template
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Come si chiama questo template */}
+      {nomeTemplate !== null && (
+        <div role="dialog" aria-modal="true" aria-label="Nome del template"
+          onClick={() => setNomeTemplate(null)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 210, padding: 16 }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background: C.bgCard, borderRadius: 14, padding: isMobile ? 18 : 22, width: '100%', maxWidth: 420, boxShadow: '0 20px 50px rgba(15,23,42,0.25)' }}>
+            <div style={{ fontSize: font.size.lg, fontWeight: 800, color: C.text, marginBottom: 6 }}>Come lo chiami?</div>
+            <div style={{ fontSize: font.size.sm, color: C.textSoft, marginBottom: 12, lineHeight: 1.45 }}>
+              Il nome serve a ritrovarlo: «Lab → Via Roma mattutino» si capisce fra sei mesi, «Template 1» no.
+            </div>
+            <input
+              value={nomeTemplate}
+              autoFocus
+              aria-label="Nome del template"
+              onChange={e => setNomeTemplate(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && nomeTemplate.trim()) { salvaTemplate(nomeTemplate.trim()); setNomeTemplate(null) }
+                if (e.key === 'Escape') setNomeTemplate(null)
+              }}
+              placeholder="es. Lab → Via Roma mattutino"
+              style={{ width: '100%', padding: '12px', minHeight: 48, borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: font.size.lg, color: C.text, boxSizing: 'border-box', marginBottom: 14 }} />
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+              <button onClick={() => setNomeTemplate(null)}
+                style={{ padding: '11px 16px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.border}`, background: 'transparent', color: C.textMid, fontSize: font.size.base, fontWeight: 700, cursor: 'pointer' }}>
+                Annulla
+              </button>
+              <button
+                disabled={!nomeTemplate.trim()}
+                onClick={() => { salvaTemplate(nomeTemplate.trim()); setNomeTemplate(null) }}
+                style={{ padding: '11px 18px', minHeight: 44, borderRadius: 8, border: 'none', background: nomeTemplate.trim() ? C.red : C.border, color: C.white, fontSize: font.size.base, fontWeight: 800, cursor: nomeTemplate.trim() ? 'pointer' : 'default' }}>
+                Salva template
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -1046,7 +1123,14 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
                     )}
                   </div>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    {t.stato === 'bozza' && (
+                    {/* Al dipendente questi comandi il database li rifiuta:
+                        mostrarglieli è un invito a premere per niente. Peggio
+                        per «Invia» su una materia prima, che scala il
+                        magazzino PRIMA della scrittura che verrà rifiutata —
+                        e il magazzino è una chiave operativa, quella lui la
+                        può scrivere. Le guardie c'erano su «Annulla» e
+                        «Ripeti» e mancavano su questi tre. */}
+                    {t.stato === 'bozza' && !soloRicezione && (
                       <>
                         <button onClick={() => azInvia(t)} disabled={busy} title="Invia" aria-label="Invia trasferimento"
                           style={{ padding: isMobile ? '9px 14px' : '5px 12px', minHeight: isMobile ? 40 : 'auto', borderRadius: 8, border: 'none', background: C.red, color: C.white, fontSize: typo.small.fontSize, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
@@ -1079,7 +1163,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
                         </button>}
                       </>
                     )}
-                    {t.stato === 'annullato' && (
+                    {t.stato === 'annullato' && !soloRicezione && (
                       <button onClick={() => azElimina(t)} title="Elimina" aria-label="Elimina trasferimento"
                         style={{ padding: isMobile ? '9px 12px' : '5px 10px', minHeight: isMobile ? 40 : 'auto', minWidth: isMobile ? 40 : 'auto', borderRadius: 8, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: typo.small.fontSize, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="trash" size={13} /></button>
                     )}

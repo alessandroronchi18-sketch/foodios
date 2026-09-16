@@ -32,7 +32,15 @@ import { C, KPI, PageHeader, margColor, fmt, fmt0, fmtp, TabellaOSchede } from '
 import { promptScontrino, categorieLette } from '../lib/promptScontrino'
 import { calcolaKpiChiusura, colorePerSellThrough } from '../lib/chiusuraKpi'
 
-// Persiste fra unmount/remount durante l'analisi AI di uno scontrino
+// Il risultato dell'analisi di uno scontrino, che deve sopravvivere se si
+// cambia pagina mentre l'AI sta leggendo.
+//
+// Sta fuori da React apposta: un `useState` muore con la pagina, e l'analisi
+// va avanti in sottofondo. Ma va marchiato con la SEDE per cui è stato
+// chiesto: senza, il primo montaggio successivo se lo prendeva comunque —
+// anche dopo aver cambiato sede — e con esso la data estratta dallo
+// scontrino. Si riapriva la Cassa di un'altra sede e ci si ritrovava lo
+// scontrino di prima, su una data spostata (trovato il 16/09/2026).
 const _receiptPending = { current: null }
 
 // Scala tipografica della pagina, ancorata ai token di theme.js.
@@ -342,6 +350,12 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
   useEffect(() => {
     const p = _receiptPending.current
     if (!p) return
+    // Lo scontrino era di un'altra sede (o di un'altra attività): non è roba
+    // di questa pagina, e si butta invece di applicarla qui.
+    if ((p.perSede != null && p.perSede !== sedeId) || (p.perOrg != null && p.perOrg !== orgId)) {
+      _receiptPending.current = null
+      return
+    }
     if (p.loading) { setLoading(true); return }
     if (p.venduto !== null) {
       setVenduto(p.venduto)
@@ -503,14 +517,14 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
     if (!img) return
     setLoading(true); setError(null); setVenduto(null); setIncerti([])
     const imgSnap = img
-    _receiptPending.current = { loading: true, venduto: null, error: null, dataEstratta: null }
+    _receiptPending.current = { loading: true, venduto: null, error: null, dataEstratta: null, perSede: sedeId, perOrg: orgId }
     backgroundManager.add(`scontrino-${Date.now()}`, {
       tipo: 'ai_analisi', nome: 'Analisi scontrino AI',
       fn: async (onProgress) => { onProgress(20); const obj = await analyzeReceipt(imgSnap, 'image/jpeg'); onProgress(100); return obj },
       onComplete: (obj) => {
         const prodotti = obj.prodotti || []
         const dataEstratta = (obj.data && /^\d{4}-\d{2}-\d{2}$/.test(obj.data)) ? obj.data : null
-        _receiptPending.current = { loading: false, venduto: prodotti, error: null, dataEstratta, incerti: obj.incerti || [] }
+        _receiptPending.current = { ..._receiptPending.current, loading: false, venduto: prodotti, error: null, dataEstratta, incerti: obj.incerti || [] }
         setVenduto(prodotti)
         setIncerti(obj.incerti || [])
         if (dataEstratta) {
@@ -524,7 +538,7 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
         // foto più nitida"): veniva creato e mai letto, e a schermo
         // compariva "JSON malformato".
         const msg = err.friendly || err.message
-        _receiptPending.current = { loading: false, venduto: null, error: msg, dataEstratta: null }
+        _receiptPending.current = { ..._receiptPending.current, loading: false, venduto: null, error: msg, dataEstratta: null }
         setError(msg); setLoading(false)
       },
     })
@@ -1262,6 +1276,43 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
                     <div style={{ padding: '12px', background: C.redLight, borderRadius: 9 }}>
                       <div style={{ fontSize: FS.small, fontWeight: 700, color: C.red, marginBottom: 6, display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="warning" size={13} />{error}</div>
                       <button onClick={handleAnalizza} style={{ padding: '6px 14px', background: C.red, color: C.white, border: 'none', borderRadius: 6, fontSize: FS.small, fontWeight: 700, cursor: 'pointer' }}>Riprova</button>
+                    </div>
+                  )}
+                  {/* L'esito foto per foto della lettura in blocco.
+                      Questa lista veniva riempita e non la leggeva nessuno:
+                      dopo dieci scontrini l'utente riceveva solo «7 chiusure
+                      salvate · 3 saltate» e non sapeva QUALI tre, né perché,
+                      né quali rifotografare. */}
+                  {batchResults.length > 0 && !loading && (
+                    <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 9, padding: '12px' }}>
+                      <div style={{ fontSize: FS.small, fontWeight: 800, color: C.text, marginBottom: 8 }}>
+                        Scontrino per scontrino
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {batchResults.map((r, i) => (
+                          <div key={i} style={{
+                            display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8,
+                            padding: '6px 9px', borderRadius: 6,
+                            background: r.salvato ? T.greenLight : T.amberLight,
+                            fontSize: FS.small,
+                          }}>
+                            <span style={{ fontWeight: 700, color: r.salvato ? C.green : (T.amberDark || C.amber), flexShrink: 0 }}>
+                              {r.data && r.data !== '?' ? new Date(r.data + 'T12:00').toLocaleDateString('it-IT') : `Foto ${i + 1}`}
+                            </span>
+                            <span style={{ color: r.salvato ? C.textMid : (T.amberDark || C.amber), textAlign: 'right', minWidth: 0 }}>
+                              {r.salvato
+                                ? `${r.prodotti.length} ${r.prodotti.length === 1 ? 'prodotto' : 'prodotti'}`
+                                : (r.error || 'non salvata')}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      {batchResults.some(r => !r.salvato) && (
+                        <div style={{ fontSize: FS.small, color: C.textSoft, marginTop: 8, lineHeight: 1.45 }}>
+                          Quelle in ambra non sono entrate: rifotografale da vicino, o scrivi
+                          l'incasso di quelle giornate a mano.
+                        </div>
+                      )}
                     </div>
                   )}
                   {vendutoBox()}

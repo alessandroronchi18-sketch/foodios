@@ -4,7 +4,7 @@ import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from './Icon'
 import { useConfirm } from './ConfirmModal'
 import { color as T, radius as R, shadow as S, motion as M, typo, ui3, ui } from '../lib/theme'
-import { todayLocal } from '../lib/dateLocal'
+import { todayLocal, giorniFaLocal } from '../lib/dateLocal'
 import { ibanIsValid } from '../lib/sepa'
 import { marcaNonMerce, raggruppaFornitoriDaFatture, spesaDaFatture } from '../lib/fornitoriDaFatture'
 import { KPI, SH, PageHeader, Tip, C, useSortable, SortTH } from '../views/_shared'
@@ -47,8 +47,10 @@ function BandaDiagnosi({ orgId, sedeId, sedi = [], isMobile, isTablet, refreshKe
     let alive = true
     async function load() {
       if (!orgId) return
-      const from = new Date(); from.setDate(from.getDate() - 30)
-      const fromStr = from.toISOString().slice(0, 10)
+      // `toISOString()` dà la data UTC: a Torino alle 00:30 del 16/09
+      // «ultimi 30 giorni» partiva dal 16/08 invece che dal 17/08, e ne
+      // contava 31. La finestra si calcola sui giorni locali.
+      const fromStr = giorniFaLocal(30)
       const [{ data: forn }, { data: ord }] = await Promise.all([
         supabase.from("fornitori").select("id,categoria,nome").eq("organization_id", orgId).eq("attivo", true),
         supabase.from("ordini_fornitori").select("totale,fornitore_id,fornitori(nome)").eq("organization_id", orgId).eq("stato", "ricevuto").gte("data_ordine", fromStr),
@@ -290,10 +292,15 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
     setSaving(true)
     // sede_id="" significa "Tutte le sedi" (azienda) → NULL nel DB
     if (ibanScritto && !ibanOk) {
-      const proseguo = window.confirm(
-        "L'IBAN che hai scritto non torna (il controllo delle cifre non passa).\n\n" +
-        'Lo salvo comunque? Il file dei bonifici salterà i pagamenti a questo fornitore.'
-      )
+      // Era `window.confirm`: la finestra del browser, che su iOS arriva senza
+      // il nome dell'applicazione, non si può leggere sul telefono in due
+      // righe, e non assomiglia a nessun'altra domanda del programma. Tutte le
+      // altre domande di questa pagina passano da `confirmDialog`.
+      const proseguo = await confirmDialog({
+        title: 'L\'IBAN non torna',
+        message: 'Il controllo delle cifre non passa. Lo salvo comunque? Il file dei bonifici salterà i pagamenti a questo fornitore.',
+        confirmLabel: 'Salva così', cancelLabel: 'Correggo',
+      })
       if (!proseguo) { setSaving(false); return }
     }
     const termini = parseInt(form.termini_pagamento, 10)
@@ -740,6 +747,7 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
 // TAB 2 - Ordini
 // ─────────────────────────────────────────────────────────────────────────────
 function OrdiniTab({ orgId, notify, isMobile, onMutate }) {
+  const confirmDialog = useConfirm()
   const [ordini, setOrdini] = useState([])
   const [fornitori, setFornitori] = useState([])
   const [loading, setLoading] = useState(true)
@@ -794,7 +802,11 @@ function OrdiniTab({ orgId, notify, isMobile, onMutate }) {
       quantita: parseFloat(r.quantita) || 0,
       unita: r.unita,
       prezzo_unitario: parseFloat(r.prezzo_unitario) || 0,
-      totale_riga: (parseFloat(r.quantita) || 0) * (parseFloat(r.prezzo_unitario) || 0),
+      // Arrotondato al centesimo come il totale dell'ordine due righe sopra.
+      // Senza, 12,5 × 9,2 finiva nel database come 114,99999999999999 sulla
+      // riga e 115 sull'ordine: due numeri diversi per la stessa cosa, e la
+      // somma delle righe non tornava col totale.
+      totale_riga: parseFloat(((parseFloat(r.quantita) || 0) * (parseFloat(r.prezzo_unitario) || 0)).toFixed(2)),
     })))
     if (errRighe) {
       await supabase.from("ordini_fornitori").delete().eq("id", ordineData.id).eq("organization_id", orgId)
@@ -856,7 +868,12 @@ function OrdiniTab({ orgId, notify, isMobile, onMutate }) {
       'Il food cost delle ricette che li usano cambia di conseguenza.',
       nonConvertibili.length > 0 ? `\nRestano fuori ${nonConvertibili.map(x => x.nome).join(', ')}: ${nonConvertibili.length === 1 ? 'è' : 'sono'} a pezzo, e da lì non si ricava il costo al chilo.` : null,
     ].filter(v => v !== null).join('\n')
-    if (!window.confirm(testo)) return
+    const okPrezzi = await confirmDialog({
+      title: `Aggiorno ${cambi.length} prezz${cambi.length === 1 ? 'o' : 'i'} nel listino?`,
+      message: testo,
+      confirmLabel: 'Aggiorna', cancelLabel: 'Lascia stare',
+    })
+    if (!okPrezzi) return
     try {
       // SAVE FIRST: se il salvataggio non riesce non diciamo che è fatto.
       await ssave(SK_RIC, { ...ric, ingredienti_costi: nuovi }, orgId, null)
@@ -1156,13 +1173,14 @@ function SpesaTab({ orgId, isMobile }) {
   async function carica() {
     if (!orgId) { setLoading(false); return }
     setLoading(true)
-    const from = new Date(); from.setDate(from.getDate() - parseInt(range))
+    // Giorni locali, non UTC: vedi il commento nel caricamento qui sopra.
+    const fromStr = giorniFaLocal(parseInt(range))
     const [{ data, error }, { data: forn }] = await Promise.all([
       supabase.from("ordini_fornitori")
         .select("*, fornitori(nome)")
         .eq("organization_id", orgId)
         .eq("stato", "ricevuto")
-        .gte("data_ordine", from.toISOString().slice(0, 10))
+        .gte("data_ordine", fromStr)
         .order("data_ordine", { ascending: false }),
       supabase.from("fornitori").select("id,categoria").eq("organization_id", orgId),
     ])
@@ -1179,7 +1197,7 @@ function SpesaTab({ orgId, isMobile }) {
       const { data: fatt } = await supabase.from('fatture')
         .select('fornitore,totale,data_fattura')
         .eq('organization_id', orgId)
-        .gte('data_fattura', from.toISOString().slice(0, 10))
+        .gte('data_fattura', fromStr)
       setFatture(fatt || [])
     } else {
       setFatture([])
