@@ -112,8 +112,44 @@ describe('getR', () => {
   it('ricetta manuale: legge unita/prezzo/tipo dall’oggetto', () => {
     expect(getR('NUOVA', { unita: 12, prezzo: 6, tipo: 'fetta' })).toMatchObject({ unita: 12, prezzo: 6 })
   })
-  it('sconosciuta → nessun prezzo inventato, marcata senzaRegola', () => {
-    expect(getR('XYZ')).toEqual({ unita: 8, prezzo: 0, tipo: 'fetta', senzaRegola: true })
+  it('sconosciuta → nessun prezzo inventato, marcata senzaRegola e tipoPresunto', () => {
+    // `tipoPresunto` è arrivato il 16/09/2026: «fetta» qui non è un dato, è
+    // un ripiego per poter disegnare qualcosa, e le schede di modifica non
+    // devono salvarlo come se l'utente l'avesse scelto.
+    expect(getR('XYZ')).toEqual({ unita: 8, prezzo: 0, tipo: 'fetta', senzaRegola: true, tipoPresunto: true })
+  })
+
+  // ── Il tipo scritto nella categoria ────────────────────────────────────
+  //
+  // Nel ricettario vero del primo cliente (gelateria), venti ricette su
+  // trenta non avevano il campo `tipo`: erano arrivate da un file. Ma tutte e
+  // venti avevano `categoria: "Gusto"`. Il tipo non era ignoto, era scritto
+  // in un altro campo. Prima uscivano tutte «fetta», e chi apriva la scheda
+  // per cambiare la quantità di un ingrediente se la ritrovava salvata così.
+  it('senza tipo ma con categoria Gusto, è un gusto', () => {
+    const r = getR('NOCCIOLA', { nome: 'NOCCIOLA', categoria: 'Gusto', ingredienti: [] })
+    expect(r.tipo).toBe('gusto')
+    expect(r.tipoPresunto).toBeUndefined()
+  })
+
+  it('vale anche quando la ricetta ha unita e prezzo', () => {
+    const r = getR('NOCCIOLA', { nome: 'NOCCIOLA', categoria: 'Gusto', unita: 1, prezzo: 0 })
+    expect(r.tipo).toBe('gusto')
+  })
+
+  it('la categoria Base diventa una base, non un prodotto da vendere', () => {
+    expect(getR('BASE BIANCA', { nome: 'BASE BIANCA', categoria: 'Base' }).tipo).toBe('interno')
+  })
+
+  it('e il tipo scritto batte la categoria', () => {
+    const r = getR('X', { nome: 'X', tipo: 'pezzo', categoria: 'Gusto' })
+    expect(r.tipo).toBe('pezzo')
+  })
+
+  it('una categoria che non c\'entra non inventa niente', () => {
+    const r = getR('TORTA', { nome: 'TORTA', categoria: 'Torte' })
+    expect(r.tipo).toBe('fetta')
+    expect(r.tipoPresunto).toBe(true)
   })
 })
 

@@ -229,6 +229,36 @@ con `npm run build` — `npx vite build` li salta.
 
 ---
 
+## Ogni difetto corretto lascia dei test
+
+Regola del titolare, 16/09/2026: **«per ogni difetto o errore individuato,
+dopo la correzione si creano test per far sì che non accada più e che
+controllano la correzione e tutto ciò che c'è vicino»**.
+
+Non è «aggiungi un test». Sono tre cose, e la terza è quella che ripaga:
+
+1. **Il test che riproduce il difetto.** Deve fallire sul codice di prima e
+   passare su quello di adesso. Se passa anche prima, non stai proteggendo
+   niente.
+2. **Il test della correzione.** Verifica che la soluzione faccia quello che
+   dice, non solo che il sintomo sia sparito.
+3. **I test di quello che c'è intorno.** Un difetto è quasi sempre il membro
+   visibile di una famiglia. Se rinominare una ricetta ne lasciava due, si
+   prova anche: rinominare senza cambiare nome, creare una ricetta nuova, chi
+   la usava come ingrediente, il costo rimasto nel listino. Se una data
+   sbagliava per il fuso, si provano le altre date dello stesso file.
+
+**Il commento in cima al file di test dice il difetto vero, con la data e
+com'è stato scoperto.** Serve a chi lo leggerà fra sei mesi: un test senza il
+racconto del difetto sembra una regola arbitraria, e prima o poi qualcuno lo
+cancella perché «dà fastidio».
+
+Il posto dei test è `tests/unit/`, un file per famiglia di difetti, nome in
+italiano che dice cosa protegge (`rinominaRicetta.test.jsx`,
+`avvioSenzaPdf.test.js`, `tabelleLargheTelefono.test.js`).
+
+---
+
 ## Agenti: il diario è obbligatorio
 
 Un agente che lavora in parallelo **deve tenere un diario su file** e

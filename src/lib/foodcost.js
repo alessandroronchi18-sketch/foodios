@@ -17,6 +17,7 @@
 //   - calcolaFC(ricetta, ingCosti, ricettario, depth)
 
 import { costoNettoPerG, hasResaIngrediente } from './rese'
+import { tipoDichiarato } from './tipoRicetta'
 
 // ─── PREZZI HORECA ────────────────────────────────────────────────────────────
 // Prezzi ingrosso aggiornati 2025 - usati come stima quando l'utente non ha
@@ -739,11 +740,13 @@ export const getR = (nome, ricetta) => {
   if (ricetta?.unita != null) return {
     unita:  ricetta.unita || 0,
     prezzo: ricetta.prezzo || 0,
-    // Il `tipo` può mancare su una ricetta importata da Excel: in quel caso
-    // vale quello della tabella, che almeno sa distinguere un semilavorato da
-    // una torta a fette. Senza questo, una PASTA FROLLA importata senza tipo
-    // diventerebbe un prodotto da vendere.
-    tipo:   ricetta.tipo || REGOLE[nome]?.tipo || "fetta",
+    // Il `tipo` può mancare su una ricetta importata da un file. Prima di
+    // arrendersi si guarda la CATEGORIA, che l'importazione compila («Gusto»,
+    // «Semilavorato», «Base»): è una dichiarazione dell'utente, non una
+    // deduzione nostra. Poi la tabella, che almeno sa distinguere un
+    // semilavorato da una torta a fette. Solo alla fine il ripiego.
+    tipo:   tipoDichiarato(ricetta) || REGOLE[nome]?.tipo || "fetta",
+    ...(tipoDichiarato(ricetta) || REGOLE[nome]?.tipo ? null : { tipoPresunto: true }),
   }
   if (REGOLE[nome]) return REGOLE[nome]
   // Audit 2026-09-09 ALTA: qui il fallback era `{ unita:8, prezzo:4 }`, cioè un
@@ -773,11 +776,16 @@ export const getR = (nome, ricetta) => {
   // ingredienti. Nei dati di oggi tutti i semilavorati hanno `unita: 0` (li
   // scrive così la pagina Semilavorati) e il difetto non si vede, ma il tipo di
   // una ricetta non dipende dal fatto che abbia un prezzo.
-  const tipoDichiarato = ricetta?.tipo
-  if (tipoDichiarato === 'semilavorato' || tipoDichiarato === 'interno') {
-    return { unita: 0, prezzo: 0, tipo: tipoDichiarato }
+  const dichiarato = tipoDichiarato(ricetta)
+  if (dichiarato === 'semilavorato' || dichiarato === 'interno') {
+    return { unita: 0, prezzo: 0, tipo: dichiarato }
   }
-  return { unita:8, prezzo:0, tipo: tipoDichiarato || "fetta", senzaRegola:true }
+  if (dichiarato) return { unita: dichiarato === 'gusto' ? 1 : 8, prezzo: 0, tipo: dichiarato, senzaRegola: true }
+  // Qui il tipo NON lo sa nessuno: né la ricetta, né la categoria, né la
+  // tabella. «fetta» è un ripiego per poter disegnare qualcosa, e va detto:
+  // `tipoPresunto` impedisce che una scheda di modifica lo salvi come se
+  // l'utente l'avesse scelto.
+  return { unita:8, prezzo:0, tipo: "fetta", senzaRegola:true, tipoPresunto:true }
 }
 
 export const isSemilavorato = (nome, ricettario) => {

@@ -21,6 +21,36 @@
 // Centralizzare qui evita branching sparso `tipo === 'fetta' ? 'fette' : 'pezzi'`
 // (audit 2026-07-23) che non copriva 'gusto' e mostrava "pezzi" al gelataio.
 
+// Il tipo che una ricetta DICHIARA, guardando tutti i posti in cui può essere
+// scritto.
+//
+// Il campo `tipo` manca su tutte le ricette arrivate da un file: il 16/09/2026,
+// nel ricettario vero del primo cliente (una gelateria), **venti ricette su
+// trenta** non ce l'avevano. Ma tutte e venti avevano `categoria: "Gusto"`,
+// perché è così che l'importazione le ha scritte. Il tipo non era ignoto: era
+// scritto in un altro campo, e nessuno lo guardava.
+//
+// Quello che succedeva: aprendo uno di quei gusti per cambiare la quantità di
+// un ingrediente, la scheda mostrava «fetta» (il valore di ripiego), e
+// salvando quel ripiego diventava il dato. Un gelato al pistacchio diventava
+// una torta da otto fette, e da lì in poi ricavo, margine, food cost, cassa e
+// produzione contavano un'altra cosa. Segnalato dal titolare mentre caricava
+// il ricettario: «mi modifica il tipo e da gusto mi passa a fette e mi scasina
+// tutti i calcoli».
+//
+// Torna `null` quando la ricetta non dice niente: è diverso da «è una fetta»,
+// e chi chiama deve poter distinguere i due casi.
+export function tipoDichiarato(ricetta) {
+  const t = String(ricetta?.tipo || '').trim().toLowerCase()
+  if (t) return t
+  // La categoria è una dichiarazione dell'utente, non una deduzione nostra.
+  const cat = String(ricetta?.categoria || '').trim().toLowerCase()
+  if (cat === 'gusto' || cat === 'gusti') return 'gusto'
+  if (cat === 'semilavorato' || cat === 'semilavorati') return 'semilavorato'
+  if (cat === 'base' || cat === 'basi') return 'interno'
+  return null
+}
+
 export function labelPlurale(tipo) {
   switch (tipo) {
     case 'fetta': return 'fette'

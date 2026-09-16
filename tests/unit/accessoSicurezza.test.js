@@ -165,3 +165,19 @@ describe('il codice a 4 cifre del dipendente', () => {
     expect(S).toMatch(/Aspetta \$\{s\} second/)
   })
 })
+
+describe('i campi si toccano dove si vedono', () => {
+  // Trovato il 16/09/2026 misurando la pagina con playwright a 390px. La
+  // cornice del campo è alta 48 (`TOCCO`) e allinea al centro; l'`<input>`
+  // dentro non aveva altezza, quindi era alto 20 e stava in mezzo. Risultato
+  // misurato: cornice `{y: 344.5, h: 48}`, campo vero `{y: 358.5, h: 20}`, e
+  // un tocco a 5px dal bordo alto o basso lasciava il fuoco su BODY.
+  // Quattordici pixel sopra e quattordici sotto di riquadro che si vede e non
+  // risponde, su ognuno dei sette campi della registrazione.
+  it('l\'input riempie l\'altezza della cornice, non solo il centro', () => {
+    const inizio = AUTH.indexOf('function Input(')
+    const campo = AUTH.slice(inizio, AUTH.indexOf('function Field(', inizio))
+    expect(campo).toMatch(/height: TOCCO/)
+    expect(campo).toMatch(/alignSelf: 'stretch'/)
+  })
+})

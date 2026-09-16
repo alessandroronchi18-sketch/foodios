@@ -1,11 +1,16 @@
 // @vitest-environment happy-dom
 //
-// La pagina di presentazione, rifatta il 14/09/2026 sul modello di notco.ai.
+// La pagina di benvenuto, riscritta il 16/09/2026.
 //
-// Contenuto e colori sono rimasti quelli: cambia come sono messe le cose. Il
-// test guarda le scelte che si perdono facilmente in una modifica successiva —
-// l'apertura centrata, i link alle sezioni nella barra, e soprattutto le
-// tessere che devono restare della stessa altezza.
+// Quella di prima era lunga 9.729 px sul computer e 13.201 px sul telefono:
+// undici blocchi, 1.280 parole, 24 misure di carattere diverse, dieci pulsanti
+// che portano allo stesso posto e "3 mesi gratis" scritto nove volte. Il
+// titolare l'ha definita «troppo lunga e dispersiva».
+//
+// Questi test tengono ferme le cose che si perdono per prime quando una
+// pagina di presentazione ricomincia a crescere: il numero di blocchi, il
+// numero di parole, le cinque risposte che deve dare subito, e la scala
+// tipografica dichiarata invece che scritta a mano.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, cleanup } from '@testing-library/react'
@@ -34,93 +39,176 @@ vi.mock('../../src/lib/apiFetch', () => ({ apiFetch: async () => ({ json: async 
 
 const { default: LandingPage } = await import('../../src/pages/LandingPage.jsx')
 
+const disegna = () => render(<LandingPage onLogin={() => {}} onRegister={() => {}} />)
+
 beforeEach(() => cleanup())
 
-describe('apertura della pagina', () => {
-  it('il titolo è centrato e alla misura più grande della pagina', () => {
-    const v = render(<LandingPage onLogin={() => {}} onRegister={() => {}} />)
-    const h1 = v.container.querySelector('h1')
-    expect(h1).toBeTruthy()
-    expect(h1.textContent).toContain('Sai quanto')
-    // L'apertura è un blocco centrato: il contenitore ha textAlign center.
-    const hero = SRC.slice(SRC.indexOf('{/* HERO'), SRC.indexOf('{/* STAT STRIP'))
-    expect(hero).toMatch(/textAlign: 'center'/)
-    // La misura è fluida e parte da 56px (prima era 44).
-    expect(hero).toMatch(/clamp\(56px, 6\.4vw, 84px\)/)
-    // E il prodotto sta SOTTO il testo, non di fianco: niente due colonne.
-    expect(hero).not.toMatch(/gridTemplateColumns: isMobile \? '1fr' : '1\.05fr 1fr'/)
+describe('la pagina resta corta', () => {
+  it('non più di sei blocchi', () => {
+    // Erano undici. Ogni blocco in più è mezza schermata in più da scorrere.
+    const v = disegna()
+    expect(v.container.querySelectorAll('section').length).toBeLessThanOrEqual(6)
   })
 
-  it('il contenuto dell\'apertura è rimasto quello di prima', () => {
-    const v = render(<LandingPage onLogin={() => {}} onRegister={() => {}} />)
-    const t = v.container.textContent
-    expect(t).toContain('guadagni davvero')
-    expect(t).toContain('Inizia 3 mesi gratis')
-    expect(t).toContain('Vedi come funziona')
-    expect(t).toContain('3 mesi gratuiti')
-    expect(t).toContain('Disdici quando vuoi')
-    expect(t).toContain('In italiano')
+  it('non più di settecento parole', () => {
+    // Erano 1.280. Il conto comprende il piè di pagina e la tessera del prezzo.
+    const v = disegna()
+    const parole = v.container.textContent.trim().split(/\s+/).filter(Boolean)
+    expect(parole.length).toBeLessThanOrEqual(700)
   })
 
-  it('la barra in alto porta alle sezioni, non solo al login', () => {
-    // Su una pagina lunga nove schermate, senza questi si naviga solo scorrendo.
-    const v = render(<LandingPage onLogin={() => {}} onRegister={() => {}} />)
-    const t = v.container.textContent
-    expect(t).toContain('Come funziona')
-    expect(t).toContain('Prezzi')
-    expect(t).toContain('Domande')
-    expect(SRC).toContain("id=\"prezzi\"")
-    expect(SRC).toContain("id=\"domande\"")
-    expect(SRC).toContain("id=\"come-funziona\"")
+  it('un solo invito all\'azione, ripetuto in cima e in fondo', () => {
+    // Prima erano dieci pulsanti che aprivano tutti la stessa registrazione,
+    // uno per blocco. Qui se ne ammettono al massimo cinque in tutta la pagina
+    // (barra, apertura, tessera del prezzo, chiusura, piè di pagina).
+    const v = disegna()
+    const inviti = [...v.container.querySelectorAll('button')]
+      .filter(b => /prova|crea il tuo account|inizia/i.test(b.textContent || ''))
+    expect(inviti.length).toBeLessThanOrEqual(5)
   })
 })
 
-describe('le tessere restano della stessa altezza', () => {
-  it('l\'involucro che le fa comparire non annulla l\'altezza piena', () => {
-    // Era il difetto nascosto: `Reveal` sta fra la griglia e la tessera, e
-    // senza `height: 100%` spezzava lo stretch dei figli. Risultato: quattro
-    // riquadri affiancati alti in modo diverso, coi titoli fuori riga.
-    const reveal = SRC.slice(SRC.indexOf('function Reveal'), SRC.indexOf('function Reveal') + 1600)
-    expect(reveal).toMatch(/height: '100%'/)
-    // E la tessera dentro: colonna flessibile ad altezza piena, così il testo
-    // parte dalla stessa riga anche quando è lungo la metà.
-    const tessere = SRC.slice(SRC.indexOf("{ icon:'cake'"), SRC.indexOf("{ icon:'cake'") + 1800)
-    expect(tessere).toMatch(/height: '100%'/)
-    expect(tessere).toMatch(/flexDirection: 'column'/)
+describe('le cinque domande, nella prima schermata', () => {
+  it('cos\'è e per chi', () => {
+    const t = disegna().container.textContent
+    expect(t).toContain('gestionale')
+    for (const chi of ['pasticcerie', 'gelaterie', 'bar', 'ristoranti']) {
+      expect(t.toLowerCase()).toContain(chi)
+    }
   })
 
-  it('le tessere dei piani hanno le stesse fasce, e si distinguono col colore', () => {
-    const v = render(<LandingPage onLogin={() => {}} onRegister={() => {}} />)
-    const t = v.container.textContent
-    // Dal 15/09/2026 in vetrina c'è un piano solo, il Plus: gli altri due
-    // restano scritti nel codice ma non si mostrano finché non tornano in
-    // vendita (PIANI_IN_VENDITA in planAccess.js).
+  it('quanto costa, senza dover scorrere fino ai prezzi', () => {
+    const apertura = SRC.slice(SRC.indexOf('{/* ── 1. APERTURA'), SRC.indexOf('{/* ── 2. PER CHI'))
+    expect(apertura).toMatch(/fmtPrezzo\(prezzi\.pro\)/)
+    expect(apertura).toMatch(/Tre mesi di prova/)
+  })
+
+  it('come si comincia', () => {
+    const t = disegna().container.textContent
+    expect(t).toContain('Prova tre mesi gratis')
+    expect(t).toContain('Ho già un account')
+  })
+})
+
+describe('le regole di casa', () => {
+  it('il simbolo dell\'euro sta DOPO la cifra', () => {
+    // "149 €", mai "€149". Regola del titolare. Si guarda il sorgente: nel
+    // testo reso i blocchi si attaccano fra loro ("618 €" + "73% degli
+    // incassi") e sembrerebbero violazioni che a schermo non esistono.
+    expect(SRC).not.toMatch(/€\s*\{/)
+    expect(SRC).not.toMatch(/€\s*\d/)
+    expect(SRC).toMatch(/\{fmtPrezzo\([^)]+\)\} €/)
+  })
+
+  it('niente emoji: le icone sono SVG', () => {
+    const v = disegna()
+    // Il segno di copyright non è un'emoji: si guardano i blocchi pittografici.
+    expect(v.container.textContent).not.toMatch(/[\u{1F000}-\u{1FAFF}\u{2190}-\u{21FF}\u{2600}-\u{27BF}\u{FE0F}]/u)
+    expect(v.container.querySelectorAll('svg').length).toBeGreaterThan(0)
+  })
+
+  it('la scala tipografica è dichiarata una volta, non scritta a mano', () => {
+    // Nel file vivo (senza commenti) le misure numeriche scritte a mano sono
+    // poche: il resto passa dalla costante S in cima al file.
+    const vivo = SRC.replace(/\/\*[\s\S]*?\*\//g, '').split('\n').filter(r => !/^\s*\/\//.test(r)).join('\n')
+    expect(vivo).toMatch(/const S = \{/)
+    expect((vivo.match(/fontSize: \d/g) || []).length).toBeLessThanOrEqual(12)
+  })
+
+  it('nessuna misura di carattere sotto i 12 px', () => {
+    const fuori = []
+    for (const m of SRC.matchAll(/fontSize: (\d+)/g)) {
+      if (Number(m[1]) < 12) fuori.push(m[1])
+    }
+    expect(fuori).toEqual([])
+  })
+})
+
+describe('le tessere dei piani', () => {
+  it('sono un componente solo, non tre blocchi copiati', () => {
+    // Copiati, le fasce si erano già disallineate: il prezzo del centrale
+    // stava 23 px più in basso degli altri due.
+    expect(SRC).toMatch(/function Piano\(/)
+    for (const k of ['base', 'pro', 'chain']) {
+      expect(SRC, `la tessera ${k} non è dietro il controllo`).toContain(`{mostraPiano('${k}') && (`)
+    }
+  })
+
+  it('in vetrina oggi c\'è solo il Plus', () => {
+    const t = disegna().container.textContent
     expect(t).toContain('Plus')
     expect(t).not.toContain('Bottega')
     expect(t).not.toContain('Maestro')
     expect(t).not.toContain('Insegna')
-    // Le misure delle fasce restano identiche in tutte e tre le tessere: il
-    // giorno che se ne riaccende una, torna già incolonnata con le altre.
-    const prezzi = SRC.slice(SRC.indexOf('{/* Standard'), SRC.indexOf('Esigenze custom'))
-    expect((prezzi.match(/minHeight: 28/g) || []).length).toBeGreaterThanOrEqual(2)
-    expect((prezzi.match(/minHeight: 38/g) || []).length).toBe(3)
-    expect((prezzi.match(/minHeight: 58/g) || []).length).toBe(3)
-    // E la stessa misura del prezzo: prima il centrale era 64 e gli altri 48.
-    expect((prezzi.match(/fontSize: 56/g) || []).length).toBe(3)
+  })
+
+  it('la griglia si stringe invece di lasciare due buchi', () => {
+    expect(SRC).toMatch(/repeat\(\$\{nPianiMostrati\}, minmax\(0, 1fr\)\)/)
   })
 })
 
 describe('piè di pagina', () => {
   it('è una griglia a quattro colonne, non un flex che si allarga a caso', () => {
-    const piede = SRC.slice(SRC.indexOf('{/* FOOTER */}'))
+    const piede = SRC.slice(SRC.indexOf('{/* ── PIÈ DI PAGINA'))
     expect(piede).toMatch(/gridTemplateColumns: isMobile \? '1fr' : '1\.6fr 1fr 1fr 1fr'/)
   })
 
   it('i link legali e di supporto ci sono ancora tutti', () => {
-    const v = render(<LandingPage onLogin={() => {}} onRegister={() => {}} />)
-    const t = v.container.textContent
+    const t = disegna().container.textContent
     for (const voce of ['Privacy Policy', 'Termini di Servizio', 'Cookie Policy', 'Rimborsi', 'Contatti', 'Chi siamo']) {
       expect(t).toContain(voce)
+    }
+  })
+})
+
+describe('i blocchi che entrano scorrendo non lasciano buchi bianchi', () => {
+  // Trovato il 16/09/2026 rifotografando la pagina: `Reveal` partiva da
+  // `opacity: 0` e contava solo sull'osservatore dello scorrimento per
+  // tornare a 1. Senza `IntersectionObserver` i tre riquadri di "Cosa fa" e
+  // le tre tappe di "Come si comincia" restano bianchi per sempre — il testo
+  // è nel DOM, ma a zero. Ed è metà pagina.
+  it('senza osservatore dello scorrimento si parte già visibili', () => {
+    const fn = SRC.slice(SRC.indexOf('function Reveal'), SRC.indexOf('function Reveal') + 1400)
+    expect(fn).toMatch(/typeof IntersectionObserver === 'undefined'/)
+  })
+
+  it('chi ha chiesto meno animazioni le trova già al loro posto', () => {
+    expect(SRC).toMatch(/prefers-reduced-motion: reduce/)
+    // Vale sia per l'apertura sia per i blocchi sotto.
+    expect(SRC).toMatch(/useState\(\(\) => menoAnimazioni\(\)\)/)
+    const fn = SRC.slice(SRC.indexOf('function Reveal'), SRC.indexOf('function Reveal') + 1400)
+    expect(fn).toMatch(/menoAnimazioni\(\)/)
+  })
+})
+
+describe('quello che la vetrina promette, il prodotto lo mantiene', () => {
+  // Verificato il 16/09/2026 leggendo il codice, una promessa alla volta.
+  // «Tutto Foodos, senza limiti di sede o di utenti» regge solo finché vale
+  // la decisione del titolare del 15/09/2026: un piano solo, il Plus, con
+  // tutto sbloccato (`SBLOCCO_TUTTE_LE_PAGINE`). Se quella riga torna a
+  // `false`, `VIEW_MIN_PLAN` rimette confronto-sedi, trasferimenti e il
+  // riepilogo WhatsApp dietro Ultra, e la tessera del prezzo diventa falsa.
+  // `PLAN_LIMITS.pro` dichiara già 2 sedi e 3 utenti: oggi non lo legge
+  // nessuno, ma il giorno che qualcuno lo collega la frase va riscritta.
+  it('«senza limiti» vale finché tutte le pagine sono sbloccate', async () => {
+    const { SBLOCCO_TUTTE_LE_PAGINE } = await import('../../src/lib/planAccess.js')
+    const t = disegna().container.textContent
+    if (t.includes('senza limiti')) {
+      expect(SBLOCCO_TUTTE_LE_PAGINE,
+        'la vetrina dice "senza limiti" ma le pagine sono tornate dietro ai piani').toBe(true)
+    }
+  })
+
+  it('le funzioni elencate nella tessera esistono davvero', () => {
+    // Ognuna è stata ritrovata nel prodotto: ricettario e semilavorati
+    // (SemilavoratiView), food cost (lib/foodcost.js), produzione e magazzino
+    // (ProduzioneGiornalieraView, MagazzinoView), sprechi (SpreciOmaggi),
+    // cassa e prima nota (ChiusuraView), fatture e scadenzario (Fornitori,
+    // Scadenzario), P&L (PLView), AI (api/ai.js), più sedi (lib/trasferimenti.js),
+    // esportazione (lib/xlsx.js, lib/exportPDF.js).
+    const t = disegna().container.textContent
+    for (const promessa of ['Food cost', 'Cassa e prima nota', 'P&L', 'Excel e PDF']) {
+      expect(t).toContain(promessa)
     }
   })
 })

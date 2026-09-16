@@ -3,11 +3,49 @@ import { supabase } from '../lib/supabase'
 import FoodosLogo from '../components/FoodosLogo'
 import COMUNI_ITALIANI from '../lib/comuniItaliani'
 import { temaPubblico, SERIF_PUBBLICO, SANS_PUBBLICO } from '../lib/temaPubblico'
+import { font } from '../lib/theme'
 import { useCaptcha } from './Captcha'
+
+/* ────────────────────────────────────────────────────────────────────────────
+   ACCESSO E REGISTRAZIONE
+
+   Rivisto il 16/09/2026. È la prima schermata che il titolare vede ogni
+   mattina, prima del caffè: deve chiedere due cose e togliersi di mezzo.
+   Cosa non andava:
+
+   1. Due strade per registrarsi sulla stessa schermata — la linguetta
+      "Registrati" in cima alla scheda e il "Non hai un account? Registrati
+      gratis" in fondo. Chi torna ogni giorno per accedere aveva metà della
+      scheda occupata da un invito che non lo riguarda, e una linguetta
+      "Accedi" già selezionata sopra un titolo che diceva di nuovo "Accedi".
+   2. Sette bersagli su nove sotto i 44 px: la linguetta, "Dimenticata?",
+      l'occhio della password. Sul telefono si sbaglia.
+   3. Su un computer da 1440 px c'era una scheda da 460 px in mezzo al vuoto.
+
+   Adesso: una colonna sola col modulo, e sul computer una seconda colonna
+   scura con il marchio — così lo schermo largo serve a qualcosa. Niente
+   linguette: si accede, e chi non ha l'account trova un link in fondo.
+   Le misure di carattere vengono dalla scala di src/lib/theme.js.
+─────────────────────────────────────────────────────────────────────────── */
 
 const T = temaPubblico
 const SERIF = SERIF_PUBBLICO
-const SANS  = SANS_PUBBLICO
+const SANS = SANS_PUBBLICO
+
+// I gradini della scala di theme.js, con i nomi che servono qui.
+// Sotto i 12 px non si scende.
+const TESTO = {
+  nota: font.size.sm,          // 12 — note, piè di modulo
+  piccolo: font.size.base,     // 13 — etichette dei campi, errori
+  corpo: font.size.md,         // 14 — testo corrente
+  campo: font.size.lg,         // 16 — quello che si scrive dentro ai campi
+  sottotitolo: font.size.xl,   // 18
+  titolo: font.size['2xl'],    // 22
+  grande: font.size['3xl'],    // 28 — il titolo della schermata
+}
+
+// L'altezza minima di tutto quello che si tocca. Sotto, il dito sbaglia.
+const TOCCO = 48
 
 // {label mostrato, slug stabile salvato su organizations.tipo}.
 // Lo slug è la chiave usata da src/lib/lessico.js per la terminologia.
@@ -107,21 +145,18 @@ function PasswordStrength({ password }) {
   if (!password) return null
   const c = checkPwd(password)
   const score = Object.values(c).filter(Boolean).length
-  const barColor =
-    score <= 2 ? T.danger :
-    score <= 3 ? '#F97316' :
-    score === 4 ? T.amber : T.green
-  const label =
-    score <= 2 ? 'Debole' :
-    score <= 3 ? 'Discreta' :
-    score === 4 ? 'Buona' : 'Ottima'
+  // Tre stati, non cinque: rosso finché manca il minimo, ambra mentre ci si
+  // arriva, verde quando c'è tutto. Prima c'era anche un arancione scritto a
+  // mano, un colore che nella tavolozza di Foodos non esiste.
+  const barColor = score <= 2 ? T.danger : score <= 4 ? T.amber : T.green
+  const label = score <= 2 ? 'Debole' : score <= 3 ? 'Discreta' : score === 4 ? 'Buona' : 'Ottima'
 
   const req = [
-    [c.length,  '8+ caratteri'],
+    [c.length,  '8 caratteri'],
     [c.upper,   'Maiuscola'],
     [c.lower,   'Minuscola'],
     [c.number,  'Numero'],
-    [c.special, 'Speciale'],
+    [c.special, 'Simbolo'],
   ]
 
   return (
@@ -130,11 +165,11 @@ function PasswordStrength({ password }) {
         <div style={{ flex: 1, height: 4, background: T.creamDeep, borderRadius: 999 }}>
           <div style={{ width: `${(score / 5) * 100}%`, height: '100%', background: barColor, borderRadius: 999, transition: 'all 0.3s' }}/>
         </div>
-        <span style={{ fontSize: 12, fontWeight: 700, color: barColor, minWidth: 50, textAlign: 'right' }}>{label}</span>
+        <span style={{ fontSize: TESTO.nota, fontWeight: 700, color: barColor, minWidth: 52, textAlign: 'right' }}>{label}</span>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(3, 1fr)', gap: '4px 10px' }}>
         {req.map(([ok, txt]) => (
-          <div key={txt} style={{ fontSize: 12, color: ok ? T.green : T.textSoft, display: 'flex', alignItems: 'center', gap: 4, fontWeight: ok ? 600 : 500 }}>
+          <div key={txt} style={{ fontSize: TESTO.nota, color: ok ? T.green : T.textSoft, display: 'flex', alignItems: 'center', gap: 5, fontWeight: ok ? 600 : 500 }}>
             <span style={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0, display: 'inline-block',
               background: ok ? T.green : 'transparent', border: ok ? 'none' : `1.5px solid ${T.border}` }}/>{txt}
           </div>
@@ -155,7 +190,7 @@ function Input({ id, icon, type = 'text', value, onChange, placeholder, required
       display: 'flex', alignItems: 'center', gap: 10,
       background: focused ? T.paper : T.cream,
       border: `1.5px solid ${focused ? T.ink : T.border}`,
-      borderRadius: 12, padding: '0 14px', height: 48,
+      borderRadius: 12, padding: '0 6px 0 14px', height: TOCCO,
       transition: 'all 0.18s ease',
       boxShadow: focused ? `0 0 0 4px ${T.creamDeep}` : 'none',
       boxSizing: 'border-box', width: '100%', minWidth: 0,
@@ -176,14 +211,25 @@ function Input({ id, icon, type = 'text', value, onChange, placeholder, required
         placeholder={placeholder}
         style={{
           flex: 1, border: 'none', outline: 'none', background: 'transparent',
-          fontSize: 16, color: T.ink, fontFamily: SANS, fontWeight: 500,
+          fontSize: TESTO.campo, color: T.ink, fontFamily: SANS, fontWeight: 500,
           padding: 0, minWidth: 0, width: '100%',
+          // La cornice è alta 48, il campo dentro ne occupava 20 e stava in
+          // mezzo: toccando il bordo alto o basso non si metteva a fuoco
+          // niente. Sul telefono era un riquadro che si vede e non risponde.
+          // `stretch` fa arrivare il campo ai due bordi: si tocca dove capita.
+          alignSelf: 'stretch',
         }}
       />
       {type === 'password' && (
+        // Era 24x24: si sbagliava a colpirlo, e chi sbaglia si ritrova la
+        // password scritta in chiaro davanti al banco.
         <button type="button" tabIndex={-1}
           onClick={() => setShowPwd(s => !s)}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, margin: 0, color: T.textSoft, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, flexShrink: 0 }}
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer', padding: 0, margin: 0,
+            color: T.textSoft, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            width: 44, height: 44, flexShrink: 0, borderRadius: 10,
+          }}
           aria-label={showPwd ? 'Nascondi password' : 'Mostra password'}>
           <Icon name={showPwd ? 'eyeOff' : 'eye'} size={18} color={T.textSoft}/>
         </button>
@@ -198,14 +244,14 @@ function Field({ label, hint, children, error, htmlFor }) {
   return (
     <div style={{ marginBottom: 16, minWidth: 0 }}>
       {label && (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 }}>
-          <label htmlFor={htmlFor} style={{ fontSize: 12, fontWeight: 600, color: T.textMid, letterSpacing: '0.01em' }}>{label}</label>
-          {hint && <span style={{ fontSize: 12, color: T.textSoft }}>{hint}</span>}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 7, minHeight: 20 }}>
+          <label htmlFor={htmlFor} style={{ fontSize: TESTO.piccolo, fontWeight: 600, color: T.textMid }}>{label}</label>
+          {hint}
         </div>
       )}
       {children}
       {error && (
-        <div style={{ fontSize: 12, color: T.danger, marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ fontSize: TESTO.piccolo, color: T.danger, marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
           <Icon name="x" size={12} color={T.danger}/> {error}
         </div>
       )}
@@ -223,19 +269,32 @@ function PrimaryBtn({ children, disabled, type = 'submit', onClick, style }) {
       onMouseEnter={() => setH(true)}
       onMouseLeave={() => setH(false)}
       style={{
-        width: '100%', padding: '14px 20px',
+        width: '100%', minHeight: TOCCO, padding: '12px 20px',
         background: disabled ? T.creamDeep : h ? T.redDeep : T.red,
-        color: disabled ? T.textSoft : '#FFF',
+        color: disabled ? T.textSoft : T.textOnDark,
         border: 'none', borderRadius: 12,
-        fontSize: 15, fontWeight: 700, fontFamily: SANS,
+        fontSize: TESTO.campo, fontWeight: 700, fontFamily: SANS,
         letterSpacing: '-0.005em',
         cursor: disabled ? 'not-allowed' : 'pointer',
         transition: 'all 0.2s ease',
-        boxShadow: disabled ? 'none' : h ? '0 12px 30px rgba(110,14,26,0.28)' : '0 6px 18px rgba(110,14,26,0.20)',
+        boxShadow: disabled ? 'none' : h ? '0 12px 30px rgba(110,14,26,0.26)' : '0 6px 18px rgba(110,14,26,0.18)',
         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
         ...style,
       }}
     >{children}</button>
+  )
+}
+
+// Il link discreto: testo, niente riquadro, ma alto quanto un bersaglio.
+function LinkBtn({ children, onClick, colore = T.red, style }) {
+  return (
+    <button type="button" onClick={onClick} style={{
+      background: 'none', border: 'none', cursor: 'pointer', padding: '0 4px',
+      minHeight: 44, color: colore, fontFamily: SANS,
+      fontSize: TESTO.piccolo, fontWeight: 600,
+      display: 'inline-flex', alignItems: 'center', gap: 6,
+      ...style,
+    }}>{children}</button>
   )
 }
 
@@ -244,7 +303,6 @@ function CittaInput({ value, onChange }) {
   const [q, setQ] = useState(value)
   const [hi, setHi] = useState(0)
   const ref = useRef(null)
-  const inputRef = useRef(null)
 
   useEffect(() => { setQ(value) }, [value])
 
@@ -286,7 +344,7 @@ function CittaInput({ value, onChange }) {
 
   return (
     <div ref={ref} style={{ position: 'relative' }} onKeyDown={handleKey}>
-      <Input icon="map" value={q} placeholder="Es. Torino" required autoComplete="off"
+      <Input id="reg-citta" icon="map" value={q} placeholder="Es. Torino" required autoComplete="off"
         onChange={e => { setQ(e.target.value); onChange(e.target.value); setOpen(true) }}
         onFocus={() => setOpen(true)}/>
       {open && matches.length > 0 && (
@@ -300,7 +358,8 @@ function CittaInput({ value, onChange }) {
               onMouseDown={e => { e.preventDefault(); setQ(c); onChange(c); setOpen(false) }}
               onMouseEnter={() => setHi(i)}
               style={{
-                padding: '11px 16px', fontSize: 14, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', minHeight: 44, padding: '0 16px',
+                fontSize: TESTO.corpo, cursor: 'pointer',
                 color: T.ink, fontWeight: i === hi ? 700 : 500,
                 background: i === hi ? T.cream : 'transparent',
                 transition: 'background 0.1s',
@@ -332,17 +391,18 @@ function PhoneInput({ prefisso, numero, onPrefisso, onNumero }) {
       display: 'flex', alignItems: 'stretch', gap: 8,
       background: focused ? T.paper : T.cream,
       border: `1.5px solid ${focused ? T.ink : T.border}`,
-      borderRadius: 12, height: 48, padding: 0,
+      borderRadius: 12, height: TOCCO, padding: 0,
       boxSizing: 'border-box', width: '100%', minWidth: 0,
       boxShadow: focused ? `0 0 0 4px ${T.creamDeep}` : 'none',
       transition: 'all 0.18s ease', position: 'relative',
     }}>
       <button type="button" onClick={() => setOpen(o => !o)}
+        aria-label={`Prefisso ${sel.code}, ${sel.label}`}
         style={{
           display: 'flex', alignItems: 'center', gap: 6,
           padding: '0 10px 0 12px', background: 'transparent',
           border: 'none', borderRight: `1px solid ${T.border}`,
-          fontSize: 14, color: T.ink, fontWeight: 600, cursor: 'pointer',
+          fontSize: TESTO.corpo, color: T.ink, fontWeight: 600, cursor: 'pointer',
           fontFamily: SANS, minWidth: 84,
         }}>
         <span>{sel.code}</span>
@@ -351,6 +411,7 @@ function PhoneInput({ prefisso, numero, onPrefisso, onNumero }) {
         </svg>
       </button>
       <input
+        id="reg-tel"
         type="tel" inputMode="numeric" autoComplete="tel-national" maxLength={15}
         value={numero}
         onChange={e => onNumero(e.target.value.replace(/[^0-9]/g, ''))}
@@ -359,7 +420,7 @@ function PhoneInput({ prefisso, numero, onPrefisso, onNumero }) {
         placeholder="333 1234567"
         style={{
           flex: 1, minWidth: 0, border: 'none', outline: 'none',
-          background: 'transparent', fontSize: 16, color: T.ink,
+          background: 'transparent', fontSize: TESTO.campo, color: T.ink,
           fontFamily: SANS, fontWeight: 500, padding: '0 14px 0 0',
         }}
       />
@@ -376,8 +437,9 @@ function PhoneInput({ prefisso, numero, onPrefisso, onNumero }) {
               onMouseDown={e => { e.preventDefault(); onPrefisso(p.code); setOpen(false) }}
               style={{
                 width: '100%', display: 'flex', alignItems: 'center', gap: 10,
-                padding: '10px 14px', background: p.code === prefisso ? T.cream : 'transparent',
-                border: 'none', cursor: 'pointer', fontSize: 14, fontFamily: SANS,
+                minHeight: 44, padding: '0 14px',
+                background: p.code === prefisso ? T.cream : 'transparent',
+                border: 'none', cursor: 'pointer', fontSize: TESTO.corpo, fontFamily: SANS,
                 color: T.ink, textAlign: 'left',
               }}
               onMouseEnter={e => e.currentTarget.style.background = T.cream}
@@ -398,7 +460,7 @@ function ErrorAlert({ children }) {
       background: T.dangerSoft, border: `1px solid ${T.danger}30`,
       borderRadius: 12, padding: '11px 14px', marginBottom: 18,
       display: 'flex', alignItems: 'flex-start', gap: 10,
-      fontSize: 13, color: T.danger, lineHeight: 1.5,
+      fontSize: TESTO.piccolo, color: T.danger, lineHeight: 1.5,
     }}>
       <Icon name="x" size={16} color={T.danger}/>
       <span>{children}</span>
@@ -412,7 +474,7 @@ function SuccessAlert({ children }) {
       background: T.greenSoft, border: `1px solid ${T.green}30`,
       borderRadius: 12, padding: '11px 14px', marginBottom: 18,
       display: 'flex', alignItems: 'flex-start', gap: 10,
-      fontSize: 13, color: T.green, lineHeight: 1.5,
+      fontSize: TESTO.piccolo, color: T.green, lineHeight: 1.5,
     }}>
       <Icon name="checkCirc" size={16} color={T.green}/>
       <span>{children}</span>
@@ -420,7 +482,94 @@ function SuccessAlert({ children }) {
   )
 }
 
+/* ── l'impaginazione ─────────────────────────────────────────────────────── */
+
+// Due colonne sul computer, una sul telefono. A sinistra il marchio, a destra
+// il modulo: lo schermo largo smette di essere vuoto e il modulo resta della
+// sua misura, quella giusta per leggere una riga di campi.
+function Schermata({ children, isMobile, titolo, sotto }) {
+  return (
+    <div style={{
+      minHeight: '100vh', background: T.paper, fontFamily: SANS, color: T.ink,
+      WebkitFontSmoothing: 'antialiased',
+      display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '5fr 7fr',
+    }}>
+      {!isMobile && <ColonnaMarchio/>}
+
+      <div style={{
+        display: 'flex', flexDirection: 'column', alignItems: 'center',
+        justifyContent: 'center', padding: isMobile ? '28px 20px 40px' : '48px 40px',
+        minWidth: 0,
+      }}>
+        <div style={{ width: '100%', maxWidth: 400 }}>
+          {isMobile && (
+            <a href="/" aria-label="Torna alla pagina di Foodos" style={{
+              display: 'inline-flex', alignItems: 'center', gap: 10,
+              textDecoration: 'none', marginBottom: 28, minHeight: 44,
+            }}>
+              <FoodosLogo size={34} style={{ borderRadius: 9 }}/>
+              <span style={{ fontFamily: SERIF, fontSize: TESTO.titolo, fontWeight: 600, color: T.ink, letterSpacing: '-0.03em' }}>Foodos</span>
+            </a>
+          )}
+
+          <h1 style={{
+            fontFamily: SERIF, fontSize: TESTO.grande, fontWeight: 600, color: T.ink,
+            letterSpacing: '-0.03em', lineHeight: 1.15, margin: 0,
+          }}>{titolo}</h1>
+          {sotto && (
+            <p style={{ fontSize: TESTO.corpo, color: T.textMid, margin: '8px 0 0', lineHeight: 1.55 }}>{sotto}</p>
+          )}
+
+          <div style={{ marginTop: 26 }}>{children}</div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ColonnaMarchio() {
+  return (
+    <div style={{
+      background: T.ink, color: T.textOnDark, position: 'relative', overflow: 'hidden',
+      display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+      padding: '48px 44px',
+    }}>
+      <div aria-hidden style={{
+        position: 'absolute', inset: 0, pointerEvents: 'none',
+        background: 'radial-gradient(circle at 20% 0%, rgba(110,14,26,0.30), transparent 60%)',
+      }}/>
+
+      <a href="/" aria-label="Torna alla pagina di Foodos" style={{
+        position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 12,
+        textDecoration: 'none', alignSelf: 'flex-start', minHeight: 44,
+      }}>
+        <FoodosLogo size={38} style={{ borderRadius: 10 }}/>
+        <span style={{ fontFamily: SERIF, fontSize: TESTO.titolo, fontWeight: 600, color: T.cream, letterSpacing: '-0.03em' }}>Foodos</span>
+      </a>
+
+      <p style={{
+        position: 'relative', fontFamily: SERIF, fontSize: TESTO.grande, fontWeight: 500,
+        color: T.cream, letterSpacing: '-0.03em', lineHeight: 1.2,
+        margin: '40px 0', maxWidth: 380,
+      }}>
+        Apri la mattina e i numeri di ieri
+        <em style={{ fontStyle: 'italic', color: T.amber }}> sono già fatti.</em>
+      </p>
+
+      <div style={{ position: 'relative', fontSize: TESTO.piccolo, color: 'rgba(244,236,227,0.55)', lineHeight: 1.6 }}>
+        Problemi con l&apos;accesso? Scrivi a{' '}
+        <a href="mailto:support@foodos.it" style={{ color: T.cream, textDecoration: 'none', borderBottom: '1px solid rgba(244,236,227,0.4)' }}>
+          support@foodos.it
+        </a>
+      </div>
+    </div>
+  )
+}
+
+/* ── la pagina "scegli una nuova password" (arrivo dal link via email) ───── */
+
 export function ResetPasswordPage({ onDone }) {
+  const isMobile = useIsMobile()
   const [pwd, setPwd]         = useState('')
   const [conf, setConf]       = useState('')
   const [loading, setLoading] = useState(false)
@@ -457,74 +606,42 @@ export function ResetPasswordPage({ onDone }) {
   }
 
   return (
-    <div style={{
-      minHeight: '100vh', background: T.cream,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      padding: '24px 16px', fontFamily: SANS,
-    }}>
-      <div style={{ width: '100%', maxWidth: 440 }}>
-        <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'center' }}>
-            <FoodosLogo size={56} style={{ borderRadius: 14, boxShadow: '0 8px 28px rgba(110,14,26,0.28)' }}/>
-          </div>
-          <h1 style={{
-            margin: 0, fontFamily: SERIF, fontSize: 28, fontWeight: 600,
-            color: T.ink, letterSpacing: '-0.025em',
-          }}>
-            Imposta nuova password
-          </h1>
-          <p style={{ margin: '8px 0 0', fontSize: 14, color: T.textMid }}>
-            Scegli una password sicura per il tuo account.
-          </p>
-        </div>
-
+    <Schermata isMobile={isMobile}
+      titolo={successo ? 'Password aggiornata' : 'Scegli la nuova password'}
+      sotto={successo ? 'Fra un momento ti riportiamo alla pagina di accesso.' : 'Otto caratteri, una maiuscola, un numero e un simbolo.'}>
+      {errore && <ErrorAlert>{errore}</ErrorAlert>}
+      {successo ? (
         <div style={{
-          background: T.paper, borderRadius: 20,
-          boxShadow: '0 12px 40px rgba(15,9,7,0.08)',
-          border: `1px solid ${T.border}`, padding: '28px 32px',
+          display: 'flex', alignItems: 'center', gap: 12,
+          background: T.greenSoft, borderRadius: 12, padding: '14px 16px',
+          fontSize: TESTO.corpo, color: T.green, fontWeight: 600,
         }}>
-          {errore && <ErrorAlert>{errore}</ErrorAlert>}
-          {successo ? (
-            <div style={{ textAlign: 'center', padding: '8px 0' }}>
-              <div style={{
-                width: 60, height: 60, borderRadius: 999,
-                background: T.greenSoft, color: T.green,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                margin: '0 auto 16px',
-              }}>
-                <Icon name="check" size={28} color={T.green} stroke={2.5}/>
-              </div>
-              <h3 style={{ fontFamily: SERIF, color: T.ink, margin: '0 0 8px', fontWeight: 600, fontSize: 20 }}>
-                Password aggiornata!
-              </h3>
-              <p style={{ color: T.textMid, fontSize: 14, lineHeight: 1.6, margin: 0 }}>
-                Tra un momento verrai reindirizzato al login.
-              </p>
-            </div>
-          ) : (
-            <form onSubmit={handleSubmit}>
-              <Field label="Nuova password" htmlFor="reset-newpwd">
-                <Input id="reset-newpwd" icon="lock" type="password" required value={pwd}
-                  onChange={e => setPwd(e.target.value)}
-                  placeholder="••••••••" autoComplete="new-password"/>
-                <PasswordStrength password={pwd}/>
-              </Field>
-              <Field label="Conferma password" htmlFor="reset-confpwd"
-                error={conf && pwd !== conf ? 'Le password non coincidono' : null}>
-                <Input id="reset-confpwd" icon="lock" type="password" required value={conf}
-                  onChange={e => setConf(e.target.value)}
-                  placeholder="••••••••" autoComplete="new-password"/>
-              </Field>
-              <PrimaryBtn disabled={loading} style={{ marginTop: 8 }}>
-                {loading ? 'Aggiornamento…' : <>Salva nuova password <Icon name="arrowR" size={15} color="#FFF"/></>}
-              </PrimaryBtn>
-            </form>
-          )}
+          <Icon name="checkCirc" size={20} color={T.green}/> Fatto.
         </div>
-      </div>
-    </div>
+      ) : (
+        <form onSubmit={handleSubmit}>
+          <Field label="Nuova password" htmlFor="reset-newpwd">
+            <Input id="reset-newpwd" icon="lock" type="password" required value={pwd}
+              onChange={e => setPwd(e.target.value)}
+              placeholder="••••••••" autoComplete="new-password"/>
+            <PasswordStrength password={pwd}/>
+          </Field>
+          <Field label="Ripeti la password" htmlFor="reset-confpwd"
+            error={conf && pwd !== conf ? 'Le due password non sono uguali' : null}>
+            <Input id="reset-confpwd" icon="lock" type="password" required value={conf}
+              onChange={e => setConf(e.target.value)}
+              placeholder="••••••••" autoComplete="new-password"/>
+          </Field>
+          <PrimaryBtn disabled={loading} style={{ marginTop: 8 }}>
+            {loading ? 'Salvataggio…' : <>Salva la password <Icon name="arrowR" size={15} color={T.textOnDark}/></>}
+          </PrimaryBtn>
+        </form>
+      )}
+    </Schermata>
   )
 }
+
+/* ── accesso e registrazione ─────────────────────────────────────────────── */
 
 export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '', initialMode = null }) {
   const isMobile = useIsMobile()
@@ -605,7 +722,7 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
           const sec = Math.max(1, Number(j.retryAfter) || 5)
           setErrore(sec <= 60
             ? `Aspetta ${quandoRiprovare(sec)} e riprova.`
-            : `Hai sbagliato password più volte. Riprova fra ${quandoRiprovare(sec)}, oppure usa "Dimenticata?" qui sopra per rifarla.`)
+            : `Hai sbagliato password più volte. Riprova fra ${quandoRiprovare(sec)}, oppure usa "Password dimenticata" qui sotto per rifarla.`)
           setLoading(false)
           return
         }
@@ -663,7 +780,7 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
     try {
       const { error } = await supabase.auth.updateUser({ password: newPwd })
       if (error) throw error
-      setMsg('Password aggiornata! Puoi ora effettuare il login.')
+      setMsg('Password aggiornata. Adesso puoi entrare.')
       setMode('login')
     } catch (err) {
       setErrore(messaggioPassword(err))
@@ -769,404 +886,302 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
     } finally { setLoading(false) }
   }
 
-  const isReset = mode === 'reset-request' || mode === 'reset-password'
+  // Titolo e sottotitolo della schermata: uno solo, mai ripetuto dentro.
+  const intestazione = {
+    'login': ['Accedi', null],
+    'reset-request': ['Password dimenticata', 'Ti mandiamo un link per rifarla.'],
+    'reset-password': ['Scegli la nuova password', 'Otto caratteri, una maiuscola, un numero e un simbolo.'],
+  }[mode] || (successo
+    ? ['Controlla la posta', null]
+    : regStep === 1
+      ? ['Crea il tuo account', 'Trenta secondi, poi tre mesi di prova.']
+      : ['La tua attività', 'Ultimo passo, poi entri.'])
 
   return (
-    <div style={{
-      minHeight: '100vh', background: T.cream,
-      fontFamily: SANS, color: T.ink,
-      WebkitFontSmoothing: 'antialiased',
-      position: 'relative', overflow: 'hidden',
-    }}>
-      {/* Background ornament - discreto, warm */}
-      <div aria-hidden style={{
-        position: 'absolute', inset: 0, pointerEvents: 'none',
-        background: 'radial-gradient(circle at 80% 0%, rgba(110,14,26,0.06), transparent 50%), radial-gradient(circle at 0% 100%, rgba(230,189,90,0.05), transparent 55%)',
-      }}/>
+    <Schermata isMobile={isMobile} titolo={intestazione[0]} sotto={intestazione[1]}>
 
-      <div style={{
-        position: 'relative',
-        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-        minHeight: '100vh',
-        padding: isMobile ? '32px 20px 40px' : '48px 24px',
-      }}>
-        <div style={{ width: '100%', maxWidth: 460 }}>
+      {errore && <ErrorAlert>{errore}</ErrorAlert>}
+      {msg && <SuccessAlert>{msg}</SuccessAlert>}
 
-          {/* Header - logo + brand */}
+      {mode === 'login' && (
+        <form onSubmit={handleLogin}>
+          <Field label="Email" htmlFor="login-email">
+            <Input id="login-email" icon="mail" type="email" required value={loginEmail}
+              onChange={e => setLoginEmail(e.target.value)}
+              placeholder="tua@email.com" autoComplete="email"/>
+          </Field>
+          <Field label="Password" htmlFor="login-pwd">
+            <Input id="login-pwd" icon="lock" type="password" required value={loginPwd}
+              onChange={e => setLoginPwd(e.target.value)}
+              placeholder="••••••••" autoComplete="current-password"/>
+          </Field>
+          <Captcha />
+          <PrimaryBtn disabled={loading || !captchaPronto}>
+            {loading ? 'Un momento…' : <>Entra <Icon name="arrowR" size={15} color={T.textOnDark}/></>}
+          </PrimaryBtn>
+
           <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            gap: 12, marginBottom: isMobile ? 28 : 36,
+            display: 'flex', flexWrap: 'wrap', alignItems: 'center',
+            justifyContent: 'space-between', gap: 8, marginTop: 10,
           }}>
-            <FoodosLogo size={isMobile ? 44 : 52} style={{ borderRadius: 13, boxShadow: '0 8px 24px rgba(110,14,26,0.28)' }}/>
-            <span style={{ fontFamily: SERIF, fontSize: isMobile ? 28 : 32, fontWeight: 600, color: T.ink, letterSpacing: '-0.03em' }}>Foodos</span>
+            <LinkBtn colore={T.textMid} onClick={() => { setMode('reset-request'); clear() }}>
+              Password dimenticata
+            </LinkBtn>
+            <LinkBtn onClick={() => { setMode('registrati'); setRegStep(1); clear() }}>
+              Crea un account
+            </LinkBtn>
           </div>
 
-          {/* Card */}
-          <div style={{
-            background: T.paper,
-            border: `1px solid ${T.border}`,
-            borderRadius: 20,
-            padding: isMobile ? '28px 22px' : '36px 36px',
-            boxShadow: '0 20px 50px rgba(15,9,7,0.06), 0 4px 14px rgba(15,9,7,0.04)',
-          }}>
+          {isMobile && <PiedeAiuto/>}
+        </form>
+      )}
 
-          {isReset && (
-            <div style={{ textAlign: 'center', marginBottom: 24 }}>
-              <h1 style={{
-                fontFamily: SERIF, fontSize: 24, fontWeight: 600, color: T.ink,
-                letterSpacing: '-0.025em', margin: '0 0 6px',
-              }}>
-                {mode === 'reset-request' ? 'Password dimenticata?' : 'Imposta nuova password'}
-              </h1>
-              <p style={{ margin: 0, fontSize: 14, color: T.textMid, lineHeight: 1.55 }}>
-                {mode === 'reset-request'
-                  ? 'Ti mandiamo un link per reimpostarla.'
-                  : 'Scegli una nuova password sicura.'}
-              </p>
-            </div>
-          )}
-
-          {!isReset && (
-            <div style={{
-              display: 'inline-flex', padding: 4, marginBottom: 28,
-              background: T.creamDeep, borderRadius: 12, gap: 4,
-            }} role="tablist" aria-label="Scegli login o registrazione">
-              {[['login', 'Accedi'], ['registrati', 'Registrati']].map(([id, lbl]) => (
-                <button key={id} role="tab" aria-selected={mode === id}
-                  onClick={() => { setMode(id); setRegStep(1); clear(); setSuccesso(false) }} style={{
-                  padding: '9px 22px', border: 'none', cursor: 'pointer',
-                  background: mode === id ? T.paper : 'transparent',
-                  color: mode === id ? T.ink : T.textMid,
-                  fontFamily: SANS, fontWeight: mode === id ? 700 : 500, fontSize: 13,
-                  borderRadius: 8,
-                  boxShadow: mode === id ? '0 2px 8px rgba(15,9,7,0.06)' : 'none',
-                  transition: 'all 0.18s ease', letterSpacing: '-0.005em',
-                }}>{lbl}</button>
-              ))}
-            </div>
-          )}
-
-          {!isReset && (
-            <div style={{ marginBottom: 24 }}>
-              <h2 style={{
-                fontFamily: SERIF, fontSize: 28, fontWeight: 600,
-                color: T.ink, letterSpacing: '-0.025em',
-                margin: '0 0 6px',
-              }}>
-                {mode === 'login' ? 'Accedi al tuo account' : (regStep === 1 ? 'Crea il tuo account' : 'Parlaci della tua attività')}
-              </h2>
-              <p style={{ fontSize: 14, color: T.textMid, margin: 0, lineHeight: 1.55 }}>
-                {mode === 'login'
-                  ? 'Inserisci email e password per continuare.'
-                  : (regStep === 1
-                    ? 'Bastano 30 secondi.'
-                    : 'Ultimo passo, poi entri.')}
-              </p>
-            </div>
-          )}
-
-          {errore && <ErrorAlert>{errore}</ErrorAlert>}
-          {msg && <SuccessAlert>{msg}</SuccessAlert>}
-
-          {mode === 'login' && (
-            <form onSubmit={handleLogin}>
-              <Field label="Email" htmlFor="login-email">
-                <Input id="login-email" icon="mail" type="email" required value={loginEmail}
-                  onChange={e => setLoginEmail(e.target.value)}
-                  placeholder="tua@email.com" autoComplete="email"/>
-              </Field>
-              <Field label="Password" htmlFor="login-pwd" hint={
-                <button type="button" onClick={() => { setMode('reset-request'); clear() }}
-                  style={{ background: 'none', border: 'none', color: T.red, fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 0 }}>
-                  Dimenticata?
-                </button>
-              }>
-                <Input id="login-pwd" icon="lock" type="password" required value={loginPwd}
-                  onChange={e => setLoginPwd(e.target.value)}
-                  placeholder="••••••••" autoComplete="current-password"/>
-              </Field>
-              <Captcha />
-              <PrimaryBtn disabled={loading || !captchaPronto}>
-                {loading ? 'Accesso in corso…' : <>Accedi <Icon name="arrowR" size={15} color="#FFF"/></>}
-              </PrimaryBtn>
-
-              <div style={{ textAlign: 'center', marginTop: 24, fontSize: 13, color: T.textMid }}>
-                Non hai un account?{' '}
-                <button type="button" onClick={() => { setMode('registrati'); clear() }} style={{
-                  background: 'none', border: 'none', color: T.red,
-                  fontWeight: 700, cursor: 'pointer', padding: 0,
-                  fontFamily: SANS, fontSize: 13, borderBottom: `1px solid ${T.red}`,
-                }}>
-                  Registrati gratis
-                </button>
-              </div>
-            </form>
-          )}
-
-          {mode === 'reset-request' && (
-            <form onSubmit={handleResetRequest}>
-              <Field label="Email" htmlFor="reset-email">
-                <Input id="reset-email" icon="mail" type="email" required value={resetEmail}
-                  onChange={e => setResetEmail(e.target.value)}
-                  placeholder="tua@email.com" autoComplete="email"/>
-              </Field>
-              <Captcha />
-              <PrimaryBtn disabled={loading || !captchaPronto}>
-                {loading ? 'Invio in corso…' : <>Mandami il link <Icon name="arrowR" size={15} color="#FFF"/></>}
-              </PrimaryBtn>
-              <div style={{ textAlign: 'center', marginTop: 20 }}>
-                <button type="button"
-                  onClick={() => { setMode('login'); clear() }}
-                  style={{ background: 'none', border: 'none', color: T.textMid, fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: SANS, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  <Icon name="arrowL" size={14} color={T.textMid}/> Torna al login
-                </button>
-              </div>
-            </form>
-          )}
-
-          {mode === 'reset-password' && (
-            <form onSubmit={handleNewPassword}>
-              <Field label="Nuova password" htmlFor="rp-newpwd">
-                <Input id="rp-newpwd" icon="lock" type="password" required value={newPwd}
-                  onChange={e => setNewPwd(e.target.value)}
-                  placeholder="••••••••" autoComplete="new-password"/>
-                <PasswordStrength password={newPwd}/>
-              </Field>
-              <Field label="Conferma password" htmlFor="rp-confpwd"
-                error={newPwdConf && newPwd !== newPwdConf ? 'Le password non coincidono' : null}>
-                <Input id="rp-confpwd" icon="lock" type="password" required value={newPwdConf}
-                  onChange={e => setNewPwdConf(e.target.value)}
-                  placeholder="••••••••" autoComplete="new-password"/>
-              </Field>
-              <PrimaryBtn disabled={loading}>
-                {loading ? 'Aggiornamento…' : <>Salva nuova password <Icon name="arrowR" size={15} color="#FFF"/></>}
-              </PrimaryBtn>
-            </form>
-          )}
-
-          {emailEsistente && (
-            <div onClick={() => setEmailEsistente('')} style={{ position: 'fixed', inset: 0, background: 'rgba(15,9,7,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: 20 }}>
-              <div onClick={e => e.stopPropagation()} style={{ background: T.paper, borderRadius: 18, padding: isMobile ? '24px 20px' : '28px 26px', maxWidth: 400, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.3)', textAlign: 'center' }}>
-                <div style={{ width: 48, height: 48, borderRadius: '50%', background: T.redSoft, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}><Icon name="mail" size={22} color={T.red} /></div>
-                <div style={{ fontSize: 18, fontWeight: 800, color: T.red, marginBottom: 8 }}>Sei già registrato</div>
-                <div style={{ fontSize: 14, color: T.textMid, lineHeight: 1.55, marginBottom: 20, wordBreak: 'break-word' }}>
-                  L'email <b style={{ color: T.ink }}>{emailEsistente}</b> è già associata a un account. Accedi con la tua password, oppure recuperala se l'hai dimenticata.
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <button type="button" onClick={() => { setMode('login'); setLoginEmail(emailEsistente); clear() }} style={{ padding: '14px', minHeight: 48, background: T.red, color: '#FFF', border: 'none', borderRadius: 10, fontWeight: 800, fontSize: 14, cursor: 'pointer' }}>Accedi</button>
-                  <button type="button" onClick={() => { setMode('reset-request'); setResetEmail(emailEsistente); clear() }} style={{ padding: '14px', minHeight: 48, background: 'transparent', color: T.red, border: `1px solid ${T.border}`, borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>Recupera password</button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {mode === 'registrati' && (
-            successo ? (
-              <div style={{
-                background: T.paper, border: `1px solid ${T.border}`,
-                borderRadius: 18, padding: '36px 32px', textAlign: 'center',
-                boxShadow: '0 12px 40px rgba(15,9,7,0.06)',
-              }}>
-                <div style={{
-                  width: 64, height: 64, borderRadius: 999,
-                  background: T.greenSoft, color: T.green,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  margin: '0 auto 18px',
-                }}>
-                  <Icon name="mail" size={28} color={T.green} stroke={2}/>
-                </div>
-                <h3 style={{
-                  fontFamily: SERIF, color: T.ink, margin: '0 0 10px',
-                  fontWeight: 600, fontSize: 22, letterSpacing: '-0.02em',
-                }}>
-                  Controlla la tua email
-                </h3>
-                <p style={{ color: T.textMid, fontSize: 14, lineHeight: 1.65, margin: 0 }}>
-                  Ti abbiamo inviato un link di conferma a<br/>
-                  <strong style={{ color: T.ink }}>{reg.email}</strong>.<br/>
-                  Aprilo per attivare il tuo account.
-                </p>
-                <div style={{
-                  marginTop: 28, padding: 14, background: T.cream, borderRadius: 12,
-                  fontSize: 12, color: T.textSoft, lineHeight: 1.5,
-                }}>
-                  Non vedi l'email? Controlla in spam o riprova fra qualche minuto.
-                </div>
-              </div>
-            ) : (
-              <>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
-                  <StepDot active={regStep === 1} done={regStep > 1}>1</StepDot>
-                  <div style={{ flex: 1, height: 1.5, background: regStep > 1 ? T.ink : T.border, transition: 'background 0.3s' }}/>
-                  <StepDot active={regStep === 2} done={false}>2</StepDot>
-                </div>
-
-                {regStep === 1 && (
-                  <form onSubmit={nextRegStep}>
-                    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 0 : 12, alignItems: 'start' }}>
-                      <Field label="Nome" htmlFor="reg-nome"
-                        error={reg.nome && !isNomeValido(reg.nome) ? 'Almeno 3 lettere, niente cifre.' : null}>
-                        <Input id="reg-nome" icon="user" required value={reg.nome} onChange={setR('nome')} placeholder="Mario" autoComplete="given-name"/>
-                      </Field>
-                      <Field label="Cognome" htmlFor="reg-cognome"
-                        error={reg.cognome && !isCognomeValido(reg.cognome) ? 'Almeno 2 lettere, niente cifre.' : null}>
-                        <Input id="reg-cognome" icon="user" required value={reg.cognome} onChange={setR('cognome')} placeholder="Rossi" autoComplete="family-name"/>
-                      </Field>
-                    </div>
-                    <Field label="Email" htmlFor="reg-email"
-                      error={reg.email && !isEmailValida(reg.email) ? 'Email non valida.' : null}>
-                      <Input id="reg-email" icon="mail" type="email" required value={reg.email} onChange={setR('email')}
-                        placeholder="tua@email.com" autoComplete="email"/>
-                    </Field>
-                    <Field label="Telefono" htmlFor="reg-tel"
-                      error={reg.telefono && !isNumeroValido(reg.telefono) ? 'Numero non valido (6-15 cifre).' : null}>
-                      <PhoneInput
-                        prefisso={reg.prefisso}
-                        numero={reg.telefono}
-                        onPrefisso={v => setReg(p => ({ ...p, prefisso: v }))}
-                        onNumero={v => setReg(p => ({ ...p, telefono: v }))}
-                      />
-                      <div style={{ fontSize: 12, color: T.textSoft, marginTop: 6, lineHeight: 1.4 }}>
-                        Serve per il riepilogo della sera su WhatsApp e per ritrovarti se hai un problema. Non lo diamo a nessuno.
-                      </div>
-                    </Field>
-                    <Field label="Password" htmlFor="reg-pwd">
-                      <Input id="reg-pwd" icon="lock" type="password" required value={reg.password} onChange={setR('password')}
-                        placeholder="••••••••" autoComplete="new-password"/>
-                      <PasswordStrength password={reg.password}/>
-                    </Field>
-                    <PrimaryBtn type="submit" disabled={loading || !regStep1Valid()} style={{ marginTop: 8 }}>
-                      {loading ? 'Invio codice…' : <>Continua <Icon name="arrowR" size={15} color={regStep1Valid() ? '#FFF' : T.textSoft}/></>}
-                    </PrimaryBtn>
-
-                    <div style={{ textAlign: 'center', marginTop: 22, fontSize: 13, color: T.textMid }}>
-                      Hai già un account?{' '}
-                      <button type="button" onClick={() => { setMode('login'); clear() }} style={{
-                        background: 'none', border: 'none', color: T.red,
-                        fontWeight: 700, cursor: 'pointer', padding: 0,
-                        fontFamily: SANS, fontSize: 13, borderBottom: `1px solid ${T.red}`,
-                      }}>
-                        Accedi
-                      </button>
-                    </div>
-                  </form>
-                )}
-
-                {regStep === 2 && (
-                  <form onSubmit={handleRegistrazione}>
-                    <Field label="Nome attività" htmlFor="reg-attivita">
-                      <Input id="reg-attivita" icon="bag" required value={reg.nome_attivita} onChange={setR('nome_attivita')}
-                        placeholder="Pasticceria Rossi"/>
-                    </Field>
-
-                    <Field label="Tipo di attività">
-                      <div role="radiogroup" aria-label="Tipo di attività" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(auto-fill, minmax(120px, 1fr))', gap: 8 }}>
-                        {TIPI_ATTIVITA.map(t => {
-                          const selected = reg.tipo_attivita === t.slug
-                          return (
-                            <button key={t.slug} type="button"
-                              onClick={() => setReg(p => ({ ...p, tipo_attivita: t.slug }))}
-                              style={{
-                                padding: '11px 12px', minHeight: 44,
-                                background: selected ? T.ink : T.paper,
-                                color: selected ? T.cream : T.textMid,
-                                border: `1.5px solid ${selected ? T.ink : T.border}`,
-                                borderRadius: 10, fontSize: 13, fontWeight: selected ? 700 : 500,
-                                cursor: 'pointer', fontFamily: SANS,
-                                transition: 'all 0.15s ease', textAlign: 'center',
-                              }}>
-                              {t.label}
-                            </button>
-                          )
-                        })}
-                      </div>
-                    </Field>
-
-                    <Field label="Città" htmlFor="reg-citta">
-                      <CittaInput value={reg.citta} onChange={v => setReg(p => ({ ...p, citta: v }))}/>
-                    </Field>
-
-                    <Field label="Codice invito" htmlFor="reg-invito" hint="opzionale">
-                      <Input id="reg-invito" value={reg.codice_invito} onChange={setR('codice_invito')}
-                        placeholder="Lascia vuoto se non ce l'hai"/>
-                    </Field>
-
-                    <label style={{
-                      display: 'flex', alignItems: 'flex-start', gap: 10, marginTop: 16, marginBottom: 4,
-                      padding: '12px 14px', border: `1.5px solid ${reg.accept_terms ? T.ink : T.border}`,
-                      borderRadius: 10, cursor: 'pointer', fontFamily: SANS, background: reg.accept_terms ? T.cream : 'transparent',
-                      transition: 'all 0.15s ease',
-                    }}>
-                      <input
-                        type="checkbox"
-                        checked={!!reg.accept_terms}
-                        onChange={e => setReg(p => ({ ...p, accept_terms: e.target.checked }))}
-                        style={{ marginTop: 3, flexShrink: 0, cursor: 'pointer', accentColor: T.red }}
-                      />
-                      <span style={{ fontSize: 12, color: T.textMid, lineHeight: 1.55 }}>
-                        Confermo di aver letto e di accettare i{' '}
-                        <a href="/termini" target="_blank" rel="noreferrer" style={{ color: T.red, textDecoration: 'underline', fontWeight: 600 }}>Termini di servizio</a>
-                        {' '}e la{' '}
-                        <a href="/privacy" target="_blank" rel="noreferrer" style={{ color: T.red, textDecoration: 'underline', fontWeight: 600 }}>Privacy Policy</a>.
-                        Dichiaro di essere maggiorenne e di registrarmi per finalità professionali (B2B).
-                      </span>
-                    </label>
-
-                    <Captcha style={{ marginTop: 14, marginBottom: 0 }} />
-
-                    <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
-                      <button type="button" aria-label="Indietro" onClick={() => { setRegStep(1); clear() }} style={{
-                        padding: '14px 18px', minHeight: 48,
-                        background: 'transparent', color: T.textMid,
-                        border: `1.5px solid ${T.border}`, borderRadius: 12,
-                        fontSize: 14, fontWeight: 600, cursor: 'pointer',
-                        fontFamily: SANS, display: 'flex', alignItems: 'center', gap: 6,
-                        flexShrink: 0,
-                      }}>
-                        <Icon name="arrowL" size={14} color={T.textMid}/>
-                      </button>
-                      <div style={{ flex: 1 }}>
-                        <PrimaryBtn disabled={loading || !regStep2Valid() || !captchaPronto}>
-                          {loading ? 'Creazione account…' : <>Crea il mio account <Icon name="arrowR" size={15} color="#FFF"/></>}
-                        </PrimaryBtn>
-                      </div>
-                    </div>
-                  </form>
-                )}
-              </>
-            )
-          )}
+      {mode === 'reset-request' && (
+        <form onSubmit={handleResetRequest}>
+          <Field label="Email" htmlFor="reset-email">
+            <Input id="reset-email" icon="mail" type="email" required value={resetEmail}
+              onChange={e => setResetEmail(e.target.value)}
+              placeholder="tua@email.com" autoComplete="email"/>
+          </Field>
+          <Captcha />
+          <PrimaryBtn disabled={loading || !captchaPronto}>
+            {loading ? 'Invio in corso…' : <>Mandami il link <Icon name="arrowR" size={15} color={T.textOnDark}/></>}
+          </PrimaryBtn>
+          <div style={{ marginTop: 10 }}>
+            <LinkBtn colore={T.textMid} onClick={() => { setMode('login'); clear() }}>
+              <Icon name="arrowL" size={14} color={T.textMid}/> Torna all&apos;accesso
+            </LinkBtn>
           </div>
-          {/* /Card */}
+          {isMobile && <PiedeAiuto/>}
+        </form>
+      )}
 
-          <p style={{
-            textAlign: 'center', fontSize: 12, color: T.textSoft,
-            marginTop: 22, lineHeight: 1.6,
-          }}>
-            Problemi con l'accesso? Scrivici a{' '}
-            <a href="mailto:support@foodos.it" style={{ color: T.red, fontWeight: 600, textDecoration: 'none' }}>
-              support@foodos.it
-            </a>
-          </p>
+      {mode === 'reset-password' && (
+        <form onSubmit={handleNewPassword}>
+          <Field label="Nuova password" htmlFor="rp-newpwd">
+            <Input id="rp-newpwd" icon="lock" type="password" required value={newPwd}
+              onChange={e => setNewPwd(e.target.value)}
+              placeholder="••••••••" autoComplete="new-password"/>
+            <PasswordStrength password={newPwd}/>
+          </Field>
+          <Field label="Ripeti la password" htmlFor="rp-confpwd"
+            error={newPwdConf && newPwd !== newPwdConf ? 'Le due password non sono uguali' : null}>
+            <Input id="rp-confpwd" icon="lock" type="password" required value={newPwdConf}
+              onChange={e => setNewPwdConf(e.target.value)}
+              placeholder="••••••••" autoComplete="new-password"/>
+          </Field>
+          <PrimaryBtn disabled={loading}>
+            {loading ? 'Salvataggio…' : <>Salva la password <Icon name="arrowR" size={15} color={T.textOnDark}/></>}
+          </PrimaryBtn>
+        </form>
+      )}
+
+      {emailEsistente && (
+        <div onClick={() => setEmailEsistente('')} style={{ position: 'fixed', inset: 0, background: 'rgba(15,9,7,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: 20 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: T.paper, borderRadius: 18, padding: isMobile ? '24px 20px' : '28px 26px', maxWidth: 400, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.3)', textAlign: 'center' }}>
+            <div style={{ width: 48, height: 48, borderRadius: '50%', background: T.redSoft, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}><Icon name="mail" size={22} color={T.red} /></div>
+            <div style={{ fontFamily: SERIF, fontSize: TESTO.sottotitolo, fontWeight: 600, color: T.ink, marginBottom: 8 }}>Questa email è già registrata</div>
+            <div style={{ fontSize: TESTO.corpo, color: T.textMid, lineHeight: 1.55, marginBottom: 20, wordBreak: 'break-word' }}>
+              L&apos;indirizzo <b style={{ color: T.ink }}>{emailEsistente}</b> ha già un account. Entra con la tua password, oppure rifalla se non te la ricordi.
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <PrimaryBtn type="button" onClick={() => { setMode('login'); setLoginEmail(emailEsistente); clear() }}>Vai all&apos;accesso</PrimaryBtn>
+              <button type="button" onClick={() => { setMode('reset-request'); setResetEmail(emailEsistente); clear() }} style={{ minHeight: TOCCO, padding: '12px', background: 'transparent', color: T.red, border: `1px solid ${T.border}`, borderRadius: 12, fontWeight: 600, fontSize: TESTO.corpo, fontFamily: SANS, cursor: 'pointer' }}>Rifai la password</button>
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
+      )}
+
+      {mode === 'registrati' && (
+        successo ? (
+          <div>
+            <div style={{
+              display: 'flex', alignItems: 'flex-start', gap: 12,
+              background: T.greenSoft, borderRadius: 12, padding: '16px 18px',
+              fontSize: TESTO.corpo, color: T.ink, lineHeight: 1.6,
+            }}>
+              <span style={{ marginTop: 2 }}><Icon name="mail" size={20} color={T.green}/></span>
+              <span>
+                Abbiamo mandato un link di conferma a <strong>{reg.email}</strong>.
+                Aprilo e l&apos;account è attivo.
+              </span>
+            </div>
+            <p style={{ fontSize: TESTO.piccolo, color: T.textSoft, lineHeight: 1.6, margin: '14px 0 0' }}>
+              Non lo vedi? Guarda nello spam, o aspetta qualche minuto.
+            </p>
+            {isMobile && <PiedeAiuto/>}
+          </div>
+        ) : (
+          <>
+            {/* Due passi, e si vede a che punto si è. */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 22 }}>
+              <StepDot active={regStep === 1} done={regStep > 1}>1</StepDot>
+              <div style={{ flex: 1, height: 1.5, background: regStep > 1 ? T.ink : T.border, transition: 'background 0.3s' }}/>
+              <StepDot active={regStep === 2} done={false}>2</StepDot>
+            </div>
+
+            {regStep === 1 && (
+              <form onSubmit={nextRegStep}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, alignItems: 'start' }}>
+                  <Field label="Nome" htmlFor="reg-nome"
+                    error={reg.nome && !isNomeValido(reg.nome) ? 'Almeno 3 lettere, niente cifre.' : null}>
+                    <Input id="reg-nome" icon="user" required value={reg.nome} onChange={setR('nome')} placeholder="Mario" autoComplete="given-name"/>
+                  </Field>
+                  <Field label="Cognome" htmlFor="reg-cognome"
+                    error={reg.cognome && !isCognomeValido(reg.cognome) ? 'Almeno 2 lettere, niente cifre.' : null}>
+                    <Input id="reg-cognome" icon="user" required value={reg.cognome} onChange={setR('cognome')} placeholder="Rossi" autoComplete="family-name"/>
+                  </Field>
+                </div>
+                <Field label="Email" htmlFor="reg-email"
+                  error={reg.email && !isEmailValida(reg.email) ? 'Questo indirizzo non sembra giusto.' : null}>
+                  <Input id="reg-email" icon="mail" type="email" required value={reg.email} onChange={setR('email')}
+                    placeholder="tua@email.com" autoComplete="email"/>
+                </Field>
+                <Field label="Telefono" htmlFor="reg-tel"
+                  hint={<span style={{ fontSize: TESTO.nota, color: T.textSoft }}>serve per il riepilogo della sera</span>}
+                  error={reg.telefono && !isNumeroValido(reg.telefono) ? 'Servono dalle 6 alle 15 cifre.' : null}>
+                  <PhoneInput
+                    prefisso={reg.prefisso}
+                    numero={reg.telefono}
+                    onPrefisso={v => setReg(p => ({ ...p, prefisso: v }))}
+                    onNumero={v => setReg(p => ({ ...p, telefono: v }))}
+                  />
+                </Field>
+                <Field label="Password" htmlFor="reg-pwd">
+                  <Input id="reg-pwd" icon="lock" type="password" required value={reg.password} onChange={setR('password')}
+                    placeholder="••••••••" autoComplete="new-password"/>
+                  <PasswordStrength password={reg.password}/>
+                </Field>
+                <PrimaryBtn type="submit" disabled={loading || !regStep1Valid()} style={{ marginTop: 8 }}>
+                  Continua <Icon name="arrowR" size={15} color={regStep1Valid() ? T.textOnDark : T.textSoft}/>
+                </PrimaryBtn>
+
+                <div style={{ marginTop: 10 }}>
+                  <LinkBtn colore={T.textMid} onClick={() => { setMode('login'); clear() }}>
+                    <Icon name="arrowL" size={14} color={T.textMid}/> Ho già un account
+                  </LinkBtn>
+                </div>
+                {isMobile && <PiedeAiuto/>}
+              </form>
+            )}
+
+            {regStep === 2 && (
+              <form onSubmit={handleRegistrazione}>
+                <Field label="Nome dell'attività" htmlFor="reg-attivita">
+                  <Input id="reg-attivita" icon="bag" required value={reg.nome_attivita} onChange={setR('nome_attivita')}
+                    placeholder="Pasticceria Rossi"/>
+                </Field>
+
+                <Field label="Che cosa fate">
+                  <div role="radiogroup" aria-label="Tipo di attività" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    {TIPI_ATTIVITA.map(t => {
+                      const selected = reg.tipo_attivita === t.slug
+                      return (
+                        <button key={t.slug} type="button"
+                          role="radio" aria-checked={selected}
+                          onClick={() => setReg(p => ({ ...p, tipo_attivita: t.slug }))}
+                          style={{
+                            padding: '10px 12px', minHeight: 44,
+                            background: selected ? T.ink : T.paper,
+                            color: selected ? T.cream : T.textMid,
+                            border: `1.5px solid ${selected ? T.ink : T.border}`,
+                            borderRadius: 10, fontSize: TESTO.piccolo, fontWeight: selected ? 700 : 500,
+                            cursor: 'pointer', fontFamily: SANS,
+                            transition: 'all 0.15s ease', textAlign: 'center',
+                          }}>
+                          {t.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </Field>
+
+                <Field label="Città" htmlFor="reg-citta">
+                  <CittaInput value={reg.citta} onChange={v => setReg(p => ({ ...p, citta: v }))}/>
+                </Field>
+
+                <Field label="Codice invito" htmlFor="reg-invito"
+                  hint={<span style={{ fontSize: TESTO.nota, color: T.textSoft }}>se ce l&apos;hai</span>}>
+                  <Input id="reg-invito" value={reg.codice_invito} onChange={setR('codice_invito')}
+                    placeholder="Lascia vuoto se non ce l'hai"/>
+                </Field>
+
+                <label style={{
+                  display: 'flex', alignItems: 'flex-start', gap: 10, marginTop: 16, marginBottom: 4,
+                  padding: '12px 14px', border: `1.5px solid ${reg.accept_terms ? T.ink : T.border}`,
+                  borderRadius: 10, cursor: 'pointer', fontFamily: SANS, background: reg.accept_terms ? T.cream : 'transparent',
+                  transition: 'all 0.15s ease',
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={!!reg.accept_terms}
+                    onChange={e => setReg(p => ({ ...p, accept_terms: e.target.checked }))}
+                    style={{ marginTop: 3, flexShrink: 0, cursor: 'pointer', accentColor: T.red, width: 18, height: 18 }}
+                  />
+                  <span style={{ fontSize: TESTO.nota, color: T.textMid, lineHeight: 1.55 }}>
+                    Ho letto e accetto i{' '}
+                    <a href="/termini" target="_blank" rel="noreferrer" style={{ color: T.red, textDecoration: 'underline', fontWeight: 600 }}>Termini di servizio</a>
+                    {' '}e la{' '}
+                    <a href="/privacy" target="_blank" rel="noreferrer" style={{ color: T.red, textDecoration: 'underline', fontWeight: 600 }}>Privacy Policy</a>.
+                    Sono maggiorenne e mi registro per lavoro.
+                  </span>
+                </label>
+
+                <Captcha style={{ marginTop: 14, marginBottom: 0 }} />
+
+                <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
+                  <button type="button" aria-label="Torna al passo precedente" onClick={() => { setRegStep(1); clear() }} style={{
+                    width: TOCCO, minHeight: TOCCO,
+                    background: 'transparent', color: T.textMid,
+                    border: `1.5px solid ${T.border}`, borderRadius: 12,
+                    cursor: 'pointer', fontFamily: SANS, flexShrink: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <Icon name="arrowL" size={16} color={T.textMid}/>
+                  </button>
+                  <div style={{ flex: 1 }}>
+                    <PrimaryBtn disabled={loading || !regStep2Valid() || !captchaPronto}>
+                      {loading ? 'Ci siamo…' : <>Crea l&apos;account <Icon name="arrowR" size={15} color={T.textOnDark}/></>}
+                    </PrimaryBtn>
+                  </div>
+                </div>
+                {isMobile && <PiedeAiuto/>}
+              </form>
+            )}
+          </>
+        )
+      )}
+    </Schermata>
+  )
+}
+
+// Sul telefono non c'è la colonna scura: l'indirizzo dell'assistenza va messo
+// in fondo al modulo, altrimenti chi resta fuori non sa a chi scrivere.
+function PiedeAiuto() {
+  return (
+    <p style={{
+      textAlign: 'center', fontSize: TESTO.nota, color: T.textSoft,
+      margin: '24px 0 0', lineHeight: 1.6,
+    }}>
+      Non riesci a entrare? Scrivi a{' '}
+      <a href="mailto:support@foodos.it" style={{ color: T.red, fontWeight: 600, textDecoration: 'none' }}>
+        support@foodos.it
+      </a>
+    </p>
   )
 }
 
 function StepDot({ active, done, children }) {
-  const bg = (active || done) ? T.ink : T.paper
-  const color = (active || done) ? T.cream : T.textSoft
-  const border = (active || done) ? T.ink : T.border
+  const acceso = active || done
   return (
     <div style={{
-      width: 28, height: 28, borderRadius: 999,
-      background: bg, color,
-      border: `1.5px solid ${border}`,
+      width: 26, height: 26, borderRadius: 999,
+      background: acceso ? T.ink : T.paper,
+      color: acceso ? T.cream : T.textSoft,
+      border: `1.5px solid ${acceso ? T.ink : T.border}`,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontSize: 12, fontWeight: 700, fontFamily: SANS,
-      transition: 'all 0.2s ease',
-      flexShrink: 0,
+      fontSize: TESTO.nota, fontWeight: 700, fontFamily: SANS,
+      transition: 'all 0.2s ease', flexShrink: 0,
     }}>
       {done ? <Icon name="check" size={13} color={T.cream} stroke={2.5}/> : children}
     </div>

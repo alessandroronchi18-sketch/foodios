@@ -220,7 +220,20 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
     const ings = r.ingredienti.map(i => ({ ...i }));
     const auto = detectAllergeniFromIngredienti(ings);
     const manual = (r.allergeni || []).filter(a => !auto.includes(a));
-    const loaded = { nome: r.nome, categoria: r.categoria || "", unita: reg.unita, prezzo: reg.prezzo, tipo: reg.tipo, note: r.note || "", ingredienti: ings, congelabile: r.congelabile || false, allergeniManual: manual, resa_g: (typeof r.resa_g === 'number' && r.resa_g > 0) ? r.resa_g : null };
+    // Il tipo: quello che la ricetta DICHIARA, non quello che il programma
+    // tira a indovinare.
+    //
+    // `getR` quando non sa niente risponde «fetta», perché una scheda deve
+    // pur disegnare qualcosa. Ma qui quel ripiego finiva dentro il modulo, e
+    // al primo salvataggio diventava il dato: aprendo un gusto per cambiare
+    // la quantità di un ingrediente, si usciva con una torta da otto fette, e
+    // da lì in poi ricavo, margine, cassa e produzione contavano un'altra
+    // cosa. Nel ricettario vero venti ricette su trenta erano in questo stato.
+    // Adesso `getR` marca il ripiego con `tipoPresunto`, e in quel caso si
+    // parte dal tipo di default del mestiere (per una gelateria «gusto»)
+    // invece che da «fetta».
+    const tipoIniziale = reg.tipoPresunto ? empty.tipo : reg.tipo;
+    const loaded = { nome: r.nome, categoria: r.categoria || "", unita: reg.tipoPresunto ? empty.unita : reg.unita, prezzo: reg.prezzo, tipo: tipoIniziale, note: r.note || "", ingredienti: ings, congelabile: r.congelabile || false, allergeniManual: manual, resa_g: (typeof r.resa_g === 'number' && r.resa_g > 0) ? r.resa_g : null };
     setForm(loaded);
     // Se e' una base, porta nel campo il costo al kg che ha nel listino: senza
     // questo, riaprendo la scheda il campo appare vuoto e sembra da compilare.
