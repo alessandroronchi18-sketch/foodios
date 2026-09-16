@@ -7,7 +7,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { ssave as _ssave, sload } from '../lib/storage'
-import { salvaChiusure } from '../lib/chiusure'
+import { salvaChiusure, fondiChiusura } from '../lib/chiusure'
 import { backgroundManager, uploadManager } from '../lib/backgroundManager'
 import { compressImage } from '../lib/imageUtils'
 import { callAi, parseAiJson } from '../lib/aiClient'
@@ -312,6 +312,15 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
   const [preview, setPreview] = useState(null)
   const [loading, setLoading] = useState(false)
   const [venduto, setVenduto] = useState(null)
+  // I prodotti che lo scontrino conteneva ma che non sono entrati nel conto.
+  //
+  // `analyzeReceipt` li separava già, con tanto di motivo, e il commento lì
+  // diceva «su una lista separata visibile in UI» — solo che in UI non
+  // c'era: la lista veniva costruita, restituita e buttata. Uno scontrino con
+  // «BIGNÈ 4 pz, prezzo illeggibile» veniva letto, il bignè spariva dalla
+  // cassa, e a schermo non compariva niente: **l'incasso del giorno usciva
+  // più basso del vero e non c'era modo di accorgersene.**
+  const [incerti, setIncerti] = useState([])
   const [error, setError] = useState(null)
   const [salvato, setSalvato] = useState(false)
   const [salvando, setSalvando] = useState(false)
@@ -327,7 +336,7 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
       setVenduto(Array.isArray(v) && v.length === 0 ? null : v)
       setSalvato(true)
     }
-    else { setVenduto(null); setSalvato(false) }
+    else { setVenduto(null); setIncerti([]); setSalvato(false) }
   }, [chiusuraSalvata])
 
   useEffect(() => {
@@ -336,6 +345,7 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
     if (p.loading) { setLoading(true); return }
     if (p.venduto !== null) {
       setVenduto(p.venduto)
+      setIncerti(p.incerti || [])
       if (p.dataEstratta && /^\d{4}-\d{2}-\d{2}$/.test(p.dataEstratta)) setDataFiltro(p.dataEstratta)
       setLoading(false)
       _receiptPending.current = null
@@ -430,7 +440,7 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
   const handleFile = async (e) => {
     const files = Array.from(e.target.files || [])
     if (!files.length) return
-    setVenduto(null); setError(null); setSalvato(false)
+    setVenduto(null); setIncerti([]); setError(null); setSalvato(false)
     const compressed = await Promise.all(files.map(f => compressImage(f)))
     if (compressed.length === 1) {
       setBatchMode(false); setBatchFiles([]); setBatchResults([])
@@ -491,7 +501,7 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
 
   const handleAnalizza = () => {
     if (!img) return
-    setLoading(true); setError(null); setVenduto(null)
+    setLoading(true); setError(null); setVenduto(null); setIncerti([])
     const imgSnap = img
     _receiptPending.current = { loading: true, venduto: null, error: null, dataEstratta: null }
     backgroundManager.add(`scontrino-${Date.now()}`, {
@@ -500,8 +510,9 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
       onComplete: (obj) => {
         const prodotti = obj.prodotti || []
         const dataEstratta = (obj.data && /^\d{4}-\d{2}-\d{2}$/.test(obj.data)) ? obj.data : null
-        _receiptPending.current = { loading: false, venduto: prodotti, error: null, dataEstratta }
+        _receiptPending.current = { loading: false, venduto: prodotti, error: null, dataEstratta, incerti: obj.incerti || [] }
         setVenduto(prodotti)
+        setIncerti(obj.incerti || [])
         if (dataEstratta) {
           setDataFiltro(dataEstratta)
           notify(`Data estratta dallo scontrino: ${new Date(dataEstratta + 'T12:00').toLocaleDateString('it-IT')}`)
@@ -707,19 +718,10 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
       // import cassa, salvare il totale a mano li cancellava. La strada
       // dell'OCR (righe 533-542) fa già la fusione con un commento esplicito;
       // questa era rimasta indietro.
+      // La fusione è una regola sola per tutte le strade che chiudono una
+      // giornata (dettaglio, totale a mano, import): sta in `chiusure.js`.
       const precedente = (chiusure || []).find(c => c.data === dataFiltro)
-      const fuso = precedente ? {
-        ...precedente,
-        ...rec,
-        // Quello che il totale a mano non conosce si conserva.
-        venduto: rec.venduto?.length ? rec.venduto : (precedente.venduto || []),
-        confronto: precedente.confronto || [],
-        formati: precedente.formati || [],
-        cassaImport: precedente.cassaImport || [],
-        deliveryImport: precedente.deliveryImport || [],
-        id: precedente.id || rec.id,
-        kpi: { ...(precedente.kpi || {}), ...rec.kpi },
-      } : rec
+      const fuso = fondiChiusura(precedente, rec)
       const nuove = [...(chiusure || []).filter(c => c.data !== dataFiltro), fuso]
       await ssave(SK_CHIUS, nuove)
       setChiusure(nuove)
@@ -793,6 +795,15 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
       confronto: confronto.map(r => ({ nome: r.nome, stampiP: r.stampiP, unitaP: r.unitaP, unitaV: r.unitaV, unitaR: r.unitaR, st: r.st, rv: r.rv, fcV: r.fcV, marg: r.marg, spreco: r.spreco, inProd: r.inProd })),
       // Righe generiche riconciliate via formati di vendita (categoria, no gusto).
       formati: formatiRiconc.righe.map(r => ({ nome: r.nome, categoria: r.categoria, unitaV: r.unitaV, rv: r.rv, fcV: r.fcV, marg: r.marg })),
+      // Queste due righe mancavano, e la fusione qui sotto conserva tutto
+      // quello che il nuovo record non dichiara: chi registrava il totale la
+      // mattina e il dettaglio dei prodotti la sera restava con
+      // `solo_totale: true` e `foodcost_noto: false` della mattina. Il P&L
+      // legge quei due campi e **buttava via un food cost che ormai era
+      // noto**: la giornata usciva senza costo delle materie, e il margine
+      // del mese con lei.
+      solo_totale: false,
+      foodcost_noto: true,
       kpi: { totV, totFC, totM, totS, totMP, avgST },
     }
     // Calcola eraGiaChiusa da `chiusure` PRIMA della filter - evita race se
@@ -801,14 +812,7 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
     // Fusione anche qui: gli import della giornata (cassa, delivery) non
     // devono sparire perché si salva la chiusura dal confronto prodotti.
     const precedenteFull = (chiusure || []).find(c => c.data === dataFiltro)
-    const recFuso = precedenteFull ? {
-      ...precedenteFull,
-      ...rec,
-      cassaImport: rec.cassaImport || precedenteFull.cassaImport || [],
-      deliveryImport: rec.deliveryImport || precedenteFull.deliveryImport || [],
-      id: precedenteFull.id || rec.id,
-      kpi: { ...(precedenteFull.kpi || {}), ...rec.kpi },
-    } : rec
+    const recFuso = fondiChiusura(precedenteFull, rec)
     const nuove = [...(chiusure || []).filter(c => c.data !== dataFiltro), recFuso]
     // SAVE FIRST per evitare data-loss: se ssave fallisce, non aggiorniamo lo
     // state (l'UI deve restare allineata al DB).
@@ -946,11 +950,40 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
               {!salvato && (
                 <button aria-label={`Rimuovi ${p.nome}`} onClick={() => setVenduto(v => v.filter((_, j) => j !== i))}
                   style={{ flexShrink: 0, width: 18, height: 18, borderRadius: 4, border: 'none', background: 'transparent', color: C.textSoft, cursor: 'pointer', fontSize: FS.small, fontWeight: 700, lineHeight: 1 }}
-                  onMouseEnter={e => { e.currentTarget.style.color = C.red }} onMouseLeave={e => { e.currentTarget.style.color = C.textSoft }}>✕</button>
+                  onMouseEnter={e => { e.currentTarget.style.color = C.red }} onMouseLeave={e => { e.currentTarget.style.color = C.textSoft }}><Icon name="x" size={12} /></button>
               )}
             </div>
           ))}
         </div>
+        {/* Quello che lo scontrino diceva e che NON è entrato nel conto.
+            Va scritto, e va scritto qui: chi sta per salvare deve sapere che
+            l'incasso della giornata è più basso di quello che ha in mano. */}
+        {incerti.length > 0 && (
+          <div style={{
+            background: C.amberLight, border: `1px solid ${C.amber}55`,
+            borderRadius: 10, padding: '10px 12px', marginBottom: 10,
+          }}>
+            <div style={{ fontSize: FS.small, fontWeight: 800, color: C.amber, display: 'inline-flex', alignItems: 'center', gap: 5, marginBottom: 6 }}>
+              <Icon name="warning" size={13} />
+              {incerti.length === 1
+                ? 'Un prodotto letto sullo scontrino non è entrato nel conto'
+                : `${incerti.length} prodotti letti sullo scontrino non sono entrati nel conto`}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {incerti.map((p, i) => (
+                <div key={i} style={{ fontSize: FS.small, color: T.amberDark || C.amber, lineHeight: 1.45 }}>
+                  <b>{p.qta ? `${p.qta}× ` : ''}{p.nome}</b>
+                  {p.motivo ? ` — ${p.motivo}` : ''}
+                </div>
+              ))}
+            </div>
+            <div style={{ fontSize: FS.small, color: T.amberDark || C.amber, marginTop: 6, lineHeight: 1.45 }}>
+              L'incasso di oggi è più basso di quanto hai incassato davvero. Se
+              li vuoi dentro, scrivili a mano qui sotto.
+            </div>
+          </div>
+        )}
+
         {!salvato ? (
           (confronto.length > 0 || formatiRiconc.righe.length > 0) ? (
             <button onClick={handleSalva} disabled={salvando} style={{ width: isMobile ? '100%' : 'auto', padding: isMobile ? '11px' : '0 16px', minHeight: alt(isMobile), background: C.green, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: FS.small, cursor: salvando ? 'not-allowed' : 'pointer', opacity: salvando ? 0.6 : 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Icon name="save" size={14} />{salvando ? 'Salvataggio…' : 'Salva chiusura nello storico'}</button>
@@ -1122,7 +1155,7 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
               Oggi · {new Date(today + 'T12:00').toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' })}
             </div>
           ) : (
-            <input type="date" value={dataFiltro} onChange={e => { setDataFiltro(e.target.value); setVenduto(null); setPreview(null); setImg(null); setSalvato(false) }}
+            <input type="date" value={dataFiltro} onChange={e => { setDataFiltro(e.target.value); setVenduto(null); setIncerti([]); setPreview(null); setImg(null); setSalvato(false) }}
               style={{ width: isMobile ? '100%' : 'auto', boxSizing: 'border-box', padding: '9px 12px', borderRadius: 7, border: `1px solid ${C.borderStr}`, fontSize: 12, color: C.text, minHeight: isMobile ? 44 : 'auto' }}/>
           )}
         </div>
@@ -1208,7 +1241,7 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '160px 1fr', gap: isMobile ? 14 : 20, alignItems: 'flex-start' }}>
                 <div style={{ position: 'relative', maxWidth: isMobile ? 200 : 'none' }}>
                   <img src={preview} alt="scontrino" style={{ width: '100%', borderRadius: 10, border: `1px solid ${C.border}`, display: 'block' }}/>
-                  <button aria-label="Rimuovi foto scontrino" onClick={() => { setPreview(null); setImg(null); setVenduto(null); setSalvato(false); if (inputRef.current) inputRef.current.value = '' }}
+                  <button aria-label="Rimuovi foto scontrino" onClick={() => { setPreview(null); setImg(null); setVenduto(null); setIncerti([]); setSalvato(false); if (inputRef.current) inputRef.current.value = '' }}
                     style={{ position: 'absolute', top: 5, right: 5, width: isMobile ? 40 : 24, height: isMobile ? 40 : 24, borderRadius: isMobile ? 8 : 10, background: 'rgba(0,0,0,0.6)', border: 'none', color: '#FFF', fontSize: isMobile ? 16 : 12, cursor: 'pointer', fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="x" size={isMobile ? 18 : 12} color="#FFF"/></button>
                   <input ref={inputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handleFile}/>
                 </div>

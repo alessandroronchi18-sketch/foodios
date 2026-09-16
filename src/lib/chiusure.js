@@ -178,6 +178,65 @@ export function foodcostNoto(c) {
 }
 
 /**
+ * Fondere due versioni della stessa giornata.
+ *
+ * Una giornata si può chiudere in tre modi, anche lo stesso giorno: col
+ * dettaglio dei prodotti (si sa tutto), col solo totale dell'incasso (si sa
+ * quanto è entrato, non quanto è costato), o da un import di cassa o delivery.
+ * Chi arriva secondo non deve cancellare quello che sapeva il primo.
+ *
+ * Due difetti veri, trovati il 16/09/2026 scrivendo i test:
+ *
+ *  - chi registrava il totale la mattina e il dettaglio dei prodotti la sera
+ *    restava con `solo_totale: true` e `foodcost_noto: false` della mattina,
+ *    perché il record del dettaglio non li dichiarava e lo spread conservava
+ *    quelli vecchi. Il P&L legge quei due campi e **buttava via un food cost
+ *    che ormai era noto**;
+ *  - il contrario: registrare il totale su una giornata già chiusa col
+ *    dettaglio azzerava `totFC` (210 → 0) e `totM` (602,40 → 0) e metteva
+ *    `avgST` a null, pur conservando il `confronto` da cui quei numeri erano
+ *    stati calcolati.
+ *
+ * La regola, in una riga: **il food cost non torna mai da noto a ignoto**. Il
+ * totale scritto a mano è il dato fiscale e vince sull'incasso; il costo delle
+ * materie resta quello del dettaglio, e il margine si rifà sui due.
+ */
+export function fondiChiusura(precedente, nuova) {
+  if (!precedente) return nuova
+  const avevaIlDettaglio = (precedente.confronto || []).length > 0 || foodcostNoto(precedente)
+  const fcPrec = Number(precedente?.kpi?.totFC)
+  const fcNuovo = Number(nuova?.kpi?.totFC)
+  // Il nuovo record porta un food cost suo? Allora è lui quello buono.
+  const nuovoLoSa = Number.isFinite(fcNuovo) && fcNuovo > 0
+  const teniQuelloDiPrima = !nuovoLoSa && avevaIlDettaglio && Number.isFinite(fcPrec) && fcPrec > 0
+
+  const kpi = { ...(precedente.kpi || {}), ...(nuova.kpi || {}) }
+  if (teniQuelloDiPrima) {
+    const totV = Number(kpi.totV) || 0
+    kpi.totFC = fcPrec
+    kpi.totM = totV - fcPrec
+    kpi.totMP = totV > 0 ? ((totV - fcPrec) / totV * 100) : 0
+    // Il sell-through non si ricalcola: dipende da quanto è stato prodotto,
+    // che questo salvataggio non sa. Si conserva quello di prima.
+    kpi.avgST = precedente?.kpi?.avgST ?? null
+  }
+
+  return {
+    ...precedente,
+    ...nuova,
+    venduto: nuova.venduto?.length ? nuova.venduto : (precedente.venduto || []),
+    confronto: (nuova.confronto || []).length ? nuova.confronto : (precedente.confronto || []),
+    formati: (nuova.formati || []).length ? nuova.formati : (precedente.formati || []),
+    cassaImport: nuova.cassaImport || precedente.cassaImport || [],
+    deliveryImport: nuova.deliveryImport || precedente.deliveryImport || [],
+    id: precedente.id || nuova.id,
+    solo_totale: (avevaIlDettaglio || nuovoLoSa) ? false : !!nuova.solo_totale,
+    foodcost_noto: (teniQuelloDiPrima || nuovoLoSa) ? true : !!nuova.foodcost_noto,
+    kpi,
+  }
+}
+
+/**
  * Upsert delle sole giornate passate, senza cancellare niente.
  *
  * Differenza da salvaChiusure: quella riceve l'elenco COMPLETO e cancella le
