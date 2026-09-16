@@ -58,6 +58,31 @@ export function nomeNellaDescrizione(nomeFornitore, descrizione) {
   return trovate / parole.length
 }
 
+// Le parole che in una descrizione bancaria NON sono il nome di nessuno.
+// Servono a capire se la banca un nome l'ha scritto o no: «BONIFICO SEPA
+// 0001234» non nomina nessuno, «BONIF A FAVORE DI CONO ARTICO SPA» sì.
+const PAROLE_DI_BANCA = new Set([
+  'BONIFICO', 'BONIF', 'SEPA', 'DISPOSIZIONE', 'PAGAMENTO', 'PAG', 'ADDEBITO',
+  'ADDEB', 'FAVORE', 'ORDINE', 'ORDINANTE', 'BENEFICIARIO', 'CAUSALE', 'FATTURA',
+  'FATT', 'RIF', 'RIFERIMENTO', 'NUMERO', 'NUM', 'SALDO', 'ACCONTO', 'CBILL',
+  'RIBA', 'SDD', 'CARTA', 'POS', 'PRELIEVO', 'COMMISSIONI', 'IMPOSTA', 'BOLLO',
+  'ADDEBITI', 'PREAUTORIZZATI', 'DOMICILIAZIONE', 'UTENZE', 'TRAMITE', 'DEL',
+  'DELLA', 'PER', 'CON', 'DATA', 'VALUTA', 'EUR', 'EURO',
+])
+
+/**
+ * La banca ha scritto un nome, in questa descrizione?
+ *
+ * Serve a distinguere «BONIFICO SEPA 0001234» — dove importo e scadenza sono
+ * tutto quello che c'è — da «BONIF A FAVORE DI CONO ARTICO SPA», dove un nome
+ * c'è e non va ignorato.
+ */
+export function laBancaHaScrittoUnNome(descrizione) {
+  const parole = normPerConfronto(descrizione).split(' ')
+    .filter(p => p.length >= 4 && !/^\d+$/.test(p) && !PAROLE_DI_BANCA.has(p))
+  return parole.length >= 2
+}
+
 const GG = 86400000
 function giorniTra(isoA, isoB) {
   if (!isoA || !isoB) return null
@@ -161,31 +186,73 @@ export function proponiAbbinamenti(movimenti, fatture, { giorniTolleranza = 45 }
   }
   const vicino = (a, b) => Math.abs(a - b) < 0.02
 
-  for (const mv of (movimenti || [])) {
+  // ── Prima i sicuri, poi gli altri ─────────────────────────────────────────
+  //
+  // Le fatture si consumano: una volta abbinata, una fattura non è più
+  // candidata per gli altri movimenti. Scorrendo il file dall'alto, un
+  // movimento dubbio che arriva prima di uno sicuro si prendeva la stessa
+  // fattura — e quello sicuro restava senza. Il risultato dipendeva
+  // dall'ordine delle righe nel file della banca, che non vuol dire niente.
+  //
+  // Due passate: nella prima si assegnano solo gli abbinamenti certi (importo
+  // al centesimo E nome nella descrizione), nella seconda tutto il resto sulle
+  // fatture rimaste. Un abbinamento certo non si fa rubare la fattura da uno
+  // dubbio, comunque sia ordinato il file.
+  const elenco = movimenti || []
+  const certiPerMovimento = new Map()
+  for (const mv of elenco) {
+    for (const f of aperte) {
+      if (usate.has(f.id)) continue
+      if (!vicino(residuo(f), mv.importo)) continue
+      if (nomeNellaDescrizione(f.fornitore, mv.descrizione) < 0.6) continue
+      certiPerMovimento.set(mv, f)
+      usate.add(f.id)
+      break
+    }
+  }
+
+  for (const mv of elenco) {
     const candidate = aperte.filter(f => !usate.has(f.id))
 
-    // 1) importo esatto + nome nella descrizione = certo
+    // 1) importo esatto + nome nella descrizione = certo (deciso nella prima
+    //    passata qui sopra).
     let scelta = null, motivo = '', certezza = ''
-    for (const f of candidate) {
-      if (!vicino(residuo(f), mv.importo)) continue
-      const somiglianza = nomeNellaDescrizione(f.fornitore, mv.descrizione)
-      if (somiglianza >= 0.6) {
-        scelta = [f]; certezza = 'certo'
-        motivo = `l'importo coincide e "${f.fornitore}" compare nella descrizione del movimento`
-        break
-      }
+    const giaCerto = certiPerMovimento.get(mv)
+    if (giaCerto) {
+      scelta = [giaCerto]; certezza = 'certo'
+      motivo = `l'importo coincide e "${giaCerto.fornitore}" compare nella descrizione del movimento`
     }
+
+    // Il fornitore che la BANCA nomina nella descrizione, se ne nomina uno.
+    // Serve al criterio qui sotto: senza questo controllo bastavano importo e
+    // data, e con due fatture da 500 € di fornitori diversi si proponeva
+    // quella con la scadenza più vicina anche quando il bonifico diceva a
+    // chiare lettere l'altro nome. Chiudere per sbaglio una fattura ancora da
+    // pagare è un danno che non si vede: sparisce dallo scadenzario e il
+    // fornitore la richiede fra tre mesi.
+    const nominatoDallaBanca = aperte.some(f => nomeNellaDescrizione(f.fornitore, mv.descrizione) >= 0.6)
+    // La banca ha scritto un nome, ma non è quello di nessuna fattura aperta?
+    // Allora l'abbinamento si può ancora proporre — il fornitore può essere
+    // registrato con un altro nome, o averlo cambiato — ma NON come
+    // «probabile»: si dice che il bonifico nomina qualcun altro e decide chi
+    // guarda. Escluderlo del tutto nasconderebbe un caso vero.
+    const nomeDiUnAltro = !nominatoDallaBanca && laBancaHaScrittoUnNome(mv.descrizione)
 
     // 2) importo esatto e data vicina alla scadenza = probabile
     if (!scelta) {
       const perData = candidate
         .filter(f => vicino(residuo(f), mv.importo))
+        // Se la banca un nome lo scrive, si sta a quello.
+        .filter(f => !nominatoDallaBanca || nomeNellaDescrizione(f.fornitore, mv.descrizione) >= 0.6)
         .map(f => ({ f, gg: Math.abs(giorniTra(f.dueIso || f.data_scadenza || f.data_fattura, mv.data) ?? 9999) }))
         .filter(x => x.gg <= giorniTolleranza)
         .sort((a, b) => a.gg - b.gg)
       if (perData.length === 1) {
-        scelta = [perData[0].f]; certezza = 'probabile'
-        motivo = `l'importo coincide e la data è a ${perData[0].gg} giorni dalla scadenza`
+        scelta = [perData[0].f]
+        certezza = nomeDiUnAltro ? 'da confermare' : 'probabile'
+        motivo = nomeDiUnAltro
+          ? `l'importo coincide e la data è a ${perData[0].gg} giorni dalla scadenza, ma il bonifico nomina qualcun altro: controlla prima di confermare`
+          : `l'importo coincide e la data è a ${perData[0].gg} giorni dalla scadenza`
       } else if (perData.length > 1) {
         scelta = [perData[0].f]; certezza = 'da confermare'
         motivo = `${perData.length} fatture hanno questo importo: propongo quella con la scadenza più vicina`
@@ -230,7 +297,7 @@ export function proponiAbbinamenti(movimenti, fatture, { giorniTolleranza = 45 }
       continue
     }
 
-    for (const f of scelta) usate.add(f.id)
+    for (const f of scelta) usate.add(f.id)   // i certi ci sono già: aggiungerli di nuovo non cambia niente
     abbinamenti.push({
       movimento: mv,
       fatture: scelta.map(f => ({

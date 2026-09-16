@@ -1,8 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   normPerConfronto, nomeNellaDescrizione, normalizzaData,
-  leggiEstrattoConto, proponiAbbinamenti, sottoinsiemeCheSomma,
-} from '../../src/lib/riconciliazioneBanca'
+  leggiEstrattoConto, proponiAbbinamenti, sottoinsiemeCheSomma, laBancaHaScrittoUnNome } from '../../src/lib/riconciliazioneBanca'
 
 const f = (p) => ({
   id: p.id, fornitore: p.forn, numero_rif: p.n || null,
@@ -208,5 +207,115 @@ describe('proponiAbbinamenti', () => {
       f({ id: 'nc', forn: 'PAGATA SRL', data: '2026-03-02', tot: 500, tipo: 'nota_credito' }),
     ])
     expect(abbinamenti).toHaveLength(0)
+  })
+})
+
+// ─── I due punti deboli trovati il 16/09/2026 ──────────────────────────────
+//
+// Il titolare ha detto che Mara paga TUTTI i fornitori con bonifico, quindi
+// questa è la strada da cui passano i pagamenti, e ha chiesto di migliorare
+// gli abbinamenti. Leggendo l'algoritmo con quella domanda in testa sono usciti
+// due modi di chiudere la fattura sbagliata — e chiudere per sbaglio una
+// fattura ancora da pagare è un danno che non si vede: sparisce dallo
+// scadenzario e il fornitore la richiede fra tre mesi.
+
+describe('quando la descrizione dice un fornitore e la fattura ne dice un altro', () => {
+  const fatture = [
+    { id: 'a', fornitore: 'LATTERIA ALPINA SRL', totale: 500, data_scadenza: '2026-09-15' },
+    { id: 'b', fornitore: 'CONO ARTICO SPA',     totale: 500, data_scadenza: '2027-06-30' },
+  ]
+
+  it('non propone come «probabile» una fattura di un fornitore che la banca non nomina', () => {
+    // Il bonifico dice chiaramente CONO ARTICO. La fattura della Latteria ha
+    // lo stesso importo e una scadenza vicina: prima veniva proposta come
+    // «probabile» perché il secondo criterio guarda solo importo e data e il
+    // nome non lo controlla proprio.
+    const mv = [{ data: '2026-09-16', importo: 500, descrizione: 'BONIFICO A FAVORE DI CONO ARTICO SPA' }]
+    const { abbinamenti } = proponiAbbinamenti(mv, fatture)
+    expect(abbinamenti).toHaveLength(1)
+    expect(abbinamenti[0].fatture[0].id, 'ha scelto la fattura sbagliata').toBe('b')
+  })
+
+  it('e se la fattura giusta non c\'è, lo propone ma NON come «probabile»', () => {
+    // Prima usciva «probabile» e partiva spuntato. Escluderlo del tutto però
+    // nasconderebbe un caso vero — un fornitore registrato con un altro nome,
+    // o che il nome l'ha cambiato — quindi si propone dichiarando il dubbio:
+    // decide chi guarda, che è il principio di tutta questa schermata.
+    const soloAltro = [{ id: 'a', fornitore: 'LATTERIA ALPINA SRL', totale: 500, data_scadenza: '2026-09-15' }]
+    const mv = [{ data: '2026-09-16', importo: 500, descrizione: 'BONIFICO A FAVORE DI CONO ARTICO SPA' }]
+    const { abbinamenti } = proponiAbbinamenti(mv, soloAltro)
+    expect(abbinamenti).toHaveLength(1)
+    expect(abbinamenti[0].certezza, 'non deve partire spuntato').toBe('da confermare')
+    expect(abbinamenti[0].motivo).toMatch(/nomina qualcun altro/)
+  })
+
+  it('e «da confermare» vuol dire che NON parte spuntato', () => {
+    // La spunta iniziale guarda solo `certezza === 'certo'`.
+    const soloAltro = [{ id: 'a', fornitore: 'LATTERIA ALPINA SRL', totale: 500, data_scadenza: '2026-09-15' }]
+    const mv = [{ data: '2026-09-16', importo: 500, descrizione: 'BONIFICO A FAVORE DI CONO ARTICO SPA' }]
+    const { abbinamenti } = proponiAbbinamenti(mv, soloAltro)
+    const spuntati = abbinamenti.reduce((acc, a, i) => (a.certezza === 'certo' ? [...acc, i] : acc), [])
+    expect(spuntati).toEqual([])
+  })
+
+  it('ma senza nessun nome nella descrizione il criterio della data resta valido', () => {
+    // Molte banche scrivono solo «BONIFICO SEPA» e il numero: lì l'importo e
+    // la scadenza sono tutto quello che c'è, e vanno usati.
+    const mv = [{ data: '2026-09-16', importo: 500, descrizione: 'BONIFICO SEPA 0001234' }]
+    const { abbinamenti } = proponiAbbinamenti(mv, [fatture[0]])
+    expect(abbinamenti).toHaveLength(1)
+    expect(abbinamenti[0].certezza).toBe('probabile')
+  })
+})
+
+describe('l\'ordine delle righe nel file non deve cambiare il risultato', () => {
+  // Le fatture si «consumano»: una volta abbinata, non è più candidata. Se un
+  // movimento incerto arriva PRIMA di uno sicuro e si prende la stessa
+  // fattura, quello sicuro resta senza — e l'utente si ritrova un abbinamento
+  // certo declassato e uno dubbio confermato al posto suo.
+  const fatture = [
+    { id: 'x', fornitore: 'CONO ARTICO SPA', totale: 300, data_scadenza: '2026-09-20' },
+  ]
+  const sicuro = { data: '2026-09-16', importo: 300, descrizione: 'BONIF CONO ARTICO SPA FATT 12' }
+  const dubbio = { data: '2026-09-16', importo: 300, descrizione: 'PAGAMENTO POS' }
+
+  it('il movimento sicuro si prende la fattura, comunque sia ordinato il file', () => {
+    const primaIlDubbio = proponiAbbinamenti([dubbio, sicuro], fatture)
+    const primaIlSicuro = proponiAbbinamenti([sicuro, dubbio], fatture)
+    const certoIn = (r) => r.abbinamenti.find(a => a.certezza === 'certo')
+    expect(certoIn(primaIlSicuro), 'con il sicuro per primo funzionava già').toBeTruthy()
+    expect(certoIn(primaIlDubbio), 'con il dubbio per primo la fattura veniva rubata').toBeTruthy()
+    expect(certoIn(primaIlDubbio).movimento.descrizione).toMatch(/CONO ARTICO/)
+  })
+
+  it('e l\'altro movimento resta fuori, dichiarato', () => {
+    const r = proponiAbbinamenti([dubbio, sicuro], fatture)
+    expect(r.abbinamenti).toHaveLength(1)
+    expect(r.nonAbbinati).toHaveLength(1)
+  })
+})
+
+describe('la banca ha scritto un nome, o solo un codice?', () => {
+  it('«BONIFICO SEPA 0001234» non nomina nessuno', () => {
+    expect(laBancaHaScrittoUnNome('BONIFICO SEPA 0001234')).toBe(false)
+  })
+
+  it('«PAGAMENTO FATTURA RIF 88» nemmeno', () => {
+    expect(laBancaHaScrittoUnNome('PAGAMENTO FATTURA RIF 88')).toBe(false)
+  })
+
+  it('«BONIF A FAVORE DI CONO ARTICO SPA» sì', () => {
+    expect(laBancaHaScrittoUnNome('BONIF A FAVORE DI CONO ARTICO SPA')).toBe(true)
+  })
+
+  it('una descrizione vuota no', () => {
+    expect(laBancaHaScrittoUnNome('')).toBe(false)
+    expect(laBancaHaScrittoUnNome(null)).toBe(false)
+  })
+
+  it('e un nome solo non basta: serve qualcosa che somigli a una ragione sociale', () => {
+    // Con una parola sola il rischio di scambiare un pezzo di causale per un
+    // nome è alto, e il costo dello sbaglio è chiudere la fattura sbagliata.
+    expect(laBancaHaScrittoUnNome('BONIFICO LATTERIA')).toBe(false)
   })
 })
