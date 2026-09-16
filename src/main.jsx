@@ -78,12 +78,23 @@ function dsnValido(dsn) {
   return /^https:\/\/[0-9a-f]+@[^/]+\/\d+$/i.test(s)
 }
 
+// 16/09/2026, trovato entrando in produzione con un account vero: la console
+// del titolare stampava «Invalid Sentry Dsn» a ogni caricamento. La guardia
+// qui sopra c'era gia', ma spegneva Sentry con `enabled: false` **passandogli
+// lo stesso il DSN sbagliato** — e Sentry il DSN lo analizza comunque, prima
+// di guardare `enabled`. Risultato: nessun errore raccolto (giusto) piu' un
+// errore stampato a ogni avvio (sbagliato), proprio nel posto dove si va a
+// cercare cosa non va.
+//
+// Un DSN che non passa la guardia non va corretto: non va proprio passato.
+const DSN = dsnValido(import.meta.env.VITE_SENTRY_DSN) ? import.meta.env.VITE_SENTRY_DSN : undefined
+
 Sentry.init({
-  dsn: import.meta.env.VITE_SENTRY_DSN,
+  dsn: DSN,
   environment: import.meta.env.MODE,
   release: import.meta.env.VITE_RELEASE || 'foodos@local',
   tracesSampleRate: 0.1,
-  enabled: import.meta.env.PROD && dsnValido(import.meta.env.VITE_SENTRY_DSN),
+  enabled: import.meta.env.PROD && !!DSN,
   sendDefaultPii: false,
   ignoreErrors: [
     'ResizeObserver loop limit exceeded',

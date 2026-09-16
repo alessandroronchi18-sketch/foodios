@@ -74,8 +74,45 @@ describe('il controllo degli errori è acceso solo se è vero', () => {
   })
 
   it('il programma usa questo controllo, non il semplice «esiste»', () => {
-    expect(MAIN).toMatch(/enabled: import\.meta\.env\.PROD && dsnValido\(/)
     expect(MAIN).not.toMatch(/enabled: import\.meta\.env\.PROD && !!import\.meta\.env\.VITE_SENTRY_DSN/)
+    // Il DSN passa da una costante gia' filtrata, e `enabled` guarda quella.
+    expect(MAIN).toMatch(/const DSN = dsnValido\(import\.meta\.env\.VITE_SENTRY_DSN\)/)
+    expect(MAIN).toMatch(/enabled: import\.meta\.env\.PROD && !!DSN/)
+  })
+
+  // ── Spegnerlo non basta: il DSN sbagliato non va proprio passato ──────
+  //
+  // 16/09/2026, entrando in produzione con l'account del titolare: la console
+  // stampava «Invalid Sentry Dsn» a ogni caricamento della pagina. La guardia
+  // c'era gia' e funzionava — Sentry restava spento — ma il DSN segnaposto gli
+  // veniva passato lo stesso, e Sentry lo analizza PRIMA di guardare
+  // `enabled`. Quindi: nessun errore raccolto (giusto) piu' un errore
+  // stampato a ogni avvio (sbagliato), proprio nella console dove si va a
+  // cercare cosa non funziona.
+  //
+  // La correzione di due giorni prima aveva sistemato meta' del problema. Qui
+  // si controlla l'altra meta'.
+  it('un DSN che non passa la guardia non arriva proprio a Sentry', () => {
+    // La chiamata non deve piu' leggere la variabile d'ambiente diretta:
+    // deve usare la costante filtrata.
+    expect(MAIN).not.toMatch(/dsn: import\.meta\.env\.VITE_SENTRY_DSN/)
+    expect(MAIN).toMatch(/dsn: DSN,/)
+  })
+
+  it('la costante è filtrata prima di init, non dopo', () => {
+    const posDsn = MAIN.indexOf('const DSN = dsnValido(')
+    const posInit = MAIN.indexOf('Sentry.init({')
+    expect(posDsn, 'la costante DSN deve esistere').toBeGreaterThan(-1)
+    expect(posInit, 'Sentry.init deve esistere').toBeGreaterThan(-1)
+    expect(posDsn).toBeLessThan(posInit)
+  })
+
+  it('un segnaposto diventa «niente DSN», non «DSN sbagliato»', () => {
+    // La stessa espressione che usa il programma, applicata al valore vero
+    // che c'era in produzione.
+    const segnaposto = 'https://KEY@oXXX.ingest.sentry.io/PROJECT_ID'
+    const DSN = dsnValido(segnaposto) ? segnaposto : undefined
+    expect(DSN).toBeUndefined()
   })
 })
 
