@@ -80,9 +80,9 @@ function dsnValido(dsn) {
 
 // 16/09/2026, trovato entrando in produzione con un account vero: la console
 // del titolare stampava «Invalid Sentry Dsn» a ogni caricamento. La guardia
-// qui sopra c'era gia', ma spegneva Sentry con `enabled: false` **passandogli
+// qui sopra c'era già, ma spegneva Sentry con `enabled: false` **passandogli
 // lo stesso il DSN sbagliato** — e Sentry il DSN lo analizza comunque, prima
-// di guardare `enabled`. Risultato: nessun errore raccolto (giusto) piu' un
+// di guardare `enabled`. Risultato: nessun errore raccolto (giusto) più un
 // errore stampato a ogni avvio (sbagliato), proprio nel posto dove si va a
 // cercare cosa non va.
 //

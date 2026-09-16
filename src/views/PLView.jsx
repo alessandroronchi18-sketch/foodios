@@ -621,14 +621,14 @@ function SensTable({ rows, euro, pct }) {
   // SPICY  +51.654% FC tollerabile». Cinquantunmila per cento.
   //
   // Non e' un prodotto miracoloso: e' `(ricavo / fc - 1) * 100` con un food
-  // cost quasi zero, perche' a quella ricetta mancavano i prezzi di quasi
+  // cost quasi zero, perché a quella ricetta mancavano i prezzi di quasi
   // tutti gli ingredienti. Il costo non e' basso, e' INCOMPLETO — e la
   // differenza, per chi legge, e' tutta.
   //
   // Il filtro `fc > 0` non bastava: bastava un ingrediente con un prezzo
-  // perche' il costo fosse «maggiore di zero» e la riga passasse. Le righe
-  // sanno gia' quali ingredienti non hanno prezzo (`fcParziale`, calcolato
-  // qualche centinaio di righe piu' giu'): qui va solo guardato.
+  // perché il costo fosse «maggiore di zero» e la riga passasse. Le righe
+  // sanno già quali ingredienti non hanno prezzo (`fcParziale`, calcolato
+  // qualche centinaio di righe più giù): qui va solo guardato.
   //
   // Vale per tutta la riga, non solo per l'ultima colonna: con un costo a
   // meta' sono sbagliati anche «se sale del 10%» e «se sale del 20%».
@@ -1298,7 +1298,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
           <button onClick={async () => {
             // Audit 2026-07-01 MEDIUM: disabled durante export per evitare doppio
             // PDF (gateExport e' async + jsPDF e' sincrono ma il rate-limit gate
-            // puo' ritornare con delay).
+            // può ritornare con delay).
             if (exportingPdf) return
             setExportingPdf(true)
             try {
@@ -1521,7 +1521,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
                 // manda al commercialista.
                 // E il food cost: se non c'e' una sola giornata col costo
                 // delle materie, a schermo si legge "non noto" mentre il PDF
-                // scriveva "0,0%", cioe' un food cost perfetto.
+                // scriveva "0,0%", cioè un food cost perfetto.
                 kpi: [
                   { label: 'Ricavi', value: fmt0(plMese.cur.ricavi), sub: `${plMese.cur.giorni} ${plMese.cur.giorni === 1 ? 'giorno' : 'giorni'}` },
                   {
