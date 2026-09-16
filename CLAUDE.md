@@ -229,6 +229,44 @@ con `npm run build` — `npx vite build` li salta.
 
 ---
 
+## Le sette lenti
+
+Regola del titolare, 16/09/2026: lavorare su Foodos **come il miglior designer
+UX/UI + imprenditore + CEO + CFO + direttore del personale + ingegnere +
+economista**, non solo come chi scrive codice.
+
+Non è una richiesta di tono: è una richiesta di angoli di lettura. Le cose che
+hanno cambiato di più questo prodotto non erano difetti di codice — 413
+organizzazioni su 423 erano account di prova, il dominio era in vendita, i
+piani a listino non erano quelli nel database, la pagina in vetrina si
+contraddiceva da sola sui limiti. Nessuna di queste si vede compilando.
+
+Prima di consegnare, passare le sette domande:
+
+1. **Design** — si capisce in tre secondi? Un numero senza un riferimento è un
+   numero, non un'informazione. Se il programma non sa una cosa lo dice,
+   invece di scrivere zero.
+2. **Imprenditore** — serve al cliente che c'è oggi, o a uno immaginario? Mara
+   ha due sedi, trenta gusti e zero chiusure di cassa registrate.
+3. **CEO** — avvicina o allontana il primo cliente pagante? Il prodotto è a
+   zero ricavi: ogni ora va giustificata contro quella domanda.
+4. **CFO** — dove sono i soldi in questa schermata? Ogni numero che tocca
+   incassi, food cost o pagamenti va trattato come un numero di bilancio: si
+   dice su quante giornate è calcolato, e un dato mancante non si inventa mai
+   (food cost zero non è «gratis», è «non lo so»).
+5. **Personale** — chi lo usa? Il dipendente in laboratorio non deve vedere
+   comandi che il database gli rifiuta; il titolare non deve restare chiuso
+   fuori da una regola di sicurezza.
+6. **Ingegnere** — verificare il righello prima della misura, e lasciare test
+   che riproducano il difetto.
+7. **Economista** — quanto costa il difetto se resta, e quanto costa toglierlo?
+   Si comincia da quello che costa di più lasciato lì.
+
+**La regola che le tiene insieme:** dire sempre quello che non si sa. Un
+prodotto che dichiara i propri buchi vale più di uno che sembra completo.
+
+---
+
 ## Ogni difetto corretto lascia dei test
 
 Regola del titolare, 16/09/2026: **«per ogni difetto o errore individuato,

@@ -109,9 +109,28 @@ export function arricchisci(fatture, anagrafiche = {}, adesso = new Date()) {
     }
     const { iso, stimata, tipo } = scadenzaFattura(conTermini)
     const d = iso ? new Date(`${iso}T12:00:00`) : null
-    // Una nota di credito riduce il debito: vale col segno meno.
-    const segno = f?.tipo === 'nota_credito' ? -1 : 1
-    const importoNetto = segno * (Number(f?.totale) || 0)
+    // ── Una nota di credito riduce il debito ────────────────────────────────
+    //
+    // Il segno si prende dall'IMPORTO, non dall'etichetta. Prima era
+    // `segno = tipo === 'nota_credito' ? -1 : 1` moltiplicato per il totale, e
+    // quello dà il risultato giusto solo se le note di credito sono scritte
+    // col totale POSITIVO. Nel database vero (16/09/2026) non c'è nemmeno una
+    // riga con `tipo = 'nota_credito'`: tutte e 3.520 sono «fattura», e le
+    // note di credito sono **fatture con l'importo negativo** — quattro, fino
+    // a −365,55 €.
+    //
+    // Con le due convenzioni mescolate il conto sbagliava di due volte
+    // l'importo: una nota di credito da 100 € dichiarata come tale e scritta
+    // −100 diventava +100, e il dovuto al fornitore usciva 200 € più alto del
+    // vero. Su una schermata da cui partono i bonifici, sono 200 € pagati in
+    // più.
+    //
+    // Adesso: se è dichiarata nota di credito vale meno di zero comunque sia
+    // scritta; se non è dichiarata ma l'importo è negativo, è una nota di
+    // credito lo stesso — perché è quello che è.
+    const totaleGrezzo = Number(f?.totale) || 0
+    const importoNetto = f?.tipo === 'nota_credito' ? -Math.abs(totaleGrezzo) : totaleGrezzo
+    const segno = importoNetto < 0 ? -1 : 1
     const pagato = Number(f?.importo_pagato) || 0
     // Le pagate non hanno residuo, qualunque cosa dicano i numeri.
     const residuo = f?.stato === 'pagata' ? 0 : importoNetto - segno * pagato
