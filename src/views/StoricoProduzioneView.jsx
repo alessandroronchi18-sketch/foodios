@@ -11,6 +11,7 @@ import { useRicavoFlat } from '../lib/useRicavoFlat'
 import { useListinoSede, getRegSede } from '../lib/listinoSede'
 import { lessico } from '../lib/lessico'
 import Icon from '../components/Icon'
+import BarraPeriodo from '../components/BarraPeriodo'
 import { C, KPI, SH, margColor, margBadge, fmt, fmt0, fmtp, ChartTip, Tip, TabellaOSchede } from './_shared'
 import { fmtp0 } from '../lib/formatIt'
 
@@ -90,28 +91,10 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
   const [confronto, setConfronto] = useState('periodoPrec')
   const isMetodoInv = metodoProduzione === 'inventario'
 
-  // Preset periodo rapidi: 1 click imposta dateFrom/dateTo
-  const applicaPreset = (id) => {
-    const oggi = new Date()
-    const y = oggi.getFullYear(), m = oggi.getMonth(), d = oggi.getDate()
-    const iso = (dt) => dt.toISOString().slice(0, 10)
-    let from, to
-    if (id === 'oggi')          { from = to = iso(oggi) }
-    else if (id === 'ieri')     { const dt = new Date(y, m, d - 1); from = to = iso(dt) }
-    else if (id === '7gg')      { from = iso(new Date(y, m, d - 6)); to = iso(oggi) }
-    else if (id === '30gg')     { from = iso(new Date(y, m, d - 29)); to = iso(oggi) }
-    else if (id === '90gg')     { from = iso(new Date(y, m, d - 89)); to = iso(oggi) }
-    else if (id === 'meseCorr') { from = iso(new Date(y, m, 1)); to = iso(oggi) }
-    else if (id === 'mesePrec') { from = iso(new Date(y, m - 1, 1)); to = iso(new Date(y, m, 0)) }
-    else if (id === 'sett')     {
-      // Lunedi della settimana corrente (ISO): 1=lun ... 7=dom
-      const dow = oggi.getDay() || 7
-      from = iso(new Date(y, m, d - (dow - 1)))
-      to = iso(oggi)
-    }
-    else if (id === 'annoCorr') { from = iso(new Date(y, 0, 1)); to = iso(oggi) }
-    if (from) { setDateFrom(from); setDateTo(to) }
-  }
+  // Le scorciatoie del periodo stavano qui, scritte a mano, e usavano
+  // `toISOString().slice(0,10)`: la data UTC. Fra mezzanotte e le due, in
+  // Italia, «Oggi» selezionava ieri. Adesso stanno in `lib/periodoAnalisi.js`,
+  // sui giorni locali, e sono le stesse in tutte le pagine di analisi.
 
   // ═══ Metodo inventario differenziale (gelaterie): fetch produzione da
   // public.inventario_produzione per il periodo selezionato + il periodo
@@ -758,68 +741,22 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
       }}>
         {/* Preset rapidi: 1 click → dateFrom/dateTo. Copre giornaliero, settimanale,
             mensile, trimestrale, YTD. Da un giorno singolo alla stagione intera. */}
-        <div style={{display:'flex', gap:8, flexWrap:'wrap', alignItems:'center'}}>
-          <span style={{fontSize: typo.small.fontSize, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.08em", color:C.textSoft, marginRight:4}}>Preset</span>
-          {[
-            ['oggi', 'Oggi'],
-            ['ieri', 'Ieri'],
-            ['sett', 'Sett. in corso'],
-            ['7gg', 'Ultimi 7 gg'],
-            ['30gg', 'Ultimi 30 gg'],
-            ['90gg', 'Ultimi 90 gg'],
-            ['meseCorr', 'Mese corr.'],
-            ['mesePrec', 'Mese prec.'],
-            ['annoCorr', "Anno corr."],
-          ].map(([id, lbl]) => (
-            <button key={id} onClick={() => applicaPreset(id)} type="button"
-              style={{
-                padding:'6px 12px', minHeight:32,
-                background:'#F8FAFC', color:C.textMid,
-                border:`1px solid ${C.border}`, borderRadius:999,
-                fontSize:12, fontWeight:600, cursor:'pointer',
-              }}>{lbl}</button>
-          ))}
-        </div>
+        {/* La stessa barra del periodo che c'è nelle altre pagine di analisi.
+            Prima ognuna aveva la sua: qui nove scorciatoie e il confronto, nel
+            P&L solo «dal/al», nel Confronto sedi solo settimana/mese.
+            Passando da una pagina all'altra si ricominciava da capo.
 
-        {/* Date custom + modalita' confronto sulla stessa riga (impilate su mobile) */}
-        <div style={{display:'flex', gap:12, flexWrap:'wrap', alignItems:isMobile?'stretch':'center', flexDirection:isMobile?'column':'row'}}>
-          <div style={{display:'flex', gap:8, alignItems:'center', flexWrap:'wrap'}}>
-            <span style={{fontSize: typo.small.fontSize, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.08em", color:C.textSoft}}>Da</span>
-            <input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} aria-label="Data inizio"
-              style={{padding:"10px 12px", minHeight:40, borderRadius:8, border:`1px solid ${C.borderStr}`, fontSize:isMobile?16:13, color:C.text, background:C.white, boxSizing:'border-box'}}/>
-            <span style={{fontSize: typo.small.fontSize, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.08em", color:C.textSoft}}>A</span>
-            <input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)} aria-label="Data fine"
-              style={{padding:"10px 12px", minHeight:40, borderRadius:8, border:`1px solid ${C.borderStr}`, fontSize:isMobile?16:13, color:C.text, background:C.white, boxSizing:'border-box'}}/>
-            {(dateFrom || dateTo) && (
-              <button onClick={()=>{setDateFrom("");setDateTo("");}} type="button" aria-label="Azzera filtro periodo"
-                style={{padding:"8px 12px", minHeight:36, borderRadius:8, border:`1px solid ${C.border}`, background:C.white, color:C.textSoft, fontSize:12, fontWeight:600, cursor:"pointer", display:'inline-flex', alignItems:'center', gap:6}}>
-                <Icon name="x" size={12}/>Reset
-              </button>
-            )}
-          </div>
-          <div style={{display:'flex', gap:8, alignItems:'center', flexWrap:'wrap', marginLeft:isMobile?0:'auto'}}>
-            <span style={{fontSize: typo.small.fontSize, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.08em", color:C.textSoft}}>Confronta con</span>
-            <div style={{display:'inline-flex', background:'#F1F5F9', borderRadius:8, padding:3, gap:2}}>
-              {[
-                ['periodoPrec', 'Periodo prec.'],
-                ['annoPrec',    'Anno prec.'],
-                ['nessuno',     'Nessuno'],
-              ].map(([id, lbl]) => {
-                const sel = confronto === id
-                return (
-                  <button key={id} onClick={() => setConfronto(id)} type="button"
-                    style={{
-                      padding:'7px 12px', minHeight:34, borderRadius:6, border:'none',
-                      background: sel ? C.white : 'transparent',
-                      color: sel ? C.red : C.textMid,
-                      boxShadow: sel ? '0 1px 2px rgba(15,23,42,0.08)' : 'none',
-                      fontSize:12, fontWeight:700, cursor:'pointer',
-                    }}>{lbl}</button>
-                )
-              })}
-            </div>
-          </div>
-        </div>
+            I nomi delle modalità di confronto restano quelli di questa pagina
+            (`periodoPrec`/`annoPrec`/`nessuno`) perché li legge anche la
+            sezione dell'inventario: la barra parla la lingua comune e si
+            traduce qui, in due righe, invece di rinominare il mondo. */}
+        <BarraPeriodo
+          from={dateFrom} to={dateTo}
+          onPeriodo={(f, t) => { setDateFrom(f || ''); setDateTo(t || '') }}
+          confronto={confronto === 'periodoPrec' ? 'prev' : confronto === 'annoPrec' ? 'year_prev' : 'none'}
+          onConfronto={(m) => setConfronto(m === 'prev' ? 'periodoPrec' : m === 'year_prev' ? 'annoPrec' : 'nessuno')}
+          isMobile={isMobile}
+        />
       </div>
 
       {/* ═══ Sezione dedicata metodo INVENTARIO (gelaterie/yogurterie/pasta) ═══

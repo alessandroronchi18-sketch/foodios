@@ -32,6 +32,8 @@ import {
   useSortable, SortTH, fmt, fmt0, fmtp, KPI, ChartTip, TabellaOSchede,
 } from './_shared'
 import Icon from '../components/Icon'
+import BarraPeriodo from '../components/BarraPeriodo'
+import { finestraConfronto } from '../lib/periodoAnalisi'
 import AiExplainButton from '../components/AiExplainButton'
 import ExportPdfButton from '../components/ExportPdfButton'
 import { fmtp0 } from '../lib/formatIt'
@@ -862,6 +864,11 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
   const _ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
   const [dateFrom, setDateFrom] = useState(() => _ymd(new Date(today.getFullYear(), today.getMonth(), 1)))
   const [dateTo, setDateTo] = useState(() => _ymd(today))
+  // Con cosa si confronta il periodo. Prima del periodo precedente esisteva
+  // solo una riga dentro il sottotitolo della tessera Ricavi: le altre tre
+  // (Utile, Food cost, Costo lavoro) non avevano confronto, ed è proprio lì
+  // che serve.
+  const [confrontoPL, setConfrontoPL] = useState('prev')
   const [costi, setCosti] = useState({ affitto: 0, utenze: 0, altro: 0, personale: 0 })
   // Il costo del lavoro calcolato dai dipendenti VERI (pagina Personale).
   // Prima il conto economico lo prendeva SOLO da un campo scritto a mano, e se
@@ -988,14 +995,11 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
   // Durata in GIORNI DI CALENDARIO, non in millisecondi: col cambio dell'ora
   // legale un mese di 31 giorni diventava 32 (o 30), e il confronto col
   // periodo precedente metteva ottobre contro 32 giorni.
+  // Il periodo con cui confrontare. Il conto sta in `periodoAnalisi.js`, lo
+  // stesso che usa lo Storico: prima ogni pagina lo rifaceva a modo suo.
   const prevRange = (from, to) => {
-    if (!from || !to) return { from, to }
-    const gg = giorniDelRange(from, to)
-    if (!gg) return { from, to }
-    const f = new Date(from + 'T12:00:00')
-    const pt = new Date(f); pt.setDate(pt.getDate() - 1)
-    const pf = new Date(pt); pf.setDate(pf.getDate() - (gg - 1))
-    return { from: _ymd(pf), to: _ymd(pt) }
+    const f = finestraConfronto(from, to, confrontoPL)
+    return f || { from: null, to: null }
   }
 
   // ═══ P&L METODO INVENTARIO DIFFERENZIALE (gelaterie con gusti) ══════════
@@ -1106,6 +1110,9 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
     }
   }, [metodoProduzione, invRows, ricettario, ricavoFlatFor, ingCosti, dateFrom, dateTo])
 
+  // Come si chiama il confronto scelto, e le percentuali con cui confrontare.
+  const etichettaConfronto = confrontoPL === 'year_prev' ? "vs l'anno scorso" : 'vs periodo prec.'
+
   const plMese = useMemo(() => {
     let cur = aggRange(dateFrom, dateTo)
     const pr = prevRange(dateFrom, dateTo)
@@ -1153,8 +1160,14 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
     const mcPct = cur.ricavi > 0 ? margineLordo / cur.ricavi : 0.7
     const breakeven = mcPct > 0 ? (personale + costiFissi) / mcPct : 0
     const utilePrev = (prev.ricavi - prev.foodcost) - personale - costiFissi
+    // Le stesse percentuali, sul periodo di confronto: si confrontano in
+    // PUNTI e non in euro, perché «+3 punti di food cost» dice qualcosa mentre
+    // «+1.200 €» su un periodo più lungo o più corto no.
+    const fcPctPrev = prev.ricaviConFc > 0 ? prev.foodcost / prev.ricaviConFc * 100 : null
+    const lavPctPrev = prev.ricavi > 0 ? personale / prev.ricavi * 100 : null
     return {
       cur, prev, costiFissi, personale, margineLordo, utile, fcPct, lavPct,
+      fcPctPrev, lavPctPrev,
       daInventario,
       personaleDaDipendenti, personaleDipendentiN: personaleReale.contati,
       personaleSenzaDato: personaleReale.senzaDato,
@@ -1166,7 +1179,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
       breakevenMese: mcPct > 0 ? (personaleMese + costiFissiMese) / mcPct : 0,
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- aggRange/prevRange sono pure closures stabili sui props (chiusure) già in deps
-  }, [chiusure, dateFrom, dateTo, costi, uscite, personaleReale, inventarioPL])
+  }, [chiusure, dateFrom, dateTo, costi, uscite, personaleReale, inventarioPL, confrontoPL])
 
 
   // Top ingredienti per costo (aggregato, riusato per PDF export)
@@ -1286,35 +1299,22 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
       {/* ═══ P&L MENSILE REALE ═══ */}
       <SH sub="Ricavi e food cost reali dalle chiusure di cassa, meno costo del personale e costi fissi. = utile vero del periodo.">Conto economico · {rangeLabel(dateFrom, dateTo)}</SH>
 
-      {/* Audit 2026-06-25: dropdown mese → date range picker (dal/al).
-          Default = primo del mese corrente → oggi. Input type=date nativi
-          per restare consistenti con il resto della dashboard. */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: T.textMid, fontWeight: 600 }}>
-            Dal
-            <input
-              type="date"
-              value={dateFrom}
-              max={dateTo || undefined}
-              onChange={e => setDateFrom(e.target.value)}
-              style={{ padding: '8px 12px', borderRadius: R.md, border: `1px solid ${T.border}`, background: T.bgCard, fontSize: 13, color: T.text, fontWeight: 600, minHeight: 40, fontVariantNumeric: 'tabular-nums' }}
-            />
-          </label>
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: T.textMid, fontWeight: 600 }}>
-            Al
-            <input
-              type="date"
-              value={dateTo}
-              min={dateFrom || undefined}
-              onChange={e => setDateTo(e.target.value)}
-              style={{ padding: '8px 12px', borderRadius: R.md, border: `1px solid ${T.border}`, background: T.bgCard, fontSize: 13, color: T.text, fontWeight: 600, minHeight: 40, fontVariantNumeric: 'tabular-nums' }}
-            />
-          </label>
-        </div>
+      {/* La stessa barra del periodo dello Storico e delle altre pagine di
+          analisi. Qui c'erano solo «dal» e «al»: nessuna scorciatoia, nessun
+          confronto. Per guardare il mese scorso bisognava scrivere due date a
+          mano, e per sapere se era andato meglio o peggio non c'era modo. */}
+      <BarraPeriodo
+        from={dateFrom} to={dateTo}
+        onPeriodo={(f, t) => { setDateFrom(f || ''); setDateTo(t || '') }}
+        confronto={confrontoPL}
+        onConfronto={setConfrontoPL}
+        isMobile={isMobile}
+      />
+
+      <div style={{ display: 'flex', marginBottom: 14 }}>
         <div style={{ flex: 1 }} />
         <button onClick={() => setEditCosti(v => !v)}
-          style={{ padding: '8px 14px', borderRadius: R.md, border: `1px solid ${T.border}`, background: T.bgCard, fontSize: 12, fontWeight: 600, color: T.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          style={{ padding: '10px 14px', minHeight: 44, borderRadius: R.md, border: `1px solid ${T.border}`, background: T.bgCard, fontSize: 12, fontWeight: 600, color: T.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
           <Icon name="gear" size={14} /> Costi fissi & personale
         </button>
       </div>
@@ -1422,11 +1422,23 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
             </div>
           )}
 
-          {/* KPI diagnosi */}
+          {/* Le percentuali del periodo di confronto, calcolate qui una volta:
+              il food cost e il costo lavoro si confrontano in PUNTI, non in
+              euro — «+3 punti» dice qualcosa, «+1.200 €» su un periodo più
+              lungo o più corto no. */}
+          {/* KPI diagnosi.
+
+              Il confronto col periodo precedente c'era su una tessera sola —
+              i Ricavi — dentro il sottotitolo. Le altre tre (Utile, Food cost,
+              Costo lavoro) non ce l'avevano, ed è proprio lì che serve: che i
+              ricavi siano saliti lo si vede anche dalla cassa, che il food
+              cost sia salito di tre punti no. */}
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: isMobile ? 10 : 16, marginBottom: 14 }}>
-            <KPI icon={<Icon name="barChart" size={18} />} label="Ricavi del periodo" value={fmt0(plMese.cur.ricavi)} sub={`${plMese.cur.giorni} giorni${plMese.prev.ricavi ? ` · ${plMese.cur.ricavi >= plMese.prev.ricavi ? '+' : ''}${fmt0(plMese.cur.ricavi - plMese.prev.ricavi)} vs periodo prec.` : ''}`} />
+            <KPI icon={<Icon name="barChart" size={18} />} label="Ricavi del periodo" value={fmt0(plMese.cur.ricavi)} sub={`${plMese.cur.giorni} giorni${plMese.prev.ricavi ? ` · ${plMese.cur.ricavi >= plMese.prev.ricavi ? '+' : ''}${fmt0(plMese.cur.ricavi - plMese.prev.ricavi)} ${etichettaConfronto}` : ''}`} />
             <KPI icon={<Icon name="bulb" size={18} />} label="Utile del periodo" value={fmt0(plMese.utile)} highlight={plMese.utile >= 0} color={plMese.utile >= 0 ? undefined : T.brand}
-              sub={`margine operativo ${pct(plMese.margOpPct)}`} />
+              sub={`margine operativo ${pct(plMese.margOpPct)}${confrontoPL !== 'none' && plMese.utilePrev != null && plMese.prev.ricavi > 0
+                ? ` · ${plMese.utile >= plMese.utilePrev ? '+' : ''}${fmt0(plMese.utile - plMese.utilePrev)} ${etichettaConfronto}`
+                : ''}`} />
             <KPI icon={<Icon name="receipt" size={18} />} label="Food cost"
               value={plMese.cur.ricaviConFc > 0 ? pct(plMese.fcPct) : 'non noto'}
               color={plMese.cur.ricaviConFc === 0 ? T.textSoft : plMese.fcPct <= 30 ? T.green : plMese.fcPct <= 40 ? T.amber : T.brand}
@@ -1434,8 +1446,13 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
                 ? 'nessuna giornata col costo materie'
                 : plMese.cur.giorniSenzaFc > 0
                   ? `${fmt0(plMese.cur.foodcost)} · su ${plMese.cur.giorni - plMese.cur.giorniSenzaFc} giorni di ${plMese.cur.giorni}`
-                  : fmt0(plMese.cur.foodcost)} />
-            <KPI icon={<Icon name="users" size={18} />} label="Costo lavoro" value={pct(plMese.lavPct)} color={plMese.lavPct <= targetLavoro ? T.green : plMese.lavPct <= targetLavoro + 10 ? T.amber : T.brand} sub={`target ${targetLavoro}% · ${fmt0(plMese.personale)}`} />
+                  : `${fmt0(plMese.cur.foodcost)}${plMese.fcPctPrev != null
+                    ? ` · ${plMese.fcPct >= plMese.fcPctPrev ? '+' : ''}${pct(plMese.fcPct - plMese.fcPctPrev)} ${etichettaConfronto}`
+                    : ''}`} />
+            <KPI icon={<Icon name="users" size={18} />} label="Costo lavoro" value={pct(plMese.lavPct)} color={plMese.lavPct <= targetLavoro ? T.green : plMese.lavPct <= targetLavoro + 10 ? T.amber : T.brand}
+              sub={`target ${targetLavoro}% · ${fmt0(plMese.personale)}${plMese.lavPctPrev != null
+                ? ` · ${plMese.lavPct >= plMese.lavPctPrev ? '+' : ''}${pct(plMese.lavPct - plMese.lavPctPrev)} ${etichettaConfronto}`
+                : ''}`} />
           </div>
 
           {/* AI explain + Export PDF */}
