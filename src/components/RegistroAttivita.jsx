@@ -16,6 +16,7 @@ import { supabase } from '../lib/supabase'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S, motion as M, tnum, ui3, ui } from '../lib/theme'
 import { todayLocal } from '../lib/dateLocal'
+import { nomePeriodo } from '../lib/periodoAnalisi'
 
 const PAGE = 50
 
@@ -400,7 +401,7 @@ export default function RegistroAttivita({ orgId, sedi = [], notify }) {
           {[
             // Il conteggio vero viene dal database; `stats.total` (le righe
             // caricate) resta solo come ripiego se il conteggio non arriva.
-            { lbl: 'Azioni nel periodo', val: totalePeriodo ?? stats.total, sub: `dal ${dataDa} al ${dataA}`, color: T.text, hi: true },
+            { lbl: 'Azioni nel periodo', val: totalePeriodo ?? stats.total, sub: nomePeriodo(dataDa, dataA), color: T.text, hi: true },
             { lbl: 'Azioni oggi',        val: stats.oggi,  sub: stats.oggi === 0 ? 'nessuna, fra quelle caricate' : 'fra quelle caricate', color: T.text },
             { lbl: 'Utente più attivo',  val: stats.topUser?.email?.split('@')[0] || '-', sub: stats.topUser ? `${stats.topUser.count} azioni` : 'Nessun dato', color: T.brand },
             { lbl: 'Tipo più frequente', val: tableMeta(stats.topTable?.name).label,      sub: stats.topTable ? `${stats.topTable.count} azioni` : 'Nessun dato', color: T.amber },
