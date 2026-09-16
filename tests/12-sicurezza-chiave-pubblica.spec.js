@@ -70,14 +70,37 @@ test.describe('con la sola chiave pubblica non si fa niente', () => {
     expect(corpo.code).toBe('42501')
   })
 
-  test('non si comandano i trasferimenti fra sedi', async () => {
-    const annulla = await chiama('rpc/trasferimento_annulla', { p_id: ID_FINTO, p_dipendente_op: null })
-    expect(String(annulla.corpo.message || '')).toContain('Utente senza organizzazione')
+  // Due modi di dire di no, e vanno bene tutti e due.
+  //
+  // 16/09/2026: questo test falliva perche' pretendeva la frase «Utente senza
+  // organizzazione», cioe' il rifiuto che arriva da DENTRO la funzione, dopo
+  // che l'anonimo l'ha potuta chiamare. Nel frattempo a `anon` e' stato tolto
+  // il permesso di eseguirla, e la risposta e' diventata «permission denied
+  // for function»: fermato sulla porta, senza nemmeno entrare.
+  //
+  // Il test stava misurando la frase invece della sicurezza, e bocciava un
+  // miglioramento. Quello che conta e' una cosa sola: la chiamata non passa.
+  function respinta(risposta, nome) {
+    const messaggio = String(risposta.corpo?.message || '')
+    const allaPorta = /permission denied/i.test(messaggio)
+    const allInterno = messaggio.includes('Utente senza organizzazione')
+    expect(allaPorta || allInterno,
+      `${nome}: doveva essere respinta, ha risposto «${messaggio || '(nessun messaggio)'}»`).toBe(true)
+  }
 
-    const ricevi = await chiama('rpc/trasferimento_ricevi', {
+  test('non si comandano i trasferimenti fra sedi', async () => {
+    respinta(await chiama('rpc/trasferimento_annulla', {
+      p_id: ID_FINTO, p_dipendente_op: null,
+    }), 'trasferimento_annulla')
+
+    respinta(await chiama('rpc/trasferimento_ricevi', {
       p_id: ID_FINTO, p_quantita_ricevuta: 1, p_scarto_note: null, p_dipendente_op: null,
-    })
-    expect(String(ricevi.corpo.message || '')).toContain('Utente senza organizzazione')
+    }), 'trasferimento_ricevi')
+
+    // La terza: nessuno la controllava, ed e' quella che fa uscire la merce.
+    respinta(await chiama('rpc/trasferimento_invia', {
+      p_id: ID_FINTO, p_dipendente_op: null,
+    }), 'trasferimento_invia')
   })
 
   test('non si leggono le chiavi delle casse', async () => {
