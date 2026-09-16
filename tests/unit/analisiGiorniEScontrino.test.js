@@ -58,7 +58,10 @@ describe('il giorno della settimana', () => {
   })
 
   it('c\'è il pulsante, e le scritte lo sanno nominare', () => {
-    expect(SRC).toMatch(/\["giornosett","Giorno della settimana"\]/)
+    // La riga porta tre valori da quando la striscia si accorcia sul telefono:
+    // a 320px quattro voci per esteso non ci stavano e la pagina si
+    // trascinava di lato di dieci pixel.
+    expect(SRC).toMatch(/\["giornosett","Giorno della settimana","Giorno sett\."\]/)
     // Le scritte erano tre condizionali che si fermavano a «Mese»: due
     // avrebbero detto «giornosett» e uno «Mese».
     expect(SRC).toMatch(/const nomeVista\s*=/)

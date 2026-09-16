@@ -343,6 +343,65 @@ export const VISTE_FUORI_MENU = {
 export const DATA_RIORGANIZZAZIONE = '2026-09-15'
 export const GIORNI_AVVISO_SPOSTAMENTO = 60
 
+/**
+ * Tutte le pagine che il programma sa disegnare.
+ *
+ * Serve a una cosa sola, ed è quella che è successa: impedire lo **schermo
+ * bianco**. Il 16/09/2026 il terzo passo della lista «Primi passi» diceva
+ * `view: 'produzione'` — una pagina che non esiste, perché quella vera si
+ * chiama `giornaliero` (o `inventario-gusti` in gelateria). Il comando passava
+ * tutti i controlli, nessun ramo del disegno la riconosceva, e il cliente
+ * nuovo al terzo passo del primo giorno si trovava davanti il nulla.
+ *
+ * Le strade da cui può arrivare un nome sbagliato sono più d'una: un vecchio
+ * link, la ricerca rapida, l'assistente che inventa un nome di pagina, un
+ * bottone scritto male come questo. Meglio riportare a casa che lasciare lo
+ * schermo bianco.
+ *
+ * L'elenco è tenuto onesto da un test che lo confronta con i rami veri del
+ * disegno in `Dashboard.jsx`: se ne nasce una nuova e qui non c'è, il test
+ * fallisce.
+ */
+export const VISTE_DISEGNATE = new Set([
+  'ai-brain', 'ai-hub', 'azioni', 'calendario', 'cashflow', 'changelog',
+  'chiusura', 'competitor-pricing', 'confronto-sedi', 'costi-aziendali',
+  'documentary', 'eventi', 'forecast', 'formati-vendita', 'fornitori',
+  'giornaliero', 'haccp', 'home', 'home-dipendente', 'importa-dati',
+  'impostazioni', 'integrazioni', 'inventario-gusti', 'magazzino',
+  'marketplace', 'menu', 'menu-engineering', 'nuova-ricetta', 'ordini-ai',
+  'personale', 'pl', 'previsione', 'quadratura-inventario', 'recensioni',
+  'reformulation', 'registro-attivita', 'ricettario', 'ricette-ai',
+  'scadenzario', 'scheda-allergeni', 'semilavorati', 'simulatore',
+  'sprechi-omaggi', 'storico', 'trasferimenti', 'vendite-b2b', 'whatsapp',
+])
+
+/**
+ * I nomi con cui una pagina viene chiamata da fuori, e la pagina vera.
+ *
+ * «Produzione» è il nome che ha nel menu, ma la pagina si chiama in due modi
+ * a seconda del metodo dell'azienda: chi scrive `produzione` da un altro
+ * punto del programma non deve doverlo sapere.
+ */
+export function risolviVista(nome, ctx = {}) {
+  if (typeof nome !== 'string' || !nome) return null
+  if (VISTE_DISEGNATE.has(nome)) return nome
+  const { metodoInventario = false, sedeDiProduzione = false } = ctx
+  const alias = {
+    produzione: (metodoInventario && sedeDiProduzione) ? 'inventario-gusti' : 'giornaliero',
+    cassa: 'chiusura',
+    ricette: 'ricettario',
+    'food-cost': 'simulatore',
+    'p&l': 'pl',
+    sprechi: 'sprechi-omaggi',
+    perdite: 'sprechi-omaggi',
+    fatture: 'scadenzario',
+    listino: 'formati-vendita',
+    previsioni: 'previsione',
+  }
+  const risolta = alias[nome]
+  return risolta && VISTE_DISEGNATE.has(risolta) ? risolta : null
+}
+
 export const SPOSTAMENTI = {
   'nuova-ricetta':   'Adesso è il bottone «Nuova ricetta» in cima al Ricettario.',
   semilavorati:      'Adesso è una scheda del Ricettario.',

@@ -50,7 +50,11 @@ const TASKS = [
     id: 'produzione',
     label: 'Registra la prima produzione',
     hint: 'Anche solo 1 giorno → vedi come scala il magazzino',
-    view: 'produzione',
+    // «produzione» è il nome nel menu, non quello della pagina: quella vera si
+    // chiama `giornaliero` (o `inventario-gusti` in gelateria). Il Dashboard
+    // adesso lo traduce, ma il nome giusto si scrive lo stesso: un alias è una
+    // rete di sicurezza, non un posto dove appoggiarsi.
+    view: 'giornaliero',
     check: ({ giornaliero }) => {
       const arr = Array.isArray(giornaliero) ? giornaliero : Object.values(giornaliero || {})
       return arr.length > 0

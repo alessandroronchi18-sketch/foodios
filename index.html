@@ -47,9 +47,16 @@
     <link rel="dns-prefetch" href="https://api.anthropic.com">
     <link rel="dns-prefetch" href="https://api.stripe.com">
     <link rel="dns-prefetch" href="https://js.stripe.com">
-    <!-- Preload Inter 400+600 (più usati) per evitare FOIT -->
-    <link rel="preload" as="font" type="font/woff2" crossorigin
-          href="https://fonts.gstatic.com/s/inter/v18/UcCo3FwrK3iLTcvneQg7Ca725JhhKnNqk4j1ebLhAm8SrXTc2tysFlYrwg.woff2">
+    <!-- Qui c'era il preload di un file di font con l'indirizzo scritto a
+         mano (`fonts.gstatic.com/.../UcCo3Fwr...woff2`). Google cambia quei
+         nomi quando aggiorna il font, e quello **oggi risponde 404**: ogni
+         visita sprecava una richiesta, scriveva un errore in console, e
+         soprattutto NON precaricava niente — cioè il problema che doveva
+         risolvere (il testo che appare in ritardo) era tornato senza che
+         nessuno se ne accorgesse.
+         Un indirizzo con l'impronta dentro, scritto a mano, marcisce sempre:
+         il foglio di stile qui sotto chiede i font per nome e prende quelli
+         giusti. Verificato aprendo la produzione vera il 16/09/2026. -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&display=swap" rel="stylesheet">
     <style>
       *, *::before, *::after { box-sizing: border-box; }

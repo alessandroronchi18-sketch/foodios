@@ -24,3 +24,11 @@ coverage/
 # Non committare mai. Solo il .gitkeep resta versionato.
 import-data/*
 !import-data/.gitkeep
+
+# Le impostazioni locali di Claude Code: contengono i comandi autorizzati, e
+# in quei comandi finiscono le variabili d'ambiente scritte per esteso —
+# compresa la chiave di servizio del database, che scavalca ogni permesso.
+# Il 16/09/2026 questo file era tracciato e il repository era pubblico: la
+# chiave è stata leggibile da chiunque per tre mesi e mezzo.
+.claude/settings.local.json
+.claude/settings.json

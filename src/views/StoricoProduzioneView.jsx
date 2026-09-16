@@ -802,11 +802,17 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
       </div>
       {/* Vista temporale - centrata, secondaria */}
       <div style={{display:"flex",justifyContent:"center",marginBottom:18}}>
-        <div style={{display:"flex",background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:10,padding:3,gap:2,boxShadow:"0 1px 2px rgba(15,23,42,0.04)"}}>
-          {[["giornaliero","Giorno"],["settimana","Settimana"],["mese","Mese"],["giornosett","Giorno della settimana"]].map(([id,lbl])=>(
+        <div style={{display:"flex",flexWrap:"wrap",justifyContent:"center",background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:10,padding:3,gap:2,boxShadow:"0 1px 2px rgba(15,23,42,0.04)",maxWidth:"100%"}}>
+          {/* Su uno schermo da 320px quattro voci in fila non ci stanno: la
+              striscia diventava larga 341px e la pagina si trascinava di lato
+              di dieci pixel. «Giorno della settimana» è la più lunga delle
+              quattro ed è quella arrivata per ultima. Sul telefono si accorcia
+              e la striscia va a capo, invece di spingere la pagina. */}
+          {[["giornaliero","Giorno","Giorno"],["settimana","Settimana","Sett."],["mese","Mese","Mese"],["giornosett","Giorno della settimana","Giorno sett."]].map(([id,lbl,breve])=>(
             <button key={id} onClick={()=>setVista(id)} aria-pressed={vista===id}
-              style={{padding:"9px 18px",minHeight:40,borderRadius:7,border:"none",cursor:"pointer",fontWeight:600,fontSize:12,background:vista===id?C.redLight:"transparent",color:vista===id?C.red:C.textMid,transition:"all 0.15s"}}>
-              {lbl}
+              aria-label={lbl}
+              style={{padding:isMobile?"9px 12px":"9px 18px",minHeight:40,borderRadius:7,border:"none",cursor:"pointer",fontWeight:600,fontSize:12,background:vista===id?C.redLight:"transparent",color:vista===id?C.red:C.textMid,transition:"all 0.15s",whiteSpace:"nowrap"}}>
+              {isMobile ? breve : lbl}
             </button>
           ))}
         </div>

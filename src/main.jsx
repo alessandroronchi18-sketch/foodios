@@ -51,12 +51,30 @@ function scrubUrl(url) {
   }
 }
 
+// Il DSN di Sentry è quello vero, o è rimasto il segnaposto?
+//
+// In produzione, il 16/09/2026, la console scriveva «Invalid Sentry Dsn» a
+// ogni apertura: la variabile era impostata, ma col valore di esempio preso da
+// `.env.example` (`https://KEY@oXXX.ingest.sentry.io/PROJECT_ID`). Bastare che
+// la variabile esista (`!!`) non basta: Sentry si accendeva, non riusciva a
+// mandare niente, e **gli errori dei clienti non li vedeva nessuno** — con
+// l'aggravante che dal pannello sembrava tutto a posto.
+//
+// Un segnaposto non è una configurazione. Meglio spento e dichiarato che
+// acceso e muto.
+function dsnValido(dsn) {
+  const s = String(dsn || '').trim()
+  if (!s) return false
+  if (/KEY@|oXXX|PROJECT_ID|<|>/.test(s)) return false
+  return /^https:\/\/[0-9a-f]+@[^/]+\/\d+$/i.test(s)
+}
+
 Sentry.init({
   dsn: import.meta.env.VITE_SENTRY_DSN,
   environment: import.meta.env.MODE,
   release: import.meta.env.VITE_RELEASE || 'foodos@local',
   tracesSampleRate: 0.1,
-  enabled: import.meta.env.PROD && !!import.meta.env.VITE_SENTRY_DSN,
+  enabled: import.meta.env.PROD && dsnValido(import.meta.env.VITE_SENTRY_DSN),
   sendDefaultPii: false,
   ignoreErrors: [
     'ResizeObserver loop limit exceeded',

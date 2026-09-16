@@ -114,6 +114,7 @@ import {
   costruisciMenu, sezionePerVista, descriviVista, menuTelefono, etichettaBreve,
   vociInFondo, schedeDiVista, cercaVoci, avvisoSpostamento,
   VISTE_DIPENDENTE,
+  risolviVista,
 } from './lib/menuFoodos'
 const MagazzinoView = lazyWithReload(() => import('./views/MagazzinoView'))
 const ChiusuraView = lazyWithReload(() => import('./views/ChiusuraView'))
@@ -958,6 +959,28 @@ export default function Dashboard({
       _setViewRaw(auth?.ruolo === 'dipendente' ? 'home-dipendente' : 'home');
       return;
     }
+    // Un nome di pagina che il programma non sa disegnare non deve lasciare
+    // lo SCHERMO BIANCO.
+    //
+    // Il 16/09/2026 il terzo passo di «Primi passi» diceva `produzione`: una
+    // pagina che non esiste — quella vera si chiama `giornaliero`, o
+    // `inventario-gusti` in gelateria. Il comando passava tutti i controlli,
+    // nessun ramo del disegno la riconosceva, e il cliente nuovo al terzo
+    // passo del primo giorno si trovava davanti il nulla.
+    //
+    // Qui si fa una cosa sola: si prova a capire cosa intendeva (`produzione`
+    // → la pagina di produzione giusta per questa azienda), e se proprio non
+    // si capisce si torna a casa. Vale per tutte le strade insieme: un vecchio
+    // link, la ricerca rapida, l'assistente che inventa un nome.
+    if (typeof v === 'string') {
+      const risolta = risolviVista(v, { metodoInventario: metodoProduzione === 'inventario', sedeDiProduzione: !!sedeAttiva?.is_sede_produzione });
+      if (!risolta) {
+        console.warn('[Dashboard] pagina sconosciuta:', v);
+        _setViewRaw(auth?.ruolo === 'dipendente' ? 'home-dipendente' : 'home');
+        return;
+      }
+      v = risolta;
+    }
     // Un dipendente non apre una pagina che non e' sua, da nessuna strada.
     //
     // Prima il controllo stava solo in un useEffect più sotto, cioè DOPO che
@@ -981,7 +1004,7 @@ export default function Dashboard({
       }
     } catch {}
     _setViewRaw(v);
-  }, [view, auth?.ruolo]);
+  }, [view, auth?.ruolo, metodoProduzione, sedeAttiva?.is_sede_produzione]);
   useEffect(() => {
     try { sessionStorage.setItem(`foodos_view_${orgId||'_'}`, view); } catch {}
   }, [view, orgId]);

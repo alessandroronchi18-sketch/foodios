@@ -1,0 +1,80 @@
+// Quello che si vede solo aprendo la produzione vera.
+//
+// Il 16/09/2026, aprendo https://foodos-rose.vercel.app in Chromium come lo
+// aprirebbe un cliente nuovo, sono usciti due difetti che nessun test poteva
+// vedere — perché tutti e due riguardano cose che stanno FUORI dal progetto:
+// un file su un server di Google e una variabile d'ambiente su Vercel.
+//
+// 1. **Un file di font precaricato con l'indirizzo scritto a mano.** Google
+//    cambia i nomi di quei file quando aggiorna il font, e quello rispondeva
+//    404: ogni visita sprecava una richiesta, scriveva un errore in console, e
+//    soprattutto NON precaricava niente — cioè il problema che doveva
+//    risolvere (il testo che appare in ritardo) era tornato in silenzio.
+//
+// 2. **Il DSN di Sentry era rimasto il segnaposto** di `.env.example`. La
+//    variabile esisteva, quindi il controllo `!!` la accettava: Sentry si
+//    accendeva, non riusciva a mandare niente, e **gli errori dei clienti non
+//    li vedeva nessuno** — con l'aggravante che dal pannello sembrava tutto a
+//    posto. Un segnaposto non è una configurazione.
+
+import { describe, it, expect } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { dirname, join } from 'node:path'
+
+const RADICE = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
+const HTML = readFileSync(join(RADICE, 'index.html'), 'utf8')
+const MAIN = readFileSync(join(RADICE, 'src', 'main.jsx'), 'utf8')
+
+describe('nessun indirizzo con l\'impronta scritto a mano', () => {
+  it('non si precarica un file di font per nome esatto', () => {
+    // Un indirizzo con l'impronta dentro, scritto a mano, marcisce sempre: il
+    // giorno che cambia si scopre solo guardando la console di un browser.
+    expect(HTML).not.toMatch(/rel="preload"[^>]*fonts\.gstatic\.com/s)
+  })
+
+  it('ma i font si chiedono lo stesso, per nome', () => {
+    // Non si è tolto il font: si è tolto il modo fragile di chiederlo.
+    expect(HTML).toMatch(/fonts\.googleapis\.com\/css2\?family=Inter/)
+  })
+
+  it('e il preconnect resta, perché quello non marcisce', () => {
+    expect(HTML).toMatch(/rel="preconnect" href="https:\/\/fonts\.gstatic\.com"/)
+  })
+})
+
+describe('il controllo degli errori è acceso solo se è vero', () => {
+  // Il controllo com'è scritto nel programma.
+  const dsnValido = (dsn) => {
+    const s = String(dsn || '').trim()
+    if (!s) return false
+    if (/KEY@|oXXX|PROJECT_ID|<|>/.test(s)) return false
+    return /^https:\/\/[0-9a-f]+@[^/]+\/\d+$/i.test(s)
+  }
+
+  it('il segnaposto di .env.example non conta come configurazione', () => {
+    // È esattamente quello che c'era in produzione.
+    expect(dsnValido('https://KEY@oXXX.ingest.sentry.io/PROJECT_ID')).toBe(false)
+  })
+
+  it('un DSN vero sì', () => {
+    expect(dsnValido('https://abc123def456@o4507.ingest.sentry.io/4508')).toBe(true)
+  })
+
+  it('vuoto o assente no', () => {
+    expect(dsnValido('')).toBe(false)
+    expect(dsnValido(undefined)).toBe(false)
+    expect(dsnValido('   ')).toBe(false)
+  })
+
+  it('e nemmeno qualcosa che gli somiglia ma non lo è', () => {
+    expect(dsnValido('inserisci-qui-il-dsn')).toBe(false)
+    expect(dsnValido('https://<KEY>@sentry.io/1')).toBe(false)
+    expect(dsnValido('http://abc@sentry.io/1'), 'http non è https').toBe(false)
+  })
+
+  it('il programma usa questo controllo, non il semplice «esiste»', () => {
+    expect(MAIN).toMatch(/enabled: import\.meta\.env\.PROD && dsnValido\(/)
+    expect(MAIN).not.toMatch(/enabled: import\.meta\.env\.PROD && !!import\.meta\.env\.VITE_SENTRY_DSN/)
+  })
+})
