@@ -18,7 +18,7 @@ import { lessico } from '../lib/lessico'
 import FotoOCR from '../components/FotoOCR'
 import AIFotoAnalisi from '../components/AIFotoAnalisi'
 import Icon from '../components/Icon'
-import { C, fmt, fmtp, TNUM } from './_shared'
+import { C, fmt, fmtp, TNUM, CampoConElenco } from './_shared'
 import { useUnsavedGuard } from '../lib/useUnsavedGuard'
 
 // Ombra premium coerente con la Dashboard home.
@@ -47,12 +47,24 @@ function placeholderNomeFor(tipoAttivita) {
 }
 
 // Titolo di card con chip icona (gerarchia premium come la Dashboard home).
+// L'intestazione di una sezione del modulo.
+//
+// Era un riquadro colorato da 30px con dentro un'icona, più il titolo: quattro
+// icone colorate in una scheda sola, che è quello che faceva sembrare questa
+// pagina più affollata di «Nuovo semilavorato» pur avendo gli stessi campi.
+// Il titolare, il 16/09/2026: «il layout e il design di nuovo gusto e nuovo
+// semilavorato sono diversi, come mai? mi piace molto di più quello di nuovo
+// semilavorato, prendi quello come esempio».
+//
+// Adesso è la stessa etichetta dei semilavorati: maiuscoletto piccolo, grigio,
+// nessuna icona e nessun colore. Il colore in questa pagina resta per le cose
+// che vogliono dire qualcosa — un allergene, un costo fuori posto — invece di
+// essere la decorazione di ogni titolo.
 function PanelHead({ icon, title, color = C.red, badge, sub }) {
   return (
-    <div style={{ marginBottom: 16 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <span style={{ width: 30, height: 30, borderRadius: R.lg, background: `${color}14`, color, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{icon}</span>
-        <div style={{ fontSize: 13, fontWeight: 700, color: C.text, letterSpacing: '-0.01em' }}>{title}</div>
+    <div style={{ marginBottom: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{title}</div>
         {badge}
       </div>
       {sub && <div style={{ fontSize: 12, color: C.textSoft, marginTop: 6, lineHeight: 1.5 }}>{sub}</div>}
@@ -549,8 +561,8 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
           </h1>
           <p style={{ margin: "4px 0 0", fontSize: 13, color: T.textSoft, lineHeight: 1.45 }}>
             {editMode
-              ? "L'anteprima a destra ti dice subito se la ricetta regge i conti."
-              : "Compila qui sotto: a destra vedi food cost e margine in tempo reale."}
+              ? "In fondo alla pagina c'è il conto: ti dice subito se la ricetta regge."
+              : "Scrivi nome e ingredienti: il food cost e il margine si calcolano da sé, in fondo alla pagina."}
           </p>
         </div>
       </div>
@@ -690,14 +702,21 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
         />
       )}
 
-      <div ref={formRef} style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : isTablet ? "1fr" : "1fr 340px", gap: isTablet ? 18 : 24 }}>
+      {/* Una colonna sola, come in «Nuovo semilavorato».
+          Prima il modulo stava a sinistra e il conto del costo in un pannello
+          appiccicato a destra da 340px: due colonne che si leggono in tempi
+          diversi (si compila a sinistra, il numero cambia a destra) e che sul
+          telefono si impilavano comunque. Adesso si scende: nome, ingredienti,
+          allergeni, e in fondo quanto costa — che è l'ordine in cui si fa il
+          lavoro. */}
+      <div ref={formRef} style={{ display: "flex", flexDirection: "column", gap: isTablet ? 18 : 20 }}>
         {/* ── Form (sinistra) ──────────────────────────────────────────────── */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
           {/* 1. Informazioni prodotto */}
           <div style={cardStyle}>
             <PanelHead icon={<Icon name="clipboard" size={18} />} title={`Informazioni ${LEX.prodotto}`} color={C.text} />
-            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "2fr 2fr", gap: 14 }}>
               {/* Nome - full width */}
               <div style={{ gridColumn: isMobile ? "auto" : "1 / -1" }}>
                 <div style={fieldLabel}>Nome {LEX.ricetta}</div>
@@ -706,24 +725,24 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                   style={{ ...inputBase, fontWeight: 700 }} />
               </div>
 
-              {/* Categoria - full width con chip rapide */}
-              <div style={{ gridColumn: isMobile ? "auto" : "1 / -1" }}>
+              {/* Categoria: un campo solo, con l'elenco che si apre toccandolo.
+                  Prima erano tre comandi per la stessa cosa — il campo, il
+                  suo `<datalist>` e una fila di pulsantini sotto — e il
+                  `<datalist>` mostrava solo le voci che contengono quello che
+                  c'è già scritto: nella scheda di un gusto la categoria parte
+                  compilata con «Gusto», quindi si vedeva quella sola e
+                  sembrava che le altre non esistessero. */}
+              <div>
                 <div style={fieldLabel}>Categoria</div>
-                <input value={form.categoria} aria-label="Categoria" onChange={e => setForm(f => ({ ...f, categoria: e.target.value }))}
-                  placeholder={`es. ${CATEGORIE[0]}`} list="cat-autocomplete"
-                  style={inputBase} />
-                <datalist id="cat-autocomplete">{CATEGORIE.map(c => <option key={c} value={c} />)}</datalist>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: isMobile ? 8 : 5, marginTop: 8 }}>
-                  {CATEGORIE.map(c => {
-                    const sel = (form.categoria || "").trim().toLowerCase() === c.toLowerCase();
-                    return (
-                      <button key={c} type="button" onClick={() => setForm(f => ({ ...f, categoria: c }))}
-                        style={{ padding: isMobile ? "10px 14px" : "4px 11px", minHeight: isMobile ? 44 : 'auto', borderRadius: R.full, border: `1px solid ${sel ? C.red : C.border}`, background: sel ? C.redLight : C.white, color: sel ? C.red : C.textMid, fontSize: isMobile ? 13 : 12, fontWeight: sel ? 700 : 500, cursor: "pointer" }}>
-                        {c}
-                      </button>
-                    );
-                  })}
-                </div>
+                <CampoConElenco
+                  id="categoria-ricetta"
+                  valore={form.categoria}
+                  onCambia={(v) => setForm(f => ({ ...f, categoria: v }))}
+                  voci={CATEGORIE}
+                  ariaLabel="Categoria"
+                  placeholder={`es. ${CATEGORIE[0]}`}
+                  stile={inputBase}
+                />
               </div>
 
               {/* Tipo unità — set opzioni deriva da tipoAttivita (isGelateria),
@@ -1292,7 +1311,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
             Per gusti (gelateria): solo food cost/kg — il prezzo di vendita vive su
             FormatiVendita, quindi ricavo e margine non hanno senso qui. */}
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <div style={{ ...cardStyle, position: isMobile ? "static" : "sticky", top: 20 }}>
+          <div style={cardStyle}>
             <PanelHead icon={<Icon name="barChart" size={18} />} title={isGusto ? "Costo del gusto" : "Anteprima redditività"} color={C.text} />
 
             {isGusto ? (

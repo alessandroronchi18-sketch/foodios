@@ -2,7 +2,7 @@
 // Sono volutamente piccole e isolate per evitare il "monolite delle utility".
 // Una volta che tutto è migrato, alcune potranno diventare componenti dedicati in components/.
 
-import React, { useState, useRef, useCallback } from 'react'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { color as T, radius as R, font } from '../lib/theme'
 import useIsMobile from '../lib/useIsMobile'
 import Icon from '../components/Icon'
@@ -620,6 +620,142 @@ export function TabellaOSchede({
         </div>
       ))}
       {riepilogoTelefono}
+    </div>
+  )
+}
+
+// ── Un campo con l'elenco delle scelte, che si apre toccandolo ──────────────
+//
+// Sostituisce il paio «campo di testo + `<datalist>` + una fila di
+// pulsantini». Quel paio aveva due difetti, tutti e due segnalati dal
+// titolare il 16/09/2026:
+//
+//  - **il `<datalist>` mostra solo le voci che contengono quello che c'è già
+//    scritto nel campo.** Nella scheda di un gusto la categoria parte
+//    compilata con «Gusto», quindi toccando la freccia si vedeva una voce
+//    sola: sembrava che le altre non esistessero. «Mi compare di default
+//    gusto e se clicco compare solo quello come opzione.»
+//  - **i pulsantini sotto** («Crema», «Frutta», «Cioccolato»…) erano un
+//    secondo comando per la stessa cosa, occupavano tre righe e ripetevano
+//    quello che il campo già sapeva. «Togli quei piccoli box e tutti i valori
+//    scritti lì dentro mettili in un elenco che compare quando clicco il box.»
+//
+// Qui l'elenco si apre al tocco e mostra SEMPRE tutte le voci; scrivendo si
+// restringe; si può anche scrivere una voce che non c'è (è una categoria,
+// non un codice). Frecce, Invio ed Esc funzionano da tastiera.
+export function CampoConElenco({
+  valore, onCambia, voci = [], placeholder, ariaLabel, stile,
+  id = 'campo-elenco',
+}) {
+  const [aperto, setAperto] = useState(false)
+  const [evidenziata, setEvidenziata] = useState(-1)
+  const contenitore = useRef(null)
+
+  // Chiudere toccando fuori: senza questo l'elenco resta aperto sopra il
+  // resto della scheda e copre i campi sotto.
+  useEffect(() => {
+    if (!aperto) return
+    const fuori = (e) => { if (!contenitore.current?.contains(e.target)) setAperto(false) }
+    document.addEventListener('mousedown', fuori)
+    document.addEventListener('touchstart', fuori)
+    return () => {
+      document.removeEventListener('mousedown', fuori)
+      document.removeEventListener('touchstart', fuori)
+    }
+  }, [aperto])
+
+  const scritto = String(valore || '').trim().toLowerCase()
+  // Quando il campo contiene ESATTAMENTE una delle voci (il caso della
+  // categoria precompilata) l'elenco resta intero: è lì che il `<datalist>`
+  // sbagliava.
+  const esatta = voci.some(v => v.toLowerCase() === scritto)
+  const mostrate = (!scritto || esatta) ? voci : voci.filter(v => v.toLowerCase().includes(scritto))
+
+  const scegli = (v) => { onCambia(v); setAperto(false); setEvidenziata(-1) }
+
+  const daTastiera = (e) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      if (!aperto) { setAperto(true); setEvidenziata(0); return }
+      setEvidenziata(i => Math.min(i + 1, mostrate.length - 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setEvidenziata(i => Math.max(i - 1, 0))
+    } else if (e.key === 'Enter' && aperto && evidenziata >= 0 && mostrate[evidenziata]) {
+      e.preventDefault()
+      scegli(mostrate[evidenziata])
+    } else if (e.key === 'Escape') {
+      setAperto(false); setEvidenziata(-1)
+    }
+  }
+
+  return (
+    <div ref={contenitore} style={{ position: 'relative' }}>
+      <div style={{ position: 'relative' }}>
+        <input
+          value={valore || ''}
+          aria-label={ariaLabel}
+          role="combobox"
+          aria-expanded={aperto}
+          aria-controls={`${id}-elenco`}
+          aria-autocomplete="list"
+          autoComplete="off"
+          onChange={e => { onCambia(e.target.value); setAperto(true); setEvidenziata(-1) }}
+          onFocus={() => setAperto(true)}
+          onClick={() => setAperto(true)}
+          onKeyDown={daTastiera}
+          placeholder={placeholder}
+          style={{ ...stile, paddingRight: 44 }}
+        />
+        <button
+          type="button"
+          tabIndex={-1}
+          aria-label={aperto ? 'Chiudi l\'elenco' : 'Apri l\'elenco'}
+          onClick={() => setAperto(a => !a)}
+          style={{
+            position: 'absolute', right: 0, top: 0, bottom: 0, width: 44,
+            background: 'none', border: 'none', cursor: 'pointer',
+            color: C.textSoft, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+          <Icon name={aperto ? 'chevUp' : 'chevDown'} size={16} />
+        </button>
+      </div>
+
+      {aperto && mostrate.length > 0 && (
+        <ul
+          id={`${id}-elenco`}
+          role="listbox"
+          style={{
+            position: 'absolute', zIndex: 30, top: 'calc(100% + 4px)', left: 0, right: 0,
+            margin: 0, padding: 4, listStyle: 'none',
+            maxHeight: 260, overflowY: 'auto',
+            background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 10,
+            boxShadow: '0 10px 28px rgba(15,23,42,0.12)',
+          }}>
+          {mostrate.map((v, i) => {
+            const scelta = v.toLowerCase() === scritto
+            return (
+              <li
+                key={v}
+                role="option"
+                aria-selected={scelta}
+                onMouseDown={(e) => { e.preventDefault(); scegli(v) }}
+                onMouseEnter={() => setEvidenziata(i)}
+                style={{
+                  padding: '11px 12px', minHeight: 44, display: 'flex', alignItems: 'center',
+                  justifyContent: 'space-between', gap: 8,
+                  borderRadius: 8, cursor: 'pointer',
+                  background: i === evidenziata ? C.bgSubtle : 'transparent',
+                  color: scelta ? T.brand : C.text,
+                  fontSize: font.size.md, fontWeight: scelta ? 800 : 500,
+                }}>
+                {v}
+                {scelta && <Icon name="check" size={14} />}
+              </li>
+            )
+          })}
+        </ul>
+      )}
     </div>
   )
 }
