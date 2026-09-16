@@ -258,6 +258,14 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
       return;
     }
     setDeleteConf(null); setDeletePin(""); setEditMode(null); setForm(empty);
+    // La guardia delle modifiche non salvate confronta il modulo con questo
+    // riferimento. Svuotare il modulo senza azzerarlo anche qui lasciava i due
+    // valori diversi, e la guardia leggeva «ci sono modifiche»: dopo aver
+    // cancellato una ricetta, cambiando pagina compariva il popup «hai
+    // modifiche non salvate» per un modulo vuoto e una ricetta che non esiste
+    // più. Segnalato dal titolare il 16/09/2026: «ho cancellato la ricetta
+    // semplicemente».
+    initialFormRef.current = empty;
     notify(`Ricetta "${nome}" eliminata`);
   };
 
@@ -304,10 +312,44 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
           }
         }
       }
+      // ── Cambiare il nome a una ricetta ────────────────────────────────
+      //
+      // Nel ricettario la CHIAVE è il nome. Qui si spargevano le ricette di
+      // prima e si aggiungeva quella nuova: se il nome era cambiato, la
+      // vecchia restava al suo posto e nel ricettario ne comparivano **due,
+      // con gli stessi ingredienti**. Segnalato dal titolare il 16/09/2026
+      // mentre caricava il ricettario vero: «se modifico il nome di una
+      // ricetta me ne trovo due duplicate».
+      //
+      // Cambiare nome vuol dire tre cose, non una:
+      //  1. la ricetta col nome vecchio sparisce;
+      //  2. chi la usava come semilavorato la cerca PER NOME: se non si
+      //     aggiorna, quelle ricette perdono il costo di quell'ingrediente
+      //     senza dire niente (il food cost cala e sembra un miglioramento);
+      //  3. se è una base, il suo costo al chilo sta nel listino sotto il
+      //     nome vecchio, e resta lì a sporcare l'elenco degli ingredienti.
+      const ricetteAggiornate = { ...(ricettario?.ricette || {}) };
+      const nomePrec = editMode && editMode !== nuovaRic.nome ? editMode : null;
+      if (nomePrec) {
+        delete ricetteAggiornate[nomePrec];
+        const chiavePrec = normIng(nomePrec);
+        for (const [k, r] of Object.entries(ricetteAggiornate)) {
+          if (!Array.isArray(r?.ingredienti)) continue;
+          if (!r.ingredienti.some(i => normIng(i?.nome) === chiavePrec)) continue;
+          ricetteAggiornate[k] = {
+            ...r,
+            ingredienti: r.ingredienti.map(i =>
+              normIng(i?.nome) === chiavePrec ? { ...i, nome: nuovaRic.nome } : i),
+          };
+        }
+        delete costiAggiornati[chiavePrec];
+      }
+      ricetteAggiornate[nuovaRic.nome] = nuovaRic;
+
       const nuovoRic = {
         ...(ricettario || {}),
         ingredienti_costi: costiAggiornati,
-        ricette: { ...(ricettario?.ricette || {}), [nuovaRic.nome]: nuovaRic }
+        ricette: ricetteAggiornate,
       };
       // IMPORTANTE (audit 2026-07-28): azzeriamo il ref del dirty-guard PRIMA
       // dell'await. handleSalvaRicetta di Dashboard fa setView('ricettario')

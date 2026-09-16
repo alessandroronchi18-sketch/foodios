@@ -766,7 +766,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                   padding: isMobile ? 14 : 18,
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                    <span style={{ fontSize: 22 }}>🚨</span>
+                    <span style={{ color: RED, display: 'inline-flex' }}><Icon name="alert" size={20} /></span>
                     <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: RED }}>
                       Sede da gestire subito
                     </div>
@@ -811,9 +811,12 @@ export default function ConfrontoSedi({ orgId, sedi }) {
           {/* GRAFICO INTERATTIVO - chart switcher + metric + compare */}
           {sediAttive.length >= 2 && (() => {
             const METRICS = [
-              { id: 'ricaviCur',       lbl: 'Ricavi',       fmt: v => '€' + fmt0(v) },
+              // `fmt0` il simbolo ce l'ha già dentro, e lo mette DOPO la
+              // cifra come si scrive in italiano: «1.234 €». Qui davanti ce
+              // n'era un altro, e il confronto fra sedi diceva «€1.234 €».
+              { id: 'ricaviCur',       lbl: 'Ricavi',       fmt: v => fmt0(v) },
               { id: 'foodCostPct',     lbl: 'Food cost %',  fmt: v => v != null ? fmtp(v) : '-' },
-              { id: 'margineNettoCur', lbl: 'Margine netto',fmt: v => '€' + fmt0(v) },
+              { id: 'margineNettoCur', lbl: 'Margine netto',fmt: v => fmt0(v) },
               { id: 'fattureScadute',  lbl: 'Fatture scadute', fmt: v => String(v) },
               { id: 'stockPF',         lbl: 'Stock vetrina (pz)', fmt: v => String(v) },
             ]
@@ -913,13 +916,21 @@ export default function ConfrontoSedi({ orgId, sedi }) {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {ranking.map((r, i) => {
-                  const medaglie = ['🥇', '🥈', '🥉']
-                  const medal = medaglie[i] || `#${i + 1}`
+                  // Erano tre medaglie disegnate con le emoji. Le emoji nel
+                  // prodotto non si usano (cambiano forma da un telefono
+                  // all'altro e un lettore di schermo le legge «medaglia
+                  // d'oro», che non è quello che c'è scritto): il posto in
+                  // classifica si scrive col numero, e il primo si distingue
+                  // col colore del marchio.
+                  const medal = `${i + 1}°`
                   const kk = kpiMap[r.sede.id] || {}
                   const delta = fmtDelta(kk.ricaviPrev, kk.ricaviCur)
                   return (
                     <div key={r.sede.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', background: i === 0 ? '#FEF9C3' : '#fff', borderRadius: 8, border: `1px solid ${i === 0 ? '#FDE68A' : BORDER}` }}>
-                      <div style={{ fontSize: 22, width: 36, textAlign: 'center' }}>{medal}</div>
+                      <div style={{
+                        fontSize: 18, width: 36, textAlign: 'center', fontWeight: 800,
+                        color: i === 0 ? T.brand : T.textSoft,
+                      }}>{medal}</div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 14, fontWeight: 800, color: TXT, display: 'flex', alignItems: 'center', gap: 6 }}>
                           <Icon name="pin" size={13} />{r.sede.nome}

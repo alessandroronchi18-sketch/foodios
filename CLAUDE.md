@@ -229,6 +229,41 @@ con `npm run build` — `npx vite build` li salta.
 
 ---
 
+## Agenti: il diario è obbligatorio
+
+Un agente che lavora in parallelo **deve tenere un diario su file** e
+aggiornarlo mentre lavora, non alla fine. Regola del titolare, 16/09/2026:
+«gli agenti devono sempre lasciare tracce, così se si interrompono per
+problemi, quando riprendono non ripartono dall'inizio ma dal punto in cui si
+sono fermati».
+
+Non è teoria: il 16/09/2026 due agenti su tre si sono fermati a metà per un
+errore di autenticazione. Quello che avevano scritto sul diario si è potuto
+riprendere; quello che avevano solo in testa no.
+
+**Come si fa.** Ogni agente riceve un percorso suo, in `scratchpad`:
+
+```
+<scratchpad>/agente-<nome>.md
+```
+
+e queste istruzioni:
+
+1. **Prima cosa da fare: leggere il proprio diario.** Se esiste ed è pieno, si
+   riparte dall'ultima riga, non dall'inizio.
+2. Scrivere sul diario **a ogni pezzo finito**, non a percentuali fisse: il
+   file toccato, cosa è cambiato, cosa manca ancora. Un elenco con le voci
+   fatte spuntate.
+3. Sul diario ci vanno anche **i difetti veri trovati per strada** (file:riga,
+   cosa succede, come riprodurlo): sono la parte più preziosa del lavoro e
+   sono quella che si perde per prima se l'agente si interrompe.
+4. L'ultima riga del diario dice sempre **qual è il prossimo passo**.
+
+Chi lancia l'agente: dagli il percorso del diario nel prompt, e digli di
+leggerlo per primo.
+
+---
+
 ## Documenti correlati
 
 - `STATO_PROGETTO.md` — feature timeline + URL chiave

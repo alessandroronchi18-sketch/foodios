@@ -28,6 +28,18 @@ export default defineConfig({
         // - jspdf + jspdf-autotable + html2canvas → pdf (lazy: solo per export)
         // - xlsx caricato gia' dinamicamente da CDN, non incluso qui
         manualChunks: (id) => {
+          // L'aiutante di Vite per il caricamento a richiesta (`__vitePreload`)
+          // deve stare in un pacchetto suo.
+          //
+          // Senza questa riga finiva nel pacchetto `pdf` — il primo che lo
+          // usava — e siccome quell'aiutante serve a TUTTI, il pacchetto
+          // principale se lo importava. Risultato: `index.html` metteva in
+          // preload `pdf-*.js`, **649 kB (196 compressi) scaricati all'avvio
+          // da ogni cliente**, prima di vedere qualsiasi cosa, per una
+          // libreria che serve solo a chi stampa un PDF. Verificato guardando
+          // l'import nel pacchetto compilato: `import{_ as D}from"./pdf-*.js"`,
+          // dove `_` è l'aiutante, non jsPDF.
+          if (id.includes('vite/preload-helper') || id.includes('vite/modulepreload')) return 'preload'
           if (id.includes('node_modules')) {
             if (id.includes('jspdf') || id.includes('html2canvas') || id.includes('dompurify')) return 'pdf'
             if (id.includes('recharts') || id.includes('d3-')) return 'charts'

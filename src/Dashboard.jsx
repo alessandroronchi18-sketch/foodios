@@ -47,12 +47,10 @@ const ImpostazioniTv = lazyWithReload(() => import('./components/ImpostazioniTv'
 const ExportContabilita = lazyWithReload(() => import('./components/ExportContabilita'))
 import { WL_KEY } from './components/WhiteLabel';
 const WhiteLabel = lazyWithReload(() => import('./components/WhiteLabel'))
-import MfaSection from './components/Mfa'
 const EventiView = lazyWithReload(() => import('./components/Eventi'))
 const ConfrontoSedi = lazyWithReload(() => import('./components/ConfrontoSedi'))
 const TrasferimentiView = lazyWithReload(() => import('./components/TrasferimentiView'))
 const EsportaDati = lazyWithReload(() => import('./components/EsportaDati'))
-import { exportRicettaPDF, exportProduzione } from './lib/exportPDF'
 import { todayLocal } from './lib/dateLocal'
 import { ICONS as SHARED_ICONS, ic as sharedIc } from './lib/icons'
 import { setExportCtx, getExportCtx, gateExport } from './lib/exportGuard'
@@ -72,7 +70,6 @@ const PrevisioneDomanda = lazyWithReload(() => import('./components/PrevisioneDo
 const AIFotoAnalisi = lazyWithReload(() => import('./components/AIFotoAnalisi'))
 const AIAssistant = lazyWithReload(() => import('./components/AIAssistant'))
 const ImportaDatiView = lazyWithReload(() => import('./components/ImportaDati'))
-import AbbonamentoPanel from './components/AbbonamentoPanel'
 const HaccpView = lazyWithReload(() => import('./components/Haccp'))
 const FormatiVendita = lazyWithReload(() => import('./components/FormatiVendita'))
 const RegistroAttivita = lazyWithReload(() => import('./components/RegistroAttivita'))
@@ -192,88 +189,12 @@ function sload(key)      { return _sload(key, _ctx_orgId, _ctx_sedeId); }
 // `analizzaFotoAI` estratta in src/lib/analizzaFotoAI.js (audit 2026-07-01
 // batch 9: split file Dashboard >1500 righe - secondo step).
 
-// ─── SORTABLE TABLE HOOK ──────────────────────────────────────────────────────
-function useSortable(defaultKey, defaultDir="desc") {
-  const [sortKey, setSortKey] = useState(defaultKey);
-  const [sortDir, setSortDir] = useState(defaultDir);
-  const toggleSort = useCallback((key) => {
-    setSortKey(prev => {
-      if (prev === key) { setSortDir(d => d==="desc"?"asc":"desc"); return prev; }
-      setSortDir("desc"); return key;
-    });
-  }, []);
-  const sort = (arr, getValue) => [...arr].sort((a,b)=>{
-    const va = getValue ? getValue(a,sortKey) : (a[sortKey]??0);
-    const vb = getValue ? getValue(b,sortKey) : (b[sortKey]??0);
-    const mul = sortDir==="desc"?-1:1;
-    return typeof va==="string" ? mul*va.localeCompare(vb) : mul*(va-vb);
-  });
-  return { sortKey, sortDir, toggleSort, sort };
-}
-
-// Stable SortTH component - receives toggle/active as props (no re-creation issue)
-function SortTH({ k, children, right, active, dir, onToggle }) {
-  return (
-    <th onClick={()=>onToggle(k)}
-      style={{padding:"10px 16px",textAlign:right?"right":"left",fontSize: 12,fontWeight:600,
-        letterSpacing:"0.05em",textTransform:"uppercase",whiteSpace:"nowrap",
-        color:active?"#6E0E1A":"#94A3B8",borderBottom:"1px solid #E2E8F0",
-        background:active?"#FEF2F2":"transparent",cursor:"pointer",userSelect:"none",
-        transition:"background 0.15s"}}>
-      {children}{active?(dir==="desc"?" ▼":" ▲"):""}
-    </th>
-  );
-}
-
-
-// ─── TOOLTIP COMPONENT ────────────────────────────────────────────────────────
-function Tip({ text, children, width=220 }) {
-  const [show, setShow] = useState(false);
-  const [pos,  setPos]  = useState({x:0, y:0});
-  const ref = useRef(null);
-  const handleEnter = (e) => {
-    const r = e.currentTarget.getBoundingClientRect();
-    setPos({ x: r.left + r.width/2, y: r.top - 8 });
-    setShow(true);
-  };
-  if (!text) return children;
-  return (
-    <span ref={ref} style={{position:"relative",display:"inline-flex",alignItems:"center"}}
-      onMouseEnter={handleEnter} onMouseLeave={()=>setShow(false)}>
-      {children}
-      {show && (
-        <span style={{
-          position:"fixed",
-          left: Math.min(pos.x - width/2, window.innerWidth - width - 8),
-          top: pos.y,
-          transform:"translateY(-100%)",
-          zIndex:99999,
-          background:"#1C0A0A",
-          color:"rgba(255,255,255,0.92)",
-          fontSize: 12,
-          fontWeight:500,
-          lineHeight:1.55,
-          padding:"8px 12px",
-          borderRadius:8,
-          width,
-          pointerEvents:"none",
-          boxShadow:"0 4px 20px rgba(0,0,0,0.35)",
-          whiteSpace:"normal",
-        }}>
-          {text}
-          <span style={{
-            position:"absolute",left:"50%",top:"100%",
-            transform:"translateX(-50%)",
-            border:"5px solid transparent",
-            borderTopColor:"#1C0A0A",
-          }}/>
-        </span>
-      )}
-    </span>
-  );
-}
-
-
+// Qui stavano `useSortable`, `SortTH` e `Tip`: tre pezzi di interfaccia
+// definiti in questo file e usati da nessuno. Esistono anche in
+// `views/_shared.jsx`, dove li usano davvero sei pagine. Erano rimasti
+// indietro da quando le viste sono uscite dal Dashboard, e da allora
+// finivano nel pacchetto principale — cioè li scaricava ogni cliente a ogni
+// visita, per non disegnare niente.
 
 // ─── PARSER RICETTARIO ────────────────────────────────────────────────────────
 async function parseRicettario(file) {
@@ -437,15 +358,9 @@ const C = {
 const PIE_COLORS = [C.red,"#E07040","#D4A030","#5B8FCE","#7B7B7B","#A0522D"];
 
 // ─── PRIMITIVES ───────────────────────────────────────────────────────────────
-const ChartTip = ({active,payload,label}) => {
-  if (!active||!payload?.length) return null;
-  return (
-    <div style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 14px",fontSize: 12,boxShadow:"0 4px 16px rgba(0,0,0,0.08)"}}>
-      <div style={{fontWeight:700,color:C.text,marginBottom:4}}>{label}</div>
-      {payload.map((p,i)=><div key={i} style={{color:p.color||C.red}}>{p.name}: <b>{p.value}</b></div>)}
-    </div>
-  );
-};
+// `ChartTip` stava qui: la finestrella dei grafici. La usano PLView,
+// StoricoProduzioneView e le altre, ma ognuna ha la sua da `_shared.jsx` —
+// questa copia non la chiamava nessuno.
 
 function Badge({label,color="green"}) {
   const s={green:{bg:C.greenLight,c:C.green},red:{bg:C.redLight,c:C.red},amber:{bg:C.amberLight,c:C.amber},gray:{bg:"#F3F3F3",c:"#888"}}[color]||{bg:"#F3F3F3",c:"#888"};
@@ -460,17 +375,9 @@ const margBadge = pct => {
 };
 const margColor = pct => pct>=60?C.green:pct>=40?C.amber:C.red;
 
-// Global table cell primitives used by PLTable, SensTable and PLView
-const TD = ({children,right,bold,color,mono,small}) => (
-  <td style={{padding:"10px 14px",textAlign:right?"right":"left",fontWeight:bold?700:500,
-    color:color||C.text,...(mono?TNUM:null),fontSize:small?10:11,
-    whiteSpace:"nowrap"}}>{children}</td>
-);
-const TH = ({children,right}) => (
-  <th style={{padding:"10px 14px",textAlign:right?"right":"left",fontSize: 12,fontWeight:700,
-    letterSpacing:"0.07em",textTransform:"uppercase",color:C.textSoft,
-    borderBottom:`1px solid ${C.border}`,whiteSpace:"nowrap"}}>{children}</th>
-);
+// Qui c'erano `TD` e `TH`, le celle di tabella, col commento «usate da
+// PLTable, SensTable e PLView». Non era più vero da quando quelle pagine sono
+// uscite da questo file: le prendono da `_shared.jsx`.
 
 function SH({children,sub}) {
   return (
@@ -504,21 +411,7 @@ function KPI({label,value,sub,color,highlight,icon,iconName}) {
   );
 }
 
-// ─── PAGE HEADER ──────────────────────────────────────────────────────────────
-function PageHeader({breadcrumb, title, subtitle, action}) {
-  // Il titolo della view è già nella topbar - qui mostriamo solo subtitle/action
-  // per evitare la duplicazione del titolo in ogni pagina.
-  if (!subtitle && !action) return null;
-  return (
-    <div style={{marginBottom:24,display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:16,flexWrap:"wrap"}}>
-      {subtitle && <div style={{fontSize:13,color:T.textSoft,letterSpacing:"-0.005em",lineHeight:1.5,fontWeight:500,flex:1,minWidth:0}}>{subtitle}</div>}
-      {action}
-    </div>
-  );
-}
-
-
-
+// E `PageHeader`, che aveva pure la sua sezione. Stessa storia.
 
 // ─── SIMULATORE PREZZI VIEW ───────────────────────────────────────────────────
 
@@ -767,364 +660,6 @@ function NuovoMeseModal({onCrea,onClose}) {
 
 
 // ─── IMPOSTAZIONI VIEW ────────────────────────────────────────────────────────
-function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi, onImportPrezzi, notify, onChangelogOpen, initialTab }) {
-  const [nomeMod, setNomeMod] = useState(nomeAttivita || "");
-  const [saving, setSaving] = useState(false);
-  const [tab, setTab] = useState(initialTab || "generale");
-  // Se initialTab cambia (es. utente clicca un secondo upgrade), aggiorna il tab.
-  useEffect(() => { if (initialTab) setTab(initialTab); }, [initialTab]);
-  const [reports, setReports] = useState([]);
-  const [emailReport, setEmailReport] = useState(true);
-  const [loadingReports, setLoadingReports] = useState(false);
-
-  useEffect(()=>{
-    if(!orgId) return;
-    setLoadingReports(true);
-    supabase.storage.from("reports").list(orgId,{ limit:12, sortBy:{ column:"created_at", order:"desc" } })
-      .then(({ data })=>{ setReports(data||[]); setLoadingReports(false); });
-    supabase.from("user_data").select("data_value")
-      .eq("organization_id", orgId).eq("data_key","report-settings-v1").is("sede_id",null).single()
-      .then(({ data })=>{ if(data?.data_value?.emailReport===false) setEmailReport(false); });
-  },[orgId]);
-
-  const handleToggleEmail = async (val) => {
-    setEmailReport(val);
-    const { error } = await supabase.from("user_data").upsert({
-      organization_id: orgId, sede_id: null,
-      data_key: "report-settings-v1",
-      data_value: { emailReport: val },
-    },{ onConflict:"organization_id,sede_id,data_key" });
-    if (error) {
-      console.error("Errore toggle email report:", error);
-      setEmailReport(!val);
-      notify("Errore nel salvataggio impostazione email", false);
-      return;
-    }
-    notify(val ? "Riceverai i report mensili via email" : "Email report mensili disattivata");
-  };
-
-  const handleSalvaNome = async () => {
-    if (!nomeMod.trim()) return;
-    if (!orgId) {
-      notify("Errore: organizzazione non trovata. Ricarica la pagina.", false);
-      return;
-    }
-    setSaving(true);
-    try {
-      const { error } = await supabase
-        .from("organizations")
-        .update({ nome: nomeMod.trim() })
-        .eq("id", orgId);
-      if (error) throw error;
-      await auth.refreshOrg?.();
-      notify("Nome attività aggiornato");
-    } catch (e) {
-      console.error("Errore salvataggio nome:", e);
-      notify("Errore nel salvataggio: " + (e.message || "Riprova"), false);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const card = { background:"#FFF", borderRadius:14, padding:"24px 28px", boxShadow:"0 1px 4px rgba(0,0,0,0.07)", marginBottom:20 };
-  const label = { fontSize: 12, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:8, display:"block" };
-  const input = { width:"100%", padding:"10px 14px", border:`1px solid ${C.border}`, borderRadius:9, fontSize:16, fontWeight:500, color:C.text, background:"#FAFAFA", outline:"none" };
-
-  const TABS = [
-    ["generale", "gear", "Generale"],
-    ["abbonamento", "card", "Abbonamento"],
-    ["whatsapp", "chat", "WhatsApp"],
-    ["sicurezza", "lock", "Sicurezza"],
-    ["rese", null, "Rese"],
-    ["sedi", "store", "Sedi"],
-    ["tv", "tv", "TV"],
-    ["contabilita", "barChart", "Contabilità"],
-    ["personalizzazione", "palette", "Personalizzazione"],
-    ["dati", "save", "Dati"],
-  ];
-
-  // Rese state
-  const [reseState, setReseState] = useState(() => getAllRese());
-
-  // Rese degli ingredienti dal DATABASE, appena si sa di quale azienda si
-  // tratta. In cima al file c'è già una lettura dal localStorage, che serve a
-  // far partire il food cost col numero giusto al primo disegno; questa la
-  // sostituisce con il dato condiviso, e la prima volta porta su quello che
-  // era rimasto nel browser (era l'unico posto dove viveva).
-  useEffect(() => {
-    if (!orgId) return;
-    let vivo = true;
-    caricaRese(orgId)
-      .then(({ migrate }) => {
-        if (!vivo) return;
-        setReseState(getAllRese());
-        if (migrate > 0) {
-          notify(`${migrate === 1 ? 'Una resa' : `${migrate} rese`} ${migrate === 1 ? 'era' : 'erano'} salvata solo su questo computer: ${migrate === 1 ? 'l\'ho' : 'le ho'} messe nell'archivio dell'azienda, così ${migrate === 1 ? 'vale' : 'valgono'} anche su tablet e telefono.`);
-        }
-      })
-      .catch(() => { /* il localStorage in cima al file è già stato letto */ });
-    return () => { vivo = false };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orgId]);
-  const [reseFiltro, setReseFiltro] = useState("");
-  // Le rese vanno nel DATABASE, non solo nel browser: cambiano il food cost, e
-  // finché stavano nel localStorage la stessa ricetta mostrava un numero
-  // diverso sul portatile e sul tablet. Salvataggio prima, avviso dopo: se il
-  // database rifiuta non si dice "salvato".
-  const saveRese = async (nomeNorm, val) => {
-    const v = Math.max(1, Math.min(100, parseFloat(val)||100)) / 100;
-    setResaIngrediente(nomeNorm, v);
-    try {
-      await salvaRese(orgId);
-    } catch (e) {
-      notify("Non ho potuto salvare la resa: " + (e?.message || 'rete'), false);
-      return;
-    }
-    setReseState(getAllRese());
-    notify("Resa aggiornata");
-  };
-  const resetRese = async (nomeNorm) => {
-    setResaIngrediente(nomeNorm, 1.0);
-    try {
-      await salvaRese(orgId);
-    } catch (e) {
-      notify("Non ho potuto ripristinare la resa: " + (e?.message || 'rete'), false);
-      return;
-    }
-    setReseState(getAllRese());
-    notify("Resa ripristinata al 100%");
-  };
-
-  return (
-    <div style={{ maxWidth:720, margin:"0 auto" }}>
-      <div style={{ marginBottom:20 }}>
-        <p style={{ margin:0, fontSize:13, color:T.textSoft, letterSpacing:"-0.005em", lineHeight:1.45 }}>Gestisci attività, account e preferenze.</p>
-      </div>
-      {/* Tab nav */}
-      <div style={{ display:"flex", gap:2, marginBottom:24, borderBottom:`1px solid ${T.border}` }}>
-        {TABS.map(([id,icn,lbl]) => (
-          <button key={id} onClick={()=>setTab(id)}
-            style={{ padding:"10px 16px", border:"none", background:"transparent", cursor:"pointer",
-              fontSize:13, fontWeight:tab===id?600:500, color:tab===id?T.text:T.textSoft,
-              borderBottom:tab===id?`2px solid ${T.brand}`:"2px solid transparent",
-              marginBottom:-1, letterSpacing:"-0.005em",
-              display:"inline-flex", alignItems:"center", gap:6,
-              transition:`color ${M.durFast} ${M.ease}` }}
-            onMouseEnter={e=>{if(tab!==id)e.currentTarget.style.color=T.textMid;}}
-            onMouseLeave={e=>{if(tab!==id)e.currentTarget.style.color=T.textSoft;}}>
-            {icn&&<Icon name={icn} size={14}/>}{lbl}
-          </button>
-        ))}
-      </div>
-
-      {/* ── TAB: Generale ── */}
-      {tab === "generale" && (
-        <div>
-          {/* Info attività */}
-          <div style={card}>
-            <div style={{ fontWeight:700, fontSize:15, color:C.text, marginBottom:18 }}>Attività</div>
-            <div style={{ marginBottom:16 }}>
-              <label style={label}>Nome attività</label>
-              <div style={{ display:"flex", gap:8 }}>
-                <input value={nomeMod} onChange={e=>setNomeMod(e.target.value)} style={{...input, flex:1}} placeholder="Es. Pasticceria Rossi" />
-                <button onClick={handleSalvaNome} disabled={saving || nomeMod === nomeAttivita}
-                  style={{ padding:"10px 18px", background:C.red, color:C.white, border:"none", borderRadius:9, fontSize:13, fontWeight:700, cursor:"pointer", opacity: (saving || nomeMod===nomeAttivita)?0.5:1 }}>
-                  {saving ? "…" : "Salva"}
-                </button>
-              </div>
-            </div>
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
-              <div>
-                <label style={label}>Tipo attività</label>
-                <div style={{ padding:"10px 14px", border:`1px solid ${C.border}`, borderRadius:9, fontSize:13, color:C.textMid, background:"#F8FAFC", textTransform:"capitalize" }}>
-                  {tipoAttivita || "-"}
-                </div>
-              </div>
-              <div>
-                <label style={label}>Piano</label>
-                <div style={{ padding:"10px 14px", border:`1px solid ${C.border}`, borderRadius:9, fontSize:13, color:C.textMid, background:"#F8FAFC", textTransform:"capitalize" }}>
-                  {piano || "trial"}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Import prezzi */}
-          <div style={card}>
-            <div style={{ fontWeight:700, fontSize:15, color:C.text, marginBottom:8, display:"flex", alignItems:"center", gap:8 }}><Icon name="euro" size={16}/> Prezzi ingredienti</div>
-            <div style={{ fontSize:12, color:C.textSoft, marginBottom:14, lineHeight:1.6 }}>
-              Importa un file Excel (.xlsx) con i prezzi degli ingredienti. Il file deve avere una colonna con il nome dell'ingrediente e una con il prezzo per kg o per g.
-            </div>
-            <label style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"10px 18px", background:"#FFFBEB", border:"1px dashed #FDE68A", borderRadius:9, cursor:"pointer", fontSize:12, fontWeight:600, color:"#92400E" }}>
-              <Icon name="folder" size={14}/> Importa prezzi .xlsx / .xls / .csv
-              <input type="file" accept=".xlsx,.xls,.csv" multiple style={{display:"none"}} onChange={e=>e.target.files.length&&onImportPrezzi(e.target.files)} />
-            </label>
-          </div>
-
-          {/* Referral */}
-          <ReferralPanel auth={auth} />
-
-          {/* Account */}
-          <div style={card}>
-            <div style={{ fontWeight:700, fontSize:15, color:C.text, marginBottom:8 }}>Account</div>
-            <div style={{ fontSize:13, color:C.textMid }}>
-              <strong>Email:</strong> {auth?.user?.email || "-"}
-            </div>
-            <div style={{ fontSize:12, color:C.textSoft, marginTop:6 }}>
-              Per cambiare email o password contatta <a href="mailto:support@foodos.it" style={{color:C.red}}>support@foodos.it</a>
-            </div>
-          </div>
-
-          {/* Report mensili */}
-          <div style={card}>
-            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14 }}>
-              <div style={{ fontWeight:700, fontSize:15, color:C.text, display:"flex", alignItems:"center", gap:8 }}><Icon name="barChart" size={16}/> Report mensili</div>
-              <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                <span style={{ fontSize:12, color:C.textSoft }}>Ricevi via email</span>
-                <button onClick={()=>handleToggleEmail(!emailReport)}
-                  style={{ width:40, height:22, borderRadius:11, border:"none", cursor:"pointer", position:"relative",
-                    background:emailReport?C.red:"#CBD5E1", transition:"background 0.2s" }}>
-                  <span style={{ position:"absolute", top:3, left:emailReport?20:3, width:16, height:16,
-                    borderRadius:"50%", background:"#FFF", transition:"left 0.2s" }}/>
-                </button>
-              </div>
-            </div>
-            <div style={{ fontSize:12, color:C.textSoft, marginBottom:14, lineHeight:1.6 }}>
-              Ogni 1° del mese ricevi un PDF con i KPI del mese precedente. Generato automaticamente da Foodos.
-            </div>
-            {loadingReports ? (
-              <div style={{ fontSize:12, color:C.textSoft }}>Caricamento…</div>
-            ) : reports.length === 0 ? (
-              <div style={{ fontSize:12, color:C.textSoft, fontStyle:"italic" }}>Nessun report ancora. Il primo verrà generato il 1° del prossimo mese.</div>
-            ) : (
-              <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-                {reports.map(r=>{
-                  const { data: urlData } = supabase.storage.from("reports").getPublicUrl(`${orgId}/${r.name}`);
-                  return (
-                    <div key={r.name} style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 12px",
-                      background:"#F8FAFC", borderRadius:8, border:`1px solid ${C.border}` }}>
-                      <span style={{ color:C.textSoft, display:"inline-flex" }}><Icon name="fileText" size={18}/></span>
-                      <span style={{ flex:1, fontSize:12, fontWeight:500, color:C.text }}>{r.name.replace(".pdf","")}</span>
-                      <a href={urlData?.publicUrl} download target="_blank" rel="noreferrer"
-                        style={{ fontSize: 12, fontWeight:700, color:C.red, textDecoration:"none" }}>Scarica ↓</a>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Notifiche push (Modalità Dipendente PWA) */}
-          <div style={card}>
-            <div style={{ fontWeight:700, fontSize:15, color:C.text, marginBottom:8, display:"flex", alignItems:"center", gap:8 }}>
-              <Icon name="bell" size={16}/> Notifiche
-            </div>
-            <div style={{ fontSize:12, color:C.textSoft, marginBottom:14 }}>
-              Attiva le notifiche push per ricevere reminder operativi su questo dispositivo (scadenze, alert, daily brief).
-            </div>
-            <PushNotificationToggle deviceLabel={`${nomeAttivita || 'Foodos'} - ${typeof navigator!=='undefined' && /iPhone|iPad/.test(navigator.userAgent) ? 'iOS' : 'web'}`}/>
-          </div>
-
-          {/* Novità & Changelog */}
-          <div style={card}>
-            <div style={{ fontWeight:700, fontSize:15, color:C.text, marginBottom:8, display:"flex", alignItems:"center", gap:8 }}><Icon name="clipboard" size={16}/> Novità & Changelog</div>
-            <div style={{ fontSize:12, color:C.textSoft, marginBottom:14 }}>Tutte le funzionalità e gli aggiornamenti di Foodos.</div>
-            <button onClick={onChangelogOpen}
-              style={{ padding:"10px 18px", background:C.redLight, color:C.red,
-                border:"none", borderRadius:9, fontSize:13, fontWeight:700, cursor:"pointer" }}>
-              Vedi changelog →
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ── TAB: Rese ── */}
-      {tab === "rese" && (
-        <div>
-          <div style={card}>
-            <div style={{ fontWeight:700, fontSize:15, color:C.text, marginBottom:6 }}>Resa ingredienti</div>
-            <div style={{ fontSize:12, color:C.textSoft, marginBottom:16, lineHeight:1.7 }}>
-              La resa indica quanta parte del peso lordo acquistato è effettivamente utilizzabile. <br/>
-              Es. uova 85% → per 100g netti devi acquistare 118g lordi → il food cost reale è più alto.<br/>
-              Foodos applica automaticamente la resa al calcolo del food cost di ogni ricetta.
-            </div>
-            <div style={{ marginBottom:14 }}>
-              <input value={reseFiltro} onChange={e=>setReseFiltro(e.target.value)} placeholder="Filtra ingrediente…"
-                style={{ padding:"8px 12px", borderRadius:8, border:`1px solid ${C.borderStr}`, fontSize:12, width:"100%", color:C.text }}/>
-            </div>
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))", gap:10 }}>
-              {Object.entries(reseState).filter(([k])=>!reseFiltro||k.includes(reseFiltro.toLowerCase())).sort(([a],[b])=>a.localeCompare(b)).map(([k,v])=>{
-                const pct = Math.round(v*100);
-                const isCustom = getStoreRese()[k]!==undefined;
-                return (
-                  <div key={k} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 14px", background: isCustom?"#FFF0F0":"#FDFAF8", borderRadius:9, border:`1px solid ${isCustom?C.red+"40":C.border}` }}>
-                    <div style={{ flex:1 }}>
-                      <div style={{ fontSize: 12, fontWeight:700, color:C.text, textTransform:"capitalize" }}>{k}</div>
-                      <div style={{ fontSize: 12, color:isCustom?C.red:C.textSoft, fontWeight:600 }}>{isCustom?"personalizzata":"default"}</div>
-                    </div>
-                    <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                      <input type="number" min="1" max="100" defaultValue={pct}
-                        onBlur={e=>saveRese(k,e.target.value)}
-                        onKeyDown={e=>e.key==="Enter"&&saveRese(k,e.target.value)}
-                        style={{ width:60, padding:"5px 8px", borderRadius:7, border:`1px solid ${C.borderStr}`, fontSize:12, textAlign:"right", fontWeight:700, color:C.text }}/>
-                      <span style={{ fontSize: 12, color:C.textSoft }}>%</span>
-                      {isCustom&&<button onClick={()=>resetRese(k)} style={{ fontSize: 12, padding:"3px 7px", borderRadius:5, border:`1px solid ${C.border}`, background:"transparent", color:C.textSoft, cursor:"pointer" }}>↩</button>}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            <div style={{ marginTop:16, fontSize: 12, color:C.textSoft, lineHeight:1.7, display:"flex", alignItems:"flex-start", gap:6 }}>
-              <Icon name="bulb" size={14} style={{ marginTop:2, flexShrink:0 }}/>
-              <span>Le rese modificate vengono applicate immediatamente al food cost di tutte le ricette. I valori di default sono basati su standard di laboratorio.</span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── TAB: Abbonamento (Stripe) ── */}
-      {tab === "abbonamento" && (
-        <AbbonamentoPanel org={auth?.org} notify={notify}/>
-      )}
-
-      {/* ── TAB: WhatsApp report serale ── */}
-      {tab === "whatsapp" && (
-        <WhatsAppReportPanel org={auth?.org} orgId={orgId} notify={notify} onRefresh={() => auth?.refreshOrg?.()} />
-      )}
-
-      {/* ── TAB: Sicurezza (2FA + audit) ── */}
-      {tab === "sicurezza" && (
-        <MfaSection notify={notify} />
-      )}
-
-      {/* ── TAB: Sedi ── */}
-      {tab === "sedi" && (
-        <ImpostazioniSedi orgId={orgId} />
-      )}
-
-      {/* ── TAB: TV ── */}
-      {tab === "tv" && (
-        <ImpostazioniTv orgId={orgId} sedi={sedi || []} notify={notify} />
-      )}
-
-      {/* ── TAB: Contabilità ── */}
-      {tab === "contabilita" && (
-        <ExportContabilita orgId={orgId} sedi={sedi || []} nomeAttivita={nomeAttivita} notify={notify} />
-      )}
-
-      {/* ── TAB: Personalizzazione (piano Chain) ── */}
-      {tab === "personalizzazione" && (
-        <WhiteLabel orgId={orgId} piano={piano} notify={notify} />
-      )}
-
-      {/* ── TAB: Dati ── */}
-      {tab === "dati" && (
-        <EsportaDati orgId={orgId} sedi={sedi || []} nomeAttivita={nomeAttivita} />
-      )}
-    </div>
-  );
-}
-
 // ─── APP ──────────────────────────────────────────────────────────────────────
 // Errore di caricamento di un chunk lazy: capita quando l'app è aperta da un
 // deploy precedente e gli hash dei file sono cambiati (il vecchio chunk dà 404).
