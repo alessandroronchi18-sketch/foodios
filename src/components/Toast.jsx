@@ -81,11 +81,12 @@ export function ToastProvider({ children }) {
 function ToastStack({ toasts, dismiss }) {
   const isMobile = useIsMobile()
   if (toasts.length === 0) return null
-  // Su mobile la bottom-nav e' alta ~58px: il toast a bottom:20 la copriva,
-  // nascondendo Cassa/Magazzino/Altro proprio dopo una conferma di salvataggio.
-  // Alziamo il toast sopra la nav + safe-area iOS.
+  // Il toast stava alzato di 70px per non coprire la barra di navigazione in
+  // fondo. Quella barra è stata tolta il 16/09/2026 su decisione del
+  // titolare: adesso il toast può stare dove sta su ogni altro schermo,
+  // appena sopra il bordo. Resta lo scarto per la tacca degli iPhone.
   const bottomOffset = isMobile
-    ? 'calc(70px + env(safe-area-inset-bottom, 0px))'
+    ? 'calc(20px + env(safe-area-inset-bottom, 0px))'
     : '20px'
   return (
     <div

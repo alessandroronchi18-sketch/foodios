@@ -299,7 +299,11 @@ export const ui = {
   gap:      { telefono: 10, tablet: 14, computer: 16 },
   // Margine laterale della pagina. Il fondo del telefono tiene conto della
   // barra di navigazione.
-  pagePad:  { telefono: '16px 16px 88px', tablet: '16px 20px 28px', computer: '16px 0 28px' },
+  // Il 88px in fondo teneva spazio per la barra di navigazione del telefono,
+  // tolta il 16/09/2026 su decisione del titolare: le stesse quattro voci
+  // erano già nel menu. Su una pagina che si scorre a lungo erano 88px che
+  // non si riprendevano mai.
+  pagePad:  { telefono: '16px 16px 28px', tablet: '16px 20px 28px', computer: '16px 0 28px' },
 }
 
 /**

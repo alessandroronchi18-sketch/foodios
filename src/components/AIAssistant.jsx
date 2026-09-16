@@ -240,7 +240,9 @@ export default function AIAssistant({ externalOpen, onOpenChange, hideFab = fals
   // Sotto 600px il pannello chat occupa l'intera viewport (full-bleed) per non
   // costringere l'utente a digitare in una colonnina stretta.
   const isSmallPhone = typeof window !== 'undefined' && window.innerWidth < 600
-  const fabBottom = isMobile ? 78 : 20
+  // Senza la barra di navigazione in fondo (tolta il 16/09/2026) i due
+  // bottoni flottanti possono stare dove stanno sul computer.
+  const fabBottom = 20
   const fabRight = isMobile ? 16 : 20
   const panelWidth = isSmallPhone ? '100vw' : isMobile ? 'calc(100vw - 24px)' : 380
   const panelHeight = isSmallPhone ? '100dvh' : isMobile ? 'calc(100vh - 160px)' : 540

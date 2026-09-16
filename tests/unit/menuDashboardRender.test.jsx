@@ -212,18 +212,44 @@ describe('il dipendente vede solo le sue pagine, anche a schermo', () => {
   })
 })
 
-describe('la barra in basso del telefono', () => {
-  it('ha cinque voci e sono quelle di «Oggi» più Altro', async () => {
+describe('la barra in basso non c\'è più', () => {
+  // Decisione del titolare, 16/09/2026: «la si può togliere, non servono che
+  // stanno là dato che ci sono nel menu a sinistra». Erano le stesse quattro
+  // voci di «Oggi» più «Altro», duplicate in fondo allo schermo: 64px fissi
+  // più 24px di spazio riservato sopra, su un telefono dove lo schermo è la
+  // risorsa scarsa.
+  it('sul telefono non si disegna nessuna barra fissa in fondo', async () => {
     larghezza(390)
     const { container } = await monta()
-    const nav = container.querySelector('nav')
-    expect(nav, 'la barra in basso non si disegna').toBeTruthy()
-    const voci = [...nav.querySelectorAll('button')].map(b => (b.textContent || '').trim())
-    expect(voci).toHaveLength(5)
-    expect(voci).toEqual(['Produzione', 'Cassa', 'Magazzino', 'Calendario', 'Altro'])
+    const barre = [...container.querySelectorAll('nav')]
+      .filter(n => (n.getAttribute('style') || '').includes('bottom:0') ||
+                   (n.getAttribute('style') || '').includes('bottom: 0'))
+    expect(barre, 'la barra in fondo è tornata').toHaveLength(0)
+  })
+
+  it('e le quattro voci restano raggiungibili dal cassetto', async () => {
+    // Il costo della scelta: due tocchi invece di uno. Ma non devono
+    // diventare irraggiungibili.
+    larghezza(390)
+    const { container } = await monta()
+    const cassetto = container.querySelector('.fos-drawer-shell')
+    const voci = [...cassetto.querySelectorAll('button')].map(b => (b.textContent || '').trim())
+    for (const v of ['Produzione', 'Cassa', 'Magazzino']) {
+      expect(voci, `"${v}" non si raggiunge più`).toContain(v)
+    }
+  })
+
+  it('lo spazio in fondo alla pagina è tornato normale', async () => {
+    // Gli 88px tenevano posto per la barra: senza barra sono 88px che non si
+    // riprendono mai, su una pagina che si scorre per trenta gusti.
+    const { readFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const d = readFileSync(join(import.meta.dirname, '../../src/Dashboard.jsx'), 'utf8')
+    expect(d).toMatch(/padding:isMobile\?"16px 16px 28px"/)
+    const t = readFileSync(join(import.meta.dirname, '../../src/lib/theme.js'), 'utf8')
+    expect(t).toMatch(/telefono: '16px 16px 28px'/)
   })
 })
-
 
 describe('i gruppi della barra laterale si aprono e si chiudono', () => {
   it('di partenza sono aperti «Oggi» e «Ricette», gli altri chiusi', async () => {

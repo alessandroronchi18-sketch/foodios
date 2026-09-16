@@ -3177,158 +3177,100 @@ export default function Dashboard({
                   </button>
                 </div>
               )}
+              {/* ── Chi sei, e le due cose che puoi fare ─────────────────────
+                  Erano tre blocchi impilati: avatar grande con email e
+                  «Connesso» sotto, poi due bottoni larghi mezza riga
+                  ciascuno, poi i link legali. Un quarto dello schermo del
+                  telefono, occupato in modo fisso, per dire tre cose che non
+                  si guardano mai.
+
+                  «Connesso» poi lo diceva già il pallino verde accanto
+                  all'avatar: era la stessa informazione scritta due volte.
+
+                  Adesso è una riga: chi sei a sinistra, le due azioni a
+                  destra. I bersagli restano da 44px — il testo sparisce, non
+                  l'area da toccare. */}
               {auth?.user?.email&&(
-                <div style={{display:"flex",alignItems:"center",gap:11,padding:"6px 4px 12px",overflow:"hidden"}}>
-                  {/* Avatar circolare con badge online pulsante */}
+                <div style={{display:"flex",alignItems:"center",gap:10,paddingBottom:8,overflow:"hidden"}}>
                   <div style={{position:"relative", flexShrink:0}}>
-                    <div style={{width:36,height:36,borderRadius:"50%",
+                    <div style={{width:28,height:28,borderRadius:"50%",
                       background:"linear-gradient(135deg, #2A1518 0%, #6E0E1A 100%)",
                       display:"flex",alignItems:"center",justifyContent:"center",
-                      fontSize:13,fontWeight:700,color:"#FFFFFF",letterSpacing:0,
-                      border:"1px solid rgba(255,255,255,0.10)",
-                      boxShadow:"0 4px 12px rgba(110,14,26,0.35), inset 0 1px 0 rgba(255,255,255,0.15)"}}>
+                      fontWeight:700,color:"#FFFFFF",
+                      border:"1px solid rgba(255,255,255,0.10)"}}>
                       {(auth.user.email||"?").slice(0,1).toUpperCase()}
                     </div>
-                    {/* Pallino online verde animato */}
                     <span className="fos-online-dot" aria-hidden="true"
                       style={{position:"absolute", bottom:-1, right:-1,
-                        width:11, height:11, borderRadius:"50%",
+                        width:9, height:9, borderRadius:"50%",
                         background:"#10B981",
-                        border:"2px solid rgba(11,7,15,0.95)",
-                        animation:"_fos_onlinePulse 2s ease-in-out infinite",
-                      }}/>
+                        border:"2px solid rgba(11,7,15,0.95)"}}/>
                   </div>
-                  <div style={{flex:1,minWidth:0,overflow:"hidden"}}>
-                    <div style={{fontSize: 12,color:"#FFFFFF",fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",letterSpacing:"-0.005em"}}>{auth.user.email}</div>
-                    <div style={{fontSize: 12,color:"rgba(255,255,255,0.55)",fontWeight:500,marginTop:2,display:"flex",alignItems:"center",gap:6,letterSpacing:"0.02em"}}>
-                      Connesso
-                    </div>
-                  </div>
+                  <div style={{flex:1,minWidth:0,color:"rgba(255,255,255,0.72)",fontWeight:500,
+                    overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}
+                    title={auth.user.email}>{auth.user.email}</div>
+                  <button onClick={()=>setShowNotifiche(o=>!o)}
+                    aria-label={nonLette>0 ? `Notifiche, ${nonLette} da leggere` : "Notifiche"}
+                    title="Notifiche"
+                    style={{width:44,height:44,flexShrink:0,background:"transparent",border:"none",
+                      color:"rgba(255,255,255,0.72)",cursor:"pointer",borderRadius:10,
+                      display:"flex",alignItems:"center",justifyContent:"center",position:"relative",
+                      transition:`background ${M.durFast} ${M.ease}`}}
+                    onMouseEnter={e=>{e.currentTarget.style.background="rgba(255,255,255,0.07)"}}
+                    onMouseLeave={e=>{e.currentTarget.style.background="transparent"}}>
+                    {ic(ICONS.bell, 17)}
+                    {nonLette>0&&<span style={{position:"absolute",top:6,right:6,background:"#E84B3A",color:"#fff",
+                      borderRadius:999,fontWeight:700,padding:"0 5px",minWidth:16,height:16,lineHeight:"16px",
+                      textAlign:"center"}}>{nonLette>9?"9+":nonLette}</span>}
+                  </button>
+                  <button onClick={()=>onSignOut&&onSignOut()}
+                    aria-label="Esci dall'account" title="Esci"
+                    style={{width:44,height:44,flexShrink:0,background:"transparent",border:"none",
+                      color:"rgba(255,255,255,0.72)",cursor:"pointer",borderRadius:10,
+                      display:"flex",alignItems:"center",justifyContent:"center",
+                      transition:`background ${M.durFast} ${M.ease}`}}
+                    onMouseEnter={e=>{e.currentTarget.style.background="rgba(255,255,255,0.07)"}}
+                    onMouseLeave={e=>{e.currentTarget.style.background="transparent"}}>
+                    {ic(ICONS.logOut, 17)}
+                  </button>
                 </div>
               )}
-              {/* Row di 2 bottoni: Notifiche / Esci. Min-height 44 per touch. */}
-              <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:8}}>
-                <button onClick={()=>setShowNotifiche(o=>!o)}
-                  aria-label="Apri notifiche"
-                  style={{padding:"10px 10px",background:"rgba(255,255,255,0.04)",
-                    border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,
-                    color:"rgba(255,255,255,0.82)",fontSize:12,fontWeight:600,cursor:"pointer",
-                    display:"flex",alignItems:"center",justifyContent:"center",gap:7,
-                    minHeight:44, position:"relative", letterSpacing:"-0.005em",
-                    transition:`background ${M.durBase} ${M.ease}, color ${M.durBase} ${M.ease}, border-color ${M.durBase} ${M.ease}, transform ${M.durFast} ${M.ease}`}}
-                  onMouseEnter={e=>{e.currentTarget.style.background="rgba(255,255,255,0.08)";e.currentTarget.style.color="#fff";e.currentTarget.style.borderColor="rgba(255,255,255,0.14)";}}
-                  onMouseLeave={e=>{e.currentTarget.style.background="rgba(255,255,255,0.04)";e.currentTarget.style.color="rgba(255,255,255,0.82)";e.currentTarget.style.borderColor="rgba(255,255,255,0.08)";}}
-                  onMouseDown={e=>{e.currentTarget.style.transform="scale(0.98)";}}
-                  onMouseUp={e=>{e.currentTarget.style.transform="scale(1)";}}>
-                  {ic(ICONS.bell, 14)}
-                  <span>Notifiche</span>
-                  {nonLette>0&&<span style={{background:"#E84B3A",color:"#fff",borderRadius:10,fontSize: 12,fontWeight:700,padding:"1px 6px",minWidth:18,textAlign:"center",
-                    boxShadow:"0 0 10px rgba(232,75,58,0.55)"}}>{nonLette.toLocaleString('it-IT', { useGrouping: 'always' })}</span>}
-                </button>
-                <button onClick={()=>onSignOut&&onSignOut()}
-                  aria-label="Esci dall'account"
-                  style={{padding:"10px 10px",background:"transparent",
-                    border:"1px solid rgba(255,255,255,0.10)",borderRadius:10,
-                    color:"rgba(255,255,255,0.78)",fontSize:12,fontWeight:600,cursor:"pointer",
-                    display:"flex",alignItems:"center",justifyContent:"center",gap:7,
-                    minHeight:44, letterSpacing:"-0.005em",
-                    transition:`background ${M.durBase} ${M.ease}, color ${M.durBase} ${M.ease}, border-color ${M.durBase} ${M.ease}, transform ${M.durFast} ${M.ease}`}}
-                  onMouseEnter={e=>{e.currentTarget.style.background="rgba(110,14,26,0.22)";e.currentTarget.style.color="#fff";e.currentTarget.style.borderColor="rgba(232,75,58,0.45)";}}
-                  onMouseLeave={e=>{e.currentTarget.style.background="transparent";e.currentTarget.style.color="rgba(255,255,255,0.78)";e.currentTarget.style.borderColor="rgba(255,255,255,0.10)";}}
-                  onMouseDown={e=>{e.currentTarget.style.transform="scale(0.98)";}}
-                  onMouseUp={e=>{e.currentTarget.style.transform="scale(1)";}}>
-                  {ic(ICONS.logOut, 14)}
-                  <span>Esci</span>
-                </button>
-              </div>
-              <div style={{height:10}}/>
-              {/* Link legali: solo su mobile (su desktop sono nella fascia inferiore globale) */}
+              {/* Le note legali: devono esserci, non devono farsi notare.
+                  Erano quattro link della stessa misura delle voci di menu,
+                  al centro, con tre puntini di separazione: una quinta riga
+                  di menu, per cose che si aprono una volta l'anno. */}
               {isMobile && (
-              <div style={{display:"flex",justifyContent:"center",gap:8,paddingTop:2,flexWrap:"wrap"}}>
-                <a href="/privacy" style={{fontSize: 12,color:T.textOnDarkFaint,textDecoration:"none",letterSpacing:"0.02em"}} target="_blank" rel="noreferrer">Privacy</a>
-                <span style={{fontSize: 12,color:"rgba(255,255,255,0.14)"}}>·</span>
-                <a href="/termini" style={{fontSize: 12,color:T.textOnDarkFaint,textDecoration:"none",letterSpacing:"0.02em"}} target="_blank" rel="noreferrer">Termini</a>
-                <span style={{fontSize: 12,color:"rgba(255,255,255,0.14)"}}>·</span>
-                <a href="/cookie" style={{fontSize: 12,color:T.textOnDarkFaint,textDecoration:"none",letterSpacing:"0.02em"}} target="_blank" rel="noreferrer">Cookie</a>
-                <span style={{fontSize: 12,color:"rgba(255,255,255,0.14)"}}>·</span>
-                <a href="/contatti" style={{fontSize: 12,color:T.textOnDarkFaint,textDecoration:"none",letterSpacing:"0.02em"}} target="_blank" rel="noreferrer">Contatti</a>
+              <div style={{display:"flex",justifyContent:"center",gap:10,paddingTop:6,flexWrap:"wrap",
+                borderTop:"1px solid rgba(255,255,255,0.05)"}}>
+                {[["Privacy","/privacy"],["Termini","/termini"],["Cookie","/cookie"],["Contatti","/contatti"]].map(([l,h])=>(
+                  <a key={h} href={h} target="_blank" rel="noreferrer"
+                    style={{fontSize:11,color:"rgba(255,255,255,0.28)",textDecoration:"none",letterSpacing:"0.02em",
+                      padding:"4px 0", minHeight:24, display:"inline-flex", alignItems:"center"}}>{l}</a>
+                ))}
               </div>
               )}
             </div>
           </div>
           )}
 
-          {/* Mobile bottom navigation */}
-          {isMobile&&(()=>{
-            const sFull = (sedi||[]).find(s=>s.id===sedeAttiva?.id) || sedeAttiva
-            const isInv = (sFull?.is_sede_produzione && isMetodoInv)
-              || view === 'inventario-gusti'
-            // Bottom nav mobile allineata alla nuova sezione "Oggi" del NAV:
-            // 4 azioni (Produzione, Cassa, Magazzino, Calendario) + "Altro".
-            // "Inventario gusti" → label "Produzione" per uniformità.
-            // Le cinque voci in basso sono le prime quattro di "Oggi" più
-            // "Altro", prese dallo stesso elenco delle altre due barre: sono
-            // le cose che si *fanno* ogni giorno. Prima erano riscritte qui
-            // a mano, quinta copia della stessa informazione.
-            const BOTTOM_NAV = menuTelefono(SEZIONI).map(v => ({
-              id: v.id === '__altro' ? '__more' : v.id,
-              icon: v.icona, label: v.label,
-              badge: v.badge, alert: v.allarme,
-            }));
-            return (
-              <nav style={{position:"fixed",bottom:0,left:0,right:0,zIndex:Z.bottomNav,
-                background:"rgba(255,255,255,0.94)",
-                backdropFilter:"saturate(180%) blur(14px)",
-                WebkitBackdropFilter:"saturate(180%) blur(14px)",
-                borderTop:`1px solid ${C.borderSoft}`,
-                paddingBottom:"env(safe-area-inset-bottom, 0px)",
-                // Audit 2026-06-25: quando il drawer e' aperto, sparisce la bottom-nav
-                // (le sue voci sono già nel drawer → ripetizione). Translate down
-                // per non occupare layout space e per non lasciare hit-area orfane.
-                transform: sidebarOpen ? "translateY(105%)" : "translateY(0)",
-                pointerEvents: sidebarOpen ? "none" : "auto",
-                opacity: sidebarOpen ? 0 : 1,
-                transition: "transform 0.22s ease, opacity 0.18s ease",
-                display:"flex",alignItems:"stretch",justifyContent:"space-around",
-                boxShadow:"0 -1px 0 rgba(15,23,42,0.04), 0 -4px 16px rgba(15,23,42,0.04)"}}>
-                {BOTTOM_NAV.map(item=>{
-                  const isMore = item.id==="__more";
-                  const active = !isMore && view===item.id;
-                  return (
-                    <button key={item.id}
-                      onClick={()=>{ if (isMore) setSidebarOpen(true); else setView(item.id); }}
-                      aria-label={isMore ? "Apri menu altre sezioni" : item.label}
-                      aria-current={active ? "page" : undefined}
-                      style={{flex:1,border:"none",background:"transparent",cursor:"pointer",
-                        padding:"9px 4px 10px",minHeight:56,display:"flex",flexDirection:"column",
-                        alignItems:"center",justifyContent:"center",gap:3,position:"relative",
-                        color:active?T.brand:T.textMid,
-                        transition:`color ${M.durFast} ${M.ease}`}}>
-                      {active && <span style={{position:"absolute",top:0,left:"30%",right:"30%",height:2,background:T.brand,borderRadius:"0 0 2px 2px"}}/>}
-                      <span style={{position:"relative",display:"flex",alignItems:"center",justifyContent:"center"}}>
-                        {ic(ICONS[item.icon], 21)}
-                        {item.badge>0 && (
-                          <span style={{position:"absolute",top:-4,right:-8,minWidth:16,height:16,
-                            background:T.brand,color:"#fff",borderRadius:8,fontSize: 12,fontWeight:700,
-                            padding:"0 4px",display:"flex",alignItems:"center",justifyContent:"center",
-                            border:"1.5px solid #fff",lineHeight:1}}>
-                            {item.badge>99?"99+":item.badge}
-                          </span>
-                        )}
-                        {(!item.badge||item.badge<=0)&&item.alert && (
-                          <span style={{position:"absolute",top:-2,right:-4,width:7,height:7,
-                            borderRadius:"50%",background:T.brand,border:"1.5px solid #fff"}}/>
-                        )}
-                      </span>
-                      <span style={{fontSize: 12,fontWeight:active?600:500,letterSpacing:"-0.005em",lineHeight:1}}>
-                        {item.label}
-                      </span>
-                    </button>
-                  );
-                })}
-              </nav>
-            );
-          })()}
+          {/* ── La barra in basso non c'è più ──────────────────────────────
+              Decisione del titolare, 16/09/2026: «la si può togliere, non
+              servono che stanno là dato che ci sono nel menu a sinistra».
+
+              Erano le stesse quattro voci di «Oggi» più «Altro», duplicate in
+              fondo allo schermo: 64px fissi, più 24px di spazio riservato
+              sopra, su un telefono dove lo schermo è la risorsa scarsa. Su
+              una pagina come la produzione a inventario, che si scorre per
+              trenta gusti, sono 88px che non si riprendono mai.
+
+              In cambio, per aprire Produzione o Cassa servono due tocchi
+              invece di uno: il menu in alto a sinistra, poi la voce. Se
+              dovesse pesare, rimetterla è togliere questo commento e
+              ripristinare il blocco da git (commit 4bcb17c).
+
+              `menuTelefono()` resta in src/lib/menuFoodos.js, con i suoi
+              test: serve ancora a dire quali sono le quattro cose che si
+              fanno ogni giorno, ed è la fonte da cui si ricostruirebbe. */}
 
           </>
         );
@@ -3470,7 +3412,7 @@ export default function Dashboard({
         {/* Inner content padding. Suspense globale: copre tutte le view lazy
             (44 component lazy-loaded via React.lazy). Fallback minimale per
             evitare flash bianco - l'utente vede un loader breve. */}
-        <div className="fos-page" key={view} style={{padding:isMobile?"16px 16px 88px":isTablet?"16px 20px 28px":"16px 0 28px",flex:1,maxWidth:1200,width:"100%",margin:"0 auto",boxSizing:"border-box"}}>
+        <div className="fos-page" key={view} style={{padding:isMobile?"16px 16px 28px":isTablet?"16px 20px 28px":"16px 0 28px",flex:1,maxWidth:1200,width:"100%",margin:"0 auto",boxSizing:"border-box"}}>
         <React.Suspense fallback={
           <div style={{display:'flex',alignItems:'center',justifyContent:'center',padding:'60px 20px',color:T.textSoft,fontSize:13,gap:10}}>
             <div style={{width:18,height:18,borderRadius:'50%',border:`2px solid ${T.border}`,borderTopColor:T.brand,animation:'fos_spin 0.6s linear infinite'}}/>

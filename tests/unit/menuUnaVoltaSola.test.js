@@ -286,11 +286,15 @@ describe('Dashboard.jsx non ha più le copie a mano', () => {
     expect(DASH_VIVO).not.toMatch(/const MOBILE_LABELS = \{/)
   })
 
-  it('le tre barre leggono le stesse sezioni', () => {
+  it('le due barre leggono le stesse sezioni', () => {
+    // Erano tre: la barra in fondo al telefono è stata tolta il 16/09/2026
+    // su decisione del titolare. `menuTelefono()` resta in menuFoodos.js coi
+    // suoi test — dice quali sono le quattro cose che si fanno ogni giorno,
+    // ed è la fonte da cui si ricostruirebbe la barra se servisse.
     expect(DASH_VIVO).toMatch(/const SEZIONI = useMemo\(\(\) => costruisciMenu\(/)
     expect(DASH_VIVO).toMatch(/const NAV = SEZIONI\.map/)          // barra in alto
-    expect(DASH_VIVO).toMatch(/\{SEZIONI\.map\(sec =>/)            // barra laterale
-    expect(DASH_VIVO).toMatch(/const BOTTOM_NAV = menuTelefono\(SEZIONI\)/)  // telefono
+    expect(DASH_VIVO).toMatch(/\{SEZIONI\.map\(sec =>/)            // cassetto
+    expect(DASH_VIVO).not.toMatch(/const BOTTOM_NAV =/)
   })
 
   it('le mappe si ricavano, non si riscrivono', () => {

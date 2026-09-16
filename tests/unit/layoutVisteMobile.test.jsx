@@ -13,7 +13,7 @@
 //   node scripts/foto-layout.mjs
 
 import { describe, it, expect, vi } from 'vitest'
-import { render } from '@testing-library/react'
+import { render, fireEvent } from '@testing-library/react'
 import React from 'react'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { todayLocal, formatLocalDate } from '../../src/lib/dateLocal'
@@ -129,9 +129,13 @@ function ripuliscilo(html) {
     .replace(/outline-color: none; outline-style: none; outline-width: initial;/g, 'outline: none;')
 }
 
-async function scrivi(nome, elemento) {
+// `dopo` serve alle pagine che hanno più schede dentro: la fotografia mostra
+// solo quella che si apre per prima, e le altre non si erano mai viste. Qui si
+// può premere una scheda prima di scattare.
+async function scrivi(nome, elemento, dopo) {
   const v = render(elemento)
   await new Promise(r => setTimeout(r, 60))
+  if (dopo) { await dopo(v); await new Promise(r => setTimeout(r, 60)) }
   mkdirSync(FUORI, { recursive: true })
   const html = `<!doctype html><html lang="it"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -227,6 +231,15 @@ describe('fotografia delle viste — telefono', () => {
 
     n.push(await scrivi('cassa', <ChiusuraView {...comuni} setChiusure={() => {}} tipoAttivita="pasticceria" sedi={sedi} sedeAttiva={sedeAttiva} />))
     n.push(await scrivi('inventario', <InventarioSettimanaleView {...comuni} setMagazzino={() => {}} sedi={sedi} sedeAttiva={sedeAttiva} tipoAttivita="gelateria" metodoProduzione="inventario" />))
+    // Sul telefono l'inventario si apre su «Oggi», quindi Settimana e Mese —
+    // le due che il titolare ha segnalato come illeggibili — non erano mai
+    // state fotografate. Qui si preme la scheda prima di scattare.
+    const premiScheda = (etichetta) => async (v) => {
+      const b = [...v.container.querySelectorAll('button')].find(x => x.textContent.trim() === etichetta)
+      if (b) fireEvent.click(b)
+    }
+    n.push(await scrivi('inventario-settimana', <InventarioSettimanaleView {...comuni} setMagazzino={() => {}} sedi={sedi} sedeAttiva={sedeAttiva} tipoAttivita="gelateria" metodoProduzione="inventario" />, premiScheda('Settimana')))
+    n.push(await scrivi('inventario-mese', <InventarioSettimanaleView {...comuni} setMagazzino={() => {}} sedi={sedi} sedeAttiva={sedeAttiva} tipoAttivita="gelateria" metodoProduzione="inventario" />, premiScheda('Mese')))
     n.push(await scrivi('quadratura', <QuadraturaInventarioView orgId="org-1" sedeId="s1" sedi={sedi} sedeAttiva={sedeAttiva} chiusure={chiusure} metodoProduzione="inventario" onNavigate={() => {}} notify={() => {}} />))
     n.push(await scrivi('confronto-sedi', <ConfrontoSedi orgId="org-1" sedi={sedi} />))
     n.push(await scrivi('semilavorati', <SemilavoratiView ricettario={ricettario} onSave={() => {}} notify={() => {}} tipoAttivita="pasticceria" />))

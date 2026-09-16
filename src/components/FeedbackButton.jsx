@@ -85,7 +85,10 @@ export default function FeedbackButton({ viewCorrente, externalOpen, onOpenChang
         <div
           style={{
             position: 'fixed',
-            bottom: isMobile ? 132 : 78,
+            // Senza la barra di navigazione in fondo (tolta il 16/09/2026) il
+            // bottone può scendere: era alzato di 54px per non finirci sopra.
+            // Resta sopra l'assistente, che sta a 20.
+            bottom: isMobile ? 74 : 78,
             right: isMobile ? 16 : 20,
             zIndex: z.fab,
             display: 'flex', alignItems: 'center', gap: 8,

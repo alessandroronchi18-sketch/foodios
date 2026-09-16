@@ -1084,28 +1084,13 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
         </div>
       )}
 
-      {/* Suggerimento su mobile per la vista Settimana: 16 colonne su 375px
-          sono scomode da compilare — invitiamo a passare a Oggi. */}
-      {!loading && isMobile && vista === 'settimana' && (
-        <div style={{
-          background: '#EFF6FF', border: '1px solid #BFDBFE',
-          borderRadius: 10, padding: 12, marginBottom: 12,
-          display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap',
-        }}>
-          <div style={{ fontSize: 12, color: '#1E3A8A', flex: 1, lineHeight: 1.45 }}>
-            Sul cellulare la tabella settimanale scorre in orizzontale. Per compilare in fretta usa <b>Oggi</b>.
-          </div>
-          <button onClick={() => setVista('oggi')}
-            style={{
-              padding: '10px 16px', minHeight: altCtrl,
-              background: '#1D4ED8', color: '#FFFFFF',
-              border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700,
-              cursor: 'pointer',
-            }}>
-            Vai a Oggi
-          </button>
-        </div>
-      )}
+      {/* Il riquadro azzurro che c'era qui diceva «sul cellulare la tabella
+          settimanale scorre in orizzontale, per compilare in fretta usa
+          Oggi». Da quando la settimana sul telefono è fatta a schede non
+          scorre più in orizzontale, quindi l'avviso era diventato falso — e
+          intanto si mangiava la prima schermata con un consiglio che nessuno
+          seguiva. Chi vuole compilare un giorno solo ha comunque la scheda
+          «Oggi» nella barra qui sopra. */}
 
       {/* Empty state per il filtro "Solo compilati": se sto filtrando e non
           resta nessun gusto, evito la tabella vuota e do all'utente una
@@ -1172,6 +1157,27 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
         <VistaMese gusti={gustiVisibili} righeMese={meseData?.righe || []} lunediIso={lunediIso} unita={unitaDisplay} onClickGusto={setDrilldownGusto} />
       ) : vista === 'storico' ? (
         <VistaStorico gusti={gustiVisibili} perMese={storicoData?.perMese || []} inizio={storicoData?.inizio} unita={unitaDisplay} onClickGusto={setDrilldownGusto} onOpenReport={onNavigate ? () => onNavigate('storico') : null} />
+      ) : isMobile ? (
+        // Sul telefono la stessa settimana diventa una scheda per gusto: la
+        // tabella qui sotto è larga 1.280px e non ci sta. Vedi SchedeSettimana.
+        <SchedeSettimana
+          gusti={gustiVisibili}
+          matrice={matrice}
+          lunediIso={lunediIso}
+          saving={saving}
+          onSave={handleSave}
+          readOnly={isAllSedi}
+          unita={unitaDisplay}
+          fmt={fmtUnita}
+          totaliProd={totaliProdSettimana}
+          totaliVend={totali}
+          dettaglio={dettaglio}
+          onClickGusto={setDrilldownGusto}
+          sort={sort}
+          onToggleSort={toggleSort}
+          totaliColonna={totaliColonnaSettimana}
+          soloCompilati={soloCompilati}
+        />
       ) : (
         // Settimana × 7 giorni × 2 colonne (PROD/RIMAN) + GUSTO + TOT = 16 colonne.
         // Su 375px non ci stanno, quindi tabella scrolla orizzontalmente e
@@ -1834,6 +1840,7 @@ function IconaOrfano() {
 // indipendentemente dalla lunghezza del nome.
 function NomeGustoConFlag({ nome, orfano, onClick }) {
   const clickable = typeof onClick === 'function'
+  const isMobile = useIsMobile()
   return (
     <div
       onClick={clickable ? () => onClick(nome) : undefined}
@@ -1844,6 +1851,10 @@ function NomeGustoConFlag({ nome, orfano, onClick }) {
       style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, width: '100%',
         cursor: clickable ? 'pointer' : 'default',
+        // Il nome del gusto apre il suo storico: è un bersaglio, e sul
+        // telefono era alto quanto la riga di testo (19px). Un dito ne
+        // richiede 44, altrimenti si colpisce quello sopra o quello sotto.
+        ...(clickable && isMobile ? { minHeight: 44 } : null),
       }}>
       <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{nome}</span>
       {orfano && <IconaOrfano />}
@@ -1855,6 +1866,7 @@ function NomeGustoConFlag({ nome, orfano, onClick }) {
 // Calcoliamo il venduto da righeMese (riman_prev + prod - riman - scarto)
 // raggruppato per settimana ISO del mese.
 function VistaMese({ gusti, righeMese, lunediIso, unita = 'g', onClickGusto }) {
+  const isMobile = useIsMobile()
   // Sort locale: cliccando l'header di una colonna (settimana, tot venduto,
   // tot prodotto) i gusti si riordinano. Default: nome A->Z.
   const [sort, setSort] = useState({ by: 'nome', dir: 'asc' })
@@ -1941,10 +1953,92 @@ function VistaMese({ gusti, righeMese, lunediIso, unita = 'g', onClickGusto }) {
   })()
 
   return (
-    <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 14, padding: 18, boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
+    // Sul telefono il riquadro esterno sparisce: dentro ci sono già le schede
+    // per gusto, e una scheda dentro una scheda fa due cornici a un centimetro
+    // l'una dall'altra e ruba sedici pixel di larghezza per lato.
+    <div style={isMobile
+      ? { background: 'transparent', border: 'none', padding: 0 }
+      : { background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 14, padding: 18, boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
       <div style={{ fontSize: 12, color: C.textSoft, marginBottom: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
         Riepilogo mensile · {meseLabel}
       </div>
+      {/* Sul telefono la tabella del mese (otto colonne, 680px di larghezza
+          minima) diventa una scheda per gusto: i due totali grandi in alto,
+          le cinque settimane sotto in fila. Il punto esclamativo dei giorni
+          che non tornano era un `title`: sul telefono non lo vedeva nessuno,
+          quindi qui la frase è scritta per esteso. */}
+      {isMobile ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 2 }}>
+            {[['Gusto', 'nome'], ['Prodotto', 'totProd'], ['Venduto', 'totVend']].map(([label, key]) => {
+              const active = sort.by === key
+              return (
+                <button key={key} onClick={() => toggleSort(key)}
+                  aria-label={`Ordina per ${label}${active ? (sort.dir === 'asc' ? ', crescente' : ', decrescente') : ''}`}
+                  style={{
+                    minHeight: 44, padding: '10px 12px', borderRadius: 999,
+                    border: `1px solid ${active ? T.brand : C.border}`,
+                    background: active ? C.redLight : C.bgCard,
+                    color: active ? T.brand : C.textSoft,
+                    fontSize: TS.base, fontWeight: 700, fontFamily: 'inherit',
+                    display: 'inline-flex', alignItems: 'center', gap: 4, cursor: 'pointer',
+                  }}>
+                  {label}
+                  {active && <Icon name={sort.dir === 'asc' ? 'chevUp' : 'chevDown'} size={12} />}
+                </button>
+              )
+            })}
+          </div>
+          {gustiOrdinati.map(({ nome, orfano }) => {
+            const k = normGusto(nome)
+            const r = m[k] || { per_sett: [0, 0, 0, 0, 0], totProd: 0, totVend: 0, nonQuadra: 0 }
+            return (
+              <div key={k} style={{
+                border: `1px solid ${C.border}`, borderRadius: 12, overflow: 'hidden',
+                background: C.bgCard,
+              }}>
+                <div style={{ padding: '10px 12px', fontSize: TS.lg, fontWeight: 800, color: C.text }}>
+                  <NomeGustoConFlag nome={nome} orfano={orfano} onClick={onClickGusto} />
+                </div>
+                <div style={{ display: 'flex', gap: 8, padding: '0 12px 10px' }}>
+                  <div style={{ flex: 1, background: C.greenLight, borderRadius: 10, padding: '8px 10px', minWidth: 0 }}>
+                    <div style={{ fontSize: TS.sm, fontWeight: 700, color: C.green, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Prodotto</div>
+                    <div style={{ fontSize: TS.lg, fontWeight: 800, color: C.green, ...TNUM }}>{fmtVal(r.totProd)}</div>
+                  </div>
+                  <div style={{ flex: 1, background: C.amberLight, borderRadius: 10, padding: '8px 10px', minWidth: 0 }}>
+                    <div style={{ fontSize: TS.sm, fontWeight: 700, color: T.brand, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Venduto</div>
+                    <div style={{ fontSize: TS.lg, fontWeight: 800, color: T.brand, ...TNUM }}>{fmtVal(r.totVend)}</div>
+                  </div>
+                </div>
+                <div style={{
+                  display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)',
+                  borderTop: `1px solid ${C.borderSoft}`, background: C.bgSubtle,
+                }}>
+                  {r.per_sett.map((v, i) => (
+                    <div key={i} style={{
+                      padding: '8px 4px', textAlign: 'center',
+                      borderLeft: i === 0 ? 'none' : `1px solid ${C.borderSoft}`,
+                    }}>
+                      <div style={{ fontSize: TS.sm, fontWeight: 700, color: C.textSoft, letterSpacing: '0.04em' }}>W{i + 1}</div>
+                      <div style={{ fontSize: TS.sm, fontWeight: 700, color: v > 0 ? C.text : C.textSoft, ...TNUM }}>{fmtVal(v)}</div>
+                    </div>
+                  ))}
+                </div>
+                {r.nonQuadra > 0 && (
+                  <div style={{
+                    borderTop: `1px solid ${C.borderSoft}`, background: T.amberLight,
+                    padding: '8px 12px', fontSize: TS.sm, lineHeight: 1.45, color: T.amberDark,
+                  }}>
+                    {r.nonQuadra === 1
+                      ? 'Un giorno di questo mese non torna: la rimanenza scritta è più alta del disponibile. Il totale lo conta col suo segno.'
+                      : `${r.nonQuadra} giorni di questo mese non tornano: la rimanenza scritta è più alta del disponibile. Il totale li conta col loro segno.`}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      ) : (
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 680 }}>
           <thead>
@@ -2017,6 +2111,7 @@ function VistaMese({ gusti, righeMese, lunediIso, unita = 'g', onClickGusto }) {
           </tbody>
         </table>
       </div>
+      )}
       <div style={{ marginTop: 12, fontSize: 12, color: C.textSoft, lineHeight: 1.5 }}>
         W1–W5 = settimane del mese. Il venduto e' calcolato dal differenziale di inventario; le settimane parziali a inizio/fine mese possono mostrare valori 0 se non hai compilato quei giorni.
       </div>
@@ -2422,6 +2517,7 @@ function DrilldownGustoModal({ gusto, orgId, sedeId, isAllSedi, sediProdIds, uni
 // davanti (la giacenza di partenza, che serve al conto del primo giorno) e
 // quei giorni non sono produzione del periodo.
 function KpiCompactBar({ rows, periodo, unita = 'g', vendutoG = null, celleNonQuadrate = 0, da = null, a = null }) {
+  const isMobile = useIsMobile()
   const stats = useMemo(() => {
     if (!Array.isArray(rows) || rows.length === 0) {
       return { prod: 0, venduto: 0, scarto: 0, scartoPct: 0, gustiN: 0, gustiRimanAlta: [] }
@@ -2478,9 +2574,20 @@ function KpiCompactBar({ rows, periodo, unita = 'g', vendutoG = null, celleNonQu
       background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12,
       padding: 8, marginBottom: 14,
     }}>
+      {/* Tre riquadri affiancati. Le colonne erano `1fr 1fr 1fr`: `1fr` non
+          scende sotto la larghezza del contenuto, e con le scritte su una riga
+          sola («Venduto stimato», «non registrato») la fascia diventava larga
+          581px dentro uno schermo da 390 — la pagina della settimana e quella
+          del mese scorrevano di lato di 191px e 149px. È lo stesso difetto già
+          corretto nei campi grandi di questa pagina: ci vuole `minmax(0,1fr)`.
+          Sul telefono i riquadri passano a due per riga, con lo scarto sotto a
+          tutta larghezza: a tre stavano in 108px l'uno e le scritte finivano
+          troncate coi puntini. */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: '1fr 1fr 1fr',
+        gridTemplateColumns: isMobile
+          ? 'minmax(0,1fr) minmax(0,1fr)'
+          : 'minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)',
         gap: 8,
       }}>
         <KpiTile label={`Prodotto ${periodo}`} value={fmt(stats.prod)} unit={unita} color={C.text} bg="#F8FAFC"/>
@@ -2493,9 +2600,9 @@ function KpiCompactBar({ rows, periodo, unita = 'g', vendutoG = null, celleNonQu
             E la percentuale va con la virgola italiana, non col punto. */}
         {scartoMisurato ? (
           <KpiTile label={`Scarto ${stats.scartoPct > 0 ? '(' + stats.scartoPct.toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%)' : ''}`.trim()}
-            value={fmt(stats.scarto)} unit={unita} color={scartoColor} bg={scartoBg}/>
+            value={fmt(stats.scarto)} unit={unita} color={scartoColor} bg={scartoBg} largo={isMobile}/>
         ) : (
-          <KpiTile label="Scarto" value="non registrato" unit="" color={C.textSoft} bg={C.bgSubtle}/>
+          <KpiTile label="Scarto" value="non registrato" unit="" color={C.textSoft} bg={C.bgSubtle} largo={isMobile}/>
         )}
       </div>
       {hasAlerts && (
@@ -2539,17 +2646,28 @@ function KpiCompactBar({ rows, periodo, unita = 'g', vendutoG = null, celleNonQu
   )
 }
 
-function KpiTile({ label, value, unit, color, bg }) {
+// `largo` = il riquadro prende tutta la riga (sul telefono lo scarto sta sotto
+// agli altri due).
+function KpiTile({ label, value, unit, color, bg, largo = false }) {
+  const isMobile = useIsMobile()
   return (
     <div style={{
       background: bg, borderRadius: 10, padding: '10px 12px',
       display: 'flex', flexDirection: 'column', justifyContent: 'center',
-      minHeight: 52,
+      minHeight: 52, minWidth: 0,
+      gridColumn: largo ? '1 / -1' : undefined,
     }}>
+      {/* Sul telefono l'etichetta va a capo invece di troncarsi coi puntini
+          («Prodotto questa settimana» in 163px non ci sta su una riga), e
+          tiene un'altezza fissa di due righe così i numeri dei riquadri
+          affiancati restano incolonnati fra loro. */}
       <div style={{
         fontSize: 12, fontWeight: 700, color: C.textSoft,
         textTransform: 'uppercase', letterSpacing: '0.06em',
-        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        ...(isMobile && !largo
+          ? { whiteSpace: 'normal', lineHeight: 1.25, minHeight: 30 }
+          : { textOverflow: 'ellipsis', whiteSpace: 'nowrap' }),
       }}>{label}</div>
       <div style={{
         fontSize: 18, fontWeight: 800, color, ...TNUM, marginTop: 2,
@@ -2852,8 +2970,14 @@ function CellInput({ value, saving, accent, onCommit, readOnly, unita = 'g' }) {
       onBlur={readOnly ? undefined : commit}
       onKeyDown={e => { if (e.key === 'Enter') e.target.blur() }}
       style={{
-        width: '100%', minWidth: 64, padding: '10px 8px', textAlign: 'right',
-        fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box',
+        width: '100%', minWidth: 64,
+        // Sul telefono il campo è più alto: nelle schede c'è lo spazio, e un
+        // campo da scrivere col pollice non può essere alto quanto una riga di
+        // testo. La dimensione della scritta NON si tocca qui: `index.html`
+        // porta già tutti i campi a 16px sui dispositivi a tocco (telefono e
+        // tablet), che è la soglia sotto cui iOS ingrandisce la pagina.
+        padding: isMobile ? '12px 10px' : '10px 8px', textAlign: 'right',
+        fontSize: TS.base, fontFamily: 'inherit', boxSizing: 'border-box',
         border: 'none', outline: 'none',
         background: saving ? 'rgba(110,14,26,0.05)' : 'transparent',
         color: C.text, fontWeight: local ? 700 : 400,
@@ -2862,6 +2986,323 @@ function CellInput({ value, saving, accent, onCommit, readOnly, unita = 'g' }) {
         ...TNUM,
       }}
     />
+  )
+}
+
+// ── La settimana sul telefono: una scheda per gusto ──────────────────────────
+//
+// La tabella della settimana è larga 1.280px: sedici colonne (il gusto, sette
+// giorni per due valori, due totali). Su un telefono da 390px sono tre
+// schermate e mezza di scorrimento orizzontale. Il titolare l'ha detto così:
+// «in produzione se vedo settimana o mese non riesco a leggere nulla, la
+// tabella è troppo grande».
+//
+// Stessi dati, girati di novanta gradi: una scheda per gusto, dentro sette
+// righe (una per giorno) con i due campi affiancati. Niente scorrimento
+// orizzontale, i campi restano larghi abbastanza da scriverci col pollice, e
+// il totale della settimana sta nell'intestazione della scheda invece che otto
+// colonne più in là.
+//
+// Due cose cambiano rispetto al desktop, di proposito:
+//  - i giorni che non quadrano non si spiegano più con un `title` (sul
+//    telefono il passaggio del mouse non esiste, quindi quel messaggio era
+//    scritto per nessuno): stanno in chiaro in fondo alla scheda;
+//  - l'ordinamento per singolo giorno sparisce — sono quattordici comandi che
+//    su un telefono non si colpiscono — e restano i tre veri: gusto, prodotto,
+//    venduto.
+function SchedeSettimana({
+  gusti, matrice, lunediIso, saving, onSave, readOnly, unita, fmt,
+  totaliProd, totaliVend, dettaglio, onClickGusto,
+  sort, onToggleSort, totaliColonna, soloCompilati,
+}) {
+  const suffix = unita === 'kg' ? ' kg' : ' g'
+  const oggiIso = todayLocal()
+
+  // I sette giorni stanno dentro una scheda che si apre.
+  //
+  // Aperte tutte, con venti gusti la pagina è lunga quindicimila pixel: per
+  // arrivare all'ultimo gusto ci vogliono trentacinque passate di pollice, e
+  // sul telefono la settimana serve per **guardare** la settimana e sistemare
+  // un giorno saltato, non per compilare (per quello c'è «Oggi», ed è più
+  // rapida). Chiuse, la stessa pagina sta in tre schermate e il totale di ogni
+  // gusto si legge senza aprire niente.
+  //
+  // Partono aperte solo le schede che hanno qualcosa che non va: sono quelle
+  // per cui si entra qui.
+  const [aperti, setAperti] = useState(null)
+  const apri = (k) => setAperti(prev => {
+    const s = new Set(prev === null ? [] : prev)
+    if (s.has(k)) s.delete(k); else s.add(k)
+    return s
+  })
+
+  const chip = (label, key) => {
+    const active = sort.by === key
+    return (
+      <button
+        key={key}
+        onClick={() => onToggleSort(key)}
+        aria-label={`Ordina per ${label}${active ? (sort.dir === 'asc' ? ', crescente' : ', decrescente') : ''}`}
+        style={{
+          minHeight: 44, padding: '10px 12px', borderRadius: 999,
+          border: `1px solid ${active ? T.brand : C.border}`,
+          background: active ? C.redLight : C.bgCard,
+          color: active ? T.brand : C.textSoft,
+          fontSize: TS.base, fontWeight: 700, fontFamily: 'inherit',
+          display: 'inline-flex', alignItems: 'center', gap: 4, cursor: 'pointer',
+        }}>
+        {label}
+        {active && <Icon name={sort.dir === 'asc' ? 'chevUp' : 'chevDown'} size={12} />}
+      </button>
+    )
+  }
+
+  return (
+    <div>
+      <div style={{
+        display: 'flex', gap: 8, alignItems: 'center',
+        marginBottom: 12,
+      }}>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', flex: 1, minWidth: 0 }}>
+          {chip('Gusto', 'nome')}
+          {chip('Prodotto', 'totProd')}
+          {chip('Venduto', 'venduto')}
+        </div>
+        <button
+          onClick={() => setAperti(prev => {
+            const tutte = new Set(gusti.map(g => normGusto(g.nome)))
+            const giaAperte = prev !== null && prev.size >= tutte.size
+            return giaAperte ? new Set() : tutte
+          })}
+          style={{
+            minHeight: 44, padding: '10px 12px', borderRadius: 999,
+            border: `1px solid ${C.border}`, background: C.bgCard, color: C.textSoft,
+            fontSize: TS.base, fontWeight: 700, fontFamily: 'inherit',
+            flexShrink: 0, whiteSpace: 'nowrap', cursor: 'pointer',
+          }}>
+          {aperti !== null && aperti.size >= gusti.length && gusti.length > 0 ? 'Chiudi tutte' : 'Apri tutte'}
+        </button>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {gusti.map(({ nome, orfano }) => {
+          const gustoKey = normGusto(nome)
+          const byData = matrice[gustoKey] || {}
+          // I giorni con qualcosa da dire: o il conto non torna, o manca la
+          // rimanenza del giorno prima e quindi il venduto non si calcola.
+          const avvisi = []
+          for (let i = 0; i < 7; i++) {
+            const dIso = addDays(lunediIso, i)
+            const cell = byData[dIso]
+            if (!cell) continue
+            if (cell.quadra === false) {
+              avvisi.push({
+                giorno: `${GIORNI[i]} ${new Date(dIso + 'T12:00').getDate()}`,
+                tipo: 'rosso',
+                testo: `il conto non torna di ${fmt(Math.abs(cell.venduto))}${suffix}: la rimanenza scritta è più alta di quello che c'era (rimasto ieri ${fmt(cell.rimanPrec || 0)}${suffix} + prodotto ${fmt(cell.prod || 0)}${suffix}). O manca una produzione, o la pesata va corretta.`,
+              })
+            } else if (cell.registrata && cell.venduto == null) {
+              avvisi.push({
+                giorno: `${GIORNI[i]} ${new Date(dIso + 'T12:00').getDate()}`,
+                tipo: 'ambra',
+                testo: 'manca la rimanenza del giorno prima, quindi il venduto di questo giorno non si può calcolare e non entra nel totale.',
+              })
+            }
+          }
+
+          const aperta = aperti === null ? avvisi.length > 0 : aperti.has(gustoKey)
+
+          return (
+            <div key={gustoKey} style={{
+              background: C.bgCard, border: `1px solid ${avvisi.length > 0 ? `${T.red}44` : C.border}`, borderRadius: 14,
+              boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 6px 18px rgba(15,23,42,0.04)',
+              overflow: 'hidden',
+            }}>
+              <div style={{ padding: '12px 14px', borderBottom: aperta ? `1px solid ${C.borderSoft}` : 'none' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <div style={{ flex: 1, minWidth: 0, fontSize: TS.lg, fontWeight: 800, color: C.text }}>
+                    <NomeGustoConFlag nome={nome} orfano={orfano} onClick={onClickGusto} />
+                  </div>
+                  <button
+                    onClick={() => apri(gustoKey)}
+                    aria-expanded={aperta}
+                    aria-label={`${aperta ? 'Chiudi' : 'Apri'} i sette giorni di ${nome}`}
+                    style={{
+                      width: 44, height: 44, flexShrink: 0, borderRadius: 10,
+                      border: `1px solid ${C.border}`, background: aperta ? C.bgSubtle : C.bgCard,
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                      cursor: 'pointer', color: C.textSoft,
+                    }}>
+                    <Icon name={aperta ? 'chevUp' : 'chevDown'} size={16} />
+                  </button>
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <div style={{
+                    flex: 1, background: C.greenLight, borderRadius: 10, padding: '8px 10px',
+                    minWidth: 0,
+                  }}>
+                    <div style={{ fontSize: TS.sm, fontWeight: 700, color: C.green, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Prodotto
+                    </div>
+                    <div style={{ fontSize: TS.lg, fontWeight: 800, color: C.green, ...TNUM }}>
+                      {fmt(totaliProd[gustoKey] || 0)}{suffix}
+                    </div>
+                  </div>
+                  <div style={{
+                    flex: 1, background: C.amberLight, borderRadius: 10, padding: '8px 10px',
+                    minWidth: 0,
+                  }}>
+                    <div style={{ fontSize: TS.sm, fontWeight: 700, color: T.brand, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Venduto
+                    </div>
+                    <div style={{ fontSize: TS.lg, fontWeight: 800, color: T.brand, ...TNUM }}>
+                      {fmt(totaliVend[gustoKey] || 0)}{suffix}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {aperta && (
+              <div style={{ padding: '4px 10px 10px' }}>
+                <div style={{
+                  display: 'grid', gridTemplateColumns: '58px 1fr 1fr', gap: 8,
+                  padding: '8px 4px 4px',
+                }}>
+                  <span />
+                  <span style={{ fontSize: TS.sm, fontWeight: 800, color: COL_PROD, textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>
+                    Prodotto
+                  </span>
+                  <span style={{ fontSize: TS.sm, fontWeight: 800, color: COL_RIMAN, textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>
+                    Rimasto
+                  </span>
+                </div>
+                {GIORNI.map((g, i) => {
+                  const dIso = addDays(lunediIso, i)
+                  const cell = byData[dIso] || { prod: 0, riman: 0 }
+                  const kProd = `${gustoKey}|${dIso}|produzione_g`
+                  const kRim = `${gustoKey}|${dIso}|rimanenza_g`
+                  const oggi = dIso === oggiIso
+                  const rotto = cell.quadra === false
+                  return (
+                    <div key={dIso} style={{
+                      display: 'grid', gridTemplateColumns: '58px 1fr 1fr', gap: 8,
+                      alignItems: 'center', padding: '3px 4px',
+                    }}>
+                      <div style={{
+                        fontSize: TS.sm, fontWeight: oggi ? 800 : 700,
+                        color: oggi ? T.brand : C.textSoft,
+                        textTransform: 'uppercase', letterSpacing: '0.03em',
+                        whiteSpace: 'nowrap',
+                      }}>
+                        {g} {new Date(dIso + 'T12:00').getDate()}
+                      </div>
+                      <div style={{
+                        background: C.bgCard, border: `1px solid ${C.border}`,
+                        borderRadius: 10, overflow: 'hidden',
+                      }}>
+                        <CellInput
+                          value={cell.prod || ''}
+                          saving={!!saving[kProd]}
+                          accent={COL_PROD} readOnly={readOnly}
+                          unita={unita}
+                          onCommit={v => onSave(gustoKey, dIso, 'produzione_g', v)}
+                        />
+                      </div>
+                      <div style={{
+                        background: rotto ? T.redLight : C.bgCard,
+                        border: `1px solid ${rotto ? `${T.red}66` : C.border}`,
+                        borderRadius: 10, overflow: 'hidden',
+                      }}>
+                        <CellInput
+                          value={cell.riman || ''}
+                          saving={!!saving[kRim]}
+                          accent={rotto ? T.red : COL_RIMAN} readOnly={readOnly}
+                          unita={unita}
+                          onCommit={v => onSave(gustoKey, dIso, 'rimanenza_g', v)}
+                        />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+              )}
+
+              {avvisi.length > 0 && (
+                <div style={{
+                  borderTop: `1px solid ${C.borderSoft}`,
+                  background: avvisi.some(a => a.tipo === 'rosso') ? T.redLight : T.amberLight,
+                  padding: '10px 14px',
+                  display: 'flex', flexDirection: 'column', gap: 6,
+                }}>
+                  {avvisi.map((a, idx) => (
+                    <div key={idx} style={{ fontSize: TS.sm, lineHeight: 1.45, color: a.tipo === 'rosso' ? T.redDark : T.amberDark }}>
+                      <b style={{ textTransform: 'uppercase' }}>{a.giorno}</b> · {a.testo}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      {gusti.length > 0 && (
+        <div style={{
+          marginTop: 12, background: C.bgSubtle, border: `1px solid ${C.borderStr}`,
+          borderRadius: 14, overflow: 'hidden',
+        }}>
+          <div style={{ padding: '12px 14px', borderBottom: `1px solid ${C.border}` }}>
+            <div style={{
+              fontSize: TS.sm, fontWeight: 800, color: C.textSoft,
+              textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8,
+            }}>
+              Totale settimana {soloCompilati ? '(solo compilati)' : ''}
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ flex: 1, background: C.greenLight, borderRadius: 10, padding: '8px 10px' }}>
+                <div style={{ fontSize: TS.sm, fontWeight: 700, color: C.green, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Prodotto
+                </div>
+                <div style={{ fontSize: TS.xl, fontWeight: 900, color: C.green, ...TNUM }}>
+                  {fmt(gusti.reduce((s, g) => s + (Number(totaliProd[normGusto(g.nome)]) || 0), 0))}{suffix}
+                </div>
+              </div>
+              <div style={{ flex: 1, background: C.amberLight, borderRadius: 10, padding: '8px 10px' }}>
+                <div style={{ fontSize: TS.sm, fontWeight: 700, color: T.brand, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Venduto
+                </div>
+                <div style={{ fontSize: TS.xl, fontWeight: 900, color: T.brand, ...TNUM }}>
+                  {fmt(totaliColonna.venduto || 0)}{suffix}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{ padding: '6px 14px 12px' }}>
+            {GIORNI.map((g, i) => {
+              const dIso = addDays(lunediIso, i)
+              const c = totaliColonna.perGiorno[dIso] || { prod: 0, riman: 0 }
+              return (
+                <div key={dIso} style={{
+                  display: 'grid', gridTemplateColumns: '58px 1fr 1fr', gap: 8,
+                  padding: '6px 0', fontSize: TS.base,
+                  borderTop: i === 0 ? 'none' : `1px solid ${C.borderSoft}`,
+                }}>
+                  <span style={{ fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', fontSize: 12 }}>
+                    {g} {new Date(dIso + 'T12:00').getDate()}
+                  </span>
+                  <span style={{ textAlign: 'right', fontWeight: 800, color: COL_PROD, ...TNUM }}>
+                    {c.prod ? `${fmt(c.prod)}${suffix}` : '—'}
+                  </span>
+                  <span style={{ textAlign: 'right', fontWeight: 800, color: COL_RIMAN, ...TNUM }}>
+                    {c.riman ? `${fmt(c.riman)}${suffix}` : '—'}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 
