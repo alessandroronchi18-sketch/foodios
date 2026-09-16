@@ -52,8 +52,15 @@ describe('le etichette delle tessere partono tutte dalla stessa quota', () => {
     expect(etichetta).toContain('minHeight: 30')
   })
 
-  it('sul telefono il pallino dell’icona resta in asse con la prima riga', () => {
-    expect(etichetta).toMatch(/paddingTop: \(icon && isMobile\) \? 5 : 0/)
+  it('e niente spinte che cambino l’altezza del riquadro', () => {
+    // Tentativo sbagliato del 16/09: 5px di spinta sul testo per mettere in
+    // asse il pallino dell'icona. Misurato sul sito vero, facevano diventare
+    // il riquadro alto 35px quando il testo va a capo e 30 quando non ci va:
+    // sistemate le etichette, si sfalsavano i numeri. Due righe a 12px con
+    // interlinea 1,25 fanno esattamente 30: l'altezza minima deve restare
+    // l'altezza vera in tutti e due i casi.
+    expect(etichetta).not.toMatch(/paddingTop: \(icon && isMobile\)/)
+    expect(etichetta).toContain('minHeight: 30')
   })
 })
 

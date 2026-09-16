@@ -198,9 +198,16 @@ export function KPI({ label, value, sub, color, highlight, icon, onClick }) {
           riempie i 30px e parte da zero. Due tessere accanto, due quote
           diverse — e si vede.
           Con `flex-start` ogni etichetta parte dallo stesso punto, che vada
-          a capo o no. Sul telefono il pallino dell'icona sta dentro questa
-          riga ed è alto 26 contro i 15 di una riga di testo: i 5px di
-          spinta sul testo lo rimettono in asse con la prima riga. */}
+          a capo o no.
+          Nota su un tentativo sbagliato: per rimettere in asse il pallino
+          dell'icona (26px) con la prima riga di testo (15px) avevo messo 5px
+          di spinta sul testo. Misurato sul sito vero, quei 5px rendevano il
+          riquadro dell'etichetta alto 35px quando il testo va a capo e 30
+          quando sta su una riga — e così, sistemate le etichette, si
+          sfalsavano i NUMERI di 5px. L'altezza minima di 30 deve restare
+          l'altezza vera in tutti e due i casi: due righe a 12px con
+          interlinea 1,25 fanno esattamente 30. Il pallino allineato in alto
+          accanto al testo va benissimo. */}
       <div style={{ position: 'relative', fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase',
         color: highlight ? 'rgba(255,255,255,0.82)' : T.textMid, marginBottom: 6,
         minHeight: 30, lineHeight: 1.25,
@@ -208,7 +215,7 @@ export function KPI({ label, value, sub, color, highlight, icon, onClick }) {
         {icon && isMobile && (
           <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: R.md, background: chipBg, color: chipColor, fontSize: font.size.base, flexShrink: 0 }}>{icon}</span>
         )}
-        <span style={{ minWidth: 0, paddingTop: (icon && isMobile) ? 5 : 0 }}>{label}</span>
+        <span style={{ minWidth: 0 }}>{label}</span>
       </div>
       {/* Audit 2026-06-25: fontSize auto-shrink in base alla lunghezza del value.
           Risolve due bug:
