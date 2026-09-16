@@ -28,7 +28,7 @@ import Icon from '../components/Icon'
 import { fmtp0 } from '../lib/formatIt'
 import { useConfirm } from '../components/ConfirmModal'
 import PrimaNotaCassa from '../components/PrimaNotaCassa'
-import { C, KPI, PageHeader, margColor, fmt, fmt0, fmtp } from './_shared'
+import { C, KPI, PageHeader, margColor, fmt, fmt0, fmtp, TabellaOSchede } from './_shared'
 import { promptScontrino, categorieLette } from '../lib/promptScontrino'
 import { calcolaKpiChiusura, colorePerSellThrough } from '../lib/chiusuraKpi'
 
@@ -1001,13 +1001,25 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
               <div style={{ marginBottom: 14 }}>
                 <div style={{ fontSize: FS.small, fontWeight: 700, color: C.green, marginBottom: 8, display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="checkCircle" size={12} />{importPreview.righe.length} giorni rilevati</div>
                 <div style={{ maxHeight: 180, overflowY: 'auto', overflowX: 'auto', borderRadius: 8, border: `1px solid ${C.border}`, WebkitOverflowScrolling: 'touch' }}>
-                  <table style={{ width: '100%', minWidth: 480, borderCollapse: 'collapse', fontSize: FS.small }}>
-                    <thead><tr style={{ background: '#F8F4F2' }}>
+                  <TabellaOSchede
+
+          minWidth={480}
+          righe={importPreview.righe}
+          chiave={(r, i) => i}
+          vuoto="Nessuna riga nel file."
+          titolo={(r) => r.data}
+          riassunto={(r) => <span style={{ fontWeight: 700, color: C.green, whiteSpace: 'nowrap' }}>€{(r.importo || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>}
+          colonne={[
+            { k: 'comm', label: 'Commissione', colore: C.red, cella: (r) => `€${(r.commissione || 0).toFixed(2)}` },
+            { k: 'netto', label: 'Netto', forte: true, cella: (r) => `€${(r.netto || 0).toFixed(2)}` },
+            { k: 'ord', label: 'Ordini', cella: (r) => r.ordini },
+          ]}
+          intestazione={<><thead><tr style={{ background: '#F8F4F2' }}>
                       {['Data', 'Importo', 'Commissione', 'Netto', 'Ordini'].map(h => (
                         <th key={h} style={{ padding: '8px 10px', textAlign: h === 'Data' ? 'left' : 'right', fontWeight: 700, color: C.textSoft }}>{h}</th>
                       ))}
-                    </tr></thead>
-                    <tbody>{importPreview.righe.map((r, i) => (
+                    </tr></thead></>}
+          corpo={<><tbody>{importPreview.righe.map((r, i) => (
                       <tr key={i} style={{ borderTop: `1px solid ${C.border}`, background: i % 2 ? '#FDFAF7' : C.white }}>
                         <td style={{ padding: '5px 10px', fontWeight: 700, color: C.text }}>{r.data}</td>
                         <td style={{ padding: '5px 10px', textAlign: 'right', color: C.green, fontVariantNumeric: 'tabular-nums' }}>€{(r.importo || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
@@ -1015,8 +1027,8 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
                         <td style={{ padding: '5px 10px', textAlign: 'right', fontWeight: 700 }}>€{(r.netto || 0).toFixed(2)}</td>
                         <td style={{ padding: '5px 10px', textAlign: 'right', color: C.textSoft }}>{r.ordini}</td>
                       </tr>
-                    ))}</tbody>
-                  </table>
+                    ))}</tbody></>}
+        />
                 </div>
               </div>
             )}

@@ -8,6 +8,7 @@ import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { sload, ssave } from '../lib/storage'
 import { generateSepaXml, ibanIsValid, normalizeIban, causaleFattura, bonificoText } from '../lib/sepa'
 import Icon from './Icon'
+import { TabellaOSchede } from '../views/_shared'
 import { color as T, radius as R, shadow as S, motion as M, typo, font } from '../lib/theme'
 // todayLocal: la data di OGGI nel fuso dell'utente. new Date().toISOString()
 // darebbe la data UTC, che in Italia fra mezzanotte e le 2 e' ancora ieri: la
@@ -1614,6 +1615,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                   {view.map(f => CardMobile({ f, cfg }))}
                 </div>
               ) : (
+                // telefono: schede — vedi `CardMobile` nel ramo qui sopra.
                 <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
                   <table style={{ width: '100%', minWidth: 880, borderCollapse: 'collapse', fontSize: 12, ...tnum }}>
                     <thead>
@@ -1938,8 +1940,46 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
           </div>
         </div>
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 620, fontSize: font.size.base }}>
-            <thead>
+          <TabellaOSchede
+
+          minWidth={620}
+          righe={fisseMensili}
+          chiave={(r) => r.nome}
+          vuoto="Nessuna spesa fissa riconosciuta."
+          titolo={(r) => (
+            <span>
+              {r.nome}
+              {r.ricorrenza === 'mensile-variabile' && (
+                <span title="Gli importi ballano molto da un mese all'altro: è una fornitura che ordini ogni mese, non un canone fisso."
+                  style={{ marginLeft: 6, fontSize: font.size.xs, fontWeight: 700, color: T.amber, background: T.amberLight, padding: '1px 7px', borderRadius: 999 }}>
+                  variabile
+                </span>
+              )}
+            </span>
+          )}
+          riassunto={(r) => {
+            const ultima = perNome[r.nome]
+            const arrivata = ultima?.mese === meseCorrente
+            return arrivata
+              ? <span style={{ fontSize: font.size.sm, fontWeight: 700, color: T.green, background: T.greenLight, padding: '3px 9px', borderRadius: 999, whiteSpace: 'nowrap' }}>arrivata</span>
+              : <span style={{ fontSize: font.size.sm, fontWeight: 700, color: T.amber, background: T.amberLight, padding: '3px 9px', borderRadius: 999, whiteSpace: 'nowrap' }}>non ancora</span>
+          }}
+          colonne={[
+            { k: 'media', label: 'Di solito', cella: (r) => fmtEuro(r.mediaImporto) },
+            { k: 'ultima', label: 'Ultima', forte: true, cella: (r) => {
+              const ultima = perNome[r.nome]; return ultima ? fmtEuro(ultima.importo) : '-'
+            } },
+            { k: 'diff', label: 'Differenza', cella: (r) => {
+              const ultima = perNome[r.nome]
+              if (!ultima) return '-'
+              const diff = ultima.importo - r.mediaImporto
+              const diffPct = r.mediaImporto > 0 ? (diff / r.mediaImporto) * 100 : 0
+              const fuori = Math.abs(diffPct) >= 20
+              return <span style={{ fontWeight: fuori ? 800 : 500, color: fuori ? (diff > 0 ? T.brand : T.green) : T.textSoft }}>{diff > 0 ? '+' : ''}{fmtEuro0(diff)}</span>
+            } },
+            { k: 'da', label: 'Da quando', cella: (r) => `${r.primoMese.split('-').reverse().join('/')} · ${r.mesi} mesi` },
+          ]}
+          intestazione={<><thead>
               <tr style={{ background: T.bgSubtle }}>
                 {[['Voce', 'left'], ['Di solito', 'right'], ['Ultima', 'right'], ['Differenza', 'right'], ['Questo mese', 'left'], ['Da quando', 'left']].map(([h, al]) => (
                   <th key={h} style={{
@@ -1949,8 +1989,8 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                   }}>{h}</th>
                 ))}
               </tr>
-            </thead>
-            <tbody>
+            </thead></>}
+          corpo={<><tbody>
               {fisseMensili.map(r => {
                 const ultima = perNome[r.nome]
                 const arrivata = ultima?.mese === meseCorrente
@@ -1986,8 +2026,8 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                   </tr>
                 )
               })}
-            </tbody>
-          </table>
+            </tbody></>}
+        />
         </div>
         <div style={{ padding: '10px 16px', borderTop: `1px solid ${T.border}`, fontSize: font.size.sm, color: T.textSoft, lineHeight: 1.5 }}>
           "Non ancora" vuol dire che per questo mese non ho ancora una fattura di quella voce: o non è

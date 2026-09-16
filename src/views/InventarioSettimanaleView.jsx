@@ -23,7 +23,7 @@ import { createPortal } from 'react-dom'
 import { color as T, radius as R, shadow as S, font, space as SP, typo, ui, ui3 } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from '../components/Icon'
-import { C, TNUM, PageHeader } from './_shared'
+import { C, TNUM, PageHeader, TabellaOSchede } from './_shared'
 import ImportWizard from '../components/ImportWizard'
 import Skeleton from '../components/Skeleton'
 import { ssave, sload } from '../lib/storage'
@@ -2278,8 +2278,39 @@ function VistaStorico({ gusti, perMese, inizio, unita = 'g', onClickGusto, onOpe
         </div>
       </div>
       <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 720 }}>
-          <thead>
+        <TabellaOSchede
+
+          minWidth={720}
+          righe={gustiOrdinati}
+          chiave={({ nome }) => normGusto(nome)}
+          vuoto="Nessun gusto nello storico."
+          apriEtichetta="Mese per mese"
+          titolo={({ nome, orfano }) => <NomeGustoConFlag nome={nome} orfano={orfano} onClick={onClickGusto} />}
+          colonne={[
+            { k: 'prod', label: 'Totale prodotto', forte: true, colore: C.green,
+              cella: ({ nome }) => `${fmtTot(data.totProd[normGusto(nome)] || 0)} ${unita}` },
+            { k: 'vend', label: 'Totale venduto', forte: true, colore: T.brand,
+              cella: ({ nome }) => {
+                const arr = data.idx[normGusto(nome)] || data.mesi.map(() => 0)
+                return `${fmtTot(arr.reduce((s, v) => s + v, 0))} ${unita}`
+              } },
+          ]}
+          dettaglio={({ nome }) => {
+            const arr = data.idx[normGusto(nome)] || data.mesi.map(() => 0)
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: TS.sm }}>
+                {data.mesi.map((m, i) => (
+                  <div key={m.key} style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                    <span style={{ color: C.textSoft, textTransform: 'capitalize' }}>{m.label}</span>
+                    <span style={{ fontWeight: 700, color: arr[i] > 0 ? C.text : C.textSoft, ...TNUM }}>
+                      {fmtTot(arr[i] || 0)} {unita}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )
+          }}
+          intestazione={<><thead>
             <tr style={{ background: '#F8FAFC' }}>
               <SortableHeader
                 label="Gusto"
@@ -2314,8 +2345,8 @@ function VistaStorico({ gusti, perMese, inizio, unita = 'g', onClickGusto, onOpe
               {/* Tot. scarto nascosta per ora: la colonna esiste ancora nei
                   dati e viene esportata in Excel, ma non e' mostrata in UI. */}
             </tr>
-          </thead>
-          <tbody>
+          </thead></>}
+          corpo={<><tbody>
             {gustiOrdinati.map(({ nome, orfano }) => {
               const k = normGusto(nome)
               const arr = data.idx[k] || data.mesi.map(() => 0)
@@ -2347,8 +2378,8 @@ function VistaStorico({ gusti, perMese, inizio, unita = 'g', onClickGusto, onOpe
                 </tr>
               )
             })}
-          </tbody>
-        </table>
+          </tbody></>}
+        />
       </div>
       <div style={{ marginTop: 12, fontSize: 12, color: C.textSoft, lineHeight: 1.5 }}>
         Quantità in kg. Le barre rossastre danno il peso visivo del mese più alto per ogni gusto. Scrolla orizzontalmente per i mesi precedenti.

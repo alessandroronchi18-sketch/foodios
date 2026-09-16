@@ -9,8 +9,9 @@ import { parseShopifyOrders, parseWooCommerceOrders, mergeOrdiniInChiusure } fro
 import { caricaChiusure, upsertChiusure, importaChiusureIncassi } from '../lib/chiusure'
 import { pickFattura, dedupFatture, insertFattureResilient, chiaviFattureEsistenti } from '../lib/fattureImport'
 import Icon from './Icon'
+import { TabellaOSchede } from '../views/_shared'
 
-import { color as T, radius as R, shadow as S, motion as M, typo } from '../lib/theme'
+import { color as T, radius as R, shadow as S, motion as M, typo, font } from '../lib/theme'
 
 const C = {
   red: T.brand, redLight: T.brandLight,
@@ -701,8 +702,28 @@ function LogTable({ logs }) {
     // Sul telefono la colonna dell'errore era tagliata via e non si
     // raggiungeva scorrendo: senza minWidth lo scorrimento non parte.
     <div style={{ overflowX: 'auto' }}>
-    <table style={{ width: '100%', minWidth: 520, borderCollapse: 'collapse', fontSize: 12 }}>
-      <thead>
+    <TabellaOSchede
+
+      minWidth={520}
+      righe={logs}
+      chiave={(l, i) => l.id || i}
+      vuoto="Nessun import registrato."
+      titolo={(l) => fmtTs(l.created_at)}
+      riassunto={(l) => (
+        <span style={{
+          background: l.stato === 'ok' ? C.greenLight : l.stato === 'errore' ? C.redLight : C.amberLight,
+          color: l.stato === 'ok' ? C.green : l.stato === 'errore' ? C.red : C.amber,
+          padding: '2px 7px', borderRadius: 8, fontSize: font.size.sm, fontWeight: 700,
+          display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap',
+        }}>
+          {l.stato === 'ok' ? <><Icon name="check" size={11} /> OK</> : l.stato === 'errore' ? <><Icon name="x" size={11} /> Errore</> : l.stato}
+        </span>
+      )}
+      colonne={[
+        { k: 'rec', label: 'Righe importate', cella: (l) => l.records_importati == null ? '-' : Number(l.records_importati).toLocaleString('it-IT', { useGrouping: 'always' }) },
+        { k: 'err', label: 'Errore', cella: (l) => l.errore ? <span style={{ color: C.red }}>{l.errore}</span> : '-' },
+      ]}
+          intestazione={<><thead>
         <tr style={{ background: '#FAF8F7' }}>
           {['Data/Ora', 'Stato', 'Records', 'Errore'].map(h => (
             <th key={h} style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 700, color: C.textSoft,
@@ -710,8 +731,8 @@ function LogTable({ logs }) {
               borderBottom: `1px solid ${C.border}` }}>{h}</th>
           ))}
         </tr>
-      </thead>
-      <tbody>
+      </thead></>}
+          corpo={<><tbody>
         {logs.map((l, i) => (
           <tr key={l.id || i} style={{ borderBottom: `1px solid ${C.border}` }}>
             <td style={{ padding: '6px 10px', color: C.textMid, whiteSpace: 'nowrap' }}>{fmtTs(l.created_at)}</td>
@@ -738,8 +759,8 @@ function LogTable({ logs }) {
             </td>
           </tr>
         ))}
-      </tbody>
-    </table>
+      </tbody></>}
+        />
     </div>
   )
 }

@@ -988,7 +988,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
             <div style={{textAlign:"center",padding:isMobile?"32px 20px":"48px 32px",background:C.bgCard,borderRadius:16,border:`1px solid ${C.border}`,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
               <div style={{marginBottom:12,color:C.textSoft}}><Icon name="receipt" size={32} /></div>
               <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:8}}>Nessuna chiusura registrata</div>
-              <div style={{fontSize:12,color:C.textSoft,lineHeight:1.55,maxWidth:420,margin:'0 auto'}}>Carica gli scontrini di fine giornata dalla sezione <b>Chiusura</b> per vedere i dati di vendita reali qui.</div>
+              <div style={{fontSize: typo.small.fontSize,color:C.textSoft,lineHeight:1.55,maxWidth:420,margin:'0 auto'}}>Carica gli scontrini di fine giornata dalla sezione <b>Chiusura</b> per vedere i dati di vendita reali qui.</div>
             </div>
           )}
           {hasVend&&(
@@ -1100,7 +1100,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                   <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"16px 18px",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
                     <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:3}}>
                       <span style={{display:"inline-flex",color:C.red}}><Icon name={icon} size={14} /></span>
-                      <span style={{fontSize:12,fontWeight:800,color:C.text}}>{titolo}</span>
+                      <span style={{fontSize: typo.small.fontSize,fontWeight:800,color:C.text}}>{titolo}</span>
                     </div>
                     <div style={{fontSize: typo.small.fontSize,color:C.textSoft,marginBottom:12}}>{sub}</div>
                     {children}
@@ -1298,7 +1298,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                           </div>
                           <div style={{fontSize: typo.small.fontSize,color:C.textSoft}}>{d.qta} pz · {d.spreco>0?`spreco ${euro(d.spreco.toFixed(2))}`:"spreco 0"}</div>
                         </div>
-                        <div style={{fontSize:12,fontWeight:800,color:C.green,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'",flexShrink:0}}>{euro(d.rv.toFixed(2))}</div>
+                        <div style={{fontSize: typo.small.fontSize,fontWeight:800,color:C.green,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'",flexShrink:0}}>{euro(d.rv.toFixed(2))}</div>
                       </div>
                     ))}
                   </div>
@@ -1340,12 +1340,25 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                 {/* Tabella prodotti cross-giornata */}
                 {topProd.length > 0 && (
                   <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,overflow:"hidden",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)",marginBottom:14}}>
-                    <div style={{padding:"12px 16px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:800,color:C.text}}>
+                    <div style={{padding:"12px 16px",borderBottom:`1px solid ${C.border}`,fontSize: typo.small.fontSize,fontWeight:800,color:C.text}}>
                       Dettaglio prodotti - totale periodo
                     </div>
                     <div style={{overflowX:'auto'}}>
-                    <table style={{width:"100%",minWidth:640,borderCollapse:"collapse",fontSize: typo.small.fontSize}}>
-                      <thead>
+                    <TabellaOSchede
+
+          minWidth={640}
+          righe={Object.entries(byProd).sort((a,b)=>b[1].rv-a[1].rv)}
+          chiave={([nome])=>nome}
+          vuoto="Nessun prodotto venduto nel periodo."
+          titolo={([nome])=>nome}
+          riassunto={([,d])=><span style={{fontWeight:800,color:C.green,whiteSpace:'nowrap'}}>{euro(d.rv.toFixed(2))}</span>}
+          colonne={[
+            { k:'qta', label:'Pezzi venduti', cella:([,d])=>d.qta },
+            { k:'gg', label:'Ricavo al giorno', cella:([,d])=>euro((d.rv/n).toFixed(2)) },
+            { k:'spreco', label:'Spreco (food cost)', cella:([,d])=>d.spreco>0?<span style={{color:C.amber}}>{euro(d.spreco.toFixed(2))}</span>:'-' },
+            { k:'quota', label:'Quota sul totale', cella:([,d])=>totRicavi>0?pct(d.rv/totRicavi*100):'-' },
+          ]}
+          intestazione={<><thead>
                         <tr style={{background:"#F8F4F2"}}>
                           {[LEX.Prodotto,"Pz venduti","Ricavo tot.","Ricavo/gg","Spreco FC","% su totale"].map((h,i)=>(
                             <th key={h} style={{padding:"10px 12px",textAlign:i===0?"left":"right",fontSize: typo.small.fontSize,fontWeight:700,
@@ -1354,8 +1367,8 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                               ...(i===0?{position:'sticky',left:0,background:'#F8F4F2',zIndex:1}:null)}}>{h}</th>
                           ))}
                         </tr>
-                      </thead>
-                      <tbody>
+                      </thead></>}
+          corpo={<><tbody>
                         {Object.entries(byProd).sort((a,b)=>b[1].rv-a[1].rv).map(([nome,d],i)=>{
                           const rowBg = i%2===0?"#FFFAF8":"#FFF";
                           return (
@@ -1369,8 +1382,8 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                           </tr>
                           );
                         })}
-                      </tbody>
-                    </table>
+                      </tbody></>}
+        />
                     </div>
                   </div>
                 )}
@@ -1386,8 +1399,44 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
               <SH sub="Ogni giornata chiusa con scontrino">Storico Chiusure</SH>
               <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,overflow:"hidden",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
                 <div style={{overflowX:'auto'}}>
-                <table style={{width:"100%",minWidth:760,borderCollapse:"collapse",fontSize: typo.small.fontSize}}>
-                  <thead>
+                <TabellaOSchede
+
+          minWidth={760}
+          righe={(() => {
+            const getVal = (ch,k)=> k==='data'?ch.data : k==='prodotti'?(ch.confronto||[]).length : (ch.kpi?.[k]||0);
+            const dir = chiSort.dir==='asc'?1:-1;
+            return [...(chiusure||[])].sort((a,b)=>{ const va=getVal(a,chiSort.key),vb=getVal(b,chiSort.key); return (chiSort.key==='data'?String(va).localeCompare(String(vb)):(va-vb))*dir; });
+          })()}
+          chiave={(ch)=>ch.id}
+          vuoto="Nessuna chiusura registrata."
+          apriEtichetta="Food cost, sell-through, spreco"
+          titolo={(ch)=>new Date(ch.data+"T12:00").toLocaleDateString("it-IT",{weekday:"long",day:"2-digit",month:"long"})}
+          riassunto={(ch)=>margBadge(ch.kpi.totMP)}
+          colonne={[
+            { k:'ricavo', label:'Ricavo reale', forte:true, colore:C.green, cella:(ch)=>eur0(ch.kpi.totV) },
+            { k:'margine', label:'Margine', forte:true, cella:(ch)=><span style={{color:margColor(ch.kpi.totMP)}}>{eur0(ch.kpi.totM)}</span> },
+          ]}
+          dettaglio={(ch)=>(
+            <div style={{display:'flex',flexDirection:'column',gap:8,fontSize: typo.small.fontSize}}>
+              {[
+                ['Prodotti nel confronto',(ch.confronto||[]).length,C.text],
+                ['Food cost',eur0(ch.kpi.totFC),C.red],
+                ['Sell-through',ch.kpi.avgST==null?'—':fmtp(ch.kpi.avgST),ch.kpi.avgST==null?C.textSoft:ch.kpi.avgST>=85?C.green:ch.kpi.avgST>=65?C.amber:C.red],
+                ['Spreco',eur0(ch.kpi.totS),ch.kpi.totS>5?C.red:C.textSoft],
+              ].map(([et,v,col])=>(
+                <div key={et} style={{display:'flex',justifyContent:'space-between',gap:12}}>
+                  <span style={{color:C.textSoft}}>{et}</span>
+                  <span style={{fontWeight:700,color:col,fontVariantNumeric:'tabular-nums'}}>{v}</span>
+                </div>
+              ))}
+              {ch.kpi.avgST==null && (
+                <div style={{color:C.textSoft,lineHeight:1.45}}>
+                  Questa giornata è stata registrata col solo incasso: non c'è il confronto fra prodotto e venduto.
+                </div>
+              )}
+            </div>
+          )}
+          intestazione={<><thead>
                     <tr style={{background:"#F8F4F2"}}>
                       {(() => {
                         const COLS = [
@@ -1413,8 +1462,8 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                         ));
                       })()}
                     </tr>
-                  </thead>
-                  <tbody>
+                  </thead></>}
+          corpo={<><tbody>
                     {(() => {
                       const getVal = (ch,k)=> k==='data'?ch.data : k==='prodotti'?(ch.confronto||[]).length : (ch.kpi?.[k]||0);
                       const dir = chiSort.dir==='asc'?1:-1;
@@ -1441,8 +1490,8 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                       </tr>
                       );
                     })}
-                  </tbody>
-                </table>
+                  </tbody></>}
+        />
                 </div>
               </div>
             </>
@@ -1525,16 +1574,50 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                 <SH sub="Per ogni periodo con entrambi i dati">Dettaglio Confronto</SH>
                 <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,overflow:"hidden",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
                   <div style={{overflowX:'auto'}}>
-                  <table style={{width:"100%",minWidth:760,borderCollapse:"collapse",fontSize: typo.small.fontSize}}>
-                    <thead>
+                  <TabellaOSchede
+
+          minWidth={760}
+          righe={allKeys.reverse()}
+          chiave={(k)=>k}
+          vuoto="Nessun periodo da confrontare."
+          apriEtichetta="Margini, sell-through, spreco"
+          titolo={(k)=>fmtKey(k)}
+          riassunto={(k)=>{
+            const pp=periodiProd.find(p=>p.key===k); const pv=periodiVend.find(p=>p.key===k);
+            const diff=(pv?.rvTot||0)-(pp?.ricavoTot||0);
+            return <span style={{fontWeight:700,color:diff>=0?C.green:C.red,whiteSpace:'nowrap'}}>{pp&&pv?(diff>=0?"+":"")+fmt(diff):"-"}</span>
+          }}
+          colonne={[
+            { k:'stim', label:'Ricavo stimato', cella:(k)=>{const pp=periodiProd.find(p=>p.key===k); return pp?fmt(pp.ricavoTot):'-'} },
+            { k:'reale', label:'Ricavo reale', forte:true, colore:C.green, cella:(k)=>{const pv=periodiVend.find(p=>p.key===k); return pv?fmt(pv.rvTot):'-'} },
+          ]}
+          dettaglio={(k)=>{
+            const pp=periodiProd.find(p=>p.key===k); const pv=periodiVend.find(p=>p.key===k);
+            return (
+              <div style={{display:'flex',flexDirection:'column',gap:8,fontSize: typo.small.fontSize}}>
+                {[
+                  ['Margine stimato',pp?fmt(pp.margine):'-',C.textSoft],
+                  ['Margine reale',pv?fmt(pv.margTot):'-',pv?margColor(pv.margTot>0&&pv.rvTot>0?(pv.margTot/pv.rvTot*100):0):C.textSoft],
+                  ['Sell-through',pv?fmtp(pv.avgST):'-',pv?(pv.avgST>=85?C.green:pv.avgST>=65?C.amber:C.red):C.textSoft],
+                  ['Spreco',pv?fmt(pv.sproTot):'-',pv?.sproTot>5?C.red:C.textSoft],
+                ].map(([et,v,col])=>(
+                  <div key={et} style={{display:'flex',justifyContent:'space-between',gap:12}}>
+                    <span style={{color:C.textSoft}}>{et}</span>
+                    <span style={{fontWeight:700,color:col,fontVariantNumeric:'tabular-nums'}}>{v}</span>
+                  </div>
+                ))}
+              </div>
+            )
+          }}
+          intestazione={<><thead>
                       <tr style={{background:"#F8F4F2"}}>
                         {["Periodo","Ric. stimato","Ric. reale","Diff €","Margine stim.","Margine reale","Sell-T. medio","Spreco"].map((h,i)=>(
                           <th key={i} style={{padding:"12px 12px",textAlign:i===0?"left":"right",fontSize: typo.small.fontSize,fontWeight:700,letterSpacing:"0.05em",textTransform:"uppercase",color:C.textSoft,borderBottom:`1px solid ${C.border}`,whiteSpace:'nowrap',
                             ...(i===0?{position:'sticky',left:0,background:'#F8F4F2',zIndex:1}:null)}}>{h}</th>
                         ))}
                       </tr>
-                    </thead>
-                    <tbody>
+                    </thead></>}
+          corpo={<><tbody>
                       {allKeys.reverse().map((k,i)=>{
                         const pp=periodiProd.find(p=>p.key===k);
                         const pv=periodiVend.find(p=>p.key===k);
@@ -1553,8 +1636,8 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                           </tr>
                         );
                       })}
-                    </tbody>
-                  </table>
+                    </tbody></>}
+        />
                   </div>
                 </div>
               </>

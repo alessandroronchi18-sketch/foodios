@@ -213,7 +213,7 @@ function TopIngredientiTable({ ricettario, ingCosti, euro, pct }) {
             { k: 'costo', label: 'Costo per stampo', forte: true, colore: C.red, cella: (ing) => euro(ing.costoTot) },
           ]}
           dettaglio={(ing) => (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: font.size.sm }}>
               {[
                 ['Quantità totale', `${Math.round(ing.qty)} g`],
                 ['Costo al grammo', ing.costoG > 0 ? `${ing.costoG.toFixed(4)} €` : '-'],
@@ -478,7 +478,7 @@ function PLTable({ rows, euro, pct, totRicavo, totFC, totMargine, fcAvg, avgMarg
               cella: (r) => r.senzaPrezzo ? '—' : <span style={{ color: margColor(r.margPct) }}>{pct(r.margPct)}</span> },
           ]}
           dettaglio={(r) => (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: font.size.sm }}>
               {[
                 ['Pezzi per stampo', r.senzaPrezzo && !r.isGusto ? '—' : `${r.reg.unita} ${labelPlurale(r.reg.tipo)}`],
                 ['Food cost per stampo', euro(r.fc)],
@@ -505,7 +505,7 @@ function PLTable({ rows, euro, pct, totRicavo, totFC, totMargine, fcAvg, avgMarg
                 ['Margine', fmt0(totMargine), margColor(avgMarg)],
                 ['Margine %', pct(avgMarg), margColor(avgMarg)],
               ].map(([et, v, col]) => (
-                <div key={et} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '4px 0', fontSize: 13 }}>
+                <div key={et} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '4px 0', fontSize: font.size.base }}>
                   <span style={{ color: C.textSoft, fontWeight: 600 }}>{et}</span>
                   <span style={{ fontWeight: 800, color: col, ...TNUM }}>{v}</span>
                 </div>
@@ -646,7 +646,7 @@ function SensTable({ rows, euro, pct }) {
               cella: (r) => <span style={{ color: margColor(r.margPct) }}>{euro(r.margine)} ({pct(r.margPct)})</span> },
           ]}
           dettaglio={(r) => (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: font.size.sm }}>
               {[
                 ['Se il food cost sale del 10%', euro(r.marg10), r.marg10 > 0 ? C.green : C.red],
                 ['Se sale del 20%', euro(r.marg20), r.marg20 > 0 ? C.green : C.red],
@@ -1904,8 +1904,47 @@ function PLInventarioSection({ data, rangeLabel: rangeLbl, cardP, isMobile }) {
       )}
       {/* Tabella per gusto */}
       <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 800, fontSize: 12 }}>
-          <thead>
+        <TabellaOSchede
+
+          minWidth={800}
+          righe={data.rows}
+          chiave={(r) => r.gusto}
+          vuoto="Nessun gusto nel periodo."
+          apriEtichetta="Scarto, food cost, margine %"
+          titolo={(r) => (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              {r.gusto}
+              {(!r.haRicavo || !r.haFc) && (
+                <span title="Ricavo o food cost non calcolabile: manca la ricetta o il listino" style={{ color: C.amber, display: 'inline-flex' }}>
+                  <Icon name="alert" size={12} />
+                </span>
+              )}
+            </span>
+          )}
+          colonne={[
+            { k: 'vend', label: 'Venduto', forte: true, cella: (r) => fmtKg(r.vendKg) },
+            { k: 'ricavo', label: 'Ricavo', forte: true, cella: (r) => r.ricavo > 0 ? euro(r.ricavo) : '-' },
+            { k: 'marg', label: 'Margine', forte: true,
+              cella: (r) => (r.ricavo > 0 || r.fc > 0)
+                ? <span style={{ color: r.margine >= 0 ? C.green : C.red }}>{euro(r.margine)}</span> : '-' },
+          ]}
+          dettaglio={(r) => (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: font.size.sm }}>
+              {[
+                ['Prodotto', fmtKg(r.prodKg), C.text],
+                ['Scarto', r.scartoKg > 0 ? fmtKg(r.scartoKg) : '-', r.scartoKg > 0 ? C.red : C.textSoft],
+                ['Prezzo al chilo', r.ricavoKg > 0 ? euro(r.ricavoKg) : '-', C.textSoft],
+                ['Food cost', r.fc > 0 ? euro(r.fc) : '-', C.red],
+                ['Margine %', r.ricavo > 0 ? fmtp(r.margPct) : '-', margColor(r.margPct)],
+              ].map(([et, v, col]) => (
+                <div key={et} style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                  <span style={{ color: C.textSoft }}>{et}</span>
+                  <span style={{ fontWeight: 700, color: col, ...TNUM }}>{v}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          intestazione={<><thead>
             <tr style={{ background: '#F8FAFC' }}>
               <TH style={{ position: 'sticky', left: 0, background: '#F8FAFC', minWidth: 180 }}>Gusto</TH>
               <TH style={{ textAlign: 'right' }}>Prod. kg</TH>
@@ -1917,8 +1956,8 @@ function PLInventarioSection({ data, rangeLabel: rangeLbl, cardP, isMobile }) {
               <TH style={{ textAlign: 'right', background: '#F0FDF4' }}>Margine</TH>
               <TH style={{ textAlign: 'right' }}>Marg. %</TH>
             </tr>
-          </thead>
-          <tbody>
+          </thead></>}
+          corpo={<><tbody>
             {data.rows.map((r) => (
               <tr key={r.gusto} style={{ borderTop: `1px solid ${C.borderSoft || '#F1F5F9'}` }}>
                 <TD style={{ position: 'sticky', left: 0, background: C.bgCard, fontWeight: 700, color: C.text }}>
@@ -1942,8 +1981,8 @@ function PLInventarioSection({ data, rangeLabel: rangeLbl, cardP, isMobile }) {
                 </TD>
               </tr>
             ))}
-          </tbody>
-          <tfoot>
+          </tbody></>}
+          piede={<><tfoot>
             <tr style={{ background: '#F8FAFC', borderTop: `2px solid ${C.border}` }}>
               <TD style={{ position: 'sticky', left: 0, background: '#F8FAFC', fontWeight: 800, color: C.text }}>Totale</TD>
               <TD style={{ textAlign: 'right', ...TNUM, fontWeight: 800 }}>{fmtKg(data.totProd)}</TD>
@@ -1955,8 +1994,8 @@ function PLInventarioSection({ data, rangeLabel: rangeLbl, cardP, isMobile }) {
               <TD style={{ textAlign: 'right', ...TNUM, fontWeight: 800, color: data.totMarg >= 0 ? '#166534' : '#B91C1C', background: '#F0FDF4' }}>{euro(data.totMarg)}</TD>
               <TD style={{ textAlign: 'right', ...TNUM, fontWeight: 800, color: margColor(data.totMargPct) }}>{fmtPct(data.totMargPct)}</TD>
             </tr>
-          </tfoot>
-        </table>
+          </tfoot></>}
+        />
       </div>
     </div>
   )

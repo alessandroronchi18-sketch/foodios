@@ -19,7 +19,7 @@ import { supabase } from '../lib/supabase'
 import { SK_FORMATI } from '../lib/storageKeys'
 import Icon from '../components/Icon'
 import ExportPdfButton from '../components/ExportPdfButton'
-import { C, PageHeader, TNUM, fmt0 } from './_shared'
+import { C, PageHeader, TNUM, fmt0, TabellaOSchede } from './_shared'
 import {
   caricaSettimana, calcolaVendutoSettimana, lunediDellaSettimana,
   euroKgMedioFormati, kpiQuadraturaSettimana, classificaGusti, variazione,
@@ -706,11 +706,20 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
             <div style={{ ...panelStyle, marginBottom: 16, padding: isMobile ? 16 : 18 }}>
               <div style={panelTitle}>Dettaglio per sede</div>
               <div style={{ overflowX: 'auto', width: '100%', WebkitOverflowScrolling: 'touch' }}>
-                <table style={{
-                  width: '100%', borderCollapse: 'collapse', minWidth: 600,
-                  fontSize: 12,
-                }}>
-                  <thead>
+                <TabellaOSchede
+
+          minWidth={600}
+          righe={perSede}
+          chiave={({ sede }) => sede.id}
+          vuoto="Nessuna sede."
+          titolo={({ sede }) => `${sede.nome}${sede.is_default ? ' ★' : ''}`}
+          colonne={[
+            { k: 'retail', label: 'Retail', forte: true, cella: ({ kpi: k }) => `${nKg((k.retailKg ?? k.totVendutoKg) * 1000)} kg` },
+            { k: 'b2b', label: 'Ingrosso', cella: ({ kpi: k }) => `${nKg((k.b2bKg || 0) * 1000)} kg` },
+            { k: 'att', label: 'Ricavo atteso', forte: true, colore: T.brand, cella: ({ kpi: k }) => fmt0(k.ricavoAtteso || 0) },
+            { k: 'b2bric', label: 'Ricavi ingrosso', cella: ({ kpi: k }) => fmt0(k.ricaviB2b || 0) },
+          ]}
+          intestazione={<><thead>
                     <tr style={{ background: '#F8FAFC' }}>
                       <th style={{ ...tdHeadSede, position: 'sticky', left: 0, background: '#F8FAFC', zIndex: 1 }}>Sede</th>
                       <th style={{ ...tdHeadSede, textAlign: 'right' }}>Retail kg</th>
@@ -718,8 +727,8 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
                       <th style={{ ...tdHeadSede, textAlign: 'right' }}>Atteso</th>
                       <th style={{ ...tdHeadSede, textAlign: 'right' }}>Ricavi B2B</th>
                     </tr>
-                  </thead>
-                  <tbody>
+                  </thead></>}
+          corpo={<><tbody>
                     {perSede.map(({ sede, kpi: k }) => (
                       <tr key={sede.id} style={{ borderTop: `1px solid ${C.borderSoft}` }}>
                         <td style={{
@@ -744,8 +753,8 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
                         </td>
                       </tr>
                     ))}
-                  </tbody>
-                </table>
+                  </tbody></>}
+        />
               </div>
             </div>
           )}

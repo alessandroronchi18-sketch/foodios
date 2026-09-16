@@ -14,7 +14,7 @@ import {
 } from '../lib/venditeB2B'
 import Icon from '../components/Icon'
 import { useConfirm } from '../components/ConfirmModal'
-import { C, PageHeader, KPI, fmt, fmt0, fmtp, TNUM } from './_shared'
+import { C, PageHeader, KPI, fmt, fmt0, fmtp, TNUM, TabellaOSchede } from './_shared'
 import { fmtp0 } from '../lib/formatIt'
 
 // Stati vendita: label + chip color. "consegnata" è il default operativo (consegnata, da fatturare).
@@ -437,8 +437,25 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
               <div style={{ padding: 28, textAlign: 'center', color: C.textSoft, fontSize: 13 }}>Nessuna vendita registrata.</div>
             ) : (
               <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', minWidth: 720, borderCollapse: 'collapse', fontSize: 13 }}>
-                  <thead>
+                <TabellaOSchede
+
+          minWidth={720}
+          righe={rollupClienti}
+          chiave={(g, i) => g.nome || i}
+          vuoto="Nessun cliente all'ingrosso."
+          titolo={(g) => g.nome}
+          riassunto={(g) => <span style={{ fontWeight: 700, color: C.text, whiteSpace: 'nowrap', ...TNUM }}>{fmt(g.fatturato)}</span>}
+          colonne={[
+            { k: 'n', label: 'Ordini', cella: (g) => g.n.toLocaleString('it-IT', { useGrouping: 'always' }) },
+            { k: 'ult', label: 'Ultimo ordine', cella: (g) => g.giorniDaUltimo != null
+              ? <span style={{ color: g.giorniDaUltimo > 30 ? C.amber : C.textSoft }}>{g.giorniDaUltimo.toLocaleString('it-IT', { useGrouping: 'always' })} giorni fa</span>
+              : '-' },
+            { k: 'marg', label: 'Margine', cella: (g) => g.margPct == null ? '-' :
+              <span style={{ color: C.green }}>{fmt(g.margine)} <span style={{ color: C.textSoft }}>{fmtp0(g.margPct)}</span></span> },
+            { k: 'ins', label: 'Da incassare', forte: true, cella: (g) => g.insoluto > 0
+              ? <span style={{ color: C.red }}>{fmt(g.insoluto)}</span> : '-' },
+          ]}
+          intestazione={<><thead>
                     <tr style={{ background: '#FAFAF8' }}>
                       {[
                         { lbl: 'Cliente', align: 'left',  sticky: true },
@@ -460,8 +477,8 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
                         }}>{h.lbl}</th>
                       ))}
                     </tr>
-                  </thead>
-                  <tbody>
+                  </thead></>}
+          corpo={<><tbody>
                     {rollupClienti.map((g, i) => (
                       <tr key={i} style={{ borderTop: i ? `1px solid ${C.borderSoft}` : 'none' }}>
                         <td style={{
@@ -484,8 +501,8 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
                         </td>
                       </tr>
                     ))}
-                  </tbody>
-                </table>
+                  </tbody></>}
+        />
               </div>
             )}
           </div>

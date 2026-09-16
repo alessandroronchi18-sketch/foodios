@@ -24,8 +24,8 @@ import {
   ResponsiveContainer, Legend, Line, LineChart,
 } from 'recharts'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
-import { color as T } from '../lib/theme'
-import { C, TNUM, KPI, SH, ChartTip, PageHeader } from './_shared'
+import { color as T, font } from '../lib/theme'
+import { C, TNUM, KPI, SH, ChartTip, PageHeader, TabellaOSchede } from './_shared'
 import Icon from '../components/Icon'
 import { loadXLSX } from '../lib/xlsx'
 // Il venduto lo calcola il motore condiviso, non una formula scritta qui.
@@ -383,8 +383,65 @@ export default function AnalisiInventarioSection({
           Dettaglio per gusto (clicca sulle intestazioni per ordinare)
         </div>
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 720, fontSize: 12 }}>
-            <thead>
+          <TabellaOSchede
+
+          minWidth={720}
+          righe={sorted}
+          chiave={(r) => r.gusto}
+          vuoto="Nessun gusto nel periodo."
+          apriEtichetta="Scarto, food cost, margine %"
+          titolo={(r) => (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              {r.gusto}
+              {!r.haMapping && (
+                <span title="Ricetta o formato non collegato" style={{ color: T.amber, display: 'inline-flex' }}>
+                  <Icon name="warning" size={13} />
+                </span>
+              )}
+            </span>
+          )}
+          colonne={[
+            { k: 'vend', label: 'Venduto', forte: true, cella: (r) => kg(r.vendKg) },
+            { k: 'ricavo', label: 'Ricavo', forte: true, cella: (r) => r.ricavo > 0 ? eur(r.ricavo) : '-' },
+            { k: 'marg', label: 'Margine', forte: true,
+              cella: (r) => (r.ricavo > 0 || r.fc > 0)
+                ? <span style={{ color: r.margine >= 0 ? T.green : T.red }}>{eur(r.margine)}</span> : '-' },
+          ]}
+          dettaglio={(r) => (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: font.size.sm }}>
+              {[
+                ['Prodotto', kg(r.prodKg), C.text],
+                ['Scarto', r.scartoKg > 0 ? kg(r.scartoKg) : '-', r.scartoKg > 0 ? T.red : C.textSoft],
+                ['Food cost', r.fc > 0 ? eur(r.fc) : '-', T.red],
+                ['Margine %', r.ricavo > 0 ? pct(r.margPct) : '-', r.margPct >= 40 ? T.green : r.margPct >= 20 ? T.amber : T.red],
+              ].map(([et, v, col]) => (
+                <div key={et} style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                  <span style={{ color: C.textSoft }}>{et}</span>
+                  <span style={{ fontWeight: 700, color: col, ...TNUM }}>{v}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          riepilogoTelefono={
+            <div style={{ border: `1px solid ${T.border}`, borderRadius: 12, background: C.bgSubtle, padding: '12px 14px' }}>
+              <div style={{ fontSize: font.size.sm, fontWeight: 800, color: C.text, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Totale</div>
+              {[
+                ['Prodotto', kg(totali.prod), C.text],
+                ['Venduto', kg(totali.vend), C.text],
+                ['Scarto', totali.scarto > 0 ? kg(totali.scarto) : '-', totali.scarto > 0 ? T.red : C.textSoft],
+                ['Ricavo', eur(totali.ricavo), C.text],
+                ['Food cost', eur(totali.fc), T.red],
+                ['Margine', eur(totali.margine), totali.margine >= 0 ? T.green : T.red],
+                ['Margine %', pct(totali.margPct), C.text],
+              ].map(([et, v, col]) => (
+                <div key={et} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '4px 0', fontSize: font.size.base }}>
+                  <span style={{ color: C.textSoft, fontWeight: 600 }}>{et}</span>
+                  <span style={{ fontWeight: 800, color: col, ...TNUM }}>{v}</span>
+                </div>
+              ))}
+            </div>
+          }
+          intestazione={<><thead>
               <tr style={{ background: '#F8FAFC' }}>
                 <ThSort label="Gusto" col="gusto" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} left/>
                 <ThSort label="Prod. kg" col="prodKg" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort}/>
@@ -395,8 +452,8 @@ export default function AnalisiInventarioSection({
                 <ThSort label="Margine €" col="margine" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort} bg="#F0FDF4"/>
                 <ThSort label="Marg. %" col="margPct" sortBy={sortBy} sortDir={sortDir} onSort={toggleSort}/>
               </tr>
-            </thead>
-            <tbody>
+            </thead></>}
+          corpo={<><tbody>
               {sorted.map(r => (
                 <tr key={r.gusto} style={{ borderTop: `1px solid #F1F5F9` }}>
                   <td style={{ padding: '8px 12px', fontWeight: 700, color: C.text }}>
@@ -412,8 +469,8 @@ export default function AnalisiInventarioSection({
                   <td style={{ padding: '8px 12px', textAlign: 'right', ...TNUM, color: r.margPct >= 40 ? '#166534' : r.margPct >= 20 ? '#B45309' : '#B91C1C' }}>{r.ricavo > 0 ? pct(r.margPct) : '-'}</td>
                 </tr>
               ))}
-            </tbody>
-            <tfoot>
+            </tbody></>}
+          piede={<><tfoot>
               <tr style={{ background: '#F8FAFC', borderTop: `2px solid ${T.border}` }}>
                 <td style={{ padding: '10px 12px', fontWeight: 800 }}>Totale</td>
                 <td style={{ padding: '10px 12px', textAlign: 'right', ...TNUM, fontWeight: 800 }}>{kg(totali.prod)}</td>
@@ -424,8 +481,8 @@ export default function AnalisiInventarioSection({
                 <td style={{ padding: '10px 12px', textAlign: 'right', ...TNUM, fontWeight: 800, color: totali.margine >= 0 ? '#166534' : '#B91C1C', background: '#F0FDF4' }}>{eur(totali.margine)}</td>
                 <td style={{ padding: '10px 12px', textAlign: 'right', ...TNUM, fontWeight: 800 }}>{pct(totali.margPct)}</td>
               </tr>
-            </tfoot>
-          </table>
+            </tfoot></>}
+        />
         </div>
       </div>
     </div>

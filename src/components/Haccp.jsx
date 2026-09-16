@@ -15,7 +15,7 @@ import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 import { ALLERGENI } from '../lib/allergeni'
 import { todayLocal } from '../lib/dateLocal'
-import { KPI } from '../views/_shared'
+import { KPI, TabellaOSchede } from '../views/_shared'
 
 const SHADOW_PREMIUM = '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)'
 const TNUM = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" }
@@ -433,16 +433,31 @@ function TemperatureTab({ orgId, sedeId, isMobile, notify, onChanged }) {
           </div>
         ) : (
           <div style={{ overflowX:'auto' }}>
-            <table style={{ minWidth: 520, width:'100%', borderCollapse:'separate', borderSpacing:0, fontSize:13 }}>
-              <thead>
+            <TabellaOSchede
+
+          minWidth={520}
+          righe={storico}
+          chiave={(s) => s.id}
+          vuoto="Nessuna rilevazione."
+          titolo={(s) => s.haccp_apparecchi?.nome || '-'}
+          riassunto={(s) => (
+            <span style={{ ...TNUM, color: s.fuori_range ? T.brand : T.text, fontWeight: s.fuori_range ? 800 : 600, whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              {nfmt(s.temperatura)}°C {s.fuori_range && <Icon name="warning" size={13} />}
+            </span>
+          )}
+          colonne={[
+            { k: 'quando', label: 'Data e ora', cella: (s) => FmtDt(s.rilevato_at) },
+            { k: 'chi', label: 'Operatore', cella: (s) => s.operatore || '-' },
+          ]}
+          intestazione={<><thead>
                 <tr style={{ background:T.bgSubtle }}>
                   <th style={{ padding:'10px 14px', textAlign:'left', fontSize: 12, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.06em' }}>Data/ora</th>
                   <th style={{ padding:'10px 14px', textAlign:'left', fontSize: 12, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.06em' }}>Apparecchio</th>
                   <th style={{ padding:'10px 14px', textAlign:'right', fontSize: 12, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.06em' }}>Temp.</th>
                   <th style={{ padding:'10px 14px', textAlign:'left', fontSize: 12, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.06em' }}>Operatore</th>
                 </tr>
-              </thead>
-              <tbody>
+              </thead></>}
+          corpo={<><tbody>
                 {storico.map(s => (
                   <tr key={s.id} style={{ borderTop:`1px solid ${T.borderSoft}`, background: s.fuori_range ? T.brandLight : 'transparent' }}>
                     <td style={{ padding:'10px 14px', color:T.textMid }}>{FmtDt(s.rilevato_at)}</td>
@@ -453,8 +468,8 @@ function TemperatureTab({ orgId, sedeId, isMobile, notify, onChanged }) {
                     <td style={{ padding:'10px 14px', color:T.textSoft }}>{s.operatore || '-'}</td>
                   </tr>
                 ))}
-              </tbody>
-            </table>
+              </tbody></>}
+        />
           </div>
         )}
       </div>
