@@ -14,7 +14,7 @@ import { canAccessView, effectivePlan, PLAN_LABEL, VIEW_MIN_PLAN, viewDisplayLab
 import { lessico } from './lib/lessico'
 import { caricaSessioniDaInventario } from './lib/inventarioProduzione'
 // jsPDF caricato dinamicamente solo all'export (chunk 'pdf' separato).
-// recharts NON e' importato qui: 0 simboli sono usati in Dashboard.jsx (era dead
+// recharts NON è importato qui: 0 simboli sono usati in Dashboard.jsx (era dead
 // import che trascinava il chunk recharts 120KB gzip sul critical path). I veri
 // consumatori - PLView, StoricoProduzioneView, PrevisioneDomanda, AdminPage -
 // sono tutti già lazy.
@@ -785,20 +785,20 @@ const PAGINE_NASCOSTE = new Set(['scheda-allergeni', 'haccp', 'menu'])
 //
 // La regola, dopo l'audit dell'11/09/2026: il selettore si mostra dove i dati
 // della pagina CAMBIANO al cambio sede, e si nasconde dove non cambiano.
-// Mostrarlo su una pagina che lo ignora e' peggio che non averlo: sembra un
+// Mostrarlo su una pagina che lo ignora è peggio che non averlo: sembra un
 // comando e non lo e'. Nasconderlo su una pagina che lavora su dati di una
-// sede sola e' peggio ancora: chi legge non sa di che sede sta guardando i
+// sede sola è peggio ancora: chi legge non sa di che sede sta guardando i
 // numeri.
 //
 // Tolte da questo elenco in quell'audit:
 //  - 'previsione' e 'azioni': lavorano su giornaliero e chiusure, che sono
-//    per-sede. La previsione della domanda di tre gelaterie diverse non e' la
+//    per-sede. La previsione della domanda di tre gelaterie diverse non è la
 //    stessa cosa, e senza selettore non si vedeva nemmeno quale fosse.
 //  - 'integrazioni': ci finiscono dentro le fatture importate, e l'import
 //    scrive sede_id. Senza selettore le fatture entravano su una sede scelta
 //    dal codice, non dall'utente.
 // Aggiunta: 'registro-attivita', che ha già un suo filtro sede dentro la
-// pagina; il selettore globale li' non faceva niente ed erano due comandi con
+// pagina; il selettore globale lì non faceva niente ed erano due comandi con
 // lo stesso nome.
 const NO_SEDE_SELECTOR = new Set([
   // Ricettario shared (sede_id=null)
@@ -954,7 +954,7 @@ export default function Dashboard({
     // Una pagina nascosta non si apre da nessuna strada: ne' da un vecchio
     // link, ne' dalla ricerca Cmd+K, ne' da una risposta dell'assistente che
     // inventa un view-id. Senza questa riga il render gated lascia lo schermo
-    // bianco, che e' peggio di una pagina che non c'e'. (14/09/2026)
+    // bianco, che è peggio di una pagina che non c'e'. (14/09/2026)
     if (typeof v === 'string' && PAGINE_NASCOSTE.has(v)) {
       _setViewRaw(auth?.ruolo === 'dipendente' ? 'home-dipendente' : 'home');
       return;
@@ -981,7 +981,7 @@ export default function Dashboard({
       }
       v = risolta;
     }
-    // Un dipendente non apre una pagina che non e' sua, da nessuna strada.
+    // Un dipendente non apre una pagina che non è sua, da nessuna strada.
     //
     // Prima il controllo stava solo in un useEffect più sotto, cioè DOPO che
     // React aveva già disegnato la pagina vietata: per un fotogramma il P&L o
@@ -1115,7 +1115,7 @@ export default function Dashboard({
   // ripristinata da sessionStorage o via link), riportalo alla produzione.
   useEffect(() => {
     if (view === 'discrepanze') { setView('sprechi-omaggi'); return; }   // unita in Perdite & cessioni
-    // Fallback dipendente: se sulla sede attiva e' attivo il metodo inventario,
+    // Fallback dipendente: se sulla sede attiva è attivo il metodo inventario,
     // la "home produzione" del dipendente diventa 'inventario-gusti'.
     if (isDip && !DIPENDENTE_VIEWS.has(view)) {
       // Fallback dipendente: torna alla home dipendente (sostituisce il vecchio
@@ -1401,7 +1401,7 @@ export default function Dashboard({
         }
         if (changed) {
           const migrated = { ...ric, ricette: nuoveRicette };
-          // save-first: applichiamo lo state solo se la migrazione e' persistita,
+          // save-first: applichiamo lo state solo se la migrazione è persistita,
           // altrimenti al refresh torna allo stato precedente e l'UI diverge
           // (ricette mostrate come semilavorato senza FC, ma DB legacy interno).
           ssave(SK_RIC, migrated)
@@ -1420,7 +1420,7 @@ export default function Dashboard({
   },[orgId, sedeId, sedeAttiva?._all]);
 
   // BRIDGE inventario→giornaliero: per le sedi in metodo='inventario',
-  // SK_GIOR e' vuoto (i dati vivono in inventario_produzione). Carichiamo
+  // SK_GIOR è vuoto (i dati vivono in inventario_produzione). Carichiamo
   // l'ultimo anno dalla nuova tabella e proiettiamo come sessioni così
   // PLView/StoricoProduzioneView/DashboardHomeView/ConfrontoSedi/Simulatore
   // vedono i dati senza modifiche al loro codice. 1 stampo virtuale = 1 kg.
@@ -1430,7 +1430,7 @@ export default function Dashboard({
     if (!isInv) return
     caricaSessioniDaInventario(orgId, sedeId, { monthsBack: 12 })
       .then(sessioni => {
-        // Sostituiamo del tutto giornaliero per questa sede (SK_GIOR e' vuoto
+        // Sostituiamo del tutto giornaliero per questa sede (SK_GIOR è vuoto
         // in modalita' inventario e ricaricaremo al refocus alla prossima
         // selezione sede).
         setGiornaliero(sessioni)
@@ -1454,7 +1454,7 @@ export default function Dashboard({
   //
   // Quattro difetti corretti il 10/09/2026, tutti nello stesso punto:
   //
-  // 1. DUE FILE INSIEME, UNO SPARIVA. L'input e' `multiple` e ogni file
+  // 1. DUE FILE INSIEME, UNO SPARIVA. L'input è `multiple` e ogni file
   //    partiva subito per conto suo (backgroundManager avvia ogni job senza
   //    coda). Tutti gli onComplete leggevano lo STESSO `ricettario` chiuso
   //    nella closure e salvavano: l'ultimo che finiva sovrascriveva gli altri,
@@ -1473,7 +1473,7 @@ export default function Dashboard({
   //
   // 4. DATI ASSURDI ACCETTATI IN SILENZIO. Nella ricetta MAROTTO di Mara c'e'
   //    un ingrediente da 146.000 g (146 kg in un gusto da 1 kg: nel file del
-  //    cliente e' scritto 146.000 invece di 146). Il parser non ha nessun
+  //    cliente è scritto 146.000 invece di 146). Il parser non ha nessun
   //    controllo di plausibilita'. Ora le quantita' fuori scala vengono
   //    elencate nel riepilogo, prima di salvare.
   const handleFile=useCallback(async files=>{
@@ -1518,7 +1518,7 @@ export default function Dashboard({
     }
     if (letti.length === 0) return;
 
-    // Riepilogo onesto di cosa e' stato letto e di cosa manca.
+    // Riepilogo onesto di cosa è stato letto e di cosa manca.
     const nuove = letti.flatMap(l => Object.keys(l.result.ricette||{}));
     const giaPresenti = ricettario ? nuove.filter(n => ricettario.ricette?.[n]) : [];
     const tutte = nuove.map(n => base.ricette[n]);
@@ -1821,7 +1821,7 @@ export default function Dashboard({
       // riaprirlo col valore digitato invece di crederlo salvato.
       throw e;
     }
-    // Solo ora, che il dato e' nel database: state e regole runtime.
+    // Solo ora, che il dato è nel database: state e regole runtime.
     setRic(nuovoRic);
     REGOLE[nome] = regolaNuova;
     const cong = congelabile!==undefined ? congelabile : ricettario?.ricette?.[nome]?.congelabile;
@@ -1880,7 +1880,7 @@ export default function Dashboard({
       err.giaNotificato = true;
       throw err;
     }
-    // 3. State locale: solo dopo che il save e' riuscito
+    // 3. State locale: solo dopo che il save è riuscito
     setRic(nuovoRic);
     // 4. Magazzino - aggiungi ingredienti mancanti con giacenza 0 (save-first)
     const ings = (ricettaNome && nuovoRic.ricette?.[ricettaNome]?.ingredienti) || [];
@@ -1908,7 +1908,7 @@ export default function Dashboard({
     }
     // 5. Toast + redirect
     // Audit 2026-09-09: il toast di conferma lo mostra la view chiamante, che sa
-    // se e' una ricetta, un semilavorato o un prezzo ingrediente. Notificare anche
+    // se è una ricetta, un semilavorato o un prezzo ingrediente. Notificare anche
     // qui produceva due toast sovrapposti per lo stesso salvataggio.
     if (!noRedirect) setView("ricettario");
   }, [magazzino, orgId, sedeId, _RIC_CACHE_KEY]);
@@ -1993,7 +1993,7 @@ export default function Dashboard({
         // affinché la voce compaia — un punto vendita ricevente non produce nulla.
         const sedeFull = (sedi || []).find(s => s.id === sedeAttiva?.id) || sedeAttiva
         const isMetodoInventario = (sedeFull?.is_sede_produzione === true && isMetodoInv)
-          // Anche se sedeAttiva e' incompleta, se l'utente e' GIÀ dentro
+          // Anche se sedeAttiva è incompleta, se l'utente è GIÀ dentro
           // 'inventario-gusti' manteniamo la voce visibile per non disorientare.
           || view === 'inventario-gusti' || view === 'quadratura-inventario'
         // Riorganizzazione menu 2026-06-13: 6 sezioni task-based,
@@ -2101,7 +2101,7 @@ export default function Dashboard({
               const open = hoverSec===sec.id;
               const secActive = activeSec===sec.id;
               // Section header badge: dinamico. Mostra ChainBadge solo se ALMENO
-              // una sotto-feature non e' accessibile per l'utente corrente.
+              // una sotto-feature non è accessibile per l'utente corrente.
               // Per un utente Chain (vede tutto) → niente badge sulla sezione.
               const secHasLocked = sec.items.some(it => !canAccessView(it.id, piano, auth?.user?.email))
               const secLabel = isTablet ? (TABLET_SEC_LABEL[sec.id] || sec.label) : sec.label;
@@ -3065,17 +3065,31 @@ export default function Dashboard({
           const g = schedeDiVista(vista, SEZIONI)
           if (!g) return null
           return (
-            <div style={{ maxWidth: 1200, margin: "0 auto 18px", display: "flex", gap: 4, flexWrap: "wrap",
-              borderBottom: `1px solid ${C.border}`, paddingBottom: 0 }}>
+            /* 17/09/2026, segnalato dal titolare: «i due pulsanti gusti e
+               semilavorati non sembrano pulsanti».
+               Aveva ragione: erano testo su fondo trasparente con una riga
+               sotto a quello attivo. Una linguetta sottolineata si legge come
+               un titolo, non come una cosa che si preme — e su un telefono,
+               dove non c'e' il passaggio del mouse a suggerirlo, non lo si
+               scopre affatto.
+               Ora sono un controllo segmentato: un fondo unico che li tiene
+               insieme e quello scelto in rilievo, bianco e con un'ombra. E'
+               lo stesso motivo che il Ricettario usa già per elenco/riquadri,
+               due centimetri più sotto: una forma sola per la stessa cosa. */
+            <div style={{ maxWidth: 1200, margin: "0 auto 18px", display: "flex", gap: 3, flexWrap: "wrap",
+              background: C.bgSubtle, border: `1px solid ${C.border}`, borderRadius: 12,
+              padding: 3, width: "fit-content" }}>
               {g.schede.map(t => {
                 const att = t.id === vista
                 return (
                   <button key={t.id} onClick={() => setView(t.id)}
                     aria-current={att ? "page" : undefined}
-                    style={{ padding: "10px 16px", minHeight: 44, border: "none", background: "transparent",
-                      cursor: "pointer", fontFamily: "inherit",
-                      fontWeight: att ? 800 : 600, color: att ? C.brand : C.textSoft,
-                      borderBottom: `2px solid ${att ? C.brand : "transparent"}`, marginBottom: -1 }}>
+                    style={{ padding: "0 18px", minHeight: 44, border: "none", borderRadius: 9,
+                      cursor: "pointer", fontFamily: "inherit", fontSize: font.size.base,
+                      background: att ? C.white : "transparent",
+                      boxShadow: att ? "0 1px 2px rgba(15,23,42,0.06), 0 2px 8px rgba(15,23,42,0.06)" : "none",
+                      fontWeight: att ? 800 : 600, color: att ? C.brand : C.textMid,
+                      transition: `background ${M.durBase} ${M.ease}, color ${M.durBase} ${M.ease}` }}>
                     {t.label}
                   </button>
                 )
@@ -3089,7 +3103,16 @@ export default function Dashboard({
             poi non compare più. Mara ci lavora tutti i giorni: cambiarle il
             menu senza dirglielo è il modo per farle perdere dieci minuti a
             cercare una cosa che sa fare a occhi chiusi. */}
-        <AvvisoSpostamento vista={vista} />
+        {/* 17/09/2026 — tolto su richiesta del titolare: «se clicco nuovo
+            gusto mi compare questo avviso... toglilo e toglilo anche in tutte
+            le altre sezioni».
+            Era nato il 15/09 per accompagnare la riorganizzazione del menu, e
+            doveva durare sessanta giorni. Ha fatto il suo mestiere in due: chi
+            usa il prodotto tutti i giorni ha già imparato dove sono finite le
+            pagine, e un avviso che spiega una cosa che sai già diventa
+            rumore — per di più in cima alla pagina, dove si guarda per
+            lavorare.
+            <AvvisoSpostamento vista={vista} /> */}
 
         {/* Home dashboard (titolare) */}
         {vista==="home"&&<DashboardHomeView ricettario={ricettario} magazzino={magazzino} giornaliero={giornaliero} chiusure={chiusure} actions={actions} setView={setView} orgId={orgId} sedeId={sedeId} nomeAttivita={nomeAttivita} isTrialAttivo={isTrialAttivo} auth={auth} sedi={sedi} sedeAttiva={sedeAttiva} LEX={LEX}/>}

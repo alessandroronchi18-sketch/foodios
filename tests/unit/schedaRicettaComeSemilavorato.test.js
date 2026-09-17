@@ -64,36 +64,24 @@ describe('un riquadro solo, come nei semilavorati', () => {
   })
 })
 
-describe('i punti di partenza rapidi', () => {
-  it('ci sono, come i «Template rapidi» dei semilavorati', () => {
-    expect(RICETTA).toMatch(/Parti da una che hai già/)
-    expect(RICETTA).toMatch(/const partiDa = nome =>/)
+describe('i punti di partenza rapidi sono stati tolti', () => {
+  // 17/09/2026, scelta del titolare: stavano sopra il campo del nome, e la
+  // prima cosa che si vedeva aprendo «Nuovo gusto» era un elenco di gusti
+  // vecchi. Il test si gira invece di cancellarlo: dice che è stata una
+  // scelta, non una dimenticanza — e se un domani qualcuno li rimettesse per
+  // sbaglio, qui si vede.
+  it('non compaiono più nella scheda', () => {
+    // Si guardano solo le righe VIVE: la frase compare ancora nel commento
+    // che racconta perché è stata tolta, ed è giusto che ci resti. È lo
+    // stesso equivoco del rilevatore di emoji corretto stanotte — un
+    // controllo che legge i commenti boccia la spiegazione di se stesso.
+    const vive = RICETTA.split('\n')
+      .filter(r => !/^\s*(\/\/|\*|\/\*|\{\/\*)/.test(r))
+      .join('\n')
+    expect(vive).not.toMatch(/Parti da una che hai già/)
   })
 
-  it('ma partono dalle SUE ricette, non da ricette inventate da noi', () => {
-    // In «Nuovo semilavorato» i template sono ricette standard del mestiere
-    // (crema pasticcera, pasta frolla), uguali per tutti. Per un gusto di
-    // gelato non è così: le quantità di una base sono il segreto del
-    // laboratorio, e scriverne una qui vorrebbe dire mettere nel ricettario
-    // del cliente una ricetta che non è sua.
-    expect(RICETTA).toMatch(/const ricettePerPartire = useMemo/)
-    expect(RICETTA).toMatch(/Object\.values\(ricettario\?\.ricette \|\| \{\}\)/)
-  })
-
-  it('copiano gli ingredienti ma NON il nome: quello si scrive', () => {
-    const fn = RICETTA.slice(RICETTA.indexOf('const partiDa = nome =>'), RICETTA.indexOf('const loadForEdit'))
-    expect(fn).toMatch(/nome: ""/)
-    expect(fn).toMatch(/ingredienti: ings/)
-    // E non si entra in modifica: è una ricetta nuova, non quella di partenza.
-    expect(fn).toMatch(/setEditMode\(null\)/)
-  })
-
-  it('e non propongono basi o semilavorati: quelli hanno la loro pagina', () => {
-    const memo = RICETTA.slice(RICETTA.indexOf('const ricettePerPartire'), RICETTA.indexOf('const loadForEdit'))
-    expect(memo).toMatch(/!isSemiOInterno\(getR\(r\.nome, r\)\.tipo\)/)
-  })
-
-  it('spariscono appena si comincia a scrivere', () => {
-    expect(RICETTA).toMatch(/\{!editMode && !form\.nome && ricettePerPartire\.length > 0 &&/)
+  it('e non è rimasto il codice che li disegnava', () => {
+    expect(RICETTA).not.toMatch(/ricettePerPartire\.length > 0 &&/)
   })
 })

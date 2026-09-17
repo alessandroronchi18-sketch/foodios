@@ -79,16 +79,19 @@ const scrivi = (etichetta, valore) => {
 }
 
 describe('il giro intero: creo, modifico, rinomino, cancello', () => {
-  it('parto da una che ho già e non mi porta dietro il nome', async () => {
+  // 17/09/2026 — «Parti da una che hai già» è stato TOLTO su richiesta del
+  // titolare. Erano scorciatoie buone in teoria, ma stavano sopra il campo del
+  // nome: la prima cosa che si vedeva aprendo «Nuovo gusto» era un elenco di
+  // gusti vecchi.
+  //
+  // Il test non si cancella, si gira: adesso pretende che NON ci siano più.
+  // Un test cancellato non dice niente a chi un domani le rimettesse per
+  // sbaglio; questo dice che è stata una scelta.
+  it('non si parte più da una ricetta che c’è già: le scorciatoie sono state tolte', () => {
     const { container } = montaScheda()
-    const b = [...container.querySelectorAll('button')].find(x => x.textContent.trim() === 'NOCCIOLA')
-    expect(b, 'manca il punto di partenza rapido').toBeTruthy()
-    fireEvent.click(b)
-    await waitFor(() => {
-      expect(screen.getByLabelText('Nome ricetta').value, 'il nome non si copia: si scrive').toBe('')
-    })
-    // Ma gli ingredienti sì.
-    expect(container.textContent).toMatch(/base bianca/i)
+    const chip = [...container.querySelectorAll('button')].find(x => x.textContent.trim() === 'NOCCIOLA')
+    expect(chip, 'i punti di partenza rapidi non devono più comparire').toBeFalsy()
+    expect(container.textContent).not.toMatch(/Parti da una che hai già/i)
   })
 
   it('la categoria mostra tutte le voci, non solo quella già scritta', () => {
@@ -118,9 +121,12 @@ describe('il giro intero: creo, modifico, rinomino, cancello', () => {
 
 describe('il costo che la scheda mostra mentre scrivo', () => {
   it('usa il prezzo scritto a mano per la base, non il calcolo incompleto', async () => {
-    const { container } = montaScheda()
-    const b = [...container.querySelectorAll('button')].find(x => x.textContent.trim() === 'NOCCIOLA')
-    fireEvent.click(b)
+    // 17/09/2026: la ricetta si apriva cliccando un punto di partenza rapido,
+    // che non esiste più. Si apre dalla strada vera — `editingRicetta`, cioè
+    // quello che passa il Dashboard quando si tocca una ricetta nel
+    // Ricettario. Il test guadagna: prima provava la scorciatoia, adesso
+    // prova il percorso che fa il titolare.
+    const { container } = montaScheda({ apri: 'NOCCIOLA' })
     await new Promise(r => setTimeout(r, 80))
     // 1000 g di base a 2,31 €/kg + 100 g di pasta a 28 €/kg = 5,11 €.
     // Col calcolo ricorsivo (che ignora il prezzo scritto) farebbe 3,88.

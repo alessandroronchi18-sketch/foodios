@@ -88,6 +88,18 @@ const inputBase = { width: '100%', padding: '10px 12px', minHeight: 44, borderRa
 export default function NuovaRicettaView({ ricettario, onSave, notify, editingRicetta, onEditConsumed, LEX = lessico(), tipoAttivita }) {
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
+  // Le tre barre di «Informazioni prodotto». Su telefono una sotto l'altra,
+  // su tablet due colonne (col nome che si prende la riga), su computer tre.
+  // Le tre barre di «Informazioni prodotto»: telefono una sotto l'altra,
+  // tablet due colonne (il nome si prende la riga), computer tre.
+  // Scritto senza condizioni annidate di proposito: il cricchetto dei token le
+  // vieta, e ha ragione — è la forma in cui il 15/09 il tablet aveva preso i
+  // valori del computer su 95 campi.
+  const COLONNE_INFO = { telefono: "1fr", tablet: "1fr 1fr", computer: "2fr 1.3fr 1.3fr" };
+  let dispositivo = "computer";
+  if (isMobile) dispositivo = "telefono";
+  else if (isTablet) dispositivo = "tablet";
+  const colonneInfo = COLONNE_INFO[dispositivo];
   // isGelateria: definisce le OPZIONI mostrate (dropdown Tipo, categorie, placeholder).
   // isGusto: segue form.tipo — definisce il LAYOUT effettivo. Serve distinguere:
   //   - gelateria con nuovo record → default tipo='gusto' → isGusto=true → UI gusto
@@ -157,7 +169,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
   // Modal "imposta prezzo" per ingrediente con prezzo mancante:
   // { nome, costoKg: string, saving } | null
   const [priceModal, setPriceModal] = useState(null);
-  // Toolbar azioni secondarie in cima: quale pannello e' aperto (null | 'foto' | 'modifica' | 'elimina')
+  // Toolbar azioni secondarie in cima: quale pannello è aperto (null | 'foto' | 'modifica' | 'elimina')
   const [openAction, setOpenAction] = useState(null);
   // Allergeni manuali: elenco checkbox nascosto di default per non intasare
   // la card. Si apre col bottone "Modifica manualmente" o automaticamente se
@@ -182,7 +194,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
   const isSemiOrInterno = form.tipo === "semilavorato" || form.tipo === "interno";
 
   // Costo al kg di una base (tipo 'interno'). Vive nel listino ingredienti,
-  // perché e' da li' che calcolaFC lo legge quando la base viene usata come
+  // perché è da lì che calcolaFC lo legge quando la base viene usata come
   // ingrediente di un'altra ricetta.
   const [costoBaseKg, setCostoBaseKg] = useState('');
 
@@ -205,7 +217,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
   const [ordineCongelato, setOrdineCongelato] = useState(null);
 
   // Le righe come si vedono a schermo. `originalIndex` resta l'indice dentro
-  // `form.ingredienti`: e' quello che usano modifica e rimozione, e non deve
+  // `form.ingredienti`: è quello che usano modifica e rimozione, e non deve
   // seguire l'ordine visivo.
   const righeVisibili = useMemo(() => {
     const righe = (form.ingredienti || []).map((ing, originalIndex) => ({ ing, originalIndex }));
@@ -227,7 +239,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
   const costoBaseEsistente = useMemo(() => {
     if (form.tipo !== 'interno' || !form.nome.trim()) return null;
     const voce = ingCosti[normIng(form.nome)];
-    if (!voce || voce.isStima) return null;   // una stima di mercato non e' un suo prezzo
+    if (!voce || voce.isStima) return null;   // una stima di mercato non è un suo prezzo
     return Number(voce.costoKg) || null;
   }, [form.tipo, form.nome, ingCosti]);
 
@@ -336,7 +348,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
     const tipoIniziale = reg.tipoPresunto ? empty.tipo : reg.tipo;
     const loaded = { nome: r.nome, categoria: r.categoria || "", unita: reg.tipoPresunto ? empty.unita : reg.unita, prezzo: reg.prezzo, tipo: tipoIniziale, note: r.note || "", ingredienti: ings, congelabile: r.congelabile || false, allergeniManual: manual, resa_g: (typeof r.resa_g === 'number' && r.resa_g > 0) ? r.resa_g : null };
     setForm(loaded);
-    // Se e' una base, porta nel campo il costo al kg che ha nel listino: senza
+    // Se è una base, porta nel campo il costo al kg che ha nel listino: senza
     // questo, riaprendo la scheda il campo appare vuoto e sembra da compilare.
     if (loaded.tipo === 'interno') {
       const voce = ingCosti[normIng(loaded.nome)];
@@ -409,8 +421,8 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
         // fc/kg (gusti) e come "peso stampo dichiarato" (stampi/pezzi).
         resa_g: (typeof form.resa_g === 'number' && Number.isFinite(form.resa_g) && form.resa_g > 0) ? form.resa_g : null,
       };
-      // Se e' una base con il costo al kg scritto nel form, quel prezzo entra nel
-      // listino ingredienti: e' da li' che calcolaFC lo legge quando la base
+      // Se è una base con il costo al kg scritto nel form, quel prezzo entra nel
+      // listino ingredienti: è da lì che calcolaFC lo legge quando la base
       // viene usata dentro un'altra ricetta (per le basi il motore NON apre la
       // ricetta, cerca il nome nel listino - vedi tipoRicetta.js).
       const costiAggiornati = { ...(ricettario?.ingredienti_costi || {}) };
@@ -475,7 +487,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
       try {
         await onSave(nuovoRic, { [nuovaRic.nome]: { unita: form.unita, prezzo: form.prezzo, tipo: form.tipo } });
       } catch (e) {
-        // Audit 2026-09-09 CRITICO: se il salvataggio non e' andato a buon fine
+        // Audit 2026-09-09 CRITICO: se il salvataggio non è andato a buon fine
         // il form NON va svuotato (l'utente ha appena scritto la ricetta a mano)
         // e non va detto "salvata". Il Dashboard ha già mostrato il perché.
         // Rimettiamo il dirty-guard così l'utente viene avvisato se cambia pagina.
@@ -500,7 +512,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
   };
 
   // Save invocato dal dirty-guard prima di navigare via: se il salvataggio
-  // non e' possibile (nome vuoto / no ingredienti / overwrite richiesto) rifiuta
+  // non è possibile (nome vuoto / no ingredienti / overwrite richiesto) rifiuta
   // la promise così il Dashboard mantiene l'utente sulla view.
   const handleSaveFromGuard = async () => {
     if (!form.nome.trim()) { notify("Serve il nome della ricetta prima di salvare", false); throw new Error('name empty'); }
@@ -536,13 +548,13 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
   const live = useMemo(() => {
     const ricettaTmp = { ingredienti: form.ingredienti, tipo: form.tipo, unita: form.unita, prezzo: form.prezzo, resa_g: form.resa_g };
     const { tot: fc, mancanti } = calcolaFC(ricettaTmp, ingCosti, ricettario);
-    // Audit 2026-09-09 ALTA: `fc` e' il costo degli ingredienti COSI' COME SONO
-    // SCRITTI. Per un gusto scritto sul batch da 500 g non e' il costo di 1 kg:
+    // Audit 2026-09-09 ALTA: `fc` è il costo degli ingredienti COSI' COME SONO
+    // SCRITTI. Per un gusto scritto sul batch da 500 g non è il costo di 1 kg:
     // questa pagina mostrava `fc` sotto l'etichetta "Food cost al kg", cioè la
     // META' del valore vero, e Ricettario/P&L (che dividono per la resa) ne
     // mostravano un altro. Entrambi i gusti presenti nel database sono scritti
     // su un peso diverso da 1 kg, quindi il numero era sbagliato sempre.
-    // resaGrammi e' la stessa funzione usata da Ricettario: un solo numero.
+    // resaGrammi è la stessa funzione usata da Ricettario: un solo numero.
     const resaG = resaGrammi(ricettaTmp);
     const fcPerKg = resaG > 0 ? +((fc / resaG) * 1000).toFixed(2) : 0;
     const ricavo = +((form.unita || 0) * (form.prezzo || 0)).toFixed(2);
@@ -563,7 +575,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
     // ambra da 10,5px in fondo.
     const conIngredienti = (form.ingredienti || []).length > 0;
     const affidabile = conIngredienti && mancanti.length === 0 && fc > 0;
-    // Il prezzo per fetta non esiste finche' non si sa quante fette vengono.
+    // Il prezzo per fetta non esiste finché non si sa quante fette vengono.
     const unitaMancante = conIngredienti && !(form.unita > 0);
     return { fc, fcPerKg, resaG, mancanti, ricavo, margine, margPct, fcPct, fcUnit, prezzoConsigliato, deltaPrezzo, conIngredienti, affidabile, unitaMancante };
   }, [form.ingredienti, form.unita, form.prezzo, form.tipo, form.resa_g, ingCosti, ricettario, targetPct]);
@@ -580,8 +592,8 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
     // zero cose. Non è un costo che manca: è la ricetta che non è ancora
     // scritta, e va detto con le sue parole.
     if (!live.conIngredienti) return { color: C.textSoft, bg: BG_NEUTRO, border: C.border, label: 'Ancora nessun ingrediente', icon: 'dot' };
-    // Nessun verdetto quando il food cost e' incompleto: senza i prezzi il
-    // margine risulta più alto del vero, e un verde qui e' peggio di niente.
+    // Nessun verdetto quando il food cost è incompleto: senza i prezzi il
+    // margine risulta più alto del vero, e un verde qui è peggio di niente.
     if (!live.affidabile) return { color: C.amber, bg: C.amberLight, border: `${C.amber}55`, label: 'Manca il costo di qualche ingrediente', icon: 'warning' };
     if (live.fcPct <= targetPct) return { color: C.green, bg: C.greenLight, border: `${C.green}40`, label: 'Sano', icon: 'checkCircle' };
     if (live.fcPct <= targetPct + 10) return { color: C.amber, bg: C.amberLight, border: `${C.amber}55`, label: 'Da tenere d’occhio', icon: 'warning' };
@@ -627,7 +639,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
     // Audit 2026-09-09 CRITICO: prima era fire-and-forget seguito da
     // setDatiEstratti(null). Se il salvataggio falliva, il risultato della foto
     // veniva buttato e bisognava rifare la scansione da zero. Ora i dati
-    // estratti restano a schermo finche' il salvataggio non riesce davvero.
+    // estratti restano a schermo finché il salvataggio non riesce davvero.
     try {
       await onSave(nuovoRic, { [nomeUp]: { unita: nuovaRic.unita, prezzo: nuovaRic.prezzo, tipo: nuovaRic.tipo } });
     } catch (e) {
@@ -650,7 +662,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
   return (
     <>
     <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-      {/* Hero + titolo: da' peso all'inserimento manuale che e' il flusso primario. */}
+      {/* Hero + titolo: da' peso all'inserimento manuale che è il flusso primario. */}
       <div style={{ marginBottom: 16, display: "flex", alignItems: "center", gap: 14 }}>
         <div style={{ width: isMobile ? 44 : 52, height: isMobile ? 44 : 52, borderRadius: R.lg, background: `linear-gradient(135deg, ${T.brand}, #4A0612)`, display: "flex", alignItems: "center", justifyContent: "center", color: "#FFF", flexShrink: 0, boxShadow: `0 8px 24px ${T.brand}33` }}>
           <Icon name={editMode ? "edit" : "plus"} size={isMobile ? 20 : 24} />
@@ -723,7 +735,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
       )}
 
       {/* Pannello contestuale: "Parti da una foto" — compatto, il toggle sovrascrivi
-          e' già nella command bar sopra (rimosso banner arancione redundant). */}
+          è già nella command bar sopra (rimosso banner arancione redundant). */}
       {openAction === 'foto' && (
         <div style={{ marginBottom: 16, padding: isMobile ? '12px 14px' : '14px 18px', background: '#FFF', border: `1px solid ${T.brand}22`, borderRadius: 12, boxShadow: SHADOW_PREMIUM }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: T.brand, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 6 }}>Estrai una ricetta da una foto</div>
@@ -817,34 +829,30 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
               semilavorati — solo che qui non sono ricette inventate da noi:
               sono le sue. Compaiono solo con il modulo vuoto, e spariscono
               appena si comincia a scrivere. */}
-          {!editMode && !form.nome && ricettePerPartire.length > 0 && (
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ ...fieldLabel, display: 'flex', alignItems: 'center', gap: 5 }}>
-                <Icon name="bolt" size={12} /> Parti da una che hai già
-              </div>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                {ricettePerPartire.map(n => (
-                  <button key={n} type="button" onClick={() => partiDa(n)}
-                    title={`Copia ingredienti e impostazioni di ${n} in una ricetta nuova`}
-                    style={{
-                      padding: isMobile ? '10px 13px' : '8px 12px', minHeight: isMobile ? 44 : 'auto',
-                      borderRadius: 8, border: `1px solid ${C.border}`, background: C.bgSubtle,
-                      color: C.textMid, fontSize: font.size.sm, fontWeight: 700, cursor: 'pointer',
-                      whiteSpace: 'nowrap', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis',
-                    }}>
-                    {n}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* 17/09/2026 — tolto «Parti da una che hai già» su richiesta del
+              titolare. Erano scorciatoie buone in teoria, ma stavano sopra il
+              campo del nome: la prima cosa che si vede aprendo «Nuovo gusto»
+              non deve essere un elenco di gusti vecchi. Chi vuole copiarne una
+              la apre e la duplica dal Ricettario, che è il posto dove sta
+              già guardando. */}
 
           {/* 1. Informazioni prodotto */}
           <div>
             <PanelHead icon={<Icon name="clipboard" size={18} />} title={`Informazioni ${LEX.prodotto}`} color={C.text} />
-            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "2fr 2fr", gap: 14 }}>
-              {/* Nome - full width */}
-              <div style={{ gridColumn: isMobile ? "auto" : "1 / -1" }}>
+            {/* 17/09/2026, richiesta del titolare: «le sezioni nome gusto,
+                categoria e tipo le barre sono lunghe ma senza motivo, puoi
+                riorganizzare e metterle di fianco per ottimizzare lo spazio».
+                Erano tre righe a tutta larghezza per tre campi corti: il nome
+                di un gusto sono due parole, la categoria una, il tipo una
+                scelta da un elenco. Su una riga sola si vedono tutti e tre
+                insieme, e il resto della pagina sale di tre righe.
+                Sul telefono restano incolonnati: affiancarli lì vorrebbe
+                dire tre campi da 100px. */}
+            <div style={{ display: "grid", gridTemplateColumns: colonneInfo, gap: 14 }}>
+              {/* Su tablet le colonne sono due e il nome si prende la riga
+                  intera: con tre colonne a 768px ogni campo starebbe in 250px,
+                  e il nome di un gusto non ci sta. */}
+              <div style={isTablet ? { gridColumn: "1 / -1" } : undefined}>
                 <div style={fieldLabel}>Nome {LEX.ricetta}</div>
                 <input value={form.nome} aria-label={`Nome ${LEX.ricetta}`} onChange={e => setForm(f => ({ ...f, nome: e.target.value.toUpperCase() }))}
                   placeholder={placeholderNome}
@@ -873,7 +881,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
 
               {/* Tipo unità — set opzioni deriva da tipoAttivita (isGelateria),
                   layout dei campi sotto deriva da form.tipo (isGusto). */}
-              <div style={isGusto ? { gridColumn: isMobile ? "auto" : "1 / -1" } : undefined}>
+              <div>
                 <div style={fieldLabel}>Tipo</div>
                 <select value={form.tipo} aria-label="Tipo unità"
                   onChange={e => {
@@ -894,10 +902,10 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                   }}
                   style={{ ...inputBase, fontSize: isMobile ? 16 : 14 }}>
                   {/* Audit 2026-09-09: "Uso interno" e "Base / semilavorato" erano due
-                      etichette che non dicevano la differenza, e la differenza e' tutta
+                      etichette che non dicevano la differenza, e la differenza è tutta
                       nel food cost:
                         interno      → il costo lo scrivi TU nel listino, la ricetta non
-                                       viene aperta. E' il modello delle basi da gelateria:
+                                       viene aperta. È il modello delle basi da gelateria:
                                        gli ingredienti si elencano (servono per gli
                                        allergeni) ma le quantita' restano tue, e il costo
                                        al kg lo calcoli a mano e lo inserisci.
@@ -959,7 +967,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
               )}
 
               {/* Costo al kg di una BASE.
-                  Audit 2026-09-09: il modello delle basi da gelateria e' che il
+                  Audit 2026-09-09: il modello delle basi da gelateria è che il
                   costo lo scrive l'utente — le quantita' degli ingredienti sono
                   il segreto del laboratorio e non si caricano. Ma quel prezzo
                   andava messo in un'altra pagina (il listino in Magazzino), e
@@ -1010,6 +1018,26 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                     style={{ ...inputBase, fontSize: 14 }} />
                 </div>
 
+                {/* 17/09/2026, il titolare: «controlla se il flusso del
+                    congelabile funziona, tanto non serve per il gelato».
+                    Aveva ragione due volte.
+                    Per il GELATO la domanda non ha senso: è già congelato, e
+                    chiederlo a chi carica un gusto è una casella che fa
+                    perdere tempo e basta. Qui sotto non compare più.
+                    Ma c'è dell'altro, ed è il motivo per cui questo commento
+                    è lungo: il valore VIENE SALVATO — nella ricetta e in ogni
+                    sessione di produzione (`ProduzioneGiornalieraView`
+                    righe 547 e 634) — e **nessuno lo rilegge mai**. Cercato in
+                    tutto `src/`: zero letture a valle. Oggi serve solo a
+                    scrivere «· congelabile» in un messaggio dopo il
+                    salvataggio.
+                    Non l'ho tolto del tutto perché per una pasticceria la
+                    domanda è vera (una torta si produce il giovedì e si vende
+                    il sabato) e il dato raccolto finora resta buono. Ma o
+                    qualcosa comincia a usarlo — la produzione anticipata, le
+                    previsioni — o è una casella che chiede una cosa e non ne
+                    fa niente. */}
+                {!isGusto && (
                 <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: form.congelabile ? "#EEF8FF" : "#F8F4F2", borderRadius: 8, border: `1px solid ${form.congelabile ? "#BDE" : "#E8E0DC"}`, cursor: "pointer" }}
                   onClick={() => setForm(f => ({ ...f, congelabile: !f.congelabile }))}>
                   <div style={{ width: 40, height: 22, borderRadius: 11, background: form.congelabile ? "#2980B9" : "#C8B8B4", position: "relative", flexShrink: 0, transition: "background 0.2s" }}>
@@ -1024,21 +1052,31 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                     </div>
                   </div>
                 </div>
+                )}
               </div>
             )}
           </div>
 
           {/* 2. Ingredienti */}
           <div style={sezione}>
+            {/* 17/09/2026, il titolare ha messo in dubbio la frase qui sotto:
+                «è corretta? perché magari il totale degli ingredienti non fa
+                1 kg preciso». Aveva ragione: diceva «per 1 kg di gusto
+                finito», e sembrava che la somma DOVESSE fare mille grammi.
+                Non è così, ed è proprio il motivo per cui esiste il campo Resa
+                più giù: si scrive la ricetta come la si fa davvero — una cotta
+                da 4.300 g — e la resa dice quanto prodotto finito ne esce, che
+                con l'evaporazione o l'aria montata non è mai la somma esatta
+                degli ingredienti. */}
             <PanelHead icon={<Icon name="receipt" size={18} />} title="Ingredienti"
               sub={isGusto
-                ? "Aggiungi ogni ingrediente in grammi per 1 kg di gusto finito. Il costo viene preso dal tuo listino prezzi (o dalla stima HoReCa)."
+                ? "Scrivi la ricetta come la fai davvero, in grammi: la somma non deve fare per forza 1 kg. Il costo al chilo lo calcola la Resa qui sotto. I prezzi arrivano dal tuo listino (o da una stima, se manca)."
                 : "Aggiungi ogni ingrediente con la quantità in grammi per uno stampo. Il costo viene preso dal tuo listino prezzi (o dalla stima HoReCa)."} />
             {form.ingredienti.length > 0 && (
               <div style={{ marginBottom: 14, border: `1px solid ${C.border}`, borderRadius: 8, overflowX: "auto" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: typo.small.fontSize, minWidth: 360 }}>
                   <thead>
-                    {/* Le etichette si toccano per ordinare: SortTH e' lo stesso
+                    {/* Le etichette si toccano per ordinare: SortTH è lo stesso
                         componente delle altre tabelle del prodotto, con il
                         fuoco da tastiera e Invio/Spazio già dentro. */}
                     <tr style={{ background: "#F8F4F2" }}>
@@ -1057,7 +1095,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                   </thead>
                   <tbody>
                     {/* `originalIndex` resta l'indice dentro form.ingredienti:
-                        e' quello che usano modifica e rimozione, e non deve
+                        è quello che usano modifica e rimozione, e non deve
                         seguire l'ordine a schermo. */}
                     {righeVisibili
                       .map(({ ing, originalIndex: i }, rowIndex) => {
@@ -1069,7 +1107,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                       const costo = rg.costo;
                       return (
                         <tr key={i} style={{ borderBottom: `1px solid ${C.border}`, background: rowIndex % 2 === 0 ? C.white : "#FDFAF7" }}>
-                          <td style={{ padding: "9px 10px", fontWeight: 600, color: C.text }}>
+                          <td style={{ padding: "6px 10px", fontWeight: 600, fontSize: font.size.md, color: C.text, verticalAlign: "middle" }}>
                             <span title={ing.nome} style={{ display: "inline-block", maxWidth: isMobile ? 130 : 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", verticalAlign: "bottom" }}>{ing.nome}</span>
                             {/* Audit 2026-09-09: un solo badge per riga, deciso dall'esito
                                 di costoRigaIngrediente. Prima l'unico badge era "prezzo
@@ -1118,13 +1156,25 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                             })()}
                           </td>
                           <td style={{ padding: "6px 10px", textAlign: "right" }}>
-                            <input type="number" min="0" value={ing.qty1stampo}
+                            {/* 17/09/2026, richiesta del titolare: «togli la
+                                possibilità di aumentare o diminuire la qty di
+                                grammi con le freccette, uno per sbaglio può
+                                farlo».
+                                Un campo numerico del browser non ha solo le
+                                freccette: cambia valore anche con la ROTELLA
+                                del mouse quando ha il fuoco, ed è il modo in
+                                cui si sbaglia più spesso — si scorre la pagina
+                                e una quantità cambia senza che nessuno l'abbia
+                                toccata. `type="text"` toglie tutte e due;
+                                `inputMode="decimal"` tiene la tastiera
+                                numerica sul telefono. */}
+                            <input type="text" inputMode="decimal" value={ing.qty1stampo}
                               aria-label={`Grammi per stampo di ${ing.nome}`}
                               // Entrando nel campo l'ordine si congela com'e'
                               // adesso: così la riga che si sta scrivendo non
                               // scappa sotto il dito. Uscendo si scioglie, e il
                               // riordino avviene nel momento in cui si passa
-                              // alla riga dopo — che e' quando serve vederlo.
+                              // alla riga dopo — che è quando serve vederlo.
                               onFocus={() => setOrdineCongelato(prev => prev || righeVisibili.map(r => r.originalIndex))}
                               onBlur={() => setOrdineCongelato(null)}
                               onChange={e => {
@@ -1132,11 +1182,20 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                                 n[i] = { ...n[i], qty1stampo: parseFloat(e.target.value) || 0 };
                                 setForm(f => ({ ...f, ingredienti: n }));
                               }}
-                              style={{ width: 80, padding: "7px 8px", borderRadius: 6, border: `1px solid ${C.borderStr}`, fontSize: 16, textAlign: "right", fontWeight: 700, color: C.text, background: C.white }} />
-                            <span style={{ fontSize: 12, color: C.textSoft, marginLeft: 4 }}>g</span>
+                              // 17/09/2026, richiesta del titolare: «queste info
+                              // sono visivamente tutte scoordinate, grandezze di
+                              // caratteri diverse, posizioni non in linea».
+                              // Il campo era 16px dentro una tabella scritta a
+                              // 12, e la «g» accanto un'altra misura ancora:
+                              // tre grandezze in una riga sola. Ora il campo e
+                              // l'unità stanno sulla stessa misura della
+                              // tabella, e il numero è incolonnato a destra con
+                              // le cifre a larghezza fissa come le altre celle.
+                              style={{ ...TNUM, width: 72, padding: "6px 8px", borderRadius: 6, border: `1px solid ${C.borderStr}`, fontSize: font.size.md, textAlign: "right", fontWeight: 700, color: C.text, background: C.white }} />
+                            <span style={{ fontSize: font.size.sm, color: C.textSoft, marginLeft: 5 }}>g</span>
                           </td>
-                          <td style={{ ...TNUM, padding: "9px 10px", textAlign: "right", color: costo > 0 ? C.red : C.textSoft, fontWeight: 600, ...TNUM, whiteSpace: 'nowrap' }}>{costo > 0 ? fmt(costo) : "-"}</td>
-                          <td style={{ padding: "6px 6px", textAlign: "right" }}>
+                          <td style={{ ...TNUM, padding: "6px 10px", textAlign: "right", color: costo > 0 ? C.red : C.textSoft, fontWeight: 700, fontSize: font.size.md, whiteSpace: 'nowrap' }}>{costo > 0 ? fmt(costo) : "—"}</td>
+                          <td style={{ padding: "6px 8px", textAlign: "right", verticalAlign: "middle" }}>
                             <button aria-label="Rimuovi ingrediente" onClick={() => removeIng(i)} style={{ padding: 0, width: 40, height: 40, borderRadius: 6, border: `1px solid ${C.border}`, background: C.white, color: C.textSoft, fontSize: 12, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: 'center' }}><Icon name="trash" size={14} /></button>
                           </td>
                         </tr>
@@ -1146,24 +1205,45 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                 </table>
               </div>
             )}
-            {/* Add ingrediente */}
-            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 110px auto", gap: 8, alignItems: "flex-end" }}>
+            {/* 17/09/2026, richiesta del titolare: «ingredienti e ingrediente
+                sono uno sotto l'altro, non bello visivamente».
+                Il riquadro si chiama già «Ingredienti» e due righe sotto
+                c'era scritto «Ingrediente», e accanto «Grammi». Tre etichette
+                per dire una cosa sola. I segnaposto dentro i campi («es.
+                burro», «es. 200») dicono già cosa scrivere, e restano visibili
+                finché il campo e' vuoto — cioe' esattamente quando servono.
+                Le etichette tolte, la riga si allinea in cima e il blocco
+                perde due righe di altezza. */}
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 120px auto", gap: 8, alignItems: "start" }}>
               <div>
-                <div style={fieldLabel}>Ingrediente</div>
-                <input value={newIngNome} aria-label="Nome ingrediente da aggiungere"
-                  onChange={e => setNewIngNome(e.target.value)}
-                  onKeyDown={onEnterAutoComplete(tuttiIng, newIngNome, setNewIngNome, () => { if (newIngQty) addIng() })}
-                  placeholder="es. burro" list="ing-autocomplete"
-                  style={{ ...inputBase, fontSize: 14, padding: "9px 11px" }} />
-                <datalist id="ing-autocomplete">{tuttiIng.map(k => <option key={k} value={k} />)}</datalist>
+                {/* 17/09/2026, richiesta del titolare: «la barra ingrediente se
+                    la clicco compaiono gli ingredienti ma di fianco, rifalla
+                    molto bene e l'elenco compare sempre sotto la barra».
+                    Era un `<datalist>`, cioè l'elenco che disegna il browser:
+                    dove lo mette e come lo fa non lo decidiamo noi, e cambia
+                    da browser a browser. In più filtra sulle voci che
+                    CONTENGONO quello che c'è già scritto — lo stesso difetto
+                    già corretto nel campo Categoria, dove si vedeva una voce
+                    sola e sembrava che le altre non esistessero.
+                    `CampoConElenco` è il componente nato per questo: l'elenco
+                    sta sempre sotto la barra, mostra tutte le voci, si muove
+                    con le frecce e ha le righe alte 44px per il dito. */}
+                <CampoConElenco
+                  id="ingrediente-nuovo"
+                  valore={newIngNome}
+                  onCambia={setNewIngNome}
+                  voci={tuttiIng}
+                  placeholder="es. burro"
+                  ariaLabel="Nome ingrediente da aggiungere"
+                  stile={{ ...inputBase }}
+                />
               </div>
               <div>
-                <div style={fieldLabel}>Grammi</div>
-                <input type="number" min="0" value={newIngQty} aria-label="Grammi di ingrediente da aggiungere" onChange={e => setNewIngQty(e.target.value)} onKeyDown={e => e.key === "Enter" && addIng()}
+                <input type="text" inputMode="decimal" value={newIngQty} aria-label="Grammi di ingrediente da aggiungere" onChange={e => setNewIngQty(e.target.value.replace(',', '.'))} onKeyDown={e => e.key === "Enter" && addIng()}
                   placeholder="es. 200"
-                  style={{ ...inputBase, fontSize: 14, padding: "9px 11px" }} />
+                  style={{ ...inputBase, ...TNUM, textAlign: "right" }} />
               </div>
-              <button onClick={addIng} aria-label="Aggiungi ingrediente alla ricetta" style={{ padding: "10px 16px", background: C.red, color: C.white, border: "none", borderRadius: 8, fontSize: isMobile ? 14 : 12, fontWeight: 700, cursor: "pointer", height: isMobile ? 46 : 42, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, width: isMobile ? '100%' : 'auto' }}>
+              <button onClick={addIng} aria-label="Aggiungi ingrediente alla ricetta" style={{ padding: "0 18px", background: C.red, color: C.white, border: "none", borderRadius: 8, fontSize: font.size.base, fontWeight: 700, cursor: "pointer", height: 44, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, width: isMobile ? '100%' : 'auto' }}>
                 <Icon name="plus" size={14} /> Aggiungi
               </button>
             </div>
@@ -1210,7 +1290,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
             const sommaG = (form.ingredienti || []).reduce((s, i) => s + (Number(i.qty1stampo) || 0), 0)
             // Audit 2026-09-09: qui il default per i gusti era 1000 g fisso, ma il
             // motore (resaGrammi) usa la somma degli ingredienti quando la resa
-            // non e' scritta. La card dichiarava "Default: 1.000 g" mentre il food
+            // non è scritta. La card dichiarava "Default: 1.000 g" mentre il food
             // cost veniva calcolato su 500 g: due numeri diversi per la stessa
             // cosa. Ora la card mostra quello che il sistema usa davvero.
             const resaDefault = resaGrammi({ ingredienti: form.ingredienti, tipo: form.tipo })
@@ -1219,9 +1299,18 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
             const scartoPct = sommaG > 0 ? (scartoAssoluto / sommaG) * 100 : 0
             const scartoRilevante = sommaG > 0 && resaEff > 0 && scartoPct > 5
             const labelResa = isGusto ? 'Resa 1 kg finito (g)' : (form.tipo === 'fetta' ? 'Peso stampo/torta (g)' : 'Peso pezzo (g)')
+            // 17/09/2026, richiesta del titolare: «anche questa sezione occupa
+            // troppo, riassumila». Erano due righe di spiegazione sempre a
+            // schermo per un campo che si compila una volta sola. La frase
+            // lunga è passata dietro al «?», che da oggi si apre anche col
+            // dito: chi la sa già non se la rilegge ogni volta, chi non la sa
+            // la trova dov'è naturale cercarla.
             const sub = isGusto
-              ? 'Quanti grammi di prodotto finito ottieni da questi ingredienti. Cambia se c\'è evaporazione (pastorizzazione) o overrun (aria montata) — il food cost/kg si adegua di conseguenza.'
-              : 'Peso reale dello stampo o pezzo prodotto. Utile come referenza ma non impatta il food cost per stampo.'
+              ? 'Quanti grammi di prodotto finito escono da questi ingredienti.'
+              : 'Peso reale dello stampo o pezzo prodotto.'
+            const spiegazione = isGusto
+              ? 'Cambia se c\'è evaporazione (pastorizzazione) o overrun (aria montata): il food cost al chilo si adegua di conseguenza. Lasciandolo vuoto vale la somma degli ingredienti.'
+              : 'Utile come riferimento, ma non cambia il food cost per stampo.'
             const normalizza = () => {
               if (!sommaG || !resaEff) return
               const ratio = resaEff / sommaG
@@ -1235,7 +1324,9 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
             }
             return (
               <div style={sezione}>
-                <PanelHead icon={<Icon name="package" size={18} />} title="Resa" sub={sub} />
+                <PanelHead icon={<Icon name="package" size={18} />} title="Resa"
+                  badge={<Tip text={spiegazione}><span style={{ width: 20, height: 20, borderRadius: '50%', background: C.bgSubtle, color: C.textSoft, fontSize: font.size.sm, fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'help' }}>?</span></Tip>}
+                  sub={sub} />
                 <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '180px 1fr', gap: 12, alignItems: 'flex-start' }}>
                   <div>
                     <div style={fieldLabel}>{labelResa}</div>
@@ -1601,7 +1692,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                     <div style={{ fontSize: 12, color: C.textSoft, marginTop: 2 }}>prezzo minimo per {form.tipo === "pezzo" ? "pezzo" : "fetta/porzione"} · food cost al {targetPct}%</div>
                   </div>
                   {/* Messaggio: alzare se sotto, OK se sopra/in linea. MAI suggerire di scendere. */}
-                  {/* Con degli ingredienti senza prezzo il minimo e' sottostimato:
+                  {/* Con degli ingredienti senza prezzo il minimo è sottostimato:
                       dire "stai guadagnando" sarebbe una rassicurazione falsa proprio
                       sul numero da cui parte il prezzo di vendita. */}
                   {!live.affidabile ? (
