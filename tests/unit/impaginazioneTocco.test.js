@@ -261,3 +261,51 @@ describe('il piè di pagina si legge e si tocca', () => {
     expect(regola).not.toMatch(/\ba\[href\]|^\s*a\s*,/m)
   })
 })
+
+// ── I bersagli del menu, misurati in produzione col tocco acceso ───────
+//
+// 17/09/2026. Due misure si contraddicevano, e nessuna delle due era buona:
+//
+//   · la mia, fatta entrando in produzione col browser: «zero bersagli sotto
+//     i 44px». Era sbagliata perché il browser non aveva il tocco acceso, e
+//     la regola CSS `@media (pointer: coarse)` non si attivava nemmeno:
+//     misuravo un telefono che il browser credeva un computer;
+//   · quella di un agente, su pagine disegnate a parte: «319 su 410, il 78%».
+//     Misurava il DOM senza nessun foglio di stile del telefono applicato.
+//
+// Rimisurato in produzione con `hasTouch: true` su otto pagine vere: **36
+// bersagli su 928, il 4%**. E quasi tutti erano gli stessi tre, che tornavano
+// su OGNI pagina perché stanno nel menu:
+//
+//     la casella «Cerca nel menu»        207 × 38
+//     l'intestazione di sezione «OGGI»   223 × 35
+//     la voce di menu                    223 × 36
+//
+// La voce di menu è il bersaglio che si tocca più spesso di tutto il
+// prodotto. Questi test difendono le tre altezze: sono numeri scritti a mano
+// nel foglio di stile in linea, e senza una prova tornano a 36 al primo
+// ritocco grafico.
+describe('i bersagli del menu reggono un dito', () => {
+  const DASH = leggi('src', 'Dashboard.jsx')
+
+  it('la voce di menu arriva a 44px', () => {
+    const blocco = DASH.slice(DASH.indexOf('padding:"10px 14px 10px 26px"'), DASH.indexOf('padding:"10px 14px 10px 26px"') + 500)
+    expect(blocco).toContain('minHeight: 44')
+  })
+
+  it('l’intestazione che apre e chiude una sezione pure', () => {
+    const i = DASH.indexOf('padding:"10px 12px 10px 14px"')
+    expect(i, 'intestazione di sezione non trovata').toBeGreaterThan(-1)
+    expect(DASH.slice(i, i + 400)).toContain('minHeight: 44')
+  })
+
+  it('e la casella di ricerca del menu, che era alta 38', () => {
+    expect(DASH).toContain('width:"100%", height:44, padding:"0 32px 0 36px"')
+    expect(DASH).not.toContain('width:"100%", height:38')
+  })
+
+  it('anche quella della barra larga, che aveva solo il bordo interno', () => {
+    // Era `padding:"8px ..."` senza altezza: 8+8+testo faceva 34.
+    expect(DASH).toContain('width:150,height:44')
+  })
+})

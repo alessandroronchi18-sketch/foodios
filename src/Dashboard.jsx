@@ -355,7 +355,7 @@ const C = {
   shadowLg:"0 10px 30px rgba(15,23,42,0.08), 0 2px 6px rgba(15,23,42,0.04)",
 };
 // fmt e fmtp stanno in lib/formatIt: erano riscritti qui a mano, e fmtp
-// usava toFixed(1), cioe' il punto decimale invece della virgola.
+// usava toFixed(1), cioè il punto decimale invece della virgola.
 const PIE_COLORS = [C.red,"#E07040","#D4A030","#5B8FCE","#7B7B7B","#A0522D"];
 
 // ─── PRIMITIVES ───────────────────────────────────────────────────────────────
@@ -2174,7 +2174,7 @@ export default function Dashboard({
             <input value={sidebarSearch} onChange={e=>setSidebarSearch(e.target.value)} placeholder="Cerca…"
               aria-label="Cerca nel menu"
               onKeyDown={e=>{ if(e.key==="Enter"&&searchHits.length){ e.preventDefault(); go(searchHits[0].id); } if(e.key==="Escape") setSidebarSearch(''); }}
-              style={{width:150,padding:"8px 12px 8px 32px",borderRadius:8,border:`1px solid ${T.borderOnDarkStr}`,background:"rgba(255,255,255,0.06)",color:"#fff",fontSize:12,outline:"none",fontFamily:"inherit"}}/>
+              style={{width:150,height:44,padding:"0 12px 0 32px",borderRadius:8,border:`1px solid ${T.borderOnDarkStr}`,background:"rgba(255,255,255,0.06)",color:"#fff",fontSize:12,outline:"none",fontFamily:"inherit"}}/>
             <span style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:"rgba(255,255,255,0.5)",display:"flex",pointerEvents:"none"}}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             </span>
@@ -2357,6 +2357,11 @@ export default function Dashboard({
               aria-current={active ? "page" : undefined}
               className={active ? "fos-nav-active-glow" : undefined}
               style={{width:"calc(100% - 16px)",padding:"10px 14px 10px 26px",margin:"0 8px 4px",
+                // 17/09/2026: la voce di menu era alta 36px. È il bersaglio
+                // che si tocca più spesso di tutti in tutto il prodotto, e
+                // stava sotto i 44 che serve a un dito. Misurato in produzione
+                // col tocco acceso, non a occhio.
+                minHeight: 44,
                 borderRadius:12,
                 border:"none",cursor:"pointer",textAlign:"left",
                 background:active
@@ -2410,6 +2415,9 @@ export default function Dashboard({
               <button onClick={() => toggleSec(id)}
                 disabled={!!sidebarQuery}
                 style={{ width:"calc(100% - 16px)", margin:"4px 8px 4px", padding:"10px 12px 10px 14px",
+                  // Apre e chiude una sezione del menu: si tocca col dito,
+                  // quindi 44px. Era 35 (10+10 di bordo interno più il testo).
+                  minHeight: 44,
                   background: hasActive
                     ? "linear-gradient(90deg, rgba(232,75,58,0.18), rgba(232,75,58,0.06) 60%, transparent)"
                     : "rgba(255,255,255,0.035)",
@@ -2617,7 +2625,10 @@ export default function Dashboard({
                 placeholder="Cerca nel menu"
                 aria-label="Cerca nel menu"
                 style={{
-                  width:"100%", height:38, padding:"0 32px 0 36px",
+                  // 17/09/2026: era alta 38px, cioè sotto i 44 che serve a un
+                  // dito. Misurata in produzione col tocco acceso: era uno dei
+                  // due bersagli piccoli che tornavano su OGNI pagina.
+                  width:"100%", height:44, padding:"0 32px 0 36px",
                   background:"rgba(255,255,255,0.05)",
                   backdropFilter:"blur(8px)",
                   WebkitBackdropFilter:"blur(8px)",
