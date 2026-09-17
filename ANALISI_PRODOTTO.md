@@ -1,10 +1,32 @@
 # FoodOS — Analisi prodotto (stile McKinsey, scoring 1–100)
 
-> Aggiornato: 2026-09-16 (sera) · Basata su evidenza diretta dal codice (LOC, test, migration, pattern)
+> Aggiornato: 2026-09-17 · Basata su evidenza diretta dal codice (LOC, test, migration, pattern)
 > e, dal 7 set, su query al database di produzione: quando qui c'e' un numero di
 > righe, di fatture o di letture, e' stato contato, non stimato.
 >
-> **Composito al 16/09 (sera): Prodotto 97 · Ingegneria 99 · Business 44 · Maturita' ~72.**
+> **Composito al 17/09: Prodotto 96 · Ingegneria 97 · Business 44 · Maturita' ~74.**
+>
+> **La notte fra il 16 e il 17/09 e' stata la sessione piu' lunga del progetto,
+> e la prima condotta da SEI AGENTI in parallelo** su sei dimensioni — soldi,
+> date, magazzino, sicurezza, righelli, pagine. Dettaglio in sezione 0septies.
+> Test da 3.649 a **4.196**, nove migrazioni applicate e verificate una per una.
+>
+> Il numero che riassume la sessione non e' quello dei difetti: e' **otto
+> strumenti di misura trovati rotti in dodici ore**, su un progetto che aveva
+> gia' fatto della verifica dei righelli una regola scritta. Fra questi, un
+> controllo che vedeva i difetti e usciva dichiarando che andava tutto bene, e
+> un file di test con 8 prove su 21 finte.
+>
+> Il coordinamento stesso ha sbagliato tre volte, e le tre sono istruttive:
+> una misura fatta col browser senza il tocco acceso (un telefono che il
+> browser credeva un computer), una causa dedotta da un'assenza di dati —
+> fermata dal titolare con «non ho ancora caricato tutti i dati» — e una
+> fotografia dei token rinfrescata mentre gli agenti stavano ancora ripulendo.
+> Tutte e tre trovate da un controllo, non da una rilettura.
+>
+> **I punteggi di prodotto e ingegneria SCENDONO di un punto**, e non e' un
+> refuso: si sapeva meno di quanto si credeva. Un progetto che scopre otto
+> righelli rotti non era al 99 il giorno prima.
 >
 > **Il 16/09 il metodo è cambiato: l'audit è stato fatto ENTRANDO in produzione
 > con le credenziali del titolare di Mara dei Boschi**, percorrendo le 19 pagine
@@ -1130,6 +1152,154 @@ alti. Sposta invece **il metodo**: la differenza fra leggere il codice ed entrar
 nell'applicazione con i dati veri di un cliente vale, a occhio, più di una
 settimana di audit statico. Sette difetti su otto non erano visibili compilando,
 e due di quelli mostravano numeri falsi al titolare in una pagina di bilancio.
+
+---
+
+## 0septies. La notte fra il 16 e il 17/09/2026 — sei agenti in parallelo
+
+La sessione più lunga del progetto, e la prima condotta da **sei agenti su sei
+dimensioni** — soldi, date, magazzino, sicurezza, righelli, pagine — con il
+coordinamento che leggeva, verificava e applicava.
+
+Il fatto di metodo che conta più dei difetti: gli agenti sono **caduti sei
+volte** sul limite di sessione, e ogni volta sono ripartiti **dal diario**
+invece che da zero. La regola scritta la mattina del 16 («il diario è
+obbligatorio») ha pagato sei volte in dodici ore. Senza, sarebbero state sei
+ripartenze da capo.
+
+### 1. I soldi — dieci difetti, tutti misurati sui dati veri
+
+| Difetto | Quanto pesava |
+|---|---|
+| «MANGO JERRY SPICY **+51.654% FC tollerabile**» | in una pagina di bilancio, in verde |
+| «FOOD COST MEDIO **4,8%**» nel Ricettario | per una gelateria è impossibile |
+| Media €/kg **non pesata** sui grammi | +6,34% di ricavo inventato su ogni gusto, ≈**12.707 €/mese** |
+| Note di credito col segno dall'etichetta | una formula dava 0, l'altra **+365,55 €** dove c'è un credito |
+| Fornitori spezzati da `SRL` vs `S.R.L.` | **95.847 €** su 199 fatture, 9 fornitori |
+| «Fatture scadute: 0» nel Confronto sedi | il vero era **410 per 150.193,60 €** |
+| La demo nasceva con **zero euro** | ed è l'azione che si usa per mostrare il prodotto |
+
+I primi due sono la stessa famiglia, ed è la lezione della sessione: **un costo
+calcolato su dati incompleti veniva trattato come un costo BASSO invece che
+come un costo CHE NON SI CONOSCE**. Il filtro era `costo > 0`, e bastava un
+ingrediente prezzato su dodici perché la ricetta passasse con un numero finto.
+
+### 2. Il magazzino — i 2.588 kg che non quadravano
+
+La partita doppia su 7.013 celle non tornava su **575, per 2.587,9 kg**. La
+causa: **la casella della rimanenza lasciata vuota veniva salvata come zero**,
+e zero in quella casella non vuol dire «non lo so», vuol dire «vetrina vuota,
+venduto tutto». 2.470 kg di venduto inventato su 660 righe.
+
+Tre prove indipendenti, tutte riverificate prima di consegnare: il 99,7% di
+quelle righe ha produzione lo stesso giorno (in media 5,87 kg); il venduto che
+ne esce è il triplo del normale; e la distribuzione ha la forma dell'abitudine
+di una persona, non di un fatto commerciale — Berthollet lascia la rimanenza a
+zero il martedì nel 43% dei casi, De Gasperi il mercoledì nel 63,6%.
+
+**L'effetto secondario vale quanto la correzione**: l'avviso «da controllare»
+funzionava già, ma segnalava 575 celle di cui 564 non erano errori di nessuno.
+Con il 98% di falsi allarmi quell'avviso non lo guardava più nessuno. Togliere
+lo zero finto riaccende un allarme spento, dentro cui le 11 segnalazioni vere
+erano invisibili.
+
+### 3. La sicurezza — nove migrazioni, tutte verificate prima di applicare
+
+1. **Il dipendente cancellava lo storico che non gli è dato leggere.** Una
+   chiave stava in tutti e due gli elenchi — scrivibile e nascosta — e la
+   scrittura è un rimpiazzo totale. Chi non vede il blocco non sa cosa
+   cancella.
+2. **Chi resta senza profilo si prendeva l'azienda di un altro.** Una richiesta
+   sola e si diventava titolari dell'azienda scelta.
+3. **Il food cost usciva lo stesso** dalla funzione che serve a nasconderlo:
+   **58 ricette su 58**. Il filtro era «togli queste»; ora è «fai passare solo
+   queste» — una lista di cose da togliere ci si dimentica di aggiornare.
+4. **«Sospendi» non sospendeva.** Quattro funzioni si leggevano l'azienda per
+   conto loro senza guardare `approvato`.
+5. **La sede su cui si scrive non era mai «la tua sede».** Nove funzioni si
+   fidavano del parametro: è la strada che fabbrica i «prodotti fantasma» da
+   sola, con un `sedeId` vecchio rimasto in memoria sul tablet condiviso.
+6. **Il registro non diceva chi.** `created_by` esisteva da sempre e non la
+   riempiva nessuno: 24 movimenti, zero autori.
+
+Due di queste migrazioni **affermavano il falso nei commenti**, e la verifica
+prima dell'applicazione l'ha trovato. Una diceva che la pagina Produzione non
+scrive dal browser: lo fa in quattro punti. Era sicura lo stesso, ma per
+un'altra ragione — e un commento sbagliato è un difetto che matura.
+
+### 4. Le date — 32 difetti censiti
+
+Fra i più gravi: le **fatture elettroniche datate al giorno sbagliato**
+(rilevanza fiscale, e a cavallo del 31/12 sbaglia anno), la cassa che
+**sovrascriveva la chiusura del giorno prima** quando il registratore non manda
+la data, il delivery che sbagliava giorno **ogni notte in automatico**, e il
+planning turni che slitta di un giorno attraversando il cambio dell'ora legale.
+
+### 5. I righelli — otto strumenti di misura trovati rotti
+
+È la parte che vale di più, e la sezione dice perché.
+
+* Un controllo che **vedeva i difetti e usciva dichiarando che andava tutto
+  bene**.
+* `views-render-smoke` con **8 prove su 21 finte**: quattro pagine che non
+  esistevano e quattro che crashavano «tollerate».
+* La regex delle emoji troppo larga, **copiata in quattro file**, che bocciava
+  la freccia dentro un commento e la spunta dei pulsanti — e che passando alla
+  regola giusta ha fatto emergere il `©` del piè di pagina.
+* Il cricchetto dei token che **segnalava il vero con un metodo sbagliato**.
+* Il controllo delle migrazioni che si connetteva **senza SSL**: restava
+  appeso e dichiarava «il database non risponde», bloccando due pubblicazioni
+  mentre dalla stessa macchina rispondeva in cinque secondi.
+
+**65 casi finti piantati a mano** per dimostrare che ogni attrezzo sa dire di
+no, più sei riproduzioni «rimetto il codice com'era e guardo chi cade».
+
+### 6. Due misure che si contraddicevano, e nessuna era buona
+
+Sui bersagli da toccare a 390px: il coordinamento ne dichiarava **zero**
+(misurati in produzione, ma con il browser **senza tocco acceso** — quindi la
+regola `@media (pointer: coarse)` non si attivava: un telefono che il browser
+credeva un computer), un agente **319 su 410** (misurati su pagine disegnate a
+parte, senza fogli di stile del telefono).
+
+Rimisurato in produzione con `hasTouch: true`: **36 su 928, il 4%**. E quasi
+tutti erano gli stessi tre, che tornavano su ogni pagina perché stanno nel
+menu — compresa la voce di menu, che è il bersaglio più toccato del prodotto.
+
+### 7. Quello che ha chiesto il titolare, durante
+
+* **Le spiegazioni non si aprivano col dito.** `Tip` reagiva solo a
+  `onMouseEnter`: su telefono e tablet — dove sta chi lavora in laboratorio —
+  **ogni «?» del prodotto era muto**. È il difetto che chi sviluppa non vede
+  mai, perché chi sviluppa ha un mouse.
+* **Gli ingredienti in ordine di peso**, colonne ordinabili, e l'ordine che si
+  **congela mentre si scrive** — altrimenti la riga scappa sotto il dito.
+* **Le spese di due negozi insieme.** Mara ha due account Webdesk: uno con le
+  fatture della Carlina, l'altro con Berthollet e De Gasperi mescolate, e
+  dentro i documenti non c'è niente che le distingua (0 note, 0 allegati, 0
+  date di riferimento su 142). Erano **189.458,40 € invisibili**. Ora si
+  dichiarano condivise e si dividono sui chili prodotti — 52,5% De Gasperi,
+  47,5% Berthollet — senza mai spezzare la fattura.
+* **Prima di importare si chiede di che negozio sono.** Le 3.104 fatture erano
+  finite tutte su Carlina perché era la sede attiva quando qualcuno ha premuto
+  Importa.
+* **I trasferimenti dicono chi manda e chi riceve.** E qui una correzione
+  dentro la correzione: la prima passata aveva aggiornato la versione
+  sbagliata della funzione — ne esistono due e il prodotto chiama l'altra. Una
+  migrazione applicata e inutile, trovata guardando **il codice che chiama**,
+  non solo quello chiamato.
+
+### Composito sessione: Prodotto 96 · Ingegneria 97 · Business 44 · Maturità ~74
+
+Test da **3.649 a 4.196**. Nove migrazioni applicate e verificate. Build verde.
+
+Il numero che riassume la sessione non è quello dei difetti: è **otto
+strumenti di misura trovati rotti in dodici ore**, su un progetto che aveva già
+fatto della verifica dei righelli una regola scritta. Il coordinamento stesso
+ha sbagliato tre volte — una misura senza tocco, una deduzione da un'assenza di
+dati (fermata dal titolare: «non ho ancora caricato tutti i dati»), e una
+fotografia dei token rinfrescata mentre gli agenti ripulivano. Tutte e tre
+trovate da un controllo, non da una rilettura.
 
 ---
 
