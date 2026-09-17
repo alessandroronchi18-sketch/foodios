@@ -18,7 +18,7 @@ import { lessico } from '../lib/lessico'
 import FotoOCR from '../components/FotoOCR'
 import AIFotoAnalisi from '../components/AIFotoAnalisi'
 import Icon from '../components/Icon'
-import { C, fmt, fmtp, TNUM, CampoConElenco } from './_shared'
+import { C, fmt, fmtp, TNUM, CampoConElenco, SortTH, useSortable, Tip } from './_shared'
 import { isSemiOInterno } from '../lib/tipoRicetta'
 import { useUnsavedGuard } from '../lib/useUnsavedGuard'
 
@@ -185,6 +185,45 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
   // perché e' da li' che calcolaFC lo legge quando la base viene usata come
   // ingrediente di un'altra ricetta.
   const [costoBaseKg, setCostoBaseKg] = useState('');
+
+  // ── L'ordine degli ingredienti ────────────────────────────────────────
+  //
+  // Richiesta del titolare, 17/09/2026: vederli «in ordine di qty», con
+  // l'ordine che si aggiorna mentre si scrive, e le colonne ordinabili
+  // toccando le etichette.
+  //
+  // Prima era alfabetico (richiesta del 13/07/2026). Per quantità è più utile
+  // quando si lavora sul food cost: quello che pesa sta in cima, e sotto ci
+  // sono i grammi che non spostano niente.
+  //
+  // Il punto delicato è il «mentre si scrive». Se la riga si sposta MENTRE il
+  // dito è dentro il campo, si finisce a scrivere nella riga sbagliata — su un
+  // telefono è quasi garantito. Quindi l'ordine si CONGELA quando un campo
+  // prende il fuoco e si scioglie quando lo perde: si riordina nel momento in
+  // cui si passa alla riga dopo, che è quando serve vederlo.
+  const { sortKey, sortDir, toggleSort, sort } = useSortable('qty1stampo', 'desc');
+  const [ordineCongelato, setOrdineCongelato] = useState(null);
+
+  // Le righe come si vedono a schermo. `originalIndex` resta l'indice dentro
+  // `form.ingredienti`: e' quello che usano modifica e rimozione, e non deve
+  // seguire l'ordine visivo.
+  const righeVisibili = useMemo(() => {
+    const righe = (form.ingredienti || []).map((ing, originalIndex) => ({ ing, originalIndex }));
+    if (ordineCongelato) {
+      const posizione = new Map(ordineCongelato.map((idx, n) => [idx, n]));
+      return [...righe].sort((a, b) =>
+        (posizione.has(a.originalIndex) ? posizione.get(a.originalIndex) : 1e9)
+        - (posizione.has(b.originalIndex) ? posizione.get(b.originalIndex) : 1e9));
+    }
+    return sort(righe, (r, k) => {
+      if (k === 'nome') return String(r.ing.nome || '');
+      if (k === 'costo') return costoRigaIngrediente(r.ing, ingCosti, ricettario).costo || 0;
+      return Number(r.ing.qty1stampo) || 0;
+    });
+    // `sort` si ricrea a ogni render: le dipendenze vere sono la chiave e il
+    // verso, che sono già qui.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.ingredienti, ordineCongelato, sortKey, sortDir, ingCosti, ricettario]);
   const costoBaseEsistente = useMemo(() => {
     if (form.tipo !== 'interno' || !form.nome.trim()) return null;
     const voce = ingCosti[normIng(form.nome)];
@@ -999,19 +1038,28 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
               <div style={{ marginBottom: 14, border: `1px solid ${C.border}`, borderRadius: 8, overflowX: "auto" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: typo.small.fontSize, minWidth: 360 }}>
                   <thead>
+                    {/* Le etichette si toccano per ordinare: SortTH e' lo stesso
+                        componente delle altre tabelle del prodotto, con il
+                        fuoco da tastiera e Invio/Spazio già dentro. */}
                     <tr style={{ background: "#F8F4F2" }}>
-                      {[["Ingrediente", null], [isGusto ? "g / kg gusto" : "g / stampo", isGusto ? "Grammi di ingrediente per 1 kg di gusto finito" : "Grammi di ingrediente per uno stampo"], ["Costo €", isGusto ? "Costo dell'ingrediente per 1 kg" : "Costo dell'ingrediente per uno stampo"], ["", null]].map(([h, tip], i) => (
-                        <th key={i} title={tip || undefined} style={{ padding: "8px 10px", textAlign: i === 0 ? "left" : "right", fontSize: 12, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: C.textSoft, borderBottom: `1px solid ${C.border}`, whiteSpace: "nowrap", ...(tip ? { cursor: "help", textDecoration: "underline dotted", textUnderlineOffset: 3 } : null) }}>{h}</th>
-                      ))}
+                      <SortTH k="nome" active={sortKey === 'nome'} dir={sortDir} onToggle={toggleSort}
+                        tip="Tocca per ordinare per nome">Ingrediente</SortTH>
+                      <SortTH k="qty1stampo" right active={sortKey === 'qty1stampo'} dir={sortDir} onToggle={toggleSort}
+                        tip={isGusto ? "Grammi di ingrediente per 1 kg di gusto finito. Tocca per ordinare." : "Grammi di ingrediente per uno stampo. Tocca per ordinare."}>
+                        {isGusto ? "g / kg gusto" : "g / stampo"}
+                      </SortTH>
+                      <SortTH k="costo" right active={sortKey === 'costo'} dir={sortDir} onToggle={toggleSort}
+                        tip={isGusto ? "Costo dell'ingrediente per 1 kg. Tocca per ordinare." : "Costo dell'ingrediente per uno stampo. Tocca per ordinare."}>
+                        Costo €
+                      </SortTH>
+                      <th style={{ padding: "8px 10px", borderBottom: `1px solid ${C.border}` }}/>
                     </tr>
                   </thead>
                   <tbody>
-                    {/* Ordine alfabetico per nome (richiesta utente 13/07/2026).
-                        Manteniamo originalIndex per callback edit/remove che
-                        agiscono su form.ingredienti per indice. */}
-                    {form.ingredienti
-                      .map((ing, originalIndex) => ({ ing, originalIndex }))
-                      .sort((a, b) => String(a.ing.nome || '').localeCompare(String(b.ing.nome || ''), 'it', { sensitivity: 'base' }))
+                    {/* `originalIndex` resta l'indice dentro form.ingredienti:
+                        e' quello che usano modifica e rimozione, e non deve
+                        seguire l'ordine a schermo. */}
+                    {righeVisibili
                       .map(({ ing, originalIndex: i }, rowIndex) => {
                       // Audit 2026-09-09: la riga si chiede a costoRigaIngrediente,
                       // la stessa funzione che alimenta il dettaglio food cost. Prima
@@ -1072,6 +1120,13 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                           <td style={{ padding: "6px 10px", textAlign: "right" }}>
                             <input type="number" min="0" value={ing.qty1stampo}
                               aria-label={`Grammi per stampo di ${ing.nome}`}
+                              // Entrando nel campo l'ordine si congela com'e'
+                              // adesso: così la riga che si sta scrivendo non
+                              // scappa sotto il dito. Uscendo si scioglie, e il
+                              // riordino avviene nel momento in cui si passa
+                              // alla riga dopo — che e' quando serve vederlo.
+                              onFocus={() => setOrdineCongelato(prev => prev || righeVisibili.map(r => r.originalIndex))}
+                              onBlur={() => setOrdineCongelato(null)}
                               onChange={e => {
                                 const n = [...form.ingredienti];
                                 n[i] = { ...n[i], qty1stampo: parseFloat(e.target.value) || 0 };

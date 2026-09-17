@@ -99,8 +99,26 @@ function interroga(url, sql) {
   const ambiente = daAmbiente
     ? { ...process.env, ...url.ambiente, PGSSLMODE: url.ambiente.PGSSLMODE || 'require' }
     : process.env
-  return execFileSync(PSQL, [indirizzo, '-tA', '-c', sql], { encoding: 'utf8', timeout: 60000, env: ambiente })
-    .split('\n').map(s => s.trim()).filter(Boolean)
+  // 17/09/2026 — un tentativo solo era troppo poco. Il database di Supabase
+  // ogni tanto ci mette piu' del solito a rispondere alla prima richiesta
+  // (connessione fredda attraverso il pooler), e questo controllo ha bloccato
+  // due pubblicazioni di fila per quel motivo — mentre dalla stessa macchina,
+  // un secondo dopo, rispondeva in cinque secondi.
+  //
+  // Tre tentativi con una pausa crescente. Se falliscono tutti e tre il
+  // problema e' vero e va detto; ma un singolo raffreddore non deve fermare
+  // una pubblicazione.
+  let ultimo
+  for (let tentativo = 1; tentativo <= 3; tentativo++) {
+    try {
+      return execFileSync(PSQL, [indirizzo, '-tA', '-c', sql], { encoding: 'utf8', timeout: 60000, env: ambiente })
+        .split('\n').map(s => s.trim()).filter(Boolean)
+    } catch (e) {
+      ultimo = e
+      if (tentativo < 3) execFileSync('sleep', [String(tentativo * 2)])
+    }
+  }
+  throw ultimo
 }
 
 // ── Cosa promettono le migrazioni ─────────────────────────────────────

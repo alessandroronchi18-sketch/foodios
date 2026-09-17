@@ -335,19 +335,67 @@ export const margBadge = (pct, senzaPrezzo = false) => {
 }
 
 // Tooltip su hover (portato fuori dal flow per essere always-on-top)
+// ── La spiegazione si apre anche col dito ──────────────────────────────
+//
+// 17/09/2026, segnalato dal titolare: «controlla che i mouseover funzionino in
+// tutto il tool, tipo ora in quella sezione non funzionano».
+//
+// Non era quella sezione: era questo componente. Reagiva SOLO a
+// `onMouseEnter`, cioè a un mouse. Su un telefono o su un tablet quel gesto
+// non esiste e la spiegazione non si apriva mai — e il tablet è proprio dove
+// sta chi lavora in laboratorio. Ogni «?» del prodotto era muto per metà
+// delle persone che lo usano.
+//
+// Ora apre in tre modi, uno per ogni modo di usare il prodotto:
+//   · il mouse ci passa sopra → si apre e si chiude da sola;
+//   · il dito tocca           → si apre, e si richiude toccando di nuovo o
+//                               toccando altrove;
+//   · la tastiera ci arriva   → si apre col fuoco, si chiude con Esc.
+//
+// Si chiude anche quando la pagina scorre o cambia dimensione: la spiegazione
+// è posizionata in coordinate di finestra, e restare aperta mentre il suo
+// bersaglio scivola via vorrebbe dire indicare la cosa sbagliata.
 export function Tip({ text, children, width = 220 }) {
   const [show, setShow] = useState(false)
   const [pos, setPos] = useState({ x: 0, y: 0 })
   const ref = useRef(null)
-  const handleEnter = (e) => {
-    const r = e.currentTarget.getBoundingClientRect()
+  const misura = (el) => {
+    const r = el.getBoundingClientRect()
     setPos({ x: r.left + r.width / 2, y: r.top - 8 })
+  }
+  const handleEnter = (e) => { misura(e.currentTarget); setShow(true) }
+  // `stopPropagation` serve perché altrimenti il click che apre arriva anche
+  // al `document` qui sotto, che la richiuderebbe nello stesso istante.
+  const handleTocco = (e) => {
+    e.stopPropagation()
+    if (show) { setShow(false); return }
+    misura(e.currentTarget)
     setShow(true)
   }
+
+  useEffect(() => {
+    if (!show) return undefined
+    const chiudi = () => setShow(false)
+    const conEsc = (e) => { if (e.key === 'Escape') setShow(false) }
+    document.addEventListener('click', chiudi)
+    document.addEventListener('keydown', conEsc)
+    window.addEventListener('scroll', chiudi, true)
+    window.addEventListener('resize', chiudi)
+    return () => {
+      document.removeEventListener('click', chiudi)
+      document.removeEventListener('keydown', conEsc)
+      window.removeEventListener('scroll', chiudi, true)
+      window.removeEventListener('resize', chiudi)
+    }
+  }, [show])
+
   if (!text) return children
   return (
     <span ref={ref} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}
-      onMouseEnter={handleEnter} onMouseLeave={() => setShow(false)}>
+      tabIndex={0} role="button" aria-label={`Spiegazione: ${text}`}
+      onMouseEnter={handleEnter} onMouseLeave={() => setShow(false)}
+      onClick={handleTocco}
+      onFocus={handleEnter} onBlur={() => setShow(false)}>
       {children}
       {show && (
         <span style={{

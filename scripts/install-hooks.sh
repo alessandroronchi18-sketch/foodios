@@ -94,7 +94,9 @@ echo
 echo "[4/4] Migrazioni applicate…"
 if ! node scripts/check-migrazioni-applicate.mjs; then
   echo
-  echo "Push abortito: il database non ha qualcosa che il codice usa."
+  echo "Push abortito dal controllo delle migrazioni."
+  echo "Leggi il messaggio qui sopra: dice se manca davvero qualcosa nel"
+  echo "database, oppure se il controllo non e\047 riuscito a farlo."
   echo "Per pushare comunque (sconsigliato): git push --no-verify"
   exit 1
 fi
