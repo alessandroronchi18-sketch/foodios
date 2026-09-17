@@ -15,9 +15,19 @@
 // sappiamo di lui. L'inserimento vero lo fa il componente, dopo che la persona
 // ha scelto quali prendere: non inseriamo niente di nascosto.
 
-// Stessa normalizzazione usata dallo Scadenziario (Scadenzario.jsx:18), perché i
-// due percorsi devono considerare "lo stesso fornitore" le stesse scritture.
-export const normNomeFornitore = s => String(s || '').trim().toUpperCase().replace(/\s+/g, ' ')
+import { aggiungiGiorni } from './dateLocal'
+import { normNome as normNomeFornitore } from './scadenzeFatture'
+
+// Stessa normalizzazione usata dallo Scadenziario, perché i due percorsi
+// devono considerare "lo stesso fornitore" le stesse scritture.
+//
+// Fino al 16/09/2026 «stessa» era un modo di dire: la regola stava scritta due
+// volte, qui e in `scadenzeFatture.js`, e tutte e due facevano solo maiuscolo,
+// trim e spazi singoli. Ora c'è un posto solo, e sa che «FOODINHO, SRL» e
+// «Foodinho S.R.L.» sono la stessa azienda — nove fornitori di Mara per
+// 104.619,41 € erano spezzati in due schede. Il perché completo è nel commento
+// di `normNome`.
+export { normNome as normNomeFornitore } from './scadenzeFatture'
 
 // Raggruppa le fatture per fornitore normalizzato.
 //
@@ -39,13 +49,16 @@ export function raggruppaFornitoriDaFatture(fatture, fornitoriEsistenti, oggiISO
     .map(f => normNomeFornitore(f?.nome))
     .filter(Boolean))
 
-  const soglia = (() => {
-    if (!oggiISO) return null
-    const d = new Date(`${oggiISO}T00:00:00`)
-    if (Number.isNaN(d.getTime())) return null
-    d.setDate(d.getDate() - 30)
-    return d.toISOString().slice(0, 10)
-  })()
+  // «Ultimi 30 giorni», e trenta vuol dire trenta.
+  //
+  // Due errori nello stesso conto. Il primo: la soglia si prendeva a -30 e poi
+  // si confrontava con `>=`, quindi la finestra andava da oggi-30 a oggi,
+  // estremi compresi — 31 giorni. Il secondo: `toISOString()` su una
+  // mezzanotte LOCALE riporta l'istante a Greenwich, e in Italia (+1/+2) il
+  // giorno che ne usciva era quello prima: 32. Il numero finiva sotto agli
+  // occhi del titolare come «speso con questo fornitore negli ultimi 30
+  // giorni», e comprendeva sempre uno o due giorni di troppo.
+  const soglia = oggiISO ? aggiungiGiorni(oggiISO, -29) : null
 
   const perChiave = new Map()
   let totaleFatture = 0

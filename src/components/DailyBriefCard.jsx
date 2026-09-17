@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { todayLocal } from '../lib/dateLocal'
 import { color as T } from '../lib/theme'
 import Icon from './Icon'
 import { fmtp } from '../lib/formatIt'
@@ -70,7 +71,11 @@ export default function DailyBriefCard({ orgId }) {
     let alive = true
     async function load() {
       setLoading(true)
-      const today = new Date().toISOString().slice(0, 10)
+      // Il brief è indicizzato per GIORNO. Con `toISOString()` si chiedeva
+      // quello del giorno UTC: aprendo l'app alle 00:30 la scheda restava
+      // vuota (il brief di ieri era già stato letto, quello di oggi ancora
+      // non lo si cercava) e il titolare non vedeva niente.
+      const today = todayLocal()
       // Preferenza: brief settimanale (al lunedi) > giornaliero.
       const { data: briefs } = await supabase
         .from('daily_briefs')

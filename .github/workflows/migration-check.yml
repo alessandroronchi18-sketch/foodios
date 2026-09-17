@@ -26,6 +26,15 @@ permissions:
   pull-requests: write
   contents: read
 
+# 16/09/2026, audit del righello: `run:` senza `shell:` gira con `bash -e`,
+# che NON ha `pipefail`. In una pipeline conta l'ultimo comando, e quello
+# riesce quasi sempre: e' la riga che il 14/09 ha lasciato passare due
+# pubblicazioni con il build rotto. Con `shell: bash` GitHub usa
+# `bash --noprofile --norc -eo pipefail`.
+defaults:
+  run:
+    shell: bash
+
 jobs:
   check:
     runs-on: ubuntu-latest

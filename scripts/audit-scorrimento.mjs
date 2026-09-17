@@ -27,3 +27,10 @@ for (const f of readdirSync(DIR).filter(x => x.endsWith('.html'))) {
 }
 await b.close()
 console.log(`\n@${L}px → ${n} pagine si trascinano di lato`)
+
+// ── L'esito conta ───────────────────────────────────────────────
+// Fino al 16/09/2026 questo attrezzo vedeva il difetto e usciva 0: chi lo
+// mettesse in una catena (`&&`, un passo di CI, il cancello pre-push) non se
+// ne accorgerebbe mai. È la stessa forma del difetto che il 14/09 ha fatto
+// passare due pubblicazioni col build rotto (l'esito mangiato da `| tail`).
+if (n > 0) process.exit(1)

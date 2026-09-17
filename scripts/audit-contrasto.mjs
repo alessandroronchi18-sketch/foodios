@@ -133,3 +133,10 @@ for (const [k, g] of [...perCoppia.entries()].sort((a, b2) => b2[1].quanti - a[1
   console.log(`      rapporto ${g.rapporto} (serve ${g.atteso}) · testo ${g.misura}px · ${[...g.pagine].slice(0, 5).join(', ')}`)
   console.log(`      es. ${g.testo}`)
 }
+
+// ── L'esito conta ──────────────────────────────────────────────────────
+// Fino al 16/09/2026 questo attrezzo vedeva il difetto e usciva 0: chi lo
+// mettesse in una catena (`&&`, un passo di CI, il cancello pre-push) non se
+// ne accorgerebbe mai. È la stessa forma del difetto che il 14/09 ha fatto
+// passare due pubblicazioni col build rotto (l'esito mangiato da `| tail`).
+process.exit(1)

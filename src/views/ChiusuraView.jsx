@@ -21,7 +21,7 @@ import { SK_CHIUS, SK_FORMATI, SK_MOV } from '../lib/storageKeys'
 import { riconciliaFormati } from '../lib/formatiVendita'
 import { aggregaGiorno } from '../lib/movimentiSpeciali'
 import { parseDeliveroo, parseJustEat, parseGlovo, parseGenericCSV, applyGenericMapping, mergeInChiusure } from '../lib/importDelivery'
-import { parseFile as parseCassaFile, mergeInChiusureCassa } from '../lib/importCassa'
+import { parseFile as parseCassaFile, mergeInChiusureCassa, SISTEMI_CASSA } from '../lib/importCassa'
 import { todayLocal } from '../lib/dateLocal'
 import { lessico } from '../lib/lessico'
 import Icon from '../components/Icon'
@@ -1115,12 +1115,15 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
               <div style={{ fontSize: FS.small, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Sistema cassa</div>
               <select value={importSistema} onChange={e => { setImportSistema(e.target.value); setImportPreview(null) }}
                 style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: FS.small, color: C.text }}>
-                <option value="cassaincloud">Cassa in Cloud (CSV)</option>
-                <option value="sumup">SumUp (CSV)</option>
-                <option value="zucchetti">Zucchetti Infinity/Kassa (CSV o XML)</option>
-                <option value="lightspeed">Lightspeed (CSV)</option>
-                <option value="square">Square (CSV)</option>
-                <option value="fattura_xml">Fattura Elettronica SDI (XML)</option>
+                {/* L'elenco sta in importCassa.js e lo legge anche il dispatch:
+                    qui erano sei voci scritte a mano mentre i parser erano
+                    quindici, e chi aveva una Tilby o una RCH non trovava la
+                    propria cassa. */}
+                {SISTEMI_CASSA.map(s => (
+                  <option key={s.id} value={s.id}>
+                    {s.nome} ({s.accetta.replace(/\./g, '').toUpperCase().replace(/,/g, ' o ')})
+                  </option>
+                ))}
               </select>
             </div>
             <label style={{ display: 'block', padding: '12px', background: '#F8F4F2', border: `1px dashed ${C.borderStr}`, borderRadius: 10, textAlign: 'center', cursor: 'pointer', fontSize: FS.small, fontWeight: 700, color: C.textMid, marginBottom: 14 }}>

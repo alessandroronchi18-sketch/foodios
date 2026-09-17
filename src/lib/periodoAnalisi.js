@@ -130,3 +130,28 @@ export function nomePeriodo(from, to) {
   if (fy === ty) return `${fd} ${MESI[fm - 1]} – ${td} ${MESI[tm - 1]} ${fy}`
   return `${fd} ${MESI[fm - 1]} ${fy} – ${td} ${MESI[tm - 1]} ${ty}`
 }
+
+/**
+ * Come si chiama un giorno, a parole: «Oggi», «Ieri», o per esteso.
+ *
+ * Il Registro attività se lo calcolava da sé, e lo calcolava in UTC:
+ * `a.toISOString().slice(0,10) === b.toISOString().slice(0,10)`. Alle 01:00 di
+ * notte quel confronto dice ancora «ieri» per adesso e «ieri» per ieri sera,
+ * quindi il lavoro della sera prima compariva sotto «Oggi».
+ *
+ * Qui i giorni sono stringhe e si confrontano come stringhe. `T12:00` serve
+ * solo a far scrivere il nome del giorno a Intl: mezzogiorno locale sta dentro
+ * la stessa giornata in qualunque fuso, mentre `new Date('2026-09-16')` è
+ * mezzanotte UTC e in America diventa il 15.
+ */
+export function nomeDelGiorno(giorno, adesso = new Date()) {
+  const g = typeof giorno === 'string' ? giorno.slice(0, 10) : ''
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(g)) return ''
+  const oggi = formatLocalDate(adesso)
+  const ieri = formatLocalDate(new Date(adesso.getFullYear(), adesso.getMonth(), adesso.getDate() - 1))
+  if (g === oggi) return 'Oggi'
+  if (g === ieri) return 'Ieri'
+  return new Date(`${g}T12:00`).toLocaleDateString('it-IT', {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+  })
+}

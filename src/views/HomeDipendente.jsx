@@ -1,5 +1,5 @@
 // HomeDipendente - landing dedicata al ruolo dipendente.
-// Sostituisce la home generica con 6 pulsantoni XL ottimizzati per
+// Sostituisce la home generica con i pulsantoni XL ottimizzati per
 // laboratorio (mani sporche, tablet, mobilità). Mobile-first.
 //
 // Wired in Dashboard.jsx come view 'home-dipendente'. Il routing
@@ -40,16 +40,19 @@ function partOfDayGreeting() {
 export default function HomeDipendente({
   user,
   sedeAttiva,
+  sedi,
   isInventario,
   setView,
   notify,
 }) {
   const nomeDip = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'collega'
   const standalone = isStandalonePWA()
+  // Più di un negozio = c'è un furgone che gira, e chi lo scarica è chi sta qui.
+  const piuSedi = (sedi || []).filter(s => s?.attiva !== false).length > 1
 
-  // 5 azioni operative principali. L'ordine riflette il flusso di una giornata:
-  // 1) inventario mattutino o produzione, 2) chiusura, 3) magazzino, 4) sprechi,
-  // 5) calendario.
+  // Le azioni operative. L'ordine riflette il flusso di una giornata:
+  // 1) inventario mattutino o produzione, 2) chiusura, 3) magazzino,
+  // 4) sprechi, 5) calendario, 6) merce arrivata (solo con più di un negozio).
   //
   // L'HACCP era la quinta ed e' uscito il 14/09/2026: la pagina e' nascosta
   // (vedi PAGINE_NASCOSTE in Dashboard.jsx) e il pulsante portava su uno
@@ -95,7 +98,24 @@ export default function HomeDipendente({
       bg: 'linear-gradient(135deg, #6D28D9 0%, #A78BFA 100%)',
       iconColor: '#EDE9FE',
     },
-  ], [isInventario])
+    // Audit del 16/09/2026, agente PAGINE. Il 15/09 il titolare ha deciso che
+    // è il dipendente a scaricare il furgone, e `trasferimenti` è entrato
+    // nelle sue pagine (VISTE_DIPENDENTE in menuFoodos.js). Ma questa pagina —
+    // che per chi sta in laboratorio col tablet È la navigazione, non una
+    // scorciatoia — è rimasta com'era: la merce arrivata si poteva confermare
+    // solo aprendo il menu laterale. Cinque pulsanti, e il commento in cima
+    // ne dichiarava sei.
+    // Compare solo con più di un negozio: con un negozio solo i trasferimenti
+    // non esistono e sarebbe un pulsante che porta a una pagina vuota.
+    ...(piuSedi ? [{
+      id: 'trasferimenti',
+      label: 'Merce\narrivata',
+      hint: 'Conferma cosa è sceso dal furgone',
+      icon: 'truck',
+      bg: `linear-gradient(135deg, ${T.blue} 0%, ${T.blue}AA 100%)`,
+      iconColor: T.blueLight,
+    }] : []),
+  ], [isInventario, piuSedi])
 
   function vai(id) {
     if (!setView) return

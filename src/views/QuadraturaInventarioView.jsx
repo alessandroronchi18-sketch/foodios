@@ -15,6 +15,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { color as T, typo, ui3, ui } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { sload } from '../lib/storage'
+import { aggiungiGiorni } from '../lib/dateLocal'
 import { supabase } from '../lib/supabase'
 import { SK_FORMATI } from '../lib/storageKeys'
 import Icon from '../components/Icon'
@@ -27,13 +28,19 @@ import {
 } from '../lib/inventarioProduzione'
 
 // ── Helpers data/numeri (IT) ──────────────────────────────────────────────
-function addDays(dateIso, n) {
-  const d = new Date(dateIso); d.setDate(d.getDate() + n)
-  return d.toISOString().slice(0, 10)
-}
+// I giorni si sommano in giorni, non in millisecondi e non passando da
+// `new Date('2026-03-29')` — che è mezzanotte a Greenwich — per poi rileggere
+// il risultato con `toISOString()`, che a Greenwich ci torna. Attraversando il
+// cambio dell'ora (29 marzo e 25 ottobre 2026) quel viavai sposta la settimana
+// di un giorno: «settimana precedente» saltava alla domenica e la quadratura
+// confrontava sette giorni contro otto.
+const addDays = (dateIso, n) => aggiungiGiorni(dateIso, n)
+
 function fmtRange(lunediIso) {
-  const lun = new Date(lunediIso)
-  const dom = new Date(lunediIso); dom.setDate(dom.getDate() + 6)
+  // Mezzogiorno, non mezzanotte UTC: l'etichetta della settimana deve dire
+  // gli stessi giorni che la tabella sotto sta mostrando.
+  const lun = new Date(`${lunediIso}T12:00:00`)
+  const dom = new Date(`${aggiungiGiorni(lunediIso, 6)}T12:00:00`)
   const f = d => d.toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })
   return `${f(lun)} - ${f(dom)} ${dom.getFullYear()}`
 }
@@ -804,7 +811,7 @@ function SparklineTrend({ data }) {
     return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`
   }).join(' ')
   const fmtLabel = (iso) => {
-    const d = new Date(iso)
+    const d = new Date(`${String(iso).slice(0, 10)}T12:00:00`)
     return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`
   }
   return (

@@ -185,3 +185,10 @@ if (dettagli.length) {
   }
 }
 console.log('')
+
+// ── L'esito conta ───────────────────────────────────────────────
+// Fino al 16/09/2026 questo attrezzo vedeva il difetto e usciva 0: chi lo
+// mettesse in una catena (`&&`, un passo di CI, il cancello pre-push) non se
+// ne accorgerebbe mai. È la stessa forma del difetto che il 14/09 ha fatto
+// passare due pubblicazioni col build rotto (l'esito mangiato da `| tail`).
+if (dettagli.length) process.exit(1)

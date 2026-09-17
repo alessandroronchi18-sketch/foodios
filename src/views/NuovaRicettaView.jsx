@@ -28,6 +28,10 @@ const SHADOW_PREMIUM = '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42
 // Categorie suggerite (chip rapide). L'utente può anche digitare liberamente.
 // Sono scelte in base al tipo attivita': una gelateria non vuole vedere "Torte"
 // come primo suggerimento, così come una pasticceria non vuole "Frutta".
+// Il fondo caldo dei riquadri «non lo so ancora»: semaforo spento, nessun
+// allergene rilevato. Non è un token di theme.js — l'app ha due famiglie di
+// grigi, uno freddo (bgSubtle) e uno panna — ma qui sta scritto una volta sola.
+const BG_NEUTRO = '#FAF8F7';
 const CATEGORIE_DEFAULT = ['Torte', 'Biscotti', 'Lievitati', 'Monoporzioni', 'Crostate', 'Salato', 'Bevande', 'Altro']
 const CATEGORIE_PER_TIPO = {
   gelateria: ['Gusto', 'Crema', 'Frutta', 'Cioccolato', 'Sorbetto', 'Yogurt', 'Vegan', 'Altro'],
@@ -530,7 +534,13 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
   //   ambra   = target < fc ≤ target + 10      (da tenere d'occhio)
   //   rosso   = fc > target + 10               (critico)
   const sem = useMemo(() => {
-    if (live.ricavo <= 0) return { color: C.textSoft, bg: '#FAF8F7', border: C.border, label: 'Imposta unità e prezzo', icon: 'dot' };
+    if (live.ricavo <= 0) return { color: C.textSoft, bg: BG_NEUTRO, border: C.border, label: 'Imposta unità e prezzo', icon: 'dot' };
+    // Audit del 16/09/2026, agente PAGINE: la ricetta appena aperta non ha
+    // ancora nessun ingrediente, e qui usciva «Manca il costo di qualche
+    // ingrediente» con sotto «0 ingredienti sono senza prezzo». Un avviso su
+    // zero cose. Non è un costo che manca: è la ricetta che non è ancora
+    // scritta, e va detto con le sue parole.
+    if (!live.conIngredienti) return { color: C.textSoft, bg: BG_NEUTRO, border: C.border, label: 'Ancora nessun ingrediente', icon: 'dot' };
     // Nessun verdetto quando il food cost e' incompleto: senza i prezzi il
     // margine risulta più alto del vero, e un verde qui e' peggio di niente.
     if (!live.affidabile) return { color: C.amber, bg: C.amberLight, border: `${C.amber}55`, label: 'Manca il costo di qualche ingrediente', icon: 'warning' };
@@ -1229,7 +1239,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
               sub="Calcolati automaticamente dagli ingredienti (Reg. UE 1169/2011). Aggiungi manualmente quelli mancanti se necessario." />
 
             {autoAllergeni.length === 0 ? (
-              <div style={{ fontSize: 12, color: C.textSoft, padding: "10px 12px", background: "#FAF8F7", border: `1px dashed ${C.border}`, borderRadius: 8, marginBottom: 14 }}>
+              <div style={{ fontSize: 12, color: C.textSoft, padding: "10px 12px", background: BG_NEUTRO, border: `1px dashed ${C.border}`, borderRadius: 8, marginBottom: 14 }}>
                 Nessun allergene rilevato dagli ingredienti attuali. Verifica gli ingredienti o aggiungi manualmente sotto.
               </div>
             ) : (
@@ -1433,9 +1443,11 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                 <div style={{ fontSize: 12, color: C.textSoft, marginTop: 1 }}>
                   {live.ricavo <= 0
                     ? "Aggiungi ingredienti, unità e prezzo"
-                    : !live.affidabile
-                      ? <>{live.mancanti.length === 1 ? '1 ingrediente è senza prezzo' : `${live.mancanti.length} ingredienti sono senza prezzo`}: il margine che vedi è più alto del vero</>
-                      : <>Food cost {fmtp(live.fcPct)} · obiettivo {targetPct}%</>}
+                    : !live.conIngredienti
+                      ? "Scrivi gli ingredienti: finché non ci sono, il food cost non si può dire"
+                      : !live.affidabile
+                        ? <>{live.mancanti.length === 1 ? '1 ingrediente è senza prezzo' : `${live.mancanti.length} ingredienti sono senza prezzo`}: il margine che vedi è più alto del vero</>
+                        : <>Food cost {fmtp(live.fcPct)} · obiettivo {targetPct}%</>}
                 </div>
               </div>
             </div>
@@ -1511,7 +1523,18 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                   Svuotando il campo Fette (unita = 0) il prezzo minimo diventava 0,00 €
                   e il messaggio finale diceva "Sei sopra il minimo: stai guadagnando più
                   del target". Ora il numero appare solo quando ha un senso. */}
-              {live.unitaMancante ? (
+              {!live.conIngredienti ? (
+                /* Audit del 16/09/2026, agente PAGINE. Bastava che ci fosse un
+                   prezzo di vendita (`live.ricavo > 0`) perché il pannello si
+                   accendesse: senza nemmeno un ingrediente il food cost vale
+                   zero, e il «prezzo minimo per fetta» usciva **0,00 €**. Un
+                   food cost che non si conosce non è gratis: è un food cost che
+                   non si conosce, e va scritto così. */
+                <div style={{ color: C.textSoft, fontSize: typo.small.fontSize, textAlign: "center", padding: "10px 0", lineHeight: 1.5 }}>
+                  Il prezzo minimo si calcola dal food cost, e il food cost si calcola dagli ingredienti.
+                  Scrivili qui sopra e questo numero compare da sé.
+                </div>
+              ) : live.unitaMancante ? (
                 <div style={{ color: C.textSoft, fontSize: typo.small.fontSize, textAlign: "center", padding: "10px 0", lineHeight: 1.5 }}>
                   Indica quante {form.tipo === "pezzo" ? "pezzi ricavi" : "fette ricavi"} da uno stampo:
                   senza quel numero non si può dire quanto deve costare {form.tipo === "pezzo" ? "un pezzo" : "una fetta"}.
@@ -1673,14 +1696,21 @@ function CommandBar({ isMobile, ricetteEsistenti, activeNome, onPickExisting, ac
       }}>
         {/* Search inline ricette esistenti */}
         <div style={{ flex: '1 1 240px', minWidth: 0, position: 'relative' }}>
+          {/* Audit del 16/09/2026, agente PAGINE. Il campo di ricerca era alto
+              **22px**: la cornice grigia ne misurava 40, ma il pezzo che
+              reagisce al dito è l'`input`, e il resto era imbottitura. Sul
+              telefono, per scrivere qui, bisognava centrare una striscia alta
+              come due righe di testo. Adesso la cornice è alta 44 e il campo
+              la riempie tutta (`alignSelf: stretch`): si tocca dove si vede. */}
           <div style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            padding: isMobile ? '9px 12px' : '8px 12px',
+            display: 'flex', alignItems: 'stretch', gap: 8,
+            minHeight: 44,
+            padding: '0 12px',
             background: '#F8F7F5',
             border: `1px solid ${showList ? C.text : 'transparent'}`,
             borderRadius: 10, transition: 'border 0.15s ease',
           }}>
-            <Icon name="search" size={15} color={C.textSoft} />
+            <Icon name="search" size={15} color={C.textSoft} style={{ alignSelf: 'center' }} />
             <input
               type="text"
               value={q}
@@ -1689,13 +1719,13 @@ function CommandBar({ isMobile, ricetteEsistenti, activeNome, onPickExisting, ac
               placeholder={hasEsistenti ? `Cerca fra ${ricetteEsistenti.length} ${LEX?.ricette || 'ricette'} esistenti…` : `Nessuna ${LEX?.ricetta || 'ricetta'} ancora — compila sotto`}
               disabled={!hasEsistenti}
               style={{
-                flex: 1, minWidth: 0,
+                flex: 1, minWidth: 0, minHeight: 44,
                 border: 'none', outline: 'none', background: 'transparent',
                 fontSize: 13, color: C.text, fontFamily: 'inherit',
               }}
             />
             {activeNome && (
-              <span style={{ fontSize: 12, fontWeight: 800, color: T.brand, background: `${T.brand}12`, padding: '3px 8px', borderRadius: 6, whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              <span style={{ alignSelf: 'center', fontSize: 12, fontWeight: 800, color: T.brand, background: `${T.brand}12`, padding: '3px 8px', borderRadius: 6, whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                 in modifica
               </span>
             )}

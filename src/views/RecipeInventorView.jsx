@@ -21,18 +21,28 @@ const BRAND = T.brand || '#6E0E1A'
 const SOFT = T.textSoft || '#8B95A7'
 const TXT = T.text || '#0E1726'
 const MID = T.textMid || '#475264'
-const CARD = T.bgCard || '#FFF'
+const CARD = T.bgCard || T.white
 const BORDER = T.border || '#E5E9EF'
+// Bianco sopra il bordeaux: il token c'è (`textOnDark`), e sotto ci sono
+// icone e non solo testo. Scritto una volta sola.
+const SU_BRAND = T.textOnDark
 
+// I tipi di prodotto: nome e icona separati.
+//
+// Audit del 16/09/2026, agente PAGINE. L'icona stava dentro il nome sotto
+// forma di emoji, contro la regola del progetto (le icone si disegnano col
+// componente `Icon`). E non era solo una questione di stile: questa stessa
+// etichetta finisce dentro la richiesta all'assistente (riga «Tipo: …»), che
+// riceveva quindi il nome con davanti la faccina, invece del solo «Torta».
 const TIPI = [
-  { id: 'torta',    lbl: '🎂 Torta' },
-  { id: 'biscotto', lbl: '🍪 Biscotto' },
-  { id: 'pasticcino', lbl: '🧁 Pasticcino' },
-  { id: 'gelato',   lbl: '🍦 Gelato' },
-  { id: 'cioccolato', lbl: '🍫 Cioccolato' },
-  { id: 'lievitato', lbl: '🥐 Lievitato' },
-  { id: 'bevanda',  lbl: '☕ Bevanda' },
-  { id: 'altro',    lbl: 'Sorprendimi' },
+  { id: 'torta',      lbl: 'Torta',       icona: 'cake' },
+  { id: 'biscotto',   lbl: 'Biscotto',    icona: 'restaurant' },
+  { id: 'pasticcino', lbl: 'Pasticcino',  icona: 'gift' },
+  { id: 'gelato',     lbl: 'Gelato',      icona: 'iceCream' },
+  { id: 'cioccolato', lbl: 'Cioccolato',  icona: 'package' },
+  { id: 'lievitato',  lbl: 'Lievitato',   icona: 'factory' },
+  { id: 'bevanda',    lbl: 'Bevanda',     icona: 'coffee' },
+  { id: 'altro',      lbl: 'Sorprendimi', icona: 'sparkles' },
 ]
 
 const MOOD = [
@@ -158,7 +168,8 @@ Inventa 3 ricette diverse fra loro (es. una classica, una innovativa, una stagio
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {TIPI.map(t => (
               <button key={t.id} onClick={() => setTipo(t.id)}
-                style={{ padding: '7px 12px', borderRadius: 999, border: `1px solid ${tipo === t.id ? BRAND : BORDER}`, background: tipo === t.id ? BRAND : 'transparent', color: tipo === t.id ? '#FFF' : MID, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                style={{ padding: '7px 12px', minHeight: 44, borderRadius: 999, border: `1px solid ${tipo === t.id ? BRAND : BORDER}`, background: tipo === t.id ? BRAND : 'transparent', color: tipo === t.id ? SU_BRAND : MID, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <Icon name={t.icona} size={14} color={tipo === t.id ? SU_BRAND : MID}/>
                 {t.lbl}
               </button>
             ))}
@@ -169,7 +180,7 @@ Inventa 3 ricette diverse fra loro (es. una classica, una innovativa, una stagio
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {MOOD.map(m => (
               <button key={m.id} onClick={() => setMood(m.id)}
-                style={{ padding: '7px 12px', borderRadius: 999, border: `1px solid ${mood === m.id ? BRAND : BORDER}`, background: mood === m.id ? BRAND : 'transparent', color: mood === m.id ? '#FFF' : MID, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                style={{ padding: '7px 12px', minHeight: 44, borderRadius: 999, border: `1px solid ${mood === m.id ? BRAND : BORDER}`, background: mood === m.id ? BRAND : 'transparent', color: mood === m.id ? SU_BRAND : MID, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                 {m.lbl}
               </button>
             ))}
@@ -180,17 +191,17 @@ Inventa 3 ricette diverse fra loro (es. una classica, una innovativa, una stagio
             <Label>Ingredienti che vuoi usare (opzionale)</Label>
             <input value={ingredienti} onChange={e => setIngredienti(e.target.value)}
               placeholder="es. pistacchio bronte, ricotta, mandorle"
-              style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${BORDER}`, fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box' }}/>
+              style={{ width: '100%', padding: '10px 12px', minHeight: 44, borderRadius: 8, border: `1px solid ${BORDER}`, fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box' }}/>
           </div>
           <div>
             <Label>Allergie / esclusioni (opzionale)</Label>
             <input value={allergie} onChange={e => setAllergie(e.target.value)}
               placeholder="es. glutine, lattosio, frutta secca"
-              style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${BORDER}`, fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box' }}/>
+              style={{ width: '100%', padding: '10px 12px', minHeight: 44, borderRadius: 8, border: `1px solid ${BORDER}`, fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box' }}/>
           </div>
         </div>
         <button onClick={genera} disabled={loading}
-          style={{ background: BRAND, color: '#FFF', border: 'none', padding: '12px 24px', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: loading ? 'wait' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+          style={{ background: BRAND, color: SU_BRAND, border: 'none', padding: '12px 24px', minHeight: 44, borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: loading ? 'wait' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
           <Icon name="sparkles" size={14}/> {loading ? 'Lo chef AI sta pensando…' : 'Genera 3 ricette'}
         </button>
       </div>
@@ -226,8 +237,8 @@ Inventa 3 ricette diverse fra loro (es. una classica, una innovativa, una stagio
                 {r.descrizione_plating}
               </div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', fontSize: 12 }}>
-                {r.tempo_preparazione_min && <Chip>⏱ {r.tempo_preparazione_min} min</Chip>}
-                {r.porzioni && <Chip>👥 {r.porzioni} porzioni</Chip>}
+                {r.tempo_preparazione_min && <Chip icona="clock">{r.tempo_preparazione_min} min</Chip>}
+                {r.porzioni && <Chip icona="users">{r.porzioni} porzioni</Chip>}
                 {r.food_cost_stimato_pz && <Chip>Food cost {Number(r.food_cost_stimato_pz).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/pz</Chip>}
                 {r.prezzo_consigliato && <Chip color={BRAND}>vendi a {Number(r.prezzo_consigliato).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</Chip>}
               </div>
@@ -272,6 +283,11 @@ function Label({ children }) {
   return <div style={{ fontSize: 12, fontWeight: 700, color: SOFT, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 6 }}>{children}</div>
 }
 
-function Chip({ children, color }) {
-  return <span style={{ display: 'inline-block', padding: '3px 9px', background: '#F1F5F9', color: color || MID, borderRadius: 999, fontSize: 12, fontWeight: 600 }}>{children}</span>
+function Chip({ children, color, icona }) {
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 9px', background: '#F1F5F9', color: color || MID, borderRadius: 999, fontSize: 12, fontWeight: 600 }}>
+      {icona && <Icon name={icona} size={12} color={color || MID}/>}
+      {children}
+    </span>
+  )
 }

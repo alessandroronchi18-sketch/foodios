@@ -87,6 +87,7 @@ const misura = () => {
 }
 
 const b = await chromium.launch()
+let problemi = 0
 for (const f of readdirSync(DIR).filter(x => x.endsWith('.html'))) {
   const p = await b.newPage({ viewport: { width: LARGH, height: 1000 } })
   await p.goto('file://' + join(DIR, f), { waitUntil: 'networkidle' })
@@ -102,6 +103,17 @@ for (const f of readdirSync(DIR).filter(x => x.endsWith('.html'))) {
   for (const x of piccoli.slice(0, 5)) console.log(`  testo a ${x.px}px: "${x.testo}"`)
   if (r.numeriNonTabellari.length) console.log(`  celle numeriche senza cifre tabellari: ${r.numeriNonTabellari.length}`)
   if (!over && !r.righeStorte.length && !r.sovrapposti.length && !piccoli.length && !r.numeriNonTabellari.length) console.log('  nessun problema misurabile')
+  else problemi++
   await p.close()
 }
 await b.close()
+
+// ── L'esito conta ───────────────────────────────────────────────
+// Fino al 16/09/2026 questo attrezzo vedeva il difetto e usciva 0: chi lo
+// mettesse in una catena (`&&`, un passo di CI, il cancello pre-push) non se
+// ne accorgerebbe mai. È la stessa forma del difetto che il 14/09 ha fatto
+// passare due pubblicazioni col build rotto (l'esito mangiato da `| tail`).
+if (problemi > 0) {
+  console.log(`\n${problemi} pagine con almeno un problema di impaginazione.`)
+  process.exit(1)
+}

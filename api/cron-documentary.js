@@ -12,6 +12,7 @@ export const config = { runtime: 'edge' }
 
 import { verifyBearerSecret } from './lib/cryptoCompare.js'
 import { callClaude } from './lib/aiEngine.js'
+import { giornoItaliano, aggiungiMesi } from '../src/lib/dateLocal.js'
 
 const MAX_ORG_PER_RUN = 30
 
@@ -22,12 +23,13 @@ async function getSupabase() {
 
 function trimestreLabel(year, q) { return `Q${q} ${year}` }
 
-function rangeTrimestre(now) {
-  // Determina trimestre CHIUSO il giorno prima di now
-  const d = new Date(now)
-  d.setDate(0)  // ultimo giorno del mese precedente
-  const mese = d.getMonth() + 1
-  const anno = d.getFullYear()
+function rangeTrimestre(oggiIso) {
+  // Determina il trimestre CHIUSO il giorno prima. Si conta sul calendario di
+  // Roma: `new Date().getMonth()` su Vercel è il mese di Greenwich, e il 1°
+  // gennaio alle 00:30 italiane per Greenwich è ancora il 31 dicembre — la
+  // fotografia del quarto trimestre sarebbe uscita col terzo.
+  const meseScorso = aggiungiMesi(oggiIso, -1)
+  const [anno, mese] = meseScorso.split('-').map(Number)
   let qStart, qEnd, qN
   if (mese >= 1 && mese <= 3)      { qN = 1; qStart = `${anno}-01-01`; qEnd = `${anno}-03-31` }
   else if (mese >= 4 && mese <= 6) { qN = 2; qStart = `${anno}-04-01`; qEnd = `${anno}-06-30` }
@@ -44,9 +46,10 @@ export default async function handler(req) {
   if (!auth.ok) return new Response('Unauthorized', { status: 401 })
 
   // Run only the 1st day of Jan/Apr/Jul/Oct (manuale check)
-  const today = new Date()
-  const m = today.getUTCMonth() + 1
-  const d = today.getUTCDate()
+  const oggiIso = giornoItaliano()
+  const [, mm, dd] = oggiIso.split('-')
+  const m = Number(mm)
+  const d = Number(dd)
   const forceRun = (req.url || '').includes('force=1')
   if (!forceRun && !(d === 1 && [1, 4, 7, 10].includes(m))) {
     return new Response(JSON.stringify({ skipped: 'not first day of quarter' }), {
@@ -55,7 +58,7 @@ export default async function handler(req) {
   }
 
   const supabase = await getSupabase()
-  const periodo = rangeTrimestre(today)
+  const periodo = rangeTrimestre(oggiIso)
   const stats = { processed: 0, generated: 0, skipped: 0, errors: 0 }
 
   const { data: orgs } = await supabase

@@ -114,3 +114,42 @@ describe('il controllo è agganciato dove si pubblica davvero', () => {
     expect(wf).toMatch(/push:\s*\n\s*branches:\s*\[main\]/)
   })
 })
+
+// ── 16/09/2026, audit del righello: il controllo si spegneva da solo ──────
+//
+// `scripts/check-migrazioni-applicate.mjs` gira dentro il cancello pre-push.
+// Aveva `try { ...interroga il database... } catch { return 0 }`, e il
+// messaggio del `catch` era lo stesso del caso «non ho le credenziali»:
+// «controllo saltato». Due situazioni molto diverse raccontate uguale.
+//
+// Riproduzione: `SUPABASE_DB_URL` puntato su una porta chiusa →
+// «• migrazioni: controllo saltato (database non raggiungibile da qui).»,
+// uscita **0**. Cioè: una password scaduta nel file delle credenziali
+// spegneva questo passo del cancello per sempre, in silenzio — e proprio
+// questo controllo esiste perché una migrazione saltata non lascia traccia
+// da nessuna parte.
+//
+// È lo stesso schema del 14/09: l'esito mangiato per strada, il cancello che
+// dice di sì.
+describe('un database che non risponde non è un via libera', () => {
+  const S = leggi('scripts', 'check-migrazioni-applicate.mjs')
+
+  it('senza credenziali salta, e va bene: in CI e su una macchina nuova non ci sono', () => {
+    expect(S).toContain('nessuna credenziale database disponibile qui')
+    expect(S).toMatch(/if \(!url\) \{[\s\S]{0,200}return 0/)
+  })
+
+  it('ma con le credenziali e il database muto, fallisce forte', () => {
+    // Il difetto era esattamente `catch { ... return 0 }` su questo blocco.
+    expect(S).not.toMatch(/\} catch \{\s*\n\s*console\.log\('• migrazioni: controllo saltato \(database non raggiungibile/)
+    expect(S).toContain('le credenziali del database ci sono, ma non risponde')
+    expect(S).toContain('Il controllo NON è stato fatto: non è un via libera')
+  })
+
+  it('e non scrive la password nel terminale mentre lo dice', () => {
+    // La riga di `execFileSync` contiene l'URL intero: stamparla la
+    // copierebbe nel registro del terminale e nei log della CI.
+    expect(S).toMatch(/replace\(\/\(postgres/)
+    expect(S).toContain('••••@')
+  })
+})

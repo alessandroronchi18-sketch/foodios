@@ -100,6 +100,17 @@ describe('importSchemas — coerenza di ogni schema', () => {
     for (const f of s.fields) {
       if (f.default === undefined) continue
       const dove = `${nome}.${f.name}`
+      // `default: null` è ammesso e vuol dire una cosa precisa: «se la casella
+      // è vuota scrivi NULL», cioè «non lo sappiamo». Non è la stessa cosa di
+      // non avere un default: con `upsertOn: true` un campo assente lascia in
+      // piedi il valore già presente sulla riga, mentre null lo sovrascrive.
+      // Serve a chi corregge il file e svuota una cella che aveva sbagliato.
+      // Ammesso il 16/09/2026 per `produzione_inventario.rimanenza_g`
+      // (il racconto sta in rimanenzaNonRilevata.test.js).
+      if (f.default === null) {
+        expect(f.required, `${dove}: un campo obbligatorio non può valere "non lo so"`).toBe(false)
+        continue
+      }
       if (f.type === 'number') {
         expect(typeof f.default, dove).toBe('number')
         if (f.minValue !== undefined) expect(f.default, dove).toBeGreaterThanOrEqual(f.minValue)
@@ -184,7 +195,13 @@ describe('importSchemas — come sono scritti i testi', () => {
   })
 
   it('niente emoji nei testi mostrati all\'utente', () => {
-    const emoji = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u
+    // La freccia «→» e la spunta «✓» non sono emoji: sono caratteri
+    // tipografici. Questo rilevatore comprendeva il blocco delle frecce
+    // (U+2190–21FF) e i dingbat (U+2600–27BF), e le bocciava tutte e due.
+    // Adesso usa `\p{Extended_Pictographic}`, la proprietà Unicode delle emoji
+    // vere, che è quella già usata dagli altri test di casa.
+    // Tarato il 17/09/2026, audit RIGHELLO.
+    const emoji = /\p{Extended_Pictographic}/u
     for (const [nome, s] of TUTTI) {
       expect(s.label, nome).not.toMatch(emoji)
       expect(s.description, nome).not.toMatch(emoji)

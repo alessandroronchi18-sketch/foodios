@@ -29,8 +29,17 @@ const COST_PER_FEATURE_USD = {
 }
 
 export async function getAiTelemetry(supabase, days = 7) {
+  // `since` è un ISTANTE, e qui va bene che sia UTC: tutte le colonne a cui
+  // viene confrontato (`created_at`, `ultimo_messaggio_at`, `scraped_at`,
+  // `received_at`) sono istanti anche loro. Non è un giorno di calendario:
+  // non va convertito in giorno italiano.
+  //
+  // C'era anche un `const today = giornoItaliano()` che non leggeva nessuno:
+  // il nome `brainTodayConv`, più sotto, fa credere che ci sia un conteggio
+  // «di oggi», ma quel numero è il totale degli N giorni come tutti gli altri.
+  // Un giorno calcolato e mai usato è solo un trabocchetto per il prossimo
+  // che passa: tolto.
   const since = new Date(Date.now() - days * 86400000).toISOString()
-  const today = new Date().toISOString().slice(0, 10)
 
   // Helper count-only query
   const countSince = async (table, dateCol = 'created_at') => {

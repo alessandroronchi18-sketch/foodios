@@ -48,6 +48,8 @@ const TIPI_EVENTO = [
 // Data in formato ISO scritta coi campi LOCALI. toISOString() su una
 // mezzanotte locale restituisce il giorno PRIMA (in Italia l'offset è +1 o
 // +2): da lì nasceva una previsione che partiva da ieri.
+import { todayLocal, giorniFaLocal, soloData, aggiungiGiorni, differenzaGiorni } from '../lib/dateLocal'
+
 const GIORNI_ARRETRATO_VIVO = 90
 
 function isoLocale(d) {
@@ -157,21 +159,29 @@ export default function CashflowView({ orgId, sedeId, sedi = [], notify }) {
   // nella direzione peggiore.
   const GIORNI_STORICO = 60
   const { mediaGiornaliera, giorniConIncasso, giorniCoperti } = useMemo(() => {
-    const oggi = new Date()
-    const inizio = new Date(oggi.getTime() - GIORNI_STORICO * 86400000)
+    // La finestra è fatta di GIORNI, e i giorni si confrontano come stringhe.
+    // Prima `new Date(c.data)` leggeva '2026-09-16' come mezzanotte a
+    // Greenwich e lo metteva contro l'istante di adesso: la chiusura di oggi
+    // entrava nella media solo dopo le 02:00, e il bordo della finestra si
+    // spostava di un giorno a seconda dell'ora in cui si apriva la pagina.
+    // Su una media che decide la previsione di cassa, è un giorno di incasso
+    // che compare e sparisce da solo.
+    const oggiIso = todayLocal()
+    const inizioIso = giorniFaLocal(GIORNI_STORICO - 1)
     let tot = 0, n = 0
-    let primaData = null, ultimaData = null
+    let primaData = null
     for (const c of (chiusure || [])) {
-      const d = new Date(c.data || 0)
-      if (Number.isNaN(d.getTime()) || d < inizio || d > oggi) continue
+      const g = soloData(c.data)
+      if (!g || g < inizioIso || g > oggiIso) continue
       tot += Number(c.kpi?.totV || c.totale || 0); n++
-      if (!primaData || d < primaData) primaData = d
-      if (!ultimaData || d > ultimaData) ultimaData = d
+      if (!primaData || g < primaData) primaData = g
     }
     if (n === 0) return { mediaGiornaliera: 0, giorniConIncasso: 0, giorniCoperti: 0 }
     // Giorni di calendario coperti dai dati: dal primo giorno registrato a
-    // oggi, non oltre la finestra dello storico.
-    const coperti = Math.max(1, Math.round((oggi - primaData) / 86400000) + 1)
+    // oggi, non oltre la finestra dello storico. In giorni, non in
+    // millisecondi: il 25 ottobre ne dura 25 di ore e il conto perdeva un
+    // giorno al denominatore, gonfiando la media.
+    const coperti = Math.max(1, differenzaGiorni(primaData, oggiIso) + 1)
     return { mediaGiornaliera: tot / coperti, giorniConIncasso: n, giorniCoperti: coperti }
   }, [chiusure])
   const mediaMisurata = giorniConIncasso > 0 && mediaGiornaliera > 0
@@ -187,12 +197,17 @@ export default function CashflowView({ orgId, sedeId, sedi = [], notify }) {
     // mezzanotte locale il giorno che ne esce è quello PRIMA (in Italia
     // l'offset è +1/+2), quindi la previsione partiva da ieri e l'allarme
     // rosso annunciava come futuro un giorno già passato.
-    const limiteArretrato = new Date(oggi); limiteArretrato.setDate(limiteArretrato.getDate() - GIORNI_ARRETRATO_VIVO)
-    const limiteArretratoIso = isoLocale(limiteArretrato)
+    const oggiIsoTl = isoLocale(oggi)
+    const limiteArretratoIso = giorniFaLocal(GIORNI_ARRETRATO_VIVO, oggi)
 
     for (let i = 0; i <= orizzonte; i++) {
-      const dt = new Date(oggi.getTime() + i * 86400000)
-      const iso = isoLocale(dt)
+      // I giorni si contano in giorni. Sommando `i * 86400000` a una
+      // mezzanotte locale, la notte del cambio ora — il 25 ottobre 2026 —
+      // il passo di 24 ore cadeva alle 23:00 del giorno prima: la previsione
+      // ripeteva un giorno e ne saltava un altro, e il primo giorno rosso
+      // veniva annunciato con la data sbagliata.
+      const iso = aggiungiGiorni(oggiIsoTl, i)
+      const dt = new Date(`${iso}T12:00:00`)
       const ricavoStimato = mediaGiornaliera
 
       // Fatture in scadenza quel giorno.

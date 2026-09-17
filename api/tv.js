@@ -2,6 +2,7 @@ export const config = { runtime: 'edge' }
 
 import { getCorsHeaders, handleOptions, getClientIP } from './lib/cors.js'
 import { checkRateLimit, rateLimitResponse } from './lib/rateLimit.js'
+import { giornoItaliano } from '../src/lib/dateLocal.js'
 
 const TV_KEY = 'pasticceria-tv-token-v1'
 
@@ -105,7 +106,11 @@ export default async function handler(req) {
 
   // Giornaliero (produzione di oggi) per sede da user_data
   // Per ogni sede leggo la chiave 'pasticceria-giornaliero-v1' e filtro le sessioni di oggi.
-  const today = new Date().toISOString().slice(0, 10)
+  // Il giorno della pasticceria, non quello di Greenwich: la funzione gira su
+  // Vercel con TZ=UTC, e dopo le 22:00 italiane (23:00 d'inverno) lo schermo
+  // in laboratorio avrebbe cominciato a mostrare la produzione di domani come
+  // se fosse zero. La sera è quando lo schermo si guarda.
+  const today = giornoItaliano()
 
   const sediWithKpi = await Promise.all(sediFiltro.map(async (sede) => {
     const { data: gd } = await supabase

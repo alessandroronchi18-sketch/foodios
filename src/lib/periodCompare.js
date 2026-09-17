@@ -102,10 +102,19 @@ export function buildCurrent(kind, anchor = new Date()) {
   }
 }
 
+// Quanti giorni di calendario ci sono fra due mezzanotti locali.
+//
+// In millisecondi non torna: la notte fra il 25 e il 26 ottobre 2026 l'Italia
+// passa da +2 a +1 e quella giornata dura 25 ore. Una finestra di 30 giorni
+// che attraversa quella notte misura 721 ore, non 720. `Math.round` riporta il
+// conto sui giorni interi.
+function giorniFra(a, b) {
+  return Math.round((b.getTime() - a.getTime()) / MS_DAY)
+}
+
 // Calcola il periodo di confronto in base al mode.
 export function buildCompare(current, mode) {
   if (!current || mode === 'none') return null
-  const ms = current.end.getTime() - current.start.getTime()
   if (mode === 'prev') {
     if (current.kind === 'settimana') {
       const s = clone(current.start); s.setDate(s.getDate() - 7)
@@ -125,9 +134,18 @@ export function buildCompare(current, mode) {
       const s = clone(current.start); s.setFullYear(s.getFullYear() - 1)
       return { start: s, end: endOfYear(s), kind: current.kind, label: String(s.getFullYear()) }
     }
-    // Window-style (7gg, 30gg, 90gg)
+    // Window-style (7gg, 30gg, 90gg).
+    //
+    // Si conta in GIORNI, non in millisecondi. Prima era
+    // `new Date(inizio.getTime() - (fine - inizio))`: se il periodo in corso
+    // attraversava il cambio dell'ora — il 25 ottobre 2026 — la sua durata in
+    // millisecondi valeva un'ora in più, e i «30 giorni precedenti»
+    // cominciavano alle 23:00 del giorno ancora prima. Risultato: 31 giorni di
+    // confronto contro 30, con un giorno di incasso in più nella colonna del
+    // passato e un calo che non c'era.
     const e = clone(current.start)
-    const s = new Date(e.getTime() - ms)
+    const s = clone(e)
+    s.setDate(s.getDate() - giorniFra(current.start, current.end))
     return { start: s, end: e, kind: current.kind, label: current.label + ' precedenti' }
   }
   if (mode === 'year_prev') {
@@ -154,10 +172,22 @@ export function formatPeriod(d, kind) {
   return D.toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
-// Helper: true se una data ISO (YYYY-MM-DD o Date) e' dentro un periodo
+// Helper: true se una data ISO (YYYY-MM-DD o Date) e' dentro un periodo.
+//
+// Un giorno scritto '2026-09-16' si legge a MEZZOGIORNO locale, non con
+// `new Date('2026-09-16')` — che è mezzanotte UTC. Gli estremi del periodo
+// sono mezzanotti locali: mescolare i due riferimenti fa cadere fuori il primo
+// giorno della finestra appena il fuso è a ovest di Greenwich, e in Italia
+// regge solo perché siamo avanti di un'ora o due. Mezzogiorno sta dentro la
+// giornata giusta dovunque.
 export function inPeriod(d, p) {
   if (!p || !d) return false
-  const x = d instanceof Date ? d : new Date(d)
+  const x = d instanceof Date
+    ? d
+    : (typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d.trim())
+      ? new Date(`${d.trim()}T12:00:00`)
+      : new Date(d))
+  if (isNaN(x.getTime())) return false
   return x >= p.start && x < p.end
 }
 

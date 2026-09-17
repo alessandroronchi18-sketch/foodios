@@ -1,4 +1,42 @@
 import { supabase } from './supabase'
+import { caricaChiusure, caricaChiusurePerSede, salvaChiusure } from './chiusure'
+
+// ── Le chiusure di cassa non stanno più qui dentro ────────────────────────
+//
+// Dal 07/09/2026 (migration 20260907b) vivono nella tabella `chiusure_cassa`,
+// non più nel blob jsonb `pasticceria-chiusure-v1` di `user_data`. La SCRITTURA
+// era già dirottata, ma nel wrapper `ssave` del Dashboard, e con la
+// motivazione giusta scritta accanto: «l'intercettazione sta qui, nel wrapper,
+// invece che sui singoli callsite, così nessuna delle chiamate esistenti può
+// restare indietro».
+//
+// La LETTURA no. Undici punti del prodotto continuavano a chiedere il blob:
+// Confronto sedi, Dashboard, Previsioni, Brain, Menu engineering, Ordini AI,
+// Personale, Sprechi e omaggi, Esporta dati, Export contabilità, Benchmark.
+// Il blob non viene più aggiornato da nessuno: è la fotografia del giorno
+// della migrazione. Nel database di produzione esiste per UNA sola
+// organizzazione (la demo, 79 giornate) e per nessun'altra — Mara dei Boschi
+// non ce l'ha proprio.
+//
+// Oggi i numeri coincidono solo perché da quel giorno nessuno ha registrato
+// una chiusura. Alla prima che viene registrata — ed è esattamente quello che
+// la pagina Cassa serve a far fare — quelle undici pagine restano sulla
+// fotografia vecchia, o su zero, mentre il conto economico legge la tabella e
+// mostra il dato giusto. Due numeri diversi per lo stesso incasso, nella
+// stessa applicazione.
+//
+// Il dirottamento sta qui per la stessa ragione per cui quello in scrittura
+// sta nel wrapper: i callsite sono undici, sparsi in undici file, e nessuno
+// deve poter restare indietro.
+//
+// Ci sta anche la scrittura, e non perché fosse rotta: perché lo stesso
+// dirottamento era scritto DUE volte, nel wrapper del Dashboard e in quello
+// di `ChiusuraView`, e chi chiamava `ssave` senza passare da uno dei due
+// scriveva ancora sul blob. È il caso del seed della demo
+// (`demoSeed.js`): le sue chiusure finivano in `user_data`, e da qui in poi
+// nessuno le avrebbe più lette. Con l'instradamento nel modulo di accesso ai
+// dati la domanda «e se qualcuno chiama la funzione base?» non si pone.
+const CHIAVE_CHIUSURE = 'pasticceria-chiusure-v1'
 
 // Chiavi condivise tra sedi (ricettario, regole, prezzi importati)
 export const SHARED_KEYS = [
@@ -119,6 +157,11 @@ export function _resetVersions() {
 
 export async function sload(key, orgId, sedeId) {
   if (!orgId) return null
+  if (key === CHIAVE_CHIUSURE) {
+    // Errore di rete: `null`, come fa `sload` per ogni altra chiave. Un array
+    // vuoto direbbe «non ci sono chiusure», che è un'altra cosa.
+    return await caricaChiusure(orgId, sedeId).catch(() => null)
+  }
   const isShared = SHARED_KEYS.includes(key)
   const effectiveSedeId = isShared ? null : (sedeId || null)
 
@@ -148,6 +191,10 @@ export async function sload(key, orgId, sedeId) {
 }
 
 export async function ssave(key, value, orgId, sedeId) {
+  if (key === CHIAVE_CHIUSURE) {
+    if (!orgId) throw new Error('ssave: orgId mancante')
+    return await salvaChiusure(orgId, sedeId, value)
+  }
   if (!orgId) {
     const err = new Error('ssave: orgId mancante')
     console.error(err.message, { key })
@@ -339,6 +386,7 @@ export async function ssaveVersioned(key, value, orgId, sedeId, expectedVersion)
  */
 export async function sloadAllSedi(key, orgId, opts = {}) {
   if (!orgId) return {}
+  if (key === CHIAVE_CHIUSURE) return await caricaChiusurePerSede(orgId)
   if (isSharedKey(key)) {
     const v = await sload(key, orgId, null)
     return { shared: v }

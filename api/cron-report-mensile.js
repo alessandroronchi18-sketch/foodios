@@ -3,6 +3,7 @@
 
 import { verifyBearerSecret } from './lib/cryptoCompare.js'
 import { fmtp } from '../src/lib/formatIt.js'
+import { giornoItaliano, giornoItalianoDi, aggiungiMesi } from '../src/lib/dateLocal.js'
 
 const FROM = 'FoodOS <noreply@foodos.it>'
 const MESI_IT = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre']
@@ -12,10 +13,17 @@ async function getSupabase() {
   return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
 }
 
-function mesePrecedente() {
-  const now = new Date()
-  const anno = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear()
-  const mese = now.getMonth() === 0 ? 11 : now.getMonth() - 1
+// Quale mese racconta il report. Il cron parte il 1° del mese: il mese da
+// chiudere è quello prima, e va deciso sul calendario di Roma.
+//
+// `now.getMonth()` legge l'orologio della macchina, e su Vercel la macchina è
+// a Greenwich. Il 1° gennaio alle 00:30 italiane per Greenwich è ancora il 31
+// dicembre: il report di dicembre sarebbe uscito intestato «novembre», con i
+// numeri di novembre, proprio nel mese in cui si chiude l'esercizio.
+export function mesePrecedente() {
+  const meseScorso = aggiungiMesi(giornoItaliano(), -1)
+  const [anno, mm] = meseScorso.split('-').map(Number)
+  const mese = mm - 1  // 0-based, come `getMonth()`: il resto del file conta così
   return { anno, mese, label: `${MESI_IT[mese]} ${anno}` }
 }
 
@@ -32,19 +40,25 @@ async function getData(supabase, orgId, sedeId, key) {
   return data?.data_value ?? null
 }
 
-function filtroMese(items, anno, mese, getDate) {
-  return (items || []).filter(item => {
-    const d = new Date(getDate(item))
-    return d.getFullYear() === anno && d.getMonth() === mese
-  })
+// Un mese si seleziona confrontando 'AAAA-MM', non costruendo una Date.
+// `new Date('2026-09-01')` è mezzanotte a Greenwich: letta con `getMonth()` a
+// ovest di Greenwich risponde «agosto», e il primo giorno di ogni mese finiva
+// nel report del mese prima — contato due volte in un report e mai nell'altro.
+export function filtroMese(items, anno, mese, getDate) {
+  const prefisso = `${anno}-${String(mese + 1).padStart(2, '0')}`
+  return (items || []).filter(item => giornoItalianoDi(getDate(item)).startsWith(prefisso))
 }
 
 // Genera testo ASCII per grafico ricavi settimanali
-function graficoPestimanale(chiusureMese) {
+export function graficoPestimanale(chiusureMese) {
   const settimane = [0, 0, 0, 0, 0]
   for (const c of chiusureMese) {
-    const d = new Date(c.data)
-    const settimana = Math.min(Math.floor((d.getDate() - 1) / 7), 4)
+    // Il giorno del mese si legge dalla stringa. `new Date('2026-09-01')
+    // .getDate()` a ovest di Greenwich dà 31, e il primo del mese finiva
+    // nella quinta barra del grafico invece che nella prima.
+    const giorno = Number(giornoItalianoDi(c.data).slice(8, 10))
+    if (!giorno) continue
+    const settimana = Math.min(Math.floor((giorno - 1) / 7), 4)
     settimane[settimana] += (c.kpi?.totV || 0)
   }
   const max = Math.max(...settimane, 1)

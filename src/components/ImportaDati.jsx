@@ -1,5 +1,13 @@
 // ImportaDati - hub per modelli scaricabili + import file esterni.
 //
+// Audit del 16/09/2026, agente PAGINE. Due cose, su questa pagina.
+// 1) Non si raggiungeva da nessuna parte: nessun `setView('importa-dati')` in
+//    tutto `src/`. Adesso c'è la porta in Impostazioni → Avanzate → «Porta
+//    dentro i dati».
+// 2) I quattro pulsanti erano alti 40px, e su questa pagina i pulsanti sono
+//    tutto quello che c'è: quattro bersagli su quattro sotto la misura di un
+//    polpastrello. Ora 44.
+//
 // Al 13/07/2026: la sezione era vuota. La popoliamo con la prima utility -
 // download del modello Excel per la produzione giornaliera - così l'utente
 // puo' scegliere di raccogliere la produzione a mano su carta/Excel e poi
@@ -77,7 +85,7 @@ export default function ImportaDati({ onImportRicettario, ricettario, nomeAttivi
                 </div>
                 <button type="button" onClick={handleScaricaProduzione} disabled={loading === 'produzione'}
                   style={{
-                    padding: '9px 14px', minHeight: 40,
+                    padding: '9px 14px', minHeight: 44,
                     background: loading === 'produzione' ? '#CBD5E1' : T.brand,
                     color: '#FFF', border: 'none', borderRadius: 8,
                     fontSize: 12, fontWeight: 700, cursor: loading === 'produzione' ? 'not-allowed' : 'pointer',
@@ -112,7 +120,7 @@ export default function ImportaDati({ onImportRicettario, ricettario, nomeAttivi
                 </div>
                 <button type="button" onClick={() => setShowIncassi(true)}
                   style={{
-                    padding: '9px 14px', minHeight: 40,
+                    padding: '9px 14px', minHeight: 44,
                     background: T.brand, color: T.textOnDark, border: 'none', borderRadius: 8,
                     fontSize: typo.small.fontSize, fontWeight: 700, cursor: 'pointer',
                     display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'inherit',
@@ -143,7 +151,7 @@ export default function ImportaDati({ onImportRicettario, ricettario, nomeAttivi
                 </div>
                 <button type="button" onClick={() => setShowWizard(true)}
                   style={{
-                    padding: '9px 14px', minHeight: 40,
+                    padding: '9px 14px', minHeight: 44,
                     background: T.brand, color: '#FFF', border: 'none', borderRadius: 8,
                     fontSize: 12, fontWeight: 700, cursor: 'pointer',
                     display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'inherit',
@@ -172,7 +180,7 @@ export default function ImportaDati({ onImportRicettario, ricettario, nomeAttivi
                   Carica un file .xlsx con le tue ricette. Foglio standard: colonne <b>nome ingrediente</b>, <b>grammi</b>, <b>prezzo €/kg</b>.
                 </div>
                 <label style={{
-                  padding: '9px 14px', minHeight: 40,
+                  padding: '9px 14px', minHeight: 44,
                   background: '#FFF', color: T.brand,
                   border: `1px solid ${T.brand}55`, borderRadius: 8,
                   fontSize: 12, fontWeight: 700, cursor: 'pointer',

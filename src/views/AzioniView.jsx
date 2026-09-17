@@ -32,7 +32,13 @@ export default function AzioniView({ actions, onUpdate, onDelete, ricettario, gi
   const [messages, setMessages] = useState([]);
   const [input, setInput]       = useState("");
   const [loading, setLoading]   = useState(false);
-  const [tab, setTab]           = useState("chat"); // "chat" | "azioni"
+  // Audit del 16/09/2026, agente PAGINE. Questa pagina si raggiunge in un
+  // modo solo: la scheda «Da fare» dell'Assistente AI (menuFoodos.js:219).
+  // Si apriva su «Chat AI» — cioè si premeva «Da fare» e usciva una chat,
+  // per giunta la stessa cosa che fa la scheda di fianco («Chiedi»). Adesso
+  // «Da fare» mostra le cose da fare; la chat resta a una linguetta di
+  // distanza per chi la vuole.
+  const [tab, setTab]           = useState("azioni"); // "chat" | "azioni"
   const bottomRef               = useRef(null);
   const inputRef                = useRef(null);
 
@@ -188,6 +194,24 @@ ${azioniStr}
   const aperte  = (actions || []).filter(a => a.stato !== "chiusa");
   const chiuse  = (actions || []).filter(a => a.stato === "chiusa");
 
+  // Audit del 17/09/2026, agente PAGINE. La data della scheda usciva da
+  // `new Date(a.createdAt).toLocaleDateString("it-IT")`, senza nessun
+  // controllo: su un'azione senza data a schermo compariva «Invalid Date» —
+  // due volte nella stessa videata, e proprio nel punto in cui si cerca
+  // «quando me la sono segnata». Le azioni stanno in `user_data` come jsonb:
+  // quelle salvate prima che il campo esistesse, o rientrate da un backup,
+  // la data non ce l'hanno. Un dato che manca si dice, non si traveste da
+  // errore di programma.
+  const dataAzione = (v) => {
+    if (!v) return null;
+    const d = new Date(v);
+    return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString("it-IT");
+  };
+  // Stessa famiglia: `label` è il titolo dell'azione. Se arriva vuoto la
+  // scheda mostrava una riga in grassetto vuota e nient'altro, e nell'elenco
+  // delle completate restava la sola spunta.
+  const titoloAzione = (a) => a?.label || a?.azione || "Azione senza titolo";
+
   return (
     <div style={{maxWidth:900,display:"flex",flexDirection:"column",gap:0}}>
       {/* Header */}
@@ -199,7 +223,7 @@ ${azioniStr}
       <div style={{display:"flex",gap:2,marginBottom:24,background:T.bgSubtle,borderRadius:R.md,padding:3,width:"fit-content",border:`1px solid ${T.borderSoft}`}}>
         {[["chat","Chat AI"],["azioni",`Azioni (${aperte.length})`]].map(([t,lbl])=>(
           <button key={t} onClick={()=>setTab(t)}
-            style={{padding:"7px 16px",borderRadius:R.sm,border:"none",cursor:"pointer",fontSize:13,
+            style={{padding:"7px 16px",minHeight:44,borderRadius:R.sm,border:"none",cursor:"pointer",fontSize:13,
               fontWeight:tab===t?600:500,letterSpacing:"-0.005em",
               background:tab===t?T.bgCard:"transparent",
               color:tab===t?T.text:T.textSoft,
@@ -334,9 +358,9 @@ ${azioniStr}
                 {aperte.map(a=>(
                   <div key={a.id} className="fos-tile" style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding: isMobile ? "14px 16px" : "16px 20px",display:"flex",gap:14,alignItems:"flex-start",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)",flexDirection: isMobile ? "column" : "row"}}>
                     <div style={{flex:1, width: isMobile ? '100%' : 'auto', minWidth: 0}}>
-                      <div style={{fontSize: isMobile ? 13 : 12,fontWeight:800,color:C.text,marginBottom:4}}>{a.label}</div>
-                      <div style={{fontSize: 12,color:C.textMid,lineHeight:1.6}}>{a.azione}</div>
-                      <div style={{fontSize: 12,color:C.textSoft,marginTop:6}}>{new Date(a.createdAt).toLocaleDateString("it-IT")}</div>
+                      <div style={{fontSize: isMobile ? 13 : 12,fontWeight:800,color:C.text,marginBottom:4}}>{titoloAzione(a)}</div>
+                      {a.label&&a.azione&&<div style={{fontSize: 12,color:C.textMid,lineHeight:1.6}}>{a.azione}</div>}
+                      <div style={{fontSize: 12,color:C.textSoft,marginTop:6}}>{dataAzione(a.createdAt)||"Data non registrata"}</div>
                     </div>
                     <div style={{display:"flex",gap:6,flexShrink:0,flexWrap:"wrap",justifyContent: isMobile ? "flex-start" : "flex-end", width: isMobile ? '100%' : 'auto'}}>
                       {["aperta","in_corso","chiusa"].map(s=>(
@@ -364,7 +388,7 @@ ${azioniStr}
               <div style={{display:"flex",flexDirection:"column",gap: isMobile ? 6 : 5,opacity:0.55}}>
                 {chiuse.map(a=>(
                   <div key={a.id} style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:8,padding: isMobile ? "10px 14px" : "10px 16px",display:"flex",justifyContent:"space-between",alignItems:"center",gap:10}}>
-                    <div style={{fontSize: 12,fontWeight:600,color:C.text, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', flex:1, minWidth: 0}}>✓ {a.label}</div>
+                    <div style={{fontSize: 12,fontWeight:600,color:C.text, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', flex:1, minWidth: 0}}>✓ {titoloAzione(a)}</div>
                     <button aria-label="Elimina azione" onClick={()=>onDelete(a.id)} style={{padding: 0, width: isMobile ? 36 : 28, height: isMobile ? 36 : 28, borderRadius:6,border:`1px solid ${C.border}`,background:C.white,color:C.textSoft,fontSize: isMobile ? 13 : 12,cursor:"pointer",display:'inline-flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>✕</button>
                   </div>
                 ))}

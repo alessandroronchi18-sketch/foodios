@@ -12,6 +12,8 @@ import { color as T, typo } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from '../components/Icon'
 import AiPageHero from '../components/AiPageHero'
+import { todayLocal, giorniFaLocal, soloData } from '../lib/dateLocal'
+import { sload } from '../lib/storage'
 
 const BRAND = T.brand || '#6E0E1A'
 const SOFT = T.textSoft || '#8B95A7'
@@ -43,18 +45,43 @@ const GIORNI_MINIMI = 30
 
 async function diagnosi(orgId, sedeId) {
   try {
-    const { data } = await supabase
-      .from('user_data').select('data_value')
-      .eq('organization_id', orgId).eq('sede_id', sedeId)
-      .eq('data_key', 'pasticceria-chiusure-v1').maybeSingle()
-    const chiusure = Array.isArray(data?.data_value) ? data.data_value : []
+    // Le chiusure si chiedono a `sload`, non a `user_data` in prima persona.
+    //
+    // Qui c'era la query diretta al blob jsonb `pasticceria-chiusure-v1`.
+    // Dal 07/09/2026 le chiusure stanno nella tabella `chiusure_cassa` e il
+    // blob non lo aggiorna più nessuno: `storage.js` dirotta la lettura, ma
+    // chi va a leggere il database da sé quel dirottamento lo salta. Effetto
+    // per il titolare: registra le chiusure dalla pagina Cassa, apre la
+    // previsione, e si sente rispondere «non hai ancora registrato chiusure».
+    // Il consiglio che segue — «vai a registrarne» — è quello che ha appena
+    // fatto.
+    const lette = await sload('pasticceria-chiusure-v1', orgId, sedeId)
+    const chiusure = Array.isArray(lette) ? lette : []
     if (chiusure.length === 0) return { caso: 'niente_chiusure' }
-    const limite = new Date(Date.now() - 60 * 86400000)
-    const recenti = chiusure.filter(c => new Date(c?.data || 0) >= limite)
-    const conProdotti = recenti.filter(c => {
-      const r = Array.isArray(c?.prodotti) ? c.prodotti : Array.isArray(c?.righe) ? c.righe : []
-      return r.length > 0
-    })
+    // «Ultimi 60 giorni» come giorni di calendario, confrontati come stringhe.
+    // Prima `new Date(c.data)` era mezzanotte UTC e `limite` era l'ora esatta
+    // di adesso meno 60 × 86.400.000 millisecondi: il giorno al bordo entrava
+    // o restava fuori a seconda dell'ora in cui si apriva la pagina, e il
+    // conteggio che decide il messaggio («ci sei quasi, mancano N giorni»)
+    // cambiava da solo.
+    const limite = giorniFaLocal(59)
+    const recenti = chiusure.filter(c => soloData(c?.data) >= limite)
+    // Dove stanno i prodotti di una chiusura: in `venduto`.
+    //
+    // Qui si guardava solo `prodotti` e `righe`, due nomi che oggi non esiste
+    // più nessuna chiusura ad avere: `ChiusuraView` salva l'elenco in
+    // `venduto` e la tabella `chiusure_cassa` ha una colonna con quel nome.
+    // Risultato: anche con trenta giornate compilate prodotto per prodotto la
+    // pagina rispondeva «le hai registrate ma senza il dettaglio dei
+    // prodotti», cioè «aspettare non serve a niente». Si accettano tutti e
+    // quattro i nomi, come già fa `OrdiniAiView`: `venduto` e `confronto`
+    // sono quelli di adesso, `prodotti` e `righe` restano per le chiusure
+    // vecchie rimaste nel blob.
+    // Si cerca il primo elenco PIENO, non il primo elenco: una chiusura
+    // vecchia migrata nella tabella ha la colonna `venduto` vuota e le sue
+    // righe in `extra`, e fermarsi al primo array le avrebbe saltate.
+    const conProdotti = recenti.filter(c =>
+      [c?.venduto, c?.confronto, c?.prodotti, c?.righe].some(a => Array.isArray(a) && a.length > 0))
     if (conProdotti.length === 0) return { caso: 'senza_dettaglio', chiusure: recenti.length }
     if (conProdotti.length < GIORNI_MINIMI) return { caso: 'pochi_giorni', giorni: conProdotti.length }
     return { caso: 'attesa_calcolo', giorni: conProdotti.length }
@@ -77,7 +104,10 @@ export default function ForecastView({ orgId, sedeId, sedeAttiva, setView }) {
     let alive = true
     async function load() {
       setLoading(true)
-      const oggi = new Date().toISOString().slice(0, 10)
+      // Il giorno di oggi in ora italiana. Con `toISOString()` era il giorno
+      // UTC: fra mezzanotte e le due la pagina rimetteva in cima la previsione
+      // di ieri, come se dovesse ancora succedere.
+      const oggi = todayLocal()
       const { data } = await supabase
         .from('forecast_giornaliero')
         .select('*')
@@ -186,7 +216,10 @@ export default function ForecastView({ orgId, sedeId, sedeAttiva, setView }) {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {giorni.map(g => {
-            const dt = new Date(g.data)
+            // Mezzogiorno, non mezzanotte: `new Date('2026-09-16')` è
+            // mezzanotte UTC, e basta un fuso a ovest di Greenwich perché il
+            // nome del giorno scritto sopra la previsione sia quello prima.
+            const dt = new Date(g.data + 'T12:00')
             const labelGiorno = dt.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })
             const m = g.meteo
             return (

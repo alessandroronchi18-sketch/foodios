@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { sload, ssave } from '../lib/storage'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
-import { color as T, radius as R, ui3, ui } from '../lib/theme'
+import { color as T, radius as R, font, ui3, ui } from '../lib/theme'
 import { todayLocal } from '../lib/dateLocal'
 import { onEnterAutoComplete } from '../lib/autocomplete'
 import { lessico } from '../lib/lessico'
@@ -20,16 +20,46 @@ const TNUM = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'"
 const card = { background: T.bgCard, borderRadius: 16, padding: '18px 20px', border: `1px solid ${T.border}`, boxShadow: SHADOW_PREMIUM, marginBottom: 16 }
 const lbl  = { fontSize: 12, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6, display: 'block' }
 const inp  = { width: '100%', minHeight: 44, padding: '0 12px', border: `1px solid ${T.borderStr}`, borderRadius: R.md, fontSize: 16, color: T.text, background: T.bgCard, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', minWidth: 0 }
-const btn = (bg, fg) => ({ height: 36, padding: '0 14px', background: bg, color: fg, border: 'none', borderRadius: R.md, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, letterSpacing: '-0.005em', whiteSpace: 'nowrap', transition: 'background 120ms ease, opacity 120ms ease', fontFamily: 'inherit' })
+// Riga che spiega perché sopra c'è un trattino invece di un numero, o perché
+// il numero non è attendibile. Il colore cambia (grigio = il dato manca,
+// ambra = il dato c'è ma è gonfiato), la misura no.
+const nota = { fontSize: font.size.sm, marginBottom: 14, lineHeight: 1.5 }
+const btn = (bg, fg) => ({ minHeight: 44, padding: '0 14px', background: bg, color: fg, border: 'none', borderRadius: R.md, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, letterSpacing: '-0.005em', whiteSpace: 'nowrap', transition: 'background 120ms ease, opacity 120ms ease', fontFamily: 'inherit' })
 
 function uid() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36) }
+// Audit del 16/09/2026, agente PAGINE: la riga sotto il titolo diceva «0
+// evento/i». La barra fra singolare e plurale è scrittura da modulo, non
+// italiano, e «0 evento» è il modo peggiore di dire che non ce n'è nessuno.
+function contaEventi(n) {
+  const q = Number(n || 0)
+  if (q === 0) return 'nessun evento in programma'
+  if (q === 1) return '1 evento'
+  return `${q.toLocaleString('it-IT', { useGrouping: 'always' })} eventi`
+}
 function fmtEur(n) { return `${Number(n || 0).toLocaleString('it-IT', { useGrouping: 'always',minimumFractionDigits:2,maximumFractionDigits:2})} €` }
 // € arrotondato all'unità per box KPI piccoli (più leggibile a colpo d'occhio)
 function fmtEur0(n) { return `${Math.round(Number(n || 0)).toLocaleString('it-IT', { useGrouping: 'always' })} €` }
+// Audit del 17/09/2026, agente PAGINE. Il `try/catch` qui sotto era codice
+// morto: `new Date('2026-12-99T12:00:00')` non lancia niente, restituisce una
+// data non valida, e `toLocaleDateString` su quella scrive **«Invalid Date»**
+// senza un errore. Sulla scheda dell'evento compariva lì dove si legge il
+// giorno del catering — e fmtDate la usa anche `exportPreventivoPDF`, cioè
+// quella scritta finiva sul preventivo mandato al cliente.
+// Una data che non si legge si dice; non si traveste da guasto in inglese.
 function fmtDate(d) {
   if (!d) return '-'
-  try { return new Date(d + 'T12:00:00').toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' }) }
-  catch { return d }
+  const x = new Date(d + 'T12:00:00')
+  if (Number.isNaN(x.getTime())) return 'Data da controllare'
+  return x.toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' })
+}
+// Quanti prodotti ci sono nel preventivo. Scriveva «1 prodotti» e
+// «0 prodotti»: lo stesso difetto che `contaEventi` qui sopra risolve per gli
+// eventi, rimasto sulle righe.
+function contaProdotti(n) {
+  const q = Number(n || 0)
+  if (q === 0) return 'nessun prodotto'
+  if (q === 1) return '1 prodotto'
+  return `${q.toLocaleString('it-IT', { useGrouping: 'always' })} prodotti`
 }
 
 // Giorni mancanti all'evento + come visualizzarlo. Serve alla produzione per
@@ -417,12 +447,13 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
   kpiArchivio.fcPct = kpiArchivio.ricavi > 0 ? (kpiArchivio.fc / kpiArchivio.ricavi * 100) : 0
   kpiArchivio.margPct = kpiArchivio.ricavi > 0 ? (kpiArchivio.margine / kpiArchivio.ricavi * 100) : 0
 
+  // Stesso `try/catch` morto di `fmtDate`: il filtro per mese dell'archivio
+  // avrebbe scritto «Invalid Date» nella tendina invece del nome del mese.
   function fmtMese(yyyymm) {
     if (!yyyymm) return ''
-    try {
-      const d = new Date(yyyymm + '-01T12:00:00')
-      return d.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })
-    } catch { return yyyymm }
+    const d = new Date(yyyymm + '-01T12:00:00')
+    if (Number.isNaN(d.getTime())) return yyyymm
+    return d.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })
   }
 
   const eventiCorrentiTab = tab === 'archivio' ? eventiArchivioFiltrati : eventiAttivi
@@ -435,7 +466,7 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
           {[['attivi', `Attivi · ${eventiAttivi.length}`], ['archivio', `Archivio · ${eventiPassati.length}`]].map(([id, lblTab]) => (
             <button key={id} onClick={() => { setTab(id); setFilterMese('') }}
               style={{
-                padding: '10px 16px', border: 'none', background: 'transparent',
+                padding: '10px 16px', minHeight: 44, border: 'none', background: 'transparent',
                 cursor: 'pointer', fontSize: 13,
                 fontWeight: tab === id ? 600 : 500,
                 color: tab === id ? T.text : T.textSoft,
@@ -451,8 +482,8 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
       {editing == null && (
         <PageHeader
           subtitle={tab === 'archivio'
-            ? `Eventi passati - ${eventiArchivioFiltrati.length} evento/i${filterMese ? ` · ${fmtMese(filterMese)}` : ''}`
-            : `Preventivi e prenotazioni in arrivo - ${eventiAttivi.length} evento/i`}
+            ? `Eventi passati · ${contaEventi(eventiArchivioFiltrati.length)}${filterMese ? ` · ${fmtMese(filterMese)}` : ''}`
+            : `Preventivi e prenotazioni in arrivo · ${contaEventi(eventiAttivi.length)}`}
           action={
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
               {tab === 'attivi' && (
@@ -462,12 +493,12 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
                       title="Scarica la scheda di produzione dei prossimi 7 giorni (stampabile)"
                       style={{ ...btn(T.blueLight, '#1E40AF'), border: `1px solid #BFDBFE` }}><Icon name="fileText" size={14} /> PDF settimana</button>
                   )}
-                  <button onClick={nuovo} style={btn(T.brand, '#FFF')}>+ Nuovo evento</button>
+                  <button onClick={nuovo} style={btn(T.brand, '#FFF')}><Icon name="plus" size={14} /> Nuovo evento</button>
                 </>
               )}
               {tab === 'archivio' && mesiDisponibili.length > 0 && (
                 <select value={filterMese} onChange={e => setFilterMese(e.target.value)}
-                  style={{ height: 36, padding: '0 12px', border: `1px solid ${T.border}`, borderRadius: R.md, fontSize: 12, background: T.bgCard, color: T.text, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  style={{ minHeight: 44, padding: '0 12px', border: `1px solid ${T.border}`, borderRadius: R.md, fontSize: 12, background: T.bgCard, color: T.text, cursor: 'pointer', fontFamily: 'inherit' }}>
                   <option value="">Tutti i mesi</option>
                   {mesiDisponibili.map(m => <option key={m} value={m}>{fmtMese(m)}</option>)}
                 </select>
@@ -658,6 +689,15 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
       {editing == null && eventiCorrentiTab.map(ev => {
         const t = calcolaTotali(ev)
         const saldo = t.totRicavo - Number(ev.acconto || 0)
+        // Audit del 17/09/2026, agente PAGINE. Un preventivo senza righe
+        // dichiarava «Ricavo 0 € · Margine 0% · Saldo 0 €», e il margine
+        // usciva pure colorato come un margine brutto. Non è un evento che
+        // rende zero: è un evento che non è ancora stato preventivato. Un
+        // evento vuoto in mezzo a dieci pieni abbassa a occhio la media di
+        // tutta la pagina, e il saldo verde a zero dice «pagato» su una cosa
+        // che nessuno ha mai quotato. Finché non c'è una riga con un prezzo,
+        // i tre riquadri dicono «-» e sotto c'è la riga che spiega perché.
+        const quotato = (ev.righe || []).length > 0 && t.totRicavo > 0
         const isArch = isArchiviato(ev)
         const ft = frameTemporale(ev.data)
         const inArchivioTab = tab === 'archivio'
@@ -751,7 +791,7 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
               <Icon name="calendar" size={13} color={T.textMid} />
               <span style={{ fontWeight: 600 }}>{fmtDate(ev.data)}</span>
               <span style={{ color: T.textSoft }}>·</span>
-              <span>{(ev.righe || []).length} prodotti</span>
+              <span>{contaProdotti((ev.righe || []).length)}</span>
             </div>
 
             {/* Note evento */}
@@ -769,27 +809,42 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
                 label/value per allineamento verticale tra le 3 box. */}
             <div style={{
               display: 'grid', gridTemplateColumns: '1fr 1fr 1fr',
-              gap: 8, marginBottom: 14,
+              gap: 8, marginBottom: quotato ? 14 : 8,
             }}>
               <div style={kpiBox}>
                 <div style={kpiLabel}>Ricavo</div>
-                <div style={{ ...kpiValue, color: T.text }} title={fmtEur(t.totRicavo)}>
-                  {fmtEur0(t.totRicavo)}
+                <div style={{ ...kpiValue, color: T.text }} title={quotato ? fmtEur(t.totRicavo) : undefined}>
+                  {quotato ? fmtEur0(t.totRicavo) : '-'}
                 </div>
               </div>
               <div style={kpiBox}>
                 <div style={kpiLabel}>Margine</div>
-                <div style={{ ...kpiValue, color: margColore }} title={`${fmtEur(t.margine)} (${fmtp(t.margPct)})`}>
-                  {fmtp0(t.margPct)}
+                <div style={{ ...kpiValue, color: quotato ? margColore : T.textSoft }} title={quotato ? `${fmtEur(t.margine)} (${fmtp(t.margPct)})` : undefined}>
+                  {quotato ? fmtp0(t.margPct) : '-'}
                 </div>
               </div>
               <div style={kpiBox}>
                 <div style={kpiLabel}>Saldo</div>
-                <div style={{ ...kpiValue, color: saldo > 0 ? T.brand : T.green }} title={fmtEur(saldo)}>
-                  {fmtEur0(saldo)}
+                <div style={{ ...kpiValue, color: !quotato ? T.textSoft : saldo > 0 ? T.brand : T.green }} title={quotato ? fmtEur(saldo) : undefined}>
+                  {quotato ? fmtEur0(saldo) : '-'}
                 </div>
               </div>
             </div>
+
+            {/* La riga che spiega il «-», oppure l'avviso sul margine gonfiato.
+                Audit del 17/09/2026, agente PAGINE — vedi il commento su
+                `quotato` più sopra. Stessa forma dei costi fissi: il trattino
+                da solo non basta, va detto perché. */}
+            {!quotato && (
+              <div style={{ ...nota, color: T.textSoft }}>
+                Preventivo ancora da compilare: aggiungi i prodotti per vedere ricavo e margine.
+              </div>
+            )}
+            {quotato && t.righeSenzaCosto > 0 && (
+              <div style={{ ...nota, color: T.amber }}>
+                {t.righeSenzaCosto === 1 ? 'Una riga è senza food cost' : `${t.righeSenzaCosto} righe sono senza food cost`}: il margine qui sopra è più alto del vero.
+              </div>
+            )}
 
             {/* Bottoni azione - riga 1: Modifica + Esporta PDF (flex 1) */}
             <div style={{ display: 'flex', gap: 8 }}>

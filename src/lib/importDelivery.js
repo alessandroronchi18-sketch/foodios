@@ -189,14 +189,44 @@ export function mergeInChiusure(chiusure = [], importati = [], fonte = '') {
       const deliveryTot = altreFonti.reduce((a, d) => a + (Number(d.netto) || 0), 0) + (Number(riga.netto) || 0);
       const soloTotale = !!prec.solo_totale;
       const kpiPrec = prec.kpi || {};
+      // Il netto della SECONDA fonte non entrava mai nell'incasso.
+      //
+      // Qui c'era `totV: Math.round((Number(kpiPrec.totV) || 0) * 100) / 100`,
+      // cioè `totV` riassegnato a se stesso. Sul primo import non si vedeva
+      // (la giornata nasceva dal ramo qui sotto, con `totV: riga.netto`), ma
+      // chi lavora con Deliveroo E Glovo importa due file per lo stesso
+      // giorno: il secondo aggiornava `kpi.delivery` e lasciava `totV` fermo
+      // al primo. Nel conto economico mancava un canale di vendita intero, e
+      // il riquadro dell'import diceva lo stesso «importato».
+      //
+      // L'incasso di una giornata creata da import è il totale della cassa
+      // più il netto di TUTTE le fonti delivery. Si ricalcola dagli elenchi
+      // invece di sommare al valore precedente, così reimportare lo stesso
+      // file non raddoppia niente (le righe di quella fonte sono già tolte).
+      //
+      // Della cassa si prende l'ULTIMO import, non la somma degli import:
+      // `mergeInChiusureCassa` tratta il totale del registratore come la
+      // verità del giorno e lo sovrascrive a ogni caricamento. Due import di
+      // cassa per lo stesso giorno sono due letture dello stesso incasso (il
+      // fiscale e il lettore di carte), non due incassi da sommare — il
+      // delivery invece è un canale a parte, e quello si somma.
+      const cent = (v) => Math.round(v * 100) / 100;
+      const cassaOrdinata = [...(prec.cassaImport || [])]
+        .sort((a, b) => String(a.importatoAt || '').localeCompare(String(b.importatoAt || '')));
+      const ultimaCassa = cassaOrdinata[cassaOrdinata.length - 1];
+      const incassiCassa = Number(ultimaCassa?.importo) || 0;
+      const totVNuovo = cent(incassiCassa + deliveryTot);
+      const totFC = Number(kpiPrec.totFC) || 0;
       nuove[idx] = {
         ...prec,
         delivery: [...altreFonti, importoDelivery],
         kpi: {
           ...kpiPrec,
-          delivery: Math.round(deliveryTot * 100) / 100,
+          delivery: cent(deliveryTot),
           ...(soloTotale ? {
-            totV: Math.round((Number(kpiPrec.totV) || 0) * 100) / 100,
+            totV: totVNuovo,
+            totM: cent(totVNuovo - totFC),
+            totMP: totVNuovo > 0 ? cent(((totVNuovo - totFC) / totVNuovo) * 100) : 0,
           } : {}),
         },
       };
@@ -217,7 +247,9 @@ export function mergeInChiusure(chiusure = [], importati = [], fonte = '') {
         // calcola su quel denominatore, più alta.
         solo_totale: true,
         foodcost_noto: false,
-        kpi: { totV: riga.netto, totFC: 0, totM: riga.netto, totS: 0, totMP: 0, avgST: 0, delivery: Math.round((Number(riga.netto) || 0) * 100) / 100 },
+        // `avgST: null`, non 0: un import di incassi delivery non sa quanti
+        // pezzi sono stati prodotti, quindi non sa il sell-through.
+        kpi: { totV: riga.netto, totFC: 0, totM: riga.netto, totS: 0, totMP: 0, avgST: null, delivery: Math.round((Number(riga.netto) || 0) * 100) / 100 },
         delivery: [importoDelivery],
       });
     }

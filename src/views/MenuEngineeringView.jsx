@@ -14,6 +14,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react'
 import { sload } from '../lib/storage'
+import { todayLocal, giorniFaLocal, soloData } from '../lib/dateLocal'
 import { color as T } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { buildIngCosti, calcolaFC, getR, resaGrammi } from '../lib/foodcost'
@@ -89,12 +90,16 @@ export default function MenuEngineeringView({ orgId, sedeId, ricettario, sedeAtt
 
   // Aggregazione vendite ultimi N giorni
   const venditeAggregate = useMemo(() => {
-    const oggi = new Date(); oggi.setHours(23, 59, 59, 999)
-    const inizio = new Date(oggi.getTime() - periodo * 86400000)
+    // Giorni contro giorni. `new Date('2026-09-16')` è mezzanotte a
+    // Greenwich e finiva confrontata con un istante locale: la finestra dei
+    // «ultimi N giorni» slittava di uno secondo il fuso, e a ovest di
+    // Greenwich perdeva il primo giorno.
+    const oggi = todayLocal()
+    const inizio = giorniFaLocal(periodo - 1)
     const map = {}
     for (const c of chiusure) {
-      const d = new Date(c.data || 0)
-      if (d < inizio || d > oggi) continue
+      const d = soloData(c.data)
+      if (!d || d < inizio || d > oggi) continue
       const items = Array.isArray(c.prodotti) ? c.prodotti : Array.isArray(c.righe) ? c.righe : []
       for (const r of items) {
         const nome = (r.nome || r.prodotto || '').toUpperCase().trim()

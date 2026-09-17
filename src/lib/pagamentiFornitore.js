@@ -18,13 +18,21 @@
 //      e va dichiarata, perché o è un errore di digitazione o è un anticipo,
 //      e sono due cose diverse.
 
-/** Residuo da pagare di una fattura (0 se pagata). Le NC sono negative. */
+import { residuoFattura, isNotaCredito } from './fatture'
+
+// Residuo da pagare di una fattura (0 se pagata). Le note di credito sono
+// negative.
+//
+// Il conto vive in `fatture.js:residuoFattura`. Fino al 16/09/2026 stava
+// scritto anche qui, e in modo diverso: prendeva il valore assoluto del
+// totale e poi ci applicava il segno dedotto dall'ETICHETTA `tipo`. Nel
+// database vero nessuna riga ha `tipo = 'nota_credito'` — le note di credito
+// sono fatture col totale negativo — quindi una nota di credito da 365,55 €
+// usciva **+365,55 €, un DEBITO dove c'è un credito**. Da questa pagina
+// partono i bonifici: era il posto peggiore dove sbagliare il segno.
 export function residuoDa(f) {
-  if (!f || f.stato === 'pagata') return 0
-  const segno = f.tipo === 'nota_credito' ? -1 : 1
-  const totale = Math.abs(Number(f.totale) || 0)
-  const pagato = Math.abs(Number(f.importo_pagato) || 0)
-  return segno * Math.max(0, totale - pagato)
+  if (!f) return 0
+  return residuoFattura(f)
 }
 
 /**
@@ -37,8 +45,13 @@ export function ordinePagamento(fatture) {
   return [...(fatture || [])]
     .filter(f => residuoDa(f) !== 0)
     .sort((a, b) => {
-      const ncA = a.tipo === 'nota_credito' ? 0 : 1
-      const ncB = b.tipo === 'nota_credito' ? 0 : 1
+      // Nota di credito per IMPORTO, non per etichetta: nel database vero
+      // nessuna riga porta `tipo = 'nota_credito'`, le note di credito sono
+      // fatture col totale negativo. Con la vecchia regola i crediti non
+      // finivano in cima, e il bonifico chiudeva fatture invece di consumare
+      // prima il credito che il fornitore doveva.
+      const ncA = isNotaCredito(a) ? 0 : 1
+      const ncB = isNotaCredito(b) ? 0 : 1
       if (ncA !== ncB) return ncA - ncB
       const d = dataOrd(a).localeCompare(dataOrd(b))
       if (d !== 0) return d
@@ -315,8 +328,14 @@ export function fattureAnomale(fatture, { fattore = 5, minStoria = 4, sogliaMini
  * telefonata in cui si leggono i numeri a voce.
  */
 export function testoEstrattoConto(fornitore, fatture, { nomeAzienda = '', oggiIso = null } = {}) {
-  const aperte = ordinePagamento(fatture).filter(f => !f.tipo || f.tipo !== 'nota_credito')
-  const nc = ordinePagamento(fatture).filter(f => f.tipo === 'nota_credito')
+  // Il credito si riconosce dall'importo negativo, non dall'etichetta. Prima
+  // una nota di credito da −365,55 € finiva nell'elenco «Ci risultano da
+  // saldare» con l'importo in positivo (`Math.abs`): una lettera che chiede al
+  // fornitore soldi che invece deve lui. Il totale in fondo era giusto, e
+  // quindi non tornava con le righe sopra.
+  const ordinate = ordinePagamento(fatture)
+  const aperte = ordinate.filter(f => !isNotaCredito(f))
+  const nc = ordinate.filter(f => isNotaCredito(f))
   const eur = (v) => `${Number(v || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
   const data = (iso) => iso ? String(iso).slice(0, 10).split('-').reverse().join('/') : '-'
   const totale = aperte.reduce((s, f) => s + residuoDa(f), 0) + nc.reduce((s, f) => s + residuoDa(f), 0)

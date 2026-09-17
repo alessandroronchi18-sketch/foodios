@@ -200,8 +200,15 @@ describe('ricaviDaInventario', () => {
     ]
     const out = ricaviDaInventario(righe, formati, { da: '2026-05-02', a: '2026-05-02' })
     expect(out.kg).toBeCloseTo(3, 3)
-    expect(out.euroKg).toBeCloseTo(31.5, 2)   // media di 35 e 28
-    expect(out.ricavi).toBeCloseTo(94.5, 2)
+    // Il prezzo medio al chilo e' PESATO sui grammi, non la media dei due
+    // numeri. Fino al 16/09/2026 qui ci si aspettava 31,50 €/kg, cioe' la
+    // media aritmetica di 35 e 28: un cono da 100 g pesava quanto una
+    // vaschetta da un chilo. Un chilo di gelato venduto un decimo in coni e
+    // nove decimi in vaschette non incassa la media dei due listini.
+    // Somma degli incassi diviso somma dei chili: (3,50 + 28,00) / 1,1 kg.
+    // Sui formati veri di Mara lo scarto era +6,34% su ogni ricavo di gusto.
+    expect(out.euroKg).toBeCloseTo(28.6364, 3)
+    expect(out.ricavi).toBeCloseTo(85.91, 2)
   })
 
   it('senza formati con prezzo non inventa un ricavo', () => {

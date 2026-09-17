@@ -36,8 +36,64 @@ import { scadenzaFattura, residuoFattura, GIORNI_PAGAMENTO_DEFAULT } from './fat
 
 export { GIORNI_PAGAMENTO_DEFAULT }
 
-/** Il nome del fornitore come chiave: maiuscolo, spazi normalizzati. */
-export const normNome = s => String(s || '').trim().toUpperCase().replace(/\s+/g, ' ')
+// ── Il nome del fornitore come chiave ─────────────────────────────────────
+//
+// «FOODINHO, SRL» e «Foodinho S.R.L.» sono la stessa azienda. Fino al
+// 16/09/2026 questa funzione faceva solo maiuscolo, trim e spazi singoli, e
+// quindi per FoodOS erano due fornitori diversi.
+//
+// Misurato sulle 3.520 fatture di produzione: **nove fornitori** hanno due
+// scritture della stessa ragione sociale, e valgono **104.619,41 € su 221
+// fatture** — di cui 9.925,33 € ancora da pagare.
+//
+//     FOODINHO, SRL              +  FOODINHO S.R.L.               45.352,97 €
+//     RBS S.R.L.                 +  RBS SRL                       40.047,52 €
+//     SPAZIOTTANTOTTO S.R.L.     +  SPAZIOTTANTOTTO SRL            7.191,90 €
+//     PERINOVESCO SRL            +  PERINOVESCO S.R.L.             5.645,81 €
+//     PEYRANO TORINO SRL         +  PEYRANO TORINO S.R.L.          2.527,64 €
+//     FARCOMI SRL                +  FARCOMI S.R.L.                 2.257,36 €
+//     LUOGO DIVINO SRL           +  LUOGO DIVINO S.R.L.              986,80 €
+//     RCH SPA                    +  RCH S.P.A.                       585,60 €
+//     CASALINGHI SICIGNANO SRL   +  ... S.R.L.                        23,81 €
+//
+// Cosa costa, in pratica. Lo Scadenzario mostra due schede per lo stesso
+// fornitore, e il totale dovuto di ciascuna è metà del vero. I termini di
+// pagamento e l'IBAN scritti su una scheda non valgono per l'altra: le
+// fatture dell'altra scheda si ritrovano con i trenta giorni predefiniti e
+// senza IBAN, quindi restano fuori dal bonifico SEPA. Il piano di pagamento
+// cumulativo imputa solo metà delle fatture aperte. E la classifica «quanto
+// spendo con chi» mette FOODINHO al posto sbagliato, perché la sua spesa è
+// spezzata in due righe.
+//
+// La regola, e perché si ferma qui:
+//   · maiuscolo, trim, spazi singoli (come prima);
+//   · gli accenti si appiattiscono, perché chi scrive a mano alterna «SOCIETÀ»
+//     e «SOCIETA'» — in questo database ci sono tutti e due;
+//   · trattino e barra diventano spazio («COCA-COLA» = «COCA COLA»);
+//   · la punteggiatura che decora la forma societaria — punti, virgole,
+//     apostrofi, virgolette — si toglie del tutto, non si sostituisce con uno
+//     spazio: «S.R.L.» deve diventare «SRL», non «S R L».
+//
+// Quello che NON fa, di proposito: non toglie la forma societaria. «ROSSI SRL»
+// e «ROSSI SPA» possono essere due società diverse dello stesso gruppo, e
+// fonderle sposterebbe soldi fra due schede che vanno tenute separate. Sui
+// dati veri togliere la forma societaria non unirebbe nessun'altra coppia:
+// non serve, e costa un rischio.
+//
+// Il righello: applicata alle 321 scritture distinte di produzione ne lascia
+// **312**, e le nove coppie che unisce sono le nove qui sopra — nessun altro
+// accorpamento. Se ne unisse di più ci sarebbe da sospettare della regola.
+const ACCENTI = { 'À': 'A', 'Á': 'A', 'Â': 'A', 'Ä': 'A', 'Å': 'A', 'È': 'E', 'É': 'E', 'Ê': 'E', 'Ë': 'E', 'Ì': 'I', 'Í': 'I', 'Î': 'I', 'Ï': 'I', 'Ò': 'O', 'Ó': 'O', 'Ô': 'O', 'Ö': 'O', 'Ù': 'U', 'Ú': 'U', 'Û': 'U', 'Ü': 'U', 'Ç': 'C', 'Ñ': 'N' }
+
+export const normNome = s => String(s || '')
+  .toUpperCase()
+  .replace(/[ÀÁÂÄÅÈÉÊËÌÍÎÏÒÓÔÖÙÚÛÜÇÑ]/g, c => ACCENTI[c] || c)
+  // Trattino e barra separano parole: diventano spazio.
+  .replace(/[-–—/\\]/g, ' ')
+  // Punti, virgole, apostrofi e virgolette si tolgono: «S.R.L.» → «SRL».
+  .replace(/['\u2019.,"«»()]/g, '')
+  .replace(/\s+/g, ' ')
+  .trim()
 
 /** La scadenza come oggetto Date (mezzogiorno, per non farsi spostare dal fuso). */
 export function dataScadenza(f) {

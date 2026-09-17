@@ -14,6 +14,7 @@ import { verifyBearerSecret } from './lib/cryptoCompare.js'
 import { safeError } from './lib/safeError.js'
 import { callClaude, collectOrgSnapshot } from './lib/aiEngine.js'
 import { fmtp, fmtp0 } from '../src/lib/formatIt.js'
+import { giornoItaliano, giornoSettimanaItaliano } from '../src/lib/dateLocal.js'
 
 const MAX_ORG_PER_RUN = 30
 const BRIEF_MODEL = 'claude-haiku-4-5-20251001'
@@ -161,7 +162,11 @@ export default async function handler(req) {
   if (!auth.ok) return new Response('Unauthorized', { status: 401 })
 
   const supabase = await getSupabase()
-  const today = new Date().toISOString().slice(0, 10)
+  // Il brief è indicizzato per GIORNO (`daily_briefs.data`), e il giorno è
+  // quello di Roma: è la stessa chiave che `DailyBriefCard.jsx` cerca quando
+  // il titolare apre l'app. Con il giorno di Greenwich le due parti potevano
+  // guardare due caselle diverse e la scheda restava vuota.
+  const today = giornoItaliano()
   const appUrl = (() => {
     try { return new URL(req.url).origin } catch { return 'https://foodos-rose.vercel.app' }
   })()
@@ -192,7 +197,11 @@ export default async function handler(req) {
     processedToday = new Set((existing || []).map(r => r.organization_id))
   }
   // Lunedi: anche brief settimanale (controllato a parte).
-  const isLunedi = new Date().getUTCDay() === 1
+  // `getUTCDay()` dice «lunedì» il lunedì a Greenwich: dalle 00:00 alle 02:00
+  // italiane del lunedì è ancora domenica per l'orologio di Roma, e la
+  // domenica sera dalle 22:00 in poi è già lunedì per Greenwich. Il riassunto
+  // della settimana sarebbe arrivato di domenica.
+  const isLunedi = giornoSettimanaItaliano() === 1
   let processedWeekToday = new Set()
   if (isLunedi && orgIds.length > 0) {
     const { data: existingWk } = await supabase

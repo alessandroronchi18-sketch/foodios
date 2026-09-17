@@ -51,7 +51,7 @@ const EventiView = lazyWithReload(() => import('./components/Eventi'))
 const ConfrontoSedi = lazyWithReload(() => import('./components/ConfrontoSedi'))
 const TrasferimentiView = lazyWithReload(() => import('./components/TrasferimentiView'))
 const EsportaDati = lazyWithReload(() => import('./components/EsportaDati'))
-import { todayLocal } from './lib/dateLocal'
+import { todayLocal, soloData } from './lib/dateLocal'
 import { ICONS as SHARED_ICONS, ic as sharedIc } from './lib/icons'
 import { setExportCtx, getExportCtx, gateExport } from './lib/exportGuard'
 import { CHANGELOG } from './lib/changelog'
@@ -1653,8 +1653,16 @@ export default function Dashboard({
     if (prevKg === newKg) return;
 
     const now = new Date();
-    const decorre = decorreDa ? new Date(decorreDa) : now;
-    const isFuture = decorre > now;
+    // Audit 2026-09-16 (agente DATE): `new Date('2026-09-16')` è mezzanotte a
+    // GREENWICH, cioè le 02:00 italiane, e la si confrontava con l'istante di
+    // adesso. Un prezzo messo «da oggi» prima delle due risultava futuro:
+    // restava programmato invece di entrare in vigore, e il food cost delle
+    // prime lavorazioni del mattino girava ancora sul prezzo vecchio. Qui si
+    // confrontano due GIORNI, e fra due giorni il fuso non c'entra.
+    const oggi = todayLocal();
+    const giornoDecorrenza = decorreDa ? soloData(decorreDa) : oggi;
+    const isFuture = giornoDecorrenza > oggi;
+    const decorre = new Date(`${giornoDecorrenza}T00:00:00.000Z`);
 
     // Se la decorrenza è oggi/passato, applichiamo subito al ricettario corrente.
     // Se è futura, NON aggiorniamo `ingredienti_costi` ora: lascia il prezzo
@@ -1691,7 +1699,9 @@ export default function Dashboard({
     catch (e) { notify(`Errore log prezzi: ${e.message || 'rete'}`, false); return; }
     setLogPrezzi(nextLog);
     const msg = isFuture
-      ? `✓ Prezzo "${nomeIng}" programmato a €${newKg.toFixed(2)}/kg dal ${decorre.toLocaleDateString('it-IT')}`
+      // Il giorno è già una stringa AAAA-MM-GG: si gira in GG/MM/AAAA senza
+      // ripassare da `Date`, che a ovest di Greenwich mostrerebbe il giorno prima.
+      ? `✓ Prezzo "${nomeIng}" programmato a €${newKg.toFixed(2)}/kg dal ${giornoDecorrenza.split('-').reverse().join('/')}`
       : `✓ Prezzo "${nomeIng}" aggiornato a €${newKg.toFixed(2)}/kg`;
     notify(msg);
   }, [ricettario, logPrezzi, auth?.user?.email]);
@@ -1700,10 +1710,14 @@ export default function Dashboard({
   // Eseguita all'avvio e quando logPrezzi cambia: idempotente perché toglie il flag `pianificato`.
   useEffect(() => {
     if (!ricettario || !Array.isArray(logPrezzi) || logPrezzi.length === 0) return;
-    const ora = Date.now();
+    // Stesso difetto dall'altra parte: il prezzo programmato entrava in vigore
+    // alle 02:00 e non a mezzanotte. `decorre_da` è scritto come mezzanotte
+    // UTC del giorno scelto, quindi il giorno si rilegge con `soloData` —
+    // senza passare da `Date`, che lo sposterebbe di nuovo.
+    const oggi = todayLocal();
     const daApplicare = logPrezzi.filter(e =>
       e?.pianificato === true &&
-      e?.decorre_da && new Date(e.decorre_da).getTime() <= ora
+      e?.decorre_da && soloData(e.decorre_da) <= oggi
     );
     if (daApplicare.length === 0) return;
 
@@ -3069,10 +3083,11 @@ export default function Dashboard({
         {/* Home dashboard (titolare) */}
         {vista==="home"&&<DashboardHomeView ricettario={ricettario} magazzino={magazzino} giornaliero={giornaliero} chiusure={chiusure} actions={actions} setView={setView} orgId={orgId} sedeId={sedeId} nomeAttivita={nomeAttivita} isTrialAttivo={isTrialAttivo} auth={auth} sedi={sedi} sedeAttiva={sedeAttiva} LEX={LEX}/>}
 
-        {/* Home Dipendente - Modalità Dipendente XL: 6 pulsantoni mobile-first */}
+        {/* Home Dipendente - Modalità Dipendente XL: pulsantoni mobile-first */}
         {vista==="home-dipendente"&&<HomeDipendente
           user={auth?.user}
           sedeAttiva={sedeAttiva}
+          sedi={sedi}
           isInventario={sedeAttiva?.is_sede_produzione === true && isMetodoInv}
           setView={setView}
           notify={notify}
@@ -3091,8 +3106,8 @@ export default function Dashboard({
         {vista==="ricettario"&&!ricettario&&(
           <div style={{maxWidth:500,margin:"80px auto",textAlign:"center"}}>
             <div style={{marginBottom:18}}><Icon name="book" size={52} color={C.red} /></div>
-            <h2 style={{margin:"0 0 10px",fontSize:24,fontWeight:900,color:C.text}}>Carica il {LEX.Ricettario.toLowerCase()}</h2>
-            <p style={{color:C.textSoft,marginBottom:32,fontSize:13,lineHeight:1.75}}>Importa il tuo file Excel con le {LEX.ricette} per vedere subito food cost, margini e ricavi per ogni {LEX.prodotto}.</p>
+            <h2 style={{margin:"0 0 10px",fontSize:font.size["2xl"],fontWeight:900,color:C.text}}>Carica il {LEX.Ricettario.toLowerCase()}</h2>
+            <p style={{color:C.textSoft,marginBottom:32,fontSize:font.size.base,lineHeight:1.75}}>Importa il tuo file Excel con le {LEX.ricette} per vedere subito food cost, margini e ricavi per ogni {LEX.prodotto}.</p>
             <label style={{display:"inline-block",padding:"14px 32px",background:C.red,color:C.white,borderRadius:10,cursor:"pointer",fontWeight:800,fontSize:13,boxShadow:"0 4px 16px rgba(110,14,26,0.3)"}}>
               <Icon name="folder" size={14} /> Carica .xlsx {LEX.Ricettario.toLowerCase()}
               <input type="file" accept=".xlsx" multiple style={{display:"none"}} onChange={e=>e.target.files.length&&handleFile(Array.from(e.target.files))}/>
@@ -3100,6 +3115,24 @@ export default function Dashboard({
           </div>
         )}
         {ricettario&&vista==="ricettario"&&<RicettarioView metodoProduzione={metodoProduzione} ricettario={ricettario} onUpdateRegola={handleUpdateRegola} onUpload={files=>handleFile(files)} onEditRicetta={(nome)=>{setEditingRicetta(nome);setView("nuova-ricetta");}} onNuovaRicetta={()=>{setEditingRicetta(null);setView("nuova-ricetta");}} orgId={orgId} sedi={sedi} sedeAttiva={sedeAttiva} notify={notify} LEX={LEX}/>}
+        {/* Audit del 16/09/2026, agente PAGINE. «Semilavorati» è una linguetta
+            dentro il Ricettario, e la condizione qui sotto è `ricettario &&`:
+            finché il ricettario non c'è, la linguetta si apriva su **niente**.
+            Titolo, striscia delle schede, e sotto il vuoto — nessuna riga che
+            dicesse perché. Il Ricettario, nella stessa condizione, il riquadro
+            «Carica il ricettario» ce l'ha (qui sopra). Ora ce l'ha anche
+            questa pagina, e dice cos'è un semilavorato e da dove si comincia.
+            Restano senza: `pl` e `simulatore` (altri agenti). */}
+        {!ricettario&&vista==="semilavorati"&&(
+          <div style={{maxWidth:500,margin:"80px auto",textAlign:"center"}}>
+            <div style={{marginBottom:18}}><Icon name="package" size={52} color={C.red} /></div>
+            <h2 style={{margin:"0 0 10px",fontSize:font.size["2xl"],fontWeight:900,color:C.text}}>Prima serve il {LEX.Ricettario.toLowerCase()}</h2>
+            <p style={{color:C.textSoft,marginBottom:32,fontSize:font.size.base,lineHeight:1.75}}>I semilavorati sono le basi che prepari in casa — crema pasticcera, pasta frolla, base bianca — e il loro costo si calcola dalle {LEX.ricette}. Carica il {LEX.Ricettario.toLowerCase()} e questa pagina si riempie da sé.</p>
+            <button onClick={()=>setView("ricettario")} style={{padding:"14px 32px",background:C.red,color:C.white,border:"none",borderRadius:10,cursor:"pointer",fontWeight:800,fontSize:font.size.base,minHeight:44,boxShadow:"0 4px 16px rgba(110,14,26,0.3)"}}>
+              Vai al {LEX.Ricettario.toLowerCase()}
+            </button>
+          </div>
+        )}
         {ricettario&&vista==="semilavorati"&&<SemilavoratiView ricettario={ricettario} onSave={handleSalvaRicetta} notify={notify} tipoAttivita={tipoAttivita}/>}
         {ricettario&&vista==="pl"&&<PLView metodoProduzione={metodoProduzione} ricettario={ricettario} chiusure={chiusure} orgId={orgId} sedeId={sedeId} onUpdateRegola={handleUpdateRegola} notify={notify}/>}
         {ricettario&&vista==="simulatore"&&<SimulatorePrezziView ricettario={ricettario} giornaliero={giornaliero} tipoAttivita={tipoAttivita} sedi={sedi} orgId={orgId} sedeId={sedeId}/>}
@@ -3120,7 +3153,7 @@ export default function Dashboard({
         {vista==="quadratura-inventario"&&<QuadraturaInventarioView orgId={orgId} sedeId={sedeId} sedi={sedi} sedeAttiva={sedeAttiva} chiusure={chiusure} metodoProduzione={metodoProduzione} onNavigate={setView} notify={notify}/>}
         {vista==="costi-aziendali"&&<CostiAziendaliView orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify}/>}
         {vista==="azioni"&&<AzioniView actions={actions} onUpdate={handleUpdAct} onDelete={handleDelAct} ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} magazzino={magazzino} nomeAttivita={auth?.org?.nome} tipoAttivita={tipoAttivita}/>}
-        {vista==="impostazioni"&&<Impostazioni auth={auth} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita} metodoProduzione={metodoProduzione} piano={piano} orgId={orgId} sedi={sedi} sedeId={sedeId} onImportPrezzi={handleImportPrezzi} notify={notify} onChangelogOpen={()=>setView("changelog")} initialTab={impostazioniInitialTab}/>}
+        {vista==="impostazioni"&&<Impostazioni auth={auth} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita} metodoProduzione={metodoProduzione} piano={piano} orgId={orgId} sedi={sedi} sedeId={sedeId} onImportPrezzi={handleImportPrezzi} notify={notify} onChangelogOpen={()=>setView("changelog")} onImportaDati={()=>setView("importa-dati")} initialTab={impostazioniInitialTab}/>}
         {vista==="importa-dati"&&<ImportaDatiView
           orgId={orgId}
           sedi={sedi}

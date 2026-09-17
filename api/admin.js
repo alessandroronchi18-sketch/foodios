@@ -25,6 +25,9 @@ import { getUsageStats } from './lib/admin/usoPagine.js'
 import { azCleanupE2EPreview, azCleanupE2E } from './lib/admin/pulizieTest.js'
 import { azEliminaPreview, azElimina, TABELLE_ELIMINA_ORG } from './lib/admin/eliminaCliente.js'
 import { PLAN_PRICE_EUR } from '../src/lib/planAccess.js'
+// I giorni del pannello si contano a Roma: su Vercel il processo gira in UTC,
+// e le colonne `data`/`data_scadenza`/`date` sono giorni di calendario italiani.
+import { giornoItaliano, aggiungiGiorni, giorniFaItaliano, primoGiornoDelMese } from '../src/lib/dateLocal.js'
 
 // ADMIN_EMAIL deve essere configurato su Vercel come env var.
 // Nessun default hardcoded: se manca, l'endpoint rifiuta SEMPRE.
@@ -90,7 +93,7 @@ async function getClienti(supabase) {
   // Audit 2026-06-19 Customer 360 lista: arricchiamo ogni riga con flag
   // ha_fatture_scadute, n_integrazioni_attive, n_push_subs in modo che la
   // tabella clienti possa filtrare/badge senza un round-trip per riga.
-  const todayIso = new Date().toISOString().slice(0, 10)
+  const todayIso = giornoItaliano()
   const [overviewRes, usersRes, integR, pushR, scadR] = await Promise.all([
     supabase.from('admin_overview').select('*').order('registrata_il', { ascending: false }),
     tuttiGliUtenti(supabase),
@@ -139,10 +142,8 @@ async function getClienti(supabase) {
 // modal cliente ma a livello cross-org per il tab Overview. Tutte le query
 // in parallelo, errori swallow → ogni area torna 0 se la tabella manca.
 async function getGlobalCustomer360(supabase) {
-  const startOfMonth = new Date()
-  startOfMonth.setDate(1); startOfMonth.setHours(0, 0, 0, 0)
-  const isoMonthDate = startOfMonth.toISOString().slice(0, 10)
-  const todayIso = new Date().toISOString().slice(0, 10)
+  const isoMonthDate = primoGiornoDelMese(giornoItaliano())
+  const todayIso = giornoItaliano()
 
   const [
     integR, b2bR, posR, pushR, scadR,
@@ -375,12 +376,11 @@ async function fetchSafe(promise) {
 }
 
 async function getCustomer360(supabase, orgId) {
-  const startOfMonth = new Date()
-  startOfMonth.setDate(1); startOfMonth.setHours(0, 0, 0, 0)
-  const isoMonth = startOfMonth.toISOString()
-  const isoMonthDate = isoMonth.slice(0, 10)
-  const next7gg = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10)
-  const todayIso = new Date().toISOString().slice(0, 10)
+  const todayIso = giornoItaliano()
+  const isoMonthDate = primoGiornoDelMese(todayIso)
+  // «Scade entro sette giorni» sono sette giorni di CALENDARIO: con
+  // 7 × 86.400.000 millisecondi, a cavallo del 25 ottobre ne diventano otto.
+  const next7gg = aggiungiGiorni(todayIso, 7)
 
   // Tutte le query in parallelo. Errori swallow → la rispettiva area apparirà
   // come { count: 0 } nel modal, non rompe il rendering.
@@ -1111,7 +1111,9 @@ async function getCustomerSignals(supabase) {
   const sevenDaysAgo = new Date(now.getTime() - 7 * 86400000).toISOString()
   const fourteenDaysAgo = new Date(now.getTime() - 14 * 86400000).toISOString()
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400000).toISOString()
-  const isoMonthDate = (() => { const d = new Date(); d.setDate(1); d.setHours(0,0,0,0); return d.toISOString().slice(0,10) })()
+  // (qui c'era un `isoMonthDate` calcolato in UTC e mai letto: tolto invece
+  // che corretto, perché un conto sbagliato che nessuno usa è solo un
+  // trabocchetto per il prossimo che passa.)
 
   // Bulk fetch: clienti base + ultimi accessi via auth + attività recente
   const [orgsR, usersR, udLastR, errR] = await Promise.all([
@@ -1232,7 +1234,6 @@ async function getCustomerSignals(supabase) {
 // ─── Onboarding funnel: dropoff step per step su clienti registrati ──────
 async function getOnboardingFunnel(supabase, days = 60) {
   const since = new Date(Date.now() - days * 86400000).toISOString()
-  const sinceDate = since.slice(0, 10)
   const [orgsR, usersR] = await Promise.all([
     supabase.from('organizations')
       .select('id, created_at, approvato, attivo, trial_ends_at')
@@ -1351,7 +1352,8 @@ async function getErrorsGrouped(supabase, days = 7) {
 
 // ─── AI cost per cliente (ai_usage_daily aggregato) ──────────────────────
 async function getAICostByCustomer(supabase, days = 30) {
-  const sinceDate = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10)
+  // `ai_usage_daily.date` è un giorno di calendario, non un istante.
+  const sinceDate = giorniFaItaliano(days)
   const { data, error } = await supabase.from('ai_usage_daily')
     .select('organization_id, feature, calls, cost_usd_estimated, tokens_in_estimated, tokens_out_estimated, last_call_at')
     .gte('date', sinceDate)

@@ -7,16 +7,31 @@ import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tool
 import { sload } from '../lib/storage'
 import { supabase } from '../lib/supabase'
 import { color as T, typo, ui3, ui } from '../lib/theme'
-import { foodCostPesato, vocePerGruppo } from '../lib/confrontoSediCalc'
-import { ricaviDaInventario, fetchAllInventarioProduzione, GIORNI_RIPORTO_MAX } from '../lib/inventarioProduzione'
+import { foodCostPesato, vocePerGruppo, fattureDaPagarePerSede } from '../lib/confrontoSediCalc'
+import { ricaviDaInventario, fetchAllInventarioProduzione, GIORNI_RIPORTO_MAX, COLONNE_VENDUTO } from '../lib/inventarioProduzione'
 import { SK_FORMATI } from '../lib/storageKeys'
+import { venditeB2BPeriodo } from '../lib/venditeB2B'
+import { todayLocal, aggiungiGiorni, soloData } from '../lib/dateLocal'
 
 // Date in ISO locale per le finestre dell'inventario.
 const isoDi = (d) => {
   const x = new Date(d)
   return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`
 }
-const isoMeno = (d, giorni) => isoDi(new Date(new Date(d).getTime() - giorni * 86400000))
+// Indietro di N giorni di CALENDARIO, non di N × 24 ore.
+//
+// Era `new Date(d).getTime() - giorni * 86400000`. Un giorno non dura sempre
+// 24 ore: la domenica del passaggio all'ora legale ne dura 23. Una finestra
+// che attraversa quel giorno, sommata in millisecondi, scivola indietro di
+// un'ora e cade nel giorno prima — e da lì tutto il conto è spostato di uno.
+// Misurato: `isoMeno(20 aprile 2026, 30)` rispondeva 20 marzo invece che 21.
+const isoMeno = (d, giorni) => aggiungiGiorni(isoDi(d), -giorni)
+// L'ultimo giorno di un periodo, dato il suo confine ESCLUSIVO. Stessa
+// ragione: `curEnd.getTime() - 86400000` sulla settimana 23–29 marzo 2026
+// (il 29 è il giorno del cambio ora) rispondeva **28 marzo**, e la domenica
+// spariva dal confronto fra le sedi — un'intera giornata di lavoro, per
+// tutti i punti vendita, una volta all'anno.
+const ultimoGiornoDelPeriodo = (fineEsclusa) => aggiungiGiorni(isoDi(fineEsclusa), -1)
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { caricaCostiAziendali, totaleMensile } from '../lib/costiAziendali'
 import { ChartTip } from '../views/_shared'
@@ -115,7 +130,16 @@ export default function ConfrontoSedi({ orgId, sedi }) {
 
     async function loadAll() {
       setLoading(true)
-      const today = new Date().toISOString().split('T')[0]
+      // Oggi in ora italiana, non a Greenwich.
+      //
+      // Era `new Date().toISOString().split('T')[0]`, cioè il giorno UTC: fra
+      // mezzanotte e le due di notte (ora italiana) rispondeva ieri. Da qui
+      // scendeva in due punti che il titolare legge come numeri di oggi:
+      // «Fatture scadute» (`fattureDaPagarePerSede`, sotto), che contava
+      // scadute anche quelle che scadono oggi, e la colonna «Prodotto oggi»
+      // (più sotto), che mostrava le sessioni di ieri. Chi apre la pagina
+      // all'una di notte dopo una nottata di produzione la vedeva a zero.
+      const today = todayLocal()
       let curStart, curEnd, prevStart, prevEnd
       if (periodo === 'mese') {
         curStart = getStartOfMonth(0)
@@ -167,27 +191,24 @@ export default function ConfrontoSedi({ orgId, sedi }) {
       for (const t of (trasfPending.data || [])) {
         pendingBySede[t.sede_a] = (pendingBySede[t.sede_a] || 0) + 1
       }
-      // Fatture: non pagate + scadute.
-      const fattureBySede = {}
-      const fattureScadByS = {}
-      const fattureImpByS = {}
-      const todayIso = today
-      for (const f of (fattureAll.data || [])) {
-        if (f.stato !== 'pagata') {
-          fattureBySede[f.sede_id] = (fattureBySede[f.sede_id] || 0) + 1
-          fattureImpByS[f.sede_id] = (fattureImpByS[f.sede_id] || 0) + (Number(f.totale || 0) - Number(f.importo_pagato || 0))
-          if (f.data_scadenza && f.data_scadenza < todayIso) {
-            fattureScadByS[f.sede_id] = (fattureScadByS[f.sede_id] || 0) + 1
-          }
-        }
-      }
+      // ── Fatture da pagare, e quante sono in ritardo ──────────────────────
+      //
+      // La regola sta in `fattureDaPagarePerSede` (confrontoSediCalc.js), col
+      // racconto del difetto: qui «Fatture scadute» diceva SEMPRE zero perché
+      // il controllo era `f.data_scadenza < oggi` e quella colonna in
+      // produzione è vuota su 3.520 fatture su 3.520.
+      const perSedeFatture = fattureDaPagarePerSede(fattureAll.data || [], today)
 
       // Calcola le 8 settimane più recenti (per trend sparkline gruppo).
       const trend8 = []
       for (let i = 7; i >= 0; i--) {
         const lun = getStartOfWeek(i)
         const dom = getEndOfWeek(lun)
-        trend8.push({ lun, dom, lunIso: lun.toISOString().slice(0, 10), ricavi: 0 })
+        // `lun` è mezzanotte LOCALE del lunedì: riletta con `toISOString()`
+        // tornava indietro all'offset, cioè alla DOMENICA sera, e l'etichetta
+        // della settimana portava la data del giorno prima. Si formatta con
+        // lo stesso righello locale usato in tutto il file.
+        trend8.push({ lun, dom, lunIso: isoDi(lun), ricavi: 0 })
       }
 
       // Per ogni sede, carico chiusure + giornaliero (per-sede, non c'è un modo aggregato).
@@ -197,23 +218,41 @@ export default function ConfrontoSedi({ orgId, sedi }) {
           // ricavare l'incasso quando le chiusure di cassa non ci sono. Chi
           // lavora col metodo inventario spesso non le compila, e questa
           // pagina restava completamente vuota — con l'allarme rosso acceso.
-          const [chiusure, giornaliero, formati, righeInv] = await Promise.all([
+          const [chiusure, giornaliero, formati, righeInv, venditeB2B] = await Promise.all([
             sload('pasticceria-chiusure-v1', orgId, sede.id),
             sload('pasticceria-giornaliero-v1', orgId, sede.id),
             sload(SK_FORMATI, orgId, null),
             fetchAllInventarioProduzione(orgId, {
               sedeIds: sede.id,
               dataFrom: isoMeno(curStart, GIORNI_RIPORTO_MAX),
-              dataTo: isoDi(new Date(curEnd.getTime() - 86400000)),
-              columns: 'gusto_nome, data, produzione_g, rimanenza_g, scarto_g, spedito_g, scostamento_accettato, sede_id',
+              dataTo: ultimoGiornoDelPeriodo(curEnd),
+              columns: `${COLONNE_VENDUTO}, scostamento_accettato, sede_id`,
             }).catch(() => []),
+            // I chili consegnati all'ingrosso: vanno tolti prima di
+            // valorizzare l'uscita al prezzo del banco, se no un negozio che
+            // rifornisce due bar sembra incassare più di uno che non lo fa.
+            // `includiSenzaSede: false` di proposito: le vendite senza sede
+            // qui verrebbero tolte a TUTTI i negozi, e gli stessi chili
+            // sparirebbero tre volte.
+            venditeB2BPeriodo(orgId, {
+              sedeId: sede.id,
+              da: isoDi(curStart),
+              a: ultimoGiornoDelPeriodo(curEnd),
+              includiSenzaSede: false,
+            }).catch(() => null),
           ])
 
           const chiusureArr = Array.isArray(chiusure) ? chiusure : []
+          // Giorni contro giorni, confrontati come stringhe.
+          //
+          // Era `new Date(d)` su '2026-09-14', cioè mezzanotte a GREENWICH,
+          // riportata al giorno locale con `setHours(0,0,0,0)`. In Italia
+          // tornava — mezzanotte a Greenwich è l'una o le due di notte dello
+          // stesso giorno — ma a ovest di Greenwich quella chiusura finiva
+          // nel giorno prima, e quindi nella settimana prima.
           const inRange = (d, a, b) => {
-            const x = new Date(d)
-            x.setHours(0, 0, 0, 0)
-            return x >= a && x < b
+            const g = soloData(d)
+            return !!g && g >= isoDi(a) && g < isoDi(b)
           }
           // Si conta anche QUANTE chiusure ci sono nel periodo: zero chiusure
           // non vuol dire zero incasso, vuol dire che nessuno ha chiuso la
@@ -231,7 +270,11 @@ export default function ConfrontoSedi({ orgId, sedi }) {
           const stima = nChiusureCur === 0
             ? ricaviDaInventario(righeInv, formati, {
               da: isoDi(curStart),
-              a: isoDi(new Date(curEnd.getTime() - 86400000)),
+              a: ultimoGiornoDelPeriodo(curEnd),
+              // `null` se la lettura è fallita: allora la stima resta sui
+              // chili totali e lo dichiara (`b2bConsiderato: false`), invece
+              // di far finta che all'ingrosso non sia uscito niente.
+              venditeB2B,
             })
             : null
           const ricaviStimati = stima?.ricavi != null && stima.ricavi > 0
@@ -254,11 +297,10 @@ export default function ConfrontoSedi({ orgId, sedi }) {
           // cost pesava come una da 3.000 € al 25%, e la percentuale che ne
           // usciva non era quella di nessuno. Su quel numero la pagina alzava
           // un allarme rosso a 38%.
-          const sessioniPeriodo = giorArr.filter(sess => {
-            const d = new Date(sess.data || 0)
-            d.setHours(0, 0, 0, 0)
-            return d >= curStart && d < curEnd
-          })
+          // Stesso confronto fra giorni delle chiusure, e per la stessa
+          // ragione: le sessioni di produzione portano la data con l'ora
+          // attaccata, e farla passare da `new Date` le spostava di fuso.
+          const sessioniPeriodo = giorArr.filter(sess => inRange(sess.data, curStart, curEnd))
           const fc = foodCostPesato(sessioniPeriodo)
           const fcEuroCur = fc.fcEuro
           const giornateConDato = fc.giornate
@@ -287,6 +329,9 @@ export default function ConfrontoSedi({ orgId, sedi }) {
             ricaviCur: haIncasso ? ricaviCur : null,
             ricaviStimati,
             kgStimati: stima?.kg ?? null,
+            // Chili usciti verso bar e ristoranti: tolti dalla stima al
+            // prezzo del banco e rimessi al loro prezzo di fattura.
+            kgB2bStimati: stima?.b2bKg ?? null,
             ricaviPrev: nChiusurePrev > 0 ? ricaviPrev : null,
             nChiusureCur, nChiusurePrev, giornateConDato,
             foodCostPct,
@@ -294,9 +339,12 @@ export default function ConfrontoSedi({ orgId, sedi }) {
             margineNettoCur,
             costiPeriodo,
             prodOggi,
-            fattureDaPagare: fattureBySede[sede.id] || 0,
-            fattureScadute: fattureScadByS[sede.id] || 0,
-            fattureImporto: fattureImpByS[sede.id] || 0,
+            fattureDaPagare: perSedeFatture[sede.id]?.aperte || 0,
+            fattureScadute: perSedeFatture[sede.id]?.scadute || 0,
+            // Quante di quelle scadenze sono dedotte invece che scritte sul
+            // documento. Oggi sono tutte: va detto, non nascosto.
+            fattureScadStimate: perSedeFatture[sede.id]?.stimate || 0,
+            fattureImporto: perSedeFatture[sede.id]?.importo || 0,
             stockPF: stockBySede[sede.id] || 0,
             stockProdsCount: (stockProdsBySede[sede.id]?.size) || 0,
             trasfInArrivo: pendingBySede[sede.id] || 0,
@@ -313,7 +361,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
             foodCostPct: null,
             margineLordoCur: null, margineNettoCur: null, costiPeriodo: null,
             prodOggi: null,
-            fattureDaPagare: null, fattureScadute: null, fattureImporto: null,
+            fattureDaPagare: null, fattureScadute: null, fattureScadStimate: null, fattureImporto: null,
             stockPF: null, stockProdsCount: null, trasfInArrivo: null,
           }
         }
@@ -343,7 +391,15 @@ export default function ConfrontoSedi({ orgId, sedi }) {
         out.push({ sede: s, lvl: 'amber', icon: 'receipt', msg: `Food cost ${fmtp(k.foodCostPct)} - monitorare` })
       }
       if (k.fattureScadute > 0) {
-        out.push({ sede: s, lvl: 'red', icon: 'fileText', msg: `${k.fattureScadute} fattur${k.fattureScadute === 1 ? 'a scaduta' : 'e scadute'} da pagare` })
+        // Se la scadenza è dedotta (oggi lo è sempre) l'avviso lo dice: chi
+        // legge «3 fatture scadute» deve sapere se è un fatto o una
+        // convenzione a trenta giorni.
+        const tutteStimate = k.fattureScadStimate === k.fattureScadute
+        out.push({
+          sede: s, lvl: 'red', icon: 'fileText',
+          msg: `${k.fattureScadute} fattur${k.fattureScadute === 1 ? 'a scaduta' : 'e scadute'} da pagare`
+            + (tutteStimate ? ' (scadenza dedotta a 30 giorni)' : ''),
+        })
       }
       if (k.trasfInArrivo > 0) {
         out.push({ sede: s, lvl: 'amber', icon: 'truck', msg: `${k.trasfInArrivo} trasferiment${k.trasfInArrivo === 1 ? 'o' : 'i'} in attesa di ricezione` })
@@ -537,7 +593,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
           <Icon name="clock" size={14} color={T.amberDark} style={{ flexShrink: 0, marginTop: 3 }} />
           <span>
             {sediStimate.length > 0
-              ? <><strong>Ricavi stimati dall&apos;inventario</strong> per {sediStimate.length === sediAttive.length ? 'tutte le sedi' : sediStimate.map(s => s.nome).join(', ')}: {periodo === 'mese' ? 'questo mese' : 'questa settimana'} non ci sono chiusure di cassa, quindi l&apos;incasso è calcolato dai chili usciti dal laboratorio per il prezzo dei formati. Va bene per confrontare le sedi fra loro, non per chiudere i conti.</>
+              ? <><strong>Ricavi stimati dall&apos;inventario</strong> per {sediStimate.length === sediAttive.length ? 'tutte le sedi' : sediStimate.map(s => s.nome).join(', ')}: {periodo === 'mese' ? 'questo mese' : 'questa settimana'} non ci sono chiusure di cassa, quindi l&apos;incasso è calcolato dai chili usciti dal laboratorio per il prezzo dei formati. Va bene per confrontare le sedi fra loro, non per chiudere i conti.{sediStimate.some(s => (kpiMap[s.id]?.kgB2bStimati || 0) > 0) && <> I chili consegnati all&apos;ingrosso non sono contati al prezzo del banco: valgono quello della loro fattura.</>}</>
               : sediSenzaCassa.length === sediAttive.length
                 ? <><strong>Nessuna chiusura di cassa {periodo === 'mese' ? 'questo mese' : 'questa settimana'}</strong>, e nemmeno dati di inventario da cui ricavare l&apos;incasso. Ricavi e margini restano vuoti: non è un dato negativo, è un dato che manca.</>
                 : <><strong>{sediSenzaCassa.length === 1 ? 'Una sede non ha' : `${sediSenzaCassa.length} sedi non hanno`} chiusure di cassa {periodo === 'mese' ? 'questo mese' : 'questa settimana'}</strong> ({sediSenzaCassa.map(s => s.nome).join(', ')}): per {sediSenzaCassa.length === 1 ? 'quella' : 'quelle'} i ricavi e i margini restano vuoti, e il confronto è fra le altre.</>}

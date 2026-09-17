@@ -13,6 +13,7 @@
 // Le categorie standard sono suggerite ma l'utente puo' aggiungerne.
 
 import { supabase } from './supabase'
+import { meseLocale } from './dateLocal'
 
 export const CATEGORIE_DEFAULT = [
   { id: 'consumabili',   label: 'Consumabili vendita',   esempi: 'fazzoletti, coppette, palette, sacchetti, tovaglioli' },
@@ -171,7 +172,10 @@ export function importoMensile(voce, asOfDate) {
 export function statoVoce(voce, asOfDate) {
   const mensile = importoMensile(voce, asOfDate)
   const mese = (d) => String(d).slice(0, 7)
-  const rif = asOfDate ? mese(asOfDate) : mese(new Date().toISOString())
+  // Il mese di riferimento è quello LOCALE. `new Date().toISOString()` dà il
+  // mese UTC: il 1° di ogni mese, fra mezzanotte e le due, una voce di costo
+  // appena entrata in vigore risultava ancora «non iniziata».
+  const rif = asOfDate ? mese(asOfDate) : meseLocale()
   const inizio = voce?.data_inizio
   if (inizio && mese(inizio) > rif) {
     return { mensile: 0, stato: 'non_iniziata', mesiRimasti: null }

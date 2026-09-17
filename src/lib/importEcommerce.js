@@ -153,7 +153,13 @@ export function mergeOrdiniInChiusure(chiusure = [], ordini = [], fonte = '') {
         // calcola su quel denominatore, più alta.
         solo_totale: true,
         foodcost_noto: false,
-        kpi: { totV: o.importo, totFC: 0, totM: o.importo, totS: 0, totMP: 0, avgST: 0 },
+        // `avgST: null`, non 0. Il sell-through è la quota di pezzi
+        // prodotti che si sono venduti: un import di incassi non sa quanti
+        // pezzi sono stati prodotti, quindi non lo sa. Zero vuol dire
+        // «non se n'è venduto nulla», ed è il contrario. Lo Storico filtra
+        // su `avgST != null` apposta: lo zero passava quel filtro ed entrava
+        // nella media, tirandola giù.
+        kpi: { totV: o.importo, totFC: 0, totM: o.importo, totS: 0, totMP: 0, avgST: null },
         cassaImport: [entry],
       })
     }

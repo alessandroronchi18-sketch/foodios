@@ -47,6 +47,7 @@ import { checkRateLimit, rateLimitResponse } from './lib/rateLimit.js'
 import { getCorsHeaders, handleOptions, getClientIP } from './lib/cors.js'
 import { sanitizeStrict, validateUUID } from './lib/validate.js'
 import { leggiToken, risolviToken, segnaUso, organizzazioneAttiva } from './lib/webhookToken.js'
+import { giornoItaliano, inizioGiornoItaliano } from '../src/lib/dateLocal.js'
 
 // Marche di cassa accettate. Aggiungere qui quando se ne collega una nuova:
 // non c'è più un segreto per marca da configurare sul server, la chiave la
@@ -93,14 +94,19 @@ function jsonResponse(req, body, status = 200) {
 // nota, non un controllo — lo scontrino è già entrato.
 async function registraSync(supabase, orgId, sedeId, integrazione) {
   try {
-    const inizioGiornata = new Date(); inizioGiornata.setUTCHours(0, 0, 0, 0)
+    // Audit 2026-09-16 (agente DATE): `setUTCHours(0,0,0,0)` spezzava la
+    // giornata alle 02:00 italiane. Gli scontrini battuti fra mezzanotte e le
+    // due aprivano una SECONDA riga di `sync_log` per la stessa giornata di
+    // lavoro, e il contatore «scontrini sincronizzati oggi» ripartiva da uno
+    // nel mezzo del servizio serale.
+    const inizioGiornata = inizioGiornoItaliano(giornoItaliano())
     const { data: esistente } = await supabase
       .from('sync_log')
       .select('id, records_importati')
       .eq('organization_id', orgId)
       .eq('integrazione', integrazione)
       .eq('stato', 'ok')
-      .gte('created_at', inizioGiornata.toISOString())
+      .gte('created_at', inizioGiornata)
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle()

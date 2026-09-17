@@ -44,6 +44,16 @@ function nomiDisponibili() {
 describe('nomi delle icone', () => {
   const disponibili = nomiDisponibili()
 
+  // ── Prova di controllo sul righello (audit 16/09/2026) ────────────────
+  // Un censimento che dice «nessun colpevole» va bene solo se ha davvero
+  // guardato dentro il progetto. Se il cammino sbaglia, l'elenco di partenza
+  // è vuoto, il censimento resta verde e non protegge più niente: è successo
+  // con `views-render-smoke`, lo stesso giorno.
+  it('il setaccio guarda davvero dentro il progetto', () => {
+    expect(tuttiIFile('src').length).toBeGreaterThan(150)
+  })
+
+
   it('Icon.jsx espone un elenco di nomi leggibile', () => {
     expect(disponibili.size).toBeGreaterThan(50)
     expect(disponibili.has('alert')).toBe(true)

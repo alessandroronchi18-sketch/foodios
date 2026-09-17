@@ -36,6 +36,16 @@ const ESPORTATI = ['color', 'radius', 'shadow', 'motion', 'space', 'font', 'typo
 describe('chiavi del tema usate nel codice', () => {
   const file = tuttiIFile('src')
 
+  // ── Prova di controllo sul righello (audit 16/09/2026) ────────────────
+  // Un censimento che dice «nessun colpevole» va bene solo se ha davvero
+  // guardato dentro il progetto. Se il cammino sbaglia, l'elenco di partenza
+  // è vuoto, il censimento resta verde e non protegge più niente: è successo
+  // con `views-render-smoke`, lo stesso giorno.
+  it('il setaccio guarda davvero dentro il progetto', () => {
+    expect(file.length).toBeGreaterThan(150)
+  })
+
+
   it('ogni accesso a una chiave del tema esiste davvero', () => {
     const mancanti = []
     for (const p of file) {

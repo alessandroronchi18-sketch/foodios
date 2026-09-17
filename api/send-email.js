@@ -328,10 +328,17 @@ export default async function handler(req) {
     } else if (tipo === 'fattura_in_scadenza') {
       if (!validateEmail(recipient)) throw new Error('Email destinatario mancante')
       const fatture = Array.isArray(body.fatture) ? body.fatture : []
+      // La colonna si chiama «Scadenza» e deve portare la scadenza. Fino al
+      // 17/09/2026 stampava `data_fattura`, cioè la data di EMISSIONE: il
+      // titolare leggeva sotto «Scadenza» il giorno in cui la fattura era
+      // stata fatta, che con trenta giorni di termine è un mese prima.
+      // `scadenza` arriva da `scadenzaFattura()`; il fallback serve solo ai
+      // vecchi invii ancora in coda.
+      const stimate = Number(body.stimate || 0)
       const righe = fatture.map(f => `
         <tr>
           <td style="padding:8px 12px;border-bottom:1px solid #E8DDD8;color:#1C0A0A;font-size:14px;">${escapeHtml(f.fornitore || '—')}</td>
-          <td style="padding:8px 12px;border-bottom:1px solid #E8DDD8;color:#6B4C44;font-size:13px;">${escapeHtml(String(f.data_fattura || ''))}</td>
+          <td style="padding:8px 12px;border-bottom:1px solid #E8DDD8;color:#6B4C44;font-size:13px;">${escapeHtml(String(f.scadenza || f.data_fattura || ''))}${f.scadenza_stimata ? ' <span style="color:#9C7B76;font-size:11px;">(stimata)</span>' : ''}</td>
           <td style="padding:8px 12px;border-bottom:1px solid #E8DDD8;color:#C0392B;font-size:14px;font-weight:700;text-align:right;">${Number(f.totale || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</td>
         </tr>`).join('')
       await sendEmail({
@@ -347,10 +354,13 @@ export default async function handler(req) {
               <thead><tr style="background:#F5EDE8;">
                 <th style="padding:8px 12px;text-align:left;font-size:11px;color:#9C7B76;text-transform:uppercase;">Fornitore</th>
                 <th style="padding:8px 12px;text-align:left;font-size:11px;color:#9C7B76;text-transform:uppercase;">Scadenza</th>
-                <th style="padding:8px 12px;text-align:right;font-size:11px;color:#9C7B76;text-transform:uppercase;">Totale</th>
+                <th style="padding:8px 12px;text-align:right;font-size:11px;color:#9C7B76;text-transform:uppercase;">Da pagare</th>
               </tr></thead>
               <tbody>${righe}</tbody>
             </table>
+            ${stimate > 0 ? `<p style="color:#9C7B76;font-size:12px;line-height:1.6;margin:12px 0 0;">
+              ${stimate === 1 ? 'Una scadenza è stimata' : `${stimate} scadenze sono stimate`}: il fornitore non l'ha scritta sul documento, quindi valgono i trenta giorni dalla data della fattura. Se i termini sono altri, correggili nello Scadenzario.
+            </p>` : ''}
             <hr style="border:none;border-top:1px solid #E8DDD8;margin:24px 0;">
             <p style="color:#9C7B76;font-size:12px;">Notifica automatica FoodOS · <a href="mailto:${SUPPORT}" style="color:#C0392B;">${SUPPORT}</a></p>
           </div>

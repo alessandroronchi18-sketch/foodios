@@ -11,6 +11,7 @@ import { calcolaStipendio, costoOrarioDaStipendio, costoPersonaleMensile, costoL
 import { toMin as _toMin, finMin as _finMin, hm as _hm, oreTurno, analizzaCopertura } from '../lib/turni'
 import { color as T, radius as R, shadow as S, motion as M, tnum, typo } from '../lib/theme'
 import { fmtp, fmtp0 } from '../lib/formatIt'
+import { todayLocal, meseLocale, aggiungiGiorni, aggiungiMesi, giorniTra, lunediDellaSettimana, primoGiornoDelMese, ultimoGiornoDelMese } from '../lib/dateLocal'
 
 // Quanto costa un'ora di quel dipendente.
 //
@@ -538,32 +539,36 @@ function TurniTab({ orgId, notify, isMobile }) {
   const [consuntivo, setConsuntivo] = useState({})
   const [loading, setLoading] = useState(true)
   const [periodo, setPeriodo] = useState('settimana') // 'giorno' | 'settimana' | 'mese'
-  const [anchor, setAnchor] = useState(() => new Date().toISOString().slice(0,10)) // giorno di riferimento
+  const [anchor, setAnchor] = useState(() => todayLocal()) // giorno di riferimento
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ dipendente_id:"", data:"", ora_inizio:"08:00", ora_fine:"16:00", note:"" })
   const [editId, setEditId] = useState(null) // id turno in modifica (null = nuovo)
   const [saving, setSaving] = useState(false)
 
-  // Lunedì della settimana che contiene `iso`.
-  const isoMonday = iso => { const d = new Date(iso); d.setDate(d.getDate() - ((d.getDay()+6)%7)); return d.toISOString().slice(0,10) }
+  // Il calendario dei turni si conta in GIORNI, sempre.
+  //
+  // Prima ogni passo faceva `new Date('2026-03-29')` — che è mezzanotte a
+  // Greenwich — spostava il giorno coi metodi LOCALI e rileggeva il risultato
+  // con `toISOString()`, cioè di nuovo a Greenwich. Andata e ritorno fra due
+  // riferimenti diversi. Finché l'offset non cambia il conto torna; la notte
+  // del cambio ora no. Il 29 marzo 2026, quando l'Italia passa da +1 a +2,
+  // la settimana renderizzata stampava il 29 due volte e il 30 spariva, e il
+  // bottone «settimana successiva» dal 29 marzo portava al 4 aprile invece che
+  // al 5. I turni di un giorno intero non comparivano a chi doveva farli.
+  const isoMonday = iso => lunediDellaSettimana(iso)
   const week = isoMonday(anchor) // compat: usato come default data nel form
   // Intervallo [from,to] in base al periodo selezionato.
   const rng = useMemo(() => {
     if (periodo === 'giorno') return { from: anchor, to: anchor }
     if (periodo === 'mese') {
-      const d = new Date(anchor)
-      const f = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1))
-      const t = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth()+1, 0))
-      return { from: f.toISOString().slice(0,10), to: t.toISOString().slice(0,10) }
+      return { from: primoGiornoDelMese(anchor), to: ultimoGiornoDelMese(anchor) }
     }
-    const m = isoMonday(anchor); const e = new Date(m); e.setDate(e.getDate()+6)
-    return { from: m, to: e.toISOString().slice(0,10) }
+    const m = isoMonday(anchor)
+    return { from: m, to: aggiungiGiorni(m, 6) }
   }, [periodo, anchor])
   // Giorni da renderizzare nell'intervallo.
   const days = useMemo(() => {
-    const out = []; const d0 = new Date(rng.from), d1 = new Date(rng.to)
-    for (let d = new Date(d0); d <= d1; d.setDate(d.getDate()+1)) out.push(d.toISOString().slice(0,10))
-    return out
+    return giorniTra(rng.from, rng.to)
   }, [rng.from, rng.to])
 
   useEffect(() => { carica() }, [orgId, rng.from, rng.to])
@@ -692,20 +697,21 @@ function TurniTab({ orgId, notify, isMobile }) {
 
   // Navigazione: sposta di 1 giorno / 1 settimana / 1 mese in base al periodo.
   function shiftPeriodo(dir) {
-    const d = new Date(anchor)
-    if (periodo === 'giorno') d.setDate(d.getDate() + dir)
-    else if (periodo === 'mese') d.setMonth(d.getMonth() + dir)
-    else d.setDate(d.getDate() + 7 * dir)
-    setAnchor(d.toISOString().slice(0,10))
+    if (periodo === 'giorno') setAnchor(aggiungiGiorni(anchor, dir))
+    else if (periodo === 'mese') setAnchor(aggiungiMesi(anchor, dir))
+    else setAnchor(aggiungiGiorni(anchor, 7 * dir))
   }
   const prevWeek = () => shiftPeriodo(-1)
   const nextWeek = () => shiftPeriodo(1)
   // Etichetta dell'intervallo corrente.
   const labelPeriodo = periodo === 'giorno'
-    ? new Date(anchor).toLocaleDateString("it-IT", { weekday: isMobile ? undefined : "long", day:"2-digit", month: isMobile ? "short" : "long", year:"numeric" })
+    // `T12:00` e non `new Date(anchor)`: il secondo è mezzanotte a Greenwich,
+    // e a ovest di Greenwich l'etichetta diceva il giorno prima di quello
+    // mostrato nella griglia.
+    ? new Date(anchor + "T12:00").toLocaleDateString("it-IT", { weekday: isMobile ? undefined : "long", day:"2-digit", month: isMobile ? "short" : "long", year:"numeric" })
     : periodo === 'mese'
-    ? new Date(anchor).toLocaleDateString("it-IT", { month:"long", year:"numeric" })
-    : `${new Date(rng.from).toLocaleDateString("it-IT",{day:"2-digit",month: isMobile ? "short" : "long"})} – ${new Date(rng.to).toLocaleDateString("it-IT",{day:"2-digit",month: isMobile ? "short" : "long",year:"numeric"})}`
+    ? new Date(anchor + "T12:00").toLocaleDateString("it-IT", { month:"long", year:"numeric" })
+    : `${new Date(rng.from + "T12:00").toLocaleDateString("it-IT",{day:"2-digit",month: isMobile ? "short" : "long"})} – ${new Date(rng.to + "T12:00").toLocaleDateString("it-IT",{day:"2-digit",month: isMobile ? "short" : "long",year:"numeric"})}`
 
   const inputSt = { padding: isMobile ? "12px 14px" : "8px 10px", borderRadius:8, border:`1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, color:C.text }
 
@@ -819,11 +825,14 @@ function TurniTab({ orgId, notify, isMobile }) {
       {/* Vista mese: calendario; Giorno/Settimana: timeline oraria */}
       {loading ? <div style={{ color:C.textSoft, fontSize:13 }}>Caricamento…</div> : periodo === 'mese' ? (() => {
         const colorById = {}; dipendenti.forEach((d) => { colorById[d.id] = repartoDi(d.id).color })
-        const first = new Date(rng.from)
+        // Quante caselle vuote prima del 1° del mese. Il giorno della
+        // settimana si legge a mezzogiorno: con `new Date(rng.from)` la
+        // griglia partiva da una colonna sbagliata fuori dall'Europa.
+        const first = new Date(rng.from + "T12:00")
         const lead = (first.getDay() + 6) % 7
         const cells = [...Array(lead).fill(null), ...days]
         while (cells.length % 7 !== 0) cells.push(null)
-        const todayIso = new Date().toISOString().slice(0, 10)
+        const todayIso = todayLocal()
         return (
           <div style={{ background:C.bgCard, borderRadius:16, border:`1px solid ${C.border}`, boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)", overflow:"hidden" }}>
             <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", borderBottom:`1px solid ${C.border}` }}>
@@ -925,7 +934,7 @@ function TurniTab({ orgId, notify, isMobile }) {
               // Riga "riposo" più compatta (altezza minore) per non sprecare spazio.
               const rowH = dayShifts.length === 0 ? 36 : (nLanes * laneSpacing + 8)
               const dd = new Date(dIso + "T12:00:00")
-              const oggi = dIso === new Date().toISOString().slice(0, 10)
+              const oggi = dIso === todayLocal()
               return (
                 <div key={dIso} style={{ display:"grid", gridTemplateColumns:`${labelW}px 1fr`, borderTop:`2px solid ${C.borderStr}`, background: oggi ? "#FFFCF7" : "transparent" }}>
                   <div style={{ padding: isMobile ? "10px 10px" : "8px 10px", borderRight:`1px solid ${C.border}` }}>
@@ -1048,7 +1057,7 @@ function TurniTab({ orgId, notify, isMobile }) {
 }
 
 function AnalisiCostoTab({ orgId, isMobile, isTablet }) {
-  const [mese, setMese] = useState(() => new Date().toISOString().slice(0,7))
+  const [mese, setMese] = useState(() => meseLocale())
   const [target, setTarget] = useState(30) // incidenza costo-lavoro obiettivo (%)
   const [dati, setDati] = useState({ turni:[], dipendenti:[], ricavi:0, organigramma:{reparti:[]}, consuntivo:{} })
   const [loading, setLoading] = useState(true)
@@ -1292,7 +1301,7 @@ function AnalisiCostoTab({ orgId, isMobile, isTablet }) {
 // Audit 2026-06-22: aggiunto isTablet alla signature (era usato al rigo 1192
 // ma mai destrutturato dai props → ReferenceError in build minificato).
 function HeaderPersonale({ orgId, isMobile, isTablet = false }) {
-  const mese = useMemo(() => new Date().toISOString().slice(0, 7), [])
+  const mese = useMemo(() => meseLocale(), [])
   const [d, setD] = useState({ nDip: 0, costoContratto: 0, costoMese: 0, ricavi: 0, oreMese: 0, nonAssegnati: 0, repartiScoperti: [], hasReparti: false })
 
   useEffect(() => {

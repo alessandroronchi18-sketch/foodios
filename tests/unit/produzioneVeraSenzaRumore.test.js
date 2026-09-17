@@ -43,14 +43,60 @@ describe('nessun indirizzo con l\'impronta scritto a mano', () => {
   })
 })
 
-describe('il controllo degli errori è acceso solo se è vero', () => {
-  // Il controllo com'è scritto nel programma.
-  const dsnValido = (dsn) => {
-    const s = String(dsn || '').trim()
-    if (!s) return false
-    if (/KEY@|oXXX|PROJECT_ID|<|>/.test(s)) return false
-    return /^https:\/\/[0-9a-f]+@[^/]+\/\d+$/i.test(s)
+// ── Il righello, prima della misura ────────────────────────────────────
+//
+// 16/09/2026, audit dei test: qui sotto, fino a oggi, la funzione `dsnValido`
+// era **ricopiata a mano** dentro il test. Cinque prove giravano sulla copia,
+// non sul programma. Riducendo la `dsnValido` vera di `src/main.jsx` a
+// `return !!dsn` — cioè rimettendo esattamente il difetto che questo file
+// racconta di aver corretto — tutte e 15 le prove restavano verdi.
+//
+// `src/main.jsx` non si può importare: è il file che monta l'applicazione,
+// e importarlo qui vorrebbe dire far partire React senza pagina. Allora la
+// funzione si prende dal sorgente e si esegue quella: se qualcuno cambia il
+// programma, le prove qui sotto cambiano con lui.
+//
+// Se il ritaglio sbaglia, non passa in silenzio: `new Function` non compila e
+// il file di prova si ferma con un errore rumoroso.
+function funzioneDaSorgente (sorgente, nome) {
+  const inizio = sorgente.indexOf(`function ${nome} (`) >= 0
+    ? sorgente.indexOf(`function ${nome} (`)
+    : sorgente.indexOf(`function ${nome}(`)
+  if (inizio < 0) {
+    throw new Error(`in src/main.jsx non esiste più una funzione «${nome}»: questa prova non sta misurando niente`)
   }
+  let profondita = 0
+  let fine = -1
+  for (let j = sorgente.indexOf('{', inizio); j < sorgente.length; j++) {
+    if (sorgente[j] === '{') profondita++
+    else if (sorgente[j] === '}') {
+      profondita--
+      if (profondita === 0) { fine = j + 1; break }
+    }
+  }
+  if (fine < 0) throw new Error(`la funzione «${nome}» in src/main.jsx non si chiude: ritaglio fallito`)
+  // eslint-disable-next-line no-new-func
+  return new Function(`${sorgente.slice(inizio, fine)}\nreturn ${nome}`)()
+}
+
+describe('il ritaglio dal sorgente sa fallire', () => {
+  // Senza questa prova, il giorno che la funzione cambia nome il ritaglio
+  // potrebbe restituire qualcosa di innocuo e tutto resterebbe verde.
+  it('se la funzione non c\'è, si ferma e lo dice', () => {
+    expect(() => funzioneDaSorgente(MAIN, 'funzioneCheNonEsiste')).toThrow(/non esiste più/)
+  })
+
+  it('e quando c\'è, quella che torna è davvero la funzione del programma', () => {
+    const f = funzioneDaSorgente(MAIN, 'dsnValido')
+    expect(typeof f).toBe('function')
+    // Il corpo ritagliato contiene le parole del programma, non di una copia.
+    expect(String(f)).toContain('PROJECT_ID')
+  })
+})
+
+describe('il controllo degli errori è acceso solo se è vero', () => {
+  // La funzione VERA di src/main.jsx, non una copia.
+  const dsnValido = funzioneDaSorgente(MAIN, 'dsnValido')
 
   it('il segnaposto di .env.example non conta come configurazione', () => {
     // È esattamente quello che c'era in produzione.

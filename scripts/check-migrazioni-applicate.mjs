@@ -47,6 +47,11 @@
  *
  * Senza credenziali del database (CI, macchina nuova) non fallisce: dice che
  * non ha potuto controllare ed esce pulito.
+ *
+ * Ma se le credenziali CI SONO e il database non risponde, fallisce forte
+ * (audit del righello, 16/09/2026): prima i due casi uscivano tutti e due 0
+ * con lo stesso messaggio, quindi una password sbagliata nel file spegneva
+ * questo passo del cancello pre-push per sempre, in silenzio.
  */
 import { readFileSync, readdirSync, existsSync } from 'node:fs'
 import { join, dirname, basename } from 'node:path'
@@ -155,9 +160,36 @@ function principale() {
     dbColonne  = new Set(interroga(url, "select table_name||'.'||column_name from information_schema.columns where table_schema='public'"))
     dbTabelle  = new Set(interroga(url, "select table_name from information_schema.tables where table_schema='public'"))
     dbFunzioni = new Set(interroga(url, "select distinct proname from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public'"))
-  } catch {
-    console.log('• migrazioni: controllo saltato (database non raggiungibile da qui).')
-    return 0
+  } catch (e) {
+    // ── 16/09/2026, audit del righello ─────────────────────────────────
+    //
+    // Prima qui c'era `catch { return 0 }` con lo stesso messaggio del caso
+    // «nessuna credenziale»: due situazioni diverse raccontate uguale.
+    //
+    // «Non ho le credenziali» è legittimo — in CI o su una macchina nuova non
+    // ci sono, e non deve fermare nessuno. «Ho le credenziali ma il database
+    // non risponde» è un'altra cosa: chi le ha messe vuole che il controllo
+    // giri. Con una password sbagliata nel file, il passo del cancello
+    // pre-push diceva «saltato», usciva 0, e restava spento per sempre senza
+    // che nessuno se ne accorgesse.
+    //
+    // Provato: `SUPABASE_DB_URL` su una porta chiusa → «controllo saltato»,
+    // uscita 0. È lo stesso schema che il 14/09 ha lasciato passare tre
+    // pubblicazioni con il build rotto: un esito mangiato per strada.
+    console.error('')
+    console.error('✗ MIGRAZIONI: le credenziali del database ci sono, ma non risponde.')
+    // La riga d'errore di psql contiene l'URL intero, password compresa:
+    // stamparla così com'è la scriverebbe nel registro del terminale e nei
+    // log della CI. Si oscura.
+    const senzaPassword = String(e.message || e).split('\n')[0]
+      .replace(/(postgres(?:ql)?:\/\/[^:\s]+:)[^@\s]+@/g, '$1••••@')
+    console.error(`    ${senzaPassword}`)
+    console.error('')
+    console.error('  Il controllo NON è stato fatto: non è un via libera.')
+    console.error('  Se la password è cambiata, aggiorna ~/.config/foodos/supabase.env.')
+    console.error('  Per pubblicare comunque: git push --no-verify.')
+    console.error('')
+    return 1
   }
 
   const codice = testoDelProdotto()

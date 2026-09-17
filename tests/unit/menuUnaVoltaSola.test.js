@@ -77,7 +77,13 @@ describe('la forma del menu', () => {
   })
 
   it('niente emoji: le icone sono nomi del componente Icon', () => {
-    const emoji = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u
+    // La freccia «→» e la spunta «✓» non sono emoji: sono caratteri
+    // tipografici. Questo rilevatore comprendeva il blocco delle frecce
+    // (U+2190–21FF) e i dingbat (U+2600–27BF), e le bocciava tutte e due.
+    // Adesso usa `\p{Extended_Pictographic}`, la proprietà Unicode delle emoji
+    // vere, che è quella già usata dagli altri test di casa.
+    // Tarato il 17/09/2026, audit RIGHELLO.
+    const emoji = /\p{Extended_Pictographic}/u
     for (const sec of pieno()) {
       expect(sec.label, sec.id).not.toMatch(emoji)
       expect(sec.icona, sec.id).toMatch(/^[a-zA-Z]+$/)

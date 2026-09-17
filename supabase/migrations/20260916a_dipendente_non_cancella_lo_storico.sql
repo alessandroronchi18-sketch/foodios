@@ -43,13 +43,40 @@
 -- la può nemmeno scrivere.** Scritta così regge anche domani, quando qualcuno
 -- aggiungerà una chiave nuova a uno dei due elenchi senza guardare l'altro.
 --
--- Cosa NON cambia per il prodotto: il dipendente registra la produzione dalla
--- pagina "Produzione", che non scrive dal browser. Passa da
--- `api/produzione-registra.js`, che gira sul server con la chiave di servizio:
--- lì dentro `auth.uid()` è nullo, quindi `v_dip` è falso e questa guardia non
--- lo tocca. È il server che rilegge lo storico vero, aggiunge la giornata in
--- testa e riscrive: per questo il dipendente non ha mai avuto bisogno di
--- scrivere quella chiave dal browser.
+-- Cosa NON cambia per il prodotto. Attenzione, qui la prima stesura di questo
+-- commento diceva una cosa falsa — «la pagina Produzione non scrive dal
+-- browser» — e va corretta, perché chi la legge si fida (riletto e verificato
+-- il 17/09/2026, riga per riga, su `src/views/ProduzioneGiornalieraView.jsx`).
+--
+-- Quella pagina **scrive dal browser, in quattro punti**:
+--
+--   riga 200  modifica di una sessione già registrata   → `ssaveBatch`
+--   riga 278  eliminazione di una sessione              → `ssaveBatch`
+--   riga 551  registrazione del DIPENDENTE              → `/api/produzione-registra`
+--   riga 651  registrazione del TITOLARE                → `ssaveBatch`
+--
+-- Il motivo per cui questa guardia non blocca il lavoro vero è un altro, ed è
+-- che i tre punti che scrivono davvero dal browser il dipendente non li
+-- raggiunge:
+--
+--   • riga 551 — è dentro il ramo `if (isDipendente)` che comincia a riga 535.
+--     Non scrive `user_data`: manda tutto a `api/produzione-registra.js`, che
+--     gira sul server con la chiave di servizio. Lì `auth.uid()` è nullo,
+--     quindi `v_dip` è falso e la guardia non lo tocca. È il server che rilegge
+--     lo storico vero, aggiunge la giornata in testa e riscrive. Quel ramo
+--     finisce con `return` (riga 586): il dipendente non arriva mai più in giù.
+--
+--   • riga 651 — è `handleConferma` del titolare, cioè il codice dopo quel
+--     `return`. Al dipendente è irraggiungibile.
+--
+--   • righe 200 e 278 — modifica ed elimina stanno nella linguetta «Storico»,
+--     che al dipendente non esiste: riga 757 gli costruisce la barra con la
+--     sola voce «Nuova sessione», e riga 1205 apre il pannello dello storico
+--     solo `!isDipendente`.
+--
+-- Quindi: la guardia morde esattamente chi deve mordere — qualcuno che chiama
+-- l'API con il token di un dipendente fuori dalle schermate del prodotto — e
+-- non tocca nessuno dei percorsi che il laboratorio usa davvero.
 
 
 -- ── 1. La tabella ───────────────────────────────────────────────────────────

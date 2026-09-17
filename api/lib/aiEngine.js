@@ -12,6 +12,7 @@
 import { safeFetchLLM } from './safeFetch.js'
 import { registraSpesaAi } from './aiBudget.js'
 import { fmtp, fmtp0 } from '../../src/lib/formatIt.js'
+import { giornoItaliano, aggiungiGiorni, lunediDellaSettimana } from '../../src/lib/dateLocal.js'
 
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages'
 const DEFAULT_MODEL = 'claude-haiku-4-5-20251001'  // economico per cron volumi
@@ -94,25 +95,21 @@ export function dedupKey({ orgId, sedeId, tipo, entity }) {
 //   }
 //
 // Robusto a dati mancanti: ogni sezione e' indipendente, fallback array vuoto.
-// Audit 2026-07-01 LOW: timezone mismatch. `today.setHours(0,0,0,0)` mette
-// mezzanotte LOCALE; poi `toISOString().slice(0, 10)` converte in UTC date,
-// che durante CEST (+2) e ore [00:00, 02:00) restituisce ieri. Costruiamo
-// l'YYYY-MM-DD locale a mano per Europe/Rome.
-function localIsoDate(d) {
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
-}
+//
+// Le date, qui, sono tutte GIORNI ITALIANI, e si tengono come stringhe.
+//
+// La correzione del 01/07/2026 costruiva la data «locale» a mano, ma questo
+// file gira su Vercel, dove il processo ha TZ=UTC: locale voleva dire
+// Greenwich. Il riassunto chiesto all'assistente alle 00:30 di Torino parlava
+// quindi di ieri — «ricavi di ieri» erano quelli dell'altro ieri — e ai
+// confini dei mesi cambiava anche il mese. In più i giorni si spostavano
+// sommando 86.400.000 millisecondi, che il 25 ottobre non fanno un giorno.
 
 export async function collectOrgSnapshot({ supabase, orgId, sedeId = null }) {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const todayIso = localIsoDate(today)
-  const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1)
-  const yesterdayIso = localIsoDate(yesterday)
-  const lun = new Date(today); lun.setDate(today.getDate() - ((today.getDay() + 6) % 7))
-  const lunPrec = new Date(lun); lunPrec.setDate(lunPrec.getDate() - 7)
+  const todayIso = giornoItaliano()
+  const yesterdayIso = aggiungiGiorni(todayIso, -1)
+  const lunIso = lunediDellaSettimana(todayIso)
+  const lunPrecIso = aggiungiGiorni(lunIso, -7)
 
   const snap = {
     date: todayIso,
@@ -164,15 +161,13 @@ export async function collectOrgSnapshot({ supabase, orgId, sedeId = null }) {
       const d = (c.data || '').slice(0, 10)
       const tot = Number(c.kpi?.totV || c.totale || 0)
       if (d === yesterdayIso) snap.ricaviIeri += tot
-      if (d >= localIsoDate(lun) && d < todayIso) snap.ricaviSettCorr += tot
-      if (d >= localIsoDate(lunPrec) && d < localIsoDate(lun)) snap.ricaviSettPrec += tot
+      if (d >= lunIso && d < todayIso) snap.ricaviSettCorr += tot
+      if (d >= lunPrecIso && d < lunIso) snap.ricaviSettPrec += tot
     }
   }
 
   // Food cost medio settimana corrente (giornaliero)
   let fcSum = 0, fcCount = 0, fcSumYesterday = 0, fcCountYesterday = 0
-  const lunIso = localIsoDate(lun)
-  // (locale dates: yesterdayIso/todayIso/lunIso usano localIsoDate)
   for (const { items } of giornalieroPerSede) {
     for (const sess of items) {
       const d = (sess.data || '').slice(0, 10)
@@ -193,8 +188,8 @@ export async function collectOrgSnapshot({ supabase, orgId, sedeId = null }) {
   for (const { items } of chiusurePerSede) {
     for (const c of items) {
       const d = (c.data || '').slice(0, 10)
-      const inSett = d >= localIsoDate(lun) && d < todayIso
-      const inPrec = d >= localIsoDate(lunPrec) && d < localIsoDate(lun)
+      const inSett = d >= lunIso && d < todayIso
+      const inPrec = d >= lunPrecIso && d < lunIso
       if (!inSett && !inPrec) continue
       const items2 = Array.isArray(c.prodotti) ? c.prodotti : Array.isArray(c.righe) ? c.righe : []
       for (const r of items2) {
@@ -247,7 +242,7 @@ export async function collectOrgSnapshot({ supabase, orgId, sedeId = null }) {
       .select('id, fornitore, totale, importo_pagato, data_fattura, data_scadenza, stato')
       .eq('organization_id', orgId)
       .neq('stato', 'pagata')
-      .lte('data_scadenza', localIsoDate(new Date(today.getTime() + 7 * 86400000)))
+      .lte('data_scadenza', aggiungiGiorni(todayIso, 7))
     const truncName = (s) => {
       const v = String(s || '').trim()
       return v.length > 24 ? v.slice(0, 24) + '…' : v
@@ -265,8 +260,7 @@ export async function collectOrgSnapshot({ supabase, orgId, sedeId = null }) {
 
   // Chiusure mancanti negli ultimi 3 giorni (ognuna su almeno una sede).
   for (let i = 1; i <= 3; i++) {
-    const dt = new Date(today); dt.setDate(dt.getDate() - i)
-    const iso = dt.toISOString().slice(0, 10)
+    const iso = aggiungiGiorni(todayIso, -i)
     const someClosed = chiusurePerSede.some(({ items }) =>
       items.some(c => (c.data || '').slice(0, 10) === iso))
     if (!someClosed) snap.chiusureMancanti.push(iso)
@@ -274,7 +268,7 @@ export async function collectOrgSnapshot({ supabase, orgId, sedeId = null }) {
 
   // Turni scoperti prossimi 3 giorni (basato su tabella turni).
   {
-    const dom = localIsoDate(new Date(today.getTime() + 3 * 86400000))
+    const dom = aggiungiGiorni(todayIso, 3)
     const { data: turni } = await supabase
       .from('turni')
       // Audit 2026-09-09: c'era anche `reparto`, colonna che non esiste in
@@ -289,7 +283,7 @@ export async function collectOrgSnapshot({ supabase, orgId, sedeId = null }) {
     const presenti = new Set((turni || []).map(t => `${t.data}|${t.sede_id || '_'}`))
     for (const s of sediArr) {
       for (let i = 0; i < 3; i++) {
-        const dt = localIsoDate(new Date(today.getTime() + i * 86400000))
+        const dt = aggiungiGiorni(todayIso, i)
         if (!presenti.has(`${dt}|${s.id}`)) {
           snap.turniScoperti.push({ data: dt, sede: s.nome })
         }

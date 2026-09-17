@@ -84,6 +84,13 @@ describe('e nessun bottone del prodotto punta a una pagina che non c\'è', () =>
     return out
   }
 
+  // ── Prova di controllo sul righello (audit 16/09/2026) ────────────────
+  // Se il cammino sbaglia, l'elenco di partenza è vuoto e il censimento qui
+  // sotto resta verde senza aver guardato niente.
+  it('il setaccio guarda davvero dentro il progetto', () => {
+    expect(file(join(RADICE, 'src')).length).toBeGreaterThan(150)
+  })
+
   it('ogni `view:` di una lista di passi porta a una pagina vera', () => {
     // È esattamente il caso di «Primi passi»: una destinazione scritta a mano
     // dentro una struttura dati, che nessun controllo guardava.

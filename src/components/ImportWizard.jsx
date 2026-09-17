@@ -14,6 +14,7 @@
 
 import React, { useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { aggiungiGiorni, ultimoGiornoDelMese, meseLocale } from '../lib/dateLocal'
 import { color as T, typo } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from './Icon'
@@ -97,7 +98,11 @@ export default function ImportWizard({ orgId, onClose, notify, initialEntity = '
                 g.month_iso = fromFilename
               } else {
                 // Prompt utente (formato YYYY-MM). Se annulla, throw.
-                const suggested = new Date().toISOString().slice(0, 7)
+                // Il mese proposto è quello dell'orologio di chi importa: con
+                // `toISOString()` il 1° del mese fino alle 02:00 la casella si
+                // apriva già scritta col mese PRECEDENTE, e chi preme Invio
+                // senza leggere carica i dati sotto il mese sbagliato.
+                const suggested = meseLocale()
                 const answer = window.prompt(
                   'Non riesco a capire di che mese sono questi dati. Scrivilo tu nel formato ANNO-MESE (es. 2026-05 per maggio 2026):',
                   suggested
@@ -257,9 +262,17 @@ export default function ImportWizard({ orgId, onClose, notify, initialEntity = '
       const dupPerCombo = []
       for (const combo of combos) {
         const [sedeId, ym] = combo.split('|')
-        const [year, month] = ym.split('-')
         const dayFrom = `${ym}-01`
-        const nextMonth = new Date(Number(year), Number(month), 1).toISOString().slice(0, 10)
+        // Il primo giorno del mese DOPO, come confine alto escluso.
+        //
+        // Prima: `new Date(anno, mese, 1).toISOString().slice(0,10)`. Quella
+        // è la mezzanotte LOCALE del 1° del mese successivo, e `toISOString()`
+        // la riporta a Greenwich: in Italia diventava l'ULTIMO giorno del mese
+        // in corso. Il controllo «hai già dei dati per questo mese» leggeva
+        // quindi un mese corto di un giorno: se le uniche righe già caricate
+        // erano quelle del 31, l'avviso non compariva e l'import le
+        // raddoppiava in silenzio. Fine mese è quando si importa la cassa.
+        const nextMonth = aggiungiGiorni(ultimoGiornoDelMese(dayFrom), 1)
         try {
           const { count } = await supabase.from(schema.table)
             .select('*', { count: 'exact', head: true })

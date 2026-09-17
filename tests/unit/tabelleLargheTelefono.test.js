@@ -39,6 +39,15 @@ function file(dir, out = []) {
 }
 
 describe('tabelle larghe sul telefono', () => {
+  // ── Prova di controllo sul righello (audit 16/09/2026) ────────────────
+  // Un censimento che dice «nessun colpevole» va bene solo se ha davvero
+  // guardato dentro il progetto. Se il cammino sbaglia, l'elenco di partenza
+  // è vuoto, il censimento resta verde e non protegge più niente: è successo
+  // con `views-render-smoke`, lo stesso giorno.
+  it('il setaccio guarda davvero dentro il progetto', () => {
+    expect(file(join(RADICE, 'src')).length).toBeGreaterThan(150)
+  })
+
   it('ogni tabella più larga di 390px passa da TabellaOSchede', () => {
     const colpevoli = []
     for (const p of file(join(RADICE, 'src'))) {

@@ -16,6 +16,12 @@ on:
       - 'package.json'
       - 'package-lock.json'
 
+# Senza questa riga GitHub usa `bash -e`, che NON ha `pipefail`: in una
+# pipeline conta l'ultimo comando, e quello riesce quasi sempre.
+defaults:
+  run:
+    shell: bash
+
 jobs:
   audit:
     runs-on: ubuntu-latest
@@ -39,10 +45,17 @@ jobs:
         run: npm outdated || true
         continue-on-error: true
 
-      - name: License check (no GPL viral)
+      # 16/09/2026, audit del righello: questo passo si chiamava
+      # «License check (no GPL viral)» ma non poteva bloccare niente.
+      # `--failOn` e' la sua ragione d'essere, e sopra c'erano due cose che la
+      # annullavano: `continue-on-error: true` (il fallimento non ferma la CI)
+      # e `> /dev/null` (l'elenco delle licenze finiva nel nulla). Entrando
+      # una dipendenza GPL, la CI restava verde e non ne restava traccia.
+      # Tolto `> /dev/null`: almeno adesso si vede. `continue-on-error` resta
+      # finche' non e' il titolare a decidere di far bloccare le PR.
+      - name: Licenze (INFORMATIVO — oggi non blocca, vedi commento)
         run: |
           npx license-checker --production --excludePrivatePackages \
             --excludePackages "foodos@0.1.0" \
-            --failOn "GPL-2.0;GPL-3.0;AGPL-1.0;AGPL-3.0;LGPL-2.0;LGPL-2.1;LGPL-3.0" \
-            > /dev/null
+            --failOn "GPL-2.0;GPL-3.0;AGPL-1.0;AGPL-3.0;LGPL-2.0;LGPL-2.1;LGPL-3.0"
         continue-on-error: true

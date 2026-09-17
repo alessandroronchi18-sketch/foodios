@@ -37,6 +37,16 @@ function file(dir, out = []) {
 }
 
 describe('percentuali in italiano', () => {
+  // ── Prova di controllo sul righello (audit 16/09/2026) ────────────────
+  // Un censimento che dice «nessun colpevole» va bene solo se ha davvero
+  // guardato dentro il progetto. Se il cammino sbaglia, l'elenco di partenza
+  // è vuoto, il censimento resta verde e non protegge più niente: è successo
+  // con `views-render-smoke`, lo stesso giorno.
+  it('il setaccio guarda davvero dentro il progetto', () => {
+    expect(file(join(RADICE, 'src')).length).toBeGreaterThan(150)
+    expect(file(join(RADICE, 'api')).length).toBeGreaterThan(40)
+  })
+
   it('nessun formattatore di percentuale scritto a mano', () => {
     const colpevoli = []
     for (const p of [...file(join(RADICE, 'src')), ...file(join(RADICE, 'api'))]) {

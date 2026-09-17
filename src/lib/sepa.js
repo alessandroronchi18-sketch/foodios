@@ -7,6 +7,8 @@
 // NB: il debtor (azienda) deve avere un IBAN valido; il creditore (fornitore)
 // idem - le fatture senza IBAN valido vengono escluse e segnalate al chiamante.
 
+import { todayLocal } from './dateLocal'
+
 // ── Validazione IBAN (mod-97, ISO 13616) ─────────────────────────────────────
 export function normalizeIban(iban) {
   return String(iban || '').replace(/\s+/g, '').toUpperCase()
@@ -89,7 +91,11 @@ export function generateSepaXml({ debtor, payments = [], executionDate, msgId, c
   const totale = round2(included.reduce((s, p) => s + p.importo, 0))
   const nb = included.length
   const creDtTm = creationDateTime || new Date().toISOString().replace(/\.\d{3}Z$/, 'Z').slice(0, 19) + 'Z'
-  const reqDt = executionDate || new Date().toISOString().slice(0, 10)
+  // La data di esecuzione che finisce nel file per la banca. Con
+  // `toISOString()` era il giorno UTC: una distinta preparata alle 00:30
+  // chiedeva di pagare ieri, e una RequestedExecutionDate nel passato l'home
+  // banking la rifiuta o la sposta da sé.
+  const reqDt = executionDate || todayLocal()
   const mId = sepaText(msgId || `FOODOS-${reqDt.replace(/-/g, '')}-${nb}`, 35).replace(/\s/g, '')
   const dbtrIban = normalizeIban(debtor.iban)
 

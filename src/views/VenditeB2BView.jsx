@@ -6,7 +6,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S, ui3, ui } from '../lib/theme'
 import { isRicettaValida, getR, buildIngCosti, calcolaFC } from '../lib/foodcost'
-import { todayLocal } from '../lib/dateLocal'
+import { todayLocal, differenzaGiorni } from '../lib/dateLocal'
 import {
   loadClientiB2B, salvaClienteB2B, eliminaClienteB2B,
   loadVenditeB2B, salvaVenditaB2B, setStatoVenditaB2B, eliminaVenditaB2B,
@@ -137,12 +137,19 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
 
   // Vendite filtrate per la tab "vendite"
   const venditeFiltered = useMemo(() => {
-    const oggi = new Date(todayLocal())
+    // Audit 2026-09-16 (agente DATE): il filtro «ultimo trimestre» confrontava
+    // due riferimenti diversi — `new Date(todayLocal())` è mezzanotte a
+    // GREENWICH, `new Date(data + 'T12:00')` è mezzogiorno LOCALE — e poi
+    // divideva per 86.400.000. Dodici ore di sfasamento fisso, più un giorno
+    // in ballo alle due notti del cambio ora: la vendita del novantesimo
+    // giorno entrava o usciva secondo la stagione. Qui si contano giorni di
+    // calendario, quindi si usa il conto sui giorni.
+    const oggi = todayLocal()
     return venditeExt.filter(v => {
       if (fPeriodo === 'mese' && !(v.data || '').startsWith(mese)) return false
       if (fPeriodo === 'trim') {
-        const d = new Date((v.data || '') + 'T12:00')
-        if (isNaN(d) || (oggi - d) / 86400000 > 90) return false
+        const giorni = differenzaGiorni(v.data || '', oggi)
+        if (!Number.isFinite(giorni) || giorni > 90) return false
       }
       if (fCliente !== 'all' && v.cliente_id !== fCliente) return false
       if (fPagamento === 'da_incassare' && !v.nonPagata) return false
@@ -170,7 +177,7 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
     }
     return Object.values(m).map(g => ({
       ...g, margPct: g.fatturatoNoto > 0 ? g.margine / g.fatturatoNoto * 100 : null,
-      giorniDaUltimo: g.ultimo ? Math.round((new Date(oggi) - new Date(g.ultimo)) / 86400000) : null,
+      giorniDaUltimo: g.ultimo ? differenzaGiorni(g.ultimo, oggi) : null,
     })).sort((a, b) => b.fatturato - a.fatturato)
   }, [venditeExt, clienti])
 

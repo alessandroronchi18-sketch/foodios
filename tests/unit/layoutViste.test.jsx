@@ -139,8 +139,11 @@ body{margin:0;background:#FAF7F2;font-family:Inter,system-ui,sans-serif;}
 }
 
 describe('fotografia delle viste', () => {
-  it('scrive l\'HTML delle viste principali', async () => {
-    if (!ATTIVO) { expect(true).toBe(true); return }
+  // Senza DUMP_LAYOUT questa prova non si fa: prima finiva con
+  // `expect(true).toBe(true)` e il riepilogo la contava fra quelle **passate**.
+  // Una fotografia non scattata non è una prova superata: adesso il riepilogo
+  // dice «saltata», che è la verità. (audit 16/09/2026)
+  it.skipIf(!ATTIVO)('scrive l\'HTML delle viste principali', async () => {
     const { default: MagazzinoView } = await import('../../src/views/MagazzinoView.jsx')
     const { default: ProduzioneView } = await import('../../src/views/ProduzioneGiornalieraView.jsx')
     const { default: RicettarioView } = await import('../../src/views/RicettarioView.jsx')

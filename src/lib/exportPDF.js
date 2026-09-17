@@ -3,6 +3,7 @@
 import { resaGrammi, pesoIngredientiG } from './foodcost'
 import { scadenzaFattura } from './fatture'
 import { fmtp, fmtp0 } from './formatIt'
+import { todayLocal, formatLocalDate } from './dateLocal'
 
 let _jsPDF = null
 let _autoTable = null
@@ -79,7 +80,16 @@ function addFooter(doc, opts = {}) {
   const wm = emailUtente
     ? `Esportato da ${emailUtente}${nomeAttivita ? ' · ' + nomeAttivita : ''} · uso interno`
     : null
-  const tsIso = new Date().toISOString().replace('T', ' ').slice(0, 19)
+  // Audit 2026-09-16 (agente DATE): qui c'era `toISOString()`, cioè l'ora di
+  // GREENWICH. Il piè di pagina di ogni PDF — quelli che finiscono dal
+  // commercialista — diceva un'ora indietro di due d'estate e di una
+  // d'inverno rispetto a quando il titolare aveva premuto Esporta. Su un
+  // documento che serve a dire «quando è stato estratto», è proprio il numero
+  // che conta. Il PDF si genera nel browser: l'ora giusta è quella
+  // dell'orologio di chi esporta.
+  const ora = new Date()
+  const due = (n) => String(n).padStart(2, '0')
+  const tsIso = `${formatLocalDate(ora)} ${due(ora.getHours())}:${due(ora.getMinutes())}:${due(ora.getSeconds())}`
   for (let i = 1; i <= pages; i++) {
     doc.setPage(i)
     doc.setFontSize(8)
@@ -527,7 +537,7 @@ export async function exportPLCompleto(dati, nomeAttivita, emailUtente) {
 
   addDiagonalWatermark(doc, emailUtente)
   addFooter(doc, { emailUtente, nomeAttivita })
-  doc.save(`pl-completo-${new Date().toISOString().slice(0, 10)}.pdf`)
+  doc.save(`pl-completo-${todayLocal()}.pdf`)
 }
 
 // ─── 2c. Simulatore prezzi (food cost what-if) ───────────────────────────────
@@ -649,7 +659,7 @@ export async function exportSimulatorePrezzi(dati, nomeAttivita, emailUtente) {
 
   addDiagonalWatermark(doc, emailUtente)
   addFooter(doc, { emailUtente, nomeAttivita })
-  doc.save(`simulatore-prezzi-${new Date().toISOString().slice(0, 10)}.pdf`)
+  doc.save(`simulatore-prezzi-${todayLocal()}.pdf`)
 }
 
 // ─── 3. Produzione giornaliera ────────────────────────────────────────────────

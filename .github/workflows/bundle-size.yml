@@ -6,14 +6,38 @@ name: Bundle size budget
 #
 # Audit 2026-06-22 sess.8: lift Performance 86 → 92.
 
+# 16/09/2026, audit del righello — due difetti in questo file:
+#
+# 1. Girava SOLO su `pull_request`. Qui si pubblica spingendo dritto su main:
+#    questo controllo non e' mai partito. E' lo stesso motivo per cui una
+#    migrazione e' rimasta non applicata due mesi (vedi migration-check.yml,
+#    corretto allo stesso modo).
+# 2. Il peso si misura con `find ... | wc -c`. Senza `pipefail` l'esito e'
+#    quello di `wc`, che riesce sempre: con `dist/assets` INESISTENTE il passo
+#    stampava «Bundle size OK: 0 KB» e usciva 0. Provato. Un controllo che
+#    passa misurando zero e' un controllo che va in pensione da solo.
+
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'src/**'
+      - 'vite.config.js'
   pull_request:
     paths:
       - 'package.json'
       - 'package-lock.json'
       - 'src/**'
       - 'vite.config.js'
+
+# Senza questa riga GitHub usa `bash -e`, che NON ha `pipefail`: in una
+# pipeline conta l'ultimo comando. Con `shell: bash` usa `bash -eo pipefail`.
+defaults:
+  run:
+    shell: bash
 
 jobs:
   bundle:
@@ -36,6 +60,19 @@ jobs:
       - name: Measure bundle size (gzip)
         run: |
           BUDGET_KB=2700
+          # La cartella prima del conteggio: con `pipefail` un `find` che non
+          # trova la cartella fa morire il passo senza dire perche'.
+          if [ ! -d dist/assets ]; then
+            echo "::error::dist/assets non esiste: il build non ha prodotto niente,"
+            echo "oppure la cartella di uscita di Vite e' cambiata."
+            exit 1
+          fi
+          QUANTI=$(find dist/assets -name "*.js" | wc -l)
+          if [ "$QUANTI" -eq 0 ]; then
+            echo "::error::Nessun file .js in dist/assets: non c'e' niente da pesare."
+            exit 1
+          fi
+          echo "File pesati: $QUANTI"
           TOTAL_BYTES=$(find dist/assets -name "*.js" -exec gzip -c {} \; | wc -c)
           TOTAL_KB=$((TOTAL_BYTES / 1024))
           echo "Bundle size (gzip): ${TOTAL_KB} KB (budget: ${BUDGET_KB} KB)"
@@ -51,8 +88,13 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Chunk | Size (gzip) |" >> $GITHUB_STEP_SUMMARY
           echo "|---|---:|" >> $GITHUB_STEP_SUMMARY
-          for f in $(ls -S dist/assets/*.js | head -10); do
+          # Niente pipe qui dentro: con `pipefail` un `ls | head` puo' morire
+          # di SIGPIPE quando `head` chiude prima, e il passo fallisce senza
+          # che ci sia niente di rotto.
+          ls -S dist/assets/*.js > /tmp/chunk-elenco.txt
+          for f in $(head -10 /tmp/chunk-elenco.txt); do
             name=$(basename "$f")
-            size_kb=$(gzip -c "$f" | wc -c | awk '{print int($1/1024)" KB"}')
+            gzip -c "$f" > /tmp/chunk.gz
+            size_kb="$(( $(wc -c < /tmp/chunk.gz) / 1024 )) KB"
             echo "| $name | $size_kb |" >> $GITHUB_STEP_SUMMARY
           done

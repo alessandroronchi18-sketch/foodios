@@ -14,7 +14,7 @@ import { useConfirm } from './ConfirmModal'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 import { ALLERGENI } from '../lib/allergeni'
-import { todayLocal } from '../lib/dateLocal'
+import { todayLocal, giorniFaLocal } from '../lib/dateLocal'
 import { KPI, TabellaOSchede } from '../views/_shared'
 
 const SHADOW_PREMIUM = '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)'
@@ -783,7 +783,9 @@ function AllergeniTab({ ricettario, isMobile }) {
 // ─── Tab Export PDF ───────────────────────────────────────────────────────────
 function ExportTab({ orgId, sedeId, nomeAttivita, isMobile, notify }) {
   const [from, setFrom] = useState(() => {
-    const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().slice(0, 10)
+    // `toISOString()` su una mezzanotte locale riporta a Greenwich: il
+    // periodo di export HACCP partiva un giorno prima del dovuto.
+    return giorniFaLocal(29)
   })
   const [to, setTo] = useState(() => todayLocal())
   const [busy, setBusy] = useState(false)

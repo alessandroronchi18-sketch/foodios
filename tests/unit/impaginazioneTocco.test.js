@@ -27,8 +27,36 @@ describe('le regole del tocco valgono anche sul tablet', () => {
     expect(HTML).toMatch(/@media \(pointer: coarse\) \{[\s\S]{0,200}input, textarea, select \{ font-size: 16px !important; \}/)
   })
 
-  it('bersagli da 44px su tutto quello che si tocca', () => {
+  // ── 16/09/2026, audit del righello: questa prova prometteva più di
+  // quello che controlla ─────────────────────────────────────────────────
+  //
+  // Si chiamava «bersagli da 44px su tutto quello che si tocca» e cercava la
+  // stringa `min-height: 44px` dentro un blocco `pointer: coarse`. Cioè
+  // controllava che la riga **esista**, non che **copra** qualcosa.
+  //
+  // Provato: riscritto il selettore come `.questo-unico-bottone-qui` — una
+  // regola che al mondo copre un bottone solo — la prova **passava lo
+  // stesso**. Cadeva solo togliendo del tutto il blocco.
+  //
+  // La regola vera copre `button[aria-label]`: i pulsanti con la sola icona.
+  // Tutto il resto — i pulsanti con una scritta dentro, i link, i campi, le
+  // etichette — non è coperto da niente. Misurato lo stesso giorno sulle 32
+  // pagine rese in Chromium: **319 bersagli su 410 stanno sotto i 44px**.
+  //
+  // Le due prove qui sotto dicono la verità: cos'è coperto e cosa no. Non
+  // allargano la regola CSS — allargarla sposta la grafica di tutto il
+  // prodotto, ed è una decisione di chi disegna, non del righello.
+  it('la regola dei 44px c\'è, ed è scritta sul tipo di dispositivo', () => {
     expect(HTML).toMatch(/@media \(pointer: coarse\) \{[\s\S]{0,300}min-height: 44px;/)
+  })
+
+  it('ma copre SOLO i pulsanti a sola icona: tutto il resto non è protetto', () => {
+    // Se un giorno la regola viene allargata, questa prova cade e va
+    // aggiornata: è quello il segnale che si aspetta.
+    const blocco = HTML.slice(HTML.indexOf('min-height: 44px') - 400, HTML.indexOf('min-height: 44px') + 40)
+    expect(blocco).toContain('button[aria-label]')
+    expect(blocco).not.toMatch(/\ba\[href\]/)
+    expect(blocco).not.toMatch(/\[role="button"\]/)
   })
 
   it('e nessuna delle due si ferma più a 767px', () => {
@@ -156,6 +184,37 @@ describe('gli attrezzi di misura restano nel progetto', () => {
     // `@media (pointer: coarse)` non si applicano: si misurerebbero problemi
     // che su un dispositivo vero non esistono.
     expect(s).toMatch(/pointer: fine/)
+  })
+
+  // ── 16/09/2026: l'attrezzo misurava solo quelli già a norma ───────────
+  //
+  // `audit-tocco.mjs` contava i bersagli con
+  // `document.querySelectorAll('button[aria-label]')` — cioè **esattamente**
+  // l'insieme che la regola CSS dei 44px costringe a passare. Non poteva che
+  // rispondere zero: un metro che misura solo le cose già giuste.
+  //
+  // Provato con una pagina finta (un pulsante 30x30, uno 120x28, un link alto
+  // 24, un campo, una tendina, e un solo pulsante a norma con `aria-label`):
+  // l'attrezzo rispondeva «bersagli sotto i 44px: 0 su 1». La misura vera è
+  // **6 su 7**. Sulle 32 pagine del prodotto: da 0 a **319 su 410**.
+  it('e conta tutto quello che si tocca, non solo i pulsanti a sola icona', () => {
+    const s = leggi('scripts', 'audit-tocco.mjs')
+    for (const bersaglio of ['button', 'a[href]', '[role="button"]', 'select', 'textarea', 'label[for]']) {
+      expect(s, `manca ${bersaglio} fra i bersagli misurati`).toContain(bersaglio)
+    }
+    // Il difetto vero: la lista dei bersagli ristretta a chi ha `aria-label`.
+    expect(s).not.toMatch(/querySelectorAll\('button\[aria-label\]'\)/)
+  })
+
+  it('e guarda la larghezza oltre all\'altezza: un 120x28 si sbaglia come un 28x120', () => {
+    const s = leggi('scripts', 'audit-tocco.mjs')
+    expect(s).toMatch(/height < 44 \|\| q\.width < 44/)
+  })
+
+  it('e non conta i campi nascosti, che gonfiano il totale e abbelliscono la percentuale', () => {
+    const s = leggi('scripts', 'audit-tocco.mjs')
+    expect(s).toContain('input:not([type=hidden])')
+    expect(s).toMatch(/visibility === 'hidden'/)
   })
 })
 

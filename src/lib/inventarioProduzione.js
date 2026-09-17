@@ -13,12 +13,49 @@
 import { supabase } from './supabase'
 import { formatLocalDate, todayLocal } from './dateLocal'
 import { normGusto } from './normGusto'
+import { prezzoMedioAlKg } from './prezzoMedioAlKg'
 
 // Normalizzazione del nome gusto: UPPER+trim come in stock_prodotti_finiti,
 // cosi e' indipendente da come l'utente l'ha digitato in ricettario.
 // La funzione vive in ./normGusto (senza dipendenze) e la ri-esportiamo qui
 // perché mezzo progetto la importa da questo file.
 export { normGusto }
+
+// ── `ricevuto_g`: la colonna che potrebbe non esserci ancora ──────────────
+//
+// L'ha aggiunta la migrazione 20260916c. Finché quella non è applicata la
+// colonna non esiste, e Postgres non risponde «campo vuoto»: rifiuta l'intera
+// query con l'errore 42703. Cioè, se il codice arriva in produzione prima
+// della migrazione, la pagina dell'inventario resta bianca — e non per un
+// dato mancante, ma per una colonna in più chiesta nella SELECT.
+//
+// Quindi la si chiede, e se il database dice che non c'è si rifà la stessa
+// query senza. Costa una query in più una volta sola per chi ha il database
+// vecchio, e non costa niente a chi ce l'ha nuovo.
+// Quando la migrazione sarà applicata ovunque, queste tre righe si tolgono.
+const COL_INVENTARIO_BASE = 'gusto_nome, data, produzione_g, rimanenza_g, scarto_g, spedito_g'
+
+// Le colonne che servono per calcolare il venduto di una cella, in un posto
+// solo. Erano scritte a mano in tre punti (questo file, PLView, ConfrontoSedi)
+// e tenerle allineate a mano non ha funzionato: `spedito_g` è arrivato in due
+// elenchi su tre e `ricevuto_g` in nessuno, così le pagine contavano come
+// venduta la merce arrivata da un'altra sede. Chi ne vuole di più le aggiunge
+// in coda (`${COLONNE_VENDUTO}, sede_id`).
+export const COLONNE_VENDUTO = `${COL_INVENTARIO_BASE}, ricevuto_g`
+
+export function colonneSenzaRicevuto(columns) {
+  return String(columns)
+    .split(',')
+    .map(c => c.trim())
+    .filter(c => c !== 'ricevuto_g')
+    .join(', ')
+}
+
+export function eColonnaRicevutoMancante(error, columns) {
+  if (!error) return false
+  if (!String(columns).includes('ricevuto_g')) return false
+  return error.code === '42703' || /ricevuto_g/.test(error.message || '')
+}
 
 // Estrae l'elenco dei gusti dal ricettario E dalle righe già presenti in
 // inventario (DB). L'unione e' importante perché:
@@ -104,14 +141,20 @@ export async function caricaSettimana(orgId, sedeId, lunediIso, opts = {}) {
   const inizioIso = formatLocalDate(inizio)
   const fineIso = formatLocalDate(a)
 
-  const { data, error } = await supabase
+  const colonne = 'id, gusto_nome, data, produzione_g, rimanenza_g, scarto_g, spedito_g, ricevuto_g, note, updated_at, scostamento_accettato, scostamento_nota'
+  const query = (cols) => supabase
     .from('inventario_produzione')
-    .select('id, gusto_nome, data, produzione_g, rimanenza_g, scarto_g, spedito_g, note, updated_at, scostamento_accettato, scostamento_nota')
+    .select(cols)
     .eq('organization_id', orgId)
     .eq('sede_id', sedeId)
     .gte('data', inizioIso)
     .lt('data', fineIso)
     .order('data')
+
+  let { data, error } = await query(colonne)
+  if (eColonnaRicevutoMancante(error, colonne)) {
+    ({ data, error } = await query(colonneSenzaRicevuto(colonne)))
+  }
   if (error) { console.error('caricaSettimana:', error); return [] }
   return data || []
 }
@@ -160,19 +203,42 @@ export async function salvaCella(orgId, sedeId, gustoNome, dataIso, patch) {
     gusto_nome: normGusto(gustoNome),
     data: dataIso,
     produzione_g: num(patch.produzione_g),
-    rimanenza_g: num(patch.rimanenza_g),
+    // La rimanenza non si scrive se non la si sa. `num(null)` avrebbe dato
+    // 0, cioè «la vetrina era vuota»: è il difetto che sui dati di Mara ha
+    // prodotto 550 caselle negative per 2.469,6 kg. Se il patch non la
+    // porta, la colonna resta fuori dall'upsert e il DB tiene quello che
+    // c'era — stessa scelta già fatta per `spedito_g`.
+    rimanenza_g: patch.rimanenza_g == null ? undefined : num(patch.rimanenza_g),
     scarto_g: num(patch.scarto_g),
     spedito_g: has('spedito_g') ? num(patch.spedito_g) : undefined,
+    // I grammi arrivati da un'altra sede. Patch-only come `spedito_g`: chi
+    // salva una cella dalla tabella settimanale non ne sa niente e non deve
+    // azzerarli.
+    ricevuto_g: has('ricevuto_g') ? num(patch.ricevuto_g) : undefined,
     note: patch.note || null,
   }
   // Se spedito_g non è nel patch, lasciamo il DB scegliere (mantenere valore
   // esistente in caso di update). Su INSERT viene popolato dal DEFAULT 0.
   if (row.spedito_g === undefined) delete row.spedito_g
-  const { data, error } = await supabase
+  if (row.rimanenza_g === undefined) delete row.rimanenza_g
+  if (row.ricevuto_g === undefined) delete row.ricevuto_g
+  const scrivi = (r) => supabase
     .from('inventario_produzione')
-    .upsert(row, { onConflict: 'organization_id,sede_id,gusto_nome,data' })
+    .upsert(r, { onConflict: 'organization_id,sede_id,gusto_nome,data' })
     .select()
     .maybeSingle()
+  let { data, error } = await scrivi(row)
+  // Finché la migrazione 20260916c non è applicata la colonna `ricevuto_g`
+  // non esiste: il database risponde 42703 e il salvataggio fallirebbe tutto,
+  // compresi i grammi che la colonna ce l'hanno. Si riprova senza — e si dice
+  // che quei grammi non sono stati registrati, invece di farli sparire in
+  // silenzio.
+  if (error && row.ricevuto_g !== undefined && eColonnaRicevutoMancante(error, 'ricevuto_g')) {
+    console.warn('[salvaCella] il database non ha ancora la colonna ricevuto_g: i grammi ricevuti non sono stati registrati. Applicare la migrazione 20260916c.')
+    const senza = { ...row }
+    delete senza.ricevuto_g
+    ;({ data, error } = await scrivi(senza))
+  }
   if (error) throw error
   return data
 }
@@ -209,11 +275,17 @@ export async function aggiungiSpedito(orgId, sedeId, gustoNome, dataIso, grammi)
   } else {
     // La casella di quel giorno non esiste ancora: si crea con il solo
     // spedito. Produzione e rimanenza le scriverà chi fa l'inventario.
+    //
+    // `rimanenza_g` non si passa apposta: qui non la sappiamo, e scriverci 0
+    // vorrebbe dire dichiarare che quel giorno la vetrina era vuota — il
+    // giorno dopo il venduto uscirebbe negativo di tutto il gelato rimasto.
+    // Dopo la migrazione 20260916c la colonna nasce NULL («non rilevato»);
+    // prima nasceva 0 per via del DEFAULT.
     const { error } = await supabase
       .from('inventario_produzione')
       .insert({
         organization_id: orgId, sede_id: sedeId, gusto_nome: nome, data: dataIso,
-        produzione_g: 0, rimanenza_g: 0, scarto_g: 0, spedito_g: nuovoSpedito,
+        produzione_g: 0, scarto_g: 0, spedito_g: nuovoSpedito,
       })
     if (error) throw error
   }
@@ -320,9 +392,15 @@ function indicizzaPerGustoGiorno(righe) {
       gusto_nome: g,
       data: r.data,
       produzione_g: Number(r.produzione_g) || 0,
-      rimanenza_g: Number(r.rimanenza_g) || 0,
+      // `rimanenza_g` è l'unico campo che può valere «non lo so». NULL vuol
+      // dire che la casella del foglio era vuota, ed è diverso da 0 («la
+      // vetrina era vuota»). Vedi il commento su cellaVenduto.
+      rimanenza_g: r.rimanenza_g == null ? null : (Number(r.rimanenza_g) || 0),
       scarto_g: Number(r.scarto_g) || 0,
       spedito_g: Number(r.spedito_g) || 0,
+      // Grammi arrivati da un'altra sede. La colonna è nuova (migrazione
+      // 20260916c): finché non è applicata la riga non ce l'ha e vale 0.
+      ricevuto_g: Number(r.ricevuto_g) || 0,
       // Lo scostamento che il titolare ha già guardato e considera giusto
       // (un omaggio, una rottura, un assaggio): resta nel totale col suo
       // segno, ma non va più nell'elenco delle cose da controllare.
@@ -332,9 +410,16 @@ function indicizzaPerGustoGiorno(righe) {
     byKey[k] = prec ? {
       ...val,
       produzione_g: prec.produzione_g + val.produzione_g,
-      rimanenza_g: prec.rimanenza_g + val.rimanenza_g,
+      // Due righe sullo stesso gusto e giorno (due grafie, o due sedi
+      // sommate): se di una la rimanenza non è stata scritta, la somma non
+      // si sa. Scriverla come se fosse zero farebbe sparire il gelato di
+      // quella riga e il venduto uscirebbe gonfiato.
+      rimanenza_g: (prec.rimanenza_g == null || val.rimanenza_g == null)
+        ? null
+        : prec.rimanenza_g + val.rimanenza_g,
       scarto_g: prec.scarto_g + val.scarto_g,
       spedito_g: prec.spedito_g + val.spedito_g,
+      ricevuto_g: prec.ricevuto_g + val.ricevuto_g,
       // Se una sola delle righe sommate è accettata, la cella lo è.
       scostamento_accettato: prec.scostamento_accettato || val.scostamento_accettato,
       scostamento_nota: prec.scostamento_nota || val.scostamento_nota,
@@ -356,11 +441,35 @@ export function cellaDaControllare(c) {
 // Calcola la cella di un singolo (gusto, giorno) dato l'indice completo.
 // Ritorna sempre un oggetto: `venduto: null` quando il numero non si può
 // calcolare, mai uno zero di comodo.
+//
+// ── Perché la rimanenza può valere «non lo so» (audit 16/09/2026) ──────
+// Sui 7.013 giorni×gusto registrati da Mara, 575 caselle (8,2%) davano un
+// venduto negativo, per 2.587,9 kg. In 550 di quelle 575 (il 95,4%, 2.469,6
+// kg) la rimanenza del giorno PRIMA valeva 0. E guardato dall'altro lato:
+// delle 655 caselle che partono da una rimanenza a zero, 550 finiscono in
+// negativo — l'84%. Quando la rimanenza precedente è maggiore di zero le
+// negative sono 25 su 6.271, cioè lo 0,4%.
+//
+// Quello zero non era una vetrina vuota, era una casella del foglio non
+// compilata: nelle 660 righe con rimanenza 0 c'è produzione lo stesso giorno
+// in 658 casi (99,7%), in media 5,87 kg. Hanno fatto sei chili di un gusto e
+// a fine giornata non ne è rimasto un grammo, 658 volte in quattro mesi.
+//
+// Da qui la regola: se la rimanenza non è scritta (null) il venduto non si
+// calcola e si dice perché, invece di stampare un numero negativo che poi
+// finisce in un elenco di «cose da controllare» lungo 575 righe, dentro cui
+// le 25 vere non si vedono più.
 export function cellaVenduto(byKey, gustoKey, dataIso) {
   const corrente = byKey[`${gustoKey}|${dataIso}`]
   if (!corrente) {
     return {
-      prod: 0, riman: 0, scarto: 0, spedito: 0,
+      // `riman: null` anche qui: di un giorno che nessuno ha registrato non
+      // sappiamo cosa ci fosse in vetrina, e dirlo 0 è la stessa bugia della
+      // casella vuota. Serviva al calcolo del residuo medio, che contava i
+      // giorni non registrati come «zero rimasto» e faceva sembrare che un
+      // gusto girasse. `prod: 0` invece resta: un giorno senza riga è un
+      // giorno in cui non si è prodotto, e tutte le somme lo danno per buono.
+      prod: 0, riman: null, scarto: 0, spedito: 0, ricevuto: 0,
       venduto: null, vendutoRaw: null, quadra: true, registrata: false,
       motivo: 'giorno non registrato',
     }
@@ -369,24 +478,39 @@ export function cellaVenduto(byKey, gustoKey, dataIso) {
   const riman = corrente.rimanenza_g
   const scarto = corrente.scarto_g
   const spedito = corrente.spedito_g
+  const ricevuto = corrente.ricevuto_g || 0
+  if (riman == null) {
+    return {
+      prod, riman: null, scarto, spedito, ricevuto,
+      venduto: null, vendutoRaw: null, quadra: true, registrata: true,
+      motivo: 'la rimanenza di questo giorno non è stata scritta: il venduto non si può calcolare',
+    }
+  }
   // Rimanenza dell'ultimo giorno registrato prima di oggi.
   let rimanPrec = null
   let giorniIndietro = 0
+  let precRegistrato = false
   for (let k = 1; k <= GIORNI_RIPORTO_MAX; k++) {
     const prev = byKey[`${gustoKey}|${piuGiorni(dataIso, -k)}`]
-    if (prev) { rimanPrec = prev.rimanenza_g; giorniIndietro = k; break }
+    if (prev) { rimanPrec = prev.rimanenza_g; giorniIndietro = k; precRegistrato = true; break }
   }
   if (rimanPrec === null) {
     return {
-      prod, riman, scarto, spedito,
+      prod, riman, scarto, spedito, ricevuto,
       venduto: null, vendutoRaw: null, quadra: true, registrata: true,
-      motivo: 'manca la rimanenza del giorno prima: il venduto non si può calcolare',
+      // Due situazioni diverse, e due rimedi diversi: o quel giorno non c'è
+      // proprio, o c'è ma la casella della rimanenza è rimasta vuota. Chi
+      // legge deve sapere quale delle due, se no non sa cosa andare a
+      // cercare nel foglio.
+      motivo: precRegistrato
+        ? 'la rimanenza del giorno prima non è stata scritta: il venduto non si può calcolare'
+        : 'manca la rimanenza del giorno prima: il venduto non si può calcolare',
     }
   }
-  const v = rimanPrec + prod - riman - scarto - spedito
+  const v = rimanPrec + prod + ricevuto - riman - scarto - spedito
   const accettato = !!corrente.scostamento_accettato
   return {
-    prod, riman, scarto, spedito, rimanPrec, giorniIndietro,
+    prod, riman, scarto, spedito, ricevuto, rimanPrec, giorniIndietro,
     venduto: v, vendutoRaw: v,
     // `quadra` resta il fatto matematico (il conto torna o no).
     // `daControllare` è la domanda pratica: c'è qualcosa da guardare?
@@ -444,8 +568,15 @@ export function rimanenzaDiPartenza(righe, dataIso) {
     if (!g) continue
     const k = `${g}|${r.data}`
     // Più sedi o più righe per lo stesso gusto e giorno: si sommano, come fa
-    // l'indicizzazione usata per il venduto.
-    byKey[k] = (byKey[k] || 0) + (Number(r.rimanenza_g) || 0)
+    // l'indicizzazione usata per il venduto. Se di una riga la rimanenza non
+    // è stata scritta, la somma resta «non lo so»: al dipendente che apre il
+    // banco serve sapere che il dato manca, non un numero più basso del vero.
+    const val = r.rimanenza_g == null ? null : (Number(r.rimanenza_g) || 0)
+    if (Object.prototype.hasOwnProperty.call(byKey, k)) {
+      byKey[k] = (byKey[k] == null || val == null) ? null : byKey[k] + val
+    } else {
+      byKey[k] = val
+    }
   }
   const gusti = [...new Set(righe.map(r => normGusto(r?.gusto_nome)).filter(Boolean))]
   for (const g of gusti) {
@@ -538,7 +669,7 @@ export function serieVendutoMultiSede(righe) {
       const perData = acc[gusto] || (acc[gusto] = {})
       for (const c of celle) {
         const t = perData[c.data] || (perData[c.data] = {
-          data: c.data, prod: 0, riman: 0, scarto: 0, spedito: 0,
+          data: c.data, prod: 0, riman: 0, scarto: 0, spedito: 0, ricevuto: 0,
           venduto: null, quadra: true, registrata: false, nonCalcolabili: 0,
           // Anche la cella unita fra sedi deve portarsi dietro se c'è
           // qualcosa DA CONTROLLARE: senza, i contatori a valle vedevano
@@ -546,9 +677,13 @@ export function serieVendutoMultiSede(righe) {
           daControllare: false,
         })
         t.prod += Number(c.prod) || 0
-        t.riman += Number(c.riman) || 0
+        // La rimanenza unita fra sedi resta «non lo so» se anche una sola
+        // sede non l'ha scritta: sommarla come zero farebbe sparire il gelato
+        // di quella sede dal totale.
+        t.riman = (t.riman == null || c.riman == null) ? null : t.riman + (Number(c.riman) || 0)
         t.scarto += Number(c.scarto) || 0
         t.spedito += Number(c.spedito) || 0
+        t.ricevuto += Number(c.ricevuto) || 0
         if (c.registrata) t.registrata = true
         if (c.venduto == null) {
           if (c.registrata) t.nonCalcolabili++
@@ -700,17 +835,16 @@ export function ricettaDelGusto(ricettario, gustoNomeUpper) {
 // Tutto in-memory dai dati già caricati.
 //
 // Euro/kg medio = stima del prezzo medio al kg dei formati di vendita.
-// Da formati con baseQtaG (grammi) + prezzoDefault (euro), calcola
-// (prezzo/grammi)*1000 e fa la media semplice. Se non ci sono formati
-// utilizzabili, ritorna null e l'UI mostrera' un avviso "configura formati".
+// Se non ci sono formati utilizzabili ritorna null, e l'UI mostrera' un
+// avviso "configura formati" invece di un numero inventato.
+//
+// Il conto vive in `prezzoMedioAlKg.js`. Fino al 16/09/2026 stava scritto qui
+// una seconda volta — e in tutte e due le copie era la media aritmetica
+// semplice dei €/kg dei singoli formati, che fa pesare un cono da 100 g come
+// una vaschetta da un chilo. Sui formati veri di Mara dei Boschi usciva
+// 30,74 €/kg invece di 28,91: +6,34% su ogni ricavo stimato dall'inventario.
 export function euroKgMedioFormati(formati) {
-  if (!Array.isArray(formati) || formati.length === 0) return null
-  const validi = formati
-    .map(f => ({ g: Number(f.baseQtaG) || 0, p: Number(f.prezzoDefault) || 0 }))
-    .filter(x => x.g > 0 && x.p > 0)
-  if (validi.length === 0) return null
-  const sumEurKg = validi.reduce((s, x) => s + (x.p / x.g) * 1000, 0)
-  return sumEurKg / validi.length
+  return prezzoMedioAlKg(formati)
 }
 
 // ── Ricavi stimati DALL'INVENTARIO, senza passare dalle chiusure di cassa ──
@@ -726,15 +860,39 @@ export function euroKgMedioFormati(formati) {
 // conto che la pagina Quadratura fa già per confrontarsi con la cassa: qui
 // diventa una stima utilizzabile ovunque, quando la cassa non c'è.
 //
-// È una STIMA, e chi la mostra deve dirlo: il prezzo medio al chilo è la media
-// semplice dei formati (un cono piccolo pesa come una vaschetta da un chilo),
-// e non tiene conto di sconti, omaggi o del mix reale di vendita.
+// È una STIMA, e chi la mostra deve dirlo: il prezzo medio al chilo è pesato
+// sui grammi dei formati (`prezzoMedioAlKg`), ma pesa i formati come se se ne
+// vendesse uno di ciascuno — il mix di vendita vero, quante vaschette contro
+// quanti coni, non è in questi dati. E non tiene conto di sconti e omaggi.
+//
+// ── I chili venduti all'ingrosso non valgono il prezzo del banco ──────────
+//
+// I chili che escono dall'inventario sono tutti i chili usciti: quelli venduti
+// al banco e quelli consegnati a un bar o a un ristorante. Moltiplicarli tutti
+// per il prezzo medio dei formati al dettaglio vuol dire fatturare una
+// vaschetta all'ingrosso al prezzo della coppetta.
+//
+// La pagina Quadratura questo lo sapeva già: `kpiQuadraturaSettimana` toglie i
+// kg B2B e confronta con la cassa solo il retail. Qui no — e sono lo stesso
+// numero mostrato in due pagine diverse, il conto economico e il confronto
+// fra sedi, che così non combaciano.
+//
+// `opts.venditeB2B` = righe di `vendite_b2b` del periodo (facoltativo). Se non
+// arriva, i chili non si toccano e il risultato lo dichiara
+// (`b2bConsiderato: false`): meglio un numero con scritto cosa non comprende
+// che un numero corretto per finta.
+//
+// NON è misurato sui dati di Mara dei Boschi: nel suo database `vendite_b2b`
+// ha ZERO righe, quindi oggi da lei l'errore vale 0 €. È verificato su un caso
+// costruito (tests/unit/ricaviInventarioB2B.test.js) e vale per chiunque usi
+// il canale ingrosso: a parità di chili, con un prezzo all'ingrosso metà del
+// dettaglio, il ricavo stimato esce alto della metà dei kg B2B × €/kg.
 //
 // Ritorna null se manca quello che serve, invece di un numero inventato:
 //   righe   = righe inventario del periodo PIÙ i giorni prima (giacenza iniziale)
 //   formati = formati di vendita (per il prezzo al chilo)
 //   da / a  = estremi del periodo (ISO)
-export function ricaviDaInventario(righe, formati, { da, a } = {}) {
+export function ricaviDaInventario(righe, formati, { da, a, venditeB2B } = {}) {
   const euroKg = euroKgMedioFormati(formati)
   if (euroKg == null) {
     return { ricavi: null, kg: null, euroKg: null, motivo: 'nessun formato di vendita con prezzo e peso' }
@@ -751,15 +909,74 @@ export function ricaviDaInventario(righe, formati, { da, a } = {}) {
     celleNonCalcolabili += t.celleNonCalcolabili
   }
   const kg = g / 1000
+  const sc = scorporaB2B({ kg, euroKg, venditeB2B })
   return {
-    ricavi: Math.max(0, kg * euroKg),
+    ricavi: sc.ricaviTotali,
     kg,
+    kgRetail: sc.kgRetail,
+    b2bKg: sc.b2bKg,
+    ricaviB2b: sc.ricaviB2b,
+    b2bConsiderato: sc.b2bConsiderato,
+    b2bOltreInventario: sc.b2bOltreInventario,
     euroKg,
     celleNonQuadrate,
     celleNonCalcolabili,
     nGusti: gusti.length,
     motivo: null,
   }
+}
+
+// Toglie i chili dell'ingrosso da un totale valorizzato al prezzo del banco e
+// ci rimette il fatturato vero dell'ingrosso.
+//
+// Una regola sola, usata da tutte le pagine che stimano l'incasso dai chili
+// usciti: il conto economico (PLView), il confronto fra sedi (ConfrontoSedi,
+// tramite `ricaviDaInventario`) e la Quadratura. Prima ce l'aveva solo la
+// Quadratura, e le altre due valorizzavano al prezzo della coppetta anche le
+// vaschette consegnate a un bar.
+//
+//   kg        = chili usciti dall'inventario nel periodo (tutti i canali)
+//   euroKg    = prezzo medio al chilo con cui valorizzarli. Chi ha già il
+//               ricavo (perché lo calcola gusto per gusto) passa `ricavi` e
+//               il prezzo medio si ricava da lì.
+//   venditeB2B = righe di `vendite_b2b` del periodo, oppure `null`/assente
+//               quando non si sa: in quel caso non si tocca niente e
+//               `b2bConsiderato` resta false. Un elenco vuoto invece vuol
+//               dire «non ha venduto niente all'ingrosso», ed è un'altra cosa.
+export function scorporaB2B({ kg, euroKg, ricavi, venditeB2B } = {}) {
+  const kgTot = Number(kg) || 0
+  const prezzo = euroKg != null
+    ? (Number(euroKg) || 0)
+    : (kgTot > 0 ? (Number(ricavi) || 0) / kgTot : 0)
+  const b2bConsiderato = Array.isArray(venditeB2B)
+  const b2bKg = kgB2B(venditeB2B)
+  const ricaviB2b = (b2bConsiderato ? venditeB2B : [])
+    .reduce((s, v) => s + (Number(v?.totale) || 0), 0)
+  // I chili al banco non possono essere meno di zero: se le righe B2B
+  // superano i chili usciti dall'inventario c'è un dato sbagliato da qualche
+  // parte, e lo si dice con `b2bOltreInventario` invece di mostrare un
+  // ricavo negativo.
+  const kgRetail = Math.max(0, kgTot - b2bKg)
+  const ricaviRetail = Math.max(0, kgRetail * prezzo)
+  return {
+    b2bConsiderato,
+    b2bKg,
+    ricaviB2b,
+    kgRetail,
+    ricaviRetail,
+    ricaviTotali: ricaviRetail + ricaviB2b,
+    euroKg: prezzo,
+    b2bOltreInventario: b2bKg > kgTot,
+  }
+}
+
+// Chili usciti dal canale ingrosso. Le righe di `vendite_b2b` hanno le
+// quantità in kg dentro `righe[].qta`. Una funzione sola, usata sia qui sia
+// dalla Quadratura: erano due cicli identici scritti in due punti.
+export function kgB2B(vendite) {
+  return (Array.isArray(vendite) ? vendite : [])
+    .reduce((s, v) => s + (Array.isArray(v?.righe) ? v.righe : [])
+      .reduce((a, r) => a + (Number(r?.qta) || 0), 0), 0)
 }
 
 // KPI settimana: somma kg venduti, € attesi, drift vs cassa effettiva.
@@ -790,9 +1007,7 @@ export function kpiQuadraturaSettimana(matrice, chiusureSettimana, euroKg, vendi
   const totVendutoKg = totVendutoG / 1000
 
   // kg venduti via B2B nella settimana (somma qta dalle righe[].qta in kg)
-  const b2bKg = (Array.isArray(venditeB2BSett) ? venditeB2BSett : [])
-    .reduce((s, v) => s + (Array.isArray(v.righe) ? v.righe : [])
-      .reduce((a, r) => a + (Number(r.qta) || 0), 0), 0)
+  const b2bKg = kgB2B(venditeB2BSett)
   const retailKg = Math.max(0, totVendutoKg - b2bKg)
   // Ricavi B2B (totale fatturato vendite_b2b): informativo, separato.
   const ricaviB2b = (Array.isArray(venditeB2BSett) ? venditeB2BSett : [])
@@ -829,8 +1044,15 @@ export function classificaGusti(matrice, opts = {}) {
     for (const cell of Object.values(byData)) {
       venduto += Number(cell.venduto || 0)
       prod += Number(cell.prod || 0)
-      residuoMedio += Number(cell.riman || 0)
-      ngiorni++
+      // Il residuo medio si fa sui giorni in cui la rimanenza è stata
+      // scritta davvero. Contare un giorno non rilevato come «zero rimasto»
+      // abbassava la media e faceva sembrare che il gusto girasse: è la
+      // stessa etichetta «soffre / non soffre» che il titolare usa per
+      // decidere se togliere un gusto dal banco.
+      if (cell.riman != null) {
+        residuoMedio += Number(cell.riman) || 0
+        ngiorni++
+      }
     }
     residuoMedio = ngiorni > 0 ? residuoMedio / ngiorni : 0
     const ratio = prod > 0 ? (residuoMedio / prod) : 0
@@ -927,7 +1149,10 @@ export function inventarioASessioni(righeInventario) {
 export async function fetchAllInventarioProduzione(orgId, opts = {}) {
   if (!orgId) return []
   const { supabase } = await import('./supabase')
-  const columns = opts.columns || 'gusto_nome, data, produzione_g, rimanenza_g, scarto_g, spedito_g, sede_id'
+  const columns = opts.columns || `${COLONNE_VENDUTO}, sede_id`
+  // Vale per tutte le pagine: se il database non ha ancora `ricevuto_g` si
+  // riprova una volta sola senza, e da lì in poi si usa l'elenco ridotto.
+  let colonneVive = columns
   // CHUNK deve stare <= db-max-rows di PostgREST (default Supabase 1000).
   // Il progetto Foodos e' stato alzato a 50000 il 2026-09-04. Se abbassano
   // di nuovo il setting, questo valore va tenuto in sync.
@@ -936,21 +1161,24 @@ export async function fetchAllInventarioProduzione(orgId, opts = {}) {
   let offset = 0
   // Safety hard cap per evitare loop infiniti su bug di server: 500k righe
   // sono ~6 anni di 3 sedi con 30 gusti/giorno, ben oltre lo scenario reale.
-  while (offset < 500000) {
-    let q = supabase.from('inventario_produzione').select(columns).eq('organization_id', orgId)
+  if (Array.isArray(opts.sedeIds) && opts.sedeIds.length === 0) return []
+  const costruisciQuery = (cols, da) => {
+    let q = supabase.from('inventario_produzione').select(cols).eq('organization_id', orgId)
     if (opts.sedeIds !== undefined && opts.sedeIds !== null) {
-      if (Array.isArray(opts.sedeIds)) {
-        if (opts.sedeIds.length === 0) return []
-        q = q.in('sede_id', opts.sedeIds)
-      } else {
-        q = q.eq('sede_id', opts.sedeIds)
-      }
+      if (Array.isArray(opts.sedeIds)) q = q.in('sede_id', opts.sedeIds)
+      else q = q.eq('sede_id', opts.sedeIds)
     }
     if (opts.gustoNome) q = q.eq('gusto_nome', opts.gustoNome)
     if (opts.dataFrom) q = q.gte('data', opts.dataFrom)
     if (opts.dataTo) q = q.lte('data', opts.dataTo)
-    q = q.order('data').range(offset, offset + CHUNK - 1)
-    const { data, error } = await q
+    return q.order('data').range(da, da + CHUNK - 1)
+  }
+  while (offset < 500000) {
+    let { data, error } = await costruisciQuery(colonneVive, offset)
+    if (eColonnaRicevutoMancante(error, colonneVive)) {
+      colonneVive = colonneSenzaRicevuto(colonneVive)
+      ;({ data, error } = await costruisciQuery(colonneVive, offset))
+    }
     if (error) { console.error('fetchAllInventarioProduzione page:', error); return all }
     if (!data || data.length === 0) break
     all.push(...data)
@@ -982,7 +1210,11 @@ export async function caricaStoricoMensile(orgId, sedeIds, dataFrom, dataTo) {
   // Fallback client-side
   const righe = await fetchAllInventarioProduzione(orgId, {
     sedeIds: arr, dataFrom, dataTo,
-    columns: 'gusto_nome, data, produzione_g, rimanenza_g, scarto_g',
+    // `spedito_g` e `ricevuto_g` servono: senza, lo storico mensile conta come
+    // venduta la merce partita verso un'altra sede e non conta quella
+    // arrivata. Erano fuori dalla SELECT e il conto del mese non tornava con
+    // quello della settimana sugli stessi giorni.
+    columns: COLONNE_VENDUTO,
   })
   // Aggrega per (gusto, data) normalizzando il nome (somma cross-sede) e poi
   // applica la stessa regola differenziale di cellaVenduto: prima questa
@@ -1023,7 +1255,7 @@ export async function caricaSessioniDaInventario(orgId, sedeId, opts = {}) {
   const rows = await fetchAllInventarioProduzione(orgId, {
     sedeIds: sedeId,
     dataFrom: inizioIso,
-    columns: 'gusto_nome, data, produzione_g, rimanenza_g, scarto_g, spedito_g',
+    columns: COLONNE_VENDUTO,
   })
   return inventarioASessioni(rows)
 }

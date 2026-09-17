@@ -19,6 +19,7 @@ export const config = { runtime: 'edge' }
 import { verifyBearerSecret } from './lib/cryptoCompare.js'
 import { safeError } from './lib/safeError.js'
 import { correzioneMeteo } from '../src/lib/meteoCorrezione.js'
+import { giornoItaliano, giornoItalianoDi, aggiungiGiorni, giornoDellaSettimana as giornoSettimana } from '../src/lib/dateLocal.js'
 
 const MAX_ORG_PER_RUN = 20
 const FORECAST_DAYS = 7
@@ -101,13 +102,27 @@ export default async function handler(req) {
         if (chiusure.length === 0) continue
 
         // Aggrego per (prodotto, dayOfWeek) media qta
-        const oggi = new Date(); oggi.setHours(0, 0, 0, 0)
-        const start60 = new Date(oggi.getTime() - 60 * 86400000)
+        //
+        // Qui si confrontano GIORNI DI CALENDARIO, e si confrontano come
+        // stringhe. Prima il conto mescolava tre riferimenti diversi:
+        // `oggi.setHours(0,0,0,0)` è mezzanotte LOCALE, `new Date(c.data)` su
+        // '2026-09-17' è mezzanotte a GREENWICH, e `toISOString()` riporta a
+        // Greenwich. Su Vercel (TZ=UTC) tornava per coincidenza; in un fuso a
+        // est la chiusura di oggi cadeva fuori dal campione con `d > oggi`, e
+        // i sette giorni di previsione venivano scritti tutti sotto la data
+        // di IERI. La previsione decide quanto si produce: un giorno di
+        // scarto è un giorno di paste in più o in meno.
+        //
+        // L'aritmetica in `aggiungiGiorni` non passa dai millisecondi, quindi
+        // la settimana che attraversa il cambio dell'ora non ripete né salta
+        // un giorno.
+        const oggi = giornoItaliano()
+        const start60 = aggiungiGiorni(oggi, -60)
         const bucket = {}  // { prodotto: { 0: [q,q...], 1: [...] ... 6 } }
         for (const c of chiusure) {
-          const d = new Date(c.data || 0)
-          if (d < start60 || d > oggi) continue
-          const dow = (d.getDay() + 6) % 7  // 0 lunedi
+          const d = giornoItalianoDi(c.data)
+          if (!d || d < start60 || d > oggi) continue
+          const dow = (giornoSettimana(d) + 6) % 7  // 0 lunedi
           const items = Array.isArray(c.prodotti) ? c.prodotti : Array.isArray(c.righe) ? c.righe : []
           for (const r of items) {
             const nome = (r.nome || r.prodotto || '').toUpperCase().trim()
@@ -129,9 +144,8 @@ export default async function handler(req) {
 
         // Per ogni prodotto top, genera 7gg forecast
         for (let i = 0; i < FORECAST_DAYS; i++) {
-          const dt = new Date(oggi.getTime() + i * 86400000)
-          const iso = dt.toISOString().slice(0, 10)
-          const dow = (dt.getDay() + 6) % 7
+          const iso = aggiungiGiorni(oggi, i)
+          const dow = (giornoSettimana(iso) + 6) % 7
           const meteoDay = meteo?.[i]
           const mult = correzioneMeteo(meteoDay, org.tipo)
 

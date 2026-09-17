@@ -14,7 +14,7 @@
 import React, { Suspense, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import useIsMobile from '../lib/useIsMobile'
-import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
+import { color as T, radius as R, shadow as S, motion as M, font } from '../lib/theme'
 
 import AbbonamentoPanel from './AbbonamentoPanel'
 import WhatsAppReportPanel from './WhatsAppReportPanel'
@@ -880,12 +880,38 @@ function ReseSection({ notify, orgId }) {
   )
 }
 
+// «Porta dentro i dati»: la porta d'ingresso che non c'era.
+//
+// Audit del 16/09/2026, agente PAGINE. La pagina `importa-dati` esiste, è
+// disegnata dal Dashboard (`vista==="importa-dati"`) ed è dichiarata in
+// `VISTE_FUORI_MENU` col gruppo «Impostazioni» — ma **nessuno la apriva**:
+// nessun `setView('importa-dati')` in tutto `src/`, niente nel menu, niente
+// nella ricerca rapida (che cerca solo dentro le voci di menu), e la pagina
+// aperta non sta nell'indirizzo web ma in `sessionStorage`. Undici aperture
+// nello storico, poi la strada per arrivarci è sparita nella riorganizzazione
+// del 15/09. Il commento in `menuFoodos.js` diceva «resta raggiungibile anche
+// dal Magazzino e dai Primi passi»: nessuna delle due la nominava.
+// Qui dentro ci sono i modelli Excel, il registro incassi del mese e il
+// caricamento guidato delle anagrafiche: è la prima cosa che serve a un
+// cliente nuovo, ed era la meno raggiungibile del prodotto.
+function PortaDentroIDatiSection({ onImportaDati }) {
+  return (
+    <SectionCard title="Porta dentro i dati"
+      description="Modelli Excel da compilare offline, il registro incassi del mese come lo tieni tu, il caricamento guidato di fornitori e personale, il ricettario da file.">
+      <button onClick={onImportaDati}
+        style={{ height:44, padding:'0 18px', borderRadius:R.md, border:'none', background:T.brand, color:T.textOnDark, fontSize:font.size.base, fontWeight:700, cursor:'pointer', display:'inline-flex', alignItems:'center', gap:8 }}>
+        <Icon name="upload" size={15}/> Apri i modelli e gli import
+      </button>
+    </SectionCard>
+  )
+}
+
 function ChangelogSection({ onChangelogOpen }) {
   return (
     <SectionCard title="Novità e changelog"
       description="Scopri le ultime funzionalità rilasciate e gli aggiornamenti di Foodos.">
       <button onClick={onChangelogOpen}
-        style={{ height:40, padding:'0 18px', borderRadius:R.md, border:`1px solid ${T.borderStr}`, background:T.bgCard, color:T.text, fontSize:13, fontWeight:700, cursor:'pointer', display:'inline-flex', alignItems:'center', gap:8 }}>
+        style={{ height:40, padding:'0 18px', borderRadius:R.md, border:`1px solid ${T.borderStr}`, background:T.bgCard, color:T.text, fontSize:font.size.base, fontWeight:700, cursor:'pointer', display:'inline-flex', alignItems:'center', gap:8 }}>
         <Icon name="book" size={15}/> Vedi changelog completo
       </button>
     </SectionCard>
@@ -965,7 +991,7 @@ function PianoBadge({ piano, approvato }) {
 
 // ─── Sezioni registry ────────────────────────────────────────────────────────
 
-function buildSezioni({ auth, nomeAttivita, tipoAttivita, metodoProduzione = 'stampi', piano, orgId, sedi, sedeId, onImportPrezzi, notify, onChangelogOpen }) {
+function buildSezioni({ auth, nomeAttivita, tipoAttivita, metodoProduzione = 'stampi', piano, orgId, sedi, sedeId, onImportPrezzi, notify, onChangelogOpen, onImportaDati }) {
   // ─── DIPENDENTE: solo il proprio account, niente roba aziendale ───
   if (auth?.isDipendente) {
     return [
@@ -1072,6 +1098,11 @@ function buildSezioni({ auth, nomeAttivita, tipoAttivita, metodoProduzione = 'st
           id: 'rese', label: 'Resa ingredienti', icon: 'pie',
           summary: `${Object.keys(getStoreRese()).length} rese personalizzate`,
           render: () => <ReseSection notify={notify} orgId={orgId}/>,
+        },
+        {
+          id: 'porta-dentro-i-dati', label: 'Porta dentro i dati', icon: 'upload',
+          summary: 'Modelli Excel, registro incassi, anagrafiche',
+          render: () => <PortaDentroIDatiSection onImportaDati={onImportaDati}/>,
         },
         {
           id: 'prezzi-import', label: 'Importa prezzi', icon: 'upload',

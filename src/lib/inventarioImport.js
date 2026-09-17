@@ -1,4 +1,38 @@
 import { normGusto } from './normGusto'
+import { aggiungiGiorni } from './dateLocal'
+
+// ── STATO: questo lettore non è collegato a nessuna pagina ────────────────
+//
+// Verificato il 17/09/2026: nessun file in `src/` importa questo modulo.
+// Non è una funzione dimenticata, ed è importante capire perché prima di
+// collegarlo o di cancellarlo.
+//
+// L'import dell'inventario NELL'INTERFACCIA esiste e funziona: è la procedura
+// guidata generica, che `InventarioSettimanaleView.jsx:791` apre con
+// `initialEntity="produzione_inventario"`. Quella legge il formato LONG (una
+// riga per data/sede/gusto) e dichiara di riorganizzare da sola i fogli con
+// una colonna per giorno.
+//
+// Questo modulo invece legge il formato MULTI-SCHEDA settimanale — blocchi
+// «SETTIMANA N», colonne PROD/RIMAN. accoppiate, una scheda per sede — cioè
+// il foglio vero del cliente di giugno 2026. È coperto da quattro file di
+// test e ha nove commit di storia: funziona, semplicemente non ha una porta.
+//
+// Le due strade fanno la stessa cosa in due modi, e la domanda «quale delle
+// due tiene» è una scelta di prodotto, non una correzione:
+//   · se la procedura guidata regge il foglio multi-scheda di Mara, questo
+//     modulo è superato e va tolto, con i suoi test;
+//   · se non lo regge, allora è la procedura guidata a essere incompleta, e
+//     questo lettore va agganciato come caso speciale.
+// Si risponde caricando il foglio vero di Mara nella procedura guidata e
+// guardando cosa succede — non leggendo il codice.
+//
+// Finché la domanda resta aperta il modulo NON va cancellato: 673 righe
+// provate sul formato di un cliente vero sono più difficili da riscrivere che
+// da tenere. Ma non va nemmeno lasciato a marcire in silenzio, ed è il motivo
+// per cui questa nota sta qui e non in un elenco di cose da fare.
+//
+// ──────────────────────────────────────────────────────────────────────────
 
 // Helper di import file Excel/CSV per il foglio inventario gelateria.
 //
@@ -189,7 +223,18 @@ export function parseFoglioInventario(matrice, lunediBase) {
       // Trova la riga corrispondente o creane una nuova.
       let r = out.righe.find(x => x.gusto_nome === gustoUp && x.data === dataIso)
       if (!r) {
-        r = { gusto_nome: gustoUp, data: dataIso, produzione_g: 0, rimanenza_g: 0 }
+        // `rimanenza_g: null` e non 0. Se nel foglio la colonna PROD è
+        // compilata e la colonna RIMAN. è vuota, la riga nasce qui dalla
+        // cella PROD e la RIMAN. vuota viene saltata dal `continue` qui
+        // sopra: con lo 0 di partenza «non l'hanno scritto» diventava «la
+        // vetrina era vuota».
+        //
+        // Quanto è costato, misurato sui dati veri di Mara il 16/09/2026:
+        // 660 righe con rimanenza 0, di cui 658 (99,7%) con produzione lo
+        // stesso giorno per una media di 5,87 kg. Il giorno dopo il venduto
+        // usciva negativo in 550 casi su 655 (84%), per 2.469,6 kg — il
+        // 95,4% di tutto lo scostamento della partita doppia.
+        r = { gusto_nome: gustoUp, data: dataIso, produzione_g: 0, rimanenza_g: null }
         out.righe.push(r)
       }
       if (meta.tipo === 'prod') r.produzione_g = valore
@@ -214,10 +259,17 @@ function parseGrammi(v) {
   return Number.isFinite(n) ? Math.max(0, Math.round(n)) : null
 }
 
-function addGiorni(dataIso, n) {
-  const d = new Date(dataIso); d.setDate(d.getDate() + n)
-  return d.toISOString().slice(0, 10)
-}
+// Audit 2026-09-16 (agente DATE): qui c'era
+//   const d = new Date(dataIso); d.setDate(d.getDate() + n)
+//   return d.toISOString().slice(0, 10)
+// cioè mezzanotte a Greenwich, spostata coi campi LOCALI e riletta a
+// Greenwich. Andata e ritorno fra due riferimenti diversi: finché l'offset
+// non cambia il conto torna per caso, ma un import che copre il 29 marzo o il
+// 25 ottobre slitta di un giorno da lì in avanti. È un file di inventario:
+// slittare vuol dire attribuire le giacenze al giorno sbagliato per tutte le
+// settimane successive. `aggiungiGiorni` fa il conto in UTC interno, dove i
+// giorni durano 24 ore per definizione.
+const addGiorni = aggiungiGiorni
 
 // ── Helper: identifica sheet "sede" in un workbook ─────────────────────────
 // Un workbook reale del cliente gelateria contiene più sheet, uno per ogni
@@ -629,9 +681,13 @@ export function diffConDb(righeFile, righeDb) {
       continue
     }
     const dbProd = Number(db.produzione_g) || 0
-    const dbRim = Number(db.rimanenza_g) || 0
+    // La rimanenza può valere «non lo so» (casella del foglio vuota): null
+    // resta null e non diventa 0, se no un file senza la rimanenza risultava
+    // identico a un giorno chiuso con la vetrina vuota, ed erano due fatti
+    // opposti.
+    const dbRim = db.rimanenza_g == null ? null : (Number(db.rimanenza_g) || 0)
     const fProd = Number(rf.produzione_g) || 0
-    const fRim = Number(rf.rimanenza_g) || 0
+    const fRim = rf.rimanenza_g == null ? null : (Number(rf.rimanenza_g) || 0)
     if (dbProd === fProd && dbRim === fRim) {
       out.identici.push(rf)
     } else {

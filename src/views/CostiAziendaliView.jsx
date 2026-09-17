@@ -189,7 +189,7 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
                 return (
                   <button key={opt.id} onClick={() => setScope(opt.id)}
                     style={{
-                      padding: '8px 16px', minHeight: isMobile ? 40 : 'auto',
+                      padding: '8px 16px', minHeight: 44,
                       borderRadius: 8, border: 'none', cursor: 'pointer',
                       background: active ? '#FFFFFF' : 'transparent',
                       color: active ? T.brand : C.textMid,
@@ -206,19 +206,31 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
         </div>
       )}
 
-      {/* KPI riepilogativi */}
+      {/* KPI riepilogativi
+          ────────────────────────────────────────────────────────────────
+          Audit del 16/09/2026, agente PAGINE. Con la tabella vuota questi
+          tre riquadri dicevano «0 €», «0 €» e «-». Due su tre erano una
+          bugia: una pasticceria con zero costi fissi non esiste — affitto,
+          utenze, ammortamenti ci sono comunque, semplicemente non sono
+          ancora scritti qui. E quel «0 €» non resta in questa pagina: i
+          costi fissi entrano nel P&L mensile, quindi il conto economico
+          usciva per forza sbagliato e nessuno aveva motivo di sospettarlo.
+          Il terzo riquadro faceva già la cosa giusta («-» più una riga che
+          spiega): adesso la fanno tutti e tre. */}
       <div style={{ display: 'grid', gridTemplateColumns: kpiCols, gap: 12, marginBottom: 20 }}>
         <KpiBox
           label="Costo mensile totale"
-          value={fmt0(totMese)}
-          sub={voci.length > 0 ? `${voci.length} ${voci.length === 1 ? 'voce attiva' : 'voci attive'}` : 'Nessuna voce'}
+          value={voci.length > 0 ? fmt0(totMese) : '-'}
+          sub={voci.length > 0
+            ? `${voci.length} ${voci.length === 1 ? 'voce attiva' : 'voci attive'}`
+            : 'Non lo sappiamo ancora: nessuna voce inserita'}
           accent={T.brand}
           highlight
         />
         <KpiBox
           label="Costo annuo stimato"
-          value={fmt0(totAnno)}
-          sub="Mensile × 12"
+          value={voci.length > 0 ? fmt0(totAnno) : '-'}
+          sub={voci.length > 0 ? 'Mensile × 12' : 'Si calcola dal mensile, appena c’è'}
           accent={C.textMid}
         />
         <KpiBox

@@ -44,15 +44,34 @@ for (const f of readdirSync(DIR).filter(x => x.endsWith('.html'))) {
   await pagina.goto('file://' + join(DIR, f))
   const r = await pagina.evaluate(() => {
     const out = { cp: 0, ct: 0, bp: 0, bt: 0, quali: [] }
-    for (const el of document.querySelectorAll('input, textarea, select')) {
+    // Solo quello che si vede davvero: un campo nascosto non lo tocca nessuno,
+    // e contarlo gonfia il totale facendo sembrare la percentuale migliore.
+    const visibile = (el) => {
+      const s = getComputedStyle(el)
+      if (s.display === 'none' || s.visibility === 'hidden' || s.opacity === '0') return false
+      const r = el.getBoundingClientRect()
+      return r.width > 0 && r.height > 0
+    }
+    for (const el of document.querySelectorAll('input:not([type=hidden]), textarea, select')) {
+      if (!visibile(el)) continue
       const fs = parseFloat(getComputedStyle(el).fontSize)
       out.ct++
       if (fs < 16) { out.cp++; if (out.quali.length < 3) out.quali.push(`campo ${Math.round(fs)}px`) }
     }
-    for (const el of document.querySelectorAll('button[aria-label]')) {
-      const h = el.getBoundingClientRect().height
+    // Tutto quello che si tocca, non solo i pulsanti con `aria-label`.
+    for (const el of document.querySelectorAll('button, a[href], [role="button"], input:not([type=hidden]), select, textarea, label[for]')) {
+      if (!visibile(el)) continue
+      const q = el.getBoundingClientRect()
       out.bt++
-      if (h > 0 && h < 44) out.bp++
+      // Un bersaglio è scomodo se è stretto **o** se è basso: un pulsante
+      // 120x28 si sbaglia come uno 28x120.
+      if (q.height < 44 || q.width < 44) {
+        out.bp++
+        if (out.quali.length < 40) {
+          const t = (el.textContent || el.getAttribute('aria-label') || el.tagName).trim().replace(/\s+/g, ' ').slice(0, 28)
+          out.quali.push(`${Math.round(q.width)}x${Math.round(q.height)} "${t}"`)
+        }
+      }
     }
     return out
   })
@@ -73,3 +92,10 @@ if (colpevoli.length) {
 } else {
   console.log('\n  nessun problema di tocco misurabile.')
 }
+
+// ── L'esito conta ───────────────────────────────────────────────
+// Fino al 16/09/2026 questo attrezzo vedeva il difetto e usciva 0: chi lo
+// mettesse in una catena (`&&`, un passo di CI, il cancello pre-push) non se
+// ne accorgerebbe mai. È la stessa forma del difetto che il 14/09 ha fatto
+// passare due pubblicazioni col build rotto (l'esito mangiato da `| tail`).
+if (campiPiccoli > 0 || bersagliPiccoli > 0) process.exit(1)

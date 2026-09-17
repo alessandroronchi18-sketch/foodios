@@ -13,8 +13,11 @@
 //     deprecazione o necessità di onboarding mirato
 //   - utenti attivi per giorno (DAU)
 //   - retention per view (org che la riusano in 7gg)
+import { giorniFaItaliano } from '../../../src/lib/dateLocal.js'
 export async function getUsageStats(supabase, days = 30) {
-  const since = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10)
+  // In giorni di calendario, e nel giorno italiano: il conto è sul campo
+  // `data`, che è un giorno, non un istante.
+  const since = giorniFaItaliano(days - 1)
 
   // 1) Aggregato per view: open_count totale + DAU/MAU + org uniche
   let perView = []

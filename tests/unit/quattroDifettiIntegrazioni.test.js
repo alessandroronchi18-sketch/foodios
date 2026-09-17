@@ -102,7 +102,24 @@ describe('4. il registro non si gonfia di una riga per scontrino', () => {
     // ne mostra le ultime dieci.
     expect(WH).toMatch(/async function registraSync/)
     expect(WH).toMatch(/records_importati: \(esistente\.records_importati \|\| 0\) \+ 1/)
-    expect(WH).toMatch(/\.gte\('created_at', inizioGiornata\.toISOString\(\)\)/)
+    expect(WH).toMatch(/\.gte\('created_at', inizioGiornata\)/)
+  })
+
+  it('e la «giornata» è quella della gelateria, non quella di Greenwich', () => {
+    // Audit 2026-09-16 (agente DATE). La finestra era
+    // `new Date(); inizioGiornata.setUTCHours(0, 0, 0, 0)`: su Vercel il
+    // processo gira in UTC, quindi la giornata si spezzava alle 02:00
+    // italiane. Gli scontrini battuti fra mezzanotte e le due aprivano
+    // comunque una SECONDA riga di registro per la stessa giornata di lavoro,
+    // e il contatore «scontrini sincronizzati oggi» ripartiva da uno nel
+    // mezzo del servizio. Il difetto che questo blocco doveva impedire
+    // restava, in piccolo, tutte le notti.
+    // Si guardano le righe VIVE, non i commenti: il commento che racconta il
+    // difetto cita `setUTCHours` apposta, e cercarlo nel file intero farebbe
+    // fallire il controllo proprio per la spiegazione che lo giustifica.
+    const vive = WH.split('\n').filter(r => !r.trim().startsWith('//')).join('\n')
+    expect(vive).toMatch(/const inizioGiornata = inizioGiornoItaliano\(giornoItaliano\(\)\)/)
+    expect(vive).not.toMatch(/setUTCHours/)
   })
 
   it('ma se il registro non si scrive, lo scontrino entra lo stesso', () => {

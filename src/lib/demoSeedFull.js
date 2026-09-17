@@ -18,11 +18,14 @@
 //
 // Per l'uso client-side (es. wizard onboarding), il caller deve passare
 // l'oggetto supabase (client anon autenticato).
+//
+// `chiusuraRiga.js` invece si può importare: è puro, non ha nessun import, e
+// gira uguale nel browser e dentro la funzione Vercel.
+import { chiusuraARiga } from './chiusuraRiga'
 
 // ─── Storage keys (replica per autonomia) ─────────────────────────────────
 const SK_RIC      = 'pasticceria-ricettario-v1'
 const SK_MAG      = 'pasticceria-magazzino-v1'
-const SK_CHIUS    = 'pasticceria-chiusure-v1'
 const SK_GIOR     = 'pasticceria-giornaliero-v1'
 const SK_PROD     = 'pasticceria-produzione-v1'
 const SK_LOGRIF   = 'pasticceria-logrif-v1'
@@ -65,6 +68,28 @@ async function userDataUpsert(client, key, value, orgId, sedeId) {
     organization_id: orgId, sede_id: effectiveSedeId, data_key: key, data_value: value, updated_at,
   })
 }
+
+// ── Le chiusure di cassa non stanno in user_data ──────────────────────────
+//
+// Difetto trovato il 17/09/2026 dall'agente SOLDI, dietro al dirottamento
+// dello storage (D4). Dal 07/09/2026 le chiusure vivono nella tabella
+// `chiusure_cassa`: `sload` e `ssave` ci vengono dirottati dentro
+// `storage.js`, ma questo seme scrive col suo `userDataUpsert`, che quel
+// dirottamento non lo vede. Le ~77 giornate della demo finivano nel blob
+// `pasticceria-chiusure-v1`, che oggi non legge più nessuno: una demo appena
+// creata nasceva senza un euro di incasso in nessuna delle undici pagine che
+// lo mostrano — P&L, Confronto sedi, Quadratura, Benchmark, Previsioni.
+//
+// È la pagina che vede per prima chi sta valutando se comprare il prodotto.
+async function chiusureUpsert(client, chiusure, orgId, sedeId) {
+  const righe = (Array.isArray(chiusure) ? chiusure : [])
+    .filter(c => c && c.data)
+    .map(c => chiusuraARiga(c, orgId, sedeId))
+  if (righe.length === 0) return
+  await client.from('chiusure_cassa')
+    .upsert(righe, { onConflict: 'organization_id,sede_id,data' })
+}
+
 const today = () => { const d = new Date(); d.setHours(0,0,0,0); return d }
 const isoDate = (d) => d.toISOString().slice(0, 10)
 const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x }
@@ -922,7 +947,7 @@ export async function seedDemoDataFull({ orgId, sedeId, supabase, customMenu = n
   await Promise.all([
     userDataUpsert(supabase, SK_RIC, ricettario, orgId, null),
     userDataUpsert(supabase, SK_MAG, magazzino, orgId, sedeId),
-    userDataUpsert(supabase, SK_CHIUS, chiusure, orgId, sedeId),
+    chiusureUpsert(supabase, chiusure, orgId, sedeId),
     userDataUpsert(supabase, SK_GIOR, giornaliero, orgId, sedeId),
     userDataUpsert(supabase, SK_MOV, movimenti, orgId, sedeId),
     userDataUpsert(supabase, SK_FORMATI, formati, orgId, null),

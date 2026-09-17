@@ -24,6 +24,15 @@ on:
     - cron: '17 */6 * * *'  # ogni 6 ore al minuto 17 (no collision col cron-giornaliero)
   workflow_dispatch: {}
 
+# 16/09/2026, audit del righello: `run:` senza `shell:` gira con `bash -e`,
+# che NON ha `pipefail`. In una pipeline conta l'ultimo comando, e quello
+# riesce quasi sempre: e' la riga che il 14/09 ha lasciato passare due
+# pubblicazioni con il build rotto. Con `shell: bash` GitHub usa
+# `bash --noprofile --norc -eo pipefail`.
+defaults:
+  run:
+    shell: bash
+
 jobs:
   smoke:
     if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
@@ -37,8 +46,8 @@ jobs:
           echo "→ GET $BASE_URL/api/health"
           BODY=$(curl -fsS --max-time 15 "$BASE_URL/api/health")
           echo "Response: $BODY"
-          echo "$BODY" | grep -q '"status":"ok"' || (echo "❌ /api/health non ritorna status:ok" && exit 1)
-          echo "$BODY" | grep -q '"db":true' || (echo "❌ /api/health db:false" && exit 1)
+          grep -q '"status":"ok"' <<< "$BODY" || (echo "❌ /api/health non ritorna status:ok" && exit 1)
+          grep -q '"db":true' <<< "$BODY" || (echo "❌ /api/health db:false" && exit 1)
           echo "✅ Health ok"
 
       - name: TV endpoint requires auth (401 senza token)
@@ -72,7 +81,7 @@ jobs:
         run: |
           echo "→ GET $BASE_URL/"
           BODY=$(curl -fsS --max-time 15 "$BASE_URL/")
-          echo "$BODY" | grep -qi 'foodos' || (echo "❌ landing non contiene FoodOS" && exit 1)
+          grep -qi 'foodos' <<< "$BODY" || (echo "❌ landing non contiene FoodOS" && exit 1)
           echo "✅ Landing carica"
 
       - name: Migration files coherence (no orphan SQL)

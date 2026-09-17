@@ -41,11 +41,13 @@ const CRON_SIGNATURES = [
  * «ha girato stanotte e non ha prodotto niente» e «non gira da undici
  * giorni». La tabella di destinazione resta come conferma, non come prova.
  */
+import { giorniFaItaliano } from '../../../src/lib/dateLocal.js'
+
 export async function getCronStatus(supabase) {
   // Un colpo solo sul registro, invece di una query per lavoro.
   let registro = {}
   try {
-    const da = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10)
+    const da = giorniFaItaliano(6)
     const { data } = await supabase
       .from('cron_runs')
       .select('job_name, run_date, completed_at, status, error_message')

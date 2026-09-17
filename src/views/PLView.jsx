@@ -8,12 +8,14 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import { sload, ssave } from '../lib/storage'
 import { supabase } from '../lib/supabase'
-import { totaliPerGusto, normGusto, fetchAllInventarioProduzione } from '../lib/inventarioProduzione'
+import { totaliPerGusto, normGusto, fetchAllInventarioProduzione, COLONNE_VENDUTO, scorporaB2B } from '../lib/inventarioProduzione'
+import { venditeB2BPeriodo } from '../lib/venditeB2B'
 import { caricaCostiAziendali, totaleMensile } from '../lib/costiAziendali'
 import { costoPersonaleMensile, costoLavoroDaTurni } from '../lib/stipendiCalc'
 import { foodcostNoto } from '../lib/chiusure'
 import { usciteDaSottrarre } from '../lib/primaNota'
 import { righeSensibilita, margineDiSicurezza } from '../lib/plSensibilita'
+import { totaliSuCostiNoti } from '../lib/totaliSuCostiNoti'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell,
@@ -439,7 +441,28 @@ function ScenarioPrezzi({ rows, euro, pct }) {
 }
 
 // ─── PL TABLE (sortable) ─────────────────────────────────────────────────────
-function PLTable({ rows, euro, pct, totRicavo, totFC, totMargine, fcAvg, avgMarg, nSenzaPrezzo = 0, fcSenzaPrezzo = 0 }) {
+// Su quanti prodotti si regge la riga «TOTALE / MEDIA», e chi è rimasto
+// fuori. I due motivi si dicono separati perché si risolvono in due posti
+// diversi: il prezzo di vendita nel Listino, il prezzo degli ingredienti nel
+// Ricettario. Prima questo testo esisteva in due copie — riepilogo telefono e
+// piede tabella — e contava solo i prodotti senza prezzo.
+function NotaEsclusi({ nTotale, nSenzaPrezzo, fcSenzaPrezzo, nCostoIncompleto, ricavoCostoIncompleto, euro, stile }) {
+  const nUsati = nTotale - nSenzaPrezzo - nCostoIncompleto
+  if (nSenzaPrezzo <= 0 && nCostoIncompleto <= 0) return null
+  return (
+    <div style={stile}>
+      su {nUsati} {nUsati === 1 ? 'prodotto' : 'prodotti'} su {nTotale}, quelli con un prezzo di vendita e il costo di tutti gli ingredienti.
+      {nSenzaPrezzo > 0 && (
+        <> {nSenzaPrezzo} {nSenzaPrezzo === 1 ? 'non ha' : 'non hanno'} un prezzo di vendita{fcSenzaPrezzo > 0 ? `, per ${euro(fcSenzaPrezzo)} di materie prime` : ''}.</>
+      )}
+      {nCostoIncompleto > 0 && (
+        <> {nCostoIncompleto} {nCostoIncompleto === 1 ? 'ha' : 'hanno'} il prezzo di almeno un ingrediente mancante{ricavoCostoIncompleto > 0 ? `, per ${euro(ricavoCostoIncompleto)} di ricavo` : ''}: il loro food cost non si conosce, e sommarlo lo farebbe sembrare più basso di quello che è.</>
+      )}
+    </div>
+  )
+}
+
+function PLTable({ rows, euro, pct, totRicavo, totFC, totMargine, fcAvg, avgMarg, nSenzaPrezzo = 0, fcSenzaPrezzo = 0, nCostoIncompleto = 0, ricavoCostoIncompleto = 0 }) {
   const { sort, sortKey, sortDir, toggleSort } = useSortable('margPct')
   const sorted = sort(rows, (r, k) => {
     if (k === 'nome') return r.nome
@@ -513,12 +536,11 @@ function PLTable({ rows, euro, pct, totRicavo, totFC, totMargine, fcAvg, avgMarg
                   <span style={{ fontWeight: 800, color: col, ...TNUM }}>{v}</span>
                 </div>
               ))}
-              {nSenzaPrezzo > 0 && (
-                <div style={{ fontWeight: 500, fontSize: font.size.sm, color: C.textSoft, marginTop: 8, lineHeight: 1.45 }}>
-                  su {rows.length - nSenzaPrezzo} {rows.length - nSenzaPrezzo === 1 ? 'prodotto' : 'prodotti'} con un prezzo di vendita.
-                  {' '}{nSenzaPrezzo} {nSenzaPrezzo === 1 ? 'è fuori' : 'sono fuori'} dal conto{fcSenzaPrezzo > 0 ? `, per ${euro(fcSenzaPrezzo)} di materie prime` : ''}.
-                </div>
-              )}
+              <NotaEsclusi
+                nTotale={rows.length} nSenzaPrezzo={nSenzaPrezzo} fcSenzaPrezzo={fcSenzaPrezzo}
+                nCostoIncompleto={nCostoIncompleto} ricavoCostoIncompleto={ricavoCostoIncompleto} euro={euro}
+                stile={{ fontWeight: 500, fontSize: font.size.sm, color: C.textSoft, marginTop: 8, lineHeight: 1.45 }}
+              />
             </div>
           }
           intestazione={
@@ -587,12 +609,11 @@ function PLTable({ rows, euro, pct, totRicavo, totFC, totMargine, fcAvg, avgMarg
               <tr style={{ background: '#F0EAE6', borderTop: `2px solid ${C.borderStr}` }}>
                 <td colSpan={3} style={{ textAlign: 'right', ...TNUM, padding: '12px 14px', fontWeight: 800, fontSize: font.size.sm, color: C.text }}>
                   TOTALE / MEDIA
-                  {nSenzaPrezzo > 0 && (
-                    <div style={{ fontWeight: 500, fontSize: font.size.sm, color: C.textSoft, marginTop: 2, textTransform: 'none', letterSpacing: 0 }}>
-                      su {rows.length - nSenzaPrezzo} {rows.length - nSenzaPrezzo === 1 ? 'prodotto' : 'prodotti'} con un prezzo di vendita.
-                      {' '}{nSenzaPrezzo} {nSenzaPrezzo === 1 ? 'è fuori' : 'sono fuori'} dal conto{fcSenzaPrezzo > 0 ? `, per ${euro(fcSenzaPrezzo)} di materie prime` : ''}.
-                    </div>
-                  )}
+                  <NotaEsclusi
+                    nTotale={rows.length} nSenzaPrezzo={nSenzaPrezzo} fcSenzaPrezzo={fcSenzaPrezzo}
+                    nCostoIncompleto={nCostoIncompleto} ricavoCostoIncompleto={ricavoCostoIncompleto} euro={euro}
+                    stile={{ fontWeight: 500, fontSize: font.size.sm, color: C.textSoft, marginTop: 2, textTransform: 'none', letterSpacing: 0, lineHeight: 1.45 }}
+                  />
                 </td>
                 <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 800, fontSize: font.size.base, color: C.green, ...TNUM }}>{fmt0(totRicavo)}</td>
                 <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 800, fontSize: font.size.base, color: C.red, ...TNUM }}>{euro(totFC)}</td>
@@ -812,7 +833,19 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
   const rows = ricette.map(ric => {
     // reg effettivo per la sede attiva (override o base).
     const reg = getRegSede(ric.nome, ric, listinoSede)
-    const { tot: fc } = calcolaFC(ric, ingCosti, ricettario)
+    // ── `mancanti` va tenuto: dice se il costo è COMPLETO ───────────────
+    //
+    // 16/09/2026. Qui c'era `const { tot: fc } = calcolaFC(...)`: il secondo
+    // valore che calcolaFC restituisce — l'elenco degli ingredienti senza
+    // prezzo — veniva buttato via sulla riga stessa. Da questo array di righe
+    // nascono la tabella della sensibilità e la card FOOD COST, e nessuna
+    // delle due aveva quindi modo di sapere che un costo era a metà.
+    //
+    // Effetto misurato nell'account vero: la tabella della sensibilità
+    // mostrava 45 prodotti «validi» e 0 col costo incompleto, con in cima
+    // «MANGO JERRY SPICY +51.654,1%» (tre ingredienti su sei senza prezzo).
+    // I prodotti che sanno davvero rispondere sono quattro.
+    const { tot: fc, mancanti } = calcolaFC(ric, ingCosti, ricettario)
     // Per i GUSTI (gelateria): ricavo = ricavoFlatKg × pesoKg (ingredienti
     // definiti per 1 kg finito → pesoKg tipicamente 1). "Unità" nel senso
     // del P&L = kg finito, prezzo/unità = ricavoFlatKg. Coerente col resto
@@ -856,33 +889,38 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
       // foodcost.js dice "la marchiamo, così chi la mostra può dire che è
       // presunta" — e questa pagina non lo leggeva.
       senzaPrezzo: !!reg.senzaRegola || !(ricavo > 0),
+      // Un food cost a cui manca il prezzo di un ingrediente non è un food
+      // cost basso: è un food cost che non si conosce. Chi divide per `fc`
+      // deve poterlo distinguere. `mancanti` resta per poter dire QUALI.
+      fcParziale: (mancanti || []).length > 0,
+      mancanti: mancanti || [],
     }
   }).sort((a, b) => b.margPct - a.margPct)
 
-  // I totali si fanno SOLO sulle righe che hanno un prezzo di vendita.
+  // I totali si fanno SOLO sulle righe che sanno rispondere: un prezzo di
+  // vendita, e un food cost COMPLETO.
   //
   // Prima `totFC` sommava il food cost di tutte e 26 le ricette e `totRicavo`
   // il ricavo di 2 (le altre 24 non hanno un prezzo, quindi ricavo 0): il
   // rapporto fra i due usciva "Food cost 102,8%" e la card lo mostrava in
   // rosso. Non era un food cost alto: era il costo di ventisei prodotti
   // diviso per l'incasso di due.
-  const righeConPrezzo = rows.filter(r => !r.senzaPrezzo)
-  const nSenzaPrezzo = rows.length - righeConPrezzo.length
-  const totRicavo = righeConPrezzo.reduce((s, r) => s + r.ricavo, 0)
-  const totFC = righeConPrezzo.reduce((s, r) => s + r.fc, 0)
-  const totMargine = righeConPrezzo.reduce((s, r) => s + r.margine, 0)
-  // Food cost delle ricette senza prezzo: non entra nei rapporti, ma esiste e
-  // va detto, altrimenti sembra che quei prodotti non costino niente.
-  const fcSenzaPrezzo = rows.filter(r => r.senzaPrezzo).reduce((s, r) => s + r.fc, 0)
-  const avgMarg = righeConPrezzo.length > 0
-    ? righeConPrezzo.reduce((s, r) => s + r.margPct, 0) / righeConPrezzo.length
-    : 0
-  // Il migliore e il peggiore si scelgono fra chi ha un prezzo: senza prezzo
-  // il margine è 0 e "il prodotto meno redditizio" sarebbe sempre uno di
-  // quelli non ancora prezzati.
-  const best = righeConPrezzo[0]
-  const worst = righeConPrezzo[righeConPrezzo.length - 1]
-  const fcAvg = totRicavo > 0 ? (totFC / totRicavo * 100) : 0
+  //
+  // Il 16/09/2026 è uscita la metà mancante dello stesso controllo: il
+  // filtro guardava il prezzo ma non il costo, e su 48 prodotti con un
+  // prezzo 44 avevano il costo incompleto. La card diceva «FC ratio 4,6%»
+  // per una gelateria, dove il food cost normale sta fra il 25 e il 35 per
+  // cento. Il perché e la regola stanno in `totaliSuCostiNoti.js`.
+  const {
+    righe: righeComplete, totRicavo, totFC, totMargine, fcAvg, avgMarg,
+    nSenzaPrezzo, fcSenzaPrezzo, nCostoIncompleto, ricavoCostoIncompleto,
+  } = totaliSuCostiNoti(rows)
+  // Il migliore e il peggiore si scelgono fra chi ha un prezzo E un costo
+  // noto: senza prezzo il margine è 0 e "il prodotto meno redditizio"
+  // sarebbe sempre uno di quelli non ancora prezzati; col costo a metà
+  // sarebbe sempre uno di quelli di cui non sappiamo quanto costa.
+  const best = righeComplete[0]
+  const worst = righeComplete[righeComplete.length - 1]
 
   // ═══ P&L MENSILE REALE (ricavi+food cost dalle chiusure, personale+costi fissi input) ═══
   const [mese, setMese] = useState(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` })
@@ -1065,10 +1103,25 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
       // come incasso. E si carica anche la settimana prima di `dateFrom`,
       // perché la rimanenza del giorno precedente è la giacenza di partenza:
       // senza quella il primo giorno del periodo risultava tutto venduto.
-      columns: 'gusto_nome, data, produzione_g, rimanenza_g, scarto_g, spedito_g, scostamento_accettato',
+      columns: `${COLONNE_VENDUTO}, scostamento_accettato`,
     })
       .then(data => { if (alive) setInvRows(data || []) })
       .catch(() => { if (alive) setInvRows([]) })
+    return () => { alive = false }
+  }, [metodoProduzione, orgId, sedeId, dateFrom, dateTo])
+
+  // I chili consegnati a bar e ristoranti. `null` finché non si sa (lettura
+  // non fatta o fallita): l'elenco vuoto vuol dire «non ne ha venduti», e le
+  // due cose non si possono confondere.
+  const [venditeB2b, setVenditeB2b] = useState(null)
+  useEffect(() => {
+    if (metodoProduzione !== 'inventario' || !orgId || !sedeId || !dateFrom || !dateTo) {
+      setVenditeB2b(null); return
+    }
+    let alive = true
+    venditeB2BPeriodo(orgId, { sedeId, da: dateFrom, a: dateTo })
+      .then(r => { if (alive) setVenditeB2b(r) })
+      .catch(() => { if (alive) setVenditeB2b(null) })
     return () => { alive = false }
   }, [metodoProduzione, orgId, sedeId, dateFrom, dateTo])
 
@@ -1128,10 +1181,49 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
       totRic += ricavo; totFc += fc
     }
     rows.sort((a, b) => b.ricavo - a.ricavo)
+    // ── I chili dell'ingrosso non valgono il prezzo del banco ────────────
+    // Dall'inventario escono TUTTI i chili: quelli venduti in coppetta e
+    // quelli consegnati in vaschetta a un bar. Valorizzarli tutti al prezzo
+    // medio dei formati al dettaglio gonfia i ricavi, e il fatturato vero
+    // dell'ingrosso — che sta nella sua fattura — non entrava da nessuna
+    // parte. La pagina Quadratura toglieva già i kg B2B; questa no, e sono
+    // gli stessi chili mostrati in due pagine con due numeri diversi.
+    //
+    // Si toglie al prezzo medio di QUESTO periodo (ricavo/kg dei gusti
+    // usciti), non a un prezzo di listino: è la stessa moneta con cui il
+    // resto della tabella è valorizzato.
+    //
+    // NON è misurato sui dati di Mara dei Boschi: `vendite_b2b` da lei è
+    // vuota, quindi oggi vale 0 €. È verificato su un caso costruito
+    // (tests/unit/merceCheEntraEdEsce.test.js).
+    // La regola non si riscrive qui: è `scorporaB2B`, la stessa che usano la
+    // Quadratura e il confronto fra sedi. Il prezzo medio è quello di QUESTO
+    // periodo (ricavo diviso chili usciti), non un listino: è la moneta con
+    // cui il resto della tabella è valorizzato.
+    const {
+      b2bConsiderato, b2bKg, ricaviB2b, kgRetail,
+      ricaviRetail: totRicRetail,
+      // Il ricavo che va nel conto economico: banco al prezzo del banco,
+      // ingrosso al prezzo fatturato.
+      ricaviTotali: totRicConB2b,
+      b2bOltreInventario,
+    } = scorporaB2B({ kg: totVend, ricavi: totRic, venditeB2B: venditeB2b })
+    // `totRic`/`totMarg` restano la somma delle righe della tabella (tutti i
+    // chili al prezzo del banco): una colonna che non somma alle sue righe è
+    // peggio del difetto che si voleva correggere. Il conto economico usa
+    // `totRicConB2b`, e la pagina scrive la differenza quando c'è.
     const totMarg = totRic - totFc
     const totMargPct = totRic > 0 ? (totMarg / totRic * 100) : 0
+    const totMargConB2b = totRicConB2b - totFc
+    const totMargPctConB2b = totRicConB2b > 0 ? (totMargConB2b / totRicConB2b * 100) : 0
     return {
       rows, totProd, totVend, totScart, totRic, totFc, totMarg, totMargPct,
+      b2bConsiderato, b2bKg, ricaviB2b, kgRetail, totRicRetail, totRicConB2b,
+      totMargConB2b, totMargPctConB2b,
+      // Più chili fatturati all'ingrosso di quanti ne siano usciti: c'è un
+      // dato sbagliato da qualche parte, e va detto invece di mostrare un
+      // ricavo al banco azzerato senza spiegazione.
+      b2bOltreInventario,
       nMappati: rows.filter(r => r.haRicavo && r.haFc).length,
       nNonMappati: rows.filter(r => !r.haRicavo || !r.haFc).length,
       // Due problemi diversi che prima finivano nello stesso conteggio: un
@@ -1141,7 +1233,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
       senzaPrezzo: rows.filter(r => r.haRicetta && !r.haRicavo).map(r => r.gusto),
       fcParziali: rows.filter(r => r.fcParziale).map(r => r.gusto),
     }
-  }, [metodoProduzione, invRows, ricettario, ricavoFlatFor, ingCosti, dateFrom, dateTo])
+  }, [metodoProduzione, invRows, ricettario, ricavoFlatFor, ingCosti, dateFrom, dateTo, venditeB2b])
 
   // Come si chiama il confronto scelto, e le percentuali con cui confrontare.
   const etichettaConfronto = confrontoPL === 'year_prev' ? "vs l'anno scorso" : 'vs periodo prec.'
@@ -1178,9 +1270,13 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
     // ha già calcolato ricavo e food cost gusto per gusto, ognuno col suo
     // prezzo al chilo. Se non c'è nemmeno una chiusura nel periodo, quelli
     // diventano i ricavi — dichiarati come stima, perché lo sono.
-    const daInventario = cur.giorni === 0 && inventarioPL && inventarioPL.totRic > 0
+    // `totRicConB2b` e non `totRic`: i chili consegnati all'ingrosso valgono
+    // la loro fattura, non il prezzo del banco. Senza vendite B2B i due
+    // numeri coincidono.
+    const daInventario = cur.giorni === 0 && inventarioPL && inventarioPL.totRicConB2b > 0
     if (daInventario) {
-      cur = { ...cur, ricavi: inventarioPL.totRic, foodcost: inventarioPL.totFc, ricaviConFc: inventarioPL.totRic }
+      const ricInv = inventarioPL.totRicConB2b
+      cur = { ...cur, ricavi: ricInv, foodcost: inventarioPL.totFc, ricaviConFc: ricInv }
     }
     const margineLordo = cur.ricavi - cur.foodcost
     const usciteCassa = Number(uscite?.totale) || 0
@@ -1679,7 +1775,10 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
                 <div style={{ width: 3, height: 18, background: C.red, borderRadius: 2, flexShrink: 0 }}/>
                 <h2 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: C.text, letterSpacing: '-0.01em' }}>Conto economico</h2>
               </div>
-              <span style={{ fontSize: 12, fontWeight: 600, color: C.textSoft, background: '#F8F4F2', padding: '4px 10px', borderRadius: 20 }}>a regime · prezzi di listino</span>
+              {/* Su quanti prodotti si regge il conto economico teorico: senza
+                  questa riga sembrava il bilancio di tutto il listino, mentre
+                  nell'account vero si regge su 4 prodotti su 58. */}
+              <span style={{ fontSize: 12, fontWeight: 600, color: C.textSoft, background: '#F8F4F2', padding: '4px 10px', borderRadius: 20 }}>a regime · prezzi di listino · su {righeComplete.length} {righeComplete.length === 1 ? 'prodotto' : 'prodotti'} su {rows.length}</span>
             </div>
 
             {/* Statement: griglia 3 colonne - voce | % | importo, tutto incolonnato
@@ -1769,8 +1868,12 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
         gap: 12, marginBottom: 36 }}>
         {[
           { lbl: 'Prodotti', val: rows.length, sub: 'nel listino', hi: true, tip: 'Numero di prodotti finiti nel listino (esclusi semilavorati e ricette interne).' },
-          { lbl: 'Ricavo/stampo', val: fmt0(totRicavo), sub: 'somma tutti i prodotti', color: T.green, tip: 'Somma del ricavo teorico di uno stampo di ciascun prodotto, ai prezzi di listino.' },
-          { lbl: 'Food cost tot.', val: fmt0(totFC), sub: `FC ratio ${pct(fcAvg)}`, color: T.brand, tip: 'Costo totale degli ingredienti per uno stampo di ciascun prodotto. FC ratio = food cost ÷ ricavo.' },
+          // I tre numeri del listino si reggono sui prodotti che hanno un
+          // prezzo di vendita E il costo di tutti gli ingredienti: il
+          // sottotitolo lo dice, invece di far credere che siano la somma di
+          // tutto il listino. Nell'account vero sono 4 su 58.
+          { lbl: 'Ricavo/stampo', val: fmt0(totRicavo), sub: `su ${righeComplete.length} ${righeComplete.length === 1 ? 'prodotto' : 'prodotti'} su ${rows.length}`, color: T.green, tip: 'Somma del ricavo teorico di uno stampo di ciascun prodotto, ai prezzi di listino. Solo i prodotti con un prezzo di vendita e il costo di tutti gli ingredienti.' },
+          { lbl: 'Food cost tot.', val: fmt0(totFC), sub: `FC ratio ${pct(fcAvg)}`, color: T.brand, tip: 'Costo degli ingredienti per uno stampo di ciascun prodotto. FC ratio = food cost ÷ ricavo. Sono esclusi i prodotti a cui manca il prezzo di un ingrediente: il loro costo non si conosce, e sommarlo lo farebbe sembrare più basso.' },
           { lbl: 'Margine lordo', val: fmt0(totMargine), sub: `${pct(avgMarg)} medio`, color: margColor(avgMarg), tip: 'Ricavo meno food cost, prima di personale, affitto e utenze. La % è la media dei margini di prodotto.' },
           // Con zero prodotti prezzati non esiste un "migliore": prima la
           // pagina leggeva best.short su undefined e si schiantava.
@@ -1825,7 +1928,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
       />
 
       <BarreRicavo rows={rows} euro={euro} pct={pct}/>
-      <PLTable rows={rows} euro={euro} pct={pct} totRicavo={totRicavo} totFC={totFC} totMargine={totMargine} fcAvg={fcAvg} avgMarg={avgMarg} nSenzaPrezzo={nSenzaPrezzo} fcSenzaPrezzo={fcSenzaPrezzo}/>
+      <PLTable rows={rows} euro={euro} pct={pct} totRicavo={totRicavo} totFC={totFC} totMargine={totMargine} fcAvg={fcAvg} avgMarg={avgMarg} nSenzaPrezzo={nSenzaPrezzo} fcSenzaPrezzo={fcSenzaPrezzo} nCostoIncompleto={nCostoIncompleto} ricavoCostoIncompleto={ricavoCostoIncompleto}/>
       <TopIngredientiTable ricettario={ricettario} ingCosti={ingCosti} euro={euro} pct={pct}/>
       {/* Simulatore Scenari di Prezzo rimosso: duplicato della sezione Food Cost. */}
       <SensTable rows={rows} euro={euro} pct={pct}/>
@@ -1929,8 +2032,14 @@ function PLInventarioSection({ data, rangeLabel: rangeLbl, cardP, isMobile }) {
       }}>
         <BoxKpi label="Prodotto" value={`${fmtKg(data.totProd)} kg`} color={C.text}/>
         <BoxKpi label="Venduto stimato" value={`${fmtKg(data.totVend)} kg`} color={T.brand}/>
-        <BoxKpi label="Ricavo stimato" value={euro(data.totRic)} color={C.green} highlight={data.totRic > 0}/>
-        <BoxKpi label={`Margine lordo (${fmtPct(data.totMargPct)})`} value={euro(data.totMarg)} color={data.totMarg >= 0 ? C.green : T.brand} highlight={data.totMarg > 0}/>
+        {/* Con vendite all'ingrosso i due riquadri mostrano il numero del
+            conto economico (banco al prezzo del banco, ingrosso al prezzo
+            fatturato) e scrivono sotto di quanto si discosta dalla tabella,
+            che valorizza tutti i chili al dettaglio. Senza ingrosso i due
+            numeri sono lo stesso numero. */}
+        <BoxKpi label="Ricavo stimato" value={euro(data.totRicConB2b)} color={C.green} highlight={data.totRicConB2b > 0}
+          sub={data.b2bKg > 0 ? `${fmtKg(data.b2bKg)} kg all'ingrosso: ${euro(data.ricaviB2b)}` : null}/>
+        <BoxKpi label={`Margine lordo (${fmtPct(data.totMargPctConB2b)})`} value={euro(data.totMargConB2b)} color={data.totMargConB2b >= 0 ? C.green : T.brand} highlight={data.totMargConB2b > 0}/>
       </div>
       {/* Due problemi diversi, due frasi diverse. Prima erano una sola
           ("non è collegato al ricettario o non ha ricavo"), e chi leggeva non
@@ -1961,6 +2070,20 @@ function PLInventarioSection({ data, rangeLabel: rangeLbl, cardP, isMobile }) {
               {' '}qualche ingrediente non ha un prezzo nel listino, quindi il costo che vedi è più basso del vero.
             </div>
           )}
+        </div>
+      )}
+      {/* I chili dell'ingrosso: la tabella qui sotto li valorizza al prezzo
+          del banco come tutti gli altri, il conto economico no. Dirlo, invece
+          di lasciare due totali diversi nella stessa pagina. */}
+      {data.b2bKg > 0 && (
+        <div style={{
+          background: T.bgSubtle, border: `1px solid ${T.border}`, borderRadius: 10,
+          padding: 10, marginBottom: 14, fontSize: font.size.sm, color: C.textMid, lineHeight: 1.55,
+        }}>
+          <b>{fmtKg(data.b2bKg)} kg consegnati all&apos;ingrosso</b> nel periodo, fatturati {euro(data.ricaviB2b)}.
+          {' '}La tabella qui sotto conta tutti i chili al prezzo del banco; nel ricavo stimato
+          {' '}qui sopra quei chili valgono la loro fattura, e la differenza è {euro(data.totRic - data.totRicConB2b)}.
+          {data.b2bOltreInventario && <> <b>Attenzione</b>: all&apos;ingrosso risultano più chili di quanti ne siano usciti dall&apos;inventario, quindi da qualche parte c&apos;è un dato sbagliato.</>}
         </div>
       )}
       {/* Tabella per gusto */}

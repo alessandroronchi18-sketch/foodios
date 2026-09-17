@@ -21,6 +21,7 @@
 // Quello che non entra in nessuno di questi casi resta fuori e si dice.
 
 import { parseNum } from './importCassa'
+import { isNotaCredito } from './fatture'
 
 /** Normalizza un nome per il confronto: via accenti, forme societarie, punti. */
 export function normPerConfronto(s) {
@@ -174,7 +175,14 @@ export function normalizzaData(v) {
  * non si vede.
  */
 export function proponiAbbinamenti(movimenti, fatture, { giorniTolleranza = 45 } = {}) {
-  const aperte = (fatture || []).filter(f => f?.stato !== 'pagata' && f?.tipo !== 'nota_credito')
+  // Le note di credito restano fuori: un'uscita di banca non le paga, sono un
+  // credito. Fino al 16/09/2026 il filtro guardava solo l'etichetta `tipo`,
+  // che in produzione non è mai valorizzata — le note di credito sono fatture
+  // col totale negativo. Una di quelle restava fra le candidate e, siccome il
+  // residuo qui si calcola in valore assoluto, un bonifico da 365,55 € poteva
+  // essere abbinato alla nota di credito da −365,55 € al posto della fattura
+  // vera: due documenti sbagliati con un clic solo.
+  const aperte = (fatture || []).filter(f => f?.stato !== 'pagata' && !isNotaCredito(f))
   const usate = new Set()
   const abbinamenti = []
   const nonAbbinati = []

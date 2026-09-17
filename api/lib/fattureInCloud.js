@@ -13,6 +13,7 @@
 // funzione (fail-closed, non blocca la build).
 
 import { safeFetch } from './safeFetch.js'
+import { giornoItaliano } from '../../src/lib/dateLocal.js'
 
 const API_BASE = 'https://api-v2.fattureincloud.it'
 
@@ -148,7 +149,10 @@ export async function emettiFatturaElettronica({
       currency: { id: 'EUR' },
       language: { code: 'it', name: 'Italiano' },
       entity: { id: clienteId },
-      date: data || new Date().toISOString().slice(0, 10),
+      // Se chi chiama non passa la data, si mette il giorno ITALIANO, non
+      // quello di Greenwich: a cavallo di mezzanotte cambiava giorno e, il
+      // 31 dicembre, anche anno di esercizio.
+      date: data || giornoItaliano(),
       next_due_date: scadenza,
       e_invoice: true,
       ei_data: {

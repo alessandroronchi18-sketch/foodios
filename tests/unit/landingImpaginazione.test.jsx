@@ -102,8 +102,18 @@ describe('le regole di casa', () => {
 
   it('niente emoji: le icone sono SVG', () => {
     const v = disegna()
-    // Il segno di copyright non è un'emoji: si guardano i blocchi pittografici.
-    expect(v.container.textContent).not.toMatch(/[\u{1F000}-\u{1FAFF}\u{2190}-\u{21FF}\u{2600}-\u{27BF}\u{FE0F}]/u)
+    // La freccia «→» e la spunta «✓» non sono emoji: sono caratteri
+    // tipografici. Questo rilevatore comprendeva il blocco delle frecce
+    // (U+2190–21FF) e i dingbat (U+2600–27BF), e le bocciava tutte e due.
+    // Adesso usa `\p{Extended_Pictographic}`, la proprietà Unicode delle emoji
+    // vere, che è quella già usata dagli altri test di casa.
+    //
+    // Con un'eccezione scritta a mano: `©`, `®` e `™` sono segni tipografici
+    // che Unicode classifica come pittogrammi, perché ne esiste anche la
+    // versione emoji (©️). In fondo a una pagina di vetrina il copyright ci
+    // va, e non è un'emoji da sostituire con un'icona SVG.
+    // Tarato il 17/09/2026, audit RIGHELLO.
+    expect(v.container.textContent).not.toMatch(/(?![©®™])\p{Extended_Pictographic}/u)
     expect(v.container.querySelectorAll('svg').length).toBeGreaterThan(0)
   })
 

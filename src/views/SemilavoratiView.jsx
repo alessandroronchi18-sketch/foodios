@@ -498,9 +498,13 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
 
   const openNew = () => { setForm(empty); setEditMode(null); setShowForm(true); window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }) }
 
+  // `minHeight: 44` — audit del 16/09/2026, agente PAGINE. Questo pulsante era
+  // alto 35px, ed è l'unico modo per aggiungere una base: su questa pagina, a
+  // 390px, era uno dei due soli bersagli che ci fossero, e nessuno dei due
+  // arrivava alla misura di un polpastrello.
   const headerAction = (
     <button onClick={openNew}
-      style={{ padding: '10px 16px', borderRadius: R.md, border: 'none', background: T.brand, color: '#fff',
+      style={{ padding: '10px 16px', minHeight: 44, borderRadius: R.md, border: 'none', background: T.brand, color: '#fff',
         fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, boxShadow: S.brand }}>
       <Icon name="plus" size={15} />Nuovo semilavorato
     </button>

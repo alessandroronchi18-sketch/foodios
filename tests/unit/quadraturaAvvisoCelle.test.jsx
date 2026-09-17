@@ -123,7 +123,20 @@ describe('Quadratura — quali caselle non tornano', () => {
     mod.caricaSettimana.mockImplementation(async () => RIGHE)
     render(<QuadraturaInventarioView {...props} />)
     await waitFor(() => expect(screen.getByText(/caselle non tornano|casella non torna/i)).toBeTruthy(), { timeout: 5000 })
-    expect(screen.getByText('NOCCIOLA')).toBeTruthy()
+    // 17/09/2026: il nome del gusto compare due volte, e va bene così — una
+    // nell'avviso delle caselle che non tornano, una nella tabella sotto.
+    // `getByText` pretende UN solo elemento e cadeva su questo. Quello che il
+    // test vuole sapere è che l'AVVISO nomini il gusto: se guardasse la
+    // pagina intera passerebbe anche trovandolo solo nella tabella, cioè
+    // senza che l'avviso dica di chi sta parlando.
+    // Si sale dal titolo dell'avviso finché si trova il riquadro che contiene
+    // anche l'elenco: il titolo da solo sta in un `div` suo.
+    let avviso = screen.getByText(/caselle non tornano|casella non torna/i)
+    for (let i = 0; i < 6 && avviso && !/mancano/i.test(avviso.textContent || ''); i++) {
+      avviso = avviso.parentElement
+    }
+    expect(avviso, 'il riquadro dell’avviso').toBeTruthy()
+    expect(avviso.textContent).toContain('NOCCIOLA')
     expect(screen.getAllByText(/mancano/i).length).toBeGreaterThan(0)
     // E il modo per chiuderla: non tutte le differenze sono errori.
     expect(screen.getByRole('button', { name: /è giusta così/i })).toBeTruthy()

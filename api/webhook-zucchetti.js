@@ -15,6 +15,7 @@ import { getCorsHeaders, handleOptions, getClientIP } from './lib/cors.js'
 import { sanitizeStrict, validateUUID } from './lib/validate.js'
 import { safeError } from './lib/safeError.js'
 import { leggiToken, risolviToken, segnaUso, organizzazioneAttiva } from './lib/webhookToken.js'
+import { giornoItaliano } from '../src/lib/dateLocal.js'
 
 async function getSupabase() {
   const { createClient } = await import('@supabase/supabase-js')
@@ -81,7 +82,12 @@ export default async function handler(request) {
     let records = 0
 
     for (const v of batch) {
-      const data = sanitizeStrict(v.data || v.date || '', 10) || new Date().toISOString().slice(0, 10)
+      // Quando il registratore non manda la data, il ripiego è il giorno
+      // ITALIANO. Con `new Date().toISOString()` — e su Vercel il processo è
+      // in UTC — una vendita battuta alle 00:30 di Torino tornava datata al
+      // giorno prima: la chiusura di ieri, già salvata, veniva riaperta e
+      // sovrascritta con l'incasso di oggi.
+      const data = sanitizeStrict(v.data || v.date || '', 10) || giornoItaliano()
       const dataKey = `chiusura_${data}`
 
       const totale = parseFloat(v.totale || v.total || v.importo || 0)

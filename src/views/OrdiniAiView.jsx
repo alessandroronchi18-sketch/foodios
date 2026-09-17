@@ -27,6 +27,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { sload } from '../lib/storage'
 import { supabase } from '../lib/supabase'
+import { todayLocal, giorniFaLocal, soloData } from '../lib/dateLocal'
 import { buildIngCosti, normIng } from '../lib/foodcost'
 import { fornitoreDiIngrediente, raggruppaPerFornitore, LEAD_TIME_RIFERIMENTO } from '../lib/fornitoreIngrediente'
 import { cadenzaConsegne } from '../lib/pagamentiFornitore'
@@ -72,7 +73,7 @@ export default function OrdiniAiView({ orgId, sedeId, notify }) {
           .eq('organization_id', orgId).eq('attivo', true),
         supabase.from('fatture').select('fornitore, data_fattura')
           .eq('organization_id', orgId)
-          .gte('data_fattura', new Date(Date.now() - 400 * 86400000).toISOString().slice(0, 10))
+          .gte('data_fattura', giorniFaLocal(400))
           .order('data_fattura'),
       ])
       if (alive) {
@@ -97,11 +98,15 @@ export default function OrdiniAiView({ orgId, sedeId, notify }) {
     const consumo = {}
     const ricette = ricettario?.ricette || {}
     const giorni = 30
-    const oggi = new Date()
-    const start = new Date(oggi.getTime() - giorni * 86400000)
+    // Giorni contro giorni: `new Date(c.data)` era mezzanotte UTC contro
+    // l'istante di adesso, e la chiusura di oggi non entrava nel consumo
+    // medio prima delle 02:00. Il consumo medio è il numero che decide quanto
+    // ordinare.
+    const oggi = todayLocal()
+    const start = giorniFaLocal(giorni - 1)
     for (const c of chiusure) {
-      const d = new Date(c.data || 0)
-      if (d < start || d > oggi) continue
+      const d = soloData(c.data)
+      if (!d || d < start || d > oggi) continue
       // Le chiusure tengono le righe in `venduto` (nomi dei prodotti) o in
       // `confronto`; le vecchie in `prodotti`/`righe`.
       const items = [c.venduto, c.confronto, c.prodotti, c.righe].find(Array.isArray) || []

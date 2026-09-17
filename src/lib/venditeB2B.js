@@ -2,6 +2,7 @@
 // Canale separato dal retail: scarica lo stock PF (causale 'vendita_b2b') ma
 // non tocca le chiusure cassa, quindi non entra nel sell-through B2C.
 import { supabase } from './supabase'
+import { todayLocal } from './dateLocal'
 
 // ── Helper puri (testabili) ──────────────────────────────────────────────────
 // Normalizza le righe: prodotto UPPERCASE (per combaciare con stock_prodotti_finiti),
@@ -144,7 +145,11 @@ export async function salvaVenditaB2B({ orgId, sedeId, clienteId, clienteNome, d
     organization_id: orgId,
     sede_id: sedeId || null,
     cliente_id: clienteId || null,
-    data: data || new Date().toISOString().slice(0, 10),
+    // Il giorno della consegna è quello del laboratorio. Con
+    // `toISOString()` era il giorno UTC: una consegna registrata alle 00:30 —
+    // e nelle pasticcerie si registra dopo la chiusura — finiva datata ieri,
+    // e con lei l'incasso B2B e lo scarico di magazzino.
+    data: data || todayLocal(),
     righe: pulite,
     totale,
     stato: 'consegnata',
@@ -191,7 +196,8 @@ export async function setStatoVenditaB2B(id, stato) {
 // Segna una vendita come pagata / da incassare. Resiliente: se le colonne
 // pagamento non sono ancora migrate, ritorna { degraded:true } senza rompere.
 export async function setPagamentoVenditaB2B(id, pagata, dataPagamento) {
-  const patch = { pagata: !!pagata, data_pagamento: pagata ? (dataPagamento || new Date().toISOString().slice(0, 10)) : null }
+  // Stessa ragione: la data dell'incasso è un giorno locale, non UTC.
+  const patch = { pagata: !!pagata, data_pagamento: pagata ? (dataPagamento || todayLocal()) : null }
   let { error } = await supabase.from('vendite_b2b').update(patch).eq('id', id)
   if (error && /does not exist|schema cache|PGRST204|could not find/i.test(error.message || '')) {
     return { degraded: true }
@@ -205,4 +211,35 @@ export async function eliminaVenditaB2B(id) {
   if (v) await ripristinaStock(v, 'Annullo vendita B2B (eliminata)')
   const { error } = await supabase.from('vendite_b2b').delete().eq('id', id)
   if (error) throw error
+}
+
+// ── I chili venduti all'ingrosso, in un periodo ─────────────────────────────
+//
+// Serve a non contare due volte gli stessi chili. I chili che escono
+// dall'inventario sono TUTTI i chili usciti: quelli venduti al banco e quelli
+// consegnati a un bar o a un ristorante. Le pagine che stimano l'incasso dai
+// chili (conto economico, confronto fra sedi) li moltiplicavano tutti per il
+// prezzo medio del banco — cioè fatturavano la vaschetta all'ingrosso al
+// prezzo della coppetta — e poi il fatturato dell'ingrosso arrivava anche
+// dalla sua fattura. La Quadratura questo lo sapeva già e toglieva i kg B2B:
+// le altre due pagine no, e mostravano un numero diverso per la stessa cosa.
+//
+// Ritorna `null` se la lettura fallisce, NON un elenco vuoto: chi la usa
+// distingue «non ha comprato niente all'ingrosso» da «non lo so», e nel
+// secondo caso lascia i chili dove sono dicendo che il dato non c'è.
+//
+// `includiSenzaSede` (default sì): le vendite registrate prima che il campo
+// sede esistesse hanno `sede_id` nullo, ed è la stessa regola di
+// `loadVenditeB2B`. Chi confronta le sedi fra loro lo mette a `false`, se no
+// gli stessi chili verrebbero tolti a ogni negozio.
+export async function venditeB2BPeriodo(orgId, { sedeId = null, da, a, includiSenzaSede = true } = {}) {
+  if (!orgId || !da || !a) return null
+  let q = supabase.from('vendite_b2b').select('data, righe, totale, sede_id')
+    .eq('organization_id', orgId).gte('data', da).lte('data', a)
+  if (sedeId) {
+    q = includiSenzaSede ? q.or(`sede_id.eq.${sedeId},sede_id.is.null`) : q.eq('sede_id', sedeId)
+  }
+  const { data, error } = await q
+  if (error) { console.error('venditeB2BPeriodo:', error); return null }
+  return data || []
 }

@@ -15,67 +15,7 @@
 // per giorno, com'e' sempre stato di fatto.
 
 import { supabase } from './supabase'
-
-const COLONNE = 'id, data, tot_venduto, tot_foodcost, tot_margine, tot_scarti, margine_pct, scontrino_medio, incasso_pos, incasso_contanti, incasso_delivery, venduto, formati, extra, is_demo, legacy_id'
-
-/** Riga di database → forma che i componenti si aspettano. */
-function rigaAOggetto(r) {
-  return {
-    ...(r.extra || {}),
-    id: r.legacy_id || r.id,
-    data: r.data,
-    kpi: {
-      totV:  Number(r.tot_venduto) || 0,
-      totFC: Number(r.tot_foodcost) || 0,
-      totM:  Number(r.tot_margine) || 0,
-      totS:  Number(r.tot_scarti) || 0,
-      totMP: Number(r.margine_pct) || 0,
-      // `scontrino_medio` contiene il SELL-THROUGH in percentuale (nome
-      // storico fuorviante, vedi il commento sulla colonna nel DB).
-      // null resta null: "non rilevato" non è "0% smaltito".
-      avgST: r.scontrino_medio == null ? null : Number(r.scontrino_medio),
-      // Euro per scontrino: ha una colonna sua da 10/09/2026. Prima la
-      // chiusura rapida lo scriveva dentro avgST e lo Storico lo mostrava
-      // come una percentuale di sell-through, in rosso.
-      scontrinoMedio: r.scontrino_medio_eur == null ? null : Number(r.scontrino_medio_eur),
-      // Scomposizione per canale: null vuol dire "non rilevato", che e' diverso
-      // da zero. Chi registra solo il totale continua a non vederli.
-      pos:      r.incasso_pos == null ? null : Number(r.incasso_pos),
-      contanti: r.incasso_contanti == null ? null : Number(r.incasso_contanti),
-      delivery: r.incasso_delivery == null ? null : Number(r.incasso_delivery),
-    },
-    venduto: r.venduto || [],
-    formati: r.formati || [],
-    ...(r.is_demo ? { _demo: true } : {}),
-  }
-}
-
-/** Oggetto dei componenti → riga di database. */
-function oggettoARiga(c, orgId, sedeId) {
-  // Tutto quello che non è previsto dallo schema finisce in extra: così un
-  // campo aggiunto da una feature futura non viene perso nel salvataggio.
-  const { id, data, kpi, venduto, formati, _demo, ...extra } = c
-  return {
-    organization_id: orgId,
-    sede_id: sedeId || null,
-    data: String(data).slice(0, 10),
-    tot_venduto:     Number(kpi?.totV) || 0,
-    tot_foodcost:    Number(kpi?.totFC) || 0,
-    tot_margine:     Number(kpi?.totM) || 0,
-    tot_scarti:      Number(kpi?.totS) || 0,
-    margine_pct:     Number(kpi?.totMP) || 0,
-    scontrino_medio: kpi?.avgST == null ? null : Number(kpi.avgST),
-    scontrino_medio_eur: kpi?.scontrinoMedio == null ? null : Number(kpi.scontrinoMedio),
-    incasso_pos:      kpi?.pos == null ? null : Number(kpi.pos),
-    incasso_contanti: kpi?.contanti == null ? null : Number(kpi.contanti),
-    incasso_delivery: kpi?.delivery == null ? null : Number(kpi.delivery),
-    venduto: venduto || [],
-    formati: formati || [],
-    extra,
-    is_demo: !!_demo,
-    legacy_id: id ? String(id) : null,
-  }
-}
+import { COLONNE, rigaAChiusura, chiusuraARiga } from './chiusuraRiga'
 
 /**
  * Carica le chiusure di una sede, opzionalmente ristrette a un intervallo.
@@ -94,7 +34,37 @@ export async function caricaChiusure(orgId, sedeId, { from, to, tutteLeSedi = fa
     console.error('caricaChiusure:', error)
     throw new Error(error.message || 'caricaChiusure fallita')
   }
-  return (data || []).map(rigaAOggetto)
+  return (data || []).map(rigaAChiusura)
+}
+
+/**
+ * Le chiusure di TUTTE le sedi, raggruppate per sede.
+ *
+ * Stessa forma di `sloadAllSedi`: `{ [sedeId]: [chiusure] }`. Serve al
+ * dirottamento in `storage.js`, perché le pagine che confrontano i punti
+ * vendita chiedevano il blob di tutte le sedi in una volta sola.
+ */
+export async function caricaChiusurePerSede(orgId) {
+  if (!orgId) return {}
+  const { data, error } = await supabase
+    .from('chiusure_cassa')
+    .select(`sede_id, ${COLONNE}`)
+    .eq('organization_id', orgId)
+    .order('data', { ascending: true })
+  if (error) {
+    console.error('caricaChiusurePerSede:', error)
+    return {}
+  }
+  const out = {}
+  for (const r of (data || [])) {
+    // Le righe senza sede appartenevano al periodo in cui l'organizzazione
+    // aveva un punto vendita solo: restano fuori dal confronto fra sedi, come
+    // già faceva `sloadAllSedi` con le righe `sede_id = NULL`.
+    if (!r.sede_id) continue
+    if (!out[r.sede_id]) out[r.sede_id] = []
+    out[r.sede_id].push(rigaAChiusura(r))
+  }
+  return out
 }
 
 /**
@@ -112,7 +82,7 @@ export async function salvaChiusure(orgId, sedeId, chiusure) {
 
   const righe = elenco
     .filter(c => c && c.data)
-    .map(c => oggettoARiga(c, orgId, sedeId))
+    .map(c => chiusuraARiga(c, orgId, sedeId))
 
   if (righe.length > 0) {
     const { error } = await supabase
@@ -251,7 +221,7 @@ export async function upsertChiusure(orgId, sedeId, chiusure) {
   if (!orgId) throw new Error('upsertChiusure: orgId mancante')
   const valide = (Array.isArray(chiusure) ? chiusure : []).filter(c => c?.data)
   if (valide.length === 0) return 0
-  const righeDb = valide.map(c => oggettoARiga(c, orgId, sedeId))
+  const righeDb = valide.map(c => chiusuraARiga(c, orgId, sedeId))
   const { error } = await supabase.from('chiusure_cassa')
     .upsert(righeDb, { onConflict: 'organization_id,sede_id,data' })
   if (error) throw new Error(error.message)
@@ -293,7 +263,7 @@ export async function importaChiusureIncassi(orgId, sedeId, righe) {
     // Ai centesimi: la colonna e' numeric(12,2) e un margine di
     // 776,4000000000001 in memoria non serve a nessuno.
     const cent = (v) => Math.round(v * 100) / 100
-    return oggettoARiga({
+    return chiusuraARiga({
       ...(vecchia || {}),
       data: r.data,
       venduto: vecchia?.venduto || [],
@@ -308,7 +278,13 @@ export async function importaChiusureIncassi(orgId, sedeId, righe) {
         totM:  cent(totV - totFC),
         totS:  Number(vecchia?.kpi?.totS) || 0,
         totMP: totV > 0 ? cent((totV - totFC) / totV * 100) : 0,
-        avgST: Number(vecchia?.kpi?.avgST) || 0,
+        // `|| 0` trasformava «non lo so» in «non se n'è venduto niente»:
+        // importare il registro degli incassi scriveva sell-through 0 su
+        // tutte le giornate che non l'avevano, e quello zero entrava nella
+        // media dello Storico (che filtra `avgST != null` apposta per
+        // tenerle fuori). Stessa regola della riga 221 di questo file, che
+        // già teneva il null.
+        avgST: vecchia?.kpi?.avgST == null ? null : Number(vecchia.kpi.avgST),
         pos:      canale(r.pos, vecchia?.kpi?.pos),
         contanti: canale(r.contanti, vecchia?.kpi?.contanti),
         delivery: canale(r.delivery, vecchia?.kpi?.delivery),

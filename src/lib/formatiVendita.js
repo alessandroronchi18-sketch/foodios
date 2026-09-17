@@ -24,6 +24,7 @@
 // avessero un singolo componente {nome:'Contenitore', qta:1, costo:N}.
 
 import { calcolaFC, getR, isRicettaValida, normIng, resaGrammi } from './foodcost'
+import { prezzoMedioAlKg } from './prezzoMedioAlKg'
 import { sload, ssave } from './storage'
 
 export const SK_FORMATI = 'pasticceria-formati-vendita-v1' // shared
@@ -223,8 +224,13 @@ export function ricetteSenzaCategoria(ricettario) {
 // che hanno prezzo=0 sulla ricetta perché il prezzo vive sui formati
 // (cono/coppetta/vaschetta) e non sulla singola ricetta.
 //
-// Calcolo: media semplice di (prezzoDefault / baseQtaG) × 1000 sui formati
-// validi (baseQtaG > 0, prezzo > 0). Priorita' di ricerca:
+// Calcolo: prezzo medio al kg PESATO SUI GRAMMI (`prezzoMedioAlKg`) sui
+// formati validi (baseQtaG > 0, prezzo > 0). Fino al 16/09/2026 era la media
+// aritmetica semplice dei €/kg dei singoli formati: un cono da 100 g pesava
+// come una vaschetta da un chilo, e sui formati veri di Mara dei Boschi il
+// prezzo usciva 30,74 €/kg invece di 28,91 — **+6,34% su ogni ricavo di
+// gusto del P&L**. La regola sta in `prezzoMedioAlKg.js`, col conto per
+// esteso. Priorita' di ricerca:
 //   1. formati con la categoria esatta (es. "Crema")
 //   2. formati con categoria "gusto" o "gelato" (generici per gelateria)
 //   3. TUTTI i formati validi (ultimo fallback)
@@ -250,8 +256,7 @@ export function avgPrezzoPerKgCategoria(categoria, formati) {
   const src = perCategoria.length > 0 ? perCategoria
             : genericGelato.length > 0 ? genericGelato
             : validi
-  const valori = src.map(f => (Number(f.prezzoDefault) / Number(f.baseQtaG)) * 1000)
-  return valori.reduce((s, v) => s + v, 0) / valori.length
+  return prezzoMedioAlKg(src)
 }
 
 // FC stimato (€) di UNA unità venduta di un formato.

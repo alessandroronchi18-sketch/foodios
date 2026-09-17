@@ -15,8 +15,8 @@ import Icon from './Icon'
 import { supabase } from '../lib/supabase'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S, motion as M, tnum, ui3, ui } from '../lib/theme'
-import { todayLocal } from '../lib/dateLocal'
-import { nomePeriodo } from '../lib/periodoAnalisi'
+import { todayLocal, giorniFaLocal, giornoDiTimestamp, inizioGiornoLocale, fineGiornoLocale } from '../lib/dateLocal'
+import { nomePeriodo, nomeDelGiorno } from '../lib/periodoAnalisi'
 
 const PAGE = 50
 
@@ -71,14 +71,12 @@ function fmtTime(iso) {
   return new Date(iso).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
 }
 
-function fmtDayHeader(iso) {
-  const d = new Date(iso)
-  const oggi = new Date()
-  const ieri = new Date(Date.now() - 86400000)
-  const sameDay = (a, b) => a.toISOString().slice(0, 10) === b.toISOString().slice(0, 10)
-  if (sameDay(d, oggi)) return 'Oggi'
-  if (sameDay(d, ieri)) return 'Ieri'
-  return d.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+// L'intestazione di una giornata nella linea del tempo: «Oggi», «Ieri», o il
+// giorno per esteso. Il conto sta in `periodoAnalisi.nomeDelGiorno`: qui prima
+// si confrontavano due `toISOString().slice(0, 10)`, cioè due giorni UTC, e
+// dopo mezzanotte il lavoro della sera prima compariva sotto «Oggi».
+function fmtDayHeader(giorno) {
+  return nomeDelGiorno(giorno)
 }
 
 function labelFromRow(r) {
@@ -144,10 +142,10 @@ export default function RegistroAttivita({ orgId, sedi = [], notify }) {
   )
 
   const today    = todayLocal()
-  const sevenAgo = (() => {
-    const d = new Date(Date.now() - 7 * 86400000)
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-  })()
+  // Sette giorni di CALENDARIO indietro. Sottrarre 7 × 86.400.000 millisecondi
+  // non è la stessa cosa: la notte del cambio dell'ora una giornata dura 23 o
+  // 25 ore, e il conto sbaglia di un giorno.
+  const sevenAgo = giorniFaLocal(7)
   const [periodo, setPeriodo] = useState('7gg')
   const [utente,  setUtente]  = useState('')
   const [tabella, setTabella] = useState('')
@@ -184,7 +182,9 @@ export default function RegistroAttivita({ orgId, sedi = [], notify }) {
     if (id === 'custom') return
     const preset = PRESET_PERIODS.find(p => p.id === id)
     if (!preset) return
-    const da = new Date(Date.now() - preset.giorni * 86400000).toISOString().slice(0, 10)
+    // `toISOString()` dava la data UTC: a Torino alle 00:30 «Ultimi 30 giorni»
+    // partiva dal giorno prima e ne contava 31.
+    const da = giorniFaLocal(preset.giorni)
     setDataDa(da)
     setDataA(today)
   }
@@ -223,13 +223,19 @@ export default function RegistroAttivita({ orgId, sedi = [], notify }) {
   useEffect(() => {
     if (!orgId) return
     let alive = true
-    const oggi = new Date().toISOString().slice(0, 10)
+    // Il giorno di OGGI per la pasticceria, e la finestra dell'istante in cui
+    // quel giorno comincia e finisce davvero. `new Date().toISOString()` dava
+    // il giorno UTC — dopo mezzanotte, ieri — e `'<giorno>T00:00:00'` senza
+    // fuso lo faceva leggere a Postgres come UTC: la giornata risultava dalle
+    // 02:00 alle 01:59, e le due ore di chi chiude dopo mezzanotte finivano
+    // nel conto del giorno sbagliato.
+    const oggi = todayLocal()
     supabase.from('audit_log')
       .select('dipendente_operativo_id,table_name')
       .eq('organization_id', orgId)
       .not('dipendente_operativo_id', 'is', null)
-      .gte('created_at', `${oggi}T00:00:00`)
-      .lte('created_at', `${oggi}T23:59:59`)
+      .gte('created_at', inizioGiornoLocale(oggi))
+      .lt('created_at', fineGiornoLocale(oggi))
       .limit(2000)
       .then(({ data }) => {
         if (!alive) return
@@ -267,8 +273,12 @@ export default function RegistroAttivita({ orgId, sedi = [], notify }) {
     if (utente)  qb = qb.eq('user_id', utente)
     if (tabella) qb = qb.eq('table_name', tabella)
     if (dipendente) qb = qb.eq('dipendente_operativo_id', dipendente)
-    if (dataDa)  qb = qb.gte('created_at', `${dataDa}T00:00:00`)
-    if (dataA)   qb = qb.lte('created_at', `${dataA}T23:59:59`)
+    // Le due date vengono da due `<input type="date">`: sono GIORNI italiani,
+    // non istanti UTC. Vanno tradotte nell'istante in cui quel giorno comincia
+    // e in quello in cui comincia il successivo (confine alto escluso: con
+    // `T23:59:59` si perdeva l'ultimo secondo, millisecondi compresi).
+    if (dataDa)  qb = qb.gte('created_at', inizioGiornoLocale(dataDa))
+    if (dataA)   qb = qb.lt('created_at', fineGiornoLocale(dataA))
 
     qb.then(({ data, error, count }) => {
       if (!alive) return
@@ -312,7 +322,10 @@ export default function RegistroAttivita({ orgId, sedi = [], notify }) {
     const userCount = {}, tableCount = {}
     let oggiCount = 0
     for (const r of rows) {
-      const giorno = (r.created_at || '').slice(0, 10)
+      // Il giorno LOCALE dell'istante, non i primi dieci caratteri del
+      // timestamp: quelli sono il giorno UTC, e un'operazione dell'una di
+      // notte non veniva contata fra quelle di oggi.
+      const giorno = giornoDiTimestamp(r.created_at)
       if (giorno === oggiIso) oggiCount++
       const u = r.user_email || '-'
       userCount[u]  = (userCount[u]  || 0) + 1
@@ -329,11 +342,16 @@ export default function RegistroAttivita({ orgId, sedi = [], notify }) {
     })
   }, [rows, today])
 
-  // Raggruppa rows per giorno (timeline view)
+  // Raggruppa rows per giorno (timeline view).
+  //
+  // Il giorno è quello LOCALE dell'istante. Prima si tagliavano i primi dieci
+  // caratteri di `created_at`, cioè il giorno UTC: tutto quello che succedeva
+  // fra mezzanotte e le due — l'ora in cui una pasticceria chiude la cassa —
+  // finiva sotto l'intestazione del giorno prima.
   const grouped = useMemo(() => {
     const map = new Map()
     for (const r of rows) {
-      const day = (r.created_at || '').slice(0, 10)
+      const day = giornoDiTimestamp(r.created_at)
       if (!map.has(day)) map.set(day, [])
       map.get(day).push(r)
     }

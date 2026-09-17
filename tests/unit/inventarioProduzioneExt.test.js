@@ -173,6 +173,70 @@ describe('salvaCella', () => {
     const chain = supabase.from.mock.results[0].value
     expect(chain.upsert.mock.calls[0][0].gusto_nome).toBe('NOCCIOLA PURA')
   })
+
+  // ── `ricevuto_g`: la merce arrivata da un altro negozio ────────────────
+  //
+  // Audit magazzino, 17/09/2026. La colonna è nuova (migrazione 20260916c) e
+  // segue la regola di `spedito_g`: si scrive solo se chi salva ne sa
+  // qualcosa. Chi compila la tabella settimanale non ne sa niente, e non deve
+  // azzerare i chili che il comando «spedisci a un'altra sede» ha registrato.
+
+  it('ricevuto_g assente dal patch → omesso dal payload (non azzera il DB)', async () => {
+    supabase.from.mockClear()
+    supabase.from.mockImplementationOnce(() => mkChain({ data: { id: 'r' }, error: null }))
+    await salvaCella('org', 'sede', 'X', '2026-06-15', {
+      produzione_g: 100, rimanenza_g: 20, scarto_g: 5,
+    })
+    const arg = supabase.from.mock.results[0].value.upsert.mock.calls[0][0]
+    expect(arg).not.toHaveProperty('ricevuto_g')
+  })
+
+  it('ricevuto_g esplicito → propagato', async () => {
+    supabase.from.mockClear()
+    supabase.from.mockImplementationOnce(() => mkChain({ data: { id: 'r' }, error: null }))
+    await salvaCella('org', 'sede', 'X', '2026-06-15', {
+      produzione_g: 0, rimanenza_g: 5000, scarto_g: 0, ricevuto_g: 6000,
+    })
+    expect(supabase.from.mock.results[0].value.upsert.mock.calls[0][0].ricevuto_g).toBe(6000)
+  })
+
+  it('se il database non ha ancora la colonna, salva il resto e lo dice', async () => {
+    // Finché la migrazione non è applicata il database risponde 42703. Senza
+    // il secondo giro fallirebbe TUTTO il salvataggio — anche la produzione e
+    // la rimanenza, che la colonna ce l'hanno. Il warning serve perché quei
+    // grammi ricevuti non vengono registrati: un dato che si perde va detto.
+    const spy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    supabase.from.mockClear()
+    supabase.from
+      .mockImplementationOnce(() => mkChain({ data: null, error: { code: '42703', message: 'column "ricevuto_g" does not exist' } }))
+      .mockImplementationOnce(() => mkChain({ data: { id: 'r' }, error: null }))
+    const out = await salvaCella('org', 'sede', 'X', '2026-06-15', {
+      produzione_g: 8000, rimanenza_g: 5000, scarto_g: 0, ricevuto_g: 6000,
+    })
+    expect(out).toEqual({ id: 'r' })
+    expect(spy).toHaveBeenCalled()
+    expect(String(spy.mock.calls[0][0])).toMatch(/20260916c/)
+    const primo = supabase.from.mock.results[0].value.upsert.mock.calls[0][0]
+    const secondo = supabase.from.mock.results[1].value.upsert.mock.calls[0][0]
+    expect(primo.ricevuto_g).toBe(6000)
+    expect(secondo).not.toHaveProperty('ricevuto_g')
+    // Il resto della riga arriva comunque a destinazione.
+    expect(secondo.produzione_g).toBe(8000)
+    expect(secondo.rimanenza_g).toBe(5000)
+    spy.mockRestore()
+  })
+
+  it('un errore diverso non fa il secondo giro: si propaga', async () => {
+    // Il ripiego vale solo per la colonna mancante. Se il database rifiuta per
+    // un altro motivo (permessi, vincolo), inghiottirlo vorrebbe dire dire
+    // «salvato» a chi non ha salvato niente.
+    supabase.from.mockClear()
+    supabase.from.mockImplementationOnce(() => mkChain({ data: null, error: { code: '42501', message: 'permission denied' } }))
+    await expect(salvaCella('org', 'sede', 'X', '2026-06-15', {
+      produzione_g: 1, rimanenza_g: 1, scarto_g: 0, ricevuto_g: 10,
+    })).rejects.toMatchObject({ code: '42501' })
+    expect(supabase.from).toHaveBeenCalledTimes(1)
+  })
 })
 
 describe('rimuoviCella', () => {
@@ -196,13 +260,18 @@ describe('rimuoviCella', () => {
 })
 
 describe('euroKgMedioFormati', () => {
-  it('media €/kg per formato con baseQtaG>0 e prezzoDefault>0', () => {
-    // 1kg @ 20€ = 20 €/kg; 500g @ 15€ = 30 €/kg → media 25
+  it('media €/kg PESATA SUI GRAMMI, non media semplice dei formati', () => {
+    // 1 kg a 20 € = 20 €/kg; 500 g a 15 € = 30 €/kg. Fino al 16/09/2026 il
+    // risultato era la media semplice dei due, 25 €/kg: il mezzo chilo
+    // pesava come il chilo. Il prezzo medio vero di un chilo, vendendo un
+    // pezzo di ciascuno, è 35 € / 1500 g × 1000 = 23,33 €/kg.
+    // Il conto e il perché stanno in `prezzoMedioAlKg.js`.
     const m = euroKgMedioFormati([
       { baseQtaG: 1000, prezzoDefault: 20 },
       { baseQtaG: 500, prezzoDefault: 15 },
     ])
-    expect(m).toBe(25)
+    expect(m).toBeCloseTo(23.3333, 3)
+    expect(m).toBeLessThan(25)
   })
 
   it('skip formato con baseQtaG=0 o prezzoDefault=0', () => {

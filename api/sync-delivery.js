@@ -4,6 +4,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { verifyBearerSecret } from './lib/cryptoCompare.js'
+import { ieriItaliano, inizioGiornoItaliano, fineGiornoItaliano, giornoItalianoDi } from '../src/lib/dateLocal.js'
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -22,9 +23,11 @@ export default async function handler(req) {
     return new Response('Unauthorized', { status: 401 });
   }
 
-  const ieri = new Date();
-  ieri.setDate(ieri.getDate() - 1);
-  const dataIeri = ieri.toISOString().slice(0, 10);
+  // «Ieri» per la pasticceria, non per Greenwich. Il cron gira alle 02:00 UTC
+  // e oggi i due giorni coincidono, ma è una coincidenza dell'orario dello
+  // schedule: basta spostarlo alle 23:00 perché la sync notturna cominci a
+  // chiedere le vendite del giorno sbagliato, senza che nessuna riga cambi.
+  const dataIeri = ieriItaliano();
 
   const risultati = [];
 
@@ -93,7 +96,9 @@ async function syncCassaInCloud(apiKey, data) {
   const vendite = json.sales || json.data || [];
   const byData = {};
   for (const v of vendite) {
-    const d = (v.date || v.data || data).slice(0, 10);
+    // Se l'integrazione manda un istante, il giorno è quello di Roma; se
+    // manda già un giorno, si prende tale e quale.
+    const d = giornoItalianoDi(v.date || v.data || data);
     if (!byData[d]) byData[d] = { importo: 0, righe: 0 };
     // Guard NaN/Infinity: API esterna corrotta non deve propagare 'Infinity'
     // o NaN nel DB importo (rovinerebbe ogni report).
@@ -111,8 +116,13 @@ async function syncCassaInCloud(apiKey, data) {
 // ── SumUp API ─────────────────────────────────────────────────────────────────
 async function syncSumUp(accessToken, data) {
   if (!accessToken) throw new Error('Access token mancante');
-  const from = `${data}T00:00:00.000Z`;
-  const to   = `${data}T23:59:59.999Z`;
+  // La finestra è la GIORNATA ITALIANA, non quella di Greenwich. Con
+  // `${data}T00:00:00.000Z` si chiedevano a SumUp le 24 ore UTC: le prime due
+  // ore della giornata di Torino restavano fuori, e al loro posto entravano le
+  // ultime due della sera prima. Due ore di delivery attribuite al giorno
+  // sbagliato, ogni notte, in automatico.
+  const from = inizioGiornoItaliano(data);
+  const to   = fineGiornoItaliano(data);
   const url  = `https://api.sumup.com/v0.1/me/transactions/history?newest_time=${to}&oldest_time=${from}&limit=100&statuses=SUCCESSFUL`;
   const { safeFetch } = await import('./lib/safeFetch.js');
   const res = await safeFetch(url, {
@@ -125,7 +135,7 @@ async function syncSumUp(accessToken, data) {
   const sales = items.filter(t => t.type === 'PAYMENT' && t.status === 'SUCCESSFUL');
   const byData = {};
   for (const t of sales) {
-    const d = (t.timestamp || data).slice(0, 10);
+    const d = giornoItalianoDi(t.timestamp || data);
     if (!byData[d]) byData[d] = { importo: 0, righe: 0 };
     byData[d].importo += parseFloat(t.amount || 0);
     byData[d].righe += 1;

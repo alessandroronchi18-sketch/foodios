@@ -5,6 +5,13 @@
  * Verifica ricavo/kg per gusti gelateria: fetch formati vendita + listino
  * sede (override), calcolo avgPrezzoPerKgCategoria con fallback, ricavo
  * effettivo per gusto (rk × pesoKg) vs stampi (unita × prezzo).
+ *
+ * 16/09/2026: i numeri attesi di questo file sono cambiati perché è cambiata
+ * la regola. Il prezzo medio al kg era la media semplice dei €/kg dei
+ * formati — un cono da 100 g contava quanto una vaschetta da un chilo — ed è
+ * diventato la media pesata sui grammi (`prezzoMedioAlKg.js`). Sui formati
+ * veri di Mara dei Boschi la vecchia formula gonfiava ogni ricavo di gusto
+ * del 6,34%.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { renderHook, waitFor, cleanup } from '@testing-library/react'
@@ -48,10 +55,13 @@ describe('useRicavoFlat — ricavo/kg gusti dai Formati vendita', () => {
       return Promise.resolve(null)
     })
     const { result } = renderHook(() => useRicavoFlat('org-1', RICETTARIO, null))
-    // Media (30 + 20) / 2 = 25 €/kg
+    // Media PESATA SUI GRAMMI: 13 € su 600 g → 21,67 €/kg.
+    // Fino al 16/09/2026 era la media semplice dei due €/kg, (30 + 20) / 2 =
+    // 25, che fa contare un cono da 100 g quanto una vaschetta da mezzo
+    // chilo. Il perché sta in `prezzoMedioAlKg.js`.
     await waitFor(() => {
       const rk = result.current.ricavoFlatFor(RICETTARIO.ricette.PISTACCHIO)
-      expect(rk).toBeCloseTo(25, 3)
+      expect(rk).toBeCloseTo(21.6667, 3)
     })
   })
 
@@ -62,10 +72,10 @@ describe('useRicavoFlat — ricavo/kg gusti dai Formati vendita', () => {
     })
     const { result } = renderHook(() => useRicavoFlat('org-1', RICETTARIO, null))
     // Stracciatella ha categoria "Crema" senza formati match, fallback su
-    // "Gusto" (generic gelateria) → 25 €/kg come sopra.
+    // "Gusto" (generic gelateria) → 21,67 €/kg come sopra.
     await waitFor(() => {
       const rk = result.current.ricavoFlatFor(RICETTARIO.ricette.STRACCIATELLA)
-      expect(rk).toBeCloseTo(25, 3)
+      expect(rk).toBeCloseTo(21.6667, 3)
     })
   })
 
@@ -79,10 +89,11 @@ describe('useRicavoFlat — ricavo/kg gusti dai Formati vendita', () => {
       return Promise.resolve(null)
     })
     const { result } = renderHook(() => useRicavoFlat('org-1', RICETTARIO, 'milano'))
-    // Milano: cono €4/100g = 40 €/kg · vaschetta €10/500g = 20 €/kg → media 30
+    // Milano: cono 4 € / 100 g · vaschetta 10 € / 500 g → 14 € su 600 g =
+    // 23,33 €/kg. L'override della sede si vede lo stesso: era 21,67.
     await waitFor(() => {
       const rk = result.current.ricavoFlatFor(RICETTARIO.ricette.PISTACCHIO)
-      expect(rk).toBeCloseTo(30, 3)
+      expect(rk).toBeCloseTo(23.3333, 3)
     })
   })
 
@@ -119,13 +130,13 @@ describe('useRicavoFlat.ricavoEffettivo — unifica gusti e stampi', () => {
     })
     const { result } = renderHook(() => useRicavoFlat('org-1', RICETTARIO, null))
     await waitFor(() => {
-      // PISTACCHIO: 1000g ingredienti → pesoKg=1 · rk=25 → ricavo=25
+      // PISTACCHIO: 1000 g ingredienti → pesoKg=1 · rk=21,67 → ricavo 21,67
       const r = result.current.ricavoEffettivo(RICETTARIO.ricette.PISTACCHIO)
-      expect(r).toBeCloseTo(25, 2)
+      expect(r).toBeCloseTo(21.6667, 2)
     })
-    // STRACCIATELLA: 800g → pesoKg=0.8 · rk=25 (fallback Gusto) → ricavo=20
+    // STRACCIATELLA: 800 g → pesoKg=0,8 · rk=21,67 (fallback Gusto) → 17,33
     const r2 = result.current.ricavoEffettivo(RICETTARIO.ricette.STRACCIATELLA)
-    expect(r2).toBeCloseTo(20, 2)
+    expect(r2).toBeCloseTo(17.3333, 2)
   })
 
   it('gusto senza ricavoFlat: ritorna 0', async () => {

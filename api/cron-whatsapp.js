@@ -18,6 +18,7 @@ export const config = { runtime: 'edge' }
 
 import { verifyBearerSecret } from './lib/cryptoCompare.js'
 import { fmtp } from '../src/lib/formatIt.js'
+import { giornoItaliano } from '../src/lib/dateLocal.js'
 
 async function getSupabase() {
   const { createClient } = await import('@supabase/supabase-js')
@@ -33,7 +34,13 @@ function fmtPct(n) {
 
 // Costruisce KPI del giorno per un'organizzazione
 async function kpiOrg(supabase, orgId, sedeId) {
-  const today = new Date().toISOString().slice(0, 10)
+  // «Oggi» è il giorno della pasticceria. Su Vercel il processo gira in UTC e
+  // `toISOString()` dava il giorno di Greenwich: oggi combacia solo perché lo
+  // schedule è alle 20:00 UTC (`vercel.json`). Un ritardo del cron oltre la
+  // mezzanotte di Greenwich — le 01:00 o le 02:00 italiane — e il messaggio
+  // della sera avrebbe annunciato al titolare «0 €» di incasso, perché
+  // cercava la chiusura di un giorno che non è ancora cominciato.
+  const today = giornoItaliano()
 
   // Carica chiusure, giornaliero, ricettario dal user_data
   const [ric, chi, gio] = await Promise.all([

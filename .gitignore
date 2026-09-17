@@ -32,3 +32,7 @@ import-data/*
 # chiave è stata leggibile da chiunque per tre mesi e mezzo.
 .claude/settings.local.json
 .claude/settings.json
+
+# File di lavoro usati per fotografare le pagine durante gli audit:
+# contengono percorsi di cartelle temporanee di sessione e non vanno versionati.
+scripts/.tmp-*

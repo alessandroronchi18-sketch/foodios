@@ -1,7 +1,7 @@
 // StoricoProduzioneView - Storico produzioni con grafici. Estratta da Dashboard.jsx.
 import React, { useState, useMemo, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { fetchAllInventarioProduzione, GIORNI_RIPORTO_MAX } from '../lib/inventarioProduzione'
+import { fetchAllInventarioProduzione, GIORNI_RIPORTO_MAX, COLONNE_VENDUTO } from '../lib/inventarioProduzione'
 import AnalisiInventarioSection from './AnalisiInventarioSection'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend, ReferenceLine } from 'recharts'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
@@ -14,6 +14,7 @@ import Icon from '../components/Icon'
 import BarraPeriodo from '../components/BarraPeriodo'
 import { C, KPI, SH, margColor, margBadge, fmt, fmt0, fmtp, ChartTip, Tip, TabellaOSchede } from './_shared'
 import { fmtp0 } from '../lib/formatIt'
+import { formatLocalDate, todayLocal } from '../lib/dateLocal'
 
 // Audit UI 2026-06-24:
 // - assi grafici: fontSize 11, color #5A6B80, grid stroke #E5E9EF dashed
@@ -40,7 +41,11 @@ const MN = ['', 'Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', '
 function giorniPrimaDi(dataIso, n) {
   const d = new Date(dataIso + 'T12:00:00')
   d.setDate(d.getDate() - n)
-  return d.toISOString().slice(0, 10)
+  // `formatLocalDate` e non `toISOString()`: il secondo dà la data UTC, e la
+  // stessa riga scritta da un fuso avanti di dodici ore restituirebbe il
+  // giorno prima. Qui parte mezzogiorno locale, quindi in Italia veniva già
+  // giusto — ma è la forma che è sbagliata, non il risultato di oggi.
+  return formatLocalDate(d)
 }
 
 // Quando si guarda «per giorno della settimana», una colonna costruita su un
@@ -120,9 +125,16 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
     if (!isMetodoInv || !orgId || sediProdIdsPL.length === 0) { setInvRows([]); setInvRowsPrev([]); return }
     let alive = true
     // Range corrente: se dateFrom/dateTo non settati, usa ultimi 90gg
+    // Il periodo di partenza, quando l'utente non ha ancora scelto le date.
+    //
+    // Prima: `new Date(anno, mese - 2, giorno).toISOString().slice(0, 10)`.
+    // Quella `Date` è mezzanotte LOCALE, che in Italia sono le 22:00 (o le
+    // 23:00) UTC del giorno prima: la finestra di default partiva **sempre**
+    // un giorno prima di quello scritto, tutto l'anno. E `defTo` era la data
+    // UTC di adesso, quindi fra mezzanotte e le due finiva ieri.
     const oggi = new Date()
-    const defFrom = new Date(oggi.getFullYear(), oggi.getMonth() - 2, oggi.getDate()).toISOString().slice(0, 10)
-    const defTo = oggi.toISOString().slice(0, 10)
+    const defFrom = formatLocalDate(new Date(oggi.getFullYear(), oggi.getMonth() - 2, oggi.getDate()))
+    const defTo = todayLocal()
     const from = dateFrom || defFrom
     const to = dateTo || defTo
     // Range di confronto:
@@ -134,23 +146,27 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
     let prevFrom = null, prevTo = null
     if (confronto === 'periodoPrec') {
       const durata = Math.round((dTo - dFrom) / 86400000) + 1
-      prevTo = new Date(dFrom.getTime() - 86400000).toISOString().slice(0, 10)
-      prevFrom = new Date(dFrom.getTime() - durata * 86400000).toISOString().slice(0, 10)
+      prevTo = formatLocalDate(new Date(dFrom.getTime() - 86400000))
+      prevFrom = formatLocalDate(new Date(dFrom.getTime() - durata * 86400000))
     } else if (confronto === 'annoPrec') {
       const pyFrom = new Date(dFrom); pyFrom.setFullYear(pyFrom.getFullYear() - 1)
       const pyTo   = new Date(dTo);   pyTo.setFullYear(pyTo.getFullYear() - 1)
-      prevFrom = pyFrom.toISOString().slice(0, 10)
-      prevTo   = pyTo.toISOString().slice(0, 10)
+      prevFrom = formatLocalDate(pyFrom)
+      prevTo   = formatLocalDate(pyTo)
     }
 
     // Paginato: il server Supabase (PostgREST) ha db-max-rows=50000, quindi
     // .limit() del client viene comunque cappato. Serve range() iterato.
-    // `spedito_g` serve: i chili mandati a un'altra sede non sono venduti al
-    // banco, e senza quella colonna finivano nel venduto (e quindi nel ricavo)
-    // di questa pagina. E si caricano anche i giorni PRIMA del periodo, perché
-    // la rimanenza del giorno precedente è la giacenza di partenza: senza
-    // quella il primo giorno del periodo non si può calcolare.
-    const COLONNE_INV = 'gusto_nome, data, produzione_g, rimanenza_g, scarto_g, spedito_g, scostamento_accettato, sede_id'
+    // Le colonne del venduto non si riscrivono qui: sono `COLONNE_VENDUTO`,
+    // l'elenco unico del motore. Questa riga le teneva a mano, e infatti si
+    // era già persa `ricevuto_g` — la merce arrivata da un'altra sede — che
+    // senza di lei questa pagina contava come venduta al banco. È lo stesso
+    // errore che `spedito_g` aveva fatto prima di lei: un elenco copiato in
+    // quattro punti resta allineato finché qualcuno non aggiunge una colonna.
+    // Si caricano anche i giorni PRIMA del periodo, perché la rimanenza del
+    // giorno precedente è la giacenza di partenza: senza quella il primo
+    // giorno del periodo non si può calcolare.
+    const COLONNE_INV = `${COLONNE_VENDUTO}, scostamento_accettato, sede_id`
     setWin({ from, to, prevFrom, prevTo })
     const prevPromise = prevFrom
       ? fetchAllInventarioProduzione(orgId, {

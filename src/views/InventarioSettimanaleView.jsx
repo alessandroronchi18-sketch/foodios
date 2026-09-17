@@ -31,15 +31,16 @@ import { SK_MAG } from '../lib/storageKeys'
 import {
   elencoGusti, caricaSettimana, salvaCella, calcolaVendutoSettimana,
   rimanenzaDiPartenza,
-  totaliVenduti, dettaglioVenduto, serieVendutoGusto, serieVendutoMultiSede,
+  totaliVenduti, dettaglioVenduto, serieVendutoMultiSede,
   totaliPerGusto, GIORNI_RIPORTO_MAX, lunediDellaSettimana, normGusto,
   scaloMagazzinoPerGusto, ricettaDelGusto,
   fetchAllInventarioProduzione, caricaStoricoMensile,
+  COLONNE_VENDUTO, colonneSenzaRicevuto, eColonnaRicevutoMancante,
 } from '../lib/inventarioProduzione'
 import { loadXLSX } from '../lib/xlsx'
 import { supabase } from '../lib/supabase'
 import { caricoProduzionePF } from '../lib/stockPF'
-import { formatLocalDate, todayLocal } from '../lib/dateLocal'
+import { formatLocalDate, todayLocal, aggiungiGiorni } from '../lib/dateLocal'
 
 const GIORNI = ['lun', 'mar', 'mer', 'gio', 'ven', 'sab', 'dom']
 const GIORNI_LUNGHI = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica']
@@ -301,7 +302,12 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
                 map[k] = { gusto_nome: g, data: r.data, produzione_g: 0, rimanenza_g: 0, scarto_g: 0, spedito_g: 0 }
               }
               map[k].produzione_g += Number(r.produzione_g) || 0
-              map[k].rimanenza_g += Number(r.rimanenza_g) || 0
+              // Se una sede non ha scritto la rimanenza, il totale delle sedi
+              // non si sa. Sommarla come zero abbassava il gelato in vetrina
+              // e il venduto del gruppo usciva gonfiato di quella quantità.
+              map[k].rimanenza_g = (map[k].rimanenza_g == null || r.rimanenza_g == null)
+                ? null
+                : map[k].rimanenza_g + (Number(r.rimanenza_g) || 0)
               map[k].scarto_g += Number(r.scarto_g) || 0
               map[k].spedito_g += Number(r.spedito_g) || 0
             }
@@ -327,15 +333,19 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
     const d = new Date(lunediIso + 'T12:00')
     const inizio = formatLocalDate(new Date(d.getFullYear(), d.getMonth(), 1))
     const fine = formatLocalDate(new Date(d.getFullYear(), d.getMonth() + 1, 1))
-    // fine e' esclusivo → sottraggo 1 giorno per usare lte
-    const fineIncl = formatLocalDate(new Date(new Date(fine).getTime() - 86400000))
+    // fine e' esclusivo → sottraggo 1 giorno per usare lte.
+    // Il giorno prima si toglie in GIORNI. `new Date('2026-10-01')` è
+    // mezzanotte a Greenwich: togliere 86.400.000 ms e rileggere con
+    // `formatLocalDate` torna solo perché l'Italia è avanti rispetto a
+    // Greenwich. Con un fuso indietro la finestra del mese si accorcia di un
+    // giorno da tutte e due le parti, e il primo e l'ultimo giorno del mese
+    // sparirebbero dall'inventario.
+    const fineIncl = aggiungiGiorni(fine, -1)
     // Si caricano anche i giorni PRIMA del primo del mese: la rimanenza del
     // giorno precedente e' la giacenza di partenza, e senza quella il primo
     // giorno del mese non si puo' calcolare. Prima partiva dal giorno 1 e il
     // conto del giorno 1 usciva gonfiato (come se la vasca fosse vuota).
-    const inizioConGiacenza = formatLocalDate(
-      new Date(new Date(inizio).getTime() - GIORNI_RIPORTO_MAX * 86400000)
-    )
+    const inizioConGiacenza = aggiungiGiorni(inizio, -GIORNI_RIPORTO_MAX)
     fetchAllInventarioProduzione(orgId, {
       sedeIds: sediProdIds,
       dataFrom: inizioConGiacenza,
@@ -536,12 +546,25 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
       // lo stato attuale dal DB prima di calcolare il delta MP. Se l'altra
       // tab ha già salvato un PROD diverso da quello in memoria, ci adattiamo
       // al valore reale.
-      const { data: serverRow } = await supabase
+      // `ricevuto_g` fa parte della riga come le altre: se non la si rilegge,
+      // il patch che parte da `...serverRow` non la porta e chi guarda questo
+      // codice non sa nemmeno che esiste. Col ripiego per il database che non
+      // ce l'ha ancora (42703): senza, la rilettura fallirebbe in blocco e la
+      // protezione contro le due schede aperte sulla stessa cella — che è il
+      // motivo per cui questa query esiste — smetterebbe di funzionare in
+      // silenzio.
+      const colonneRiga = 'produzione_g, rimanenza_g, scarto_g, spedito_g, ricevuto_g'
+      const leggiRiga = (cols) => supabase
         .from('inventario_produzione')
-        .select('produzione_g, rimanenza_g, scarto_g, spedito_g')
+        .select(cols)
         .eq('organization_id', orgId).eq('sede_id', sedeId)
         .eq('gusto_nome', gustoNome).eq('data', dataIso)
         .maybeSingle()
+      let resRiga = await leggiRiga(colonneRiga)
+      if (eColonnaRicevutoMancante(resRiga.error, colonneRiga)) {
+        resRiga = await leggiRiga(colonneSenzaRicevuto(colonneRiga))
+      }
+      const serverRow = resRiga.data
       // Confronto NORMALIZZATO: le righe in memoria possono avere il nome
       // scritto in un'altra grafia (import vecchi). Col confronto grezzo la
       // riga esistente non si trovava, il patch partiva da zero e il gusto
@@ -556,7 +579,11 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
       const patch = {
         ...(serverRow || {}),
         produzione_g: esistente.produzione_g || 0,
-        rimanenza_g: esistente.rimanenza_g || 0,
+        // `?? null` e non `|| 0`: se la rimanenza di quella cella non è mai
+        // stata scritta, salvare la PROD non deve scriverci sopra uno zero.
+        // Con `|| 0` bastava compilare il PROD di oggi perché il giorno dopo
+        // il venduto uscisse negativo di tutto il gelato che era in vetrina.
+        rimanenza_g: esistente.rimanenza_g ?? null,
         scarto_g: esistente.scarto_g || 0,
         spedito_g: esistente.spedito_g || 0,
         [campo]: Number(valore) || 0,
@@ -1433,25 +1460,52 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
               const notaOrigineTot = cella?.note ? `${cella.note} · ${notaOrigine}` : notaOrigine
               await salvaCella(orgId, sedeId, gusto, oggiIso, {
                 produzione_g: cella?.produzione_g || 0,
-                rimanenza_g: cella?.rimanenza_g || 0,
+                // `?? null` e non `|| 0`: registrare una spedizione non è
+                // pesare la vetrina. Con `|| 0` bastava spedire due chili
+                // perché la cella dichiarasse «stasera non è rimasto niente»,
+                // e il giorno dopo il venduto uscisse negativo di tutto il
+                // gelato che invece c'era. È il difetto da 2.470 kg, qui
+                // entrato da un'altra porta.
+                rimanenza_g: cella?.rimanenza_g ?? null,
                 scarto_g: cella?.scarto_g || 0,
                 spedito_g: (cella?.spedito_g || 0) + qtaG,
                 note: notaOrigineTot,
               })
               // 2) carico destinazione
               if (destInventario) {
-                const { data: cellDest } = await supabase.from('inventario_produzione')
-                  .select('produzione_g, rimanenza_g, scarto_g, spedito_g, note')
+                // `ricevuto_g` va letta per poterla SOMMARE: in un giorno
+                // possono arrivare due spedizioni dello stesso gusto, e la
+                // seconda non deve cancellare la prima. Se il database non ha
+                // ancora la colonna (migrazione 20260916c) si rilegge senza,
+                // e la somma riparte da zero — meglio di una schermata rotta.
+                const colonneDest = 'produzione_g, rimanenza_g, scarto_g, spedito_g, ricevuto_g, note'
+                const leggiDest = (cols) => supabase.from('inventario_produzione')
+                  .select(cols)
                   .eq('organization_id', orgId).eq('sede_id', destSedeId)
                   .eq('gusto_nome', normGusto(gusto)).eq('data', oggiIso)
                   .maybeSingle()
+                let resDest = await leggiDest(colonneDest)
+                if (eColonnaRicevutoMancante(resDest.error, colonneDest)) {
+                  resDest = await leggiDest(colonneSenzaRicevuto(colonneDest))
+                }
+                const cellDest = resDest.data
                 const notaDest = `Ricevuti ${Number(kg).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 1 })} kg da ${sedeOrigineNome}`
                 const notaDestTot = cellDest?.note ? `${cellDest.note} · ${notaDest}` : notaDest
                 await salvaCella(orgId, destSedeId, gusto, oggiIso, {
                   produzione_g: cellDest?.produzione_g || 0,
-                  rimanenza_g: (cellDest?.rimanenza_g || 0) + qtaG,
+                  // La merce che ARRIVA si scrive in `ricevuto_g`, non dentro
+                  // la rimanenza. Sommarla lì diceva due bugie in una riga:
+                  // che stasera in vetrina ci fossero esattamente quei chili
+                  // (nessuno li ha ancora pesati) e che fossero sempre stati
+                  // lì. Nel conto del venduto le due cose non si equivalgono:
+                  // con la rimanenza gonfiata il negozio che riceve risulta
+                  // vendere meno di zero il giorno dell'arrivo e troppo il
+                  // giorno dopo. Sui dati di Mara questo movimento perso vale
+                  // 1.263 kg, il 49% di tutto lo scostamento.
+                  rimanenza_g: cellDest?.rimanenza_g ?? null,
                   scarto_g: cellDest?.scarto_g || 0,
                   spedito_g: cellDest?.spedito_g || 0,
+                  ricevuto_g: (cellDest?.ricevuto_g || 0) + qtaG,
                   note: notaDestTot,
                 })
               } else {
@@ -2405,24 +2459,47 @@ function DrilldownGustoModal({ gusto, orgId, sedeId, isAllSedi, sediProdIds, uni
     setLoading(true)
     const oggi = new Date()
     const from = formatLocalDate(new Date(oggi.getFullYear(), oggi.getMonth(), oggi.getDate() - 90))
-    let q = supabase.from('inventario_produzione')
-      .select('data, produzione_g, rimanenza_g, scarto_g, sede_id')
-      .eq('organization_id', orgId)
-      .eq('gusto_nome', normGusto(gusto))
-      .gte('data', from)
-      .order('data')
-      .limit(100000)
-    const sediSet = (isAllSedi && Array.isArray(sediProdIds) && sediProdIds.length > 0) ? sediProdIds : (sedeId ? [sedeId] : [])
-    if (sediSet.length > 0) q = q.in('sede_id', sediSet)
-    q.then(({ data }) => {
+    // Le colonne sono quelle del motore (`COLONNE_VENDUTO`), non un elenco
+    // scritto a mano: qui mancavano `spedito_g` e `ricevuto_g`, cioè tutti e
+    // due i movimenti fra negozi. Il pannello diceva quindi «venduto» anche
+    // ai chili spediti a un'altra sede, e dava per non spiegato il gelato
+    // arrivato — lo stesso numero, sullo stesso gusto, diverso da quello
+    // della tabella settimanale che le colonne le aveva.
+    const colonne = `${COLONNE_VENDUTO}, sede_id`
+    const interroga = (cols) => {
+      let q = supabase.from('inventario_produzione')
+        .select(cols)
+        .eq('organization_id', orgId)
+        .eq('gusto_nome', normGusto(gusto))
+        .gte('data', from)
+        .order('data')
+        .limit(100000)
+      const sediSet = (isAllSedi && Array.isArray(sediProdIds) && sediProdIds.length > 0) ? sediProdIds : (sedeId ? [sedeId] : [])
+      if (sediSet.length > 0) q = q.in('sede_id', sediSet)
+      return q
+    }
+    // Finché la migrazione 20260916c non è applicata la colonna `ricevuto_g`
+    // non esiste e il database risponde 42703. Senza questo secondo giro il
+    // pannello resterebbe vuoto — un dato mancante che diventa una schermata
+    // bianca è peggio del dato mancante.
+    interroga(colonne).then(async (res) => {
+      if (eColonnaRicevutoMancante(res.error, colonne)) {
+        return interroga(colonneSenzaRicevuto(colonne))
+      }
+      return res
+    }).then(({ data }) => {
       if (!alive) return
-      // Somma cross-sede e venduto con la regola condivisa (serieVendutoGusto):
-      // prima questo pannello si rifaceva la formula per conto suo e mostrava
-      // un venduto diverso da quello della tabella settimanale sugli stessi
-      // giorni, perché azzerava i negativi e perdeva la rimanenza di partenza
-      // dopo ogni giorno di chiusura.
+      // Venduto con la regola condivisa, e con le sedi trattate come le
+      // tratta il resto del prodotto: `serieVendutoMultiSede` calcola NEGOZIO
+      // PER NEGOZIO e somma dopo. Qui invece le righe delle tre sedi venivano
+      // schiacciate su una chiave sola PRIMA del conto, e con una spedizione
+      // interna di mezzo gli stessi chili venivano tolti due volte — una come
+      // `spedito` dalla sede che manda, una come rimanenza che non torna in
+      // quella che riceve. È la differenza che su Mara vale 1.263 kg.
+      // La normalizzazione del nome resta: due grafie dello stesso gusto
+      // («Caffè Flora» e «CAFFÈ FLORA») sono lo stesso gusto.
       const gKey = normGusto(gusto)
-      const serie = serieVendutoGusto((data || []).map(r => ({ ...r, gusto_nome: gKey })))
+      const serie = serieVendutoMultiSede((data || []).map(r => ({ ...r, gusto_nome: gKey })))
       const arr = (serie[gKey] || []).map(c => ({
         data: c.data, prod: c.prod, riman: c.riman, scarto: c.scarto,
         venduto: c.venduto, quadra: c.quadra,
@@ -2782,7 +2859,13 @@ function VistaOggi({ gusti, matrice, saving, onSave, readOnly, unita = 'g', gior
           // senza quel numero il venduto di oggi non si puo' calcolare.
           const ieri = rimanenzaIeri[gKey]
           const rimanIeri = ieri ? ieri.grammi : null
-          const ieriMancante = !ieri
+          // Due modi di non saperlo: il giorno prima non è stato registrato
+          // affatto, oppure è stato registrato ma la casella RIMAN. è rimasta
+          // vuota. In tutti e due i casi il venduto di oggi non si calcola, e
+          // va detto — prima il secondo caso arrivava qui come `null` e
+          // mandava in errore il `toLocaleString` qui sotto.
+          const ieriMancante = !ieri || ieri.grammi == null
+          const ieriNonScritta = !!ieri && ieri.grammi == null
           const kProd = `${gKey}|${oggiIso}|produzione_g`
           const kRim = `${gKey}|${oggiIso}|rimanenza_g`
           return (
@@ -2837,7 +2920,9 @@ function VistaOggi({ gusti, matrice, saving, onSave, readOnly, unita = 'g', gior
                         l'icona resta da sola su una riga sua. Tre righe
                         invece di due, per ogni gusto. */}
                     <Icon name="warning" size={12} color={T.amberDark || T.amber} />
-                    <span style={{ flex: 1, minWidth: 0 }}>Non risulta nessuna rimanenza negli ultimi giorni: il venduto di oggi non si calcola.</span>
+                    <span style={{ flex: 1, minWidth: 0 }}>{ieriNonScritta
+                      ? `La rimanenza di ${new Date(ieri.dataIso + 'T12:00').toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: '2-digit' })} non è stata scritta: il venduto di oggi non si calcola.`
+                      : 'Non risulta nessuna rimanenza negli ultimi giorni: il venduto di oggi non si calcola.'}</span>
                   </>
                 ) : (
                   <>

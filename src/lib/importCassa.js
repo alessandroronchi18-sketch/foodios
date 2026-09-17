@@ -1,6 +1,8 @@
 // Parser per sistemi cassa italiani
 // Restituisce sempre: [{ data: "YYYY-MM-DD", importo: number, iva: number, metodo: string, fonte: string }]
 
+import { todayLocal } from './dateLocal'
+
 // ── Utilities ────────────────────────────────────────────────────────────────
 
 function parseItalianDate(str) {
@@ -363,8 +365,20 @@ export function autoDetectCassaFormat(csvText) {
     { re: /metodo pagamento.*prodotto/i,             p: parseCassaInCloud,     n: 'Cassa in Cloud',c: 0.85 },
     // Olivetti vs Custom: dt/tot lowercase ASCII brevi
     { re: /^dt[;,\t]/i,                              p: parseCustom,           n: 'Custom Q3X',    c: 0.80 },
-    // Pattern semi-generici (cassa italiana base)
-    { re: /scontrino[;,\t].*reparto/i,               p: parseSalviIndacoPolo,  n: 'Salvi/Indaco/Polotouch', c: 0.65 },
+    // Pattern semi-generici (cassa italiana base).
+    //
+    // Cinque marche, un solo schema CSV
+    // (Data;Scontrino;Reparto;Articolo;Qta;Prezzo;Totale;IVA;Pagamento):
+    // Salvi, Indaco, Polotouch, Eko POS e Wolf. Il nome diceva solo le prime
+    // tre e chi caricava un export Eko o Wolf si vedeva scritto il nome di
+    // un'altra cassa: il file veniva letto giusto, ma il messaggio era falso
+    // e faceva dubitare del totale.
+    //
+    // Non c'è una firma che distingua le cinque marche fra loro: hanno le
+    // stesse intestazioni. Si dice quello che si sa — «una di queste» — e chi
+    // vuole il nome esatto lo sceglie a mano da Integrazioni, dove ogni marca
+    // ha la sua voce e il suo parser (`parseEkoPos`, `parseWolf`).
+    { re: /scontrino[;,\t].*reparto/i,               p: parseSalviIndacoPolo,  n: 'cassa italiana standard (Salvi / Indaco / Polotouch / Eko POS / Wolf)', c: 0.65 },
     // Fallback Zucchetti (più diffusa)
     { re: /data.*importo|date.*amount/i,             p: parseZucchettiCSV,     n: 'Zucchetti',     c: 0.50 },
   ]
@@ -392,7 +406,8 @@ export function parseFatturaXML(xmlText) {
     return '';
   }
 
-  const data        = parseItalianDate(text(doc, 'Data', 'DataDocumento')) || new Date().toISOString().slice(0,10);
+  // Ripiego quando l'XML non porta la data: il giorno locale, non quello UTC.
+  const data        = parseItalianDate(text(doc, 'Data', 'DataDocumento')) || todayLocal();
   const importoLordo= parseNum(text(doc, 'ImportoPagamento', 'ImponibileImporto', 'PrezzoTotale'));
   const ivaText     = text(doc, 'Imposta', 'AliquotaIVA');
   const iva         = parseNum(ivaText);
@@ -428,28 +443,75 @@ export async function readTextSmart(file) {
   }
 }
 
+// ── I sistemi cassa che sappiamo leggere ─────────────────────────────────────
+//
+// Un elenco solo, e lo usano in due: il menu a tendina di «Importa da sistema
+// cassa» in Cassa e il dispatch qui sotto.
+//
+// Prima erano due elenchi scritti a mano in due file, e si erano allontanati:
+// in `importCassa.js` c'erano quindici parser funzionanti (Tilby, RCH,
+// Olivetti, Custom Q3X, Salvi, Indaco, Polotouch, Eko POS, Wolf…), il menu
+// ne offriva sei, e il dispatch ne riconosceva sette. Una gelateria con una
+// cassa Tilby apriva quella finestra, non trovava la propria marca e
+// concludeva che FoodOS non la leggeva — mentre il parser c'era, era scritto,
+// era testato, e lo usava solo il riconoscimento automatico da Integrazioni.
+//
+// `accetta` è quello che finisce nell'attributo `accept` del campo file.
+export const SISTEMI_CASSA = [
+  { id: 'cassaincloud', nome: 'Cassa in Cloud',              accetta: '.csv' },
+  { id: 'zucchetti',    nome: 'Zucchetti Infinity / Kassa',  accetta: '.csv,.xml' },
+  { id: 'tilby',        nome: 'Tilby',                       accetta: '.csv' },
+  { id: 'rch',          nome: 'RCH (Atos, Print&Pay)',       accetta: '.csv' },
+  { id: 'olivetti',     nome: 'Olivetti (Form, Nettuna)',    accetta: '.csv,.txt' },
+  { id: 'custom',       nome: 'Custom Q3X / FP-90',          accetta: '.csv' },
+  { id: 'salvi',        nome: 'Salvi Cassa',                 accetta: '.csv' },
+  { id: 'indaco',       nome: 'Indaco',                      accetta: '.csv' },
+  { id: 'polotouch',    nome: 'Polotouch',                   accetta: '.csv' },
+  { id: 'ekopos',       nome: 'Eko POS',                     accetta: '.csv' },
+  { id: 'wolf',         nome: 'Wolf',                        accetta: '.csv' },
+  { id: 'lightspeed',   nome: 'Lightspeed',                  accetta: '.csv' },
+  { id: 'square',       nome: 'Square',                      accetta: '.csv' },
+  { id: 'sumup',        nome: 'SumUp',                       accetta: '.csv' },
+  { id: 'satispay',     nome: 'Satispay',                    accetta: '.csv' },
+  { id: 'fattura_xml',  nome: 'Fattura elettronica SDI',     accetta: '.xml' },
+]
+
+// id -> parser. `file` serve solo a Zucchetti, che esporta sia CSV sia XML e
+// si distingue dall'estensione.
+const PARSER_PER_SISTEMA = {
+  cassaincloud: (text) => parseCassaInCloud(text),
+  zucchetti:    (text, file) => (String(file?.name || '').toLowerCase().endsWith('.xml')
+    ? parseZucchettiXML(text)
+    : parseZucchettiCSV(text)),
+  tilby:        (text) => parseTilby(text),
+  rch:          (text) => parseRCH(text),
+  olivetti:     (text) => parseOlivetti(text),
+  custom:       (text) => parseCustom(text),
+  salvi:        (text) => parseSalvi(text),
+  indaco:       (text) => parseIndaco(text),
+  polotouch:    (text) => parsePolotouch(text),
+  ekopos:       (text) => parseEkoPos(text),
+  wolf:         (text) => parseWolf(text),
+  lightspeed:   (text) => parseLightspeed(text),
+  square:       (text) => parseSquare(text),
+  sumup:        (text) => parseSumUp(text),
+  satispay:     (text) => parseSatispay(text),
+  fattura_xml:  (text) => parseFatturaXML(text),
+}
+
 // ── Dispatch automatico per tipo sistema ─────────────────────────────────────
 export async function parseFile(sistema, file) {
-  const text = await readTextSmart(file);
-
-  switch (sistema) {
-    case 'zucchetti':
-      return file.name.endsWith('.xml') ? parseZucchettiXML(text) : parseZucchettiCSV(text);
-    case 'cassaincloud':
-      return parseCassaInCloud(text);
-    case 'sumup':
-      return parseSumUp(text);
-    case 'satispay':
-      return parseSatispay(text);
-    case 'lightspeed':
-      return parseLightspeed(text);
-    case 'square':
-      return parseSquare(text);
-    case 'fattura_xml':
-      return parseFatturaXML(text);
-    default:
-      throw new Error(`Sistema non riconosciuto: ${sistema}`);
+  const parser = Object.prototype.hasOwnProperty.call(PARSER_PER_SISTEMA, sistema)
+    ? PARSER_PER_SISTEMA[sistema]
+    : null
+  if (!parser) {
+    // Il messaggio dice anche cosa sappiamo leggere: «non riconosciuto» da
+    // solo lascia l'utente senza la mossa successiva.
+    const nomi = SISTEMI_CASSA.map(s => s.nome).join(', ')
+    throw new Error(`Sistema cassa non riconosciuto: "${sistema}". Quelli che so leggere sono: ${nomi}.`)
   }
+  const text = await readTextSmart(file);
+  return parser(text, file);
 }
 
 // ── Importa in chiusure ───────────────────────────────────────────────────────
@@ -466,7 +528,18 @@ export function mergeInChiusureCassa(chiusure = [], importati = [], fonte = '') 
       const importo = Number(riga.importo) || 0;
       nuove[idx] = {
         ...nuove[idx],
-        cassaImport: [...(nuove[idx].cassaImport || []).filter(c => c.fonte !== fonte), cassaEntry],
+        // Reimportare lo stesso file lasciava due righe uguali, tre al terzo
+        // giro. Il filtro confrontava `c.fonte` — che lo scrive il parser,
+        // «Cassa in Cloud» — con l'argomento `fonte`, che chi chiama passava
+        // come identificativo del menu, «cassaincloud». Non coincidevano mai,
+        // quindi non toglieva niente. Ora si confronta con la fonte della
+        // riga appena letta, che è scritta dallo stesso parser e coincide
+        // per forza; l'argomento resta accettato per chi lo passa già giusto.
+        cassaImport: [
+          ...(nuove[idx].cassaImport || [])
+            .filter(c => c.fonte !== cassaEntry.fonte && (!fonte || c.fonte !== fonte)),
+          cassaEntry,
+        ],
         kpi: {
           ...(nuove[idx].kpi || {}),
           totV: importo,
@@ -491,7 +564,9 @@ export function mergeInChiusureCassa(chiusure = [], importati = [], fonte = '') 
         // calcola su quel denominatore, più alta.
         solo_totale: true,
         foodcost_noto: false,
-        kpi: { totV: riga.importo, totFC: 0, totM: riga.importo, totS: 0, totMP: 0, avgST: 0 },
+        // `avgST: null`, non 0: vedi sopra. Un import di incassi non sa
+        // quanti pezzi sono stati prodotti, quindi non sa il sell-through.
+        kpi: { totV: riga.importo, totFC: 0, totM: riga.importo, totS: 0, totMP: 0, avgST: null },
         cassaImport: [cassaEntry],
       });
     }

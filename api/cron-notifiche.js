@@ -1,6 +1,11 @@
 export const config = { runtime: 'edge' }
 
 import { verifyBearerSecret } from './lib/cryptoCompare.js'
+import { giornoItaliano, aggiungiGiorni, aggiungiMesi, primoGiornoDelMese, ultimoGiornoDelMese } from '../src/lib/dateLocal.js'
+import { scadenzaFattura, residuoFattura } from '../src/lib/fatture.js'
+
+const MESI_IT = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno',
+  'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre']
 
 async function getSupabase() {
   const { createClient } = await import('@supabase/supabase-js')
@@ -68,9 +73,17 @@ export default async function handler(req) {
 
   const supabase = await getSupabase()
   const baseUrl  = new URL(req.url).origin
-  const oggi     = new Date()
-  const oggiIso  = oggi.toISOString().slice(0, 10)
-  const isPrimoDelmese = oggi.getDate() === 1
+  // Il giorno di riferimento è quello di ROMA, non quello di Greenwich.
+  //
+  // Su Vercel il processo gira con TZ=UTC, e `new Date().toISOString()` è il
+  // giorno di Greenwich. Oggi i due coincidono perché il cron è schedulato
+  // alle 07:00 UTC (`vercel.json`), ma è una coincidenza dell'ORARIO, non una
+  // proprietà del codice: basta spostare lo schedule alle 23:00 perché tutto
+  // questo file cominci a parlare del giorno prima — e a mandare il report
+  // mensile il giorno sbagliato — senza che una riga cambi.
+  const adesso   = new Date()
+  const oggiIso  = giornoItaliano(adesso)
+  const isPrimoDelmese = oggiIso.endsWith('-01')
 
   // Audit 2026-07-01 MEDIUM: paginazione per evitare OOM su Vercel Edge su org
   // grandi. Limit 500 + ordering per non risuonare le stesse org ad ogni run
@@ -109,7 +122,7 @@ export default async function handler(req) {
     try {
       if (!org.approvato && org.trial_ends_at) {
         const fine = new Date(org.trial_ends_at)
-        const giorniRimanenti = Math.ceil((fine - oggi) / 86400000)
+        const giorniRimanenti = Math.ceil((fine - adesso) / 86400000)
         const scaglione = giorniRimanenti <= 0 ? null
           : giorniRimanenti <= 1 ? '1gg'
           : giorniRimanenti <= 7 && giorniRimanenti > 1 ? '7gg'
@@ -191,22 +204,56 @@ export default async function handler(req) {
     }
 
     // ── 2. FATTURE IN SCADENZA (entro 7 giorni, escluse pagate) ─────────────
+    //
+    // Questo avviso non è mai partito. Filtrava su `data_fattura`, che è la
+    // data di EMISSIONE, non su quando la fattura si paga:
+    //
+    //     .gte('data_fattura', oggi).lte('data_fattura', oggi + 7)
+    //
+    // cioè «fatture emesse nei prossimi sette giorni»: documenti datati nel
+    // futuro, che non esistono. Misurato sul database di produzione il
+    // 17/09/2026: quella query torna **0 righe**; le fatture che scadono
+    // davvero entro sette giorni sono **11, per 4.219,36 €**. E l'intestazione
+    // della colonna nell'email diceva già «Scadenza» mentre il valore stampato
+    // era la data del documento — il codice contraddiceva il suo stesso invio.
+    //
+    // La scadenza si chiede a `scadenzaFattura()`, la stessa funzione dello
+    // Scadenzario e della previsione di cassa, perché in produzione
+    // `data_scadenza` è **vuota su tutte e 478** le fatture da pagare: gli XML
+    // di questi fornitori non portano il blocco DatiPagamento. Quando la data
+    // è derivata dai trenta giorni convenzionali lo diciamo (`stimate`),
+    // invece di far passare un'ipotesi per un fatto.
     try {
-      const scadenzaMax = new Date(oggi)
-      scadenzaMax.setDate(scadenzaMax.getDate() + 7)
-      const { data: fatture } = await supabase
+      const entro7 = aggiungiGiorni(oggiIso, 7)
+      const { data: aperte } = await supabase
         .from('fatture')
-        .select('numero_rif, data_fattura, fornitore, totale')
+        .select('numero_rif, data_fattura, data_scadenza, fornitore, totale, importo_pagato, tipo, stato')
         .eq('organization_id', orgId)
         .neq('stato', 'pagata')
-        .lte('data_fattura', scadenzaMax.toISOString().slice(0, 10))
-        .gte('data_fattura', oggiIso)
-      if (fatture?.length > 0) {
+        .limit(5000)
+      const fatture = []
+      let stimate = 0
+      for (const f of aperte || []) {
+        const { iso, stimata } = scadenzaFattura(f)
+        if (!iso || iso < oggiIso || iso > entro7) continue
+        if (residuoFattura(f) <= 0) continue
+        if (stimata) stimate++
+        fatture.push({
+          numero_rif: f.numero_rif,
+          fornitore: f.fornitore,
+          data_fattura: f.data_fattura,
+          scadenza: iso,
+          scadenza_stimata: stimata,
+          totale: residuoFattura(f),
+        })
+      }
+      if (fatture.length > 0) {
+        fatture.sort((a, b) => (a.scadenza < b.scadenza ? -1 : a.scadenza > b.scadenza ? 1 : 0))
         await sendEmail(baseUrl, {
           tipo: 'fattura_in_scadenza',
-          email, nomeAttivita, fatture,
+          email, nomeAttivita, fatture, stimate,
         })
-        results.push({ org: orgId, tipo: 'fattura_in_scadenza', fatture: fatture.length })
+        results.push({ org: orgId, tipo: 'fattura_in_scadenza', fatture: fatture.length, stimate })
       }
     } catch (e) {
       console.error('fatture check error', orgId, e.message)
@@ -215,10 +262,17 @@ export default async function handler(req) {
     // ── 3. REPORT MENSILE (solo il 1° del mese) ────────────────────────────
     if (isPrimoDelmese) {
       try {
-        const mesePrecedente = new Date(oggi.getFullYear(), oggi.getMonth() - 1, 1)
-        const meseLabel = mesePrecedente.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })
-        const inizioMese = mesePrecedente.toISOString().slice(0, 7) + '-01'
-        const fineMese   = new Date(oggi.getFullYear(), oggi.getMonth(), 0).toISOString().slice(0, 10)
+        // Il mese si conta in mesi. Prima era `new Date(anno, mese - 1, 1)`
+        // — mezzanotte LOCALE — riletta con `toISOString()`, cioè a
+        // Greenwich: andata e ritorno fra due riferimenti diversi. Su Vercel
+        // (UTC) tornava; ovunque l'offset sia positivo no, e il report di
+        // settembre si apriva il 1° agosto e si chiudeva il 29 settembre:
+        // due mesi di ricavi sommati insieme e l'ultimo giorno perso.
+        const meseScorso = aggiungiMesi(oggiIso, -1)
+        const inizioMese = primoGiornoDelMese(meseScorso)
+        const fineMese   = ultimoGiornoDelMese(meseScorso)
+        const [annoLbl, meseLbl] = meseScorso.split('-')
+        const meseLabel = `${MESI_IT[Number(meseLbl) - 1]} ${annoLbl}`
 
         let ricaviTotali = 0
         let foodCostMedio = 0

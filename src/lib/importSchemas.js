@@ -172,9 +172,21 @@ export const IMPORT_SCHEMAS = {
         label: 'Quanto è rimasto a fine giornata',
         type: 'number',
         required: false,
-        default: 0,
+        // `default: null`, non 0. Una casella vuota vuol dire «non l'abbiamo
+        // pesato», non «la vetrina era vuota», e le due cose portano a
+        // conti opposti: con lo zero il venduto del giorno dopo esce
+        // negativo di tutto il gelato che c'era.
+        //
+        // Misurato sui dati di Mara il 16/09/2026: 660 righe importate con
+        // rimanenza 0, e in 658 (99,7%) c'era produzione quello stesso
+        // giorno per 5,87 kg medi. Il giorno dopo il conto non tornava in
+        // 550 casi su 655 (84%), per 2.469,6 kg: il 95,4% di tutto lo
+        // scostamento della partita doppia dell'inventario.
+        //
+        // Richiede la migrazione 20260916c (rimanenza_g nullable).
+        default: null,
         minValue: 0,
-        hint: 'Grammi rimasti a fine giornata',
+        hint: 'Grammi rimasti a fine giornata. Lascia vuoto se non è stato pesato: scrivere 0 vuol dire "vetrina vuota", ed è un\'altra cosa.',
         aliases: ['rimanenza', 'residuo', 'avanzo', 'kg rimasti'],
       },
       {

@@ -40,6 +40,38 @@ export async function verificaToken(req, options = {}) {
       return { user: null, profile: null, error: 'Account non configurato' }
     }
 
+    // Il profilo dev'essere anche APPROVATO, non solo agganciato a un'azienda.
+    //
+    // Audit del 16/09/2026: qui si guardava solo `organization_id`, e il
+    // database la pensava diversamente. `get_user_org_id()` — la funzione su
+    // cui poggiano tutte le regole di isolamento — chiede
+    // `coalesce(approvato, true) = true`: per lei un profilo non approvato non
+    // appartiene a nessuna azienda.
+    //
+    // Chi finisce in quello stato: chi riceve un invito e si registra.
+    // `handle_new_user` gli scrive `ruolo = 'dipendente'`, `approvato = false`
+    // e l'id dell'azienda che lo ha invitato. Da quel momento il database gli
+    // rifiutava ogni dato e queste venti funzioni serverless lo accettavano:
+    // poteva registrare una produzione, consumare il budget AI dell'azienda,
+    // avviare un pagamento. Un invito mandato per sbaglio, o ritirato, restava
+    // buono per sempre — nessuno «disapprova» chi non è mai stato approvato.
+    //
+    // Il 16/09/2026 c'era un invito in sospeso e nessun profilo non approvato,
+    // quindi non è mai successo. Ma le due porte devono dire la stessa cosa.
+    //
+    // `coalesce` con `true` come nel database: `approvato` nullo vuol dire
+    // «vecchia riga, prima che la colonna esistesse», non «rifiutato». Oggi
+    // righe così non ce ne sono (controllato: 0 su 579), ma chiuderle fuori
+    // sarebbe il difetto opposto, e più costoso.
+    if (profile.approvato === false) {
+      return {
+        user: null,
+        profile: null,
+        error: 'Account in attesa di approvazione: chiedi al titolare di abilitarti.',
+        status: 403,
+      }
+    }
+
     // ── Gate trial/attivo (default ON, disabilitabile con skipOrgCheck) ────────
     // L'UI può mostrare "trial scaduto", ma senza questo check le API restano
     // chiamabili con curl. Qui blocchiamo lato server.

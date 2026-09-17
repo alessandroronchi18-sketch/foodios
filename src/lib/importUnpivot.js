@@ -203,7 +203,18 @@ export function applyUnpivot(sheetsRaw, config) {
         // modo (virgola decimale e punto delle migliaia compresi).
         const n = coerceNumber(raw_v)
         if (n == null || !Number.isFinite(n) || n < 0) continue
-        if (n === 0) continue
+        // Audit magazzino 17/09/2026: qui c'era `if (n === 0) continue`, cioè
+        // uno zero SCRITTO nel foglio veniva buttato come se la cella fosse
+        // vuota. Le due cose sono opposte: «stasera non è rimasto niente» è un
+        // dato, «non l'ho contato» no. Il campo saltato prende il default
+        // dello schema, e per `rimanenza_g` il default adesso è `null` («non
+        // rilevato»): lo zero scritto a mano diventava così «non lo so», e il
+        // venduto di quel giorno e del giorno dopo smetteva di calcolarsi.
+        // Sui dati di Mara dei Boschi questo si vede al contrario: 660 righe
+        // con rimanenza 0 di cui 658 con produzione lo stesso giorno, e 550
+        // caselle di venduto negativo per 2.469,6 kg il giorno dopo.
+        // Le celle davvero vuote restano fuori: le salta il controllo qui
+        // sopra (`raw_v == null || raw_v === ''`).
 
         const mapKey = `${date_iso}|${rowKey}`
         if (!outMap.has(mapKey)) {

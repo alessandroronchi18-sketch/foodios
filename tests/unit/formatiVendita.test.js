@@ -67,13 +67,21 @@ describe('avgFCperGCategoria — match categoria case-insensitive', () => {
 describe('avgPrezzoPerKgCategoria — ricavo flat gusti gelateria', () => {
   const F = (id, nome, categoria, baseQtaG, prezzoDefault) => ({ id, nome, categoria, baseQtaG, prezzoDefault })
 
-  it('media semplice sui formati della categoria esatta', () => {
-    // Cono €2.50/80g = 31.25 €/kg · Vaschetta €10/500g = 20 €/kg → media 25.625
+  it('media PESATA SUI GRAMMI sui formati della categoria esatta', () => {
+    // Cono €2,50/80 g = 31,25 €/kg · Vaschetta €10/500 g = 20 €/kg.
+    // Fino al 16/09/2026 questa era la media semplice dei due: 25,625 €/kg,
+    // che fa pesare 80 grammi quanto mezzo chilo. Il prezzo medio vero di un
+    // chilo, vendendo un cono e una vaschetta, è 12,50 € / 580 g × 1000 =
+    // 21,55 €/kg. Sui formati veri di Mara lo scarto era +6,34% su OGNI
+    // ricavo di gusto del P&L: vedi `prezzoMedioAlKg.js`.
     const formati = [
       F('c', 'Cono', 'Gusto', 80, 2.5),
       F('v', 'Vaschetta', 'Gusto', 500, 10),
     ]
-    expect(avgPrezzoPerKgCategoria('gusto', formati)).toBeCloseTo(25.625, 3)
+    expect(avgPrezzoPerKgCategoria('gusto', formati)).toBeCloseTo(21.5517, 3)
+    // E la media semplice, quella di prima, è più alta: è il difetto.
+    const mediaSemplice = (31.25 + 20) / 2
+    expect(avgPrezzoPerKgCategoria('gusto', formati)).toBeLessThan(mediaSemplice)
   })
   it('match case-insensitive sulla categoria', () => {
     const formati = [F('c', 'Cono', 'CREMA', 100, 3)]

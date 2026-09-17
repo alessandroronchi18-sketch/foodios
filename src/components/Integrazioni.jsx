@@ -23,9 +23,15 @@ const C = {
 }
 const tnum = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" };
 
+// Audit del 17/09/2026, agente PAGINE. Il controllo c'era solo su `ts` vuoto:
+// su un timestamp illeggibile `toLocaleDateString` non lancia niente, scrive
+// «Invalid Date Invalid Date» e va a finire nella colonna Data/Ora del
+// registro importazioni, cioè nell'unico posto dove si guarda quando un
+// import è andato storto.
 const fmtTs = ts => {
   if (!ts) return '-'
   const d = new Date(ts)
+  if (Number.isNaN(d.getTime())) return '-'
   return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' }) +
     ' ' + d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
 }
@@ -790,7 +796,12 @@ export default function Integrazioni({ orgId, sedeId }) {
         sede_id: sedeId || null,
         integrazione,
         stato,
-        records_importati: records || 0,
+        // Audit del 17/09/2026, agente PAGINE. Era `records || 0`: chi chiama
+        // senza sapere quante righe sono entrate scriveva **zero** nel
+        // registro, e da lì in poi lo zero era un fatto scritto a database,
+        // non più un dato mancante. I due rami d'errore qui sopra lo zero lo
+        // passano apposta ed è giusto così: lì non è entrato niente davvero.
+        records_importati: records == null ? null : Number(records),
         errore: errore || null,
       })
     } catch { /* non-critical */ }
@@ -1198,7 +1209,17 @@ export default function Integrazioni({ orgId, sedeId }) {
                         </label>
                         {lastLog?.stato === 'ok' && (
                           <span style={{ fontSize: 12, color: C.green }}>
-                            <Icon name="check" size={11} /> Ultimo: {Number(lastLog.records_importati || 0).toLocaleString('it-IT', { useGrouping: 'always' })} record - {fmtTs(lastLog.created_at)}
+                            {/* Audit del 17/09/2026, agente PAGINE. Era
+                                `records_importati || 0`: un import riuscito di
+                                cui non si sa quante righe ha portato usciva
+                                come «Ultimo: 0 record» — con la spunta verde
+                                accanto, cioè «è andata bene e non è entrato
+                                niente», che è la lettura opposta alla verità.
+                                Il registro qui sotto, sulla stessa colonna,
+                                scriveva già «-». Adesso lo dicono uguale. */}
+                            <Icon name="check" size={11} /> Ultimo: {lastLog.records_importati == null
+                              ? 'non so quante righe'
+                              : `${Number(lastLog.records_importati).toLocaleString('it-IT', { useGrouping: 'always' })} record`} - {fmtTs(lastLog.created_at)}
                           </span>
                         )}
                         {lastLog?.stato === 'errore' && (

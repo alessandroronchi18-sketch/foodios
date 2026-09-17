@@ -29,6 +29,7 @@ export const config = { runtime: 'nodejs' }
 import { verificaAdmin } from './lib/auth.js'
 import { verifyRawSecret } from './lib/cryptoCompare.js'
 import { safeError } from './lib/safeError.js'
+import { giornoItaliano, giornoItalianoDi, aggiungiGiorni } from '../src/lib/dateLocal.js'
 import {
   loadSdiProvider,
   isSdiProviderConfigured,
@@ -199,8 +200,14 @@ export default async function handler(req, res) {
   // 23:59 e ritrigger il 01/01 00:00 cambia il mese → key diversa → doppia
   // fattura SDI. Usiamo la data della fattura (se body.data_fattura presente)
   // o l'YYYY-MM-DD del momento, non YYYY-MM.
-  const dataFatturaFallback = (body.data_fattura || '').toString().slice(0, 10)
-    || new Date().toISOString().slice(0, 10)
+  // Audit 2026-09-16 (agente DATE): il ripiego era ancora
+  // `new Date().toISOString().slice(0, 10)`, cioè il giorno di GREENWICH, e su
+  // Vercel il processo gira in UTC. Due retry del webhook a cavallo della
+  // mezzanotte di Greenwich — le 01:00 o le 02:00 italiane — producevano due
+  // chiavi diverse, quindi DUE fatture per lo stesso abbonamento. E dopo la
+  // correzione della riga 327 la chiave contraddiceva anche la data scritta
+  // sulla fattura, che è il giorno italiano. Ora sono lo stesso giorno.
+  const dataFatturaFallback = giornoItalianoDi(body.data_fattura) || giornoItaliano()
   const idempotencyKey = (body.idempotency_key || '').toString().trim() ||
     (stripeInvoiceId
       ? `stripe:${stripeInvoiceId}`
@@ -324,8 +331,14 @@ export default async function handler(req, res) {
   try {
     invoice = await emettiFatturaElettronica({
       clienteId: cliente.id,
-      data: new Date().toISOString().slice(0, 10),
-      scadenza: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
+      // La data della fattura è un fatto FISCALE, e va scritta nel giorno
+      // italiano. Su Vercel il processo gira con TZ=UTC: `new Date()` qui è
+      // già Greenwich, quindi una fattura emessa alle 00:30 del 1° gennaio
+      // italiano finiva datata 31 dicembre — anno precedente, esercizio
+      // precedente, numerazione sbagliata. La scadenza si conta in giorni di
+      // calendario, non in 30 × 86.400.000 millisecondi.
+      data: giornoItaliano(),
+      scadenza: aggiungiGiorni(giornoItaliano(), 30),
       oggetto: pianoLabel || `Abbonamento FoodOS — ${ragione}`,
       importoNetto,
       aliquotaIva: aliquotaIvaPct,
