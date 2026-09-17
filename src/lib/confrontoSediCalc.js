@@ -11,6 +11,7 @@
 //      pesava come una da 5.000 €.
 
 import { residuoFattura, scadenzaFattura } from './fatture'
+import { quoteDiRipartizione } from './costiCondivisi'
 
 // Food cost del periodo, pesato: euro di food cost su euro di ricavo.
 // `pct` è null quando non c'è ricavo: senza un ricavo sotto, una percentuale
@@ -82,22 +83,52 @@ export function vocePerGruppo(kpiSedi) {
 // (`totale - importo_pagato`). Ora passa da `residuoFattura`, che sa che una
 // nota di credito vale col segno meno e che una fattura segnata pagata a mano
 // è pagata.
-export function fattureDaPagarePerSede(fatture, oggiIso) {
+// 17/09/2026 — `produzionePerSede` è il terzo argomento, e serve alle spese
+// che appartengono a DUE negozi insieme.
+//
+// Mara ha due account su Webdesk: uno con le fatture della Carlina, l'altro
+// con quelle di Berthollet e De Gasperi mescolate, e dentro i documenti non
+// c'è niente che le distingua (verificato: 0 note, 0 allegati, 0 date di
+// riferimento su 142). Prima quelle finivano tutte sotto la chiave
+// `undefined` — cioè in un limbo che nessuna schermata mostrava: 189.458 €
+// invisibili.
+//
+// Ora si dividono sui chili prodotti, e il ripartito resta in una voce sua:
+// «hai 12.000 € da pagare» e «hai 8.000 € da pagare più 4.000 € di spese
+// comuni divise a stima» non sono la stessa frase.
+export function fattureDaPagarePerSede(fatture, oggiIso, produzionePerSede = null) {
   const out = {}
+  const tocca = (k) => {
+    if (!out[k]) out[k] = { aperte: 0, importo: 0, scadute: 0, stimate: 0, ripartito: 0, nRipartite: 0, ripartizioneStimata: false }
+    return out[k]
+  }
   for (const f of (Array.isArray(fatture) ? fatture : [])) {
     if (!f || f.stato === 'pagata') continue
-    const chiave = f.sede_id
-    if (!out[chiave]) out[chiave] = { aperte: 0, importo: 0, scadute: 0, stimate: 0 }
-    const v = out[chiave]
-    v.aperte += 1
-    v.importo += residuoFattura(f)
+    const residuo = residuoFattura(f)
     const { iso, stimata } = scadenzaFattura(f)
     // Il giorno della scadenza non è ancora un ritardo: si è in ritardo dal
     // giorno dopo.
-    if (iso && oggiIso && iso < oggiIso) {
-      v.scadute += 1
-      if (stimata) v.stimate += 1
+    const inRitardo = !!(iso && oggiIso && iso < oggiIso)
+
+    const condivise = Array.isArray(f.sedi_condivise) ? f.sedi_condivise.filter(Boolean) : []
+    if (condivise.length > 1) {
+      const { quote, certa } = quoteDiRipartizione(condivise, produzionePerSede || {})
+      for (const id of condivise) {
+        const v = tocca(id)
+        v.ripartito += residuo * (quote[id] || 0)
+        v.nRipartite += 1
+        if (!certa) v.ripartizioneStimata = true
+        // Una scadenza vale per tutti i negozi che si dividono la spesa: il
+        // fornitore la reclama a Mara, non a un negozio.
+        if (inRitardo) { v.scadute += 1; if (stimata) v.stimate += 1 }
+      }
+      continue
     }
+
+    const v = tocca(condivise[0] || f.sede_id)
+    v.aperte += 1
+    v.importo += residuo
+    if (inRitardo) { v.scadute += 1; if (stimata) v.stimate += 1 }
   }
   return out
 }
