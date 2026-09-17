@@ -11,7 +11,7 @@ import Icon from './Icon'
 import { TabellaOSchede } from '../views/_shared'
 import { color as T, radius as R, shadow as S, motion as M, typo, font } from '../lib/theme'
 // todayLocal: la data di OGGI nel fuso dell'utente. new Date().toISOString()
-// darebbe la data UTC, che in Italia fra mezzanotte e le 2 e' ancora ieri: la
+// darebbe la data UTC, che in Italia fra mezzanotte e le 2 è ancora ieri: la
 // data di pagamento proposta risultava del giorno prima.
 import { todayLocal } from '../lib/dateLocal'
 import { pickFattura, dedupFatture, insertFattureResilient, chiaviFattureEsistenti } from '../lib/fattureImport'
@@ -77,6 +77,26 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
   // Lo scope sede è comandato dal SELETTORE GLOBALE in topbar (un solo controllo):
   // sede specifica → solo quella + condivise; "Tutte le sedi" (sedeId assente) → tutte.
   const scopeSede = sedeId ? 'attiva' : 'tutte'
+
+  // ── «Sei sicuro che queste fatture sono di…» ──────────────────────────
+  //
+  // Richiesta del titolare, 17/09/2026, e nasce da un danno vero: le 3.104
+  // fatture di Mara sono finite TUTTE su Carlina, non perché qualcuno
+  // l'avesse deciso ma perché era la sede attiva nel momento dell'import.
+  // Le 142 del secondo account Webdesk — quelle di Berthollet e De Gasperi —
+  // sono rimaste senza sede e sono sparite da ogni pagina: 189.458 €
+  // invisibili.
+  //
+  // Il selettore in alto serve a guardare, e nessuno pensa che decida anche
+  // dove finiscono i documenti che sta caricando. Quindi prima di scrivere si
+  // chiede, dicendo a chiare lettere dove andranno.
+  //
+  // E non è solo un sì/no: si può cambiare, e si possono scegliere DUE sedi.
+  // È il caso di Mara — un account fornitore che copre due negozi — e allora
+  // la spesa si dichiara condivisa e si divide sui chili prodotti
+  // (`src/lib/costiCondivisi.js`), invece di essere attribuita a caso.
+  const [confermaSede, setConfermaSede] = useState(null)   // { files, avvia }
+  const [sediScelte, setSediScelte] = useState(() => (sedeId ? [sedeId] : []))
   const [toast, setToast]                 = useState(null)
   const [pagandoId, setPagandoId]         = useState(null)
   // "Registra anche l'uscita in Cassa": accesa per default, e ricordata fra
@@ -482,8 +502,16 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
     try { await loadFornitori() } catch { /* niente */ }
   }
 
-  async function handleImportExcel(files) {
+  // Apre la conferma invece di importare subito. Il file resta in mano
+  // nostra: si scrive solo dopo che qualcuno ha detto dove.
+  function chiediSede(files, avvia) {
+    setSediScelte(sedeId ? [sedeId] : [])
+    setConfermaSede({ files, avvia })
+  }
+
+  async function handleImportExcel(files, sediDestinazione = null) {
     if (!orgId) return
+    const dest = Array.isArray(sediDestinazione) ? sediDestinazione.filter(Boolean) : (sedeId ? [sedeId] : [])
     setImportLoading(true)
     let imported = 0, scartati = 0
     const inseriti = []
@@ -498,7 +526,14 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         if (!records.length) { notify('Nessuna fattura trovata nel file', false); continue }
         const { nuovi, scartati: sc } = dedupFatture(records, seen)
         scartati += sc
-        const toInsert = nuovi.map(r => pickFattura(r, orgId, sedeId))
+        // Una sede sola: la fattura è sua. Due o più: è una spesa
+        // condivisa, e `sede_id` resta vuoto apposta — l'attribuzione la fa
+        // la ripartizione sui chili prodotti, non un'assegnazione a caso.
+        const unaSola = dest.length === 1 ? dest[0] : null
+        const toInsert = nuovi.map(r => ({
+          ...pickFattura(r, orgId, unaSola),
+          ...(dest.length > 1 ? { sedi_condivise: dest } : null),
+        }))
         await insertFattureResilient(supabase, toInsert)
         // I record ORIGINALI (non quelli ripuliti): pickFattura tiene solo le
         // colonne della tabella, e l'IBAN del documento ci serve qui.
@@ -519,8 +554,9 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
     setImportLoading(false)
   }
 
-  async function handleImportXML(files) {
+  async function handleImportXML(files, sediDestinazione = null) {
     if (!orgId) return
+    const dest = Array.isArray(sediDestinazione) ? sediDestinazione.filter(Boolean) : (sedeId ? [sedeId] : [])
     setImportLoading(true)
     let imported = 0, scartati = 0
     const inseriti = []
@@ -536,7 +572,14 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         if (!records.length) { notify('Nessuna fattura trovata nel file XML', false); continue }
         const { nuovi, scartati: sc } = dedupFatture(records, seen)
         scartati += sc
-        const toInsert = nuovi.map(r => pickFattura(r, orgId, sedeId))
+        // Una sede sola: la fattura è sua. Due o più: è una spesa
+        // condivisa, e `sede_id` resta vuoto apposta — l'attribuzione la fa
+        // la ripartizione sui chili prodotti, non un'assegnazione a caso.
+        const unaSola = dest.length === 1 ? dest[0] : null
+        const toInsert = nuovi.map(r => ({
+          ...pickFattura(r, orgId, unaSola),
+          ...(dest.length > 1 ? { sedi_condivise: dest } : null),
+        }))
         await insertFattureResilient(supabase, toInsert)
         // I record ORIGINALI (non quelli ripuliti): pickFattura tiene solo le
         // colonne della tabella, e l'IBAN del documento ci serve qui.
@@ -556,8 +599,9 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
     setImportLoading(false)
   }
 
-  async function handleImportSMART(files) {
+  async function handleImportSMART(files, sediDestinazione = null) {
     if (!orgId) return
+    const dest = Array.isArray(sediDestinazione) ? sediDestinazione.filter(Boolean) : (sedeId ? [sedeId] : [])
     setImportLoading(true)
     let imported = 0, scartati = 0
     const inseriti = []
@@ -572,7 +616,14 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         if (!records.length) { notify('Nessuna fattura trovata nel file FatturaSMART', false); continue }
         const { nuovi, scartati: sc } = dedupFatture(records, seen)
         scartati += sc
-        const toInsert = nuovi.map(r => pickFattura(r, orgId, sedeId))
+        // Una sede sola: la fattura è sua. Due o più: è una spesa
+        // condivisa, e `sede_id` resta vuoto apposta — l'attribuzione la fa
+        // la ripartizione sui chili prodotti, non un'assegnazione a caso.
+        const unaSola = dest.length === 1 ? dest[0] : null
+        const toInsert = nuovi.map(r => ({
+          ...pickFattura(r, orgId, unaSola),
+          ...(dest.length > 1 ? { sedi_condivise: dest } : null),
+        }))
         await insertFattureResilient(supabase, toInsert)
         // I record ORIGINALI (non quelli ripuliti): pickFattura tiene solo le
         // colonne della tabella, e l'IBAN del documento ci serve qui.
@@ -804,9 +855,9 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
   // Audit 2026-09-09: l'unico modo di segnare pagata una fattura era una alla
   // volta, e Mara ne ha 211 scadute: 211 clic, ognuno con il popup da aprire e
   // confermare. Chi paga il bonifico cumulativo a un fornitore ha appena
-  // saldato dieci fatture insieme, e registrarle una per una e' lavoro che
+  // saldato dieci fatture insieme, e registrarle una per una è lavoro che
   // nessuno fa — quindi lo scadenziario resta indietro e smette di servire.
-  // La data e' una sola: il giorno in cui il bonifico e' partito.
+  // La data è una sola: il giorno in cui il bonifico è partito.
   async function segnaPagateInBlocco(items, dataIso) {
     const daFare = (items || []).filter(f => f.stato !== 'pagata')
     if (!daFare.length) return
@@ -852,7 +903,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         if (righe.length && await registraUscitaCassa(righe)) inCassa = righe.length
       }
       // Se qualcuna non passa va detto: il numero a schermo dopo l'operazione
-      // deve corrispondere a quello che e' successo davvero.
+      // deve corrispondere a quello che è successo davvero.
       const codaCassa = inCassa > 0 ? ` · ${inCassa} ${inCassa === 1 ? 'uscita registrata' : 'uscite registrate'} in Cassa` : ''
       if (fatte.length === daFare.length) {
         notify(`${fatte.length} ${fatte.length === 1 ? 'fattura segnata' : 'fatture segnate'} come pagate${codaCassa}`)
@@ -1023,7 +1074,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
 
   // Fornitori a cui devi dei soldi e di cui NON hai l'IBAN.
   //
-  // PERCHE' E' IL PRIMO PROBLEMA DI QUESTA PAGINA: il bonifico SEPA è la
+  // PERCHE' È IL PRIMO PROBLEMA DI QUESTA PAGINA: il bonifico SEPA è la
   // funzione che dovrebbe far risparmiare più tempo di tutte, e sui dati veri
   // non può partire per nessuna fattura — 0 documenti su 3.520 portano un
   // IBAN, e in anagrafica ce l'ha 1 fornitore su 615. Le caselle di spunta
@@ -1546,7 +1597,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
     // rimontare le righe a ogni render del padre, e in quel modo uno stato
     // locale qui sarebbe uno stato del padre dichiarato in numero variabile
     // dentro un .map(): le regole degli hook di React lo vietano e lo stato si
-    // corromperebbe. Ora vive nel padre, che non si rimonta — ed e' anche la
+    // corromperebbe. Ora vive nel padre, che non si rimonta — ed è anche la
     // cura vera del difetto, perché "Mostra tutte le 211" non si azzera più
     // quando il gruppo viene ridisegnato.
     const shownAll = !!gruppiEspansi[keyU]
@@ -2171,7 +2222,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
           <label style={{ ...primaryBtn, cursor: 'pointer', flex: isMobile ? 1 : '0 0 auto', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
             {importLoading ? <><Icon name="hourglass" size={14} /> Importazione…</> : <><Icon name="folder" size={14} /> Importa .xlsx</>}
             <input type="file" accept=".xlsx,.xls" multiple style={{ display: 'none' }}
-              onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length) handleImportExcel(files) }} />
+              onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length) chiediSede(files, handleImportExcel) }} />
           </label>
           <div ref={actionsRef} style={{ position: 'relative', flex: '0 0 auto' }}>
             <button onClick={() => setActionsOpen(o => !o)}
@@ -2202,7 +2253,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                   onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
                   <Icon name="fileText" size={14} color={T.textSoft} /> XML SDI
                   <input type="file" accept=".xml,.p7m" multiple style={{ display: 'none' }}
-                    onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length) { setActionsOpen(false); handleImportXML(files) } }} />
+                    onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length) { setActionsOpen(false); chiediSede(files, handleImportXML) } }} />
                 </label>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8, fontSize: font.size.base, color: T.text, cursor: 'pointer', fontWeight: 500 }}
                   onMouseEnter={e => { e.currentTarget.style.background = T.bgSubtle }}
@@ -2217,7 +2268,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                   onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
                   <Icon name="barChart" size={14} color={T.textSoft} /> FatturaSMART
                   <input type="file" accept=".xlsx,.xls" style={{ display: 'none' }}
-                    onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length) { setActionsOpen(false); handleImportSMART(files) } }} />
+                    onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length) { setActionsOpen(false); chiediSede(files, handleImportSMART) } }} />
                 </label>
                 {fatture.length > 0 && (
                   <>
@@ -2936,11 +2987,11 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
             <label style={{ ...primaryBtn, cursor: 'pointer' }}>
               <Icon name="folder" size={14} /> Importa .xlsx
-              <input type="file" accept=".xlsx,.xls" style={{ display: 'none' }} onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length) handleImportExcel(files) }} />
+              <input type="file" accept=".xlsx,.xls" style={{ display: 'none' }} onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length) chiediSede(files, handleImportExcel) }} />
             </label>
             <label style={{ ...ghostBtn, cursor: 'pointer' }}>
               <Icon name="fileText" size={14} /> XML SDI
-              <input type="file" accept=".xml,.p7m" multiple style={{ display: 'none' }} onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length) handleImportXML(files) }} />
+              <input type="file" accept=".xml,.p7m" multiple style={{ display: 'none' }} onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length) chiediSede(files, handleImportXML) }} />
             </label>
           </div>
         </div>
@@ -3124,6 +3175,85 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
               <button onClick={() => { const items = sepaConfirm.items; setSepaConfirm(null); generaBonificoSEPA(items) }}
                 style={{ ...primaryBtn, padding: '10px 22px', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                 <Icon name="download" size={14} /> Scarica il file XML
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── «Sei sicuro che queste fatture sono di…» ────────────────────
+          Le 3.104 fatture di Mara sono finite tutte su Carlina perché era la
+          sede attiva quando qualcuno ha premuto Importa. Il selettore in alto
+          serve a guardare, e nessuno immagina che decida anche dove finiscono
+          i documenti. Quindi lo si dice prima, e si può cambiare. */}
+      {confermaSede && (
+        <div onClick={e => { if (e.target === e.currentTarget) setConfermaSede(null) }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.55)', zIndex: 9999,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ background: T.white, borderRadius: 16, padding: 24, maxWidth: 460, width: '100%',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+            <div style={{ fontSize: font.size.xl, fontWeight: 800, color: T.text, marginBottom: 6 }}>
+              Di quale negozio sono queste fatture?
+            </div>
+            <div style={{ fontSize: font.size.base, color: T.textSoft, lineHeight: 1.6, marginBottom: 18 }}>
+              {confermaSede.files.length === 1
+                ? 'Stai per caricare un file.'
+                : `Stai per caricare ${confermaSede.files.length} file.`}
+              {' '}Una volta dentro, le fatture restano dove le metti adesso.
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+              {(sedi || []).map(sd => {
+                const scelta = sediScelte.includes(sd.id)
+                return (
+                  <button key={sd.id} type="button"
+                    onClick={() => setSediScelte(p => p.includes(sd.id) ? p.filter(x => x !== sd.id) : [...p, sd.id])}
+                    style={{ minHeight: 44, padding: '10px 14px', borderRadius: 10, cursor: 'pointer',
+                      textAlign: 'left', fontSize: font.size.md, fontWeight: scelta ? 700 : 500,
+                      border: `2px solid ${scelta ? T.red : T.border}`,
+                      background: scelta ? T.redLight : T.white, color: T.text,
+                      display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ width: 18, height: 18, borderRadius: 4, flexShrink: 0,
+                      border: `2px solid ${scelta ? T.red : T.borderStr}`, background: scelta ? T.red : 'transparent',
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {scelta && <Icon name="check" size={12} color={T.white} />}
+                    </span>
+                    {sd.nome}
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Due negozi insieme: è il caso di un account fornitore che ne
+                copre due. Si dichiara invece di attribuire a caso. */}
+            {sediScelte.length > 1 && (
+              <div style={{ fontSize: font.size.sm, color: T.textMid, background: T.bgSubtle,
+                border: `1px solid ${T.border}`, borderRadius: 8, padding: 10, marginBottom: 14, lineHeight: 1.55 }}>
+                <b style={{ color: T.text }}>Spesa di {sediScelte.length} negozi insieme.</b> Non verrà
+                attribuita a uno solo: si dividerà fra loro in proporzione ai chili prodotti, e nelle
+                pagine resterà scritto che è una ripartizione.
+              </div>
+            )}
+            {sediScelte.length === 0 && (
+              <div style={{ fontSize: font.size.sm, color: T.amber, marginBottom: 14, lineHeight: 1.55 }}>
+                Se non scegli nessun negozio le fatture restano dell&apos;azienda, e non compariranno
+                nelle pagine che ragionano per sede.
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button type="button" onClick={() => setConfermaSede(null)}
+                style={{ minHeight: 44, padding: '0 18px', borderRadius: 10, border: `1px solid ${T.borderStr}`,
+                  background: T.white, color: T.text, fontWeight: 700, fontSize: font.size.base, cursor: 'pointer' }}>
+                Annulla
+              </button>
+              <button type="button"
+                onClick={() => { const { files, avvia } = confermaSede; setConfermaSede(null); avvia(files, sediScelte) }}
+                style={{ minHeight: 44, padding: '0 22px', borderRadius: 10, border: 'none',
+                  background: T.red, color: T.white, fontWeight: 800, fontSize: font.size.base, cursor: 'pointer' }}>
+                {sediScelte.length === 1
+                  ? `Sì, sono di ${(sedi || []).find(x => x.id === sediScelte[0])?.nome || 'questo negozio'}`
+                  : sediScelte.length > 1 ? 'Sì, sono di questi negozi' : 'Carica senza negozio'}
               </button>
             </div>
           </div>
