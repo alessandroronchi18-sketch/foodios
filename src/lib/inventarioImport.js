@@ -3,34 +3,39 @@ import { aggiungiGiorni } from './dateLocal'
 
 // ── STATO: questo lettore non è collegato a nessuna pagina ────────────────
 //
-// Verificato il 17/09/2026: nessun file in `src/` importa questo modulo.
-// Non è una funzione dimenticata, ed è importante capire perché prima di
-// collegarlo o di cancellarlo.
+// Verificato il 17/09/2026: nessun file in `src/` importa questo modulo. Lo
+// importano solo i test.
 //
-// L'import dell'inventario NELL'INTERFACCIA esiste e funziona: è la procedura
-// guidata generica, che `InventarioSettimanaleView.jsx:791` apre con
-// `initialEntity="produzione_inventario"`. Quella legge il formato LONG (una
-// riga per data/sede/gusto) e dichiara di riorganizzare da sola i fogli con
-// una colonna per giorno.
+// Cosa è ACCERTATO:
+//   · la procedura guidata generica — quella che
+//     `InventarioSettimanaleView.jsx:791` apre con
+//     `initialEntity="produzione_inventario"` — non guarda i NOMI dei fogli:
+//     legge le colonne PROD/RIMAN. e basta;
+//   · questo modulo invece riconosce i fogli per struttura (uno per negozio,
+//     uno TOTALI, uno RISTORANTI, uno GELATO ELIMINATO) e controlla i propri
+//     totali contro il foglio di riepilogo che il cliente compila a mano;
+//   · quindi sa fare una cosa che l'altra strada non sa fare. Non è una
+//     versione superata.
 //
-// Questo modulo invece legge il formato MULTI-SCHEDA settimanale — blocchi
-// «SETTIMANA N», colonne PROD/RIMAN. accoppiate, una scheda per sede — cioè
-// il foglio vero del cliente di giugno 2026. È coperto da quattro file di
-// test e ha nove commit di storia: funziona, semplicemente non ha una porta.
+// Cosa NON è accertato, e va detto perché è facile sbagliarci — ci ho
+// sbagliato due volte scrivendo questa nota. Sul database di Mara dei Boschi
+// ci sono 7.013 righe di inventario con **zero** scarti e **zero** vendite
+// all'ingrosso. Sembra la prova che quei due fogli vengano scavalcati
+// dall'import. Non lo è: il titolare ha detto il 17/09 che **non ha ancora
+// caricato tutti i dati**. L'assenza di un dato non dice da sola perché
+// manca.
 //
-// Le due strade fanno la stessa cosa in due modi, e la domanda «quale delle
-// due tiene» è una scelta di prodotto, non una correzione:
-//   · se la procedura guidata regge il foglio multi-scheda di Mara, questo
-//     modulo è superato e va tolto, con i suoi test;
-//   · se non lo regge, allora è la procedura guidata a essere incompleta, e
-//     questo lettore va agganciato come caso speciale.
-// Si risponde caricando il foglio vero di Mara nella procedura guidata e
-// guardando cosa succede — non leggendo il codice.
+// Per rispondere davvero servono due cose che non si trovano nel codice:
+//   1. il file Excel vero di Mara, per vedere se contiene le schede degli
+//      scarti e dei ristoranti;
+//   2. caricarlo nella procedura guidata e guardare cosa entra.
+// Finché quelle due non sono fatte, la domanda «serve collegarlo?» resta
+// aperta, e questo modulo non si cancella: 700 righe provate su un formato
+// vero sono più difficili da riscrivere che da tenere.
 //
-// Finché la domanda resta aperta il modulo NON va cancellato: 673 righe
-// provate sul formato di un cliente vero sono più difficili da riscrivere che
-// da tenere. Ma non va nemmeno lasciato a marcire in silenzio, ed è il motivo
-// per cui questa nota sta qui e non in un elenco di cose da fare.
+// Il libro mastro dei lettori scollegati sta in
+// `tests/unit/merceCheEntraEdEsce.test.js` (sezione 8): diventa rosso appena
+// qualcuno ne collega uno, così l'elenco non può invecchiare in silenzio.
 //
 // ──────────────────────────────────────────────────────────────────────────
 
