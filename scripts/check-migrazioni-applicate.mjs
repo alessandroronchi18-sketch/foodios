@@ -78,16 +78,28 @@ function urlDatabase() {
     if (m) v[m[1]] = m[2].replace(/^["']|["']$/g, '')
   }
   if (v.SUPABASE_DB_URL) return v.SUPABASE_DB_URL
-  if (v.PGHOST && v.PGUSER && v.PGPASSWORD) {
-    const porta = v.PGPORT || '5432'
-    const db = v.PGDATABASE || 'postgres'
-    return `postgresql://${encodeURIComponent(v.PGUSER)}:${encodeURIComponent(v.PGPASSWORD)}@${v.PGHOST}:${porta}/${db}`
-  }
+  // 17/09/2026 — qui c'era un indirizzo costruito a mano, e bloccava le
+  // pubblicazioni. Supabase pretende SSL: senza `sslmode=require` psql non
+  // riceve un rifiuto, resta appeso finché scade il tempo, e il controllo
+  // diceva «il database non risponde» mentre dalla stessa macchina, un
+  // secondo prima, rispondeva in cinque secondi.
+  //
+  // Le variabili `PG*` psql le legge da sé dall'ambiente, ed è la strada che
+  // funziona davvero: si passano quelle e si lascia vuoto l'indirizzo. Così
+  // c'è un modo solo di connettersi, uguale a quello che si usa a mano.
+  if (v.PGHOST && v.PGUSER && v.PGPASSWORD) return { ambiente: v }
   return null
 }
 
 function interroga(url, sql) {
-  return execFileSync(PSQL, [url, '-tA', '-c', sql], { encoding: 'utf8', timeout: 60000 })
+  // `url` può essere una stringa (indirizzo completo) oppure le variabili
+  // d'ambiente: nel secondo caso l'indirizzo è vuoto e le legge psql.
+  const daAmbiente = url && typeof url === 'object' && url.ambiente
+  const indirizzo = daAmbiente ? '' : url
+  const ambiente = daAmbiente
+    ? { ...process.env, ...url.ambiente, PGSSLMODE: url.ambiente.PGSSLMODE || 'require' }
+    : process.env
+  return execFileSync(PSQL, [indirizzo, '-tA', '-c', sql], { encoding: 'utf8', timeout: 60000, env: ambiente })
     .split('\n').map(s => s.trim()).filter(Boolean)
 }
 
