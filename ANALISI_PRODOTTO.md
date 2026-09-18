@@ -1303,6 +1303,158 @@ trovate da un controllo, non da una rilettura.
 
 ---
 
+## 0octies. I quattro giorni dal 15 al 18 settembre 2026 — la rifinitura
+
+Quattro giornate consecutive sullo stesso prodotto, con il titolare che guarda
+le pagine dentro il suo account vero e segnala una cosa per volta. È il modo di
+lavorare che ha reso di più in tutto il progetto, e il motivo è semplice: non
+si discute di cosa potrebbe non andare, si guarda.
+
+**Misure, non impressioni.**
+
+| | |
+|---|---|
+| Commit | 86 |
+| Righe cambiate | 61.192 aggiunte, 7.748 tolte |
+| File di test | 314 |
+| Test | 4.743 |
+| File del prodotto | 309 |
+| Organizzazioni nel database | 633 |
+| **di cui con un ricettario vero** | **5** |
+
+Quel 5 su 633 è il numero più onesto di tutta l'analisi e va tenuto davanti a
+ogni altra cifra: il prodotto ha un design partner vero e seicento account di
+prova.
+
+### Cosa è cambiato, sezione per sezione
+
+Voti da 1 a 100. Il criterio è quello di sempre: **un numero senza un
+riferimento non è un'informazione**, e una pagina che non sa dire quello che non
+sa vale meno di una che lo dichiara.
+
+| Sezione | Prima | Dopo | Perché |
+|---|---|---|---|
+| **Materie prime** | — (non esisteva) | **86** | Pagina nuova. Prima le materie prime nascevano di straforo scrivendole dentro una ricetta; adesso hanno una casa, un fornitore, l'import in blocco e il cambio nome che scende su tutto |
+| **Motore del food cost** | 52 | **88** | Due funzioni davano due numeri diversi su 29 ricette di 68; la stima di mercato faceva il 47% del conto |
+| **Ricettario** | 71 | **89** | Barre da tre righe a due, numeri che non si ripetono, allergeni dietro un pulsante, semilavorati non più duplicati |
+| **Nuovo gusto** | 64 | **87** | Elenco chiuso degli ingredienti, nomi leggibili, note che si richiudono, la nota «per 1 kg» che non sfonda più la griglia |
+| **Listino / Formati** | 58 | **84** | Materiali di confezionamento scritti una volta sola e scelti da elenco, il conto scritto come un conto |
+| **Semilavorati** | 62 | **85** | Schede che si aprono invece di essere sempre aperte; mostra il costo che il prodotto usa davvero |
+| **Date e storico prezzi** | 44 | **86** | La decorrenza tornava indietro di un giorno tutto l'anno; una riga senza data valeva dal 1970 |
+| **Import (tutti)** | 66 | **82** | «Dalla riga N del tuo foglio» indicava la riga sbagliata; il resoconto prima di scrivere |
+| **Mobile e tablet** | 55 | **83** | Il tablet contava come un computer: 102 bersagli sotto la soglia, ora 47 e gli altri dichiarati |
+| **Allergeni** | 48 | **80** | Il programma propone, il cliente conferma. (Ma le pagine sono nascoste: il voto è potenziale) |
+| **Qualità dei test** | 63 | **81** | Trovati 5 test che passavano anche sul codice vecchio; da allora ogni correzione si verifica per mutazione |
+
+### I difetti che pesavano di più, tutti misurati sui dati veri
+
+1. **Il 47% del food cost usciva da un listino scritto a mano nel codice.** 99
+   righe su 161 erano costate col «prezzo medio di mercato 2025», e 55 ricette
+   su 68 ne erano toccate. Adesso vale come prezzo mancante: le ricette con
+   costo completo passano da ~65 a 3 su 68. **È un peggioramento apparente e un
+   miglioramento vero** — prima il numero c'era e mentiva.
+2. **29 ricette su 68 avevano due food cost diversi** a seconda di quale
+   funzione faceva il conto: 189,94 € contro 160,81 €, il 18%.
+3. **La data di decorrenza tornava indietro di un giorno, tutto l'anno.** Un
+   prezzo «dal 1° gennaio» entrava in vigore il 31 dicembre, e il P&L
+   dell'anno vecchio si portava dentro i prezzi del nuovo.
+4. **`1.250` valeva 1,25 €/kg.** Mille volte meno.
+5. **Scrivere un ingrediente al plurale ne cancellava il prezzo.** «Bacche di
+   vaniglia» al posto di «bacca di vaniglia»: 380 €/kg azzerati in silenzio.
+6. **Lo storico dei prezzi era leggibile dal laboratorio** — chi ha cambiato
+   quale prezzo, da quanto a quanto. (Trovato, e per giunta la segnalazione di
+   partenza era infondata: vedi sotto.)
+
+### Tre errori miei, che vanno scritti quanto i difetti
+
+- **Ho riscritto la funzione delle chiavi riservate copiando l'elenco dalla
+  versione sbagliata**, e per qualche minuto in produzione ricettario,
+  produzione giornaliera e semilavorati sono usciti dai dati riservati al
+  titolare. Ripristinato e verificato. `create or replace` su una funzione che
+  elenca delle cose non aggiunge: sostituisce.
+- **Ho annunciato che 27 diramazioni fossero codice morto da togliere.** Non lo
+  erano: si accendono per una base importata senza un certo campo. Cancellarle
+  avrebbe fatto comparire una base fra i gusti vestita da torta.
+- **Ho dichiarato risolti i mouseover** avendone corretti 23 su 249.
+
+### Il metodo, e quanto è costato
+
+Gli agenti in parallelo hanno reso circa **3-4 volte** sul tempo d'orologio,
+misurato: ~50 minuti contro 2,5-3,5 ore stimate. Ma con due condizioni che
+valgono più del numero: **un proprietario per file** (senza, si sovrascrivono)
+e **il diario obbligatorio** — sono caduti sette volte sul limite di sessione e
+ogni volta sono ripartiti dall'ultima riga invece che da capo.
+
+E un costo che va detto: **il loro lavoro va verificato.** Un audit sui test ha
+trovato che spegnere la protezione principale del giorno lasciava verdi 241
+test su 241.
+
+### Voto complessivo e valore, al 18/09/2026
+
+Il titolare ha chiesto di **non contare** l'assenza di Stripe attivo e di
+clienti paganti: siamo in rifinitura, e la domanda è «quanto è buono quello che
+abbiamo costruito», non «quanto incassa oggi».
+
+| Dimensione | Voto | In una riga |
+|---|---|---|
+| Profondità funzionale | **88** | Ricettario, food cost ricorsivo, produzione, magazzino, cassa, fatture, HACCP, AI, multi-sede. Copre il mestiere, non una fetta |
+| Onestà dei numeri | **91** | È la cosa più forte del prodotto. Dove non sa, lo dice — e questi quattro giorni hanno tolto le ultime tre bugie grosse |
+| Qualità dell'impianto | **84** | 4.743 test, cancelli automatici su grammatica, token di design e deploy. Il debito è dichiarato, non nascosto |
+| Interfaccia | **83** | Riscritta col titolare davanti, pagina per pagina. Mobile e tablet ora misurati, non supposti |
+| Sicurezza | **79** | RLS su ogni tabella, ruoli separati, chiavi sensibili. Tolgono punti: il secondo fattore sull'admin e il repository pubblico |
+| Dati veri dentro | **35** | 5 organizzazioni su 633 hanno un ricettario. Un design partner, non un campione |
+| Pronto per il primo cliente | **58** | Il prodotto sì. **Il dominio non esiste, quindi nessuna email arriva**: da solo vale metà di questo voto |
+
+**Voto complessivo: 78/100.** Un prodotto forte con due chiodi fuori posto, e
+tutti e due si tolgono con una carta di credito e mezz'ora, non con del codice.
+
+### Quanto vale
+
+Con la regola data — niente Stripe, niente clienti, si valuta quello che c'è —
+la base è il **costo di ricostruzione**, cioè quanto costerebbe rifare oggi
+questo prodotto con una squadra normale.
+
+| Voce | Stima | Come ci arrivo |
+|---|---|---|
+| Codice del prodotto | 77.155 righe in 309 file | contate |
+| Tempo equivalente | 14-18 mesi-uomo | 4.500-5.500 righe utili al mese per uno sviluppatore esperto su un gestionale verticale |
+| Costo a listino italiano | **420.000-540.000 €** | 30.000 €/mese-uomo pieno (sviluppo senior + prodotto + collaudo) |
+| Sconto per debito e mancanze | −15% | dominio, secondo fattore, repository, quattro pagine nascoste |
+| **Valore di ricostruzione** | **360.000-460.000 €** | |
+
+**Ma il valore di ricostruzione non è il valore di mercato**, e la differenza
+conta più del numero. Un compratore paga per il ricavo, non per le righe. Oggi
+il ricavo è zero, quindi il valore di scambio di Foodos è **quello che vale per
+chi se lo compra per non costruirlo** — un gestionale che vuole entrare nella
+ristorazione artigianale italiana, o un fornitore di materie prime che vuole
+legare i clienti. In quel mercato questo asset vale realisticamente
+**150.000-250.000 €**, e il prezzo lo fa la fretta del compratore.
+
+**Il primo cliente pagante moltiplica tutto.** Non per il suo canone: perché
+sposta il prodotto dalla categoria «software fatto bene» a «software che
+qualcuno usa e paga», e sono due mercati con due ordini di grandezza diversi.
+Con 10 clienti a 89 €/mese — 10.680 € di ricavo annuo ricorrente — un
+moltiplicatore prudente per un verticale early (4-6×) dà **45.000-65.000 € di
+valore dal solo ricavo**, che si SOMMA all'asset, non lo sostituisce.
+
+### Come stiamo andando, in tre righe
+
+**Il prodotto è pronto, l'azienda no.** In quattro giorni sono usciti difetti
+che falsavano il food cost del 18%, del 47%, e di mille volte su un prezzo: non
+erano difetti di codice, erano numeri che mentivano senza che nessuno potesse
+accorgersene. Trovarli tutti adesso, prima dei clienti, è il motivo per cui
+questa fase valeva la pena.
+
+**La cosa che frena non è tecnica.** `foodos.it` non è registrato: un cliente
+che si iscrive non riceve la mail di conferma e non entra. Finché resta così,
+ogni miglioramento del prodotto vale zero verso il mercato.
+
+**Il rischio vero è un altro:** 5 ricettari su 633 organizzazioni. Il prodotto
+è stato raffinato su un cliente solo, e un cliente solo è un campione di uno.
+La prossima cosa che vale più di qualunque correzione è **il secondo design
+partner** — perché è lì che si scopre cosa di Foodos è «giusto» e cosa è
+«giusto per Mara».
+
 ## 0bis. Recap sessione 2026-07-27 → 2026-07-31 (5 giorni, 16 commit) — storico
 
 Score 1-100 per area toccata, con evidenza diretta dal codice.
