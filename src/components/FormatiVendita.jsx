@@ -517,10 +517,22 @@ export default function FormatiVendita({ orgId, ricettario, onSaveRicettario, no
                             col nome del formato nell'etichetta per chi usa un
                             lettore di schermo. Il colore torna nel momento in
                             cui serve: al passaggio del mouse. */}
+                          {/* 17/09/2026, segnalato dal titolare: «centra
+                              l'immagine del cestino della spazzatura nei
+                              pulsanti dove e' presente, ora sono tutti spostati
+                              a sinistra». Il pulsante e' un quadrato di 32px
+                              (40 sul telefono) con dentro una sola icona da
+                              14: c'era `alignItems: 'center'`, che centra in
+                              verticale, ma mancava `justifyContent`, che
+                              centra in orizzontale — quindi l'icona si
+                              appoggiava al bordo sinistro e restavano 18px di
+                              vuoto a destra. Il `gap: 5` non serviva a niente:
+                              regola lo spazio FRA più figli, e qui il figlio
+                              e' uno solo. */}
                         <button onClick={(e) => { e.stopPropagation(); elimina(f.id) }}
                           aria-label={`Elimina il formato ${f.nome}`}
                           title={`Elimina ${f.nome}`}
-                          style={{ width: isMobile ? 40 : 32, height: isMobile ? 40 : 32, padding: 0, background: 'transparent', color: T.textSoft, border: `1px solid ${T.border}`, borderRadius: R.sm, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                          style={{ width: isMobile ? 40 : 32, height: isMobile ? 40 : 32, padding: 0, background: 'transparent', color: T.textSoft, border: `1px solid ${T.border}`, borderRadius: R.sm, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
                           <Icon name="trash" size={14} />
                         </button>
                       </div>

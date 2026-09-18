@@ -1,57 +1,49 @@
 # Coda delle richieste del titolare
 
-## FATTE
+## FATTO — 17/09, terzo giro
 
-**Tabella ingredienti** (17/09): ordine per quantità, riordino congelato
-mentre si scrive, colonne ordinabili. **Mouseover**: `Tip` reagiva solo a
-`onMouseEnter` — su telefono e tablet ogni «?» era muto. 21 test.
+- [x] **12. I mouseover non funzionano.** Causa vera: `Tip` copre 23
+      spiegazioni, ma nel prodotto ce ne sono **226 come `title=` nativi**, che
+      su schermo tattile non si aprono mai e col mouse arrivano dopo ~1s.
+      Nuovo `src/components/SpiegazioniAlTocco.jsx`, montato una volta al tetto
+      dell'app: vale per tutte, presenti e future. 11 test.
+- [x] **Selettore sedi nel Ricettario** → nascosto dietro
+      `SELETTORE_SEDI_NEL_RICETTARIO = false` in `Dashboard.jsx`. Audit sui
+      dati veri: **0 righe** di prezzi per sede in tutto il prodotto. Si
+      rimette con una parola. 6 test.
+- [x] **Fascia legale** (Privacy · Termini · Cookie · Contatti · © Foodos):
+      su tablet 20px invece di 28, senza ombra, testo al 26%.
+- [x] **Cestino del Listino scentrato**: mancava `justifyContent`. Trovato e
+      corretto anche il secondo caso (× della chiusura di cassa). 3 test.
+- [x] **Nota «ingredienti per 1 kg»**: era dentro la colonna «Tipo» (un terzo
+      di riga) e sfondava la griglia. Ora riga sola sotto i tre campi.
+- [x] **Tessere semilavorati**: avvisi «senza prezzo» incolonnati anche quando
+      manca «prezzo stimato»; targhetta «Costo / kg» da 56px a 40px, alta come
+      i pulsanti Costo e Dove. 5 test.
 
-**Ricettario** (17/09): margine e food cost a 0% nei riquadri (il ricavo si
-calcolava col prezzo della scheda, che per un gusto non esiste); i due
-pulsanti Gusti/Semilavorati diventati un controllo segmentato; barre dei
-gusti strette da 16px a 9px di bordo interno, con `minHeight: 44`.
+## DA FARE — Ricettario
 
-**Spese di due negozi** (17/09): 189.458 € invisibili ora divisi sui chili
-prodotti. **Import fatture**: chiede di che negozio sono. **Trasferimenti**:
-registrano chi manda e chi riceve.
+1. **Nella scheda «Gusti» il riquadro «Semilavorati» a destra non serve.**
+   Metterci qualcos'altro di utile.
+2. **Audit: i due pulsanti «Nuovo gusto» e «Aggiorna ricettario gusti» stanno
+   bene lì?**
+3. **La scheda che si apre cliccando un gusto: troppe informazioni messe a
+   caso.** Riorganizzare.
+4. **Le quattro tessere a destra vanno a quadrato**, due sopra e due sotto.
+5. **Togliere la scritta grigia piccola a sinistra** («cost 2,39 ecc»).
+6. **Allergeni dietro un pulsante** «Allergeni».
+7. **Nomi degli ingredienti con la prima maiuscola e il resto minuscolo**,
+   in Ricettario e in Nuovo gusto.
+8. **Restringere ancora le barre di ogni gusto e il loro contenuto.**
+9. **Idem le tessere nella visualizzazione a riquadri.**
+10. **Nei riquadri, il nome del gusto in grassetto e nel rosso di Foodos.**
 
----
+## RISPOSTE DATE
 
-## DA FARE — la scheda di un gusto (Ricettario)
+- «Dove vedo tutte le materie prime e i prezzi?» → **Magazzino → scheda
+  «Prezzi ingredienti»** (nascosta ai dipendenti).
 
-Aprendo un gusto compaiono tutte insieme: 4 tessere, le azioni, e **quattro
-pannelli** (distinta costi, composizione food cost, conto per stampo, conto
-al kg). Troppo, e disordinato.
-→ Quello che serve sempre resta; il resto dietro pulsanti.
+## REGOLA IMPARATA (tre volte)
 
-## DA FARE — la pagina «Nuovo gusto» (richieste del 17/09)
-
-1. **Togliere l'avviso** «Adesso è il bottone Nuova ricetta in cima al
-   Ricettario» — e in **tutte** le altre sezioni (è `AvvisoSpostamento`).
-2. **Togliere «parti da una che hai già»**.
-3. **Nome gusto, categoria, tipo**: barre lunghe senza motivo. Affiancarle.
-4. **Il flusso «congelabile»**: verificare che funzioni. Per il gelato non
-   serve.
-5. **La frase** «Aggiungi ogni ingrediente in grammi per 1 kg di gusto
-   finito» è corretta? Il totale degli ingredienti può non fare 1 kg preciso.
-   → da riscrivere dicendo il vero.
-6. **«Ingredienti» e «Ingrediente»** uno sotto l'altro: brutto.
-7. **La barra «Ingrediente»**: cliccandola l'elenco compare *di fianco*.
-   Rifarla: l'elenco deve comparire **sempre sotto la barra**.
-8. **La riga della tabella ingredienti è scoordinata**: grandezze di
-   carattere diverse, posizioni non in linea. Da riorganizzare bene.
-9. **Togliere le freccette** che aumentano e diminuiscono i grammi: si deve
-   poter solo scrivere (per sbaglio si cambia una quantità).
-10. **La sezione «Resa» occupa troppo**: riassumerla.
-
-## DECISIONE APERTA per il titolare
-
-**Il selettore delle sedi nel Ricettario.** Non è decorativo — serve ai
-prezzi diversi per negozio — ma nei dati di Mara la chiave
-`pasticceria-listino-sede-v1` **non esiste**: un listino unico per tutte e
-tre le sedi, quindi cambiare sede non cambia un numero. E la finestra dei
-prezzi per sede mostra già tutte le sedi insieme, quindi il selettore non
-serve nemmeno a impostarli.
-→ Proposta: mostrarlo solo quando esiste almeno un prezzo diverso per sede.
-È l'estensione della regola già presente («nascondilo quando non può
-cambiare niente»), che oggi guarda solo il numero di sedi.
+La fotografia dei token (`check-design-tokens.mjs --aggiorna`) va rifatta **per
+ultima**, subito prima del commit.

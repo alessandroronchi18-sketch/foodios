@@ -47,6 +47,12 @@ export const color = {
   textMid:      '#475264',
   textSoft:     '#5A6B80',
   textFaint:    '#94A3B8',
+  // Lo sfondo dei fumetti di spiegazione. Era scritto a mano in `Tip`, e
+  // quando il 17/09/2026 è nato `SpiegazioniAlTocco` — che fa la stessa cosa
+  // per i 226 `title` nativi — sarebbe stato scritto a mano una seconda
+  // volta, con il rischio che i due fumetti del prodotto finissero di due
+  // colori diversi.
+  tooltipBg:         '#1C0A0A',
   textOnDark:        '#FFFFFF',
   textOnDarkStrong:  'rgba(255,255,255,0.94)',
   textOnDarkMid:     'rgba(255,255,255,0.68)',

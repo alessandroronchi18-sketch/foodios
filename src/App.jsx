@@ -25,6 +25,7 @@ import { MfaChallenge } from './components/Mfa'
 import AbbonamentoPanel from './components/AbbonamentoPanel'
 import AppBanner from './components/AppBanner'
 import FloatingActions from './components/FloatingActions'
+import SpiegazioniAlTocco from './components/SpiegazioniAlTocco'
 import { supabase } from './lib/supabase'
 import { DipendenteOperativoProvider, useDipendenteOperativo } from './hooks/useDipendenteOperativo'
 import SelezionaDipendente from './auth/SelezionaDipendente'
@@ -408,6 +409,11 @@ export default function App() {
           l'assistente spiegava a un dipendente come arrivare a Profitti e
           Personale, cioè le pagine che gli sono state chiuse. */}
       <FloatingActions vistePermesse={auth.profile?.ruolo === 'dipendente' ? DIPENDENTE_VIEWS : null} />
+      {/* Le spiegazioni si aprono anche col dito. Montato qui una volta sola
+          perché vale per tutte: nel prodotto ci sono 226 `title=` nativi
+          contro 23 componenti `Tip`, e il fumetto del browser su uno schermo
+          che si tocca non si apre mai. Vedi il commento in cima al file. */}
+      <SpiegazioniAlTocco />
     </>
   )
 

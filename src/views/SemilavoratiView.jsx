@@ -25,6 +25,12 @@ const fmtBatch = v => `${Number(v || 0).toLocaleString('it-IT', { useGrouping: '
 const fmtPeso = g => g >= 1000 ? `${(g / 1000).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : `${Math.round(g).toLocaleString('it-IT', { useGrouping: 'always' })} g`
 
 // ─── Card premium di un singolo semilavorato ─────────────────────────────────
+// Le due caselle degli avvisi, a larghezza fissa perché restino incolonnate
+// fra una tessera e l'altra: la più lunga che ci deve stare e' «12 senza
+// prezzo» e «12 prezzi stimati», misurate al corpo del Badge (12px, 600).
+const LARG_AVVISO_PREZZO = 112
+const LARG_AVVISO_STIMA = 122
+
 function SemiCard({ sm, ricettario, ingCosti, onEdit, onDelete, LEX }) {
   const isMobile = useIsMobile()
   const [tab, setTab] = useState(null)  // 'ingredienti' | 'usato' | null
@@ -57,8 +63,32 @@ function SemiCard({ sm, ricettario, ingCosti, onEdit, onDelete, LEX }) {
               <Icon name="package" size={11} />Base
             </span>
             <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: T.text, letterSpacing: '-0.015em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>{sm.nome}</h3>
-            {mancanti.length > 0 && <Badge label={mancanti.length === 1 ? '1 senza prezzo' : `${mancanti.length} senza prezzo`} color="red" />}
-            {stimati.length > 0 && <Badge label={stimati.length === 1 ? '1 prezzo stimato' : `${stimati.length} prezzi stimati`} color="amber" />}
+            {/* 17/09/2026, segnalato dal titolare: «gli avvisi "senza prezzo"
+                devono essere tutti incolonnati fra di loro anche se non compare
+                l'avviso "prezzo stimato"».
+
+                Il difetto: i due avvisi stavano uno accanto all'altro in una
+                riga che li spinge a destra. SALSA ZABAIONE ne ha due, CREMA
+                PASTICCERA uno solo — quindi in quella con uno solo il «senza
+                prezzo» scivolava a destra di tutta la larghezza dell'avviso
+                mancante, e incolonnando le tessere non c'era un bordo comune
+                da seguire con l'occhio.
+
+                Ora i due avvisi hanno un posto ciascuno, sempre della stessa
+                larghezza: se l'avviso non c'è il posto resta vuoto invece di
+                chiudersi. È lo stesso rimedio già usato qui sotto per il peso
+                del batch (`minWidth: 110`), applicato agli avvisi.
+                Sul telefono no: lì le tessere sono una sotto l'altra e a tutta
+                larghezza, non c'è nessuna colonna da tenere, e due caselle
+                fisse toglierebbero spazio al nome. */}
+            <span style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+              <span style={{ display: 'inline-flex', minWidth: isMobile ? 0 : LARG_AVVISO_PREZZO, justifyContent: 'flex-end' }}>
+                {mancanti.length > 0 && <Badge label={mancanti.length === 1 ? '1 senza prezzo' : `${mancanti.length} senza prezzo`} color="red" />}
+              </span>
+              <span style={{ display: 'inline-flex', minWidth: isMobile ? 0 : LARG_AVVISO_STIMA, justifyContent: 'flex-end' }}>
+                {stimati.length > 0 && <Badge label={stimati.length === 1 ? '1 prezzo stimato' : `${stimati.length} prezzi stimati`} color="amber" />}
+              </span>
+            </span>
           </div>
           {/* Sub-text incolonnato: peso a larghezza fissa (110px) → il separatore
               "·" e "usato in N prodotti" iniziano alla STESSA x tra card diverse,
@@ -80,9 +110,17 @@ function SemiCard({ sm, ricettario, ingCosti, onEdit, onDelete, LEX }) {
         <Tip text={sm.costoKg > 0
           ? "Costo materie prime per chilo di semilavorato prodotto"
           : "Non si può calcolare: manca il prezzo di uno o più ingredienti. Caricali e il costo compare."} width={260}>
-          <div style={{ background: T.brandLight, padding: '12px 18px', borderRadius: R.md, textAlign: 'center', minHeight: 56, minWidth: 130, cursor: 'help', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 5, border: `1px solid ${T.brand}25`, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.6)', flexShrink: 0 }}>
-            <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: T.textSoft, lineHeight: 1, whiteSpace: 'nowrap' }}>Costo / kg</div>
-            <div style={{ fontSize: sm.costoKg > 0 ? 16 : 13, fontWeight: sm.costoKg > 0 ? 900 : 700, color: sm.costoKg > 0 ? T.brand : T.textSoft, letterSpacing: '-0.015em', whiteSpace: 'nowrap', lineHeight: 1.1, ...TNUM }}>{sm.costoKg > 0 ? fmtKg(sm.costoKg) : 'da completare'}</div>
+          {/* 17/09/2026, richiesta del titolare: «questa tabella qui è troppo
+              grande, rimpicciolisci, rendila grande come quelle Costo e Dove».
+              Era alta 56px con l'etichetta sopra e il numero sotto, accanto a
+              due pulsanti alti 40: tre cose in fila di due altezze diverse, e
+              quella che sporgeva era l'unica che non si può nemmeno premere.
+              Ora è una targhetta su una riga sola, alta come i pulsanti:
+              «COSTO / KG  1,22 €». Il numero resta in grassetto e nel colore
+              del marchio, perché è il dato per cui si apre questa pagina. */}
+          <div style={{ background: T.brandLight, padding: '0 14px', borderRadius: R.md, minHeight: 40, minWidth: 130, cursor: 'help', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, border: `1px solid ${T.brand}25`, flexShrink: 0 }}>
+            <span style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: T.textSoft, lineHeight: 1, whiteSpace: 'nowrap' }}>Costo / kg</span>
+            <span style={{ fontSize: sm.costoKg > 0 ? 15 : 12, fontWeight: sm.costoKg > 0 ? 800 : 700, color: sm.costoKg > 0 ? T.brand : T.textSoft, letterSpacing: '-0.015em', whiteSpace: 'nowrap', lineHeight: 1, ...TNUM }}>{sm.costoKg > 0 ? fmtKg(sm.costoKg) : 'da completare'}</span>
           </div>
         </Tip>
 

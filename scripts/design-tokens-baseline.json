@@ -401,8 +401,8 @@
     "tripla-a-mano": 2
   },
   "src/views/NuovaRicettaView.jsx": {
-    "colore-a-mano": 69,
-    "testo-a-mano": 71,
+    "colore-a-mano": 66,
+    "testo-a-mano": 70,
     "antizoom-a-mano": 1
   },
   "src/views/OrdiniAiView.jsx": {
@@ -474,7 +474,7 @@
     "tripla-a-mano": 1
   },
   "src/views/_shared.jsx": {
-    "colore-a-mano": 17,
+    "colore-a-mano": 16,
     "testo-a-mano": 11
   }
 }

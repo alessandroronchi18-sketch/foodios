@@ -18,7 +18,7 @@ import { lessico } from '../lib/lessico'
 import FotoOCR from '../components/FotoOCR'
 import AIFotoAnalisi from '../components/AIFotoAnalisi'
 import Icon from '../components/Icon'
-import { C, fmt, fmtp, TNUM, CampoConElenco, SortTH, useSortable, Tip } from './_shared'
+import { C, fmt, fmtp, TNUM, CampoConElenco, SortTH, useSortable, Tip, formatNome } from './_shared'
 import { isSemiOInterno } from '../lib/tipoRicetta'
 import { useUnsavedGuard } from '../lib/useUnsavedGuard'
 
@@ -937,11 +937,6 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                 {form.tipo === "semilavorato" && <div style={{ marginTop: 6, padding: "6px 10px", background: "#F9F2FD", border: "1px solid #D4B0E8", borderRadius: 6, fontSize: 12, color: "#8E44AD", display: "flex", alignItems: "center", gap: 5 }}>
                   <Icon name="bulb" size={13} /> <span>Per i semilavorati usa la sezione dedicata <strong>"Semilavorati"</strong> in sidebar - ha template rapidi e import da foto.</span>
                 </div>}
-                {isGusto && form.tipo === "gusto" && (
-                  <div style={{ marginTop: 6, padding: "8px 10px", background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 6, fontSize: 12, color: "#1E3A8A", lineHeight: 1.5 }}>
-                    Gli ingredienti sono per <b>1 kg di gusto finito</b>. Il prezzo di vendita del cono/coppetta/vaschetta si imposta in <b>Formati vendita</b>.
-                  </div>
-                )}
               </div>
 
               {/* Fette/pezzi + prezzo: solo in modalità stampi (pasticceria/panificio/...).
@@ -995,6 +990,27 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
               )}
 
             </div>
+
+            {/* 17/09/2026, richiesta del titolare: «questa scritta mettila
+                meglio, ora il box squilibra tutta la visual; piuttosto mettila
+                in un'unica riga sotto le barre di nome gusto, categoria ecc».
+                Aveva ragione e il motivo è strutturale: la nota stava DENTRO la
+                colonna «Tipo», cioè in un terzo di riga. Un riquadro azzurro
+                con due frasi dentro 250px diventa alto quattro righe, e le tre
+                colonne — che erano state affiancate proprio per far salire la
+                pagina — tornavano storte, con il campo del nome che finiva a
+                mezz'aria.
+                Ora è fuori dalla griglia e larga quanto la riga, quindi sta su
+                una riga sola; e non è più un riquadro colorato ma una riga di
+                testo con un filo davanti: è una precisazione, non un avviso. */}
+            {isGusto && form.tipo === "gusto" && (
+              <div style={{
+                marginTop: 12, paddingLeft: 10, borderLeft: `2px solid ${C.border}`,
+                fontSize: typo.small.fontSize, color: C.textMid, lineHeight: 1.5,
+              }}>
+                Gli ingredienti sono per <b>1 kg</b> di gusto finito · il prezzo di cono, coppetta e vaschetta si imposta in <b>Formati vendita</b>
+              </div>
+            )}
 
             {/* Progressive disclosure: note + congelabile nascosti di default */}
             {!showMore && !form.note && !form.congelabile && (
@@ -1108,7 +1124,14 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                       return (
                         <tr key={i} style={{ borderBottom: `1px solid ${C.border}`, background: rowIndex % 2 === 0 ? C.white : "#FDFAF7" }}>
                           <td style={{ padding: "6px 10px", fontWeight: 600, fontSize: font.size.md, color: C.text, verticalAlign: "middle" }}>
-                            <span title={ing.nome} style={{ display: "inline-block", maxWidth: isMobile ? 130 : 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", verticalAlign: "bottom" }}>{ing.nome}</span>
+                            {/* 17/09/2026: «i nomi degli ingredienti con la
+                                prima maiuscola e il resto minuscolo, sia nel
+                                Ricettario sia in Nuovo gusto». Qui uscivano
+                                tutti in maiuscolo perché è così che stanno nel
+                                database — convenzione del prodotto, e non si
+                                tocca. Cambia solo come si leggono. Il `title`
+                                tiene il nome esatto per chi deve ritrovarlo. */}
+                            <span title={ing.nome} style={{ display: "inline-block", maxWidth: isMobile ? 130 : 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", verticalAlign: "bottom" }}>{formatNome(ing.nome)}</span>
                             {/* Audit 2026-09-09: un solo badge per riga, deciso dall'esito
                                 di costoRigaIngrediente. Prima l'unico badge era "prezzo
                                 mancante" e appariva anche sui semilavorati (che un prezzo

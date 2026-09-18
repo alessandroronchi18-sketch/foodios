@@ -18,7 +18,7 @@ import { gateExport, getExportCtx } from '../lib/exportGuard'
 import Icon from '../components/Icon'
 import { mediaFoodCost } from '../lib/mediaFoodCost'
 import {
-  C, TNUM, margColor, margBadge, Badge, Tip, KPI, fmtp,
+  C, TNUM, margColor, margBadge, Badge, Tip, KPI, fmtp, formatNome,
 } from './_shared'
 
 const fmt  = v => `${Number(v).toLocaleString('it-IT', { useGrouping: 'always',minimumFractionDigits:2,maximumFractionDigits:2})} €`
@@ -56,6 +56,9 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
   // diverso tra render → silent state corruption.
   const isMobile = useIsMobile()
   const [open, setOpen] = useState(false)
+  // Gli allergeni si aprono solo se li si chiede: vedi il commento sul
+  // pulsante, più sotto.
+  const [allergeniAperti, setAllergeniAperti] = useState(false)
   const [editMode, setEditMode] = useState(false)
   // Audit 2026-06-24: card collapsed di default - su mobile e desktop.
   // L'utente vede solo nome + 1 KPI essenziale; al tap si espande l'header
@@ -178,13 +181,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
   const SEMI = { bg: '#FAF6FF', border: '#C9A4DC', accent: '#8E44AD', accentLight: '#F0E4FA', panel: '#F5F0FA', divider: '#E5D4F0' }
 
   const ING_SKIP_DISPLAY = ['ingrediente', 'ingredient', 'ingredienti', 'n/d', 'nan', 'undefined', 'nome ingrediente in minuscolo']
-  // formatNome: "zucchero_canna" → "Zucchero canna" (underscore→spazio,
-  // prima lettera maiuscola, resto minuscolo).
-  const formatNome = (s) => {
-    if (!s) return ''
-    const cleaned = String(s).replace(/_/g, ' ').toLowerCase().trim()
-    return cleaned.charAt(0).toUpperCase() + cleaned.slice(1)
-  }
+  // `formatNome` sta in _shared: lo usa anche Nuovo gusto.
   const ingListBase = (ric.ingredienti || [])
     .filter(ing => !ING_SKIP_DISPLAY.includes(normIng(ing.nome || '').toLowerCase().trim()))
     .map(ing => {
@@ -257,11 +254,35 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
           // da 18 sotto tessere con angoli da 16, e in colonna si vede.
           borderRadius: R['2xl'], overflow: 'hidden', cursor: 'pointer',
           boxShadow: isSemi ? '0 1px 2px rgba(142,68,173,0.05), 0 10px 28px rgba(142,68,173,0.07)' : '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)',
-          padding: isMobile ? '14px 16px' : '14px 20px',
+          // ── 17/09/2026: la barra giusta, finalmente ──────────────────
+          //
+          // Il titolare ha chiesto due volte di stringere «le barre dei
+          // gusti». La prima volta ho stretto quella sbagliata: avevo ridotto
+          // il bordo dell'intestazione della scheda APERTA da 16 a 9, ma le
+          // barre che si scorrono sono queste, quelle CHIUSE — nell'elenco
+          // ogni scheda parte chiusa — e queste erano rimaste a 14px sopra e
+          // sotto, intatte. Per questo la seconda richiesta diceva
+          // «restringere ANCORA»: dal suo punto di vista non era cambiato
+          // niente, e aveva ragione.
+          //
+          // Qui la riga passa da tre piani a due. Prima erano: gli avvisi su
+          // una riga per conto loro, poi il nome, poi una terza riga col
+          // secondo numero. Il nome — l'unica cosa che si cerca scorrendo
+          // cinquantotto gusti — era in mezzo, schiacciato fra due righe di
+          // servizio. Adesso il nome sta in cima da solo, e sotto, su una riga
+          // sola, ci stanno gli avvisi e il secondo numero.
+          // Tre righe da 18+19+15 con 14 di bordo facevano 80px; due righe con
+          // 8 di bordo ne fanno 56. Su cinquantotto gusti sono 1.400px in
+          // meno da scorrere, cioe' quasi due schermate.
+          padding: isMobile ? '8px 14px' : '8px 18px',
+          minHeight: 44, boxSizing: 'border-box',
           display: 'flex', alignItems: 'center', gap: 12,
         }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 4 }}>
+          <div style={{ fontSize: isMobile ? 15 : 16, fontWeight: 800, color: C.text, letterSpacing: '-0.02em', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {ric.nome}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 3 }}>
             {isSemi && (
               <span style={{ padding: '2px 7px', borderRadius: 5, background: SEMI.accentLight, color: SEMI.accent, fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Semilavorato</span>
             )}
@@ -274,17 +295,14 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
             {mancanti.length === 0 && nStimati > 0 && (
               <Badge label={nStimati === 1 ? '1 stimato' : `${nStimati} stimati`} color="amber"/>
             )}
-          </div>
-          <div style={{ fontSize: isMobile ? 15 : 16, fontWeight: 800, color: C.text, letterSpacing: '-0.02em', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {ric.nome}
-          </div>
-          <div style={{ fontSize: 12, color: C.textSoft, marginTop: 3, ...TNUM }}>
-            {kpiSec.lbl}: <span style={{ color: C.textMid, fontWeight: 700 }}>{kpiSec.val}</span>
+            <span style={{ fontSize: font.size.sm, color: C.textSoft, ...TNUM }}>
+              {kpiSec.lbl}: <span style={{ color: C.textMid, fontWeight: 700 }}>{kpiSec.val}</span>
+            </span>
           </div>
         </div>
         <div style={{ textAlign: 'right', flexShrink: 0 }}>
           <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, lineHeight: 1 }}>{kpiPrim.lbl}</div>
-          <div style={{ fontSize: 18, fontWeight: 800, color: kpiPrim.c, marginTop: 4, ...TNUM, lineHeight: 1 }}>{kpiPrim.val}</div>
+          <div style={{ fontSize: 16, fontWeight: 800, color: kpiPrim.c, marginTop: 3, ...TNUM, lineHeight: 1 }}>{kpiPrim.val}</div>
         </div>
         <div style={{ flexShrink: 0, color: C.textSoft, lineHeight: 0 }}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
@@ -402,28 +420,60 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
               )}
             </div>
           )}
-          <div style={{ fontSize: 12, color: C.textSoft, lineHeight: 1.4 }}>
-            {isSemi
+          {/* 17/09/2026, richiesta del titolare: «togliere la scritta grigia
+              piccola a sinistra (costo 2,39 ecc): le stesse informazioni sono
+              già nelle tessere a destra». Era vero alla lettera — per un gusto
+              questa riga diceva «costo 2,39 €/kg · ricavo medio 4,10 €/kg» e a
+              venti centimetri di distanza le tessere dicevano «Costo / kg
+              2,39 €» e «Ricavo / kg 4,10 €». Lo stesso numero due volte nella
+              stessa riga fa dubitare che siano lo stesso numero.
+              Resta solo quello che le tessere NON dicono: per un gusto senza
+              formati di vendita, dove si va a sistemarlo — che è un'istruzione,
+              non un dato. Per gli altri tipi la riga porta il conto delle
+              pezzature e il peso dell'impasto, che nelle tessere non ci sono. */}
+          {(() => {
+            const riga = isSemi
               ? `Base interna · ${pesoTotSemi >= 1000 ? `${(Number(pesoTotSemi) / 1000).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : `${Math.round(Number(pesoTotSemi)||0).toLocaleString('it-IT', { useGrouping: 'always' })} g`} per batch${ric.totImpasto1 > 0 ? ` · ${ric.totImpasto1}g impasto` : ''}`
               : isGusto
-                ? (ricavoFlatOk
-                    ? `Gusto · costo ${fmt(fcPerKg)}/kg · ricavo medio ${fmt(ricavo)}/kg (dai formati)`
-                    : `Gusto · costo ${fmt(fcPerKg)}/kg · aggiungi formati vendita per stimare il margine`)
+                ? (ricavoFlatOk ? '' : 'Aggiungi i formati vendita per vedere il margine')
                 : senzaPrezzo
                   ? `Prezzo di vendita da impostare${ric.totImpasto1 > 0 ? ` · ${ric.totImpasto1}g impasto` : ''}`
-                  : `${reg.unita} ${labelPlurale(tipoEff)} × ${fmt(reg.prezzo)}${ric.totImpasto1 > 0 ? ` · ${ric.totImpasto1}g impasto` : ''}`}
-          </div>
+                  : `${reg.unita} ${labelPlurale(tipoEff)} × ${fmt(reg.prezzo)}${ric.totImpasto1 > 0 ? ` · ${ric.totImpasto1}g impasto` : ''}`
+            if (!riga) return null
+            return <div style={{ fontSize: 12, color: C.textSoft, lineHeight: 1.4 }}>{riga}</div>
+          })()}
+          {/* 17/09/2026, richiesta del titolare: «allergeni dietro un pulsante
+              Allergeni che li apre». Erano fino a quattordici etichette
+              colorate aperte sotto ogni riga: la cosa più colorata della
+              pagina, in un elenco dove si cerca un nome. Servono — sono un
+              obbligo di legge — ma si guardano quando si stampa la scheda, non
+              mentre si scorre. Ora è un pulsante che dice quanti sono, e li
+              apre dove stavano prima. */}
           {(ric.allergeni || []).length > 0 && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
-              {(ric.allergeni || []).map(aid => {
-                const a = ALLERGENI.find(x => x.id === aid)
-                if (!a) return null
-                return (
-                  <span key={aid} style={{ fontSize: 12, fontWeight: 700, padding: '2px 7px', borderRadius: 20, background: `${ALLERGENE_COLORS[aid]}18`, color: ALLERGENE_COLORS[aid], border: `1px solid ${ALLERGENE_COLORS[aid]}40` }}>
-                    {a.label}
-                  </span>
-                )
-              })}
+            <div style={{ marginTop: 6 }}>
+              <button type="button"
+                onClick={(e) => { e.stopPropagation(); setAllergeniAperti(v => !v) }}
+                aria-expanded={allergeniAperti}
+                style={{ minHeight: 28, padding: '4px 9px', borderRadius: 20, cursor: 'pointer',
+                  border: `1px solid ${C.border}`, background: allergeniAperti ? C.bgSubtle : 'transparent',
+                  color: C.textMid, fontFamily: 'inherit', fontSize: font.size.sm, fontWeight: 700,
+                  display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                <Icon name={allergeniAperti ? 'chevDown' : 'chevR'} size={11} />
+                Allergeni <span style={{ color: C.textSoft, fontWeight: 600 }}>{(ric.allergeni || []).length}</span>
+              </button>
+              {allergeniAperti && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
+                  {(ric.allergeni || []).map(aid => {
+                    const a = ALLERGENI.find(x => x.id === aid)
+                    if (!a) return null
+                    return (
+                      <span key={aid} style={{ fontSize: 12, fontWeight: 700, padding: '2px 7px', borderRadius: 20, background: `${ALLERGENE_COLORS[aid]}18`, color: ALLERGENE_COLORS[aid], border: `1px solid ${ALLERGENE_COLORS[aid]}40` }}>
+                        {a.label}
+                      </span>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -433,7 +483,16 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
             niente "fisarmonica" tra ricette con margine 1 cifra vs 4 cifre. */}
         {/* Su telefono due colonne, non quattro: a 375px ogni tessera restava
             ~80px e un valore come "1.234,56 €" finiva in tre puntini. */}
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : `repeat(${isSemi ? 3 : 4}, minmax(86px, 1fr))`, gap: 6, alignItems: 'stretch', flexShrink: 0, flexBasis: isMobile ? '100%' : 'auto', width: isMobile ? '100%' : 'auto' }}>
+        {/* 17/09/2026, richiesta del titolare: «le quattro tessere a destra
+            vanno a quadrato, due sopra e due sotto, non tutte in fila».
+            In fila prendevano quasi 400px di larghezza in ogni riga
+            dell'elenco, e il nome del gusto — che è la cosa che si cerca
+            scorrendo — restava schiacciato in quel che avanzava. A quadrato la
+            colonna dei numeri è larga la metà, e le due coppie si leggono
+            insieme: sopra ricavo e margine, sotto margine % e costo.
+            I semilavorati ne hanno tre e restano in fila: tre in un quadrato
+            lascerebbero un buco. */}
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : `repeat(${isSemi ? 3 : 2}, minmax(86px, 1fr))`, gap: 6, alignItems: 'stretch', flexShrink: 0, flexBasis: isMobile ? '100%' : 'auto', width: isMobile ? '100%' : 'auto' }}>
           {(isSemi ? [
             { lbl: 'Peso batch', val: pesoTotSemi >= 1000 ? `${(Number(pesoTotSemi) / 1000).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : `${Math.round(Number(pesoTotSemi)||0).toLocaleString('it-IT', { useGrouping: 'always' })} g`, c: C.text, bg: SEMI.panel },
             { lbl: 'Costo batch', val: fmt(fc), c: SEMI.accent, bg: SEMI.accentLight, bold: true },
@@ -464,11 +523,19 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
             // sui prominent (bold). Tabular nums + monospace digits.
             <div key={i} style={{
               background: bg,
-              padding: isMobile ? '7px 6px' : '8px 10px',
+              padding: isMobile ? '7px 6px' : '5px 9px',
               borderRadius: 10,
               border: bold ? `1px solid ${c}30` : `1px solid transparent`,
               boxShadow: bold ? `inset 0 1px 0 rgba(255,255,255,0.6), 0 0 0 1px ${c}10` : 'inset 0 1px 0 rgba(255,255,255,0.5)',
-              textAlign: 'center', minWidth: 0, minHeight: 48,
+              // 17/09/2026: «restringere ancora le barre di ogni gusto e il
+              // loro contenuto». Le tessere sono passate da una fila a un
+              // quadrato di due per due, e a 48px l'una la riga sarebbe
+              // cresciuta invece di calare. A 36 il quadrato è alto quanto
+              // era la fila, e con la riga grigia tolta e gli allergeni
+              // chiusi la barra scende davvero. Sul telefono restano 44:
+              // lì le tessere erano già su due righe e il quadrato non
+              // cambia niente, mentre stringerle toglierebbe solo leggibilità.
+              textAlign: 'center', minWidth: 0, minHeight: isMobile ? 44 : 36,
               display: 'flex', flexDirection: 'column', justifyContent: 'center', overflow: 'hidden',
             }}>
               <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.textSoft, marginBottom: 3, lineHeight: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{lbl}</div>
@@ -965,10 +1032,28 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
   // Bottone Aggiorna come elemento riusabile: lo posizioniamo in alto a destra
   // (allineato visivamente con il sede selector nella topbar) E lo passiamo a
   // PageTitleHero come 'action' per averli sulla stessa riga del titolo.
+  // ── Audit del 17/09/2026, chiesto dal titolare: «i due pulsanti Nuovo
+  //    gusto e Aggiorna ricettario gusti stanno bene lì?» ─────────────────
+  //
+  // Sì, il posto è giusto — sono le due sole cose che si fanno *alla
+  // raccolta* invece che a una ricetta sola, e stanno dove si guarda per
+  // prima cosa. Sbagliato era il peso, ed era invertito:
+  //
+  //   «Aggiorna ricettario»  pieno di bordeaux, con l'ombra → il più forte
+  //   «Nuovo gusto»          solo contorno                  → il più debole
+  //
+  // Ma «Aggiorna ricettario» apre un file Excel e **riscrive tutta la
+  // raccolta**: si usa quando si porta dentro il ricettario la prima volta,
+  // poi quasi mai. «Nuovo gusto» è il lavoro di tutti i giorni — era l'ottava
+  // pagina più aperta del programma prima di diventare un bottone.
+  //
+  // In un'interfaccia il colore pieno è una promessa: «questo è quello che
+  // vuoi fare». Metterlo sull'azione che sovrascrive tutto, e lasciare in
+  // contorno quella quotidiana, è un invito a sbagliare. Scambiati.
   const aggiornaBtn = onUpload && (
     <label style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 16px',
-      background: T.brandGradient, borderRadius: R.md, cursor: 'pointer',
-      fontSize: 13, fontWeight: 700, color: '#fff', boxShadow: S.brandSoft,
+      background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: R.md, cursor: 'pointer',
+      fontSize: 13, fontWeight: 600, color: T.textMid, minHeight: 44,
       whiteSpace: 'nowrap', alignSelf: isMobile ? 'stretch' : 'auto', flexShrink: 0 }}>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
@@ -985,8 +1070,8 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
   const nuovaBtn = onNuovaRicetta && (
     <button onClick={() => onNuovaRicetta()}
       style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 16px',
-        background: T.bgCard, border: `1.5px solid ${T.brand}`, borderRadius: R.md, cursor: 'pointer',
-        fontWeight: 700, color: T.brand,
+        background: T.brandGradient, border: 'none', borderRadius: R.md, cursor: 'pointer',
+        fontSize: 13, fontWeight: 700, color: '#fff', boxShadow: S.brandSoft,
         whiteSpace: 'nowrap', alignSelf: isMobile ? 'stretch' : 'auto', flexShrink: 0, fontFamily: 'inherit',
         minHeight: 44 }}>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
@@ -1016,6 +1101,11 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
 
         {ricette.length > 0 && (() => {
           const ric = ricette.length, semi = semilavorati.length
+          // Le due mancanze non si sovrappongono: in `mediaFoodCost` una
+          // ricetta senza prezzo di vendita esce dal conto prima che si guardi
+          // se il costo è completo. Quindi la somma conta ricette distinte, e
+          // non c'è nessun doppio conteggio da togliere.
+          const daCompletare = senzaPrezzoVendita + costoIncompleto
           const subRicette = semi > 0
             ? `+ ${semi} semilavorat${semi === 1 ? 'o' : 'i'} (${ric + semi} voci totali)`
             : 'menu attivo'
@@ -1038,10 +1128,33 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
               {/* Sul telefono le tessere stanno su due colonne: la terza
                   restava sola a metà riga, con mezzo schermo vuoto accanto.
                   Presa la riga intera si legge come una scelta.
-                  Il viola #8E44AD era l'unico viola del prodotto: adesso è
-                  scuro come "Ricette", che è la stessa specie di numero. */}
+
+                  17/09/2026, richiesta del titolare: «nella scheda Gusti il
+                  riquadro Semilavorati a destra non serve, metterci
+                  qualcos'altro di utile». Aveva ragione: i semilavorati hanno
+                  una scheda tutta loro, qui accanto, e contarli in questa
+                  pagina non fa prendere nessuna decisione — è un numero che
+                  si guarda e si lascia lì.
+
+                  Al suo posto il numero che invece fa fare qualcosa: quante
+                  ricette non si riescono ancora a valutare. Sono di due specie
+                  e vanno tenute separate, perché il rimedio è diverso:
+                    · manca il prezzo di un ingrediente → il costo esce più
+                      basso del vero, e con lui il food cost di tutto;
+                    · manca il prezzo di vendita → il margine non esiste.
+                  È la stessa regola del resto del prodotto: un dato che manca
+                  non è uno zero, ed è lavoro da fare. */}
               <div style={{ gridColumn: isMobile ? '1 / -1' : 'auto' }}>
-                <KPI label="Semilavorati" value={semi} icon={<Icon name="gift" size={18} />} color={T.text} sub="basi e impasti interni" />
+                {daCompletare === 0 ? (
+                  <KPI label="Da completare" value="—" icon={<Icon name="check" size={18} />} color={T.green}
+                    sub={`tutte le ${LEX.ricette.toLowerCase()} hanno costo e prezzo`} />
+                ) : (
+                  <KPI label="Da completare" value={daCompletare} icon={<Icon name="alert" size={18} />} color={T.amber}
+                    sub={[
+                      costoIncompleto > 0 && `${costoIncompleto} senza il prezzo di un ingrediente`,
+                      senzaPrezzoVendita > 0 && `${senzaPrezzoVendita} senza prezzo di vendita`,
+                    ].filter(Boolean).join(' · ')} />
+                )}
               </div>
             </div>
           )
@@ -1117,22 +1230,38 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
             const fC = fcPct == null ? T.textSoft : fcPct <= 30 ? T.green : fcPct <= 40 ? T.amber : T.brand
             const perche = ricavo <= 0 ? 'manca il prezzo di vendita' : 'manca il prezzo di un ingrediente'
             return (
+              // 17/09/2026, tre richieste del titolare su questi riquadri:
+              // «idem le tessere nella visualizzazione a riquadri» (cioè più
+              // strette, come quelle dell'elenco), e «nei riquadri il nome del
+              // gusto in grassetto e nel rosso di Foodos».
+              // Il nome era a peso 600 nel nero del testo: in una griglia di
+              // riquadri tutti uguali, la cosa che si cerca è il nome, e non
+              // c'era niente che lo facesse trovare prima degli altri.
               <div key={ric.nome} className="fos-tile" onClick={() => onEditRicetta && onEditRicetta(ric.nome)}
-                style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 16, padding: 18, boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 16, padding: 13, boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: T.text }}>{ric.nome}</div>
-                  <div style={{ fontSize: 12, color: T.textSoft, marginTop: 2, ...TNUM }}>{reg.unita || '?'} {reg.tipo || 'pz'} · {fmt(reg.prezzo)}</div>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: T.brand, letterSpacing: '-0.01em' }}>{ric.nome}</div>
+                  {/* Prima qui c'era sempre «{unità} {tipo} · {prezzo}». Per un
+                      gusto di gelateria nessuno dei tre esiste — il prezzo vive
+                      sui formati di vendita — e usciva alla lettera «? pz ·
+                      0,00 €» sotto ogni nome. Un prezzo di zero euro scritto
+                      accanto a un prodotto è un'informazione falsa, non una
+                      mancante: ora la riga compare solo quando c'è qualcosa da
+                      dire. */}
+                  {reg.prezzo > 0 && reg.unita > 0 && (
+                    <div style={{ fontSize: 12, color: T.textSoft, marginTop: 2, ...TNUM }}>{reg.unita} {reg.tipo || 'pz'} · {fmt(reg.prezzo)}</div>
+                  )}
                 </div>
                 {/* Ordine richiesto (26/06): MARGINE a sinistra, FOOD COST a destra.
                     Label "Food cost" per esteso (non più "FC" criptico). */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  <div style={{ padding: '10px 12px', background: T.bgSubtle, borderRadius: R.md }}>
-                    <div style={{ fontSize: 12, color: T.textSoft, fontWeight: 600, textTransform: 'uppercase', marginBottom: 4 }}>Margine</div>
-                    <div style={{ fontSize: 18, fontWeight: 700, color: mC, ...TNUM }}>{marg == null ? '—' : fmtp0(marg)}</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <div style={{ padding: '7px 10px', background: T.bgSubtle, borderRadius: R.md }}>
+                    <div style={{ fontSize: 12, color: T.textSoft, fontWeight: 600, textTransform: 'uppercase', marginBottom: 2 }}>Margine</div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: mC, ...TNUM }}>{marg == null ? '—' : fmtp0(marg)}</div>
                   </div>
-                  <div style={{ padding: '10px 12px', background: T.bgSubtle, borderRadius: R.md }}>
-                    <div title="Food Cost: rapporto costo ingredienti / ricavo. Target tipico 25-35% in pasticceria, 22-30% in gelateria." style={{ fontSize: 12, color: T.textSoft, fontWeight: 600, textTransform: 'uppercase', marginBottom: 4, cursor: 'help' }}>Food cost</div>
-                    <div style={{ fontSize: 18, fontWeight: 700, color: fC, ...TNUM }}>{fcPct == null ? '—' : fmtp0(fcPct)}</div>
+                  <div style={{ padding: '7px 10px', background: T.bgSubtle, borderRadius: R.md }}>
+                    <div title="Food Cost: rapporto costo ingredienti / ricavo. Target tipico 25-35% in pasticceria, 22-30% in gelateria." style={{ fontSize: 12, color: T.textSoft, fontWeight: 600, textTransform: 'uppercase', marginBottom: 2, cursor: 'help' }}>Food cost</div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: fC, ...TNUM }}>{fcPct == null ? '—' : fmtp0(fcPct)}</div>
                   </div>
                 </div>
                 {!sappiamo && (

@@ -113,7 +113,14 @@ describe('Ricettario — niente prezzi inventati', () => {
     // il food cost mostrato e' meno della meta' del vero.
     expect(screen.queryByText(/prezzi stimati/i)).toBeNull()
     expect(screen.queryByText(/^1 stime$/i)).toBeNull()
-    expect(screen.getByText(/1 senza prezzo/i)).toBeTruthy()
+    // 17/09/2026: la ricerca era `/1 senza prezzo/i`, cioè «contiene».
+    // Dal momento in cui la tessera in cima alla pagina ha cominciato a dire
+    // «1 senza prezzo di vendita», quella ricerca trovava due elementi e il
+    // test si fermava — non perché il difetto fosse tornato, ma perché la
+    // domanda era posta male. Qui si controlla l'etichetta sulla ricetta, che
+    // deve dire esattamente «1 senza prezzo»: confronto esatto, che è più
+    // stretto di prima e continua a fallire se tornasse «1 stime».
+    expect(screen.getByText('1 senza prezzo')).toBeTruthy()
   })
 
   it('il KPI food cost medio dichiara che nessuna ricetta ha un prezzo', () => {

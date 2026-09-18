@@ -305,6 +305,25 @@ export const ChartTip = ({ active, payload, label }) => {
   )
 }
 
+/** Il nome di un ingrediente come si scrive: prima lettera maiuscola, resto
+ *  minuscolo, trattini bassi al posto degli spazi tolti.
+ *
+ *  `"zucchero_canna"` → `"Zucchero canna"`.
+ *
+ *  17/09/2026, richiesta del titolare: «i nomi degli ingredienti con la prima
+ *  maiuscola e il resto minuscolo, sia nel Ricettario sia in Nuovo gusto».
+ *  Nel Ricettario c'era già, ma scritto dentro TortaCard, dove nessun altro
+ *  poteva prenderlo — e infatti in Nuovo gusto gli stessi nomi uscivano tutti
+ *  in maiuscolo, perché è così che stanno scritti nel database (è la
+ *  convenzione del prodotto, `prodotto_nome` sempre maiuscolo). Qui si cambia
+ *  solo come si leggono: il dato salvato resta quello di prima.
+ */
+export function formatNome(s) {
+  if (!s) return ''
+  const pulito = String(s).replace(/_/g, ' ').toLowerCase().trim()
+  return pulito.charAt(0).toUpperCase() + pulito.slice(1)
+}
+
 export function Badge({ label, color = 'green' }) {
   const s = {
     green: { bg: C.greenLight, c: C.green },
@@ -404,7 +423,7 @@ export function Tip({ text, children, width = 220 }) {
           top: pos.y,
           transform: 'translateY(-100%)',
           zIndex: 99999,
-          background: '#1C0A0A',
+          background: T.tooltipBg,
           color: 'rgba(255,255,255,0.92)',
           fontSize: 12, fontWeight: 500, lineHeight: 1.55,
           padding: '10px 14px', borderRadius: 8,

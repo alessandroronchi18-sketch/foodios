@@ -961,9 +961,21 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
             <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, fontSize: FS.small, padding: '3px 8px', background: '#F8F4F2', borderRadius: 5 }}>
               <span style={{ fontWeight: 600, color: C.text, flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.qta}× {p.nome}</span>
               <span style={{ color: C.green, fontWeight: 700, flexShrink: 0 }}>{fmt(p.totale || 0)}</span>
+              {/* Stesso difetto del cestino nel Listino, trovato
+              cercando gli altri casi: un quadrato di 18px con dentro
+              un'icona, senza `display` — quindi il disegno stava sulla
+              riga di base del testo, un paio di pixel più in basso e
+              a sinistra del centro. Il `padding` con il margine
+              negativo allarga la zona che risponde al dito da 18 a 34
+              px senza spostare niente di quello che si vede: lo sfondo
+              e' trasparente, quindi il riempimento e' invisibile, e il
+              margine negativo riprende esattamente lo spazio fra le
+              colonne. */}
               {!salvato && (
                 <button aria-label={`Rimuovi ${p.nome}`} onClick={() => setVenduto(v => v.filter((_, j) => j !== i))}
-                  style={{ flexShrink: 0, width: 18, height: 18, borderRadius: 4, border: 'none', background: 'transparent', color: C.textSoft, cursor: 'pointer', fontSize: FS.small, fontWeight: 700, lineHeight: 1 }}
+                  style={{ flexShrink: 0, width: 18, height: 18, borderRadius: 4, border: 'none', background: 'transparent', color: C.textSoft, cursor: 'pointer', fontSize: FS.small, fontWeight: 700, lineHeight: 1,
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    padding: 8, margin: -8, boxSizing: 'content-box' }}
                   onMouseEnter={e => { e.currentTarget.style.color = C.red }} onMouseLeave={e => { e.currentTarget.style.color = C.textSoft }}><Icon name="x" size={12} /></button>
               )}
             </div>

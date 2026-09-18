@@ -818,6 +818,48 @@ const NO_SEDE_SELECTOR = new Set([
 // singola sede il selettore è muto e va nascosto per non confondere.
 const SEDE_SELECTOR_MULTI_ONLY = new Set(['ricettario'])
 
+// ─── Il selettore delle sedi nel Ricettario: nascosto, non tolto ─────────
+//
+// Domanda del titolare, 17/09/2026: «il ricettario contiene tutte le ricette
+// indipendentemente dalle sedi, ha senso tenere il selettore lì? fai audit
+// profondo». E poi: «se non serve nascondilo, non toglierlo, così se a una
+// certa mi rendo conto che serve lo rimetto online facilmente».
+//
+// **L'audit, sui dati veri di produzione (17/09/2026).** La regola qui sopra
+// diceva: mostralo se l'organizzazione ha almeno due sedi, perché i prezzi
+// possono essere diversi da una sede all'altra. È vero in teoria — quei
+// prezzi esistono, si chiamano `pasticceria-listino-sede-v1` e li scrive la
+// finestra «Prezzi per sede». Ma contati sul database:
+//
+//     righe di prezzi per sede, in tutto il prodotto ......... 0
+//     Mara dei Boschi (3 sedi) .............................. 0
+//
+// Nessuno li ha mai usati. Quindi nel Ricettario cambiare sede non cambiava
+// un numero: il menu si apriva, si sceglieva Carlina invece di Berthollet, e
+// la pagina restava identica. Un comando che non fa niente è peggio di un
+// comando che manca — chi lo tocca e non vede succedere nulla non conclude
+// «qui non serve», conclude «questa cosa è rotta».
+//
+// **Come rimetterlo.** Questa riga a `true`, e torna esattamente com'era: la
+// regola delle ≥2 sedi qui sopra è rimasta al suo posto e ricomincia a
+// valere. Il momento in cui rimetterlo è quando il primo cliente scrive un
+// prezzo diverso per una sede — da quel giorno il selettore mostra una
+// differenza vera.
+const SELETTORE_SEDI_NEL_RICETTARIO = false
+
+/** Se in questa pagina il selettore delle sedi ha qualcosa da dire.
+ *  Sta qui, in un posto solo, perché la condizione è usata in due punti —
+ *  la barra laterale e quella in alto — e finché era scritta due volte per
+ *  esteso bastava correggerne una per farle divergere. */
+export function mostraSelettoreSede(view, sedi) {
+  if (NO_SEDE_SELECTOR.has(view)) return false
+  if (view === 'ricettario' && !SELETTORE_SEDI_NEL_RICETTARIO) return false
+  if (SEDE_SELECTOR_MULTI_ONLY.has(view)) {
+    return (sedi || []).filter(s => s?.attiva !== false).length >= 2
+  }
+  return true
+}
+
 // Viste operative che SCRIVONO dati per-sede: in "Tutte le sedi" (vista aggregata)
 // richiedono di scegliere prima una sede specifica.
 const SEDE_RICHIESTA = new Set(['giornaliero','chiusura','magazzino','sprechi-omaggi','trasferimenti']);
@@ -2286,23 +2328,49 @@ export default function Dashboard({
         </div>
         );
       })()}
-      {/* Fascia inferiore globale (desktop): link legali. */}
-      {!isMobile && (
-        <div style={{position:"fixed",bottom:0,left:0,right:0,height:28,zIndex:40,
+      {/* Fascia inferiore globale (desktop e tablet): link legali.
+
+          17/09/2026, richiesta del titolare: «nella versione mobile
+          rimpicciolisci e rendi meno visibile questa sezione Privacy ·
+          Termini · Cookie · Contatti · © Foodos».
+
+          Prima cosa capita: questa fascia si mostrava con `!isMobile`, cioè
+          da 768px in su — quindi **anche su tablet**, dove lo schermo è quello
+          di un iPad e la fascia scura alta 28px con l'ombra sopra si prendeva
+          una striscia di pagina per cinque link che si aprono una volta
+          l'anno. Il titolare la chiama «versione mobile» perché è quello che
+          vede in mano.
+
+          Sul tablet ora è alta 20px invece di 28, senza l'ombra che la
+          staccava dalla pagina, e il testo è al 26% di bianco invece del 42%.
+          La sfumatura resta quella di sempre: a 20px non si distingue da un
+          colore pieno, e introdurne uno nuovo avrebbe aggiunto un colore
+          scritto a mano al prodotto per non far vedere niente di diverso. Il corpo resta 12px: sotto quella misura ci eravamo
+          già andati una volta (erano 11px) ed è stato un difetto, non una
+          scelta. «Meno visibile» si ottiene col contrasto e con l'ingombro,
+          non rimpicciolendo i caratteri finché non si leggono più. */}
+      {!isMobile && (() => {
+        const fioca = isTablet
+        const testo = fioca ? "rgba(255,255,255,0.26)" : T.textOnDarkSoft
+        const punto = fioca ? "rgba(255,255,255,0.14)" : T.borderOnDarkStr
+        return (
+        <div style={{position:"fixed",bottom:0,left:0,right:0,height:fioca?20:28,zIndex:40,
           background:"linear-gradient(100deg, #16121C 0%, #1E0B11 55%, #2C0E14 100%)",
-          borderTop:"1px solid rgba(255,255,255,0.06)",boxShadow:"0 -4px 18px rgba(0,0,0,0.14)",
-          display:"flex",alignItems:"center",justifyContent:"center",gap:9,
+          borderTop:"1px solid rgba(255,255,255,0.06)",
+          boxShadow:fioca?"none":"0 -4px 18px rgba(0,0,0,0.14)",
+          display:"flex",alignItems:"center",justifyContent:"center",gap:fioca?6:9,
           fontFamily:"'Inter',system-ui,sans-serif"}}>
           {[["Privacy","/privacy"],["Termini","/termini"],["Cookie","/cookie"],["Contatti","/contatti"]].map(([l,h],i)=>(
             <React.Fragment key={l}>
-              {i>0 && <span style={{fontSize: 12,color:T.borderOnDarkStr}}>·</span>}
-              <a href={h} target="_blank" rel="noreferrer" style={{fontSize: 12,fontWeight:500,color:T.textOnDarkSoft,textDecoration:"none",letterSpacing:"0.02em"}}>{l}</a>
+              {i>0 && <span style={{fontSize: 12,color:punto}}>·</span>}
+              <a href={h} target="_blank" rel="noreferrer" style={{fontSize: 12,fontWeight:500,color:testo,textDecoration:"none",letterSpacing:"0.02em"}}>{l}</a>
             </React.Fragment>
           ))}
-          <span style={{fontSize: 12,color:T.borderOnDarkStr}}>·</span>
-          <span style={{fontSize: 12,fontWeight:500,color:T.textOnDarkSoft,letterSpacing:"0.02em"}}>© {appName}</span>
+          <span style={{fontSize: 12,color:punto}}>·</span>
+          <span style={{fontSize: 12,fontWeight:500,color:testo,letterSpacing:"0.02em"}}>© {appName}</span>
         </div>
-      )}
+        )
+      })()}
 
       {toast&&(
         <div style={{position:"fixed",top:isMobile?16:20,right:isMobile?16:24,left:isMobile?16:"auto",
@@ -2610,7 +2678,7 @@ export default function Dashboard({
             </button>
             )}
 
-            {!NO_SEDE_SELECTOR.has(view) && !(SEDE_SELECTOR_MULTI_ONLY.has(view) && (sedi || []).filter(s => s?.attiva !== false).length < 2) && <SedeSelector sedi={sedi} sedeAttiva={sedeAttiva} onSelect={onSetSedeAttiva} />}
+            {mostraSelettoreSede(view, sedi) && <SedeSelector sedi={sedi} sedeAttiva={sedeAttiva} onSelect={onSetSedeAttiva} />}
 
             {/* Search nel menu - filtra le voci della sidebar in tempo reale.
                 Input glass con bordo brand su focus. Min-height 38 per touch
@@ -2941,7 +3009,7 @@ export default function Dashboard({
                   animation:'_fos_title_rise .45s cubic-bezier(.32,.72,0,1) both',
                 }}>{label}</h1>
               </div>
-              {(sedi||[]).length>0 && !NO_SEDE_SELECTOR.has(view) && !(SEDE_SELECTOR_MULTI_ONLY.has(view) && (sedi || []).filter(s => s?.attiva !== false).length < 2) && <SedeSelector sedi={sedi} sedeAttiva={sedeAttiva} onSelect={onSetSedeAttiva} variant="topbar" />}
+              {(sedi||[]).length>0 && mostraSelettoreSede(view, sedi) && <SedeSelector sedi={sedi} sedeAttiva={sedeAttiva} onSelect={onSetSedeAttiva} variant="topbar" />}
             </div>
           );
         })()}
