@@ -77,7 +77,13 @@ describe('Semilavorati — il salvataggio non butta via campi', () => {
   it('il badge distingue "senza prezzo" da "prezzo stimato"', () => {
     // Prima il badge diceva "N prezzi stimati" contando i prezzi ASSENTI, e le
     // stime vere (20 righe su 38 nei dati reali) non si vedevano mai.
-    expect(src).toMatch(/const stimati = righe\.filter\(r => r\.isStima\)/)
+    // 18/09/2026: la condizione si è allungata. Da quel giorno il listino
+    // medio di mercato non fa più il conto, quindi una riga costata con
+    // quello è a tutti gli effetti SENZA prezzo — e compariva con tutt'e due
+    // gli avvisi insieme, che è una contraddizione a schermo. L'avviso giallo
+    // resta per il caso in cui la stima torni a contare, e allora vuol dire
+    // davvero «questo costo c'è, ma non è il tuo».
+    expect(src).toMatch(/const stimati = righe\.filter\(r => r\.isStima && !r\.mancante\)/)
     expect(src).toMatch(/senza prezzo/)
     expect(src).not.toMatch(/\$\{mancanti\.length\} prezzi stimati/)
   })

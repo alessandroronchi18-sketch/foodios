@@ -1405,7 +1405,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                       const costo = rg.costo;
                       return (
                         <tr key={i} style={{ borderBottom: `1px solid ${C.border}`, background: rowIndex % 2 === 0 ? C.white : "#FDFAF7" }}>
-                          <td style={{ padding: "6px 10px", fontWeight: 600, fontSize: font.size.md, color: C.text, verticalAlign: "middle" }}>
+                          <td style={{ padding: "6px 10px", fontWeight: 600, fontSize: font.size.md, color: C.text, verticalAlign: "middle", minWidth: 0, maxWidth: 0, width: "40%" }}>
                             {/* 17/09/2026: «i nomi degli ingredienti con la
                                 prima maiuscola e il resto minuscolo, sia nel
                                 Ricettario sia in Nuovo gusto». Qui uscivano
@@ -1413,7 +1413,24 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                                 database — convenzione del prodotto, e non si
                                 tocca. Cambia solo come si leggono. Il `title`
                                 tiene il nome esatto per chi deve ritrovarlo. */}
-                            <span title={ing.nome} style={{ display: "inline-block", maxWidth: isMobile ? 130 : 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", verticalAlign: "bottom" }}>{formatNome(ing.nome)}</span>
+                            {/* 18/09/2026, segnalato dal titolare aprendo la
+                                ricetta MAROTTO: «Base agrimontana ciocolato»
+                                usciva accorciata con i puntini anche se di
+                                spazio ce n'era.
+                                C'era un tetto fisso di 180px sul nome, messo
+                                per evitare che un nome lungo spingesse fuori
+                                le colonne dei numeri. Ma un tetto fisso non sa
+                                quanto spazio c'è: su uno schermo largo
+                                accorciava lo stesso, e su uno stretto non
+                                bastava comunque.
+                                Adesso il nome prende tutto quello che la
+                                colonna gli lascia — `maxWidth: '100%'` dentro
+                                una cella che può stringersi (`minWidth: 0`) —
+                                e i puntini compaiono solo quando servono
+                                davvero. Le colonne dei numeri restano al loro
+                                posto perché sono loro a non potersi stringere
+                                (`whiteSpace: nowrap` sulle celle a destra). */}
+                            <span title={ing.nome} style={{ display: "block", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{formatNome(ing.nome)}</span>
                             {/* Audit 2026-09-09: un solo badge per riga, deciso dall'esito
                                 di costoRigaIngrediente. Prima l'unico badge era "prezzo
                                 mancante" e appariva anche sui semilavorati (che un prezzo

@@ -65,13 +65,108 @@ export const fmtp0Segno = v => `${num(v) >= 0 ? '+' : ''}${fmtp0(v)}`
  * Qui la stringa deve essere un prezzo per intero, non «cominciare» per
  * prezzo. I punti prima della virgola sono le migliaia, come si scrive in
  * Italia: «1.234,50» sono milleduecentotrentaquattro euro e cinquanta.
+ *
+ * ── Il punto senza virgola: regola del titolare, 18/09/2026 ───────────────
+ *
+ * «Di base comunque il punto sono le migliaia, la virgola i decimali.» È la
+ * convenzione italiana, e da oggi vale anche quando la virgola non c'è.
+ * Prima il punto era sempre e solo un decimale, quindi **«1.250» rispondeva
+ * 1,25**: mille volte meno di quello che chi lo scrive intende quasi sempre.
+ * Nel listino vero di Mara la bacca di vaniglia sta a 380 €/kg e lo zafferano
+ * a migliaia: i prezzi a quattro cifre non sono un caso di scuola.
+ *
+ * Due forme restano decimali, e non per indulgenza ma perché come migliaia
+ * non esistono:
+ *
+ *   - **il punto seguito da un numero di cifre diverso da tre** — «1.25»,
+ *     «12.5», «0.8825». Le migliaia italiane vogliono gruppi da tre esatte;
+ *     qui il punto è un decimale battuto all'inglese, da chi copia da un
+ *     gestionale, e di letture sensate ce n'è una sola. In archivio i prezzi
+ *     hanno quattro decimali, quindi «0.8825» deve restare 0,8825;
+ *   - **il gruppo di testa che comincia per zero** — «0.950». In italiano non
+ *     si scrive «zeromila novecentocinquanta»: quello è il prezzo della farina
+ *     al chilo, novantacinque centesimi, e leggerlo 950 €/kg sarebbe l'errore
+ *     più caro di tutti.
+ *
+ * Resta incerto un caso solo — punto solo, niente virgola, tre cifre dopo,
+ * niente zero di testa: «1.250», «12.500». Lì questa funzione applica la
+ * regola italiana e risponde 1250, mentre `letturaPrezzoKg` (sotto) dice anche
+ * che il dubbio c'è, così la schermata può chiedere invece di indovinare.
  */
 export function leggiPrezzoKg(testo) {
-  let g = String(testo ?? '').trim()
+  const g = String(testo ?? '').trim()
   if (!g) return null
-  if (g.includes(',')) g = g.replace(/\./g, '')
-  g = g.replace(',', '.')
-  if (!/^\d+(\.\d+)?$/.test(g)) return null
-  const v = Number(g)
-  return Number.isFinite(v) ? v : null
+  // Con la virgola non c'è niente da interpretare: la virgola sono i
+  // decimali, e i punti che la precedono sono le migliaia.
+  if (g.includes(',')) {
+    const c = g.replace(/\./g, '').replace(',', '.')
+    if (!/^\d+(\.\d+)?$/.test(c)) return null
+    const v = Number(c)
+    return Number.isFinite(v) ? v : null
+  }
+  // Solo cifre.
+  if (/^\d+$/.test(g)) return Number(g)
+  // Migliaia all'italiana: gruppi da tre, e il primo non comincia per zero.
+  if (/^[1-9]\d{0,2}(\.\d{3})+$/.test(g)) return Number(g.replace(/\./g, ''))
+  // Un punto solo, con un gruppo che migliaia non può essere: è un decimale.
+  if (/^\d+\.\d+$/.test(g)) {
+    const v = Number(g)
+    return Number.isFinite(v) ? v : null
+  }
+  return null
+}
+
+/**
+ * Legge un prezzo al chilo e dice anche **quando non è sicura di averlo
+ * capito**, invece di decidere da sola.
+ *
+ * Il caso, deciso col titolare il 18/09/2026: «1.250». La regola italiana vale
+ * e vince — sono milleduecentocinquanta, ed è quello che risponde `valore` —
+ * ma il punto è anche il decimale di chi copia e incolla da un gestionale in
+ * inglese. Fra 1,25 €/kg e 1.250 €/kg ci sono tre ordini di grandezza, e il
+ * numero finisce nel food cost di tutte le ricette che usano quella materia
+ * prima: sbagliarlo di mille volte non si nota guardando la riga, si nota a
+ * fine mese nel margine.
+ *
+ * Quindi qui non si indovina di nascosto: si applica la regola italiana e si
+ * dice che l'altra lettura esiste, così la schermata può proporla a parole.
+ *
+ * **L'incertezza è una sola, ed è stretta apposta:** un punto solo, nessuna
+ * virgola, esattamente tre cifre dopo, e il gruppo di testa che non comincia
+ * per zero. Tutto il resto si legge senza doverlo chiedere:
+ *
+ *   - `1.25`, `12.5`, `1.2500` → un numero di cifre diverso da tre dopo il
+ *                         punto: come migliaia non esiste, è un decimale;
+ *   - `0.950`           → «zeromila novecentocinquanta» non si scrive: è la
+ *                         farina a novantacinque centesimi;
+ *   - `1.250.000`       → più punti: sono migliaia, e si legge 1250000;
+ *   - `1,250`, `1.250,50` → c'è la virgola, e la virgola decide;
+ *   - `380`             → niente punti, niente da chiedere.
+ *
+ * Gli spazi intorno e il simbolo dell'euro si tolgono prima di leggere: «12,50 €»
+ * è il modo in cui il prezzo è scritto su ogni schermata di questo prodotto, e
+ * rileggerlo copiandolo da lì deve funzionare. È l'unico punto in cui questa
+ * funzione è più tollerante di `leggiPrezzoKg`, che su «12,50 €» risponde
+ * `null`.
+ *
+ * @param {string} testo  il prezzo come l'ha scritto una persona
+ * @returns {{valore: number|null, ambiguo: boolean, comeDecimale: number|null, comeMigliaia: number|null}}
+ *   `valore` il numero letto con la regola italiana (o `null` se non è un
+ *   prezzo); `ambiguo` vero solo nel caso incerto; `comeDecimale` e
+ *   `comeMigliaia` le due letture possibili, valorizzate **solo** quando
+ *   `ambiguo` è vero. Quando lo è, `valore` è uguale a `comeMigliaia`.
+ */
+export function letturaPrezzoKg(testo) {
+  const pulito = String(testo ?? '').replace(/€/g, '').trim()
+  const valore = leggiPrezzoKg(pulito)
+  const incerto = /^[1-9]\d{0,2}\.\d{3}$/.test(pulito)
+  if (!incerto || valore === null) {
+    return { valore, ambiguo: false, comeDecimale: null, comeMigliaia: null }
+  }
+  return {
+    valore,
+    ambiguo: true,
+    comeDecimale: Number(pulito),
+    comeMigliaia: valore,
+  }
 }

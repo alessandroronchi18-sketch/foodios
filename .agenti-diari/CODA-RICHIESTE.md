@@ -136,13 +136,23 @@ quando quelli hanno finito. File: `src/components/FormatiVendita.jsx`.
    formato, falle anche più piccole, intelligenti e coerenti, non usando
    spazio inutile».
 
-## TROVATO PER STRADA — da decidere
-**Il ramo «semilavorato» dentro `TortaCard` (RicettarioView.jsx) è codice
-morto.** Dopo aver tolto i semilavorati dalla scheda Gusti, nessuno passa più
-`variant="semilavorato"`: restano 27 diramazioni su `isSemi` che non si
-eseguono mai. Non l'ho tolto adesso — si tocca una scheda che è appena andata
-online e che il titolare sta guardando — ma va tolto, perché prima o poi
-qualcuno lo «corregge» credendolo vivo.
+## CHIUSO — NON era codice morto (18/09 sera)
+Avevo scritto che il ramo «semilavorato» dentro `TortaCard` fosse codice morto
+e andasse tolto. **Era una valutazione sbagliata mia.** `isSemi` non guarda
+solo `variant`:
+
+    const isSemi = variant === 'semilavorato' || tipoEff === 'semilavorato'
+
+e `tipoEff` legge `ricetta.tipo`, mentre il filtro dell'elenco usa
+`getR(nome, ricetta).tipo` — che se la ricetta non ha il campo `unita` ignora
+del tutto `ricetta.tipo`. Quindi una base **importata senza `unita`** passa il
+filtro e arriva alla scheda con `isSemi` vero. Sui dati di Mara oggi non
+capita (tutti e 5 i semilavorati hanno `unita: 0`), ma è raggiungibile.
+
+→ Le diramazioni **restano**. Al loro posto c'è
+`tests/unit/semilavoratiFuoriDallElencoProdotti.test.jsx`, che fissa la regola
+vera: nell'elenco dei prodotti i semilavorati non ci vanno, nemmeno senza
+`unita`.
 
 ## AUDIT 18/09 — trovato sui dati veri di Mara (68 ricette)
 
@@ -165,3 +175,60 @@ qualcuno lo «corregge» credendolo vivo.
       → Rimedio: nell'elenco tenere i semilavorati **che hanno un prezzo
       scritto a mano**, segnalati per quello che sono.
       Non fatto subito perché il file era in mano a un agente.
+
+## DA FARE — 18/09 sera, pagina Materie prime (9 punti + 1)
+
+1. **«Nuova materia prima» sta nel posto sbagliato.** Spostarlo e rifarlo.
+   E le due tessere «stima di mercato» e «prezzo tuo»: servono ancora?
+2. **Lo storico modifiche diventa una pagina a sé.** Il pulsante resta nelle
+   Materie prime, ma apre una pagina sua. Ogni modifica deve dire: prodotto,
+   da quanto a quanto, in che data, e da chi.
+3. **La riga «75 materie prime non hanno prezzo…» su una riga sola da PC.**
+4. **Ogni materia prima ha il fornitore.** Serve a collegare tutto: nella
+   pagina Fornitori si vedranno poi le materie prime di ognuno.
+5. **La colonna «in quante ricette» diventa un pulsante**: cliccandolo si
+   aprono sotto, incolonnate, le ricette che usano quella materia prima. Il
+   suggerimento al passaggio del mouse non serve — mostra solo le prime.
+6. **Il segnaposto «12,50» nel campo del prezzo è fuorviante**: schiarirlo o
+   toglierlo.
+7. **Le date allo scoccare dell'anno.** Controllare che gli storici dei
+   prezzi reggano il passaggio al 01/01.
+8. **Import prezzi in blocco**, accanto a «Nuova materia prima», più un
+   pulsante che scarica un Excel di esempio con le colonne già scritte:
+   *nome materia prima / prezzo al kg / fornitore*. Per il fornitore va detto
+   che il nome dev'essere **esattamente quello che compare in fattura**.
+9. **Modificando si può cambiare anche il nome** (uno lo salva sbagliato), e
+   il cambio deve propagarsi ovunque nel prodotto.
+
+**+1 (segnalato aprendo la ricetta MAROTTO):** «Base agrimontana ciocolato»
+esce abbreviata con i puntini anche quando di spazio ce n'è. Troncare solo se
+serve davvero.
+
+## FATTO — 18/09 sera
+- [x] Selettore sedi nascosto anche in «Materie prime»: i prezzi stanno nel
+      ricettario, che è uno solo per l'azienda, e la pagina non legge `sedeId`.
+- [x] **La stima di mercato non fa più il conto.** Misurato sui dati veri di
+      Mara: 99 righe su 161 erano costate col listino medio di mercato, il
+      **47% del food cost** dell'azienda, e 55 ricette su 68 ne erano toccate.
+      Adesso vale come prezzo mancante. Conseguenza dichiarata: le ricette con
+      costo completo passano da ~65 a **3 su 68** — è la verità, e manda a
+      scrivere i prezzi. Interruttore: `STIMA_DI_MERCATO_FA_IL_CONTO`.
+10. **Eliminare una materia prima**, con un doppio controllo serio prima:
+    è un dato da cui dipendono le ricette che la usano.
+11. **Il filtro data in «modifica prezzi» non fa scrivere bene l'anno.**
+    Segnalato dal titolare il 18/09: va controllato con attenzione.
+
+## DECISIONE APERTA — come si legge «1.250» in un prezzo
+`leggiPrezzoKg` (in `formatIt.js`) legge `1.250` come **1,25**, non come 1.250.
+In italiano il punto è il separatore delle migliaia, quindi chi scrive «1.250»
+quasi sempre intende milleduecentocinquanta — e non è un caso di scuola: la
+bacca di vaniglia nel listino di Mara sta a **380 €/kg**, lo zafferano di più.
+Ma il punto è anche il decimale di chi copia da un gestionale in inglese.
+→ Nell'import l'agente ha già aggiunto `resoconto.ambigue`, che mostra le due
+letture possibili prima di scrivere. Per il campo singolo (finestra del prezzo)
+la decisione è aperta: **chiedere invece di indovinare** quando c'è un punto
+con esattamente tre cifre dopo e nessuna virgola.
+→ **APPROVATA dal titolare il 18/09.** `letturaPrezzoKg` la scrive l'agente
+delle date (proprietario di `formatIt.js`); l'aggancio in «Nuovo gusto» lo fa
+il capo, quello in «Materie prime» l'agente della pagina. `leggiPrezzoKg` non
+si tocca: ha già dei chiamanti e deve rispondere come prima.

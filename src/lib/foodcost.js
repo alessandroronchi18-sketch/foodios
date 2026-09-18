@@ -18,10 +18,40 @@
 
 import { costoNettoPerG, hasResaIngrediente } from './rese'
 import { tipoDichiarato } from './tipoRicetta'
+import { soloData } from './dateLocal'
+
+// ─── Il listino medio di mercato non fa più il conto ──────────────────────
+//
+// 18/09/2026, decisione del titolare: «la stima di mercato in base a cosa la
+// fai? magari con dei fornitori ci sono prezzi amichevoli. occhio toglila che
+// può essere fuorviante».
+//
+// Con questo a `false`, un prezzo preso dal listino qui sotto vale come
+// **prezzo mancante**: non entra nel food cost, e la ricetta dice che non si
+// può ancora calcolare. Il listino resta e continua a servire — ma come
+// suggerimento quando si scrive un prezzo, non come numero che fa il conto.
+//
+// Cosa costa dirlo, misurato sul ricettario vero di Mara dei Boschi (68
+// ricette) il giorno della decisione:
+//
+//                              prima      dopo
+//     ricette con costo completo    ~65        3
+//     quota del food cost da stima  47%        0
+//
+// Sembra un passo indietro ed è il contrario: prima il prodotto mostrava un
+// food cost per quasi tutto, e quasi metà di quel numero non era un numero
+// dell'azienda. Adesso mostra quello che sa, e per il resto dice dove andare a
+// scriverlo. La pagina «Materie prime», nata lo stesso giorno, esiste per
+// quello.
+//
+// Per rimetterlo com'era: questa riga a `true`. È una decisione di prodotto,
+// non un dettaglio tecnico, e si cambia in un posto solo.
+export const STIMA_DI_MERCATO_FA_IL_CONTO = false
 
 // ─── PREZZI HORECA ────────────────────────────────────────────────────────────
-// Prezzi ingrosso aggiornati 2025 - usati come stima quando l'utente non ha
-// caricato un proprio file prezzi. Marker `isStima:true` per UI badge.
+// Prezzi ingrosso aggiornati 2025 - usati come SUGGERIMENTO quando l'utente non
+// ha ancora scritto il suo prezzo. Marker `isStima:true`: chi lo legge sa che
+// non è un prezzo dell'azienda.
 export const PREZZI_HORECA = {
   // ── FARINE & AMIDI ──────────────────────────────────────────────────────────
   "farina 00":              { costoKg:0.88 },
@@ -855,10 +885,69 @@ export function buildIngCosti(fromFile) {
 // Esempio: se "farina" passa da 1€ a 2€ il 31/12 alle 23:59 con decorre_da=2026-01-01,
 // allora getPrezzoStoricoAt('farina', '2025-12-31') ritorna 1€ e
 // getPrezzoStoricoAt('farina', '2026-01-01') ritorna 2€.
+//
+// ── La decorrenza è un GIORNO, e si confronta con un giorno ────────────────
+//
+// 18/09/2026, domanda del titolare: «controlla che non ci siano problemi con
+// le date quando cambierà l'anno e si tornerà al 01/01, con gli storici dei
+// prezzi». Guardandoci dentro, il confronto si faceva fra ISTANTI:
+//
+//     new Date(decorre_da).getTime() <= new Date(when).getTime()
+//
+// e la decorrenza in archivio è scritta come mezzanotte di GREENWICH del
+// giorno scelto ('2027-01-01T00:00:00.000Z'), cioè l'una di notte italiana.
+// Tre conseguenze, tutte misurate:
+//
+//   1. un prezzo «dal 1° gennaio» non valeva ancora all'una di notte del 1°
+//      gennaio in Italia — un'ora d'inverno, due d'estate, in cui il food
+//      cost girava sul prezzo vecchio;
+//   2. chiedendo il prezzo con un giorno («2027-01-01») o con un oggetto data
+//      a mezzanotte locale (`new Date(2027, 0, 1)`) la risposta era il prezzo
+//      VECCHIO: mezzanotte italiana è ancora il 31 dicembre a Greenwich.
+//      Oggi non si vede perché l'unico chiamante — `StoricoProduzioneView` —
+//      chiede a mezzogiorno; basta un chiamante nuovo scritto nel modo ovvio
+//      e il difetto esce;
+//   3. lo stesso campo era confrontato come GIORNO dall'altra parte del
+//      prodotto (`Dashboard.jsx`, applicazione dei prezzi programmati:
+//      `soloData(e.decorre_da) <= oggi`). Due regole per lo stesso dato vuol
+//      dire che prima o poi divergono, e divergevano già: nella prima ora di
+//      ogni giornata il prezzo programmato risultava applicato al listino e
+//      non ancora applicato allo storico.
+//
+// Adesso si confrontano due stringhe 'AAAA-MM-GG', che è quello che la
+// finestra promette all'utente: «cambiando il prezzo dal 01/01, il 31/12 usa
+// ancora il vecchio». Fra due giorni scritti così il fuso non c'entra, l'ora
+// legale non c'entra, e il 29 febbraio non è un caso speciale.
 
 function _entryDecorrenza(entry) {
   // Quando il nuovo prezzo entra in vigore.
   return entry?.decorre_da || entry?.data || null
+}
+
+/**
+ * Il GIORNO ('AAAA-MM-GG') di un valore che può essere una data, un istante
+ * ISO o un giorno già fatto. Stringa vuota se non si sa.
+ *
+ * Due trappole che questa funzione chiude, trovate il 18/09/2026:
+ *
+ * **`new Date(null)` è il 1° gennaio 1970, e `Number.isFinite(0)` è vero.**
+ * Una riga di storico senza né `data` né `decorre_da` — `_entryDecorrenza`
+ * risponde `null` — passava il controllo e veniva dichiarata in vigore dal
+ * 1970: diventava il prezzo di tutto il passato del prodotto. Il filtro
+ * voleva scartarla e invece la teneva. Qui un giorno che non c'è è una
+ * stringa vuota, e la stringa vuota si scarta davvero.
+ *
+ * **Una data all'italiana viene letta all'americana.** `new Date('07/01/2027')`
+ * risponde 7 gennaio in Chrome e in Safari, non 1° luglio, e senza dire
+ * niente. Una riga così — può arrivare da un foglio importato — spostava un
+ * prezzo di sei mesi in silenzio. Qui si accetta solo la forma 'AAAA-MM-GG'
+ * (anche come testa di un istante ISO): tutto il resto vale «non lo so», e
+ * chi chiama ricade sul prezzo di adesso, che si vede.
+ */
+function _giornoDi(v) {
+  if (v instanceof Date) return Number.isNaN(v.getTime()) ? '' : soloData(v)
+  const m = String(v ?? '').trim().match(/^(\d{4}-\d{2}-\d{2})/)
+  return m ? m[1] : ''
 }
 
 /**
@@ -887,28 +976,37 @@ function _prezzoNoto(v) {
  * Trova il prezzo €/kg di un ingrediente valido a una data specifica.
  * @param {Array}    logPrezzi  storico modifiche (ordinato newest→oldest)
  * @param {string}   nomeIng    nome ingrediente (normalizzato o no)
- * @param {Date|string} when    data di riferimento (default: oggi)
- * @returns {number|null}       €/kg al momento, o null se non noto
+ * @param {Date|string} when    giorno di riferimento (default: oggi). Può
+ *                              essere 'AAAA-MM-GG', un istante ISO o una Date:
+ *                              conta solo il GIORNO che ne esce.
+ * @returns {number|null}       €/kg quel giorno, o null se non noto
  */
 export function getPrezzoStoricoKg(logPrezzi, nomeIng, when) {
   if (!Array.isArray(logPrezzi) || logPrezzi.length === 0) return null
-  const target = when ? new Date(when).getTime() : Date.now()
-  if (!Number.isFinite(target)) return null
+  // `when` vuoto vuol dire «adesso». Un `when` che non è una data resta un
+  // «non lo so»: si risponde null e chi chiama usa il prezzo di adesso.
+  const target = _giornoDi(when || new Date())
+  if (!target) return null
   const ingKey = normIng((nomeIng || '').toLowerCase().trim())
 
-  // Filtra le entry per questo ingrediente, ordinate per decorrenza desc.
+  // Le righe di questo ingrediente, dal giorno di decorrenza più recente al
+  // più vecchio. L'ordinamento fra stringhe 'AAAA-MM-GG' è quello giusto per
+  // costruzione, ed è stabile: due righe dello stesso giorno restano
+  // nell'ordine in cui stanno nel log, che è dalla più recente alla più
+  // vecchia — quindi a parità di giorno vince l'ultima modifica scritta.
   const entries = logPrezzi
     .filter(e => normIng((e.ingrediente || '').toLowerCase().trim()) === ingKey)
-    .map(e => ({ ...e, _t: new Date(_entryDecorrenza(e)).getTime() }))
-    .filter(e => Number.isFinite(e._t))
-    .sort((a, b) => b._t - a._t)
+    .map(e => ({ ...e, _g: _giornoDi(_entryDecorrenza(e)) }))
+    .filter(e => e._g)
+    .sort((a, b) => (a._g < b._g ? 1 : a._g > b._g ? -1 : 0))
   if (entries.length === 0) return null
 
-  // Trova la prima entry con decorrenza <= target (cioè era già attiva al target).
-  // NB: usiamo Number.isFinite e non `|| null`, così un prezzo legittimo di 0
+  // La prima riga che decorre da un giorno non successivo a `target`: quel
+  // giorno era già in vigore.
+  // NB: si usa `_prezzoNoto` e non `|| null`, così un prezzo legittimo di 0
   // (ingrediente gratis/omaggio) NON viene scambiato per "prezzo sconosciuto".
   for (const e of entries) {
-    if (e._t <= target) return _prezzoNoto(e.prezzoNuovo)
+    if (e._g <= target) return _prezzoNoto(e.prezzoNuovo)
   }
   // Tutte le modifiche sono successive a `target`: usa il prezzo PRIMA della
   // prima modifica (il "vecchio prezzo" dell'entry più vecchia). Se quella
@@ -1093,6 +1191,11 @@ export function calcolaFC(ricetta, ingCosti, ricettario, _depth, _path, _lordo) 
 
     const c = prezzoDichiarato
     if (!c) { mancanti.push(ing.nome); continue }
+    // La stima di mercato non conta: vedi il commento lungo in
+    // `costoRigaIngrediente`. Le due funzioni devono dire lo stesso numero —
+    // averne allineata una sola è già costato 29 ricette con due food cost
+    // diversi, la mattina di oggi.
+    if (c.isStima && !STIMA_DI_MERCATO_FA_IL_CONTO) { mancanti.push(ing.nome); continue }
     tot += qty * (_lordo ? c.costoG : costoNettoPerG(c.costoG, nomeNorm))
   }
   // Rounding solo al top-level.
@@ -1185,6 +1288,41 @@ export function costoRigaIngrediente(ing, ingCosti, ricettario) {
 
   const c = prezzoDichiarato
   if (!c) return { costo: 0, isStima: false, isSemilavorato: false, mancante: true, motivo: 'prezzo mancante' }
+
+  // ── Il listino medio di mercato NON entra nel food cost ────────────────
+  //
+  // 18/09/2026, il titolare, guardando l'etichetta «stima di mercato»:
+  //
+  //   «la stima di mercato in base a cosa la fai? magari con dei fornitori ci
+  //    sono prezzi amichevoli. occhio toglila che può essere fuorviante»
+  //
+  // La domanda meritava una risposta netta: `PREZZI_HORECA` è un elenco
+  // scritto a mano dentro il codice, con l'intestazione «prezzi ingrosso
+  // aggiornati 2025». Nessuna fonte, nessun collegamento ai fornitori di
+  // nessuno. Per una gelateria che compra la panna da chi la conosce da
+  // vent'anni, può essere lontano il doppio in tutt'e due i sensi.
+  //
+  // Quanto pesava, misurato sul ricettario vero di Mara dei Boschi:
+  //
+  //     righe col SUO prezzo ................................  62
+  //     righe con la stima di mercato .......................  99
+  //     quota del food cost totale che veniva dalla stima ... 47%
+  //     ricette toccate da almeno una stima ................. 55 su 68
+  //
+  // Quasi metà del food cost dell'azienda usciva da numeri che nessuno aveva
+  // verificato, presentati come se fossero suoi. Il prodotto ripete da mesi
+  // che «un valore che manca non è uno zero»: vale allo stesso modo che un
+  // valore indovinato non è un valore misurato.
+  //
+  // Da oggi una stima vale come **prezzo mancante**: il costo non si calcola
+  // e la ricetta lo dice. Il listino resta dov'è, ma cambia mestiere — non fa
+  // più il conto, fa il suggerimento quando si scrive un prezzo («il mercato
+  // sta intorno a 0,88 €/kg»), che è l'unico uso onesto di un numero medio.
+  if (c.isStima && !STIMA_DI_MERCATO_FA_IL_CONTO) {
+    return { costo: 0, isStima: true, isSemilavorato: false, mancante: true,
+             motivo: 'prezzo mancante: quello che vedi è il listino medio di mercato, non il tuo' }
+  }
+
   const costo = qty * costoNettoPerG(c.costoG, nomeNorm)
   return {
     costo: parseFloat(costo.toFixed(3)),

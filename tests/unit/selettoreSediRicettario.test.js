@@ -52,6 +52,14 @@ describe('Nel Ricettario il selettore è nascosto', () => {
     expect(mostra('chiusura', treSedi)).toBe(true)
   })
 
+  it('e resta fuori anche da «Materie prime», per lo stesso motivo', async () => {
+    // 18/09/2026: i prezzi delle materie prime stanno dentro il ricettario,
+    // che è uno solo per tutta l'azienda, e la pagina non legge mai `sedeId`.
+    // Cambiare sede lì non cambierebbe un numero.
+    const mostra = await caricaRegola()
+    expect(mostra('materie-prime', treSedi)).toBe(false)
+  })
+
   it('resta fuori dalle pagine che la sede la gestiscono da sole', async () => {
     const mostra = await caricaRegola()
     expect(mostra('trasferimenti', treSedi)).toBe(false)

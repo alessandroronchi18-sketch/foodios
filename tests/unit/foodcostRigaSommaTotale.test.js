@@ -91,14 +91,29 @@ describe('costoRigaIngrediente — le righe tornano col totale', () => {
     expect(aZero.motivo).toMatch(/non entra nel food cost/)
   })
 
-  it('un prezzo stimato HoReCa e dichiarato come stima', () => {
-    // "mascarpone" non e' nel listino di questa azienda ma sta in PREZZI_HORECA.
+  it('un prezzo preso dal listino di mercato NON fa il conto', () => {
+    // 18/09/2026, decisione del titolare: «la stima di mercato in base a cosa
+    // la fai? magari con dei fornitori ci sono prezzi amichevoli. occhio
+    // toglila che può essere fuorviante».
+    //
+    // Prima questa prova diceva `mancante: false`: una riga costata col
+    // listino medio valeva come una riga costata col prezzo dell'azienda.
+    // Sul ricettario vero di Mara il 47% del food cost usciva da lì.
+    //
+    // Adesso vale come prezzo mancante — il costo non si calcola e la ricetta
+    // lo dice. `isStima` resta vero, perché la pagina deve poter spiegare
+    // PERCHE' manca: non è che il prezzo non esista, è che quello che
+    // conosciamo non è il tuo.
     const r = costoRigaIngrediente({ nome: 'mascarpone', qty1stampo: 250 }, ingCosti, ricettario)
-    expect(r.mancante).toBe(false)
+    expect(r.mancante).toBe(true)
+    expect(r.costo).toBe(0)
     expect(r.isStima).toBe(true)
     expect(r.motivo).toMatch(/non il tuo/)
-    // Il prezzo del listino dell'azienda invece non e' una stima.
-    expect(costoRigaIngrediente({ nome: 'burro', qty1stampo: 250 }, ingCosti, ricettario).isStima).toBe(false)
+    // Il prezzo scritto dall'azienda invece conta, come sempre.
+    const suo = costoRigaIngrediente({ nome: 'burro', qty1stampo: 250 }, ingCosti, ricettario)
+    expect(suo.isStima).toBe(false)
+    expect(suo.mancante).toBe(false)
+    expect(suo.costo).toBeGreaterThan(0)
   })
 
   it('calcolaFCDettaglio e la riga danno lo stesso numero', () => {

@@ -356,11 +356,20 @@ describe('materie prime — quello che si vede appena si apre', () => {
       },
     })
     await waitFor(() => expect(v.container.textContent).toContain('Senza prezzo'))
-    expect(v.container.textContent).toMatch(/2 materie prime non hanno prezzo/)
-    expect(v.container.textContent).toContain('Stima di mercato')
+    // 18/09/2026 pomeriggio: qui ci si aspettava «2», perché «burro» stava
+    // nella tessera ambra delle stimate. Ma dal mattino di quel giorno il
+    // listino medio di mercato non fa più il conto del food cost, quindi le
+    // stimate contano zero come le altre: sono tre, e tre deve dire.
+    expect(v.container.textContent).toMatch(/3 materie prime senza prezzo/)
+    // Le tessere «Stima di mercato» e «Prezzo tuo» non ci sono più.
+    expect(v.container.textContent).not.toContain('Stima di mercato')
+    expect(v.container.textContent).not.toContain('Prezzo tuo')
   })
 
-  it('dice in quante ricette entra ogni materia prima', async () => {
+  it('dice in quante ricette entra ogni materia prima, e quali', async () => {
+    // Prima era un numero con il suggerimento al passaggio del mouse: sul
+    // telefono e sul tablet non si poteva leggere, mostrava solo le prime
+    // otto e non si poteva copiare. Adesso il numero è un pulsante.
     const v = apri({
       ricettario: {
         ricette: {
@@ -371,8 +380,17 @@ describe('materie prime — quello che si vede appena si apre', () => {
       },
     })
     await waitFor(() => expect(v.container.textContent).toContain('In quante ricette'))
-    const celle = [...v.container.querySelectorAll('span[title]')].map(s => s.getAttribute('title'))
-    expect(celle).toContain('TORTA, BISCOTTI')
+    const pulsante = [...v.container.querySelectorAll('button[aria-expanded]')]
+      .find(b => /2 ricette usano burro/.test(b.getAttribute('aria-label') || ''))
+    expect(pulsante, 'il numero delle ricette non è un pulsante').toBeTruthy()
+    // Chiuso, i nomi non ci sono.
+    expect(v.container.textContent).not.toContain('TORTA')
+    fireEvent.click(pulsante)
+    await waitFor(() => expect(v.container.textContent).toContain('TORTA'))
+    expect(v.container.textContent).toContain('BISCOTTI')
+    // E nessun suggerimento col mouse al posto dell'elenco.
+    const titoli = [...v.container.querySelectorAll('[title]')].map(s => s.getAttribute('title'))
+    expect(titoli).not.toContain('TORTA, BISCOTTI')
   })
 
   it('il testo di istruzioni non parla come un manuale', async () => {

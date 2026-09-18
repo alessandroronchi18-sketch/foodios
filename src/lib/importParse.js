@@ -19,7 +19,23 @@
  * @returns {Array<Array<any>>}
  */
 function sheetToRawRows(ws, XLSX) {
-  return XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, blankrows: false })
+  // 18/09/2026 — le righe vuote non si buttano più via alla cieca.
+  //
+  // Con `blankrows: false` una riga bianca dentro il file spariva prima ancora
+  // di essere contata, e da lì in poi l'indice dell'array non aveva più niente
+  // a che vedere con la riga del foglio. Il guaio si vedeva quando un import
+  // andava storto: il wizard scrive «Dalla riga N del tuo foglio», e con otto
+  // righe bianche sparse — il modo normale di separare le famiglie di prodotti
+  // in un listino — mandava l'utente otto righe più su. Cioè proprio nel
+  // momento in cui sta cercando l'errore nel suo file.
+  //
+  // Adesso le righe si leggono tutte, si porta dietro il numero vero, e si
+  // scartano dopo (in `normalizeSheet`), quando il numero è già stato scritto.
+  // `!ref` serve perché un foglio può non cominciare dalla riga 1.
+  const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, blankrows: true })
+  const rif = ws?.['!ref']
+  const origine = rif ? (XLSX.utils.decode_range(rif).s.r || 0) : 0
+  return { raw, origine }
 }
 
 /**
@@ -28,7 +44,7 @@ function sheetToRawRows(ws, XLSX) {
  *   rows    = successive righe come oggetti { headerName: value }
  * Filtra righe completamente vuote.
  */
-function normalizeSheet(raw) {
+function normalizeSheet(raw, origine = 0) {
   if (!Array.isArray(raw) || raw.length === 0) {
     return { headers: [], rows: [] }
   }
@@ -37,9 +53,14 @@ function normalizeSheet(raw) {
     return s || `_col${i}`
   })
   const rows = raw.slice(1)
-    .map(r => {
+    .map((r, i) => {
       const obj = {}
-      for (let i = 0; i < headers.length; i++) obj[headers[i]] = r[i] ?? null
+      for (let i2 = 0; i2 < headers.length; i2++) obj[headers[i2]] = r?.[i2] ?? null
+      // Il numero della riga come si legge nel foglio: `origine` è la prima
+      // riga usata, +1 per l'intestazione, +1 perché Excel conta da uno.
+      // Non è una colonna del file: chi scrive nel database prende solo i
+      // campi dello schema, quindi non finisce mai nei dati.
+      Object.defineProperty(obj, '_riga_foglio', { value: origine + i + 2, enumerable: false })
       return obj
     })
     .filter(r => Object.values(r).some(v => v != null && String(v).trim() !== ''))
@@ -77,8 +98,8 @@ export function parseWorkbook(arrayBuffer, XLSX) {
   for (const name of sheetNames) {
     const ws = wb.Sheets[name]
     if (!ws) continue
-    const raw = sheetToRawRows(ws, XLSX)
-    sheets[name] = normalizeSheet(raw)
+    const { raw, origine } = sheetToRawRows(ws, XLSX)
+    sheets[name] = normalizeSheet(raw, origine)
     rawSheets[name] = raw
   }
 

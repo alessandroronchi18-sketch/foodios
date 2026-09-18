@@ -245,7 +245,12 @@ export function validateRows(rows, mapping, schema, opts = {}) {
     // all'utente la riga VERA quando un blocco di insert fallisce: prima si
     // stampava l'indice dentro le righe valide, che con 400 righe scartate e'
     // una riga completamente diversa. Chi inserisce lo togliera' dal payload.
-    if (res.ok) valid_rows.push({ ...res.data, _row_index: i })
+    // 18/09/2026 — `i` è la posizione fra le righe già ripulite, non la riga
+    // del foglio: le righe bianche erano state buttate via prima. Ora il
+    // numero vero viaggia con la riga (`_riga_foglio`, messo da
+    // `normalizeSheet`), e si usa quello quando c'è. Il `i` resta come
+    // ripiego per chi passa righe costruite a mano.
+    if (res.ok) valid_rows.push({ ...res.data, _row_index: row._riga_foglio != null ? row._riga_foglio - 2 : i })
     else invalid_rows.push({ row_index: i, errors: res.errors, row_data: row })
   }
   return {

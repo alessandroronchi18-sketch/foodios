@@ -52,7 +52,13 @@ function SemiCard({ sm, ricettario, ingCosti, onEdit, onDelete, LEX }) {
   // nessuna parte. Sui dati reali sono 20 righe su 38, e per FROLLA PER CROSTATE
   // e CREMA PASTICCERA il costo al kg e' al 100% listino di mercato.
   const mancanti = righe.filter(r => r.mancante)
-  const stimati = righe.filter(r => r.isStima)
+  // 18/09/2026 — un ingrediente non può essere insieme «senza prezzo» e
+  // «stimato»: da oggi il listino medio di mercato non fa più il conto, quindi
+  // una riga costata con quello è a tutti gli effetti una riga SENZA prezzo, e
+  // compariva con tutt'e due gli avvisi. L'avviso giallo resta per il caso in
+  // cui la stima torni a contare (`STIMA_DI_MERCATO_FA_IL_CONTO`), e allora
+  // vuol dire davvero «questo costo c'è, ma non è il tuo».
+  const stimati = righe.filter(r => r.isStima && !r.mancante)
 
   const cardStyle = {
     background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 16, overflow: 'hidden',

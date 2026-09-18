@@ -188,7 +188,7 @@ describe('il conto delle materie prime senza prezzo è onesto', () => {
 
   it('senza ricettario non esplode', () => {
     expect(materiePrimeDaRicettario(null)).toEqual([])
-    expect(contaMateriePrime([])).toEqual({ tot: 0, senzaPrezzo: 0, stimate: 0, conPrezzoTuo: 0 })
+    expect(contaMateriePrime([])).toEqual({ tot: 0, senzaPrezzo: 0, stimate: 0, senzaPrezzoVero: 0, conPrezzoTuo: 0 })
   })
 })
 

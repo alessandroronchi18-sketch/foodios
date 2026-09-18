@@ -18,7 +18,7 @@ import { caricaSessioniDaInventario } from './lib/inventarioProduzione'
 // import che trascinava il chunk recharts 120KB gzip sul critical path). I veri
 // consumatori - PLView, StoricoProduzioneView, PrevisioneDomanda, AdminPage -
 // sono tutti già lazy.
-import { sload as _sload, ssave as _ssave, isSharedKey, sloadAllSedi } from './lib/storage'
+import { sload as _sload, ssave as _ssave, ssaveBatch as _ssaveBatch, isSharedKey, sloadAllSedi } from './lib/storage'
 import { callAi as _callAi, parseAiJson as _parseAiJson } from './lib/aiClient'
 import SplashScreen from './components/SplashScreen'
 import { useAutoLogoutDipendente } from './auth/useAutoLogoutDipendente'
@@ -184,6 +184,30 @@ function ssave(key, val) {
   return p;
 }
 function sload(key)      { return _sload(key, _ctx_orgId, _ctx_sedeId); }
+
+// Più chiavi in UNA scrittura sola.
+//
+// Serve quando un dato solo vive in archivi diversi e non si può permettere
+// che se ne aggiorni uno sì e uno no. Il caso per cui è nata qui è il cambio
+// di nome di una materia prima (18/09/2026): il nome è la chiave con cui il
+// food cost trova il prezzo, e sta scritto in tre posti — la voce del listino,
+// l'ingrediente dentro ogni ricetta che la usa, e lo storico dei prezzi. Due
+// `ssave` in fila, se la seconda fallisce, lasciano il prodotto con metà del
+// cambio fatto: le ricette cercano un prezzo sotto un nome che non c'è più, e
+// il loro costo scende in silenzio.
+//
+// `ssaveBatch` scrive tutto con una sola chiamata al database
+// (`fos_user_data_set_batch`): o vanno dentro tutte o non ne va dentro
+// nessuna.
+function ssaveTutto(items) {
+  const capturedOrgId = _ctx_orgId;
+  const capturedSedeId = _ctx_sedeId;
+  for (const it of (items || [])) bkWriteLS(it.key, it.value, capturedOrgId, it.sedeId !== undefined ? it.sedeId : capturedSedeId);
+  const p = _ssaveBatch(items, capturedOrgId, capturedSedeId);
+  _pendingSaves.add(p);
+  p.finally?.(() => { _pendingSaves.delete(p) });
+  return p;
+}
 
 // _mergeArr/_mergeMag importati in cima dal modulo ./lib/multiSediMerge
 // (audit 2026-07-01 batch 9: primo step di split file Dashboard >1500 righe).
@@ -804,6 +828,14 @@ const PAGINE_NASCOSTE = new Set(['scheda-allergeni', 'haccp', 'menu'])
 const NO_SEDE_SELECTOR = new Set([
   // Ricettario shared (sede_id=null)
   'nuova-ricetta', 'semilavorati', 'scheda-allergeni',
+  // 18/09/2026 — «Materie prime»: i prezzi delle materie prime stanno dentro
+  // il ricettario, che è uno solo per tutta l'azienda (`SHARED_KEYS`), e la
+  // pagina non legge mai `sedeId`. Cambiare sede lì non cambierebbe un
+  // numero, e un comando che non fa niente è peggio di un comando che manca:
+  // chi lo tocca e non vede succedere nulla non conclude «qui non serve»,
+  // conclude «questa cosa è rotta». Stessa decisione presa il giorno prima
+  // per il Ricettario.
+  'materie-prime',
   // Configurazione org-level
   'impostazioni', 'importa-dati', 'formati-vendita',
   'marketplace', 'ai-hub', 'whatsapp',
@@ -1811,6 +1843,52 @@ export default function Dashboard({
   //
   // Ritorna `{ ok: true }` oppure `{ ok: false, errore }`: l'errore lo mostra
   // la pagina accanto al campo, che è dove chi sta scrivendo sta guardando.
+  // ── I prezzi portati dentro tutti insieme ──────────────────────────────
+  //
+  // 18/09/2026. Scrivere 117 prezzi uno per uno non lo fa nessuno, ed è il
+  // motivo per cui 75 restano vuoti. La pagina ha già mostrato il resoconto e
+  // l'utente ha confermato: qui si salva e basta.
+  //
+  // Si salva PRIMA e si aggiorna lo stato DOPO, come ogni scrittura di questo
+  // prodotto: se la rete cade, il listino a schermo deve restare quello vero,
+  // non quello che l'utente crede di aver importato.
+  const handleImportPrezziMateriePrime = useCallback(async (nuoviCosti, resoconto) => {
+    const nuovoRic = { ...(ricettario || {}), ingredienti_costi: nuoviCosti }
+    await ssave(SK_RIC, nuovoRic)
+    setRic(nuovoRic)
+    const n = (resoconto?.nuove?.length || 0) + (resoconto?.aggiornate?.filter(x => x.cambiaPrezzo)?.length || 0)
+    const scartate = resoconto?.scartate?.length || 0
+    notify(
+      `Importate ${n.toLocaleString('it-IT', { useGrouping: 'always' })} materie prime` +
+      (scartate > 0 ? `. ${scartate.toLocaleString('it-IT', { useGrouping: 'always' })} righe le ho lasciate fuori, come ti avevo detto.` : '.')
+    )
+    return { ok: true }
+  }, [ricettario, notify]);
+
+  // ── Chi ti vende ogni materia prima ────────────────────────────────────
+  //
+  // 18/09/2026, il titolare: «molto importante: ogni materia prima deve avere
+  // anche il nome del fornitore associato». Serve a collegare le fatture alle
+  // materie prime senza doverlo fare a mano ogni volta, e a poter guardare la
+  // cosa dall'altro verso: di questo fornitore, che cosa compro.
+  //
+  // Il nome NON si normalizza in maiuscolo: dev'essere quello che compare in
+  // fattura, altrimenti il collegamento non si fa. Si tolgono solo gli spazi
+  // di troppo. Il confronto fra due nomi, quello sì, ignora maiuscole e spazi.
+  const handleAssegnaFornitore = useCallback(async (chiaveMP, nomeFornitore) => {
+    const { assegnaFornitoreNelRicettario, rimuoviFornitoreNelRicettario } =
+      await import('./lib/materiePrimeFornitore')
+    const nuovo = String(nomeFornitore || '').trim()
+      ? assegnaFornitoreNelRicettario(ricettario, chiaveMP, nomeFornitore, { normalizzaNome: normIng })
+      : rimuoviFornitoreNelRicettario(ricettario, chiaveMP, { normalizzaNome: normIng })
+    try {
+      await ssave(SK_RIC, nuovo)
+      setRic(nuovo)
+    } catch (e) {
+      notify(`Fornitore non salvato (${e.message || 'rete'}): è rimasto quello di prima.`, false)
+    }
+  }, [ricettario, notify]);
+
   const handleCreaMateriaPrima = useCallback(async (nome, prezzoKg) => {
     const pulito = String(nome || '').trim().replace(/\s+/g, ' ');
     if (!pulito) return { ok: false, errore: 'Scrivi come si chiama la materia prima.' };
@@ -1880,6 +1958,122 @@ export default function Dashboard({
       : `"${pulito}" aggiunta. Il prezzo manca ancora: finché non c'è, non entra nel food cost.`);
     return { ok: true };
   }, [ricettario, logPrezzi, auth?.user?.email, notify]);
+
+  // ── Cambiare il NOME di una materia prima ────────────────────────────────
+  //
+  // Richiesta del titolare, 18/09/2026: «modificando una materia prima si deve
+  // poter cambiare anche il nome — uno lo salva sbagliato».
+  //
+  // È l'operazione più delicata della pagina, e il motivo è uno solo: **il
+  // nome è la chiave con cui il food cost trova il prezzo.** Non c'è un
+  // identificativo sotto. `calcolaFC` prende il nome scritto dentro la
+  // ricetta, lo normalizza con `normIng`, e va a cercarlo in
+  // `ingredienti_costi`. Se il listino dice «panna fresca» e la ricetta dice
+  // ancora «panna frescs», la ricetta non trova niente: non dà errore, conta
+  // quell'ingrediente zero, e il food cost esce più basso del vero. In
+  // silenzio, che è il modo peggiore.
+  //
+  // Quindi lo stesso nome va cambiato in QUATTRO posti, tutti insieme:
+  //
+  //   1. la voce del listino          `ricettario.ingredienti_costi[chiave]`
+  //   2. ogni ricetta che la usa      `ricette[*].ingredienti[*].nome`
+  //   3. lo storico dei prezzi        `logPrezzi[*].ingrediente`
+  //      (`getPrezzoStoricoKg` filtra proprio su quel campo: senza, il food
+  //      cost di ogni produzione passata perde il prezzo di allora)
+  //   4. la resa                      `pasticceria-rese-v1[chiave]`
+  //      (una resa impostata a 85% che torna a 100% cambia il costo di ogni
+  //      ricetta che usa quell'ingrediente, e nessuno l'ha chiesto)
+  //
+  // **Una sola scrittura** (`ssaveTutto` → `fos_user_data_set_batch`): due
+  // salvataggi in fila lascerebbero, se il secondo fallisce, un prodotto con
+  // metà del cambio fatto — che è peggio del nome sbagliato.
+  //
+  // Il doppione si RIFIUTA, non si unisce. Unire due materie prime vuol dire
+  // decidere quale dei due prezzi sopravvive e cosa fare dei due storici: è
+  // una scelta che deve fare una persona, non un'automazione che la indovina.
+  //
+  // Ritorna `{ ok: true, ricetteAggiornate }` oppure `{ ok: false, errore }`.
+  const handleRinominaMateriaPrima = useCallback(async (nomeVecchio, nomeNuovo) => {
+    // La riscrittura vera è una funzione pura in `views/MateriePrimeView.jsx`
+    // (`applicaRinominaMateriaPrima`), e sta lì per due motivi: si può provare
+    // senza disegnare niente e senza database — che su un'operazione capace di
+    // slacciare il food cost di tutto il ricettario è la sola differenza fra
+    // «credo che funzioni» e «lo so» — e qui resta solo la parte che il
+    // Dashboard è l'unico a poter fare: scrivere, e solo dopo aggiornare.
+    //
+    // L'import è dinamico apposta. Un import statico di un file `views/`
+    // trascinerebbe la pagina intera dentro il pacchetto principale, cioè la
+    // scaricherebbe ogni cliente a ogni visita anche senza mai aprirla. Quando
+    // si arriva qui quel pezzo è già in memoria da un pezzo: per chiamare
+    // questa funzione bisogna aver aperto la pagina e premuto un pulsante.
+    const { applicaRinominaMateriaPrima } = await import('./views/MateriePrimeView');
+    const esito = applicaRinominaMateriaPrima(
+      { ricettario, logPrezzi, rese: getStoreRese() }, nomeVecchio, nomeNuovo);
+    if (!esito.ok) return esito;
+
+    const daScrivere = [{ key: SK_RIC, value: esito.ricettario }, { key: SK_LOG_PRZ, value: esito.logPrezzi }];
+    // Le rese stanno su una riga con `sede_id` nullo, come le scrive
+    // `salvaRese`: va detto qui, o il batch le metterebbe sulla sede attiva e
+    // al ricaricamento non si troverebbero più.
+    if (esito.rese) daScrivere.push({ key: SK_RESE, value: esito.rese, sedeId: null });
+
+    // SAVE FIRST, sempre — e qui in UNA scrittura sola. Se andasse a pezzi, il
+    // listino direbbe un nome e le ricette un altro: nessuna delle due si
+    // lamenterebbe, e il costo di quelle ricette scenderebbe in silenzio. Un
+    // nome cambiato a schermo e non in archivio è la peggiore delle due cose,
+    // perché sembra fatto.
+    try { await ssaveTutto(daScrivere); }
+    catch (e) { return { ok: false, errore: `Non sono riuscito a salvare (${e?.message || 'rete'}): il nome NON è stato cambiato, niente è rimasto a metà.` }; }
+
+    setRic(esito.ricettario);
+    setLogPrezzi(esito.logPrezzi);
+    if (esito.rese) {
+      resetRese(); loadRese(esito.rese);
+      try { localStorage.setItem(SK_RESE, JSON.stringify(esito.rese)); } catch { /* browser senza storage */ }
+    }
+    const n = esito.ricetteAggiornate;
+    notify(n === 0
+      ? `Adesso si chiama "${esito.nome}". Non la usa nessuna ricetta.`
+      : n === 1
+        ? `Adesso si chiama "${esito.nome}". Ho aggiornato anche 1 ricetta che la usa.`
+        : `Adesso si chiama "${esito.nome}". Ho aggiornato anche ${n.toLocaleString('it-IT', { useGrouping: 'always' })} ricette che la usano.`);
+    return { ok: true, ricetteAggiornate: n };
+  }, [ricettario, logPrezzi, notify]);
+
+  // ── Eliminare una materia prima ──────────────────────────────────────────
+  //
+  // Richiesta del titolare, 18/09/2026: «dammi la possibilità di eliminare una
+  // materia prima, ovviamente ci deve essere un doppio check importante
+  // prima».
+  //
+  // Il doppio controllo sta nella pagina, ed è **informato**: prima di
+  // chiedere conferma dice in quante ricette è usata, quali sono, e cosa
+  // succede a quelle ricette. Il motivo è che cancellare la voce NON toglie
+  // l'ingrediente dalle ricette: le lascia con un ingrediente senza prezzo,
+  // quindi il loro costo scende da solo e il margine sembra migliore del vero.
+  // Un «sei sicuro?» non racconta niente di tutto questo e insegna solo a
+  // cliccare senza leggere.
+  //
+  // Lo storico dei prezzi NON si cancella: è il registro di quello che è
+  // successo, e serve al food cost delle produzioni già chiuse. Una cosa
+  // successa non smette di essere successa perché si cancella una riga del
+  // listino.
+  const handleEliminaMateriaPrima = useCallback(async (nome) => {
+    // Come per il cambio di nome: la parte che decide sta in una funzione pura
+    // (`applicaEliminaMateriaPrima`), e qui resta solo scrivere e poi
+    // aggiornare. Import dinamico per non trascinare la pagina nel pacchetto
+    // principale: quando si arriva qui è già in memoria.
+    const { applicaEliminaMateriaPrima } = await import('./views/MateriePrimeView');
+    const esito = applicaEliminaMateriaPrima(ricettario, nome);
+    if (!esito.ok) return esito;
+
+    // SAVE FIRST: se la scrittura non va, lo state non si tocca.
+    try { await ssave(SK_RIC, esito.ricettario); }
+    catch (e) { return { ok: false, errore: `Non sono riuscito a salvare (${e?.message || 'rete'}): la materia prima NON è stata eliminata.` }; }
+    setRic(esito.ricettario);
+    notify(`"${nome}" eliminata dalle materie prime.`);
+    return { ok: true };
+  }, [ricettario, notify]);
 
 
   // Applica le modifiche prezzi PIANIFICATE la cui decorrenza è ormai passata.
@@ -3333,7 +3527,7 @@ export default function Dashboard({
             18/09/2026, su richiesta del titolare. `!isDip` è la terza rete
             dopo il filtro del menu e il dirottamento di riga ~1150: i prezzi
             d'acquisto non si mostrano a chi sta in laboratorio. */}
-        {vista==="materie-prime"&&!isDip&&<MateriePrimeView ricettario={ricettario} logPrezzi={logPrezzi} onUpdatePrezzo={handleUpdatePrezzoIng} onCreaMateriaPrima={handleCreaMateriaPrima} onNavigate={setView}/>}
+        {vista==="materie-prime"&&!isDip&&<MateriePrimeView ricettario={ricettario} logPrezzi={logPrezzi} onUpdatePrezzo={handleUpdatePrezzoIng} onCreaMateriaPrima={handleCreaMateriaPrima} onRinominaMateriaPrima={handleRinominaMateriaPrima} onEliminaMateriaPrima={handleEliminaMateriaPrima} onImportPrezzi={handleImportPrezziMateriePrime} onAssegnaFornitore={handleAssegnaFornitore} notify={notify} onNavigate={setView}/>}
 
         {/* Formati di vendita (prodotti generici senza dettaglio gusto) */}
         {vista==="formati-vendita"&&<FormatiVendita orgId={orgId} ricettario={ricettario} onSaveRicettario={handleSalvaRicetta} notify={notify} tipoAttivita={tipoAttivita} sedi={sedi}/>}

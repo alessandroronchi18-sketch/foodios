@@ -65,8 +65,14 @@ function disegna() {
  *  del costo alta come i pulsanti — vale dentro la scheda aperta, che è dove
  *  quelle cose vivono adesso. Quindi si apre, e poi si misura. */
 function apriTutte(utils) {
-  for (const barra of utils.container.querySelectorAll('[aria-expanded]')) {
+  // L'elenco va richiesto a ogni giro: appena una barra si apre, React la
+  // sostituisce con la scheda aperta, e i nodi presi prima diventano
+  // fantasmi — si cliccava solo la prima e le altre restavano chiuse.
+  let barra
+  let giri = 0
+  while ((barra = utils.container.querySelector('[aria-expanded="false"]')) && giri < 50) {
     fireEvent.click(barra)
+    giri++
   }
   return utils
 }
@@ -96,12 +102,17 @@ describe('Gli avvisi delle tessere restano incolonnati', () => {
     expect(new Set(rossi.map(el => el.style.minWidth)).size).toBe(1)
   })
 
-  it('la tessera senza «prezzo stimato» tiene comunque il posto vuoto', () => {
+  it('il posto di un avviso che non c’è resta comunque occupato', () => {
     const { container } = apriTutte(disegna())
-    const vuoti = postiDegliAvvisi(container).filter(el => el.textContent.trim() === '')
-    // CREMA PASTICCERA non ha stime: il suo posto giallo dev'essere vuoto ma
-    // presente. Se il difetto tornasse, quel posto sparirebbe del tutto.
-    expect(vuoti.length).toBeGreaterThan(0)
+    const posti = postiDegliAvvisi(container)
+    // Dal 18/09 il listino medio di mercato non fa più il conto, quindi in
+    // questo dato di prova nessun ingrediente risulta «stimato»: i tre posti
+    // gialli sono tutti vuoti. Ed è proprio il caso che il test deve coprire —
+    // se il difetto tornasse, quei posti sparirebbero e gli avvisi rossi si
+    // sposterebbero da una tessera all'altra.
+    const vuoti = posti.filter(el => el.textContent.trim() === '')
+    expect(vuoti.length).toBe(3)
+    expect(posti.length).toBe(6)
   })
 })
 
@@ -148,7 +159,11 @@ describe('La barra chiusa di una base dice il minimo indispensabile', () => {
     // passava pure se dalle barre fosse sparito. Si guarda dentro la barra.
     const barra = container.querySelector('[aria-expanded]')
     expect(barra.textContent).toContain('Costo / kg')
-    expect(barra.textContent).toMatch(/\d+,\d{2}\s?€/)
+    // Dal 18/09 il listino medio non fa più il conto: in questo dato di prova
+    // gli ingredienti non hanno un prezzo dell'azienda, quindi la base dice
+    // «da completare» invece di un numero inventato. È la risposta giusta, ed
+    // è quella che manda l'utente a scrivere i prezzi.
+    expect(barra.textContent).toMatch(/\d+,\d{2}\s?€|da completare/)
   })
 
   it('il distintivo «BASE» non si ripete su ogni riga', () => {
