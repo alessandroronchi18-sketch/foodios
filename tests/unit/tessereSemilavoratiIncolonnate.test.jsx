@@ -25,7 +25,7 @@
 // vanno incolonnate fra loro.
 import React from 'react'
 import { describe, it, expect } from 'vitest'
-import { render } from '@testing-library/react'
+import { render, fireEvent } from '@testing-library/react'
 import SemilavoratiView from '../../src/views/SemilavoratiView.jsx'
 
 // Tre basi come quelle vere: una con entrambi gli avvisi, una col solo rosso,
@@ -53,6 +53,24 @@ function disegna() {
   return render(<SemilavoratiView ricettario={ricettario} onSave={() => {}} notify={() => {}} tipoAttivita="gelateria" />)
 }
 
+/** 18/09/2026 — le schede delle basi adesso partono chiuse.
+ *
+ *  Richiesta del titolare: «in semilavorati le box bianche hanno dentro
+ *  troppi dati e confusionari, rendile più pulite, intuitive ed eleganti,
+ *  uguali a quelle dei gusti». Nel Ricettario le schede dei gusti erano già
+ *  diventate barre che si aprono; queste erano rimaste sempre aperte, con
+ *  sette informazioni per riga su dodici basi.
+ *
+ *  Quello che questi test proteggevano — gli avvisi incolonnati, la targhetta
+ *  del costo alta come i pulsanti — vale dentro la scheda aperta, che è dove
+ *  quelle cose vivono adesso. Quindi si apre, e poi si misura. */
+function apriTutte(utils) {
+  for (const barra of utils.container.querySelectorAll('[role="button"]')) {
+    fireEvent.click(barra)
+  }
+  return utils
+}
+
 /** I contenitori degli avvisi: quelli con una larghezza minima dichiarata,
  *  che è il modo in cui il posto resta occupato anche da vuoto. */
 function postiDegliAvvisi(root) {
@@ -64,7 +82,7 @@ function postiDegliAvvisi(root) {
 
 describe('Gli avvisi delle tessere restano incolonnati', () => {
   it('ogni tessera ha due posti per gli avvisi, anche quando un avviso manca', () => {
-    const { container } = disegna()
+    const { container } = apriTutte(disegna())
     const posti = postiDegliAvvisi(container)
     // Tre basi × due posti: il conto non deve dipendere da quanti avvisi
     // siano effettivamente comparsi.
@@ -72,14 +90,14 @@ describe('Gli avvisi delle tessere restano incolonnati', () => {
   })
 
   it('il posto dell’avviso rosso è largo uguale in tutte le tessere', () => {
-    const { container } = disegna()
+    const { container } = apriTutte(disegna())
     const rossi = postiDegliAvvisi(container).filter(el => el.style.minWidth === '112px')
     expect(rossi.length).toBe(3)
     expect(new Set(rossi.map(el => el.style.minWidth)).size).toBe(1)
   })
 
   it('la tessera senza «prezzo stimato» tiene comunque il posto vuoto', () => {
-    const { container } = disegna()
+    const { container } = apriTutte(disegna())
     const vuoti = postiDegliAvvisi(container).filter(el => el.textContent.trim() === '')
     // CREMA PASTICCERA non ha stime: il suo posto giallo dev'essere vuoto ma
     // presente. Se il difetto tornasse, quel posto sparirebbe del tutto.
@@ -89,7 +107,7 @@ describe('Gli avvisi delle tessere restano incolonnati', () => {
 
 describe('La targhetta del costo è alta come i pulsanti accanto', () => {
   it('«Costo / kg» sta su una riga sola, a 40px come «Costo» e «Dove»', () => {
-    const { container } = disegna()
+    const { container } = apriTutte(disegna())
     const targhetta = [...container.querySelectorAll('div')]
       .find(el => el.style.minWidth === '130px' && el.style.minHeight)
     expect(targhetta, 'la targhetta Costo / kg non si trova').toBeTruthy()
@@ -100,9 +118,54 @@ describe('La targhetta del costo è alta come i pulsanti accanto', () => {
   })
 
   it('etichetta e numero stanno affiancati, non impilati', () => {
-    const { container } = disegna()
+    const { container } = apriTutte(disegna())
     const targhetta = [...container.querySelectorAll('div')]
       .find(el => el.style.minWidth === '130px' && el.style.minHeight === '40px')
     expect(targhetta.style.flexDirection).not.toBe('column')
+  })
+})
+
+describe('La barra chiusa di una base dice il minimo indispensabile', () => {
+  it('parte chiusa: niente pannelli aperti, niente pulsanti sparsi', () => {
+    const { container } = disegna()
+    // A scheda chiusa non c'è la targhetta larga del costo né il quadrato dei
+    // comandi: c'è una riga con il nome, un avviso e un numero.
+    const targhetta = [...container.querySelectorAll('div')].find(el => el.style.minWidth === '130px')
+    expect(targhetta).toBeUndefined()
+    expect(container.textContent).not.toContain('Elimina')
+  })
+
+  it('il nome sta in cima, come nelle schede dei gusti', () => {
+    const { container } = disegna()
+    const barra = container.querySelector('[role="button"]')
+    expect(barra.firstElementChild.firstElementChild.textContent).toBe('SALSA ZABAIONE')
+  })
+
+  it('il costo al chilo si vede senza aprire: è il numero per cui si apre la pagina', () => {
+    const { container } = disegna()
+    expect(container.textContent).toContain('Costo / kg')
+  })
+
+  it('il distintivo «BASE» non si ripete su ogni riga', () => {
+    // In una pagina che si chiama Semilavorati, dire che ognuna è una base è
+    // come mettere il cartello «libro» su ogni libro di una libreria.
+    const { container } = disegna()
+    const barre = container.querySelectorAll('[role="button"]')
+    for (const b of barre) expect(b.textContent).not.toMatch(/\bBase\b/)
+  })
+
+  it('cliccando si apre e si vedono i comandi', () => {
+    const utils = disegna()
+    fireEvent.click(utils.container.querySelector('[role="button"]'))
+    expect(utils.container.textContent).toContain('Elimina')
+    expect(utils.container.textContent).toContain('Modifica')
+  })
+
+  it('i quattro comandi stanno in un quadrato, non in fila', () => {
+    const utils = disegna()
+    fireEvent.click(utils.container.querySelector('[role="button"]'))
+    const quadrato = [...utils.container.querySelectorAll('div')]
+      .find(el => el.style.gridTemplateColumns === '1fr 1fr' && el.textContent.includes('Elimina'))
+    expect(quadrato, 'il quadrato dei comandi non si trova').toBeTruthy()
   })
 })

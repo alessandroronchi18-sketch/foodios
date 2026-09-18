@@ -295,9 +295,11 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
             {mancanti.length === 0 && nStimati > 0 && (
               <Badge label={nStimati === 1 ? '1 stimato' : `${nStimati} stimati`} color="amber"/>
             )}
-            <span style={{ fontSize: font.size.sm, color: C.textSoft, ...TNUM }}>
-              {kpiSec.lbl}: <span style={{ color: C.textMid, fontWeight: 700 }}>{kpiSec.val}</span>
-            </span>
+            {/* 18/09/2026: «togli la scritta grigia ricavo / kg : 28,91 nei
+                gusti». Era il secondo numero della barra chiusa, e diceva una
+                cosa che sulla destra c'è già in grande. Nella barra restano il
+                nome, gli avvisi e un numero solo: è un elenco da scorrere, non
+                una scheda da leggere. */}
           </div>
         </div>
         <div style={{ textAlign: 'right', flexShrink: 0 }}>
@@ -478,84 +480,41 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
           )}
         </div>
 
-        {/* KPI inline - su mobile occupano tutta la riga (grid 4 col), su desktop
-            ognuna ha minWidth 86 così tutti i box hanno la stessa larghezza:
-            niente "fisarmonica" tra ricette con margine 1 cifra vs 4 cifre. */}
-        {/* Su telefono due colonne, non quattro: a 375px ogni tessera restava
-            ~80px e un valore come "1.234,56 €" finiva in tre puntini. */}
-        {/* 17/09/2026, richiesta del titolare: «le quattro tessere a destra
-            vanno a quadrato, due sopra e due sotto, non tutte in fila».
-            In fila prendevano quasi 400px di larghezza in ogni riga
-            dell'elenco, e il nome del gusto — che è la cosa che si cerca
-            scorrendo — restava schiacciato in quel che avanzava. A quadrato la
-            colonna dei numeri è larga la metà, e le due coppie si leggono
-            insieme: sopra ricavo e margine, sotto margine % e costo.
-            I semilavorati ne hanno tre e restano in fila: tre in un quadrato
-            lascerebbero un buco. */}
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : `repeat(${isSemi ? 3 : 2}, minmax(86px, 1fr))`, gap: 6, alignItems: 'stretch', flexShrink: 0, flexBasis: isMobile ? '100%' : 'auto', width: isMobile ? '100%' : 'auto' }}>
-          {(isSemi ? [
-            { lbl: 'Peso batch', val: pesoTotSemi >= 1000 ? `${(Number(pesoTotSemi) / 1000).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : `${Math.round(Number(pesoTotSemi)||0).toLocaleString('it-IT', { useGrouping: 'always' })} g`, c: C.text, bg: SEMI.panel },
-            { lbl: 'Costo batch', val: fmt(fc), c: SEMI.accent, bg: SEMI.accentLight, bold: true },
-            { lbl: 'Costo / kg', val: fmt(costoGSemi * 1000), c: SEMI.accent, bg: SEMI.accentLight, bold: true },
-          ] : isGusto ? (
-            // GUSTO gelateria: KPI ragionati sul kg. Se non c'è ricavo flat
-            // stimato (nessun formato vendita configurato per la categoria),
-            // mostriamo solo costo/kg + hint dove sistemarlo.
-            ricavoFlatOk ? [
-              { lbl: 'Ricavo / kg', val: fmt(ricavo), c: C.text, bg: '#F8F4F2' },
-              { lbl: 'Margine / kg', val: fmt(margine), c: mc, bg: mbg, bold: true },
-              { lbl: 'Margine %', val: fmtp(margPct), c: mc, bg: mbg, bold: true },
-              { lbl: 'Costo / kg', val: fmt(fcPerKg), c: C.red, bg: C.redLight },
-            ] : [
-              { lbl: 'Costo / kg', val: fmt(fcPerKg), c: C.red, bg: C.redLight, bold: true },
-              { lbl: 'Peso batch', val: pesoTotSemi >= 1000 ? `${(Number(pesoTotSemi) / 1000).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : `${Math.round(Number(pesoTotSemi)||0).toLocaleString('it-IT', { useGrouping: 'always' })} g`, c: C.text, bg: '#F8F4F2' },
-              { lbl: 'Ricavo / kg', val: 'n/d', c: C.textSoft, bg: '#F8F4F2' },
-              { lbl: 'Margine %', val: 'n/d', c: C.textSoft, bg: '#F8F4F2' },
-            ]
-          ) : [
-            // Ordine (26/06): Ricavo, Margine, Margine %, Food cost a destra.
-            { lbl: 'Ricavo', val: seHaPrezzo(fmt(ricavo)), c: C.text, bg: '#F8F4F2' },
-            { lbl: 'Margine', val: seHaPrezzo(fmt(margine)), c: senzaPrezzo ? C.textSoft : mc, bg: senzaPrezzo ? C.bgSubtle : mbg, bold: true },
-            { lbl: 'Margine %', val: seHaPrezzo(fmtp(margPct)), c: senzaPrezzo ? C.textSoft : mc, bg: senzaPrezzo ? C.bgSubtle : mbg, bold: true },
-            { lbl: 'Food cost', val: fmt(fc), c: C.red, bg: C.redLight },
-          ]).map(({ lbl, val, c, bg, bold }, i) => (
-            // KPI futuristic: subtle inset highlight + ring borderColor brand
-            // sui prominent (bold). Tabular nums + monospace digits.
-            <div key={i} style={{
-              background: bg,
-              padding: isMobile ? '7px 6px' : '5px 9px',
-              borderRadius: 10,
-              border: bold ? `1px solid ${c}30` : `1px solid transparent`,
-              boxShadow: bold ? `inset 0 1px 0 rgba(255,255,255,0.6), 0 0 0 1px ${c}10` : 'inset 0 1px 0 rgba(255,255,255,0.5)',
-              // 17/09/2026: «restringere ancora le barre di ogni gusto e il
-              // loro contenuto». Le tessere sono passate da una fila a un
-              // quadrato di due per due, e a 48px l'una la riga sarebbe
-              // cresciuta invece di calare. A 36 il quadrato è alto quanto
-              // era la fila, e con la riga grigia tolta e gli allergeni
-              // chiusi la barra scende davvero. Sul telefono restano 44:
-              // lì le tessere erano già su due righe e il quadrato non
-              // cambia niente, mentre stringerle toglierebbe solo leggibilità.
-              textAlign: 'center', minWidth: 0, minHeight: isMobile ? 44 : 36,
-              display: 'flex', flexDirection: 'column', justifyContent: 'center', overflow: 'hidden',
-            }}>
-              <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.textSoft, marginBottom: 3, lineHeight: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{lbl}</div>
-              <div style={{ fontSize: isMobile ? 12 : 13, fontWeight: bold ? 900 : 700, color: c, ...TNUM, lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{val}</div>
-            </div>
-          ))}
-        </div>
+        {/* ── 18/09/2026: le quattro tessere non stanno più qui ──────────
+            Richiesta del titolare: «i dati ricavo / kg, margine, margine %
+            ecc non li si può inserire in dettaglio? se uno lo apre. così
+            viene più pulita la grande box bianca». E subito dopo: «anzi i
+            dati sono già presenti in conto al kg, bene tieni quelli e togli
+            le quattro box».
 
-        {/* Actions - su mobile su riga dedicata, bottoni grid 2 colonne uniformi
-            con il bottone "Riduci card" full-width sopra come barra principale. */}
-        <div style={{ display: isMobile ? 'grid' : 'flex', gridTemplateColumns: isMobile ? '1fr 1fr' : undefined, gap: 6, alignItems: 'stretch', flexShrink: 0, flexWrap: 'wrap', flexBasis: isMobile ? '100%' : 'auto', width: isMobile ? '100%' : 'auto' }}>
-          <button onClick={() => { setExpanded(false); setOpen(false); setEditMode(false) }}
-            aria-label="Riduci card"
-            title="Riduci"
-            style={{ height: isMobile ? 40 : 34, ...(isMobile ? { gridColumn: '1 / -1' } : { width: 34 }), borderRadius: 7, border: `1px solid ${isSemi ? SEMI.border : C.borderStr}`, background: 'transparent', cursor: 'pointer', color: isSemi ? SEMI.accent : C.textMid, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 12, fontWeight: 700 }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
-            {isMobile && <span>Riduci</span>}
-          </button>
+            Controllato prima di toglierle, ed era esatto: il pannello
+            «Conto al kg» dentro Dettaglio mostra Ricavo/kg, Food cost/kg,
+            Margine/kg e Margine %, cioè gli stessi quattro numeri, con in
+            più la riga che spiega da dove viene il ricavo. Erano scritti due
+            volte nella stessa scheda, a pochi centimetri di distanza.
+
+            Una cosa che vale la pena sapere, e che ho verificato: NON è vero
+            che questi numeri stiano comunque in tutte le pagine di analisi.
+            La pagina «Food cost» esclude apposta i gusti di gelateria (il
+            loro prezzo non sta sulla ricetta ma sui Formati vendita), e
+            «Menu engineering» li mostra solo se hanno vendite registrate.
+            Per un gusto restano qui e nel P&L. Per questo sono stati spostati
+            dentro Dettaglio e non tolti: un clic più in là, non persi. */}
+        {/* ── Le azioni: due sopra e due sotto, in fondo a destra ────────
+            18/09/2026, richiesta del titolare: «i quattro pulsanti — modifica,
+            pdf, prezzi sede e dettaglio — più piccoli e in disposizione a
+            quadrato, due giù e due su, tutto a destra».
+            Prima erano in fila: occupavano più larghezza delle informazioni
+            della ricetta, e quando i pulsanti diventavano cinque (c'è anche
+            «Prezzo», per i prodotti che non sono gusti) andavano a capo da
+            soli in modo diverso da una scheda all'altra — due qui, tre là. Il
+            quadrato è sempre lo stesso, qualunque sia il numero di pulsanti.
+            Altezza scesa da 34 a 30 sul computer; sul telefono restano 40, che
+            è la misura di un polpastrello e non si tocca. */}
+        <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start', flexShrink: 0, flexBasis: isMobile ? '100%' : 'auto', width: isMobile ? '100%' : 'auto' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, flex: isMobile ? 1 : 'none' }}>
           <button onClick={() => setOpen(o => !o)}
-            style={{ height: isMobile ? 40 : 34, padding: '0 12px', borderRadius: 7, border: `1px solid ${isSemi ? SEMI.border : C.borderStr}`, background: 'transparent', fontSize: 12, fontWeight: 700, color: isSemi ? SEMI.accent : C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 4, whiteSpace: 'nowrap' }}>
+            style={{ height: isMobile ? 40 : 30, padding: '0 10px', borderRadius: 7, border: `1px solid ${isSemi ? SEMI.border : C.borderStr}`, background: 'transparent', fontSize: 12, fontWeight: 700, color: isSemi ? SEMI.accent : C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 4, whiteSpace: 'nowrap' }}>
             <Icon name={open ? 'chevUp' : 'chevDown'} size={12} /> {open ? 'Chiudi' : 'Dettaglio'}
           </button>
           {/* Edit rapido prezzo/n°fette: solo per stampi. Per i gusti (gelateria)
@@ -566,7 +525,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
               apre la modale batch multi-sede. */}
           {!isSemi && tipoEff !== 'gusto' && !hasOverride && (
             <button onClick={() => { setEditPrezzo(reg.prezzo); setEditUnita(reg.unita); setEditMode(e => !e) }}
-              style={{ height: isMobile ? 40 : 34, padding: '0 12px', borderRadius: 7, border: `1px solid ${editMode ? C.red : C.borderStr}`, background: editMode ? C.redLight : 'transparent', fontSize: 12, fontWeight: 700, color: editMode ? C.red : C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+              style={{ height: isMobile ? 40 : 30, padding: '0 10px', borderRadius: 7, border: `1px solid ${editMode ? C.red : C.borderStr}`, background: editMode ? C.redLight : 'transparent', fontSize: 12, fontWeight: 700, color: editMode ? C.red : C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
               <Icon name="edit" size={13} /> Prezzo
             </button>
           )}
@@ -576,7 +535,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
           {!isSemi && hasMultiSede && orgId && (
             <button onClick={() => setPrezziSedeOpen(true)}
               title={hasOverride ? `Prezzo override attivo per ${sedeAttivaNome || 'questa sede'}` : 'Prezzi diversi per sede'}
-              style={{ height: isMobile ? 40 : 34, padding: '0 12px', borderRadius: 7, border: `1px solid ${hasOverride ? C.red : C.borderStr}`, background: hasOverride ? C.redLight : 'transparent', fontSize: 12, fontWeight: 700, color: hasOverride ? C.red : C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+              style={{ height: isMobile ? 40 : 30, padding: '0 10px', borderRadius: 7, border: `1px solid ${hasOverride ? C.red : C.borderStr}`, background: hasOverride ? C.redLight : 'transparent', fontSize: 12, fontWeight: 700, color: hasOverride ? C.red : C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
               <Icon name="map" size={13} /> Prezzi / sede
               {/* Il pallino era il carattere tipografico "•": cambia forma da
                   un sistema all'altro e non si allinea col testo. */}
@@ -585,7 +544,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
           )}
           {onEdit && (
             <button onClick={() => onEdit(ric.nome)}
-              style={{ height: isMobile ? 40 : 34, padding: '0 12px', borderRadius: 7, border: `1px solid ${C.red}`, background: C.red, color: C.white, fontSize: 12, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+              style={{ height: isMobile ? 40 : 30, padding: '0 10px', borderRadius: 7, border: `1px solid ${C.red}`, background: C.red, color: C.white, fontSize: 12, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
               <Icon name="edit" size={13} /> Modifica
             </button>
           )}
@@ -600,8 +559,18 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
             } finally { setExportingPdf(false) }
           }}
             disabled={exportingPdf}
-            style={{ height: isMobile ? 40 : 34, padding: '0 12px', borderRadius: 7, border: `1px solid ${isSemi ? SEMI.border : C.borderStr}`, background: 'transparent', fontSize: 12, fontWeight: 700, color: isSemi ? SEMI.accent : C.textMid, cursor: exportingPdf ? 'not-allowed' : 'pointer', opacity: exportingPdf ? 0.6 : 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5, ...(isMobile && isSemi ? { gridColumn: '1 / -1' } : {}) }}>
+            style={{ height: isMobile ? 40 : 30, padding: '0 10px', borderRadius: 7, border: `1px solid ${isSemi ? SEMI.border : C.borderStr}`, background: 'transparent', fontSize: 12, fontWeight: 700, color: isSemi ? SEMI.accent : C.textMid, cursor: exportingPdf ? 'not-allowed' : 'pointer', opacity: exportingPdf ? 0.6 : 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5, ...(isMobile && isSemi ? { gridColumn: '1 / -1' } : {}) }}>
             <Icon name="fileText" size={13} /> {exportingPdf ? '…' : 'PDF'}
+          </button>
+          </div>
+          {/* Fuori dal quadrato: non è un'azione sulla ricetta, richiude la
+              scheda. Alto quanto tutt'e due le file, così il quadrato resta
+              un quadrato invece di diventare un rettangolo dispari. */}
+          <button onClick={() => { setExpanded(false); setOpen(false); setEditMode(false) }}
+            aria-label="Riduci scheda"
+            title="Riduci"
+            style={{ width: isMobile ? 40 : 30, height: isMobile ? 40 : 66, padding: 0, borderRadius: 7, border: `1px solid ${isSemi ? SEMI.border : C.borderStr}`, background: 'transparent', cursor: 'pointer', color: isSemi ? SEMI.accent : C.textMid, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
           </button>
         </div>
       </div>
@@ -1106,8 +1075,10 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
           // se il costo è completo. Quindi la somma conta ricette distinte, e
           // non c'è nessun doppio conteggio da togliere.
           const daCompletare = senzaPrezzoVendita + costoIncompleto
+          // Il conto dei semilavorati resta, ma detto come quello che è: un
+          // rimando alla scheda di fianco, non roba di questa pagina.
           const subRicette = semi > 0
-            ? `+ ${semi} semilavorat${semi === 1 ? 'o' : 'i'} (${ric + semi} voci totali)`
+            ? `${semi} semilavorat${semi === 1 ? 'o' : 'i'} nella scheda accanto`
             : 'menu attivo'
           return (
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : isTablet ? 'repeat(2,1fr)' : 'repeat(3,1fr)', gap: isMobile ? 10 : 16 }}>
@@ -1279,22 +1250,18 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
         </div>
       ))}
 
-      {semilavorati.length > 0 && (
-        <div style={{ marginBottom: 32 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18, paddingTop: 24, borderTop: `1px solid ${T.borderSoft}` }}>
-            <div style={{ flex: 1 }}>
-              <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: T.text, letterSpacing: '-0.01em' }}>Semilavorati</h2>
-              <div style={{ fontSize: 12, color: T.textSoft, marginTop: 2 }}>Impasti, creme e basi interne</div>
-            </div>
-            <span style={{ padding: '4px 10px', borderRadius: 999, background: '#F5EBFB', color: '#8E44AD', fontSize: 12, fontWeight: 600 }}>{semilavorati.length}</span>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {semilavorati.map(ric => (
-              <TortaCard metodoProduzione={metodoProduzione} key={ric.nome} ric={ric} ingCosti={ingCosti} ricettario={ricettario} onUpdateRegola={onUpdateRegola} onEdit={onEditRicetta} variant="semilavorato"/>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* ── I semilavorati non stanno più qui ──────────────────────────
+          18/09/2026, richiesta del titolare: «in ricettario, nella sezione
+          gusti, in fondo ci sono i semilavorati: toglili da lì e lasciali
+          nella sezione semilavorati».
+
+          Erano l'intera pagina «Semilavorati» ricopiata in fondo a questa —
+          stesse schede, stesso elenco, stessi numeri — sotto la scheda dei
+          gusti, che è la scheda di fianco. Chi scorreva i cinquantotto gusti
+          per arrivare in fondo trovava dodici basi che non stava cercando, e
+          chi voleva le basi le trovava in due posti diversi: due elenchi
+          della stessa cosa prima o poi raccontano due storie diverse.
+          Adesso vivono in una scheda sola, la loro. */}
     </div>
   )
 }

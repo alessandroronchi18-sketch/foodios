@@ -125,6 +125,15 @@ export function costruisciMenu(ctx = {}) {
           { id: 'ricettario',   label: lex.Prodotti || 'Prodotti' },
           { id: 'semilavorati', label: 'Semilavorati' },
         ] },
+      // Richiesta del titolare, 18/09/2026: «voglio creare una pagina solo
+      // per le materie prime per rendere il tutto più chiaro e semplice,
+      // mettila nella sezione ricette sotto tra listino e ricettario gusti».
+      // Prima l'elenco degli ingredienti col prezzo al chilo era la quarta
+      // scheda del Magazzino: il dato da cui dipende il food cost di TUTTE
+      // le ricette stava dietro le giacenze e il carico merce.
+      { id: 'materie-prime', label: 'Materie prime', icona: 'layers',
+        sinonimi: ['materie prime', 'ingredienti', 'prezzi ingredienti', 'listino ingredienti',
+          'costo ingredienti', 'prezzo al chilo', 'quanto costa la farina', 'dispensa'] },
       { id: 'formati-vendita', label: 'Listino', icona: 'coins',
         // «Formati di vendita» è una parola da gestionale: al banco si dice
         // vaschetta, coppetta, teglia.
@@ -368,7 +377,8 @@ export const VISTE_DISEGNATE = new Set([
   'documentary', 'eventi', 'forecast', 'formati-vendita', 'fornitori',
   'giornaliero', 'haccp', 'home', 'home-dipendente', 'importa-dati',
   'impostazioni', 'integrazioni', 'inventario-gusti', 'magazzino',
-  'marketplace', 'menu', 'menu-engineering', 'nuova-ricetta', 'ordini-ai',
+  'marketplace', 'materie-prime', 'menu', 'menu-engineering', 'nuova-ricetta',
+  'ordini-ai',
   'personale', 'pl', 'previsione', 'quadratura-inventario', 'recensioni',
   'reformulation', 'registro-attivita', 'ricettario', 'ricette-ai',
   'scadenzario', 'scheda-allergeni', 'semilavorati', 'simulatore',
@@ -396,6 +406,9 @@ export function risolviVista(nome, ctx = {}) {
     perdite: 'sprechi-omaggi',
     fatture: 'scadenzario',
     listino: 'formati-vendita',
+    ingredienti: 'materie-prime',
+    'prezzi-ingredienti': 'materie-prime',
+
     previsioni: 'previsione',
   }
   const risolta = alias[nome]

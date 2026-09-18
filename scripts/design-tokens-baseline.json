@@ -386,8 +386,8 @@
     "antizoom-a-mano": 2
   },
   "src/views/MagazzinoView.jsx": {
-    "colore-a-mano": 40,
-    "testo-a-mano": 63,
+    "colore-a-mano": 30,
+    "testo-a-mano": 46,
     "tripla-a-mano": 1
   },
   "src/views/MarketplaceView.jsx": {
@@ -401,7 +401,7 @@
     "tripla-a-mano": 2
   },
   "src/views/NuovaRicettaView.jsx": {
-    "colore-a-mano": 66,
+    "colore-a-mano": 64,
     "testo-a-mano": 70,
     "antizoom-a-mano": 1
   },
@@ -440,17 +440,17 @@
     "tripla-a-mano": 4
   },
   "src/views/RicettarioView.jsx": {
-    "colore-a-mano": 43,
-    "testo-a-mano": 58,
+    "colore-a-mano": 36,
+    "testo-a-mano": 53,
     "tripla-a-mano": 1
   },
   "src/views/SchedaAllergeniView.jsx": {
-    "colore-a-mano": 7,
+    "colore-a-mano": 4,
     "testo-a-mano": 8
   },
   "src/views/SemilavoratiView.jsx": {
     "colore-a-mano": 8,
-    "testo-a-mano": 16
+    "testo-a-mano": 15
   },
   "src/views/SimulatorePrezziView.jsx": {
     "colore-a-mano": 8,

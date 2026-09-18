@@ -638,392 +638,23 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
   )
 }
 
-// ─── PrezziIngredientiTab ────────────────────────────────────────────────────
-function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile }) {
-  const [search, setSearch] = useState('')
-  const [editKey, setEditKey] = useState(null)
-  const [editVal, setEditVal] = useState('')
-  const [confirmKey, setConfirmKey] = useState(null)
-  const [confirmVal, setConfirmVal] = useState(null)
-  const [confirmDecorre, setConfirmDecorre] = useState(() => todayLocal())
-  const [showLog, setShowLog] = useState(false)
-  const [salvandoPrezzo, setSalvandoPrezzo] = useState(false)
-  const [errEdit, setErrEdit] = useState(null)
-
-  const ingredienti = useMemo(() => {
-    const map = new Map()
-    const costi = ricettario?.ingredienti_costi || {}
-    for (const ric of Object.values(ricettario?.ricette || {})) {
-      for (const ing of (ric.ingredienti || [])) {
-        const k = normIng(ing.nome || '')
-        if (!k) continue
-        if (!map.has(k)) {
-          const c = costi[k]
-          // isStima = prezzo medio di mercato del listino HoReCa, non tuo.
-          map.set(k, { key: k, nome: ing.nome, prezzoKg: c?.costoKg || 0, haPrezzo: !!c && c.costoKg > 0 && !c.isStima, isStima: !!c?.isStima })
-        }
-      }
-    }
-    for (const [k, c] of Object.entries(costi)) {
-      if (!map.has(k)) map.set(k, { key: k, nome: k, prezzoKg: c.costoKg || 0, haPrezzo: (c.costoKg || 0) > 0 && !c.isStima, isStima: !!c.isStima })
-    }
-    return [...map.values()].sort((a, b) => a.nome.localeCompare(b.nome))
-  }, [ricettario])
-
-  const filtered = search.trim() ? ingredienti.filter(i => (i.nome || '').toLowerCase().includes(search.toLowerCase().trim())) : ingredienti
-  // Audit 2026-07-01 batch 10 Performance: paginazione UI per liste grandi.
-  // Pasticcerie con ricettario completo possono avere 200-500 ingredienti;
-  // renderizzarli tutti = 500 row + form input = lag tangibile su mobile.
-  // Default 80 visibili, "Mostra altri" carica +80 per volta. La ricerca
-  // bypassa il limite (i risultati filtrati sono comunque pochi).
-  const [maxVisible, setMaxVisible] = useState(80)
-  useEffect(() => { setMaxVisible(80) }, [search])
-  // Audit 2026-09-14: il limite si disattivava appena si cercava qualcosa, con
-  // l'idea che "i risultati filtrati sono comunque pochi". Cercando "a" su 500
-  // ingredienti non lo sono: la pagina rendeva 400 righe proprio nel momento in
-  // cui si sta scrivendo, cioe' quando deve restare reattiva.
-  const isPaginated = filtered.length > maxVisible
-  const visibleRows = isPaginated ? filtered.slice(0, maxVisible) : filtered
-
-  const startEdit = (row) => { setEditKey(row.key); setEditVal(row.prezzoKg ? row.prezzoKg.toFixed(2) : '') }
-  const cancelEdit = () => { setEditKey(null); setEditVal(''); setErrEdit(null) }
-
-  const tentaSalva = (row) => {
-    const v = parseFloat(String(editVal).replace(',', '.'))
-    // Prima il `return` muto: scrivendo "12,5o" per errore, il pulsante Salva
-    // non faceva niente e non diceva niente. Non si capiva se il salvataggio
-    // era andato, se il prezzo era stato rifiutato, o se il pulsante era rotto.
-    if (isNaN(v) || v < 0) { setErrEdit('Scrivi un prezzo in euro per chilo, per esempio 12,50'); return }
-    setErrEdit(null)
-    // Audit 2026-09-09: il confronto era esatto, ma l'input si precompila con
-    // due decimali mentre in archivio i prezzi ne hanno quattro. Aprendo la
-    // riga di un ingrediente a 0,8825 EUR/kg e premendo Salva senza toccare
-    // niente, il prezzo cambiava a 0,88 da solo. Ora si confronta quello che
-    // l'utente VEDE: se non ha cambiato la cifra a schermo, non si salva.
-    const visto = Math.round((Number(row.prezzoKg) || 0) * 100) / 100
-    if (Math.abs(v - visto) < 0.005) { cancelEdit(); return }
-    setConfirmKey(row.key)
-    setConfirmVal(v)
-    setConfirmDecorre(todayLocal())
-  }
-
-  const confermaSalva = async () => {
-    // Blocco sul doppio clic. Senza, due clic rapidi scrivevano due volte lo
-    // stesso cambio di prezzo: due righe nello storico per una modifica sola,
-    // e uno storico dei prezzi che non torna e' un P&L che non torna.
-    if (salvandoPrezzo) return
-    const row = ingredienti.find(i => i.key === confirmKey)
-    if (!row) { setConfirmKey(null); return }
-    // Decorrenza alle 00:00:00 del giorno scelto
-    const decorreISO = confirmDecorre ? new Date(confirmDecorre + 'T00:00:00').toISOString() : new Date().toISOString()
-    setSalvandoPrezzo(true)
-    try {
-      await onUpdatePrezzo(row.nome, confirmVal, decorreISO)
-      setConfirmKey(null); setConfirmVal(null)
-      cancelEdit()
-    } finally {
-      setSalvandoPrezzo(false)
-    }
-  }
-
-  return (
-    <div>
-      <div style={{ display: 'flex', gap: 10, marginBottom: 14, alignItems: 'center', flexWrap: 'wrap' }}>
-        <div style={{ flex: 1, minWidth: 200, position: 'relative' }}>
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Cerca ingrediente…"
-            style={{ width: '100%', padding: '11px 14px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 13, background: C.white, color: C.text, outline: 'none', boxSizing: 'border-box' }}/>
-        </div>
-        <button onClick={() => setShowLog(s => !s)}
-          style={{ padding: '0 14px', minHeight: 40, borderRadius: 8, border: `1px solid ${C.borderStr}`, background: showLog ? C.redLight : 'transparent', fontSize: 12, fontWeight: 700, color: showLog ? C.red : C.textMid, cursor: 'pointer', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-          {/* "Log" e' gergo da informatico: in italiano si chiama storico. E il
-              carattere ✕ diventa un'icona, come il resto della pagina. */}
-          {showLog
-            ? <><Icon name="x" size={13} />Chiudi lo storico</>
-            : <><Icon name="fileText" size={13} />{`Storico modifiche · ${logPrezzi?.length || 0}`}</>}
-        </button>
-      </div>
-
-      <div style={{ fontSize: 12, color: C.textSoft, marginBottom: 14, lineHeight: 1.5 }}>
-        {/* Audit 2026-09-14: "richiede conferma esplicita" e "viene registrata
-            nello storico" e' come parla un manuale, non una pasticcera. */}
-        Clicca sul prezzo per cambiarlo. Prima di salvare te lo faccio rivedere, e ogni
-        modifica resta scritta con la data: serve quando il food cost di un mese non torna.
-      </div>
-
-      {showLog && (
-        <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, marginBottom: 18, overflow: 'hidden', boxShadow: SHADOW_PREMIUM }}>
-          <div style={{ padding: '11px 14px', background: '#F8F4F2', fontSize: typo.small.fontSize, fontWeight: 700, color: C.textMid, borderBottom: `1px solid ${C.border}` }}>
-            Storico modifiche prezzi · ultime {Math.min(50, logPrezzi?.length || 0)} di {logPrezzi?.length || 0}
-          </div>
-          {(!logPrezzi || logPrezzi.length === 0) ? (
-            <div style={{ padding: '24px 16px', textAlign: 'center', fontSize: 12, color: C.textSoft }}>Nessuna modifica registrata.</div>
-          ) : (
-            <div style={{ maxHeight: 240, overflowY: 'auto', overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: typo.small.fontSize }}>
-                <thead>
-                  <tr>
-                    {['Modificato il', 'Ingrediente', 'Vale da', 'Vecchio', 'Nuovo', 'Differenza'].map((h, i) => (
-                      <th key={i} style={{ padding: '8px 12px', textAlign: i >= 3 ? 'right' : 'left', ...typo.caption, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, background: '#FDFAF7' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {logPrezzi.slice(0, 50).map(l => (
-                    <tr key={l.id} style={{ borderBottom: `1px solid ${C.border}` }}>
-<td style={{ textAlign: 'right', ...TNUM, padding: '7px 12px', color: C.textMid, whiteSpace: 'nowrap' }}>
-                        {new Date(l.data).toLocaleString('it-IT', { useGrouping: 'always', day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                        {/* Audit 2026-09-09: chi ha cambiato il prezzo non si
-                            vedeva, e il campo `utente` era già nel log. Su un
-                            dato che sposta il food cost di tutte le ricette,
-                            sapere chi l'ha toccato serve. */}
-                        {l.utente && (
-                          <div style={{ ...typo.caption, color: C.textSoft, fontWeight: 400 }}>{String(l.utente).split('@')[0]}</div>
-                        )}
-                      </td>
-                      {/* `capitalize` rompe le maiuscole vere: "FARINA 00"
-                          diventava "Farina 00". Il nome resta come scritto. */}
-                      <td style={{ padding: '7px 12px', fontWeight: 600, color: C.text }}>{l.ingrediente}</td>
-                      {/* Da quando vale questo prezzo. Un prezzo con decorrenza
-                          futura prima non si vedeva da nessuna parte: si poteva
-                          impostare e dimenticare, e il food cost cambiava da
-                          solo il giorno stabilito. */}
-                      <td style={{ padding: '7px 12px', color: C.textMid, whiteSpace: 'nowrap' }}>
-                        {(() => {
-                          const da = l.decorre_da || l.data
-                          if (!da) return '-'
-                          const d = new Date(da)
-                          if (isNaN(d.getTime())) return '-'
-                          const futuro = d.getTime() > Date.now()
-                          return (
-                            <span style={{ color: futuro ? C.amber : C.textMid, fontWeight: futuro ? 700 : 400 }}>
-                              {d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit' })}
-                              {futuro && ' (futuro)'}
-                            </span>
-                          )
-                        })()}
-                      </td>
-                      <td style={{ padding: '7px 12px', textAlign: 'right', color: C.textMid, ...TNUM }}>{(l.prezzoVecchio || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/kg</td>
-                      <td style={{ padding: '7px 12px', textAlign: 'right', fontWeight: 700, color: C.text, ...TNUM }}>{(l.prezzoNuovo || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/kg</td>
-                      {/* `delta` può mancare nelle righe di log vecchie, e
-                          `undefined.toLocaleString()` fa esplodere l'intera
-                          scheda: una riga storica malformata portava via la
-                          pagina, non solo la sua cella. */}
-                      <td style={{ padding: '7px 12px', textAlign: 'right', fontWeight: 700, color: (l.delta || 0) > 0 ? C.red : C.green, ...TNUM }}>
-                        {(l.delta || 0) > 0 ? '+' : ''}{(l.delta || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        {Number.isFinite(Number(l.deltaPct)) && <span style={{ fontSize: 12, marginLeft: 4, opacity: 0.7 }}>({Number(l.deltaPct) > 0 ? '+' : ''}{fmtp(Number(l.deltaPct))})</span>}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
-
-      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: R['2xl'], overflow: 'hidden', boxShadow: SHADOW_PREMIUM }}>
-        <div style={{ overflowX: 'auto' }}>
-          <TabellaOSchede
-
-          minWidth={480}
-          righe={visibleRows}
-          chiave={(row) => row.nome}
-          vuoto={search.trim() ? `Nessun ingrediente che corrisponde a "${search}".` : 'Nessun ingrediente disponibile.'}
-          titolo={(row) => <span style={{ textTransform: 'capitalize' }}>{row.nome}</span>}
-          colonne={[
-            { k: 'prezzo', label: 'Prezzo al chilo', forte: true,
-              cella: (row) => row.prezzoKg > 0
-                ? `${row.prezzoKg.toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
-                : '—' },
-            { k: 'az', label: '', cella: (row) => (
-              <button onClick={() => startEdit(row)}
-                style={{ padding: '10px 14px', minHeight: 44, borderRadius: 6, border: `1px solid ${C.borderStr}`, background: 'transparent', fontSize: font.size.sm, fontWeight: 700, color: C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                <Icon name="edit" size={13} />Modifica
-              </button>
-            ) },
-          ]}
-          intestazione={<><thead>
-              <tr style={{ background: '#F8F4F2' }}>
-                <th style={{ padding: '10px 14px', textAlign: 'left', ...typo.caption, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>Ingrediente</th>
-                <th style={{ padding: '10px 14px', textAlign: 'right', ...typo.caption, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>Prezzo €/kg</th>
-                <th style={{ padding: '10px 14px', textAlign: 'right', ...typo.caption, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, width: 140 }}>Azioni</th>
-              </tr>
-            </thead></>}
-          corpo={<><tbody>
-              {filtered.length === 0 && (
-                <tr><td colSpan={3} style={{ padding: '40px 16px', textAlign: 'center', fontSize: font.size.base, color: C.textSoft }}>
-                  {search.trim() ? `Nessun ingrediente che corrisponde a "${search}".` : 'Nessun ingrediente disponibile.'}
-                </td></tr>
-              )}
-              {visibleRows.map((row, i) => {
-                const editing = editKey === row.key
-                return (
-                  <tr key={row.key} style={{ borderBottom: `1px solid ${C.border}`, background: editing ? '#FFF8F7' : i % 2 === 0 ? C.white : '#FDFAF7' }}>
-                    <td style={{ padding: '10px 14px', fontWeight: 600, color: C.text, textTransform: 'capitalize' }}>
-                      {/* Nome + badge incolonnati: nome in colonna fissa 180px,
-                          badge sempre alla stessa x indipendentemente dalla
-                          lunghezza del nome. */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <span style={{ minWidth: 180, display: 'inline-block' }}>{row.nome}</span>
-                        {/* Audit 2026-09-09: c'era un solo badge, "Prezzo da
-                            impostare", e non distingueva il prezzo che hai
-                            scritto tu da quello che il software ha preso dal
-                            listino medio di mercato. Nel ricettario reale sono
-                            6 prezzi veri su 422: senza il badge, 416
-                            ingredienti sembravano tuoi. */}
-                        {!row.haPrezzo && !row.isStima && <span style={{ fontSize: typo.small.fontSize, padding: '2px 7px', borderRadius: 4, background: C.amberLight, color: C.amber, fontWeight: 700, whiteSpace: 'nowrap' }}>Prezzo da impostare</span>}
-                        {row.isStima && <span title="Prezzo medio di mercato, non il tuo: scrivilo qui per avere un food cost tuo." style={{ fontSize: typo.small.fontSize, padding: '2px 7px', borderRadius: 4, background: C.bgSubtle, color: C.textMid, fontWeight: 700, whiteSpace: 'nowrap', cursor: 'help' }}>stima di mercato</span>}
-                      </div>
-                    </td>
-                    <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 700, color: C.text, ...TNUM }}>
-                      {editing ? (
-                        <>
-                        <input type="number" min="0" step="0.01" value={editVal}
-                          onChange={e => setEditVal(e.target.value)}
-                          onKeyDown={e => {
-                            if (e.key === 'Enter') tentaSalva(row)
-                            if (e.key === 'Escape') cancelEdit()
-                          }}
-                          autoFocus
-                          aria-label={`Prezzo per chilo di ${row.nome}`}
-                          style={{ width: isMobile ? 116 : 96, padding: isMobile ? '9px 10px' : '6px 8px', minHeight: isMobile ? 44 : 32, borderRadius: 6, border: `1px solid ${C.red}`, fontSize: font.size.base, fontWeight: 700, color: C.text, textAlign: 'right', outline: 'none' }}/>
-                        {errEdit && (
-                          <div style={{ fontSize: font.size.sm, color: C.red, marginTop: 4, textAlign: 'right', maxWidth: 200, lineHeight: 1.4 }}>{errEdit}</div>
-                        )}
-                        </>
-                      ) : (
-                        // Audit 2026-09-14: il prezzo cliccabile era alto 22px. Su
-                        // tablet e' sotto la soglia di quello che si centra col
-                        // dito, ed e' la strada principale per cambiare un prezzo.
-                        <span onClick={() => startEdit(row)} title="Clicca per modificare"
-                          role="button" tabIndex={0}
-                          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startEdit(row) } }}
-                          style={{ cursor: 'pointer', padding: '10px 10px', borderRadius: 6, display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', minHeight: 40, minWidth: 88 }}>
-                          {row.prezzoKg > 0 ? `${row.prezzoKg.toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €` : '-'}
-                        </span>
-                      )}
-                    </td>
-                    <td style={{ padding: '10px 14px', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                      {editing ? (
-                        <>
-                          <button onClick={() => tentaSalva(row)} style={{ padding: '8px 14px', minHeight: 40, borderRadius: 6, border: 'none', background: C.red, color: C.white, fontSize: font.size.sm, fontWeight: 800, cursor: 'pointer', marginRight: 4 }}>Salva</button>
-                          <button onClick={cancelEdit} style={{ padding: '8px 12px', minHeight: 40, borderRadius: 6, border: `1px solid ${C.borderStr}`, background: 'transparent', fontSize: font.size.sm, fontWeight: 700, color: C.textMid, cursor: 'pointer' }}>Annulla</button>
-                        </>
-                      ) : (
-                        <button onClick={() => startEdit(row)} style={{ padding: '8px 14px', minHeight: 40, borderRadius: 6, border: `1px solid ${C.borderStr}`, background: 'transparent', fontSize: font.size.sm, fontWeight: 700, color: C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="edit" size={13} />Modifica</button>
-                      )}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody></>}
-        />
-          {isPaginated && (
-            <div style={{
-              padding: '14px 18px', textAlign: 'center',
-              borderTop: `1px solid ${C.border}`, background: '#FAFAF6',
-            }}>
-              <div style={{ fontSize: 12, color: C.textSoft, marginBottom: 8 }}>
-                Mostrati <strong>{visibleRows.length}</strong> di <strong>{filtered.length}</strong> ingredienti.
-              </div>
-              <button onClick={() => setMaxVisible(m => m + 80)}
-                style={{
-                  padding: '0 20px', minHeight: 40, borderRadius: 8,
-                  border: `1px solid ${C.borderStr}`, background: C.white,
-                  fontSize: 12, fontWeight: 700, color: C.text, cursor: 'pointer',
-                }}>
-                Mostra altri 80
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {confirmKey && (() => {
-        const row = ingredienti.find(i => i.key === confirmKey)
-        if (!row) return null
-        const delta = confirmVal - row.prezzoKg
-        const deltaPct = row.prezzoKg > 0 ? (delta / row.prezzoKg * 100) : null
-        // Audit 2026-09-09: la finestra non rispondeva a Invio ed Esc (tutte le
-        // altre del prodotto lo fanno) e si chiudeva toccando lo sfondo anche
-        // MENTRE il salvataggio era in corso, lasciando l'operazione a metà
-        // senza dire com'era finita.
-        return (
-          <div role="dialog" aria-modal="true" aria-label="Conferma modifica prezzo"
-            onKeyDown={e => {
-              if (salvandoPrezzo) return
-              if (e.key === 'Escape') { e.stopPropagation(); setConfirmKey(null) }
-              if (e.key === 'Enter') { e.stopPropagation(); confermaSalva() }
-            }}
-            tabIndex={-1}
-            ref={el => { if (el) el.focus() }}
-            style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
-            onClick={() => { if (!salvandoPrezzo) setConfirmKey(null) }}>
-            <div onClick={e => e.stopPropagation()} style={{ background: C.white, borderRadius: 16, padding: 28, maxWidth: 420, width: '100%', boxShadow: '0 24px 60px rgba(15,23,42,0.3)' }}>
-              <div style={{ fontSize: 16, fontWeight: 800, color: C.text, marginBottom: 8 }}>Conferma modifica prezzo</div>
-              <div style={{ fontSize: 13, color: C.textMid, marginBottom: 16, lineHeight: 1.55 }}>
-                Sei sicuro di voler aggiornare il prezzo di <b style={{ color: C.text, textTransform: 'capitalize' }}>{row.nome}</b>?
-              </div>
-              <div style={{ background: '#F8F4F2', borderRadius: 10, padding: '14px 16px', marginBottom: 18 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, fontWeight: 600 }}>{row.prezzoKg > 0 ? 'Prezzo attuale' : 'Prezzo di adesso'}</span>
-                  {/* Audit 2026-09-14: per un ingrediente senza prezzo qui
-                      compariva "0,00 €/kg", cioe' un prezzo dichiarato. Zero e
-                      "non lo so" sono due cose diverse, e su un dato che muove
-                      il food cost di tutte le ricette la differenza conta. */}
-                  <span style={{ fontSize: 14, color: row.prezzoKg > 0 ? C.textMid : C.textSoft, ...TNUM, fontWeight: 700 }}>
-                    {row.prezzoKg > 0
-                      ? `${row.prezzoKg.toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/kg`
-                      : 'mai impostato'}
-                  </span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, fontWeight: 600 }}>Nuovo prezzo</span>
-                  <span style={{ fontSize: 14, color: C.red, ...TNUM, fontWeight: 800 }}>{confirmVal.toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/kg</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 6, borderTop: `1px solid ${C.border}` }}>
-                  <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, fontWeight: 600 }}>{row.prezzoKg > 0 ? 'Variazione' : 'Primo prezzo'}</span>
-                  {/* Audit 2026-09-09: `delta > 0 ? rosso : verde` colorava di
-                      VERDE anche una variazione di zero, come se non cambiare
-                      prezzo fosse un risparmio. E il rosso era quello del
-                      marchio, che in questa pagina significa "azione", non
-                      "allarme": per un prezzo che sale serve il rosso di
-                      allarme. */}
-                  <span style={{ fontSize: 13, color: delta > 0 ? C.red : delta < 0 ? C.green : C.textSoft, ...TNUM, fontWeight: 800 }}>
-                    {row.prezzoKg > 0 && delta > 0 ? '+' : ''}{(row.prezzoKg > 0 ? delta : confirmVal).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} € {deltaPct != null && <span style={{ fontSize: 12, marginLeft: 4, opacity: 0.85 }}>({deltaPct > 0 ? '+' : ''}{fmtp(deltaPct)})</span>}
-                  </span>
-                </div>
-              </div>
-              {/* Decorrenza: data da cui il prezzo entra in vigore */}
-              <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 10, padding: '12px 14px', marginBottom: 14 }}>
-                <div style={{ ...typo.caption, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
-                  Decorrenza nuovo prezzo
-                </div>
-                <input type="date" value={confirmDecorre} onChange={e => setConfirmDecorre(e.target.value)}
-                  style={{ padding: '8px 10px', borderRadius: 7, border: `1px solid ${C.borderStr}`, fontSize: 13, color: C.text, background: C.white, outline: 'none' }}/>
-                <div style={{ fontSize: 12, color: C.textSoft, marginTop: 6, lineHeight: 1.5 }}>
-                  Il nuovo prezzo si applica dalla data scelta in poi. Le produzioni precedenti mantengono il <b>prezzo storico</b> per i calcoli P&amp;L.
-                  Es. cambiando il prezzo dal <b>01/01</b>, le produzioni del 31/12 useranno ancora il prezzo vecchio.
-                </div>
-              </div>
-              {deltaPct != null && Math.abs(deltaPct) > 50 && (
-                <div style={{ background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: 8, padding: '10px 12px', marginBottom: 16, fontSize: typo.small.fontSize, color: '#78350F', lineHeight: 1.5 }}>
-                  <b style={{ display: 'inline-flex', alignItems: 'center', gap: 5, verticalAlign: 'middle' }}><Icon name="warning" size={12} />Variazione importante</b> - la modifica del {fmtp0(Math.abs(deltaPct))} influenzerà il food cost di tutte le ricette che usano questo ingrediente (a partire dalla decorrenza scelta).
-                </div>
-              )}
-              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-                <button onClick={() => setConfirmKey(null)} disabled={salvandoPrezzo} style={{ padding: '0 18px', minHeight: 42, borderRadius: 8, border: `1px solid ${C.borderStr}`, background: 'transparent', fontSize: 12, fontWeight: 700, color: C.textMid, cursor: 'pointer' }}>Annulla</button>
-                <button onClick={confermaSalva} disabled={salvandoPrezzo}
-                  style={{ padding: '0 20px', minHeight: 42, borderRadius: 8, border: 'none', background: C.red, color: C.white, fontSize: 12, fontWeight: 800, cursor: salvandoPrezzo ? 'not-allowed' : 'pointer', opacity: salvandoPrezzo ? 0.6 : 1, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  <Icon name="check" size={13} />{salvandoPrezzo ? 'Salvo…' : 'Conferma e salva'}</button>
-              </div>
-            </div>
-          </div>
-        )
-      })()}
-    </div>
-  )
-}
+// ─── I prezzi delle materie prime non stanno più qui ────────────────────────
+//
+// `PrezziIngredientiTab` era la quarta scheda di questa pagina («Prezzi
+// ingredienti»). Il 18/09/2026 è diventata una pagina sua, in Ricette →
+// Materie prime (`src/views/MateriePrimeView.jsx`), su richiesta del
+// titolare: «voglio creare una pagina solo per le materie prime per rendere
+// il tutto più chiaro e semplice».
+//
+// Aveva senso: il prezzo al chilo decide il food cost di TUTTE le ricette, e
+// stava dietro le giacenze, il carico merce e i prodotti finiti, nella pagina
+// che si apre per contare i sacchi. Qui resta quanta merce c'è; quanto costa
+// si decide di là.
+//
+// Il componente è stato spostato intero, con dentro tutte le correzioni che
+// si era guadagnato (prezzo assente che non diventa «0,00 €», confronto sul
+// numero che si vede e non su quello in archivio, blocco del doppio clic,
+// storico con la decorrenza). Non riscriverlo qui: c'è già.
 
 // ─── MagazzinoView (main) ────────────────────────────────────────────────────
 
@@ -1177,17 +808,28 @@ function SchedeMagazzino({ righe, vuoto, consumoStimato, isDipendente, editSogli
 
 export default function MagazzinoView({
   ricettario, magazzino, setMagazzino, logRif, setLogRif,
-  logPrezzi = [], onUpdatePrezzoIng, giornaliero, notify,
+  giornaliero, notify,
   esclusi = new Set(), setEsclusi, onImportPrezzi, onImportPrezziOCR,
   orgId, sedeId, isDipendente = false, utente = null, LEX = lessico(),
+  // Per mandare chi cerca i prezzi dove sono finiti, senza che debba
+  // cercarseli nel menu.
+  onNavigate = null,
 }) {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
   // Audit 2026-09-14: la scheda aperta non veniva ricordata. Chi lavora sui
   // prezzi e passa un attimo su un'altra pagina, tornando ricominciava da
   // "Materie prime" e doveva ritrovare il punto. Si ricorda per sede.
+  // La scheda ricordata potrebbe essere «prezzi», che dal 18/09/2026 non
+  // esiste più (è diventata la pagina Materie prime). Chi aveva quella aperta
+  // si sarebbe ritrovato il Magazzino con le linguette in cima e il vuoto
+  // sotto, senza capire perché.
   const [tab, _setTab] = useState(() => {
-    try { return sessionStorage.getItem(`foodos_mag_tab_${sedeId || '_'}`) || 'giacenze' } catch { return 'giacenze' }
+    const SCHEDE = ['giacenze', 'carica', 'pf', 'log']
+    try {
+      const ricordata = sessionStorage.getItem(`foodos_mag_tab_${sedeId || '_'}`)
+      return SCHEDE.includes(ricordata) ? ricordata : 'giacenze'
+    } catch { return 'giacenze' }
   })
   const setTab = useCallback((t) => {
     _setTab(t)
@@ -2271,7 +1913,11 @@ export default function MagazzinoView({
         {/* L'ordine e' quello di quanto si usano: le giacenze e il carico merce
             sono di tutti i giorni, i prezzi si toccano una volta al mese. Prima
             i prezzi stavano prima del carico. */}
-        {[['giacenze', 'Materie prime'], ['carica', 'Carica merce'], ['pf', 'Prodotti finiti'], ['prezzi', 'Prezzi ingredienti'], ['log', 'Storico carichi']].filter(([id]) => !(isDipendente && id === 'prezzi')).map(([id, lbl]) => (
+        {/* «Prezzi ingredienti» non è più qui: è la pagina Ricette → Materie
+            prime. Restava a fare il doppione, e due posti per cambiare lo
+            stesso prezzo vogliono dire che uno dei due prima o poi resta
+            indietro. Chi la cerca la trova nella riga qui sotto. */}
+        {[['giacenze', 'Materie prime'], ['carica', 'Carica merce'], ['pf', 'Prodotti finiti'], ['log', 'Storico carichi']].map(([id, lbl]) => (
           <button key={id} onClick={() => setTab(id)}
             role="tab" aria-selected={tab === id} id={`mag-tab-${id}`}
             style={{ padding: '12px 16px', minHeight: 44, border: 'none', background: 'transparent', cursor: 'pointer',
@@ -2306,6 +1952,31 @@ export default function MagazzinoView({
                 <button onClick={() => setShowAddIng(true)} title="Aggiungi ingrediente" style={{ padding: isMobile ? '0 12px' : '0 16px', minHeight: 44, background: C.red, color: C.white, border: 'none', borderRadius: R.md, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 2px 8px rgba(110,14,26,0.2)', display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}><Icon name="plus" size={12} />{isMobile ? 'Aggiungi' : 'Aggiungi ingrediente'}</button>
               </div>
             } />
+          {/* ── Dove sono finiti i prezzi ────────────────────────────────
+              La scheda «Prezzi ingredienti» è diventata la pagina Ricette →
+              Materie prime il 18/09/2026. Chi apre il Magazzino cercando il
+              prezzo del burro non deve trovare il vuoto.
+
+              Non si usa `AvvisoSpostamento` (Dashboard.jsx): il titolare
+              l'ha fatto togliere il 17/09 da tutte le pagine — «se clicco
+              nuovo gusto mi compare questo avviso... toglilo e toglilo anche
+              in tutte le altre sezioni». Quello era un riquadro in cima alla
+              pagina, da chiudere, che spiegava una cosa già imparata. Questa
+              è una riga sola dentro la scheda, che resta perché le due
+              pagine si chiamano quasi uguale e la differenza va detta: qui
+              c'è QUANTA merce hai, di là QUANTO costa. */}
+          {!isDipendente && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 12, fontSize: typo.small.fontSize, color: C.textSoft, lineHeight: 1.5 }}>
+              <span>Qui c&rsquo;è quanta merce hai. Quanto costa al chilo si decide in Ricette &rarr; Materie prime.</span>
+              {onNavigate && (
+                <button type="button" onClick={() => onNavigate('materie-prime')}
+                  style={{ border: 'none', background: 'transparent', color: C.red, fontWeight: 700, cursor: 'pointer', padding: '6px 0', minHeight: 32, fontSize: typo.small.fontSize, fontFamily: 'inherit', textDecoration: 'underline' }}>
+                  Apri le materie prime
+                </button>
+              )}
+            </div>
+          )}
+
           {/* [15] Ricerca: con 35 ingredienti e oltre non c'era modo di
               trovarne uno. La scheda Prezzi ce l'ha da sempre. */}
           {righe.length > 12 && (
@@ -2772,10 +2443,6 @@ export default function MagazzinoView({
             </div>
           </div>
         </div>
-      )}
-
-      {tab === 'prezzi' && !isDipendente && (
-        <PrezziIngredientiTab ricettario={ricettario} logPrezzi={logPrezzi} onUpdatePrezzo={onUpdatePrezzoIng} isMobile={isMobile}/>
       )}
 
       {tab === 'log' && (

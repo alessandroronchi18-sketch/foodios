@@ -115,9 +115,70 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
       for (const ing of (ric.ingredienti || [])) s.add(normIng(ing.nome));
     for (const ric of Object.values(ricettario?.ricette || {}))
       if (getR(ric.nome, ric).tipo === "semilavorato") s.add(normIng(ric.nome || "").toLowerCase().trim());
+    // 18/09/2026 — le materie prime del listino mancavano da questo elenco.
+    //
+    // Qui dentro finivano solo gli ingredienti già usati in qualche ricetta,
+    // i semilavorati e il listino medio di mercato. Le materie prime che il
+    // titolare ha caricato lui, con il suo prezzo, NO: finché una non era
+    // stata usata almeno una volta non compariva fra i suggerimenti.
+    // Era sopportabile quando si poteva scrivere qualunque cosa a mano.
+    // Da oggi non si può più — l'elenco è chiuso, per non far entrare
+    // «aceto balsamicp» — e senza questa riga creare una materia prima nuova
+    // sarebbe stato un vicolo cieco: salvata nel listino, e introvabile nel
+    // campo che avrebbe dovuto offrirla.
+    for (const k of Object.keys(ricettario?.ingredienti_costi || {})) s.add(normIng(k));
     for (const k of Object.keys(PREZZI_HORECA)) s.add(k);
     return [...s].filter(k => k && k.length > 1).sort();
   }, [ricettario]);
+
+  // L'elenco degli ingredienti come si legge: «Burro», non «burro», e
+  // «Farina 00», non «farina_00».
+  //
+  // 18/09/2026, il titolare: i nomi degli ingredienti con la prima maiuscola e
+  // il resto minuscolo «anche mentre si aggiungono». Nella tabella ci pensava
+  // già `formatNome`; l'elenco che si apre sotto la barra, invece, mostrava le
+  // chiavi del ricettario così come stanno — e sono tutte minuscole, perché
+  // `normIng` le abbassa per poterle confrontare.
+  //
+  // Cambia SOLO quello che si legge. `nomeIngredienteDaSalvare` qui sotto
+  // rimette il nome esatto del ricettario prima che finisca nella ricetta:
+  // è quella la chiave con cui il food cost va a cercare il prezzo, e
+  // riscriverla sarebbe il modo più silenzioso di far sparire un costo.
+  const etichetteIngredienti = useMemo(() => {
+    const perEtichetta = new Map();
+    for (const v of tuttiIng) {
+      const etichetta = formatNome(v);
+      if (!etichetta) continue;
+      const gia = perEtichetta.get(etichetta);
+      if (gia === undefined) { perEtichetta.set(etichetta, v); continue; }
+      // Due scritture della stessa cosa («farina 00» e «farina_00») si leggono
+      // uguali: vince quella che nel listino ha un prezzo suo. Scegliere
+      // l'altra trasformerebbe un costo vero in una stima di mercato senza
+      // dirlo a nessuno, ed è il modo peggiore di sbagliare un food cost.
+      const giaHaPrezzo = ingCosti[normIng(gia)]?.isStima === false;
+      const oraHaPrezzo = ingCosti[normIng(v)]?.isStima === false;
+      if (!giaHaPrezzo && oraHaPrezzo) perEtichetta.set(etichetta, v);
+    }
+    return perEtichetta;
+  }, [tuttiIng, ingCosti]);
+
+  const vociIngredienti = useMemo(
+    () => [...etichetteIngredienti.keys()].sort((a, b) => a.localeCompare(b, 'it')),
+    [etichetteIngredienti]);
+
+  // Dall'etichetta che si legge al nome esatto scritto nel ricettario. Se
+  // quello che c'è nel campo non corrisponde a nessuna voce (un ingrediente
+  // nuovo), si salva come l'ha scritto lui.
+  const nomeIngredienteDaSalvare = (visibile) => {
+    const scritto = String(visibile || '').trim();
+    if (!scritto) return '';
+    return etichetteIngredienti.get(formatNome(scritto)) || scritto;
+  };
+
+  // Gli ingredienti «senza prezzo» che arrivano da calcolaFC a volte portano
+  // dietro la catena del semilavorato («pasta frolla › burro»): si formatta
+  // pezzo per pezzo, se no la maiuscola tocca solo al primo nome.
+  const leggiMancante = (m) => String(m || '').split(' › ').map(formatNome).join(' › ');
 
   // Per gelateria: categoria default "Gusto", unità di riferimento = 1 (gli ingredienti
   // sono per 1 kg di gusto finito), prezzo 0 (vive su Formati vendita), tipo "gusto" —
@@ -165,7 +226,24 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
   const [forceOverwrite, setForceOverwrite] = useState(false); // per batch foto
   const [datiEstratti, setDatiEstratti] = useState(null);  // dati AI in attesa di conferma
   const [saving, setSaving] = useState(false);             // bottone salva in corso
-  const [showMore, setShowMore] = useState(false);         // progressive disclosure: note + congelabile
+  // Note di cottura e congelabilità: aperte o chiuse, e basta.
+  //
+  // 18/09/2026, il titolare: «ottimo che clicco e si apre ma poi devo poter
+  // ricliccare e si deve chiudere». Prima `showMore` non era il padrone della
+  // sezione: il render la teneva aperta con `showMore || form.note ||
+  // form.congelabile`, quindi bastava una parola nelle note perché non si
+  // richiudesse più — e il pulsante per riprovarci spariva del tutto.
+  // Adesso comanda solo `showMore`, e chi carica una ricetta lo imposta in
+  // base a quello che quella ricetta ha davvero dentro.
+  const [showMore, setShowMore] = useState(false);         // note + congelabile: sezione aperta?
+  // C'è qualcosa dentro? Serve a dirlo quando la sezione è chiusa: chiudere
+  // nasconde, non cancella, e chi ha appena scritto una nota deve vederlo.
+  const noteScritte = String(form.note || '').trim();
+  const haNoteOCongelabile = Boolean(noteScritte || form.congelabile);
+  const riassuntoNote = [
+    noteScritte.length > 46 ? `${noteScritte.slice(0, 46)}…` : noteScritte,
+    form.congelabile ? 'si può congelare' : '',
+  ].filter(Boolean).join(' · ');
   // Modal "imposta prezzo" per ingrediente con prezzo mancante:
   // { nome, costoKg: string, saving } | null
   const [priceModal, setPriceModal] = useState(null);
@@ -243,9 +321,38 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
     return Number(voce.costoKg) || null;
   }, [form.tipo, form.nome, ingCosti]);
 
+  /** Se quel nome non è fra le materie prime che esistono davvero.
+   *
+   *  18/09/2026, segnalazione del titolare: «magari scrive aceto balsamicp
+   *  con la p finale e lo inserisce e si scasinano tutti i calcoli».
+   *  Ha ragione, ed è peggio di come suona: un nome battuto storto non dà
+   *  errore, non si vede a occhio, e nel food cost vale **zero**, perché nel
+   *  listino quel nome non c'è. La ricetta risulta più economica del vero e
+   *  nessuno lo dice. */
+  const ingredienteSconosciuto = (visibile) => {
+    const scritto = String(visibile || '').trim();
+    if (!scritto) return false;
+    return !etichetteIngredienti.has(formatNome(scritto));
+  };
+
+  /** Crea la materia prima che manca, invece di lasciare l'utente fermo.
+   *  Chiuso non vuol dire sbarrato: la finestra del prezzo è già il gesto con
+   *  cui una materia prima nasce, e ora si apre con il nome già scritto e con
+   *  i grammi messi da parte, così dopo il salvataggio la riga si aggiunge da
+   *  sola e non bisogna ribattere niente. */
+  const creaMateriaPrima = (visibile) => {
+    const nome = String(visibile || '').trim();
+    if (!nome) return;
+    setPriceModal({ nome, costoKg: '', saving: false, daAggiungere: newIngQty || null });
+  };
+
   const addIng = () => {
     if (!newIngNome.trim() || !newIngQty) return;
-    setForm(f => ({ ...f, ingredienti: [...f.ingredienti, { nome: newIngNome.trim(), qty1stampo: parseFloat(newIngQty) || 0, costoPerG: 0, costo1stampo: 0 }] }));
+    // Il campo lo dice già a schermo, ma l'avviso da solo non basta: si può
+    // sempre premere Invio o il pulsante. Qui si ferma davvero, e si offre la
+    // strada per uscirne.
+    if (ingredienteSconosciuto(newIngNome)) { creaMateriaPrima(newIngNome); return; }
+    setForm(f => ({ ...f, ingredienti: [...f.ingredienti, { nome: nomeIngredienteDaSalvare(newIngNome), qty1stampo: parseFloat(newIngQty) || 0, costoPerG: 0, costo1stampo: 0 }] }));
     setNewIngNome(""); setNewIngQty("");
   };
   const removeIng = i => setForm(f => ({ ...f, ingredienti: f.ingredienti.filter((_, j) => j !== i) }));
@@ -253,6 +360,43 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
   // Salva il prezzo di un ingrediente al kg nel ricettario e chiude il modal.
   // Al successo il form si aggiorna via prop `ricettario` (buildIngCosti rilegge)
   // e il badge "prezzo mancante" scompare da solo per quell'ingrediente.
+  /** Crea la materia prima **senza** il prezzo, quando il prezzo non si sa.
+   *
+   *  Serve perché il blocco appena introdotto, da solo, poteva diventare peggio
+   *  del difetto: se per scrivere una ricetta bisogna conoscere il costo al
+   *  chilo di ogni ingrediente, chi non ce l'ha sotto mano si ferma lì.
+   *
+   *  Il prezzo si salva `null`, non `0`. È la regola di tutto il prodotto e
+   *  qui è più importante che altrove: `buildIngCosti` scarta i valori non
+   *  finiti, quindi `null` diventa «prezzo mancante» e la ricetta lo dice a
+   *  chiare lettere; uno zero scritto, invece, vorrebbe dire «questo
+   *  ingrediente è gratis» e sparirebbe dentro il food cost senza un fiato. */
+  const creaSenzaPrezzo = async () => {
+    if (!priceModal) return;
+    setPriceModal(m => m ? { ...m, saving: true } : m);
+    try {
+      const key = normIng(priceModal.nome);
+      const nuovoRic = {
+        ...(ricettario || {}),
+        ingredienti_costi: {
+          ...(ricettario?.ingredienti_costi || {}),
+          [key]: { costoKg: null, costoG: null }
+        }
+      };
+      await onSave(nuovoRic, {}, true);
+      if (priceModal.daAggiungere) {
+        const grammi = parseFloat(String(priceModal.daAggiungere).replace(',', '.')) || 0;
+        setForm(f => ({ ...f, ingredienti: [...f.ingredienti, { nome: key, qty1stampo: grammi, costoPerG: 0, costo1stampo: 0 }] }));
+        setNewIngNome(""); setNewIngQty("");
+      }
+      setPriceModal(null);
+      notify(`"${formatNome(priceModal.nome)}" aggiunta alle materie prime, senza prezzo: il food cost delle ricette che la usano resterà incompleto finché non lo scrivi.`);
+    } catch (e) {
+      setPriceModal(m => m ? { ...m, saving: false } : m);
+      notify("Errore nel salvataggio, riprova", false);
+    }
+  };
+
   const handleSavePrezzoIng = async () => {
     if (!priceModal) return;
     const raw = String(priceModal.costoKg || '').replace(',', '.').trim();
@@ -273,6 +417,15 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
         }
       };
       await onSave(nuovoRic, {}, true); // noRedirect: resta sul form
+      // Se la finestra si era aperta perché l'ingrediente non esisteva, ora
+      // esiste: la riga si aggiunge da sé, con i grammi già battuti. Senza
+      // questo l'utente dovrebbe riscrivere nome e quantità da capo, e la
+      // protezione sembrerebbe un ostacolo invece di un aiuto.
+      if (priceModal.daAggiungere) {
+        const grammi = parseFloat(String(priceModal.daAggiungere).replace(',', '.')) || 0;
+        setForm(f => ({ ...f, ingredienti: [...f.ingredienti, { nome: key, qty1stampo: grammi, costoPerG: costoG, costo1stampo: grammi * costoG }] }));
+        setNewIngNome(""); setNewIngQty("");
+      }
       setPriceModal(null);
       notify(`Prezzo di "${priceModal.nome}" salvato: ${val.toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/kg`);
     } catch (e) {
@@ -308,6 +461,8 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
     };
     setForm(copia);
     setEditMode(null);
+    // La sezione note segue il modulo che si carica, non quello di prima.
+    setShowMore(false);
     initialFormRef.current = copia;
     notify(`Partito da ${nome}: ${ings.length} ${ings.length === 1 ? 'ingrediente' : 'ingredienti'}. Dai un nome e cambia quello che serve.`);
     scrollToFormDeferred(100);
@@ -348,6 +503,10 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
     const tipoIniziale = reg.tipoPresunto ? empty.tipo : reg.tipo;
     const loaded = { nome: r.nome, categoria: r.categoria || "", unita: reg.tipoPresunto ? empty.unita : reg.unita, prezzo: reg.prezzo, tipo: tipoIniziale, note: r.note || "", ingredienti: ings, congelabile: r.congelabile || false, allergeniManual: manual, resa_g: (typeof r.resa_g === 'number' && r.resa_g > 0) ? r.resa_g : null };
     setForm(loaded);
+    // Se la ricetta ha già delle note o il congelabile acceso, la sezione si
+    // apre: prima lo deduceva il render, ed era proprio quel `||` a rendere il
+    // pulsante incapace di richiudere.
+    setShowMore(Boolean(loaded.note || loaded.congelabile));
     // Se è una base, porta nel campo il costo al kg che ha nel listino: senza
     // questo, riaprendo la scheda il campo appare vuoto e sembra da compilare.
     if (loaded.tipo === 'interno') {
@@ -383,7 +542,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
       else notify(`"${nome}" NON è stata eliminata: è ancora al suo posto.`, false);
       return;
     }
-    setDeleteConf(null); setDeletePin(""); setEditMode(null); setForm(empty);
+    setDeleteConf(null); setDeletePin(""); setEditMode(null); setForm(empty); setShowMore(false);
     // La guardia delle modifiche non salvate confronta il modulo con questo
     // riferimento. Svuotare il modulo senza azzerarlo anche qui lasciava i due
     // valori diversi, e la guardia leggeva «ci sono modifiche»: dopo aver
@@ -494,7 +653,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
         initialFormRef.current = empty;
         return;
       }
-      setForm(empty); setEditMode(null); setOverwriteConf(null); setCostoBaseKg('');
+      setForm(empty); setEditMode(null); setOverwriteConf(null); setCostoBaseKg(''); setShowMore(false);
       initialFormRef.current = empty;
       notify(`Ricetta "${nuovaRic.nome}" salvata`);
     } finally {
@@ -538,6 +697,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
     discard: () => {
       setForm(empty);
       setEditMode(null);
+      setShowMore(false);
       initialFormRef.current = empty;
     },
   });
@@ -685,7 +845,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
             <Icon name="warning" size={12} /> Stai modificando <b style={{ fontWeight: 700, marginLeft: 4 }}>{editMode}</b> - il salvataggio sovrascrive.
           </div>
-          <button type="button" onClick={() => { setEditMode(null); setForm(empty); initialFormRef.current = empty; }}
+          <button type="button" onClick={() => { setEditMode(null); setForm(empty); setShowMore(false); initialFormRef.current = empty; }}
             style={{
               padding: '7px 14px', minHeight: isMobile ? 36 : 'auto',
               background: '#FFF', color: T.brand,
@@ -773,7 +933,11 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
           const nomeIT = (translateProdottoEN(res.nome || "") || "").trim().toUpperCase();
           if (!nomeIT || ings.length === 0 || !isRicettaValida(nomeIT.toLowerCase())) return false;
           if ((ricAcc || ricettario)?.ricette?.[nomeIT] && !forceOverwrite) {
-            notify(`"${nomeIT}" già esistente - saltata (attiva "Sovrascrivi esistenti" per aggiornare)`, false);
+            // Il messaggio mandava a cercare un comando che non esiste:
+            // il pulsante in cima si chiama «Sovrascrivi da foto», non
+            // «Sovrascrivi esistenti». E «saltata» non dice cosa è successo
+            // alla ricetta che c'era già (niente: è rimasta al suo posto).
+            notify(`"${nomeIT}" ce l'hai già: l'ho lasciata com'è. Per rifarla con quella della foto accendi «Sovrascrivi da foto» in cima e riprova.`, false);
             return false;
           }
           const nuovaRic = {
@@ -1012,22 +1176,57 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
               </div>
             )}
 
-            {/* Progressive disclosure: note + congelabile nascosti di default */}
-            {!showMore && !form.note && !form.congelabile && (
-              <button type="button" onClick={() => setShowMore(true)}
-                style={{
-                  marginTop: 12, padding: '10px 14px', minHeight: 44,
-                  background: 'transparent', border: `1px dashed ${C.border}`,
-                  borderRadius: 8, color: C.textMid, cursor: 'pointer',
-                  fontSize: typo.small.fontSize, fontWeight: 600, fontFamily: 'inherit',
-                  display: 'inline-flex', alignItems: 'center', gap: 6,
-                }}>
-                <Icon name="plus" size={12} /> Aggiungi note di cottura o congelabilità
-              </button>
-            )}
+            {/* Un interruttore vero, non una porta a senso unico.
+                18/09/2026, il titolare: «ottimo che clicco e si apre ma poi
+                devo poter ricliccare e si deve chiudere». Lo stesso pulsante
+                apre e chiude, dice in che stato sta e `aria-expanded` lo segue,
+                così lo sa anche chi naviga con la tastiera o il lettore di
+                schermo.
+                Chiudere nasconde e basta: quello che c'è scritto resta nel
+                modulo e si salva con la ricetta. Per questo, a sezione chiusa
+                con qualcosa dentro, il pulsante ne mostra l'inizio invece di
+                tornare a dire «Aggiungi», che farebbe pensare di aver perso la
+                nota appena scritta. */}
+            <button type="button"
+              onClick={() => setShowMore(v => !v)}
+              aria-expanded={showMore}
+              aria-controls="note-e-congelabilita"
+              style={{
+                marginTop: 12, padding: '10px 14px', minHeight: 44,
+                background: 'transparent', border: `1px dashed ${C.border}`,
+                borderRadius: 8, color: C.textMid, cursor: 'pointer',
+                fontSize: typo.small.fontSize, fontWeight: 600, fontFamily: 'inherit',
+                display: 'inline-flex', alignItems: 'center', gap: 8,
+                textAlign: 'left', maxWidth: '100%',
+                // Sul telefono prende tutta la riga: è il bersaglio del dito, e
+                // serve anche a dare una larghezza certa al riassunto della
+                // nota, che senza si allunga oltre lo schermo invece di
+                // troncarsi con i puntini.
+                width: isMobile ? '100%' : 'auto',
+                justifyContent: 'flex-start',
+              }}>
+              <Icon name={showMore ? 'chevUp' : (haNoteOCongelabile ? 'chevDown' : 'plus')} size={12} />
+              <span style={{ display: 'inline-flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+                <span>
+                  {showMore
+                    ? 'Nascondi note e congelabilità'
+                    : haNoteOCongelabile
+                      ? 'Mostra note e congelabilità'
+                      : 'Aggiungi note di cottura o congelabilità'}
+                </span>
+                {!showMore && haNoteOCongelabile && (
+                  <span style={{
+                    fontSize: typo.small.fontSize, fontWeight: 500, color: C.textSoft,
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  }}>
+                    {riassuntoNote} · si salva con la ricetta
+                  </span>
+                )}
+              </span>
+            </button>
 
-            {(showMore || form.note || form.congelabile) && (
-              <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {showMore && (
+              <div id="note-e-congelabilita" style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div>
                   <div style={fieldLabel}>Note (cottura, temperatura…)</div>
                   <input value={form.note} aria-label="Note ricetta (cottura, temperatura)" onChange={e => setForm(f => ({ ...f, note: e.target.value }))} placeholder="es. 180°C per 45 min"
@@ -1151,8 +1350,8 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                               if (rg.mancante) return (
                                 <button type="button"
                                   onClick={() => setPriceModal({ nome: ing.nome, costoKg: '', saving: false })}
-                                  aria-label={`Imposta il prezzo di ${ing.nome}`}
-                                  title={`Clicca per impostare il prezzo di ${ing.nome} in euro al kg`}
+                                  aria-label={`Imposta il prezzo di ${formatNome(ing.nome)}`}
+                                  title={`Clicca per impostare il prezzo di ${formatNome(ing.nome)} in euro al kg`}
                                   style={badgeStyle(C.amberLight, C.amber, true)}>
                                   prezzo mancante ›
                                 </button>
@@ -1160,7 +1359,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                               if (rg.isStima) return (
                                 <button type="button"
                                   onClick={() => setPriceModal({ nome: ing.nome, costoKg: '', saving: false })}
-                                  aria-label={`Metti il tuo prezzo per ${ing.nome}`}
+                                  aria-label={`Metti il tuo prezzo per ${formatNome(ing.nome)}`}
                                   title="Prezzo medio di mercato, non il tuo. Clicca per metterci il tuo."
                                   style={badgeStyle(C.bgSubtle, C.textMid, true)}>
                                   stima ›
@@ -1192,7 +1391,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                                 `inputMode="decimal"` tiene la tastiera
                                 numerica sul telefono. */}
                             <input type="text" inputMode="decimal" value={ing.qty1stampo}
-                              aria-label={`Grammi per stampo di ${ing.nome}`}
+                              aria-label={`Grammi per stampo di ${formatNome(ing.nome)}`}
                               // Entrando nel campo l'ordine si congela com'e'
                               // adesso: così la riga che si sta scrivendo non
                               // scappa sotto il dito. Uscendo si scioglie, e il
@@ -1255,10 +1454,13 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                   id="ingrediente-nuovo"
                   valore={newIngNome}
                   onCambia={setNewIngNome}
-                  voci={tuttiIng}
-                  placeholder="es. burro"
+                  voci={vociIngredienti}
+                  placeholder="es. Burro"
                   ariaLabel="Nome ingrediente da aggiungere"
                   stile={{ ...inputBase }}
+                  soloDallElenco
+                  onCreaNuova={creaMateriaPrima}
+                  etichettaCrea="Aggiungila alle materie prime"
                 />
               </div>
               <div>
@@ -1366,36 +1568,66 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                       Default: <b>{Math.round(resaDefault)} g</b>{form.resa_g == null ? ' (auto)' : ''}
                     </div>
                   </div>
-                  <div style={{
-                    padding: '10px 12px',
-                    background: scartoRilevante ? '#FFFBEB' : '#F8FAFC',
-                    border: `1px solid ${scartoRilevante ? '#FDE68A' : '#E2E8F0'}`,
-                    borderRadius: 8,
-                    fontSize: typo.small.fontSize, color: scartoRilevante ? '#92400E' : C.textMid, lineHeight: 1.5,
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 4 }}>
-                      <span>Somma ingredienti</span>
-                      <b style={{ ...TNUM }}>{sommaG.toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 0, maximumFractionDigits: 2 })} g</b>
+                  {/* Due numeri di servizio, non il risultato della pagina.
+                      18/09/2026, il titolare: «rivedi le dimensioni di questa
+                      box e rendile perfette per la pagina, non invasive e
+                      grandi». Era un riquadro pieno, con il suo fondo, il suo
+                      bordo e due righe larghe quanto mezza pagina, per dire
+                      una somma e una resa: pesava come il pannello del costo,
+                      che è la cosa che invece conta davvero qui dentro.
+                      Il carattere resta a 12px — sotto non si scende, è un
+                      minimo che il progetto si è dato dopo un difetto vero —
+                      e a rimpicciolire sono l'ingombro, i bordi e il
+                      contrasto: niente fondo, niente cornice, un filo a
+                      sinistra e una riga sola.
+                      Quando c'è uno scarto degno di nota il riquadro torna:
+                      lì non è un'informazione di servizio, è una cosa da
+                      guardare. */}
+                  {scartoRilevante ? (
+                    <div style={{
+                      padding: '10px 12px',
+                      background: '#FFFBEB',
+                      border: '1px solid #FDE68A',
+                      borderRadius: 8,
+                      fontSize: typo.small.fontSize, color: '#92400E', lineHeight: 1.5,
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 4 }}>
+                        <span>Somma ingredienti</span>
+                        <b style={{ ...TNUM }}>{sommaG.toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 0, maximumFractionDigits: 2 })} g</b>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 10 }}>
+                        <span>Resa dichiarata</span>
+                        <b style={{ ...TNUM }}>{Math.round(resaEff).toLocaleString('it-IT', { useGrouping: 'always' })} g</b>
+                      </div>
+                      <div style={{ fontWeight: 600, marginBottom: 8 }}>
+                        Scarto {fmtp(scartoPct)} ({sommaG > resaEff ? '+' : '−'}{scartoAssoluto.toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 1 })} g).
+                        {isGusto
+                          ? " Verifica: perdita evaporazione? overrun d'aria? errore quantità?"
+                          : ' Il peso stampo dichiarato differisce dalla somma ingredienti.'}
+                      </div>
+                      <button type="button" onClick={normalizza}
+                        style={{ padding: '7px 12px', borderRadius: 7, border: '1px solid #F59E0B', background: '#FFF', color: '#92400E', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                        Normalizza ingredienti a {Math.round(resaEff)} g
+                      </button>
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: scartoRilevante ? 10 : 0 }}>
-                      <span>Resa dichiarata</span>
-                      <b style={{ ...TNUM }}>{Math.round(resaEff).toLocaleString('it-IT', { useGrouping: 'always' })} g</b>
+                  ) : (
+                    <div style={{
+                      alignSelf: isMobile ? 'flex-start' : 'center',
+                      paddingLeft: 10, borderLeft: `2px solid ${C.border}`,
+                      fontSize: typo.small.fontSize, color: C.textSoft, lineHeight: 1.5,
+                      display: 'flex', flexWrap: 'wrap', columnGap: 8, rowGap: 2,
+                    }}>
+                      <span>
+                        Somma ingredienti{' '}
+                        <b style={{ ...TNUM, color: C.textMid, fontWeight: 600 }}>{sommaG.toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 0, maximumFractionDigits: 2 })} g</b>
+                      </span>
+                      <span aria-hidden="true">·</span>
+                      <span>
+                        Resa dichiarata{' '}
+                        <b style={{ ...TNUM, color: C.textMid, fontWeight: 600 }}>{Math.round(resaEff).toLocaleString('it-IT', { useGrouping: 'always' })} g</b>
+                      </span>
                     </div>
-                    {scartoRilevante && (
-                      <>
-                        <div style={{ fontWeight: 600, marginBottom: 8 }}>
-                          Scarto {fmtp(scartoPct)} ({sommaG > resaEff ? '+' : '−'}{scartoAssoluto.toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 1 })} g).
-                          {isGusto
-                            ? " Verifica: perdita evaporazione? overrun d'aria? errore quantità?"
-                            : ' Il peso stampo dichiarato differisce dalla somma ingredienti.'}
-                        </div>
-                        <button type="button" onClick={normalizza}
-                          style={{ padding: '7px 12px', borderRadius: 7, border: '1px solid #F59E0B', background: '#FFF', color: '#92400E', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-                          Normalizza ingredienti a {Math.round(resaEff)} g
-                        </button>
-                      </>
-                    )}
-                  </div>
+                  )}
                 </div>
               </div>
             )
@@ -1403,13 +1635,25 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
 
           {/* 3. Allergeni - auto-rilevati */}
           <div style={sezione}>
+            {/* Il programma propone, il cliente conferma.
+                18/09/2026, decisione del titolare: «non dobbiamo avere nessuna
+                ripercussione legale, dobbiamo lasciare al cliente l'ultima
+                parola, noi al massimo diamo un consiglio».
+                Prima qui c'era scritto «Calcolati automaticamente dagli
+                ingredienti (Reg. UE 1169/2011)»: citare il regolamento
+                accanto a un calcolo nostro faceva sembrare che l'elenco
+                uscisse a norma da solo. Non è così e non può esserlo: noi
+                leggiamo i nomi degli ingredienti scritti nella ricetta, non
+                le etichette dei suoi fornitori, dove stanno le tracce e le
+                contaminazioni. Il badge diceva «Auto» per lo stesso motivo
+                sbagliato, e adesso dice quello che è: una proposta. */}
             <PanelHead icon={<Icon name="warning" size={18} />} title="Allergeni presenti" color={C.amber}
-              badge={<span style={{ fontSize: 12, fontWeight: 700, padding: "2px 8px", borderRadius: R.full, background: "#E0F2FE", color: "#0369A1", textTransform: "uppercase", letterSpacing: "0.05em" }}>Auto</span>}
-              sub="Calcolati automaticamente dagli ingredienti (Reg. UE 1169/2011). Aggiungi manualmente quelli mancanti se necessario." />
+              badge={<span style={{ fontSize: 12, fontWeight: 700, padding: "2px 8px", borderRadius: R.full, background: "#E0F2FE", color: "#0369A1", textTransform: "uppercase", letterSpacing: "0.05em" }}>Proposta</span>}
+              sub="Questo elenco è un consiglio, ricavato dagli ingredienti che hai scritto. Quello che vale è l'elenco che confermi tu: le tracce e le contaminazioni stanno sulle etichette dei tuoi fornitori, che noi non vediamo." />
 
             {autoAllergeni.length === 0 ? (
               <div style={{ fontSize: 12, color: C.textSoft, padding: "10px 12px", background: BG_NEUTRO, border: `1px dashed ${C.border}`, borderRadius: 8, marginBottom: 14 }}>
-                Nessun allergene rilevato dagli ingredienti attuali. Verifica gli ingredienti o aggiungi manualmente sotto.
+                Dagli ingredienti che hai scritto non risulta nessun allergene. Controlla le etichette dei tuoi fornitori e aggiungi qui sotto quelli che mancano.
               </div>
             ) : (
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
@@ -1417,7 +1661,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                   const a = ALLERGENI.find(x => x.id === aid);
                   if (!a) return null;
                   return (
-                    <span key={aid} title="Rilevato automaticamente dagli ingredienti"
+                    <span key={aid} title="Proposto dagli ingredienti che hai scritto: confermalo tu"
                       style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 11px", borderRadius: R.full, background: `${ALLERGENE_COLORS[aid]}15`, color: ALLERGENE_COLORS[aid], border: `1.5px solid ${ALLERGENE_COLORS[aid]}55`, fontSize: 12, fontWeight: 700 }}>
                       <Icon name="check" size={11} />{a.label}
                     </span>
@@ -1463,7 +1707,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
             {analisiAllergeni.nonRiconosciuti.length > 0 && (
               <div style={{ ...typo.small, color: T.textSoft, lineHeight: 1.55, marginBottom: 14 }}>
                 Di {analisiAllergeni.nonRiconosciuti.length === 1 ? "questo ingrediente non sappiamo" : "questi ingredienti non sappiamo"} cosa contengono:{" "}
-                <b style={{ color: T.textMid }}>{analisiAllergeni.nonRiconosciuti.slice(0, 8).join(", ")}</b>
+                <b style={{ color: T.textMid }}>{analisiAllergeni.nonRiconosciuti.slice(0, 8).map(formatNome).join(", ")}</b>
                 {analisiAllergeni.nonRiconosciuti.length > 8 ? ` e altri ${analisiAllergeni.nonRiconosciuti.length - 8}` : ""}.
                 {" "}Se portano un allergene, aggiungilo a mano qui sotto.
               </div>
@@ -1595,7 +1839,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                   {live.mancanti.length > 0 && (
                     <div style={{ fontSize: 12, color: C.amber, background: C.amberLight, border: `1px solid ${C.amber}40`, borderRadius: 8, padding: "8px 10px", display: "flex", alignItems: "flex-start", gap: 6 }}>
                       <span style={{ flexShrink: 0, marginTop: 1 }}><Icon name="warning" size={12} /></span>
-                      <span>Food cost sottostimato: manca il prezzo di {live.mancanti.join(", ")}. Caricalo nel listino prezzi.</span>
+                      <span>Food cost sottostimato: manca il prezzo di {live.mancanti.map(leggiMancante).join(", ")}. Caricalo nel listino prezzi.</span>
                     </div>
                   )}
                 </div>
@@ -1655,7 +1899,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                 {live.mancanti.length > 0 && (
                   <div style={{ fontSize: 12, color: C.amber, background: C.amberLight, border: `1px solid ${C.amber}40`, borderRadius: 8, padding: "8px 10px", display: "flex", alignItems: "flex-start", gap: 6 }}>
                     <span style={{ flexShrink: 0, marginTop: 1 }}><Icon name="warning" size={12} /></span>
-                    <span>Food cost sottostimato: manca il prezzo di {live.mancanti.join(", ")}. Caricalo nel listino prezzi.</span>
+                    <span>Food cost sottostimato: manca il prezzo di {live.mancanti.map(leggiMancante).join(", ")}. Caricalo nel listino prezzi.</span>
                   </div>
                 )}
               </div>
@@ -1762,11 +2006,13 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
         style={{ position: "fixed", inset: 0, background: "rgba(28,10,10,0.55)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
         <div style={{ background: C.bgCard, borderRadius: R['2xl'], boxShadow: "0 20px 60px rgba(0,0,0,0.25)", maxWidth: 420, width: "100%", padding: isMobile ? 20 : 24 }}>
           <div id="prezzo-ing-titolo" style={{ fontSize: 16, fontWeight: 800, color: C.text, marginBottom: 6, letterSpacing: "-0.01em" }}>
-            Imposta prezzo di questo ingrediente
+            {priceModal.daAggiungere ? 'Aggiungila alle tue materie prime' : 'Imposta prezzo di questo ingrediente'}
           </div>
           <div style={{ fontSize: 13, color: C.textMid, marginBottom: 16, lineHeight: 1.5 }}>
-            <strong style={{ color: C.text }}>{priceModal.nome}</strong> non ha ancora un prezzo nel tuo listino.
-            Inserisci il prezzo <strong>al chilo</strong> (€/kg) e verra' usato in tutte le ricette.
+            <strong style={{ color: C.text }}>{formatNome(priceModal.nome)}</strong>{priceModal.daAggiungere
+              ? ' non è ancora fra le tue materie prime.'
+              : ' non ha ancora un prezzo nel tuo listino.'}
+            {' '}Scrivi il prezzo <strong>al chilo</strong> (€/kg) e verrà usato in tutte le ricette.
           </div>
           <div style={fieldLabel}>Prezzo € / kg</div>
           <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 18 }}>
@@ -1782,6 +2028,15 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
             <button onClick={() => setPriceModal(null)} disabled={priceModal.saving}
               style={{ padding: "10px 16px", minHeight: 42, background: "transparent", color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: priceModal.saving ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
               Annulla
+            </button>
+            {/* La via d'uscita per chi il prezzo non ce l'ha sotto mano. Senza
+                questa, il controllo sui nomi diventerebbe un muro: nessuno
+                conosce a memoria il costo al chilo di tutto quello che ha in
+                laboratorio, e restare fermi a metà ricetta è peggio di un
+                ingrediente scritto storto. */}
+            <button onClick={creaSenzaPrezzo} disabled={priceModal.saving}
+              style={{ padding: "10px 16px", minHeight: 42, background: "transparent", color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: font.size.base, fontWeight: 600, cursor: priceModal.saving ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
+              Il prezzo lo metto dopo
             </button>
             <button onClick={handleSavePrezzoIng} disabled={priceModal.saving || !String(priceModal.costoKg || "").trim()}
               style={{ padding: "10px 16px", minHeight: 42, background: priceModal.saving ? "#CBD5E1" : C.red, color: C.white, border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: priceModal.saving ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
@@ -1928,10 +2183,21 @@ function CommandBar({ isMobile, ricetteEsistenti, activeNome, onPickExisting, ac
           )}
         </div>
 
-        {/* Toggle sovrascrivi (pillola) */}
+        {/* Toggle sovrascrivi (pillola)
+
+            18/09/2026, il titolare sul suggerimento di prima («Le ricette
+            esistenti vengono saltate»): «non si capisce cosa vuol dire, cambia
+            la frase in meglio». Aveva ragione: «saltate» è la parola del
+            programma, non quella di chi lavora, e soprattutto non diceva la
+            cosa che interessa — che fine fa la ricetta che ho già scritto.
+            Adesso le due frasi dicono la stessa cosa nei due casi opposti, con
+            le stesse parole: esiste già una ricetta con quel nome, e o resta
+            com'è o ci va quella della foto. */}
         <button type="button" onClick={() => setForceOverwrite(v => !v)}
           aria-pressed={forceOverwrite}
-          title={forceOverwrite ? 'Le foto sovrascrivono le ricette con lo stesso nome' : 'Le ricette esistenti vengono saltate'}
+          title={forceOverwrite
+            ? 'Acceso: se hai già una ricetta con lo stesso nome, quella della foto prende il suo posto e la vecchia si perde.'
+            : 'Spento: se hai già una ricetta con lo stesso nome, resta com\'è. Dalla foto entrano solo le ricette nuove.'}
           style={{
             padding: isMobile ? '8px 12px' : '7px 12px',
             minHeight: isMobile ? 44 : 'auto',

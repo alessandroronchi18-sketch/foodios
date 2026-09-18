@@ -12,8 +12,8 @@ import { supabase } from '../lib/supabase'
 import Icon from './Icon'
 import { useConfirm } from './ConfirmModal'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
-import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
-import { ALLERGENI } from '../lib/allergeni'
+import { color as T, radius as R, shadow as S, motion as M, typo } from '../lib/theme'
+import { ALLERGENI, AVVERTENZA_ALLERGENI_TITOLO, AVVERTENZA_ALLERGENI_BREVE } from '../lib/allergeni'
 import { todayLocal, giorniFaLocal } from '../lib/dateLocal'
 import { KPI, TabellaOSchede } from '../views/_shared'
 
@@ -666,12 +666,49 @@ function AllergeniTab({ ricettario, isMobile }) {
     return map
   }, [ricette])
 
+  // Quante ricette hanno davvero gli allergeni scritti.
+  //
+  // Questa scheda legge solo `r.allergeni`, cioè quello che il titolare ha
+  // salvato a mano: non propone niente da sola. Su un ricettario importato da
+  // Excel — e sono quasi tutti così — quel campo è vuoto, e la pagina mostrava
+  // quattordici caselle a zero e la frase «Nessun allergene rilevato in nessuna
+  // ricetta». Un ispettore che legge zero accanto a «Latte» in una gelateria
+  // non pensa «non l'hanno scritto»: pensa «non ce n'è». Lo zero qui non è un
+  // numero, è una domanda senza risposta, e va detto.
+  const conAllergeni = useMemo(
+    () => ricette.filter(r => (r.allergeni || []).length > 0).length, [ricette])
+  const nessunoSalvato = ricette.length > 0 && conAllergeni === 0
+
   return (
     <div>
+      <div style={{
+        padding:'12px 16px', background:T.bgSubtle, border:`1px solid ${T.border}`,
+        borderLeft:`3px solid ${T.brand}`, borderRadius:R.md, marginBottom:14,
+        ...typo.small, color:T.textMid, lineHeight:1.6,
+      }}>
+        <strong style={{ color:T.text }}>{AVVERTENZA_ALLERGENI_TITOLO}.</strong>{' '}
+        {AVVERTENZA_ALLERGENI_BREVE} Qui vedi solo quello che hai già scritto sulle ricette.
+      </div>
+
+      {nessunoSalvato && (
+        <div style={{
+          padding:'12px 16px', background:T.amberLight, border:`1px solid ${T.amber}55`,
+          borderRadius:R.md, marginBottom:14, ...typo.small, color:T.amberDark, lineHeight:1.6,
+          display:'flex', alignItems:'flex-start', gap:8,
+        }}>
+          <span style={{ flexShrink:0, display:'inline-flex', marginTop:1 }}><Icon name="warning" size={14} /></span>
+          <span>
+            Nessuna delle {nfmt(ricette.length)} ricette ha gli allergeni salvati. I numeri qui sotto
+            sono tutti a zero perché non c&apos;è ancora niente di scritto, non perché non ci siano
+            allergeni. Aprili una alla volta dal ricettario, con le confezioni dei fornitori davanti.
+          </span>
+        </div>
+      )}
+
       <div style={cardStyle}>
         <div style={{ ...sectionTitle, marginBottom:8 }}><Icon name="barChart" size={18} color={T.brand} />Sintesi allergeni nel ricettario</div>
-        <div style={{ fontSize:12, color:T.textSoft, marginBottom:14 }}>
-          Reg. UE 1169/2011 - informazioni obbligatorie sugli allergeni.
+        <div style={{ fontSize:12, color:T.textSoft, marginBottom:14, lineHeight:1.5 }}>
+          Conta le ricette su cui gli allergeni sono stati salvati. È il tuo lavoro riassunto, non l&apos;informativa da consegnare al cliente.
         </div>
         <div style={{ display:'grid', gridTemplateColumns: isMobile?'repeat(2,1fr)':'repeat(auto-fill, minmax(180px, 1fr))', gap:10 }}>
           {ALLERGENI.map(a => {
@@ -694,7 +731,7 @@ function AllergeniTab({ ricettario, isMobile }) {
       <div style={cardStyle}>
         <div style={{ fontSize:14, fontWeight:700, color:T.text, marginBottom:6, display:'flex', alignItems:'center', gap:8 }}><Icon name="clipboard" size={16} color={T.brand} />Matrice allergeni × prodotti</div>
         <div style={{ fontSize: 12, color:T.textSoft, marginBottom:10, lineHeight:1.45 }}>
-          Riga: allergene · Colonna: prodotto · pallino = presente. Scorri orizzontalmente se ci sono molti prodotti.
+          Riga: allergene · Colonna: prodotto · segno di spunta = salvato su quella ricetta. Una casella vuota vuol dire che non è stato scritto, non che l&apos;allergene non ci sia. Scorri orizzontalmente se ci sono molti prodotti.
         </div>
         {ricette.length === 0 ? (
           <div style={{ padding:14, color:T.textSoft, fontSize:12, textAlign:'center' }}>
@@ -748,7 +785,7 @@ function AllergeniTab({ ricettario, isMobile }) {
                         <span style={{ marginLeft:6, color:T.textSoft, fontWeight:500 }}>({nfmt(totale)})</span>
                       </td>
                       {ricetteCol.map((presente, i) => (
-                        <td key={i} title={`${ricette[i].nome} · ${a.label}: ${presente ? 'presente' : 'assente'}`}
+                        <td key={i} title={`${ricette[i].nome} · ${a.label}: ${presente ? 'salvato sulla ricetta' : 'non salvato sulla ricetta'}`}
                           style={{
                             textAlign:'center',
                             background: presente ? T.brandLight : T.bgCard,
@@ -766,8 +803,9 @@ function AllergeniTab({ ricettario, isMobile }) {
                 })}
                 {ALLERGENI.every(a => !ricette.some(r => (r.allergeni || []).includes(a.id))) && (
                   <tr>
-                    <td colSpan={ricette.length + 1} style={{ padding:14, color:T.textSoft, fontSize:12, textAlign:'center' }}>
-                      Nessun allergene rilevato in nessuna ricetta.
+                    <td colSpan={ricette.length + 1} style={{ padding:14, color:T.textSoft, fontSize:12, textAlign:'center', lineHeight:1.6 }}>
+                      Nessuna ricetta ha ancora gli allergeni salvati.<br />
+                      Non vuol dire che non ce ne siano: vuol dire che non sono stati scritti.
                     </td>
                   </tr>
                 )}
@@ -945,7 +983,7 @@ export default function HaccpView({ orgId, sedeId, ricettario, nomeAttivita, not
     <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? 12 : 0 }}>
       <div style={{ marginBottom: isMobile ? 14 : 18 }}>
         <p style={{ margin: 0, fontSize: 13, color: T.textSoft, letterSpacing: '-0.005em', lineHeight: 1.5 }}>
-          Tieni in ordine temperature, pulizie e allergeni. Quando arriva l'ASL hai tutto pronto da stampare.
+          Tieni in ordine temperature, pulizie e allergeni: quando arriva l&apos;ASL sai dove sono e li stampi. Quello che stampi resta roba tua, controllata da te.
         </p>
       </div>
 

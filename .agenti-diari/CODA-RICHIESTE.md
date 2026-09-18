@@ -47,3 +47,99 @@
 
 La fotografia dei token (`check-design-tokens.mjs --aggiorna`) va rifatta **per
 ultima**, subito prima del commit.
+
+## DA FARE — 18/09, quarto giro
+
+### Ricettario (lo fa il capo)
+- [x] A. Via la scritta grigia «Ricavo / kg : 28,91» nella barra dei gusti.
+- [x] B. I quattro pulsanti a quadrato, due sopra e due sotto, e scesi da 34
+      a 30px sul computer. «Riduci» sta fuori dal quadrato: non è un'azione
+      sulla ricetta.
+- [x] C. Via le quattro tessere dall'intestazione: gli stessi quattro numeri
+      sono già dentro **Dettaglio → Conto al kg** (verificato, sono
+      esattamente quelli). Nota emersa dal controllo: NON è vero che stiano
+      in tutte le pagine di analisi — «Food cost» esclude apposta i gusti e
+      «Menu engineering» li mostra solo se hanno vendite. Per questo sono
+      stati spostati, non tolti.
+
+### Nuovo gusto — AGENTE 1 (proprietario di NuovaRicettaView.jsx)
+- [ ] D. Il suggerimento «Le ricette esistenti vengono saltate» non si
+      capisce. Riscriverlo in italiano da pasticceria.
+- [ ] E. «Aggiungi note di cottura o congelabilità»: si apre ma non si
+      richiude. Deve fare da interruttore.
+- [ ] F. I nomi degli ingredienti con la prima maiuscola anche **mentre si
+      aggiungono**, non solo quando si rileggono.
+- [ ] H. Il riquadro «Somma ingredienti 0 g / Resa dichiarata 1.000 g» è
+      troppo grande e invadente. Ridimensionarlo.
+- [ ] Riga 1408: la frase sugli allergeni va allineata alla decisione
+      legale qui sotto.
+
+### Allergeni, responsabilità — AGENTE 2
+(proprietario di SchedaAllergeniView.jsx, Haccp.jsx, exportPDF)
+
+Due domande del titolare, 18/09:
+  1. «Calcolati automaticamente dagli ingredienti (Reg. UE 1169/2011): se
+     cambiano le direttive come facciamo noi a saperlo e ad aggiornarci?»
+  2. «Non dobbiamo avere nessuna ripercussione legale, dobbiamo lasciare al
+     cliente l'ultima parola, noi al massimo diamo un consiglio.»
+
+Decisione: il programma **propone**, il cliente **conferma**. Nessuna frase
+del prodotto deve far credere che l'elenco sia a norma per il solo fatto di
+essere stato calcolato.
+
+### Materie prime chiuse — DOPO l'agente 1 (stesso file)
+- [~] G. **Meccanismo pronto** in `_shared.jsx`: `CampoConElenco` accetta
+      `soloDallElenco`, riconosce il nome che non esiste, propone quello che
+      gli assomiglia (distanza di Levenshtein, soglia che cresce con la
+      lunghezza della parola) e offre di crearlo. 12 test verdi in
+      `materiePrimeChiuse.test.jsx`. Resta da **collegarlo** in Nuovo gusto,
+      appena l'agente 1 rilascia il file.
+
+## DA FARE — 18/09, pagina Listino (formati vendita)
+Arrivata mentre gli agenti del quarto giro erano ancora al lavoro. Parte
+quando quelli hanno finito. File: `src/components/FormatiVendita.jsx`.
+
+1. **Le due spiegazioni lunghe in cima vanno dietro due pulsanti.**
+   La prima è «A cosa serve» (il testo che comincia con «Se la tua cassa batte
+   righe senza il gusto…»); la seconda è l'avviso «Nessun formato ha i
+   materiali di confezionamento» con la spiegazione del cono, della vaschetta,
+   del coperchio e del fazzoletto. Testuale: «queste scritte sono troppo
+   invasive, racchiudile in due pulsanti, così se uno ha bisogno di sapere a
+   cosa serve clicca e viene fuori la spiegazione, e l'altro è un alert idem
+   che si deve cliccare, così la pagina viene più pulita ed elegante».
+
+2. **«Composizione del food cost per unità»: rifare l'impaginazione.**
+   Oggi è un elenco di righe scollegate — Materiali 0,000 €, Prodotto (100g)
+   0,184 €, Food cost stimato / unità 0,184 €, Margine (prezzo 3,50 €) 95%.
+   Testuale: «rivedi impaginazione di tutte queste cose, miglioratele tutte da
+   qualsiasi punto di vista: ottimizzazione dello spazio, intuitività,
+   bellezza ed eleganza anche nei colori».
+
+3. **Audit profondo: il modo di inserire i formati è quello giusto?**
+   Due problemi veri sollevati dal titolare:
+   - **l'errore di battitura**: se uno scrive «coppettp» o «fazzolettp» il
+     materiale nasce sbagliato e nessuno se ne accorge (stessa famiglia del
+     difetto di «Nuovo gusto»);
+   - **i costi unitari sono minuscoli** (centesimi a pezzo) e scriverli ogni
+     volta a mano è fragile.
+   Proposta del titolare, da valutare e poi realizzare: **invertire il
+   flusso.** Nella pagina Listino si inseriscono PRIMA tutti i prodotti di
+   confezionamento che si usano — cucchiaini, fazzoletti, coppette, coni — con
+   quanto si spende al kg o a confezione per ognuno. Salvati quelli, quando si
+   clicca «Nuovo formato» e si scrive «cono piccolo», il comando «aggiungi
+   materiale» mostra **l'elenco fisso** di quei prodotti. Se un prodotto non è
+   stato aggiunto prima, non compare nell'elenco e non si può scrivere a mano.
+   È lo stesso principio delle materie prime chiuse (punto G).
+
+4. **Le box di «Nuovo formato» sono troppo grandi.**
+   Testuale: «rivedi la grandezza di tutte le box quando si clicca nuovo
+   formato, falle anche più piccole, intelligenti e coerenti, non usando
+   spazio inutile».
+
+## TROVATO PER STRADA — da decidere
+**Il ramo «semilavorato» dentro `TortaCard` (RicettarioView.jsx) è codice
+morto.** Dopo aver tolto i semilavorati dalla scheda Gusti, nessuno passa più
+`variant="semilavorato"`: restano 27 diramazioni su `isSemi` che non si
+eseguono mai. Non l'ho tolto adesso — si tocca una scheda che è appena andata
+online e che il titolare sta guardando — ma va tolto, perché prima o poi
+qualcuno lo «corregge» credendolo vivo.

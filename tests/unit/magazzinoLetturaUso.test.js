@@ -21,6 +21,11 @@ import { dirname, join } from 'node:path'
 
 const RADICE = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const src = readFileSync(join(RADICE, 'src', 'views', 'MagazzinoView.jsx'), 'utf8')
+// Il 18/09/2026 la scheda «Prezzi ingredienti» è uscita dal Magazzino ed è
+// diventata la pagina Ricette → Materie prime. Le prove che riguardano i
+// prezzi restano qui — sono la stessa famiglia di difetti, e il racconto sta
+// in cima a questo file — ma guardano il sorgente nuovo.
+const prezzi = readFileSync(join(RADICE, 'src', 'views', 'MateriePrimeView.jsx'), 'utf8')
 
 describe('stato degli ingredienti', () => {
   it('distingue "mai contato" da "esaurito"', () => {
@@ -101,8 +106,8 @@ describe('operazioni che si possono sbagliare', () => {
   it('salvare un prezzo senza toccarlo non lo cambia', () => {
     // L'input mostra due decimali, l'archivio ne ha quattro: il confronto
     // esatto faceva scendere 0,8825 a 0,88 da solo.
-    expect(src).toMatch(/const visto = Math\.round\(\(Number\(row\.prezzoKg\) \|\| 0\) \* 100\) \/ 100/)
-    expect(src).toMatch(/Math\.abs\(v - visto\) < 0\.005/)
+    expect(prezzi).toMatch(/const visto = Math\.round\(\(Number\(row\.prezzoKg\) \|\| 0\) \* 100\) \/ 100/)
+    expect(prezzi).toMatch(/Math\.abs\(v - visto\) < 0\.005/)
   })
 
   it('un nome di soli spazi non crea una voce senza nome', () => {
@@ -112,7 +117,8 @@ describe('operazioni che si possono sbagliare', () => {
   it('le finestre si chiudono con Esc, ma non mentre salvano', () => {
     expect(src).toMatch(/if \(e\.key === 'Escape' && !saving\) setScartoForm\(null\)/)
     expect(src).toMatch(/onClick=\{\(\) => \{ if \(!saving\) setScartoForm\(null\) \}\}/)
-    expect(src).toMatch(/if \(!salvandoPrezzo\) setConfirmKey\(null\)/)
+    // La finestra di conferma del prezzo è in Materie prime dal 18/09/2026.
+    expect(prezzi).toMatch(/if \(!salvandoPrezzo\) setConfirmKey\(null\)/)
   })
 })
 
@@ -134,8 +140,18 @@ describe('quello che la pagina dichiara di non sapere', () => {
 
   it('distingue il prezzo che hai scritto da quello di mercato', () => {
     // Nel ricettario reale sono 6 prezzi veri su 422.
-    expect(src).toMatch(/isStima: !!c\?\.isStima/)
-    expect(src).toMatch(/stima di mercato/)
+    //
+    // 18/09/2026: qui c'era `isStima: !!c?.isStima`, che leggeva i prezzi
+    // GREZZI del ricettario — dove `isStima` non c'è mai, perché quel
+    // marcatore nasce dentro `buildIngCosti` unendo il listino medio HoReCa.
+    // Risultato: il badge «stima di mercato» non compariva per nessuno, e un
+    // ingrediente il cui food cost gira su un prezzo medio di mercato veniva
+    // mostrato come se non avesse prezzo. Ora gli stati sono tre e sono
+    // quelli veri.
+    expect(prezzi).toMatch(/buildIngCosti\(miei\)/)
+    expect(prezzi).toMatch(/unito\?\.isStima === true/)
+    expect(prezzi).toMatch(/stima di mercato/)
+    expect(prezzi).toMatch(/statoPrezzo: dichiarato \? 'tuo' : stima \? 'stima' : 'mancante'/)
   })
 
   it('dice quando la lista dei movimenti è tagliata', () => {
@@ -144,9 +160,9 @@ describe('quello che la pagina dichiara di non sapere', () => {
   })
 
   it('nello storico prezzi si vede da quando vale e chi l ha cambiato', () => {
-    expect(src).toMatch(/l\.decorre_da \|\| l\.data/)
-    expect(src).toMatch(/\(futuro\)/)
-    expect(src).toMatch(/String\(l\.utente\)\.split\('@'\)\[0\]/)
+    expect(prezzi).toMatch(/l\.decorre_da \|\| l\.data/)
+    expect(prezzi).toMatch(/\(futuro\)/)
+    expect(prezzi).toMatch(/String\(l\.utente\)\.split\('@'\)\[0\]/)
   })
 })
 

@@ -403,7 +403,9 @@ function normalizeIngName(s) {
 }
 
 /**
- * Rileva gli allergeni UE da una lista di ingredienti.
+ * Propone gli allergeni UE a partire da una lista di ingredienti. È un
+ * suggerimento da far confermare, non un accertamento: il programma legge i
+ * nomi scritti nella ricetta, non le confezioni che ci sono in laboratorio.
  * Match case-insensitive e parziale: una chiave matcha se è contenuta
  * nel nome ingrediente (normalizzato senza accenti/punteggiatura).
  * Si preferiscono match più lunghi: "farina di mandorle" → fruttasc, non glutine.
@@ -597,8 +599,10 @@ const SENZA_ALLERGENI = new Set([
 ])
 
 /**
- * Analisi completa degli allergeni di un elenco di ingredienti, nei TRE stati
- * che servono a una scheda che ha valore legale.
+ * Analisi completa degli allergeni di un elenco di ingredienti, nei TRE stati.
+ *
+ * Il risultato è una proposta da far controllare a chi produce, non una
+ * dichiarazione: vedere `AVVERTENZA_ALLERGENI` in fondo a questo file.
  *
  * @returns {{
  *   certi: string[],            allergeni presenti con certezza
@@ -653,4 +657,71 @@ export function analizzaAllergeni(ingredienti) {
   for (const a of certi) daVerificare.delete(a)
 
   return { certi: [...certi], daVerificare: [...daVerificare], nonRiconosciuti }
+}
+
+// ─── Come si parla di questo elenco ──────────────────────────────────────────
+//
+// Richiesta del titolare, 18/09/2026, guardando la frase «Calcolati
+// automaticamente dagli ingredienti (Reg. UE 1169/2011)»:
+//   «se cambiano le direttive come facciamo noi a saperlo e ad aggiornarci?»
+//   «non dobbiamo avere nessuna ripercussione legale, dobbiamo lasciare al
+//    cliente l'ultima parola, noi al massimo diamo un consiglio».
+//
+// Il punto non è la legge: l'elenco che Foodos calcola non dipende dal
+// regolamento, dipende da come il cliente ha scritto le sue ricette e da cosa
+// c'è davvero nelle confezioni dei suoi fornitori. Basta che un fornitore
+// cambi la composizione di una base e l'elenco diventa vecchio senza che
+// nessuno se ne accorga. Scrivere «calcolati automaticamente, Reg. UE
+// 1169/2011» lascia credere che il documento sia a posto perché l'ha fatto il
+// computer. Non è così, e non deve sembrarlo.
+//
+// Da qui in avanti il programma propone e il cliente conferma. Il testo sta
+// scritto in un posto solo, così lo schermo e il PDF non possono divergere:
+// se si corregge una frase, si corregge dappertutto.
+//
+// Tre cose, sempre tutte e tre:
+//   1. è una proposta, ricavata dagli ingredienti scritti dal cliente;
+//   2. va controllata e confermata da chi produce, perché dipende anche dalle
+//      etichette dei fornitori e da quello che succede in laboratorio;
+//   3. la versione che vale è quella confermata da lui.
+// Il regolamento si cita come riferimento del documento, mai come qualcosa che
+// il calcolo da solo soddisfa.
+
+/** Titolo del riquadro di avvertenza. Dice subito com'è messo il documento. */
+export const AVVERTENZA_ALLERGENI_TITOLO = 'Questo elenco è una proposta, non una dichiarazione'
+
+/** Il testo lungo: quello del riquadro a schermo. */
+export const AVVERTENZA_ALLERGENI = [
+  'Foodos lo ricava dagli ingredienti che hai scritto nelle ricette.',
+  'Non conosce le etichette dei tuoi fornitori, che cambiano senza avvisare, e non sa cosa succede in laboratorio, dove gli stessi attrezzi passano da un impasto all\'altro.',
+  'Controllalo e confermalo prima di consegnarlo a qualcuno: la versione che vale è la tua, non quella del programma.',
+].join(' ')
+
+/** La riga corta, dove non c'è spazio per il testo lungo. */
+export const AVVERTENZA_ALLERGENI_BREVE =
+  'Proposta ricavata dalle tue ricette. Controllala e confermala tu prima di consegnarla.'
+
+/** Come si cita il regolamento: riferimento del documento, non un timbro. */
+export const RIFERIMENTO_NORMATIVO_ALLERGENI =
+  'Documento di riferimento: Regolamento UE 1169/2011, art. 21.'
+
+/**
+ * Il testo che va stampato sul PDF.
+ *
+ * È il punto più delicato di tutti: il PDF è il foglio che il cliente stacca e
+ * dà ai suoi clienti, e viaggia da solo. Quello che resta a schermo non lo
+ * protegge. Quindi l'avvertenza va sulla carta, e sotto ci va una riga da
+ * firmare: finché non c'è una firma, il foglio dice da sé di essere una bozza.
+ */
+export const AVVERTENZA_ALLERGENI_PDF = [
+  AVVERTENZA_ALLERGENI_TITOLO + '.',
+  AVVERTENZA_ALLERGENI,
+  RIFERIMENTO_NORMATIVO_ALLERGENI,
+].join(' ')
+
+/** Le tre caselle della tabella, spiegate senza dichiarare niente. */
+export const LEGENDA_ALLERGENI = {
+  certo: 'risulta dagli ingredienti',
+  dubbio: 'probabile: leggi l\'etichetta del fornitore',
+  assente: 'non risulta dagli ingredienti scritti',
 }

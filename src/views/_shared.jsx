@@ -730,9 +730,33 @@ export function TabellaOSchede({
 // Qui l'elenco si apre al tocco e mostra SEMPRE tutte le voci; scrivendo si
 // restringe; si può anche scrivere una voce che non c'è (è una categoria,
 // non un codice). Frecce, Invio ed Esc funzionano da tastiera.
+/**
+ * Un campo che suggerisce, e — se glielo si chiede — che **non accetta quello
+ * che non è in elenco**.
+ *
+ * `soloDallElenco` nasce da una segnalazione del titolare del 18/09/2026:
+ *
+ *   «come si fa a evitare l'errore dell'utente? magari scrive aceto balsamicp
+ *    con la p finale e lo inserisce e si scasinano tutti i calcoli»
+ *
+ * Ha ragione, ed è peggio di come sembra: un ingrediente scritto storto non
+ * dà errore, non si vede, e vale **zero** nel food cost — la ricetta risulta
+ * più economica del vero e nessuno lo dice. È la stessa famiglia del difetto
+ * che sui dati di Mara faceva uscire un food cost medio del 4,8%.
+ *
+ * Quando `soloDallElenco` è acceso, un nome che non sta fra le `voci` non
+ * viene accettato: il campo lo segnala e, se gli si passa `onCreaNuova`,
+ * offre di crearlo per davvero invece di lasciare l'utente in un vicolo
+ * cieco. Chiuso non vuol dire sbarrato.
+ *
+ * `vicina` fa il resto del lavoro: fra le voci esistenti cerca quella che
+ * assomiglia di più a quello che è stato battuto, e la propone. «Aceto
+ * balsamicp» → «Forse intendevi: Aceto balsamico?».
+ */
 export function CampoConElenco({
   valore, onCambia, voci = [], placeholder, ariaLabel, stile,
   id = 'campo-elenco',
+  soloDallElenco = false, onCreaNuova = null, etichettaCrea = 'Crea',
 }) {
   const [aperto, setAperto] = useState(false)
   const [evidenziata, setEvidenziata] = useState(-1)
@@ -759,6 +783,11 @@ export function CampoConElenco({
   const mostrate = (!scritto || esatta) ? voci : voci.filter(v => v.toLowerCase().includes(scritto))
 
   const scegli = (v) => { onCambia(v); setAperto(false); setEvidenziata(-1) }
+
+  // Quello che è stato battuto non corrisponde a niente di quello che c'è.
+  const fuoriElenco = soloDallElenco && scritto.length > 0 && !esatta
+  // La voce che gli assomiglia di più, se gli assomiglia abbastanza.
+  const suggerita = fuoriElenco ? vociVicine(scritto, voci) : null
 
   const daTastiera = (e) => {
     if (e.key === 'ArrowDown') {
@@ -843,6 +872,83 @@ export function CampoConElenco({
           })}
         </ul>
       )}
+
+      {/* Il nome battuto non è fra le voci: si dice subito, non dopo che il
+          food cost è già sbagliato. Non è un rimprovero — è un bivio, e tutte
+          e due le strade sono aperte. */}
+      {fuoriElenco && !aperto && (
+        <div style={{
+          marginTop: 6, padding: '8px 10px', borderRadius: 8,
+          background: C.amberLight, border: `1px solid ${C.amber}40`,
+          fontSize: font.size.sm, color: C.text, lineHeight: 1.45,
+          display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8,
+        }}>
+          <span>
+            <b>{valore}</b> non è fra le tue materie prime
+            {suggerita && <> — forse intendevi <b>{suggerita}</b>?</>}
+          </span>
+          {suggerita && (
+            <button type="button" onClick={() => scegli(suggerita)}
+              style={{
+                minHeight: 32, padding: '0 10px', borderRadius: 7, cursor: 'pointer',
+                border: `1px solid ${C.borderStr}`, background: C.bgCard,
+                color: C.text, fontFamily: 'inherit', fontSize: font.size.sm, fontWeight: 700,
+              }}>
+              Usa {suggerita}
+            </button>
+          )}
+          {onCreaNuova && (
+            <button type="button" onClick={() => onCreaNuova(valore)}
+              style={{
+                minHeight: 32, padding: '0 10px', borderRadius: 7, cursor: 'pointer',
+                border: `1px solid ${T.brand}`, background: 'transparent',
+                color: T.brand, fontFamily: 'inherit', fontSize: font.size.sm, fontWeight: 700,
+              }}>
+              {etichettaCrea}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   )
+}
+
+/**
+ * Fra `voci`, quella che assomiglia di più a `scritto` — oppure `null` se
+ * nessuna gli assomiglia abbastanza da valere la pena di proporla.
+ *
+ * La misura è la distanza di Levenshtein: quante lettere bisogna cambiare,
+ * togliere o aggiungere per passare da una parola all'altra. «balsamicp» →
+ * «balsamico» è una sola. La soglia cresce con la lunghezza della parola,
+ * perché su «uva» un errore di due lettere non è più un errore di battitura,
+ * è un'altra parola.
+ */
+export function vociVicine(scritto, voci = []) {
+  const a = String(scritto || '').trim().toLowerCase()
+  if (a.length < 3) return null
+  let migliore = null, minima = Infinity
+  for (const v of voci) {
+    const d = distanza(a, String(v).toLowerCase())
+    if (d < minima) { minima = d; migliore = v }
+  }
+  const soglia = a.length <= 5 ? 1 : a.length <= 9 ? 2 : 3
+  return minima <= soglia ? migliore : null
+}
+
+function distanza(a, b) {
+  // Due righe sole in memoria: le voci possono essere centinaia e questo
+  // conto gira a ogni lettera battuta.
+  let prec = Array.from({ length: b.length + 1 }, (_, i) => i)
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i]
+    for (let j = 1; j <= b.length; j++) {
+      cur[j] = Math.min(
+        prec[j] + 1,
+        cur[j - 1] + 1,
+        prec[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1),
+      )
+    }
+    prec = cur
+  }
+  return prec[b.length]
 }

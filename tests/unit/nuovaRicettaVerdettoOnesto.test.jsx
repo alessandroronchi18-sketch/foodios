@@ -35,7 +35,23 @@ const NuovaRicettaView = (await import('../../src/views/NuovaRicettaView.jsx')).
 
 // Nessun prezzo caricato, e un nome che non esiste nel listino HoReCa:
 // e' il caso di chi ha appena importato il ricettario senza i prezzi.
-const ricettarioSenzaPrezzi = { ricette: {}, ingredienti_costi: {} }
+// 18/09/2026 — questo dato di prova è cambiato, e vale la pena dire perché.
+//
+// Prima l'ingrediente «farcitura segreta della nonna» non stava da nessuna
+// parte: si scriveva a mano nel campo e finiva nella ricetta. Da oggi non si
+// può più — in «Nuovo gusto» l'elenco è chiuso, perché un nome battuto storto
+// («aceto balsamicp») vale zero nel food cost e nessuno se ne accorge.
+//
+// Quindi qui la farcitura è una materia prima che ESISTE ma NON HA PREZZO:
+// `costoKg: null`, che è esattamente lo stato in cui nasce una materia prima
+// creata col pulsante «Il prezzo lo metto dopo». Il test protegge la stessa
+// identica cosa di prima — senza i prezzi non si dice «Sano» e non si mostra
+// un margine del 100% — e per giunta ora lo fa sul caso vero, non su uno che
+// nel prodotto non può più capitare.
+const ricettarioSenzaPrezzi = {
+  ricette: {},
+  ingredienti_costi: { 'farcitura segreta della nonna': { costoKg: null, costoG: null } },
+}
 
 function monta(ricettario = ricettarioSenzaPrezzi) {
   return render(

@@ -1,9 +1,18 @@
-// SchedaAllergeniView - Scheda allergeni (Reg. UE 1169/2011). Estratta da Dashboard.jsx.
-// Allergeni effettivi per ricetta: usa quelli salvati, altrimenti auto-detect
+// SchedaAllergeniView - la proposta di scheda allergeni. Estratta da Dashboard.jsx.
+// Allergeni per ricetta: usa quelli salvati dal titolare, altrimenti li propone
 // dagli ingredienti (le ricette importate da Excel spesso non li hanno salvati).
+//
+// 18/09/2026: qui non si dichiara niente. Il programma propone, il titolare
+// controlla e conferma, e quello che consegna al suo cliente è il documento
+// confermato da lui. Le parole stanno tutte in `src/lib/allergeni.js`
+// (`AVVERTENZA_ALLERGENI` e sorelle), così schermo e PDF non possono divergere.
 import React, { useMemo } from 'react'
 import { color as T, radius as R, shadow as S, typo } from '../lib/theme'
-import { ALLERGENI, ALLERGENE_COLORS, detectAllergeniFromIngredienti, analizzaAllergeni } from '../lib/allergeni'
+import {
+  ALLERGENI, ALLERGENE_COLORS, analizzaAllergeni,
+  AVVERTENZA_ALLERGENI, AVVERTENZA_ALLERGENI_TITOLO, AVVERTENZA_ALLERGENI_PDF,
+  RIFERIMENTO_NORMATIVO_ALLERGENI, LEGENDA_ALLERGENI,
+} from '../lib/allergeni'
 import { lessico } from '../lib/lessico'
 import { C } from './_shared'
 import Icon from '../components/Icon'
@@ -56,11 +65,11 @@ export default function SchedaAllergeniView({ ricettario, tipoAttivita }) {
     let y = 14;
 
     doc.setFontSize(14); doc.setFont(undefined,'bold');
-    doc.text('Scheda Allergeni', pw/2, y, {align:'center'});
+    doc.text('Scheda allergeni - proposta da confermare', pw/2, y, {align:'center'});
     y += 6;
     doc.setFontSize(7); doc.setFont(undefined,'normal');
     doc.setTextColor(120);
-    doc.text('Reg. UE 1169/2011 - Informazioni sugli allergeni alimentari', pw/2, y, {align:'center'});
+    doc.text('Ricavata dagli ingredienti scritti nelle ricette. Da controllare e firmare prima di consegnarla.', pw/2, y, {align:'center'});
     doc.setTextColor(0);
     y += 8;
 
@@ -126,13 +135,44 @@ export default function SchedaAllergeniView({ ricettario, tipoAttivita }) {
       }
     });
 
+    // ── Legenda, avvertenza e firma ──
+    //
+    // Questo blocco è la parte che conta di più del PDF, e per due motivi.
+    //
+    // Il primo: il foglio viaggia da solo. Esce dalla stampante e finisce in
+    // mano a chi entra in negozio e chiede se c'è il latte. Quello che resta
+    // scritto a schermo non lo accompagna, quindi l'avvertenza va sulla carta.
+    //
+    // Il secondo: finché nessuno ha firmato, il foglio deve dire da sé di
+    // essere una bozza. La riga della firma non è burocrazia — è il gesto con
+    // cui il documento smette di essere una proposta del programma e diventa
+    // la dichiarazione di chi produce.
+    const hPagina = doc.internal.pageSize.getHeight();
+    const altezzaBlocco = 30;
+    if (y > hPagina - altezzaBlocco) { doc.addPage(); y = 14; }
+
     y += 6;
     doc.setFontSize(6); doc.setTextColor(120);
-    doc.text('X = contiene    ? = probabile, da verificare sull\'etichetta del fornitore    (vuoto) = non contiene', startX, y);
-    y += 3.5;
-    doc.text('Le informazioni sugli allergeni possono variare in base ai fornitori. Verificare sempre le etichette dei singoli ingredienti.', startX, y);
-    doc.text(`Generato il ${new Date().toLocaleDateString('it-IT')}`, pw-8, y, {align:'right'});
-    doc.save('scheda-allergeni.pdf');
+    doc.text(
+      `X = ${LEGENDA_ALLERGENI.certo}    ? = ${LEGENDA_ALLERGENI.dubbio}    (vuoto) = ${LEGENDA_ALLERGENI.assente}`,
+      startX, y);
+    y += 4.5;
+
+    doc.setFontSize(7); doc.setTextColor(60);
+    const righeAvviso = doc.splitTextToSize(AVVERTENZA_ALLERGENI_PDF, pw - startX * 2);
+    doc.text(righeAvviso, startX, y);
+    y += righeAvviso.length * 3.2 + 5;
+
+    // Riga da firmare. Senza firma il documento resta una proposta, e lo dice.
+    doc.setDrawColor(120);
+    doc.line(startX, y, startX + 70, y);
+    doc.line(startX + 82, y, startX + 122, y);
+    doc.setFontSize(6); doc.setTextColor(120);
+    doc.text('Controllata e confermata da (nome e firma)', startX, y + 3.5);
+    doc.text('Data della conferma', startX + 82, y + 3.5);
+    doc.text(`Proposta generata da Foodos il ${new Date().toLocaleDateString('it-IT')}`, pw - 8, y + 3.5, { align: 'right' });
+    doc.setTextColor(0);
+    doc.save('scheda-allergeni-da-confermare.pdf');
   };
 
   return (
@@ -140,12 +180,28 @@ export default function SchedaAllergeniView({ ricettario, tipoAttivita }) {
       <div style={{marginBottom:24,display:"flex",alignItems:"flex-start",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontSize: 12,fontWeight:700,letterSpacing:"0.12em",textTransform:"uppercase",color:T.brand,marginBottom:6}}>Sicurezza alimentare</div>
-          <p style={{margin:0,fontSize:13,color:T.textSoft,letterSpacing:"-0.005em",lineHeight:1.5,fontWeight:500}}>Panoramica degli allergeni per tutte le {LEX.ricette} - Regolamento UE 1169/2011</p>
+          <p style={{margin:0,fontSize:13,color:T.textSoft,letterSpacing:"-0.005em",lineHeight:1.5,fontWeight:500}}>Quello che risulta dagli ingredienti delle tue {LEX.ricette}. È una proposta: controllala e confermala tu prima di consegnarla.</p>
         </div>
         <button onClick={esportaPDF}
+          title="Il PDF esce come proposta, con l'avvertenza stampata e la riga per la firma"
           style={{padding:"10px 16px",borderRadius:R.md,border:`1px solid ${T.border}`,background:T.bgCard,fontSize:13,fontWeight:500,color:T.textMid,cursor:"pointer",letterSpacing:"-0.005em",display:"inline-flex",alignItems:"center",gap:6,boxShadow:S.sm}}>
-          <Icon name="fileText" size={14} />Esporta PDF
+          <Icon name="fileText" size={14} />Esporta la proposta
         </button>
+      </div>
+
+      {/* L'avvertenza sta in cima, prima della tabella.
+          Prima era in fondo alla pagina, sotto quattordici colonne e una
+          legenda, con scritto «Disclaimer». Chi apre una scheda per stamparla
+          non arriva mai là sotto, e «disclaimer» è una parola che si salta.
+          Adesso è la prima cosa che si legge, e dice in che rapporto stanno il
+          programma e chi produce: uno propone, l'altro firma. */}
+      <div style={{background:T.bgSubtle,border:`1px solid ${T.border}`,borderLeft:`3px solid ${T.brand}`,borderRadius:10,padding:"14px 18px",marginBottom:18,display:"flex",alignItems:"flex-start",gap:10}}>
+        <span style={{color:T.brand,flexShrink:0,display:"inline-flex",marginTop:2}}><Icon name="info" size={16} /></span>
+        <div style={{minWidth:0}}>
+          <div style={{...typo.small,fontWeight:700,color:T.text,marginBottom:3}}>{AVVERTENZA_ALLERGENI_TITOLO}</div>
+          <div style={{...typo.small,color:T.textMid,lineHeight:1.6}}>{AVVERTENZA_ALLERGENI}</div>
+          <div style={{...typo.small,color:T.textSoft,marginTop:5}}>{RIFERIMENTO_NORMATIVO_ALLERGENI}</div>
+        </div>
       </div>
 
       {daControllare.length > 0 && (
@@ -161,7 +217,7 @@ export default function SchedaAllergeniView({ ricettario, tipoAttivita }) {
                 : `${daControllare.length} ${LEX.ricette} hanno ingredienti da verificare`}
             </div>
             <div style={{...typo.small,color:T.textMid,lineHeight:1.55}}>
-              Sono ingredienti che non riconosciamo, oppure che di solito portano un allergene senza certezza — il cioccolato con la lecitina di soia, le basi da gelateria col latte in polvere. Leggi l'etichetta del fornitore e salva gli allergeni sulla {LEX.ricetta}: da quel momento questa scheda li dà per certi e il punto di domanda sparisce.
+              Sono ingredienti che non riconosciamo, oppure che di solito portano un allergene senza certezza — il cioccolato con la lecitina di soia, le basi da gelateria col latte in polvere. Leggi l'etichetta del fornitore e salva gli allergeni sulla {LEX.ricetta}: da quel momento la scheda riporta la tua risposta al posto del punto di domanda.
             </div>
             <div style={{...typo.small,color:T.textSoft,marginTop:6,lineHeight:1.5}}>
               {daControllare.slice(0,6).map(r=>r.nome).join(' · ')}{daControllare.length>6?` · e altre ${daControllare.length-6}`:''}
@@ -207,17 +263,23 @@ export default function SchedaAllergeniView({ ricettario, tipoAttivita }) {
                       return (
                         <td key={a.id} style={{padding:"10px 4px",textAlign:"center"}}>
                           {has ? (
-                            <span aria-label={`Contiene ${a.label}`} title={`Contiene ${a.label}`} style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:26,height:26,borderRadius:6,background:`${ALLERGENE_COLORS[a.id]}20`,border:`1.5px solid ${ALLERGENE_COLORS[a.id]}`,color:ALLERGENE_COLORS[a.id]}}>
+                            /* «risulta», non «contiene». La differenza non è
+                               formale: il programma ha letto un nome di
+                               ingrediente, non una confezione. */
+                            <span aria-label={`${a.label}: ${LEGENDA_ALLERGENI.certo}`} title={`${a.label}: ${LEGENDA_ALLERGENI.certo}`} style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:26,height:26,borderRadius:6,background:`${ALLERGENE_COLORS[a.id]}20`,border:`1.5px solid ${ALLERGENE_COLORS[a.id]}`,color:ALLERGENE_COLORS[a.id]}}>
                               <Icon name="check" size={14} />
                             </span>
                           ) : dubbio ? (
                             /* Terzo stato: probabile. Il punto di domanda si
                                distingue dal segno di spunta anche da chi non
                                vede i colori, che su una scheda di legge conta. */
-                            <span aria-label={`${a.label} da verificare in etichetta`} title={`${a.label}: probabile, da verificare sull'etichetta del fornitore`}
+                            <span aria-label={`${a.label}: ${LEGENDA_ALLERGENI.dubbio}`} title={`${a.label}: ${LEGENDA_ALLERGENI.dubbio}`}
                               style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:26,height:26,borderRadius:6,background:T.amberLight,border:`1.5px dashed ${T.amber}`,color:T.amber,...typo.body,fontWeight:800}}>?</span>
                           ) : (
-                            <span aria-label={`Senza ${a.label}`} style={{display:"inline-block",width:26,height:26,borderRadius:6,border:`1px solid ${T.border}`,background:T.bgSubtle}}/>
+                            /* Una casella vuota diceva «Senza glutine»: è una
+                               dichiarazione, e nessuno l'ha fatta. Dice solo
+                               che dagli ingredienti scritti non risulta. */
+                            <span aria-label={`${a.label}: ${LEGENDA_ALLERGENI.assente}`} title={`${a.label}: ${LEGENDA_ALLERGENI.assente}`} style={{display:"inline-block",width:26,height:26,borderRadius:6,border:`1px solid ${T.border}`,background:T.bgSubtle}}/>
                           )}
                         </td>
                       );
@@ -231,9 +293,9 @@ export default function SchedaAllergeniView({ ricettario, tipoAttivita }) {
           {/* Legenda: un punto di domanda che nessuno spiega non vuol dire nulla. */}
           <div style={{display:"flex",gap:20,flexWrap:"wrap",alignItems:"center",marginBottom:14,padding:"12px 16px",background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:10}}>
             {[
-              ['contiene', <span key="a" style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:22,height:22,borderRadius:5,background:`${T.brand}20`,border:`1.5px solid ${T.brand}`,color:T.brand}}><Icon name="check" size={12} /></span>],
-              ['probabile, da verificare in etichetta', <span key="b" style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:22,height:22,borderRadius:5,background:T.amberLight,border:`1.5px dashed ${T.amber}`,color:T.amber,...typo.small,fontWeight:800}}>?</span>],
-              ['non contiene', <span key="c" style={{display:"inline-block",width:22,height:22,borderRadius:5,border:`1px solid ${T.border}`,background:T.bgSubtle}}/>],
+              [LEGENDA_ALLERGENI.certo, <span key="a" style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:22,height:22,borderRadius:5,background:`${T.brand}20`,border:`1.5px solid ${T.brand}`,color:T.brand}}><Icon name="check" size={12} /></span>],
+              [LEGENDA_ALLERGENI.dubbio, <span key="b" style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:22,height:22,borderRadius:5,background:T.amberLight,border:`1.5px dashed ${T.amber}`,color:T.amber,...typo.small,fontWeight:800}}>?</span>],
+              [LEGENDA_ALLERGENI.assente, <span key="c" style={{display:"inline-block",width:22,height:22,borderRadius:5,border:`1px solid ${T.border}`,background:T.bgSubtle}}/>],
             ].map(([testo,segno])=>(
               <span key={testo} style={{display:"inline-flex",alignItems:"center",gap:7,...typo.small,color:C.textMid}}>
                 {segno}{testo}
@@ -241,9 +303,12 @@ export default function SchedaAllergeniView({ ricettario, tipoAttivita }) {
             ))}
           </div>
 
-          {/* Disclaimer legale */}
-          <div style={{background:"#FFFBEB",border:"1px solid #FDE68A",borderRadius:10,padding:"14px 18px",fontSize: 12,color:"#92400E",lineHeight:1.7}}>
-            <strong style={{display:"inline-flex",alignItems:"center",gap:4,verticalAlign:"middle"}}><Icon name="warning" size={13} />Disclaimer:</strong> Le informazioni sugli allergeni sono indicative e si basano sulle ricette inserite. Gli allergeni possono variare in base ai fornitori e alla contaminazione crociata durante la produzione. Verificare sempre le etichette dei singoli ingredienti e aggiornare la scheda ad ogni modifica di ricetta o fornitore. <em>Regolamento UE 1169/2011 - Art. 21.</em>
+          {/* Cosa succede quando si esporta.
+              L'avvertenza vera è in cima alla pagina: qui si dice solo cosa
+              porta con sé il foglio che esce dalla stampante, perché è quello
+              che il titolare consegna e che viaggia senza di noi. */}
+          <div style={{background:T.bgSubtle,border:`1px solid ${T.border}`,borderRadius:10,padding:"13px 18px",fontSize:12,color:T.textMid,lineHeight:1.7}}>
+            Il PDF esce con questa stessa avvertenza stampata e con una riga da firmare. Finché non la firmi resta una proposta: firmarla vuol dire che l'hai controllata sulle etichette dei tuoi fornitori e che te ne prendi la responsabilità. Rifallo ogni volta che cambi una {LEX.ricetta} o un fornitore.
           </div>
         </>
       )}

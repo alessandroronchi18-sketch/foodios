@@ -81,11 +81,26 @@ describe('magazzino — la scheda aperta si ricorda', () => {
 })
 
 describe('magazzino — l\'ordine delle schede segue quanto si usano', () => {
-  it('"Carica merce" viene prima di "Prezzi ingredienti"', async () => {
+  // 18/09/2026: le schede sono quattro, non cinque. «Prezzi ingredienti» è
+  // diventata la pagina Ricette → Materie prime, su richiesta del titolare.
+  // Il doppione non si lascia: due posti dove cambiare lo stesso prezzo
+  // vogliono dire che uno dei due prima o poi resta indietro.
+  it('"Carica merce" viene prima dei prodotti finiti', async () => {
     const v = render(<MagazzinoView {...base({ burro: { nome: 'Burro', giacenza_g: 8000, soglia_g: 1000 } })} />)
     await waitFor(() => expect(v.container.textContent).toContain('Carica merce'))
     const schede = [...v.container.querySelectorAll('[role="tab"]')].map(b => b.textContent)
-    expect(schede).toEqual(['Materie prime', 'Carica merce', 'Prodotti finiti', 'Prezzi ingredienti', 'Storico carichi'])
+    expect(schede).toEqual(['Materie prime', 'Carica merce', 'Prodotti finiti', 'Storico carichi'])
+  })
+
+  it('«Prezzi ingredienti» non è più una scheda, e la pagina dice dov\'è finita', async () => {
+    const v = render(<MagazzinoView {...base({ burro: { nome: 'Burro', giacenza_g: 8000, soglia_g: 1000 } })} />)
+    await waitFor(() => expect(v.container.textContent).toContain('Carica merce'))
+    const schede = [...v.container.querySelectorAll('[role="tab"]')].map(b => b.textContent)
+    expect(schede).not.toContain('Prezzi ingredienti')
+    // Chi apre il Magazzino cercando il prezzo del burro non deve trovare il
+    // vuoto: una riga sola gli dice dove si decide, adesso.
+    expect(v.container.textContent).toContain('Materie prime')
+    expect(v.container.textContent).toMatch(/Quanto costa al chilo si decide in Ricette/)
   })
 })
 

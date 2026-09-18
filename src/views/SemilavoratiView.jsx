@@ -7,7 +7,7 @@
 // 4) Form nuovo/modifica + OCR foto (logica di salvataggio invariata).
 import React, { useState, useMemo } from 'react'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
-import { color as T, radius as R, shadow as S, motion as M, typo, ui3, ui } from '../lib/theme'
+import { color as T, radius as R, shadow as S, motion as M, typo, ui3, ui, font } from '../lib/theme'
 import { buildIngCosti, calcolaFC, calcolaFCDettaglio, getR, isRicettaValida, normIng, resaGrammi, PREZZI_HORECA, translateIngredienteEN, translateProdottoEN } from '../lib/foodcost'
 import { onEnterAutoComplete } from '../lib/autocomplete'
 import { lessico } from '../lib/lessico'
@@ -34,6 +34,8 @@ const LARG_AVVISO_STIMA = 122
 function SemiCard({ sm, ricettario, ingCosti, onEdit, onDelete, LEX }) {
   const isMobile = useIsMobile()
   const [tab, setTab] = useState(null)  // 'ingredienti' | 'usato' | null
+  // Come le schede dei gusti: si apre quando la si chiede.
+  const [aperta, setAperta] = useState(false)
 
   const { righe, tot: fc } = useMemo(() => calcolaFCDettaglio(sm.ric, ingCosti, ricettario), [sm.ric, ingCosti, ricettario])
   // Audit 2026-09-09: `mancante` significa PREZZO ASSENTE (l'ingrediente vale
@@ -55,102 +57,119 @@ function SemiCard({ sm, ricettario, ingCosti, onEdit, onDelete, LEX }) {
       onMouseEnter={e => { e.currentTarget.style.boxShadow = SHADOW_HOVER; e.currentTarget.style.transform = 'translateY(-2px)' }}
       onMouseLeave={e => { e.currentTarget.style.boxShadow = SHADOW_PREMIUM; e.currentTarget.style.transform = 'translateY(0)' }}>
 
-      {/* Header riga - su mobile: card collapsed di default con chevron, tap per espandere */}
-      <div style={{ padding: isMobile ? '14px 16px' : '18px 20px', display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', justifyContent: 'space-between', gap: isMobile ? 14 : 16 }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: R.full, background: T.brandLight, color: T.brand, fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-              <Icon name="package" size={11} />Base
-            </span>
-            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: T.text, letterSpacing: '-0.015em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>{sm.nome}</h3>
-            {/* 17/09/2026, segnalato dal titolare: «gli avvisi "senza prezzo"
-                devono essere tutti incolonnati fra di loro anche se non compare
-                l'avviso "prezzo stimato"».
+      {/* ── La scheda di una base, sulla forma di quella dei gusti ──────
+          18/09/2026, richiesta del titolare: «in semilavorati le box bianche
+          hanno dentro troppi dati e confusionari, rendile più pulite,
+          intuitive ed eleganti, uguali a quelle dei gusti, togli le scritte
+          superflue e inserisci pulsanti se ce n'è bisogno».
 
-                Il difetto: i due avvisi stavano uno accanto all'altro in una
-                riga che li spinge a destra. SALSA ZABAIONE ne ha due, CREMA
-                PASTICCERA uno solo — quindi in quella con uno solo il «senza
-                prezzo» scivolava a destra di tutta la larghezza dell'avviso
-                mancante, e incolonnando le tessere non c'era un bordo comune
-                da seguire con l'occhio.
+          Cos'era. Ogni base era una scheda **sempre aperta**, con dentro tutto
+          in una volta: il distintivo «BASE», il nome, due avvisi, il peso del
+          batch, in quanti prodotti è usata, la targhetta del costo al chilo e
+          quattro comandi. Sette informazioni per riga, su dodici basi, tutte
+          con lo stesso peso visivo. Le schede dei gusti, nel Ricettario, si
+          erano intanto ridotte a una barra che si apre: nome, un avviso, un
+          numero — e il resto dentro, se lo chiedi.
 
-                Ora i due avvisi hanno un posto ciascuno, sempre della stessa
-                larghezza: se l'avviso non c'è il posto resta vuoto invece di
-                chiudersi. È lo stesso rimedio già usato qui sotto per il peso
-                del batch (`minWidth: 110`), applicato agli avvisi.
-                Sul telefono no: lì le tessere sono una sotto l'altra e a tutta
-                larghezza, non c'è nessuna colonna da tenere, e due caselle
-                fisse toglierebbero spazio al nome. */}
-            <span style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-              <span style={{ display: 'inline-flex', minWidth: isMobile ? 0 : LARG_AVVISO_PREZZO, justifyContent: 'flex-end' }}>
-                {mancanti.length > 0 && <Badge label={mancanti.length === 1 ? '1 senza prezzo' : `${mancanti.length} senza prezzo`} color="red" />}
+          Adesso fanno la stessa cosa. Chiusa: il nome, gli avvisi, e il costo
+          al chilo a destra, che è il numero per cui si apre questa pagina.
+          Aperta: tutto il resto, con i comandi in un quadrato di due per due
+          come nel Ricettario.
+
+          Cosa è sparito dalla riga chiusa, e perché non manca: il distintivo
+          «BASE» (in una pagina che si chiama Semilavorati, dire che ognuna è
+          una base è come mettere il cartello «libro» su ogni libro di una
+          libreria) e il peso del batch, che è un dato di laboratorio e sta
+          dentro, accanto alla composizione del costo dove serve. */}
+      {!aperta ? (
+        <div role="button" tabIndex={0}
+          onClick={() => setAperta(true)}
+          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setAperta(true) } }}
+          style={{ padding: isMobile ? '8px 14px' : '8px 18px', minHeight: 44, boxSizing: 'border-box', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: font.size.lg, fontWeight: 800, color: T.text, letterSpacing: '-0.02em', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {sm.nome}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 3 }}>
+              {mancanti.length > 0 && <Badge label={mancanti.length === 1 ? '1 senza prezzo' : `${mancanti.length} senza prezzo`} color="red" />}
+              {mancanti.length === 0 && stimati.length > 0 && <Badge label={stimati.length === 1 ? '1 prezzo stimato' : `${stimati.length} prezzi stimati`} color="amber" />}
+              <span style={{ fontSize: typo.small.fontSize, color: T.textSoft, ...TNUM }}>
+                {sm.nUsi > 0 ? `usato in ${sm.nUsi} ${sm.nUsi === 1 ? 'prodotto' : 'prodotti'}` : 'non ancora usato'}
               </span>
-              <span style={{ display: 'inline-flex', minWidth: isMobile ? 0 : LARG_AVVISO_STIMA, justifyContent: 'flex-end' }}>
-                {stimati.length > 0 && <Badge label={stimati.length === 1 ? '1 prezzo stimato' : `${stimati.length} prezzi stimati`} color="amber" />}
-              </span>
-            </span>
+            </div>
           </div>
-          {/* Sub-text incolonnato: peso a larghezza fissa (110px) → il separatore
-              "·" e "usato in N prodotti" iniziano alla STESSA x tra card diverse,
-              indipendentemente dal numero di cifre del peso (818 g vs 1,05 kg). */}
-          <div style={{ fontSize: typo.small.fontSize, color: T.textSoft, letterSpacing: '-0.005em', ...TNUM, display: 'flex', alignItems: 'baseline', gap: 6 }}>
-            <span style={{ display: 'inline-block', minWidth: 110, color: T.textMid, fontWeight: 600 }}>{fmtPeso(sm.peso)} batch</span>
-            <span style={{ color: T.borderStr }}>·</span>
-            <span style={{ fontWeight: 600, color: T.textMid }}>{sm.nUsi > 0 ? `usato in ${sm.nUsi} ${sm.nUsi === 1 ? 'prodotto' : 'prodotti'}` : 'non ancora usato'}</span>
+          <div style={{ textAlign: 'right', flexShrink: 0 }}>
+            <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: T.textSoft, lineHeight: 1 }}>Costo / kg</div>
+            <div style={{ fontSize: font.size.lg, fontWeight: 800, color: sm.costoKg > 0 ? T.brand : T.textSoft, marginTop: 3, ...TNUM, lineHeight: 1 }}>
+              {sm.costoKg > 0 ? fmtKg(sm.costoKg) : 'da completare'}
+            </div>
+          </div>
+          <span style={{ flexShrink: 0, color: T.textSoft, lineHeight: 0 }}><Icon name="chevR" size={18} /></span>
+        </div>
+      ) : (
+      <div style={{ padding: isMobile ? '12px 16px' : '14px 20px', display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', justifyContent: 'space-between', gap: isMobile ? 12 : 16 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+            <h3 style={{ margin: 0, fontSize: font.size.lg, fontWeight: 800, color: T.text, letterSpacing: '-0.02em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>{sm.nome}</h3>
+          </div>
+          {/* Gli avvisi restano incolonnati fra una scheda e l'altra: ognuno
+              ha un posto suo, e se manca il posto resta vuoto invece di
+              chiudersi. Senza, la scheda con un avviso solo lo mostrava
+              spostato rispetto a quella con due. */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', minHeight: 22 }}>
+            <span style={{ display: 'inline-flex', minWidth: isMobile ? 0 : LARG_AVVISO_PREZZO }}>
+              {mancanti.length > 0 && <Badge label={mancanti.length === 1 ? '1 senza prezzo' : `${mancanti.length} senza prezzo`} color="red" />}
+            </span>
+            <span style={{ display: 'inline-flex', minWidth: isMobile ? 0 : LARG_AVVISO_STIMA }}>
+              {stimati.length > 0 && <Badge label={stimati.length === 1 ? '1 prezzo stimato' : `${stimati.length} prezzi stimati`} color="amber" />}
+            </span>
+            <span style={{ fontSize: typo.small.fontSize, color: T.textSoft, ...TNUM }}>
+              {fmtPeso(sm.peso)} per batch · {sm.nUsi > 0 ? `usato in ${sm.nUsi} ${sm.nUsi === 1 ? 'prodotto' : 'prodotti'}` : 'non ancora usato'}
+            </span>
           </div>
         </div>
 
-        {/* KPI compatto: solo Costo/kg (richiesta utente 26/06), più grande e
-            prominente. Tooltip via Tip portal - stessa esperienza di Ricette. */}
-        {/* Audit 2026-09-09: quando il costo e' 0 perché gli ingredienti non hanno
-            prezzo (GANACHE VEGANA: 2 su 3 senza prezzo) qui usciva "0,00 €" in
-            grande sotto "COSTO / KG", come se una base al cioccolato costasse
-            zero. La tabella sotto, per lo stesso semilavorato, mostrava "-".
-            Ora dicono la stessa cosa, e dicono perché. */}
         <Tip text={sm.costoKg > 0
           ? "Costo materie prime per chilo di semilavorato prodotto"
           : "Non si può calcolare: manca il prezzo di uno o più ingredienti. Caricali e il costo compare."} width={260}>
-          {/* 17/09/2026, richiesta del titolare: «questa tabella qui è troppo
-              grande, rimpicciolisci, rendila grande come quelle Costo e Dove».
-              Era alta 56px con l'etichetta sopra e il numero sotto, accanto a
-              due pulsanti alti 40: tre cose in fila di due altezze diverse, e
-              quella che sporgeva era l'unica che non si può nemmeno premere.
-              Ora è una targhetta su una riga sola, alta come i pulsanti:
-              «COSTO / KG  1,22 €». Il numero resta in grassetto e nel colore
-              del marchio, perché è il dato per cui si apre questa pagina. */}
           <div style={{ background: T.brandLight, padding: '0 14px', borderRadius: R.md, minHeight: 40, minWidth: 130, cursor: 'help', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, border: `1px solid ${T.brand}25`, flexShrink: 0 }}>
             <span style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: T.textSoft, lineHeight: 1, whiteSpace: 'nowrap' }}>Costo / kg</span>
             <span style={{ fontSize: sm.costoKg > 0 ? 15 : 12, fontWeight: sm.costoKg > 0 ? 800 : 700, color: sm.costoKg > 0 ? T.brand : T.textSoft, letterSpacing: '-0.015em', whiteSpace: 'nowrap', lineHeight: 1, ...TNUM }}>{sm.costoKg > 0 ? fmtKg(sm.costoKg) : 'da completare'}</span>
           </div>
         </Tip>
 
-        {/* Azioni: su mobile in flexWrap pieni a 40px+ */}
-        <div style={{ display: 'flex', gap: 6, alignSelf: isMobile ? 'stretch' : 'center', flexShrink: 0, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
-          <button onClick={() => setTab(t => t === 'ingredienti' ? null : 'ingredienti')}
-            style={tabBtn(tab === 'ingredienti', isMobile)}>
-            <Icon name="receipt" size={13} />Costo
-          </button>
-          <button onClick={() => setTab(t => t === 'usato' ? null : 'usato')}
-            style={tabBtn(tab === 'usato', isMobile)}>
-            <Icon name="barChart" size={13} />Dove
-          </button>
-          <button onClick={() => onEdit(sm.nome)} aria-label="Modifica" style={iconBtn()}
-            onMouseEnter={e => { e.currentTarget.style.background = T.bgSubtle; e.currentTarget.style.color = T.text }}
-            onMouseLeave={e => { e.currentTarget.style.background = T.bgCard; e.currentTarget.style.color = T.textMid }}>
-            <Icon name="edit" size={14} />
-          </button>
-          <button onClick={() => onDelete(sm.nome)} aria-label="Elimina" style={iconBtn(true)}
-            onMouseEnter={e => { e.currentTarget.style.background = T.brandLight; e.currentTarget.style.color = T.brand; e.currentTarget.style.borderColor = 'rgba(110,14,26,0.3)' }}
-            onMouseLeave={e => { e.currentTarget.style.background = T.bgCard; e.currentTarget.style.color = T.textSoft; e.currentTarget.style.borderColor = T.border }}>
-            <Icon name="trash" size={14} />
+        {/* I comandi in un quadrato di due per due, come nel Ricettario.
+            «Chiudi» sta fuori: non è un'azione sulla base, richiude la scheda. */}
+        <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start', flexShrink: 0, width: isMobile ? '100%' : 'auto' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, flex: isMobile ? 1 : 'none' }}>
+            <button onClick={() => setTab(t => t === 'ingredienti' ? null : 'ingredienti')}
+              style={tabBtn(tab === 'ingredienti', isMobile)}>
+              <Icon name="receipt" size={13} />Costo
+            </button>
+            <button onClick={() => setTab(t => t === 'usato' ? null : 'usato')}
+              style={tabBtn(tab === 'usato', isMobile)}>
+              <Icon name="barChart" size={13} />Dove
+            </button>
+            <button onClick={() => onEdit(sm.nome)} style={tabBtn(false, isMobile)}>
+              <Icon name="edit" size={13} />Modifica
+            </button>
+            <button onClick={() => onDelete(sm.nome)} style={{ ...tabBtn(false, isMobile), color: T.textSoft }}>
+              <Icon name="trash" size={13} />Elimina
+            </button>
+          </div>
+          <button onClick={() => { setAperta(false); setTab(null) }}
+            aria-label="Riduci scheda" title="Riduci"
+            style={{ width: isMobile ? 40 : 30, height: isMobile ? 40 : 86, padding: 0, borderRadius: R.md, border: `1px solid ${T.border}`, background: 'transparent', cursor: 'pointer', color: T.textMid, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Icon name="chevUp" size={14} />
           </button>
         </div>
       </div>
+      )}
 
       {/* Pannello: breakdown costo - header con totale, righe incolonnate con
           quantità/barra/costo/% perfettamente allineati. Numeri tabular ovunque,
           whiteSpace nowrap per evitare a-capo nelle celle strette. */}
-      {tab === 'ingredienti' && (
+      {aperta && tab === 'ingredienti' && (
         <div style={{ borderTop: `1px solid ${T.borderSoft}`, background: T.bgSubtle, padding: isMobile ? '14px 16px' : '16px 20px' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
             <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Composizione del costo del batch</div>
@@ -187,7 +206,7 @@ function SemiCard({ sm, ricettario, ingCosti, onEdit, onDelete, LEX }) {
       )}
 
       {/* Pannello: dove è usato */}
-      {tab === 'usato' && (
+      {aperta && tab === 'usato' && (
         <div style={{ borderTop: `1px solid ${T.borderSoft}`, background: T.bgSubtle, padding: isMobile ? '14px 16px' : '16px 20px' }}>
           <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
             Usato in {sm.nUsi} {sm.nUsi === 1 ? 'prodotto' : 'prodotti'}

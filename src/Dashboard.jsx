@@ -127,6 +127,7 @@ const NuovaRicettaView = lazyWithReload(() => import('./views/NuovaRicettaView')
 const StoricoProduzioneView = lazyWithReload(() => import('./views/StoricoProduzioneView'))
 // DiscrepanzeView rimosso: unito nella pagina "Perdite & cessioni" (SpreciOmaggi).
 const SemilavoratiView = lazyWithReload(() => import('./views/SemilavoratiView'))
+const MateriePrimeView = lazyWithReload(() => import('./views/MateriePrimeView'))
 // React hooks are imported above - no need for global destructuring
 // XLSX is loaded dynamically via loadXLSX()
 
@@ -858,6 +859,20 @@ export function mostraSelettoreSede(view, sedi) {
     return (sedi || []).filter(s => s?.attiva !== false).length >= 2
   }
   return true
+}
+
+// Un prezzo al chilo come si scrive in Italia: punto delle migliaia, virgola
+// dei decimali, simbolo DOPO la cifra.
+//
+// I due messaggi che annunciano un cambio di prezzo dicevano
+// `€${newKg.toFixed(2)}/kg`: simbolo davanti (regola della casa: va dopo) e
+// `toFixed`, che scrive il punto al posto della virgola e niente separatore
+// delle migliaia. Un prezzo di 1234,5 €/kg usciva «€1234.50/kg», che in
+// italiano non è un prezzo.
+export function prezzoKgIT(v) {
+  const n = Number(v)
+  if (!Number.isFinite(n)) return '—'
+  return `${n.toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/kg`
 }
 
 // Viste operative che SCRIVONO dati per-sede: in "Tutte le sedi" (vista aggregata)
@@ -1743,10 +1758,95 @@ export default function Dashboard({
     const msg = isFuture
       // Il giorno è già una stringa AAAA-MM-GG: si gira in GG/MM/AAAA senza
       // ripassare da `Date`, che a ovest di Greenwich mostrerebbe il giorno prima.
-      ? `✓ Prezzo "${nomeIng}" programmato a €${newKg.toFixed(2)}/kg dal ${giornoDecorrenza.split('-').reverse().join('/')}`
-      : `✓ Prezzo "${nomeIng}" aggiornato a €${newKg.toFixed(2)}/kg`;
+      ? `Prezzo di "${nomeIng}" programmato a ${prezzoKgIT(newKg)} dal ${giornoDecorrenza.split('-').reverse().join('/')}`
+      : `Prezzo di "${nomeIng}" aggiornato a ${prezzoKgIT(newKg)}`;
     notify(msg);
   }, [ricettario, logPrezzi, auth?.user?.email]);
+
+  // ── Creare una materia prima ─────────────────────────────────────────────
+  //
+  // Richiesta del titolare, 18/09/2026. Fino a oggi un ingrediente non si
+  // poteva creare: nasceva di straforo, scrivendo un nome dentro una ricetta.
+  // Chi batteva «aceto balsamicp» si ritrovava una materia prima nuova, senza
+  // prezzo, e il food cost scendeva in silenzio. Qui nasce di proposito, con
+  // la chiave normalizzata (`normIng`, la stessa di tutto il resto) e il
+  // rifiuto dei doppioni.
+  //
+  // **Il prezzo che non si sa si scrive `null`, non `0`.** `buildIngCosti`
+  // scarta i valori non numerici, e la riga resta dichiarata come «prezzo
+  // mancante»; uno zero in archivio invece il food cost lo legge come
+  // «gratis» (`foodcost.js`, `costoRigaIngrediente`). Sui dati veri di Mara
+  // la differenza è fra un food cost del 4,8% e quello vero del 25-35%.
+  //
+  // Ritorna `{ ok: true }` oppure `{ ok: false, errore }`: l'errore lo mostra
+  // la pagina accanto al campo, che è dove chi sta scrivendo sta guardando.
+  const handleCreaMateriaPrima = useCallback(async (nome, prezzoKg) => {
+    const pulito = String(nome || '').trim().replace(/\s+/g, ' ');
+    if (!pulito) return { ok: false, errore: 'Scrivi come si chiama la materia prima.' };
+    const key = normIng(pulito);
+    if (!key) return { ok: false, errore: 'Questo nome non si può usare.' };
+
+    // Il ricettario può non esserci ancora: una materia prima si deve poter
+    // creare anche prima di aver caricato una sola ricetta — è proprio il
+    // caso di chi comincia da qui.
+    const base = ricettario || { ricette: {}, ingredienti_costi: {} };
+    const costi = base.ingredienti_costi || {};
+    // Il doppione si ricontrolla QUI, non solo nella pagina: fra il momento in
+    // cui si apre il modulo e quello in cui si salva, il ricettario può essere
+    // cambiato da un'altra scheda del browser o da un'altra persona.
+    if (Object.prototype.hasOwnProperty.call(costi, key)) {
+      return { ok: false, errore: `«${pulito}» c'è già fra le materie prime: cercala nell'elenco e cambiale il prezzo.` };
+    }
+    for (const [chiaveRic, r] of Object.entries(base.ricette || {})) {
+      if (normIng(chiaveRic) === key || normIng(r?.nome || '') === key) {
+        return { ok: false, errore: `«${pulito}» è già il nome di una ricetta o di un semilavorato: scegline un altro.` };
+      }
+      for (const ing of (r?.ingredienti || [])) {
+        if (normIng(ing?.nome || '') === key) {
+          return { ok: false, errore: `«${pulito}» c'è già: la usa la ricetta «${r?.nome || chiaveRic}».` };
+        }
+      }
+    }
+
+    const v = Number(prezzoKg);
+    const conPrezzo = Number.isFinite(v) && v > 0;
+    const voce = conPrezzo
+      ? { costoKg: parseFloat(v.toFixed(4)), costoG: parseFloat((v / 1000).toFixed(6)) }
+      : { costoKg: null, costoG: null };
+    const nuovoRic = { ...base, ricette: base.ricette || {}, ingredienti_costi: { ...costi, [key]: voce } };
+
+    // SAVE FIRST: se la scrittura non va, lo state non si tocca. Una materia
+    // prima che compare nell'elenco e sparisce al ricaricamento è peggio che
+    // non averla creata.
+    try { await ssave(SK_RIC, nuovoRic); }
+    catch (e) { return { ok: false, errore: `Non sono riuscito a salvare (${e?.message || 'rete'}): la materia prima non è stata creata.` }; }
+    setRic(nuovoRic);
+
+    // Anche il primo prezzo va nello storico: senza, il P&L di un mese
+    // passato non saprebbe da quando quel costo esiste.
+    if (conPrezzo) {
+      const entry = {
+        id: `lp-${Date.now()}`,
+        data: new Date().toISOString(),
+        decorre_da: new Date(`${todayLocal()}T00:00:00.000Z`).toISOString(),
+        ingrediente: pulito,
+        prezzoVecchio: 0,
+        prezzoNuovo: v,
+        delta: v,
+        deltaPct: null,
+        utente: auth?.user?.email || null,
+      };
+      const nextLog = [entry, ...(logPrezzi || [])].slice(0, 500);
+      try { await ssave(SK_LOG_PRZ, nextLog); setLogPrezzi(nextLog); }
+      catch { /* la materia prima c'è comunque: lo storico non vale il rollback */ }
+    }
+
+    notify(conPrezzo
+      ? `"${pulito}" aggiunta a ${prezzoKgIT(v)}`
+      : `"${pulito}" aggiunta. Il prezzo manca ancora: finché non c'è, non entra nel food cost.`);
+    return { ok: true };
+  }, [ricettario, logPrezzi, auth?.user?.email, notify]);
+
 
   // Applica le modifiche prezzi PIANIFICATE la cui decorrenza è ormai passata.
   // Eseguita all'avvio e quando logPrezzi cambia: idempotente perché toglie il flag `pianificato`.
@@ -3195,6 +3295,12 @@ export default function Dashboard({
           notify={notify}
         />}
 
+        {/* Materie prime — spostate qui dalla quarta scheda del Magazzino il
+            18/09/2026, su richiesta del titolare. `!isDip` è la terza rete
+            dopo il filtro del menu e il dirottamento di riga ~1150: i prezzi
+            d'acquisto non si mostrano a chi sta in laboratorio. */}
+        {vista==="materie-prime"&&!isDip&&<MateriePrimeView ricettario={ricettario} logPrezzi={logPrezzi} onUpdatePrezzo={handleUpdatePrezzoIng} onCreaMateriaPrima={handleCreaMateriaPrima} onNavigate={setView}/>}
+
         {/* Formati di vendita (prodotti generici senza dettaglio gusto) */}
         {vista==="formati-vendita"&&<FormatiVendita orgId={orgId} ricettario={ricettario} onSaveRicettario={handleSalvaRicetta} notify={notify} tipoAttivita={tipoAttivita} sedi={sedi}/>}
 
@@ -3205,7 +3311,7 @@ export default function Dashboard({
         {vista==="sprechi-omaggi"&&!isAllSedi&&<SpreciOmaggi orgId={orgId} sedeId={sedeId} sedeAttiva={sedeAttiva} ricettario={ricettario} chiusure={chiusure} auth={auth} notify={notify}/>}
 
         {/* Ricettario - mostra upload se non ancora caricato */}
-        {vista==="ricettario"&&!ricettario&&(
+        {vista==="ricettario"&&!Object.keys(ricettario?.ricette||{}).length&&(
           <div style={{maxWidth:500,margin:"80px auto",textAlign:"center"}}>
             <div style={{marginBottom:18}}><Icon name="book" size={52} color={C.red} /></div>
             <h2 style={{margin:"0 0 10px",fontSize:font.size["2xl"],fontWeight:900,color:C.text}}>Carica il {LEX.Ricettario.toLowerCase()}</h2>
@@ -3214,9 +3320,25 @@ export default function Dashboard({
               <Icon name="folder" size={14} /> Carica .xlsx {LEX.Ricettario.toLowerCase()}
               <input type="file" accept=".xlsx" multiple style={{display:"none"}} onChange={e=>e.target.files.length&&handleFile(Array.from(e.target.files))}/>
             </label>
+            {/* La seconda strada, che prima non c'era.
+                Dal 18/09/2026 questo riquadro compare anche quando il
+                ricettario **esiste ma è vuoto**: succede a chi comincia
+                creando una materia prima (la pagina nuova permette di farlo
+                prima di qualsiasi ricetta). Con il solo pulsante «Carica
+                .xlsx» quella persona restava in un vicolo cieco: la pagina
+                dove si scrive una ricetta a mano non sta nel menu, ci si
+                arriva soltanto da un bottone del Ricettario — e il Ricettario
+                era proprio quello che non si vedeva.
+                Vale anche per chi un file Excel non ce l'ha per niente. */}
+            <div style={{marginTop:16}}>
+              <button onClick={()=>{setEditingRicetta(null);setView("nuova-ricetta");}}
+                style={{padding:"0 20px",minHeight:44,background:"transparent",color:C.textMid,border:`1px solid ${C.borderStr}`,borderRadius:10,cursor:"pointer",fontWeight:700,fontSize:font.size.base,fontFamily:"inherit"}}>
+                Oppure scrivi la prima {LEX.ricetta || 'ricetta'} a mano
+              </button>
+            </div>
           </div>
         )}
-        {ricettario&&vista==="ricettario"&&<RicettarioView metodoProduzione={metodoProduzione} ricettario={ricettario} onUpdateRegola={handleUpdateRegola} onUpload={files=>handleFile(files)} onEditRicetta={(nome)=>{setEditingRicetta(nome);setView("nuova-ricetta");}} onNuovaRicetta={()=>{setEditingRicetta(null);setView("nuova-ricetta");}} orgId={orgId} sedi={sedi} sedeAttiva={sedeAttiva} notify={notify} LEX={LEX}/>}
+        {vista==="ricettario"&&Object.keys(ricettario?.ricette||{}).length>0&&<RicettarioView metodoProduzione={metodoProduzione} ricettario={ricettario} onUpdateRegola={handleUpdateRegola} onUpload={files=>handleFile(files)} onEditRicetta={(nome)=>{setEditingRicetta(nome);setView("nuova-ricetta");}} onNuovaRicetta={()=>{setEditingRicetta(null);setView("nuova-ricetta");}} orgId={orgId} sedi={sedi} sedeAttiva={sedeAttiva} notify={notify} LEX={LEX}/>}
         {/* Audit del 16/09/2026, agente PAGINE. «Semilavorati» è una linguetta
             dentro il Ricettario, e la condizione qui sotto è `ricettario &&`:
             finché il ricettario non c'è, la linguetta si apriva su **niente**.
@@ -3249,7 +3371,7 @@ export default function Dashboard({
         {vista==="previsione"&&<PrevisioneDomanda ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} ingCosti={ingCostiMain} calcolaFC={calcolaFC} getR={getR} citta={citta} tipoAttivita={tipoAttivita}/>}
         {vista==="chiusura"&&!isAllSedi&&<ChiusuraView ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} setChiusure={setChiusure} notify={notify} orgId={orgId} sedeId={sedeId} isDipendente={isDip} metodoProduzione={metodoProduzione} tipoAttivita={tipoAttivita} onNavigate={setView} LEX={LEX}/>}
         {vista==="storico"&&<StoricoProduzioneView ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} logPrezzi={logPrezzi} orgId={orgId} sedeId={sedeId} sedi={sedi} metodoProduzione={metodoProduzione} onNavigate={setView} LEX={LEX}/>}
-        {vista==="magazzino"&&!isAllSedi&&<MagazzinoView utente={auth?.user?.email||null} ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} logRif={logRif} setLogRif={setLogRif} logPrezzi={logPrezzi} onUpdatePrezzoIng={handleUpdatePrezzoIng} giornaliero={giornaliero} notify={notify} esclusi={esclusi} setEsclusi={setEsclusi} onImportPrezzi={handleImportPrezzi} onImportPrezziOCR={handleImportPrezziOCR} orgId={orgId} sedeId={sedeId} isDipendente={isDip} LEX={LEX}/>}
+        {vista==="magazzino"&&!isAllSedi&&<MagazzinoView utente={auth?.user?.email||null} ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} logRif={logRif} setLogRif={setLogRif} giornaliero={giornaliero} notify={notify} esclusi={esclusi} setEsclusi={setEsclusi} onImportPrezzi={handleImportPrezzi} onImportPrezziOCR={handleImportPrezziOCR} orgId={orgId} sedeId={sedeId} isDipendente={isDip} onNavigate={setView} LEX={LEX}/>}
         {vista==="giornaliero"&&!isAllSedi&&<ProduzioneGiornalieraView ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} giornaliero={giornaliero} setGiornaliero={setGiornaliero} notify={notify} sedi={sedi} sedeAttiva={sedeAttiva} orgId={orgId} sedeId={sedeId} isDipendente={isDip} nomeAttivita={nomeAttivita} LEX={LEX}/>}
         {vista==="inventario-gusti"&&<InventarioSettimanaleView orgId={orgId} sedeId={sedeId} sedi={sedi} sedeAttiva={sedeAttiva} ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} tipoAttivita={tipoAttivita} metodoProduzione={metodoProduzione} notify={notify} onNavigate={setView}/>}
         {vista==="quadratura-inventario"&&<QuadraturaInventarioView orgId={orgId} sedeId={sedeId} sedi={sedi} sedeAttiva={sedeAttiva} chiusure={chiusure} metodoProduzione={metodoProduzione} onNavigate={setView} notify={notify}/>}
