@@ -19,6 +19,7 @@ import FotoOCR from '../components/FotoOCR'
 import AIFotoAnalisi from '../components/AIFotoAnalisi'
 import Icon from '../components/Icon'
 import { C, fmt, fmtp, TNUM, CampoConElenco, SortTH, useSortable, Tip, formatNome } from './_shared'
+import { leggiPrezzoKg } from '../lib/formatIt'
 import { isSemiOInterno } from '../lib/tipoRicetta'
 import { useUnsavedGuard } from '../lib/useUnsavedGuard'
 
@@ -166,13 +167,47 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
     () => [...etichetteIngredienti.keys()].sort((a, b) => a.localeCompare(b, 'it')),
     [etichetteIngredienti]);
 
+  // ── Lo stesso elenco, indicizzato con la CHIAVE vera del prodotto ───────
+  //
+  // 18/09/2026. `formatNome` e `normIng` non sono lo stesso setaccio, e
+  // fidarsi del primo per decidere se una materia prima esiste è costato caro:
+  //
+  //   · `formatNome` abbassa le maiuscole e cambia i trattini bassi in spazi;
+  //   · `normIng` fa tutto quello, collassa gli spazi doppi **e manda il
+  //     plurale sul singolare** (SING_PLUR: 70 coppie).
+  //
+  // Su 29 di quelle coppie i due non coincidono. Con «bacca di vaniglia» a
+  // 380,00 €/kg in listino, chi scriveva «Bacche di vaniglia» — cioè come si
+  // scrive in una ricetta — se la sentiva dichiarare nuova; e siccome la
+  // creazione passa da `normIng`, «Il prezzo lo metto dopo» andava a scrivere
+  // `null` proprio sopra i 380,00 €/kg. Il prezzo sparito, in silenzio,
+  // insieme al food cost di tutte le ricette che usavano la vaniglia.
+  //
+  // Gli altri nomi che facevano lo stesso: Scorze di limone, Croissant
+  // (→ cornetto), Bignè, Meringhe, Biscotti, Patate, Cipolle, Olive,
+  // Pomodori. E il doppio spazio battuto in fretta: «farina  00».
+  const chiaviIngredienti = useMemo(() => {
+    const perChiave = new Map();
+    for (const v of tuttiIng) {
+      const chiave = normIng(v);
+      if (!chiave) continue;
+      const gia = perChiave.get(chiave);
+      // Fra due scritture della stessa cosa vince quella già in forma
+      // canonica: è quella con cui il food cost va a cercare il prezzo.
+      if (gia === undefined || (gia !== chiave && v === chiave)) perChiave.set(chiave, v);
+    }
+    return perChiave;
+  }, [tuttiIng]);
+
   // Dall'etichetta che si legge al nome esatto scritto nel ricettario. Se
   // quello che c'è nel campo non corrisponde a nessuna voce (un ingrediente
   // nuovo), si salva come l'ha scritto lui.
   const nomeIngredienteDaSalvare = (visibile) => {
     const scritto = String(visibile || '').trim();
     if (!scritto) return '';
-    return etichetteIngredienti.get(formatNome(scritto)) || scritto;
+    return etichetteIngredienti.get(formatNome(scritto))
+      || chiaviIngredienti.get(normIng(scritto))
+      || scritto;
   };
 
   // Gli ingredienti «senza prezzo» che arrivano da calcolaFC a volte portano
@@ -247,6 +282,15 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
   // Modal "imposta prezzo" per ingrediente con prezzo mancante:
   // { nome, costoKg: string, saving } | null
   const [priceModal, setPriceModal] = useState(null);
+  // Chiavistello contro il doppio invio della finestra del prezzo.
+  //
+  // Il pulsante è `disabled` mentre si salva, ma la finestra risponde anche a
+  // Invio, e il tasto non guarda il pulsante. Lo `state` `saving` da solo non
+  // basta: fra la pressione e il ridisegno passa un istante, e due Invio
+  // rapidi ci stanno dentro tutti e due. Il risultato erano due salvataggi e
+  // **due righe identiche** dentro la ricetta, cioè il doppio del costo di
+  // quell'ingrediente. Un `ref` cambia subito, senza aspettare il ridisegno.
+  const salvandoPrezzo = useRef(false);
   // Toolbar azioni secondarie in cima: quale pannello è aperto (null | 'foto' | 'modifica' | 'elimina')
   const [openAction, setOpenAction] = useState(null);
   // Allergeni manuali: elenco checkbox nascosto di default per non intasare
@@ -332,7 +376,11 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
   const ingredienteSconosciuto = (visibile) => {
     const scritto = String(visibile || '').trim();
     if (!scritto) return false;
-    return !etichetteIngredienti.has(formatNome(scritto));
+    if (etichetteIngredienti.has(formatNome(scritto))) return false;
+    // Si chiede anche alla chiave vera: il plurale, il doppio spazio e il
+    // trattino basso sono la stessa materia prima, non una nuova. Vedi il
+    // commento su `chiaviIngredienti`.
+    return !chiaviIngredienti.has(normIng(scritto));
   };
 
   /** Crea la materia prima che manca, invece di lasciare l'utente fermo.
@@ -372,16 +420,26 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
    *  chiare lettere; uno zero scritto, invece, vorrebbe dire «questo
    *  ingrediente è gratis» e sparirebbe dentro il food cost senza un fiato. */
   const creaSenzaPrezzo = async () => {
-    if (!priceModal) return;
+    // Il pulsante è già `disabled` durante l'attesa, ma la finestra risponde
+    // anche a Invio: senza questa riga due pressioni rapide facevano due
+    // salvataggi e due righe identiche dentro la ricetta.
+    if (!priceModal || salvandoPrezzo.current) return;
+    salvandoPrezzo.current = true;
     setPriceModal(m => m ? { ...m, saving: true } : m);
     try {
       const key = normIng(priceModal.nome);
+      // Seconda rete: un prezzo che c'è non si azzera mai. `normIng` manda il
+      // plurale sul singolare, quindi la chiave che stiamo per scrivere può
+      // essere quella di una materia prima che il prezzo ce l'ha già — e
+      // scriverci sopra `null` vorrebbe dire cancellarglielo. La prima rete è
+      // `ingredienteSconosciuto`, che oggi non lascia più arrivare fin qui.
+      const gia = (ricettario?.ingredienti_costi || {})[key];
+      const haGiaUnPrezzo = !!gia && (Number.isFinite(gia.costoKg) || Number.isFinite(gia.costoG));
       const nuovoRic = {
         ...(ricettario || {}),
-        ingredienti_costi: {
-          ...(ricettario?.ingredienti_costi || {}),
-          [key]: { costoKg: null, costoG: null }
-        }
+        ingredienti_costi: haGiaUnPrezzo
+          ? { ...(ricettario?.ingredienti_costi || {}) }
+          : { ...(ricettario?.ingredienti_costi || {}), [key]: { costoKg: null, costoG: null } },
       };
       await onSave(nuovoRic, {}, true);
       if (priceModal.daAggiungere) {
@@ -394,17 +452,34 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
     } catch (e) {
       setPriceModal(m => m ? { ...m, saving: false } : m);
       notify("Errore nel salvataggio, riprova", false);
+    } finally {
+      salvandoPrezzo.current = false;
     }
   };
 
   const handleSavePrezzoIng = async () => {
-    if (!priceModal) return;
-    const raw = String(priceModal.costoKg || '').replace(',', '.').trim();
-    const val = parseFloat(raw);
-    if (!Number.isFinite(val) || val < 0) {
-      notify("Inserisci un prezzo valido in euro al kg (es. 8,50)", false);
+    // Il pulsante «Salva prezzo» è `disabled` durante l'attesa, il tasto
+    // Invio no: due pressioni rapide salvavano due volte e mettevano
+    // l'ingrediente DUE volte nella ricetta, cioè il doppio del costo.
+    if (!priceModal || salvandoPrezzo.current) return;
+    // `leggiPrezzoKg` invece di `parseFloat`: quest'ultimo legge quanto può e
+    // butta via il resto, quindi «12,5o» — la o al posto dello zero, l'errore
+    // di battitura più comune sul telefono — diventava 12,50 €/kg e si salvava
+    // in silenzio. La pagina Materie prime lo rifiutava già; qui, che è
+    // l'altra porta sullo stesso dato, no.
+    const val = leggiPrezzoKg(priceModal.costoKg);
+    if (val === null) {
+      notify("Scrivi un prezzo in euro al chilo, per esempio 8,50. Se non lo sai ancora, usa «Il prezzo lo metto dopo».", false);
       return;
     }
+    if (val === 0) {
+      // Zero è un prezzo dichiarato — vuol dire «gratis» — e nel food cost
+      // sparisce senza lasciare traccia. Chi non sa il prezzo ha il pulsante
+      // accanto, che scrive `null` e lascia la riga dichiarata come mancante.
+      notify("Zero vuol dire «gratis», non «non lo so». Se il prezzo non lo sai ancora, usa «Il prezzo lo metto dopo».", false);
+      return;
+    }
+    salvandoPrezzo.current = true;
     setPriceModal(m => m ? { ...m, saving: true } : m);
     try {
       const key = normIng(priceModal.nome);
@@ -431,6 +506,8 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
     } catch (e) {
       setPriceModal(m => m ? { ...m, saving: false } : m);
       notify("Errore salvataggio prezzo, riprova", false);
+    } finally {
+      salvandoPrezzo.current = false;
     }
   };
 

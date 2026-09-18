@@ -143,3 +143,25 @@ morto.** Dopo aver tolto i semilavorati dalla scheda Gusti, nessuno passa più
 eseguono mai. Non l'ho tolto adesso — si tocca una scheda che è appena andata
 online e che il titolare sta guardando — ma va tolto, perché prima o poi
 qualcuno lo «corregge» credendolo vivo.
+
+## AUDIT 18/09 — trovato sui dati veri di Mara (68 ricette)
+
+- [x] **Due funzioni, due food cost diversi.** `calcolaFC` e
+      `calcolaFCDettaglio` davano numeri diversi su **29 ricette su 68** (totale
+      189,94 € contro 160,81 €, 18% di scarto). La decisione del 16/09 — «il
+      prezzo scritto dal titolare vince sul calcolo» — era stata applicata a
+      una sola delle due. Allineate; 8 test, 3 rossi sul codice di prima.
+- [x] **La pagina Semilavorati mostrava un costo che il prodotto non usa.**
+      BASE BIANCA compariva a 1,22 €/kg mentre alle 29 ricette che la usano ne
+      venivano addebitati 2,31. Ora mostra quello vero e, quando i due numeri
+      divergono, dice anche l'altro. 5 test, 2 rossi sul codice di prima.
+- [ ] **DA FARE: la pagina Materie prime nasconde `base bianca`.**
+      Esclude tutti i semilavorati — giusto in linea di principio, perché il
+      loro costo esce dalla loro ricetta. Ma quando una base ha un prezzo
+      scritto a mano, quel prezzo **è il numero che il prodotto usa** (29
+      ricette), e adesso non si può più né vedere né cambiare da nessuna parte:
+      il campo «Costo al kg della base» in Nuovo gusto compare solo per il tipo
+      `interno`, e BASE BIANCA è `semilavorato`.
+      → Rimedio: nell'elenco tenere i semilavorati **che hanno un prezzo
+      scritto a mano**, segnalati per quello che sono.
+      Non fatto subito perché il file era in mano a un agente.

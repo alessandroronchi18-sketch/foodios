@@ -41,3 +41,37 @@ export const fmtpSegno = v => `${num(v) >= 0 ? '+' : ''}${fmtp(v)}`
 
 // Percentuale col segno e senza decimali: +12% / -4%.
 export const fmtp0Segno = v => `${num(v) >= 0 ? '+' : ''}${fmtp0(v)}`
+
+// ─── Leggere un prezzo, non solo scriverlo ──────────────────────────────────
+//
+// Nato in `views/MateriePrimeView.jsx` il 18/09/2026, spostato qui lo stesso
+// giorno: le due porte da cui entra il prezzo di una materia prima — la
+// pagina Materie prime e la finestra del prezzo in Nuovo gusto — lo leggevano
+// in due modi diversi. Una lo rifiutava, l'altra lo accettava storto. Due
+// regole per lo stesso dato vuol dire che prima o poi divergono, ed era già
+// successo.
+
+/**
+ * Legge un prezzo al chilo scritto a mano. Ritorna il numero, o `null` se non
+ * è un prezzo.
+ *
+ * Difetto trovato dai test il 18/09/2026: si usava `parseFloat`, che legge
+ * quanto può e butta via il resto. Scrivendo **«12,5o»** — la o al posto dello
+ * zero, l'errore di battitura più comune sulla tastiera del telefono —
+ * `parseFloat('12.5o')` risponde `12.5` senza un fiato: il prezzo veniva
+ * salvato a 12,50 €/kg come se fosse stato scritto bene. Su «abc» l'errore si
+ * vedeva, su «12,5o» no, ed è il caso che capita davvero.
+ *
+ * Qui la stringa deve essere un prezzo per intero, non «cominciare» per
+ * prezzo. I punti prima della virgola sono le migliaia, come si scrive in
+ * Italia: «1.234,50» sono milleduecentotrentaquattro euro e cinquanta.
+ */
+export function leggiPrezzoKg(testo) {
+  let g = String(testo ?? '').trim()
+  if (!g) return null
+  if (g.includes(',')) g = g.replace(/\./g, '')
+  g = g.replace(',', '.')
+  if (!/^\d+(\.\d+)?$/.test(g)) return null
+  const v = Number(g)
+  return Number.isFinite(v) ? v : null
+}

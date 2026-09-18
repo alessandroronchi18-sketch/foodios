@@ -81,8 +81,13 @@ function SemiCard({ sm, ricettario, ingCosti, onEdit, onDelete, LEX }) {
           una base è come mettere il cartello «libro» su ogni libro di una
           libreria) e il peso del batch, che è un dato di laboratorio e sta
           dentro, accanto alla composizione del costo dove serve. */}
+      {/* `aria-expanded` non c'era. Non è un dettaglio da manuale: chi
+      legge con uno screen reader non sapeva che quella riga si apre, e
+      il 18/09 ha fatto sbagliare anche una misura automatica — lo
+      strumento cercava i pannelli aperti da lì e ne trovava due in
+      tutta la pagina. Una riga che si apre deve dirlo. */}
       {!aperta ? (
-        <div role="button" tabIndex={0}
+        <div role="button" tabIndex={0} aria-expanded={false}
           onClick={() => setAperta(true)}
           onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setAperta(true) } }}
           style={{ padding: isMobile ? '8px 14px' : '8px 18px', minHeight: 44, boxSizing: 'border-box', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -126,12 +131,22 @@ function SemiCard({ sm, ricettario, ingCosti, onEdit, onDelete, LEX }) {
             <span style={{ fontSize: typo.small.fontSize, color: T.textSoft, ...TNUM }}>
               {fmtPeso(sm.peso)} per batch · {sm.nUsi > 0 ? `usato in ${sm.nUsi} ${sm.nUsi === 1 ? 'prodotto' : 'prodotti'}` : 'non ancora usato'}
             </span>
+            {/* I due numeri divergono: o il prezzo scritto è vecchio, o alla
+                ricetta della base mancano dei prezzi. In tutt'e due i casi è
+                una cosa da sapere, e nessuna delle due si vede da sola. */}
+            {sm.prezzoTuo != null && Math.abs(sm.prezzoTuo - sm.costoDagliIngredienti) > 0.005 && (
+              <span style={{ fontSize: typo.small.fontSize, color: T.amber, ...TNUM }}>
+                · prezzo tuo; dagli ingredienti risulterebbe {fmtKg(sm.costoDagliIngredienti)}
+              </span>
+            )}
           </div>
         </div>
 
-        <Tip text={sm.costoKg > 0
-          ? "Costo materie prime per chilo di semilavorato prodotto"
-          : "Non si può calcolare: manca il prezzo di uno o più ingredienti. Caricali e il costo compare."} width={260}>
+        <Tip text={sm.costoKg <= 0
+          ? "Non si può calcolare: manca il prezzo di uno o più ingredienti. Caricali e il costo compare."
+          : sm.prezzoTuo != null
+            ? `Il prezzo al chilo che hai scritto tu nel listino. È questo che il programma addebita alle ricette che usano questa base. Dai suoi ingredienti risulterebbe ${fmtKg(sm.costoDagliIngredienti)}.`
+            : "Costo materie prime per chilo di semilavorato prodotto, calcolato dai suoi ingredienti"} width={280}>
           <div style={{ background: T.brandLight, padding: '0 14px', borderRadius: R.md, minHeight: 40, minWidth: 130, cursor: 'help', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, border: `1px solid ${T.brand}25`, flexShrink: 0 }}>
             <span style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: T.textSoft, lineHeight: 1, whiteSpace: 'nowrap' }}>Costo / kg</span>
             <span style={{ fontSize: sm.costoKg > 0 ? 15 : 12, fontWeight: sm.costoKg > 0 ? 800 : 700, color: sm.costoKg > 0 ? T.brand : T.textSoft, letterSpacing: '-0.015em', whiteSpace: 'nowrap', lineHeight: 1, ...TNUM }}>{sm.costoKg > 0 ? fmtKg(sm.costoKg) : 'da completare'}</span>
@@ -300,8 +315,36 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
       // Lo stesso errore era già stato corretto nei formati di vendita a
       // luglio, ma qui era rimasto.
       const peso = resaGrammi(ric)
-      const costoKg = peso > 0 ? (fc / peso * 1000) : 0
-      return { ric, nome: ric.nome, fc, peso, costoKg, usato, nUsi: usato.length }
+      const costoDagliIngredienti = peso > 0 ? (fc / peso * 1000) : 0
+
+      // ── Il prezzo che hai scritto tu vince, e qui va detto ──────────────
+      //
+      // 18/09/2026, audit sui dati veri di Mara dei Boschi. Quando una base ha
+      // SIA una ricetta SIA un prezzo al chilo scritto a mano nel listino, il
+      // motore del food cost usa **il prezzo scritto a mano** — è una
+      // decisione presa il 16/09, e il motivo è solido: un prezzo scritto da
+      // chi produce è una misura, un calcolo su ingredienti metà dei quali non
+      // hanno prezzo è una stima al ribasso.
+      //
+      // Questa pagina però mostrava sempre il conto sugli ingredienti. Sui
+      // dati veri: BASE BIANCA compariva qui a **1,22 €/kg**, mentre alle 29
+      // ricette che la usano il programma ne addebitava **2,31**. Chi apriva
+      // questa pagina per decidere se una base conviene farla o comprarla
+      // leggeva un numero che il prodotto non usa, sbagliato dell'89%.
+      //
+      // Ora si mostra quello che vale davvero, e quando i due numeri
+      // divergono si dice anche l'altro: è il segnale che serve, perché vuol
+      // dire una cosa sola delle due — o il prezzo scritto è vecchio, o alla
+      // ricetta della base mancano dei prezzi.
+      const dichiarato = ingCosti[normIng((ric.nome || '').toLowerCase())]
+      const prezzoTuo = dichiarato && !dichiarato.isStima && Number(dichiarato.costoG) > 0
+        ? Number(dichiarato.costoG) * 1000
+        : null
+      const costoKg = prezzoTuo ?? costoDagliIngredienti
+      return {
+        ric, nome: ric.nome, fc, peso, costoKg, usato, nUsi: usato.length,
+        prezzoTuo, costoDagliIngredienti,
+      }
     })
   }, [ricettario, ingCosti])
 

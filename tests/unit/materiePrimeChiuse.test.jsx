@@ -20,7 +20,7 @@
 // l'utente in un vicolo cieco. Chiuso non vuol dire sbarrato.
 import React, { useState } from 'react'
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { CampoConElenco, vociVicine } from '../../src/views/_shared.jsx'
 
 const MATERIE = ['ACETO BALSAMICO', 'PANNA', 'ZUCCHERO', 'PASTA NOCCIOLA', 'UVA']
@@ -118,49 +118,109 @@ describe('Quale voce si propone, e quando conviene tacere', () => {
 
 // ── Il secondo pezzo: in «Nuovo gusto» il blocco è vero ───────────────────
 //
-// L'avviso a schermo da solo non protegge niente: si può sempre premere
-// Invio, o il pulsante «Aggiungi». Questi test guardano il punto dove
-// l'ingrediente entra davvero nella ricetta.
+// 18/09/2026, secondo giro. Qui c'erano quattro prove che LEGGEVANO IL
+// SORGENTE e cercavano delle parole. Un audit le ha smontate in un colpo:
+// mettendo `soloDallElenco={false}` — cioè **spegnendo la protezione** che dà
+// il nome al lavoro di oggi — restavano tutte verdi, perché `={false}`
+// contiene comunque la stringa `soloDallElenco`. Erano 241 test su 241 verdi
+// con la funzione principale disattivata.
+//
+// È lo stesso equivoco già capitato due volte in questo progetto (un test che
+// cercava una frase dentro il commento che ne spiegava la rimozione). Adesso
+// si monta la pagina vera e si prova quello che succede all'utente.
+import NuovaRicettaView from '../../src/views/NuovaRicettaView.jsx'
+
+const RICETTARIO = {
+  ingredienti_costi: { panna: { costoKg: 4.7, costoG: 0.0047 } },
+  ricette: {
+    'FIOR DI LATTE': {
+      nome: 'FIOR DI LATTE', tipo: 'gusto', unita: 1, prezzo: 0,
+      ingredienti: [{ nome: 'panna', qty1stampo: 500 }],
+    },
+  },
+}
+
+function apriNuovoGusto(onSave = async () => {}) {
+  return render(
+    <NuovaRicettaView ricettario={RICETTARIO} notify={() => {}} onSave={onSave}
+      editingRicetta={null} onEditConsumed={() => {}} tipoAttivita="gelateria" />
+  )
+}
+
+function scrivi(utils, nome, grammi) {
+  fireEvent.change(utils.getByLabelText('Nome ingrediente da aggiungere'), { target: { value: nome } })
+  fireEvent.change(utils.getByLabelText('Grammi di ingrediente da aggiungere'), { target: { value: String(grammi) } })
+}
+
 describe('In Nuovo gusto un ingrediente inventato non entra', () => {
-  it('il campo lavora a elenco chiuso e sa creare quello che manca', async () => {
-    const fs = await import('node:fs')
-    const s = fs.readFileSync('src/views/NuovaRicettaView.jsx', 'utf8')
-    const campo = s.slice(s.indexOf('id="ingrediente-nuovo"'), s.indexOf('id="ingrediente-nuovo"') + 600)
-    expect(campo).toContain('soloDallElenco')
-    expect(campo).toContain('onCreaNuova={creaMateriaPrima}')
+  it('scrivendo un nome che non esiste, la pagina lo dice', () => {
+    const utils = apriNuovoGusto()
+    scrivi(utils, 'Aceto balsamicp', 50)
+    fireEvent.keyDown(utils.getByLabelText('Nome ingrediente da aggiungere'), { key: 'Escape' })
+    expect(utils.getByText(/non è fra le tue materie prime/i)).toBeTruthy()
   })
 
-  it('«Aggiungi» si ferma se il nome non esiste: l’avviso da solo non basta', async () => {
-    const fs = await import('node:fs')
-    const s = fs.readFileSync('src/views/NuovaRicettaView.jsx', 'utf8')
-    const add = s.slice(s.indexOf('const addIng = () => {'), s.indexOf('const removeIng'))
-    // Il controllo deve stare PRIMA della riga che aggiunge l'ingrediente,
-    // altrimenti ferma qualcosa che è già entrato.
-    const posControllo = add.indexOf('ingredienteSconosciuto(newIngNome)')
-    const posAggiunta = add.indexOf('setForm(')
-    expect(posControllo).toBeGreaterThan(-1)
-    expect(posControllo).toBeLessThan(posAggiunta)
+  it('premendo «Aggiungi» NON entra nella ricetta', () => {
+    const utils = apriNuovoGusto()
+    // La somma degli ingredienti è il modo più diretto di vedere se una riga
+    // è entrata: cercare il nome a schermo non basta, perché il nome compare
+    // comunque dentro la finestra che si apre per crearlo.
+    const somma = () => utils.container.textContent.match(/Somma ingredienti\s*([\d.]+)\s*g/)?.[1]
+    expect(somma()).toBe('0')
+    scrivi(utils, 'Aceto balsamicp', 50)
+    fireEvent.click(utils.getByLabelText('Aggiungi ingrediente alla ricetta'))
+    expect(somma(), 'l\'ingrediente inventato è entrato lo stesso').toBe('0')
   })
 
-  it('non è un vicolo cieco: il nome battuto arriva nella finestra di creazione', async () => {
-    const fs = await import('node:fs')
-    const s = fs.readFileSync('src/views/NuovaRicettaView.jsx', 'utf8')
-    const crea = s.slice(s.indexOf('const creaMateriaPrima'), s.indexOf('const addIng'))
-    expect(crea).toContain('setPriceModal')
-    // I grammi già battuti si mettono da parte: senza, dopo aver creato la
-    // materia prima bisognerebbe riscrivere tutto da capo e la protezione
-    // sembrerebbe un ostacolo.
-    expect(crea).toContain('daAggiungere')
+  it('al suo posto si apre la finestra per crearla davvero', () => {
+    const utils = apriNuovoGusto()
+    scrivi(utils, 'Aceto balsamicp', 50)
+    fireEvent.click(utils.getByLabelText('Aggiungi ingrediente alla ricetta'))
+    expect(utils.getByRole('dialog')).toBeTruthy()
+    expect(utils.getByRole('dialog').textContent).toMatch(/Aceto balsamicp/i)
   })
 
-  it('creata la materia prima, la riga si aggiunge da sola', async () => {
-    const fs = await import('node:fs')
-    const s = fs.readFileSync('src/views/NuovaRicettaView.jsx', 'utf8')
-    const salva = s.slice(s.indexOf('const handleSavePrezzoIng'), s.indexOf('const handleSavePrezzoIng') + 2200)
-    expect(salva).toContain('priceModal.daAggiungere')
-    // E ci finisce con la chiave vera del ricettario, non con quello che
-    // l'utente vedeva scritto: è quella la chiave con cui il food cost trova
-    // il prezzo.
-    expect(salva).toMatch(/nome: key/)
+  it('e c’è la via d’uscita per chi il prezzo non lo sa', () => {
+    const utils = apriNuovoGusto()
+    scrivi(utils, 'Aceto balsamicp', 50)
+    fireEvent.click(utils.getByLabelText('Aggiungi ingrediente alla ricetta'))
+    expect(utils.getByRole('button', { name: /il prezzo lo metto dopo/i })).toBeTruthy()
+  })
+
+  it('un ingrediente che esiste entra senza storie', () => {
+    const utils = apriNuovoGusto()
+    scrivi(utils, 'Panna', 300)
+    fireEvent.click(utils.getByLabelText('Aggiungi ingrediente alla ricetta'))
+    expect(utils.queryByRole('dialog')).toBeNull()
+    // Due volte: quella della ricetta di partenza non c'è (modulo nuovo),
+    // quindi la riga aggiunta adesso è l'unica.
+    expect(utils.getAllByText(/Panna/i).length).toBeGreaterThan(0)
+  })
+})
+
+describe('Creando la materia prima senza prezzo', () => {
+  it('si salva `null`, non `0`: zero vorrebbe dire «gratis»', async () => {
+    const salvati = []
+    const utils = apriNuovoGusto(async (r) => { salvati.push(r) })
+    scrivi(utils, 'Farcitura segreta zz', 20)
+    fireEvent.click(utils.getByLabelText('Aggiungi ingrediente alla ricetta'))
+    fireEvent.click(utils.getByRole('button', { name: /il prezzo lo metto dopo/i }))
+    await waitFor(() => expect(salvati.length).toBeGreaterThan(0))
+    const voce = salvati[salvati.length - 1].ingredienti_costi['farcitura segreta zz']
+    expect(voce).toBeTruthy()
+    expect(voce.costoKg).toBeNull()
+    expect(voce.costoG).toBeNull()
+  })
+
+  it('e la riga entra nella ricetta con la chiave vera del listino', async () => {
+    const salvati = []
+    const utils = apriNuovoGusto(async (r) => { salvati.push(r) })
+    scrivi(utils, 'Farcitura segreta zz', 20)
+    fireEvent.click(utils.getByLabelText('Aggiungi ingrediente alla ricetta'))
+    fireEvent.click(utils.getByRole('button', { name: /il prezzo lo metto dopo/i }))
+    await waitFor(() => expect(utils.queryByRole('dialog')).toBeNull())
+    // La chiave è quella con cui il food cost va a cercare il prezzo:
+    // riscriverla sarebbe il modo più silenzioso di far sparire un costo.
+    expect(utils.container.textContent).toMatch(/Farcitura segreta zz/i)
   })
 })

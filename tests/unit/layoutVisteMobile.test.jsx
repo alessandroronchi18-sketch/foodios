@@ -270,6 +270,99 @@ describe('fotografia delle viste — telefono', () => {
     n.push(await scrivi('recensioni', <RecensioniView nomeAttivita="Pasticceria del Corso" />))
     n.push(await scrivi('ai-hub', <AiHubView orgId="org-1" setView={() => {}} goToUpgrade={() => {}} piano="pro" userEmail="anita@maradeiboschi.com" />))
 
+    // ── Le pagine cambiate il 18/09/2026 ──────────────────────────────────
+    // `MateriePrimeView` e' nata quel giorno e non stava in nessun dumper:
+    // una pagina che nessun attrezzo fotografa e' una pagina che nessuno
+    // misura, e questa ha dentro tutte e tre le cose che sul telefono si
+    // rompono — una tabella, una finestra e uno storico.
+    //
+    // Con lei entrano gli STATI che si aprono con un comando. Una finestra
+    // chiusa non ha campi ne' bersagli: misurando solo la pagina a riposo si
+    // ottiene un referto pulito che non vuol dire niente.
+    const { default: MateriePrimeView } = await import('../../src/views/MateriePrimeView.jsx')
+    const { default: FormatiVendita } = await import('../../src/components/FormatiVendita.jsx')
+    const logPrezzi18 = [
+      { id: 'lp1', data: new Date().toISOString(), ingrediente: 'burro', prezzoVecchio: 7.9, prezzoNuovo: 8.4, utente: 'anita@maradeiboschi.com' },
+      { id: 'lp2', data: new Date(Date.now() - 86400000).toISOString(), ingrediente: 'cioccolato fondente', prezzoVecchio: 10.4, prezzoNuovo: 11.2, decorre_da: new Date(Date.now() + 7 * 86400000).toISOString(), utente: 'mara@maradeiboschi.com' },
+    ]
+    const materiePrime = () => (
+      <MateriePrimeView ricettario={ricettario} logPrezzi={logPrezzi18}
+        onUpdatePrezzo={async () => {}} onCreaMateriaPrima={async () => {}} onNavigate={() => {}} />
+    )
+    const premiScritta = (re) => async (v) => {
+      const b = [...v.container.querySelectorAll('button')].find(x => re.test(x.textContent))
+      if (b) fireEvent.click(b)
+    }
+    // Tutto quello che si apre, aperto: le barre dei gusti e dei semilavorati
+    // tengono dentro meta' dei bersagli, e da chiuse non si misurano.
+    // FALSO NEGATIVO DEL 18/09/2026 — la prima versione cliccava solo gli
+    // `aria-expanded="false"`, e il referto di Ricettario e Semilavorati
+    // usciva «niente da segnalare»: le barre dei gusti si aprono da un
+    // `role="button"` senza `aria-expanded`, quindi restavano chiuse e nella
+    // fotografia c'erano due pulsanti in tutto. Una pagina misurata chiusa da'
+    // sempre zero difetti, ed e' il modo piu' facile di non trovarne.
+    const apriTutto = async (v) => {
+      const barre = [...v.container.querySelectorAll('[role="button"], [aria-expanded="false"]')].slice(0, 3)
+      for (const b of barre) { fireEvent.click(b); await new Promise(r => setTimeout(r, 30)) }
+      // Aperta la barra compaiono i comandi: il quadrato di due per due e il
+      // pannello del dettaglio. Anche quelli vanno aperti, o restano fuori.
+      for (const b of [...v.container.querySelectorAll('[aria-expanded="false"]')].slice(0, 3)) {
+        fireEvent.click(b); await new Promise(r => setTimeout(r, 30))
+      }
+    }
+    n.push(await scrivi('materie-prime', materiePrime()))
+    n.push(await scrivi('materie-prime-storico', materiePrime(), premiScritta(/Storico modifiche/)))
+    n.push(await scrivi('materie-prime-nuova', materiePrime(), premiScritta(/Nuova materia prima/)))
+    n.push(await scrivi('materie-prime-prezzo', materiePrime(), async (v) => {
+      await premiScritta(/Modifica/)(v)
+      await new Promise(r => setTimeout(r, 30))
+      const campo = v.container.querySelector('input[aria-label^="Prezzo per chilo"]')
+      if (campo) { fireEvent.change(campo, { target: { value: '19,90' } }); fireEvent.keyDown(campo, { key: 'Enter' }) }
+    }))
+    // Il campo ingrediente «a elenco chiuso» e l'avviso che gli sta sotto si
+    // vedono solo battendo un nome che non esiste: a riposo quella parte di
+    // pagina non c'e'. Da li' nasce anche la finestra del prezzo con il
+    // pulsante in piu'.
+    const nuovaRicetta = () => <NuovaRicettaView ricettario={ricettario} onSave={() => {}} notify={() => {}} tipoAttivita="pasticceria" />
+    const nomeStorto = async (v) => {
+      // Non `#ingrediente-nuovo`: quell'id sta sul contenitore, e l'`id` del
+      // campo vero non e' quello. Si prende dall'etichetta, che e' il nome con
+      // cui lo trova anche chi legge con uno screen reader.
+      const campo = v.container.querySelector('input[aria-label="Nome ingrediente da aggiungere"]')
+      if (!campo) return
+      fireEvent.change(campo, { target: { value: 'aceto balsamicp' } })
+      await new Promise(r => setTimeout(r, 30))
+      // L'elenco aperto copre l'avviso: si chiude toccando fuori, come fa
+      // l'utente.
+      fireEvent.mouseDown(document.body)
+      fireEvent.touchStart(document.body)
+    }
+    n.push(await scrivi('nuova-ricetta-avviso', nuovaRicetta(), nomeStorto))
+    n.push(await scrivi('nuova-ricetta-prezzo', nuovaRicetta(), async (v) => {
+      await nomeStorto(v)
+      await new Promise(r => setTimeout(r, 40))
+      const b = [...v.container.querySelectorAll('button')].find(x => /materie prime/.test(x.textContent))
+      if (b) fireEvent.click(b)
+    }))
+    n.push(await scrivi('formati-vendita', <FormatiVendita orgId="org-1" ricettario={ricettario}
+      onSaveRicettario={() => {}} notify={() => {}} tipoAttivita="pasticceria" sedi={sedi} />))
+    n.push(await scrivi('ricettario-aperto', <RicettarioView {...comuni} sedi={sedi} sedeAttiva={sedeAttiva} />, apriTutto))
+    // Un ricettario CON dentro un semilavorato: quello comune non ne ha, e la
+    // pagina dei semilavorati si fotografava vuota — due pulsanti in tutto.
+    // Le «barre che si aprono» nate il 18/09 non erano mai state misurate
+    // perche' non c'era niente da aprire.
+    const ricettarioSemi = {
+      ...ricettario,
+      ricette: {
+        ...ricettario.ricette,
+        s1: { nome: 'CREMA PASTICCERA', tipo: 'semilavorato', porzioni: 1, prezzo: 0, unita: 0, categoria: 'Basi',
+          ingredienti: [{ nome: 'latte intero', qty1stampo: 1000 }, { nome: 'uova', qty1stampo: 240 }, { nome: 'zucchero semolato', qty1stampo: 250 }] },
+        s2: { nome: 'PASTA FROLLA AL BURRO', tipo: 'semilavorato', porzioni: 1, prezzo: 0, unita: 0, categoria: 'Basi',
+          ingredienti: [{ nome: 'farina 00', qty1stampo: 1000 }, { nome: 'burro', qty1stampo: 500 }] },
+      },
+    }
+    n.push(await scrivi('semilavorati-aperto', <SemilavoratiView ricettario={ricettarioSemi} onSave={() => {}} notify={() => {}} tipoAttivita="pasticceria" />, apriTutto))
+
     expect(n.every(x => x > 1000)).toBe(true)
   })
 })

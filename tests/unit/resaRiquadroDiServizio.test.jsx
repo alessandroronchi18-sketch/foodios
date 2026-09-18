@@ -116,8 +116,15 @@ describe('Nuovo gusto - il riquadro somma/resa quando non c\'e niente da segnala
     monta()
     aggiungi('Burro', 1000)
     const box = riquadro()
-    // #92400E è l'ambra degli avvisi: qui non ci deve stare.
+    // 18/09, secondo giro: questa prova era vera per costruzione. Nel codice
+    // di prima, senza scarto, il colore era GIA' quello tenue — l'ambra degli
+    // avvisi in quel ramo non c'e' mai stata, quindi il controllo passava
+    // anche senza la correzione. Adesso si verifica quello che e' davvero
+    // cambiato: che il riquadro sia diventato una riga di servizio, cioe'
+    // senza fondo e senza cornice.
     expect(box.style.color.toLowerCase()).not.toContain('92400e')
+    expect(box.style.background || '', 'ha ancora un fondo colorato').toMatch(/^(transparent)?$/)
+    expect(box.style.border || '', 'ha ancora una cornice').not.toMatch(/1px solid #[0-9a-f]{6}/i)
   })
 })
 

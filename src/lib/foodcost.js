@@ -862,6 +862,28 @@ function _entryDecorrenza(entry) {
 }
 
 /**
+ * Il prezzo scritto in una riga di storico, o `null` se quella riga non lo
+ * dichiara.
+ *
+ * Trappola trovata il 18/09/2026, ed è la più cara che abbia questo prodotto:
+ * **`Number(null)` fa `0`, e `Number.isFinite(0)` è vero.** Scritto
+ * `Number.isFinite(Number(e.prezzoVecchio))`, il controllo prendeva una riga
+ * dove il prezzo di prima non c'era — perché la materia prima è nata senza,
+ * come oggi si può fare dalla pagina Materie prime — e la dichiarava a zero,
+ * cioè gratis. Da lì in giù il food cost storico di ogni produzione anteriore
+ * contava quell'ingrediente come regalato.
+ *
+ * Uno zero VOLUTO resta valido: esiste la materia prima omaggio del
+ * fornitore, quella dell'orto, lo scarto recuperato. È la differenza fra
+ * «vale zero» e «non lo so», e qui si decide guardando se il campo c'è.
+ */
+function _prezzoNoto(v) {
+  if (v === null || v === undefined || v === '') return null
+  const n = Number(v)
+  return Number.isFinite(n) ? n : null
+}
+
+/**
  * Trova il prezzo €/kg di un ingrediente valido a una data specifica.
  * @param {Array}    logPrezzi  storico modifiche (ordinato newest→oldest)
  * @param {string}   nomeIng    nome ingrediente (normalizzato o no)
@@ -886,16 +908,14 @@ export function getPrezzoStoricoKg(logPrezzi, nomeIng, when) {
   // NB: usiamo Number.isFinite e non `|| null`, così un prezzo legittimo di 0
   // (ingrediente gratis/omaggio) NON viene scambiato per "prezzo sconosciuto".
   for (const e of entries) {
-    if (e._t <= target) {
-      const n = Number(e.prezzoNuovo)
-      return Number.isFinite(n) ? n : null
-    }
+    if (e._t <= target) return _prezzoNoto(e.prezzoNuovo)
   }
   // Tutte le modifiche sono successive a `target`: usa il prezzo PRIMA della
-  // prima modifica (il "vecchio prezzo" dell'entry più vecchia).
-  const piuVecchia = entries[entries.length - 1]
-  const nv = Number(piuVecchia.prezzoVecchio)
-  return Number.isFinite(nv) ? nv : null
+  // prima modifica (il "vecchio prezzo" dell'entry più vecchia). Se quella
+  // riga non dichiara un prezzo di prima — la materia prima è nata senza — si
+  // risponde `null`: chi chiama ricade sul prezzo di adesso, che è la cosa
+  // meno sbagliata da dire quando il prezzo di allora non si sa.
+  return _prezzoNoto(entries[entries.length - 1].prezzoVecchio)
 }
 
 /**
@@ -1111,7 +1131,29 @@ export function costoRigaIngrediente(ing, ingCosti, ricettario) {
   // food cost, e calcolaFC la salta. Va detto, non trattato come un errore.
   if (!qty) return { ...vuoto, motivo: 'a 0 g non entra nel food cost' }
 
-  const semiKey = ricettario?.ricette
+  // ── La stessa regola di `calcolaFC`, che qui mancava ───────────────────
+  //
+  // 18/09/2026, audit sui dati veri di Mara dei Boschi. Il 16/09 era stata
+  // presa una decisione e scritta per esteso dentro `calcolaFC`: quando un
+  // semilavorato ha SIA una ricetta SIA un prezzo al chilo scritto a mano dal
+  // titolare, **vince il prezzo scritto a mano**, perché un prezzo scritto da
+  // chi produce è una misura, mentre un calcolo su ingredienti metà dei quali
+  // non hanno prezzo è una stima al ribasso.
+  //
+  // Quella decisione era stata applicata a `calcolaFC` e **non** a questa
+  // funzione. Risultato, misurato sul ricettario vero: **29 ricette su 68**
+  // avevano due food cost diversi a seconda di chi faceva il conto — la
+  // scheda del Ricettario diceva «2,31 €» e la tabella del dettaglio, due
+  // centimetri sotto, diceva «1,22 €». Sul totale del ricettario ballavano
+  // 29,13 € su 189,94, cioè il 18%.
+  //
+  // Un numero calcolato in due modi diversi da due funzioni diverse prima o
+  // poi diverge: qui era già divergente e nessuno lo vedeva, perché le due
+  // cifre non compaiono mai nella stessa schermata nello stesso momento.
+  const prezzoDichiarato = ingCosti[nomeNorm]
+  const dichiaratoDallUtente = prezzoDichiarato && !prezzoDichiarato.isStima && Number(prezzoDichiarato.costoG) > 0
+
+  const semiKey = (ricettario?.ricette && !dichiaratoDallUtente)
     ? Object.keys(ricettario.ricette).find(k => {
         const r = ricettario.ricette[k]
         if (r.tipo !== 'semilavorato') return false
@@ -1141,7 +1183,7 @@ export function costoRigaIngrediente(ing, ingCosti, ricettario) {
     }
   }
 
-  const c = ingCosti[nomeNorm]
+  const c = prezzoDichiarato
   if (!c) return { costo: 0, isStima: false, isSemilavorato: false, mancante: true, motivo: 'prezzo mancante' }
   const costo = qty * costoNettoPerG(c.costoG, nomeNorm)
   return {

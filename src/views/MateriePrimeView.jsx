@@ -50,7 +50,7 @@
 //      `costoRigaIngrediente`). Si scrive `null`, che vuol dire «non lo so»
 //      e fa dichiarare la riga come mancante.
 
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import useIsMobile from '../lib/useIsMobile'
 import { color as T, radius as R, typo, font } from '../lib/theme'
 import Icon from '../components/Icon'
@@ -59,7 +59,7 @@ import { todayLocal } from '../lib/dateLocal'
 import {
   C, TNUM, KPI, PageHeader, useSortable, SortTH, fmtp, TabellaOSchede,
 } from './_shared'
-import { fmtp0 } from '../lib/formatIt'
+import { fmtp0, leggiPrezzoKg } from '../lib/formatIt'
 
 // Scorciatoia alle misure del testo dai token (font.size).
 const FS = font.size
@@ -75,30 +75,13 @@ const NOMI_NON_INGREDIENTI = new Set([
   'nome ingrediente in minuscolo', '',
 ])
 
-/**
- * Legge un prezzo scritto a mano. Ritorna il numero, o `null` se non è un
- * prezzo.
- *
- * Difetto trovato dai test il 18/09/2026: si usava `parseFloat`, che legge
- * quanto può e butta via il resto. Scrivendo **«12,5o»** — la o al posto
- * dello zero, l'errore di battitura più comune sulla tastiera del telefono —
- * `parseFloat('12.5o')` risponde `12.5` senza un fiato: il prezzo veniva
- * salvato a 12,50 €/kg come se fosse stato scritto bene. Su «abc» l'errore
- * si vedeva, su «12,5o» no, ed è il caso che capita davvero.
- *
- * Qui la stringa deve essere un prezzo per intero, non «cominciare» per
- * prezzo. I punti prima della virgola sono le migliaia, come si scrive in
- * Italia: «1.234,50» sono milleduecentotrentaquattro euro e cinquanta.
- */
-export function leggiPrezzoKg(testo) {
-  let g = String(testo ?? '').trim()
-  if (!g) return null
-  if (g.includes(',')) g = g.replace(/\./g, '')
-  g = g.replace(',', '.')
-  if (!/^\d+(\.\d+)?$/.test(g)) return null
-  const v = Number(g)
-  return Number.isFinite(v) ? v : null
-}
+// Come si legge un prezzo scritto a mano sta in `lib/formatIt.js`, insieme a
+// come si scrive. Stava qui, ed era l'unico posto del prodotto che rifiutava
+// «12,5o»: la finestra del prezzo in Nuovo gusto — l'altra porta da cui entra
+// lo stesso dato — usava `parseFloat` e lo accettava come 12,50. Due regole
+// per lo stesso numero divergono sempre; questa è rimasta esportata da qui
+// perché è il nome con cui la conoscono i test che la difendono.
+export { leggiPrezzoKg }
 
 /** Un prezzo al chilo scritto all'italiana, col simbolo dopo la cifra. */
 const euroKg = (v) => `${Number(v).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/kg`
@@ -159,6 +142,32 @@ export function materiePrimeDaRicettario(ricettario) {
     const b = normIng(r?.nome || ''); if (b) semilavorati.add(b)
   }
 
+  // ── Le basi con un prezzo scritto a mano restano in elenco ─────────────
+  //
+  // 18/09/2026, audit sui dati veri di Mara dei Boschi. Escludere i
+  // semilavorati è giusto in linea di principio: il loro costo esce dalla
+  // loro ricetta, e chiedere anche un prezzo sarebbe chiedere due volte la
+  // stessa cosa. Ma c'è un caso in cui non è vero, ed è proprio il suo.
+  //
+  // Quando una base ha ANCHE un prezzo al chilo scritto a mano nel listino,
+  // quel prezzo **vince** sul calcolo — decisione del 16/09, perché un prezzo
+  // scritto da chi produce è una misura, mentre un calcolo su ingredienti
+  // metà dei quali non hanno prezzo è una stima al ribasso.
+  //
+  // Sui dati veri: «base bianca» ha un prezzo scritto a mano di 2,31 €/kg, ed
+  // è quello che il programma addebita a **29 ricette su 68**. Escludendola
+  // da questo elenco, quel numero non si poteva più né vedere né cambiare da
+  // nessuna parte del prodotto: il campo «Costo al kg della base» in Nuovo
+  // gusto compare solo per il tipo `interno`, e questa è `semilavorato`.
+  // Un numero che muove i conti di 29 ricette e che nessuno può toccare è
+  // peggio di un numero sbagliato.
+  const conPrezzoScrittoAMano = new Set()
+  for (const k of semilavorati) {
+    const v = miei[k]
+    if (v && v.isStima !== true && prezzoDichiaratoKg(v) !== null) conPrezzoScrittoAMano.add(k)
+  }
+  const daNascondere = (k) => semilavorati.has(k) && !conPrezzoScrittoAMano.has(k)
+
   const map = new Map()
   const riga = (k, nomeVisibile) => {
     if (!map.has(k)) {
@@ -171,6 +180,10 @@ export function materiePrimeDaRicettario(ricettario) {
       map.set(k, {
         key: k,
         nome: nomeVisibile || k,
+        // Una base che compare qui perché ha un prezzo scritto a mano: va
+        // detto, altrimenti sembra una materia prima come le altre e nessuno
+        // capisce perché il Ricettario ne calcola anche la ricetta.
+        eBase: semilavorati.has(k),
         prezzoKg: dichiarato ? prezzoMio : stima ? prezzoStima : 0,
         statoPrezzo: dichiarato ? 'tuo' : stima ? 'stima' : 'mancante',
         fornitore: mio?.fornitore || null,
@@ -184,7 +197,7 @@ export function materiePrimeDaRicettario(ricettario) {
     const nomeRicetta = ric?.nome || chiaveRicetta
     for (const ing of (ric?.ingredienti || [])) {
       const k = normIng(ing?.nome || '')
-      if (!k || NOMI_NON_INGREDIENTI.has(k) || semilavorati.has(k)) continue
+      if (!k || NOMI_NON_INGREDIENTI.has(k) || daNascondere(k)) continue
       const r = riga(k, ing?.nome || k)
       if (!r.ricette.includes(nomeRicetta)) r.ricette.push(nomeRicetta)
     }
@@ -192,7 +205,7 @@ export function materiePrimeDaRicettario(ricettario) {
   // Le materie prime con un prezzo ma non usate (ancora) da nessuna ricetta:
   // ci sono, e sparire dall'elenco sarebbe il modo per non trovarle più.
   for (const k of Object.keys(miei)) {
-    if (!k || NOMI_NON_INGREDIENTI.has(k) || semilavorati.has(k)) continue
+    if (!k || NOMI_NON_INGREDIENTI.has(k) || daNascondere(k)) continue
     riga(k, k)
   }
 
@@ -280,6 +293,16 @@ export default function MateriePrimeView({
   const [confirmVal, setConfirmVal] = useState(null)
   const [confirmDecorre, setConfirmDecorre] = useState(() => todayLocal())
   const [salvandoPrezzo, setSalvandoPrezzo] = useState(false)
+  // Chiavistello sincrono contro il doppio invio.
+  //
+  // I pulsanti sono già `disabled` durante l'attesa, ma la finestra e i campi
+  // rispondono anche a Invio, e il tasto non guarda il pulsante. Lo `state`
+  // da solo NON basta e lo si è verificato il 18/09/2026: fra la pressione e
+  // il ridisegno di React passa un istante, e due Invio rapidi ci stanno
+  // dentro tutti e due. Risultato: due righe nello storico per una modifica
+  // sola — e uno storico dei prezzi che non torna è un P&L che non torna.
+  // Un `ref` cambia subito, senza aspettare il ridisegno.
+  const inCorso = useRef(false)
   const [showLog, setShowLog] = useState(false)
   // La creazione di una materia prima nuova.
   const [showNuova, setShowNuova] = useState(false)
@@ -354,25 +377,28 @@ export default function MateriePrimeView({
     // Blocco sul doppio clic. Senza, due clic rapidi scrivevano due volte lo
     // stesso cambio di prezzo: due righe nello storico per una modifica sola,
     // e uno storico dei prezzi che non torna è un P&L che non torna.
-    if (salvandoPrezzo) return
+    if (inCorso.current) return
     const row = righe.find(r => r.key === confirmKey)
     if (!row) { setConfirmKey(null); return }
     const decorreISO = confirmDecorre ? new Date(confirmDecorre + 'T00:00:00').toISOString() : new Date().toISOString()
+    inCorso.current = true
     setSalvandoPrezzo(true)
     try {
       await onUpdatePrezzo?.(row.nome, confirmVal, decorreISO)
       setConfirmKey(null); setConfirmVal(null)
       cancelEdit()
     } finally {
+      inCorso.current = false
       setSalvandoPrezzo(false)
     }
   }
 
   const creaMateriaPrima = async () => {
-    if (creando) return
+    if (inCorso.current) return
     const esito = verificaNuovaMateriaPrima(nuovoNome, nuovoPrezzo, giaUsate)
     if (!esito.ok) { setErrNuova(esito.errore); return }
     setErrNuova(null)
+    inCorso.current = true
     setCreando(true)
     try {
       const risposta = await onCreaMateriaPrima?.(esito.nome, esito.prezzoKg)
@@ -382,6 +408,7 @@ export default function MateriePrimeView({
       if (risposta && risposta.ok === false) { setErrNuova(risposta.errore || 'Non sono riuscito a salvare.'); return }
       setNuovoNome(''); setNuovoPrezzo(''); setShowNuova(false)
     } finally {
+      inCorso.current = false
       setCreando(false)
     }
   }
@@ -663,7 +690,18 @@ export default function MateriePrimeView({
             : 'Non c’è ancora nessuna materia prima: aggiungi la prima qui sopra.'}
           titolo={(row) => (
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <span>{row.nome}</span>{etichettaStato(row)}
+              <span>{row.nome}</span>
+              {/* Una base non è una materia prima come le altre: ha anche una
+                  ricetta sua. Compare qui perché le hai scritto un prezzo al
+                  chilo a mano, e quel prezzo è quello che il programma usa —
+                  vince sul calcolo dai suoi ingredienti. Senza dirlo,
+                  sembrerebbe un ingrediente qualsiasi e non si capirebbe
+                  perché nel Ricettario ha anche una composizione. */}
+              {row.eBase && (
+                <span title="È una tua base, con una ricetta sua. Compare qui perché le hai scritto un prezzo al chilo, e quel prezzo è quello che il programma addebita alle ricette che la usano."
+                  style={{ fontSize: typo.small.fontSize, padding: '2px 7px', borderRadius: 4, background: T.brandLight, color: T.brand, fontWeight: 700, whiteSpace: 'nowrap', cursor: 'help' }}>base</span>
+              )}
+              {etichettaStato(row)}
             </span>
           )}
           colonne={[

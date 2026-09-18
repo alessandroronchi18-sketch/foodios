@@ -65,7 +65,7 @@ function disegna() {
  *  del costo alta come i pulsanti — vale dentro la scheda aperta, che è dove
  *  quelle cose vivono adesso. Quindi si apre, e poi si misura. */
 function apriTutte(utils) {
-  for (const barra of utils.container.querySelectorAll('[role="button"]')) {
+  for (const barra of utils.container.querySelectorAll('[aria-expanded]')) {
     fireEvent.click(barra)
   }
   return utils
@@ -137,33 +137,48 @@ describe('La barra chiusa di una base dice il minimo indispensabile', () => {
 
   it('il nome sta in cima, come nelle schede dei gusti', () => {
     const { container } = disegna()
-    const barra = container.querySelector('[role="button"]')
+    const barra = container.querySelector('[aria-expanded]')
     expect(barra.firstElementChild.firstElementChild.textContent).toBe('SALSA ZABAIONE')
   })
 
   it('il costo al chilo si vede senza aprire: è il numero per cui si apre la pagina', () => {
     const { container } = disegna()
-    expect(container.textContent).toContain('Costo / kg')
+    // Cercarlo in tutta la pagina non provava niente: «Costo / kg» è anche
+    // l'intestazione della tabella di riepilogo in fondo, quindi il test
+    // passava pure se dalle barre fosse sparito. Si guarda dentro la barra.
+    const barra = container.querySelector('[aria-expanded]')
+    expect(barra.textContent).toContain('Costo / kg')
+    expect(barra.textContent).toMatch(/\d+,\d{2}\s?€/)
   })
 
   it('il distintivo «BASE» non si ripete su ogni riga', () => {
     // In una pagina che si chiama Semilavorati, dire che ognuna è una base è
     // come mettere il cartello «libro» su ogni libro di una libreria.
+    //
+    // Scritto solo in negativo passava anche a pagina vuota: prima si conta
+    // che le barre ci siano tutte e tre e portino il loro nome.
     const { container } = disegna()
-    const barre = container.querySelectorAll('[role="button"]')
-    for (const b of barre) expect(b.textContent).not.toMatch(/\bBase\b/)
+    // Le barre si riconoscono da `aria-expanded`: contare tutti i
+    // `role="button"` prendeva dentro anche le intestazioni ordinabili della
+    // tabella di riepilogo, ed era un conteggio che si rompeva da solo.
+    const barre = [...container.querySelectorAll('[aria-expanded]')]
+    expect(barre.length).toBe(3)
+    for (const b of barre) {
+      expect(b.textContent.trim().length, 'barra vuota').toBeGreaterThan(10)
+      expect(b.textContent).not.toMatch(/\bBase\b/)
+    }
   })
 
   it('cliccando si apre e si vedono i comandi', () => {
     const utils = disegna()
-    fireEvent.click(utils.container.querySelector('[role="button"]'))
+    fireEvent.click(utils.container.querySelector('[aria-expanded]'))
     expect(utils.container.textContent).toContain('Elimina')
     expect(utils.container.textContent).toContain('Modifica')
   })
 
   it('i quattro comandi stanno in un quadrato, non in fila', () => {
     const utils = disegna()
-    fireEvent.click(utils.container.querySelector('[role="button"]'))
+    fireEvent.click(utils.container.querySelector('[aria-expanded]'))
     const quadrato = [...utils.container.querySelectorAll('div')]
       .find(el => el.style.gridTemplateColumns === '1fr 1fr' && el.textContent.includes('Elimina'))
     expect(quadrato, 'il quadrato dei comandi non si trova').toBeTruthy()

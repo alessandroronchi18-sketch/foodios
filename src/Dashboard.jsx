@@ -870,6 +870,14 @@ export function mostraSelettoreSede(view, sedi) {
 // delle migliaia. Un prezzo di 1234,5 €/kg usciva «€1234.50/kg», che in
 // italiano non è un prezzo.
 export function prezzoKgIT(v) {
+  // 18/09/2026 — la guardia c'era e non bastava. `Number(null)` fa **0**, e
+  // `Number.isFinite(0)` è vero: un prezzo che manca usciva «0,00 €/kg», cioè
+  // «gratis». È lo stesso inganno trovato lo stesso giorno nella pagina
+  // Materie prime, e in un prodotto che ripete «un valore che manca non è uno
+  // zero» è il difetto che fa più danno, perché si traveste da dato buono.
+  // Qui nessun chiamante ci passava `null` — la riga che stampa il prezzo è
+  // protetta a monte — ma la trappola restava armata per il prossimo.
+  if (v === null || v === undefined || v === '') return '—'
   const n = Number(v)
   if (!Number.isFinite(n)) return '—'
   return `${n.toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/kg`
@@ -1705,7 +1713,24 @@ export default function Dashboard({
     if (!ricettario) return;
     const key = normIng(nomeIng);
     const old = ricettario.ingredienti_costi?.[key] || { costoKg: 0, costoG: 0 };
-    const prevKg = Number(old.costoKg) || 0;
+    // Un prezzo che non c'era NON vale zero.
+    //
+    // 18/09/2026. `Number(null)` fa `0` e `Number.isFinite(0)` è vero: scritto
+    // `prezzoVecchio: Number(old.costoKg) || 0`, lo storico dichiarava che
+    // prima di questa modifica l'ingrediente era GRATIS. Non è un dettaglio di
+    // schermata: `getPrezzoStoricoKg` (foodcost.js) legge proprio quel campo
+    // per tutte le date precedenti alla prima modifica, e il food cost di una
+    // produzione di un mese fa contava quell'ingrediente a zero. Con `null`
+    // ricade sul prezzo di adesso, che è la cosa meno sbagliata che si possa
+    // dire quando il prezzo di allora non si sa.
+    //
+    // Conta da oggi, perché da oggi si possono creare materie prime SENZA
+    // prezzo (pagina Materie prime): quando poi glielo si scrive, si passa di
+    // qui con `costoKg: null` in archivio.
+    const prevKgNoto = Number.isFinite(old.costoKg) ? old.costoKg
+      : Number.isFinite(old.costoG) ? old.costoG * 1000
+      : null;
+    const prevKg = prevKgNoto ?? 0;
     const newKg  = Number(nuovoPrezzoKg) || 0;
     if (prevKg === newKg) return;
 
@@ -1744,7 +1769,7 @@ export default function Dashboard({
       data: now.toISOString(),                       // quando salvato
       decorre_da: decorre.toISOString(),             // quando entra in vigore
       ingrediente: nomeIng,
-      prezzoVecchio: prevKg,
+      prezzoVecchio: prevKgNoto,
       prezzoNuovo:   newKg,
       delta:         newKg - prevKg,
       deltaPct:      prevKg > 0 ? ((newKg - prevKg) / prevKg * 100) : null,
@@ -1830,7 +1855,10 @@ export default function Dashboard({
         data: new Date().toISOString(),
         decorre_da: new Date(`${todayLocal()}T00:00:00.000Z`).toISOString(),
         ingrediente: pulito,
-        prezzoVecchio: 0,
+        // `null`, non `0`: prima di adesso questa materia prima non esisteva,
+        // e `getPrezzoStoricoKg` legge questo campo per ogni data precedente.
+        // Uno zero qui vorrebbe dire «prima era gratis».
+        prezzoVecchio: null,
         prezzoNuovo: v,
         delta: v,
         deltaPct: null,

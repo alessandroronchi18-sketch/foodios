@@ -100,9 +100,21 @@ describe('il prezzo che non si sa si scrive `null`, non `0`', () => {
     expect(r.costo).toBeCloseTo(1.25, 3)
   })
 
-  it('chi crea la materia prima scrive `null`, e il commento dice perché', () => {
-    expect(DASH).toContain('{ costoKg: null, costoG: null }')
-    expect(DASH).toMatch(/Il prezzo che non si sa si scrive `null`, non `0`/)
+  it('chi crea la materia prima scrive `null`, in tutti i posti che lo fanno', () => {
+    // 18/09, secondo giro. La seconda riga di questa prova cercava una frase
+    // dentro un COMMENTO: bastava riformularlo per farla cadere, e soprattutto
+    // restava verde se qualcuno cambiava il codice lasciando il commento
+    // com'era. E' il difetto ricorrente di questo progetto — un test che
+    // guarda il racconto invece del fatto.
+    //
+    // E c'era di peggio: i posti che scrivono quel dato sono DUE — il
+    // Dashboard, quando si crea dalla pagina Materie prime, e «Nuovo gusto»,
+    // col pulsante «Il prezzo lo metto dopo» — e questa prova ne guardava uno
+    // solo. Cambiando null in 0 nell'altro, restava tutto verde.
+    const fs = require('node:fs')
+    const NUOVA = fs.readFileSync('src/views/NuovaRicettaView.jsx', 'utf8')
+    expect(DASH, 'il Dashboard non scrive piu null').toContain('{ costoKg: null, costoG: null }')
+    expect(NUOVA, 'Nuovo gusto non scrive piu null').toContain('{ costoKg: null, costoG: null }')
   })
 })
 

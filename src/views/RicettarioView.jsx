@@ -245,6 +245,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
       <div
         role="button"
         tabIndex={0}
+        aria-expanded={false}
         onClick={() => setExpanded(true)}
         onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(true) } }}
         className="fos-tile"

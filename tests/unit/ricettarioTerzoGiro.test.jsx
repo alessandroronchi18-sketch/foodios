@@ -234,11 +234,19 @@ describe('La barra che si scorre è stretta davvero', () => {
 })
 
 describe('La barra chiusa non ripete il ricavo', () => {
-  it('sotto il nome non c’è più «Ricavo / kg: …»', () => {
+  it('sotto il nome non c’è più «Ricavo / kg: …», ma la barra c’è ancora', () => {
     const { container } = apri()
     // 18/09/2026: «togli la scritta grigia ricavo / kg : 28,91 nei gusti».
     // Lo stesso numero era già in grande sulla destra della stessa barra.
+    //
+    // 18/09, secondo giro: questo test era scritto solo in negativo, e un
+    // controllo solo in negativo passa anche quando è sparito tutto — barra
+    // compresa. Ora prima si verifica che la barra esista e dica quello che
+    // deve dire, e POI che non ripeta il ricavo.
     const barra = container.querySelector('[role="button"].fos-tile')
+    expect(barra, 'la barra del gusto non esiste più').toBeTruthy()
+    expect(barra.textContent).toContain('FIOR DI LATTE')
+    expect(barra.textContent).toContain('Costo / kg')
     expect(barra.textContent).not.toMatch(/Ricavo \/ kg:/)
   })
 })
