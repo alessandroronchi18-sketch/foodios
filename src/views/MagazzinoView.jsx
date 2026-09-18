@@ -817,6 +817,11 @@ export default function MagazzinoView({
 }) {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
+  // 18/09/2026, misurato a 768px col tocco attivo: «Carica», il cestino e il
+  // campo della soglia uscivano a 30px sul tablet, perché scritti
+  // `dito ? 40 : 30`. L'iPad non è un telefono ma si usa col dito: qui
+  // conta quello, non la larghezza.
+  const dito = isMobile || isTablet
   // Audit 2026-09-14: la scheda aperta non veniva ricordata. Chi lavora sui
   // prezzi e passa un attimo su un'altra pagina, tornando ricominciava da
   // "Materie prime" e doveva ritrovare il punto. Si ricorda per sede.
@@ -1755,10 +1760,10 @@ export default function MagazzinoView({
                           vedeva: sono la stessa azione, devono stare sulla
                           stessa linea. Il valore si ricava dalle stesse misure
                           del cestino, non da un numero scelto a mano. */}
-                      <td style={{ padding: '8px 10px', paddingRight: 10 + (isMobile ? 40 : 30) + 6, textAlign: 'right' }}>
+                      <td style={{ padding: '8px 10px', paddingRight: 10 + (dito ? 40 : 30) + 6, textAlign: 'right' }}>
                         <button onClick={() => { setQuickLoad(r.k); setFormMode('carico'); setFormIng(r.nome); setTab('carica'); focusQtyDeferred() }}
                           title={`Carica ${r.nome} in magazzino`}
-                          style={{ padding: '0 10px', minHeight: isMobile ? 40 : 30, borderRadius: 6, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: font.size.sm, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                          style={{ padding: '0 10px', minHeight: dito ? 40 : 30, borderRadius: 6, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: font.size.sm, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
                           <Icon name="plus" size={11} />Carica
                         </button>
                       </td>
@@ -1940,7 +1945,9 @@ export default function MagazzinoView({
                 <div style={{ display: 'inline-flex', padding: 3, background: C.bgSubtle, borderRadius: 8 }}>
                   {['kg', 'g'].map(u => (
                     <button key={u} onClick={() => setUnitMode(u)}
-                      style={{ padding: '0 14px', minHeight: 38, borderRadius: 6, border: 'none', cursor: 'pointer', minWidth: 44,
+                      /* Erano 38: due pixel sotto la soglia del dito, su
+                         telefono e tablet. */
+                      style={{ padding: '0 14px', minHeight: 40, borderRadius: 6, border: 'none', cursor: 'pointer', minWidth: 44,
                         background: unitMode === u ? C.bgCard : 'transparent',
                         color: unitMode === u ? C.red : C.textSoft,
                         fontSize: 12, fontWeight: 700,
@@ -2235,15 +2242,19 @@ export default function MagazzinoView({
                             <input type="number" value={editSoglia.val} min="0" step="1"
                               aria-label="Soglia di riordino in grammi" placeholder="es. 500"
                               onChange={e => setEditSoglia({ ...editSoglia, val: e.target.value })}
-                              style={{ width: 74, padding: '5px 6px', minHeight: isMobile ? 40 : 30, borderRadius: 5, border: `1px solid ${C.borderStr}`, fontSize: font.size.sm, textAlign: 'center' }}/>
+                              style={{ width: 74, padding: '5px 6px', minHeight: dito ? 40 : 30, borderRadius: 5, border: `1px solid ${C.borderStr}`, fontSize: font.size.sm, textAlign: 'center' }}/>
                             <span style={{ fontSize: font.size.sm, color: C.textSoft, fontWeight: 600 }}>g</span>
                             <button onClick={() => handleSoglia(r.k, editSoglia.val)}
                               aria-label="Conferma la soglia"
-                              style={{ width: isMobile ? 40 : 30, height: isMobile ? 40 : 30, background: C.green, color: C.white, border: 'none', borderRadius: 5, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="check" size={13} /></button>
+                              style={{ width: dito ? 40 : 30, height: dito ? 40 : 30, background: C.green, color: C.white, border: 'none', borderRadius: 5, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="check" size={13} /></button>
                           </div>
                         ) : (
                           <button onClick={() => setEditSoglia({ nome: r.k, val: r.soglia || '' })}
-                            style={{ padding: '5px 10px', minWidth: 84, borderRadius: 6, border: `1px solid ${C.border}`, background: C.white, color: C.textMid, fontSize: font.size.sm, fontWeight: 600, cursor: 'pointer', ...TNUM, textAlign: 'center', whiteSpace: 'nowrap' }}>
+                            /* Misurato 84x26 sul tablet: nessuna altezza
+                               dichiarata, quindi la decideva il testo. È il
+                               comando con cui si imposta la soglia di
+                               riordino, e si preme col dito. */
+                            style={{ padding: '5px 10px', minWidth: 84, minHeight: dito ? 40 : 'auto', borderRadius: 6, border: `1px solid ${C.border}`, background: C.white, color: C.textMid, fontSize: font.size.sm, fontWeight: 600, cursor: 'pointer', ...TNUM, textAlign: 'center', whiteSpace: 'nowrap' }}>
                             {r.soglia > 0 ? fmtG(r.soglia) : 'Imposta'}
                           </button>
                         )}
@@ -2263,12 +2274,12 @@ export default function MagazzinoView({
                           <button
                             onClick={() => { setQuickLoad(r.k); setFormMode('carico'); setFormIng(r.nome); setTab('carica'); focusQtyDeferred() }}
                             title={`Carica ${r.nome} in magazzino`}
-                            style={{ padding: '0 10px', minHeight: isMobile ? 40 : 30, borderRadius: 6, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: font.size.sm, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                            style={{ padding: '0 10px', minHeight: dito ? 40 : 30, borderRadius: 6, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: font.size.sm, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap', flexShrink: 0 }}>
                             <Icon name="plus" size={11} />Carica
                           </button>
                           <button aria-label={`Elimina ${r.nome}`} onClick={() => { setDeleteIngConf(r.k); setDeleteIngPin('') }}
                             title="Elimina questo ingrediente"
-                            style={{ width: isMobile ? 40 : 30, height: isMobile ? 40 : 30, borderRadius: 6, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textSoft, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Icon name="trash" size={13} /></button>
+                            style={{ width: dito ? 40 : 30, height: dito ? 40 : 30, borderRadius: 6, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textSoft, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Icon name="trash" size={13} /></button>
                         </div>
                       </td>
                     </tr>

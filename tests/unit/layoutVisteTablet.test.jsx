@@ -273,7 +273,10 @@ describe('fotografia delle viste (tablet) — telefono', () => {
     // fotografia c'erano due pulsanti in tutto. Una pagina misurata chiusa da'
     // sempre zero difetti, ed e' il modo piu' facile di non trovarne.
     const apriTutto = async (v) => {
-      const barre = [...v.container.querySelectorAll('[role="button"], [aria-expanded="false"]')].slice(0, 3)
+      // Dal 18/09 le barre dichiarano `aria-expanded`: è l'aggancio giusto,
+      // perché dice «questa cosa si apre» invece di farlo indovinare. Il
+      // `role="button"` resta come rete per le barre che non l'hanno ancora.
+      const barre = [...v.container.querySelectorAll('[aria-expanded="false"], [role="button"]')].slice(0, 3)
       for (const b of barre) { fireEvent.click(b); await new Promise(r => setTimeout(r, 30)) }
       // Aperta la barra compaiono i comandi: il quadrato di due per due e il
       // pannello del dettaglio. Anche quelli vanno aperti, o restano fuori.
@@ -312,7 +315,7 @@ describe('fotografia delle viste (tablet) — telefono', () => {
     n.push(await scrivi('nuova-ricetta-prezzo', nuovaRicetta(), async (v) => {
       await nomeStorto(v)
       await new Promise(r => setTimeout(r, 40))
-      const b = [...v.container.querySelectorAll('button')].find(x => /materie prime/.test(x.textContent))
+      const b = [...v.container.querySelectorAll('button')].find(x => x.textContent.trim() === 'Aggiungila alle materie prime')
       if (b) fireEvent.click(b)
     }))
     n.push(await scrivi('formati-vendita', <FormatiVendita orgId="org-1" ricettario={ricettario}

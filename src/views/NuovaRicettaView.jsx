@@ -89,6 +89,12 @@ const inputBase = { width: '100%', padding: '10px 12px', minHeight: 44, borderRa
 export default function NuovaRicettaView({ ricettario, onSave, notify, editingRicetta, onEditConsumed, LEX = lessico(), tipoAttivita }) {
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
+  // 18/09/2026, misurato in Chromium col tocco attivo: sul tablet i pulsanti
+  // del food cost obiettivo uscivano 134x30 e la pastiglia «Sovrascrivi da
+  // foto» 150x31, perché erano scritti `isMobile ? 44 : 'auto'` e l'iPad
+  // finiva nel ramo del mouse. `dito` dice «si tocca», non «è un telefono»:
+  // telefono e tablet insieme, che è come le usa chi le usa.
+  const dito = isMobile || isTablet;
   // Le tre barre di «Informazioni prodotto». Su telefono una sotto l'altra,
   // su tablet due colonne (col nome che si prende la riga), su computer tre.
   // Le tre barre di «Informazioni prodotto»: telefono una sotto l'altra,
@@ -1770,7 +1776,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                       <button key={aid} type="button"
                         onClick={() => setForm(f => ({ ...f, allergeniManual: [...(f.allergeniManual || []), aid] }))}
                         title={`Confermo che contiene ${a.label}`}
-                        style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "0 12px", minHeight: isMobile ? 44 : 32, borderRadius: R.full, background: T.bgCard, border: `1.5px dashed ${T.amber}`, color: T.amber, ...typo.small, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                        style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "0 12px", minHeight: dito ? 44 : 32, borderRadius: R.full, background: T.bgCard, border: `1.5px dashed ${T.amber}`, color: T.amber, ...typo.small, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
                         <Icon name="plus" size={12} />{a.label}
                       </button>
                     );
@@ -1869,10 +1875,10 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
               </div>
               <div style={{ fontSize: 12, color: C.textMid, marginBottom: 10 }}>La ricetta esistente verrà sostituita con i nuovi ingredienti e dati.</div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <button onClick={doSaveRicetta} disabled={saving} style={{ padding: isMobile ? "12px 18px" : "9px 18px", minHeight: isMobile ? 44 : 'auto', background: C.amber, color: C.white, border: "none", borderRadius: 8, fontWeight: 800, fontSize: isMobile ? 13 : 12, cursor: saving ? "default" : "pointer", opacity: saving ? 0.6 : 1, display: "inline-flex", alignItems: "center", gap: 6, flex: isMobile ? '1 1 auto' : 'unset', justifyContent: 'center' }}>
+                <button onClick={doSaveRicetta} disabled={saving} style={{ padding: isMobile ? "12px 18px" : "9px 18px", minHeight: dito ? 44 : 'auto', background: C.amber, color: C.white, border: "none", borderRadius: 8, fontWeight: 800, fontSize: isMobile ? 13 : 12, cursor: saving ? "default" : "pointer", opacity: saving ? 0.6 : 1, display: "inline-flex", alignItems: "center", gap: 6, flex: isMobile ? '1 1 auto' : 'unset', justifyContent: 'center' }}>
                   <Icon name="checkCircle" size={14} /> {saving ? "Salvataggio…" : "Sì, sovrascrivi"}
                 </button>
-                <button onClick={() => setOverwriteConf(null)} disabled={saving} style={{ padding: isMobile ? "12px 14px" : "9px 14px", minHeight: isMobile ? 44 : 'auto', background: C.white, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: isMobile ? 13 : 12, color: C.textMid, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, justifyContent: 'center' }}>
+                <button onClick={() => setOverwriteConf(null)} disabled={saving} style={{ padding: isMobile ? "12px 14px" : "9px 14px", minHeight: dito ? 44 : 'auto', background: C.white, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: isMobile ? 13 : 12, color: C.textMid, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, justifyContent: 'center' }}>
                   <Icon name="x" size={13} /> Annulla
                 </button>
               </div>
@@ -2003,7 +2009,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                 <div style={{ display: "flex", gap: 3, padding: 3, background: C.bgSubtle, borderRadius: R.md }}>
                   {[25, 28, 30, 33, 35].map(t => (
                     <button key={t} onClick={() => setTargetPct(t)}
-                      style={{ flex: 1, padding: isMobile ? "10px 4px" : "6px 4px", minHeight: isMobile ? 44 : 'auto', borderRadius: R.sm, border: "none", cursor: "pointer", fontSize: isMobile ? 13 : 12, fontWeight: targetPct === t ? 700 : 500, ...TNUM, background: targetPct === t ? C.bgCard : "transparent", color: targetPct === t ? C.red : C.textSoft, boxShadow: targetPct === t ? "0 1px 2px rgba(15,23,42,0.08)" : "none" }}>{t}%</button>
+                      style={{ flex: 1, padding: isMobile ? "10px 4px" : "6px 4px", minHeight: dito ? 44 : 'auto', borderRadius: R.sm, border: "none", cursor: "pointer", fontSize: isMobile ? 13 : 12, fontWeight: targetPct === t ? 700 : 500, ...TNUM, background: targetPct === t ? C.bgCard : "transparent", color: targetPct === t ? C.red : C.textSoft, boxShadow: targetPct === t ? "0 1px 2px rgba(15,23,42,0.08)" : "none" }}>{t}%</button>
                   ))}
                 </div>
               </div>
@@ -2062,7 +2068,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                       non vogliamo nemmeno offrire l'opzione di abbassare. */}
                   {live.deltaPrezzo > 0.01 && (
                     <button type="button" onClick={() => setForm(f => ({ ...f, prezzo: live.prezzoConsigliato }))}
-                      style={{ marginTop: 10, width: "100%", padding: isMobile ? "13px" : "9px", minHeight: isMobile ? 44 : 'auto', background: C.white, color: C.red, border: `1px solid ${C.red}`, borderRadius: 8, fontSize: isMobile ? 13 : 12, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                      style={{ marginTop: 10, width: "100%", padding: isMobile ? "13px" : "9px", minHeight: dito ? 44 : 'auto', background: C.white, color: C.red, border: `1px solid ${C.red}`, borderRadius: 8, fontSize: isMobile ? 13 : 12, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
                       <Icon name="check" size={14} /> Alza al minimo target
                     </button>
                   )}
@@ -2137,6 +2143,11 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
 // esistenti (sostituisce "Modifica esistente") + icon-buttons compatti
 // (📷 foto, 🗑 elimina) con badge count + toggle "sovrascrivi da foto".
 function CommandBar({ isMobile, ricetteEsistenti, activeNome, onPickExisting, activeAction, onToggleAction, forceOverwrite, setForceOverwrite, LEX }) {
+  // Il tablet non arriva come proprietà: qui si chiede direttamente, perché
+  // `isMobile ? 44 : 'auto'` lasciava la pastiglia «Sovrascrivi da foto» a
+  // 31px sull'iPad — misurato il 18/09/2026 a 768px col tocco attivo.
+  const isTabletCB = useIsTablet()
+  const dito = isMobile || isTabletCB
   const [q, setQ] = useState('')
   const [showList, setShowList] = useState(false)
   const wrapRef = useRef(null)
@@ -2277,7 +2288,7 @@ function CommandBar({ isMobile, ricetteEsistenti, activeNome, onPickExisting, ac
             : 'Spento: se hai già una ricetta con lo stesso nome, resta com\'è. Dalla foto entrano solo le ricette nuove.'}
           style={{
             padding: isMobile ? '8px 12px' : '7px 12px',
-            minHeight: isMobile ? 44 : 'auto',
+            minHeight: dito ? 44 : 'auto',
             background: forceOverwrite ? '#FEF3C7' : '#F8F7F5',
             border: `1px solid ${forceOverwrite ? '#F59E0B' : C.border}`,
             borderRadius: R.full,

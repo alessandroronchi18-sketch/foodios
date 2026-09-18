@@ -95,3 +95,34 @@ describe('Il conto in cima alla pagina non si sfalsa', () => {
     expect(senzaPrezzo).not.toContain('crema pasticcera')
   })
 })
+
+describe('Lo zero non fa vincere una base', () => {
+  // Trovato il 18/09 da un audit: `foodcost.js` fa vincere il prezzo scritto
+  // a mano solo se è maggiore di zero, questa pagina invece accettava anche
+  // lo zero. La pagina prometteva «è questo che il programma addebita» e con
+  // lo zero era falso — una base da 3,20 €/kg messa a 0 veniva comunque
+  // calcolata dalla sua ricetta.
+  const conZero = {
+    ingredienti_costi: {
+      'base bianca': { costoKg: 0, costoG: 0 },
+      panna: { costoKg: 4.7, costoG: 0.0047 },
+    },
+    ricette: RICETTARIO.ricette,
+  }
+
+  it('una base dichiarata a zero non compare fra le materie prime', () => {
+    const k = materiePrimeDaRicettario(conZero).map(r => r.key)
+    expect(k).not.toContain('base bianca')
+  })
+
+  it('ma per una materia prima vera zero resta un prezzo', () => {
+    // L'omaggio del fornitore, la roba dell'orto: è un dato, non un buco.
+    const r = materiePrimeDaRicettario({
+      ingredienti_costi: { panna: { costoKg: 0, costoG: 0 } },
+      ricette: { X: { nome: 'X', tipo: 'gusto', unita: 1, prezzo: 0, ingredienti: [{ nome: 'panna', qty1stampo: 100 }] } },
+    }).find(x => x.key === 'panna')
+    expect(r).toBeTruthy()
+    expect(r.statoPrezzo).toBe('tuo')
+    expect(r.prezzoKg).toBe(0)
+  })
+})

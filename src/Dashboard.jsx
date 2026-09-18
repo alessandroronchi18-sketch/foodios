@@ -1385,7 +1385,13 @@ export default function Dashboard({
       Promise.all([loadRicettario,loadPS(SK_PROD,()=>({})),sload(SK_ACT),loadPS(SK_MAG,_mergeMag),loadPS(SK_LOGRIF,_mergeArr),loadGiornaliero,
         // Chiusure: dalla tabella chiusure_cassa, non più dal blob user_data.
         caricaChiusure(orgId, sedeId, { tutteLeSedi: allM }).catch(e => { console.error('caricaChiusure:', e); return null }),
-        sload(SK_EXCL),sload(SK_LOG_PRZ)]),
+        // 18/09/2026 — allo storico dei prezzi il dipendente non lo chiede
+        // nemmeno. Il database ora glielo rifiuta (`is_chiave_sensibile`,
+        // migrazione 20260918a), ma chiederlo lo stesso vorrebbe dire una
+        // chiamata inutile a ogni apertura e un `null` da distinguere da un
+        // elenco davvero vuoto. Contiene i prezzi di acquisto e il nome di
+        // chi li ha cambiati: è il registro dei costi, non roba da laboratorio.
+        sload(SK_EXCL), isDip ? Promise.resolve([]) : sload(SK_LOG_PRZ)]),
       timeout
     ]).then(([ric,prod,act,mag,logrif,gior,chius,excl,logprz])=>{
       setOfflineMode(false);

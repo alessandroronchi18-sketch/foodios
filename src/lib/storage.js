@@ -55,6 +55,9 @@ export const SHARED_KEYS = [
   'pasticceria-log-prezzi-v1',
   // Organigramma aziendale: reparti + assegnazioni, unico per azienda (non per-sede).
   'pasticceria-organigramma-v1',
+  // Materiali di confezionamento (cono, coppetta, cucchiaino, fazzoletto) con
+  // il loro costo: sono gli stessi in tutti i negozi, come il ricettario.
+  'pasticceria-materiali-confezionamento-v1',
 ]
 
 export function isSharedKey(key) {

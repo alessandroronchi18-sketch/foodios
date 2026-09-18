@@ -52,16 +52,34 @@ describe('Le icone nei pulsanti quadrati stanno al centro', () => {
     expect(pulsantiScentrati()).toEqual([])
   })
 
+  // 18/09, secondo giro: queste due prove erano inchiodate alla stringa
+  // letterale `width: isMobile ? 40 : 32`. Bastava cambiare quella misura —
+  // ed è successo lo stesso giorno, portando il tablet da 32 a 44 perché si
+  // tocca col dito come un telefono — per farle cadere senza che nulla fosse
+  // rotto. Adesso il pulsante si trova dal suo `aria-label`, che è quello che
+  // lo identifica davvero, e si guarda lo stile che ha.
+  const rigaStileDi = (file, ancora) => {
+    const righe = fs.readFileSync(file, 'utf8').split('\n')
+    const i = righe.findIndex(r => r.includes(ancora))
+    if (i < 0) return null
+    return righe.slice(i, i + 4).find(r => r.includes('style={{'))
+  }
+
   it('il cestino del Listino è centrato — è quello che il titolare ha visto storto', () => {
-    const s = fs.readFileSync('src/components/FormatiVendita.jsx', 'utf8')
-    const riga = s.split('\n').find(r => r.includes("width: isMobile ? 40 : 32") && r.includes('height'))
-    expect(riga, 'il pulsante quadrato del Listino non esiste più: aggiorna il test').toBeTruthy()
+    const riga = rigaStileDi('src/components/FormatiVendita.jsx', 'aria-label={`Elimina il formato')
+    expect(riga, 'il pulsante che elimina un formato non si trova più: aggiorna il test').toBeTruthy()
     expect(riga).toContain("justifyContent: 'center'")
   })
 
   it('il `gap` sparisce dai pulsanti con un figlio solo: non regolava niente', () => {
-    const s = fs.readFileSync('src/components/FormatiVendita.jsx', 'utf8')
-    const riga = s.split('\n').find(r => r.includes("width: isMobile ? 40 : 32") && r.includes('height'))
+    const riga = rigaStileDi('src/components/FormatiVendita.jsx', 'aria-label={`Elimina il formato')
     expect(riga).not.toContain('gap:')
+  })
+
+  it('e su tablet è grande abbastanza per un dito', () => {
+    // Il difetto del 18/09: «tutto quello che non è telefono» comprendeva
+    // l'iPad, e lì il cestino restava 32px.
+    const riga = rigaStileDi('src/components/FormatiVendita.jsx', 'aria-label={`Elimina il formato')
+    expect(riga).toMatch(/width: dito \? 44/)
   })
 })

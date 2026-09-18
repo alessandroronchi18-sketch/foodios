@@ -9,9 +9,9 @@
 // riconcilia produzione e cassa. Vedi src/lib/formatiVendita.js.
 
 import React, { useEffect, useMemo, useState } from 'react'
-import { color as T, radius as R, shadow as S, typo, ui3, ui } from '../lib/theme'
+import { color as T, radius as R, shadow as S, typo, ui3, ui, font } from '../lib/theme'
 import { sload, ssave } from '../lib/storage'
-import { SK_FORMATI } from '../lib/storageKeys'
+import { SK_FORMATI, SK_MATERIALI } from '../lib/storageKeys'
 import { buildIngCosti, isRicettaValida, getR } from '../lib/foodcost'
 import {
   nuovoFormato, avgFCperGCategoria, dettaglioFCperGCategoria, fcStimatoFormato,
@@ -19,7 +19,7 @@ import {
 } from '../lib/formatiVendita'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { lessico } from '../lib/lessico'
-import { KPI, fmt as fmtEuro, PageHeader, SH } from '../views/_shared'
+import { KPI, fmt as fmtEuro, PageHeader, SH, CampoConElenco } from '../views/_shared'
 import Icon from './Icon'
 import PrezziPerSedeModal from './PrezziPerSedeModal'
 import { fmtp0 } from '../lib/formatIt'
@@ -44,10 +44,23 @@ export default function FormatiVendita({ orgId, ricettario, onSaveRicettario, no
   const LEX = useMemo(() => lessico(tipoAttivita), [tipoAttivita])
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
+  // 18/09/2026 — «isMobile ? grande : piccolo» lascia fuori il tablet, che si
+  // tocca col dito esattamente come un telefono. È la seconda volta che
+  // succede: il 15/09 la stessa forma aveva lasciato 95 campi sotto la misura
+  // anti-zoom su iPad. Qui la domanda si fa una volta e si chiama col suo
+  // nome, così non si può più rispondere per metà.
+  const dito = isMobile || isTablet
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario])
   const [formati, setFormati] = useState([])
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState(null) // formato in editing, o null
+  // Quale delle due spiegazioni è aperta: 'serve' | 'materiali' | null.
+  // Una per volta: aperte insieme tornerebbero le nove righe di prima.
+  const [aiuto, setAiuto] = useState(null)
+  // I materiali di confezionamento dell'azienda: [{ nome, costo, unita }]
+  const [materiali, setMateriali] = useState([])
+  const [pannelloMateriali, setPannelloMateriali] = useState(false)
+  const [nuovoMat, setNuovoMat] = useState({ nome: '', costo: '' })
   const [expanded, setExpanded] = useState(null) // id formato col breakdown aperto
   const [prezziSedeTarget, setPrezziSedeTarget] = useState(null) // formato per cui aprire modal "Prezzi per sede"
   const [assegnando, setAssegnando] = useState(false)
@@ -69,9 +82,69 @@ export default function FormatiVendita({ orgId, ricettario, onSaveRicettario, no
   useEffect(() => {
     let alive = true
     if (!orgId) { setLoading(false); return }
-    sload(SK_FORMATI, orgId, null).then(v => { if (alive) { setFormati(Array.isArray(v) ? v : []); setLoading(false) } })
+    Promise.all([
+      sload(SK_FORMATI, orgId, null),
+      sload(SK_MATERIALI, orgId, null),
+    ]).then(([f, m]) => {
+      if (!alive) return
+      setFormati(Array.isArray(f) ? f : [])
+      setMateriali(Array.isArray(m) ? m : [])
+      setLoading(false)
+    })
     return () => { alive = false }
   }, [orgId])
+
+  // ── I materiali di confezionamento si scrivono una volta sola ──────────
+  //
+  // 18/09/2026, il titolare: «c'è margine di errore se l'utente scrive
+  // coppettp o fazzolettp. e poi i costi per singola coppetta o singolo
+  // fazzoletto sono molto bassi. possiamo invertire il calcolo: l'utente in
+  // quella pagina inserisce tutti i prodotti che usa legati alla vendita —
+  // cucchiaini, fazzoletti, coppette — e spiega quanto spende per ognuno. una
+  // volta salvati, quando clicca nuovo formato e fa "aggiungi materiale"
+  // compare l'elenco fisso. se un prodotto non viene aggiunto prima, non
+  // compare nell'elenco».
+  //
+  // Prima ogni formato portava i suoi materiali scritti a mano, nome e prezzo.
+  // Due guai, tutt'e due silenziosi: «coppettp» diventava un materiale nuovo
+  // che nessuno notava, e il costo — tre o quattro millesimi di euro — andava
+  // ribattuto a ogni formato, con uno zero in più o in meno che non si vede.
+  // Scrivendolo una volta sola, correggerlo lo corregge dappertutto.
+  //
+  // L'elenco da cui si sceglie comprende anche i materiali che stanno già
+  // dentro i formati salvati: chi ha compilato prima di oggi non si trova il
+  // suo lavoro fuori elenco.
+  const nomiMateriali = useMemo(() => {
+    const s = new Map()
+    for (const m of materiali) {
+      const n = String(m?.nome || '').trim()
+      if (n) s.set(n.toLowerCase(), n)
+    }
+    for (const f of formati) {
+      for (const c of (f?.componenti || [])) {
+        const n = String(c?.nome || '').trim()
+        if (n && !s.has(n.toLowerCase())) s.set(n.toLowerCase(), n)
+      }
+    }
+    return [...s.values()].sort((a, b) => a.localeCompare(b, 'it'))
+  }, [materiali, formati])
+
+  const costoDiMateriale = (nome) => {
+    const k = String(nome || '').trim().toLowerCase()
+    const m = materiali.find(x => String(x?.nome || '').trim().toLowerCase() === k)
+    return m && Number.isFinite(Number(m.costo)) ? Number(m.costo) : null
+  }
+
+  const persistMateriali = async (arr) => {
+    try {
+      await ssave(SK_MATERIALI, arr, orgId, null)
+    } catch (e) {
+      notify?.('Errore salvataggio materiali: ' + (e.message || 'rete'), false)
+      return false
+    }
+    setMateriali(arr)
+    return true
+  }
 
   const persist = async (arr) => {
     // SAVE FIRST per evitare data-loss.
@@ -224,9 +297,9 @@ export default function FormatiVendita({ orgId, ricettario, onSaveRicettario, no
 
   const nuovoBtn = !form && (
     <button onClick={() => apriEditor(nuovoFormato())}
-      style={{ padding: '10px 16px', borderRadius: R.md, border: 'none', background: T.brand, color: '#fff',
+      style={{ padding: '10px 16px', minHeight: dito ? 44 : 38, borderRadius: R.md, border: 'none', background: T.brand, color: '#fff',
         fontSize: 13, fontWeight: 700, cursor: 'pointer', letterSpacing: '-0.005em',
-        display: 'inline-flex', alignItems: 'center', gap: 6, boxShadow: S.brand }}>
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, boxShadow: S.brand }}>
       <Icon name="plus" size={15} />Nuovo formato
     </button>
   )
@@ -238,39 +311,135 @@ export default function FormatiVendita({ orgId, ricettario, onSaveRicettario, no
         action={nuovoBtn}
       />
 
-      {/* A cosa serve — spiegazione, non avviso.
-          Era su fondo ambra col bordo ambra, come l'avviso dei materiali
-          mancanti che sta subito sotto: due riquadri gialli in fila, e chi
-          legge non sa quale dei due chiede qualcosa. Questo non chiede niente,
-          spiega — quindi neutro, e l'ambra resta a chi ha bisogno di un'azione. */}
-      <div style={{ background: T.bgSubtle, border: `1px solid ${T.border}`, borderRadius: 14, padding: '14px 18px', marginBottom: 16, fontSize: typo.small.fontSize, color: T.textMid, lineHeight: 1.6, display: 'flex', gap: 11, alignItems: 'flex-start' }}>
-        <span style={{ flexShrink: 0, marginTop: 1, color: T.textSoft }}><Icon name="receipt" size={16} /></span>
-        <span>
-          <b>A cosa serve.</b> Se la tua cassa batte righe senza il gusto (es. <i>"Cono piccolo"</i>, <i>"Vaschetta 500g"</i>, <i>"Panino"</i>),
-          qui le colleghi a una <b>categoria di ricette</b>. In chiusura cassa il ricavo viene contato per intero e il food cost stimato come
-          media dei gusti di quella categoria, più i materiali di confezionamento - così cassa e produzione tornano anche senza il dettaglio del gusto.
-        </span>
+      {/* ── Le due spiegazioni lunghe stanno dietro due pulsanti ────────
+          18/09/2026, richiesta del titolare: «queste scritte sono troppo
+          invasive, racchiudile in due pulsanti, così se uno ha bisogno di
+          sapere a cosa serve clicca e viene fuori la spiegazione, e l'altro è
+          un alert idem che si deve cliccare, così la pagina viene più pulita
+          ed elegante».
+
+          Erano due riquadri pieni di testo uno sopra l'altro, prima ancora dei
+          numeri: nove righe da leggere per arrivare alla pagina. Chi apre il
+          Listino la seconda volta le ha già lette, e gliele si rimetteva
+          davanti ogni giorno.
+
+          Restano tutt'e due, e nessuna delle due perde una parola: quella che
+          spiega a cosa serve la pagina, e l'avviso sui materiali mancanti —
+          che è la cosa più importante qui dentro, perché finché mancano il
+          margine che la cassa mostra è più alto del vero. L'avviso però non
+          diventa muto: il pulsante resta color ambra e dice **quanti** formati
+          sono scoperti, così il segnale si vede anche chiuso. È la differenza
+          fra nascondere un problema e non ripeterne la spiegazione. */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: aiuto ? 10 : 18 }}>
+        <button type="button" onClick={() => setAiuto(a => a === 'serve' ? null : 'serve')}
+          aria-expanded={aiuto === 'serve'}
+          style={{ minHeight: dito ? 44 : 36, padding: '0 12px', borderRadius: 9, cursor: 'pointer', fontFamily: 'inherit',
+            border: `1px solid ${T.border}`, background: aiuto === 'serve' ? T.bgSubtle : 'transparent',
+            color: T.textMid, fontSize: typo.small.fontSize, fontWeight: 700,
+            display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <Icon name={aiuto === 'serve' ? 'chevDown' : 'chevR'} size={12} />A cosa serve
+        </button>
+        <button type="button" onClick={() => setPannelloMateriali(v => !v)}
+          aria-expanded={pannelloMateriali}
+          style={{ minHeight: dito ? 44 : 36, padding: '0 12px', borderRadius: 9, cursor: 'pointer', fontFamily: 'inherit',
+            border: `1px solid ${T.border}`, background: pannelloMateriali ? T.bgSubtle : 'transparent',
+            color: T.textMid, fontSize: typo.small.fontSize, fontWeight: 700,
+            display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <Icon name="package" size={12} />I tuoi materiali
+          <span style={{ color: T.textSoft, fontWeight: 600 }}>{nomiMateriali.length}</span>
+        </button>
+        {diag.n > 0 && diag.senzaMateriali > 0 && (
+          <button type="button" onClick={() => setAiuto(a => a === 'materiali' ? null : 'materiali')}
+            aria-expanded={aiuto === 'materiali'}
+            style={{ minHeight: dito ? 44 : 36, padding: '0 12px', borderRadius: 9, cursor: 'pointer', fontFamily: 'inherit',
+              border: `1px solid ${T.amber}66`, background: aiuto === 'materiali' ? T.amberLight : 'transparent',
+              color: T.amber, fontSize: typo.small.fontSize, fontWeight: 700,
+              display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <Icon name="package" size={12} />
+            {diag.senzaMateriali === diag.n
+              ? (diag.n === 1 ? 'Manca il confezionamento' : `Manca il confezionamento su tutti e ${diag.n}`)
+              : `Manca il confezionamento su ${diag.senzaMateriali} di ${diag.n}`}
+          </button>
+        )}
       </div>
 
-      {/* I materiali mancanti, detti una volta in cima.
-          Nei dati reali del design partner sono 5 formati su 5 senza nessun
-          materiale: il costo del cono, della vaschetta, del fazzoletto. Senza
-          quelli il food cost stimato conta solo il prodotto, quindi il margine
-          che la cassa mostra è più alto del vero — e il pezzo di valore di
-          questa pagina non fa niente. Lo si dice una volta, non su ogni riga. */}
-      {diag.n > 0 && diag.senzaMateriali > 0 && (
+      {aiuto === 'serve' && (
+        <div style={{ background: T.bgSubtle, border: `1px solid ${T.border}`, borderRadius: 14, padding: '14px 18px', marginBottom: 16, fontSize: typo.small.fontSize, color: T.textMid, lineHeight: 1.6, display: 'flex', gap: 11, alignItems: 'flex-start' }}>
+          <span style={{ flexShrink: 0, marginTop: 1, color: T.textSoft }}><Icon name="receipt" size={16} /></span>
+          <span>
+            Se la tua cassa batte righe senza il gusto (es. <i>"Cono piccolo"</i>, <i>"Vaschetta 500g"</i>, <i>"Panino"</i>),
+            qui le colleghi a una <b>categoria di ricette</b>. In chiusura cassa il ricavo viene contato per intero e il food cost stimato come
+            media dei gusti di quella categoria, più i materiali di confezionamento - così cassa e produzione tornano anche senza il dettaglio del gusto.
+          </span>
+        </div>
+      )}
+
+      {aiuto === 'materiali' && diag.n > 0 && diag.senzaMateriali > 0 && (
         <div style={{ background: T.amberLight, border: `1px solid ${T.amber}55`, borderRadius: 10, padding: '13px 16px', marginBottom: 16, display: 'flex', alignItems: 'flex-start', gap: 10 }}>
           <span style={{ color: T.amber, flexShrink: 0, display: 'inline-flex', marginTop: 1 }}><Icon name="package" size={16} /></span>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, color: T.amber, marginBottom: 3 }}>
-              {diag.senzaMateriali === diag.n
-                ? (diag.n === 1 ? 'Questo formato non ha i materiali di confezionamento' : 'Nessun formato ha i materiali di confezionamento')
-                : `${diag.senzaMateriali} formati su ${diag.n} non hanno i materiali di confezionamento`}
-            </div>
-            <div style={{ fontSize: typo.small.fontSize, color: T.textMid, lineHeight: 1.55 }}>
-              Sono il cono, la vaschetta, il coperchio, il fazzoletto: pochi centesimi l'uno, ma li paghi su ogni pezzo che vendi. Finché mancano, il food cost stimato conta solo il gelato — quindi il margine che vedi in chiusura cassa è più alto di quello vero.
-            </div>
+          <div style={{ minWidth: 0, fontSize: typo.small.fontSize, color: T.textMid, lineHeight: 1.55 }}>
+            Sono il cono, la vaschetta, il coperchio, il fazzoletto: pochi centesimi l&rsquo;uno, ma li paghi su ogni pezzo che vendi. Finché mancano, il food cost stimato conta solo il gelato — quindi il margine che vedi in chiusura cassa è più alto di quello vero.
           </div>
+        </div>
+      )}
+
+      {pannelloMateriali && (
+        <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 14, padding: isMobile ? '14px 14px' : '16px 18px', marginBottom: 18 }}>
+          <div style={{ fontSize: font.size.md, fontWeight: 800, color: T.text, marginBottom: 3 }}>I materiali di confezionamento</div>
+          <div style={{ fontSize: typo.small.fontSize, color: T.textSoft, lineHeight: 1.55, marginBottom: 12 }}>
+            Cono, coppetta, cucchiaino, fazzoletto, vaschetta: scrivili qui una volta sola con quanto ti costa <b>uno</b>. Poi, quando componi un formato, li scegli da questo elenco — così il nome è sempre lo stesso e il prezzo si corregge in un posto solo.
+          </div>
+
+          {materiali.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
+              {materiali.map((m, i) => (
+                <div key={i} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 96px 40px' : '2fr 130px 40px', gap: 8, alignItems: 'center' }}>
+                  <input style={inputStyle} value={m.nome || ''} aria-label={`Nome del materiale ${i + 1}`}
+                    onChange={e => setMateriali(arr => arr.map((x, j) => j === i ? { ...x, nome: e.target.value } : x))}
+                    onBlur={() => persistMateriali(materiali)} />
+                  <input style={{ ...inputStyle, textAlign: 'right', ...TNUM }} value={m.costo ?? ''} inputMode="decimal"
+                    aria-label={`Costo di un ${m.nome || 'materiale'}`} placeholder="es. 0,060"
+                    onChange={e => setMateriali(arr => arr.map((x, j) => j === i ? { ...x, costo: e.target.value.replace(',', '.') } : x))}
+                    onBlur={() => persistMateriali(materiali)} />
+                  <button onClick={() => persistMateriali(materiali.filter((_, j) => j !== i))}
+                    aria-label={`Togli ${m.nome || 'il materiale'}`} title="Togli"
+                    style={{ width: 36, height: 36, padding: 0, background: 'transparent', color: T.textSoft, border: `1px solid ${T.border}`, borderRadius: R.sm, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Icon name="trash" size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 96px' : '2fr 130px', gap: 8, alignItems: 'center' }}>
+            <input style={inputStyle} value={nuovoMat.nome} aria-label="Nome del materiale da aggiungere"
+              placeholder="es. Cono cialda piccolo"
+              onChange={e => setNuovoMat(v => ({ ...v, nome: e.target.value }))} />
+            <input style={{ ...inputStyle, textAlign: 'right', ...TNUM }} value={nuovoMat.costo} inputMode="decimal"
+              aria-label="Costo di un pezzo in euro" placeholder="es. 0,060"
+              onChange={e => setNuovoMat(v => ({ ...v, costo: e.target.value.replace(',', '.') }))} />
+          </div>
+          <button
+            onClick={async () => {
+              const nome = nuovoMat.nome.trim()
+              if (!nome) { notify?.('Scrivi il nome del materiale', false); return }
+              if (nomiMateriali.some(n => n.toLowerCase() === nome.toLowerCase())) {
+                notify?.(`"${nome}" c'è già fra i tuoi materiali`, false); return
+              }
+              // Il costo può mancare: un materiale senza prezzo si dichiara
+              // mancante e si vede, uno salvato a zero direbbe «gratis» e
+              // sparirebbe dentro il food cost senza un fiato.
+              const grezzo = String(nuovoMat.costo).trim()
+              const costo = grezzo === '' ? null : Number(grezzo)
+              if (grezzo !== '' && !Number.isFinite(costo)) { notify?.('Il costo dev’essere un numero, per esempio 0,060', false); return }
+              if (await persistMateriali([...materiali, { nome, costo }])) {
+                setNuovoMat({ nome: '', costo: '' })
+                notify?.(`"${nome}" aggiunto ai materiali`)
+              }
+            }}
+            style={{ marginTop: 8, padding: '9px 14px', minHeight: 40, background: 'transparent', color: T.textMid, border: `1px dashed ${T.borderStr}`, borderRadius: R.md, fontSize: typo.small.fontSize, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'inherit' }}>
+            <Icon name="plus" size={13} />Aggiungi ai materiali
+          </button>
         </div>
       )}
 
@@ -328,7 +497,7 @@ export default function FormatiVendita({ orgId, ricettario, onSaveRicettario, no
                 <button key={cat} type="button" disabled={assegnando}
                   onClick={() => assegnaCategoriaATutte(cat)}
                   style={{
-                    padding: '7px 13px', minHeight: 36, borderRadius: 9,
+                    padding: '7px 13px', minHeight: dito ? 44 : 36, borderRadius: 9,
                     border: `1px solid ${T.amber}`, background: T.bgCard, color: T.amberDark,
                     fontSize: typo.small.fontSize, fontWeight: 700,
                     cursor: assegnando ? 'default' : 'pointer', opacity: assegnando ? 0.6 : 1,
@@ -348,11 +517,18 @@ export default function FormatiVendita({ orgId, ricettario, onSaveRicettario, no
             <span style={{ color: T.brand }}><Icon name={isEditing ? 'edit' : 'plus'} size={16} /></span>
             {isEditing ? 'Modifica formato' : 'Nuovo formato di vendita'}
           </div>
-          <div style={{ fontSize: 12, color: T.textSoft, marginBottom: 18 }}>
+          {/* 18/09/2026: «rivedi la grandezza di tutte le box quando si clicca
+              nuovo formato, falle anche più piccole, intelligenti e coerenti,
+              non usando spazio inutile». Il modulo era tutto a respiro largo —
+              18px sotto la spiegazione, 16 fra i campi, 18 sopra l'anteprima —
+              e per arrivare al pulsante Salva si scorreva. Le misure scendono
+              dove sono aria e restano dove servono a separare due cose
+              diverse. */}
+          <div style={{ fontSize: 12, color: T.textSoft, marginBottom: 12 }}>
             Dai un nome uguale a come appare sullo scontrino, collega la categoria di gusti e descrivi cosa serve per confezionarlo.
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
             <div>
               <label style={labelStyle}>Nome formato (come sullo scontrino)</label>
               <input style={inputStyle} value={form.nome} onChange={e => setForm({ ...form, nome: e.target.value })} placeholder="es. Cono piccolo" />
@@ -400,8 +576,27 @@ export default function FormatiVendita({ orgId, ricettario, onSaveRicettario, no
                 const subtot = (Number(c.qta) || 0) * (Number(c.costo) || 0)
                 return (
                   <div key={i} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 74px 96px 44px' : '2fr 80px 110px 100px 40px', gap: 8, alignItems: 'center' }}>
-                    <input style={inputStyle} value={c.nome || ''} placeholder="es. Cono cialda piccolo"
-                      onChange={e => setForm(f => ({ ...f, componenti: f.componenti.map((x, j) => j === i ? { ...x, nome: e.target.value } : x) }))}/>
+                    {/* Si sceglie, non si scrive. «coppettp» non entra più, e
+                        il costo arriva dall'elenco invece di essere ribattuto
+                        a mano ogni volta — erano tre millesimi di euro, quelli
+                        in cui uno zero in più non si vede. */}
+                    <CampoConElenco
+                      id={`materiale-${i}`}
+                      valore={c.nome || ''}
+                      onCambia={(v) => setForm(f => ({ ...f, componenti: f.componenti.map((x, j) => {
+                        if (j !== i) return x
+                        const costo = costoDiMateriale(v)
+                        return { ...x, nome: v, ...(costo != null ? { costo } : {}) }
+                      }) }))}
+                      voci={nomiMateriali}
+                      placeholder="es. Cono cialda piccolo"
+                      ariaLabel={`Materiale ${i + 1}`}
+                      stile={inputStyle}
+                      soloDallElenco
+                      onCreaNuova={(nome) => { setPannelloMateriali(true); setNuovoMat({ nome, costo: '' }) }}
+                      etichettaCrea="Aggiungilo ai materiali"
+                      nomeElenco="materiali di confezionamento"
+                    />
                     <input style={{ ...inputStyle, textAlign: 'right', ...TNUM }} type="number" min="0" step="0.01" value={c.qta ?? ''} placeholder="es. 1"
                       onChange={e => setForm(f => ({ ...f, componenti: f.componenti.map((x, j) => j === i ? { ...x, qta: e.target.value } : x) }))}/>
                     <input style={{ ...inputStyle, textAlign: 'right', ...TNUM }} type="number" min="0" step="0.001" value={c.costo ?? ''} placeholder="es. 0,060"
@@ -423,7 +618,7 @@ export default function FormatiVendita({ orgId, ricettario, onSaveRicettario, no
 
           {/* Anteprima FC del formato in editing */}
           {previewFC && (
-            <div style={{ marginTop: 18, padding: '14px 16px', background: previewFC.avg == null ? T.amberLight : T.greenLight, border: `1px solid ${previewFC.avg == null ? T.amber : T.green}33`, borderRadius: R.md }}>
+            <div style={{ marginTop: 14, padding: '11px 14px', background: previewFC.avg == null ? T.amberLight : T.greenLight, border: `1px solid ${previewFC.avg == null ? T.amber : T.green}33`, borderRadius: R.md }}>
               {previewFC.avg == null ? (
                 <div style={{ display: 'flex', gap: 9, alignItems: 'flex-start', fontSize: 12, color: '#78350F', lineHeight: 1.55 }}>
                   <span style={{ flexShrink: 0, marginTop: 1, color: T.amber }}><Icon name="warning" size={15} /></span>
@@ -433,23 +628,45 @@ export default function FormatiVendita({ orgId, ricettario, onSaveRicettario, no
                 // Grid uniforme 4 col: ogni stat ha stesso label (10/700/0.08em) +
                 // value (18/800) + hint (10.5). Incolonnati perfettamente tra di
                 // loro su desktop; mobile passa a 2x2.
-                <div style={{ display: 'grid', gridTemplateColumns: isMobile || isTablet ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: isMobile ? 14 : 16, alignItems: 'start' }}>
-                  <PreviewStat label="Materiali" val={fmt3(previewFC.fcComponenti)} />
-                  <PreviewStat label={`Prodotto (${previewFC.baseG.toLocaleString('it-IT', { useGrouping: 'always' })}g)`} val={fmt3(previewFC.baseG * previewFC.avg)} hint={`Food cost ${form.categoria}: ${fmtEuro(previewFC.avg * 1000)}/kg`} />
-                  <PreviewStat label="Food cost stimato / unità" val={fmt3(previewFC.fcUnit)} color={T.green} />
-                  {previewFC.margPct != null && <PreviewStat label="Margine stimato" val={fmtp0(previewFC.margPct)} color={previewFC.margPct >= 60 ? T.green : previewFC.margPct >= 40 ? T.amber : T.brand} />}
+                // L'anteprima di quello che stai scrivendo e il conto della
+                // scheda già salvata mostravano gli stessi quattro numeri in
+                // due forme diverse: quattro riquadri qui, quattro riquadri là,
+                // e nessuna delle due diceva che si tratta di una somma.
+                // Adesso sono la stessa cosa scritta nello stesso modo — chi
+                // ha capito il conto una volta lo ritrova uguale.
+                <div style={{ display: 'flex', gap: isMobile ? 12 : 20, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                  <div style={{ minWidth: 190, flex: '1 1 190px' }}>
+                    <RigaConto label="Materiali" val={fmt3(previewFC.fcComponenti)} />
+                    <RigaConto label={`Prodotto · ${previewFC.baseG.toLocaleString('it-IT', { useGrouping: 'always' })} g`}
+                      val={fmt3(previewFC.baseG * previewFC.avg)}
+                      hint={`Food cost ${form.categoria}: ${fmtEuro(previewFC.avg * 1000)}/kg`} />
+                    <div style={{ borderTop: `1px solid ${T.borderStr}`, marginTop: 6, paddingTop: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 }}>
+                      <span style={{ fontSize: typo.small.fontSize, fontWeight: 800, color: T.text, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Food cost / unità</span>
+                      <span style={{ fontSize: font.size.lg, fontWeight: 900, color: T.text, ...TNUM, letterSpacing: '-0.02em' }}>{fmt3(previewFC.fcUnit)}</span>
+                    </div>
+                  </div>
+                  {previewFC.margPct != null && (
+                    <div style={{ flexShrink: 0, textAlign: isMobile ? 'left' : 'right', minWidth: 130 }}>
+                      <div style={{ fontSize: typo.small.fontSize, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}>Margine stimato</div>
+                      <div style={{ fontSize: font.size['2xl'], fontWeight: 900, ...TNUM, letterSpacing: '-0.03em', lineHeight: 1.1,
+                        color: previewFC.margPct >= 60 ? T.green : previewFC.margPct >= 40 ? T.amber : T.brand }}>
+                        {fmtp0(previewFC.margPct)}
+                      </div>
+                      {form.prezzo > 0 && <div style={{ fontSize: typo.small.fontSize, color: T.textSoft, ...TNUM }}>su {fmtEuro(Number(form.prezzo) || 0)} di prezzo</div>}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
           )}
 
-          <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+          <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
             <button onClick={salva}
-              style={{ padding: '11px 20px', background: T.green, color: '#fff', border: 'none', borderRadius: R.md, fontWeight: 700, fontSize: 13, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+              style={{ padding: '11px 20px', minHeight: dito ? 44 : 40, background: T.green, color: '#fff', border: 'none', borderRadius: R.md, fontWeight: 700, fontSize: 13, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
               <Icon name="check" size={15} />Salva formato
             </button>
             <button onClick={() => setForm(null)}
-              style={{ padding: '11px 20px', background: 'transparent', color: T.textSoft, border: `1px solid ${T.border}`, borderRadius: R.md, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Annulla</button>
+              style={{ padding: '11px 20px', minHeight: dito ? 44 : 40, background: 'transparent', color: T.textSoft, border: `1px solid ${T.border}`, borderRadius: R.md, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Annulla</button>
           </div>
         </div>
       )}
@@ -532,7 +749,7 @@ export default function FormatiVendita({ orgId, ricettario, onSaveRicettario, no
                         <button onClick={(e) => { e.stopPropagation(); elimina(f.id) }}
                           aria-label={`Elimina il formato ${f.nome}`}
                           title={`Elimina ${f.nome}`}
-                          style={{ width: isMobile ? 40 : 32, height: isMobile ? 40 : 32, padding: 0, background: 'transparent', color: T.textSoft, border: `1px solid ${T.border}`, borderRadius: R.sm, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                          style={{ width: dito ? 44 : 32, height: dito ? 44 : 32, padding: 0, background: 'transparent', color: T.textSoft, border: `1px solid ${T.border}`, borderRadius: R.sm, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
                           <Icon name="trash" size={14} />
                         </button>
                       </div>
@@ -571,16 +788,57 @@ export default function FormatiVendita({ orgId, ricettario, onSaveRicettario, no
                         </div>
                       )}
 
-                      {/* quota prodotto + totali */}
-                      <div style={{ borderTop: `1px dashed ${T.border}`, paddingTop: 12, display: 'grid', gridTemplateColumns: isMobile || isTablet ? '1fr 1fr' : 'repeat(4,1fr)', gap: 14 }}>
-                        <BreakdownTot label="Materiali" val={fmt3(r.costoMateriali)} />
-                        <BreakdownTot label={`Prodotto (${(Number(f.baseQtaG) || 0).toLocaleString('it-IT', { useGrouping: 'always' })}g)`}
-                          val={r.fcKnown ? fmt3(r.fcBase) : '-'}
-                          hint={r.fcKnown
-                            ? `Food cost ${f.categoria}: ${fmtEuro(r.avg * 1000)}/kg · su ${r.nUsate} ${r.nUsate === 1 ? 'ricetta' : 'ricette'}`
-                            : `categoria senza ${LEX.prodotti} pesati`} />
-                        <BreakdownTot label="Food cost stimato / unità" val={fmt3(r.fcUnit)} color={r.fcKnown ? T.green : T.amber} big />
-                        {r.prezzo > 0 && <BreakdownTot label={`Margine (prezzo ${fmtEuro(r.prezzo)})`} val={r.margPct != null ? fmtp0(r.margPct) : '-'} color={margCol} />}
+                      {/* ── Il conto, scritto come un conto ──────────────
+                          18/09/2026, richiesta del titolare: «rivedi
+                          impaginazione di tutte queste cose, miglioratele
+                          tutte da qualsiasi punto di vista: ottimizzazione
+                          dello spazio, intuitività, bellezza ed eleganza anche
+                          nei colori».
+
+                          Erano quattro riquadri affiancati e tutti uguali:
+                          Materiali · Prodotto · Food cost stimato · Margine.
+                          Ma quei quattro numeri non sono quattro cose alla
+                          pari — sono **una somma**: materiali più prodotto
+                          fanno il food cost, e il margine è quello che resta
+                          del prezzo. Disegnarli in fila nascondeva l'unica
+                          cosa che c'era da capire, e costringeva a rifare il
+                          conto a mente per verificare che tornasse.
+
+                          Adesso è scritto come si scrive un conto: i due
+                          addendi, una riga, il totale. Il margine sta a parte,
+                          perché non è un addendo: è la risposta. Il colore
+                          torna a fare il suo mestiere — grigio per gli
+                          addendi, che sono passaggi, e colore solo sui due
+                          numeri su cui si decide. */}
+                      <div style={{ borderTop: `1px dashed ${T.border}`, paddingTop: 12, display: 'flex', gap: isMobile ? 14 : 24, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                        <div style={{ minWidth: 190, flex: '1 1 190px' }}>
+                          <RigaConto label="Materiali" val={fmt3(r.costoMateriali)} />
+                          <RigaConto
+                            label={`Prodotto · ${(Number(f.baseQtaG) || 0).toLocaleString('it-IT', { useGrouping: 'always' })} g`}
+                            val={r.fcKnown ? fmt3(r.fcBase) : '—'}
+                            hint={r.fcKnown
+                              ? `Food cost ${f.categoria}: ${fmtEuro(r.avg * 1000)}/kg · su ${r.nUsate} ${r.nUsate === 1 ? 'ricetta' : 'ricette'}`
+                              : `categoria senza ${LEX.prodotti} pesati`} />
+                          <div style={{ borderTop: `1px solid ${T.borderStr}`, marginTop: 6, paddingTop: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 }}>
+                            <span style={{ fontSize: typo.small.fontSize, fontWeight: 800, color: T.text, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Food cost / unità</span>
+                            <span style={{ fontSize: font.size.lg, fontWeight: 900, color: r.fcKnown ? T.text : T.amber, ...TNUM, letterSpacing: '-0.02em' }}>{fmt3(r.fcUnit)}</span>
+                          </div>
+                          {!r.fcKnown && (
+                            <div style={{ fontSize: typo.small.fontSize, color: T.amber, marginTop: 4, lineHeight: 1.45 }}>
+                              Incompleto: la categoria non ha ricette pesate, quindi il costo del prodotto non si sa.
+                            </div>
+                          )}
+                        </div>
+
+                        {r.prezzo > 0 && (
+                          <div style={{ flexShrink: 0, textAlign: isMobile ? 'left' : 'right', minWidth: 130 }}>
+                            <div style={{ fontSize: typo.small.fontSize, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}>Margine</div>
+                            <div style={{ fontSize: font.size['2xl'], fontWeight: 900, color: margCol, ...TNUM, letterSpacing: '-0.03em', lineHeight: 1.1 }}>
+                              {r.margPct != null ? fmtp0(r.margPct) : '—'}
+                            </div>
+                            <div style={{ fontSize: typo.small.fontSize, color: T.textSoft, ...TNUM }}>su {fmtEuro(r.prezzo)} di prezzo</div>
+                          </div>
+                        )}
                       </div>
 
                       {/* azioni su mobile (nel breakdown per non affollare la riga) */}
@@ -637,6 +895,18 @@ function MiniStat({ label, val, color, title }) {
 }
 
 // Totale nel breakdown espanso.
+/** Una riga del conto: l'etichetta a sinistra, il numero a destra, e i
+ *  numeri incolonnati fra loro. Sono passaggi, non risultati: restano in
+ *  grigio, perché il colore serve a far trovare le due cifre che contano. */
+function RigaConto({ label, val, hint }) {
+  return (
+    <div title={hint} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, padding: '3px 0', cursor: hint ? 'help' : 'default' }}>
+      <span style={{ fontSize: typo.small.fontSize, color: T.textSoft, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
+      <span style={{ fontSize: font.size.base, fontWeight: 600, color: T.textMid, ...TNUM, whiteSpace: 'nowrap' }}>{val}</span>
+    </div>
+  )
+}
+
 function BreakdownTot({ label, val, hint, color, big }) {
   return (
     <div title={hint}>

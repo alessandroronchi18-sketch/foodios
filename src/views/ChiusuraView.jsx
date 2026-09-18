@@ -70,8 +70,17 @@ const SHADOW_PREMIUM = '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42
 //
 // La larghezza piena e' del mobile, dove il pollice ha bisogno del bersaglio.
 // Sul desktop un'etichetta corta dentro un pulsante enorme si perde.
-const alt = (isMobile) => (isMobile ? 46 : 38)
-const altPiccolo = (isMobile) => (isMobile ? 44 : 34)
+//
+// 18/09/2026 — la misura si decide sul DITO, non sulla larghezza.
+// Misurato in Chromium a 768px col tocco attivo: le linguette «Solo totale ·
+// Foto scontrino · Dettaglio prodotti», «Con fattura / Senza fattura / Da
+// verificare», «Importa delivery» e «Sistema cassa» uscivano tutte a 34px sul
+// tablet. Il ragionamento qui sopra è giusto — sul computer si clicca col
+// mouse e un bersaglio da 46px è sproporzionato — ma l'iPad stava dalla parte
+// sbagliata della riga: si tocca col dito come un telefono. Questi due
+// aiutanti ora prendono `dito` (telefono O tablet), non `isMobile`.
+const alt = (dito) => (dito ? 46 : 38)
+const altPiccolo = (dito) => (dito ? 44 : 34)
 
 // ── Chiusura rapida: il solo totale della giornata ──────────────────────────
 //
@@ -90,6 +99,8 @@ const altPiccolo = (isMobile) => (isMobile ? 44 : 34)
 // giorno dal food cost invece di contarlo zero e gonfiare il margine.
 function ChiusuraSoloTotale({ dataFiltro, esistente, salvando, onSalva }) {
   const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
+  const dito = isMobile || isTablet
   // I valori già salvati si rileggono come li scriverebbe un italiano: 418,30
   // e non "418.3". Il campo accetta entrambi in scrittura — `num()` più sotto
   // converte la virgola — ma vedere il punto dove ci si aspetta la virgola fa
@@ -257,6 +268,7 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
   const isMetodoInventario = metodoProduzione === 'inventario'
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
+  const dito = isMobile || isTablet
   const confirmDialog = useConfirm()
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario])
   // Le chiusure vivono nella tabella chiusure_cassa (migration 20260907b), non
@@ -1012,7 +1024,7 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
 
         {!salvato ? (
           (confronto.length > 0 || formatiRiconc.righe.length > 0) ? (
-            <button onClick={handleSalva} disabled={salvando} style={{ width: isMobile ? '100%' : 'auto', padding: isMobile ? '11px' : '0 16px', minHeight: alt(isMobile), background: C.green, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: FS.small, cursor: salvando ? 'not-allowed' : 'pointer', opacity: salvando ? 0.6 : 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Icon name="save" size={14} />{salvando ? 'Salvataggio…' : 'Salva chiusura nello storico'}</button>
+            <button onClick={handleSalva} disabled={salvando} style={{ width: isMobile ? '100%' : 'auto', padding: isMobile ? '11px' : '0 16px', minHeight: alt(dito), background: C.green, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: FS.small, cursor: salvando ? 'not-allowed' : 'pointer', opacity: salvando ? 0.6 : 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Icon name="save" size={14} />{salvando ? 'Salvataggio…' : 'Salva chiusura nello storico'}</button>
           ) : (
             <div style={{ fontSize: FS.small, color: C.amber }}>Nessun prodotto del ricettario o formato di vendita trovato - verifica i nomi</div>
           )
@@ -1030,9 +1042,9 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
         action={
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button onClick={() => { setImportModal('delivery'); setImportPreview(null) }}
-              style={{ padding: '0 14px', minHeight: altPiccolo(isMobile), background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: FS.small, fontWeight: 600, color: C.textMid, cursor: 'pointer', whiteSpace: 'nowrap' }}>Importa delivery</button>
+              style={{ padding: '0 14px', minHeight: altPiccolo(dito), background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: FS.small, fontWeight: 600, color: C.textMid, cursor: 'pointer', whiteSpace: 'nowrap' }}>Importa delivery</button>
             <button onClick={() => { setImportModal('cassa'); setImportPreview(null) }}
-              style={{ padding: '0 14px', minHeight: altPiccolo(isMobile), background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: FS.small, fontWeight: 600, color: C.textMid, cursor: 'pointer', whiteSpace: 'nowrap' }}>Sistema cassa</button>
+              style={{ padding: '0 14px', minHeight: altPiccolo(dito), background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: FS.small, fontWeight: 600, color: C.textMid, cursor: 'pointer', whiteSpace: 'nowrap' }}>Sistema cassa</button>
           </div>
         }
       />
@@ -1110,9 +1122,9 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
             )}
             <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
               {importPreview && (
-                <button onClick={handleConfirmDelivery} style={{ flex: 1, padding: '0 14px', minHeight: alt(isMobile), background: C.green, color: C.white, border: 'none', borderRadius: 9, fontWeight: 800, fontSize: FS.body, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Icon name="checkCircle" size={13} />Importa in Cassa</button>
+                <button onClick={handleConfirmDelivery} style={{ flex: 1, padding: '0 14px', minHeight: alt(dito), background: C.green, color: C.white, border: 'none', borderRadius: 9, fontWeight: 800, fontSize: FS.body, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Icon name="checkCircle" size={13} />Importa in Cassa</button>
               )}
-              <button onClick={() => { setImportModal(null); setImportPreview(null) }} style={{ padding: '0 16px', minHeight: alt(isMobile), background: 'transparent', color: C.textSoft, border: `1px solid ${C.border}`, borderRadius: 9, fontSize: FS.body, cursor: 'pointer' }}>Chiudi</button>
+              <button onClick={() => { setImportModal(null); setImportPreview(null) }} style={{ padding: '0 16px', minHeight: alt(dito), background: 'transparent', color: C.textSoft, border: `1px solid ${C.border}`, borderRadius: 9, fontSize: FS.body, cursor: 'pointer' }}>Chiudi</button>
             </div>
           </div>
         </div>
@@ -1167,9 +1179,9 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
             )}
             <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
               {importPreview && (
-                <button onClick={handleConfirmCassa} style={{ flex: 1, padding: '0 14px', minHeight: alt(isMobile), background: C.green, color: C.white, border: 'none', borderRadius: 9, fontWeight: 800, fontSize: FS.small, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Icon name="checkCircle" size={13} />Importa in Cassa</button>
+                <button onClick={handleConfirmCassa} style={{ flex: 1, padding: '0 14px', minHeight: alt(dito), background: C.green, color: C.white, border: 'none', borderRadius: 9, fontWeight: 800, fontSize: FS.small, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Icon name="checkCircle" size={13} />Importa in Cassa</button>
               )}
-              <button onClick={() => { setImportModal(null); setImportPreview(null) }} style={{ padding: '0 16px', minHeight: alt(isMobile), background: 'transparent', color: C.textSoft, border: `1px solid ${C.border}`, borderRadius: 9, fontSize: FS.small, cursor: 'pointer' }}>Chiudi</button>
+              <button onClick={() => { setImportModal(null); setImportPreview(null) }} style={{ padding: '0 16px', minHeight: alt(dito), background: 'transparent', color: C.textSoft, border: `1px solid ${C.border}`, borderRadius: 9, fontSize: FS.small, cursor: 'pointer' }}>Chiudi</button>
             </div>
           </div>
         </div>
@@ -1239,7 +1251,7 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
             : [['totale', 'coins', 'Solo totale'], ['foto', 'camera', 'Foto scontrino'], ['manuale', 'edit', 'Dettaglio prodotti']]
           ).map(([id, ic, lbl]) => (
             <button key={id} onClick={() => { setInputMode(id); setError(null) /* non azzerare venduto/salvato: i dati sotto restano visibili */ }}
-              style={{ flex: isMobile ? 1 : '0 0 auto', minWidth: 0, padding: isMobile ? '0 8px' : '0 14px', minHeight: altPiccolo(isMobile), borderRadius: 7, border: 'none', background: inputMode === id ? C.bgCard : 'transparent', color: inputMode === id ? C.red : C.textSoft, fontWeight: 700, fontSize: FS.small, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, boxShadow: inputMode === id ? '0 1px 3px rgba(15,23,42,0.08)' : 'none', transition: 'background 0.15s', whiteSpace: 'nowrap' }}>
+              style={{ flex: isMobile ? 1 : '0 0 auto', minWidth: 0, padding: isMobile ? '0 8px' : '0 14px', minHeight: altPiccolo(dito), borderRadius: 7, border: 'none', background: inputMode === id ? C.bgCard : 'transparent', color: inputMode === id ? C.red : C.textSoft, fontWeight: 700, fontSize: FS.small, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, boxShadow: inputMode === id ? '0 1px 3px rgba(15,23,42,0.08)' : 'none', transition: 'background 0.15s', whiteSpace: 'nowrap' }}>
               <Icon name={ic} size={13} />{lbl}
             </button>
           ))}
@@ -1271,7 +1283,7 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
                 <div style={{ position: 'relative', maxWidth: isMobile ? 200 : 'none' }}>
                   <img src={preview} alt="scontrino" style={{ width: '100%', borderRadius: 10, border: `1px solid ${C.border}`, display: 'block' }}/>
                   <button aria-label="Rimuovi foto scontrino" onClick={() => { setPreview(null); setImg(null); setVenduto(null); setIncerti([]); setSalvato(false); if (inputRef.current) inputRef.current.value = '' }}
-                    style={{ position: 'absolute', top: 5, right: 5, width: isMobile ? 40 : 24, height: isMobile ? 40 : 24, borderRadius: isMobile ? 8 : 10, background: 'rgba(0,0,0,0.6)', border: 'none', color: '#FFF', fontSize: isMobile ? 16 : 12, cursor: 'pointer', fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="x" size={isMobile ? 18 : 12} color="#FFF"/></button>
+                    style={{ position: 'absolute', top: 5, right: 5, width: dito ? 40 : 24, height: dito ? 40 : 24, borderRadius: isMobile ? 8 : 10, background: 'rgba(0,0,0,0.6)', border: 'none', color: '#FFF', fontSize: isMobile ? 16 : 12, cursor: 'pointer', fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="x" size={isMobile ? 18 : 12} color="#FFF"/></button>
                   <input ref={inputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handleFile}/>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -1360,14 +1372,16 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
                   <button onClick={() => setManualRows(rows => rows.length > 1 ? rows.filter((_, j) => j !== i) : rows)}
                     title="Rimuovi riga" disabled={manualRows.length <= 1}
                     aria-label="Elimina riga"
-                    style={{ width: isMobile ? 40 : 28, height: isMobile ? 40 : 32, borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, color: manualRows.length <= 1 ? C.border : C.red, fontSize: isMobile ? 16 : 13, cursor: manualRows.length <= 1 ? 'not-allowed' : 'pointer', fontWeight: 700 }}>✕</button>
+                    /* 28x32 sul tablet: il cestino di una riga del dettaglio
+                       prodotti si preme col dito anche su iPad. */
+                    style={{ width: dito ? 40 : 28, height: dito ? 40 : 32, borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, color: manualRows.length <= 1 ? C.border : C.red, fontSize: dito ? 16 : 13, cursor: manualRows.length <= 1 ? 'not-allowed' : 'pointer', fontWeight: 700 }}>✕</button>
                 </div>
               ))}
               <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                 <button onClick={() => setManualRows(rows => [...rows, { nome: '', qta: '', prezzo: '' }])}
-                  style={{ padding: '0 14px', minHeight: alt(isMobile), background: C.white, border: `1px dashed ${C.borderStr}`, borderRadius: 8, fontSize: FS.small, fontWeight: 700, color: C.textMid, cursor: 'pointer', whiteSpace: 'nowrap' }}>+ Aggiungi riga</button>
+                  style={{ padding: '0 14px', minHeight: alt(dito), background: C.white, border: `1px dashed ${C.borderStr}`, borderRadius: 8, fontSize: FS.small, fontWeight: 700, color: C.textMid, cursor: 'pointer', whiteSpace: 'nowrap' }}>+ Aggiungi riga</button>
                 <button onClick={usaProdottiManuali}
-                  style={{ flex: isMobile ? 1 : '0 0 auto', padding: '0 16px', minHeight: alt(isMobile), background: C.red, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: FS.small, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, whiteSpace: 'nowrap' }}><Icon name="checkCircle" size={13} />Usa questi prodotti</button>
+                  style={{ flex: isMobile ? 1 : '0 0 auto', padding: '0 16px', minHeight: alt(dito), background: C.red, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: FS.small, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, whiteSpace: 'nowrap' }}><Icon name="checkCircle" size={13} />Usa questi prodotti</button>
               </div>
             </div>
             <div style={{ marginTop: 12 }}>{vendutoBox()}</div>

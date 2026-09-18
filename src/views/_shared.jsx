@@ -4,7 +4,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { color as T, radius as R, font } from '../lib/theme'
-import useIsMobile from '../lib/useIsMobile'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from '../components/Icon'
 
 // Palette "C.*" usata dal vecchio Dashboard.jsx - mappa diretta ai token theme.
@@ -757,7 +757,15 @@ export function CampoConElenco({
   valore, onCambia, voci = [], placeholder, ariaLabel, stile,
   id = 'campo-elenco',
   soloDallElenco = false, onCreaNuova = null, etichettaCrea = 'Crea',
+  // Come si chiama l'elenco da cui si sceglie. Senza, l'avviso diceva «non e'
+  // fra le tue materie prime» anche quando l'elenco era quello dei coni e dei
+  // fazzoletti: il componente e' lo stesso, le cose che contiene no.
+  nomeElenco = 'materie prime',
 }) {
+  // Dove si tocca — telefono e tablet — i bersagli stanno sopra i 40px.
+  const suTelefono = useIsMobile()
+  const suTablet = useIsTablet()
+  const dito = suTelefono || suTablet
   const [aperto, setAperto] = useState(false)
   const [evidenziata, setEvidenziata] = useState(-1)
   const contenitore = useRef(null)
@@ -884,13 +892,19 @@ export function CampoConElenco({
           display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8,
         }}>
           <span>
-            <b>{valore}</b> non è fra le tue materie prime
+            <b>{valore}</b> non è fra {nomeElenco === 'materie prime' ? 'le tue materie prime' : `i tuoi ${nomeElenco}`}
             {suggerita && <> — forse intendevi <b>{suggerita}</b>?</>}
           </span>
+          {/* I due pulsanti erano alti 32px: misurati il 18/09/2026 a 390px
+              col tocco attivo davano 145x32 e 193x32, sotto la soglia del
+              dito su TELEFONO e tablet — non solo su uno dei due. Sono le due
+              uniche vie d'uscita da un nome scritto storto: se si sbaglia a
+              premerli si resta fermi con un ingrediente che vale zero nel
+              food cost. Sul computer 32 andava bene, e resta. */}
           {suggerita && (
             <button type="button" onClick={() => scegli(suggerita)}
               style={{
-                minHeight: 32, padding: '0 10px', borderRadius: 7, cursor: 'pointer',
+                minHeight: dito ? 40 : 32, padding: '0 10px', borderRadius: 7, cursor: 'pointer',
                 border: `1px solid ${C.borderStr}`, background: C.bgCard,
                 color: C.text, fontFamily: 'inherit', fontSize: font.size.sm, fontWeight: 700,
               }}>
@@ -900,7 +914,7 @@ export function CampoConElenco({
           {onCreaNuova && (
             <button type="button" onClick={() => onCreaNuova(valore)}
               style={{
-                minHeight: 32, padding: '0 10px', borderRadius: 7, cursor: 'pointer',
+                minHeight: dito ? 40 : 32, padding: '0 10px', borderRadius: 7, cursor: 'pointer',
                 border: `1px solid ${T.brand}`, background: 'transparent',
                 color: T.brand, fontFamily: 'inherit', fontSize: font.size.sm, fontWeight: 700,
               }}>

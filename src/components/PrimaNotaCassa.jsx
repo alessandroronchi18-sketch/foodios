@@ -13,7 +13,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react'
 import { color as T, typo, font, radius as R } from '../lib/theme'
-import useIsMobile from '../lib/useIsMobile'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from './Icon'
 import { useConfirm } from './ConfirmModal'
 import { fmt } from '../views/_shared'
@@ -27,6 +27,11 @@ const COLORE_DOC = { fattura: T.green, senza: T.amber, incerto: T.textSoft }
 
 export default function PrimaNotaCassa({ orgId, sedeId, data, notify }) {
   const isMobile = useIsMobile()
+  // Misurato il 18/09/2026 a 768px col tocco attivo: le tre pastiglie del
+  // documento uscivano a 34px sul tablet, perché scritte `isMobile ? 44 : 34`
+  // e l'iPad cadeva nel ramo del mouse. Si toccano col dito come sul telefono.
+  const isTablet = useIsTablet()
+  const dito = isMobile || isTablet
   const confirmDialog = useConfirm()
   const [righe, setRighe] = useState([])
   const [caricando, setCaricando] = useState(false)
@@ -159,7 +164,7 @@ export default function PrimaNotaCassa({ orgId, sedeId, data, notify }) {
               }}>{DOCUMENTI.find(d => d.valore === r.documento)?.breve || '?'}</div>
               <button type="button" onClick={() => rimuovi(r)} aria-label={`Togli ${r.descrizione}`}
                 style={{
-                  width: isMobile ? 40 : 32, height: isMobile ? 40 : 32, flexShrink: 0, background: 'transparent',
+                  width: dito ? 40 : 32, height: dito ? 40 : 32, flexShrink: 0, background: 'transparent',
                   border: 'none', borderRadius: R.md, color: T.textSoft, cursor: 'pointer',
                   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                 }}>
@@ -221,7 +226,7 @@ export default function PrimaNotaCassa({ orgId, sedeId, data, notify }) {
               <button key={d.valore} type="button" onClick={() => setDocumento(d.valore)}
                 aria-pressed={attivo}
                 style={{
-                  flex: isMobile ? '1 1 30%' : '0 0 auto', minHeight: isMobile ? 44 : 34,
+                  flex: isMobile ? '1 1 30%' : '0 0 auto', minHeight: dito ? 44 : 34,
                   // Imbottitura più stretta sul telefono: con 14px per lato
                   // "Senza fattura" andava a capo e delle tre pastiglie una
                   // sola era su due righe.

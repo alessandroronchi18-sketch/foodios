@@ -51,7 +51,7 @@
 //      e fa dichiarare la riga come mancante.
 
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import useIsMobile from '../lib/useIsMobile'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { color as T, radius as R, typo, font } from '../lib/theme'
 import Icon from '../components/Icon'
 import { normIng, buildIngCosti } from '../lib/foodcost'
@@ -164,7 +164,21 @@ export function materiePrimeDaRicettario(ricettario) {
   const conPrezzoScrittoAMano = new Set()
   for (const k of semilavorati) {
     const v = miei[k]
-    if (v && v.isStima !== true && prezzoDichiaratoKg(v) !== null) conPrezzoScrittoAMano.add(k)
+    // Lo zero non vale come prezzo di una base, e qui va detto perché.
+    //
+    // Per una materia prima zero è un prezzo legittimo — l'omaggio del
+    // fornitore, la roba dell'orto — e infatti l'elenco lo segna «gratis».
+    // Per una BASE no: il motore del food cost (`foodcost.js`) fa vincere il
+    // prezzo scritto a mano solo se è maggiore di zero, altrimenti torna a
+    // calcolare dalla ricetta. Se qui accettassimo lo zero, questa pagina
+    // direbbe «è questo che il programma addebita» e sarebbe falso.
+    //
+    // C'è anche una ragione più concreta: nel database esistono voci a zero
+    // nate dal difetto che abbiamo passato la giornata a correggere — lo zero
+    // scritto dove si voleva dire «non lo so». Farlo vincere le
+    // trasformerebbe tutte in «questa base è gratis».
+    const kg = prezzoDichiaratoKg(v)
+    if (v && v.isStima !== true && kg !== null && kg > 0) conPrezzoScrittoAMano.add(k)
   }
   const daNascondere = (k) => semilavorati.has(k) && !conPrezzoScrittoAMano.has(k)
 
@@ -285,6 +299,11 @@ export default function MateriePrimeView({
   ricettario, logPrezzi, onUpdatePrezzo, onCreaMateriaPrima, onNavigate,
 }) {
   const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
+  // 18/09/2026 — «isMobile ? grande : piccolo» lascia fuori il tablet, che si
+  // tocca col dito come un telefono. Su questa pagina toccava proprio il campo
+  // del prezzo, cioè l'azione per cui la pagina esiste.
+  const dito = isMobile || isTablet
   const [search, setSearch] = useState('')
   const [editKey, setEditKey] = useState(null)
   const [editVal, setEditVal] = useState('')
@@ -478,7 +497,7 @@ export default function MateriePrimeView({
         autoFocus
         placeholder="12,50"
         aria-label={`Prezzo per chilo di ${row.nome}`}
-        style={{ width: isMobile ? 116 : 96, padding: isMobile ? '9px 10px' : '6px 8px', minHeight: isMobile ? 44 : 32, borderRadius: 6, border: `1px solid ${C.red}`, fontSize: FS.base, fontWeight: 700, color: C.text, textAlign: 'right', outline: 'none', boxSizing: 'border-box' }}/>
+        style={{ width: dito ? 116 : 96, padding: dito ? '9px 10px' : '6px 8px', minHeight: dito ? 44 : 32, borderRadius: 6, border: `1px solid ${C.red}`, fontSize: FS.base, fontWeight: 700, color: C.text, textAlign: 'right', outline: 'none', boxSizing: 'border-box' }}/>
       {errEdit && (
         <div style={{ fontSize: font.size.sm, color: C.alertDark, marginTop: 4, textAlign: 'right', maxWidth: 220, lineHeight: 1.4 }}>{errEdit}</div>
       )}

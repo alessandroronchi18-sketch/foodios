@@ -33,6 +33,13 @@ const LARG_AVVISO_STIMA = 122
 
 function SemiCard({ sm, ricettario, ingCosti, onEdit, onDelete, LEX }) {
   const isMobile = useIsMobile()
+  // Il tablet si usa col dito come il telefono: `isMobile` da solo lo lascia
+  // fuori. Il pulsante «Riduci scheda» qui sotto era largo 30 sul tablet, e
+  // si salvava solo per rimbalzo — la regola generale in `index.html` porta a
+  // 44 i pulsanti con la sola icona che hanno un `aria-label`. Una misura
+  // giusta per caso torna sbagliata appena qualcuno toglie l'etichetta.
+  const isTablet = useIsTablet()
+  const dito = isMobile || isTablet
   const [tab, setTab] = useState(null)  // 'ingredienti' | 'usato' | null
   // Come le schede dei gusti: si apre quando la si chiede.
   const [aperta, setAperta] = useState(false)
@@ -174,7 +181,7 @@ function SemiCard({ sm, ricettario, ingCosti, onEdit, onDelete, LEX }) {
           </div>
           <button onClick={() => { setAperta(false); setTab(null) }}
             aria-label="Riduci scheda" title="Riduci"
-            style={{ width: isMobile ? 40 : 30, height: isMobile ? 40 : 86, padding: 0, borderRadius: R.md, border: `1px solid ${T.border}`, background: 'transparent', cursor: 'pointer', color: T.textMid, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            style={{ width: dito ? 40 : 30, height: dito ? 40 : 86, padding: 0, borderRadius: R.md, border: `1px solid ${T.border}`, background: 'transparent', cursor: 'pointer', color: T.textMid, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             <Icon name="chevUp" size={14} />
           </button>
         </div>

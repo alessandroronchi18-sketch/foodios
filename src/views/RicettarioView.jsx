@@ -55,6 +55,22 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
   // 1 useEffect DOPO `if (reg.tipo === 'interno') return null` → hook order
   // diverso tra render → silent state corruption.
   const isMobile = useIsMobile()
+  // ── Il dito c'è anche sull'iPad ────────────────────────────────────────
+  //
+  // 18/09/2026, misurato in Chromium con il tocco attivo, sulle tre larghezze
+  // del progetto: i comandi del quadrato uscivano **112x30 sul tablet**, cioè
+  // la misura pensata per il mouse. Sul telefono erano 134x40, giusti; sul
+  // computer 112x30, voluti.
+  //
+  // Nessuno l'aveva deciso: `isMobile` è vero solo sotto i 768px, quindi
+  // «tutto quello che non è telefono» comprende anche l'iPad, che invece si
+  // usa col dito. È lo stesso errore del 15/09/2026, quando la regola contro
+  // lo zoom di iOS era scritta `isMobile ? 16 : 13` e sul tablet lasciava 95
+  // campi di testo sotto la soglia.
+  //
+  // `dito` dice la cosa giusta: non «è un telefono», ma «si tocca».
+  const isTablet = useIsTablet()
+  const dito = isMobile || isTablet
   const [open, setOpen] = useState(false)
   // Gli allergeni si aprono solo se li si chiede: vedi il commento sul
   // pulsante, più sotto.
@@ -510,12 +526,13 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
             «Prezzo», per i prodotti che non sono gusti) andavano a capo da
             soli in modo diverso da una scheda all'altra — due qui, tre là. Il
             quadrato è sempre lo stesso, qualunque sia il numero di pulsanti.
-            Altezza scesa da 34 a 30 sul computer; sul telefono restano 40, che
-            è la misura di un polpastrello e non si tocca. */}
+            Altezza scesa da 34 a 30 sul computer; dove si tocca — telefono E
+            tablet — restano 40, che è la misura di un polpastrello e non si
+            tocca. (Il tablet era rimasto fuori: vedi `dito`, più in alto.) */}
         <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start', flexShrink: 0, flexBasis: isMobile ? '100%' : 'auto', width: isMobile ? '100%' : 'auto' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, flex: isMobile ? 1 : 'none' }}>
           <button onClick={() => setOpen(o => !o)}
-            style={{ height: isMobile ? 40 : 30, padding: '0 10px', borderRadius: 7, border: `1px solid ${isSemi ? SEMI.border : C.borderStr}`, background: 'transparent', fontSize: 12, fontWeight: 700, color: isSemi ? SEMI.accent : C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 4, whiteSpace: 'nowrap' }}>
+            style={{ height: dito ? 40 : 30, padding: '0 10px', borderRadius: 7, border: `1px solid ${isSemi ? SEMI.border : C.borderStr}`, background: 'transparent', fontSize: 12, fontWeight: 700, color: isSemi ? SEMI.accent : C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 4, whiteSpace: 'nowrap' }}>
             <Icon name={open ? 'chevUp' : 'chevDown'} size={12} /> {open ? 'Chiudi' : 'Dettaglio'}
           </button>
           {/* Edit rapido prezzo/n°fette: solo per stampi. Per i gusti (gelateria)
@@ -526,7 +543,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
               apre la modale batch multi-sede. */}
           {!isSemi && tipoEff !== 'gusto' && !hasOverride && (
             <button onClick={() => { setEditPrezzo(reg.prezzo); setEditUnita(reg.unita); setEditMode(e => !e) }}
-              style={{ height: isMobile ? 40 : 30, padding: '0 10px', borderRadius: 7, border: `1px solid ${editMode ? C.red : C.borderStr}`, background: editMode ? C.redLight : 'transparent', fontSize: 12, fontWeight: 700, color: editMode ? C.red : C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+              style={{ height: dito ? 40 : 30, padding: '0 10px', borderRadius: 7, border: `1px solid ${editMode ? C.red : C.borderStr}`, background: editMode ? C.redLight : 'transparent', fontSize: 12, fontWeight: 700, color: editMode ? C.red : C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
               <Icon name="edit" size={13} /> Prezzo
             </button>
           )}
@@ -536,7 +553,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
           {!isSemi && hasMultiSede && orgId && (
             <button onClick={() => setPrezziSedeOpen(true)}
               title={hasOverride ? `Prezzo override attivo per ${sedeAttivaNome || 'questa sede'}` : 'Prezzi diversi per sede'}
-              style={{ height: isMobile ? 40 : 30, padding: '0 10px', borderRadius: 7, border: `1px solid ${hasOverride ? C.red : C.borderStr}`, background: hasOverride ? C.redLight : 'transparent', fontSize: 12, fontWeight: 700, color: hasOverride ? C.red : C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+              style={{ height: dito ? 40 : 30, padding: '0 10px', borderRadius: 7, border: `1px solid ${hasOverride ? C.red : C.borderStr}`, background: hasOverride ? C.redLight : 'transparent', fontSize: 12, fontWeight: 700, color: hasOverride ? C.red : C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
               <Icon name="map" size={13} /> Prezzi / sede
               {/* Il pallino era il carattere tipografico "•": cambia forma da
                   un sistema all'altro e non si allinea col testo. */}
@@ -545,7 +562,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
           )}
           {onEdit && (
             <button onClick={() => onEdit(ric.nome)}
-              style={{ height: isMobile ? 40 : 30, padding: '0 10px', borderRadius: 7, border: `1px solid ${C.red}`, background: C.red, color: C.white, fontSize: 12, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+              style={{ height: dito ? 40 : 30, padding: '0 10px', borderRadius: 7, border: `1px solid ${C.red}`, background: C.red, color: C.white, fontSize: 12, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
               <Icon name="edit" size={13} /> Modifica
             </button>
           )}
@@ -560,7 +577,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
             } finally { setExportingPdf(false) }
           }}
             disabled={exportingPdf}
-            style={{ height: isMobile ? 40 : 30, padding: '0 10px', borderRadius: 7, border: `1px solid ${isSemi ? SEMI.border : C.borderStr}`, background: 'transparent', fontSize: 12, fontWeight: 700, color: isSemi ? SEMI.accent : C.textMid, cursor: exportingPdf ? 'not-allowed' : 'pointer', opacity: exportingPdf ? 0.6 : 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5, ...(isMobile && isSemi ? { gridColumn: '1 / -1' } : {}) }}>
+            style={{ height: dito ? 40 : 30, padding: '0 10px', borderRadius: 7, border: `1px solid ${isSemi ? SEMI.border : C.borderStr}`, background: 'transparent', fontSize: 12, fontWeight: 700, color: isSemi ? SEMI.accent : C.textMid, cursor: exportingPdf ? 'not-allowed' : 'pointer', opacity: exportingPdf ? 0.6 : 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5, ...(isMobile && isSemi ? { gridColumn: '1 / -1' } : {}) }}>
             <Icon name="fileText" size={13} /> {exportingPdf ? '…' : 'PDF'}
           </button>
           </div>
@@ -570,7 +587,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
           <button onClick={() => { setExpanded(false); setOpen(false); setEditMode(false) }}
             aria-label="Riduci scheda"
             title="Riduci"
-            style={{ width: isMobile ? 40 : 30, height: isMobile ? 40 : 66, padding: 0, borderRadius: 7, border: `1px solid ${isSemi ? SEMI.border : C.borderStr}`, background: 'transparent', cursor: 'pointer', color: isSemi ? SEMI.accent : C.textMid, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            style={{ width: dito ? 40 : 30, height: dito ? 40 : 66, padding: 0, borderRadius: 7, border: `1px solid ${isSemi ? SEMI.border : C.borderStr}`, background: 'transparent', cursor: 'pointer', color: isSemi ? SEMI.accent : C.textMid, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
           </button>
         </div>
