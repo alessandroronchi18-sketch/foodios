@@ -583,7 +583,7 @@ export function applicaEliminaMateriaPrima(ricettario, nome) {
 export default function MateriePrimeView({
   ricettario, logPrezzi, onUpdatePrezzo, onCreaMateriaPrima,
   onRinominaMateriaPrima, onEliminaMateriaPrima, onImportPrezzi,
-  onAssegnaFornitore, onNavigate, notify,
+  onAssegnaFornitore, onApriFornitore, onNavigate, notify,
 }) {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
@@ -591,6 +591,19 @@ export default function MateriePrimeView({
   // tocca col dito come un telefono. Su questa pagina toccava proprio il campo
   // del prezzo, cioè l'azione per cui la pagina esiste.
   const dito = isMobile || isTablet
+  // 18/09/2026, il titolare: «le barre nella pagina materie prime sono molto
+  // più spesse di prima, falle tornare alla grandezza di prima riordinando
+  // bene le cose che ci sono dentro».
+  //
+  // Erano cresciute per due motivi sommati. Il primo: nella riga è entrata
+  // roba nuova — il fornitore, il pulsante che apre le ricette, i due comandi
+  // per rinominare ed eliminare. Il secondo, che pesava di più: tutti quei
+  // comandi erano stati messi a 44px **anche col mouse**. Quarantaquattro è
+  // la misura di un polpastrello, non di un puntatore: col mouse ne bastano
+  // 32, e quattro comandi da 44 in fila fanno una riga alta come tre.
+  //
+  // Col dito resta tutto a 44, che è l'unico posto dove serve davvero.
+  const padCella = dito ? '10px 14px' : '5px 14px'
   const [search, setSearch] = useState('')
   const [editKey, setEditKey] = useState(null)
   const [editVal, setEditVal] = useState('')
@@ -598,6 +611,9 @@ export default function MateriePrimeView({
   // cambiare chi te la vende non cambia nessun costo passato, quindi non
   // deve passare dalla finestra di conferma che esiste per i prezzi.
   const [editForn, setEditForn] = useState('')
+  // Il doppio controllo della rinomina: si riazzera a ogni apertura, così
+  // non resta spuntato da una volta all'altra.
+  const [rinominaConfermato, setRinominaConfermato] = useState(false)
   const [errEdit, setErrEdit] = useState(null)
   const [confirmKey, setConfirmKey] = useState(null)
   const [confirmVal, setConfirmVal] = useState(null)
@@ -821,6 +837,7 @@ export default function MateriePrimeView({
   const apriRinomina = (row) => {
     setRinominaKey(row.key)
     setRinominaNome(row.nome)
+    setRinominaConfermato(false)
     setErrRinomina(null)
   }
 
@@ -1041,7 +1058,7 @@ export default function MateriePrimeView({
   // suggerimento e nell'etichetta per chi legge con la voce.
   const bottoneIcona = (nome, etichetta, onClick, pericolo) => (
     <button onClick={onClick} title={etichetta} aria-label={etichetta}
-      style={{ width: 44, height: 44, minHeight: 44, borderRadius: 6, border: `1px solid ${C.borderStr}`, background: 'transparent', color: pericolo ? C.alert : C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'inherit', flexShrink: 0 }}>
+      style={{ width: dito ? 44 : 32, height: dito ? 44 : 32, minHeight: dito ? 44 : 32, borderRadius: 6, border: `1px solid ${C.borderStr}`, background: 'transparent', color: pericolo ? C.alert : C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'inherit', flexShrink: 0 }}>
       <Icon name={nome} size={15} />
     </button>
   )
@@ -1049,7 +1066,7 @@ export default function MateriePrimeView({
   const bottoneModifica = (row) => (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
       <button onClick={() => startEdit(row)}
-        style={{ padding: '8px 14px', minHeight: 44, borderRadius: 6, border: `1px solid ${C.borderStr}`, background: 'transparent', fontSize: font.size.sm, fontWeight: 700, color: C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5, fontFamily: 'inherit' }}>
+        style={{ padding: dito ? '8px 14px' : '5px 12px', minHeight: dito ? 44 : 32, borderRadius: 6, border: `1px solid ${C.borderStr}`, background: 'transparent', fontSize: font.size.sm, fontWeight: 700, color: C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5, fontFamily: 'inherit' }}>
         <Icon name="edit" size={13} />Modifica
       </button>
       {onRinominaMateriaPrima && bottoneIcona('pencil', `Cambia il nome di ${row.nome}`, () => apriRinomina(row), false)}
@@ -1073,7 +1090,7 @@ export default function MateriePrimeView({
       <button onClick={() => toggleRicette(row.key)}
         aria-expanded={aperta}
         aria-label={`${row.ricette.length} ricette usano ${row.nome}: ${aperta ? 'chiudi' : 'apri'} l'elenco`}
-        style={{ minHeight: dito ? 44 : 40, minWidth: 56, padding: '8px 10px', borderRadius: 6, border: `1px solid ${aperta ? C.red : C.borderStr}`, background: aperta ? C.redLight : 'transparent', color: aperta ? C.red : C.text, fontSize: FS.base, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: 5, fontFamily: 'inherit', ...TNUM }}>
+        style={{ minHeight: dito ? 44 : 32, minWidth: 56, padding: dito ? '8px 10px' : '4px 10px', borderRadius: 6, border: `1px solid ${aperta ? C.red : C.borderStr}`, background: aperta ? C.redLight : 'transparent', color: aperta ? C.red : C.text, fontSize: FS.base, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: 5, fontFamily: 'inherit', ...TNUM }}>
         {row.ricette.length.toLocaleString('it-IT', { useGrouping: 'always' })}
         <Icon name={aperta ? 'chevUp' : 'chevDown'} size={12} />
       </button>
@@ -1083,13 +1100,42 @@ export default function MateriePrimeView({
   // L'elenco, una ricetta per riga. In colonna e non separate da virgole:
   // con ventotto ricette una riga sola è un muro, e il conto non si può fare
   // a occhio.
-  const elencoRicette = (row, allineaADestra) => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 3, maxHeight: 260, overflowY: 'auto', textAlign: allineaADestra ? 'right' : 'left' }}>
-      {row.ricette.map(n => (
-        <span key={n} style={{ fontSize: FS.sm, color: C.textMid, lineHeight: 1.45 }}>{n}</span>
-      ))}
-    </div>
-  )
+  // ── Le ricette che usano una materia prima ─────────────────────────────
+  //
+  // 18/09/2026, il titolare: «ok che si aprono sotto, ma migliora un po' il
+  // design della tabella che si apre, anche in termini di colori, e i gusti
+  // devono comparire in ordine alfabetico».
+  //
+  // Erano nomi buttati uno sotto l'altro nell'ordine in cui capitavano — cioè
+  // l'ordine delle ricette nell'archivio, che per chi legge non è un ordine.
+  // Con ventinove nomi (BASE BIANCA è usata in ventinove) trovare quello che
+  // si cerca voleva dire leggerli tutti.
+  //
+  // Adesso: in ordine alfabetico, su più colonne quando ce n'è tanti (così
+  // ventinove nomi stanno in uno sguardo invece che in una colonna lunga come
+  // la pagina), con un filo del colore del marchio a sinistra che li lega
+  // visivamente alla riga da cui escono, e un'intestazione che dice quanti
+  // sono. Il fondo è quello tenue delle sezioni, non il bianco: si capisce a
+  // colpo d'occhio che è un dettaglio di quella riga e non una tabella nuova.
+  const elencoRicette = (row, dentroLaScheda) => {
+    const nomi = [...row.ricette].sort((a, b) => String(a).localeCompare(String(b), 'it'))
+    const colonne = dentroLaScheda || nomi.length <= 6 ? 1 : nomi.length <= 14 ? 2 : 3
+    return (
+      <div style={{
+        background: C.bgSubtle, borderLeft: `3px solid ${T.brand}`, borderRadius: 6,
+        padding: dito ? '10px 12px' : '8px 12px', maxHeight: 280, overflowY: 'auto', textAlign: 'left',
+      }}>
+        <div style={{ fontSize: font.size.sm, fontWeight: 800, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
+          {nomi.length === 1 ? 'La ricetta che la usa' : `Le ${nomi.length.toLocaleString('it-IT', { useGrouping: 'always' })} ricette che la usano`}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${colonne}, minmax(0, 1fr))`, gap: dito ? '5px 16px' : '3px 20px' }}>
+          {nomi.map(n => (
+            <span key={n} style={{ fontSize: FS.sm, color: C.text, lineHeight: 1.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n}</span>
+          ))}
+        </div>
+      </div>
+    )
+  }
 
   if (!ricettario) {
     return (
@@ -1466,7 +1512,7 @@ export default function MateriePrimeView({
               return (
                 <React.Fragment key={row.key}>
                 <tr style={{ borderBottom: ricetteAperta ? 'none' : `1px solid ${C.border}`, background: editing ? C.redLight : i % 2 === 0 ? C.white : C.bgSubtle }}>
-                  <td style={{ padding: '10px 14px', fontWeight: 600, color: C.text }}>
+                  <td style={{ padding: padCella, fontWeight: 600, color: C.text }}>
                     {/* Nome e badge incolonnati: il nome in una colonna fissa,
                         il badge sempre alla stessa distanza dal bordo
                         indipendentemente da quanto è lungo il nome. */}
@@ -1475,7 +1521,7 @@ export default function MateriePrimeView({
                       {etichettaStato(row)}
                     </div>
                   </td>
-                  <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 700, color: C.text, ...TNUM }}>
+                  <td style={{ padding: padCella, textAlign: 'right', fontWeight: 700, color: C.text, ...TNUM }}>
                     {editing ? campoPrezzo(row) : (
                       // Il prezzo cliccabile era alto 22px: su tablet è sotto
                       // la soglia di quello che si centra col dito, ed è la
@@ -1483,20 +1529,27 @@ export default function MateriePrimeView({
                       <span onClick={() => startEdit(row)} title="Clicca per modificare"
                         role="button" tabIndex={0}
                         onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startEdit(row) } }}
-                        style={{ cursor: 'pointer', padding: '10px', borderRadius: 6, display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', minHeight: 40, minWidth: 88, color: row.statoPrezzo === 'mancante' ? C.textSoft : C.text }}>
+                        style={{ cursor: 'pointer', padding: dito ? '10px' : '5px 10px', borderRadius: 6, display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', minHeight: dito ? 44 : 32, minWidth: 88, color: row.statoPrezzo === 'mancante' ? C.textSoft : C.text }}>
                         {prezzoTesto(row)}
                       </span>
                     )}
                   </td>
-                  <td style={{ padding: '10px 14px', color: C.textMid }}>
+                  <td style={{ padding: padCella, color: C.textMid }}>
                     {editing ? campoFornitore(row) : (
                       row.fornitore
-                        ? <span>{row.fornitore}</span>
+                        ? <span
+                            role="button" tabIndex={0}
+                            onClick={() => onApriFornitore?.(row.fornitore)}
+                            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onApriFornitore?.(row.fornitore) } }}
+                            title={`Apri ${row.fornitore} nella pagina Fornitori`}
+                            style={{ cursor: 'pointer', color: T.brand, fontWeight: 600, textDecoration: 'underline', textUnderlineOffset: 3, display: 'inline-flex', alignItems: 'center', minHeight: dito ? 44 : 28 }}>
+                            {row.fornitore}
+                          </span>
                         : <span style={{ color: C.textSoft }}>&mdash;</span>
                     )}
                   </td>
-                  <td style={{ padding: '10px 14px', textAlign: 'right', color: C.textMid, ...TNUM }}>{pulsanteRicette(row)}</td>
-                  <td style={{ padding: '10px 14px', textAlign: 'right' }}>
+                  <td style={{ padding: padCella, textAlign: 'right', color: C.textMid, ...TNUM }}>{pulsanteRicette(row)}</td>
+                  <td style={{ padding: padCella, textAlign: 'right' }}>
                     {editing ? bottoniEdit(row) : bottoneModifica(row)}
                   </td>
                 </tr>
@@ -1709,14 +1762,36 @@ export default function MateriePrimeView({
                     ? <>Il nome nuovo lo scrivo anche dentro <b style={{ color: C.text }}>la ricetta che la usa</b>, nello storico dei prezzi e nella resa. Tutto insieme: il nome è quello con cui il food cost trova il prezzo, e se restasse indietro un pezzo quella ricetta perderebbe il costo senza dirlo.</>
                     : <>Il nome nuovo lo scrivo anche dentro le <b style={{ color: C.text }}>{row.ricette.length.toLocaleString('it-IT', { useGrouping: 'always' })} ricette</b> che la usano, nello storico dei prezzi e nella resa. Tutto insieme: il nome è quello con cui il food cost trova il prezzo, e se restasse indietro un pezzo quelle ricette perderebbero il costo senza dirlo.</>}
               </div>
+
+              {/* 18/09/2026, il titolare: «la pagina materie prime è comune a
+                  tutte le sedi… se cambio il nome lì si cambia a cascata su
+                  tutto, anche sui magazzini di tutte le sedi». Questa riga
+                  esiste perché il magazzino è l'unico archivio PER SEDE che
+                  viene toccato: chi rinomina deve sapere che le giacenze lo
+                  seguono in tutti i negozi, non solo in quello in cui si
+                  trova adesso. */}
+              <div style={{ background: C.bgSubtle, borderRadius: 10, padding: '12px 14px', marginBottom: 14, fontSize: FS.sm, color: C.textMid, lineHeight: 1.55 }}>
+                E le giacenze in magazzino si spostano sotto il nome nuovo <b style={{ color: C.text }}>in tutti i negozi</b>, non solo in quello dove sei adesso. Se in qualcuno di loro il nome nuovo esiste già, le due quantità si sommano: è la stessa merce chiamata in due modi.
+              </div>
+
+              {/* Il doppio controllo. Su un'operazione che tocca il listino,
+                  tutte le ricette, lo storico, la resa e i magazzini di ogni
+                  negozio, un pulsante solo è troppo poco: si preme per
+                  sbaglio, e quello che succede dopo non si vede. */}
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 9, marginBottom: 14, cursor: 'pointer', fontSize: FS.sm, color: C.text, lineHeight: 1.5 }}>
+                <input type="checkbox" checked={rinominaConfermato}
+                  onChange={e => setRinominaConfermato(e.target.checked)}
+                  style={{ width: 18, height: 18, marginTop: 1, flexShrink: 0, accentColor: C.red, cursor: 'pointer' }} />
+                <span>Ho capito: il nome cambia dappertutto, in tutte le ricette e in tutti i magazzini.</span>
+              </label>
               {errRinomina && (
                 <div role="alert" style={{ marginBottom: 14, background: C.alertLight, border: `1px solid ${C.alert}33`, borderRadius: 8, padding: '9px 12px', fontSize: FS.sm, color: C.alertDark, lineHeight: 1.5 }}>{errRinomina}</div>
               )}
               <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                 <button onClick={() => setRinominaKey(null)} disabled={rinominando}
                   style={{ padding: '0 18px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.borderStr}`, background: 'transparent', fontSize: FS.sm, fontWeight: 700, color: C.textMid, cursor: rinominando ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>Annulla</button>
-                <button onClick={confermaRinomina} disabled={rinominando}
-                  style={{ padding: '0 20px', minHeight: 44, borderRadius: 8, border: 'none', background: C.red, color: C.white, fontSize: FS.sm, fontWeight: 800, cursor: rinominando ? 'not-allowed' : 'pointer', opacity: rinominando ? 0.6 : 1, display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'inherit' }}>
+                <button onClick={confermaRinomina} disabled={rinominando || !rinominaConfermato}
+                  style={{ padding: '0 20px', minHeight: 44, borderRadius: 8, border: 'none', background: (rinominando || !rinominaConfermato) ? C.borderStr : C.red, color: C.white, fontSize: FS.sm, fontWeight: 800, cursor: (rinominando || !rinominaConfermato) ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'inherit' }}>
                   <Icon name="check" size={13} />{rinominando ? 'Salvo…' : 'Cambia il nome'}</button>
               </div>
             </div>

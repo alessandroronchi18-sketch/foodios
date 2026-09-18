@@ -1875,6 +1875,15 @@ export default function Dashboard({
   // Il nome NON si normalizza in maiuscolo: dev'essere quello che compare in
   // fattura, altrimenti il collegamento non si fa. Si tolgono solo gli spazi
   // di troppo. Il confronto fra due nomi, quello sì, ignora maiuscole e spazi.
+  // Dal nome di un fornitore nelle Materie prime alla sua riga in Fornitori.
+  // 18/09/2026, il titolare: «se clicco sul nome di qualsiasi fornitore mi
+  // rimanda alla pagina fornitore e alla riga specifica di quel fornitore».
+  const [fornitoreDaAprire, setFornitoreDaAprire] = useState(null);
+  const apriFornitore = useCallback((nome) => {
+    setFornitoreDaAprire(nome || null);
+    setView('fornitori');
+  }, []);
+
   const handleAssegnaFornitore = useCallback(async (chiaveMP, nomeFornitore) => {
     const { assegnaFornitoreNelRicettario, rimuoviFornitoreNelRicettario } =
       await import('./lib/materiePrimeFornitore')
@@ -2012,6 +2021,52 @@ export default function Dashboard({
     if (!esito.ok) return esito;
 
     const daScrivere = [{ key: SK_RIC, value: esito.ricettario }, { key: SK_LOG_PRZ, value: esito.logPrezzi }];
+
+    // ── E i magazzini, di TUTTE le sedi ──────────────────────────────────
+    //
+    // 18/09/2026, il titolare: «la pagina materie prime è comune a tutte le
+    // sedi, infatti il selettore sede lì non c'è; quindi bisogna impostare che
+    // se cambio il nome lì si cambia a cascata su tutto, anche sui magazzini
+    // di tutte le sedi».
+    //
+    // Il magazzino è indicizzato per nome dell'ingrediente ed è **per sede**:
+    // nei dati veri di Mara sono 106 voci a Berthollet e 9 a Carlina. Senza
+    // questo, rinominando «yuzu» in «Yuzu bio» la ricetta avrebbe chiesto il
+    // nome nuovo, il magazzino avrebbe risposto «zero», e i chili veri
+    // sarebbero rimasti orfani sotto il nome vecchio: invisibili, non
+    // scaricabili, fuori dal valore di magazzino.
+    //
+    // Si fanno TUTTE le sedi, non solo quella aperta. Sistemarne una sola
+    // sarebbe peggio del difetto: due negozi chiamerebbero la stessa cosa in
+    // due modi, e nessuno se ne accorgerebbe. Tutto dentro la stessa
+    // scrittura del resto, così o si aggiorna tutto o non si aggiorna niente.
+    const vecchiaK = normIng(String(nomeVecchio || '').trim());
+    const nuovaK = normIng(String(nomeNuovo || '').trim().replace(/\s+/g, ' '));
+    let magazziniToccati = 0;
+    if (vecchiaK && nuovaK && vecchiaK !== nuovaK) {
+      const sediDaGirare = [...new Set([null, ...(sedi || []).map(x => x?.id).filter(Boolean)])];
+      for (const sid of sediDaGirare) {
+        let mag = null;
+        try { mag = await sload(SK_MAG, orgId, sid); }
+        catch { return { ok: false, errore: 'Non sono riuscito a leggere il magazzino di una delle sedi: il nome NON è stato cambiato.' }; }
+        if (!mag || typeof mag !== 'object' || !(vecchiaK in mag)) continue;
+        const nuovoMag = {};
+        for (const [k, v2] of Object.entries(mag)) {
+          if (k === vecchiaK) continue;
+          nuovoMag[k] = v2;
+        }
+        // Se il nome nuovo esisteva già in quel magazzino, le due giacenze si
+        // sommano: sono la stessa merce chiamata in due modi, ed è proprio la
+        // ragione per cui uno rinomina.
+        const precedente = mag[nuovaK];
+        const daSpostare = mag[vecchiaK];
+        nuovoMag[nuovaK] = (precedente && typeof precedente === 'object' && typeof daSpostare === 'object')
+          ? { ...precedente, ...daSpostare, qta: (Number(precedente.qta) || 0) + (Number(daSpostare.qta) || 0) }
+          : daSpostare;
+        daScrivere.push({ key: SK_MAG, value: nuovoMag, sedeId: sid });
+        magazziniToccati++;
+      }
+    }
     // Le rese stanno su una riga con `sede_id` nullo, come le scrive
     // `salvaRese`: va detto qui, o il batch le metterebbe sulla sede attiva e
     // al ricaricamento non si troverebbero più.
@@ -2032,12 +2087,17 @@ export default function Dashboard({
       try { localStorage.setItem(SK_RESE, JSON.stringify(esito.rese)); } catch { /* browser senza storage */ }
     }
     const n = esito.ricetteAggiornate;
-    notify(n === 0
+    // Anche i magazzini si contano: chi rinomina deve sapere che le giacenze
+    // lo hanno seguito, altrimenti va a controllare a mano in ogni negozio.
+    const coda = magazziniToccati === 0 ? ''
+      : magazziniToccati === 1 ? ' Ho spostato anche la giacenza in magazzino.'
+      : ` Ho spostato anche le giacenze in ${magazziniToccati.toLocaleString('it-IT', { useGrouping: 'always' })} magazzini.`;
+    notify((n === 0
       ? `Adesso si chiama "${esito.nome}". Non la usa nessuna ricetta.`
       : n === 1
         ? `Adesso si chiama "${esito.nome}". Ho aggiornato anche 1 ricetta che la usa.`
-        : `Adesso si chiama "${esito.nome}". Ho aggiornato anche ${n.toLocaleString('it-IT', { useGrouping: 'always' })} ricette che la usano.`);
-    return { ok: true, ricetteAggiornate: n };
+        : `Adesso si chiama "${esito.nome}". Ho aggiornato anche ${n.toLocaleString('it-IT', { useGrouping: 'always' })} ricette che la usano.`) + coda);
+    return { ok: true, ricetteAggiornate: n, magazziniAggiornati: magazziniToccati };
   }, [ricettario, logPrezzi, notify]);
 
   // ── Eliminare una materia prima ──────────────────────────────────────────
@@ -3527,7 +3587,7 @@ export default function Dashboard({
             18/09/2026, su richiesta del titolare. `!isDip` è la terza rete
             dopo il filtro del menu e il dirottamento di riga ~1150: i prezzi
             d'acquisto non si mostrano a chi sta in laboratorio. */}
-        {vista==="materie-prime"&&!isDip&&<MateriePrimeView ricettario={ricettario} logPrezzi={logPrezzi} onUpdatePrezzo={handleUpdatePrezzoIng} onCreaMateriaPrima={handleCreaMateriaPrima} onRinominaMateriaPrima={handleRinominaMateriaPrima} onEliminaMateriaPrima={handleEliminaMateriaPrima} onImportPrezzi={handleImportPrezziMateriePrime} onAssegnaFornitore={handleAssegnaFornitore} notify={notify} onNavigate={setView}/>}
+        {vista==="materie-prime"&&!isDip&&<MateriePrimeView ricettario={ricettario} logPrezzi={logPrezzi} onUpdatePrezzo={handleUpdatePrezzoIng} onCreaMateriaPrima={handleCreaMateriaPrima} onRinominaMateriaPrima={handleRinominaMateriaPrima} onEliminaMateriaPrima={handleEliminaMateriaPrima} onImportPrezzi={handleImportPrezziMateriePrime} onAssegnaFornitore={handleAssegnaFornitore} onApriFornitore={apriFornitore} notify={notify} onNavigate={setView}/>}
 
         {/* Formati di vendita (prodotti generici senza dettaglio gusto) */}
         {vista==="formati-vendita"&&<FormatiVendita orgId={orgId} ricettario={ricettario} onSaveRicettario={handleSalvaRicetta} notify={notify} tipoAttivita={tipoAttivita} sedi={sedi}/>}
@@ -3590,7 +3650,7 @@ export default function Dashboard({
         {ricettario&&vista==="simulatore"&&<SimulatorePrezziView ricettario={ricettario} giornaliero={giornaliero} tipoAttivita={tipoAttivita} sedi={sedi} orgId={orgId} sedeId={sedeId}/>}
         {vista==="nuova-ricetta"&&<NuovaRicettaView ricettario={ricettario} notify={notify} onSave={handleSalvaRicetta} editingRicetta={editingRicetta} onEditConsumed={()=>setEditingRicetta(null)} LEX={LEX} tipoAttivita={tipoAttivita}/>}
         {vista==="scheda-allergeni"&&!PAGINE_NASCOSTE.has("scheda-allergeni")&&<SchedaAllergeniView ricettario={ricettario} tipoAttivita={tipoAttivita}/>}
-        {vista==="fornitori"&&<Fornitori orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify}/>}
+        {vista==="fornitori"&&<Fornitori orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify} fornitoreDaAprire={fornitoreDaAprire} onFornitoreAperto={()=>setFornitoreDaAprire(null)}/>}
         {vista==="vendite-b2b"&&<VenditeB2BView orgId={orgId} sedeId={sedeId} sedi={sedi} sedeAttiva={sedeAttiva} ricettario={ricettario} notify={notify}/>}
         {/* Personale espone stipendi: MAI per i dipendenti (oltre a sidebar gate + RLS solo-titolare). */}
         {vista==="personale"&&!isDip&&<Personale orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify} adminNome={auth?.profile?.nome_completo || auth?.user?.email} nomeAttivita={nomeAttivita}/>}

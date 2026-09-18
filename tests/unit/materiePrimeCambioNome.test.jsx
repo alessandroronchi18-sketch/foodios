@@ -325,6 +325,12 @@ describe('la finestra del cambio nome', () => {
       onRinominaMateriaPrima: async (...a) => { chiamate.push(a); return { ok: true, ricetteAggiornate: 2 } },
     })
     fireEvent.change(v.getByLabelText('Come si deve chiamare'), { target: { value: 'panna fresca' } })
+    // 18/09/2026 — il pulsante resta spento finché non si spunta la casella
+    // del doppio controllo. Il titolare l'ha chiesta perché l'operazione tocca
+    // il listino, tutte le ricette, lo storico, la resa E i magazzini di ogni
+    // negozio: un pulsante solo si preme per sbaglio, e quello che succede
+    // dopo non si vede.
+    fireEvent.click(v.container.querySelector('input[type="checkbox"]'))
     fireEvent.click([...v.container.querySelectorAll('button')].find(b => b.textContent.includes('Cambia il nome') && !b.getAttribute('aria-label')))
     await waitFor(() => expect(chiamate).toHaveLength(1))
     expect(chiamate[0]).toEqual(['panna frescs', 'panna fresca'])
@@ -340,6 +346,12 @@ describe('la finestra del cambio nome', () => {
       onRinominaMateriaPrima: async (...a) => { chiamate.push(a); return { ok: true } },
     })
     fireEvent.change(v.getByLabelText('Come si deve chiamare'), { target: { value: 'zucchero' } })
+    // 18/09/2026 — il pulsante resta spento finché non si spunta la casella
+    // del doppio controllo. Il titolare l'ha chiesta perché l'operazione tocca
+    // il listino, tutte le ricette, lo storico, la resa E i magazzini di ogni
+    // negozio: un pulsante solo si preme per sbaglio, e quello che succede
+    // dopo non si vede.
+    fireEvent.click(v.container.querySelector('input[type="checkbox"]'))
     fireEvent.click([...v.container.querySelectorAll('button')].find(b => b.textContent.includes('Cambia il nome') && !b.getAttribute('aria-label')))
     await waitFor(() => expect(v.container.textContent).toMatch(/c’è già/))
     expect(chiamate, 'la pagina ha chiesto di salvare un doppione').toHaveLength(0)
@@ -351,8 +363,39 @@ describe('la finestra del cambio nome', () => {
       onRinominaMateriaPrima: async () => ({ ok: false, errore: 'La rete non risponde.' }),
     })
     fireEvent.change(v.getByLabelText('Come si deve chiamare'), { target: { value: 'panna fresca' } })
+    // 18/09/2026 — il pulsante resta spento finché non si spunta la casella
+    // del doppio controllo. Il titolare l'ha chiesta perché l'operazione tocca
+    // il listino, tutte le ricette, lo storico, la resa E i magazzini di ogni
+    // negozio: un pulsante solo si preme per sbaglio, e quello che succede
+    // dopo non si vede.
+    fireEvent.click(v.container.querySelector('input[type="checkbox"]'))
     fireEvent.click([...v.container.querySelectorAll('button')].find(b => b.textContent.includes('Cambia il nome') && !b.getAttribute('aria-label')))
     await waitFor(() => expect(v.container.textContent).toContain('La rete non risponde.'))
     expect(v.queryByLabelText('Come si deve chiamare'), 'la finestra si è chiusa su un errore').toBeTruthy()
+  })
+})
+
+describe('Il doppio controllo prima di rinominare', () => {
+  it('senza la spunta il pulsante è spento', async () => {
+    const v = await apriFinestra()
+    const conferma = [...v.container.querySelectorAll('button')]
+      .find(b => b.textContent.includes('Cambia il nome') && !b.getAttribute('aria-label'))
+    expect(conferma.disabled).toBe(true)
+  })
+
+  it('spuntandola si accende', async () => {
+    const v = await apriFinestra()
+    fireEvent.click(v.container.querySelector('input[type="checkbox"]'))
+    const conferma = [...v.container.querySelectorAll('button')]
+      .find(b => b.textContent.includes('Cambia il nome') && !b.getAttribute('aria-label'))
+    expect(conferma.disabled).toBe(false)
+  })
+
+  it('e la finestra dice che le giacenze si spostano in tutti i negozi', async () => {
+    // È l'unica parte dell'operazione che tocca un archivio PER SEDE: chi
+    // rinomina deve sapere che lo segue anche il magazzino degli altri
+    // negozi, non solo quello in cui si trova adesso.
+    const v = await apriFinestra()
+    expect(v.container.textContent).toMatch(/in tutti i negozi/i)
   })
 })

@@ -400,11 +400,23 @@ describe('materie prime — quello che si vede appena si apre', () => {
     expect(v.container.textContent).toContain('Clicca sul prezzo per cambiarlo')
   })
 
-  it('il prezzo si tocca col dito: bersaglio da 40px, non da 22', async () => {
+  it('il prezzo si preme senza mirare: 44px col dito, 32 col mouse', async () => {
+    // Il difetto di partenza era un bersaglio da 22px, impossibile da
+    // centrare col polpastrello. La prima correzione lo aveva portato a 40
+    // per tutti; il 18/09 è diventato **44 col dito e 32 col mouse**, perché
+    // quarantaquattro è la misura di un polpastrello e col puntatore fa solo
+    // righe alte il doppio — il titolare le ha viste e le ha chiamate «molto
+    // più spesse di prima».
+    //
+    // Questo dato di prova gira a 1024px, cioè col mouse: qui ci si aspetta
+    // 32. Il caso col dito lo tiene `bersagliSulTablet.test.jsx`, che sposta
+    // davvero la larghezza della finestra.
     const v = apri()
     await waitFor(() => expect(v.container.textContent).toContain('burro'))
     const bersaglio = v.getByTitle('Clicca per modificare')
-    expect(bersaglio.style.minHeight).toBe('40px')
+    expect(bersaglio.style.minHeight).toBe('32px')
+    // Quello che NON deve tornare: il bersaglio da 22.
+    expect(parseInt(bersaglio.style.minHeight, 10)).toBeGreaterThan(22)
     expect(bersaglio.getAttribute('role')).toBe('button')
   })
 

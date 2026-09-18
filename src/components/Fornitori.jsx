@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from './Icon'
@@ -182,7 +182,49 @@ function RigheOrdine({ righe, isMobile }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // TAB 1 - Anagrafica fornitori
 // ─────────────────────────────────────────────────────────────────────────────
-function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = false, onMutate }) {
+function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = false, onMutate, fornitoreDaAprire = null, onFornitoreAperto }) {
+  // 18/09/2026 — arrivare qui da un'altra pagina, su un fornitore preciso.
+  // Il titolare: «se clicco sul nome di qualsiasi fornitore nella colonna
+  // fornitori mi rimanda alla pagina fornitore e alla riga specifica».
+  // Senza, chi cliccava si ritrovava in cima a un elenco e doveva cercare a
+  // mano il nome su cui aveva appena cliccato.
+  const rifRighe = useRef({})
+  const [evidenziato, setEvidenziato] = useState(null)
+  // 18/09/2026, il titolare: «se clicco sul nome di qualsiasi fornitore nella
+  // colonna fornitori mi rimanda alla pagina fornitore e alla riga specifica
+  // di quel fornitore».
+  //
+  // Senza questo, chi cliccava si ritrovava in cima a un elenco e doveva
+  // cercare a mano il nome su cui aveva appena cliccato — che è il modo più
+  // sicuro per far smettere la gente di cliccare.
+  //
+  // Il nome arriva per intero: si cerca senza distinguere maiuscole e spazi,
+  // perché nelle materie prime è scritto come compare in fattura e qui può
+  // essere stato registrato con un'altra grafia.
+  useEffect(() => {
+    if (!fornitoreDaAprire) return
+    const cercato = String(fornitoreDaAprire).trim().toLowerCase().replace(/\s+/g, ' ')
+    // Un giro dopo: la scheda deve avere disegnato le righe prima che si
+    // possa scorrere fino a una.
+    const t = setTimeout(() => {
+      const chiave = Object.keys(rifRighe.current).find(
+        k => k.trim().toLowerCase().replace(/\s+/g, ' ') === cercato
+      )
+      const el = chiave && rifRighe.current[chiave]
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        setEvidenziato(chiave)
+        // L'evidenza serve a farlo trovare, non a restare: dopo qualche
+        // secondo la riga torna come le altre.
+        setTimeout(() => setEvidenziato(null), 4000)
+      } else {
+        notify?.(`"${fornitoreDaAprire}" non è ancora fra i tuoi fornitori: aggiungilo qui.`, false)
+      }
+      onFornitoreAperto?.()
+    }, 120)
+    return () => clearTimeout(t)
+  }, [fornitoreDaAprire, onFornitoreAperto, notify])
+
   const confirmDialog = useConfirm()
   const [lista, setLista] = useState([])
   const [loading, setLoading] = useState(true)
@@ -682,7 +724,9 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
         {loading ? <div style={{ color: C.textSoft, fontSize: 13, padding: 20 }}>Caricamento…</div> : listaFiltrata.length === 0 ? (
           <div style={{ color: C.textSoft, fontSize: 13, textAlign: "center", padding: 40 }}>{q.trim() ? "Nessun fornitore trovato." : inArchivio ? "Nessun fornitore archiviato." : "Nessun fornitore ancora."}</div>
         ) : isMobile ? listaFiltrata.map(f => (
-          <div key={f.id} className="fos-tile" style={{ background: C.bgCard, borderRadius: 16, border: `1px solid ${C.border}`, padding: "12px 14px", marginBottom: 8, boxShadow: S.lg }}>
+          <div key={f.id} className="fos-tile"
+            ref={el => { if (el) rifRighe.current[f.nome || ''] = el }}
+            style={{ background: evidenziato === f.nome ? C.redLight : C.bgCard, borderRadius: 16, border: `1px solid ${evidenziato === f.nome ? C.red : C.border}`, padding: "12px 14px", marginBottom: 8, boxShadow: S.lg, transition: 'background 240ms ease, border-color 240ms ease' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
               <div style={{ fontWeight: 800, fontSize: 14, color: C.text }}>{f.nome}</div>
             </div>
@@ -704,7 +748,9 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
             </div>
           </div>
         )) : listaFiltrata.map(f => (
-          <div key={f.id} className="fos-tile" style={{ background: C.bgCard, borderRadius: 16, border: `1px solid ${C.border}`, padding: "14px 18px", marginBottom: 10, boxShadow: S.lg }}>
+          <div key={f.id} className="fos-tile"
+            ref={el => { if (el) rifRighe.current[f.nome || ''] = el }}
+            style={{ background: evidenziato === f.nome ? C.redLight : C.bgCard, borderRadius: 16, border: `1px solid ${evidenziato === f.nome ? C.red : C.border}`, padding: "14px 18px", marginBottom: 10, boxShadow: S.lg, transition: 'background 240ms ease, border-color 240ms ease' }}>
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontWeight: 800, fontSize: 14, color: C.text }}>{f.nome}</div>
@@ -1370,10 +1416,16 @@ function SpesaTab({ orgId, isMobile }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Container
 // ─────────────────────────────────────────────────────────────────────────────
-export default function Fornitori({ orgId, sedeId, sedi = [], notify }) {
+export default function Fornitori({ orgId, sedeId, sedi = [], notify, fornitoreDaAprire = null, onFornitoreAperto }) {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
   const [tab, setTab] = useState("fornitori")
+  // Arrivando da un'altra pagina su un fornitore preciso, la scheda giusta
+  // si apre da sola: senza, si atterrava su «Ordini» e il nome cercato non
+  // c'era.
+  useEffect(() => { if (fornitoreDaAprire) setTab('fornitori') }, [fornitoreDaAprire])
+  // ── Arrivare qui da un'altra pagina, su un fornitore preciso ───────────
+  //
   const [refreshKey, setRefreshKey] = useState(0)
   const bumpRefresh = () => setRefreshKey(k => k + 1)
   const TABS = [["fornitori", "Fornitori", "truck"], ["ordini", "Ordini", "receipt"], ["spesa", "Spesa", "barChart"]]
@@ -1404,7 +1456,7 @@ export default function Fornitori({ orgId, sedeId, sedi = [], notify }) {
         ))}
       </div>
 
-      {tab === "fornitori" && <FornitoriTab orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify} isMobile={isMobile} isTablet={isTablet} onMutate={bumpRefresh} />}
+      {tab === "fornitori" && <FornitoriTab orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify} isMobile={isMobile} isTablet={isTablet} onMutate={bumpRefresh} fornitoreDaAprire={fornitoreDaAprire} onFornitoreAperto={onFornitoreAperto} />}
       {tab === "ordini" && <OrdiniTab orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify} isMobile={isMobile} onMutate={bumpRefresh} />}
       {tab === "spesa" && <SpesaTab orgId={orgId} isMobile={isMobile} />}
     </div>

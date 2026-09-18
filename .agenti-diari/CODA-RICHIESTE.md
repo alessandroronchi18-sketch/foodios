@@ -232,3 +232,10 @@ con esattamente tre cifre dopo e nessuna virgola.
 delle date (proprietario di `formatIt.js`); l'aggancio in «Nuovo gusto» lo fa
 il capo, quello in «Materie prime» l'agente della pagina. `leggiPrezzoKg` non
 si tocca: ha già dei chiamanti e deve rispondere come prima.
+
+## DA GUARDARE — un test intermittente
+`tests/unit/rese.test.js › se il database rifiuta, lo dice invece di far
+credere che sia salvato` è caduto una volta nella suite intera e passa sempre
+da solo. È interferenza fra test (stato di modulo condiviso), non un difetto
+del prodotto — ma un test che va e viene è un difetto a sé: la prossima volta
+che cade nessuno gli crederà.

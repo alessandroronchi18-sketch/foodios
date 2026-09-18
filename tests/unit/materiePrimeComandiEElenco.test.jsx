@@ -140,12 +140,29 @@ describe('«in quante ricette» si apre e si legge', () => {
     fireEvent.click([...v.container.querySelectorAll('button[aria-expanded]')]
       .find(b => /ricette usano burro/.test(b.getAttribute('aria-label') || '')))
     await waitFor(() => expect(v.container.textContent).toContain('BAVARESE'))
+    // 18/09/2026 — l'elenco è passato da una colonna sola a una griglia:
+    // con ventinove ricette (BASE BIANCA le ha) una colonna sola era lunga
+    // come la pagina. Quello che il test protegge resta lo stesso: ogni
+    // ricetta è un elemento suo, non un blocco di testo separato da virgole.
     const colonna = [...v.container.querySelectorAll('div')]
-      .find(d => d.style.flexDirection === 'column' && d.textContent.includes('BAVARESE') && d.textContent.includes('CREMA CARAMEL'))
+      .find(d => (d.style.display === 'grid') && d.textContent.includes('BAVARESE') && d.textContent.includes('CREMA CARAMEL'))
     expect(colonna, 'le ricette non sono incolonnate').toBeTruthy()
-    // Una per riga: tanti elementi quante le ricette, non un blocco di testo
-    // separato da virgole.
     expect(colonna.children).toHaveLength(DIECI.length)
+  })
+
+  it('e stanno in ordine alfabetico', async () => {
+    // Prima uscivano nell'ordine in cui capitavano nell'archivio, che per chi
+    // legge non è un ordine: con ventinove nomi, trovare quello che si cerca
+    // voleva dire leggerli tutti.
+    const v = monta()
+    await waitFor(() => expect(v.container.textContent).toContain('burro'))
+    fireEvent.click([...v.container.querySelectorAll('button[aria-expanded]')]
+      .find(b => /ricette usano burro/.test(b.getAttribute('aria-label') || '')))
+    await waitFor(() => expect(v.container.textContent).toContain('BAVARESE'))
+    const griglia = [...v.container.querySelectorAll('div')]
+      .find(d => (d.style.display === 'grid') && d.textContent.includes('BAVARESE'))
+    const nomi = [...griglia.children].map(c => c.textContent)
+    expect(nomi).toEqual([...nomi].sort((a, b) => a.localeCompare(b, 'it')))
   })
 
   it('si richiude, e lo dichiara a chi legge con la voce', async () => {
