@@ -11,7 +11,7 @@ import { supabase } from '../lib/supabase'
 import { backgroundManager } from '../lib/backgroundManager'
 import { compressImage } from '../lib/imageUtils'
 import { callAi, parseAiJson } from '../lib/aiClient'
-import { color as T } from '../lib/theme'
+import { color as T, font } from '../lib/theme'
 
 // Palette compatibile con il vecchio Dashboard.jsx (C.*)
 const C = {
@@ -19,6 +19,11 @@ const C = {
   border: T.border, borderStr: T.borderStr,
   red: T.brand, redLight: T.brandLight,
   green: T.green, amber: T.amber, amberLight: T.amberLight,
+  // Una chiave che manca qui non rompe niente e non si vede: `C.bgSubtle`
+  // torna `undefined`, React non scrive lo sfondo, e il riquadro resta
+  // trasparente senza che nessun controllo se ne accorga. È già successo
+  // con `amberDark` il 19/09/2026.
+  bgSubtle: T.bgSubtle,
 }
 
 // Module-level store: persists AI results across FotoOCR unmount/remount
@@ -80,6 +85,27 @@ Instructions:
 - Be conservative: if price is ambiguous, skip rather than guess
 - CRITICAL: Return ONLY valid JSON, no text outside JSON, no markdown
 {"ingredienti":[{"nome":"ingredient name italian lowercase","prezzo_kg":price_per_kg_as_number}]}`,
+
+    bolla: `You are an OCR specialist for Italian supplier delivery notes (DDT / bolla) and purchase invoices (fattura) for a pastry shop or gelateria.
+Read the WHOLE document: the header (supplier, document number, date) and every line of goods.
+CRITICAL RULE - do NOT do arithmetic. Report EXACTLY what is printed, in the units printed. Converting to euro-per-kilo is done downstream by code that shows its work to the user; a conversion done here is invisible and cannot be checked.
+Instructions:
+- Header: "fornitore" = supplier company name; "numero" = document number as printed; "data" = document date in YYYY-MM-DD
+- For EVERY line of goods extract:
+  - "nome": the product name in ITALIAN lowercase, cleaned of pack wording. "FARINA TIPO 00 SACCO 25KG" -> "farina 00". Translate from English if needed
+  - "quantita": the number in the quantity column, as printed
+  - "unita": the unit of measure EXACTLY as printed ("KG","PZ","N.","CF","LT","CT","SACCHI")
+  - "pesoConfezioneG": ONLY if the line states the weight of one pack/sack/piece, converted to grams ("SACCO 25KG" -> 25000, "conf. 500 g" -> 500). If not stated, omit the field. NEVER guess it
+  - "prezzoUnitario": the unit price column, as printed
+  - "imponibile": the line total NET of VAT, as printed
+  - "totaleConIva": the line total INCLUDING VAT, only if that is what is printed
+  - "aliquotaIva": the VAT percentage for that line as a number (4, 10, 22) if printed
+  - "scontoPct": the line discount percentage if printed
+- Numbers: keep the Italian format exactly as printed ("1.250,50" stays "1.250,50"). Do NOT reformat
+- Omit any field you cannot read. An omitted field means "unknown" and is handled; a guessed field is a wrong price nobody will notice
+- Skip lines that are not goods: transport, packaging, totals, VAT recap, notes
+- CRITICAL: Return ONLY valid JSON, no text outside JSON, no markdown
+{"fornitore":"supplier name","numero":"doc number","data":"YYYY-MM-DD","righe":[{"nome":"italian lowercase","quantita":5,"unita":"SACCHI","pesoConfezioneG":25000,"prezzoUnitario":"18,50","imponibile":"92,50","aliquotaIva":4}]}`,
 
     magazzino: `You are an OCR specialist for Italian pastry ingredient/supply lists.
 The image is a handwritten list (sheet, notebook, delivery receipt) of ingredients received with quantities - may be in Italian or English.
@@ -186,6 +212,15 @@ Instructions:
           const byNome = {}
           for (const r of results) for (const p of (r.prodotti || [])) byNome[p.nome] = (byNome[p.nome] || 0) + (p.stampi || 0)
           return { prodotti: Object.entries(byNome).map(([nome, stampi]) => ({ nome, stampi })) }
+        } else if (mode === 'bolla') {
+          // Una bolla su due pagine si fotografa due volte: l'intestazione sta
+          // sulla prima, le righe su tutte. Le righe si mettono in fila senza
+          // sommarle — due righe della stessa merce su una bolla vera sono due
+          // consegne o due lotti, e sommarle nasconderebbe un prezzo diverso.
+          const testa = results.find(r => r?.fornitore || r?.numero || r?.data) || {}
+          const righe = []
+          for (const r of results) for (const x of (r.righe || [])) righe.push(x)
+          return { fornitore: testa.fornitore || '', numero: testa.numero || '', data: testa.data || '', righe }
         } else if (mode === 'prezzi') {
           const byNome = {}
           for (const r of results) for (const i of (r.ingredienti || [])) if (i.prezzo_kg > 0) byNome[i.nome] = i.prezzo_kg
@@ -241,7 +276,12 @@ Instructions:
     produzione: { title: "Foto dell'appunto di oggi",   sub: 'Foglietto o quaderno con le torte prodotte - anche corsivo abbreviato' },
     magazzino:  { title: 'Foto della lista ingredienti', sub: 'Foglio scritto con gli ingredienti arrivati e le quantità' },
     prezzi:     { title: 'Foto del listino / fattura',   sub: 'Listino prezzi, fattura fornitore, scontrino - Claude estrae €/kg automaticamente' },
-  }[mode]
+    bolla:      { title: 'Foto della bolla',            sub: 'La bolla o la fattura arrivata con la merce: carica le giacenze e aggiorna i prezzi in una volta sola' },
+    // Un modo senza etichetta faceva esplodere la pagina intera con
+    // «Cannot read properties of undefined»: la mappa dei modi stava qui e i
+    // prompt duecento righe sopra, e il 19/09/2026 ne ho aggiunto uno di là
+    // dimenticando di qua. Adesso al massimo il riquadro resta anonimo.
+  }[mode] || { title: 'Foto', sub: '' }
 
   return (
     <div style={{ background: '#F8F4F2', border: `2px dashed ${C.borderStr}`, borderRadius: 14, padding: '20px 24px', marginBottom: 24 }}>
@@ -328,6 +368,25 @@ Instructions:
                         <span style={{ color: C.green, fontWeight: 700 }}>{ing.quantita_g >= 1000 ? `${(ing.quantita_g / 1000).toFixed(1)}kg` : `${ing.quantita_g}g`}</span>
                       </div>
                     ))}
+                  </div>
+                )}
+                {mode === 'bolla' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 3, maxHeight: 200, overflowY: 'auto', marginBottom: 6 }}>
+                    <div style={{ fontSize: font.size.sm, color: C.textMid, fontWeight: 700, padding: '2px 0' }}>
+                      {[parsed.fornitore, parsed.numero && `n. ${parsed.numero}`, parsed.data]
+                        .filter(Boolean).join(' · ') || 'Intestazione non leggibile'}
+                    </div>
+                    {(parsed.righe || []).map((r, i) => (
+                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: font.size.sm, padding: '3px 8px', background: C.bgSubtle, borderRadius: 4 }}>
+                        <span style={{ color: C.text, fontWeight: 600, textTransform: 'capitalize' }}>{r.nome}</span>
+                        <span style={{ color: C.textMid, whiteSpace: 'nowrap' }}>
+                          {r.quantita} {r.unita}{r.imponibile ? ` · ${r.imponibile} €` : ''}
+                        </span>
+                      </div>
+                    ))}
+                    {(parsed.righe || []).length === 0 && (
+                      <div style={{ fontSize: font.size.sm, color: C.textSoft, padding: '6px 0' }}>Nessuna riga di merce riconosciuta</div>
+                    )}
                   </div>
                 )}
                 {mode === 'prezzi' && (

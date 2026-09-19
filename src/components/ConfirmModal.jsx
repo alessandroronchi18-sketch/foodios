@@ -92,7 +92,12 @@ function Overlay({ title, message, confirmLabel, cancelLabel, destructive, onCon
 
   const accent = destructive ? (T.brand || '#6E0E1A') : (T.green || '#16A34A')
   const accentBg = destructive ? '#FEF2F2' : '#F0FDF4'
-  const touchTarget = isTablet ? 44 : 40
+  // Il tablet lo si tocca col dito esattamente come il telefono: qui c'era
+  // `isTablet ? 44 : 40`, che dava 44 al tablet e **40 al telefono** — cioe'
+  // sotto il minimo proprio sullo schermo più piccolo. Il dito e' lo stesso
+  // nei due casi, il mouse in nessuno dei due.
+  const dito = isMobile || isTablet
+  const touchTarget = dito ? 44 : 40
   return (
     <div
       role="dialog" aria-modal="true" aria-labelledby="confirm-title"
@@ -100,7 +105,7 @@ function Overlay({ title, message, confirmLabel, cancelLabel, destructive, onCon
       style={{
         position: 'fixed', inset: 0,
         background: 'rgba(15, 23, 42, 0.45)',
-        zIndex: (Z?.modal || 1000) + 10,
+        zIndex: Z?.conferma || 2147483646,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         padding: 16,
         animation: 'fos-fade-in 0.15s ease-out',
@@ -126,7 +131,9 @@ function Overlay({ title, message, confirmLabel, cancelLabel, destructive, onCon
           </div>
         </div>
         {message && (
-          <div style={{ padding: '16px 20px', fontSize: 13, color: '#1F2937', lineHeight: 1.55 }}>
+          // `pre-line`: un riepilogo su più righe (l'import) arrivava tutto
+          // attaccato in un paragrafo solo, illeggibile proprio dove serve.
+          <div style={{ padding: '16px 20px', fontSize: 13, color: '#1F2937', lineHeight: 1.55, whiteSpace: 'pre-line' }}>
             {message}
           </div>
         )}

@@ -16,6 +16,7 @@ import { onEnterAutoComplete } from '../lib/autocomplete'
 import { SK_MAG, SK_EXCL, SK_LOGRIF } from '../lib/storageKeys'
 import { lessico } from '../lib/lessico'
 import FotoOCR from '../components/FotoOCR'
+import BollaInArrivo from './BollaInArrivo'
 import Icon from '../components/Icon'
 import { useConfirm } from '../components/ConfirmModal'
 import { loadStockPF, loadMovimentiPF, scartoPF, rettificaPF } from '../lib/stockPF'
@@ -809,7 +810,12 @@ function SchedeMagazzino({ righe, vuoto, consumoStimato, isDipendente, editSogli
 export default function MagazzinoView({
   ricettario, magazzino, setMagazzino, logRif, setLogRif,
   giornaliero, notify,
-  esclusi = new Set(), setEsclusi, onImportPrezzi, onImportPrezziOCR,
+  esclusi = new Set(), setEsclusi, onImportPrezzi,
+  // La bolla della merce in arrivo: scrive giacenze, prezzi e storico dei
+  // prezzi in una volta sola. `logPrezzi` serve qui per sapere quando un
+  // prezzo è cambiato l'ultima volta, e decidere se una bolla vecchia deve
+  // diventare il prezzo di oggi o restare solo nello storico.
+  onRegistraBolla = null, logPrezzi = [],
   orgId, sedeId, isDipendente = false, utente = null, LEX = lessico(),
   // Per mandare chi cerca i prezzi dove sono finiti, senza che debba
   // cercarseli nel menu.
@@ -861,6 +867,9 @@ export default function MagazzinoView({
   const [formQty, setFormQty] = useState('')
   const [formNote, setFormNote] = useState('')
   const [formMode, setFormMode] = useState('carico')
+  // Quello che il riconoscimento ha letto dalla bolla, in attesa di essere
+  // rivisto. Finché è qui non è stato scritto niente da nessuna parte.
+  const [bollaLetta, setBollaLetta] = useState(null)
   // Audit 2026-09-09: il default era 'desc', e la scala degli stati va da
   // negativo=0 a ok=4: quindi la tabella si apriva con gli ingredienti a posto
   // in cima e gli ESAURITI in fondo, da scorrere. Chi apre il magazzino vuole
@@ -2301,82 +2310,51 @@ export default function MagazzinoView({
       {tab === 'carica' && (
         <div style={{ maxWidth: 680 }}>
           <SectHead icon={<Icon name="truck" size={17} />} title="Carica merce" sub="Registra rifornimenti, scarichi e rettifiche di magazzino" />
-          <FotoOCR mode="magazzino" notify={notify} ricettario={ricettario} onResult={async res => {
-            const now = new Date().toISOString()
-            const nm = { ...magazzino }
-            const newLogs = []
-            for (const rawIng of (res.ingredienti || [])) {
-              const nomeIT = translateIngredienteEN(rawIng.nome || '')
-              const ing = { ...rawIng, nome: nomeIT }
-              const k = normIng(ing.nome)
-              // Guard NaN: se l'OCR omette la quantità, `0 + undefined = NaN`
-              // verrebbe persistito corrompendo per sempre quella giacenza.
-              const qg = Number(ing.quantita_g)
-              const qtaG = Number.isFinite(qg) ? qg : 0
-              if (qtaG <= 0) continue
-              nm[k] = { nome: ing.nome.trim(), giacenza_g: (nm[k]?.giacenza_g || 0) + qtaG, soglia_g: nm[k]?.soglia_g || 0, ultimoRifornimento: now }
-              newLogs.push({ id: `r-${Date.now()}-${k}`, data: now, ingrediente: ing.nome.trim(), quantita_g: qtaG, note: 'da foto', utente })
-            }
-            // Si contano i CARICATI, non le righe lette dalla foto.
-            //
-            // Il messaggio diceva `${(res.ingredienti || []).length} ingredienti`,
-            // cioè tutte le righe estratte — comprese quelle saltate dal
-            // `continue` qui sopra perché la quantità non era leggibile. Il
-            // prompt dell'OCR chiede esplicitamente di mettere 0 quando non
-            // riesce a leggere la quantità, quindi le righe scartate sono un
-            // esito previsto, non un caso raro: l'utente leggeva "caricati 12"
-            // e in magazzino ne trovava 7, senza sapere quali cinque rifare.
-            const scartati = (res.ingredienti || []).length - newLogs.length
-            if (newLogs.length === 0) {
-              notify('Dalla foto non si legge nessuna quantità: niente è stato caricato. Prova con una foto più nitida, o inserisci a mano.', false)
-              return false
-            }
-            const updLogs = [...newLogs, ...(logRif || [])]
-            try {
-              await ssave(SK_MAG, nm)
-              await ssave(SK_LOGRIF, updLogs)
-            } catch (e) {
-              // `false` = non ho salvato: FotoOCR tiene la foto e l'elenco
-              // riconosciuto, così "Riprova" vuol dire davvero riprovare.
-              console.error('[magazzino] OCR:', e); notify('Non ho potuto salvare i dati letti dalla foto: sono ancora qui, riprova', false)
-              return false
-            }
-            setMagazzino(nm)
-            setLogRif(updLogs)
-            notify(scartati > 0
-              ? `Caricati ${newLogs.length} ingredienti. Altri ${scartati} avevano la quantità illeggibile: quelli vanno messi a mano.`
-              : `Caricati ${newLogs.length} ingredienti in magazzino`, scartati === 0)
-          }}/>
-          <FotoOCR mode="prezzi" notify={notify} ricettario={ricettario} onResult={async res => {
-            if (!ricettario) { notify('Carica prima il ricettario', false); return false }
-            // Il prezzo va normalizzato a numero PRIMA di usarlo.
-            //
-            // Bug confermato: il filtro `i.prezzo_kg > 0` passava anche la
-            // stringa "12.50" (JavaScript la confronta convertendola), e subito
-            // dopo `i.prezzo_kg.toFixed(4)` su una stringa lancia un errore.
-            // Dentro un gestore asincrono quell'errore non arrivava da nessuna
-            // parte: nessun messaggio, nessun prezzo aggiornato, la foto
-            // sembrava semplicemente non aver funzionato. Che il valore non sia
-            // garantito numerico lo dice il flusso accanto, che infatti fa
-            // `Number(...)` e controlla `Number.isFinite`.
-            const nuoviCosti = {}
-            let letti = 0, scartati = 0
-            for (const i of (res.ingredienti || [])) {
-              const pk = Number(String(i.prezzo_kg ?? '').replace(',', '.'))
-              if (!Number.isFinite(pk) || pk <= 0) { scartati++; continue }
-              const k = normIng(translateIngredienteEN(i.nome || ''))
-              nuoviCosti[k] = { costoKg: parseFloat(pk.toFixed(4)), costoG: parseFloat((pk / 1000).toFixed(6)), isStima: false }
-              letti++
-            }
-            if (letti === 0) {
-              notify('Dalla foto non si legge nessun prezzo. Prova con una foto più nitida.', false)
-              return false
-            }
-            if (onImportPrezziOCR) onImportPrezziOCR(nuoviCosti)
-            notify(scartati > 0
-              ? `${letti} prezzi aggiornati. Altri ${scartati} non erano leggibili.`
-              : `${letti} prezzi aggiornati`, scartati === 0)
-          }}/>
+
+          {/* La bolla, una foto sola.
+
+              Fino al 19/09/2026 qui c'erano DUE riquadri: uno leggeva le
+              quantità e le metteva in magazzino, l'altro leggeva i prezzi e
+              li scriveva nelle materie prime. Due foto dello stesso foglio,
+              due conferme, e nessun legame — si poteva caricare la merce e
+              scordarsi il prezzo, o cambiare il prezzo senza che la merce
+              entrasse. Peggio: il riquadro dei prezzi non scriveva niente
+              nello storico, quindi il P&L dei mesi passati veniva rifatto
+              con i prezzi di oggi.
+
+              Adesso è una cosa sola: si fotografa la bolla, si controlla
+              quello che ha capito, e si registra. */}
+          {!bollaLetta && (
+            <FotoOCR mode="bolla" notify={notify} ricettario={ricettario} onResult={res => {
+              if (!(res?.righe || []).length) {
+                notify('Da questa foto non esce nessuna riga di merce. Prova con una foto più nitida, oppure registra a mano qui sotto.', false)
+                return false
+              }
+              setBollaLetta(res)
+            }}/>
+          )}
+
+          {bollaLetta && (
+            <div style={{ marginBottom: 18 }}>
+              <BollaInArrivo
+                letto={bollaLetta}
+                ricettario={ricettario}
+                logPrezzi={logPrezzi}
+                logRif={logRif}
+                notify={notify}
+                onAnnulla={() => setBollaLetta(null)}
+                onRegistra={async (righe, documento) => {
+                  if (!onRegistraBolla) {
+                    return { ok: false, errore: 'questa versione non sa ancora registrare le bolle' }
+                  }
+                  const esito = await onRegistraBolla(righe, documento)
+                  if (esito?.ok) setBollaLetta(null)
+                  return esito
+                }}
+              />
+            </div>
+          )}
+
           <div style={{ background: C.bgCard, border: `1px solid ${formMode === 'scarico' ? C.amber : C.border}`, borderRadius: R['2xl'], padding: isMobile ? '18px' : '28px', boxShadow: SHADOW_PREMIUM }}>
             <div style={{ display: 'flex', gap: 6, marginBottom: 18 }}>
               {[['carico', 'plus', 'Carico merce', 'Rifornimento in entrata'], ['scarico', 'trash', 'Scarico / Rettifica', 'Rimuovi quantità']].map(([m, ic, lbl, sub]) => (

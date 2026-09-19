@@ -12,12 +12,13 @@
 //
 // Tono UI: umano, breve, no AI-copy, no emoji, numeri IT, allineamento box.
 
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { aggiungiGiorni, ultimoGiornoDelMese, meseLocale } from '../lib/dateLocal'
 import { color as T, typo, font } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from './Icon'
+import { useConfirm } from './ConfirmModal'
 import { loadXLSX } from '../lib/xlsx'
 import { parseWorkbook, getSamples, fileToArrayBuffer } from '../lib/importParse'
 import { IMPORT_SCHEMAS, getEntitySchema, listEntities } from '../lib/importSchemas'
@@ -62,13 +63,29 @@ export default function ImportWizard({ orgId, onClose, notify, initialEntity = '
   const [insertResult, setInsertResult] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  // ── Il mese dei dati: si chiede QUI, non in una finestra di Safari ──────
+  //
+  // Quando il file e' organizzato a colonne (un mese per colonna) e il mese
+  // non si capisce ne' dal foglio ne' dal nome del file, prima si apriva un
+  // `window.prompt` che chiedeva di scrivere «2026-05». Tre problemi: su iOS
+  // quella finestra non dice nemmeno da che applicazione arriva; il formato
+  // andava scritto a mano e sbagliarlo buttava via tutto il caricamento; e
+  // arrivava nel mezzo della lettura, quando l'utente non ha ancora visto
+  // niente del suo file. Adesso sono due menu' a tendina dentro il wizard.
+  const [mesePendente, setMesePendente] = useState(null)   // { suggerito }
+  const [meseScelto, setMeseScelto] = useState('')          // 'AAAA-MM'
+  // Il riconoscimento del formato costa una chiamata: se l'utente sceglie il
+  // mese e si riparte, si riusa quello già fatto per lo stesso file.
+  const memoriaDetect = useRef(null)
+  const chiediConferma = useConfirm()
 
   const schema = useMemo(() => (entity ? getEntitySchema(entity) : null), [entity])
 
   // ── STEP 1 → STEP 2: parsea file, detect formato (LONG/WIDE), unpivot se serve, mapping AI
-  async function goToStep2() {
+  async function goToStep2(meseDaUsare = '') {
     if (!file || !entity) { setError('Scegli tipo dato e carica il file.'); return }
     setError(''); setLoading(true)
+    if (!meseDaUsare) setMesePendente(null)
     try {
       const XLSX = await loadXLSX()
       const buf = await fileToArrayBuffer(file)
@@ -92,7 +109,14 @@ export default function ImportWizard({ orgId, onClose, notify, initialEntity = '
           sheetsPayload[name] = raw.slice(0, 20)
         }
         try {
-          detected = await callImportDetectFormat({ entity, sheets: sheetsPayload })
+          // Se si torna qui solo perché mancava il mese, il formato del file
+          // e' lo stesso di un attimo fa: non si ripaga la stessa domanda.
+          const gia = memoriaDetect.current
+          if (gia && gia.file === file && gia.entity === entity) detected = gia.detected
+          else {
+            detected = await callImportDetectFormat({ entity, sheets: sheetsPayload })
+            memoriaDetect.current = { file, entity, detected }
+          }
         } catch (e) {
           detected = { format: 'long', unpivot_config: null, notes: `Riconoscimento fallito: ${e?.message || 'errore'}. Provo come formato semplice.` }
         }
@@ -108,21 +132,18 @@ export default function ImportWizard({ orgId, onClose, notify, initialEntity = '
               const fromFilename = guessMonthIsoFromFilename(file?.name || '')
               if (fromFilename) {
                 g.month_iso = fromFilename
+              } else if (/^\d{4}-\d{2}$/.test(meseDaUsare)) {
+                g.month_iso = meseDaUsare
               } else {
-                // Prompt utente (formato YYYY-MM). Se annulla, throw.
-                // Il mese proposto è quello dell'orologio di chi importa: con
-                // `toISOString()` il 1° del mese fino alle 02:00 la casella si
-                // apriva già scritta col mese PRECEDENTE, e chi preme Invio
+                // Il mese proposto e' quello dell'orologio di chi importa: con
+                // `toISOString()` il 1 del mese fino alle 02:00 la casella si
+                // apriva già scritta col mese PRECEDENTE, e chi conferma
                 // senza leggere carica i dati sotto il mese sbagliato.
-                const suggested = meseLocale()
-                const answer = window.prompt(
-                  'Non riesco a capire di che mese sono questi dati. Scrivilo tu nel formato ANNO-MESE (es. 2026-05 per maggio 2026):',
-                  suggested
-                )
-                if (!answer || !/^\d{4}-\d{2}$/.test(answer.trim())) {
-                  throw new Error('Formato mese non valido. Deve essere ANNO-MESE, es. 2026-05.')
-                }
-                g.month_iso = answer.trim()
+                const suggerito = meseLocale()
+                setMeseScelto(suggerito)
+                setMesePendente({ suggerito })
+                setLoading(false)
+                return
               }
             }
           }
@@ -276,11 +297,23 @@ export default function ImportWizard({ orgId, onClose, notify, initialEntity = '
           const doppi = prepared2.filter(r => esistenti.has(String(r[chiaveNome] || '').trim().toLowerCase()))
           if (doppi.length > 0) {
             const elenco = [...new Set(doppi.map(r => r[chiaveNome]))].slice(0, 8).join(', ')
-            const salta = window.confirm(
-              `${doppi.length} ${doppi.length === 1 ? 'riga è' : 'righe sono'} già in Foodos con lo stesso nome:\n\n${elenco}${doppi.length > 8 ? '…' : ''}\n\n` +
-              `OK = le salto e carico solo le altre ${prepared2.length - doppi.length}.\n` +
-              `Annulla = le carico comunque, e avrai due righe con lo stesso nome.`
-            )
+            const altre = prepared2.length - doppi.length
+            const coda = altre === 0
+              ? 'Nel file non c\'è altro: se le salti, non carico niente.'
+              : altre === 1
+                ? 'L\'altra riga la carico in ogni caso.'
+                : `Le altre ${altre.toLocaleString('it-IT', { useGrouping: 'always' })} le carico in ogni caso.`
+            // Le etichette dicono cosa fa ogni pulsante, quindi il messaggio non
+            // deve più spiegarlo: prima c'erano due righe «OK = … / Annulla = …»
+            // che servivano solo perché la finestra era quella del browser.
+            const salta = await chiediConferma({
+              title: doppi.length === 1
+                ? 'Una riga è già in Foodos'
+                : `${doppi.length.toLocaleString('it-IT', { useGrouping: 'always' })} righe sono già in Foodos`,
+              message: `Hanno lo stesso nome di righe già caricate:\n\n${elenco}${doppi.length > 8 ? '…' : ''}\n\n${coda}`,
+              confirmLabel: 'Salta le doppie',
+              cancelLabel: 'Caricale comunque',
+            })
             if (salta) {
               prepared2 = prepared2.filter(r => !esistenti.has(String(r[chiaveNome] || '').trim().toLowerCase()))
               if (prepared2.length === 0) {
@@ -334,13 +367,21 @@ export default function ImportWizard({ orgId, onClose, notify, initialEntity = '
       }
       if (dupPerCombo.length > 0) {
         const list = dupPerCombo
-          .map(d => `- Mese ${d.ym}: ${d.count.toLocaleString('it-IT', { useGrouping: 'always' })} righe già presenti`)
+          .map(d => {
+            const [aa, mm] = d.ym.split('-')
+            const nome = MESI_IT[Number(mm) - 1] || d.ym
+            return `- ${nome} ${aa}: ${d.count.toLocaleString('it-IT', { useGrouping: 'always' })} righe`
+          })
           .join('\n')
-        const conferma = window.confirm(
-          `Attenzione: hai già dei dati caricati per uno o più mesi che stai per importare:\n\n${list}\n\n` +
-          `Se procedi, i dati esistenti verranno SOVRASCRITTI con quelli del file.\n\n` +
-          `Vuoi comunque continuare?`
-        )
+        const conferma = await chiediConferma({
+          title: dupPerCombo.length === 1 ? 'Sovrascrivo i dati del mese?' : 'Sovrascrivo i dati di questi mesi?',
+          message:
+            `In Foodos ci sono già delle righe per quello che stai caricando:\n\n${list}\n\n` +
+            'Se vai avanti, quelle righe vengono sostituite con quelle del file.',
+          confirmLabel: 'Sovrascrivi',
+          cancelLabel: 'Annulla',
+          destructive: true,
+        })
         if (!conferma) {
           setLoading(false)
           setError('Caricamento annullato: dati esistenti per il mese scelto.')
@@ -433,12 +474,23 @@ export default function ImportWizard({ orgId, onClose, notify, initialEntity = '
           background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 14,
           padding: isMobile ? 16 : 24,
         }}>
+          {step === 1 && mesePendente && (
+            <ChiediIlMese
+              suggerito={mesePendente.suggerito}
+              valore={meseScelto}
+              setValore={setMeseScelto}
+              onContinua={() => goToStep2(meseScelto)}
+              onAnnulla={() => { setMesePendente(null); setError('') }}
+              isMobile={isMobile}
+              T={{ TXT, SOFT, BRAND, BORDER, AMBER, AMBER_BG, CARD: CARD_BG, SU_BRAND: T.textOnDark }}
+            />
+          )}
           {step === 1 && (
             <StepFile
               entity={entity} setEntity={setEntity}
               file={file} setFile={setFile}
               loading={loading}
-              onNext={goToStep2}
+              onNext={() => goToStep2()}
               isMobile={isMobile}
               T={{ TXT, SOFT, BRAND, BORDER }}
             />
@@ -557,6 +609,100 @@ function Steppers({ step, isMobile }) {
 }
 
 // ── STEP 1: file + entity ─────────────────────────────────────────
+
+// ── «Di che mese sono questi dati?» ───────────────────────────────────────
+//
+// Compare solo quando il file e' organizzato a colonne (un mese per colonna)
+// e il mese non si capisce ne' dal foglio ne' dal nome del file. Due tendine
+// invece di una casella dove scrivere «2026-05»: il formato non si puo'
+// sbagliare, e la domanda si legge dentro Foodos invece che in una finestra
+// del browser che su iOS non dice nemmeno da quale applicazione arriva.
+const MESI_IT = [
+  'gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno',
+  'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre',
+]
+
+function ChiediIlMese({ suggerito, valore, setValore, onContinua, onAnnulla, isMobile, T }) {
+  // Come gli altri passi del wizard: i colori arrivano dal genitore in un
+  // oggetto, e si scompongono subito. Lasciarli scritti col punto davanti li
+  // fa sembrare chiavi del tema a chi legge — e al controllo che verifica che
+  // le chiavi del tema esistano — mentre qui e' un prop che lo nasconde.
+  const { TXT, SOFT, BRAND, BORDER, AMBER, AMBER_BG, CARD, SU_BRAND } = T
+  const base = /^\d{4}-\d{2}$/.test(valore) ? valore : suggerito
+  const [annoStr, meseStr] = base.split('-')
+  const anno = Number(annoStr)
+  const mese = Number(meseStr)
+  const annoOggi = new Date().getFullYear()
+  const anni = []
+  for (let a = annoOggi - 4; a <= annoOggi + 1; a++) anni.push(a)
+  if (!anni.includes(anno)) anni.push(anno)
+  anni.sort((a, b) => b - a)
+
+  function cambia(nuovoAnno, nuovoMese) {
+    setValore(`${nuovoAnno}-${String(nuovoMese).padStart(2, '0')}`)
+  }
+
+  const selectStyle = {
+    padding: '10px 12px', minHeight: 44, fontSize: font.size.md, fontWeight: 600,
+    color: TXT, background: CARD, border: `1px solid ${BORDER}`,
+    borderRadius: 10, boxSizing: 'border-box', flex: isMobile ? '1 1 100%' : '0 0 auto',
+  }
+
+  return (
+    <div style={{
+      background: AMBER_BG, border: `1px solid ${AMBER}`, borderRadius: 12,
+      padding: isMobile ? 14 : 18, marginBottom: 16,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <Icon name="calendar" size={18} color={AMBER}/>
+        <div style={{ fontSize: font.size.md, fontWeight: 800, color: TXT }}>
+          Di che mese sono questi dati?
+        </div>
+      </div>
+      <div style={{ fontSize: font.size.base, color: SOFT, lineHeight: 1.55, marginBottom: 12 }}>
+        Nel file le colonne sono divise per mese, ma il mese non e&apos; scritto
+        da nessuna parte e non si capisce nemmeno dal nome del file. Scegli tu
+        quale mese caricare: i dati finiranno li&apos;.
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
+        <select
+          value={mese} onChange={e => cambia(anno, Number(e.target.value))}
+          aria-label="Mese" style={selectStyle}
+        >
+          {MESI_IT.map((nome, i) => (
+            <option key={nome} value={i + 1}>{nome}</option>
+          ))}
+        </select>
+        <select
+          value={anno} onChange={e => cambia(Number(e.target.value), mese)}
+          aria-label="Anno" style={selectStyle}
+        >
+          {anni.map(a => <option key={a} value={a}>{a}</option>)}
+        </select>
+      </div>
+      <div style={{
+        display: 'flex', gap: 10, marginTop: 14,
+        flexDirection: isMobile ? 'column-reverse' : 'row',
+      }}>
+        <button
+          type="button" onClick={onAnnulla}
+          style={{
+            padding: '10px 18px', minHeight: 44, background: 'transparent',
+            border: `1px solid ${BORDER}`, borderRadius: 10, color: SOFT,
+            fontSize: font.size.md, fontWeight: 600, cursor: 'pointer',
+          }}
+        >Annulla</button>
+        <button
+          type="button" onClick={onContinua}
+          style={{
+            padding: '10px 18px', minHeight: 44, background: BRAND, color: SU_BRAND,
+            border: 'none', borderRadius: 10, fontSize: font.size.md, fontWeight: 700, cursor: 'pointer',
+          }}
+        >Carica su {MESI_IT[mese - 1]} {anno}</button>
+      </div>
+    </div>
+  )
+}
 
 function StepFile({ entity, setEntity, file, setFile, loading, onNext, isMobile, T }) {
   const entities = listEntities().map(id => ({ id, schema: IMPORT_SCHEMAS[id] }))

@@ -83,6 +83,7 @@ import {
   buildIngCosti, calcolaFC,
 } from './lib/foodcost'
 import { labelPlurale } from './lib/tipoRicetta'
+import { preparaScrittureBolla } from './lib/bolle'
 import { SK_RIC, SK_PROD, SK_ACT, SK_AI, SK_MAG, SK_GIOR, SK_CHIUS, SK_EXCL, SK_RESE, SK_LOG_PRZ } from './lib/storageKeys'
 import { caricaChiusure, salvaChiusure } from './lib/chiusure'
 import { loadXLSX } from './lib/xlsx'
@@ -1701,14 +1702,46 @@ export default function Dashboard({
     }
   },[_RIC_CACHE_KEY, notify, ricettario, isMetodoInv]);
 
-  const handleImportPrezziOCR=useCallback(async (nuoviCosti) => {
-    if (!ricettario) return;
-    const nuovoRic = { ...ricettario, ingredienti_costi: { ...(ricettario.ingredienti_costi||{}), ...nuoviCosti } };
-    // SAVE FIRST: se ssave fallisce non muto lo state (evita prezzi fantasma al refresh)
-    try { await ssave(SK_RIC, nuovoRic); }
-    catch (e) { notify(`Errore salvataggio prezzi: ${e.message||'rete'}`, false); return; }
-    setRic(nuovoRic);
-  }, [ricettario, notify]);
+  // ── La bolla: giacenze e prezzi, in una volta sola ───────────────────────
+  //
+  // Richiesta del titolare, 19/09/2026: «arriva la merce, si carica la bolla,
+  // si popolano i campi del magazzino con la merce nuova e nel frattempo i
+  // dati dei prezzi delle materie prime parallelamente vanno nella sezione
+  // materie prime; ogni volta che c'è un cambio del prezzo al kg deve essere
+  // segnato nello storico di quella pagina».
+  //
+  // Quattro scritture in una sola chiamata: magazzino e registro dei
+  // rifornimenti (che sono **della sede**), listino e storico dei prezzi (che
+  // sono **dell'azienda**, come la pagina Materie prime). Separarle vorrebbe
+  // dire poter finire con la merce caricata e il prezzo no, o viceversa.
+  const handleRegistraBolla = useCallback(async (righe, documento) => {
+    if (!(righe || []).some(r => r?.chiave)) return { ok: false, errore: 'non c\'è niente da registrare' };
+    // Il conto sta in `src/lib/bolle.js`, dove si può provare: qui resta solo
+    // la scrittura. Quattro pezzi di dati in una sola chiamata al database —
+    // giacenze e registro dei rifornimenti (della sede), listino e storico dei
+    // prezzi (dell'azienda) — perché o entrano tutti o non entra niente.
+    const p = preparaScrittureBolla(righe, documento, {
+      magazzino: magazzino || {},
+      logRif: logRif || [],
+      ingredientiCosti: ricettario?.ingredienti_costi || {},
+      logPrezzi: logPrezzi || [],
+      utente: auth?.user?.email || null,
+    });
+    const base = ricettario || { ricette: {}, ingredienti_costi: {} };
+    const nuovoRic = { ...base, ricette: base.ricette || {}, ingredienti_costi: p.ingredientiCosti };
+    try {
+      await ssaveTutto([
+        { key: SK_RIC, value: nuovoRic },
+        { key: SK_LOG_PRZ, value: p.logPrezzi },
+        ...(p.caricati > 0 ? [{ key: SK_MAG, value: p.magazzino }, { key: SK_LOGRIF, value: p.logRif }] : []),
+      ]);
+    } catch (e) {
+      return { ok: false, errore: e?.message || 'rete' };
+    }
+    setRic(nuovoRic); setLogPrezzi(p.logPrezzi);
+    if (p.caricati > 0) { setMagazzino(p.magazzino); setLogRif(p.logRif); }
+    return { ok: true, caricati: p.caricati, applicati: p.applicati, storicizzati: p.storicizzati };
+  }, [magazzino, logRif, ricettario, logPrezzi, auth?.user?.email]);
 
   // ── Importazioni globali usate dalla pagina "Importa dati" ────────────────
   // Delivery: auto-detect piattaforma in base alle prime righe del file
@@ -2922,6 +2955,7 @@ export default function Dashboard({
             <div style={{ marginBottom: 4 }}>
               <button onClick={() => toggleSec(id)}
                 disabled={!!sidebarQuery}
+                aria-expanded={isOpen}
                 style={{ width:"calc(100% - 16px)", margin:"4px 8px 4px", padding:"10px 12px 10px 14px",
                   // Apre e chiude una sezione del menu: si tocca col dito,
                   // quindi 44px. Era 35 (10+10 di bordo interno più il testo).
@@ -3712,7 +3746,7 @@ export default function Dashboard({
         {vista==="previsione"&&<PrevisioneDomanda ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} ingCosti={ingCostiMain} calcolaFC={calcolaFC} getR={getR} citta={citta} tipoAttivita={tipoAttivita}/>}
         {vista==="chiusura"&&!isAllSedi&&<ChiusuraView ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} setChiusure={setChiusure} notify={notify} orgId={orgId} sedeId={sedeId} isDipendente={isDip} metodoProduzione={metodoProduzione} tipoAttivita={tipoAttivita} onNavigate={setView} LEX={LEX}/>}
         {vista==="storico"&&<StoricoProduzioneView ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} logPrezzi={logPrezzi} orgId={orgId} sedeId={sedeId} sedi={sedi} metodoProduzione={metodoProduzione} onNavigate={setView} LEX={LEX}/>}
-        {vista==="magazzino"&&!isAllSedi&&<MagazzinoView utente={auth?.user?.email||null} ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} logRif={logRif} setLogRif={setLogRif} giornaliero={giornaliero} notify={notify} esclusi={esclusi} setEsclusi={setEsclusi} onImportPrezzi={handleImportPrezzi} onImportPrezziOCR={handleImportPrezziOCR} orgId={orgId} sedeId={sedeId} isDipendente={isDip} onNavigate={setView} LEX={LEX}/>}
+        {vista==="magazzino"&&!isAllSedi&&<MagazzinoView utente={auth?.user?.email||null} ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} logRif={logRif} setLogRif={setLogRif} giornaliero={giornaliero} notify={notify} esclusi={esclusi} setEsclusi={setEsclusi} onImportPrezzi={handleImportPrezzi} onRegistraBolla={handleRegistraBolla} logPrezzi={logPrezzi} orgId={orgId} sedeId={sedeId} isDipendente={isDip} onNavigate={setView} LEX={LEX}/>}
         {vista==="giornaliero"&&!isAllSedi&&<ProduzioneGiornalieraView ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} giornaliero={giornaliero} setGiornaliero={setGiornaliero} notify={notify} sedi={sedi} sedeAttiva={sedeAttiva} orgId={orgId} sedeId={sedeId} isDipendente={isDip} nomeAttivita={nomeAttivita} LEX={LEX}/>}
         {vista==="inventario-gusti"&&<InventarioSettimanaleView orgId={orgId} sedeId={sedeId} sedi={sedi} sedeAttiva={sedeAttiva} ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} tipoAttivita={tipoAttivita} metodoProduzione={metodoProduzione} notify={notify} onNavigate={setView}/>}
         {vista==="quadratura-inventario"&&<QuadraturaInventarioView orgId={orgId} sedeId={sedeId} sedi={sedi} sedeAttiva={sedeAttiva} chiusure={chiusure} metodoProduzione={metodoProduzione} onNavigate={setView} notify={notify}/>}

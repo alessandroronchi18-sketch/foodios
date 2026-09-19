@@ -59,6 +59,27 @@ export function isValidPhone(s) {
   return digits.length >= 6 && digits.length <= 16
 }
 
+// ── Una data che sul calendario non esiste ─────────────────────────────
+//
+// «31/02/2026» passava di qui e usciva "2026-02-31": febbraio non ha 31
+// giorni. Il controllo era solo sulla FORMA (due cifre, barra, quattro cifre),
+// mai sul calendario. Così la riga risultava buona nell'anteprima, l'utente
+// dava l'ok, e il database la rifiutava a meta' caricamento — con meta' file
+// già dentro e nessun modo di sapere quale riga fosse. Stessa cosa per
+// «45/13/2026» e per un "2026-02-31" già scritto in ISO.
+//
+// Il 29 febbraio va distinto bene: 2024 esiste, 2026 no. Per questo si
+// costruisce la data e si controlla che torni indietro uguale, invece di
+// contare i giorni del mese a mano.
+function giornoCheEsiste(anno, mese, giorno) {
+  const a = Number(anno), m = Number(mese), g = Number(giorno)
+  if (!Number.isInteger(a) || !Number.isInteger(m) || !Number.isInteger(g)) return false
+  if (m < 1 || m > 12 || g < 1 || g > 31) return false
+  // A mezzogiorno UTC: nessun fuso orario puo' farla scivolare di un giorno.
+  const d = new Date(Date.UTC(a, m - 1, g, 12))
+  return d.getUTCFullYear() === a && d.getUTCMonth() === m - 1 && d.getUTCDate() === g
+}
+
 // Date ISO YYYY-MM-DD (Excel spesso arriva già così). Accetta anche
 // "DD/MM/YYYY" e converte.
 export function coerceDate(v) {
@@ -84,10 +105,12 @@ export function coerceDate(v) {
     if (!isNaN(d)) return d.toISOString().slice(0, 10) // costruita in UTC: qui e' corretto
   }
   const s = String(v).trim()
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (iso) return giornoCheEsiste(iso[1], iso[2], iso[3]) ? s : null
   const m = s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/)
   if (m) {
     const [, dd, mm, yyyy] = m
+    if (!giornoCheEsiste(yyyy, mm, dd)) return null
     return `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`
   }
   // "1/5/26" a due cifre: comune nei fogli scritti a mano.
@@ -95,6 +118,7 @@ export function coerceDate(v) {
   if (m2) {
     const [, dd, mm, yy] = m2
     const anno = Number(yy) >= 70 ? `19${yy}` : `20${yy}`
+    if (!giornoCheEsiste(anno, mm, dd)) return null
     return `${anno}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`
   }
   return null

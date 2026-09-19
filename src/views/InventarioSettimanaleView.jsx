@@ -20,9 +20,10 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { color as T, radius as R, shadow as S, font, space as SP, typo, ui, ui3 } from '../lib/theme'
+import { color as T, radius as R, shadow as S, font, space as SP, typo, ui, ui3, z as Z } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from '../components/Icon'
+import { useConfirm } from '../components/ConfirmModal'
 import { C, TNUM, PageHeader, TabellaOSchede } from './_shared'
 import ImportWizard from '../components/ImportWizard'
 import Skeleton from '../components/Skeleton'
@@ -111,6 +112,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
   const avvisatiSenzaRicetta = useRef(new Set())
   // Giorno mostrato dalla vista "Oggi": si può tornare a ieri per chiudere
   // una giornata dimenticata.
+  const chiediConferma = useConfirm()
   const [giornoOggi, setGiornoOggi] = useState(() => todayLocal())
   const [lunediIso, setLunediIso] = useState(() => lunediDellaSettimana())
   const [righe, setRighe] = useState([])
@@ -680,9 +682,15 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
         notify?.('La settimana scorsa non aveva nessuna produzione da copiare.', true)
         return
       }
-      const conferma = window.confirm(
-        `Copio i valori di PRODUZIONE della settimana ${fmtRange(lunediScorso)} in questa settimana?\n\nCelle da copiare: ${totCells}.\nLe celle già compilate non verranno toccate.`
-      )
+      const conferma = await chiediConferma({
+        title: 'Copio la produzione della settimana scorsa?',
+        message:
+          `Prendo i valori di produzione della settimana ${fmtRange(lunediScorso)} e li porto in questa.\n\n` +
+          `Celle da copiare: ${totCells.toLocaleString('it-IT', { useGrouping: 'always' })}.\n` +
+          'Le celle già compilate restano come sono.',
+        confirmLabel: 'Copia',
+        cancelLabel: 'Annulla',
+      })
       if (!conferma) return
 
       // Trova le celle vuote in this week e copia il PROD scorso.
@@ -784,7 +792,11 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
           onClick={(e) => { if (e.target === e.currentTarget) setShowImportWizard(false) }}
           style={{
             position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.55)',
-            zIndex: 9998, overflowY: 'auto', padding: 0,
+            // Il livello del tema, non un 9998 scritto a mano: il riquadro di
+            // conferma sta a `z.modal + 10` e deve poter uscire SOPRA a questo.
+            // Con 9998 la domanda «sovrascrivo il mese?» finiva dietro e il
+            // caricamento restava fermo su un pulsante che sembrava morto.
+            zIndex: Z.modal, overflowY: 'auto', padding: 0,
           }}>
           <ImportWizard
             orgId={orgId}
@@ -1537,6 +1549,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
 // + warning se richiesto > disponibile + copy corretto (era "scarto" invece di
 // "spedito", frase ingannevole).
 function DialogSpedizione({ state, setState, gusti, sedi, sedeOrigineId, righeOggi, onConferma }) {
+  const chiediConferma = useConfirm()
   const update = (k, v) => setState(s => ({ ...s, [k]: v }))
   const close = () => setState(null)
   const sediDest = (sedi || []).filter(s => s.id !== sedeOrigineId && s.attiva !== false)
@@ -1567,10 +1580,13 @@ function DialogSpedizione({ state, setState, gusti, sedi, sedeOrigineId, righeOg
   const oltreDisp = kgRichiesti > 0 && kgRichiesti > dispKg
   const canConferma = state.gusto && kgRichiesti > 0 && state.destSedeId
 
+  // `Z.modal` e non 9999: la conferma «spedisci comunque?» disegna a
+  // `z.modal + 10`, e con 9999 qui sotto usciva DIETRO a questa finestra —
+  // invisibile, con il pulsante che sembrava non fare niente.
   return (
     <div role="dialog" aria-modal="true"
       onClick={(e) => { if (e.target === e.currentTarget) close() }}
-      style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 16 }}>
+      style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: Z.modal, padding: 16 }}>
       <div style={{ background: '#FFFFFF', borderRadius: 16, maxWidth: 460, width: '100%', padding: '24px 26px', boxShadow: '0 20px 60px rgba(15,23,42,0.30)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
           <Icon name="truck" size={20} color={T.brand} />
@@ -1639,11 +1655,18 @@ function DialogSpedizione({ state, setState, gusti, sedi, sedeOrigineId, righeOg
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
           <button onClick={close} style={btnSecondary}>Annulla</button>
           <button disabled={!canConferma}
-            onClick={() => {
+            onClick={async () => {
               if (oltreDisp) {
-                const conferma = window.confirm(
-                  `Attenzione: stai spedendo ${kgRichiesti.toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 1 })} kg ma la sede oggi ne ha solo ${dispKg.toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 1 })} kg disponibili.\n\nProcedi solo se sai che hai rimanenza del giorno prima o altre giacenze.\n\nConfermi la spedizione?`
-                )
+                const kg = n => n.toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 1 })
+                const conferma = await chiediConferma({
+                  title: 'Spedisci più di quello che risulta in sede?',
+                  message:
+                    `Stai spedendo ${kg(kgRichiesti)} kg, ma oggi in sede ne risultano ${kg(dispKg)} kg.\n\n` +
+                    'Vai avanti solo se hai rimanenza del giorno prima o altre giacenze.',
+                  confirmLabel: 'Spedisci comunque',
+                  cancelLabel: 'Annulla',
+                  destructive: true,
+                })
                 if (!conferma) return
               }
               onConferma(state)

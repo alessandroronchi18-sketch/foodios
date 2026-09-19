@@ -257,6 +257,18 @@ export const z = {
   toast:   100,
   modal:   200,
   popover: 300,
+  // ── La domanda sta sopra tutto, sempre ──────────────────────────────────
+  //
+  // 19/09/2026: il riquadro che chiede «confermi?» si disegnava a 210, e nel
+  // prodotto ci sono trentadue contenitori più in alto — quindici a 9999,
+  // uno a 10001. Chiedere una conferma da dentro uno di quelli faceva
+  // comparire la domanda DIETRO alla finestra che l'aveva chiesta: invisibile,
+  // con il pulsante che sembrava morto e l'operazione che non partiva mai.
+  //
+  // Il numero e' volutamente il massimo: una domanda che aspetta una risposta
+  // non deve poter essere coperta da niente, e ogni valore più basso invita
+  // il prossimo contenitore a scavalcarlo. Un test lo tiene in cima.
+  conferma: 2147483646,
 };
 
 // ─── Le misure che cambiano fra le tre versioni ──────────────────────────────

@@ -14,7 +14,7 @@
 // parlava d'altro: `trasferimentiSenzaBuchi.test.js` controllava `prompt(` in
 // `TrasferimentiView.jsx` e `window.confirm` in `Fornitori.jsx`. Due file su
 // centoventi. Gli altri centodiciotto non li guardava nessuno — e infatti ce
-// ne sono cinque che la violano, elencati qui sotto.
+// n'erano cinque che la violavano. Oggi ne resta uno solo, elencato qui sotto.
 //
 // Questo è un CRICCHETTO, non un traguardo: l'elenco delle eccezioni può solo
 // accorciarsi. Chi ne aggiunge una deve scrivere qui perché, e chi ne corregge
@@ -42,20 +42,18 @@ const AMMESSI_PER_SEMPRE = [
 // DA CORREGGERE: violazioni vere, trovate il 19/09/2026 e non corrette qui
 // perché l'audit della suite non tocca `src/`. Ognuna è una finestra del
 // browser che compare a un cliente, su un telefono, nel mezzo di un flusso.
+//
+// 19/09/2026, secondo giro: l'elenco è passato da tre file a uno.
+// `ImportWizard.jsx` e `InventarioSettimanaleView.jsx` sono a zero e per questo
+// non compaiono più qui — le loro quattro domande adesso le fa `ConfirmModal`.
+// Nota per chi legge il numero vecchio: `ImportWizard.jsx` diceva 3 ma le
+// chiamate vere erano già 2 (il `window.prompt` del mese era stato tolto e del
+// prompt era rimasto solo il racconto in un commento, che il setaccio non
+// conta). È il motivo per cui questi numeri si ricontano invece di ereditarli.
 const DA_CORREGGERE = {
   // Import del ricettario: la domanda «sovrascrivo?» prima di riscrivere le
   // ricette. È la domanda più pericolosa del prodotto e la fa Safari.
   'src/Dashboard.jsx': 1,
-  // Import universale dei file dei clienti: il nome del mese chiesto con
-  // `window.prompt`, «salto le righe già presenti?» e la conferma di
-  // sovrascrittura. È la pagina dove entrano i file dei clienti.
-  // 19/09/2026: erano quattro. La domanda «unisco le righe doppie del file?»
-  // è diventata una casella da spuntare nel riepilogo del passo 3, dove
-  // l'utente la legge insieme a tutto il resto invece che in una finestra di
-  // Safari nel mezzo del caricamento.
-  'src/components/ImportWizard.jsx': 3,
-  // Inventario settimanale: due conferme nel flusso di tutti i giorni.
-  'src/views/InventarioSettimanaleView.jsx': 2,
 }
 
 function tuttiIFile(dir, out = []) {
@@ -123,7 +121,7 @@ describe('niente finestre del browser nei flussi utente', () => {
       `questi file chiedono col browser invece che con una finestra del programma: ${nuovi.join(', ')}`).toEqual([])
   })
 
-  it('e i cinque casi noti non aumentano', () => {
+  it('e i casi noti che restano non aumentano', () => {
     const trovate = violazioni()
     for (const [file, tetto] of Object.entries(DA_CORREGGERE)) {
       expect(trovate[file] || 0,

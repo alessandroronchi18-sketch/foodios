@@ -94,10 +94,23 @@ function apriGruppo(container, titolo) {
   const testa = [...container.querySelectorAll('.fos-drawer-shell button')]
     .find(b => (b.textContent || '').trim() === titolo)
   expect(testa, `non trovo il gruppo "${titolo}"`).toBeTruthy()
+  // Il click e' un interruttore: su un gruppo gia' aperto lo CHIUDE. Prima
+  // qui si cliccava alla cieca, dando per scontato che partisse chiuso —
+  // vero solo finche' nessun altro test lo aveva aperto prima (il cassetto
+  // ricorda aperto/chiuso in `localStorage`, e in un file di test quel
+  // ricordo sopravvive da un test all'altro). Mescolando l'ordine il
+  // 19/09/2026 questo test e' andato rosso col menu perfettamente sano.
+  if (testa.getAttribute('aria-expanded') === 'true') return
   act(() => { fireEvent.click(testa) })
 }
 
-beforeEach(() => larghezza(1280))
+beforeEach(() => {
+  // Ogni test riparte dal prodotto appena installato: senza questo, il
+  // ricordo dei gruppi aperti passa da un test al successivo e il risultato
+  // dipende dall'ordine in cui girano.
+  try { localStorage.clear() } catch { /* niente localStorage: va bene lo stesso */ }
+  larghezza(1280)
+})
 afterEach(() => cleanup())
 
 describe('la barra in alto del computer', () => {
