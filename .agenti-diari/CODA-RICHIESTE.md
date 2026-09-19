@@ -63,15 +63,15 @@ ultima**, subito prima del commit.
       stati spostati, non tolti.
 
 ### Nuovo gusto — AGENTE 1 (proprietario di NuovaRicettaView.jsx)
-- [ ] D. Il suggerimento «Le ricette esistenti vengono saltate» non si
+- [x] D. Il suggerimento «Le ricette esistenti vengono saltate» non si
       capisce. Riscriverlo in italiano da pasticceria.
-- [ ] E. «Aggiungi note di cottura o congelabilità»: si apre ma non si
+- [x] E. «Aggiungi note di cottura o congelabilità»: si apre ma non si
       richiude. Deve fare da interruttore.
-- [ ] F. I nomi degli ingredienti con la prima maiuscola anche **mentre si
+- [x] F. I nomi degli ingredienti con la prima maiuscola anche **mentre si
       aggiungono**, non solo quando si rileggono.
-- [ ] H. Il riquadro «Somma ingredienti 0 g / Resa dichiarata 1.000 g» è
+- [x] H. Il riquadro «Somma ingredienti 0 g / Resa dichiarata 1.000 g» è
       troppo grande e invadente. Ridimensionarlo.
-- [ ] Riga 1408: la frase sugli allergeni va allineata alla decisione
+- [x] Riga 1408: la frase sugli allergeni va allineata alla decisione
       legale qui sotto.
 
 ### Allergeni, responsabilità — AGENTE 2
@@ -165,7 +165,7 @@ vera: nell'elenco dei prodotti i semilavorati non ci vanno, nemmeno senza
       BASE BIANCA compariva a 1,22 €/kg mentre alle 29 ricette che la usano ne
       venivano addebitati 2,31. Ora mostra quello vero e, quando i due numeri
       divergono, dice anche l'altro. 5 test, 2 rossi sul codice di prima.
-- [ ] **DA FARE: la pagina Materie prime nasconde `base bianca`.**
+- [x] **DA FARE: la pagina Materie prime nasconde `base bianca`.**
       Esclude tutti i semilavorati — giusto in linea di principio, perché il
       loro costo esce dalla loro ricetta. Ma quando una base ha un prezzo
       scritto a mano, quel prezzo **è il numero che il prodotto usa** (29
@@ -276,3 +276,11 @@ che cade nessuno gli crederà.
 - [x] Un titolo solo sopra l'elenco delle ricette (erano due, uguali).
 - [x] Il riquadro grigio arriva al bordo: `colSpan` diceva 4 su cinque colonne.
 - [x] Un solo «Modifica» nelle azioni; cambio nome ed eliminazione dentro.
+
+
+## CHIUSO — 19/09/2026 sera
+Le sei caselle qui sopra erano rimaste vuote, ma il lavoro era fatto e con i
+suoi test. Verificato nel codice una per una prima di spuntarle.
+
+Restano aperte solo le **quattro decisioni sull'import**, che aspettano una
+risposta del titolare, non del codice.

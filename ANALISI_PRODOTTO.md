@@ -2923,3 +2923,122 @@ paganti** — 30.000 € di ricavi ricorrenti. Sotto quella cifra la conversazio
 su un progetto; sopra, è su un'azienda. Ed è a portata: 20 clienti su 21.300
 attività è lo **0,09%** del mercato.
 
+---
+
+## 11. 19/09/2026 — i prezzi dalle bolle, e i voti rifatti su basi misurate
+
+### 11.1 Come sono calcolati questi voti (e cosa NON dicono)
+
+I voti delle sessioni precedenti erano giudizi. Questi no: sono **calcolati da
+quattro numeri misurati sul repository**, con una formula scritta qui sotto,
+così chiunque può rifare il conto e contestarlo.
+
+| Indicatore | Come si misura | Peso |
+|---|---|---|
+| **Prove** | quanti test (`it`/`test`) stanno in file che **importano davvero** quel file del prodotto — import statico o dinamico | 0–40 |
+| **Pulizia del design** | deviazioni dai token di `theme.js` ogni 100 righe, dalla fotografia in `scripts/design-tokens-baseline.json` | 0–20 |
+| **Lavoro recente** | commit degli ultimi 7 giorni che toccano quel file | 0–20 |
+| **Difetti aperti noti** | 20 se la coda non ha niente di aperto su quell'area | 0–20 |
+
+Soglie: prove 0 → 0, <10 → 12, <25 → 20, <50 → 28, <90 → 34, ≥90 → 40.
+Deviazioni 0 → 20, <2 → 16, <5 → 12, <8 → 8, ≥8 → 5.
+Commit 0 → 5, ≤3 → 10, ≤9 → 15, ≥10 → 20.
+
+**Il righello ha mentito tre volte prima di funzionare**, ed è giusto scriverlo:
+la prima versione contava i file di test che *nominavano* la pagina (e «PL»
+trovava anche «esempio» e «plurale»); la seconda contava solo gli import
+statici, e i test montano le viste con `await import(...)`; la terza contava
+solo `it(` e non `test(`. Taratura finale: 4.524 prove contate su 4.965
+eseguite — lo scarto sono `it.each` e i file fuori da `tests/unit`.
+
+**Cosa questo voto misura:** quanto una parte del prodotto è *solida* —
+provata, pulita, curata di recente, senza difetti aperti.
+**Cosa NON misura:** se quella pagina serve davvero a un pasticcere. Una
+pagina inutile ma ben provata prende un voto alto. Per quello servono i dati
+d'uso, che sono un'altra cosa.
+
+### 11.2 I voti, sezione per sezione
+
+| Sezione | Prove | File di test | Deviazioni / 100 righe | Commit 7 gg | Righe | **Voto** |
+|---|---:|---:|---:|---:|---:|---:|
+| Materie prime | 159 | 16 | 0.0 | 6 | 1.904 | **95** |
+| Food cost (il motore) | 399 | 29 | 0.0 | 5 | 1.395 | **95** |
+| Fornitori | 121 | 13 | 4.0 | 19 | 5.321 | **92** |
+| Import dati | 127 | 9 | 3.6 | 12 | 2.093 | **92** |
+| Cassa e prima nota | 71 | 6 | 1.9 | 11 | 1.700 | **90** |
+| Nuovo gusto | 186 | 23 | 5.2 | 17 | 2.585 | **88** |
+| Menu e navigazione | 242 | 20 | 5.7 | 31 | 4.467 | **88** |
+| Magazzino / Giacenze | 75 | 13 | 2.9 | 20 | 2.631 | **86** |
+| Storico produzione | 50 | 4 | 3.5 | 11 | 1.705 | **86** |
+| Bolla in arrivo | 66 | 2 | 0.0 | 3 | 1.087 | **84** |
+| Fornitori ↔ materie prime | 52 | 2 | 0.0 | 2 | 900 | **84** |
+| Ricettario | 73 | 8 | 7.0 | 12 | 1.286 | **82** |
+| Inventario settimanale | 75 | 7 | 5.7 | 12 | 3.482 | **82** |
+| P&L | 85 | 7 | 6.7 | 13 | 2.304 | **82** |
+| Trasferimenti fra sedi | 51 | 3 | 4.2 | 7 | 1.188 | **81** |
+| Allergeni e HACCP | 61 | 6 | 4.8 | 7 | 1.752 | **81** |
+| Semilavorati | 42 | 9 | 2.3 | 10 | 1.009 | **80** |
+| Confronto sedi | 58 | 5 | 5.9 | 7 | 1.104 | **77** |
+| Costi fissi | 35 | 8 | 7.0 | 5 | 976 | **71** |
+| Impostazioni | 26 | 3 | 10.9 | 6 | 1.384 | **68** |
+| Pannello admin | 47 | 4 | 11.2 | 7 | 4.912 | **68** |
+| Listino (formati di vendita) | 11 | 5 | 2.7 | 5 | 933 | **67** |
+| Previsioni | 10 | 4 | 1.6 | 2 | 683 | **66** |
+| Quadratura inventario | 17 | 5 | 7.2 | 4 | 1.202 | **63** |
+| Vendite B2B | 17 | 5 | 7.0 | 6 | 1.190 | **63** |
+| Calendario | 6 | 2 | 0.2 | 2 | 959 | **58** |
+| Produzione giornaliera | 8 | 4 | 9.5 | 5 | 1.392 | **52** |
+| Personale | 9 | 4 | 8.3 | 5 | 2.315 | **52** |
+| Sprechi e omaggi | 0 | 3 | 4.5 | 5 | 961 | **47** |
+| Cashflow | 0 | 3 | 7.3 | 4 | 671 | **43** |
+
+**Media: 75/100** su 30 sezioni.
+
+### 11.3 Le tre cose che questi numeri hanno tirato fuori
+
+1. **Due pagine hanno zero prove: Cashflow e Sprechi e omaggi.** Non «poche»:
+   zero. I tre file che sembravano coprirle sono `layoutViste*.test.jsx`, che
+   non sono test ma l'attrezzo dell'audit di impaginazione — dentro c'è un
+   `it.skipIf` che di norma non parte. Sono due pagine che toccano i soldi:
+   una racconta quando i soldi entrano ed escono, l'altra quanto si butta.
+2. **Produzione giornaliera ha 8 prove su 1.392 righe, ed è la pagina che si
+   apre ogni mattina.** È il rapporto peggiore del prodotto fra quanto una
+   pagina viene usata e quanto è protetta.
+3. **Le aree rifatte in questi giorni sono quelle messe meglio, e si vede dai
+   numeri, non dalle impressioni**: Materie prime e il motore del food cost
+   stanno a 95 con zero deviazioni dai token; Fornitori e Import dati a 92.
+   Il metodo funziona — il problema è che copre una pagina alla volta.
+
+### 11.4 Cosa è stato fatto oggi
+
+- **I prezzi delle materie prime arrivano dalla merce.** Si carica la bolla
+  (dalla foto o scritta a mano), e giacenze, listino e storico dei prezzi
+  cambiano nella stessa scrittura. Il difetto che c'era sotto: i prezzi letti
+  da una foto finivano in `ingredienti_costi` **senza lasciare una riga nello
+  storico**, e siccome il conto storico cammina su quello storico, il P&L di
+  un mese passato veniva rifatto con i prezzi di oggi.
+- **Quello che il prodotto si rifiuta di indovinare**, di proposito: il peso
+  di una confezione, il peso di un litro di un liquido che non conosce, il
+  prezzo da un lordo senza aliquota, una materia prima che non è in elenco.
+- **Il riquadro delle conferme si disegnava dietro alle finestre che lo
+  chiamavano** (livello 210 contro 32 contenitori più in alto): la domanda era
+  invisibile e l'operazione restava in attesa di una risposta impossibile.
+- **Due file di test erano verdi solo per fortuna**: dipendevano dall'ordine.
+- Date impossibili all'import (31/02, 29/02 non bisestile), il mese dei dati
+  scelto da due tendine invece che da una finestra del browser, le finestre
+  native scese da sei a una.
+- `AUDIT_CONCORRENTI.md`: 28 gestionali, prezzi verificati alla fonte.
+  **Nessuno dei 18 internazionali fa food cost ricorsivo sui semilavorati.**
+
+### 11.5 Cosa resta aperto
+
+| Cosa | Di chi è |
+|---|---|
+| Le quattro decisioni sull'import (listino fornitore, righe «TOTALE», cella vuota → 0 nel costo orario, fogli oltre il primo) | del titolare |
+| Cashflow e Sprechi senza prove | del codice |
+| Produzione giornaliera con 8 prove | del codice |
+| Un rosso intermittente visto una volta sul push e mai più riprodotto in 20 giri | del codice, e non è ancora chiuso |
+
+I quattro punti d'azienda di `COSE_DA_FARE_TU.md` (dominio, 2FA, repository
+pubblico, Stripe) restano fuori da questi voti per scelta del titolare:
+«stiamo ancora in fase di rifinitura».
