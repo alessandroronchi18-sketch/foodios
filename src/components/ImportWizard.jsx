@@ -15,17 +15,27 @@
 import React, { useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { aggiungiGiorni, ultimoGiornoDelMese, meseLocale } from '../lib/dateLocal'
-import { color as T, typo } from '../lib/theme'
+import { color as T, typo, font } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from './Icon'
 import { loadXLSX } from '../lib/xlsx'
 import { parseWorkbook, getSamples, fileToArrayBuffer } from '../lib/importParse'
 import { IMPORT_SCHEMAS, getEntitySchema, listEntities } from '../lib/importSchemas'
-import { validateRows, findMissingRequired, getLookupFields } from '../lib/importValidateCore'
+import { validateRows, findMissingRequired, getLookupFields, doppioniNelFile } from '../lib/importValidateCore'
 import { callImportMap, callImportDetectFormat, saveImportMapping } from '../lib/importAiMap'
 import { applyUnpivot } from '../lib/importUnpivot'
 import { guessMonthIsoFromFilename } from '../lib/importDateGuess'
 import { summarizeErrors } from '../lib/importErrorSummary'
+
+/**
+ * Il campo su cui due righe sono «la stessa cosa», quando la tabella non ha
+ * un indice unique e quindi non si può fare upsert. Per `fornitori` e
+ * `dipendenti` è il nome.
+ */
+function chiaveUnica(schema) {
+  if (!schema || schema.upsertOn) return null
+  return (schema.uniqueOn || []).length === 1 ? schema.uniqueOn[0] : null
+}
 
 const BATCH_SIZE = 200
 // Righe massime per file. Era dichiarato nella schermata ("max 5.000 righe")
@@ -43,6 +53,8 @@ export default function ImportWizard({ orgId, onClose, notify, initialEntity = '
   const [parsedSheet, setParsedSheet] = useState(null)
   const [detectInfo, setDetectInfo] = useState(null)
   const [mapping, setMapping] = useState({})
+  const [confidence, setConfidence] = useState({})
+  const [unisciDoppioni, setUnisciDoppioni] = useState(true)
   const [aiNotes, setAiNotes] = useState('')
   const [activeConversions, setActiveConversions] = useState(new Set())
   const [validationResult, setValidationResult] = useState(null)
@@ -135,13 +147,27 @@ export default function ImportWizard({ orgId, onClose, notify, initialEntity = '
         const sheet = wb.firstSheet
         if (sheet.rows.length === 0) throw new Error('Il file non contiene righe di dati.')
         sheetForMapping = sheet
-        setDetectInfo(detected ? {
-          format: detected.format || 'long',
+        setDetectInfo({
+          format: detected?.format || 'long',
           unpivot_config: null,
-          notes: detected.notes,
+          notes: detected?.notes,
           sheetCount,
           unpivotStats: null,
-        } : null)
+          // 19/09/2026 — di un file a più fogli se ne leggeva uno solo, il
+          // primo, e non lo diceva nessuno: il riquadro che racconta cosa è
+          // stato letto compariva solo per il formato WIDE. Un listino con un
+          // foglio per famiglia di prodotti entrava per un terzo, e la
+          // schermata finale diceva «Tutto caricato!».
+          foglioUsato: wb.firstSheetName,
+          fogliIgnorati: wb.sheetNames
+            .filter(n => n !== wb.firstSheetName)
+            .map(n => ({ nome: n, righe: (wb.sheets[n]?.rows || []).length }))
+            .filter(f => f.righe > 0),
+          // Quante righe sono state saltate in cima prima di trovare le
+          // intestazioni (titolo del listino, indirizzo, riga bianca).
+          righeSaltate: sheet.righeSaltate || 0,
+          rigaIntestazione: sheet.rigaIntestazione || 1,
+        })
       }
 
       setParsedSheet(sheetForMapping)
@@ -149,6 +175,9 @@ export default function ImportWizard({ orgId, onClose, notify, initialEntity = '
       const samples = getSamples(sheetForMapping, 5)
       const aiRes = await callImportMap({ entity, headers: sheetForMapping.headers, sampleRows: samples })
       setMapping(aiRes.mapping || {})
+      // La confidenza tornava dal server e veniva buttata via: un abbinamento
+      // indovinato al cinquanta per cento sembrava identico a uno certo.
+      setConfidence(aiRes.confidence || {})
       setAiNotes(aiRes.notes || '')
       setStep(2)
     } catch (e) {
@@ -213,10 +242,28 @@ export default function ImportWizard({ orgId, onClose, notify, initialEntity = '
     // controlliamo i nomi che ci sono già, li diciamo, e lasciamo scegliere
     // fra saltarli e inserirli comunque.
     let prepared2 = prepared
-    const chiaveNome = !schema.upsertOn && (schema.uniqueOn || []).length === 1
-      ? schema.uniqueOn[0] : null
+    const chiaveNome = chiaveUnica(schema)
+
+    // ═══ Doppioni DENTRO il file, prima ancora di guardare il database.
+    // 19/09/2026 — il file che arriva davvero («nome fornitore, prodotto,
+    // prezzo», una riga per prodotto) ha lo stesso fornitore su più righe.
+    // Il controllo qui sotto guardava solo i nomi già presenti in Foodos e
+    // mai quelli ripetuti nel file: cinque righe diventavano cinque
+    // anagrafiche per tre fornitori, e la schermata finale diceva «Tutto
+    // caricato!». Su un listino di 300 righe da 12 fornitori sono 300
+    // anagrafiche da cancellare a mano.
+    //
+    // La scelta l'ha già fatta l'utente al passo 3, dove la vede scritta
+    // insieme a tutto il resto: qui non si apre nessuna finestra. Una domanda
+    // del browser in mezzo al caricamento arriverebbe senza il nome
+    // dell'applicazione e senza il contesto di quello che sta per succedere.
+    if (chiaveNome && unisciDoppioni) {
+      prepared2 = doppioniNelFile(prepared, chiaveNome).tenute
+    }
+
     if (chiaveNome) {
-      const nomi = [...new Set(prepared.map(r => r[chiaveNome]).filter(Boolean).map(String))]
+      // ═══ E poi i nomi che in Foodos ci sono già.
+      const nomi = [...new Set(prepared2.map(r => r[chiaveNome]).filter(Boolean).map(String))]
       if (nomi.length > 0) {
         try {
           const esistenti = new Set()
@@ -226,16 +273,16 @@ export default function ImportWizard({ orgId, onClose, notify, initialEntity = '
               .in(chiaveNome, nomi.slice(i, i + 200))
             for (const r of (data || [])) esistenti.add(String(r[chiaveNome]).trim().toLowerCase())
           }
-          const doppi = prepared.filter(r => esistenti.has(String(r[chiaveNome] || '').trim().toLowerCase()))
+          const doppi = prepared2.filter(r => esistenti.has(String(r[chiaveNome] || '').trim().toLowerCase()))
           if (doppi.length > 0) {
             const elenco = [...new Set(doppi.map(r => r[chiaveNome]))].slice(0, 8).join(', ')
             const salta = window.confirm(
               `${doppi.length} ${doppi.length === 1 ? 'riga è' : 'righe sono'} già in Foodos con lo stesso nome:\n\n${elenco}${doppi.length > 8 ? '…' : ''}\n\n` +
-              `OK = le salto e carico solo le altre ${prepared.length - doppi.length}.\n` +
+              `OK = le salto e carico solo le altre ${prepared2.length - doppi.length}.\n` +
               `Annulla = le carico comunque, e avrai due righe con lo stesso nome.`
             )
             if (salta) {
-              prepared2 = prepared.filter(r => !esistenti.has(String(r[chiaveNome] || '').trim().toLowerCase()))
+              prepared2 = prepared2.filter(r => !esistenti.has(String(r[chiaveNome] || '').trim().toLowerCase()))
               if (prepared2.length === 0) {
                 setLoading(false)
                 setError('Erano tutte già presenti: non ho caricato niente.')
@@ -349,7 +396,8 @@ export default function ImportWizard({ orgId, onClose, notify, initialEntity = '
 
   function reset() {
     setStep(1); setEntity(''); setFile(null); setParsedSheet(null); setDetectInfo(null)
-    setMapping({}); setAiNotes(''); setActiveConversions(new Set())
+    setMapping({}); setConfidence({}); setAiNotes(''); setActiveConversions(new Set())
+    setUnisciDoppioni(true)
     setValidationResult(null); setProgress({ done: 0, total: 0 })
     setInsertResult(null); setError(''); setLoading(false)
   }
@@ -377,7 +425,7 @@ export default function ImportWizard({ orgId, onClose, notify, initialEntity = '
         {error && (
           <div role="alert" style={{
             background: '#FEE2E2', color: '#7F1D1D', border: `1px solid #FCA5A5`,
-            padding: 12, borderRadius: 10, marginBottom: 14, fontSize: 14, fontWeight: 600,
+            padding: 12, borderRadius: 10, marginBottom: 14, fontSize: font.size.md, fontWeight: 600,
           }}>{error}</div>
         )}
 
@@ -402,6 +450,7 @@ export default function ImportWizard({ orgId, onClose, notify, initialEntity = '
               sampleRows={parsedSheet.rows.slice(0, 5)}
               detectInfo={detectInfo}
               mapping={mapping} setMapping={setMapping}
+              confidence={confidence}
               activeConversions={activeConversions} setActiveConversions={setActiveConversions}
               aiNotes={aiNotes}
               loading={loading}
@@ -416,6 +465,7 @@ export default function ImportWizard({ orgId, onClose, notify, initialEntity = '
               schema={schema}
               result={validationResult}
               mapping={mapping}
+              unisciDoppioni={unisciDoppioni} setUnisciDoppioni={setUnisciDoppioni}
               onBack={() => setStep(2)}
               onNext={goToStep4}
               isMobile={isMobile}
@@ -454,7 +504,7 @@ function Header({ step, onClose, isMobile }) {
         <div style={{ fontSize: isMobile ? 20 : 24, fontWeight: 800, color: '#0E1726', lineHeight: 1.1 }}>
           Carica i tuoi dati
         </div>
-        <div style={{ fontSize: 13, color: '#8B95A7', marginTop: 4 }}>
+        <div style={{ fontSize: font.size.base, color: '#8B95A7', marginTop: 4 }}>
           Passo {step} di 4
         </div>
       </div>
@@ -464,7 +514,7 @@ function Header({ step, onClose, isMobile }) {
           style={{
             background: '#FFF', border: '1px solid #E5E9EF', borderRadius: 10,
             padding: isMobile ? '10px 12px' : '8px 14px', cursor: 'pointer',
-            fontSize: 13, fontWeight: 600, color: '#0E1726',
+            fontSize: font.size.base, fontWeight: 600, color: '#0E1726',
           }}>
           <Icon name="x" size={14}/> Chiudi
         </button>
@@ -492,7 +542,7 @@ function Steppers({ step, isMobile }) {
             padding: isMobile ? '10px 4px' : '10px 8px',
             background: isActive ? '#FFF' : 'transparent',
             border: isActive ? '1px solid #E5E9EF' : '1px solid transparent',
-            borderRadius: 8, fontSize: 12,
+            borderRadius: 8, fontSize: font.size.sm,
             fontWeight: 700, color: isDone ? '#16A34A' : isActive ? '#6E0E1A' : '#8B95A7',
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
@@ -530,10 +580,10 @@ function StepFile({ entity, setEntity, file, setFile, loading, onNext, isMobile,
               borderRadius: 12, padding: 14, transition: 'all 0.15s',
               minHeight: 88,
             }}>
-            <div style={{ fontSize: 14, fontWeight: 800, color: T.text, marginBottom: 4 }}>
+            <div style={{ fontSize: font.size.md, fontWeight: 800, color: T.text, marginBottom: 4 }}>
               {schema.label}
             </div>
-            <div style={{ fontSize: 12, color: T.textSoft, lineHeight: 1.4 }}>
+            <div style={{ fontSize: font.size.sm, color: T.textSoft, lineHeight: 1.4 }}>
               {schema.description}
             </div>
           </button>
@@ -552,10 +602,10 @@ function StepFile({ entity, setEntity, file, setFile, loading, onNext, isMobile,
           textAlign: 'center', marginBottom: 8,
         }}>
         <Icon name={file ? 'check' : 'download'} size={20} color={file ? '#16A34A' : T.textSoft}/>
-        <div style={{ marginTop: 8, fontSize: 14, fontWeight: 700, color: T.text }}>
+        <div style={{ marginTop: 8, fontSize: font.size.md, fontWeight: 700, color: T.text }}>
           {file ? file.name : 'Trascina qui il tuo file, oppure clicca per sceglierlo dal computer'}
         </div>
-        <div style={{ marginTop: 4, fontSize: 12, color: T.textSoft }}>
+        <div style={{ marginTop: 4, fontSize: font.size.sm, color: T.textSoft }}>
           Excel (.xlsx, .xls) o CSV — max 5.000 righe
         </div>
         <input id="import-file-input" type="file"
@@ -569,7 +619,7 @@ function StepFile({ entity, setEntity, file, setFile, loading, onNext, isMobile,
           style={{
             background: (!file || !entity || loading) ? '#CBD5E1' : T.brand,
             color: '#FFF', border: 'none', borderRadius: 10,
-            padding: isMobile ? '14px 22px' : '12px 26px', fontSize: 14, fontWeight: 700,
+            padding: isMobile ? '14px 22px' : '12px 26px', fontSize: font.size.md, fontWeight: 700,
             cursor: (!file || !entity || loading) ? 'not-allowed' : 'pointer',
             minHeight: 44,
           }}>
@@ -594,7 +644,7 @@ function fogliLetti(detectInfo) {
   return detectInfo?.sheetCount || 0
 }
 
-function StepMapping({ schema, headers, sampleRows, detectInfo, mapping, setMapping, activeConversions, setActiveConversions, aiNotes, loading, onBack, onNext, isMobile, T }) {
+function StepMapping({ schema, headers, sampleRows, detectInfo, mapping, setMapping, confidence = {}, activeConversions, setActiveConversions, aiNotes, loading, onBack, onNext, isMobile, T }) {
   function changeMap(fieldName, headerOrEmpty) {
     setMapping(prev => {
       const next = { ...prev }
@@ -614,6 +664,7 @@ function StepMapping({ schema, headers, sampleRows, detectInfo, mapping, setMapp
   }
 
   const mappedCols = new Set(Object.values(mapping))
+  const colonneNonCaricate = headers.filter(h => !mappedCols.has(h) && !/^_col\d+$/.test(h))
 
   return (
     <div>
@@ -624,7 +675,7 @@ function StepMapping({ schema, headers, sampleRows, detectInfo, mapping, setMapp
           display: 'flex', gap: 12, alignItems: 'flex-start',
         }}>
           <Icon name="check" size={18} color={T.green}/>
-          <div style={{ fontSize: 14, color: '#14532D', lineHeight: 1.5 }}>
+          <div style={{ fontSize: font.size.md, color: '#14532D', lineHeight: 1.5 }}>
             <div style={{ fontWeight: 700, marginBottom: 2 }}>Ho letto il tuo file.</div>
             Ho trovato <b>{detectInfo.unpivotStats.total.toLocaleString('it-IT', { useGrouping: 'always' })} righe di produzione</b>
             {' '}in {fogliLetti(detectInfo)} {fogliLetti(detectInfo) === 1 ? 'foglio' : 'fogli'}
@@ -646,10 +697,39 @@ function StepMapping({ schema, headers, sampleRows, detectInfo, mapping, setMapp
         </div>
       )}
 
+      {(detectInfo?.righeSaltate > 0 || (detectInfo?.fogliIgnorati || []).length > 0) && (
+        <div style={{
+          background: T.amberLight, color: T.amber,
+          border: `1px solid ${T.amber}`, borderRadius: 10,
+          padding: 14, marginBottom: 14,
+          display: 'flex', gap: 12, alignItems: 'flex-start',
+        }}>
+          <Icon name="info" size={18} color={T.amber}/>
+          <div style={{ fontSize: font.size.base, lineHeight: 1.55 }}>
+            <div style={{ fontWeight: 700, marginBottom: 4 }}>Come ho letto il tuo file</div>
+            {detectInfo.righeSaltate > 0 && (
+              <div>
+                Le intestazioni non erano sulla prima riga: ho saltato le prime{' '}
+                {detectInfo.righeSaltate.toLocaleString('it-IT', { useGrouping: 'always' })}{' '}
+                {detectInfo.righeSaltate === 1 ? 'riga' : 'righe'} e preso i nomi delle colonne
+                dalla riga {detectInfo.rigaIntestazione.toLocaleString('it-IT', { useGrouping: 'always' })}.
+              </div>
+            )}
+            {(detectInfo.fogliIgnorati || []).length > 0 && (
+              <div style={{ marginTop: detectInfo.righeSaltate > 0 ? 6 : 0 }}>
+                Carico solo il foglio <b>{detectInfo.foglioUsato}</b>. Gli altri restano fuori:{' '}
+                {detectInfo.fogliIgnorati.map(f => `${f.nome} (${f.righe.toLocaleString('it-IT', { useGrouping: 'always' })} righe)`).join(', ')}.
+                {' '}Per caricarli, salva ogni foglio come file a sé e caricali uno alla volta.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <div style={{ fontSize: 16, fontWeight: 700, color: T.text, marginBottom: 6 }}>
         Controlla che sia tutto giusto
       </div>
-      <div style={{ fontSize: 13, color: T.textSoft, marginBottom: 16, lineHeight: 1.5 }}>
+      <div style={{ fontSize: font.size.base, color: T.textSoft, marginBottom: 16, lineHeight: 1.5 }}>
         A sinistra i campi di Foodos, a destra le tue colonne. Se qualcosa non torna,
         scegli la colonna giusta dal menù a tendina.
       </div>
@@ -666,11 +746,11 @@ function StepMapping({ schema, headers, sampleRows, detectInfo, mapping, setMapp
               border: `1px solid ${T.border}`, borderRadius: 10,
             }}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: T.text }}>
+                <div style={{ fontSize: font.size.base, fontWeight: 700, color: T.text }}>
                   {f.label || f.name}
                   {f.required && <span style={{ color: T.red, marginLeft: 4 }}>*</span>}
                 </div>
-                <div style={{ fontSize: 12, color: T.textSoft, marginTop: 2, lineHeight: 1.35 }}>
+                <div style={{ fontSize: font.size.sm, color: T.textSoft, marginTop: 2, lineHeight: 1.35 }}>
                   {f.hint}
                 </div>
               </div>
@@ -678,7 +758,7 @@ function StepMapping({ schema, headers, sampleRows, detectInfo, mapping, setMapp
                 aria-label={`Colonna per ${f.label || f.name}`}
                 style={{
                   padding: isMobile ? '12px 10px' : '10px 12px',
-                  fontSize: 14,
+                  fontSize: font.size.md,
                   border: `1px solid ${current ? T.border : '#FCA5A5'}`,
                   borderRadius: 8, background: '#FFF', color: T.text,
                   width: '100%', boxSizing: 'border-box',
@@ -694,8 +774,9 @@ function StepMapping({ schema, headers, sampleRows, detectInfo, mapping, setMapp
                 })}
               </select>
               {!isMobile && (
-                <div style={{ fontSize: 12, color: T.textSoft, whiteSpace: 'nowrap' }}>
+                <div style={{ fontSize: font.size.sm, color: T.textSoft, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 8 }}>
                   {current ? headerSampleValue(sampleRows, current) : ''}
+                  {current && <SicurezzaAbbinamento valore={confidence[f.name]} T={T}/>}
                 </div>
               )}
             </div>
@@ -703,18 +784,47 @@ function StepMapping({ schema, headers, sampleRows, detectInfo, mapping, setMapp
         })}
       </div>
 
+      {colonneNonCaricate.length > 0 && (
+        <div style={{
+          background: T.bgCard, border: `1px solid ${T.border}`,
+          borderRadius: 10, padding: 12, marginBottom: 18,
+        }}>
+          {/* 19/09/2026 — le colonne del file che nessun campo raccoglie non
+              erano scritte da nessuna parte. In un listino fornitore sono
+              «Prodotto», «Prezzo», «U.M.»: cioe' quasi tutto il file. Chi
+              carica pensa di aver caricato anche quelle. */}
+          <div style={{ ...typo.bodyStrong, color: T.text, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 7 }}>
+            <Icon name="info" size={15}/>
+            {colonneNonCaricate.length === 1
+              ? 'Una colonna del tuo file non la carico'
+              : `${colonneNonCaricate.length.toLocaleString('it-IT', { useGrouping: 'always' })} colonne del tuo file non le carico`}
+          </div>
+          <div style={{ fontSize: typo.small.fontSize, color: T.textSoft, lineHeight: 1.6, marginBottom: 8 }}>
+            Non c'è un campo di Foodos dove metterle. Se una di queste ti serve, abbinala
+            qui sopra al campo giusto; se non c'è il campo giusto, scrivicelo.
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {colonneNonCaricate.map(h => (
+              <span key={h} style={{ fontSize: typo.small.fontSize, fontWeight: 600, color: T.text, background: T.bg, border: `1px solid ${T.border}`, borderRadius: 6, padding: '4px 9px' }}>
+                {h}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       {Array.isArray(schema.unitConversions) && schema.unitConversions.length > 0 && (
         <div style={{
           background: '#F0F9FF', border: '1px solid #BAE6FD',
           borderRadius: 10, padding: 12, marginBottom: 18,
         }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#075985', marginBottom: 8 }}>
+          <div style={{ fontSize: font.size.base, fontWeight: 700, color: '#075985', marginBottom: 8 }}>
             Opzioni di conversione (opzionale)
           </div>
           {schema.unitConversions.map(conv => (
             <label key={conv.label} style={{
               display: 'flex', alignItems: 'center', gap: 8,
-              padding: '6px 0', fontSize: 13, color: '#0C4A6E', cursor: 'pointer',
+              padding: '6px 0', fontSize: font.size.base, color: '#0C4A6E', cursor: 'pointer',
             }}>
               <input type="checkbox"
                 checked={activeConversions.has(conv.label)}
@@ -730,8 +840,8 @@ function StepMapping({ schema, headers, sampleRows, detectInfo, mapping, setMapp
       {schema.wideFormatWarning && (
         <div style={{
           background: T.amberLight, color: T.amber,
-          border: '1px solid #FCD34D', borderRadius: 10,
-          padding: 12, marginBottom: 12, fontSize: 12, lineHeight: 1.5,
+          border: `1px solid ${T.amber}`, borderRadius: 10,
+          padding: 12, marginBottom: 12, fontSize: font.size.sm, lineHeight: 1.5,
         }}>
           <b>Nota:</b> {schema.wideFormatWarning}
         </div>
@@ -740,8 +850,8 @@ function StepMapping({ schema, headers, sampleRows, detectInfo, mapping, setMapp
       {aiNotes && (
         <div style={{
           background: T.amberLight, color: T.amber,
-          border: `1px solid #FCD34D`, borderRadius: 10,
-          padding: 12, marginBottom: 18, fontSize: 12, lineHeight: 1.5,
+          border: `1px solid ${T.amber}`, borderRadius: 10,
+          padding: 12, marginBottom: 18, fontSize: font.size.sm, lineHeight: 1.5,
         }}>
           {aiNotes}
         </div>
@@ -750,6 +860,30 @@ function StepMapping({ schema, headers, sampleRows, detectInfo, mapping, setMapp
       <BackNext onBack={onBack} onNext={onNext} isMobile={isMobile} T={T}
         nextLabel={loading ? 'Preparo…' : 'Avanti'} nextDisabled={loading}/>
     </div>
+  )
+}
+
+/**
+ * Quanto è sicuro l'abbinamento proposto.
+ *
+ * 19/09/2026 — `/api/import-map` restituisce una confidenza per ogni campo
+ * (1,0 = alias esatto, 0,5 = plausibile ma da rivedere) e il wizard la buttava
+ * via: un abbinamento indovinato a metà sembrava identico a uno certo.
+ * Indovinare va bene, indovinare senza dirlo no — ed è l'unico punto in cui
+ * l'utente può ancora correggere prima di scrivere nel database.
+ * Sotto lo 0,8 lo diciamo; sopra, l'etichetta sarebbe rumore.
+ */
+function SicurezzaAbbinamento({ valore, T }) {
+  if (typeof valore !== 'number' || valore >= 0.8) return null
+  return (
+    <span title="Questo abbinamento l'ho indovinato: controllalo prima di andare avanti."
+      style={{
+        fontSize: font.size.sm, fontWeight: 700, color: T.amber,
+        background: T.amberLight, border: `1px solid ${T.amber}`,
+        borderRadius: 6, padding: '2px 7px', cursor: 'help', whiteSpace: 'nowrap',
+      }}>
+      da controllare
+    </span>
   )
 }
 
@@ -763,7 +897,7 @@ function headerSampleValue(rows, col) {
 
 // ── STEP 3: validation preview ────────────────────────────────────
 
-function StepValidate({ schema, result, mapping = {}, onBack, onNext, isMobile, T }) {
+function StepValidate({ schema, result, mapping = {}, unisciDoppioni = true, setUnisciDoppioni, onBack, onNext, isMobile, T }) {
   const { valid_rows, invalid_rows, stats } = result
   const [showErrors, setShowErrors] = useState(false)
   const problem = summarizeErrors(invalid_rows)
@@ -787,12 +921,24 @@ function StepValidate({ schema, result, mapping = {}, onBack, onNext, isMobile, 
     return `resta ${f.default}`
   }
 
+  // Lo stesso nome ripetuto dentro il file. È il caso del listino: una riga
+  // per prodotto, e il fornitore che si ripete su tutte le righe sue.
+  const chiaveNome = chiaveUnica(schema)
+  const dentro = chiaveNome ? doppioniNelFile(valid_rows, chiaveNome) : null
+
+  // Le caselle vuote dentro una colonna che invece nel file c'è. Sono un'altra
+  // cosa dai campi qui sopra, e prima non le diceva nessuno.
+  const celleVuote = Object.entries(result.stats?.celle_vuote_col_predefinito || {})
+    .map(([nome, quante]) => ({ field: (schema.fields || []).find(f => f.name === nome), quante }))
+    .filter(v => v.field && !v.field.hidden)
+    .sort((a, b) => b.quante - a.quante)
+
   return (
     <div>
       <div style={{ fontSize: 16, fontWeight: 700, color: T.text, marginBottom: 6 }}>
         Ecco cosa ho capito dai tuoi dati
       </div>
-      <div style={{ fontSize: 13, color: T.textSoft, marginBottom: 16, lineHeight: 1.5 }}>
+      <div style={{ fontSize: font.size.base, color: T.textSoft, marginBottom: 16, lineHeight: 1.5 }}>
         Ho letto tutte le righe e controllato che i valori siano nel formato giusto.
         Qui vedi il riepilogo, prima di caricare per davvero.
       </div>
@@ -804,7 +950,7 @@ function StepValidate({ schema, result, mapping = {}, onBack, onNext, isMobile, 
           display: 'flex', gap: 12, alignItems: 'flex-start',
         }}>
           <Icon name="info" size={18} color="#B45309"/>
-          <div style={{ fontSize: 13, color: '#78350F', lineHeight: 1.55 }}>
+          <div style={{ fontSize: font.size.base, color: '#78350F', lineHeight: 1.55 }}>
             <div style={{ fontWeight: 700, marginBottom: 4 }}>{problem.title}</div>
             <div>{problem.hint}</div>
           </div>
@@ -841,13 +987,72 @@ function StepValidate({ schema, result, mapping = {}, onBack, onNext, isMobile, 
         </div>
       )}
 
+      {celleVuote.length > 0 && (
+        <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 10, padding: 14, marginBottom: 18 }}>
+          <div style={{ ...typo.bodyStrong, color: T.text, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 7 }}>
+            <Icon name="info" size={15} />
+            Alcune caselle del tuo file sono vuote
+          </div>
+          {/* 19/09/2026 — la colonna nel file c'è, ma per certe righe la
+              casella è vuota, e quelle righe prendono il valore predefinito.
+              Per il costo orario il predefinito è zero, e zero nel costo del
+              lavoro vuol dire «lavora gratis»: dopo il caricamento non si
+              distingue più da uno zero scritto davvero. Il momento per
+              dirlo è questo, che è l'ultimo in cui si può tornare indietro. */}
+          <div style={{ fontSize: typo.small.fontSize, color: T.textSoft, lineHeight: 1.6, marginBottom: 8 }}>
+            Le riempio con il valore predefinito. Dopo il caricamento non si distinguono
+            da un valore che hai scritto tu: se non è quello che vuoi, torna indietro e
+            compila le caselle nel file.
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {celleVuote.map(({ field, quante }) => (
+              <span key={field.name} style={{ fontSize: typo.small.fontSize, fontWeight: 600, color: T.text, background: T.bg, border: `1px solid ${T.border}`, borderRadius: 6, padding: '4px 9px' }}>
+                {field.label || field.name}: {quante.toLocaleString('it-IT', { useGrouping: 'always' })}{' '}
+                {quante === 1 ? 'casella vuota' : 'caselle vuote'}, {descriviDefault(field)}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {dentro && dentro.scartate > 0 && (
+        <div style={{
+          background: T.bgCard, border: `1px solid ${T.border}`,
+          borderRadius: 10, padding: 14, marginBottom: 18,
+        }}>
+          <div style={{ ...typo.bodyStrong, color: T.text, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 7 }}>
+            <Icon name="info" size={15}/>
+            Nel tuo file lo stesso nome torna più volte
+          </div>
+          <div style={{ fontSize: typo.small.fontSize, color: T.textSoft, lineHeight: 1.6, marginBottom: 10 }}>
+            {dentro.ripetuti.slice(0, 6).map(r =>
+              `${r.valore} (${r.volte.toLocaleString('it-IT', { useGrouping: 'always' })} righe)`).join(', ')}
+            {dentro.ripetuti.length > 6 && `, e altri ${(dentro.ripetuti.length - 6).toLocaleString('it-IT', { useGrouping: 'always' })}`}.
+          </div>
+          <label style={{
+            display: 'flex', alignItems: 'flex-start', gap: 9,
+            fontSize: font.size.base, color: T.text, cursor: 'pointer', lineHeight: 1.5,
+          }}>
+            <input type="checkbox" checked={unisciDoppioni}
+              onChange={() => setUnisciDoppioni?.(!unisciDoppioni)}
+              style={{ width: 18, height: 18, marginTop: 1, cursor: 'pointer', flexShrink: 0 }}/>
+            <span>
+              Creane uno solo per nome:{' '}
+              <b>{dentro.tenute.length.toLocaleString('it-IT', { useGrouping: 'always' })}</b>{' '}
+              invece di {valid_rows.length.toLocaleString('it-IT', { useGrouping: 'always' })}.
+              {' '}Se lo togli, avrai più schede con lo stesso nome.
+            </span>
+          </label>
+        </div>
+      )}
+
       {valid_rows.length > 0 && (
         <div style={{ marginBottom: 18 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 8 }}>
+          <div style={{ fontSize: font.size.base, fontWeight: 700, color: T.text, marginBottom: 8 }}>
             Anteprima prime {Math.min(MAX_PREVIEW_ROWS, valid_rows.length)} righe
           </div>
           <div style={{ overflowX: 'auto', border: `1px solid ${T.border}`, borderRadius: 10 }}>
-            <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 12 }}>
+            <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: font.size.sm }}>
               <thead style={{ background: '#F8FAFC' }}>
                 <tr>
                   {schema.fields.map(f => (
@@ -886,7 +1091,7 @@ function StepValidate({ schema, result, mapping = {}, onBack, onNext, isMobile, 
             style={{
               background: '#FEE2E2', color: '#7F1D1D',
               border: `1px solid #FCA5A5`, borderRadius: 10,
-              padding: '12px 14px', fontSize: 13, fontWeight: 700,
+              padding: '12px 14px', fontSize: font.size.base, fontWeight: 700,
               cursor: 'pointer', width: '100%', textAlign: 'left',
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             }}>
@@ -896,19 +1101,24 @@ function StepValidate({ schema, result, mapping = {}, onBack, onNext, isMobile, 
           {showErrors && (
             <div style={{
               marginTop: 8, padding: 12, background: '#FFFBEB',
-              border: `1px solid #FCD34D`, borderRadius: 10,
+              border: `1px solid ${T.amber}`, borderRadius: 10,
               maxHeight: 240, overflowY: 'auto',
             }}>
+              {/* 19/09/2026 — qui c'era `inv.row_index + 2`, cioè la
+                  posizione dentro le righe già ripulite dalle bianche: con
+                  tre righe bianche in mezzo diceva «Riga 3» per un errore che
+                  stava alla riga 6. `riga_foglio` è il numero vero del
+                  foglio. */}
               {invalid_rows.slice(0, 20).map(inv => (
                 <div key={inv.row_index} style={{
-                  fontSize: 12, color: '#78350F',
-                  padding: '6px 0', borderBottom: '1px solid #FCD34D',
+                  fontSize: font.size.sm, color: '#78350F',
+                  padding: '6px 0', borderBottom: `1px solid ${T.amber}`,
                 }}>
-                  <b>Riga {inv.row_index + 2}:</b> {inv.errors.join(' · ')}
+                  <b>Riga {inv.riga_foglio != null ? inv.riga_foglio : inv.row_index + 2}:</b> {inv.errors.join(' · ')}
                 </div>
               ))}
               {invalid_rows.length > 20 && (
-                <div style={{ fontSize: 12, color: '#78350F', marginTop: 6, fontStyle: 'italic' }}>
+                <div style={{ fontSize: font.size.sm, color: '#78350F', marginTop: 6, fontStyle: 'italic' }}>
                   …e altre {invalid_rows.length - 20} righe con problemi simili
                 </div>
               )}
@@ -921,7 +1131,9 @@ function StepValidate({ schema, result, mapping = {}, onBack, onNext, isMobile, 
         onBack={onBack}
         onNext={onNext}
         nextDisabled={valid_rows.length === 0}
-        nextLabel={valid_rows.length === 0 ? 'Non posso caricare, torna indietro' : `Carica ${valid_rows.length.toLocaleString('it-IT', { useGrouping: 'always' })} righe`}
+        nextLabel={valid_rows.length === 0
+          ? 'Non posso caricare, torna indietro'
+          : `Carica ${(dentro && unisciDoppioni ? dentro.tenute.length : valid_rows.length).toLocaleString('it-IT', { useGrouping: 'always' })} righe`}
         isMobile={isMobile} T={T}
       />
     </div>
@@ -941,7 +1153,7 @@ function StatBox({ label, value, color, T }) {
         fontSize: 24, fontWeight: 800, color: color || T.text,
         fontVariantNumeric: 'tabular-nums', lineHeight: 1,
       }}>{Number(value || 0).toLocaleString('it-IT', { useGrouping: 'always' })}</div>
-      <div style={{ fontSize: 12, color: T.textSoft, marginTop: 4 }}>{label}</div>
+      <div style={{ fontSize: font.size.sm, color: T.textSoft, marginTop: 4 }}>{label}</div>
     </div>
   )
 }
@@ -972,7 +1184,7 @@ function StepInsert({ loading, progress, result, schema, onFinish, onAnother, is
             background: T.brand, transition: 'width 0.3s ease',
           }}/>
         </div>
-        <div style={{ marginTop: 10, fontSize: 13, color: T.textSoft, fontVariantNumeric: 'tabular-nums' }}>
+        <div style={{ marginTop: 10, fontSize: font.size.base, color: T.textSoft, fontVariantNumeric: 'tabular-nums' }}>
           {progress.done.toLocaleString('it-IT', { useGrouping: 'always' })} di {progress.total.toLocaleString('it-IT', { useGrouping: 'always' })} righe
         </div>
       </div>
@@ -997,7 +1209,7 @@ function StepInsert({ loading, progress, result, schema, onFinish, onAnother, is
         <div style={{ fontSize: 18, fontWeight: 800, color: T.text, textAlign: 'center' }}>
           {successAll ? 'Tutto caricato!' : 'Caricamento fatto, con qualche intoppo.'}
         </div>
-        <div style={{ fontSize: 14, color: T.textSoft, textAlign: 'center', maxWidth: 480, lineHeight: 1.5 }}>
+        <div style={{ fontSize: font.size.md, color: T.textSoft, textAlign: 'center', maxWidth: 480, lineHeight: 1.5 }}>
           {`Ho salvato ${result.inserted.toLocaleString('it-IT', { useGrouping: 'always' })} righe in ${schema.label}.`}
           {failedCount > 0 && ` Alcuni gruppi (${failedCount}) non sono passati — controlla sotto.`}
         </div>
@@ -1006,7 +1218,7 @@ function StepInsert({ loading, progress, result, schema, onFinish, onAnother, is
       {failedCount > 0 && (
         <div style={{
           background: '#FEE2E2', border: `1px solid #FCA5A5`,
-          borderRadius: 10, padding: 12, marginBottom: 18, fontSize: 12, color: '#7F1D1D', lineHeight: 1.5,
+          borderRadius: 10, padding: 12, marginBottom: 18, fontSize: font.size.sm, color: '#7F1D1D', lineHeight: 1.5,
         }}>
           <div style={{ fontWeight: 700, marginBottom: 6 }}>Dettaglio degli intoppi:</div>
           {result.failed.slice(0, 5).map((f, i) => (
@@ -1027,7 +1239,7 @@ function StepInsert({ loading, progress, result, schema, onFinish, onAnother, is
         <button type="button" onClick={onAnother}
           style={{
             background: '#FFF', color: T.brand, border: `1.5px solid ${T.brand}`,
-            borderRadius: 10, padding: '12px 22px', fontSize: 14, fontWeight: 700,
+            borderRadius: 10, padding: '12px 22px', fontSize: font.size.md, fontWeight: 700,
             cursor: 'pointer', minHeight: 44,
           }}>
           Carica un altro file
@@ -1035,7 +1247,7 @@ function StepInsert({ loading, progress, result, schema, onFinish, onAnother, is
         <button type="button" onClick={onFinish}
           style={{
             background: T.brand, color: '#FFF', border: 'none',
-            borderRadius: 10, padding: '12px 22px', fontSize: 14, fontWeight: 700,
+            borderRadius: 10, padding: '12px 22px', fontSize: font.size.md, fontWeight: 700,
             cursor: 'pointer', minHeight: 44,
           }}>
           Chiudi
@@ -1057,7 +1269,7 @@ function BackNext({ onBack, onNext, nextDisabled, nextLabel = 'Avanti', isMobile
         style={{
           background: '#FFF', color: T.text, border: `1px solid ${T.border}`,
           borderRadius: 10, padding: isMobile ? '14px 22px' : '12px 22px',
-          fontSize: 14, fontWeight: 700, cursor: 'pointer', minHeight: 44,
+          fontSize: font.size.md, fontWeight: 700, cursor: 'pointer', minHeight: 44,
         }}>
         Indietro
       </button>
@@ -1065,7 +1277,7 @@ function BackNext({ onBack, onNext, nextDisabled, nextLabel = 'Avanti', isMobile
         style={{
           background: nextDisabled ? '#CBD5E1' : T.brand,
           color: '#FFF', border: 'none', borderRadius: 10,
-          padding: isMobile ? '14px 22px' : '12px 26px', fontSize: 14, fontWeight: 700,
+          padding: isMobile ? '14px 22px' : '12px 26px', fontSize: font.size.md, fontWeight: 700,
           cursor: nextDisabled ? 'not-allowed' : 'pointer', minHeight: 44,
         }}>
         {nextLabel}
@@ -1081,7 +1293,7 @@ function Reassurance({ isMobile, SOFT }) {
     <div style={{
       marginTop: 18, padding: 14,
       background: 'rgba(15,23,42,0.02)', border: '1px dashed #E5E9EF',
-      borderRadius: 10, fontSize: 12, color: SOFT, lineHeight: 1.55,
+      borderRadius: 10, fontSize: font.size.sm, color: SOFT, lineHeight: 1.55,
       display: 'flex', gap: 10, alignItems: 'flex-start',
     }}>
       <Icon name="shield" size={14}/>

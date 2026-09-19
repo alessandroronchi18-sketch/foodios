@@ -16,6 +16,12 @@
 // Sul telefono sono anche i pulsanti a contare: quelli sotto il dito devono
 // stare sopra i 44px, altrimenti si sbaglia riga.
 
+// 19/09/2026 — i nomi delle materie prime si leggono con la prima
+// maiuscola («Burro», non «burro»): nel database restano minuscoli, perché
+// quella è la chiave con cui il food cost trova il prezzo, e cambiarla
+// farebbe sparire un costo in silenzio. Qui cambiano solo le prove su
+// quello che si legge a schermo; i dati di prova restano com'erano.
+
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, cleanup, fireEvent, waitFor } from '@testing-library/react'
 import React from 'react'
@@ -44,7 +50,7 @@ beforeEach(() => { cleanup() })
 describe('materie prime sul telefono', () => {
   it('il pulsante «Modifica» apre davvero il campo del prezzo', async () => {
     const v = render(<MateriePrimeView ricettario={ricettario} logPrezzi={[]} onUpdatePrezzo={async () => {}} />)
-    await waitFor(() => expect(v.container.textContent).toContain('burro'))
+    await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('burro'))
     // Nella scheda non c'è la tabella: il campo non esiste finché non si tocca.
     expect(v.queryByLabelText('Prezzo per chilo di burro')).toBeNull()
     fireEvent.click([...v.container.querySelectorAll('button')].find(b => /Modifica/.test(b.textContent)))
@@ -55,7 +61,7 @@ describe('materie prime sul telefono', () => {
   it('e da lì si arriva alla conferma e al salvataggio', async () => {
     const chiamate = []
     const v = render(<MateriePrimeView ricettario={ricettario} logPrezzi={[]} onUpdatePrezzo={async (...a) => { chiamate.push(a) }} />)
-    await waitFor(() => expect(v.container.textContent).toContain('burro'))
+    await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('burro'))
     fireEvent.click([...v.container.querySelectorAll('button')].find(b => /Modifica/.test(b.textContent)))
     const campo = await waitFor(() => v.getByLabelText('Prezzo per chilo di burro'))
     fireEvent.change(campo, { target: { value: '9,50' } })
@@ -72,7 +78,7 @@ describe('materie prime sul telefono', () => {
 
   it('i pulsanti sotto il dito stanno sopra i 44px', async () => {
     const v = render(<MateriePrimeView ricettario={ricettario} logPrezzi={[]} onUpdatePrezzo={async () => {}} />)
-    await waitFor(() => expect(v.container.textContent).toContain('burro'))
+    await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('burro'))
     const piccoli = [...v.container.querySelectorAll('button')]
       .map(b => ({ testo: b.textContent.trim(), h: parseInt(b.style.minHeight || '0', 10) }))
       .filter(b => b.testo && b.h > 0 && b.h < 44)
@@ -81,7 +87,7 @@ describe('materie prime sul telefono', () => {
 
   it('i riquadri in cima stanno su due colonne, non su quattro', async () => {
     const v = render(<MateriePrimeView ricettario={ricettario} logPrezzi={[]} onUpdatePrezzo={async () => {}} />)
-    await waitFor(() => expect(v.container.textContent).toContain('Materie prime'))
+    await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('materie prime'))
     const griglia = [...v.container.querySelectorAll('div')]
       .find(d => d.style.display === 'grid' && /1fr 1fr|repeat/.test(d.style.gridTemplateColumns))
     expect(griglia.style.gridTemplateColumns).toBe('1fr 1fr')

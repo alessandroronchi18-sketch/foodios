@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-// Smoke test: verifica che i componenti più critici si renderizzino senza
+// I componenti grandi si disegnano davvero, e mettono qualcosa a schermo.
 // crash. Cattura la classe di bug "isTablet is not defined" / "duplicate keys"
 // / "hook condizionale" che ha portato al crash di Personale in produzione.
 //
@@ -84,81 +84,30 @@ function renderSafe(jsx) {
   }
 }
 
-// ─── Smoke tests ──────────────────────────────────────────────────────────
-describe('Component smoke renders — no crash', () => {
+// ─── I componenti si disegnano davvero ────────────────────────────────────
 
-  it('HeaderPersonale renders con isTablet undefined safe', async () => {
-    // Re-export dal main module: import dinamico per applicare i mock sopra.
-    const mod = await import('../../src/components/Personale')
-    // Personale export default = main wrapper. Render solo wrapper.
-    const PersonaleDefault = mod.default
-    const r = renderSafe(<PersonaleDefault orgId="org-1" sedeId={null} sedi={[]} notify={() => {}} />)
-    expect(r.ok, r.error ? `crash: ${r.error.message}` : '').toBe(true)
-  })
+// Elenco: [nome del file in src/components, prop minime del Dashboard].
+// Le prop sono quelle vere: se un componente cambia firma e nessuno aggiorna
+// qui, il render cade e si vede.
+const COMPONENTI = [
+  ['Personale', { orgId: 'org-1', sedeId: null, sedi: [], notify: () => {} }],
+  ['MenuDinamico', { orgId: 'org-1', sedeId: 's1', sedi: [], ricettario: { ricette: {}, ingredienti_costi: {} }, notify: () => {} }],
+  ['Scadenzario', { orgId: 'org-1', sedeId: 's1', sedi: [], notify: () => {} }],
+  ['SpreciOmaggi', { orgId: 'org-1', sedeId: 's1', sedi: [], ricettario: { ricette: {}, ingredienti_costi: {} }, notify: () => {} }],
+]
 
-  it('ScenarioPrezzi (PLView) — isTablet ora dichiarato', async () => {
-    // Solo verifico che il modulo carichi (la funzione interna è esported solo via PLView)
-    const mod = await import('../../src/views/PLView')
-    expect(typeof mod.default).toBe('function')
-  }, 15000)
-
-  it('BandaDiagnosi (MenuDinamico) — isTablet ora nei props', async () => {
-    const mod = await import('../../src/components/MenuDinamico')
-    expect(typeof mod.default).toBe('function')
-  })
-
-  it('Scadenzario.Gruppo — hook prima del return (no conditional hook)', async () => {
-    const mod = await import('../../src/components/Scadenzario')
-    expect(typeof mod.default).toBe('function')
-  })
-
-  it('SpreciOmaggi — diag invece di aggregat (typo fixato)', async () => {
-    const mod = await import('../../src/components/SpreciOmaggi')
-    expect(typeof mod.default).toBe('function')
-  })
-
-  it('RicettarioView.RicettaCard — hook prima dell early return', async () => {
-    const mod = await import('../../src/views/RicettarioView')
-    expect(typeof mod.default).toBe('function')
-  })
-
-  it('MagazzinoView — focusQtyDeferred dichiarato nello scope corretto', async () => {
-    const mod = await import('../../src/views/MagazzinoView')
-    expect(typeof mod.default).toBe('function')
-  })
-
-  it('Dashboard.ProduzioneView — nomeAttivita nei props', async () => {
-    const mod = await import('../../src/Dashboard')
-    expect(typeof mod.default).toBe('function')
+describe('i componenti grandi si disegnano con le prop del Dashboard', () => {
+  it.each(COMPONENTI)('%s si monta e mette qualcosa a schermo', async (nome, props) => {
+    const mod = await import(`../../src/components/${nome}.jsx`)
+    expect(typeof mod.default, `${nome} non esporta un componente di default`).toBe('function')
+    const Componente = mod.default
+    const r = renderSafe(<Componente {...props} />)
+    expect(r.ok, r.error ? `${nome} cade al primo disegno: ${r.error.message}` : '').toBe(true)
+    // La prova che mancava: «non cade» è vero anche per un componente che
+    // torna `null`. Il 19/09/2026, mettendo `return null` in cima a tutti e
+    // 101 i componenti del prodotto, questo file restava verde su 9 prove su
+    // 9 — sette dicevano solo `typeof mod.default === 'function'`.
+    expect(r.container.textContent.trim().length + r.container.querySelectorAll('*').length,
+      `${nome} si monta ma non disegna niente`).toBeGreaterThan(0)
   }, 20000)
-})
-
-describe('VIEW_LABELS — niente chiavi duplicate', () => {
-  it('VIEW_LABELS object non ha chiavi duplicate (audit 2026-06-22)', async () => {
-    // Trick: leggi il file e cerca chiavi sospette
-    const fs = await import('node:fs')
-    const content = fs.readFileSync('/Users/aler/foodos/src/Dashboard.jsx', 'utf8')
-    // Estrai il blocco VIEW_LABELS = { ... } via regex
-    const m = content.match(/const VIEW_LABELS\s*=\s*\{([\s\S]*?)\};/)
-    if (!m) {
-      // Object literal inline (non const), cerca pattern duplicato approssimato
-      // Saltiamo se non trovato in modo strict
-      return
-    }
-    const block = m[1]
-    // Estrai tutte le chiavi (strings tra "" o identificatori prima di :)
-    const keys = []
-    const re = /["']?([\w-]+)["']?\s*:/g
-    let mm
-    while ((mm = re.exec(block)) !== null) {
-      keys.push(mm[1])
-    }
-    const seen = new Set()
-    const duplicates = []
-    for (const k of keys) {
-      if (seen.has(k)) duplicates.push(k)
-      else seen.add(k)
-    }
-    expect(duplicates, `Duplicate VIEW_LABELS keys: ${duplicates.join(', ')}`).toEqual([])
-  })
 })

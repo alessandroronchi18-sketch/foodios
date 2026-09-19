@@ -99,9 +99,13 @@ describe('i file veri dei clienti non sono puliti', () => {
   })
 
   it('un foglio completamente vuoto non fa esplodere niente', () => {
+    // 19/09/2026: al foglio si sono aggiunti `rigaIntestazione` e
+    // `righeSaltate` — servono al wizard per dire «ho saltato le prime N
+    // righe» quando l'intestazione non è in cima. Su un foglio vuoto valgono
+    // zero, e la forma resta dichiarata qui per intero.
     const buf = foglio({ Vuoto: [] })
     const r = parseWorkbook(buf, XLSX)
-    expect(r.firstSheet).toEqual({ headers: [], rows: [] })
+    expect(r.firstSheet).toEqual({ headers: [], rows: [], rigaIntestazione: 0, righeSaltate: 0 })
   })
 })
 

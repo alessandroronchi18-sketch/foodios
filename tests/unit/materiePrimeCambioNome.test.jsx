@@ -36,6 +36,12 @@
 // interessa a chi usa il programma, ed è quella che un controllo sul sorgente
 // non sa fare.
 
+// 19/09/2026 — i nomi delle materie prime si leggono con la prima
+// maiuscola («Burro», non «burro»): nel database restano minuscoli, perché
+// quella è la chiave con cui il food cost trova il prezzo, e cambiarla
+// farebbe sparire un costo in silenzio. Qui cambiano solo le prove su
+// quello che si legge a schermo; i dati di prova restano com'erano.
+
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, cleanup, fireEvent, waitFor } from '@testing-library/react'
 import React from 'react'
@@ -298,7 +304,13 @@ const apriFinestra = async (props = {}) => {
     onRinominaMateriaPrima={async () => ({ ok: true, ricetteAggiornate: 2 })}
     onEliminaMateriaPrima={async () => ({ ok: true })}
     {...props} />)
-  await waitFor(() => expect(v.container.textContent).toContain('panna frescs'))
+  await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('panna frescs'))
+  // 19/09/2026 — la riga ferma adesso ha UN solo pulsante: «Modifica».
+  // «Cambia il nome» ed «Elimina» stanno dentro, e compaiono quando la riga è
+  // aperta. Il titolare aveva ragione: «Modifica» e la matita erano due cose
+  // diverse che a colpo d'occhio erano la stessa, su centodiciassette righe.
+  fireEvent.click([...v.container.querySelectorAll('button')]
+    .find(b => b.textContent.includes('Modifica') && !b.getAttribute('aria-label')))
   const apri = [...v.container.querySelectorAll('button')]
     .find(b => /Cambia il nome di panna frescs/.test(b.getAttribute('aria-label') || ''))
   expect(apri, 'manca il comando per cambiare il nome').toBeTruthy()
@@ -370,7 +382,7 @@ describe('la finestra del cambio nome', () => {
     // dopo non si vede.
     fireEvent.click(v.container.querySelector('input[type="checkbox"]'))
     fireEvent.click([...v.container.querySelectorAll('button')].find(b => b.textContent.includes('Cambia il nome') && !b.getAttribute('aria-label')))
-    await waitFor(() => expect(v.container.textContent).toContain('La rete non risponde.'))
+    await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('la rete non risponde.'))
     expect(v.queryByLabelText('Come si deve chiamare'), 'la finestra si è chiusa su un errore').toBeTruthy()
   })
 })

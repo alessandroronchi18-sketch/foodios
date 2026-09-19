@@ -188,7 +188,15 @@ describe('Le pagine di Foodos si disegnano tutte', () => {
       //    ReferenceError contavano, e i TypeError — quelli che si vedono
       //    davvero in produzione — passavano lisci.
       const Component = mod.default
-      render(<Component {...baseProps} />)
+      const r = render(<Component {...baseProps} />)
+
+      // 4. E mette qualcosa a schermo. «Non cade» è vero anche per una pagina
+      //    che torna `null`: il 19/09/2026, mettendo `return null` in cima a
+      //    tutte e 101 le pagine e i componenti del prodotto, questo file
+      //    restava verde su 33 prove su 33. Una pagina bianca in produzione è
+      //    indistinguibile da una pagina rotta, per chi la guarda.
+      expect(r.container.querySelectorAll('*').length,
+        `${viewName} si monta ma non disegna niente`).toBeGreaterThan(0)
       cleanup()
     }, 20000)
   }

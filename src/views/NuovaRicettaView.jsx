@@ -19,7 +19,7 @@ import FotoOCR from '../components/FotoOCR'
 import AIFotoAnalisi from '../components/AIFotoAnalisi'
 import Icon from '../components/Icon'
 import { C, fmt, fmtp, TNUM, CampoConElenco, SortTH, useSortable, Tip, formatNome } from './_shared'
-import { leggiPrezzoKg } from '../lib/formatIt'
+import { letturaPrezzoKg } from '../lib/formatIt'
 import { isSemiOInterno } from '../lib/tipoRicetta'
 import { useUnsavedGuard } from '../lib/useUnsavedGuard'
 
@@ -468,12 +468,12 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
     // Invio no: due pressioni rapide salvavano due volte e mettevano
     // l'ingrediente DUE volte nella ricetta, cioè il doppio del costo.
     if (!priceModal || salvandoPrezzo.current) return;
-    // `leggiPrezzoKg` invece di `parseFloat`: quest'ultimo legge quanto può e
+    // `letturaPrezzoKg` invece di `parseFloat`: quest'ultimo legge quanto può e
     // butta via il resto, quindi «12,5o» — la o al posto dello zero, l'errore
     // di battitura più comune sul telefono — diventava 12,50 €/kg e si salvava
     // in silenzio. La pagina Materie prime lo rifiutava già; qui, che è
     // l'altra porta sullo stesso dato, no.
-    const val = leggiPrezzoKg(priceModal.costoKg);
+    const val = letturaPrezzoKg(priceModal.costoKg).valore;
     if (val === null) {
       notify("Scrivi un prezzo in euro al chilo, per esempio 8,50. Se non lo sai ancora, usa «Il prezzo lo metto dopo».", false);
       return;
@@ -2124,6 +2124,25 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
               style={{ ...inputBase, flex: 1, fontSize: 16, padding: "11px 12px" }} />
             <span style={{ fontSize: 13, fontWeight: 700, color: C.textMid, whiteSpace: "nowrap" }}>€ / kg</span>
           </div>
+          {/* 19/09/2026 — la stessa rete che c'è in «Materie prime», portata
+              anche qui: è l'altra porta sullo stesso dato, e finora le due
+              porte si comportavano in modo diverso.
+              «1.250» in italiano è milleduecentocinquanta — il punto sono le
+              migliaia, regola data dal titolare — ma è anche il decimale di
+              chi copia da un gestionale in inglese. Il programma legge
+              all'italiana e **lo dichiara**, invece di scegliere in silenzio
+              fra due numeri che stanno mille volte uno dall'altro. */}
+          {(() => {
+            const l = letturaPrezzoKg(priceModal.costoKg)
+            if (!l.ambiguo) return null
+            const euroKg = (x) => `${Number(x).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/kg`
+            return (
+              <div style={{ marginTop: -10, marginBottom: 16, background: C.amberLight, border: `1px solid ${C.amber}55`, borderRadius: 8, padding: "8px 10px", fontSize: font.size.sm, color: C.amberDark, lineHeight: 1.45 }}>
+                Leggo <b>{euroKg(l.comeMigliaia)}</b>: in Italia il punto sono le migliaia.
+                Se intendevi <b>{euroKg(l.comeDecimale)}</b>, scrivilo con la virgola.
+              </div>
+            )
+          })()}
           <div style={{ display: "flex", gap: 8, flexDirection: isMobile ? "column-reverse" : "row", justifyContent: "flex-end" }}>
             <button onClick={() => setPriceModal(null)} disabled={priceModal.saving}
               style={{ padding: "10px 16px", minHeight: 42, background: "transparent", color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: priceModal.saving ? "not-allowed" : "pointer", fontFamily: "inherit" }}>

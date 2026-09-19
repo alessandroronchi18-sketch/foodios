@@ -29,6 +29,12 @@
 // sono quante sono e che il food cost esce più basso del vero; il resto si
 // vede scorrendo l'elenco, e scritto lì rubava la riga al numero.
 
+// 19/09/2026 — i nomi delle materie prime si leggono con la prima
+// maiuscola («Burro», non «burro»): nel database restano minuscoli, perché
+// quella è la chiave con cui il food cost trova il prezzo, e cambiarla
+// farebbe sparire un costo in silenzio. Qui cambiano solo le prove su
+// quello che si legge a schermo; i dati di prova restano com'erano.
+
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, cleanup, waitFor } from '@testing-library/react'
 import React from 'react'
@@ -80,7 +86,7 @@ describe('il conto delle «senza prezzo» comprende le stimate', () => {
 
   it('a schermo compare quel numero, non quello più basso', async () => {
     const v = monta(conStime)
-    await waitFor(() => expect(v.container.textContent).toContain('Senza prezzo'))
+    await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('senza prezzo'))
     const c = contaMateriePrime(materiePrimeDaRicettario(conStime))
     expect(c.senzaPrezzoVero).toBeGreaterThan(c.senzaPrezzo)
     expect(v.container.textContent).toContain(`${c.senzaPrezzoVero} materie prime senza prezzo`)
@@ -89,30 +95,35 @@ describe('il conto delle «senza prezzo» comprende le stimate', () => {
 
   it('le tessere «Stima di mercato» e «Prezzo tuo» non ci sono più', async () => {
     const v = monta(conStime)
-    await waitFor(() => expect(v.container.textContent).toContain('Materie prime'))
+    await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('materie prime'))
     expect(v.container.textContent).not.toContain('Stima di mercato')
     expect(v.container.textContent).not.toContain('Prezzo tuo')
   })
 
   it('restano due tessere e non quattro', async () => {
     const v = monta(conStime)
-    await waitFor(() => expect(v.container.textContent).toContain('Senza prezzo'))
+    await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('senza prezzo'))
     expect(v.container.querySelectorAll('.fos-kpi-tile')).toHaveLength(2)
   })
 })
 
 describe('una riga «stima» non mostra il prezzo di mercato come se fosse il tuo', () => {
-  it('nella colonna del prezzo c’è «—», e il numero di mercato sta sotto in piccolo', async () => {
-    const v = monta({
-      ricette: { r1: { nome: 'TORTA', ingredienti: [{ nome: 'burro', qty1stampo: 100 }] } },
-      ingredienti_costi: {},
-    })
-    await waitFor(() => expect(v.container.textContent).toContain('burro'))
-    const cella = v.getByTitle('Clicca per modificare')
-    // Prima qui compariva solo «8,40 €/kg»: la colonna diceva che un prezzo
-    // c'era, mentre il food cost quella riga la contava zero.
-    expect(cella.textContent).toMatch(/^—/)
-    expect(cella.textContent).toMatch(/mercato/)
+  it('una materia prima a prezzo di mercato mostra solo «—»', () => {
+    // 19/09/2026, il titolare: «togli questa scritta mercato, non serve, molti
+    // utenti hanno accordi loro con i fornitori».
+    //
+    // Sotto il trattino compariva «mercato 1,80 €/kg», cioè il prezzo medio di
+    // un listino scritto a mano nel codice. Dal 18/09 quel numero non fa più il
+    // conto del food cost, quindi non serviva — e faceva peggio che niente: chi
+    // ha un accordo col fornitore lo legge come il prezzo che dovrebbe pagare,
+    // e con la sua azienda non c'entra.
+    const v = monta(conStime)
+    const stimata = materiePrimeDaRicettario(conStime).find(r => r.statoPrezzo === 'stima')
+    expect(stimata, 'il dato di prova non ha piu una materia prima a stima').toBeTruthy()
+    // Il trattino resta — dice la cosa vera, che il prezzo non lo sappiamo —
+    // ma il numero del listino medio non si mostra piu.
+    expect(v.container.textContent).toContain('—')
+    expect(v.container.textContent).not.toMatch(/mercato\s*\d/i)
   })
 
   it('un prezzo tuo resta un numero e basta', async () => {
@@ -120,7 +131,7 @@ describe('una riga «stima» non mostra il prezzo di mercato come se fosse il tu
       ricette: { r1: { nome: 'TORTA', ingredienti: [{ nome: 'burro', qty1stampo: 100 }] } },
       ingredienti_costi: { burro: { costoKg: 8.4, costoG: 0.0084 } },
     })
-    await waitFor(() => expect(v.container.textContent).toContain('burro'))
+    await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('burro'))
     const cella = v.getByTitle('Clicca per modificare')
     expect(cella.textContent).toBe('8,40 €/kg')
     expect(cella.textContent).not.toMatch(/mercato/)
@@ -169,8 +180,8 @@ describe('la riga rossa sta su una riga sola dal computer', () => {
       ] } },
       ingredienti_costi: { zucchero: { costoKg: 1.2, costoG: 0.0012 } },
     })
-    await waitFor(() => expect(v.container.textContent).toContain('aceto balsamicp'))
-    expect(v.container.textContent).toContain('Una materia prima senza prezzo')
+    await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('aceto balsamicp'))
+    expect(v.container.textContent.toLowerCase()).toContain('una materia prima senza prezzo')
   })
 
   it('quando non manca niente la riga rossa sparisce', async () => {
@@ -178,7 +189,7 @@ describe('la riga rossa sta su una riga sola dal computer', () => {
       ricette: { r1: { nome: 'TORTA', ingredienti: [{ nome: 'zucchero', qty1stampo: 50 }] } },
       ingredienti_costi: { zucchero: { costoKg: 1.2, costoG: 0.0012 } },
     })
-    await waitFor(() => expect(v.container.textContent).toContain('zucchero'))
+    await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('zucchero'))
     expect(v.container.textContent).not.toMatch(/senza prezzo.*food cost esce/)
   })
 })

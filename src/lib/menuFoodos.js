@@ -150,10 +150,19 @@ export function costruisciMenu(ctx = {}) {
     // I soldi che escono. Quattro voci di menu stavano sopra le stesse
     // fatture: da pagare, chi te le manda, cosa ordinare.
     { id: 'acquisti', label: 'Acquisti', icona: 'shopping', voci: [
+      // Richiesta del titolare, 19/09/2026: «nel menu si chiama Fornitori e
+      // aprendola il titolo dice Scadenzario: due nomi per la stessa cosa».
+      // Aveva ragione ed era un difetto vero, non un capriccio: il titolo in
+      // cima alla pagina lo scrive `etichettaPerVista`, che per una pagina
+      // che è anche una SCHEDA usa il nome della scheda. La voce si chiamava
+      // «Fornitori» e la sua prima scheda «Scadenzario», quindi il menu e la
+      // pagina dicevano due parole diverse. Ora la scheda si chiama come la
+      // voce, e «scadenzario» resta fra i sinonimi per chi lo cerca col nome
+      // vecchio.
       { id: 'scadenzario', label: 'Fornitori', icona: 'fileText',
-        sinonimi: ['scadenzario', 'fatture', 'fornitori', 'ordini', 'da pagare', 'scadenze', 'fatture e fornitori', 'cosa ordinare'],
+        sinonimi: ['scadenzario', 'fatture', 'fornitori', 'ordini', 'da pagare', 'scadenze', 'fatture e fornitori', 'cosa ordinare', 'iban', 'bonifici'],
         schede: [
-          { id: 'scadenzario', label: 'Scadenzario' },
+          { id: 'scadenzario', label: 'Fornitori' },
           { id: 'fornitori',   label: 'Anagrafica' },
           { id: 'ordini-ai',   label: 'Riordino' },
         ] },
@@ -317,6 +326,26 @@ export const VISTE_FUORI_MENU = {
   'inventario-gusti': { label: 'Produzione', gruppo: 'Oggi' },
   giornaliero: { label: 'Produzione', gruppo: 'Oggi' },
   'quadratura-inventario': { label: 'Torna il conto?', gruppo: 'Analisi', labelBreve: 'Quadratura' },
+  // ── Le cinque schermate che si aprono DA Fornitori ───────────────────────
+  //
+  // Richiesta del titolare, 19/09/2026: le tre tessere in cima («Da pagare»,
+  // «Scadute», «In scadenza») erano numeri fermi, e premendole cambiava solo
+  // il filtro dell'elenco sotto. Parole sue: «non si devono aprire nella
+  // stessa pagina, deve essere un'altra».
+  //
+  // Sono pagine vere, non filtri: hanno un nome proprio nella riga in cima,
+  // stanno nella storia del browser (quindi il tasto «indietro» funziona) e
+  // si possono raggiungere da qualunque punto del programma.
+  'fatture-da-pagare':    { label: 'Da pagare', gruppo: 'Acquisti' },
+  'fatture-scadute':      { label: 'Scadute', gruppo: 'Acquisti' },
+  'fatture-in-scadenza':  { label: 'In scadenza', gruppo: 'Acquisti' },
+  'fatture-senza-sede':   { label: 'Fatture senza punto vendita', gruppo: 'Acquisti', labelBreve: 'Senza sede' },
+  // 19/09/2026 — chi compra cosa, guardato dai due lati. Non sta nel menu
+  // perché non è una pagina in cui si entra: ci si arriva cliccando il nome
+  // di un fornitore nella pagina Materie prime, che è il momento in cui la
+  // domanda «di lui cosa compro?» viene in mente.
+  'fornitori-materie-prime': { label: 'Fornitori e materie prime', gruppo: 'Acquisti', labelBreve: 'Chi vende cosa' },
+  'fornitori-senza-iban': { label: 'IBAN dei fornitori', gruppo: 'Acquisti', labelBreve: 'IBAN' },
   // ── Pagine tolte dal menu il 15/09/2026 ──────────────────────────────────
   //
   // Restano nel codice e raggiungibili, ma non si offrono più: sono pagine
@@ -374,7 +403,10 @@ export const GIORNI_AVVISO_SPOSTAMENTO = 60
 export const VISTE_DISEGNATE = new Set([
   'ai-brain', 'ai-hub', 'azioni', 'calendario', 'cashflow', 'changelog',
   'chiusura', 'competitor-pricing', 'confronto-sedi', 'costi-aziendali',
-  'documentary', 'eventi', 'forecast', 'formati-vendita', 'fornitori',
+  'documentary', 'eventi', 'fatture-da-pagare', 'fatture-in-scadenza',
+  'fatture-scadute', 'fatture-senza-sede', 'forecast', 'formati-vendita',
+  'fornitori-materie-prime',
+  'fornitori', 'fornitori-senza-iban',
   'giornaliero', 'haccp', 'home', 'home-dipendente', 'importa-dati',
   'impostazioni', 'integrazioni', 'inventario-gusti', 'magazzino',
   'marketplace', 'materie-prime', 'menu', 'menu-engineering', 'nuova-ricetta',
@@ -422,7 +454,7 @@ export const SPOSTAMENTI = {
   'costi-aziendali': 'Adesso è la scheda «Costi fissi» dentro P&L.',
   pl:                'Adesso si chiama P&L, e contiene anche i costi fissi.',
   fornitori:         'Adesso è la scheda «Anagrafica» dentro Fornitori.',
-  scadenzario:       'Adesso è la scheda «Scadenzario» dentro Fornitori.',
+  scadenzario:       'Adesso si chiama Fornitori, come la voce di menu: le fatture da pagare sono la prima scheda.',
   'menu-engineering':'Adesso è la scheda «Menu engineering» dentro Food cost.',
   simulatore:        'Adesso si chiama Food cost.',
   'formati-vendita': 'Adesso si chiama Listino.',

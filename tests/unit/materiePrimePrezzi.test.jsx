@@ -24,6 +24,12 @@
 //   4. creare una materia prima senza prezzo non deve scrivere zero: zero
 //      vuol dire «gratis», e il food cost lo prende alla lettera.
 
+// 19/09/2026 — i nomi delle materie prime si leggono con la prima
+// maiuscola («Burro», non «burro»): nel database restano minuscoli, perché
+// quella è la chiave con cui il food cost trova il prezzo, e cambiarla
+// farebbe sparire un costo in silenzio. Qui cambiano solo le prove su
+// quello che si legge a schermo; i dati di prova restano com'erano.
+
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, cleanup, fireEvent, waitFor } from '@testing-library/react'
 import React from 'react'
@@ -64,8 +70,8 @@ describe('materie prime — lo storico non deve far cadere la pagina', () => {
     ]
     const v = apri({ logPrezzi })
     fireEvent.click(v.getByText(/Storico modifiche/i))
-    await waitFor(() => expect(v.container.textContent).toContain('zucchero'))
-    expect(v.container.textContent).toContain('burro')
+    await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('zucchero'))
+    expect(v.container.textContent.toLowerCase()).toContain('burro')
   })
 
   it('l\'euro sta dopo la cifra anche nello storico', async () => {
@@ -92,12 +98,12 @@ describe('materie prime — modificare un prezzo', () => {
     // non faceva niente e non diceva niente: non si capiva se il prezzo era
     // stato rifiutato o se il pulsante era rotto.
     const v = apri()
-    await waitFor(() => expect(v.container.textContent).toContain('burro'))
+    await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('burro'))
     fireEvent.click(v.getByTitle('Clicca per modificare'))
     const campo = await waitFor(() => v.getByLabelText('Prezzo per chilo di burro'))
     fireEvent.change(campo, { target: { value: 'abc' } })
     fireEvent.keyDown(campo, { key: 'Enter' })
-    await waitFor(() => expect(v.container.textContent).toContain('Scrivi un prezzo in euro per chilo'))
+    await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('scrivi un prezzo in euro per chilo'))
   })
 
   it('«12,5o» non diventa 12,50 di nascosto', async () => {
@@ -107,12 +113,12 @@ describe('materie prime — modificare un prezzo', () => {
     // che nessuno aveva scritto. Su «abc» l'errore si vedeva, su «12,5o» no.
     const chiamate = []
     const v = apri({ onUpdatePrezzo: async (...a) => { chiamate.push(a) } })
-    await waitFor(() => expect(v.container.textContent).toContain('burro'))
+    await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('burro'))
     fireEvent.click(v.getByTitle('Clicca per modificare'))
     const campo = await waitFor(() => v.getByLabelText('Prezzo per chilo di burro'))
     fireEvent.change(campo, { target: { value: '12,5o' } })
     fireEvent.keyDown(campo, { key: 'Enter' })
-    await waitFor(() => expect(v.container.textContent).toContain('Scrivi un prezzo in euro per chilo'))
+    await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('scrivi un prezzo in euro per chilo'))
     expect(v.container.textContent).not.toContain('Conferma modifica prezzo')
     expect(chiamate).toHaveLength(0)
   })
@@ -122,7 +128,7 @@ describe('materie prime — modificare un prezzo', () => {
     // torna, e uno storico che non torna è un P&L che non torna.
     const chiamate = []
     const v = apri({ onUpdatePrezzo: async (...a) => { chiamate.push(a); await new Promise(r => setTimeout(r, 30)) } })
-    await waitFor(() => expect(v.container.textContent).toContain('burro'))
+    await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('burro'))
     fireEvent.click(v.getByTitle('Clicca per modificare'))
     const campo = await waitFor(() => v.getByLabelText('Prezzo per chilo di burro'))
     fireEvent.change(campo, { target: { value: '9,50' } })
@@ -140,7 +146,7 @@ describe('materie prime — modificare un prezzo', () => {
 
   it('il pulsante di conferma usa un\'icona, non il carattere di spunta', async () => {
     const v = apri()
-    await waitFor(() => expect(v.container.textContent).toContain('burro'))
+    await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('burro'))
     fireEvent.click(v.getByTitle('Clicca per modificare'))
     const campo = await waitFor(() => v.getByLabelText('Prezzo per chilo di burro'))
     fireEvent.change(campo, { target: { value: '9,50' } })
@@ -158,7 +164,7 @@ describe('materie prime — modificare un prezzo', () => {
       ricettario: { ...ricettario, ingredienti_costi: { burro: { costoKg: 0.8825, costoG: 0.0008825 } } },
       onUpdatePrezzo: async (...a) => { chiamate.push(a) },
     })
-    await waitFor(() => expect(v.container.textContent).toContain('burro'))
+    await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('burro'))
     fireEvent.click(v.getByTitle('Clicca per modificare'))
     const campo = await waitFor(() => v.getByLabelText('Prezzo per chilo di burro'))
     fireEvent.keyDown(campo, { key: 'Enter' })
@@ -178,16 +184,16 @@ describe('materie prime — un prezzo che non c\'è non è zero', () => {
         ingredienti_costi: {},
       },
     })
-    await waitFor(() => expect(v.container.textContent).toContain('aceto balsamicp'))
-    expect(v.container.textContent).toContain('Prezzo da impostare')
+    await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('aceto balsamicp'))
+    expect(v.container.textContent.toLowerCase()).toContain('prezzo da impostare')
     fireEvent.click(v.getByTitle('Clicca per modificare'))
     const campo = await waitFor(() => v.getByLabelText('Prezzo per chilo di aceto balsamicp'))
     fireEvent.change(campo, { target: { value: '9,50' } })
     fireEvent.keyDown(campo, { key: 'Enter' })
-    await waitFor(() => expect(v.container.textContent).toContain('Conferma modifica prezzo'))
-    expect(v.container.textContent).toContain('mai impostato')
+    await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('conferma modifica prezzo'))
+    expect(v.container.textContent.toLowerCase()).toContain('mai impostato')
     expect(v.container.textContent).not.toContain('0,00 €/kg')
-    expect(v.container.textContent).toContain('Primo prezzo tuo')
+    expect(v.container.textContent.toLowerCase()).toContain('primo prezzo tuo')
   })
 
   it('nell\'elenco il prezzo che manca è una lineetta, non uno zero', async () => {
@@ -197,7 +203,7 @@ describe('materie prime — un prezzo che non c\'è non è zero', () => {
         ingredienti_costi: {},
       },
     })
-    await waitFor(() => expect(v.container.textContent).toContain('aceto balsamicp'))
+    await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('aceto balsamicp'))
     expect(v.getByTitle('Clicca per modificare').textContent).toBe('—')
     expect(v.container.textContent).not.toContain('0,00 €')
   })
@@ -213,8 +219,8 @@ describe('materie prime — i tre stati del prezzo si vedono', () => {
         ingredienti_costi: {},
       },
     })
-    await waitFor(() => expect(v.container.textContent).toContain('burro'))
-    expect(v.container.textContent).toContain('stima di mercato')
+    await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('burro'))
+    expect(v.container.textContent.toLowerCase()).toContain('stima di mercato')
     expect(v.container.textContent).not.toContain('Prezzo da impostare')
   })
 
@@ -238,10 +244,10 @@ describe('materie prime — i tre stati del prezzo si vedono', () => {
         ingredienti_costi: {},
       },
     })
-    await waitFor(() => expect(v.container.textContent).toContain('burro'))
-    expect(v.container.textContent).toContain('latte')
+    await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('burro'))
+    expect(v.container.textContent.toLowerCase()).toContain('latte')
     expect(v.container.textContent).not.toContain('CREMA PASTICCERA')
-    expect(v.container.textContent).toContain('I semilavorati non sono qui')
+    expect(v.container.textContent.toLowerCase()).toContain('i semilavorati non sono qui')
   })
 })
 
@@ -309,7 +315,7 @@ describe('materie prime — aggiungerne una nuova', () => {
     fireEvent.change(nome, { target: { value: 'colorante blu' } })
     fireEvent.change(v.getByLabelText('Prezzo al chilo'), { target: { value: '0' } })
     fireEvent.click([...v.container.querySelectorAll('button')].find(b => b.textContent === 'Aggiungi'))
-    await waitFor(() => expect(v.container.textContent).toContain('Zero vuol dire'))
+    await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('zero vuol dire'))
     expect(chiamate).toHaveLength(0)
   })
 
@@ -339,7 +345,7 @@ describe('materie prime — aggiungerne una nuova', () => {
     const nome = await waitFor(() => v.getByLabelText('Come si chiama'))
     fireEvent.change(nome, { target: { value: 'colorante blu' } })
     fireEvent.click([...v.container.querySelectorAll('button')].find(b => b.textContent === 'Aggiungi'))
-    await waitFor(() => expect(v.container.textContent).toContain('La rete non risponde.'))
+    await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('la rete non risponde.'))
   })
 })
 
@@ -355,7 +361,7 @@ describe('materie prime — quello che si vede appena si apre', () => {
         ingredienti_costi: {},
       },
     })
-    await waitFor(() => expect(v.container.textContent).toContain('Senza prezzo'))
+    await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('senza prezzo'))
     // 18/09/2026 pomeriggio: qui ci si aspettava «2», perché «burro» stava
     // nella tessera ambra delle stimate. Ma dal mattino di quel giorno il
     // listino medio di mercato non fa più il conto del food cost, quindi le
@@ -379,15 +385,15 @@ describe('materie prime — quello che si vede appena si apre', () => {
         ingredienti_costi: { burro: { costoKg: 8.4, costoG: 0.0084 } },
       },
     })
-    await waitFor(() => expect(v.container.textContent).toContain('In quante ricette'))
+    await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('in quante ricette'))
     const pulsante = [...v.container.querySelectorAll('button[aria-expanded]')]
       .find(b => /2 ricette usano burro/.test(b.getAttribute('aria-label') || ''))
     expect(pulsante, 'il numero delle ricette non è un pulsante').toBeTruthy()
     // Chiuso, i nomi non ci sono.
     expect(v.container.textContent).not.toContain('TORTA')
     fireEvent.click(pulsante)
-    await waitFor(() => expect(v.container.textContent).toContain('TORTA'))
-    expect(v.container.textContent).toContain('BISCOTTI')
+    await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('torta'))
+    expect(v.container.textContent.toLowerCase()).toContain('biscotti')
     // E nessun suggerimento col mouse al posto dell'elenco.
     const titoli = [...v.container.querySelectorAll('[title]')].map(s => s.getAttribute('title'))
     expect(titoli).not.toContain('TORTA, BISCOTTI')
@@ -397,7 +403,7 @@ describe('materie prime — quello che si vede appena si apre', () => {
     const v = apri()
     expect(v.container.textContent).not.toContain('richiede conferma esplicita')
     expect(v.container.textContent).not.toContain('registrata nello storico')
-    expect(v.container.textContent).toContain('Clicca sul prezzo per cambiarlo')
+    expect(v.container.textContent.toLowerCase()).toContain('clicca sul prezzo per cambiarlo')
   })
 
   it('il prezzo si preme senza mirare: 44px col dito, 32 col mouse', async () => {
@@ -412,7 +418,7 @@ describe('materie prime — quello che si vede appena si apre', () => {
     // 32. Il caso col dito lo tiene `bersagliSulTablet.test.jsx`, che sposta
     // davvero la larghezza della finestra.
     const v = apri()
-    await waitFor(() => expect(v.container.textContent).toContain('burro'))
+    await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('burro'))
     const bersaglio = v.getByTitle('Clicca per modificare')
     expect(bersaglio.style.minHeight).toBe('32px')
     // Quello che NON deve tornare: il bersaglio da 22.
@@ -422,6 +428,6 @@ describe('materie prime — quello che si vede appena si apre', () => {
 
   it('senza ricettario non esplode e lo dice', async () => {
     const v = render(<MateriePrimeView ricettario={null} logPrezzi={[]} />)
-    expect(v.container.textContent).toContain('Sto caricando il ricettario')
+    expect(v.container.textContent.toLowerCase()).toContain('sto caricando il ricettario')
   })
 })

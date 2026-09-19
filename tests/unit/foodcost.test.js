@@ -154,11 +154,74 @@ describe('calcolaFC — semilavorati ed edge case', () => {
       'B': { nome: 'B', tipo: 'semilavorato', unita: 1, prezzo: 0,
         ingredienti: [{ nome: 'a', qty1stampo: 50 }] },
     } }
-    // La garanzia chiave del cycle-detect è non andare in ricorsione infinita:
-    // la chiamata deve terminare e restituire un costo finito (niente stack overflow).
+    // 19/09/2026, audit della suite. Qui c'erano due sole asserzioni:
+    // `Number.isFinite(res.tot)` e `Array.isArray(res.mancanti)`. Passavano
+    // anche se il ciclo avesse prodotto `tot: 0` **senza dire niente**, che è
+    // il caso peggiore: una ricetta che risulta gratis, margine al 100%, e
+    // nessun avviso. Quello che davvero salva la situazione è il marker in
+    // `mancanti` — e il marker non era provato da nessuno.
     const res = calcolaFC(ricettario.ricette['A'], ingCosti, ricettario)
-    expect(Number.isFinite(res.tot)).toBe(true)
-    expect(Array.isArray(res.mancanti)).toBe(true)
+    expect(Number.isFinite(res.tot), 'la ricorsione non deve andare all\'infinito').toBe(true)
+    // Il costo non si può sapere: deve valere zero E dirlo.
+    expect(res.tot).toBe(0)
+    expect(res.mancanti.some(m => m.toLowerCase().includes('ciclo')),
+      `un ciclo fra basi deve comparire fra i mancanti, invece: ${JSON.stringify(res.mancanti)}`).toBe(true)
+  })
+
+  // ── Quello che c'è intorno al ciclo: la profondità e i mancanti che risalgono ──
+  //
+  // 19/09/2026. La ricorsione sui semilavorati ha tre uscite (ciclo, oltre il
+  // terzo livello, ingrediente senza prezzo) e due erano scoperte. Sono la
+  // stessa famiglia: in tutte e tre il costo non si può sapere, e in tutte e
+  // tre il danno non è il numero sbagliato — è il **silenzio**. Una ricetta
+  // che costa 0 senza avvisi entra nel P&L come margine pieno.
+
+  it('oltre il terzo livello di base dentro base, lo dice invece di tacere', () => {
+    // Catena S1→S2→S3→S4→S5, con lo zucchero (2 €/kg) solo in fondo.
+    const r = { ricette: {}, ingredienti_costi: {} }
+    for (let i = 1; i <= 5; i++) {
+      r.ricette['S' + i] = { nome: 'S' + i, tipo: 'semilavorato', unita: 1, prezzo: 0, totImpasto1: 1000,
+        ingredienti: i === 5 ? [{ nome: 'zucchero', qty1stampo: 1000 }] : [{ nome: 'S' + (i + 1), qty1stampo: 1000 }] }
+    }
+    r.ricette.TOP = { nome: 'TOP', tipo: 'fetta', unita: 1, prezzo: 10, ingredienti: [{ nome: 'S1', qty1stampo: 1000 }] }
+    const ingCosti = buildIngCosti(ic({ zucchero: 2 }))
+    const res = calcolaFC(r.ricette.TOP, ingCosti, r)
+    expect(res.tot).toBe(0)
+    expect(res.mancanti.some(m => m.includes('annidato')),
+      `la catena troppo profonda deve comparire fra i mancanti, invece: ${JSON.stringify(res.mancanti)}`).toBe(true)
+  })
+
+  it('e fino al terzo livello il conto arriva in fondo davvero', () => {
+    // Il contrario del test di sopra: tre livelli devono funzionare, se no il
+    // limite avrebbe mangiato anche i casi buoni. S3 = 1 kg di zucchero a 2 €.
+    const r = { ricette: {}, ingredienti_costi: {} }
+    for (let i = 1; i <= 3; i++) {
+      r.ricette['S' + i] = { nome: 'S' + i, tipo: 'semilavorato', unita: 1, prezzo: 0, totImpasto1: 1000,
+        ingredienti: i === 3 ? [{ nome: 'zucchero', qty1stampo: 1000 }] : [{ nome: 'S' + (i + 1), qty1stampo: 1000 }] }
+    }
+    const ingCosti = buildIngCosti(ic({ zucchero: 2 }))
+    expect(calcolaFC(r.ricette.S1, ingCosti, r).tot).toBeCloseTo(2, 6)
+    expect(calcolaFC(r.ricette.S1, ingCosti, r).mancanti).toEqual([])
+  })
+
+  it('un ingrediente senza prezzo dentro una base risale col nome della base davanti', () => {
+    // Il difetto raccontato a foodcost.js:1167 — la ricorsione restituiva
+    // `mancanti` e chi chiamava li buttava via: la scheda diceva «0
+    // ingredienti senza prezzo» su un costo sottostimato, e l'avviso che fa
+    // scoprire il margine al 96,4% non compariva mai.
+    const r = {
+      ricette: {
+        GANACHE: { nome: 'GANACHE', tipo: 'semilavorato', unita: 1, prezzo: 0, totImpasto1: 1000,
+          ingredienti: [{ nome: 'cioccolato', qty1stampo: 1000 }] },
+        TARTUFO: { nome: 'TARTUFO', tipo: 'fetta', unita: 1, prezzo: 10,
+          ingredienti: [{ nome: 'GANACHE', qty1stampo: 300 }] },
+      },
+      ingredienti_costi: {},
+    }
+    const res = calcolaFC(r.ricette.TARTUFO, {}, r)
+    expect(res.tot).toBe(0)
+    // Il nome si scrive «base › ingrediente», perché è lì che si va a correggerlo.
+    expect(res.mancanti).toContain('GANACHE › cioccolato')
   })
 })
 
@@ -194,5 +257,84 @@ describe('calcolaFCStorico', () => {
     const r = ricetta('R', [{ nome: 'omaggio', qty1stampo: 100 }])
     const { tot } = calcolaFCStorico(r, ingCosti, { ricette: {} }, log, '2021-01-01')
     expect(tot).toBeCloseTo(0, 6) // usa 0, non il prezzo corrente
+  })
+})
+
+// ── Arrivate da foodcostHelpers.test.js il 19/09/2026 ─────────────────────
+// Quel file era un doppione di `foodcostUtils.test.js` (sette `describe` su
+// otto con le stesse identiche asserzioni sulle stesse funzioni pure). Queste
+// due prove erano l'unica cosa sua, e stanno bene qui.
+describe('calcolaFCDettaglio — semilavorato sub-tree', () => {
+  it('riconosce un ingrediente che è un semilavorato del ricettario e ricorre nel dettaglio', async () => {
+    const { calcolaFCDettaglio, buildIngCosti } = await import('../../src/lib/foodcost.js')
+    // Semilavorato CREMA: farina 100g (1€/kg) + zucchero 200g (1€/kg) = 0.3€ totale, peso 300g
+    // Costo unitario semi = 0.3/300 = 0.001 €/g
+    const ricettario = {
+      ricette: {
+        'CREMA TEST': {
+          nome: 'CREMA TEST', tipo: 'semilavorato', unita: 0, prezzo: 0,
+          ingredienti: [
+            { nome: 'farina', qty1stampo: 100 },
+            { nome: 'zucchero', qty1stampo: 200 },
+          ],
+        },
+      },
+    }
+    const ingCosti = buildIngCosti({
+      farina: { costoKg: 1, costoG: 0.001 },
+      zucchero: { costoKg: 1, costoG: 0.001 },
+    })
+    // Ricetta che usa CREMA come ingrediente (250g)
+    const ricetta = {
+      nome: 'TORTA', tipo: 'fetta', unita: 1, prezzo: 0,
+      ingredienti: [
+        { nome: 'CREMA TEST', qty1stampo: 250 },
+        { nome: 'farina', qty1stampo: 50 },
+      ],
+    }
+    const { tot, righe } = calcolaFCDettaglio(ricetta, ingCosti, ricettario)
+    expect(righe.length).toBe(2)
+    const semiRow = righe.find(r => r.isSemilavorato)
+    expect(semiRow, 'deve esistere una riga isSemilavorato:true').toBeTruthy()
+    expect(semiRow.nome).toBe('CREMA TEST')
+    // costo atteso semilavorato: 250 * (0.3/300) = 0.25 €
+    expect(semiRow.costo).toBeCloseTo(0.25, 3)
+    // costo atteso farina: 50 * 0.001 = 0.05 €
+    expect(righe.find(r => r.nome === 'farina').costo).toBeCloseTo(0.05, 3)
+    // totale: 0.30 (ordinato: semi prima per costo desc)
+    expect(tot).toBeCloseTo(0.30, 3)
+    expect(righe[0].nome).toBe('CREMA TEST')  // sort desc per costo
+  })
+
+  // Aggiornato 2026-09-09: il vecchio nome era "viene saltato silenziosamente" e
+  // il test fissava proprio il difetto. Un semilavorato senza ingredienti che
+  // sparisce dal dettaglio e' il caso peggiore: la riga non c'e', il totale non
+  // la conta, e chi guarda non ha modo di sapere che manca un pezzo di costo.
+  // Ora la riga c'e', vale 0 ed e' marcata mancante con il motivo scritto.
+  it('semilavorato senza peso resta nel dettaglio, marcato e con il motivo', async () => {
+    const { calcolaFCDettaglio, buildIngCosti } = await import('../../src/lib/foodcost.js')
+    const ricettario = {
+      ricette: {
+        'SEMI VUOTO': {
+          nome: 'SEMI VUOTO', tipo: 'semilavorato',
+          ingredienti: [{ nome: 'farina', qty1stampo: 0 }],  // peso totale=0 → skip
+        },
+      },
+    }
+    const ingCosti = buildIngCosti({ farina: { costoKg: 1, costoG: 0.001 } })
+    const ricetta = {
+      nome: 'X', ingredienti: [{ nome: 'SEMI VUOTO', qty1stampo: 100 }],
+    }
+    const { tot, righe } = calcolaFCDettaglio(ricetta, ingCosti, ricettario)
+    expect(righe.length).toBe(1)
+    const r = righe[0]
+    expect(r.nome).toBe('SEMI VUOTO')
+    expect(r.costo).toBe(0)
+    expect(r.mancante).toBe(true)
+    expect(r.isSemilavorato).toBe(true)
+    // Il motivo e' scritto in italiano perché finisce a schermo.
+    expect(r.motivo).toMatch(/semilavorato senza ingredienti/)
+    // Il totale resta 0: quel costo non e' noto, non lo inventiamo.
+    expect(tot).toBe(0)
   })
 })

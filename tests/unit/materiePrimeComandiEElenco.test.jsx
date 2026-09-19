@@ -29,6 +29,12 @@
 // suggerimento più pericoloso possibile, perché è inventato. Il titolare: «chi
 // arriva lì sa cosa scrivere».
 
+// 19/09/2026 — i nomi delle materie prime si leggono con la prima
+// maiuscola («Burro», non «burro»): nel database restano minuscoli, perché
+// quella è la chiave con cui il food cost trova il prezzo, e cambiarla
+// farebbe sparire un costo in silenzio. Qui cambiano solo le prove su
+// quello che si legge a schermo; i dati di prova restano com'erano.
+
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, cleanup, fireEvent, waitFor } from '@testing-library/react'
 import React from 'react'
@@ -70,7 +76,7 @@ beforeEach(() => { cleanup() })
 describe('dove sta «Nuova materia prima»', () => {
   it('sta in una barra sua, non appeso all’intestazione', async () => {
     const v = monta()
-    await waitFor(() => expect(v.container.textContent).toContain('Nuova materia prima'))
+    await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('nuova materia prima'))
     const barra = v.container.querySelector('[data-barra="azioni-materie-prime"]')
     expect(barra, 'non c’è la barra dei comandi').toBeTruthy()
     const dentro = [...barra.querySelectorAll('button')].map(b => b.textContent.trim())
@@ -80,7 +86,7 @@ describe('dove sta «Nuova materia prima»', () => {
   it('la barra sta sopra l’elenco, non sotto', async () => {
     // Un comando che crea una riga dell'elenco va letto prima dell'elenco.
     const v = monta()
-    await waitFor(() => expect(v.container.textContent).toContain('Nuova materia prima'))
+    await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('nuova materia prima'))
     const barra = v.container.querySelector('[data-barra="azioni-materie-prime"]')
     const tabella = v.container.querySelector('table')
     expect(barra.compareDocumentPosition(tabella) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
@@ -89,7 +95,7 @@ describe('dove sta «Nuova materia prima»', () => {
   it('l’intestazione della pagina non ha più nessun pulsante dentro', async () => {
     // Il paragrafo che spiega la pagina resta, il comando no.
     const v = monta()
-    await waitFor(() => expect(v.container.textContent).toContain('Gli ingredienti che compri'))
+    await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('gli ingredienti che compri'))
     // Il riquadro più stretto che comincia con quel paragrafo: partendo
     // dall'alto si prenderebbe la pagina intera, che i pulsanti ce li ha.
     const intestazione = [...v.container.querySelectorAll('div')]
@@ -101,7 +107,7 @@ describe('dove sta «Nuova materia prima»', () => {
 
   it('c’è posto accanto per gli altri due comandi, e si apre il modulo', async () => {
     const v = monta()
-    await waitFor(() => expect(v.container.textContent).toContain('Nuova materia prima'))
+    await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('nuova materia prima'))
     const barra = v.container.querySelector('[data-barra="azioni-materie-prime"]')
     // I pulsanti si affiancano e vanno a capo da soli: aggiungerne due non
     // rompe niente.
@@ -115,7 +121,7 @@ describe('dove sta «Nuova materia prima»', () => {
 describe('«in quante ricette» si apre e si legge', () => {
   it('il numero è un pulsante, non un numero col suggerimento', async () => {
     const v = monta()
-    await waitFor(() => expect(v.container.textContent).toContain('burro'))
+    await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('burro'))
     const tutti = [...v.container.querySelectorAll('[title]')].map(t => t.getAttribute('title'))
     expect(tutti.some(t => t && t.includes('BAVARESE'))).toBe(false)
     const pulsante = [...v.container.querySelectorAll('button[aria-expanded]')]
@@ -126,20 +132,20 @@ describe('«in quante ricette» si apre e si legge', () => {
 
   it('aperto, mostra TUTTE le ricette e non solo le prime otto', async () => {
     const v = monta()
-    await waitFor(() => expect(v.container.textContent).toContain('burro'))
+    await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('burro'))
     const pulsante = [...v.container.querySelectorAll('button[aria-expanded]')]
       .find(b => /ricette usano burro/.test(b.getAttribute('aria-label') || ''))
     fireEvent.click(pulsante)
-    await waitFor(() => expect(v.container.textContent).toContain('BAVARESE'))
+    await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('bavarese'))
     for (const nome of DIECI) expect(v.container.textContent).toContain(nome)
   })
 
   it('le ricette stanno incolonnate, una per riga', async () => {
     const v = monta()
-    await waitFor(() => expect(v.container.textContent).toContain('burro'))
+    await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('burro'))
     fireEvent.click([...v.container.querySelectorAll('button[aria-expanded]')]
       .find(b => /ricette usano burro/.test(b.getAttribute('aria-label') || '')))
-    await waitFor(() => expect(v.container.textContent).toContain('BAVARESE'))
+    await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('bavarese'))
     // 18/09/2026 — l'elenco è passato da una colonna sola a una griglia:
     // con ventinove ricette (BASE BIANCA le ha) una colonna sola era lunga
     // come la pagina. Quello che il test protegge resta lo stesso: ogni
@@ -155,10 +161,10 @@ describe('«in quante ricette» si apre e si legge', () => {
     // legge non è un ordine: con ventinove nomi, trovare quello che si cerca
     // voleva dire leggerli tutti.
     const v = monta()
-    await waitFor(() => expect(v.container.textContent).toContain('burro'))
+    await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('burro'))
     fireEvent.click([...v.container.querySelectorAll('button[aria-expanded]')]
       .find(b => /ricette usano burro/.test(b.getAttribute('aria-label') || '')))
-    await waitFor(() => expect(v.container.textContent).toContain('BAVARESE'))
+    await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('bavarese'))
     const griglia = [...v.container.querySelectorAll('div')]
       .find(d => (d.style.display === 'grid') && d.textContent.includes('BAVARESE'))
     const nomi = [...griglia.children].map(c => c.textContent)
@@ -167,7 +173,7 @@ describe('«in quante ricette» si apre e si legge', () => {
 
   it('si richiude, e lo dichiara a chi legge con la voce', async () => {
     const v = monta()
-    await waitFor(() => expect(v.container.textContent).toContain('burro'))
+    await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('burro'))
     const pulsante = () => [...v.container.querySelectorAll('button[aria-expanded]')]
       .find(b => /ricette usano burro/.test(b.getAttribute('aria-label') || ''))
     expect(pulsante().getAttribute('aria-expanded')).toBe('false')
@@ -179,8 +185,8 @@ describe('«in quante ricette» si apre e si legge', () => {
 
   it('una materia prima che non usa nessuno non ha niente da aprire', async () => {
     const v = monta({ ricettario: { ricette: {}, ingredienti_costi: { burro: { costoKg: 8.4 } } } })
-    await waitFor(() => expect(v.container.textContent).toContain('burro'))
-    expect(v.container.textContent).toContain('in nessuna')
+    await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('burro'))
+    expect(v.container.textContent.toLowerCase()).toContain('in nessuna')
     expect(v.container.querySelectorAll('button[aria-expanded]')).toHaveLength(1) // solo «Nuova materia prima»
   })
 })
@@ -188,7 +194,7 @@ describe('«in quante ricette» si apre e si legge', () => {
 describe('nessun prezzo inventato nei campi vuoti', () => {
   it('il campo per correggere il prezzo non suggerisce nessuna cifra', async () => {
     const v = monta()
-    await waitFor(() => expect(v.container.textContent).toContain('burro'))
+    await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('burro'))
     fireEvent.click([...v.container.querySelectorAll('button')].find(b => b.textContent.trim() === 'Modifica'))
     const campo = await waitFor(() => v.getByLabelText('Prezzo per chilo di burro'))
     expect(campo.getAttribute('placeholder')).toBeFalsy()
@@ -196,7 +202,7 @@ describe('nessun prezzo inventato nei campi vuoti', () => {
 
   it('e nemmeno quello della materia prima nuova', async () => {
     const v = monta()
-    await waitFor(() => expect(v.container.textContent).toContain('Nuova materia prima'))
+    await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('nuova materia prima'))
     fireEvent.click([...v.container.querySelectorAll('button')].find(b => b.textContent.includes('Nuova materia prima')))
     const campo = await waitFor(() => v.getByLabelText('Prezzo al chilo'))
     expect(campo.getAttribute('placeholder')).toBeFalsy()
@@ -206,7 +212,7 @@ describe('nessun prezzo inventato nei campi vuoti', () => {
     // Toglierlo dal campo non vuol dire nascondere come si scrive un prezzo:
     // quando uno sbaglia, glielo si dice.
     const v = monta()
-    await waitFor(() => expect(v.container.textContent).toContain('burro'))
+    await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('burro'))
     fireEvent.click([...v.container.querySelectorAll('button')].find(b => b.textContent.trim() === 'Modifica'))
     const campo = await waitFor(() => v.getByLabelText('Prezzo per chilo di burro'))
     fireEvent.change(campo, { target: { value: '12,5o' } })

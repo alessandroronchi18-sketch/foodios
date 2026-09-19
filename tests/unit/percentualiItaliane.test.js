@@ -119,3 +119,52 @@ describe('i numeri nei casi difficili', () => {
     expect(fmt(Infinity)).toBe('0,00 €')
   })
 })
+
+// ── Arrivato da sharedFormat.test.js il 19/09/2026 ────────────────────────
+// Quel file provava `fmt`/`fmt0`/`fmtp` importandoli da `views/_shared.jsx`,
+// che è una riga sola di ri-export da `lib/formatIt.js` — cioè le stesse
+// funzioni provate qui, dall'altra porta. `margColor` era l'unica cosa sua.
+import * as SHARED from '../../src/views/_shared.jsx'
+import * as FORMAT_IT from '../../src/lib/formatIt.js'
+import { margColor } from '../../src/views/_shared.jsx'
+import { color as T } from '../../src/lib/theme.js'
+
+// ── E la porta di servizio dà sulla stessa stanza ─────────────────────────
+//
+// `views/_shared.jsx` ri-esporta questi formattatori con una riga sola, e
+// mezzo prodotto li importa da lì invece che da `lib/formatIt.js`. Finché è
+// un ri-export sono la stessa funzione; il giorno che qualcuno ne riscrive
+// uno a mano dentro `_shared.jsx` — per aggiungere un caso, per fretta — le
+// due porte danno numeri diversi e nessuno se ne accorge, perché i due numeri
+// non compaiono mai nello stesso punto dello schermo.
+//
+// 19/09/2026: questa era l'unica cosa che `sharedFormat.test.js` vedeva e che
+// qui non si vedeva. Quel file ripeteva quindici prove già fatte sopra per
+// arrivarci; il confronto fra le due funzioni ne basta una, e le prende tutte
+// e sei invece che tre. PROVA: riscritto `fmt` a mano dentro `_shared.jsx`,
+// `sharedFormat` diventava rosso su 6 e questo file restava verde su 12.
+describe('i formattatori sono gli stessi da tutte e due le porte', () => {
+  it('_shared.jsx li ri-esporta, non li riscrive', () => {
+    for (const nome of ['fmt', 'fmt0', 'fmtp', 'fmtp0', 'fmtpSegno', 'fmtp0Segno']) {
+      expect(typeof SHARED[nome], `_shared.jsx non esporta più «${nome}»`).toBe('function')
+      expect(SHARED[nome],
+        `«${nome}» in _shared.jsx non è più la funzione di formatIt.js: due porte, due numeri`)
+        .toBe(FORMAT_IT[nome])
+    }
+  })
+})
+
+describe('margColor (soglie colore margine)', () => {
+  it('≥60 → verde', () => {
+    expect(margColor(60)).toBe(T.green)
+    expect(margColor(75)).toBe(T.green)
+  })
+  it('40–59.99 → ambra', () => {
+    expect(margColor(40)).toBe(T.amber)
+    expect(margColor(59.9)).toBe(T.amber)
+  })
+  it('<40 → brand (rosso)', () => {
+    expect(margColor(39.9)).toBe(T.brand)
+    expect(margColor(0)).toBe(T.brand)
+  })
+})

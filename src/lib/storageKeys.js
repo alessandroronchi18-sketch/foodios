@@ -24,4 +24,14 @@ export const SK_FORMATI  = 'pasticceria-formati-vendita-v1' // shared (formati d
 // materiale nuovo che nessuno nota, e riscrivere «0,032» a ogni formato è il
 // modo più facile per sbagliare uno zero.
 export const SK_MATERIALI = 'pasticceria-materiali-confezionamento-v1' // shared
+// Le categorie merceologiche dei fornitori: se le definisce il titolare una
+// volta, e poi il campo Categoria dell'anagrafica propone quelle e non accetta
+// altro.
+//
+// 19/09/2026, il titolare: «fai in modo che io possa sceglierle prima, e che
+// poi compaiano come elenco fisso li' quando scrivo». Prima il campo era
+// libero con dei suggerimenti: bastava battere «latticni» una volta per
+// spaccare in due la barra della spesa per categoria, senza nessun errore.
+export const SK_CAT_FORN = 'pasticceria-categorie-fornitori-v1' // shared
+
 export const SK_MOV      = 'pasticceria-movimenti-speciali-v1' // per-sede (sprechi e omaggi)

@@ -56,7 +56,7 @@ const fmtDate = d =>
   d ? new Date(d + 'T12:00:00').toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-'
 
 // ═══════════════════════════════════════════════════════════════════════════════
-export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
+export default function Scadenzario({ orgId, sedeId, sedi = [], pagina = 'scadenzario', onNavigate }) {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
   const [fatture, setFatture]             = useState([])
@@ -117,6 +117,48 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
   const [eliminandoId, setEliminandoId]   = useState(null)
   // Vista: 'scadenza' (timeline urgenza) | 'fornitore' (rollup) | 'cassa' (forward)
   const [vista, setVista]                 = useState('scadenza')
+
+  // ── Le schermate che si aprono DA questa ────────────────────────────────
+  //
+  // Richiesta del titolare, 19/09/2026: le tre tessere in cima («Da pagare»,
+  // «Scadute», «In scadenza») erano tre numeri fermi, e premendole cambiava
+  // solo il filtro dell'elenco qui sotto. Parole sue: «non si devono aprire
+  // nella stessa pagina, deve essere un'altra».
+  //
+  // Sono pagine vere, dichiarate in `menuFoodos.js` e disegnate dal Dashboard:
+  // hanno un nome proprio nella riga in cima, stanno nella storia del browser
+  // (il tasto «indietro» funziona) e ognuna ha il suo ritorno. Il Dashboard le
+  // monta tutte nello stesso punto dell'albero, quindi passare dall'una
+  // all'altra non rilegge le fatture da capo.
+  //
+  // `sottoPaginaLocale` serve solo quando il componente è montato senza
+  // `onNavigate` (le prove, una futura anteprima): le tessere continuano a
+  // funzionare invece di non fare niente.
+  const [sottoPaginaLocale, setSottoPaginaLocale] = useState(null)
+  const sottoPagina = (pagina && pagina !== 'scadenzario') ? pagina : sottoPaginaLocale
+  const vaiA = (p) => {
+    if (typeof onNavigate === 'function') onNavigate(p || 'scadenzario')
+    else setSottoPaginaLocale(p || null)
+  }
+
+  // Lo smistamento delle fatture senza punto vendita: quali righe sono
+  // spuntate e a quale sede vanno quelle spuntate.
+  const [selSenzaSede, setSelSenzaSede] = useState(() => new Set())
+  const [sedeBulk, setSedeBulk]         = useState('')
+  const [rigaSede, setRigaSede]         = useState(null)   // id della fattura in salvataggio
+
+  // La pagina degli IBAN: quello che si sta scrivendo, e chi è già fatto.
+  const [ibanBozze, setIbanBozze]       = useState({})
+  const [ibanFatti, setIbanFatti]       = useState(() => new Set())
+  const [ibanSalvando, setIbanSalvando] = useState(null)
+  // L'elenco degli IBAN da scrivere si congela quando si entra nella pagina.
+  // Senza, ogni riga salvata sparirebbe e le altre salirebbero di un posto:
+  // si scriverebbe l'IBAN del fornitore sbagliato al secondo invio.
+  const elencoIbanRef = useRef(null)
+  useEffect(() => {
+    if (sottoPagina !== 'fornitori-senza-iban') elencoIbanRef.current = null
+    if (sottoPagina !== 'fatture-senza-sede') setSelSenzaSede(new Set())
+  }, [sottoPagina])
   const [search, setSearch]               = useState('')
   // Anagrafica fornitori (enrichment: iban di default, termini) keyed per nome_norm
   const [fornitori, setFornitori]         = useState([])
@@ -149,10 +191,10 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
   const [pagCumSaving, setPagCumSaving]   = useState(false)
   // Quale settimana del calendario è aperta a mostrare i fornitori.
   const [settimanaAperta, setSettimanaAperta] = useState(null)
-  // Assegnazione in blocco del punto vendita alle fatture che non l'hanno.
-  const [sedeConf, setSedeConf]           = useState(false)
+  // Assegnazione del punto vendita alle fatture che non l'hanno. La tendina
+  // «assegna tutte a una sede» è diventata la pagina di smistamento (vedi
+  // `PaginaSmistamento`): qui resta solo la spia del salvataggio in corso.
   const [sedeSaving, setSedeSaving]       = useState(false)
-  const [sedeScelta, setSedeScelta]       = useState('')
   // Riconciliazione con la banca: { movimenti, abbinamenti, nonAbbinati,
   // avvisi, scelti: Set } | null
   const [banca, setBanca]                 = useState(null)
@@ -744,7 +786,6 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
       } else {
         notify(`Assegnate ${fatti} di ${ids.length}: sulle altre il salvataggio non è riuscito, riprova.`, false)
       }
-      setSedeConf(false)
       await loadFatture()
     } catch (e) {
       console.error('[scadenzario] assegnaSede', e)
@@ -1303,7 +1344,13 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
     const isPag = pagandoId === f.id
     const isDel = eliminandoId === f.id
 
-    const tinyBtnH = isMobile ? minTouch : (compact ? 30 : 34)
+    // «Segna pagata» e il cestino erano alti 30px sul tablet: `isMobile` da
+    // solo lascia fuori il tablet, che però si tocca col dito esattamente
+    // come un telefono. Trovato il 19/09/2026 misurando le schermate nuove a
+    // 820px. Il dito è il dito: la regola sta in `minTouch`, che vale 44 sia
+    // sul telefono sia sul tablet.
+    const dito = isMobile || isTablet
+    const tinyBtnH = dito ? minTouch : (compact ? 30 : 34)
     const fieldFs = isMobile ? 16 : 12
     const fieldPad = isMobile ? '10px 12px' : '7px 10px'
 
@@ -1746,6 +1793,15 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
   }
 
   // ─── Vista: rollup per fornitore ─────────────────────────────────────────────
+  //
+  // Le larghezze dei posti fissi della riga. Misurate sul contenuto più lungo
+  // che ci deve stare: «scaduto 123.456 €» per il bollino, «123.456,78 €» per
+  // il dovuto, «Ho pagato» col simbolo per il pulsante verde.
+  const LARG_SCADUTO = 150
+  const LARG_DOVUTO = 120
+  const LARG_HO_PAGATO = 124
+  const LARG_ICONA_FORN = minTouch
+
   function RollupView() {
     if (!rollupFornitori.length) {
       return <div style={{ ...card, padding: 40, textAlign: 'center', color: T.textSoft, fontSize: 13 }}>
@@ -1803,46 +1859,72 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                     {tutteFatture.length > g.n && <span style={{ marginLeft: 6, color: T.textSoft }}>· +{tutteFatture.length - g.n} pagate</span>}
                   </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, marginLeft: isMobile ? 28 : 0 }}>
-                  {/* Il bollino "scaduto ..." ha larghezza variabile: dentro
-                      uno slot fisso, così i totali delle righe restano
-                      incolonnati anche quando un fornitore non ha scaduto. */}
-                  <div style={{ width: isMobile ? 'auto' : 150, display: 'flex', justifyContent: 'flex-end', flexShrink: 0 }}>
+                {/* ── I posti fissi della riga ──────────────────────────
+                    Segnalato dal titolare il 19/09/2026: «le cifre devono
+                    stare sempre incolonnate fra di loro, le box verdi con
+                    "ho pagato" idem, e le altre box pure. Se manca una box in
+                    una riga non è che scalano tutte le altre».
+                    Aveva ragione ed era il difetto classico del `flex` senza
+                    posti fissi: il bollino rosso «scaduto …», il pulsante
+                    verde «Ho pagato» e la copia dell'estratto conto compaiono
+                    solo a certe condizioni, e quando uno mancava la riga si
+                    richiudeva verso destra trascinandosi dietro tutto il
+                    resto. Il fornitore senza scaduto aveva il totale dieci
+                    centimetri più in là di quello sopra.
+                    Il rimedio è quello che il progetto usa già altrove
+                    (`LARG_AVVISO_PREZZO` in `SemilavoratiView.jsx`): ogni
+                    posto ha una larghezza sua e, quando non ha niente da
+                    mostrare, resta vuoto invece di sparire. */}
+                <div data-colonne-fornitore="" style={{
+                  display: 'grid', alignItems: 'center', gap: 8, flexShrink: 0,
+                  marginLeft: isMobile ? 28 : 0,
+                  width: isMobile ? 'calc(100% - 28px)' : 'auto',
+                  gridTemplateColumns: isMobile
+                    ? `1fr ${LARG_ICONA_FORN}px ${LARG_ICONA_FORN}px`
+                    : `${LARG_SCADUTO}px ${LARG_DOVUTO}px ${LARG_HO_PAGATO}px ${LARG_ICONA_FORN}px ${LARG_ICONA_FORN}px`,
+                }}>
+                  <div data-posto="scaduto" style={{ gridColumn: isMobile ? '1 / 2' : 'auto', display: 'flex', justifyContent: isMobile ? 'flex-start' : 'flex-end', minWidth: 0 }}>
                     {g.scaduto > 0 && <span style={{ fontSize: 12, fontWeight: 700, color: '#991B1B', background: '#FEE2E2', padding: '4px 9px', borderRadius: 9, whiteSpace: 'nowrap', ...tnum }}>scaduto {fmtEuro0(g.scaduto)}</span>}
                   </div>
-                  <div style={{ fontSize: isMobile ? 15 : 16, fontWeight: 800, color: g.totale < 0 ? T.green : T.text, ...tnum, minWidth: 110, textAlign: 'right', whiteSpace: 'nowrap' }}>{fmtEuro(g.totale)}</div>
+                  <div data-posto="dovuto" style={{ gridColumn: isMobile ? '2 / 4' : 'auto', fontSize: isMobile ? 15 : 16, fontWeight: 800, color: g.totale < 0 ? T.green : T.text, ...tnum, textAlign: 'right', whiteSpace: 'nowrap' }}>{fmtEuro(g.totale)}</div>
                   {/* Un bonifico, un importo. Con 99 fatture aperte allo
                       stesso fornitore, segnarle pagate una per una è lavoro
                       che nessuno fa: si scrive quanto è partito e le fatture
                       si chiudono dalla più vecchia. */}
-                  {g.items.some(f => f.residuo > 0) && (
-                    <button onClick={(e) => { e.stopPropagation(); setPagCum({ nome_norm: g.nome_norm, nome: g.nome, testo: '' }) }}
-                      aria-label={`Registra un pagamento a ${g.nome}`}
-                      title="Ho pagato una cifra a questo fornitore: la imputo alle fatture più vecchie"
-                      style={{
-                        padding: isMobile ? '9px 12px' : '7px 12px', minHeight: minTouch, borderRadius: 8,
-                        border: 'none', background: T.green, color: T.white,
-                        fontSize: font.size.base, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
-                        display: 'inline-flex', alignItems: 'center', gap: 5,
-                      }}>
-                      <Icon name="euro" size={13} /> Ho pagato
-                    </button>
-                  )}
+                  <div data-posto="ho-pagato" style={{ gridColumn: isMobile ? '1 / 2' : 'auto', display: 'flex', justifyContent: 'flex-start', minWidth: 0 }}>
+                    {g.items.some(f => f.residuo > 0) && (
+                      <button onClick={(e) => { e.stopPropagation(); setPagCum({ nome_norm: g.nome_norm, nome: g.nome, testo: '' }) }}
+                        aria-label={`Registra un pagamento a ${g.nome}`}
+                        title="Ho pagato una cifra a questo fornitore: la imputo alle fatture più vecchie"
+                        style={{
+                          width: '100%', padding: '0 10px', minHeight: minTouch, borderRadius: 8,
+                          border: 'none', background: T.green, color: T.white,
+                          fontSize: font.size.base, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
+                          display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+                        }}>
+                        <Icon name="euro" size={13} /> Ho pagato
+                      </button>
+                    )}
+                  </div>
                   {/* L'estratto conto da mandare al fornitore: "queste ci
                       risultano aperte, ti torna?". Con decine di fatture è
                       l'unico modo di allinearsi senza leggere i numeri al
                       telefono. */}
-                  {g.items.length > 1 && (
-                    <button onClick={(e) => { e.stopPropagation(); copiaEstrattoConto(g) }}
-                      aria-label={`Copia l'estratto conto di ${g.nome}`}
-                      title="Copia l'elenco delle fatture aperte, pronto da mandare al fornitore"
-                      style={{ ...ghostBtn, padding: isMobile ? '8px 10px' : '6px 11px', minHeight: minTouch, minWidth: minTouch }}>
-                      <Icon name="copy" size={14} />
-                    </button>
-                  )}
-                  <button onClick={(e) => { e.stopPropagation(); if (isEdit) { setEditForn(null) } else { setEditForn(g.nome_norm); setEditFornData({ iban: g.iban || '', termini: g.termini ?? 30, terminiTipo: g.terminiTipo || 'netti', categoria: g.categoria || '' }) } }}
-                    aria-label="Modifica anagrafica fornitore"
-                    title="Anagrafica fornitore (IBAN, termini)" style={{ ...ghostBtn, padding: isMobile ? '8px 10px' : '6px 11px', minHeight: minTouch, minWidth: minTouch }}><Icon name="gear" size={14} /></button>
+                  <div data-posto="estratto-conto" style={{ display: 'flex', justifyContent: 'center', minWidth: 0 }}>
+                    {g.items.length > 1 && (
+                      <button onClick={(e) => { e.stopPropagation(); copiaEstrattoConto(g) }}
+                        aria-label={`Copia l'estratto conto di ${g.nome}`}
+                        title="Copia l'elenco delle fatture aperte, pronto da mandare al fornitore"
+                        style={{ ...ghostBtn, padding: 0, minHeight: minTouch, width: LARG_ICONA_FORN }}>
+                        <Icon name="copy" size={14} />
+                      </button>
+                    )}
+                  </div>
+                  <div data-posto="anagrafica" style={{ display: 'flex', justifyContent: 'center', minWidth: 0 }}>
+                    <button onClick={(e) => { e.stopPropagation(); if (isEdit) { setEditForn(null) } else { setEditForn(g.nome_norm); setEditFornData({ iban: g.iban || '', termini: g.termini ?? 30, terminiTipo: g.terminiTipo || 'netti', categoria: g.categoria || '' }) } }}
+                      aria-label="Modifica anagrafica fornitore"
+                      title="Anagrafica fornitore (IBAN, termini)" style={{ ...ghostBtn, padding: 0, minHeight: minTouch, width: LARG_ICONA_FORN }}><Icon name="gear" size={14} /></button>
+                  </div>
                 </div>
               </div>
 
@@ -2154,18 +2236,504 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
   }
 
   // Lascia spazio in fondo per la SEPA bar quando ci sono selezioni
+
+  // Il messaggio che compare in alto a destra. In una funzione perché lo
+  // mostrano anche le schermate che si aprono da qui.
+  function Toast() {
+    if (!toast) return null
+    return (
+      <div role="status" aria-live="polite" style={{ position: 'fixed', top: 16, right: 16, left: isMobile ? 16 : 'auto', maxWidth: isMobile ? 'auto' : 420, zIndex: 999, background: toast.ok ? T.green : T.brand, color: T.white, padding: '12px 18px', borderRadius: 10, fontSize: 13, fontWeight: 600, boxShadow: '0 10px 30px rgba(0,0,0,0.18)', display: 'flex', alignItems: 'center', gap: 10, lineHeight: 1.35 }}>
+        <Icon name={toast.ok ? 'check' : 'warning'} size={16} />
+        <span style={{ flex: 1, minWidth: 0 }}>{toast.msg}</span>
+      </div>
+    )
+  }
+
+  // Il riquadro che conferma «segno pagate N fatture». Sta in una funzione
+  // perché lo usano due schermate: l'elenco per scadenza e le tre pagine che
+  // si aprono dalle tessere. Senza, su quelle pagine il pulsante «Segna
+  // pagate» dei gruppi non avrebbe fatto comparire niente.
+  function ConfermaBlocco() {
+    // Dice quante fatture e quanto, e chiede la data del pagamento (una
+    // sola: il giorno in cui il bonifico è partito). Senza i numeri davanti,
+    // «segna pagate» su 211 fatture è un bottone che nessuno oserebbe premere.
+    if (!bloccoConf) return null
+    const daFare = bloccoConf.items.filter(f => f.stato !== 'pagata')
+    const somma = daFare.reduce((acc, f) => acc + (Number(f.residuo) || Math.abs(Number(f.totale) || 0)), 0)
+    return (
+      <div style={{ ...card, padding: isMobile ? '14px 16px' : '16px 20px', marginBottom: 16, border: `2px solid ${T.brand}` }}>
+        <div style={{ ...typo.bodyStrong, fontWeight: 800, color: T.text, marginBottom: 6, letterSpacing: '-0.01em' }}>
+          Segno pagate {daFare.length} {daFare.length === 1 ? 'fattura' : 'fatture'} di "{bloccoConf.titolo}"
+        </div>
+        <div style={{ ...typo.small, color: T.textSoft, lineHeight: 1.55, marginBottom: 12 }}>
+          In tutto <b style={{ color: T.text, ...tnum }}>{fmtEuro(somma)}</b>.
+          Metto la stessa data di pagamento su tutte: usa il giorno in cui è partito il bonifico.
+          Se qualcuna l'hai pagata in un altro giorno, correggila dopo dalla sua riga.
+        </div>
+        {/* La stessa spunta del pagamento singolo: in blocco pesa
+            ancora di più, perché sono decine di uscite in una volta.
+            Sulle fatture vecchie conviene tenerla SPENTA: quelle sono
+            già state pagate nella realtà, e registrarle in cassa oggi
+            sposterebbe l'uscita nel mese sbagliato. */}
+        <label style={{ display: 'flex', alignItems: 'flex-start', gap: 9, marginBottom: 12, cursor: 'pointer' }}>
+          <input type="checkbox" checked={registraInCassa}
+            onChange={e => setRegistraInCassa(e.target.checked)}
+            style={{ width: 20, height: 20, marginTop: 1, accentColor: T.brand, cursor: 'pointer', flexShrink: 0 }} />
+          <span style={{ ...typo.small, color: T.textMid, lineHeight: 1.45 }}>
+            Registra anche <b>{daFare.length} {daFare.length === 1 ? 'uscita' : 'uscite'} in Cassa</b>, con la data del pagamento.
+            {' '}Se stai sistemando fatture vecchie già pagate, lascia questa spunta spenta:
+            altrimenti l'uscita finisce nel mese di oggi invece che in quello in cui è avvenuta.
+          </span>
+        </label>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ ...typo.small, fontWeight: 700, color: T.textSoft, marginBottom: 4 }}>Data del pagamento</div>
+            <input type="date" value={dataPag} onChange={e => setDataPag(e.target.value)}
+              aria-label="Data del pagamento per tutte le fatture selezionate"
+              style={{ padding: '9px 11px', minHeight: minTouch, borderRadius: 8, border: `1px solid ${T.border}`, fontSize: 13, color: T.text }} />
+          </div>
+          <button type="button" onClick={() => segnaPagateInBlocco(bloccoConf.items, dataPag)} disabled={bloccoLoading || !dataPag}
+            style={{ padding: '10px 16px', minHeight: minTouch, borderRadius: 8, border: 'none', background: (bloccoLoading || !dataPag) ? T.border : T.brand, color: '#fff', ...typo.body, fontWeight: 800, cursor: (bloccoLoading || !dataPag) ? 'default' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <Icon name="check" size={14} /> {bloccoLoading ? 'Le segno…' : `Sì, segna ${daFare.length} pagate`}
+          </button>
+          <button type="button" onClick={() => setBloccoConf(null)} disabled={bloccoLoading}
+            style={{ padding: '10px 14px', minHeight: minTouch, borderRadius: 8, border: `1px solid ${T.border}`, background: T.bgCard, ...typo.body, fontWeight: 700, color: T.textSoft, cursor: 'pointer' }}>
+            Annulla
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // «Attenzione: IBAN identico». In una funzione perché serve anche alla
+  // pagina dove si scrivono gli IBAN uno dopo l'altro: è proprio lì che il
+  // copia-incolla sbagliato è più facile.
+  function AvvisoIbanUguale() {
+    if (!ibanAlert) return null
+    return (
+      <div onClick={() => setIbanAlert(null)}
+        style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200, padding: 16 }}>
+        <div onClick={e => e.stopPropagation()}
+          style={{ background: T.bgCard, borderRadius: 16, padding: '26px 28px', maxWidth: 480, width: '100%', boxShadow: '0 24px 60px rgba(204,0,0,0.28)', position: 'relative', overflow: 'hidden' }}>
+          <div aria-hidden="true" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: T.brand }}/>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+            <span style={{ width: 44, height: 44, borderRadius: 12, background: '#FEE2E2', color: T.brand, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Icon name="warning" size={24} />
+            </span>
+            <div style={{ fontSize: 16, fontWeight: 900, color: T.brand, letterSpacing: '-0.01em' }}>Attenzione: IBAN identico</div>
+          </div>
+          <div style={{ fontSize: 13, color: T.text, lineHeight: 1.6, marginBottom: 14 }}>
+            {ibanAlert.tipo === 'azienda'
+              ? <>L'IBAN che stai impostando per <b>la tua azienda</b> è esattamente uguale a quello del fornitore <b>{ibanAlert.fornitore}</b>. Sarebbe come pagare te stesso. Probabile errore di copia-incolla.</>
+              : <>L'IBAN che stai impostando per il fornitore <b>{ibanAlert.fornitore}</b> è esattamente uguale all'IBAN della tua azienda. Sarebbe come pagare te stesso. Probabile errore di copia-incolla.</>}
+          </div>
+          <div style={{ background: T.bgSubtle || '#F8FAFC', border: `1px solid ${T.border}`, borderRadius: 10, padding: '11px 14px', fontSize: 12, color: T.textMid, lineHeight: 1.55, marginBottom: 18 }}>
+            <b style={{ color: T.text }}>Cosa fare:</b> ricontrolla l'IBAN su una fattura cartacea / PEC del fornitore e inseriscilo correttamente. Se davvero usi lo stesso conto (raro), forza il salvataggio - ma sappi che il bonifico SEPA fallirà perché la banca rifiuta debtor == creditor.
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <button onClick={() => setIbanAlert(null)} style={{ ...primaryBtn, padding: '10px 24px' }}>
+              Ho capito, correggo
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+
+  // La barra del bonifico SEPA, in fondo allo schermo quando qualcosa è
+  // spuntato. Sta in una funzione perché la mostrano anche le tre schermate
+  // che si aprono dalle tessere: lì le caselle di spunta delle righe ci sono,
+  // e senza questa barra spuntare una fattura non faceva comparire niente.
+  function BarraBonifico() {
+    if (!(selez.size > 0 || selFatt.size > 0)) return null
+    // selez = fornitori (vista Per fornitore) -> includi tutte le fatture
+    //         pagabili di quei fornitori.
+    // selFatt = singole fatture (vista Per scadenza) -> includi solo
+    //           quelle specifiche, se pagabili.
+    const byFornitore = fattureExt.filter(f => f.stato !== 'pagata' && f.ibanValido && f.residuo > 0 && selez.has(normNome(f.fornitore)))
+    const bySingolaFt = fattureExt.filter(f => f.stato !== 'pagata' && f.ibanValido && f.residuo > 0 && selFatt.has(f.id))
+    // Dedup per id
+    const seen = new Set()
+    const selItems = [...byFornitore, ...bySingolaFt].filter(f => seen.has(f.id) ? false : (seen.add(f.id), true))
+    const tot = selItems.reduce((s, f) => s + Math.abs(f.residuo), 0)
+    const numFornitori = new Set(selItems.map(f => normNome(f.fornitore))).size
+    return (
+      <div style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 900, background: T.bgCard, borderTop: `1px solid ${T.border}`, boxShadow: '0 -6px 24px rgba(15,23,42,0.14)', padding: isMobile ? '12px 14px' : '14px 28px', display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', gap: isMobile ? 10 : 14 }}>
+        <div style={{ fontSize: 13, color: T.text, fontWeight: 600, ...tnum, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {selItems.length.toLocaleString('it-IT', { useGrouping: 'always' })} fattur{selItems.length === 1 ? 'a' : 'e'} pagabil{selItems.length === 1 ? 'e' : 'i'} · {numFornitori} fornitor{numFornitori === 1 ? 'e' : 'i'} · <span style={{ color: T.brand, fontWeight: 800 }}>{fmtEuro(tot)}</span>
+        </div>
+        {!isMobile && <div style={{ flex: 1 }} />}
+        <div style={{ display: 'flex', gap: 8, flexShrink: 0, width: isMobile ? '100%' : 'auto' }}>
+          <button onClick={() => { setSelez(new Set()); setSelFatt(new Set()) }} aria-label="Deseleziona tutti" style={{ ...ghostBtn, flex: isMobile ? 1 : '0 0 auto' }}>Deseleziona</button>
+          <button onClick={() => {
+            if (!ibanIsValid(azienda.iban)) { setEditAzienda(true); notify('Inserisci prima l\'IBAN azienda per generare il bonifico.', false); return }
+            const tot = selItems.reduce((s, f) => s + Math.abs(f.residuo || f.totale || 0), 0)
+            setSepaConfirm({ items: selItems, totale: tot })
+          }} disabled={!selItems.length}
+            aria-label="Genera bonifico SEPA"
+            style={{ ...primaryBtn, flex: isMobile ? 1 : '0 0 auto', opacity: selItems.length ? 1 : 0.5 }}>
+            <Icon name="download" size={14} /> Genera bonifico SEPA
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LE SCHERMATE CHE SI APRONO DA QUESTA
+  //
+  // Si chiamano come funzioni e non come tag, come tutto il resto di questo
+  // file: un componente dichiarato qui dentro e usato come `<Testata/>`
+  // verrebbe rimontato a ogni disegno, e i campi perderebbero il fuoco mentre
+  // ci si scrive dentro. È lo stesso motivo scritto sopra `Gruppo`.
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // La testata: il ritorno, il nome della pagina, e i due numeri che la
+  // riassumono.
+  function Testata({ titolo, spiega, n, tot, etichette = ['fattura', 'fatture'] }) {
+    return (
+      <div style={{ ...card, padding: isMobile ? '14px 16px' : '18px 22px', marginBottom: 14 }}>
+        <button type="button" onClick={() => vaiA(null)}
+          aria-label="Torna a Fornitori"
+          style={{ ...ghostBtn, marginBottom: 12, minHeight: minTouch }}>
+          <Icon name="arrowL" size={14} /> Fornitori
+        </button>
+        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap' }}>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <h2 style={{ margin: 0, fontSize: isMobile ? font.size.xl : font.size['2xl'], fontWeight: 800, color: T.text, letterSpacing: '-0.02em' }}>{titolo}</h2>
+            <div style={{ fontSize: font.size.base, color: T.textSoft, marginTop: 4, lineHeight: 1.5, maxWidth: 640 }}>{spiega}</div>
+          </div>
+          {n != null && (
+            <div style={{ textAlign: isMobile ? 'left' : 'right', flexShrink: 0 }}>
+              <div style={{ fontSize: isMobile ? font.size['2xl'] : font.size['3xl'], fontWeight: 800, color: T.text, ...tnum, letterSpacing: '-0.025em' }}>{fmtEuro0(tot)}</div>
+              <div style={{ fontSize: font.size.sm, color: T.textSoft, ...tnum }}>
+                {n.toLocaleString('it-IT', { useGrouping: 'always' })} {n === 1 ? etichette[0] : etichette[1]}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // Lo stesso campo di ricerca della pagina principale: chi arriva qui dentro
+  // cerca la fattura che gli hanno sollecitato, non vuole tornare indietro.
+  function Cerca() {
+    return (
+      <div style={{ position: 'relative', marginBottom: 14, maxWidth: isMobile ? '100%' : 340 }}>
+        <label htmlFor="scad-cerca-sotto" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: T.textSoft, display: 'flex', pointerEvents: 'none' }}>
+          <Icon name="search" size={15} />
+        </label>
+        <input id="scad-cerca-sotto" value={search} onChange={e => setSearch(e.target.value)}
+          placeholder="Cerca fornitore, numero o importo…"
+          aria-label="Cerca fornitore, numero o importo"
+          style={{ width: '100%', padding: isMobile ? '11px 12px 11px 36px' : '10px 14px 10px 36px', minHeight: minTouch, borderRadius: 9, border: `1px solid ${T.border}`, fontSize: font.size.base, color: T.text, boxSizing: 'border-box', outline: 'none' }} />
+      </div>
+    )
+  }
+
+  // Le tre schermate che si aprono dalle tessere: stesso elenco, fasce
+  // diverse. Riusano `Gruppo`, quindi hanno anche «Segna pagate» di gruppo,
+  // le azioni di riga e la paginazione a 60.
+  function PaginaElenco({ titolo, spiega, chiavi, vuoto }) {
+    const blocchi = chiavi
+      .map(k => ({ k, items: (gruppi[k] || []).filter(matchSearch) }))
+      .filter(b => b.items.length > 0)
+    const n = blocchi.reduce((s, b) => s + b.items.length, 0)
+    const tot = blocchi.reduce((s, b) => s + b.items.reduce((a, f) => a + (Number(f.residuo) || 0), 0), 0)
+    return (
+      <>
+        {Testata({ titolo, spiega, n, tot })}
+        {Cerca()}
+        {ConfermaBlocco()}
+        {loading
+          ? <div style={{ padding: 60, textAlign: 'center', color: T.textSoft, fontSize: font.size.base }}>Caricamento…</div>
+          : n === 0
+            ? <div style={{ ...card, padding: 40, textAlign: 'center', color: T.textSoft, fontSize: font.size.base, lineHeight: 1.6 }}>
+                {search ? 'Nessuna fattura per questa ricerca.' : vuoto}
+              </div>
+            : blocchi.map(b => Gruppo({ keyU: b.k, items: b.items }))}
+      </>
+    )
+  }
+
+  // ── Smistare le fatture senza punto vendita ──────────────────────────────
+  //
+  // Richiesta del titolare, 19/09/2026: «un tot a un punto vendita, un tot a
+  // un altro». Prima c'era un solo comando, «Assegna tutte le 24 a…», e con
+  // tre negozi mandava in blocco a uno solo quello che è di tre.
+  //
+  // Qui si può fare in tutt'e due i modi: la tendina su ogni riga per le
+  // fatture che si riconoscono a occhio, e le caselle di spunta con
+  // «assegna le selezionate» per i blocchi grossi.
+  const LARG_IMPORTO_SMISTA = 130
+  const LARG_SCEGLI_SEDE = 210
+
+  function PaginaSmistamento() {
+    const attive = (sedi || []).filter(s => s?.attiva !== false)
+    const items = senzaSede.items.filter(matchSearch)
+    const selezionate = items.filter(f => selSenzaSede.has(f.id))
+    const tutteSpuntate = items.length > 0 && selezionate.length === items.length
+    const tot = items.reduce((s, f) => s + Math.abs(Number(f.residuo) || 0), 0)
+    const spunta = (id) => setSelSenzaSede(prev => {
+      const nuovo = new Set(prev)
+      if (nuovo.has(id)) nuovo.delete(id); else nuovo.add(id)
+      return nuovo
+    })
+    return (
+      <>
+        {Testata({
+          titolo: 'Fatture senza punto vendita',
+          spiega: attive.length < 2
+            ? 'Hai un solo punto vendita attivo: non c’è niente da smistare.'
+            : 'Il Confronto sedi raggruppa per punto vendita: una fattura senza sede non entra nel conto di nessun negozio. Mandane un po’ a uno e un po’ a un altro — dalla tendina della riga, oppure spuntandone diverse e assegnandole insieme.',
+          n: loading ? null : items.length, tot,
+        })}
+        {!loading && items.length > 0 && Cerca()}
+        {/* Finché le fatture si stanno leggendo non si scrive «non c'è niente
+            da smistare»: sarebbe una bugia che dura un secondo, ma è la
+            differenza fra «non lo so ancora» e «zero». */}
+        {loading ? (
+          <div style={{ padding: 60, textAlign: 'center', color: T.textSoft, fontSize: font.size.base }}>Caricamento…</div>
+        ) : items.length === 0 ? (
+          <div style={{ ...card, padding: 40, textAlign: 'center', color: T.textSoft, fontSize: font.size.base, lineHeight: 1.6 }}>
+            {search ? 'Nessuna fattura per questa ricerca.' : 'Tutte le fatture hanno il loro punto vendita. Nel Confronto sedi entrano tutte.'}
+          </div>
+        ) : (
+          <>
+            <div style={{ ...card, padding: isMobile ? '12px 14px' : '12px 18px', marginBottom: 14, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+              <button type="button"
+                onClick={() => setSelSenzaSede(tutteSpuntate ? new Set() : new Set(items.map(f => f.id)))}
+                style={{ ...ghostBtn, minHeight: minTouch }}>
+                <Icon name={tutteSpuntate ? 'x' : 'check'} size={14} />
+                {tutteSpuntate ? 'Togli la selezione' : `Spunta tutte (${items.length.toLocaleString('it-IT', { useGrouping: 'always' })})`}
+              </button>
+              <span style={{ fontSize: font.size.base, color: T.textMid, ...tnum }}>
+                {selezionate.length.toLocaleString('it-IT', { useGrouping: 'always' })} {selezionate.length === 1 ? 'selezionata' : 'selezionate'}
+              </span>
+              <div style={{ flex: 1, minWidth: 0 }} />
+              <select value={sedeBulk} onChange={e => setSedeBulk(e.target.value)}
+                aria-label="Punto vendita per le fatture selezionate"
+                style={{ minHeight: minTouch, padding: '0 12px', borderRadius: 9, border: `1px solid ${T.border}`, fontSize: font.size.base, color: T.text, background: T.bgCard, cursor: 'pointer', width: isMobile ? '100%' : LARG_SCEGLI_SEDE, boxSizing: 'border-box' }}>
+                <option value="">Scegli il punto vendita…</option>
+                {attive.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
+              </select>
+              <button type="button"
+                disabled={sedeSaving || !sedeBulk || selezionate.length === 0}
+                onClick={async () => { await assegnaSede(selezionate, sedeBulk); setSelSenzaSede(new Set()) }}
+                style={{ ...primaryBtn, minHeight: minTouch, width: isMobile ? '100%' : 'auto', opacity: (sedeSaving || !sedeBulk || selezionate.length === 0) ? 0.5 : 1, cursor: (sedeSaving || !sedeBulk || selezionate.length === 0) ? 'default' : 'pointer' }}>
+                <Icon name="store" size={14} />
+                {sedeSaving ? 'Assegno…' : `Assegna le ${selezionate.length.toLocaleString('it-IT', { useGrouping: 'always' })} spuntate`}
+              </button>
+            </div>
+            <div style={{ ...card, overflow: 'hidden' }}>
+              {items.map(f => {
+                const spuntata = selSenzaSede.has(f.id)
+                const inCorso = rigaSede === f.id
+                return (
+                  <div key={f.id} style={{
+                    display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+                    padding: isMobile ? '10px 12px' : '10px 16px',
+                    borderTop: `1px solid ${T.borderSoft}`,
+                    background: spuntata ? T.brandLight : (inCorso ? T.greenLight : 'transparent'),
+                  }}>
+                    <input type="checkbox" checked={spuntata} onChange={() => spunta(f.id)}
+                      aria-label={`Seleziona la fattura ${f.numero_rif || ''} di ${f.fornitore}`}
+                      style={{ width: 20, height: 20, margin: 8, accentColor: T.brand, cursor: 'pointer', flexShrink: 0 }} />
+                    <div style={{ flex: '1 1 200px', minWidth: 0 }}>
+                      <div title={f.fornitore} style={{ fontSize: font.size.md, fontWeight: 700, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.fornitore}</div>
+                      <div style={{ fontSize: font.size.sm, color: T.textSoft, ...tnum, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {f.numero_rif || 'senza numero'} · {fmtDate(f.data_fattura)}
+                      </div>
+                    </div>
+                    <div style={{ width: isMobile ? 'auto' : LARG_IMPORTO_SMISTA, textAlign: 'right', flexShrink: 0, fontSize: font.size.md, fontWeight: 700, color: T.text, ...tnum, whiteSpace: 'nowrap' }}>
+                      {fmtEuro(Math.abs(Number(f.residuo) || 0))}
+                    </div>
+                    <select value="" disabled={sedeSaving}
+                      onChange={async (e) => {
+                        const scelta = e.target.value
+                        if (!scelta) return
+                        setRigaSede(f.id)
+                        try { await assegnaSede([f], scelta) } finally { setRigaSede(null) }
+                      }}
+                      aria-label={`Punto vendita della fattura ${f.numero_rif || ''} di ${f.fornitore}`}
+                      style={{ width: isMobile ? '100%' : LARG_SCEGLI_SEDE, minHeight: minTouch, padding: '0 10px', borderRadius: 9, border: `1px solid ${T.border}`, fontSize: font.size.base, color: T.text, background: T.bgCard, cursor: 'pointer', flexShrink: 0, boxSizing: 'border-box' }}>
+                      <option value="">{inCorso ? 'Assegno…' : 'Manda a…'}</option>
+                      {attive.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
+                    </select>
+                  </div>
+                )
+              })}
+            </div>
+          </>
+        )}
+      </>
+    )
+  }
+
+  // ── Scrivere gli IBAN uno dopo l'altro ───────────────────────────────────
+  //
+  // Richiesta del titolare, 19/09/2026: l'avviso in cima era un riquadro
+  // intero che diceva «manca l'IBAN a 38 fornitori» e offriva cinque pulsanti
+  // «Scrivi l'IBAN», ognuno dei quali portava via dalla pagina. Adesso
+  // l'avviso è una riga e questa è la pagina dove si scrivono tutti, in fila,
+  // senza uscire e rientrare: invio salva e porta il cursore sul successivo.
+  async function salvaIbanRiga(r, i) {
+    const val = String(ibanBozze[r.nome_norm] || '').trim()
+    if (!ibanIsValid(val)) { notify('Questo IBAN non è valido: ricontrolla lettere e cifre.', false); return }
+    // Lo stesso controllo di `salvaFornitore`, ma prima: se l'IBAN è quello
+    // dell'azienda il salvataggio non avviene, e segnare la riga come fatta
+    // sarebbe una bugia.
+    if (ibanIsValid(azienda.iban) && normalizeIban(val) === normalizeIban(azienda.iban)) {
+      setIbanAlert({ tipo: 'fornitore', fornitore: r.nome })
+      return
+    }
+    setIbanSalvando(r.nome_norm)
+    try {
+      await salvaFornitore(r.nome, { iban: val })
+      setIbanFatti(prev => new Set(prev).add(r.nome_norm))
+      const prossimo = document.getElementById(`iban-forn-${i + 1}`)
+      if (prossimo) prossimo.focus()
+    } finally {
+      setIbanSalvando(null)
+    }
+  }
+
+  function PaginaIban() {
+    // L'elenco si congela quando si entra: senza, ogni riga salvata sparirebbe
+    // e le altre salirebbero di un posto sotto le dita di chi scrive.
+    if (!elencoIbanRef.current && senzaIban.righe.length > 0) elencoIbanRef.current = senzaIban.righe
+    const righe = elencoIbanRef.current || []
+    const fatti = righe.filter(r => ibanFatti.has(r.nome_norm)).length
+    const restano = righe.filter(r => !ibanFatti.has(r.nome_norm))
+    const totRestante = restano.reduce((s, r) => s + r.tot, 0)
+    return (
+      <>
+        {Testata({
+          titolo: 'IBAN dei fornitori',
+          spiega: loading
+            ? 'Sto leggendo le fatture aperte per capire a chi manca l’IBAN.'
+            : righe.length === 0
+              ? 'Tutti i fornitori a cui devi dei soldi hanno il loro IBAN: il bonifico può partire.'
+              : 'L’IBAN si scrive una volta sola e vale per tutte le fatture di quel fornitore, anche quelle future. Sono in ordine di quanto pesano: scriverne cinque sblocca la maggior parte dell’importo. Invio salva e passa al successivo.',
+          n: loading ? null : restano.length, tot: totRestante, etichette: ['fornitore da fare', 'fornitori da fare'],
+        })}
+        {/* Vale qui la stessa regola dello smistamento: «nessun IBAN da
+            scrivere» si dice solo quando lo si sa davvero. */}
+        {loading ? (
+          <div style={{ padding: 60, textAlign: 'center', color: T.textSoft, fontSize: font.size.base }}>Caricamento…</div>
+        ) : righe.length === 0 ? (
+          <div style={{ ...card, padding: 40, textAlign: 'center', color: T.textSoft, fontSize: font.size.base, lineHeight: 1.6 }}>
+            Nessun IBAN da scrivere.
+          </div>
+        ) : (
+          <>
+            <div style={{ ...card, padding: isMobile ? '12px 14px' : '12px 18px', marginBottom: 14, fontSize: font.size.base, color: T.textMid, ...tnum }}>
+              <b style={{ color: T.text }}>{fatti.toLocaleString('it-IT', { useGrouping: 'always' })}</b> di {righe.length.toLocaleString('it-IT', { useGrouping: 'always' })} fatti
+              {fatti > 0 && <span style={{ color: T.green, fontWeight: 700 }}> · {fmtEuro0(righe.filter(r => ibanFatti.has(r.nome_norm)).reduce((s, r) => s + r.tot, 0))} sbloccati</span>}
+            </div>
+            <div style={{ ...card, overflow: 'hidden' }}>
+              {righe.map((r, i) => {
+                const fatto = ibanFatti.has(r.nome_norm)
+                const bozza = ibanBozze[r.nome_norm] ?? ''
+                const valido = ibanIsValid(bozza)
+                return (
+                  <div key={r.nome_norm} style={{
+                    display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+                    padding: isMobile ? '10px 12px' : '10px 16px',
+                    borderTop: `1px solid ${T.borderSoft}`,
+                    background: fatto ? T.greenLight : 'transparent',
+                  }}>
+                    <div style={{ flex: '1 1 190px', minWidth: 0 }}>
+                      <div title={r.nome} style={{ fontSize: font.size.md, fontWeight: 700, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.nome}</div>
+                      <div style={{ fontSize: font.size.sm, color: T.textSoft, ...tnum }}>
+                        {r.n.toLocaleString('it-IT', { useGrouping: 'always' })} {r.n === 1 ? 'fattura' : 'fatture'} · {fmtEuro(r.tot)}
+                      </div>
+                    </div>
+                    <input id={`iban-forn-${i}`} value={bozza}
+                      onChange={e => setIbanBozze(b => ({ ...b, [r.nome_norm]: e.target.value }))}
+                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); salvaIbanRiga(r, i) } }}
+                      placeholder="IT00 A000 0000 0000 0000 0000 000"
+                      aria-label={`IBAN di ${r.nome}`}
+                      style={{
+                        flex: '1 1 260px', minWidth: 0, minHeight: minTouch, padding: '0 12px',
+                        borderRadius: 9, border: `1px solid ${bozza && !valido ? T.red : T.border}`,
+                        fontSize: font.size.base, color: T.text, boxSizing: 'border-box', ...tnum,
+                      }} />
+                    <button type="button"
+                      onClick={() => salvaIbanRiga(r, i)}
+                      disabled={!valido || ibanSalvando === r.nome_norm}
+                      style={{
+                        ...primaryBtn, minHeight: minTouch, minWidth: 104, flexShrink: 0,
+                        background: fatto ? T.green : T.brandGradient,
+                        opacity: (!valido || ibanSalvando === r.nome_norm) ? 0.5 : 1,
+                        cursor: (!valido || ibanSalvando === r.nome_norm) ? 'default' : 'pointer',
+                      }}>
+                      <Icon name={fatto ? 'check' : 'save'} size={14} />
+                      {ibanSalvando === r.nome_norm ? 'Salvo…' : fatto ? 'Salvato' : 'Salva'}
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          </>
+        )}
+      </>
+    )
+  }
+
+  function SottoPagine() {
+    if (sottoPagina === 'fatture-da-pagare') {
+      return PaginaElenco({
+        titolo: 'Da pagare',
+        spiega: 'Tutte le fatture aperte, dalla più urgente alla più lontana. Gli importi sono netti delle note di credito e degli acconti già versati.',
+        chiavi: ['scaduta', 'settimana', 'mese', 'futura'],
+        vuoto: 'Non c’è niente da pagare: tutte le fatture caricate risultano saldate.',
+      })
+    }
+    if (sottoPagina === 'fatture-scadute') {
+      return PaginaElenco({
+        titolo: 'Scadute',
+        spiega: 'Le fatture il cui termine è già passato. Sono quelle su cui arriva il sollecito, e quelle che pesano sul rapporto col fornitore.',
+        chiavi: ['scaduta'],
+        vuoto: 'Nessuna fattura scaduta. Tutto in regola.',
+      })
+    }
+    if (sottoPagina === 'fatture-in-scadenza') {
+      return PaginaElenco({
+        titolo: 'In scadenza',
+        spiega: 'Le fatture che scadono nei prossimi sette giorni: quelle da mettere nel bonifico di questa settimana.',
+        chiavi: ['settimana'],
+        vuoto: 'Nei prossimi sette giorni non scade niente.',
+      })
+    }
+    if (sottoPagina === 'fatture-senza-sede') return PaginaSmistamento()
+    if (sottoPagina === 'fornitori-senza-iban') return PaginaIban()
+    return null
+  }
+
   const padBottom = selez.size > 0 ? (isMobile ? 200 : 96) : (isMobile ? 80 : 0)
+
+  // Una delle schermate che si aprono da qui. Non è un filtro su questa
+  // pagina: è un'altra pagina, con il suo nome e il suo ritorno.
+  if (sottoPagina) {
+    return (
+      <div style={{ maxWidth: 1180, padding: isMobile ? 12 : 0, paddingBottom: padBottom }}>
+        {Toast()}
+        {AvvisoIbanUguale()}
+        {SottoPagine()}
+        {BarraBonifico()}
+      </div>
+    )
+  }
 
   // ═══════════════════════════════════════════════════════════════════════════
   return (
     <div style={{ maxWidth: 1180, padding: isMobile ? 12 : 0, paddingBottom: padBottom }}>
       {/* Toast */}
-      {toast && (
-        <div role="status" aria-live="polite" style={{ position: 'fixed', top: 16, right: 16, left: isMobile ? 16 : 'auto', maxWidth: isMobile ? 'auto' : 420, zIndex: 999, background: toast.ok ? T.green : T.brand, color: T.white, padding: '12px 18px', borderRadius: 10, fontSize: 13, fontWeight: 600, boxShadow: '0 10px 30px rgba(0,0,0,0.18)', display: 'flex', alignItems: 'center', gap: 10, lineHeight: 1.35 }}>
-          <Icon name={toast.ok ? 'check' : 'warning'} size={16} />
-          <span style={{ flex: 1, minWidth: 0 }}>{toast.msg}</span>
-        </div>
-      )}
+      {Toast()}
 
       {/* Modale eliminazione bulk - doppia conferma (frase da digitare) */}
       {bulkOpen && (
@@ -2310,7 +2878,10 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         </div>
       </div>
 
-      {/* Summary bar - 3 KPI azionabili */}
+      {/* Le tre tessere. Non sono numeri fermi e non sono filtri: ognuna apre
+          una pagina sua, con il suo nome in cima e il suo ritorno. Richiesta
+          del titolare, 19/09/2026: «non si devono aprire nella stessa pagina,
+          deve essere un'altra». */}
       <div style={{
         display: 'grid',
         gridTemplateColumns: isMobile ? '1fr' : isTablet ? 'repeat(3, 1fr)' : 'repeat(3, 1fr)',
@@ -2319,16 +2890,17 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
       }}>
         {[
           {
-            label: 'Totale da pagare',
+            label: 'Da pagare',
             val: fmtEuro0(summary.daPagare),
             exact: fmtEuro(summary.daPagare),
             sub: `${summary.nDaPagare.toLocaleString('it-IT', { useGrouping: 'always' })} ${summary.nDaPagare === 1 ? 'fattura aperta' : 'fatture aperte'}`,
             color: summary.daPagare > 0 ? T.text : T.textSoft,
             accent: T.text,
-            onClick: () => setFiltro('tutte'),
+            onClick: () => vaiA('fatture-da-pagare'),
+            apre: 'Apri l\'elenco di tutte le fatture aperte',
           },
           {
-            label: 'Scaduto',
+            label: 'Scadute',
             val: fmtEuro0(summary.scaduto),
             exact: fmtEuro(summary.scaduto),
             sub: summary.nScadute > 0
@@ -2336,11 +2908,12 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
               : 'nessuna fattura scaduta',
             color: summary.scaduto > 0 ? T.brand : T.green,
             accent: summary.scaduto > 0 ? T.brand : T.green,
-            onClick: () => setFiltro('scadute'),
+            onClick: () => vaiA('fatture-scadute'),
+            apre: 'Apri l\'elenco delle fatture scadute',
             urgent: summary.scaduto > 0,
           },
           {
-            label: 'In scadenza (7 giorni)',
+            label: 'In scadenza',
             val: fmtEuro0(summary.settimanaTot),
             exact: fmtEuro(summary.settimanaTot),
             sub: summary.nSettimana > 0
@@ -2348,11 +2921,12 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
               : 'nulla in scadenza',
             color: summary.settimanaTot > 0 ? '#9A3412' : T.textSoft,
             accent: summary.settimanaTot > 0 ? '#F97316' : T.border,
-            onClick: () => setFiltro('in_scadenza'),
+            onClick: () => vaiA('fatture-in-scadenza'),
+            apre: 'Apri l\'elenco delle fatture che scadono entro sette giorni',
           },
         ].map(k => (
           <button key={k.label} type="button" onClick={k.onClick}
-            aria-label={`${k.label}: ${k.exact}. ${k.sub}`}
+            aria-label={`${k.label}: ${k.exact}. ${k.sub}. ${k.apre}`}
             style={{
               ...card,
               padding: isMobile ? '16px 18px 16px 20px' : isTablet ? '16px 20px 16px 22px' : '18px 22px 18px 24px',
@@ -2386,7 +2960,8 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                 confrontarle. Ora sono a destra, con le altezze minime
                 uguali, come le altre bande del prodotto. */}
             <div style={{ fontSize: font.size.sm, fontWeight: 600, color: T.textMid, textTransform: 'uppercase', letterSpacing: '0.05em', minHeight: isMobile ? 0 : 30, display: 'flex', alignItems: isMobile ? 'center' : 'flex-start', lineHeight: 1.3, textAlign: 'left', flex: isMobile ? 1 : 'none', minWidth: 0 }}>
-              {k.label}
+              <span style={{ flex: isMobile ? 'none' : 1, minWidth: 0 }}>{k.label}</span>
+              <span aria-hidden="true" style={{ display: 'inline-flex', color: T.textSoft, marginLeft: 6, flexShrink: 0 }}><Icon name="chevR" size={14} /></span>
             </div>
             <div title={k.exact} style={{
               // Su tablet il corpo scende: con importi a sette cifre il
@@ -2401,59 +2976,24 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         ))}
       </div>
 
-      {/* Le fatture senza punto vendita: invisibili nel Confronto sedi.
-          Il Confronto raggruppa per sede, quindi una fattura con la sede
-          vuota non entra nel conto di nessun negozio. Qui si vedono (il
-          filtro tiene anche le condivise) e si assegnano in blocco. */}
+      {/* Le fatture senza punto vendita.
+          Il Confronto sedi raggruppa per negozio, quindi una fattura con la
+          sede vuota non entra nel conto di nessuno.
+          Qui c'è solo l'avviso: lo smistamento vero è una pagina a parte.
+          Prima il pulsante apriva una tendina e mandava TUTTE le fatture a
+          una sede sola — il titolare ne ha tre e vanno divise: «un tot a un
+          punto vendita, un tot a un altro» (19/09/2026). */}
       {!loading && senzaSede.n > 0 && (
-        <div style={{ ...card, padding: isMobile ? '14px' : '14px 18px', marginBottom: 14, borderLeft: `4px solid ${T.blue}` }}>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-            <Icon name="store" size={16} color={T.blue} style={{ flexShrink: 0, marginTop: 2 }} />
-            <div style={{ flex: 1, minWidth: 220 }}>
-              <div style={{ fontSize: font.size.md, fontWeight: 700, color: T.text, marginBottom: 3 }}>
-                {senzaSede.n.toLocaleString('it-IT', { useGrouping: 'always' })} {senzaSede.n === 1 ? 'fattura' : 'fatture'} senza punto vendita
-              </div>
-              <div style={{ fontSize: font.size.base, color: T.textMid, lineHeight: 1.5 }}>
-                Valgono {fmtEuro(senzaSede.totale)}. Le vedi qui, ma nel <b>Confronto sedi</b> non entrano
-                nel conto di nessun negozio, perché quella pagina raggruppa per punto vendita.
-              </div>
-              {sedeConf && (
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 10 }}>
-                  <select value={sedeScelta} onChange={e => setSedeScelta(e.target.value)}
-                    aria-label="Punto vendita da assegnare"
-                    style={{ padding: '10px 12px', minHeight: 44, borderRadius: 8, border: `1px solid ${T.border}`, fontSize: 13, color: T.text, background: T.bgCard }}>
-                    <option value="">Scegli il punto vendita…</option>
-                    {(sedi || []).filter(x => x?.attiva !== false).map(x => (
-                      <option key={x.id} value={x.id}>{x.nome}</option>
-                    ))}
-                  </select>
-                  <button type="button" onClick={() => assegnaSede(senzaSede.items, sedeScelta)}
-                    disabled={!sedeScelta || sedeSaving}
-                    style={{
-                      padding: '11px 16px', minHeight: 44, borderRadius: 8, border: 'none',
-                      background: (!sedeScelta || sedeSaving) ? T.border : T.blue, color: '#fff',
-                      fontSize: font.size.base, fontWeight: 800, cursor: (!sedeScelta || sedeSaving) ? 'default' : 'pointer',
-                    }}>
-                    {sedeSaving ? 'Assegno…' : `Assegna tutte le ${senzaSede.n}`}
-                  </button>
-                  <button type="button" onClick={() => setSedeConf(false)} disabled={sedeSaving}
-                    style={{ padding: '11px 14px', minHeight: 44, borderRadius: 8, border: `1px solid ${T.border}`, background: T.bgCard, fontSize: font.size.base, fontWeight: 700, color: T.textSoft, cursor: 'pointer' }}>
-                    Annulla
-                  </button>
-                </div>
-              )}
-            </div>
-            {!sedeConf && (
-              <button type="button" onClick={() => setSedeConf(true)}
-                style={{
-                  padding: '10px 16px', minHeight: 44, borderRadius: 8, border: `1px solid ${T.border}`,
-                  background: T.bgCard, color: T.textMid, fontSize: font.size.base, fontWeight: 700,
-                  cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
-                }}>
-                Assegnale
-              </button>
-            )}
+        <div style={{ ...card, padding: isMobile ? '12px 14px' : '12px 18px', marginBottom: 14, borderLeft: `4px solid ${T.blue}`, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <Icon name="store" size={16} color={T.blue} style={{ flexShrink: 0 }} />
+          <div style={{ flex: 1, minWidth: 200, fontSize: font.size.base, color: T.textMid, lineHeight: 1.5 }}>
+            <b style={{ color: T.text }}>{senzaSede.n.toLocaleString('it-IT', { useGrouping: 'always' })} {senzaSede.n === 1 ? 'fattura' : 'fatture'} senza punto vendita</b>
+            {' '}per {fmtEuro(senzaSede.totale)}: nel Confronto sedi non entrano nel conto di nessun negozio.
           </div>
+          <button type="button" onClick={() => vaiA('fatture-senza-sede')}
+            style={{ ...ghostBtn, minHeight: minTouch, flexShrink: 0, width: isMobile ? '100%' : 'auto' }}>
+            <Icon name="store" size={14} /> Smistale fra i negozi
+          </button>
         </div>
       )}
 
@@ -2536,62 +3076,23 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
 
       {/* Perché il bonifico non parte, e come sbloccarlo.
           Sui dati veri: 0 fatture su 3.520 portano un IBAN e in anagrafica
-          ce l'ha 1 fornitore su 615. Senza questo riquadro la pagina mostra
-          le caselle di spunta e un pulsante che non compare mai. */}
+          ce l'ha 1 fornitore su 615.
+          Era un riquadro intero con cinque pulsanti «Scrivi l'IBAN», e ognuno
+          di quei pulsanti portava via dalla pagina. Richiesta del titolare,
+          19/09/2026: «deve diventare una o due righe con un pulsante, e il
+          pulsante porta a una pagina dove quei 38 IBAN si scrivono uno dopo
+          l'altro senza uscire e rientrare». */}
       {!loading && senzaIban.n > 0 && (
-        <div style={{ ...card, padding: isMobile ? '14px' : '14px 18px', marginBottom: 14, borderLeft: `4px solid ${T.amber}` }}>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-            <Icon name="bank" size={16} color={T.amber} style={{ flexShrink: 0, marginTop: 2 }} />
-            <div style={{ flex: 1, minWidth: 220 }}>
-              <div style={{ fontSize: font.size.md, fontWeight: 700, color: T.text, marginBottom: 3 }}>
-                Il bonifico automatico non può partire: manca l'IBAN a {senzaIban.n.toLocaleString('it-IT', { useGrouping: 'always' })} {senzaIban.n === 1 ? 'fornitore' : 'fornitori'}
-              </div>
-              <div style={{ fontSize: font.size.base, color: T.textMid, lineHeight: 1.5 }}>
-                Sono {fmtEuro(senzaIban.totale)} da pagare. L'IBAN si scrive UNA volta sulla scheda del
-                fornitore e vale per tutte le sue fatture, anche quelle future.
-                {senzaIban.righe.length > 3 ? ' Comincia da questi, che sono quelli che pesano di più:' : ''}
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 10 }}>
-                {senzaIban.righe.slice(0, 5).map(r => (
-                  <div key={r.nome_norm} style={{
-                    display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
-                    padding: '8px 10px', background: T.bgSubtle, borderRadius: 8,
-                  }}>
-                    <span style={{ fontSize: font.size.base, fontWeight: 700, color: T.text, flex: 1, minWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {r.nome}
-                    </span>
-                    <span style={{ fontSize: font.size.base, color: T.textMid, ...tnum, whiteSpace: 'nowrap' }}>
-                      {r.n} {r.n === 1 ? 'fattura' : 'fatture'} · <b>{fmtEuro(r.tot)}</b>
-                    </span>
-                    <button type="button"
-                      onClick={() => {
-                        setVista('fornitore')
-                        setEditForn(r.nome_norm)
-                        const anag = fornitoriMap[r.nome_norm]
-                        setEditFornData({
-                          iban: anag?.iban || '',
-                          termini: anag?.termini_pagamento ?? 30,
-                          terminiTipo: anag?.termini_tipo || 'netti',
-                          categoria: anag?.categoria || '',
-                        })
-                      }}
-                      style={{
-                        padding: '8px 14px', minHeight: 40, borderRadius: 8, border: 'none',
-                        background: T.brand, color: T.white, fontSize: font.size.base, fontWeight: 700,
-                        cursor: 'pointer', whiteSpace: 'nowrap',
-                      }}>
-                      Scrivi l'IBAN
-                    </button>
-                  </div>
-                ))}
-              </div>
-              {senzaIban.righe.length > 5 && (
-                <div style={{ fontSize: font.size.sm, color: T.textSoft, marginTop: 8 }}>
-                  Altri {(senzaIban.righe.length - 5).toLocaleString('it-IT', { useGrouping: 'always' })} fornitori senza IBAN: li trovi nella vista <b>Per fornitore</b>, ognuno con la sua targhetta "no IBAN".
-                </div>
-              )}
-            </div>
+        <div style={{ ...card, padding: isMobile ? '12px 14px' : '12px 18px', marginBottom: 14, borderLeft: `4px solid ${T.amber}`, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <Icon name="bank" size={16} color={T.amber} style={{ flexShrink: 0 }} />
+          <div style={{ flex: 1, minWidth: 200, fontSize: font.size.base, color: T.textMid, lineHeight: 1.5 }}>
+            <b style={{ color: T.text }}>Il bonifico automatico non può partire: manca l'IBAN a {senzaIban.n.toLocaleString('it-IT', { useGrouping: 'always' })} {senzaIban.n === 1 ? 'fornitore' : 'fornitori'}</b>
+            {' '}per {fmtEuro(senzaIban.totale)} da pagare.
           </div>
+          <button type="button" onClick={() => vaiA('fornitori-senza-iban')}
+            style={{ ...primaryBtn, minHeight: minTouch, flexShrink: 0, width: isMobile ? '100%' : 'auto' }}>
+            <Icon name="bank" size={14} /> Scrivi gli IBAN
+          </button>
         </div>
       )}
 
@@ -2972,7 +3473,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
 
       {/* Content */}
       {loading ? (
-        <div style={{ padding: 60, textAlign: 'center', color: T.textSoft, fontSize: 13 }}>Caricamento…</div>
+        <div style={{ padding: 60, textAlign: 'center', color: T.textSoft, fontSize: font.size.base }}>Caricamento…</div>
       ) : fatture.length === 0 ? (
         <div style={{ ...card, textAlign: 'center', padding: isMobile ? '40px 20px' : '60px 40px' }}>
           <div aria-hidden="true" style={{ width: 72, height: 72, borderRadius: R.lg, background: T.bgSubtle, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: T.textSoft, marginBottom: 18 }}>
@@ -3004,57 +3505,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         </div>
       ) : (
         <div>
-          {/* Conferma dell'operazione in blocco: dice quante fatture e quanto,
-              e chiede la data del pagamento (una sola: il giorno in cui il
-              bonifico e' partito). Senza i numeri davanti, "segna pagate" su
-              211 fatture e' un bottone che nessuno oserebbe premere. */}
-          {bloccoConf && (() => {
-            const daFare = bloccoConf.items.filter(f => f.stato !== 'pagata')
-            const somma = daFare.reduce((acc, f) => acc + (Number(f.residuo) || Math.abs(Number(f.totale) || 0)), 0)
-            return (
-              <div style={{ ...card, padding: isMobile ? '14px 16px' : '16px 20px', marginBottom: 16, border: `2px solid ${T.brand}` }}>
-                <div style={{ ...typo.bodyStrong, fontWeight: 800, color: T.text, marginBottom: 6, letterSpacing: '-0.01em' }}>
-                  Segno pagate {daFare.length} {daFare.length === 1 ? 'fattura' : 'fatture'} di "{bloccoConf.titolo}"
-                </div>
-                <div style={{ ...typo.small, color: T.textSoft, lineHeight: 1.55, marginBottom: 12 }}>
-                  In tutto <b style={{ color: T.text, ...tnum }}>{fmtEuro(somma)}</b>.
-                  Metto la stessa data di pagamento su tutte: usa il giorno in cui è partito il bonifico.
-                  Se qualcuna l'hai pagata in un altro giorno, correggila dopo dalla sua riga.
-                </div>
-                {/* La stessa spunta del pagamento singolo: in blocco pesa
-                    ancora di più, perché sono decine di uscite in una volta.
-                    Sulle fatture vecchie conviene tenerla SPENTA: quelle sono
-                    già state pagate nella realtà, e registrarle in cassa oggi
-                    sposterebbe l'uscita nel mese sbagliato. */}
-                <label style={{ display: 'flex', alignItems: 'flex-start', gap: 9, marginBottom: 12, cursor: 'pointer' }}>
-                  <input type="checkbox" checked={registraInCassa}
-                    onChange={e => setRegistraInCassa(e.target.checked)}
-                    style={{ width: 20, height: 20, marginTop: 1, accentColor: T.brand, cursor: 'pointer', flexShrink: 0 }} />
-                  <span style={{ ...typo.small, color: T.textMid, lineHeight: 1.45 }}>
-                    Registra anche <b>{daFare.length} {daFare.length === 1 ? 'uscita' : 'uscite'} in Cassa</b>, con la data del pagamento.
-                    {' '}Se stai sistemando fatture vecchie già pagate, lascia questa spunta spenta:
-                    altrimenti l'uscita finisce nel mese di oggi invece che in quello in cui è avvenuta.
-                  </span>
-                </label>
-                <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                  <div>
-                    <div style={{ ...typo.small, fontWeight: 700, color: T.textSoft, marginBottom: 4 }}>Data del pagamento</div>
-                    <input type="date" value={dataPag} onChange={e => setDataPag(e.target.value)}
-                      aria-label="Data del pagamento per tutte le fatture selezionate"
-                      style={{ padding: '9px 11px', minHeight: minTouch, borderRadius: 8, border: `1px solid ${T.border}`, fontSize: 13, color: T.text }} />
-                  </div>
-                  <button type="button" onClick={() => segnaPagateInBlocco(bloccoConf.items, dataPag)} disabled={bloccoLoading || !dataPag}
-                    style={{ padding: '10px 16px', minHeight: minTouch, borderRadius: 8, border: 'none', background: (bloccoLoading || !dataPag) ? T.border : T.brand, color: '#fff', ...typo.body, fontWeight: 800, cursor: (bloccoLoading || !dataPag) ? 'default' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                    <Icon name="check" size={14} /> {bloccoLoading ? 'Le segno…' : `Sì, segna ${daFare.length} pagate`}
-                  </button>
-                  <button type="button" onClick={() => setBloccoConf(null)} disabled={bloccoLoading}
-                    style={{ padding: '10px 14px', minHeight: minTouch, borderRadius: 8, border: `1px solid ${T.border}`, background: T.bgCard, ...typo.body, fontWeight: 700, color: T.textSoft, cursor: 'pointer' }}>
-                    Annulla
-                  </button>
-                </div>
-              </div>
-            )
-          })()}
+          {ConfermaBlocco()}
           {gruppiVisibili.map(k => {
             const items = (gruppi[k] || []).filter(matchSearch)
             return items.length ? Gruppo({ keyU: k, items }) : null
@@ -3063,70 +3514,10 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
       )}
       </>)}
 
-      {/* Barra azione bonifico SEPA (unisce selezione per fornitore + singole fatture) */}
-      {(selez.size > 0 || selFatt.size > 0) && (() => {
-        // selez = fornitori (vista Per fornitore) -> includi tutte le fatture
-        //         pagabili di quei fornitori.
-        // selFatt = singole fatture (vista Per scadenza) -> includi solo
-        //           quelle specifiche, se pagabili.
-        const byFornitore = fattureExt.filter(f => f.stato !== 'pagata' && f.ibanValido && f.residuo > 0 && selez.has(normNome(f.fornitore)))
-        const bySingolaFt = fattureExt.filter(f => f.stato !== 'pagata' && f.ibanValido && f.residuo > 0 && selFatt.has(f.id))
-        // Dedup per id
-        const seen = new Set()
-        const selItems = [...byFornitore, ...bySingolaFt].filter(f => seen.has(f.id) ? false : (seen.add(f.id), true))
-        const tot = selItems.reduce((s, f) => s + Math.abs(f.residuo), 0)
-        const numFornitori = new Set(selItems.map(f => normNome(f.fornitore))).size
-        return (
-          <div style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 900, background: T.bgCard, borderTop: `1px solid ${T.border}`, boxShadow: '0 -6px 24px rgba(15,23,42,0.14)', padding: isMobile ? '12px 14px' : '14px 28px', display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', gap: isMobile ? 10 : 14 }}>
-            <div style={{ fontSize: 13, color: T.text, fontWeight: 600, ...tnum, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {selItems.length.toLocaleString('it-IT', { useGrouping: 'always' })} fattur{selItems.length === 1 ? 'a' : 'e'} pagabil{selItems.length === 1 ? 'e' : 'i'} · {numFornitori} fornitor{numFornitori === 1 ? 'e' : 'i'} · <span style={{ color: T.brand, fontWeight: 800 }}>{fmtEuro(tot)}</span>
-            </div>
-            {!isMobile && <div style={{ flex: 1 }} />}
-            <div style={{ display: 'flex', gap: 8, flexShrink: 0, width: isMobile ? '100%' : 'auto' }}>
-              <button onClick={() => { setSelez(new Set()); setSelFatt(new Set()) }} aria-label="Deseleziona tutti" style={{ ...ghostBtn, flex: isMobile ? 1 : '0 0 auto' }}>Deseleziona</button>
-              <button onClick={() => {
-                if (!ibanIsValid(azienda.iban)) { setEditAzienda(true); notify('Inserisci prima l\'IBAN azienda per generare il bonifico.', false); return }
-                const tot = selItems.reduce((s, f) => s + Math.abs(f.residuo || f.totale || 0), 0)
-                setSepaConfirm({ items: selItems, totale: tot })
-              }} disabled={!selItems.length}
-                aria-label="Genera bonifico SEPA"
-                style={{ ...primaryBtn, flex: isMobile ? 1 : '0 0 auto', opacity: selItems.length ? 1 : 0.5 }}>
-                <Icon name="download" size={14} /> Genera bonifico SEPA
-              </button>
-            </div>
-          </div>
-        )
-      })()}
+      {BarraBonifico()}
 
       {/* Modale ALLARME IBAN duplicato — azienda == fornitore */}
-      {ibanAlert && (
-        <div onClick={() => setIbanAlert(null)}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200, padding: 16 }}>
-          <div onClick={e => e.stopPropagation()}
-            style={{ background: T.bgCard, borderRadius: 16, padding: '26px 28px', maxWidth: 480, width: '100%', boxShadow: '0 24px 60px rgba(204,0,0,0.28)', position: 'relative', overflow: 'hidden' }}>
-            <div aria-hidden="true" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: T.brand }}/>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-              <span style={{ width: 44, height: 44, borderRadius: 12, background: '#FEE2E2', color: T.brand, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <Icon name="warning" size={24} />
-              </span>
-              <div style={{ fontSize: 16, fontWeight: 900, color: T.brand, letterSpacing: '-0.01em' }}>Attenzione: IBAN identico</div>
-            </div>
-            <div style={{ fontSize: 13, color: T.text, lineHeight: 1.6, marginBottom: 14 }}>
-              {ibanAlert.tipo === 'azienda'
-                ? <>L'IBAN che stai impostando per <b>la tua azienda</b> è esattamente uguale a quello del fornitore <b>{ibanAlert.fornitore}</b>. Sarebbe come pagare te stesso. Probabile errore di copia-incolla.</>
-                : <>L'IBAN che stai impostando per il fornitore <b>{ibanAlert.fornitore}</b> è esattamente uguale all'IBAN della tua azienda. Sarebbe come pagare te stesso. Probabile errore di copia-incolla.</>}
-            </div>
-            <div style={{ background: T.bgSubtle || '#F8FAFC', border: `1px solid ${T.border}`, borderRadius: 10, padding: '11px 14px', fontSize: 12, color: T.textMid, lineHeight: 1.55, marginBottom: 18 }}>
-              <b style={{ color: T.text }}>Cosa fare:</b> ricontrolla l'IBAN su una fattura cartacea / PEC del fornitore e inseriscilo correttamente. Se davvero usi lo stesso conto (raro), forza il salvataggio - ma sappi che il bonifico SEPA fallirà perché la banca rifiuta debtor == creditor.
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button onClick={() => setIbanAlert(null)} style={{ ...primaryBtn, padding: '10px 24px' }}>
-                Ho capito, correggo
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {AvvisoIbanUguale()}
 
       {/* Modale conferma generazione SEPA — chiarisce che il file scaricato
           va caricato nell'home banking, NON viene inviato automaticamente. */}

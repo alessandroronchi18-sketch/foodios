@@ -1037,7 +1037,29 @@ export function calcolaFCStorico(ricetta, ingCosti, ricettario, logPrezzi, when,
     const qty = ing.qty1stampo || 0
     if (!qty) continue
 
-    if (ricettario?.ricette) {
+    // ── La terza funzione del food cost, allineata alle altre due ───────
+    //
+    // 19/09/2026. Il prodotto calcola il costo di una ricetta in TRE punti:
+    // `calcolaFC` (il totale), `calcolaFCDettaglio` (la tabella riga per riga)
+    // e questa, che lo ricostruisce a una data passata per il P&L e lo storico
+    // di produzione. Il 18/09 le prime due sono state messe d'accordo — davano
+    // numeri diversi su 29 ricette su 68 — e questa era rimasta indietro con
+    // tre differenze, tutte e tre in favore di un costo più basso del vero:
+    //
+    //   1. il prezzo scritto a mano su una base non vinceva sul calcolo dai
+    //      suoi ingredienti (qui sotto);
+    //   2. gli ingredienti senza prezzo DENTRO una base sparivano, perché la
+    //      ricorsione buttava via `mancanti`: il costo usciva più basso e la
+    //      ricetta diceva «nessun ingrediente senza prezzo»;
+    //   3. il listino medio di mercato faceva ancora il conto.
+    //
+    // Tre funzioni che calcolano lo stesso numero divergono sempre. Qui
+    // divergevano già, e nessuno se ne accorgeva perché i tre numeri non
+    // compaiono mai insieme sullo schermo.
+    const prezzoDichiaratoOra = ingCosti[nomeNorm]
+    const dichiaratoDallUtente = prezzoDichiaratoOra && !prezzoDichiaratoOra.isStima && Number(prezzoDichiaratoOra.costoG) > 0
+
+    if (ricettario?.ricette && !dichiaratoDallUtente) {
       const semiKey = Object.keys(ricettario.ricette).find(k => {
         const r = ricettario.ricette[k]
         if (r.tipo !== 'semilavorato') return false
@@ -1060,7 +1082,13 @@ export function calcolaFCStorico(ricetta, ingCosti, ricettario, logPrezzi, when,
         // volta sola qui sotto.
         const semiHasResa = hasResaIngrediente(nomeNorm)
         const recurseLordo = _lordo || semiHasResa
-        const { tot: semiTot } = calcolaFCStorico(semiRic, ingCosti, ricettario, logPrezzi, when, depth + 1, [...path, semiKey], recurseLordo)
+        const { tot: semiTot, mancanti: semiMancanti } = calcolaFCStorico(semiRic, ingCosti, ricettario, logPrezzi, when, depth + 1, [...path, semiKey], recurseLordo)
+        // Gli ingredienti senza prezzo DENTRO la base sono ingredienti senza
+        // prezzo di questa ricetta: il loro costo manca lo stesso. Buttarli
+        // via — com'era — voleva dire un costo più basso del vero e una
+        // ricetta che dichiara «nessun ingrediente senza prezzo». Il nome si
+        // scrive con la base davanti, perché è lì che si va a correggerlo.
+        for (const m of (semiMancanti || [])) mancanti.push(`${ing.nome} › ${m}`)
         const semiPeso = (semiRic.ingredienti || []).reduce((s, i) => s + (i.qty1stampo || 0), 0)
         if (semiPeso <= 0) {
           mancanti.push(`${ing.nome} (semilavorato senza peso totale)`)
@@ -1083,8 +1111,12 @@ export function calcolaFCStorico(ricetta, ingCosti, ricettario, logPrezzi, when,
       costoG = prezzoKgStorico / 1000
     } else {
       // 2. Fallback su prezzo corrente
-      const c = ingCosti[normIng(ing.nome)]
+      const c = prezzoDichiaratoOra
       if (!c) { mancanti.push(ing.nome); continue }
+      // Il listino medio di mercato non fa il conto neanche nello storico:
+      // ricostruire il costo di una produzione di un mese fa con un prezzo che
+      // non è mai stato dell'azienda è peggio che dire «non lo so».
+      if (c.isStima && !STIMA_DI_MERCATO_FA_IL_CONTO) { mancanti.push(ing.nome); continue }
       costoG = c.costoG
     }
     tot += qty * (_lordo ? costoG : costoNettoPerG(costoG, nomeNorm))

@@ -318,6 +318,26 @@ describe('quello che parte: conversioni e nomi', () => {
     v.unmount()
   })
 
+  it('«Invia subito» parte anche per i semilavorati, non solo per i prodotti finiti', async () => {
+    // 19/09/2026, audit della suite. Questa era l'unica cosa che
+    // `trasferimentiSenzaBuchi.test.js` proteggeva e che nessun altro
+    // controllo vedeva — e lo faceva cercando la stringa
+    // `autoInvia: autoInvia && form.tipo !== 'materia_prima'` nel sorgente.
+    // Messa alla prova rimettendo la condizione vecchia
+    // (`form.tipo === 'prodotto'`), tutti e 44 i test resi di questo file
+    // restavano verdi: il semilavorato smetteva di partire da solo e nessuno
+    // se ne accorgeva. Chi manda una base a un'altra sede se la ritrova
+    // ferma in bozza, e la merce non arriva.
+    const { v } = await renderizza()
+    await apriForm(v)
+    await compila(v, { tipo: 'semilavorato', prodotto: 'PASTA FROLLA', quantita: '5', unita: 'kg' })
+    await act(async () => { fireEvent.click(bottone(v, 'Invia subito')) })
+    await waitFor(() => expect(spie.creaTrasferimento).toHaveBeenCalled())
+    expect(spie.creaTrasferimento.mock.calls[0][0].autoInvia,
+      'il semilavorato resta in bozza invece di partire').toBe(true)
+    v.unmount()
+  })
+
   it('il valore unitario lasciato vuoto vale zero, non "non è un numero"', async () => {
     const { v } = await renderizza()
     await apriForm(v)

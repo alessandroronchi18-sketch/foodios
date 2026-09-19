@@ -24,6 +24,10 @@ export const C = {
   greenLight: T.greenLight,
   amber:      T.amber,
   amberLight: T.amberLight,
+  // L'ambra scura per il TESTO sopra amberLight: l'ambra normale su quel
+  // fondo non si legge. Mancava in questa mappa, e chi scriveva `C.amberDark`
+  // otteneva `undefined`, cioè il colore ereditato — senza nessun errore.
+  amberDark:  T.amberDark,
   // Il bordeaux del marchio. È il colore delle AZIONI: pulsanti principali,
   // voce di menu attiva, link. Si chiama `red` per ragioni storiche.
   red:        T.brand,
@@ -761,6 +765,10 @@ export function CampoConElenco({
   // fra le tue materie prime» anche quando l'elenco era quello dei coni e dei
   // fazzoletti: il componente e' lo stesso, le cose che contiene no.
   nomeElenco = 'materie prime',
+  // Il nome dell'elenco e' femminile? «i tuoi categorie» non si puo' leggere.
+  // Le materie prime restano femminili senza doverlo dichiarare, perché sono
+  // il valore di partenza e i callsite che c'erano non lo passano.
+  elencoFemminile = false,
 }) {
   // Dove si tocca — telefono e tablet — i bersagli stanno sopra i 40px.
   const suTelefono = useIsMobile()
@@ -892,7 +900,7 @@ export function CampoConElenco({
           display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8,
         }}>
           <span>
-            <b>{valore}</b> non è fra {nomeElenco === 'materie prime' ? 'le tue materie prime' : `i tuoi ${nomeElenco}`}
+            <b>{valore}</b> non è fra {(elencoFemminile || nomeElenco === 'materie prime') ? `le tue ${nomeElenco}` : `i tuoi ${nomeElenco}`}
             {suggerita && <> — forse intendevi <b>{suggerita}</b>?</>}
           </span>
           {/* I due pulsanti erano alti 32px: misurati il 18/09/2026 a 390px

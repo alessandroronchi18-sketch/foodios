@@ -128,6 +128,7 @@ const StoricoProduzioneView = lazyWithReload(() => import('./views/StoricoProduz
 // DiscrepanzeView rimosso: unito nella pagina "Perdite & cessioni" (SpreciOmaggi).
 const SemilavoratiView = lazyWithReload(() => import('./views/SemilavoratiView'))
 const MateriePrimeView = lazyWithReload(() => import('./views/MateriePrimeView'))
+const FornitoriMateriePrimeView = lazyWithReload(() => import('./views/FornitoriMateriePrimeView'))
 // React hooks are imported above - no need for global destructuring
 // XLSX is loaded dynamically via loadXLSX()
 
@@ -879,6 +880,36 @@ const SEDE_SELECTOR_MULTI_ONLY = new Set(['ricettario'])
 // prezzo diverso per una sede — da quel giorno il selettore mostra una
 // differenza vera.
 const SELETTORE_SEDI_NEL_RICETTARIO = false
+
+// La lente «Cerca o chiedi all'AI» nella barra in alto.
+//
+// Spenta il 19/09/2026 su richiesta del titolare: «togli questa sezione nella
+// barra menu sopra, nascondila, ora non serve». Il pannello che apriva
+// (`CommandPalette`) prometteva tre cose in una riga — cerca una sezione,
+// cerca una ricetta, chiedi all'AI quanto hai incassato — e in una barra dove
+// ci sono già il selettore di sede, le notifiche e il profilo era il quarto
+// comando da decifrare.
+//
+// **Nascosta, non cancellata**: il pannello resta montato e la scorciatoia da
+// tastiera continua a funzionare (l'evento `foodos:cmdk`), quindi chi lo sa
+// usare non perde niente. Per rimetterlo in barra: questa riga a `true`.
+const RICERCA_NELLA_BARRA = false
+
+// La campanella grigia delle notifiche nella barra in alto.
+//
+// Spenta il 19/09/2026. Il titolare ha segnalato **due campanelle identiche**
+// nella barra, e aveva ragione: questa (`NotifichePanel`, alimentata dalla
+// tabella `notifiche`) e quella dei suggerimenti dell'AI (`AISuggestionsBell`,
+// alimentata da `ai_suggestions`). Due icone uguali a tre centimetri di
+// distanza, e nessuna delle due dice quale sia quale.
+//
+// Quale spegnere lo dicono i dati, non il gusto: nella tabella `notifiche`
+// c'e' **una riga in tutto il database**, mentre `ai_suggestions` ne ha 1.387,
+// di cui 78 da leggere adesso. La campanella piena resta, quella vuota esce
+// dalla barra — e non sparisce: il pannello si apre lo stesso dal piede della
+// barra laterale e dalla barra del telefono, che sono rimasti al loro posto.
+// Per rimetterla in barra: questa riga a `true`.
+const CAMPANELLA_NOTIFICHE_NELLA_BARRA = false
 
 /** Se in questa pagina il selettore delle sedi ha qualcosa da dire.
  *  Sta qui, in un posto solo, perché la condizione è usata in due punti —
@@ -1879,9 +1910,15 @@ export default function Dashboard({
   // 18/09/2026, il titolare: «se clicco sul nome di qualsiasi fornitore mi
   // rimanda alla pagina fornitore e alla riga specifica di quel fornitore».
   const [fornitoreDaAprire, setFornitoreDaAprire] = useState(null);
+  // 19/09/2026 — il nome del fornitore adesso porta alla pagina che mette in
+  // relazione fornitori e materie prime, non all'anagrafica. È quello che il
+  // titolare aveva chiesto: «questa è la pagina dove si atterra se nella
+  // sezione materie prime clicco nella colonna fornitori su un nome» —
+  // perché la domanda che viene in mente cliccando un fornitore è «di lui
+  // cosa compro?», non «qual è la sua partita IVA».
   const apriFornitore = useCallback((nome) => {
     setFornitoreDaAprire(nome || null);
-    setView('fornitori');
+    setView('fornitori-materie-prime');
   }, []);
 
   const handleAssegnaFornitore = useCallback(async (chiaveMP, nomeFornitore) => {
@@ -2626,19 +2663,26 @@ export default function Dashboard({
           </div>
           )}
 
-          {/* Campanella notifiche (con badge non letti) - scopribile a colpo d'occhio */}
+          {/* Campanella notifiche - nascosta dalla barra perché era la
+              seconda campanella identica: vedi CAMPANELLA_NOTIFICHE_NELLA_BARRA.
+              Il pannello resta raggiungibile dal piede della barra laterale e
+              dalla barra del telefono. */}
+          {CAMPANELLA_NOTIFICHE_NELLA_BARRA && (
           <button onClick={()=>setShowNotifiche(true)} aria-label="Notifiche" title="Notifiche"
             style={{position:"relative",flexShrink:0,width:36,height:36,borderRadius:10,border:`1px solid ${T.borderOnDarkStr}`,background:"rgba(255,255,255,0.05)",color:"rgba(255,255,255,0.82)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",transition:`background ${M.durFast} ${M.ease}`}}
             onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.12)"} onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.05)"}>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
             {nonLette>0&&<span style={{position:"absolute",top:-4,right:-4,background:"#E84B3A",color:"#fff",borderRadius:999,minWidth:17,height:17,fontSize: 12,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 4px",border:"2px solid #1E0B11",lineHeight:1}}>{nonLette>9?"9+":nonLette}</span>}
           </button>
+          )}
 
-          {/* Search globale Cmd+K */}
+          {/* Search globale Cmd+K - nascosta dalla barra, vedi RICERCA_NELLA_BARRA */}
+          {RICERCA_NELLA_BARRA && (
           <button onClick={()=>setCmdkOpen(true)} aria-label="Cerca o chiedi all AI (Cmd+K)" title="Cerca o chiedi all'AI (Cmd+K)"
             style={{background:"transparent",border:"none",cursor:"pointer",padding:6,borderRadius:8,color:"#FFF",display:"inline-flex",alignItems:"center",justifyContent:"center"}}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           </button>
+          )}
 
           {/* AI Suggestions bell - campanella suggerimenti proattivi */}
           <AISuggestionsBell orgId={orgId} onNavigate={(v)=>setView(v)} />
@@ -2690,9 +2734,17 @@ export default function Dashboard({
                 </div>
                 {[
                   {lbl:"Impostazioni",ic:"settings",on:()=>go("impostazioni")},
+                  // La porta delle Notifiche sul computer. La campanella è
+                  // uscita dalla barra (era la seconda identica, vedi
+                  // CAMPANELLA_NOTIFICHE_NELLA_BARRA) e sul computer la barra
+                  // laterale non c'è: senza questa voce il pannello non si
+                  // sarebbe più potuto aprire da nessuna parte. Nascondere
+                  // una cosa non vuol dire toglierle la porta.
+                  {lbl:nonLette>0?`Notifiche (${nonLette>9?"9+":nonLette})`:"Notifiche",ic:"bell",
+                   on:()=>{setProfileOpen(false);setShowNotifiche(true);}},
                   {lbl:"Novità",ic:"bell",on:()=>go("changelog")},
                 ].map(r=>(
-                  <button key={r.lbl} onClick={r.on} style={{display:"flex",alignItems:"center",gap:10,width:"100%",textAlign:"left",padding:"8px 12px",borderRadius:8,border:"none",background:"transparent",cursor:"pointer",fontSize: 12,fontWeight:500,color:C.text,fontFamily:"inherit"}}
+                  <button key={r.lbl} onClick={r.on} aria-label={r.lbl} style={{display:"flex",alignItems:"center",gap:10,width:"100%",textAlign:"left",padding:"8px 12px",borderRadius:8,border:"none",background:"transparent",cursor:"pointer",fontSize: 12,fontWeight:500,color:C.text,fontFamily:"inherit"}}
                     onMouseEnter={e=>e.currentTarget.style.background="#F4EEEA"} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                     <span style={{color:C.textSoft,display:"flex"}}>{ic(ICONS[r.ic],15)}</span>{r.lbl}
                   </button>
@@ -3588,6 +3640,7 @@ export default function Dashboard({
             dopo il filtro del menu e il dirottamento di riga ~1150: i prezzi
             d'acquisto non si mostrano a chi sta in laboratorio. */}
         {vista==="materie-prime"&&!isDip&&<MateriePrimeView ricettario={ricettario} logPrezzi={logPrezzi} onUpdatePrezzo={handleUpdatePrezzoIng} onCreaMateriaPrima={handleCreaMateriaPrima} onRinominaMateriaPrima={handleRinominaMateriaPrima} onEliminaMateriaPrima={handleEliminaMateriaPrima} onImportPrezzi={handleImportPrezziMateriePrime} onAssegnaFornitore={handleAssegnaFornitore} onApriFornitore={apriFornitore} notify={notify} onNavigate={setView}/>}
+        {vista==="fornitori-materie-prime"&&!isDip&&<FornitoriMateriePrimeView ricettario={ricettario} onSalvaRicettario={async (nuovo)=>{ await ssave(SK_RIC, nuovo); setRic(nuovo) }} fornitoreDaAprire={fornitoreDaAprire} onFornitoreAperto={()=>setFornitoreDaAprire(null)} notify={notify} onNavigate={setView}/>}
 
         {/* Formati di vendita (prodotti generici senza dettaglio gusto) */}
         {vista==="formati-vendita"&&<FormatiVendita orgId={orgId} ricettario={ricettario} onSaveRicettario={handleSalvaRicetta} notify={notify} tipoAttivita={tipoAttivita} sedi={sedi}/>}
@@ -3681,7 +3734,21 @@ export default function Dashboard({
         {vista==="eventi"&&<EventiView orgId={orgId} sedeId={sedeId} ricettario={ricettario} notify={notify} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita}/>}
         {vista==="trasferimenti"&&!isAllSedi&&(canAccessView("trasferimenti",piano,auth?.user?.email)?<TrasferimentiView orgId={orgId} sedi={sedi} sedeAttiva={sedeAttiva} notify={notify} metodoProduzione={metodoProduzione} soloRicezione={isDip}/>:<UpgradeGate view="trasferimenti" onUpgrade={goToUpgrade}/>)}
         {vista==="integrazioni"&&(canAccessView("integrazioni",piano,auth?.user?.email)?<Integrazioni orgId={orgId} sedeId={sedeId} notify={notify}/>:<UpgradeGate view="integrazioni" onUpgrade={goToUpgrade}/>)}
-        {vista==="scadenzario"&&<Scadenzario orgId={orgId} sedeId={sedeId} sedi={sedi}/>}
+        {vista==="scadenzario"&&<Scadenzario orgId={orgId} sedeId={sedeId} sedi={sedi} pagina="scadenzario" onNavigate={setView}/>}
+        {/* Le cinque schermate che si aprono da Fornitori. Sono pagine vere e
+            non filtri: hanno un nome proprio in cima, stanno nella storia del
+            browser (il tasto «indietro» funziona) e ognuna ha il suo ritorno.
+            Montano lo stesso componente con un `pagina` diverso, perché
+            lavorano sugli stessi dati: le fatture aperte e l'anagrafica dei
+            fornitori. Passando dall'una all'altra il componente si rimonta e
+            rilegge le fatture — una richiesta, la stessa che si fa aprendo la
+            pagina dal menu — e dopo aver assegnato una sede è anzi quello che
+            serve, perché il numero in cima deve tornare aggiornato. */}
+        {vista==="fatture-da-pagare"&&<Scadenzario orgId={orgId} sedeId={sedeId} sedi={sedi} pagina="fatture-da-pagare" onNavigate={setView}/>}
+        {vista==="fatture-scadute"&&<Scadenzario orgId={orgId} sedeId={sedeId} sedi={sedi} pagina="fatture-scadute" onNavigate={setView}/>}
+        {vista==="fatture-in-scadenza"&&<Scadenzario orgId={orgId} sedeId={sedeId} sedi={sedi} pagina="fatture-in-scadenza" onNavigate={setView}/>}
+        {vista==="fatture-senza-sede"&&<Scadenzario orgId={orgId} sedeId={sedeId} sedi={sedi} pagina="fatture-senza-sede" onNavigate={setView}/>}
+        {vista==="fornitori-senza-iban"&&<Scadenzario orgId={orgId} sedeId={sedeId} sedi={sedi} pagina="fornitori-senza-iban" onNavigate={setView}/>}
         {vista==="changelog"&&<ChangelogView/>}
         {vista==="recensioni"&&<RecensioniView nomeAttivita={nomeAttivita}/>}
         {vista==="menu-engineering"&&<MenuEngineeringView orgId={orgId} sedeId={sedeId} ricettario={ricettario} sedeAttiva={sedeAttiva}/>}
@@ -3706,7 +3773,7 @@ export default function Dashboard({
           />
         )}
         {vista==="calendario"&&<CalendarioOperativo giornaliero={giornaliero} chiusure={chiusure} orgId={orgId} sedeId={sedeId} setView={setView} notify={notify} isMobile={isMobile} isDipendente={isDip} metodoProduzione={metodoProduzione}/>}
-        {currentMese&&!["home","home-dipendente","ricettario","semilavorati","pl","simulatore","azioni","magazzino","giornaliero","nuova-ricetta","storico","chiusura","impostazioni","confronto-sedi","trasferimenti","integrazioni","scadenzario","calendario","changelog","scheda-allergeni","fornitori","personale","menu","previsione","eventi","importa-dati","recensioni","menu-engineering","cashflow","ai-brain","forecast","reformulation","ordini-ai","competitor-pricing","ricette-ai","marketplace","documentary","whatsapp"].includes(view)&&(
+        {currentMese&&!["home","home-dipendente","ricettario","semilavorati","pl","simulatore","azioni","magazzino","giornaliero","nuova-ricetta","storico","chiusura","impostazioni","confronto-sedi","trasferimenti","integrazioni","scadenzario","fatture-da-pagare","fatture-scadute","fatture-in-scadenza","fatture-senza-sede","fornitori-senza-iban","calendario","changelog","scheda-allergeni","fornitori","personale","menu","previsione","eventi","importa-dati","recensioni","menu-engineering","cashflow","ai-brain","forecast","reformulation","ordini-ai","competitor-pricing","ricette-ai","marketplace","documentary","whatsapp"].includes(view)&&(
           <ProduzioneView key={view} ricettario={ricettario} mese={currentMese} onSave={e=>handleSave(view,e)} onAddAction={handleAddAct} nomeAttivita={nomeAttivita}/>
         )}
         </React.Suspense>

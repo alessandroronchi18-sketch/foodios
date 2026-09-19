@@ -118,7 +118,20 @@ const monta = (props = {}) => render(<MateriePrimeView
   {...props} />)
 
 const apriElimina = async (v, nome) => {
-  await waitFor(() => expect(v.container.textContent).toContain(nome))
+  await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain(nome.toLowerCase()))
+  // 19/09/2026 — la riga ferma adesso ha UN solo pulsante, «Modifica».
+  // «Cambia il nome» ed «Elimina» stanno dentro e compaiono a riga aperta: il
+  // titolare aveva fatto notare che sulla riga c'erano due comandi che a colpo
+  // d'occhio erano lo stesso, per centodiciassette righe.
+  // Si apre la riga GIUSTA, non la prima che capita: aprendo due materie prime
+  // di fila, il primo «Modifica» della pagina è quello della riga di sopra.
+  const riga = [...v.container.querySelectorAll('tr')]
+    .find(r => r.textContent.toLowerCase().includes(nome.toLowerCase())
+      && [...r.querySelectorAll('button')].some(x => x.textContent.includes('Modifica')))
+  if (riga) {
+    fireEvent.click([...riga.querySelectorAll('button')]
+      .find(x => x.textContent.includes('Modifica') && !x.getAttribute('aria-label')))
+  }
   const b = [...v.container.querySelectorAll('button')]
     .find(x => x.getAttribute('aria-label') === `Elimina ${nome}`)
   expect(b, `manca il comando per eliminare ${nome}`).toBeTruthy()
@@ -219,7 +232,7 @@ describe('quando il salvataggio non va', () => {
     const finestra = await apriElimina(v, 'colorante blu')
     fireEvent.click(finestra.querySelector('input[type="checkbox"]'))
     fireEvent.click(bottoneConferma(finestra))
-    await waitFor(() => expect(v.container.textContent).toContain('La rete non risponde.'))
+    await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('la rete non risponde.'))
     expect(v.container.querySelector('[role="dialog"]'), 'la finestra si è chiusa su un errore').toBeTruthy()
   })
 })

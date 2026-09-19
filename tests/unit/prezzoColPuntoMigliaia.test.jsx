@@ -24,6 +24,11 @@
 // Il conto sta in `letturaPrezzoKg` (`src/lib/formatIt.js`), scritta insieme
 // a questa schermata: qui si prova che la pagina la usa e che lo dice.
 
+// 19/09/2026 — i nomi delle materie prime adesso si leggono con la prima
+// maiuscola. Nel database restano minuscoli (è la chiave con cui il food
+// cost trova il prezzo), quindi qui le prove di PRESENZA confrontano senza
+// distinguere il maiuscolo: la regola sulla maiuscola ha un test suo.
+
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, cleanup, fireEvent, waitFor } from '@testing-library/react'
 import React from 'react'
@@ -56,7 +61,7 @@ const monta = (props = {}) => render(<MateriePrimeView
 
 /** Apre la riga in modifica e ci scrive dentro `testo`. */
 const scrivi = async (v, testo) => {
-  await waitFor(() => expect(v.container.textContent).toContain('zafferano'))
+  await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('zafferano'))
   fireEvent.click([...v.container.querySelectorAll('button')].find(b => b.textContent.trim() === 'Modifica'))
   const campo = await waitFor(() => v.getByLabelText('Prezzo per chilo di zafferano'))
   fireEvent.change(campo, { target: { value: testo } })

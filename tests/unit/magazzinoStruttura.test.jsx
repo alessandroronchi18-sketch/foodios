@@ -85,11 +85,15 @@ describe('magazzino — l\'ordine delle schede segue quanto si usano', () => {
   // diventata la pagina Ricette → Materie prime, su richiesta del titolare.
   // Il doppione non si lascia: due posti dove cambiare lo stesso prezzo
   // vogliono dire che uno dei due prima o poi resta indietro.
+  // 19/09/2026 — la prima scheda si chiamava «Materie prime» come la pagina
+  // nuova in Ricette, e le due cose sono diverse: qui c'è quanta merce hai, là
+  // quanto costa. Due voci con lo stesso nome in due punti del menu non si
+  // distinguono a memoria. Adesso è «Giacenze».
   it('"Carica merce" viene prima dei prodotti finiti', async () => {
     const v = render(<MagazzinoView {...base({ burro: { nome: 'Burro', giacenza_g: 8000, soglia_g: 1000 } })} />)
     await waitFor(() => expect(v.container.textContent).toContain('Carica merce'))
     const schede = [...v.container.querySelectorAll('[role="tab"]')].map(b => b.textContent)
-    expect(schede).toEqual(['Materie prime', 'Carica merce', 'Prodotti finiti', 'Storico carichi'])
+    expect(schede).toEqual(['Giacenze', 'Carica merce', 'Prodotti finiti', 'Storico carichi'])
   })
 
   it('«Prezzi ingredienti» non è più una scheda, e la pagina dice dov\'è finita', async () => {

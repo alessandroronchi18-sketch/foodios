@@ -86,6 +86,7 @@ import {
   C, TNUM, KPI, PageHeader, useSortable, SortTH, fmtp, TabellaOSchede,
 } from './_shared'
 import { fmtp0, leggiPrezzoKg, letturaPrezzoKg } from '../lib/formatIt'
+import { formatNome } from './_shared'
 import { loadXLSX } from '../lib/xlsx'
 import {
   leggiFileMateriePrime, analizzaImportMateriePrime, applicaImportMateriePrime,
@@ -967,16 +968,17 @@ export default function MateriePrimeView({
   // tuo.
   const prezzoTesto = (row) => {
     if (row.statoPrezzo === 'mancante') return '—'
-    if (row.statoPrezzo === 'stima') {
-      return (
-        <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.35 }}>
-          <span style={{ color: C.textSoft }}>—</span>
-          <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, fontWeight: 600, whiteSpace: 'nowrap' }}>
-            mercato {euroKg(row.prezzoKg)}
-          </span>
-        </span>
-      )
-    }
+    // 19/09/2026, il titolare: «togli questa scritta mercato, non serve, molti
+    // utenti hanno accordi loro con i fornitori».
+    //
+    // Sotto il trattino compariva «mercato 1,80 €/kg», cioè il prezzo medio di
+    // un listino scritto a mano dentro il codice. Dal 18/09 quel numero non fa
+    // più il conto del food cost, quindi mostrarlo non serviva a niente — e
+    // faceva peggio che niente: chi ha un accordo col fornitore lo legge come
+    // un'indicazione del prezzo che dovrebbe pagare, e quel prezzo con la sua
+    // azienda non c'entra. Resta il trattino, che dice la cosa vera: il prezzo
+    // non lo sappiamo.
+    if (row.statoPrezzo === 'stima') return '—'
     return euroKg(row.prezzoKg)
   }
 
@@ -1043,13 +1045,19 @@ export default function MateriePrimeView({
     </>
   )
 
+  // Aperta la riga, compaiono anche le due cose rare e pericolose: cambiare
+  // il nome ed eliminare. Stanno qui e non sulla riga ferma perché si fanno
+  // di rado, non si disfano, e chi è arrivato ad aprire la riga sta già
+  // guardando quella materia prima.
   const bottoniEdit = (row) => (
-    <>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
       <button onClick={() => tentaSalva(row)}
         style={{ padding: '8px 14px', minHeight: 44, borderRadius: 6, border: 'none', background: C.red, color: C.white, fontSize: font.size.sm, fontWeight: 800, cursor: 'pointer', marginRight: 4, fontFamily: 'inherit' }}>Salva</button>
       <button onClick={cancelEdit}
-        style={{ padding: '8px 12px', minHeight: 44, borderRadius: 6, border: `1px solid ${C.borderStr}`, background: 'transparent', fontSize: font.size.sm, fontWeight: 700, color: C.textMid, cursor: 'pointer', fontFamily: 'inherit' }}>Annulla</button>
-    </>
+        style={{ padding: '8px 12px', minHeight: dito ? 44 : 32, borderRadius: 6, border: `1px solid ${C.borderStr}`, background: 'transparent', fontSize: font.size.sm, fontWeight: 700, color: C.textMid, cursor: 'pointer', fontFamily: 'inherit' }}>Annulla</button>
+      {onRinominaMateriaPrima && bottoneIcona('pencil', `Cambia il nome di ${row.nome}`, () => apriRinomina(row), false)}
+      {onEliminaMateriaPrima && bottoneIcona('trash', `Elimina ${row.nome}`, () => apriElimina(row), true)}
+    </span>
   )
 
   // I tre comandi di riga. «Modifica» (il prezzo) resta scritto per esteso
@@ -1063,15 +1071,23 @@ export default function MateriePrimeView({
     </button>
   )
 
+  // 19/09/2026, il titolare: «in azioni ci sono due pulsanti modifica,
+  // tienine solo uno e raggruppa tutto lì dentro».
+  //
+  // Aveva ragione: «Modifica» (che cambia il prezzo) e la matita («Cambia il
+  // nome») sono due cose diverse che a colpo d'occhio sono la stessa, e a
+  // fianco c'era anche il cestino. Tre comandi su ogni riga, per cento e
+  // diciassette righe, quando quello che si usa ogni giorno è uno solo.
+  //
+  // Adesso la riga ferma ha **un** pulsante. Cambiare nome ed eliminare — che
+  // si fanno di rado e non si disfano — compaiono dentro, quando la riga è
+  // aperta: è lì che uno sta già guardando quella materia prima, e sono
+  // esattamente le due cose per cui vale la pena fermarsi a leggere.
   const bottoneModifica = (row) => (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-      <button onClick={() => startEdit(row)}
-        style={{ padding: dito ? '8px 14px' : '5px 12px', minHeight: dito ? 44 : 32, borderRadius: 6, border: `1px solid ${C.borderStr}`, background: 'transparent', fontSize: font.size.sm, fontWeight: 700, color: C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5, fontFamily: 'inherit' }}>
-        <Icon name="edit" size={13} />Modifica
-      </button>
-      {onRinominaMateriaPrima && bottoneIcona('pencil', `Cambia il nome di ${row.nome}`, () => apriRinomina(row), false)}
-      {onEliminaMateriaPrima && bottoneIcona('trash', `Elimina ${row.nome}`, () => apriElimina(row), true)}
-    </span>
+    <button onClick={() => startEdit(row)}
+      style={{ padding: dito ? '8px 14px' : '5px 12px', minHeight: dito ? 44 : 32, borderRadius: 6, border: `1px solid ${C.borderStr}`, background: 'transparent', fontSize: font.size.sm, fontWeight: 700, color: C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5, fontFamily: 'inherit' }}>
+      <Icon name="edit" size={13} />Modifica
+    </button>
   )
 
   // In quante ricette entra, e QUALI.
@@ -1517,7 +1533,12 @@ export default function MateriePrimeView({
                         il badge sempre alla stessa distanza dal bordo
                         indipendentemente da quanto è lungo il nome. */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <span style={{ minWidth: 180, display: 'inline-block' }}>{row.nome}</span>
+                      {/* 19/09/2026 — i nomi si leggono, non si urlano. Nel
+                          database stanno in minuscolo perché è la chiave con
+                          cui il food cost trova il prezzo, e quella non si
+                          tocca: cambia solo come appare. Stessa regola già
+                          applicata nel Ricettario e in Nuovo gusto. */}
+                      <span style={{ minWidth: 180, display: 'inline-block' }}>{formatNome(row.nome)}</span>
                       {etichettaStato(row)}
                     </div>
                   </td>
@@ -1559,10 +1580,16 @@ export default function MateriePrimeView({
                     andrebbero a capo ognuno due volte. */}
                 {ricetteAperta && (
                   <tr style={{ borderBottom: `1px solid ${C.border}`, background: editing ? C.redLight : i % 2 === 0 ? C.white : C.bgSubtle }}>
-                    <td colSpan={4} style={{ padding: '0 14px 12px 14px' }}>
-                      <div style={{ ...typo.caption, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, marginBottom: 6 }}>
-                        Le ricette che usano {row.nome}
-                      </div>
+                    {/* 19/09/2026, due correzioni in una riga.
+                        La prima: `colSpan` diceva 4 quando le colonne sono
+                        cinque (nome, prezzo, fornitore, ricette, azioni), e il
+                        riquadro grigio si fermava a metà tabella — il titolare
+                        l'ha visto e l'ha chiamato «si ferma a metà».
+                        La seconda: qui c'era «Le ricette che usano X» e dentro
+                        il riquadro «Le 2 ricette che la usano». La stessa frase
+                        due volte, una sopra l'altra. Resta quella dentro, che
+                        dice anche quante sono. */}
+                    <td colSpan={5} style={{ padding: '0 14px 12px 14px' }}>
                       {elencoRicette(row, false)}
                     </td>
                   </tr>

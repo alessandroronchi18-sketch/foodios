@@ -217,3 +217,59 @@ describe('materie prime — dettagli confermati', () => {
     expect(v.container.textContent).toMatch(/~ \d+[.,]?\d* kg/)
   })
 })
+
+// ── «Mai contato» non è «esaurito» ────────────────────────────────────────
+//
+// Audit del 09/09/2026, sul magazzino vero di Mara: 40 ingredienti su 48
+// erano dichiarati ESAURITI in rosso. Non erano finiti — nessuno li aveva mai
+// pesati. Un allarme sempre acceso non vuol dire niente, e copriva i tre che
+// erano davvero a zero.
+//
+// Fino al 19/09/2026 la guardia era `expect(src).toMatch(/!inMagazzino \?
+// 'mai_contato'/)` dentro `magazzinoLetturaUso.test.js`: una stringa cercata
+// nel sorgente. Bastava rinominare quella variabile — senza cambiare una
+// virgola di comportamento — per farla diventare rossa; e bastava che la
+// pagina non disegnasse più niente perché restasse verde. Qui invece si
+// guarda quello che c'è scritto a schermo.
+describe('magazzino — «mai contato» e «esaurito» sono due cose diverse', () => {
+  it('un ingrediente del ricettario mai pesato dice «Mai contato», non «Esaurito»', async () => {
+    const v = render(<MagazzinoView {...base}
+      ricettario={{
+        ricette: { r1: { nome: 'SACHER', tipo: 'torta', unita: 8, prezzo: 30,
+          ingredienti: [{ nome: 'vaniglia', qty1stampo: 5 }] } },
+        ingredienti_costi: {},
+      }}
+      magazzino={{}} />)
+    await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('vaniglia'))
+    expect(v.container.textContent).toContain('Mai contato')
+    expect(v.container.textContent,
+      'un ingrediente mai pesato viene dichiarato finito').not.toContain('Esaurito')
+  })
+
+  it('e uno pesato davvero, arrivato a zero, dice «Esaurito»', async () => {
+    // Il controllo di contorno: togliendo la distinzione sparirebbero
+    // entrambi gli stati, e questa prova lo vede.
+    const v = render(<MagazzinoView {...base}
+      ricettario={{
+        ricette: { r1: { nome: 'SACHER', tipo: 'torta', unita: 8, prezzo: 30,
+          ingredienti: [{ nome: 'vaniglia', qty1stampo: 5 }] } },
+        ingredienti_costi: {},
+      }}
+      magazzino={{ vaniglia: { nome: 'Vaniglia', giacenza_g: 0, soglia_g: 100 } }} />)
+    await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('vaniglia'))
+    expect(v.container.textContent).toContain('Esaurito')
+    expect(v.container.textContent).not.toContain('Mai contato')
+  })
+
+  it('e la pagina non dice «tutto a posto» quando nessuno ha mai pesato niente', async () => {
+    const v = render(<MagazzinoView {...base}
+      ricettario={{
+        ricette: { r1: { nome: 'SACHER', tipo: 'torta', unita: 8, prezzo: 30,
+          ingredienti: [{ nome: 'vaniglia', qty1stampo: 5 }, { nome: 'burro', qty1stampo: 300 }] } },
+        ingredienti_costi: {},
+      }}
+      magazzino={{}} />)
+    await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('vaniglia'))
+    expect(v.container.textContent).toContain('da inventariare')
+  })
+})

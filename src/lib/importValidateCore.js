@@ -111,25 +111,41 @@ export function coerceDate(v) {
  * @param {Record<string, Map<string, *>>} [opts.lookups]  - Per field type='lookup':
  *   mappa da valore-cliente (lowercase trim) → chiave DB.
  * @param {Set<string>} [opts.activeConversions] - unitConversions attivate
- * @returns {{ ok: true, data: Object } | { ok: false, errors: string[], data: Object }}
+ * @returns {{ ok: boolean, data: Object, errors?: string[], vuoti: string[] }}
+ *   `vuoti` = i field che avevano la colonna mappata ma la cella vuota, e che
+ *   hanno preso il valore predefinito dello schema.
  */
 export function validateRow(row, mapping, schema, opts = {}) {
   const errors = []
   const data = {}
+  // 19/09/2026 — i campi che hanno preso il predefinito da una cella VUOTA di
+  // una colonna che era mappata. Non è la stessa cosa dei campi non mappati
+  // (quelli il wizard li dichiarava già): qui la colonna nel file c'è, e la
+  // casella era vuota per quella riga soltanto. Per `costo_orario` il
+  // predefinito è 0, e uno zero nel costo del lavoro vuol dire «lavora
+  // gratis»: dopo il caricamento non si distingue più da uno zero scritto
+  // davvero. Il dato non lo cambiamo — quella è una decisione di prodotto —
+  // ma da qui in poi si sa quante sono, e si può dire prima di scrivere.
+  const vuoti = []
   const lookups = opts.lookups || {}
   for (const field of schema.fields) {
     const inputCol = mapping[field.name]
     const raw = inputCol ? row[inputCol] : undefined
+    // Una cella di soli spazi è una cella vuota. Prima no: `raw === ''` non
+    // prendeva «   », che quindi saltava il predefinito e lasciava il campo
+    // assente. Stessa cosa battuta dall'utente, due esiti diversi.
+    const vuota = raw == null || String(raw).trim() === ''
 
-    if ((raw == null || raw === '') && field.default !== undefined) {
+    if (vuota && field.default !== undefined) {
       data[field.name] = field.default
+      if (inputCol) vuoti.push(field.name)
       continue
     }
-    if (field.required && (raw == null || String(raw).trim() === '')) {
+    if (field.required && vuota) {
       errors.push(`campo obbligatorio "${field.name}" vuoto`)
       continue
     }
-    if (raw == null || String(raw).trim() === '') continue
+    if (vuota) continue
 
     switch (field.type) {
       case 'lookup': {
@@ -220,7 +236,7 @@ export function validateRow(row, mapping, schema, opts = {}) {
     }
   }
 
-  return errors.length === 0 ? { ok: true, data } : { ok: false, errors, data }
+  return errors.length === 0 ? { ok: true, data, vuoti } : { ok: false, errors, data, vuoti }
 }
 
 /**
@@ -234,13 +250,24 @@ export function validateRow(row, mapping, schema, opts = {}) {
 export function validateRows(rows, mapping, schema, opts = {}) {
   const valid_rows = []
   const invalid_rows = []
+  const celle_vuote_col_predefinito = {}
+  // La riga come si legge nel foglio dell'utente. `_riga_foglio` ce l'ha messa
+  // `normalizeSheet`; quando manca — righe costruite a mano dal CLI o dai
+  // test — si ripiega sulla posizione, che li' è tutto quello che c'è.
+  const rigaDelFoglio = (row, i) => (row?._riga_foglio != null ? row._riga_foglio : i + 2)
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i]
     if (!row || typeof row !== 'object') {
-      invalid_rows.push({ row_index: i, errors: ['riga non e un oggetto'], row_data: row })
+      invalid_rows.push({
+        row_index: i, riga_foglio: rigaDelFoglio(row, i),
+        errors: ['riga non e un oggetto'], row_data: row,
+      })
       continue
     }
     const res = validateRow(row, mapping, schema, opts)
+    for (const f of (res.vuoti || [])) {
+      celle_vuote_col_predefinito[f] = (celle_vuote_col_predefinito[f] || 0) + 1
+    }
     // `_row_index` = riga del foglio da cui viene il dato. Serve a dire
     // all'utente la riga VERA quando un blocco di insert fallisce: prima si
     // stampava l'indice dentro le righe valide, che con 400 righe scartate e'
@@ -251,13 +278,69 @@ export function validateRows(rows, mapping, schema, opts = {}) {
     // `normalizeSheet`), e si usa quello quando c'è. Il `i` resta come
     // ripiego per chi passa righe costruite a mano.
     if (res.ok) valid_rows.push({ ...res.data, _row_index: row._riga_foglio != null ? row._riga_foglio - 2 : i })
-    else invalid_rows.push({ row_index: i, errors: res.errors, row_data: row })
+    // 19/09/2026 — `row_index` è la posizione dentro l'array già ripulito
+    // dalle righe bianche, e il wizard ci stampava sopra «Riga N». Con tre
+    // righe bianche in mezzo — il modo normale di separare le famiglie in un
+    // listino — diceva «Riga 3» per un errore che stava alla riga 6.
+    // Era la seconda metà del difetto corretto il 18/09 sulle righe valide:
+    // si era sistemato il lato che quasi nessuno guarda e lasciato quello che
+    // si guarda sempre, cioè l'elenco delle righe da rivedere.
+    // `row_index` resta dov'era per chi lo usava; il numero da mostrare è
+    // `riga_foglio`.
+    else invalid_rows.push({ row_index: i, riga_foglio: rigaDelFoglio(row, i), errors: res.errors, row_data: row })
   }
   return {
     valid_rows,
     invalid_rows,
-    stats: { total: rows.length, valid: valid_rows.length, invalid: invalid_rows.length },
+    stats: {
+      total: rows.length,
+      valid: valid_rows.length,
+      invalid: invalid_rows.length,
+      celle_vuote_col_predefinito,
+    },
   }
+}
+
+/**
+ * Raggruppa le righe che hanno lo stesso valore nella colonna chiave.
+ *
+ * 19/09/2026 — Il file che il titolare descrive («nome fornitore, prodotti,
+ * prezzo per prodotto») ha lo stesso fornitore su più righe, una per
+ * prodotto. Il controllo doppioni del wizard guardava solo i nomi già
+ * presenti nel database e mai quelli ripetuti DENTRO il file: cinque righe
+ * diventavano cinque anagrafiche per tre fornitori, e la schermata finale
+ * diceva «Tutto caricato!». Su un listino di 300 righe da 12 fornitori sono
+ * 300 anagrafiche da cancellare a mano.
+ *
+ * Si tiene la PRIMA riga di ogni gruppo: è quella che l'utente vede
+ * nell'anteprima, e mostrarne una e caricarne un'altra sarebbe peggio del
+ * doppione. Il confronto ignora maiuscole e spazi, come lo fa il controllo
+ * contro il database.
+ *
+ * Le righe senza valore nella colonna chiave non sono doppioni fra loro e
+ * restano tutte: decidere che due caselle vuote sono la stessa cosa sarebbe
+ * inventarsi un dato.
+ *
+ * @param {Object[]} rows
+ * @param {string} chiave - nome del campo su cui cercare i doppioni
+ * @returns {{ tenute: Object[], scartate: number, ripetuti: Array<{valore: string, volte: number}> }}
+ */
+export function doppioniNelFile(rows, chiave) {
+  const tenute = []
+  const ripetuti = []
+  if (!Array.isArray(rows) || !chiave) return { tenute: rows || [], scartate: 0, ripetuti }
+  const conteggio = new Map()   // chiave normalizzata -> { valore, volte }
+  for (const row of rows) {
+    const grezzo = row?.[chiave]
+    const k = String(grezzo ?? '').trim().toLowerCase()
+    if (!k) { tenute.push(row); continue }
+    const visto = conteggio.get(k)
+    if (visto) { visto.volte++; continue }
+    conteggio.set(k, { valore: String(grezzo), volte: 1 })
+    tenute.push(row)
+  }
+  for (const v of conteggio.values()) if (v.volte > 1) ripetuti.push(v)
+  return { tenute, scartate: rows.length - tenute.length, ripetuti }
 }
 
 /**

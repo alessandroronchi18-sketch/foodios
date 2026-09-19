@@ -208,7 +208,12 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
   };
 
   const getWeekKey = dateStr => {
-    const d = new Date(dateStr+"T12:00");
+    // 19/09/2026 — le sorelle `getDayKey` e `getDowKey` tagliano la data a
+    // dieci caratteri, questa no: con una data che porta anche l'ora
+    // (`2026-12-31T08:00:00`) usciva `NaN-WNaN`. Oggi non capita, perché
+    // chiusure e giornaliero scrivono sempre `AAAA-MM-GG` — ma è una trappola
+    // armata, e costa una riga disinnescarla.
+    const d = new Date(String(dateStr).slice(0, 10)+"T12:00");
     const tmp = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
     const dow = tmp.getUTCDay()||7;
     tmp.setUTCDate(tmp.getUTCDate()+4-dow);

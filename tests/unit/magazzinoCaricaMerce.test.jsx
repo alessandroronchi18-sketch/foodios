@@ -99,3 +99,58 @@ describe('carica merce — il tablet sul bancone', () => {
     expect(opzioni).toContain('Burro')
   })
 })
+
+// ── Il modo «scarico» che restava acceso dopo il salvataggio ──────────────
+//
+// Il quarto difetto del 14/09/2026, quello che l'intestazione di questo file
+// annuncia e che fino al 19/09/2026 **nessun test provava**: l'unica guardia
+// era un `expect(src).toMatch(/setQuickLoad\(null\); setFormMode\('carico'\)/)`
+// dentro `magazzinoLetturaUso.test.js`, cioè una stringa cercata nel sorgente.
+// Messa alla prova il 19/09 rinominando una variabile senza cambiare niente,
+// quel file diventava rosso; messo alla prova con la pagina che non disegnava
+// più niente, restava verde. Qui invece si fa il gesto: si registra uno
+// scarico, e poi si guarda se il form è tornato in carico.
+//
+// Perché conta: chi registra uno scarico e poi carica merce nuova, se il modo
+// resta impostato, **sottrae invece di aggiungere**. Il magazzino scende del
+// doppio della merce arrivata e nessuno se ne accorge fino all'inventario.
+describe('carica merce — dopo un salvataggio il modo torna su «carico»', () => {
+  it('registrato uno scarico, il carico successivo somma invece di sottrarre', async () => {
+    const v = await apriCarica()
+    // 1. Passo in «Scarico / Rettifica» e tolgo 500 g dei 4.000 che ci sono.
+    fireEvent.click(v.getByText('Scarico / Rettifica').closest('button'))
+    fireEvent.change(document.getElementById('mag-ing-input'), { target: { value: 'burro' } })
+    fireEvent.change(document.getElementById('mag-qty-input'), { target: { value: '500' } })
+    fireEvent.keyDown(document.getElementById('mag-qty-input'), { key: 'Enter' })
+    await waitFor(() => expect(salvato.length).toBeGreaterThan(0))
+    const [, dopoScarico] = salvato.find(([k]) => String(k).includes('magazzino'))
+    expect(dopoScarico.burro.giacenza_g, 'lo scarico deve togliere').toBe(3500)
+
+    // 2. Senza toccare niente, carico 1.000 g di merce arrivata.
+    salvato.length = 0
+    fireEvent.change(document.getElementById('mag-ing-input'), { target: { value: 'burro' } })
+    fireEvent.change(document.getElementById('mag-qty-input'), { target: { value: '1000' } })
+    fireEvent.keyDown(document.getElementById('mag-qty-input'), { key: 'Enter' })
+    await waitFor(() => expect(salvato.length).toBeGreaterThan(0))
+    const [, dopoCarico] = salvato.find(([k]) => String(k).includes('magazzino'))
+    // La prop `magazzino` non viene rialimentata al componente fra un
+    // salvataggio e l'altro, quindi la base resta 4.000: il segno è
+    // comunque inequivocabile. Col difetto: 4.000 − 1.000 = 3.000.
+    // Senza: 4.000 + 1.000 = 5.000.
+    expect(dopoCarico.burro.giacenza_g,
+      'il modo «scarico» è rimasto acceso: il carico ha sottratto').toBe(5000)
+  })
+
+  it('e il pulsante «Carico merce» è quello selezionato quando si riapre', async () => {
+    const v = await apriCarica()
+    fireEvent.click(v.getByText('Scarico / Rettifica').closest('button'))
+    fireEvent.change(document.getElementById('mag-ing-input'), { target: { value: 'burro' } })
+    fireEvent.change(document.getElementById('mag-qty-input'), { target: { value: '100' } })
+    fireEvent.keyDown(document.getElementById('mag-qty-input'), { key: 'Enter' })
+    await waitFor(() => expect(salvato.length).toBeGreaterThan(0))
+    // L'etichetta del campo quantità dice in che modo si è: «in arrivo» per il
+    // carico, «da rimuovere» per lo scarico. È quello che vede chi guarda.
+    await waitFor(() => expect(v.container.textContent).toContain('in arrivo'))
+    expect(v.container.textContent).not.toContain('da rimuovere')
+  })
+})

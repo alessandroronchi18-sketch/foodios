@@ -239,3 +239,40 @@ credere che sia salvato` è caduto una volta nella suite intera e passa sempre
 da solo. È interferenza fra test (stato di modulo condiviso), non un difetto
 del prodotto — ma un test che va e viene è un difetto a sé: la prossima volta
 che cade nessuno gli crederà.
+
+## DA FARE — 19/09, pagina Scadenzario / Fornitori (11 punti)
+
+1. **Nel menu si chiama «Fornitori», aprendola si chiama «Scadenzario».**
+   Rinominare: un nome solo.
+2. **Le tre tessere grandi** (da pagare, scadute, in scadenza) devono essere
+   **cliccabili e aprire tre pagine diverse**, non filtrare in questa.
+3. **«24 fatture senza punto vendita»**: il pulsante deve aprire una pagina con
+   l'elenco e permettere di **smistarle a sedi diverse**, non assegnarle tutte
+   allo stesso negozio.
+4. **«Il bonifico automatico non può partire: manca l'IBAN a 38 fornitori»**:
+   ridurre a un riquadro di una o due righe con un pulsante che porta a una
+   pagina dove si sistemano.
+5. **Vista per fornitore: le colonne non sono incolonnate.** Le cifre devono
+   stare sempre nella stessa colonna, le tessere verdi «ho pagato» fra loro, e
+   se in una riga manca una tessera le altre **non devono scalare**.
+6. **Anagrafica: Partita IVA / Giorni di consegna / Minimo d'ordine** vanno
+   incolonnate e allineate. «Giorni di consegna» è troppo lungo e manda a capo
+   il riquadro.
+7. **La sezione Ordini è vuota** («0 ordini · 0,00 €»): capire perché.
+8. **Sezione Spesa: mostrare TUTTI i fornitori**, non «altri 25 fornitori».
+9. **Pagina nuova: fornitori ↔ materie prime.** Semplice e intuitiva. Una
+   materia prima può avere più fornitori e viceversa; i collegamenti si
+   modificano da lì. **È la pagina dove si atterra cliccando il nome del
+   fornitore nella pagina Materie prime.**
+10. **Anagrafica, Categoria**: oggi è fissa. Dev'essere scegliibile prima e poi
+    comparire come elenco fisso quando si scrive.
+11. **Audit: la pagina è pronta a ricevere un Excel** con nome fornitore,
+    prodotti, prezzo per prodotto?
+
+## FATTO — 19/09, Materie prime (5 punti)
+- [x] Nomi con la prima maiuscola nell'elenco.
+- [x] Via la scritta «mercato 1,80 €/kg»: non fa più il conto del food cost, e
+      chi ha accordi coi fornitori la leggeva come il prezzo che dovrebbe pagare.
+- [x] Un titolo solo sopra l'elenco delle ricette (erano due, uguali).
+- [x] Il riquadro grigio arriva al bordo: `colSpan` diceva 4 su cinque colonne.
+- [x] Un solo «Modifica» nelle azioni; cambio nome ed eliminazione dentro.

@@ -146,13 +146,15 @@ function campiFornitore(v) {
     referente: testo[1],
     email: v.container.querySelector('input[type="email"]'),
     telefono: v.container.querySelector('input[type="tel"]'),
-    categoria: v.container.querySelector('input[list="fos-categorie"]'),
+    // Dal 19/09/2026 la categoria si sceglie da un elenco (CampoConElenco),
+    // non si batte in un campo libero col `<datalist>`.
+    categoria: v.container.querySelector('input[aria-label="Categoria"]'),
     terminiGiorni: v.container.querySelector('input[aria-label="Giorni di pagamento concordati"]'),
     terminiTipo: v.container.querySelector('select[aria-label="Come si contano i giorni di pagamento"]'),
     iban: v.container.querySelector('input[placeholder^="IT60"]'),
     partitaIva: v.container.querySelector('input[placeholder="IT01234567890"]'),
-    consegna: v.container.querySelector('input[placeholder="3"]'),
-    minimo: v.container.querySelector('input[placeholder="250"]'),
+    consegna: v.container.querySelector('input[aria-label="Giorni di consegna"]'),
+    minimo: v.container.querySelector('input[aria-label="Minimo d\'ordine"]'),
     ricerca: v.container.querySelector('input[placeholder^="Cerca per nome"]'),
   }
 }
@@ -789,23 +791,27 @@ describe('scheda Spesa: quanto è uscito e da dove lo sappiamo', () => {
     v.unmount()
   })
 
-  it('oltre i dodici fornitori il resto sta in una riga sola, non in settantasette barre', async () => {
-    // Con tutti in elenco erano 77 barre, 46 delle quali con scritto "0%": la
-    // merce vera si perdeva in fondo.
+  it('ci sono TUTTI i fornitori, nessuno accorpato in «altri N»', async () => {
+    // 19/09/2026, il titolare: «nella sezione spesa fai vedere tutti i
+    // fornitori, tutti, non mettere questa scritta "altri 25 fornitori"».
+    //
+    // Prima ne comparivano dodici e il resto finiva in una riga sola. Il
+    // motivo era vero — con settantasette barre, quarantasei scrivono «0%» —
+    // ma la soluzione nascondeva dove vanno i soldi proprio nella pagina che
+    // serve a saperlo: chi cercava quanto ha speso da un fornitore piccolo
+    // non lo trovava più. Adesso ci sono tutte dentro un riquadro che si
+    // trascina: nessuna spesa sparisce, e le prime restano le prime.
     const { v } = await apriSpesa(() => {
       db.tabelle.fornitori = [{ id: 'f1', organization_id: ORG, categoria: 'Varie' }]
       db.tabelle.ordini_fornitori = Array.from({ length: 15 }, (_, i) =>
         ordine(`o${i}`, 'f1', `Fornitore ${String(i).padStart(2, '0')}`, 100 - i))
     })
-    // Solo il grafico, non l'elenco degli ordini che sta sotto (quello li
-    // elenca tutti, ed e' giusto cosi').
     const testo = v.container.textContent
     const grafico = testo.slice(testo.indexOf('Spesa per fornitore'), testo.indexOf('Spesa per categoria'))
-    expect(grafico).toContain('altri 3 fornitori')
+    expect(grafico).not.toMatch(/altri \d+ fornitori/)
+    // Il primo e l'ultimo: se ci sono quelli, ci sono tutti.
     expect(grafico).toContain('Fornitore 00')
-    expect(grafico).not.toContain('Fornitore 14')
-    // E il raggruppamento vale davvero quello che manca: 88 + 87 + 86.
-    expect(grafico).toContain('261,00 €')
+    expect(grafico).toContain('Fornitore 14')
     v.unmount()
   })
 

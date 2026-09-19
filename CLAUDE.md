@@ -229,6 +229,70 @@ con `npm run build` — `npx vite build` li salta.
 
 ---
 
+## Le sostituzioni di massa sul codice: la regola del 19/09/2026
+
+Il 19/09/2026 una sostituzione automatica su tutto il file (`#FCD34D` → `T.amber`) ha rotto
+`ImportWizard.jsx` e sporcato un commento in `theme.js`. Non deve succedere mai più. Le regole,
+in ordine di importanza:
+
+1. **Un colore, o qualsiasi altro letterale, vive in almeno tre contesti diversi, e ognuno vuole
+   una scrittura diversa.** Un solo pattern non può essere giusto per tutti e tre:
+
+   | dove si trova | prima | dopo |
+   |---|---|---|
+   | valore in un oggetto JS | `color: '#FCD34D'` | `color: T.amber` |
+   | dentro un template | `` `1px solid #FCD34D` `` | `` `1px solid ${T.amber}` `` |
+   | attributo JSX | `color="#FCD34D"` | `color={T.amber}` |
+
+   Quindi: **un pattern per contesto**, ancorato al contesto (`: '#XXX'`, `` `…#XXX…` ``,
+   `="#XXX"`), mai un `replace` nudo del letterale.
+
+2. **Dopo ogni sostituzione di massa si passa subito dal parser, prima di toccare qualunque
+   altra cosa**: `npx eslint src/ api/ --quiet` e, se il file è nel bundle, `npm run build`.
+   Il costo è venti secondi; il costo di non farlo è stato un errore di sintassi scoperto tre
+   passaggi dopo, quando non era più chiaro quale regex l'avesse prodotto.
+
+3. **Un danno da regex NON si ripara con un'altra regex.** È il momento in cui si peggiora:
+   il secondo passaggio ha messo `${T.amber}` dentro un oggetto (errore di sintassi),
+   `${${T.amber}}` dentro un template e ha corrotto un commento. Si ripara così: `grep -n` di
+   tutte le occorrenze, l'elenco davanti agli occhi, **una per una**.
+
+4. **Una regex non sa cos'è un commento, una stringa di testo o il nome di una variabile.**
+   Prima di scrivere, si conta: `grep -c` del pattern, e se il numero non torna con quello che
+   ci si aspetta, non si scrive. Se le occorrenze sono meno di una ventina si modificano a mano
+   e basta: è più veloce che verificare una regex.
+
+5. **Il controllo che chiude il lavoro**, oltre a lint e build:
+   `grep -rn '${${' src/` (doppia interpolazione) e
+   `grep -rn ':\s*${' src/` (interpolazione fuori da un template).
+
+---
+
+## «Fai tutto come sempre» — cosa vuol dire
+
+Regola del titolare, 19/09/2026: quando dice **«fai tutto come sempre»**, o
+«nel migliore dei modi», intende **due cose insieme, non una**:
+
+1. **Nel migliore dei modi.** La qualità non si abbassa mai: la correzione vera
+   invece del sintomo, i test che riproducono il difetto, i numeri verificati
+   sui dati veri invece che dedotti, e dire sempre quello che non si sa.
+2. **E contemporaneamente nel modo più efficiente.** Ogni token speso bene:
+   non rileggere quello che si sa già, non rifare una misura che c'è, non
+   scrivere tre paragrafi dove ne basta uno, non lanciare un agente per un
+   lavoro da cinque minuti — e lanciarne quattro quando i lavori sono quattro
+   e stanno su file diversi.
+
+Non sono in conflitto, ed è questo il punto: **il lavoro fatto bene la prima
+volta è anche quello che costa meno.** Quasi tutto il tempo perso in questo
+progetto se n'è andato in cose rifatte — una misura presa con lo strumento
+sbagliato, un test che non provava niente, una correzione applicata a metà.
+
+Quello che NON vuol dire: tagliare la verifica per andare più veloce. Un
+risultato consegnato senza averlo provato non è efficiente, è solo veloce a
+sbagliare.
+
+---
+
 ## Le sette lenti
 
 Regola del titolare, 16/09/2026: lavorare su Foodos **come il miglior designer

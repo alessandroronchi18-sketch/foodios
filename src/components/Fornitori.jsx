@@ -3,14 +3,14 @@ import { supabase } from '../lib/supabase'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from './Icon'
 import { useConfirm } from './ConfirmModal'
-import { color as T, radius as R, shadow as S, motion as M, typo, ui3, ui } from '../lib/theme'
+import { color as T, radius as R, shadow as S, motion as M, typo, ui3, ui, font } from '../lib/theme'
 import { todayLocal, giorniFaLocal } from '../lib/dateLocal'
 import { ibanIsValid } from '../lib/sepa'
 import { marcaNonMerce, raggruppaFornitoriDaFatture, spesaDaFatture } from '../lib/fornitoriDaFatture'
-import { KPI, SH, PageHeader, Tip, C, useSortable, SortTH } from '../views/_shared'
+import { KPI, SH, PageHeader, Tip, C, useSortable, SortTH, CampoConElenco } from '../views/_shared'
 import { costiDaOrdine } from '../lib/fornitoreIngrediente'
 import { sload, ssave } from '../lib/storage'
-import { SK_RIC } from '../lib/storageKeys'
+import { SK_RIC, SK_CAT_FORN } from '../lib/storageKeys'
 
 const tnum = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" }
 
@@ -26,6 +26,9 @@ function maskIban(iban) {
   return `${clean.slice(0, 4)}…${clean.slice(-4)}`
 }
 
+// Le categorie da cui si parte, finche' il titolare non si e' fatto le sue.
+// Non sono più dei "suggerimenti" in un campo libero: sono l'elenco iniziale,
+// che lui puo' cambiare da «Le tue categorie» nella scheda Anagrafica.
 const CATEGORIE_SUGG = ['Farine', 'Latticini', 'Frutta', 'Frutta secca', 'Cioccolato', 'Zuccheri', 'Uova', 'Lieviti', 'Aromi', 'Imballaggi', 'Bevande', 'Surgelati', 'Pulizia', 'Attrezzature', 'Altro']
 
 // Palette stabile per chip categoria / barre breakdown
@@ -183,6 +186,9 @@ function RigheOrdine({ righe, isMobile }) {
 // TAB 1 - Anagrafica fornitori
 // ─────────────────────────────────────────────────────────────────────────────
 function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = false, onMutate, fornitoreDaAprire = null, onFornitoreAperto }) {
+  // Il tablet si tocca col dito come il telefono: i bersagli stanno sopra i
+  // 44px tutti e due, non solo sul più piccolo.
+  const dito = isMobile || isTablet
   // 18/09/2026 — arrivare qui da un'altra pagina, su un fornitore preciso.
   // Il titolare: «se clicco sul nome di qualsiasi fornitore nella colonna
   // fornitori mi rimanda alla pagina fornitore e alla riga specifica».
@@ -243,6 +249,27 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
   const sediMap = Object.fromEntries((sedi || []).map(s => [s.id, s]))
   const inArchivio = vista === 'archivio'
 
+  // ── Le categorie se le sceglie lui, una volta ──────────────────────────
+  //
+  // 19/09/2026, il titolare: «fai in modo che io possa sceglierle prima, e che
+  // poi compaiano come elenco fisso li' quando scrivo».
+  //
+  // Cos'era: un campo di testo libero con un `<datalist>` di quindici
+  // suggerimenti. Due difetti, tutti e due già visti altrove in questi
+  // giorni. Il primo: il `<datalist>` mostra solo le voci che contengono
+  // quello che c'è già scritto, quindi con «Farine» nel campo se ne vedeva
+  // una sola e sembrava che le altre non esistessero. Il secondo, che costa
+  // di più: era libero. «Latticini» battuto una volta «latticni» diventa una
+  // seconda categoria che nessuno nota, e la barra della spesa per categoria
+  // — che e' il motivo per cui la categoria esiste — si spacca in due senza
+  // dare nessun errore.
+  //
+  // `null` = non ancora caricate (non e' come «nessuna categoria definita»).
+  const [categorie, setCategorie] = useState(null)
+  const [pannelloCat, setPannelloCat] = useState(false)
+  const [nuovaCat, setNuovaCat] = useState('')
+  const [salvandoCat, setSalvandoCat] = useState(false)
+
   // ── Fornitori che sono già nelle fatture ma non in anagrafica ──────────
   // Le fatture entrano dallo Scadenziario (legge gli XML). In produzione sono
   // 217 per Mara: 77 fornitori diversi, 82.676 €, e anagrafica VUOTA. Questa
@@ -255,6 +282,87 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
   const [importando, setImportando] = useState(false)
 
   useEffect(() => { carica() }, [orgId, sedeId, vista])
+
+  useEffect(() => {
+    let vivo = true
+    async function leggiCategorie() {
+      if (!orgId) return
+      const c = await sload(SK_CAT_FORN, orgId, null)
+      if (!vivo) return
+      setCategorie(Array.isArray(c) ? c.map(x => String(x || '').trim()).filter(Boolean) : [])
+    }
+    leggiCategorie()
+    return () => { vivo = false }
+  }, [orgId])
+
+  // L'elenco che il campo propone.
+  //
+  // Finche' non ne ha definita nessuna si parte da quelle di sempre: un campo
+  // chiuso su un elenco vuoto non si potrebbe compilare.
+  //
+  // E le categorie già assegnate a qualcuno restano SEMPRE in elenco, anche
+  // se non sono fra le sue: se no un fornitore già categorizzato diventerebbe
+  // «fuori elenco» da solo, senza che nessuno abbia toccato niente.
+  const vociCategoria = useMemo(() => {
+    const mie = (categorie || []).filter(Boolean)
+    const out = mie.length ? [...mie] : [...CATEGORIE_SUGG]
+    for (const f of lista) {
+      const c = String(f?.categoria || '').trim()
+      if (c && !out.some(x => x.toLowerCase() === c.toLowerCase())) out.push(c)
+    }
+    return out
+  }, [categorie, lista])
+
+  // Quante schede usano ogni categoria: serve a non far sparire da sotto i
+  // piedi una categoria che è già assegnata a qualcuno.
+  const usiCategoria = useMemo(() => {
+    const m = {}
+    for (const f of lista) {
+      const c = String(f?.categoria || '').trim().toLowerCase()
+      if (c) m[c] = (m[c] || 0) + 1
+    }
+    return m
+  }, [lista])
+
+  async function salvaCategorie(arr) {
+    const pulite = []
+    for (const c of arr) {
+      const v = String(c || '').trim().replace(/\s+/g, ' ')
+      if (v && !pulite.some(x => x.toLowerCase() === v.toLowerCase())) pulite.push(v)
+    }
+    setSalvandoCat(true)
+    try {
+      // Prima l'archivio, poi lo schermo: se il salvataggio non riesce
+      // l'elenco a video resta quello vero.
+      await ssave(SK_CAT_FORN, pulite, orgId, null)
+      setCategorie(pulite)
+      return true
+    } catch (e) {
+      notify?.('Categorie non salvate (' + (e?.message || 'rete') + '): e\u2019 rimasto l\u2019elenco di prima.', false)
+      return false
+    } finally {
+      setSalvandoCat(false)
+    }
+  }
+
+  async function aggiungiCategoria(nome) {
+    const v = String(nome || '').trim().replace(/\s+/g, ' ')
+    if (!v) return false
+    if (vociCategoria.some(x => x.toLowerCase() === v.toLowerCase())) {
+      notify?.(`\u00ab${v}\u00bb c\u2019\u00e8 gi\u00e0 fra le tue categorie`, false)
+      return false
+    }
+    return await salvaCategorie([...vociCategoria, v])
+  }
+
+  async function togliCategoria(nome) {
+    const usata = usiCategoria[String(nome).toLowerCase()] || 0
+    if (usata > 0) {
+      notify?.(`\u00ab${nome}\u00bb \u00e8 assegnata a ${usata} ${usata === 1 ? 'fornitore' : 'fornitori'}: cambiala a loro prima di toglierla.`, false)
+      return
+    }
+    await salvaCategorie(vociCategoria.filter(x => x.toLowerCase() !== String(nome).toLowerCase()))
+  }
 
   // Ricalcola i candidati ogni volta che cambia l'anagrafica caricata.
   useEffect(() => {
@@ -431,11 +539,31 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
   }, [lista, q])
 
   const inputSt = { width: "100%", height: 40, padding: "0 12px", borderRadius: R.md, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 13, color: C.text, background: C.bgCard, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }
-  const lblSt = { fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }
+  const lblSt = { fontSize: font.size.sm, fontWeight: 700, color: C.textSoft, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }
+  // ── L'etichetta di un riquadro che ne ha altri a fianco ────────────────
+  //
+  // 19/09/2026, il titolare: «Partita IVA / Giorni di consegna / Minimo
+  // d'ordine devono essere incolonnati e allineati».
+  //
+  // Cos'era: tre celle di griglia, ognuna con la sua etichetta e il suo campo
+  // uno sotto l'altro. Nella colonna del modulo — che sul computer e' larga
+  // 320px, quindi ogni cella sta sui 100 — «Giorni di consegna» non ci stava
+  // su una riga, andava a capo, e la sua etichetta alta il doppio spingeva il
+  // campo sotto più in basso degli altri due. Tre caselle sfalsate.
+  //
+  // Il rimedio non è accorciare a caso, ed è doppio perché i problemi sono
+  // due: (1) altezza minima uguale per tutte le etichette, col testo
+  // appoggiato in basso, così i campi partono dalla stessa riga anche quando
+  // una va a capo — vale anche per le lingue più lunghe e per gli zoom del
+  // browser; (2) «Giorni di consegna» diventa «Consegna (gg)», che sta su una
+  // riga e parla la lingua che questo modulo usa già due campi sopra
+  // («Termini pag. (gg)»). Il significato per esteso resta nel suggerimento e
+  // nell'etichetta per il lettore di schermo.
+  const lblRiq = { ...lblSt, minHeight: 30, display: 'flex', alignItems: 'flex-end' }
   const formVisible = !isMobile || showForm
 
   const chip = (text, bg, color, icon) => (
-    <span style={{ fontSize: 12, padding: '2px 8px', borderRadius: 999, background: bg, color, fontWeight: 700, whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+    <span style={{ fontSize: font.size.sm, padding: '2px 8px', borderRadius: 999, background: bg, color, fontWeight: 700, whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
       {icon}{text}
     </span>
   )
@@ -530,7 +658,7 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
                         {v.nome}
                         {v.iban && <span style={{ marginLeft: 6, fontSize: typo.small.fontSize, fontWeight: 600, color: T.blue }}>{maskIban(v.iban)}</span>}
                         {v.nonMerce && (
-                          <span style={{ marginLeft: 6, padding: '1px 7px', borderRadius: 999, background: C.amberLight, color: C.amber, fontSize: 12, fontWeight: 700 }}
+                          <span style={{ marginLeft: 6, padding: '1px 7px', borderRadius: 999, background: C.amberLight, color: C.amber, fontSize: font.size.sm, fontWeight: 700 }}
                             title="Sembra un costo, non merce da ordinare: non l'ho spuntato. Se per te è un fornitore, spuntalo.">
                             {v.motivoNonMerce}
                           </span>
@@ -546,7 +674,7 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
             </div>
 
             <button type="button" onClick={importaDalleFatture} disabled={importando || nSceltiOra === 0}
-              style={{ marginTop: 12, width: isMobile ? '100%' : 'auto', padding: '12px 20px', minHeight: 44, borderRadius: 10, border: 'none', background: (importando || nSceltiOra === 0) ? C.borderStr : C.red, color: C.white, fontSize: 13, fontWeight: 800, cursor: (importando || nSceltiOra === 0) ? 'default' : 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+              style={{ marginTop: 12, width: isMobile ? '100%' : 'auto', padding: '12px 20px', minHeight: 44, borderRadius: 10, border: 'none', background: (importando || nSceltiOra === 0) ? C.borderStr : C.red, color: C.white, fontSize: font.size.base, fontWeight: 800, cursor: (importando || nSceltiOra === 0) ? 'default' : 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
               <Icon name="plus" size={15} />
               {importando ? 'Li aggiungo…' : nSceltiOra === 0 ? 'Scegli almeno un fornitore' : `Aggiungi ${nSceltiOra} ${nSceltiOra === 1 ? 'fornitore' : 'fornitori'}`}
             </button>
@@ -573,7 +701,7 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
           overflowY: isMobile ? "auto" : "visible",
         }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-            <div style={{ fontSize: 13, fontWeight: 800, color: C.text, display: "inline-flex", alignItems: "center", gap: 6 }}>
+            <div style={{ fontSize: font.size.base, fontWeight: 800, color: C.text, display: "inline-flex", alignItems: "center", gap: 6 }}>
               <Icon name={editId ? "edit" : "plus"} size={14} />
               {editId ? "Modifica fornitore" : "Nuovo fornitore"}
             </div>
@@ -592,12 +720,34 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
           {/* Categoria merceologica + Termini di pagamento */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
             <div>
-              <div style={lblSt}>Categoria</div>
-              <input list="fos-categorie" value={form.categoria} onChange={e => setForm(f => ({ ...f, categoria: e.target.value }))} placeholder="es. Farine" style={inputSt} />
-              <datalist id="fos-categorie">{CATEGORIE_SUGG.map(c => <option key={c} value={c} />)}</datalist>
+              <div style={{ ...lblRiq, justifyContent: 'space-between', gap: 6 }}>
+                <span>Categoria</span>
+                <button type="button" onClick={() => setPannelloCat(v => !v)} aria-expanded={pannelloCat}
+                  style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: C.red, fontSize: font.size.sm, fontWeight: 800, textTransform: 'none', letterSpacing: 0, fontFamily: 'inherit' }}>
+                  {pannelloCat ? 'Chiudi' : 'Le tue'}
+                </button>
+              </div>
+              {/* Si sceglie, non si scrive: l'elenco se lo fa lui una volta e
+                  poi il campo non accetta altro. Chiuso non vuol dire
+                  sbarrato — se manca una categoria si aggiunge da qui e resta
+                  per sempre. */}
+              <CampoConElenco
+                id="categoria-fornitore"
+                valore={form.categoria}
+                onCambia={(v) => setForm(f => ({ ...f, categoria: v }))}
+                voci={vociCategoria}
+                placeholder="es. Farine"
+                ariaLabel="Categoria"
+                stile={inputSt}
+                soloDallElenco
+                onCreaNuova={async (nome) => { if (await aggiungiCategoria(nome)) setForm(f => ({ ...f, categoria: String(nome).trim().replace(/\s+/g, ' ') })) }}
+                etichettaCrea="Aggiungila alle tue categorie"
+                nomeElenco="categorie"
+                elencoFemminile
+              />
             </div>
             <div>
-              <div style={lblSt}>
+              <div style={lblRiq}>
                 <Tip text="Giorni concordati per il pagamento delle fatture. Usato dallo Scadenzario per calcolare le scadenze dei bonifici.">
                   <span style={{ cursor: 'help', textDecoration: 'underline dotted', textUnderlineOffset: 2 }}>Termini pag. (gg)</span>
                 </Tip>
@@ -618,6 +768,43 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
             </div>
           </div>
 
+          {pannelloCat && (
+            <div style={{ marginBottom: 12, padding: dito ? 12 : 14, borderRadius: R.md, background: C.bgSubtle, border: `1px solid ${C.border}` }}>
+              <div style={{ fontSize: font.size.base, fontWeight: 800, color: C.text, marginBottom: 3 }}>Le tue categorie</div>
+              <div style={{ fontSize: font.size.sm, color: C.textSoft, lineHeight: 1.5, marginBottom: 10 }}>
+                Le decidi tu una volta, poi il campo Categoria propone queste e non accetta altro. È così che «Latticini» e «latticni» non diventano due barre diverse nella spesa per categoria.
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+                {vociCategoria.map(c => {
+                  const usata = usiCategoria[c.toLowerCase()] || 0
+                  return (
+                    <span key={c} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: dito ? '6px 6px 6px 10px' : '3px 4px 3px 10px', minHeight: dito ? 40 : 28, borderRadius: 999, background: C.bgCard, border: `1px solid ${C.border}`, fontSize: font.size.sm, fontWeight: 700, color: C.text }}>
+                      {c}
+                      {usata > 0 && <span style={{ color: C.textSoft, fontWeight: 600, ...tnum }}>{usata}</span>}
+                      <button type="button" onClick={() => togliCategoria(c)} disabled={salvandoCat}
+                        aria-label={`Togli la categoria ${c}`}
+                        title={usata > 0 ? `Assegnata a ${usata} ${usata === 1 ? 'fornitore' : 'fornitori'}: cambiala a loro prima di toglierla` : `Togli ${c}`}
+                        style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: dito ? 32 : 22, height: dito ? 32 : 22, borderRadius: 999, border: 'none', background: 'transparent', color: usata > 0 ? C.borderStr : C.textSoft, cursor: salvandoCat ? 'default' : 'pointer' }}>
+                        <Icon name="x" size={12} />
+                      </button>
+                    </span>
+                  )
+                })}
+              </div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <input value={nuovaCat} onChange={e => setNuovaCat(e.target.value)}
+                  onKeyDown={async e => { if (e.key === 'Enter') { e.preventDefault(); if (await aggiungiCategoria(nuovaCat)) setNuovaCat('') } }}
+                  aria-label="Nuova categoria" placeholder="es. Surgelati"
+                  style={{ ...inputSt, flex: '1 1 160px', width: 'auto', height: dito ? 44 : 36 }} />
+                <button type="button" disabled={salvandoCat || !nuovaCat.trim()}
+                  onClick={async () => { if (await aggiungiCategoria(nuovaCat)) setNuovaCat('') }}
+                  style={{ minHeight: dito ? 44 : 36, padding: '0 14px', borderRadius: R.sm, border: 'none', background: C.red, color: C.white, fontSize: font.size.sm, fontWeight: 800, cursor: (salvandoCat || !nuovaCat.trim()) ? 'default' : 'pointer', opacity: (salvandoCat || !nuovaCat.trim()) ? 0.5 : 1, display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'inherit' }}>
+                  <Icon name="plus" size={13} />Aggiungi
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* IBAN — controllato QUI, non solo nello Scadenzario.
               Prima questa pagina lo salvava così com'era scritto e mostrava
               la targhetta blu come se fosse buono; poi il file dei bonifici
@@ -636,7 +823,7 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
               style={{ ...inputSt, fontFamily: 'monospace', letterSpacing: '0.04em',
                 borderColor: ibanScritto ? (ibanOk ? C.green : C.red) : undefined }} />
             {ibanScritto && !ibanOk && (
-              <div style={{ marginTop: 5, fontSize: 12, color: C.red, lineHeight: 1.45 }}>
+              <div style={{ marginTop: 5, fontSize: font.size.sm, color: C.red, lineHeight: 1.45 }}>
                 Questo IBAN non torna: ricontrolla le cifre. Se lo salvi così, il file dei bonifici salterà i pagamenti a questo fornitore.
               </div>
             )}
@@ -649,31 +836,31 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
               pagina degli ordini prometteva "configurabile per fornitore". */}
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
             <div>
-              <div style={lblSt}>
+              <div style={lblRiq}>
                 <Tip text="Come la scrive la fattura elettronica. Serve al commercialista per riconciliare, e a distinguere due fornitori con lo stesso nome.">
                   <span style={{ cursor: 'help', textDecoration: 'underline dotted', textUnderlineOffset: 2 }}>Partita IVA</span>
                 </Tip>
               </div>
               <input value={form.partita_iva} onChange={e => setForm(f => ({ ...f, partita_iva: e.target.value }))}
-                placeholder="IT01234567890" style={{ ...inputSt, fontFamily: 'monospace' }} />
+                aria-label="Partita IVA" placeholder="IT01234567890" style={{ ...inputSt, fontFamily: 'monospace' }} />
             </div>
             <div>
-              <div style={lblSt}>
+              <div style={lblRiq}>
                 <Tip text="Quanti giorni passano fra l'ordine e la consegna. Serve alla pagina Ordini per capire quando è tardi per ordinare. Vuoto = uso 3 giorni come riferimento e lo dichiaro.">
-                  <span style={{ cursor: 'help', textDecoration: 'underline dotted', textUnderlineOffset: 2 }}>Giorni di consegna</span>
+                  <span style={{ cursor: 'help', textDecoration: 'underline dotted', textUnderlineOffset: 2 }}>Consegna (gg)</span>
                 </Tip>
               </div>
               <input value={form.lead_time_giorni} onChange={e => setForm(f => ({ ...f, lead_time_giorni: e.target.value.replace(/[^0-9]/g, '') }))}
-                inputMode="numeric" placeholder="3" style={inputSt} />
+                aria-label="Giorni di consegna" inputMode="numeric" placeholder="3" style={inputSt} />
             </div>
             <div>
-              <div style={lblSt}>
+              <div style={lblRiq}>
                 <Tip text="Sotto questa cifra il fornitore non spedisce. Serve per non proporti un ordine che verrebbe rifiutato.">
                   <span style={{ cursor: 'help', textDecoration: 'underline dotted', textUnderlineOffset: 2 }}>Minimo d'ordine</span>
                 </Tip>
               </div>
               <input value={form.minimo_ordine} onChange={e => setForm(f => ({ ...f, minimo_ordine: e.target.value.replace(/[^0-9,.]/g, '') }))}
-                inputMode="decimal" placeholder="250" style={inputSt} />
+                aria-label="Minimo d'ordine" inputMode="decimal" placeholder="250" style={inputSt} />
             </div>
           </div>
 
@@ -710,31 +897,31 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
         <div style={{ position: 'relative', marginBottom: 10 }}>
           <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: C.textSoft, display: 'inline-flex' }}><Icon name="search" size={15} /></span>
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="Cerca per nome, categoria o referente…"
-            style={{ width: '100%', height: 40, padding: '0 12px 0 36px', borderRadius: R.md, border: `1px solid ${C.borderStr}`, fontSize: 13, color: C.text, background: C.bgCard, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }} />
+            style={{ width: '100%', height: 40, padding: '0 12px 0 36px', borderRadius: R.md, border: `1px solid ${C.borderStr}`, fontSize: font.size.base, color: C.text, background: C.bgCard, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }} />
         </div>
 
         {/* Toggle Attivi / Archivio */}
         <div style={{ marginBottom: 10, display: 'flex', gap: 6 }}>
           {[['attivi', 'truck', 'Attivi'], ['archivio', 'package', `Archivio${archCount > 0 ? ` (${archCount})` : ''}`]].map(([id, ico, lbl]) => (
             <button key={id} onClick={() => setVista(id)}
-              style={{ padding: '5px 12px', borderRadius: 999, border: `1px solid ${vista === id ? C.red : C.border}`, background: vista === id ? C.redLight : C.white, color: vista === id ? C.red : C.textMid, fontSize: 12, fontWeight: vista === id ? 800 : 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name={ico} size={12} /> {lbl}</button>
+              style={{ padding: '5px 12px', borderRadius: 999, border: `1px solid ${vista === id ? C.red : C.border}`, background: vista === id ? C.redLight : C.white, color: vista === id ? C.red : C.textMid, fontSize: font.size.sm, fontWeight: vista === id ? 800 : 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name={ico} size={12} /> {lbl}</button>
           ))}
         </div>
 
-        {loading ? <div style={{ color: C.textSoft, fontSize: 13, padding: 20 }}>Caricamento…</div> : listaFiltrata.length === 0 ? (
-          <div style={{ color: C.textSoft, fontSize: 13, textAlign: "center", padding: 40 }}>{q.trim() ? "Nessun fornitore trovato." : inArchivio ? "Nessun fornitore archiviato." : "Nessun fornitore ancora."}</div>
+        {loading ? <div style={{ color: C.textSoft, fontSize: font.size.base, padding: 20 }}>Caricamento…</div> : listaFiltrata.length === 0 ? (
+          <div style={{ color: C.textSoft, fontSize: font.size.base, textAlign: "center", padding: 40 }}>{q.trim() ? "Nessun fornitore trovato." : inArchivio ? "Nessun fornitore archiviato." : "Nessun fornitore ancora."}</div>
         ) : isMobile ? listaFiltrata.map(f => (
           <div key={f.id} className="fos-tile"
             ref={el => { if (el) rifRighe.current[f.nome || ''] = el }}
             style={{ background: evidenziato === f.nome ? C.redLight : C.bgCard, borderRadius: 16, border: `1px solid ${evidenziato === f.nome ? C.red : C.border}`, padding: "12px 14px", marginBottom: 8, boxShadow: S.lg, transition: 'background 240ms ease, border-color 240ms ease' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
-              <div style={{ fontWeight: 800, fontSize: 14, color: C.text }}>{f.nome}</div>
+              <div style={{ fontWeight: 800, fontSize: font.size.md, color: C.text }}>{f.nome}</div>
             </div>
             <FornitoreMeta f={f} />
             {f.contatto && <div style={{ fontSize: typo.small.fontSize, color: C.textMid, marginTop: 6, display: "flex", alignItems: "center", gap: 6 }}><Icon name="user" size={12} /> {f.contatto}</div>}
             {f.email && <div style={{ fontSize: typo.small.fontSize, color: C.textMid, marginTop: 2, display: "flex", alignItems: "center", gap: 6 }}><Icon name="mail" size={12} /> <a href={`mailto:${f.email}`} style={{ color: C.red }}>{f.email}</a></div>}
             {f.telefono && <div style={{ fontSize: typo.small.fontSize, color: C.textMid, marginTop: 2 }}><a href={`tel:${f.telefono}`} style={{ color: C.red }}>{f.telefono}</a></div>}
-            {f.note && <div style={{ fontSize: 12, color: C.textSoft, marginTop: 6, fontStyle: "italic" }}>{f.note}</div>}
+            {f.note && <div style={{ fontSize: font.size.sm, color: C.textSoft, marginTop: 6, fontStyle: "italic" }}>{f.note}</div>}
             <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
               <button onClick={() => initEdit(f)} style={{ flex: 1, padding: "10px", background: C.bg, border: `1px solid ${C.borderStr}`, borderRadius: 8, fontSize: typo.small.fontSize, color: C.textMid, cursor: "pointer", fontWeight: 600 }}>Modifica</button>
               {inArchivio ? (
@@ -753,12 +940,12 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
             style={{ background: evidenziato === f.nome ? C.redLight : C.bgCard, borderRadius: 16, border: `1px solid ${evidenziato === f.nome ? C.red : C.border}`, padding: "14px 18px", marginBottom: 10, boxShadow: S.lg, transition: 'background 240ms ease, border-color 240ms ease' }}>
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontWeight: 800, fontSize: 14, color: C.text }}>{f.nome}</div>
+                <div style={{ fontWeight: 800, fontSize: font.size.md, color: C.text }}>{f.nome}</div>
                 <FornitoreMeta f={f} />
-                {f.contatto && <div style={{ fontSize: 12, color: C.textMid, marginTop: 6, display: "flex", alignItems: "center", gap: 6 }}><Icon name="user" size={11} /> {f.contatto}</div>}
-                {f.email && <div style={{ fontSize: 12, color: C.textMid, marginTop: 2 }}><a href={`mailto:${f.email}`} style={{ color: C.red }}>{f.email}</a></div>}
-                {f.telefono && <div style={{ fontSize: 12, color: C.textMid, marginTop: 2 }}>{f.telefono}</div>}
-                {f.note && <div style={{ fontSize: 12, color: C.textSoft, marginTop: 4, fontStyle: "italic" }}>{f.note}</div>}
+                {f.contatto && <div style={{ fontSize: font.size.sm, color: C.textMid, marginTop: 6, display: "flex", alignItems: "center", gap: 6 }}><Icon name="user" size={11} /> {f.contatto}</div>}
+                {f.email && <div style={{ fontSize: font.size.sm, color: C.textMid, marginTop: 2 }}><a href={`mailto:${f.email}`} style={{ color: C.red }}>{f.email}</a></div>}
+                {f.telefono && <div style={{ fontSize: font.size.sm, color: C.textMid, marginTop: 2 }}>{f.telefono}</div>}
+                {f.note && <div style={{ fontSize: font.size.sm, color: C.textSoft, marginTop: 4, fontStyle: "italic" }}>{f.note}</div>}
               </div>
               <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
                 <button onClick={() => initEdit(f)} aria-label="Modifica fornitore" title="Modifica" style={{ width: 36, height: 36, padding: 0, borderRadius: 8, border: `1px solid ${C.borderStr}`, background: C.white, color: C.textMid, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}><Icon name="edit" size={14} /></button>
@@ -964,7 +1151,7 @@ function OrdiniTab({ orgId, notify, isMobile, onMutate }) {
   return (
     <div style={{ paddingBottom: isMobile ? 80 : 0 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, gap: 10, flexWrap: 'wrap' }}>
-        <div style={{ fontSize: 13, fontWeight: 800, color: C.text }}>
+        <div style={{ fontSize: font.size.base, fontWeight: 800, color: C.text }}>
           {ordiniFiltrati.length} {ordiniFiltrati.length === 1 ? 'ordine' : 'ordini'} · <span style={{ ...tnum }}>{fmt(totaleVisibile)}</span>
           {nAnnullatiVisibili > 0 && (
             <span style={{ fontSize: typo.small.fontSize, fontWeight: 600, color: C.textSoft }}> · {nAnnullatiVisibili === 1 ? '1 annullato non conteggiato' : `${nAnnullatiVisibili} annullati non conteggiati`}</span>
@@ -982,7 +1169,7 @@ function OrdiniTab({ orgId, notify, isMobile, onMutate }) {
       <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
         {[['tutti', 'Tutti'], ['bozza', 'Bozza'], ['inviato', 'Inviato'], ['ricevuto', 'Ricevuto'], ['annullato', 'Annullato']].map(([id, lbl]) => (
           <button key={id} onClick={() => setFiltroStato(id)}
-            style={{ padding: '5px 12px', borderRadius: 999, border: `1px solid ${filtroStato === id ? (statoColor[id] || C.red) : C.border}`, background: filtroStato === id ? `${(statoColor[id] || C.red)}15` : C.white, color: filtroStato === id ? (statoColor[id] || C.red) : C.textMid, fontSize: 12, fontWeight: filtroStato === id ? 800 : 600, cursor: 'pointer' }}>{lbl}</button>
+            style={{ padding: '5px 12px', borderRadius: 999, border: `1px solid ${filtroStato === id ? (statoColor[id] || C.red) : C.border}`, background: filtroStato === id ? `${(statoColor[id] || C.red)}15` : C.white, color: filtroStato === id ? (statoColor[id] || C.red) : C.textMid, fontSize: font.size.sm, fontWeight: filtroStato === id ? 800 : 600, cursor: 'pointer' }}>{lbl}</button>
         ))}
       </div>
 
@@ -1003,36 +1190,36 @@ function OrdiniTab({ orgId, notify, isMobile, onMutate }) {
           overflowY: isMobile ? "auto" : "visible",
         }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-            <div style={{ fontSize: 13, fontWeight: 800, color: C.text, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="plus" size={14} /> Nuovo ordine</div>
+            <div style={{ fontSize: font.size.base, fontWeight: 800, color: C.text, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="plus" size={14} /> Nuovo ordine</div>
             {isMobile && (
               <button aria-label="Chiudi form ordine" onClick={() => setShowForm(false)} style={{ padding: "6px 12px", background: "transparent", border: "none", color: C.textSoft, cursor: "pointer" }}><Icon name="x" size={16} /></button>
             )}
           </div>
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 12, marginBottom: 16 }}>
             <div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>Fornitore *</div>
+              <div style={{ fontSize: font.size.sm, fontWeight: 700, color: C.textSoft, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>Fornitore *</div>
               <select value={form.fornitore_id} onChange={e => setForm(f => ({ ...f, fornitore_id: e.target.value }))} style={{ ...inputSt, width: "100%" }}>
                 <option value="">Seleziona…</option>
                 {fornitori.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
               </select>
             </div>
             <div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>Data ordine</div>
+              <div style={{ fontSize: font.size.sm, fontWeight: 700, color: C.textSoft, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>Data ordine</div>
               <input type="date" value={form.data_ordine} onChange={e => setForm(f => ({ ...f, data_ordine: e.target.value }))} style={{ ...inputSt, width: "100%" }} />
             </div>
             <div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>Stato</div>
+              <div style={{ fontSize: font.size.sm, fontWeight: 700, color: C.textSoft, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>Stato</div>
               <select value={form.stato} onChange={e => setForm(f => ({ ...f, stato: e.target.value }))} style={{ ...inputSt, width: "100%" }}>
                 {["bozza", "inviato", "ricevuto", "annullato"].map(s => <option key={s} value={s}>{statoLabel[s]}</option>)}
               </select>
             </div>
           </div>
           <div style={{ marginBottom: 14 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: C.text, marginBottom: 8 }}>Prodotti ordinati</div>
+            <div style={{ fontSize: font.size.sm, fontWeight: 700, color: C.text, marginBottom: 8 }}>Prodotti ordinati</div>
             {!isMobile && (
               <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 80px 1fr auto", gap: 6, marginBottom: 6 }}>
                 {["Prodotto", "Quantità", "Unità", "€/unità", ""].map((h, i) => (
-                  <div key={i} style={{ fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: "uppercase", letterSpacing: "0.07em" }}>{h}</div>
+                  <div key={i} style={{ fontSize: font.size.sm, fontWeight: 700, color: C.textSoft, textTransform: "uppercase", letterSpacing: "0.07em" }}>{h}</div>
                 ))}
               </div>
             )}
@@ -1064,7 +1251,7 @@ function OrdiniTab({ orgId, notify, isMobile, onMutate }) {
             <button onClick={addRiga} style={{ padding: isMobile ? "10px 14px" : "6px 14px", background: C.white, border: `1px solid ${C.borderStr}`, borderRadius: 8, fontSize: isMobile ? 13 : 12, color: C.textMid, cursor: "pointer", width: isMobile ? "100%" : "auto" }}>+ Riga</button>
           </div>
           <div style={{ marginBottom: 14 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>Note</div>
+            <div style={{ fontSize: font.size.sm, fontWeight: 700, color: C.textSoft, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>Note</div>
             <textarea value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} rows={2} style={{ ...inputSt, width: "100%", resize: "vertical" }} />
           </div>
           <button onClick={salvaOrdine} disabled={saving}
@@ -1074,15 +1261,17 @@ function OrdiniTab({ orgId, notify, isMobile, onMutate }) {
         </div>
       )}
 
-      {loading ? <div style={{ color: C.textSoft, fontSize: 13 }}>Caricamento…</div> : ordiniFiltrati.length === 0 ? (
-        <div style={{ color: C.textSoft, fontSize: 13, textAlign: "center", padding: 40 }}>{filtroStato === 'tutti' ? "Nessun ordine ancora." : `Nessun ordine "${filtroStato}".`}</div>
+      {loading ? <div style={{ color: C.textSoft, fontSize: font.size.base }}>Caricamento…</div> : ordiniFiltrati.length === 0 ? (
+        <div style={{ color: C.textSoft, fontSize: font.size.base, textAlign: "center", padding: 40 }}>{filtroStato === 'tutti'
+            ? "Non hai ancora registrato nessun ordine. Gli ordini servono solo se vuoi tenere traccia di cosa hai chiesto prima che arrivi la fattura: la spesa la vedi già nella scheda Spesa, calcolata sulle fatture."
+            : `Nessun ordine "${filtroStato}".`}</div>
       ) : isMobile ? (
         <div>
           {ordiniFiltrati.map(o => (
             <div key={o.id} className="fos-tile" style={{ background: C.bgCard, borderRadius: 16, border: `1px solid ${C.border}`, padding: "12px 14px", marginBottom: 8, boxShadow: S.lg }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 6 }}>
-                <div style={{ fontWeight: 800, fontSize: 13, color: C.text, flex: 1, minWidth: 0, wordBreak: "break-word" }}>{o.fornitori?.nome || "-"}</div>
-                <span style={{ fontSize: 12, fontWeight: 700, padding: "3px 10px", borderRadius: 12, background: `${statoColor[o.stato]}20`, color: statoColor[o.stato], whiteSpace: "nowrap" }}>{statoLabel[o.stato] || o.stato}</span>
+                <div style={{ fontWeight: 800, fontSize: font.size.base, color: C.text, flex: 1, minWidth: 0, wordBreak: "break-word" }}>{o.fornitori?.nome || "-"}</div>
+                <span style={{ fontSize: font.size.sm, fontWeight: 700, padding: "3px 10px", borderRadius: 12, background: `${statoColor[o.stato]}20`, color: statoColor[o.stato], whiteSpace: "nowrap" }}>{statoLabel[o.stato] || o.stato}</span>
               </div>
               <div style={{ fontSize: typo.small.fontSize, color: C.textSoft, marginBottom: 8 }}>
                 {fmtDate(o.data_ordine)} · <strong style={{ color: C.text, ...tnum }}>{fmt(o.totale)}</strong>
@@ -1091,7 +1280,7 @@ function OrdiniTab({ orgId, notify, isMobile, onMutate }) {
               {/* I prodotti dell'ordine, che prima non erano visibili da nessuna parte. */}
               <button type="button" onClick={() => setOrdineAperto(x => x === o.id ? null : o.id)}
                 aria-expanded={ordineAperto === o.id}
-                style={{ width: '100%', padding: '10px', minHeight: 40, marginBottom: 8, borderRadius: 8, border: `1px solid ${C.borderStr}`, background: C.white, fontSize: 13, fontWeight: 700, color: C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                style={{ width: '100%', padding: '10px', minHeight: 40, marginBottom: 8, borderRadius: 8, border: `1px solid ${C.borderStr}`, background: C.white, fontSize: font.size.base, fontWeight: 700, color: C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                 <span style={{ display: 'inline-flex', transform: ordineAperto === o.id ? 'rotate(180deg)' : 'none', transition: `transform ${M.durBase} ${M.ease}` }}><Icon name="chevDown" size={14} /></span>
                 {(o.righe_ordine || []).length || 0} {((o.righe_ordine || []).length === 1) ? 'prodotto' : 'prodotti'}
               </button>
@@ -1129,15 +1318,15 @@ function OrdiniTab({ orgId, notify, isMobile, onMutate }) {
             <tbody>
               {ordiniFiltrati.flatMap(o => ([(
                 <tr key={o.id} style={{ borderBottom: `1px solid ${C.borderSoft}` }}>
-                  <td style={{ padding: '11px 16px', fontSize: 13, fontWeight: 700, color: C.text }}>
+                  <td style={{ padding: '11px 16px', fontSize: font.size.base, fontWeight: 700, color: C.text }}>
                     {o.fornitori?.nome || "-"}
-                    {o.note && <div style={{ fontSize: 12, color: C.textSoft, fontWeight: 400, fontStyle: 'italic', marginTop: 2 }}>{o.note}</div>}
+                    {o.note && <div style={{ fontSize: font.size.sm, color: C.textSoft, fontWeight: 400, fontStyle: 'italic', marginTop: 2 }}>{o.note}</div>}
                   </td>
                   <td style={{ padding: '11px 16px', fontSize: typo.small.fontSize, color: C.textMid, whiteSpace: 'nowrap', ...tnum }}>{fmtDate(o.data_ordine)}</td>
                   <td style={{ padding: '11px 16px' }}>
-                    <span style={{ fontSize: 12, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: `${statoColor[o.stato]}20`, color: statoColor[o.stato] }}>{statoLabel[o.stato] || o.stato}</span>
+                    <span style={{ fontSize: font.size.sm, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: `${statoColor[o.stato]}20`, color: statoColor[o.stato] }}>{statoLabel[o.stato] || o.stato}</span>
                   </td>
-                  <td style={{ padding: '11px 16px', textAlign: 'right', fontWeight: 800, fontSize: 13, color: C.text, ...tnum }}>{fmt(o.totale)}</td>
+                  <td style={{ padding: '11px 16px', textAlign: 'right', fontWeight: 800, fontSize: font.size.base, color: C.text, ...tnum }}>{fmt(o.totale)}</td>
                   <td style={{ padding: '11px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>
                     {/* Touch target e testo portati sopra le soglie (era padding 5px,
                         fontSize 11: circa 24px di altezza). */}
@@ -1280,12 +1469,19 @@ function SpesaTab({ orgId, isMobile }) {
 
   const maxForn = byFornitore[0]?.[1] || 0
   // Primi 12 in grafico, il resto in una riga sola: 77 barre non si leggono.
-  const GRAFICO_MAX = 12
-  const fornitoriGrafico = useMemo(() => byFornitore.slice(0, GRAFICO_MAX), [byFornitore])
-  const restoFornitori = useMemo(() => {
-    const coda = byFornitore.slice(GRAFICO_MAX)
-    return { n: coda.length, totale: coda.reduce((a, [, t]) => a + t, 0) }
-  }, [byFornitore])
+  // 19/09/2026, il titolare: «nella sezione spesa fai vedere tutti i
+  // fornitori, tutti, non mettere questa scritta "altri 25 fornitori"».
+  //
+  // Il taglio a dodici era stato messo per una ragione vera — settantasette
+  // barre di cui quarantasei a zero virgola qualcosa non si leggono — ma la
+  // soluzione era sbagliata: accorpare venticinque fornitori in una riga sola
+  // nasconde dove vanno i soldi proprio nella pagina che serve a saperlo. Chi
+  // cerca quanto ha speso da un fornitore piccolo non lo trovava più.
+  //
+  // Adesso ci sono tutte, dentro un contenitore che si trascina: nessuna
+  // spesa sparisce, e le prime — quelle che pesano — restano quelle che si
+  // vedono senza muovere niente.
+  const fornitoriGrafico = byFornitore
   const maxCat = byCategoria[0]?.[1] || 0
 
   const cardSt = { background: C.bgCard, borderRadius: 16, border: `1px solid ${C.border}`, padding: isMobile ? "16px 16px" : "18px 22px", boxShadow: S.lg }
@@ -1294,7 +1490,7 @@ function SpesaTab({ orgId, isMobile }) {
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
         <select value={range} onChange={e => setRange(e.target.value)}
-          style={{ padding: isMobile ? "10px 14px" : "8px 12px", borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 12, color: C.text, width: isMobile ? "100%" : "auto", background: C.bgCard, fontFamily: 'inherit' }}>
+          style={{ padding: isMobile ? "10px 14px" : "8px 12px", borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: font.size.sm, color: C.text, width: isMobile ? "100%" : "auto", background: C.bgCard, fontFamily: 'inherit' }}>
           <option value="7">Ultimi 7 giorni</option>
           <option value="30">Ultimi 30 giorni</option>
           <option value="90">Ultimi 90 giorni</option>
@@ -1323,7 +1519,7 @@ function SpesaTab({ orgId, isMobile }) {
           {/* Il grafico compare anche quando gli ordini sono zero ma le fatture no:
               prima la pagina restava vuota con 217 fatture nel database. */}
           {ordini.length === 0 && !fonteFatture ? (
-            <div style={{ color: C.textSoft, fontSize: 13, textAlign: "center", padding: 40, lineHeight: 1.6 }}>
+            <div style={{ color: C.textSoft, fontSize: font.size.base, textAlign: "center", padding: 40, lineHeight: 1.6 }}>
               Nel periodo non ci sono né ordini ricevuti né fatture registrate.
               <div style={{ fontSize: typo.small.fontSize, marginTop: 6 }}>Le fatture si caricano dallo Scadenziario, gli ordini da questa pagina.</div>
             </div>
@@ -1332,26 +1528,30 @@ function SpesaTab({ orgId, isMobile }) {
               <SH sub={fonteFatture
                 ? 'Calcolata sulle fatture che hai registrato nel periodo, non sugli ordini.'
                 : 'Quanto stai spendendo per ciascun fornitore nel periodo selezionato.'}>Spesa per fornitore</SH>
-              {/* Primi 12 e il resto in una riga sola. Con tutti i fornitori
-                  in elenco erano 77 barre, di cui 46 con scritto "0%" (la più
-                  piccola valeva 12 €): un grafico che non si può leggere e in
-                  cui la merce vera si perde in fondo. */}
-              <div style={cardSt}>
+              {/* 19/09/2026 — ci sono tutti, dentro un contenitore che si
+                  trascina. Prima erano i primi dodici e «altri 25 fornitori»
+                  in una riga sola: il motivo era buono (con settantasette
+                  barre, quarantasei scrivono «0%») ma la soluzione nascondeva
+                  dove vanno i soldi proprio nella pagina che serve a saperlo.
+                  Scorrendo non sparisce niente, e le prime — quelle che
+                  pesano — restano le prime che si vedono. */}
+              <div style={{ ...cardSt, maxHeight: 420, overflowY: 'auto' }}>
                 {fornitoriGrafico.map(([nome, tot], i) => (
                   <BarRow key={nome} label={nome} value={tot} max={maxForn} color={PALETTE[i % PALETTE.length]}
                     sub={totale > 0 ? `${(tot / totale * 100).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 1 })}%` : null} />
                 ))}
-                {restoFornitori.n > 0 && (
-                  <BarRow label={`altri ${restoFornitori.n} fornitori`} value={restoFornitori.totale} max={maxForn} color={C.borderStr}
-                    sub={totale > 0 ? `${(restoFornitori.totale / totale * 100).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 1 })}%` : null} />
-                )}
               </div>
+              {fornitoriGrafico.length > 12 && (
+                <div style={{ fontSize: font.size.sm, color: C.textSoft, marginTop: 6 }}>
+                  {fornitoriGrafico.length.toLocaleString('it-IT', { useGrouping: 'always' })} fornitori in tutto: scorri il riquadro per vederli.
+                </div>
+              )}
 
               <SH sub="Aggregazione per categoria merceologica del fornitore. I fornitori senza categoria sono raggruppati a parte.">Spesa per categoria</SH>
               {/* La categoria sta sull'anagrafica, non sulla fattura: con la spesa
                   presa dalle fatture questo grafico sarebbe vuoto senza spiegazione. */}
               {fonteFatture ? (
-                <div style={{ ...cardSt, color: C.textSoft, fontSize: 13, lineHeight: 1.6 }}>
+                <div style={{ ...cardSt, color: C.textSoft, fontSize: font.size.base, lineHeight: 1.6 }}>
                   Per dividere la spesa per categoria servono i fornitori in anagrafica con la loro categoria.
                   Aggiungili dalla scheda Fornitori — te li propongo io, presi dalle fatture — e poi assegna una categoria a ciascuno.
                 </div>
@@ -1370,10 +1570,10 @@ function SpesaTab({ orgId, isMobile }) {
                 ordini.map(o => (
                   <div key={o.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px", background: C.bgCard, borderRadius: 12, border: `1px solid ${C.border}`, marginBottom: 8 }}>
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{o.fornitori?.nome || "-"}</div>
-                      <div style={{ fontSize: 12, color: C.textSoft, marginTop: 2 }}>{fmtDate(o.data_ordine)}{catMap[o.fornitore_id] ? ` · ${catMap[o.fornitore_id]}` : ''}</div>
+                      <div style={{ fontSize: font.size.base, fontWeight: 700, color: C.text }}>{o.fornitori?.nome || "-"}</div>
+                      <div style={{ fontSize: font.size.sm, color: C.textSoft, marginTop: 2 }}>{fmtDate(o.data_ordine)}{catMap[o.fornitore_id] ? ` · ${catMap[o.fornitore_id]}` : ''}</div>
                     </div>
-                    <span style={{ fontSize: 14, fontWeight: 800, color: C.text, ...tnum }}>{fmt(o.totale)}</span>
+                    <span style={{ fontSize: font.size.md, fontWeight: 800, color: C.text, ...tnum }}>{fmt(o.totale)}</span>
                   </div>
                 ))
               ) : (
@@ -1382,22 +1582,22 @@ function SpesaTab({ orgId, isMobile }) {
                     <thead>
                       <tr>
                         {['Fornitore', 'Categoria', 'Data'].map(h => (
-                          <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 12, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>{h}</th>
+                          <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: font.size.sm, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>{h}</th>
                         ))}
-                        <th style={{ padding: '10px 16px', textAlign: 'right', fontSize: 12, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>Totale</th>
+                        <th style={{ padding: '10px 16px', textAlign: 'right', fontSize: font.size.sm, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>Totale</th>
                       </tr>
                     </thead>
                     <tbody>
                       {ordini.map(o => (
                         <tr key={o.id} style={{ borderBottom: `1px solid ${C.borderSoft}` }}>
                           <td style={{ padding: '10px 16px', fontSize: typo.small.fontSize, fontWeight: 700, color: C.text }}>{o.fornitori?.nome || "-"}</td>
-                          <td style={{ padding: '10px 16px', fontSize: 12, color: C.textMid }}>
+                          <td style={{ padding: '10px 16px', fontSize: font.size.sm, color: C.textMid }}>
                             {catMap[o.fornitore_id]
-                              ? <span style={{ fontSize: 12, padding: '2px 8px', borderRadius: 999, background: `${catColor(catMap[o.fornitore_id])}18`, color: catColor(catMap[o.fornitore_id]), fontWeight: 700 }}>{catMap[o.fornitore_id]}</span>
+                              ? <span style={{ fontSize: font.size.sm, padding: '2px 8px', borderRadius: 999, background: `${catColor(catMap[o.fornitore_id])}18`, color: catColor(catMap[o.fornitore_id]), fontWeight: 700 }}>{catMap[o.fornitore_id]}</span>
                               : <span style={{ color: C.textFaint }}>-</span>}
                           </td>
-                          <td style={{ padding: '10px 16px', fontSize: 12, color: C.textMid, whiteSpace: 'nowrap', ...tnum }}>{fmtDate(o.data_ordine)}</td>
-                          <td style={{ padding: '10px 16px', textAlign: 'right', fontSize: 13, fontWeight: 800, color: C.text, ...tnum }}>{fmt(o.totale)}</td>
+                          <td style={{ padding: '10px 16px', fontSize: font.size.sm, color: C.textMid, whiteSpace: 'nowrap', ...tnum }}>{fmtDate(o.data_ordine)}</td>
+                          <td style={{ padding: '10px 16px', textAlign: 'right', fontSize: font.size.base, fontWeight: 800, color: C.text, ...tnum }}>{fmt(o.totale)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -1443,7 +1643,7 @@ export default function Fornitori({ orgId, sedeId, sedi = [], notify, fornitoreD
           <button key={id} onClick={() => setTab(id)}
             style={{
               padding: "10px 16px", minHeight: isMobile ? 44 : 40, border: "none", background: "transparent", cursor: "pointer",
-              fontSize: 13, fontWeight: tab === id ? 600 : 500, color: tab === id ? T.text : T.textSoft,
+              fontSize: font.size.base, fontWeight: tab === id ? 600 : 500, color: tab === id ? T.text : T.textSoft,
               borderBottom: tab === id ? `2px solid ${T.brand}` : "2px solid transparent",
               marginBottom: -1, letterSpacing: "-0.005em", whiteSpace: "nowrap",
               display: 'inline-flex', alignItems: 'center', gap: 6,

@@ -132,7 +132,7 @@
   },
   "src/components/Fornitori.jsx": {
     "colore-a-mano": 32,
-    "testo-a-mano": 51,
+    "testo-a-mano": 3,
     "antizoom-a-mano": 2
   },
   "src/components/FotoOCR.jsx": {
@@ -146,8 +146,8 @@
     "antizoom-a-mano": 3
   },
   "src/components/ImportWizard.jsx": {
-    "colore-a-mano": 72,
-    "testo-a-mano": 42,
+    "colore-a-mano": 68,
+    "testo-a-mano": 7,
     "tripla-a-mano": 1
   },
   "src/components/ImportaDati.jsx": {
@@ -234,8 +234,8 @@
     "testo-a-mano": 43
   },
   "src/components/Scadenzario.jsx": {
-    "colore-a-mano": 77,
-    "testo-a-mano": 96,
+    "colore-a-mano": 76,
+    "testo-a-mano": 94,
     "tripla-a-mano": 4
   },
   "src/components/SedeSelector.jsx": {

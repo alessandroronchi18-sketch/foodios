@@ -58,6 +58,9 @@ export const SHARED_KEYS = [
   // Materiali di confezionamento (cono, coppetta, cucchiaino, fazzoletto) con
   // il loro costo: sono gli stessi in tutti i negozi, come il ricettario.
   'pasticceria-materiali-confezionamento-v1',
+  // Le categorie merceologiche dei fornitori: i fornitori sono gli stessi in
+  // tutte le sedi, quindi anche il modo di raggrupparli.
+  'pasticceria-categorie-fornitori-v1',
 ]
 
 export function isSharedKey(key) {

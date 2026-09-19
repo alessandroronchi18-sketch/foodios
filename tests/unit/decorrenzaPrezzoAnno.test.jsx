@@ -80,6 +80,11 @@
 // Fra due giorni il fuso non c'entra, e `soloData` dall'altra parte trova già
 // la forma che si aspetta.
 
+// 19/09/2026 — i nomi delle materie prime adesso si leggono con la prima
+// maiuscola. Nel database restano minuscoli (è la chiave con cui il food
+// cost trova il prezzo), quindi qui le prove di PRESENZA confrontano senza
+// distinguere il maiuscolo: la regola sulla maiuscola ha un test suo.
+
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, cleanup, fireEvent, waitFor } from '@testing-library/react'
 import React from 'react'
@@ -118,12 +123,12 @@ async function apriFinestraDecorrenza(extra = {}) {
     ricettario={ricettario} logPrezzi={[]}
     onUpdatePrezzo={async () => {}} onCreaMateriaPrima={async () => ({ ok: true })}
     {...extra} />)
-  await waitFor(() => expect(v.container.textContent).toContain('burro'))
+  await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('burro'))
   fireEvent.click(v.getByTitle('Clicca per modificare'))
   const campoPrezzo = await waitFor(() => v.getByLabelText('Prezzo per chilo di burro'))
   fireEvent.change(campoPrezzo, { target: { value: '9,50' } })
   fireEvent.keyDown(campoPrezzo, { key: 'Enter' })
-  await waitFor(() => expect(v.container.textContent).toContain('Conferma modifica prezzo'))
+  await waitFor(() => expect(v.container.textContent.toLowerCase()).toContain('conferma modifica prezzo'))
   const campoData = v.container.querySelector('#mp-decorre')
   expect(campoData).toBeTruthy()
   return { v, campoData }
@@ -138,7 +143,7 @@ describe('materie prime — scrivere l\'anno nella data di decorrenza', () => {
     const { v, campoData } = await apriFinestraDecorrenza()
     expect(campoData.getAttribute('type')).toBe('date')
     expect(campoData.value).toBe(todayLocal())
-    expect(v.container.textContent).toContain('Decorrenza nuovo prezzo')
+    expect(v.container.textContent.toLowerCase()).toContain('decorrenza nuovo prezzo')
   })
 
   it('battendo l\'anno una cifra per volta il fuoco resta nel campo', async () => {

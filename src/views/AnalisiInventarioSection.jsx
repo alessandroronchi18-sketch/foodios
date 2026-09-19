@@ -136,14 +136,36 @@ export default function AnalisiInventarioSection({
     const key = (dataStr) => {
       if (vista === 'giornaliero') return dataStr
       if (vista === 'mese') return dataStr.slice(0, 7)
-      // Settimana ISO
+      // ── La settimana ISO, fatta come si deve ─────────────────────────
+      //
+      // 19/09/2026, trovato da un audit sulle date a cavallo d'anno. Qui la
+      // settimana era calcolata a mano, con due difetti veri:
+      //
+      // 1. l'anno era `d.getFullYear()`, cioè l'anno del GIORNO, non l'anno
+      //    ISO della settimana. Il 1° e il 2 gennaio 2027 cadono nella
+      //    settimana 53 del 2026: uscivano come «2027-W00», una settimana che
+      //    non esiste, e la settimana dal 28/12 al 3/01 si spezzava in TRE
+      //    colonne del grafico invece di una;
+      //
+      // 2. `Math.round((d - week1Mon) / 86400000)` sottrae due istanti — uno a
+      //    mezzogiorno, l'altro a mezzanotte — e quella mezza giornata in più
+      //    viene arrotondata. Da novembre a marzo (ora solare) il conto veniva
+      //    a 6,5 giorni e si arrotondava a 7: **ogni domenica finiva nella
+      //    settimana dopo**. Da aprile a ottobre no, perché l'ora legale
+      //    toglieva l'ora che serviva — quindi il difetto compariva e spariva
+      //    due volte l'anno, che è il modo migliore per non essere creduti.
+      //
+      // La versione giusta esisteva già a due file di distanza, in
+      // `StoricoProduzioneView.getWeekKey`: si lavora in UTC, ci si sposta al
+      // giovedì della settimana (che per definizione ISA sta nell'anno della
+      // settimana) e si conta da lì. È la stessa, copiata senza scorciatoie.
       const d = new Date(dataStr + 'T12:00:00')
-      const jan4 = new Date(d.getFullYear(), 0, 4)
-      const dayJan4 = jan4.getDay() || 7
-      const week1Mon = new Date(jan4.getFullYear(), 0, 4 - (dayJan4 - 1))
-      const diffDays = Math.round((d - week1Mon) / 86400000)
-      const week = Math.floor(diffDays / 7) + 1
-      return `${d.getFullYear()}-W${String(week).padStart(2, '0')}`
+      const tmp = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()))
+      const dow = tmp.getUTCDay() || 7
+      tmp.setUTCDate(tmp.getUTCDate() + 4 - dow)
+      const ys = new Date(Date.UTC(tmp.getUTCFullYear(), 0, 1))
+      const week = Math.ceil((((tmp - ys) / 86400000) + 1) / 7)
+      return `${tmp.getUTCFullYear()}-W${String(week).padStart(2, '0')}`
     }
     // Label leggibile per il tooltip e l'asse: "15/07", "Sett 30 '26", "Lug '26"
     const labelOf = (k) => {

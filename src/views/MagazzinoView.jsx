@@ -1922,7 +1922,12 @@ export default function MagazzinoView({
             prime. Restava a fare il doppione, e due posti per cambiare lo
             stesso prezzo vogliono dire che uno dei due prima o poi resta
             indietro. Chi la cerca la trova nella riga qui sotto. */}
-        {[['giacenze', 'Materie prime'], ['carica', 'Carica merce'], ['pf', 'Prodotti finiti'], ['log', 'Storico carichi']].map(([id, lbl]) => (
+        {/* 19/09/2026 — questa scheda si chiamava «Materie prime» come la pagina
+            nuova in Ricette, e le due cose sono diverse: qui c'è **quanta merce
+            hai**, là **quanto costa**. Due voci con lo stesso nome in due posti
+            del menu non si distinguono a memoria, e chi cercava i prezzi finiva
+            qui. «Giacenze» dice quello che c'è dentro. */}
+        {[['giacenze', 'Giacenze'], ['carica', 'Carica merce'], ['pf', 'Prodotti finiti'], ['log', 'Storico carichi']].map(([id, lbl]) => (
           <button key={id} onClick={() => setTab(id)}
             role="tab" aria-selected={tab === id} id={`mag-tab-${id}`}
             style={{ padding: '12px 16px', minHeight: 44, border: 'none', background: 'transparent', cursor: 'pointer',
