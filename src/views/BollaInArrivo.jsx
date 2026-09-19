@@ -62,10 +62,15 @@ export default function BollaInArrivo({
   const [numero, setNumero] = useState(letto?.numero || '')
   const [data, setData] = useState(letto?.data || '')
   const [salvando, setSalvando] = useState(false)
-  // Le correzioni a mano, per indice di riga: nome scelto dall'elenco, peso di
-  // una confezione, e se la riga va registrata o saltata.
-  const [correzioni, setCorrezioni] = useState({})
-  const [aperta, setAperta] = useState(null)
+  // Le righe: quelle lette dalla foto, poi modificabili una per una. Sono
+  // **una sola fonte**: la riga letta e la riga scritta a mano sono la stessa
+  // cosa, e lo devono restare — se no la bolla scritta a mano farebbe un
+  // percorso diverso, con controlli diversi, e i due percorsi divergerebbero
+  // come è già successo ai tre conti del food cost.
+  const [righeGrezze, setRigheGrezze] = useState(
+    () => (letto?.righe || []).map(r => ({ ...r })),
+  )
+  const [aperta, setAperta] = useState(letto?.righe?.length ? null : 0)
 
   const elencoMateriePrime = useMemo(() => {
     const c = ricettario?.ingredienti_costi || {}
@@ -75,21 +80,15 @@ export default function BollaInArrivo({
   // Le righe lette, più le correzioni fatte a mano, ripassate ogni volta dal
   // conto: cambiare il peso di un sacco deve ricalcolare il prezzo davanti
   // agli occhi, non dopo aver salvato.
-  const righe = useMemo(() => {
-    const grezze = (letto?.righe || []).map((r, i) => {
-      const c = correzioni[i] || {}
-      return {
-        ...r,
-        nome: c.nome != null ? c.nome : r.nome,
-        pesoConfezioneG: c.pesoConfezioneG != null ? c.pesoConfezioneG : r.pesoConfezioneG,
-      }
-    })
-    return preparaBolla(grezze, {
+  const righe = useMemo(() => (
+    preparaBolla(righeGrezze, {
       ingredientiCosti: ricettario?.ingredienti_costi || {},
       logPrezzi,
       dataBolla: data,
-    }).map((r, i) => ({ ...r, saltata: !!correzioni[i]?.saltata }))
-  }, [letto, correzioni, ricettario, logPrezzi, data])
+    // `grezza` è la riga come sta scritta: serve ai campi modificabili.
+    // Il resto (chili, prezzo, problemi) è il conto, e non si sovrascrive.
+    }).map((r, i) => ({ ...r, grezza: righeGrezze[i] || {}, saltata: !!righeGrezze[i]?.saltata }))
+  ), [righeGrezze, ricettario, logPrezzi, data])
 
   const identita = identitaBolla({ fornitore, numero, data })
   const giaCaricata = useMemo(() => {
@@ -105,7 +104,17 @@ export default function BollaInArrivo({
   const daSistemare = righe.filter(r => !r.saltata && r.esisteInElenco && r.problema)
 
   function correggi(i, campo, valore) {
-    setCorrezioni(c => ({ ...c, [i]: { ...(c[i] || {}), [campo]: valore } }))
+    setRigheGrezze(rr => rr.map((r, k) => (k === i ? { ...r, [campo]: valore } : r)))
+  }
+
+  function aggiungiRiga() {
+    setRigheGrezze(rr => [...rr, { nome: '', quantita: '', unita: 'kg', imponibile: '' }])
+    setAperta(righeGrezze.length)
+  }
+
+  function togliRiga(i) {
+    setRigheGrezze(rr => rr.filter((_, k) => k !== i))
+    setAperta(null)
   }
 
   async function registra() {
@@ -199,8 +208,7 @@ export default function BollaInArrivo({
 
         {righe.length === 0 && (
           <div style={{ fontSize: font.size.base, color: T.textSoft, padding: '10px 0' }}>
-            Dalla foto non è uscita nessuna riga di merce. Prova con una foto più
-            nitida, oppure registra la merce a mano qui sotto.
+            Nessuna riga, ancora. Aggiungine una e scrivi cosa è arrivato.
           </div>
         )}
 
@@ -213,12 +221,25 @@ export default function BollaInArrivo({
               aperta={aperta === i}
               onApri={() => setAperta(aperta === i ? null : i)}
               onCorreggi={correggi}
+              onTogli={togliRiga}
               elenco={elencoMateriePrime}
               dito={dito}
               suTelefono={suTelefono}
             />
           ))}
         </div>
+
+        <button type="button" onClick={aggiungiRiga}
+          style={{
+            marginTop: 12, padding: '10px 16px', minHeight: 44,
+            background: 'transparent', border: `1px dashed ${T.borderStr}`,
+            borderRadius: 10, color: T.textMid, fontSize: font.size.base,
+            fontWeight: 700, cursor: 'pointer',
+            display: 'inline-flex', alignItems: 'center', gap: 7,
+          }}>
+          <Icon name="plus" size={14} color={T.textMid} />
+          Aggiungi una riga
+        </button>
       </div>
 
       <div style={card}>
@@ -291,7 +312,27 @@ function Avviso({ tono = 'ambra', children }) {
   )
 }
 
-function RigaBolla({ riga: r, indice, aperta, onApri, onCorreggi, elenco, dito, suTelefono }) {
+const ETICHETTA = {
+  fontSize: font.size.sm, fontWeight: 700, color: T.textMid,
+  display: 'block', marginBottom: 5,
+}
+const CAMPO = {
+  width: '100%', padding: '9px 11px', minHeight: 44, borderRadius: 8,
+  border: `1px solid ${T.borderStr}`, fontSize: font.size.base,
+  color: T.text, background: T.bgCard, boxSizing: 'border-box',
+}
+
+function Campo({ etichetta, id, valore, onCambia, placeholder, inputMode }) {
+  return (
+    <div>
+      <label style={ETICHETTA} htmlFor={id}>{etichetta}</label>
+      <input id={id} value={valore} inputMode={inputMode} placeholder={placeholder}
+        onChange={e => onCambia(e.target.value)} style={CAMPO} />
+    </div>
+  )
+}
+
+function RigaBolla({ riga: r, indice, aperta, onApri, onCorreggi, onTogli, elenco, dito, suTelefono }) {
   const problema = !!r.problema
   const attenzione = r.sospetto || r.ambiguo
   const bordo = !r.esisteInElenco || problema ? T.amber : attenzione ? T.amber : T.border
@@ -307,16 +348,23 @@ function RigaBolla({ riga: r, indice, aperta, onApri, onCorreggi, elenco, dito, 
         flexDirection: suTelefono ? 'column' : 'row',
       }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          {r.esisteInElenco ? (
+          {r.esisteInElenco && !aperta ? (
             <div style={{ fontSize: font.size.md, fontWeight: 700, color: T.text }}>{formatNome(r.nome)}</div>
           ) : (
             <div>
-              <div style={{ fontSize: font.size.sm, fontWeight: 700, color: T.amberDark || T.amber, marginBottom: 5 }}>
-                «{r.nome}» non è fra le tue materie prime: scegli quale
+              <div style={{
+                fontSize: font.size.sm, fontWeight: 700, marginBottom: 5,
+                color: r.esisteInElenco ? T.textMid : (T.amberDark || T.amber),
+              }}>
+                {r.esisteInElenco
+                  ? 'Materia prima'
+                  : r.nome
+                    ? `«${r.nome}» non è fra le tue materie prime: scegli quale`
+                    : 'Quale materia prima è arrivata?'}
               </div>
               <CampoConElenco
                 id={`bolla-nome-${indice}`}
-                valore=""
+                valore={r.esisteInElenco ? formatNome(r.nome) : ''}
                 onCambia={(v) => onCorreggi(indice, 'nome', v)}
                 voci={elenco}
                 placeholder="Cerca fra le tue materie prime"
@@ -378,27 +426,51 @@ function RigaBolla({ riga: r, indice, aperta, onApri, onCorreggi, elenco, dito, 
 
       {aperta && (
         <div style={{
-          marginTop: 10, padding: 10, background: T.bgSubtle,
+          marginTop: 10, padding: 12, background: T.bgSubtle,
           borderRadius: 8, fontSize: font.size.sm, color: T.textMid, lineHeight: 1.7,
         }}>
-          {r.spiegazione.length > 0
-            ? r.spiegazione.map((s, k) => <div key={k}>{s}</div>)
-            : <div>Non sono arrivato a un prezzo: {r.problema}</div>}
-          <div style={{ marginTop: 10 }}>
-            <label style={{ fontSize: font.size.sm, fontWeight: 700, color: T.textMid, display: 'block', marginBottom: 5 }}
-              htmlFor={`bolla-peso-${indice}`}>
-              Quanto pesa una confezione (in grammi)
-            </label>
-            <input id={`bolla-peso-${indice}`} inputMode="numeric"
-              defaultValue={r.pesoConfezioneG || ''}
-              onChange={e => onCorreggi(indice, 'pesoConfezioneG', Number(e.target.value) || null)}
-              placeholder="es. 25000 per un sacco da 25 kg"
-              style={{
-                width: '100%', maxWidth: 320, padding: '9px 11px', minHeight: 44,
-                borderRadius: 8, border: `1px solid ${T.borderStr}`, fontSize: font.size.base,
-                color: T.text, boxSizing: 'border-box',
-              }} />
+          <div style={{
+            display: 'grid', gap: 10, marginBottom: 12,
+            gridTemplateColumns: suTelefono ? '1fr' : '1fr 1fr 1fr 1fr',
+          }}>
+            <Campo etichetta="Quantità" id={`bolla-qta-${indice}`}
+              valore={r.grezza.quantita ?? ''} inputMode="decimal"
+              onCambia={v => onCorreggi(indice, 'quantita', v)}
+              placeholder="es. 5" />
+            <div>
+              <label style={ETICHETTA} htmlFor={`bolla-unita-${indice}`}>Unità</label>
+              <select id={`bolla-unita-${indice}`} value={r.grezza.unita || ''}
+                onChange={e => onCorreggi(indice, 'unita', e.target.value)}
+                style={CAMPO}>
+                <option value="kg">kg</option>
+                <option value="g">g</option>
+                <option value="l">litri</option>
+                <option value="pz">pezzi / confezioni</option>
+              </select>
+            </div>
+            <Campo etichetta="Prezzo della riga, senza IVA" id={`bolla-imp-${indice}`}
+              valore={r.grezza.imponibile ?? ''} inputMode="decimal"
+              onCambia={v => onCorreggi(indice, 'imponibile', v)}
+              placeholder="es. 92,50" />
+            <Campo etichetta="Peso di una confezione (g)" id={`bolla-peso-${indice}`}
+              valore={r.grezza.pesoConfezioneG ?? ''} inputMode="numeric"
+              onCambia={v => onCorreggi(indice, 'pesoConfezioneG', Number(v) || null)}
+              placeholder="es. 25000" />
           </div>
+
+          <div style={{ borderTop: `1px solid ${T.border}`, paddingTop: 10 }}>
+            {r.spiegazione.length > 0
+              ? r.spiegazione.map((sp, k) => <div key={k}>{sp}</div>)
+              : <div>Non sono arrivato a un prezzo: {r.problema || 'mancano dei dati'}</div>}
+          </div>
+
+          <button type="button" onClick={() => onTogli(indice)}
+            style={{
+              marginTop: 12, padding: '8px 14px', minHeight: dito ? 44 : 34,
+              background: 'transparent', border: `1px solid ${T.border}`,
+              borderRadius: 8, color: T.textMid, fontSize: font.size.sm,
+              fontWeight: 600, cursor: 'pointer',
+            }}>Togli questa riga</button>
         </div>
       )}
     </div>

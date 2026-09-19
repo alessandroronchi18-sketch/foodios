@@ -2325,13 +2325,34 @@ export default function MagazzinoView({
               Adesso è una cosa sola: si fotografa la bolla, si controlla
               quello che ha capito, e si registra. */}
           {!bollaLetta && (
-            <FotoOCR mode="bolla" notify={notify} ricettario={ricettario} onResult={res => {
-              if (!(res?.righe || []).length) {
-                notify('Da questa foto non esce nessuna riga di merce. Prova con una foto più nitida, oppure registra a mano qui sotto.', false)
-                return false
-              }
-              setBollaLetta(res)
-            }}/>
+            <>
+              <FotoOCR mode="bolla" notify={notify} ricettario={ricettario} onResult={res => {
+                if (!(res?.righe || []).length) {
+                  notify('Da questa foto non esce nessuna riga di merce. Prova con una foto più nitida, oppure scrivi la bolla a mano.', false)
+                  return false
+                }
+                setBollaLetta(res)
+              }}/>
+              {/* La foto è la scorciatoia, non l'unica strada. Una bolla
+                  scritta a mano fa lo stesso identico percorso: gli stessi
+                  controlli sulle unità, lo stesso conto del prezzo al chilo,
+                  la stessa riga nello storico. Due strade diverse per la
+                  stessa cosa finiscono sempre per divergere. */}
+              <div style={{ marginTop: -14, marginBottom: 24 }}>
+                <button type="button"
+                  onClick={() => setBollaLetta({ fornitore: '', numero: '', data: todayLocal(), righe: [{ nome: '', quantita: '', unita: 'kg', imponibile: '' }] })}
+                  style={{
+                    padding: '10px 16px', minHeight: dito ? 44 : 38,
+                    background: 'transparent', border: `1px solid ${C.border}`,
+                    borderRadius: 10, color: C.textMid, fontSize: font.size.base,
+                    fontWeight: 600, cursor: 'pointer',
+                    display: 'inline-flex', alignItems: 'center', gap: 7,
+                  }}>
+                  <Icon name="edit" size={14} />
+                  Scrivi la bolla a mano, senza foto
+                </button>
+              </div>
+            </>
           )}
 
           {bollaLetta && (

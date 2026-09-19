@@ -178,3 +178,62 @@ describe('Una bolla più vecchia dell\'ultimo cambio', () => {
     expect(tutto).toMatch(/10\/09\/2026/)
   })
 })
+
+// ── La bolla si può anche scrivere a mano ─────────────────────────────────
+//
+// Domanda del titolare, 19/09/2026: «si possono inserire anche le bolle a
+// mano vero?». Prima no: a mano si caricavano solo le quantità, una voce per
+// volta e senza prezzo — quindi non toccavano né le materie prime né lo
+// storico. La bolla vera si poteva inserire solo dalla foto.
+//
+// Adesso la strada è **la stessa**: stessi controlli sulle unità, stesso
+// conto del prezzo al chilo, stessa riga nello storico. Due strade diverse
+// per la stessa cosa finiscono sempre per divergere — è già successo ai tre
+// conti del food cost, che davano tre numeri su 29 ricette su 68.
+describe('Scrivere la bolla a mano', () => {
+  it('si parte da zero righe e se ne aggiunge una', async () => {
+    const { container } = monta({ letto: { fornitore: '', numero: '', data: '', righe: [] } })
+    expect(testi(container).join(' | ')).toMatch(/Nessuna riga, ancora/)
+    await act(async () => { fireEvent.click(bottone(container, 'Aggiungi una riga')) })
+    expect(container.querySelector('input[id^="bolla-qta-"]')).toBeTruthy()
+  })
+
+  it('scrivendo materia prima, quantità e prezzo esce il prezzo al chilo', async () => {
+    const { container } = monta({
+      letto: { fornitore: 'Molino Rossi', numero: '9/B', data: '2026-09-19', righe: [
+        { nome: 'burro', quantita: '', unita: 'kg', imponibile: '' },
+      ] },
+    })
+    act(() => { fireEvent.click(bottone(container, 'Come l\'ho calcolato')) })
+    act(() => {
+      fireEvent.change(container.querySelector('input[id^="bolla-qta-"]'), { target: { value: '10' } })
+    })
+    act(() => {
+      fireEvent.change(container.querySelector('input[id^="bolla-imp-"]'), { target: { value: '95,00' } })
+    })
+    await waitFor(() => {
+      expect(testi(container).join(' | ')).toMatch(/9,50/)
+    })
+  })
+
+  it('una riga scritta a mano passa dagli stessi controlli di quella letta', async () => {
+    // L'unità sbagliata deve fermarla qui come la fermerebbe dalla foto.
+    const { container } = monta({
+      letto: { fornitore: 'X', numero: '1', data: '2026-09-19', righe: [
+        { nome: 'burro', quantita: '5', unita: 'pz', imponibile: '50' },
+      ] },
+    })
+    expect(testi(container).join(' | ')).toMatch(/manca il peso di uno/)
+  })
+
+  it('e si può togliere una riga sbagliata', async () => {
+    const { container } = monta({
+      letto: { fornitore: 'X', numero: '1', data: '2026-09-19', righe: [
+        { nome: 'burro', quantita: '10', unita: 'kg', imponibile: '95' },
+      ] },
+    })
+    act(() => { fireEvent.click(bottone(container, 'Come l\'ho calcolato')) })
+    await act(async () => { fireEvent.click(bottone(container, 'Togli questa riga')) })
+    expect(testi(container).join(' | ')).toMatch(/Nessuna riga, ancora/)
+  })
+})
