@@ -107,7 +107,7 @@ export default function CalendarioOperativo({
   const [anno, setAnno]   = useState(oggi.getFullYear())
   const [mese, setMese]   = useState(oggi.getMonth())
   const [sel, setSel]     = useState(null)      // data selezionata, stringa ISO
-  const [note, setNote]   = useState({})        // { "YYYY-MM-DD": { nota, chiuso } }
+  const [note, setNote]   = useState({})        // { "YYYY-MM-DD": { nota } }
   const [notaEdit, setNotaEdit] = useState('')
   const [savingNota, setSavingNota] = useState(false)
   const [noteErr, setNoteErr] = useState(false)
@@ -250,6 +250,15 @@ export default function CalendarioOperativo({
     for (let d = 1; d <= daysInM; d++) {
       const k = `${anno}-${String(mese+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
       if (k > oggiStr) break
+      // L'incasso si somma SEMPRE, anche di un giorno segnato come chiuso.
+      //
+      // La chiusura dice «non devi registrare», non «non sono entrati soldi».
+      // Prima il `continue` qui sotto saltava anche la somma: un giorno chiuso
+      // per ferie in cui era partita una consegna B2B, o segnato chiuso per
+      // sbaglio dopo aver fatto la cassa, faceva sparire quegli euro dal
+      // totale del mese — e il totale non tornava con la cassa senza che si
+      // capisse perché.
+      if (cassaMap[k]?.kpi?.totV != null) incasso += Number(cassaMap[k].kpi.totV) || 0
       if (isChiuso(k)) { chiusi++; continue }   // chiuso = fuori dal denominatore
       totPassati++
       const hp = haProduzione(k), hc = !!cassaMap[k]
@@ -259,7 +268,6 @@ export default function CalendarioOperativo({
       else if (hp && !hc) soloProd++
       else if (!hp && hc) soloCassa++
       else vuoti++
-      if (cassaMap[k]?.kpi?.totV != null) incasso += Number(cassaMap[k].kpi.totV) || 0
     }
     // Streak: giorni completi consecutivi fino a oggi. I giorni di chiusura non
     // spezzano la serie — chi chiude il lunedì non deve perdere lo streak.
@@ -287,11 +295,19 @@ export default function CalendarioOperativo({
         if (haProduzione(k) !== !!cassaMap[k]) anomalie++
       }
     }
-    const pct = totPassati > 0 ? Math.round(completi/totPassati*100) : 0
+    // Quando non c'è niente da registrare la copertura non è zero: non esiste.
+    //
+    // Succede in due casi veri: si guarda un mese futuro, oppure un mese in cui
+    // il negozio è stato chiuso tutto (agosto, per molte pasticcerie). Prima
+    // usciva «0% · molti giorni scoperti» in rosso, mentre il riquadro accanto
+    // diceva giustamente «nessun giorno da registrare»: due caselle affiancate
+    // che si contraddicono, e quella che urla è quella sbagliata.
+    const pct = totPassati > 0 ? Math.round(completi/totPassati*100) : null
     return { completi, totPassati, soloProd, soloCassa, vuoti, anomalie, streak, pct, incasso, chiusi }
   }, [haProduzione, cassaMap, anno, mese, oggiStr, oggi, isChiuso, cassaRichiesta, produzioneRichiesta])
 
-  const semaforo = diag.pct >= 80 ? T.green : diag.pct >= 50 ? T.amber : T.red
+  const semaforo = diag.pct == null ? T.textSoft
+    : diag.pct >= 80 ? T.green : diag.pct >= 50 ? T.amber : T.red
 
   // ── navigazione ─────────────────────────────────────────────────────────
   const prev = () => { setSel(null); if (mese===0){setMese(11);setAnno(a=>a-1)} else setMese(m=>m-1) }
@@ -471,7 +487,10 @@ export default function CalendarioOperativo({
                     <button onClick={()=>setView(v)} style={{
                       fontSize: FS.small, fontWeight: 700, color: T.brand, background: T.bgCard,
                       border: `1px solid ${T.brand}`, borderRadius: 8, padding: '7px 11px',
-                      minHeight: 36, cursor: 'pointer', whiteSpace: 'nowrap',
+                      // 36 px: sotto il minimo per un dito, e questa pagina si
+                      // apre sul tablet in laboratorio. Il tablet non è un
+                      // computer usato con le dita: è un telefono grande.
+                      minHeight: ui3(isMobile, isTablet, ui.ctrlHsm), cursor: 'pointer', whiteSpace: 'nowrap',
                     }}>Vai</button>
                   )}
                 </div>
@@ -581,9 +600,12 @@ export default function CalendarioOperativo({
             sub={diag.totPassati > 0
               ? `${(cassaRichiesta && produzioneRichiesta) ? 'produzione + cassa' : cassaRichiesta ? 'contati sulla cassa' : 'contati sulla produzione'}${diag.chiusi ? ` · ${diag.chiusi} gg di chiusura esclusi` : ''}`
               : 'nessun giorno da registrare'} />
-          <Kpi icon="barChart" label="Copertura mese" value={`${diag.pct}%`} color={semaforo}
-            sub={diag.pct >= 80 ? 'sotto controllo' : diag.pct >= 50 ? 'da migliorare' : 'molti giorni scoperti'}
-            bar={diag.pct} barColor={semaforo} />
+          <Kpi icon="barChart" label="Copertura mese"
+            value={diag.pct == null ? '—' : `${diag.pct}%`} color={semaforo}
+            sub={diag.pct == null
+              ? (diag.chiusi > 0 ? 'mese di chiusura' : 'mese non ancora cominciato')
+              : diag.pct >= 80 ? 'sotto controllo' : diag.pct >= 50 ? 'da migliorare' : 'molti giorni scoperti'}
+            bar={diag.pct == null ? 0 : diag.pct} barColor={semaforo} />
           <Kpi icon="warning" label="Giorni con anomalie"
             value={String(diag.anomalie)} color={diag.anomalie ? T.amber : T.green}
             sub={diag.anomalie
@@ -611,8 +633,23 @@ export default function CalendarioOperativo({
               </span>
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: FS.h3, fontWeight: 700, color: T.text, letterSpacing: '-0.015em' }}>{MESI[mese]} <span style={{ ...tnum }}>{anno}</span></div>
+                {/* Gli incassi non li vede il dipendente.
+
+                    La banda dei conti qui sopra è protetta da `!isDipendente`
+                    dal 15/09/2026, ma questa riga era rimasta fuori: sotto il
+                    nome del mese compariva «X € incassati nel mese» a chiunque
+                    aprisse la pagina. Il calendario è una delle poche pagine
+                    che il dipendente ha, e ci si arriva dal menu senza fare
+                    niente di strano.
+
+                    Al dipendente questo posto serve per lavorare, non per
+                    sapere quanto ha incassato il negozio. */}
                 <div style={{ fontSize: FS.small, color: T.textSoft, ...tnum }}>
-                  {diag.incasso > 0 ? `${eur0(diag.incasso)} incassati nel mese` : 'registra produzione e cassa ogni giorno'}
+                  {isDipendente
+                    ? 'tocca un giorno per vedere cosa c\'è da fare'
+                    : diag.incasso > 0
+                      ? `${eur0(diag.incasso)} incassati nel mese`
+                      : 'registra produzione e cassa ogni giorno'}
                 </div>
               </div>
             </div>
@@ -704,7 +741,10 @@ export default function CalendarioOperativo({
                 const isOggi  = k === oggiStr
                 const isSel   = k === sel
                 const cassa   = cassaMap[k]
-                const totale  = cassa?.kpi?.totV
+                // Al dipendente l'incasso della giornata non si mostra: è la
+                // stessa regola della banda dei conti, e questa casella è
+                // il posto dove sarebbe sfuggita.
+                const totale  = isDipendente ? null : cassa?.kpi?.totV
                 const hasNota = !!note[k]?.nota
                 const st      = STATUS[status]
                 const d = new Date(k+'T12:00')
@@ -784,7 +824,7 @@ export default function CalendarioOperativo({
                 const isWeek   = date.getDay()===0 || date.getDay()===6
                 const isSel    = k === sel
                 const cassa    = cassaMap[k]
-                const totale   = cassa?.kpi?.totV
+                const totale   = isDipendente ? null : cassa?.kpi?.totV
                 const hasNota  = !!note[k]?.nota
                 const st       = status && status !== 'futuro' ? STATUS[status] : null
                 const accent   = st?.color || null
