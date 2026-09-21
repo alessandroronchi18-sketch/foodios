@@ -1,10 +1,16 @@
 # FoodOS — Analisi prodotto (stile McKinsey, scoring 1–100)
 
-> Aggiornato: 2026-09-17 · Basata su evidenza diretta dal codice (LOC, test, migration, pattern)
+> Aggiornato: 2026-09-22 · Basata su evidenza diretta dal codice (LOC, test, migration, pattern)
 > e, dal 7 set, su query al database di produzione: quando qui c'e' un numero di
 > righe, di fatture o di letture, e' stato contato, non stimato.
 >
-> **Composito al 17/09: Prodotto 96 · Ingegneria 97 · Business 44 · Maturita' ~74.**
+> **Composito al 22/09: Prodotto 97 · Ingegneria 97 · Business 41 · Maturità ~74.**
+> Le trenta sezioni sono tutte sopra 90 (media **94**), da una media di 75 tre
+> giorni prima. Il business scende di tre punti e non è un refuso: si sa di più
+> di prima, e quello che si sa è che il design partner **non ha mai chiuso una
+> cassa** in quattro mesi e mezzo. Dettaglio e valutazione in euro: sezione 12.
+>
+> *(composito precedente, al 17/09: Prodotto 96 · Ingegneria 97 · Business 44)*
 >
 > **La notte fra il 16 e il 17/09 e' stata la sessione piu' lunga del progetto,
 > e la prima condotta da SEI AGENTI in parallelo** su sei dimensioni — soldi,
@@ -3042,3 +3048,187 @@ d'uso, che sono un'altra cosa.
 I quattro punti d'azienda di `COSE_DA_FARE_TU.md` (dominio, 2FA, repository
 pubblico, Stripe) restano fuori da questi voti per scelta del titolare:
 «stiamo ancora in fase di rifinitura».
+
+---
+
+## 12. 21–22/09/2026 — nessuna sezione sotto i 90, e quanto vale questo strumento
+
+### 12.1 I voti, tutti e trenta, misurati
+
+Stessa formula della sezione 11, con una differenza: il righello è stato
+corretto in due punti e la correzione è dichiarata, perché ha spostato dei
+voti senza che cambiasse una riga di prodotto.
+
+- **Leggeva mezzo tag.** Cercava `role=` solo nel pezzo di tag *prima*
+  dell'`onClick`, quindi un `<div onClick=… role="button" tabIndex={0}
+  onKeyDown=…>` risultava un comando invisibile, e non lo è: l'ordine in cui
+  uno batte gli attributi non cambia niente per chi usa la tastiera. Ha
+  spostato due voti (Inventario 93→97, Fornitori 81→85).
+- **Le sezioni ora si misurano con la loro libreria**, non solo con la pagina:
+  Previsioni con `meteoCorrezione.js`, Fornitori con `Scadenzario.jsx`.
+
+| Sezione | Prove | Deviazioni/100 righe | Voto |
+|---|---:|---:|---:|
+| Materie prime | 159 | 0 | **100** |
+| Food cost (il motore) | 448 | 0 | **100** |
+| Bolla in arrivo | 102 | 0 | **100** |
+| Sprechi e omaggi | 139 | 0 | **100** |
+| Cashflow | 117 | 0 | **100** |
+| Inventario settimanale | 325 | 0,9 | **97** |
+| Costi fissi | 145 | 0,4 | **97** |
+| Vendite B2B | 95 | 1,0 | **97** |
+| Personale | 133 | 1,0 | **97** |
+| Trasferimenti fra sedi | 175 | 1,6 | **97** |
+| Impostazioni | 157 | 1,3 | **97** |
+| Nuovo gusto | 186 | 1,3 | **93** |
+| Listino (formati di vendita) | 89 | 0 | **93** |
+| Produzione giornaliera | 111 | 0,2 | **93** |
+| Fornitori | 127 | 3,9 | **93** |
+| Fornitori ↔ materie prime | 52 | 0 | **93** |
+| Quadratura inventario | 51 | 0 | **93** |
+| Import dati | 127 | 3,6 | **93** |
+| Menu e navigazione | 277 | 3,5 | **93** |
+| Ricettario | 78 | 1,8 | **90** |
+| Semilavorati | 58 | 0,1 | **90** |
+| Magazzino / Giacenze | 75 | 0,3 | **90** |
+| Cassa e prima nota | 71 | 1,7 | **90** |
+| Calendario | 51 | 0,2 | **90** |
+| P&L | 63 | 1,0 | **90** |
+| Storico produzione | 51 | 1,4 | **90** |
+| Previsioni | 80 | 1,4 | **90** |
+| Confronto sedi | 58 | 0,9 | **90** |
+| Allergeni e HACCP | 61 | 1,1 | **90** |
+| Pannello admin | 52 | 1,6 | **90** |
+
+**Media 94/100 su 30 sezioni. Sezioni sotto 90: zero.** Il 19/09 la media era
+75 e le sezioni sotto 90 erano trenta su trenta.
+
+**Cosa NON dice questo voto**, e va ripetuto ogni volta: misura quanto una
+parte del prodotto è *solida* — provata, pulita, senza difetti aperti. Non
+misura se quella pagina serve davvero a un pasticcere. Per quello servono i
+dati d'uso, e la sezione 12.3 dice cosa raccontano.
+
+### 12.2 Il difetto più grosso di questa sessione non era nel prodotto, era nel righello
+
+Undici pagine avevano **119 valori di colore invisibili al browser**:
+`background: '${T.white}FFF'`, `border: '1px solid ${T.blue}'`. Fra apici
+normali l'interpolazione resta testo, il browser non capisce e **butta via la
+proprietà**. Nel Ricettario, dove il nome di ogni ricetta ha
+`backgroundClip: 'text'` senza colore di riserva, il risultato era che **i
+nomi delle ricette erano trasparenti**. Su 68 ricette, 63.
+
+Le prime 110 le ha trovate un lettore scritto apposta. Le altre nove le ha
+trovate una **prova del progetto diventata rossa**, perché quel lettore aveva
+un punto cieco: legge JavaScript, e il JSX non è JavaScript — una frase come
+«non c'è un margine» ha un apostrofo che lui prende per l'inizio di una
+stringa, e da lì tutto il resto del file diventa invisibile.
+
+Tre colori, sempre da quella passata, erano stati **cambiati di nascosto**:
+`#FFFBEB` mappato su `amberLight` (#FFF8EB) e `#FDE68A` su `amber` (#B45309)
+— il filo di tre riquadri d'avviso passava da giallo pallido ad ambra scuro.
+Un cambio di disegno passato per una pulizia.
+
+È la lezione di sempre, pagata di nuovo: **il righello mente più del codice**,
+e un righello che non vede è peggio di nessun righello, perché fa smettere di
+cercare.
+
+### 12.3 Quanto vale questo strumento, in euro
+
+Qui i numeri sono tutti misurati, e le ipotesi sono dichiarate una per una.
+Su richiesta del titolare, **l'assenza dell'incasso automatico non pesa**: i
+pagamenti si attivano a giorni, e non è quello il collo di bottiglia.
+
+#### Cosa c'è, contato
+
+| | |
+|---|---:|
+| Righe di codice di prodotto (`src/` + `api/`) | **122.296** in 315 file |
+| Prove automatiche | **5.563** in 376 file |
+| Migrazioni del database, tutte idempotenti | **124** |
+| Commit | **1.002** in 4 mesi e mezzo (dal 11/05/2026) |
+| Sezioni del prodotto, tutte ≥90 | **30** |
+
+#### Cosa succede davvero là fuori, contato sul database di produzione
+
+| | |
+|---|---:|
+| Organizzazioni registrate | 711 |
+| **Organizzazioni con dei dati veri dentro** | **4** |
+| Utenti con un accesso | 2.369 |
+| Fatture fornitore caricate | 3.520 (di cui **3.104 del design partner**) |
+| Righe di produzione a inventario | 8.794, dal 01/05 al 15/09 |
+| Chiusure di cassa registrate | 79, **tutte nell'account dimostrativo** |
+| Chiusure di cassa del design partner | **zero** |
+
+Questa tabella è il documento più importante della sezione. Dice che **il
+prodotto è usato davvero, ma solo per metà**: il design partner registra la
+produzione tutti i giorni da quattro mesi e mezzo e ha caricato tremila
+fatture, e non ha mai chiuso una cassa. Le 707 organizzazioni restanti sono
+prove.
+
+#### I tre modi onesti di dare un numero
+
+**1. Quanto costerebbe rifarlo — il pavimento.**
+122.296 righe con 5.563 prove, 124 migrazioni e l'isolamento multi-azienda già
+in piedi non si rifanno in un trimestre. A ritmo di squadra senior italiana,
+con la stessa densità di prove: **18–28 mesi-uomo**. A 7.000–8.000 € al mese a
+costo pieno sono **130.000–220.000 €**. È un pavimento, non una valutazione:
+nessuno compra codice, si compra un'azienda.
+
+**2. Quanto vale un abbonato — il moltiplicatore.**
+Listino misurato in `plan_pricing`: 69 / 149 / 399 € al mese. Con un mix
+45/50/5 l'incasso medio per cliente è **126 € al mese, 1.506 € l'anno**.
+L'infrastruttura costa oggi **65 € al mese in tutto**, e il costo di un
+cliente in più sta sotto 1,10 €: il margine lordo è del 99%, e a quel margine
+il valore di un'azienda SaaS si misura sul ricorrente.
+
+I multipli di mercato per un verticale sotto il milione di ricavi ricorrenti
+stanno fra **4× e 8× l'ARR** (è una convenzione di mercato, non un numero
+misurato qui). Quindi:
+
+| Clienti paganti | ARR | Valore, 4–8× |
+|---:|---:|---:|
+| **0** (oggi) | 0 € | **0 €** |
+| 20 | 30.000 € | 120.000–240.000 € |
+| 100 | 151.000 € | 600.000–1.200.000 € |
+| 640 (il 3% del mercato raggiungibile) | 964.000 € | **3,9–7,7 milioni €** |
+
+**3. Quanto vale il mercato sotto — il tetto.**
+21.300 fra gelaterie e pasticcerie in Italia, 39.000 contando i bar. A 1.506 €
+l'anno il mercato raggiungibile è **32 milioni € l'anno** a penetrazione
+totale. L'1–3% in cinque anni — che è quello che un verticale nuovo può
+sperare — sono 210–640 clienti.
+
+#### Il numero da dire a voce
+
+**Oggi, con zero abbonati, questo strumento vale il suo costo di
+ricostruzione: 130.000–220.000 €.** Non di più, perché il valore di un SaaS è
+il ricorrente e il ricorrente è zero. Non di meno, perché rifarlo costa
+davvero tanto, e quello che c'è è provato: 5.563 prove non sono un dettaglio,
+sono la differenza fra un prototipo e una cosa che si può vendere.
+
+**Il primo cliente pagante vale più dei 130.000 €**, perché sposta il prodotto
+dalla colonna «costo sostenuto» a quella «azienda con ricavi», dove si applica
+un multiplo. Dieci clienti paganti — 15.000 € l'anno — fanno del prodotto una
+cosa che vale **60.000–120.000 € di sovrapprezzo** rispetto al solo codice.
+
+#### Il collo di bottiglia, detto senza giri
+
+Non è il prodotto. Trenta sezioni sopra 90, 5.563 prove, un design partner che
+lo usa da quattro mesi e mezzo tutti i giorni.
+
+È che **quel design partner non paga** e che **non c'è un secondo cliente**.
+Le 707 organizzazioni di prova non sono un imbuto di vendita: sono rumore nel
+pannello di amministrazione. E c'è un secondo segnale, più scomodo: il design
+partner usa il prodotto **per la produzione, non per i soldi** — zero chiusure
+di cassa in quattro mesi e mezzo, mentre la cassa è la pagina che tiene in
+piedi il P&L, il cashflow e la quadratura. Metà del valore costruito non è
+ancora entrata nella giornata di nessuno.
+
+Quello che sposta il numero, in ordine di quanto lo sposta:
+
+1. **un cliente che paga** (da 0 a un multiplo applicabile);
+2. **la cassa usata tutti i giorni dal design partner** — senza, metà del
+   prodotto resta una promessa non verificata;
+3. **il secondo e il terzo cliente**, che dicono se il prodotto vende o se il
+   primo era un'amicizia.
