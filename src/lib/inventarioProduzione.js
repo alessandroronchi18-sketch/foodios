@@ -815,7 +815,7 @@ export function dettaglioVenduto(matrice) {
 // (`ingredientiDaScaricare`), che è anche l'unico posto dove la regola vive.
 //
 // Ritorna { nuovoMagazzino, ingredientiScalati: [{nome, deltaG}], nonTrovati }.
-import { normIng } from './foodcost'
+import { normIng, resaGrammi } from './foodcost'
 import { ingredientiDaScaricare } from './scaricoIngredienti'
 
 export function scaloMagazzinoPerGusto(magazzino, ricetta, deltaProdG, ricettario = null) {
@@ -1147,7 +1147,7 @@ export function variazione(curr, prev) {
 // per ogni (gusto, giorno) crea una sessione con prodotto = nome gusto e
 // stampi = kg prodotti (1 stampo virtuale = 1 kg). Le view esistenti vedono
 // "quanto prodotto in kg" come "stampi", e tutti i KPI sono significativi.
-export function inventarioASessioni(righeInventario) {
+export function inventarioASessioni(righeInventario, ricettario = null) {
   if (!Array.isArray(righeInventario) || righeInventario.length === 0) return []
   // Stessa regola differenziale della vista settimanale (cellaVenduto):
   // prima queste due copie divergevano e le pagine legacy mostravano kg
@@ -1158,6 +1158,33 @@ export function inventarioASessioni(righeInventario) {
     if (!perGusto[r.gusto_nome]) perGusto[r.gusto_nome] = []
     perGusto[r.gusto_nome].push(r)
   }
+  // ── «1 stampo virtuale = 1 kg» era vero per 18 ricette su 63 ────────────
+  //
+  // 21/09/2026. Questa proiezione dava `stampi = chili prodotti`, e le pagine
+  // che la leggono trattano `stampi` come il metodo diretto: **quante volte
+  // si è fatta la ricetta**. Il food cost di una ricetta è il costo di UN
+  // impasto, e veniva moltiplicato per i chili.
+  //
+  // Un impasto di gelato non pesa un chilo tondo: sui dati del design partner
+  // va da 965 a 1.262 g, e solo 18 ricette su 63 stanno esatte a mille. Su
+  // dodici mesi veri — 18.526 kg prodotti — il conto usciva su 18.526 impasti
+  // invece che su 16.984: **+9,08% di food cost**, e lo stesso errore sul
+  // ricavo, su ogni pagina che legge queste sessioni.
+  //
+  // Il divisore è la **resa** (quanto esce da un impasto), non la somma degli
+  // ingredienti: è lo stesso numero che il ricavo usa di là. Oggi coincidono
+  // — nessuna ricetta dichiara una resa — ma il giorno che qualcuno la scrive
+  // i due conti devono restare d'accordo.
+  //
+  // Senza ricettario, o senza resa, si resta al vecchio «un chilo = un
+  // impasto»: è l'unica cosa che si può dire, e almeno non cambia di nascosto.
+  const volteDellaRicetta = (gusto, kg) => {
+    if (!ricettario || !(kg > 0 || kg < 0)) return kg
+    const ric = ricettaDelGusto(ricettario, normGusto(gusto))
+    const resa = ric ? resaGrammi(ric) : 0
+    return resa > 0 ? kg * 1000 / resa : kg
+  }
+
   const byData = {}
   for (const [gusto, righe] of Object.entries(perGusto)) {
     righe.sort((a, b) => a.data.localeCompare(b.data))
@@ -1169,10 +1196,15 @@ export function inventarioASessioni(righeInventario) {
       const vendutoKg = cell.venduto == null ? 0 : cell.venduto / 1000
       if (prodKg > 0 || vendutoKg !== 0) {
         if (!byData[r.data]) byData[r.data] = []
+        const arr = x => Math.round(x * 1000) / 1000
         byData[r.data].push({
           nome: gusto,
-          stampi: Math.round(prodKg * 1000) / 1000,
-          vendibile: Math.round(vendutoKg * 1000) / 1000,
+          stampi: arr(volteDellaRicetta(gusto, prodKg)),
+          vendibile: arr(volteDellaRicetta(gusto, vendutoKg)),
+          // I chili restano scritti: sono il dato che l'inventario conosce
+          // davvero, e servono a chi vuole mostrarli senza rifare il conto.
+          kgProdotti: arr(prodKg),
+          kgVenduti: arr(vendutoKg),
           _da_inventario: true,
           _quadra: cell.quadra !== false,
         })
@@ -1324,19 +1356,26 @@ export async function caricaStoricoMensile(orgId, sedeIds, dataFrom, dataTo) {
   return { source: 'client', perMese: [...perMese.values()] }
 }
 
-export async function caricaSessioniDaInventario(orgId, sedeId, opts = {}) {
+export async function caricaRigheInventario(orgId, sedeId, opts = {}) {
   if (!orgId || !sedeId) return []
   const monthsBack = opts.monthsBack || 12
   const inizio = new Date()
   inizio.setMonth(inizio.getMonth() - monthsBack)
   inizio.setDate(1)
   const inizioIso = formatLocalDate(inizio)
-  const rows = await fetchAllInventarioProduzione(orgId, {
+  return fetchAllInventarioProduzione(orgId, {
     sedeIds: sedeId,
     dataFrom: inizioIso,
     columns: COLONNE_VENDUTO,
   })
-  return inventarioASessioni(rows)
+}
+
+// Le righe più la proiezione, in un colpo solo. Chi ha il ricettario in mano
+// dovrebbe passarlo: senza, i chili non si sanno convertire in impasti e il
+// food cost esce più alto del vero (vedi il racconto su `inventarioASessioni`).
+export async function caricaSessioniDaInventario(orgId, sedeId, opts = {}) {
+  const rows = await caricaRigheInventario(orgId, sedeId, opts)
+  return inventarioASessioni(rows, opts.ricettario || null)
 }
 
 /**

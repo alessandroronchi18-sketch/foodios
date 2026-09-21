@@ -321,3 +321,111 @@ describe('Le sessioni fuori dall\'inventario non si buttano via', () => {
     expect(unisciSessioni(null, null)).toEqual([])
   })
 })
+
+// ── «1 stampo virtuale = 1 kg» era vero per 18 ricette su 63 ────────────
+//
+// Terzo difetto dello stesso audit, e il più caro. Il ponte che porta
+// l'inventario nelle altre venti pagine dava `stampi = chili prodotti`. Ma
+// quelle pagine trattano `stampi` come fa il metodo diretto: **quante volte
+// si è fatta la ricetta**. Il food cost di una ricetta è il costo di UN
+// impasto, e veniva moltiplicato per i chili.
+//
+// Un impasto di gelato non pesa un chilo tondo. Misurato sul ricettario vero
+// del design partner: da 965 a 1.262 g, e solo **18 ricette su 63** stanno
+// esatte a mille. Su dodici mesi di produzione vera — **18.526 kg** — il
+// conto usciva su 18.526 impasti invece che su 16.984: **+9,08% di food
+// cost**, e lo stesso errore sul ricavo, su ogni pagina che legge queste
+// sessioni (P&L, storico produzione, home, confronto sedi, simulatore
+// prezzi). Il margine in euro si spostava del 9%.
+import { inventarioASessioni } from '../../src/lib/inventarioProduzione'
+
+const rigaInv = (gusto, data, prod, riman) => ({
+  gusto_nome: gusto, data, produzione_g: prod, rimanenza_g: riman, scarto_g: 0, spedito_g: 0,
+})
+
+// Due ricette con due impasti diversi, come nei dati veri.
+const RICETTARIO_GUSTI = {
+  ingredienti_costi: {},
+  ricette: {
+    NOCCIOLA: { nome: 'NOCCIOLA', tipo: 'gusto', unita: 1, prezzo: 0,
+      ingredienti: [{ nome: 'latte', qty1stampo: 800 }, { nome: 'pasta nocciola', qty1stampo: 462 }] }, // 1262 g
+    FIORDILATTE: { nome: 'FIORDILATTE', tipo: 'gusto', unita: 1, prezzo: 0,
+      ingredienti: [{ nome: 'latte', qty1stampo: 1000 }] },                                              // 1000 g
+  },
+}
+
+describe('I chili prodotti diventano impasti, non restano chili', () => {
+  it('12,62 kg di un impasto da 1.262 g fanno dieci impasti', () => {
+    const righe = [rigaInv('NOCCIOLA', '2026-09-20', 12620, 0)]
+    const [sess] = inventarioASessioni(righe, RICETTARIO_GUSTI)
+    expect(sess.prodotti[0].stampi).toBe(10)
+  })
+
+  it('e con un impasto da un chilo il numero non cambia', () => {
+    // La metà delle ricette sta lì: la correzione non deve spostare quelle.
+    const righe = [rigaInv('FIORDILATTE', '2026-09-20', 5000, 0)]
+    const [sess] = inventarioASessioni(righe, RICETTARIO_GUSTI)
+    expect(sess.prodotti[0].stampi).toBe(5)
+  })
+
+  it('i chili restano scritti, per chi li vuole mostrare', () => {
+    const righe = [rigaInv('NOCCIOLA', '2026-09-20', 12620, 0)]
+    const [sess] = inventarioASessioni(righe, RICETTARIO_GUSTI)
+    expect(sess.prodotti[0].kgProdotti).toBe(12.62)
+  })
+
+  it('anche il venduto passa in impasti, o ricavo e costo non parlano la stessa lingua', () => {
+    // Due giorni: il secondo parte dalla rimanenza del primo.
+    const righe = [
+      rigaInv('NOCCIOLA', '2026-09-20', 12620, 6310),
+      rigaInv('NOCCIOLA', '2026-09-21', 0, 0),
+    ]
+    const sessioni = inventarioASessioni(righe, RICETTARIO_GUSTI)
+    const g21 = sessioni.find(s => s.data === '2026-09-21')
+    // venduto = 6.310 g = 5 impasti da 1.262
+    expect(g21.prodotti[0].vendibile).toBe(5)
+    expect(g21.prodotti[0].kgVenduti).toBe(6.31)
+  })
+
+  it('senza ricettario resta il vecchio «un chilo, un impasto»', () => {
+    // È l'unica cosa che si può dire quando non si sa quanto pesa un impasto.
+    // Meglio il vecchio comportamento che un numero inventato.
+    const righe = [rigaInv('NOCCIOLA', '2026-09-20', 12620, 0)]
+    const [sess] = inventarioASessioni(righe, null)
+    expect(sess.prodotti[0].stampi).toBe(12.62)
+  })
+
+  it('e un gusto che non ha ricetta non manda in crisi il conto', () => {
+    const righe = [rigaInv('GUSTO SCONOSCIUTO', '2026-09-20', 3000, 0)]
+    const [sess] = inventarioASessioni(righe, RICETTARIO_GUSTI)
+    expect(sess.prodotti[0].stampi).toBe(3)
+    expect(Number.isFinite(sess.prodotti[0].stampi)).toBe(true)
+  })
+
+  it('una ricetta senza ingredienti non fa uscire Infinity', () => {
+    const vuota = { ingredienti_costi: {}, ricette: { X: { nome: 'X', tipo: 'gusto', unita: 1, prezzo: 0, ingredienti: [] } } }
+    const [sess] = inventarioASessioni([rigaInv('X', '2026-09-20', 3000, 0)], vuota)
+    // `resaGrammi` per un gusto senza ingredienti vale 1000 g: tre impasti.
+    expect(Number.isFinite(sess.prodotti[0].stampi)).toBe(true)
+    expect(sess.prodotti[0].stampi).toBe(3)
+  })
+
+  it('il conto sui numeri veri: 18.526 kg fanno 16.984 impasti, non 18.526', () => {
+    // La misura che ha fatto scoprire il difetto, ridotta a due ricette con
+    // gli stessi pesi degli estremi veri (965 g e 1.262 g).
+    const ric = {
+      ingredienti_costi: {},
+      ricette: {
+        LEGGERA: { nome: 'LEGGERA', tipo: 'gusto', unita: 1, prezzo: 0, ingredienti: [{ nome: 'latte', qty1stampo: 965 }] },
+        PESANTE: { nome: 'PESANTE', tipo: 'gusto', unita: 1, prezzo: 0, ingredienti: [{ nome: 'latte', qty1stampo: 1262 }] },
+      },
+    }
+    const righe = [rigaInv('LEGGERA', '2026-09-20', 9650, 0), rigaInv('PESANTE', '2026-09-20', 12620, 0)]
+    const [sess] = inventarioASessioni(righe, ric)
+    const impasti = sess.prodotti.reduce((s, p) => s + p.stampi, 0)
+    const chili = sess.prodotti.reduce((s, p) => s + p.kgProdotti, 0)
+    expect(impasti).toBe(20)          // 10 + 10
+    expect(chili).toBe(22.27)         // 9,65 + 12,62
+    expect(impasti, 'i chili sono tornati a farsi contare come impasti').not.toBe(chili)
+  })
+})

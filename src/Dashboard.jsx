@@ -1556,6 +1556,15 @@ export default function Dashboard({
     });
   },[orgId, sedeId, sedeAttiva?._all]);
 
+  // Il ricettario in un riferimento. Il ponte qui sotto ne ha bisogno per
+  // sapere quanto pesa un impasto — senza, i chili prodotti finirebbero
+  // contati come impasti e il food cost uscirebbe più alto del vero. Ma il
+  // ponte scarica un anno di righe: farlo ripartire a ogni modifica di una
+  // ricetta sarebbe un pedaggio inutile, quindi il valore si legge, non si
+  // osserva.
+  const ricettarioRef = useRef(ricettario)
+  useEffect(() => { ricettarioRef.current = ricettario }, [ricettario])
+
   // BRIDGE inventario→giornaliero: per le sedi in metodo='inventario',
   // SK_GIOR è vuoto (i dati vivono in inventario_produzione). Carichiamo
   // l'ultimo anno dalla nuova tabella e proiettiamo come sessioni così
@@ -1565,7 +1574,11 @@ export default function Dashboard({
     if (!orgId || !sedeId) return
     const isInv = isMetodoInv && sedeAttiva?.is_sede_produzione
     if (!isInv) return
-    caricaSessioniDaInventario(orgId, sedeId, { monthsBack: 12 })
+    // Si aspetta che il ricettario sia arrivato: parte senza, i chili
+    // verrebbero contati come impasti e il food cost di un anno uscirebbe
+    // più alto del vero finché non si ricarica la pagina.
+    if (!ready) return
+    caricaSessioniDaInventario(orgId, sedeId, { monthsBack: 12, ricettario: ricettarioRef.current })
       .then(async sessioni => {
         // ── SK_GIOR non è vuoto, e per questo il ponte buttava via dei dati ──
         //
@@ -1594,7 +1607,7 @@ export default function Dashboard({
         setGiornaliero(unisciSessioni(sessioni, dalBlob))
       })
       .catch(e => console.error('bridge inventario→giornaliero:', e))
-  }, [orgId, sedeId, isMetodoInv, sedeAttiva?.is_sede_produzione])
+  }, [orgId, sedeId, isMetodoInv, sedeAttiva?.is_sede_produzione, ready])
 
   // Audit 2026-06-25: pop-up "Novità in Foodos X.Y.Z" disabilitato per richiesta
   // utente - appariva ad ogni release nuova. Resta accessibile manualmente da
