@@ -8,8 +8,8 @@ import { sload, ssave, sloadAllSedi } from '../lib/storage'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { SkeletonList } from './Skeleton'
 import { calcolaStipendio, costoOrarioDaStipendio, costoPersonaleMensile, costoLavoroDaTurni } from '../lib/stipendiCalc'
-import { toMin as _toMin, finMin as _finMin, hm as _hm, oreTurno, analizzaCopertura } from '../lib/turni'
-import { color as T, radius as R, shadow as S, motion as M, tnum, typo } from '../lib/theme'
+import { toMin as _toMin, finMin as _finMin, hm as _hm, oreTurno, analizzaCopertura, oraValida } from '../lib/turni'
+import { color as T, radius as R, shadow as S, motion as M, font as F, tnum, typo } from '../lib/theme'
 import { fmtp, fmtp0 } from '../lib/formatIt'
 import { todayLocal, meseLocale, aggiungiGiorni, aggiungiMesi, giorniTra, lunediDellaSettimana, primoGiornoDelMese, ultimoGiornoDelMese } from '../lib/dateLocal'
 
@@ -25,10 +25,40 @@ function oraria(d) {
   return scritto > 0 ? scritto : costoOrarioDaStipendio(d)
 }
 
+// Sappiamo quanto costa un'ora di quella persona? Zero non è una risposta.
+//
+// `costo_orario` sul database vale 0 di default e la colonna accetta il vuoto:
+// una cella lasciata in bianco — a mano o in import — diventa 0, e 0 si legge
+// «lavora gratis». Su Mara dei Boschi tutti e tre i dipendenti hanno il costo
+// orario a 0 e lo stipendio scritto: chi conta 0 fa sparire 12.141 € al mese.
+// Qui distinguiamo le due cose una volta sola, e chi scrive a schermo mette
+// un trattino invece di uno zero.
+function costoNoto(d) {
+  return oraria(d) > 0 || (Number(d?.stipendio_lordo_mensile) || 0) > 0
+}
 
+// Un orario del database è "08:00:00"; gli attrezzi di `src/lib/turni.js`
+// leggono solo "08:00".
+//
+// Sembra un dettaglio di forma e invece spegneva tutta la scheda Turni.
+// Postgres restituisce le colonne `time` coi secondi, `oraValida('08:00:00')`
+// rispondeva di no, e `finMin` ripiegava sull'ora di inizio: ogni turno letto
+// dal database durava ZERO minuti. Tutto insieme: la timeline del giorno e
+// della settimana restava vuota (un «-» su ogni riga), la barra della
+// copertura e il «2 persone in turno» non comparivano mai, e l'avviso sui
+// turni accavallati non scattava perché confrontava intervalli lunghi zero.
+// Le ore in cima alla pagina invece c'erano, perché vengono dalla colonna
+// `ore` già calcolata: il totale diceva 32 ore e il calendario sotto era vuoto.
+const soloOreMinuti = (v) => String(v ?? '').trim().slice(0, 5)
+
+
+// I due rossi (regola del titolare, 14/09/2026): `C.red` è il bordeaux del
+// marchio, il colore delle AZIONI e dei costi in evidenza; `C.alert` è il rosso
+// segnale, che si usa solo quando qualcosa non va.
 const C = {
-  bg: T.bg, bgCard: T.bgCard, red: T.brand, redLight: T.brandLight,
-  green: T.green, greenLight: T.greenLight, amber: T.amber, amberLight: T.amberLight,
+  bg: T.bg, bgCard: T.bgCard, bgSubtle: T.bgSubtle, red: T.brand, redLight: T.brandLight,
+  green: T.green, greenLight: T.greenLight, amber: T.amber, amberDark: T.amberDark, amberLight: T.amberLight,
+  alert: T.red, alertLight: T.redLight,
   text: T.text, textMid: T.textMid, textSoft: T.textSoft, white: T.white,
   border: T.border, borderStr: T.borderStr,
 }
@@ -45,13 +75,31 @@ function etichettaNome(nome) {
   return n || '-'
 }
 
+// Quanto costa un'ora, scritto per chi legge.
+//
+// Se non lo sappiamo si scrive «costo da inserire», non «0,00 €/h». Erano due
+// informazioni diverse stampate identiche: chi guardava la lista vedeva una
+// persona che costa zero e non aveva modo di capire che il dato mancava.
+function etichettaOraria(d) {
+  if (!costoNoto(d)) return 'costo da inserire'
+  const h = oraria(d)
+  const daStipendio = !(Number(d?.costo_orario) > 0) && h > 0
+  return `${fmt(h)}/h${daStipendio ? ' (dallo stipendio)' : ''}`
+}
+
+// Il costo mensile per l'azienda di quella persona, o il perché non c'è.
+function etichettaMese(d) {
+  if (!costoNoto(d)) return 'costo mese da calcolare'
+  return `${fmt(costoPersonaleMensile([d]).totale)}/mese`
+}
+
 // ─── Copertura turni: sovrapposizioni + n° persone presenti per fascia oraria ──
 // Gli orari dei turni (minuti, mezzanotte, ore, copertura) vivono in
 // src/lib/turni.js: stavano qui dentro e non erano testabili.
 const _covColor = c => c===0 ? '#FCA5A5' : c===1 ? '#9AD0B4' : c===2 ? '#16A34A' : '#0B6E3D'
 // Colori per dipendente (timeline turni) + packing in corsie: i turni che si
 // sovrappongono finiscono in corsie diverse → si VEDE la compresenza.
-const DIP_COLORS = ['#6E0E1A', '#2980B9', '#16A34A', '#C77D11', '#8E44AD', '#0E7490', '#B83280', '#475569']
+const DIP_COLORS = [T.brand, '#2980B9', '#16A34A', '#C77D11', '#8E44AD', '#0E7490', '#B83280', '#475569']
 function packLanes(shifts) {
   const laneEnds = []
   const placed = shifts.slice().sort((a, b) => a.ini - b.ini || a.fin - b.fin).map(s => {
@@ -66,14 +114,14 @@ function CoperturaBar({ cov, compact }) {
   if (!cov || !cov.shifts.length) return null
   return (
     <div style={{ marginTop: compact?6:8 }}>
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', fontSize: typo.small.fontSize, color:'#8B95A7', marginBottom:3, gap:6 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', fontSize: typo.small.fontSize, color:T.textSoft, marginBottom:3, gap:6 }}>
         <span>{_hm(cov.open)}</span>
-        <span style={{ fontWeight:700, color: '#8B95A7', whiteSpace:'nowrap' }}>
+        <span style={{ fontWeight:700, color: T.textSoft, whiteSpace:'nowrap' }}>
           {`${cov.min===cov.max?cov.min:`${cov.min}–${cov.max}`} in turno`}
         </span>
         <span>{_hm(cov.close)}</span>
       </div>
-      <div style={{ display:'flex', height: compact?7:10, borderRadius:5, overflow:'hidden', background:'#EEE' }}>
+      <div style={{ display:'flex', height: compact?7:10, borderRadius:5, overflow:'hidden', background:T.bgMuted }}>
         {cov.segments.map((s,i)=>(
           <div key={i} title={`${_hm(s.a)}–${_hm(s.b)} · ${s.count} ${s.count===1?'persona':'persone'}`}
             style={{ flex:s.b-s.a, background:_covColor(s.count) }}/>
@@ -83,9 +131,20 @@ function CoperturaBar({ cov, compact }) {
   )
 }
 
+// Le tre tinte su fondo scuro. Il verde, l'ambra e il rosso del tema sono
+// scelti per stare sul bianco: sul bordeaux profondo del riquadro
+// dell'incidenza non si leggono. Scritte qui una volta sola invece che due
+// volte in ogni punto che le usa (numero grande e anello di progresso).
+const TINTE_SU_SCURO = { ok: '#7BE0A6', attenzione: '#FCD34D', allarme: '#FCA5A5' }
+
 const TIPI_CONTRATTO = ["Full-time","Part-time","Stagionale","Collaboratore","Apprendista"]
 
-function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
+function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = false }) {
+  // Il tablet si tocca col dito come il telefono. `isTablet` arrivava già come
+  // prop da `Personale` e non lo leggeva nessuno: sul tablet i pulsanti di
+  // modifica e archivio erano alti 25 px, meno della metà dei 44 che ci vuole
+  // per prenderli senza sbagliare con le mani infarinate.
+  const dito = isMobile || isTablet
   const confirmDialog = useConfirm()
   const [lista, setLista] = useState([])
   const [loading, setLoading] = useState(true)
@@ -259,10 +318,20 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
     setEditId(d.id); if (isMobile) setShowForm(true)
   }
 
-  // Audit 2026-06-22: costo_orario/ore_settimana sono numeric in Postgres → string da PostgREST.
-  const _num = (x) => { const n = Number(x); return Number.isFinite(n) ? n : 0 }
-  const costoMeseTot = costoPersonaleMensile(lista).totale
-  const inputSt = { width:"100%", height: 40, padding: "0 12px", borderRadius: R.md, border:`1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 13, color:C.text, background: C.bgCard, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }
+  // Quante persone non si riescono a contare, e quanto costa il resto.
+  //
+  // `_num` e `costoMeseTot` stavano qui e non li leggeva nessuno: il totale
+  // era calcolato a ogni render e buttato via. Adesso serve, e serve
+  // soprattutto il secondo numero — chi non ha né costo orario né stipendio
+  // vale zero in ogni conto della pagina, e prima non c'era un posto dove
+  // vederlo.
+  const riepilogoCosto = costoPersonaleMensile(lista)
+  const senzaCosto = lista.filter(d => !costoNoto(d))
+  // La misura del testo nei campi è una sola: la regola che impedisce a iOS
+  // di ingrandire la pagina sta in `index.html` sotto `@media (pointer: coarse)`
+  // e vale per telefono E tablet. Scritta qui come `isMobile ? 16 : 13` saltava
+  // proprio il tablet, perché `isMobile` è falso sull'iPad.
+  const inputSt = { width:"100%", height: 40, padding: "0 12px", borderRadius: R.md, border:`1px solid ${C.borderStr}`, fontSize: F.size.base, color:C.text, background: C.bgCard, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }
   const formVisible = !isMobile || showForm
 
   return (
@@ -284,11 +353,11 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
         overflowY: isMobile ? "auto" : "visible",
       }}>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
-          <div style={{ fontSize:13, fontWeight:800, color:C.text, display:"inline-flex", alignItems:"center", gap:6 }}>
+          <div style={{ fontSize:F.size.base, fontWeight:800, color:C.text, display:"inline-flex", alignItems:"center", gap:6 }}>
             <Icon name={editId ? "edit" : "plus"} size={15} />{editId ? "Modifica dipendente" : "Nuovo dipendente"}
           </div>
           {isMobile && (
-            <button onClick={reset} aria-label="Chiudi form" style={{ padding:"6px 12px", background:"transparent", border:"none", fontSize:18, color:C.textSoft, cursor:"pointer" }}>✕</button>
+            <button onClick={reset} aria-label="Chiudi form" style={{ padding:"10px 12px", minWidth:44, minHeight:44, background:"transparent", border:"none", color:C.textSoft, cursor:"pointer", display:"inline-flex", alignItems:"center", justifyContent:"center" }}><Icon name="x" size={16} /></button>
           )}
         </div>
         {[["Nome e cognome *","nome","text","es. Mario Rossi"],["Ruolo","ruolo","text","es. Pasticciere (facoltativo)"]].map(([lbl,key,type,ph])=>(
@@ -334,14 +403,19 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
             <input type="number" min="0" max="60" value={form.ore_settimana} onChange={e=>setForm(f=>({...f,ore_settimana:e.target.value}))} style={inputSt}/>
           </div>
         </div>
+        {/* Il conto passa da `costoPersonaleMensile`, come la lista qui accanto
+            e come il conto economico. Prima era scritto a mano — ore per costo
+            orario per 4,33 — e dava il LORDO, senza contributi e TFR: in cima
+            si leggeva un numero e tre centimetri sotto, per la stessa persona,
+            se ne leggeva un altro più alto del 40%. */}
         {form.costo_orario && form.ore_settimana && (
-          <div style={{ marginBottom:12, padding:"8px 12px", background:C.amberLight, borderRadius:8, fontSize: typo.small.fontSize, color:C.amber, fontWeight:700 }}>
-            Costo mese stimato (dal costo orario): {fmt((parseFloat(form.costo_orario)||0)*(parseFloat(form.ore_settimana)||0)*4.33)}
+          <div style={{ marginBottom:12, padding:"8px 12px", background:C.amberLight, borderRadius:8, fontSize: typo.small.fontSize, color:C.amberDark, fontWeight:700 }}>
+            Costo mese per l&apos;azienda (contributi e TFR compresi): {fmt(costoPersonaleMensile([{ costo_orario: form.costo_orario, ore_settimana: form.ore_settimana }]).totale)}
           </div>
         )}
 
         {/* STIPENDIO MENSILE + CONTRATTO */}
-        <div style={{ marginBottom: 12, padding: 12, background: '#F8FAFC', border: `1px solid ${C.border}`, borderRadius: 10 }}>
+        <div style={{ marginBottom: 12, padding: 12, background: T.bgSubtle, border: `1px solid ${C.border}`, borderRadius: 10 }}>
           <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>
             Stipendio mensile (in alternativa al costo orario)
           </div>
@@ -435,7 +509,7 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
         <div style={{ marginBottom: 10, display: 'flex', gap: 6 }}>
           {[['attivi', 'Attivi', 'users'], ['archivio', `Archivio${archCount > 0 ? ` (${archCount})` : ''}`, 'package']].map(([id, lbl, icon]) => (
             <button key={id} onClick={() => setVista(id)}
-              style={{ padding: '5px 12px', borderRadius: 999, border: `1px solid ${vista === id ? C.red : C.border}`,
+              style={{ padding: dito ? '11px 16px' : '5px 12px', minHeight: dito ? 44 : undefined, borderRadius: 999, border: `1px solid ${vista === id ? C.red : C.border}`,
                 background: vista === id ? C.redLight : C.white, color: vista === id ? C.red : C.textMid,
                 fontSize: typo.small.fontSize, fontWeight: vista === id ? 800 : 600, cursor: 'pointer',
                 display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name={icon} size={13} />{lbl}</button>
@@ -450,32 +524,50 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
               placeholder="Cerca dipendente per nome o cognome…" aria-label="Cerca dipendente"
               style={{ ...inputSt, paddingLeft:34, paddingRight: search ? 34 : 12 }}
             />
-            {search && <button onClick={()=>setSearch('')} aria-label="Pulisci ricerca" style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-50%)", background:"transparent", border:"none", fontSize:14, color:C.textSoft, cursor:"pointer", padding:4 }}>✕</button>}
+            {search && <button onClick={()=>setSearch('')} aria-label="Pulisci ricerca" style={{ position:"absolute", right:6, top:"50%", transform:"translateY(-50%)", background:"transparent", border:"none", color:C.textSoft, cursor:"pointer", padding:6, display:"inline-flex", alignItems:"center" }}><Icon name="x" size={14} /></button>}
           </div>
         )}
-        {/* KPI strip rimossa: ora i totali stanno nell'header globale di Personale. */}
+        {/* KPI strip rimossa: ora i totali stanno nell'header globale di Personale.
+            Resta la riga che dice su QUANTE persone è fatto il totale: senza,
+            un costo del lavoro calcolato su metà organico sembrava completo. */}
+        {!loading && !inArchivio && lista.length > 0 && (
+          <div style={{ display:'flex', flexWrap:'wrap', alignItems:'baseline', gap:8, marginBottom:10, padding:'8px 12px',
+            background: senzaCosto.length > 0 ? C.amberLight : C.bgSubtle, borderRadius: R.md,
+            border:`1px solid ${senzaCosto.length > 0 ? `${C.amber}30` : C.border}` }}>
+            <span style={{ fontSize: typo.small.fontSize, color: C.textMid, fontWeight: 600 }}>
+              Costo del personale: <strong style={{ color: C.red, ...tnum }}>{riepilogoCosto.contati > 0 ? `${fmt0(riepilogoCosto.totale)}/mese` : 'non calcolabile'}</strong>
+              {' '}su {riepilogoCosto.contati} {riepilogoCosto.contati === 1 ? 'persona' : 'persone'} di {lista.length}
+            </span>
+            {senzaCosto.length > 0 && (
+              <span style={{ fontSize: typo.small.fontSize, color: C.amberDark, fontWeight: 700, display:'inline-flex', alignItems:'center', gap:5 }}>
+                <Icon name="warning" size={12} />
+                {senzaCosto.length === 1 ? '1 persona senza costo orario né stipendio' : `${senzaCosto.length} persone senza costo orario né stipendio`}
+              </span>
+            )}
+          </div>
+        )}
         {loading ? <SkeletonList count={4} /> : lista.length === 0 ? (
-          <div style={{ color:C.textSoft, fontSize:13, textAlign:"center", padding:40 }}>{inArchivio ? "Nessun dipendente archiviato." : "Nessun dipendente ancora."}</div>
+          <div style={{ color:C.textSoft, fontSize:F.size.base, textAlign:"center", padding:40 }}>{inArchivio ? "Nessun dipendente archiviato." : "Nessun dipendente ancora."}</div>
         ) : listaView.length === 0 ? (
-          <div style={{ color:C.textSoft, fontSize:13, textAlign:"center", padding:40 }}>Nessun dipendente trovato per "{search}".</div>
+          <div style={{ color:C.textSoft, fontSize:F.size.base, textAlign:"center", padding:40 }}>Nessun dipendente trovato per "{search}".</div>
         ) : isMobile ? listaView.map(d=>(
           <div key={d.id} className="fos-tile" style={{ background:C.bgCard, borderRadius:16, border:`1px solid ${C.border}`, padding:"14px 16px", marginBottom:8, boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)" }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:8 }}>
               <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontWeight:800, fontSize:14, color:C.text }}>{d.nome}</div>
-                <div style={{ fontSize:12, color:C.textMid, marginTop:2 }}>{d.ruolo || "-"} · {fmt(oraria(d))}/h{!(Number(d.costo_orario) > 0) && oraria(d) > 0 ? ' (dallo stipendio)' : ''}</div>
+                <div style={{ fontWeight:800, fontSize:F.size.md, color:C.text }}>{d.nome}</div>
+                <div style={{ fontSize:F.size.sm, color:C.textMid, marginTop:2 }}>{d.ruolo || "-"} · {etichettaOraria(d)}</div>
                 <div style={{ fontSize: typo.small.fontSize, color:C.textSoft, marginTop:2 }}>
-                  {d.ore_settimana}h/sett · <strong style={{ color:C.red }}>{fmt(costoPersonaleMensile([d]).totale)}/mese</strong>
+                  {d.ore_settimana}h/sett · <strong style={{ color: costoNoto(d) ? C.red : C.amberDark }}>{etichettaMese(d)}</strong>
                 </div>
               </div>
               <span style={{ fontSize: typo.small.fontSize, fontWeight:700, padding:"3px 10px", borderRadius:12, background:C.amberLight, color:C.amber, whiteSpace:"nowrap" }}>{d.tipo_contratto}</span>
             </div>
             {d.note && <div style={{ fontSize: typo.small.fontSize, color:C.textSoft, marginTop:6, fontStyle:"italic" }}>{d.note}</div>}
             <div style={{ display:"flex", gap:8, marginTop:10 }}>
-              <button onClick={()=>initEdit(d)} style={{ flex:1, padding:"10px", background:C.bg, border:`1px solid ${C.borderStr}`, borderRadius:8, fontSize:12, color:C.textMid, cursor:"pointer", fontWeight:600 }}>Modifica</button>
+              <button onClick={()=>initEdit(d)} style={{ flex:1, padding:"10px", background:C.bg, border:`1px solid ${C.borderStr}`, borderRadius:8, fontSize:F.size.sm, color:C.textMid, cursor:"pointer", fontWeight:600 }}>Modifica</button>
               {inArchivio
-                ? <button onClick={()=>riattiva(d.id)} style={{ flex:1, padding:"10px", background:"#ECFDF5", border:"1px solid #10B981", borderRadius:8, fontSize:12, color:"#065F46", cursor:"pointer", fontWeight:700 }}>↩ Riattiva</button>
-                : <button onClick={()=>disattiva(d.id)} style={{ flex:1, padding:"10px", background:C.redLight, border:`1px solid ${C.red}40`, borderRadius:8, fontSize:12, color:C.red, cursor:"pointer", fontWeight:600 }}>Archivia</button>}
+                ? <button onClick={()=>riattiva(d.id)} style={{ flex:1, padding:"10px", background:C.greenLight, border:`1px solid ${C.green}`, borderRadius:8, fontSize:F.size.sm, color:C.green, cursor:"pointer", fontWeight:700, display:"inline-flex", alignItems:"center", justifyContent:"center", gap:6 }}><Icon name="refresh" size={13} />Riattiva</button>
+                : <button onClick={()=>disattiva(d.id)} style={{ flex:1, padding:"10px", background:C.redLight, border:`1px solid ${C.red}40`, borderRadius:8, fontSize:F.size.sm, color:C.red, cursor:"pointer", fontWeight:600 }}>Archivia</button>}
             </div>
           </div>
         )) : listaView.map(d=>(
@@ -483,12 +575,12 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
             <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:8 }}>
               <div>
                 <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:3, flexWrap: 'wrap' }}>
-                  <span style={{ fontWeight:800, fontSize:13, color:C.text }}>{d.nome}</span>
+                  <span style={{ fontWeight:800, fontSize:F.size.base, color:C.text }}>{d.nome}</span>
                   <span style={{ fontSize: typo.small.fontSize, fontWeight:700, padding:"2px 8px", borderRadius:20, background:C.amberLight, color:C.amber }}>{d.tipo_contratto}</span>
                   {haPiuSedi && (
                     <span style={{ fontSize: typo.small.fontSize, padding: '2px 8px', borderRadius: 999,
-                      background: d.sede_id ? C.amberLight : '#F1F5F9',
-                      color: d.sede_id ? '#92400E' : C.textSoft, fontWeight: 700,
+                      background: d.sede_id ? C.amberLight : C.bgSubtle,
+                      color: d.sede_id ? C.amberDark : C.textSoft, fontWeight: 700,
                       display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                       <Icon name={d.sede_id ? "pin" : "building"} size={10} />{d.sede_id ? (sediMap[d.sede_id]?.nome || 'Sede') : 'Azienda'}
                     </span>
@@ -496,15 +588,15 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
                 </div>
                 {d.ruolo && <div style={{ fontSize: typo.small.fontSize, color:C.textMid, marginBottom:2, display:"inline-flex", alignItems:"center", gap:5 }}><Icon name="briefcase" size={12} />{d.ruolo}</div>}
                 <div style={{ fontSize: typo.small.fontSize, color:C.textSoft }}>
-                  {fmt(oraria(d))}/h · {d.ore_settimana}h/sett · <strong style={{ color:C.red }}>{fmt(costoPersonaleMensile([d]).totale)}/mese</strong>
+                  {etichettaOraria(d)} · {d.ore_settimana}h/sett · <strong style={{ color: costoNoto(d) ? C.red : C.amberDark }}>{etichettaMese(d)}</strong>
                 </div>
                 {d.note && <div style={{ fontSize: typo.small.fontSize, color:C.textSoft, marginTop:3, fontStyle:"italic" }}>{d.note}</div>}
               </div>
               <div style={{ display:"flex", gap:6, flexShrink:0 }}>
-                <button onClick={()=>initEdit(d)} title="Modifica" style={{ padding:"5px 10px", borderRadius:8, border:`1px solid ${C.borderStr}`, background:C.white, fontSize: typo.small.fontSize, color:C.textMid, cursor:"pointer" }}><Icon name="edit" size={13} /></button>
+                <button onClick={()=>initEdit(d)} title="Modifica" style={{ padding: dito ? "11px 14px" : "5px 10px", minHeight: dito ? 44 : undefined, borderRadius:8, border:`1px solid ${C.borderStr}`, background:C.white, fontSize: typo.small.fontSize, color:C.textMid, cursor:"pointer" }}><Icon name="edit" size={13} /></button>
                 {inArchivio
-                  ? <button onClick={()=>riattiva(d.id)} title="Riattiva" style={{ padding:"5px 10px", borderRadius:8, border:"1px solid #10B981", background:"#ECFDF5", fontSize: typo.small.fontSize, color:"#065F46", cursor:"pointer", fontWeight:700 }}>↩ Riattiva</button>
-                  : <button onClick={()=>disattiva(d.id)} title="Archivia" style={{ padding:"5px 10px", borderRadius:8, border:`1px solid ${C.red}40`, background:C.redLight, fontSize: typo.small.fontSize, color:C.red, cursor:"pointer" }}><Icon name="package" size={13} /></button>}
+                  ? <button onClick={()=>riattiva(d.id)} title="Riattiva" style={{ padding: dito ? "11px 14px" : "5px 10px", minHeight: dito ? 44 : undefined, borderRadius:8, border:`1px solid ${C.green}`, background:C.greenLight, fontSize: typo.small.fontSize, color:C.green, cursor:"pointer", fontWeight:700, display:"inline-flex", alignItems:"center", gap:5 }}><Icon name="refresh" size={13} />Riattiva</button>
+                  : <button onClick={()=>disattiva(d.id)} title="Archivia" style={{ padding: dito ? "11px 14px" : "5px 10px", minHeight: dito ? 44 : undefined, borderRadius:8, border:`1px solid ${C.red}40`, background:C.redLight, fontSize: typo.small.fontSize, color:C.red, cursor:"pointer" }}><Icon name="package" size={13} /></button>}
               </div>
             </div>
           </div>
@@ -513,7 +605,7 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
 
       {isMobile && !showForm && (
         <div style={{ position:"fixed", bottom:0, left:0, right:0, padding:"12px 16px", background:C.white, borderTop:`1px solid ${C.border}`, zIndex:100 }}>
-          <button onClick={()=>{ reset(); setShowForm(true) }} style={{ width:"100%", padding:"14px", background:C.red, color:C.white, border:"none", borderRadius:10, fontSize:15, fontWeight:800, cursor:"pointer" }}>
+          <button onClick={()=>{ reset(); setShowForm(true) }} style={{ width:"100%", padding:"14px", background:C.red, color:C.white, border:"none", borderRadius:10, fontSize:typo.h3.fontSize, fontWeight:800, cursor:"pointer" }}>
             + Aggiungi dipendente
           </button>
         </div>
@@ -523,10 +615,13 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
 }
 
 // Palette reparti: poche tinte nette e leggibili (più pulito di un colore per persona).
-const REPARTO_COLORS = ['#6E0E1A', '#2563EB', '#16A34A', '#C2410C', '#7C3AED', '#0E7490']
-const SENZA_REPARTO = { nome: 'Senza reparto', color: '#94A3B8' }
+const REPARTO_COLORS = [T.brand, T.blue, '#16A34A', '#C2410C', '#7C3AED', '#0E7490']
+const SENZA_REPARTO = { nome: 'Senza reparto', color: T.textFaint }
 
-function TurniTab({ orgId, notify, isMobile }) {
+function TurniTab({ orgId, notify, isMobile, isTablet = false }) {
+  // Come sopra: sul tablet le frecce del periodo e i pulsanti del modulo
+  // restavano nella misura del computer.
+  const dito = isMobile || isTablet
   const confirmDialog = useConfirm()
   const [turni, setTurni] = useState([])
   const [dipendenti, setDipendenti] = useState([])
@@ -584,7 +679,9 @@ function TurniTab({ orgId, notify, isMobile }) {
       sload(SK_CONSUNTIVO, orgId, null).catch(() => null),
     ])
     if (et || ed) notify?.("Errore caricamento turni: " + (et?.message || ed?.message), false)
-    setTurni(t || [])
+    // Gli orari arrivano coi secondi ("08:00:00"): si tagliano qui, una volta,
+    // prima che li tocchi qualunque conto. Vedi `soloOreMinuti` in cima.
+    setTurni((t || []).map(x => ({ ...x, ora_inizio: soloOreMinuti(x.ora_inizio), ora_fine: soloOreMinuti(x.ora_fine) })))
     setDipendenti(d || [])
     setOrganigramma(org && Array.isArray(org.reparti) ? org : { reparti: [] })
     setConsuntivo(cons && typeof cons === 'object' ? cons : {})
@@ -615,22 +712,63 @@ function TurniTab({ orgId, notify, isMobile }) {
   async function salvaTurno() {
     if (!form.dipendente_id || !form.data) { notify("Seleziona dipendente e data", false); return }
     if (!orgId) { notify("Profilo non pronto, riprova", false); return }
+    // Un turno che finisce quando comincia non è un turno, è un errore di
+    // battitura: prima veniva salvato con zero ore e zero costo, e restava lì
+    // a far sembrare la giornata più corta di quella che è stata.
+    if (!oraValida(form.ora_inizio) || !oraValida(form.ora_fine)) {
+      notify("Orario non valido: usa la forma 08:00", false); return
+    }
+    if (_toMin(form.ora_inizio) === _toMin(form.ora_fine)) {
+      notify("Inizio e fine coincidono: il turno durerebbe zero ore", false); return
+    }
+    const ore = calcOre(form.ora_inizio, form.ora_fine)
+    setSaving(true)
+    try {
+      await salvaTurnoInterno(ore)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function salvaTurnoInterno(ore) {
     // Avviso sovrapposizione: stesso dipendente, stesso giorno, orari che si accavallano.
+    //
+    // I turni del giorno si rileggono dal database invece di cercarli in
+    // `turni`. Quella lista contiene solo il periodo mostrato a schermo: chi
+    // apriva il modulo dalla settimana e poi cambiava la data — o registrava
+    // dal telefono mentre un altro registrava dal computer — non veniva
+    // avvisato di niente, e la stessa persona finiva su due turni accavallati.
     const ni = _toMin(form.ora_inizio), nf = _finMin(form.ora_inizio, form.ora_fine)
-    const conflitto = turni.find(t => t.id !== editId && t.dipendente_id === form.dipendente_id && t.data === form.data
-      && ni < _finMin(t.ora_inizio, t.ora_fine) && _toMin(t.ora_inizio) < nf)
+    const { data: delGiorno } = await supabase.from("turni")
+      .select("id,ora_inizio,ora_fine")
+      .eq("organization_id", orgId).eq("dipendente_id", form.dipendente_id).eq("data", form.data)
+    const conflitto = (delGiorno || [])
+      .map(t => ({ ...t, ora_inizio: soloOreMinuti(t.ora_inizio), ora_fine: soloOreMinuti(t.ora_fine) }))
+      .find(t => t.id !== editId && ni < _finMin(t.ora_inizio, t.ora_fine) && _toMin(t.ora_inizio) < nf)
     if (conflitto) {
       const nomeDip = dipendenti.find(d => d.id === form.dipendente_id)?.nome || 'Il dipendente'
       const ok = await confirmDialog({
         title: 'Turno sovrapposto',
-        message: `${nomeDip} ha già un turno il ${form.data} dalle ${_hm(_toMin(conflitto.ora_inizio))} alle ${_hm(_toMin(conflitto.ora_fine))}, che si accavalla con ${form.ora_inizio}–${form.ora_fine}. Vuoi salvarlo comunque?`,
+        message: `${nomeDip} ha già un turno il ${form.data} dalle ${_hm(_toMin(conflitto.ora_inizio))} alle ${_hm(_finMin(conflitto.ora_inizio, conflitto.ora_fine))}, che si accavalla con ${form.ora_inizio}–${form.ora_fine}. Vuoi salvarlo comunque?`,
         confirmLabel: 'Salva comunque', cancelLabel: 'Annulla',
       })
       if (!ok) return
     }
-    const ore = calcOre(form.ora_inizio, form.ora_fine)
     const dip = dipendenti.find(d=>d.id===form.dipendente_id)
     const costo = ore * oraria(dip)
+    // Se di quella persona non sappiamo né il costo orario né lo stipendio, il
+    // turno si salva SENZA costo, non con costo zero. Scriverci 0 vorrebbe
+    // dire «quelle otto ore non sono costate niente», e da lì in poi ogni
+    // totale della pagina sarebbe più basso del vero senza dirlo a nessuno.
+    const senzaCosto = !costoNoto(dip)
+    if (senzaCosto) {
+      const ok = await confirmDialog({
+        title: 'Manca il costo di questa persona',
+        message: `${dip?.nome || 'Questa persona'} non ha né costo orario né stipendio: il turno verrà registrato senza costo e resterà fuori dal conto del costo del lavoro. Completa la sua scheda nella tab Dipendenti.`,
+        confirmLabel: 'Salva lo stesso', cancelLabel: 'Annulla',
+      })
+      if (!ok) return
+    }
     const payload = {
       organization_id: orgId,
       dipendente_id: form.dipendente_id,
@@ -638,14 +776,13 @@ function TurniTab({ orgId, notify, isMobile }) {
       ora_inizio: form.ora_inizio,
       ora_fine: form.ora_fine,
       ore: parseFloat(ore.toFixed(2)),
-      costo: parseFloat(costo.toFixed(2)),
+      costo: senzaCosto ? null : parseFloat(costo.toFixed(2)),
       note: form.note,
     }
-    setSaving(true)
     const { error } = editId
       ? await supabase.from("turni").update(payload).eq("id", editId).eq("organization_id", orgId)
       : await supabase.from("turni").insert(payload)
-    if (error) { notify("Errore: " + error.message, false); setSaving(false); return }
+    if (error) { notify("Errore: " + error.message, false); return }
     // Consuntivo ore effettive (solo su turno esistente): salva/aggiorna la mappa.
     if (editId) {
       const eff = parseFloat(String(form.ore_effettive).replace(',', '.'))
@@ -661,12 +798,22 @@ function TurniTab({ orgId, notify, isMobile }) {
       }
     }
     notify(editId ? "Turno aggiornato" : "Turno aggiunto"); resetForm()
-    setSaving(false)
     carica()
   }
 
+  // Cancellare un turno vuol dire cancellare ore di lavoro già fatte, e non
+  // si torna indietro: prima bastava un tocco sul cestino, senza una domanda,
+  // né sul telefono né sul computer.
   async function eliminaTurno(id) {
     if (!orgId || !id) return
+    const t = turni.find(x => x.id === id)
+    const quando = t ? ` del ${t.data} (${soloOreMinuti(t.ora_inizio)}–${soloOreMinuti(t.ora_fine)})` : ''
+    const ok = await confirmDialog({
+      title: 'Eliminare il turno?',
+      message: `Il turno${quando} sparisce dal calendario e dal conto delle ore. Non si può annullare.`,
+      confirmLabel: 'Elimina', cancelLabel: 'Annulla', destructive: true,
+    })
+    if (!ok) return
     const { error } = await supabase.from("turni").delete().eq("id", id).eq("organization_id", orgId)
     if (error) { notify("Errore eliminazione turno: " + error.message, false); return }
     notify("Turno eliminato")
@@ -713,7 +860,9 @@ function TurniTab({ orgId, notify, isMobile }) {
     ? new Date(anchor + "T12:00").toLocaleDateString("it-IT", { month:"long", year:"numeric" })
     : `${new Date(rng.from + "T12:00").toLocaleDateString("it-IT",{day:"2-digit",month: isMobile ? "short" : "long"})} – ${new Date(rng.to + "T12:00").toLocaleDateString("it-IT",{day:"2-digit",month: isMobile ? "short" : "long",year:"numeric"})}`
 
-  const inputSt = { padding: isMobile ? "12px 14px" : "8px 10px", borderRadius:8, border:`1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, color:C.text }
+  // Come sopra: i 16px del telefono li mette index.html per tutti i dispositivi
+  // a tocco, qui basta la misura di base.
+  const inputSt = { padding: dito ? "12px 14px" : "8px 10px", borderRadius: R.md, border:`1px solid ${C.borderStr}`, fontSize: F.size.sm, color:C.text }
 
   function apriNuovoTurno(dataIso) {
     setForm({ dipendente_id:"", data: dataIso || week, ora_inizio:"08:00", ora_fine:"16:00", note:"", ore_effettive:"" })
@@ -727,7 +876,7 @@ function TurniTab({ orgId, notify, isMobile }) {
         <div style={{ display:"flex", background:T.bgSubtle, borderRadius:R.lg, padding:3, gap:2, border:`1px solid ${T.borderSoft}` }}>
           {[["giorno","Giorno"],["settimana","Settimana"],["mese","Mese"]].map(([id,lbl])=>(
             <button key={id} onClick={()=>setPeriodo(id)}
-              style={{ padding:"7px 18px", borderRadius:R.md, border:"none", cursor:"pointer", fontWeight:periodo===id?600:500, fontSize:12, letterSpacing:"-0.005em", background:periodo===id?T.bgCard:"transparent", color:periodo===id?T.text:T.textSoft, boxShadow:periodo===id?S.sm:"none", transition:"all 0.15s" }}>
+              style={{ padding:"7px 18px", borderRadius:R.md, border:"none", cursor:"pointer", fontWeight:periodo===id?600:500, fontSize:F.size.sm, letterSpacing:"-0.005em", background:periodo===id?T.bgCard:"transparent", color:periodo===id?T.text:T.textSoft, boxShadow:periodo===id?S.sm:"none", transition:"all 0.15s" }}>
               {lbl}
             </button>
           ))}
@@ -735,26 +884,26 @@ function TurniTab({ orgId, notify, isMobile }) {
       </div>
       {/* Nav periodo */}
       <div style={{ display:"flex", alignItems:"center", gap: isMobile ? 8 : 12, marginBottom:16, flexWrap:"wrap" }}>
-        <button onClick={prevWeek} aria-label="Periodo precedente" style={{ padding: isMobile ? "10px 16px" : "7px 14px", borderRadius:8, border:`1px solid ${C.borderStr}`, background:C.white, fontSize: isMobile ? 14 : 12, cursor:"pointer" }}><Icon name="arrowL" size={14} />{isMobile ? "" : " Prec"}</button>
+        <button onClick={prevWeek} aria-label="Periodo precedente" style={{ padding: dito ? "11px 16px" : "7px 14px", minHeight: dito ? 44 : undefined, borderRadius:8, border:`1px solid ${C.borderStr}`, background:C.white, fontSize: isMobile ? 14 : 12, cursor:"pointer" }}><Icon name="arrowL" size={14} />{isMobile ? "" : " Prec"}</button>
         <div style={{ fontWeight:800, fontSize: isMobile ? 13 : 14, color:C.text, flex: isMobile ? 1 : "0 0 auto", textAlign: isMobile ? "center" : "left", textTransform:"capitalize" }}>
           {labelPeriodo}
         </div>
-        <button onClick={nextWeek} aria-label="Periodo successivo" style={{ padding: isMobile ? "10px 16px" : "7px 14px", borderRadius:8, border:`1px solid ${C.borderStr}`, background:C.white, fontSize: isMobile ? 14 : 12, cursor:"pointer" }}>{isMobile ? "" : "Succ "}<Icon name="arrowR" size={14} /></button>
+        <button onClick={nextWeek} aria-label="Periodo successivo" style={{ padding: dito ? "11px 16px" : "7px 14px", minHeight: dito ? 44 : undefined, borderRadius:8, border:`1px solid ${C.borderStr}`, background:C.white, fontSize: isMobile ? 14 : 12, cursor:"pointer" }}>{isMobile ? "" : "Succ "}<Icon name="arrowR" size={14} /></button>
         {!isMobile && (
           <>
             <div style={{ marginLeft:"auto", display:"flex", gap:20 }}>
               <div style={{ textAlign:"center" }}>
-                <div style={{ fontSize: 12, fontWeight:700, color:C.textSoft, textTransform:"uppercase" }}>Ore {periodo}</div>
-                <div style={{ fontSize:18, fontWeight:900, color:C.text }}>{fmtH(totOre)}</div>
+                <div style={{ fontSize: F.size.sm, fontWeight:700, color:C.textSoft, textTransform:"uppercase" }}>Ore {periodo}</div>
+                <div style={{ fontSize:F.size.xl, fontWeight:900, color:C.text }}>{fmtH(totOre)}</div>
               </div>
               <div style={{ textAlign:"center" }}>
-                <div style={{ fontSize: 12, fontWeight:700, color:C.textSoft, textTransform:"uppercase" }}>Costo lavoro</div>
-                <div style={{ fontSize:18, fontWeight:900, color:C.red, ...tnum }}>{fmt(totCosto)}</div>
+                <div style={{ fontSize: F.size.sm, fontWeight:700, color:C.textSoft, textTransform:"uppercase" }}>Costo lavoro</div>
+                <div style={{ fontSize:F.size.xl, fontWeight:900, color:C.red, ...tnum }}>{fmt(totCosto)}</div>
               </div>
             </div>
             <button onClick={()=> showForm ? resetForm() : apriNuovoTurno(week)}
               style={{ padding:"8px 16px", background:C.red, color:C.white, border:"none", borderRadius:8, fontWeight:800, fontSize: typo.small.fontSize, cursor:"pointer", display:"inline-flex", alignItems:"center", gap:5 }}>
-              {showForm ? "✕" : <><Icon name="plus" size={13} />Turno</>}
+              {showForm ? <Icon name="x" size={13} /> : <><Icon name="plus" size={13} />Turno</>}
             </button>
           </>
         )}
@@ -764,18 +913,18 @@ function TurniTab({ orgId, notify, isMobile }) {
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:12 }}>
           <div style={{ background:C.bgCard, borderRadius:10, border:`1px solid ${C.border}`, padding:"10px 12px", textAlign:"center" }}>
             <div style={{ fontSize: typo.small.fontSize, fontWeight:700, color:C.textSoft, textTransform:"uppercase" }}>Ore</div>
-            <div style={{ fontSize:18, fontWeight:900, color:C.text }}>{fmtH(totOre)}</div>
+            <div style={{ fontSize:F.size.xl, fontWeight:900, color:C.text }}>{fmtH(totOre)}</div>
           </div>
           <div style={{ background:C.bgCard, borderRadius:10, border:`1px solid ${C.border}`, padding:"10px 12px", textAlign:"center" }}>
             <div style={{ fontSize: typo.small.fontSize, fontWeight:700, color:C.textSoft, textTransform:"uppercase" }}>Costo</div>
-            <div style={{ fontSize:18, fontWeight:900, color:C.red, ...tnum }}>{fmt(totCosto)}</div>
+            <div style={{ fontSize:F.size.xl, fontWeight:900, color:C.red, ...tnum }}>{fmt(totCosto)}</div>
           </div>
         </div>
       )}
 
       {showForm && (
         <div style={{
-          background:"#FFF0F0",
+          background:C.redLight,
           border: isMobile ? "none" : `1px solid ${C.red}30`,
           borderRadius: isMobile ? 0 : 10,
           padding: isMobile ? "20px 16px 100px" : "16px 20px",
@@ -790,7 +939,7 @@ function TurniTab({ orgId, notify, isMobile }) {
         }}>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom: isMobile ? 16 : 10 }}>
             <div style={{ fontSize: isMobile ? 14 : 12, fontWeight:800, color:C.text, display:"inline-flex", alignItems:"center", gap:6 }}><Icon name={editId ? "edit" : "plus"} size={14} />{editId ? "Modifica turno" : "Nuovo turno"}</div>
-            <button aria-label="Chiudi form turno" onClick={resetForm} style={{ padding:"6px 12px", background:"transparent", border:"none", fontSize:18, color:C.textSoft, cursor:"pointer" }}>✕</button>
+            <button aria-label="Chiudi form turno" onClick={resetForm} style={{ padding:"10px 12px", minWidth:44, minHeight:44, background:"transparent", border:"none", color:C.textSoft, cursor:"pointer", display:"inline-flex", alignItems:"center", justifyContent:"center" }}><Icon name="x" size={16} /></button>
           </div>
           <div style={{ display:"grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 100px 100px 1fr auto", gap: isMobile ? 12 : 10, alignItems: isMobile ? "stretch" : "end" }}>
             {[
@@ -808,7 +957,7 @@ function TurniTab({ orgId, notify, isMobile }) {
               ) },
             ].map(({lbl,el},i)=>(
               <div key={i}>
-                <div style={{ fontSize: 12, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:4 }}>{lbl}</div>
+                <div style={{ fontSize: F.size.sm, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:4 }}>{lbl}</div>
                 {el}
               </div>
             ))}
@@ -823,7 +972,7 @@ function TurniTab({ orgId, notify, isMobile }) {
       )}
 
       {/* Vista mese: calendario; Giorno/Settimana: timeline oraria */}
-      {loading ? <div style={{ color:C.textSoft, fontSize:13 }}>Caricamento…</div> : periodo === 'mese' ? (() => {
+      {loading ? <div style={{ color:C.textSoft, fontSize:F.size.base }}>Caricamento…</div> : periodo === 'mese' ? (() => {
         const colorById = {}; dipendenti.forEach((d) => { colorById[d.id] = repartoDi(d.id).color })
         // Quante caselle vuote prima del 1° del mese. Il giorno della
         // settimana si legge a mezzogiorno: con `new Date(rng.from)` la
@@ -836,32 +985,36 @@ function TurniTab({ orgId, notify, isMobile }) {
         return (
           <div style={{ background:C.bgCard, borderRadius:16, border:`1px solid ${C.border}`, boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)", overflow:"hidden" }}>
             <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", borderBottom:`1px solid ${C.border}` }}>
-              {GIORNI.map(g => <div key={g} style={{ padding:"8px 4px", textAlign:"center", fontSize: 12, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing: '0.06em' }}>{g}</div>)}
+              {GIORNI.map(g => <div key={g} style={{ padding:"8px 4px", textAlign:"center", fontSize: F.size.sm, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing: '0.06em' }}>{g}</div>)}
             </div>
             <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)" }}>
               {cells.map((dIso, idx) => {
-                if (!dIso) return <div key={`e${idx}`} style={{ background:"#FAF7F5", borderRight:`1px solid ${C.border}`, borderBottom:`1px solid ${C.border}`, minHeight: isMobile ? 64 : 88 }}/>
+                if (!dIso) return <div key={`e${idx}`} style={{ background:T.bgSubtle, borderRight:`1px solid ${C.border}`, borderBottom:`1px solid ${C.border}`, minHeight: isMobile ? 64 : 88 }}/>
                 const cov = covByDay[dIso]
                 const ds = turni.filter(t => t.data === dIso)
                 const ore = ds.reduce((s, t) => s + (t.ore || 0), 0)
                 const oggi = dIso === todayIso
                 const dd = new Date(dIso + "T12:00:00")
                 return (
-                  <div key={dIso} onClick={() => { setAnchor(dIso); setPeriodo('giorno') }} role="button" tabIndex={0}
-                    onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setAnchor(dIso); setPeriodo('giorno') } }}
+                  // Un pulsante vero, non un `div` con `role="button"`: con la
+                  // tastiera ci si arriva col tabulatore e un lettore di schermo
+                  // lo annuncia col giorno e col numero di turni. Prima era un
+                  // riquadro che si poteva solo toccare.
+                  <button type="button" key={dIso} onClick={() => { setAnchor(dIso); setPeriodo('giorno') }}
+                    aria-label={`${dd.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}: ${ds.length ? `${ds.length} ${ds.length === 1 ? 'turno' : 'turni'}, ${fmtH(ore)} - apri il dettaglio` : 'nessun turno - aggiungine uno'}`}
                     title={ds.length ? `${ds.length} turni · ${fmtH(ore)} - clicca per il dettaglio` : "Nessun turno - clicca per aggiungere"}
-                    style={{ borderRight:`1px solid ${C.border}`, borderBottom:`1px solid ${C.border}`, minHeight: isMobile ? 64 : 88, padding:"6px 7px", cursor:"pointer", background: oggi ? "#FFFCF7" : "transparent" }}>
+                    style={{ display:"block", width:"100%", textAlign:"left", font:"inherit", color:"inherit", borderTop:"none", borderLeft:"none", borderRight:`1px solid ${C.border}`, borderBottom:`1px solid ${C.border}`, minHeight: isMobile ? 64 : 88, padding:"6px 7px", cursor:"pointer", background: oggi ? C.amberLight : "transparent" }}>
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                      <span style={{ fontSize:12, fontWeight:800, color: oggi ? C.red : C.text }}>{dd.getDate()}</span>
+                      <span style={{ fontSize:F.size.sm, fontWeight:800, color: oggi ? C.red : C.text }}>{dd.getDate()}</span>
                       {ds.length > 0 && <span style={{ fontSize: typo.small.fontSize, fontWeight:700, color:C.textSoft }}>{fmtH(ore)}</span>}
                     </div>
                     <div style={{ display:"flex", flexDirection:"column", gap:2, marginTop:3 }}>
                       {ds.slice(0, isMobile ? 2 : 3).map(t => (
-                        <span key={t.id} style={{ fontSize: typo.small.fontSize, fontWeight:600, color:"#fff", background:colorById[t.dipendente_id] || C.red, border:"1px solid #000", borderRadius:4, padding:"1px 4px", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{etichettaNome(t.dipendenti?.nome)} {_hm(_toMin(t.ora_inizio))}</span>
+                        <span key={t.id} style={{ fontSize: typo.small.fontSize, fontWeight:600, color:T.white, background:colorById[t.dipendente_id] || C.red, border:`1px solid ${T.black}`, borderRadius:4, padding:"1px 4px", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{etichettaNome(t.dipendenti?.nome)} {_hm(_toMin(t.ora_inizio))}</span>
                       ))}
-                      {ds.length > (isMobile ? 2 : 3) && <span style={{ fontSize: 12, color:C.textSoft, fontWeight:700 }}>+{ds.length - (isMobile ? 2 : 3)} altri</span>}
+                      {ds.length > (isMobile ? 2 : 3) && <span style={{ fontSize: F.size.sm, color:C.textSoft, fontWeight:700 }}>+{ds.length - (isMobile ? 2 : 3)} altri</span>}
                     </div>
-                  </div>
+                  </button>
                 )
               })}
             </div>
@@ -936,10 +1089,10 @@ function TurniTab({ orgId, notify, isMobile }) {
               const dd = new Date(dIso + "T12:00:00")
               const oggi = dIso === todayLocal()
               return (
-                <div key={dIso} style={{ display:"grid", gridTemplateColumns:`${labelW}px 1fr`, borderTop:`2px solid ${C.borderStr}`, background: oggi ? "#FFFCF7" : "transparent" }}>
+                <div key={dIso} style={{ display:"grid", gridTemplateColumns:`${labelW}px 1fr`, borderTop:`2px solid ${C.borderStr}`, background: oggi ? C.amberLight : "transparent" }}>
                   <div style={{ padding: isMobile ? "10px 10px" : "8px 10px", borderRight:`1px solid ${C.border}` }}>
                     <div style={{ fontSize: isMobile ? 13 : 12, fontWeight:800, color: oggi ? C.red : C.text }}>{GIORNI[(dd.getDay()+6)%7]} {dd.getDate()}</div>
-                    <div style={{ fontSize: 12, color: C.textSoft, marginTop:2, lineHeight:1.3 }}>
+                    <div style={{ fontSize: F.size.sm, color: C.textSoft, marginTop:2, lineHeight:1.3 }}>
                       {labelPersone(cov, dayShifts.length > 0)}
                     </div>
                     {/* Copertura per reparto: evidenzia i buchi (es. 0 in produzione) */}
@@ -964,8 +1117,8 @@ function TurniTab({ orgId, notify, isMobile }) {
                   </div>
                   <div style={{ overflowX: isMobile ? 'auto' : 'visible', WebkitOverflowScrolling: 'touch' }}>
                     <div style={{ position:"relative", height: rowH, minWidth: inner || undefined }}>
-                      {ticks.map(m => <div key={m} style={{ position:"absolute", left:pos(m), top:0, bottom:0, width:1, background:"#F2ECE8" }}/>)}
-                      {dayShifts.length === 0 && <div style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", fontSize: typo.small.fontSize, color:"#CBD5E1", fontStyle:'italic' }}>-</div>}
+                      {ticks.map(m => <div key={m} style={{ position:"absolute", left:pos(m), top:0, bottom:0, width:1, background:T.borderSoft }}/>)}
+                      {dayShifts.length === 0 && <div style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", fontSize: typo.small.fontSize, color:T.textFaint, fontStyle:'italic' }}>-</div>}
                       {placed.map(s => {
                         const col = colorById[s.dipId] || C.red
                         const selez = editId === s.id
@@ -975,18 +1128,19 @@ function TurniTab({ orgId, notify, isMobile }) {
                         // Su desktop: come prima, apre direttamente il form di modifica.
                         const onTap = () => { if (isMobile) setShiftPreview(s); else apriModificaTurno(s) }
                         return (
-                          <div key={s.id} onClick={onTap} role="button" tabIndex={0}
+                          // Pulsante vero anche qui: era il comando principale
+                          // della scheda Turni e con la tastiera non si apriva.
+                          <button type="button" key={s.id} onClick={onTap}
                             aria-label={`Turno ${s.nome} dalle ${_hm(s.ini)} alle ${_hm(s.fin)}`}
-                            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onTap() } }}
                             title={`${s.nome}: ${_hm(s.ini)}–${_hm(s.fin)} (pianificato ${fmtH(s.ore || 0)}${eff != null ? ` · effettivo ${fmtH(eff)}${straord ? ` · ${straord > 0 ? 'straord +' : ''}${straord}h` : ''}` : ''})`}
-                            style={{ position:"absolute", left:pos(s.ini), width:`calc(${((s.fin - s.ini) / span) * 100}% - 4px)`, top: s.lane * laneSpacing + 4, height: isMobile ? 40 : 26, background:col, border:"none", borderRadius:6, color:"#fff", display:"flex", alignItems:"center", gap:4, padding: isMobile ? "0 8px" : "0 6px", overflow:"hidden", cursor:"pointer", boxShadow: selez ? "inset 0 0 0 2px rgba(255,255,255,0.95)" : "none" }}>
+                            style={{ position:"absolute", left:pos(s.ini), width:`calc(${((s.fin - s.ini) / span) * 100}% - 4px)`, top: s.lane * laneSpacing + 4, height: isMobile ? 40 : 26, background:col, border:"none", borderRadius:6, color:T.white, display:"flex", alignItems:"center", gap:4, padding: isMobile ? "0 8px" : "0 6px", overflow:"hidden", cursor:"pointer", boxShadow: selez ? "inset 0 0 0 2px rgba(255,255,255,0.95)" : "none" }}>
                             {/* Mobile: solo NOME (più leggibile, niente troncamento di "06:00…").
                                 Desktop: nome + orari come prima. */}
-                            <span style={{ fontSize: 12, fontWeight:700, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", flex:1 }}>
+                            <span style={{ fontSize: F.size.sm, fontWeight:700, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", flex:1 }}>
                               {isMobile ? etichettaNome(s.nome) : `${etichettaNome(s.nome)} · ${_hm(s.ini)}–${_hm(s.fin)}`}
                             </span>
-                            {eff != null && <span title="Ore consuntivate" style={{ fontSize: typo.small.fontSize, fontWeight:800, background:straord > 0 ? "#F59E0B" : "rgba(255,255,255,0.3)", color:"#fff", borderRadius:4, padding:"0 4px", flexShrink:0 }}>{straord > 0 ? `+${straord}h` : "✓"}</span>}
-                          </div>
+                            {eff != null && <span title="Ore consuntivate" style={{ fontSize: typo.small.fontSize, fontWeight:800, background:straord > 0 ? C.amber : T.borderOnDarkStr, color:T.white, borderRadius:4, padding:"0 4px", flexShrink:0 }}><Icon name="check" size={11} />{straord > 0 ? `+${straord}h` : ""}</span>}
+                          </button>
                         )
                       })}
                     </div>
@@ -1000,44 +1154,48 @@ function TurniTab({ orgId, notify, isMobile }) {
 
       {/* Modal preview turno (mobile): nome + orari + ore + note + azioni modifica/elimina. */}
       {shiftPreview && isMobile && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(15,23,42,0.5)', display:'flex', alignItems:'flex-end', justifyContent:'center', zIndex:1100 }}
-             onClick={() => setShiftPreview(null)}>
-          <div onClick={e => e.stopPropagation()} role="dialog" aria-label="Dettagli turno"
-               style={{ background:C.bgCard, width:'100%', maxWidth:520, borderTopLeftRadius:20, borderTopRightRadius:20, padding:'20px 20px 28px', boxShadow:'0 -10px 30px rgba(0,0,0,0.25)' }}>
-            <div style={{ width:42, height:4, background:'#E2E8F0', borderRadius:2, margin:'0 auto 16px' }}/>
+        // Stessa correzione delle altre finestre: il velo è un pulsante vero,
+        // non un `div` che si può solo toccare. Il foglio gli sta sopra e non
+        // deve più fermare la propagazione del clic.
+        <div style={{ position:'fixed', inset:0, display:'flex', alignItems:'flex-end', justifyContent:'center', zIndex:1100 }}>
+          <button type="button" onClick={() => setShiftPreview(null)} aria-label="Chiudi i dettagli del turno"
+                  style={{ position:'absolute', inset:0, width:'100%', height:'100%', border:'none', padding:0, background:'rgba(15,23,42,0.5)', cursor:'default' }} />
+          <div role="dialog" aria-modal="true" aria-label="Dettagli turno"
+               style={{ position:'relative', background:C.bgCard, width:'100%', maxWidth:520, borderTopLeftRadius:20, borderTopRightRadius:20, padding:'20px 20px 28px', boxShadow:S.xl }}>
+            <div style={{ width:42, height:4, background:T.borderStr, borderRadius:2, margin:'0 auto 16px' }}/>
             <div style={{ display:'flex', alignItems:'flex-start', gap:12, marginBottom:16 }}>
               <span style={{ width:14, height:14, borderRadius:4, background: repartoDi(shiftPreview.dipId).color || C.red, marginTop:5, flexShrink:0, border:'1px solid rgba(0,0,0,0.15)' }}/>
               <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontSize: 16, fontWeight:800, color:C.text, lineHeight:1.25 }}>{etichettaNome(shiftPreview.nome)}</div>
-                <div style={{ fontSize:12, color:C.textSoft, marginTop:2 }}>{repartoDi(shiftPreview.dipId).nome}</div>
+                <div style={{ fontSize: F.size.lg, fontWeight:800, color:C.text, lineHeight:1.25 }}>{etichettaNome(shiftPreview.nome)}</div>
+                <div style={{ fontSize:F.size.sm, color:C.textSoft, marginTop:2 }}>{repartoDi(shiftPreview.dipId).nome}</div>
               </div>
               <button onClick={() => setShiftPreview(null)} aria-label="Chiudi"
-                      style={{ background:'transparent', border:'none', fontSize:22, color:C.textSoft, cursor:'pointer', padding:'0 4px', lineHeight:1 }}>✕</button>
+                      style={{ background:'transparent', border:'none', color:C.textSoft, cursor:'pointer', padding:10, minWidth:44, minHeight:44, lineHeight:1, display:'inline-flex', alignItems:'center', justifyContent:'center' }}><Icon name="x" size={18} /></button>
             </div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:16 }}>
               <div style={{ background:C.bg, borderRadius:12, padding:'10px 12px' }}>
                 <div style={{ fontSize: typo.small.fontSize, fontWeight:700, color:C.textSoft, textTransform:'uppercase', letterSpacing: '0.05em' }}>Orario</div>
-                <div style={{ fontSize:16, fontWeight:800, color:C.text, marginTop:4, ...tnum }}>{_hm(shiftPreview.ini)}–{_hm(shiftPreview.fin)}</div>
+                <div style={{ fontSize:F.size.lg, fontWeight:800, color:C.text, marginTop:4, ...tnum }}>{_hm(shiftPreview.ini)}–{_hm(shiftPreview.fin)}</div>
               </div>
               <div style={{ background:C.bg, borderRadius:12, padding:'10px 12px' }}>
                 <div style={{ fontSize: typo.small.fontSize, fontWeight:700, color:C.textSoft, textTransform:'uppercase', letterSpacing: '0.05em' }}>Ore</div>
-                <div style={{ fontSize:16, fontWeight:800, color:C.text, marginTop:4, ...tnum }}>
+                <div style={{ fontSize:F.size.lg, fontWeight:800, color:C.text, marginTop:4, ...tnum }}>
                   {fmtH(shiftPreview.ore || 0)}
                   {consuntivo[shiftPreview.id] != null && <span style={{ fontSize: typo.small.fontSize, color:C.amber, fontWeight:700, marginLeft:6 }}>eff. {fmtH(consuntivo[shiftPreview.id])}</span>}
                 </div>
               </div>
             </div>
             {shiftPreview.note && (
-              <div style={{ fontSize:12, color:C.textMid, lineHeight:1.5, padding:'10px 12px', background:C.bg, borderRadius:10, marginBottom:16 }}>{shiftPreview.note}</div>
+              <div style={{ fontSize:F.size.sm, color:C.textMid, lineHeight:1.5, padding:'10px 12px', background:C.bg, borderRadius:10, marginBottom:16 }}>{shiftPreview.note}</div>
             )}
             <div style={{ display:'flex', gap:8 }}>
               <button onClick={() => { const s = shiftPreview; setShiftPreview(null); apriModificaTurno(s) }}
-                      style={{ flex:1, padding:'14px', background:C.red, color:C.white, border:'none', borderRadius:10, fontWeight:800, fontSize:15, cursor:'pointer' }}>
+                      style={{ flex:1, padding:'14px', background:C.red, color:C.white, border:'none', borderRadius:10, fontWeight:800, fontSize:typo.h3.fontSize, cursor:'pointer' }}>
                 Modifica
               </button>
               <button onClick={() => { const id = shiftPreview.id; setShiftPreview(null); eliminaTurno(id) }}
                       aria-label="Elimina turno"
-                      style={{ padding:'14px 16px', minWidth:54, background:C.white, color:C.red, border:`1px solid ${C.red}`, borderRadius:10, fontWeight:800, fontSize:15, cursor:'pointer', display:'inline-flex', alignItems:'center', justifyContent:'center' }}>
+                      style={{ padding:'14px 16px', minWidth:54, background:C.white, color:C.red, border:`1px solid ${C.red}`, borderRadius:10, fontWeight:800, fontSize:typo.h3.fontSize, cursor:'pointer', display:'inline-flex', alignItems:'center', justifyContent:'center' }}>
                 <Icon name="trash" size={17}/>
               </button>
             </div>
@@ -1047,7 +1205,7 @@ function TurniTab({ orgId, notify, isMobile }) {
 
       {isMobile && !showForm && (
         <div style={{ position:"fixed", bottom:0, left:0, right:0, padding:"12px 16px", background:C.white, borderTop:`1px solid ${C.border}`, zIndex:100 }}>
-          <button onClick={()=>apriNuovoTurno(week)} style={{ width:"100%", padding:"14px", background:C.red, color:C.white, border:"none", borderRadius:10, fontSize:15, fontWeight:800, cursor:"pointer" }}>
+          <button onClick={()=>apriNuovoTurno(week)} style={{ width:"100%", padding:"14px", background:C.red, color:C.white, border:"none", borderRadius:10, fontSize:typo.h3.fontSize, fontWeight:800, cursor:"pointer" }}>
             + Aggiungi turno
           </button>
         </div>
@@ -1059,7 +1217,7 @@ function TurniTab({ orgId, notify, isMobile }) {
 function AnalisiCostoTab({ orgId, isMobile, isTablet }) {
   const [mese, setMese] = useState(() => meseLocale())
   const [target, setTarget] = useState(30) // incidenza costo-lavoro obiettivo (%)
-  const [dati, setDati] = useState({ turni:[], dipendenti:[], ricavi:0, organigramma:{reparti:[]}, consuntivo:{} })
+  const [dati, setDati] = useState({ turni:[], dipendenti:[], ricavi:0, giorniIncasso:0, mesePeriodo:null, organigramma:{reparti:[]}, consuntivo:{} })
   const [loading, setLoading] = useState(true)
 
   useEffect(() => { carica() }, [orgId, mese])
@@ -1067,45 +1225,81 @@ function AnalisiCostoTab({ orgId, isMobile, isTablet }) {
   async function carica() {
     if (!orgId) { setLoading(false); return }
     setLoading(true)
-    const from = mese + "-01"
-    const last = new Date(mese.split("-")[0], mese.split("-")[1], 0).getDate()
-    const to = `${mese}-${last}`
+    // Il mese si chiude con `ultimoGiornoDelMese`, che sa dei 30, dei 31 e del
+    // 29 febbraio. Prima era `new Date(anno, mese, 0)` costruito da pezzi di
+    // stringa: fuori dal fuso di casa e su un campo mese svuotato dava una
+    // data impossibile, e la finestra della query partiva storta.
+    const from = primoGiornoDelMese(mese + "-01")
+    const to = ultimoGiornoDelMese(from)
+    if (!from || !to) { setLoading(false); return }
     const [{ data:t, error:et },{ data:d, error:ed }, chiusurePerSede, org, cons] = await Promise.all([
       supabase.from("turni").select("*, dipendenti(nome,ruolo)").eq("organization_id", orgId).gte("data", from).lte("data", to),
-      supabase.from("dipendenti").select("*").eq("organization_id", orgId).eq("attivo", true),
+      // Anche chi è stato archiviato: un mese passato va letto con le persone
+      // che c'erano ALLORA. Senza, i turni di chi se n'è andato restavano
+      // senza costo e il mese risultava più economico di quanto è stato.
+      // `costoPersonaleMensile` salta comunque chi non è attivo.
+      supabase.from("dipendenti").select("*").eq("organization_id", orgId),
       sloadAllSedi('pasticceria-chiusure-v1', orgId).catch(() => ({})),
       sload(SK_ORG, orgId, null).catch(() => null),
       sload(SK_CONSUNTIVO, orgId, null).catch(() => null),
     ])
     if (et || ed) console.warn("analisi costo load:", et?.message || ed?.message)
     // Fatturato del mese = somma kpi.totV delle chiusure (tutte le sedi) in range.
-    const ricavi = Object.values(chiusurePerSede || {}).flat()
+    const chiusure = Object.values(chiusurePerSede || {}).flat()
       .filter(c => c && typeof c.data === 'string' && c.data >= from && c.data <= to)
-      .reduce((s, c) => s + (c.kpi?.totV || 0), 0)
-    setDati({ turni:t||[], dipendenti:d||[], ricavi, organigramma: (org && Array.isArray(org.reparti) ? org : {reparti:[]}), consuntivo: cons || {} })
+    const ricavi = chiusure.reduce((s, c) => s + (Number(c.kpi?.totV) || 0), 0)
+    setDati({
+      turni: t || [], dipendenti: d || [], ricavi,
+      giorniIncasso: new Set(chiusure.map(c => c.data)).size,
+      mesePeriodo: from,
+      organigramma: (org && Array.isArray(org.reparti) ? org : {reparti:[]}), consuntivo: cons || {},
+    })
     setLoading(false)
   }
 
-  const { turni, dipendenti, ricavi, organigramma, consuntivo } = dati
+  const { turni, dipendenti, ricavi, giorniIncasso, mesePeriodo, organigramma, consuntivo } = dati
   // Audit 2026-06-22: turni.ore/costo sono numeric in Postgres → PostgREST
   // a volte serializza come stringa. `0 + "8.00"` concatena (string +) e la
   // somma collassa in NaN, da cui "NaNh" nel KPI Ore piani. vs lavorate.
   const numOk = (x) => { const n = Number(x); return Number.isFinite(n) ? n : 0 }
   const totOre = turni.reduce((s,t)=>s + numOk(t.ore), 0)
-  const totCosto = costoLavoroDaTurni(turni, dipendenti).costo
-  const costoFissoMese = costoPersonaleMensile(dipendenti).totale
-  const giorniLavorati = new Set(turni.map(t=>t.data)).size
+  const daTurni = costoLavoroDaTurni(turni, dipendenti)
+  const totCosto = daTurni.costo
+  // `asOf` sul mese guardato: chi è stato assunto dopo non pesa su un mese
+  // passato, e chi se n'è andato prima nemmeno. Senza, guardare marzo voleva
+  // dire confrontarlo con l'organico di oggi.
+  const riepilogoContratti = costoPersonaleMensile(dipendenti, { asOf: mesePeriodo || undefined })
+  const costoFissoMese = riepilogoContratti.totale
+  const giorniLavorati = daTurni.giorni
   const costoMedioOra = totOre>0 ? totCosto/totOre : 0
-  const costoGiorno = giorniLavorati>0 ? totCosto/giorniLavorati : 0
   // Incidenza del costo del lavoro sul fatturato: la metrica chiave nella
   // ristorazione. Soglia configurabile (target).
+  //
+  // Sopra e sotto si confrontano le stesse giornate: il costo è quello dei
+  // turni registrati, e il fatturato quello delle chiusure registrate. Se le
+  // due serie non coprono gli stessi giorni il rapporto non vuol dire niente,
+  // e sotto al numero si scrive su quante giornate è fatto.
   const incidenza = ricavi>0 ? (totCosto/ricavi*100) : null
-  const incColor = incidenza==null ? C.textSoft : incidenza<=target ? C.green : incidenza<=target+10 ? C.amber : C.red
+  const incColor = incidenza==null ? C.textSoft : incidenza<=target ? C.green : incidenza<=target+10 ? C.amberDark : C.alert
+  // Il colore del numero grande seguiva soglie fisse 30/40 scritte a mano: il
+  // selettore «Target incidenza» cambiava la frase sotto e non il colore, e a
+  // target 25% un 29% restava verde.
+  const tintaIncidenza = incidenza == null ? T.textOnDarkSoft
+    : incidenza <= target ? TINTE_SU_SCURO.ok
+    : incidenza <= target + 10 ? TINTE_SU_SCURO.attenzione
+    : TINTE_SU_SCURO.allarme
   const incVerdetto = incidenza==null ? "Registra le chiusure di cassa per vedere quanto pesa il personale sugli incassi."
     : incidenza<=target ? "Ottimo: il costo del personale è sotto controllo rispetto agli incassi."
     : incidenza<=target+10 ? `Sotto controllo, ma tieni d'occhio: ogni punto sopra il ${target}% erode il margine.`
     : "Attenzione: il costo del personale è alto rispetto agli incassi. Rivedi turni o ricavi."
   // Scostamento costo effettivo (turni) vs teorico da contratto.
+  //
+  // Ha senso solo se i turni coprono il mese: con 4 turni registrati su 30
+  // giorni lo scostamento diceva «-95% sotto il teorico», che non è un
+  // risparmio, è un calendario mezzo vuoto. Sotto i due terzi delle giornate
+  // il confronto non si mostra.
+  const giorniDelMese = mesePeriodo ? Number(ultimoGiornoDelMese(mesePeriodo).slice(8, 10)) : 30
+  const copreIlMese = giorniLavorati >= giorniDelMese * 0.66
   const scost = totCosto - costoFissoMese
   const scostPct = costoFissoMese>0 ? (scost/costoFissoMese*100) : 0
   // Produttività: € di fatturato per ora lavorata.
@@ -1157,38 +1351,43 @@ function AnalisiCostoTab({ orgId, isMobile, isTablet }) {
     <div>
       <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:20, flexWrap:"wrap" }}>
         <input type="month" value={mese} onChange={e=>setMese(e.target.value)}
-          style={{ padding: isMobile ? "10px 14px" : "8px 12px", borderRadius:8, border:`1px solid ${C.borderStr}`, fontSize: 12, color:C.text }}/>
-        <span style={{ fontSize:12, color:C.textSoft, textTransform:"capitalize" }}>{meseLbl}</span>
+          style={{ padding: isMobile ? "10px 14px" : "8px 12px", borderRadius:8, border:`1px solid ${C.borderStr}`, fontSize: F.size.sm, color:C.text }}/>
+        <span style={{ fontSize:F.size.sm, color:C.textSoft, textTransform:"capitalize" }}>{meseLbl}</span>
         <div style={{ flex:1 }} />
         <span style={{ fontSize: typo.small.fontSize, color:C.textSoft }}>Target incidenza</span>
         <div style={{ display:"flex", gap:2, padding:3, background:C.bgSubtle, borderRadius:8 }}>
           {[25,30,35].map(tg=>(
-            <button key={tg} onClick={()=>setTarget(tg)} style={{ padding:"5px 10px", borderRadius:6, border:"none", cursor:"pointer", fontSize:12, fontWeight: target===tg?700:500, ...tnum, background: target===tg?C.bgCard:"transparent", color: target===tg?C.red:C.textSoft, boxShadow: target===tg?"0 1px 3px rgba(15,23,42,0.10)":"none" }}>{tg}%</button>
+            <button key={tg} onClick={()=>setTarget(tg)} style={{ padding:"5px 10px", borderRadius:6, border:"none", cursor:"pointer", fontSize:F.size.sm, fontWeight: target===tg?700:500, ...tnum, background: target===tg?C.bgCard:"transparent", color: target===tg?C.red:C.textSoft, boxShadow: target===tg?"0 1px 3px rgba(15,23,42,0.10)":"none" }}>{tg}%</button>
           ))}
         </div>
       </div>
 
       {loading ? <div style={{ color:C.textSoft }}>Caricamento…</div> : turni.length===0 ? (
-        <div style={{ color:C.textSoft, fontSize:13, textAlign:"center", padding:40 }}>Nessun turno registrato per {meseLbl}.</div>
+        <div style={{ color:C.textSoft, fontSize:F.size.base, textAlign:"center", padding:40 }}>Nessun turno registrato per {meseLbl}.</div>
       ) : (
         <>
           {/* INSIGHT CHIAVE: incidenza del costo lavoro sul fatturato */}
-          <div style={{ background:"linear-gradient(135deg, #6E0E1A 0%, #4A0612 100%)", borderRadius:18, padding: isMobile?"18px 18px":"22px 26px", marginBottom:16, boxShadow:"0 14px 34px rgba(110,14,26,0.32), inset 0 1px 0 rgba(255,255,255,0.18)" }}>
+          <div style={{ background: T.brandGradient, borderRadius:18, padding: isMobile?"18px 18px":"22px 26px", marginBottom:16, boxShadow:"0 14px 34px rgba(110,14,26,0.32), inset 0 1px 0 rgba(255,255,255,0.18)" }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:16, flexWrap:"wrap" }}>
               <div style={{ flex:1, minWidth:200 }}>
                 <div style={{ fontSize: typo.small.fontSize, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase", color:"rgba(255,255,255,0.6)", marginBottom:6 }}>Incidenza costo lavoro</div>
                 <div style={{ display:"flex", alignItems:"baseline", gap:10 }}>
-                  <span style={{ fontSize: isMobile?32:40, fontWeight:900, color: incidenza==null?"rgba(255,255,255,0.5)":(incidenza<=30?"#7BE0A6":incidenza<=40?"#FCD34D":"#FCA5A5"), lineHeight:1, ...tnum }}>{incidenza==null?"-":fmtp(incidenza)}</span>
-                  {incidenza!=null && <span style={{ fontSize:12, color:"rgba(255,255,255,0.7)" }}>del fatturato ({fmt0(ricavi)})</span>}
+                  <span style={{ fontSize: isMobile ? typo.numLg.fontSize : 40, fontWeight:900, color: tintaIncidenza, lineHeight:1, ...tnum }}>{incidenza==null?"-":fmtp(incidenza)}</span>
+                  {incidenza!=null && <span style={{ fontSize: typo.small.fontSize, color:T.textOnDarkMid }}>del fatturato ({fmt0(ricavi)})</span>}
                 </div>
-                <div style={{ fontSize:12, color:"rgba(255,255,255,0.82)", marginTop:10, lineHeight:1.5, maxWidth:560 }}>{incVerdetto}</div>
+                <div style={{ fontSize: typo.small.fontSize, color:T.textOnDarkStrong, marginTop:10, lineHeight:1.5, maxWidth:560 }}>{incVerdetto}</div>
+                {/* Su quante giornate è fatto il rapporto. Senza, un mese con
+                    due chiusure registrate su trenta sembrava il mese intero. */}
+                <div style={{ fontSize: typo.small.fontSize, color:T.textOnDarkSoft, marginTop:6 }}>
+                  {giorniLavorati} {giorniLavorati===1?'giornata':'giornate'} di turni · {giorniIncasso} {giorniIncasso===1?'giornata':'giornate'} di incasso, su {giorniDelMese} del mese
+                </div>
               </div>
               {incidenza!=null && (
                 <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
-                  <div style={{ width:64, height:64, borderRadius:"50%", background:`conic-gradient(${incidenza<=30?"#7BE0A6":incidenza<=40?"#FCD34D":"#FCA5A5"} ${Math.min(100,incidenza)*3.6}deg, rgba(255,255,255,0.12) 0)`, display:"flex", alignItems:"center", justifyContent:"center" }}>
-                    <div style={{ width:46, height:46, borderRadius:"50%", background:"#2A0E0E", display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:800, color:"#fff" }}>{fmtp0(incidenza)}</div>
+                  <div style={{ width:64, height:64, borderRadius:"50%", background:`conic-gradient(${tintaIncidenza} ${Math.min(100,incidenza)*3.6}deg, ${T.borderOnDarkStr} 0)`, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                    <div style={{ width:46, height:46, borderRadius:"50%", background:T.tooltipBg, display:"flex", alignItems:"center", justifyContent:"center", fontSize: typo.small.fontSize, fontWeight:800, color:T.textOnDark }}>{fmtp0(incidenza)}</div>
                   </div>
-                  <span style={{ fontSize: 12, color:"rgba(255,255,255,0.5)", textTransform:"uppercase", letterSpacing:"0.05em" }}>target ≤30%</span>
+                  <span style={{ fontSize: typo.small.fontSize, color:T.textOnDarkSoft, textTransform:"uppercase", letterSpacing:"0.05em" }}>target ≤{target}%</span>
                 </div>
               )}
             </div>
@@ -1198,12 +1397,18 @@ function AnalisiCostoTab({ orgId, isMobile, isTablet }) {
               Card con label lungo ("Ore pian. vs lavorate") non sfora più rispetto a "Fatturato / ora". */}
           <div style={{ display:"grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(auto-fill,minmax(170px,1fr))", gap: isMobile ? 8 : 12, marginBottom: 16 }}>
             {[
-              { lbl:"Costo effettivo", val:fmt0(totCosto), c:C.red, sub:`${fmtH(totOre)} lavorate` },
+              { lbl:"Costo effettivo", val:fmt0(totCosto), c:C.red, sub:`${fmtH(totOre)} in ${giorniLavorati} ${giorniLavorati===1?'giornata':'giornate'}` },
               { lbl:"Fatturato / ora", val: ricavi>0?fmt0(fatturatoPerOra):"-", c: fatturatoPerOra>=costoMedioOra*2.5?C.green:C.text, sub:"produttività del lavoro" },
-              { lbl:"Costo medio orario", val:fmt(costoMedioOra), c:C.text, sub:"per ora lavorata" },
-              { lbl:"Ore pian. vs lavorate", val: fmtH(oreEffettive), c: Math.abs(deltaOre)<2?C.green:deltaOre>0?C.amber:C.text, sub: `pianificate ${fmtH(totOre)}${Math.abs(deltaOre)>=0.5?` · ${deltaOre>0?'+':''}${fmtH(deltaOre)}`:''}` },
-              { lbl:"Effettivo vs contratto", val:`${scost>=0?"+":""}${fmt0(scost)}`, c: Math.abs(scostPct)<8?C.green:scost>0?C.red:C.amber, sub: scost>0?`+${fmtp0(scostPct)} (straordinari?)`:`${fmtp0(scostPct)} sotto teorico` },
-              { lbl:"Proiezione annua", val:fmt0(costoFissoMese*12), c:C.amber, sub:"costo fisso × 12" },
+              { lbl:"Costo medio orario", val:fmt(costoMedioOra), c:C.text, sub: daTurni.turniStimati>0 ? `${daTurni.turniStimati} turni stimati dallo stipendio` : "per ora lavorata" },
+              { lbl:"Ore pian. vs lavorate", val: fmtH(oreEffettive), c: Math.abs(deltaOre)<2?C.green:deltaOre>0?C.amberDark:C.text, sub: `pianificate ${fmtH(totOre)}${Math.abs(deltaOre)>=0.5?` · ${deltaOre>0?'+':''}${fmtH(deltaOre)}`:''}` },
+              // Il confronto col teorico da contratto si mostra solo se i turni
+              // coprono il mese: altrimenti diceva «-95% sotto il teorico» per
+              // un calendario compilato a metà, e sembrava un risparmio.
+              copreIlMese
+                ? { lbl:"Effettivo vs contratto", val:`${scost>=0?"+":""}${fmt0(scost)}`, c: Math.abs(scostPct)<8?C.green:scost>0?C.alert:C.amberDark, sub: scost>0?`+${fmtp0(scostPct)} (straordinari?)`:`${fmtp0(scostPct)} sotto teorico` }
+                : { lbl:"Effettivo vs contratto", val:"-", c:C.textSoft, sub:`turni su ${giorniLavorati} ${giorniLavorati===1?'giornata':'giornate'} di ${giorniDelMese}: troppo pochi` },
+              { lbl:"Proiezione annua", val: costoFissoMese>0 ? fmt0(costoFissoMese*12) : "-", c:C.amberDark,
+                sub: riepilogoContratti.senzaDato>0 ? `manca il costo di ${riepilogoContratti.senzaDato}` : "costo fisso × 12" },
             ].map(({lbl,val,c,sub})=>(
               <div key={lbl} className="fos-tile" style={{ background:C.bgCard, borderRadius:16, border:`1px solid ${C.border}`, padding: isMobile ? "14px 14px" : "16px 18px", boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)", display:'flex', flexDirection:'column' }}>
                 <div style={{ fontSize: typo.small.fontSize, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:8, minHeight: 28, lineHeight: 1.25 }}>{lbl}</div>
@@ -1218,7 +1423,7 @@ function AnalisiCostoTab({ orgId, isMobile, isTablet }) {
               Desktop: tutto su una riga con allineamento a destra dei numeri. */}
           {dipRows.length > 0 && (
             <div style={{ background:C.bgCard, borderRadius:16, border:`1px solid ${C.border}`, padding: isMobile ? "16px 16px" : "16px 20px", boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)" }}>
-              <div style={{ fontSize:15, fontWeight:700, color:C.text, marginBottom:14, letterSpacing:'-0.01em' }}>Ripartizione per dipendente</div>
+              <div style={{ fontSize:typo.h3.fontSize, fontWeight:700, color:C.text, marginBottom:14, letterSpacing:'-0.01em' }}>Ripartizione per dipendente</div>
               {dipRows.map(([nome,d])=>{
                 const oraEff = d.ore>0 ? d.costo/d.ore : 0
                 const quota = totCosto>0 ? d.costo/totCosto*100 : 0
@@ -1227,8 +1432,8 @@ function AnalisiCostoTab({ orgId, isMobile, isTablet }) {
                     {isMobile ? (
                       <>
                         <div style={{ display:'grid', gridTemplateColumns:'1fr auto', gap: 8, alignItems: 'baseline', minHeight: 18 }}>
-                          <span style={{ fontSize: 13, fontWeight: 700, color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{nome}</span>
-                          <span style={{ fontSize: 13, fontWeight: 800, color: C.red, ...tnum, whiteSpace: 'nowrap' }}>{fmt0(d.costo)}</span>
+                          <span style={{ fontSize: F.size.base, fontWeight: 700, color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{nome}</span>
+                          <span style={{ fontSize: F.size.base, fontWeight: 800, color: C.red, ...tnum, whiteSpace: 'nowrap' }}>{fmt0(d.costo)}</span>
                         </div>
                         <div style={{ display:'grid', gridTemplateColumns:'1fr auto', gap: 8, alignItems: 'baseline', marginTop: 2, marginBottom: 6 }}>
                           <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{fmtH(d.ore)} · {fmt(oraEff)}/h</span>
@@ -1237,13 +1442,13 @@ function AnalisiCostoTab({ orgId, isMobile, isTablet }) {
                       </>
                     ) : (
                       <div style={{ display:'grid', gridTemplateColumns:'minmax(0,1fr) auto auto auto', gap: 14, alignItems:'baseline', marginBottom: 6 }}>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{nome}</span>
+                        <span style={{ fontSize: F.size.base, fontWeight: 700, color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{nome}</span>
                         <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, whiteSpace: 'nowrap' }}>{fmtH(d.ore)} · {fmt(oraEff)}/h</span>
-                        <span style={{ fontSize: 13, fontWeight: 800, color: C.red, ...tnum, minWidth: 96, textAlign: 'right' }}>{fmt(d.costo)}</span>
+                        <span style={{ fontSize: F.size.base, fontWeight: 800, color: C.red, ...tnum, minWidth: 96, textAlign: 'right' }}>{fmt(d.costo)}</span>
                         <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, fontWeight: 600, ...tnum, minWidth: 42, textAlign: 'right' }}>{fmtp0(quota)}</span>
                       </div>
                     )}
-                    <div style={{ height: 6, background: '#F0EAE6', borderRadius: 999, overflow: 'hidden' }}>
+                    <div style={{ height: 6, background: T.bgMuted, borderRadius: 999, overflow: 'hidden' }}>
                       <div style={{ width: `${Math.max(0, Math.min(100, d.costo/maxCostoDip*100))}%`, height: '100%', background: C.red, borderRadius: 999, transition: 'width 0.2s ease' }}/>
                     </div>
                   </div>
@@ -1255,7 +1460,7 @@ function AnalisiCostoTab({ orgId, isMobile, isTablet }) {
           {/* Costo per reparto (da organigramma) - stesso pattern grid pulito. */}
           {repRows.length > 0 && (organigramma?.reparti||[]).length > 0 && (
             <div style={{ background:C.bgCard, borderRadius:16, border:`1px solid ${C.border}`, padding: isMobile ? "16px 16px" : "16px 20px", marginTop:16, boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)" }}>
-              <div style={{ fontSize:15, fontWeight:700, color:C.text, marginBottom:14, letterSpacing:'-0.01em' }}>Costo per reparto</div>
+              <div style={{ fontSize:typo.h3.fontSize, fontWeight:700, color:C.text, marginBottom:14, letterSpacing:'-0.01em' }}>Costo per reparto</div>
               {repRows.map(([nome,r])=>{
                 const quota = totCosto>0 ? r.costo/totCosto*100 : 0
                 const colore = nome==="Senza reparto" ? C.textSoft : C.red
@@ -1264,8 +1469,8 @@ function AnalisiCostoTab({ orgId, isMobile, isTablet }) {
                     {isMobile ? (
                       <>
                         <div style={{ display:'grid', gridTemplateColumns:'1fr auto', gap: 8, alignItems: 'baseline', minHeight: 18 }}>
-                          <span style={{ fontSize: 13, fontWeight: 700, color: nome==="Senza reparto" ? C.textSoft : C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{nome}</span>
-                          <span style={{ fontSize: 13, fontWeight: 800, color: colore, ...tnum, whiteSpace: 'nowrap' }}>{fmt0(r.costo)}</span>
+                          <span style={{ fontSize: F.size.base, fontWeight: 700, color: nome==="Senza reparto" ? C.textSoft : C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{nome}</span>
+                          <span style={{ fontSize: F.size.base, fontWeight: 800, color: colore, ...tnum, whiteSpace: 'nowrap' }}>{fmt0(r.costo)}</span>
                         </div>
                         <div style={{ display:'grid', gridTemplateColumns:'1fr auto', gap: 8, alignItems: 'baseline', marginTop: 2, marginBottom: 6 }}>
                           <span style={{ fontSize: typo.small.fontSize, color: C.textSoft }}>{fmtH(r.ore)}</span>
@@ -1274,13 +1479,13 @@ function AnalisiCostoTab({ orgId, isMobile, isTablet }) {
                       </>
                     ) : (
                       <div style={{ display:'grid', gridTemplateColumns:'minmax(0,1fr) auto auto auto', gap: 14, alignItems:'baseline', marginBottom: 6 }}>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: nome==="Senza reparto" ? C.textSoft : C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{nome}</span>
+                        <span style={{ fontSize: F.size.base, fontWeight: 700, color: nome==="Senza reparto" ? C.textSoft : C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{nome}</span>
                         <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, whiteSpace: 'nowrap' }}>{fmtH(r.ore)}</span>
-                        <span style={{ fontSize: 13, fontWeight: 800, color: colore, ...tnum, minWidth: 96, textAlign: 'right' }}>{fmt(r.costo)}</span>
+                        <span style={{ fontSize: F.size.base, fontWeight: 800, color: colore, ...tnum, minWidth: 96, textAlign: 'right' }}>{fmt(r.costo)}</span>
                         <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, fontWeight: 600, ...tnum, minWidth: 42, textAlign: 'right' }}>{fmtp0(quota)}</span>
                       </div>
                     )}
-                    <div style={{ height: 6, background: '#F0EAE6', borderRadius: 999, overflow: 'hidden' }}>
+                    <div style={{ height: 6, background: T.bgMuted, borderRadius: 999, overflow: 'hidden' }}>
                       <div style={{ width: `${Math.max(0, Math.min(100, r.costo/maxCostoRep*100))}%`, height: '100%', background: colore, borderRadius: 999, transition: 'width 0.2s ease' }}/>
                     </div>
                   </div>
@@ -1302,19 +1507,20 @@ function AnalisiCostoTab({ orgId, isMobile, isTablet }) {
 // ma mai destrutturato dai props → ReferenceError in build minificato).
 function HeaderPersonale({ orgId, isMobile, isTablet = false }) {
   const mese = useMemo(() => meseLocale(), [])
-  const [d, setD] = useState({ nDip: 0, costoContratto: 0, costoMese: 0, ricavi: 0, oreMese: 0, nonAssegnati: 0, repartiScoperti: [], hasReparti: false })
+  const [d, setD] = useState({ nDip: 0, costoContratto: 0, senzaCosto: 0, costoMese: 0, giorniTurni: 0, ricavi: 0, giorniIncasso: 0, oreMese: 0, nonAssegnati: 0, repartiScoperti: [], hasReparti: false })
 
   useEffect(() => {
     if (!orgId) return
     let alive = true
     ;(async () => {
-      const from = mese + '-01'
-      const [y, m] = mese.split('-')
-      const last = new Date(Number(y), Number(m), 0).getDate()
-      const to = `${mese}-${last}`
+      const from = primoGiornoDelMese(mese + '-01')
+      const to = ultimoGiornoDelMese(from)
       const [dip, turniRes, chius, org] = await Promise.all([
-        supabase.from('dipendenti').select('id,costo_orario,ore_settimana').eq('organization_id', orgId).eq('attivo', true),
-        supabase.from('turni').select('costo,ore,dipendente_id').eq('organization_id', orgId).gte('data', from).lte('data', to),
+        // `stipendio_lordo_mensile` e le date del rapporto mancavano da questa
+        // lettura, e senza quelle colonne il costo del lavoro non si può
+        // calcolare: vedi sotto.
+        supabase.from('dipendenti').select('id,costo_orario,ore_settimana,stipendio_lordo_mensile,data_assunzione,data_fine,sede_id,attivo').eq('organization_id', orgId).eq('attivo', true),
+        supabase.from('turni').select('costo,ore,data,dipendente_id').eq('organization_id', orgId).gte('data', from).lte('data', to),
         sloadAllSedi('pasticceria-chiusure-v1', orgId).catch(() => ({})),
         sload(SK_ORG, orgId, null).catch(() => null),
       ])
@@ -1323,12 +1529,33 @@ function HeaderPersonale({ orgId, isMobile, isTablet = false }) {
       const turni = turniRes.data || []
       const reparti = (org && Array.isArray(org.reparti)) ? org.reparti : []
       const assegnati = new Set(reparti.flatMap(r => r.membri || []))
+      const chiusure = Object.values(chius || {}).flat().filter(c => c && typeof c.data === 'string' && c.data >= from && c.data <= to)
+      // Il costo dei contratti si chiede a `costoPersonaleMensile`, che è la
+      // stessa funzione usata dal conto economico.
+      //
+      // Prima il conto era scritto qui a mano — `costo_orario × ore × 4,33` —
+      // e sbagliava due volte. Primo: non guardava lo stipendio mensile, che
+      // è il modo in cui è pagata la maggior parte delle persone. Su Mara dei
+      // Boschi tutti e tre i dipendenti hanno il costo orario a 0 e lo
+      // stipendio scritto, quindi il numero più importante della pagina del
+      // costo del lavoro diceva **0 €** al posto di 12.141 € al mese.
+      // Secondo: anche quando trovava qualcosa contava il lordo e basta,
+      // senza contributi, INAIL e TFR — circa il 40% in meno del vero.
+      const contratti = costoPersonaleMensile(lista, { asOf: from })
+      // Idem per i turni: `costoLavoroDaTurni` ricava il costo dallo stipendio
+      // quando il turno è stato salvato senza, e dice su quante GIORNATE è
+      // calcolato. Sommare `t.costo` e basta dava zero sui turni vecchi, e
+      // sommava testo se PostgREST serializzava il numeric come stringa.
+      const daTurni = costoLavoroDaTurni(turni, lista)
       setD({
         nDip: lista.length,
-        costoContratto: lista.reduce((s, x) => s + (x.costo_orario || 0) * (x.ore_settimana || 0) * 4.33, 0),
-        costoMese: turni.reduce((s, t) => s + (t.costo || 0), 0),
-        oreMese: turni.reduce((s, t) => s + (t.ore || 0), 0),
-        ricavi: Object.values(chius || {}).flat().filter(c => c && typeof c.data === 'string' && c.data >= from && c.data <= to).reduce((s, c) => s + (c.kpi?.totV || 0), 0),
+        costoContratto: contratti.totale,
+        senzaCosto: contratti.senzaDato,
+        costoMese: daTurni.costo,
+        giorniTurni: daTurni.giorni,
+        oreMese: daTurni.ore,
+        ricavi: chiusure.reduce((s, c) => s + (Number(c.kpi?.totV) || 0), 0),
+        giorniIncasso: new Set(chiusure.map(c => c.data)).size,
         nonAssegnati: lista.filter(x => !assegnati.has(x.id)).length,
         repartiScoperti: reparti.filter(r => !(r.membri || []).length).map(r => r.nome),
         hasReparti: reparti.length > 0,
@@ -1337,22 +1564,44 @@ function HeaderPersonale({ orgId, isMobile, isTablet = false }) {
     return () => { alive = false }
   }, [orgId, mese])
 
-  const costo = d.costoMese > 0 ? d.costoMese : d.costoContratto
-  const incidenza = d.ricavi > 0 ? costo / d.ricavi * 100 : null
-  const incColor = incidenza == null ? T.textSoft : incidenza <= 30 ? T.green : incidenza <= 40 ? T.amber : T.brand
+  // Il costo del mese è quello dei contratti: è il numero che esce di banca
+  // ogni mese, e c'è anche il primo giorno del mese. I turni registrati
+  // servono a dire quanto si è lavorato davvero, non a sostituirlo: su Mara
+  // sono 4 turni in tutto il mese, e presentarli come «il costo del personale
+  // del mese» sarebbe un numero falso di quindici volte.
+  const costo = d.costoContratto
+  const oggi = todayLocal()
+  const giorniMese = Number(ultimoGiornoDelMese(mese + '-01').slice(8, 10)) || 30
+  // Quanti giorni del mese sono già passati: il mese in corso non è finito, e
+  // confrontare il costo di TUTTO il mese con gli incassi di mezzo mese
+  // raddoppiava l'incidenza senza che niente lo dicesse.
+  const giorniTrascorsi = oggi.slice(0, 7) === mese ? Number(oggi.slice(8, 10)) : giorniMese
+  const costoFinoAOggi = costo * (giorniTrascorsi / giorniMese)
+  const incidenza = d.ricavi > 0 ? costoFinoAOggi / d.ricavi * 100 : null
+  // I due rossi: sopra soglia è un allarme, e l'allarme ha il suo colore.
+  const incColor = incidenza == null ? T.textSoft : incidenza <= 30 ? T.green : incidenza <= 40 ? T.amber : T.red
   const prod = d.oreMese > 0 ? d.ricavi / d.oreMese : 0
   const meseLbl = new Date(mese + '-01T12:00').toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })
 
+  const subCosto = d.senzaCosto > 0
+    ? (d.senzaCosto === 1 ? 'manca il costo di 1 persona' : `manca il costo di ${d.senzaCosto} persone`)
+    : d.giorniTurni > 0
+    ? `dai contratti · turni: ${fmt0(d.costoMese)} su ${d.giorniTurni} ${d.giorniTurni === 1 ? 'giornata' : 'giornate'}`
+    : 'dai contratti, contributi e TFR compresi'
   const kpis = [
-    { lbl: 'Dipendenti attivi', val: d.nDip, color: T.text, sub: ' ' },
-    { lbl: 'Costo lavoro (mese)', val: fmt0(costo), color: T.brand, hi: true, sub: d.costoMese > 0 ? 'effettivo dai turni' : 'stima da contratti' },
-    { lbl: 'Incidenza su fatturato', val: incidenza == null ? '-' : fmtp(incidenza), color: incColor, sub: incidenza == null ? 'registra le chiusure' : 'sano ≤ 30%' },
-    { lbl: 'Fatturato / ora', val: prod > 0 ? fmt0(prod) : '-', color: T.text, sub: 'produttività del lavoro' },
+    { lbl: 'Dipendenti attivi', val: d.nDip, color: T.text, sub: d.senzaCosto > 0 ? `${d.senzaCosto} senza costo in scheda` : ' ' },
+    // Quando non si sa quanto costa NESSUNO, si scrive un trattino: zero
+    // vorrebbe dire che il personale è gratis.
+    { lbl: 'Costo lavoro (mese)', val: costo > 0 ? fmt0(costo) : '-', color: T.brand, hi: true, sub: subCosto },
+    { lbl: 'Incidenza su fatturato', val: incidenza == null ? '-' : fmtp(incidenza), color: incColor,
+      sub: incidenza == null ? 'registra le chiusure' : `su ${d.giorniIncasso} ${d.giorniIncasso === 1 ? 'giornata' : 'giornate'} di incasso` },
+    { lbl: 'Fatturato / ora', val: prod > 0 ? fmt0(prod) : '-', color: T.text,
+      sub: d.giorniTurni > 0 ? `su ${d.giorniTurni} ${d.giorniTurni === 1 ? 'giornata' : 'giornate'} di turni` : 'registra i turni' },
   ]
 
   return (
     <div style={{ marginBottom: isMobile ? 18 : 24 }}>
-      <p style={{ margin: '0 0 14px', fontSize: 13, color: T.textSoft, letterSpacing: '-0.005em', lineHeight: 1.5, maxWidth: 620 }}>
+      <p style={{ margin: '0 0 14px', fontSize: F.size.base, color: T.textSoft, letterSpacing: '-0.005em', lineHeight: 1.5, maxWidth: 620 }}>
         Costo del lavoro, turni e organigramma - diagnosi del mese in corso (<span style={{ textTransform: 'capitalize' }}>{meseLbl}</span>).
       </p>
       {/* Audit 2026-06-24: minHeight uniformi su label/value/sub per allineare verticalmente
@@ -1360,8 +1609,8 @@ function HeaderPersonale({ orgId, isMobile, isTablet = false }) {
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : (isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)'), gap: isMobile ? 8 : 10, marginBottom: (d.nonAssegnati > 0 || d.repartiScoperti.length > 0) ? 12 : 0 }}>
         {kpis.map((k, i) => (
           <div key={i} className="fos-tile" style={{
-            background: k.hi ? 'linear-gradient(135deg, #6E0E1A 0%, #4A0612 100%)' : T.bgCard,
-            border: `1px solid ${k.hi ? '#4A0612' : T.border}`,
+            background: k.hi ? T.brandGradient : T.bgCard,
+            border: `1px solid ${k.hi ? T.brandDarker : T.border}`,
             borderRadius: 16, padding: isMobile ? '14px 14px' : '16px 18px',
             boxShadow: k.hi ? '0 14px 34px rgba(110,14,26,0.32), inset 0 1px 0 rgba(255,255,255,0.18)' : '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)',
             display: 'flex', flexDirection: 'column',
@@ -1378,9 +1627,9 @@ function HeaderPersonale({ orgId, isMobile, isTablet = false }) {
         ))}
       </div>
       {(d.nonAssegnati > 0 || d.repartiScoperti.length > 0) && (
-        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 12, padding: isMobile ? '12px 14px' : '10px 14px' }}>
-          <span style={{ color: '#C2410C', display: 'inline-flex', flexShrink: 0, marginTop: 1 }}><Icon name="warning" size={16} /></span>
-          <div style={{ fontSize: 12, color: '#9A3412', fontWeight: 600, lineHeight: 1.5, flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', background: C.amberLight, border: `1px solid ${C.amber}40`, borderRadius: 12, padding: isMobile ? '12px 14px' : '10px 14px' }}>
+          <span style={{ color: C.amberDark, display: 'inline-flex', flexShrink: 0, marginTop: 1 }}><Icon name="warning" size={16} /></span>
+          <div style={{ fontSize: F.size.sm, color: C.amberDark, fontWeight: 600, lineHeight: 1.5, flex: 1, minWidth: 0 }}>
             {/* Audit 2026-06-24: 2 righe brevi (problema → azione) invece di un'unica
                 riga lunga col separatore "·" che andava a capo male su mobile. */}
             {(d.nonAssegnati > 0 || d.repartiScoperti.length > 0) && (
@@ -1390,7 +1639,7 @@ function HeaderPersonale({ orgId, isMobile, isTablet = false }) {
                 {d.repartiScoperti.length > 0 && <>{d.repartiScoperti.length === 1 ? 'Reparto vuoto' : 'Reparti vuoti'}: {d.repartiScoperti.join(', ')}</>}
               </div>
             )}
-            <div style={{ fontWeight: 500, color: '#B45309', marginTop: 2 }}>Sistemali nella scheda Organigramma.</div>
+            <div style={{ fontWeight: 500, color: C.amber, marginTop: 2 }}>Sistemali nella scheda Organigramma.</div>
           </div>
         </div>
       )}
@@ -1402,11 +1651,11 @@ function HeaderPersonale({ orgId, isMobile, isTablet = false }) {
 const SK_ORG = 'pasticceria-organigramma-v1'
 const SK_CONSUNTIVO = 'pasticceria-consuntivo-turni-v1' // { [turnoId]: oreEffettive }
 // ─── Editor organigramma LIBERO: box trascinabili + frecce disegnabili (React Flow) ──
-const ORG_NODE_BASE = { borderRadius: 12, padding: '10px 14px', fontSize: 13, fontWeight: 700, border: '1px solid', textAlign: 'center', minWidth: 130, boxShadow: '0 1px 3px rgba(15,23,42,0.12)' }
+const ORG_NODE_BASE = { borderRadius: 12, padding: '10px 14px', fontSize: F.size.base, fontWeight: 700, border: '1px solid', textAlign: 'center', minWidth: 130, boxShadow: '0 1px 3px rgba(15,23,42,0.12)' }
 const ORG_STYLE = {
-  admin:   { ...ORG_NODE_BASE, background: 'linear-gradient(135deg,#6E0E1A,#4A0612)', color: '#FFF', borderColor: '#4A0612', fontWeight: 800 },
-  reparto: { ...ORG_NODE_BASE, background: '#6E0E1A', color: '#FFF', borderColor: '#4A0612' },
-  persona: { ...ORG_NODE_BASE, background: '#FFF', color: '#1F2937', borderColor: '#E5E7EB', fontWeight: 600 },
+  admin:   { ...ORG_NODE_BASE, background: T.brandGradient, color: T.white, borderColor: T.brandDarker, fontWeight: 800 },
+  reparto: { ...ORG_NODE_BASE, background: T.brand, color: T.white, borderColor: T.brandDarker },
+  persona: { ...ORG_NODE_BASE, background: T.white, color: T.text, borderColor: T.border, fontWeight: 600 },
 }
 
 function OrganigrammaTab({ orgId, notify, isMobile, adminNome }) {
@@ -1537,33 +1786,33 @@ function OrganigrammaTab({ orgId, notify, isMobile, adminNome }) {
     setNewRepNome(''); setAddingRep(false)
   }
 
-  if (loading) return <div style={{ color: C.textSoft, fontSize: 13 }}>Caricamento…</div>
+  if (loading) return <div style={{ color: C.textSoft, fontSize: F.size.base }}>Caricamento…</div>
 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
-        <div style={{ fontSize: 12, color: C.textSoft, lineHeight: 1.5, maxWidth: 640 }}>
+        <div style={{ fontSize: F.size.sm, color: C.textSoft, lineHeight: 1.5, maxWidth: 640 }}>
           Organigramma libero: <b>trascina</b> le box dove vuoi e <b>collega</b> trascinando dal bordo di una box a un'altra per disegnare le frecce. Seleziona una freccia (o un reparto) e premi <b>Canc</b> per rimuoverla. Tutto si salva da solo. L'amministratore è in cima.
         </div>
         {addingRep ? (
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            <input autoFocus value={newRepNome} onChange={e => setNewRepNome(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') addReparto(); if (e.key === 'Escape') { setAddingRep(false); setNewRepNome('') } }} placeholder="Nome reparto" style={{ padding: '8px 12px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 13, color: C.text, width: 180 }} />
-            <button onClick={addReparto} style={{ padding: '8px 14px', background: C.red, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 12, cursor: 'pointer' }}>Aggiungi</button>
-            <button onClick={() => { setAddingRep(false); setNewRepNome('') }} aria-label="Annulla" style={{ padding: '8px 10px', background: C.white, color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 12, cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}><Icon name="x" size={13} /></button>
+            <input autoFocus value={newRepNome} onChange={e => setNewRepNome(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') addReparto(); if (e.key === 'Escape') { setAddingRep(false); setNewRepNome('') } }} placeholder="Nome reparto" style={{ padding: '8px 12px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: F.size.base, color: C.text, width: 180 }} />
+            <button onClick={addReparto} style={{ padding: '8px 14px', background: C.red, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: F.size.sm, cursor: 'pointer' }}>Aggiungi</button>
+            <button onClick={() => { setAddingRep(false); setNewRepNome('') }} aria-label="Annulla" style={{ padding: '8px 10px', background: C.white, color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: F.size.sm, cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}><Icon name="x" size={13} /></button>
           </div>
         ) : (
-          <button onClick={() => setAddingRep(true)} style={{ padding: '8px 16px', background: C.red, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 12, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="plus" size={14} /> Reparto</button>
+          <button onClick={() => setAddingRep(true)} style={{ padding: '8px 16px', background: C.red, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: F.size.sm, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="plus" size={14} /> Reparto</button>
         )}
       </div>
-      <div style={{ height: isMobile ? 460 : 600, border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden', background: '#FBFAF9' }}>
+      <div style={{ height: isMobile ? 460 : 600, border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden', background: T.bg }}>
         <ReactFlow
           nodes={nodes} edges={edges}
           onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
           onConnect={onConnect} onNodeDragStop={onNodeDragStop} onNodesDelete={onNodesDelete}
           fitView minZoom={0.2}
-          defaultEdgeOptions={{ markerEnd: { type: MarkerType.ArrowClosed }, style: { stroke: '#6E0E1A', strokeWidth: 2 } }}
+          defaultEdgeOptions={{ markerEnd: { type: MarkerType.ArrowClosed }, style: { stroke: T.brand, strokeWidth: 2 } }}
         >
-          <Background gap={18} color="#E8DDD8" />
+          <Background gap={18} color={T.borderStr} />
           <Controls showInteractive={false} />
         </ReactFlow>
       </div>
@@ -1582,13 +1831,18 @@ function OrganigrammaTab({ orgId, notify, isMobile, adminNome }) {
 const EMAIL_RX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const CODICE_OP_RX = /^[0-9]{4}$/
 
-const btnStyle = (bg, color, border) => ({
-  padding: '8px 12px', borderRadius: 8, border: border || 'none',
-  background: bg, color, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+// `dito` = telefono o tablet. Le righe della rubrica e dei laboratori hanno
+// cinque pulsanti in fila: a 8px di imbottitura sono alti 31 px, e su un
+// tablet si sbaglia bersaglio. Il quarto parametro li porta a 44.
+const btnStyle = (bg, color, border, dito = false) => ({
+  padding: dito ? '12px 14px' : '8px 12px', minHeight: dito ? 44 : undefined,
+  borderRadius: 8, border: border || 'none',
+  background: bg, color, fontSize: F.size.sm, fontWeight: 700, cursor: 'pointer',
   display: 'inline-flex', alignItems: 'center', gap: 6,
 })
 
-function AccessiTab({ orgId, sedi, notify, isMobile, nomeAttivita }) {
+function AccessiTab({ orgId, sedi, notify, isMobile, isTablet = false, nomeAttivita }) {
+  const dito = isMobile || isTablet
   const [sub, setSub] = useState('laboratori')
   return (
     <div style={{ maxWidth: 820 }}>
@@ -1603,10 +1857,10 @@ function AccessiTab({ orgId, sedi, notify, isMobile, nomeAttivita }) {
           <button key={id} role="tab" aria-selected={sub === id}
             onClick={() => setSub(id)}
             style={{
-              padding: '8px 14px', border: 'none', borderRadius: 7,
+              padding: dito ? '12px 16px' : '8px 14px', minHeight: dito ? 44 : undefined, border: 'none', borderRadius: 7,
               background: sub === id ? C.white : 'transparent',
               color: sub === id ? C.text : C.textMid,
-              fontSize: 12, fontWeight: sub === id ? 700 : 500, cursor: 'pointer',
+              fontSize: F.size.sm, fontWeight: sub === id ? 700 : 500, cursor: 'pointer',
               display: 'inline-flex', alignItems: 'center', gap: 6,
               boxShadow: sub === id ? '0 1px 3px rgba(15,23,42,0.06)' : 'none',
             }}>
@@ -1614,14 +1868,45 @@ function AccessiTab({ orgId, sedi, notify, isMobile, nomeAttivita }) {
           </button>
         ))}
       </div>
-      {sub === 'laboratori' && <LaboratoriSection orgId={orgId} sedi={sedi} notify={notify} isMobile={isMobile} nomeAttivita={nomeAttivita} />}
-      {sub === 'rubrica' && <RubricaDipendentiSection orgId={orgId} notify={notify} isMobile={isMobile} />}
+      {sub === 'laboratori' && <LaboratoriSection orgId={orgId} sedi={sedi} notify={notify} isMobile={isMobile} dito={dito} nomeAttivita={nomeAttivita} />}
+      {sub === 'rubrica' && <RubricaDipendentiSection orgId={orgId} notify={notify} isMobile={isMobile} dito={dito} />}
+    </div>
+  )
+}
+
+// ── Le finestre di questa pagina ──────────────────────────────────────────
+//
+// Erano scritte cinque volte uguali, e tutte e cinque nello stesso modo
+// sbagliato: il velo scuro era un `<div onClick={chiudi}>` e il riquadro
+// dentro un `<div onClick={e => e.stopPropagation()}>`. Due comandi che con
+// la tastiera non esistono — chi non usa il mouse non poteva chiudere niente
+// — e che un lettore di schermo non annuncia.
+//
+// Qui il velo è un PULSANTE vero, disteso sotto il riquadro: si raggiunge col
+// tabulatore, si annuncia «Chiudi», e resta cliccabile come prima. Il riquadro
+// gli sta sopra e non ha più bisogno di fermare la propagazione, perché non è
+// più dentro di lui. In più c'è Esc, che prima non c'era da nessuna parte.
+function Finestra({ onChiudi, larghezza = 440, children }) {
+  useEffect(() => {
+    const suTasto = (e) => { if (e.key === 'Escape') onChiudi?.() }
+    document.addEventListener('keydown', suTasto)
+    return () => document.removeEventListener('keydown', suTasto)
+  }, [onChiudi])
+  return (
+    <div style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
+      <button type="button" onClick={onChiudi} aria-label="Chiudi la finestra"
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none', padding: 0,
+          background: 'rgba(15,23,42,0.45)', cursor: 'default' }} />
+      <div role="dialog" aria-modal="true"
+        style={{ position: 'relative', background: C.white, borderRadius: 14, padding: 24, maxWidth: larghezza, width: '100%', maxHeight: '90vh', overflowY: 'auto', boxShadow: S.xl }}>
+        {children}
+      </div>
     </div>
   )
 }
 
 // ── Laboratori: account condivisi su tablet fisici ─────────────────────────
-function LaboratoriSection({ orgId, sedi, notify, isMobile, nomeAttivita }) {
+function LaboratoriSection({ orgId, sedi, notify, isMobile, dito = false, nomeAttivita }) {
   const [laboratori, setLaboratori] = useState([])
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(null)
@@ -1684,15 +1969,15 @@ function LaboratoriSection({ orgId, sedi, notify, isMobile, nomeAttivita }) {
     finally { setBusy(null); setDelConf(null); carica() }
   }
 
-  if (loading) return <div style={{ color: C.textSoft, fontSize: 13 }}>Caricamento…</div>
+  if (loading) return <div style={{ color: C.textSoft, fontSize: F.size.base }}>Caricamento…</div>
 
   return (
     <div>
-      <div style={{ fontSize: 12, color: C.textSoft, lineHeight: 1.55, marginBottom: 14 }}>
+      <div style={{ fontSize: F.size.sm, color: C.textSoft, lineHeight: 1.55, marginBottom: 14 }}>
         Un laboratorio è un tablet fisico dove più dipendenti si alternano nel turno. Crei un solo account (email + password) per sede: chi entra fa login qui e poi si identifica col proprio <b>codice a 4 cifre personale</b>.
       </div>
-      <div style={{ fontSize: 12, color: C.textMid, lineHeight: 1.55, marginBottom: 16, padding: '10px 12px', background: `${C.amber}12`, border: `1px solid ${C.amber}30`, borderRadius: 8 }}>
-        <b>Consiglio:</b> email dedicata al laboratorio, non personale. Esempio: <em>laboratorio-torino@tuodominio.it</em>. La password comuniclila a voce ai colleghi che usano quel tablet.
+      <div style={{ fontSize: F.size.sm, color: C.textMid, lineHeight: 1.55, marginBottom: 16, padding: '10px 12px', background: `${C.amber}12`, border: `1px solid ${C.amber}30`, borderRadius: 8 }}>
+        <b>Consiglio:</b> email dedicata al laboratorio, non personale. Esempio: <em>laboratorio-torino@tuodominio.it</em>. La password comunicala a voce ai colleghi che usano quel tablet.
       </div>
 
       <div style={{ marginBottom: 20 }}>
@@ -1704,10 +1989,10 @@ function LaboratoriSection({ orgId, sedi, notify, isMobile, nomeAttivita }) {
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 10 }}>
         <div style={{ fontSize: typo.small.fontSize, fontWeight: 800, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Laboratori attivi</div>
-        <button onClick={carica} title="Aggiorna" style={{ ...btnStyle(C.white, C.textMid, `1px solid ${C.border}`), padding: '5px 10px' }}><Icon name="refresh" size={12} />Aggiorna</button>
+        <button onClick={carica} title="Aggiorna" style={{ ...btnStyle(C.white, C.textMid, `1px solid ${C.border}`, dito), padding: '5px 10px' }}><Icon name="refresh" size={12} />Aggiorna</button>
       </div>
       {laboratori.length === 0 && (
-        <div style={{ fontSize: 12, color: C.textSoft, fontStyle: 'italic', marginBottom: 18 }}>
+        <div style={{ fontSize: F.size.sm, color: C.textSoft, fontStyle: 'italic', marginBottom: 18 }}>
           Nessun laboratorio ancora. Crea il primo per far accedere i dipendenti dal tablet della sede.
         </div>
       )}
@@ -1719,7 +2004,7 @@ function LaboratoriSection({ orgId, sedi, notify, isMobile, nomeAttivita }) {
           return (
             <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '10px 14px', background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 10 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.nome_completo || d.email}</div>
+                <div style={{ fontSize: F.size.base, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.nome_completo || d.email}</div>
                 <div style={{ fontSize: typo.small.fontSize, color: C.textSoft, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {d.email}
                   {d.laboratorio_sede_nome && <span style={{ marginLeft: 8 }}>· sede: <b style={{ color: C.textMid }}>{d.laboratorio_sede_nome}</b></span>}
@@ -1731,13 +2016,13 @@ function LaboratoriSection({ orgId, sedi, notify, isMobile, nomeAttivita }) {
               </span>
               <button onClick={() => setEditTarget(d)} disabled={busy === d.id}
                 title="Cambia nome, sede o password"
-                style={btnStyle(C.white, C.textMid, `1px solid ${C.border}`)}>
+                style={btnStyle(C.white, C.textMid, `1px solid ${C.border}`, dito)}>
                 <Icon name="edit" size={12} />Modifica
               </button>
               {d.approvato
-                ? <button onClick={() => setApprovato(d.id, false)} disabled={busy === d.id} style={btnStyle(C.white, C.textMid, `1px solid ${C.border}`)}>Sospendi</button>
-                : <button onClick={() => setApprovato(d.id, true)} disabled={busy === d.id} style={btnStyle(C.green, C.white)}><Icon name="check" size={12} />Attiva</button>}
-              <button onClick={() => setDelConf(d)} disabled={busy === d.id} title="Elimina account" style={btnStyle(C.white, C.red, `1px solid ${C.red}40`)}><Icon name="trash" size={12} /></button>
+                ? <button onClick={() => setApprovato(d.id, false)} disabled={busy === d.id} style={btnStyle(C.white, C.textMid, `1px solid ${C.border}`, dito)}>Sospendi</button>
+                : <button onClick={() => setApprovato(d.id, true)} disabled={busy === d.id} style={btnStyle(C.green, C.white, null, dito)}><Icon name="check" size={12} />Attiva</button>}
+              <button onClick={() => setDelConf(d)} disabled={busy === d.id} title="Elimina account" style={btnStyle(C.white, C.red, `1px solid ${C.red}40`, dito)}><Icon name="trash" size={12} /></button>
             </div>
           )
         })}
@@ -1765,18 +2050,18 @@ function LaboratoriSection({ orgId, sedi, notify, isMobile, nomeAttivita }) {
         />
       )}
       {delConf && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }} onClick={() => setDelConf(null)}>
-          <div onClick={e => e.stopPropagation()} style={{ background: C.white, borderRadius: 14, padding: 24, maxWidth: 380, width: '100%', boxShadow: '0 20px 50px rgba(0,0,0,0.3)' }}>
-            <div style={{ fontSize: 15, fontWeight: 800, color: C.text, marginBottom: 8 }}>Eliminare il laboratorio?</div>
-            <div style={{ fontSize: 13, color: C.textMid, lineHeight: 1.55, marginBottom: 18 }}>
-              L'account <b>{delConf.email}</b> verra' rimosso definitivamente. I dipendenti che usavano quel tablet dovranno passare da un altro laboratorio. L'azione non e' reversibile.
+        <Finestra onChiudi={() => setDelConf(null)} larghezza={380}>
+          <div>
+            <div style={{ fontSize: typo.h3.fontSize, fontWeight: 800, color: C.text, marginBottom: 8 }}>Eliminare il laboratorio?</div>
+            <div style={{ fontSize: F.size.base, color: C.textMid, lineHeight: 1.55, marginBottom: 18 }}>
+              L'account <b>{delConf.email}</b> verrà rimosso definitivamente. I dipendenti che usavano quel tablet dovranno passare da un altro laboratorio. L'azione non è reversibile.
             </div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => setDelConf(null)} style={btnStyle(C.white, C.textMid, `1px solid ${C.border}`)}>Annulla</button>
-              <button onClick={() => elimina(delConf)} disabled={busy === delConf.id} style={btnStyle(C.red, C.white)}><Icon name="trash" size={12} />Elimina definitivamente</button>
+              <button onClick={() => setDelConf(null)} style={btnStyle(C.white, C.textMid, `1px solid ${C.border}`, dito)}>Annulla</button>
+              <button onClick={() => elimina(delConf)} disabled={busy === delConf.id} style={btnStyle(C.red, C.white, null, dito)}><Icon name="trash" size={12} />Elimina definitivamente</button>
             </div>
           </div>
-        </div>
+        </Finestra>
       )}
     </div>
   )
@@ -1830,35 +2115,35 @@ function LaboratorioFormDialog({ orgId, sedi, nomeAttivita, existing = null, onC
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }} onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} style={{ background: C.white, borderRadius: 14, padding: 24, maxWidth: 460, width: '100%', boxShadow: '0 20px 50px rgba(0,0,0,0.3)' }}>
-        <div style={{ fontSize: 16, fontWeight: 800, color: C.text, marginBottom: 6 }}>
+    <Finestra onChiudi={onClose} larghezza={460}>
+      <div>
+        <div style={{ fontSize: F.size.lg, fontWeight: 800, color: C.text, marginBottom: 6 }}>
           {isEdit ? 'Modifica laboratorio' : 'Nuovo laboratorio'}
         </div>
-        <div style={{ fontSize: 12, color: C.textSoft, marginBottom: 18, lineHeight: 1.55 }}>
+        <div style={{ fontSize: F.size.sm, color: C.textSoft, marginBottom: 18, lineHeight: 1.55 }}>
           Un account condiviso per il tablet della sede. I dipendenti si loggano con email + password, poi mettono il proprio codice a 4 cifre.
         </div>
 
         <label style={{ display: 'block', fontSize: typo.small.fontSize, fontWeight: 700, color: C.textMid, marginBottom: 6 }}>Nome laboratorio</label>
         <input value={nome} onChange={e => setNome(e.target.value)}
           placeholder="Es. Laboratorio Torino"
-          style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', minHeight: 40, fontSize: 14, border: `1px solid ${C.border}`, borderRadius: 8, marginBottom: 14 }} />
+          style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', minHeight: 40, fontSize: F.size.md, border: `1px solid ${C.border}`, borderRadius: 8, marginBottom: 14 }} />
 
         <label style={{ display: 'block', fontSize: typo.small.fontSize, fontWeight: 700, color: C.textMid, marginBottom: 6 }}>Email account</label>
         <input value={email} onChange={e => setEmail(e.target.value)}
           type="email" autoComplete="off" disabled={isEdit}
           placeholder="laboratorio-torino@tuodominio.it"
-          style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', minHeight: 40, fontSize: 14, border: `1px solid ${C.border}`, borderRadius: 8, marginBottom: isEdit ? 4 : 14, background: isEdit ? C.bgSubtle : C.white, color: isEdit ? C.textSoft : C.text }} />
+          style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', minHeight: 40, fontSize: F.size.md, border: `1px solid ${C.border}`, borderRadius: 8, marginBottom: isEdit ? 4 : 14, background: isEdit ? C.bgSubtle : C.white, color: isEdit ? C.textSoft : C.text }} />
         {isEdit && <div style={{ fontSize: typo.small.fontSize, color: C.textSoft, marginBottom: 14 }}>L'email non e' modificabile.</div>}
 
         <label style={{ display: 'block', fontSize: typo.small.fontSize, fontWeight: 700, color: C.textMid, marginBottom: 6 }}>Sede fisica</label>
         <select value={sedeId} onChange={e => setSedeId(e.target.value)}
-          style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', minHeight: 40, fontSize: 14, border: `1px solid ${C.border}`, borderRadius: 8, marginBottom: 14, background: C.white }}>
+          style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', minHeight: 40, fontSize: F.size.md, border: `1px solid ${C.border}`, borderRadius: 8, marginBottom: 14, background: C.white }}>
           {(sedi || []).map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
         </select>
 
         {isEdit && (
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12, color: C.textMid, marginBottom: 8, cursor: 'pointer' }}>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: F.size.sm, color: C.textMid, marginBottom: 8, cursor: 'pointer' }}>
             <input type="checkbox" checked={changePwd} onChange={e => setChangePwd(e.target.checked)} />
             Cambia password del laboratorio
           </label>
@@ -1869,14 +2154,14 @@ function LaboratorioFormDialog({ orgId, sedi, nomeAttivita, existing = null, onC
             <input value={password} onChange={e => setPassword(e.target.value)}
               type="text" autoComplete="new-password"
               placeholder="Almeno 8 caratteri con lettere e numeri"
-              style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', minHeight: 40, fontSize: 14, border: `1px solid ${C.border}`, borderRadius: 8, marginBottom: 6 }} />
+              style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', minHeight: 40, fontSize: F.size.md, border: `1px solid ${C.border}`, borderRadius: 8, marginBottom: 6 }} />
             <div style={{ fontSize: typo.small.fontSize, color: C.textSoft, marginBottom: 14, lineHeight: 1.5 }}>
               La comunichi <b>a voce</b> ai dipendenti che usano questo tablet. Non viene inviata via email in chiaro.
             </div>
           </>
         )}
 
-        {err && <div style={{ fontSize: 12, color: C.red, background: `${C.red}12`, padding: '8px 12px', borderRadius: 8, marginBottom: 12 }}>{err}</div>}
+        {err && <div style={{ fontSize: F.size.sm, color: C.red, background: `${C.red}12`, padding: '8px 12px', borderRadius: 8, marginBottom: 12 }}>{err}</div>}
 
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 6 }}>
           <button onClick={onClose} disabled={saving} style={btnStyle(C.white, C.textMid, `1px solid ${C.border}`)}>Annulla</button>
@@ -1885,12 +2170,12 @@ function LaboratorioFormDialog({ orgId, sedi, nomeAttivita, existing = null, onC
           </button>
         </div>
       </div>
-    </div>
+    </Finestra>
   )
 }
 
 // ── Rubrica dipendenti operativi (codici 4 cifre) ──────────────────────────
-function RubricaDipendentiSection({ orgId, notify, isMobile }) {
+function RubricaDipendentiSection({ orgId, notify, isMobile, dito = false }) {
   const [lista, setLista] = useState([])
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(null)
@@ -1948,14 +2233,14 @@ function RubricaDipendentiSection({ orgId, notify, isMobile }) {
     finally { setBusy(null); setDelConf(null); carica() }
   }
 
-  if (loading) return <div style={{ color: C.textSoft, fontSize: 13 }}>Caricamento…</div>
+  if (loading) return <div style={{ color: C.textSoft, fontSize: F.size.base }}>Caricamento…</div>
 
   return (
     <div>
-      <div style={{ fontSize: 12, color: C.textSoft, lineHeight: 1.55, marginBottom: 14 }}>
-        Le persone che lavorano nei tuoi laboratori. Ognuna ha un <b>codice a 4 cifre</b> che digita sul tablet dopo il login. Le sue operazioni vengono tracciate a suo nome nel <b>Registro attivita'</b>.
+      <div style={{ fontSize: F.size.sm, color: C.textSoft, lineHeight: 1.55, marginBottom: 14 }}>
+        Le persone che lavorano nei tuoi laboratori. Ognuna ha un <b>codice a 4 cifre</b> che digita sul tablet dopo il login. Le sue operazioni vengono tracciate a suo nome nel <b>Registro attività</b>.
       </div>
-      <div style={{ fontSize: 12, color: C.textMid, lineHeight: 1.55, marginBottom: 16, padding: '10px 12px', background: `${C.amber}12`, border: `1px solid ${C.amber}30`, borderRadius: 8 }}>
+      <div style={{ fontSize: F.size.sm, color: C.textMid, lineHeight: 1.55, marginBottom: 16, padding: '10px 12px', background: `${C.amber}12`, border: `1px solid ${C.amber}30`, borderRadius: 8 }}>
         <b>Consiglio:</b> il codice va <b>comunicato a voce</b> al dipendente. Non lo mandiamo via email per sicurezza.
       </div>
 
@@ -1968,10 +2253,10 @@ function RubricaDipendentiSection({ orgId, notify, isMobile }) {
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 10 }}>
         <div style={{ fontSize: typo.small.fontSize, fontWeight: 800, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Rubrica</div>
-        <button onClick={carica} title="Aggiorna" style={{ ...btnStyle(C.white, C.textMid, `1px solid ${C.border}`), padding: '5px 10px' }}><Icon name="refresh" size={12} />Aggiorna</button>
+        <button onClick={carica} title="Aggiorna" style={{ ...btnStyle(C.white, C.textMid, `1px solid ${C.border}`, dito), padding: '5px 10px' }}><Icon name="refresh" size={12} />Aggiorna</button>
       </div>
       {lista.length === 0 && (
-        <div style={{ fontSize: 12, color: C.textSoft, fontStyle: 'italic', marginBottom: 18 }}>
+        <div style={{ fontSize: F.size.sm, color: C.textSoft, fontStyle: 'italic', marginBottom: 18 }}>
           Nessun dipendente ancora. Aggiungi il primo per iniziare a tracciare chi fa cosa.
         </div>
       )}
@@ -1983,7 +2268,7 @@ function RubricaDipendentiSection({ orgId, notify, isMobile }) {
           return (
             <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '10px 14px', background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 10 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div style={{ fontSize: F.size.base, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {[d.nome, d.cognome].filter(Boolean).join(' ') || '—'}
                 </div>
                 <div style={{ fontSize: typo.small.fontSize, color: C.textSoft, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -1991,7 +2276,7 @@ function RubricaDipendentiSection({ orgId, notify, isMobile }) {
                   {lastUsed && <span style={{ marginLeft: 8 }}>· ultimo accesso {lastUsed}</span>}
                 </div>
               </div>
-              <span style={{ fontSize: 15, fontWeight: 800, color: C.text, background: C.bgSubtle, padding: '4px 12px', borderRadius: 8, fontVariantNumeric: 'tabular-nums', letterSpacing: '0.05em' }}>
+              <span style={{ fontSize: typo.h3.fontSize, fontWeight: 800, color: C.text, background: C.bgSubtle, padding: '4px 12px', borderRadius: 8, fontVariantNumeric: 'tabular-nums', letterSpacing: '0.05em' }}>
                 {d.codice_operativo || '—'}
               </span>
               <span style={{ fontSize: typo.small.fontSize, fontWeight: 800, padding: '3px 9px', borderRadius: 999, color: d.codice_attivo ? C.green : C.amber, background: d.codice_attivo ? `${C.green}14` : `${C.amber}18`, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
@@ -1999,18 +2284,18 @@ function RubricaDipendentiSection({ orgId, notify, isMobile }) {
               </span>
               <button onClick={() => setCodiceTarget(d)} disabled={busy === d.id}
                 title="Cambia il codice a 4 cifre"
-                style={btnStyle(C.white, C.textMid, `1px solid ${C.border}`)}>
+                style={btnStyle(C.white, C.textMid, `1px solid ${C.border}`, dito)}>
                 <Icon name="key" size={12} />Cambia codice
               </button>
               <button onClick={() => setEditTarget(d)} disabled={busy === d.id}
                 title="Modifica nome/cognome/ruolo"
-                style={btnStyle(C.white, C.textMid, `1px solid ${C.border}`)}>
+                style={btnStyle(C.white, C.textMid, `1px solid ${C.border}`, dito)}>
                 <Icon name="edit" size={12} />Modifica
               </button>
               {d.codice_attivo
-                ? <button onClick={() => toggleCodice(d)} disabled={busy === d.id} style={btnStyle(C.white, C.textMid, `1px solid ${C.border}`)}>Sospendi</button>
-                : <button onClick={() => toggleCodice(d)} disabled={busy === d.id} style={btnStyle(C.green, C.white)}><Icon name="check" size={12} />Riattiva</button>}
-              <button onClick={() => setDelConf(d)} disabled={busy === d.id} title="Rimuovi dalla rubrica" style={btnStyle(C.white, C.red, `1px solid ${C.red}40`)}><Icon name="trash" size={12} /></button>
+                ? <button onClick={() => toggleCodice(d)} disabled={busy === d.id} style={btnStyle(C.white, C.textMid, `1px solid ${C.border}`, dito)}>Sospendi</button>
+                : <button onClick={() => toggleCodice(d)} disabled={busy === d.id} style={btnStyle(C.green, C.white, null, dito)}><Icon name="check" size={12} />Riattiva</button>}
+              <button onClick={() => setDelConf(d)} disabled={busy === d.id} title="Rimuovi dalla rubrica" style={btnStyle(C.white, C.red, `1px solid ${C.red}40`, dito)}><Icon name="trash" size={12} /></button>
             </div>
           )
         })}
@@ -2043,18 +2328,18 @@ function RubricaDipendentiSection({ orgId, notify, isMobile }) {
         />
       )}
       {delConf && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }} onClick={() => setDelConf(null)}>
-          <div onClick={e => e.stopPropagation()} style={{ background: C.white, borderRadius: 14, padding: 24, maxWidth: 380, width: '100%', boxShadow: '0 20px 50px rgba(0,0,0,0.3)' }}>
-            <div style={{ fontSize: 15, fontWeight: 800, color: C.text, marginBottom: 8 }}>Rimuovere dalla rubrica?</div>
-            <div style={{ fontSize: 13, color: C.textMid, lineHeight: 1.55, marginBottom: 18 }}>
+        <Finestra onChiudi={() => setDelConf(null)} larghezza={380}>
+          <div>
+            <div style={{ fontSize: typo.h3.fontSize, fontWeight: 800, color: C.text, marginBottom: 8 }}>Rimuovere dalla rubrica?</div>
+            <div style={{ fontSize: F.size.base, color: C.textMid, lineHeight: 1.55, marginBottom: 18 }}>
               <b>{[delConf.nome, delConf.cognome].filter(Boolean).join(' ')}</b> non potrà più inserire il suo codice sui tablet. Lo storico delle sue operazioni resta nel registro.
             </div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => setDelConf(null)} style={btnStyle(C.white, C.textMid, `1px solid ${C.border}`)}>Annulla</button>
-              <button onClick={() => elimina(delConf)} disabled={busy === delConf.id} style={btnStyle(C.red, C.white)}><Icon name="trash" size={12} />Rimuovi</button>
+              <button onClick={() => setDelConf(null)} style={btnStyle(C.white, C.textMid, `1px solid ${C.border}`, dito)}>Annulla</button>
+              <button onClick={() => elimina(delConf)} disabled={busy === delConf.id} style={btnStyle(C.red, C.white, null, dito)}><Icon name="trash" size={12} />Rimuovi</button>
             </div>
           </div>
-        </div>
+        </Finestra>
       )}
     </div>
   )
@@ -2095,12 +2380,12 @@ function DipendenteOperativoFormDialog({ orgId, existing = null, soloAnagrafica 
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }} onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} style={{ background: C.white, borderRadius: 14, padding: 24, maxWidth: 440, width: '100%', boxShadow: '0 20px 50px rgba(0,0,0,0.3)' }}>
-        <div style={{ fontSize: 16, fontWeight: 800, color: C.text, marginBottom: 6 }}>
+    <Finestra onChiudi={onClose} larghezza={440}>
+      <div>
+        <div style={{ fontSize: F.size.lg, fontWeight: 800, color: C.text, marginBottom: 6 }}>
           {isEdit ? 'Modifica dipendente' : 'Nuovo dipendente'}
         </div>
-        <div style={{ fontSize: 12, color: C.textSoft, marginBottom: 18, lineHeight: 1.55 }}>
+        <div style={{ fontSize: F.size.sm, color: C.textSoft, marginBottom: 18, lineHeight: 1.55 }}>
           {isEdit
             ? 'Cambia nome, cognome o ruolo. Il codice a 4 cifre si cambia da "Cambia codice".'
             : 'Aggiungi una persona alla rubrica. Il codice a 4 cifre lo scegli tu e glielo dici a voce.'}
@@ -2111,19 +2396,19 @@ function DipendenteOperativoFormDialog({ orgId, existing = null, soloAnagrafica 
             <label style={{ display: 'block', fontSize: typo.small.fontSize, fontWeight: 700, color: C.textMid, marginBottom: 6 }}>Nome</label>
             <input value={nome} onChange={e => setNome(e.target.value)}
               placeholder="Marco"
-              style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', minHeight: 40, fontSize: 14, border: `1px solid ${C.border}`, borderRadius: 8 }} />
+              style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', minHeight: 40, fontSize: F.size.md, border: `1px solid ${C.border}`, borderRadius: 8 }} />
           </div>
           <div>
             <label style={{ display: 'block', fontSize: typo.small.fontSize, fontWeight: 700, color: C.textMid, marginBottom: 6 }}>Cognome</label>
             <input value={cognome} onChange={e => setCognome(e.target.value)}
               placeholder="Rossi"
-              style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', minHeight: 40, fontSize: 14, border: `1px solid ${C.border}`, borderRadius: 8 }} />
+              style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', minHeight: 40, fontSize: F.size.md, border: `1px solid ${C.border}`, borderRadius: 8 }} />
           </div>
         </div>
 
         <label style={{ display: 'block', fontSize: typo.small.fontSize, fontWeight: 700, color: C.textMid, marginBottom: 6 }}>Ruolo (opzionale)</label>
         <select value={ruolo} onChange={e => setRuolo(e.target.value)}
-          style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', minHeight: 40, fontSize: 14, border: `1px solid ${C.border}`, borderRadius: 8, marginBottom: 14, background: C.white }}>
+          style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', minHeight: 40, fontSize: F.size.md, border: `1px solid ${C.border}`, borderRadius: 8, marginBottom: 14, background: C.white }}>
           <option value="">— non specificato —</option>
           <option value="dipendente">Dipendente</option>
           <option value="capo-turno">Capo turno</option>
@@ -2137,14 +2422,14 @@ function DipendenteOperativoFormDialog({ orgId, existing = null, soloAnagrafica 
             <input value={codice} onChange={e => setCodice(e.target.value.replace(/[^0-9]/g, '').slice(0, 4))}
               inputMode="numeric" maxLength={4} autoComplete="off"
               placeholder="Es. 0834"
-              style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', minHeight: 40, fontSize: 18, letterSpacing: '0.4em', fontWeight: 700, border: `1px solid ${C.border}`, borderRadius: 8, marginBottom: 6, fontVariantNumeric: 'tabular-nums', textAlign: 'center' }} />
+              style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', minHeight: 40, fontSize: F.size.xl, letterSpacing: '0.4em', fontWeight: 700, border: `1px solid ${C.border}`, borderRadius: 8, marginBottom: 6, fontVariantNumeric: 'tabular-nums', textAlign: 'center' }} />
             <div style={{ fontSize: typo.small.fontSize, color: C.textSoft, marginBottom: 14, lineHeight: 1.5 }}>
-              Scegli 4 cifre che il dipendente ricordera' (evita 0000, 1234, ecc.). Comunicaglielo <b>a voce</b>: non lo mandiamo via email.
+              Scegli 4 cifre che il dipendente ricorderà (evita 0000, 1234, ecc.). Comunicaglielo <b>a voce</b>: non lo mandiamo via email.
             </div>
           </>
         )}
 
-        {err && <div style={{ fontSize: 12, color: C.red, background: `${C.red}12`, padding: '8px 12px', borderRadius: 8, marginBottom: 12 }}>{err}</div>}
+        {err && <div style={{ fontSize: F.size.sm, color: C.red, background: `${C.red}12`, padding: '8px 12px', borderRadius: 8, marginBottom: 12 }}>{err}</div>}
 
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 6 }}>
           <button onClick={onClose} disabled={saving} style={btnStyle(C.white, C.textMid, `1px solid ${C.border}`)}>Annulla</button>
@@ -2153,7 +2438,7 @@ function DipendenteOperativoFormDialog({ orgId, existing = null, soloAnagrafica 
           </button>
         </div>
       </div>
-    </div>
+    </Finestra>
   )
 }
 
@@ -2183,21 +2468,21 @@ function CambiaCodiceDialog({ existing, onClose, onDone, notify }) {
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }} onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} style={{ background: C.white, borderRadius: 14, padding: 24, maxWidth: 400, width: '100%', boxShadow: '0 20px 50px rgba(0,0,0,0.3)' }}>
-        <div style={{ fontSize: 16, fontWeight: 800, color: C.text, marginBottom: 6 }}>Cambia codice</div>
-        <div style={{ fontSize: 12, color: C.textSoft, marginBottom: 18, lineHeight: 1.55 }}>
+    <Finestra onChiudi={onClose} larghezza={400}>
+      <div>
+        <div style={{ fontSize: F.size.lg, fontWeight: 800, color: C.text, marginBottom: 6 }}>Cambia codice</div>
+        <div style={{ fontSize: F.size.sm, color: C.textSoft, marginBottom: 18, lineHeight: 1.55 }}>
           Nuovo codice a 4 cifre per <b>{[existing.nome, existing.cognome].filter(Boolean).join(' ')}</b>. Il codice vecchio smette di funzionare subito.
         </div>
         <input value={codice} onChange={e => setCodice(e.target.value.replace(/[^0-9]/g, '').slice(0, 4))}
           inputMode="numeric" maxLength={4} autoComplete="off"
           placeholder="Es. 0834"
           autoFocus
-          style={{ width: '100%', boxSizing: 'border-box', padding: '12px 12px', minHeight: 48, fontSize: 22, letterSpacing: '0.4em', fontWeight: 700, border: `1px solid ${C.border}`, borderRadius: 8, marginBottom: 6, fontVariantNumeric: 'tabular-nums', textAlign: 'center' }} />
+          style={{ width: '100%', boxSizing: 'border-box', padding: '12px 12px', minHeight: 48, fontSize: F.size['2xl'], letterSpacing: '0.4em', fontWeight: 700, border: `1px solid ${C.border}`, borderRadius: 8, marginBottom: 6, fontVariantNumeric: 'tabular-nums', textAlign: 'center' }} />
         <div style={{ fontSize: typo.small.fontSize, color: C.textSoft, marginBottom: 14, lineHeight: 1.5 }}>
           Comunicagli il nuovo codice <b>a voce</b>.
         </div>
-        {err && <div style={{ fontSize: 12, color: C.red, background: `${C.red}12`, padding: '8px 12px', borderRadius: 8, marginBottom: 12 }}>{err}</div>}
+        {err && <div style={{ fontSize: F.size.sm, color: C.red, background: `${C.red}12`, padding: '8px 12px', borderRadius: 8, marginBottom: 12 }}>{err}</div>}
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 6 }}>
           <button onClick={onClose} disabled={saving} style={btnStyle(C.white, C.textMid, `1px solid ${C.border}`)}>Annulla</button>
           <button onClick={salva} disabled={saving} style={btnStyle(C.red, C.white)}>
@@ -2205,7 +2490,7 @@ function CambiaCodiceDialog({ existing, onClose, onDone, notify }) {
           </button>
         </div>
       </div>
-    </div>
+    </Finestra>
   )
 }
 
@@ -2237,7 +2522,7 @@ export default function Personale({ orgId, sedeId, sedi = [], notify, adminNome,
               style={{ padding: '8px 16px', border: 'none', cursor: 'pointer',
                 background: active ? T.bgCard : 'transparent',
                 color: active ? T.text : T.textSoft,
-                fontSize: 13, fontWeight: active ? 600 : 500,
+                fontSize: F.size.base, fontWeight: active ? 600 : 500,
                 borderRadius: R.md, letterSpacing: '-0.005em',
                 boxShadow: active ? S.sm : 'none',
                 display: 'inline-flex', alignItems: 'center', gap: 6,
@@ -2253,7 +2538,7 @@ export default function Personale({ orgId, sedeId, sedi = [], notify, adminNome,
       </div>
 
       {tab === "dipendenti" && <DipendentiTab orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify} isMobile={isMobile} isTablet={isTablet}/>}
-      {tab === "accessi"    && <AccessiTab    orgId={orgId} sedi={sedi} notify={notify} isMobile={isMobile} nomeAttivita={nomeAttivita}/>}
+      {tab === "accessi"    && <AccessiTab    orgId={orgId} sedi={sedi} notify={notify} isMobile={isMobile} isTablet={isTablet} nomeAttivita={nomeAttivita}/>}
       {tab === "turni"      && <TurniTab      orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify} isMobile={isMobile} isTablet={isTablet}/>}
       {tab === "organigramma" && <OrganigrammaTab orgId={orgId} notify={notify} isMobile={isMobile} adminNome={adminNome}/>}
       {tab === "analisi"    && <AnalisiCostoTab orgId={orgId} isMobile={isMobile} isTablet={isTablet}/>}
@@ -2278,17 +2563,17 @@ function CalcoloLordoNetto({ lordo, netto, setForm }) {
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 8, fontSize: typo.small.fontSize }}>
         <div>
           <div style={{ color: C.textMid, marginBottom: 2 }}>Lordo</div>
-          <div style={{ fontWeight: 800, color: '#0E1726', fontSize: 15 }}>{fmt(result.lordo)}</div>
+          <div style={{ fontWeight: 800, color: '#0E1726', fontSize: typo.h3.fontSize }}>{fmt(result.lordo)}</div>
           <div style={{ color: C.textMid, marginTop: 2 }}>per mensilità</div>
         </div>
         <div>
           <div style={{ color: C.textMid, marginBottom: 2 }}>Netto stimato</div>
-          <div style={{ fontWeight: 800, color: '#15803D', fontSize: 15 }}>{fmt(result.netto)}</div>
+          <div style={{ fontWeight: 800, color: '#15803D', fontSize: typo.h3.fontSize }}>{fmt(result.netto)}</div>
           <div style={{ color: C.textMid, marginTop: 2 }}>in busta, per mensilità</div>
         </div>
         <div>
           <div style={{ color: C.textMid, marginBottom: 2 }}>Costo azienda</div>
-          <div style={{ fontWeight: 800, color: '#991B1B', fontSize: 15 }}>{fmt(result.costoAzienda)}</div>
+          <div style={{ fontWeight: 800, color: '#991B1B', fontSize: typo.h3.fontSize }}>{fmt(result.costoAzienda)}</div>
           {/* I tre numeri NON sono sulla stessa base, e prima non c'era modo
               di saperlo: lordo e netto sono per mensilità (13 all'anno), il
               costo azienda è quello che esce di cassa OGNI MESE, con la

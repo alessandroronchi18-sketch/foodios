@@ -284,3 +284,28 @@ suoi test. Verificato nel codice una per una prima di spuntarle.
 
 Restano aperte solo le **quattro decisioni sull'import**, che aspettano una
 risposta del titolare, non del codice.
+
+## DA FARE — 21/09, Materie prime: lo storico diventa una sezione
+
+Richiesta del titolare: **il pulsante «Storico modifiche» non deve solo aprire
+un elenco**, deve portare a un'altra sezione — sempre dentro la pagina Materie
+prime — dove si possa **filtrare per fornitore, materia prima, prezzo** e
+vedere tutte le modifiche relative.
+
+Il perché, con parole sue: «quando ci saranno un sacco di modifiche di
+ingredienti uno deve avere la possibilità di filtrare».
+
+Nota di contesto: lo storico oggi mostra le ultime 50 righe e basta. Da oggi
+ci scrivono dentro **anche le bolle** (ogni carico merce che cambia un prezzo
+lascia una riga con fornitore, numero del documento e data), quindi la
+crescita non è un'ipotesi: è la conseguenza diretta della funzione appena
+messa in produzione. Con due consegne a settimana per dieci materie prime
+sono ottanta righe al mese.
+
+Da tenere presente quando si fa:
+- i filtri utili sono **fornitore**, **materia prima**, **periodo** e
+  **quanto è cambiato** (solo aumenti / solo ribassi / oltre il tot %)
+- l'origine c'è già nel dato (`origine: {tipo, fornitore, numero, data}`):
+  va mostrata, se no non si sa da dove viene un prezzo
+- le righe «solo storico» (bolla più vecchia dell'ultimo cambio) vanno
+  distinte, se no sembrano prezzi che non sono mai entrati in vigore

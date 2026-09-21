@@ -126,10 +126,6 @@
   "src/components/FloatingActions.jsx": {
     "colore-a-mano": 3
   },
-  "src/components/FormatiVendita.jsx": {
-    "colore-a-mano": 3,
-    "testo-a-mano": 22
-  },
   "src/components/Fornitori.jsx": {
     "colore-a-mano": 32,
     "testo-a-mano": 3,
@@ -199,9 +195,7 @@
     "testo-a-mano": 2
   },
   "src/components/Personale.jsx": {
-    "colore-a-mano": 88,
-    "testo-a-mano": 103,
-    "antizoom-a-mano": 2
+    "colore-a-mano": 30
   },
   "src/components/PrevisioneDomanda.jsx": {
     "colore-a-mano": 2,
@@ -248,10 +242,6 @@
   "src/components/SplashScreen.jsx": {
     "colore-a-mano": 10,
     "testo-a-mano": 1
-  },
-  "src/components/SpreciOmaggi.jsx": {
-    "colore-a-mano": 12,
-    "testo-a-mano": 31
   },
   "src/components/Toast.jsx": {
     "colore-a-mano": 3,
@@ -340,11 +330,6 @@
     "testo-a-mano": 11,
     "tripla-a-mano": 2
   },
-  "src/views/CashflowView.jsx": {
-    "colore-a-mano": 25,
-    "testo-a-mano": 23,
-    "tripla-a-mano": 1
-  },
   "src/views/ChiusuraView.jsx": {
     "colore-a-mano": 24,
     "testo-a-mano": 6,
@@ -416,13 +401,8 @@
     "tripla-a-mano": 1
   },
   "src/views/ProduzioneGiornalieraView.jsx": {
-    "colore-a-mano": 50,
-    "testo-a-mano": 80,
+    "colore-a-mano": 2,
     "tripla-a-mano": 2
-  },
-  "src/views/QuadraturaInventarioView.jsx": {
-    "colore-a-mano": 57,
-    "testo-a-mano": 29
   },
   "src/views/RecensioniView.jsx": {
     "colore-a-mano": 8,

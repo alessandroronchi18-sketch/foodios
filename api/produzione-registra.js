@@ -235,6 +235,20 @@ export default async function handler(req) {
   for (const p of prodottiSess) {
     const ric = ricettario.ricette[p.nome] || ricettario.ricette[p.nome.toUpperCase().trim()]
     const reg = getR(p.nome, ric)
+    // Un semilavorato in vetrina non ci va MAI.
+    //
+    // La vetrina (`stock_prodotti_finiti`) è quello che la cassa scarica
+    // quando vende. Una base — la base bianca, lo zabaione — non si vende:
+    // entra in altre ricette. Caricarla lì mette in vetrina una riga che
+    // nessuno scaricherà mai, e che resta lì a gonfiare le giacenze per
+    // sempre. Sui dati veri sono 2 semilavorati su 5, e 29 ricette su 68
+    // usano la base bianca.
+    //
+    // Questo guardiano esisteva dal 09/09 nel trasferimento fra sedi, e dal
+    // 21/09 anche nella pagina del titolare. **Qui no**: questo è il percorso
+    // del DIPENDENTE, che registra la produzione dal laboratorio e passa dal
+    // server. Tre strade per la stessa cosa, e una era rimasta indietro.
+    if (reg?.tipo === 'semilavorato') continue
     const unitaFactor = Number(reg?.unita)
     const pezzi = (p.vendibile || 0) * (Number.isFinite(unitaFactor) && unitaFactor > 0 ? unitaFactor : 1)
     if (pezzi <= 0) continue

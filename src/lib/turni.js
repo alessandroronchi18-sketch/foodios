@@ -15,8 +15,19 @@
 // mezzanotte, e un turno "08:00 → abc" diventava un turno di SEDICI ore
 // (08:00 di un giorno alle 00:00 del successivo), con il costo relativo.
 // Meglio zero, che si vede, di sedici ore inventate.
+// I secondi: Postgres li manda sempre, e il 21/09/2026 sono costati 288 turni.
+//
+// Una colonna `time` torna da PostgREST come «08:00:00», non «08:00». Questo
+// controllo accettava solo la forma corta, quindi ogni turno **letto dal
+// database** risultava scritto male: `finMin` ripiegava sull'ora di inizio e
+// tutti i turni duravano zero minuti. La scheda Turni mostrava «32,0h» in cima
+// e un calendario vuoto sotto, e la contraddizione non aveva spiegazione.
+//
+// I secondi in un turno non servono a niente — nessuno registra un turno che
+// finisce alle 16:00:30 — ma rifiutarli non li fa sparire: li fa diventare un
+// turno lungo zero.
 export const oraValida = s => {
-  const m = /^(\d{1,2}):(\d{2})$/.exec(String(s || '').trim())
+  const m = /^(\d{1,2}):(\d{2})(?::\d{2})?$/.exec(String(s || '').trim())
   if (!m) return false
   const h = Number(m[1]), mi = Number(m[2])
   // Il controllo sulle ORE e sui MINUTI serve davvero: "25:99" passava il

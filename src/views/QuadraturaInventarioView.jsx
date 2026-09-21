@@ -12,7 +12,7 @@
 // suggerisce dove guardare per chiudere il gap.
 
 import React, { useEffect, useMemo, useState } from 'react'
-import { color as T, typo, ui3, ui } from '../lib/theme'
+import { color as T, typo, ui3, ui, font } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { sload } from '../lib/storage'
 import { aggiungiGiorni } from '../lib/dateLocal'
@@ -338,9 +338,9 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
   const driftTone = (p) => {
     if (p == null) return { bg: C.bgSubtle, border: C.border, fg: C.textMid, accent: C.textSoft, label: 'n/d' }
     const a = Math.abs(p)
-    if (a < 5) return { bg: '#ECFDF5', border: '#A7F3D0', fg: '#065F46', accent: '#10B981', label: 'in target' }
-    if (a < 15) return { bg: '#FFFBEB', border: '#FDE68A', fg: '#92400E', accent: '#F59E0B', label: 'da osservare' }
-    return { bg: '#FEF2F2', border: '#FECACA', fg: '#991B1B', accent: '#DC2626', label: 'attenzione' }
+    if (a < 5) return { bg: T.greenLight, border: T.greenLight, fg: T.green, accent: T.green, label: 'in target' }
+    if (a < 15) return { bg: T.amberLight, border: T.amber, fg: T.amberDark, accent: T.amber, label: 'da osservare' }
+    return { bg: T.redLight, border: T.red, fg: T.redDark, accent: T.red, label: 'attenzione' }
   }
   const tone = driftTone(kpi.driftPct)
 
@@ -365,7 +365,7 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
           minWidth: 0,
         }}>
           <div style={{
-            fontSize: 12, fontWeight: 700, textTransform: 'uppercase',
+            fontSize: font.size.sm, fontWeight: 700, textTransform: 'uppercase',
             letterSpacing: '0.05em', color: C.textSoft, marginBottom: 2,
           }}>Settimana</div>
           <div style={{
@@ -489,17 +489,17 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
       ) : !euroKg ? (
         <div style={{
           padding: isMobile ? 16 : '20px 24px',
-          background: '#FFFBEB', border: '1px solid #FDE68A',
-          borderRadius: 14, marginBottom: 20, fontSize: 13, color: '#92400E', lineHeight: 1.5,
+          background: T.amberLight, border: '1px solid ${T.amber}',
+          borderRadius: 14, marginBottom: 20, fontSize: font.size.base, color: T.amberDark, lineHeight: 1.5,
           display: 'flex', alignItems: isMobile ? 'stretch' : 'center',
           gap: 14, flexDirection: isMobile ? 'column' : 'row',
           width: '100%', boxSizing: 'border-box',
         }}>
           <div style={{ flex: '1 1 320px', minWidth: 0, display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-            <Icon name="warning" size={18} color="#92400E" style={{ flexShrink: 0, marginTop: 1 }} />
+            <Icon name="warning" size={18} color="${T.amberDark}" style={{ flexShrink: 0, marginTop: 1 }} />
             <div>
               <div style={{ fontWeight: 700, marginBottom: 2 }}>Imposta i formati di vendita</div>
-              <div style={{ fontSize: 12, color: '#78350F' }}>
+              <div style={{ fontSize: font.size.sm, color: T.amberDark }}>
                 Servono per calcolare il €/kg medio e abilitare la quadratura con la cassa.
               </div>
             </div>
@@ -510,15 +510,15 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
               onClick={() => onNavigate('formati-vendita')}
               aria-label="Vai a formati di vendita"
               style={{
-                background: '#92400E', color: '#FFF', border: 'none',
-                borderRadius: 10, padding: '10px 16px', fontSize: 13, fontWeight: 700,
+                background: T.amberDark, color: T.bgCard, border: 'none',
+                borderRadius: 10, padding: '10px 16px', fontSize: font.size.base, fontWeight: 700,
                 cursor: 'pointer', display: 'inline-flex', alignItems: 'center',
                 justifyContent: 'center', gap: 8,
                 whiteSpace: 'nowrap', minHeight: tapMin,
                 width: isMobile ? '100%' : 'auto',
               }}
             >
-              <Icon name="euro" size={14} color="#FFF" /> Vai ai formati
+              <Icon name="euro" size={14} color="${T.bgCard}" /> Vai ai formati
             </button>
           )}
         </div>
@@ -572,21 +572,21 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
             {kpi.b2bKg > 0 && (
               <div style={{
                 marginTop: 14, padding: isMobile ? 12 : '12px 16px',
-                background: '#F0F9FF', border: '1px solid #BAE6FD', borderRadius: 12,
-                fontSize: 12, color: '#075985',
+                background: T.blueLight, border: '1px solid ${T.blue}', borderRadius: 12,
+                fontSize: font.size.sm, color: T.blue,
                 display: 'flex', alignItems: isMobile ? 'flex-start' : 'center',
                 justifyContent: 'space-between', gap: 12,
                 flexDirection: isMobile ? 'column' : 'row',
                 width: '100%', boxSizing: 'border-box',
               }}>
                 <span style={{ display: 'inline-flex', alignItems: 'flex-start', gap: 8, minWidth: 0 }}>
-                  <Icon name="receipt" size={14} color="#075985" style={{ flexShrink: 0, marginTop: 2 }} />
+                  <Icon name="receipt" size={14} color="${T.blue}" style={{ flexShrink: 0, marginTop: 2 }} />
                   <span>
                     <strong>Vendite B2B</strong> separate dalla cassa retail:
                     {' '}{nKg(kpi.b2bKg * 1000)} kg fatturati per {fmt0(kpi.ricaviB2b)}
                   </span>
                 </span>
-                <span style={{ fontSize: 12, color: '#0C4A6E', whiteSpace: 'nowrap' }}>
+                <span style={{ fontSize: font.size.sm, color: T.blue, whiteSpace: 'nowrap' }}>
                   sottratti dal retail per non gonfiare il drift
                 </span>
               </div>
@@ -727,8 +727,8 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
             { k: 'b2bric', label: 'Ricavi ingrosso', cella: ({ kpi: k }) => fmt0(k.ricaviB2b || 0) },
           ]}
           intestazione={<><thead>
-                    <tr style={{ background: '#F8FAFC' }}>
-                      <th style={{ ...tdHeadSede, position: 'sticky', left: 0, background: '#F8FAFC', zIndex: 1 }}>Sede</th>
+                    <tr style={{ background: T.bgSubtle }}>
+                      <th style={{ ...tdHeadSede, position: 'sticky', left: 0, background: T.bgSubtle, zIndex: 1 }}>Sede</th>
                       <th style={{ ...tdHeadSede, textAlign: 'right' }}>Retail kg</th>
                       <th style={{ ...tdHeadSede, textAlign: 'right' }}>B2B kg</th>
                       <th style={{ ...tdHeadSede, textAlign: 'right' }}>Atteso</th>
@@ -755,7 +755,7 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
                         <td style={{ ...tdCellSede, textAlign: 'right', ...TNUM, color: T.brand, fontWeight: 700, whiteSpace: 'nowrap' }}>
                           {fmt0(k.ricavoAtteso || 0)}
                         </td>
-                        <td style={{ ...tdCellSede, textAlign: 'right', ...TNUM, color: '#075985', whiteSpace: 'nowrap' }}>
+                        <td style={{ ...tdCellSede, textAlign: 'right', ...TNUM, color: T.blue, whiteSpace: 'nowrap' }}>
                           {fmt0(k.ricaviB2b || 0)}
                         </td>
                       </tr>
@@ -818,11 +818,11 @@ function SparklineTrend({ data }) {
     <div style={{ width: '100%' }}>
       <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto', maxHeight: 150, display: 'block' }} aria-label="Trend ultime 4 settimane">
         {/* Gridline orizzontale di base */}
-        <line x1={PAD_X} y1={H - PAD_Y} x2={W - PAD_X} y2={H - PAD_Y} stroke="#E5E7EB" strokeWidth="1" />
+        <line x1={PAD_X} y1={H - PAD_Y} x2={W - PAD_X} y2={H - PAD_Y} stroke="${T.border}" strokeWidth="1" />
         {/* Cassa (linea brand tratteggiata) */}
-        <path d={pathEur} fill="none" stroke="#6E0E1A" strokeWidth="2" strokeDasharray="4 3" />
+        <path d={pathEur} fill="none" stroke="${T.brand}" strokeWidth="2" strokeDasharray="4 3" />
         {/* Kg venduti (linea verde) */}
-        <path d={pathKg} fill="none" stroke="#16A34A" strokeWidth="2" />
+        <path d={pathKg} fill="none" stroke="${T.green}" strokeWidth="2" />
         {data.map((d, i) => {
           const x = PAD_X + i * xStep
           // Settimana con caselle che non tornano: anello ambra intorno al
@@ -833,8 +833,8 @@ function SparklineTrend({ data }) {
               {d.nonQuadrate > 0 && (
                 <circle cx={x} cy={yScale(d.kg, maxKg)} r="6.5" fill="none" stroke={T.amber} strokeWidth="1.5" />
               )}
-              <circle cx={x} cy={yScale(d.kg, maxKg)} r="3.5" fill="#16A34A" stroke="#FFF" strokeWidth="1.5" />
-              <circle cx={x} cy={yScale(d.cassa, maxEur)} r="3.5" fill="#6E0E1A" stroke="#FFF" strokeWidth="1.5" />
+              <circle cx={x} cy={yScale(d.kg, maxKg)} r="3.5" fill={T.green} stroke="${T.bgCard}" strokeWidth="1.5" />
+              <circle cx={x} cy={yScale(d.cassa, maxEur)} r="3.5" fill={T.brand} stroke={T.bgCard} strokeWidth="1.5" />
             </g>
           )
         })}
@@ -863,13 +863,13 @@ function SparklineTrend({ data }) {
         marginTop: 8, flexWrap: 'wrap',
       }}>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ display: 'inline-block', width: 14, height: 2, background: '#16A34A', borderRadius: 1 }} />
+          <span style={{ display: 'inline-block', width: 14, height: 2, background: T.green, borderRadius: 1 }} />
           kg venduti (inventario)
         </span>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
           <span style={{
             display: 'inline-block', width: 14, height: 0,
-            borderTop: '2px dashed #6E0E1A',
+            borderTop: '2px dashed ${T.brand}',
           }} />
           cassa retail
         </span>
@@ -890,11 +890,11 @@ function SparklineTrend({ data }) {
 // ── Stili tabella drill-down per sede ─────────────────────────────────────
 const tdHeadSede = {
   padding: '10px 14px', textAlign: 'left',
-  fontSize: 12, fontWeight: 700, color: C.textSoft,
+  fontSize: font.size.sm, fontWeight: 700, color: C.textSoft,
   textTransform: 'uppercase', letterSpacing: '0.06em',
   whiteSpace: 'nowrap',
 }
-const tdCellSede = { padding: '10px 14px', fontSize: 13, color: C.text }
+const tdCellSede = { padding: '10px 14px', fontSize: font.size.base, color: C.text }
 
 // ── Tile KPI ──────────────────────────────────────────────────────────────
 // Audit 2026-06-24: minHeight uniformi sui sub-elementi così tile affiancate
@@ -928,7 +928,7 @@ function Tile({ icon, label, value, sub, tendVal, muted, color, bg, borderColor,
           <Icon name={icon} size={15} color={accent || C.red} />
         </span>
         <div style={{
-          fontSize: 12, fontWeight: 700, textTransform: 'uppercase',
+          fontSize: font.size.sm, fontWeight: 700, textTransform: 'uppercase',
           letterSpacing: '0.05em', color: C.textSoft, lineHeight: 1.25,
           minHeight: 28,
           display: 'flex', alignItems: 'center',
@@ -940,7 +940,7 @@ function Tile({ icon, label, value, sub, tendVal, muted, color, bg, borderColor,
 
       {/* Value: arrotondato all'unità, tabular nums, € DOPO la cifra */}
       <div style={{
-        fontSize: 26, fontWeight: 800, color: fgValue,
+        fontSize: font.size["3xl"], fontWeight: 800, color: fgValue,
         letterSpacing: '-0.025em', lineHeight: 1.1,
         minHeight: 32,
         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
@@ -951,14 +951,14 @@ function Tile({ icon, label, value, sub, tendVal, muted, color, bg, borderColor,
 
       {/* Sub: minHeight uniforme così le tile restano allineate */}
       <div style={{
-        fontSize: 12, color: muted ? C.textSoft : C.textMid,
+        fontSize: font.size.sm, color: muted ? C.textSoft : C.textMid,
         marginTop: 6, lineHeight: 1.35,
         minHeight: 28,
         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
       }} title={sub || ''}>
         {sub || (tendVal != null ? '' : ' ')}
         {tendVal != null && !sub && (
-          <span style={{ color: tendVal >= 0 ? '#065F46' : '#991B1B', fontWeight: 600 }}>
+          <span style={{ color: tendVal >= 0 ? '${T.green}' : T.redDark, fontWeight: 600 }}>
             vs sett. prec.: {tendVal > 0 ? '+' : ''}{tendVal.toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 1, maximumFractionDigits: 1 })}%
           </span>
         )}
@@ -972,7 +972,7 @@ function Tile({ icon, label, value, sub, tendVal, muted, color, bg, borderColor,
       }}>
         {badge && (
           <span style={{
-            fontSize: 12, fontWeight: 700,
+            fontSize: font.size.sm, fontWeight: 700,
             color: accent || C.textMid,
             background: accent ? `${accent}1F` : 'rgba(15,23,42,0.05)',
             padding: '3px 8px', borderRadius: 999,
@@ -982,8 +982,8 @@ function Tile({ icon, label, value, sub, tendVal, muted, color, bg, borderColor,
         )}
         {tendVal != null && sub && (
           <span style={{
-            fontSize: 12, fontWeight: 600,
-            color: tendVal >= 0 ? '#065F46' : '#991B1B',
+            fontSize: font.size.sm, fontWeight: 600,
+            color: tendVal >= 0 ? '${T.green}' : T.redDark,
             whiteSpace: 'nowrap',
           }}>
             vs prec. {tendVal > 0 ? '+' : ''}{tendVal.toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 1, maximumFractionDigits: 1 })}%
@@ -1012,13 +1012,13 @@ function DiagnosiDrift({ driftEur, driftPct, isMobile }) {
   return (
     <div style={{
       marginTop: 14, padding: isMobile ? 14 : '14px 16px',
-      background: '#FEF2F2', border: '1px solid #FECACA',
-      borderRadius: 12, fontSize: 12, color: '#7F1D1D', lineHeight: 1.55,
+      background: T.redLight, border: '1px solid ${T.red}',
+      borderRadius: 12, fontSize: font.size.sm, color: T.redDark, lineHeight: 1.55,
       width: '100%', boxSizing: 'border-box',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-        <Icon name="warning" size={15} color="#991B1B" />
-        <strong style={{ fontSize: 13 }}>
+        <Icon name="warning" size={15} color="${T.redDark}" />
+        <strong style={{ fontSize: font.size.base }}>
           Cosa controllare - drift {tono} del {Math.abs(driftPct).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 1, maximumFractionDigits: 1 })}%
         </strong>
       </div>
@@ -1035,7 +1035,7 @@ function PanelTop({ title, items, total, isMobile }) {
     return (
       <div style={panelStyle}>
         <div style={panelTitle}>{title}</div>
-        <div style={{ fontSize: 13, color: C.textSoft, padding: '12px 0' }}>
+        <div style={{ fontSize: font.size.base, color: C.textSoft, padding: '12px 0' }}>
           Nessun venduto registrato per questa settimana.
         </div>
       </div>
@@ -1054,9 +1054,9 @@ function PanelTop({ title, items, total, isMobile }) {
             }}>
               <span style={{
                 width: 22, height: 22, borderRadius: 6,
-                background: i === 0 ? '#FEF3C7' : C.bgSubtle,
-                color: i === 0 ? '#92400E' : C.textSoft,
-                fontSize: 12, fontWeight: 800, textAlign: 'center',
+                background: i === 0 ? '${T.amberLight}' : C.bgSubtle,
+                color: i === 0 ? '${T.amberDark}' : C.textSoft,
+                fontSize: font.size.sm, fontWeight: 800, textAlign: 'center',
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                 flexShrink: 0,
               }}>
@@ -1064,31 +1064,31 @@ function PanelTop({ title, items, total, isMobile }) {
               </span>
               <span style={{
                 flex: isMobile ? '0 0 88px' : '0 0 140px',
-                fontSize: 13, fontWeight: 600, color: C.text,
+                fontSize: font.size.base, fontWeight: 600, color: C.text,
                 overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
               }} title={it.gusto}>
                 {it.gusto}
               </span>
               <div style={{
-                flex: 1, height: 8, background: '#F0EAE6',
+                flex: 1, height: 8, background: T.border,
                 borderRadius: 4, overflow: 'hidden', minWidth: 30,
               }}>
                 <div style={{
                   width: `${Math.max(4, pctVal)}%`, height: '100%',
-                  background: i === 0 ? '#6E0E1A' : '#8A1F2C',
+                  background: i === 0 ? '${T.brand}' : T.brandDark,
                   borderRadius: 4,
                   transition: 'width 240ms ease',
                 }} />
               </div>
               <span style={{
-                flex: '0 0 64px', fontSize: 12, fontWeight: 700,
+                flex: '0 0 64px', fontSize: font.size.sm, fontWeight: 700,
                 textAlign: 'right', ...TNUM, color: C.text,
                 whiteSpace: 'nowrap',
               }}>
                 {nKg(it.vendutoG)} kg
               </span>
               <span style={{
-                flex: '0 0 38px', fontSize: 12, color: C.textSoft,
+                flex: '0 0 38px', fontSize: font.size.sm, color: C.textSoft,
                 textAlign: 'right', ...TNUM, whiteSpace: 'nowrap',
               }}>
                 {pctVal.toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })}%
@@ -1110,20 +1110,20 @@ function PanelSofferenza({ sofferenza, zeroVenduto }) {
       {zeroVenduto.length > 0 && (
         <div style={{
           marginBottom: 14, padding: '10px 12px',
-          background: '#FEF2F2', borderRadius: 10,
-          border: '1px solid #FECACA',
+          background: T.redLight, borderRadius: 10,
+          border: '1px solid ${T.red}',
         }}>
           <div style={{
-            fontSize: 12, fontWeight: 700, color: '#991B1B',
+            fontSize: font.size.sm, fontWeight: 700, color: T.redDark,
             textTransform: 'uppercase', letterSpacing: '0.06em',
             marginBottom: 6,
             display: 'flex', alignItems: 'center', gap: 6,
           }}>
-            <Icon name="alert" size={12} color="#991B1B" />
+            <Icon name="alert" size={12} color="${T.redDark}" />
             Zero venduto ({zeroVenduto.length.toLocaleString('it-IT', { useGrouping: 'always' })})
           </div>
           <div style={{
-            fontSize: 12, color: '#7F1D1D', lineHeight: 1.55,
+            fontSize: font.size.sm, color: T.redDark, lineHeight: 1.55,
           }}>
             {zeroVenduto.slice(0, 8).map(x => x.gusto).join(' · ')}
             {zeroVenduto.length > 8 ? ` · +${(zeroVenduto.length - 8).toLocaleString('it-IT', { useGrouping: 'always' })} altri` : ''}
@@ -1132,14 +1132,14 @@ function PanelSofferenza({ sofferenza, zeroVenduto }) {
       )}
 
       {sofferenza.length === 0 ? (
-        <div style={{ fontSize: 12, color: C.textSoft, lineHeight: 1.5 }}>
+        <div style={{ fontSize: font.size.sm, color: C.textSoft, lineHeight: 1.5 }}>
           Nessun gusto con residuo persistente. Buon equilibrio produzione/vendita.
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {sofferenza.slice(0, 6).map(x => (
             <div key={x.gusto} style={{
-              display: 'flex', alignItems: 'center', gap: 10, fontSize: 12,
+              display: 'flex', alignItems: 'center', gap: 10, fontSize: font.size.sm,
               padding: '6px 0',
               borderBottom: `1px dashed ${C.borderSoft}`,
             }}>
@@ -1152,15 +1152,15 @@ function PanelSofferenza({ sofferenza, zeroVenduto }) {
               </span>
               <span style={{
                 color: C.textSoft, ...TNUM, whiteSpace: 'nowrap',
-                fontSize: 12,
+                fontSize: font.size.sm,
               }}>
                 residuo {nKg(x.residuoMedioG)} kg
               </span>
               <span style={{
-                color: '#92400E', fontWeight: 700, ...TNUM,
+                color: T.amberDark, fontWeight: 700, ...TNUM,
                 minWidth: 52, textAlign: 'right', whiteSpace: 'nowrap',
-                background: '#FEF3C7', padding: '2px 8px', borderRadius: 999,
-                fontSize: 12,
+                background: T.amberLight, padding: '2px 8px', borderRadius: 999,
+                fontSize: font.size.sm,
               }}>
                 {(x.ratio * 100).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })}%
               </span>
@@ -1169,7 +1169,7 @@ function PanelSofferenza({ sofferenza, zeroVenduto }) {
         </div>
       )}
       <div style={{
-        fontSize: 12, color: C.textSoft, marginTop: 12, lineHeight: 1.4,
+        fontSize: font.size.sm, color: C.textSoft, marginTop: 12, lineHeight: 1.4,
         paddingTop: 10, borderTop: `1px solid ${C.borderSoft}`,
       }}>
         Soglia &quot;sofferenza&quot;: residuo medio &ge; 50% della produzione giornaliera.
@@ -1184,7 +1184,7 @@ const btnNav = (minSize = 40) => ({
   background: 'transparent',
   border: `1px solid ${C.border}`, borderRadius: 10,
   cursor: 'pointer',
-  fontSize: 14, color: C.textMid,
+  fontSize: font.size.md, color: C.textMid,
   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
   fontFamily: 'inherit',
   transition: 'background 120ms ease, border-color 120ms ease',
@@ -1196,6 +1196,6 @@ const panelStyle = {
   width: '100%', boxSizing: 'border-box',
 }
 const panelTitle = {
-  fontSize: 12, fontWeight: 700, textTransform: 'uppercase',
+  fontSize: font.size.sm, fontWeight: 700, textTransform: 'uppercase',
   letterSpacing: '0.05em', color: C.textSoft, marginBottom: 14,
 }
