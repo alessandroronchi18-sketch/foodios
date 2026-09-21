@@ -55,6 +55,31 @@ const fmtEuro0 = v => `${_NF0.format(Math.round(Number(v || 0)))} €`
 const fmtDate = d =>
   d ? new Date(d + 'T12:00:00').toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-'
 
+// ── Il velo di una finestra ────────────────────────────────────────────────
+//
+// Sopra ogni finestra di questa pagina c'era un `<div onClick>` che la
+// chiudeva. Col dito o col mouse funziona; con la tastiera no, e a un lettore
+// di schermo quel rettangolo non risulta nemmeno esistere — resta una
+// finestra che si apre e non si sa come si chiude.
+//
+// Il rimedio è quello già usato in `Personale.jsx`: il velo è un `<button>`
+// vero, che si raggiunge con Tab e dice cosa fa, e la finestra si chiude
+// anche con Esc. Il riquadro bianco va messo sopra (`position: relative`),
+// altrimenti il velo se lo mangia.
+function VeloFinestra({ onChiudi, colore = 'rgba(15,23,42,0.5)', attivo = true }) {
+  useEffect(() => {
+    if (!attivo) return undefined
+    const suTasto = e => { if (e.key === 'Escape') onChiudi?.() }
+    document.addEventListener('keydown', suTasto)
+    return () => document.removeEventListener('keydown', suTasto)
+  }, [onChiudi, attivo])
+  return (
+    <button type="button" onClick={() => attivo && onChiudi?.()} aria-label="Chiudi la finestra"
+      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none',
+        padding: 0, margin: 0, background: colore, cursor: attivo ? 'default' : 'not-allowed' }} />
+  )
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function Scadenzario({ orgId, sedeId, sedi = [], pagina = 'scadenzario', onNavigate }) {
   const isMobile = useIsMobile()
@@ -1846,19 +1871,27 @@ export default function Scadenzario({ orgId, sedeId, sedi = [], pagina = 'scaden
                     aria-label={`Seleziona ${g.nome} per bonifico SEPA`}
                     style={{ width: 20, height: 20, margin: 10, cursor: 'pointer', accentColor: T.brand, opacity: selectable ? 1 : 0.6 }} />
                 </span>
-                <div style={{ minWidth: 0, flex: 1, cursor: 'pointer' }}
+                {/* Il nome del fornitore apre e chiude le sue fatture: è un
+                    comando, e quindi è un `<button>`. Era un `<div onClick>`,
+                    cioè invisibile a chi gira con Tab e muto per un lettore di
+                    schermo, che non aveva modo di sapere né che si poteva
+                    premere né se la riga era aperta. `aria-expanded` lo dice. */}
+                <button type="button" style={{ minWidth: 0, flex: 1, cursor: 'pointer',
+                    background: 'none', border: 'none', padding: 0, margin: 0, textAlign: 'left', font: 'inherit', color: 'inherit' }}
                   onClick={() => toggleExpandForn(g.nome_norm)}
+                  aria-expanded={isExpanded}
+                  aria-label={`${g.nome}: ${isExpanded ? 'nascondi' : 'mostra'} tutte le fatture`}
                   title="Mostra tutte le fatture di questo fornitore">
-                  <div style={{ fontWeight: 700, fontSize: isMobile ? 14 : 13, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontWeight: 700, fontSize: isMobile ? 14 : 13, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span aria-hidden="true" style={{ color: T.textSoft, transition: 'transform .15s ease', display: 'inline-flex', alignItems: 'center', transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)', flexShrink: 0 }}><Icon name="chevR" size={13} color={T.textSoft} /></span>
                     <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.nome}</span>
-                  </div>
-                  <div title={ibanN ? `IBAN ${ibanN}` : 'IBAN mancante'} style={{ fontSize: 12, color: T.textSoft, ...tnum, marginLeft: 16, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  </span>
+                  <span title={ibanN ? `IBAN ${ibanN}` : 'IBAN mancante'} style={{ display: 'block', fontSize: 12, color: T.textSoft, ...tnum, marginLeft: 16, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {g.nFatt} fatt.{g.nNC > 0 ? ` · ${g.nNC} NC` : ''}{g.termini != null ? ` · ${g.termini}gg` : ''}
                     {' · '}{ibanN ? `${ibanN.slice(0, 2)}…${ibanN.slice(-4)}` : <span style={{ color: T.brand, fontWeight: 600 }}>no IBAN</span>}
                     {tutteFatture.length > g.n && <span style={{ marginLeft: 6, color: T.textSoft }}>· +{tutteFatture.length - g.n} pagate</span>}
-                  </div>
-                </div>
+                  </span>
+                </button>
                 {/* ── I posti fissi della riga ──────────────────────────
                     Segnalato dal titolare il 19/09/2026: «le cifre devono
                     stare sempre incolonnate fra di loro, le box verdi con
@@ -2311,9 +2344,9 @@ export default function Scadenzario({ orgId, sedeId, sedi = [], pagina = 'scaden
   function AvvisoIbanUguale() {
     if (!ibanAlert) return null
     return (
-      <div onClick={() => setIbanAlert(null)}
-        style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200, padding: 16 }}>
-        <div onClick={e => e.stopPropagation()}
+      <div style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200, padding: 16 }}>
+        <VeloFinestra onChiudi={() => setIbanAlert(null)} />
+        <div role="dialog" aria-modal="true" aria-label="Attenzione: IBAN identico"
           style={{ background: T.bgCard, borderRadius: 16, padding: '26px 28px', maxWidth: 480, width: '100%', boxShadow: '0 24px 60px rgba(204,0,0,0.28)', position: 'relative', overflow: 'hidden' }}>
           <div aria-hidden="true" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: T.brand }}/>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
@@ -2737,9 +2770,13 @@ export default function Scadenzario({ orgId, sedeId, sedi = [], pagina = 'scaden
 
       {/* Modale eliminazione bulk - doppia conferma (frase da digitare) */}
       {bulkOpen && (
-        <div onClick={() => !bulkDeleting && (setBulkOpen(false), setBulkConfirm(''))}
-          style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(15,23,42,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: T.bgCard, borderRadius: 16, maxWidth: 460, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.3)', overflow: 'hidden' }}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          {/* Mentre sta cancellando il velo non chiude niente: `attivo={false}`
+              vale sia per il clic sia per Esc. */}
+          <VeloFinestra colore="rgba(15,23,42,0.55)" attivo={!bulkDeleting}
+            onChiudi={() => { setBulkOpen(false); setBulkConfirm('') }} />
+          <div role="dialog" aria-modal="true" aria-label="Eliminare tutte le fatture?"
+            style={{ position: 'relative', background: T.bgCard, borderRadius: 16, maxWidth: 460, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.3)', overflow: 'hidden' }}>
             <div style={{ padding: '18px 22px', borderBottom: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: 12 }}>
               <span style={{ width: 40, height: 40, borderRadius: 10, background: '#FEE2E2', color: T.brand, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12" y2="17"/></svg>
@@ -3522,9 +3559,9 @@ export default function Scadenzario({ orgId, sedeId, sedi = [], pagina = 'scaden
       {/* Modale conferma generazione SEPA — chiarisce che il file scaricato
           va caricato nell'home banking, NON viene inviato automaticamente. */}
       {sepaConfirm && (
-        <div onClick={() => setSepaConfirm(null)}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, padding: 16 }}>
-          <div onClick={e => e.stopPropagation()}
+        <div style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, padding: 16 }}>
+          <VeloFinestra onChiudi={() => setSepaConfirm(null)} />
+          <div role="dialog" aria-modal="true" aria-label="Generazione bonifico SEPA"
             style={{ background: T.bgCard, borderRadius: 16, padding: '24px 26px', maxWidth: 520, width: '100%', boxShadow: '0 24px 60px rgba(15,23,42,0.32)', position: 'relative', overflow: 'hidden' }}>
             <div aria-hidden="true" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: 'linear-gradient(90deg, #E84B3A 0%, #FFB350 50%, #6E0E1A 100%)' }}/>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
@@ -3578,10 +3615,11 @@ export default function Scadenzario({ orgId, sedeId, sedi = [], pagina = 'scaden
           serve a guardare, e nessuno immagina che decida anche dove finiscono
           i documenti. Quindi lo si dice prima, e si può cambiare. */}
       {confermaSede && (
-        <div onClick={e => { if (e.target === e.currentTarget) setConfermaSede(null) }}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.55)', zIndex: 9999,
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999,
             display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div style={{ background: T.white, borderRadius: 16, padding: 24, maxWidth: 460, width: '100%',
+          <VeloFinestra colore="rgba(15,23,42,0.55)" onChiudi={() => setConfermaSede(null)} />
+          <div role="dialog" aria-modal="true" aria-label="Di quale negozio sono queste fatture?"
+            style={{ position: 'relative', background: T.white, borderRadius: 16, padding: 24, maxWidth: 460, width: '100%',
             boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
             <div style={{ fontSize: font.size.xl, fontWeight: 800, color: T.text, marginBottom: 6 }}>
               Di quale negozio sono queste fatture?

@@ -65,7 +65,7 @@ export const SEZIONI = {
   'Costi fissi': ['src/views/CostiAziendaliView.jsx'],
   'Storico produzione': ['src/views/StoricoProduzioneView.jsx'],
   'Quadratura inventario': ['src/views/QuadraturaInventarioView.jsx'],
-  'Previsioni': ['src/components/PrevisioneDomanda.jsx'],
+  'Previsioni': ['src/components/PrevisioneDomanda.jsx', 'src/lib/meteoCorrezione.js'],
   'Vendite B2B': ['src/views/VenditeB2BView.jsx', 'src/lib/venditeB2B.js'],
   'Cashflow': ['src/views/CashflowView.jsx'],
   'Personale': ['src/components/Personale.jsx'],
@@ -103,6 +103,26 @@ function tuttiIFile(dir, out = []) {
     else if (/\.jsx?$/.test(n)) out.push(p)
   }
   return out
+}
+
+/** Il tag JSX che comincia all'indice `i`, letto per intero.
+ *
+ *  Ci si ferma sul primo `>` che sta **fuori** dalle graffe: dentro un
+ *  gestore c'è quasi sempre una freccia (`=>`), e il suo `>` non chiude il
+ *  tag. È lo stesso scoglio che aveva già fatto sbagliare due volte questo
+ *  conteggio, preso però dal verso giusto. Le stringhe qui sono già state
+ *  tolte da `soloCodice`, quindi una graffa dentro un testo non conta.
+ */
+function tagIntero(src, i, max = 3000) {
+  let graffe = 0
+  const fine = Math.min(src.length, i + max)
+  for (let k = i; k < fine; k++) {
+    const c = src[k]
+    if (c === '{') graffe++
+    else if (c === '}') graffe--
+    else if (c === '>' && graffe === 0) return src.slice(i, k + 1)
+  }
+  return src.slice(i, fine)
 }
 
 export function misura() {
@@ -165,11 +185,18 @@ export function misura() {
       //   un tag che ha già un `role` — è il velo di una finestra, che un
       //      ruolo ce l'ha e si chiude anche con Esc.
       for (const m of codice.matchAll(/onClick\s*=\s*\{/g)) {
-        const prima = codice.slice(Math.max(0, m.index - 400), m.index)
+        const daDove = Math.max(0, m.index - 400)
+        const prima = codice.slice(daDove, m.index)
         const apre = prima.lastIndexOf('<')
         if (apre === -1) continue
-        const tag = prima.slice(apre)
-        if (!/^<div[\s>]/.test(tag)) continue        // non è un div
+        if (!/^<div[\s>]/.test(prima.slice(apre))) continue   // non è un div
+        // Il tag si legge **intero**, non solo il pezzo che sta prima
+        // dell'`onClick`: un `role` scritto dopo vale esattamente quanto uno
+        // scritto prima, e l'ordine in cui uno batte gli attributi non cambia
+        // di una virgola quello che un lettore di schermo trova. Guardando
+        // solo all'indietro, `<div onClick=… role="button" tabIndex={0}
+        // onKeyDown=…>` risultava un comando invisibile: non lo è.
+        const tag = tagIntero(codice, daDove + apre)
         if (/\brole\s*=/.test(tag)) continue          // ha già un ruolo
         const corpo = codice.slice(m.index, m.index + 120)
         if (/=>\s*e\.stopPropagation\(\)\s*\}/.test(corpo)) continue

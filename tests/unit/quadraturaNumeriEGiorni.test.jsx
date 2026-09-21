@@ -402,3 +402,50 @@ describe('Muoversi fra le settimane', () => {
     expect(testo()).not.toMatch(/NaN|Invalid Date/)
   })
 })
+
+// ── Il metodo di produzione decide da dove si leggono i dati ─────────────
+//
+// Un'azienda che lavora «a stampi» registra la produzione nel registro
+// giornaliero; una che lavora «a inventario» la ricostruisce dalle rimanenze.
+// Sono due mestieri diversi, e questa pagina serve solo al secondo: se
+// l'azienda lavora a stampi, la quadratura fra inventario e cassa non ha
+// niente su cui reggersi.
+describe('La pagina sa per chi è fatta', () => {
+  it('col metodo a inventario mostra la quadratura', async () => {
+    apri({ metodoProduzione: 'inventario' })
+    await pronta()
+    expect(testo()).toMatch(/inventario/i)
+  })
+
+  it('e non si rompe se il metodo arriva vuoto', async () => {
+    apri({ metodoProduzione: undefined })
+    await pronta()
+    expect(testo()).not.toMatch(/NaN|undefined/)
+  })
+})
+
+// ── I formati di vendita, che danno l'euro al chilo ─────────────────────
+describe('L\'euro al chilo viene dai formati', () => {
+  it('con un formato la pagina può stimare l\'atteso', async () => {
+    FORMATI = [FORMATO]
+    apri({ chiusure: [{ data: '2026-09-08', totale: 500, kpi: { totV: 500 } }] })
+    await pronta()
+    expect(testo()).not.toMatch(/NaN/)
+  })
+
+  it('un formato senza prezzo non fa un euro al chilo da zero', async () => {
+    // Un formato a prezzo zero darebbe 0 €/kg, e un atteso di zero euro su
+    // chili veri si legge come «hanno rubato tutto».
+    FORMATI = [{ ...FORMATO, prezzoDefault: 0 }]
+    apri({ chiusure: [{ data: '2026-09-08', totale: 500, kpi: { totV: 500 } }] })
+    await pronta()
+    expect(testo()).not.toMatch(/NaN|Infinity/)
+  })
+
+  it('e un formato senza grammi nemmeno', async () => {
+    FORMATI = [{ ...FORMATO, baseQtaG: 0 }]
+    apri({ chiusure: [{ data: '2026-09-08', totale: 500, kpi: { totV: 500 } }] })
+    await pronta()
+    expect(testo()).not.toMatch(/NaN|Infinity/)
+  })
+})
