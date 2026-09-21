@@ -355,3 +355,33 @@ strade sono tenere i turni e scollegarli (il costo storico resta), cancellare
 tutto (il costo storico cambia), o permettere l'eliminazione **solo** a chi
 non ha nessun turno registrato. La terza è la più prudente e probabilmente la
 più giusta: chi ha lavorato resta negli archivi, si archivia e basta.
+
+### 4. Il design della pagina Personale va rifatto
+
+Il titolare, 21/09: «rivedi totalmente il design della pagina personale, così
+non mi piace: rivedi la sezione dipendenti, **l'inserimento di un nuovo
+dipendente è tutto schiacciato sulla sinistra con molte box disallineate**,
+piuttosto rendila una sezione a parte».
+
+Tre cose dette, e sono tre lavori diversi:
+
+1. **Il modulo del nuovo dipendente diventa una sezione a parte**, non un
+   riquadro dentro l'elenco. È la stessa strada già presa per le cinque
+   schermate dei Fornitori: pagine vere, con un nome in cima, che stanno nella
+   storia del browser e hanno il loro ritorno.
+2. **I riquadri affiancati vanno incolonnati fra loro** — è la regola
+   permanente sull'allineamento: `minHeight` uguali per etichette, valori e
+   sottotitoli, così le cifre stanno sulla stessa riga anche quando una
+   didascalia manca.
+3. **Niente schiacciato a sinistra**: il modulo deve usare la larghezza che ha,
+   con i campi su una griglia che collassa a una colonna sul telefono.
+
+Nota di metodo, dalla lezione del 7/09 (redesign Calendario/Cassa pubblicato e
+riportato indietro): **prima di rifare, fotografare com'è adesso** a 1440 e a
+420 px con `scripts/foto-layout.mjs`, così il confronto è una misura e non
+un'impressione. E non toccare quello che funziona: qui la lamentela è precisa
+— allineamento e larghezza del modulo — non «rifai tutto da zero».
+
+Attenzione: la pagina è appena stata portata da 52 a 97/100 con 94 prove.
+Quelle prove vanno tenute verdi, o aggiornate spiegando nel commento cosa è
+cambiato e perché.
