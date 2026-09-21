@@ -139,7 +139,7 @@ const TINTE_SU_SCURO = { ok: '#7BE0A6', attenzione: '#FCD34D', allarme: '#FCA5A5
 
 const TIPI_CONTRATTO = ["Full-time","Part-time","Stagionale","Collaboratore","Apprendista"]
 
-function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = false }) {
+function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = false, onVaiAlCodice = null }) {
   // Il tablet si tocca col dito come il telefono. `isTablet` arrivava già come
   // prop da `Personale` e non lo leggeva nessuno: sul tablet i pulsanti di
   // modifica e archivio erano alti 25 px, meno della metà dei 44 che ci vuole
@@ -164,6 +164,11 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = 
   const [archCount, setArchCount] = useState(0)
   const [search, setSearch] = useState('')
   const [orgData, setOrgData] = useState({ reparti: [] }) // organigramma (per assegnare reparto al dipendente)
+  // Il codice a 4 cifre di ogni persona. Sta in un'altra tabella e si vedeva
+  // solo due schede più in là (Accessi → Rubrica), che elenca **le stesse
+  // identiche persone**: chi cercava «come do un codice a Mario» guardava
+  // qui e non trovava niente che dicesse che i codici esistono.
+  const [codici, setCodici] = useState({})
   // ── Eliminare un dipendente dall'archivio ─────────────────────────────
   //
   // Richiesta del titolare, 21/09/2026: «in personale, in archivia dipendenti
@@ -194,6 +199,30 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = 
   const sediMap = Object.fromEntries((sedi || []).map(s => [s.id, s]))
   const inArchivio = vista === 'archivio'
 
+  // L'etichetta del codice, e il comando che porta a impostarlo. Le stesse
+  // parole nelle due impaginazioni: scritte due volte, divergono.
+  const rigaCodice = (d) => {
+    const c = codici[d.id]
+    return (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+        <span title={c ? 'Il codice con cui si riconosce sul tablet in laboratorio' : 'Senza codice non può usare il tablet del laboratorio'}
+          style={{ fontSize: typo.small.fontSize, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
+            background: c ? C.bgSubtle : C.amberLight, color: c ? C.textMid : C.amberDark,
+            ...(c ? tnum : null) }}>
+          {c ? `codice ${c.codice_operativo}${c.attivo ? '' : ' (sospeso)'}` : 'senza codice'}
+        </span>
+        {onVaiAlCodice && !inArchivio && (
+          <button type="button" onClick={() => onVaiAlCodice(d.id)}
+            aria-label={c ? `Cambia il codice di ${d.nome}` : `Dai un codice a ${d.nome}`}
+            style={{ border: 'none', background: 'transparent', color: T.brand, fontSize: typo.small.fontSize,
+              fontWeight: 700, cursor: 'pointer', padding: dito ? '8px 4px' : 0, minHeight: dito ? 36 : undefined, fontFamily: 'inherit' }}>
+            {c ? 'cambia' : 'dai un codice'}
+          </button>
+        )}
+      </span>
+    )
+  }
+
   useEffect(() => { carica() }, [orgId, sedeId, vista])
 
   async function carica() {
@@ -213,6 +242,13 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = 
     setArchCount(count || 0)
     const org = await sload(SK_ORG, orgId, null).catch(() => null)
     setOrgData(org && Array.isArray(org.reparti) ? org : { reparti: [] })
+    // I codici: se la lettura non riesce la pagina resta in piedi senza,
+    // perché è un'informazione in più, non il motivo per cui si è qui.
+    try {
+      const { data: cod } = await supabase.from('dipendenti_codici')
+        .select('dipendente_id, codice_operativo, attivo').eq('organization_id', orgId)
+      setCodici(Object.fromEntries((cod || []).map(c => [c.dipendente_id, c])))
+    } catch (e) { console.error('codici dei dipendenti:', e) }
     setLoading(false)
   }
   // Reparti a cui appartiene un dipendente (per popolare il form in modifica).
@@ -659,6 +695,7 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = 
                 <div style={{ fontSize: typo.small.fontSize, color:C.textSoft, marginTop:2 }}>
                   {d.ore_settimana}h/sett · <strong style={{ color: costoNoto(d) ? C.red : C.amberDark }}>{etichettaMese(d)}</strong>
                 </div>
+                <div style={{ marginTop: 6 }}>{rigaCodice(d)}</div>
               </div>
               <span style={{ fontSize: typo.small.fontSize, fontWeight:700, padding:"3px 10px", borderRadius:12, background:C.amberLight, color:C.amber, whiteSpace:"nowrap" }}>{d.tipo_contratto}</span>
             </div>
@@ -694,6 +731,7 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = 
                 <div style={{ fontSize: typo.small.fontSize, color:C.textSoft }}>
                   {etichettaOraria(d)} · {d.ore_settimana}h/sett · <strong style={{ color: costoNoto(d) ? C.red : C.amberDark }}>{etichettaMese(d)}</strong>
                 </div>
+                <div style={{ marginTop: 5 }}>{rigaCodice(d)}</div>
                 {d.note && <div style={{ fontSize: typo.small.fontSize, color:C.textSoft, marginTop:3, fontStyle:"italic" }}>{d.note}</div>}
               </div>
               <div style={{ display:"flex", gap:6, flexShrink:0 }}>
@@ -2006,9 +2044,9 @@ const btnStyle = (bg, color, border, dito = false) => ({
   display: 'inline-flex', alignItems: 'center', gap: 6,
 })
 
-function AccessiTab({ orgId, sedi, notify, isMobile, isTablet = false, nomeAttivita }) {
+function AccessiTab({ orgId, sedi, notify, isMobile, isTablet = false, nomeAttivita,
+  sub = 'laboratori', setSub = () => {}, apriCodiceDi = null, onCodiceAperto = () => {} }) {
   const dito = isMobile || isTablet
-  const [sub, setSub] = useState('laboratori')
   return (
     <div style={{ maxWidth: 820 }}>
       <div role="tablist" aria-label="Sezione accessi" style={{
@@ -2034,7 +2072,8 @@ function AccessiTab({ orgId, sedi, notify, isMobile, isTablet = false, nomeAttiv
         ))}
       </div>
       {sub === 'laboratori' && <LaboratoriSection orgId={orgId} sedi={sedi} notify={notify} isMobile={isMobile} dito={dito} nomeAttivita={nomeAttivita} />}
-      {sub === 'rubrica' && <RubricaDipendentiSection orgId={orgId} notify={notify} isMobile={isMobile} dito={dito} />}
+      {sub === 'rubrica' && <RubricaDipendentiSection orgId={orgId} notify={notify} isMobile={isMobile} dito={dito}
+        apriCodiceDi={apriCodiceDi} onCodiceAperto={onCodiceAperto} />}
     </div>
   )
 }
@@ -2381,7 +2420,7 @@ function LaboratorioFormDialog({ orgId, sedi, nomeAttivita, existing = null, onC
 }
 
 // ── Rubrica dipendenti operativi (codici 4 cifre) ──────────────────────────
-function RubricaDipendentiSection({ orgId, notify, isMobile, dito = false }) {
+function RubricaDipendentiSection({ orgId, notify, isMobile, dito = false, apriCodiceDi = null, onCodiceAperto = () => {} }) {
   const [lista, setLista] = useState([])
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(null)
@@ -2408,6 +2447,15 @@ function RubricaDipendentiSection({ orgId, notify, isMobile, dito = false }) {
     setLoading(false)
   }
   useEffect(() => { setLoading(true); carica() }, [orgId])
+  // Arrivando dalla scheda Dipendenti con una persona in mano, la sua finestra
+  // si apre da sola: se toccasse cercarla di nuovo in elenco, il comando di là
+  // avrebbe risolto metà del problema.
+  useEffect(() => {
+    if (!apriCodiceDi || lista.length === 0) return
+    const suo = lista.find(d => d.id === apriCodiceDi)
+    if (suo) setCodiceTarget(suo)
+    onCodiceAperto()
+  }, [apriCodiceDi, lista, onCodiceAperto])
 
   async function chiamaApi(azione, extra = {}) {
     const { data: { session } } = await supabase.auth.getSession()
@@ -2704,6 +2752,27 @@ export default function Personale({ orgId, sedeId, sedi = [], notify, adminNome,
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
   const [tab, setTab] = useState("dipendenti")
+  // ── Dalla scheda del dipendente al suo codice a 4 cifre ────────────────
+  //
+  // Segnalato dal titolare il 21/09/2026, entrando con l'account del
+  // laboratorio: «mi chiede il codice di 4 numeri ma non mi dà la possibilità
+  // di impostarlo o modificarlo».
+  //
+  // Il comando c'era, ma due schede più in là: Personale → Accessi → Rubrica.
+  // E la Rubrica elenca **le stesse identiche persone** della scheda
+  // Dipendenti (`api/dipendenti-operativi` legge `dipendenti` e ci attacca il
+  // codice): due schermate per la stessa gente, e quella dove uno guarda non
+  // diceva nemmeno che un codice esistesse.
+  //
+  // Adesso la scheda Dipendenti mostra se una persona ha il codice, e il
+  // comando porta dritto al suo, aperto.
+  const [subAccessi, setSubAccessi] = useState('laboratori')
+  const [apriCodiceDi, setApriCodiceDi] = useState(null)
+  const vaiAlCodice = (dipId) => {
+    setApriCodiceDi(dipId || null)
+    setSubAccessi('rubrica')
+    setTab('accessi')
+  }
   const TABS = [
     ["dipendenti", "Dipendenti", "users"],
     ["accessi",    "Accessi",    "lock"],
@@ -2743,8 +2812,9 @@ export default function Personale({ orgId, sedeId, sedi = [], notify, adminNome,
         })}
       </div>
 
-      {tab === "dipendenti" && <DipendentiTab orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify} isMobile={isMobile} isTablet={isTablet}/>}
-      {tab === "accessi"    && <AccessiTab    orgId={orgId} sedi={sedi} notify={notify} isMobile={isMobile} isTablet={isTablet} nomeAttivita={nomeAttivita}/>}
+      {tab === "dipendenti" && <DipendentiTab orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify} isMobile={isMobile} isTablet={isTablet} onVaiAlCodice={vaiAlCodice}/>}
+      {tab === "accessi"    && <AccessiTab    orgId={orgId} sedi={sedi} notify={notify} isMobile={isMobile} isTablet={isTablet} nomeAttivita={nomeAttivita}
+        sub={subAccessi} setSub={setSubAccessi} apriCodiceDi={apriCodiceDi} onCodiceAperto={() => setApriCodiceDi(null)}/>}
       {tab === "turni"      && <TurniTab      orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify} isMobile={isMobile} isTablet={isTablet}/>}
       {tab === "organigramma" && <OrganigrammaTab orgId={orgId} notify={notify} isMobile={isMobile} adminNome={adminNome}/>}
       {tab === "analisi"    && <AnalisiCostoTab orgId={orgId} isMobile={isMobile} isTablet={isTablet}/>}
