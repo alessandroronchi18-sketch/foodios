@@ -16,19 +16,69 @@ import {
   importoMensile, totaleMensile, aggregaPerCategoria, statoVoce,
 } from '../lib/costiAziendali'
 
-// Helper locali: fmt2 mantiene 2 decimali (per importi tabella).
-// fmt0/fmt sono già importati da _shared.
-const fmt2 = v => `${Number(v || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
+// ── Un importo che non si sa non è zero ─────────────────────────────────────
+//
+// Difetto trovato il 21/09/2026. `fmt2` faceva `Number(v || 0)` e passava il
+// risultato a `toLocaleString`. Su un importo arrivato come **testo** —
+// «1.234,56», cioè il modo in cui un importo esce da un foglio Excel italiano
+// o da un campo copiato a mano — `Number` risponde `NaN`, e
+// `NaN.toLocaleString('it-IT')` risponde la parola «NaN»: in elenco si leggeva
+// **«NaN €»**.
+//
+// La metà cara del difetto però non si vedeva: `importoMensile` sullo stesso
+// dato risponde 0, quindi quella voce spariva dal totale mensile, dal totale
+// annuo e dal P&L **senza dirlo**. I costi fissi risultavano più bassi del
+// vero, e il punto di pareggio più vicino di quanto fosse.
+//
+// Qui l'importo si legge in un posto solo: o è un numero, o è `null` e la
+// pagina lo scrive a parole. Non si indovina: «1.234,56» può essere
+// milleduecentotrentaquattro euro o uno e ventitré, e fra le due c'è un
+// ordine di grandezza sul conto economico.
+export function leggiImporto(v) {
+  if (v === null || v === undefined) return null
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null
+  const g = String(v).trim()
+  if (!g) return null
+  const n = Number(g)
+  return Number.isFinite(n) ? n : null
+}
+
+// Il motivo di un errore, scritto in modo che si possa leggere. `e.message` su
+// un oggetto che non è un Error vale `undefined`, e a schermo finiva la parola
+// «undefined» al posto della spiegazione.
+export function messaggioErrore(e) {
+  const m = (e && typeof e.message === 'string' && e.message.trim()) ||
+    (typeof e === 'string' && e.trim()) || ''
+  return m || 'riprova fra un momento'
+}
+
+// Importo in tabella, 2 decimali. Se non è un numero si scrive una lineetta,
+// non uno zero: uno zero è un'informazione («costa zero»), la lineetta è
+// un'altra («non lo sappiamo»).
+const fmt2 = v => {
+  const n = leggiImporto(v)
+  if (n === null) return '—'
+  return `${n.toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
+}
 
 export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
-  // Audit 2026-06-24: touch target ≥40px su mobile, ≥44px su tablet.
-  const iconBtnSize = isMobile ? 40 : isTablet ? 44 : 40
+  // Il tablet si tocca col dito esattamente come il telefono (stessa forma di
+  // `ConfirmModal.jsx`). La misura scritta tre volte — `isMobile ? 40 :
+  // isTablet ? 44 : 40` — è quella in cui chi ne cambia una fa divergere le
+  // altre due: qui ce n'è una sola per il dito e una per il mouse.
+  const dito = isMobile || isTablet
+  // Audit 2026-06-24: touch target ≥44px per il dito, 40 col mouse.
+  const iconBtnSize = dito ? 44 : 40
   const confirmDialog = useConfirm()
   const [voci, setVoci] = useState([])
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState(null) // null = nessun form, oggetto = edit/create
+  // Un salvataggio alla volta: senza questo il doppio tocco sul pulsante
+  // «Aggiungi voce» inseriva la stessa voce due volte, e in P&L l'affitto
+  // pesava il doppio (CLAUDE.md: «Bottoni async: SEMPRE disabled={saving}»).
+  const [saving, setSaving] = useState(false)
   const [filterCategoria, setFilterCategoria] = useState('')
   // Scope: 'all' (tutte le voci dell'azienda) | 'sede' (voci globali +
   // specifiche della sede attiva). Multi-sede: utile distinguere costi
@@ -38,7 +88,10 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
   async function reload() {
     setLoading(true)
     const arr = await caricaCostiAziendali(orgId, null)  // sempre carico tutto
-    setVoci(arr)
+    // Se la lettura torna qualcosa che non è un elenco, la pagina resta in
+    // piedi e vuota invece di sbiancare: `voci.length` su `null` buttava giù
+    // tutta la vista, e chi la usa non aveva nemmeno un messaggio.
+    setVoci(Array.isArray(arr) ? arr : [])
     setLoading(false)
   }
   useEffect(() => { if (orgId) reload() }, [orgId])
@@ -66,7 +119,19 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
   // col toggle.
   const totMese = totaleMensile(vociScopeFiltrate)
   const totAnno = totMese * 12
+  // Quanto costa ogni giorno stare aperti, prima di vendere una pallina. È il
+  // numero con cui si ragiona sul punto di pareggio: 365 giorni, non i giorni
+  // di apertura, perché l'affitto si paga anche di lunedì.
+  const costoGiorno = totAnno / 365
   const perCategoria = aggregaPerCategoria(vociScopeFiltrate)
+  // Quante voci hanno un importo che non si riesce a leggere. Contarle è il
+  // solo modo di dire che il totale qui sopra è più basso del vero invece di
+  // lasciarlo passare per completo.
+  const vociSenzaImporto = useMemo(
+    () => (Array.isArray(vociScopeFiltrate) ? vociScopeFiltrate : [])
+      .filter(v => leggiImporto(v?.importo) === null).length,
+    [vociScopeFiltrate],
+  )
   const vociFiltrate = filterCategoria
     ? vociScopeFiltrate.filter(v => v.categoria === filterCategoria)
     : vociScopeFiltrate
@@ -108,17 +173,26 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
   }
 
   async function salva() {
-    if (!form.voce?.trim() || !(Number(form.importo) > 0)) {
+    if (saving) return
+    if (!form.voce?.trim() || leggiImporto(form.importo) === null || !(leggiImporto(form.importo) > 0)) {
       notify?.('Compila descrizione e importo (>0)', false)
       return
     }
+    setSaving(true)
     try {
+      // Prima si scrive, poi si cambia lo schermo (CLAUDE.md, punto 4): se il
+      // salvataggio fallisce la finestra resta aperta con dentro quello che
+      // era stato scritto, invece di sparire facendo credere che sia andata.
       await salvaVoceCosto(form)
       setForm(null)
       await reload()
       notify?.('Voce salvata')
     } catch (e) {
-      notify?.('Errore: ' + e.message, false)
+      // `'Errore: ' + e.message` su un errore senza `message` scriveva
+      // «Errore: undefined» a schermo.
+      notify?.('Salvataggio non riuscito: ' + messaggioErrore(e), false)
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -134,7 +208,7 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
       await reload()
       notify?.('Voce eliminata')
     } catch (e) {
-      notify?.('Errore: ' + e.message, false)
+      notify?.('Eliminazione non riuscita: ' + messaggioErrore(e), false)
     }
   }
 
@@ -151,7 +225,7 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
       {hasMultiSede && sedeId && sedeAttivaNome && (
         <div style={{
           marginBottom: 20, padding: '14px 16px',
-          background: 'linear-gradient(180deg, #FFFFFF 0%, #FBF6F2 100%)',
+          background: `linear-gradient(180deg, ${T.white} 0%, #FBF6F2 100%)`,
           border: `1px solid ${C.border}`, borderRadius: 14,
           boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 8px 24px rgba(15,23,42,0.05), inset 0 1px 0 rgba(255,255,255,0.6)',
           position: 'relative', overflow: 'hidden',
@@ -167,7 +241,7 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
           `}</style>
           <div aria-hidden="true" className="fos-scope-accent" style={{
             position: 'absolute', top: 0, left: 0, right: 0, height: 2,
-            background: 'linear-gradient(90deg, #E84B3A 0%, #FFB350 50%, #6E0E1A 100%)',
+            background: `linear-gradient(90deg, #E84B3A 0%, #FFB350 50%, ${T.brand} 100%)`,
             backgroundSize: '200% 100%',
             animation: '_fos_scope_accent 6s ease-in-out infinite',
           }}/>
@@ -216,21 +290,29 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
           costi fissi entrano nel P&L mensile, quindi il conto economico
           usciva per forza sbagliato e nessuno aveva motivo di sospettarlo.
           Il terzo riquadro faceva già la cosa giusta («-» più una riga che
-          spiega): adesso la fanno tutti e tre. */}
+          spiega): adesso la fanno tutti e tre.
+
+          21/09/2026: il conteggio delle voci veniva da `voci` (tutta
+          l'azienda) mentre il totale veniva dall'ambito scelto. In «Sede:
+          Carlina» si leggeva il totale della sede con accanto «5 voci
+          attive» dell'azienda intera: due numeri che non si riferivano alla
+          stessa cosa, uno sopra l'altro. */}
       <div style={{ display: 'grid', gridTemplateColumns: kpiCols, gap: 12, marginBottom: 20 }}>
         <KpiBox
           label="Costo mensile totale"
-          value={voci.length > 0 ? fmt0(totMese) : '-'}
-          sub={voci.length > 0
-            ? `${voci.length} ${voci.length === 1 ? 'voce attiva' : 'voci attive'}`
+          value={vociScopeFiltrate.length > 0 ? fmt0(totMese) : '-'}
+          sub={vociScopeFiltrate.length > 0
+            ? `${vociScopeFiltrate.length} ${vociScopeFiltrate.length === 1 ? 'voce attiva' : 'voci attive'}`
             : 'Non lo sappiamo ancora: nessuna voce inserita'}
           accent={T.brand}
           highlight
         />
         <KpiBox
           label="Costo annuo stimato"
-          value={voci.length > 0 ? fmt0(totAnno) : '-'}
-          sub={voci.length > 0 ? 'Mensile × 12' : 'Si calcola dal mensile, appena c’è'}
+          value={vociScopeFiltrate.length > 0 ? fmt0(totAnno) : '-'}
+          sub={vociScopeFiltrate.length > 0
+            ? `Mensile × 12 · ${fmt0(costoGiorno)} al giorno`
+            : 'Si calcola dal mensile, appena c’è'}
           accent={C.textMid}
         />
         <KpiBox
@@ -240,6 +322,32 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
           accent={C.textMid}
         />
       </div>
+
+      {/* ── Il totale qui sopra è più basso del vero, e lo dice ──────────────
+          Una voce con l'importo illeggibile vale zero in tutti i conti: nel
+          totale mensile, in quello annuo e nel P&L. Senza questa riga il
+          numero grande sembra completo, ed è l'errore che costa di più
+          perché non si vede. */}
+      {vociSenzaImporto > 0 && (
+        <div role="status" style={{
+          marginBottom: 20, padding: '12px 14px',
+          background: T.amberLight, border: `1px solid ${T.amber}`,
+          borderRadius: 12, color: T.amberDark,
+          fontSize: font.size.base, lineHeight: 1.5,
+          display: 'flex', gap: 10, alignItems: 'flex-start',
+        }}>
+          <span style={{ flexShrink: 0, lineHeight: 1 }} aria-hidden="true">
+            <Icon name="alert" size={16} color={T.amberDark} />
+          </span>
+          <span>
+            {vociSenzaImporto === 1
+              ? 'Una voce non ha un importo leggibile'
+              : `${vociSenzaImporto} voci non hanno un importo leggibile`}
+            : il totale qui sopra è più basso del vero, e lo stesso vale nel P&L.
+            Aprile e scrivi l’importo per rimetterle nel conto.
+          </span>
+        </div>
+      )}
 
       {/* Top 3 voci più care del mese - utile per il proprietario per capire
           immediatamente da dove iniziare a tagliare. */}
@@ -271,7 +379,7 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
                     </div>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 'auto' }}>
-                    <span style={{ fontSize: 15, fontWeight: 800, color: T.brand, ...TNUM, letterSpacing: '-0.015em' }}>{fmt0(v.mensile)}/mese</span>
+                    <span style={{ fontSize: typo.h3.fontSize, fontWeight: 800, color: T.brand, ...TNUM, letterSpacing: '-0.015em' }}>{fmt0(v.mensile)}/mese</span>
                     {pct > 0 && <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, ...TNUM, fontWeight: 600 }}>{fmtp0(pct)}</span>}
                   </div>
                 </div>
@@ -298,7 +406,7 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
             style={{
               width: '100%', boxSizing: 'border-box',
               padding: '10px 36px 10px 14px',
-              minHeight: isMobile ? 44 : isTablet ? 44 : 40,
+              minHeight: dito ? 44 : 40,
               fontSize: font.size.base,
               border: `1px solid ${filterCategoria ? T.brand : C.border}`, borderRadius: 10,
               background: T.white, color: C.text,
@@ -325,7 +433,7 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
             aria-label="Rimuovi filtro categoria"
             style={{
               padding: '0 12px',
-              minHeight: isMobile ? 40 : isTablet ? 44 : 36,
+              minHeight: dito ? 44 : 36,
               background: T.white, color: C.textMid,
               border: `1px solid ${C.border}`, borderRadius: 999,
               fontSize: isMobile ? 14 : 12, fontWeight: 600, cursor: 'pointer',
@@ -342,7 +450,7 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
           aria-label="Aggiungi nuova voce di costo"
           style={{
             padding: '10px 18px',
-            minHeight: isMobile ? 44 : isTablet ? 44 : 40,
+            minHeight: dito ? 44 : 40,
             background: T.brand, color: T.white,
             border: 'none', borderRadius: 10,
             fontSize: isMobile ? 15 : 13, fontWeight: 700,
@@ -386,7 +494,7 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
                     background: 'linear-gradient(180deg, #FBF6F2 0%, #F4ECE7 100%)',
                     borderTop: gi === 0 ? 'none' : `1px solid ${C.border}`,
                     borderBottom: `1px solid ${C.border}`,
-                    boxShadow: 'inset 3px 0 0 #6E0E1A',
+                    boxShadow: `inset 3px 0 0 ${T.brand}`,
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                     gap: 10,
                   }}>
@@ -442,7 +550,7 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
           {!filterCategoria && perCategoria.length > 1 && (
             <div style={{
               padding: isMobile ? '14px 14px' : '14px 18px',
-              background: '#FAFAFB',
+              background: T.bg,
               borderTop: `2px solid ${C.border}`,
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
               gap: 10,
@@ -462,8 +570,9 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
       {form && (
         <DialogFormCosto
           form={form} setForm={setForm} sedi={sedi}
-          isMobile={isMobile}
-          onClose={() => setForm(null)} onSave={salva}
+          isMobile={isMobile} dito={dito}
+          saving={saving}
+          onClose={() => { if (!saving) setForm(null) }} onSave={salva}
         />
       )}
     </div>
@@ -483,13 +592,18 @@ function meseTesto(iso) {
 function VoceRow({ v, sedi, isMobile, iconBtnSize = 40, onEdit, onDelete }) {
   const periodLabel = PERIODICITA.find(p => p.id === v.periodicita)?.label || v.periodicita
   const stato = statoVoce(v)
+  const importoLetto = leggiImporto(v.importo)
+  // Una data impossibile (`2026-13-45`) non deve lasciare a schermo né una
+  // `Invalid Date` né una frase mozza come «finito a ».
+  const finoA = meseTesto(v.data_fine)
+  const daQuando = meseTesto(v.data_inizio)
   const sedeLabel = v.sede_id
     ? ((sedi || []).find(s => s.id === v.sede_id)?.nome || 'sede')
     : 'tutte le sedi'
 
   return (
     <div
-      onMouseEnter={e => { if (!isMobile) e.currentTarget.style.background = '#FAFBFC' }}
+      onMouseEnter={e => { if (!isMobile) e.currentTarget.style.background = T.bg }}
       onMouseLeave={e => { if (!isMobile) e.currentTarget.style.background = 'transparent' }}
       style={{
         padding: isMobile ? '14px' : '14px 18px',
@@ -521,7 +635,7 @@ function VoceRow({ v, sedi, isMobile, iconBtnSize = 40, onEdit, onDelete }) {
           display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center',
         }}>
           <span style={{
-            background: '#F1F5F9', padding: '2px 7px', borderRadius: 6,
+            background: T.bgSubtle, padding: '2px 7px', borderRadius: 6,
             fontWeight: 600, color: C.textMid, whiteSpace: 'nowrap',
           }}>{periodLabel}</span>
           {/* Scope badge: colore distintivo. Verde = azienda, brand = sede. */}
@@ -533,7 +647,7 @@ function VoceRow({ v, sedi, isMobile, iconBtnSize = 40, onEdit, onDelete }) {
             }} title={`Costo specifico per ${sedeLabel}`}>Sede: {sedeLabel}</span>
           ) : (
             <span style={{
-              background: 'rgba(22,163,74,0.08)', color: '#15803D', padding: '2px 8px', borderRadius: 6,
+              background: 'rgba(22,163,74,0.08)', color: T.green, padding: '2px 8px', borderRadius: 6,
               fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '0.01em',
               border: '1px solid rgba(22,163,74,0.18)',
             }} title="Costo a livello azienda (vale per ogni sede)">Azienda</span>
@@ -554,11 +668,17 @@ function VoceRow({ v, sedi, isMobile, iconBtnSize = 40, onEdit, onDelete }) {
       }}>
         <div style={{ textAlign: isMobile ? 'left' : 'right' }}>
           <div style={{
-            fontSize: 15, fontWeight: 800, color: C.text, ...TNUM,
+            fontSize: typo.h3.fontSize, fontWeight: 800, color: C.text, ...TNUM,
             letterSpacing: '-0.015em', lineHeight: 1.1,
             whiteSpace: 'nowrap',
           }}>{fmt2(v.importo)}</div>
-          {v.periodicita !== 'mensile' && (
+          {importoLetto === null && (
+            <div style={{
+              fontSize: typo.small.fontSize, color: T.amberDark, marginTop: 3,
+              fontWeight: 700, whiteSpace: 'nowrap',
+            }}>importo da scrivere</div>
+          )}
+          {importoLetto !== null && v.periodicita !== 'mensile' && (
             <div style={{
               fontSize: typo.small.fontSize, color: stato.stato === 'attiva' ? T.brand : C.textSoft,
               ...TNUM, marginTop: 3, fontWeight: 600, whiteSpace: 'nowrap',
@@ -566,9 +686,9 @@ function VoceRow({ v, sedi, isMobile, iconBtnSize = 40, onEdit, onDelete }) {
               {stato.stato === 'esaurita'
                 ? 'spalmatura finita'
                 : stato.stato === 'finita'
-                  ? `finito a ${meseTesto(v.data_fine)}`
+                  ? (finoA ? `finito a ${finoA}` : 'finito')
                   : stato.stato === 'non_iniziata'
-                    ? `parte da ${meseTesto(v.data_inizio)}`
+                    ? (daQuando ? `parte da ${daQuando}` : 'non ancora iniziato')
                     : `${fmt2(stato.mensile)}/mese`}
             </div>
           )}
@@ -589,14 +709,14 @@ function VoceRow({ v, sedi, isMobile, iconBtnSize = 40, onEdit, onDelete }) {
             title="Modifica"
             style={{
               padding: 0, width: iconBtnSize, height: iconBtnSize,
-              background: '#F8FAFC', border: `1px solid ${C.border}`,
+              background: T.bg, border: `1px solid ${C.border}`,
               borderRadius: 10, cursor: 'pointer',
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
               transition: 'background 0.15s, border-color 0.15s',
               flexShrink: 0,
             }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#EEF2F7' }}
-            onMouseLeave={e => { e.currentTarget.style.background = '#F8FAFC' }}>
+            onMouseEnter={e => { e.currentTarget.style.background = T.bgMuted }}
+            onMouseLeave={e => { e.currentTarget.style.background = T.bg }}>
             <Icon name="edit" size={14} color={C.textMid} />
           </button>
           <button
@@ -605,14 +725,14 @@ function VoceRow({ v, sedi, isMobile, iconBtnSize = 40, onEdit, onDelete }) {
             title="Elimina"
             style={{
               padding: 0, width: iconBtnSize, height: iconBtnSize,
-              background: T.redLight, border: '1px solid #FECACA',
+              background: C.redLight, border: `1px solid ${T.brandSoft}`,
               borderRadius: 10, cursor: 'pointer',
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
               transition: 'background 0.15s',
               flexShrink: 0,
             }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#FEE2E2' }}
-            onMouseLeave={e => { e.currentTarget.style.background = T.redLight }}>
+            onMouseEnter={e => { e.currentTarget.style.background = T.brandSoft }}
+            onMouseLeave={e => { e.currentTarget.style.background = C.redLight }}>
             <Icon name="trash" size={14} color={T.brand} />
           </button>
         </div>
@@ -631,14 +751,14 @@ function EmptyState({ filterCategoria, onAdd }) {
     }}>
       <div style={{
         width: 64, height: 64, borderRadius: '50%',
-        background: '#F8FAFC', border: `1px solid ${C.borderSoft}`,
+        background: T.bg, border: `1px solid ${C.borderSoft}`,
         display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
         marginBottom: 16,
       }}>
         <Icon name="package" size={28} color={C.textSoft} />
       </div>
       <div style={{
-        fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 6,
+        fontSize: typo.h3.fontSize, fontWeight: 700, color: C.text, marginBottom: 6,
         letterSpacing: '-0.01em',
       }}>
         Nessuna voce di costo {filterCategoria ? 'in questa categoria' : 'configurata'}
@@ -679,7 +799,7 @@ function KpiBox({ label, value, sub, accent, highlight }) {
       position: 'relative', overflow: 'hidden',
       padding: '16px 18px',
       background: isHighlight
-        ? 'linear-gradient(135deg, #6E0E1A 0%, #4A0612 100%)'
+        ? T.brandGradient
         : C.bgCard,
       border: `1px solid ${isHighlight ? T.brandDarker : C.border}`,
       borderRadius: 14,
@@ -707,7 +827,7 @@ function KpiBox({ label, value, sub, accent, highlight }) {
       }}>{label}</div>
       <div style={{
         position: 'relative',
-        fontSize: 26, fontWeight: 800,
+        fontSize: font.size['2xl'], fontWeight: 800,
         color: isHighlight ? T.white : accentCol,
         ...TNUM,
         letterSpacing: '-0.03em', lineHeight: 1.1,
@@ -728,18 +848,31 @@ function KpiBox({ label, value, sub, accent, highlight }) {
   )
 }
 
-function DialogFormCosto({ form, setForm, sedi, isMobile, onClose, onSave }) {
+function DialogFormCosto({ form, setForm, sedi, isMobile, dito = isMobile, onClose, onSave, saving = false }) {
   const isEdit = !!form.id
   const update = (k, v) => setForm(f => ({ ...f, [k]: v }))
   const catInfo = CATEGORIE_DEFAULT.find(c => c.id === form.categoria)
 
-  // Stili input dinamici per mobile (font ≥16px, touch target ≥44px).
+  // Esc chiude la finestra. Senza, chi usa la tastiera restava dentro il
+  // modulo: l'unica uscita era raggiungere col tabulatore la X in alto o il
+  // pulsante Annulla. È la stessa regola che `ConfirmModal` applica già.
+  useEffect(() => {
+    function onKey(e) {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  // Campi: 16px e 46px di altezza per chi tocca (telefono E tablet), la misura
+  // del tema per chi usa il mouse. Scritto `isMobile ? 16 : 14` saltava il
+  // tablet, che è dove iOS ingrandisce la pagina da solo.
   const inpStyle = {
     width: '100%', boxSizing: 'border-box',
     padding: '11px 13px',
-    minHeight: isMobile ? 46 : 42,
+    minHeight: dito ? 46 : 42,
     border: `1px solid ${T.border}`, borderRadius: 10,
-    fontSize: isMobile ? 16 : 14,
+    fontSize: dito ? font.size.lg : font.size.md,
     color: T.text, outline: 'none', background: T.white,
     fontFamily: 'inherit',
     transition: 'border-color 0.15s, box-shadow 0.15s',
@@ -799,7 +932,7 @@ function DialogFormCosto({ form, setForm, sedi, isMobile, onClose, onSave }) {
             onClick={onClose}
             aria-label="Chiudi finestra"
             style={{
-              background: '#F8FAFC', border: `1px solid ${C.borderSoft}`,
+              background: T.bg, border: `1px solid ${C.borderSoft}`,
               borderRadius: 10, cursor: 'pointer',
               width: isMobile ? 40 : 36, height: isMobile ? 40 : 36,
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
@@ -807,8 +940,8 @@ function DialogFormCosto({ form, setForm, sedi, isMobile, onClose, onSave }) {
               flexShrink: 0,
               transition: 'background 0.15s',
             }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#EEF2F7' }}
-            onMouseLeave={e => { e.currentTarget.style.background = '#F8FAFC' }}>
+            onMouseEnter={e => { e.currentTarget.style.background = T.bgMuted }}
+            onMouseLeave={e => { e.currentTarget.style.background = T.bg }}>
             <Icon name="x" size={15} color={C.textMid} />
           </button>
         </div>
@@ -948,7 +1081,7 @@ function DialogFormCosto({ form, setForm, sedi, isMobile, onClose, onSave }) {
               Impatto sul P&L mensile
             </span>
             <span style={{
-              fontSize: 15, fontWeight: 800, color: T.brand, ...TNUM,
+              fontSize: typo.h3.fontSize, fontWeight: 800, color: T.brand, ...TNUM,
               letterSpacing: '-0.015em',
             }}>
               {fmt2(importoMensile({ importo: form.importo, periodicita: form.periodicita, data_inizio: form.data_inizio, created_at: form.created_at }))}/mese
@@ -964,9 +1097,14 @@ function DialogFormCosto({ form, setForm, sedi, isMobile, onClose, onSave }) {
           justifyContent: 'flex-end',
           gap: 10,
         }}>
-          <button onClick={onClose} style={{ ...btnSecondaryStyle, width: isMobile ? '100%' : 'auto' }}>Annulla</button>
-          <button onClick={onSave} style={{ ...btnPrimaryStyle, width: isMobile ? '100%' : 'auto' }}>
-            {isEdit ? 'Salva modifiche' : 'Aggiungi voce'}
+          <button onClick={onClose} disabled={saving}
+            style={{ ...btnSecondaryStyle, width: isMobile ? '100%' : 'auto', cursor: saving ? 'default' : 'pointer' }}>Annulla</button>
+          <button onClick={onSave} disabled={saving}
+            style={{
+              ...btnPrimaryStyle, width: isMobile ? '100%' : 'auto',
+              opacity: saving ? 0.65 : 1, cursor: saving ? 'default' : 'pointer',
+            }}>
+            {saving ? 'Salvataggio…' : isEdit ? 'Salva modifiche' : 'Aggiungi voce'}
           </button>
         </div>
       </div>
