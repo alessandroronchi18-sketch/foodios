@@ -30,10 +30,10 @@ import Icon from './Icon'
 import { useConfirm } from './ConfirmModal'
 import { KPI, SH, PageHeader, TabellaOSchede } from '../views/_shared'
 import { fmt, fmt0, fmtp0 } from '../lib/formatIt'
-import { buildIngCosti, calcolaFC, getR, isRicettaValida, normIng } from '../lib/foodcost'
+import { buildIngCosti, calcolaFC, calcolaFCStorico, getR, isRicettaValida, normIng } from '../lib/foodcost'
 import { sload } from '../lib/storage'
 import { supabase } from '../lib/supabase'
-import { todayLocal } from '../lib/dateLocal'
+import { todayLocal, soloData, giornoDiTimestamp } from '../lib/dateLocal'
 import {
   nuovoMovimento, caricaMovimenti, aggiungiMovimento, eliminaMovimento,
   filtraPerIntervallo,
@@ -43,6 +43,10 @@ import { foodcostNoto } from '../lib/chiusure'
 import { scartoPF, loadStockPF } from '../lib/stockPF'
 
 const SK_DISCREPANZE = 'pasticceria-discrepanze-v1'
+// Lo storico dei prezzi delle materie prime. E' condiviso fra le sedi
+// (`sede_id = NULL`), come il ricettario: serve per sapere quanto costava un
+// ingrediente il giorno in cui il prodotto e' stato buttato.
+const SK_LOG_PREZZI = 'pasticceria-log-prezzi-v1'
 
 const SHADOW_PREMIUM = '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)'
 const TNUM = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" }
@@ -54,8 +58,10 @@ const C = {
   border: T.border, borderStr: T.borderStr, borderSoft: T.borderSoft,
 }
 // Azzurro coerente per "omaggio" (cessione gratuita, non perdita per errore).
-const BLU = '#0369A1'
-const BLU_LIGHT = '#E0F2FE'
+// 20/09/2026: erano due esadecimali scritti a mano, di un azzurro che non
+// esiste da nessun'altra parte nel prodotto. Ora sono i due token del blu.
+const BLU = T.blue
+const BLU_LIGHT = T.blueLight
 
 // ── Tassonomia causali (owner-POV) ───────────────────────────────────────────
 // tipo resta 'spreco'|'omaggio' (vincolo cassa). Il dettaglio sta nella causale.
@@ -93,25 +99,80 @@ const LEGACY_MAP = {
   furto:             { tipo: 'spreco',  causale: 'ammanco' },
 }
 
-const inputS = { width: '100%', padding: '10px 12px', borderRadius: 9, border: `1px solid ${C.borderStr}`, fontSize: 16, color: C.text, boxSizing: 'border-box', fontFamily: 'inherit', background: C.white }
-const labelS = { fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5, display: 'block' }
+const inputS = { width: '100%', padding: '10px 12px', borderRadius: 9, border: `1px solid ${C.borderStr}`, fontSize: font.size.lg, color: C.text, boxSizing: 'border-box', fontFamily: 'inherit', background: C.white }
+const labelS = { fontSize: font.size.sm, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5, display: 'block' }
 
 // fmt, fmt0 e le percentuali stanno in lib/formatIt (erano riscritti qui).
 const fmtQta = (q, u) => `${(Number(q) || 0).toLocaleString('it-IT', { useGrouping: 'always' })} ${u || ''}`.trim()
 const fmtN = n => (Number(n) || 0).toLocaleString('it-IT', { useGrouping: 'always' })
 const fmtTs = iso => new Date(iso).toLocaleString('it-IT', { useGrouping: 'always', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+// Un GIORNO scritto all'italiana. Si rimonta dalla stringa 'AAAA-MM-GG' senza
+// passare da `Date`: costruire una data per poi riformattarla e' il modo in
+// cui il giorno scivola indietro di uno.
+const fmtGiorno = g => {
+  const m = String(g || '').match(/^(\d{4})-(\d{2})-(\d{2})/)
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : ''
+}
 
 function cardStyle() { return { background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, boxShadow: SHADOW_PREMIUM } }
 
 // Mese corrente in YYYY-MM
 function meseCorrente() { return todayLocal().slice(0, 7) }
-// Estremi [da, a] del mese YYYY-MM
+// Estremi [da, a] del mese YYYY-MM.
+//
+// 20/09/2026: il campo «Mese» si puo' svuotare, e da vuoto usciva
+// `{ da: '-01', a: '-NaN' }`. Il filtro non riusciva a leggere quei due
+// estremi, scartava tutto, e la pagina diceva «Nessuna perdita registrata nel
+// mese. Ottimo controllo» su un archivio pieno. E' lo stesso schema del dato
+// illeggibile che diventa una buona notizia: qui un mese che non si capisce
+// torna a essere il mese corrente, che e' una cosa vera.
 function estremiMese(ym) {
-  const [y, m] = ym.split('-').map(Number)
-  const da = `${ym}-01`
+  const mese = /^\d{4}-\d{2}$/.test(String(ym || '')) ? ym : meseCorrente()
+  const [y, m] = mese.split('-').map(Number)
+  const da = `${mese}-01`
+  // Giorno 0 del mese dopo = ultimo di questo. Vale a dicembre e per il 29
+  // febbraio degli anni bisestili.
   const ultimo = new Date(y, m, 0).getDate()
-  const a = `${ym}-${String(ultimo).padStart(2, '0')}`
+  const a = `${mese}-${String(ultimo).padStart(2, '0')}`
   return { da, a }
+}
+
+// ── Quanto e' costato: il numero, oppure «non lo so» ─────────────────────────
+//
+// 20/09/2026. Il costo di un movimento si leggeva così:
+//   `Number(m.fcTot) || (Number(m.fcUnit) || 0) * (Number(m.qta) || 0)`
+// e una registrazione senza costo diventava zero euro. Zero euro non e' una
+// perdita piccola: e' una perdita che non sappiamo quanto vale, e succede
+// spesso perché il costo unitario NON si propone quando la ricetta non dice
+// quante porzioni escono da una preparazione (24 ricette su 27 in casa Mara).
+//
+// Il danno non era solo nel totale. Le due classifiche tengono solo le voci
+// sopra zero: con tutte le righe senza costo restavano vuote, e la pagina
+// mostrava la spunta verde «Nessuna perdita registrata nel mese. Ottimo
+// controllo» mentre l'elenco qui sotto ne elencava dieci.
+//
+// Una perdita da zero euro non esiste in pasticceria: qualsiasi cosa si butti
+// e' costata qualcosa. Quindi zero, vuoto e testo illeggibile vogliono dire
+// tutti la stessa cosa — non valorizzato — e si contano a parte.
+export function costoMovimento(m) {
+  const tot = Number(m?.fcTot)
+  if (Number.isFinite(tot) && tot > 0) return tot
+  const unit = Number(m?.fcUnit), qta = Number(m?.qta)
+  if (Number.isFinite(unit) && unit > 0 && Number.isFinite(qta) && qta > 0) return unit * qta
+  return null
+}
+
+// L'istante da salvare per il giorno scelto nel form.
+//
+// Se il giorno e' oggi si salva l'ora vera. Se e' un giorno passato si salva
+// mezzogiorno di quel giorno: `new Date(y, m-1, d).toISOString()` sarebbe
+// mezzanotte locale, che a est di Greenwich e' ancora il giorno prima, e la
+// perdita del 1° del mese finirebbe nel mese precedente.
+export function istanteDelGiorno(giorno, adesso = new Date()) {
+  const g = soloData(giorno)
+  if (!g || g === soloData(adesso)) return adesso.toISOString()
+  const [y, m, d] = g.split('-').map(Number)
+  return new Date(y, m - 1, d, 12, 0, 0, 0).toISOString()
 }
 
 // Normalizza un record legacy Discrepanze nella shape di display unificata.
@@ -142,9 +203,42 @@ function normalizzaLegacy(it) {
   }
 }
 
+// Una registrazione vecchia, letta con quello che c'e' dentro.
+//
+// 20/09/2026, guardando l'archivio vero: le 19 registrazioni in produzione
+// sono scritte nella forma di prima (`data`, `nome`, `valore`, causali
+// `rotto`/`omaggio_cliente`), perché quando la forma e' cambiata i dati già
+// salvati sono rimasti quelli. La pagina legge solo `ts`/`prodotto`/`fcTot` e
+// le contava tutte e 19 come «date che non riesco a leggere»: 363,77 € di
+// prodotto perso spariti dalla diagnosi.
+//
+// Il giorno però c'e' (`data`, e in subordine `creatoAt`) e l'importo pure
+// (`valore`). Qui si legge quello che c'e', senza riscrivere niente in
+// archivio: una registrazione la si butta via solo quando davvero non si
+// capisce, non perché e' stata scritta da una versione precedente.
+const CAUSALI_VECCHIE = { rotto: 'scarto', omaggio_cliente: 'regalo', furto: 'ammanco' }
+
+export function normalizzaMovimento(m) {
+  if (!m || typeof m !== 'object') return m
+  const ts = m.ts || (m.data ? `${soloData(m.data)}T12:00:00` : null) || m.creatoAt || null
+  const fcTot = costoMovimento(m) ?? (Number(m.valore) > 0 ? Number(m.valore) : null)
+  return {
+    ...m,
+    ts,
+    prodotto: m.prodotto || m.nome || '',
+    fcTot,
+    causale: CAUSALI_VECCHIE[m.causale] || m.causale,
+  }
+}
+
 export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, chiusure = [], auth, notify }) {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
+  // Il tablet si tocca col dito esattamente come il telefono: i bersagli e le
+  // dimensioni del testo negli schemi da compilare seguono `dito`, non
+  // `isMobile` — che su iPad è falso, e lasciava bottoni da 34px e select da
+  // 12px (che su iOS fa ingrandire la pagina appena la tocchi).
+  const dito = isMobile || isTablet
   const confirmDialog = useConfirm()
   const isDip = auth?.isDipendente
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario])
@@ -152,8 +246,9 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
   const [movs, setMovs] = useState([])         // SK_MOV (sorgente scrittura)
   const [legacy, setLegacy] = useState([])     // SK_DISC normalizzati (sola lettura)
   const [legacyDrift, setLegacyDrift] = useState([]) // porzione_* storici (insight)
-  // Audit 2026-07-01 batch 11: ricavi mese per soglia % alert.
-  const [chiusureMese, setChiusureMese] = useState([])
+  // Lo storico dei prezzi delle materie prime: serve a valorizzare una perdita
+  // con i prezzi del giorno in cui e' avvenuta, non con quelli di oggi.
+  const [logPrezzi, setLogPrezzi] = useState([])
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState(null)
   const [filtroTipo, setFiltroTipo] = useState('tutti')
@@ -180,12 +275,16 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
     // SK_MOV sempre. SK_DISC solo per il titolare (read-only, fold storico).
     const pMov = caricaMovimenti(orgId, sedeId)
     const pDisc = isDip ? Promise.resolve([]) : sload(SK_DISCREPANZE, orgId, sedeId || null)
-    // Carica chiusure (titolare only - il dipendente ha view sanitizzata).
-    const pChius = isDip ? Promise.resolve([]) : sload('pasticceria-chiusure-v1', orgId, sedeId)
-    Promise.all([pMov, pDisc, pChius]).then(([arr, disc, chius]) => {
+    // Lo storico prezzi e' condiviso fra le sedi: si chiede con sede nulla.
+    // Le chiusure NON si ricaricano più qui: arrivano già dal Dashboard come
+    // prop `chiusure`. Erano lette due volte, e i ricavi del banner soglia
+    // venivano da una copia diversa da quella che calcola l'incidenza — due
+    // strade per lo stesso numero, che prima o poi divergono.
+    const pPrezzi = sload(SK_LOG_PREZZI, orgId, null)
+    Promise.all([pMov, pDisc, pPrezzi]).then(([arr, disc, prezzi]) => {
       if (!alive) return
       setMovs(Array.isArray(arr) ? arr : [])
-      setChiusureMese(Array.isArray(chius) ? chius : [])
+      setLogPrezzi(Array.isArray(prezzi) ? prezzi : [])
       const discArr = Array.isArray(disc) ? disc : []
       const norm = []
       const drift = []
@@ -203,8 +302,9 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
 
   // Lista unificata: SK_MOV + legacy SK_DISC, de-dup per id (SK_MOV vince).
   const tutti = useMemo(() => {
-    const seen = new Set(movs.map(m => m.id))
-    const merged = [...movs]
+    const normali = movs.map(normalizzaMovimento)
+    const seen = new Set(normali.map(m => m.id))
+    const merged = [...normali]
     for (const l of legacy) if (!seen.has(l.id)) merged.push(l)
     return merged.sort((a, b) => new Date(b.ts) - new Date(a.ts))
   }, [movs, legacy])
@@ -228,11 +328,15 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
   // ── DIAGNOSI: aggregati sul mese selezionato ──────────────────────────────
   const diag = useMemo(() => {
     let valSpreco = 0, valOmaggio = 0, ricavoMancato = 0, nSpreco = 0, nOmaggio = 0
+    let nSenzaCosto = 0
     const perCausale = {}    // causaleId → { eur, n }
     const perProdotto = {}   // nome → { nome, eur, qtaG, qtaPz, n }
     for (const m of periodo) {
       const nome = m.prodotto || m.categoria || '(senza nome)'
-      const fc = Number(m.fcTot) || (Number(m.fcUnit) || 0) * (Number(m.qta) || 0)
+      // Un costo che non c'e' NON e' zero: si conta a parte e si dichiara.
+      const costo = costoMovimento(m)
+      if (costo == null) nSenzaCosto++
+      const fc = costo || 0
       const qta = Number(m.qta) || 0
       const caus = m.causale || (m.tipo === 'spreco' ? 'scarto' : 'regalo')
       if (!perCausale[caus]) perCausale[caus] = { id: caus, eur: 0, n: 0, tipo: m.tipo }
@@ -252,7 +356,7 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
     const causaPrinc = causaliOrd[0] || null
     const causaPct = causaPrinc && totPerso > 0 ? (causaPrinc.eur / totPerso * 100) : 0
     return {
-      valSpreco, valOmaggio, totPerso, ricavoMancato, nSpreco, nOmaggio,
+      valSpreco, valOmaggio, totPerso, ricavoMancato, nSpreco, nOmaggio, nSenzaCosto,
       nTot: periodo.length, classifica, causaliOrd, maxEur, causaPrinc, causaPct,
     }
   }, [periodo])
@@ -262,9 +366,12 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
   // Calcolo solo per titolare (dipendente ha valori sanitizzati).
   const sogliaInfo = useMemo(() => {
     if (isDip) return null
-    const ricavi = chiusureMese
-      .filter(c => (c?.data || '').startsWith(mese))
-      .reduce((s, c) => s + Number(c?.kpi?.totV || c?.totale || 0), 0)
+    // I ricavi del mese si leggono dalle stesse chiusure con cui si calcola
+    // l'incidenza: una sola copia del dato, filtrata per GIORNO come tutto il
+    // resto della pagina (`da`/`a`), non per prefisso della stringa mese.
+    const ricavi = (chiusure || [])
+      .filter(c => { const d = soloData(c?.data); return d && d >= da && d <= a })
+      .reduce((s, c) => s + (Number(c?.kpi?.totV) || Number(c?.totale) || 0), 0)
     if (ricavi <= 0) return null
     // Audit 2026-06-22: typo `aggregat` → `diag` (la variabile useMemo sopra).
     // Causava ReferenceError silente che faceva fallire useMemo e nascondeva
@@ -274,7 +381,7 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
     if (pct >= 5) livello = 'alto'
     else if (pct >= 2) livello = 'medio'
     return { ricavi, pct, livello }
-  }, [chiusureMese, mese, diag.totPerso, isDip])
+  }, [chiusure, da, a, diag.totPerso, isDip])
 
   // Food cost del periodo, per l'incidenza % della perdita.
   //
@@ -306,9 +413,16 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
 
   // Lista del giorno del dipendente (calcolata sempre, usata solo nel ramo isDip
   // - gli hook restano incondizionati per non violare le rules of hooks).
+  //
+  // 20/09/2026: il giorno si ricavava con `m.ts.slice(0, 10)`, cioe' i primi
+  // dieci caratteri di un istante scritto in UTC. Chi registra una perdita
+  // alle 00:30 di Torino la scrive con un `ts` che comincia con IERI: la sua
+  // lista di oggi restava vuota, e il secondo turno rischiava di registrarla
+  // una seconda volta. Il giorno di un istante si chiede a
+  // `giornoDiTimestamp`, che passa dall'orologio di chi guarda.
   const oggi = todayLocal()
   const mieDelGiorno = useMemo(() => movs
-    .filter(m => (m.ts || '').slice(0, 10) === oggi && m.autore_uid === auth?.user?.id)
+    .filter(m => giornoDiTimestamp(m.ts) === oggi && m.autore_uid === auth?.user?.id)
     .sort((x, y) => new Date(y.ts) - new Date(x.ts)),
     [movs, oggi, auth])
 
@@ -337,8 +451,11 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
   // di grandezza. Manteniamo soglie semaforo prudenti.
   const incidenza = fcPeriodo.noto ? (diag.totPerso / fcPeriodo.valore * 100) : null
   const incColor = incidenza == null ? C.textSoft : incidenza <= 3 ? C.green : incidenza <= 8 ? C.amber : C.red
-  const incLabel = incidenza == null
-    ? 'Serve la chiusura di cassa'
+  // Senza chiusure di cassa questa etichetta non compare mai: il riquadro usa
+  // un'altra frase («registra le chiusure e il conto si fa da sé»). Il ramo
+  // per il caso `null` che c'era qui era codice che nessuno poteva leggere —
+  // e due frasi diverse per la stessa cosa, prima o poi, si contraddicono.
+  const incLabel = incidenza == null ? null
     : incidenza <= 3 ? 'Sotto controllo' : incidenza <= 8 ? 'Da tenere d’occhio' : 'Alto - indagare'
 
   // Suggerimento fc unitario dalla ricetta quando il "Cosa" combacia.
@@ -353,11 +470,34 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
   // propone. Meglio un campo vuoto da compilare che un numero inventato.
   // Si dichiara anche quando il food cost della ricetta è incompleto o stimato:
   // Mara ha 6 prezzi veri su 422, il resto è listino medio di mercato.
-  const autoFcDaRicetta = (nome) => {
+  //
+  // ── E con i prezzi di quale giorno? (20/09/2026, il difetto più grosso) ──
+  //
+  // Il costo si calcolava sempre coi prezzi di OGGI, e il movimento nasceva
+  // sempre con l'ora di adesso: non c'era modo di dire che quel vassoio e'
+  // stato buttato ieri sera. In gelateria l'invenduto si conta la mattina
+  // dopo, e l'inventario di fine mese fa emergere ammanchi di settimane
+  // prima: sono le due occasioni in cui questa pagina si usa davvero.
+  //
+  // Quanto cambia, sui dati veri di Mara dei Boschi (46 modifiche di prezzo
+  // in archivio, con la data di decorrenza): fra il 16 e il 20 settembre 6
+  // ricette su 68 cambiano costo, e su LIMONE il prezzo di oggi vale 0,56 €
+  // contro 1,19 € di quattro giorni fa. Registrando oggi quella perdita, la
+  // si sarebbe scritta a meno della meta' del suo costo. Più indietro si va,
+  // più il divario cresce: 58 ricette su 68 costano diverso a novembre.
+  //
+  // Ora il giorno lo sceglie chi registra, e il costo si ricostruisce con
+  // `calcolaFCStorico` sui prezzi in vigore QUEL giorno — la stessa funzione
+  // che usa il P&L per il food cost di una giornata passata.
+  const autoFcDaRicetta = (nome, giorno) => {
     const ric = ricettario?.ricette?.[(nome || '').toUpperCase().trim()] || ricettario?.ricette?.[nome]
     if (!ric) return null
     const reg = getR(ric.nome, ric)
-    const { tot, mancanti } = calcolaFC(ric, ingCosti, ricettario)
+    const g = soloData(giorno)
+    const storico = !!g && g < todayLocal()
+    const { tot, mancanti } = storico
+      ? calcolaFCStorico(ric, ingCosti, ricettario, logPrezzi, g)
+      : calcolaFC(ric, ingCosti, ricettario)
     if (!Number.isFinite(tot) || tot <= 0) return null
     // `senzaRegola` (foodcost.js:getR) dice che unita e prezzo non sono
     // dell'azienda: sono il fallback. Senza un'unità vera non c'è un costo
@@ -372,35 +512,56 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
       }
     }
     const stimato = (ric.ingredienti || []).some(i => ingCosti?.[normIng(i.nome)]?.isStima)
+    // Quando il costo viene dai prezzi di un altro giorno lo si dice: e' un
+    // numero che finisce in una diagnosi, e chi legge deve sapere da dove
+    // arriva. Se c'e' già un avviso più grave (prezzi che mancano, listino
+    // di mercato) vince quello, e la data si aggiunge in coda.
+    const aiPrezziDel = storico ? ` Costo ai prezzi del ${fmtGiorno(g)}, il giorno che hai indicato.` : ''
     return {
       fcUnit: tot / reg.unita,
       unita: 'pz',
       categoria: ric.categoria || '',
       prezzo: reg.prezzo || 0,
-      motivo: mancanti.length > 0
+      storico,
+      motivo: (mancanti.length > 0
         ? `Nel food cost di "${ric.nome}" manca il prezzo di ${mancanti.slice(0, 2).join(', ')}: il costo che ti propongo è più basso del vero.`
         : stimato
           ? `Il costo di "${ric.nome}" usa in parte i prezzi medi di mercato, non i tuoi.`
-          : null,
+          : '') + aiPrezziDel || null,
     }
   }
-
-  const apri = (tipo) => setForm({ ...nuovoMovimento(tipo), causale: CAUSALI[tipo][0].id })
 
   // Motivo per cui il costo suggerito va preso con cautela (o non c'è): mostrato
   // sotto il campo, così la spiegazione sta dove serve la decisione.
   const [motivoCosto, setMotivoCosto] = useState(null)
+  // L'ultimo costo proposto dal programma. Serve a capire se il numero nel
+  // campo e' ancora quello suggerito o se l'ha scritto l'utente: cambiando il
+  // giorno si riscrive solo il primo, il suo non si tocca mai.
+  const [fcSuggerito, setFcSuggerito] = useState(null)
+  // Un salvataggio alla volta: senza questo, due tocchi sul telefono
+  // registrano due volte la stessa perdita e scaricano due volte la vetrina.
+  const [saving, setSaving] = useState(false)
+
+  // `giorno` vive solo nel form: al salvataggio diventa il `ts` del movimento
+  // e non viene mai scritto in archivio (la forma del movimento non cambia).
+  const apri = (tipo) => {
+    setMotivoCosto(null)
+    setFcSuggerito(null)
+    setForm({ ...nuovoMovimento(tipo), causale: CAUSALI[tipo][0].id, giorno: todayLocal() })
+  }
 
   const onProdottoChange = (nome) => {
-    const auto = autoFcDaRicetta(nome)
+    const auto = autoFcDaRicetta(nome, form?.giorno)
+    const proposto = auto && auto.fcUnit != null ? auto.fcUnit.toFixed(3) : ''
     setMotivoCosto(auto?.motivo || null)
+    setFcSuggerito(proposto || null)
     setForm(f => ({
       ...f,
       prodotto: nome,
       ...(auto ? {
-        // fcUnit null = non abbiamo un'unità vera: il campo resta da compilare
+        // fcUnit vuoto = non abbiamo un'unità vera: il campo resta da compilare
         // invece di riempirsi con un numero che nessuno ha misurato.
-        ...(auto.fcUnit != null ? { fcUnit: auto.fcUnit.toFixed(3) } : { fcUnit: '' }),
+        fcUnit: proposto,
         unita: auto.unita,
         categoria: auto.categoria,
         ...(f.tipo === 'omaggio' && !f.valoreOmaggio && auto.prezzo ? { valoreOmaggio: String(auto.prezzo) } : {}),
@@ -408,18 +569,41 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
     }))
   }
 
+  // Cambiando il giorno cambia il costo: i prezzi di allora non sono quelli di
+  // oggi. Si riscrive SOLO il numero che aveva proposto il programma — se
+  // l'utente ne ha scritto uno suo, quello resta dov'è.
+  const onGiornoChange = (giorno) => {
+    const auto = autoFcDaRicetta(form?.prodotto, giorno)
+    const proposto = auto && auto.fcUnit != null ? auto.fcUnit.toFixed(3) : ''
+    const scrittoAMano = !!form?.fcUnit && form.fcUnit !== fcSuggerito
+    setMotivoCosto(auto?.motivo || null)
+    if (!scrittoAMano) setFcSuggerito(proposto || null)
+    setForm(f => ({ ...f, giorno, ...(auto && !scrittoAMano ? { fcUnit: proposto } : {}) }))
+  }
+
   const setTipo = (k) => setForm(f => ({ ...f, tipo: k, causale: CAUSALI[k][0].id }))
 
   // ── SALVATAGGIO - SAVE-FIRST. Handler dipendente e shape movimento INVARIATI. ──
   const salva = async () => {
-    if (!form) return
+    if (!form || saving) return
     if (!form.prodotto.trim() && !form.categoria.trim()) { notify?.('Specifica almeno il prodotto o la categoria', false); return }
     if (!(Number(form.qta) > 0)) { notify?.('Quantita non valida', false); return }
     if (!sedeId) { notify?.('Seleziona una sede prima', false); return }
-    const fcUnit = Number(form.fcUnit) || 0
+    // Il giorno si confronta come GIORNO, non come istante: una perdita non
+    // può essere di domani, e un giorno che non si capisce diventa oggi.
+    const giorno = soloData(form.giorno) || todayLocal()
+    if (giorno > todayLocal()) { notify?.('Il giorno non può essere nel futuro', false); return }
     const qta = Number(form.qta) || 0
-    const fcTot = fcUnit * qta
+    // Un costo che non c'è resta vuoto in archivio. Scriverci zero vorrebbe
+    // dire «buttarlo non è costato niente», e da lì il numero entra nei
+    // totali del mese come se fosse una misura.
+    const fcUnit = Number(form.fcUnit) > 0 ? Number(form.fcUnit) : null
+    const fcTot = fcUnit != null ? fcUnit * qta : null
     const valoreOmaggio = form.tipo === 'omaggio' ? (Number(form.valoreOmaggio) || 0) * qta : 0
+    const ts = istanteDelGiorno(giorno)
+    // `giorno` è roba del form: in archivio ci va solo il `ts`.
+    const { giorno: _g, ...campiMovimento } = form
+    setSaving(true)
     try {
       if (isDip) {
         // DIPENDENTE: ricettario SANITIZZATO (calcolaFC=0) → fc ricalcolato server-side
@@ -431,7 +615,8 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
           body: JSON.stringify({
             sedeId,
             movimento: {
-              ...form,
+              ...campiMovimento,
+              ts,
               prodotto: form.prodotto.trim(),
               categoria: (form.categoria || '').trim(),
               qta, fcUnit, valoreOmaggio: Number(form.valoreOmaggio) || 0,
@@ -456,7 +641,8 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
         return
       }
       const saved = await aggiungiMovimento(orgId, sedeId, {
-        ...form,
+        ...campiMovimento,
+        ts,
         prodotto: form.prodotto.trim(),
         categoria: (form.categoria || '').trim(),
         qta, fcUnit, fcTot, valoreOmaggio,
@@ -490,9 +676,15 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
         }
       }
       setForm(null)
-      notify?.(`${form.tipo === 'spreco' ? 'Perdita' : 'Omaggio'} registrato`)
+      // Se il costo non c'è, la registrazione vale lo stesso — l'evento è
+      // successo — ma va detto subito che non entrerà nei conti del mese.
+      notify?.(fcUnit == null
+        ? `${form.tipo === 'spreco' ? 'Perdita' : 'Omaggio'} registrato senza costo: non entra nel totale del mese finché non lo scrivi.`
+        : `${form.tipo === 'spreco' ? 'Perdita' : 'Omaggio'} registrato`)
     } catch (e) {
       notify?.('Errore: ' + e.message, false)
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -516,7 +708,7 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
       display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 11,
       background: t === 'spreco' ? C.amberLight : BLU_LIGHT,
       color: t === 'spreco' ? C.amber : BLU,
-      fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em',
+      fontSize: font.size.sm, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em',
     }}>
       <Icon name={t === 'spreco' ? 'trash' : 'gift'} size={11} /> {t === 'spreco' ? 'perdita' : 'omaggio'}
     </span>
@@ -534,7 +726,7 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
         <span style={{ width: 30, height: 30, borderRadius: 9, background: form.tipo === 'spreco' ? C.amberLight : BLU_LIGHT, color: form.tipo === 'spreco' ? C.amber : BLU, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
           <Icon name={form.tipo === 'spreco' ? 'trash' : 'gift'} size={16} />
         </span>
-        <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>Nuova registrazione</div>
+        <div style={{ fontSize: font.size.md, fontWeight: 700, color: C.text }}>Nuova registrazione</div>
       </div>
 
       <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
@@ -542,8 +734,8 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
           <button key={k} onClick={() => setTipo(k)}
             style={{ flex: 1, padding: '10px', borderRadius: 9, border: 'none',
               background: form.tipo === k ? (k === 'spreco' ? C.amber : BLU) : C.bgSubtle,
-              color: form.tipo === k ? '#fff' : C.textMid,
-              fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              color: form.tipo === k ? C.white : C.textMid,
+              fontSize: font.size.base, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
             <Icon name={ico} size={15} /> {lbl}
           </button>
         ))}
@@ -558,7 +750,7 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
                 style={{ padding: '8px 12px', borderRadius: 9, border: `1.5px solid ${form.causale === c.id ? (form.tipo === 'spreco' ? C.amber : BLU) : C.border}`,
                   background: form.causale === c.id ? (form.tipo === 'spreco' ? C.amberLight : BLU_LIGHT) : C.bgCard,
                   color: form.causale === c.id ? (form.tipo === 'spreco' ? C.amber : BLU) : C.textMid,
-                  fontSize: 12, fontWeight: 700, cursor: 'pointer', minHeight: 40 }}>
+                  fontSize: font.size.sm, fontWeight: 700, cursor: 'pointer', minHeight: dito ? 44 : 40 }}>
                 {c.label}
               </button>
             ))}
@@ -572,6 +764,21 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
           <datalist id="prod-sugg-list">
             {suggerimenti.map(s => <option key={s} value={s} />)}
           </datalist>
+        </div>
+        {/* Quando è successo. In gelateria l'invenduto si conta la mattina
+            dopo e gli ammanchi escono dall'inventario di fine mese: senza
+            questo campo tutto finiva alla data di oggi, e il costo veniva
+            calcolato coi prezzi di oggi. */}
+        <div>
+          <label style={labelS}>Quando</label>
+          <input style={inputS} type="date" max={oggi} value={form.giorno || oggi}
+            aria-label="Giorno in cui è successo"
+            onChange={e => onGiornoChange(e.target.value)} />
+          {(form.giorno || oggi) !== oggi && (
+            <div style={{ fontSize: font.size.sm, color: C.textSoft, lineHeight: 1.5, marginTop: 5 }}>
+              Costo calcolato coi prezzi del {fmtGiorno(form.giorno)}.
+            </div>
+          )}
         </div>
         <div>
           <label style={labelS}>Quantità</label>
@@ -610,20 +817,27 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
         </div>
       </div>
 
-      <div style={{ marginTop: 14, padding: '11px 14px', background: C.bgSubtle, border: `1px dashed ${C.border}`, borderRadius: 10, fontSize: 12, color: C.textMid }}>
-        Costo totale: <b style={{ color: C.text, ...TNUM }}>{fmt((Number(form.fcUnit) || 0) * (Number(form.qta) || 0))}</b>
+      <div style={{ marginTop: 14, padding: '11px 14px', background: C.bgSubtle, border: `1px dashed ${C.border}`, borderRadius: 10, fontSize: font.size.sm, color: C.textMid }}>
+        {/* Senza costo unitario qui usciva «0,00 €», che si legge come «non è
+            costato niente». Non lo sappiamo, e si dice. */}
+        Costo totale: <b style={{ color: C.text, ...TNUM }}>
+          {Number(form.fcUnit) > 0 ? fmt(Number(form.fcUnit) * (Number(form.qta) || 0)) : 'da indicare'}
+        </b>
         {form.tipo === 'omaggio' && Number(form.valoreOmaggio) > 0 && (
           <> · ricavo mancato: <b style={{ color: BLU, ...TNUM }}>{fmt((Number(form.valoreOmaggio) || 0) * (Number(form.qta) || 0))}</b></>
         )}
       </div>
 
       <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
-        <button onClick={salva}
-          style={{ padding: '11px 22px', background: C.green, color: '#fff', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 13, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
-          <Icon name="plus" size={15} /> Registra
+        {/* `disabled` durante il salvataggio: due tocchi sul telefono
+            registravano due volte la stessa perdita, e la vetrina veniva
+            scaricata due volte. */}
+        <button onClick={salva} disabled={saving}
+          style={{ padding: '11px 22px', minHeight: dito ? 44 : 40, background: C.green, color: C.white, border: 'none', borderRadius: 10, fontWeight: 700, fontSize: font.size.base, cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.6 : 1, display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+          <Icon name="plus" size={15} /> {saving ? 'Salvo…' : 'Registra'}
         </button>
-        <button onClick={() => setForm(null)}
-          style={{ padding: '11px 22px', background: 'transparent', color: C.textSoft, border: `1px solid ${C.border}`, borderRadius: 10, fontSize: 13, cursor: 'pointer' }}>
+        <button onClick={() => setForm(null)} disabled={saving}
+          style={{ padding: '11px 22px', minHeight: dito ? 44 : 40, background: 'transparent', color: C.textSoft, border: `1px solid ${C.border}`, borderRadius: 10, fontSize: font.size.base, cursor: saving ? 'default' : 'pointer' }}>
           Annulla
         </button>
       </div>
@@ -633,11 +847,11 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
   const azioniRapide = !form && (
     <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
       <button onClick={() => apri('spreco')}
-        style={{ flex: 1, minWidth: 160, padding: '14px', background: C.amberLight, color: C.amber, border: `1px solid ${C.amber}40`, borderRadius: 12, fontSize: 14, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+        style={{ flex: 1, minWidth: 160, padding: '14px', background: C.amberLight, color: C.amber, border: `1px solid ${C.amber}40`, borderRadius: 12, fontSize: font.size.md, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
         <Icon name="trash" size={16} /> Registra perdita
       </button>
       <button onClick={() => apri('omaggio')}
-        style={{ flex: 1, minWidth: 160, padding: '14px', background: BLU_LIGHT, color: BLU, border: `1px solid ${BLU}40`, borderRadius: 12, fontSize: 14, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+        style={{ flex: 1, minWidth: 160, padding: '14px', background: BLU_LIGHT, color: BLU, border: `1px solid ${BLU}40`, borderRadius: 12, fontSize: font.size.md, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
         <Icon name="gift" size={16} /> Registra omaggio
       </button>
     </div>
@@ -653,9 +867,9 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
         <SH sub="Le tue registrazioni di oggi.">Registrate oggi</SH>
         <div style={{ ...cardStyle(), padding: isMobile ? 14 : 18 }}>
           {loading ? (
-            <div style={{ fontSize: 13, color: C.textSoft }}>Caricamento…</div>
+            <div style={{ fontSize: font.size.base, color: C.textSoft }}>Caricamento…</div>
           ) : mieDelGiorno.length === 0 ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: C.textSoft }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: font.size.base, color: C.textSoft }}>
               <Icon name="checkCircle" size={16} color={C.green} /> Nessuna registrazione oggi.
             </div>
           ) : (
@@ -663,12 +877,12 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
               {mieDelGiorno.map(m => (
                 <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', borderBottom: `1px solid ${C.borderSoft}`, paddingBottom: 8 }}>
                   {tipoBadge(m.tipo)}
-                  <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{m.prodotto || m.categoria || '-'}</span>
-                  <span style={{ fontSize: 12, color: C.textSoft }}>{CAUSALE_LABEL[m.causale] || m.causale}</span>
-                  <span style={{ fontSize: 12, color: C.textMid, ...TNUM }}>{fmtQta(m.qta, m.unita)}</span>
+                  <span style={{ fontSize: font.size.base, fontWeight: 600, color: C.text }}>{m.prodotto || m.categoria || '-'}</span>
+                  <span style={{ fontSize: font.size.sm, color: C.textSoft }}>{CAUSALE_LABEL[m.causale] || m.causale}</span>
+                  <span style={{ fontSize: font.size.sm, color: C.textMid, ...TNUM }}>{fmtQta(m.qta, m.unita)}</span>
                   <span style={{ flex: 1 }} />
                   <button onClick={() => elimina(m)} title="Elimina"
-                    style={{ padding: '9px 12px', minHeight: 40, background: 'transparent', color: C.red, border: `1px solid ${C.redLight}`, borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                    style={{ padding: '9px 12px', minHeight: dito ? 44 : 40, background: 'transparent', color: C.red, border: `1px solid ${C.redLight}`, borderRadius: 7, fontSize: font.size.sm, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                     <Icon name="trash" size={12} /> Elimina
                   </button>
                 </div>
@@ -694,7 +908,7 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
           <input style={{ ...inputS, width: 'auto' }} type="month" value={mese} onChange={e => setMese(e.target.value)} />
         </div>
         {legacy.length > 0 && (
-          <div style={{ fontSize: 12, color: C.textSoft, paddingBottom: 8, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ fontSize: font.size.sm, color: C.textSoft, paddingBottom: 8, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             <Icon name="clipboard" size={13} /> Include {fmtN(legacy.length)} record storici da “Discrepanze”.
           </div>
         )}
@@ -706,12 +920,12 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
         <div role="alert" style={{
           padding: '12px 16px', borderRadius: 10, marginBottom: 14,
           display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
-          background: sogliaInfo.livello === 'alto' ? '#FEF2F2' : '#FEF9C3',
-          border: `1.5px solid ${sogliaInfo.livello === 'alto' ? '#FCA5A5' : '#FDE68A'}`,
-          color: sogliaInfo.livello === 'alto' ? '#991B1B' : '#854D0E',
+          background: sogliaInfo.livello === 'alto' ? T.redLight : T.amberLight,
+          border: `1.5px solid ${sogliaInfo.livello === 'alto' ? T.red : T.amber}55`,
+          color: sogliaInfo.livello === 'alto' ? T.redDark : T.amberDark,
         }}>
-          <Icon name="warning" size={18} color={sogliaInfo.livello === 'alto' ? '#DC2626' : '#CA8A04'} />
-          <div style={{ flex: 1, minWidth: 200, fontSize: 13, lineHeight: 1.5 }}>
+          <Icon name="warning" size={18} color={sogliaInfo.livello === 'alto' ? T.red : T.amber} />
+          <div style={{ flex: 1, minWidth: 200, fontSize: font.size.base, lineHeight: 1.5 }}>
             <strong>{sogliaInfo.livello === 'alto' ? 'Sprechi elevati' : 'Attenzione sprechi'}</strong>:
             stai perdendo <strong>{fmtp0(sogliaInfo.pct)}</strong> dei ricavi del mese
             ({fmt0(diag.totPerso)} su {fmt0(sogliaInfo.ricavi)}).
@@ -730,10 +944,17 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
             Per un titolare e' il numero che conta più del food cost: un
             omaggio non costa quello che c'e' dentro, costa quello che non hai
             incassato. */}
+        {/* Il totale dice anche su quante registrazioni è calcolato: se
+            qualcuna non ha un costo, quel numero è per forza più basso del
+            vero, e dirlo è l'unico modo di non farlo leggere come completo. */}
         <KPI icon={<Icon name="trendDown" size={18} />} label="Perdita totale del mese" value={fmt0(diag.totPerso)} highlight
-          sub={diag.ricavoMancato > 0
-            ? `${fmt0(diag.valSpreco)} perdite · ${fmt0(diag.valOmaggio)} omaggi · ${fmt0(diag.ricavoMancato)} di incasso mancato`
-            : `${fmt0(diag.valSpreco)} perdite · ${fmt0(diag.valOmaggio)} omaggi`} />
+          sub={[
+            `${fmt0(diag.valSpreco)} perdite · ${fmt0(diag.valOmaggio)} omaggi`,
+            diag.ricavoMancato > 0 ? `${fmt0(diag.ricavoMancato)} di incasso mancato` : null,
+            diag.nSenzaCosto > 0
+              ? `${fmtN(diag.nSenzaCosto)} ${diag.nSenzaCosto === 1 ? 'registrazione senza costo, non contata' : 'registrazioni senza costo, non contate'}`
+              : null,
+          ].filter(Boolean).join(' · ')} />
         <KPI icon={<Icon name="receipt" size={18} />} label="Incidenza sul food cost"
           value={incidenza == null ? '—' : fmtp0(incidenza)} color={incColor}
           sub={incidenza == null
@@ -754,7 +975,7 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
       {legacyDrift.length > 0 && (
         <div style={{ ...cardStyle(), padding: '12px 16px', marginBottom: 14, display: 'flex', alignItems: 'flex-start', gap: 10, background: C.bgSubtle }}>
           <Icon name="alert" size={15} color={C.amber} />
-          <div style={{ fontSize: 12, color: C.textMid, lineHeight: 1.5 }}>
+          <div style={{ fontSize: font.size.sm, color: C.textMid, lineHeight: 1.5 }}>
             <b style={{ color: C.text }}>Drift di porzionatura</b> - {fmtN(legacyDrift.length)} segnalazioni storiche di porzioni fuori standard
             (abbondanti/ridotte) erodono margine ma non sono perdite discrete. Tienile a mente quando rivedi le rese delle ricette.
           </div>
@@ -773,19 +994,27 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
             c'erano ma la loro data non era leggibile (19 righe su 19 nei dati
             demo). Un complimento al posto di un problema. Ora, se ci sono righe
             che non riusciamo a leggere, lo diciamo. */}
+        {/* 20/09/2026, la seconda strada per lo stesso complimento sbagliato:
+            le barre tengono solo le voci sopra zero, quindi bastava che i
+            movimenti del mese non avessero un costo — e succede spesso —
+            perché tornasse la spunta verde su una pagina piena di perdite. */}
         {diag.causaliOrd.length === 0 ? (
-          nIlleggibili > 0 ? (
+          nIlleggibili > 0 || diag.nTot > 0 ? (
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, ...typo.small, color: C.amber, padding: '8px 0', lineHeight: 1.55 }}>
               <span style={{ flexShrink: 0, marginTop: 1 }}><Icon name="warning" size={16} /></span>
               <span>
-                {nIlleggibili === 1
-                  ? 'C’è una registrazione che non riesco a leggere (la data non è nel formato giusto), quindi non la conto qui.'
-                  : `Ci sono ${nIlleggibili} registrazioni che non riesco a leggere (la data non è nel formato giusto), quindi non le conto qui.`}
+                {diag.nTot > 0
+                  ? (diag.nTot === 1
+                    ? 'C’è una registrazione nel mese, ma senza un costo: non posso dire quanto è costata.'
+                    : `Ci sono ${fmtN(diag.nTot)} registrazioni nel mese, ma nessuna ha un costo: non posso dire quanto sono costate.`)
+                  : (nIlleggibili === 1
+                    ? 'C’è una registrazione che non riesco a leggere (la data non è nel formato giusto), quindi non la conto qui.'
+                    : `Ci sono ${fmtN(nIlleggibili)} registrazioni che non riesco a leggere (la data non è nel formato giusto), quindi non le conto qui.`)}
                 {' '}Non è "nessuna perdita": sono dati che non riesco a interpretare.
               </span>
             </div>
           ) : (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: C.textSoft, padding: '8px 0' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: font.size.base, color: C.textSoft, padding: '8px 0' }}>
               <Icon name="checkCircle" size={16} color={C.green} /> Nessuna perdita registrata nel mese. Ottimo controllo.
             </div>
           )
@@ -796,14 +1025,14 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
               const col = c.tipo === 'omaggio' ? BLU : C.amber
               return (
                 <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 12 }}>
-                  <span style={{ flex: isMobile ? '0 0 40%' : '0 0 32%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 12, fontWeight: i === 0 ? 700 : 500, color: C.text }} title={CAUSALE_LABEL[c.id] || c.id}>
+                  <span style={{ flex: isMobile ? '0 0 40%' : '0 0 32%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: font.size.sm, fontWeight: i === 0 ? 700 : 500, color: C.text }} title={CAUSALE_LABEL[c.id] || c.id}>
                     {CAUSALE_LABEL[c.id] || c.id}
                   </span>
                   <span style={{ flex: 1, height: 18, background: C.bgSubtle, borderRadius: 6, overflow: 'hidden', minWidth: 40 }}>
                     <span style={{ display: 'block', height: '100%', width: `${Math.max(4, pct)}%`, background: i === 0 ? col : `${col}73`, transition: 'width 0.3s' }} />
                   </span>
-                  <span style={{ flex: '0 0 70px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: C.text, ...TNUM }}>{fmt(c.eur)}</span>
-                  <span style={{ flex: '0 0 44px', textAlign: 'right', fontSize: 12, color: C.textSoft, ...TNUM }}>{fmtp0(pct)}</span>
+                  <span style={{ flex: '0 0 70px', textAlign: 'right', fontSize: font.size.sm, fontWeight: 700, color: C.text, ...TNUM }}>{fmt(c.eur)}</span>
+                  <span style={{ flex: '0 0 44px', textAlign: 'right', fontSize: font.size.sm, color: C.textSoft, ...TNUM }}>{fmtp0(pct)}</span>
                 </div>
               )
             })}
@@ -815,8 +1044,17 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
       <SH sub="I prodotti che ti costano di più in perdite e omaggi nel mese.">Prodotti con più perdite</SH>
       <div style={{ ...cardStyle(), padding: isMobile ? 14 : 18, marginBottom: 24 }}>
         {diag.classifica.length === 0 ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: C.textSoft, padding: '8px 0' }}>
-            <Icon name="checkCircle" size={16} color={C.green} /> Nessun prodotto con perdite nel mese.
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: font.size.base, color: C.textSoft, padding: '8px 0' }}>
+            {/* Anche qui: se i movimenti ci sono ma non hanno un costo, la
+                classifica è vuota per un motivo diverso da «non è successo
+                niente», e i due casi non si confondono. */}
+            {diag.nTot > 0 ? (
+              <><Icon name="warning" size={16} color={C.amber} /> {diag.nTot === 1
+                ? 'La registrazione del mese non ha un costo: non c’è niente da mettere in classifica.'
+                : `Le ${fmtN(diag.nTot)} registrazioni del mese non hanno un costo: non c’è niente da mettere in classifica.`}</>
+            ) : (
+              <><Icon name="checkCircle" size={16} color={C.green} /> Nessun prodotto con perdite nel mese.</>
+            )}
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -825,12 +1063,12 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
               const qtaStr = [p.qtaG ? `${fmtN(p.qtaG)} g` : null, p.qtaPz ? `${fmtN(p.qtaPz)} pz` : null].filter(Boolean).join(' · ')
               return (
                 <div key={p.nome} style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 12 }}>
-                  <span style={{ flex: isMobile ? '0 0 38%' : '0 0 30%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 12, fontWeight: i === 0 ? 700 : 500, color: C.text }} title={p.nome}>{p.nome}</span>
+                  <span style={{ flex: isMobile ? '0 0 38%' : '0 0 30%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: font.size.sm, fontWeight: i === 0 ? 700 : 500, color: C.text }} title={p.nome}>{p.nome}</span>
                   <span style={{ flex: 1, height: 18, background: C.bgSubtle, borderRadius: 6, overflow: 'hidden', minWidth: 40 }}>
                     <span style={{ display: 'block', height: '100%', width: `${Math.max(4, pct)}%`, background: i === 0 ? C.red : 'rgba(110,14,26,0.45)', transition: 'width 0.3s' }} />
                   </span>
-                  <span style={{ flex: '0 0 70px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: C.text, ...TNUM }}>{fmt(p.eur)}</span>
-                  {!isMobile && <span style={{ flex: '0 0 96px', textAlign: 'right', fontSize: 12, color: C.textSoft, ...TNUM }}>{qtaStr || `${fmtN(p.n)} reg.`}</span>}
+                  <span style={{ flex: '0 0 70px', textAlign: 'right', fontSize: font.size.sm, fontWeight: 700, color: C.text, ...TNUM }}>{fmt(p.eur)}</span>
+                  {!isMobile && <span style={{ flex: '0 0 96px', textAlign: 'right', fontSize: font.size.sm, color: C.textSoft, ...TNUM }}>{qtaStr || `${fmtN(p.n)} reg.`}</span>}
                 </div>
               )
             })}
@@ -841,13 +1079,14 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
       {/* (4) ELENCO MOVIMENTI DEL MESE */}
       <SH sub="Tutti gli eventi del mese, dal più recente. Filtra per tipo o causale.">Movimenti del mese</SH>
       <div style={{ ...cardStyle(), padding: isMobile ? '12px 14px' : '12px 18px', marginBottom: 12, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-        {/* Filtri select: fontSize 12.5 desktop (16 mobile per evitare zoom iOS).
-            Padding ridotto a 8x12 per equipararsi alle altre select del sito
-            (Magazzino, Ricettario, etc). */}
+        {/* Filtri: sul tablet valgono le misure del dito, non quelle del
+            computer. Erano alti 34px e scritti a 12px — sotto i 16px iOS
+            ingrandisce la pagina appena li tocchi, e il resto della schermata
+            scappa fuori. */}
         <div>
           <label style={labelS}>Tipo</label>
           <select
-            style={{ ...inputS, width: 'auto', fontSize: 12, padding: isMobile ? '10px 12px' : '8px 32px 8px 12px' }}
+            style={{ ...inputS, width: 'auto', fontSize: dito ? font.size.lg : font.size.sm, minHeight: dito ? 44 : 34, padding: dito ? '10px 12px' : '8px 32px 8px 12px' }}
             value={filtroTipo} onChange={e => { setFiltroTipo(e.target.value); setFiltroCausale('tutte') }}>
             <option value="tutti">Tutti</option>
             <option value="spreco">Solo perdite</option>
@@ -857,7 +1096,7 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
         <div>
           <label style={labelS}>Causale</label>
           <select
-            style={{ ...inputS, width: 'auto', fontSize: 12, padding: isMobile ? '10px 12px' : '8px 32px 8px 12px' }}
+            style={{ ...inputS, width: 'auto', fontSize: dito ? font.size.lg : font.size.sm, minHeight: dito ? 44 : 34, padding: dito ? '10px 12px' : '8px 32px 8px 12px' }}
             value={filtroCausale} onChange={e => setFiltroCausale(e.target.value)}>
             <option value="tutte">Tutte</option>
             {causaliFiltro.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
@@ -887,7 +1126,9 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
             { k: 'costo', label: 'Costo', forte: true,
               cella: (m) => (
                 <span style={{ color: m.tipo === 'spreco' ? C.amber : BLU }}>
-                  {fmt(m.fcTot)}
+                  {costoMovimento(m) == null
+                    ? <span style={{ color: C.textSoft, fontWeight: 400 }} title="Costo non indicato: questa riga non entra nei totali del mese">non valorizzato</span>
+                    : fmt(costoMovimento(m))}
                   {m.tipo === 'omaggio' && Number(m.valoreOmaggio) > 0 && (
                     <span style={{ color: C.textSoft, fontWeight: 400, marginLeft: 6 }}>(− {fmt(m.valoreOmaggio)} ricavo)</span>
                   )}
@@ -933,19 +1174,21 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
                   <td style={{ padding: '11px 14px', color: C.text, whiteSpace: 'nowrap', textAlign: 'right', ...TNUM }}>{fmtQta(m.qta, m.unita)}</td>
                   <td style={{ padding: '11px 14px', color: C.textMid }}>{CAUSALE_LABEL[m.causale] || m.causale || '-'}</td>
                   <td style={{ padding: '11px 14px', color: m.tipo === 'spreco' ? C.amber : BLU, fontWeight: 700, whiteSpace: 'nowrap', textAlign: 'right', ...TNUM }}>
-                    {fmt(m.fcTot)}
+                    {costoMovimento(m) == null
+                      ? <span style={{ color: C.textSoft, fontWeight: 400 }} title="Costo non indicato: questa riga non entra nei totali del mese">non valorizzato</span>
+                      : fmt(costoMovimento(m))}
                     {m.tipo === 'omaggio' && Number(m.valoreOmaggio) > 0 && (
                       <span style={{ color: C.textSoft, fontWeight: 400, marginLeft: 6 }}>(− {fmt(m.valoreOmaggio)} ricavo)</span>
                     )}
                   </td>
-                  <td style={{ padding: '11px 14px', color: C.textSoft, fontSize: 12 }}>
+                  <td style={{ padding: '11px 14px', color: C.textSoft, fontSize: font.size.sm }}>
                     {m._legacy ? <span style={{ padding: '1px 5px', borderRadius: 4, background: C.bgSubtle, color: C.textSoft, fontSize: font.size.sm, fontWeight: 700 }}>STORICO</span> : (m.autore_email || '-')}
                     {m.autore_ruolo === 'dipendente' && <span style={{ marginLeft: 6, padding: '1px 5px', borderRadius: 4, background: C.amberLight, color: C.amber, fontSize: font.size.sm, fontWeight: 700 }}>DIP</span>}
                   </td>
                   <td style={{ padding: '11px 14px' }}>
                     {!m._legacy && (
                       <button onClick={() => elimina(m)} title="Elimina"
-                        style={{ padding: '9px 12px', minHeight: 40, background: 'transparent', color: C.red, border: `1px solid ${C.redLight}`, borderRadius: 7, fontSize: font.size.sm, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                        style={{ padding: '9px 12px', minHeight: dito ? 44 : 40, background: 'transparent', color: C.red, border: `1px solid ${C.redLight}`, borderRadius: 7, fontSize: font.size.sm, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                         <Icon name="trash" size={12} /> Elimina
                       </button>
                     )}

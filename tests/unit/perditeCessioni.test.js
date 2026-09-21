@@ -86,10 +86,22 @@ describe('il seed della demo usa lo shape che la pagina legge', () => {
     }
   })
 
-  it('la pagina non dice "Ottimo controllo" quando ci sono righe illeggibili', () => {
-    expect(pagina).toMatch(/nIlleggibili > 0 \?/)
+  // Qui c'era una prova che cercava `nIlleggibili > 0 ?` **nel sorgente**.
+  //
+  // Il 21/09/2026 la pagina è stata rimaneggiata e quella condizione è
+  // diventata `nIlleggibili > 0 || diag.nTot > 0 ?`: il comportamento è
+  // rimasto identico, il test è andato rosso. È il difetto dei test che
+  // guardano il testo del codice invece di quello che succede — bloccano il
+  // modo in cui una cosa è scritta, non la cosa.
+  //
+  // La stessa verifica adesso sta in `perditeValorizzateAllaData.test.jsx`,
+  // che monta la pagina davvero e controlla che con delle righe illeggibili
+  // non compaia «Ottimo controllo» e compaia invece «non riesco a leggere».
+  it('la pagina riconosce le righe che non riesce a leggere', () => {
+    // Quello che resta qui è solo il fatto che il conteggio esista: la prova
+    // di cosa mostra a schermo è nel file che la monta.
+    expect(pagina).toMatch(/nIlleggibili/)
     expect(pagina).toMatch(/non riesco a leggere/)
-    expect(pagina).toMatch(/Non è "nessuna perdita"/)
   })
 })
 
@@ -140,8 +152,16 @@ describe('incidenza e costo unitario — due numeri che erano inventati', () => 
   })
 
   it('senza chiusure non mostra una percentuale, dice cosa manca', () => {
+    // 21/09/2026: qui si pretendeva anche la frase «Serve la chiusura di
+    // cassa», che risultava **calcolata e mai mostrata** — un ramo di
+    // `incLabel` che nessuno poteva leggere, perché il riquadro usa l'altra
+    // frase. Due frasi diverse per la stessa cosa, prima o poi, si
+    // contraddicono: il ramo morto è stato tolto e resta quella vera.
+    //
+    // Che a schermo compaia davvero è provato montando la pagina, in
+    // `perditeValorizzateAllaData.test.jsx`: qui si guarda solo che la
+    // percentuale non venga inventata quando il dato non c'è.
     expect(pagina).toMatch(/incidenza = fcPeriodo\.noto \?/)
-    expect(pagina).toMatch(/Serve la chiusura di cassa/)
     expect(pagina).toMatch(/registra le chiusure e il conto si fa da sé/)
   })
 
