@@ -40,6 +40,11 @@ import { dirname, join } from 'node:path'
 
 const RADICE = join(dirname(fileURLToPath(import.meta.url)), '..')
 
+// Una sezione è la sua pagina **più la libreria che le appartiene**, quando ce
+// n'è una. Non è una finezza: 45 prove sui trasferimenti stanno sulla vista e
+// 45 su `lib/trasferimenti.js`, e contarne solo metà faceva risultare scoperta
+// una parte che è la più provata del prodotto. Si aggiunge solo la libreria
+// che serve a quella sezione e a nessun'altra, o si conterebbe due volte.
 export const SEZIONI = {
   'Ricettario': ['src/views/RicettarioView.jsx'],
   'Nuovo gusto': ['src/views/NuovaRicettaView.jsx'],
@@ -65,7 +70,7 @@ export const SEZIONI = {
   'Cashflow': ['src/views/CashflowView.jsx'],
   'Personale': ['src/components/Personale.jsx'],
   'Confronto sedi': ['src/components/ConfrontoSedi.jsx'],
-  'Trasferimenti fra sedi': ['src/components/TrasferimentiView.jsx'],
+  'Trasferimenti fra sedi': ['src/components/TrasferimentiView.jsx', 'src/lib/trasferimenti.js'],
   'Import dati': ['src/components/ImportWizard.jsx', 'src/lib/importValidateCore.js', 'src/lib/importParse.js'],
   'Allergeni e HACCP': ['src/components/Haccp.jsx', 'src/lib/allergeni.js'],
   'Impostazioni': ['src/components/Impostazioni.jsx'],

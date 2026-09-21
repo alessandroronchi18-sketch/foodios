@@ -41,12 +41,36 @@ export function previsione(serie, periodi = 3) {
 }
 
 // Stagionalità: media per giorno settimana (0=dom). NON MODIFICARE la firma.
-function calcolaPoiStagionale(giornaliero) {
+//
+// ── Due difetti corretti il 21/09/2026 ──────────────────────────────────
+//
+// 1. **Un NaN avvelenava la media di tutto il giorno.** `s + p.stampi` su un
+//    prodotto senza `stampi` fa NaN, e NaN sommato a qualunque cosa resta
+//    NaN: bastava **una** riga storta in mesi di dati perché il lunedì (o
+//    qualunque altro giorno) diventasse NaN per sempre, e con lui la
+//    previsione di quel giorno. Righe così esistono: nell'account
+//    dimostrativo ci sono 142 sessioni nel formato vecchio, e nel database
+//    del design partner una sessione nata da un evento non porta tutti i
+//    campi. Ora una quantità che non si legge vale zero **in quella somma**,
+//    che è la cosa giusta qui: stiamo contando stampi, e uno stampo che non
+//    si sa quant'è non ne aggiunge.
+//
+// 2. **Il giorno della settimana da `new Date(stringa)`** è mezzanotte a
+//    Greenwich riletta in locale. In Italia torna giusto, a ovest no — e
+//    questa è la quarta volta che la stessa forma costa cara in questo
+//    progetto. Il giorno si ricava dai pezzi della data, senza passare da un
+//    istante.
+export function calcolaPoiStagionale(giornaliero) {
   const byDow = Array(7).fill(null).map(() => [])
   for (const sess of giornaliero || []) {
     if (!sess.data) continue
-    const dow = new Date(sess.data).getDay()
-    const tot = (sess.prodotti || []).reduce((s, p) => s + p.stampi, 0)
+    const g = String(sess.data).slice(0, 10).split('-').map(Number)
+    if (g.length !== 3 || g.some(n => !Number.isFinite(n))) continue
+    const dow = new Date(g[0], g[1] - 1, g[2]).getDay()
+    const tot = (sess.prodotti || []).reduce((s, p) => {
+      const n = Number(p?.stampi)
+      return s + (Number.isFinite(n) ? n : 0)
+    }, 0)
     byDow[dow].push(tot)
   }
   return byDow.map(vals => vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0)

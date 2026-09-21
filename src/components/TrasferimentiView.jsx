@@ -620,8 +620,8 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
     return (
       <div style={{ maxWidth: 720, margin: '60px auto', textAlign: 'center', padding: 20 }}>
         <div style={{ marginBottom: 12 }}><Icon name="truck" size={48} color={C.textSoft} /></div>
-        <h2 style={{ fontSize: 20, color: C.text, marginBottom: 8 }}>Trasferimenti tra sedi</h2>
-        <p style={{ fontSize: 13, color: C.textSoft, lineHeight: 1.6 }}>
+        <h2 style={{ fontSize: font.size.xl, color: C.text, marginBottom: 8 }}>Trasferimenti tra sedi</h2>
+        <p style={{ fontSize: font.size.base, color: C.textSoft, lineHeight: 1.6 }}>
           I trasferimenti permettono di spostare prodotti, semilavorati o materie prime tra sedi diverse
           (es. dal laboratorio centrale ai punti vendita).<br/>
           <strong style={{ color: C.text }}>Aggiungi almeno 2 sedi</strong> per attivare questa funzione.
@@ -631,13 +631,13 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
   }
 
   const inp = { width: '100%', padding: isMobile ? '12px 14px' : isTablet ? '10px 13px' : '8px 12px', minHeight: isMobile ? 44 : isTablet ? 44 : 'auto', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : isTablet ? 16 : 13, color: C.text, background: C.bgCard, boxSizing: 'border-box' }
-  const lbl = { fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: isMobile ? 6 : 4 }
+  const lbl = { fontSize: font.size.sm, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: isMobile ? 6 : 4 }
 
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', width: '100%', boxSizing: 'border-box', padding: isMobile ? '0 4px 80px' : 0 }}>
       <div style={{ marginBottom: 6 }}>
         <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.red, marginBottom: 6 }}>Operazioni multi-sede</div>
-        <p style={{ margin: 0, fontSize: 13, color: C.textSoft }}>
+        <p style={{ margin: 0, fontSize: font.size.base, color: C.textSoft }}>
           Sposta prodotti finiti, semilavorati o materie prime da una sede all'altra. Lo stock si aggiorna automaticamente.
         </p>
       </div>
@@ -654,9 +654,9 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
           <div style={{ display: 'grid', gridTemplateColumns: ui3(isMobile, isTablet, ui.grid4), gap: isMobile ? 10 : 12 }}>
             {(() => {
               const kpiCell = { minHeight: isMobile ? 92 : isTablet ? 100 : 96, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }
-              const labelStyle = { fontSize: 12, color: C.textSoft, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', minHeight: 14 }
+              const labelStyle = { fontSize: font.size.sm, color: C.textSoft, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', minHeight: 14 }
               const valStyle = (color) => ({ fontSize: isMobile ? 26 : isTablet ? 28 : 28, fontWeight: 800, color, marginTop: 4, lineHeight: 1.05, letterSpacing: '-0.02em', ...tnum, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })
-              const subStyle = { fontSize: 12, color: C.textSoft, marginTop: 2 }
+              const subStyle = { fontSize: font.size.sm, color: C.textSoft, marginTop: 2 }
               return (
                 <>
                   <div style={kpiCell}>
@@ -666,7 +666,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
                   </div>
                   <div style={kpiCell}>
                     <div style={labelStyle}>Ricevuti puntuali</div>
-                    <div style={valStyle(accuratezzaMese.accuracyPct == null ? C.textSoft : accuratezzaMese.accuracyPct >= 95 ? C.green : accuratezzaMese.accuracyPct >= 85 ? '#B45309' : C.red)}>
+                    <div style={valStyle(accuratezzaMese.accuracyPct == null ? C.textSoft : accuratezzaMese.accuracyPct >= 95 ? C.green : accuratezzaMese.accuracyPct >= 85 ? '${T.amber}' : C.red)}>
                       {accuratezzaMese.accuracyPct != null ? fmtp0(accuratezzaMese.accuracyPct) : '-'}
                     </div>
                     <div style={{ ...subStyle, ...tnum }}>{accuratezzaMese.ricevutiOk}/{accuratezzaMese.ricevuti} senza scarto</div>
@@ -707,14 +707,14 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
       {/* TEMPLATE TRASFERIMENTI RICORRENTI */}
       {templates.length > 0 && (
         <div style={{
-          background: '#F0F9FF', border: '1px solid #BAE6FD', borderRadius: 12,
+          background: T.blueLight, border: '1px solid ${T.blue}', borderRadius: 12,
           padding: isMobile ? 12 : 14, marginBottom: 16,
         }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
-            <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#0369A1' }}>
+            <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: T.blue }}>
               Trasferimenti rapidi salvati
             </div>
-            <div style={{ fontSize: typo.small.fontSize, color: '#075985' }}>1 click → form pre-compilato</div>
+            <div style={{ fontSize: typo.small.fontSize, color: T.blue }}>1 click → form pre-compilato</div>
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {templates.map(t => {
@@ -723,11 +723,11 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
               return (
                 <div key={t.id} style={{
                   display: 'inline-flex', alignItems: 'center', gap: 8,
-                  background: '#FFF', border: '1px solid #BAE6FD', borderRadius: 999,
+                  background: T.white, border: '1px solid #BAE6FD', borderRadius: 999,
                   padding: '6px 6px 6px 14px',
                 }}>
                   <button onClick={() => applicaTemplate(t)}
-                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, fontSize: 12, color: '#0E1726', fontWeight: 700 }}>
+                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, fontSize: font.size.sm, color: T.text, fontWeight: 700 }}>
                     {t.nome} <span style={{ fontWeight: 500, color: C.textSoft, fontSize: typo.small.fontSize }}>· {sda?.nome || '?'} → {sa?.nome || '?'}</span>
                   </button>
                   <button onClick={() => eliminaTemplate(t.id)} title="Elimina template"
@@ -743,16 +743,16 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
 
       {/* DA FARE ORA: solo se c'è qualcosa da gestire per la sede attiva */}
       {(azioniUrgenti.daRicevere.length > 0 || azioniUrgenti.bozzeInUscita.length > 0) && (
-        <div style={{ background: '#FFFBEB', border: `1px solid ${C.amber}`, borderRadius: 12, padding: isMobile ? 14 : 18, marginTop: 18, marginBottom: 16 }}>
-          <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: '#92400E', marginBottom: 10, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ background: T.amberLight, border: `1px solid ${C.amber}`, borderRadius: 12, padding: isMobile ? 14 : 18, marginTop: 18, marginBottom: 16 }}>
+          <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: T.amberDark, marginBottom: 10, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             <Icon name="warning" size={14} /> Da fare ora ({azioniUrgenti.daRicevere.length + azioniUrgenti.bozzeInUscita.length})
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {azioniUrgenti.daRicevere.map(t => (
-              <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: '#fff', borderRadius: 8, border: `1px solid ${C.amber}`, flexWrap: 'wrap' }}>
+              <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: T.white, borderRadius: 8, border: `1px solid ${C.amber}`, flexWrap: 'wrap' }}>
                 <Icon name="package" size={16} color={C.amber} />
                 <div style={{ flex: 1, minWidth: 180 }}>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: C.text }}>{t.prodotto} · {fmtQty(t.quantita, t.unita)}</div>
+                  <div style={{ fontSize: font.size.sm, fontWeight: 800, color: C.text }}>{t.prodotto} · {fmtQty(t.quantita, t.unita)}</div>
                   <div style={{ fontSize: typo.small.fontSize, color: C.textSoft }}>In arrivo da <strong>{sediMap[t.sede_da]?.nome || '-'}</strong> · {fmtData(t.data)}</div>
                 </div>
                 <button onClick={() => apriRicevi(t)} disabled={busyId === t.id}
@@ -762,10 +762,10 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
               </div>
             ))}
             {azioniUrgenti.bozzeInUscita.map(t => (
-              <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: '#fff', borderRadius: 8, border: `1px solid ${C.border}`, flexWrap: 'wrap' }}>
+              <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: T.white, borderRadius: 8, border: `1px solid ${C.border}`, flexWrap: 'wrap' }}>
                 <Icon name="save" size={15} color={C.textSoft} />
                 <div style={{ flex: 1, minWidth: 180 }}>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: C.text }}>{t.prodotto} · {fmtQty(t.quantita, t.unita)}</div>
+                  <div style={{ fontSize: font.size.sm, fontWeight: 800, color: C.text }}>{t.prodotto} · {fmtQty(t.quantita, t.unita)}</div>
                   <div style={{ fontSize: typo.small.fontSize, color: C.textSoft }}>Bozza verso <strong>{sediMap[t.sede_a]?.nome || '-'}</strong> · pronta da inviare</div>
                 </div>
                 {!soloRicezione && <button onClick={() => azInvia(t)} disabled={busyId === t.id}
@@ -787,14 +787,14 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
           { label: 'Da ricevere', val: kpi.daRicevere, color: C.amber, highlight: kpi.daRicevere > 0 },
         ].map(k => (
           <div key={k.label} style={{
-            background: k.highlight ? '#FEF3C7' : C.bgCard,
+            background: k.highlight ? '${T.amberLight}' : C.bgCard,
             border: `1px solid ${k.highlight ? C.amber : C.border}`,
             borderRadius: 12,
             padding: isMobile ? '14px 16px' : '14px 18px',
             minHeight: isMobile ? 84 : isTablet ? 92 : 88,
             display: 'flex', flexDirection: 'column', justifyContent: 'center',
           }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{k.label}</div>
+            <div style={{ fontSize: font.size.sm, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{k.label}</div>
             <div style={{ fontSize: isMobile ? 26 : isTablet ? 28 : 28, fontWeight: 800, color: k.color, marginTop: 4, lineHeight: 1.05, letterSpacing: '-0.02em', ...tnum }}>{Number(k.val || 0).toLocaleString('it-IT', { useGrouping: 'always' })}</div>
           </div>
         ))}
@@ -853,7 +853,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
                 {sediAttive.map(s => <option key={s.id} value={s.id}>{s.nome}{s.citta ? ` · ${s.citta}` : ''}</option>)}
               </select>
             </div>
-            {!isMobile && <div style={{ textAlign: 'center', fontSize: 20, color: C.textSoft, paddingBottom: 6 }} aria-hidden="true">→</div>}
+            {!isMobile && <div style={{ textAlign: 'center', fontSize: font.size.xl, color: C.textSoft, paddingBottom: 6 }} aria-hidden="true">→</div>}
             <div>
               <div style={lbl}>A</div>
               <select value={form.sede_a} onChange={e => setForm(f => ({ ...f, sede_a: e.target.value }))} style={inp}>
@@ -895,7 +895,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
           </div>
 
           {/* Info movimentazione stock */}
-          <div style={{ marginBottom: 14, padding: '10px 12px', background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 8, fontSize: typo.small.fontSize, color: '#1E40AF', lineHeight: 1.5 }}>
+          <div style={{ marginBottom: 14, padding: '10px 12px', background: T.blueLight, border: '1px solid ${T.blue}', borderRadius: 8, fontSize: typo.small.fontSize, color: T.blue, lineHeight: 1.5 }}>
             {form.tipo === 'prodotto' && <><Icon name="package" size={13} /> All'invio: scala stock prodotti finiti di <strong>{sediMap[form.sede_da]?.nome || 'partenza'}</strong>. Alla ricezione: incrementa stock di <strong>{sediMap[form.sede_a]?.nome || 'destinazione'}</strong>.</>}
             {form.tipo === 'materia_prima' && <><Icon name="package" size={13} /> All'invio: scala magazzino materie prime di <strong>{sediMap[form.sede_da]?.nome || 'partenza'}</strong>. Alla ricezione: incrementa magazzino di <strong>{sediMap[form.sede_a]?.nome || 'destinazione'}</strong>.</>}
             {form.tipo === 'semilavorato' && <><Icon name="gift" size={13} /> Trasferimento di semilavorato. Solo log, lo stock semilavorati non è ancora gestito automaticamente.</>}
@@ -916,7 +916,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
               }
               setNomeTemplate(form.prodotto.slice(0, 20))
             }} disabled={saving}
-              style={{ padding: isMobile ? '11px 16px' : '10px 16px', minHeight: isMobile ? 44 : 'auto', background: 'transparent', color: '#0369A1', border: '1px solid #BAE6FD', borderRadius: 8, fontWeight: 700, fontSize: isMobile ? 13 : 12, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, marginLeft: isMobile ? 0 : 'auto', flex: isMobile ? '1 1 100%' : '0 0 auto', justifyContent: 'center' }}
+              style={{ padding: isMobile ? '11px 16px' : '10px 16px', minHeight: isMobile ? 44 : 'auto', background: 'transparent', color: T.blue, border: '1px solid ${T.blue}', borderRadius: 8, fontWeight: 700, fontSize: isMobile ? 13 : 12, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, marginLeft: isMobile ? 0 : 'auto', flex: isMobile ? '1 1 100%' : '0 0 auto', justifyContent: 'center' }}
               title="Salva queste impostazioni come template ricorrente">
               <Icon name="save" size={13} /> Salva come template
             </button>
@@ -968,8 +968,8 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
           role="dialog" aria-modal="true"
           onClick={() => setRiceviModal(null)}>
           <div onClick={e => e.stopPropagation()} style={{ background: C.bgCard, borderRadius: 12, padding: 24, maxWidth: 480, width: '100%' }}>
-            <h3 style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 800, color: C.text, display: 'inline-flex', alignItems: 'center', gap: 7 }}><Icon name="package" size={18} /> Conferma ricezione</h3>
-            <p style={{ margin: '0 0 16px', fontSize: 12, color: C.textSoft }}>
+            <h3 style={{ margin: '0 0 6px', fontSize: font.size.xl, fontWeight: 800, color: C.text, display: 'inline-flex', alignItems: 'center', gap: 7 }}><Icon name="package" size={18} /> Conferma ricezione</h3>
+            <p style={{ margin: '0 0 16px', fontSize: font.size.sm, color: C.textSoft }}>
               <strong>{riceviModal.t.prodotto}</strong> · {fmtQty(riceviModal.t.quantita, riceviModal.t.unita)} inviati da {sediMap[riceviModal.t.sede_da]?.nome || '-'}
             </p>
             <div style={{ marginBottom: 12 }}>
@@ -1015,8 +1015,8 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
               const a = sediMap[f.sede_a]?.nome || '-'
               const topProd = Object.entries(f.prodotti).sort((x, y) => y[1] - x[1]).slice(0, 2)
               return (
-                <div key={i} style={{ padding: '10px 12px', background: '#F8FAFC', borderRadius: 8, border: `1px solid ${C.border}` }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: C.text, marginBottom: 4 }}>
+                <div key={i} style={{ padding: '10px 12px', background: T.bgSubtle, borderRadius: 8, border: `1px solid ${C.border}` }}>
+                  <div style={{ fontSize: font.size.sm, fontWeight: 700, color: C.text, marginBottom: 4 }}>
                     {da} <span style={{ color: C.textSoft }}>→</span> {a}
                   </div>
                   <div style={{ fontSize: typo.small.fontSize, color: C.textMid, ...tnum }}>
@@ -1040,7 +1040,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
         <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <span style={{ fontSize: typo.small.fontSize, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Filtri:</span>
           <select value={filtroStato} onChange={e => setFiltroStato(e.target.value)}
-            style={{ padding: isMobile ? '9px 12px' : '5px 10px', minHeight: isMobile ? 40 : 'auto', borderRadius: 8, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: 12 }}>
+            style={{ padding: isMobile ? '9px 12px' : '5px 10px', minHeight: isMobile ? 40 : 'auto', borderRadius: 8, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: font.size.sm }}>
             <option value="all">Tutti gli stati</option>
             <option value="bozza">Bozza</option>
             <option value="inviato">Inviato</option>
@@ -1048,7 +1048,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
             <option value="annullato">Annullato</option>
           </select>
           <select value={filtroTipo} onChange={e => setFiltroTipo(e.target.value)}
-            style={{ padding: isMobile ? '9px 12px' : '5px 10px', minHeight: isMobile ? 40 : 'auto', borderRadius: 8, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: 12 }}>
+            style={{ padding: isMobile ? '9px 12px' : '5px 10px', minHeight: isMobile ? 40 : 'auto', borderRadius: 8, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: font.size.sm }}>
             <option value="all">Tutti i tipi</option>
             {TIPI.map(t => <option key={t.id} value={t.id}>{t.lbl}</option>)}
           </select>
@@ -1068,7 +1068,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
       {loading ? (
         <SkeletonList count={5} />
       ) : listaFiltrata.length === 0 ? (
-        <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, padding: '40px 20px', textAlign: 'center', color: C.textSoft, fontSize: 13 }}>
+        <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, padding: '40px 20px', textAlign: 'center', color: C.textSoft, fontSize: font.size.base }}>
           {/* La pagina vuota diceva solo "Nessun trasferimento" e si fermava
               lì. Per un'azienda con più sedi che non l'ha mai usata — è il
               caso del design partner — quella frase non dice né a cosa serve
@@ -1104,20 +1104,20 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
 
             return (
               <div key={t.id} style={{
-                background: isMioInArrivo ? '#FFFBEB' : C.bgCard,
+                background: isMioInArrivo ? '${T.amberLight}' : C.bgCard,
                 border: `1px solid ${isMioInArrivo ? C.amber : C.border}`,
                 borderRadius: 10, padding: '14px 18px'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                    <span title={t.prodotto} style={{ fontSize: 13, fontWeight: 700, color: C.text, maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.prodotto}</span>
+                    <span title={t.prodotto} style={{ fontSize: font.size.base, fontWeight: 700, color: C.text, maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.prodotto}</span>
                     <span style={{ fontSize: typo.small.fontSize, color: C.textMid, whiteSpace: 'nowrap', ...tnum }}>{fmtQty(t.quantita, t.unita)}</span>
                     {t.valore_unit > 0 && <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, whiteSpace: 'nowrap', ...tnum }}>· {fmtEuro(t.quantita * t.valore_unit)}</span>}
                     <span style={{ fontSize: typo.small.fontSize, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: statoCfg.bg, color: statoCfg.color }}>
                       {statoCfg.label}
                     </span>
                     {t.scarto_qty > 0 && (
-                      <span style={{ fontSize: typo.small.fontSize, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: '#FEE2E2', color: '#991B1B' }}>
+                      <span style={{ fontSize: typo.small.fontSize, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: T.redLight, color: T.redDark }}>
                         Scarto: {t.scarto_qty} {t.unita}
                       </span>
                     )}

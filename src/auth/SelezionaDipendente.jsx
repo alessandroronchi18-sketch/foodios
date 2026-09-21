@@ -40,6 +40,12 @@ export default function SelezionaDipendente({ nomeLaboratorio, nomeSede, onSignO
 
   useEffect(() => {
     let vivo = true
+    // Se qualcosa qui esplode, esplode **la schermata di accesso**: il
+    // tastierino sparisce e chi sta davanti al tablet non entra più. Un
+    // controllo di cortesia non può avere quel potere, quindi prima si
+    // verifica che ci sia qualcosa da chiamare, e comunque si tace in caso
+    // di errore.
+    if (typeof supabase?.rpc !== 'function') return undefined
     supabase.rpc('rubrica_codici_esiste')
       .then(({ data, error: err }) => {
         if (!vivo || err) return
