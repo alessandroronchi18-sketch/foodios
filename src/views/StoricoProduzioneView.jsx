@@ -5,7 +5,7 @@ import { fetchAllInventarioProduzione, GIORNI_RIPORTO_MAX, COLONNE_VENDUTO } fro
 import AnalisiInventarioSection from './AnalisiInventarioSection'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend, ReferenceLine } from 'recharts'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
-import { color as T, typo } from '../lib/theme'
+import { color as T, typo, font} from '../lib/theme'
 import { buildIngCosti, calcolaFCStorico, getR, resaGrammi } from '../lib/foodcost'
 import { useRicavoFlat } from '../lib/useRicavoFlat'
 import { useListinoSede, getRegSede } from '../lib/listinoSede'
@@ -226,8 +226,19 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
   // giorno della settimana, due dicevano «giornosett» e uno «Mese».
   const nomeVista  = { giornaliero:'giorno', settimana:'settimana', mese:'mese', giornosett:'giorno della settimana' };
   const TitoloVista = { giornaliero:'Giorno', settimana:'Settimana', mese:'Mese', giornosett:'Giorno della settimana' };
-  const getMonthKey = d => d.slice(0,7);
-  const getDayKey   = d => d.slice(0,10);
+  // Una riga senza data non deve far esplodere la pagina.
+  //
+  // 21/09/2026 — `d.slice(0,7)` su un `null` lancia «Cannot read properties of
+  // null», e in React un errore dentro un `useMemo` non rovina una riga: porta
+  // via **tutta la schermata**. Una sola sessione con la data mancante — e nel
+  // database del design partner le sessioni nate da un evento non portano
+  // tutti i campi — e lo Storico non si apre più, senza dire perché.
+  //
+  // Meglio raggrupparla sotto «senza data», dove si vede e si può sistemare,
+  // che perdere la pagina.
+  const SENZA_DATA = 'senza-data';
+  const getMonthKey = d => (d ? String(d).slice(0,7) : SENZA_DATA);
+  const getDayKey   = d => (d ? String(d).slice(0,10) : SENZA_DATA);
   // ── Il giorno della settimana ─────────────────────────────────────────────
   //
   // «Come vanno i lunedì» è la domanda che un gelatiere si fa davvero: quanto
@@ -243,11 +254,16 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
   // giorno prima. A mezzogiorno nessun fuso del mondo cambia la data.
   const GIORNI_SETT = ['Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato','Domenica'];
   const getDowKey   = d => {
+    if (!d) return SENZA_DATA;
     const g = new Date(String(d).slice(0,10) + 'T12:00').getDay();   // 0 = domenica
+    if (Number.isNaN(g)) return SENZA_DATA;
     return `dow-${g === 0 ? 7 : g}`;
   };
   const getKey      = d => vista==="giornaliero"?getDayKey(d):vista==="settimana"?getWeekKey(d):vista==="giornosett"?getDowKey(d):getMonthKey(d);
   const fmtKey      = k => {
+    // Il gruppo delle righe senza data si chiama per quello che è: se si
+    // provasse a formattarlo come una data uscirebbe «undefined/undefined».
+    if (k === SENZA_DATA) return 'Senza data';
     if (vista==="giornosett") return GIORNI_SETT[Number(k.split('-')[1]) - 1] || k;
     if (vista==="giornaliero") {
       const [y,m,dd] = k.split("-");
@@ -270,6 +286,20 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
       // su un martedì solo non è una media: è un martedì.
       map[k].giorni.add(String(sess.data).slice(0,10));
       for (const prod of (sess.prodotti||[])) {
+        // Quante teglie, davvero.
+        //
+        // 21/09/2026 — `prod.stampi` veniva usato così com'è: su un prodotto
+        // che non lo porta (le sessioni nel formato vecchio, quelle nate da un
+        // evento) è `undefined`, e da lì in avanti diventa NaN tutto quello
+        // che lo tocca: gli stampi del periodo, il ricavo, il food cost, il
+        // margine. A schermo si leggeva «Top prodotto: SACHER (NaN)», e le tre
+        // colonne dei soldi mostravano «0 €» perché un NaN confrontato con
+        // qualunque cosa è falso.
+        //
+        // Un NaN non resta dov'è nato: si propaga a ogni somma che lo tocca, e
+        // basta una riga storta in mesi di archivio per rendere illeggibile
+        // tutto il periodo.
+        const nStampi = Number.isFinite(Number(prod?.stampi)) ? Number(prod.stampi) : 0
         // Fallback su uppercase per nomi legacy: se cerchiamo per esatto e non
         // c'e' match, riproviamo con UPPER().trim() - altrimenti getR cade su
         // unita/prezzo di default e il margine apparirebbe 100% (rv calcolato,
@@ -290,14 +320,14 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
           // Resa dichiarata (o fallback somma ingredienti) per gusti gelateria.
           const resaG = resaGrammi(ric)
           const pesoKg = resaG > 0 ? resaG / 1000 : 1
-          rv = prod.stampi * (Number(rk) || 0) * pesoKg
+          rv = nStampi * (Number(rk) || 0) * pesoKg
         } else {
-          rv = prod.stampi*reg.unita*reg.prezzo;
+          rv = nStampi*reg.unita*reg.prezzo;
         }
-        map[k].stampiTot  += prod.stampi;
+        map[k].stampiTot  += nStampi;
         map[k].ricavoTot  += rv;
-        map[k].fcTot      += prod.stampi*fc;
-        map[k].byRicetta[prod.nome] = (map[k].byRicetta[prod.nome]||0)+prod.stampi;
+        map[k].fcTot      += nStampi*fc;
+        map[k].byRicetta[prod.nome] = (map[k].byRicetta[prod.nome]||0)+nStampi;
       }
     }
     return Object.values(map).sort((a,b)=>a.key.localeCompare(b.key)).map(p=>({
@@ -549,7 +579,11 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                 || ricettario?.ricette?.[(prod.nome || '').toUpperCase().trim()];
               const reg = getRegSede(prod.nome, ric, listinoSede);
               const {tot:f} = ric ? calcolaFCStorico(ric, ingCosti, ricettario, logPrezzi, sess.data+'T12:00:00') : {tot:0};
-              rv += prod.stampi*reg.unita*reg.prezzo; fc += prod.stampi*f;
+              // Stesso guardiano del conto qui sopra: se il periodo di
+              // confronto contiene una riga senza stampi, il «vs periodo
+              // precedente» diventa NaN e la freccia su/giù sparisce.
+              const nSt = Number.isFinite(Number(prod?.stampi)) ? Number(prod.stampi) : 0
+              rv += nSt*reg.unita*reg.prezzo; fc += nSt*f;
             }
           }
           if (rv>0) prev = { rv, margPct:rv>0?((rv-fc)/rv*100):0, st:null, spreco:null };
@@ -744,8 +778,8 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
   if (!hasProd && !hasVend) return (
     <div style={{maxWidth:560,margin:"80px auto",textAlign:"center",padding:'32px 24px',background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:18,boxShadow:'0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)'}}>
       <div style={{marginBottom:14,opacity:0.6,color:C.textSoft}}><Icon name="barChart" size={42} /></div>
-      <div style={{fontSize:16,fontWeight:700,color:C.text,marginBottom:8,letterSpacing:'-0.01em'}}>Nessun dato storico</div>
-      <div style={{fontSize:13,color:C.textSoft,lineHeight:1.55,maxWidth:420,margin:'0 auto'}}>
+      <div style={{fontSize: font.size.lg,fontWeight:700,color:C.text,marginBottom:8,letterSpacing:'-0.01em'}}>Nessun dato storico</div>
+      <div style={{fontSize: font.size.base,color:C.textSoft,lineHeight:1.55,maxWidth:420,margin:'0 auto'}}>
         Lo storico si popola automaticamente con le sessioni di <b>Produzione</b> e le <b>Chiusure cassa</b> registrate. Apri quelle sezioni dal menu a sinistra per iniziare.
       </div>
     </div>
@@ -832,7 +866,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
           {[["giornaliero","Giorno","Giorno"],["settimana","Settimana","Sett."],["mese","Mese","Mese"],["giornosett","Giorno della settimana","Giorno sett."]].map(([id,lbl,breve])=>(
             <button key={id} onClick={()=>setVista(id)} aria-pressed={vista===id}
               aria-label={lbl}
-              style={{padding:isMobile?"9px 12px":"9px 18px",minHeight:40,borderRadius:7,border:"none",cursor:"pointer",fontWeight:600,fontSize:12,background:vista===id?C.redLight:"transparent",color:vista===id?C.red:C.textMid,transition:"all 0.15s",whiteSpace:"nowrap"}}>
+              style={{padding:isMobile?"9px 12px":"9px 18px",minHeight:40,borderRadius:7,border:"none",cursor:"pointer",fontWeight:600,fontSize: font.size.sm,background:vista===id?C.redLight:"transparent",color:vista===id?C.red:C.textMid,transition:"all 0.15s",whiteSpace:"nowrap"}}>
               {isMobile ? breve : lbl}
             </button>
           ))}
@@ -905,7 +939,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
       {/* ─── TAB PRODUZIONE ─── */}
       {tab==="produzione"&&(
         <>
-          {!hasProd&&<div style={{textAlign:"center",padding:"40px 24px",background:C.bgCard,borderRadius:16,border:`1px solid ${C.border}`,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)",color:C.textSoft,fontSize:13,lineHeight:1.5}}><div style={{marginBottom:10,opacity:0.5,color:C.textSoft}}><Icon name="gift" size={32} /></div>Nessuna produzione registrata.<br/><span style={{fontSize: typo.small.fontSize,color:C.textSoft,marginTop:4,display:'inline-block'}}>Vai a <b style={{color:C.text}}>Produzione</b> dal menu per iniziare.</span></div>}
+          {!hasProd&&<div style={{textAlign:"center",padding:"40px 24px",background:C.bgCard,borderRadius:16,border:`1px solid ${C.border}`,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)",color:C.textSoft,fontSize: font.size.base,lineHeight:1.5}}><div style={{marginBottom:10,opacity:0.5,color:C.textSoft}}><Icon name="gift" size={32} /></div>Nessuna produzione registrata.<br/><span style={{fontSize: typo.small.fontSize,color:C.textSoft,marginTop:4,display:'inline-block'}}>Vai a <b style={{color:C.text}}>Produzione</b> dal menu per iniziare.</span></div>}
           {hasProd&&(
             <>
               <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,1fr)":isTablet?"repeat(3,1fr)":"repeat(5,1fr)",gap:10,marginBottom:24}}>
@@ -1027,7 +1061,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
           {!hasVend&&(
             <div style={{textAlign:"center",padding:isMobile?"32px 20px":"48px 32px",background:C.bgCard,borderRadius:16,border:`1px solid ${C.border}`,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
               <div style={{marginBottom:12,color:C.textSoft}}><Icon name="receipt" size={32} /></div>
-              <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:8}}>Nessuna chiusura registrata</div>
+              <div style={{fontSize: font.size.md,fontWeight:700,color:C.text,marginBottom:8}}>Nessuna chiusura registrata</div>
               <div style={{fontSize: typo.small.fontSize,color:C.textSoft,lineHeight:1.55,maxWidth:420,margin:'0 auto'}}>Carica gli scontrini di fine giornata dalla sezione <b>Chiusura</b> per vedere i dati di vendita reali qui.</div>
             </div>
           )}
@@ -1298,7 +1332,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                       <div style={{marginBottom:4,color:hi?C.white:color}}><Icon name={icon} size={15} /></div>
                       <div style={{fontSize: typo.small.fontSize,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",
                         color:hi?`rgba(255,255,255,0.6)`:C.textSoft,marginBottom:3,minHeight:24,lineHeight:1.25}}>{lbl}</div>
-                      <div style={{fontSize:16,fontWeight:900,color:hi?C.white:color,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'",minHeight:22,lineHeight:1.1,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{val}</div>
+                      <div style={{fontSize: font.size.lg,fontWeight:900,color:hi?C.white:color,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'",minHeight:22,lineHeight:1.1,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{val}</div>
                       {sub
                         ? <div style={{fontSize: typo.small.fontSize,color:hi?`rgba(255,255,255,0.55)`:C.textSoft,marginTop:2,minHeight:18,lineHeight:1.3,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{sub}</div>
                         : <div style={{minHeight:18,marginTop:2}}/>}
@@ -1354,10 +1388,10 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                 {/* Insights row */}
                 <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(3,1fr)",gap:10,marginBottom:14}}>
                   {/* Miglior giorno */}
-                  <div style={{background:"linear-gradient(135deg,#EAF5EE,${T.white})",border:`1px solid ${C.green}30`,borderRadius:16,padding:"14px 16px",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
+                  <div style={{background:"linear-gradient(135deg,${T.greenLight},${T.white})",border:`1px solid ${C.green}30`,borderRadius:16,padding:"14px 16px",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
                     <div style={{fontSize: typo.small.fontSize,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:C.green,marginBottom:6,display:"flex",alignItems:"center",gap:5}}><Icon name="trophy" size={11} />Miglior giorno</div>
-                    <div style={{fontSize:15,fontWeight:900,color:C.text}}>{fmt3(bestDay?.data)}</div>
-                    <div style={{fontSize:13,color:C.green,fontWeight:700,marginTop:2}}>{euro((bestDay?.kpi?.totV||0).toFixed(2))}</div>
+                    <div style={{fontSize: font.size.md,fontWeight:900,color:C.text}}>{fmt3(bestDay?.data)}</div>
+                    <div style={{fontSize: font.size.base,color:C.green,fontWeight:700,marginTop:2}}>{euro((bestDay?.kpi?.totV||0).toFixed(2))}</div>
                     <div style={{fontSize: typo.small.fontSize,color:C.textSoft,marginTop:3}}>
                       marg. {pct(bestDay?.kpi?.totMP)}{bestDay?.kpi?.avgST!=null?` · ST ${pct(bestDay.kpi.avgST)}`:''}
                     </div>
@@ -1365,16 +1399,16 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                   {/* Peggior giorno */}
                   <div style={{background:"linear-gradient(135deg,${T.amberLight},${T.white})",border:`1px solid ${C.amber}30`,borderRadius:16,padding:"14px 16px",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
                     <div style={{fontSize: typo.small.fontSize,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:C.amber,marginBottom:6,display:"flex",alignItems:"center",gap:5}}><Icon name="warning" size={11} />Giorno più debole</div>
-                    <div style={{fontSize:15,fontWeight:900,color:C.text}}>{fmt3(worstDay?.data)}</div>
-                    <div style={{fontSize:13,color:C.amber,fontWeight:700,marginTop:2}}>{euro((worstDay?.kpi?.totV||0).toFixed(2))}</div>
+                    <div style={{fontSize: font.size.md,fontWeight:900,color:C.text}}>{fmt3(worstDay?.data)}</div>
+                    <div style={{fontSize: font.size.base,color:C.amber,fontWeight:700,marginTop:2}}>{euro((worstDay?.kpi?.totV||0).toFixed(2))}</div>
                     <div style={{fontSize: typo.small.fontSize,color:C.textSoft,marginTop:3}}>
                       marg. {pct(worstDay?.kpi?.totMP)} · ST {pct(worstDay?.kpi?.avgST)}
                     </div>
                   </div>
                   {/* Spreco insight */}
-                  <div style={{background:"linear-gradient(135deg,#FDECEA,${T.white})",border:`1px solid ${C.red}20`,borderRadius:16,padding:"14px 16px",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
+                  <div style={{background:"linear-gradient(135deg,${T.redLight},${T.white})",border:`1px solid ${C.red}20`,borderRadius:16,padding:"14px 16px",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
                     <div style={{fontSize: typo.small.fontSize,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:C.red,marginBottom:6,display:"flex",alignItems:"center",gap:5}}><Icon name="trash" size={11} />Impatto spreco</div>
-                    <div style={{fontSize:15,fontWeight:900,color:C.text}}>{euro(totSpreco.toFixed(2))}</div>
+                    <div style={{fontSize: font.size.md,fontWeight:900,color:C.text}}>{euro(totSpreco.toFixed(2))}</div>
                     <div style={{fontSize: typo.small.fontSize,color:C.textSoft,marginTop:2}}>{pct(totRicavi>0?(totSpreco/totRicavi*100):0)} dei ricavi</div>
                     <div style={{fontSize: typo.small.fontSize,color:C.red,fontWeight:700,marginTop:4,display:"flex",alignItems:"center",gap:4}}>
                       {totRicavi>0&&totSpreco/totRicavi>0.05
@@ -1417,7 +1451,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                       </thead></>}
           corpo={<><tbody>
                         {Object.entries(byProd).sort((a,b)=>b[1].rv-a[1].rv).map(([nome,d],i)=>{
-                          const rowBg = i%2===0?"${T.white}AF8":"#FFF";
+                          const rowBg = i%2===0?"${T.white}AF8":T.white;
                           return (
                           <tr key={nome} style={{borderBottom:`1px solid ${C.border}`,background:rowBg}}>
                             <td style={{padding:"9px 12px",fontWeight:700,color:C.text,fontSize: typo.small.fontSize,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',maxWidth:220,position:'sticky',left:0,background:rowBg,zIndex:1}}>{nome}</td>
@@ -1559,8 +1593,8 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
             return (
               <div style={{textAlign:"center",padding:"48px 32px",background:C.bgCard,borderRadius:16,border:`1px solid ${C.border}`,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
                 <div style={{marginBottom:12,color:C.textSoft}}><Icon name={!hasProd?"package":"receipt"} size={32} /></div>
-                <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:8}}>{manca.t}</div>
-                <div style={{fontSize:12,color:C.textSoft,lineHeight:1.55,maxWidth:440,margin:"0 auto"}}>{manca.d}</div>
+                <div style={{fontSize: font.size.md,fontWeight:700,color:C.text,marginBottom:8}}>{manca.t}</div>
+                <div style={{fontSize: font.size.sm,color:C.textSoft,lineHeight:1.55,maxWidth:440,margin:"0 auto"}}>{manca.d}</div>
               </div>
             );
           })()}
@@ -1571,8 +1605,8 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
             if (allKeys.length===0) return (
               <div style={{textAlign:"center",padding:"48px 32px",background:C.bgCard,borderRadius:16,border:`1px solid ${C.border}`,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
                 <div style={{marginBottom:12,color:C.textSoft}}><Icon name="search" size={30} /></div>
-                <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:8}}>Nessun periodo nell'intervallo scelto</div>
-                <div style={{fontSize:12,color:C.textSoft,lineHeight:1.55,maxWidth:420,margin:"0 auto"}}>Non ci sono né produzioni né chiusure tra le date selezionate. Allarga l'intervallo o azzera il filtro <b>Periodo</b> qui sopra.</div>
+                <div style={{fontSize: font.size.md,fontWeight:700,color:C.text,marginBottom:8}}>Nessun periodo nell'intervallo scelto</div>
+                <div style={{fontSize: font.size.sm,color:C.textSoft,lineHeight:1.55,maxWidth:420,margin:"0 auto"}}>Non ci sono né produzioni né chiusure tra le date selezionate. Allarga l'intervallo o azzera il filtro <b>Periodo</b> qui sopra.</div>
               </div>
             );
             const dataConf = allKeys.map(k=>{
