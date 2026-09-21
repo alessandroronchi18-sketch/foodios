@@ -157,7 +157,11 @@ describe('Le correzioni a mano ricalcolano davanti agli occhi', () => {
     expect(testi(container).join(' | ')).toMatch(/manca il peso di uno/)
 
     act(() => { fireEvent.click(bottone(container, 'Come l\'ho calcolato')) })
-    const campo = container.querySelector('input[inputmode="numeric"]')
+    // Si cerca per id, non per `inputmode`: il campo del peso è passato da
+    // `numeric` a `decimal` il 21/09/2026 (prima non si poteva scrivere la
+    // virgola) e un test agganciato al tipo di tastiera si rompe per una
+    // ragione che non c'entra con quello che prova.
+    const campo = container.querySelector('input[id^="bolla-peso-"]')
     expect(campo).toBeTruthy()
     act(() => { fireEvent.change(campo, { target: { value: '25000' } }) })
 

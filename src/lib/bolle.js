@@ -39,6 +39,44 @@ import { leggiPrezzoKg, letturaPrezzoKg } from './formatIt'
 import { normIng } from './foodcost'
 
 /**
+ * Un numero come sta scritto sulla bolla: quantità, peso di una confezione.
+ *
+ * ── Il difetto del 21/09/2026, ed è il più caro di tutto il file ───────────
+ *
+ * Il prezzo passava di qui dal lettore italiano (`letturaPrezzoKg`), la
+ * **quantità no**: era un `Number()` nudo. E il riconoscimento della foto è
+ * scritto apposta per NON riformattare («keep the Italian format exactly as
+ * printed: "1.250,50" stays "1.250,50"»), quindi la quantità arriva quasi
+ * sempre come la stampa il fornitore. Con il `Number()` nudo:
+ *
+ *   - «10,5» → `NaN`: la riga veniva buttata con «quantità non leggibile»,
+ *     merce non caricata e prezzo perso;
+ *   - «1.250» → `1.25`: mille volte meno chili, quindi **mille volte più
+ *     caro al chilo**. 1.250 kg a 1.000 € diventavano 800 €/kg invece di
+ *     0,80 €/kg, e quel numero finiva nel food cost di ogni ricetta che usa
+ *     quella materia prima.
+ *
+ * Due porte per lo stesso dato finiscono sempre per divergere: adesso la
+ * quantità e il prezzo entrano dalla stessa, con la stessa regola italiana e
+ * lo stesso modo di dire «questo numero si può leggere in due modi».
+ *
+ * @returns {{valore: number|null, ambiguo: boolean, negativo: boolean}}
+ */
+export function leggiQuantita(v) {
+  if (typeof v === 'number') {
+    return Number.isFinite(v)
+      ? { valore: v, ambiguo: false, negativo: v < 0 }
+      : { valore: null, ambiguo: false, negativo: false }
+  }
+  const t = String(v ?? '').replace(/€/g, '').trim()
+  if (!t) return { valore: null, ambiguo: false, negativo: false }
+  const negativo = /^[-−]/.test(t)
+  const l = letturaPrezzoKg(negativo ? t.slice(1).trim() : t)
+  if (l.valore == null) return { valore: null, ambiguo: false, negativo }
+  return { valore: negativo ? -l.valore : l.valore, ambiguo: !!l.ambiguo, negativo }
+}
+
+/**
  * Quanto pesa un litro, in grammi.
  *
  * Non è una finezza da chimici: il latte a 1,03 e l'olio a 0,92 fanno l'11%
@@ -103,68 +141,174 @@ export function normalizzaUnita(u) {
 }
 
 /**
+ * Il peso di una confezione, letto da com'è scritta la riga.
+ *
+ * Non è indovinare: è leggere quello che il fornitore ha **stampato**. Sulle
+ * bolle vere il peso del sacco sta nella descrizione e da nessun'altra parte
+ * («FARINA TIPO 00 SACCO 25 KG», «LATTE UHT 6 X 1 L», «BURRO CONF. 500 G»), e
+ * la colonna della quantità dice solo «5 SACCHI». Senza questo, cinque sacchi
+ * di farina restano cinque pezzi e la riga si ferma: la persona deve battere
+ * 25000 a mano ogni volta, e se non lo fa il prezzo non entra.
+ *
+ * Due paletti, perché la differenza fra leggere e indovinare sta lì:
+ *
+ *   1. **Ci vuole un'unità di peso scritta.** «CARTONE DA 12» sono dodici
+ *      pezzi di qualcosa, non dodici grammi: nessun peso, riga ferma.
+ *   2. **Quello che si deduce si scrive in chiaro** nella spiegazione, con il
+ *      pezzo di testo da cui arriva, e la schermata lo segnala come «da
+ *      controllare». Un conto dedotto e mostrato si contesta; uno dedotto e
+ *      nascosto no.
+ *
+ * @returns {{grammi: number, testo: string}|null}
+ */
+export function pesoDaDescrizione(testo, { nome = '' } = {}) {
+  const t = String(testo || '').toLowerCase()
+  if (!t) return null
+  const perUnita = { kg: 1000, kgr: 1000, chilo: 1000, chili: 1000, g: 1, gr: 1, grammi: 1, hg: 100, etto: 100, etti: 100 }
+  // «6 x 1 kg» o «1 kg x 6»: il moltiplicatore può stare da tutti e due i lati.
+  const re = /(?:(\d+)\s*[x×*]\s*)?(\d+(?:[.,]\d+)?)\s*(kgr|kg|chilo|chili|grammi|gr|g|hg|etto|etti|lt|litri|litro|l|ml|cl)\b(?:\s*[x×*]\s*(\d+))?/gi
+  let scelto = null
+  for (const m of t.matchAll(re)) {
+    const [intero, primaN, numero, unitaTesto, dopoN] = m
+    const q = leggiQuantita(numero).valore
+    if (q == null || q <= 0) continue
+    let grammi = null
+    if (Object.prototype.hasOwnProperty.call(perUnita, unitaTesto)) {
+      grammi = q * perUnita[unitaTesto]
+    } else {
+      // Un litro scritto nella descrizione pesa solo se sappiamo di cosa.
+      const peso = pesoDiUnLitro(nome) ?? pesoDiUnLitro(t)
+      if (peso == null) continue
+      const litri = unitaTesto === 'ml' ? q / 1000 : unitaTesto === 'cl' ? q / 100 : q
+      grammi = litri * peso
+    }
+    const molt = Number(primaN || dopoN)
+    if (Number.isFinite(molt) && molt > 0) grammi *= molt
+    if (grammi > 0) scelto = { grammi, testo: intero.trim() }
+  }
+  return scelto
+}
+
+/**
  * Quanti grammi sono, davvero.
  *
- * @param {number} quantita   quanto ne è arrivato, nell'unità del fornitore
- * @param {string} unita      l'unità come sta scritta sulla bolla
+ * @param {number|string} quantita  quanto ne è arrivato, nell'unità del fornitore
+ * @param {string} unita            l'unità come sta scritta sulla bolla
  * @param {object} [opts]
  * @param {string} [opts.nome]             serve per il peso di un litro
- * @param {number} [opts.pesoConfezioneG]  quanto pesa UN pezzo/sacco/cartone
- * @returns {{grammi: number|null, spiegazione: string, problema: string|null}}
+ * @param {number|string} [opts.pesoConfezioneG]  quanto pesa UN pezzo/sacco/cartone
+ * @param {string} [opts.descrizione]      la riga come sta scritta, per leggere il formato
+ * @returns {{grammi: number|null, quantita: number|null, spiegazione: string,
+ *            problema: string|null, ambiguo: boolean, avvisi: string[]}}
  */
-export function inGrammi(quantita, unita, { nome = '', pesoConfezioneG = null } = {}) {
-  const q = Number(quantita)
-  if (!Number.isFinite(q) || q <= 0) {
-    return { grammi: null, spiegazione: '', problema: 'quantità non leggibile' }
+export function inGrammi(quantita, unita, { nome = '', pesoConfezioneG = null, descrizione = '' } = {}) {
+  const avvisi = []
+  const letta = leggiQuantita(quantita)
+  const q = letta.valore
+  const vuoto = { grammi: null, quantita: null, spiegazione: '', ambiguo: false, avvisi }
+  if (q == null) {
+    return { ...vuoto, problema: `quantità non leggibile: «${quantita}»` }
+  }
+  if (q < 0) {
+    // Una quantità in meno è un reso o una nota di credito, non una consegna:
+    // se entrasse così com'è, la merce resa verrebbe **caricata** invece che
+    // scaricata. In produzione il 21/09/2026 sono 4 documenti su 3520 (0,11%).
+    return { ...vuoto, problema: 'quantità negativa: è un reso o una nota di credito, non una consegna' }
+  }
+  if (q === 0) {
+    return { ...vuoto, problema: 'riga a quantità zero: non c\'è niente da caricare' }
   }
   const u = normalizzaUnita(unita)
   if (!u) {
-    return { grammi: null, spiegazione: '', problema: `unità di misura sconosciuta: «${unita}»` }
+    return { ...vuoto, quantita: q, problema: `unità di misura sconosciuta: «${unita}»` }
   }
-  if (u === 'kg') return { grammi: q * 1000, spiegazione: `${fmt(q)} kg`, problema: null }
-  if (u === 'g')  return { grammi: q, spiegazione: `${fmt(q)} g`, problema: null }
-  if (u === 'hg') return { grammi: q * 100, spiegazione: `${fmt(q)} hg = ${fmt(q / 10)} kg`, problema: null }
+  const base = { quantita: q, problema: null, ambiguo: letta.ambiguo, avvisi }
+  if (letta.ambiguo) {
+    // L'unico caso incerto è «1.250»: punto solo, tre cifre dopo. Letto
+    // all'italiana fa milleduecentocinquanta, copiato da un gestionale in
+    // inglese fa 1,25. Fra i due c'è un fattore mille sul prezzo al chilo.
+    avvisi.push(`la quantità «${quantita}» si può leggere ${fmt(q)} (le migliaia all'italiana) oppure ${fmt(Number(quantita))}: controlla quale delle due`)
+  }
+  if (u === 'kg') return { ...base, grammi: q * 1000, spiegazione: `${fmt(q)} kg` }
+  if (u === 'g')  return { ...base, grammi: q, spiegazione: `${fmt(q)} g` }
+  if (u === 'hg') return { ...base, grammi: q * 100, spiegazione: `${fmt(q)} hg = ${fmt(q / 10)} kg` }
 
   if (u === 'l' || u === 'ml' || u === 'cl') {
     const litri = u === 'l' ? q : u === 'cl' ? q / 100 : q / 1000
     const peso = pesoDiUnLitro(nome)
     if (peso == null) {
       return {
-        grammi: null,
-        spiegazione: '',
+        ...vuoto, quantita: q, ambiguo: letta.ambiguo,
         problema: `${fmt(litri)} l di «${nome}»: non so quanto pesa un litro, quindi non calcolo il prezzo al chilo`,
       }
     }
     return {
+      ...base,
       grammi: litri * peso,
       spiegazione: `${fmt(litri)} l × ${fmt(peso / 1000)} kg/l = ${fmt(litri * peso / 1000)} kg`,
-      problema: null,
     }
   }
 
   // Pezzi, confezioni, sacchi, cartoni: senza il peso di uno non si va da
   // nessuna parte. È il caso più frequente sulle bolle vere («5 SACCHI FARINA
   // 00 25KG»), e l'unico modo di sbagliarlo di venticinque volte.
-  const pc = Number(pesoConfezioneG)
-  if (!Number.isFinite(pc) || pc <= 0) {
+  // Il peso di una confezione si scrive anche a mano, e a mano si scrive
+  // all'italiana: «25.000» sono venticinquemila grammi, non venticinque. È lo
+  // stesso punto incerto della quantità, quindi si dichiara allo stesso modo
+  // invece di scegliere di nascosto: fra i due c'è un fattore mille sul
+  // prezzo al chilo.
+  const lettoPeso = leggiQuantita(pesoConfezioneG)
+  let pc = lettoPeso.valore
+  if (lettoPeso.ambiguo && pc > 0) {
+    avvisi.push(`il peso di una confezione «${pesoConfezioneG}» si può leggere ${fmt(pc)} g (le migliaia all'italiana) oppure ${fmt(Number(pesoConfezioneG))} g: controlla quale dei due`)
+  }
+  if (pc == null || pc <= 0) {
+    // Il peso scritto nella descrizione, se c'è: letto, non indovinato, e
+    // dichiarato qui sotto nella spiegazione.
+    const dalTesto = pesoDaDescrizione(descrizione || nome, { nome })
+    if (dalTesto) {
+      pc = dalTesto.grammi
+      avvisi.push(`il peso di una confezione l'ho letto da «${dalTesto.testo}»: ${fmt(pc / 1000)} kg. Se non è così, scrivilo tu`)
+    }
+  }
+  if (pc == null || pc <= 0) {
     return {
-      grammi: null,
-      spiegazione: '',
+      ...vuoto, quantita: q, ambiguo: letta.ambiguo,
       problema: `${fmt(q)} ${q === 1 ? 'pezzo' : 'pezzi'}: manca il peso di uno, scrivilo tu`,
     }
   }
   return {
+    ...base,
+    ambiguo: letta.ambiguo || lettoPeso.ambiguo,
     grammi: q * pc,
     spiegazione: `${fmt(q)} × ${fmt(pc / 1000)} kg = ${fmt(q * pc / 1000)} kg`,
-    problema: null,
   }
 }
 
-/** Numero all'italiana, senza zeri inutili in coda. */
+/**
+ * Numero all'italiana, senza zeri inutili in coda.
+ *
+ * ── Il difetto del 21/09/2026 ─────────────────────────────────────────────
+ *
+ * Gli zeri «inutili» si tolgono solo **dopo la virgola**. Qui si toglievano
+ * anche prima: `25000` diventava `25`, `1250` diventava `125`, `110`
+ * diventava `11`. Ed è la funzione con cui questo file scrive tutte le
+ * spiegazioni e tutti gli avvisi, cioè i numeri che una persona legge per
+ * decidere se il conto è giusto: l'avviso sul peso del sacco avrebbe detto
+ * «si può leggere 25 g oppure 25 g».
+ *
+ * E già che si passa di qui, le migliaia prendono il punto italiano, come su
+ * tutte le altre schermate: `25.000 g`.
+ */
 function fmt(n) {
   if (!Number.isFinite(n)) return '—'
   const s = Math.abs(n) >= 100 ? n.toFixed(0) : Math.abs(n) >= 1 ? n.toFixed(2) : n.toFixed(3)
-  return s.replace(/\.?0+$/, '').replace('.', ',')
+  const pulito = s.includes('.') ? s.replace(/0+$/, '').replace(/\.$/, '') : s
+  const [intero, decimali] = pulito.split('.')
+  const conMigliaia = Number(intero).toLocaleString('it-IT', {
+    useGrouping: 'always', maximumFractionDigits: 0,
+  })
+  return decimali ? `${conMigliaia},${decimali}` : conMigliaia
 }
 
 /**
@@ -202,15 +346,34 @@ function fmt(n) {
  */
 export function prezzoAlKgDaRiga(riga = {}) {
   const spiegazione = []
-  const { grammi, spiegazione: comeKg, problema } = inGrammi(riga.quantita, riga.unita, {
-    nome: riga.nome, pesoConfezioneG: riga.pesoConfezioneG,
+  const conv = inGrammi(riga.quantita, riga.unita, {
+    nome: riga.nome, pesoConfezioneG: riga.pesoConfezioneG, descrizione: riga.descrizione,
   })
+  const { grammi, spiegazione: comeKg, problema } = conv
+  const avvisi = [...conv.avvisi]
+  // La quantità l'ha già letta `inGrammi`, con la regola italiana: qui si
+  // riusa **quel** numero. Rileggerlo con un `Number()` nudo vorrebbe dire
+  // due letture diverse dello stesso dato nella stessa funzione — il prezzo
+  // unitario moltiplicato per 1,25 e i chili contati per 1.250.
+  const q = conv.quantita
   if (comeKg) spiegazione.push(comeKg)
-  if (problema) return { prezzoKg: null, grammi: null, spiegazione, problema, ambiguo: false }
+  if (problema) return { prezzoKg: null, grammi: null, spiegazione, problema, ambiguo: conv.ambiguo, avvisi }
 
   // ── Quanto costa in tutto quella riga, senza IVA ────────────────────────
   let imponibile = null
-  let ambiguo = false
+  let ambiguo = conv.ambiguo
+
+  // Una nota di credito o un reso porta gli importi col meno davanti. Non è
+  // un prezzo di acquisto: se la riga entrasse, la merce resa verrebbe
+  // caricata e il prezzo al chilo verrebbe da un documento che va nell'altro
+  // verso. Si ferma qui, e lo dice con il suo nome.
+  if (negativo(riga.imponibile) || negativo(riga.totaleConIva) || negativo(riga.prezzoUnitario)) {
+    return {
+      prezzoKg: null, grammi: null, spiegazione,
+      problema: 'importo negativo: è una nota di credito o un reso, non una consegna',
+      ambiguo, avvisi,
+    }
+  }
 
   const lettoImponibile = riga.imponibile != null && riga.imponibile !== ''
     ? letturaPrezzoKg(riga.imponibile) : null
@@ -224,13 +387,13 @@ export function prezzoAlKgDaRiga(riga = {}) {
     const lordo = letturaPrezzoKg(riga.totaleConIva)
     const aliq = Number(riga.aliquotaIva)
     if (lordo?.valore == null) {
-      return { prezzoKg: null, grammi, spiegazione, problema: 'il totale della riga non si legge', ambiguo }
+      return { prezzoKg: null, grammi, spiegazione, problema: 'il totale della riga non si legge', ambiguo, avvisi }
     }
     if (!Number.isFinite(aliq) || aliq < 0 || aliq > 100) {
       return {
         prezzoKg: null, grammi, spiegazione,
         problema: 'c\'è solo il totale con IVA e non si sa l\'aliquota: il prezzo non si può ricavare',
-        ambiguo,
+        ambiguo, avvisi,
       }
     }
     imponibile = lordo.valore / (1 + aliq / 100)
@@ -238,35 +401,69 @@ export function prezzoAlKgDaRiga(riga = {}) {
     spiegazione.push(`${fmt(lordo.valore)} € con IVA al ${fmt(aliq)}% = ${fmt(imponibile)} € imponibile`)
   }
 
-  // Niente totale di riga: si ripiega sul prezzo unitario di listino.
-  if (imponibile == null && riga.prezzoUnitario != null && riga.prezzoUnitario !== '') {
-    const unit = letturaPrezzoKg(riga.prezzoUnitario)
-    if (unit?.valore == null) {
-      return { prezzoKg: null, grammi, spiegazione, problema: 'il prezzo unitario non si legge', ambiguo }
+  // Il prezzo unitario di listino: serve come ripiego quando il totale di
+  // riga non c'è, **e come controprova** quando c'è.
+  const unit = riga.prezzoUnitario != null && riga.prezzoUnitario !== ''
+    ? letturaPrezzoKg(riga.prezzoUnitario) : null
+  const sconto = Number(riga.scontoPct)
+  const conSconto = Number.isFinite(sconto) && sconto > 0 && sconto < 100
+
+  if (imponibile == null && unit) {
+    if (unit.valore == null) {
+      return { prezzoKg: null, grammi, spiegazione, problema: 'il prezzo unitario non si legge', ambiguo, avvisi }
     }
     ambiguo = ambiguo || unit.ambiguo
-    const q = Number(riga.quantita)
     imponibile = unit.valore * q
     spiegazione.push(`${fmt(unit.valore)} € × ${fmt(q)} = ${fmt(imponibile)} €`)
-    const sconto = Number(riga.scontoPct)
-    if (Number.isFinite(sconto) && sconto > 0 && sconto < 100) {
+    if (conSconto) {
       imponibile = imponibile * (1 - sconto / 100)
       spiegazione.push(`meno ${fmt(sconto)}% di sconto = ${fmt(imponibile)} €`)
+    }
+  } else if (unit?.valore != null && imponibile != null) {
+    // ── L'imponibile che non torna: difetto del 21/09/2026 ────────────────
+    //
+    // Quando sulla riga ci sono tutti e due i numeri, uno controlla l'altro e
+    // non costa niente farlo. Prima non si guardava: una riga con 10 kg a
+    // 10,00 €/kg e l'imponibile letto «1.000,00» invece di «100,00» dava
+    // 100 €/kg — dieci volte — e passava in silenzio, perché presa da sola
+    // ogni cifra era plausibile.
+    //
+    // L'imponibile resta quello che vince (è quello che paghi davvero), ma
+    // se i due numeri litigano di brutto la schermata lo deve dire.
+    const atteso = unit.valore * q * (conSconto ? 1 - sconto / 100 : 1)
+    if (atteso > 0) {
+      const scarto = Math.abs(imponibile - atteso) / atteso
+      if (scarto > SOGLIA_SCOSTAMENTO) {
+        avvisi.push(
+          `l'imponibile di riga (${fmt(imponibile)} €) non torna con ${fmt(unit.valore)} € × ${fmt(q)}${conSconto ? ` meno ${fmt(sconto)}%` : ''} = ${fmt(atteso)} €. ` +
+          'Uso l\'imponibile, ma uno dei due numeri è letto male: controlla',
+        )
+      } else if (scarto > 0.02) {
+        // Fra il 2% e il 50% è quasi sempre uno sconto di riga stampato
+        // altrove: si scrive nel conto, senza allarmare.
+        spiegazione.push(`(a listino sarebbero ${fmt(atteso)} €: sulla riga c'è ${fmt(imponibile)} €)`)
+      }
     }
   }
 
   if (imponibile == null) {
-    return { prezzoKg: null, grammi, spiegazione, problema: 'su questa riga non c\'è nessun prezzo', ambiguo }
+    return { prezzoKg: null, grammi, spiegazione, problema: 'su questa riga non c\'è nessun prezzo', ambiguo, avvisi }
   }
   if (!(imponibile > 0)) {
     // Un omaggio o una riga a zero non è un prezzo: se entrasse porterebbe a
     // zero il costo di quella materia prima in tutte le ricette.
-    return { prezzoKg: null, grammi, spiegazione, problema: 'riga a zero euro: è un omaggio, non un prezzo', ambiguo }
+    return { prezzoKg: null, grammi, spiegazione, problema: 'riga a zero euro: è un omaggio, non un prezzo', ambiguo, avvisi }
   }
 
   const prezzoKg = imponibile / (grammi / 1000)
   spiegazione.push(`${fmt(imponibile)} € ÷ ${fmt(grammi / 1000)} kg = ${fmt(prezzoKg)} €/kg`)
-  return { prezzoKg: arrotonda(prezzoKg, 4), grammi, spiegazione, problema: null, ambiguo }
+  return { prezzoKg: arrotonda(prezzoKg, 4), grammi, spiegazione, problema: null, ambiguo, avvisi }
+}
+
+/** Un importo scritto col meno davanti: nota di credito, reso, storno. */
+function negativo(v) {
+  if (typeof v === 'number') return v < 0
+  return /^\s*[-−]/.test(String(v ?? ''))
 }
 
 function arrotonda(n, decimali) {
@@ -430,7 +627,14 @@ export function preparaBolla(righe, { ingredientiCosti = {}, logPrezzi = [], dat
       spiegazione: conto.spiegazione,
       problema: conto.problema,
       ambiguo: conto.ambiguo,
-      sospetto: conto.prezzoKg != null && scostamentoSospetto(prezzoAttuale, conto.prezzoKg),
+      // Cose che il conto ha dovuto dedurre o che non tornano: si mostrano,
+      // non fermano la riga. Il problema ferma, l'avviso fa guardare.
+      avvisi: conto.avvisi || [],
+      // Uno scostamento si misura contro un prezzo **dichiarato**. Se quello
+      // di prima era una stima del prodotto, non c'è niente da cui scostarsi:
+      // era già `null` per `decidiPrezzo`, e qui lo era rimasto no.
+      sospetto: conto.prezzoKg != null
+        && scostamentoSospetto(eraUnaStima ? null : prezzoAttuale, conto.prezzoKg),
       azione: decisione.azione,
       motivo: decisione.motivo,
     }
@@ -484,17 +688,33 @@ export function applicaCambiAlListino(cambi, {
   const g = giorno || soloGiorno(origine?.data) || soloGiorno(new Date())
   const decorre = `${g}T00:00:00.000Z`
   let applicati = 0
+  // ── Lo stesso ingrediente su due righe della stessa bolla ───────────────
+  //
+  // Succede davvero, e il riconoscimento della foto è scritto apposta per non
+  // sommarle («due righe della stessa merce sono due consegne o due lotti, e
+  // sommarle nasconderebbe un prezzo diverso»). Prima, però, la seconda riga
+  // di storico diceva ancora il prezzo di listino di ieri: con farina a 0,88
+  // che arriva a 1,00 e poi a 1,20 si leggeva «0,88 → 1,00» e «0,88 → 1,20»,
+  // due aumenti dallo stesso punto di partenza, e la somma dei salti non
+  // tornava con la differenza fra il primo e l'ultimo prezzo.
+  const giaVisto = new Map()
+  let n = 0
 
   for (const c of (cambi || [])) {
     const prezzo = Number(c?.prezzoKg)
     if (!c?.chiave || !Number.isFinite(prezzo) || prezzo <= 0) continue
     if (c.azione !== 'applica' && c.azione !== 'soloStorico') continue
 
-    const vecchioNum = Number(c.prezzoAttuale)
+    const vecchioNum = giaVisto.has(c.chiave) ? giaVisto.get(c.chiave) : Number(c.prezzoAttuale)
     // `null`, non `0`. «Prima non aveva prezzo» e «prima era gratis» sono due
     // cose diverse, e `getPrezzoStoricoKg` legge proprio questo campo per
     // ricostruire il costo di una produzione passata.
     const vecchio = Number.isFinite(vecchioNum) && vecchioNum > 0 ? vecchioNum : null
+    giaVisto.set(c.chiave, prezzo)
+
+    // Due righe identiche della stessa bolla non sono due cambi di prezzo:
+    // la seconda scriverebbe una riga di storico con delta zero.
+    if (vecchio != null && arrotonda(vecchio, 4) === arrotonda(prezzo, 4) && righe.some(r => r.chiave === c.chiave)) continue
 
     if (c.azione === 'applica') {
       // Quattro decimali al chilo e sei al grammo: è la forma con cui il
@@ -508,7 +728,12 @@ export function applicaCambiAlListino(cambi, {
     }
 
     righe.push({
-      id: `lp-${Date.now()}-${c.chiave}`,
+      // L'indice nel nome: due righe della stessa materia prima nella stessa
+      // bolla arrivavano nello stesso millisecondo e finivano con lo stesso
+      // `id`. Un id doppio è una riga che sparisce a chi deduplica e una
+      // chiave doppia per React.
+      id: `lp-${Date.now()}-${n++}-${c.chiave}`,
+      chiave: c.chiave,
       data: adesso,
       decorre_da: decorre,
       ingrediente: c.nome || c.chiave,
@@ -550,7 +775,34 @@ export function applicaCambiAlListino(cambi, {
  */
 export function preparaScrittureBolla(righe, documento = {}, stato = {}) {
   const { magazzino = {}, logRif = [], ingredientiCosti = {}, logPrezzi = [], utente = null } = stato
-  const scelte = (righe || []).filter(r => r && r.chiave)
+
+  // ── La stessa bolla caricata due volte: difetto del 21/09/2026 ──────────
+  //
+  // L'avviso a schermo c'era già, ma era solo un avviso: il bottone
+  // «Registra» restava premibile e il conto non guardava niente. Ricaricando
+  // la stessa bolla la giacenza della farina passava da 25 kg a 50 kg, e
+  // nello storico dei prezzi finivano due righe identiche. Succede perché la
+  // foto a volte sembra non essere andata a buon fine e si rifà.
+  //
+  // Adesso il calcolo si ferma da solo, e non perché non si fidi della
+  // schermata: perché è l'ultimo punto prima del database, e il pezzo che
+  // decide dei soldi non deve dipendere da chi lo chiama. Chi vuole davvero
+  // caricarla due volte lo dice con `forza: true`.
+  const giaCaricata = !!documento?.identita
+    && (logRif || []).some(r => r?.bolla === documento.identita)
+  if (giaCaricata && documento?.forza !== true) {
+    return {
+      magazzino, logRif, ingredientiCosti, logPrezzi,
+      caricati: 0, applicati: 0, storicizzati: 0, giaCaricata: true,
+    }
+  }
+
+  // Una riga saltata a mano, o non abbinata a nessuna materia prima, non
+  // entra: se entrasse si creerebbe una voce nuova nel magazzino **e nel
+  // listino** partendo da un nome letto da una foto. `=== false` e `=== true`
+  // apposta: chi passa righe senza questi campi (i test, un import) non
+  // cambia comportamento.
+  const scelte = (righe || []).filter(r => r && r.chiave && r.saltata !== true && r.esisteInElenco !== false)
 
   const nuovoMagazzino = { ...magazzino }
   const nuoveRighe = []
@@ -558,6 +810,7 @@ export function preparaScrittureBolla(righe, documento = {}, stato = {}) {
   const daDove = documento?.fornitore
     ? `bolla ${documento.fornitore}${documento?.numero ? ` n. ${documento.numero}` : ''}`
     : 'bolla'
+  let n = 0
 
   for (const r of scelte) {
     const g = Number(r.grammi)
@@ -570,7 +823,9 @@ export function preparaScrittureBolla(righe, documento = {}, stato = {}) {
       ultimoRifornimento: adesso,
     }
     nuoveRighe.push({
-      id: `r-${Date.now()}-${r.chiave}`,
+      // Come per lo storico: due righe della stessa merce nella stessa bolla
+      // condividevano l'id, perché `Date.now()` è lo stesso millisecondo.
+      id: `r-${Date.now()}-${n++}-${r.chiave}`,
       data: adesso,
       ingrediente: r.nome,
       quantita_g: g,
@@ -603,5 +858,6 @@ export function preparaScrittureBolla(righe, documento = {}, stato = {}) {
     caricati: nuoveRighe.length,
     applicati: prezzi.applicati,
     storicizzati: prezzi.storicizzati,
+    giaCaricata,
   }
 }

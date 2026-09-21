@@ -81,6 +81,67 @@ describe('I pezzi: senza il peso di uno non si va da nessuna parte', () => {
     expect(r.grammi).toBe(null)
     expect(r.problema).toMatch(/manca il peso di uno/)
   })
+
+  // ── Il peso scritto a mano, difetto del 21/09/2026 ─────────────────────
+  //
+  // Il campo della schermata passava `Number(v) || null`: «25.000» (come si
+  // scrive un sacco da 25 kg in Italia) diventava venticinque **grammi** e
+  // «12,5» diventava niente. Adesso il peso entra dalla stessa porta della
+  // quantità — la regola italiana — e quando la lettura è incerta lo dice.
+  it('«25.000» sono venticinquemila grammi, e le due letture si dichiarano', () => {
+    const r = inGrammi(5, 'sacchi', { pesoConfezioneG: '25.000' })
+    expect(r.grammi).toBe(125000)
+    expect(r.ambiguo).toBe(true)
+    expect(r.avvisi.join(' ')).toMatch(/25\.000 g/)
+    expect(r.avvisi.join(' ')).toMatch(/oppure 25 g/)
+  })
+
+  it('«12,5» si legge 12,5 g: con la virgola non c\'è niente da interpretare', () => {
+    const r = inGrammi(200, 'cf', { pesoConfezioneG: '12,5' })
+    expect(r.grammi).toBe(2500)
+    expect(r.ambiguo).toBe(false)
+    expect(r.avvisi).toHaveLength(0)
+  })
+
+  it('un peso senza punti non fa domande', () => {
+    const r = inGrammi(5, 'sacchi', { pesoConfezioneG: '25000' })
+    expect(r.grammi).toBe(125000)
+    expect(r.ambiguo).toBe(false)
+    expect(r.avvisi).toHaveLength(0)
+  })
+
+  it('un peso vuoto o a zero non è un peso: la riga si ferma', () => {
+    expect(inGrammi(5, 'sacchi', { pesoConfezioneG: '' }).problema).toMatch(/manca il peso di uno/)
+    expect(inGrammi(5, 'sacchi', { pesoConfezioneG: '0' }).problema).toMatch(/manca il peso di uno/)
+    expect(inGrammi(5, 'sacchi', { pesoConfezioneG: 'abc' }).problema).toMatch(/manca il peso di uno/)
+  })
+})
+
+// ── I numeri delle spiegazioni: difetto del 21/09/2026 ────────────────────
+//
+// Le spiegazioni e gli avvisi di questo file passano tutti da `fmt`, che
+// toglieva «gli zeri inutili in coda» — anche quando non erano in coda a un
+// decimale ma dentro un numero intero. Risultato: `25000` si leggeva `25`,
+// `1250` si leggeva `125`, `110` si leggeva `11`. Sono i numeri su cui una
+// persona decide se il conto è giusto, e l'avviso sul peso del sacco avrebbe
+// detto «si può leggere 25 g oppure 25 g».
+describe('I numeri scritti a schermo sono quelli veri', () => {
+  it('un numero intero non perde gli zeri: 25.000 g restano 25.000', () => {
+    expect(inGrammi(25000, 'g').spiegazione).toBe('25.000 g')
+    expect(inGrammi(110, 'g').spiegazione).toBe('110 g')
+    expect(inGrammi(1000, 'g').spiegazione).toBe('1.000 g')
+  })
+
+  it('le migliaia hanno il punto italiano, i decimali la virgola', () => {
+    expect(inGrammi('1.250', 'kg').spiegazione).toBe('1.250 kg')
+    expect(inGrammi('10,5', 'kg').spiegazione).toBe('10,5 kg')
+  })
+
+  it('e il prezzo al chilo di 1.250 kg a 1.000,00 € è 0,80, non 800', () => {
+    const r = prezzoAlKgDaRiga({ nome: 'farina 00', quantita: '1.250', unita: 'kg', imponibile: '1.000,00' })
+    expect(r.prezzoKg).toBe(0.8)
+    expect(r.spiegazione.join(' | ')).toMatch(/1\.000 € ÷ 1\.250 kg/)
+  })
 })
 
 describe('Il prezzo al chilo', () => {

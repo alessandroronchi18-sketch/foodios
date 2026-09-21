@@ -25,12 +25,12 @@
 // prezzo, cosa non è riuscita a leggere, e cosa cambierà rispetto a prima.
 // Chi guarda deve poter dire «no, quello è un sacco da 25» in due secondi.
 
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useState, useEffect } from 'react'
 import Icon from '../components/Icon'
 import { color as T, radius as R, font } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { CampoConElenco, formatNome } from './_shared'
-import { preparaBolla, identitaBolla } from '../lib/bolle'
+import { preparaBolla, identitaBolla, normalizzaUnita } from '../lib/bolle'
 
 const euro = (v) => Number(v).toLocaleString('it-IT', {
   useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2,
@@ -95,6 +95,14 @@ export default function BollaInArrivo({
     if (!identita) return false
     return (logRif || []).some(r => r?.bolla === identita)
   }, [identita, logRif])
+  // ── La bolla già caricata: difetto del 21/09/2026 ────────────────────────
+  //
+  // L'avviso rosso c'era, ma il bottone «Registra la bolla» restava premibile
+  // e non chiedeva niente: un clic e la giacenza della farina passava da 25
+  // a 50 kg. Adesso per andare avanti bisogna dirlo: la casella qui sotto
+  // manda `forza: true` al calcolo, che senza quella si rifiuta.
+  const [forza, setForza] = useState(false)
+  useEffect(() => { if (!giaCaricata) setForza(false) }, [giaCaricata])
 
   const daRegistrare = righe.filter(r => !r.saltata && r.esisteInElenco)
   const conMerce = daRegistrare.filter(r => Number(r.grammi) > 0)
@@ -102,6 +110,11 @@ export default function BollaInArrivo({
   const soloStorico = daRegistrare.filter(r => r.azione === 'soloStorico')
   const fuoriElenco = righe.filter(r => !r.saltata && !r.esisteInElenco)
   const daSistemare = righe.filter(r => !r.saltata && r.esisteInElenco && r.problema)
+  // Il bottone è spento quando registrare farebbe un danno: niente da
+  // scrivere, oppure una bolla già caricata che nessuno ha confermato di
+  // voler caricare di nuovo. Il perché è scritto nell'elenco qui sotto: un
+  // bottone spento e basta è un vicolo cieco.
+  const bloccato = salvando || daRegistrare.length === 0 || (giaCaricata && !forza)
 
   function correggi(i, campo, valore) {
     setRigheGrezze(rr => rr.map((r, k) => (k === i ? { ...r, [campo]: valore } : r)))
@@ -122,8 +135,14 @@ export default function BollaInArrivo({
       notify?.('Non c\'è nessuna riga da registrare: abbinale alle tue materie prime o saltale.', false)
       return
     }
+    if (giaCaricata && !forza) {
+      notify?.('Questa bolla risulta già caricata: se vuoi caricarla lo stesso, spunta la casella qui sopra.', false)
+      return
+    }
     setSalvando(true)
-    const esito = await onRegistra(daRegistrare, { fornitore, numero, data, identita })
+    // `forza` arriva fino al calcolo: senza, `preparaScrittureBolla` si
+    // rifiuta di scrivere anche se qualcuno chiamasse da un'altra parte.
+    const esito = await onRegistra(daRegistrare, { fornitore, numero, data, identita, forza })
     setSalvando(false)
     if (!esito?.ok) {
       notify?.(`Non ho potuto registrare la bolla (${esito?.errore || 'rete'}): non è stato scritto niente.`, false)
@@ -134,7 +153,15 @@ export default function BollaInArrivo({
     if (esito.applicati > 0) pezzi.push(`${esito.applicati} ${esito.applicati === 1 ? 'prezzo aggiornato' : 'prezzi aggiornati'}`)
     const dietro = esito.storicizzati - esito.applicati
     if (dietro > 0) pezzi.push(`${dietro} ${dietro === 1 ? 'registrato' : 'registrati'} solo nello storico`)
-    notify?.(pezzi.join(' · ') || 'Bolla registrata.')
+    // Zero caricati, zero prezzi, zero storico vuol dire che il calcolo non
+    // ha scritto niente — succede quando riconosce una bolla già caricata e
+    // nessuno ha chiesto di forzarla. Dire «Bolla registrata» sarebbe la
+    // bugia peggiore di tutte: fa smettere di cercare.
+    if (!pezzi.length) {
+      notify?.('Non è stato scritto niente: controlla le righe e il numero del documento.', false)
+      return
+    }
+    notify?.(pezzi.join(' · '))
   }
 
   const card = {
@@ -196,7 +223,17 @@ export default function BollaInArrivo({
         {giaCaricata && (
           <Avviso tono="rosso">
             Questa bolla risulta <strong>già caricata</strong>. Se la registri di nuovo,
-            la merce viene contata due volte. Controlla il numero prima di andare avanti.
+            la merce viene contata due volte e nello storico restano due cambi di prezzo
+            uguali. Controlla il numero del documento prima di andare avanti.
+            <label htmlFor="bolla-forza" style={{
+              display: 'flex', alignItems: 'center', gap: 9, marginTop: 10,
+              minHeight: 44, cursor: 'pointer', fontWeight: 700, color: T.text,
+            }}>
+              <input id="bolla-forza" type="checkbox" checked={forza}
+                onChange={e => setForza(e.target.checked)}
+                style={{ width: 18, height: 18, cursor: 'pointer' }} />
+              Registrala lo stesso: so che la sto caricando due volte
+            </label>
           </Avviso>
         )}
       </div>
@@ -263,6 +300,12 @@ export default function BollaInArrivo({
               dall&apos;elenco o saltale.
             </li>
           )}
+          {giaCaricata && !forza && (
+            <li style={{ color: T.brand, fontWeight: 700 }}>
+              Così non registro niente: questa bolla risulta già caricata. Per
+              caricarla lo stesso, spunta la casella qui sopra.
+            </li>
+          )}
           {daSistemare.length > 0 && (
             <li style={{ color: T.amberDark || T.amber }}>
               {daSistemare.length} {daSistemare.length === 1 ? 'riga ha' : 'righe hanno'} qualcosa
@@ -282,13 +325,13 @@ export default function BollaInArrivo({
               border: `1px solid ${T.border}`, borderRadius: 10, color: T.textMid,
               fontSize: font.size.md, fontWeight: 600, cursor: 'pointer',
             }}>Annulla</button>
-          <button type="button" onClick={registra} disabled={salvando || daRegistrare.length === 0}
+          <button type="button" onClick={registra} disabled={bloccato}
             style={{
               padding: '11px 20px', minHeight: 44,
-              background: (salvando || daRegistrare.length === 0) ? T.textSoft : T.brand,
+              background: bloccato ? T.textSoft : T.brand,
               color: T.white, border: 'none', borderRadius: 10,
               fontSize: font.size.md, fontWeight: 800,
-              cursor: (salvando || daRegistrare.length === 0) ? 'default' : 'pointer',
+              cursor: bloccato ? 'default' : 'pointer',
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7,
             }}>
             <Icon name="checkCircle" size={15} color={T.white} />
@@ -322,6 +365,31 @@ const CAMPO = {
   color: T.text, background: T.bgCard, boxSizing: 'border-box',
 }
 
+// ── Il menù delle unità: difetto del 21/09/2026 ───────────────────────────
+//
+// Il menù aveva quattro voci — kg, g, litri, pezzi — e il valore della riga è
+// l'unità **come l'ha scritta il fornitore**. Sulle bolle vere c'è scritto
+// SACCHI, CF, LT, CT: nessuna delle quattro, quindi il menù si mostrava
+// **vuoto**, come se l'unità non l'avesse letta nessuno. E chi guarda un
+// campo vuoto pensa che manchi il dato, non che ci sia e non sia in elenco.
+//
+// Adesso l'unità letta sta sempre nel menù, come prima voce, e dice cosa ne
+// facciamo: «SACCHI (la conto come pezzi o confezioni)» oppure, se non la
+// sappiamo tradurre, «CT — questa non la so leggere: scegline una».
+const UNITA_NOSTRE = [
+  ['kg', 'kg'],
+  ['g', 'g'],
+  ['hg', 'hg (etti)'],
+  ['l', 'litri'],
+  ['ml', 'ml'],
+  ['cl', 'cl'],
+  ['pz', 'pezzi / confezioni'],
+]
+const NOME_UNITA = {
+  kg: 'chilogrammi', g: 'grammi', hg: 'etti', l: 'litri',
+  ml: 'millilitri', cl: 'centilitri', pz: 'pezzi o confezioni',
+}
+
 function Campo({ etichetta, id, valore, onCambia, placeholder, inputMode }) {
   return (
     <div>
@@ -334,12 +402,20 @@ function Campo({ etichetta, id, valore, onCambia, placeholder, inputMode }) {
 
 function RigaBolla({ riga: r, indice, aperta, onApri, onCorreggi, onTogli, elenco, dito, suTelefono }) {
   const problema = !!r.problema
-  const attenzione = r.sospetto || r.ambiguo
+  const avvisi = r.avvisi || []
+  const attenzione = r.sospetto || r.ambiguo || avvisi.length > 0
   const bordo = !r.esisteInElenco || problema ? T.amber : attenzione ? T.amber : T.border
+  // L'unità come sta scritta sulla bolla, e cosa ne fa il conto.
+  const unitaScritta = String(r.grezza.unita ?? '').trim()
+  const nostra = UNITA_NOSTRE.some(([v]) => v === unitaScritta)
+  const comeLaContiamo = unitaScritta && !nostra ? normalizzaUnita(unitaScritta) : null
   const sfondo = r.saltata ? T.bgSubtle : T.bgCard
 
   return (
-    <div style={{
+    // Un gruppo con il suo nome: chi legge con la voce sente «riga 2, burro»
+    // prima dei comandi, invece di tre bottoni uguali uno dietro l'altro. Gli
+    // avvisi di questa riga stanno qui dentro, e solo qui.
+    <div role="group" aria-label={`Riga ${indice + 1}${r.nome ? `: ${formatNome(r.nome)}` : ''}`} style={{
       border: `1px solid ${bordo}`, borderRadius: 12, background: sfondo,
       padding: suTelefono ? 12 : 14, opacity: r.saltata ? 0.55 : 1,
     }}>
@@ -408,13 +484,37 @@ function RigaBolla({ riga: r, indice, aperta, onApri, onCorreggi, onTogli, elenc
           {r.problema}
         </div>
       )}
+      {/* ── Gli avvisi del conto: difetto del 21/09/2026 ────────────────────
+          Il calcolo aveva imparato a dire cosa aveva dovuto dedurre (il peso
+          del sacco letto dalla descrizione) e cosa non gli tornava
+          (l'imponibile che non quadra con quantità × prezzo unitario), ma
+          nessuno li mostrava: restavano nell'oggetto e morivano lì. Stanno
+          sulla riga a cui appartengono — uno per riga, dove si guarda quel
+          numero — e non in fondo alla pagina tutti insieme, dove non si sa
+          più di chi parlano. */}
+      {avvisi.map((a, k) => (
+        <div key={k} style={{
+          marginTop: 6, display: 'flex', gap: 7, alignItems: 'flex-start',
+          fontSize: font.size.base, color: T.amberDark || T.amber,
+          fontWeight: 600, lineHeight: 1.5,
+        }}>
+          <span style={{ flexShrink: 0, marginTop: 2 }}>
+            <Icon name="warning" size={14} color={T.amberDark || T.amber} />
+          </span>
+          <span>{a}</span>
+        </div>
+      ))}
       {r.sospetto && (
         <div style={{ marginTop: 6, fontSize: font.size.base, color: T.brand, fontWeight: 700 }}>
           Il prezzo cambia di molto rispetto a prima. Prima di registrare, controlla
           che l&apos;unità di misura e il peso della confezione siano quelli giusti.
         </div>
       )}
-      {r.ambiguo && (
+      {/* Quando un avviso dice già **quale** numero si legge in due modi e
+          come, questa frase generica ripeterebbe la stessa cosa con meno
+          informazione. Resta per le ambiguità che nessun avviso racconta (il
+          prezzo di riga letto «1.250»). */}
+      {r.ambiguo && avvisi.length === 0 && (
         <div style={{ marginTop: 6, fontSize: font.size.base, color: T.brand, fontWeight: 700 }}>
           Su questa riga un numero si può leggere in due modi (le migliaia o i
           decimali). Controlla il prezzo prima di registrare.
@@ -439,23 +539,38 @@ function RigaBolla({ riga: r, indice, aperta, onApri, onCorreggi, onTogli, elenc
               placeholder="es. 5" />
             <div>
               <label style={ETICHETTA} htmlFor={`bolla-unita-${indice}`}>Unità</label>
-              <select id={`bolla-unita-${indice}`} value={r.grezza.unita || ''}
+              <select id={`bolla-unita-${indice}`} value={unitaScritta}
                 onChange={e => onCorreggi(indice, 'unita', e.target.value)}
                 style={CAMPO}>
-                <option value="kg">kg</option>
-                <option value="g">g</option>
-                <option value="l">litri</option>
-                <option value="pz">pezzi / confezioni</option>
+                {!unitaScritta && <option value="">Quale unità? Sulla bolla non l&apos;ho trovata</option>}
+                {unitaScritta && !nostra && (
+                  <option value={unitaScritta}>
+                    {comeLaContiamo
+                      ? `${unitaScritta} (la conto come ${NOME_UNITA[comeLaContiamo]})`
+                      : `${unitaScritta} — questa non la so leggere: scegline una`}
+                  </option>
+                )}
+                {UNITA_NOSTRE.map(([v, et]) => <option key={v} value={v}>{et}</option>)}
               </select>
             </div>
             <Campo etichetta="Prezzo della riga, senza IVA" id={`bolla-imp-${indice}`}
               valore={r.grezza.imponibile ?? ''} inputMode="decimal"
               onCambia={v => onCorreggi(indice, 'imponibile', v)}
               placeholder="es. 92,50" />
-            <Campo etichetta="Peso di una confezione (g)" id={`bolla-peso-${indice}`}
-              valore={r.grezza.pesoConfezioneG ?? ''} inputMode="numeric"
-              onCambia={v => onCorreggi(indice, 'pesoConfezioneG', Number(v) || null)}
-              placeholder="es. 25000" />
+            {/* ── Il peso scritto a mano: difetto del 21/09/2026 ──────────
+                Passava da `Number(v) || null`, che è il modo inglese di
+                leggere un numero italiano: «25.000» diventava 25 grammi
+                invece di 25 chili (mille volte il prezzo al chilo, dentro il
+                food cost di ogni ricetta con quella materia prima) e «12,5»
+                diventava niente, perché con la virgola `Number` fa `NaN` e
+                `|| null` lo trasformava in «campo vuoto» senza dire perché.
+                Adesso il testo arriva intero al conto, che lo legge con la
+                stessa regola italiana della quantità e dice a schermo quando
+                si può leggere in due modi. */}
+            <Campo etichetta="Peso di una confezione, in grammi" id={`bolla-peso-${indice}`}
+              valore={r.grezza.pesoConfezioneG ?? ''} inputMode="decimal"
+              onCambia={v => onCorreggi(indice, 'pesoConfezioneG', v)}
+              placeholder="es. 25.000" />
           </div>
 
           <div style={{ borderTop: `1px solid ${T.border}`, paddingTop: 10 }}>
