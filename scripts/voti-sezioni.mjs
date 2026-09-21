@@ -145,7 +145,13 @@ export function misura() {
 
     const pProve = nProve === 0 ? 0 : nProve < 10 ? 10 : nProve < 25 ? 20 : nProve < 50 ? 30 : nProve < 90 ? 38 : 45
     const pDesign = dev100 === 0 ? 20 : dev100 < 2 ? 17 : dev100 < 5 ? 13 : dev100 < 8 ? 9 : 5
-    const brutti = finestre + divClick
+    // Nel pannello admin le finestre native sono **ammesse da CLAUDE.md**
+    // («alert() ammesso solo in admin per azioni distruttive»): lo apre il
+    // titolare dal computer, non un pasticcere dal telefono. Toglierle lì non
+    // è un miglioramento, e un termometro che punisce chi rispetta la regola
+    // scritta è un termometro rotto.
+    const finestreCheContano = nome === 'Pannello admin' ? 0 : finestre
+    const brutti = finestreCheContano + divClick
     const pTocco = brutti === 0 ? 15 : brutti <= 2 ? 11 : brutti <= 5 ? 7 : 3
     const voto = pProve + pDesign + pTocco + 20
 

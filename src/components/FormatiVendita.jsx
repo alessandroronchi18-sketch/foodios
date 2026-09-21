@@ -36,7 +36,7 @@ const TNUM = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'"
 const fmt3 = n => `${(Number.isFinite(Number(n)) ? Number(n) : 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 3, maximumFractionDigits: 3 })} €`
 
 // fontSize 16 su mobile per evitare zoom automatico iOS (regola permanente CLAUDE.md).
-const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: R.md, border: `1px solid ${T.borderStr}`, fontSize: 16, color: T.text, boxSizing: 'border-box', fontFamily: 'inherit', background: T.bgCard }
+const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: R.md, border: `1px solid ${T.borderStr}`, fontSize: font.size.lg, color: T.text, boxSizing: 'border-box', fontFamily: 'inherit', background: T.bgCard }
 const labelStyle = { fontSize: typo.small.fontSize, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6, display: 'block' }
 const cardStyle = { background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 16, boxShadow: SHADOW_PREMIUM }
 
@@ -251,7 +251,18 @@ export default function FormatiVendita({ orgId, ricettario, onSaveRicettario, no
     const fcBase = (Number(f.baseQtaG) || 0) * (avg || 0)
     const fcUnit = fcStimatoFormato(f, avg || 0)
     const prezzo = Number(f.prezzoDefault) || 0
-    const margPct = prezzo > 0 && fcUnit >= 0 ? (1 - fcUnit / prezzo) * 100 : null
+    // Il margine si calcola solo se il food cost si SA.
+    //
+    // Qui c'era `fcUnit >= 0`, e con `fcUnit` a zero — cioè con la categoria
+    // senza nessun gusto pesato, che è il caso vero del design partner —
+    // usciva `(1 - 0 / prezzo) * 100`, cioè **margine 100%** su un formato di
+    // cui non si sa quanto costa. È il difetto archetipico di questo prodotto,
+    // quello scritto in CLAUDE.md: il dato che manca diventa una buona
+    // notizia. E l'anteprima nell'editor, due schermate più in là, usava già
+    // la condizione giusta: la stessa pagina diceva due cose diverse dello
+    // stesso formato.
+    const fcNoto = avg != null && fcUnit > 0
+    const margPct = prezzo > 0 && fcNoto ? (1 - fcUnit / prezzo) * 100 : null
     return { f, avg, componenti, costoMateriali, fcBase, fcUnit, prezzo, margPct, fcKnown: avg != null, nUsate: det.nUsate }
   }), [formati, ricettario, ingCosti])
 
@@ -279,7 +290,7 @@ export default function FormatiVendita({ orgId, ricettario, onSaveRicettario, no
     return { n, costoMedioMat, piuCostoso, senzaCategoria, senzaMateriali, nConMateriali: conMateriali.length }
   }, [rows])
 
-  if (loading) return <div style={{ padding: 24, color: T.textSoft, fontSize: 13 }}>Caricamento…</div>
+  if (loading) return <div style={{ padding: 24, color: T.textSoft, fontSize: font.size.base }}>Caricamento…</div>
 
   // Anteprima FC per il formato in editing.
   const previewFC = (() => {
@@ -289,7 +300,10 @@ export default function FormatiVendita({ orgId, ricettario, onSaveRicettario, no
     const fcComponenti = costoComponentiUnita(form)
     const baseG = Number(form.baseQtaG) || 0
     const prezzo = Number(form.prezzoDefault) || 0
-    const margPct = prezzo > 0 && fcUnit > 0 ? (1 - fcUnit / prezzo) * 100 : null
+    // Stessa condizione dell'elenco, parola per parola: due schermate della
+    // stessa pagina non possono rispondere in modo diverso sullo stesso
+    // formato.
+    const margPct = prezzo > 0 && avg != null && fcUnit > 0 ? (1 - fcUnit / prezzo) * 100 : null
     return { avg, fcUnit, fcComponenti, baseG, prezzo, margPct }
   })()
 
@@ -297,8 +311,8 @@ export default function FormatiVendita({ orgId, ricettario, onSaveRicettario, no
 
   const nuovoBtn = !form && (
     <button onClick={() => apriEditor(nuovoFormato())}
-      style={{ padding: '10px 16px', minHeight: dito ? 44 : 38, borderRadius: R.md, border: 'none', background: T.brand, color: '#fff',
-        fontSize: 13, fontWeight: 700, cursor: 'pointer', letterSpacing: '-0.005em',
+      style={{ padding: '10px 16px', minHeight: dito ? 44 : 38, borderRadius: R.md, border: 'none', background: T.brand, color: T.textOnDark,
+        fontSize: font.size.base, fontWeight: 700, cursor: 'pointer', letterSpacing: '-0.005em',
         display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, boxShadow: S.brand }}>
       <Icon name="plus" size={15} />Nuovo formato
     </button>
@@ -513,7 +527,7 @@ export default function FormatiVendita({ orgId, ricettario, onSaveRicettario, no
       {/* ② FORM CREAZIONE / MODIFICA */}
       {form && (
         <div style={{ ...cardStyle, padding: isMobile ? 16 : 22, marginBottom: 24 }}>
-          <div style={{ fontSize: 14, fontWeight: 800, color: T.text, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ fontSize: font.size.md, fontWeight: 800, color: T.text, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ color: T.brand }}><Icon name={isEditing ? 'edit' : 'plus'} size={16} /></span>
             {isEditing ? 'Modifica formato' : 'Nuovo formato di vendita'}
           </div>
@@ -524,7 +538,7 @@ export default function FormatiVendita({ orgId, ricettario, onSaveRicettario, no
               e per arrivare al pulsante Salva si scorreva. Le misure scendono
               dove sono aria e restano dove servono a separare due cose
               diverse. */}
-          <div style={{ fontSize: 12, color: T.textSoft, marginBottom: 12 }}>
+          <div style={{ fontSize: font.size.sm, color: T.textSoft, marginBottom: 12 }}>
             Dai un nome uguale a come appare sullo scontrino, collega la categoria di gusti e descrivi cosa serve per confezionarlo.
           </div>
 
@@ -601,7 +615,7 @@ export default function FormatiVendita({ orgId, ricettario, onSaveRicettario, no
                       onChange={e => setForm(f => ({ ...f, componenti: f.componenti.map((x, j) => j === i ? { ...x, qta: e.target.value } : x) }))}/>
                     <input style={{ ...inputStyle, textAlign: 'right', ...TNUM }} type="number" min="0" step="0.001" value={c.costo ?? ''} placeholder="es. 0,060"
                       onChange={e => setForm(f => ({ ...f, componenti: f.componenti.map((x, j) => j === i ? { ...x, costo: e.target.value } : x) }))}/>
-                    {!isMobile && <span style={{ textAlign: 'right', fontSize: 12, fontWeight: 700, color: T.textMid, ...TNUM }}>{fmt3(subtot)}</span>}
+                    {!isMobile && <span style={{ textAlign: 'right', fontSize: font.size.sm, fontWeight: 700, color: T.textMid, ...TNUM }}>{fmt3(subtot)}</span>}
                     <button onClick={() => setForm(f => ({ ...f, componenti: f.componenti.filter((_, j) => j !== i) }))} title="Rimuovi materiale"
                       style={{ padding: '8px 0', width: 36, background: T.brandLight, color: T.brand, border: 'none', borderRadius: R.sm, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
                       <Icon name="trash" size={14} />
@@ -610,7 +624,7 @@ export default function FormatiVendita({ orgId, ricettario, onSaveRicettario, no
                 )
               })}
               <button onClick={() => setForm(f => ({ ...f, componenti: [...(f.componenti || []), { nome: '', qta: '', costo: '' }] }))}
-                style={{ alignSelf: 'flex-start', marginTop: 4, padding: '8px 14px', background: 'transparent', color: T.textMid, border: `1px dashed ${T.borderStr}`, borderRadius: R.md, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                style={{ alignSelf: 'flex-start', marginTop: 4, padding: '8px 14px', background: 'transparent', color: T.textMid, border: `1px dashed ${T.borderStr}`, borderRadius: R.md, fontSize: font.size.sm, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                 <Icon name="plus" size={13} />Aggiungi materiale
               </button>
             </div>
@@ -620,7 +634,7 @@ export default function FormatiVendita({ orgId, ricettario, onSaveRicettario, no
           {previewFC && (
             <div style={{ marginTop: 14, padding: '11px 14px', background: previewFC.avg == null ? T.amberLight : T.greenLight, border: `1px solid ${previewFC.avg == null ? T.amber : T.green}33`, borderRadius: R.md }}>
               {previewFC.avg == null ? (
-                <div style={{ display: 'flex', gap: 9, alignItems: 'flex-start', fontSize: 12, color: '#78350F', lineHeight: 1.55 }}>
+                <div style={{ display: 'flex', gap: 9, alignItems: 'flex-start', fontSize: font.size.sm, color: T.amberDark, lineHeight: 1.55 }}>
                   <span style={{ flexShrink: 0, marginTop: 1, color: T.amber }}><Icon name="warning" size={15} /></span>
                   <span>Nessuna {LEX.ricetta} con categoria <b>"{form.categoria}"</b> (con peso definito): il food cost coprirà solo i materiali di confezionamento. Assegna la categoria ai {LEX.prodotti} nel {LEX.Ricettario} per stimare anche il prodotto.</span>
                 </div>
@@ -662,11 +676,11 @@ export default function FormatiVendita({ orgId, ricettario, onSaveRicettario, no
 
           <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
             <button onClick={salva}
-              style={{ padding: '11px 20px', minHeight: dito ? 44 : 40, background: T.green, color: '#fff', border: 'none', borderRadius: R.md, fontWeight: 700, fontSize: 13, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+              style={{ padding: '11px 20px', minHeight: dito ? 44 : 40, background: T.green, color: T.textOnDark, border: 'none', borderRadius: R.md, fontWeight: 700, fontSize: font.size.base, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
               <Icon name="check" size={15} />Salva formato
             </button>
             <button onClick={() => setForm(null)}
-              style={{ padding: '11px 20px', minHeight: dito ? 44 : 40, background: 'transparent', color: T.textSoft, border: `1px solid ${T.border}`, borderRadius: R.md, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Annulla</button>
+              style={{ padding: '11px 20px', minHeight: dito ? 44 : 40, background: 'transparent', color: T.textSoft, border: `1px solid ${T.border}`, borderRadius: R.md, fontSize: font.size.base, fontWeight: 500, cursor: 'pointer' }}>Annulla</button>
           </div>
         </div>
       )}
@@ -677,8 +691,8 @@ export default function FormatiVendita({ orgId, ricettario, onSaveRicettario, no
           <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 48, height: 48, borderRadius: 14, background: T.brandLight, color: T.brand, marginBottom: 14 }}>
             <Icon name="package" size={22} />
           </div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: T.text, marginBottom: 6 }}>Nessun formato configurato</div>
-          <div style={{ fontSize: 13, maxWidth: 420, margin: '0 auto', lineHeight: 1.55 }}>
+          <div style={{ fontSize: font.size.md, fontWeight: 700, color: T.text, marginBottom: 6 }}>Nessun formato configurato</div>
+          <div style={{ fontSize: font.size.base, maxWidth: 420, margin: '0 auto', lineHeight: 1.55 }}>
             Aggiungi un formato se la tua cassa batte prodotti senza il dettaglio del {LEX.prodotto} (vaschette, coni, scatole, panini).
           </div>
         </div>
@@ -692,14 +706,22 @@ export default function FormatiVendita({ orgId, ricettario, onSaveRicettario, no
               const margCol = r.margPct == null ? T.textSoft : r.margPct >= 60 ? T.green : r.margPct >= 40 ? T.amber : T.brand
               return (
                 <div key={f.id} style={{ ...cardStyle, overflow: 'hidden' }}>
-                  {/* riga principale */}
-                  <div onClick={() => setExpanded(open ? null : f.id)}
-                    style={{ padding: isMobile ? '14px 16px' : '16px 20px', display: 'flex', alignItems: 'center', gap: isMobile ? 12 : 18, flexWrap: 'wrap', cursor: 'pointer' }}>
+                  {/* La riga che si apre è un pulsante, non un `<div>`.
+
+                      Era `<div onClick>`: con la tastiera non ci si arriva e un
+                      lettore di schermo non sa che si possa toccare. In una
+                      pagina con dieci formati sono dieci comandi invisibili.
+                      `aria-expanded` dice anche se è già aperta. */}
+                  <button type="button" onClick={() => setExpanded(open ? null : f.id)}
+                    aria-expanded={open}
+                    aria-label={`${f.nome}: ${open ? 'chiudi' : 'apri'} il dettaglio del costo`}
+                    style={{ width: '100%', textAlign: 'left', background: 'transparent', border: 'none', font: 'inherit', color: 'inherit',
+                      padding: isMobile ? '14px 16px' : '16px 20px', display: 'flex', alignItems: 'center', gap: isMobile ? 12 : 18, flexWrap: 'wrap', cursor: 'pointer' }}>
                     <div style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 40, height: 40, borderRadius: 12, background: T.brandLight, color: T.brand }}>
                       <Icon name="package" size={19} />
                     </div>
                     <div style={{ flex: 1, minWidth: 160 }}>
-                      <div style={{ fontSize: 14, fontWeight: 800, color: T.text }}>{f.nome}</div>
+                      <div style={{ fontSize: font.size.md, fontWeight: 800, color: T.text }}>{f.nome}</div>
                       <div style={{ fontSize: typo.small.fontSize, color: T.textSoft, marginTop: 3 }}>
                         Categoria: <b style={{ color: T.textMid }}>{f.categoria || '-'}</b> · base {(Number(f.baseQtaG) || 0).toLocaleString('it-IT', { useGrouping: 'always' })}g · {r.componenti.length} {r.componenti.length === 1 ? 'materiale' : 'materiali'}
                         {f.alias?.length > 0 && <> · alias: {f.alias.join(', ')}</>}
@@ -718,12 +740,12 @@ export default function FormatiVendita({ orgId, ricettario, onSaveRicettario, no
                         {hasMultiSede && (
                           <button onClick={(e) => { e.stopPropagation(); setPrezziSedeTarget(f) }}
                             title="Prezzi diversi per sede"
-                            style={{ padding: '8px 12px', background: 'transparent', color: T.textMid, border: `1px solid ${T.border}`, borderRadius: R.sm, fontSize: 12, fontWeight: 500, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                            style={{ padding: '8px 12px', background: 'transparent', color: T.textMid, border: `1px solid ${T.border}`, borderRadius: R.sm, fontSize: font.size.sm, fontWeight: 500, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                             <Icon name="pin" size={13} />Prezzi / sede
                           </button>
                         )}
                         <button onClick={(e) => { e.stopPropagation(); apriEditor(f) }}
-                          style={{ padding: '8px 12px', background: 'transparent', color: T.textMid, border: `1px solid ${T.border}`, borderRadius: R.sm, fontSize: 12, fontWeight: 500, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                          style={{ padding: '8px 12px', background: 'transparent', color: T.textMid, border: `1px solid ${T.border}`, borderRadius: R.sm, fontSize: font.size.sm, fontWeight: 500, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                           <Icon name="edit" size={13} />Modifica
                         </button>
                         {/* L'eliminazione non deve gridare su ogni riga.
@@ -755,7 +777,7 @@ export default function FormatiVendita({ orgId, ricettario, onSaveRicettario, no
                       </div>
                     )}
                     <span style={{ color: T.textSoft, flexShrink: 0, display: 'inline-flex' }}><Icon name={open ? 'chevDown' : 'chevR'} size={16} /></span>
-                  </div>
+                  </button>
 
                   {/* breakdown espandibile */}
                   {open && (
@@ -766,14 +788,14 @@ export default function FormatiVendita({ orgId, ricettario, onSaveRicettario, no
 
                       {/* materiali di confezionamento */}
                       {r.componenti.length === 0 ? (
-                        <div style={{ fontSize: 12, color: T.textSoft, marginBottom: 12 }}>Nessun materiale di confezionamento definito.</div>
+                        <div style={{ fontSize: font.size.sm, color: T.textSoft, marginBottom: 12 }}>Nessun materiale di confezionamento definito.</div>
                       ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
                           {r.componenti.map((c, j) => {
                             const subtot = c.qta * c.costo
                             const pctCosto = r.fcUnit > 0 ? subtot / r.fcUnit * 100 : 0
                             return (
-                              <div key={j} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12 }}>
+                              <div key={j} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: font.size.sm }}>
                                 <span style={{ flex: '0 0 38%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: T.text, fontWeight: 500 }}>
                                   {c.nome} <span style={{ color: T.textSoft, ...TNUM }}>· {c.qta.toLocaleString('it-IT', { useGrouping: 'always' })} × {fmt3(c.costo)}</span>
                                 </span>
@@ -836,7 +858,11 @@ export default function FormatiVendita({ orgId, ricettario, onSaveRicettario, no
                             <div style={{ fontSize: font.size['2xl'], fontWeight: 900, color: margCol, ...TNUM, letterSpacing: '-0.03em', lineHeight: 1.1 }}>
                               {r.margPct != null ? fmtp0(r.margPct) : '—'}
                             </div>
-                            <div style={{ fontSize: typo.small.fontSize, color: T.textSoft, ...TNUM }}>su {fmtEuro(r.prezzo)} di prezzo</div>
+                            <div style={{ fontSize: typo.small.fontSize, color: T.textSoft, ...TNUM }}>
+                              {r.margPct != null
+                                ? `su ${fmtEuro(r.prezzo)} di prezzo`
+                                : 'senza il costo del prodotto il margine non si sa'}
+                            </div>
                           </div>
                         )}
                       </div>
@@ -846,17 +872,17 @@ export default function FormatiVendita({ orgId, ricettario, onSaveRicettario, no
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 14 }}>
                           {hasMultiSede && (
                             <button onClick={(e) => { e.stopPropagation(); setPrezziSedeTarget(f) }}
-                              style={{ padding: '10px', background: 'transparent', color: T.textMid, border: `1px solid ${T.border}`, borderRadius: R.sm, fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                              style={{ padding: '10px', background: 'transparent', color: T.textMid, border: `1px solid ${T.border}`, borderRadius: R.sm, fontSize: font.size.base, fontWeight: 500, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                               <Icon name="pin" size={14} />Prezzi per sede
                             </button>
                           )}
                           <div style={{ display: 'flex', gap: 8 }}>
                             <button onClick={(e) => { e.stopPropagation(); apriEditor(f) }}
-                              style={{ flex: 1, padding: '10px', background: 'transparent', color: T.textMid, border: `1px solid ${T.border}`, borderRadius: R.sm, fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                              style={{ flex: 1, padding: '10px', background: 'transparent', color: T.textMid, border: `1px solid ${T.border}`, borderRadius: R.sm, fontSize: font.size.base, fontWeight: 500, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                               <Icon name="edit" size={14} />Modifica
                             </button>
                             <button onClick={(e) => { e.stopPropagation(); elimina(f.id) }}
-                              style={{ flex: 1, padding: '10px', background: T.brandLight, color: T.brand, border: 'none', borderRadius: R.sm, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                              style={{ flex: 1, padding: '10px', background: T.brandLight, color: T.brand, border: 'none', borderRadius: R.sm, fontSize: font.size.base, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                               <Icon name="trash" size={14} />Elimina
                             </button>
                           </div>
@@ -889,7 +915,7 @@ function MiniStat({ label, val, color, title }) {
   return (
     <div style={{ textAlign: 'right' }} title={title}>
       <div style={{ fontSize: typo.small.fontSize, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, whiteSpace: 'nowrap', cursor: title ? 'help' : 'default' }}>{label}</div>
-      <div style={{ fontSize: 14, fontWeight: 800, color: color || T.text, ...TNUM }}>{val}</div>
+      <div style={{ fontSize: font.size.md, fontWeight: 800, color: color || T.text, ...TNUM }}>{val}</div>
     </div>
   )
 }
@@ -925,7 +951,7 @@ function PreviewStat({ label, val, hint, color }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minHeight: 56 }}>
       <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: T.textSoft, lineHeight: 1.2, minHeight: 30, overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</div>
-      <div style={{ fontSize: 18, fontWeight: 800, color: color || T.text, letterSpacing: '-0.02em', ...TNUM, lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{val}</div>
+      <div style={{ fontSize: font.size.xl, fontWeight: 800, color: color || T.text, letterSpacing: '-0.02em', ...TNUM, lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{val}</div>
       {hint && <div style={{ fontSize: typo.small.fontSize, color: T.textSoft, lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{hint}</div>}
     </div>
   )
