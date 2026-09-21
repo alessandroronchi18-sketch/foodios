@@ -13,6 +13,7 @@ import CommandPalette from './components/CommandPalette'
 import { canAccessView, effectivePlan, PLAN_LABEL, VIEW_MIN_PLAN, viewDisplayLabel } from './lib/planAccess'
 import { lessico } from './lib/lessico'
 import { caricaSessioniDaInventario, unisciSessioni } from './lib/inventarioProduzione'
+import { riepilogoImport } from './lib/riepilogoImportRicette'
 // jsPDF caricato dinamicamente solo all'export (chunk 'pdf' separato).
 // recharts NON è importato qui: 0 simboli sono usati in Dashboard.jsx (era dead
 // import che trascinava il chunk recharts 120KB gzip sul critical path). I veri
@@ -1580,25 +1581,8 @@ export default function Dashboard({
     if (!ready) return
     caricaSessioniDaInventario(orgId, sedeId, { monthsBack: 12, ricettario: ricettarioRef.current })
       .then(async sessioni => {
-        // ── SK_GIOR non è vuoto, e per questo il ponte buttava via dei dati ──
-        //
-        // Qui prima c'era `setGiornaliero(sessioni)`: la proiezione
-        // dell'inventario SOSTITUIVA tutto, perché si dava per scontato che
-        // in modalità inventario il blob delle sessioni fosse vuoto.
-        //
-        // Non lo è. Ci scrive dentro «Porta in produzione» delle Ordinazioni
-        // (`Eventi.jsx`), e ci sta tutta la storia di chi ha cambiato metodo
-        // strada facendo. Misurato il 21/09/2026 sull'azienda del design
-        // partner: **2 sessioni**, una delle quali nata da un'ordinazione —
-        // il programma aveva detto «righe portate in Produzione» e quella
-        // produzione non si vedeva più da nessuna parte.
-        //
-        // La regola del cucito: **per ogni giorno, se l'inventario ha righe,
-        // vince l'inventario** — è lì che quel giorno si registra, e contare
-        // due volte lo stesso gelato sarebbe peggio che non vederlo. I giorni
-        // che l'inventario non conosce tengono la loro sessione. Sui dati
-        // veri i due giorni in questione non hanno nessuna riga di
-        // inventario, quindi tornano visibili senza sovrapporsi a niente.
+        // Il racconto lungo di perché qui si cuce invece di sostituire sta
+        // dove sta la regola: `unisciSessioni`, in `lib/inventarioProduzione`.
         let dalBlob = []
         try {
           const letto = await _sload(SK_GIOR, orgId, sedeId)
@@ -1690,31 +1674,11 @@ export default function Dashboard({
     if (letti.length === 0) return;
 
     // Riepilogo onesto di cosa è stato letto e di cosa manca.
-    const nuove = letti.flatMap(l => Object.keys(l.result.ricette||{}));
-    const giaPresenti = ricettario ? nuove.filter(n => ricettario.ricette?.[n]) : [];
-    const tutte = nuove.map(n => base.ricette[n]);
-    const senzaPrezzo = tutte.filter(r => !(Number(r?.prezzo) > 0)).length;
-    const senzaUnita  = tutte.filter(r => r?.unita == null).length;
-    const senzaTipo   = tutte.filter(r => !r?.tipo).length;
-    const FUORI_SCALA_G = 20000;  // 20 kg di un solo ingrediente in una ricetta
-    const sospette = tutte
-      .filter(r => (r?.ingredienti||[]).some(i => Number(i?.qty1stampo) > FUORI_SCALA_G))
-      .map(r => r.nome);
-    const conAi = letti.filter(l => l.result.source === 'ai').map(l => l.nome);
-    const troncati = letti.filter(l => l.result.truncated).map(l => l.nome);
-
-    const righe = [
-      `${nuove.length} ricette lette da ${letti.length === 1 ? 'un file' : letti.length + ' file'}.`,
-      giaPresenti.length > 0 ? `${giaPresenti.length} sostituiscono ricette che hai già: ${giaPresenti.slice(0,6).join(', ')}${giaPresenti.length>6?'…':''}` : null,
-      senzaPrezzo > 0 ? `${senzaPrezzo} senza prezzo di vendita: il ricavo e il margine resteranno vuoti finché non lo scrivi.` : null,
-      senzaUnita > 0 ? `${senzaUnita} senza il numero di pezzi per stampo.` : null,
-      senzaTipo > 0 ? (isMetodoInv
-        ? `${senzaTipo} senza tipo: le tratto come gusti di gelato, perché lavori col metodo inventario.`
-        : `${senzaTipo} senza tipo: le tratto come torte a fette.`) : null,
-      sospette.length > 0 ? `Attenzione, quantità fuori scala (oltre 20 kg di un solo ingrediente) in: ${sospette.slice(0,5).join(', ')}. Nel file potrebbe esserci un punto di troppo.` : null,
-      conAi.length > 0 ? `Letto con l'AI (controlla che sia giusto): ${conAi.join(', ')}` : null,
-      troncati.length > 0 ? `File lungo, alcune ricette potrebbero mancare: ${troncati.join(', ')}` : null,
-    ].filter(v => v !== null).join('\n');
+    // Il riepilogo di cosa è stato letto: venti righe di conti che stavano
+    // qui in mezzo e che nessuna prova poteva raggiungere senza montare
+    // tutto il telaio. Adesso è una funzione pura, con le sue prove.
+    const { righe: righeRiepilogo, nuove, senzaPrezzo } = riepilogoImport(letti, base, ricettario, isMetodoInv);
+    const righe = righeRiepilogo.join('\n');
     // Era `window.confirm(righe)`: otto righe di riepilogo — quante ricette,
     // quante senza prezzo, quali sostituiscono roba che c'è già — dentro una
     // finestra del browser. Su iOS arriva senza il nome dell'applicazione,
