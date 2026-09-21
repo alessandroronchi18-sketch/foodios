@@ -25,6 +25,7 @@
 //   </AICard>
 
 import React, { useState } from 'react'
+import { color as T } from '../lib/theme'
 import Icon from './Icon'
 
 const C = {
@@ -32,7 +33,7 @@ const C = {
   border: '#E8E0DC',
   text: '#1C0A0A',
   textSoft: '#6B4C44',
-  textMute: '#9C7B76',
+  textMute: T.testoBrunoTenue,
   brand: '#C0392B',
   brandLight: '#FBE9E7',
   green: '#0C7C56',

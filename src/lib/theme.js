@@ -100,14 +100,24 @@ export const color = {
   // proprio perché la cifra era quella giusta sotto il nome sbagliato.
   testoBrunoForte: '#1C0A0A',   // 38 usi in 21 file — titoli, testo forte
   testoBruno:      '#4A3728',   // 7 usi — testo descrittivo, spiegazioni
-  // ATTENZIONE: `testoBrunoTenue` fa 3.46–3.81 di contrasto sui fondi
-  // dell'app, sotto la soglia AA di 4.5 (misurato il 21/09/2026 con la
-  // stessa formula di `contrastoColori.test.js`). Resta com'è perché
-  // schiarirlo o scurirlo cambia il colore a schermo di sei punti del
-  // prodotto, e quella è una decisione di chi disegna, non di chi dà i nomi.
-  // Finché vale questo: va usato per etichette e metadati, mai per una
-  // scritta che si deve leggere.
-  testoBrunoTenue: '#9C7B76',   // 6 usi in 6 file — etichette maiuscole
+  // `testoBrunoTenue` era **#9C7B76**, e faceva 3,46–3,81 di contrasto sui
+  // fondi dell'app: sotto la soglia AA di 4,5 su tutti e sette, compreso il
+  // bianco puro. È il colore delle etichette maiuscole delle sedi, degli
+  // «esempi» nelle Impostazioni e del piè di pagina legale.
+  //
+  // Il 22/09/2026 il titolare ha deciso di cambiarlo: «cambialo con la massima
+  // attenzione». Attenzione vuol dire che **non si è scelto un colore nuovo**,
+  // si è preso quello di prima e lo si è scurito finché non passa, tenendo
+  // ferme tinta (8°) e saturazione (16%): dalla luminosità 54% alla 44%. È lo
+  // stesso bruno caldo, più leggibile.
+  //
+  //   su bianco puro   5,23      su #FAF7F2   4,90      su #FDFAF7   5,03
+  //   su #F8F4F2       4,79      su #F1F4F8   4,75      su #FBF6F2   4,88
+  //   su #F4EEEA       4,55  ← il fondo peggiore, e passa
+  //
+  // Chi lo tocca rifaccia il conto con la formula di `contrastoColori.test.js`:
+  // sotto 4,5 sul fondo peggiore non ci si torna.
+  testoBrunoTenue: '#846560',   // 6 usi in 6 file — etichette maiuscole
 
   // Borders
   border:     '#E5E9EF',

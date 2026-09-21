@@ -117,7 +117,13 @@ const NATI_A_MANO = [
   ['bordoTenue',      '#E2E8F0', 'bordo dei riquadri e dei campi in Impostazioni'],
   ['testoBrunoForte', '#1C0A0A', 'titoli e testo forte delle pagine panna'],
   ['testoBruno',      '#4A3728', 'testo descrittivo di Impostazioni'],
-  ['testoBrunoTenue', '#9C7B76', 'etichette maiuscole di ImpostazioniSedi'],
+  // `testoBrunoTenue` è l'unico che NON ha più il valore con cui è nato, ed è
+  // l'unico caso in cui è giusto: nasceva #9C7B76 e faceva 3,46–3,81 di
+  // contrasto, sotto la soglia AA di 4,5 su tutti e sette i fondi dell'app.
+  // Il 22/09/2026 il titolare ha deciso di scurirlo. Non è stato scelto un
+  // colore nuovo: tinta (8°) e saturazione (16%) sono quelle di prima, è
+  // cambiata solo la luminosità, da 54% a 44%. Sul fondo peggiore fa 4,55.
+  ['testoBrunoTenue', '#846560', 'etichette maiuscole di ImpostazioniSedi'],
   ['fondoAvviso',     '#FFFBEB', 'fondo del riquadro d\'avviso'],
   ['bordoAvviso',     '#FDE68A', 'filo del riquadro d\'avviso'],
   ['fondoCaldo',      '#FBF6F2', 'superficie panna dei costi fissi'],
@@ -143,7 +149,7 @@ describe('nessuno li «arrotonda» al token che gli somiglia', () => {
     ['bordoTenue',      'border',     '#E2E8F0', '#E5E9EF'],
     ['fondoAvviso',     'amberLight', '#FFFBEB', '#FFF8EB'],
     ['testoBruno',      'textMid',    '#4A3728', '#475264'],
-    ['testoBrunoTenue', 'textSoft',   '#9C7B76', '#5A6B80'],
+    ['testoBrunoTenue', 'textSoft',   '#846560', '#5A6B80'],
     ['fondoCaldo',      'bgSubtle',   '#FBF6F2', '#F1F4F8'],
     ['fondoCaldoScuro', 'bgMuted',    '#F4EEEA', '#EEF1F6'],
   ]
@@ -264,10 +270,10 @@ describe('ImpostazioniSedi si disegna con gli stessi colori di prima', () => {
     expect(rgb(titolo.style.color)).toBe(rgb('#1C0A0A'))
   })
 
-  it('l\'indirizzo della sede è ancora #9C7B76', async () => {
+  it('l\'indirizzo della sede è il bruno scurito, #846560', async () => {
     await monta()
     const riga = screen.getByText('Via Carlo Alberto 1, Torino')
-    expect(rgb(riga.style.color)).toBe(rgb('#9C7B76'))
+    expect(rgb(riga.style.color)).toBe(rgb('#846560'))
   })
 
   it('il pulsante Modifica ha ancora il filo #E2E8F0 e il testo #4A3728', async () => {
@@ -372,5 +378,68 @@ describe('le pagine si disegnano e non fanno uscire parole da programmatore', ()
     )
     await waitFor(() => expect(u.container.textContent).toContain('Affitto laboratorio'))
     expect(u.container.textContent).toContain('2.100')
+  })
+})
+
+// ── Il bruno tenue deve restare leggibile ────────────────────────────────
+//
+// Era #9C7B76 e faceva 3,46–3,81 di contrasto su tutti e sette i fondi
+// dell'app: sotto la soglia AA di 4,5 anche sul bianco puro. È il colore delle
+// etichette maiuscole delle sedi, degli «esempi» nelle Impostazioni e del piè
+// di pagina legale — roba che si legge, non decorazione.
+//
+// Il 22/09/2026 è stato scurito a #846560, tenendo ferme tinta e saturazione.
+// Questa prova esiste perché nessuno lo schiarisca di nuovo «perché sta
+// meglio»: sotto 4,5 sul fondo peggiore non ci si torna.
+describe('Il bruno tenue passa la soglia di leggibilità', () => {
+  // I fondi veri su cui compare, dal più chiaro al più scuro.
+  const FONDI = ['#FFFFFF', '#FAF7F2', '#FDFAF7', '#F8F4F2', '#F1F4F8', '#FBF6F2', '#F4EEEA']
+
+  const luminanza = (hex) => {
+    const c = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255)
+      .map(v => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4))
+    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+  }
+  const contrasto = (a, b) => {
+    const [L1, L2] = [luminanza(a), luminanza(b)].sort((x, y) => y - x)
+    return (L1 + 0.05) / (L2 + 0.05)
+  }
+
+  it('su tutti i fondi dell\'app, non solo sul bianco', () => {
+    for (const fondo of FONDI) {
+      const r = contrasto(T.testoBrunoTenue, fondo)
+      expect(r, `${T.testoBrunoTenue} su ${fondo} fa ${r.toFixed(2)}, sotto 4,5`).toBeGreaterThanOrEqual(4.5)
+    }
+  })
+
+  it('e il colore di prima infatti non passava: il conto è tarato', () => {
+    // Senza questa, un errore nella formula renderebbe verde la prova sopra
+    // per sempre.
+    const peggiore = Math.min(...FONDI.map(f => contrasto('#9C7B76', f)))
+    expect(peggiore).toBeLessThan(4.5)
+  })
+
+  it('ed è rimasto lo stesso bruno: tinta e saturazione non sono cambiate', () => {
+    // Scurire è una cosa, cambiare colore è un'altra. Qui si controlla che
+    // sia la prima: i due colori devono avere la stessa tinta a meno di un
+    // grado, e la stessa saturazione a meno di un punto.
+    const hls = (hex) => {
+      const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255)
+      const max = Math.max(r, g, b), min = Math.min(r, g, b)
+      const l = (max + min) / 2
+      if (max === min) return { h: 0, s: 0, l }
+      const d = max - min
+      const s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
+      let h
+      if (max === r) h = ((g - b) / d + (g < b ? 6 : 0))
+      else if (max === g) h = (b - r) / d + 2
+      else h = (r - g) / d + 4
+      return { h: h * 60, s, l }
+    }
+    const prima = hls('#9C7B76')
+    const adesso = hls(T.testoBrunoTenue)
+    expect(Math.abs(adesso.h - prima.h), 'la tinta è cambiata: non è più lo stesso bruno').toBeLessThan(1.5)
+    expect(Math.abs(adesso.s - prima.s), 'la saturazione è cambiata').toBeLessThan(0.02)
+    expect(adesso.l, 'doveva scurirsi, non schiarirsi').toBeLessThan(prima.l)
   })
 })

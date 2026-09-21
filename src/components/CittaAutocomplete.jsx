@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'
 import COMUNI_ITALIANI from '../lib/comuniItaliani'
+import { color as T } from '../lib/theme'
 
 // Lookup case-insensitive O(1) sui ~7900 comuni — creata una sola volta.
 const COMUNI_LOWER_MAP = new Map(COMUNI_ITALIANI.map(c => [c.toLowerCase(), c]))
@@ -10,7 +11,7 @@ const COMUNI_LOWER_MAP = new Map(COMUNI_ITALIANI.map(c => [c.toLowerCase(), c]))
 // valore valido (o vuoto) — così `citta` sul DB non contiene mai errori di battitura.
 
 const TXT = '#1C0A0A'
-const SOFT = '#9C7B76'
+const SOFT = T.testoBrunoTenue
 const BOR = '#E2E8F0'
 const CREAM = '#FAF6F2'
 const RED = '#B34747'

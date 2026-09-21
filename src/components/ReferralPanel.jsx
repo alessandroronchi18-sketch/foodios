@@ -9,6 +9,7 @@
 
 import React, { useEffect, useState } from 'react'
 import Icon from './Icon'
+import { color as T } from '../lib/theme'
 import { apiFetch } from '../lib/apiFetch'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { PLAN_LABEL } from '../lib/planAccess'
@@ -205,7 +206,7 @@ export default function ReferralPanel({ auth }) {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 18 }}>
           <div style={{ textAlign: 'center', padding: '16px 12px', background: '#FEF2F2', borderRadius: 10, minHeight: 92, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
             <div style={{ fontSize: 28, fontWeight: 900, color: '#6E0E1A', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{(utilizzi || 0).toLocaleString('it-IT', { useGrouping: 'always' })}</div>
-            <div style={{ fontSize: 12, color: '#9C7B76', fontWeight: 600, marginTop: 6 }}>amici invitati</div>
+            <div style={{ fontSize: 12, color: T.testoBrunoTenue, fontWeight: 600, marginTop: 6 }}>amici invitati</div>
           </div>
           <div style={{ textAlign: 'center', padding: '16px 12px', background: '#F0FDF4', borderRadius: 10, minHeight: 92, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
             <div style={{ fontSize: 28, fontWeight: 900, color: '#16A34A', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{(data.mesi_guadagnati || 0).toLocaleString('it-IT', { useGrouping: 'always' })}</div>
