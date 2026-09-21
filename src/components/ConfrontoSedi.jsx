@@ -617,7 +617,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                   style={{
                     padding: '6px 14px', borderRadius: 999, border: 'none',
                     background: periodo === p.id ? TXT : 'transparent',
-                    color: periodo === p.id ? '${T.white}' : MID,
+                    color: periodo === p.id ? T.white : MID,
                     fontSize: typo.small.fontSize, fontWeight: 700, cursor: 'pointer',
                   }}>
                   {p.lbl}
@@ -702,13 +702,13 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                   <div>
                     <div style={{ fontSize: typo.small.fontSize, color: 'rgba(255,255,255,0.55)', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', minHeight: 28, lineHeight: 1.2 }}>Ricavi {periodoLabel}</div>
                     <div style={{ fontSize: isMobile ? 22 : 28, fontWeight: 900, marginTop: 4, whiteSpace: 'nowrap', minHeight: 30, ...tnum }}>{fmt0(consolidato.ricCur)}</div>
-                    <div style={{ fontSize: typo.small.fontSize, marginTop: 4, color: consolidato.deltaRicPct != null ? (consolidato.deltaRicPct >= 0 ? '${T.green}' : '#FF6B6B') : 'rgba(255,255,255,0.45)', fontWeight: 700, minHeight: 16, ...tnum }}>
+                    <div style={{ fontSize: typo.small.fontSize, marginTop: 4, color: consolidato.deltaRicPct != null ? (consolidato.deltaRicPct >= 0 ? T.green : '#FF6B6B') : 'rgba(255,255,255,0.45)', fontWeight: 700, minHeight: 16, ...tnum }}>
                       {consolidato.deltaRicPct != null ? `${consolidato.deltaRicPct >= 0 ? '+' : ''}${fmtp0(consolidato.deltaRicPct)} vs prec.` : '-'}
                     </div>
                   </div>
                   <div>
                     <div style={{ fontSize: typo.small.fontSize, color: 'rgba(255,255,255,0.55)', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', minHeight: 28, lineHeight: 1.2 }}>Margine netto</div>
-                    <div style={{ fontSize: isMobile ? 22 : 28, fontWeight: 900, marginTop: 4, color: consolidato.margNetto >= 0 ? '${T.white}' : '#FF6B6B', whiteSpace: 'nowrap', minHeight: 30, ...tnum }}>
+                    <div style={{ fontSize: isMobile ? 22 : 28, fontWeight: 900, marginTop: 4, color: consolidato.margNetto >= 0 ? T.white : '#FF6B6B', whiteSpace: 'nowrap', minHeight: 30, ...tnum }}>
                       {fmt0(consolidato.margNetto)}
                     </div>
                     <div style={{ fontSize: typo.small.fontSize, marginTop: 4, color: 'rgba(255,255,255,0.65)', fontWeight: 600, minHeight: 16, ...tnum }}>
@@ -717,7 +717,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                   </div>
                   <div>
                     <div style={{ fontSize: typo.small.fontSize, color: 'rgba(255,255,255,0.55)', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', minHeight: 28, lineHeight: 1.2 }}>Food cost medio</div>
-                    <div style={{ fontSize: isMobile ? 22 : 28, fontWeight: 900, marginTop: 4, color: consolidato.foodCostMedio == null ? 'rgba(255,255,255,0.5)' : consolidato.foodCostMedio < 33 ? '${T.green}' : consolidato.foodCostMedio < 38 ? '${T.amber}' : '#FF6B6B', whiteSpace: 'nowrap', minHeight: 30, ...tnum }}>
+                    <div style={{ fontSize: isMobile ? 22 : 28, fontWeight: 900, marginTop: 4, color: consolidato.foodCostMedio == null ? 'rgba(255,255,255,0.5)' : consolidato.foodCostMedio < 33 ? T.green : consolidato.foodCostMedio < 38 ? T.amber : '#FF6B6B', whiteSpace: 'nowrap', minHeight: 30, ...tnum }}>
                       {consolidato.foodCostMedio != null ? fmtp(consolidato.foodCostMedio) : '-'}
                     </div>
                     <div style={{ fontSize: typo.small.fontSize, marginTop: 4, color: 'rgba(255,255,255,0.55)', minHeight: 16 }}>
@@ -762,7 +762,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                       </div>
                       <svg width={W} height={H + 6} viewBox={`0 0 ${W} ${H + 6}`} style={{ maxWidth: '100%', height: 'auto', display: 'block' }}>
                         <path d={dArea} fill="rgba(232,75,58,0.18)" />
-                        <path d={d} stroke="${T.brandSoft}" strokeWidth="2" fill="none" strokeLinejoin="round" strokeLinecap="round" />
+                        <path d={d} stroke={T.brandSoft} strokeWidth="2" fill="none" strokeLinejoin="round" strokeLinecap="round" />
                         {pts.map((p, i) => {
                           const isHovered = trendHoveredIdx === i
                           const isLast = i === pts.length - 1
@@ -774,7 +774,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                                 onMouseLeave={() => setTrendHoveredIdx(idx => idx === i ? null : idx)}
                                 onClick={() => setTrendHoveredIdx(idx => idx === i ? null : i)}/>
                               <circle cx={p[0]} cy={p[1]} r={isHovered ? 5 : isLast ? 3.5 : 2.5}
-                                fill={isHovered ? '${T.white}' : isLast ? '#FFF' : T.brandSoft}
+                                fill={isHovered ? T.white : isLast ? '#FFF' : T.brandSoft}
                                 stroke={isHovered ? '#FBD7C9' : 'none'} strokeWidth={isHovered ? 2 : 0}
                                 style={{ pointerEvents: 'none', transition: 'r 0.15s' }}/>
                             </g>
@@ -796,7 +796,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
               display: 'flex', gap: 12, alignItems: 'flex-start',
             }}>
               <div style={{ flexShrink: 0, marginTop: 1 }}>
-                <Icon name="sparkles" size={18} color="${T.amber}" />
+                <Icon name="sparkles" size={18} color={T.amber} />
               </div>
               <div>
                 <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: T.amberDark, marginBottom: 4 }}>
@@ -887,8 +887,8 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                 compare: compareMode !== 'none' && prevKey ? (Number(k[prevKey]) || 0) : null,
               }
             })
-            const COLORS = ['${T.brand}', '${T.amber}', '${T.green}', '${T.blue}', '#7E22CE', '#BE185D']
-            const COMPARE_COLOR = '${T.textSoft}'
+            const COLORS = [T.brand, T.amber, T.green, T.blue, '#7E22CE', '#BE185D']
+            const COMPARE_COLOR = T.textSoft
             return (
               <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 14, padding: isMobile ? 14 : 20, marginBottom: 16 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
@@ -898,7 +898,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                   <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                     {METRICS.map(m => (
                       <button key={m.id} onClick={() => setChartMetric(m.id)}
-                        style={{ padding: '5px 10px', borderRadius: 999, border: `1px solid ${chartMetric === m.id ? RED : BORDER}`, background: chartMetric === m.id ? RED : 'transparent', color: chartMetric === m.id ? '${T.white}' : MID, fontSize: typo.small.fontSize, fontWeight: 700, cursor: 'pointer' }}>
+                        style={{ padding: '5px 10px', borderRadius: 999, border: `1px solid ${chartMetric === m.id ? RED : BORDER}`, background: chartMetric === m.id ? RED : 'transparent', color: chartMetric === m.id ? T.white : MID, fontSize: typo.small.fontSize, fontWeight: 700, cursor: 'pointer' }}>
                         {m.lbl}
                       </button>
                     ))}
@@ -929,7 +929,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                   <ResponsiveContainer>
                     {chartType === 'bar' && (
                       <BarChart data={data} margin={isMobile ? { top: 8, right: 12, bottom: 8, left: 8 } : { top: 12, right: 24, bottom: 12, left: 12 }}>
-                        <CartesianGrid strokeDasharray="4 4" stroke="${T.border}" vertical={false}/>
+                        <CartesianGrid strokeDasharray="4 4" stroke={T.border} vertical={false}/>
                         <XAxis dataKey="sede" tick={{ fontSize: typo.small.fontSize, fill: T.textMid }} tickLine={false} axisLine={{ stroke: T.border }} />
                         <YAxis tick={{ fontSize: typo.small.fontSize, fill: T.textMid }} tickLine={false} axisLine={false} tickFormatter={v => metricDef.fmt(v)} width={isMobile ? 56 : 72} />
                         <Tooltip cursor={{ fill: 'rgba(110,14,26,0.04)' }} content={<ChartTip />} formatter={v => metricDef.fmt(v)} />
@@ -940,7 +940,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                     )}
                     {chartType === 'line' && (
                       <LineChart data={data} margin={isMobile ? { top: 8, right: 12, bottom: 8, left: 8 } : { top: 12, right: 24, bottom: 12, left: 12 }}>
-                        <CartesianGrid strokeDasharray="4 4" stroke="${T.border}" vertical={false}/>
+                        <CartesianGrid strokeDasharray="4 4" stroke={T.border} vertical={false}/>
                         <XAxis dataKey="sede" tick={{ fontSize: typo.small.fontSize, fill: T.textMid }} tickLine={false} axisLine={{ stroke: T.border }} />
                         <YAxis tick={{ fontSize: typo.small.fontSize, fill: T.textMid }} tickLine={false} axisLine={false} tickFormatter={v => metricDef.fmt(v)} width={isMobile ? 56 : 72} />
                         <Tooltip content={<ChartTip />} formatter={v => metricDef.fmt(v)} />
@@ -966,7 +966,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
 
           {/* RANKING ricavi */}
           {ranking.length >= 2 && (
-            <div style={{ background: 'linear-gradient(180deg, ${T.amberLight} 0%, ${T.white} 80%)', border: `1px solid ${BORDER}`, borderRadius: 12, padding: isMobile ? 14 : 20, marginBottom: 16 }}>
+            <div style={{ background: `linear-gradient(180deg, ${T.amberLight} 0%, ${T.white} 80%)`, border: `1px solid ${BORDER}`, borderRadius: 12, padding: isMobile ? 14 : 20, marginBottom: 16 }}>
               <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: SOFT, marginBottom: 10 }}>
                 Classifica ricavi {periodoLabel}
               </div>
@@ -982,7 +982,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                   const kk = kpiMap[r.sede.id] || {}
                   const delta = fmtDelta(kk.ricaviPrev, kk.ricaviCur)
                   return (
-                    <div key={r.sede.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', background: i === 0 ? '${T.amberLight}' : T.white, borderRadius: 8, border: `1px solid ${i === 0 ? '${T.amber}' : BORDER}` }}>
+                    <div key={r.sede.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', background: i === 0 ? T.amberLight : T.white, borderRadius: 8, border: `1px solid ${i === 0 ? '${T.amber}' : BORDER}` }}>
                       <div style={{
                         fontSize: font.size.xl, width: 36, textAlign: 'center', fontWeight: 800,
                         color: i === 0 ? T.brand : T.textSoft,
@@ -1044,7 +1044,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                       {RIGHE_KPI.map(r => {
                         const cs = cellStyle(s.id, r.bw)
-                        const bg = cs.background || '${T.bgSubtle}'
+                        const bg = cs.background || T.bgSubtle
                         const col = cs.color || TXT
                         return (
                           <div key={r.key} style={{ background: bg, borderRadius: 8, padding: '10px 12px' }}>

@@ -1010,7 +1010,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                   ]}
                   intestazione={
                   <thead>
-                    <tr style={{background:"${T.bgSubtle}"}}>
+                    <tr style={{background:T.bgSubtle}}>
                       {COLS_RIEP.map((c,idx)=>(
                         <th key={c.key} role="button" tabIndex={0}
                           onClick={()=>clickSort(c.key)}
@@ -1388,7 +1388,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                 {/* Insights row */}
                 <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(3,1fr)",gap:10,marginBottom:14}}>
                   {/* Miglior giorno */}
-                  <div style={{background:"linear-gradient(135deg,${T.greenLight},${T.white})",border:`1px solid ${C.green}30`,borderRadius:16,padding:"14px 16px",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
+                  <div style={{background:`linear-gradient(135deg,${T.greenLight},${T.white})`,border:`1px solid ${C.green}30`,borderRadius:16,padding:"14px 16px",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
                     <div style={{fontSize: typo.small.fontSize,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:C.green,marginBottom:6,display:"flex",alignItems:"center",gap:5}}><Icon name="trophy" size={11} />Miglior giorno</div>
                     <div style={{fontSize: font.size.md,fontWeight:900,color:C.text}}>{fmt3(bestDay?.data)}</div>
                     <div style={{fontSize: font.size.base,color:C.green,fontWeight:700,marginTop:2}}>{euro((bestDay?.kpi?.totV||0).toFixed(2))}</div>
@@ -1397,7 +1397,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                     </div>
                   </div>
                   {/* Peggior giorno */}
-                  <div style={{background:"linear-gradient(135deg,${T.amberLight},${T.white})",border:`1px solid ${C.amber}30`,borderRadius:16,padding:"14px 16px",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
+                  <div style={{background:`linear-gradient(135deg,${T.amberLight},${T.white})`,border:`1px solid ${C.amber}30`,borderRadius:16,padding:"14px 16px",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
                     <div style={{fontSize: typo.small.fontSize,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:C.amber,marginBottom:6,display:"flex",alignItems:"center",gap:5}}><Icon name="warning" size={11} />Giorno più debole</div>
                     <div style={{fontSize: font.size.md,fontWeight:900,color:C.text}}>{fmt3(worstDay?.data)}</div>
                     <div style={{fontSize: font.size.base,color:C.amber,fontWeight:700,marginTop:2}}>{euro((worstDay?.kpi?.totV||0).toFixed(2))}</div>
@@ -1406,7 +1406,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                     </div>
                   </div>
                   {/* Spreco insight */}
-                  <div style={{background:"linear-gradient(135deg,${T.redLight},${T.white})",border:`1px solid ${C.red}20`,borderRadius:16,padding:"14px 16px",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
+                  <div style={{background:`linear-gradient(135deg,${T.redLight},${T.white})`,border:`1px solid ${C.red}20`,borderRadius:16,padding:"14px 16px",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
                     <div style={{fontSize: typo.small.fontSize,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:C.red,marginBottom:6,display:"flex",alignItems:"center",gap:5}}><Icon name="trash" size={11} />Impatto spreco</div>
                     <div style={{fontSize: font.size.md,fontWeight:900,color:C.text}}>{euro(totSpreco.toFixed(2))}</div>
                     <div style={{fontSize: typo.small.fontSize,color:C.textSoft,marginTop:2}}>{pct(totRicavi>0?(totSpreco/totRicavi*100):0)} dei ricavi</div>
@@ -1440,7 +1440,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
             { k:'quota', label:'Quota sul totale', cella:([,d])=>totRicavi>0?pct(d.rv/totRicavi*100):'-' },
           ]}
           intestazione={<><thead>
-                        <tr style={{background:"${T.bgSubtle}"}}>
+                        <tr style={{background:T.bgSubtle}}>
                           {[LEX.Prodotto,"Pz venduti","Ricavo tot.","Ricavo/gg","Spreco FC","% su totale"].map((h,i)=>(
                             <th key={h} style={{padding:"10px 12px",textAlign:i===0?"left":"right",fontSize: typo.small.fontSize,fontWeight:700,
                               letterSpacing:"0.05em",textTransform:"uppercase",color:C.textSoft,whiteSpace:'nowrap',
@@ -1451,7 +1451,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                       </thead></>}
           corpo={<><tbody>
                         {Object.entries(byProd).sort((a,b)=>b[1].rv-a[1].rv).map(([nome,d],i)=>{
-                          const rowBg = i%2===0?"${T.white}AF8":T.white;
+                          const rowBg = i%2===0?'#FFFAF8':T.white;
                           return (
                           <tr key={nome} style={{borderBottom:`1px solid ${C.border}`,background:rowBg}}>
                             <td style={{padding:"9px 12px",fontWeight:700,color:C.text,fontSize: typo.small.fontSize,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',maxWidth:220,position:'sticky',left:0,background:rowBg,zIndex:1}}>{nome}</td>
@@ -1518,7 +1518,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
             </div>
           )}
           intestazione={<><thead>
-                    <tr style={{background:"${T.bgSubtle}"}}>
+                    <tr style={{background:T.bgSubtle}}>
                       {(() => {
                         const COLS = [
                           { h:'Data', key:'data', str:true, align:'left' },
@@ -1691,7 +1691,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
             )
           }}
           intestazione={<><thead>
-                      <tr style={{background:"${T.bgSubtle}"}}>
+                      <tr style={{background:T.bgSubtle}}>
                         {["Periodo","Ric. stimato","Ric. reale","Diff €","Margine stim.","Margine reale","Sell-T. medio","Spreco"].map((h,i)=>(
                           <th key={i} style={{padding:"12px 12px",textAlign:i===0?"left":"right",fontSize: typo.small.fontSize,fontWeight:700,letterSpacing:"0.05em",textTransform:"uppercase",color:C.textSoft,borderBottom:`1px solid ${C.border}`,whiteSpace:'nowrap',
                             ...(i===0?{position:'sticky',left:0,background:T.bgSubtle,zIndex:1}:null)}}>{h}</th>

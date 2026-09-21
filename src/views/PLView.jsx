@@ -264,7 +264,7 @@ function TopIngredientiTable({ ricettario, ingCosti, euro, pct }) {
                       onMouseLeave={() => setHovRic(null)}>
                       {ing.ricette.slice(0, 5).map((_, di) => (
                         <div key={di} style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
-                          background: ['${T.brand}', '#E07040', '${T.amber}', '#5B8FCE', '#7B7B7B'][di % 5] }}/>
+                          background: [T.brand, '#E07040', T.amber, '#5B8FCE', '#7B7B7B'][di % 5] }}/>
                       ))}
                       <span style={{ fontSize: font.size.sm, fontWeight: 700, color: C.textMid }}>{nRic} {nRic === 1 ? 'ricetta' : 'ricette'}</span>
                     </div>
@@ -276,7 +276,7 @@ function TopIngredientiTable({ ricettario, ingCosti, euro, pct }) {
                         <div style={{ fontSize: font.size.sm, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: C.textSoft, marginBottom: 6 }}>Usato in</div>
                         {ing.ricette.map((r, ri) => (
                           <div key={r} style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 4 }}>
-                            <div style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, background: ['${T.brand}', '#E07040', '${T.amber}', '#5B8FCE', '#7B7B7B'][ri % 5] }}/>
+                            <div style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, background: [T.brand, '#E07040', T.amber, '#5B8FCE', '#7B7B7B'][ri % 5] }}/>
                             <span style={{ fontSize: font.size.sm, fontWeight: 600, color: C.text }}>{r}</span>
                           </div>
                         ))}
@@ -399,7 +399,7 @@ function ScenarioPrezzi({ rows, euro, pct }) {
                   <div style={{ fontSize: font.size.sm, color: C.textSoft }}>base: {euro(r.reg.prezzo)}</div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 72, padding: '6px 12px', borderRadius: 8,
-                  background: !changed ? '${T.border}' : r.delta > 0 ? C.greenLight : C.redLight,
+                  background: !changed ? T.border : r.delta > 0 ? C.greenLight : C.redLight,
                   border: `1px solid ${!changed ? C.border : r.delta > 0 ? C.green : C.red}30` }}>
                   <div style={{ textAlign: 'center' }}>
                     <div style={{ fontSize: font.size.sm, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: !changed ? C.textSoft : r.delta > 0 ? C.green : C.red, marginBottom: 2 }}>Variazione</div>
@@ -424,7 +424,7 @@ function ScenarioPrezzi({ rows, euro, pct }) {
                   </div>
                 </div>
                 <div style={{ padding: '8px 16px', borderRadius: 8, textAlign: 'center', flexShrink: 0, minWidth: 90,
-                  background: !changed ? '${T.border}' : r.diffMarg > 0 ? C.greenLight : C.redLight,
+                  background: !changed ? T.border : r.diffMarg > 0 ? C.greenLight : C.redLight,
                   border: `1px solid ${!changed ? C.border : r.diffMarg > 0 ? C.green : C.red}30` }}>
                   <div style={{ fontSize: font.size.sm, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: !changed ? C.textSoft : r.diffMarg > 0 ? C.green : C.red, marginBottom: 3 }}>Δ margine</div>
                   <div style={{ fontSize: font.size.xl, fontWeight: 900, ...TNUM, color: !changed ? C.textSoft : r.diffMarg > 0 ? C.green : C.red }}>
@@ -1419,7 +1419,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
       />
 
       {gustiSenzaRicavo > 0 && (
-        <div style={{ marginBottom: 16, padding: '10px 14px', background: T.amberLight, border: '1px solid ${T.amber}', borderRadius: 10, fontSize: font.size.sm, color: T.amberDark, lineHeight: 1.5, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+        <div style={{ marginBottom: 16, padding: '10px 14px', background: T.amberLight, border: `1px solid ${T.amber}`, borderRadius: 10, fontSize: font.size.sm, color: T.amberDark, lineHeight: 1.5, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
           <Icon name="bulb" size={13} />
           <span><b>{gustiSenzaRicavo} gusti gelateria</b> senza formato vendita di riferimento non appaiono in questo P&amp;L. Configura almeno un formato (cono/coppetta/vaschetta) per la loro categoria in <b>Cassa → Formati vendita</b> e verranno inclusi con ricavo/kg stimato.</span>
         </div>
@@ -1972,7 +1972,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
               <XAxis type="number" tickFormatter={v => `${Math.round(v).toLocaleString('it-IT', { useGrouping: 'always' })} €`} tick={{ fill: T.textMid, fontSize: font.size.sm }} axisLine={false} tickLine={false}/>
               <YAxis type="category" dataKey="short" width={80} tick={{ fill: T.textMid, fontSize: font.size.sm }} axisLine={false} tickLine={false}/>
               <Tooltip content={<ChartTip />} />
-              <Bar dataKey="ricavo" name="Ricavo" fill={C.green} fillOpacity={0.2} stroke="${T.brand}" strokeOpacity={0.15} radius={[6, 6, 0, 0]}/>
+              <Bar dataKey="ricavo" name="Ricavo" fill={C.green} fillOpacity={0.2} stroke={T.brand} strokeOpacity={0.15} radius={[6, 6, 0, 0]}/>
               <Bar dataKey="margine" name="Margine" stroke="#6E0E1A" strokeOpacity={0.25} radius={[6, 6, 0, 0]}>
                 {[...rows].sort((a, b) => b.ricavo - a.ricavo).map((r, i) => (
                   <Cell key={i} fill={margColor(r.margPct)} fillOpacity={0.85}/>
@@ -2148,12 +2148,12 @@ function PLInventarioSection({ data, rangeLabel: rangeLbl, cardP, isMobile }) {
                   {r.gusto}
                   {(!r.haRicavo || !r.haFc) && (
                     <span title="Ricavo o food cost non calcolabile: manca la ricetta o il listino"
-                      style={{ display: 'inline-block', marginLeft: 6, color: T.amber }}><Icon name="alert" size={12} color="${T.amber}" /></span>
+                      style={{ display: 'inline-block', marginLeft: 6, color: T.amber }}><Icon name="alert" size={12} color={T.amber} /></span>
                   )}
                 </TD>
                 <TD style={{ textAlign: 'right', ...TNUM }}>{fmtKg(r.prodKg)}</TD>
                 <TD style={{ textAlign: 'right', ...TNUM }}>{fmtKg(r.vendKg)}</TD>
-                <TD style={{ textAlign: 'right', ...TNUM, color: r.scartoKg > 0 ? '${T.redDark}' : C.textSoft }}>{r.scartoKg > 0 ? fmtKg(r.scartoKg) : '-'}</TD>
+                <TD style={{ textAlign: 'right', ...TNUM, color: r.scartoKg > 0 ? T.redDark : C.textSoft }}>{r.scartoKg > 0 ? fmtKg(r.scartoKg) : '-'}</TD>
                 <TD style={{ textAlign: 'right', ...TNUM, color: C.textSoft }}>{r.ricavoKg > 0 ? euro(r.ricavoKg) : '-'}</TD>
                 <TD style={{ textAlign: 'right', ...TNUM, fontWeight: 700, background: '#FEF9EB' }}>{r.ricavo > 0 ? euro(r.ricavo) : '-'}</TD>
                 <TD style={{ textAlign: 'right', ...TNUM, color: T.redDark }}>{r.fc > 0 ? euro(r.fc) : '-'}</TD>
@@ -2171,7 +2171,7 @@ function PLInventarioSection({ data, rangeLabel: rangeLbl, cardP, isMobile }) {
               <TD style={{ position: 'sticky', left: 0, background: T.bgSubtle, fontWeight: 800, color: C.text }}>Totale</TD>
               <TD style={{ textAlign: 'right', ...TNUM, fontWeight: 800 }}>{fmtKg(data.totProd)}</TD>
               <TD style={{ textAlign: 'right', ...TNUM, fontWeight: 800 }}>{fmtKg(data.totVend)}</TD>
-              <TD style={{ textAlign: 'right', ...TNUM, fontWeight: 800, color: data.totScart > 0 ? '${T.redDark}' : C.textSoft }}>{data.totScart > 0 ? fmtKg(data.totScart) : '-'}</TD>
+              <TD style={{ textAlign: 'right', ...TNUM, fontWeight: 800, color: data.totScart > 0 ? T.redDark : C.textSoft }}>{data.totScart > 0 ? fmtKg(data.totScart) : '-'}</TD>
               <TD/>
               <TD style={{ textAlign: 'right', ...TNUM, fontWeight: 800, background: '#FEF9EB' }}>{euro(data.totRic)}</TD>
               <TD style={{ textAlign: 'right', ...TNUM, fontWeight: 800, color: T.redDark }}>{euro(data.totFc)}</TD>

@@ -960,7 +960,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
 
       {/* Pannello contestuale: elimina — appare sotto la command bar */}
       {openAction === 'elimina' && ricetteEsistenti.length > 0 && (
-        <div style={{ marginBottom: 16, padding: isMobile ? '12px 14px' : '14px 18px', background: T.white, border: '1px solid ${T.redDark}22', borderRadius: 12, boxShadow: SHADOW_PREMIUM }}>
+        <div style={{ marginBottom: 16, padding: isMobile ? '12px 14px' : '14px 18px', background: T.white, border: `1px solid ${T.redDark}22`, borderRadius: 12, boxShadow: SHADOW_PREMIUM }}>
           <div style={{ fontSize: font.size.sm, fontWeight: 700, color: T.redDark, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 8 }}>Elimina una ricetta esistente</div>
           <div style={{ fontSize: font.size.sm, color: C.textMid, marginBottom: 10, lineHeight: 1.5 }}>
             Cancellazione definitiva. Conferma scrivendo <b>ELIMINA</b>.
@@ -1687,7 +1687,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                     <div style={{
                       padding: '10px 12px',
                       background: T.amberLight,
-                      border: '1px solid ${T.amber}',
+                      border: `1px solid ${T.amber}`,
                       borderRadius: 8,
                       fontSize: typo.small.fontSize, color: T.amberDark, lineHeight: 1.5,
                     }}>
@@ -1706,7 +1706,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                           : ' Il peso stampo dichiarato differisce dalla somma ingredienti.'}
                       </div>
                       <button type="button" onClick={normalizza}
-                        style={{ padding: '7px 12px', borderRadius: 7, border: '1px solid ${T.amber}', background: T.white, color: T.amberDark, fontSize: font.size.sm, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                        style={{ padding: '7px 12px', borderRadius: 7, border: `1px solid ${T.amber}`, background: T.white, color: T.amberDark, fontSize: font.size.sm, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
                         Normalizza ingredienti a {Math.round(resaEff)} g
                       </button>
                     </div>
@@ -2210,7 +2210,7 @@ function CommandBar({ isMobile, ricetteEsistenti, activeNome, onPickExisting, ac
         width: isMobile ? 42 : 40, height: isMobile ? 42 : 40,
         borderRadius: 10,
         background: active ? color : `${color}0F`,
-        color: active ? '${T.white}' : color,
+        color: active ? T.white : color,
         border: `1px solid ${active ? color : `${color}30`}`,
         cursor: 'pointer',
         display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
@@ -2325,11 +2325,11 @@ function CommandBar({ isMobile, ricetteEsistenti, activeNome, onPickExisting, ac
           style={{
             padding: isMobile ? '8px 12px' : '7px 12px',
             minHeight: dito ? 44 : 'auto',
-            background: forceOverwrite ? '${T.amberLight}' : '#F8F7F5',
+            background: forceOverwrite ? T.amberLight : '#F8F7F5',
             border: `1px solid ${forceOverwrite ? '${T.amber}' : C.border}`,
             borderRadius: R.full,
             fontSize: font.size.sm, fontWeight: 700,
-            color: forceOverwrite ? '${T.amberDark}' : C.textSoft,
+            color: forceOverwrite ? T.amberDark : C.textSoft,
             cursor: 'pointer',
             display: 'inline-flex', alignItems: 'center', gap: 6,
             fontFamily: 'inherit', whiteSpace: 'nowrap',
@@ -2346,7 +2346,7 @@ function CommandBar({ isMobile, ricetteEsistenti, activeNome, onPickExisting, ac
         <div style={{ display: 'inline-flex', gap: 6, flexShrink: 0 }}>
           <IconBtn name="camera" label="Parti da una foto" color={T.brand} active={activeAction === 'foto'} onClick={() => onToggleAction('foto')} />
           {hasEsistenti && (
-            <IconBtn name="trash" label="Elimina ricetta" color="${T.redDark}" active={activeAction === 'elimina'} onClick={() => onToggleAction('elimina')} badge={ricetteEsistenti.length} />
+            <IconBtn name="trash" label="Elimina ricetta" color={T.redDark} active={activeAction === 'elimina'} onClick={() => onToggleAction('elimina')} badge={ricetteEsistenti.length} />
           )}
         </div>
       </div>
@@ -2442,7 +2442,7 @@ function RicettaPicker({ label, icon, variant = 'primary', ricette, activeNome, 
             height: 2,
             background: isDelete
               ? `linear-gradient(90deg, ${C.red} 0%, #FFB350 50%, ${C.red} 100%)`
-              : 'linear-gradient(90deg, #E84B3A 0%, #FFB350 50%, ${T.brand} 100%)',
+              : `linear-gradient(90deg, #E84B3A 0%, #FFB350 50%, ${T.brand} 100%)`,
           }}/>
           {/* Search bar */}
           <div style={{ padding: '10px 12px', borderBottom: `1px solid ${C.border}` }}>
@@ -2522,7 +2522,7 @@ function RicettaPickerDelete({ ricette, deleteConf, setDeleteConf, deletePin, se
         <div style={{
           flexBasis: '100%', width: '100%',
           marginTop: 4,
-          background: 'linear-gradient(180deg, ${T.white}5F5 0%, #FFE9E9 100%)',
+          background: 'linear-gradient(180deg, #FFF5F5 0%, #FFE9E9 100%)',
           border: `1px solid ${C.red}35`,
           borderRadius: 12,
           padding: '14px 16px',
@@ -2556,7 +2556,7 @@ function RicettaPickerDelete({ ricette, deleteConf, setDeleteConf, deletePin, se
                   flex: isMobile ? 1 : 'unset',
                   padding: '11px 22px', minHeight: 44,
                   background: deletePin === 'ELIMINA' ? `linear-gradient(135deg, ${C.red} 0%, #8B0000 100%)` : '#E8DEDE',
-                  color: deletePin === 'ELIMINA' ? '${T.white}' : C.textSoft,
+                  color: deletePin === 'ELIMINA' ? T.white : C.textSoft,
                   border: 'none', borderRadius: 8,
                   fontSize: font.size.base, fontWeight: 800, letterSpacing: '0.02em',
                   cursor: deletePin === 'ELIMINA' ? 'pointer' : 'not-allowed',

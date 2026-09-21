@@ -80,7 +80,7 @@ const TS = font.size
 // intestazioni CLICCABILI, quindi chi non le vedeva non sapeva nemmeno di poter
 // ordinare la tabella. Adesso fanno 5,4 e 4,9 sul fondo peggiore, e sono
 // scritti in un posto solo.
-const COL_PROD = '${T.blue}'
+const COL_PROD = T.blue
 const COL_RIMAN = '#8F6109'
 
 export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAttiva, ricettario, magazzino, setMagazzino, tipoAttivita, metodoProduzione = 'stampi', notify, onNavigate }) {
@@ -841,7 +841,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
       {isAllSedi && (
         <div style={{
           padding: '12px 14px', background: T.blueLight,
-          border: '1px solid ${T.blue}', borderRadius: 10, marginBottom: 12,
+          border: `1px solid ${T.blue}`, borderRadius: 10, marginBottom: 12,
         }}>
           <div style={{ fontSize: font.size.sm, color: '#1E3A8A', lineHeight: 1.5, marginBottom: 10 }}>
             <Icon name="store" size={13} style={{ marginRight: 6, verticalAlign: 'middle' }}/><strong>Vista aggregata</strong> - Somma delle sedi selezionate qui sotto.
@@ -867,7 +867,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
                   style={{
                     padding: '8px 14px', minHeight: altCtrl,
                     border: `1px solid ${sel ? '#1D4ED8' : T.blue}`,
-                    background: sel ? '#1D4ED8' : '${T.white}FFF',
+                    background: sel ? '#1D4ED8' : T.white,
                     color: sel ? '#FFFFFF' : '#1E3A8A',
                     borderRadius: 20, fontSize: font.size.sm, fontWeight: 600,
                     cursor: 'pointer',
@@ -916,7 +916,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
           title={isAllSedi ? 'Per importare, seleziona prima una sede specifica' : 'Apri il caricamento guidato per fogli di produzione'}
           style={{
             padding: '8px 16px', minHeight: altCtrl,
-            background: isAllSedi ? '${T.textSoft}' : T.brand,
+            background: isAllSedi ? T.textSoft : T.brand,
             color: '#FFFFFF', border: 'none', borderRadius: 8,
             fontSize: font.size.sm, fontWeight: 700,
             cursor: isAllSedi ? 'not-allowed' : 'pointer',
@@ -938,7 +938,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
             title="Copia i valori di PRODUZIONE dalla settimana scorsa in questa settimana. Sovrascrive solo le celle vuote."
             style={{
               padding: '8px 16px', minHeight: altCtrl,
-              background: '${T.white}FFF', color: T.brand,
+              background: T.white, color: T.brand,
               border: `1px solid ${T.brand}`, borderRadius: 8,
               fontSize: font.size.sm, fontWeight: 700,
               cursor: Object.keys(saving).length > 0 ? 'wait' : 'pointer',
@@ -986,7 +986,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
                 : 'Nascondi i gusti senza alcun dato nel periodo visualizzato'}
               style={{
                 padding: '8px 14px', minHeight: altCtrl,
-                background: soloCompilati ? T.brand : '${T.white}FFF',
+                background: soloCompilati ? T.brand : T.white,
                 color: soloCompilati ? '#FFFFFF' : C.textMid,
                 border: `1px solid ${soloCompilati ? T.brand : C.border}`,
                 borderRadius: 8,
@@ -995,7 +995,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
                 opacity: attivabile ? 1 : 0.5,
                 display: 'inline-flex', alignItems: 'center', gap: 8,
               }}>
-              <Icon name="check" size={14} color={soloCompilati ? '${T.white}FFF' : C.textMid} />
+              <Icon name="check" size={14} color={soloCompilati ? T.white : C.textMid} />
               <span>Solo compilati</span>
               <span style={{
                 fontSize: font.size.sm, fontWeight: 800,
@@ -1164,7 +1164,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
           <button onClick={() => setSoloCompilati(false)}
             style={{
               padding: '8px 14px', minHeight: 36,
-              background: T.brand, color: '${T.white}FFF',
+              background: T.brand, color: T.white,
               border: 'none', borderRadius: 8, fontSize: font.size.sm, fontWeight: 700,
               cursor: 'pointer',
             }}>
@@ -1315,7 +1315,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
                       const kRim = `${gustoKey}|${dIso}|rimanenza_g`
                       return (
                         <React.Fragment key={dIso}>
-                          <td style={{ ...tdInput, borderLeft: `1px solid ${C.border}`, background: '${T.white}FFF' }}>
+                          <td style={{ ...tdInput, borderLeft: `1px solid ${C.border}`, background: T.white }}>
                             <CellInput
                               value={cell.prod || ''}
                               saving={!!saving[kProd]}
@@ -1337,7 +1337,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
                                 : undefined)}
                             style={{
                               ...tdInput,
-                              background: cell.quadra === false ? T.redLight : '${T.white}EFB',
+                              background: cell.quadra === false ? T.redLight : '#FFFEFB',
                               boxShadow: cell.quadra === false ? `inset 0 0 0 1.5px ${T.red}66` : undefined,
                               cursor: cell.quadra === false ? 'help' : undefined,
                             }}>
@@ -1605,7 +1605,7 @@ function DialogSpedizione({ state, setState, gusti, sedi, sedeOrigineId, righeOg
     <div role="dialog" aria-modal="true"
       onClick={(e) => { if (e.target === e.currentTarget) close() }}
       style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: Z.modal, padding: 16 }}>
-      <div style={{ background: '${T.white}FFF', borderRadius: 16, maxWidth: 460, width: '100%', padding: '24px 26px', boxShadow: '0 20px 60px rgba(15,23,42,0.30)' }}>
+      <div style={{ background: T.white, borderRadius: 16, maxWidth: 460, width: '100%', padding: '24px 26px', boxShadow: '0 20px 60px rgba(15,23,42,0.30)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
           <Icon name="truck" size={20} color={T.brand} />
           <h2 style={{ margin: 0, fontSize: font.size.lg, fontWeight: 800, color: C.text }}>Spedisci kg a un'altra sede</h2>
@@ -1652,7 +1652,7 @@ function DialogSpedizione({ state, setState, gusti, sedi, sedeOrigineId, righeOg
               background: T.redLight, border: '1px solid #FCA5A5', borderRadius: 8,
               fontSize: font.size.sm, color: T.redDark, lineHeight: 1.45,
             }}>
-              <Icon name="alert" size={12} color="${T.amberDark}" /> Stai spedendo <b>{kgRichiesti.toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 1 })} kg</b>
+              <Icon name="alert" size={12} color={T.amberDark} /> Stai spedendo <b>{kgRichiesti.toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 1 })} kg</b>
               {' '}ma la sede oggi ne ha solo <b>{dispKg.toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 1 })} kg</b> disponibili.
               Puoi comunque procedere se sai di avere rimanenza del giorno prima da spedire.
             </div>
@@ -1693,7 +1693,7 @@ function DialogSpedizione({ state, setState, gusti, sedi, sedeOrigineId, righeOg
               ...btnPrimary,
               opacity: canConferma ? 1 : 0.5,
               cursor: canConferma ? 'pointer' : 'not-allowed',
-              background: oltreDisp && canConferma ? '${T.amber}' : btnPrimary.background,
+              background: oltreDisp && canConferma ? T.amber : btnPrimary.background,
             }}>
             {oltreDisp ? 'Spedisci comunque' : 'Spedisci'}
           </button>
@@ -1719,7 +1719,7 @@ const tdCell = { padding: '5px 10px', color: T.text }
 
 const btnPrimary = {
   padding: '10px 18px', minHeight: 42, background: T.brand,
-  color: '${T.white}FFF', border: 'none', borderRadius: 10,
+  color: T.white, border: 'none', borderRadius: 10,
   fontSize: font.size.base, fontWeight: 700, cursor: 'pointer',
 }
 const btnSecondary = {
@@ -1731,7 +1731,7 @@ const lblForm = { display: 'block', fontSize: font.size.sm, fontWeight: 700, tex
 const inpForm = {
   width: '100%', padding: '10px 12px', minHeight: 44,
   border: `1px solid ${T.border}`, borderRadius: 8,
-  fontSize: font.size.lg, color: T.text, outline: 'none', background: '${T.white}FFF',
+  fontSize: font.size.lg, color: T.text, outline: 'none', background: T.white,
 }
 
 // ── Header tabella ordinabile (click = toggle sort) ───────────────────────
@@ -1765,7 +1765,7 @@ function SortChip({ label, color, active, dir, onClick }) {
         cursor: 'pointer', userSelect: 'none',
         fontSize: font.size.sm, color: active ? T.brand : color, fontWeight: 700,
         padding: '2px 4px', borderRadius: 4,
-        background: active ? '${T.redLight}' : 'transparent',
+        background: active ? T.redLight : 'transparent',
         display: 'inline-flex', alignItems: 'center', gap: 2,
         outlineOffset: 2,
       }}>
@@ -1816,7 +1816,7 @@ function OnboardingInventario({ onClose }) {
         zIndex: 9999, padding: 16,
       }}>
       <div style={{
-        background: '${T.white}FFF', borderRadius: 16, maxWidth: 460, width: '100%',
+        background: T.white, borderRadius: 16, maxWidth: 460, width: '100%',
         boxShadow: '0 20px 60px rgba(15,23,42,0.30)',
         padding: '28px 28px 22px',
       }}>
@@ -1861,7 +1861,7 @@ function OnboardingInventario({ onClose }) {
               </button>
             )}
             <button onClick={() => last ? onClose() : setStep(step + 1)}
-              style={{ padding: '10px 22px', minHeight: 44, background: T.brand, border: 'none', borderRadius: 10, fontSize: font.size.base, fontWeight: 700, color: '${T.white}FFF', cursor: 'pointer' }}>
+              style={{ padding: '10px 22px', minHeight: 44, background: T.brand, border: 'none', borderRadius: 10, fontSize: font.size.base, fontWeight: 700, color: T.white, cursor: 'pointer' }}>
               {last ? 'Iniziamo' : 'Avanti →'}
             </button>
           </div>
@@ -1909,7 +1909,7 @@ function IconaOrfano() {
         cursor: 'help',
         flexShrink: 0,
       }}>
-      <Icon name="warning" size={11} color="${T.amberDark}" />
+      <Icon name="warning" size={11} color={T.amberDark} />
       {hover && pos && typeof document !== 'undefined' && createPortal(
         <div role="tooltip" style={{
           position: 'absolute', top: pos.top, left: pos.left,
@@ -2351,7 +2351,7 @@ function VistaStorico({ gusti, perMese, inizio, unita = 'g', onClickGusto, onOpe
               title="Apri il report analitico completo con KPI, grafici e trend"
               style={{
                 padding: '8px 14px', minHeight: 36,
-                background: T.brand, color: '${T.white}FFF', border: 'none', borderRadius: 8,
+                background: T.brand, color: T.white, border: 'none', borderRadius: 8,
                 fontSize: font.size.sm, fontWeight: 700, cursor: 'pointer',
                 display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'inherit',
               }}>
@@ -2596,7 +2596,7 @@ function DrilldownGustoModal({ gusto, orgId, sedeId, isAllSedi, sediProdIds, uni
         zIndex: 9999, padding: 16,
       }}>
       <div style={{
-        background: '${T.white}FFF', borderRadius: 16, maxWidth: 620, width: '100%',
+        background: T.white, borderRadius: 16, maxWidth: 620, width: '100%',
         maxHeight: '90vh', overflowY: 'auto',
         boxShadow: '0 20px 60px rgba(15,23,42,0.30)',
         padding: '22px 24px',
@@ -2621,10 +2621,10 @@ function DrilldownGustoModal({ gusto, orgId, sedeId, isAllSedi, sediProdIds, uni
         ) : (
           <>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 16 }}>
-              <KpiTile label="Prodotto" value={fmt(stats.prod)} unit={unita} color={C.text} bg="${T.bgSubtle}"/>
+              <KpiTile label="Prodotto" value={fmt(stats.prod)} unit={unita} color={C.text} bg={T.bgSubtle}/>
               <KpiTile label="Venduto stimato" value={fmt(stats.venduto)} unit={unita} color={T.brand} bg="#FEF9EB"/>
-              <KpiTile label="Scarto" value={fmt(stats.scarto)} unit={unita} color={stats.scarto > 0 ? '${T.redDark}' : C.textSoft} bg={stats.scarto > 0 ? '${T.redLight}' : T.bgSubtle}/>
-              <KpiTile label="Media giornaliera" value={fmt(stats.avgProd)} unit={unita} color="#166534" bg="${T.greenLight}"/>
+              <KpiTile label="Scarto" value={fmt(stats.scarto)} unit={unita} color={stats.scarto > 0 ? T.redDark : C.textSoft} bg={stats.scarto > 0 ? T.redLight : T.bgSubtle}/>
+              <KpiTile label="Media giornaliera" value={fmt(stats.avgProd)} unit={unita} color="#166534" bg={T.greenLight}/>
             </div>
 
             {/* Sparkline giornaliera semplice: divs colorate */}
@@ -2716,8 +2716,8 @@ function KpiCompactBar({ rows, periodo, unita = 'g', vendutoG = null, celleNonQu
   }
   // Lo scarto e' "misurato" solo se almeno una riga del periodo ne ha uno.
   const scartoMisurato = Array.isArray(rows) && rows.some(r => (Number(r.scarto_g) || 0) > 0)
-  const scartoColor = stats.scartoPct >= 5 ? '${T.redDark}' : stats.scartoPct >= 2 ? '${T.amber}' : '#166534'
-  const scartoBg = stats.scartoPct >= 5 ? '${T.redLight}' : stats.scartoPct >= 2 ? '#FEF9EB' : T.greenLight
+  const scartoColor = stats.scartoPct >= 5 ? T.redDark : stats.scartoPct >= 2 ? T.amber : '#166534'
+  const scartoBg = stats.scartoPct >= 5 ? T.redLight : stats.scartoPct >= 2 ? '#FEF9EB' : T.greenLight
 
   const hasAlerts = stats.scartoPct >= 5 || stats.gustiRimanAlta.length > 0 || celleNonQuadrate > 0
   return (
@@ -2741,7 +2741,7 @@ function KpiCompactBar({ rows, periodo, unita = 'g', vendutoG = null, celleNonQu
           : 'minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)',
         gap: 8,
       }}>
-        <KpiTile label={`Prodotto ${periodo}`} value={fmt(stats.prod)} unit={unita} color={C.text} bg="${T.bgSubtle}"/>
+        <KpiTile label={`Prodotto ${periodo}`} value={fmt(stats.prod)} unit={unita} color={C.text} bg={T.bgSubtle}/>
         <KpiTile label="Venduto stimato" value={fmt(stats.venduto)} unit={unita} color={T.brand} bg="#FEF9EB"/>
         {/* Lo scarto e' una colonna OPZIONALE, e in produzione non e' mai
             stata compilata: su tutte le righe vale 0. Mostrare "0" col
@@ -2785,7 +2785,7 @@ function KpiCompactBar({ rows, periodo, unita = 'g', vendutoG = null, celleNonQu
             <span style={{
               display: 'inline-flex', alignItems: 'center', gap: 4,
               background: '#FEF9EB', color: T.amber,
-              border: '1px solid ${T.amber}', borderRadius: 999,
+              border: `1px solid ${T.amber}`, borderRadius: 999,
               padding: '3px 10px', fontSize: TS.sm, fontWeight: 700,
             }} title={`Gusti con rimanenza superiore alla produzione del periodo: ${stats.gustiRimanAlta.slice(0, 8).join(', ')}`}>
               <Icon name="alert" size={12} color={T.amber} /> {stats.gustiRimanAlta.length} gust{stats.gustiRimanAlta.length === 1 ? 'o' : 'i'} con rimanenza alta

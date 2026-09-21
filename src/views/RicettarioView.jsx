@@ -356,7 +356,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
             position: 'absolute', top: 0, left: 0, right: 0, height: 2,
             background: isSemi
               ? `linear-gradient(90deg, ${SEMI.accent} 0%, #B58FCE 50%, ${SEMI.accent} 100%)`
-              : 'linear-gradient(90deg, #E84B3A 0%, #FFB350 50%, ${T.brand} 100%)',
+              : `linear-gradient(90deg, #E84B3A 0%, #FFB350 50%, ${T.brand} 100%)`,
             backgroundSize: '200% 100%',
             animation: '_fos_ric_accent 6s ease-in-out infinite',
             zIndex: 1,
@@ -401,7 +401,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
                 cursor: onEdit ? 'pointer' : 'default',
                 backgroundImage: isSemi
                   ? `linear-gradient(135deg, #1C0A0A 0%, ${SEMI.accent} 60%, #1C0A0A 100%)`
-                  : 'linear-gradient(135deg, #1C0A0A 0%, ${T.brand} 60%, #1C0A0A 100%)',
+                  : `linear-gradient(135deg, #1C0A0A 0%, ${T.brand} 60%, #1C0A0A 100%)`,
                 backgroundClip: 'text', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
               }}>
               {ric.nome}

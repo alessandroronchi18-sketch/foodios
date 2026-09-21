@@ -384,7 +384,7 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
       {/* ── Banner scorte insufficienti ── */}
       {stockWarn.length > 0 && (
         <div style={{
-          background: '${T.white}7ED', border: '1px solid #FED7AA', borderRadius: 12,
+          background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 12,
           padding: '12px 16px', marginBottom: 16,
           display: 'flex', gap: 12, alignItems: 'flex-start',
           boxSizing: 'border-box',

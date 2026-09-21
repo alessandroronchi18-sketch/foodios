@@ -666,7 +666,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
                   </div>
                   <div style={kpiCell}>
                     <div style={labelStyle}>Ricevuti puntuali</div>
-                    <div style={valStyle(accuratezzaMese.accuracyPct == null ? C.textSoft : accuratezzaMese.accuracyPct >= 95 ? C.green : accuratezzaMese.accuracyPct >= 85 ? '${T.amber}' : C.red)}>
+                    <div style={valStyle(accuratezzaMese.accuracyPct == null ? C.textSoft : accuratezzaMese.accuracyPct >= 95 ? C.green : accuratezzaMese.accuracyPct >= 85 ? T.amber : C.red)}>
                       {accuratezzaMese.accuracyPct != null ? fmtp0(accuratezzaMese.accuracyPct) : '-'}
                     </div>
                     <div style={{ ...subStyle, ...tnum }}>{accuratezzaMese.ricevutiOk}/{accuratezzaMese.ricevuti} senza scarto</div>
@@ -707,7 +707,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
       {/* TEMPLATE TRASFERIMENTI RICORRENTI */}
       {templates.length > 0 && (
         <div style={{
-          background: T.blueLight, border: '1px solid ${T.blue}', borderRadius: 12,
+          background: T.blueLight, border: `1px solid ${T.blue}`, borderRadius: 12,
           padding: isMobile ? 12 : 14, marginBottom: 16,
         }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
@@ -787,7 +787,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
           { label: 'Da ricevere', val: kpi.daRicevere, color: C.amber, highlight: kpi.daRicevere > 0 },
         ].map(k => (
           <div key={k.label} style={{
-            background: k.highlight ? '${T.amberLight}' : C.bgCard,
+            background: k.highlight ? T.amberLight : C.bgCard,
             border: `1px solid ${k.highlight ? C.amber : C.border}`,
             borderRadius: 12,
             padding: isMobile ? '14px 16px' : '14px 18px',
@@ -895,7 +895,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
           </div>
 
           {/* Info movimentazione stock */}
-          <div style={{ marginBottom: 14, padding: '10px 12px', background: T.blueLight, border: '1px solid ${T.blue}', borderRadius: 8, fontSize: typo.small.fontSize, color: T.blue, lineHeight: 1.5 }}>
+          <div style={{ marginBottom: 14, padding: '10px 12px', background: T.blueLight, border: `1px solid ${T.blue}`, borderRadius: 8, fontSize: typo.small.fontSize, color: T.blue, lineHeight: 1.5 }}>
             {form.tipo === 'prodotto' && <><Icon name="package" size={13} /> All'invio: scala stock prodotti finiti di <strong>{sediMap[form.sede_da]?.nome || 'partenza'}</strong>. Alla ricezione: incrementa stock di <strong>{sediMap[form.sede_a]?.nome || 'destinazione'}</strong>.</>}
             {form.tipo === 'materia_prima' && <><Icon name="package" size={13} /> All'invio: scala magazzino materie prime di <strong>{sediMap[form.sede_da]?.nome || 'partenza'}</strong>. Alla ricezione: incrementa magazzino di <strong>{sediMap[form.sede_a]?.nome || 'destinazione'}</strong>.</>}
             {form.tipo === 'semilavorato' && <><Icon name="gift" size={13} /> Trasferimento di semilavorato. Solo log, lo stock semilavorati non è ancora gestito automaticamente.</>}
@@ -916,7 +916,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
               }
               setNomeTemplate(form.prodotto.slice(0, 20))
             }} disabled={saving}
-              style={{ padding: isMobile ? '11px 16px' : '10px 16px', minHeight: isMobile ? 44 : 'auto', background: 'transparent', color: T.blue, border: '1px solid ${T.blue}', borderRadius: 8, fontWeight: 700, fontSize: isMobile ? 13 : 12, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, marginLeft: isMobile ? 0 : 'auto', flex: isMobile ? '1 1 100%' : '0 0 auto', justifyContent: 'center' }}
+              style={{ padding: isMobile ? '11px 16px' : '10px 16px', minHeight: isMobile ? 44 : 'auto', background: 'transparent', color: T.blue, border: `1px solid ${T.blue}`, borderRadius: 8, fontWeight: 700, fontSize: isMobile ? 13 : 12, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, marginLeft: isMobile ? 0 : 'auto', flex: isMobile ? '1 1 100%' : '0 0 auto', justifyContent: 'center' }}
               title="Salva queste impostazioni come template ricorrente">
               <Icon name="save" size={13} /> Salva come template
             </button>
@@ -1104,7 +1104,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
 
             return (
               <div key={t.id} style={{
-                background: isMioInArrivo ? '${T.amberLight}' : C.bgCard,
+                background: isMioInArrivo ? T.amberLight : C.bgCard,
                 border: `1px solid ${isMioInArrivo ? C.amber : C.border}`,
                 borderRadius: 10, padding: '14px 18px'
               }}>

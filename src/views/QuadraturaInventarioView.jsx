@@ -489,14 +489,14 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
       ) : !euroKg ? (
         <div style={{
           padding: isMobile ? 16 : '20px 24px',
-          background: T.amberLight, border: '1px solid ${T.amber}',
+          background: T.amberLight, border: `1px solid ${T.amber}`,
           borderRadius: 14, marginBottom: 20, fontSize: font.size.base, color: T.amberDark, lineHeight: 1.5,
           display: 'flex', alignItems: isMobile ? 'stretch' : 'center',
           gap: 14, flexDirection: isMobile ? 'column' : 'row',
           width: '100%', boxSizing: 'border-box',
         }}>
           <div style={{ flex: '1 1 320px', minWidth: 0, display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-            <Icon name="warning" size={18} color="${T.amberDark}" style={{ flexShrink: 0, marginTop: 1 }} />
+            <Icon name="warning" size={18} color={T.amberDark} style={{ flexShrink: 0, marginTop: 1 }} />
             <div>
               <div style={{ fontWeight: 700, marginBottom: 2 }}>Imposta i formati di vendita</div>
               <div style={{ fontSize: font.size.sm, color: T.amberDark }}>
@@ -518,7 +518,7 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
                 width: isMobile ? '100%' : 'auto',
               }}
             >
-              <Icon name="euro" size={14} color="${T.bgCard}" /> Vai ai formati
+              <Icon name="euro" size={14} color={T.bgCard} /> Vai ai formati
             </button>
           )}
         </div>
@@ -572,7 +572,7 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
             {kpi.b2bKg > 0 && (
               <div style={{
                 marginTop: 14, padding: isMobile ? 12 : '12px 16px',
-                background: T.blueLight, border: '1px solid ${T.blue}', borderRadius: 12,
+                background: T.blueLight, border: `1px solid ${T.blue}`, borderRadius: 12,
                 fontSize: font.size.sm, color: T.blue,
                 display: 'flex', alignItems: isMobile ? 'flex-start' : 'center',
                 justifyContent: 'space-between', gap: 12,
@@ -580,7 +580,7 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
                 width: '100%', boxSizing: 'border-box',
               }}>
                 <span style={{ display: 'inline-flex', alignItems: 'flex-start', gap: 8, minWidth: 0 }}>
-                  <Icon name="receipt" size={14} color="${T.blue}" style={{ flexShrink: 0, marginTop: 2 }} />
+                  <Icon name="receipt" size={14} color={T.blue} style={{ flexShrink: 0, marginTop: 2 }} />
                   <span>
                     <strong>Vendite B2B</strong> separate dalla cassa retail:
                     {' '}{nKg(kpi.b2bKg * 1000)} kg fatturati per {fmt0(kpi.ricaviB2b)}
@@ -818,11 +818,11 @@ function SparklineTrend({ data }) {
     <div style={{ width: '100%' }}>
       <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto', maxHeight: 150, display: 'block' }} aria-label="Trend ultime 4 settimane">
         {/* Gridline orizzontale di base */}
-        <line x1={PAD_X} y1={H - PAD_Y} x2={W - PAD_X} y2={H - PAD_Y} stroke="${T.border}" strokeWidth="1" />
+        <line x1={PAD_X} y1={H - PAD_Y} x2={W - PAD_X} y2={H - PAD_Y} stroke={T.border} strokeWidth="1" />
         {/* Cassa (linea brand tratteggiata) */}
-        <path d={pathEur} fill="none" stroke="${T.brand}" strokeWidth="2" strokeDasharray="4 3" />
+        <path d={pathEur} fill="none" stroke={T.brand} strokeWidth="2" strokeDasharray="4 3" />
         {/* Kg venduti (linea verde) */}
-        <path d={pathKg} fill="none" stroke="${T.green}" strokeWidth="2" />
+        <path d={pathKg} fill="none" stroke={T.green} strokeWidth="2" />
         {data.map((d, i) => {
           const x = PAD_X + i * xStep
           // Settimana con caselle che non tornano: anello ambra intorno al
@@ -833,7 +833,7 @@ function SparklineTrend({ data }) {
               {d.nonQuadrate > 0 && (
                 <circle cx={x} cy={yScale(d.kg, maxKg)} r="6.5" fill="none" stroke={T.amber} strokeWidth="1.5" />
               )}
-              <circle cx={x} cy={yScale(d.kg, maxKg)} r="3.5" fill={T.green} stroke="${T.bgCard}" strokeWidth="1.5" />
+              <circle cx={x} cy={yScale(d.kg, maxKg)} r="3.5" fill={T.green} stroke={T.bgCard} strokeWidth="1.5" />
               <circle cx={x} cy={yScale(d.cassa, maxEur)} r="3.5" fill={T.brand} stroke={T.bgCard} strokeWidth="1.5" />
             </g>
           )
@@ -869,7 +869,7 @@ function SparklineTrend({ data }) {
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
           <span style={{
             display: 'inline-block', width: 14, height: 0,
-            borderTop: '2px dashed ${T.brand}',
+            borderTop: `2px dashed ${T.brand}`,
           }} />
           cassa retail
         </span>
@@ -958,7 +958,7 @@ function Tile({ icon, label, value, sub, tendVal, muted, color, bg, borderColor,
       }} title={sub || ''}>
         {sub || (tendVal != null ? '' : ' ')}
         {tendVal != null && !sub && (
-          <span style={{ color: tendVal >= 0 ? '${T.green}' : T.redDark, fontWeight: 600 }}>
+          <span style={{ color: tendVal >= 0 ? T.green : T.redDark, fontWeight: 600 }}>
             vs sett. prec.: {tendVal > 0 ? '+' : ''}{tendVal.toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 1, maximumFractionDigits: 1 })}%
           </span>
         )}
@@ -983,7 +983,7 @@ function Tile({ icon, label, value, sub, tendVal, muted, color, bg, borderColor,
         {tendVal != null && sub && (
           <span style={{
             fontSize: font.size.sm, fontWeight: 600,
-            color: tendVal >= 0 ? '${T.green}' : T.redDark,
+            color: tendVal >= 0 ? T.green : T.redDark,
             whiteSpace: 'nowrap',
           }}>
             vs prec. {tendVal > 0 ? '+' : ''}{tendVal.toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 1, maximumFractionDigits: 1 })}%
@@ -1012,12 +1012,12 @@ function DiagnosiDrift({ driftEur, driftPct, isMobile }) {
   return (
     <div style={{
       marginTop: 14, padding: isMobile ? 14 : '14px 16px',
-      background: T.redLight, border: '1px solid ${T.red}',
+      background: T.redLight, border: `1px solid ${T.red}`,
       borderRadius: 12, fontSize: font.size.sm, color: T.redDark, lineHeight: 1.55,
       width: '100%', boxSizing: 'border-box',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-        <Icon name="warning" size={15} color="${T.redDark}" />
+        <Icon name="warning" size={15} color={T.redDark} />
         <strong style={{ fontSize: font.size.base }}>
           Cosa controllare - drift {tono} del {Math.abs(driftPct).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 1, maximumFractionDigits: 1 })}%
         </strong>
@@ -1054,8 +1054,8 @@ function PanelTop({ title, items, total, isMobile }) {
             }}>
               <span style={{
                 width: 22, height: 22, borderRadius: 6,
-                background: i === 0 ? '${T.amberLight}' : C.bgSubtle,
-                color: i === 0 ? '${T.amberDark}' : C.textSoft,
+                background: i === 0 ? T.amberLight : C.bgSubtle,
+                color: i === 0 ? T.amberDark : C.textSoft,
                 fontSize: font.size.sm, fontWeight: 800, textAlign: 'center',
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                 flexShrink: 0,
@@ -1075,7 +1075,7 @@ function PanelTop({ title, items, total, isMobile }) {
               }}>
                 <div style={{
                   width: `${Math.max(4, pctVal)}%`, height: '100%',
-                  background: i === 0 ? '${T.brand}' : T.brandDark,
+                  background: i === 0 ? T.brand : T.brandDark,
                   borderRadius: 4,
                   transition: 'width 240ms ease',
                 }} />
@@ -1111,7 +1111,7 @@ function PanelSofferenza({ sofferenza, zeroVenduto }) {
         <div style={{
           marginBottom: 14, padding: '10px 12px',
           background: T.redLight, borderRadius: 10,
-          border: '1px solid ${T.red}',
+          border: `1px solid ${T.red}`,
         }}>
           <div style={{
             fontSize: font.size.sm, fontWeight: 700, color: T.redDark,
@@ -1119,7 +1119,7 @@ function PanelSofferenza({ sofferenza, zeroVenduto }) {
             marginBottom: 6,
             display: 'flex', alignItems: 'center', gap: 6,
           }}>
-            <Icon name="alert" size={12} color="${T.redDark}" />
+            <Icon name="alert" size={12} color={T.redDark} />
             Zero venduto ({zeroVenduto.length.toLocaleString('it-IT', { useGrouping: 'always' })})
           </div>
           <div style={{

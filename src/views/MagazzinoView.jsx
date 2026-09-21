@@ -442,7 +442,7 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
                         {q > 0 && (
                           <button onClick={() => setScartoForm({ prodotto: r.prodotto_nome, qty: String(q), note: '', azzera: true, unita: r.unita || 'pz', disponibile: q, valoreUnit: Number(r.valore_unit || 0) })}
                             title="La giacenza è sbagliata: portala a zero senza contarla fra gli sprechi"
-                            style={{ padding: '9px 10px', minHeight: 44, borderRadius: 6, border: `1px solid ${C.red}`, background: '${T.white}5F5', color: C.red, fontSize: typo.small.fontSize, fontWeight: 700, cursor: 'pointer' }}>
+                            style={{ padding: '9px 10px', minHeight: 44, borderRadius: 6, border: `1px solid ${C.red}`, background: '#FFF5F5', color: C.red, fontSize: typo.small.fontSize, fontWeight: 700, cursor: 'pointer' }}>
                             Azzera
                           </button>
                         )}
@@ -1644,7 +1644,7 @@ export default function MagazzinoView({
         return (
           <div id="riordino-urgente" style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: R['2xl'], overflow: 'hidden', marginBottom: 24, boxShadow: SHADOW_PREMIUM, scrollMarginTop: 70 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 18px', borderBottom: `1px solid ${C.border}`,
-              background: 'linear-gradient(135deg, ${T.brand} 0%, #4A0612 100%)' }}>
+              background: `linear-gradient(135deg, ${T.brand} 0%, #4A0612 100%)` }}>
               <span style={{ width: 32, height: 32, borderRadius: 10, background: 'rgba(255,255,255,0.16)', color: T.white, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <Icon name="truck" size={17} />
               </span>
