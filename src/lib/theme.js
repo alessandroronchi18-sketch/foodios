@@ -22,6 +22,22 @@ export const color = {
   bgSide:       '#0A0D14',
   bgSideRaised: '#11151E',
 
+  // ── I due fondi caldi ──────────────────────────────────────────────────
+  //
+  // 21/09/2026. Le superfici di Foodos non sono tutte dello stesso freddo:
+  // accanto ai grigi azzurrati (`bg`, `bgSubtle`, `bgMuted`) vive una
+  // famiglia panna che viene dal marchio. Nascono nei costi fissi
+  // (`CostiAziendaliView`: la sfumatura dell'intestazione, il fondo delle
+  // righe, la sfumatura delle schede) e nello scadenzario, e finora erano
+  // scritti a mano.
+  //
+  // NON sono `bgSubtle` con un'altra tinta: sono l'altra famiglia. Chi li
+  // avvicinasse a `#F1F4F8` «tanto è quasi uguale» raffredderebbe due pagine
+  // intere. `fondoCaldoScuro` è il gradino sotto, per il contenitore che
+  // deve staccarsi dalla scheda che lo contiene.
+  fondoCaldo:      '#FBF6F2',   // 4 usi (CostiAziendaliView, Scadenzario)
+  fondoCaldoScuro: '#F4EEEA',   // 10 usi in 4 file (Dashboard, Scadenzario, SedeSelector)
+
   // Text
   //
   // Audit 2026-06-24: textSoft passato da #8B95A7 (ratio 3.0 su #FFF) a
@@ -59,6 +75,40 @@ export const color = {
   textOnDarkSoft:    'rgba(255,255,255,0.42)',
   textOnDarkFaint:   'rgba(255,255,255,0.28)',
 
+  // ── La scala del testo bruno ───────────────────────────────────────────
+  //
+  // 21/09/2026. In Foodos convivono DUE scale di testo, e finora solo una
+  // aveva un nome. Sopra ci sono i grigi azzurrati (`text`, `textMid`,
+  // `textSoft`): sono quelli delle pagine dati. Sotto c'è la scala bruna,
+  // che viene dal bordeaux del marchio e sta sulle pagine panna —
+  // impostazioni, sedi, referral, pagine legali, schede AI.
+  //
+  // Non sono la stessa cosa con un'approssimazione: `#4A3728` e `#475264`
+  // hanno la stessa chiarezza e due tinte diverse, e affiancati sulla stessa
+  // scheda si vede. Per questo non si «arrotondano» ai token grigi.
+  //
+  // Dove nascono: ognuno di questi tre stava riscritto a mano in cima a
+  // mezza dozzina di componenti (`ImpostazioniSedi`, `CittaAutocomplete`,
+  // `AICard`, `SedeSelector`, `_LegalLayout`), sempre con nomi diversi
+  // (`TXT`, `MID`, `SOFT`, `textMute`, `itemTxt`) e sempre senza garanzia
+  // che il prossimo copiasse la cifra giusta.
+  //
+  // `testoBrunoForte` ha lo stesso valore di `tooltipBg` per un motivo
+  // storico: il fondo dei fumetti è il testo bruno forte. Sono due mestieri
+  // diversi e hanno due nomi, così chi cambia il fumetto non ridipinge
+  // trentotto titoli — prima quattro punti scrivevano `color: T.tooltipBg`
+  // proprio perché la cifra era quella giusta sotto il nome sbagliato.
+  testoBrunoForte: '#1C0A0A',   // 38 usi in 21 file — titoli, testo forte
+  testoBruno:      '#4A3728',   // 7 usi — testo descrittivo, spiegazioni
+  // ATTENZIONE: `testoBrunoTenue` fa 3.46–3.81 di contrasto sui fondi
+  // dell'app, sotto la soglia AA di 4.5 (misurato il 21/09/2026 con la
+  // stessa formula di `contrastoColori.test.js`). Resta com'è perché
+  // schiarirlo o scurirlo cambia il colore a schermo di sei punti del
+  // prodotto, e quella è una decisione di chi disegna, non di chi dà i nomi.
+  // Finché vale questo: va usato per etichette e metadati, mai per una
+  // scritta che si deve leggere.
+  testoBrunoTenue: '#9C7B76',   // 6 usi in 6 file — etichette maiuscole
+
   // Borders
   border:     '#E5E9EF',
   borderStr:  '#D4D9E2',
@@ -66,6 +116,18 @@ export const color = {
   borderOnDark:      'rgba(255,255,255,0.06)',
   borderOnDarkStr:   'rgba(255,255,255,0.10)',
   borderOnDarkSoft:  'rgba(255,255,255,0.04)',
+  // ── Il filo tenue ──────────────────────────────────────────────────────
+  //
+  // 21/09/2026. È il bordo scritto a mano più diffuso del progetto: 48 volte
+  // in 16 file. Nasce nelle impostazioni (riquadri di scelta, campi di
+  // testo, separatori delle schede piano) e si è propagato ovunque —
+  // pannello admin, MFA, white label, feedback, referral.
+  //
+  // NON è `border` (#E5E9EF): è un filo più freddo e appena più marcato.
+  // La differenza da sola non si vede, affiancata sì, ed è esattamente il
+  // caso in cui qualcuno «uniforma» al token vicino pensando di fare
+  // ordine e invece ridipinge 48 punti. Ha un nome suo proprio per questo.
+  bordoTenue: '#E2E8F0',
 
   // Semantic
   //
@@ -86,6 +148,19 @@ export const color = {
   // sul secondo perché la chiave non esisteva.
   amberDark:  '#92400E',
   amberLight: '#FFF8EB',
+  // ── La coppia del riquadro d'avviso ────────────────────────────────────
+  //
+  // 21/09/2026. Il riquadro che dice «attenzione, questo cambio ha delle
+  // conseguenze» è fondo + filo, e i due valori viaggiano SEMPRE insieme:
+  // 18 usi in 14 file per il fondo, 13 in 8 per il filo. Nascono nelle
+  // impostazioni (cambio metodo di inventario, piano, sedi) e si ritrovano
+  // in scadenzario, eventi, importazione, onboarding, chiusura.
+  //
+  // `fondoAvviso` NON è `amberLight` (#FFF8EB), per quanto ci somigli: sono
+  // due panne ambrate diverse e chi le fonde cambia il colore di 18 punti.
+  // Il testo sopra questa coppia è `amberDark`, che il contrasto ce l'ha.
+  fondoAvviso: '#FFFBEB',
+  bordoAvviso: '#FDE68A',
   red:        '#DC2626',
   // Rosso scuro per il TESTO sopra redLight, come `amberDark` sta a `amber`.
   //

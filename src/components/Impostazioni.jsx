@@ -261,7 +261,7 @@ function MetodoProduzioneSection({ orgId, metodoProduzione, notify }) {
         title={richiestaPending ? 'Hai una richiesta in attesa: annullala per crearne un\'altra' : (selected ? 'Metodo gia\' attivo' : '')}
         style={{
           textAlign: 'left', padding: '16px 18px', borderRadius: 12,
-          border: `2px solid ${selected ? T.brand : '#E2E8F0'}`,
+          border: `2px solid ${selected ? T.brand : T.bordoTenue}`,
           background: selected ? '#FEF0EE' : T.white,
           cursor: disabled && !selected ? 'not-allowed' : (selected ? 'default' : 'pointer'),
           fontFamily: 'inherit', width: '100%',
@@ -269,34 +269,34 @@ function MetodoProduzioneSection({ orgId, metodoProduzione, notify }) {
           transition: 'all 0.15s ease',
         }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
-          <div style={{ fontSize: font.size.md, fontWeight: 800, color: T.tooltipBg }}>{titolo}</div>
+          <div style={{ fontSize: font.size.md, fontWeight: 800, color: T.testoBrunoForte }}>{titolo}</div>
           {selected && (
             <span style={{ fontSize: font.size.sm, fontWeight: 700, color: T.brand, background: T.white, border: `1px solid ${T.brand}`, padding: '2px 8px', borderRadius: 999, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               Attivo
             </span>
           )}
         </div>
-        <div style={{ fontSize: font.size.sm, color: '#4A3728', lineHeight: 1.55, marginBottom: 8 }}>{descrizione}</div>
-        <div style={{ fontSize: font.size.sm, color: '#9C7B76' }}>{esempi}</div>
+        <div style={{ fontSize: font.size.sm, color: T.testoBruno, lineHeight: 1.55, marginBottom: 8 }}>{descrizione}</div>
+        <div style={{ fontSize: font.size.sm, color: T.testoBrunoTenue }}>{esempi}</div>
       </button>
     )
   }
 
   return (
     <div>
-      <div style={{ marginBottom: 16, fontSize: font.size.sm, color: '#4A3728', lineHeight: 1.6 }}>
+      <div style={{ marginBottom: 16, fontSize: font.size.sm, color: T.testoBruno, lineHeight: 1.6 }}>
         Come registri la produzione nella tua attività. Questa scelta vale per <b>tutte le sedi</b> — ricettario, formati di vendita e analisi consolidate presuppongono un modello unico.
       </div>
 
       {/* Banner: richiesta pending o esito recente (informativo). */}
       {!loadingReq && richiestaPending && (
-        <div style={{ marginBottom: 14, padding: '12px 14px', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 10, fontSize: font.size.sm, color: T.amberDark, lineHeight: 1.55 }}>
+        <div style={{ marginBottom: 14, padding: '12px 14px', background: T.fondoAvviso, border: `1px solid ${T.bordoAvviso}`, borderRadius: 10, fontSize: font.size.sm, color: T.amberDark, lineHeight: 1.55 }}>
           <div style={{ fontWeight: 700, marginBottom: 4 }}>Richiesta in attesa di approvazione</div>
           <div>Vuoi passare da <b>{labelMetodo(richiestaPending.from_metodo)}</b> a <b>{labelMetodo(richiestaPending.to_metodo)}</b>.{dataIt(richiestaPending.created_at) ? ` Inviata il ${dataIt(richiestaPending.created_at)}.` : ''}</div>
           {richiestaPending.motivazione && <div style={{ marginTop: 6, fontStyle: 'italic', color: '#78350F' }}>Motivo: {richiestaPending.motivazione}</div>}
           <div style={{ marginTop: 10 }}>
             <button type="button" onClick={() => cancellaRichiesta(richiestaPending.id)} disabled={saving}
-              style={{ padding: '6px 12px', borderRadius: 7, border: '1px solid #FDE68A', background: T.white, color: T.amberDark, fontSize: font.size.sm, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+              style={{ padding: '6px 12px', borderRadius: 7, border: `1px solid ${T.bordoAvviso}`, background: T.white, color: T.amberDark, fontSize: font.size.sm, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
               Annulla richiesta
             </button>
           </div>
@@ -319,7 +319,7 @@ function MetodoProduzioneSection({ orgId, metodoProduzione, notify }) {
           'Gelaterie · Yogurterie · Pasta fresca · Panifici a peso')}
       </div>
 
-      <div style={{ padding: '10px 12px', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: font.size.sm, color: '#4A3728', lineHeight: 1.5 }}>
+      <div style={{ padding: '10px 12px', background: '#F8FAFC', border: `1px solid ${T.bordoTenue}`, borderRadius: 8, fontSize: font.size.sm, color: T.testoBruno, lineHeight: 1.5 }}>
         Il cambio metodo passa da <b>approvazione admin</b>: modifica in modo strutturale il ricettario e le analisi, quindi lo verifichiamo insieme prima di applicarlo. Di solito rispondiamo entro 24h lavorative.
       </div>
 
@@ -328,25 +328,25 @@ function MetodoProduzioneSection({ orgId, metodoProduzione, notify }) {
           <VeloFinestra onChiudi={() => setConfirm(null)} attivo={!saving}/>
           <div role="dialog" aria-modal="true" aria-labelledby="titolo-cambio-metodo"
             style={{ position: 'relative', background: T.white, borderRadius: 14, boxShadow: '0 20px 60px rgba(0,0,0,0.25)', maxWidth: 480, width: '100%', padding: 24 }}>
-            <div id="titolo-cambio-metodo" style={{ fontSize: font.size.lg, fontWeight: 800, color: T.tooltipBg, marginBottom: 8 }}>
+            <div id="titolo-cambio-metodo" style={{ fontSize: font.size.lg, fontWeight: 800, color: T.testoBrunoForte, marginBottom: 8 }}>
               Richiedere il cambio metodo?
             </div>
-            <div style={{ fontSize: font.size.base, color: '#4A3728', lineHeight: 1.55, marginBottom: 12 }}>
+            <div style={{ fontSize: font.size.base, color: T.testoBruno, lineHeight: 1.55, marginBottom: 12 }}>
               Passi da <b>{labelMetodo(current)}</b> a <b>{labelMetodo(confirm.target)}</b>. Non viene applicato subito: l'admin lo valuta e ti scrive appena decide.
             </div>
-            <div style={{ padding: '10px 12px', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 8, fontSize: font.size.sm, color: T.amberDark, lineHeight: 1.5, marginBottom: 16 }}>
+            <div style={{ padding: '10px 12px', background: T.fondoAvviso, border: `1px solid ${T.bordoAvviso}`, borderRadius: 8, fontSize: font.size.sm, color: T.amberDark, lineHeight: 1.5, marginBottom: 16 }}>
               Questa scelta cambia le viste operative (Produzione ↔ Inventario), la struttura delle ricette e le analisi. Meglio farlo con un solo utente collegato.
             </div>
             <label style={{ display: 'block', marginBottom: 12 }}>
-              <div style={{ fontSize: font.size.sm, fontWeight: 700, color: '#4A3728', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 6 }}>Motivo del cambio (facoltativo)</div>
+              <div style={{ fontSize: font.size.sm, fontWeight: 700, color: T.testoBruno, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 6 }}>Motivo del cambio (facoltativo)</div>
               <textarea value={motivazione} onChange={e => setMotivazione(e.target.value.slice(0, 500))}
                 placeholder="Es: apriamo la gelateria a giugno e vogliamo passare all'inventario differenziale"
                 rows={3}
-                style={{ width: '100%', padding: '10px 12px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: font.size.base, color: T.tooltipBg, fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }} />
+                style={{ width: '100%', padding: '10px 12px', border: `1px solid ${T.bordoTenue}`, borderRadius: 8, fontSize: font.size.base, color: T.testoBrunoForte, fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }} />
             </label>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button type="button" onClick={() => setConfirm(null)} disabled={saving}
-                style={{ padding: '10px 16px', borderRadius: 8, border: '1px solid #E2E8F0', background: 'transparent', fontSize: font.size.base, fontWeight: 600, color: '#4A3728', cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ padding: '10px 16px', borderRadius: 8, border: `1px solid ${T.bordoTenue}`, background: 'transparent', fontSize: font.size.base, fontWeight: 600, color: T.testoBruno, cursor: 'pointer', fontFamily: 'inherit' }}>
                 Annulla
               </button>
               <button type="button" onClick={inviaRichiesta} disabled={saving}
@@ -719,7 +719,7 @@ function PrezziImportSection({ onImportPrezzi }) {
       description="Carica un file Excel/CSV con i prezzi degli ingredienti. Una colonna nome, una colonna prezzo €/kg. Il food cost di tutte le ricette si ricalcola automaticamente.">
       <label style={{
         display:'inline-flex', alignItems:'center', gap:10, padding:'12px 20px',
-        background:'#FFFBEB', border:'1px dashed #FDE68A', borderRadius:R.md,
+        background: T.fondoAvviso, border: `1px dashed ${T.bordoAvviso}`, borderRadius:R.md,
         cursor:'pointer', fontSize: font.size.base, fontWeight:700, color:T.amberDark,
         whiteSpace:'nowrap',
       }}>
@@ -803,7 +803,7 @@ function PacchettiAIPanel({ auth, notify }) {
       </p>
 
       {/* Saldo residuo */}
-      <div style={{ padding: 16, background: totaleResidue > 0 ? '#F0FDF4' : '#F8FAFC', borderRadius: 12, marginBottom: 18, border: `1px solid ${totaleResidue > 0 ? '#86EFAC' : '#E2E8F0'}`, minHeight: 90, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+      <div style={{ padding: 16, background: totaleResidue > 0 ? '#F0FDF4' : '#F8FAFC', borderRadius: 12, marginBottom: 18, border: `1px solid ${totaleResidue > 0 ? '#86EFAC' : T.bordoTenue}`, minHeight: 90, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
         <div style={{ fontSize: font.size.sm, color: totaleResidue > 0 ? '#065F46' : T.textSoft, textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.05em' }}>Saldo foto AI</div>
         <div style={{ fontSize: isMobile ? 28 : 32, fontWeight: 900, color: totaleResidue > 0 ? '#16A34A' : T.textFaint, fontVariantNumeric: 'tabular-nums', marginTop: 4 }}>
           {(totaleResidue || 0).toLocaleString('it-IT', { useGrouping: 'always' })} <span style={{ fontSize: isMobile ? 14 : 16, fontWeight: 700, color: totaleResidue > 0 ? '#065F46' : T.textFaint }}>foto</span>
@@ -819,7 +819,7 @@ function PacchettiAIPanel({ auth, notify }) {
           <div key={p.id} style={{
             padding: '18px 18px 16px', borderRadius: 14,
             background: p.best ? T.redLight : T.white,
-            border: `2px solid ${p.best ? T.brand : '#E2E8F0'}`,
+            border: `2px solid ${p.best ? T.brand : T.bordoTenue}`,
             position: 'relative',
             display: 'flex', flexDirection: 'column',
             boxShadow: p.best ? '0 8px 24px rgba(110,14,26,0.10)' : '0 1px 2px rgba(15,23,42,0.04)',
@@ -830,16 +830,16 @@ function PacchettiAIPanel({ auth, notify }) {
               </div>
             )}
             {/* Titolo: quante foto AI (informazione principale) */}
-            <div style={{ fontSize: font.size.md, fontWeight: 800, color: T.tooltipBg, letterSpacing: '-0.01em', marginBottom: 2 }}>
+            <div style={{ fontSize: font.size.md, fontWeight: 800, color: T.testoBrunoForte, letterSpacing: '-0.01em', marginBottom: 2 }}>
               {p.calls.toLocaleString('it-IT', { useGrouping: 'always' })} foto AI
             </div>
             {/* Prezzo grande sotto il titolo */}
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 6, marginBottom: 10 }}>
-              <span style={{ fontSize: isMobile ? 28 : 32, fontWeight: 900, color: T.tooltipBg, letterSpacing: '-0.02em', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{fmt0(p.euro)}</span>
+              <span style={{ fontSize: isMobile ? 28 : 32, fontWeight: 900, color: T.testoBrunoForte, letterSpacing: '-0.02em', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{fmt0(p.euro)}</span>
               <span style={{ fontSize: font.size.sm, color: T.textSoft }}>una tantum</span>
             </div>
             {/* Divisore + €/foto + eventuale risparmio */}
-            <div style={{ borderTop: '1px solid #E2E8F0', paddingTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: font.size.sm, color: T.textSoft, marginBottom: 12 }}>
+            <div style={{ borderTop: `1px solid ${T.bordoTenue}`, paddingTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: font.size.sm, color: T.textSoft, marginBottom: 12 }}>
               <span>{p.per_call} a foto</span>
               {p.saving > 0 && (
                 <span style={{ background: '#DCFCE7', color: '#065F46', padding: '2px 8px', borderRadius: 999, fontSize: font.size.sm, fontWeight: 800, letterSpacing: '0.02em' }}>
@@ -877,7 +877,7 @@ function PacchettiAIPanel({ auth, notify }) {
               return (
                 <div key={p.id} style={{
                   padding: '10px 14px', borderRadius: 8,
-                  background: '#F8FAFC', border: '1px solid #E2E8F0',
+                  background: '#F8FAFC', border: `1px solid ${T.bordoTenue}`,
                   display: isMobile ? 'flex' : 'grid',
                   flexDirection: isMobile ? 'column' : undefined,
                   gridTemplateColumns: isMobile ? undefined : '1fr auto auto',

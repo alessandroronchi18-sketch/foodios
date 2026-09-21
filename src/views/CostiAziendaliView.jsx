@@ -225,7 +225,7 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
       {hasMultiSede && sedeId && sedeAttivaNome && (
         <div style={{
           marginBottom: 20, padding: '14px 16px',
-          background: `linear-gradient(180deg, ${T.white} 0%, #FBF6F2 100%)`,
+          background: `linear-gradient(180deg, ${T.white} 0%, ${T.fondoCaldo} 100%)`,
           border: `1px solid ${C.border}`, borderRadius: 14,
           boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 8px 24px rgba(15,23,42,0.05), inset 0 1px 0 rgba(255,255,255,0.6)',
           position: 'relative', overflow: 'hidden',
@@ -254,7 +254,7 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
                   : <>Stai vedendo i costi della sede <b style={{ color: C.text }}>{sedeAttivaNome}</b> (specifici di sede + globali azienda).</>}
               </div>
             </div>
-            <div style={{ display: 'inline-flex', padding: 4, background: C.bgSubtle || '#F4EEEA', borderRadius: 10, flexShrink: 0 }}>
+            <div style={{ display: 'inline-flex', padding: 4, background: C.bgSubtle, borderRadius: 10, flexShrink: 0 }}>
               {[
                 { id: 'all', label: 'Tutta l\'azienda' },
                 { id: 'sede', label: `Sede: ${sedeAttivaNome || '-'}` },
@@ -367,7 +367,7 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
               const catLbl = CATEGORIE_DEFAULT.find(c => c.id === v.categoria)?.label || v.categoria || 'altro'
               return (
                 <div key={v.id} style={{
-                  padding: '11px 13px', background: '#FBF6F2',
+                  padding: '11px 13px', background: T.fondoCaldo,
                   border: `1px solid ${C.border}`, borderRadius: 10,
                   display: 'flex', flexDirection: 'column', gap: 5, minHeight: 78,
                 }}>
@@ -491,7 +491,7 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
                       per distinguerlo dalle voci sotto. Sfondo cream warm. */}
                   <div style={{
                     padding: isMobile ? '12px 14px' : '12px 18px',
-                    background: 'linear-gradient(180deg, #FBF6F2 0%, #F4ECE7 100%)',
+                    background: `linear-gradient(180deg, ${T.fondoCaldo} 0%, #F4ECE7 100%)`,
                     borderTop: gi === 0 ? 'none' : `1px solid ${C.border}`,
                     borderBottom: `1px solid ${C.border}`,
                     boxShadow: `inset 3px 0 0 ${T.brand}`,

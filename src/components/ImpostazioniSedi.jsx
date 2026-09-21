@@ -3,21 +3,16 @@ import Icon from './Icon'
 import { useConfirm } from './ConfirmModal'
 import { supabase } from '../lib/supabase'
 import { sload, ssave } from '../lib/storage'
+import { color as T } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import CittaAutocomplete from './CittaAutocomplete'
 import COMUNI_ITALIANI from '../lib/comuniItaliani'
 
 const CITTA_VALIDE = new Set(COMUNI_ITALIANI)
 
-const R = '#6E0E1A'
-const TXT = '#1C0A0A'
-const SOFT = '#9C7B76'
-const MID = '#4A3728'
-const BOR = '#E2E8F0'
-
 const card = { background: '#FFF', borderRadius: 12, padding: '16px 20px', border: `1px solid #E8DDD8`, marginBottom: 12 }
-const inp = { width: '100%', padding: '8px 12px', border: `1px solid ${BOR}`, borderRadius: 8, fontSize: 13, color: TXT, background: '#FAFAFA', outline: 'none', boxSizing: 'border-box' }
-const lbl = { fontSize: 12, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4, display: 'block' }
+const inp = { width: '100%', padding: '8px 12px', border: `1px solid ${T.bordoTenue}`, borderRadius: 8, fontSize: 13, color: T.testoBrunoForte, background: '#FAFAFA', outline: 'none', boxSizing: 'border-box' }
+const lbl = { fontSize: 12, fontWeight: 700, color: T.testoBrunoTenue, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4, display: 'block' }
 const btn = (bg, col) => ({ padding: '8px 16px', background: bg, color: col, border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' })
 
 const SK_SCENARIO = 'pasticceria-scenario-operativo-v1'
@@ -73,16 +68,16 @@ function ScenarioOperativoCard({ orgId, scenarioCorrente, onCambia }) {
 
   if (!expanded && corrente) {
     return (
-      <div style={{ background: '#FAFAFA', border: `1px solid ${BOR}`, borderRadius: 12, padding: '14px 18px', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+      <div style={{ background: '#FAFAFA', border: `1px solid ${T.bordoTenue}`, borderRadius: 12, padding: '14px 18px', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ color: R, display: 'inline-flex' }}><Icon name={corrente.icon} size={22} /></span>
+          <span style={{ color: T.brand, display: 'inline-flex' }}><Icon name={corrente.icon} size={22} /></span>
           <div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Scenario operativo</div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: TXT, marginTop: 2 }}>{corrente.nome}</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: T.testoBrunoTenue, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Scenario operativo</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: T.testoBrunoForte, marginTop: 2 }}>{corrente.nome}</div>
           </div>
         </div>
         <button onClick={() => setExpanded(true)}
-          style={{ ...btn('transparent', MID), border: `1px solid ${BOR}` }}>
+          style={{ ...btn('transparent', T.testoBruno), border: `1px solid ${T.bordoTenue}` }}>
           Cambia
         </button>
       </div>
@@ -90,11 +85,11 @@ function ScenarioOperativoCard({ orgId, scenarioCorrente, onCambia }) {
   }
 
   return (
-    <div style={{ background: '#FFFBEB', border: '2px dashed #FCD34D', borderRadius: 12, padding: 20, marginBottom: 18 }}>
-      <div style={{ fontSize: 12, fontWeight: 700, color: '#92400E', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+    <div style={{ background: T.fondoAvviso, border: '2px dashed #FCD34D', borderRadius: 12, padding: 20, marginBottom: 18 }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: T.amberDark, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
         <Icon name="gear" size={13} />Come lavora la tua attività?
       </div>
-      <div style={{ fontSize: 13, color: MID, marginBottom: 16, lineHeight: 1.55 }}>
+      <div style={{ fontSize: 13, color: T.testoBruno, marginBottom: 16, lineHeight: 1.55 }}>
         Scegli lo scenario che meglio descrive il tuo modello operativo. Useremo questa informazione per suggerirti la configurazione corretta delle sedi e dei flussi.
       </div>
 
@@ -106,14 +101,14 @@ function ScenarioOperativoCard({ orgId, scenarioCorrente, onCambia }) {
               style={{
                 textAlign: 'left', padding: '14px 16px',
                 background: isSel ? '#FFF' : '#FFFEF7',
-                border: `2px solid ${isSel ? R : '#FDE68A'}`,
+                border: `2px solid ${isSel ? T.brand : T.bordoAvviso}`,
                 borderRadius: 10, cursor: 'pointer',
                 boxShadow: isSel ? '0 4px 14px rgba(110,14,26,0.18)' : 'none',
                 transition: 'all .15s',
               }}>
-              <div style={{ marginBottom: 6, color: R }}><Icon name={s.icon} size={28} /></div>
-              <div style={{ fontSize: 13, fontWeight: 800, color: TXT, marginBottom: 6, lineHeight: 1.25 }}>{s.nome}</div>
-              <div style={{ fontSize: 12, color: SOFT, lineHeight: 1.5 }}>{s.descr}</div>
+              <div style={{ marginBottom: 6, color: T.brand }}><Icon name={s.icon} size={28} /></div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: T.testoBrunoForte, marginBottom: 6, lineHeight: 1.25 }}>{s.nome}</div>
+              <div style={{ fontSize: 12, color: T.testoBrunoTenue, lineHeight: 1.5 }}>{s.descr}</div>
             </button>
           )
         })}
@@ -122,23 +117,23 @@ function ScenarioOperativoCard({ orgId, scenarioCorrente, onCambia }) {
       {scelta && (() => {
         const s = SCENARI.find(x => x.id === scelta)
         return (
-          <div style={{ background: '#FFF', borderRadius: 10, padding: '12px 14px', border: `1px solid ${BOR}`, marginBottom: 14 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ background: '#FFF', borderRadius: 10, padding: '12px 14px', border: `1px solid ${T.bordoTenue}`, marginBottom: 14 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: T.testoBrunoTenue, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
               <Icon name="bulb" size={13} />Come configurarlo
             </div>
-            <div style={{ fontSize: 12, color: MID, lineHeight: 1.6 }}>{s.setupHint}</div>
+            <div style={{ fontSize: 12, color: T.testoBruno, lineHeight: 1.6 }}>{s.setupHint}</div>
           </div>
         )
       })()}
 
       <div style={{ display: 'flex', gap: 8 }}>
         <button onClick={() => scelta && salva(scelta)} disabled={!scelta || saving}
-          style={{ ...btn(R, '#FFF'), opacity: scelta ? 1 : 0.5, cursor: scelta ? 'pointer' : 'not-allowed' }}>
+          style={{ ...btn(T.brand, '#FFF'), opacity: scelta ? 1 : 0.5, cursor: scelta ? 'pointer' : 'not-allowed' }}>
           {saving ? '…' : (scenarioCorrente ? 'Aggiorna scenario' : 'Conferma scenario')}
         </button>
         {scenarioCorrente && (
           <button onClick={() => setExpanded(false)}
-            style={{ ...btn('transparent', SOFT), border: `1px solid ${BOR}` }}>
+            style={{ ...btn('transparent', T.testoBrunoTenue), border: `1px solid ${T.bordoTenue}` }}>
             Annulla
           </button>
         )}
@@ -363,7 +358,7 @@ export default function ImpostazioniSedi({ orgId, onSediChange, metodoProduzione
   return (
     <div style={{ maxWidth: 560, padding: isMobile ? 12 : isTablet ? 14 : 0 }}>
       {toast && (
-        <div style={{ position: 'fixed', top: 20, right: 20, zIndex: 9999, padding: '10px 18px', borderRadius: 10, background: toast.ok ? '#22C55E' : R, color: '#FFF', fontSize: 13, fontWeight: 600, boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}>
+        <div style={{ position: 'fixed', top: 20, right: 20, zIndex: 9999, padding: '10px 18px', borderRadius: 10, background: toast.ok ? '#22C55E' : T.brand, color: '#FFF', fontSize: 13, fontWeight: 600, boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}>
           {toast.msg}
         </div>
       )}
@@ -375,15 +370,15 @@ export default function ImpostazioniSedi({ orgId, onSediChange, metodoProduzione
           ora gestiti per-sede dalla card Modifica di ogni sede. */}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <div style={{ fontSize: 15, fontWeight: 800, color: TXT }}>Gestione Sedi</div>
+        <div style={{ fontSize: 15, fontWeight: 800, color: T.testoBrunoForte }}>Gestione Sedi</div>
         {!showAdd && (
-          <button onClick={() => setShowAdd(true)} style={btn(R, '#FFF')}>+ Aggiungi sede</button>
+          <button onClick={() => setShowAdd(true)} style={btn(T.brand, '#FFF')}>+ Aggiungi sede</button>
         )}
       </div>
 
       {showAdd && (
-        <div style={{ ...card, border: '2px dashed #6E0E1A', background: '#FEF0EE', marginBottom: 16 }}>
-          <div style={{ fontWeight: 700, fontSize: 14, color: TXT, marginBottom: 14 }}>Nuova sede</div>
+        <div style={{ ...card, border: `2px dashed ${T.brand}`, background: '#FEF0EE', marginBottom: 16 }}>
+          <div style={{ fontWeight: 700, fontSize: 14, color: T.testoBrunoForte, marginBottom: 14 }}>Nuova sede</div>
           <div style={{ marginBottom: 10 }}>
             <label style={lbl}>Nome sede *</label>
             <input value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} style={inpR} placeholder="Es. Sede Centro" />
@@ -398,13 +393,13 @@ export default function ImpostazioniSedi({ orgId, onSediChange, metodoProduzione
               <CittaAutocomplete value={form.citta} onChange={v => setForm(f => ({ ...f, citta: v }))} inputStyle={inpR} />
             </div>
           </div>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: MID, marginBottom: 16, cursor: 'pointer' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: T.testoBruno, marginBottom: 16, cursor: 'pointer' }}>
             <input type="checkbox" checked={form.is_default} onChange={e => setForm(f => ({ ...f, is_default: e.target.checked }))} />
             Imposta come sede principale
           </label>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={handleAdd} disabled={loading} style={btn(R, '#FFF')}>{loading ? '…' : 'Aggiungi'}</button>
-            <button onClick={() => setShowAdd(false)} style={{ ...btn('transparent', SOFT), border: `1px solid ${BOR}` }}>Annulla</button>
+            <button onClick={handleAdd} disabled={loading} style={btn(T.brand, '#FFF')}>{loading ? '…' : 'Aggiungi'}</button>
+            <button onClick={() => setShowAdd(false)} style={{ ...btn('transparent', T.testoBrunoTenue), border: `1px solid ${T.bordoTenue}` }}>Annulla</button>
           </div>
         </div>
       )}
@@ -432,14 +427,14 @@ export default function ImpostazioniSedi({ orgId, onSediChange, metodoProduzione
                   inventario) è invece deciso a livello di attività — vedi
                   Impostazioni attività — perché ricettario e formati vendita
                   sono shared e non possono avere metodi diversi tra sedi. */}
-              <div style={{ marginBottom: 12, padding: '12px 14px', background: '#F8FAFC', borderRadius: 10, border: `1px solid ${BOR}` }}>
+              <div style={{ marginBottom: 12, padding: '12px 14px', background: '#F8FAFC', borderRadius: 10, border: `1px solid ${T.bordoTenue}` }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
                   <input type="checkbox"
                     checked={!!editForm.is_sede_produzione}
                     onChange={e => setEditForm(f => ({ ...f, is_sede_produzione: e.target.checked }))} />
-                  <span style={{ fontSize: 13, fontWeight: 600, color: TXT }}>Sede di produzione</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: T.testoBrunoForte }}>Sede di produzione</span>
                 </label>
-                <div style={{ fontSize: 12, color: SOFT, marginTop: 4, marginLeft: 26, lineHeight: 1.5 }}>
+                <div style={{ fontSize: 12, color: T.testoBrunoTenue, marginTop: 4, marginLeft: 26, lineHeight: 1.5 }}>
                   Attiva se in questa sede si produce. Le sedi solo riceventi (ricevono via trasferimenti) lasciano questa opzione disattiva.
                 </div>
                 {editForm.is_sede_produzione && (
@@ -459,21 +454,21 @@ export default function ImpostazioniSedi({ orgId, onSediChange, metodoProduzione
                 )}
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={() => handleSave(sede.id)} disabled={loading} style={btn(R, '#FFF')}>{loading ? '…' : 'Salva'}</button>
-                <button onClick={() => setEditing(null)} style={{ ...btn('transparent', SOFT), border: `1px solid ${BOR}` }}>Annulla</button>
+                <button onClick={() => handleSave(sede.id)} disabled={loading} style={btn(T.brand, '#FFF')}>{loading ? '…' : 'Salva'}</button>
+                <button onClick={() => setEditing(null)} style={{ ...btn('transparent', T.testoBrunoTenue), border: `1px solid ${T.bordoTenue}` }}>Annulla</button>
               </div>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'flex-start', gap: isMobile ? 12 : 8 }}>
               <div style={{ minWidth: 0, flex: 1 }}>
-                <div style={{ fontWeight: 700, fontSize: 14, color: TXT, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <div style={{ fontWeight: 700, fontSize: 14, color: T.testoBrunoForte, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {sede.nome}
                 </div>
                 {/* Badge in riga dedicata SOTTO il nome: così tra card diverse
                     partono sempre dalla stessa X e sono allineati verticalmente,
                     indipendentemente dalla lunghezza del nome sede. */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 6, minHeight: 20 }}>
-                  {sede.is_default && <span style={{ fontSize: 12, background: '#FEF3C7', color: '#92400E', padding: '2px 8px', borderRadius: 10, fontWeight: 700 }}>DEFAULT</span>}
+                  {sede.is_default && <span style={{ fontSize: 12, background: '#FEF3C7', color: T.amberDark, padding: '2px 8px', borderRadius: 10, fontWeight: 700 }}>DEFAULT</span>}
                   {sede.attiva === false && <span style={{ fontSize: 12, background: '#F1F5F9', color: '#94A3B8', padding: '2px 8px', borderRadius: 10, fontWeight: 700 }}>INATTIVA</span>}
                   {sede.is_sede_produzione && (
                     <span style={{ fontSize: 12, background: '#E0F2FE', color: '#075985', padding: '2px 8px', borderRadius: 10, fontWeight: 700 }}>
@@ -482,25 +477,25 @@ export default function ImpostazioniSedi({ orgId, onSediChange, metodoProduzione
                   )}
                 </div>
                 {(sede.indirizzo || sede.citta) && (
-                  <div style={{ fontSize: 12, color: SOFT, marginTop: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={[sede.indirizzo, sede.citta].filter(Boolean).join(', ')}>
+                  <div style={{ fontSize: 12, color: T.testoBrunoTenue, marginTop: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={[sede.indirizzo, sede.citta].filter(Boolean).join(', ')}>
                     {[sede.indirizzo, sede.citta].filter(Boolean).join(', ')}
                   </div>
                 )}
               </div>
               <div style={{ display: 'flex', gap: 6, flexShrink: 0, flexWrap: 'wrap' }}>
                 <button onClick={() => { setEditing(sede.id); setEditForm({ nome: sede.nome, indirizzo: sede.indirizzo || '', citta: sede.citta || '', is_sede_produzione: !!sede.is_sede_produzione }) }}
-                  style={{ padding: isMobile ? '8px 12px' : '5px 10px', background: '#F8FAFC', border: `1px solid ${BOR}`, borderRadius: 8, fontSize: 12, cursor: 'pointer', color: MID, fontWeight: 600 }}>
+                  style={{ padding: isMobile ? '8px 12px' : '5px 10px', background: '#F8FAFC', border: `1px solid ${T.bordoTenue}`, borderRadius: 8, fontSize: 12, cursor: 'pointer', color: T.testoBruno, fontWeight: 600 }}>
                   Modifica
                 </button>
                 {!sede.is_default && sede.attiva !== false && (
                   <button onClick={() => handleSetDefault(sede.id)}
-                    style={{ padding: isMobile ? '8px 12px' : '5px 10px', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 8, fontSize: 12, cursor: 'pointer', color: '#92400E', fontWeight: 600 }}>
+                    style={{ padding: isMobile ? '8px 12px' : '5px 10px', background: T.fondoAvviso, border: `1px solid ${T.bordoAvviso}`, borderRadius: 8, fontSize: 12, cursor: 'pointer', color: T.amberDark, fontWeight: 600 }}>
                     Default
                   </button>
                 )}
                 {sede.attiva !== false ? (
                   <button onClick={() => handleDisattiva(sede.id)}
-                    style={{ padding: isMobile ? '8px 12px' : '5px 10px', background: '#FFF5F5', border: '1px solid #FCA5A5', borderRadius: 8, fontSize: 12, cursor: 'pointer', color: R, fontWeight: 600 }}>
+                    style={{ padding: isMobile ? '8px 12px' : '5px 10px', background: '#FFF5F5', border: '1px solid #FCA5A5', borderRadius: 8, fontSize: 12, cursor: 'pointer', color: T.brand, fontWeight: 600 }}>
                     Disattiva
                   </button>
                 ) : (
@@ -516,10 +511,10 @@ export default function ImpostazioniSedi({ orgId, onSediChange, metodoProduzione
       ))}
 
       {sedi.length === 0 && (
-        <div style={{ textAlign: 'center', padding: '32px 0', color: SOFT, fontSize: 13 }}>Nessuna sede trovata.</div>
+        <div style={{ textAlign: 'center', padding: '32px 0', color: T.testoBrunoTenue, fontSize: 13 }}>Nessuna sede trovata.</div>
       )}
 
-      <div style={{ fontSize: 12, color: SOFT, marginTop: 8, lineHeight: 1.6 }}>
+      <div style={{ fontSize: 12, color: T.testoBrunoTenue, marginTop: 8, lineHeight: 1.6 }}>
         Ricarica la pagina dopo le modifiche per aggiornare il selettore sede nella sidebar.
       </div>
 
@@ -586,40 +581,40 @@ function DialogCambioMetodo({ info, onAnnulla, onConferma }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
           <span style={{
             width: 32, height: 32, borderRadius: 8, background: '#FEF3C7',
-            color: '#92400E', display: 'inline-flex',
+            color: T.amberDark, display: 'inline-flex',
             alignItems: 'center', justifyContent: 'center', fontSize: 18,
           }}><Icon name="alert" size={13} /></span>
           <h2 id="dlg-cambio-metodo-title"
-            style={{ margin: 0, fontSize: 16, fontWeight: 800, color: TXT, letterSpacing: '-0.01em' }}>
+            style={{ margin: 0, fontSize: 16, fontWeight: 800, color: T.testoBrunoForte, letterSpacing: '-0.01em' }}>
             {titolo}
           </h2>
         </div>
 
-        <p style={{ fontSize: 13, color: MID, lineHeight: 1.6, marginTop: 4, marginBottom: 14 }}>
+        <p style={{ fontSize: 13, color: T.testoBruno, lineHeight: 1.6, marginTop: 4, marginBottom: 14 }}>
           Questa è una decisione <strong>strutturale</strong>: cambia profondamente come funziona
           il prodotto per questa sede. Leggi con attenzione cosa succede.
         </p>
 
         <div style={{
           padding: '12px 14px', background: '#F8FAFC',
-          border: `1px solid ${BOR}`, borderRadius: 10, marginBottom: 16,
+          border: `1px solid ${T.bordoTenue}`, borderRadius: 10, marginBottom: 16,
         }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: T.testoBrunoTenue, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
             Cosa cambia
           </div>
-          <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: TXT, lineHeight: 1.55 }}>
+          <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: T.testoBrunoForte, lineHeight: 1.55 }}>
             {cosaCambia.map((t, i) => <li key={i} style={{ marginBottom: 4 }}>{t}</li>)}
           </ul>
         </div>
 
         <div style={{
           padding: '12px 14px', background: '#FEF9EB',
-          border: '1px solid #FDE68A', borderRadius: 10, marginBottom: 18,
+          border: `1px solid ${T.bordoAvviso}`, borderRadius: 10, marginBottom: 18,
           fontSize: 12, color: '#78350F', lineHeight: 1.55,
         }}>
           <strong>Nessun dato verrà cancellato.</strong>&nbsp;
           Se hai dubbi prima di confermare,&nbsp;
-          <a href="mailto:support@foodos.it" style={{ color: '#92400E', textDecoration: 'underline', fontWeight: 600 }}>
+          <a href="mailto:support@foodos.it" style={{ color: T.amberDark, textDecoration: 'underline', fontWeight: 600 }}>
             contatta il supporto
           </a>.
         </div>
@@ -628,15 +623,15 @@ function DialogCambioMetodo({ info, onAnnulla, onConferma }) {
           <button onClick={onAnnulla} autoFocus
             style={{
               padding: '11px 22px', minHeight: 44,
-              background: '#FFFFFF', border: `1px solid ${BOR}`, borderRadius: 10,
-              fontSize: 13, fontWeight: 700, color: TXT, cursor: 'pointer',
+              background: '#FFFFFF', border: `1px solid ${T.bordoTenue}`, borderRadius: 10,
+              fontSize: 13, fontWeight: 700, color: T.testoBrunoForte, cursor: 'pointer',
             }}>
             Annulla
           </button>
           <button onClick={onConferma}
             style={{
               padding: '11px 22px', minHeight: 44,
-              background: R, border: 'none', borderRadius: 10,
+              background: T.brand, border: 'none', borderRadius: 10,
               fontSize: 13, fontWeight: 700, color: '#FFFFFF', cursor: 'pointer',
             }}>
             Ho letto, confermo

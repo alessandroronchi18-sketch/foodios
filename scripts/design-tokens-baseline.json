@@ -149,10 +149,10 @@
     "testo-a-mano": 13
   },
   "src/components/Impostazioni.jsx": {
-    "colore-a-mano": 41
+    "colore-a-mano": 19
   },
   "src/components/ImpostazioniSedi.jsx": {
-    "colore-a-mano": 54,
+    "colore-a-mano": 38,
     "testo-a-mano": 37,
     "tripla-a-mano": 1
   },
@@ -337,7 +337,7 @@
     "tripla-a-mano": 2
   },
   "src/views/CostiAziendaliView.jsx": {
-    "colore-a-mano": 9
+    "colore-a-mano": 5
   },
   "src/views/DashboardHomeView.jsx": {
     "colore-a-mano": 14,
@@ -358,11 +358,11 @@
     "testo-a-mano": 7
   },
   "src/views/InventarioSettimanaleView.jsx": {
-    "colore-a-mano": 42,
+    "colore-a-mano": 43,
     "antizoom-a-mano": 2
   },
   "src/views/MagazzinoView.jsx": {
-    "colore-a-mano": 5,
+    "colore-a-mano": 6,
     "tripla-a-mano": 1
   },
   "src/views/MarketplaceView.jsx": {
@@ -376,7 +376,7 @@
     "tripla-a-mano": 2
   },
   "src/views/NuovaRicettaView.jsx": {
-    "colore-a-mano": 30,
+    "colore-a-mano": 31,
     "testo-a-mano": 1,
     "antizoom-a-mano": 1
   },
@@ -425,12 +425,12 @@
     "antizoom-a-mano": 2
   },
   "src/views/StoricoProduzioneView.jsx": {
-    "colore-a-mano": 20,
+    "colore-a-mano": 21,
     "tripla-a-mano": 3,
     "antizoom-a-mano": 1
   },
   "src/views/VenditeB2BView.jsx": {
-    "colore-a-mano": 10,
+    "colore-a-mano": 11,
     "tripla-a-mano": 2,
     "antizoom-a-mano": 1
   },
