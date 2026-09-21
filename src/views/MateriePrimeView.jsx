@@ -87,6 +87,7 @@ import {
 } from './_shared'
 import { fmtp0, leggiPrezzoKg, letturaPrezzoKg } from '../lib/formatIt'
 import { formatNome } from './_shared'
+import StoricoPrezziSection from './StoricoPrezziSection'
 import { loadXLSX } from '../lib/xlsx'
 import {
   leggiFileMateriePrime, analizzaImportMateriePrime, applicaImportMateriePrime,
@@ -630,7 +631,14 @@ export default function MateriePrimeView({
   // sola — e uno storico dei prezzi che non torna è un P&L che non torna.
   // Un `ref` cambia subito, senza aspettare il ridisegno.
   const inCorso = useRef(false)
-  const [showLog, setShowLog] = useState(false)
+  // ── Due sezioni, non un cassetto ────────────────────────────────────────
+  //
+  // Richiesta del titolare, 21/09/2026: lo storico delle modifiche non deve
+  // «solo aprire un elenco», deve essere una sezione sua con i filtri —
+  // perché con le bolle che aggiornano i prezzi da sole quelle righe
+  // diventano migliaia, e la domanda vera è «cosa mi ha aumentato questo
+  // fornitore?», non «cosa è cambiato per ultimo».
+  const [vista, setVista] = useState('listino')
   // La creazione di una materia prima nuova.
   const [showNuova, setShowNuova] = useState(false)
   // L'import in blocco: il resoconto si guarda PRIMA di scrivere.
@@ -702,6 +710,18 @@ export default function MateriePrimeView({
   const [eliminando, setEliminando] = useState(false)
 
   const righe = useMemo(() => materiePrimeDaRicettario(ricettario), [ricettario])
+
+  // Il fornitore di ogni materia prima, come sta nel listino. Serve al filtro
+  // dello storico per le righe scritte a mano, che un fornitore addosso non ce
+  // l'hanno: quelle che arrivano da una bolla portano il fornitore del
+  // documento, che è il dato vero — chi ha mandato quella merce a quel prezzo.
+  const fornitoreDiMateriaPrima = useMemo(() => {
+    const m = {}
+    for (const r of (righe || [])) {
+      if (r?.nome && r?.fornitore) m[String(r.nome).toLowerCase().trim()] = r.fornitore
+    }
+    return m
+  }, [righe])
   const conti = useMemo(() => contaMateriePrime(righe), [righe])
   const giaUsate = useMemo(() => chiaviGiaUsate(ricettario), [ricettario])
 
@@ -901,42 +921,6 @@ export default function MateriePrimeView({
     if (n.has(key)) n.delete(key); else n.add(key)
     return n
   })
-
-  // ── Lo storico, una riga per volta ──────────────────────────────────────
-  // Le stesse celle servono due volte: nella tabella del computer e nelle
-  // schede del telefono. Scritte una volta sola, o le due versioni divergono
-  // — è successo con le voci del menu, ed è il motivo per cui `menuFoodos.js`
-  // esiste.
-  const righeLog = (logPrezzi || []).slice(0, 50)
-
-  const quandoLog = (l) => new Date(l.data).toLocaleString('it-IT', { useGrouping: 'always', day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })
-
-  // Da quando vale questo prezzo. Un prezzo con decorrenza futura prima non si
-  // vedeva da nessuna parte: si poteva impostare e dimenticare, e il food cost
-  // cambiava da solo il giorno stabilito.
-  const valeDaLog = (l) => {
-    const da = l.decorre_da || l.data
-    if (!da) return '—'
-    const d = new Date(da)
-    if (isNaN(d.getTime())) return '—'
-    const futuro = d.getTime() > Date.now()
-    return (
-      <span style={{ color: futuro ? T.amberDark : C.textMid, fontWeight: futuro ? 700 : 400 }}>
-        {d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit' })}
-        {futuro && ' (futuro)'}
-      </span>
-    )
-  }
-
-  // `delta` può mancare nelle righe di storico vecchie, e
-  // `undefined.toLocaleString()` fa esplodere l'intera pagina: una riga
-  // malformata portava via tutto, non solo la sua cella.
-  const differenzaLog = (l) => (
-    <span style={{ color: (l.delta || 0) > 0 ? C.alert : (l.delta || 0) < 0 ? C.green : C.textSoft, fontWeight: 700 }}>
-      {(l.delta || 0) > 0 ? '+' : ''}{(l.delta || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
-      {Number.isFinite(Number(l.deltaPct)) && <span style={{ fontSize: FS.sm, marginLeft: 4, opacity: 0.7 }}>({Number(l.deltaPct) > 0 ? '+' : ''}{fmtp(Number(l.deltaPct))})</span>}
-    </span>
-  )
 
   const etichettaStato = (row) => {
     if (row.statoPrezzo === 'mancante') {
@@ -1356,6 +1340,16 @@ export default function MateriePrimeView({
         </div>
       )}
 
+      {vista === 'storico' && (
+        <StoricoPrezziSection
+          logPrezzi={logPrezzi}
+          fornitoreDi={fornitoreDiMateriaPrima}
+          isMobile={isMobile}
+          onTornaAlListino={() => setVista('listino')}
+        />
+      )}
+
+      {vista === 'listino' && (<>
       <div style={{ display: 'flex', gap: 10, marginBottom: 14, alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{ flex: 1, minWidth: 200 }}>
           <input value={search} onChange={e => setSearch(e.target.value)}
@@ -1363,12 +1357,12 @@ export default function MateriePrimeView({
             aria-label="Cerca una materia prima"
             style={{ width: '100%', padding: '11px 14px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.border}`, fontSize: FS.base, background: C.white, color: C.text, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}/>
         </div>
-        <button onClick={() => setShowLog(s => !s)}
-          style={{ padding: '0 14px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.borderStr}`, background: showLog ? C.redLight : 'transparent', fontSize: FS.sm, fontWeight: 700, color: showLog ? C.red : C.textMid, cursor: 'pointer', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'inherit' }}>
+        <button onClick={() => setVista('storico')}
+          aria-label={`Apri lo storico delle modifiche dei prezzi · ${(logPrezzi?.length || 0).toLocaleString('it-IT', { useGrouping: 'always' })} modifiche`}
+          style={{ padding: '0 14px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.borderStr}`, background: 'transparent', fontSize: FS.sm, fontWeight: 700, color: C.textMid, cursor: 'pointer', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'inherit' }}>
           {/* «Log» è gergo da informatico: in italiano si chiama storico. */}
-          {showLog
-            ? <><Icon name="x" size={13} />Chiudi lo storico</>
-            : <><Icon name="fileText" size={13} />{`Storico modifiche · ${(logPrezzi?.length || 0).toLocaleString('it-IT', { useGrouping: 'always' })}`}</>}
+          <Icon name="fileText" size={13} />{`Storico modifiche · ${(logPrezzi?.length || 0).toLocaleString('it-IT', { useGrouping: 'always' })}`}
+          <Icon name="chevR" size={13} />
         </button>
       </div>
 
@@ -1377,70 +1371,6 @@ export default function MateriePrimeView({
         modifica resta scritta con la data: serve quando il food cost di un mese non torna.
       </div>
 
-      {showLog && (
-        <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, marginBottom: 18, overflow: 'hidden', boxShadow: SHADOW_PREMIUM }}>
-          <div style={{ padding: '11px 14px', background: C.bgSubtle, fontSize: typo.small.fontSize, fontWeight: 700, color: C.textMid, borderBottom: `1px solid ${C.border}` }}>
-            Storico modifiche prezzi · ultime {Math.min(50, logPrezzi?.length || 0)} di {(logPrezzi?.length || 0).toLocaleString('it-IT', { useGrouping: 'always' })}
-          </div>
-          {righeLog.length === 0 ? (
-            <div style={{ padding: '24px 16px', textAlign: 'center', fontSize: FS.sm, color: C.textSoft }}>Nessuna modifica registrata.</div>
-          ) : (
-            <div style={{ maxHeight: 240, overflowY: 'auto', overflowX: 'auto', padding: isMobile ? 10 : 0 }}>
-              {/* Sei colonne su uno schermo da 390 non sono una tabella: sono
-                  un cassetto. Sul telefono diventano una scheda per modifica,
-                  con lo stesso contenuto e le stesse parole. */}
-              <TabellaOSchede
-                minWidth={560}
-                righe={righeLog}
-                chiave={(l) => l.id}
-                vuoto="Nessuna modifica registrata."
-                titolo={(l) => <span>{l.ingrediente}</span>}
-                riassunto={(l) => (
-                  <span style={{ ...typo.caption, color: C.textSoft, fontWeight: 400, textAlign: 'right', display: 'inline-block' }}>
-                    {quandoLog(l)}
-                    {/* Chi ha cambiato il prezzo: su un dato che sposta il food
-                        cost di tutte le ricette, sapere chi l'ha toccato serve.
-                        Era già nello storico e non si vedeva. */}
-                    {l.utente && <div>{String(l.utente).split('@')[0]}</div>}
-                  </span>
-                )}
-                colonne={[
-                  { k: 'valeDa', label: 'Vale da', cella: valeDaLog },
-                  { k: 'vecchio', label: 'Vecchio', cella: (l) => euroKg(l.prezzoVecchio || 0) },
-                  { k: 'nuovo', label: 'Nuovo', forte: true, cella: (l) => euroKg(l.prezzoNuovo || 0) },
-                  { k: 'diff', label: 'Differenza', cella: differenzaLog },
-                ]}
-                intestazione={<thead>
-                  <tr>
-                    {['Modificato il', 'Materia prima', 'Vale da', 'Vecchio', 'Nuovo', 'Differenza'].map((h, i) => (
-                      <th key={h} style={{ padding: '8px 12px', textAlign: i >= 3 ? 'right' : 'left', ...typo.caption, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, background: C.bgSubtle }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>}
-                corpo={<tbody>
-                  {righeLog.map(l => (
-                    <tr key={l.id} style={{ borderBottom: `1px solid ${C.border}` }}>
-                      <td style={{ textAlign: 'left', ...TNUM, padding: '7px 12px', color: C.textMid, whiteSpace: 'nowrap' }}>
-                        {quandoLog(l)}
-                        {l.utente && (
-                          <div style={{ ...typo.caption, color: C.textSoft, fontWeight: 400 }}>{String(l.utente).split('@')[0]}</div>
-                        )}
-                      </td>
-                      {/* `capitalize` rompe le maiuscole vere: «FARINA 00»
-                          diventava «Farina 00». Il nome resta come scritto. */}
-                      <td style={{ padding: '7px 12px', fontWeight: 600, color: C.text }}>{l.ingrediente}</td>
-                      <td style={{ padding: '7px 12px', color: C.textMid, whiteSpace: 'nowrap' }}>{valeDaLog(l)}</td>
-                      <td style={{ padding: '7px 12px', textAlign: 'right', color: C.textMid, ...TNUM }}>{euroKg(l.prezzoVecchio || 0)}</td>
-                      <td style={{ padding: '7px 12px', textAlign: 'right', fontWeight: 700, color: C.text, ...TNUM }}>{euroKg(l.prezzoNuovo || 0)}</td>
-                      <td style={{ padding: '7px 12px', textAlign: 'right', ...TNUM }}>{differenzaLog(l)}</td>
-                    </tr>
-                  ))}
-                </tbody>}
-              />
-            </div>
-          )}
-        </div>
-      )}
 
       <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: R['2xl'], overflow: 'hidden', boxShadow: SHADOW_PREMIUM }}>
         <TabellaOSchede
@@ -1623,6 +1553,8 @@ export default function MateriePrimeView({
           </button>
         )}
       </div>
+
+      </>)}
 
       {confirmKey && (() => {
         const row = righe.find(r => r.key === confirmKey)

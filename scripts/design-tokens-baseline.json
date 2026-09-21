@@ -149,9 +149,7 @@
     "testo-a-mano": 13
   },
   "src/components/Impostazioni.jsx": {
-    "colore-a-mano": 43,
-    "testo-a-mano": 13,
-    "antizoom-a-mano": 2
+    "colore-a-mano": 41
   },
   "src/components/ImpostazioniSedi.jsx": {
     "colore-a-mano": 54,
@@ -339,10 +337,7 @@
     "tripla-a-mano": 2
   },
   "src/views/CostiAziendaliView.jsx": {
-    "colore-a-mano": 27,
-    "testo-a-mano": 5,
-    "tripla-a-mano": 4,
-    "antizoom-a-mano": 1
+    "colore-a-mano": 9
   },
   "src/views/DashboardHomeView.jsx": {
     "colore-a-mano": 14,

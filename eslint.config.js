@@ -101,6 +101,14 @@ export default [
     // Test files: rilasso
     files: ['tests/**/*.{js,jsx}'],
     languageOptions: {
+      // Senza questo, **ogni** file di prove `.jsx` dava «Parsing error:
+      // Unexpected token <» alla prima riga di JSX. Il blocco dichiarava i
+      // file `.jsx` ma non il parser che li sa leggere, e il difetto non si
+      // vedeva perché il cancello di push linta solo `src/` e `api/`.
+      // Trovato il 21/09/2026 mentre si scrivevano le prove dei costi fissi.
+      parserOptions: {
+        ecmaFeatures: { jsx: true },
+      },
       globals: {
         describe: 'readonly', it: 'readonly', test: 'readonly',
         expect: 'readonly', beforeEach: 'readonly', afterEach: 'readonly',
@@ -113,6 +121,21 @@ export default [
         setInterval: 'readonly', clearInterval: 'readonly',
         fetch: 'readonly', URL: 'readonly', TextEncoder: 'readonly',
         globalThis: 'readonly', structuredClone: 'readonly',
+        // Le prove delle pagine girano in happy-dom: `document`, `window` e
+        // compagnia sono globali VERE lì dentro, e senza dichiararle uscivano
+        // 400 errori finti — il modo migliore per far smettere di guardare.
+        document: 'readonly', window: 'readonly', localStorage: 'readonly',
+        sessionStorage: 'readonly', navigator: 'readonly', location: 'readonly',
+        HTMLElement: 'readonly', Element: 'readonly', Node: 'readonly',
+        Event: 'readonly', CustomEvent: 'readonly', MouseEvent: 'readonly',
+        KeyboardEvent: 'readonly', Blob: 'readonly', File: 'readonly',
+        FileReader: 'readonly', FormData: 'readonly', Headers: 'readonly',
+        Request: 'readonly', Response: 'readonly', AbortController: 'readonly',
+        requestAnimationFrame: 'readonly', cancelAnimationFrame: 'readonly',
+        getComputedStyle: 'readonly', matchMedia: 'readonly',
+        // Node, per i file di prove che leggono il sorgente dal disco.
+        __dirname: 'readonly', __filename: 'readonly', global: 'readonly',
+        crypto: 'readonly', performance: 'readonly',
       },
     },
     rules: {
