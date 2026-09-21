@@ -139,7 +139,37 @@ export function misura() {
       const perToken = src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1 ')
       for (const re of REGOLE_TOKEN) dev += (perToken.match(re) || []).length
       finestre += (codice.match(/(?:^|[^.\w$])(?:window\s*\.\s*(?:prompt|confirm|alert)\s*\(|(?<!await\s)(?:prompt|confirm|alert)\s*\((?!\s*\{))/g) || []).length
-      divClick += (codice.match(/<div[^>]{0,400}?onClick/gs) || []).length
+      // Un `<div onClick>` è un comando invisibile a chi usa la tastiera o a
+      // un lettore di schermo. Contarli però è più difficile di quanto sembri,
+      // e questo conteggio ha sbagliato due volte prima di funzionare:
+      //
+      //   1. `<div[^>]{0,400}?onClick` — `[^>]` si ferma sul `>` di `=>`,
+      //      quindi non arrivava mai a leggere il corpo del gestore;
+      //   2. `<div[\s\S]{0,400}?onClick` — la finestra larga agganciava
+      //      l'`onClick` di un elemento ANNIDATO e contava il `<div>` di fuori.
+      //      La media di tutto il prodotto è scesa di otto punti in un colpo,
+      //      e non era cambiata una riga di prodotto.
+      //
+      // Si fa al contrario: si parte da ogni `onClick` e si guarda **indietro**
+      // fino al tag che lo possiede. Se quel tag è un `div`, è un candidato.
+      //
+      // Due forme non sono comandi e non si contano, o si finisce a
+      // «correggere» codice giusto per far salire un numero:
+      //   `onClick={e => e.stopPropagation()}` — è un BLOCCO del clic, serve a
+      //      non far chiudere la finestra cliccandoci dentro. Non fa niente.
+      //   un tag che ha già un `role` — è il velo di una finestra, che un
+      //      ruolo ce l'ha e si chiude anche con Esc.
+      for (const m of codice.matchAll(/onClick\s*=\s*\{/g)) {
+        const prima = codice.slice(Math.max(0, m.index - 400), m.index)
+        const apre = prima.lastIndexOf('<')
+        if (apre === -1) continue
+        const tag = prima.slice(apre)
+        if (!/^<div[\s>]/.test(tag)) continue        // non è un div
+        if (/\brole\s*=/.test(tag)) continue          // ha già un ruolo
+        const corpo = codice.slice(m.index, m.index + 120)
+        if (/=>\s*e\.stopPropagation\(\)\s*\}/.test(corpo)) continue
+        divClick++
+      }
     }
     const dev100 = nRighe ? Math.round(dev * 1000 / nRighe) / 10 : 0
 
