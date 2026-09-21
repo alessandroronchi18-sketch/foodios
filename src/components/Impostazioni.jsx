@@ -13,8 +13,8 @@
 
 import React, { Suspense, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import useIsMobile from '../lib/useIsMobile'
-import { color as T, radius as R, shadow as S, motion as M, font } from '../lib/theme'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
+import { color as T, radius as R, shadow as S, motion as M, font, ui, z } from '../lib/theme'
 
 import AbbonamentoPanel from './AbbonamentoPanel'
 import WhatsAppReportPanel from './WhatsAppReportPanel'
@@ -27,15 +27,74 @@ import EsportaDati from './EsportaDati'
 import ReferralPanel from './ReferralPanel'
 import DeleteAccountModal from './DeleteAccountModal'
 
-import { getAllRese, getStoreRese, setResaIngrediente, salvaRese } from '../lib/rese'
+import { getAllRese, getStoreRese, setResaIngrediente, salvaRese, loadRese, resetRese } from '../lib/rese'
 import { lazyWithReload } from '../lib/lazyWithReload'
-import { PLAN_LABEL } from '../lib/planAccess'
+import { PLAN_LABEL, PLAN_PRICE_EUR } from '../lib/planAccess'
+import { fmt, fmt0 } from '../lib/formatIt'
 
 // Integrazioni caricata lazy (bundle ~35KB): solo se l'utente apre la
 // sezione da Impostazioni → Notifiche & Integrazioni.
 const IntegrazioniLazy = lazyWithReload(() => import('./Integrazioni'))
 
 const SK_RESE = 'pasticceria-rese-v1' // stesso constant usato da Dashboard.jsx per persistere su localStorage
+
+// ─── Un dato che non c'è non si scrive come se ci fosse ──────────────────────
+//
+// 21/09/2026. Nello storico dei pacchetti foto AI l'importo era scritto
+// `€{(p.amount_paid_cents / 100).toFixed(2)}` e la data
+// `new Date(p.acquistato_il).toLocaleDateString('it-IT')`. Tre cose sbagliate
+// in una riga sola, e si vedono tutte e tre solo quando il dato manca — cioè
+// sugli acquisti registrati a mano e su quelli importati da Stripe prima che
+// la colonna esistesse:
+//
+//   importo assente  → «€NaN»
+//   data assente     → «Invalid Date»
+//   importo presente → «€5.00», con il simbolo davanti e il punto decimale
+//                       all'inglese, invece di «5,00 €»
+//
+// `fmt`/`fmt0` (src/lib/formatIt.js) scrivono il numero come si scrive in
+// Italia; queste due funzioni rispondono `null` quando il dato non c'è, così
+// chi disegna la riga deve DECIDERE cosa dire — e dice «non disponibile»,
+// che è la verità, invece di un numero inventato.
+
+/** L'importo in euro a partire dai centesimi, o `null` se non c'è. */
+export function importoDaCentesimi(centesimi) {
+  if (centesimi === null || centesimi === undefined || centesimi === '') return null
+  const n = Number(centesimi)
+  return Number.isFinite(n) ? fmt(n / 100) : null
+}
+
+/** La data all'italiana, o `null` se manca o non è una data. */
+export function dataIt(valore) {
+  if (!valore) return null
+  const d = new Date(valore)
+  return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString('it-IT')
+}
+
+// ─── Il velo di una finestra è un comando, quindi è un pulsante ──────────────
+//
+// Stesso modello di `VeloFinestra` in `src/components/Scadenzario.jsx`, e
+// stesso motivo. Qui sopra la finestra «Richiedere il cambio metodo?» c'era un
+// `<div onClick>` che la chiudeva: col dito e col mouse funziona, con la
+// tastiera no, e a un lettore di schermo quel rettangolo non risulta nemmeno
+// esistere — resta una finestra che si apre e non si sa come si chiude.
+//
+// Il velo è un `<button>` vero, che si raggiunge con Tab e dice cosa fa, e la
+// finestra si chiude anche con Esc. Il riquadro bianco va messo sopra
+// (`position: relative`), altrimenti il velo se lo mangia.
+function VeloFinestra({ onChiudi, colore = 'rgba(28,10,10,0.55)', attivo = true }) {
+  useEffect(() => {
+    if (!attivo) return undefined
+    const suTasto = e => { if (e.key === 'Escape') onChiudi?.() }
+    document.addEventListener('keydown', suTasto)
+    return () => document.removeEventListener('keydown', suTasto)
+  }, [onChiudi, attivo])
+  return (
+    <button type="button" onClick={() => attivo && onChiudi?.()} aria-label="Chiudi la finestra"
+      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none',
+        padding: 0, margin: 0, background: colore, cursor: attivo ? 'default' : 'not-allowed' }} />
+  )
+}
 
 // ─── Icons (SVG inline, no extra deps) ───────────────────────────────────────
 const Icon = ({ name, size = 16, color = 'currentColor' }) => {
@@ -72,16 +131,27 @@ const Icon = ({ name, size = 16, color = 'currentColor' }) => {
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink:0 }}>{p}</svg>
 }
 
-// ─── Input style helper (mobile: fontSize >= 16 per evitare zoom iOS) ─────────
-const mkInp = (isMobile) => ({
+// ─── Lo schermo che si tocca col dito ────────────────────────────────────────
+//
+// Telefono E tablet: il polpastrello e' lo stesso, e il campo di testo sotto i
+// 16px fa ingrandire la pagina da solo su iOS. Qui c'era `isMobile ? 16 : 13`,
+// che su iPad prende il ramo del computer — e' lo stesso difetto che il
+// 15/09/2026 aveva lasciato 95 campi sotto soglia sul tablet.
+const useDito = () => {
+  const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
+  return isMobile || isTablet
+}
+
+const mkInp = (dito) => ({
   width:'100%', height:40, padding:'0 12px',
   border:`1px solid ${T.borderStr}`, borderRadius:R.md,
-  fontSize: isMobile ? 16 : 13, color:T.text, background:T.bgCard,
+  fontSize: dito ? ui.inputFs.telefono : ui.inputFs.computer, color:T.text, background:T.bgCard,
   outline:'none', boxSizing:'border-box', fontFamily:'inherit',
 })
 const mkBtn = (disabled) => ({
   height:40, padding:'0 18px', borderRadius:R.md, border:'none',
-  background:T.brand, color:T.white, fontSize:13, fontWeight:700,
+  background:T.brand, color:T.white, fontSize: font.size.base, fontWeight:700,
   cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.5 : 1,
   whiteSpace:'nowrap',
 })
@@ -201,7 +271,7 @@ function MetodoProduzioneSection({ orgId, metodoProduzione, notify }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
           <div style={{ fontSize: font.size.md, fontWeight: 800, color: T.tooltipBg }}>{titolo}</div>
           {selected && (
-            <span style={{ fontSize: font.size.sm, fontWeight: 700, color: T.brand, background: T.white, border: '1px solid #6E0E1A', padding: '2px 8px', borderRadius: 999, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            <span style={{ fontSize: font.size.sm, fontWeight: 700, color: T.brand, background: T.white, border: `1px solid ${T.brand}`, padding: '2px 8px', borderRadius: 999, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               Attivo
             </span>
           )}
@@ -222,7 +292,7 @@ function MetodoProduzioneSection({ orgId, metodoProduzione, notify }) {
       {!loadingReq && richiestaPending && (
         <div style={{ marginBottom: 14, padding: '12px 14px', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 10, fontSize: font.size.sm, color: T.amberDark, lineHeight: 1.55 }}>
           <div style={{ fontWeight: 700, marginBottom: 4 }}>Richiesta in attesa di approvazione</div>
-          <div>Vuoi passare da <b>{labelMetodo(richiestaPending.from_metodo)}</b> a <b>{labelMetodo(richiestaPending.to_metodo)}</b>. Inviata il {new Date(richiestaPending.created_at).toLocaleDateString('it-IT')}.</div>
+          <div>Vuoi passare da <b>{labelMetodo(richiestaPending.from_metodo)}</b> a <b>{labelMetodo(richiestaPending.to_metodo)}</b>.{dataIt(richiestaPending.created_at) ? ` Inviata il ${dataIt(richiestaPending.created_at)}.` : ''}</div>
           {richiestaPending.motivazione && <div style={{ marginTop: 6, fontStyle: 'italic', color: '#78350F' }}>Motivo: {richiestaPending.motivazione}</div>}
           <div style={{ marginTop: 10 }}>
             <button type="button" onClick={() => cancellaRichiesta(richiestaPending.id)} disabled={saving}
@@ -235,7 +305,7 @@ function MetodoProduzioneSection({ orgId, metodoProduzione, notify }) {
       {!loadingReq && !richiestaPending && ultimaDecisa?.status === 'rejected' && (
         <div style={{ marginBottom: 14, padding: '12px 14px', background: T.redLight, border: '1px solid #FCA5A5', borderRadius: 10, fontSize: font.size.sm, color: '#7F1D1D', lineHeight: 1.55 }}>
           <div style={{ fontWeight: 700, marginBottom: 4 }}>Ultima richiesta non approvata</div>
-          <div>Passaggio a <b>{labelMetodo(ultimaDecisa.to_metodo)}</b> del {new Date(ultimaDecisa.decided_at || ultimaDecisa.created_at).toLocaleDateString('it-IT')}.</div>
+          <div>Passaggio a <b>{labelMetodo(ultimaDecisa.to_metodo)}</b> {dataIt(ultimaDecisa.decided_at || ultimaDecisa.created_at) ? ` del ${dataIt(ultimaDecisa.decided_at || ultimaDecisa.created_at)}` : ''}.</div>
           {ultimaDecisa.admin_note && <div style={{ marginTop: 6, fontStyle: 'italic' }}>Motivo: {ultimaDecisa.admin_note}</div>}
         </div>
       )}
@@ -254,11 +324,11 @@ function MetodoProduzioneSection({ orgId, metodoProduzione, notify }) {
       </div>
 
       {confirm && (
-        <div role="dialog" aria-modal="true"
-          onClick={(e) => { if (e.target === e.currentTarget && !saving) setConfirm(null) }}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(28,10,10,0.55)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div style={{ background: T.white, borderRadius: 14, boxShadow: '0 20px 60px rgba(0,0,0,0.25)', maxWidth: 480, width: '100%', padding: 24 }}>
-            <div style={{ fontSize: font.size.lg, fontWeight: 800, color: T.tooltipBg, marginBottom: 8 }}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: z.conferma, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <VeloFinestra onChiudi={() => setConfirm(null)} attivo={!saving}/>
+          <div role="dialog" aria-modal="true" aria-labelledby="titolo-cambio-metodo"
+            style={{ position: 'relative', background: T.white, borderRadius: 14, boxShadow: '0 20px 60px rgba(0,0,0,0.25)', maxWidth: 480, width: '100%', padding: 24 }}>
+            <div id="titolo-cambio-metodo" style={{ fontSize: font.size.lg, fontWeight: 800, color: T.tooltipBg, marginBottom: 8 }}>
               Richiedere il cambio metodo?
             </div>
             <div style={{ fontSize: font.size.base, color: '#4A3728', lineHeight: 1.55, marginBottom: 12 }}>
@@ -293,6 +363,7 @@ function MetodoProduzioneSection({ orgId, metodoProduzione, notify }) {
 
 function ProfiloSection({ auth, nomeAttivita, tipoAttivita, piano, orgId, notify }) {
   const isMobile = useIsMobile()
+  const dito = useDito()
   const [nomeMod, setNomeMod] = useState(nomeAttivita || '')
   const [saving, setSaving] = useState(false)
 
@@ -311,7 +382,7 @@ function ProfiloSection({ auth, nomeAttivita, tipoAttivita, piano, orgId, notify
     } finally { setSaving(false) }
   }
 
-  const inp = mkInp(isMobile)
+  const inp = mkInp(dito)
   const ro  = { ...inp, background:T.bgSubtle, color:T.textMid, display:'flex', alignItems:'center' }
   const disabled = saving || nomeMod === nomeAttivita || !nomeMod.trim()
 
@@ -330,8 +401,14 @@ function ProfiloSection({ auth, nomeAttivita, tipoAttivita, piano, orgId, notify
           <div style={ro}>{tipoAttivita || '-'}</div>
         </FieldRow>
         <FieldRow label="Piano" hint="Cambia da Fatturazione → Abbonamento">
-          <div style={ro}>
+          <div style={{ ...ro, gap: 8 }}>
             <PianoBadge piano={piano} approvato={auth?.org?.approvato}/>
+            {/* Il prezzo viene da PLAN_PRICE_EUR, la stessa tabella che usa
+                Stripe al momento del pagamento: scriverlo a mano qui vorrebbe
+                dire che un giorno il listino e la schermata non coincidono. */}
+            {PLAN_PRICE_EUR[piano] > 0 && (
+              <span style={{ color: T.textSoft, fontVariantNumeric: 'tabular-nums' }}>{fmt0(PLAN_PRICE_EUR[piano])}/mese</span>
+            )}
           </div>
         </FieldRow>
       </div>
@@ -344,10 +421,11 @@ function ProfiloSection({ auth, nomeAttivita, tipoAttivita, piano, orgId, notify
 // al vecchio). Il cambio diventa effettivo solo dopo che l'utente clicca il link.
 function CambioEmailForm({ auth, notify }) {
   const isMobile = useIsMobile()
+  const dito = useDito()
   const emailCorrente = auth?.user?.email || ''
   const [nuova, setNuova] = useState('')
   const [saving, setSaving] = useState(false)
-  const inp = mkInp(isMobile)
+  const inp = mkInp(dito)
 
   const valida = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(nuova.trim())
   const disabled = saving || !valida || nuova.trim().toLowerCase() === emailCorrente.toLowerCase()
@@ -382,10 +460,11 @@ function CambioEmailForm({ auth, notify }) {
 // Validazione: lunghezza >= 8 + conferma combaciante.
 function CambioPasswordForm({ notify }) {
   const isMobile = useIsMobile()
+  const dito = useDito()
   const [pwd, setPwd] = useState('')
   const [conferma, setConferma] = useState('')
   const [saving, setSaving] = useState(false)
-  const inp = mkInp(isMobile)
+  const inp = mkInp(dito)
 
   const troppoCorta = pwd.length > 0 && pwd.length < 8
   const nonCombacia = conferma.length > 0 && pwd !== conferma
@@ -493,10 +572,11 @@ function DangerZoneCard({ auth, notify }) {
 // Nessuna informazione aziendale.
 function DipendenteAccountSection({ auth, notify }) {
   const isMobile = useIsMobile()
+  const dito = useDito()
   const userId = auth?.user?.id
   const [nome, setNome] = useState(auth?.profile?.nome_completo || '')
   const [saving, setSaving] = useState(false)
-  const inp = mkInp(isMobile)
+  const inp = mkInp(dito)
 
   useEffect(() => { setNome(auth?.profile?.nome_completo || '') }, [auth?.profile?.nome_completo])
 
@@ -546,7 +626,7 @@ function LogoutCard({ auth, notify }) {
   return (
     <SectionCard title="Sessione" description="Esci da Foodos su questo dispositivo.">
       <button onClick={esci} disabled={busy}
-        style={{ height:40, padding:'0 18px', borderRadius:R.md, border:`1px solid ${T.borderStr}`, background:T.bgCard, color:T.red, fontSize:13, fontWeight:700, cursor: busy ? 'not-allowed':'pointer', display:'inline-flex', alignItems:'center', gap:8 }}>
+        style={{ height:40, padding:'0 18px', borderRadius:R.md, border:`1px solid ${T.borderStr}`, background:T.bgCard, color:T.red, fontSize: font.size.base, fontWeight:700, cursor: busy ? 'not-allowed':'pointer', display:'inline-flex', alignItems:'center', gap:8 }}>
         <Icon name="logout" size={15} color={T.red}/> {busy ? 'Uscita…' : 'Esci'}
       </button>
     </SectionCard>
@@ -568,27 +648,48 @@ function ReportMensiliSection({ orgId, notify }) {
       .then(({ data }) => { if (data?.data_value?.emailReport === false) setEnabled(false) })
   }, [orgId])
 
+  // Prima si scrive, poi si muove l'interruttore. Regola 4 di CLAUDE.md, e
+  // qui era rovesciata: `setEnabled(val)` stava PRIMA dell'await.
+  //
+  // 21/09/2026. Due modi di rompersi, e il secondo non lasciava traccia:
+  //   1. l'upsert torna `{ error }` → si rimetteva `setEnabled(!val)`, che NON
+  //      è lo stato di prima ma «il contrario di quello che ha chiesto adesso»:
+  //      con due tocchi rapidi l'interruttore finiva al valore sbagliato;
+  //   2. l'upsert **lancia** (rete giù, sessione scaduta): la promessa non era
+  //      catturata da nessuno. L'interruttore restava acceso, niente era stato
+  //      salvato, e all'utente non compariva nessun avviso. Il primo del mese
+  //      non arrivava niente e la pagina continuava a dire di sì.
+  const [salvando, setSalvando] = useState(false)
   async function toggle(val) {
-    setEnabled(val)
-    const { error } = await supabase.from('user_data').upsert({
-      organization_id: orgId, sede_id: null, data_key: 'report-settings-v1',
-      data_value: { emailReport: val },
-    }, { onConflict: 'organization_id,sede_id,data_key' })
-    if (error) { setEnabled(!val); notify(error.message, false); return }
-    notify(val ? 'Riceverai i report mensili' : 'Email report disattivata')
+    if (salvando) return
+    setSalvando(true)
+    try {
+      const { error } = await supabase.from('user_data').upsert({
+        organization_id: orgId, sede_id: null, data_key: 'report-settings-v1',
+        data_value: { emailReport: val },
+      }, { onConflict: 'organization_id,sede_id,data_key' })
+      if (error) throw error
+      setEnabled(val)
+      notify(val ? 'Riceverai i report mensili' : 'Email report disattivata')
+    } catch (e) {
+      // Lo stato NON si tocca: resta quello che è davvero salvato sul server.
+      notify('Non ho potuto salvare: ' + (e?.message || 'connessione assente'), false)
+    } finally {
+      setSalvando(false)
+    }
   }
 
   return (
     <SectionCard title="Report mensili via email"
       description="Ogni 1° del mese ricevi un PDF con i KPI del mese precedente, generato automaticamente da Foodos."
-      action={<Toggle checked={enabled} onChange={toggle}/>}>
+      action={<Toggle checked={enabled} onChange={toggle} disabled={salvando} etichetta="Report mensili via email"/>}>
       <div style={{ fontSize: font.size.sm, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8 }}>
         Storico report ({reports.length})
       </div>
       {loading ? (
-        <div style={{ fontSize:13, color:T.textSoft }}>Caricamento…</div>
+        <div style={{ fontSize: font.size.base, color:T.textSoft }}>Caricamento…</div>
       ) : reports.length === 0 ? (
-        <div style={{ padding:'14px 16px', background:T.bgSubtle, borderRadius:R.md, fontSize:12, color:T.textSoft, fontStyle:'italic' }}>
+        <div style={{ padding:'14px 16px', background:T.bgSubtle, borderRadius:R.md, fontSize: font.size.sm, color:T.textSoft, fontStyle:'italic' }}>
           Nessun report ancora. Il primo verrà generato il 1° del prossimo mese.
         </div>
       ) : (
@@ -598,9 +699,9 @@ function ReportMensiliSection({ orgId, notify }) {
             return (
               <div key={r.name} style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', background:T.bgSubtle, borderRadius:R.md }}>
                 <span style={{ color:T.textMid, display:'inline-flex' }}><Icon name="file" size={18}/></span>
-                <span style={{ flex:1, fontSize:13, fontWeight:600, color:T.text }}>{r.name.replace('.pdf','')}</span>
+                <span style={{ flex:1, fontSize: font.size.base, fontWeight:600, color:T.text }}>{r.name.replace('.pdf','')}</span>
                 <a href={urlData?.publicUrl} download target="_blank" rel="noreferrer"
-                  style={{ fontSize:12, fontWeight:700, color:T.brand, textDecoration:'none', display:'inline-flex', alignItems:'center', gap:4 }}>
+                  style={{ fontSize: font.size.sm, fontWeight:700, color:T.brand, textDecoration:'none', display:'inline-flex', alignItems:'center', gap:4 }}>
                   <Icon name="download" size={13}/> Scarica
                 </a>
               </div>
@@ -619,7 +720,7 @@ function PrezziImportSection({ onImportPrezzi }) {
       <label style={{
         display:'inline-flex', alignItems:'center', gap:10, padding:'12px 20px',
         background:'#FFFBEB', border:'1px dashed #FDE68A', borderRadius:R.md,
-        cursor:'pointer', fontSize:13, fontWeight:700, color:T.amberDark,
+        cursor:'pointer', fontSize: font.size.base, fontWeight:700, color:T.amberDark,
         whiteSpace:'nowrap',
       }}>
         <Icon name="upload" size={16}/>
@@ -627,7 +728,7 @@ function PrezziImportSection({ onImportPrezzi }) {
         <input type="file" accept=".xlsx,.xls,.csv" multiple style={{ display:'none' }}
           onChange={e => e.target.files.length && onImportPrezzi(e.target.files)}/>
       </label>
-      <div style={{ marginTop:12, fontSize:12, color:T.textSoft }}>
+      <div style={{ marginTop:12, fontSize: font.size.sm, color:T.textSoft }}>
         Suggerimento: per modificare un singolo prezzo usa <strong>Importa dati → Prezzi ingredienti</strong> con edit inline.
       </div>
     </SectionCard>
@@ -659,9 +760,9 @@ function PacchettiAIPanel({ auth, notify }) {
   }, 0)
 
   const PACKS_CATALOG = [
-    { id: 'foto_50',   prezzo: '€5',  euro: 5,   calls: 50,   per_call: '10¢',  perCallCents: 10 },
-    { id: 'foto_200',  prezzo: '€15', euro: 15,  calls: 200,  per_call: '7,5¢', perCallCents: 7.5, best: true },
-    { id: 'foto_1000', prezzo: '€60', euro: 60,  calls: 1000, per_call: '6¢',   perCallCents: 6 },
+    { id: 'foto_50',   euro: 5,   calls: 50,   per_call: '10¢',  perCallCents: 10 },
+    { id: 'foto_200',  euro: 15,  calls: 200,  per_call: '7,5¢', perCallCents: 7.5, best: true },
+    { id: 'foto_1000', euro: 60,  calls: 1000, per_call: '6¢',   perCallCents: 6 },
   ]
   // Risparmio % rispetto al pacchetto più piccolo (baseline €0.10/foto).
   // Aiuta l'utente a capire il valore incrementale dei pacchetti grandi.
@@ -729,12 +830,12 @@ function PacchettiAIPanel({ auth, notify }) {
               </div>
             )}
             {/* Titolo: quante foto AI (informazione principale) */}
-            <div style={{ fontSize: 15, fontWeight: 800, color: T.tooltipBg, letterSpacing: '-0.01em', marginBottom: 2 }}>
+            <div style={{ fontSize: font.size.md, fontWeight: 800, color: T.tooltipBg, letterSpacing: '-0.01em', marginBottom: 2 }}>
               {p.calls.toLocaleString('it-IT', { useGrouping: 'always' })} foto AI
             </div>
             {/* Prezzo grande sotto il titolo */}
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 6, marginBottom: 10 }}>
-              <span style={{ fontSize: isMobile ? 28 : 32, fontWeight: 900, color: T.tooltipBg, letterSpacing: '-0.02em', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{p.prezzo}</span>
+              <span style={{ fontSize: isMobile ? 28 : 32, fontWeight: 900, color: T.tooltipBg, letterSpacing: '-0.02em', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{fmt0(p.euro)}</span>
               <span style={{ fontSize: font.size.sm, color: T.textSoft }}>una tantum</span>
             </div>
             {/* Divisore + €/foto + eventuale risparmio */}
@@ -752,7 +853,7 @@ function PacchettiAIPanel({ auth, notify }) {
                 padding: '12px 14px', minHeight: 46, borderRadius: 10,
                 background: p.best ? T.brand : T.white,
                 color: p.best ? T.white : T.brand,
-                border: `1px solid #6E0E1A`,
+                border: `1px solid ${T.brand}`,
                 fontSize: font.size.base, fontWeight: 800, cursor: busy ? 'wait' : 'pointer',
                 opacity: busy ? 0.6 : 1,
                 letterSpacing: '-0.005em',
@@ -787,13 +888,13 @@ function PacchettiAIPanel({ auth, notify }) {
                 }}>
                   <div>
                     <strong>{(p.calls_included || 0).toLocaleString('it-IT', { useGrouping: 'always' })} foto</strong>
-                    <span style={{ color: T.textSoft, marginLeft: 8 }}>€{(p.amount_paid_cents / 100).toFixed(2)}</span>
+                    <span style={{ color: T.textSoft, marginLeft: 8 }}>{importoDaCentesimi(p.amount_paid_cents) ?? 'importo non disponibile'}</span>
                   </div>
                   <div style={{ color: esaurito ? T.red : '#16A34A', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
                     {esaurito ? 'esaurito' : `${(p.calls_remaining || 0).toLocaleString('it-IT', { useGrouping: 'always' })} / ${(p.calls_included || 0).toLocaleString('it-IT', { useGrouping: 'always' })} disp.`}
                   </div>
                   <div style={{ color: T.textFaint, fontSize: font.size.sm }}>
-                    {new Date(p.acquistato_il).toLocaleDateString('it-IT')}
+                    {dataIt(p.acquistato_il) ?? 'data non registrata'}
                     {scaduto && ' · scaduto'}
                   </div>
                 </div>
@@ -808,27 +909,49 @@ function PacchettiAIPanel({ auth, notify }) {
 
 function ReseSection({ notify, orgId }) {
   const isMobile = useIsMobile()
+  const dito = useDito()
   const [rese, setRese] = useState(() => getAllRese())
   const [filtro, setFiltro] = useState('')
 
+  // Prima si salva, poi si dice che è salvato.
+  //
+  // 21/09/2026. `salvaRese(orgId)` partiva senza `await` e con un `.catch` che
+  // arrivava dopo: la schermata scriveva **«Resa aggiornata»** comunque, e se
+  // la rete era giù l'avviso di errore compariva un istante dopo quello di
+  // successo. Chi legge di sfuggita vede il primo. La resa entra nel food
+  // cost di ogni ricetta che usa quell'ingrediente: crederla salvata quando
+  // non lo è vuol dire lavorare su un margine che non esiste.
+  //
+  // Ora: si scrive nel database, si aspetta, e **solo se è andata** si muove
+  // il numero a schermo. Se fallisce, il valore di prima torna al suo posto.
+  async function applica(k, nuovoValore, messaggio) {
+    // La fotografia di com'era prima: il ritorno indietro deve rimettere
+    // esattamente quello, non «1.0», o un ingrediente che non aveva nessuna
+    // resa personalizzata ne risulterebbe una dopo un salvataggio fallito.
+    const primaDi = getStoreRese()
+    setResaIngrediente(k, nuovoValore)
+    try {
+      // Nel DATABASE, non solo nel browser: la resa cambia il food cost, e
+      // finché stava nel localStorage la stessa ricetta mostrava un numero
+      // diverso sul portatile e sul tablet.
+      await salvaRese(orgId)
+      setRese(getAllRese())
+      notify(messaggio)
+    } catch (e) {
+      resetRese(); loadRese(primaDi)
+      setRese(getAllRese())
+      notify?.('Non ho potuto salvare la resa: ' + (e?.message || 'connessione assente'), false)
+    }
+  }
   function save(k, val) {
     const v = Math.max(1, Math.min(100, parseFloat(val) || 100)) / 100
-    setResaIngrediente(k, v)
-    // Nel DATABASE, non solo nel browser: la resa cambia il food cost, e
-    // finché stava nel localStorage la stessa ricetta mostrava un numero
-    // diverso sul portatile e sul tablet.
-    salvaRese(orgId).catch(e => notify?.('Non ho potuto salvare la resa: ' + (e?.message || 'rete'), false))
-    setRese(getAllRese())
-    notify('Resa aggiornata')
+    return applica(k, v, 'Resa aggiornata')
   }
   function reset(k) {
-    setResaIngrediente(k, 1.0)
-    salvaRese(orgId).catch(e => notify?.('Non ho potuto ripristinare la resa: ' + (e?.message || 'rete'), false))
-    setRese(getAllRese())
-    notify('Resa ripristinata al 100%')
+    return applica(k, 1.0, 'Resa ripristinata al 100%')
   }
 
-  const inp = { width:'100%', height:40, padding:'0 12px', border:`1px solid ${T.borderStr}`, borderRadius:R.md, fontSize: isMobile ? 16 : 13, color:T.text, background:T.bgCard, outline:'none', boxSizing:'border-box', fontFamily:'inherit' }
+  const inp = mkInp(dito)
   const items = Object.entries(rese)
     .filter(([k]) => !filtro || k.includes(filtro.toLowerCase()))
     .sort(([a],[b]) => a.localeCompare(b))
@@ -853,7 +976,7 @@ function ReseSection({ notify, orgId }) {
               border:`1px solid ${isCustom ? T.brandSoft : T.borderSoft}`,
             }}>
               <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontSize:12, fontWeight:700, color:T.text, textTransform:'capitalize', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{k}</div>
+                <div style={{ fontSize: font.size.sm, fontWeight:700, color:T.text, textTransform:'capitalize', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{k}</div>
                 <div style={{ fontSize: font.size.sm, color: isCustom ? T.brand : T.textSoft, fontWeight:600 }}>
                   {isCustom ? 'personalizzata' : 'default'}
                 </div>
@@ -871,7 +994,7 @@ function ReseSection({ notify, orgId }) {
           )
         })}
         {items.length === 0 && (
-          <div style={{ gridColumn:'1 / -1', textAlign:'center', padding:'24px 0', color:T.textSoft, fontSize:13 }}>
+          <div style={{ gridColumn:'1 / -1', textAlign:'center', padding:'24px 0', color:T.textSoft, fontSize: font.size.base }}>
             Nessun ingrediente trovato.
           </div>
         )}
@@ -933,7 +1056,7 @@ function SectionCard({ title, description, action, children }) {
         {action && <div style={{ flexShrink:0 }}>{action}</div>}
       </div>
       {description && (
-        <p style={{ margin:'0 0 16px', fontSize:13, color:T.textSoft, lineHeight:1.55 }}>{description}</p>
+        <p style={{ margin:'0 0 16px', fontSize: font.size.base, color:T.textSoft, lineHeight:1.55 }}>{description}</p>
       )}
       {children}
     </div>
@@ -957,12 +1080,16 @@ function FieldRow({ label, hint, children }) {
   )
 }
 
-function Toggle({ checked, onChange }) {
+// L'interruttore aveva `role="switch"` e nessun nome: un lettore di schermo
+// leggeva «interruttore, acceso» senza dire acceso COSA. `etichetta` è il nome
+// della cosa che accende, e `disabled` impedisce il doppio tocco mentre salva.
+function Toggle({ checked, onChange, disabled = false, etichetta = '' }) {
   return (
-    <button onClick={() => onChange(!checked)}
-      role="switch" aria-checked={checked}
-      style={{ width:42, height:24, borderRadius:12, border:'none', cursor:'pointer', position:'relative',
-        background: checked ? T.brand : '#CBD5E1', transition:'background 0.18s', padding:0, flexShrink:0 }}>
+    <button type="button" onClick={() => !disabled && onChange(!checked)}
+      role="switch" aria-checked={checked} disabled={disabled}
+      aria-label={etichetta || undefined}
+      style={{ width:42, height:24, borderRadius:12, border:'none', cursor: disabled ? 'not-allowed' : 'pointer', position:'relative',
+        background: checked ? T.brand : '#CBD5E1', transition:'background 0.18s', padding:0, flexShrink:0, opacity: disabled ? 0.6 : 1 }}>
       <span style={{ position:'absolute', top:3, left: checked ? 21 : 3, width:18, height:18,
         borderRadius:'50%', background:T.white, transition:'left 0.18s', boxShadow:'0 1px 3px rgba(0,0,0,0.2)' }}/>
     </button>
@@ -975,13 +1102,17 @@ function PianoBadge({ piano, approvato }) {
     base:       { txt: PLAN_LABEL.base,       color: T.textMid, bg: T.bgSubtle },
     pro:        { txt: PLAN_LABEL.pro,        color: T.green,   bg: T.greenLight },
     enterprise: { txt: PLAN_LABEL.enterprise, color: T.green,   bg: T.greenLight },
-  })[piano] || { txt: piano || 'Trial', color: T.textMid, bg: T.bgSubtle }
+  // Il fallback era `piano || 'Trial'`: con un piano che il listino non
+  // conosce (un alias storico, un valore scritto a mano nel database) a
+  // schermo finiva l'identificativo grezzo — «enterprise», «chain» — invece
+  // del nome commerciale. I nomi stanno in PLAN_LABEL e vengono da lì.
+  })[piano] || { txt: PLAN_LABEL[piano] || PLAN_LABEL.trial, color: T.textMid, bg: T.bgSubtle }
   return (
     <span style={{
       display:'inline-flex', alignItems:'center', gap:6,
       padding:'3px 10px', borderRadius:999,
       background: label.bg, color: label.color,
-      fontSize:12, fontWeight:700,
+      fontSize: font.size.sm, fontWeight:700,
     }}>
       <span style={{ width:6, height:6, borderRadius:'50%', background: approvato ? T.green : T.amber }}/>
       {label.txt}
