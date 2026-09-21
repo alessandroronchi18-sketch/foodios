@@ -415,3 +415,35 @@ Cosa va fatto, in ordine:
 
 Nota: è un lavoro sul **cuore contabile** del prodotto. Un errore qui non
 sbaglia una schermata, sbaglia il magazzino e il food cost di tutti.
+
+---
+
+## Stato al 21/09/2026, sera — cosa è stato fatto
+
+- ✅ **Storico prezzi filtrabile** (punto 1): sezione sua in Materie prime, filtri per materia prima / fornitore / variazione / periodo, l'elenco intero invece delle ultime 50. `StoricoPrezziSection.jsx` + 36 prove.
+- ✅ **Mail già in uso** (punto 2): `email_gia_in_uso()` guarda accessi, profili e inviti in sospeso; `laboratorio-crea` non pagina più fra i primi 200 di 2.343.
+- ✅ **Codice a 4 cifre** (punto 3): c'era, ma due schede più in là. Ora ogni persona nella scheda Dipendenti porta scritto se ce l'ha, e il comando apre il suo.
+- ✅ **Eliminare un dipendente dall'archivio** (punto 4): col doppio controllo che dice quanti turni spariscono e fa scrivere il nome.
+- ✅ **Redesign della pagina Personale** (punto 5): il modulo è una sezione a parte, campi su due colonne incolonnate, l'elenco prende tutta la larghezza.
+- ✅ **Audit dei due metodi di produzione** (punto 8): tre difetti veri corretti, documento in `AUDIT_DUE_METODI.md`.
+
+## Resta aperto, e perché
+
+1. **Le quattro domande a Mara** sul foglio di chiusura cassa
+   (`FOGLIO_CASSA_MARA.md`, sezione 5): i parziali orari li scrive a mano o li
+   stampa la cassa? Il POS è uno o due? Le spese pagate in cassa restano nella
+   busta? Quel «+11,50» dell'una di notte è un incasso dopo mezzanotte?
+   **Senza risposta non si può decidere** se il foglio entra così com'è o va
+   rifatto.
+2. **Lo scarto dell'inventario non arriva in «Perdite & cessioni»**: la
+   colonna c'è, ma su 7.013 righe vere è **zero su tutte**. Collegare un tubo
+   che non porta acqua vuol dire scrivere codice che nessuno verifica. Se
+   volete usarla, prima va deciso se lo scarto del gelato è una perdita di
+   magazzino o una riga di costo.
+3. **Il cambio di metodo di produzione non avvisa di niente**: non si perde
+   nulla, ma la pagina «Produzione» cambia sotto i piedi senza una parola.
+   Si può scrivere un avviso, oppure lasciare che lo spieghi l'amministratore
+   quando approva. È una scelta, non un difetto.
+4. **`#9C7B76` è sotto la soglia di contrasto** (3,46–3,81 contro 4,5): è il
+   colore delle etichette maiuscole delle sedi, degli «esempi» in Impostazioni
+   e del piè di pagina legale. Cambiarlo cambia il colore a schermo: va deciso.
