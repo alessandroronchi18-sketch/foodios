@@ -304,7 +304,7 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
 
   const CAUSALE_LBL = {
     produzione: { lbl: 'Produzione', ic: 'factory', col: T.green },
-    // Audit 2026-09-09: era '${T.red}', il rosso d'allarme. Ma inviare merce a
+    // Audit 2026-09-09: era T.red, il rosso d'allarme. Ma inviare merce a
     // un'altra sede e' un'operazione normale: il rosso resta agli scarti.
     trasferimento_invio: { lbl: 'Inviato', ic: 'truck', col: T.blue },
     trasferimento_ricezione: { lbl: 'Ricevuto', ic: 'package', col: T.green },

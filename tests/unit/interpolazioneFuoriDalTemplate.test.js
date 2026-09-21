@@ -125,6 +125,65 @@ describe('Nessuna interpolazione fuori da un template', () => {
   })
 })
 
+// ── Il secondo lettore: quello che il primo non vede ─────────────────────
+//
+// Il parser qui sopra legge JavaScript, e il JSX non è JavaScript: una frase
+// scritta fra i tag — «non c'è un margine» — ha un apostrofo che lui prende
+// per l'inizio di una stringa. Da lì in poi conta male, e **tutto quello che
+// viene dopo in quel file diventa invisibile**.
+//
+// Non è teoria: il 22/09/2026, dopo aver riparato 110 casi col primo lettore,
+// una seconda lettura riga per riga ne ha trovati **altri nove** — fra cui il
+// filo giallo di due riquadri e la sfumatura di due titoli nel Ricettario.
+// Un righello che non vede è peggio di nessun righello, perché fa smettere di
+// cercare.
+//
+// Questo lettore guarda una riga per volta, quindi non si perde mai, ma non sa
+// se una stringa sta dentro un template. Per distinguere si usa la forma
+// esatta del difetto: l'interpolazione punta a una **tavolozza** (`T.`, `C.`,
+// `COLORS.`), e la stringa, tolte le interpolazioni, contiene **solo roba da
+// CSS**. `"${t.prodotto}"` dentro una frase è un nome di dato, non un colore,
+// e resta fuori.
+const TAVOLOZZE = /\$\{\s*(?:T|C|COLORS|SEMI|PALETTE)\.[\w$]+\s*\}/
+const SOLO_CSS = /^[A-Za-z0-9 ,.%#()/-]*$/
+
+function difettiDiRiga(riga) {
+  const fuori = []
+  for (const m of riga.matchAll(/(?<![`\w])(['"])((?:(?!\1)[^\n])*?\$\{[^\n]*?)\1/g)) {
+    const dentro = m[2]
+    if (dentro.includes('`')) continue
+    if (!TAVOLOZZE.test(dentro)) continue
+    if (!SOLO_CSS.test(dentro.replace(/\$\{[^}]*\}/g, ''))) continue
+    fuori.push(m[0])
+  }
+  return fuori
+}
+
+describe('E il secondo lettore, quello che guarda riga per riga', () => {
+  it('non trova niente in tutto src/', () => {
+    const rotte = []
+    for (const p of FILE) {
+      const righe = readFileSync(p, 'utf8').split('\n')
+      righe.forEach((riga, i) => {
+        for (const t of difettiDiRiga(riga)) {
+          rotte.push(`${p.replace(process.cwd() + '/', '')}:${i + 1}  ${t.slice(0, 70)}`)
+        }
+      })
+    }
+    expect(rotte, `${rotte.length} valori CSS con un'interpolazione fuori da un template:\n${rotte.join('\n')}`).toEqual([])
+  })
+
+  it('e sa distinguere un colore da un nome di dato', () => {
+    // Taratura, con i casi veri che hanno fatto sbagliare i due lettori.
+    expect(difettiDiRiga("  border: '1px solid ${T.amber}',")).toHaveLength(1)
+    expect(difettiDiRiga("  background: '${T.bgSubtle}',")).toHaveLength(1)
+    // un nome dentro una frase, in un template: giusto com'è
+    expect(difettiDiRiga('  notify(`Ho trovato "${esito.nome}" nel file`)')).toHaveLength(0)
+    // un pezzo di template spezzato dalla lettura per riga: non è un colore
+    expect(difettiDiRiga("  {tolti.join(', ')}${tolti.length > 4 ? ` e altri ${tolti.length - 4}` : ''}")).toHaveLength(0)
+  })
+})
+
 describe('Il righello di questo file', () => {
   it('il parser distingue un template da una stringa normale', () => {
     // Taratura: se sbagliasse, la prova sopra sarebbe verde per sempre.

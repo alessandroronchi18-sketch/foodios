@@ -982,7 +982,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                   const kk = kpiMap[r.sede.id] || {}
                   const delta = fmtDelta(kk.ricaviPrev, kk.ricaviCur)
                   return (
-                    <div key={r.sede.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', background: i === 0 ? T.amberLight : T.white, borderRadius: 8, border: `1px solid ${i === 0 ? '${T.amber}' : BORDER}` }}>
+                    <div key={r.sede.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', background: i === 0 ? T.amberLight : T.white, borderRadius: 8, border: `1px solid ${i === 0 ? T.amber : BORDER}` }}>
                       <div style={{
                         fontSize: font.size.xl, width: 36, textAlign: 'center', fontWeight: 800,
                         color: i === 0 ? T.brand : T.textSoft,

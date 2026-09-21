@@ -1686,8 +1686,13 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                   {scartoRilevante ? (
                     <div style={{
                       padding: '10px 12px',
-                      background: T.amberLight,
-                      border: `1px solid ${T.amber}`,
+                      // Il 19/09 una sostituzione di massa aveva portato questo
+                      // riquadro da #FFFBEB/#FDE68A ai token `amberLight`/`amber`:
+                      // colori DIVERSI (il filo giallo chiaro era diventato ambra
+                      // scuro), cioè un cambio di disegno passato per una pulizia.
+                      // Adesso i due colori hanno un nome loro e tornano quelli.
+                      background: T.fondoAvviso,
+                      border: `1px solid ${T.bordoAvviso}`,
                       borderRadius: 8,
                       fontSize: typo.small.fontSize, color: T.amberDark, lineHeight: 1.5,
                     }}>
@@ -2326,7 +2331,7 @@ function CommandBar({ isMobile, ricetteEsistenti, activeNome, onPickExisting, ac
             padding: isMobile ? '8px 12px' : '7px 12px',
             minHeight: dito ? 44 : 'auto',
             background: forceOverwrite ? T.amberLight : '#F8F7F5',
-            border: `1px solid ${forceOverwrite ? '${T.amber}' : C.border}`,
+            border: `1px solid ${forceOverwrite ? T.amber : C.border}`,
             borderRadius: R.full,
             fontSize: font.size.sm, fontWeight: 700,
             color: forceOverwrite ? T.amberDark : C.textSoft,

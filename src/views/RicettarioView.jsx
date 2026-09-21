@@ -628,7 +628,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
         // Futuristic panel: gradient verticale leggero + accent line top + box shadow.
         // Identical look per tutti e 4 i pannelli → coerenza visiva del quadrato.
         const PANEL_STYLE = {
-          background: 'linear-gradient(180deg, ${T.bgSubtle} 0%, ${T.border} 100%)',
+          background: `linear-gradient(180deg, ${T.bgSubtle} 0%, ${T.border} 100%)`,
           borderRadius: 12, padding: 16, boxSizing: 'border-box',
           position: 'relative', overflow: 'hidden',
           boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.7)',
@@ -636,7 +636,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
         const PANEL_ACCENT = (
           <div aria-hidden="true" style={{
             position: 'absolute', top: 0, left: 0, right: 0, height: 2,
-            background: 'linear-gradient(90deg, #E84B3A 0%, #FFB350 50%, ${T.brand} 100%)',
+            background: `linear-gradient(90deg, #E84B3A 0%, #FFB350 50%, ${T.brand} 100%)`,
             opacity: 0.7,
           }}/>
         )
@@ -856,7 +856,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
                     <div style={{ fontSize: font.size.sm, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft }}>Food cost / kg</div>
                     <div style={{ fontSize: font.size.xl, fontWeight: 900, color: C.red, ...TNUM }}>{fmt(fcPerKg)}</div>
                   </div>
-                  <div style={{ padding: '10px 12px', background: T.amberLight, border: '1px solid ${T.amber}', borderRadius: 7, fontSize: font.size.sm, color: T.amberDark, lineHeight: 1.5 }}>
+                  <div style={{ padding: '10px 12px', background: T.amberLight, border: `1px solid ${T.amber}`, borderRadius: 7, fontSize: font.size.sm, color: T.amberDark, lineHeight: 1.5 }}>
                     Per stimare il margine di questo gusto, configura almeno un <b>Formato vendita</b> per la categoria &ldquo;{ric.categoria || 'Gelato'}&rdquo; (cono, coppetta, vaschetta) — trovi il pannello in Cassa → Formati vendita.
                   </div>
                 </div>

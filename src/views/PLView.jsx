@@ -1419,7 +1419,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
       />
 
       {gustiSenzaRicavo > 0 && (
-        <div style={{ marginBottom: 16, padding: '10px 14px', background: T.amberLight, border: `1px solid ${T.amber}`, borderRadius: 10, fontSize: font.size.sm, color: T.amberDark, lineHeight: 1.5, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+        <div style={{ marginBottom: 16, padding: '10px 14px', background: T.fondoAvviso, border: `1px solid ${T.bordoAvviso}`, borderRadius: 10, fontSize: font.size.sm, color: T.amberDark, lineHeight: 1.5, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
           <Icon name="bulb" size={13} />
           <span><b>{gustiSenzaRicavo} gusti gelateria</b> senza formato vendita di riferimento non appaiono in questo P&amp;L. Configura almeno un formato (cono/coppetta/vaschetta) per la loro categoria in <b>Cassa → Formati vendita</b> e verranno inclusi con ricavo/kg stimato.</span>
         </div>
@@ -2143,7 +2143,7 @@ function PLInventarioSection({ data, rangeLabel: rangeLbl, cardP, isMobile }) {
           </thead></>}
           corpo={<><tbody>
             {data.rows.map((r) => (
-              <tr key={r.gusto} style={{ borderTop: `1px solid ${C.borderSoft || '${T.bgSubtle}'}` }}>
+              <tr key={r.gusto} style={{ borderTop: `1px solid ${C.borderSoft || T.bgSubtle}` }}>
                 <TD style={{ position: 'sticky', left: 0, background: C.bgCard, fontWeight: 700, color: C.text }}>
                   {r.gusto}
                   {(!r.haRicavo || !r.haFc) && (
@@ -2257,7 +2257,7 @@ function CostiNettoBanda({ costiAziendali, margineLordoPeriodo, giorniPeriodo = 
         </div>
       )}
       {noConfig && (
-        <div style={{ marginTop: 12, padding: '10px 14px', background: '#FEF9EB', border: '1px solid ${T.amber}', borderRadius: 10, fontSize: font.size.sm, color: T.amberDark }}>
+        <div style={{ marginTop: 12, padding: '10px 14px', background: '#FEF9EB', border: `1px solid ${T.amber}`, borderRadius: 10, fontSize: font.size.sm, color: T.amberDark }}>
           Vai in <strong>Andamento &amp; costi → Costi aziendali</strong> per aggiungere i tuoi costi extra-food (fazzoletti, coppette, utenze, manutenzioni).
         </div>
       )}

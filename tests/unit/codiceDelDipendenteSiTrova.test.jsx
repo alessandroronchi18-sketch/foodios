@@ -55,6 +55,15 @@ vi.mock('../../src/lib/useIsMobile', () => ({
   useIsTablet: () => LARGHEZZA >= 768 && LARGHEZZA <= 1023,
 }))
 
+// La rubrica dei codici chiede a `/api/dipendenti-operativi`. Senza un finto
+// server la chiamata parte davvero, fallisce, e vitest segnala un errore non
+// gestito: non fa cadere queste prove, ma sporca il quadro di tutte le altre
+// — e un errore che compare sempre è un errore che nessuno guarda più.
+const RISPOSTA_API = { ok: true, dipendenti: [] }
+vi.stubGlobal('fetch', vi.fn(async () => ({
+  ok: true, status: 200, json: async () => RISPOSTA_API,
+})))
+
 const ANNA = { id: 'd1', nome: 'Anna Pedrini', ruolo: 'Pasticciera', tipo_contratto: 'Full-time',
   attivo: true, costo_orario: 15, ore_settimana: 38, sede_id: null }
 const BRUNO = { id: 'd2', nome: 'Bruno Salis', ruolo: 'Banco', tipo_contratto: 'Part-time',

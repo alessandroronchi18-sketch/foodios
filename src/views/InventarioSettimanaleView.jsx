@@ -1448,7 +1448,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
                         <td style={{
                           ...tdTot,
                           position: 'sticky', right: 0, zIndex: 2,
-                          background: T.amber, fontWeight: 900, fontSize: font.size.md,
+                          background: T.bordoAvviso, fontWeight: 900, fontSize: font.size.md,
                         }}>
                           {fmtUnita(totaliColonnaSettimana.venduto || 0)}{unitaDisplay === 'kg' ? ' kg' : ' g'}
                         </td>
@@ -2759,7 +2759,7 @@ function KpiCompactBar({ rows, periodo, unita = 'g', vendutoG = null, celleNonQu
       {hasAlerts && (
         <div style={{
           display: 'flex', flexWrap: 'wrap', gap: 6,
-          marginTop: 8, paddingTop: 8, borderTop: `1px solid ${C.borderSoft || '${T.bgSubtle}'}`,
+          marginTop: 8, paddingTop: 8, borderTop: `1px solid ${C.borderSoft || T.bgSubtle}`,
         }}>
           {stats.scartoPct >= 5 && (
             <span style={{
