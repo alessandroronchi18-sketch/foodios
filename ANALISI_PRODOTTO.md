@@ -3176,11 +3176,14 @@ costo pieno sono **130.000–220.000 €**. È un pavimento, non una valutazione
 nessuno compra codice, si compra un'azienda.
 
 **2. Quanto vale un abbonato — il moltiplicatore.**
-Listino misurato in `plan_pricing`: 69 / 149 / 399 € al mese. Con un mix
-45/50/5 l'incasso medio per cliente è **126 € al mese, 1.506 € l'anno**.
+Listino **deciso dal titolare il 22/09/2026: 79 / 199 / 399 €** al mese.
+(Attenzione: il codice in `planAccess.js` dice ancora 69 / 149 / 399, e va
+allineato prima di aprire gli incassi.) Con un mix 45/50/5 l'incasso medio per
+cliente è **155 € al mese, 1.860 € l'anno**.
+
 L'infrastruttura costa oggi **65 € al mese in tutto**, e il costo di un
-cliente in più sta sotto 1,10 €: il margine lordo è del 99%, e a quel margine
-il valore di un'azienda SaaS si misura sul ricorrente.
+cliente in più sta sotto 1,10 €: il margine lordo è del **99%**, e a quel
+margine il valore di un'azienda SaaS si misura sul ricorrente.
 
 I multipli di mercato per un verticale sotto il milione di ricavi ricorrenti
 stanno fra **4× e 8× l'ARR** (è una convenzione di mercato, non un numero
@@ -3189,15 +3192,34 @@ misurato qui). Quindi:
 | Clienti paganti | ARR | Valore, 4–8× |
 |---:|---:|---:|
 | **0** (oggi) | 0 € | **0 €** |
-| 20 | 30.000 € | 120.000–240.000 € |
-| 100 | 151.000 € | 600.000–1.200.000 € |
-| 640 (il 3% del mercato raggiungibile) | 964.000 € | **3,9–7,7 milioni €** |
+| 20 | 37.200 € | 150.000–300.000 € |
+| 100 | 186.000 € | 744.000–1.490.000 € |
+| **500** | **930.000 €** | **3,7–7,4 milioni €** |
+| 640 (il 3% del mercato raggiungibile) | 1.190.400 € | 4,8–9,5 milioni € |
+
+A 500 clienti l'infrastruttura costa ~7.400 € l'anno e il margine lordo è
+922.600 €. Con una struttura snella — due o tre persone fra assistenza,
+vendita e sviluppo, 150.000–250.000 € caricati — l'utile prima delle tasse sta
+fra **670.000 e 770.000 €**; a 8–12 volte l'utile fanno 5,4–9,3 milioni. I due
+metodi convergono sulla banda **4–7 milioni**, ed è quella da dire a voce.
+
+Dove si finisce dentro quella banda lo decidono tre cose che oggi non si sanno
+ancora: **quanti clienti si perdono ogni anno** (sotto il 5% si va verso l'8×,
+sopra il 15% verso il 4×), **quanto si cresce**, e **quanto costa prenderne
+uno** — se un cliente costa 1.500 € di acquisizione e ne paga 1.860 il primo
+anno, il multiplo si abbassa da solo.
 
 **3. Quanto vale il mercato sotto — il tetto.**
-21.300 fra gelaterie e pasticcerie in Italia, 39.000 contando i bar. A 1.506 €
-l'anno il mercato raggiungibile è **32 milioni € l'anno** a penetrazione
+21.300 fra gelaterie e pasticcerie in Italia, 39.000 contando i bar. A 1.860 €
+l'anno il mercato raggiungibile è **39,6 milioni € l'anno** a penetrazione
 totale. L'1–3% in cinque anni — che è quello che un verticale nuovo può
 sperare — sono 210–640 clienti.
+
+**Il conto che lo vende al cliente**, col listino nuovo: una gelateria con
+300.000 € di ricavi e food cost al 30% spende 90.000 € di materie prime. Un
+miglioramento del 5% sono **4.500 € l'anno**, contro 2.388 € di abbonamento
+Plus (199 × 12) o 948 € di Standard. Il ritorno è **1,9 volte sul Plus e 4,7
+sullo Standard**, ed è argomentabile coi numeri suoi.
 
 #### Il numero da dire a voce
 
@@ -3209,8 +3231,9 @@ sono la differenza fra un prototipo e una cosa che si può vendere.
 
 **Il primo cliente pagante vale più dei 130.000 €**, perché sposta il prodotto
 dalla colonna «costo sostenuto» a quella «azienda con ricavi», dove si applica
-un multiplo. Dieci clienti paganti — 15.000 € l'anno — fanno del prodotto una
-cosa che vale **60.000–120.000 € di sovrapprezzo** rispetto al solo codice.
+un multiplo. Dieci clienti paganti — 18.600 € l'anno col listino nuovo — fanno
+del prodotto una cosa che vale **74.000–149.000 € di sovrapprezzo** rispetto al
+solo codice.
 
 #### Il collo di bottiglia, detto senza giri
 
