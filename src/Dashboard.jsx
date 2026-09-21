@@ -12,7 +12,7 @@ import UpgradeModal from './components/UpgradeModal'
 import CommandPalette from './components/CommandPalette'
 import { canAccessView, effectivePlan, PLAN_LABEL, VIEW_MIN_PLAN, viewDisplayLabel } from './lib/planAccess'
 import { lessico } from './lib/lessico'
-import { caricaSessioniDaInventario } from './lib/inventarioProduzione'
+import { caricaSessioniDaInventario, unisciSessioni } from './lib/inventarioProduzione'
 // jsPDF caricato dinamicamente solo all'export (chunk 'pdf' separato).
 // recharts NON è importato qui: 0 simboli sono usati in Dashboard.jsx (era dead
 // import che trascinava il chunk recharts 120KB gzip sul critical path). I veri
@@ -1566,11 +1566,32 @@ export default function Dashboard({
     const isInv = isMetodoInv && sedeAttiva?.is_sede_produzione
     if (!isInv) return
     caricaSessioniDaInventario(orgId, sedeId, { monthsBack: 12 })
-      .then(sessioni => {
-        // Sostituiamo del tutto giornaliero per questa sede (SK_GIOR è vuoto
-        // in modalita' inventario e ricaricaremo al refocus alla prossima
-        // selezione sede).
-        setGiornaliero(sessioni)
+      .then(async sessioni => {
+        // ── SK_GIOR non è vuoto, e per questo il ponte buttava via dei dati ──
+        //
+        // Qui prima c'era `setGiornaliero(sessioni)`: la proiezione
+        // dell'inventario SOSTITUIVA tutto, perché si dava per scontato che
+        // in modalità inventario il blob delle sessioni fosse vuoto.
+        //
+        // Non lo è. Ci scrive dentro «Porta in produzione» delle Ordinazioni
+        // (`Eventi.jsx`), e ci sta tutta la storia di chi ha cambiato metodo
+        // strada facendo. Misurato il 21/09/2026 sull'azienda del design
+        // partner: **2 sessioni**, una delle quali nata da un'ordinazione —
+        // il programma aveva detto «righe portate in Produzione» e quella
+        // produzione non si vedeva più da nessuna parte.
+        //
+        // La regola del cucito: **per ogni giorno, se l'inventario ha righe,
+        // vince l'inventario** — è lì che quel giorno si registra, e contare
+        // due volte lo stesso gelato sarebbe peggio che non vederlo. I giorni
+        // che l'inventario non conosce tengono la loro sessione. Sui dati
+        // veri i due giorni in questione non hanno nessuna riga di
+        // inventario, quindi tornano visibili senza sovrapporsi a niente.
+        let dalBlob = []
+        try {
+          const letto = await _sload(SK_GIOR, orgId, sedeId)
+          if (Array.isArray(letto)) dalBlob = letto
+        } catch (e) { console.error('sessioni fuori inventario:', e) }
+        setGiornaliero(unisciSessioni(sessioni, dalBlob))
       })
       .catch(e => console.error('bridge inventario→giornaliero:', e))
   }, [orgId, sedeId, isMetodoInv, sedeAttiva?.is_sede_produzione])

@@ -770,54 +770,107 @@ export function dettaglioVenduto(matrice) {
 }
 
 // ── Integrazione magazzino MP ─────────────────────────────────────────────
-// Quando un dipendente registra "PROD = X grammi" per un gusto, scaliamo dal
-// magazzino la quota proporzionale di ingredienti. Il fattore di scalo e':
-//   fattore = delta_g / peso_impasto_per_stampo
-// dove peso_impasto_per_stampo = sum(ingredienti.qty1stampo) della ricetta
-// del gusto. delta può essere negativo (correzione al ribasso): in quel
-// caso il magazzino sale (l'utente sta dicendo "ho usato meno di quanto
-// avevo scritto").
 //
-// La funzione e' PURA: prende il magazzino in input e ritorna il magazzino
-// nuovo. Il caller decide se ssave-arlo. Niente side-effect qui.
+// Quando si registra "PROD = X grammi" di un gusto, dal magazzino esce la
+// quota di ingredienti che quei grammi hanno consumato:
 //
-// Ritorna { nuovoMagazzino, ingredientiScalati: [{nome, deltaG}] } per UI.
+//   volte = delta_g / peso_impasto_della_ricetta
+//
+// `delta` può essere negativo (correzione al ribasso): in quel caso il
+// magazzino sale — l'utente sta dicendo «ho usato meno di quanto avevo
+// scritto». La funzione è PURA: prende il magazzino e ne ritorna uno nuovo.
+//
+// ── L'audit del 21/09/2026: i due metodi scaricavano cose diverse ─────────
+//
+// Foodos ha due modi di registrare la produzione — quello differenziale
+// (questo: si conta quello che c'è, la produzione è la differenza) e quello
+// diretto (`ProduzioneGiornalieraView`, quanti stampi di cosa). Devono
+// togliere dal magazzino **le stesse cose**: è lo stesso gelato.
+//
+// Non era così. Questa funzione girava sugli ingredienti della ricetta **così
+// come sono scritti**, e le mancavano tre cose che il metodo diretto ha:
+//
+//   1. **L'espansione dei semilavorati.** Se una ricetta contiene «pasta
+//      frolla» e la pasta frolla NON è una voce di magazzino (perché la si fa
+//      in casa), il metodo diretto scende nella sua ricetta e toglie farina,
+//      burro, zucchero a velo, uovo e sale. Qui invece si cercava una voce
+//      «pasta frolla», non la si trovava, **e la si creava** con giacenza
+//      negativa: una riga fantasma che scende per sempre, mentre farina e
+//      burro restano sullo scaffale a quota piena.
+//      Misurato il 21/09/2026 su un'azienda vera che lavora col metodo
+//      differenziale: **3 ricette su 13**, e gli ingredienti mai scalati sono
+//      farina_00, burro, zucchero_velo, uovo, sale.
+//
+//   2. **Le chiavi non canoniche.** Il magazzino conserva i nomi come sono
+//      stati scritti; `normIng` porta i plurali al singolare. Sulla stessa
+//      azienda ci sono «noci», «uova», «mandorle», «mirtilli», «nocciole»
+//      salvate al plurale: si cercava «noce» e «uovo», non si trovavano, e
+//      nasceva un secondo doppione accanto a quello pieno.
+//
+//   3. **Il silenzio.** Quando un ingrediente non c'è, il metodo diretto lo
+//      dice a chi ha appena registrato. Qui non lo diceva nessuno: la
+//      giacenza restava ferma e ci si accorgeva del buco all'inventario.
+//
+// Adesso le due strade passano dalla stessa funzione condivisa
+// (`ingredientiDaScaricare`), che è anche l'unico posto dove la regola vive.
+//
+// Ritorna { nuovoMagazzino, ingredientiScalati: [{nome, deltaG}], nonTrovati }.
 import { normIng } from './foodcost'
+import { ingredientiDaScaricare } from './scaricoIngredienti'
 
-export function scaloMagazzinoPerGusto(magazzino, ricetta, deltaProdG) {
+export function scaloMagazzinoPerGusto(magazzino, ricetta, deltaProdG, ricettario = null) {
   if (!ricetta || !Number.isFinite(deltaProdG) || deltaProdG === 0) {
-    return { nuovoMagazzino: magazzino, ingredientiScalati: [] }
+    return { nuovoMagazzino: magazzino, ingredientiScalati: [], nonTrovati: [] }
   }
   const ingredienti = ricetta.ingredienti || []
   const pesoImpasto = ingredienti.reduce((s, i) => s + (Number(i.qty1stampo) || 0), 0)
   if (pesoImpasto <= 0) {
-    return { nuovoMagazzino: magazzino, ingredientiScalati: [] }
+    return { nuovoMagazzino: magazzino, ingredientiScalati: [], nonTrovati: [] }
   }
-  const fattore = deltaProdG / pesoImpasto
+
+  // Le chiavi COME sono salvate, raggruppate per nome canonico: «uovo» deve
+  // ritrovare la voce scritta «uova», invece di farne una nuova accanto.
+  const grezzePerCanonica = new Map()
+  for (const raw of Object.keys(magazzino || {})) {
+    const c = normIng(raw)
+    if (!c) continue
+    if (!grezzePerCanonica.has(c)) grezzePerCanonica.set(c, [])
+    grezzePerCanonica.get(c).push(raw)
+  }
+
+  // `volte` = quante volte la ricetta intera sta in quei grammi. È lo stesso
+  // numero che il metodo diretto chiama «stampi».
+  const volte = deltaProdG / pesoImpasto
+  const { ings, nonEspandibili } = ingredientiDaScaricare(
+    ricetta, volte, ricettario, new Set(grezzePerCanonica.keys()),
+  )
+
   const nm = { ...(magazzino || {}) }
   const log = []
-  for (const ing of ingredienti) {
-    const qty = Number(ing.qty1stampo) || 0
-    if (qty <= 0 || !ing.nome) continue
-    const deltaIng = qty * fattore
-    // Audit 2026-07-01 LOW: skip se deltaIng non finito (fattore=Infinity con
-    // pesoImpasto ≈ 0 per ingredienti decorativi minimi).
-    if (!Number.isFinite(deltaIng)) continue
-    const k = normIng(ing.nome)
-    const corrente = nm[k] || { nome: ing.nome.trim(), giacenza_g: 0, soglia_g: 0, ultimoRifornimento: null }
-    // M1 fix: ammettiamo giacenza negativa internamente. Era clampata a 0
-    // ma così un PROD eccessivo seguito da correzione al ribasso non
-    // ricostruiva il deficit logico (es. zucchero -200g nascosti diventavano
-    // poi +800 invece di +1000 al rollback). Ora il vero stato del magazzino
-    // resta tracciabile; eventuale clamp UI si fa lato visualizzazione, non
-    // qui (dove i numeri devono restare coerenti).
-    nm[k] = {
-      ...corrente,
-      giacenza_g: Math.round((corrente.giacenza_g || 0) - deltaIng),
-    }
-    log.push({ nome: ing.nome, deltaG: Math.round(deltaIng) })
+  const nonTrovati = []
+  for (const [chiave, grammiRaw] of Object.entries(ings)) {
+    const grammi = Number(grammiRaw)
+    // Un ingrediente decorativo con peso quasi nullo può far uscire un numero
+    // non finito: si salta, non si scrive `NaN` in giacenza.
+    if (!Number.isFinite(grammi) || grammi === 0) continue
+    const grezze = grezzePerCanonica.get(chiave)
+    if (!grezze || grezze.length === 0) { nonTrovati.push(chiave); continue }
+    const raw = grezze[0]
+    const corrente = nm[raw] || { nome: raw, giacenza_g: 0, soglia_g: 0, ultimoRifornimento: null }
+    // Giacenza negativa ammessa (scelta dell'audit del 1/07/2026): una
+    // produzione eccessiva seguita da una correzione al ribasso deve
+    // ricostruire il numero giusto, e col clamp a zero non ci riusciva.
+    nm[raw] = { ...corrente, giacenza_g: Math.round((corrente.giacenza_g || 0) - grammi) }
+    log.push({ nome: corrente.nome || raw, deltaG: Math.round(grammi) })
   }
-  return { nuovoMagazzino: nm, ingredientiScalati: log }
+  // Un semilavorato che non si è potuto aprire (si richiama da solo, è
+  // annidato troppo, non ha ingredienti) vale quanto un ingrediente che non
+  // c'è: la merce è uscita e il magazzino non lo sa.
+  for (const nd of (nonEspandibili || [])) {
+    const nome = nd?.nome || String(nd)
+    if (nome && !nonTrovati.includes(nome)) nonTrovati.push(nome)
+  }
+  return { nuovoMagazzino: nm, ingredientiScalati: log, nonTrovati }
 }
 
 // Trova la ricetta corrispondente a un gusto (per nome normalizzato).
@@ -1132,6 +1185,32 @@ export function inventarioASessioni(righeInventario) {
       data, id: `inv-${data}`, ts: data + 'T12:00:00.000Z',
       prodotti, _da_inventario: true,
     }))
+}
+
+// ── Cucire le sessioni dei due metodi ──────────────────────────────────────
+//
+// Un'azienda a metodo differenziale ha la produzione in `inventario_produzione`,
+// ma nel vecchio blob delle sessioni (SK_GIOR) ci finisce lo stesso roba:
+//
+//   • «Porta in produzione» delle Ordinazioni (`Eventi.jsx`) scrive lì;
+//   • chi ha cambiato metodo strada facendo ha lì tutta la storia di prima.
+//
+// Il ponte le buttava via tutte: proiettava l'inventario e sostituiva.
+// Misurato il 21/09/2026 sull'azienda del design partner: 2 sessioni perse,
+// una nata da un'ordinazione. Il programma aveva detto «righe portate in
+// Produzione», e quella produzione non compariva più da nessuna parte.
+//
+// La regola: **per ogni giorno, se l'inventario ha righe, vince l'inventario**.
+// È lì che quel giorno si registra, e contare due volte lo stesso gelato è
+// peggio che non vederlo. I giorni che l'inventario non conosce tengono la
+// loro sessione.
+export function unisciSessioni(daInventario, dalBlob) {
+  const inv = Array.isArray(daInventario) ? daInventario : []
+  const blob = Array.isArray(dalBlob) ? dalBlob : []
+  const giorniNoti = new Set(inv.map(s => s?.data).filter(Boolean))
+  const soloLoro = blob.filter(s => s?.data && !giorniNoti.has(s.data))
+  return [...inv, ...soloLoro]
+    .sort((a, b) => String(b?.data || '').localeCompare(String(a?.data || '')))
 }
 
 // Fetch paginato di inventario_produzione. Il progetto Supabase ha

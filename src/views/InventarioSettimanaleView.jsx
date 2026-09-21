@@ -110,6 +110,9 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
   const altCtrl = ui3(isMobile, isTablet, ui.ctrlH)
   // Gusti per cui abbiamo già detto "non ha una ricetta": una volta basta.
   const avvisatiSenzaRicetta = useRef(new Set())
+  // Stesso criterio di `avvisatiSenzaRicetta`: un ingrediente che manca si
+  // dice una volta, non a ogni cella che si tocca.
+  const avvisatiMancanti = useRef(new Set())
   // Giorno mostrato dalla vista "Oggi": si può tornare a ieri per chiudere
   // una giornata dimenticata.
   const chiediConferma = useConfirm()
@@ -610,9 +613,24 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
         const newProd = Number(valore) || 0
         const delta = newProd - oldProd
         if (ric && delta !== 0) {
-          const { nuovoMagazzino, ingredientiScalati } = scaloMagazzinoPerGusto(magazzino || {}, ric, delta)
+          // Il ricettario va passato: senza, un semilavorato che non sta in
+          // magazzino non si può aprire, e al posto di farina e burro si
+          // scalava una riga fantasma col suo nome. Vedi il racconto lungo
+          // in cima a `scaloMagazzinoPerGusto`.
+          const { nuovoMagazzino, ingredientiScalati, nonTrovati } = scaloMagazzinoPerGusto(magazzino || {}, ric, delta, ricettario)
           nuovoMagazzinoTarget = nuovoMagazzino
           ingredientiScalatiTarget = ingredientiScalati
+          // Gli ingredienti che in magazzino non ci sono: la produzione si
+          // registra lo stesso — è successa — ma la giacenza non li conosce,
+          // e chi legge il magazzino deve saperlo adesso, non all'inventario.
+          // Una volta per ingrediente, non a ogni cella.
+          const nuoviMancanti = (nonTrovati || []).filter(x => !avvisatiMancanti.current.has(x))
+          if (nuoviMancanti.length > 0) {
+            for (const x of nuoviMancanti) avvisatiMancanti.current.add(x)
+            notify?.(nuoviMancanti.length === 1
+              ? `«${nuoviMancanti[0]}» non è in magazzino: la produzione l'ha usato ma la giacenza non cambia.`
+              : `${nuoviMancanti.length} ingredienti non sono in magazzino (${nuoviMancanti.slice(0, 3).join(', ')}${nuoviMancanti.length > 3 ? '…' : ''}): la produzione li ha usati ma la giacenza non cambia.`, false)
+          }
         }
       }
 
