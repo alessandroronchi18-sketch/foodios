@@ -123,12 +123,32 @@ export default async function handler(req) {
     if (!passwordProvided) {
       return json({ error: 'La password del laboratorio e\' obbligatoria per un nuovo account' }, 400, req)
     }
-    // Blocca se email già esiste in un'altra org
-    const { data: authUsers } = await supabase.auth.admin.listUsers({ page: 1, perPage: 200 })
-    const existingAuth = (authUsers?.users || []).find(u => (u.email || '').toLowerCase() === emailRaw)
-    if (existingAuth) {
+    // ── La mail è già di qualcuno? Si guarda DAPPERTUTTO ─────────────────
+    //
+    // Qui c'era `listUsers({ page: 1, perPage: 200 })`: guardava i primi
+    // duecento utenti. Al 21/09/2026 in `auth.users` ce ne sono **2.343**,
+    // quindi il 91% delle mail esistenti era invisibile al controllo. Una
+    // mail già di qualcun altro passava, e nasceva un secondo accesso sulla
+    // stessa identità: due account che si sovrascrivono a vicenda, e il guaio
+    // si scopre il giorno in cui uno dei due non riesce più a entrare.
+    //
+    // Paginare fino in fondo non è la risposta: sarebbero dodici chiamate per
+    // ogni tentativo, e fra un anno venti. Una domanda si fa al database.
+    //
+    // `email_gia_in_uso` guarda gli accessi, i profili **e gli inviti in
+    // sospeso** — quest'ultimi sono i più insidiosi, perché un invito non
+    // accettato non ha ancora un utente e un controllo su `auth.users` non lo
+    // vede: due persone invitate con la stessa mail in due aziende diverse, e
+    // la prima che accetta si prende l'altra.
+    const { data: usata, error: errUsata } = await supabase.rpc('email_gia_in_uso', { p_email: emailRaw })
+    if (errUsata) {
+      // Nel dubbio non si crea: un account doppio si disfa molto peggio di
+      // quanto costi riprovare fra un minuto.
+      return json({ error: 'Non riesco a verificare se questa email è già in uso. Riprova fra poco.' }, 503, req)
+    }
+    if (usata?.in_uso === true) {
       return json({
-        error: 'Questa email e\' gia\' associata a un altro account Foodos. Usa un\'email diversa (es. laboratorio-torino@…).',
+        error: 'Questa email è già in uso su Foodos. Usane una diversa, per esempio laboratorio-torino@…',
       }, 409, req)
     }
 

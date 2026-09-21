@@ -2072,6 +2072,37 @@ function LaboratorioFormDialog({ orgId, sedi, nomeAttivita, existing = null, onC
   const isEdit = !!existing
   const [nome, setNome] = useState(existing?.nome_completo || '')
   const [email, setEmail] = useState(existing?.email || '')
+  // ── «Mail già in uso» si dice mentre si scrive, non dopo aver salvato ──
+  //
+  // Richiesta del titolare, 21/09/2026. Il controllo vero sta sul server —
+  // è l'unico che vede tutto il sistema, comprese le altre aziende e gli
+  // inviti mai accettati — ma scoprirlo solo dopo aver compilato tutto e
+  // premuto il pulsante è il modo più veloce per far rifare il modulo da capo.
+  //
+  // `null` = non lo sappiamo ancora, e si tace: far lampeggiare un avviso e
+  // poi toglierlo è peggio che aspettare mezzo secondo.
+  const [mailOccupata, setMailOccupata] = useState(null)
+
+  // Si chiede al database mezzo secondo dopo l'ultimo tasto: una domanda per
+  // ogni lettera battuta sarebbe una domanda ogni trenta millisecondi.
+  useEffect(() => {
+    if (isEdit) return                       // in modifica l'email non si tocca
+    const scritta = (email || '').trim()
+    if (!scritta || !scritta.includes('@')) { setMailOccupata(null); return }
+    let vivo = true
+    const t = setTimeout(() => {
+      supabase.rpc('email_gia_in_uso', { p_email: scritta })
+        .then(({ data, error }) => {
+          if (!vivo || error) return
+          // Nel dubbio si tace: dire «già in uso» a chi ha una mail libera
+          // sarebbe peggio del difetto che stiamo correggendo.
+          if (data?.ok === true && data.valida === true) setMailOccupata(data.in_uso === true)
+          else setMailOccupata(null)
+        })
+        .catch(() => { /* il controllo vero lo fa comunque il server al salvataggio */ })
+    }, 500)
+    return () => { vivo = false; clearTimeout(t) }
+  }, [email, isEdit])
   const [sedeId, setSedeId] = useState(existing?.laboratorio_sede_id || (sedi?.[0]?.id || ''))
   const [password, setPassword] = useState('')
   const [changePwd, setChangePwd] = useState(!isEdit) // in create sempre true
@@ -2135,6 +2166,16 @@ function LaboratorioFormDialog({ orgId, sedi, nomeAttivita, existing = null, onC
           placeholder="laboratorio-torino@tuodominio.it"
           style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', minHeight: 40, fontSize: F.size.md, border: `1px solid ${C.border}`, borderRadius: 8, marginBottom: isEdit ? 4 : 14, background: isEdit ? C.bgSubtle : C.white, color: isEdit ? C.textSoft : C.text }} />
         {isEdit && <div style={{ fontSize: typo.small.fontSize, color: C.textSoft, marginBottom: 14 }}>L'email non e' modificabile.</div>}
+        {!isEdit && mailOccupata === true && (
+          <div role="alert" style={{
+            marginTop: -8, marginBottom: 14, padding: '9px 11px', borderRadius: 8,
+            background: C.redLight, border: `1px solid ${C.red}`,
+            fontSize: typo.small.fontSize, color: C.redDark, lineHeight: 1.5,
+          }}>
+            Questa email è già in uso su Foodos. Usane una diversa, per esempio
+            laboratorio-torino@tuodominio.it
+          </div>
+        )}
 
         <label style={{ display: 'block', fontSize: typo.small.fontSize, fontWeight: 700, color: C.textMid, marginBottom: 6 }}>Sede fisica</label>
         <select value={sedeId} onChange={e => setSedeId(e.target.value)}

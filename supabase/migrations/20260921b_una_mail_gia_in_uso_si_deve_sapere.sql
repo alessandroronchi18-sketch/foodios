@@ -49,12 +49,17 @@ declare
   v_uid uuid := auth.uid();
   v_email text := lower(trim(coalesce(p_email, '')));
 begin
-  if v_uid is null then
-    return jsonb_build_object('ok', false, 'error', 'not_authenticated');
-  end if;
-
-  -- Un dipendente non crea account, quindi non ha motivo di provare indirizzi.
-  if public.is_dipendente() then
+  -- Chi può chiamarla, e le due strade da cui arriva.
+  --
+  -- Dal browser del titolare c'è sempre un utente (`auth.uid()`), e lì si
+  -- controlla che non sia un dipendente. Dal server — `api/laboratorio-crea.js`
+  -- usa la chiave di servizio — di utente non ce n'è nessuno: `auth.uid()` è
+  -- nullo. Un JWT «authenticated» porta sempre il suo `sub`, quindi un uid
+  -- nullo qui vuol dire soltanto una cosa: è il nostro server a chiedere.
+  --
+  -- Il permesso è dato ai soli `authenticated` (vedi il `grant` in fondo):
+  -- un visitatore non loggato non arriva fin qui a provare indirizzi.
+  if v_uid is not null and public.is_dipendente() then
     return jsonb_build_object('ok', false, 'error', 'non_autorizzato');
   end if;
 
