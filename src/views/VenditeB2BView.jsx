@@ -4,7 +4,7 @@
 // filtri pill wrap, helper fmt/fmt0 IT.
 import React, { useEffect, useMemo, useState } from 'react'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
-import { color as T, radius as R, shadow as S, ui3, ui } from '../lib/theme'
+import { color as T, radius as R, shadow as S, ui3, ui, font} from '../lib/theme'
 import { isRicettaValida, getR, buildIngCosti, calcolaFC } from '../lib/foodcost'
 import { todayLocal, differenzaGiorni } from '../lib/dateLocal'
 import {
@@ -19,10 +19,10 @@ import { fmtp0 } from '../lib/formatIt'
 
 // Stati vendita: label + chip color. "consegnata" è il default operativo (consegnata, da fatturare).
 const STATI = {
-  bozza:       { lbl: 'Bozza',         bg: '#F1F5F9',     fg: '#475569' },
+  bozza:       { lbl: 'Bozza',         bg: T.bgSubtle,     fg: '#475569' },
   consegnata:  { lbl: 'Da fatturare',  bg: C.amberLight,  fg: C.amber   },
   fatturata:   { lbl: 'Fatturata',     bg: C.greenLight,  fg: C.green   },
-  annullata:   { lbl: 'Annullata',     bg: '#FEE2E2',     fg: C.red     },
+  annullata:   { lbl: 'Annullata',     bg: T.redLight,     fg: C.red     },
 }
 
 // Helpers locali: formattazione data breve IT e pluralizzazione vendite.
@@ -205,7 +205,7 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
   const nInsoluti    = venditeExt.filter(v => v.nonPagata).length
   const margPctMese  = ricavoMeseNoto > 0 ? margineMese / ricavoMeseNoto * 100 : null
 
-  if (!orgId) return <div style={{ padding: 24, color: C.textSoft, fontSize: 13 }}>Caricamento…</div>
+  if (!orgId) return <div style={{ padding: 24, color: C.textSoft, fontSize: font.size.base }}>Caricamento…</div>
 
   // ── handlers vendita ──
   const apriVendita = () => setVForm({ id: null, cliente_id: '', data: todayLocal(), note: '', righe: [{ prodotto: '', qta: '', prezzo: '' }] })
@@ -260,7 +260,7 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
   }
   // Label uniforme per i form.
   const lbl = {
-    fontSize: 12, fontWeight: 700, color: C.textSoft,
+    fontSize: font.size.sm, fontWeight: 700, color: C.textSoft,
     textTransform: 'uppercase', letterSpacing: '0.05em',
     display: 'block', marginBottom: 5,
   }
@@ -288,7 +288,7 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
         padding: isMobile ? '10px 14px' : '8px 18px',
         minHeight: minTT,
         borderRadius: R.md, border: 'none', cursor: 'pointer',
-        fontWeight: tab === id ? 700 : 500, fontSize: 13, letterSpacing: '-0.005em',
+        fontWeight: tab === id ? 700 : 500, fontSize: font.size.base, letterSpacing: '-0.005em',
         background: tab === id ? T.bgCard : 'transparent',
         color: tab === id ? T.text : T.textSoft,
         boxShadow: tab === id ? S.sm : 'none',
@@ -312,7 +312,7 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
         border: `1px solid ${active ? C.red : C.border}`,
         background: active ? C.red : C.white,
         color: active ? C.white : C.textMid,
-        fontSize: 12, fontWeight: 700, cursor: 'pointer',
+        fontSize: font.size.sm, fontWeight: 700, cursor: 'pointer',
         display: 'inline-flex', alignItems: 'center', gap: 6,
         whiteSpace: 'nowrap',
         transition: 'background .15s, color .15s, border-color .15s',
@@ -322,7 +322,7 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
         <span style={{
           background: active ? 'rgba(255,255,255,0.2)' : C.bgSubtle,
           color: active ? C.white : C.textSoft,
-          padding: '1px 7px', borderRadius: 999, fontSize: 12, fontWeight: 700,
+          padding: '1px 7px', borderRadius: 999, fontSize: font.size.sm, fontWeight: 700,
           ...TNUM,
         }}>{count.toLocaleString('it-IT', { useGrouping: 'always' })}</span>
       )}
@@ -384,22 +384,22 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
       {/* ── Banner scorte insufficienti ── */}
       {stockWarn.length > 0 && (
         <div style={{
-          background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 12,
+          background: '${T.white}7ED', border: '1px solid #FED7AA', borderRadius: 12,
           padding: '12px 16px', marginBottom: 16,
           display: 'flex', gap: 12, alignItems: 'flex-start',
           boxSizing: 'border-box',
         }}>
           <span style={{ color: '#C2410C', flexShrink: 0, marginTop: 1 }}><Icon name="warning" size={18} /></span>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 13, fontWeight: 800, color: '#9A3412', marginBottom: 4 }}>Scorte insufficienti dopo l'ultima vendita</div>
-            <div style={{ fontSize: 12, color: '#9A3412', lineHeight: 1.5 }}>
+            <div style={{ fontSize: font.size.base, fontWeight: 800, color: '#9A3412', marginBottom: 4 }}>Scorte insufficienti dopo l'ultima vendita</div>
+            <div style={{ fontSize: font.size.sm, color: '#9A3412', lineHeight: 1.5 }}>
               La vendita è stata salvata, ma alcuni prodotti sono ora in negativo in magazzino:
               <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 {stockWarn.map((w, i) => (
-                  <span key={i} style={{ background: '#FFEDD5', color: '#9A3412', fontWeight: 700, fontSize: 12, padding: '3px 9px', borderRadius: 8 }}>{w}</span>
+                  <span key={i} style={{ background: '#FFEDD5', color: '#9A3412', fontWeight: 700, fontSize: font.size.sm, padding: '3px 9px', borderRadius: 8 }}>{w}</span>
                 ))}
               </div>
-              <div style={{ marginTop: 6, color: '#B45309' }}>
+              <div style={{ marginTop: 6, color: T.amber }}>
                 Registra un <b>carico merce</b> (Magazzino) o un <b>trasferimento</b> tra sedi per riallineare.
               </div>
             </div>
@@ -437,11 +437,11 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
 
           {/* Per cliente */}
           <div style={surface}>
-            <div style={{ padding: '14px 18px', borderBottom: `1px solid ${C.border}`, fontSize: 14, fontWeight: 700, color: C.text }}>
+            <div style={{ padding: '14px 18px', borderBottom: `1px solid ${C.border}`, fontSize: font.size.md, fontWeight: 700, color: C.text }}>
               Per cliente
             </div>
             {rollupClienti.length === 0 ? (
-              <div style={{ padding: 28, textAlign: 'center', color: C.textSoft, fontSize: 13 }}>Nessuna vendita registrata.</div>
+              <div style={{ padding: 28, textAlign: 'center', color: C.textSoft, fontSize: font.size.base }}>Nessuna vendita registrata.</div>
             ) : (
               <div style={{ overflowX: 'auto' }}>
                 <TabellaOSchede
@@ -474,7 +474,7 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
                       ].map((h) => (
                         <th key={h.lbl} style={{
                           padding: '10px 14px', textAlign: h.align,
-                          fontSize: 12, fontWeight: 700, color: C.textSoft,
+                          fontSize: font.size.sm, fontWeight: 700, color: C.textSoft,
                           textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap',
                           borderBottom: `1px solid ${C.border}`,
                           position: h.sticky ? 'sticky' : 'static',
@@ -501,7 +501,7 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
                         <td style={{ padding: '12px 14px', textAlign: 'right', color: C.green, ...TNUM, whiteSpace: 'nowrap' }}>
                           {g.margPct == null
                             ? <span style={{ color: C.textSoft }} title="Manca il costo dei prodotti venduti a questo cliente">-</span>
-                            : <>{fmt(g.margine)} <span style={{ color: C.textSoft, fontSize: 12 }}>{fmtp0(g.margPct)}</span></>}
+                            : <>{fmt(g.margine)} <span style={{ color: C.textSoft, fontSize: font.size.sm }}>{fmtp0(g.margPct)}</span></>}
                         </td>
                         <td style={{ ...TNUM, padding: '12px 14px', textAlign: 'right', fontWeight: 700, color: g.insoluto > 0 ? C.red : C.textSoft, ...TNUM, whiteSpace: 'nowrap' }}>
                           {g.insoluto > 0 ? fmt(g.insoluto) : '-'}
@@ -516,11 +516,11 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
 
           {/* Per prodotto */}
           <div style={surface}>
-            <div style={{ padding: '14px 18px', borderBottom: `1px solid ${C.border}`, fontSize: 14, fontWeight: 700, color: C.text }}>
+            <div style={{ padding: '14px 18px', borderBottom: `1px solid ${C.border}`, fontSize: font.size.md, fontWeight: 700, color: C.text }}>
               Prodotti più venduti all'ingrosso
             </div>
             {rankProdotti.length === 0 ? (
-              <div style={{ padding: 28, textAlign: 'center', color: C.textSoft, fontSize: 13 }}>Nessun prodotto venduto.</div>
+              <div style={{ padding: 28, textAlign: 'center', color: C.textSoft, fontSize: font.size.base }}>Nessun prodotto venduto.</div>
             ) : (
               <div style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: isMobile ? 14 : 10 }}>
                 {rankProdotti.slice(0, 12).map((p, i) => {
@@ -532,15 +532,15 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
                         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
                           <span title={p.nome} style={{
                             flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                            fontSize: 13, fontWeight: i === 0 ? 700 : 600, color: C.text,
+                            fontSize: font.size.base, fontWeight: i === 0 ? 700 : 600, color: C.text,
                           }}>{p.nome}</span>
-                          <span style={{ fontSize: 13, fontWeight: 700, color: C.text, ...TNUM, whiteSpace: 'nowrap' }}>{fmt0(p.ricavo)}</span>
+                          <span style={{ fontSize: font.size.base, fontWeight: 700, color: C.text, ...TNUM, whiteSpace: 'nowrap' }}>{fmt0(p.ricavo)}</span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <span style={{ flex: 1, height: 8, background: T.bgSubtle, borderRadius: 5, overflow: 'hidden' }}>
                             <span style={{ display: 'block', height: '100%', width: `${widthPct}%`, background: i === 0 ? C.green : 'rgba(31,122,72,0.5)' }} />
                           </span>
-                          <span style={{ fontSize: 12, color: C.textSoft, ...TNUM, whiteSpace: 'nowrap' }}>
+                          <span style={{ fontSize: font.size.sm, color: C.textSoft, ...TNUM, whiteSpace: 'nowrap' }}>
                             {p.qta.toLocaleString('it-IT', { useGrouping: 'always' })} pz
                           </span>
                         </div>
@@ -551,15 +551,15 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
                     <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                       <span title={p.nome} style={{
                         flex: '0 0 38%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                        fontSize: 13, fontWeight: i === 0 ? 700 : 500, color: C.text,
+                        fontSize: font.size.base, fontWeight: i === 0 ? 700 : 500, color: C.text,
                       }}>{p.nome}</span>
                       <span style={{ flex: 1, height: 16, background: T.bgSubtle, borderRadius: 5, overflow: 'hidden' }}>
                         <span style={{ display: 'block', height: '100%', width: `${widthPct}%`, background: i === 0 ? C.green : 'rgba(31,122,72,0.5)' }} />
                       </span>
-                      <span style={{ flex: '0 0 70px', textAlign: 'right', fontSize: 12, color: C.textSoft, ...TNUM, whiteSpace: 'nowrap' }}>
+                      <span style={{ flex: '0 0 70px', textAlign: 'right', fontSize: font.size.sm, color: C.textSoft, ...TNUM, whiteSpace: 'nowrap' }}>
                         {p.qta.toLocaleString('it-IT', { useGrouping: 'always' })} pz
                       </span>
-                      <span style={{ flex: '0 0 110px', textAlign: 'right', fontSize: 13, fontWeight: 700, color: C.text, ...TNUM, whiteSpace: 'nowrap' }}>
+                      <span style={{ flex: '0 0 110px', textAlign: 'right', fontSize: font.size.base, fontWeight: 700, color: C.text, ...TNUM, whiteSpace: 'nowrap' }}>
                         {fmt(p.ricavo)}
                       </span>
                     </div>
@@ -573,7 +573,7 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
 
       {/* ─────────────────────────  VENDITE  ───────────────────────── */}
       {loading ? (
-        <div style={{ color: C.textSoft, fontSize: 13 }}>Caricamento…</div>
+        <div style={{ color: C.textSoft, fontSize: font.size.base }}>Caricamento…</div>
       ) : tab === 'vendite' ? (
         <>
           {/* Toolbar: nuova vendita + filtri pill */}
@@ -585,7 +585,7 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
               <button onClick={apriVendita} style={{
                 padding: '12px 20px', minHeight: 44,
                 background: C.red, color: C.white, border: 'none',
-                borderRadius: 10, fontWeight: 800, fontSize: 14, cursor: 'pointer',
+                borderRadius: 10, fontWeight: 800, fontSize: font.size.md, cursor: 'pointer',
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                 width: isMobile ? '100%' : 'auto',
                 boxShadow: '0 2px 8px rgba(110,14,26,0.18)',
@@ -624,7 +624,7 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
                       padding: isMobile ? '10px 12px' : '8px 12px',
                       minHeight: minTT,
                       borderRadius: 999,
-                      fontSize: 12,
+                      fontSize: font.size.sm,
                       fontWeight: 600,
                       color: fCliente === 'all' ? C.textMid : C.text,
                     }}>
@@ -644,7 +644,7 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
               boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)',
               boxSizing: 'border-box',
             }}>
-              <div style={{ fontSize: 14, fontWeight: 800, color: C.text, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ fontSize: font.size.md, fontWeight: 800, color: C.text, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
                 {vForm.id ? <><Icon name="edit" size={15} /> Modifica vendita</> : <><Icon name="plus" size={15} /> Nuova vendita B2B</>}
               </div>
 
@@ -700,8 +700,8 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
                           </div>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 2 }}>
-                          <span style={{ fontSize: 12, color: C.textSoft, fontWeight: 600 }}>Totale riga</span>
-                          <span style={{ fontSize: 15, fontWeight: 800, color: C.text, ...TNUM }}>{fmt(tot)}</span>
+                          <span style={{ fontSize: font.size.sm, color: C.textSoft, fontWeight: 600 }}>Totale riga</span>
+                          <span style={{ fontSize: font.size.md, fontWeight: 800, color: C.text, ...TNUM }}>{fmt(tot)}</span>
                         </div>
                         <button
                           aria-label={`Rimuovi riga ${i + 1}`}
@@ -709,7 +709,7 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
                           style={{
                             alignSelf: 'flex-end', minHeight: 40, padding: '8px 14px',
                             borderRadius: 8, border: `1px solid ${C.border}`,
-                            background: C.white, color: C.red, fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                            background: C.white, color: C.red, fontSize: font.size.base, fontWeight: 700, cursor: 'pointer',
                           }}>
                           Rimuovi
                         </button>
@@ -722,7 +722,7 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
                   <div style={{ minWidth: 540 }}>
                     <div style={{
                       display: 'grid', gridTemplateColumns: '1fr 80px 100px 90px 36px',
-                      gap: 8, fontSize: 12, fontWeight: 700, color: C.textSoft,
+                      gap: 8, fontSize: font.size.sm, fontWeight: 700, color: C.textSoft,
                       textTransform: 'uppercase', letterSpacing: '0.06em',
                       padding: '0 6px', marginBottom: 6,
                     }}>
@@ -749,13 +749,13 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
                           <input type="number" inputMode="decimal" value={r.prezzo} placeholder="0,00"
                             onChange={e => set('prezzo', e.target.value)} style={{ ...inp, textAlign: 'right' }}
                             aria-label={`Prezzo riga ${i + 1}`} />
-                          <span style={{ fontSize: 13, fontWeight: 700, color: C.text, textAlign: 'right', ...TNUM, whiteSpace: 'nowrap' }}>{fmt(tot)}</span>
+                          <span style={{ fontSize: font.size.base, fontWeight: 700, color: C.text, textAlign: 'right', ...TNUM, whiteSpace: 'nowrap' }}>{fmt(tot)}</span>
                           <button
                             aria-label={`Rimuovi riga ${i + 1}`}
                             onClick={() => setVForm(f => ({ ...f, righe: f.righe.length > 1 ? f.righe.filter((_, j) => j !== i) : f.righe }))}
                             style={{
                               width: 36, height: 36, borderRadius: 8, border: `1px solid ${C.border}`,
-                              background: C.white, color: C.red, fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                              background: C.white, color: C.red, fontSize: font.size.md, fontWeight: 700, cursor: 'pointer',
                               display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                             }}>
                             <Icon name="x" size={14} />
@@ -773,7 +773,7 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
                 style={{
                   marginTop: 10, padding: '10px 14px', minHeight: 44,
                   background: C.white, border: `1px dashed ${C.borderStr}`, borderRadius: 10,
-                  fontSize: 13, fontWeight: 700, color: C.textMid, cursor: 'pointer',
+                  fontSize: font.size.base, fontWeight: 700, color: C.textMid, cursor: 'pointer',
                   display: 'inline-flex', alignItems: 'center', gap: 6,
                   width: isMobile ? '100%' : 'auto', justifyContent: 'center',
                 }}>
@@ -799,7 +799,7 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
                   flex: isMobile ? 1 : 'unset',
                   padding: '12px 18px', minHeight: 44,
                   background: 'transparent', border: `1px solid ${C.border}`,
-                  borderRadius: 10, fontSize: 13, fontWeight: 600, color: C.textSoft, cursor: 'pointer',
+                  borderRadius: 10, fontSize: font.size.base, fontWeight: 600, color: C.textSoft, cursor: 'pointer',
                 }}>
                   Annulla
                 </button>
@@ -807,7 +807,7 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
                   flex: isMobile ? 1 : 'unset',
                   padding: '12px 20px', minHeight: 44,
                   background: C.green, color: C.white, border: 'none',
-                  borderRadius: 10, fontWeight: 800, fontSize: 14,
+                  borderRadius: 10, fontWeight: 800, fontSize: font.size.md,
                   cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1,
                   display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                 }}>
@@ -816,11 +816,11 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
               </div>
 
               {sedeId ? (
-                <div style={{ fontSize: 12, color: C.textSoft, marginTop: 10 }}>
+                <div style={{ fontSize: font.size.sm, color: C.textSoft, marginTop: 10 }}>
                   Lo stock dei prodotti finiti verrà scaricato dalla sede attiva.
                 </div>
               ) : (
-                <div style={{ fontSize: 12, color: C.amber, marginTop: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ fontSize: font.size.sm, color: C.amber, marginTop: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
                   <Icon name="warning" size={13} /> Nessuna sede attiva: la vendita viene registrata ma lo stock non sarà scaricato.
                 </div>
               )}
@@ -829,18 +829,18 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
 
           {/* Lista vendite */}
           {vendite.length === 0 ? (
-            <div style={{ ...surface, padding: '48px 24px', textAlign: 'center', color: C.textSoft, fontSize: 13 }}>
+            <div style={{ ...surface, padding: '48px 24px', textAlign: 'center', color: C.textSoft, fontSize: font.size.base }}>
               <div style={{ marginBottom: 10, display: 'flex', justifyContent: 'center' }}><Icon name="briefcase" size={32} color={C.textSoft} /></div>
               Nessuna vendita B2B registrata.
             </div>
           ) : venditeFiltered.length === 0 ? (
-            <div style={{ ...surface, padding: '40px 24px', textAlign: 'center', color: C.textSoft, fontSize: 13 }}>
+            <div style={{ ...surface, padding: '40px 24px', textAlign: 'center', color: C.textSoft, fontSize: font.size.base }}>
               Nessuna vendita corrisponde ai filtri selezionati.
               <div style={{ marginTop: 12 }}>
                 <button onClick={() => { setFPeriodo('all'); setFCliente('all'); setFPagamento('all') }} style={{
                   padding: '8px 14px', minHeight: 40,
                   background: C.white, border: `1px solid ${C.border}`, borderRadius: 999,
-                  fontSize: 12, fontWeight: 700, color: C.textMid, cursor: 'pointer',
+                  fontSize: font.size.sm, fontWeight: 700, color: C.textMid, cursor: 'pointer',
                 }}>
                   Azzera filtri
                 </button>
@@ -853,12 +853,12 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
                 <div style={{
                   display: 'grid', gridTemplateColumns: VENDITA_COLS,
                   alignItems: 'center', gap: 12,
-                  padding: '12px 18px', background: '#F8F4F2', borderBottom: `1px solid ${C.border}`,
+                  padding: '12px 18px', background: T.bgSubtle, borderBottom: `1px solid ${C.border}`,
                 }}>
-                  <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft }}>Cliente</span>
-                  <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, textAlign: 'center' }}>Stato</span>
-                  <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, textAlign: 'right' }}>Totale</span>
-                  <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, textAlign: 'right' }}>Azioni</span>
+                  <span style={{ fontSize: font.size.sm, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft }}>Cliente</span>
+                  <span style={{ fontSize: font.size.sm, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, textAlign: 'center' }}>Stato</span>
+                  <span style={{ fontSize: font.size.sm, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, textAlign: 'right' }}>Totale</span>
+                  <span style={{ fontSize: font.size.sm, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, textAlign: 'right' }}>Azioni</span>
                 </div>
               )}
 
@@ -868,7 +868,7 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
                 const btnAct = {
                   padding: isMobile ? '10px 12px' : '7px 12px',
                   borderRadius: 8, border: `1px solid ${C.border}`,
-                  background: C.white, fontSize: 12,
+                  background: C.white, fontSize: font.size.sm,
                   fontWeight: 700, color: C.textMid, cursor: 'pointer',
                   minHeight: minTT, whiteSpace: 'nowrap',
                   display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 4,
@@ -885,27 +885,27 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
                         <div style={{ minWidth: 0, flex: 1 }}>
                           <div title={v.clienti_b2b?.nome || 'Cliente eliminato'} style={{
-                            fontSize: 15, fontWeight: 700, color: C.text,
+                            fontSize: font.size.md, fontWeight: 700, color: C.text,
                             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                           }}>{v.clienti_b2b?.nome || 'Cliente eliminato'}</div>
-                          <div style={{ fontSize: 12, color: C.textSoft, marginTop: 3, lineHeight: 1.5 }}>
+                          <div style={{ fontSize: font.size.sm, color: C.textSoft, marginTop: 3, lineHeight: 1.5 }}>
                             {fmtData(v.data)} · {plural((v.righe || []).length, 'prodotto', 'prodotti')} · {(v.righe || []).reduce((s, r) => s + (Number(r.qta) || 0), 0).toLocaleString('it-IT', { useGrouping: 'always' })} pz
                           </div>
-                          <div style={{ fontSize: 12, color: C.textSoft, marginTop: 2 }}>
+                          <div style={{ fontSize: font.size.sm, color: C.textSoft, marginTop: 2 }}>
                             {v.margine == null
                               ? <span>Margine non calcolabile: {v.righeSenzaCosto === 1 ? 'un prodotto non ha' : `${v.righeSenzaCosto} prodotti non hanno`} il costo</span>
                               : <>Margine <span style={{ fontWeight: 700, color: C.green, ...TNUM }}>{fmt(v.margine)}</span>
                                 {v.margPct > 0 && <span style={{ color: C.textSoft, marginLeft: 4 }}>({fmtp0(v.margPct)})</span>}</>}
                           </div>
                         </div>
-                        <div style={{ fontSize: 18, fontWeight: 800, color: C.text, ...TNUM, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                        <div style={{ fontSize: font.size.xl, fontWeight: 800, color: C.text, ...TNUM, whiteSpace: 'nowrap', flexShrink: 0 }}>
                           {fmt(v.totale)}
                         </div>
                       </div>
 
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                         <span style={{
-                          fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 999,
+                          fontSize: font.size.sm, fontWeight: 700, padding: '4px 10px', borderRadius: 999,
                           background: st.bg, color: st.fg, whiteSpace: 'nowrap',
                         }}>{st.lbl}</span>
                         {v.stato !== 'annullata' && (
@@ -913,9 +913,9 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
                             onClick={() => togglePagata(v)}
                             aria-label={v.pagata ? 'Segna come da incassare' : 'Segna come incassata'}
                             style={{
-                              fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 999,
+                              fontSize: font.size.sm, fontWeight: 700, padding: '4px 10px', borderRadius: 999,
                               border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
-                              background: v.pagata ? C.greenLight : '#FEE2E2',
+                              background: v.pagata ? C.greenLight : T.redLight,
                               color: v.pagata ? C.green : C.red,
                               minHeight: 28,
                             }}>
@@ -962,10 +962,10 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
                   }}>
                     <div style={{ minWidth: 0 }}>
                       <div title={v.clienti_b2b?.nome || 'Cliente eliminato'} style={{
-                        fontSize: 14, fontWeight: 700, color: C.text,
+                        fontSize: font.size.md, fontWeight: 700, color: C.text,
                         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                       }}>{v.clienti_b2b?.nome || 'Cliente eliminato'}</div>
-                      <div style={{ fontSize: 12, color: C.textSoft, marginTop: 3 }}>
+                      <div style={{ fontSize: font.size.sm, color: C.textSoft, marginTop: 3 }}>
                         {fmtData(v.data)} · {plural((v.righe || []).length, 'prodotto', 'prodotti')} · {(v.righe || []).reduce((s, r) => s + (Number(r.qta) || 0), 0).toLocaleString('it-IT', { useGrouping: 'always' })} pz
                         {v.margine == null
                           ? <span style={{ color: C.textSoft }} title={`${v.righeSenzaCosto === 1 ? 'Un prodotto non ha' : `${v.righeSenzaCosto} prodotti non hanno`} il costo nel ricettario`}> · margine non calcolabile</span>
@@ -978,7 +978,7 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
 
                     <div style={{ justifySelf: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
                       <span style={{
-                        fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 999,
+                        fontSize: font.size.sm, fontWeight: 700, padding: '3px 10px', borderRadius: 999,
                         background: st.bg, color: st.fg, whiteSpace: 'nowrap',
                       }}>{st.lbl}</span>
                       {v.stato !== 'annullata' && (
@@ -987,9 +987,9 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
                           aria-label={v.pagata ? 'Segna come da incassare' : 'Segna come incassata'}
                           title={v.pagata ? 'Segna da incassare' : 'Segna incassata'}
                           style={{
-                            fontSize: 12, fontWeight: 700, padding: '3px 9px', borderRadius: 999,
+                            fontSize: font.size.sm, fontWeight: 700, padding: '3px 9px', borderRadius: 999,
                             border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
-                            background: v.pagata ? C.greenLight : '#FEE2E2',
+                            background: v.pagata ? C.greenLight : T.redLight,
                             color: v.pagata ? C.green : C.red,
                           }}>
                           {v.pagata ? 'Incassato' : 'Da incassare'}
@@ -997,7 +997,7 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
                       )}
                     </div>
 
-                    <span style={{ fontSize: 15, fontWeight: 800, color: C.text, ...TNUM, textAlign: 'right', whiteSpace: 'nowrap' }}>
+                    <span style={{ fontSize: font.size.md, fontWeight: 800, color: C.text, ...TNUM, textAlign: 'right', whiteSpace: 'nowrap' }}>
                       {fmt(v.totale)}
                     </span>
 
@@ -1043,7 +1043,7 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
             <button onClick={() => apriCliente(null)} style={{
               padding: '12px 20px', minHeight: 44,
               background: C.red, color: C.white, border: 'none',
-              borderRadius: 10, fontWeight: 800, fontSize: 14, cursor: 'pointer',
+              borderRadius: 10, fontWeight: 800, fontSize: font.size.md, cursor: 'pointer',
               marginBottom: 16, width: isMobile ? '100%' : 'auto',
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
               boxShadow: '0 2px 8px rgba(110,14,26,0.18)',
@@ -1059,7 +1059,7 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
               boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)',
               boxSizing: 'border-box',
             }}>
-              <div style={{ fontSize: 14, fontWeight: 800, color: C.text, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ fontSize: font.size.md, fontWeight: 800, color: C.text, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
                 {cForm.id ? <><Icon name="edit" size={15} /> Modifica cliente</> : <><Icon name="plus" size={15} /> Nuovo cliente B2B</>}
               </div>
 
@@ -1100,7 +1100,7 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
                   flex: isMobile ? 1 : 'unset',
                   padding: '12px 18px', minHeight: 44,
                   background: 'transparent', border: `1px solid ${C.border}`,
-                  borderRadius: 10, fontSize: 13, fontWeight: 600, color: C.textSoft, cursor: 'pointer',
+                  borderRadius: 10, fontSize: font.size.base, fontWeight: 600, color: C.textSoft, cursor: 'pointer',
                 }}>
                   Annulla
                 </button>
@@ -1108,7 +1108,7 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
                   flex: isMobile ? 1 : 'unset',
                   padding: '12px 20px', minHeight: 44,
                   background: C.green, color: C.white, border: 'none',
-                  borderRadius: 10, fontWeight: 800, fontSize: 14,
+                  borderRadius: 10, fontWeight: 800, fontSize: font.size.md,
                   cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1,
                   display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                 }}>
@@ -1119,7 +1119,7 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
           )}
 
           {clienti.length === 0 ? (
-            <div style={{ ...surface, padding: '48px 24px', textAlign: 'center', color: C.textSoft, fontSize: 13 }}>
+            <div style={{ ...surface, padding: '48px 24px', textAlign: 'center', color: C.textSoft, fontSize: font.size.base }}>
               <div style={{ marginBottom: 10, display: 'flex', justifyContent: 'center' }}><Icon name="building" size={32} color={C.textSoft} /></div>
               Nessun cliente B2B. Aggiungi i bar/ristoranti a cui vendi all'ingrosso.
             </div>
@@ -1137,11 +1137,11 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
                   }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div title={c.nome} style={{
-                        fontSize: 14, fontWeight: 700, color: C.text,
+                        fontSize: font.size.md, fontWeight: 700, color: C.text,
                         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                       }}>{c.nome}</div>
                       <div title={meta} style={{
-                        fontSize: 12, color: C.textSoft, marginTop: 3,
+                        fontSize: font.size.sm, color: C.textSoft, marginTop: 3,
                         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                       }}>{meta}</div>
                     </div>
@@ -1151,7 +1151,7 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
                       style={{
                         padding: isMobile ? '9px 14px' : '7px 14px',
                         borderRadius: 8, border: `1px solid ${C.border}`,
-                        background: C.white, fontSize: 12,
+                        background: C.white, fontSize: font.size.sm,
                         fontWeight: 700, color: C.textMid, cursor: 'pointer',
                         minHeight: minTT, whiteSpace: 'nowrap',
                       }}>
@@ -1171,7 +1171,7 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
                       style={{
                         padding: isMobile ? '9px 12px' : '7px 10px',
                         borderRadius: 8, border: `1px solid ${C.border}`,
-                        background: C.white, fontSize: 14, color: C.red, cursor: 'pointer',
+                        background: C.white, fontSize: font.size.md, color: C.red, cursor: 'pointer',
                         minHeight: minTT, minWidth: minTT,
                         display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                       }}>

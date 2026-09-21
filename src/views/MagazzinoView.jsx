@@ -67,10 +67,10 @@ function SectHead({ icon, title, sub, right }) {
   // altezza per far posto a due bottoni larghi in tutto 150.
   const testa = (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, flex: 1 }}>
-      <span style={{ width: 36, height: 36, borderRadius: R.lg, background: 'rgba(110,14,26,0.10)', color: T.brand, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>{icon}</span>
+      <span style={{ width: 36, height: 36, borderRadius: R.lg, background: 'rgba(110,14,26,0.10)', color: T.brand, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: font.size.lg, flexShrink: 0 }}>{icon}</span>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 15, fontWeight: 700, color: T.text, letterSpacing: '-0.01em' }}>{title}</div>
-        {sub && <div style={{ fontSize: 12, color: T.textSoft, marginTop: 1 }}>{sub}</div>}
+        <div style={{ fontSize: font.size.md, fontWeight: 700, color: T.text, letterSpacing: '-0.01em' }}>{title}</div>
+        {sub && <div style={{ fontSize: font.size.sm, color: T.textSoft, marginTop: 1 }}>{sub}</div>}
       </div>
     </div>
   )
@@ -248,8 +248,8 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
     }
   }
 
-  if (!sedeId) return <div style={{ padding: 24, textAlign: 'center', color: C.textSoft, fontSize: 13 }}>Seleziona una sede attiva per vedere lo stock {LEX.prodotti} finiti.</div>
-  if (loading) return <div style={{ padding: 24, textAlign: 'center', color: C.textSoft, fontSize: 13 }}>Caricamento…</div>
+  if (!sedeId) return <div style={{ padding: 24, textAlign: 'center', color: C.textSoft, fontSize: font.size.base }}>Seleziona una sede attiva per vedere lo stock {LEX.prodotti} finiti.</div>
+  if (loading) return <div style={{ padding: 24, textAlign: 'center', color: C.textSoft, fontSize: font.size.base }}>Caricamento…</div>
   // Quando il dato non c'è non si mostrano zeri: si dice che non si è letto.
   if (erroreLettura) return (
     <div style={{ background: C.bgCard, border: `1px solid ${C.alert}40`, borderRadius: R['2xl'], padding: '32px 24px', textAlign: 'center', boxShadow: SHADOW_PREMIUM }}>
@@ -303,14 +303,14 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
   }
 
   const CAUSALE_LBL = {
-    produzione: { lbl: 'Produzione', ic: 'factory', col: '#16A34A' },
-    // Audit 2026-09-09: era '#DC2626', il rosso d'allarme. Ma inviare merce a
+    produzione: { lbl: 'Produzione', ic: 'factory', col: T.green },
+    // Audit 2026-09-09: era '${T.red}', il rosso d'allarme. Ma inviare merce a
     // un'altra sede e' un'operazione normale: il rosso resta agli scarti.
     trasferimento_invio: { lbl: 'Inviato', ic: 'truck', col: T.blue },
-    trasferimento_ricezione: { lbl: 'Ricevuto', ic: 'package', col: '#16A34A' },
-    vendita: { lbl: 'Vendita', ic: 'cart', col: '#2563EB' },
-    scarto: { lbl: 'Scarto', ic: 'warning', col: '#92400E' },
-    annullo_trasferimento: { lbl: 'Annullo', ic: 'undo', col: '#94A3B8' },
+    trasferimento_ricezione: { lbl: 'Ricevuto', ic: 'package', col: T.green },
+    vendita: { lbl: 'Vendita', ic: 'cart', col: T.blue },
+    scarto: { lbl: 'Scarto', ic: 'warning', col: T.amberDark },
+    annullo_trasferimento: { lbl: 'Annullo', ic: 'undo', col: T.textSoft },
     // Audit 2026-09-14: qui c'era 'rettifica', che nel database non esiste: il
     // vincolo ammette 'rettifica_manuale' e 'rettifica_admin'. Mancavano anche
     // le due causali delle vendite all'ingrosso, che da oggi vengono scritte
@@ -346,7 +346,7 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
       </div>
 
       {stock.length === 0 ? (
-        <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: R['2xl'], padding: '40px 20px', textAlign: 'center', color: C.textSoft, fontSize: 13, boxShadow: SHADOW_PREMIUM }}>
+        <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: R['2xl'], padding: '40px 20px', textAlign: 'center', color: C.textSoft, fontSize: font.size.base, boxShadow: SHADOW_PREMIUM }}>
           <div style={{ marginBottom: 8, color: C.textSoft }}><Icon name="package" size={36} /></div>
           Nessun prodotto in stock per questa sede.<br/>
           {/* Audit 2026-09-09: diceva solo "alla conferma di una sessione di
@@ -404,7 +404,7 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
             } },
           ]}
           intestazione={<><thead>
-              <tr style={{ background: '#F8F4F2' }}>
+              <tr style={{ background: T.bgSubtle }}>
                 {[LEX.Prodotto, 'Disponibili', 'Soglia', 'Aggiornato', ''].map((h, i) => (
                   <th key={i} style={{ padding: '10px 14px', textAlign: i === 1 || i === 2 ? 'right' : 'left', ...typo.caption, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>{h}</th>
                 ))}
@@ -416,7 +416,7 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
                 const sotto = r.soglia_min > 0 && q <= Number(r.soglia_min)
                 const neg = q < 0
                 return (
-                  <tr key={r.id} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.white : '#FDFAF7' }}>
+                  <tr key={r.id} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.white : T.bgSubtle }}>
                     <td style={{ padding: '10px 14px', fontWeight: 700, color: C.text }}>{r.prodotto_nome}</td>
                     <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 800, color: neg ? C.alert : sotto ? C.amber : C.text, ...TNUM }}>
                       {q.toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 2 })} {r.unita}
@@ -442,7 +442,7 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
                         {q > 0 && (
                           <button onClick={() => setScartoForm({ prodotto: r.prodotto_nome, qty: String(q), note: '', azzera: true, unita: r.unita || 'pz', disponibile: q, valoreUnit: Number(r.valore_unit || 0) })}
                             title="La giacenza è sbagliata: portala a zero senza contarla fra gli sprechi"
-                            style={{ padding: '9px 10px', minHeight: 44, borderRadius: 6, border: `1px solid ${C.red}`, background: '#FFF5F5', color: C.red, fontSize: typo.small.fontSize, fontWeight: 700, cursor: 'pointer' }}>
+                            style={{ padding: '9px 10px', minHeight: 44, borderRadius: 6, border: `1px solid ${C.red}`, background: '${T.white}5F5', color: C.red, fontSize: typo.small.fontSize, fontWeight: 700, cursor: 'pointer' }}>
                             Azzera
                           </button>
                         )}
@@ -509,7 +509,7 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
             { k: 'nota', label: 'Nota', cella: (m) => m.note || '—' },
           ]}
           intestazione={<><thead>
-                <tr style={{ background: '#F8F4F2' }}>
+                <tr style={{ background: T.bgSubtle }}>
                   {[['Quando', 'left'], ['Prodotto', 'left'], ['Perché', 'left'], ['Quantità', 'right'], ['Nota', 'left']].map(([h, al]) => (
                     <th key={h} style={{
                       padding: '9px 14px', textAlign: al, fontSize: font.size.sm, fontWeight: 700,
@@ -580,11 +580,11 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
                 scarto, con lo stesso titolo. Chi correggeva una giacenza
                 fantasma leggeva "Registra scarto" e non capiva se stava
                 dichiarando di aver buttato la merce. */}
-            <h3 style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 800, color: C.text, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <h3 style={{ margin: '0 0 6px', fontSize: font.size.xl, fontWeight: 800, color: C.text, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
               <Icon name={scartoForm.azzera ? 'edit' : 'warning'} size={18} />
               {scartoForm.azzera ? 'Porta a zero la giacenza' : 'Registra scarto'}
             </h3>
-            <p style={{ margin: '0 0 16px', fontSize: 12, color: C.textSoft }}>
+            <p style={{ margin: '0 0 16px', fontSize: font.size.sm, color: C.textSoft }}>
               {LEX.Prodotto}: <strong>{scartoForm.prodotto}</strong>
               {scartoForm.azzera && <>
                 <br/>
@@ -605,7 +605,7 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
                   scrivere. E svuotando il campo compariva uno 0. */}
               <input type="text" inputMode="decimal" value={scartoForm.qty}
                 onChange={e => setScartoForm(f => ({ ...f, qty: e.target.value }))}
-                style={{ width: '100%', padding: '12px 14px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 16, boxSizing: 'border-box' }}/>
+                style={{ width: '100%', padding: '12px 14px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: font.size.lg, boxSizing: 'border-box' }}/>
               {/* Audit 2026-09-14: il costo unitario era già in mano
                   (`valore_unit`, letto da loadStockPF) e non veniva usato da
                   nessuna parte. E' l'unico momento in cui ci si ferma a pensare
@@ -622,13 +622,13 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
               <input value={scartoForm.note}
                 onChange={e => setScartoForm(f => ({ ...f, note: e.target.value }))}
                 placeholder={scartoForm.azzera ? 'es. carico registrato due volte' : 'es. caduti per terra, scaduti, dati a omaggio'}
-                style={{ width: '100%', padding: '12px 14px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 16, boxSizing: 'border-box' }}/>
+                style={{ width: '100%', padding: '12px 14px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: font.size.lg, boxSizing: 'border-box' }}/>
             </div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => setScartoForm(null)} style={{ padding: '10px 18px', minHeight: 44, background: 'transparent', color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Annulla</button>
+              <button onClick={() => setScartoForm(null)} style={{ padding: '10px 18px', minHeight: 44, background: 'transparent', color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 8, fontWeight: 700, fontSize: font.size.base, cursor: 'pointer' }}>Annulla</button>
               <button onClick={handleScarto}
                 disabled={saving || !(parseFloat(String(scartoForm.qty ?? '').replace(',', '.')) > 0)}
-                style={{ padding: '10px 18px', minHeight: 44, background: C.red, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 13,
+                style={{ padding: '10px 18px', minHeight: 44, background: C.red, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: font.size.base,
                   cursor: (saving || !(parseFloat(String(scartoForm.qty ?? '').replace(',', '.')) > 0)) ? 'not-allowed' : 'pointer',
                   opacity: (saving || !(parseFloat(String(scartoForm.qty ?? '').replace(',', '.')) > 0)) ? 0.5 : 1 }}>{saving ? 'Salvataggio…' : (scartoForm.azzera ? 'Porta a zero' : 'Registra scarto')}</button>
             </div>
@@ -1511,7 +1511,7 @@ export default function MagazzinoView({
           <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 16px',
             background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: R.md, cursor: 'pointer', boxShadow: S.sm }}>
             <Icon name="upload" size={14} color={T.textMid} />
-            <span style={{ fontSize: 13, fontWeight: 500, color: T.textMid }}>Importa prezzi</span>
+            <span style={{ fontSize: font.size.base, fontWeight: 500, color: T.textMid }}>Importa prezzi</span>
             <input type="file" accept=".xlsx,.xls,.csv" multiple style={{ display: 'none' }} onChange={e => e.target.files.length && onImportPrezzi(e.target.files)}/>
           </label>
         )}
@@ -1543,12 +1543,12 @@ export default function MagazzinoView({
           return (
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', marginBottom: 14,
               background: sem.bg, border: `1px solid ${sem.col}33`, borderRadius: R['2xl'] }}>
-              <span style={{ width: 30, height: 30, borderRadius: '50%', background: sem.col, color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <span style={{ width: 30, height: 30, borderRadius: '50%', background: sem.col, color: T.white, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <Icon name={sem.ic} size={16} />
               </span>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 800, color: sem.col, letterSpacing: '-0.01em' }}>{sem.lbl}</div>
-                <div style={{ fontSize: 12, color: T.textMid, marginTop: 1 }}>{msg}</div>
+                <div style={{ fontSize: font.size.base, fontWeight: 800, color: sem.col, letterSpacing: '-0.01em' }}>{sem.lbl}</div>
+                <div style={{ fontSize: font.size.sm, color: T.textMid, marginTop: 1 }}>{msg}</div>
               </div>
             </div>
           )
@@ -1644,12 +1644,12 @@ export default function MagazzinoView({
         return (
           <div id="riordino-urgente" style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: R['2xl'], overflow: 'hidden', marginBottom: 24, boxShadow: SHADOW_PREMIUM, scrollMarginTop: 70 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 18px', borderBottom: `1px solid ${C.border}`,
-              background: 'linear-gradient(135deg, #6E0E1A 0%, #4A0612 100%)' }}>
-              <span style={{ width: 32, height: 32, borderRadius: 10, background: 'rgba(255,255,255,0.16)', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              background: 'linear-gradient(135deg, ${T.brand} 0%, #4A0612 100%)' }}>
+              <span style={{ width: 32, height: 32, borderRadius: 10, background: 'rgba(255,255,255,0.16)', color: T.white, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <Icon name="truck" size={17} />
               </span>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 800, color: '#fff', letterSpacing: '-0.01em' }}>Lista di riordino consigliata</div>
+                <div style={{ fontSize: font.size.md, fontWeight: 800, color: T.white, letterSpacing: '-0.01em' }}>Lista di riordino consigliata</div>
                 <div style={{ fontSize: typo.small.fontSize, color: 'rgba(255,255,255,0.75)', marginTop: 1 }}>
                   {daRiordinare.length} {daRiordinare.length === 1 ? 'ingrediente' : 'ingredienti'} · per coprire circa {GIORNI_TARGET} giorni di consumo
                   {nascosti > 0 && !riordinoTutti && ` · in elenco i ${RIORDINO_VISIBILI} più urgenti`}
@@ -1658,7 +1658,7 @@ export default function MagazzinoView({
               {costoStimato > 0 && (
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
                   <div style={{ ...typo.caption, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.65)' }}>Spesa stimata</div>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: '#fff', ...TNUM }}>{fmt0(costoStimato)}</div>
+                  <div style={{ fontSize: font.size.xl, fontWeight: 800, color: T.white, ...TNUM }}>{fmt0(costoStimato)}</div>
                 </div>
               )}
             </div>
@@ -1728,7 +1728,7 @@ export default function MagazzinoView({
             { k: 'forn', label: 'Da chi', cella: (r) => fornitorePerNome(r.nome) || 'da collegare' },
           ]}
           intestazione={<><thead>
-                  <tr style={{ background: '#F8F4F2' }}>
+                  <tr style={{ background: T.bgSubtle }}>
                     {/* "Da chi": la lista diceva quanto ordinare e non a chi
                         chiederlo. Il fornitore di un ingrediente si impara
                         registrando un ordine ricevuto in Fornitori. */}
@@ -1739,7 +1739,7 @@ export default function MagazzinoView({
                 </thead></>}
           corpo={<><tbody>
                   {visibili.map((r, i) => (
-                    <tr key={r.k} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.white : '#FDFAF7' }}>
+                    <tr key={r.k} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.white : T.bgSubtle }}>
                       <td style={{ padding: '10px 14px', fontWeight: 700, color: C.text, textTransform: 'capitalize' }}>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
                           <span style={{ width: 7, height: 7, borderRadius: '50%', background: statoColor(r.stato), flexShrink: 0 }}/>
@@ -1788,7 +1788,7 @@ export default function MagazzinoView({
                 style={{
                   width: '100%', minHeight: isMobile ? 46 : 40, border: 'none',
                   borderTop: `1px solid ${C.border}`, background: C.bgSubtle,
-                  color: C.textMid, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                  color: C.textMid, fontSize: font.size.sm, fontWeight: 700, cursor: 'pointer',
                   fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center',
                   justifyContent: 'center', gap: 7,
                 }}>
@@ -1833,7 +1833,7 @@ export default function MagazzinoView({
               style={{
                 padding: '8px 14px', minHeight: 44, borderRadius: R.md,
                 border: `1px solid ${C.borderStr}`, background: inventarioAperto ? C.bgSubtle : T.brand,
-                color: inventarioAperto ? C.textMid : '#FFF',
+                color: inventarioAperto ? C.textMid : T.white,
                 fontSize: typo.small.fontSize, fontWeight: 700, cursor: 'pointer', flexShrink: 0,
               }}>
               {inventarioAperto ? 'Chiudi' : 'Contali adesso'}
@@ -1851,7 +1851,7 @@ export default function MagazzinoView({
                   padding: isMobile ? '9px 12px' : '9px 16px',
                   borderTop: `1px solid ${C.borderSoft}`,
                 }}>
-                  <span style={{ flex: 1, minWidth: 0, fontSize: 13, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <span style={{ flex: 1, minWidth: 0, fontSize: font.size.base, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {r.nome}
                   </span>
                   <input
@@ -1862,7 +1862,7 @@ export default function MagazzinoView({
                     aria-label={`Quantità di ${r.nome} in chili`}
                     style={{
                       width: 92, padding: '8px 10px', minHeight: 40, borderRadius: 8,
-                      border: `1px solid ${C.borderStr}`, fontSize: 14,
+                      border: `1px solid ${C.borderStr}`, fontSize: font.size.md,
                       textAlign: 'right', fontVariantNumeric: 'tabular-nums', boxSizing: 'border-box',
                     }} />
                   <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, width: 22 }}>kg</span>
@@ -1872,7 +1872,7 @@ export default function MagazzinoView({
                 <button type="button" onClick={salvaPrimoInventario} disabled={saving}
                   style={{
                     padding: '10px 18px', minHeight: 42, borderRadius: 9, border: 'none',
-                    background: T.brand, color: '#FFF', fontSize: 13, fontWeight: 700,
+                    background: T.brand, color: T.white, fontSize: font.size.base, fontWeight: 700,
                     cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.6 : 1,
                   }}>
                   {saving ? 'Salvo…' : 'Salva il conteggio'}
@@ -1904,7 +1904,7 @@ export default function MagazzinoView({
           <button type="button" onClick={applicaSogliePropose} disabled={saving}
             style={{
               padding: '8px 14px', minHeight: 44, borderRadius: R.md,
-              border: 'none', background: T.amberDark, color: '#FFF',
+              border: 'none', background: T.amberDark, color: T.white,
               fontSize: typo.small.fontSize, fontWeight: 700,
               cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.6 : 1, flexShrink: 0,
             }}>
@@ -1940,7 +1940,7 @@ export default function MagazzinoView({
           <button key={id} onClick={() => setTab(id)}
             role="tab" aria-selected={tab === id} id={`mag-tab-${id}`}
             style={{ padding: '12px 16px', minHeight: 44, border: 'none', background: 'transparent', cursor: 'pointer',
-              fontSize: 13, fontWeight: tab === id ? 600 : 500, color: tab === id ? T.text : T.textSoft,
+              fontSize: font.size.base, fontWeight: tab === id ? 600 : 500, color: tab === id ? T.text : T.textSoft,
               borderBottom: tab === id ? `2px solid ${T.brand}` : '2px solid transparent',
               marginBottom: -1, whiteSpace: 'nowrap', transition: `color ${M.durFast} ${M.ease}`, flexShrink: 0 }}>
             {lbl}
@@ -1964,13 +1964,13 @@ export default function MagazzinoView({
                       style={{ padding: '0 14px', minHeight: 40, borderRadius: 6, border: 'none', cursor: 'pointer', minWidth: 44,
                         background: unitMode === u ? C.bgCard : 'transparent',
                         color: unitMode === u ? C.red : C.textSoft,
-                        fontSize: 12, fontWeight: 700,
+                        fontSize: font.size.sm, fontWeight: 700,
                         boxShadow: unitMode === u ? '0 1px 2px rgba(15,23,42,0.08)' : 'none',
                         fontFamily: 'inherit',
                       }}>{u}</button>
                   ))}
                 </div>
-                <button onClick={() => setShowAddIng(true)} title="Aggiungi ingrediente" style={{ padding: isMobile ? '0 12px' : '0 16px', minHeight: 44, background: C.red, color: C.white, border: 'none', borderRadius: R.md, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 2px 8px rgba(110,14,26,0.2)', display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}><Icon name="plus" size={12} />{isMobile ? 'Aggiungi' : 'Aggiungi ingrediente'}</button>
+                <button onClick={() => setShowAddIng(true)} title="Aggiungi ingrediente" style={{ padding: isMobile ? '0 12px' : '0 16px', minHeight: 44, background: C.red, color: C.white, border: 'none', borderRadius: R.md, fontSize: font.size.sm, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 2px 8px rgba(110,14,26,0.2)', display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}><Icon name="plus" size={12} />{isMobile ? 'Aggiungi' : 'Aggiungi ingrediente'}</button>
               </div>
             } />
           {/* ── Dove sono finiti i prezzi ────────────────────────────────
@@ -2005,7 +2005,7 @@ export default function MagazzinoView({
               <input value={magSearch} onChange={e => setMagSearch(e.target.value)}
                 placeholder="Cerca un ingrediente…"
                 aria-label="Cerca un ingrediente fra le giacenze"
-                style={{ width: '100%', maxWidth: 340, padding: isMobile ? '11px 12px' : '9px 12px', minHeight: 40, borderRadius: 9, border: `1px solid ${C.borderStr}`, fontSize: 13, color: C.text, background: C.white }} />
+                style={{ width: '100%', maxWidth: 340, padding: isMobile ? '11px 12px' : '9px 12px', minHeight: 40, borderRadius: 9, border: `1px solid ${C.borderStr}`, fontSize: font.size.base, color: C.text, background: C.white }} />
               {magSearch.trim() && (
                 <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, marginLeft: 10 }}>
                   {righeFiltrate.length} di {righe.length}
@@ -2024,11 +2024,11 @@ export default function MagazzinoView({
                 <div key={lbl}>
                   <div style={{ ...typo.caption, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>{lbl}</div>
                   <input type={type || 'text'} inputMode={type === 'number' ? 'decimal' : undefined} value={val} onChange={e => set(e.target.value)} placeholder={ph}
-                    style={{ width: '100%', padding: '10px 12px', minHeight: 44, borderRadius: 7, border: `1px solid ${C.borderStr}`, fontSize: 13, color: C.text, boxSizing: 'border-box' }}/>
+                    style={{ width: '100%', padding: '10px 12px', minHeight: 44, borderRadius: 7, border: `1px solid ${C.borderStr}`, fontSize: font.size.base, color: C.text, boxSizing: 'border-box' }}/>
                 </div>
               ))}
               <div style={{ display: 'flex', gap: 6 }}>
-                <button onClick={handleAddIngrediente} disabled={saving} style={{ flex: 1, padding: '10px 16px', minHeight: 44, background: C.red, color: C.white, border: 'none', borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1 }}>{saving ? 'Salvataggio…' : 'Aggiungi'}</button>
+                <button onClick={handleAddIngrediente} disabled={saving} style={{ flex: 1, padding: '10px 16px', minHeight: 44, background: C.red, color: C.white, border: 'none', borderRadius: 7, fontSize: font.size.sm, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1 }}>{saving ? 'Salvataggio…' : 'Aggiungi'}</button>
                 <button aria-label="Chiudi" onClick={() => setShowAddIng(false)} style={{ minHeight: 44, minWidth: 44, background: 'transparent', color: C.textSoft, border: `1px solid ${C.border}`, borderRadius: 7, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="x" size={14} /></button>
               </div>
             </div>
@@ -2116,7 +2116,7 @@ export default function MagazzinoView({
             ) },
           ]}
           dettaglio={(r) => (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 12 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: font.size.sm }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
                 <span style={{ color: C.textSoft }}>Soglia di riordino</span>
                 <button onClick={() => setEditSoglia({ nome: r.k, val: r.soglia || '' })}
@@ -2137,7 +2137,7 @@ export default function MagazzinoView({
             </div>
           )}
           intestazione={<><thead>
-                  <tr style={{ background: '#F8F4F2' }}>
+                  <tr style={{ background: T.bgSubtle }}>
                     <SortTH k="nome" active={magKey === 'nome'} dir={magDir} onToggle={magToggle}>Ingrediente</SortTH>
                     <SortTH k="giacenza" right active={magKey === 'giacenza'} dir={magDir} onToggle={magToggle}>Giacenza</SortTH>
                     <SortTH k="fabb" right active={magKey === 'fabb'} dir={magDir} onToggle={magToggle} tip={baseConsumo === 'settimana' ? 'Quanto ne hai consumato negli ultimi 7 giorni'
@@ -2180,7 +2180,7 @@ export default function MagazzinoView({
                       calcolato sopra, in `ordinate`: lo usano sia la tabella
                       sia le schede del telefono. */}
                   {ordinate.map((r, i) => (
-                    <tr key={r.k} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.white : '#FDFAF7' }}>
+                    <tr key={r.k} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.white : T.bgSubtle }}>
                       {/* Il nome è solo testo.
                           Prima tutta la cella era cliccabile e cambiava scheda,
                           con come unico indizio una freccia a 11px e opacità
@@ -2276,7 +2276,7 @@ export default function MagazzinoView({
                       <td style={{ padding: '10px 14px', textAlign: 'left' }}>
                         <span style={{ background: statoBg(r.stato), color: statoColor(r.stato), fontSize: font.size.sm, fontWeight: 700, padding: '3px 9px', borderRadius: 10, letterSpacing: '0.06em', textTransform: 'uppercase', whiteSpace: 'nowrap', display: 'inline-block' }}>{statoLabel(r.stato)}</span>
                       </td>
-                      <td style={{ ...TNUM, padding: '10px 14px', textAlign: 'right', color: C.textSoft, fontSize: 12 }}>
+                      <td style={{ ...TNUM, padding: '10px 14px', textAlign: 'right', color: C.textSoft, fontSize: font.size.sm }}>
                         {r.ultimoRif ? new Date(r.ultimoRif).toLocaleDateString('it-IT') : '-'}
                       </td>
                       {/* Una colonna sola per le azioni, allineata a destra:
@@ -2383,15 +2383,15 @@ export default function MagazzinoView({
                   style={{ flex: 1, padding: '10px 12px', borderRadius: 9, border: `2px solid ${formMode === m ? (m === 'carico' ? C.green : C.amber) : C.border}`,
                     background: formMode === m ? (m === 'carico' ? C.greenLight : C.amberLight) : C.white,
                     color: formMode === m ? (m === 'carico' ? C.green : C.amber) : C.textMid,
-                    fontWeight: formMode === m ? 800 : 500, fontSize: 13, cursor: 'pointer', textAlign: 'left' }}>
+                    fontWeight: formMode === m ? 800 : 500, fontSize: font.size.base, cursor: 'pointer', textAlign: 'left' }}>
                   <div style={{ fontWeight: 800, marginBottom: 2, display: 'flex', alignItems: 'center', gap: 5 }}><Icon name={ic} size={12} />{lbl}</div>
-                  <div style={{ fontSize: 12, opacity: 0.88 }}>{sub}</div>
+                  <div style={{ fontSize: font.size.sm, opacity: 0.88 }}>{sub}</div>
                 </button>
               ))}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
-                <label htmlFor="mag-ing-input" style={{ display: 'block', fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 3, cursor: 'pointer' }}>Ingrediente</label>
+                <label htmlFor="mag-ing-input" style={{ display: 'block', fontSize: font.size.sm, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 3, cursor: 'pointer' }}>Ingrediente</label>
                 <input id="mag-ing-input" type="text" value={formIng}
                   onChange={e => setFormIng(e.target.value)}
                   onKeyDown={onEnterAutoComplete(tuttiIngNomi, formIng, setFormIng, () => {
@@ -2400,7 +2400,7 @@ export default function MagazzinoView({
                   })}
                   placeholder="es. burro"
                   aria-label="Nome dell'ingrediente da caricare o scaricare"
-                  list="ing-list" style={{ width: '100%', padding: '11px 12px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 13, color: C.text, boxSizing: 'border-box' }}/>
+                  list="ing-list" style={{ width: '100%', padding: '11px 12px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: font.size.base, color: C.text, boxSizing: 'border-box' }}/>
                 {/* Audit 2026-09-09: il form non diceva quanto ce n'e' adesso.
                     Chi carica non sa da dove parte, e chi scarica non sa se sta
                     per andare sotto zero — cosa che succede davvero, tanto che
@@ -2427,7 +2427,7 @@ export default function MagazzinoView({
                 })()}
               </div>
               <div>
-                <label htmlFor="mag-qty-input" style={{ display: 'block', fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 3, cursor: 'pointer' }}>
+                <label htmlFor="mag-qty-input" style={{ display: 'block', fontSize: font.size.sm, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 3, cursor: 'pointer' }}>
                   Quantità (g) — {formMode === 'scarico' ? 'da rimuovere' : 'in arrivo'}
                 </label>
                 {/* Audit 2026-09-14: era type="number". Sul tablet la tastiera
@@ -2436,12 +2436,12 @@ export default function MagazzinoView({
                     rotto. La virgola la normalizza già handleCarica. */}
                 <input id="mag-qty-input" type="text" inputMode="decimal" value={formQty} onChange={e => setFormQty(e.target.value)} placeholder="es. 2000"
                   onKeyDown={e => { if (e.key === 'Enter' && formIng.trim() && formQty && !saving) handleCarica() }}
-                  style={{ width: '100%', padding: '11px 12px', minHeight: 44, borderRadius: 8, border: `1px solid ${formMode === 'scarico' ? C.amber : C.borderStr}`, fontSize: 13, color: C.text, boxSizing: 'border-box' }}/>
+                  style={{ width: '100%', padding: '11px 12px', minHeight: 44, borderRadius: 8, border: `1px solid ${formMode === 'scarico' ? C.amber : C.borderStr}`, fontSize: font.size.base, color: C.text, boxSizing: 'border-box' }}/>
               </div>
               <div>
-                <label htmlFor="mag-note-input" style={{ display: 'block', fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 3, cursor: 'pointer' }}>Note (opzionale)</label>
+                <label htmlFor="mag-note-input" style={{ display: 'block', fontSize: font.size.sm, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 3, cursor: 'pointer' }}>Note (opzionale)</label>
                 <input id="mag-note-input" type="text" value={formNote} onChange={e => setFormNote(e.target.value)} placeholder="es. Metro - bolla 1234"
-                  style={{ width: '100%', padding: '11px 12px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 13, color: C.text, boxSizing: 'border-box' }}/>
+                  style={{ width: '100%', padding: '11px 12px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: font.size.base, color: C.text, boxSizing: 'border-box' }}/>
               </div>
               {/* Audit 2026-09-14: la lista proponeva la CHIAVE normalizzata.
                   Chi scriveva "uova" si vedeva proporre "uovo", accettava con
@@ -2450,7 +2450,7 @@ export default function MagazzinoView({
                   propone il nome come e' scritto in magazzino. */}
               <datalist id="ing-list">{righe.map(r => <option key={r.k} value={r.nome}/>)}</datalist>
               <button onClick={handleCarica} disabled={!formIng.trim() || !formQty || saving}
-                style={{ padding: '12px', border: 'none', borderRadius: 9, fontWeight: 800, fontSize: 13, cursor: (formIng.trim() && formQty && !saving) ? 'pointer' : 'default',
+                style={{ padding: '12px', border: 'none', borderRadius: 9, fontWeight: 800, fontSize: font.size.base, cursor: (formIng.trim() && formQty && !saving) ? 'pointer' : 'default',
                   background: (formIng.trim() && formQty && !saving) ? (formMode === 'scarico' ? C.amber : C.red) : '#DDD',
                   color: (formIng.trim() && formQty && !saving) ? C.white : C.textMid, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
                 {saving ? 'Salvataggio…' : (formMode === 'scarico' ? <><Icon name="trash" size={14} />Rimuovi dal magazzino</> : <><Icon name="plus" size={14} />Aggiungi al magazzino</>)}
@@ -2469,13 +2469,13 @@ export default function MagazzinoView({
               {/* Audit 2026-09-09: diceva solo "Nessun rifornimento registrato"
                   e finiva li'. Uno stato vuoto che non dice come uscirne lascia
                   la persona a chiedersi se la pagina e' rotta. */}
-              <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 6 }}>Nessun carico registrato</div>
+              <div style={{ fontSize: font.size.md, fontWeight: 700, color: C.text, marginBottom: 6 }}>Nessun carico registrato</div>
               <div style={{ fontSize: typo.small.fontSize, color: C.textSoft, maxWidth: 380, margin: '0 auto 16px', lineHeight: 1.55 }}>
                 Qui finisce ogni merce che entra o esce dal magazzino, con la data e la quantità.
                 Si riempie da sola man mano che registri i carichi.
               </div>
               <button type="button" onClick={() => setTab('carica')}
-                style={{ padding: '11px 18px', minHeight: 44, borderRadius: 9, border: 'none', background: T.brand, color: '#fff', fontSize: 13, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                style={{ padding: '11px 18px', minHeight: 44, borderRadius: 9, border: 'none', background: T.brand, color: T.white, fontSize: font.size.base, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                 <Icon name="plus" size={14} /> Registra un carico
               </button>
             </div>
@@ -2517,7 +2517,7 @@ export default function MagazzinoView({
             ) : '—' },
           ]}
           intestazione={<><thead>
-                  <tr style={{ background: '#F8F4F2' }}>
+                  <tr style={{ background: T.bgSubtle }}>
                     {['Data', 'Ingrediente', 'Quantità', 'Note', ''].map((h, i) => (
                       <th key={i} style={{ padding: '10px 14px', textAlign: i === 2 ? 'right' : 'left', ...typo.caption, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>{h}</th>
                     ))}
@@ -2525,7 +2525,7 @@ export default function MagazzinoView({
                 </thead></>}
           corpo={<><tbody>
                   {logOrdinato.slice(0, logLimite).map((r, i) => (
-                    <tr key={r.id} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.white : '#FDFAF7' }}>
+                    <tr key={r.id} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.white : T.bgSubtle }}>
                       {/* Audit 2026-09-09, quattro difetti in questa riga:
                           - le quantità NEGATIVE (gli scarichi) erano scritte in
                             verde come i carichi: un prelievo sembrava un arrivo
@@ -2593,8 +2593,8 @@ export default function MagazzinoView({
           role="dialog" aria-modal="true" aria-labelledby="delete-ing-title"
           onClick={e => { if (e.target === e.currentTarget) { setDeleteIngConf(null); setDeleteIngPin('') } }}>
           <div style={{ background: C.white, borderRadius: 16, padding: '28px 32px', maxWidth: 420, width: '90%', boxShadow: '0 24px 60px rgba(15,23,42,0.28)' }}>
-            <div id="delete-ing-title" style={{ fontSize: 14, fontWeight: 900, color: C.red, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 7 }}><Icon name="trash" size={16} />Elimina ingrediente</div>
-            <div style={{ fontSize: 13, color: C.text, marginBottom: 4 }}>
+            <div id="delete-ing-title" style={{ fontSize: font.size.md, fontWeight: 900, color: C.red, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 7 }}><Icon name="trash" size={16} />Elimina ingrediente</div>
+            <div style={{ fontSize: font.size.base, color: C.text, marginBottom: 4 }}>
               {/* Il nome che si legge nella riga, non la chiave normalizzata:
                   `deleteIngConf` e' la chiave canonica, quindi su una voce
                   salvata come "Uova" il modale chiedeva conferma per "uovo" —
@@ -2606,7 +2606,7 @@ export default function MagazzinoView({
             {/* "Questa azione è permanente" non dice la cosa che serve sapere:
                 che l'ingrediente esce dall'elenco e dagli avvisi, ma se una
                 ricetta lo usa continua a pesare sul costo. */}
-            <div style={{ fontSize: 12, color: C.textSoft, marginBottom: 18, lineHeight: 1.5 }}>
+            <div style={{ fontSize: font.size.sm, color: C.textSoft, marginBottom: 18, lineHeight: 1.5 }}>
               Sparisce dall'elenco e non riceverai più avvisi di riordino su di lui.
               Se una ricetta lo usa, continuerà a essere calcolato nel costo di quella ricetta.
             </div>
@@ -2614,13 +2614,13 @@ export default function MagazzinoView({
             <input autoFocus value={deleteIngPin} onChange={e => setDeleteIngPin(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && deleteIngPin === 'ELIMINA') handleDeleteIng(deleteIngConf) }}
               placeholder="ELIMINA"
-              style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 7, border: `2px solid ${deleteIngPin === 'ELIMINA' ? C.red : '#DDD'}`, fontSize: 14, fontWeight: 800, color: C.red, letterSpacing: '0.1em', marginBottom: 16, outline: 'none' }}/>
+              style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 7, border: `2px solid ${deleteIngPin === 'ELIMINA' ? C.red : '#DDD'}`, fontSize: font.size.md, fontWeight: 800, color: C.red, letterSpacing: '0.1em', marginBottom: 16, outline: 'none' }}/>
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={() => { if (deleteIngPin === 'ELIMINA') handleDeleteIng(deleteIngConf) }} disabled={saving}
-                style={{ flex: 1, padding: '11px', background: deleteIngPin === 'ELIMINA' && !saving ? C.red : '#EEE', color: deleteIngPin === 'ELIMINA' && !saving ? C.white : C.textMid, border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 800, cursor: deleteIngPin === 'ELIMINA' && !saving ? 'pointer' : 'not-allowed' }}>
+                style={{ flex: 1, padding: '11px', background: deleteIngPin === 'ELIMINA' && !saving ? C.red : T.border, color: deleteIngPin === 'ELIMINA' && !saving ? C.white : C.textMid, border: 'none', borderRadius: 8, fontSize: font.size.sm, fontWeight: 800, cursor: deleteIngPin === 'ELIMINA' && !saving ? 'pointer' : 'not-allowed' }}>
                 {saving ? 'Eliminazione…' : 'Elimina definitivamente'}
               </button>
-              <button onClick={() => { setDeleteIngConf(null); setDeleteIngPin('') }} style={{ flex: 1, padding: '11px', background: C.white, color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Annulla</button>
+              <button onClick={() => { setDeleteIngConf(null); setDeleteIngPin('') }} style={{ flex: 1, padding: '11px', background: C.white, color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: font.size.sm, fontWeight: 700, cursor: 'pointer' }}>Annulla</button>
             </div>
           </div>
         </div>

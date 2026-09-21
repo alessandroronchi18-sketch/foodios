@@ -12,7 +12,7 @@ import { supabase } from '../lib/supabase'
 import Icon from './Icon'
 import { useConfirm } from './ConfirmModal'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
-import { color as T, radius as R, shadow as S, motion as M, typo } from '../lib/theme'
+import { color as T, radius as R, shadow as S, motion as M, typo, font} from '../lib/theme'
 import { ALLERGENI, AVVERTENZA_ALLERGENI_TITOLO, AVVERTENZA_ALLERGENI_BREVE } from '../lib/allergeni'
 import { todayLocal, giorniFaLocal } from '../lib/dateLocal'
 import { KPI, TabellaOSchede } from '../views/_shared'
@@ -57,7 +57,7 @@ function sogliaPerFreq(freq, sg) {
 }
 
 const cardStyle = { background:T.bgCard, borderRadius:R.xl, padding:'18px 20px', border:`1px solid ${T.border}`, marginBottom:16, boxShadow:SHADOW_PREMIUM }
-const sectionTitle = { fontSize:15, fontWeight:700, color:T.text, marginBottom:12, display:'flex', alignItems:'center', gap:8 }
+const sectionTitle = { fontSize: font.size.md, fontWeight:700, color:T.text, marginBottom:12, display:'flex', alignItems:'center', gap:8 }
 
 // ─── Banda diagnosi (DIAGNOSI) ──────────────────────────────────────────────────
 function BandaDiagnosi({ orgId, sedeId, refreshKey, isMobile, isTablet, onVaiTab }) {
@@ -133,7 +133,7 @@ function BandaDiagnosi({ orgId, sedeId, refreshKey, isMobile, isTablet, onVaiTab
   }, [orgId, sedeId, refreshKey])
 
   if (!d) {
-    return <div style={{ ...cardStyle, textAlign:'center', color:T.textSoft, fontSize:13, padding:32 }}>Calcolo dello stato di conformità…</div>
+    return <div style={{ ...cardStyle, textAlign:'center', color:T.textSoft, fontSize: font.size.base, padding:32 }}>Calcolo dello stato di conformità…</div>
   }
 
   const SEM = {
@@ -154,9 +154,9 @@ function BandaDiagnosi({ orgId, sedeId, refreshKey, isMobile, isTablet, onVaiTab
           <Icon name={sem.icon} size={24} />
         </span>
         <div style={{ flex:1, minWidth:200 }}>
-          <div style={{ fontSize: 12, fontWeight:700, letterSpacing: '0.05em', textTransform:'uppercase', color:T.textSoft }}>Come stai messo</div>
-          <div style={{ fontSize: 18, fontWeight:800, color:sem.c, letterSpacing:'-0.02em', marginTop:2 }}>{sem.lbl}</div>
-          <div style={{ fontSize:13, color:T.textMid, marginTop:3, lineHeight:1.45 }}>{sem.msg}</div>
+          <div style={{ fontSize: font.size.sm, fontWeight:700, letterSpacing: '0.05em', textTransform:'uppercase', color:T.textSoft }}>Come stai messo</div>
+          <div style={{ fontSize: font.size.xl, fontWeight:800, color:sem.c, letterSpacing:'-0.02em', marginTop:2 }}>{sem.lbl}</div>
+          <div style={{ fontSize: font.size.base, color:T.textMid, marginTop:3, lineHeight:1.45 }}>{sem.msg}</div>
         </div>
         {/* Semaforo grafico verde/ambra/rosso */}
         <div style={{ display:'flex', flexDirection:'column', gap:7, padding:'8px 10px', background:T.bgSubtle, borderRadius:R.lg }}>
@@ -205,18 +205,18 @@ function BandaDiagnosi({ orgId, sedeId, refreshKey, isMobile, isTablet, onVaiTab
           <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap:14 }}>
             {/* Temperature fuori range */}
             <div>
-              <div style={{ fontSize: 12, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8, display:'flex', alignItems:'center', gap:6 }}>
+              <div style={{ fontSize: font.size.sm, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8, display:'flex', alignItems:'center', gap:6 }}>
                 <Icon name="snow" size={13} />Temperature fuori range
               </div>
               {d.fuoriRangeRecenti.length === 0 ? (
-                <div style={{ fontSize:13, color:T.green, display:'flex', alignItems:'center', gap:6 }}><Icon name="checkCircle" size={14} />Nessuna anomalia recente</div>
+                <div style={{ fontSize: font.size.base, color:T.green, display:'flex', alignItems:'center', gap:6 }}><Icon name="checkCircle" size={14} />Nessuna anomalia recente</div>
               ) : d.fuoriRangeRecenti.map(t => (
                 <div key={t.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, padding:'8px 12px', background:T.brandLight, borderRadius:R.md, marginBottom:6 }}>
                   <div style={{ minWidth:0 }}>
-                    <div style={{ fontSize:13, fontWeight:700, color:T.text, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{t.haccp_apparecchi?.nome || '-'}</div>
-                    <div style={{ fontSize: 12, color:T.textSoft }}>{FmtDt(t.rilevato_at)}{t.operatore ? ` · ${t.operatore}` : ''}</div>
+                    <div style={{ fontSize: font.size.base, fontWeight:700, color:T.text, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{t.haccp_apparecchi?.nome || '-'}</div>
+                    <div style={{ fontSize: font.size.sm, color:T.textSoft }}>{FmtDt(t.rilevato_at)}{t.operatore ? ` · ${t.operatore}` : ''}</div>
                   </div>
-                  <span style={{ fontSize:14, fontWeight:800, color:T.brand, ...TNUM, whiteSpace:'nowrap', display:'inline-flex', alignItems:'center', gap:4 }}>
+                  <span style={{ fontSize: font.size.md, fontWeight:800, color:T.brand, ...TNUM, whiteSpace:'nowrap', display:'inline-flex', alignItems:'center', gap:4 }}>
                     <Icon name="warning" size={13} />{nfmt(t.temperatura)}°C
                   </span>
                 </div>
@@ -224,21 +224,21 @@ function BandaDiagnosi({ orgId, sedeId, refreshKey, isMobile, isTablet, onVaiTab
             </div>
             {/* Task scaduti */}
             <div>
-              <div style={{ fontSize: 12, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8, display:'flex', alignItems:'center', gap:6 }}>
+              <div style={{ fontSize: font.size.sm, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8, display:'flex', alignItems:'center', gap:6 }}>
                 <Icon name="clock" size={13} />Pulizie da registrare
               </div>
               {d.taskScaduti.length === 0 ? (
-                <div style={{ fontSize:13, color:T.green, display:'flex', alignItems:'center', gap:6 }}><Icon name="checkCircle" size={14} />Tutte le pulizie sono in regola</div>
+                <div style={{ fontSize: font.size.base, color:T.green, display:'flex', alignItems:'center', gap:6 }}><Icon name="checkCircle" size={14} />Tutte le pulizie sono in regola</div>
               ) : d.taskScaduti.slice(0, 6).map(t => (
                 <div key={t.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, padding:'8px 12px', background:T.amberLight, borderRadius:R.md, marginBottom:6 }}>
-                  <span style={{ fontSize:13, fontWeight:700, color:T.text, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', minWidth:0 }}>{t.nome}</span>
-                  <span style={{ fontSize: 12, fontWeight:700, color:T.amber, textTransform:'uppercase', letterSpacing:'0.04em', whiteSpace:'nowrap' }}>
+                  <span style={{ fontSize: font.size.base, fontWeight:700, color:T.text, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', minWidth:0 }}>{t.nome}</span>
+                  <span style={{ fontSize: font.size.sm, fontWeight:700, color:T.amber, textTransform:'uppercase', letterSpacing:'0.04em', whiteSpace:'nowrap' }}>
                     {FREQUENZE.find(f=>f.id===t.frequenza)?.label || t.frequenza}
                   </span>
                 </div>
               ))}
               {d.taskScaduti.length > 6 && (
-                <div style={{ fontSize: 12, color:T.textSoft, marginTop:4 }}>+ altri {nfmt(d.taskScaduti.length - 6)} task</div>
+                <div style={{ fontSize: font.size.sm, color:T.textSoft, marginTop:4 }}>+ altri {nfmt(d.taskScaduti.length - 6)} task</div>
               )}
             </div>
           </div>
@@ -349,7 +349,7 @@ function TemperatureTab({ orgId, sedeId, isMobile, notify, onChanged }) {
       <div style={cardStyle}>
         <div style={sectionTitle}><Icon name="snow" size={18} color={T.brand} />Registra rilevazione</div>
         {apparecchi.length === 0 ? (
-          <div style={{ padding:'14px 16px', background:T.amberLight, color:T.amber, borderRadius:R.md, fontSize:13, fontWeight:600, display:'flex', alignItems:'center', gap:8 }}>
+          <div style={{ padding:'14px 16px', background:T.amberLight, color:T.amber, borderRadius:R.md, fontSize: font.size.base, fontWeight:600, display:'flex', alignItems:'center', gap:8 }}>
             <Icon name="warning" size={16} />Prima aggiungi almeno un apparecchio sotto.
           </div>
         ) : (
@@ -368,7 +368,7 @@ function TemperatureTab({ orgId, sedeId, isMobile, notify, onChanged }) {
             <input style={{ ...inp, gridColumn: isMobile?'auto':'1 / -1' }} placeholder="Note (opzionale)"
               value={formLog.note}
               onChange={e => setFormLog(f => ({ ...f, note: e.target.value }))}/>
-            <button onClick={salvaLog} disabled={saving} style={{ gridColumn: isMobile?'auto':'1 / -1', height:44, padding:'0 18px', borderRadius:R.md, border:'none', background:T.brand, color:'#FFF', fontSize:14, fontWeight:800, cursor: saving?'not-allowed':'pointer', opacity: saving?0.7:1, boxShadow:`0 4px 12px ${T.brand}44` }}>
+            <button onClick={salvaLog} disabled={saving} style={{ gridColumn: isMobile?'auto':'1 / -1', height:44, padding:'0 18px', borderRadius:R.md, border:'none', background:T.brand, color:T.white, fontSize: font.size.md, fontWeight:800, cursor: saving?'not-allowed':'pointer', opacity: saving?0.7:1, boxShadow:`0 4px 12px ${T.brand}44` }}>
               {saving ? 'Salvataggio…' : 'Salva rilevazione'}
             </button>
           </div>
@@ -378,9 +378,9 @@ function TemperatureTab({ orgId, sedeId, isMobile, notify, onChanged }) {
       {/* Apparecchi */}
       <div style={cardStyle}>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
-          <div style={{ fontSize:15, fontWeight:700, color:T.text, display:'flex', alignItems:'center', gap:8 }}><Icon name="snow" size={18} color={T.brand} />Apparecchi monitorati ({nfmt(apparecchi.length)})</div>
+          <div style={{ fontSize: font.size.md, fontWeight:700, color:T.text, display:'flex', alignItems:'center', gap:8 }}><Icon name="snow" size={18} color={T.brand} />Apparecchi monitorati ({nfmt(apparecchi.length)})</div>
           <button onClick={() => setShowAddApp(s => !s)}
-            style={{ height: isMobile ? 44 : 34, padding:'0 14px', borderRadius:R.md, border:`1px solid ${T.borderStr}`, background:T.bgCard, color:T.text, fontSize:12, fontWeight:700, cursor:'pointer', display:'inline-flex', alignItems:'center', gap:6 }}>
+            style={{ height: isMobile ? 44 : 34, padding:'0 14px', borderRadius:R.md, border:`1px solid ${T.borderStr}`, background:T.bgCard, color:T.text, fontSize: font.size.sm, fontWeight:700, cursor:'pointer', display:'inline-flex', alignItems:'center', gap:6 }}>
             <Icon name={showAddApp ? 'x' : 'plus'} size={13} />{showAddApp ? 'Annulla' : 'Aggiungi'}
           </button>
         </div>
@@ -398,26 +398,26 @@ function TemperatureTab({ orgId, sedeId, isMobile, notify, onChanged }) {
                 value={formApp.temp_max} onChange={e=>setFormApp(f=>({ ...f, temp_max:e.target.value }))}/>
             </div>
             <button onClick={salvaApparecchio} disabled={saving}
-              style={{ marginTop:10, height:40, padding:'0 16px', borderRadius:R.md, border:'none', background:T.text, color:'#FFF', fontSize:13, fontWeight:700, cursor: saving?'not-allowed':'pointer', opacity: saving?0.7:1 }}>
+              style={{ marginTop:10, height:40, padding:'0 16px', borderRadius:R.md, border:'none', background:T.text, color:T.white, fontSize: font.size.base, fontWeight:700, cursor: saving?'not-allowed':'pointer', opacity: saving?0.7:1 }}>
               {saving ? 'Salvataggio…' : 'Salva apparecchio'}
             </button>
           </div>
         )}
         {apparecchi.length === 0 && !showAddApp && (
-          <div style={{ padding:16, color:T.textSoft, fontSize:13, textAlign:'center' }}>
+          <div style={{ padding:16, color:T.textSoft, fontSize: font.size.base, textAlign:'center' }}>
             Nessun apparecchio. Aggiungi i tuoi frigoriferi/congelatori per iniziare a registrare le temperature.
           </div>
         )}
         {apparecchi.map(a => (
           <div key={a.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 12px', background:T.bgSubtle, borderRadius:R.md, marginBottom:6 }}>
             <div>
-              <div style={{ fontSize:13, fontWeight:700, color:T.text }}>{a.nome}</div>
-              <div style={{ fontSize: 12, color:T.textSoft }}>
+              <div style={{ fontSize: font.size.base, fontWeight:700, color:T.text }}>{a.nome}</div>
+              <div style={{ fontSize: font.size.sm, color:T.textSoft }}>
                 {TIPI_APPARECCHIO.find(t=>t.id===a.tipo)?.label || a.tipo} · Range {a.temp_min}°C – {a.temp_max}°C
               </div>
             </div>
             <button onClick={() => disattivaApp(a.id)}
-              style={{ padding:'6px 10px', borderRadius:R.md, border:`1px solid ${T.borderSoft}`, background:'transparent', color:T.textSoft, fontSize: 12, cursor:'pointer' }}>
+              style={{ padding:'6px 10px', borderRadius:R.md, border:`1px solid ${T.borderSoft}`, background:'transparent', color:T.textSoft, fontSize: font.size.sm, cursor:'pointer' }}>
               Rimuovi
             </button>
           </div>
@@ -428,7 +428,7 @@ function TemperatureTab({ orgId, sedeId, isMobile, notify, onChanged }) {
       <div style={cardStyle}>
         <div style={sectionTitle}><Icon name="clipboard" size={18} color={T.brand} />Storico recente ({nfmt(storico.length)})</div>
         {storico.length === 0 ? (
-          <div style={{ padding:16, color:T.textSoft, fontSize:13, textAlign:'center' }}>
+          <div style={{ padding:16, color:T.textSoft, fontSize: font.size.base, textAlign:'center' }}>
             Nessuna rilevazione registrata.
           </div>
         ) : (
@@ -451,10 +451,10 @@ function TemperatureTab({ orgId, sedeId, isMobile, notify, onChanged }) {
           ]}
           intestazione={<><thead>
                 <tr style={{ background:T.bgSubtle }}>
-                  <th style={{ padding:'10px 14px', textAlign:'left', fontSize: 12, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.06em' }}>Data/ora</th>
-                  <th style={{ padding:'10px 14px', textAlign:'left', fontSize: 12, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.06em' }}>Apparecchio</th>
-                  <th style={{ padding:'10px 14px', textAlign:'right', fontSize: 12, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.06em' }}>Temp.</th>
-                  <th style={{ padding:'10px 14px', textAlign:'left', fontSize: 12, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.06em' }}>Operatore</th>
+                  <th style={{ padding:'10px 14px', textAlign:'left', fontSize: font.size.sm, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.06em' }}>Data/ora</th>
+                  <th style={{ padding:'10px 14px', textAlign:'left', fontSize: font.size.sm, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.06em' }}>Apparecchio</th>
+                  <th style={{ padding:'10px 14px', textAlign:'right', fontSize: font.size.sm, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.06em' }}>Temp.</th>
+                  <th style={{ padding:'10px 14px', textAlign:'left', fontSize: font.size.sm, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.06em' }}>Operatore</th>
                 </tr>
               </thead></>}
           corpo={<><tbody>
@@ -559,10 +559,10 @@ function PulizieTab({ orgId, sedeId, isMobile, notify, onChanged }) {
             <Icon name={inRitardo ? 'clock' : 'checkCircle'} size={20} />
           </span>
           <div style={{ flex:1, minWidth:160 }}>
-            <div style={{ fontSize:13, fontWeight:700, color:T.text }}>
+            <div style={{ fontSize: font.size.base, fontWeight:700, color:T.text }}>
               {inRitardo ? `${nfmt(inRitardo)} pulizie in ritardo` : 'Tutte le pulizie in regola'}
             </div>
-            <div style={{ fontSize:12, color:T.textSoft }}>{nfmt(fatti)} di {nfmt(tpl.length)} task completati nel periodo</div>
+            <div style={{ fontSize: font.size.sm, color:T.textSoft }}>{nfmt(fatti)} di {nfmt(tpl.length)} task completati nel periodo</div>
           </div>
           <div style={{ flex:'0 0 120px', maxWidth:160 }}>
             <div style={{ height:8, borderRadius:4, background:T.bgSubtle, overflow:'hidden' }}>
@@ -582,7 +582,7 @@ function PulizieTab({ orgId, sedeId, isMobile, notify, onChanged }) {
             {FREQUENZE.map(f => <option key={f.id} value={f.id}>{f.label}</option>)}
           </select>
           <button onClick={aggiungiTpl}
-            style={{ height:40, padding:'0 18px', borderRadius:R.md, border:'none', background:T.brand, color:'#FFF', fontSize:13, fontWeight:700, cursor:'pointer', whiteSpace:'nowrap' }}>
+            style={{ height:40, padding:'0 18px', borderRadius:R.md, border:'none', background:T.brand, color:T.white, fontSize: font.size.base, fontWeight:700, cursor:'pointer', whiteSpace:'nowrap' }}>
             Aggiungi
           </button>
         </div>
@@ -590,9 +590,9 @@ function PulizieTab({ orgId, sedeId, isMobile, notify, onChanged }) {
 
       {/* Operatore corrente */}
       <div style={cardStyle}>
-        <div style={{ fontSize: 12, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:6 }}>Operatore in turno (opzionale)</div>
+        <div style={{ fontSize: font.size.sm, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:6 }}>Operatore in turno (opzionale)</div>
         <input style={inp} placeholder="Mario Rossi" value={operatore} onChange={e=>setOperatore(e.target.value)}/>
-        <div style={{ fontSize: 12, color:T.textSoft, marginTop:6 }}>
+        <div style={{ fontSize: font.size.sm, color:T.textSoft, marginTop:6 }}>
           Quando registri un task, verrà associato a questo nome.
         </div>
       </div>
@@ -619,17 +619,17 @@ function PulizieTab({ orgId, sedeId, isMobile, notify, onChanged }) {
                       ? <Icon name="checkCircle" size={16} color={T.green} />
                       : <Icon name="clock" size={16} color={T.amber} />}
                     <div style={{ minWidth:0 }}>
-                      <div style={{ fontSize:13, fontWeight:700, color: done ? T.green : T.text }}>
+                      <div style={{ fontSize: font.size.base, fontWeight:700, color: done ? T.green : T.text }}>
                         {t.nome}
                       </div>
-                      <div style={{ fontSize: 12, color:T.textSoft, marginTop:2 }}>
+                      <div style={{ fontSize: font.size.sm, color:T.textSoft, marginTop:2 }}>
                         {done ? `Fatto ${FmtDt(done.eseguito_at)}${done.operatore ? ' da ' + done.operatore : ''}` : 'Ancora da fare'}
                       </div>
                     </div>
                   </div>
                   <div style={{ display:'flex', gap:6, flexShrink:0 }}>
                     <button onClick={() => eseguiTpl(t.id)}
-                      style={{ height: isMobile ? 44 : 32, padding:'0 14px', borderRadius:R.md, border:'none', background: done ? T.bgCard : T.text, color: done ? T.textMid : '#FFF', fontSize: 12, fontWeight:700, cursor:'pointer' }}>
+                      style={{ height: isMobile ? 44 : 32, padding:'0 14px', borderRadius:R.md, border:'none', background: done ? T.bgCard : T.text, color: done ? T.textMid : T.white, fontSize: font.size.sm, fontWeight:700, cursor:'pointer' }}>
                       {done ? 'Ripeti' : 'Segna fatto'}
                     </button>
                     <button onClick={() => rimuoviTpl(t.id)} title="Rimuovi task"
@@ -644,7 +644,7 @@ function PulizieTab({ orgId, sedeId, isMobile, notify, onChanged }) {
 
       {tpl.length === 0 && (
         <div style={cardStyle}>
-          <div style={{ textAlign:'center', padding:'24px 16px', color:T.textSoft, fontSize:13 }}>
+          <div style={{ textAlign:'center', padding:'24px 16px', color:T.textSoft, fontSize: font.size.base }}>
             Nessuna checklist configurata. Aggiungi i tuoi task di pulizia sopra (es. "Pulizia banco lavoro", "Sanificazione affettatrice", "Lavaggio piano cottura").
           </div>
         </div>
@@ -707,7 +707,7 @@ function AllergeniTab({ ricettario, isMobile }) {
 
       <div style={cardStyle}>
         <div style={{ ...sectionTitle, marginBottom:8 }}><Icon name="barChart" size={18} color={T.brand} />Sintesi allergeni nel ricettario</div>
-        <div style={{ fontSize:12, color:T.textSoft, marginBottom:14, lineHeight:1.5 }}>
+        <div style={{ fontSize: font.size.sm, color:T.textSoft, marginBottom:14, lineHeight:1.5 }}>
           Conta le ricette su cui gli allergeni sono stati salvati. È il tuo lavoro riassunto, non l&apos;informativa da consegnare al cliente.
         </div>
         <div style={{ display:'grid', gridTemplateColumns: isMobile?'repeat(2,1fr)':'repeat(auto-fill, minmax(180px, 1fr))', gap:10 }}>
@@ -718,8 +718,8 @@ function AllergeniTab({ ricettario, isMobile }) {
                 padding:'12px 14px', background: count > 0 ? T.brandLight : T.bgSubtle,
                 borderRadius:R.md, border:`1px solid ${count > 0 ? T.brandSoft : T.borderSoft}`,
               }}>
-                <div style={{ fontSize: 12, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.05em' }}>{a.label}</div>
-                <div style={{ fontSize:18, fontWeight:800, color: count > 0 ? T.brand : T.textSoft, marginTop:4, ...TNUM }}>
+                <div style={{ fontSize: font.size.sm, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.05em' }}>{a.label}</div>
+                <div style={{ fontSize: font.size.xl, fontWeight:800, color: count > 0 ? T.brand : T.textSoft, marginTop:4, ...TNUM }}>
                   {nfmt(count)} {count === 1 ? 'ricetta' : 'ricette'}
                 </div>
               </div>
@@ -729,31 +729,31 @@ function AllergeniTab({ ricettario, isMobile }) {
       </div>
 
       <div style={cardStyle}>
-        <div style={{ fontSize:14, fontWeight:700, color:T.text, marginBottom:6, display:'flex', alignItems:'center', gap:8 }}><Icon name="clipboard" size={16} color={T.brand} />Matrice allergeni × prodotti</div>
-        <div style={{ fontSize: 12, color:T.textSoft, marginBottom:10, lineHeight:1.45 }}>
+        <div style={{ fontSize: font.size.md, fontWeight:700, color:T.text, marginBottom:6, display:'flex', alignItems:'center', gap:8 }}><Icon name="clipboard" size={16} color={T.brand} />Matrice allergeni × prodotti</div>
+        <div style={{ fontSize: font.size.sm, color:T.textSoft, marginBottom:10, lineHeight:1.45 }}>
           Riga: allergene · Colonna: prodotto · segno di spunta = salvato su quella ricetta. Una casella vuota vuol dire che non è stato scritto, non che l&apos;allergene non ci sia. Scorri orizzontalmente se ci sono molti prodotti.
         </div>
         {ricette.length === 0 ? (
-          <div style={{ padding:14, color:T.textSoft, fontSize:12, textAlign:'center' }}>
+          <div style={{ padding:14, color:T.textSoft, fontSize: font.size.sm, textAlign:'center' }}>
             Nessuna ricetta nel ricettario.
           </div>
         ) : (
           <div style={{ overflowX:'auto', border:`1px solid ${T.borderSoft}`, borderRadius:R.md }}>
-            <table style={{ borderCollapse:'collapse', fontSize: 12, tableLayout:'fixed' }}>
+            <table style={{ borderCollapse:'collapse', fontSize: font.size.sm, tableLayout:'fixed' }}>
               <colgroup>
                 <col style={{ width: 150 }}/>
                 {ricette.map(r => <col key={r.nome} style={{ width: 36 }}/>)}
               </colgroup>
               <thead>
                 <tr>
-                  <th style={{ padding:'4px 8px', textAlign:'left', fontSize: 12, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.05em', background:T.bgSubtle, borderBottom:`1px solid ${T.borderSoft}`, position:'sticky', left:0, zIndex:2 }}>
+                  <th style={{ padding:'4px 8px', textAlign:'left', fontSize: font.size.sm, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.05em', background:T.bgSubtle, borderBottom:`1px solid ${T.borderSoft}`, position:'sticky', left:0, zIndex:2 }}>
                     Allergene / Prodotto
                   </th>
                   {ricette.map(r => (
                     <th key={r.nome}
                       title={r.nome}
                       style={{
-                        padding:'4px 2px', fontSize: 12, fontWeight:700, color:T.text,
+                        padding:'4px 2px', fontSize: font.size.sm, fontWeight:700, color:T.text,
                         background:T.bgSubtle, borderBottom:`1px solid ${T.borderSoft}`,
                         borderLeft:`1px solid ${T.borderSoft}`,
                         height: 96, verticalAlign:'bottom', whiteSpace:'nowrap',
@@ -777,7 +777,7 @@ function AllergeniTab({ ricettario, isMobile }) {
                   return (
                     <tr key={a.id}>
                       <td style={{ textAlign: 'right', ...TNUM,
-                        padding:'4px 8px', color:T.text, fontWeight:600, fontSize: 12,
+                        padding:'4px 8px', color:T.text, fontWeight:600, fontSize: font.size.sm,
                         background:T.bgCard, borderBottom:`1px solid ${T.borderSoft}`,
                         position:'sticky', left:0, zIndex:1, whiteSpace:'nowrap',
                       }}>
@@ -790,7 +790,7 @@ function AllergeniTab({ ricettario, isMobile }) {
                             textAlign:'center',
                             background: presente ? T.brandLight : T.bgCard,
                             color: presente ? T.brand : T.borderSoft,
-                            fontWeight: 700, fontSize: 12, lineHeight: 1,
+                            fontWeight: 700, fontSize: font.size.sm, lineHeight: 1,
                             padding:'6px 0', minHeight: 28,
                             borderLeft:`1px solid ${T.borderSoft}`,
                             borderBottom:`1px solid ${T.borderSoft}`,
@@ -803,7 +803,7 @@ function AllergeniTab({ ricettario, isMobile }) {
                 })}
                 {ALLERGENI.every(a => !ricette.some(r => (r.allergeni || []).includes(a.id))) && (
                   <tr>
-                    <td colSpan={ricette.length + 1} style={{ padding:14, color:T.textSoft, fontSize:12, textAlign:'center', lineHeight:1.6 }}>
+                    <td colSpan={ricette.length + 1} style={{ padding:14, color:T.textSoft, fontSize: font.size.sm, textAlign:'center', lineHeight:1.6 }}>
                       Nessuna ricetta ha ancora gli allergeni salvati.<br />
                       Non vuol dire che non ce ne siano: vuol dire che non sono stati scritti.
                     </td>
@@ -874,7 +874,7 @@ function ExportTab({ orgId, sedeId, nomeAttivita, isMobile, notify }) {
         head: [['Apparecchio', 'Tipo', 'Range temperatura']],
         body: (app.data || []).map(a => [a.nome, a.tipo, `${a.temp_min}°C – ${a.temp_max}°C`]),
         headStyles: { fillColor: RED, textColor: [255,255,255], fontStyle: 'bold' },
-        bodyStyles: { fontSize: 12 },
+        bodyStyles: { fontSize: font.size.sm },
         margin: { left: M_L, right: M_L },
       })
       y = doc.lastAutoTable.finalY + 10
@@ -942,20 +942,20 @@ function ExportTab({ orgId, sedeId, nomeAttivita, isMobile, notify }) {
     <div>
       <div style={cardStyle}>
         <div style={{ ...sectionTitle, marginBottom:8 }}><Icon name="fileText" size={18} color={T.brand} />Export "Registro HACCP" (PDF)</div>
-        <div style={{ fontSize:12, color:T.textSoft, marginBottom:16 }}>
+        <div style={{ fontSize: font.size.sm, color:T.textSoft, marginBottom:16 }}>
           Genera un PDF formattato pronto per la consultazione da ispezione ASL. Include apparecchi, rilevazioni temperature, pulizie e disclaimer normativo.
         </div>
         <div style={{ display:'grid', gridTemplateColumns: isMobile?'1fr':'1fr 1fr auto', gap:10, alignItems:'end' }}>
           <div>
-            <div style={{ fontSize: 12, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:4 }}>Dal</div>
+            <div style={{ fontSize: font.size.sm, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:4 }}>Dal</div>
             <input style={inp} type="date" value={from} onChange={e=>setFrom(e.target.value)}/>
           </div>
           <div>
-            <div style={{ fontSize: 12, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:4 }}>Al</div>
+            <div style={{ fontSize: font.size.sm, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:4 }}>Al</div>
             <input style={inp} type="date" value={to} onChange={e=>setTo(e.target.value)}/>
           </div>
           <button onClick={esporta} disabled={busy}
-            style={{ height:44, padding:'0 22px', borderRadius:R.md, border:'none', background:T.brand, color:'#FFF', fontSize:14, fontWeight:800, cursor: busy?'not-allowed':'pointer', boxShadow:`0 4px 12px ${T.brand}44`, whiteSpace:'nowrap' }}>
+            style={{ height:44, padding:'0 22px', borderRadius:R.md, border:'none', background:T.brand, color:T.white, fontSize: font.size.md, fontWeight:800, cursor: busy?'not-allowed':'pointer', boxShadow:`0 4px 12px ${T.brand}44`, whiteSpace:'nowrap' }}>
             {busy ? 'Generazione…' : 'Scarica PDF'}
           </button>
         </div>
@@ -982,7 +982,7 @@ export default function HaccpView({ orgId, sedeId, ricettario, nomeAttivita, not
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? 12 : 0 }}>
       <div style={{ marginBottom: isMobile ? 14 : 18 }}>
-        <p style={{ margin: 0, fontSize: 13, color: T.textSoft, letterSpacing: '-0.005em', lineHeight: 1.5 }}>
+        <p style={{ margin: 0, fontSize: font.size.base, color: T.textSoft, letterSpacing: '-0.005em', lineHeight: 1.5 }}>
           Tieni in ordine temperature, pulizie e allergeni: quando arriva l&apos;ASL sai dove sono e li stampi. Quello che stampi resta roba tua, controllata da te.
         </p>
       </div>
@@ -995,7 +995,7 @@ export default function HaccpView({ orgId, sedeId, ricettario, nomeAttivita, not
 
       <div style={{
         padding: '10px 14px', background: T.amberLight, border: `1px solid ${T.amber}55`,
-        borderRadius: R.md, marginBottom: 16, fontSize: 12, color: '#92400E', lineHeight: 1.5,
+        borderRadius: R.md, marginBottom: 16, fontSize: font.size.sm, color: T.amberDark, lineHeight: 1.5,
       }}>
         <strong style={{ display:'inline-flex', alignItems:'center', gap:5, verticalAlign:'middle' }}><Icon name="warning" size={14} />Nota:</strong> questo è uno strumento di supporto. Per la conformità formale serve sempre il parere di un tecnico HACCP.
       </div>
@@ -1004,7 +1004,7 @@ export default function HaccpView({ orgId, sedeId, ricettario, nomeAttivita, not
         {TABS.map(([id, lbl, icon]) => (
           <button key={id} onClick={() => setTab(id)}
             style={{ padding:'10px 16px', minHeight: isMobile?44:40, border:'none', background:'transparent', cursor:'pointer',
-              fontSize:13, fontWeight: tab===id?700:500, color: tab===id?T.brand:T.textSoft,
+              fontSize: font.size.base, fontWeight: tab===id?700:500, color: tab===id?T.brand:T.textSoft,
               borderBottom: tab===id?`2px solid ${T.brand}`:'2px solid transparent',
               marginBottom:-1, letterSpacing:'-0.005em', whiteSpace:'nowrap',
               display:'inline-flex', alignItems:'center', gap:6,

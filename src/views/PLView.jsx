@@ -76,10 +76,10 @@ function BarreRicavo({ rows, euro, pct }) {
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, flexWrap: 'wrap', gap: 8 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <div style={{ width: 26, height: 26, borderRadius: 7,
-                      background: i === 0 ? C.red : i === 1 ? '#E07040' : i === 2 ? C.amber : '#F0EAE6',
+                      background: i === 0 ? C.red : i === 1 ? '#E07040' : i === 2 ? C.amber : T.border,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 12, fontWeight: 900, color: i < 3 ? C.white : C.textMid, flexShrink: 0 }}>{i + 1}</div>
-                    <span style={{ fontSize: 13, fontWeight: 800, color: C.text }}>{r.nome}</span>
+                      fontSize: font.size.sm, fontWeight: 900, color: i < 3 ? C.white : C.textMid, flexShrink: 0 }}>{i + 1}</div>
+                    <span style={{ fontSize: font.size.base, fontWeight: 800, color: C.text }}>{r.nome}</span>
                     <Tip text={`Valutazione margine: ${pct(r.margPct)}.`} width={260}><span style={{ cursor: 'help' }}>{margBadge(r.margPct)}</span></Tip>
                   </div>
                   <div style={{ display: 'flex', gap: isMobile ? 16 : 24, textAlign: 'right', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
@@ -90,8 +90,8 @@ function BarreRicavo({ rows, euro, pct }) {
                     ].map(({ lbl, val, c, tip }) => (
                       <Tip key={lbl} text={tip} width={250}>
                         <div style={{ cursor: 'help' }}>
-                          <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: '1px dashed rgba(155,120,115,0.35)' }}>{lbl}</div>
-                          <div style={{ fontSize: 14, fontWeight: 900, color: c, ...TNUM }}>{val}</div>
+                          <div style={{ fontSize: font.size.sm, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: '1px dashed rgba(155,120,115,0.35)' }}>{lbl}</div>
+                          <div style={{ fontSize: font.size.md, fontWeight: 900, color: c, ...TNUM }}>{val}</div>
                         </div>
                       </Tip>
                     ))}
@@ -100,14 +100,14 @@ function BarreRicavo({ rows, euro, pct }) {
                 <div style={{ height: 34, borderRadius: 8, overflow: 'hidden', display: 'flex', cursor: 'crosshair', position: 'relative' }} data-barre-root="">
                   <div style={{ width: `${margW}%`, height: '100%', background: mc, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'width 0.5s ease', position: 'relative' }}
                     onMouseMove={e => handleMouseOver(e, 'margine')}>
-                    {margW > 10 && <span style={{ fontSize: 12, fontWeight: 800, color: '#fff', pointerEvents: 'none' }}>{pct(margW)}</span>}
+                    {margW > 10 && <span style={{ fontSize: font.size.sm, fontWeight: 800, color: T.white, pointerEvents: 'none' }}>{pct(margW)}</span>}
                   </div>
                   <div style={{ flex: 1, height: '100%', background: C.red, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'width 0.5s ease' }}
                     onMouseMove={e => handleMouseOver(e, 'foodcost')}>
-                    {fcW > 10 && <span style={{ fontSize: 12, fontWeight: 800, color: '#fff', pointerEvents: 'none' }}>{pct(fcW)}</span>}
+                    {fcW > 10 && <span style={{ fontSize: font.size.sm, fontWeight: 800, color: T.white, pointerEvents: 'none' }}>{pct(fcW)}</span>}
                   </div>
                 </div>
-                <div style={{ display: 'flex', marginTop: 4, fontSize: 12, fontWeight: 600, color: C.textSoft }}>
+                <div style={{ display: 'flex', marginTop: 4, fontSize: font.size.sm, fontWeight: 600, color: C.textSoft }}>
                   <div style={{ width: `${margW}%`, textAlign: 'center', overflow: 'hidden', whiteSpace: 'nowrap' }}>{margW > 18 ? 'margine lordo' : ''}</div>
                   <div style={{ flex: 1, textAlign: 'center' }}>{fcW > 18 ? 'costo ingredienti' : ''}</div>
                 </div>
@@ -121,11 +121,11 @@ function BarreRicavo({ rows, euro, pct }) {
             background: C.white, border: `1px solid ${C.border}`, borderRadius: 10,
             padding: '14px 18px', boxShadow: '0 6px 24px rgba(0,0,0,0.13)',
             zIndex: 100, minWidth: 260, pointerEvents: 'none' }}>
-            <div style={{ fontWeight: 900, fontSize: 13, color: C.text, marginBottom: 10 }}>{tooltip.nome}</div>
+            <div style={{ fontWeight: 900, fontSize: font.size.base, color: C.text, marginBottom: 10 }}>{tooltip.nome}</div>
             {tooltip.segment === 'margine' ? (
               <>
-                <div style={{ fontSize: 12, color: C.green, fontWeight: 700, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}><Icon name="dot" size={10} color={C.green} />Margine lordo</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '4px 16px', fontSize: 12 }}>
+                <div style={{ fontSize: font.size.sm, color: C.green, fontWeight: 700, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}><Icon name="dot" size={10} color={C.green} />Margine lordo</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '4px 16px', fontSize: font.size.sm }}>
                   <span style={{ color: C.textMid }}>Ricavo stampo</span>
                   <span style={{ fontWeight: 800, color: C.text, ...TNUM, textAlign: 'right' }}>{euro(tooltip.r.ricavo)}</span>
                   <span style={{ color: C.textMid }}>Meno costo ingredienti</span>
@@ -137,8 +137,8 @@ function BarreRicavo({ rows, euro, pct }) {
               </>
             ) : (
               <>
-                <div style={{ fontSize: 12, color: C.red, fontWeight: 700, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}><Icon name="dot" size={10} color={C.red} />Costo ingredienti</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '4px 16px', fontSize: 12 }}>
+                <div style={{ fontSize: font.size.sm, color: C.red, fontWeight: 700, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}><Icon name="dot" size={10} color={C.red} />Costo ingredienti</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '4px 16px', fontSize: font.size.sm }}>
                   <span style={{ color: C.textMid }}>Food cost totale</span>
                   <span style={{ fontWeight: 800, color: C.red, ...TNUM, textAlign: 'right' }}>{euro(tooltip.r.fc)}</span>
                   <span style={{ color: C.textMid }}>Su ricavo</span>
@@ -155,11 +155,11 @@ function BarreRicavo({ rows, euro, pct }) {
         <div style={{ display: 'flex', gap: 20, marginTop: 24, paddingTop: 16, borderTop: `1px solid ${C.border}`, flexWrap: 'wrap', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <div style={{ width: 14, height: 14, borderRadius: 3, background: C.green, opacity: 0.86 }}/>
-            <span style={{ fontSize: 12, fontWeight: 600, color: C.textMid }}>Margine lordo</span>
+            <span style={{ fontSize: font.size.sm, fontWeight: 600, color: C.textMid }}>Margine lordo</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <div style={{ width: 14, height: 14, borderRadius: 3, background: C.red }}/>
-            <span style={{ fontSize: 12, fontWeight: 600, color: C.textMid }}>Costo ingredienti</span>
+            <span style={{ fontSize: font.size.sm, fontWeight: 600, color: C.textMid }}>Costo ingredienti</span>
           </div>
         </div>
       </div>
@@ -239,7 +239,7 @@ function TopIngredientiTable({ ricettario, ingCosti, euro, pct }) {
           }
           intestazione={
           <thead>
-            <tr style={{ background: '#F8F4F2' }}>
+            <tr style={{ background: T.bgSubtle }}>
               <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: font.size.sm, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>Ingrediente</th>
               <th title="In quante ricette compare questo ingrediente" style={{ padding: '10px 14px', textAlign: 'left', fontSize: font.size.sm, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, textDecoration: 'underline dotted', textUnderlineOffset: 3, cursor: 'help' }}>Usato in</th>
               <SortTH k="qty" right active={sortKey === 'qty'} dir={sortDir} onToggle={toggleSort} tip="Grammi totali dell'ingrediente sommando una porzione di ogni ricetta che lo usa">Qty tot. (g)</SortTH>
@@ -253,7 +253,7 @@ function TopIngredientiTable({ ricettario, ingCosti, euro, pct }) {
             {list.map((ing, i) => {
               const nRic = ing.ricette.length
               return (
-                <tr key={ing.k} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.white : '#FDFAF7' }}>
+                <tr key={ing.k} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.white : T.bgSubtle }}>
                   <td style={{ padding: '10px 14px', fontWeight: 700, color: C.text }}>
                     {ing.nome}
                     {ing.isStima && <span style={{ fontSize: font.size.sm, marginLeft: 5, background: C.amberLight, color: C.amber, padding: '1px 5px', borderRadius: 3, fontWeight: 700 }}>stima</span>}
@@ -264,7 +264,7 @@ function TopIngredientiTable({ ricettario, ingCosti, euro, pct }) {
                       onMouseLeave={() => setHovRic(null)}>
                       {ing.ricette.slice(0, 5).map((_, di) => (
                         <div key={di} style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
-                          background: ['#6E0E1A', '#E07040', '#B45309', '#5B8FCE', '#7B7B7B'][di % 5] }}/>
+                          background: ['${T.brand}', '#E07040', '${T.amber}', '#5B8FCE', '#7B7B7B'][di % 5] }}/>
                       ))}
                       <span style={{ fontSize: font.size.sm, fontWeight: 700, color: C.textMid }}>{nRic} {nRic === 1 ? 'ricetta' : 'ricette'}</span>
                     </div>
@@ -276,7 +276,7 @@ function TopIngredientiTable({ ricettario, ingCosti, euro, pct }) {
                         <div style={{ fontSize: font.size.sm, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: C.textSoft, marginBottom: 6 }}>Usato in</div>
                         {ing.ricette.map((r, ri) => (
                           <div key={r} style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 4 }}>
-                            <div style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, background: ['#6E0E1A', '#E07040', '#B45309', '#5B8FCE', '#7B7B7B'][ri % 5] }}/>
+                            <div style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, background: ['${T.brand}', '#E07040', '${T.amber}', '#5B8FCE', '#7B7B7B'][ri % 5] }}/>
                             <span style={{ fontSize: font.size.sm, fontWeight: 600, color: C.text }}>{r}</span>
                           </div>
                         ))}
@@ -287,7 +287,7 @@ function TopIngredientiTable({ ricettario, ingCosti, euro, pct }) {
                   <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 800, color: C.red, ...TNUM }}>{euro(ing.costoTot)}</td>
                   <td style={{ ...TNUM, padding: '10px 14px', textAlign: 'right' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'flex-end' }}>
-                      <div style={{ width: 60, height: 5, background: '#EEE', borderRadius: 3 }}>
+                      <div style={{ width: 60, height: 5, background: T.border, borderRadius: 3 }}>
                         <div style={{ width: `${Math.min(100, ing.pctTot * 3)}%`, height: 5, background: C.red, opacity: 0.7, borderRadius: 3 }}/>
                       </div>
                       <span style={{ fontWeight: 700, color: C.text, width: 36, textAlign: 'right' }}>{pct(ing.pctTot)}</span>
@@ -301,7 +301,7 @@ function TopIngredientiTable({ ricettario, ingCosti, euro, pct }) {
             })}
           </tbody>}
           piede={          <tfoot>
-            <tr style={{ background: '#F0EAE6', borderTop: `2px solid ${C.borderStr}` }}>
+            <tr style={{ background: T.border, borderTop: `2px solid ${C.borderStr}` }}>
               <td colSpan={3} style={{ padding: '10px 14px', fontWeight: 900, fontSize: font.size.sm, color: C.text }}>TOTALE FOOD COST</td>
               <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 900, fontSize: font.size.base, color: C.red, ...TNUM }}>{euro(grandTotal)}</td>
               <td colSpan={2}/>
@@ -344,17 +344,17 @@ function ScenarioPrezzi({ rows, euro, pct }) {
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 14 }}>
         <div style={{ width: 3, height: 18, background: C.red, borderRadius: 2, flexShrink: 0, alignSelf: 'center' }}/>
         <div style={{ flex: 1 }}>
-          <h2 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: C.text }}>Simulatore Scenari di Prezzo</h2>
-          <div style={{ fontSize: 12, color: C.textSoft, marginTop: 2 }}>Inserisci il nuovo prezzo - la variazione % e il nuovo margine si calcolano in tempo reale</div>
+          <h2 style={{ margin: 0, fontSize: font.size.md, fontWeight: 800, color: C.text }}>Simulatore Scenari di Prezzo</h2>
+          <div style={{ fontSize: font.size.sm, color: C.textSoft, marginTop: 2 }}>Inserisci il nuovo prezzo - la variazione % e il nuovo margine si calcolano in tempo reale</div>
         </div>
         {hasChanges && (
-          <button onClick={reset} style={{ padding: '6px 14px', borderRadius: 7, border: `1px solid ${C.borderStr}`, background: 'transparent', fontSize: 12, fontWeight: 700, color: C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="refresh" size={12} />Reset tutto</button>
+          <button onClick={reset} style={{ padding: '6px 14px', borderRadius: 7, border: `1px solid ${C.borderStr}`, background: 'transparent', fontSize: font.size.sm, fontWeight: 700, color: C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="refresh" size={12} />Reset tutto</button>
         )}
       </div>
 
       <div className="fos-card-glow" style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: '24px', marginBottom: 28, position: 'relative', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
         {hasChanges && (
-          <div style={{ display: 'grid', gridTemplateColumns: ui3(isMobile, isTablet, ui.grid4), gap: 10, marginBottom: 24, padding: '16px 20px', background: '#F8F4F2', borderRadius: 10, border: `1px solid ${C.border}` }}>
+          <div style={{ display: 'grid', gridTemplateColumns: ui3(isMobile, isTablet, ui.grid4), gap: 10, marginBottom: 24, padding: '16px 20px', background: T.bgSubtle, borderRadius: 10, border: `1px solid ${C.border}` }}>
             {[
               { lbl: 'Ricavo base', val: euro(totRicavoBase), c: C.textMid },
               { lbl: 'Ricavo scenario', val: euro(totRicavoScen), c: totRicavoScen >= totRicavoBase ? C.green : C.red, sub: (totRicavoScen - totRicavoBase) !== 0 ? (totRicavoScen > totRicavoBase ? '+' : '') + euro(totRicavoScen - totRicavoBase) : null },
@@ -362,9 +362,9 @@ function ScenarioPrezzi({ rows, euro, pct }) {
               { lbl: 'Margine scenario', val: euro(totMargScen), c: totMargScen >= totMargBase ? C.green : C.red, sub: (totMargScen - totMargBase) !== 0 ? (totMargScen > totMargBase ? '+' : '') + euro(totMargScen - totMargBase) : null },
             ].map(({ lbl, val, c, sub }) => (
               <div key={lbl} style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: C.textSoft, marginBottom: 4 }}>{lbl}</div>
-                <div style={{ fontSize: 16, fontWeight: 900, color: c, ...TNUM }}>{val}</div>
-                {sub && <div style={{ fontSize: 12, fontWeight: 800, color: c, marginTop: 2 }}>{sub}</div>}
+                <div style={{ fontSize: font.size.sm, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: C.textSoft, marginBottom: 4 }}>{lbl}</div>
+                <div style={{ fontSize: font.size.lg, fontWeight: 900, color: c, ...TNUM }}>{val}</div>
+                {sub && <div style={{ fontSize: font.size.sm, fontWeight: 800, color: c, marginTop: 2 }}>{sub}</div>}
               </div>
             ))}
           </div>
@@ -381,53 +381,53 @@ function ScenarioPrezzi({ rows, euro, pct }) {
                 border: `1px solid ${changed ? C.borderStr : C.border}`,
                 background: changed ? (r.delta > 0 ? '#F6FBF7' : '#FEF6F5') : C.white }}>
                 <div style={{ width: 180, flexShrink: 0 }}>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: C.text }}>{r.nome}</div>
-                  <div style={{ fontSize: 12, color: C.textSoft, marginTop: 2 }}>{r.reg.unita} {labelPlurale(r.reg.tipo)}/stampo</div>
+                  <div style={{ fontSize: font.size.sm, fontWeight: 800, color: C.text }}>{r.nome}</div>
+                  <div style={{ fontSize: font.size.sm, color: C.textSoft, marginTop: 2 }}>{r.reg.unita} {labelPlurale(r.reg.tipo)}/stampo</div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: C.textSoft }}>Prezzo / {labelSingolare(r.reg.tipo)}</div>
+                  <div style={{ fontSize: font.size.sm, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: C.textSoft }}>Prezzo / {labelSingolare(r.reg.tipo)}</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: C.textMid }}>€</span>
+                    <span style={{ fontSize: font.size.sm, fontWeight: 700, color: C.textMid }}>€</span>
                     <input type="number" min="0" step="0.10" value={prezzi[r.nome]}
                       onChange={e => setP(r.nome, e.target.value)}
                       onBlur={e => { const v = parseFloat(e.target.value); if (!isNaN(v)) setP(r.nome, v.toFixed(2)) }}
                       style={{ width: 72, padding: '6px 8px', borderRadius: 7, textAlign: 'center',
                         border: `2px solid ${changed ? (r.delta > 0 ? C.green : C.red) : C.border}`,
-                        fontSize: 14, fontWeight: 900, color: changed ? (r.delta > 0 ? C.green : C.red) : C.text,
+                        fontSize: font.size.md, fontWeight: 900, color: changed ? (r.delta > 0 ? C.green : C.red) : C.text,
                         ...TNUM, outline: 'none' }}/>
                   </div>
-                  <div style={{ fontSize: 12, color: C.textSoft }}>base: {euro(r.reg.prezzo)}</div>
+                  <div style={{ fontSize: font.size.sm, color: C.textSoft }}>base: {euro(r.reg.prezzo)}</div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 72, padding: '6px 12px', borderRadius: 8,
-                  background: !changed ? '#F0EAE6' : r.delta > 0 ? C.greenLight : C.redLight,
+                  background: !changed ? '${T.border}' : r.delta > 0 ? C.greenLight : C.redLight,
                   border: `1px solid ${!changed ? C.border : r.delta > 0 ? C.green : C.red}30` }}>
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: !changed ? C.textSoft : r.delta > 0 ? C.green : C.red, marginBottom: 2 }}>Variazione</div>
-                    <div style={{ fontSize: 15, fontWeight: 900, ...TNUM, color: !changed ? C.textSoft : r.delta > 0 ? C.green : C.red }}>
+                    <div style={{ fontSize: font.size.sm, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: !changed ? C.textSoft : r.delta > 0 ? C.green : C.red, marginBottom: 2 }}>Variazione</div>
+                    <div style={{ fontSize: font.size.md, fontWeight: 900, ...TNUM, color: !changed ? C.textSoft : r.delta > 0 ? C.green : C.red }}>
                       {!changed ? '-' : `${dSign}${fmtp(r.delta)}`}
                     </div>
                   </div>
                 </div>
-                <div style={{ color: C.textSoft, fontSize: 16, flexShrink: 0 }}>→</div>
+                <div style={{ color: C.textSoft, fontSize: font.size.lg, flexShrink: 0 }}>→</div>
                 <div style={{ display: 'flex', gap: 8, flex: 1, flexWrap: 'wrap' }}>
-                  <div style={{ background: '#F0EAE6', borderRadius: 8, padding: '8px 12px', textAlign: 'center', minWidth: 90 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.textSoft, marginBottom: 3 }}>Margine base</div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: C.textMid, ...TNUM }}>{euro(r.margine)}</div>
-                    <div style={{ fontSize: 12, color: C.textSoft, marginTop: 2 }}>{pct(r.margPct)}</div>
+                  <div style={{ background: T.border, borderRadius: 8, padding: '8px 12px', textAlign: 'center', minWidth: 90 }}>
+                    <div style={{ fontSize: font.size.sm, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.textSoft, marginBottom: 3 }}>Margine base</div>
+                    <div style={{ fontSize: font.size.base, fontWeight: 600, color: C.textMid, ...TNUM }}>{euro(r.margine)}</div>
+                    <div style={{ fontSize: font.size.sm, color: C.textSoft, marginTop: 2 }}>{pct(r.margPct)}</div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', color: C.textSoft, fontSize: 14, flexShrink: 0 }}>→</div>
-                  <div style={{ background: changed ? (r.newMarg > r.margine ? '#EAF5EE' : '#FDECEA') : '#F8F4F2', borderRadius: 8, padding: '8px 12px', textAlign: 'center', minWidth: 90,
+                  <div style={{ display: 'flex', alignItems: 'center', color: C.textSoft, fontSize: font.size.md, flexShrink: 0 }}>→</div>
+                  <div style={{ background: changed ? (r.newMarg > r.margine ? '#EAF5EE' : '#FDECEA') : T.bgSubtle, borderRadius: 8, padding: '8px 12px', textAlign: 'center', minWidth: 90,
                     border: changed ? `1px solid ${r.newMarg > r.margine ? C.green : C.red}30` : 'none' }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.textSoft, marginBottom: 3 }}>Margine nuovo</div>
-                    <div style={{ fontSize: 13, fontWeight: 900, color: changed ? mc : C.textMid, ...TNUM }}>{euro(r.newMarg)}</div>
-                    <div style={{ fontSize: 12, color: changed ? mc : C.textSoft, marginTop: 2 }}>{pct(r.newMargPct)}</div>
+                    <div style={{ fontSize: font.size.sm, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.textSoft, marginBottom: 3 }}>Margine nuovo</div>
+                    <div style={{ fontSize: font.size.base, fontWeight: 900, color: changed ? mc : C.textMid, ...TNUM }}>{euro(r.newMarg)}</div>
+                    <div style={{ fontSize: font.size.sm, color: changed ? mc : C.textSoft, marginTop: 2 }}>{pct(r.newMargPct)}</div>
                   </div>
                 </div>
                 <div style={{ padding: '8px 16px', borderRadius: 8, textAlign: 'center', flexShrink: 0, minWidth: 90,
-                  background: !changed ? '#F0EAE6' : r.diffMarg > 0 ? C.greenLight : C.redLight,
+                  background: !changed ? '${T.border}' : r.diffMarg > 0 ? C.greenLight : C.redLight,
                   border: `1px solid ${!changed ? C.border : r.diffMarg > 0 ? C.green : C.red}30` }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: !changed ? C.textSoft : r.diffMarg > 0 ? C.green : C.red, marginBottom: 3 }}>Δ margine</div>
-                  <div style={{ fontSize: 18, fontWeight: 900, ...TNUM, color: !changed ? C.textSoft : r.diffMarg > 0 ? C.green : C.red }}>
+                  <div style={{ fontSize: font.size.sm, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: !changed ? C.textSoft : r.diffMarg > 0 ? C.green : C.red, marginBottom: 3 }}>Δ margine</div>
+                  <div style={{ fontSize: font.size.xl, fontWeight: 900, ...TNUM, color: !changed ? C.textSoft : r.diffMarg > 0 ? C.green : C.red }}>
                     {!changed ? '-' : (r.diffMarg > 0 ? '+' : '') + euro(r.diffMarg)}
                   </div>
                 </div>
@@ -545,7 +545,7 @@ function PLTable({ rows, euro, pct, totRicavo, totFC, totMargine, fcAvg, avgMarg
           }
           intestazione={
             <thead>
-              <tr style={{ background: '#F8F4F2' }}>
+              <tr style={{ background: T.bgSubtle }}>
                 <SortTH k="nome" active={sortKey === 'nome'} dir={sortDir} onToggle={toggleSort}>Prodotto</SortTH>
                 <SortTH k="unita" right active={sortKey === 'unita'} dir={sortDir} onToggle={toggleSort} tip="Numero di pezzi/fette ricavati da uno stampo">Unità/st.</SortTH>
                 <SortTH k="prezzo" right active={sortKey === 'prezzo'} dir={sortDir} onToggle={toggleSort} tip="Prezzo di vendita di un singolo pezzo/fetta">Prezzo/un.</SortTH>
@@ -562,7 +562,7 @@ function PLTable({ rows, euro, pct, totRicavo, totFC, totMargine, fcAvg, avgMarg
           }
           corpo={            <tbody>
               {sorted.map((r, i) => (
-                <tr key={r.nome} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.white : '#FDFAF7' }}>
+                <tr key={r.nome} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.white : T.bgSubtle }}>
                   {/* Senza un prezzo di vendita salvato non si mostra un
                       numero: si mostra "—". Prima, per le 24 ricette
                       importate da Excel, il fallback di getR dava "8 fette"
@@ -606,7 +606,7 @@ function PLTable({ rows, euro, pct, totRicavo, totFC, totMargine, fcAvg, avgMarg
               ))}
             </tbody>}
           piede={            <tfoot>
-              <tr style={{ background: '#F0EAE6', borderTop: `2px solid ${C.borderStr}` }}>
+              <tr style={{ background: T.border, borderTop: `2px solid ${C.borderStr}` }}>
                 <td colSpan={3} style={{ textAlign: 'right', ...TNUM, padding: '12px 14px', fontWeight: 800, fontSize: font.size.sm, color: C.text }}>
                   TOTALE / MEDIA
                   <NotaEsclusi
@@ -701,7 +701,7 @@ function SensTable({ rows, euro, pct }) {
           )}
           intestazione={
             <thead>
-              <tr style={{ background: '#F8F4F2' }}>
+              <tr style={{ background: T.bgSubtle }}>
                 <SortTH k="nome" active={sortKey === 'nome'} dir={sortDir} onToggle={toggleSort}>Prodotto</SortTH>
                 <SortTH k="margPct" right active={sortKey === 'margPct'} dir={sortDir} onToggle={toggleSort} tip="Margine % con i costi attuali">Margine attuale</SortTH>
                 <SortTH k="marg10" right active={sortKey === 'marg10'} dir={sortDir} onToggle={toggleSort} tip="Margine % se il food cost aumentasse del 10% (es. rincaro materie prime)">FC +10% → marg.</SortTH>
@@ -713,7 +713,7 @@ function SensTable({ rows, euro, pct }) {
           }
           corpo={            <tbody>
               {ss.map((r, i) => (
-                <tr key={r.nome} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.white : '#FDFAF7' }}>
+                <tr key={r.nome} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.white : T.bgSubtle }}>
                   <TD bold>{r.nome}</TD>
                   <TD right bold color={margColor(r.margPct)} mono>{euro(r.margine)} ({pct(r.margPct)})</TD>
                   <TD right bold color={r.marg10 > 0 ? C.green : C.red} mono>{euro(r.marg10)}</TD>
@@ -1381,8 +1381,8 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
           <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
         </svg>
       </div>
-      <div style={{ fontSize: 15, fontWeight: 600, color: T.text, marginBottom: 6, letterSpacing: '-0.01em' }}>Nessun dato P&amp;L</div>
-      <div style={{ fontSize: 13, color: T.textSoft, lineHeight: 1.5 }}>Carica il ricettario per vedere ricavi, food cost e margine per ogni prodotto.</div>
+      <div style={{ fontSize: font.size.md, fontWeight: 600, color: T.text, marginBottom: 6, letterSpacing: '-0.01em' }}>Nessun dato P&amp;L</div>
+      <div style={{ fontSize: font.size.base, color: T.textSoft, lineHeight: 1.5 }}>Carica il ricettario per vedere ricavi, food cost e margine per ogni prodotto.</div>
     </div>
   )
 
@@ -1410,7 +1410,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
           }}
             disabled={exportingPdf}
             style={{ padding: '10px 16px', borderRadius: R.md, border: `1px solid ${T.border}`, background: T.bgCard,
-              fontSize: 13, fontWeight: 500, color: T.textMid, cursor: exportingPdf ? 'not-allowed' : 'pointer', letterSpacing: '-0.005em',
+              fontSize: font.size.base, fontWeight: 500, color: T.textMid, cursor: exportingPdf ? 'not-allowed' : 'pointer', letterSpacing: '-0.005em',
               opacity: exportingPdf ? 0.6 : 1,
               display: 'inline-flex', alignItems: 'center', gap: 6, boxShadow: S.sm }}>
             <Icon name="fileText" size={14} />{exportingPdf ? 'Generazione…' : 'Esporta PDF'}
@@ -1419,7 +1419,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
       />
 
       {gustiSenzaRicavo > 0 && (
-        <div style={{ marginBottom: 16, padding: '10px 14px', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 10, fontSize: 12, color: '#92400E', lineHeight: 1.5, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+        <div style={{ marginBottom: 16, padding: '10px 14px', background: T.amberLight, border: '1px solid ${T.amber}', borderRadius: 10, fontSize: font.size.sm, color: T.amberDark, lineHeight: 1.5, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
           <Icon name="bulb" size={13} />
           <span><b>{gustiSenzaRicavo} gusti gelateria</b> senza formato vendita di riferimento non appaiono in questo P&amp;L. Configura almeno un formato (cono/coppetta/vaschetta) per la loro categoria in <b>Cassa → Formati vendita</b> e verranno inclusi con ricavo/kg stimato.</span>
         </div>
@@ -1443,7 +1443,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
       <div style={{ display: 'flex', marginBottom: 14 }}>
         <div style={{ flex: 1 }} />
         <button onClick={() => setEditCosti(v => !v)}
-          style={{ padding: '10px 14px', minHeight: 44, borderRadius: R.md, border: `1px solid ${T.border}`, background: T.bgCard, fontSize: 12, fontWeight: 600, color: T.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          style={{ padding: '10px 14px', minHeight: 44, borderRadius: R.md, border: `1px solid ${T.border}`, background: T.bgCard, fontSize: font.size.sm, fontWeight: 600, color: T.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
           <Icon name="gear" size={14} /> Costi fissi & personale
         </button>
       </div>
@@ -1452,12 +1452,12 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
         <div style={{ ...cardP, padding: isMobile ? 14 : 18, marginBottom: 16, display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)', gap: isMobile ? 10 : 14, alignItems: 'end' }}>
           {[['affitto', 'Affitto / mese'], ['utenze', 'Utenze / mese'], ['altro', 'Altri costi fissi'], ['personale', 'Costo personale / mese']].map(([k, lbl]) => (
             <div key={k}>
-              <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: T.textSoft, marginBottom: 6 }}>{lbl}</div>
+              <div style={{ fontSize: font.size.sm, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: T.textSoft, marginBottom: 6 }}>{lbl}</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, border: `1px solid ${T.border}`, borderRadius: 8, padding: '10px 12px', minHeight: 44, background: T.bgCard }}>
-                <span style={{ color: T.textSoft, fontSize: 13 }}>€</span>
+                <span style={{ color: T.textSoft, fontSize: font.size.base }}>€</span>
                 <input type="number" inputMode="decimal" value={costi[k] || ''} onChange={e => setCosti(c => ({ ...c, [k]: e.target.value }))}
                   placeholder={k === 'personale' && personaleReale.totale > 0 ? String(Math.round(personaleReale.totale)) : '0'}
-                  style={{ border: 'none', outline: 'none', width: '100%', fontSize: 14, fontWeight: 700, color: T.text, background: 'transparent', ...TNUM }} />
+                  style={{ border: 'none', outline: 'none', width: '100%', fontSize: font.size.md, fontWeight: 700, color: T.text, background: 'transparent', ...TNUM }} />
               </div>
               {/* Il campo del personale non è più un buco: se resta vuoto si
                   usa il costo dei dipendenti inseriti, e qui c'è scritto. */}
@@ -1472,9 +1472,9 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
           ))}
           <div style={{ gridColumn: isMobile ? '1 / -1' : 'auto', display: 'flex', gap: 8 }}>
             <button onClick={() => salvaCosti({ affitto: +costi.affitto || 0, utenze: +costi.utenze || 0, altro: +costi.altro || 0, personale: +costi.personale || 0 })} disabled={savingCosti}
-              style={{ flex: 1, padding: '11px 16px', minHeight: 44, borderRadius: R.md, border: 'none', background: T.brand, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>{savingCosti ? 'Salvo…' : 'Salva'}</button>
+              style={{ flex: 1, padding: '11px 16px', minHeight: 44, borderRadius: R.md, border: 'none', background: T.brand, color: T.white, fontSize: font.size.base, fontWeight: 700, cursor: 'pointer' }}>{savingCosti ? 'Salvo…' : 'Salva'}</button>
             <button onClick={() => { setEditCosti(false); sload(SK_PL_COSTI, orgId, sedeId).then(d => d && setCosti({ affitto: +d.affitto || 0, utenze: +d.utenze || 0, altro: +d.altro || 0, personale: +d.personale || 0 })).catch(() => {}) }}
-              style={{ padding: '11px 16px', minHeight: 44, borderRadius: R.md, border: `1px solid ${T.border}`, background: T.bgCard, fontSize: 13, color: T.textMid, cursor: 'pointer' }}>Annulla</button>
+              style={{ padding: '11px 16px', minHeight: 44, borderRadius: R.md, border: `1px solid ${T.border}`, background: T.bgCard, fontSize: font.size.base, color: T.textMid, cursor: 'pointer' }}>Annulla</button>
           </div>
         </div>
       )}
@@ -1512,7 +1512,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
       )}
 
       {plMese.cur.giorni === 0 && !plMese.daInventario ? (
-        <div style={{ ...cardP, padding: 32, textAlign: 'center', color: T.textSoft, fontSize: 13, marginBottom: 28 }}>
+        <div style={{ ...cardP, padding: 32, textAlign: 'center', color: T.textSoft, fontSize: font.size.base, marginBottom: 28 }}>
           Nessuna chiusura di cassa registrata nel periodo selezionato ({rangeLabel(dateFrom, dateTo)}). Registra le chiusure (sezione Cassa) per vedere il conto economico.
         </div>
       ) : (
@@ -1666,9 +1666,9 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
             {(() => {
               const Row = ({ label, val, pctv, bold, neg, strong, sub }) => (
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: strong ? '12px 0' : '8px 0', borderTop: strong ? `2px solid ${T.text}` : 'none' }}>
-                  <span style={{ fontSize: strong ? 14 : 13, fontWeight: strong || bold ? 800 : 500, color: strong ? T.text : T.textMid, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}{sub && <span style={{ fontSize: 12, color: T.textSoft, fontWeight: 500 }}> · {sub}</span>}</span>
+                  <span style={{ fontSize: strong ? 14 : 13, fontWeight: strong || bold ? 800 : 500, color: strong ? T.text : T.textMid, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}{sub && <span style={{ fontSize: font.size.sm, color: T.textSoft, fontWeight: 500 }}> · {sub}</span>}</span>
                   <span style={{ display: 'flex', alignItems: 'baseline', gap: isMobile ? 8 : 12, flexShrink: 0 }}>
-                    {pctv != null && <span style={{ fontSize: 12, color: T.textSoft, ...TNUM, minWidth: 46, textAlign: 'right' }}>{pct(pctv)}</span>}
+                    {pctv != null && <span style={{ fontSize: font.size.sm, color: T.textSoft, ...TNUM, minWidth: 46, textAlign: 'right' }}>{pct(pctv)}</span>}
                     <span style={{ fontSize: strong ? (isMobile ? 18 : 20) : 14, fontWeight: strong || bold ? 800 : 600, color: strong ? (val >= 0 ? T.green : T.brand) : (neg ? T.brand : T.text), ...TNUM, minWidth: isMobile ? 80 : 100, textAlign: 'right' }}>
                       {neg && val !== 0 ? '−' : ''}{fmt0(Math.abs(val))}
                     </span>
@@ -1718,7 +1718,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
                       ne vede un altro, e senza questa riga non sa quale
                       credere. */}
                   {uscite.daFatture > 0 && (
-                    <div style={{ fontSize: 12, color: T.textSoft, marginTop: 6, lineHeight: 1.5 }}>
+                    <div style={{ fontSize: font.size.sm, color: T.textSoft, marginTop: 6, lineHeight: 1.5 }}>
                       Fuori dal conto: <b style={{ color: T.text }}>{fmt0(uscite.daFatture)}</b> di
                       {' '}{uscite.numeroDaFatture === 1 ? 'una fattura fornitore segnata pagata' : `${uscite.numeroDaFatture} fatture fornitore segnate pagate`}.
                       Sono l'acquisto delle materie prime, che il food cost qui sopra conta già:
@@ -1726,7 +1726,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
                     </div>
                   )}
                   <Row label={plMese.utile >= 0 ? 'UTILE DEL PERIODO' : 'PERDITA DEL PERIODO'} val={plMese.utile} pctv={plMese.margOpPct} strong />
-                  <div style={{ fontSize: 12, color: T.textSoft, marginTop: 10, lineHeight: 1.5 }}>
+                  <div style={{ fontSize: font.size.sm, color: T.textSoft, marginTop: 10, lineHeight: 1.5 }}>
                     Break-even: servono <b style={{ color: T.text }}>{fmt0(plMese.breakeven)}</b> di ricavi/mese per coprire personale e costi fissi
                     {(plMese.personale + plMese.costiFissi) === 0 && ' · imposta i costi fissi e il personale per un calcolo completo'}.
                   </div>
@@ -1740,9 +1740,9 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
       {rows.length > 0 && (<>
       {/* Audit 2026-06-25: temporaneamente disabilitata.
       <SH sub="Redditività teorica di ogni ricetta ai prezzi di listino - utile per le decisioni su prezzi e ricette.">Analisi del listino (teorica)</SH>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, background: '#F8F4F2', border: `1px solid ${C.border}`, borderRadius: 12, padding: '12px 16px', marginBottom: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, background: T.bgSubtle, border: `1px solid ${C.border}`, borderRadius: 12, padding: '12px 16px', marginBottom: 16 }}>
         <span style={{ lineHeight: 1, marginTop: 1, color: C.textMid }}><Icon name="bulb" size={16} /></span>
-        <div style={{ fontSize: 12, color: C.textMid, lineHeight: 1.55 }}>
+        <div style={{ fontSize: font.size.sm, color: C.textMid, lineHeight: 1.55 }}>
           <b style={{ color: C.text }}>Numeri teorici, non riferiti a un periodo.</b> Mostrano ricavo, food cost e margine <b>per un singolo stampo di ciascun prodotto</b>, ai <b>prezzi di listino attuali</b> - servono a capire la redditività delle ricette. Per ricavi e margini <b>reali nel tempo</b> (giorno · settimana · mese) apri la sezione <b>Storico</b>.
         </div>
       </div>
@@ -1757,10 +1757,10 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
         const gw = Math.max(0, Math.min(100, margPctTot))
         const num = { ...TNUM, fontVariantNumeric: 'tabular-nums' }
         // Stili UNIFORMI: stessa dimensione per le 3 voci e per i 3 valori.
-        const cellP = { fontSize: 13, fontWeight: 700, padding: '10px 0', textAlign: 'right', alignSelf: 'center', ...num }
-        const cellA = { fontSize: 16, fontWeight: 800, padding: '10px 0', textAlign: 'right', alignSelf: 'center', ...num }
+        const cellP = { fontSize: font.size.base, fontWeight: 700, padding: '10px 0', textAlign: 'right', alignSelf: 'center', ...num }
+        const cellA = { fontSize: font.size.lg, fontWeight: 800, padding: '10px 0', textAlign: 'right', alignSelf: 'center', ...num }
         const Voce = ({ dot, children }) => (
-          <div style={{ fontSize: 14, fontWeight: 700, padding: '10px 0', display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+          <div style={{ fontSize: font.size.md, fontWeight: 700, padding: '10px 0', display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
             <span style={{ width: 9, height: 9, borderRadius: 3, background: dot, flexShrink: 0 }}/>
             <span style={{ color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{children}</span>
           </div>
@@ -1773,12 +1773,12 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 18, flexWrap: 'wrap' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div style={{ width: 3, height: 18, background: C.red, borderRadius: 2, flexShrink: 0 }}/>
-                <h2 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: C.text, letterSpacing: '-0.01em' }}>Conto economico</h2>
+                <h2 style={{ margin: 0, fontSize: font.size.md, fontWeight: 800, color: C.text, letterSpacing: '-0.01em' }}>Conto economico</h2>
               </div>
               {/* Su quanti prodotti si regge il conto economico teorico: senza
                   questa riga sembrava il bilancio di tutto il listino, mentre
                   nell'account vero si regge su 4 prodotti su 58. */}
-              <span style={{ fontSize: 12, fontWeight: 600, color: C.textSoft, background: '#F8F4F2', padding: '4px 10px', borderRadius: 20 }}>a regime · prezzi di listino · su {righeComplete.length} {righeComplete.length === 1 ? 'prodotto' : 'prodotti'} su {rows.length}</span>
+              <span style={{ fontSize: font.size.sm, fontWeight: 600, color: C.textSoft, background: T.bgSubtle, padding: '4px 10px', borderRadius: 20 }}>a regime · prezzi di listino · su {righeComplete.length} {righeComplete.length === 1 ? 'prodotto' : 'prodotti'} su {rows.length}</span>
             </div>
 
             {/* Statement: griglia 3 colonne - voce | % | importo, tutto incolonnato
@@ -1809,16 +1809,16 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
                 <div style={{ width: `${gw}%`, background: margC, transition: 'width 0.45s cubic-bezier(0.4,0,0.2,1)' }}/>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 9 }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700, color: margC }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: font.size.sm, fontWeight: 700, color: margC }}>
                   <span style={{ width: 8, height: 8, borderRadius: '50%', background: margC }}/>
                   Margine {fmtp0(margPctTot)}
                 </span>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700, color: C.red }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: font.size.sm, fontWeight: 700, color: C.red }}>
                   Food cost {fmtp0(fcPct)}
                   <span style={{ width: 8, height: 8, borderRadius: '50%', background: C.red }}/>
                 </span>
               </div>
-              <div style={{ fontSize: 12, color: C.textSoft, marginTop: 10, lineHeight: 1.4 }}>
+              <div style={{ fontSize: font.size.sm, color: C.textSoft, marginTop: 10, lineHeight: 1.4 }}>
                 Margine lordo prima di personale, affitto e utenze.
               </div>
             </div>
@@ -1845,11 +1845,11 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
                 }}>
                   <div style={{
                     width: 26, height: 26, borderRadius: '50%', background: palette.bg, color: palette.fg,
-                    fontSize: 13, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                    fontSize: font.size.base, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                   }}>{palette.icon}</div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.05em', color: palette.fg, marginBottom: 3 }}>{palette.lbl}</div>
-                    <div style={{ fontSize: 12, color: C.text, lineHeight: 1.5, fontWeight: 500 }}>{ins.testo}</div>
+                    <div style={{ fontSize: font.size.sm, fontWeight: 800, letterSpacing: '0.05em', color: palette.fg, marginBottom: 3 }}>{palette.lbl}</div>
+                    <div style={{ fontSize: font.size.sm, color: C.text, lineHeight: 1.5, fontWeight: 500 }}>{ins.testo}</div>
                   </div>
                 </div>
               )
@@ -1888,7 +1888,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
             display: 'flex', flexDirection: 'column',
             boxShadow: hi ? '0 4px 14px rgba(110,14,26,0.22)' : SHADOW_PREMIUM }}>
             <Tip text={tip} width={240}>
-              <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', cursor: 'help',
+              <div style={{ fontSize: font.size.sm, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', cursor: 'help',
                 color: hi ? 'rgba(255,255,255,0.7)' : T.textSoft, marginBottom: 6, minHeight: 28, lineHeight: 1.25,
                 borderBottom: `1px dashed ${hi ? 'rgba(255,255,255,0.28)' : 'rgba(155,120,115,0.4)'}` }}>{lbl}</div>
             </Tip>
@@ -1898,10 +1898,10 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
                 Fre…». Di un numero tagliato ci si accorge; di un nome tagliato
                 si legge l'inizio e si crede di aver letto tutto — e in un
                 ricettario i nomi si somigliano. */}
-            <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em',
+            <div style={{ fontSize: font.size.xl, fontWeight: 700, letterSpacing: '-0.02em',
               color: hi ? T.textOnDark : color || T.text, lineHeight: 1.2, minHeight: 32,
               overflowWrap: 'anywhere', ...TNUM }}>{val}</div>
-            <div style={{ fontSize: 12, color: hi ? 'rgba(255,255,255,0.62)' : T.textSoft, marginTop: 5, minHeight: 16, maxHeight: 28, overflow: 'hidden', lineHeight: 1.4 }}>{sub}</div>
+            <div style={{ fontSize: font.size.sm, color: hi ? 'rgba(255,255,255,0.62)' : T.textSoft, marginTop: 5, minHeight: 16, maxHeight: 28, overflow: 'hidden', lineHeight: 1.4 }}>{sub}</div>
           </div>
         ))}
       </div>
@@ -1937,17 +1937,17 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
       <SH>Grafici di Riepilogo</SH>
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 20, marginBottom: 28 }}>
         <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: '20px', boxShadow: SHADOW_PREMIUM }}>
-          <div style={{ fontSize: 12, fontWeight: 800, color: C.text, marginBottom: 16 }}>Margine % per prodotto</div>
+          <div style={{ fontSize: font.size.sm, fontWeight: 800, color: C.text, marginBottom: 16 }}>Margine % per prodotto</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {[...rows].sort((a, b) => b.margPct - a.margPct).map(r => {
               const mc = margColor(r.margPct)
               return (
                 <div key={r.nome}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: C.text }}>{r.short}</span>
-                    <span style={{ fontSize: 12, fontWeight: 900, color: mc, ...TNUM }}>{pct(r.margPct)}</span>
+                    <span style={{ fontSize: font.size.sm, fontWeight: 700, color: C.text }}>{r.short}</span>
+                    <span style={{ fontSize: font.size.sm, fontWeight: 900, color: mc, ...TNUM }}>{pct(r.margPct)}</span>
                   </div>
-                  <div style={{ height: 10, background: '#F0EAE6', borderRadius: 5, overflow: 'hidden' }}>
+                  <div style={{ height: 10, background: T.border, borderRadius: 5, overflow: 'hidden' }}>
                     <div style={{ height: '100%', width: `${Math.min(100, r.margPct)}%`, background: mc, borderRadius: 5 }}/>
                   </div>
                 </div>
@@ -1956,11 +1956,11 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
           </div>
         </div>
         <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: '20px', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
-          <div style={{ fontSize: 12, fontWeight: 800, color: C.text, marginBottom: 4 }}>Ricavo vs Margine per stampo</div>
+          <div style={{ fontSize: font.size.sm, fontWeight: 800, color: C.text, marginBottom: 4 }}>Ricavo vs Margine per stampo</div>
           {/* Audit 2026-06-25 Recharts style guide: ResponsiveContainer 100%
               + height responsive (mobile 220 / desktop 280), CartesianGrid
-              #E5E9EF dashed senza linee verticali, Bar radius [6,6,0,0] e
-              stroke brand #6E0E1A, ChartTip condiviso, etichette assi 11/64748B,
+              ${T.border} dashed senza linee verticali, Bar radius [6,6,0,0] e
+              stroke brand ${T.brand}, ChartTip condiviso, etichette assi 11/64748B,
               margin responsive. */}
           <ResponsiveContainer width="100%" height={isMobile ? 220 : 280}>
             <BarChart
@@ -1969,10 +1969,10 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
               margin={isMobile ? { top: 8, right: 16, left: 8, bottom: 32 } : { top: 12, right: 24, left: 12, bottom: 40 }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#E5E9EF" vertical={false} />
-              <XAxis type="number" tickFormatter={v => `${Math.round(v).toLocaleString('it-IT', { useGrouping: 'always' })} €`} tick={{ fill: '#5A6B80', fontSize: 12 }} axisLine={false} tickLine={false}/>
-              <YAxis type="category" dataKey="short" width={80} tick={{ fill: '#5A6B80', fontSize: 12 }} axisLine={false} tickLine={false}/>
+              <XAxis type="number" tickFormatter={v => `${Math.round(v).toLocaleString('it-IT', { useGrouping: 'always' })} €`} tick={{ fill: T.textMid, fontSize: font.size.sm }} axisLine={false} tickLine={false}/>
+              <YAxis type="category" dataKey="short" width={80} tick={{ fill: T.textMid, fontSize: font.size.sm }} axisLine={false} tickLine={false}/>
               <Tooltip content={<ChartTip />} />
-              <Bar dataKey="ricavo" name="Ricavo" fill={C.green} fillOpacity={0.2} stroke="#6E0E1A" strokeOpacity={0.15} radius={[6, 6, 0, 0]}/>
+              <Bar dataKey="ricavo" name="Ricavo" fill={C.green} fillOpacity={0.2} stroke="${T.brand}" strokeOpacity={0.15} radius={[6, 6, 0, 0]}/>
               <Bar dataKey="margine" name="Margine" stroke="#6E0E1A" strokeOpacity={0.25} radius={[6, 6, 0, 0]}>
                 {[...rows].sort((a, b) => b.ricavo - a.ricavo).map((r, i) => (
                   <Cell key={i} fill={margColor(r.margPct)} fillOpacity={0.85}/>
@@ -1986,17 +1986,17 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
       {/* Benchmark */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16, marginBottom: 12 }}>
         <div style={{ background: C.greenLight, border: `1px solid ${C.green}30`, borderRadius: 16, padding: '20px 24px', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
-          <div style={{ fontSize: 12, fontWeight: 800, color: C.green, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="checkCircle" size={13} />Benchmark pasticceria</div>
+          <div style={{ fontSize: font.size.sm, fontWeight: 800, color: C.green, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="checkCircle" size={13} />Benchmark pasticceria</div>
           {[['Food cost ideale', '< 28–30%'], ['Margine target', '70–72%'], ['Accettabile', '55–70%']].map(([k, v]) => (
-            <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: 12 }}>
+            <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: font.size.sm }}>
               <span style={{ color: C.textMid }}>{k}</span><span style={{ color: C.green, fontWeight: 700 }}>{v}</span>
             </div>
           ))}
         </div>
         <div style={{ background: C.amberLight, border: `1px solid ${C.amber}30`, borderRadius: 16, padding: '20px 24px', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
-          <div style={{ fontSize: 12, fontWeight: 800, color: C.amber, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="bulb" size={13} />Leve di ottimizzazione</div>
+          <div style={{ fontSize: font.size.sm, fontWeight: 800, color: C.amber, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="bulb" size={13} />Leve di ottimizzazione</div>
           {[['Aumentare prezzo +0,50€/fetta', 'Margine sale ~8-12pp'], ['Ridurre FC del 10%', 'Negozia bulk'], ['Tagliare prodotti < 50% marg.', 'Sostituisci con migliori']].map(([k, v]) => (
-            <div key={k} style={{ padding: '6px 0', fontSize: 12 }}>
+            <div key={k} style={{ padding: '6px 0', fontSize: font.size.sm }}>
               <div style={{ color: C.amber, fontWeight: 700 }}>{k}</div>
               <div style={{ color: C.textMid, lineHeight: 1.4 }}>{v}</div>
             </div>
@@ -2048,7 +2048,7 @@ function PLInventarioSection({ data, rangeLabel: rangeLbl, cardP, isMobile }) {
       {(data.senzaRicetta.length > 0 || data.senzaPrezzo.length > 0 || data.fcParziali.length > 0) && (
         <div style={{
           background: T.amberLight, border: `1px solid ${T.amber}55`, borderRadius: 10,
-          padding: 10, marginBottom: 14, fontSize: 12, color: '#78350F', lineHeight: 1.55,
+          padding: 10, marginBottom: 14, fontSize: font.size.sm, color: T.amberDark, lineHeight: 1.55,
         }}>
           {data.senzaRicetta.length > 0 && (
             <div>
@@ -2129,35 +2129,35 @@ function PLInventarioSection({ data, rangeLabel: rangeLbl, cardP, isMobile }) {
             </div>
           )}
           intestazione={<><thead>
-            <tr style={{ background: '#F8FAFC' }}>
-              <TH style={{ position: 'sticky', left: 0, background: '#F8FAFC', minWidth: 180 }}>Gusto</TH>
+            <tr style={{ background: T.bgSubtle }}>
+              <TH style={{ position: 'sticky', left: 0, background: T.bgSubtle, minWidth: 180 }}>Gusto</TH>
               <TH style={{ textAlign: 'right' }}>Prod. kg</TH>
               <TH style={{ textAlign: 'right' }}>Venduto kg</TH>
               <TH style={{ textAlign: 'right' }}>Scarto kg</TH>
               <TH style={{ textAlign: 'right' }}>€/kg</TH>
               <TH style={{ textAlign: 'right', background: '#FEF9EB' }}>Ricavo</TH>
               <TH style={{ textAlign: 'right' }}>Food cost</TH>
-              <TH style={{ textAlign: 'right', background: '#F0FDF4' }}>Margine</TH>
+              <TH style={{ textAlign: 'right', background: T.greenLight }}>Margine</TH>
               <TH style={{ textAlign: 'right' }}>Marg. %</TH>
             </tr>
           </thead></>}
           corpo={<><tbody>
             {data.rows.map((r) => (
-              <tr key={r.gusto} style={{ borderTop: `1px solid ${C.borderSoft || '#F1F5F9'}` }}>
+              <tr key={r.gusto} style={{ borderTop: `1px solid ${C.borderSoft || '${T.bgSubtle}'}` }}>
                 <TD style={{ position: 'sticky', left: 0, background: C.bgCard, fontWeight: 700, color: C.text }}>
                   {r.gusto}
                   {(!r.haRicavo || !r.haFc) && (
                     <span title="Ricavo o food cost non calcolabile: manca la ricetta o il listino"
-                      style={{ display: 'inline-block', marginLeft: 6, color: '#B45309' }}><Icon name="alert" size={12} color="#B45309" /></span>
+                      style={{ display: 'inline-block', marginLeft: 6, color: T.amber }}><Icon name="alert" size={12} color="${T.amber}" /></span>
                   )}
                 </TD>
                 <TD style={{ textAlign: 'right', ...TNUM }}>{fmtKg(r.prodKg)}</TD>
                 <TD style={{ textAlign: 'right', ...TNUM }}>{fmtKg(r.vendKg)}</TD>
-                <TD style={{ textAlign: 'right', ...TNUM, color: r.scartoKg > 0 ? '#B91C1C' : C.textSoft }}>{r.scartoKg > 0 ? fmtKg(r.scartoKg) : '-'}</TD>
+                <TD style={{ textAlign: 'right', ...TNUM, color: r.scartoKg > 0 ? '${T.redDark}' : C.textSoft }}>{r.scartoKg > 0 ? fmtKg(r.scartoKg) : '-'}</TD>
                 <TD style={{ textAlign: 'right', ...TNUM, color: C.textSoft }}>{r.ricavoKg > 0 ? euro(r.ricavoKg) : '-'}</TD>
                 <TD style={{ textAlign: 'right', ...TNUM, fontWeight: 700, background: '#FEF9EB' }}>{r.ricavo > 0 ? euro(r.ricavo) : '-'}</TD>
-                <TD style={{ textAlign: 'right', ...TNUM, color: '#B91C1C' }}>{r.fc > 0 ? euro(r.fc) : '-'}</TD>
-                <TD style={{ textAlign: 'right', ...TNUM, fontWeight: 800, color: r.margine >= 0 ? '#166534' : '#B91C1C', background: '#F0FDF4' }}>
+                <TD style={{ textAlign: 'right', ...TNUM, color: T.redDark }}>{r.fc > 0 ? euro(r.fc) : '-'}</TD>
+                <TD style={{ textAlign: 'right', ...TNUM, fontWeight: 800, color: r.margine >= 0 ? '#166534' : T.redDark, background: T.greenLight }}>
                   {r.ricavo > 0 || r.fc > 0 ? euro(r.margine) : '-'}
                 </TD>
                 <TD style={{ textAlign: 'right', ...TNUM, color: margColor(r.margPct) }}>
@@ -2167,15 +2167,15 @@ function PLInventarioSection({ data, rangeLabel: rangeLbl, cardP, isMobile }) {
             ))}
           </tbody></>}
           piede={<><tfoot>
-            <tr style={{ background: '#F8FAFC', borderTop: `2px solid ${C.border}` }}>
-              <TD style={{ position: 'sticky', left: 0, background: '#F8FAFC', fontWeight: 800, color: C.text }}>Totale</TD>
+            <tr style={{ background: T.bgSubtle, borderTop: `2px solid ${C.border}` }}>
+              <TD style={{ position: 'sticky', left: 0, background: T.bgSubtle, fontWeight: 800, color: C.text }}>Totale</TD>
               <TD style={{ textAlign: 'right', ...TNUM, fontWeight: 800 }}>{fmtKg(data.totProd)}</TD>
               <TD style={{ textAlign: 'right', ...TNUM, fontWeight: 800 }}>{fmtKg(data.totVend)}</TD>
-              <TD style={{ textAlign: 'right', ...TNUM, fontWeight: 800, color: data.totScart > 0 ? '#B91C1C' : C.textSoft }}>{data.totScart > 0 ? fmtKg(data.totScart) : '-'}</TD>
+              <TD style={{ textAlign: 'right', ...TNUM, fontWeight: 800, color: data.totScart > 0 ? '${T.redDark}' : C.textSoft }}>{data.totScart > 0 ? fmtKg(data.totScart) : '-'}</TD>
               <TD/>
               <TD style={{ textAlign: 'right', ...TNUM, fontWeight: 800, background: '#FEF9EB' }}>{euro(data.totRic)}</TD>
-              <TD style={{ textAlign: 'right', ...TNUM, fontWeight: 800, color: '#B91C1C' }}>{euro(data.totFc)}</TD>
-              <TD style={{ textAlign: 'right', ...TNUM, fontWeight: 800, color: data.totMarg >= 0 ? '#166534' : '#B91C1C', background: '#F0FDF4' }}>{euro(data.totMarg)}</TD>
+              <TD style={{ textAlign: 'right', ...TNUM, fontWeight: 800, color: T.redDark }}>{euro(data.totFc)}</TD>
+              <TD style={{ textAlign: 'right', ...TNUM, fontWeight: 800, color: data.totMarg >= 0 ? '#166534' : T.redDark, background: T.greenLight }}>{euro(data.totMarg)}</TD>
               <TD style={{ textAlign: 'right', ...TNUM, fontWeight: 800, color: margColor(data.totMargPct) }}>{fmtPct(data.totMargPct)}</TD>
             </tr>
           </tfoot></>}
@@ -2219,8 +2219,8 @@ function CostiNettoBanda({ costiAziendali, margineLordoPeriodo, giorniPeriodo = 
     }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 14 }}>
         <div>
-          <div style={{ fontSize: 13, fontWeight: 800, color: T.text }}>Costi extra-food &amp; margine netto stimato</div>
-          <div style={{ fontSize: 12, color: T.textSoft, marginTop: 2, lineHeight: 1.5 }}>
+          <div style={{ fontSize: font.size.base, fontWeight: 800, color: T.text }}>Costi extra-food &amp; margine netto stimato</div>
+          <div style={{ fontSize: font.size.sm, color: T.textSoft, marginTop: 2, lineHeight: 1.5 }}>
             {noConfig
               ? 'Aggiungi consumabili, utenze, manutenzione in "Costi aziendali" per vedere il margine netto.'
               : 'Margine lordo meno costi extra (consumabili, manutenzione, ammortamenti, utenze).'
@@ -2250,14 +2250,14 @@ function CostiNettoBanda({ costiAziendali, margineLordoPeriodo, giorniPeriodo = 
         />
       </div>
       {!haMargine && (
-        <div style={{ marginTop: 12, padding: '10px 14px', background: T.blueLight, border: `1px solid ${T.blue}40`, borderRadius: 10, fontSize: 12, color: T.blue, lineHeight: 1.5 }}>
+        <div style={{ marginTop: 12, padding: '10px 14px', background: T.blueLight, border: `1px solid ${T.blue}40`, borderRadius: 10, fontSize: font.size.sm, color: T.blue, lineHeight: 1.5 }}>
           Nel periodo scelto non ci sono chiusure di cassa, quindi non c'è un margine
           lordo da cui togliere i costi. Qui sopra vedi solo quanto ti costano al mese e
           all'anno: il margine netto compare appena registri le prime giornate.
         </div>
       )}
       {noConfig && (
-        <div style={{ marginTop: 12, padding: '10px 14px', background: '#FEF9EB', border: '1px solid #FDE68A', borderRadius: 10, fontSize: 12, color: '#78350F' }}>
+        <div style={{ marginTop: 12, padding: '10px 14px', background: '#FEF9EB', border: '1px solid ${T.amber}', borderRadius: 10, fontSize: font.size.sm, color: T.amberDark }}>
           Vai in <strong>Andamento &amp; costi → Costi aziendali</strong> per aggiungere i tuoi costi extra-food (fazzoletti, coppette, utenze, manutenzioni).
         </div>
       )}
