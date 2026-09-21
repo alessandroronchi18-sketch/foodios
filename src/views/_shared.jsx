@@ -328,7 +328,13 @@ export function formatNome(s) {
   return pulito.charAt(0).toUpperCase() + pulito.slice(1)
 }
 
-export function Badge({ label, color = 'green' }) {
+// `titolo`: quello che il badge non ha spazio per dire.
+//
+// 21/09/2026 — «1 senza prezzo» dice quanti e non **quali**: un numero manda a
+// cercare fra dieci ingredienti, un nome manda a correggere. L'etichetta resta
+// corta perché i badge di schede diverse devono restare incolonnati fra loro
+// (regola del titolare sull'allineamento), e il nome arriva qui.
+export function Badge({ label, color = 'green', titolo }) {
   const s = {
     green: { bg: C.greenLight, c: C.green },
     red:   { bg: C.redLight,   c: C.red   },
@@ -336,10 +342,11 @@ export function Badge({ label, color = 'green' }) {
     gray:  { bg: '#F3F3F3',    c: '#888'  },
   }[color] || { bg: '#F3F3F3', c: '#888' }
   return (
-    <span style={{
+    <span title={titolo || undefined} style={{
       background: s.bg, color: s.c, fontSize: 12, fontWeight: 600,
       padding: '3px 8px', borderRadius: 12, letterSpacing: '0.04em',
       textTransform: 'uppercase', whiteSpace: 'nowrap',
+      cursor: titolo ? 'help' : undefined,
     }}>{label}</span>
   )
 }

@@ -109,7 +109,8 @@ function SemiCard({ sm, ricettario, ingCosti, onEdit, onDelete, LEX }) {
               {sm.nome}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 3 }}>
-              {mancanti.length > 0 && <Badge label={mancanti.length === 1 ? '1 senza prezzo' : `${mancanti.length} senza prezzo`} color="red" />}
+              {mancanti.length > 0 && <Badge label={mancanti.length === 1 ? '1 senza prezzo' : `${mancanti.length} senza prezzo`} color="red"
+                titolo={`Senza prezzo: ${mancanti.map(r => r.nome).join(', ')}. Finché mancano, questa base costa meno del vero e tutte le ricette che la usano sembrano più redditizie.`} />}
               {mancanti.length === 0 && stimati.length > 0 && <Badge label={stimati.length === 1 ? '1 prezzo stimato' : `${stimati.length} prezzi stimati`} color="amber" />}
               <span style={{ fontSize: typo.small.fontSize, color: T.textSoft, ...TNUM }}>
                 {sm.nUsi > 0 ? `usato in ${sm.nUsi} ${sm.nUsi === 1 ? 'prodotto' : 'prodotti'}` : 'non ancora usato'}
@@ -136,7 +137,8 @@ function SemiCard({ sm, ricettario, ingCosti, onEdit, onDelete, LEX }) {
               spostato rispetto a quella con due. */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', minHeight: 22 }}>
             <span style={{ display: 'inline-flex', minWidth: isMobile ? 0 : LARG_AVVISO_PREZZO }}>
-              {mancanti.length > 0 && <Badge label={mancanti.length === 1 ? '1 senza prezzo' : `${mancanti.length} senza prezzo`} color="red" />}
+              {mancanti.length > 0 && <Badge label={mancanti.length === 1 ? '1 senza prezzo' : `${mancanti.length} senza prezzo`} color="red"
+                titolo={`Senza prezzo: ${mancanti.map(r => r.nome).join(', ')}. Finché mancano, questa base costa meno del vero e tutte le ricette che la usano sembrano più redditizie.`} />}
             </span>
             <span style={{ display: 'inline-flex', minWidth: isMobile ? 0 : LARG_AVVISO_STIMA }}>
               {stimati.length > 0 && <Badge label={stimati.length === 1 ? '1 prezzo stimato' : `${stimati.length} prezzi stimati`} color="amber" />}
@@ -617,8 +619,8 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
   // arrivava alla misura di un polpastrello.
   const headerAction = (
     <button onClick={openNew}
-      style={{ padding: '10px 16px', minHeight: 44, borderRadius: R.md, border: 'none', background: T.brand, color: '#fff',
-        fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, boxShadow: S.brand }}>
+      style={{ padding: '10px 16px', minHeight: 44, borderRadius: R.md, border: 'none', background: T.brand, color: T.white,
+        fontSize: font.size.base, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, boxShadow: S.brand }}>
       <Icon name="plus" size={15} />Nuovo semilavorato
     </button>
   )
@@ -652,7 +654,7 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
             </div>
             <button type="button" onClick={() => setCandidatiAperti(v => !v)}
               aria-expanded={candidatiAperti}
-              style={{ padding: '10px 16px', minHeight: 40, borderRadius: 8, border: 'none', background: T.brand, color: '#fff', fontSize: typo.small.fontSize, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
+              style={{ padding: '10px 16px', minHeight: 40, borderRadius: 8, border: 'none', background: T.brand, color: T.white, fontSize: typo.small.fontSize, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
               <Icon name={candidatiAperti ? 'x' : 'chevDown'} size={14} />
               {candidatiAperti ? 'Chiudi' : 'Guarda quali'}
             </button>
@@ -662,7 +664,7 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
             <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${C.border}`, display: 'flex', flexDirection: 'column', gap: 12 }}>
               {basiDaDichiarare.map(b => (
                 <div key={b.nome} style={{ border: `1px solid ${C.border}`, borderRadius: 10, padding: '12px 14px', background: T.bgCard }}>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: C.text, marginBottom: 5 }}>{b.nome}</div>
+                  <div style={{ fontSize: font.size.md, fontWeight: 800, color: C.text, marginBottom: 5 }}>{b.nome}</div>
                   <div style={{ fontSize: typo.small.fontSize, color: C.textMid, lineHeight: 1.6, marginBottom: 8 }}>
                     Usata in <b>{b.nUsi} {b.nUsi === 1 ? 'ricetta' : 'ricette'}</b>: {b.usataIn.slice(0, 4).join(', ')}{b.usataIn.length > 4 ? ` e altre ${b.usataIn.length - 4}` : ''}.
                   </div>
@@ -701,7 +703,7 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
                     </div>
                   )}
                   <button type="button" onClick={() => dichiaraBase(b)} disabled={saving}
-                    style={{ padding: '10px 16px', minHeight: 40, borderRadius: 8, border: 'none', background: saving ? C.borderStr : T.brand, color: '#fff', fontSize: typo.small.fontSize, fontWeight: 800, cursor: saving ? 'default' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    style={{ padding: '10px 16px', minHeight: 40, borderRadius: 8, border: 'none', background: saving ? C.borderStr : T.brand, color: T.white, fontSize: typo.small.fontSize, fontWeight: 800, cursor: saving ? 'default' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                     <Icon name="package" size={14} /> Dichiarala base
                   </button>
                 </div>
@@ -737,8 +739,8 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
           <div style={{ width: 56, height: 56, borderRadius: '50%', background: T.brandLight, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: T.brand, marginBottom: 14 }}>
             <Icon name="package" size={28} />
           </div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: T.text, marginBottom: 6, letterSpacing: '-0.01em' }}>Nessun semilavorato</div>
-          <div style={{ fontSize: 13, color: T.textSoft, maxWidth: 360, margin: '0 auto 18px', lineHeight: 1.5 }}>
+          <div style={{ fontSize: font.size.lg, fontWeight: 700, color: T.text, marginBottom: 6, letterSpacing: '-0.01em' }}>Nessun semilavorato</div>
+          <div style={{ fontSize: font.size.base, color: T.textSoft, maxWidth: 360, margin: '0 auto 18px', lineHeight: 1.5 }}>
             Aggiungi basi interne come crema pasticcera, pasta frolla o fruit curd: ne calcoli il costo al kg e vedi in quali prodotti le usi.
           </div>
           {headerAction}
@@ -765,9 +767,9 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
                     )}
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       <input value={deletePin} onChange={e => setDeletePin(e.target.value)} placeholder="ELIMINA"
-                        style={{ flex: 1, minWidth: 120, padding: '11px 12px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 13 }} />
+                        style={{ flex: 1, minWidth: 120, padding: '11px 12px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: font.size.base }} />
                       <button onClick={() => handleDelete(sm.nome)}
-                        style={{ padding: '8px 14px', background: C.red, color: '#fff', border: 'none', borderRadius: 8, fontSize: typo.small.fontSize, fontWeight: 700, cursor: 'pointer' }}>Conferma</button>
+                        style={{ padding: '8px 14px', background: C.red, color: T.white, border: 'none', borderRadius: 8, fontSize: typo.small.fontSize, fontWeight: 700, cursor: 'pointer' }}>Conferma</button>
                       <button onClick={() => { setDeleteConf(null); setDeletePin('') }}
                         style={{ padding: '8px 12px', background: C.white, color: C.textSoft, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: typo.small.fontSize, cursor: 'pointer' }}>Annulla</button>
                     </div>
@@ -781,7 +783,7 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
           <SH sub="Ordina per costo, peso o numero di utilizzi.">Riepilogo</SH>
           <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 16, overflow: 'hidden', boxShadow: SHADOW_PREMIUM, marginBottom: 28 }}>
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.size.sm }}>
                 <thead>
                   <tr>
                     <SortTH k="nome" active={sortKey === 'nome'} dir={sortDir} onToggle={toggleSort}>Semilavorato</SortTH>
@@ -870,13 +872,13 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
                   <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>Nome</div>
                   <input value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value.toUpperCase() }))}
                     placeholder="es. CREMA PASTICCERA"
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 16, fontWeight: 700, color: C.text, boxSizing: 'border-box' }} />
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: font.size.lg, fontWeight: 700, color: C.text, boxSizing: 'border-box' }} />
                 </div>
                 <div>
                   <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>Note</div>
                   <input value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))}
                     placeholder="es. 180°C per 30 min"
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 16, color: C.text, boxSizing: 'border-box' }} />
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: font.size.lg, color: C.text, boxSizing: 'border-box' }} />
                 </div>
                 {/* La resa mancava, e non era un dettaglio: una base che cuoce
                     perde acqua (1.100 g di ingredienti danno 1.000 g di
@@ -891,7 +893,7 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
                     value={form.resa_g} onChange={e => setForm(f => ({ ...f, resa_g: e.target.value }))}
                     placeholder={pesoLive > 0 ? String(Math.round(pesoLive)) : 'g'}
                     title="Quanto viene fuori a fine lavorazione. Se cuocendo perde acqua è meno della somma degli ingredienti. Lasciandolo vuoto uso la somma."
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 16, color: C.text, boxSizing: 'border-box', fontVariantNumeric: 'tabular-nums' }} />
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: font.size.lg, color: C.text, boxSizing: 'border-box', fontVariantNumeric: 'tabular-nums' }} />
                 </div>
               </div>
 
@@ -913,16 +915,16 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
                       onChange={e => setNewIngNome(e.target.value)}
                       onKeyDown={onEnterAutoComplete(tuttiIng, newIngNome, setNewIngNome, () => { if (newIngQty) addIng() })}
                       placeholder="ingrediente" list="semi-ing-list"
-                      style={{ width: '100%', padding: '11px 12px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 16, boxSizing: 'border-box' }} />
+                      style={{ width: '100%', padding: '11px 12px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: font.size.lg, boxSizing: 'border-box' }} />
                     <datalist id="semi-ing-list">{tuttiIng.map(k => <option key={k} value={k} />)}</datalist>
                   </div>
                   <div style={{ flex: 1, minWidth: isMobile ? 100 : 'auto' }}>
                     <input type="number" inputMode="decimal" min="0" value={newIngQty} onChange={e => setNewIngQty(e.target.value)}
                       onKeyDown={e => e.key === 'Enter' && addIng()}
                       placeholder="g"
-                      style={{ width: '100%', padding: '11px 12px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 16, boxSizing: 'border-box' }} />
+                      style={{ width: '100%', padding: '11px 12px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: font.size.lg, boxSizing: 'border-box' }} />
                   </div>
-                  <button onClick={addIng} style={{ padding: '11px 14px', minHeight: 44, background: T.brand, color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 5, flex: isMobile ? 1 : 'none', justifyContent: 'center' }}><Icon name="plus" size={14} />Aggiungi</button>
+                  <button onClick={addIng} style={{ padding: '11px 14px', minHeight: 44, background: T.brand, color: T.white, border: 'none', borderRadius: 8, fontSize: font.size.base, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 5, flex: isMobile ? 1 : 'none', justifyContent: 'center' }}><Icon name="plus" size={14} />Aggiungi</button>
                 </div>
               </div>
 
@@ -936,7 +938,7 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
                   ].map(({ lbl, val, c }) => (
                     <div key={lbl} style={{ padding: '10px 12px', background: T.bgSubtle, border: `1px solid ${T.border}`, borderRadius: 10 }}>
                       <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{lbl}</div>
-                      <div style={{ fontSize: 15, fontWeight: 800, color: c, ...TNUM }}>{val}</div>
+                      <div style={{ fontSize: font.size.md, fontWeight: 800, color: c, ...TNUM }}>{val}</div>
                     </div>
                   ))}
                 </div>
@@ -979,7 +981,7 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
                       : <>Il contenuto della base verrà sostituito con quello che hai scritto qui. Gli ingredienti di prima non si recuperano.</>}
                   </div>
                   <div style={{ display: 'flex', gap: 7 }}>
-                    <button onClick={doSaveSemi} disabled={saving} style={{ padding: '10px 14px', minHeight: 40, background: saving ? C.border : C.amber, color: '#fff', border: 'none', borderRadius: 8, fontWeight: 800, fontSize: typo.small.fontSize, cursor: saving ? 'default' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="checkCircle" size={14} /> Sovrascrivi</button>
+                    <button onClick={doSaveSemi} disabled={saving} style={{ padding: '10px 14px', minHeight: 40, background: saving ? C.border : C.amber, color: T.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: typo.small.fontSize, cursor: saving ? 'default' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="checkCircle" size={14} /> Sovrascrivi</button>
                     <button onClick={() => setOverwriteConf(null)} style={{ padding: '8px 12px', background: C.white, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: typo.small.fontSize, color: C.textMid, cursor: 'pointer' }}>Annulla</button>
                   </div>
                 </div>
@@ -987,11 +989,11 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
 
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <button onClick={handleSave} disabled={saving}
-                  style={{ flex: 1, minWidth: 200, padding: '12px', background: saving ? C.borderStr : T.brand, color: '#fff', border: 'none', borderRadius: 10, fontWeight: 800, fontSize: 13, cursor: saving ? 'default' : 'pointer', boxShadow: S.brand, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                  style={{ flex: 1, minWidth: 200, padding: '12px', background: saving ? C.borderStr : T.brand, color: T.white, border: 'none', borderRadius: 10, fontWeight: 800, fontSize: font.size.base, cursor: saving ? 'default' : 'pointer', boxShadow: S.brand, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                   <Icon name="save" size={15} /> {saving ? 'Salvo…' : (editMode ? 'Aggiorna semilavorato' : 'Salva semilavorato')}
                 </button>
                 <button onClick={() => { setEditMode(null); setForm(empty); setShowForm(false); setOverwriteConf(null) }}
-                  style={{ padding: '12px 16px', background: C.white, color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 10, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+                  style={{ padding: '12px 16px', background: C.white, color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 10, fontWeight: 600, fontSize: font.size.base, cursor: 'pointer' }}>
                   {editMode ? 'Annulla modifica' : 'Chiudi'}
                 </button>
               </div>

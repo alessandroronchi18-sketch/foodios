@@ -6,7 +6,7 @@ import PeriodCompareSelector from './PeriodCompareSelector'
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from 'recharts'
 import { sload } from '../lib/storage'
 import { supabase } from '../lib/supabase'
-import { color as T, typo, ui3, ui } from '../lib/theme'
+import { color as T, typo, ui3, ui, font } from '../lib/theme'
 import { foodCostPesato, vocePerGruppo, fattureDaPagarePerSede } from '../lib/confrontoSediCalc'
 import { ricaviDaInventario, fetchAllInventarioProduzione, GIORNI_RIPORTO_MAX, COLONNE_VENDUTO } from '../lib/inventarioProduzione'
 import { SK_FORMATI } from '../lib/storageKeys'
@@ -521,8 +521,8 @@ export default function ConfrontoSedi({ orgId, sedi }) {
   if (sediAttive.length < 2) return (
     <div style={{ maxWidth: 640, margin: '60px auto', textAlign: 'center', padding: 20 }}>
       <div style={{ marginBottom: 12 }}><Icon name="barChart" size={48} color={SOFT} /></div>
-      <h2 style={{ fontSize: 20, color: TXT, marginBottom: 8 }}>Confronto sedi</h2>
-      <p style={{ fontSize: 13, color: SOFT, lineHeight: 1.6 }}>
+      <h2 style={{ fontSize: font.size.xl, color: TXT, marginBottom: 8 }}>Confronto sedi</h2>
+      <p style={{ fontSize: font.size.base, color: SOFT, lineHeight: 1.6 }}>
         Disponibile quando hai almeno 2 sedi attive.<br/>
         <strong style={{ color: TXT }}>Vai in Impostazioni → Sedi</strong> per aggiungerne una.
       </p>
@@ -567,8 +567,8 @@ export default function ConfrontoSedi({ orgId, sedi }) {
   ]
 
   const headerStyle = { padding: isMobile ? '8px 10px' : '12px 16px', fontSize: typo.small.fontSize, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: `1px solid ${BORDER}`, textAlign: 'center' }
-  const tdL = { padding: isMobile ? '10px 10px' : '12px 16px', fontSize: 13, color: MID, borderTop: `1px solid ${BORDER}` }
-  const tdC = { padding: isMobile ? '10px 10px' : '12px 16px', fontSize: 13, textAlign: 'center', borderTop: `1px solid ${BORDER}`, ...tnum }
+  const tdL = { padding: isMobile ? '10px 10px' : '12px 16px', fontSize: font.size.base, color: MID, borderTop: `1px solid ${BORDER}` }
+  const tdC = { padding: isMobile ? '10px 10px' : '12px 16px', fontSize: font.size.base, textAlign: 'center', borderTop: `1px solid ${BORDER}`, ...tnum }
 
   // Sedi senza nemmeno una chiusura di cassa nel periodo: senza quelle non
   // esistono ricavi, e senza ricavi non esistono margini, food cost e voti.
@@ -611,13 +611,13 @@ export default function ConfrontoSedi({ orgId, sedi }) {
             confronto con <strong>{periodo === 'mese' ? 'mese' : 'settimana'} precedente</strong>
           </p>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', gap: 4, background: '#F1F5F9', borderRadius: 999, padding: 3 }}>
+            <div style={{ display: 'flex', gap: 4, background: T.bgSubtle, borderRadius: 999, padding: 3 }}>
               {PERIODI.map(p => (
                 <button key={p.id} onClick={() => setPeriodo(p.id)}
                   style={{
                     padding: '6px 14px', borderRadius: 999, border: 'none',
                     background: periodo === p.id ? TXT : 'transparent',
-                    color: periodo === p.id ? '#fff' : MID,
+                    color: periodo === p.id ? '${T.white}' : MID,
                     fontSize: typo.small.fontSize, fontWeight: 700, cursor: 'pointer',
                   }}>
                   {p.lbl}
@@ -687,7 +687,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
               background: 'linear-gradient(135deg, #0B1020 0%, #14182B 55%, #1C2236 100%)',
               borderRadius: 18, padding: isMobile ? 18 : 26, marginBottom: 16,
               boxShadow: '0 14px 40px rgba(15,23,42,0.32)',
-              color: '#FFF', position: 'relative', overflow: 'hidden',
+              color: T.white, position: 'relative', overflow: 'hidden',
             }}>
               <div style={{ position: 'absolute', top: -60, right: -30, width: 220, height: 220, borderRadius: '50%', background: 'radial-gradient(circle, rgba(110,14,26,0.22) 0%, transparent 70%)', pointerEvents: 'none' }}/>
               <div style={{ position: 'relative' }}>
@@ -702,13 +702,13 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                   <div>
                     <div style={{ fontSize: typo.small.fontSize, color: 'rgba(255,255,255,0.55)', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', minHeight: 28, lineHeight: 1.2 }}>Ricavi {periodoLabel}</div>
                     <div style={{ fontSize: isMobile ? 22 : 28, fontWeight: 900, marginTop: 4, whiteSpace: 'nowrap', minHeight: 30, ...tnum }}>{fmt0(consolidato.ricCur)}</div>
-                    <div style={{ fontSize: typo.small.fontSize, marginTop: 4, color: consolidato.deltaRicPct != null ? (consolidato.deltaRicPct >= 0 ? '#86EFAC' : '#FF6B6B') : 'rgba(255,255,255,0.45)', fontWeight: 700, minHeight: 16, ...tnum }}>
+                    <div style={{ fontSize: typo.small.fontSize, marginTop: 4, color: consolidato.deltaRicPct != null ? (consolidato.deltaRicPct >= 0 ? '${T.green}' : '#FF6B6B') : 'rgba(255,255,255,0.45)', fontWeight: 700, minHeight: 16, ...tnum }}>
                       {consolidato.deltaRicPct != null ? `${consolidato.deltaRicPct >= 0 ? '+' : ''}${fmtp0(consolidato.deltaRicPct)} vs prec.` : '-'}
                     </div>
                   </div>
                   <div>
                     <div style={{ fontSize: typo.small.fontSize, color: 'rgba(255,255,255,0.55)', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', minHeight: 28, lineHeight: 1.2 }}>Margine netto</div>
-                    <div style={{ fontSize: isMobile ? 22 : 28, fontWeight: 900, marginTop: 4, color: consolidato.margNetto >= 0 ? '#FFF' : '#FF6B6B', whiteSpace: 'nowrap', minHeight: 30, ...tnum }}>
+                    <div style={{ fontSize: isMobile ? 22 : 28, fontWeight: 900, marginTop: 4, color: consolidato.margNetto >= 0 ? '${T.white}' : '#FF6B6B', whiteSpace: 'nowrap', minHeight: 30, ...tnum }}>
                       {fmt0(consolidato.margNetto)}
                     </div>
                     <div style={{ fontSize: typo.small.fontSize, marginTop: 4, color: 'rgba(255,255,255,0.65)', fontWeight: 600, minHeight: 16, ...tnum }}>
@@ -717,7 +717,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                   </div>
                   <div>
                     <div style={{ fontSize: typo.small.fontSize, color: 'rgba(255,255,255,0.55)', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', minHeight: 28, lineHeight: 1.2 }}>Food cost medio</div>
-                    <div style={{ fontSize: isMobile ? 22 : 28, fontWeight: 900, marginTop: 4, color: consolidato.foodCostMedio == null ? 'rgba(255,255,255,0.5)' : consolidato.foodCostMedio < 33 ? '#86EFAC' : consolidato.foodCostMedio < 38 ? '#FCD34D' : '#FF6B6B', whiteSpace: 'nowrap', minHeight: 30, ...tnum }}>
+                    <div style={{ fontSize: isMobile ? 22 : 28, fontWeight: 900, marginTop: 4, color: consolidato.foodCostMedio == null ? 'rgba(255,255,255,0.5)' : consolidato.foodCostMedio < 33 ? '${T.green}' : consolidato.foodCostMedio < 38 ? '${T.amber}' : '#FF6B6B', whiteSpace: 'nowrap', minHeight: 30, ...tnum }}>
                       {consolidato.foodCostMedio != null ? fmtp(consolidato.foodCostMedio) : '-'}
                     </div>
                     <div style={{ fontSize: typo.small.fontSize, marginTop: 4, color: 'rgba(255,255,255,0.55)', minHeight: 16 }}>
@@ -755,14 +755,14 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                           Trend ricavi · ultime 8 settimane
                         </div>
                         {trendHoveredIdx != null && trend8w[trendHoveredIdx] && (
-                          <div style={{ fontSize: typo.small.fontSize, color: '#FBD7C9', fontWeight: 700, ...tnum }}>
+                          <div style={{ fontSize: typo.small.fontSize, color: T.brandSoft, fontWeight: 700, ...tnum }}>
                             {trend8w[trendHoveredIdx].label || `W${trendHoveredIdx + 1}`}: {fmt0(trend8w[trendHoveredIdx].ricavi)}
                           </div>
                         )}
                       </div>
                       <svg width={W} height={H + 6} viewBox={`0 0 ${W} ${H + 6}`} style={{ maxWidth: '100%', height: 'auto', display: 'block' }}>
                         <path d={dArea} fill="rgba(232,75,58,0.18)" />
-                        <path d={d} stroke="#FBD7C9" strokeWidth="2" fill="none" strokeLinejoin="round" strokeLinecap="round" />
+                        <path d={d} stroke="${T.brandSoft}" strokeWidth="2" fill="none" strokeLinejoin="round" strokeLinecap="round" />
                         {pts.map((p, i) => {
                           const isHovered = trendHoveredIdx === i
                           const isLast = i === pts.length - 1
@@ -774,7 +774,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                                 onMouseLeave={() => setTrendHoveredIdx(idx => idx === i ? null : idx)}
                                 onClick={() => setTrendHoveredIdx(idx => idx === i ? null : i)}/>
                               <circle cx={p[0]} cy={p[1]} r={isHovered ? 5 : isLast ? 3.5 : 2.5}
-                                fill={isHovered ? '#FFF' : isLast ? '#FFF' : '#FBD7C9'}
+                                fill={isHovered ? '${T.white}' : isLast ? '#FFF' : T.brandSoft}
                                 stroke={isHovered ? '#FBD7C9' : 'none'} strokeWidth={isHovered ? 2 : 0}
                                 style={{ pointerEvents: 'none', transition: 'r 0.15s' }}/>
                             </g>
@@ -791,18 +791,18 @@ export default function ConfrontoSedi({ orgId, sedi }) {
           {/* AI VERDICT (narrativo regola-based) */}
           {verdict && (
             <div style={{
-              background: '#FFFEF0', border: `1px solid #FDE68A`, borderRadius: 12,
+              background: T.amberLight, border: `1px solid ${T.amber}`, borderRadius: 12,
               padding: '14px 18px', marginBottom: 16,
               display: 'flex', gap: 12, alignItems: 'flex-start',
             }}>
               <div style={{ flexShrink: 0, marginTop: 1 }}>
-                <Icon name="sparkles" size={18} color="#B45309" />
+                <Icon name="sparkles" size={18} color="${T.amber}" />
               </div>
               <div>
-                <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#92400E', marginBottom: 4 }}>
+                <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: T.amberDark, marginBottom: 4 }}>
                   Lettura AI del gruppo
                 </div>
-                <div style={{ fontSize: 13, color: '#451A03', lineHeight: 1.6, fontWeight: 500 }}>
+                <div style={{ fontSize: font.size.base, color: T.amberDark, lineHeight: 1.6, fontWeight: 500 }}>
                   {verdict}
                 </div>
               </div>
@@ -818,7 +818,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
             }}>
               {sedeCritica && (
                 <div style={{
-                  background: '#FEF2F2', border: `1px solid ${RED}`, borderRadius: 12,
+                  background: T.redLight, border: `1px solid ${RED}`, borderRadius: 12,
                   padding: isMobile ? 14 : 18,
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
@@ -827,10 +827,10 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                       Sede da gestire subito
                     </div>
                   </div>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: TXT, marginBottom: 6 }}>
+                  <div style={{ fontSize: font.size.xl, fontWeight: 800, color: TXT, marginBottom: 6 }}>
                     <Icon name="pin" size={14} /> {sedeCritica.sede.nome}
                   </div>
-                  <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: MID, lineHeight: 1.6 }}>
+                  <ul style={{ margin: 0, paddingLeft: 18, fontSize: font.size.sm, color: MID, lineHeight: 1.6 }}>
                     {sedeCritica.k?.foodCostPct > 38 && <li>Food cost <strong>{fmtp(sedeCritica.k.foodCostPct)}</strong> sopra soglia</li>}
                     {sedeCritica.k?.margineNettoCur < 0 && <li>Margine netto <strong>{fmt0(sedeCritica.k.margineNettoCur)}</strong></li>}
                     {sedeCritica.k?.ricaviCur != null && sedeCritica.k?.ricaviPrev > 0 && ((sedeCritica.k.ricaviCur - sedeCritica.k.ricaviPrev) / sedeCritica.k.ricaviPrev * 100) <= -10 && <li>Ricavi in calo <strong>{fmtp0(((sedeCritica.k.ricaviCur - sedeCritica.k.ricaviPrev) / sedeCritica.k.ricaviPrev) * 100)}</strong></li>}
@@ -841,7 +841,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
               )}
               {sedeChampion && (
                 <div style={{
-                  background: '#F0FDF4', border: `1px solid ${GRN}`, borderRadius: 12,
+                  background: T.greenLight, border: `1px solid ${GRN}`, borderRadius: 12,
                   padding: isMobile ? 14 : 18,
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
@@ -850,10 +850,10 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                       Sede champion (replica il modello)
                     </div>
                   </div>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: TXT, marginBottom: 6 }}>
+                  <div style={{ fontSize: font.size.xl, fontWeight: 800, color: TXT, marginBottom: 6 }}>
                     <Icon name="pin" size={14} /> {sedeChampion.sede.nome}
                   </div>
-                  <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: MID, lineHeight: 1.6 }}>
+                  <ul style={{ margin: 0, paddingLeft: 18, fontSize: font.size.sm, color: MID, lineHeight: 1.6 }}>
                     {sedeChampion.k?.foodCostPct != null && sedeChampion.k.foodCostPct < 33 && <li>Food cost <strong>{fmtp(sedeChampion.k.foodCostPct)}</strong> sotto target</li>}
                     {sedeChampion.k?.margineNettoCur > 0 && sedeChampion.k?.ricaviCur > 0 && <li>Margine netto <strong>{fmtp0((sedeChampion.k.margineNettoCur / sedeChampion.k.ricaviCur) * 100)}</strong> dei ricavi</li>}
                     {sedeChampion.k?.ricaviCur != null && sedeChampion.k?.ricaviPrev > 0 && ((sedeChampion.k.ricaviCur - sedeChampion.k.ricaviPrev) / sedeChampion.k.ricaviPrev * 100) >= 10 && <li>Ricavi in crescita <strong>+{fmtp0(((sedeChampion.k.ricaviCur - sedeChampion.k.ricaviPrev) / sedeChampion.k.ricaviPrev) * 100)}</strong></li>}
@@ -887,8 +887,8 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                 compare: compareMode !== 'none' && prevKey ? (Number(k[prevKey]) || 0) : null,
               }
             })
-            const COLORS = ['#6E0E1A', '#B45309', '#16A34A', '#0369A1', '#7E22CE', '#BE185D']
-            const COMPARE_COLOR = '#94A3B8'
+            const COLORS = ['${T.brand}', '${T.amber}', '${T.green}', '${T.blue}', '#7E22CE', '#BE185D']
+            const COMPARE_COLOR = '${T.textSoft}'
             return (
               <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 14, padding: isMobile ? 14 : 20, marginBottom: 16 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
@@ -898,7 +898,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                   <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                     {METRICS.map(m => (
                       <button key={m.id} onClick={() => setChartMetric(m.id)}
-                        style={{ padding: '5px 10px', borderRadius: 999, border: `1px solid ${chartMetric === m.id ? RED : BORDER}`, background: chartMetric === m.id ? RED : 'transparent', color: chartMetric === m.id ? '#FFF' : MID, fontSize: typo.small.fontSize, fontWeight: 700, cursor: 'pointer' }}>
+                        style={{ padding: '5px 10px', borderRadius: 999, border: `1px solid ${chartMetric === m.id ? RED : BORDER}`, background: chartMetric === m.id ? RED : 'transparent', color: chartMetric === m.id ? '${T.white}' : MID, fontSize: typo.small.fontSize, fontWeight: 700, cursor: 'pointer' }}>
                         {m.lbl}
                       </button>
                     ))}
@@ -907,7 +907,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14, flexWrap: 'wrap' }}>
                   {/* Switcher tipo grafico */}
-                  <div style={{ display: 'flex', gap: 4, background: '#F1F5F9', borderRadius: 999, padding: 3 }}>
+                  <div style={{ display: 'flex', gap: 4, background: T.bgSubtle, borderRadius: 999, padding: 3 }}>
                     {[
                       { id: 'bar',  lbl: 'Barre' },
                       { id: 'line', lbl: 'Linea' },
@@ -929,9 +929,9 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                   <ResponsiveContainer>
                     {chartType === 'bar' && (
                       <BarChart data={data} margin={isMobile ? { top: 8, right: 12, bottom: 8, left: 8 } : { top: 12, right: 24, bottom: 12, left: 12 }}>
-                        <CartesianGrid strokeDasharray="4 4" stroke="#E5E9EF" vertical={false}/>
-                        <XAxis dataKey="sede" tick={{ fontSize: typo.small.fontSize, fill: '#5A6B80' }} tickLine={false} axisLine={{ stroke: '#E5E9EF' }} />
-                        <YAxis tick={{ fontSize: typo.small.fontSize, fill: '#5A6B80' }} tickLine={false} axisLine={false} tickFormatter={v => metricDef.fmt(v)} width={isMobile ? 56 : 72} />
+                        <CartesianGrid strokeDasharray="4 4" stroke="${T.border}" vertical={false}/>
+                        <XAxis dataKey="sede" tick={{ fontSize: typo.small.fontSize, fill: T.textMid }} tickLine={false} axisLine={{ stroke: T.border }} />
+                        <YAxis tick={{ fontSize: typo.small.fontSize, fill: T.textMid }} tickLine={false} axisLine={false} tickFormatter={v => metricDef.fmt(v)} width={isMobile ? 56 : 72} />
                         <Tooltip cursor={{ fill: 'rgba(110,14,26,0.04)' }} content={<ChartTip />} formatter={v => metricDef.fmt(v)} />
                         <Legend wrapperStyle={{ fontSize: typo.small.fontSize, paddingTop: 8 }} iconType="circle" />
                         <Bar dataKey="current" name={`${metricDef.lbl} (attuale)`} fill={RED} radius={[6, 6, 0, 0]} maxBarSize={56} />
@@ -940,9 +940,9 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                     )}
                     {chartType === 'line' && (
                       <LineChart data={data} margin={isMobile ? { top: 8, right: 12, bottom: 8, left: 8 } : { top: 12, right: 24, bottom: 12, left: 12 }}>
-                        <CartesianGrid strokeDasharray="4 4" stroke="#E5E9EF" vertical={false}/>
-                        <XAxis dataKey="sede" tick={{ fontSize: typo.small.fontSize, fill: '#5A6B80' }} tickLine={false} axisLine={{ stroke: '#E5E9EF' }} />
-                        <YAxis tick={{ fontSize: typo.small.fontSize, fill: '#5A6B80' }} tickLine={false} axisLine={false} tickFormatter={v => metricDef.fmt(v)} width={isMobile ? 56 : 72} />
+                        <CartesianGrid strokeDasharray="4 4" stroke="${T.border}" vertical={false}/>
+                        <XAxis dataKey="sede" tick={{ fontSize: typo.small.fontSize, fill: T.textMid }} tickLine={false} axisLine={{ stroke: T.border }} />
+                        <YAxis tick={{ fontSize: typo.small.fontSize, fill: T.textMid }} tickLine={false} axisLine={false} tickFormatter={v => metricDef.fmt(v)} width={isMobile ? 56 : 72} />
                         <Tooltip content={<ChartTip />} formatter={v => metricDef.fmt(v)} />
                         <Legend wrapperStyle={{ fontSize: typo.small.fontSize, paddingTop: 8 }} iconType="circle" />
                         <Line type="monotone" dataKey="current" name={`${metricDef.lbl} (attuale)`} stroke={RED} strokeWidth={2.5} dot={{ r: 4, fill: RED }} activeDot={{ r: 6 }} />
@@ -966,7 +966,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
 
           {/* RANKING ricavi */}
           {ranking.length >= 2 && (
-            <div style={{ background: 'linear-gradient(180deg, #FFFEF0 0%, #FFF 80%)', border: `1px solid ${BORDER}`, borderRadius: 12, padding: isMobile ? 14 : 20, marginBottom: 16 }}>
+            <div style={{ background: 'linear-gradient(180deg, ${T.amberLight} 0%, ${T.white} 80%)', border: `1px solid ${BORDER}`, borderRadius: 12, padding: isMobile ? 14 : 20, marginBottom: 16 }}>
               <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: SOFT, marginBottom: 10 }}>
                 Classifica ricavi {periodoLabel}
               </div>
@@ -982,19 +982,19 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                   const kk = kpiMap[r.sede.id] || {}
                   const delta = fmtDelta(kk.ricaviPrev, kk.ricaviCur)
                   return (
-                    <div key={r.sede.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', background: i === 0 ? '#FEF9C3' : '#fff', borderRadius: 8, border: `1px solid ${i === 0 ? '#FDE68A' : BORDER}` }}>
+                    <div key={r.sede.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', background: i === 0 ? '${T.amberLight}' : T.white, borderRadius: 8, border: `1px solid ${i === 0 ? '${T.amber}' : BORDER}` }}>
                       <div style={{
-                        fontSize: 18, width: 36, textAlign: 'center', fontWeight: 800,
+                        fontSize: font.size.xl, width: 36, textAlign: 'center', fontWeight: 800,
                         color: i === 0 ? T.brand : T.textSoft,
                       }}>{medal}</div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 14, fontWeight: 800, color: TXT, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <div style={{ fontSize: font.size.md, fontWeight: 800, color: TXT, display: 'flex', alignItems: 'center', gap: 6 }}>
                           <Icon name="pin" size={13} />{r.sede.nome}
                         </div>
                         {r.sede.citta && <div style={{ fontSize: typo.small.fontSize, color: SOFT }}>{r.sede.citta}</div>}
                       </div>
                       <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: 16, fontWeight: 900, color: TXT, ...tnum }}>{fmt0(r.ricavi)}</div>
+                        <div style={{ fontSize: font.size.lg, fontWeight: 900, color: TXT, ...tnum }}>{fmt0(r.ricavi)}</div>
                         {delta && (
                           <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, color: delta.positive ? GRN : RED, ...tnum }}>
                             {delta.sign}{fmt0(delta.delta)}{delta.pct != null ? ` (${delta.sign}${fmtp0(delta.pct)})` : ''}
@@ -1039,17 +1039,17 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                 const k = kpiMap[s.id] || {}
                 return (
                   <div key={s.id} style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: 16 }}>
-                    <div style={{ fontSize: 14, fontWeight: 800, color: TXT, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="pin" size={14} />{s.nome}</div>
+                    <div style={{ fontSize: font.size.md, fontWeight: 800, color: TXT, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="pin" size={14} />{s.nome}</div>
                     {s.citta && <div style={{ fontSize: typo.small.fontSize, color: SOFT, marginBottom: 12 }}>{s.citta}</div>}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                       {RIGHE_KPI.map(r => {
                         const cs = cellStyle(s.id, r.bw)
-                        const bg = cs.background || '#FAFAFA'
+                        const bg = cs.background || '${T.bgSubtle}'
                         const col = cs.color || TXT
                         return (
                           <div key={r.key} style={{ background: bg, borderRadius: 8, padding: '10px 12px' }}>
                             <div style={{ fontSize: typo.small.fontSize, color: SOFT, marginBottom: 4, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}><Icon name={r.icon} size={12} />{r.label}</div>
-                            <div style={{ fontSize: 16, fontWeight: 800, color: col, ...tnum }}>{r.fmt(k[r.key])}</div>
+                            <div style={{ fontSize: font.size.lg, fontWeight: 800, color: col, ...tnum }}>{r.fmt(k[r.key])}</div>
                           </div>
                         )
                       })}
@@ -1062,7 +1062,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
             <div style={{ overflowX: 'auto', marginTop: 8 }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', background: CARD, borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
                 <thead>
-                  <tr style={{ background: '#F8FAFC' }}>
+                  <tr style={{ background: T.bgSubtle }}>
                     <th style={{ ...headerStyle, textAlign: 'left', width: 220 }}>KPI</th>
                     {sediAttive.map(s => (
                       <th key={s.id} style={headerStyle}>
