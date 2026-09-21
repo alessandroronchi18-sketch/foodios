@@ -301,7 +301,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 3 }}>
             {isSemi && (
-              <span style={{ padding: '2px 7px', borderRadius: 5, background: SEMI.accentLight, color: SEMI.accent, fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Semilavorato</span>
+              <span style={{ padding: '2px 7px', borderRadius: 5, background: SEMI.accentLight, color: SEMI.accent, fontSize: font.size.sm, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Semilavorato</span>
             )}
             {!isSemi && margBadge(margPct, senzaPrezzo)}
             {/* Card chiusa: "N stime" era la stessa bugia della card aperta, in più
@@ -320,8 +320,8 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
           </div>
         </div>
         <div style={{ textAlign: 'right', flexShrink: 0 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, lineHeight: 1 }}>{kpiPrim.lbl}</div>
-          <div style={{ fontSize: 16, fontWeight: 800, color: kpiPrim.c, marginTop: 3, ...TNUM, lineHeight: 1 }}>{kpiPrim.val}</div>
+          <div style={{ fontSize: font.size.sm, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, lineHeight: 1 }}>{kpiPrim.lbl}</div>
+          <div style={{ fontSize: font.size.lg, fontWeight: 800, color: kpiPrim.c, marginTop: 3, ...TNUM, lineHeight: 1 }}>{kpiPrim.val}</div>
         </div>
         <div style={{ flexShrink: 0, color: C.textSoft, lineHeight: 0 }}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
@@ -356,7 +356,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
             position: 'absolute', top: 0, left: 0, right: 0, height: 2,
             background: isSemi
               ? `linear-gradient(90deg, ${SEMI.accent} 0%, #B58FCE 50%, ${SEMI.accent} 100%)`
-              : 'linear-gradient(90deg, #E84B3A 0%, #FFB350 50%, #6E0E1A 100%)',
+              : 'linear-gradient(90deg, #E84B3A 0%, #FFB350 50%, ${T.brand} 100%)',
             backgroundSize: '200% 100%',
             animation: '_fos_ric_accent 6s ease-in-out infinite',
             zIndex: 1,
@@ -385,7 +385,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
         <div style={{ flex: '1 1 220px', minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
             {isSemi && (
-              <span style={{ padding: '3px 8px', borderRadius: 5, background: SEMI.accentLight, color: SEMI.accent, fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1.2 }}>Semilavorato</span>
+              <span style={{ padding: '3px 8px', borderRadius: 5, background: SEMI.accentLight, color: SEMI.accent, fontSize: font.size.sm, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1.2 }}>Semilavorato</span>
             )}
             {/* Titolo futuristic: gradient bordeaux → quasi-nero, uppercase
                 letterspaced 0.02em, fontWeight 800. Match con il titolo h1
@@ -401,7 +401,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
                 cursor: onEdit ? 'pointer' : 'default',
                 backgroundImage: isSemi
                   ? `linear-gradient(135deg, #1C0A0A 0%, ${SEMI.accent} 60%, #1C0A0A 100%)`
-                  : 'linear-gradient(135deg, #1C0A0A 0%, #6E0E1A 60%, #1C0A0A 100%)',
+                  : 'linear-gradient(135deg, #1C0A0A 0%, ${T.brand} 60%, #1C0A0A 100%)',
                 backgroundClip: 'text', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
               }}>
               {ric.nome}
@@ -459,7 +459,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
                   ? `Prezzo di vendita da impostare${ric.totImpasto1 > 0 ? ` · ${ric.totImpasto1}g impasto` : ''}`
                   : `${reg.unita} ${labelPlurale(tipoEff)} × ${fmt(reg.prezzo)}${ric.totImpasto1 > 0 ? ` · ${ric.totImpasto1}g impasto` : ''}`
             if (!riga) return null
-            return <div style={{ fontSize: 12, color: C.textSoft, lineHeight: 1.4 }}>{riga}</div>
+            return <div style={{ fontSize: font.size.sm, color: C.textSoft, lineHeight: 1.4 }}>{riga}</div>
           })()}
           {/* 17/09/2026, richiesta del titolare: «allergeni dietro un pulsante
               Allergeni che li apre». Erano fino a quattordici etichette
@@ -486,7 +486,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
                     const a = ALLERGENI.find(x => x.id === aid)
                     if (!a) return null
                     return (
-                      <span key={aid} style={{ fontSize: 12, fontWeight: 700, padding: '2px 7px', borderRadius: 20, background: `${ALLERGENE_COLORS[aid]}18`, color: ALLERGENE_COLORS[aid], border: `1px solid ${ALLERGENE_COLORS[aid]}40` }}>
+                      <span key={aid} style={{ fontSize: font.size.sm, fontWeight: 700, padding: '2px 7px', borderRadius: 20, background: `${ALLERGENE_COLORS[aid]}18`, color: ALLERGENE_COLORS[aid], border: `1px solid ${ALLERGENE_COLORS[aid]}40` }}>
                         {a.label}
                       </span>
                     )
@@ -532,7 +532,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
         <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start', flexShrink: 0, flexBasis: isMobile ? '100%' : 'auto', width: isMobile ? '100%' : 'auto' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, flex: isMobile ? 1 : 'none' }}>
           <button onClick={() => setOpen(o => !o)}
-            style={{ height: dito ? 40 : 30, padding: '0 10px', borderRadius: 7, border: `1px solid ${isSemi ? SEMI.border : C.borderStr}`, background: 'transparent', fontSize: 12, fontWeight: 700, color: isSemi ? SEMI.accent : C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 4, whiteSpace: 'nowrap' }}>
+            style={{ height: dito ? 40 : 30, padding: '0 10px', borderRadius: 7, border: `1px solid ${isSemi ? SEMI.border : C.borderStr}`, background: 'transparent', fontSize: font.size.sm, fontWeight: 700, color: isSemi ? SEMI.accent : C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 4, whiteSpace: 'nowrap' }}>
             <Icon name={open ? 'chevUp' : 'chevDown'} size={12} /> {open ? 'Chiudi' : 'Dettaglio'}
           </button>
           {/* Edit rapido prezzo/n°fette: solo per stampi. Per i gusti (gelateria)
@@ -543,7 +543,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
               apre la modale batch multi-sede. */}
           {!isSemi && tipoEff !== 'gusto' && !hasOverride && (
             <button onClick={() => { setEditPrezzo(reg.prezzo); setEditUnita(reg.unita); setEditMode(e => !e) }}
-              style={{ height: dito ? 40 : 30, padding: '0 10px', borderRadius: 7, border: `1px solid ${editMode ? C.red : C.borderStr}`, background: editMode ? C.redLight : 'transparent', fontSize: 12, fontWeight: 700, color: editMode ? C.red : C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+              style={{ height: dito ? 40 : 30, padding: '0 10px', borderRadius: 7, border: `1px solid ${editMode ? C.red : C.borderStr}`, background: editMode ? C.redLight : 'transparent', fontSize: font.size.sm, fontWeight: 700, color: editMode ? C.red : C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
               <Icon name="edit" size={13} /> Prezzo
             </button>
           )}
@@ -553,7 +553,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
           {!isSemi && hasMultiSede && orgId && (
             <button onClick={() => setPrezziSedeOpen(true)}
               title={hasOverride ? `Prezzo override attivo per ${sedeAttivaNome || 'questa sede'}` : 'Prezzi diversi per sede'}
-              style={{ height: dito ? 40 : 30, padding: '0 10px', borderRadius: 7, border: `1px solid ${hasOverride ? C.red : C.borderStr}`, background: hasOverride ? C.redLight : 'transparent', fontSize: 12, fontWeight: 700, color: hasOverride ? C.red : C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+              style={{ height: dito ? 40 : 30, padding: '0 10px', borderRadius: 7, border: `1px solid ${hasOverride ? C.red : C.borderStr}`, background: hasOverride ? C.redLight : 'transparent', fontSize: font.size.sm, fontWeight: 700, color: hasOverride ? C.red : C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
               <Icon name="map" size={13} /> Prezzi / sede
               {/* Il pallino era il carattere tipografico "•": cambia forma da
                   un sistema all'altro e non si allinea col testo. */}
@@ -562,7 +562,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
           )}
           {onEdit && (
             <button onClick={() => onEdit(ric.nome)}
-              style={{ height: dito ? 40 : 30, padding: '0 10px', borderRadius: 7, border: `1px solid ${C.red}`, background: C.red, color: C.white, fontSize: 12, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+              style={{ height: dito ? 40 : 30, padding: '0 10px', borderRadius: 7, border: `1px solid ${C.red}`, background: C.red, color: C.white, fontSize: font.size.sm, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
               <Icon name="edit" size={13} /> Modifica
             </button>
           )}
@@ -577,7 +577,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
             } finally { setExportingPdf(false) }
           }}
             disabled={exportingPdf}
-            style={{ height: dito ? 40 : 30, padding: '0 10px', borderRadius: 7, border: `1px solid ${isSemi ? SEMI.border : C.borderStr}`, background: 'transparent', fontSize: 12, fontWeight: 700, color: isSemi ? SEMI.accent : C.textMid, cursor: exportingPdf ? 'not-allowed' : 'pointer', opacity: exportingPdf ? 0.6 : 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5, ...(isMobile && isSemi ? { gridColumn: '1 / -1' } : {}) }}>
+            style={{ height: dito ? 40 : 30, padding: '0 10px', borderRadius: 7, border: `1px solid ${isSemi ? SEMI.border : C.borderStr}`, background: 'transparent', fontSize: font.size.sm, fontWeight: 700, color: isSemi ? SEMI.accent : C.textMid, cursor: exportingPdf ? 'not-allowed' : 'pointer', opacity: exportingPdf ? 0.6 : 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5, ...(isMobile && isSemi ? { gridColumn: '1 / -1' } : {}) }}>
             <Icon name="fileText" size={13} /> {exportingPdf ? '…' : 'PDF'}
           </button>
           </div>
@@ -595,26 +595,26 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
 
       {/* Edit inline */}
       {editMode && (
-        <div style={{ padding: '14px 24px', background: '#FFF8F7', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: C.text }}>Modifica prezzo / {labelPlurale(tipoEff)}:</div>
+        <div style={{ padding: '14px 24px', background: T.brandLight, borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+          <div style={{ fontSize: font.size.sm, fontWeight: 700, color: C.text }}>Modifica prezzo / {labelPlurale(tipoEff)}:</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <label style={{ fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase' }}>N°</label>
+            <label style={{ fontSize: font.size.sm, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase' }}>N°</label>
             <input type="number" inputMode="numeric" min="1" max="100" value={editUnita} onChange={e => setEditUnita(e.target.value)}
-              style={{ width: isMobile ? 80 : 64, padding: '8px 8px', minHeight: isMobile ? 44 : 'auto', borderRadius: 6, border: `1px solid ${C.borderStr}`, fontSize: 12, fontWeight: 700, color: C.text, textAlign: 'center' }}/>
+              style={{ width: isMobile ? 80 : 64, padding: '8px 8px', minHeight: isMobile ? 44 : 'auto', borderRadius: 6, border: `1px solid ${C.borderStr}`, fontSize: font.size.sm, fontWeight: 700, color: C.text, textAlign: 'center' }}/>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <label style={{ fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase' }}>€ / {labelSingolare(tipoEff)}</label>
+            <label style={{ fontSize: font.size.sm, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase' }}>€ / {labelSingolare(tipoEff)}</label>
             <input type="number" inputMode="decimal" min="0" step="0.1" value={editPrezzo} onChange={e => setEditPrezzo(e.target.value)}
-              style={{ width: isMobile ? 90 : 72, padding: '8px 8px', minHeight: isMobile ? 44 : 'auto', borderRadius: 6, border: `1px solid ${C.borderStr}`, fontSize: 12, fontWeight: 700, color: C.text, textAlign: 'center' }}/>
+              style={{ width: isMobile ? 90 : 72, padding: '8px 8px', minHeight: isMobile ? 44 : 'auto', borderRadius: 6, border: `1px solid ${C.borderStr}`, fontSize: font.size.sm, fontWeight: 700, color: C.text, textAlign: 'center' }}/>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px', background: C.white, borderRadius: 7, border: `1px solid ${C.border}` }}>
-            <span style={{ fontSize: 12, color: C.textSoft }}>Ricavo stimato:</span>
-            <span style={{ fontSize: 13, fontWeight: 900, color: C.green, ...TNUM }}>{fmt((parseFloat(editPrezzo) || 0) * (parseInt(editUnita) || 0))}</span>
+            <span style={{ fontSize: font.size.sm, color: C.textSoft }}>Ricavo stimato:</span>
+            <span style={{ fontSize: font.size.base, fontWeight: 900, color: C.green, ...TNUM }}>{fmt((parseFloat(editPrezzo) || 0) * (parseInt(editUnita) || 0))}</span>
           </div>
           <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
-            <button onClick={() => setEditMode(false)} disabled={savingRegola} style={{ padding: '9px 14px', minHeight: 40, borderRadius: 7, border: `1px solid ${C.borderStr}`, background: 'transparent', fontSize: 12, fontWeight: 700, color: C.textMid, cursor: savingRegola ? 'default' : 'pointer', opacity: savingRegola ? 0.5 : 1 }}>Annulla</button>
+            <button onClick={() => setEditMode(false)} disabled={savingRegola} style={{ padding: '9px 14px', minHeight: 40, borderRadius: 7, border: `1px solid ${C.borderStr}`, background: 'transparent', fontSize: font.size.sm, fontWeight: 700, color: C.textMid, cursor: savingRegola ? 'default' : 'pointer', opacity: savingRegola ? 0.5 : 1 }}>Annulla</button>
             {/* disabled durante l'attesa: senza, un doppio click salvava due volte. */}
-            <button onClick={handleSaveRegola} disabled={savingRegola} style={{ padding: '9px 18px', minHeight: 40, borderRadius: 7, border: 'none', background: savingRegola ? C.borderStr : C.red, color: C.white, fontSize: 12, fontWeight: 800, cursor: savingRegola ? 'default' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="save" size={13} /> {savingRegola ? 'Salvo…' : 'Salva'}</button>
+            <button onClick={handleSaveRegola} disabled={savingRegola} style={{ padding: '9px 18px', minHeight: 40, borderRadius: 7, border: 'none', background: savingRegola ? C.borderStr : C.red, color: C.white, fontSize: font.size.sm, fontWeight: 800, cursor: savingRegola ? 'default' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="save" size={13} /> {savingRegola ? 'Salvo…' : 'Salva'}</button>
           </div>
         </div>
       )}
@@ -628,7 +628,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
         // Futuristic panel: gradient verticale leggero + accent line top + box shadow.
         // Identical look per tutti e 4 i pannelli → coerenza visiva del quadrato.
         const PANEL_STYLE = {
-          background: 'linear-gradient(180deg, #FBF5F2 0%, #F4ECE7 100%)',
+          background: 'linear-gradient(180deg, ${T.bgSubtle} 0%, ${T.border} 100%)',
           borderRadius: 12, padding: 16, boxSizing: 'border-box',
           position: 'relative', overflow: 'hidden',
           boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.7)',
@@ -636,11 +636,11 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
         const PANEL_ACCENT = (
           <div aria-hidden="true" style={{
             position: 'absolute', top: 0, left: 0, right: 0, height: 2,
-            background: 'linear-gradient(90deg, #E84B3A 0%, #FFB350 50%, #6E0E1A 100%)',
+            background: 'linear-gradient(90deg, #E84B3A 0%, #FFB350 50%, ${T.brand} 100%)',
             opacity: 0.7,
           }}/>
         )
-        const PANEL_TITLE_STYLE = { fontSize: 12, fontWeight: 700, color: C.text, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6, letterSpacing: '0.02em' }
+        const PANEL_TITLE_STYLE = { fontSize: font.size.sm, fontWeight: 700, color: C.text, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6, letterSpacing: '0.02em' }
         return (
         <div style={{ padding: isMobile ? '16px 14px 20px' : '24px 24px 28px', boxSizing: 'border-box', width: '100%', minWidth: 0 }}>
           {/* La fila dei pulsanti: stessa forma del controllo segmentato usato
@@ -681,9 +681,9 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
                 comprimono troppo su mobile 375px. */}
             <div style={{ position: 'relative', borderRadius: 8, overflow: 'hidden', background: C.white }}>
               <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, minWidth: isMobile ? 480 : 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.size.sm, minWidth: isMobile ? 480 : 'auto' }}>
                 <thead>
-                  <tr style={{ background: '#F8F4F2' }}>
+                  <tr style={{ background: T.bgSubtle }}>
                     {[
                       ['Ingrediente', 'Materia prima usata nella ricetta', 'nome'],
                       ['g / st.', 'Grammi di ingrediente per UNO stampo (o batch) della ricetta', 'qty1stampo'],
@@ -702,7 +702,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
                       return (
                         <th key={h}
                           onClick={() => toggleSort(key)}
-                          style={{ padding: '9px 12px', textAlign: i === 0 ? 'left' : 'right', fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: isActive ? C.text : C.textSoft, borderBottom: `1px solid ${C.border}`, cursor: 'pointer', whiteSpace: 'nowrap', userSelect: 'none' }}>
+                          style={{ padding: '9px 12px', textAlign: i === 0 ? 'left' : 'right', fontSize: font.size.sm, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: isActive ? C.text : C.textSoft, borderBottom: `1px solid ${C.border}`, cursor: 'pointer', whiteSpace: 'nowrap', userSelect: 'none' }}>
                           <Tip text={tip} width={240}>
                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>{h}{freccia}</span>
                           </Tip>
@@ -713,22 +713,22 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
                 </thead>
                 <tbody>
                   {ingList.map((ing, i) => (
-                    <tr key={i} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.white : '#FDFAF7' }}>
+                    <tr key={i} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.white : T.bgSubtle }}>
                       <td style={{ padding: '9px 12px', fontWeight: 600, color: C.text }}>
                         {ing.nomeDisplay}
-                        {ing.isStima && <span style={{ fontSize: 12, marginLeft: 4, background: C.amberLight, color: C.amber, padding: '1px 4px', borderRadius: 3, fontWeight: 700 }}>stima</span>}
-                        {ing.mancante && <span style={{ fontSize: 12, marginLeft: 4, background: C.redLight, color: C.red, padding: '1px 4px', borderRadius: 3, fontWeight: 700 }}>n/d</span>}
+                        {ing.isStima && <span style={{ fontSize: font.size.sm, marginLeft: 4, background: C.amberLight, color: C.amber, padding: '1px 4px', borderRadius: 3, fontWeight: 700 }}>stima</span>}
+                        {ing.mancante && <span style={{ fontSize: font.size.sm, marginLeft: 4, background: C.redLight, color: C.red, padding: '1px 4px', borderRadius: 3, fontWeight: 700 }}>n/d</span>}
                       </td>
                       <td style={{ padding: '9px 12px', textAlign: 'right', color: C.textMid, ...TNUM, whiteSpace: 'nowrap' }}>{ing.qty1stampo}</td>
-                      <td style={{ padding: '9px 12px', textAlign: 'right', color: C.textSoft, ...TNUM, fontSize: 12, whiteSpace: 'nowrap' }}>{ing.costoPerGCalc > 0 ? ing.costoPerGCalc.toLocaleString('it-IT', { minimumFractionDigits: 4, maximumFractionDigits: 4 }) : '-'}</td>
+                      <td style={{ padding: '9px 12px', textAlign: 'right', color: C.textSoft, ...TNUM, fontSize: font.size.sm, whiteSpace: 'nowrap' }}>{ing.costoPerGCalc > 0 ? ing.costoPerGCalc.toLocaleString('it-IT', { minimumFractionDigits: 4, maximumFractionDigits: 4 }) : '-'}</td>
                       <td style={{ ...TNUM, padding: '9px 12px', textAlign: 'right', fontWeight: 600, color: ing.costoCalc > 0 ? C.text : C.textSoft, ...TNUM, whiteSpace: 'nowrap' }}>{ing.costoCalc > 0 ? fmt(ing.costoCalc) : '-'}</td>
                       <td style={{ ...TNUM, padding: '9px 12px', textAlign: 'right' }}>
                         {ing.pct > 0 && (
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
-                            <div style={{ width: 44, height: 5, background: '#EEE', borderRadius: 3, flexShrink: 0 }}>
+                            <div style={{ width: 44, height: 5, background: T.border, borderRadius: 3, flexShrink: 0 }}>
                               <div style={{ width: `${Math.min(100, ing.pct)}%`, height: 5, background: ing.pct > 30 ? C.red : ing.pct > 15 ? C.amber : '#AAB', borderRadius: 3 }}/>
                             </div>
-                            <span style={{ fontSize: 12, color: C.textMid, width: 30, textAlign: 'right', fontWeight: 700, ...TNUM }}>{fmtp0(ing.pct)}</span>
+                            <span style={{ fontSize: font.size.sm, color: C.textMid, width: 30, textAlign: 'right', fontWeight: 700, ...TNUM }}>{fmtp0(ing.pct)}</span>
                           </div>
                         )}
                       </td>
@@ -743,12 +743,12 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
                     const totG   = ingList.reduce((s, x) => s + (Number(x.qty1stampo) || 0), 0)
                     const totPct = ingList.reduce((s, x) => s + (Number(x.pct) || 0), 0)
                     return (
-                      <tr style={{ background: '#F0EAE6', borderTop: `2px solid ${C.borderStr}` }}>
-                        <td style={{ padding: '9px 12px', fontWeight: 800, fontSize: 12, color: C.text, letterSpacing: '0.05em' }}>TOTALE</td>
-                        <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 900, fontSize: 12, color: C.text, ...TNUM, whiteSpace: 'nowrap' }}>{Math.round(totG)}</td>
+                      <tr style={{ background: T.border, borderTop: `2px solid ${C.borderStr}` }}>
+                        <td style={{ padding: '9px 12px', fontWeight: 800, fontSize: font.size.sm, color: C.text, letterSpacing: '0.05em' }}>TOTALE</td>
+                        <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 900, fontSize: font.size.sm, color: C.text, ...TNUM, whiteSpace: 'nowrap' }}>{Math.round(totG)}</td>
                         <td/>
-                        <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 900, fontSize: 12, color: C.red, ...TNUM, whiteSpace: 'nowrap' }}>{fmt(fc)}</td>
-                        <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 900, fontSize: 12, color: C.text, ...TNUM, whiteSpace: 'nowrap' }}>{Math.round(totPct)}%</td>
+                        <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 900, fontSize: font.size.sm, color: C.red, ...TNUM, whiteSpace: 'nowrap' }}>{fmt(fc)}</td>
+                        <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 900, fontSize: font.size.sm, color: C.text, ...TNUM, whiteSpace: 'nowrap' }}>{Math.round(totPct)}%</td>
                       </tr>
                     )
                   })()}
@@ -780,7 +780,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
                   // Larghezze fisse sulle ultime due → tutti gli € sono uno
                   // sotto l'altro e tutte le % sono uno sotto l'altro.
                   <div key={i} style={{ marginBottom: 10, minHeight: 26 }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 78px 44px', alignItems: 'baseline', gap: 10, fontSize: 12, marginBottom: 4 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 78px 44px', alignItems: 'baseline', gap: 10, fontSize: font.size.sm, marginBottom: 4 }}>
                       <span style={{ color: C.text, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{formatNome(ing.nome)}</span>
                       <span style={{ color: C.textMid, fontWeight: 700, ...TNUM, whiteSpace: 'nowrap', textAlign: 'right' }}>{fmt(ing.costoCalc)}</span>
                       <span style={{ color: C.textSoft, fontWeight: 600, ...TNUM, whiteSpace: 'nowrap', textAlign: 'right' }}>{fmtp0(pct)}</span>
@@ -812,8 +812,8 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
                     padding: '11px 14px', background: r.bg, border: `1px solid ${r.brd}`, borderRadius: 8,
                     display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', minHeight: 44, columnGap: 12,
                   }}>
-                    <span style={{ fontSize: 12, color: r.c, fontWeight: r.prominent ? 800 : 700, letterSpacing: '0.01em', whiteSpace: 'nowrap' }}>{r.lbl}</span>
-                    <span style={{ fontSize: 15, fontWeight: 900, color: r.c, ...TNUM, whiteSpace: 'nowrap', textAlign: 'right' }}>{r.val}</span>
+                    <span style={{ fontSize: font.size.sm, color: r.c, fontWeight: r.prominent ? 800 : 700, letterSpacing: '0.01em', whiteSpace: 'nowrap' }}>{r.lbl}</span>
+                    <span style={{ fontSize: font.size.md, fontWeight: 900, color: r.c, ...TNUM, whiteSpace: 'nowrap', textAlign: 'right' }}>{r.val}</span>
                   </div>
                 ))}
               </div>
@@ -841,22 +841,22 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
                         padding: '11px 14px', background: r.bg, border: `1px solid ${r.brd}`, borderRadius: 8,
                         display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', minHeight: 44, columnGap: 12,
                       }}>
-                        <span style={{ fontSize: 12, color: r.c, fontWeight: r.prominent ? 800 : 700, letterSpacing: '0.01em', whiteSpace: 'nowrap' }}>{r.lbl}</span>
-                        <span style={{ fontSize: 15, fontWeight: 900, color: r.c, ...TNUM, whiteSpace: 'nowrap', textAlign: 'right' }}>{r.val}</span>
+                        <span style={{ fontSize: font.size.sm, color: r.c, fontWeight: r.prominent ? 800 : 700, letterSpacing: '0.01em', whiteSpace: 'nowrap' }}>{r.lbl}</span>
+                        <span style={{ fontSize: font.size.md, fontWeight: 900, color: r.c, ...TNUM, whiteSpace: 'nowrap', textAlign: 'right' }}>{r.val}</span>
                       </div>
                     ))}
                   </div>
-                  <div style={{ fontSize: 12, color: C.textSoft, marginTop: 10, lineHeight: 1.45 }}>
+                  <div style={{ fontSize: font.size.sm, color: C.textSoft, marginTop: 10, lineHeight: 1.45 }}>
                     Ricavo/kg = prezzo medio dei <b>Formati vendita</b> della categoria &ldquo;{ric.categoria || 'Gelato'}&rdquo; (uguale per tutti i gusti). Il costo varia gusto per gusto.
                   </div>
                 </>
               ) : (
                 <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 7, padding: '14px 12px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 10 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft }}>Food cost / kg</div>
-                    <div style={{ fontSize: 20, fontWeight: 900, color: C.red, ...TNUM }}>{fmt(fcPerKg)}</div>
+                    <div style={{ fontSize: font.size.sm, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft }}>Food cost / kg</div>
+                    <div style={{ fontSize: font.size.xl, fontWeight: 900, color: C.red, ...TNUM }}>{fmt(fcPerKg)}</div>
                   </div>
-                  <div style={{ padding: '10px 12px', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 7, fontSize: 12, color: '#92400E', lineHeight: 1.5 }}>
+                  <div style={{ padding: '10px 12px', background: T.amberLight, border: '1px solid ${T.amber}', borderRadius: 7, fontSize: font.size.sm, color: T.amberDark, lineHeight: 1.5 }}>
                     Per stimare il margine di questo gusto, configura almeno un <b>Formato vendita</b> per la categoria &ldquo;{ric.categoria || 'Gelato'}&rdquo; (cono, coppetta, vaschetta) — trovi il pannello in Cassa → Formati vendita.
                   </div>
                 </div>
@@ -874,7 +874,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
                   { lbl: 'Margine',   val: seHaPrezzo(fmt(mrgUnita)), c: senzaPrezzo ? C.textSoft : (mrgUnita > 0 ? C.green : C.red) },
                 ].map(({ lbl, val, c }) => (
                   <div key={lbl} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 7, padding: '11px 8px', textAlign: 'center', minHeight: 60, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 5 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, lineHeight: 1 }}>{lbl}</div>
+                    <div style={{ fontSize: font.size.sm, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, lineHeight: 1 }}>{lbl}</div>
                     <div style={{ fontSize: isMobile ? 13 : 15, fontWeight: 900, color: c, ...TNUM, lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{val}</div>
                   </div>
                 ))}
@@ -898,7 +898,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
                   { lbl: 'Costo / 100 g', val: fmt(costoGSemi * 100),  c: SEMI.accent },
                 ].map(({ lbl, val, c }) => (
                   <div key={lbl} style={{ background: C.white, border: `1px solid ${SEMI.divider}`, borderRadius: 7, padding: '11px 8px', textAlign: 'center', minHeight: 60, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 5 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, lineHeight: 1 }}>{lbl}</div>
+                    <div style={{ fontSize: font.size.sm, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, lineHeight: 1 }}>{lbl}</div>
                     <div style={{ fontSize: isMobile ? 13 : 15, fontWeight: 900, color: c, ...TNUM, lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{val}</div>
                   </div>
                 ))}
@@ -1040,7 +1040,7 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
   const aggiornaBtn = onUpload && (
     <label style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 16px',
       background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: R.md, cursor: 'pointer',
-      fontSize: 13, fontWeight: 600, color: T.textMid, minHeight: 44,
+      fontSize: font.size.base, fontWeight: 600, color: T.textMid, minHeight: 44,
       whiteSpace: 'nowrap', alignSelf: isMobile ? 'stretch' : 'auto', flexShrink: 0 }}>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
@@ -1058,7 +1058,7 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
     <button onClick={() => onNuovaRicetta()}
       style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 16px',
         background: T.brandGradient, border: 'none', borderRadius: R.md, cursor: 'pointer',
-        fontSize: 13, fontWeight: 700, color: '#fff', boxShadow: S.brandSoft,
+        fontSize: font.size.base, fontWeight: 700, color: T.white, boxShadow: S.brandSoft,
         whiteSpace: 'nowrap', alignSelf: isMobile ? 'stretch' : 'auto', flexShrink: 0, fontFamily: 'inherit',
         minHeight: 44 }}>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
@@ -1074,7 +1074,7 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
       <div style={{ marginBottom: isMobile ? 16 : 24 }}>
         <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'flex-end', justifyContent: 'space-between', gap: isMobile ? 12 : 14, marginBottom: 16 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 13, color: T.textSoft, lineHeight: 1.5, fontWeight: 500 }}>
+            <div style={{ fontSize: font.size.base, color: T.textSoft, lineHeight: 1.5, fontWeight: 500 }}>
               {ricette.length > 0
                 ? <>Margini e food cost di ogni {LEX.ricetta}, ricalcolati sui prezzi delle materie prime.</>
                 : LEX.nessunaRicetta}
@@ -1186,8 +1186,8 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
 
       {ricette.length > 0 && filtered.length === 0 && (
         <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: R.xl, padding: '40px 24px', textAlign: 'center', marginBottom: 24 }}>
-          <div style={{ fontSize: 14, color: T.text, fontWeight: 500, marginBottom: 4 }}>Nessun risultato</div>
-          <div style={{ fontSize: 13, color: T.textSoft }}>Prova con un altro termine.</div>
+          <div style={{ fontSize: font.size.md, color: T.text, fontWeight: 500, marginBottom: 4 }}>Nessun risultato</div>
+          <div style={{ fontSize: font.size.base, color: T.textSoft }}>Prova con un altro termine.</div>
         </div>
       )}
 
@@ -1226,10 +1226,19 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
               // Il nome era a peso 600 nel nero del testo: in una griglia di
               // riquadri tutti uguali, la cosa che si cerca è il nome, e non
               // c'era niente che lo facesse trovare prima degli altri.
-              <div key={ric.nome} className="fos-tile" onClick={() => onEditRicetta && onEditRicetta(ric.nome)}
-                style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 16, padding: 13, boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 10 }}>
+              // La tessera è un pulsante, non un `<div>` che si può cliccare.
+              //
+              // Aprire una ricetta è il comando principale di questa pagina, e
+              // disegnato come `div` non si raggiunge con la tastiera e un
+              // lettore di schermo non lo annuncia: con trenta gusti sono
+              // trenta comandi invisibili. L'etichetta dice cosa fa, perché
+              // «SACHER» da solo non si capisce se si apre o si legge.
+              <button key={ric.nome} type="button" className="fos-tile"
+                onClick={() => onEditRicetta && onEditRicetta(ric.nome)}
+                aria-label={`Apri la ricetta ${ric.nome}`}
+                style={{ textAlign: 'left', font: 'inherit', color: 'inherit', width: '100%', background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 16, padding: 13, boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: T.brand, letterSpacing: '-0.01em' }}>{ric.nome}</div>
+                  <div style={{ fontSize: font.size.md, fontWeight: 800, color: T.brand, letterSpacing: '-0.01em' }}>{ric.nome}</div>
                   {/* Prima qui c'era sempre «{unità} {tipo} · {prezzo}». Per un
                       gusto di gelateria nessuno dei tre esiste — il prezzo vive
                       sui formati di vendita — e usciva alla lettera «? pz ·
@@ -1238,19 +1247,19 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
                       mancante: ora la riga compare solo quando c'è qualcosa da
                       dire. */}
                   {reg.prezzo > 0 && reg.unita > 0 && (
-                    <div style={{ fontSize: 12, color: T.textSoft, marginTop: 2, ...TNUM }}>{reg.unita} {reg.tipo || 'pz'} · {fmt(reg.prezzo)}</div>
+                    <div style={{ fontSize: font.size.sm, color: T.textSoft, marginTop: 2, ...TNUM }}>{reg.unita} {reg.tipo || 'pz'} · {fmt(reg.prezzo)}</div>
                   )}
                 </div>
                 {/* Ordine richiesto (26/06): MARGINE a sinistra, FOOD COST a destra.
                     Label "Food cost" per esteso (non più "FC" criptico). */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                   <div style={{ padding: '7px 10px', background: T.bgSubtle, borderRadius: R.md }}>
-                    <div style={{ fontSize: 12, color: T.textSoft, fontWeight: 600, textTransform: 'uppercase', marginBottom: 2 }}>Margine</div>
-                    <div style={{ fontSize: 16, fontWeight: 700, color: mC, ...TNUM }}>{marg == null ? '—' : fmtp0(marg)}</div>
+                    <div style={{ fontSize: font.size.sm, color: T.textSoft, fontWeight: 600, textTransform: 'uppercase', marginBottom: 2 }}>Margine</div>
+                    <div style={{ fontSize: font.size.lg, fontWeight: 700, color: mC, ...TNUM }}>{marg == null ? '—' : fmtp0(marg)}</div>
                   </div>
                   <div style={{ padding: '7px 10px', background: T.bgSubtle, borderRadius: R.md }}>
-                    <div title="Food Cost: rapporto costo ingredienti / ricavo. Target tipico 25-35% in pasticceria, 22-30% in gelateria." style={{ fontSize: 12, color: T.textSoft, fontWeight: 600, textTransform: 'uppercase', marginBottom: 2, cursor: 'help' }}>Food cost</div>
-                    <div style={{ fontSize: 16, fontWeight: 700, color: fC, ...TNUM }}>{fcPct == null ? '—' : fmtp0(fcPct)}</div>
+                    <div title="Food Cost: rapporto costo ingredienti / ricavo. Target tipico 25-35% in pasticceria, 22-30% in gelateria." style={{ fontSize: font.size.sm, color: T.textSoft, fontWeight: 600, textTransform: 'uppercase', marginBottom: 2, cursor: 'help' }}>Food cost</div>
+                    <div style={{ fontSize: font.size.lg, fontWeight: 700, color: fC, ...TNUM }}>{fcPct == null ? '—' : fmtp0(fcPct)}</div>
                   </div>
                 </div>
                 {!sappiamo && (
@@ -1258,7 +1267,7 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
                     Non si può ancora dire: {perche}.
                   </div>
                 )}
-              </div>
+              </button>
             )
           })}
         </div>

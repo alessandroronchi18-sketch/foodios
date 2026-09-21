@@ -173,6 +173,22 @@ export function misura() {
         if (/\brole\s*=/.test(tag)) continue          // ha già un ruolo
         const corpo = codice.slice(m.index, m.index + 120)
         if (/=>\s*e\.stopPropagation\(\)\s*\}/.test(corpo)) continue
+        // Terza forma che non è un comando: il gesto di cortesia.
+        //
+        // Un gestore che comincia con `e.target.closest('button, input, …')`
+        // e si tira indietro sta dicendo «se hai premuto un controllo vero,
+        // non sono io a risponderti»: è una scorciatoia col dito sopra
+        // comandi che esistono già come pulsanti. Nel Ricettario è il clic
+        // sullo spazio vuoto che richiude la scheda, e la scheda si apre
+        // comunque dal suo pulsante — chi usa la tastiera non resta fuori.
+        const nomeGestore = corpo.match(/onClick\s*=\s*\{\s*([A-Za-z_$][\w$]*)\s*\}/)
+        if (nomeGestore) {
+          // Si cerca nel sorgente VERO, non in `codice`: lì le stringhe sono
+          // state tolte, e `closest('button, input')` è diventato `closest('')`.
+          const def = new RegExp(`(?:const|function)\\s+${nomeGestore[1]}\\s*=?\\s*\\(?[^)]*\\)?\\s*=?>?\\s*\\{([\\s\\S]{0,200})`)
+          const corpoFn = src.match(def)
+          if (corpoFn && /\.closest\(\s*['"`][^'"`]*button/.test(corpoFn[1])) continue
+        }
         divClick++
       }
     }
