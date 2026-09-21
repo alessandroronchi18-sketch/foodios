@@ -385,3 +385,33 @@ un'impressione. E non toccare quello che funziona: qui la lamentela è precisa
 Attenzione: la pagina è appena stata portata da 52 a 97/100 con 94 prove.
 Quelle prove vanno tenute verdi, o aggiornate spiegando nel commento cosa è
 cambiato e perché.
+
+---
+
+## 8. I due metodi di produzione, non solo quello differenziale (21/09/2026)
+
+Richiesta del titolare, parole sue: «audit profondo e test non solo nel metodo
+inventario ma anche nell'altro metodo, controlla se sono stati fatti e se ci
+sono».
+
+Foodos ha **due modi di registrare la produzione**, e si scelgono dalle
+impostazioni:
+
+- il **metodo differenziale** (inventario settimanale): si conta quello che
+  c'è, e la produzione è la differenza;
+- l'**altro metodo**, quello a registrazione diretta (produzione giornaliera,
+  quanti stampi di cosa).
+
+Cosa va fatto, in ordine:
+
+1. **Contare le prove che ci sono per ognuno dei due**, separatamente. Il
+   sospetto è che il differenziale — arrivato per ultimo e su richiesta — sia
+   coperto e l'altro no, o viceversa. Va misurato, non dedotto.
+2. **Audit profondo del metodo scoperto**: i calcoli, gli scarichi di
+   magazzino, il costo, cosa succede quando un dato manca, e il passaggio da
+   un metodo all'altro (chi ha già registrato con uno e cambia impostazione).
+3. **Le prove mancanti**, con la regola di sempre: quella che riproduce il
+   difetto, quella della correzione, e quelle di quello che c'è intorno.
+
+Nota: è un lavoro sul **cuore contabile** del prodotto. Un errore qui non
+sbaglia una schermata, sbaglia il magazzino e il food cost di tutti.

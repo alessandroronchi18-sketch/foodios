@@ -42,6 +42,7 @@ import useIsMobile, { useIsTablet } from './lib/useIsMobile'
 import { useOnlineStatus } from './lib/useOnlineStatus'
 import { useNotifiche } from './lib/useNotifiche'
 import { color as T, radius as R, shadow as S, motion as M, layout as L, z as Z, keyframes as KF, typo, tnum as TNUM, font } from './lib/theme'
+import { useConfirm } from './components/ConfirmModal'
 const ImpostazioniSedi = lazyWithReload(() => import('./components/ImpostazioniSedi'))
 const ImpostazioniTv = lazyWithReload(() => import('./components/ImpostazioniTv'))
 const ExportContabilita = lazyWithReload(() => import('./components/ExportContabilita'))
@@ -392,7 +393,7 @@ const PIE_COLORS = [C.red,"#E07040","#D4A030","#5B8FCE","#7B7B7B","#A0522D"];
 
 function Badge({label,color="green"}) {
   const s={green:{bg:C.greenLight,c:C.green},red:{bg:C.redLight,c:C.red},amber:{bg:C.amberLight,c:C.amber},gray:{bg:"#F3F3F3",c:"#888"}}[color]||{bg:"#F3F3F3",c:"#888"};
-  return <span style={{background:s.bg,color:s.c,fontSize: 12,fontWeight:600,padding:"3px 8px",borderRadius:12,letterSpacing:"0.04em",textTransform:"uppercase",whiteSpace:"nowrap"}}>{label}</span>;
+  return <span style={{background:s.bg,color:s.c,fontSize: font.size.sm,fontWeight:600,padding:"3px 8px",borderRadius:12,letterSpacing:"0.04em",textTransform:"uppercase",whiteSpace:"nowrap"}}>{label}</span>;
 }
 const margBadge = pct => {
   if (pct===null||pct===undefined) return null;
@@ -413,7 +414,7 @@ function SH({children,sub}) {
       <div style={{width:3,height:16,background:T.brand,borderRadius:2,flexShrink:0,alignSelf:"center"}}/>
       <div>
         <h2 style={{margin:0,fontSize:15,fontWeight:600,color:T.text,letterSpacing:"-0.015em"}}>{children}</h2>
-        {sub && <div style={{fontSize:12,color:T.textSoft,marginTop:2,letterSpacing:"-0.005em"}}>{sub}</div>}
+        {sub && <div style={{fontSize:font.size.sm,color:T.textSoft,marginTop:2,letterSpacing:"-0.005em"}}>{sub}</div>}
       </div>
     </div>
   );
@@ -425,7 +426,7 @@ function KPI({label,value,sub,color,highlight,icon,iconName}) {
       border:`1px solid ${highlight?"#4A0612":T.border}`,borderRadius:14,
       padding:"20px 22px",
       boxShadow:highlight?"0 12px 28px rgba(110,14,26,0.34), inset 0 1px 0 rgba(255,255,255,0.18)":"0 1px 2px rgba(15,23,42,0.05), 0 4px 12px rgba(15,23,42,0.04)"}}>
-      <div style={{fontSize: 12,fontWeight:600,letterSpacing:"0.08em",textTransform:"uppercase",
+      <div style={{fontSize: font.size.sm,fontWeight:600,letterSpacing:"0.08em",textTransform:"uppercase",
         color:highlight?"rgba(255,255,255,0.76)":T.textSoft,marginBottom:10}}>
         {iconName?<span style={{marginRight:6,display:"inline-flex",verticalAlign:"-2px"}}><Icon name={iconName} size={13}/></span>:icon&&<span style={{marginRight:6}}>{icon}</span>}{label}
       </div>
@@ -434,7 +435,7 @@ function KPI({label,value,sub,color,highlight,icon,iconName}) {
         fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>
         {value}
       </div>
-      {sub && <div style={{fontSize:12,color:highlight?"rgba(255,255,255,0.7)":T.textSoft,marginTop:7,letterSpacing:"-0.005em",fontWeight:500}}>{sub}</div>}
+      {sub && <div style={{fontSize:font.size.sm,color:highlight?"rgba(255,255,255,0.7)":T.textSoft,marginTop:7,letterSpacing:"-0.005em",fontWeight:500}}>{sub}</div>}
     </div>
   );
 }
@@ -492,19 +493,19 @@ function ProduzioneView({ricettario,mese,onSave,onAddAction,nomeAttivita=''}) {
     <div style={{maxWidth:1100}}>
       <div style={{marginBottom:24,display:"flex",alignItems:"flex-start",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
         <div>
-          <div style={{fontSize: 12,fontWeight:700,letterSpacing:"0.18em",textTransform:"uppercase",color:C.red,marginBottom:4}}>Produzione mensile · {mese.label}</div>
-          {mese.meteo&&<div style={{fontSize: 12,color:C.textSoft,marginTop:4}}>{mese.meteo.giorniSole}gg sole · {mese.meteo.giorniPioggia}gg pioggia · {mese.meteo.tempMean}°C media</div>}
+          <div style={{fontSize: font.size.sm,fontWeight:700,letterSpacing:"0.18em",textTransform:"uppercase",color:C.red,marginBottom:4}}>Produzione mensile · {mese.label}</div>
+          {mese.meteo&&<div style={{fontSize: font.size.sm,color:C.textSoft,marginTop:4}}>{mese.meteo.giorniSole}gg sole · {mese.meteo.giorniPioggia}gg pioggia · {mese.meteo.tempMean}°C media</div>}
         </div>
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
-          {dirty&&<span style={{fontSize: 12,color:C.amber,fontWeight:600}}>● Non salvato</span>}
-          <button onClick={save} style={{padding:"8px 20px",background:C.red,color:C.white,border:"none",borderRadius:8,fontWeight:700,fontSize: 12,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:6}}><Icon name="save" size={13}/> Salva</button>
+          {dirty&&<span style={{fontSize: font.size.sm,color:C.amber,fontWeight:600}}>● Non salvato</span>}
+          <button onClick={save} style={{padding:"8px 20px",background:C.red,color:C.white,border:"none",borderRadius:8,fontWeight:700,fontSize: font.size.sm,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:6}}><Icon name="save" size={13}/> Salva</button>
         </div>
       </div>
 
       <div style={{display:"flex",gap:4,marginBottom:24,borderBottom:`2px solid ${C.border}`}}>
         {[["dashboard","barChart","Dashboard"],["inserimento","edit","Inserimento dati"],["ai","robot","Analisi AI"]].map(([id,icn,lbl])=>(
           <button key={id} onClick={()=>setTab(id)}
-            style={{padding:"8px 18px",border:"none",background:"transparent",cursor:"pointer",fontSize: 12,fontWeight:700,color:tab===id?C.red:C.textSoft,borderBottom:tab===id?`2px solid ${C.red}`:"2px solid transparent",marginBottom:-2,transition:"all 0.12s",display:"inline-flex",alignItems:"center",gap:6}}>
+            style={{padding:"8px 18px",border:"none",background:"transparent",cursor:"pointer",fontSize: font.size.sm,fontWeight:700,color:tab===id?C.red:C.textSoft,borderBottom:tab===id?`2px solid ${C.red}`:"2px solid transparent",marginBottom:-2,transition:"all 0.12s",display:"inline-flex",alignItems:"center",gap:6}}>
             <Icon name={icn} size={13}/> {lbl}
           </button>
         ))}
@@ -515,8 +516,8 @@ function ProduzioneView({ricettario,mese,onSave,onAddAction,nomeAttivita=''}) {
           <div style={{textAlign:"center",padding:"70px 20px",color:C.textSoft}}>
             <div style={{marginBottom:14,display:"flex",justifyContent:"center"}}><Icon name="clipboard" size={36}/></div>
             <div style={{fontSize:15,fontWeight:700,color:C.text,marginBottom:8}}>Nessun dato per {mese.label}</div>
-            <div style={{fontSize:12,marginBottom:20}}>Inserisci gli stampi prodotti e venduti per vedere i risultati.</div>
-            <button onClick={()=>setTab("inserimento")} style={{padding:"10px 24px",background:C.red,color:C.white,border:"none",borderRadius:8,fontWeight:700,fontSize:12,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:6}}><Icon name="edit" size={13}/> Inserisci dati</button>
+            <div style={{fontSize:font.size.sm,marginBottom:20}}>Inserisci gli stampi prodotti e venduti per vedere i risultati.</div>
+            <button onClick={()=>setTab("inserimento")} style={{padding:"10px 24px",background:C.red,color:C.white,border:"none",borderRadius:8,fontWeight:700,fontSize:font.size.sm,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:6}}><Icon name="edit" size={13}/> Inserisci dati</button>
           </div>
         ) : (
           <>
@@ -529,11 +530,11 @@ function ProduzioneView({ricettario,mese,onSave,onAddAction,nomeAttivita=''}) {
             </div>
             <SH>Risultati per Prodotto</SH>
             <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,overflowX:"auto",marginBottom:24,boxShadow:"0 1px 4px rgba(0,0,0,0.04)",WebkitOverflowScrolling:"touch"}}>
-              <table style={{width:"100%",minWidth:isMobile?640:"auto",borderCollapse:"collapse",fontSize: 12}}>
+              <table style={{width:"100%",minWidth:isMobile?640:"auto",borderCollapse:"collapse",fontSize: font.size.sm}}>
                 <thead>
                   <tr style={{background:"#F8F4F2"}}>
                     {["Prodotto","Prodotti","Venduti","Sell-T %","Ricavi €","Food Cost €","Margine €","Margine %"].map((h,i)=>(
-                      <th key={i} style={{padding:"10px 12px",textAlign:i===0?"left":"right",fontSize: 12,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",color:C.textSoft,borderBottom:`1px solid ${C.border}`}}>{h}</th>
+                      <th key={i} style={{padding:"10px 12px",textAlign:i===0?"left":"right",fontSize: font.size.sm,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",color:C.textSoft,borderBottom:`1px solid ${C.border}`}}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -571,13 +572,13 @@ function ProduzioneView({ricettario,mese,onSave,onAddAction,nomeAttivita=''}) {
 
       {tab==="inserimento"&&(
         <div>
-          <div style={{fontSize: 12,color:C.textSoft,marginBottom:20,lineHeight:1.7}}>Inserisci stampi prodotti e venduti. Il ricavo e il food cost vengono calcolati automaticamente.</div>
+          <div style={{fontSize: font.size.sm,color:C.textSoft,marginBottom:20,lineHeight:1.7}}>Inserisci stampi prodotti e venduti. Il ricavo e il food cost vengono calcolati automaticamente.</div>
           <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,overflow:"hidden",marginBottom:20,boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
-            <table style={{width:"100%",borderCollapse:"collapse",fontSize: 12}}>
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize: font.size.sm}}>
               <thead>
                 <tr style={{background:"#F8F4F2"}}>
                   {["Prodotto","Ricavo / stampo","FC / stampo","Prodotti","Venduti","Spreco","Note"].map((h,i)=>(
-                    <th key={i} style={{padding:"10px 14px",textAlign:i===0?"left":"center",fontSize: 12,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",color:C.textSoft,borderBottom:`1px solid ${C.border}`}}>{h}</th>
+                    <th key={i} style={{padding:"10px 14px",textAlign:i===0?"left":"center",fontSize: font.size.sm,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",color:C.textSoft,borderBottom:`1px solid ${C.border}`}}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -589,19 +590,19 @@ function ProduzioneView({ricettario,mese,onSave,onAddAction,nomeAttivita=''}) {
                     <tr key={e.ricettaNome} style={{borderBottom:`1px solid ${C.border}`,background:i%2===0?C.white:"#FDFAF7"}}>
                       <td style={{ textAlign: 'right', ...TNUM,padding:"10px 14px",fontWeight:700,color:C.text}}>
                         {e.ricettaNome}
-                        <div style={{fontSize: 12,color:C.textSoft,marginTop:1}}>{reg.unita} {labelPlurale(reg.tipo)} × {fmt(reg.prezzo)}</div>
+                        <div style={{fontSize: font.size.sm,color:C.textSoft,marginTop:1}}>{reg.unita} {labelPlurale(reg.tipo)} × {fmt(reg.prezzo)}</div>
                       </td>
                       <td style={{ ...TNUM,padding:"10px 14px",textAlign:"center",fontWeight:700,color:C.green}}>{fmt(rs)}</td>
                       <td style={{ ...TNUM,padding:"10px 14px",textAlign:"center",color:C.red}}>{fmt(e.fc)}</td>
                       {["stampiProdotti","stampiVenduti","spreco"].map(f=>(
                         <td key={f} style={{padding:"6px 8px",textAlign:"center"}}>
                           <input type="number" min="0" step="1" value={e[f]||""} onChange={ev=>upd(i,f,ev.target.value)}
-                            style={{width:66,padding:"8px 8px",borderRadius:8,border:`1px solid ${C.borderStr}`,background:C.white,fontSize:13,textAlign:"center",fontWeight:700,color:C.text}}/>
+                            style={{width:66,padding:"8px 8px",borderRadius:8,border:`1px solid ${C.borderStr}`,background:C.white,fontSize:font.size.base,textAlign:"center",fontWeight:700,color:C.text}}/>
                         </td>
                       ))}
                       <td style={{padding:"6px 8px"}}>
                         <input type="text" value={e.note||""} onChange={ev=>upd(i,"note",ev.target.value)} placeholder="note…"
-                          style={{width:"100%",padding:"8px 8px",borderRadius:8,border:`1px solid ${C.borderStr}`,background:C.white,fontSize:12,color:C.text}}/>
+                          style={{width:"100%",padding:"8px 8px",borderRadius:8,border:`1px solid ${C.borderStr}`,background:C.white,fontSize:font.size.sm,color:C.text}}/>
                       </td>
                     </tr>
                   );
@@ -610,7 +611,7 @@ function ProduzioneView({ricettario,mese,onSave,onAddAction,nomeAttivita=''}) {
             </table>
           </div>
           <div style={{display:"flex",justifyContent:"flex-end"}}>
-            <button onClick={save} style={{padding:"10px 28px",background:C.red,color:C.white,border:"none",borderRadius:9,fontWeight:800,fontSize:12,cursor:"pointer",letterSpacing:"0.02em",display:"inline-flex",alignItems:"center",gap:6}}><Icon name="save" size={13}/> Salva dati {mese.label}</button>
+            <button onClick={save} style={{padding:"10px 28px",background:C.red,color:C.white,border:"none",borderRadius:9,fontWeight:800,fontSize:font.size.sm,cursor:"pointer",letterSpacing:"0.02em",display:"inline-flex",alignItems:"center",gap:6}}><Icon name="save" size={13}/> Salva dati {mese.label}</button>
           </div>
         </div>
       )}
@@ -619,23 +620,23 @@ function ProduzioneView({ricettario,mese,onSave,onAddAction,nomeAttivita=''}) {
         <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,padding:"24px",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
             <div>
-              <div style={{fontSize:13,fontWeight:800,color:C.text,marginBottom:4,display:"flex",alignItems:"center",gap:6}}><Icon name="robot" size={14}/> Consulenza AI - {mese.label}</div>
-              <div style={{fontSize: 12,color:C.textSoft}}>Analisi automatica basata sui tuoi dati. Aggiornata ad ogni richiesta.</div>
+              <div style={{fontSize:font.size.base,fontWeight:800,color:C.text,marginBottom:4,display:"flex",alignItems:"center",gap:6}}><Icon name="robot" size={14}/> Consulenza AI - {mese.label}</div>
+              <div style={{fontSize: font.size.sm,color:C.textSoft}}>Analisi automatica basata sui tuoi dati. Aggiornata ad ogni richiesta.</div>
             </div>
-            {hasData&&<button onClick={runAI} disabled={aiLoad} style={{padding:"10px 20px",background:aiLoad?"#EEE":C.red,color:aiLoad?C.textSoft:C.white,border:"none",borderRadius:8,fontWeight:700,fontSize: 12,cursor:aiLoad?"default":"pointer",display:"inline-flex",alignItems:"center",gap:6}}>{aiLoad?<><Icon name="hourglass" size={12}/> Elaboro…</>:"▶ Analizza ora"}</button>}
+            {hasData&&<button onClick={runAI} disabled={aiLoad} style={{padding:"10px 20px",background:aiLoad?"#EEE":C.red,color:aiLoad?C.textSoft:C.white,border:"none",borderRadius:8,fontWeight:700,fontSize: font.size.sm,cursor:aiLoad?"default":"pointer",display:"inline-flex",alignItems:"center",gap:6}}>{aiLoad?<><Icon name="hourglass" size={12}/> Elaboro…</>:"▶ Analizza ora"}</button>}
           </div>
-          {!hasData&&<div style={{color:C.textSoft,fontSize:12}}>Inserisci prima i dati di produzione nella tab "Inserimento dati".</div>}
+          {!hasData&&<div style={{color:C.textSoft,fontSize:font.size.sm}}>Inserisci prima i dati di produzione nella tab "Inserimento dati".</div>}
           {aiData&&(
             <div>
-              <div style={{padding:"16px 18px",background:"#F8F4F2",borderRadius:10,marginBottom:16,fontSize:12,color:C.text,lineHeight:1.75}}>{aiData.sintesi}</div>
-              {aiData.alert&&<div style={{padding:"10px 16px",background:C.amberLight,border:`1px solid ${C.amber}30`,borderRadius:8,fontSize: 12,color:C.amber,fontWeight:600,marginBottom:16,display:"flex",alignItems:"center",gap:6}}><Icon name="warning" size={13}/> {aiData.alert}</div>}
+              <div style={{padding:"16px 18px",background:"#F8F4F2",borderRadius:10,marginBottom:16,fontSize:font.size.sm,color:C.text,lineHeight:1.75}}>{aiData.sintesi}</div>
+              {aiData.alert&&<div style={{padding:"10px 16px",background:C.amberLight,border:`1px solid ${C.amber}30`,borderRadius:8,fontSize: font.size.sm,color:C.amber,fontWeight:600,marginBottom:16,display:"flex",alignItems:"center",gap:6}}><Icon name="warning" size={13}/> {aiData.alert}</div>}
               <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(3,1fr)",gap:12}}>
                 {(aiData.azioni||[]).map((a,i)=>(
                   <div key={i} style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:10,padding:"16px 18px"}}>
-                    <div style={{width:26,height:26,background:C.red,borderRadius:7,display:"flex",alignItems:"center",justifyContent:"center",fontSize: 12,fontWeight:900,color:C.white,marginBottom:10}}>{i+1}</div>
-                    <div style={{fontSize:12,fontWeight:800,color:C.text,marginBottom:6}}>{a.titolo}</div>
-                    <div style={{fontSize: 12,color:C.textMid,lineHeight:1.65}}>{a.desc}</div>
-                    {onAddAction&&<button onClick={()=>onAddAction({label:a.titolo,azione:a.desc,fonte:`mese-${mese.key}`,meseSorgente:mese.key})} style={{marginTop:12,padding:"5px 12px",background:C.greenLight,color:C.green,border:`1px solid ${C.green}30`,borderRadius:6,fontSize: 12,fontWeight:700,cursor:"pointer",letterSpacing:"0.05em"}}>+ TRACCIA AZIONE</button>}
+                    <div style={{width:26,height:26,background:C.red,borderRadius:7,display:"flex",alignItems:"center",justifyContent:"center",fontSize: font.size.sm,fontWeight:900,color:C.white,marginBottom:10}}>{i+1}</div>
+                    <div style={{fontSize:font.size.sm,fontWeight:800,color:C.text,marginBottom:6}}>{a.titolo}</div>
+                    <div style={{fontSize: font.size.sm,color:C.textMid,lineHeight:1.65}}>{a.desc}</div>
+                    {onAddAction&&<button onClick={()=>onAddAction({label:a.titolo,azione:a.desc,fonte:`mese-${mese.key}`,meseSorgente:mese.key})} style={{marginTop:12,padding:"5px 12px",background:C.greenLight,color:C.green,border:`1px solid ${C.green}30`,borderRadius:6,fontSize: font.size.sm,fontWeight:700,cursor:"pointer",letterSpacing:"0.05em"}}>+ TRACCIA AZIONE</button>}
                   </div>
                 ))}
               </div>
@@ -659,21 +660,21 @@ function NuovoMeseModal({onCrea,onClose}) {
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:200}}>
       <div style={{background:C.white,borderRadius:16,padding:"28px 32px",width:320,boxShadow:"0 12px 48px rgba(0,0,0,0.18)"}}>
-        <h2 style={{margin:"0 0 20px",fontSize:18,fontWeight:900,color:C.text}}>Nuovo mese</h2>
+        <h2 style={{margin:"0 0 20px",fontSize:font.size.xl,fontWeight:900,color:C.text}}>Nuovo mese</h2>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:24}}>
           {[
-            {lbl:"Mese",el:<select value={m} onChange={e=>setM(+e.target.value)} style={{width:"100%",padding:"8px 12px",borderRadius:8,border:`1px solid ${C.borderStr}`,fontSize:12,color:C.text,background:C.white}}>{MN.slice(1).map((mn,i)=><option key={i+1} value={i+1}>{mn}</option>)}</select>},
-            {lbl:"Anno",el:<input type="number" value={y} onChange={e=>setY(+e.target.value)} style={{width:"100%",padding:"8px 12px",borderRadius:8,border:`1px solid ${C.borderStr}`,fontSize:12,color:C.text}}/>},
+            {lbl:"Mese",el:<select value={m} onChange={e=>setM(+e.target.value)} style={{width:"100%",padding:"8px 12px",borderRadius:8,border:`1px solid ${C.borderStr}`,fontSize:font.size.sm,color:C.text,background:C.white}}>{MN.slice(1).map((mn,i)=><option key={i+1} value={i+1}>{mn}</option>)}</select>},
+            {lbl:"Anno",el:<input type="number" value={y} onChange={e=>setY(+e.target.value)} style={{width:"100%",padding:"8px 12px",borderRadius:8,border:`1px solid ${C.borderStr}`,fontSize:font.size.sm,color:C.text}}/>},
           ].map(({lbl,el})=>(
             <div key={lbl}>
-              <label style={{fontSize: 12,fontWeight:700,color:C.textSoft,textTransform:"uppercase",letterSpacing:"0.09em",display:"block",marginBottom:6}}>{lbl}</label>
+              <label style={{fontSize: font.size.sm,fontWeight:700,color:C.textSoft,textTransform:"uppercase",letterSpacing:"0.09em",display:"block",marginBottom:6}}>{lbl}</label>
               {el}
             </div>
           ))}
         </div>
         <div style={{display:"flex",gap:10}}>
-          <button onClick={()=>onCrea(m,y)} style={{flex:1,padding:"11px",background:C.red,color:C.white,border:"none",borderRadius:9,fontWeight:800,fontSize:12,cursor:"pointer"}}>Crea</button>
-          <button onClick={onClose} style={{flex:1,padding:"11px",background:C.bgCard,color:C.textMid,border:`1px solid ${C.border}`,borderRadius:9,fontWeight:600,fontSize:12,cursor:"pointer"}}>Annulla</button>
+          <button onClick={()=>onCrea(m,y)} style={{flex:1,padding:"11px",background:C.red,color:C.white,border:"none",borderRadius:9,fontWeight:800,fontSize:font.size.sm,cursor:"pointer"}}>Crea</button>
+          <button onClick={onClose} style={{flex:1,padding:"11px",background:C.bgCard,color:C.textMid,border:`1px solid ${C.border}`,borderRadius:9,fontWeight:600,fontSize:font.size.sm,cursor:"pointer"}}>Annulla</button>
         </div>
       </div>
     </div>
@@ -722,9 +723,9 @@ class ErrorBoundary extends React.Component {
       <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#F8FAFC",padding:24,fontFamily:"'Inter',system-ui,sans-serif"}}>
         <div style={{maxWidth:420,textAlign:"center",background:"#fff",border:"1px solid #E8E0DC",borderRadius:16,padding:"36px 28px",boxShadow:"0 4px 20px rgba(15,23,42,0.08)"}}>
           <div style={{marginBottom:12}}><Icon name="refresh" size={38} color="#6E0E1A" /></div>
-          <h1 style={{margin:"0 0 10px",fontSize: 18,fontWeight:800,color:"#1C0A0A"}}>È disponibile una nuova versione</h1>
-          <p style={{margin:"0 0 22px",fontSize:14,color:"#6B4C44",lineHeight:1.6}}>Ricarico la pagina per aggiornare Foodos all'ultima versione…</p>
-          <button onClick={()=>window.location.reload()} style={{padding:"12px 26px",background:"#6E0E1A",color:"#fff",border:"none",borderRadius:10,fontWeight:800,fontSize:14,cursor:"pointer"}}>Ricarica ora</button>
+          <h1 style={{margin:"0 0 10px",fontSize: font.size.xl,fontWeight:800,color:"#1C0A0A"}}>È disponibile una nuova versione</h1>
+          <p style={{margin:"0 0 22px",fontSize:font.size.md,color:"#6B4C44",lineHeight:1.6}}>Ricarico la pagina per aggiornare Foodos all'ultima versione…</p>
+          <button onClick={()=>window.location.reload()} style={{padding:"12px 26px",background:"#6E0E1A",color:"#fff",border:"none",borderRadius:10,fontWeight:800,fontSize:font.size.md,cursor:"pointer"}}>Ricarica ora</button>
         </div>
       </div>
     );
@@ -734,17 +735,17 @@ class ErrorBoundary extends React.Component {
       <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#F8FAFC",padding:24,fontFamily:"'Inter',system-ui,sans-serif"}}>
         <div style={{maxWidth:420,textAlign:"center",background:"#fff",border:"1px solid #E8E0DC",borderRadius:16,padding:"36px 28px",boxShadow:"0 4px 20px rgba(15,23,42,0.08)"}}>
           <div style={{marginBottom:12,color:C.textSoft}}><Icon name="frown" size={38} /></div>
-          <h1 style={{margin:"0 0 10px",fontSize: 18,fontWeight:800,color:"#1C0A0A"}}>Qualcosa è andato storto</h1>
-          <p style={{margin:"0 0 22px",fontSize:14,color:"#6B4C44",lineHeight:1.6}}>L'errore è stato segnalato automaticamente. Ricarica la pagina per continuare.</p>
-          <button onClick={()=>window.location.reload()} style={{padding:"12px 26px",background:"#6E0E1A",color:"#fff",border:"none",borderRadius:10,fontWeight:800,fontSize:14,cursor:"pointer"}}>Ricarica</button>
+          <h1 style={{margin:"0 0 10px",fontSize: font.size.xl,fontWeight:800,color:"#1C0A0A"}}>Qualcosa è andato storto</h1>
+          <p style={{margin:"0 0 22px",fontSize:font.size.md,color:"#6B4C44",lineHeight:1.6}}>L'errore è stato segnalato automaticamente. Ricarica la pagina per continuare.</p>
+          <button onClick={()=>window.location.reload()} style={{padding:"12px 26px",background:"#6E0E1A",color:"#fff",border:"none",borderRadius:10,fontWeight:800,fontSize:font.size.md,cursor:"pointer"}}>Ricarica</button>
         </div>
       </div>
     );
     if (err) return (
       <div style={{padding:40,fontFamily:"'JetBrains Mono', ui-monospace, monospace",color:"#6E0E1A",background:"#FFF5F5",minHeight:"100vh"}}>
         <h2><Icon name="warning" size={18} /> Errore runtime</h2>
-        <pre style={{whiteSpace:"pre-wrap",fontSize: 12}}>{err.toString()}</pre>
-        <pre style={{whiteSpace:"pre-wrap",fontSize: 12,color:"#666"}}>{err.stack}</pre>
+        <pre style={{whiteSpace:"pre-wrap",fontSize: font.size.sm}}>{err.toString()}</pre>
+        <pre style={{whiteSpace:"pre-wrap",fontSize: font.size.sm,color:"#666"}}>{err.stack}</pre>
       </div>
     );
     return this.props.children;
@@ -1075,6 +1076,7 @@ export default function Dashboard({
   // isDirty() == true, intercettiamo il cambio view mostrando un modal.
   // pendingNav = target view richiesto (o null).
   const [pendingNav, setPendingNav] = useState(null);
+  const chiediConfermaImport = useConfirm();
   const [savingBeforeNav, setSavingBeforeNav] = useState(false);
   // setView "guarded": se una view ha modifiche non salvate mostra il modal;
   // altrimenti naviga normalmente. Zero refactor sui 30+ callsite di setView.
@@ -1678,10 +1680,25 @@ export default function Dashboard({
       sospette.length > 0 ? `Attenzione, quantità fuori scala (oltre 20 kg di un solo ingrediente) in: ${sospette.slice(0,5).join(', ')}. Nel file potrebbe esserci un punto di troppo.` : null,
       conAi.length > 0 ? `Letto con l'AI (controlla che sia giusto): ${conAi.join(', ')}` : null,
       troncati.length > 0 ? `File lungo, alcune ricette potrebbero mancare: ${troncati.join(', ')}` : null,
-      '',
-      'Salvo nel ricettario?',
     ].filter(v => v !== null).join('\n');
-    if (!window.confirm(righe)) { notify('Import annullato: non ho salvato niente.', true); return; }
+    // Era `window.confirm(righe)`: otto righe di riepilogo — quante ricette,
+    // quante senza prezzo, quali sostituiscono roba che c'è già — dentro una
+    // finestra del browser. Su iOS arriva senza il nome dell'applicazione,
+    // non si legge in due righe sul telefono, e non assomiglia a nessun'altra
+    // domanda che questo programma fa: chi la vede non sa se sta rispondendo
+    // a Foodos o a Safari. Ed è la domanda più pericolosa del prodotto —
+    // dietro c'è la riscrittura del ricettario.
+    //
+    // `useConfirm` è il componente che il progetto usa già dappertutto:
+    // stessa promessa, `pre-line` per tenere il riepilogo su più righe, Esc
+    // per annullare. Era l'ultimo `window.confirm` rimasto fuori dall'admin.
+    const ok = await chiediConfermaImport({
+      title: 'Salvo nel ricettario?',
+      message: righe,
+      confirmLabel: 'Sì, salva',
+      cancelLabel: 'Annulla',
+    });
+    if (!ok) { notify('Import annullato: non ho salvato niente.', true); return; }
 
     // Il tipo si scrive ADESSO, che sappiamo con che metodo lavora l'azienda:
     // a valle, senza tipo, un gusto di gelato diventava una torta a fette.
@@ -2543,13 +2560,13 @@ export default function Dashboard({
           return (
             <button key={it.id} onClick={()=>go(it.id)}
               style={{display:"flex",alignItems:"center",gap:9,width:"100%",textAlign:"left",padding:"8px 12px",borderRadius:8,border:"none",cursor:"pointer",
-                background:act?C.redLight:"transparent",color:act?C.red:C.text,fontSize: 12,fontWeight:act?700:500,fontFamily:"inherit"}}
+                background:act?C.redLight:"transparent",color:act?C.red:C.text,fontSize: font.size.sm,fontWeight:act?700:500,fontFamily:"inherit"}}
               onMouseEnter={e=>{if(!act)e.currentTarget.style.background="#F4EEEA";}} onMouseLeave={e=>{if(!act)e.currentTarget.style.background="transparent";}}>
               <span style={{color:act?C.red:C.textSoft,display:"flex"}}>{ic(ICONS[it.icon],15)}</span>
               <span style={{flex:1,whiteSpace:"nowrap"}}>{it.label}</span>
               {/* ChainBadge dinamico: appare solo se utente NON ha accesso al piano richiesto */}
               {!canAccessView(it.id,piano,auth?.user?.email)&&<ChainBadge active={act} size={13}/>}
-              {it.badge>0&&<span style={{background:C.red,color:"#fff",borderRadius:10,fontSize: 12,fontWeight:700,padding:"1px 7px"}}>{it.badge}</span>}
+              {it.badge>0&&<span style={{background:C.red,color:"#fff",borderRadius:10,fontSize: font.size.sm,fontWeight:700,padding:"1px 7px"}}>{it.badge}</span>}
               {it.alert&&!it.badge&&<span style={{width:7,height:7,borderRadius:"50%",background:"#E84B3A"}}/>}
             </button>
           );
@@ -2588,7 +2605,7 @@ export default function Dashboard({
               : <Logo size={26} style={{borderRadius:6, boxShadow:"0 4px 14px rgba(232,75,58,0.55), inset 0 1px 0 rgba(255,255,255,0.16)"}}/>
             }
             {!isTablet && <span style={{
-              fontSize: 13, fontWeight:800,
+              fontSize: font.size.base, fontWeight:800,
               letterSpacing:"0.02em", textTransform:"uppercase", whiteSpace:"nowrap",
               backgroundImage:"linear-gradient(180deg, #FFFFFF 0%, rgba(255,255,255,0.6) 100%)",
               backgroundClip:"text", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent",
@@ -2625,7 +2642,7 @@ export default function Dashboard({
                     }}/>}
                     {sec.id==="ai" && secHasLocked && <ChainBadge size={12}/>}
                     {secLabel}
-                    {sec.badge>0&&<span style={{background:"#E84B3A",color:"#fff",borderRadius:9,fontSize: 12,fontWeight:700,padding:"1px 6px"}}>{sec.badge}</span>}
+                    {sec.badge>0&&<span style={{background:"#E84B3A",color:"#fff",borderRadius:9,fontSize: font.size.sm,fontWeight:700,padding:"1px 6px"}}>{sec.badge}</span>}
                     <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{opacity:0.6,transform:open?"rotate(180deg)":"none",transition:`transform ${M.durFast} ${M.ease}`}}><polyline points="6 9 12 15 18 9"/></svg>
                   </button>
                   {/* Bridge trasparente (paddingTop) tra bottone ed elenco: così
@@ -2674,7 +2691,7 @@ export default function Dashboard({
             <input value={sidebarSearch} onChange={e=>setSidebarSearch(e.target.value)} placeholder="Cerca…"
               aria-label="Cerca nel menu"
               onKeyDown={e=>{ if(e.key==="Enter"&&searchHits.length){ e.preventDefault(); go(searchHits[0].id); } if(e.key==="Escape") setSidebarSearch(''); }}
-              style={{width:150,height:44,padding:"0 12px 0 32px",borderRadius:8,border:`1px solid ${T.borderOnDarkStr}`,background:"rgba(255,255,255,0.06)",color:"#fff",fontSize:12,outline:"none",fontFamily:"inherit"}}/>
+              style={{width:150,height:44,padding:"0 12px 0 32px",borderRadius:8,border:`1px solid ${T.borderOnDarkStr}`,background:"rgba(255,255,255,0.06)",color:"#fff",fontSize:font.size.sm,outline:"none",fontFamily:"inherit"}}/>
             <span style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:"rgba(255,255,255,0.5)",display:"flex",pointerEvents:"none"}}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             </span>
@@ -2689,8 +2706,8 @@ export default function Dashboard({
                       )}
                     </div>
                   ))}
-                  <div style={{padding:"6px 10px 2px",fontSize: 12,color:C.textSoft,borderTop:`1px solid ${C.border}`,marginTop:4}}>Invio apre il primo</div>
-                </>):<div style={{padding:"10px 12px",fontSize:12,color:C.textSoft}}>Nessuna sezione trovata.</div>}
+                  <div style={{padding:"6px 10px 2px",fontSize: font.size.sm,color:C.textSoft,borderTop:`1px solid ${C.border}`,marginTop:4}}>Invio apre il primo</div>
+                </>):<div style={{padding:"10px 12px",fontSize:font.size.sm,color:C.textSoft}}>Nessuna sezione trovata.</div>}
               </div>
             )}
           </div>
@@ -2705,7 +2722,7 @@ export default function Dashboard({
             style={{position:"relative",flexShrink:0,width:36,height:36,borderRadius:10,border:`1px solid ${T.borderOnDarkStr}`,background:"rgba(255,255,255,0.05)",color:"rgba(255,255,255,0.82)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",transition:`background ${M.durFast} ${M.ease}`}}
             onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.12)"} onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.05)"}>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-            {nonLette>0&&<span style={{position:"absolute",top:-4,right:-4,background:"#E84B3A",color:"#fff",borderRadius:999,minWidth:17,height:17,fontSize: 12,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 4px",border:"2px solid #1E0B11",lineHeight:1}}>{nonLette>9?"9+":nonLette}</span>}
+            {nonLette>0&&<span style={{position:"absolute",top:-4,right:-4,background:"#E84B3A",color:"#fff",borderRadius:999,minWidth:17,height:17,fontSize: font.size.sm,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 4px",border:"2px solid #1E0B11",lineHeight:1}}>{nonLette>9?"9+":nonLette}</span>}
           </button>
           )}
 
@@ -2725,13 +2742,13 @@ export default function Dashboard({
             <div style={{
               display:"inline-flex",alignItems:"center",gap:8,padding:"4px 10px 4px 12px",
               background:"rgba(255,255,255,0.06)",border:`1px solid ${T.borderOnDarkStr}`,
-              borderRadius:999,fontSize:12,color:"#F4ECE3",fontWeight:600,
+              borderRadius:999,fontSize:font.size.sm,color:"#F4ECE3",fontWeight:600,
               maxWidth:220,
             }}>
               <span aria-hidden style={{
                 width:20,height:20,borderRadius:"50%",background:"rgba(255,231,199,0.18)",
                 display:"inline-flex",alignItems:"center",justifyContent:"center",
-                fontSize: 12,fontWeight:800,color:"#FFE7C7",flexShrink:0,
+                fontSize: font.size.sm,fontWeight:800,color:"#FFE7C7",flexShrink:0,
               }}>
                 {(dipOp.dipendente?.nome?.[0] || '').toUpperCase()}{(dipOp.dipendente?.cognome?.[0] || '').toUpperCase()}
               </span>
@@ -2744,7 +2761,7 @@ export default function Dashboard({
                   background:"transparent",border:"none",cursor:"pointer",
                   color:"rgba(255,231,199,0.75)",padding:2,display:"inline-flex",
                   alignItems:"center",justifyContent:"center",flexShrink:0,
-                  fontSize: 12,fontWeight:600,textDecoration:"underline",
+                  fontSize: font.size.sm,fontWeight:600,textDecoration:"underline",
                 }}>
                 Cambia
               </button>
@@ -2755,15 +2772,20 @@ export default function Dashboard({
           <div style={{position:"relative",flexShrink:0}}>
             <button onClick={()=>setProfileOpen(o=>!o)} aria-label="Menu profilo"
               style={{display:"flex",alignItems:"center",gap:8,padding:"4px 8px 4px 4px",borderRadius:999,border:`1px solid ${T.borderOnDarkStr}`,background:profileOpen?"rgba(255,255,255,0.12)":"rgba(255,255,255,0.04)",cursor:"pointer"}}>
-              <span style={{width:28,height:28,borderRadius:"50%",background:"linear-gradient(135deg,#6E0E1A,#3D1515)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:"#fff"}}>{initial}</span>
+              <span style={{width:28,height:28,borderRadius:"50%",background:"linear-gradient(135deg,#6E0E1A,#3D1515)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:font.size.sm,fontWeight:700,color:"#fff"}}>{initial}</span>
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
             </button>
             {profileOpen&&(<>
-              <div onClick={()=>setProfileOpen(false)} style={{position:"fixed",inset:0,zIndex:55}}/>
+              {/* Il rettangolo trasparente che copre lo schermo e chiude il
+                  menu. Era un `<div onClick>`: col dito funziona, con la
+                  tastiera il menu si apriva e restava lì. Ora è un pulsante,
+                  invisibile ma raggiungibile, e dice cosa fa. */}
+              <button type="button" onClick={()=>setProfileOpen(false)} aria-label="Chiudi il menu"
+                style={{position:"fixed",inset:0,zIndex:55,background:"transparent",border:"none",padding:0,margin:0,cursor:"default"}}/>
               <div style={{position:"absolute",top:"100%",right:0,marginTop:6,width:248,background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,boxShadow:"0 16px 40px rgba(15,23,42,0.22)",padding:8,zIndex:60}}>
                 <div style={{padding:"8px 10px 10px",borderBottom:`1px solid ${C.border}`,marginBottom:6}}>
-                  <div style={{fontSize: 12,fontWeight:700,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{auth?.user?.email||"Account"}</div>
-                  <div style={{fontSize: 12,color:C.textSoft,marginTop:2}}>{nomeAttivita||"La mia attività"}</div>
+                  <div style={{fontSize: font.size.sm,fontWeight:700,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{auth?.user?.email||"Account"}</div>
+                  <div style={{fontSize: font.size.sm,color:C.textSoft,marginTop:2}}>{nomeAttivita||"La mia attività"}</div>
                 </div>
                 {[
                   {lbl:"Impostazioni",ic:"settings",on:()=>go("impostazioni")},
@@ -2777,21 +2799,21 @@ export default function Dashboard({
                    on:()=>{setProfileOpen(false);setShowNotifiche(true);}},
                   {lbl:"Novità",ic:"bell",on:()=>go("changelog")},
                 ].map(r=>(
-                  <button key={r.lbl} onClick={r.on} aria-label={r.lbl} style={{display:"flex",alignItems:"center",gap:10,width:"100%",textAlign:"left",padding:"8px 12px",borderRadius:8,border:"none",background:"transparent",cursor:"pointer",fontSize: 12,fontWeight:500,color:C.text,fontFamily:"inherit"}}
+                  <button key={r.lbl} onClick={r.on} aria-label={r.lbl} style={{display:"flex",alignItems:"center",gap:10,width:"100%",textAlign:"left",padding:"8px 12px",borderRadius:8,border:"none",background:"transparent",cursor:"pointer",fontSize: font.size.sm,fontWeight:500,color:C.text,fontFamily:"inherit"}}
                     onMouseEnter={e=>e.currentTarget.style.background="#F4EEEA"} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                     <span style={{color:C.textSoft,display:"flex"}}>{ic(ICONS[r.ic],15)}</span>{r.lbl}
                   </button>
                 ))}
                 {/* Zoom */}
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,padding:"8px 12px",margin:"4px 0",borderTop:`1px solid ${C.border}`,borderBottom:`1px solid ${C.border}`}}>
-                  <span style={{fontSize:12,color:C.textMid,fontWeight:600}}>Zoom</span>
+                  <span style={{fontSize:font.size.sm,color:C.textMid,fontWeight:600}}>Zoom</span>
                   <div style={{display:"flex",alignItems:"center",gap:4}}>
                     <button onClick={()=>stepZoom(-1)} style={{width:24,height:24,borderRadius:6,border:`1px solid ${C.borderStr}`,background:C.white,fontSize:15,fontWeight:800,color:C.textMid,cursor:"pointer",lineHeight:1}}>−</button>
-                    <span style={{minWidth:42,textAlign:"center",fontSize:12,fontWeight:700,color:C.text,fontVariantNumeric:"tabular-nums"}}>{Math.round(zoom*100)}%</span>
-                    <button onClick={()=>stepZoom(1)} style={{width:24,height:24,borderRadius:6,border:`1px solid ${C.borderStr}`,background:C.white,fontSize:14,fontWeight:800,color:C.textMid,cursor:"pointer",lineHeight:1}}>+</button>
+                    <span style={{minWidth:42,textAlign:"center",fontSize:font.size.sm,fontWeight:700,color:C.text,fontVariantNumeric:"tabular-nums"}}>{Math.round(zoom*100)}%</span>
+                    <button onClick={()=>stepZoom(1)} style={{width:24,height:24,borderRadius:6,border:`1px solid ${C.borderStr}`,background:C.white,fontSize:font.size.md,fontWeight:800,color:C.textMid,cursor:"pointer",lineHeight:1}}>+</button>
                   </div>
                 </div>
-                <button onClick={()=>{setProfileOpen(false);onSignOut&&onSignOut();}} style={{display:"flex",alignItems:"center",gap:10,width:"100%",textAlign:"left",padding:"8px 12px",borderRadius:8,border:"none",background:"transparent",cursor:"pointer",fontSize: 12,fontWeight:600,color:C.red,fontFamily:"inherit"}}
+                <button onClick={()=>{setProfileOpen(false);onSignOut&&onSignOut();}} style={{display:"flex",alignItems:"center",gap:10,width:"100%",textAlign:"left",padding:"8px 12px",borderRadius:8,border:"none",background:"transparent",cursor:"pointer",fontSize: font.size.sm,fontWeight:600,color:C.red,fontFamily:"inherit"}}
                   onMouseEnter={e=>e.currentTarget.style.background=C.redLight} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                   <span style={{display:"flex"}}>{ic(ICONS.logOut,15)}</span>Esci
                 </button>
@@ -2835,12 +2857,12 @@ export default function Dashboard({
           fontFamily:"'Inter',system-ui,sans-serif"}}>
           {[["Privacy","/privacy"],["Termini","/termini"],["Cookie","/cookie"],["Contatti","/contatti"]].map(([l,h],i)=>(
             <React.Fragment key={l}>
-              {i>0 && <span style={{fontSize: 12,color:punto}}>·</span>}
-              <a href={h} target="_blank" rel="noreferrer" style={{fontSize: 12,fontWeight:500,color:testo,textDecoration:"none",letterSpacing:"0.02em"}}>{l}</a>
+              {i>0 && <span style={{fontSize: font.size.sm,color:punto}}>·</span>}
+              <a href={h} target="_blank" rel="noreferrer" style={{fontSize: font.size.sm,fontWeight:500,color:testo,textDecoration:"none",letterSpacing:"0.02em"}}>{l}</a>
             </React.Fragment>
           ))}
-          <span style={{fontSize: 12,color:punto}}>·</span>
-          <span style={{fontSize: 12,fontWeight:500,color:testo,letterSpacing:"0.02em"}}>© {appName}</span>
+          <span style={{fontSize: font.size.sm,color:punto}}>·</span>
+          <span style={{fontSize: font.size.sm,fontWeight:500,color:testo,letterSpacing:"0.02em"}}>© {appName}</span>
         </div>
         )
       })()}
@@ -2848,7 +2870,7 @@ export default function Dashboard({
       {toast&&(
         <div style={{position:"fixed",top:isMobile?16:20,right:isMobile?16:24,left:isMobile?16:"auto",
           zIndex:Z.toast,background:toast.ok?T.text:T.brand,color:T.textOnDark,
-          padding:"11px 18px",borderRadius:R.xl,fontSize:13,fontWeight:500,letterSpacing:"-0.005em",
+          padding:"11px 18px",borderRadius:R.xl,fontSize:font.size.base,fontWeight:500,letterSpacing:"-0.005em",
           boxShadow:"0 10px 32px rgba(15,23,42,0.22), 0 2px 6px rgba(15,23,42,0.08)",
           display:"flex",alignItems:"center",gap:10,
           animation:"_fos_pageIn 0.22s cubic-bezier(0.32,0.72,0,1)"}}>
@@ -2909,7 +2931,7 @@ export default function Dashboard({
                   ? "linear-gradient(135deg, rgba(110,14,26,0.95) 0%, rgba(232,75,58,0.55) 100%)"
                   : "transparent",
                 color:active?"#FFFFFF":"rgba(255,255,255,0.72)",
-                fontWeight:active?700:500,fontSize:13,
+                fontWeight:active?700:500,fontSize:font.size.base,
                 letterSpacing:"-0.005em",
                 display:"flex",alignItems:"center",gap:11,
                 position:"relative",overflow:"hidden",
@@ -2922,14 +2944,14 @@ export default function Dashboard({
               <span style={{flex:1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{label}</span>
               {/* ChainBadge dinamico: solo se utente NON ha accesso al piano richiesto */}
               {!canAccessView(id, piano, auth?.user?.email)&&<ChainBadge active={active} size={13}/>}
-              {badge>0&&<span style={{background:active?"rgba(255,255,255,0.28)":"#6E0E1A",color:"#fff",borderRadius:10,fontSize: 12,fontWeight:700,padding:"2px 8px",minWidth:20,textAlign:"center",letterSpacing:0}}>{badge}</span>}
+              {badge>0&&<span style={{background:active?"rgba(255,255,255,0.28)":"#6E0E1A",color:"#fff",borderRadius:10,fontSize: font.size.sm,fontWeight:700,padding:"2px 8px",minWidth:20,textAlign:"center",letterSpacing:0}}>{badge}</span>}
               {alert&&badge===0&&<span style={{width:8,height:8,borderRadius:"50%",background:"#E84B3A",flexShrink:0,boxShadow:"0 0 0 0 rgba(232,75,58,0.6)",animation:"_sp_pulse 1.6s ease-in-out infinite"}}/>}
             </button>
           );
         };
 
         const Sep = ({label}) => (
-          <div style={{padding:"16px 20px 6px",fontSize: 12,fontWeight:600,
+          <div style={{padding:"16px 20px 6px",fontSize: font.size.sm,fontWeight:600,
             letterSpacing:"0.1em",textTransform:"uppercase",color:"rgba(255,255,255,0.36)"}}>
             {label}
           </div>
@@ -2968,7 +2990,7 @@ export default function Dashboard({
                   cursor: sidebarQuery ? "default" : "pointer",
                   textAlign:"left",
                   borderRadius:8, display:"flex", alignItems:"center", gap:10,
-                  color: textColor, fontSize: 12, fontWeight:800,
+                  color: textColor, fontSize: font.size.sm, fontWeight:800,
                   letterSpacing:"0.1em", textTransform:"uppercase",
                   transition:`color ${M.durFast} ${M.ease}, background ${M.durFast} ${M.ease}` }}
                 onMouseEnter={e=>{ if (sidebarQuery) return; e.currentTarget.style.color="#FFFFFF"; if(!hasActive) e.currentTarget.style.background="rgba(255,255,255,0.07)";}}
@@ -2977,7 +2999,7 @@ export default function Dashboard({
                 <span style={{ flex:1, whiteSpace:"nowrap" }}>{label}</span>
                 {badge>0 && !isOpen && (
                   <span style={{ background: alert ? "#E84B3A" : "rgba(255,255,255,0.16)",
-                    color:"#fff", borderRadius:10, fontSize: 12, fontWeight:700,
+                    color:"#fff", borderRadius:10, fontSize: font.size.sm, fontWeight:700,
                     padding:"1px 7px", minWidth:16, textAlign:"center", letterSpacing:0 }}>{badge}</span>
                 )}
                 {alert && badge===0 && !isOpen && (
@@ -3055,8 +3077,9 @@ export default function Dashboard({
           `}</style>
 
           {isMobile&&sidebarOpen&&(
-            <div onClick={()=>setSidebarOpen(false)}
+            <button type="button" onClick={()=>setSidebarOpen(false)} aria-label="Chiudi il menu"
               style={{position:"fixed",inset:0,background:"rgba(8,12,20,0.56)",backdropFilter:"blur(2px)",WebkitBackdropFilter:"blur(2px)",zIndex:Z.overlay,
+                border:"none",padding:0,margin:0,cursor:"default",
                 animation:`_fos_fadeIn ${M.durBase} ${M.ease}`}} />
           )}
 
@@ -3140,10 +3163,10 @@ export default function Dashboard({
                           boxShadow:"0 12px 32px rgba(110,14,26,0.65), inset 0 1px 0 rgba(255,255,255,0.18)"}}/>}
                 </div>
                 <div style={{flex:1,minWidth:0,position:"relative",zIndex:1}}>
-                  <div style={{fontSize:18,fontWeight:800,color:"#FFFFFF",letterSpacing:"-0.025em",lineHeight:1.1,
+                  <div style={{fontSize:font.size.xl,fontWeight:800,color:"#FFFFFF",letterSpacing:"-0.025em",lineHeight:1.1,
                     backgroundImage:"linear-gradient(180deg, #FFFFFF 0%, rgba(255,255,255,0.75) 100%)",
                     backgroundClip:"text", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent"}}>{appName}</div>
-                  <div style={{fontSize: 12,color:"rgba(255,255,255,0.55)",fontWeight:600,marginTop:4,
+                  <div style={{fontSize: font.size.sm,color:"rgba(255,255,255,0.55)",fontWeight:600,marginTop:4,
                     whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",letterSpacing:"0.06em",textTransform:"uppercase"}}>
                     {nomeAttivita || "La mia attività"}
                   </div>
@@ -3175,7 +3198,7 @@ export default function Dashboard({
                   backdropFilter:"blur(8px)",
                   WebkitBackdropFilter:"blur(8px)",
                   border:"1px solid rgba(255,255,255,0.08)",
-                  borderRadius:10, color:"#FFFFFF", fontSize:13,
+                  borderRadius:10, color:"#FFFFFF", fontSize:font.size.base,
                   outline:"none", fontFamily:"inherit", boxSizing:"border-box",
                   letterSpacing:"-0.005em", fontWeight:500,
                   transition:`background ${M.durBase} ${M.ease}, border-color ${M.durBase} ${M.ease}, box-shadow ${M.durBase} ${M.ease}`,
@@ -3219,7 +3242,7 @@ export default function Dashboard({
                       borderLeft: `3px solid ${accent}`,
                       cursor: "pointer", textAlign: "left",
                       borderRadius: 8, display: "flex", alignItems: "center", gap: 10,
-                      color: textColor, fontSize: 12, fontWeight: 800,
+                      color: textColor, fontSize: font.size.sm, fontWeight: 800,
                       letterSpacing: "0.1em", textTransform: "uppercase",
                       transition: `color ${M.durFast} ${M.ease}, background ${M.durFast} ${M.ease}` }}
                     onMouseEnter={e => { e.currentTarget.style.color = "#FFFFFF"; if (!active) e.currentTarget.style.background = "rgba(255,255,255,0.07)" }}
@@ -3281,13 +3304,13 @@ export default function Dashboard({
                   <span aria-hidden style={{
                     width:32,height:32,borderRadius:"50%",background:"rgba(255,231,199,0.18)",
                     display:"inline-flex",alignItems:"center",justifyContent:"center",
-                    fontSize:12,fontWeight:800,color:"#FFE7C7",flexShrink:0,
+                    fontSize:font.size.sm,fontWeight:800,color:"#FFE7C7",flexShrink:0,
                   }}>
                     {(dipOp.dipendente?.nome?.[0] || '').toUpperCase()}{(dipOp.dipendente?.cognome?.[0] || '').toUpperCase()}
                   </span>
                   <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontSize: 12,color:"rgba(255,231,199,0.65)",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em"}}>Attivo</div>
-                    <div style={{fontSize:13,color:"#FFF",fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                    <div style={{fontSize: font.size.sm,color:"rgba(255,231,199,0.65)",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em"}}>Attivo</div>
+                    <div style={{fontSize:font.size.base,color:"#FFF",fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
                       {[dipOp.dipendente?.nome, dipOp.dipendente?.cognome].filter(Boolean).join(' ')}
                     </div>
                   </div>
@@ -3295,7 +3318,7 @@ export default function Dashboard({
                     aria-label="Cambia dipendente"
                     style={{
                       background:"transparent",border:"1px solid rgba(255,231,199,0.30)",
-                      borderRadius:8,color:"#FFE7C7",padding:"6px 10px",fontSize: 12,
+                      borderRadius:8,color:"#FFE7C7",padding:"6px 10px",fontSize: font.size.sm,
                       fontWeight:600,cursor:"pointer",flexShrink:0,minHeight:32,
                     }}>
                     Cambia
@@ -3453,7 +3476,7 @@ export default function Dashboard({
               `}</style>
               <div style={{minWidth:0, flex: '1 1 auto'}}>
                 {/* Kicker futuristic: accent bar animata + breadcrumb */}
-                <div style={{fontSize: 12,color:T.textSoft,fontWeight:700,letterSpacing:"0.16em",textTransform:"uppercase",display:"flex",alignItems:"center",gap:10,marginBottom:8,lineHeight:1}}>
+                <div style={{fontSize: font.size.sm,color:T.textSoft,fontWeight:700,letterSpacing:"0.16em",textTransform:"uppercase",display:"flex",alignItems:"center",gap:10,marginBottom:8,lineHeight:1}}>
                   <span aria-hidden="true" className="fos-kicker-bar" style={{
                     display:'inline-block', width:24, height:2, borderRadius:2,
                     background:'linear-gradient(90deg, #E84B3A 0%, #FFB350 50%, #6E0E1A 100%)',
@@ -3463,7 +3486,7 @@ export default function Dashboard({
                   }}/>
                   <span style={{maxWidth:240,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",color:T.brand,fontWeight:800,letterSpacing:"0.18em"}}>{nomeAttivita||"Foodos"}</span>
                   {group&&<>
-                    <span style={{color:T.borderStr,fontSize: 12}}>›</span>
+                    <span style={{color:T.borderStr,fontSize: font.size.sm}}>›</span>
                     <span style={{color:T.textSoft,letterSpacing:"0.14em",fontWeight:600}}>{group}</span>
                   </>}
                 </div>
@@ -3512,10 +3535,10 @@ export default function Dashboard({
                   dangerouslySetInnerHTML={{__html:'<line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>'}} />
               </button>
               <div style={{flex:1,minWidth:0,textAlign:"center"}}>
-                <h1 style={{margin:0,fontSize:18,fontWeight:800,color:T.text,letterSpacing:"-0.02em",
+                <h1 style={{margin:0,fontSize:font.size.xl,fontWeight:800,color:T.text,letterSpacing:"-0.02em",
                   overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",lineHeight:1.15}}>{titolo}</h1>
                 {nomeAttivita && view!=="home" && (
-                  <div style={{fontSize: 12,color:T.textSoft,fontWeight:600,marginTop:2,
+                  <div style={{fontSize: font.size.sm,color:T.textSoft,fontWeight:600,marginTop:2,
                     overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",letterSpacing:"0.04em",textTransform:"uppercase"}}>
                     {nomeAttivita}
                   </div>
@@ -3533,7 +3556,7 @@ export default function Dashboard({
                   <path d="M13.73 21a2 2 0 01-3.46 0"/>
                 </svg>
                 {nonLette>0&&<span style={{position:"absolute",top:6,right:6,background:T.brand,color:"#fff",
-                  borderRadius:"50%",minWidth:16,height:16,fontSize: 12,fontWeight:700,
+                  borderRadius:"50%",minWidth:16,height:16,fontSize: font.size.sm,fontWeight:700,
                   display:"flex",alignItems:"center",justifyContent:"center",padding:"0 4px",
                   border:"1.5px solid rgba(247,248,250,1)",lineHeight:1}}>{nonLette>9?"9+":nonLette}</span>}
               </button>
@@ -3546,7 +3569,7 @@ export default function Dashboard({
             evitare flash bianco - l'utente vede un loader breve. */}
         <div className="fos-page" key={view} style={{padding:isMobile?"16px 16px 28px":isTablet?"16px 20px 28px":"16px 0 28px",flex:1,maxWidth:1200,width:"100%",margin:"0 auto",boxSizing:"border-box"}}>
         <React.Suspense fallback={
-          <div style={{display:'flex',alignItems:'center',justifyContent:'center',padding:'60px 20px',color:T.textSoft,fontSize:13,gap:10}}>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'center',padding:'60px 20px',color:T.textSoft,fontSize:font.size.base,gap:10}}>
             <div style={{width:18,height:18,borderRadius:'50%',border:`2px solid ${T.border}`,borderTopColor:T.brand,animation:'fos_spin 0.6s linear infinite'}}/>
             Caricamento…
             <style>{`@keyframes fos_spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
@@ -3556,7 +3579,7 @@ export default function Dashboard({
         {/* Banner offline */}
         {!isOnline&&(
           <div style={{marginBottom:16,padding:"11px 16px",background:T.brand,color:"#FFF",
-            borderRadius:R.lg,fontSize:13,fontWeight:600,display:"flex",alignItems:"center",gap:10,
+            borderRadius:R.lg,fontSize:font.size.base,fontWeight:600,display:"flex",alignItems:"center",gap:10,
             boxShadow:S.brandSoft}}>
             <span style={{width:6,height:6,borderRadius:"50%",background:"#FFF",animation:"_sp_pulse 1.6s ease-in-out infinite",boxShadow:"0 0 0 0 rgba(255,255,255,0.7)"}}/>
             Connessione assente - i dati potrebbero non essere aggiornati
@@ -3564,7 +3587,7 @@ export default function Dashboard({
         )}
         {offlineMode&&isOnline&&offlineCacheDate&&(
           <div style={{marginBottom:16,padding:"11px 16px",background:T.amberLight,
-            border:`1px solid #FDE68A`,color:"#92400E",borderRadius:R.lg,fontSize:13,fontWeight:500,
+            border:`1px solid #FDE68A`,color:"#92400E",borderRadius:R.lg,fontSize:font.size.base,fontWeight:500,
             display:"flex",alignItems:"center",gap:10}}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
@@ -3590,8 +3613,8 @@ export default function Dashboard({
             <div style={{ width: 48, height: 48, borderRadius: 12, background: C.bgSubtle, color: C.textSoft, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
             </div>
-            <div style={{ fontSize: 16, fontWeight: 800, color: C.text, marginBottom: 8 }}>Sei in "Tutte le sedi"</div>
-            <div style={{ fontSize: 13, color: C.textSoft, lineHeight: 1.55 }}>Questa pagina registra dati di una sede specifica. Scegli una sede dal selettore in alto a destra per continuare.</div>
+            <div style={{ fontSize: font.size.lg, fontWeight: 800, color: C.text, marginBottom: 8 }}>Sei in "Tutte le sedi"</div>
+            <div style={{ fontSize: font.size.base, color: C.textSoft, lineHeight: 1.55 }}>Questa pagina registra dati di una sede specifica. Scegli una sede dal selettore in alto a destra per continuare.</div>
           </div>
         )}
 
@@ -3691,7 +3714,7 @@ export default function Dashboard({
             <div style={{marginBottom:18}}><Icon name="book" size={52} color={C.red} /></div>
             <h2 style={{margin:"0 0 10px",fontSize:font.size["2xl"],fontWeight:900,color:C.text}}>Carica il {LEX.Ricettario.toLowerCase()}</h2>
             <p style={{color:C.textSoft,marginBottom:32,fontSize:font.size.base,lineHeight:1.75}}>Importa il tuo file Excel con le {LEX.ricette} per vedere subito food cost, margini e ricavi per ogni {LEX.prodotto}.</p>
-            <label style={{display:"inline-block",padding:"14px 32px",background:C.red,color:C.white,borderRadius:10,cursor:"pointer",fontWeight:800,fontSize:13,boxShadow:"0 4px 16px rgba(110,14,26,0.3)"}}>
+            <label style={{display:"inline-block",padding:"14px 32px",background:C.red,color:C.white,borderRadius:10,cursor:"pointer",fontWeight:800,fontSize:font.size.base,boxShadow:"0 4px 16px rgba(110,14,26,0.3)"}}>
               <Icon name="folder" size={14} /> Carica .xlsx {LEX.Ricettario.toLowerCase()}
               <input type="file" accept=".xlsx" multiple style={{display:"none"}} onChange={e=>e.target.files.length&&handleFile(Array.from(e.target.files))}/>
             </label>
@@ -3823,10 +3846,10 @@ export default function Dashboard({
           onClick={(e) => { if (e.target === e.currentTarget && !savingBeforeNav) setPendingNav(null); }}
           style={{ position: "fixed", inset: 0, background: "rgba(28,10,10,0.55)", zIndex: 10000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
           <div style={{ background: "#fff", borderRadius: 14, boxShadow: "0 20px 60px rgba(0,0,0,0.25)", maxWidth: 460, width: "100%", padding: isMobile ? 20 : 26 }}>
-            <div id="dirty-guard-title" style={{ fontSize: 18, fontWeight: 800, color: "#1C0A0A", marginBottom: 8, letterSpacing: "-0.01em" }}>
+            <div id="dirty-guard-title" style={{ fontSize: font.size.xl, fontWeight: 800, color: "#1C0A0A", marginBottom: 8, letterSpacing: "-0.01em" }}>
               Hai modifiche non salvate
             </div>
-            <div style={{ fontSize: 13, color: "#4B3832", lineHeight: 1.55, marginBottom: 20 }}>
+            <div style={{ fontSize: font.size.base, color: "#4B3832", lineHeight: 1.55, marginBottom: 20 }}>
               Se esci ora perdi le modifiche fatte in questa pagina. Vuoi salvarle prima di cambiare pagina?
             </div>
             {/* 3 bottoni su un'unica riga (audit 2026-07-28): niente flexWrap

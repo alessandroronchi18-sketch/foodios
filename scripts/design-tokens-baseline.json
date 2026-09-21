@@ -5,7 +5,7 @@
   },
   "src/Dashboard.jsx": {
     "colore-a-mano": 154,
-    "testo-a-mano": 98,
+    "testo-a-mano": 4,
     "tripla-a-mano": 1
   },
   "src/admin/AdminPage.jsx": {
@@ -149,8 +149,8 @@
     "testo-a-mano": 13
   },
   "src/components/Impostazioni.jsx": {
-    "colore-a-mano": 85,
-    "testo-a-mano": 64,
+    "colore-a-mano": 43,
+    "testo-a-mano": 13,
     "antizoom-a-mano": 2
   },
   "src/components/ImpostazioniSedi.jsx": {
@@ -339,8 +339,8 @@
     "tripla-a-mano": 2
   },
   "src/views/CostiAziendaliView.jsx": {
-    "colore-a-mano": 45,
-    "testo-a-mano": 18,
+    "colore-a-mano": 27,
+    "testo-a-mano": 5,
     "tripla-a-mano": 4,
     "antizoom-a-mano": 1
   },

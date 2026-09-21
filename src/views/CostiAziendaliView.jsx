@@ -5,7 +5,7 @@
 
 import React, { useEffect, useState, useMemo } from 'react'
 import { fmtp0 } from '../lib/formatIt'
-import { color as T, radius as R, shadow as S, typo, ui3, ui } from '../lib/theme'
+import { color as T, radius as R, shadow as S, typo, ui3, ui, font } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from '../components/Icon'
 import { useConfirm } from '../components/ConfirmModal'
@@ -174,7 +174,7 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
           <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', justifyContent: 'space-between', gap: 12 }}>
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: C.textSoft, marginBottom: 4 }}>Ambito visualizzazione</div>
-              <div style={{ fontSize: 13, color: C.textMid, lineHeight: 1.4 }}>
+              <div style={{ fontSize: font.size.base, color: C.textMid, lineHeight: 1.4 }}>
                 {scope === 'all'
                   ? <>Stai vedendo <b style={{ color: C.text }}>tutti i costi dell'azienda</b> (globali + di tutte le sedi).</>
                   : <>Stai vedendo i costi della sede <b style={{ color: C.text }}>{sedeAttivaNome}</b> (specifici di sede + globali azienda).</>}
@@ -191,9 +191,9 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
                     style={{
                       padding: '8px 16px', minHeight: 44,
                       borderRadius: 8, border: 'none', cursor: 'pointer',
-                      background: active ? '#FFFFFF' : 'transparent',
+                      background: active ? T.white : 'transparent',
                       color: active ? T.brand : C.textMid,
-                      fontSize: 12, fontWeight: active ? 800 : 600,
+                      fontSize: font.size.sm, fontWeight: active ? 800 : 600,
                       letterSpacing: '0.01em',
                       boxShadow: active ? '0 1px 3px rgba(15,23,42,0.10), 0 0 0 1px rgba(110,14,26,0.08)' : 'none',
                       transition: 'background 140ms ease, color 140ms ease',
@@ -264,9 +264,9 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
                   display: 'flex', flexDirection: 'column', gap: 5, minHeight: 78,
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
-                    <span style={{ width: 22, height: 22, borderRadius: '50%', background: T.brand, color: '#FFF', fontSize: typo.small.fontSize, fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{i + 1}</span>
+                    <span style={{ width: 22, height: 22, borderRadius: '50%', background: T.brand, color: T.white, fontSize: typo.small.fontSize, fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{i + 1}</span>
                     <div style={{ minWidth: 0, flex: 1 }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: C.text, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={v.voce}>{v.voce}</div>
+                      <div style={{ fontSize: font.size.base, fontWeight: 700, color: C.text, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={v.voce}>{v.voce}</div>
                       <div style={{ fontSize: typo.small.fontSize, color: C.textSoft, marginTop: 2 }}>{catLbl}</div>
                     </div>
                   </div>
@@ -299,9 +299,9 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
               width: '100%', boxSizing: 'border-box',
               padding: '10px 36px 10px 14px',
               minHeight: isMobile ? 44 : isTablet ? 44 : 40,
-              fontSize: 13,
+              fontSize: font.size.base,
               border: `1px solid ${filterCategoria ? T.brand : C.border}`, borderRadius: 10,
-              background: '#FFFFFF', color: C.text,
+              background: T.white, color: C.text,
               appearance: 'none', WebkitAppearance: 'none',
               cursor: 'pointer', fontWeight: 500,
               outline: 'none',
@@ -326,13 +326,13 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
             style={{
               padding: '0 12px',
               minHeight: isMobile ? 40 : isTablet ? 44 : 36,
-              background: '#FFFFFF', color: C.textMid,
+              background: T.white, color: C.textMid,
               border: `1px solid ${C.border}`, borderRadius: 999,
               fontSize: isMobile ? 14 : 12, fontWeight: 600, cursor: 'pointer',
               display: 'inline-flex', alignItems: 'center', gap: 6,
               whiteSpace: 'nowrap',
             }}>
-            <span aria-hidden style={{ fontSize: 14, lineHeight: 1, color: C.textSoft }}>×</span>
+            <span aria-hidden style={{ fontSize: font.size.md, lineHeight: 1, color: C.textSoft }}>×</span>
             Rimuovi filtro
           </button>
         )}
@@ -343,7 +343,7 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
           style={{
             padding: '10px 18px',
             minHeight: isMobile ? 44 : isTablet ? 44 : 40,
-            background: T.brand, color: '#FFFFFF',
+            background: T.brand, color: T.white,
             border: 'none', borderRadius: 10,
             fontSize: isMobile ? 15 : 13, fontWeight: 700,
             cursor: 'pointer',
@@ -352,7 +352,7 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
             letterSpacing: '-0.01em',
             width: isMobile ? '100%' : 'auto',
           }}>
-          <Icon name="plus" size={15} color="#FFFFFF" />
+          <Icon name="plus" size={15} color={T.white} />
           Aggiungi voce
         </button>
       </div>
@@ -362,7 +362,7 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
         <div style={{
           padding: 60, textAlign: 'center', color: C.textSoft,
           background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 14,
-          fontSize: 13,
+          fontSize: font.size.base,
         }}>Caricamento…</div>
       ) : vociFiltrate.length === 0 ? (
         <EmptyState filterCategoria={filterCategoria} onAdd={nuovaVoce} />
@@ -395,13 +395,13 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
                       minWidth: 0, flex: 1,
                     }}>
                       <span style={{
-                        fontSize: typo.small.fontSize, fontWeight: 800, color: '#6E0E1A',
+                        fontSize: typo.small.fontSize, fontWeight: 800, color: T.brand,
                         textTransform: 'uppercase', letterSpacing: '0.05em',
                         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                       }}>{catLabel}</span>
                       <span style={{
                         fontSize: typo.small.fontSize, fontWeight: 600, color: C.textSoft,
-                        background: '#FFFFFF', border: `1px solid ${C.borderSoft}`,
+                        background: T.white, border: `1px solid ${C.borderSoft}`,
                         padding: '2px 7px', borderRadius: 10, ...TNUM,
                         flexShrink: 0,
                       }}>{gruppo.voci.length}</span>
@@ -411,7 +411,7 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
                       display: 'flex', flexDirection: 'column', alignItems: 'flex-end',
                     }}>
                       <span style={{
-                        fontSize: 13, fontWeight: 700, color: T.brand, ...TNUM,
+                        fontSize: font.size.base, fontWeight: 700, color: T.brand, ...TNUM,
                         letterSpacing: '-0.01em',
                       }}>{fmt0(gruppo.totaleMensile)}/mese</span>
                       {totMese > 0 && (
@@ -451,7 +451,7 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
                 Totale costi aziendali
               </span>
               <span style={{
-                fontSize: 14, fontWeight: 800, color: T.brand, ...TNUM,
+                fontSize: font.size.md, fontWeight: 800, color: T.brand, ...TNUM,
                 letterSpacing: '-0.015em',
               }}>{fmt0(totMese)}/mese</span>
             </div>
@@ -504,7 +504,7 @@ function VoceRow({ v, sedi, isMobile, iconBtnSize = 40, onEdit, onDelete }) {
       {/* Descrizione */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{
-          fontSize: 14, fontWeight: 600, color: C.text,
+          fontSize: font.size.md, fontWeight: 600, color: C.text,
           letterSpacing: '-0.01em', lineHeight: 1.3,
           overflow: 'hidden', textOverflow: 'ellipsis',
           whiteSpace: isMobile ? 'normal' : 'nowrap',
@@ -605,14 +605,14 @@ function VoceRow({ v, sedi, isMobile, iconBtnSize = 40, onEdit, onDelete }) {
             title="Elimina"
             style={{
               padding: 0, width: iconBtnSize, height: iconBtnSize,
-              background: '#FEF2F2', border: '1px solid #FECACA',
+              background: T.redLight, border: '1px solid #FECACA',
               borderRadius: 10, cursor: 'pointer',
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
               transition: 'background 0.15s',
               flexShrink: 0,
             }}
             onMouseEnter={e => { e.currentTarget.style.background = '#FEE2E2' }}
-            onMouseLeave={e => { e.currentTarget.style.background = '#FEF2F2' }}>
+            onMouseLeave={e => { e.currentTarget.style.background = T.redLight }}>
             <Icon name="trash" size={14} color={T.brand} />
           </button>
         </div>
@@ -644,7 +644,7 @@ function EmptyState({ filterCategoria, onAdd }) {
         Nessuna voce di costo {filterCategoria ? 'in questa categoria' : 'configurata'}
       </div>
       <div style={{
-        fontSize: 13, color: C.textSoft, lineHeight: 1.55,
+        fontSize: font.size.base, color: C.textSoft, lineHeight: 1.55,
         maxWidth: 420, margin: '0 auto 18px',
       }}>
         Aggiungi le tue voci (consumabili, utenze, manutenzione…) per vederle riflesse nel P&L mensile.
@@ -654,13 +654,13 @@ function EmptyState({ filterCategoria, onAdd }) {
           onClick={onAdd}
           style={{
             padding: '10px 20px', minHeight: 44,
-            background: T.brand, color: '#FFFFFF',
+            background: T.brand, color: T.white,
             border: 'none', borderRadius: 10,
-            fontSize: 14, fontWeight: 700, cursor: 'pointer',
+            fontSize: font.size.md, fontWeight: 700, cursor: 'pointer',
             display: 'inline-flex', alignItems: 'center', gap: 8,
             boxShadow: '0 1px 2px rgba(110,14,26,0.18), 0 4px 10px rgba(110,14,26,0.12)',
           }}>
-          <Icon name="plus" size={15} color="#FFFFFF" />
+          <Icon name="plus" size={15} color={T.white} />
           Aggiungi la prima voce
         </button>
       )}
@@ -681,7 +681,7 @@ function KpiBox({ label, value, sub, accent, highlight }) {
       background: isHighlight
         ? 'linear-gradient(135deg, #6E0E1A 0%, #4A0612 100%)'
         : C.bgCard,
-      border: `1px solid ${isHighlight ? '#4A0612' : C.border}`,
+      border: `1px solid ${isHighlight ? T.brandDarker : C.border}`,
       borderRadius: 14,
       boxShadow: isHighlight
         ? '0 8px 24px rgba(110,14,26,0.25), inset 0 1px 0 rgba(255,255,255,0.15)'
@@ -708,7 +708,7 @@ function KpiBox({ label, value, sub, accent, highlight }) {
       <div style={{
         position: 'relative',
         fontSize: 26, fontWeight: 800,
-        color: isHighlight ? '#FFFFFF' : accentCol,
+        color: isHighlight ? T.white : accentCol,
         ...TNUM,
         letterSpacing: '-0.03em', lineHeight: 1.1,
         minHeight: 34,
@@ -740,7 +740,7 @@ function DialogFormCosto({ form, setForm, sedi, isMobile, onClose, onSave }) {
     minHeight: isMobile ? 46 : 42,
     border: `1px solid ${T.border}`, borderRadius: 10,
     fontSize: isMobile ? 16 : 14,
-    color: T.text, outline: 'none', background: '#FFFFFF',
+    color: T.text, outline: 'none', background: T.white,
     fontFamily: 'inherit',
     transition: 'border-color 0.15s, box-shadow 0.15s',
   }
@@ -752,17 +752,17 @@ function DialogFormCosto({ form, setForm, sedi, isMobile, onClose, onSave }) {
   }
   const btnPrimaryStyle = {
     padding: '11px 22px', minHeight: 46,
-    background: T.brand, color: '#FFFFFF',
+    background: T.brand, color: T.white,
     border: 'none', borderRadius: 11,
-    fontSize: 14, fontWeight: 700, cursor: 'pointer',
+    fontSize: font.size.md, fontWeight: 700, cursor: 'pointer',
     boxShadow: '0 1px 2px rgba(110,14,26,0.2), 0 4px 10px rgba(110,14,26,0.15)',
     letterSpacing: '-0.01em',
   }
   const btnSecondaryStyle = {
     padding: '11px 22px', minHeight: 46,
-    background: '#FFFFFF', color: T.textMid,
+    background: T.white, color: T.textMid,
     border: `1px solid ${T.border}`, borderRadius: 11,
-    fontSize: 14, fontWeight: 600, cursor: 'pointer',
+    fontSize: font.size.md, fontWeight: 600, cursor: 'pointer',
   }
 
   return (
@@ -776,7 +776,7 @@ function DialogFormCosto({ form, setForm, sedi, isMobile, onClose, onSave }) {
         backdropFilter: 'blur(2px)',
       }}>
       <div style={{
-        background: '#FFFFFF',
+        background: T.white,
         borderRadius: isMobile ? '20px 20px 0 0' : 18,
         maxWidth: 560, width: '100%',
         maxHeight: isMobile ? '92vh' : 'calc(100vh - 32px)',

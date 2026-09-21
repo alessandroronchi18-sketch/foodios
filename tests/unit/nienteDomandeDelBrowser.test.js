@@ -50,11 +50,14 @@ const AMMESSI_PER_SEMPRE = [
 // chiamate vere erano già 2 (il `window.prompt` del mese era stato tolto e del
 // prompt era rimasto solo il racconto in un commento, che il setaccio non
 // conta). È il motivo per cui questi numeri si ricontano invece di ereditarli.
-const DA_CORREGGERE = {
-  // Import del ricettario: la domanda «sovrascrivo?» prima di riscrivere le
-  // ricette. È la domanda più pericolosa del prodotto e la fa Safari.
-  'src/Dashboard.jsx': 1,
-}
+// 21/09/2026: l'elenco è **vuoto**. L'ultima era l'import del ricettario in
+// `Dashboard.jsx` — la domanda «sovrascrivo?» prima di riscrivere le ricette,
+// cioè la più pericolosa del prodotto, e la faceva Safari. Adesso la fa
+// `useConfirm` come tutte le altre.
+//
+// Il cricchetto da qui in avanti è a zero: chi ne aggiunge una deve scriverla
+// qui col motivo, e il numero non può che restare zero o scendere.
+const DA_CORREGGERE = {}
 
 function tuttiIFile(dir, out = []) {
   for (const n of readdirSync(dir)) {
