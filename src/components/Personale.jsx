@@ -164,6 +164,24 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = 
   const [archCount, setArchCount] = useState(0)
   const [search, setSearch] = useState('')
   const [orgData, setOrgData] = useState({ reparti: [] }) // organigramma (per assegnare reparto al dipendente)
+  // ── Eliminare un dipendente dall'archivio ─────────────────────────────
+  //
+  // Richiesta del titolare, 21/09/2026: «in personale, in archivia dipendenti
+  // devo poter anche eliminare un dipendente, ovviamente con doppio check per
+  // non rischiare di fare un errore».
+  //
+  // Il doppio controllo qui non è una cortesia: **eliminare una persona
+  // cancella i suoi turni**. La riga `turni` ha `on delete cascade` sul
+  // dipendente (migrazione 20260513), e i turni sono quelli con cui il P&L
+  // calcola il costo del lavoro dei mesi passati. Cancellare una persona che
+  // ha lavorato sei mesi **riscrive il costo di quei sei mesi**.
+  //
+  // Quindi la finestra non chiede «sei sicuro?»: dice quanti turni sparirebbero
+  // e da quale mese, e per procedere fa scrivere il nome. Un clic sbagliato
+  // non basta, e nemmeno due.
+  const [elimTarget, setElimTarget] = useState(null)   // { d, turni, primo, ultimo, codice }
+  const [elimConferma, setElimConferma] = useState('')
+  const [eliminando, setEliminando] = useState(false)
 
   // Cognome = ultima parola del nome completo (per ordinamento alfabetico).
   const cognomeKey = (n) => (n || '').trim().split(/\s+/).slice(-1)[0]?.toLowerCase() || ''
@@ -284,6 +302,49 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = 
     carica()
   }
 
+  /** Cosa si porta dietro l'eliminazione di questa persona. */
+  async function apriElimina(d) {
+    setElimConferma('')
+    setElimTarget({ d, turni: null, primo: null, ultimo: null, codice: false })
+    try {
+      const { data, error } = await supabase.from('turni')
+        .select('data').eq('organization_id', orgId).eq('dipendente_id', d.id).order('data')
+      if (error) throw error
+      const date = (data || []).map(r => r.data).filter(Boolean)
+      // Il codice a 4 cifre sta in un'altra tabella e sparisce anche lui.
+      const { count: nCod } = await supabase.from('dipendenti_codici')
+        .select('dipendente_id', { count: 'exact', head: true })
+        .eq('organization_id', orgId).eq('dipendente_id', d.id)
+      setElimTarget(t => t && t.d.id === d.id
+        ? { ...t, turni: date.length, primo: date[0] || null, ultimo: date[date.length - 1] || null, codice: (nCod || 0) > 0 }
+        : t)
+    } catch (e) {
+      // Se non si riesce a contare, NON si finge che non ci sia niente: si
+      // dice che non si sa, e il numero mancante è di per sé un motivo per
+      // fermarsi un secondo in più.
+      console.error('conteggio turni prima di eliminare:', e)
+      setElimTarget(t => t && t.d.id === d.id ? { ...t, turni: 'ignoto' } : t)
+    }
+  }
+
+  async function eliminaDefinitivamente() {
+    const d = elimTarget?.d
+    if (!d || !orgId || eliminando) return
+    setEliminando(true)
+    try {
+      const { error } = await supabase.from('dipendenti').delete()
+        .eq('id', d.id).eq('organization_id', orgId)
+      if (error) throw error
+      notify(`${d.nome} è stato eliminato definitivamente.`)
+      setElimTarget(null); setElimConferma('')
+      carica()
+    } catch (e) {
+      notify('Non ho potuto eliminare: ' + (e.message || 'errore di rete'), false)
+    } finally {
+      setEliminando(false)
+    }
+  }
+
   async function riattiva(id) {
     if (!orgId) return
     const { error } = await supabase.from("dipendenti").update({ attivo: true }).eq("id", id).eq("organization_id", orgId)
@@ -332,34 +393,61 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = 
   // e vale per telefono E tablet. Scritta qui come `isMobile ? 16 : 13` saltava
   // proprio il tablet, perché `isMobile` è falso sull'iPad.
   const inputSt = { width:"100%", height: 40, padding: "0 12px", borderRadius: R.md, border:`1px solid ${C.borderStr}`, fontSize: F.size.base, color:C.text, background: C.bgCard, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }
-  const formVisible = !isMobile || showForm
+  // ── Il modulo è una sezione, non una colonna stretta ───────────────────
+  //
+  // Segnalato dal titolare il 21/09/2026: «l'inserimento di un nuovo
+  // dipendente è tutto schiacciato sulla sinistra con molte box disallineate,
+  // piuttosto rendila una sezione a parte».
+  //
+  // Aveva ragione, e la causa stava in una riga sola: la pagina era una
+  // griglia `340px 1fr` col modulo **sempre aperto** nella colonna stretta di
+  // sinistra. Quindici campi in 340 pixel vanno per forza uno sotto l'altro, e
+  // quelli appaiati dentro (paga/ore, lordo/netto, contratto/livello)
+  // diventavano coppie di caselle da 160 px che non si incolonnavano con
+  // niente. Il modulo era anche sempre lì, anche quando non serviva a nessuno,
+  // e si mangiava un terzo dello schermo all'elenco.
+  //
+  // Adesso: l'elenco prende tutta la larghezza, e «Nuovo dipendente» apre una
+  // **sezione sua** — larga, coi campi raggruppati per argomento e incolonnati
+  // su una griglia vera.
+  const mostraForm = showForm || editId != null
 
   return (
-    <div style={{ display: isMobile ? "block" : "grid", gridTemplateColumns: isMobile ? undefined : "340px 1fr", gap:24, alignItems:"start", paddingBottom: isMobile ? 80 : 0 }}>
-      {/* Form */}
-      {formVisible && (
+    <div style={{ paddingBottom: isMobile ? 80 : 0 }}>
+      {/* La sezione del modulo */}
+      {mostraForm && (
       <div style={{
         background:C.bgCard,
         borderRadius: isMobile ? 0 : 16,
-        padding: isMobile ? "20px 16px 100px" : "20px 24px",
+        padding: isMobile ? "20px 16px 100px" : "24px 28px",
         border: isMobile ? "none" : `1px solid ${C.border}`,
         boxShadow: isMobile ? "none" : "0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)",
-        position: isMobile ? "fixed" : "sticky",
-        top: isMobile ? 0 : 20,
+        position: isMobile ? "fixed" : "relative",
+        top: isMobile ? 0 : "auto",
         left: isMobile ? 0 : "auto",
         right: isMobile ? 0 : "auto",
         bottom: isMobile ? 0 : "auto",
         zIndex: isMobile ? 1000 : "auto",
         overflowY: isMobile ? "auto" : "visible",
+        maxWidth: 900,
       }}>
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
-          <div style={{ fontSize:F.size.base, fontWeight:800, color:C.text, display:"inline-flex", alignItems:"center", gap:6 }}>
-            <Icon name={editId ? "edit" : "plus"} size={15} />{editId ? "Modifica dipendente" : "Nuovo dipendente"}
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:18, gap:10, flexWrap:"wrap" }}>
+          <div style={{ fontSize:F.size.lg, fontWeight:800, color:C.text, display:"inline-flex", alignItems:"center", gap:8 }}>
+            <Icon name={editId ? "edit" : "plus"} size={16} />{editId ? "Modifica dipendente" : "Nuovo dipendente"}
           </div>
-          {isMobile && (
-            <button onClick={reset} aria-label="Chiudi form" style={{ padding:"10px 12px", minWidth:44, minHeight:44, background:"transparent", border:"none", color:C.textSoft, cursor:"pointer", display:"inline-flex", alignItems:"center", justifyContent:"center" }}><Icon name="x" size={16} /></button>
-          )}
+          <button onClick={reset} aria-label="Torna all'elenco dei dipendenti"
+            style={{ padding:"0 14px", minHeight:44, background:"transparent", border:`1px solid ${C.border}`, borderRadius:8,
+              color:C.textMid, fontSize:F.size.sm, fontWeight:700, cursor:"pointer", display:"inline-flex", alignItems:"center", gap:6, fontFamily:"inherit" }}>
+            <Icon name="chevL" size={13} />Torna all&rsquo;elenco
+          </button>
         </div>
+        {/* I campi su una griglia vera: due colonne sul computer, una sul
+            telefono. Le coppie (paga/ore, lordo/netto, contratto/livello)
+            prendono tutta la riga e usano lo STESSO passo della griglia di
+            fuori: così le caselle della riga sotto stanno esattamente sotto
+            quelle della riga sopra. È la regola permanente
+            sull'allineamento, applicata al modulo che l'aveva persa. */}
+        <div style={{ display: "grid", gridTemplateColumns: dito ? "1fr" : "repeat(2, minmax(0, 1fr))", columnGap: 20, alignItems: "start" }}>
         {[["Nome e cognome *","nome","text","es. Mario Rossi"],["Ruolo","ruolo","text","es. Pasticciere (facoltativo)"]].map(([lbl,key,type,ph])=>(
           <div key={key} style={{ marginBottom:12 }}>
             <div style={{ fontSize: typo.small.fontSize, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:4 }}>{lbl}</div>
@@ -393,7 +481,7 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = 
             )}
           </>)}
         </div>
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:12 }}>
+        <div style={{ display:"grid", gridTemplateColumns: dito ? "1fr" : "repeat(2, minmax(0, 1fr))", columnGap:20, marginBottom:12, gridColumn:"1 / -1" }}>
           <div>
             <div title="Costo orario lordo (stipendio mensile / ore mensili)" style={{ fontSize: typo.small.fontSize, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:4, cursor: 'help' }}>€/ora</div>
             <input type="number" min="0" step="0.5" value={form.costo_orario} onChange={e=>setForm(f=>({...f,costo_orario:e.target.value}))} style={inputSt}/>
@@ -409,17 +497,17 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = 
             si leggeva un numero e tre centimetri sotto, per la stessa persona,
             se ne leggeva un altro più alto del 40%. */}
         {form.costo_orario && form.ore_settimana && (
-          <div style={{ marginBottom:12, padding:"8px 12px", background:C.amberLight, borderRadius:8, fontSize: typo.small.fontSize, color:C.amberDark, fontWeight:700 }}>
+          <div style={{ gridColumn:"1 / -1", marginBottom:12, padding:"8px 12px", background:C.amberLight, borderRadius:8, fontSize: typo.small.fontSize, color:C.amberDark, fontWeight:700 }}>
             Costo mese per l&apos;azienda (contributi e TFR compresi): {fmt(costoPersonaleMensile([{ costo_orario: form.costo_orario, ore_settimana: form.ore_settimana }]).totale)}
           </div>
         )}
 
         {/* STIPENDIO MENSILE + CONTRATTO */}
-        <div style={{ marginBottom: 12, padding: 12, background: T.bgSubtle, border: `1px solid ${C.border}`, borderRadius: 10 }}>
+        <div style={{ gridColumn: '1 / -1', marginBottom: 12, padding: 12, background: T.bgSubtle, border: `1px solid ${C.border}`, borderRadius: 10 }}>
           <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>
             Stipendio mensile (in alternativa al costo orario)
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: dito ? '1fr' : 'repeat(2, minmax(0, 1fr))', columnGap: 20, marginBottom: 10 }}>
             <div>
               <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Lordo (€)</div>
               <input type="number" min="0" step="10" value={form.stipendio_lordo_mensile}
@@ -440,7 +528,7 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = 
               setForm={setForm}
             />
           )}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: dito ? '1fr' : 'repeat(2, minmax(0, 1fr))', columnGap: 20, marginTop: 10 }}>
             <div>
               <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Tipo contratto</div>
               <select value={form.contratto_tipo} onChange={e => setForm(f => ({ ...f, contratto_tipo: e.target.value }))} style={inputSt}>
@@ -489,9 +577,10 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = 
             </select>
           </div>
         )}
-        <div style={{ marginBottom:14 }}>
+        <div style={{ gridColumn:"1 / -1", marginBottom:14 }}>
           <div style={{ fontSize: typo.small.fontSize, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:4 }}>Note</div>
           <textarea value={form.note} onChange={e=>setForm(f=>({...f,note:e.target.value}))} rows={2} style={{ ...inputSt, resize:"vertical" }}/>
+        </div>
         </div>
         <div style={{ display:"flex", gap:8 }}>
           <button onClick={salva} disabled={saving}
@@ -503,8 +592,19 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = 
       </div>
       )}
 
-      {/* Lista */}
+      {/* L'elenco: c'è quando il modulo non c'è, e prende tutta la larghezza. */}
+      {!mostraForm && (
       <div>
+        {/* Il comando per aprire la sezione nuova. Sul computer prima non
+            esisteva — il modulo stava sempre aperto lì a sinistra — e senza
+            questo non ci sarebbe più modo di aggiungere una persona. */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+          <button onClick={() => { reset(); setShowForm(true) }}
+            style={{ padding: '0 18px', minHeight: 44, background: C.red, color: C.white, border: 'none', borderRadius: 8,
+              fontSize: F.size.sm, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, fontFamily: 'inherit' }}>
+            <Icon name="plus" size={14} />Nuovo dipendente
+          </button>
+        </div>
         {/* Toggle Attivi / Archivio */}
         <div style={{ marginBottom: 10, display: 'flex', gap: 6 }}>
           {[['attivi', 'Attivi', 'users'], ['archivio', `Archivio${archCount > 0 ? ` (${archCount})` : ''}`, 'package']].map(([id, lbl, icon]) => (
@@ -566,7 +666,11 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = 
             <div style={{ display:"flex", gap:8, marginTop:10 }}>
               <button onClick={()=>initEdit(d)} style={{ flex:1, padding:"10px", background:C.bg, border:`1px solid ${C.borderStr}`, borderRadius:8, fontSize:F.size.sm, color:C.textMid, cursor:"pointer", fontWeight:600 }}>Modifica</button>
               {inArchivio
-                ? <button onClick={()=>riattiva(d.id)} style={{ flex:1, padding:"10px", background:C.greenLight, border:`1px solid ${C.green}`, borderRadius:8, fontSize:F.size.sm, color:C.green, cursor:"pointer", fontWeight:700, display:"inline-flex", alignItems:"center", justifyContent:"center", gap:6 }}><Icon name="refresh" size={13} />Riattiva</button>
+                ? <>
+                    <button onClick={()=>riattiva(d.id)} style={{ flex:1, padding:"10px", background:C.greenLight, border:`1px solid ${C.green}`, borderRadius:8, fontSize:F.size.sm, color:C.green, cursor:"pointer", fontWeight:700, display:"inline-flex", alignItems:"center", justifyContent:"center", gap:6 }}><Icon name="refresh" size={13} />Riattiva</button>
+                    <button onClick={()=>apriElimina(d)} aria-label={`Elimina definitivamente ${d.nome}`}
+                      style={{ flex:1, padding:"10px", background:C.white, border:`1px solid ${T.brand}40`, borderRadius:8, fontSize:F.size.sm, color:T.brand, cursor:"pointer", fontWeight:600 }}>Elimina</button>
+                  </>
                 : <button onClick={()=>disattiva(d.id)} style={{ flex:1, padding:"10px", background:C.redLight, border:`1px solid ${C.red}40`, borderRadius:8, fontSize:F.size.sm, color:C.red, cursor:"pointer", fontWeight:600 }}>Archivia</button>}
             </div>
           </div>
@@ -595,15 +699,76 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = 
               <div style={{ display:"flex", gap:6, flexShrink:0 }}>
                 <button onClick={()=>initEdit(d)} title="Modifica" style={{ padding: dito ? "11px 14px" : "5px 10px", minHeight: dito ? 44 : undefined, borderRadius:8, border:`1px solid ${C.borderStr}`, background:C.white, fontSize: typo.small.fontSize, color:C.textMid, cursor:"pointer" }}><Icon name="edit" size={13} /></button>
                 {inArchivio
-                  ? <button onClick={()=>riattiva(d.id)} title="Riattiva" style={{ padding: dito ? "11px 14px" : "5px 10px", minHeight: dito ? 44 : undefined, borderRadius:8, border:`1px solid ${C.green}`, background:C.greenLight, fontSize: typo.small.fontSize, color:C.green, cursor:"pointer", fontWeight:700, display:"inline-flex", alignItems:"center", gap:5 }}><Icon name="refresh" size={13} />Riattiva</button>
+                  ? <>
+                    <button onClick={()=>riattiva(d.id)} title="Riattiva" style={{ padding: dito ? "11px 14px" : "5px 10px", minHeight: dito ? 44 : undefined, borderRadius:8, border:`1px solid ${C.green}`, background:C.greenLight, fontSize: typo.small.fontSize, color:C.green, cursor:"pointer", fontWeight:700, display:"inline-flex", alignItems:"center", gap:5 }}><Icon name="refresh" size={13} />Riattiva</button>
+                    <button onClick={()=>apriElimina(d)} title="Elimina definitivamente" aria-label={`Elimina definitivamente ${d.nome}`}
+                      style={{ padding: dito ? "11px 14px" : "5px 10px", minHeight: dito ? 44 : undefined, borderRadius:8, border:`1px solid ${T.brand}40`, background:C.white, fontSize: typo.small.fontSize, color:T.brand, cursor:"pointer" }}><Icon name="trash" size={13} /></button>
+                  </>
                   : <button onClick={()=>disattiva(d.id)} title="Archivia" style={{ padding: dito ? "11px 14px" : "5px 10px", minHeight: dito ? 44 : undefined, borderRadius:8, border:`1px solid ${C.red}40`, background:C.redLight, fontSize: typo.small.fontSize, color:C.red, cursor:"pointer" }}><Icon name="package" size={13} /></button>}
               </div>
             </div>
           </div>
         ))}
       </div>
+      )}
 
-      {isMobile && !showForm && (
+      {/* ── Eliminare per sempre: il doppio controllo ─────────────────────
+          Non «sei sicuro?»: si dice **cosa sparisce** con i numeri veri, e
+          per procedere si scrive il nome. I turni se ne vanno insieme alla
+          persona (`on delete cascade`), e con loro il costo del lavoro dei
+          mesi in cui ha lavorato. */}
+      {elimTarget && (
+        <Finestra onChiudi={() => { if (!eliminando) { setElimTarget(null); setElimConferma('') } }} larghezza={500}>
+          <div style={{ fontSize: F.size.lg, fontWeight: 800, color: C.text, marginBottom: 10 }}>
+            Eliminare {elimTarget.d.nome} per sempre?
+          </div>
+          <div style={{ fontSize: F.size.sm, color: C.textMid, lineHeight: 1.6, marginBottom: 14 }}>
+            L&rsquo;archivio serve proprio a non perdere niente: da lì una persona si può
+            riattivare quando vuoi. Eliminare è un&rsquo;altra cosa, e non si torna indietro.
+          </div>
+          <div style={{ background: C.bgSubtle, border: `1px solid ${C.border}`, borderRadius: 10, padding: '12px 14px', marginBottom: 14 }}>
+            <div style={{ fontSize: typo.small.fontSize, fontWeight: 800, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
+              Cosa sparisce insieme a lui
+            </div>
+            <ul style={{ margin: 0, padding: '0 0 0 18px', fontSize: F.size.sm, color: C.textMid, lineHeight: 1.7 }}>
+              <li>
+                {elimTarget.turni === null && 'Sto contando i turni…'}
+                {elimTarget.turni === 'ignoto' && <strong style={{ color: C.amberDark }}>Non sono riuscito a contare i suoi turni: non so quanti ne spariranno.</strong>}
+                {typeof elimTarget.turni === 'number' && (elimTarget.turni === 0
+                  ? 'Nessun turno registrato.'
+                  : <><strong style={{ color: T.brand }}>{elimTarget.turni.toLocaleString('it-IT', { useGrouping: 'always' })} {elimTarget.turni === 1 ? 'turno' : 'turni'}</strong>
+                    {elimTarget.primo && <> — dal {new Date(elimTarget.primo + 'T12:00:00').toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' })}
+                      {elimTarget.ultimo && elimTarget.ultimo !== elimTarget.primo && <> al {new Date(elimTarget.ultimo + 'T12:00:00').toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' })}</>}</>}
+                    . Il costo del lavoro di quei mesi cambierà.</>)}
+              </li>
+              {elimTarget.codice && <li>Il suo codice a 4 cifre per il tablet in laboratorio.</li>}
+              <li>La sua scheda: contratto, paga, reparto, note.</li>
+            </ul>
+          </div>
+          <label htmlFor="elim-conferma" style={{ display: 'block', fontSize: F.size.sm, color: C.textMid, marginBottom: 6 }}>
+            Per confermare, scrivi <strong style={{ color: C.text }}>{elimTarget.d.nome}</strong>
+          </label>
+          <input id="elim-conferma" value={elimConferma} autoFocus
+            onChange={e => setElimConferma(e.target.value)}
+            placeholder={elimTarget.d.nome}
+            style={{ width: '100%', padding: '11px 12px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: F.size.base, fontFamily: 'inherit', boxSizing: 'border-box' }} />
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 18, flexWrap: 'wrap' }}>
+            <button onClick={() => { setElimTarget(null); setElimConferma('') }} disabled={eliminando}
+              style={{ padding: '0 18px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.border}`, background: C.white, color: C.textMid, fontWeight: 700, fontSize: F.size.sm, cursor: 'pointer', fontFamily: 'inherit' }}>
+              Annulla
+            </button>
+            <button onClick={eliminaDefinitivamente}
+              disabled={eliminando || elimConferma.trim().toLowerCase() !== String(elimTarget.d.nome || '').trim().toLowerCase()}
+              style={{ padding: '0 18px', minHeight: 44, borderRadius: 8, border: 'none',
+                background: elimConferma.trim().toLowerCase() === String(elimTarget.d.nome || '').trim().toLowerCase() ? T.brand : C.borderStr,
+                color: C.white, fontWeight: 800, fontSize: F.size.sm,
+                cursor: elimConferma.trim().toLowerCase() === String(elimTarget.d.nome || '').trim().toLowerCase() ? 'pointer' : 'not-allowed', fontFamily: 'inherit' }}>
+              {eliminando ? 'Elimino…' : 'Elimina per sempre'}
+            </button>
+          </div>
+        </Finestra>
+      )}
+      {isMobile && !mostraForm && (
         <div style={{ position:"fixed", bottom:0, left:0, right:0, padding:"12px 16px", background:C.white, borderTop:`1px solid ${C.border}`, zIndex:100 }}>
           <button onClick={()=>{ reset(); setShowForm(true) }} style={{ width:"100%", padding:"14px", background:C.red, color:C.white, border:"none", borderRadius:10, fontSize:typo.h3.fontSize, fontWeight:800, cursor:"pointer" }}>
             + Aggiungi dipendente
