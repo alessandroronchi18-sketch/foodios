@@ -337,3 +337,21 @@ chiusa.
 
 Da verificare: dove viene chiesto, dove si dovrebbe impostare, e cosa succede
 a un dipendente appena creato che non ha mai avuto un codice.
+
+### 3. Archiviare non basta: si deve poter eliminare (con doppio controllo)
+
+Richiesta del titolare, 21/09: in **Personale → archivio dipendenti** si deve
+poter anche **eliminare** una persona, «ovviamente con doppio check per non
+rischiare di fare un errore».
+
+Attenzione a cosa si porta dietro, perché qui non è come cancellare una
+materia prima: a un dipendente sono attaccati **i turni, il costo del lavoro
+dei mesi passati e le righe del Registro attività**. Cancellare la persona e
+lasciare i turni orfani vuol dire che il costo del lavoro di marzo cambia da
+solo, mesi dopo, senza che nessuno abbia toccato marzo.
+
+Da decidere prima di scrivere: cosa succede ai turni già registrati. Le tre
+strade sono tenere i turni e scollegarli (il costo storico resta), cancellare
+tutto (il costo storico cambia), o permettere l'eliminazione **solo** a chi
+non ha nessun turno registrato. La terza è la più prudente e probabilmente la
+più giusta: chi ha lavorato resta negli archivi, si archivia e basta.

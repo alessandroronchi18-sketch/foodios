@@ -12,6 +12,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react'
 import { useDipendenteOperativo } from '../hooks/useDipendenteOperativo'
+import { supabase } from '../lib/supabase'
 
 const BRAND = '#6E0E1A'
 const CODICE_LEN = 4
@@ -21,6 +22,32 @@ export default function SelezionaDipendente({ nomeLaboratorio, nomeSede, onSignO
   const [codice, setCodice] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
+  // ── La rubrica vuota è una porta chiusa, e va detto ─────────────────────
+  //
+  // Trovato dal titolare il 21/09/2026, entrando con l'account del
+  // laboratorio: «mi chiede il codice di 4 numeri ma non mi dà la
+  // possibilità di impostarlo o modificarlo».
+  //
+  // Il flusso è giusto — il codice lo crea il titolare in Personale →
+  // Rubrica, se no non identificherebbe nessuno — ma quando la rubrica è
+  // **vuota** questa schermata chiede una cosa che non esiste, e per
+  // consiglio dà «chiedi al titolare»: inutile, se il titolare sei tu.
+  //
+  // `null` = non lo sappiamo ancora. La schermata non cambia finché non
+  // arriva la risposta: far lampeggiare un avviso e poi toglierlo è peggio
+  // che aspettare mezzo secondo.
+  const [rubricaVuota, setRubricaVuota] = useState(null)
+
+  useEffect(() => {
+    let vivo = true
+    supabase.rpc('rubrica_codici_esiste')
+      .then(({ data, error: err }) => {
+        if (!vivo || err) return
+        if (data?.ok === true) setRubricaVuota(data.esiste === false)
+      })
+      .catch(() => { /* se non si sa, si resta com'era: si chiede il codice */ })
+    return () => { vivo = false }
+  }, [])
 
   const submit = useCallback(async (c) => {
     if (submitting || !c || c.length !== CODICE_LEN) return
@@ -99,9 +126,27 @@ export default function SelezionaDipendente({ nomeLaboratorio, nomeSede, onSignO
             {sottotitolo}
           </p>
         ) : null}
-        <p style={{ marginTop: 6, marginBottom: 28, fontSize: 13, color: 'rgba(255,255,255,0.65)', lineHeight: 1.5 }}>
-          Inserisci il tuo codice personale a 4 cifre
+        <p style={{ marginTop: 6, marginBottom: rubricaVuota ? 18 : 28, fontSize: 13, color: 'rgba(255,255,255,0.65)', lineHeight: 1.5 }}>
+          {rubricaVuota
+            ? 'Su questo tablet non è ancora stato creato nessun codice.'
+            : 'Inserisci il tuo codice personale a 4 cifre'}
         </p>
+
+        {rubricaVuota && (
+          <div role="note" style={{
+            marginBottom: 24, padding: '14px 16px', borderRadius: 12,
+            background: 'rgba(255,255,255,0.07)',
+            border: '1px solid rgba(255,255,255,0.18)',
+            fontSize: 13, lineHeight: 1.6, color: 'rgba(255,255,255,0.86)', textAlign: 'left',
+          }}>
+            I codici li crea il titolare dal suo account, in <b>Personale →
+            Rubrica dipendenti</b>: si aggiunge la persona e le si dà un codice
+            di quattro cifre, da comunicare a voce.
+            <br /><br />
+            Finché non ce n&apos;è nessuno, da qui non si entra. Se il titolare
+            sei tu, esci e rientra con il tuo account.
+          </div>
+        )}
 
         <div style={{ display: 'flex', justifyContent: 'center', gap: 14, margin: '24px 0 24px' }}>
           {Array.from({ length: CODICE_LEN }).map((_, i) => (
