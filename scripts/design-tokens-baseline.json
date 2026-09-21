@@ -9,8 +9,8 @@
     "tripla-a-mano": 1
   },
   "src/admin/AdminPage.jsx": {
-    "colore-a-mano": 112,
-    "testo-a-mano": 438
+    "colore-a-mano": 58,
+    "testo-a-mano": 19
   },
   "src/admin/MethodChangeRequestsPanel.jsx": {
     "colore-a-mano": 21,
@@ -135,8 +135,7 @@
     "testo-a-mano": 21
   },
   "src/components/Haccp.jsx": {
-    "colore-a-mano": 6,
-    "testo-a-mano": 60,
+    "testo-a-mano": 2,
     "tripla-a-mano": 1,
     "antizoom-a-mano": 3
   },
@@ -364,13 +363,11 @@
     "testo-a-mano": 7
   },
   "src/views/InventarioSettimanaleView.jsx": {
-    "colore-a-mano": 112,
-    "testo-a-mano": 83,
+    "colore-a-mano": 42,
     "antizoom-a-mano": 2
   },
   "src/views/MagazzinoView.jsx": {
-    "colore-a-mano": 30,
-    "testo-a-mano": 46,
+    "colore-a-mano": 5,
     "tripla-a-mano": 1
   },
   "src/views/MarketplaceView.jsx": {
@@ -384,8 +381,8 @@
     "tripla-a-mano": 2
   },
   "src/views/NuovaRicettaView.jsx": {
-    "colore-a-mano": 64,
-    "testo-a-mano": 70,
+    "colore-a-mano": 30,
+    "testo-a-mano": 1,
     "antizoom-a-mano": 1
   },
   "src/views/OrdiniAiView.jsx": {
@@ -394,8 +391,7 @@
     "tripla-a-mano": 1
   },
   "src/views/PLView.jsx": {
-    "colore-a-mano": 71,
-    "testo-a-mano": 82,
+    "colore-a-mano": 22,
     "tripla-a-mano": 1
   },
   "src/views/ProduzioneGiornalieraView.jsx": {
@@ -418,8 +414,7 @@
     "tripla-a-mano": 4
   },
   "src/views/RicettarioView.jsx": {
-    "colore-a-mano": 36,
-    "testo-a-mano": 53,
+    "colore-a-mano": 22,
     "tripla-a-mano": 1
   },
   "src/views/SchedaAllergeniView.jsx": {
@@ -435,14 +430,12 @@
     "antizoom-a-mano": 2
   },
   "src/views/StoricoProduzioneView.jsx": {
-    "colore-a-mano": 23,
-    "testo-a-mano": 15,
+    "colore-a-mano": 20,
     "tripla-a-mano": 3,
     "antizoom-a-mano": 1
   },
   "src/views/VenditeB2BView.jsx": {
-    "colore-a-mano": 17,
-    "testo-a-mano": 63,
+    "colore-a-mano": 10,
     "tripla-a-mano": 2,
     "antizoom-a-mano": 1
   },

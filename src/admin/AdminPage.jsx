@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts'
-import { color as T, radius as R, shadow as S, motion as M, tnum as _tnum, typo } from '../lib/theme'
+import { color as T, radius as R, shadow as S, motion as M, tnum as _tnum, typo, font } from '../lib/theme'
 import { useToast } from '../components/Toast'
 import { apiFetch } from '../lib/apiFetch'
 import Icon from '../components/Icon'
@@ -110,7 +110,7 @@ const COLORS = {
   accentSoft: T.brandLight,
   ok: '#065F46',
   okBg: T.greenLight,
-  warn: '#92400E',
+  warn: T.amberDark,
   warnBg: T.amberLight,
   err: '#991B1B',
   errBg: '#FEE2E2',
@@ -168,7 +168,7 @@ function StatoBadge({ stato, giorni }) {
   return (
     <span style={{
       background: s.bg, color: s.fg, padding: '3px 10px',
-      borderRadius: 99, fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap',
+      borderRadius: 99, fontSize: font.size.sm, fontWeight: 700, whiteSpace: 'nowrap',
       display: 'inline-flex', alignItems: 'center', gap: 4,
     }}><Icon name={s.icon} size={12} /> {s.lbl}</span>
   )
@@ -176,18 +176,18 @@ function StatoBadge({ stato, giorni }) {
 
 function Btn({ children, kind = 'primary', size = 'md', onClick, disabled, title, style }) {
   const palette = {
-    primary:   { bg: COLORS.accent, fg: '#FFF',       border: COLORS.accent },
-    success:   { bg: '#059669',     fg: '#FFF',       border: '#059669' },
-    danger:    { bg: '#DC2626',     fg: '#FFF',       border: '#DC2626' },
-    warn:      { bg: '#F59E0B',     fg: '#FFF',       border: '#F59E0B' },
-    neutral:   { bg: '#FFF',        fg: COLORS.text,  border: COLORS.border },
+    primary:   { bg: COLORS.accent, fg: T.white,       border: COLORS.accent },
+    success:   { bg: '#059669',     fg: T.white,       border: '#059669' },
+    danger:    { bg: T.red,     fg: T.white,       border: T.red },
+    warn:      { bg: '#F59E0B',     fg: T.white,       border: '#F59E0B' },
+    neutral:   { bg: T.white,        fg: COLORS.text,  border: COLORS.border },
     ghost:     { bg: 'transparent', fg: COLORS.text,  border: 'transparent' },
   }
   const p = palette[kind] || palette.primary
   const sizing = {
-    sm: { padding: '4px 10px', fontSize: 12 },
-    md: { padding: '8px 14px', fontSize: 13 },
-    lg: { padding: '10px 18px', fontSize: 14 },
+    sm: { padding: '4px 10px', fontSize: font.size.sm },
+    md: { padding: '8px 14px', fontSize: font.size.base },
+    lg: { padding: '10px 18px', fontSize: font.size.md },
   }[size]
   return (
     <button
@@ -208,14 +208,19 @@ function Btn({ children, kind = 'primary', size = 'md', onClick, disabled, title
 const KpiCard = React.memo(function KpiCard({ label, value, sub, color }) {
   return (
     <Card style={{ padding: '16px 18px' }}>
-      <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
+      <div style={{ fontSize: font.size.sm, fontWeight: 700, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
         {label}
       </div>
       <div style={{ fontSize: 26, fontWeight: 900, color: color || COLORS.text, lineHeight: 1.1 }}>
-        {value}
+        {/* Un conteggio si scrive all'italiana: «1.234», non «1234». È la
+            regola permanente sui numeri, e qui mancava — non si vedeva
+            perché i clienti sono ancora 710, e si sarebbe vista il giorno
+            del millesimo. Gli importi passano già da `fmtEuro` e arrivano
+            qui come stringa: si formatta solo quello che è un numero. */}
+        {typeof value === 'number' && Number.isFinite(value) ? _ADMIN_NF.format(value) : value}
       </div>
       {sub && (
-        <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 4 }}>{sub}</div>
+        <div style={{ fontSize: font.size.sm, color: COLORS.textMute, marginTop: 4 }}>{sub}</div>
       )}
     </Card>
   )
@@ -228,12 +233,20 @@ function Modal({ title, onClose, children, width = 520 }) {
     return () => document.removeEventListener('keydown', onEsc)
   }, [onClose])
   return (
-    <div onClick={onClose} style={{
-      position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)',
+    <div style={{
+      position: 'fixed', inset: 0,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       padding: 20, zIndex: 100,
     }}>
-      <div onClick={e => e.stopPropagation()} style={{
+      {/* Il velo scuro intorno alla finestra chiude, e quindi è un comando:
+          un `<div onClick>` lo sentiva solo il mouse. Esc c'era già (qui
+          sopra), ma con Tab non si arrivava da nessuna parte. */}
+      <button type="button" onClick={onClose} aria-label="Chiudi la finestra" style={{
+        position: 'absolute', inset: 0, width: '100%', height: '100%',
+        border: 'none', padding: 0, margin: 0, background: 'rgba(15,23,42,0.5)', cursor: 'default',
+      }} />
+      <div role="dialog" aria-modal="true" aria-label={title} style={{
+        position: 'relative',
         background: COLORS.card, borderRadius: 14, width: '100%', maxWidth: width,
         maxHeight: '90vh', overflow: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
       }}>
@@ -241,10 +254,10 @@ function Modal({ title, onClose, children, width = 520 }) {
           padding: '16px 20px', borderBottom: `1px solid ${COLORS.border}`,
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         }}>
-          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: COLORS.text }}>{title}</h2>
+          <h2 style={{ margin: 0, fontSize: font.size.lg, fontWeight: 800, color: COLORS.text }}>{title}</h2>
           <button onClick={onClose} aria-label="Chiudi modale" style={{
             background: 'transparent', border: 'none', cursor: 'pointer',
-            fontSize: 22, color: COLORS.textMute, lineHeight: 1,
+            fontSize: font.size['2xl'], color: COLORS.textMute, lineHeight: 1,
           }}>×</button>
         </div>
         <div style={{ padding: 20 }}>{children}</div>
@@ -274,13 +287,13 @@ function EmailModal({ cliente, onClose, onInvia }) {
   const tpl = (lbl, og, msg) => (
     <button onClick={() => { setOggetto(og); setMessaggio(msg) }} style={{
       padding: '4px 10px', background: '#F1F5F9', border: `1px solid ${COLORS.border}`,
-      borderRadius: 99, fontSize: 12, cursor: 'pointer', color: COLORS.textSoft,
+      borderRadius: 99, fontSize: font.size.sm, cursor: 'pointer', color: COLORS.textSoft,
     }}>{lbl}</button>
   )
 
   return (
     <Modal title={`Email a ${cliente.nome_attivita}`} onClose={onClose} width={580}>
-      <div style={{ fontSize: 12, color: COLORS.textMute, marginBottom: 14 }}>
+      <div style={{ fontSize: font.size.sm, color: COLORS.textMute, marginBottom: 14 }}>
         Destinatario: <strong style={{ color: COLORS.text }}>{cliente.email}</strong>
       </div>
 
@@ -301,7 +314,7 @@ function EmailModal({ cliente, onClose, onInvia }) {
         placeholder="Oggetto"
         style={{
           width: '100%', padding: '10px 12px', borderRadius: 8,
-          border: `1px solid ${COLORS.border}`, fontSize: 13, marginBottom: 10,
+          border: `1px solid ${COLORS.border}`, fontSize: font.size.base, marginBottom: 10,
           boxSizing: 'border-box',
         }}
       />
@@ -311,14 +324,14 @@ function EmailModal({ cliente, onClose, onInvia }) {
         rows={9}
         style={{
           width: '100%', padding: '10px 12px', borderRadius: 8,
-          border: `1px solid ${COLORS.border}`, fontSize: 13, resize: 'vertical',
+          border: `1px solid ${COLORS.border}`, fontSize: font.size.base, resize: 'vertical',
           fontFamily: 'inherit', boxSizing: 'border-box',
         }}
       />
       {err && (
         <div style={{
           marginTop: 10, padding: '8px 12px', background: COLORS.accentSoft,
-          border: `1px solid ${COLORS.err}`, borderRadius: 8, color: COLORS.err, fontSize: 12,
+          border: `1px solid ${COLORS.err}`, borderRadius: 8, color: COLORS.err, fontSize: font.size.sm,
         }}><Icon name="warning" size={14} /> {err}</div>
       )}
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
@@ -360,14 +373,14 @@ function BulkEmailModal({ clienti, onClose, onInvia }) {
       {done ? (
         <div style={{ textAlign: 'center', padding: '20px 0' }}>
           <div>{progress.ko === 0 ? <Icon name="checkCircle" size={40} color={COLORS.ok} /> : <Icon name="warning" size={40} color={COLORS.warn} />}</div>
-          <div style={{ fontSize: 14, color: COLORS.text, fontWeight: 700, marginTop: 12 }}>
+          <div style={{ fontSize: font.size.md, color: COLORS.text, fontWeight: 700, marginTop: 12 }}>
             Inviate {progress.ok} email · {progress.ko} errori
           </div>
           <Btn kind="primary" onClick={onClose} style={{ marginTop: 16 }}>Chiudi</Btn>
         </div>
       ) : (
         <>
-          <div style={{ fontSize: 12, color: COLORS.textMute, marginBottom: 10, lineHeight: 1.5 }}>
+          <div style={{ fontSize: font.size.sm, color: COLORS.textMute, marginBottom: 10, lineHeight: 1.5 }}>
             Destinatari: <strong style={{ color: COLORS.text }}>{clienti.length}</strong> ·
             usa <code>{'{{nome_completo}}'}</code> e <code>{'{{nome_attivita}}'}</code> nel testo per personalizzare.
           </div>
@@ -378,7 +391,7 @@ function BulkEmailModal({ clienti, onClose, onInvia }) {
             disabled={busy}
             style={{
               width: '100%', padding: '10px 12px', borderRadius: 8,
-              border: `1px solid ${COLORS.border}`, fontSize: 13, marginBottom: 10,
+              border: `1px solid ${COLORS.border}`, fontSize: font.size.base, marginBottom: 10,
               boxSizing: 'border-box',
             }}
           />
@@ -389,18 +402,18 @@ function BulkEmailModal({ clienti, onClose, onInvia }) {
             disabled={busy}
             style={{
               width: '100%', padding: '10px 12px', borderRadius: 8,
-              border: `1px solid ${COLORS.border}`, fontSize: 13, resize: 'vertical',
+              border: `1px solid ${COLORS.border}`, fontSize: font.size.base, resize: 'vertical',
               fontFamily: 'inherit', boxSizing: 'border-box',
             }}
           />
           {err && (
             <div style={{
               marginTop: 10, padding: '8px 12px', background: COLORS.errBg,
-              border: `1px solid ${COLORS.err}`, borderRadius: 8, color: COLORS.err, fontSize: 12,
+              border: `1px solid ${COLORS.err}`, borderRadius: 8, color: COLORS.err, fontSize: font.size.sm,
             }}><Icon name="warning" size={14} /> {err}</div>
           )}
           {busy && (
-            <div style={{ marginTop: 12, padding: '8px 12px', background: COLORS.blueBg, borderRadius: 8, color: COLORS.blue, fontSize: 12, fontWeight: 600, textAlign: 'center' }}>
+            <div style={{ marginTop: 12, padding: '8px 12px', background: COLORS.blueBg, borderRadius: 8, color: COLORS.blue, fontSize: font.size.sm, fontWeight: 600, textAlign: 'center' }}>
               <Icon name="hourglass" size={12} /> Invio in corso… {progress.ok + progress.ko} / {progress.tot} (ok {progress.ok} · errori {progress.ko})
             </div>
           )}
@@ -453,7 +466,7 @@ function DeleteModal({ cliente, onClose, onConferma, apriAnteprima }) {
     <Modal title={`Elimina ${cliente.nome_attivita}`} onClose={onClose}>
       <div style={{
         padding: '12px 14px', background: COLORS.errBg, border: `1px solid ${COLORS.err}`,
-        borderRadius: 8, color: COLORS.err, fontSize: 13, marginBottom: 16,
+        borderRadius: 8, color: COLORS.err, fontSize: font.size.base, marginBottom: 16,
       }}>
         <strong>Attenzione</strong>: questa azione è <strong>irreversibile</strong>.
         {caricando ? (
@@ -481,21 +494,21 @@ function DeleteModal({ cliente, onClose, onConferma, apriAnteprima }) {
           </div>
         )}
       </div>
-      <div style={{ fontSize: 13, color: COLORS.textSoft, marginBottom: 8 }}>
+      <div style={{ fontSize: font.size.base, color: COLORS.textSoft, marginBottom: 8 }}>
         Per confermare, scrivi <code style={{ background: '#F1F5F9', padding: '2px 6px', borderRadius: 4, color: COLORS.err, fontWeight: 700 }}>ELIMINA</code>:
       </div>
       <input
         value={conferma} onChange={e => setConferma(e.target.value)}
         style={{
           width: '100%', padding: '10px 12px', borderRadius: 8,
-          border: `1px solid ${COLORS.border}`, fontSize: 13, boxSizing: 'border-box',
+          border: `1px solid ${COLORS.border}`, fontSize: font.size.base, boxSizing: 'border-box',
         }}
         autoFocus
       />
       {err && (
         <div style={{
           marginTop: 10, padding: '8px 12px', background: COLORS.accentSoft,
-          border: `1px solid ${COLORS.err}`, borderRadius: 8, color: COLORS.err, fontSize: 12,
+          border: `1px solid ${COLORS.err}`, borderRadius: 8, color: COLORS.err, fontSize: font.size.sm,
         }}><Icon name="warning" size={14} /> {err}</div>
       )}
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
@@ -524,7 +537,7 @@ function DemoCleanupModal({ cliente, matches, onClose, onConferma }) {
         <div style={{
           padding: '14px 16px', background: COLORS.greenBg || '#F0FDF4',
           border: `1px solid ${COLORS.green || '#16A34A'}`, borderRadius: 8,
-          color: COLORS.green || '#15803D', fontSize: 13,
+          color: COLORS.green || '#15803D', fontSize: font.size.base,
         }}>
           Nessuna fattura demo trovata per questo cliente. Niente da eliminare.
         </div>
@@ -532,8 +545,8 @@ function DemoCleanupModal({ cliente, matches, onClose, onConferma }) {
         <>
           <div style={{
             padding: '12px 14px', background: COLORS.accentSoft || '#FEF9C3',
-            border: `1px solid ${COLORS.amber || '#B45309'}`, borderRadius: 8,
-            color: '#92400E', fontSize: 13, marginBottom: 14,
+            border: `1px solid ${COLORS.amber || T.amber}`, borderRadius: 8,
+            color: T.amberDark, fontSize: font.size.base, marginBottom: 14,
           }}>
             Trovate <strong>{matches.length}</strong> fatture demo. Verranno eliminate definitivamente dal database. L'azione non è reversibile.
           </div>
@@ -541,13 +554,13 @@ function DemoCleanupModal({ cliente, matches, onClose, onConferma }) {
             border: `1px solid ${COLORS.border}`, borderRadius: 8, overflow: 'hidden',
             marginBottom: 14, maxHeight: 280, overflowY: 'auto',
           }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.size.sm }}>
               <thead style={{ background: '#FAFAFA' }}>
                 <tr>
-                  <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600, color: COLORS.textMute, fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: `1px solid ${COLORS.border}` }}>Data</th>
-                  <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600, color: COLORS.textMute, fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: `1px solid ${COLORS.border}` }}>Fornitore</th>
-                  <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600, color: COLORS.textMute, fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: `1px solid ${COLORS.border}` }}>Numero</th>
-                  <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600, color: COLORS.textMute, fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: `1px solid ${COLORS.border}` }}>Totale</th>
+                  <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600, color: COLORS.textMute, fontSize: font.size.sm, textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: `1px solid ${COLORS.border}` }}>Data</th>
+                  <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600, color: COLORS.textMute, fontSize: font.size.sm, textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: `1px solid ${COLORS.border}` }}>Fornitore</th>
+                  <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600, color: COLORS.textMute, fontSize: font.size.sm, textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: `1px solid ${COLORS.border}` }}>Numero</th>
+                  <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600, color: COLORS.textMute, fontSize: font.size.sm, textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: `1px solid ${COLORS.border}` }}>Totale</th>
                 </tr>
               </thead>
               <tbody>
@@ -555,7 +568,7 @@ function DemoCleanupModal({ cliente, matches, onClose, onConferma }) {
                   <tr key={f.id} style={{ borderBottom: i < matches.length - 1 ? `1px solid ${COLORS.border}` : 'none' }}>
                     <td style={{ padding: '8px 12px', color: COLORS.textSoft, whiteSpace: 'nowrap' }}>{f.data_fattura || '-'}</td>
                     <td style={{ padding: '8px 12px', color: COLORS.text, fontWeight: 500 }}>{f.fornitore}</td>
-                    <td style={{ padding: '8px 12px', color: COLORS.textSoft, fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 12 }}>{f.numero_rif || '-'}</td>
+                    <td style={{ padding: '8px 12px', color: COLORS.textSoft, fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: font.size.sm }}>{f.numero_rif || '-'}</td>
                     <td style={{ ...tnum, padding: '8px 12px', textAlign: 'right', fontWeight: 600, color: COLORS.text, whiteSpace: 'nowrap' }}>€ {Number(f.totale || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                   </tr>
                 ))}
@@ -567,7 +580,7 @@ function DemoCleanupModal({ cliente, matches, onClose, onConferma }) {
       {err && (
         <div style={{
           marginBottom: 14, padding: '8px 12px', background: COLORS.accentSoft,
-          border: `1px solid ${COLORS.err}`, borderRadius: 8, color: COLORS.err, fontSize: 12,
+          border: `1px solid ${COLORS.err}`, borderRadius: 8, color: COLORS.err, fontSize: font.size.sm,
         }}><Icon name="warning" size={14} /> {err}</div>
       )}
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
@@ -618,8 +631,8 @@ function NuovoCodiceScontoModal({ onClose, onCreato }) {
     }
   }
 
-  const lbl = { display: 'block', fontSize: 12, fontWeight: 700, color: '#5A6B80', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }
-  const inp = { width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #E2E8F0', fontSize: 13, boxSizing: 'border-box' }
+  const lbl = { display: 'block', fontSize: font.size.sm, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }
+  const inp = { width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #E2E8F0', fontSize: font.size.base, boxSizing: 'border-box' }
 
   return (
     <Modal title="Nuovo codice sconto" onClose={onClose} width={620}>
@@ -629,7 +642,7 @@ function NuovoCodiceScontoModal({ onClose, onCreato }) {
           <input value={codice} onChange={e => setCodice(e.target.value)}
             placeholder="Es. FOODOS2026"
             style={{ ...inp, fontFamily: 'monospace', fontWeight: 700, letterSpacing: '0.06em' }}/>
-          <div style={{ fontSize: 12, color: '#94A3B8', marginTop: 4 }}>
+          <div style={{ fontSize: font.size.sm, color: T.textFaint, marginTop: 4 }}>
             {codNorm ? `Sarà salvato come: ${codNorm}` : 'Solo lettere, numeri, - e _'}
           </div>
         </div>
@@ -654,7 +667,7 @@ function NuovoCodiceScontoModal({ onClose, onCreato }) {
             value={valore} onChange={e => setValore(e.target.value)}
             style={{ ...inp, fontWeight: 700 }}/>
           {tipoSconto === 'percent' && valore == 100 && (
-            <div style={{ fontSize: 12, color: '#059669', fontWeight: 700, marginTop: 4 }}>
+            <div style={{ fontSize: font.size.sm, color: '#059669', fontWeight: 700, marginTop: 4 }}>
               <Icon name="gift" size={12} /> Sconto 100% = abbonamento gratis
             </div>
           )}
@@ -702,10 +715,10 @@ function NuovoCodiceScontoModal({ onClose, onCreato }) {
               <button key={p} type="button"
                 onClick={() => setPianiValidi(prev => selected ? prev.filter(x => x !== p) : [...prev, p])}
                 style={{
-                  padding: '6px 14px', borderRadius: 99, fontSize: 12, fontWeight: 700,
-                  border: `1px solid ${selected ? '#6E0E1A' : '#E2E8F0'}`,
-                  background: selected ? '#FEF7F5' : '#FFF',
-                  color: selected ? '#6E0E1A' : '#5A6B80', cursor: 'pointer',
+                  padding: '6px 14px', borderRadius: 99, fontSize: font.size.sm, fontWeight: 700,
+                  border: `1px solid ${selected ? T.brand : '#E2E8F0'}`,
+                  background: selected ? '#FEF7F5' : T.white,
+                  color: selected ? T.brand : T.textSoft, cursor: 'pointer',
                 }}>
                 {selected && <Icon name="check" size={11} />} {PLAN_LABEL[p] || p} ({PLAN_PRICE_EUR[p] ?? '—'} €)
               </button>
@@ -715,7 +728,7 @@ function NuovoCodiceScontoModal({ onClose, onCreato }) {
       </div>
 
       {err && (
-        <div style={{ padding: '8px 12px', background: '#FEE2E2', border: '1px solid #991B1B', borderRadius: 8, color: '#991B1B', fontSize: 12, marginBottom: 12 }}><Icon name="warning" size={14} /> {err}</div>
+        <div style={{ padding: '8px 12px', background: '#FEE2E2', border: '1px solid #991B1B', borderRadius: 8, color: '#991B1B', fontSize: font.size.sm, marginBottom: 12 }}><Icon name="warning" size={14} /> {err}</div>
       )}
 
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
@@ -742,26 +755,26 @@ function RegalaMesiModal({ cliente, codici, onClose, onRegala }) {
 
   return (
     <Modal title={`Regala mesi · ${cliente.nome_attivita}`} onClose={onClose} width={500}>
-      <div style={{ fontSize: 13, color: '#5A6B80', marginBottom: 14, lineHeight: 1.55 }}>
+      <div style={{ fontSize: font.size.base, color: T.textSoft, marginBottom: 14, lineHeight: 1.55 }}>
         Estende la subscription Stripe (o il trial interno) per <strong>{cliente.nome_attivita}</strong> senza addebiti.
         Se l'utente ha già un abbonamento attivo, Stripe applicherà <code>trial_end</code> alla data calcolata.
       </div>
 
       <div style={{ marginBottom: 14 }}>
-        <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#5A6B80', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>
+        <label style={{ display: 'block', fontSize: font.size.sm, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>
           Mesi da regalare (1-60)
         </label>
         <input type="number" min="1" max="60" value={mesi}
           onChange={e => setMesi(parseInt(e.target.value, 10) || 1)}
-          style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #E2E8F0', fontSize: 14, fontWeight: 700, boxSizing: 'border-box' }}/>
+          style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #E2E8F0', fontSize: font.size.md, fontWeight: 700, boxSizing: 'border-box' }}/>
       </div>
 
       <div style={{ marginBottom: 14 }}>
-        <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#5A6B80', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>
+        <label style={{ display: 'block', fontSize: font.size.sm, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>
           Codice associato (opzionale, per audit)
         </label>
         <select value={codiceRif} onChange={e => setCodiceRif(e.target.value)}
-          style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #E2E8F0', fontSize: 13, background: '#FFF', boxSizing: 'border-box' }}>
+          style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #E2E8F0', fontSize: font.size.base, background: T.white, boxSizing: 'border-box' }}>
           <option value="">- Nessuno (regalo manuale) -</option>
           {(codici || []).filter(c => c.attivo).map(c => (
             <option key={c.id} value={c.codice}>{c.codice} ({c.descrizione || 'senza descrizione'})</option>
@@ -770,7 +783,7 @@ function RegalaMesiModal({ cliente, codici, onClose, onRegala }) {
       </div>
 
       {err && (
-        <div style={{ padding: '8px 12px', background: '#FEE2E2', border: '1px solid #991B1B', borderRadius: 8, color: '#991B1B', fontSize: 12, marginBottom: 12 }}><Icon name="warning" size={14} /> {err}</div>
+        <div style={{ padding: '8px 12px', background: '#FEE2E2', border: '1px solid #991B1B', borderRadius: 8, color: '#991B1B', fontSize: font.size.sm, marginBottom: 12 }}><Icon name="warning" size={14} /> {err}</div>
       )}
 
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
@@ -791,14 +804,14 @@ function ImpersonaModal({ cliente, link, onClose }) {
   }
   return (
     <Modal title={`Link di accesso - ${cliente.nome_attivita}`} onClose={onClose}>
-      <div style={{ fontSize: 13, color: COLORS.textSoft, lineHeight: 1.6, marginBottom: 14 }}>
+      <div style={{ fontSize: font.size.base, color: COLORS.textSoft, lineHeight: 1.6, marginBottom: 14 }}>
         Magic link generato per <strong>{cliente.email}</strong>.<br/>
         Apri il link in una <strong>finestra anonima</strong> per accedere come quell'utente
         senza interferire con la tua sessione admin.
       </div>
       <div style={{
         padding: '10px 12px', background: '#F1F5F9', borderRadius: 8,
-        fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 12, color: COLORS.text,
+        fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: font.size.sm, color: COLORS.text,
         wordBreak: 'break-all', maxHeight: 120, overflow: 'auto',
       }}>{link}</div>
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
@@ -863,9 +876,9 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
     const ref = cliente.ultimo_accesso || cliente.registrata_il
     const d = giorniDa(ref)
     if (d == null) return { bg: COLORS.blockedBg, fg: COLORS.blocked, dot: null, lbl: '- Sconosciuto' }
-    if (d <= 2) return { bg: COLORS.okBg, fg: COLORS.ok, dot: '#0A7350', lbl: 'Attivo' }
-    if (d <= 7) return { bg: COLORS.warnBg, fg: COLORS.warn, dot: '#B45309', lbl: `A rischio (${d}gg)` }
-    return { bg: COLORS.errBg, fg: COLORS.err, dot: '#6E0E1A', lbl: `Dormiente (${d}gg)` }
+    if (d <= 2) return { bg: COLORS.okBg, fg: COLORS.ok, dot: T.green, lbl: 'Attivo' }
+    if (d <= 7) return { bg: COLORS.warnBg, fg: COLORS.warn, dot: T.amber, lbl: `A rischio (${d}gg)` }
+    return { bg: COLORS.errBg, fg: COLORS.err, dot: T.brand, lbl: `Dormiente (${d}gg)` }
   })()
 
   const sedi = dettaglio?.sedi || []
@@ -899,36 +912,36 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
         padding: '12px 14px', background: COLORS.rowAlt, borderRadius: 10, marginBottom: 16,
       }}>
         <div>
-          <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Stato</div>
+          <div style={{ fontSize: font.size.sm, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Stato</div>
           <StatoBadge stato={stato} giorni={giorni} />
         </div>
         <div>
-          <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Salute</div>
-          <span style={{ background: healthBadge.bg, color: healthBadge.fg, padding: '3px 10px', borderRadius: 99, fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 4 }}>{healthBadge.dot && <Icon name="dot" size={9} color={healthBadge.dot} />}{healthBadge.lbl}</span>
+          <div style={{ fontSize: font.size.sm, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Salute</div>
+          <span style={{ background: healthBadge.bg, color: healthBadge.fg, padding: '3px 10px', borderRadius: 99, fontSize: font.size.sm, fontWeight: 700, whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 4 }}>{healthBadge.dot && <Icon name="dot" size={9} color={healthBadge.dot} />}{healthBadge.lbl}</span>
         </div>
         <div>
-          <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Piano</div>
-          <div style={{ fontWeight: 700, fontSize: 14, textTransform: 'capitalize' }}>{cliente.piano || 'trial'}</div>
+          <div style={{ fontSize: font.size.sm, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Piano</div>
+          <div style={{ fontWeight: 700, fontSize: font.size.md, textTransform: 'capitalize' }}>{cliente.piano || 'trial'}</div>
         </div>
         <div>
-          <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Sedi · Record</div>
-          <div style={{ fontWeight: 700, fontSize: 14 }}>{cliente.num_sedi || 0} · {cliente.num_record || 0}</div>
+          <div style={{ fontSize: font.size.sm, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Sedi · Record</div>
+          <div style={{ fontWeight: 700, fontSize: font.size.md }}>{cliente.num_sedi || 0} · {cliente.num_record || 0}</div>
         </div>
         <div>
-          <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Registrata</div>
-          <div style={{ fontSize: 12, color: COLORS.text }}>{fmtData(cliente.registrata_il)}</div>
+          <div style={{ fontSize: font.size.sm, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Registrata</div>
+          <div style={{ fontSize: font.size.sm, color: COLORS.text }}>{fmtData(cliente.registrata_il)}</div>
         </div>
         <div>
-          <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Ultimo accesso</div>
-          <div style={{ fontSize: 12, color: COLORS.text }}>{cliente.ultimo_accesso ? fmtDataOra(cliente.ultimo_accesso) : '-'}</div>
+          <div style={{ fontSize: font.size.sm, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Ultimo accesso</div>
+          <div style={{ fontSize: font.size.sm, color: COLORS.text }}>{cliente.ultimo_accesso ? fmtDataOra(cliente.ultimo_accesso) : '-'}</div>
         </div>
         <div>
-          <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Trial scade</div>
-          <div style={{ fontSize: 12, color: COLORS.text }}>{cliente.trial_ends_at ? fmtData(cliente.trial_ends_at) : '-'}</div>
+          <div style={{ fontSize: font.size.sm, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Trial scade</div>
+          <div style={{ fontSize: font.size.sm, color: COLORS.text }}>{cliente.trial_ends_at ? fmtData(cliente.trial_ends_at) : '-'}</div>
         </div>
         <div>
-          <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Stripe</div>
-          <div style={{ fontSize: 12, color: COLORS.text }}>
+          <div style={{ fontSize: font.size.sm, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Stripe</div>
+          <div style={{ fontSize: font.size.sm, color: COLORS.text }}>
             {org?.stripe_subscription_id
               ? <><b>{org.stripe_status || 'attivo'}</b>{org.stripe_current_period_end ? <> · al {fmtData(org.stripe_current_period_end)}</> : null}</>
               : <span style={{ color: COLORS.textMute }}>- (nessuna sub)</span>}
@@ -940,10 +953,10 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
       {activation && (
         <section style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-            <h3 style={{ margin: 0, fontSize: 12, fontWeight: 800, color: COLORS.text }}>
+            <h3 style={{ margin: 0, fontSize: font.size.sm, fontWeight: 800, color: COLORS.text }}>
               <Icon name="bolt" size={13} /> Activation · {activation.score}/{activation.totale}
             </h3>
-            <span style={{ fontSize: 12, color: COLORS.textMute }}>
+            <span style={{ fontSize: font.size.sm, color: COLORS.textMute }}>
               {counts?.fatture != null && `${counts.fatture} fatture`}
               {counts?.dipendenti != null && ` · ${counts.dipendenti} dipendenti`}
             </span>
@@ -956,7 +969,7 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
               }} />
             ))}
           </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, fontSize: 12 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, fontSize: font.size.sm }}>
             {activation.steps.map(s => (
               <span key={s.key} style={{
                 padding: '2px 8px', borderRadius: 99,
@@ -991,10 +1004,10 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
       {/* Note CRM (autosave 1.5s) */}
       <section style={{ marginBottom: 18 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-          <h3 style={{ margin: 0, fontSize: 12, fontWeight: 800, color: COLORS.text }}>
+          <h3 style={{ margin: 0, fontSize: font.size.sm, fontWeight: 800, color: COLORS.text }}>
             <Icon name="edit" size={13} /> Note interne (solo admin)
           </h3>
-          <span style={{ fontSize: 12, color:
+          <span style={{ fontSize: font.size.sm, color:
             notaStatus === 'saving' ? COLORS.textMute :
             notaStatus === 'saved' ? COLORS.ok :
             notaStatus === 'error' ? COLORS.err : COLORS.textMute,
@@ -1013,7 +1026,7 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
           rows={3}
           style={{
             width: '100%', padding: '8px 10px', borderRadius: 8,
-            border: `1px solid ${COLORS.border}`, fontSize: 12,
+            border: `1px solid ${COLORS.border}`, fontSize: font.size.sm,
             resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box',
             background: '#FFFEF7',
           }}
@@ -1029,7 +1042,7 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
               costi aziendali, stipendi. Grid 2col mobile / 4col desktop. */}
           {has360 && (
             <section style={{ marginBottom: 18 }}>
-              <h3 style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 800, color: COLORS.text }}>
+              <h3 style={{ margin: '0 0 8px', fontSize: font.size.sm, fontWeight: 800, color: COLORS.text }}>
                 <Icon name="layers" size={13} /> Moduli &amp; operazioni
               </h3>
               <div style={{
@@ -1040,13 +1053,13 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
                 {/* Integrazioni */}
                 {c360.integrazioni && (
                   <div style={{ padding: 10, background: COLORS.rowAlt, borderRadius: 8, border: `1px solid ${COLORS.border}` }}>
-                    <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>
+                    <div style={{ fontSize: font.size.sm, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>
                       <Icon name="integ" size={10} /> Integrazioni
                     </div>
-                    <div style={{ fontSize: 18, fontWeight: 800, color: c360.integrazioni.n_attive > 0 ? COLORS.blue : COLORS.textMute, ...tnum }}>
-                      {c360.integrazioni.n_attive}<span style={{ fontSize: 12, color: COLORS.textMute, fontWeight: 500 }}>/{c360.integrazioni.n_totali}</span>
+                    <div style={{ fontSize: font.size.xl, fontWeight: 800, color: c360.integrazioni.n_attive > 0 ? COLORS.blue : COLORS.textMute, ...tnum }}>
+                      {c360.integrazioni.n_attive}<span style={{ fontSize: font.size.sm, color: COLORS.textMute, fontWeight: 500 }}>/{c360.integrazioni.n_totali}</span>
                     </div>
-                    <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
+                    <div style={{ fontSize: font.size.sm, color: COLORS.textMute, marginTop: 2 }}>
                       {c360.integrazioni.items.filter(i => i.attiva).slice(0, 3).map(i => i.tipo).join(', ') || 'nessuna attiva'}
                     </div>
                   </div>
@@ -1054,13 +1067,13 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
                 {/* Vendite B2B */}
                 {c360.b2b && (
                   <div style={{ padding: 10, background: COLORS.rowAlt, borderRadius: 8, border: `1px solid ${COLORS.border}` }}>
-                    <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>
+                    <div style={{ fontSize: font.size.sm, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>
                       <Icon name="building" size={10} /> Vendite B2B (mese)
                     </div>
-                    <div style={{ fontSize: 18, fontWeight: 800, color: c360.b2b.ricavo_mtd > 0 ? COLORS.ok : COLORS.textMute, ...tnum }}>
+                    <div style={{ fontSize: font.size.xl, fontWeight: 800, color: c360.b2b.ricavo_mtd > 0 ? COLORS.ok : COLORS.textMute, ...tnum }}>
                       {Number(c360.b2b.ricavo_mtd || 0).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })} €
                     </div>
-                    <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
+                    <div style={{ fontSize: font.size.sm, color: COLORS.textMute, marginTop: 2 }}>
                       {c360.b2b.n_vendite_mtd} vendite · {c360.b2b.n_clienti_attivi} clienti attivi
                     </div>
                   </div>
@@ -1068,13 +1081,13 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
                 {/* POS scontrini */}
                 {c360.pos && (
                   <div style={{ padding: 10, background: COLORS.rowAlt, borderRadius: 8, border: `1px solid ${COLORS.border}` }}>
-                    <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>
+                    <div style={{ fontSize: font.size.sm, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>
                       <Icon name="creditCard" size={10} /> POS (mese)
                     </div>
-                    <div style={{ fontSize: 18, fontWeight: 800, color: c360.pos.ricavo_mtd > 0 ? COLORS.ok : COLORS.textMute, ...tnum }}>
+                    <div style={{ fontSize: font.size.xl, fontWeight: 800, color: c360.pos.ricavo_mtd > 0 ? COLORS.ok : COLORS.textMute, ...tnum }}>
                       {Number(c360.pos.ricavo_mtd || 0).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })} €
                     </div>
-                    <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
+                    <div style={{ fontSize: font.size.sm, color: COLORS.textMute, marginTop: 2 }}>
                       {c360.pos.n_scontrini_mtd} scontrini
                       {c360.pos.providers.length > 0 && ` · ${c360.pos.providers.slice(0, 2).join(', ')}`}
                     </div>
@@ -1083,13 +1096,13 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
                 {/* Push subscriptions */}
                 {c360.push && (
                   <div style={{ padding: 10, background: COLORS.rowAlt, borderRadius: 8, border: `1px solid ${COLORS.border}` }}>
-                    <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>
+                    <div style={{ fontSize: font.size.sm, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>
                       <Icon name="bell" size={10} /> Push subs
                     </div>
-                    <div style={{ fontSize: 18, fontWeight: 800, color: c360.push.n_attive > 0 ? COLORS.blue : COLORS.textMute, ...tnum }}>
+                    <div style={{ fontSize: font.size.xl, fontWeight: 800, color: c360.push.n_attive > 0 ? COLORS.blue : COLORS.textMute, ...tnum }}>
                       {c360.push.n_attive}
                     </div>
-                    <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
+                    <div style={{ fontSize: font.size.sm, color: COLORS.textMute, marginTop: 2 }}>
                       {c360.push.devices.length > 0
                         ? c360.push.devices.slice(0, 2).map(d => d.label || 'tablet').join(', ')
                         : 'nessun dispositivo'}
@@ -1099,13 +1112,13 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
                 {/* Scadenzario fatture */}
                 {c360.scadenzario && (
                   <div style={{ padding: 10, background: c360.scadenzario.n_overdue > 0 ? COLORS.errBg : COLORS.rowAlt, borderRadius: 8, border: `1px solid ${c360.scadenzario.n_overdue > 0 ? COLORS.err : COLORS.border}` }}>
-                    <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>
+                    <div style={{ fontSize: font.size.sm, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>
                       <Icon name="warning" size={10} /> Fatture scadute
                     </div>
-                    <div style={{ fontSize: 18, fontWeight: 800, color: c360.scadenzario.n_overdue > 0 ? COLORS.err : COLORS.textMute, ...tnum }}>
+                    <div style={{ fontSize: font.size.xl, fontWeight: 800, color: c360.scadenzario.n_overdue > 0 ? COLORS.err : COLORS.textMute, ...tnum }}>
                       {c360.scadenzario.n_overdue}
                     </div>
-                    <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
+                    <div style={{ fontSize: font.size.sm, color: COLORS.textMute, marginTop: 2 }}>
                       {c360.scadenzario.n_overdue > 0
                         ? `€${Number(c360.scadenzario.totale_overdue).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })} non pagato`
                         : `${c360.scadenzario.n_prossime_7gg} in scadenza 7gg`}
@@ -1115,13 +1128,13 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
                 {/* Costi aziendali */}
                 {c360.costi && (
                   <div style={{ padding: 10, background: COLORS.rowAlt, borderRadius: 8, border: `1px solid ${COLORS.border}` }}>
-                    <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>
+                    <div style={{ fontSize: font.size.sm, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>
                       <Icon name="receipt" size={10} /> Costi mensili
                     </div>
-                    <div style={{ fontSize: 18, fontWeight: 800, color: c360.costi.totale_mensile > 0 ? COLORS.warn : COLORS.textMute, ...tnum }}>
+                    <div style={{ fontSize: font.size.xl, fontWeight: 800, color: c360.costi.totale_mensile > 0 ? COLORS.warn : COLORS.textMute, ...tnum }}>
                       {Number(c360.costi.totale_mensile || 0).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })} €
                     </div>
-                    <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
+                    <div style={{ fontSize: font.size.sm, color: COLORS.textMute, marginTop: 2 }}>
                       {c360.costi.n_voci_attive} voci attive
                     </div>
                   </div>
@@ -1129,13 +1142,13 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
                 {/* Stipendi */}
                 {c360.stipendi && (
                   <div style={{ padding: 10, background: COLORS.rowAlt, borderRadius: 8, border: `1px solid ${COLORS.border}` }}>
-                    <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>
+                    <div style={{ fontSize: font.size.sm, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>
                       <Icon name="users" size={10} /> Stipendi (lordo/mese)
                     </div>
-                    <div style={{ fontSize: 18, fontWeight: 800, color: c360.stipendi.lordo_mensile > 0 ? COLORS.warn : COLORS.textMute, ...tnum }}>
+                    <div style={{ fontSize: font.size.xl, fontWeight: 800, color: c360.stipendi.lordo_mensile > 0 ? COLORS.warn : COLORS.textMute, ...tnum }}>
                       {Number(c360.stipendi.lordo_mensile || 0).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })} €
                     </div>
-                    <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
+                    <div style={{ fontSize: font.size.sm, color: COLORS.textMute, marginTop: 2 }}>
                       {c360.stipendi.n_dipendenti} dipendenti attivi
                     </div>
                   </div>
@@ -1146,25 +1159,25 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
                   integrazioni attive + dispositivi push. Solo se count > 0. */}
               {c360.integrazioni && c360.integrazioni.items?.filter(i => i.attiva).length > 0 && (
                 <div style={{ marginTop: 10, padding: 10, background: COLORS.bg || '#FAFAFA', border: `1px solid ${COLORS.border}`, borderRadius: 8 }}>
-                  <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6, fontWeight: 700 }}>
+                  <div style={{ fontSize: font.size.sm, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6, fontWeight: 700 }}>
                     Integrazioni attive - clic su × per revocare
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                     {c360.integrazioni.items.filter(i => i.attiva).map(i => (
                       <span key={i.id} style={{
                         display: 'inline-flex', alignItems: 'center', gap: 6,
-                        padding: '3px 4px 3px 10px', borderRadius: 99, fontSize: 12, fontWeight: 600,
+                        padding: '3px 4px 3px 10px', borderRadius: 99, fontSize: font.size.sm, fontWeight: 600,
                         background: COLORS.blueBg, color: COLORS.blue,
                         border: `1px solid ${COLORS.blue}`,
                       }}>
                         {i.tipo}
-                        {i.ultimo_sync && <span style={{ fontSize: 12, opacity: 0.7 }}>· {new Date(i.ultimo_sync).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })}</span>}
+                        {i.ultimo_sync && <span style={{ fontSize: font.size.sm, opacity: 0.7 }}>· {new Date(i.ultimo_sync).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })}</span>}
                         <button
                           onClick={() => onAzione('integrazione_disattiva', { integrazione_id: i.id, tipo: i.tipo })}
                           title={`Revoca integrazione ${i.tipo}`}
                           style={{
                             background: 'transparent', border: 'none', cursor: 'pointer',
-                            color: COLORS.blue, padding: '0 4px', fontSize: 14, lineHeight: 1, opacity: 0.7,
+                            color: COLORS.blue, padding: '0 4px', fontSize: font.size.md, lineHeight: 1, opacity: 0.7,
                           }}
                         >×</button>
                       </span>
@@ -1174,14 +1187,14 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
               )}
               {c360.push && c360.push.devices?.length > 0 && (
                 <div style={{ marginTop: 10, padding: 10, background: COLORS.bg || '#FAFAFA', border: `1px solid ${COLORS.border}`, borderRadius: 8 }}>
-                  <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6, fontWeight: 700 }}>
+                  <div style={{ fontSize: font.size.sm, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6, fontWeight: 700 }}>
                     Dispositivi push sottoscritti - clic su × per revocare
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                     {c360.push.devices.map(d => (
                       <span key={d.id} style={{
                         display: 'inline-flex', alignItems: 'center', gap: 6,
-                        padding: '3px 4px 3px 10px', borderRadius: 99, fontSize: 12, fontWeight: 600,
+                        padding: '3px 4px 3px 10px', borderRadius: 99, fontSize: font.size.sm, fontWeight: 600,
                         background: COLORS.rowAlt, color: COLORS.text,
                         border: `1px solid ${COLORS.border}`,
                       }} title={d.ua_short || ''}>
@@ -1191,7 +1204,7 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
                           title="Revoca dispositivo"
                           style={{
                             background: 'transparent', border: 'none', cursor: 'pointer',
-                            color: COLORS.textMute, padding: '0 4px', fontSize: 14, lineHeight: 1, opacity: 0.7,
+                            color: COLORS.textMute, padding: '0 4px', fontSize: font.size.md, lineHeight: 1, opacity: 0.7,
                           }}
                         >×</button>
                       </span>
@@ -1204,16 +1217,16 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
 
           {/* Sedi */}
           <section style={{ marginBottom: 18 }}>
-            <h3 style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 800, color: COLORS.text }}>
+            <h3 style={{ margin: '0 0 8px', fontSize: font.size.sm, fontWeight: 800, color: COLORS.text }}>
               <Icon name="building" size={13} /> Sedi ({sedi.length})
             </h3>
             {sedi.length === 0 ? (
-              <div style={{ fontSize: 12, color: COLORS.textMute }}>Nessuna sede registrata</div>
+              <div style={{ fontSize: font.size.sm, color: COLORS.textMute }}>Nessuna sede registrata</div>
             ) : (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 {sedi.map(s => (
                   <span key={s.id} style={{
-                    padding: '4px 10px', borderRadius: 99, fontSize: 12, fontWeight: 600,
+                    padding: '4px 10px', borderRadius: 99, fontSize: font.size.sm, fontWeight: 600,
                     background: s.attiva ? COLORS.okBg : COLORS.blockedBg,
                     color: s.attiva ? COLORS.ok : COLORS.blocked,
                     border: `1px solid ${s.attiva ? COLORS.ok : COLORS.border}`,
@@ -1227,22 +1240,22 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
 
           {/* Uso per area */}
           <section style={{ marginBottom: 18 }}>
-            <h3 style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 800, color: COLORS.text }}>
+            <h3 style={{ margin: '0 0 8px', fontSize: font.size.sm, fontWeight: 800, color: COLORS.text }}>
               <Icon name="barChart" size={13} /> Uso per area
             </h3>
             {usage.length === 0 ? (
-              <div style={{ fontSize: 12, color: COLORS.textMute, padding: '12px 0' }}>
+              <div style={{ fontSize: font.size.sm, color: COLORS.textMute, padding: '12px 0' }}>
                 Nessun dato salvato - il cliente non ha mai inserito nulla.
               </div>
             ) : (
               <div style={{ border: `1px solid ${COLORS.border}`, borderRadius: 8, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-                <table style={{ width: '100%', minWidth: 480, borderCollapse: 'collapse', fontSize: 12 }}>
+                <table style={{ width: '100%', minWidth: 480, borderCollapse: 'collapse', fontSize: font.size.sm }}>
                   <thead>
                     <tr style={{ background: COLORS.rowAlt }}>
-                      <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Area</th>
-                      <th style={{ padding: '8px 12px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Record</th>
-                      <th style={{ padding: '8px 12px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Sedi</th>
-                      <th style={{ padding: '8px 12px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Ultimo</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: font.size.sm, fontWeight: 700, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Area</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'right', fontSize: font.size.sm, fontWeight: 700, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Record</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'right', fontSize: font.size.sm, fontWeight: 700, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Sedi</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'right', fontSize: font.size.sm, fontWeight: 700, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Ultimo</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1259,7 +1272,7 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
                               {LABEL_CHIAVE[u.data_key] || u.data_key}
                             </span>
                             {CHIAVI_OPERATIVE_SET.has(u.data_key) && (
-                              <span style={{ marginLeft: 6, fontSize: 12, padding: '1px 5px', borderRadius: 4, background: COLORS.blueBg, color: COLORS.blue, fontWeight: 700, textTransform: 'uppercase' }}>op</span>
+                              <span style={{ marginLeft: 6, fontSize: font.size.sm, padding: '1px 5px', borderRadius: 4, background: COLORS.blueBg, color: COLORS.blue, fontWeight: 700, textTransform: 'uppercase' }}>op</span>
                             )}
                           </td>
                           <td style={{ padding: '8px 12px', textAlign: 'right', color: COLORS.textSoft, fontWeight: 600 }}>{u.conteggio}</td>
@@ -1278,16 +1291,16 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
 
           {/* Eventi recenti */}
           <section>
-            <h3 style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 800, color: COLORS.text }}>
+            <h3 style={{ margin: '0 0 8px', fontSize: font.size.sm, fontWeight: 800, color: COLORS.text }}>
               <Icon name="clock" size={13} /> Eventi recenti ({eventi.length})
             </h3>
             {eventi.length === 0 ? (
-              <div style={{ fontSize: 12, color: COLORS.textMute, padding: '12px 0' }}>
+              <div style={{ fontSize: font.size.sm, color: COLORS.textMute, padding: '12px 0' }}>
                 Nessun evento registrato per questo cliente.
               </div>
             ) : (
               <div style={{ border: `1px solid ${COLORS.border}`, borderRadius: 8, overflow: 'hidden', maxHeight: 260, overflowY: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.size.sm }}>
                   <tbody>
                     {eventi.map((e, i) => (
                       <tr key={e.id} style={{
@@ -1297,9 +1310,9 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
                         <td style={{ padding: '6px 10px', color: COLORS.textMute, whiteSpace: 'nowrap', width: 130 }}>
                           {fmtDataOra(e.when)}
                         </td>
-                        <td style={{ padding: '6px 10px', color: COLORS.textSoft, fontSize: 12, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={e.user_email || ''}>
+                        <td style={{ padding: '6px 10px', color: COLORS.textSoft, fontSize: font.size.sm, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={e.user_email || ''}>
                           {e.user_email || '-'}
-                          {e.ruolo === 'dipendente' && <span style={{ marginLeft: 4, fontSize: 12, padding: '1px 4px', borderRadius: 3, background: COLORS.warnBg, color: COLORS.warn, fontWeight: 700 }}>dip</span>}
+                          {e.ruolo === 'dipendente' && <span style={{ marginLeft: 4, fontSize: font.size.sm, padding: '1px 4px', borderRadius: 3, background: COLORS.warnBg, color: COLORS.warn, fontWeight: 700 }}>dip</span>}
                         </td>
                         <td style={{ padding: '6px 10px', color: COLORS.text }}>
                           {e.label || `${e.table_name} · ${e.operation}`}
@@ -2241,7 +2254,7 @@ export default function AdminPage() {
         }}
         style={{
           background: 'transparent', border: 'none', cursor: 'pointer',
-          padding: 0, fontSize: 12, fontWeight: 700, color: active ? COLORS.text : COLORS.textMute,
+          padding: 0, fontSize: font.size.sm, fontWeight: 700, color: active ? COLORS.text : COLORS.textMute,
           textTransform: 'uppercase', letterSpacing: '0.05em',
           display: 'inline-flex', alignItems: 'center', gap: 4,
         }}
@@ -2256,18 +2269,18 @@ export default function AdminPage() {
   return (
     <div style={{
       minHeight: '100vh', background: COLORS.bg, color: COLORS.text,
-      fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontSize: 14,
+      fontFamily: "'Inter', system-ui, -apple-system, sans-serif", fontSize: font.size.md,
     }}>
       {/* Header */}
       <div style={{
-        background: '#FFF', borderBottom: `1px solid ${COLORS.border}`,
+        background: T.white, borderBottom: `1px solid ${COLORS.border}`,
         padding: '14px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
         <div>
-          <div style={{ fontWeight: 900, fontSize: 16, color: COLORS.text }}>
+          <div style={{ fontWeight: 900, fontSize: font.size.lg, color: COLORS.text }}>
             <Icon name="gift" size={17} /> Foodos <span style={{ color: COLORS.accent }}>Admin</span>
           </div>
-          <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
+          <div style={{ fontSize: font.size.sm, color: COLORS.textMute, marginTop: 2 }}>
             Pannello amministrazione · {lastFetch
               ? `aggiornato alle ${lastFetch.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`
               : 'caricamento…'}
@@ -2277,10 +2290,10 @@ export default function AdminPage() {
           <button onClick={() => setCmdkOpen(true)} title="Cerca tutto (Cmd+K)"
             style={{
               background: COLORS.rowAlt, border: `1px solid ${COLORS.border}`, borderRadius: 8,
-              padding: '6px 10px', fontSize: 12, color: COLORS.textMute, cursor: 'pointer',
+              padding: '6px 10px', fontSize: font.size.sm, color: COLORS.textMute, cursor: 'pointer',
               display: 'inline-flex', alignItems: 'center', gap: 6,
             }}>
-            <Icon name="search" size={12} /> Cerca <span style={{ fontFamily: 'monospace', fontSize: 12, padding: '1px 4px', background: '#FFF', borderRadius: 3, border: `1px solid ${COLORS.border}` }}>⌘K</span>
+            <Icon name="search" size={12} /> Cerca <span style={{ fontFamily: 'monospace', fontSize: font.size.sm, padding: '1px 4px', background: T.white, borderRadius: 3, border: `1px solid ${COLORS.border}` }}>⌘K</span>
           </button>
           <Btn kind="neutral" onClick={() => { fetchData(); fetchAudit() }} disabled={loading}>
             {loading ? '…' : <><Icon name="refresh" size={14} /> Aggiorna</>}
@@ -2292,7 +2305,7 @@ export default function AdminPage() {
 
       {/* Tab navigation: 6 sezioni accessibili senza scroll */}
       <div style={{
-        background: '#FFF', borderBottom: `1px solid ${COLORS.border}`,
+        background: T.white, borderBottom: `1px solid ${COLORS.border}`,
         position: 'sticky', top: 0, zIndex: 10,
       }}>
         <div style={{ maxWidth: 1400, margin: '0 auto', padding: '0 24px', display: 'flex', gap: 2, overflowX: 'auto' }}>
@@ -2320,11 +2333,11 @@ export default function AdminPage() {
                 style={{
                   background: 'transparent',
                   border: 'none',
-                  borderBottom: active ? `3px solid ${COLORS.accent || '#6E0E1A'}` : '3px solid transparent',
+                  borderBottom: active ? `3px solid ${COLORS.accent || T.brand}` : '3px solid transparent',
                   padding: '14px 18px',
-                  fontSize: 13,
+                  fontSize: font.size.base,
                   fontWeight: active ? 700 : 500,
-                  color: active ? (COLORS.accent || '#6E0E1A') : COLORS.textMute,
+                  color: active ? (COLORS.accent || T.brand) : COLORS.textMute,
                   cursor: 'pointer',
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -2338,8 +2351,8 @@ export default function AdminPage() {
                 {t.label}
                 {feedbackPending > 0 && (
                   <span style={{
-                    background: COLORS.err || '#DC2626', color: '#FFF',
-                    fontSize: 12, fontWeight: 800,
+                    background: COLORS.err || T.red, color: T.white,
+                    fontSize: font.size.sm, fontWeight: 800,
                     padding: '2px 7px', borderRadius: 999,
                     marginLeft: 4, minWidth: 18, textAlign: 'center',
                   }}>{feedbackPending}</span>
@@ -2354,36 +2367,39 @@ export default function AdminPage() {
         {errore && (
           <div style={{
             background: COLORS.accentSoft, border: `1px solid ${COLORS.err}`,
-            borderRadius: 8, padding: '12px 16px', color: COLORS.err, marginBottom: 20, fontSize: 13,
+            borderRadius: 8, padding: '12px 16px', color: COLORS.err, marginBottom: 20, fontSize: font.size.base,
           }}><Icon name="warning" size={14} /> {errore}</div>
         )}
 
         {adminTab === 'overview' && (<>
         {/* Alert visibile: feedback non gestiti - il founder li deve vedere subito */}
         {feedback.filter(f => !f.gestito).length > 0 && (
-          <div
+          <button
+            type="button"
             onClick={() => setAdminTab('ops')}
+            aria-label="Apri l'inbox dei feedback"
             style={{
               background: 'linear-gradient(135deg, #FEF3C7, #FDE68A)',
-              border: `1px solid ${COLORS.warn || '#B45309'}`,
+              border: `1px solid ${COLORS.warn || T.amber}`,
               borderRadius: 12, padding: '14px 18px', marginBottom: 16,
+              width: '100%', textAlign: 'left', font: 'inherit',
               display: 'flex', alignItems: 'center', gap: 12,
               cursor: 'pointer',
               boxShadow: '0 2px 8px rgba(217,119,6,0.18)',
             }}
           >
-            <Icon name="mail" size={20} color="#92400E"/>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 14, fontWeight: 800, color: '#78350F' }}>
+            <Icon name="mail" size={20} color={T.amberDark}/>
+            <span style={{ display: 'block', flex: 1, minWidth: 0 }}>
+              <span style={{ display: 'block', fontSize: font.size.md, fontWeight: 800, color: '#78350F' }}>
                 {feedback.filter(f => !f.gestito).length}{' '}
                 {feedback.filter(f => !f.gestito).length === 1 ? 'nuovo feedback da leggere' : 'nuovi feedback da leggere'}
-              </div>
-              <div style={{ fontSize: 12, color: '#92400E', marginTop: 2 }}>
+              </span>
+              <span style={{ display: 'block', fontSize: font.size.sm, color: T.amberDark, marginTop: 2 }}>
                 Tocca per aprire l'inbox in tab Ops
-              </div>
-            </div>
-            <Icon name="chevR" size={16} color="#92400E"/>
-          </div>
+              </span>
+            </span>
+            <Icon name="chevR" size={16} color={T.amberDark}/>
+          </button>
         )}
 
         {/* ── KPI ─────────────────────────────────────────────────── */}
@@ -2413,9 +2429,14 @@ export default function AdminPage() {
             sub="Da convertire"
             color={COLORS.err}
           />
+          {/* Un valore che non c'è non è zero: `fmtEuro(undefined)` dava
+              «0 €», cioè il pannello dichiarava ricavi nulli quando in realtà
+              non li sapeva, e le due cose si leggono uguali. `Number(null)`
+              fa 0 ed è finito: per questo il controllo comincia da `!= null`. */}
           <KpiCard
             label="MRR stimato"
-            value={stats ? fmtEuro(stats.mrrStimato) : '-'}
+            value={stats?.mrrStimato != null && Number.isFinite(Number(stats.mrrStimato))
+              ? fmtEuro(stats.mrrStimato) : '-'}
             sub="Su piani attivi"
             color={COLORS.blue}
           />
@@ -2430,8 +2451,8 @@ export default function AdminPage() {
         {stats?.crescita && (
           <Card style={{ padding: 20, marginBottom: 20 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-              <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800 }}><Icon name="trendUp" size={14} /> Crescita registrazioni</h3>
-              <div style={{ fontSize: 12, color: COLORS.textMute }}>Ultime 12 settimane</div>
+              <h3 style={{ margin: 0, fontSize: font.size.md, fontWeight: 800 }}><Icon name="trendUp" size={14} /> Crescita registrazioni</h3>
+              <div style={{ fontSize: font.size.sm, color: COLORS.textMute }}>Ultime 12 settimane</div>
             </div>
             <div style={{ width: '100%', height: 220 }}>
               <ResponsiveContainer>
@@ -2440,7 +2461,7 @@ export default function AdminPage() {
                   <XAxis dataKey="settimana" stroke={COLORS.textMute} fontSize={11} />
                   <YAxis stroke={COLORS.textMute} fontSize={11} allowDecimals={false} />
                   <Tooltip
-                    contentStyle={{ borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 12 }}
+                    contentStyle={{ borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: font.size.sm }}
                     labelStyle={{ fontWeight: 700, color: COLORS.text }}
                   />
                   <Line
@@ -2458,25 +2479,25 @@ export default function AdminPage() {
         {/* ── Stripe MRR reale ───────────────────────────────────── */}
         <Card style={{ padding: 16, marginBottom: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800 }}>
+            <h3 style={{ margin: 0, fontSize: font.size.md, fontWeight: 800 }}>
               <Icon name="card" size={14} /> MRR reale (Stripe)
-              <span style={{ fontSize: 12, fontWeight: 500, color: COLORS.textMute, marginLeft: 10 }}>
+              <span style={{ fontSize: font.size.sm, fontWeight: 500, color: COLORS.textMute, marginLeft: 10 }}>
                 calcolato dalle subscription Stripe, non da paganti × prezzo
               </span>
             </h3>
             <Btn kind="neutral" size="sm" onClick={fetchStripeMrr} disabled={stripeMrrLoading}>{stripeMrrLoading ? '…' : <Icon name="refresh" size={13} />}</Btn>
           </div>
           {stripeMrrLoading && !stripeMrr ? (
-            <div style={{ padding: 20, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>Caricamento da Stripe…</div>
+            <div style={{ padding: 20, textAlign: 'center', color: COLORS.textMute, fontSize: font.size.sm }}>Caricamento da Stripe…</div>
           ) : stripeMrr?.unavailable ? (
-            <div style={{ padding: '10px 14px', background: COLORS.warnBg, border: `1px solid ${COLORS.warn}`, borderRadius: 8, color: COLORS.warn, fontSize: 12 }}>
+            <div style={{ padding: '10px 14px', background: COLORS.warnBg, border: `1px solid ${COLORS.warn}`, borderRadius: 8, color: COLORS.warn, fontSize: font.size.sm }}>
               <Icon name="pause" size={14} /> Stripe non disponibile: {stripeMrr.reason || 'configurazione mancante'}
-              <div style={{ fontSize: 12, marginTop: 6, opacity: 0.85 }}>
+              <div style={{ fontSize: font.size.sm, marginTop: 6, opacity: 0.85 }}>
                 Pre-revenue: aspettato. Configura <code>STRIPE_SECRET_KEY</code> su Vercel quando passi a Stripe live.
               </div>
             </div>
           ) : stripeMrr?.error ? (
-            <div style={{ padding: '10px 14px', background: COLORS.errBg, border: `1px solid ${COLORS.err}`, borderRadius: 8, color: COLORS.err, fontSize: 12 }}>
+            <div style={{ padding: '10px 14px', background: COLORS.errBg, border: `1px solid ${COLORS.err}`, borderRadius: 8, color: COLORS.err, fontSize: font.size.sm }}>
               <Icon name="warning" size={13} /> Errore Stripe: {stripeMrr.error}
             </div>
           ) : stripeMrr ? (
@@ -2486,33 +2507,33 @@ export default function AdminPage() {
               gap: 10
             }}>
               <div style={{ padding: '10px 12px', background: COLORS.okBg, borderRadius: 8 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.ok, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>MRR fatturato</div>
+                <div style={{ fontSize: font.size.sm, fontWeight: 700, color: COLORS.ok, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>MRR fatturato</div>
                 <div style={{ fontSize: 20, fontWeight: 900, color: COLORS.ok }}>{fmtEuro((stripeMrr.mrr_cents || 0) / 100)}</div>
-                <div style={{ fontSize: 12, color: COLORS.ok, opacity: 0.8 }}>{stripeMrr.sub_active} sub active</div>
+                <div style={{ fontSize: font.size.sm, color: COLORS.ok, opacity: 0.8 }}>{stripeMrr.sub_active} sub active</div>
               </div>
               <div style={{ padding: '10px 12px', background: COLORS.warnBg, borderRadius: 8 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.warn, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>MRR in trial</div>
+                <div style={{ fontSize: font.size.sm, fontWeight: 700, color: COLORS.warn, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>MRR in trial</div>
                 <div style={{ fontSize: 20, fontWeight: 900, color: COLORS.warn }}>{fmtEuro((stripeMrr.mrr_trialing_cents || 0) / 100)}</div>
-                <div style={{ fontSize: 12, color: COLORS.warn, opacity: 0.8 }}>{stripeMrr.sub_trialing} sub trialing</div>
+                <div style={{ fontSize: font.size.sm, color: COLORS.warn, opacity: 0.8 }}>{stripeMrr.sub_trialing} sub trialing</div>
               </div>
               <div style={{ padding: '10px 12px', background: COLORS.errBg, borderRadius: 8 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.err, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Past due</div>
+                <div style={{ fontSize: font.size.sm, fontWeight: 700, color: COLORS.err, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Past due</div>
                 <div style={{ fontSize: 20, fontWeight: 900, color: COLORS.err }}>{stripeMrr.sub_past_due}</div>
-                <div style={{ fontSize: 12, color: COLORS.err, opacity: 0.8 }}>sub in arretrato</div>
+                <div style={{ fontSize: font.size.sm, color: COLORS.err, opacity: 0.8 }}>sub in arretrato</div>
               </div>
               <div style={{ padding: '10px 12px', background: COLORS.errBg, borderRadius: 8 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.err, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Charge falliti 30gg</div>
+                <div style={{ fontSize: font.size.sm, fontWeight: 700, color: COLORS.err, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Charge falliti 30gg</div>
                 <div style={{ fontSize: 20, fontWeight: 900, color: COLORS.err }}>{stripeMrr.failed_30d}</div>
-                <div style={{ fontSize: 12, color: COLORS.err, opacity: 0.8 }}>da retrying / dunning</div>
+                <div style={{ fontSize: font.size.sm, color: COLORS.err, opacity: 0.8 }}>da retrying / dunning</div>
               </div>
               <div style={{ padding: '10px 12px', background: COLORS.blockedBg, borderRadius: 8 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.blocked, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Canceled</div>
+                <div style={{ fontSize: font.size.sm, fontWeight: 700, color: COLORS.blocked, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Canceled</div>
                 <div style={{ fontSize: 20, fontWeight: 900, color: COLORS.blocked }}>{stripeMrr.sub_canceled}</div>
-                <div style={{ fontSize: 12, color: COLORS.blocked, opacity: 0.8 }}>sub annullate</div>
+                <div style={{ fontSize: font.size.sm, color: COLORS.blocked, opacity: 0.8 }}>sub annullate</div>
               </div>
             </div>
           ) : (
-            <div style={{ padding: 20, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>Nessun dato Stripe</div>
+            <div style={{ padding: 20, textAlign: 'center', color: COLORS.textMute, fontSize: font.size.sm }}>Nessun dato Stripe</div>
           )}
         </Card>
 
@@ -2527,10 +2548,10 @@ export default function AdminPage() {
           return (
             <Card style={{ padding: 16, marginBottom: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800 }}>
+                <h3 style={{ margin: 0, fontSize: font.size.md, fontWeight: 800 }}>
                   <Icon name="layers" size={14} /> Moduli &amp; operazioni (cross-cliente)
                 </h3>
-                <span style={{ fontSize: 12, color: COLORS.textMute }}>Mese in corso</span>
+                <span style={{ fontSize: font.size.sm, color: COLORS.textMute }}>Mese in corso</span>
               </div>
               <div style={{
                 display: 'grid',
@@ -2538,50 +2559,50 @@ export default function AdminPage() {
                 gap: 10,
               }}>
                 <div style={{ padding: '10px 12px', background: COLORS.blueBg, borderRadius: 8 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.blue, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
+                  <div style={{ fontSize: font.size.sm, fontWeight: 700, color: COLORS.blue, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
                     <Icon name="integ" size={10} /> Integrazioni
                   </div>
                   <div style={{ fontSize: 20, fontWeight: 900, color: COLORS.blue }}>{i.n_attive_totali ?? 0}</div>
-                  <div style={{ fontSize: 12, color: COLORS.blue, opacity: 0.85 }}>
+                  <div style={{ fontSize: font.size.sm, color: COLORS.blue, opacity: 0.85 }}>
                     su {i.n_clienti ?? 0} clienti
                     {i.top_tipi?.length > 0 && ` · top: ${i.top_tipi.slice(0, 2).map(t => t.tipo).join(', ')}`}
                   </div>
                 </div>
                 <div style={{ padding: '10px 12px', background: COLORS.okBg, borderRadius: 8 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.ok, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
+                  <div style={{ fontSize: font.size.sm, fontWeight: 700, color: COLORS.ok, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
                     <Icon name="building" size={10} /> B2B (mese)
                   </div>
                   <div style={{ fontSize: 20, fontWeight: 900, color: COLORS.ok }}>{fmtEuro(b.ricavo_mtd || 0)}</div>
-                  <div style={{ fontSize: 12, color: COLORS.ok, opacity: 0.85 }}>
+                  <div style={{ fontSize: font.size.sm, color: COLORS.ok, opacity: 0.85 }}>
                     {b.n_vendite_mtd ?? 0} vendite · {b.n_clienti_attivi_mtd ?? 0} clienti
                   </div>
                 </div>
                 <div style={{ padding: '10px 12px', background: COLORS.okBg, borderRadius: 8 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.ok, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
+                  <div style={{ fontSize: font.size.sm, fontWeight: 700, color: COLORS.ok, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
                     <Icon name="creditCard" size={10} /> POS (mese)
                   </div>
                   <div style={{ fontSize: 20, fontWeight: 900, color: COLORS.ok }}>{fmtEuro(p.ricavo_mtd || 0)}</div>
-                  <div style={{ fontSize: 12, color: COLORS.ok, opacity: 0.85 }}>
+                  <div style={{ fontSize: font.size.sm, color: COLORS.ok, opacity: 0.85 }}>
                     {p.n_scontrini_mtd ?? 0} scontrini · {p.n_clienti_attivi_mtd ?? 0} clienti
                   </div>
                 </div>
                 <div style={{ padding: '10px 12px', background: COLORS.blueBg, borderRadius: 8 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.blue, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
+                  <div style={{ fontSize: font.size.sm, fontWeight: 700, color: COLORS.blue, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
                     <Icon name="bell" size={10} /> Push subs
                   </div>
                   <div style={{ fontSize: 20, fontWeight: 900, color: COLORS.blue }}>{pu.n_dispositivi ?? 0}</div>
-                  <div style={{ fontSize: 12, color: COLORS.blue, opacity: 0.85 }}>
+                  <div style={{ fontSize: font.size.sm, color: COLORS.blue, opacity: 0.85 }}>
                     su {pu.n_clienti ?? 0} clienti
                   </div>
                 </div>
                 <div style={{ padding: '10px 12px', background: (s.n_clienti_overdue || 0) > 0 ? COLORS.errBg : COLORS.blockedBg, borderRadius: 8 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: (s.n_clienti_overdue || 0) > 0 ? COLORS.err : COLORS.blocked, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
+                  <div style={{ fontSize: font.size.sm, fontWeight: 700, color: (s.n_clienti_overdue || 0) > 0 ? COLORS.err : COLORS.blocked, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
                     <Icon name="warning" size={10} /> Fatture scadute
                   </div>
                   <div style={{ fontSize: 20, fontWeight: 900, color: (s.n_clienti_overdue || 0) > 0 ? COLORS.err : COLORS.blocked }}>
                     {s.n_clienti_overdue ?? 0}
                   </div>
-                  <div style={{ fontSize: 12, color: (s.n_clienti_overdue || 0) > 0 ? COLORS.err : COLORS.blocked, opacity: 0.85 }}>
+                  <div style={{ fontSize: font.size.sm, color: (s.n_clienti_overdue || 0) > 0 ? COLORS.err : COLORS.blocked, opacity: 0.85 }}>
                     clienti · {fmtEuro(s.totale_overdue || 0)}
                   </div>
                 </div>
@@ -2592,7 +2613,7 @@ export default function AdminPage() {
 
         {/* ── Azioni rapide ──────────────────────────────────────── */}
         <Card style={{ padding: 16, marginBottom: 20 }}>
-          <h3 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 800 }}><Icon name="bolt" size={14} /> Azioni rapide</h3>
+          <h3 style={{ margin: '0 0 12px', fontSize: font.size.md, fontWeight: 800 }}><Icon name="bolt" size={14} /> Azioni rapide</h3>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <Btn kind="neutral" onClick={handleEmailTrialScadenza}>
               <Icon name="mail" size={14} /> Email a trial in scadenza (7gg)
@@ -2626,8 +2647,8 @@ export default function AdminPage() {
             padding: '14px 18px', borderBottom: `1px solid ${COLORS.border}`,
             display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
           }}>
-            <strong style={{ fontSize: 14 }}>Clienti</strong>
-            <span style={{ fontSize: 12, color: COLORS.textMute }}>
+            <strong style={{ fontSize: font.size.md }}>Clienti</strong>
+            <span style={{ fontSize: font.size.sm, color: COLORS.textMute }}>
               {clientiVisibili.length} / {clienti.length}
             </span>
             <div style={{ flex: 1 }} />
@@ -2636,12 +2657,12 @@ export default function AdminPage() {
               placeholder="Cerca per nome, email…"
               style={{
                 padding: '6px 12px', borderRadius: 8, border: `1px solid ${COLORS.border}`,
-                fontSize: 12, minWidth: 220,
+                fontSize: font.size.sm, minWidth: 220,
               }}
             />
             <select
               value={filtroStato} onChange={e => setFiltroStato(e.target.value)}
-              style={{ padding: '6px 10px', borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 12, background: '#FFF' }}
+              style={{ padding: '6px 10px', borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: font.size.sm, background: T.white }}
             >
               <option value="tutti">Tutti gli stati</option>
               <option value="trial">Trial</option>
@@ -2651,7 +2672,7 @@ export default function AdminPage() {
             </select>
             <select
               value={filtroTipo} onChange={e => setFiltroTipo(e.target.value)}
-              style={{ padding: '6px 10px', borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 12, background: '#FFF' }}
+              style={{ padding: '6px 10px', borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: font.size.sm, background: T.white }}
             >
               <option value="tutti">Tutti i tipi</option>
               {tipiDisponibili.map(t => <option key={t} value={t}>{t}</option>)}
@@ -2659,7 +2680,7 @@ export default function AdminPage() {
             {/* Audit 2026-06-19 Customer 360: filtri rapidi flag */}
             <select
               value={filtroFlag} onChange={e => setFiltroFlag(e.target.value)}
-              style={{ padding: '6px 10px', borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 12, background: '#FFF' }}
+              style={{ padding: '6px 10px', borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: font.size.sm, background: T.white }}
               title="Filtra per condizioni Customer 360"
             >
               <option value="tutti">Tutti (no filtro 360)</option>
@@ -2670,7 +2691,7 @@ export default function AdminPage() {
             {/* Audit 2026-06-20: filtro signal */}
             <select
               value={filtroSignal} onChange={e => setFiltroSignal(e.target.value)}
-              style={{ padding: '6px 10px', borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 12, background: '#FFF' }}
+              style={{ padding: '6px 10px', borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: font.size.sm, background: T.white }}
               title="Filtra per segnale comportamentale"
             >
               <option value="tutti">Tutti (no filtro signal)</option>
@@ -2690,7 +2711,7 @@ export default function AdminPage() {
               borderBottom: `1px solid ${COLORS.border}`,
               display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap',
             }}>
-              <strong style={{ fontSize: 13, color: COLORS.blue }}>
+              <strong style={{ fontSize: font.size.base, color: COLORS.blue }}>
                 {selezionati.size} selezionat{selezionati.size === 1 ? 'o' : 'i'}
               </strong>
               <span style={{ flex: 1 }} />
@@ -2717,7 +2738,7 @@ export default function AdminPage() {
             </div>
           ) : (
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.size.base }}>
                 <thead>
                   <tr style={{ background: COLORS.rowAlt, borderBottom: `1px solid ${COLORS.border}` }}>
                     <th style={{ ...th(), width: 32, paddingRight: 0 }}>
@@ -2775,7 +2796,7 @@ export default function AdminPage() {
                             {signals[c.org_id] && signals[c.org_id].status !== 'normal' && (() => {
                               const s = signals[c.org_id]
                               const cfg = {
-                                hot: { bg: '#FEF3C7', fg: '#92400E', txt: 'hot' },
+                                hot: { bg: '#FEF3C7', fg: T.amberDark, txt: 'hot' },
                                 silent: { bg: '#E0E7FF', fg: '#3730A3', txt: 'silent' },
                                 churning: { bg: COLORS.errBg, fg: COLORS.err, txt: 'churn' },
                                 new_value: { bg: COLORS.okBg, fg: COLORS.ok, txt: 'new value' },
@@ -2784,20 +2805,20 @@ export default function AdminPage() {
                               }[s.status] || { bg: COLORS.rowAlt, fg: COLORS.textMute, txt: s.status }
                               return (
                                 <span title={s.detail} style={{
-                                  fontSize: 12, padding: '2px 6px', borderRadius: 99,
+                                  fontSize: font.size.sm, padding: '2px 6px', borderRadius: 99,
                                   background: cfg.bg, color: cfg.fg, fontWeight: 700,
                                   textTransform: 'uppercase', letterSpacing: '0.04em',
                                 }}>{cfg.txt}</span>
                               )
                             })()}
                           </div>
-                          {c.nome_completo && <div style={{ fontSize: 12, color: COLORS.textMute }}>{c.nome_completo}</div>}
+                          {c.nome_completo && <div style={{ fontSize: font.size.sm, color: COLORS.textMute }}>{c.nome_completo}</div>}
                         </td>
                         <td style={{ ...td(), color: COLORS.textSoft, textTransform: 'capitalize' }}>{c.tipo || '-'}</td>
                         <td style={{ ...td(), color: COLORS.textSoft }}>
                           {c.email}
                           {!c.email_confermata && (
-                            <div style={{ fontSize: 12, color: COLORS.warn, marginTop: 2 }}><Icon name="mail" size={11} /> non confermata</div>
+                            <div style={{ fontSize: font.size.sm, color: COLORS.warn, marginTop: 2 }}><Icon name="mail" size={11} /> non confermata</div>
                           )}
                         </td>
                         <td style={{ ...td(), color: COLORS.textSoft, whiteSpace: 'nowrap' }}>{fmtData(c.registrata_il)}</td>
@@ -2808,7 +2829,7 @@ export default function AdminPage() {
                             disabled={inAzione('cambia_piano')}
                             style={{
                               border: `1px solid ${COLORS.border}`, borderRadius: 6,
-                              padding: '4px 8px', fontSize: 12, cursor: 'pointer', background: '#FFF',
+                              padding: '4px 8px', fontSize: font.size.sm, cursor: 'pointer', background: T.white,
                             }}
                           >
                             {PIANI.map(p => <option key={p} value={p}>{p}</option>)}
@@ -2889,8 +2910,8 @@ export default function AdminPage() {
           <Card style={{ marginBottom: 20, padding: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 10 }}>
               <div>
-                <strong style={{ fontSize: 14 }}><Icon name="hourglass" size={16} /> Iscrizioni in attesa di approvazione</strong>
-                <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
+                <strong style={{ fontSize: font.size.md }}><Icon name="hourglass" size={16} /> Iscrizioni in attesa di approvazione</strong>
+                <div style={{ fontSize: font.size.sm, color: COLORS.textMute, marginTop: 2 }}>
                   Nuove organizzazioni che hanno fatto signup. Approva quelle vere, rifiuta lo scam.
                 </div>
               </div>
@@ -2899,7 +2920,7 @@ export default function AdminPage() {
               </Btn>
             </div>
             {pendingOrgs.length === 0 ? (
-              <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>
+              <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, fontSize: font.size.sm }}>
                 {pendingLoading ? 'Caricamento…' : 'Nessuna org in attesa. Tutti i nuovi signup sono stati gestiti.'}
               </div>
             ) : (
@@ -2921,14 +2942,14 @@ export default function AdminPage() {
                       gap: 12, alignItems: 'center',
                     }}>
                       <div>
-                        <div style={{ fontWeight: 800, fontSize: 14, color: COLORS.text, marginBottom: 4 }}>
-                          {o.nome} <span style={{ fontSize: 12, fontWeight: 400, color: COLORS.textMute, textTransform: 'capitalize' }}>· {o.tipo || 'attività'}</span>
+                        <div style={{ fontWeight: 800, fontSize: font.size.md, color: COLORS.text, marginBottom: 4 }}>
+                          {o.nome} <span style={{ fontSize: font.size.sm, fontWeight: 400, color: COLORS.textMute, textTransform: 'capitalize' }}>· {o.tipo || 'attività'}</span>
                         </div>
-                        <div style={{ fontSize: 12, color: COLORS.textSoft }}>
+                        <div style={{ fontSize: font.size.sm, color: COLORS.textSoft }}>
                           {o.titolare_email}
                           {o.titolare_nome && <> · <span style={{ color: COLORS.textMute }}>{o.titolare_nome}</span></>}
                         </div>
-                        <div style={{ fontSize: 12, color: isOld ? COLORS.warn : COLORS.textMute, marginTop: 4 }}>
+                        <div style={{ fontSize: font.size.sm, color: isOld ? COLORS.warn : COLORS.textMute, marginTop: 4 }}>
                           iscritta {ageLabel} fa {isOld && <strong>(da rispondere)</strong>}
                         </div>
                       </div>
@@ -2945,7 +2966,7 @@ export default function AdminPage() {
                 })}
               </div>
             )}
-            <div style={{ marginTop: 14, padding: 10, background: COLORS.blueBg, borderRadius: 8, fontSize: 12, color: COLORS.blue, border: `1px solid ${COLORS.blue}` }}>
+            <div style={{ marginTop: 14, padding: 10, background: COLORS.blueBg, borderRadius: 8, fontSize: font.size.sm, color: COLORS.blue, border: `1px solid ${COLORS.blue}` }}>
               <strong>Come funziona:</strong> ogni nuovo titolare che si registra parte con <code>in_attesa=true</code>. Vede una schermata "Stiamo verificando il tuo account" e non può usare l'app finché non lo approvi qui. Si refresha ogni 30s. Le org si possono anche bloccare/sbloccare dopo dalla tabella Clienti.
             </div>
           </Card>
@@ -2955,9 +2976,9 @@ export default function AdminPage() {
         {adminTab === 'activity' && (<>
           <Card style={{ marginBottom: 20, padding: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-              <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800 }}>
+              <h3 style={{ margin: 0, fontSize: font.size.md, fontWeight: 800 }}>
                 <Icon name="bolt" size={14} /> Cosa succede adesso
-                <span style={{ fontSize: 12, fontWeight: 400, color: COLORS.textMute, marginLeft: 10 }}>
+                <span style={{ fontSize: font.size.sm, fontWeight: 400, color: COLORS.textMute, marginLeft: 10 }}>
                   ultimi 80 eventi · si aggiorna ogni 12 secondi
                 </span>
               </h3>
@@ -2966,7 +2987,7 @@ export default function AdminPage() {
               </Btn>
             </div>
             {activity.length === 0 ? (
-              <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>
+              <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, fontSize: font.size.sm }}>
                 Nessun evento recente. {activityLoading && '(caricamento…)'}
               </div>
             ) : (
@@ -2988,21 +3009,21 @@ export default function AdminPage() {
                       borderBottom: i < activity.length - 1 ? `1px solid ${COLORS.border}` : 'none',
                       display: 'grid',
                       gridTemplateColumns: isAdminNarrow ? '70px 1fr' : '80px 90px 1fr 100px',
-                      gap: 10, alignItems: 'center', fontSize: 12,
+                      gap: 10, alignItems: 'center', fontSize: font.size.sm,
                       background: sevBg,
                       cursor: cliente ? 'pointer' : 'default',
                     }} onClick={() => cliente && apriDettaglio(cliente)}>
                       <span style={{
-                        fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em',
-                        color: sevColor, padding: '2px 6px', background: '#FFF', borderRadius: 4, textAlign: 'center',
+                        fontSize: font.size.sm, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em',
+                        color: sevColor, padding: '2px 6px', background: T.white, borderRadius: 4, textAlign: 'center',
                         border: `1px solid ${sevColor}`,
                       }}>{ev.kind}</span>
-                      <span style={{ color: COLORS.textMute, fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{ago}</span>
+                      <span style={{ color: COLORS.textMute, fontSize: font.size.sm, fontVariantNumeric: 'tabular-nums' }}>{ago}</span>
                       <div>
                         <div style={{ fontWeight: 600, color: COLORS.text }}>{ev.title}</div>
-                        {ev.detail && <div style={{ color: COLORS.textMute, fontSize: 12, marginTop: 2 }}>{ev.detail}</div>}
+                        {ev.detail && <div style={{ color: COLORS.textMute, fontSize: font.size.sm, marginTop: 2 }}>{ev.detail}</div>}
                       </div>
-                      <div style={{ color: COLORS.textMute, fontSize: 12, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <div style={{ color: COLORS.textMute, fontSize: font.size.sm, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {cliente ? cliente.nome_attivita : (ev.code || '')}
                       </div>
                     </div>
@@ -3017,7 +3038,7 @@ export default function AdminPage() {
         {adminTab === 'funnel' && (<>
           <Card style={{ marginBottom: 20, padding: 18 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
-              <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800 }}>
+              <h3 style={{ margin: 0, fontSize: font.size.md, fontWeight: 800 }}>
                 <Icon name="trendUp" size={14} /> Onboarding funnel
               </h3>
               <div style={{ display: 'flex', gap: 6 }}>
@@ -3032,16 +3053,16 @@ export default function AdminPage() {
               </div>
             </div>
             {!funnel ? (
-              <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>
+              <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, fontSize: font.size.sm }}>
                 {funnelLoading ? 'Caricamento…' : 'Premi un periodo per caricare il funnel.'}
               </div>
             ) : funnel.n === 0 ? (
-              <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>
+              <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, fontSize: font.size.sm }}>
                 Nessun cliente registrato negli ultimi {funnelDays} giorni.
               </div>
             ) : (
               <>
-                <div style={{ fontSize: 12, color: COLORS.textMute, marginBottom: 14 }}>
+                <div style={{ fontSize: font.size.sm, color: COLORS.textMute, marginBottom: 14 }}>
                   Base: <strong style={{ color: COLORS.text }}>{funnel.n}</strong> clienti registrati ultimi {funnel.days} giorni
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -3049,7 +3070,7 @@ export default function AdminPage() {
                     const prev = i > 0 ? funnel.steps[i - 1] : null
                     const dropOff = prev && prev.n > 0 ? Math.round(100 - 100 * s.n / prev.n) : 0
                     return (
-                      <div key={s.key} style={{ display: 'grid', gridTemplateColumns: isAdminNarrow ? '1fr 60px 60px' : '180px 1fr 80px 80px', gap: 12, alignItems: 'center', fontSize: 13 }}>
+                      <div key={s.key} style={{ display: 'grid', gridTemplateColumns: isAdminNarrow ? '1fr 60px 60px' : '180px 1fr 80px 80px', gap: 12, alignItems: 'center', fontSize: font.size.base }}>
                         <div style={{ fontWeight: 600, color: COLORS.text }}>{s.label}</div>
                         <div style={{ height: 22, background: COLORS.rowAlt, borderRadius: 4, position: 'relative', overflow: 'hidden' }}>
                           <div style={{
@@ -3058,19 +3079,19 @@ export default function AdminPage() {
                             background: s.pct >= 75 ? COLORS.ok : s.pct >= 40 ? COLORS.blue : s.pct >= 20 ? COLORS.warn : COLORS.err,
                             transition: 'width 250ms',
                           }} />
-                          <span style={{ position: 'absolute', left: 8, top: 2, fontSize: 12, fontWeight: 700, color: '#FFF', textShadow: '0 1px 2px rgba(0,0,0,0.4)' }}>
+                          <span style={{ position: 'absolute', left: 8, top: 2, fontSize: font.size.sm, fontWeight: 700, color: T.white, textShadow: '0 1px 2px rgba(0,0,0,0.4)' }}>
                             {s.n}
                           </span>
                         </div>
                         <div style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 700, textAlign: 'right' }}>{s.pct}%</div>
-                        <div style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, color: dropOff > 30 ? COLORS.err : COLORS.textMute, textAlign: 'right' }}>
+                        <div style={{ fontVariantNumeric: 'tabular-nums', fontSize: font.size.sm, color: dropOff > 30 ? COLORS.err : COLORS.textMute, textAlign: 'right' }}>
                           {prev && dropOff > 0 ? `-${dropOff}%` : ''}
                         </div>
                       </div>
                     )
                   })}
                 </div>
-                <div style={{ marginTop: 16, padding: 12, background: COLORS.warnBg, borderRadius: 8, fontSize: 12, color: COLORS.warn, border: `1px solid ${COLORS.warn}` }}>
+                <div style={{ marginTop: 16, padding: 12, background: COLORS.warnBg, borderRadius: 8, fontSize: font.size.sm, color: COLORS.warn, border: `1px solid ${COLORS.warn}` }}>
                   <strong>Drop-off grossi</strong>: i punti dove perdi più del 30% sono opportunità di copy/UX da rifinire.
                 </div>
               </>
@@ -3083,11 +3104,11 @@ export default function AdminPage() {
         {metricheAvanzate && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
             <Card style={{ padding: 18 }}>
-              <h3 style={{ margin: '0 0 12px', fontSize: 13, fontWeight: 800 }}><Icon name="trophy" size={16} /> Top 5 clienti più attivi</h3>
+              <h3 style={{ margin: '0 0 12px', fontSize: font.size.base, fontWeight: 800 }}><Icon name="trophy" size={16} /> Top 5 clienti più attivi</h3>
               {metricheAvanzate.topAttivi.length === 0 ? (
-                <div style={{ color: COLORS.textMute, fontSize: 12 }}>Nessuna attività registrata</div>
+                <div style={{ color: COLORS.textMute, fontSize: font.size.sm }}>Nessuna attività registrata</div>
               ) : (
-                <table style={{ width: '100%', fontSize: 12 }}>
+                <table style={{ width: '100%', fontSize: font.size.sm }}>
                   <tbody>
                     {metricheAvanzate.topAttivi.map(c => (
                       <tr key={c.org_id} style={{ borderBottom: `1px solid ${COLORS.border}` }}>
@@ -3104,29 +3125,29 @@ export default function AdminPage() {
             </Card>
 
             <Card style={{ padding: 18 }}>
-              <h3 style={{ margin: '0 0 12px', fontSize: 13, fontWeight: 800 }}>
+              <h3 style={{ margin: '0 0 12px', fontSize: font.size.base, fontWeight: 800 }}>
                 Inattivi da &gt;7 giorni ({metricheAvanzate.inattivi.length})
               </h3>
               {metricheAvanzate.inattivi.length === 0 ? (
-                <div style={{ color: COLORS.textMute, fontSize: 12 }}>Tutti i clienti sono attivi <Icon name="party" size={14} /></div>
+                <div style={{ color: COLORS.textMute, fontSize: font.size.sm }}>Tutti i clienti sono attivi <Icon name="party" size={14} /></div>
               ) : (
                 <div style={{ maxHeight: 200, overflowY: 'auto' }}>
                   {metricheAvanzate.inattivi.slice(0, 10).map(c => (
                     <div key={c.org_id} style={{
                       display: 'flex', justifyContent: 'space-between',
-                      padding: '6px 0', borderBottom: `1px solid ${COLORS.border}`, fontSize: 12,
+                      padding: '6px 0', borderBottom: `1px solid ${COLORS.border}`, fontSize: font.size.sm,
                     }}>
                       <div>
                         <div style={{ fontWeight: 600 }}>{c.nome_attivita}</div>
-                        <div style={{ color: COLORS.textMute, fontSize: 12 }}>{c.email}</div>
+                        <div style={{ color: COLORS.textMute, fontSize: font.size.sm }}>{c.email}</div>
                       </div>
-                      <div style={{ color: COLORS.textMute, fontSize: 12, textAlign: 'right' }}>
+                      <div style={{ color: COLORS.textMute, fontSize: font.size.sm, textAlign: 'right' }}>
                         {c.ultimo_accesso ? `Ult. ${fmtData(c.ultimo_accesso)}` : 'Mai loggato'}
                       </div>
                     </div>
                   ))}
                   {metricheAvanzate.inattivi.length > 10 && (
-                    <div style={{ color: COLORS.textMute, fontSize: 12, padding: '6px 0' }}>
+                    <div style={{ color: COLORS.textMute, fontSize: font.size.sm, padding: '6px 0' }}>
                       …e altri {metricheAvanzate.inattivi.length - 10}
                     </div>
                   )}
@@ -3140,13 +3161,13 @@ export default function AdminPage() {
         <Card style={{ marginBottom: 20, overflow: 'hidden' }}>
           <div style={{ padding: '14px 18px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <strong style={{ fontSize: 14 }}><Icon name="euro" size={16} /> Prezzi piani</strong>
-              <span style={{ fontSize: 12, color: COLORS.textMute }}>display landing + pannello abbonamento · checkout</span>
+              <strong style={{ fontSize: font.size.md }}><Icon name="euro" size={16} /> Prezzi piani</strong>
+              <span style={{ fontSize: font.size.sm, color: COLORS.textMute }}>display landing + pannello abbonamento · checkout</span>
             </div>
             <Btn kind="neutral" size="sm" onClick={fetchPricing} disabled={pricingLoading}>{pricingLoading ? '…' : <Icon name="refresh" size={14} />}</Btn>
           </div>
           <div style={{ padding: '14px 18px' }}>
-            <div style={{ fontSize: 12, color: COLORS.textMute, marginBottom: 12, lineHeight: 1.5 }}>
+            <div style={{ fontSize: font.size.sm, color: COLORS.textMute, marginBottom: 12, lineHeight: 1.5 }}>
               Modifica il prezzo mostrato. Per cambiare l'importo <b>realmente addebitato</b>, crea un nuovo Price su Stripe
               e incolla qui il suo ID (<code>price_…</code>): il checkout userà quello. Ogni modifica richiede una conferma esplicita.
             </div>
@@ -3168,20 +3189,20 @@ export default function AdminPage() {
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
                     <div style={{ flex: 1, minWidth: 200 }}>
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-                        <strong style={{ fontSize: 14 }}>{nomeAttuale}</strong>
-                        <span style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em' }}>(DB: {plan})</span>
+                        <strong style={{ fontSize: font.size.md }}>{nomeAttuale}</strong>
+                        <span style={{ fontSize: font.size.sm, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em' }}>(DB: {plan})</span>
                         <span style={{
                           padding: '2px 8px', borderRadius: 999, fontWeight: 700,
                           background: inVendita ? COLORS.okBg : COLORS.rowAlt,
                           color: inVendita ? COLORS.ok : COLORS.textMute,
                         }}>{inVendita ? 'In vendita' : 'Non in vendita'}</span>
-                        <span style={{ marginLeft: 6, fontSize: 18, fontWeight: 800, color: COLORS.accent }}>{euroAttuale} €</span>
-                        <span style={{ fontSize: 12, color: COLORS.textMute }}>/mese</span>
+                        <span style={{ marginLeft: 6, fontSize: font.size.xl, fontWeight: 800, color: COLORS.accent }}>{euroAttuale} €</span>
+                        <span style={{ fontSize: font.size.sm, color: COLORS.textMute }}>/mese</span>
                       </div>
-                      <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 4, lineHeight: 1.4 }}>
+                      <div style={{ fontSize: font.size.sm, color: COLORS.textMute, marginTop: 4, lineHeight: 1.4 }}>
                         {descrAttuale}
                       </div>
-                      <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 4 }}>
+                      <div style={{ fontSize: font.size.sm, color: COLORS.textMute, marginTop: 4 }}>
                         Stripe price: <code>{row.stripe_price_id || '- (usa env)'}</code>
                       </div>
                     </div>
@@ -3194,39 +3215,39 @@ export default function AdminPage() {
                   {inEdit && (
                     <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
                       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                        <label style={{ fontSize: 12, color: COLORS.textSoft }}>
+                        <label style={{ fontSize: font.size.sm, color: COLORS.textSoft }}>
                           Nome display
                           <input type="text" value={priceDraft.nome_display || ''} maxLength={60}
                             onChange={e => { setPriceDraft(d => ({ ...d, nome_display: e.target.value })); setPriceConfirm(false) }}
-                            style={{ display: 'block', marginTop: 4, padding: '8px 10px', borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 13, fontWeight: 700, width: 180 }} />
+                            style={{ display: 'block', marginTop: 4, padding: '8px 10px', borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: font.size.base, fontWeight: 700, width: 180 }} />
                         </label>
-                        <label style={{ fontSize: 12, color: COLORS.textSoft }}>
+                        <label style={{ fontSize: font.size.sm, color: COLORS.textSoft }}>
                           Prezzo €/mese
                           <input type="number" min="0" step="0.01" value={priceDraft.euro}
                             onChange={e => { setPriceDraft(d => ({ ...d, euro: e.target.value })); setPriceConfirm(false) }}
-                            style={{ display: 'block', marginTop: 4, padding: '8px 10px', borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 14, fontWeight: 700, width: 120 }} />
+                            style={{ display: 'block', marginTop: 4, padding: '8px 10px', borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: font.size.md, fontWeight: 700, width: 120 }} />
                         </label>
-                        <label style={{ fontSize: 12, color: COLORS.textSoft, flex: 1, minWidth: 200 }}>
+                        <label style={{ fontSize: font.size.sm, color: COLORS.textSoft, flex: 1, minWidth: 200 }}>
                           Stripe price ID (opzionale)
                           <input type="text" value={priceDraft.stripe_price_id} placeholder="price_..."
                             onChange={e => { setPriceDraft(d => ({ ...d, stripe_price_id: e.target.value })); setPriceConfirm(false) }}
-                            style={{ display: 'block', marginTop: 4, padding: '8px 10px', borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 13, fontFamily: 'monospace', width: '100%', boxSizing: 'border-box' }} />
+                            style={{ display: 'block', marginTop: 4, padding: '8px 10px', borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: font.size.base, fontFamily: 'monospace', width: '100%', boxSizing: 'border-box' }} />
                         </label>
                       </div>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: COLORS.text, fontWeight: 600 }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: font.size.base, color: COLORS.text, fontWeight: 600 }}>
                         <input type="checkbox" checked={!!priceDraft.attivo}
                           onChange={e => { setPriceDraft(d => ({ ...d, attivo: e.target.checked })); setPriceConfirm(false) }}
                           style={{ width: 18, height: 18 }} />
                         In vendita
-                        <span style={{ fontWeight: 400, color: COLORS.textMute, fontSize: 12 }}>
+                        <span style={{ fontWeight: 400, color: COLORS.textMute, fontSize: font.size.sm }}>
                           — se tolto, il piano sparisce dalla vetrina e dal pannello abbonamento, e non si può più comprare nemmeno chiamando il server a mano.
                         </span>
                       </label>
-                      <label style={{ fontSize: 12, color: COLORS.textSoft }}>
+                      <label style={{ fontSize: font.size.sm, color: COLORS.textSoft }}>
                         Descrizione (claim ROI)
                         <textarea value={priceDraft.descrizione || ''} maxLength={300} rows={2}
                           onChange={e => { setPriceDraft(d => ({ ...d, descrizione: e.target.value })); setPriceConfirm(false) }}
-                          style={{ display: 'block', marginTop: 4, padding: '8px 10px', borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 12, width: '100%', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit' }} />
+                          style={{ display: 'block', marginTop: 4, padding: '8px 10px', borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: font.size.sm, width: '100%', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit' }} />
                       </label>
                       {!priceConfirm ? (
                         <div style={{ display: 'flex', gap: 8 }}>
@@ -3235,10 +3256,10 @@ export default function AdminPage() {
                         </div>
                       ) : (
                         <div style={{ background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 8, padding: '10px 12px' }}>
-                          <div style={{ fontSize: 12, color: '#7F1D1D', marginBottom: 8 }}>
+                          <div style={{ fontSize: font.size.sm, color: '#7F1D1D', marginBottom: 8 }}>
                             Confermi piano <b>{plan}</b>: nome "{priceDraft.nome_display}" · prezzo <b>{euroAttuale} €</b> → <b>{(parseFloat(String(priceDraft.euro).replace(',', '.')) || 0).toFixed(2)} €</b>/mese · <b>{priceDraft.attivo ? 'in vendita' : 'NON in vendita'}</b>?
                             {priceDraft.stripe_price_id && <> Stripe price <code>{priceDraft.stripe_price_id}</code>.</>}
-                            <div style={{ marginTop: 6, fontSize: 12, opacity: 0.85 }}>
+                            <div style={{ marginTop: 6, fontSize: font.size.sm, opacity: 0.85 }}>
                               I clienti già abbonati restano al loro prezzo Stripe attuale finché non disdicono.
                               Le nuove sottoscrizioni useranno il nuovo prezzo.
                             </div>
@@ -3261,8 +3282,8 @@ export default function AdminPage() {
         <Card style={{ marginBottom: 20, overflow: 'hidden' }}>
           <div style={{ padding: '14px 18px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <strong style={{ fontSize: 14 }}><Icon name="ticket" size={16} /> Codici sconto</strong>
-              <span style={{ fontSize: 12, color: COLORS.textMute }}>
+              <strong style={{ fontSize: font.size.md }}><Icon name="ticket" size={16} /> Codici sconto</strong>
+              <span style={{ fontSize: font.size.sm, color: COLORS.textMute }}>
                 {codici.length} codici · {codici.filter(c => c.attivo).length} attivi · {codici.reduce((s, c) => s + (c.redemptions || 0), 0)} utilizzi totali
               </span>
             </div>
@@ -3279,12 +3300,12 @@ export default function AdminPage() {
             </div>
           </div>
           {codici.length === 0 ? (
-            <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>
+            <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, fontSize: font.size.sm }}>
               Nessun codice sconto creato. Crea il primo per regalare o scontare abbonamenti.
             </div>
           ) : (
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.size.sm }}>
                 <thead>
                   <tr style={{ background: COLORS.rowAlt, borderBottom: `1px solid ${COLORS.border}` }}>
                     <th style={th()}>Codice</th>
@@ -3307,7 +3328,7 @@ export default function AdminPage() {
                         <td style={td()}>
                           <div style={{ fontFamily: 'monospace', fontWeight: 800, color: COLORS.text, letterSpacing: '0.04em' }}>{c.codice}</div>
                           {c.piani_validi && (
-                            <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
+                            <div style={{ fontSize: font.size.sm, color: COLORS.textMute, marginTop: 2 }}>
                               Solo: {c.piani_validi.join(', ')}
                             </div>
                           )}
@@ -3317,7 +3338,7 @@ export default function AdminPage() {
                             {c.tipo_sconto === 'percent' ? `-${c.valore_sconto}%` : `-€${Number(c.valore_sconto / 100).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                           </span>
                           {c.valore_sconto === 100 && c.tipo_sconto === 'percent' && (
-                            <div style={{ fontSize: 12, color: '#059669', fontWeight: 600 }}><Icon name="gift" size={11} /> Gratis</div>
+                            <div style={{ fontSize: font.size.sm, color: '#059669', fontWeight: 600 }}><Icon name="gift" size={11} /> Gratis</div>
                           )}
                         </td>
                         <td style={{ ...td(), color: COLORS.textSoft }}>
@@ -3333,11 +3354,11 @@ export default function AdminPage() {
                         </td>
                         <td style={td()}>
                           {!c.attivo ? <StatoBadge stato="bloccato" />
-                            : scaduto ? <span style={{ background: '#FEE2E2', color: '#991B1B', padding: '3px 10px', borderRadius: 99, fontSize: 12, fontWeight: 700 }}>Scaduto</span>
-                            : limiteRaggiunto ? <span style={{ background: '#FEF3C7', color: '#92400E', padding: '3px 10px', borderRadius: 99, fontSize: 12, fontWeight: 700 }}>Esaurito</span>
-                            : <span style={{ background: COLORS.okBg, color: COLORS.ok, padding: '3px 10px', borderRadius: 99, fontSize: 12, fontWeight: 700 }}>Attivo</span>}
+                            : scaduto ? <span style={{ background: '#FEE2E2', color: '#991B1B', padding: '3px 10px', borderRadius: 99, fontSize: font.size.sm, fontWeight: 700 }}>Scaduto</span>
+                            : limiteRaggiunto ? <span style={{ background: '#FEF3C7', color: T.amberDark, padding: '3px 10px', borderRadius: 99, fontSize: font.size.sm, fontWeight: 700 }}>Esaurito</span>
+                            : <span style={{ background: COLORS.okBg, color: COLORS.ok, padding: '3px 10px', borderRadius: 99, fontSize: font.size.sm, fontWeight: 700 }}>Attivo</span>}
                         </td>
-                        <td style={{ ...td(), color: COLORS.textSoft, fontSize: 12, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={c.descrizione || ''}>
+                        <td style={{ ...td(), color: COLORS.textSoft, fontSize: font.size.sm, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={c.descrizione || ''}>
                           {c.descrizione || '-'}
                         </td>
                         <td style={td()}>
@@ -3387,8 +3408,8 @@ export default function AdminPage() {
         <Card style={{ marginBottom: 20, overflow: 'hidden' }}>
           <div style={{ padding: '14px 18px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
             <div>
-              <strong style={{ fontSize: 14 }}><Icon name="gift" size={14} /> Programma referral</strong>
-              <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
+              <strong style={{ fontSize: font.size.md }}><Icon name="gift" size={14} /> Programma referral</strong>
+              <div style={{ fontSize: font.size.sm, color: COLORS.textMute, marginTop: 2 }}>
                 Top referrer · mesi gratis distribuiti · cap anti-scam
               </div>
             </div>
@@ -3397,7 +3418,7 @@ export default function AdminPage() {
             </Btn>
           </div>
           {!refAdmin ? (
-            <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>
+            <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, fontSize: font.size.sm }}>
               {refAdminLoading ? 'Caricamento…' : 'Apri la sezione per caricare i dati.'}
             </div>
           ) : (
@@ -3414,21 +3435,21 @@ export default function AdminPage() {
               )}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, padding: 14 }}>
                 <div style={{ padding: 12, background: COLORS.rowAlt, borderRadius: 8 }}>
-                  <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', fontWeight: 700 }}>Codici usati totali</div>
-                  <div style={{ fontSize: 22, fontWeight: 900 }}>{refAdmin.totale_utilizzi || 0}</div>
+                  <div style={{ fontSize: font.size.sm, color: COLORS.textMute, textTransform: 'uppercase', fontWeight: 700 }}>Codici usati totali</div>
+                  <div style={{ fontSize: font.size['2xl'], fontWeight: 900 }}>{refAdmin.totale_utilizzi || 0}</div>
                 </div>
                 <div style={{ padding: 12, background: COLORS.okBg, borderRadius: 8 }}>
-                  <div style={{ fontSize: 12, color: COLORS.ok, textTransform: 'uppercase', fontWeight: 700 }}>Mesi gratis distribuiti</div>
-                  <div style={{ fontSize: 22, fontWeight: 900, color: COLORS.ok }}>{refAdmin.totale_mesi_distribuiti || 0}</div>
+                  <div style={{ fontSize: font.size.sm, color: COLORS.ok, textTransform: 'uppercase', fontWeight: 700 }}>Mesi gratis distribuiti</div>
+                  <div style={{ fontSize: font.size['2xl'], fontWeight: 900, color: COLORS.ok }}>{refAdmin.totale_mesi_distribuiti || 0}</div>
                 </div>
                 <div style={{ padding: 12, background: COLORS.blueBg, borderRadius: 8 }}>
-                  <div style={{ fontSize: 12, color: COLORS.blue, textTransform: 'uppercase', fontWeight: 700 }}>Top referrer attivi</div>
-                  <div style={{ fontSize: 22, fontWeight: 900, color: COLORS.blue }}>{(refAdmin.top || []).length}</div>
+                  <div style={{ fontSize: font.size.sm, color: COLORS.blue, textTransform: 'uppercase', fontWeight: 700 }}>Top referrer attivi</div>
+                  <div style={{ fontSize: font.size['2xl'], fontWeight: 900, color: COLORS.blue }}>{(refAdmin.top || []).length}</div>
                 </div>
               </div>
               {(refAdmin.top || []).length > 0 && (
                 <div style={{ borderTop: `1px solid ${COLORS.border}`, maxHeight: 300, overflowY: 'auto' }}>
-                  <table style={{ width: '100%', fontSize: 12 }}>
+                  <table style={{ width: '100%', fontSize: font.size.sm }}>
                     <thead>
                       <tr style={{ background: COLORS.rowAlt, borderBottom: `1px solid ${COLORS.border}` }}>
                         <th style={th()}>Cliente</th>
@@ -3462,18 +3483,18 @@ export default function AdminPage() {
         <Card style={{ marginBottom: 20, overflow: 'hidden' }}>
           <div style={{ padding: '14px 18px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <strong style={{ fontSize: 14 }}>Eventi Stripe recenti</strong>
-              <span style={{ fontSize: 12, color: COLORS.textMute }}>{stripeEvents.length} eventi · subscription, charge, invoice, checkout</span>
+              <strong style={{ fontSize: font.size.md }}>Eventi Stripe recenti</strong>
+              <span style={{ fontSize: font.size.sm, color: COLORS.textMute }}>{stripeEvents.length} eventi · subscription, charge, invoice, checkout</span>
             </div>
             <Btn kind="neutral" size="sm" onClick={fetchStripeEvents} disabled={stripeEventsLoading}>{stripeEventsLoading ? '…' : <Icon name="refresh" size={14} />}</Btn>
           </div>
           {stripeEvents.length === 0 ? (
-            <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>
+            <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, fontSize: font.size.sm }}>
               {stripeEventsLoading ? 'Caricamento…' : 'Nessun evento Stripe recente'}
             </div>
           ) : (
             <div style={{ maxHeight: 360, overflowY: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.size.sm }}>
                 <tbody>
                   {stripeEvents.map(e => {
                     const typeColor = e.type.includes('failed') || e.type.includes('deleted') ? COLORS.err
@@ -3485,11 +3506,11 @@ export default function AdminPage() {
                         <td style={{ padding: '8px 18px', color: COLORS.textMute, whiteSpace: 'nowrap', width: 140 }}>
                           {fmtDataOra(new Date(e.created).toISOString())}
                         </td>
-                        <td style={{ padding: '8px 0', color: typeColor, fontWeight: 600, fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 12, whiteSpace: 'nowrap' }}>
+                        <td style={{ padding: '8px 0', color: typeColor, fontWeight: 600, fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: font.size.sm, whiteSpace: 'nowrap' }}>
                           {e.type}
-                          {!e.livemode && <span style={{ marginLeft: 6, fontSize: 12, padding: '1px 5px', borderRadius: 3, background: COLORS.warnBg, color: COLORS.warn, fontWeight: 700, textTransform: 'uppercase' }}>test</span>}
+                          {!e.livemode && <span style={{ marginLeft: 6, fontSize: font.size.sm, padding: '1px 5px', borderRadius: 3, background: COLORS.warnBg, color: COLORS.warn, fontWeight: 700, textTransform: 'uppercase' }}>test</span>}
                         </td>
-                        <td style={{ padding: '8px 12px', color: COLORS.textSoft, fontSize: 12 }}>
+                        <td style={{ padding: '8px 12px', color: COLORS.textSoft, fontSize: font.size.sm }}>
                           {e.customer_email || (e.customer_id ? <code>{e.customer_id.slice(0, 16)}…</code> : '-')}
                         </td>
                         <td style={{ ...tnum, padding: '8px 18px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>
@@ -3508,13 +3529,13 @@ export default function AdminPage() {
         <Card style={{ marginBottom: 20, overflow: 'hidden' }}>
           <div style={{ padding: '14px 18px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <strong style={{ fontSize: 14 }}><Icon name="mail" size={16} /> Feedback dai clienti</strong>
-              <span style={{ fontSize: 12, color: COLORS.textMute }}>
+              <strong style={{ fontSize: font.size.md }}><Icon name="mail" size={16} /> Feedback dai clienti</strong>
+              <span style={{ fontSize: font.size.sm, color: COLORS.textMute }}>
                 {feedback.length}{feedbackSoloDaGestire ? ' da gestire' : ' totali'}
               </span>
             </div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <label style={{ fontSize: 12, color: COLORS.textSoft, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <label style={{ fontSize: font.size.sm, color: COLORS.textSoft, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                 <input type="checkbox" checked={feedbackSoloDaGestire} onChange={e => setFeedbackSoloDaGestire(e.target.checked)} />
                 Solo da gestire
               </label>
@@ -3522,7 +3543,7 @@ export default function AdminPage() {
             </div>
           </div>
           {feedback.length === 0 ? (
-            <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>
+            <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, fontSize: font.size.sm }}>
               {feedbackSoloDaGestire ? 'Nessun feedback da gestire' : 'Nessun feedback ricevuto ancora'}
             </div>
           ) : (
@@ -3543,18 +3564,18 @@ export default function AdminPage() {
                     opacity: f.gestito ? 0.7 : 1,
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
-                      <span style={{ background: s.bg, color: s.fg, padding: '2px 8px', borderRadius: 99, fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name={s.icon} size={11} /> {s.lbl}</span>
-                      <strong style={{ fontSize: 13, color: COLORS.text }}>{f.nome_attivita || '-'}</strong>
-                      <span style={{ fontSize: 12, color: COLORS.textMute }}>·</span>
-                      <span style={{ fontSize: 12, color: COLORS.textSoft }}>{f.user_email}</span>
-                      {f.ruolo === 'dipendente' && <span style={{ fontSize: 12, padding: '1px 5px', borderRadius: 4, background: COLORS.warnBg, color: COLORS.warn, fontWeight: 700, textTransform: 'uppercase' }}>dip</span>}
+                      <span style={{ background: s.bg, color: s.fg, padding: '2px 8px', borderRadius: 99, fontSize: font.size.sm, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name={s.icon} size={11} /> {s.lbl}</span>
+                      <strong style={{ fontSize: font.size.base, color: COLORS.text }}>{f.nome_attivita || '-'}</strong>
+                      <span style={{ fontSize: font.size.sm, color: COLORS.textMute }}>·</span>
+                      <span style={{ fontSize: font.size.sm, color: COLORS.textSoft }}>{f.user_email}</span>
+                      {f.ruolo === 'dipendente' && <span style={{ fontSize: font.size.sm, padding: '1px 5px', borderRadius: 4, background: COLORS.warnBg, color: COLORS.warn, fontWeight: 700, textTransform: 'uppercase' }}>dip</span>}
                       <span style={{ flex: 1 }} />
-                      <span style={{ fontSize: 12, color: COLORS.textMute }}>{fmtDataOra(f.created_at)}</span>
+                      <span style={{ fontSize: font.size.sm, color: COLORS.textMute }}>{fmtDataOra(f.created_at)}</span>
                     </div>
-                    <div style={{ fontSize: 13, color: COLORS.text, whiteSpace: 'pre-wrap', lineHeight: 1.5, marginBottom: 8 }}>
+                    <div style={{ fontSize: font.size.base, color: COLORS.text, whiteSpace: 'pre-wrap', lineHeight: 1.5, marginBottom: 8 }}>
                       {f.messaggio}
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: COLORS.textMute }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: font.size.sm, color: COLORS.textMute }}>
                       {f.view_corrente && <span><Icon name="pin" size={11} /> {f.view_corrente}</span>}
                       {f.url && <a href={f.url} target="_blank" rel="noreferrer" style={{ color: COLORS.accent, textDecoration: 'none' }}>apri pagina</a>}
                       <span style={{ flex: 1 }} />
@@ -3588,13 +3609,13 @@ export default function AdminPage() {
         <Card style={{ marginBottom: 20, overflow: 'hidden' }}>
           <div style={{ padding: '14px 18px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <strong style={{ fontSize: 14 }}>Banner globali</strong>
-              <span style={{ fontSize: 12, color: COLORS.textMute }}>annuncio mostrato a tutti i clienti in cima all'app</span>
+              <strong style={{ fontSize: font.size.md }}>Banner globali</strong>
+              <span style={{ fontSize: font.size.sm, color: COLORS.textMute }}>annuncio mostrato a tutti i clienti in cima all'app</span>
             </div>
             <Btn kind="neutral" size="sm" onClick={fetchBanners} disabled={bannersLoading}>{bannersLoading ? '…' : <Icon name="refresh" size={14} />}</Btn>
           </div>
           <div style={{ padding: '14px 18px', borderBottom: `1px solid ${COLORS.border}`, background: COLORS.rowAlt }}>
-            <div style={{ fontSize: 12, color: COLORS.textMute, marginBottom: 8 }}>Nuovo banner</div>
+            <div style={{ fontSize: font.size.sm, color: COLORS.textMute, marginBottom: 8 }}>Nuovo banner</div>
             <textarea
               value={nuovoBanner.messaggio}
               onChange={e => setNuovoBanner(b => ({ ...b, messaggio: e.target.value }))}
@@ -3602,13 +3623,13 @@ export default function AdminPage() {
               rows={2}
               style={{
                 width: '100%', padding: '8px 10px', borderRadius: 8,
-                border: `1px solid ${COLORS.border}`, fontSize: 13,
+                border: `1px solid ${COLORS.border}`, fontSize: font.size.base,
                 resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: 8,
               }}
             />
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               <select value={nuovoBanner.tipo} onChange={e => setNuovoBanner(b => ({ ...b, tipo: e.target.value }))}
-                style={{ padding: '6px 10px', borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 12, background: '#FFF' }}>
+                style={{ padding: '6px 10px', borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: font.size.sm, background: T.white }}>
                 <option value="info">info</option>
                 <option value="warn">warn</option>
                 <option value="critical">critical</option>
@@ -3616,9 +3637,9 @@ export default function AdminPage() {
               </select>
               <input type="datetime-local" value={nuovoBanner.scade_il}
                 onChange={e => setNuovoBanner(b => ({ ...b, scade_il: e.target.value }))}
-                style={{ padding: '6px 10px', borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 12 }}
+                style={{ padding: '6px 10px', borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: font.size.sm }}
                 title="Scadenza (opzionale)" />
-              <span style={{ fontSize: 12, color: COLORS.textMute }}>scadenza opzionale</span>
+              <span style={{ fontSize: font.size.sm, color: COLORS.textMute }}>scadenza opzionale</span>
               <span style={{ flex: 1 }} />
               <Btn kind="primary" size="sm" onClick={creaBanner} disabled={bannerSaving || !nuovoBanner.messaggio.trim()}>
                 {bannerSaving ? 'Pubblicazione…' : 'Pubblica'}
@@ -3626,7 +3647,7 @@ export default function AdminPage() {
             </div>
           </div>
           {banners.length === 0 ? (
-            <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>
+            <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, fontSize: font.size.sm }}>
               Nessun banner pubblicato finora
             </div>
           ) : (
@@ -3647,16 +3668,16 @@ export default function AdminPage() {
                     opacity: !b.attivo || scaduto ? 0.6 : 1,
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
-                      <span style={{ background: t.bg, color: t.fg, padding: '2px 8px', borderRadius: 99, fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>{t.icon && <Icon name={t.icon} size={11} />}{t.lbl}</span>
-                      {b.attivo && !scaduto && <span style={{ background: COLORS.okBg, color: COLORS.ok, padding: '2px 8px', borderRadius: 99, fontSize: 12, fontWeight: 700 }}>● live</span>}
-                      {!b.attivo && <span style={{ background: COLORS.blockedBg, color: COLORS.blocked, padding: '2px 8px', borderRadius: 99, fontSize: 12, fontWeight: 700 }}>spento</span>}
-                      {scaduto && <span style={{ background: COLORS.errBg, color: COLORS.err, padding: '2px 8px', borderRadius: 99, fontSize: 12, fontWeight: 700 }}>scaduto</span>}
+                      <span style={{ background: t.bg, color: t.fg, padding: '2px 8px', borderRadius: 99, fontSize: font.size.sm, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>{t.icon && <Icon name={t.icon} size={11} />}{t.lbl}</span>
+                      {b.attivo && !scaduto && <span style={{ background: COLORS.okBg, color: COLORS.ok, padding: '2px 8px', borderRadius: 99, fontSize: font.size.sm, fontWeight: 700 }}>● live</span>}
+                      {!b.attivo && <span style={{ background: COLORS.blockedBg, color: COLORS.blocked, padding: '2px 8px', borderRadius: 99, fontSize: font.size.sm, fontWeight: 700 }}>spento</span>}
+                      {scaduto && <span style={{ background: COLORS.errBg, color: COLORS.err, padding: '2px 8px', borderRadius: 99, fontSize: font.size.sm, fontWeight: 700 }}>scaduto</span>}
                       <span style={{ flex: 1 }} />
-                      <span style={{ fontSize: 12, color: COLORS.textMute }}>{fmtDataOra(b.creato_il)}</span>
+                      <span style={{ fontSize: font.size.sm, color: COLORS.textMute }}>{fmtDataOra(b.creato_il)}</span>
                     </div>
-                    <div style={{ fontSize: 13, color: COLORS.text, marginBottom: 6 }}>{b.messaggio}</div>
+                    <div style={{ fontSize: font.size.base, color: COLORS.text, marginBottom: 6 }}>{b.messaggio}</div>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                      {b.scade_il && <span style={{ fontSize: 12, color: COLORS.textMute }}>Scade: {fmtDataOra(b.scade_il)}</span>}
+                      {b.scade_il && <span style={{ fontSize: font.size.sm, color: COLORS.textMute }}>Scade: {fmtDataOra(b.scade_il)}</span>}
                       <span style={{ flex: 1 }} />
                       {b.attivo && (
                         <Btn kind="warn" size="sm" onClick={async () => {
@@ -3688,10 +3709,10 @@ export default function AdminPage() {
             padding: '14px 18px', borderBottom: `1px solid ${COLORS.border}`,
             display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
           }}>
-            <strong style={{ fontSize: 14 }}>
+            <strong style={{ fontSize: font.size.md }}>
               <Icon name="lock" size={14} /> Blocklist domini email
             </strong>
-            <span style={{ fontSize: 12, color: COLORS.textMute }}>
+            <span style={{ fontSize: font.size.sm, color: COLORS.textMute }}>
               {blocklist.length} domini bloccati
             </span>
             <div style={{ flex: 1 }} />
@@ -3700,7 +3721,7 @@ export default function AdminPage() {
             </Btn>
           </div>
           <div style={{ padding: '14px 18px', borderBottom: `1px solid ${COLORS.border}`, background: COLORS.rowAlt }}>
-            <div style={{ fontSize: 12, color: COLORS.textMute, marginBottom: 8 }}>
+            <div style={{ fontSize: font.size.sm, color: COLORS.textMute, marginBottom: 8 }}>
               Aggiungi un dominio (es. <code>mailinator.com</code>, <code>tempmail.io</code>): chi prova
               a registrarsi con un'email @dominio verrà respinto al signup. Il check è in
               <code> handle_new_user</code> trigger Supabase, fail-open su errori.
@@ -3710,13 +3731,13 @@ export default function AdminPage() {
                 value={nuovoBlocco.domain}
                 onChange={e => setNuovoBlocco({ ...nuovoBlocco, domain: e.target.value })}
                 placeholder="dominio.com"
-                style={{ padding: '6px 10px', borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 12, minWidth: 200 }}
+                style={{ padding: '6px 10px', borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: font.size.sm, minWidth: 200 }}
               />
               <input
                 value={nuovoBlocco.motivo}
                 onChange={e => setNuovoBlocco({ ...nuovoBlocco, motivo: e.target.value })}
                 placeholder="Motivo (opzionale, es. 'email temporanea')"
-                style={{ padding: '6px 10px', borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 12, flex: 1, minWidth: 200 }}
+                style={{ padding: '6px 10px', borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: font.size.sm, flex: 1, minWidth: 200 }}
               />
               <Btn kind="danger" size="sm" onClick={aggiungiBlocco}>
                 <Icon name="plus" size={13} /> Blocca
@@ -3724,11 +3745,11 @@ export default function AdminPage() {
             </div>
           </div>
           {blocklist.length === 0 ? (
-            <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>
+            <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, fontSize: font.size.sm }}>
               Nessun dominio bloccato. La blocklist è vuota.
             </div>
           ) : (
-            <table style={{ width: '100%', fontSize: 12 }}>
+            <table style={{ width: '100%', fontSize: font.size.sm }}>
               <thead>
                 <tr style={{ background: COLORS.rowAlt, borderBottom: `1px solid ${COLORS.border}` }}>
                   <th style={th()}>Dominio</th>
@@ -3763,8 +3784,8 @@ export default function AdminPage() {
         <Card style={{ marginBottom: 30, padding: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 10 }}>
             <div>
-              <strong style={{ fontSize: 14 }}><Icon name="tool" size={14} /> SQL editor (read-only)</strong>
-              <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
+              <strong style={{ fontSize: font.size.md }}><Icon name="tool" size={14} /> SQL editor (read-only)</strong>
+              <div style={{ fontSize: font.size.sm, color: COLORS.textMute, marginTop: 2 }}>
                 Solo SELECT/WITH · max 500 righe · whitelist tabelle · 0 DDL/DML
               </div>
             </div>
@@ -3773,7 +3794,7 @@ export default function AdminPage() {
             </Btn>
           </div>
           {/* Pre-built queries */}
-          <div style={{ fontSize: 12, color: COLORS.textMute, marginBottom: 6, fontWeight: 600 }}>Query rapide:</div>
+          <div style={{ fontSize: font.size.sm, color: COLORS.textMute, marginBottom: 6, fontWeight: 600 }}>Query rapide:</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
             {[
               { label: 'Top 20 paganti per MRR', q: `select o.id, o.nome, o.piano, o.stripe_status, o.created_at\nfrom organizations o\nwhere o.approvato = true\norder by o.created_at desc\nlimit 20` },
@@ -3786,7 +3807,7 @@ export default function AdminPage() {
               { label: 'Feedback non gestiti', q: `select id, sentiment, user_email, messaggio, created_at\nfrom feedback\nwhere coalesce(gestito, false) = false\norder by created_at desc\nlimit 30` },
             ].map((p, i) => (
               <button key={i} onClick={() => setSqlQuery(p.q)}
-                style={{ background: COLORS.rowAlt, border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: '4px 10px', fontSize: 12, color: COLORS.textSoft, cursor: 'pointer' }}>
+                style={{ background: COLORS.rowAlt, border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: '4px 10px', fontSize: font.size.sm, color: COLORS.textSoft, cursor: 'pointer' }}>
                 {p.label}
               </button>
             ))}
@@ -3797,17 +3818,17 @@ export default function AdminPage() {
             rows={8}
             spellCheck={false}
             style={{
-              width: '100%', padding: '10px 12px', borderRadius: 8, fontSize: 12,
+              width: '100%', padding: '10px 12px', borderRadius: 8, fontSize: font.size.sm,
               fontFamily: "'JetBrains Mono', ui-monospace, monospace",
               border: `1px solid ${COLORS.border}`, background: '#FAFAFA',
               resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.5,
             }}
           />
           {sqlError && (
-            <div style={{ marginTop: 10, padding: '10px 12px', background: COLORS.errBg, color: COLORS.err, borderRadius: 8, fontSize: 12, border: `1px solid ${COLORS.err}` }}>
+            <div style={{ marginTop: 10, padding: '10px 12px', background: COLORS.errBg, color: COLORS.err, borderRadius: 8, fontSize: font.size.sm, border: `1px solid ${COLORS.err}` }}>
               <Icon name="warning" size={13} /> {sqlError}
               {sqlError.includes('admin_safe_select') && (
-                <div style={{ marginTop: 6, fontSize: 12 }}>
+                <div style={{ marginTop: 6, fontSize: font.size.sm }}>
                   Applica la migration <code>20260704_admin_safe_select.sql</code> in Supabase SQL editor per abilitare l'editor.
                 </div>
               )}
@@ -3815,18 +3836,18 @@ export default function AdminPage() {
           )}
           {sqlResult && (
             <div style={{ marginTop: 12 }}>
-              <div style={{ fontSize: 12, color: COLORS.textMute, marginBottom: 6 }}>
-                {sqlResult.count} righe · query: <code style={{ fontSize: 12 }}>{(sqlResult.query || '').slice(0, 120)}…</code>
+              <div style={{ fontSize: font.size.sm, color: COLORS.textMute, marginBottom: 6 }}>
+                {sqlResult.count} righe · query: <code style={{ fontSize: font.size.sm }}>{(sqlResult.query || '').slice(0, 120)}…</code>
               </div>
               {sqlResult.rows.length === 0 ? (
-                <div style={{ padding: 16, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>Nessuna riga.</div>
+                <div style={{ padding: 16, textAlign: 'center', color: COLORS.textMute, fontSize: font.size.sm }}>Nessuna riga.</div>
               ) : (
                 <div style={{ overflowX: 'auto', border: `1px solid ${COLORS.border}`, borderRadius: 8, maxHeight: 400, overflowY: 'auto' }}>
-                  <table style={{ width: '100%', fontSize: 12, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
+                  <table style={{ width: '100%', fontSize: font.size.sm, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
                     <thead>
                       <tr style={{ background: COLORS.rowAlt, borderBottom: `1px solid ${COLORS.border}` }}>
                         {Object.keys(sqlResult.rows[0]).map(col => (
-                          <th key={col} style={{ ...th(), fontSize: 12, fontFamily: 'inherit' }}>{col}</th>
+                          <th key={col} style={{ ...th(), fontSize: font.size.sm, fontFamily: 'inherit' }}>{col}</th>
                         ))}
                       </tr>
                     </thead>
@@ -3834,7 +3855,7 @@ export default function AdminPage() {
                       {sqlResult.rows.slice(0, 100).map((row, i) => (
                         <tr key={i} style={{ borderBottom: `1px solid ${COLORS.border}` }}>
                           {Object.values(row).map((v, j) => (
-                            <td key={j} style={{ ...td(), fontFamily: 'inherit', fontSize: 12, color: COLORS.textSoft, whiteSpace: 'nowrap', maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis' }}
+                            <td key={j} style={{ ...td(), fontFamily: 'inherit', fontSize: font.size.sm, color: COLORS.textSoft, whiteSpace: 'nowrap', maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis' }}
                               title={String(v)}>
                               {v === null ? <span style={{ color: COLORS.textMute, fontStyle: 'italic' }}>null</span>
                                 : typeof v === 'object' ? JSON.stringify(v).slice(0, 80)
@@ -3846,7 +3867,7 @@ export default function AdminPage() {
                     </tbody>
                   </table>
                   {sqlResult.rows.length > 100 && (
-                    <div style={{ padding: 8, textAlign: 'center', fontSize: 12, color: COLORS.textMute, background: COLORS.rowAlt }}>
+                    <div style={{ padding: 8, textAlign: 'center', fontSize: font.size.sm, color: COLORS.textMute, background: COLORS.rowAlt }}>
                       Mostro le prime 100 righe su {sqlResult.count}. Stringi la query per vedere tutto.
                     </div>
                   )}
@@ -3865,16 +3886,16 @@ export default function AdminPage() {
             padding: '14px 18px', borderBottom: `1px solid ${COLORS.border}`,
             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           }}>
-            <strong style={{ fontSize: 14 }}><Icon name="clipboard" size={16} /> Log attività recenti</strong>
-            <span style={{ fontSize: 12, color: COLORS.textMute }}>{auditLog.length} eventi</span>
+            <strong style={{ fontSize: font.size.md }}><Icon name="clipboard" size={16} /> Log attività recenti</strong>
+            <span style={{ fontSize: font.size.sm, color: COLORS.textMute }}>{auditLog.length} eventi</span>
           </div>
           {auditLog.length === 0 ? (
-            <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>
+            <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, fontSize: font.size.sm }}>
               Nessun evento registrato
             </div>
           ) : (
             <div style={{ maxHeight: 280, overflowY: 'auto' }}>
-              <table style={{ width: '100%', fontSize: 12 }}>
+              <table style={{ width: '100%', fontSize: font.size.sm }}>
                 <tbody>
                   {auditLog.map(r => (
                     <tr key={r.id} style={{ borderBottom: `1px solid ${COLORS.border}` }}>
@@ -3883,7 +3904,7 @@ export default function AdminPage() {
                       </td>
                       <td style={{ padding: '8px 0', color: COLORS.textSoft, width: 180 }}>{r.actor}</td>
                       <td style={{ padding: '8px 0', fontWeight: 600 }}>{r.action}</td>
-                      <td style={{ padding: '8px 18px', color: COLORS.textMute, fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 12 }}>
+                      <td style={{ padding: '8px 18px', color: COLORS.textMute, fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: font.size.sm }}>
                         {r.target ? r.target.slice(0, 8) + '…' : ''}
                       </td>
                     </tr>
@@ -3901,8 +3922,8 @@ export default function AdminPage() {
         <Card style={{ marginBottom: 20, padding: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
             <div>
-              <h3 style={{ margin: '0 0 4px', fontSize: 14, fontWeight: 800 }}><Icon name="lock" size={16} /> Migrazione integrazioni → AES-256-GCM</h3>
-              <div style={{ fontSize: 12, color: COLORS.textMute, maxWidth: 600 }}>
+              <h3 style={{ margin: '0 0 4px', fontSize: font.size.md, fontWeight: 800 }}><Icon name="lock" size={16} /> Migrazione integrazioni → AES-256-GCM</h3>
+              <div style={{ fontSize: font.size.sm, color: COLORS.textMute, maxWidth: 600 }}>
                 Cifra in batch tutte le righe <code>public.integrazioni</code> con <code>encryption_version=0</code> (legacy). Idempotente: ri-eseguire non tocca le righe già v=1. Richiede <code>INTEGRATIONS_ENCRYPTION_KEY</code> in Vercel.
               </div>
             </div>
@@ -3930,8 +3951,8 @@ export default function AdminPage() {
         <Card style={{ marginBottom: 30, overflow: 'hidden' }}>
           <div style={{ padding: '14px 18px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <strong style={{ fontSize: 14 }}><Icon name="bug" size={16} /> Errori produzione</strong>
-              <span style={{ fontSize: 12, color: COLORS.textMute }}>
+              <strong style={{ fontSize: font.size.md }}><Icon name="bug" size={16} /> Errori produzione</strong>
+              <span style={{ fontSize: font.size.sm, color: COLORS.textMute }}>
                 {errori.length} eventi · il registro tiene gli ultimi 90 giorni
               </span>
             </div>
@@ -3961,19 +3982,19 @@ export default function AdminPage() {
               {errori.map(e => (
                 <div key={e.id} style={{ padding: '10px 18px', borderBottom: `1px solid ${COLORS.border}` }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
-                    <span style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 12, padding: '1px 6px', background: COLORS.rowAlt, borderRadius: 4, color: COLORS.text, fontWeight: 600 }}>
+                    <span style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: font.size.sm, padding: '1px 6px', background: COLORS.rowAlt, borderRadius: 4, color: COLORS.text, fontWeight: 600 }}>
                       {e.endpoint || '-'}{e.operation ? `:${e.operation}` : ''}
                     </span>
-                    {e.code && <span style={{ fontSize: 12, padding: '1px 5px', background: COLORS.errBg, color: COLORS.err, borderRadius: 4, fontWeight: 700 }}>{e.code}</span>}
-                    {e.status && <span style={{ fontSize: 12, padding: '1px 5px', background: COLORS.warnBg, color: COLORS.warn, borderRadius: 4, fontWeight: 700 }}>{e.status}</span>}
+                    {e.code && <span style={{ fontSize: font.size.sm, padding: '1px 5px', background: COLORS.errBg, color: COLORS.err, borderRadius: 4, fontWeight: 700 }}>{e.code}</span>}
+                    {e.status && <span style={{ fontSize: font.size.sm, padding: '1px 5px', background: COLORS.warnBg, color: COLORS.warn, borderRadius: 4, fontWeight: 700 }}>{e.status}</span>}
                     <span style={{ flex: 1 }} />
-                    <span style={{ fontSize: 12, color: COLORS.textMute }}>{fmtDataOra(e.created_at)}</span>
+                    <span style={{ fontSize: font.size.sm, color: COLORS.textMute }}>{fmtDataOra(e.created_at)}</span>
                   </div>
-                  <div style={{ fontSize: 12, color: COLORS.text, fontFamily: "'JetBrains Mono', ui-monospace, monospace", lineHeight: 1.5, marginBottom: 4 }}>
+                  <div style={{ fontSize: font.size.sm, color: COLORS.text, fontFamily: "'JetBrains Mono', ui-monospace, monospace", lineHeight: 1.5, marginBottom: 4 }}>
                     {e.message || '(nessun messaggio)'}
                   </div>
                   {(e.org_id || e.user_id || e.hint) && (
-                    <div style={{ fontSize: 12, color: COLORS.textMute, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
+                    <div style={{ fontSize: font.size.sm, color: COLORS.textMute, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
                       {e.org_id && <>org: {e.org_id.slice(0, 8)}… </>}
                       {e.user_id && <>user: {e.user_id.slice(0, 8)}… </>}
                       {e.hint && <>· hint: {e.hint}</>}
@@ -3988,11 +4009,11 @@ export default function AdminPage() {
         {/* ═══ ERRORS GROUPED (NEW · audit 2026-06-20) ════════════════ */}
         <Card style={{ marginTop: 16, padding: 0 }}>
           <div style={{ padding: '12px 18px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <strong style={{ fontSize: 14 }}><Icon name="warning" size={14} /> Errori raggruppati</strong>
-            <span style={{ fontSize: 12, color: COLORS.textMute }}>per endpoint + codice · ultimi {errorsGroupedDays} giorni</span>
+            <strong style={{ fontSize: font.size.md }}><Icon name="warning" size={14} /> Errori raggruppati</strong>
+            <span style={{ fontSize: font.size.sm, color: COLORS.textMute }}>per endpoint + codice · ultimi {errorsGroupedDays} giorni</span>
             <span style={{ flex: 1 }} />
             <select value={errorsGroupedDays} onChange={e => setErrorsGroupedDays(parseInt(e.target.value, 10))}
-              style={{ fontSize: 12, padding: '4px 8px', border: `1px solid ${COLORS.border}`, borderRadius: 6, background: '#fff' }}>
+              style={{ fontSize: font.size.sm, padding: '4px 8px', border: `1px solid ${COLORS.border}`, borderRadius: 6, background: T.white }}>
               <option value={1}>24h</option>
               <option value={7}>7gg</option>
               <option value={30}>30gg</option>
@@ -4003,12 +4024,12 @@ export default function AdminPage() {
             </Btn>
           </div>
           {errorsGrouped.length === 0 ? (
-            <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>
+            <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, fontSize: font.size.sm }}>
               {errorsGroupedLoading ? 'Caricamento…' : 'Nessun errore raggruppato in questo periodo.'}
             </div>
           ) : (
             <div style={{ maxHeight: 500, overflowY: 'auto' }}>
-              <table style={{ width: '100%', fontSize: 12 }}>
+              <table style={{ width: '100%', fontSize: font.size.sm }}>
                 <thead>
                   <tr style={{ background: COLORS.rowAlt, borderBottom: `1px solid ${COLORS.border}` }}>
                     <th style={th()}>Endpoint:operation</th>
@@ -4028,10 +4049,10 @@ export default function AdminPage() {
                       <td style={{ ...td(), textAlign: 'right', fontWeight: 700, color: g.count > 20 ? COLORS.err : COLORS.text, fontVariantNumeric: 'tabular-nums' }}>{g.count}</td>
                       <td style={{ ...td(), textAlign: 'right', color: COLORS.textMute, fontVariantNumeric: 'tabular-nums' }}>{g.n_users}</td>
                       <td style={{ ...td(), textAlign: 'right', color: COLORS.textMute, fontVariantNumeric: 'tabular-nums' }}>{g.n_orgs}</td>
-                      <td style={{ ...td(), fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 12 }}>
+                      <td style={{ ...td(), fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: font.size.sm }}>
                         <span style={{ padding: '1px 5px', background: COLORS.errBg, color: COLORS.err, borderRadius: 4, fontWeight: 700 }}>{g.code}</span>
                       </td>
-                      <td style={{ ...td(), fontSize: 12, color: COLORS.textSoft, maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={g.sample_message}>
+                      <td style={{ ...td(), fontSize: font.size.sm, color: COLORS.textSoft, maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={g.sample_message}>
                         {g.sample_message}
                       </td>
                     </tr>
@@ -4045,13 +4066,13 @@ export default function AdminPage() {
         {/* ═══ AI COST PER CUSTOMER (NEW · audit 2026-06-20) ══════════ */}
         <Card style={{ marginTop: 16, padding: 0 }}>
           <div style={{ padding: '12px 18px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <strong style={{ fontSize: 14 }}><Icon name="coins" size={14} /> Costi AI per cliente</strong>
-            <span style={{ fontSize: 12, color: COLORS.textMute }}>
+            <strong style={{ fontSize: font.size.md }}><Icon name="coins" size={14} /> Costi AI per cliente</strong>
+            <span style={{ fontSize: font.size.sm, color: COLORS.textMute }}>
               ultimi {aiCostDays} gg · totale {aiCost ? '$' + Number(aiCost.total_cost_usd || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}
             </span>
             <span style={{ flex: 1 }} />
             <select value={aiCostDays} onChange={e => setAiCostDays(parseInt(e.target.value, 10))}
-              style={{ fontSize: 12, padding: '4px 8px', border: `1px solid ${COLORS.border}`, borderRadius: 6, background: '#fff' }}>
+              style={{ fontSize: font.size.sm, padding: '4px 8px', border: `1px solid ${COLORS.border}`, borderRadius: 6, background: T.white }}>
               <option value={7}>7gg</option>
               <option value={30}>30gg</option>
               <option value={90}>90gg</option>
@@ -4062,12 +4083,12 @@ export default function AdminPage() {
             </Btn>
           </div>
           {!aiCost || (aiCost.customers || []).length === 0 ? (
-            <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>
+            <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, fontSize: font.size.sm }}>
               {aiCostLoading ? 'Caricamento…' : 'Nessuna chiamata AI in questo periodo.'}
             </div>
           ) : (
             <div style={{ maxHeight: 500, overflowY: 'auto' }}>
-              <table style={{ width: '100%', fontSize: 12 }}>
+              <table style={{ width: '100%', fontSize: font.size.sm }}>
                 <thead>
                   <tr style={{ background: COLORS.rowAlt, borderBottom: `1px solid ${COLORS.border}` }}>
                     <th style={th()}>Cliente</th>
@@ -4091,13 +4112,13 @@ export default function AdminPage() {
                           ${Number(c.total_cost_usd).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 3, maximumFractionDigits: 3 })}
                         </td>
                         <td style={{ ...td(), textAlign: 'right', color: COLORS.textMute, fontVariantNumeric: 'tabular-nums' }}>{c.total_calls}</td>
-                        <td style={{ ...td(), textAlign: 'right', color: COLORS.textMute, fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>
+                        <td style={{ ...td(), textAlign: 'right', color: COLORS.textMute, fontVariantNumeric: 'tabular-nums', fontSize: font.size.sm }}>
                           {Math.round(c.tokens_in / 1000)}k / {Math.round(c.tokens_out / 1000)}k
                         </td>
-                        <td style={{ textAlign: 'right', ...tnum, ...td(), fontSize: 12 }}>
+                        <td style={{ textAlign: 'right', ...tnum, ...td(), fontSize: font.size.sm }}>
                           {c.top_features.map(f => `${f.feature} $${Number(f.cost_usd).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}`).join(' · ')}
                         </td>
-                        <td style={{ ...td(), color: COLORS.textMute, fontSize: 12 }}>{c.last_call_at ? fmtDataOra(c.last_call_at) : '-'}</td>
+                        <td style={{ ...td(), color: COLORS.textMute, fontSize: font.size.sm }}>{c.last_call_at ? fmtDataOra(c.last_call_at) : '-'}</td>
                       </tr>
                     )
                   })}
@@ -4114,65 +4135,65 @@ export default function AdminPage() {
         <Card style={{ marginTop: 16, padding: 0 }}>
           <div style={{ padding: '12px 18px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <div>
-              <strong style={{ fontSize: 14 }}><Icon name="sparkles" size={16} /> AI Telemetry & Costs</strong>
-              <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
+              <strong style={{ fontSize: font.size.md }}><Icon name="sparkles" size={16} /> AI Telemetry & Costs</strong>
+              <div style={{ fontSize: font.size.sm, color: COLORS.textMute, marginTop: 2 }}>
                 Volumi e costo stimato per le 12+ feature AI (Claude API) negli ultimi {aiTelemetry?.periodo_giorni || aiTelemetryDays} giorni
               </div>
             </div>
             <span style={{ flex: 1 }} />
-            <select value={aiTelemetryDays} onChange={e => { const d = parseInt(e.target.value, 10); setAiTelemetryDays(d); fetchAiTelemetry(d) }} style={{ fontSize: 12, padding: '4px 8px', border: `1px solid ${COLORS.border}`, borderRadius: 6, background: '#fff' }}>
+            <select value={aiTelemetryDays} onChange={e => { const d = parseInt(e.target.value, 10); setAiTelemetryDays(d); fetchAiTelemetry(d) }} style={{ fontSize: font.size.sm, padding: '4px 8px', border: `1px solid ${COLORS.border}`, borderRadius: 6, background: T.white }}>
               <option value={1}>24h</option>
               <option value={7}>7 giorni</option>
               <option value={30}>30 giorni</option>
             </select>
-            <button onClick={() => fetchAiTelemetry()} style={{ fontSize: 12, padding: '4px 10px', background: COLORS.rowAlt, border: `1px solid ${COLORS.border}`, borderRadius: 6, cursor: 'pointer' }}>↻</button>
+            <button onClick={() => fetchAiTelemetry()} style={{ fontSize: font.size.sm, padding: '4px 10px', background: COLORS.rowAlt, border: `1px solid ${COLORS.border}`, borderRadius: 6, cursor: 'pointer' }}>↻</button>
           </div>
           {aiTelemetryLoading ? (
-            <div style={{ padding: 18, fontSize: 12, color: COLORS.textMute }}>Caricamento telemetria…</div>
+            <div style={{ padding: 18, fontSize: font.size.sm, color: COLORS.textMute }}>Caricamento telemetria…</div>
           ) : !aiTelemetry ? (
-            <div style={{ padding: 18, fontSize: 12, color: COLORS.textMute }}>Nessun dato.</div>
+            <div style={{ padding: 18, fontSize: font.size.sm, color: COLORS.textMute }}>Nessun dato.</div>
           ) : (
             <>
               <div style={{ padding: '12px 18px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, borderBottom: `1px solid ${COLORS.border}`, background: COLORS.rowAlt }}>
                 <div>
-                  <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Costo stimato (USD)</div>
+                  <div style={{ fontSize: font.size.sm, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Costo stimato (USD)</div>
                   <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontVariantNumeric: 'tabular-nums' }}>
                     ${(aiTelemetry.costi?.usd_estimated || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
-                  <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
+                  <div style={{ fontSize: font.size.sm, color: COLORS.textMute, marginTop: 2 }}>
                     ≈ € {(aiTelemetry.costi?.eur_estimated || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 </div>
                 <div>
-                  <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Daily Brief</div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.text, fontVariantNumeric: 'tabular-nums' }}>
+                  <div style={{ fontSize: font.size.sm, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Daily Brief</div>
+                  <div style={{ fontSize: font.size.xl, fontWeight: 700, color: COLORS.text, fontVariantNumeric: 'tabular-nums' }}>
                     {(aiTelemetry.daily_brief?.tot ?? 0).toLocaleString('it-IT', { useGrouping: 'always' })}
                   </div>
-                  <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
+                  <div style={{ fontSize: font.size.sm, color: COLORS.textMute, marginTop: 2 }}>
                     {aiTelemetry.daily_brief?.sent ?? 0} inviati · OR {aiTelemetry.daily_brief?.open_rate ?? '-'}%
                   </div>
                 </div>
                 <div>
-                  <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Brain msgs</div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.text, fontVariantNumeric: 'tabular-nums' }}>
+                  <div style={{ fontSize: font.size.sm, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Brain msgs</div>
+                  <div style={{ fontSize: font.size.xl, fontWeight: 700, color: COLORS.text, fontVariantNumeric: 'tabular-nums' }}>
                     {(aiTelemetry.brain?.messaggi_tot ?? 0).toLocaleString('it-IT', { useGrouping: 'always' })}
                   </div>
-                  <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
+                  <div style={{ fontSize: font.size.sm, color: COLORS.textMute, marginTop: 2 }}>
                     {aiTelemetry.brain?.conversazioni ?? 0} conv
                   </div>
                 </div>
                 <div>
-                  <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>OCR fatture</div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.text, fontVariantNumeric: 'tabular-nums' }}>
+                  <div style={{ fontSize: font.size.sm, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>OCR fatture</div>
+                  <div style={{ fontSize: font.size.xl, fontWeight: 700, color: COLORS.text, fontVariantNumeric: 'tabular-nums' }}>
                     {(aiTelemetry.ocr_fatture?.estratte ?? 0).toLocaleString('it-IT', { useGrouping: 'always' })}
                   </div>
-                  <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
+                  <div style={{ fontSize: font.size.sm, color: COLORS.textMute, marginTop: 2 }}>
                     avg conf {aiTelemetry.ocr_fatture?.avg_confidence ?? '-'}
                   </div>
                 </div>
               </div>
               <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
+                <table style={{ width: '100%', fontSize: font.size.sm, borderCollapse: 'collapse' }}>
                   <thead style={{ background: COLORS.rowAlt }}>
                     <tr>
                       <th style={{ textAlign: 'left', padding: '8px 14px', fontWeight: 600 }}>Feature AI</th>
@@ -4220,7 +4241,7 @@ export default function AdminPage() {
                 </table>
               </div>
               {aiTelemetry.costi?.detail && (
-                <div style={{ padding: '8px 18px', fontSize: 12, color: COLORS.textMute, borderTop: `1px solid ${COLORS.border}`, background: COLORS.rowAlt }}>
+                <div style={{ padding: '8px 18px', fontSize: font.size.sm, color: COLORS.textMute, borderTop: `1px solid ${COLORS.border}`, background: COLORS.rowAlt }}>
                   {aiTelemetry.costi.detail}
                 </div>
               )}
@@ -4235,22 +4256,22 @@ export default function AdminPage() {
         <Card style={{ marginTop: 16, padding: 0 }}>
           <div style={{ padding: '12px 18px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <div>
-              <strong style={{ fontSize: 14 }}><Icon name="bolt" size={16} /> Health & Cron</strong>
-              <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
+              <strong style={{ fontSize: font.size.md }}><Icon name="bolt" size={16} /> Health & Cron</strong>
+              <div style={{ fontSize: font.size.sm, color: COLORS.textMute, marginTop: 2 }}>
                 Stato job notturni, ultime build Vercel e dimensioni tabelle critiche
               </div>
             </div>
             <span style={{ flex: 1 }} />
-            <button onClick={() => fetchHealth()} style={{ fontSize: 12, padding: '4px 10px', background: COLORS.rowAlt, border: `1px solid ${COLORS.border}`, borderRadius: 6, cursor: 'pointer' }}>↻ Aggiorna</button>
+            <button onClick={() => fetchHealth()} style={{ fontSize: font.size.sm, padding: '4px 10px', background: COLORS.rowAlt, border: `1px solid ${COLORS.border}`, borderRadius: 6, cursor: 'pointer' }}>↻ Aggiorna</button>
           </div>
           {healthLoading ? (
-            <div style={{ padding: 18, fontSize: 12, color: COLORS.textMute }}>Caricamento snapshot…</div>
+            <div style={{ padding: 18, fontSize: font.size.sm, color: COLORS.textMute }}>Caricamento snapshot…</div>
           ) : !healthSnap ? (
-            <div style={{ padding: 18, fontSize: 12, color: COLORS.textMute }}>Nessun dato.</div>
+            <div style={{ padding: 18, fontSize: font.size.sm, color: COLORS.textMute }}>Nessun dato.</div>
           ) : (
             <>
               <div style={{ padding: '12px 18px', borderBottom: `1px solid ${COLORS.border}` }}>
-                <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Lavori notturni</div>
+                <div style={{ fontSize: font.size.sm, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Lavori notturni</div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 8 }}>
                   {(healthSnap.cron || []).map(c => {
                     // Lo stato dice del LAVORO, non del suo risultato. Prima
@@ -4284,22 +4305,22 @@ export default function AdminPage() {
                 </div>
               </div>
               <div style={{ padding: '12px 18px', borderBottom: `1px solid ${COLORS.border}` }}>
-                <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Errori produzione 24h</div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: (healthSnap.errori_ultime_24h || 0) > 0 ? '#dc2626' : '#059669' }}>
+                <div style={{ fontSize: font.size.sm, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Errori produzione 24h</div>
+                <div style={{ fontSize: font.size.xl, fontWeight: 700, color: (healthSnap.errori_ultime_24h || 0) > 0 ? T.red : '#059669' }}>
                   {healthSnap.errori_ultime_24h ?? '-'}
                 </div>
               </div>
               <div style={{ padding: '12px 18px', borderBottom: `1px solid ${COLORS.border}` }}>
-                <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Build Vercel</div>
-                <div style={{ fontSize: 12, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
+                <div style={{ fontSize: font.size.sm, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Build Vercel</div>
+                <div style={{ fontSize: font.size.sm, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
                   commit: <strong>{healthSnap.build?.git_commit || '-'}</strong> · branch: {healthSnap.build?.git_branch || '-'} · env: {healthSnap.build?.vercel_env || '-'}
                 </div>
               </div>
               <div style={{ padding: '12px 18px' }}>
-                <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Dimensioni tabelle</div>
+                <div style={{ fontSize: font.size.sm, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Dimensioni tabelle</div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 6 }}>
                   {Object.entries(healthSnap.table_counts || {}).map(([t, n]) => (
-                    <div key={t} style={{ padding: '4px 8px', background: COLORS.rowAlt, borderRadius: 4, fontSize: 12, display: 'flex', justifyContent: 'space-between' }}>
+                    <div key={t} style={{ padding: '4px 8px', background: COLORS.rowAlt, borderRadius: 4, fontSize: font.size.sm, display: 'flex', justifyContent: 'space-between' }}>
                       <span style={{ color: COLORS.textMute }}>{t}</span>
                       <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{typeof n === 'number' ? n.toLocaleString('it-IT', { useGrouping: 'always' }) : (n ?? '-')}</span>
                     </div>
@@ -4317,51 +4338,51 @@ export default function AdminPage() {
         <Card style={{ marginTop: 16, padding: 0 }}>
           <div style={{ padding: '12px 18px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <div>
-              <strong style={{ fontSize: 14 }}><Icon name="barChart" size={16} /> Utilizzo feature</strong>
-              <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
+              <strong style={{ fontSize: font.size.md }}><Icon name="barChart" size={16} /> Utilizzo feature</strong>
+              <div style={{ fontSize: font.size.sm, color: COLORS.textMute, marginTop: 2 }}>
                 Quali view/tool i clienti aprono di più o di meno (ultimi {usageStats?.periodo_giorni || usageDays} giorni)
               </div>
             </div>
             <span style={{ flex: 1 }} />
-            <select value={usageDays} onChange={e => { const d = parseInt(e.target.value, 10); setUsageDays(d); fetchUsageStats(d) }} style={{ fontSize: 12, padding: '4px 8px', border: `1px solid ${COLORS.border}`, borderRadius: 6, background: '#fff' }}>
+            <select value={usageDays} onChange={e => { const d = parseInt(e.target.value, 10); setUsageDays(d); fetchUsageStats(d) }} style={{ fontSize: font.size.sm, padding: '4px 8px', border: `1px solid ${COLORS.border}`, borderRadius: 6, background: T.white }}>
               <option value={7}>7 giorni</option>
               <option value={30}>30 giorni</option>
               <option value={90}>90 giorni</option>
             </select>
-            <button onClick={() => fetchUsageStats()} style={{ fontSize: 12, padding: '4px 10px', background: COLORS.rowAlt, border: `1px solid ${COLORS.border}`, borderRadius: 6, cursor: 'pointer' }}>↻</button>
+            <button onClick={() => fetchUsageStats()} style={{ fontSize: font.size.sm, padding: '4px 10px', background: COLORS.rowAlt, border: `1px solid ${COLORS.border}`, borderRadius: 6, cursor: 'pointer' }}>↻</button>
           </div>
           {usageLoading ? (
-            <div style={{ padding: 18, fontSize: 12, color: COLORS.textMute }}>Caricamento…</div>
+            <div style={{ padding: 18, fontSize: font.size.sm, color: COLORS.textMute }}>Caricamento…</div>
           ) : !usageStats || (usageStats.top_view?.length || 0) === 0 ? (
-            <div style={{ padding: 18, fontSize: 12, color: COLORS.textMute }}>
+            <div style={{ padding: 18, fontSize: font.size.sm, color: COLORS.textMute }}>
               Nessun dato di utilizzo ancora. Il tracking (RPC <code>track_view_open</code>) inizia a popolare la tabella view_usage_daily dal prossimo deploy: ogni cliente che apre una view genera un record giornaliero.
             </div>
           ) : (
             <>
               <div style={{ padding: '12px 18px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10, borderBottom: `1px solid ${COLORS.border}`, background: COLORS.rowAlt }}>
                 <div>
-                  <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>View tracciate</div>
+                  <div style={{ fontSize: font.size.sm, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>View tracciate</div>
                   <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontVariantNumeric: 'tabular-nums' }}>
                     {(usageStats.totale_view_tracciate || 0).toLocaleString('it-IT', { useGrouping: 'always' })}
                   </div>
                 </div>
                 <div>
-                  <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Picco DAU</div>
+                  <div style={{ fontSize: font.size.sm, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Picco DAU</div>
                   <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontVariantNumeric: 'tabular-nums' }}>
                     {Math.max(0, ...(usageStats.dau_daily || []).map(d => d.dau || 0))}
                   </div>
                 </div>
                 <div>
-                  <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Giorni con attività</div>
+                  <div style={{ fontSize: font.size.sm, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Giorni con attività</div>
                   <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontVariantNumeric: 'tabular-nums' }}>
                     {(usageStats.dau_daily?.length || 0)}
                   </div>
                 </div>
               </div>
               <div style={{ padding: '12px 18px', borderBottom: `1px solid ${COLORS.border}` }}>
-                <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Top 15 view più aperte</div>
+                <div style={{ fontSize: font.size.sm, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Top 15 view più aperte</div>
                 <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
+                  <table style={{ width: '100%', fontSize: font.size.sm, borderCollapse: 'collapse' }}>
                     <thead style={{ background: COLORS.rowAlt }}>
                       <tr>
                         <th style={{ textAlign: 'left', padding: '6px 10px', fontWeight: 600 }}>#</th>
@@ -4389,9 +4410,9 @@ export default function AdminPage() {
               </div>
               {(usageStats.bottom_view?.length || 0) > 0 && (
                 <div style={{ padding: '12px 18px' }}>
-                  <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>10 view meno usate (candidate alla deprecazione o onboarding)</div>
+                  <div style={{ fontSize: font.size.sm, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>10 view meno usate (candidate alla deprecazione o onboarding)</div>
                   <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
+                    <table style={{ width: '100%', fontSize: font.size.sm, borderCollapse: 'collapse' }}>
                       <thead style={{ background: COLORS.rowAlt }}>
                         <tr>
                           <th style={{ textAlign: 'left', padding: '6px 10px', fontWeight: 600 }}>View</th>
@@ -4425,46 +4446,46 @@ export default function AdminPage() {
         <Card style={{ marginTop: 16, marginBottom: 24, padding: 0 }}>
           <div style={{ padding: '12px 18px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <div>
-              <strong style={{ fontSize: 14 }}><Icon name="shield" size={16} /> Sicurezza & Anomalie</strong>
-              <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>
+              <strong style={{ fontSize: font.size.md }}><Icon name="shield" size={16} /> Sicurezza & Anomalie</strong>
+              <div style={{ fontSize: font.size.sm, color: COLORS.textMute, marginTop: 2 }}>
                 Login attempts, brute-force suspect, anomalie comportamentali e log azioni admin
               </div>
             </div>
             <span style={{ flex: 1 }} />
-            <select value={securityHours} onChange={e => { const h = parseInt(e.target.value, 10); setSecurityHours(h); fetchSecurity(h) }} style={{ fontSize: 12, padding: '4px 8px', border: `1px solid ${COLORS.border}`, borderRadius: 6, background: '#fff' }}>
+            <select value={securityHours} onChange={e => { const h = parseInt(e.target.value, 10); setSecurityHours(h); fetchSecurity(h) }} style={{ fontSize: font.size.sm, padding: '4px 8px', border: `1px solid ${COLORS.border}`, borderRadius: 6, background: T.white }}>
               <option value={24}>24h</option>
               <option value={72}>3 giorni</option>
               <option value={168}>7 giorni</option>
             </select>
-            <button onClick={() => fetchSecurity()} style={{ fontSize: 12, padding: '4px 10px', background: COLORS.rowAlt, border: `1px solid ${COLORS.border}`, borderRadius: 6, cursor: 'pointer' }}>↻</button>
+            <button onClick={() => fetchSecurity()} style={{ fontSize: font.size.sm, padding: '4px 10px', background: COLORS.rowAlt, border: `1px solid ${COLORS.border}`, borderRadius: 6, cursor: 'pointer' }}>↻</button>
           </div>
           {securityLoading ? (
-            <div style={{ padding: 18, fontSize: 12, color: COLORS.textMute }}>Caricamento…</div>
+            <div style={{ padding: 18, fontSize: font.size.sm, color: COLORS.textMute }}>Caricamento…</div>
           ) : !securitySnap ? (
-            <div style={{ padding: 18, fontSize: 12, color: COLORS.textMute }}>Nessun dato.</div>
+            <div style={{ padding: 18, fontSize: font.size.sm, color: COLORS.textMute }}>Nessun dato.</div>
           ) : (
             <>
               <div style={{ padding: '12px 18px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10, borderBottom: `1px solid ${COLORS.border}`, background: COLORS.rowAlt }}>
                 <div>
-                  <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Login OK</div>
+                  <div style={{ fontSize: font.size.sm, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Login OK</div>
                   <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.ok, fontVariantNumeric: 'tabular-nums' }}>
                     {(securitySnap.login?.ok ?? 0).toLocaleString('it-IT', { useGrouping: 'always' })}
                   </div>
                 </div>
                 <div>
-                  <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Login falliti</div>
+                  <div style={{ fontSize: font.size.sm, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Login falliti</div>
                   <div style={{ fontSize: 20, fontWeight: 700, color: (securitySnap.login?.failed ?? 0) > 0 ? COLORS.err : COLORS.text, fontVariantNumeric: 'tabular-nums' }}>
                     {(securitySnap.login?.failed ?? 0).toLocaleString('it-IT', { useGrouping: 'always' })}
                   </div>
                 </div>
                 <div>
-                  <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Anomalie</div>
+                  <div style={{ fontSize: font.size.sm, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Anomalie</div>
                   <div style={{ fontSize: 20, fontWeight: 700, color: (securitySnap.anomalie?.length ?? 0) > 0 ? COLORS.warn : COLORS.text, fontVariantNumeric: 'tabular-nums' }}>
                     {(securitySnap.anomalie?.length ?? 0).toLocaleString('it-IT', { useGrouping: 'always' })}
                   </div>
                 </div>
                 <div>
-                  <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Azioni admin</div>
+                  <div style={{ fontSize: font.size.sm, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Azioni admin</div>
                   <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontVariantNumeric: 'tabular-nums' }}>
                     {(securitySnap.admin_log?.length ?? 0).toLocaleString('it-IT', { useGrouping: 'always' })}
                   </div>
@@ -4472,9 +4493,9 @@ export default function AdminPage() {
               </div>
               {(securitySnap.login?.top_fail_emails?.length || 0) > 0 && (
                 <div style={{ padding: '12px 18px', borderBottom: `1px solid ${COLORS.border}` }}>
-                  <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Brute-force suspect (≥3 fallimenti/email)</div>
+                  <div style={{ fontSize: font.size.sm, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Brute-force suspect (≥3 fallimenti/email)</div>
                   {securitySnap.login.top_fail_emails.map(r => (
-                    <div key={r.email} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 12, borderTop: `1px dashed ${COLORS.border}` }}>
+                    <div key={r.email} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: font.size.sm, borderTop: `1px dashed ${COLORS.border}` }}>
                       <span style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>{r.email}</span>
                       <span style={{ color: COLORS.err, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{r.fail_count} fail</span>
                     </div>
@@ -4483,24 +4504,24 @@ export default function AdminPage() {
               )}
               {(securitySnap.anomalie?.length || 0) > 0 && (
                 <div style={{ padding: '12px 18px', borderBottom: `1px solid ${COLORS.border}` }}>
-                  <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Anomalie rilevate</div>
+                  <div style={{ fontSize: font.size.sm, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Anomalie rilevate</div>
                   {securitySnap.anomalie.slice(0, 20).map(a => (
-                    <div key={a.id} style={{ padding: '6px 0', fontSize: 12, borderTop: `1px dashed ${COLORS.border}` }}>
+                    <div key={a.id} style={{ padding: '6px 0', fontSize: font.size.sm, borderTop: `1px dashed ${COLORS.border}` }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 12 }}>{a.user_id ? a.user_id.slice(0, 8) + '…' : '-'}</span>
-                        <span style={{ color: COLORS.textMute, fontSize: 12 }}>{fmtDataOra(a.created_at)}</span>
+                        <span style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: font.size.sm }}>{a.user_id ? a.user_id.slice(0, 8) + '…' : '-'}</span>
+                        <span style={{ color: COLORS.textMute, fontSize: font.size.sm }}>{fmtDataOra(a.created_at)}</span>
                       </div>
-                      <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>{JSON.stringify(a.details || {}).slice(0, 200)}</div>
+                      <div style={{ fontSize: font.size.sm, color: COLORS.textMute, marginTop: 2 }}>{JSON.stringify(a.details || {}).slice(0, 200)}</div>
                     </div>
                   ))}
                 </div>
               )}
               {(securitySnap.admin_log?.length || 0) > 0 && (
                 <div style={{ padding: '12px 18px' }}>
-                  <div style={{ fontSize: 12, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Azioni admin recenti</div>
+                  <div style={{ fontSize: font.size.sm, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Azioni admin recenti</div>
                   <div style={{ maxHeight: 300, overflowY: 'auto' }}>
                     {securitySnap.admin_log.slice(0, 50).map((l, i) => (
-                      <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 2fr auto', gap: 8, padding: '4px 0', fontSize: 12, borderTop: `1px dashed ${COLORS.border}` }}>
+                      <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 2fr auto', gap: 8, padding: '4px 0', fontSize: font.size.sm, borderTop: `1px dashed ${COLORS.border}` }}>
                         <span style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>{l.admin_email || '-'}</span>
                         <span style={{ color: COLORS.text }}>{l.azione || '-'}</span>
                         <span style={{ color: COLORS.textMute }}>{fmtDataOra(l.created_at)}</span>
@@ -4693,9 +4714,9 @@ export default function AdminPage() {
       {redemptionsFor && (
         <Modal title={`Utilizzi del codice ${redemptionsFor}`} onClose={() => setRedemptionsFor(null)} width={640}>
           {redemptionsLoading ? (
-            <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>Caricamento…</div>
+            <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, fontSize: font.size.sm }}>Caricamento…</div>
           ) : redemptions.length === 0 ? (
-            <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>
+            <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, fontSize: font.size.sm }}>
               Nessuno ha ancora usato questo codice.
             </div>
           ) : (
@@ -4703,20 +4724,20 @@ export default function AdminPage() {
               {redemptions.map(r => (
                 <div key={r.id} style={{ padding: '10px 12px', background: COLORS.rowAlt, borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                   <div>
-                    <div style={{ fontWeight: 700, fontSize: 13 }}>{r.nome_org || (r.organization_id || '').slice(0, 8) + '…'}</div>
-                    <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2 }}>{fmtDataOra(r.utilizzato_il)}</div>
+                    <div style={{ fontWeight: 700, fontSize: font.size.base }}>{r.nome_org || (r.organization_id || '').slice(0, 8) + '…'}</div>
+                    <div style={{ fontSize: font.size.sm, color: COLORS.textMute, marginTop: 2 }}>{fmtDataOra(r.utilizzato_il)}</div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontWeight: 700, color: COLORS.ok, fontSize: 13 }}>
+                    <div style={{ fontWeight: 700, color: COLORS.ok, fontSize: font.size.base }}>
                       {Number((r.ammontare_scontato_cents || 0) / 100).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} € scontati
                     </div>
                     {r.stripe_invoice_id && (
-                      <div style={{ fontSize: 12, color: COLORS.textMute, fontFamily: 'monospace' }}>{r.stripe_invoice_id.slice(0, 18)}…</div>
+                      <div style={{ fontSize: font.size.sm, color: COLORS.textMute, fontFamily: 'monospace' }}>{r.stripe_invoice_id.slice(0, 18)}…</div>
                     )}
                   </div>
                 </div>
               ))}
-              <div style={{ padding: 10, background: COLORS.blueBg, borderRadius: 8, fontSize: 12, color: COLORS.blue }}>
+              <div style={{ padding: 10, background: COLORS.blueBg, borderRadius: 8, fontSize: font.size.sm, color: COLORS.blue }}>
                 Totale risparmiato: <strong>{Number(redemptions.reduce((s, r) => s + (r.ammontare_scontato_cents || 0), 0) / 100).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</strong> · {redemptions.length} utilizzi
               </div>
             </div>
@@ -4727,15 +4748,15 @@ export default function AdminPage() {
       {/* Audit 2026-06-21: Modal genera codice ad-hoc per cliente */}
       {adHocOpen && (
         <Modal title="Codice sconto ad-hoc per un cliente" onClose={() => setAdHocOpen(false)} width={560}>
-          <div style={{ fontSize: 12, color: COLORS.textMute, marginBottom: 14, lineHeight: 1.5 }}>
+          <div style={{ fontSize: font.size.sm, color: COLORS.textMute, marginBottom: 14, lineHeight: 1.5 }}>
             Genera un codice unico (1 solo utilizzo) per un cliente specifico. Utile dopo un pitch:
             "ti faccio uno sconto se ti iscrivi ora".
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <span style={{ fontSize: 12, color: COLORS.textMute, fontWeight: 700 }}>Cliente</span>
+              <span style={{ fontSize: font.size.sm, color: COLORS.textMute, fontWeight: 700 }}>Cliente</span>
               <select value={adHocForm.target_org_id} onChange={e => setAdHocForm({ ...adHocForm, target_org_id: e.target.value })}
-                style={{ padding: '8px 10px', borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 12, background: '#FFF' }}>
+                style={{ padding: '8px 10px', borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: font.size.sm, background: T.white }}>
                 <option value="">- seleziona -</option>
                 {clienti.filter(c => c.nome_attivita).map(c => (
                   <option key={c.org_id} value={c.org_id}>{c.nome_attivita} ({c.email})</option>
@@ -4744,34 +4765,34 @@ export default function AdminPage() {
             </label>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <span style={{ fontSize: 12, color: COLORS.textMute, fontWeight: 700 }}>Tipo sconto</span>
+                <span style={{ fontSize: font.size.sm, color: COLORS.textMute, fontWeight: 700 }}>Tipo sconto</span>
                 <select value={adHocForm.tipo_sconto} onChange={e => setAdHocForm({ ...adHocForm, tipo_sconto: e.target.value })}
-                  style={{ padding: '8px 10px', borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 12, background: '#FFF' }}>
+                  style={{ padding: '8px 10px', borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: font.size.sm, background: T.white }}>
                   <option value="percent">Percentuale</option>
                   <option value="amount">Importo fisso (€ cent)</option>
                 </select>
               </label>
               <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <span style={{ fontSize: 12, color: COLORS.textMute, fontWeight: 700 }}>
+                <span style={{ fontSize: font.size.sm, color: COLORS.textMute, fontWeight: 700 }}>
                   Valore {adHocForm.tipo_sconto === 'percent' ? '(1-100)' : '(cents, es. 1000 = €10)'}
                 </span>
                 <input type="number" value={adHocForm.valore_sconto} onChange={e => setAdHocForm({ ...adHocForm, valore_sconto: parseInt(e.target.value, 10) || 0 })}
-                  style={{ padding: '8px 10px', borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 12 }} />
+                  style={{ padding: '8px 10px', borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: font.size.sm }} />
               </label>
             </div>
             <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <span style={{ fontSize: 12, color: COLORS.textMute, fontWeight: 700 }}>Durata</span>
+              <span style={{ fontSize: font.size.sm, color: COLORS.textMute, fontWeight: 700 }}>Durata</span>
               <select value={adHocForm.durata} onChange={e => setAdHocForm({ ...adHocForm, durata: e.target.value })}
-                style={{ padding: '8px 10px', borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 12, background: '#FFF' }}>
+                style={{ padding: '8px 10px', borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: font.size.sm, background: T.white }}>
                 <option value="once">1 fattura (sconto una volta)</option>
                 <option value="forever">Per sempre (sconto su ogni fattura)</option>
               </select>
             </label>
             <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <span style={{ fontSize: 12, color: COLORS.textMute, fontWeight: 700 }}>Note interne (opzionale)</span>
+              <span style={{ fontSize: font.size.sm, color: COLORS.textMute, fontWeight: 700 }}>Note interne (opzionale)</span>
               <input value={adHocForm.descrizione} onChange={e => setAdHocForm({ ...adHocForm, descrizione: e.target.value })}
                 placeholder="es. Pitch del 21/06, sconto post-incontro"
-                style={{ padding: '8px 10px', borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 12 }} />
+                style={{ padding: '8px 10px', borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: font.size.sm }} />
             </label>
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 }}>
@@ -4785,13 +4806,18 @@ export default function AdminPage() {
 
       {/* Audit 2026-06-20: Cmd+K global search overlay */}
       {cmdkOpen && (
-        <div onClick={() => setCmdkOpen(false)} style={{
-          position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.55)',
+        <div style={{
+          position: 'fixed', inset: 0,
           display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
           paddingTop: '12vh', zIndex: 200,
         }}>
-          <div onClick={e => e.stopPropagation()} style={{
-            background: '#FFF', borderRadius: 12, width: '92%', maxWidth: 680,
+          <button type="button" onClick={() => setCmdkOpen(false)} aria-label="Chiudi la ricerca" style={{
+            position: 'absolute', inset: 0, width: '100%', height: '100%',
+            border: 'none', padding: 0, margin: 0, background: 'rgba(15,23,42,0.55)', cursor: 'default',
+          }} />
+          <div role="dialog" aria-modal="true" aria-label="Ricerca" style={{
+            position: 'relative',
+            background: T.white, borderRadius: 12, width: '92%', maxWidth: 680,
             maxHeight: '70vh', display: 'flex', flexDirection: 'column',
             boxShadow: '0 30px 80px rgba(0,0,0,0.4)',
             border: `1px solid ${COLORS.border}`,
@@ -4803,18 +4829,18 @@ export default function AdminPage() {
                 value={cmdkQuery}
                 onChange={e => setCmdkQuery(e.target.value)}
                 placeholder="Cerca cliente, errore, feedback, audit…"
-                style={{ flex: 1, border: 'none', outline: 'none', fontSize: 14, background: 'transparent' }}
+                style={{ flex: 1, border: 'none', outline: 'none', fontSize: font.size.md, background: 'transparent' }}
               />
-              <span style={{ fontSize: 12, color: COLORS.textMute, padding: '2px 6px', background: COLORS.rowAlt, borderRadius: 4, fontFamily: 'monospace' }}>esc</span>
+              <span style={{ fontSize: font.size.sm, color: COLORS.textMute, padding: '2px 6px', background: COLORS.rowAlt, borderRadius: 4, fontFamily: 'monospace' }}>esc</span>
             </div>
             <div style={{ flex: 1, overflowY: 'auto', padding: 8 }}>
               {!cmdkResults && cmdkQuery.length < 2 && (
-                <div style={{ padding: 24, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>
+                <div style={{ padding: 24, textAlign: 'center', color: COLORS.textMute, fontSize: font.size.sm }}>
                   Almeno 2 caratteri. Cerca tra clienti (nome/email), errori, feedback, audit log.
                 </div>
               )}
               {cmdkLoading && (
-                <div style={{ padding: 24, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>
+                <div style={{ padding: 24, textAlign: 'center', color: COLORS.textMute, fontSize: font.size.sm }}>
                   Cercando…
                 </div>
               )}
@@ -4830,7 +4856,7 @@ export default function AdminPage() {
                     if (items.length === 0) return null
                     return (
                       <div key={k} style={{ marginBottom: 10 }}>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '6px 8px' }}>
+                        <div style={{ fontSize: font.size.sm, fontWeight: 700, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '6px 8px' }}>
                           <Icon name={icon} size={10} /> {label} ({items.length})
                         </div>
                         {items.map((it, i) => {
@@ -4856,21 +4882,26 @@ export default function AdminPage() {
                             onClick = () => { setAdminTab('security'); setCmdkOpen(false) }
                           }
                           return (
-                            <div key={`${k}-${it.id || i}`} onClick={onClick} style={{
-                              padding: '8px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 12,
+                            <button type="button" key={`${k}-${it.id || i}`} onClick={onClick} style={{
+                              // `border: none` PRIMA di `borderBottom`, o la riga
+                              // di separazione fra un risultato e l'altro sparisce:
+                              // in CSS l'ultima vince.
+                              background: 'transparent', border: 'none', font: 'inherit',
+                              display: 'block', width: '100%', textAlign: 'left',
+                              padding: '8px 10px', borderRadius: 6, cursor: 'pointer', fontSize: font.size.sm,
                               borderBottom: `1px solid ${COLORS.border}`,
                             }} onMouseEnter={e => e.currentTarget.style.background = COLORS.rowAlt}
                               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                              <div style={{ fontWeight: 600, color: COLORS.text }}>{title}</div>
-                              {subtitle && <div style={{ fontSize: 12, color: COLORS.textMute, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{subtitle}</div>}
-                            </div>
+                              <span style={{ display: 'block', fontWeight: 600, color: COLORS.text }}>{title}</span>
+                              {subtitle && <span style={{ display: 'block', fontSize: font.size.sm, color: COLORS.textMute, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{subtitle}</span>}
+                            </button>
                           )
                         })}
                       </div>
                     )
                   })}
                   {Object.values(cmdkResults).every(arr => (arr || []).length === 0) && (
-                    <div style={{ padding: 24, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>
+                    <div style={{ padding: 24, textAlign: 'center', color: COLORS.textMute, fontSize: font.size.sm }}>
                       Niente trovato per "{cmdkQuery}".
                     </div>
                   )}
@@ -4899,7 +4930,7 @@ export default function AdminPage() {
 function th() {
   return {
     padding: '10px 12px', textAlign: 'left',
-    fontSize: 12, fontWeight: 700, color: COLORS.textMute,
+    fontSize: font.size.sm, fontWeight: 700, color: COLORS.textMute,
     textTransform: 'uppercase', letterSpacing: '0.05em',
   }
 }
