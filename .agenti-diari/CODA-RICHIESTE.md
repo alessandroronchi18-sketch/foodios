@@ -309,3 +309,31 @@ Da tenere presente quando si fa:
   va mostrata, se no non si sa da dove viene un prezzo
 - le righe «solo storico» (bolla più vecchia dell'ultimo cambio) vanno
   distinte, se no sembrano prezzi che non sono mai entrati in vigore
+
+## DA FARE — 21/09, due cose sugli accessi
+
+### 1. Una mail già usata deve dirlo, ovunque sia
+
+Richiesta del titolare: inserendo una mail il sistema **deve controllare se
+quella mail è già presente in qualsiasi punto del sistema** e, se c'è, dire
+«mail già in uso».
+
+«In qualsiasi punto» è la parte che conta: non basta controllare la tabella
+dei dipendenti. Una stessa mail può stare fra i titolari, fra i dipendenti di
+un'altra sede, fra gli account di autenticazione, o fra gli inviti mai
+accettati. Due persone che condividono una mail sono due accessi che si
+sovrascrivono a vicenda, ed è il tipo di guaio che si scopre quando qualcuno
+non riesce più a entrare.
+
+### 2. Il codice di quattro cifre non si può impostare — SEMBRA UN BLOCCO
+
+Il titolare, entrando con la mail di un dipendente: «mi chiede il codice di 4
+numeri ma non mi dà la possibilità di impostarlo o modificarlo».
+
+Se è come sembra, chi entra la prima volta resta chiuso fuori: il programma
+chiede una cosa che non esiste ancora e non offre il modo di crearla. Va
+guardato per primo fra i due, perché non è una rifinitura — è una porta
+chiusa.
+
+Da verificare: dove viene chiesto, dove si dovrebbe impostare, e cosa succede
+a un dipendente appena creato che non ha mai avuto un codice.
