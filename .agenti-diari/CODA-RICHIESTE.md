@@ -468,3 +468,32 @@ sbaglia una schermata, sbaglia il magazzino e il food cost di tutti.
    peggiore.
 4. ✅ **Annullare una bolla**, col doppio controllo che dice cosa succede e fa
    scrivere il numero del documento.
+
+---
+
+## Le quattro decisioni sull'import — 22/09/2026, tutte chiuse
+
+1. ✅ **Il listino del fornitore non sovrascrive.** «Comanda il prezzo caricato
+   con la bolla di magazzino, se no il prezzo che ho inserito io a mano». Un
+   listino riempie i buchi; quello che proponeva sugli altri si mostra prima
+   di caricare, perché sapere che il fornitore chiede di più serve — serve a
+   telefonargli. Chi vuole riscrivere lo chiede.
+2. ✅ **Le righe di totale si saltano dicendolo.** Totale, totali, tot,
+   subtotale, somma, sommano, riepilogo, riporto, a riportare, saldo,
+   complessivo — anche con qualcosa dietro. La parola deve stare all'inizio:
+   «Pasta per totani» non è un totale.
+3. ✅ **Vuoto = non lo so**, per il costo orario. Il campo resta vuoto, la riga
+   resta valida, e il riepilogo lo dichiara prima di caricare. Uno zero
+   scritto davvero resta zero.
+4. ✅ **Di un file a più fogli si chiede quali leggere**, con righe, colonne e
+   intestazioni di ognuno.
+
+## Il foglio di chiusura cassa di Mara — in standby, per scelta
+
+Il titolare non risponde alle quattro domande per ora. Il parere dato, che
+resta valido finché la situazione non cambia: **non serve adesso**. Quel
+foglio chiede quindici numeri in più ogni sera, e il design partner non ha
+mai chiuso una cassa nel programma in quattro mesi e mezzo. Si riprende dopo
+che la cassa è entrata nell'abitudine, e allora valgono la pena due campi
+(fondo cassa apertura/chiusura) e il delivery diviso per piattaforma; i
+parziali orari solo se la cassa li stampa.
