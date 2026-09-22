@@ -67,7 +67,19 @@ describe('Il consumo esce dalle vendite passate per il ricettario', () => {
   })
 
   it('una data nel futuro non entra', () => {
-    const domani = new Date(Date.now() + 86400000).toISOString().slice(0, 10)
+    // «Domani» si calcola dal giorno di **Roma**, non da quello UTC.
+    //
+    // Questa prova è diventata rossa alle 00:30 del 23/09/2026, e aveva
+    // ragione lei a essere fragile: `new Date(Date.now() + 86400000)` letto in
+    // UTC, fra mezzanotte e le due di notte, dà lo **stesso giorno** che a
+    // Roma è già oggi. La prova diceva «una data nel futuro entra», e non era
+    // vero: era il righello a essere storto, non il prodotto.
+    //
+    // È lo stesso difetto che il codice sotto prova esiste per evitare —
+    // giorni contro giorni, non istanti contro mezzanotti UTC.
+    const [a, m, g] = todayLocal().split('-').map(Number)
+    const d = new Date(Date.UTC(a, m - 1, g + 1))
+    const domani = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`
     const c = consumoGiornaliero([chiusura(domani, [{ nome: 'FIORDILATTE', unitaV: 10 }])], RICETTARIO)
     expect(c.latte).toBeUndefined()
   })

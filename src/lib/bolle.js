@@ -920,8 +920,25 @@ export function preparaScrittureBolla(righe, documento = {}, stato = {}) {
       // L'impronta del documento: serve a riconoscere una bolla già caricata
       // quando la foto sembra non essere andata a buon fine e si riprova.
       bolla: documento?.identita || undefined,
+      // ── La merce entrata senza sapere quanto costa ────────────────────
+      //
+      // Metà delle bolle vere sono DDT puri: la merce entra, i prezzi
+      // arrivano con la fattura settimane dopo. Va bene — è la decisione del
+      // titolare — ma se quella fattura non arriva mai, in magazzino resta
+      // roba di cui nessuno sa il costo, e il food cost di tutto quello che
+      // la usa è costruito su un prezzo vecchio.
+      //
+      // Qui si mette il segno. Quando arriva la fattura di quella bolla, si
+      // toglie (vedi `saldaMerceSenzaPrezzo`). Dopo 45 giorni si avvisa.
+      senzaPrezzo: r.prezzoNonSulDocumento === true ? true : undefined,
     })
   }
+
+  // Se questa fattura salda una bolla caricata senza prezzi, quelle righe
+  // non aspettano più niente.
+  const logRifSaldato = documento?.bollaRiferita
+    ? saldaMerceSenzaPrezzo(logRif, { bollaRiferita: documento.bollaRiferita, documento })
+    : logRif
 
   const prezzi = applicaCambiAlListino(
     scelte.filter(r => r.azione === 'applica' || r.azione === 'soloStorico'),
@@ -943,7 +960,7 @@ export function preparaScrittureBolla(righe, documento = {}, stato = {}) {
 
   return {
     magazzino: nuovoMagazzino,
-    logRif: [...nuoveRighe, ...(logRif || [])],
+    logRif: [...nuoveRighe, ...(logRifSaldato || [])],
     ingredientiCosti: prezzi.ingredientiCosti,
     logPrezzi: prezzi.logPrezzi,
     caricati: nuoveRighe.length,
@@ -1245,4 +1262,90 @@ export function controlloTotaleAMano(righe, totaleScritto, listino) {
       ? `Coi prezzi che hai in listino questa merce fa ${fmt(atteso)} €, e a mano c'è scritto ${fmt(scritto)} €: torna${resto}.`
       : `Coi prezzi che hai in listino questa merce fa ${fmt(atteso)} €, ma a mano c'è scritto ${fmt(scritto)} €: ${differenza > 0 ? 'mancano' : 'sono di troppo'} ${fmt(Math.abs(differenza))} €${resto}. Il prezzo vero lo dirà la fattura.`,
   }
+}
+
+// ── La merce entrata senza sapere quanto costa ──────────────────────────
+//
+// Vecchio Enrico e ConoArtic — metà delle bolle vere del design partner —
+// mandano un DDT con le sole quantità, e i prezzi arrivano con la fattura
+// settimane dopo. Decisione del titolare, 22/09/2026: la merce entra lo
+// stesso. Giusto: 85 kg di pasta nocciola sono arrivati davvero.
+//
+// Ma se quella fattura non arriva mai, in magazzino resta roba di cui nessuno
+// sa il costo, e il food cost di tutto quello che la usa si regge su un
+// prezzo vecchio. Alla domanda «dopo quanti giorni ti avviso?» il titolare ha
+// scelto **45**.
+
+export const GIORNI_SENZA_PREZZO = 45
+
+/**
+ * Toglie il segno «senza prezzo» alle righe della bolla che questa fattura
+ * salda.
+ *
+ * Non si cancella niente e non si riscrive la storia: si aggiunge `saldata`,
+ * con il documento che ha portato i prezzi. Un registro si corregge, non si
+ * altera — è la stessa regola per cui una bolla annullata resta scritta.
+ */
+export function saldaMerceSenzaPrezzo(logRif, { bollaRiferita, documento } = {}) {
+  const righe = Array.isArray(logRif) ? logRif : []
+  if (!bollaRiferita) return righe
+  const da = documento?.numero
+    ? `fattura ${documento?.fornitore || ''} n. ${documento.numero}`.trim()
+    : 'la fattura'
+  return righe.map(r => (
+    r?.bolla === bollaRiferita && r?.senzaPrezzo === true
+      ? { ...r, senzaPrezzo: undefined, saldata: da, saldataIl: new Date().toISOString() }
+      : r
+  ))
+}
+
+/**
+ * La merce entrata da più di N giorni senza che sia mai arrivato il prezzo.
+ *
+ * `escluse` sono le materie prime che **non aspettano nessuna fattura**: il
+ * titolare, 22/09/2026, sulla granella di nocciola — «non considerarla».
+ * Capita: c'è merce che il fornitore dà dentro e non fattura mai a parte.
+ * Senza questo elenco, l'avviso diventerebbe un cartello fisso che nessuno
+ * guarda più — e allora non avvisa più di niente.
+ *
+ * @returns {Array} `[{ chiave, nome, quantita_g, giorni, data, bolla, note }]`
+ *   la più vecchia per prima.
+ */
+export function merceSenzaPrezzo(logRif, { giorni = GIORNI_SENZA_PREZZO, escluse = [], oggi = null } = {}) {
+  const fuori = new Set((Array.isArray(escluse) ? escluse : []).map(e => normIng(String(e || ''))).filter(Boolean))
+  const adesso = oggi ? new Date(oggi) : new Date()
+  const out = []
+  for (const r of (Array.isArray(logRif) ? logRif : [])) {
+    if (r?.senzaPrezzo !== true) continue
+    const chiave = normIng(r?.ingrediente || '')
+    if (!chiave || fuori.has(chiave)) continue
+    const g = soloGiorno(r?.data)
+    if (!g) continue
+    const quanti = Math.floor((adesso - new Date(`${g}T00:00:00Z`)) / 86400000)
+    if (!Number.isFinite(quanti) || quanti < giorni) continue
+    out.push({
+      chiave,
+      nome: r.ingrediente,
+      quantita_g: Number(r.quantita_g) || 0,
+      giorni: quanti,
+      data: g,
+      bolla: r.bolla || null,
+      note: r.note || null,
+    })
+  }
+  return out.sort((a, b) => b.giorni - a.giorni)
+}
+
+/** La frase da mostrare, o `null` se non c'è niente da dire. */
+export function avvisoMerceSenzaPrezzo(righe) {
+  // `[null]` è un array con dentro niente: la lunghezza dice «c'è una riga» e
+  // la riga non c'è. Succede quando l'elenco arriva da un filtro che ha
+  // lasciato un buco, ed è il modo più silenzioso di far cadere una pagina.
+  const r = (Array.isArray(righe) ? righe : []).filter(x => x && x.nome)
+  if (!r.length) return null
+  const piu = r[0]
+  const quante = r.length
+  return quante === 1
+    ? `${piu.nome} è entrata in magazzino ${piu.giorni} giorni fa e la fattura col prezzo non è mai arrivata: il suo costo è ancora quello di prima.`
+    : `${quante} materie prime sono entrate in magazzino senza prezzo, la più vecchia ${piu.giorni} giorni fa (${piu.nome}): i loro costi sono ancora quelli di prima.`
 }

@@ -264,7 +264,12 @@ export default function BollaInArrivo({
     // rifiuta di scrivere anche se qualcuno chiamasse da un'altra parte.
     // `soloPrezzi` arriva fino al calcolo: senza, la schermata prometteva che
     // le quantità non si sarebbero ricaricate e poi si ricaricavano lo stesso.
-    const esito = await onRegistra(daRegistrare, { fornitore, numero, data, identita, forza, soloPrezzi })
+    // `bollaRiferita` serve a togliere il segno «senza prezzo» alle righe di
+    // quella bolla: la merce era entrata e adesso il costo si sa.
+    const esito = await onRegistra(daRegistrare, {
+      fornitore, numero, data, identita, forza, soloPrezzi,
+      bollaRiferita: daBolla.giaCaricata ? daBolla.identita : null,
+    })
     setSalvando(false)
     if (!esito?.ok) {
       notify?.(`Non ho potuto registrare la bolla (${esito?.errore || 'rete'}): non è stato scritto niente.`, false)

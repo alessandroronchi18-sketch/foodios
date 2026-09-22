@@ -231,3 +231,41 @@ describe('Il prezzo dei materiali, portato dalla bolla', () => {
     }
   })
 })
+
+describe('Un materiale già approvato si aggiorna da solo', () => {
+  // Decisione del titolare, 22/09/2026: «te lo chiedo la prima volta per ogni
+  // materiale, poi va in automatico». Cambiare in silenzio il food cost di
+  // tutti i coni è il tipo di cosa che si scopre a fine mese — per questo
+  // l'automatico si **dichiara** a schermo, non è muto.
+  const RIGA = [{
+    nome: 'Coppetta', descrizione: 'COPPETTA BIO 16/B MARA N.250',
+    quantita: '9,00', imponibile: '180,00', aliquotaIva: 22,
+  }]
+  const fai = (m) => prezziMaterialiDaBolla(m, smistaBolla(RIGA).materiali)
+
+  it('la prima volta si chiede: sta fra i «diversi»', () => {
+    const r = fai([{ nome: 'Coppetta', costo: 0.002 }])
+    expect(r.diversi).toHaveLength(1)
+    expect(r.automatici).toHaveLength(0)
+  })
+
+  it('dopo che l\'hai approvato una volta, si aggiorna da solo', () => {
+    const r = fai([{ nome: 'Coppetta', costo: 0.002, dallaBolla: true }])
+    expect(r.diversi).toHaveLength(0)
+    expect(r.automatici).toHaveLength(1)
+    expect(r.automatici[0]).toMatchObject({ nome: 'Coppetta', attuale: 0.002 })
+    expect(r.automatici[0].costo).toBeCloseTo(0.08, 6)
+  })
+
+  it('ma se il prezzo è lo stesso non si tocca niente', () => {
+    const r = fai([{ nome: 'Coppetta', costo: 0.08, dallaBolla: true }])
+    expect(r.automatici).toEqual([])
+    expect(r.diversi).toEqual([])
+  })
+
+  it('e un materiale senza prezzo resta un buco da riempire, non un automatico', () => {
+    const r = fai([{ nome: 'Coppetta', costo: null, dallaBolla: true }])
+    expect(r.vuoti).toHaveLength(1)
+    expect(r.automatici).toEqual([])
+  })
+})

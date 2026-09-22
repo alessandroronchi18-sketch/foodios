@@ -189,7 +189,12 @@ export function smistaBolla(righe = []) {
  *
  * @param {Array} materiali  l'elenco di oggi, `[{nome, costo, ...}]`
  * @param {Array} righeSmistate  l'uscita di `smistaBolla().materiali`
- * @returns {{vuoti: Array, diversi: Array, nuovi: Array}}
+ * Un materiale che hai **già approvato una volta** porta `dallaBolla: true`,
+ * e da lì in poi il suo prezzo si aggiorna da solo: finisce in `automatici`,
+ * e chi chiama lo applica **dicendolo**. Decisione del titolare, 22/09/2026:
+ * «te lo chiedo la prima volta per ogni materiale, poi va in automatico».
+ *
+ * @returns {{vuoti: Array, diversi: Array, nuovi: Array, automatici: Array}}
  */
 export function prezziMaterialiDaBolla(materiali, righeSmistate) {
   const elenco = Array.isArray(materiali) ? materiali : []
@@ -201,6 +206,7 @@ export function prezziMaterialiDaBolla(materiali, righeSmistate) {
   const vuoti = []
   const diversi = []
   const nuovi = []
+  const automatici = []
 
   for (const r of (Array.isArray(righeSmistate) ? righeSmistate : [])) {
     const costo = r?._pezzi?.costoPezzo
@@ -217,9 +223,10 @@ export function prezziMaterialiDaBolla(materiali, righeSmistate) {
     }
     // Sotto il decimo di millesimo non è un cambio: è arrotondamento.
     if (Math.abs(attuale - costo) < 0.0001) continue
-    diversi.push({ nome: gia.nome, costo, attuale, perche: r._pezzi.perche })
+    if (gia.dallaBolla === true) automatici.push({ nome: gia.nome, costo, attuale, perche: r._pezzi.perche })
+    else diversi.push({ nome: gia.nome, costo, attuale, perche: r._pezzi.perche })
   }
-  return { vuoti, diversi, nuovi }
+  return { vuoti, diversi, nuovi, automatici }
 }
 
 /** Due nomi di materiale sono lo stesso materiale? Stessa regola dei formati. */

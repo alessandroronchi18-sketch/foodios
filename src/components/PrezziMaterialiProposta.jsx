@@ -173,7 +173,8 @@ export default function PrezziMaterialiProposta({ materialiDaBolla, orgId, notif
           background: scelte === 0 ? T.bgSubtle : T.brand,
           color: scelte === 0 ? T.textSoft : T.white,
           border: 'none', borderRadius: R.md, fontSize: font.size.base, fontWeight: 700,
-          fontFamily: 'inherit', cursor: scelte === 0 || salvando ? 'default' : 'pointer',
+          fontFamily: 'inherit',
+          cursor: (scelte === 0 && proposta.automatici.length === 0) || salvando ? 'default' : 'pointer',
           display: 'inline-flex', alignItems: 'center', gap: 8,
         }}>
         <Icon name="save" size={15} />
