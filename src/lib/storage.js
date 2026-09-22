@@ -60,6 +60,10 @@ export const SHARED_KEYS = [
   'pasticceria-materiali-confezionamento-v1',
   // Le categorie merceologiche dei fornitori: i fornitori sono gli stessi in
   // tutte le sedi, quindi anche il modo di raggrupparli.
+  // In quale negozio va la merce di una bolla: le regole valgono per tutta
+  // l'azienda, come il ricettario. Una risposta data alla Carlina serve
+  // anche a chi carica una bolla a Berthollet.
+  'pasticceria-sedi-da-bolla-v1',
   'pasticceria-categorie-fornitori-v1',
 ]
 

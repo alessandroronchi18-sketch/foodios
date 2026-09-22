@@ -475,3 +475,112 @@ describe('Il righello di questo file', () => {
     expect(chiaveIndirizzo(a)).toBe(chiaveIndirizzo('Piazza Carlo Emanuele II, 21'))
   })
 })
+
+// ── Due negozi della stessa società ─────────────────────────────────────
+//
+// Il titolare, 22/09/2026: «marama è sia berthollet che de gasperi, dobbiamo
+// capire come fare a distinguerle».
+//
+// È il caso più difficile: MARAMA S.R.L. ha **due negozi**, la stessa
+// ragione sociale e la stessa partita IVA (13338490017). Sul nome non si
+// distinguono, e quando la bolla porta solo il nome — Vecchio Enrico manda
+// alla sede legale, «CORSO DUCA DEGLI ABRUZZI, 6» — non c'è niente da
+// leggere.
+//
+// La risposta è sui documenti, e si vede solo guardandoli tutti insieme. Il
+// 19/09/2026 DESA ha consegnato tre bolle in tre minuti:
+//
+//     004615  09:29  MARAMA SRL   Via Berthollet 30 H   0001098521
+//     004616  09:31  MARAMA SRL   C.so De Gasperi       0001098522
+//     004617  09:32  CARLINA21    P.za Carlo Emanuele   0001093134
+//
+// Il fornitore li tiene separati nel suo gestionale, e stampa **il codice
+// cliente** su ogni documento. Un numero non si scrive in venti modi, non si
+// legge male e non cambia se il fattorino scrive la via diversamente.
+describe('Il codice cliente del fornitore distingue due negozi della stessa società', () => {
+  const SEDI = [
+    { id: 'carlina', nome: 'Carlina', indirizzo: 'Piazza Carlo Emanuele II 21' },
+    { id: 'gasperi', nome: 'De Gasperi', indirizzo: 'Corso Alcide De Gasperi 57' },
+    { id: 'berth', nome: 'Berthollet', indirizzo: 'Via Berthollet 30' },
+  ]
+  const MARAMA = 'MARAMA S.R.L.\nCORSO DUCA DEGLI ABRUZZI, 6\n10128 TORINO'
+
+  it('senza il codice, sulla sola ragione sociale non si sceglie', () => {
+    const r = sedeDaDestinazione(MARAMA, SEDI)
+    expect(r.sicura).toBe(false)
+    expect(r.sedeId).toBe(null)
+  })
+
+  it('con il codice imparato, si sceglie e si è sicuri', () => {
+    const regole = imparaRegola(regoleDiPartenza(SEDI), { testo: MARAMA, sedeId: 'berth', codiceCliente: '0001098521' })
+    const r = sedeDaDestinazione(MARAMA, SEDI, regole, { codiceCliente: '0001098521' })
+    expect(r.sedeId).toBe('berth')
+    expect(r.sicura).toBe(true)
+    expect(r.come).toBe('codice')
+    expect(r.motivo).toMatch(/codice cliente/)
+  })
+
+  it('e l\'altro codice porta all\'altro negozio, con la stessa ragione sociale', () => {
+    // È il punto: due documenti identici nel testo, due negozi diversi.
+    let regole = imparaRegola(regoleDiPartenza(SEDI), { testo: MARAMA, sedeId: 'berth', codiceCliente: '0001098521' })
+    regole = imparaRegola(regole, { testo: MARAMA, sedeId: 'gasperi', codiceCliente: '0001098522' })
+    expect(sedeDaDestinazione(MARAMA, SEDI, regole, { codiceCliente: '0001098521' }).sedeId).toBe('berth')
+    expect(sedeDaDestinazione(MARAMA, SEDI, regole, { codiceCliente: '0001098522' }).sedeId).toBe('gasperi')
+  })
+
+  it('gli zeri davanti non contano: sono riempimento del gestionale', () => {
+    const regole = imparaRegola(regoleDiPartenza(SEDI), { testo: MARAMA, sedeId: 'berth', codiceCliente: '0001098521' })
+    expect(sedeDaDestinazione(MARAMA, SEDI, regole, { codiceCliente: '1098521' }).sedeId).toBe('berth')
+    expect(sedeDaDestinazione(MARAMA, SEDI, regole, { codiceCliente: ' 0001098521 ' }).sedeId).toBe('berth')
+  })
+
+  it('un codice mai visto non fa scegliere a caso', () => {
+    const regole = imparaRegola(regoleDiPartenza(SEDI), { testo: MARAMA, sedeId: 'berth', codiceCliente: '0001098521' })
+    const r = sedeDaDestinazione(MARAMA, SEDI, regole, { codiceCliente: '9999999' })
+    expect(r.sicura).toBe(false)
+  })
+
+  it('e il codice vince sull\'indirizzo, quando ci sono tutti e due', () => {
+    // Se il fattorino ha scritto la via sbagliata ma il gestionale dice il
+    // codice giusto, comanda il codice: il testo si sbaglia, il numero no.
+    const regole = imparaRegola(regoleDiPartenza(SEDI), { testo: MARAMA, sedeId: 'berth', codiceCliente: '0001098521' })
+    const conIndirizzoAltro = 'MARAMA SRL\nC: C.SO ALCIDE DE GASPERI, 57'
+    expect(sedeDaDestinazione(conIndirizzoAltro, SEDI, regole, { codiceCliente: '0001098521' }).sedeId).toBe('berth')
+  })
+
+  it('e quando l\'indirizzo del negozio c\'è, il codice non serve', () => {
+    // DESA lo scrive: «C: VIA BERTHOLLET, 30 H». Lì non c'è niente da
+    // imparare, si riconosce dal primo documento.
+    const r = sedeDaDestinazione('MARAMA SRL\nC: VIA BERTHOLLET, 30 H CAP. 10125 (TO)', SEDI)
+    expect(r.sedeId).toBe('berth')
+    expect(r.sicura).toBe(true)
+  })
+
+  it('imparare un codice non cancella i codici di prima', () => {
+    let regole = imparaRegola(regoleDiPartenza(SEDI), { testo: MARAMA, sedeId: 'berth', codiceCliente: '0001098521' })
+    regole = imparaRegola(regole, { testo: 'ALTRO', sedeId: 'gasperi', codiceCliente: '0001098522' })
+    expect(Object.keys(regole.codici)).toHaveLength(2)
+  })
+
+  it('e quando c\'è il codice NON si impara anche il testo', () => {
+    // Sembra una rinuncia, ed è il punto di tutto: le due Marama hanno lo
+    // stesso identico testo di destinazione. Imparare «questo testo = questo
+    // negozio» vorrebbe dire scrivere una regola che il giorno dopo è falsa
+    // per metà delle consegne.
+    const regole = imparaRegola(regoleDiPartenza(SEDI), { testo: MARAMA, sedeId: 'berth', codiceCliente: '0001098521' })
+    expect(regole.imparate).toEqual({})
+  })
+
+  it('ma senza codice il testo si impara, come prima', () => {
+    // Vecchio Enrico il codice non lo stampa: lì l'unica cosa che si può
+    // ricordare è la risposta data sul testo.
+    const regole = imparaRegola(regoleDiPartenza(SEDI), { testo: MARAMA, sedeId: 'berth' })
+    expect(Object.keys(regole.imparate)).toHaveLength(1)
+    expect(sedeDaDestinazione(MARAMA, SEDI, regole).sedeId).toBe('berth')
+  })
+
+  it('e un codice senza cifre non è un codice', () => {
+    const regole = imparaRegola(regoleDiPartenza(SEDI), { testo: MARAMA, sedeId: 'berth', codiceCliente: 'AGENTE' })
+    expect(regole.codici).toEqual({})
+  })
+})

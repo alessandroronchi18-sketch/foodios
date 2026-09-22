@@ -231,7 +231,7 @@ export function regoleDiPartenza(sedi = []) {
     // due negozi non stanno allo stesso numero civico.
     aggiungi(indirizzi, indirizzoDaChiave(chiaveIndirizzo(s.indirizzo)), id)
   }
-  return { versione: 1, alias, indirizzi, ragioniSociali: {}, imparate: {} }
+  return { versione: 1, alias, indirizzi, ragioniSociali: {}, imparate: {}, codici: {} }
 }
 
 /** La chiave `ago` compare nel testo come parola intera? */
@@ -291,7 +291,7 @@ function esito(perId, ids, come, motivo) {
  *   `sicura: false` vuol dire **chiedi**: in `alternative` ci sono le sedi
  *   fra cui scegliere, e la risposta si passa a `imparaRegola`.
  */
-export function sedeDaDestinazione(testoDestinazione, sedi = [], regole = null) {
+export function sedeDaDestinazione(testoDestinazione, sedi = [], regole = null, extra = null) {
   const elenco = (Array.isArray(sedi) ? sedi : []).filter(s => s && s.id)
   const perId = new Map(elenco.map(s => [String(s.id), s]))
   const tutte = elenco.map(s => ({ id: String(s.id), nome: nomeDi(s) }))
@@ -307,12 +307,35 @@ export function sedeDaDestinazione(testoDestinazione, sedi = [], regole = null) 
   })
 
   if (!elenco.length) return nonSo('non ho l’elenco delle sedi, non posso dire dove va')
+
+  // ── 0a. Il codice cliente del fornitore, se l'hai già assegnato ─────────
+  //
+  // Vale più di tutto il resto: due negozi della stessa società hanno lo
+  // stesso nome e la stessa partita IVA — e sul nome non si distinguono —
+  // ma il fornitore li tiene separati nel suo gestionale e stampa il codice
+  // su ogni documento. DESA, 19/09/2026: Berthollet 0001098521, De Gasperi
+  // 0001098522. Un numero non si scrive in venti modi e non si legge male.
+  const cod = chiaveCodice(extra?.codiceCliente)
+  const daCodice = cod ? r?.codici?.[cod] : null
+  if (daCodice && perId.has(String(daCodice))) {
+    return {
+      sedeId: String(daCodice), sedeNome: nomeDi(perId.get(String(daCodice))), come: 'codice',
+      sicura: true, alternative: [],
+      motivo: `il codice cliente ${String(extra.codiceCliente).trim()} di questo fornitore è di questo negozio`,
+    }
+  }
   if (!chiave) {
     return elenco.length === 1 ? unicaSede() : nonSo('sul documento non c’è scritta nessuna destinazione')
   }
 
   // ── 0. La risposta già data ───────────────────────────────────────────
-  const ricordo = r?.imparate?.[chiaveRegola(testoDestinazione)]
+  //
+  // Se il documento porta un codice cliente e quel codice non lo conosciamo,
+  // la risposta imparata sul TESTO non vale: il codice è più preciso, e dice
+  // che questo è un altro cliente. Fidarsi del testo qui vorrebbe dire
+  // mandare la merce della Marama di De Gasperi a quella di Berthollet
+  // perché il testo è identico.
+  const ricordo = cod ? null : r?.imparate?.[chiaveRegola(testoDestinazione)]
   if (ricordo && perId.has(String(ricordo))) {
     return {
       sedeId: String(ricordo), sedeNome: nomeDi(perId.get(String(ricordo))), come: 'alias',
@@ -383,15 +406,54 @@ export function sedeDaDestinazione(testoDestinazione, sedi = [], regole = null) 
  * @param {{testo: string, sedeId: string}} scelta
  * @returns {object} le regole nuove (le stesse, se non c'era niente da imparare)
  */
-export function imparaRegola(regole, { testo, sedeId } = {}) {
+export function imparaRegola(regole, { testo, sedeId, codiceCliente } = {}) {
   const base = regole && typeof regole === 'object' ? regole : regoleDiPartenza([])
   const k = chiaveRegola(testo)
-  if (!k || k === '|' || !sedeId) return base
-  return {
+  const cod = chiaveCodice(codiceCliente)
+  if (!sedeId || (!cod && (!k || k === '|'))) return base
+  const fuori = {
     versione: base.versione || 1,
     alias: { ...(base.alias || {}) },
     indirizzi: { ...(base.indirizzi || {}) },
     ragioniSociali: { ...(base.ragioniSociali || {}) },
-    imparate: { ...(base.imparate || {}), [k]: String(sedeId) },
+    imparate: { ...(base.imparate || {}) },
+    codici: { ...(base.codici || {}) },
   }
+  // Quando il documento porta il codice cliente, si impara **solo quello**.
+  //
+  // Sembra una rinuncia e invece è il punto di tutto: le due Marama hanno lo
+  // stesso identico testo di destinazione, e imparare «questo testo = questo
+  // negozio» vorrebbe dire scrivere una regola che il giorno dopo è falsa per
+  // metà delle consegne. Il codice, invece, è diverso per i due negozi.
+  if (!cod && k && k !== '|') fuori.imparate[k] = String(sedeId)
+  // ── Il codice cliente del fornitore ─────────────────────────────────────
+  //
+  // È la cosa più preziosa che ci sia su questi documenti, e ce ne siamo
+  // accorti solo guardandoli tutti insieme. Il 19/09/2026 DESA ha consegnato
+  // tre bolle nello stesso quarto d'ora:
+  //
+  //     004615  09:29  MARAMA SRL   Via Berthollet 30 H   0001098521
+  //     004616  09:31  MARAMA SRL   C.so De Gasperi       0001098522
+  //     004617  09:32  CARLINA21    P.za Carlo Emanuele   0001093134
+  //
+  // Le due Marama hanno la **stessa ragione sociale e la stessa partita
+  // IVA**: sul nome non si distinguono, ed è il problema che il titolare ha
+  // posto il 22/09/2026 («marama è sia berthollet che de gasperi»). Ma il
+  // fornitore le tiene separate nel suo gestionale, e stampa il codice su
+  // ogni documento.
+  //
+  // Quindi il codice vale più del nome e più dell'indirizzo: non si scrive in
+  // venti modi, non si legge male, e non cambia se il fattorino scrive la via
+  // in un altro modo. Basta rispondere UNA volta per fornitore e negozio.
+  if (cod) fuori.codici[cod] = String(sedeId)
+  return fuori
+}
+
+/** Il codice cliente del fornitore, ridotto alla sua forma confrontabile. */
+export function chiaveCodice(v) {
+  const s = String(v ?? '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
+  if (!s || !/\d/.test(s)) return ''
+  // Gli zeri davanti sono riempimento del gestionale: «0001098521» e
+  // «1098521» sono lo stesso cliente. Il resto si tiene com'è.
+  return s.replace(/^0+(?=[0-9A-Z])/, '')
 }

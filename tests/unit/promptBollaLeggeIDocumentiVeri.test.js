@@ -286,3 +286,37 @@ describe('Una bolla fotografata in più scatti non perde la testata', () => {
     expect(FUSIONE).toMatch(/const primo = \(campo\) =>/)
   })
 })
+
+describe('Il codice cliente del fornitore', () => {
+  // Il titolare, 22/09/2026: «marama è sia berthollet che de gasperi,
+  // dobbiamo capire come fare a distinguerle».
+  //
+  // Due negozi, stessa ragione sociale, stessa partita IVA (13338490017).
+  // Sul nome non si distinguono. Ma il 19/09 DESA ha consegnato tre bolle in
+  // tre minuti, e ognuna porta il suo codice cliente:
+  //
+  //     004615  09:29  MARAMA SRL   Via Berthollet 30 H   0001098521
+  //     004616  09:31  MARAMA SRL   C.so De Gasperi       0001098522
+  //     004617  09:32  CARLINA21    P.za Carlo Emanuele   0001093134
+  //
+  // È l'unica cosa stampata che li separa quando l'indirizzo del negozio non
+  // c'è. Un numero non si scrive in venti modi e non si legge male.
+  it('lo chiede', () => {
+    expect(P).toMatch(/"codiceCliente"/)
+  })
+
+  it('e spiega dove si trova, con le etichette vere dei due fornitori', () => {
+    expect(P).toMatch(/CODICE CLI\.\/FOR\./)
+    expect(P).toMatch(/0001098521/)
+  })
+
+  it('e dice perché conta, se no il modello lo salta come un numero qualunque', () => {
+    expect(P).toMatch(/two shops of the same company apart/i)
+    expect(P).toMatch(/do not clean it up/i)
+  })
+
+  it('e non si perde fondendo più foto', () => {
+    const FUSIONE = SRC.slice(SRC.indexOf("} else if (mode === 'bolla') {"), SRC.indexOf("} else if (mode === 'prezzi') {"))
+    expect(FUSIONE).toContain('codiceCliente')
+  })
+})

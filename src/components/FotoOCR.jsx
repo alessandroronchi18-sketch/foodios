@@ -94,6 +94,7 @@ Instructions:
   - "fornitore" = the SUPPLIER company name, i.e. whose letterhead is at the top. NOT the addressee ("Spett.le", "Destinatario"), which is the shop receiving the goods
   - "numero" = document number as printed; "data" = document date in YYYY-MM-DD. A two-digit year means 20xx ("19/09/26" is 2026-09-19)
   - "tipoDocumento" = what the document calls itself, as printed: "D.D.T.", "Documento di Trasporto", "Fattura", "Fattura Accompagnatoria"
+  - "codiceCliente" = the supplier's own customer code for this shop, as printed. It sits near the addressee block and is labelled "CODICE CLI./FOR.", "Codice cliente", or is an unlabelled long number beside the addressee (e.g. "0001098521", "190.08192"). Report it exactly as printed. It is the ONLY thing that tells two shops of the same company apart when they share a name and a VAT number, so do not skip it and do not clean it up
   - "destinazione" = the DELIVERY address block, labelled "Destinazione merce", "Destinazione" or "DESTINAZIONE DIVERSA". Report the whole block as one string. This is where the goods physically go and it is often a DIFFERENT shop from the addressee. If there is no such block, omit the field
   - "testataFornitore" = the supplier's whole letterhead block verbatim, newlines kept: name, address, phone, fax, email, website, VAT number, fiscal code, IBAN, payment terms. Do not clean it up, do not reorder it
   - "riferimentoDdt" = if a line or the header says this invoice refers to a delivery note ("Ddt nr. 20/26 del 05-06-2026", "rif. DDT 1685"), report that text verbatim. This means the goods were already delivered on that note
@@ -127,7 +128,7 @@ Instructions:
   - ADVERTISING blocks, even when they contain an article code and a price per kilo. Example, printed large in the middle of the page: "OFFERTA FINO AD ESAURIMENTO PROSC.CRUDO ANTICA PIEVE(7208) A 8,98 EURO AL KG". A promotion is not a delivery: if a line has no quantity in the quantity column, it is not goods
   - the "ORDINE CLIENTE nnnnn DEL gg/mm/aa" reference line
 - CRITICAL: Return ONLY valid JSON, no text outside JSON, no markdown
-{"fornitore":"supplier name","numero":"doc number","data":"YYYY-MM-DD","tipoDocumento":"D.D.T.","destinazione":"delivery address block","testataFornitore":"supplier letterhead verbatim","senzaPrezzi":false,"righe":[{"codice":"1007","nome":"italian lowercase","quantita":5,"unita":"SACCHI","pesoConfezioneG":25000,"pezziPerConfezione":null,"prezzoUnitario":"18,50","imponibile":"92,50","aliquotaIva":4,"tipoRiga":"V"}]}`,
+{"fornitore":"supplier name","numero":"doc number","data":"YYYY-MM-DD","tipoDocumento":"D.D.T.","codiceCliente":"0001098521","destinazione":"delivery address block","testataFornitore":"supplier letterhead verbatim","senzaPrezzi":false,"righe":[{"codice":"1007","nome":"italian lowercase","quantita":5,"unita":"SACCHI","pesoConfezioneG":25000,"pezziPerConfezione":null,"prezzoUnitario":"18,50","imponibile":"92,50","aliquotaIva":4,"tipoRiga":"V"}]}`,
 
     magazzino: `You are an OCR specialist for Italian pastry ingredient/supply lists.
 The image is a handwritten list (sheet, notebook, delivery receipt) of ingredients received with quantities - may be in Italian or English.
@@ -260,6 +261,7 @@ Instructions:
             destinazione: primo('destinazione'),
             testataFornitore: primo('testataFornitore'),
             riferimentoDdt: primo('riferimentoDdt'),
+            codiceCliente: primo('codiceCliente'),
             totaleScrittoAMano: primo('totaleScrittoAMano'),
             // Basta che UNA delle foto dica «questo documento non ha prezzi»
             // perché lo sia: la pagina delle righe può non avere la colonna.

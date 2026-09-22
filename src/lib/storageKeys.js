@@ -32,6 +32,13 @@ export const SK_MATERIALI = 'pasticceria-materiali-confezionamento-v1' // shared
 // poi compaiano come elenco fisso li' quando scrivo». Prima il campo era
 // libero con dei suggerimenti: bastava battere «latticni» una volta per
 // spaccare in due la barra della spesa per categoria, senza nessun errore.
+// In quale negozio va la merce di una bolla, quando il documento non basta
+// a dirlo. Due negozi della stessa societa' hanno lo stesso nome e la stessa
+// partita IVA: si distinguono dal CODICE CLIENTE che il fornitore stampa su
+// ogni documento (DESA, 19/09/2026: Berthollet 0001098521, De Gasperi
+// 0001098522). Qui si tiene la risposta data una volta, per non richiederla.
+export const SK_SEDI_BOLLE = 'pasticceria-sedi-da-bolla-v1' // shared
+
 export const SK_CAT_FORN = 'pasticceria-categorie-fornitori-v1' // shared
 
 export const SK_MOV      = 'pasticceria-movimenti-speciali-v1' // per-sede (sprechi e omaggi)

@@ -32,7 +32,9 @@ import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { CampoConElenco, formatNome } from './_shared'
 import SchedaFornitoreProposta from '../components/SchedaFornitoreProposta'
 import { smistaBolla } from '../lib/smistaMerce'
-import { sedeDaDestinazione } from '../lib/destinazioneSede'
+import { sedeDaDestinazione, imparaRegola } from '../lib/destinazioneSede'
+import { sload, ssave } from '../lib/storage'
+import { SK_SEDI_BOLLE } from '../lib/storageKeys'
 import PrezziMaterialiProposta from '../components/PrezziMaterialiProposta'
 import {
   preparaBolla, identitaBolla, normalizzaUnita,
@@ -149,10 +151,37 @@ export default function BollaInArrivo({
   // diverso da quello che ha ordinato. Se non si è sicuri non si sceglie: si
   // chiede, perché la giacenza è per sede e una consegna nel posto sbagliato
   // si scopre il giorno che manca la farina.
+  // Le risposte già date: «questo codice cliente è questo negozio». Si
+  // chiedono una volta per fornitore e negozio, poi non si chiedono più.
+  const [regoleSedi, setRegoleSedi] = useState(null)
+  useEffect(() => {
+    let vivo = true
+    if (!orgId) return () => { vivo = false }
+    sload(SK_SEDI_BOLLE, orgId, null).then(r => { if (vivo) setRegoleSedi(r && typeof r === 'object' ? r : null) })
+    return () => { vivo = false }
+  }, [orgId])
+
   const destinazione = useMemo(
-    () => sedeDaDestinazione(letto?.destinazione, sedi),
-    [letto?.destinazione, sedi],
+    () => sedeDaDestinazione(letto?.destinazione, sedi, regoleSedi, { codiceCliente: letto?.codiceCliente }),
+    [letto?.destinazione, sedi, regoleSedi, letto?.codiceCliente],
   )
+
+  /** «Questa bolla va a questo negozio»: la risposta si ricorda. */
+  async function imparaSede(sedeId) {
+    const nuove = imparaRegola(regoleSedi, {
+      testo: letto?.destinazione, sedeId, codiceCliente: letto?.codiceCliente,
+    })
+    try {
+      await ssave(SK_SEDI_BOLLE, nuove, orgId, null)
+      setRegoleSedi(nuove)
+      const nome = sedi.find(x => String(x.id) === String(sedeId))?.nome || 'quel negozio'
+      notify?.(letto?.codiceCliente
+        ? `Fatto: il codice cliente ${String(letto.codiceCliente).trim()} di questo fornitore è ${nome}. Non te lo chiedo più.`
+        : `Fatto: questa destinazione è ${nome}. Non te lo chiedo più.`)
+    } catch (e) {
+      notify?.('Non sono riuscito a ricordare la risposta: ' + (e?.message || 'rete'), false)
+    }
+  }
   const sedeDiversa = destinazione.sicura && destinazione.sedeId
     && sedeAttiva?.id && String(destinazione.sedeId) !== String(sedeAttiva.id)
 
@@ -435,12 +464,32 @@ export default function BollaInArrivo({
           </div>
         </div>
       )}
-      {!destinazione.sicura && letto?.destinazione && sedi.length > 1 && (
-        <div style={{ ...card, background: T.bgSubtle, display: 'flex', gap: 11, alignItems: 'flex-start' }}>
-          <span style={{ flexShrink: 0, marginTop: 1, color: T.textSoft }}><Icon name="pin" size={16} /></span>
-          <div style={{ fontSize: font.size.base, color: T.textMid, lineHeight: 1.6 }}>
-            Non riesco a dire in quale negozio va questa merce: {destinazione.motivo}.
-            Va su <b>{sedeAttiva?.nome || 'il negozio attivo'}</b>: controlla che sia giusto.
+      {!destinazione.sicura && letto?.destinazione && sedi.length > 1 && orgId && (
+        <div style={{ ...card, background: T.bgSubtle }}>
+          <div style={{ display: 'flex', gap: 11, alignItems: 'flex-start' }}>
+            <span style={{ flexShrink: 0, marginTop: 1, color: T.textSoft }}><Icon name="pin" size={16} /></span>
+            <div style={{ fontSize: font.size.base, color: T.textMid, lineHeight: 1.6 }}>
+              <b style={{ color: T.text }}>In quale negozio va questa merce?</b> {destinazione.motivo}.
+              {letto?.codiceCliente
+                ? ` Questo fornitore chiama questo cliente «${String(letto.codiceCliente).trim()}»: dimmelo una volta e non te lo chiedo più.`
+                : ' Se me lo dici, me lo ricordo per la prossima bolla uguale.'}
+              {' '}Finché non scegli, la merce va su <b>{sedeAttiva?.nome || 'il negozio attivo'}</b>.
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
+            {(destinazione.alternative.length ? destinazione.alternative : sedi.map(x => ({ id: x.id, nome: x.nome })))
+              .map(a => (
+                <button key={a.id} type="button" onClick={() => imparaSede(a.id)}
+                  style={{
+                    padding: '10px 15px', minHeight: dito ? 48 : 42,
+                    background: 'transparent', color: T.textMid,
+                    border: `1px solid ${T.borderStr}`, borderRadius: R.md,
+                    fontSize: font.size.base, fontWeight: 700, fontFamily: 'inherit',
+                    cursor: 'pointer',
+                  }}>
+                  {a.nome}
+                </button>
+              ))}
           </div>
         </div>
       )}
