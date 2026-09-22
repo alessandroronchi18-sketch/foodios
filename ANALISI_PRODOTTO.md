@@ -3176,10 +3176,15 @@ costo pieno sono **130.000–220.000 €**. È un pavimento, non una valutazione
 nessuno compra codice, si compra un'azienda.
 
 **2. Quanto vale un abbonato — il moltiplicatore.**
-Listino **deciso dal titolare il 22/09/2026: 79 / 199 / 399 €** al mese.
-(Attenzione: il codice in `planAccess.js` dice ancora 69 / 149 / 399, e va
-allineato prima di aprire gli incassi.) Con un mix 45/50/5 l'incasso medio per
-cliente è **155 € al mese, 1.860 € l'anno**.
+Listino **in vigore: 69 / 149 / 399 €** al mese (`planAccess.js`). Il 22/09 il
+titolare ha valutato 79 / 199 / 399 e ha poi deciso di **tenere i prezzi
+correnti**: i conti qui sotto sono su quelli nuovi perché è l'ipotesi che si
+stava studiando, e il rapporto fra i due è semplice — col listino in vigore
+ogni cifra scende del 19%.
+
+Con un mix 45/50/5 l'incasso medio per cliente è **155 € al mese, 1.860 €
+l'anno** sul listino studiato; **126 € al mese, 1.506 € l'anno** su quello in
+vigore.
 
 L'infrastruttura costa oggi **65 € al mese in tutto**, e il costo di un
 cliente in più sta sotto 1,10 €: il margine lordo è del **99%**, e a quel
