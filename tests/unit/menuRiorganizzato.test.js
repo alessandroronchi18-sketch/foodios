@@ -70,9 +70,24 @@ describe('promessa 2 — nessuna pagina diventa irraggiungibile', () => {
   it('le pagine accorpate sono tutte raggiungibili come schede', () => {
     const p = tuttePagine()
     for (const id of ['semilavorati', 'eventi', 'costi-aziendali', 'fornitori',
-                      'ordini-ai', 'menu-engineering', 'quadratura-inventario', 'azioni']) {
+                      'menu-engineering', 'quadratura-inventario', 'azioni']) {
       expect(p.has(id), `"${id}" non si raggiunge più`).toBe(true)
     }
+  })
+
+  it('«Riordino» non è più una scheda, ma la sua pagina esiste ancora', () => {
+    // 22/09/2026: la scheda «Riordino» (`ordini-ai`) è stata assorbita dalla
+    // pagina «Ordini». Il titolare: «pagina nuova» — perché ordinare è un
+    // gesto quotidiano, non una scheda dentro un'anagrafica, e perché due
+    // posti che rispondono «cosa manca» sono due posti dove i numeri
+    // litigano (ne dicevano 18 kg e 28 kg per la stessa farina).
+    //
+    // Quindi qui NON deve più essere una scheda — se ci tornasse, tornerebbe
+    // anche il doppione — ma deve restare **raggiungibile**: chi ha un
+    // segnalibro sulla vecchia pagina non deve trovare uno schermo bianco.
+    const p = tuttePagine()
+    expect(p.has('ordini'), 'la pagina «Ordini» non si raggiunge').toBe(true)
+    expect(VISTE_FUORI_MENU['ordini-ai'], '«Riordino» non è più raggiungibile da nessuna parte').toBeTruthy()
   })
 
   it('«Nuova ricetta» esce dal menu ma resta a un clic, dal Ricettario', () => {
