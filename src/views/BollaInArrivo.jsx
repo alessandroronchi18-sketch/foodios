@@ -27,10 +27,11 @@
 
 import React, { useMemo, useState, useEffect } from 'react'
 import Icon from '../components/Icon'
-import { color as T, radius as R, font } from '../lib/theme'
+import { color as T, radius as R, font, typo } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { CampoConElenco, formatNome } from './_shared'
 import SchedaFornitoreProposta from '../components/SchedaFornitoreProposta'
+import { smistaBolla } from '../lib/smistaMerce'
 import {
   preparaBolla, identitaBolla, normalizzaUnita,
   bollaDiQuestaFattura, controlloTotaleAMano,
@@ -53,6 +54,11 @@ const kg = (g) => (Number(g) / 1000).toLocaleString('it-IT', {
  * @param {Function} props.onRegistra   (righe, documento) => Promise
  * @param {Function} props.onAnnulla
  */
+/** Un importo minuto, coi millesimi: a due decimali un tovagliolo da
+ *  0,005 € si legge «0,01 €», cioè il doppio. */
+const fmt3 = (n) => `${(Number.isFinite(Number(n)) ? Number(n) : 0)
+  .toLocaleString('it-IT', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} €`
+
 /** «2026-06-05» → «05/06/2026». Si rimonta a mano: `new Date('2026-06-05')`
  *  legge in UTC e su qualche fuso torna indietro di un giorno. */
 function dataDaLeggere(giorno) {
@@ -130,6 +136,14 @@ export default function BollaInArrivo({
     [letto?.riferimentoDdt, fornitore, logRif],
   )
   const soloPrezzi = daBolla.cosaFare === 'solo-prezzi'
+
+  // ── Cibo o imballaggio ────────────────────────────────────────────────
+  //
+  // ConoArtic manda sulla stessa bolla il gelato (IVA 10%) e le coppette
+  // (IVA 22%). Il primo pesa sul food cost delle ricette, le seconde sul
+  // costo dei formati: sono due conti diversi, e mischiarli li sbaglia
+  // tutti e due.
+  const smistamento = useMemo(() => smistaBolla(righeGrezze), [righeGrezze])
 
   // ── Il totale scritto a penna ─────────────────────────────────────────
   const controlloMano = useMemo(
@@ -384,6 +398,28 @@ export default function BollaInArrivo({
             la data e non riesco a riconoscerla. Controlla di non avere già caricato quella merce:
             caricarla due volte raddoppia la giacenza.
           </div>
+        </div>
+      )}
+
+      {/* ── Cibo o imballaggio ───────────────────────────────────────────── */}
+      {smistamento.avvisi.length > 0 && (
+        <div style={{ ...card, background: T.bgSubtle }}>
+          <div style={{ display: 'flex', gap: 11, alignItems: 'flex-start' }}>
+            <span style={{ flexShrink: 0, marginTop: 1, color: T.textSoft }}><Icon name="layers" size={16} /></span>
+            <div style={{ fontSize: font.size.base, color: T.textMid, lineHeight: 1.6 }}>
+              {smistamento.avvisi.map((a, i) => <div key={i} style={{ marginBottom: i < smistamento.avvisi.length - 1 ? 6 : 0 }}>{a}</div>)}
+            </div>
+          </div>
+          {smistamento.materiali.some(r => r._pezzi?.costoPezzo != null) && (
+            <ul style={{ margin: '10px 0 0', paddingLeft: 20, fontSize: typo.small.fontSize, color: T.textSoft, lineHeight: 1.7 }}>
+              {smistamento.materiali.filter(r => r._pezzi?.costoPezzo != null).map(r => (
+                <li key={r.indice}>
+                  <b style={{ color: T.text }}>{r.nome || r.descrizione}</b>: {fmt3(r._pezzi.costoPezzo)} a pezzo
+                  <span style={{ color: T.textSoft }}> — {r._pezzi.perche}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
 
