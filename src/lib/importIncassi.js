@@ -27,6 +27,8 @@
 
 // ── Riconoscimento delle intestazioni ───────────────────────────────────────
 
+import { eRigaDiTotale } from './righeDiTotale'
+
 const norm = (s) => String(s ?? '')
   .toLowerCase()
   .replace(/[^a-zà-ù0-9]+/g, ' ')
@@ -51,10 +53,16 @@ export function chiaveSede(nome) {
   return String(nome ?? '').toLowerCase().replace(/[^a-zà-ù0-9]+/g, '').trim()
 }
 
-/** Righe di totale ("TOTALE MESE", "TOT") da non importare mai come giornata. */
+/**
+ * Righe di totale ("TOTALE MESE", "TOT") da non importare mai come giornata.
+ *
+ * Il riconoscimento vive in `righeDiTotale.js`, uno per tutto il prodotto:
+ * qui era più stretto — `tot` all'inizio oppure «totale mese» — e lasciava
+ * passare «Subtotale», «Somma», «Riepilogo», «A riportare». Una di quelle
+ * righe importata come giornata vale un mese di incasso.
+ */
 export function isRigaTotale(valore) {
-  const n = norm(valore)
-  return n.startsWith('tot') || n.includes('totale mese')
+  return eRigaDiTotale(valore)
 }
 
 /**

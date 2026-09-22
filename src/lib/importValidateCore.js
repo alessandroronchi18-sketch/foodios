@@ -1,4 +1,5 @@
 import { formatLocalDate } from './dateLocal'
+import { eRigaDiTotale, avvisoRigheDiTotale } from './righeDiTotale'
 // Core validation per import bulk. Modulo puro (no I/O, no auth):
 // usato sia da /api/import-validate.js (Edge endpoint) sia da
 // scripts/import-any.mjs (CLI Node).
@@ -274,6 +275,16 @@ export function validateRow(row, mapping, schema, opts = {}) {
 export function validateRows(rows, mapping, schema, opts = {}) {
   const valid_rows = []
   const invalid_rows = []
+  // ── Le righe di totale non sono dati ─────────────────────────────────
+  //
+  // «TOTALE 4.850 €» in fondo al foglio, i «Subtotale» in mezzo uno per
+  // famiglia. Lette come righe normali nasce una materia prima che si chiama
+  // TOTALE e costa 4.850 € al chilo, e da lì entra nel food cost di chiunque
+  // la usi. Finivano fra le righe scartate con l'errore generico «campo
+  // obbligatorio mancante», in mezzo agli errori veri.
+  //
+  // Decisione del titolare, 22/09/2026: si saltano, **e si dice**.
+  const righe_totale = []
   const celle_vuote_col_predefinito = {}
   // La riga come si legge nel foglio dell'utente. `_riga_foglio` ce l'ha messa
   // `normalizeSheet`; quando manca — righe costruite a mano dal CLI o dai
@@ -286,6 +297,13 @@ export function validateRows(rows, mapping, schema, opts = {}) {
         row_index: i, riga_foglio: rigaDelFoglio(row, i),
         errors: ['riga non e un oggetto'], row_data: row,
       })
+      continue
+    }
+    // La prima cella scritta della riga: nei fogli veri il totale sta lì, e
+    // il resto sono numeri.
+    const primaScritta = Object.values(row).find(v => String(v ?? '').trim() !== '')
+    if (eRigaDiTotale(primaScritta)) {
+      righe_totale.push({ riga_foglio: rigaDelFoglio(row, i), testo: String(primaScritta ?? '').trim() })
       continue
     }
     const res = validateRow(row, mapping, schema, opts)
@@ -316,10 +334,15 @@ export function validateRows(rows, mapping, schema, opts = {}) {
   return {
     valid_rows,
     invalid_rows,
+    righe_totale,
+    // L'avviso già scritto in italiano, coi nomi: chi lo mostra non deve
+    // reinventare la frase, e la frase è la stessa in tutti gli import.
+    avviso_totali: avvisoRigheDiTotale(righe_totale),
     stats: {
       total: rows.length,
       valid: valid_rows.length,
       invalid: invalid_rows.length,
+      totali_saltate: righe_totale.length,
       celle_vuote_col_predefinito,
     },
   }

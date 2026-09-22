@@ -1044,7 +1044,7 @@ function headerSampleValue(rows, col) {
 // ── STEP 3: validation preview ────────────────────────────────────
 
 function StepValidate({ schema, result, mapping = {}, unisciDoppioni = true, setUnisciDoppioni, onBack, onNext, isMobile, T }) {
-  const { valid_rows, invalid_rows, stats } = result
+  const { valid_rows, invalid_rows, stats, righe_totale = [], avviso_totali = null } = result
   const [showErrors, setShowErrors] = useState(false)
   const problem = summarizeErrors(invalid_rows)
   const allBad = stats.valid === 0 && stats.invalid > 0
@@ -1228,6 +1228,29 @@ function StepValidate({ schema, result, mapping = {}, unisciDoppioni = true, set
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {/* ── Le righe di totale ────────────────────────────────────────────
+          Saltarle è giusto — un «TOTALE 4.850 €» letto come materia prima
+          costa 4.850 € al chilo e entra nel food cost — ma saltarle in
+          silenzio è come non leggerle: chi legge «120 righe importate» su un
+          file di 123 non sa se le tre mancanti erano somme o merce vera.
+          Decisione del titolare, 22/09/2026. */}
+      {righe_totale.length > 0 && (
+        <div role="status" style={{
+          marginBottom: 18, padding: '12px 14px', borderRadius: 10,
+          background: T.fondoAvviso, border: `1px solid ${T.bordoAvviso}`,
+          fontSize: font.size.sm, color: T.amberDark, lineHeight: 1.55,
+          display: 'flex', gap: 9, alignItems: 'flex-start',
+        }}>
+          <Icon name="info" size={15} style={{ flexShrink: 0, marginTop: 1 }} />
+          <span>
+            {avviso_totali}
+            {righe_totale.length <= 6 && (
+              <> Righe del foglio: {righe_totale.map(r => r.riga_foglio).join(', ')}.</>
+            )}
+          </span>
         </div>
       )}
 
