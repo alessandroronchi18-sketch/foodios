@@ -31,6 +31,8 @@ import { todayLocal, giorniFaLocal, soloData } from '../lib/dateLocal'
 import { buildIngCosti, normIng } from '../lib/foodcost'
 import { fornitoreDiIngrediente, raggruppaPerFornitore, LEAD_TIME_RIFERIMENTO } from '../lib/fornitoreIngrediente'
 import { cadenzaConsegne } from '../lib/pagamentiFornitore'
+import { statoScorta, quantoRiordinare } from '../lib/riordino'
+import { testoOrdineWhatsApp } from '../lib/testoOrdine'
 import { color as T, font } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from '../components/Icon'
@@ -159,11 +161,6 @@ export default function OrdiniAiView({ orgId, sedeId, notify }) {
 
   const suggerimenti = useMemo(() => {
     const out = []
-    // Valore di riferimento quando il fornitore non ha dichiarato i suoi
-    // giorni di consegna. Non e' "il" lead time: e' un ripiego, e la pagina
-    // lo dice.
-    const leadTime = LEAD_TIME_RIFERIMENTO
-    const safety = 1.4  // 40% safety stock
     for (const [nome, info] of Object.entries(magazzino || {})) {
       const giacenza = Number(info?.giacenza_g ?? info?.giacenza ?? 0)
       // `soglia_g` e' la chiave che scrive davvero il Magazzino.
@@ -171,43 +168,39 @@ export default function OrdiniAiView({ orgId, sedeId, notify }) {
       const cons = consumoGiornaliero[normIng(nome)] || 0
       const forn = fornitoreDiIngrediente(ingCosti, nome)
       const datiForn = forn ? fornitoriPerNome.get(forn.nome) : null
-      const leadTimeIng = Number(datiForn?.lead_time_giorni) > 0
-        ? Number(datiForn.lead_time_giorni)
-        : leadTime
-      const giorniRimasti = cons > 0 ? giacenza / cons : null
+      const leadTimeDichiarato = Number(datiForn?.lead_time_giorni) > 0
+      // Valore di riferimento quando il fornitore non ha dichiarato i suoi
+      // giorni di consegna. Non e' "il" lead time: e' un ripiego, e la pagina
+      // lo dice.
+      const leadTimeIng = leadTimeDichiarato ? Number(datiForn.lead_time_giorni) : LEAD_TIME_RIFERIMENTO
+      const { giorniScorta } = statoScorta({ giacenza, soglia, consumoGiornaliero: cons })
       const sottoSoglia = soglia > 0 && giacenza <= soglia
-      const inEsaurimento = giorniRimasti != null && giorniRimasti <= leadTimeIng
+      const inEsaurimento = giorniScorta != null && giorniScorta <= leadTimeIng
       if (!sottoSoglia && !inEsaurimento) continue
-      // Quanto ordinare: si copre il tempo di consegna PIÙ una settimana di
-      // margine, con un minimo di quattordici giorni.
+      // Quanto ordinare e per quanti giorni: la formula unica di
+      // `src/lib/riordino.js`, la stessa che usa il Magazzino.
       //
-      // Prima erano quattordici giorni fissi, anche se il fornitore consegna
-      // in trenta: ordinavi due settimane di scorta sapendo che la prossima
-      // consegna arriva dopo un mese, e restavi a secco in mezzo. Il commento
-      // in testa al file descriveva già la formula giusta
-      // ("consumo_lead_time + safety_stock") — era il codice a non seguirla.
-      // Quanti giorni coprire: la cadenza vera del fornitore più un margine,
-      // oppure il tempo di consegna dichiarato, oppure quattordici giorni.
-      //
-      // La cadenza vince perché è misurata: se quel fornitore passa ogni sette
-      // giorni, la scorta deve arrivare al suo prossimo giro. Quattordici
-      // giorni fissi per tutti erano il doppio del necessario per chi passa
-      // ogni settimana (merce ferma) e la metà per chi passa ogni mese
-      // (resti a secco).
+      // Fino al 22/09/2026 questa pagina copriva la cadenza del fornitore (o
+      // il tempo di consegna) più un margine — la parte giusta, già descritta
+      // qui sopra — ma NON sottraeva la giacenza: sulla farina di Mara (2 kg
+      // al giorno, soglia 10 kg, 10 kg sullo scaffale, fornitore ogni 7 giorni)
+      // suggeriva di ordinarne 28 kg, mentre il Magazzino diceva 18. La
+      // differenza era esattamente i 10 kg già in magazzino.
       const cadenza = forn ? cadenzaPerFornitore.get(forn.nome) : null
-      const giorniDaCoprire = cadenza
-        ? Math.max(7, cadenza.giorni + 3)
-        : Math.max(14, leadTimeIng + 7)
-      const qtaSuggerita = Math.max(soglia * 2, cons * giorniDaCoprire * safety)
+      const { quantitaG, giorniDaCoprire, perche } = quantoRiordinare({
+        giacenza, soglia, consumoGiornaliero: cons,
+        cadenzaGiorni: cadenza, leadTimeGiorni: leadTimeDichiarato ? leadTimeIng : null,
+      })
       const voce = ingCosti[normIng(nome)]
       out.push({
         nome,
         giacenza, soglia, cons,
-        giorniRimasti: giorniRimasti != null ? Math.round(giorniRimasti) : null,
+        giorniRimasti: giorniScorta != null ? Math.round(giorniScorta) : null,
         sottoSoglia, inEsaurimento,
-        qtaSuggerita: Math.round(qtaSuggerita),
+        qtaSuggerita: quantitaG,
         giorniDaCoprire,
         cadenza,
+        perche,
         urgenza: sottoSoglia ? 'alta' : 'media',
         // Il prezzo viene dal listino ingredienti del ricettario, che e' dove
         // vive davvero: `prezzo_kg` nel magazzino non esiste, quindi il
@@ -216,7 +209,7 @@ export default function OrdiniAiView({ orgId, sedeId, notify }) {
         prezzoStimato: !!voce?.isStima,
         fornitore: forn?.nome || null,
         leadTimeIng,
-        leadTimeDichiarato: Number(datiForn?.lead_time_giorni) > 0,
+        leadTimeDichiarato,
         minimoOrdine: Number(datiForn?.minimo_ordine) || null,
       })
     }
@@ -240,19 +233,19 @@ export default function OrdiniAiView({ orgId, sedeId, notify }) {
     () => raggruppaPerFornitore(suggerimenti, ingCosti),
     [suggerimenti, ingCosti])
 
+  // Il testo del messaggio: `src/lib/testoOrdine.js`, nata proprio da qui il
+  // 22/09/2026 perché la usino anche il Magazzino e la scheda del fornitore.
+  // Il tono resta lo stesso; la libreria aggiunge quello che questo testo non
+  // diceva ancora: l'indirizzo di consegna (un promemoria da riempire, finché
+  // questa pagina non conosce la sede) e il codice articolo, quando c'è.
   function testoGruppo(g) {
-    const qtaTesto = (qta) => qta >= 1000
-      ? `${(Number(qta) / 1000).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg`
-      : `${Math.round(Number(qta) || 0).toLocaleString('it-IT', { useGrouping: 'always' })} g`
-    const lines = ['Buongiorno,', '', 'Vi chiedo gentilmente di prepararci il seguente ordine:', '']
-    for (const s of g.righe) lines.push(`- ${s.nome}: ${qtaTesto(s.qtaSuggerita)}`)
-    const minimo = g.righe.find(r => r.minimoOrdine)?.minimoOrdine
-    const stima = g.righe.reduce((a, r) => a + (r.prezzo_ultimo > 0 ? r.prezzo_ultimo * r.qtaSuggerita / 1000 : 0), 0)
-    if (minimo && stima > 0 && stima < minimo) {
-      lines.push('', `(il vostro minimo d'ordine è ${minimo.toLocaleString('it-IT', { useGrouping: 'always' })} €: fatemi sapere se serve aggiungere qualcosa)`)
-    }
-    lines.push('', 'Grazie!', '')
-    return lines.join('\n')
+    const stimaTotale = g.righe.reduce((a, r) => a + (r.prezzo_ultimo > 0 ? r.prezzo_ultimo * r.qtaSuggerita / 1000 : 0), 0)
+    const minimoOrdine = g.righe.find(r => r.minimoOrdine)?.minimoOrdine
+    return testoOrdineWhatsApp({
+      righe: g.righe.map(r => ({ nome: r.nome, quantitaG: r.qtaSuggerita })),
+      minimoOrdine,
+      stimaTotale,
+    })
   }
 
   function genTestoOrdine() {

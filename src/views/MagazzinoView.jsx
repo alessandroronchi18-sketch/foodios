@@ -25,6 +25,7 @@ import {
 } from './_shared'
 import { fornitoreDiIngrediente } from '../lib/fornitoreIngrediente'
 import { fmtp0 } from '../lib/formatIt'
+import { statoScorta, quantoRiordinare, arrotondaPassoPratico, GIORNI_MINIMI_SENZA_CADENZA } from '../lib/riordino'
 
 // Ombra premium coerente con la Dashboard home (card/contenitori principali).
 const SHADOW_PREMIUM = '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)'
@@ -766,8 +767,8 @@ function SchedeMagazzino({ righe, vuoto, consumoStimato, isDipendente, editSogli
               </div>
 
               {daOrdinare && (
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: R.md,
-                  background: f.statoBg(r.stato), color: col, fontWeight: 800, fontSize: FS.sm, marginBottom: 12, ...TNUM }}>
+                <div title={r.perche} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: R.md,
+                  background: f.statoBg(r.stato), color: col, fontWeight: 800, fontSize: FS.sm, marginBottom: 12, cursor: 'help', ...TNUM }}>
                   <Icon name="truck" size={11} /><span style={{ whiteSpace: 'nowrap' }}>Da ordinare ~ {f.fmtRiordino(r.riordinoG)}</span>
                 </div>
               )}
@@ -1020,10 +1021,6 @@ export default function MagazzinoView({
   // Serve a valorizzare la giacenza (valore stock €) - sola lettura, non scrive nulla.
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi), [ricettario])
 
-  // Copertura target per il suggerimento di riordino: porta la scorta a coprire
-  // ~14 giorni di consumo (2 cicli settimanali), arrotondando a step pratici.
-  const GIORNI_TARGET = 14
-
   const righe = tuttiIngNomi.map(k => {
     const m = magPerNorm[k] || {}
     // La voce esiste in magazzino? Serve per distinguere "finito" da "mai
@@ -1033,28 +1030,11 @@ export default function MagazzinoView({
     const soglia = m.soglia_g || 0
     const fabb = fabbisogno[k] || 0
     const consumoG = fabb / 7
-    const giorniScorta = consumoG > 0 ? giacenza / consumoG : null
-    const stato =
-      // Una giacenza NEGATIVA è un errore di registrazione, non uno stato di
-      // scorta. Prima cadeva fuori da tutta la catena: `giacenza === 0` è
-      // un'uguaglianza stretta, quindi −500 non era "esaurito"; con soglia 0
-      // saltava anche il ramo della soglia; e senza storico di consumo
-      // arrivava a 'ok' — verde, e non contata da nessun contatore. La scheda
-      // Prodotti finiti ha da sempre un KPI "Stock negativo": le materie prime
-      // non avevano niente.
-      giacenza < 0 ? 'negativo' :
-      // Audit 2026-09-09: `giacenza === 0` non distingue "finito" da "mai
-      // contato". Un ingrediente che sta nel ricettario ma non è mai stato
-      // inventariato ha giacenza 0 perché nessuno l'ha pesato, e la pagina lo
-      // dichiarava ESAURITO in rosso. Nel magazzino reale di Mara sono 40
-      // ingredienti su 48: l'allarme era sempre acceso, quindi non voleva dire
-      // niente e copriva i tre che erano davvero finiti.
-      !inMagazzino ? 'mai_contato' :
-      giacenza === 0 ? 'esaurito' :
-      soglia > 0 && giacenza <= soglia ? 'critico' :
-      giorniScorta !== null && giorniScorta < 3 ? 'critico' :
-      giorniScorta !== null && giorniScorta < 7 ? 'attenzione' :
-      'ok'
+    // Stato e giorni di scorta: la formula unica di `src/lib/riordino.js`,
+    // la stessa che usa Ordini AI. Fino al 22/09/2026 questo `.map` la
+    // ricalcolava a mano, con soglie di "critico"/"attenzione" copiate qui e
+    // in OrdiniAiView.jsx separatamente.
+    const { stato, giorniScorta } = statoScorta({ giacenza, soglia, consumoGiornaliero: consumoG, inMagazzino })
     // Valore a magazzino: giacenza (g) × costo (€/g). costoG può mancare → 0.
     const costoG = ingCosti[k]?.costoG || 0
     const costoKg = ingCosti[k]?.costoKg || 0
@@ -1065,11 +1045,18 @@ export default function MagazzinoView({
     // numero assente.
     const prezzoStimato = !!ingCosti[k]?.isStima
     const valore = giacenza * costoG
-    // Suggerimento riordino (g): copri GIORNI_TARGET di consumo + rispetta la soglia,
-    // sottrai la giacenza. Se non c'è storico consumo usiamo la soglia come riferimento.
-    const targetG = Math.max(consumoG * GIORNI_TARGET, soglia > 0 ? soglia * 1.5 : 0)
-    const riordinoG = targetG > giacenza ? targetG - giacenza : 0
-    return { k, nome: m.nome || k, giacenza, soglia, fabb, consumoG, giorniScorta, stato, ultimoRif: m.ultimoRifornimento, valore, costoG, costoKg, prezzoStimato, riordinoG }
+    // Quanto e perché riordinare: stessa formula unica. Il Magazzino non
+    // conosce la cadenza vera del fornitore (la impara Ordini AI dalle sue
+    // fatture): si passa `null` e la libreria ripiega sui 14 giorni che usava
+    // già questa pagina — non si inventa una cadenza che non si conosce.
+    const { quantitaG, giorniDaCoprire, perche } = quantoRiordinare({
+      giacenza, soglia, consumoGiornaliero: consumoG, cadenzaGiorni: null, leadTimeGiorni: null,
+    })
+    return {
+      k, nome: m.nome || k, giacenza, soglia, fabb, consumoG, giorniScorta, stato,
+      ultimoRif: m.ultimoRifornimento, valore, costoG, costoKg, prezzoStimato,
+      riordinoG: quantitaG, giorniDaCoprire, perche,
+    }
   })
 
   const critici = righe.filter(r => r.stato === 'critico' || r.stato === 'esaurito')
@@ -1560,12 +1547,16 @@ export default function MagazzinoView({
     return stimato ? `~ ${testo}` : testo
   }
 
+  // L'arrotondamento a passi pratici (100 g sotto il chilo, mezzo chilo sopra)
+  // ora vive in `src/lib/riordino.js`, con un test che lo confronta a questa
+  // stessa regola su 13 valori. La formattazione finale resta qui, e NON
+  // diventa `fmtQuantita` della libreria: quella scrive sempre in kg a un
+  // decimale, mentre qui il testo deve seguire il toggle kg/g della pagina
+  // (regola della tessera "Da ordinare", verificata il 22/09/2026) e usa 2-3
+  // decimali, non 1 — sostituirla avrebbe cambiato il numero a schermo.
   const fmtRiordino = g => {
-    if (!(g > 0)) return null
-    const arrotondato = g < 1000
-      ? Math.ceil(g / 100) * 100
-      : Math.ceil((g / 1000) * 2) / 2 * 1000
-    return fmtG(arrotondato)
+    const arrotondato = arrotondaPassoPratico(g)
+    return arrotondato > 0 ? fmtG(arrotondato) : null
   }
 
   return (
@@ -1720,7 +1711,7 @@ export default function MagazzinoView({
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: font.size.md, fontWeight: 800, color: T.white, letterSpacing: '-0.01em' }}>Lista di riordino consigliata</div>
                 <div style={{ fontSize: typo.small.fontSize, color: 'rgba(255,255,255,0.75)', marginTop: 1 }}>
-                  {daRiordinare.length} {daRiordinare.length === 1 ? 'ingrediente' : 'ingredienti'} · per coprire circa {GIORNI_TARGET} giorni di consumo
+                  {daRiordinare.length} {daRiordinare.length === 1 ? 'ingrediente' : 'ingredienti'} · per coprire circa {GIORNI_MINIMI_SENZA_CADENZA} giorni di consumo
                   {nascosti > 0 && !riordinoTutti && ` · in elenco i ${RIORDINO_VISIBILI} più urgenti`}
                 </div>
               </div>
@@ -1746,7 +1737,7 @@ export default function MagazzinoView({
                         <span style={{ width: 7, height: 7, borderRadius: '50%', background: statoColor(r.stato), flexShrink: 0 }}/>
                         {r.nome}
                       </span>
-                      <span style={{ fontWeight: 800, color: C.text, fontSize: FS.lg, whiteSpace: 'nowrap', flexShrink: 0, ...TNUM }}>
+                      <span title={r.perche} style={{ fontWeight: 800, color: C.text, fontSize: FS.lg, whiteSpace: 'nowrap', flexShrink: 0, cursor: 'help', ...TNUM }}>
                         {fmtRiordino(r.riordinoG) ? `~ ${fmtRiordino(r.riordinoG)}` : '-'}
                       </span>
                     </div>
@@ -1790,7 +1781,7 @@ export default function MagazzinoView({
             </button>
           )}
           colonne={[
-            { k: 'ord', label: 'Da ordinare', forte: true, cella: (r) => fmtRiordino(r.riordinoG) ? `~ ${fmtRiordino(r.riordinoG)}` : '-' },
+            { k: 'ord', label: 'Da ordinare', forte: true, cella: (r) => fmtRiordino(r.riordinoG) ? <span title={r.perche} style={{ cursor: 'help' }}>~ {fmtRiordino(r.riordinoG)}</span> : '-' },
             { k: 'giacenza', label: 'Giacenza', cella: (r) => <span style={{ color: statoColor(r.stato), fontWeight: 700 }}>{fmtG(r.giacenza)}</span> },
             { k: 'gg', label: 'Giorni di scorta', cella: (r) => <span style={{ color: statoColor(r.stato), fontWeight: 700 }}>{fmtGiorniScorta(r.giorniScorta, consumoStimato)}</span> },
             { k: 'costo', label: 'Costo stimato', cella: (r) => r.costoG > 0 ? fmt0(r.riordinoG * r.costoG) : '-' },
@@ -1824,7 +1815,7 @@ export default function MagazzinoView({
                       <td style={{ padding: '10px 14px', textAlign: 'right', color: statoColor(r.stato), fontWeight: 700, ...TNUM }}>
                         {fmtGiorniScorta(r.giorniScorta, consumoStimato)}
                       </td>
-                      <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 800, color: C.text, ...TNUM }}>
+                      <td title={r.perche} style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 800, color: C.text, cursor: r.perche ? 'help' : undefined, ...TNUM }}>
                         {fmtRiordino(r.riordinoG) ? `~ ${fmtRiordino(r.riordinoG)}` : '-'}
                       </td>
                       <td style={{ padding: '10px 14px', textAlign: 'right', color: C.textMid, ...TNUM }}>
@@ -2170,7 +2161,7 @@ export default function MagazzinoView({
           colonne={[
             { k: 'giacenza', label: 'Giacenza', forte: true, cella: (r) => <span style={{ color: statoColor(r.stato) }}>{fmtG(r.giacenza)}</span> },
             { k: 'gg', label: 'Giorni di scorta', cella: (r) => <span style={{ color: statoColor(r.stato), fontWeight: 700 }}>{fmtGiorniScorta(r.giorniScorta, consumoStimato)}</span> },
-            { k: 'ord', label: 'Da ordinare', cella: (r) => (r.stato === 'critico' || r.stato === 'esaurito' || r.stato === 'attenzione') && fmtRiordino(r.riordinoG) ? `~ ${fmtRiordino(r.riordinoG)}` : '-' },
+            { k: 'ord', label: 'Da ordinare', cella: (r) => (r.stato === 'critico' || r.stato === 'esaurito' || r.stato === 'attenzione') && fmtRiordino(r.riordinoG) ? <span title={r.perche} style={{ cursor: 'help' }}>~ {fmtRiordino(r.riordinoG)}</span> : '-' },
             { k: 'az', label: '', cella: (r) => (
               <span style={{ display: 'inline-flex', gap: 6 }}>
                 <button onClick={() => { setQuickLoad(r.k); setFormMode('carico'); setFormIng(r.nome); setTab('carica'); focusQtyDeferred() }}
@@ -2215,7 +2206,7 @@ export default function MagazzinoView({
                       : 'Stima del software (un impasto per ricetta a settimana): non hai ancora sessioni di produzione'}>Fabb. sett.</SortTH>
                     <SortTH k="giorniScorta" right active={magKey === 'giorniScorta'} dir={magDir} onToggle={magToggle} tip={consumoStimato ? "ATTENZIONE: non hai ancora sessioni di produzione registrate, quindi il consumo e' una stima del software (un impasto per ricetta a settimana). Registra qualche giornata e questi numeri diventano tuoi." : "Giorni di scorta rimanenti al ritmo di consumo attuale"}>Giorni scorta</SortTH>
                     <SortTH k="valore" right active={magKey === 'valore'} dir={magDir} onToggle={magToggle} tip="Valore della giacenza = quantità × prezzo €/kg">Valore</SortTH>
-                    <SortTH k="riordino" right active={magKey === 'riordino'} dir={magDir} onToggle={magToggle} tip="Quantità consigliata da ordinare per coprire ~14 giorni di consumo">Da ordinare</SortTH>
+                    <SortTH k="riordino" right active={magKey === 'riordino'} dir={magDir} onToggle={magToggle} tip="Quantità consigliata da ordinare per coprire ~14 giorni di consumo con margine di sicurezza, meno quello che hai già in magazzino">Da ordinare</SortTH>
                     <SortTH k="soglia" right active={magKey === 'soglia'} dir={magDir} onToggle={magToggle} tip="Soglia minima sotto la quale scatta l'alert di riordino">Soglia alert</SortTH>
                     <SortTH k="stato" active={magKey === 'stato'} dir={magDir} onToggle={magToggle}>Stato</SortTH>
                     <SortTH k="ultimoRif" right active={magKey === 'ultimoRif'} dir={magDir} onToggle={magToggle} tip="Data dell'ultimo rifornimento registrato">Ultimo riforn.</SortTH>
@@ -2301,7 +2292,7 @@ export default function MagazzinoView({
                       </td>
                       <td style={{ padding: '10px 14px', textAlign: 'right', ...TNUM }}>
                         {(r.stato === 'critico' || r.stato === 'esaurito' || r.stato === 'attenzione') && fmtRiordino(r.riordinoG) ? (
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 8, background: statoBg(r.stato), color: statoColor(r.stato), fontWeight: 800, fontSize: typo.small.fontSize }}>
+                          <span title={r.perche} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 8, background: statoBg(r.stato), color: statoColor(r.stato), fontWeight: 800, fontSize: typo.small.fontSize, cursor: 'help' }}>
                             <Icon name="truck" size={11} /><span style={{ whiteSpace: 'nowrap' }}>~ {fmtRiordino(r.riordinoG)}</span>
                           </span>
                         ) : (
