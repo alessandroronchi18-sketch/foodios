@@ -255,3 +255,34 @@ describe('Il righello di questo file', () => {
     expect(P).not.toMatch(/questa frase non esiste nel prompt/i)
   })
 })
+
+describe('Una bolla fotografata in più scatti non perde la testata', () => {
+  // Trovato dall'audit del 22/09/2026. Un DDT su due pagine si fotografa due
+  // volte: l'intestazione sta sulla prima, le righe su tutte. La fusione
+  // teneva solo fornitore, numero, data e righe, e buttava via gli altri
+  // sette campi **in silenzio**.
+  //
+  // Il peggiore è `senzaPrezzi`: un DDT di Vecchio Enrico o ConoArtic
+  // fotografato in due scatti lo perdeva, e allora **nessuna riga entrava in
+  // magazzino** — il contrario esatto di quello che la schermata promette e
+  // di quello che il titolare ha deciso. Sparivano anche il collegamento
+  // fattura-bolla, la destinazione e la testata del fornitore.
+  const FUSIONE = SRC.slice(SRC.indexOf("} else if (mode === 'bolla') {"), SRC.indexOf("} else if (mode === 'prezzi') {"))
+
+  it('tiene tutti i campi della testata, non solo tre', () => {
+    for (const campo of ['tipoDocumento', 'destinazione', 'testataFornitore',
+      'riferimentoDdt', 'totaleScrittoAMano', 'senzaPrezzi', 'piuDocumenti']) {
+      expect(FUSIONE, `«${campo}» si perde fondendo le foto`).toContain(campo)
+    }
+  })
+
+  it('e basta che UNA foto dica «senza prezzi» perché lo sia', () => {
+    // La pagina delle righe può non avere la colonna del prezzo: se si
+    // pretendesse che lo dicessero tutte, il caso non scatterebbe mai.
+    expect(FUSIONE).toMatch(/senzaPrezzi: results\.some\(/)
+  })
+
+  it('gli altri campi si prendono dalla prima foto che ce li ha', () => {
+    expect(FUSIONE).toMatch(/const primo = \(campo\) =>/)
+  })
+})
