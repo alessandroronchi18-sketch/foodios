@@ -64,7 +64,14 @@ function fileExcel(fogli, nome = 'listino.xlsx') {
   return new File([bytes], nome, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
 }
 
-/** Apre il wizard, carica il file, e arriva al passo 2. */
+/**
+ * Apre il wizard, carica il file, e arriva al passo 2.
+ *
+ * 22/09/2026 — con un file a più fogli il wizard adesso **si ferma e chiede
+ * quali leggere** (decisione del titolare). Questo aiutante risponde «il
+ * primo», che è quello che il programma faceva da solo prima: così le prove
+ * che parlano d'altro continuano a parlare d'altro.
+ */
 async function finoAlPasso2(file, mapping = {}, confidence = {}) {
   mappaturaFinta.mapping = mapping
   mappaturaFinta.confidence = confidence
@@ -72,7 +79,16 @@ async function finoAlPasso2(file, mapping = {}, confidence = {}) {
   const input = document.getElementById('import-file-input')
   fireEvent.change(input, { target: { files: [file] } })
   fireEvent.click(screen.getByRole('button', { name: /^Avanti$/ }))
-  await waitFor(() => expect(screen.getByText(/Controlla che sia tutto giusto/)).toBeTruthy())
+  // Se chiede quali fogli, si tiene la scelta già proposta (il primo).
+  await waitFor(() => {
+    const chiede = /quali leggo/i.test(document.body.textContent || '')
+    const avanti = /Controlla che sia tutto giusto/.test(document.body.textContent || '')
+    expect(chiede || avanti, 'il wizard non è arrivato né alla domanda sui fogli né al passo 2').toBe(true)
+  })
+  const conferma = [...document.querySelectorAll('button')]
+    .find(b => /Leggi questo foglio|Leggi questi/.test(b.textContent || ''))
+  if (conferma) fireEvent.click(conferma)
+  await waitFor(() => expect(screen.getByText(/Controlla che sia tutto giusto/)).toBeTruthy(), { timeout: 5000 })
   return vista
 }
 

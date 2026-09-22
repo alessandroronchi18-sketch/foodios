@@ -77,12 +77,30 @@ export default function ImportWizard({ orgId, onClose, notify, initialEntity = '
   // Il riconoscimento del formato costa una chiamata: se l'utente sceglie il
   // mese e si riparte, si riusa quello già fatto per lo stesso file.
   const memoriaDetect = useRef(null)
+  // ── Di un file a più fogli, quali leggere ─────────────────────────────
+  //
+  // Un Excel con le schede «Gusti», «Torte», «Archivio 2024»: finora ne
+  // entrava **solo il primo**. Dal 19/09 il programma almeno lo diceva, ma
+  // sceglieva lui — e il primo foglio non è quasi mai quello giusto, perché
+  // nei file veri davanti c'è la copertina o il riepilogo.
+  //
+  // Decisione del titolare, 22/09/2026: «chiede quali leggere».
+  //
+  // `fogliDisponibili` è l'elenco da mostrare; `fogliScelti` è la risposta.
+  // Finché la risposta non c'è, non si va avanti: chiedere e poi decidere da
+  // soli sarebbe peggio che non chiedere.
+  const [fogliDisponibili, setFogliDisponibili] = useState(null)
+  const [fogliScelti, setFogliScelti] = useState(null)
   const chiediConferma = useConfirm()
 
   const schema = useMemo(() => (entity ? getEntitySchema(entity) : null), [entity])
 
   // ── STEP 1 → STEP 2: parsea file, detect formato (LONG/WIDE), unpivot se serve, mapping AI
-  async function goToStep2(meseDaUsare = '') {
+  // `scelti` arriva come argomento e non dallo stato: questa funzione viene
+  // richiamata subito dopo aver scelto i fogli, e a quel punto lo stato che
+  // legge è ancora quello di prima. Un difetto silenzioso — la schermata
+  // restava ferma e sembrava che il pulsante non funzionasse.
+  async function goToStep2(meseDaUsare = '', scelti = null) {
     if (!file || !entity) { setError('Scegli tipo dato e carica il file.'); return }
     setError(''); setLoading(true)
     if (!meseDaUsare) setMesePendente(null)
@@ -165,7 +183,32 @@ export default function ImportWizard({ orgId, onClose, notify, initialEntity = '
           unpivotStats: { total: longRows.length, per_sheet, warnings },
         })
       } else {
-        const sheet = wb.firstSheet
+        // ── Quali fogli leggere: lo chiede, non decide ─────────────────
+        const conRighe = wb.sheetNames.filter(n => (wb.sheets[n]?.rows || []).length > 0)
+        const scelta = scelti || fogliScelti
+        if (conRighe.length > 1 && !scelta) {
+          setFogliDisponibili(conRighe.map(n => ({
+            nome: n,
+            righe: (wb.sheets[n].rows || []).length,
+            colonne: (wb.sheets[n].headers || []).length,
+            intestazioni: (wb.sheets[n].headers || []).join(' | '),
+          })))
+          setLoading(false)
+          return
+        }
+        const dalettere = (scelta && scelta.length ? scelta : [wb.firstSheetName])
+          .filter(n => wb.sheets[n])
+        const primo = wb.sheets[dalettere[0]] || wb.firstSheet
+        // Più fogli insieme si uniscono solo se hanno le STESSE intestazioni:
+        // incollare colonne diverse una sotto l'altra fa un pasticcio che poi
+        // nessuno riesce a disfare.
+        const stesseIntestazioni = (a, b) =>
+          a.length === b.length && a.every((h, i) => String(h).trim() === String(b[i]).trim())
+        const unibili = dalettere.filter(n => stesseIntestazioni(wb.sheets[n].headers || [], primo.headers || []))
+        const righeUnite = unibili.flatMap(n => wb.sheets[n].rows || [])
+        const sheet = unibili.length > 1
+          ? { ...primo, rows: righeUnite, sheetName: unibili.join(' + ') }
+          : primo
         if (sheet.rows.length === 0) throw new Error('Il file non contiene righe di dati.')
         sheetForMapping = sheet
         setDetectInfo({
@@ -179,11 +222,15 @@ export default function ImportWizard({ orgId, onClose, notify, initialEntity = '
           // stato letto compariva solo per il formato WIDE. Un listino con un
           // foglio per famiglia di prodotti entrava per un terzo, e la
           // schermata finale diceva «Tutto caricato!».
-          foglioUsato: wb.firstSheetName,
+          foglioUsato: unibili.length > 1 ? unibili.join(' + ') : dalettere[0],
           fogliIgnorati: wb.sheetNames
-            .filter(n => n !== wb.firstSheetName)
+            .filter(n => !unibili.includes(n))
             .map(n => ({ nome: n, righe: (wb.sheets[n]?.rows || []).length }))
             .filter(f => f.righe > 0),
+          // I fogli che sono stati scelti ma hanno colonne diverse dal primo:
+          // non si uniscono, e dirlo è l'unico modo perché chi importa capisca
+          // perché mancano delle righe.
+          fogliScartatiPerColonne: dalettere.filter(n => !unibili.includes(n)),
           // Quante righe sono state saltate in cima prima di trovare le
           // intestazioni (titolo del listino, indirizzo, riga bianca).
           righeSaltate: sheet.righeSaltate || 0,
@@ -474,6 +521,20 @@ export default function ImportWizard({ orgId, onClose, notify, initialEntity = '
           background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 14,
           padding: isMobile ? 16 : 24,
         }}>
+          {/* ── Quali fogli leggere ───────────────────────────────────────
+              Un Excel con «Gusti», «Torte», «Archivio 2024»: ne entrava solo
+              il primo, e il primo non è quasi mai quello giusto — nei file
+              veri davanti c'è la copertina o il riepilogo. Decisione del
+              titolare, 22/09/2026: si chiede. */}
+          {step === 1 && fogliDisponibili && (
+            <ScegliIFogli
+              fogli={fogliDisponibili}
+              onContinua={(scelti) => { setFogliScelti(scelti); setFogliDisponibili(null); goToStep2(meseScelto, scelti) }}
+              onAnnulla={() => { setFogliDisponibili(null); setFogliScelti(null); setError('') }}
+              isMobile={isMobile}
+            />
+          )}
+
           {step === 1 && mesePendente && (
             <ChiediIlMese
               suggerito={mesePendente.suggerito}
@@ -699,6 +760,72 @@ function ChiediIlMese({ suggerito, valore, setValore, onContinua, onAnnulla, isM
             border: 'none', borderRadius: 10, fontSize: font.size.md, fontWeight: 700, cursor: 'pointer',
           }}
         >Carica su {MESI_IT[mese - 1]} {anno}</button>
+      </div>
+    </div>
+  )
+}
+
+// ── Quali fogli di un file leggere ────────────────────────────────────────
+//
+// Un Excel con più schede — «Gusti», «Torte», «Archivio 2024» — entrava per un
+// foglio solo, il primo, e nei file veri il primo è la copertina o il
+// riepilogo. Dal 19/09 il programma almeno diceva quali aveva ignorato; dal
+// 22/09, per decisione del titolare, **chiede**.
+//
+// Si mostrano righe, colonne e le intestazioni di ognuno: sono le tre cose
+// con cui una persona riconosce il foglio che le serve senza aprire il file.
+function ScegliIFogli({ fogli, onContinua, onAnnulla, isMobile }) {
+  const [scelti, setScelti] = useState(() => new Set([fogli[0]?.nome].filter(Boolean)))
+  const intestazioniDelPrimo = fogli[0]?.intestazioni
+  const tutteUguali = fogli.every(f => f.intestazioni === intestazioniDelPrimo)
+  const attiva = (nome) => setScelti(prev => {
+    const n = new Set(prev)
+    if (n.has(nome)) n.delete(nome); else n.add(nome)
+    return n
+  })
+  return (
+    <div style={{ background: T.white, border: `1px solid ${T.border}`, borderRadius: 12, padding: isMobile ? 16 : 20 }}>
+      <div style={{ fontSize: font.size.lg, fontWeight: 800, color: T.text, marginBottom: 6 }}>
+        Questo file ha {fogli.length} fogli: quali leggo?
+      </div>
+      <div style={{ fontSize: font.size.sm, color: T.textSoft, lineHeight: 1.55, marginBottom: 14 }}>
+        Prima ne leggevo uno solo, il primo. Scegli tu.
+        {tutteUguali
+          ? ' Hanno tutti le stesse colonne, quindi posso anche unirli.'
+          : ' Hanno colonne diverse: posso leggerne uno per volta, o unire solo quelli che si somigliano.'}
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+        {fogli.map(f => (
+          <label key={f.nome} style={{
+            display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px',
+            border: `1px solid ${scelti.has(f.nome) ? T.brand : T.border}`, borderRadius: 10,
+            background: scelti.has(f.nome) ? T.brandLight : T.white, cursor: 'pointer',
+          }}>
+            <input type="checkbox" checked={scelti.has(f.nome)} onChange={() => attiva(f.nome)}
+              style={{ width: 18, height: 18, marginTop: 2, accentColor: T.brand, flexShrink: 0 }} />
+            <span style={{ minWidth: 0 }}>
+              <span style={{ display: 'block', fontSize: font.size.base, fontWeight: 700, color: T.text }}>{f.nome}</span>
+              <span style={{ display: 'block', fontSize: typo.small.fontSize, color: T.textSoft, fontVariantNumeric: 'tabular-nums' }}>
+                {f.righe.toLocaleString('it-IT', { useGrouping: 'always' })} righe · {f.colonne} colonne
+              </span>
+              <span style={{ display: 'block', fontSize: typo.small.fontSize, color: T.textSoft, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {f.intestazioni}
+              </span>
+            </span>
+          </label>
+        ))}
+      </div>
+      <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+        <button type="button" onClick={onAnnulla}
+          style={{ padding: '0 16px', minHeight: 44, borderRadius: 8, border: `1px solid ${T.border}`, background: T.white, color: T.textSoft, fontWeight: 700, fontSize: font.size.sm, cursor: 'pointer', fontFamily: 'inherit' }}>
+          Cambia file
+        </button>
+        <button type="button" onClick={() => onContinua([...scelti])} disabled={scelti.size === 0}
+          style={{ padding: '0 18px', minHeight: 44, borderRadius: 8, border: 'none',
+            background: scelti.size ? T.brand : T.border, color: T.white, fontWeight: 800, fontSize: font.size.sm,
+            cursor: scelti.size ? 'pointer' : 'not-allowed', fontFamily: 'inherit' }}>
+          {scelti.size <= 1 ? 'Leggi questo foglio' : `Leggi questi ${scelti.size} fogli`}
+        </button>
       </div>
     </div>
   )
