@@ -659,7 +659,9 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = 
                         ? (f.mezzi || []).filter(x => x !== m.id)
                         : [...(f.mezzi || []), m.id] }))}
                       style={{
-                        padding:"8px 12px", minHeight: isMobile ? 44 : 36,
+                        // Il tablet in laboratorio si tocca col dito come il telefono:
+                        // i bersagli stanno sopra i 44px in tutti e due i casi.
+                        padding:"8px 12px", minHeight: dito ? 44 : 36,
                         background: acceso ? C.red : "transparent",
                         color: acceso ? C.white : C.textMid,
                         border:`1px solid ${acceso ? C.red : C.border}`,
