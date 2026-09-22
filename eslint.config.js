@@ -98,8 +98,19 @@ export default [
     },
   },
   {
+    // La prova di carico gira con k6, che ha globali sue.
+    files: ['tests/load/**/*.js'],
+    languageOptions: { globals: { __ENV: 'readonly', __VU: 'readonly', __ITER: 'readonly', console: 'readonly' } },
+  },
+  {
     // Test files: rilasso
     files: ['tests/**/*.{js,jsx}'],
+    // Senza il plugin react, `no-unused-vars` non vede che una variabile è
+    // usata **dentro il JSX**: `const { default: Personale } = …` seguito da
+    // `<Personale …/>` risultava «assegnata e mai usata». Erano 200 errori
+    // finti su 471, e un elenco fatto per due terzi di bugie è un elenco che
+    // nessuno legge. `react/jsx-uses-vars` è la regola che glielo dice.
+    plugins: { react: reactPlugin },
     languageOptions: {
       // Senza questo, **ogni** file di prove `.jsx` dava «Parsing error:
       // Unexpected token <» alla prima riga di JSX. Il blocco dichiarava i
@@ -136,10 +147,19 @@ export default [
         // Node, per i file di prove che leggono il sorgente dal disco.
         __dirname: 'readonly', __filename: 'readonly', global: 'readonly',
         crypto: 'readonly', performance: 'readonly',
+        // `require` dentro un file ESM: vitest lo permette, e sei prove lo
+        // usano per leggere il disco senza rendere asincrono tutto il blocco.
+        require: 'readonly', module: 'readonly', exports: 'readonly',
       },
     },
     rules: {
       'no-undef': 'error',
+      'react/jsx-uses-vars': 'error',
+      'react/jsx-uses-react': 'error',
+      // Il trattino basso davanti è la convenzione che questo progetto usa
+      // già per dire «lo so che non lo uso, lo tengo per far quadrare la
+      // firma»: `(_blob) => …`, `const _opts = …`. Segnalarlo è rumore.
+      'no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }],
     },
   },
   {

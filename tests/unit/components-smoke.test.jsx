@@ -7,7 +7,7 @@
 // causato error boundary in produzione. Questi test girano in jsdom-like env
 // senza fare query reali (mock supabase / fetch).
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { render } from '@testing-library/react'
 import React from 'react'
 

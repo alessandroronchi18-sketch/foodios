@@ -19,7 +19,7 @@
 // tutto. Si può ancora scrivere una categoria che non c'è: è una categoria,
 // non un codice.
 
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import React, { useState } from 'react'
 import { readFileSync } from 'node:fs'

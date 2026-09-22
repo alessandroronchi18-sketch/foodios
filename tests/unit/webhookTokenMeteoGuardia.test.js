@@ -1,7 +1,7 @@
 // Tre moduli piccoli e scoperti: la chiave delle casse, la correzione meteo,
 // e la guardia sulle modifiche non salvate.
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import {
   impronta, leggiToken, risolviToken, segnaUso, organizzazioneAttiva,
 } from '../../api/lib/webhookToken.js'

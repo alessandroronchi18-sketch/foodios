@@ -6,7 +6,7 @@
 //
 // @vitest-environment happy-dom
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // --- Mock jsPDF ----------------------------------------------------------
 // Costruttore -> oggetto "doc" con tutte le API usate nel modulo.

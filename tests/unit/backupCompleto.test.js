@@ -17,7 +17,7 @@
 // Questo test blocca il ritorno delle due cose: la lettura non paginata e la
 // cancellazione.
 
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 
 const PAGINA = 1000
 

@@ -21,7 +21,7 @@
 //   3. chi la usa, cioè l'elenco delle ricette a valle, che è il motivo per
 //      cui uno apre questa pagina.
 import React from 'react'
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect, afterEach } from 'vitest'
 import { render, cleanup, fireEvent, waitFor, act } from '@testing-library/react'
 
 const { default: SemilavoratiView } = await import('../../src/views/SemilavoratiView.jsx')

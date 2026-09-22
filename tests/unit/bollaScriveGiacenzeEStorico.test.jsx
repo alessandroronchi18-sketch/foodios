@@ -10,7 +10,7 @@
 // una foto finivano dritti in `ingredienti_costi` senza passare da nessuna
 // parte e senza lasciare una riga nello storico. Nessuno li rivedeva e
 // nessuno poteva risalire a da dove venissero.
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, cleanup, fireEvent, act, waitFor } from '@testing-library/react'
 import React from 'react'
 import BollaInArrivo from '../../src/views/BollaInArrivo'

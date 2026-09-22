@@ -10,7 +10,7 @@
 //   - aggregazioni e filtri (es. brute-force >=3 fail) sono corretti
 //   - la funzione non esplode quando una tabella manca (catch silenziosi)
 
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 // Dal 15/09/2026 queste tre aree stanno in moduli loro: api/admin.js era
 // arrivato a 3.035 righe, ed è dove si nascondevano i difetti peggiori
 // trovati nell'audit di oggi — sei comandi che non partivano da mesi, un

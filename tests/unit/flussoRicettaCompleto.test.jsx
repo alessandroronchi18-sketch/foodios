@@ -166,14 +166,116 @@ describe('cambio il nome a una ricetta e salvo', () => {
 })
 
 describe('cancello una ricetta', () => {
+  // ── Questa prova non provava niente, e lo diceva lei stessa ───────────
+  //
+  // 22/09/2026. Il corpo era: cerca il pulsante «Elimina», e **se non lo
+  // trovi, esci con un `return`**. Poi premilo e aspetta sessanta
+  // millisecondi. Nessuna verifica: né che la ricetta fosse sparita, né che
+  // il modulo si fosse svuotato — le due cose scritte nel titolo.
+  //
+  // Una prova che esce di soppiatto quando non trova quello che cerca è
+  // verde sempre, anche il giorno che la cancellazione smette di funzionare.
+  // Ed era la sola che guardava la cancellazione dal vivo: l'altra qui sotto
+  // legge il sorgente.
+  //
+  // Il `stato` che l'impalcatura restituisce — il ricettario dopo il
+  // salvataggio — era destrutturato e mai letto. Era lì che stava la
+  // risposta, a due righe di distanza.
   it('sparisce dal ricettario e il modulo si svuota', async () => {
     const { container, stato } = montaScheda({ apri: 'PISTACCHIO' })
     await waitFor(() => expect(screen.getByLabelText('Nome ricetta').value).toBe('PISTACCHIO'))
+    expect(stato.ricettario.ricette.PISTACCHIO, 'la ricetta di partenza non c\'è').toBeTruthy()
+
+    // Il giro vero della cancellazione, tre passi. Saltarne uno vuol dire
+    // provare un prodotto che non esiste.
+    //   1. si apre l'elenco «Elimina ricetta»
+    //   2. si sceglie QUALE ricetta
+    //   3. si scrive ELIMINA in maiuscolo, e solo allora il pulsante si accende
     const elimina = [...container.querySelectorAll('button')]
-      .find(b => /Elimina/i.test(b.textContent) || /Elimina/i.test(b.getAttribute('aria-label') || ''))
-    if (!elimina) return   // la cancellazione vive dietro un menu: coperta altrove
+      .find(b => /Elimina ricetta/i.test(b.getAttribute('aria-label') || b.getAttribute('title') || b.textContent || ''))
+    expect(elimina, 'il comando per aprire la cancellazione non si trova').toBeTruthy()
     fireEvent.click(elimina)
-    await new Promise(r => setTimeout(r, 60))
+
+    // La cancellazione ha due porte in fila: l'icona apre il pannello, e
+    // dentro c'è l'elenco delle ricette che si apre a sua volta.
+    //
+    // La seconda porta va **aspettata**: cercarla subito vuol dire cercarla
+    // prima che React abbia ridisegnato, non trovarla, e tirare avanti con
+    // l'elenco chiuso. È il motivo per cui questa prova ha sbagliato bersaglio
+    // tre volte prima di funzionare.
+    // Le due porte si chiamano tutte e due «Elimina ricetta», e si
+    // distinguono da un dettaglio: l'icona in alto è un interruttore
+    // (`aria-pressed`), quella del pannello no. Cercare «il pulsante nuovo»
+    // non funziona: l'icona viene **ricreata** a ogni disegno — è definita
+    // dentro il corpo del componente — quindi risulta nuova anche lei, e
+    // premerla di nuovo richiude il pannello appena aperto.
+    const secondaPorta = await waitFor(() => {
+      const x = [...document.querySelectorAll('button')]
+        .find(b => b.getAttribute('aria-pressed') == null
+          && /Elimina ricetta/i.test((b.textContent || '') + (b.getAttribute('aria-label') || '')))
+      expect(x, 'il pannello della cancellazione non si è aperto').toBeTruthy()
+      return x
+    }, { timeout: 3000 })
+    fireEvent.click(secondaPorta)
+
+    // PISTACCHIO compare in più elenchi della pagina: quello giusto è quello
+    // **comparso adesso**, cioè non c'era prima di aprire la cancellazione.
+    // Cliccare il primo che si trova vuol dire aprire la ricetta invece di
+    // cancellarla, e la prova passerebbe guardando la cosa sbagliata.
+    const scegli = await waitFor(() => {
+      const b = [...document.querySelectorAll('button')]
+        .filter(x => /PISTACCHIO/i.test((x.textContent || '').trim()))
+        .find(x => x.getAttribute('aria-pressed') == null)
+      expect(b, 'nell\'elenco da cancellare non è comparso PISTACCHIO').toBeTruthy()
+      return b
+    }, { timeout: 3000 })
+    fireEvent.click(scegli)
+
+    // La cancellazione ha un doppio controllo: bisogna **scrivere ELIMINA in
+    // maiuscolo** prima che il pulsante si accenda. È il comportamento giusto
+    // — cancellare una ricetta è permanente — e una prova che non ci passa
+    // sta provando un prodotto che non esiste.
+    //
+    // Nota di metodo: il pulsante si aspetta e **poi** si preme, una volta
+    // sola. Premere dentro un'attesa che si ripete vuol dire premerlo venti
+    // volte, e la prima stesura di questa riga ha fatto morire il processo.
+    // Prima di scrivere ELIMINA: il pannello deve dire di QUALE ricetta si
+    // tratta. Senza questo controllo si può confermare la cancellazione di
+    // «niente» — e il programma salverebbe un ricettario identico dicendo che
+    // ha cancellato.
+    await waitFor(() => {
+      expect(document.body.textContent).toMatch(/Stai per eliminare/i)
+      expect(document.body.textContent).toMatch(/PISTACCHIO/)
+    }, { timeout: 3000 })
+
+    const campoPin = await waitFor(() => {
+      const c = [...document.querySelectorAll('input')].find(i => i.placeholder === 'ELIMINA')
+      expect(c, 'non compare il campo dove si scrive ELIMINA').toBeTruthy()
+      return c
+    }, { timeout: 3000 })
+    // Il pulsante giusto è **quello che si accende scrivendo**: prima era
+    // spento, dopo no. Cercarlo per testo non funziona — in pagina ci sono
+    // altri pulsanti che dicono «elimina» e sono già accesi (l'icona in alto,
+    // il comando che apre l'elenco), e premere quelli richiude tutto.
+    const spentiPrima = new Set([...document.querySelectorAll('button')].filter(b => b.disabled))
+    expect(spentiPrima.size, 'nessun pulsante è spento: il doppio controllo non c\'è').toBeGreaterThan(0)
+    fireEvent.change(campoPin, { target: { value: 'ELIMINA' } })
+
+    const conferma = await waitFor(() => {
+      const b = [...document.querySelectorAll('button')]
+        .find(x => !x.disabled && spentiPrima.has(x))
+      expect(b, 'il pulsante di conferma non si è acceso dopo aver scritto ELIMINA').toBeTruthy()
+      return b
+    }, { timeout: 3000 })
+    fireEvent.click(conferma)
+
+    await waitFor(() => {
+      expect(stato.ricettario.ricette.PISTACCHIO, 'la ricetta è ancora nel ricettario').toBeFalsy()
+    }, { timeout: 3000 })
+
+    // E il modulo resta vuoto: se tenesse il nome di una ricetta che non
+    // esiste più, il salvataggio dopo la ricreerebbe.
+    expect(screen.getByLabelText('Nome ricetta').value).toBe('')
   })
 
   it('e la guardia delle modifiche non salvate non resta accesa', () => {

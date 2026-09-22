@@ -92,9 +92,15 @@ const ricettario = {
     mele: { costoKg: 2, costoG: 0.002 },
   },
 }
-// Il magazzino di una pasticceria vera: la frolla non c'è (si fa e si usa in
-// giornata), e le uova stanno salvate al plurale.
-const magazzino = {
+// Il magazzino **prima** della sessione: una pasticceria vera, dove la frolla
+// non c'è (si fa e si usa in giornata).
+//
+// 22/09/2026: questo blocco era scritto, commentato, e **non lo usava
+// nessuno** — le prove qui sotto ripetevano 28.000 e 10.000 a mano. Due
+// verità per lo stesso numero: il giorno che una cambia, l'altra resta
+// indietro e la prova diventa verde per il motivo sbagliato. Adesso le
+// giacenze di partenza si leggono da qui.
+const magPrima = {
   'farina 00': { nome: 'farina 00', giacenza_g: 28000, soglia_g: 0 },
   burro: { nome: 'burro', giacenza_g: 10000, soglia_g: 0 },
   mele: { nome: 'mele', giacenza_g: 8000, soglia_g: 0 },
@@ -111,11 +117,12 @@ const sessione = {
   destinazioneSedeId: null, destinazioneSedeNome: null,
 }
 // Il magazzino come sta DOPO quella sessione.
-const magDopo = {
-  'farina 00': { nome: 'farina 00', giacenza_g: 27500, soglia_g: 0 },
-  burro: { nome: 'burro', giacenza_g: 9700, soglia_g: 0 },
-  mele: { nome: 'mele', giacenza_g: 7600, soglia_g: 0 },
-}
+// Il magazzino **dopo** la sessione: quello di prima meno lo scarico vero
+// registrato in `sessione.scalatoPerChiave`. Scritto come sottrazione e non a
+// mano, così i due non possono divergere.
+const magDopo = Object.fromEntries(Object.entries(magPrima).map(([k, v]) => [
+  k, { ...v, giacenza_g: v.giacenza_g - (sessione.scalatoPerChiave[k] || 0) },
+]))
 
 const props = {
   ricettario, magazzino: magDopo, setMagazzino: () => {}, giornaliero: [sessione], setGiornaliero: () => {},
@@ -162,8 +169,8 @@ describe('modifica sessione — un motore solo, quello vero', () => {
     // 3 crostate = 1.200 g di frolla = 1,5 batch = 750 g di farina.
     // Prima: 27.500 + 500 (restituiti) − 0 (la voce «pasta frolla» non esiste)
     //        = 28.000, cioè la farina tornava intera.
-    expect(scritte.mag['farina 00'].giacenza_g).toBe(28000 - 750)
-    expect(scritte.mag.burro.giacenza_g).toBe(10000 - 450)
+    expect(scritte.mag['farina 00'].giacenza_g).toBe(magPrima['farina 00'].giacenza_g - 750)
+    expect(scritte.mag.burro.giacenza_g).toBe(magPrima.burro.giacenza_g - 450)
   })
 
   it('non nasce nessuna voce «pasta frolla» in magazzino', async () => {
@@ -194,8 +201,8 @@ describe('modifica sessione — un motore solo, quello vero', () => {
     fireEvent.change(stampi, { target: { value: '1' } })
     await salvaModifica(v)
     // 1 crostata = 400 g di frolla = mezzo batch = 250 g di farina.
-    expect(scritte.mag['farina 00'].giacenza_g).toBe(28000 - 250)
-    expect(scritte.mag.mele.giacenza_g).toBe(8000 - 200)
+    expect(scritte.mag['farina 00'].giacenza_g).toBe(magPrima['farina 00'].giacenza_g - 250)
+    expect(scritte.mag.mele.giacenza_g).toBe(magPrima.mele.giacenza_g - 200)
   })
 
   it('salvare senza cambiare niente lascia il magazzino dov\'era', async () => {

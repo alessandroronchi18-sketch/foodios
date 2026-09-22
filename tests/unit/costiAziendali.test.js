@@ -2,7 +2,7 @@
 // Audit 2026-07-01 LOW: una_tantum spalmata su 12 mesi calendariali,
 // non 30.44 giorni astronomici.
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 vi.mock('../../src/lib/supabase', () => ({
   supabase: {
