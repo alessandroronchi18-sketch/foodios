@@ -818,6 +818,10 @@ export default function MagazzinoView({
   // diventare il prezzo di oggi o restare solo nello storico.
   onRegistraBolla = null, onAnnullaBolla = null, logPrezzi = [],
   orgId, sedeId, isDipendente = false, utente = null, LEX = lessico(),
+  // La partita IVA dell'azienda. Sulla bolla ce ne sono due, la tua e quella
+  // del fornitore: senza sapere quale è la tua, leggendo la testata si
+  // rischia di creare un fornitore che sei tu.
+  pivaAzienda = null,
   // Per mandare chi cerca i prezzi dove sono finiti, senza che debba
   // cercarseli nel menu.
   onNavigate = null,
@@ -2423,6 +2427,10 @@ export default function MagazzinoView({
                 logPrezzi={logPrezzi}
                 logRif={logRif}
                 notify={notify}
+                // Servono al pannello che propone la scheda del fornitore
+                // leggendola dalla testata del documento.
+                orgId={orgId}
+                pivaCliente={pivaAzienda}
                 onAnnulla={() => setBollaLetta(null)}
                 onRegistra={async (righe, documento) => {
                   if (!onRegistraBolla) {
