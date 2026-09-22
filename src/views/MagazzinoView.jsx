@@ -822,6 +822,10 @@ export default function MagazzinoView({
   // del fornitore: senza sapere quale è la tua, leggendo la testata si
   // rischia di creare un fornitore che sei tu.
   pivaAzienda = null,
+  // Servono alla bolla per capire in quale negozio va la merce: il 19/09 lo
+  // stesso fornitore ha consegnato tre bolle lo stesso giorno a tre
+  // indirizzi diversi.
+  sedi = [], sedeAttiva = null,
   // Per mandare chi cerca i prezzi dove sono finiti, senza che debba
   // cercarseli nel menu.
   onNavigate = null,
@@ -2431,6 +2435,8 @@ export default function MagazzinoView({
                 // leggendola dalla testata del documento.
                 orgId={orgId}
                 pivaCliente={pivaAzienda}
+                sedi={sedi}
+                sedeAttiva={sedeAttiva}
                 onAnnulla={() => setBollaLetta(null)}
                 onRegistra={async (righe, documento) => {
                   if (!onRegistraBolla) {

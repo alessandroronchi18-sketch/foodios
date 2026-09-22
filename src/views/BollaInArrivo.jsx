@@ -32,6 +32,7 @@ import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { CampoConElenco, formatNome } from './_shared'
 import SchedaFornitoreProposta from '../components/SchedaFornitoreProposta'
 import { smistaBolla } from '../lib/smistaMerce'
+import { sedeDaDestinazione } from '../lib/destinazioneSede'
 import {
   preparaBolla, identitaBolla, normalizzaUnita,
   bollaDiQuestaFattura, controlloTotaleAMano,
@@ -72,6 +73,10 @@ export default function BollaInArrivo({
   // `pivaCliente` è la P.IVA dell'azienda: sulla bolla ci sono tutt'e due, e
   // prendere la propria vorrebbe dire creare un fornitore che sei tu.
   orgId = null, pivaCliente = null,
+  // Per capire in quale negozio va la merce: il 19/09/2026 lo stesso
+  // fornitore ha consegnato tre bolle lo stesso giorno a tre indirizzi
+  // diversi, e la giacenza è per sede.
+  sedi = [], sedeAttiva = null,
 }) {
   const suTelefono = useIsMobile()
   const suTablet = useIsTablet()
@@ -136,6 +141,19 @@ export default function BollaInArrivo({
     [letto?.riferimentoDdt, fornitore, logRif],
   )
   const soloPrezzi = daBolla.cosaFare === 'solo-prezzi'
+
+  // ── In quale negozio va questa merce ──────────────────────────────────
+  //
+  // Il blocco «Destinazione merce» sta su ogni bolla, e spesso è un negozio
+  // diverso da quello che ha ordinato. Se non si è sicuri non si sceglie: si
+  // chiede, perché la giacenza è per sede e una consegna nel posto sbagliato
+  // si scopre il giorno che manca la farina.
+  const destinazione = useMemo(
+    () => sedeDaDestinazione(letto?.destinazione, sedi),
+    [letto?.destinazione, sedi],
+  )
+  const sedeDiversa = destinazione.sicura && destinazione.sedeId
+    && sedeAttiva?.id && String(destinazione.sedeId) !== String(sedeAttiva.id)
 
   // ── Cibo o imballaggio ────────────────────────────────────────────────
   //
@@ -397,6 +415,29 @@ export default function BollaInArrivo({
             Questo documento dice di riferirsi alla bolla <b>{daBolla.rif?.numero}</b>, ma non c&apos;è
             la data e non riesco a riconoscerla. Controlla di non avere già caricato quella merce:
             caricarla due volte raddoppia la giacenza.
+          </div>
+        </div>
+      )}
+
+      {/* ── In quale negozio va ───────────────────────────────────────────
+          La giacenza è per sede: una bolla caricata sul negozio sbagliato si
+          scopre il giorno che manca la farina. */}
+      {sedeDiversa && (
+        <div style={{ ...card, background: T.amberLight, border: `1px solid ${T.amber}55`, display: 'flex', gap: 11, alignItems: 'flex-start' }}>
+          <span style={{ flexShrink: 0, marginTop: 1, color: T.amber }}><Icon name="warning" size={17} /></span>
+          <div style={{ fontSize: font.size.base, color: T.amberDark || T.textMid, lineHeight: 1.6 }}>
+            Sul documento la merce va a <b>{destinazione.sedeNome}</b>, ma stai lavorando
+            su <b>{sedeAttiva?.nome}</b>. Registrandola adesso la giacenza si muove
+            su {sedeAttiva?.nome}: se non è giusto, cambia negozio prima di registrare.
+          </div>
+        </div>
+      )}
+      {!destinazione.sicura && letto?.destinazione && sedi.length > 1 && (
+        <div style={{ ...card, background: T.bgSubtle, display: 'flex', gap: 11, alignItems: 'flex-start' }}>
+          <span style={{ flexShrink: 0, marginTop: 1, color: T.textSoft }}><Icon name="pin" size={16} /></span>
+          <div style={{ fontSize: font.size.base, color: T.textMid, lineHeight: 1.6 }}>
+            Non riesco a dire in quale negozio va questa merce: {destinazione.motivo}.
+            Va su <b>{sedeAttiva?.nome || 'il negozio attivo'}</b>: controlla che sia giusto.
           </div>
         </div>
       )}
