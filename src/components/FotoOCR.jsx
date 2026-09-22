@@ -239,10 +239,34 @@ Instructions:
           // sulla prima, le righe su tutte. Le righe si mettono in fila senza
           // sommarle — due righe della stessa merce su una bolla vera sono due
           // consegne o due lotti, e sommarle nasconderebbe un prezzo diverso.
+          //
+          // I campi della testata si prendono dalla PRIMA foto che ce l'ha,
+          // uno per uno. Fino al 22/09/2026 se ne tenevano solo tre, e gli
+          // altri sette sparivano in silenzio: un DDT senza prezzi (Vecchio
+          // Enrico, ConoArtic) fotografato in due scatti perdeva
+          // `senzaPrezzi`, e allora **nessuna riga entrava in magazzino** —
+          // il contrario esatto di quello che la schermata prometteva.
+          // Sparivano anche il collegamento fattura↔bolla, la destinazione e
+          // la testata del fornitore. Trovato dall'audit.
           const testa = results.find(r => r?.fornitore || r?.numero || r?.data) || {}
+          const primo = (campo) => results.find(r => r?.[campo] != null && r[campo] !== '')?.[campo]
           const righe = []
           for (const r of results) for (const x of (r.righe || [])) righe.push(x)
-          return { fornitore: testa.fornitore || '', numero: testa.numero || '', data: testa.data || '', righe }
+          return {
+            fornitore: testa.fornitore || '',
+            numero: testa.numero || '',
+            data: testa.data || '',
+            tipoDocumento: primo('tipoDocumento'),
+            destinazione: primo('destinazione'),
+            testataFornitore: primo('testataFornitore'),
+            riferimentoDdt: primo('riferimentoDdt'),
+            totaleScrittoAMano: primo('totaleScrittoAMano'),
+            // Basta che UNA delle foto dica «questo documento non ha prezzi»
+            // perché lo sia: la pagina delle righe può non avere la colonna.
+            senzaPrezzi: results.some(r => r?.senzaPrezzi === true) || undefined,
+            piuDocumenti: results.some(r => r?.piuDocumenti === true) || undefined,
+            righe,
+          }
         } else if (mode === 'prezzi') {
           const byNome = {}
           for (const r of results) for (const i of (r.ingredienti || [])) if (i.prezzo_kg > 0) byNome[i.nome] = i.prezzo_kg

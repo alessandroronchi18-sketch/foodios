@@ -39,7 +39,6 @@ import { cadenzaConsegne } from '../lib/pagamentiFornitore'
 import { consumoGiornaliero, giornateContate, GIORNI_FINESTRA } from '../lib/consumoGiornaliero'
 import { righeDaRiordinare, fmtQuantita } from '../lib/riordino'
 import { testoOrdineWhatsApp, testoOrdineEmail, mailtoOrdine } from '../lib/testoOrdine'
-import { giorniFaLocal } from '../lib/dateLocal'
 
 // La chiave del gruppo «roba senza fornitore collegato». Non è un nome vero,
 // e non può esserlo: un fornitore che si chiamasse così finirebbe lì dentro.
@@ -97,11 +96,20 @@ export default function OrdiniView({ orgId, sedeId, notify, azienda = null, sede
         sedeId ? sload(SK_MAG, orgId, sedeId) : Promise.resolve({}),
         sedeId ? sload(SK_CHIUS, orgId, sedeId) : Promise.resolve([]),
         sload(SK_RIC, orgId, null),
-        supabase.from('fornitori').select('*').eq('organization_id', orgId).eq('attivo', true),
-        // Solo due colonne: da qui si impara ogni quanto ogni fornitore
-        // consegna davvero, ed è quello che decide quanta scorta serve.
-        supabase.from('fatture').select('fornitore, data_fattura')
-          .eq('organization_id', orgId).gte('data_fattura', giorniFaLocal(400)).order('data_fattura'),
+        // ── Perché due funzioni e non due letture dirette ──────────────
+        //
+        // `fornitori` e `fatture` sono murate per ogni dipendente: dentro la
+        // prima ci sono IBAN e condizioni di pagamento, dentro la seconda gli
+        // importi. Un permesso di ordinare non è un varco sulla contabilità.
+        //
+        // Ma per mandare un ordine servono a chi si scrive e ogni quanto quel
+        // fornitore passa. Queste due funzioni danno **solo quei campi**:
+        // leggendo le tabelle per diritto, un dipendente abilitato avrebbe
+        // ricevuto due elenchi vuoti — la RLS filtra le righe, non dà errore —
+        // e ogni ordine che registrava finiva scollegato dal suo fornitore.
+        // Trovato dall'audit del 22/09/2026.
+        supabase.rpc('fos_fornitori_per_ordine'),
+        supabase.rpc('fos_consegne_fornitori', { giorni: 400 }),
         supabase.from('ordini_fornitori')
           .select('*, fornitori(nome), righe_ordine(prodotto,quantita,unita)')
           .eq('organization_id', orgId).order('data_ordine', { ascending: false }).limit(30),
@@ -298,13 +306,28 @@ export default function OrdiniView({ orgId, sedeId, notify, azienda = null, sede
         righeScelte.map(r => ({
           ordine_id: testa.id,
           prodotto: r.nome,
-          quantita: r.quantitaG != null ? Number((r.quantitaG / 1000).toFixed(3)) : 0,
+          // `null`, non `0`. Se uno scrive «due sacchi» nel campo della
+          // quantità, il messaggio al fornitore dice «da confermare» — ed è
+          // onesto — ma nello storico finiva **zero**. Lo storico serve a
+          // confrontare quello che hai chiesto con quello che arriva: uno
+          // zero scritto lì è una bugia silenziosa, proprio nel caso in cui
+          // l'utente stava correggendo a mano perché il numero non andava.
+          // Trovato dall'audit del 22/09/2026.
+          quantita: r.quantitaG != null ? Number((r.quantitaG / 1000).toFixed(3)) : null,
           unita: 'kg',
         })),
       )
       if (e2) {
-        await supabase.from('ordini_fornitori').delete().eq('id', testa.id).eq('organization_id', orgId)
-        notify?.('Non sono riuscito a salvare le righe: l ordine non e stato registrato.', false)
+        // Il rollback può fallire a sua volta — basta un problema di rete fra
+        // le due richieste. Prima non si guardava, e restava in tabella un
+        // ordine «inviato» senza nessuna riga, mentre l'utente aveva appena
+        // letto che non era stato registrato: un ordine fantasma che non si
+        // può nemmeno cancellare dall'interfaccia. Trovato dall'audit.
+        const { error: e3 } = await supabase.from('ordini_fornitori')
+          .delete().eq('id', testa.id).eq('organization_id', orgId)
+        notify?.(e3
+          ? 'Non sono riuscito a salvare le righe, e nemmeno a disfare l\u2019ordine: ne è rimasto uno vuoto negli «Ordini fatti». Riprova, e se resta lì chiedimelo.'
+          : 'Non sono riuscito a salvare le righe: l\u2019ordine non è stato registrato.', false)
         return
       }
       notify?.('Ordine a ' + (gruppoAperto.fornitore || 'fornitore') + ' registrato. La merce entrera in magazzino quando caricherai la bolla.')
@@ -553,7 +576,9 @@ export default function OrdiniView({ orgId, sedeId, notify, azienda = null, sede
                   </div>
                   {(o.righe_ordine || []).length > 0 && (
                     <div style={{ fontSize: typo.caption.fontSize, color: T.textSoft, marginTop: 3, lineHeight: 1.5 }}>
-                      {o.righe_ordine.map(r => `${r.prodotto} ${r.quantita} ${r.unita}`).join(' · ')}
+                      {o.righe_ordine.map(r => (r.quantita == null
+                        ? `${r.prodotto} (quantità da confermare)`
+                        : `${r.prodotto} ${r.quantita} ${r.unita}`)).join(' · ')}
                     </div>
                   )}
                 </div>

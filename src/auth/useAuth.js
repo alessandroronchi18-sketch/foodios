@@ -358,6 +358,12 @@ export function useAuth() {
     isAdmin,
     ruolo,
     isDipendente,
+    // Il permesso di fare ordini ai fornitori: sta su `profiles`, lo accende
+    // il titolare dalla scheda del laboratorio, e di partenza è spento.
+    // Senza portarlo fin qui, il flag esisteva nel database e il frontend non
+    // lo leggeva: il dipendente abilitato non riusciva comunque ad aprire la
+    // pagina Ordini. Trovato dall'audit del 22/09/2026.
+    puoOrdinare: profile?.puo_ordinare === true,
     isLaboratorioAccount,
     laboratorioSedeId,
     laboratorioSedeError,

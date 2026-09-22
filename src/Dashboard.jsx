@@ -119,6 +119,7 @@ import {
   vociInFondo, schedeDiVista, cercaVoci, avvisoSpostamento,
   VISTE_DIPENDENTE,
   risolviVista,
+  vistePerDipendente,
 } from './lib/menuFoodos'
 const MagazzinoView = lazyWithReload(() => import('./views/MagazzinoView'))
 const ChiusuraView = lazyWithReload(() => import('./views/ChiusuraView'))
@@ -1068,7 +1069,8 @@ export default function Dashboard({
       // Alla ricarica, la pagina salvata in sessione va filtrata con le stesse
       // regole: un dipendente che era su una pagina non sua (o che ha
       // modificato la sessione a mano) non deve ritrovarcisi.
-      if (stored && !PAGINE_NASCOSTE.has(stored) && (!isDipIniziale || DIPENDENTE_VIEWS.has(stored))) return stored;
+      const permesseIniziali = vistePerDipendente({ puoOrdinare: auth?.puoOrdinare === true });
+      if (stored && !PAGINE_NASCOSTE.has(stored) && (!isDipIniziale || permesseIniziali.has(stored))) return stored;
       // Default: 'home' titolare, 'home-dipendente' dipendente.
       // Nota: auth.ruolo è disponibile a questo punto perché useAuth risolve prima del mount Dashboard.
       return auth?.ruolo === 'dipendente' ? "home-dipendente" : "home";
@@ -1124,7 +1126,7 @@ export default function Dashboard({
     //
     // Qui si chiude la porta per tutte le strade insieme: i bottoni, la
     // ricerca, l'assistente che inventa un nome di pagina, un vecchio link.
-    if (typeof v === 'string' && auth?.ruolo === 'dipendente' && !DIPENDENTE_VIEWS.has(v)) {
+    if (typeof v === 'string' && auth?.ruolo === 'dipendente' && !VISTE_DIP.has(v)) {
       _setViewRaw('home-dipendente');
       return;
     }
@@ -1217,6 +1219,9 @@ export default function Dashboard({
   // Ruolo utente. Il dipendente vede solo le viste operative (DIPENDENTE_VIEWS).
   const ruolo = auth?.ruolo || 'titolare';
   const isDip = ruolo === 'dipendente';
+  // Le pagine permesse a QUESTO dipendente. `DIPENDENTE_VIEWS` è l'insieme di
+  // base; chi ha il permesso di ordinare ci aggiunge «Ordini», e nessun altro.
+  const VISTE_DIP = useMemo(() => vistePerDipendente({ puoOrdinare: auth?.puoOrdinare === true }), [auth?.puoOrdinare]);
   // Identita' operativa dentro un account laboratorio: dipendente selezionato
   // dalla schermata "Chi sei?" post-login. Vale solo per is_laboratorio_account.
   const dipOp = useDipendenteOperativo();
@@ -1238,7 +1243,7 @@ export default function Dashboard({
   // pagina vietata non viene mai montata nemmeno per un fotogramma, e le sue
   // richieste al database non partono. Prima il controllo stava solo
   // nell'useEffect qui sotto, che React esegue DOPO aver disegnato.
-  const vista = (isDip && !DIPENDENTE_VIEWS.has(view)) ? 'home-dipendente' : view
+  const vista = (isDip && !VISTE_DIP.has(view)) ? 'home-dipendente' : view
 
   // La pagina corrente, leggibile dai due bottoni flottanti, che stanno fuori
   // da questo albero (vedi src/lib/vistaCorrente.js).
@@ -1250,7 +1255,7 @@ export default function Dashboard({
     if (view === 'discrepanze') { setView('sprechi-omaggi'); return; }   // unita in Perdite & cessioni
     // Fallback dipendente: se sulla sede attiva è attivo il metodo inventario,
     // la "home produzione" del dipendente diventa 'inventario-gusti'.
-    if (isDip && !DIPENDENTE_VIEWS.has(view)) {
+    if (isDip && !VISTE_DIP.has(view)) {
       // Fallback dipendente: torna alla home dipendente (sostituisce il vecchio
       // redirect diretto a giornaliero/inventario-gusti - la home dipendente
       // è il punto di ingresso pulito).
@@ -1316,7 +1321,7 @@ export default function Dashboard({
     // Le sedi ATTIVE, non tutte: con due sedi di cui una archiviata la voce
     // «Trasferimenti» compariva in una barra e non nell'altra.
     piuSedi: (auth?.user?.email === 'demo@maradeiboschi.com') || (sedi||[]).filter(x=>x.attiva!==false).length>1,
-    isDipendente: isDip,
+    isDipendente: isDip, puoOrdinare: auth?.puoOrdinare === true,
     vistaCorrente: view,
     lex: LEX,
     segnali: segnaliMenu,
@@ -2883,7 +2888,7 @@ export default function Dashboard({
 
         const navItem = (id, iconKey, label, badge=0, alert=false, chainBadge=false) => {
           // Ruolo dipendente: mostra solo le voci operative consentite.
-          if (isDip && !DIPENDENTE_VIEWS.has(id)) return null;
+          if (isDip && !VISTE_DIP.has(id)) return null;
           // Filtro ricerca: se la query non matcha id né label, nascondiamo
           if (sidebarQuery && !label.toLowerCase().includes(sidebarQuery) && !id.toLowerCase().includes(sidebarQuery)) {
             return null;
@@ -3207,7 +3212,7 @@ export default function Dashboard({
                   singola voce cliccabile, senza chevron né children. */}
               {(() => {
                 const active = view === "home"
-                if (isDip && !DIPENDENTE_VIEWS.has("home")) return null
+                if (isDip && !VISTE_DIPENDENTE.has("home")) return null
                 if (sidebarQuery && !"dashboard".includes(sidebarQuery)) return null
                 const textColor = active ? "#FFFFFF" : "rgba(255,255,255,0.78)"
                 const iconColor = active ? "#FFFFFF" : "rgba(255,255,255,0.72)"

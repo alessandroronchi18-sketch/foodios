@@ -135,9 +135,15 @@ export function normalizzaUnita(u) {
   if (['l', 'lt', 'litro', 'litri'].includes(s)) return 'l'
   if (['ml', 'millilitri'].includes(s)) return 'ml'
   if (['cl', 'centilitri'].includes(s)) return 'cl'
+  // «PA» (pacco) e «SC» (scatola) sono le unità vere di ConoArtic: stanno su
+  // ogni sua bolla, e senza di loro ogni riga di coppette, bicchieri e
+  // tovaglioli mostrava «unità di misura sconosciuta» e andava corretta a
+  // mano ogni volta. Trovato dall'audit del 22/09/2026: il prompt del
+  // riconoscimento le chiedeva già, e qui non arrivavano.
   if (['pz', 'pezzo', 'pezzi', 'n', 'nr', 'num', 'cf', 'conf', 'confezione',
        'ct', 'cartone', 'cartoni', 'sacco', 'sacchi', 'secchio', 'secchi',
-       'bottiglia', 'bottiglie', 'latta'].includes(s)) return 'pz'
+       'bottiglia', 'bottiglie', 'latta', 'pa', 'pacco', 'pacchi',
+       'sc', 'scatola', 'scatole', 'collo', 'colli'].includes(s)) return 'pz'
   return null
 }
 
@@ -847,6 +853,20 @@ export function preparaScrittureBolla(righe, documento = {}, stato = {}) {
   // cambia comportamento.
   const scelte = (righe || []).filter(r => r && r.chiave && r.saltata !== true && r.esisteInElenco !== false)
 
+  // ── La fattura di una bolla già caricata ────────────────────────────────
+  //
+  // Vecchio Enrico e ConoArtic — due fornitori su cinque del design partner —
+  // mandano prima un DDT con le sole quantità e poi la fattura coi prezzi.
+  // La fattura dice da sola a quale bolla si riferisce («Ddt nr. 20/26 del
+  // 05-06-2026»), e se quella bolla è già in magazzino la merce **è già
+  // arrivata**: caricarla di nuovo porta 60 kg di pasta nocciola a 120.
+  //
+  // Difetto trovato dall'audit del 22/09/2026: la schermata lo diceva
+  // («le quantità non si ricaricano») e il calcolo non lo sapeva — la
+  // scritta era vera solo a parole. Qui la decisione arriva fino in fondo:
+  // i prezzi entrano, le quantità no.
+  const soloPrezzi = documento?.soloPrezzi === true
+
   const nuovoMagazzino = { ...magazzino }
   const nuoveRighe = []
   const adesso = new Date().toISOString()
@@ -855,7 +875,7 @@ export function preparaScrittureBolla(righe, documento = {}, stato = {}) {
     : 'bolla'
   let n = 0
 
-  for (const r of scelte) {
+  for (const r of soloPrezzi ? [] : scelte) {
     const g = Number(r.grammi)
     if (!Number.isFinite(g) || g <= 0) continue
     // ── Il verso del movimento ────────────────────────────────────────────

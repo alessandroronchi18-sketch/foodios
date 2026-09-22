@@ -74,6 +74,28 @@ export const VISTE_DIPENDENTE = new Set([
 ])
 
 /**
+ * Le pagine di un dipendente, **col suo permesso di ordinare**.
+ *
+ * Richiesta del titolare, 22/09/2026: «bisogna istituire la possibilità ad
+ * alcuni dipendenti di poter ordinare». Il permesso è per account
+ * (`profiles.puo_ordinare`), lo accende il titolare, e di partenza è spento.
+ *
+ * Difetto trovato dall'audit: il flag esisteva sul database e il database lo
+ * rispettava, ma il frontend non lo leggeva da nessuna parte. `ordini` non
+ * era in questo insieme, quindi la voce non compariva nel menu e il
+ * Dashboard rimandava comunque alla pagina di casa: la funzione chiesta era
+ * **completamente inattiva**, e nessuno se ne sarebbe accorto guardando il
+ * database.
+ *
+ * L'insieme di partenza non si tocca: si aggiunge una porta sola, e solo a
+ * chi ha la chiave.
+ */
+export function vistePerDipendente({ puoOrdinare = false } = {}) {
+  if (!puoOrdinare) return VISTE_DIPENDENTE
+  return new Set([...VISTE_DIPENDENTE, 'ordini'])
+}
+
+/**
  * Costruisce le sezioni del menu.
  *
  * @param {ContestoMenu} ctx
@@ -85,6 +107,9 @@ export function costruisciMenu(ctx = {}) {
     sedeDiProduzione = false,
     piuSedi = false,
     isDipendente = false,
+    // Il permesso di ordinare, per account. Conta solo per un dipendente: un
+    // titolare vede «Ordini» comunque.
+    puoOrdinare = false,
     vistaCorrente = null,
     lex = {},
     segnali = {},
@@ -221,9 +246,11 @@ export function costruisciMenu(ctx = {}) {
   ]
 
   // Il dipendente vede solo le sue pagine, e le sezioni che restano vuote
-  // spariscono del tutto.
+  // spariscono del tutto. «Ordini» compare solo se il titolare gliel'ha
+  // acceso: il permesso è per account, non per ruolo.
+  const permesse = vistePerDipendente({ puoOrdinare })
   return sezioni
-    .map(s => ({ ...s, voci: s.voci.filter(v => !isDipendente || VISTE_DIPENDENTE.has(v.id)) }))
+    .map(s => ({ ...s, voci: s.voci.filter(v => !isDipendente || permesse.has(v.id)) }))
     .filter(s => s.voci.length > 0)
 }
 

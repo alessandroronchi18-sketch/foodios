@@ -233,7 +233,9 @@ export default function BollaInArrivo({
     setSalvando(true)
     // `forza` arriva fino al calcolo: senza, `preparaScrittureBolla` si
     // rifiuta di scrivere anche se qualcuno chiamasse da un'altra parte.
-    const esito = await onRegistra(daRegistrare, { fornitore, numero, data, identita, forza })
+    // `soloPrezzi` arriva fino al calcolo: senza, la schermata prometteva che
+    // le quantità non si sarebbero ricaricate e poi si ricaricavano lo stesso.
+    const esito = await onRegistra(daRegistrare, { fornitore, numero, data, identita, forza, soloPrezzi })
     setSalvando(false)
     if (!esito?.ok) {
       notify?.(`Non ho potuto registrare la bolla (${esito?.errore || 'rete'}): non è stato scritto niente.`, false)

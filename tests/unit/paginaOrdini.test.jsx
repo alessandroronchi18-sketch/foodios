@@ -55,7 +55,14 @@ vi.mock('../../src/lib/supabase', () => {
     }
     return q
   }
-  return { supabase: { from: tabella } }
+  // Le due funzioni con cui la pagina legge fornitori e consegne: passano da
+  // qui e non dalle tabelle, perché un dipendente abilitato a ordinare non
+  // deve vedere IBAN, condizioni di pagamento e importi delle fatture.
+  const rpc = (nome) => Promise.resolve({
+    data: nome === 'fos_fornitori_per_ordine' ? FORNITORI : [],
+    error: null,
+  })
+  return { supabase: { from: tabella, rpc } }
 })
 
 const { default: OrdiniView } = await import('../../src/views/OrdiniView.jsx')
