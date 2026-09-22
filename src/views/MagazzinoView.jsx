@@ -815,7 +815,7 @@ export default function MagazzinoView({
   // prezzi in una volta sola. `logPrezzi` serve qui per sapere quando un
   // prezzo è cambiato l'ultima volta, e decidere se una bolla vecchia deve
   // diventare il prezzo di oggi o restare solo nello storico.
-  onRegistraBolla = null, logPrezzi = [],
+  onRegistraBolla = null, onAnnullaBolla = null, logPrezzi = [],
   orgId, sedeId, isDipendente = false, utente = null, LEX = lessico(),
   // Per mandare chi cerca i prezzi dove sono finiti, senza che debba
   // cercarseli nel menu.
@@ -850,6 +850,21 @@ export default function MagazzinoView({
   // Default 'kg' che è il più comodo per ingredienti grandi (farine, latte).
   const [unitMode, setUnitMode] = useState('kg')
   const confirm = useConfirm()
+  // ── Annullare tutta una bolla ─────────────────────────────────────────
+  //
+  // Richiesta del titolare, 22/09/2026: «fai in modo che si possa annullare
+  // con doppio check di sicurezza». Una bolla caricata sul documento
+  // sbagliato si poteva solo registrare una seconda volta forzandola: la
+  // giacenza restava gonfia e l'unico rimedio era la rettifica a mano, riga
+  // per riga. Su una bolla da quindici voci è mezz'ora e un'occasione di
+  // sbagliare a ogni riga.
+  //
+  // Il doppio controllo: si dice **cosa succede** — quante voci, quanti
+  // chili, quali prezzi tornano indietro e quali no — e per procedere si
+  // scrive il numero del documento.
+  const [bollaDaAnnullare, setBollaDaAnnullare] = useState(null)
+  const [confermaBolla, setConfermaBolla] = useState('')
+  const [annullandoBolla, setAnnullandoBolla] = useState(false)
   const [deleteIngConf, setDeleteIngConf] = useState(null)
   const [deleteIngPin, setDeleteIngPin] = useState('')
   const [formIng, setFormIng] = useState('')
@@ -1462,6 +1477,60 @@ export default function MagazzinoView({
     setMagazzino(nm); setLogRif(log)
     notify(`Riga annullata. ${gruppo.nome || r.ingrediente}: in magazzino ora ${fmtG(attuale - qta)}`)
     setSaving(false)
+  }
+
+  /** Il numero del documento, letto dalla nota della riga («bolla X n. 123»). */
+  function numeroDellaBolla(r) {
+    const m = String(r?.note || '').match(/n\.\s*(.+)$/)
+    return (m ? m[1] : '').trim()
+  }
+
+  function apriAnnullaBolla(r) {
+    const righe = (logRif || []).filter(x => x?.bolla === r.bolla && !x?.annullata)
+    const grammi = righe.reduce((a, x) => a + (Number(x.quantita_g) || 0), 0)
+    // Quali prezzi tornerebbero indietro, e quali no perché nel frattempo
+    // sono cambiati. Si dice PRIMA, non dopo: è metà del motivo per cui
+    // questa finestra esiste.
+    const prezzi = (logPrezzi || []).filter(l => l?.origine?.identita === r.bolla && !l?.annullata)
+    const costi = ricettario?.ingredienti_costi || {}
+    const tornano = []
+    const restano = []
+    for (const l of prezzi) {
+      const k = normIng(l.ingrediente)
+      const attuale = Number(costi[k]?.costoKg)
+      const suo = Number(l.prezzoNuovo)
+      const ancoraSuo = Number.isFinite(attuale) && Number.isFinite(suo) && Math.abs(attuale - suo) < 0.0005
+      ;(ancoraSuo ? tornano : restano).push(l.ingrediente)
+    }
+    setConfermaBolla('')
+    setBollaDaAnnullare({
+      identita: r.bolla,
+      numero: numeroDellaBolla(r),
+      nota: r.note || 'bolla',
+      voci: righe.length,
+      grammi,
+      tornano,
+      restano,
+    })
+  }
+
+  async function confermaAnnullaBolla() {
+    const b = bollaDaAnnullare
+    if (!b || !onAnnullaBolla || annullandoBolla) return
+    setAnnullandoBolla(true)
+    const esito = await onAnnullaBolla(b.identita)
+    setAnnullandoBolla(false)
+    if (!esito?.ok) {
+      notify(`Non ho annullato la bolla: ${esito?.errore || 'errore'}. Non è cambiato niente`, false)
+      return
+    }
+    setBollaDaAnnullare(null)
+    setConfermaBolla('')
+    const quantiPrezzi = (esito.prezziRimessi || []).length
+    const nonRimessi = (esito.prezziNonRimessi || []).length
+    notify(`Bolla annullata: ${esito.tolti} ${esito.tolti === 1 ? 'voce tolta' : 'voci tolte'} dal magazzino`
+      + (quantiPrezzi > 0 ? `, ${quantiPrezzi} ${quantiPrezzi === 1 ? 'prezzo rimesso' : 'prezzi rimessi'} com'erano` : '')
+      + (nonRimessi > 0 ? `. ${nonRimessi} ${nonRimessi === 1 ? 'prezzo è' : 'prezzi sono'} cambiati dopo la bolla e li ho lasciati stare` : ''))
   }
 
   const fmtG = g => {
@@ -2509,11 +2578,21 @@ export default function MagazzinoView({
               <>{r.note || '-'}{r.annullata && <span style={{ marginLeft: 6, ...typo.caption, fontWeight: 700, color: C.amber }}>annullata</span>}</>
             ) },
             { k: 'az', label: '', cella: (r) => (!r.annullata && !r.annulla_id && !isDipendente) ? (
+              <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+              {r.bolla && onAnnullaBolla && (
+                <button type="button" onClick={() => apriAnnullaBolla(r)} disabled={saving}
+                  title="Annulla tutte le voci di questa bolla e rimette a posto giacenze e prezzi"
+                  aria-label={`Annulla tutta la bolla di ${r.ingrediente}`}
+                  style={{ padding: '10px 12px', minHeight: 44, borderRadius: 6, border: `1px solid ${T.brand}40`, background: C.white, color: T.brand, fontSize: typo.small.fontSize, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  Tutta la bolla
+                </button>
+              )}
               <button type="button" onClick={() => annullaRiga(r)} disabled={saving}
                 title="Scrive una riga uguale e contraria e rimette a posto la giacenza"
                 style={{ padding: '10px 12px', minHeight: 44, borderRadius: 6, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: font.size.sm, fontWeight: 700, cursor: saving ? 'default' : 'pointer' }}>
                 Annulla
               </button>
+              </span>
             ) : '—' },
           ]}
           intestazione={<><thead>
@@ -2621,6 +2700,68 @@ export default function MagazzinoView({
                 {saving ? 'Eliminazione…' : 'Elimina definitivamente'}
               </button>
               <button onClick={() => { setDeleteIngConf(null); setDeleteIngPin('') }} style={{ flex: 1, padding: '11px', background: C.white, color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: font.size.sm, fontWeight: 700, cursor: 'pointer' }}>Annulla</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Annullare tutta una bolla: il doppio controllo ─────────────────
+          Non «sei sicuro?»: si dice cosa succede — quante voci escono dal
+          magazzino, quali prezzi tornano indietro e quali no perché nel
+          frattempo sono cambiati — e per procedere si scrive il numero del
+          documento. Un clic sbagliato non basta, e nemmeno due. */}
+      {bollaDaAnnullare && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <button type="button" onClick={() => { if (!annullandoBolla) { setBollaDaAnnullare(null); setConfermaBolla('') } }}
+            aria-label="Chiudi la finestra"
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none', padding: 0, margin: 0, background: 'rgba(15,23,42,0.5)', cursor: 'default' }} />
+          <div role="dialog" aria-modal="true" aria-label="Annullare tutta la bolla?"
+            style={{ position: 'relative', background: C.white, borderRadius: 14, padding: 24, maxWidth: 520, width: '100%', maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
+            <div style={{ fontSize: font.size.xl, fontWeight: 800, color: C.text, marginBottom: 10 }}>
+              Annullare tutta la bolla?
+            </div>
+            <div style={{ fontSize: font.size.sm, color: C.textMid, lineHeight: 1.6, marginBottom: 14 }}>
+              {bollaDaAnnullare.nota}
+            </div>
+            <div style={{ background: T.bgSubtle, border: `1px solid ${C.border}`, borderRadius: 10, padding: '12px 14px', marginBottom: 14 }}>
+              <div style={{ ...typo.caption, fontWeight: 800, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
+                Cosa succede
+              </div>
+              <ul style={{ margin: 0, padding: '0 0 0 18px', fontSize: font.size.sm, color: C.textMid, lineHeight: 1.7 }}>
+                <li>
+                  Escono dal magazzino <strong style={{ color: T.brand }}>{bollaDaAnnullare.voci} {bollaDaAnnullare.voci === 1 ? 'voce' : 'voci'}</strong>
+                  {bollaDaAnnullare.grammi > 0 && <>, {fmtGauto(bollaDaAnnullare.grammi)} in tutto</>}.
+                </li>
+                <li>Il registro non si cancella: le righe restano segnate come annullate, con accanto quelle uguali e contrarie.</li>
+                {bollaDaAnnullare.tornano.length > 0 && (
+                  <li><strong>{bollaDaAnnullare.tornano.length} {bollaDaAnnullare.tornano.length === 1 ? 'prezzo torna' : 'prezzi tornano'}</strong> com&rsquo;{bollaDaAnnullare.tornano.length === 1 ? 'era' : 'erano'}: {bollaDaAnnullare.tornano.slice(0, 5).join(', ')}{bollaDaAnnullare.tornano.length > 5 ? '…' : ''}</li>
+                )}
+                {bollaDaAnnullare.restano.length > 0 && (
+                  <li style={{ color: T.amberDark }}>
+                    <strong>{bollaDaAnnullare.restano.length} {bollaDaAnnullare.restano.length === 1 ? 'prezzo resta' : 'prezzi restano'} dov&rsquo;{bollaDaAnnullare.restano.length === 1 ? 'è' : 'sono'}</strong>: {bollaDaAnnullare.restano.slice(0, 5).join(', ')}{bollaDaAnnullare.restano.length > 5 ? '…' : ''}. Sono cambiati dopo questa bolla, quindi quel numero è più recente e non lo tocco.
+                  </li>
+                )}
+              </ul>
+            </div>
+            <label htmlFor="conferma-bolla" style={{ display: 'block', fontSize: font.size.sm, color: C.textMid, marginBottom: 6 }}>
+              Per confermare, scrivi il numero del documento: <strong style={{ color: C.text }}>{bollaDaAnnullare.numero || '—'}</strong>
+            </label>
+            <input id="conferma-bolla" value={confermaBolla} autoFocus
+              onChange={e => setConfermaBolla(e.target.value)}
+              placeholder={bollaDaAnnullare.numero}
+              style={{ width: '100%', padding: '11px 12px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: font.size.base, fontFamily: 'inherit', boxSizing: 'border-box' }} />
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 18, flexWrap: 'wrap' }}>
+              <button type="button" onClick={() => { setBollaDaAnnullare(null); setConfermaBolla('') }} disabled={annullandoBolla}
+                style={{ padding: '0 18px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.border}`, background: C.white, color: C.textMid, fontWeight: 700, fontSize: font.size.sm, cursor: 'pointer', fontFamily: 'inherit' }}>
+                Lascia stare
+              </button>
+              <button type="button" onClick={confermaAnnullaBolla}
+                disabled={annullandoBolla || confermaBolla.trim().toLowerCase() !== String(bollaDaAnnullare.numero || '').trim().toLowerCase()}
+                style={{ padding: '0 18px', minHeight: 44, borderRadius: 8, border: 'none',
+                  background: confermaBolla.trim().toLowerCase() === String(bollaDaAnnullare.numero || '').trim().toLowerCase() ? T.brand : C.borderStr,
+                  color: C.white, fontWeight: 800, fontSize: font.size.sm, cursor: 'pointer', fontFamily: 'inherit' }}>
+                {annullandoBolla ? 'Annullo…' : 'Annulla la bolla'}
+              </button>
             </div>
           </div>
         </div>

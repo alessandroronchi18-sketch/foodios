@@ -30,7 +30,7 @@
     "antizoom-a-mano": 1
   },
   "src/components/AICard.jsx": {
-    "colore-a-mano": 22,
+    "colore-a-mano": 21,
     "testo-a-mano": 10
   },
   "src/components/AIFotoAnalisi.jsx": {
@@ -76,7 +76,7 @@
     "testo-a-mano": 18
   },
   "src/components/CittaAutocomplete.jsx": {
-    "colore-a-mano": 7,
+    "colore-a-mano": 6,
     "testo-a-mano": 3
   },
   "src/components/CommandPalette.jsx": {
@@ -216,7 +216,7 @@
     "testo-a-mano": 7
   },
   "src/components/ReferralPanel.jsx": {
-    "colore-a-mano": 51,
+    "colore-a-mano": 50,
     "testo-a-mano": 21
   },
   "src/components/RegistroAttivita.jsx": {

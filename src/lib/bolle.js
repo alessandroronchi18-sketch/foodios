@@ -846,6 +846,11 @@ export function preparaScrittureBolla(righe, documento = {}, stato = {}) {
         fornitore: documento?.fornitore || null,
         numero: documento?.numero || null,
         data: documento?.data || null,
+        // L'impronta serve ad `annullaBolla` per ritrovare **quali** cambi di
+        // prezzo ha fatto questa bolla. Senza, l'annullo dovrebbe indovinarlo
+        // da fornitore + numero + data, e una bolla senza numero non si
+        // riconoscerebbe più.
+        identita: documento?.identita || null,
       },
     },
   )
@@ -859,5 +864,148 @@ export function preparaScrittureBolla(righe, documento = {}, stato = {}) {
     applicati: prezzi.applicati,
     storicizzati: prezzi.storicizzati,
     giaCaricata,
+  }
+}
+
+/**
+ * Annullare una bolla registrata per sbaglio.
+ *
+ * Richiesta del titolare, 22/09/2026: «fai in modo che si possa annullare con
+ * doppio check di sicurezza». Fino a ieri una bolla caricata sul documento
+ * sbagliato si poteva solo registrare una seconda volta forzandola: la
+ * giacenza restava gonfia e l'unico rimedio era la rettifica a mano, voce per
+ * voce, dal magazzino.
+ *
+ * ── Tre cose da disfare, e tre modi diversi ─────────────────────────────
+ *
+ * 1. **La merce.** Si toglie esattamente quello che quella bolla aveva messo,
+ *    voce per voce, leggendolo dal registro dei rifornimenti — non
+ *    ricalcolandolo dalle righe della bolla, che nel frattempo potrebbero
+ *    essere state corrette.
+ *
+ * 2. **Il registro.** Non si cancella niente: si segna la riga sbagliata come
+ *    annullata e se ne scrive una **uguale e contraria**. È la convenzione che
+ *    il magazzino usa già per l'annullo di una riga singola, ed è come si
+ *    correggono i registri: un registro da cui si cancella non è più un
+ *    registro.
+ *
+ * 3. **I prezzi.** Qui sta la parte delicata. Il prezzo di una materia prima
+ *    torna indietro **solo se è ancora quello che quella bolla aveva messo**:
+ *    se dopo la bolla qualcuno l'ha cambiato a mano, o è arrivata un'altra
+ *    bolla, quel numero è più recente e più vero, e toccarlo vorrebbe dire
+ *    riscrivere il food cost di tutte le ricette che usano quell'ingrediente
+ *    con un prezzo di ieri. Quello che non si tocca viene **detto**, non
+ *    taciuto.
+ *
+ * Lo storico dei prezzi non si cancella mai: si aggiunge una riga che dice
+ * che quel cambio è stato annullato, così fra sei mesi si capisce perché il
+ * burro è tornato a 9,00 €/kg.
+ *
+ * @param {string} identita  l'impronta della bolla (`identitaBolla`)
+ * @param {object} stato     `{ magazzino, logRif, ingredientiCosti, logPrezzi, utente }`
+ * @returns {{magazzino, logRif, ingredientiCosti, logPrezzi, tolti, prezziRimessi, prezziNonRimessi, trovata}}
+ */
+export function annullaBolla(identita, stato = {}) {
+  const { magazzino = {}, logRif = [], ingredientiCosti = {}, logPrezzi = [], utente = null } = stato
+  const vuoto = {
+    magazzino, logRif, ingredientiCosti, logPrezzi,
+    tolti: 0, prezziRimessi: [], prezziNonRimessi: [], trovata: false,
+  }
+  if (!identita) return vuoto
+
+  const righe = (logRif || []).filter(r => r?.bolla === identita && !r?.annullata)
+  const prezzi = (logPrezzi || []).filter(l => l?.origine?.identita === identita && !l?.annullata)
+  if (righe.length === 0 && prezzi.length === 0) return vuoto
+
+  const adesso = new Date().toISOString()
+
+  // ── 1 e 2. la merce esce, e il registro se lo ricorda ──────────────────
+  const nuovoMagazzino = { ...magazzino }
+  const contrarie = []
+  let n = 0
+  for (const r of righe) {
+    const g = Number(r.quantita_g) || 0
+    const chiave = normIng(r.ingrediente)
+    if (!chiave) continue
+    const prima = nuovoMagazzino[chiave] || Object.entries(nuovoMagazzino)
+      .find(([k]) => normIng(k) === chiave)?.[1]
+    const raw = nuovoMagazzino[chiave] ? chiave
+      : Object.keys(nuovoMagazzino).find(k => normIng(k) === chiave) || chiave
+    nuovoMagazzino[raw] = {
+      nome: prima?.nome || r.ingrediente,
+      giacenza_g: Math.round((Number(prima?.giacenza_g) || 0) - g),
+      soglia_g: prima?.soglia_g || 0,
+      ultimoRifornimento: prima?.ultimoRifornimento || null,
+    }
+    contrarie.push({
+      id: `r-ann-${Date.now()}-${n++}-${chiave}`,
+      data: adesso,
+      ingrediente: r.ingrediente,
+      quantita_g: -g,
+      note: `annullo della bolla del ${soloGiorno(r.data) || '—'}`,
+      annulla_id: r.id,
+      utente,
+    })
+  }
+
+  // ── 3. i prezzi, solo quelli ancora suoi ───────────────────────────────
+  const nuoviCosti = { ...ingredientiCosti }
+  const rimessi = []
+  const nonRimessi = []
+  const righeStorico = []
+  for (const l of prezzi) {
+    const chiave = normIng(l.ingrediente)
+    if (!chiave) continue
+    const attuale = Number(nuoviCosti[chiave]?.costoKg)
+    const messoDaLei = Number(l.prezzoNuovo)
+    // Lo scarto di un millesimo: i prezzi si scrivono con quattro decimali, e
+    // un confronto esatto fra numeri in virgola mobile non torna mai.
+    const ancoraSuo = Number.isFinite(attuale) && Number.isFinite(messoDaLei)
+      && Math.abs(attuale - messoDaLei) < 0.0005
+    if (!ancoraSuo) {
+      nonRimessi.push({ nome: l.ingrediente, attuale: Number.isFinite(attuale) ? attuale : null, suo: messoDaLei })
+      continue
+    }
+    const vecchio = l.prezzoVecchio
+    if (vecchio == null) {
+      // Prima di quella bolla un prezzo non c'era: togliendola torna a non
+      // esserci. Un prezzo inventato sarebbe peggio del buco.
+      delete nuoviCosti[chiave]
+    } else {
+      nuoviCosti[chiave] = {
+        costoKg: parseFloat(Number(vecchio).toFixed(4)),
+        costoG: parseFloat((Number(vecchio) / 1000).toFixed(6)),
+      }
+    }
+    rimessi.push({ nome: l.ingrediente, da: messoDaLei, a: vecchio })
+    righeStorico.push({
+      id: `lp-ann-${Date.now()}-${chiave}`,
+      data: adesso,
+      decorre_da: adesso,
+      ingrediente: l.ingrediente,
+      prezzoVecchio: messoDaLei,
+      prezzoNuovo: vecchio,
+      delta: vecchio == null ? null : Number(vecchio) - messoDaLei,
+      deltaPct: vecchio != null && messoDaLei > 0 ? ((Number(vecchio) - messoDaLei) / messoDaLei * 100) : null,
+      utente,
+      origine: { tipo: 'annullo-bolla', identita, fornitore: l.origine?.fornitore || null, numero: l.origine?.numero || null },
+    })
+  }
+
+  return {
+    magazzino: nuovoMagazzino,
+    logRif: [
+      ...contrarie,
+      ...(logRif || []).map(r => (r?.bolla === identita ? { ...r, annullata: true } : r)),
+    ],
+    ingredientiCosti: nuoviCosti,
+    logPrezzi: [
+      ...righeStorico,
+      ...(logPrezzi || []).map(l => (l?.origine?.identita === identita ? { ...l, annullata: true } : l)),
+    ],
+    tolti: contrarie.length,
+    prezziRimessi: rimessi,
+    prezziNonRimessi: nonRimessi,
+    trovata: true,
   }
 }
