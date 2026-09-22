@@ -246,7 +246,22 @@ export const IMPORT_SCHEMAS = {
         label: 'Costo per ora',
         type: 'number',
         required: false,
-        default: 0,
+        // ── Una casella vuota NON è zero ──────────────────────────────
+        //
+        // Qui c'era `default: 0`, e zero vuol dire «questa persona non costa
+        // niente». Il costo del lavoro sparisce dal P&L senza che nessuno se
+        // ne accorga: misurato su un'azienda vera, 8.038,82 € di stipendi al
+        // mese comparivano come **0 €**.
+        //
+        // Decisione del titolare, 22/09/2026: «vuoto = non lo so, e il
+        // programma lo dice». Adesso il campo resta vuoto e il riepilogo
+        // dell'import dichiara quante persone non hanno il costo.
+        //
+        // Attenzione a non rimettercelo «per far quadrare il tipo»: il
+        // database accetta null, e tutto il prodotto distingue già un costo
+        // che non c'è da un costo a zero (`costoNoto` in `Personale.jsx`).
+        vuotoSignifica: 'non lo so',
+        avvisoVuoto: 'Per queste persone il costo del lavoro resterà da scrivere: il programma non lo inventa.',
         minValue: 0,
         maxValue: 200,
         hint: 'Costo aziendale per ora lavorata in EUR (include contributi, tredicesima, TFR). Tipicamente 12-25 EUR/h.',

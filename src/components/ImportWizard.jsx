@@ -1060,6 +1060,10 @@ function StepValidate({ schema, result, mapping = {}, unisciDoppioni = true, set
     !mapping[f.name] && f.default !== undefined && !f.hidden
   )
   const descriviDefault = (f) => {
+    // Un campo che dichiara «vuoto vuol dire non lo so» non ha un
+    // predefinito apposta: dire «resta 0» sarebbe la bugia che si voleva
+    // togliere.
+    if (f.vuotoSignifica) return `resta ${f.vuotoSignifica}`
     if (f.default === 0) return 'resta 0'
     if (f.default === true) return 'resta sì'
     if (f.default === false) return 'resta no'
@@ -1146,10 +1150,22 @@ function StepValidate({ schema, result, mapping = {}, unisciDoppioni = true, set
               distingue più da uno zero scritto davvero. Il momento per
               dirlo è questo, che è l'ultimo in cui si può tornare indietro. */}
           <div style={{ fontSize: typo.small.fontSize, color: T.textSoft, lineHeight: 1.6, marginBottom: 8 }}>
-            Le riempio con il valore predefinito. Dopo il caricamento non si distinguono
-            da un valore che hai scritto tu: se non è quello che vuoi, torna indietro e
-            compila le caselle nel file.
+            Dove c&rsquo;è un valore predefinito le riempio con quello, e dopo il caricamento
+            non si distinguono da un valore che hai scritto tu: se non è quello che vuoi,
+            torna indietro e compila le caselle nel file.
           </div>
+          {/* I campi dove una casella vuota vuol dire «non lo so»: non si
+              riempiono, e il perché va detto qui — è l'ultimo momento in cui
+              si può tornare indietro. Decisione del titolare, 22/09/2026. */}
+          {celleVuote.filter(v => v.field.vuotoSignifica && v.field.avvisoVuoto).map(({ field, quante }) => (
+            <div key={`vuoto-${field.name}`} role="status" style={{
+              fontSize: typo.small.fontSize, color: T.amberDark, lineHeight: 1.6, marginBottom: 8,
+              background: T.fondoAvviso, border: `1px solid ${T.bordoAvviso}`, borderRadius: 8, padding: '8px 10px',
+            }}>
+              <b>{field.label || field.name}</b>: {quante.toLocaleString('it-IT', { useGrouping: 'always' })}{' '}
+              {quante === 1 ? 'casella vuota' : 'caselle vuote'}, e le lascio vuote. {field.avvisoVuoto}
+            </div>
+          ))}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {celleVuote.map(({ field, quante }) => (
               <span key={field.name} style={{ fontSize: typo.small.fontSize, fontWeight: 600, color: T.text, background: T.bg, border: `1px solid ${T.border}`, borderRadius: 6, padding: '4px 9px' }}>

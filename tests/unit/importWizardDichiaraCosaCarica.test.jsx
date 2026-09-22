@@ -228,11 +228,16 @@ describe('Il file del titolare: cinque righe, tre fornitori', () => {
   })
 })
 
-describe('Le caselle vuote che diventano zero si dicono prima', () => {
+describe('Le caselle vuote si dicono prima di caricare', () => {
   // La regola più importante del prodotto: zero non è «non lo so». Nel costo
   // del lavoro uno zero vuol dire che quella persona lavora gratis, e dopo il
   // caricamento non si distingue da uno zero scritto davvero.
-  it('dice quante sono e cosa ci mette dentro', async () => {
+  //
+  // 22/09/2026 — questa prova diceva «resta 0», e il titolare ha deciso il
+  // contrario: per il costo orario una casella vuota **resta vuota**, e il
+  // programma lo dichiara. Su un'azienda vera lo zero automatico faceva
+  // sparire 8.038,82 € di stipendi al mese dal conto.
+  it('dice quante sono e che le lascia vuote', async () => {
     mappaturaFinta.mapping = { nome: 'Nome', costo_orario: 'Costo' }
     mappaturaFinta.confidence = {}
     render(<ImportWizard orgId="org-1" initialEntity="dipendenti" notify={() => {}} />)
@@ -252,7 +257,11 @@ describe('Le caselle vuote che diventano zero si dicono prima', () => {
 
     expect(document.body.textContent).toContain('Alcune caselle del tuo file sono vuote')
     expect(document.body.textContent).toContain('2 caselle vuote')
-    expect(document.body.textContent).toContain('resta 0')
+    // Non «resta 0»: resta «non lo so», e accanto c'è scritto cosa comporta.
+    expect(document.body.textContent).toContain('non lo so')
+    expect(document.body.textContent).toMatch(/le lascio vuote/i)
+    expect(document.body.textContent).toMatch(/non lo inventa|resterà da scrivere/i)
+    expect(document.body.textContent, 'dice ancora che ci mette uno zero').not.toMatch(/Costo per ora.{0,40}resta 0/)
   })
 })
 

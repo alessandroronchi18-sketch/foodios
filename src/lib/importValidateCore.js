@@ -166,6 +166,16 @@ export function validateRow(row, mapping, schema, opts = {}) {
       if (inputCol) vuoti.push(field.name)
       continue
     }
+    // ── Un campo che dichiara «vuoto vuol dire non lo so» ────────────────
+    //
+    // Non ha un predefinito **apposta**: metterci zero direbbe una cosa falsa
+    // (il costo orario di una persona non è mai zero, e a zero sparisce dal
+    // P&L). Il campo resta assente e la riga si conta fra quelle da
+    // dichiarare, così il riepilogo può dirlo.
+    if (vuota && field.vuotoSignifica) {
+      if (inputCol) vuoti.push(field.name)
+      continue
+    }
     if (field.required && vuota) {
       errors.push(`campo obbligatorio "${field.name}" vuoto`)
       continue

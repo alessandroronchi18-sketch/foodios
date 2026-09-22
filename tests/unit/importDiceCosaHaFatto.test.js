@@ -101,15 +101,30 @@ describe('Le celle vuote riempite col valore predefinito si contano', () => {
     expect(res.valid_rows[0].costo_orario).toBe(15)
   })
 
-  it('ma si sa quante celle vuote sono diventate uno zero', () => {
+  it('ma si sa quante celle vuote ci sono', () => {
     // Tre su quattro: Luca (vuota), Sara (null) e Gino (soli spazi).
     expect(res.stats.celle_vuote_col_predefinito).toEqual({ costo_orario: 3 })
   })
 
-  it('una cella di soli spazi si comporta come una cella vuota', () => {
-    // Prima Gino non prendeva il default e il campo restava assente: stessa
-    // cosa scritta dall'utente, due esiti diversi.
-    expect(res.valid_rows[3].costo_orario).toBe(0)
+  // ── 22/09/2026: qui il comportamento è CAMBIATO, per decisione ────────
+  //
+  // Questa prova diceva «una cella vuota diventa zero», e per il costo orario
+  // era la cosa sbagliata: zero vuol dire «questa persona non costa niente»,
+  // e il costo del lavoro spariva dal P&L. Su un'azienda vera: 8.038,82 € di
+  // stipendi al mese mostrati come **0 €**.
+  //
+  // Decisione del titolare: «vuoto = non lo so, e il programma lo dice». Il
+  // campo resta assente e il riepilogo dell'import lo dichiara.
+  //
+  // La parte che NON è cambiata, ed è ancora provata qui sotto: una cella di
+  // soli spazi si comporta esattamente come una cella vuota. Era un difetto a
+  // sé — «   » saltava il ramo del vuoto e finiva altrove.
+  it('una cella vuota resta vuota: non diventa uno zero', () => {
+    expect('costo_orario' in res.valid_rows[1]).toBe(false)
+  })
+
+  it('e una cella di soli spazi si comporta come una cella vuota', () => {
+    expect('costo_orario' in res.valid_rows[3]).toBe(false)
   })
 
   it('i campi che nel file non ci sono proprio non si contano qui', () => {
