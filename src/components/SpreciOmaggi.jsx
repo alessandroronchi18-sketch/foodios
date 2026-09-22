@@ -31,6 +31,7 @@ import { useConfirm } from './ConfirmModal'
 import { KPI, SH, PageHeader, TabellaOSchede } from '../views/_shared'
 import { fmt, fmt0, fmtp0 } from '../lib/formatIt'
 import { buildIngCosti, calcolaFC, calcolaFCStorico, getR, isRicettaValida, normIng } from '../lib/foodcost'
+import { fetchAllInventarioProduzione, scartiComeMovimenti } from '../lib/inventarioProduzione'
 import { sload } from '../lib/storage'
 import { supabase } from '../lib/supabase'
 import { todayLocal, soloData, giornoDiTimestamp } from '../lib/dateLocal'
@@ -269,6 +270,32 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
     return [...out].sort()
   }, [ricettario])
 
+  // ── La terza sorgente: lo scarto scritto nella produzione ─────────────
+  //
+  // Chi registra la produzione a inventario scrive i chili buttati in una
+  // colonna della griglia settimanale. Quel numero è una perdita a tutti gli
+  // effetti, e fino al 22/09/2026 questa pagina non lo vedeva.
+  //
+  // Si **proietta**, non si copia: i movimenti si costruiscono al volo da
+  // `inventario_produzione`. Copiarli vorrebbe dire tenere lo stesso chilo in
+  // due posti, e il giorno che uno dei due cambia il conto non torna più.
+  const [scartiInv, setScartiInv] = useState([])
+
+  useEffect(() => {
+    let alive = true
+    if (!orgId || !sedeId || isDip) { setScartiInv([]); return undefined }
+    // Un anno indietro: è la finestra che questa pagina guarda.
+    const da = new Date()
+    da.setFullYear(da.getFullYear() - 1)
+    const dataFrom = `${da.getFullYear()}-${String(da.getMonth() + 1).padStart(2, '0')}-01`
+    fetchAllInventarioProduzione(orgId, { sedeIds: sedeId, dataFrom })
+      .then(righe => { if (alive) setScartiInv(righe || []) })
+      // Se l'inventario non si legge, la pagina resta quella di prima: è una
+      // sorgente in più, non il motivo per cui si è qui.
+      .catch(e => { console.error('scarti dall\'inventario:', e); if (alive) setScartiInv([]) })
+    return () => { alive = false }
+  }, [orgId, sedeId, isDip])
+
   useEffect(() => {
     let alive = true
     if (!orgId || !sedeId) { setLoading(false); return }
@@ -306,8 +333,14 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
     const seen = new Set(normali.map(m => m.id))
     const merged = [...normali]
     for (const l of legacy) if (!seen.has(l.id)) merged.push(l)
+    // Terza sorgente: lo scarto registrato nella produzione a inventario.
+    // Stessa regola delle altre due — chi ha già quell'id vince, e qui non
+    // può succedere perché l'id porta dentro sede, gusto e giorno.
+    for (const sc of scartiComeMovimenti(scartiInv, ricettario, ingCosti)) {
+      if (!seen.has(sc.id)) merged.push(sc)
+    }
     return merged.sort((a, b) => new Date(b.ts) - new Date(a.ts))
-  }, [movs, legacy])
+  }, [movs, legacy, scartiInv, ricettario, ingCosti])
 
   const { da, a } = useMemo(() => estremiMese(mese), [mese])
 
@@ -1137,11 +1170,11 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
             { k: 'note', label: 'Nota', cella: (m) => m.note || '—' },
             { k: 'autore', label: 'Chi', cella: (m) => (
               <>
-                {m._legacy ? <span style={{ padding: '1px 5px', borderRadius: 4, background: C.bgSubtle, color: C.textSoft, fontSize: font.size.sm, fontWeight: 700 }}>STORICO</span> : (m.autore_email || '-')}
+                {m._legacy ? <span style={{ padding: '1px 5px', borderRadius: 4, background: C.bgSubtle, color: C.textSoft, fontSize: font.size.sm, fontWeight: 700 }}>STORICO</span> : m._daInventario ? <span title="Scritto nella registrazione della produzione: si corregge da lì" style={{ padding: '1px 5px', borderRadius: 4, background: C.bgSubtle, color: C.textSoft, fontSize: font.size.sm, fontWeight: 700, cursor: 'help' }}>PRODUZIONE</span> : (m.autore_email || '-')}
                 {m.autore_ruolo === 'dipendente' && <span style={{ marginLeft: 6, padding: '1px 5px', borderRadius: 4, background: C.amberLight, color: C.amber, fontSize: font.size.sm, fontWeight: 700 }}>DIP</span>}
               </>
             ) },
-            { k: 'azione', label: '', cella: (m) => m._legacy ? '—' : (
+            { k: 'azione', label: '', cella: (m) => (m._legacy || m._daInventario) ? '—' : (
               <button onClick={() => elimina(m)} title="Elimina"
                 style={{ padding: '9px 12px', minHeight: 44, background: 'transparent', color: C.red, border: `1px solid ${C.redLight}`, borderRadius: 7, fontSize: font.size.sm, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                 <Icon name="trash" size={12} /> Elimina
@@ -1182,11 +1215,11 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, ch
                     )}
                   </td>
                   <td style={{ padding: '11px 14px', color: C.textSoft, fontSize: font.size.sm }}>
-                    {m._legacy ? <span style={{ padding: '1px 5px', borderRadius: 4, background: C.bgSubtle, color: C.textSoft, fontSize: font.size.sm, fontWeight: 700 }}>STORICO</span> : (m.autore_email || '-')}
+                    {m._legacy ? <span style={{ padding: '1px 5px', borderRadius: 4, background: C.bgSubtle, color: C.textSoft, fontSize: font.size.sm, fontWeight: 700 }}>STORICO</span> : m._daInventario ? <span title="Scritto nella registrazione della produzione: si corregge da lì" style={{ padding: '1px 5px', borderRadius: 4, background: C.bgSubtle, color: C.textSoft, fontSize: font.size.sm, fontWeight: 700, cursor: 'help' }}>PRODUZIONE</span> : (m.autore_email || '-')}
                     {m.autore_ruolo === 'dipendente' && <span style={{ marginLeft: 6, padding: '1px 5px', borderRadius: 4, background: C.amberLight, color: C.amber, fontSize: font.size.sm, fontWeight: 700 }}>DIP</span>}
                   </td>
                   <td style={{ padding: '11px 14px' }}>
-                    {!m._legacy && (
+                    {!m._legacy && !m._daInventario && (
                       <button onClick={() => elimina(m)} title="Elimina"
                         style={{ padding: '9px 12px', minHeight: dito ? 44 : 40, background: 'transparent', color: C.red, border: `1px solid ${C.redLight}`, borderRadius: 7, fontSize: font.size.sm, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                         <Icon name="trash" size={12} /> Elimina

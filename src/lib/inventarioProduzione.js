@@ -815,7 +815,7 @@ export function dettaglioVenduto(matrice) {
 // (`ingredientiDaScaricare`), che è anche l'unico posto dove la regola vive.
 //
 // Ritorna { nuovoMagazzino, ingredientiScalati: [{nome, deltaG}], nonTrovati }.
-import { normIng, resaGrammi } from './foodcost'
+import { normIng, resaGrammi, calcolaFC } from './foodcost'
 import { ingredientiDaScaricare } from './scaricoIngredienti'
 
 export function scaloMagazzinoPerGusto(magazzino, ricetta, deltaProdG, ricettario = null) {
@@ -1217,6 +1217,71 @@ export function inventarioASessioni(righeInventario, ricettario = null) {
       data, id: `inv-${data}`, ts: data + 'T12:00:00.000Z',
       prodotti, _da_inventario: true,
     }))
+}
+
+// ── Lo scarto dell'inventario è una perdita, e va dove vanno le perdite ────
+//
+// Nella griglia settimanale c'è una colonna «scarto»: i chili di gelato
+// buttati quel giorno. Fino al 22/09/2026 quel numero lo leggeva **solo la
+// Quadratura**: non entrava in «Perdite & cessioni», che è la pagina dove uno
+// va a vedere quanto prodotto se n'è andato senza incasso, e non entrava nel
+// conto del P&L.
+//
+// Decisione del titolare: «lo scarto deve arrivare in perdite e cessioni,
+// anche la pagina sprechi deve essere collegata. Anche se nei dati ora
+// caricati non risultano potrebbero essercene ogni tanto, soprattutto in altri
+// tipi di business che non fanno gelato ma panini ecc.».
+//
+// Ha ragione su tutti e due i punti: sui dati del design partner la colonna è
+// **zero su tutte e 7.013 le righe**, ma un panificio che butta l'invenduto
+// tutte le sere la riempirebbe ogni giorno.
+//
+// ── Si proietta, non si copia ──────────────────────────────────────────
+//
+// Questi movimenti **non si scrivono** nel registro delle perdite: si
+// costruiscono al volo da `inventario_produzione`, come già si fa per le
+// sessioni di produzione. Copiarli vorrebbe dire tenere lo stesso chilo in due
+// posti, e il giorno che uno dei due cambia il conto non torna più — con la
+// differenza che qui il numero finisce in un bilancio.
+//
+// L'id porta dentro sede, gusto e giorno: la riga dell'inventario è unica per
+// quella terna (c'è un vincolo sul database), quindi due proiezioni della
+// stessa cella non possono esistere.
+export function scartiComeMovimenti(righeInventario, ricettario = null, ingCosti = null) {
+  const fuori = []
+  for (const r of (righeInventario || [])) {
+    const g = Number(r?.scarto_g)
+    if (!Number.isFinite(g) || g <= 0) continue
+    const gusto = r.gusto_nome || ''
+    if (!gusto || !r.data) continue
+    const ric = ricettario ? ricettaDelGusto(ricettario, normGusto(gusto)) : null
+    // Il costo al chilo di quel gusto: costo di un impasto diviso i chili che
+    // ne escono. Se non si sa, resta null — un costo inventato in una pagina
+    // di perdite è peggio di un costo mancante.
+    let fcUnit = null
+    if (ric && ingCosti) {
+      const resa = resaGrammi(ric)
+      const costo = calcolaFC(ric, ingCosti, ricettario)?.tot
+      if (resa > 0 && Number.isFinite(costo) && costo > 0) fcUnit = costo / (resa / 1000)
+    }
+    const kg = g / 1000
+    fuori.push({
+      id: `inv-scarto-${r.sede_id || 'sede'}-${normGusto(gusto)}-${r.data}`,
+      ts: `${r.data}T12:00:00`,
+      data: r.data,
+      tipo: 'spreco',
+      causale: 'scarto',
+      prodotto: gusto,
+      qta: Math.round(kg * 1000) / 1000,
+      unita: 'kg',
+      fcUnit,
+      fcTot: fcUnit != null ? Math.round(fcUnit * kg * 100) / 100 : null,
+      note: 'dalla registrazione della produzione',
+      // Questa riga vive nell'inventario: da qui si guarda, non si cancella.
+      _daInventario: true,
+    })
+  }
+  return fuori.sort((a, b) => String(b.ts).localeCompare(String(a.ts)))
 }
 
 // ── Cucire le sessioni dei due metodi ──────────────────────────────────────
