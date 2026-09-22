@@ -100,6 +100,7 @@ const CashflowView = lazyWithReload(() => import('./views/CashflowView'))
 const ForecastView = lazyWithReload(() => import('./views/ForecastView'))
 const ReformulationView = lazyWithReload(() => import('./views/ReformulationView'))
 const OrdiniAiView = lazyWithReload(() => import('./views/OrdiniAiView'))
+const OrdiniView = lazyWithReload(() => import('./views/OrdiniView'))
 const CompetitorPricingView = lazyWithReload(() => import('./views/CompetitorPricingView'))
 const BrainView = lazyWithReload(() => import('./views/BrainView'))
 const RecipeInventorView = lazyWithReload(() => import('./views/RecipeInventorView'))
@@ -3793,6 +3794,7 @@ export default function Dashboard({
         {vista==="forecast"&&<ForecastView orgId={orgId} sedeId={sedeId} sedeAttiva={sedeAttiva} setView={setView}/>}
         {vista==="reformulation"&&<ReformulationView ricettario={ricettario} orgId={orgId} sedeId={sedeId} notify={notify}/>}
         {vista==="ordini-ai"&&<OrdiniAiView orgId={orgId} sedeId={sedeId} notify={notify}/>}
+        {vista==="ordini"&&<OrdiniView orgId={orgId} sedeId={sedeId} notify={notify} azienda={nomeAttivita} sede={sedeAttiva?.nome||null}/>}
         {vista==="competitor-pricing"&&<CompetitorPricingView orgId={orgId} sedeId={sedeId} ricettario={ricettario} notify={notify}/>}
         {vista==="ai-brain"&&(canAccessView("ai-brain",piano,auth?.user?.email)?<BrainView orgId={orgId} sedeId={sedeId} user={auth?.user} nomeAttivita={nomeAttivita}/>:<UpgradeGate view="ai-brain" onUpgrade={goToUpgrade}/>)}
         {vista==="ricette-ai"&&(canAccessView("ricette-ai",piano,auth?.user?.email)?<RecipeInventorView orgId={orgId} user={auth?.user} nomeAttivita={nomeAttivita}/>:<UpgradeGate view="ricette-ai" onUpgrade={goToUpgrade}/>)}
@@ -3810,7 +3812,7 @@ export default function Dashboard({
           />
         )}
         {vista==="calendario"&&<CalendarioOperativo giornaliero={giornaliero} chiusure={chiusure} orgId={orgId} sedeId={sedeId} setView={setView} notify={notify} isMobile={isMobile} isDipendente={isDip} metodoProduzione={metodoProduzione}/>}
-        {currentMese&&!["home","home-dipendente","ricettario","semilavorati","pl","simulatore","azioni","magazzino","giornaliero","nuova-ricetta","storico","chiusura","impostazioni","confronto-sedi","trasferimenti","integrazioni","scadenzario","fatture-da-pagare","fatture-scadute","fatture-in-scadenza","fatture-senza-sede","fornitori-senza-iban","calendario","changelog","scheda-allergeni","fornitori","personale","menu","previsione","eventi","importa-dati","recensioni","menu-engineering","cashflow","ai-brain","forecast","reformulation","ordini-ai","competitor-pricing","ricette-ai","marketplace","documentary","whatsapp"].includes(view)&&(
+        {currentMese&&!["home","home-dipendente","ricettario","semilavorati","pl","simulatore","azioni","magazzino","giornaliero","nuova-ricetta","storico","chiusura","impostazioni","confronto-sedi","trasferimenti","integrazioni","scadenzario","fatture-da-pagare","fatture-scadute","fatture-in-scadenza","fatture-senza-sede","fornitori-senza-iban","calendario","changelog","scheda-allergeni","fornitori","personale","menu","previsione","eventi","importa-dati","recensioni","menu-engineering","cashflow","ai-brain","forecast","reformulation","ordini","ordini-ai","competitor-pricing","ricette-ai","marketplace","documentary","whatsapp"].includes(view)&&(
           <ProduzioneView key={view} ricettario={ricettario} mese={currentMese} onSave={e=>handleSave(view,e)} onAddAction={handleAddAct} nomeAttivita={nomeAttivita}/>
         )}
         </React.Suspense>

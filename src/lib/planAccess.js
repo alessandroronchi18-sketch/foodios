@@ -73,6 +73,8 @@ export const VIEW_MIN_PLAN = {
   'reformulation':      'pro',
   'competitor-pricing': 'pro',
   'ordini-ai':          'pro',
+  // Ordinare e' un gesto quotidiano: sta con il riordino che ha assorbito.
+  ordini:               'pro',
   'ai-brain':           'pro',
   'ricette-ai':         'pro',
   'recensioni':         'pro',

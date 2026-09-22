@@ -160,12 +160,18 @@ export function costruisciMenu(ctx = {}) {
       // voce, e «scadenzario» resta fra i sinonimi per chi lo cerca col nome
       // vecchio.
       { id: 'scadenzario', label: 'Fornitori', icona: 'fileText',
-        sinonimi: ['scadenzario', 'fatture', 'fornitori', 'ordini', 'da pagare', 'scadenze', 'fatture e fornitori', 'cosa ordinare', 'iban', 'bonifici'],
+        sinonimi: ['scadenzario', 'fatture', 'da pagare', 'scadenze', 'fatture e fornitori', 'iban', 'bonifici'],
         schede: [
           { id: 'scadenzario', label: 'Fornitori' },
           { id: 'fornitori',   label: 'Anagrafica' },
-          { id: 'ordini-ai',   label: 'Riordino' },
+          { id: 'ordini',      label: 'Ordini' },
         ] },
+      // Ordinare è un gesto di tutti i giorni, non una scheda dentro
+      // un'anagrafica: il titolare, 22/09/2026, ha scelto la pagina sua.
+      // Assorbe la vecchia scheda «Riordino» (`ordini-ai`), che diceva la
+      // stessa cosa con un conto diverso.
+      { id: 'ordini', label: 'Ordini', icona: 'cart',
+        sinonimi: ['ordinare', 'ordine', 'cosa ordinare', 'cosa manca', 'riordino', 'comprare', 'spesa', 'whatsapp fornitore'] },
       { id: 'sprechi-omaggi', label: 'Sprechi', icona: 'sparkles',
         // «Cessione» non si dice al banco.
         sinonimi: ['perdite', 'cessioni', 'omaggi', 'buttato', 'scarti', 'regali', 'sprechi e regali'] },
@@ -320,6 +326,11 @@ export const VISTE_FUORI_MENU = {
   // raggiungibile anche dal Magazzino e dai Primi passi.
   'importa-dati': { label: 'Porta dentro i dati', gruppo: 'Impostazioni' },
   integrazioni: { label: 'Collegamenti', gruppo: 'Impostazioni' },
+  // La vecchia scheda «Riordino», assorbita dalla pagina Ordini il
+  // 22/09/2026. Resta raggiungibile perché i segnalibri non si rompono, ma
+  // fuori dal menu: due posti che dicono «cosa manca» sono due posti dove i
+  // numeri litigano.
+  'ordini-ai': { label: 'Riordino', gruppo: 'Acquisti' },
   'scheda-allergeni': { label: 'Scheda allergeni', gruppo: 'Ricette', labelBreve: 'Allergeni' },
   menu: { label: 'Menù', gruppo: 'Ricette' },
   haccp: { label: 'HACCP', gruppo: 'Azienda' },

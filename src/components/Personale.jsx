@@ -2109,11 +2109,29 @@ function Finestra({ onChiudi, larghezza = 440, children }) {
   )
 }
 
+// Interruttore per «Può fare ordini ai fornitori» (stessa forma di quello di
+// Impostazioni.jsx: non è esportato da lì, quindi una copia locale — dodici
+// righe, non vale un import cross-componente). `etichetta` dà un nome a cosa
+// accende, per chi usa un lettore di schermo.
+function Toggle({ checked, onChange, disabled = false, etichetta = '' }) {
+  return (
+    <button type="button" onClick={() => !disabled && onChange(!checked)}
+      role="switch" aria-checked={checked} disabled={disabled}
+      aria-label={etichetta || undefined}
+      style={{ width: 42, height: 24, borderRadius: 12, border: 'none', cursor: disabled ? 'not-allowed' : 'pointer', position: 'relative',
+        background: checked ? C.red : '#CBD5E1', transition: 'background 0.18s', padding: 0, flexShrink: 0, opacity: disabled ? 0.6 : 1 }}>
+      <span style={{ position: 'absolute', top: 3, left: checked ? 21 : 3, width: 18, height: 18,
+        borderRadius: '50%', background: C.white, transition: 'left 0.18s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+    </button>
+  )
+}
+
 // ── Laboratori: account condivisi su tablet fisici ─────────────────────────
 function LaboratoriSection({ orgId, sedi, notify, isMobile, dito = false, nomeAttivita }) {
   const [laboratori, setLaboratori] = useState([])
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(null)
+  const [busyOrdinare, setBusyOrdinare] = useState(null)
   const [addOpen, setAddOpen] = useState(false)
   const [editTarget, setEditTarget] = useState(null)
   const [delConf, setDelConf] = useState(null)
@@ -2173,6 +2191,26 @@ function LaboratoriSection({ orgId, sedi, notify, isMobile, dito = false, nomeAt
     finally { setBusy(null); setDelConf(null); carica() }
   }
 
+  // «Può fare ordini ai fornitori» (richiesta del titolare, 22/09/2026).
+  //
+  // Diversa dalle altre azioni di questa sezione: non passa da
+  // `/api/dipendente-accesso` ma scrive DIRETTAMENTE su `profiles`, perché la
+  // migration 20260922b ha aperto un varco stretto apposta per questo campo
+  // (`grant update (puo_ordinare)` + RLS sull'org + il trigger che blocca un
+  // dipendente che provi a cambiarlo). Non serve la service key: il database
+  // stesso impedisce che un dipendente se lo dia da solo.
+  async function setPuoOrdinare(id, val) {
+    setBusyOrdinare(id)
+    try {
+      const { error } = await supabase.from('profiles').update({ puo_ordinare: val }).eq('id', id)
+      if (error) throw error
+      setLaboratori(prev => prev.map(l => l.id === id ? { ...l, puo_ordinare: val } : l))
+      notify?.(val ? 'Ora può fare ordini ai fornitori' : 'Non può più fare ordini ai fornitori')
+    } catch (e) {
+      notify?.('Operazione fallita: ' + e.message, false)
+    } finally { setBusyOrdinare(null) }
+  }
+
   if (loading) return <div style={{ color: C.textSoft, fontSize: F.size.base }}>Caricamento…</div>
 
   return (
@@ -2206,27 +2244,48 @@ function LaboratoriSection({ orgId, sedi, notify, isMobile, dito = false, nomeAt
             ? new Date(d.dipendente_last_login_at).toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: '2-digit' })
             : null
           return (
-            <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '10px 14px', background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 10 }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: F.size.base, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.nome_completo || d.email}</div>
-                <div style={{ fontSize: typo.small.fontSize, color: C.textSoft, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {d.email}
-                  {d.laboratorio_sede_nome && <span style={{ marginLeft: 8 }}>· sede: <b style={{ color: C.textMid }}>{d.laboratorio_sede_nome}</b></span>}
-                  {lastLogin && <span style={{ marginLeft: 8 }}>· ultimo accesso {lastLogin}</span>}
+            <div key={d.id} style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '10px 14px', background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: F.size.base, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.nome_completo || d.email}</div>
+                  <div style={{ fontSize: typo.small.fontSize, color: C.textSoft, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {d.email}
+                    {d.laboratorio_sede_nome && <span style={{ marginLeft: 8 }}>· sede: <b style={{ color: C.textMid }}>{d.laboratorio_sede_nome}</b></span>}
+                    {lastLogin && <span style={{ marginLeft: 8 }}>· ultimo accesso {lastLogin}</span>}
+                  </div>
+                </div>
+                <span style={{ fontSize: typo.small.fontSize, fontWeight: 800, padding: '3px 9px', borderRadius: 999, color: d.approvato ? C.green : C.amber, background: d.approvato ? `${C.green}14` : `${C.amber}18`, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  <Icon name={d.approvato ? 'checkCircle' : 'hourglass'} size={11} />{d.approvato ? 'Attivo' : 'Sospeso'}
+                </span>
+                <button onClick={() => setEditTarget(d)} disabled={busy === d.id}
+                  title="Cambia nome, sede o password"
+                  style={btnStyle(C.white, C.textMid, `1px solid ${C.border}`, dito)}>
+                  <Icon name="edit" size={12} />Modifica
+                </button>
+                {d.approvato
+                  ? <button onClick={() => setApprovato(d.id, false)} disabled={busy === d.id} style={btnStyle(C.white, C.textMid, `1px solid ${C.border}`, dito)}>Sospendi</button>
+                  : <button onClick={() => setApprovato(d.id, true)} disabled={busy === d.id} style={btnStyle(C.green, C.white, null, dito)}><Icon name="check" size={12} />Attiva</button>}
+                <button onClick={() => setDelConf(d)} disabled={busy === d.id} title="Elimina account" style={btnStyle(C.white, C.red, `1px solid ${C.red}40`, dito)}><Icon name="trash" size={12} /></button>
+              </div>
+
+              <div style={{
+                display: 'flex', flexDirection: isMobile ? 'column' : 'row',
+                alignItems: isMobile ? 'flex-start' : 'center', gap: isMobile ? 8 : 12,
+                paddingTop: 10, borderTop: `1px solid ${C.border}`,
+              }}>
+                <Toggle
+                  checked={!!d.puo_ordinare}
+                  disabled={busyOrdinare === d.id}
+                  onChange={(v) => setPuoOrdinare(d.id, v)}
+                  etichetta="Può fare ordini ai fornitori"
+                />
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: F.size.sm, fontWeight: 700, color: C.text }}>Può fare ordini ai fornitori</div>
+                  <div style={{ fontSize: typo.small.fontSize, color: C.textSoft, lineHeight: 1.45, marginTop: 1 }}>
+                    Se acceso, chi entra da questo laboratorio vede l'elenco dei fornitori e può creare e mandare ordini — con i prezzi d'acquisto. Il resto (fatture, incassi, clienti B2B, registro attività) resta riservato a te.
+                  </div>
                 </div>
               </div>
-              <span style={{ fontSize: typo.small.fontSize, fontWeight: 800, padding: '3px 9px', borderRadius: 999, color: d.approvato ? C.green : C.amber, background: d.approvato ? `${C.green}14` : `${C.amber}18`, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                <Icon name={d.approvato ? 'checkCircle' : 'hourglass'} size={11} />{d.approvato ? 'Attivo' : 'Sospeso'}
-              </span>
-              <button onClick={() => setEditTarget(d)} disabled={busy === d.id}
-                title="Cambia nome, sede o password"
-                style={btnStyle(C.white, C.textMid, `1px solid ${C.border}`, dito)}>
-                <Icon name="edit" size={12} />Modifica
-              </button>
-              {d.approvato
-                ? <button onClick={() => setApprovato(d.id, false)} disabled={busy === d.id} style={btnStyle(C.white, C.textMid, `1px solid ${C.border}`, dito)}>Sospendi</button>
-                : <button onClick={() => setApprovato(d.id, true)} disabled={busy === d.id} style={btnStyle(C.green, C.white, null, dito)}><Icon name="check" size={12} />Attiva</button>}
-              <button onClick={() => setDelConf(d)} disabled={busy === d.id} title="Elimina account" style={btnStyle(C.white, C.red, `1px solid ${C.red}40`, dito)}><Icon name="trash" size={12} /></button>
             </div>
           )
         })}
