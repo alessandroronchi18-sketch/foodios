@@ -447,3 +447,24 @@ sbaglia una schermata, sbaglia il magazzino e il food cost di tutti.
 4. **`#9C7B76` è sotto la soglia di contrasto** (3,46–3,81 contro 4,5): è il
    colore delle etichette maiuscole delle sedi, degli «esempi» in Impostazioni
    e del piè di pagina legale. Cambiarlo cambia il colore a schermo: va deciso.
+
+---
+
+## Le quattro decisioni del 22/09/2026 — tre fatte, una in attesa
+
+1. ✅ **Lo scarto arriva in «Perdite & cessioni»**. Si proietta dalle righe
+   dell'inventario, non si copia: lo stesso chilo in due posti diverge sempre.
+   Le righe portano l'etichetta PRODUZIONE e si correggono dove sono scritte.
+   **Nota contabile**: quel costo **non va aggiunto al P&L**, perché ci è già
+   dentro — la materia prima è stata consumata quando il gelato è stato
+   prodotto. In «Perdite & cessioni» si mostra come *informazione* («quanto se
+   n'è andato senza incasso»), non come costo in più. Contarlo due volte
+   farebbe sembrare l'azienda più cara di quello che è.
+2. ⏸️ **L'avviso al cambio di metodo**: il titolare sta pensando, e il motivo
+   è buono — «un business non cambia improvvisamente metodo di produzione, al
+   99% il primo scelto verrà tenuto per sempre». Resta qui finché non decide.
+3. ✅ **Il colore sotto la soglia di contrasto**: `#9C7B76` → `#846560`,
+   stessa tinta e stessa saturazione, solo più scuro. Da 3,46 a 4,55 sul fondo
+   peggiore.
+4. ✅ **Annullare una bolla**, col doppio controllo che dice cosa succede e fa
+   scrivere il numero del documento.
