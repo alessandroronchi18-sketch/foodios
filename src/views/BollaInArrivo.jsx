@@ -87,8 +87,29 @@ export default function BollaInArrivo({
       dataBolla: data,
     // `grezza` è la riga come sta scritta: serve ai campi modificabili.
     // Il resto (chili, prezzo, problemi) è il conto, e non si sovrascrive.
-    }).map((r, i) => ({ ...r, grezza: righeGrezze[i] || {}, saltata: !!righeGrezze[i]?.saltata }))
+    // Le righe che non sono merce partono già saltate: il testo legale, la
+    // pubblicità, il trasporto e i campioni non hanno niente da fare in
+    // magazzino. Restano visibili e si possono riattivare a mano — nessuna
+    // riga sparisce, perché una riga sparita nessuno la va a cercare.
+    }).map((r, i) => ({
+      ...r,
+      grezza: righeGrezze[i] || {},
+      saltata: righeGrezze[i]?.saltata != null
+        ? !!righeGrezze[i].saltata
+        : !r.caricaMagazzino,
+    }))
   ), [righeGrezze, ricettario, logPrezzi, data])
+
+  // Che cosa ho tolto, e perché. Raggruppato per specie, con i nomi dentro.
+  const nonMerce = useMemo(() => {
+    const per = new Map()
+    for (const r of righe) {
+      if (r.classe === 'merce' || !r.classeAvviso) continue
+      if (!per.has(r.classe)) per.set(r.classe, { avviso: r.classeAvviso, nomi: [] })
+      if (r.nome) per.get(r.classe).nomi.push(r.nome)
+    }
+    return [...per.entries()].map(([classe, v]) => ({ classe, ...v }))
+  }, [righe])
 
   const identita = identitaBolla({ fornitore, numero, data })
   const giaCaricata = useMemo(() => {
@@ -306,6 +327,11 @@ export default function BollaInArrivo({
               caricarla lo stesso, spunta la casella qui sopra.
             </li>
           )}
+          {nonMerce.map(({ classe, avviso, nomi }) => (
+            <li key={classe} style={{ color: classe === 'omaggio' ? T.textMid : (T.amberDark || T.amber) }}>
+              {nomi.length > 0 ? <b>{nomi.join(', ')}</b> : 'Una riga'}: {avviso}.
+            </li>
+          ))}
           {daSistemare.length > 0 && (
             <li style={{ color: T.amberDark || T.amber }}>
               {daSistemare.length} {daSistemare.length === 1 ? 'riga ha' : 'righe hanno'} qualcosa

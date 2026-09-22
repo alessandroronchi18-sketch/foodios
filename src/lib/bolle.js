@@ -37,6 +37,7 @@
 
 import { leggiPrezzoKg, letturaPrezzoKg } from './formatIt'
 import { normIng } from './foodcost'
+import { classificaRiga } from './righeBolla'
 
 /**
  * Un numero come sta scritto sulla bolla: quantità, peso di una confezione.
@@ -593,6 +594,14 @@ export function identitaBolla({ fornitore, numero, data } = {}) {
 export function preparaBolla(righe, { ingredientiCosti = {}, logPrezzi = [], dataBolla } = {}) {
   const ultimoCambioPer = ultimiCambi(logPrezzi)
   return (righe || []).map((r, i) => {
+    // ── Che riga è, prima di ogni conto ───────────────────────────────────
+    //
+    // Sulle bolle vere ci sono cinque specie di righe oltre alla merce, e
+    // ognuna fa un danno diverso se trattata come un acquisto normale: un
+    // campione a 0,001 €/kg azzera il listino, un reso viene caricato invece
+    // che scaricato, una frase pubblicitaria diventa una materia prima nuova.
+    // Vedi `righeBolla.js` per i documenti da cui escono queste regole.
+    const classe = classificaRiga(r)
     const nome = String(r?.nome || '').trim()
     const chiave = nome ? normIng(nome) : ''
     const voce = chiave ? ingredientiCosti[chiave] : null
@@ -606,14 +615,19 @@ export function preparaBolla(righe, { ingredientiCosti = {}, logPrezzi = [], dat
     const conto = prezzoAlKgDaRiga({ ...r, nome })
     const esisteInElenco = !!chiave && Object.prototype.hasOwnProperty.call(ingredientiCosti, chiave)
 
-    const decisione = conto.prezzoKg == null
-      ? { azione: 'nessuna', motivo: conto.problema || 'niente prezzo' }
-      : decidiPrezzo({
-        prezzoAttuale: eraUnaStima ? null : prezzoAttuale,
-        prezzoNuovo: conto.prezzoKg,
-        dataBolla,
-        dataUltimoCambio: ultimoCambioPer.get(chiave) || null,
-      })
+    // Un reso non è una trattativa sul prezzo, e un campione non è un
+    // prezzo: in tutti e due i casi il listino non si tocca. Il conto si fa
+    // lo stesso — serve a mostrarlo a schermo — ma non diventa un'azione.
+    const decisione = !classe.applicaPrezzo
+      ? { azione: 'nessuna', motivo: classe.motivo }
+      : conto.prezzoKg == null
+        ? { azione: 'nessuna', motivo: conto.problema || 'niente prezzo' }
+        : decidiPrezzo({
+          prezzoAttuale: eraUnaStima ? null : prezzoAttuale,
+          prezzoNuovo: conto.prezzoKg,
+          dataBolla,
+          dataUltimoCambio: ultimoCambioPer.get(chiave) || null,
+        })
 
     return {
       indice: i,
@@ -637,6 +651,15 @@ export function preparaBolla(righe, { ingredientiCosti = {}, logPrezzi = [], dat
         && scostamentoSospetto(eraUnaStima ? null : prezzoAttuale, conto.prezzoKg),
       azione: decisione.azione,
       motivo: decisione.motivo,
+      // Che specie di riga è: merce, campione, omaggio, reso, servizio,
+      // rumore. La schermata mostra le prime quattro e toglie le ultime due,
+      // **dicendolo**: una riga tolta in silenzio è una riga che nessuno
+      // andrà mai a cercare.
+      classe: classe.tipo,
+      classeMotivo: classe.motivo,
+      classeAvviso: classe.avviso,
+      caricaMagazzino: classe.caricaMagazzino,
+      segno: classe.segno,
     }
   })
 }
