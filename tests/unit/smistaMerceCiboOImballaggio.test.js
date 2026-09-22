@@ -21,7 +21,7 @@
 // sbaglierebbe il giorno che arriva un prodotto nuovo, e sbaglia già oggi:
 // «coppetta» è un imballaggio, ma «coppa» è un salume.
 import { describe, it, expect } from 'vitest'
-import { doveVa, costoDiUnPezzo, smistaBolla, DOVE } from '../../src/lib/smistaMerce.js'
+import { doveVa, costoDiUnPezzo, smistaBolla, prezziMaterialiDaBolla, DOVE } from '../../src/lib/smistaMerce.js'
 
 describe('L\'aliquota dice di che mondo è la riga', () => {
   it('il gelato al 10% va in magazzino', () => {
@@ -170,5 +170,64 @@ describe('Il righello di questo file', () => {
       expect(() => smistaBolla(s)).not.toThrow()
     }
     expect(smistaBolla(null).righe).toEqual([])
+  })
+})
+
+describe('Il prezzo dei materiali, portato dalla bolla', () => {
+  // La riga vera: nove pacchi da 250 coppette a 180,00 € fanno 0,08 l'una.
+  const RIGHE = [{
+    nome: 'Coppetta', descrizione: 'COPPETTA BIO 16/B MARA N.250',
+    quantita: '9,00', imponibile: '180,00', aliquotaIva: 22,
+  }, {
+    nome: 'Fazzoletto', descrizione: 'TOVAGLIOLO MARA N. 12.000',
+    quantita: '1,00', imponibile: '60,00', aliquotaIva: 22,
+  }]
+  const materiali = (m) => smistaBolla(RIGHE).materiali && prezziMaterialiDaBolla(m, smistaBolla(RIGHE).materiali)
+
+  it('riempie i materiali che un prezzo non ce l\'hanno', () => {
+    const { vuoti, diversi } = materiali([{ nome: 'Coppetta', costo: null }, { nome: 'Fazzoletto', costo: '' }])
+    expect(vuoti.map(v => v.nome).sort()).toEqual(['Coppetta', 'Fazzoletto'])
+    expect(diversi).toEqual([])
+    expect(vuoti.find(v => v.nome === 'Coppetta').costo).toBeCloseTo(0.08, 6)
+  })
+
+  it('e mostra, senza toccarlo, quello che un prezzo ce l\'ha già', () => {
+    // È il segnaposto vero del design partner: 0,002 € per la coppetta.
+    const { vuoti, diversi } = materiali([{ nome: 'Coppetta', costo: 0.002 }])
+    expect(vuoti).toEqual([])
+    expect(diversi).toHaveLength(1)
+    expect(diversi[0]).toMatchObject({ nome: 'Coppetta', attuale: 0.002 })
+    expect(diversi[0].costo).toBeCloseTo(0.08, 6)
+  })
+
+  it('un materiale che nell\'elenco non c\'è si propone come nuovo', () => {
+    const { nuovi } = materiali([])
+    expect(nuovi.map(n => n.nome).sort()).toEqual(['Coppetta', 'Fazzoletto'])
+  })
+
+  it('e un prezzo identico non è un cambio', () => {
+    const { vuoti, diversi } = materiali([{ nome: 'Coppetta', costo: 0.08 }, { nome: 'Fazzoletto', costo: 0.005 }])
+    expect(vuoti).toEqual([])
+    expect(diversi).toEqual([])
+  })
+
+  it('il nome si riconosce anche scritto con maiuscole e spazi diversi', () => {
+    const { vuoti } = materiali([{ nome: '  COPPETTA  ', costo: null }])
+    expect(vuoti).toHaveLength(1)
+    expect(vuoti[0].nome).toBe('  COPPETTA  ')
+  })
+
+  it('una riga senza costo per pezzo non propone niente', () => {
+    // Metà delle bolle non ha prezzi: i pezzi si contano, il costo no.
+    const senzaPrezzo = smistaBolla([{ nome: 'Coppetta', descrizione: 'COPPETTA BIO 16/B MARA N.250', quantita: '9,00', aliquotaIva: 22 }])
+    const r = prezziMaterialiDaBolla([{ nome: 'Coppetta', costo: null }], senzaPrezzo.materiali)
+    expect(r.vuoti).toEqual([])
+    expect(r.nuovi).toEqual([])
+  })
+
+  it('e niente cade su dati storti', () => {
+    for (const s of [null, undefined, 'ciao', 42, {}]) {
+      expect(() => prezziMaterialiDaBolla(s, s)).not.toThrow()
+    }
   })
 })

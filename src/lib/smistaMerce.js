@@ -169,3 +169,60 @@ export function smistaBolla(righe = []) {
   }
   return { righe: smistate, materiali, nonSo, avvisi }
 }
+
+/**
+ * Cosa cambierebbe nell'elenco dei materiali di confezionamento, se si
+ * prendessero i prezzi di questa bolla.
+ *
+ * ── Perché non si applica da solo ────────────────────────────────────────
+ *
+ * Il costo di una coppetta entra nel costo di **ogni formato** che la usa, e
+ * quindi nel margine di ogni cono venduto. Cambiarlo di nascosto è il genere
+ * di cosa che si scopre a fine mese guardando un margine che non torna.
+ *
+ * Quindi qui si calcola e basta, diviso in due mucchi come per la scheda del
+ * fornitore:
+ *   • **i buchi** — materiali senza prezzo: si riempiono, ed è sempre un
+ *     guadagno (oggi valgono zero, o un millesimo di euro segnaposto);
+ *   • **i diversi** — materiali che un prezzo ce l'hanno già: si mostrano
+ *     tutti e due i numeri e decide una persona.
+ *
+ * @param {Array} materiali  l'elenco di oggi, `[{nome, costo, ...}]`
+ * @param {Array} righeSmistate  l'uscita di `smistaBolla().materiali`
+ * @returns {{vuoti: Array, diversi: Array, nuovi: Array}}
+ */
+export function prezziMaterialiDaBolla(materiali, righeSmistate) {
+  const elenco = Array.isArray(materiali) ? materiali : []
+  const perChiave = new Map()
+  for (const m of elenco) {
+    const k = chiaveMat(m?.nome)
+    if (k && !perChiave.has(k)) perChiave.set(k, m)
+  }
+  const vuoti = []
+  const diversi = []
+  const nuovi = []
+
+  for (const r of (Array.isArray(righeSmistate) ? righeSmistate : [])) {
+    const costo = r?._pezzi?.costoPezzo
+    if (costo == null || !Number.isFinite(costo) || costo < 0) continue
+    const nome = String(r?.nome || r?.descrizione || '').trim()
+    const k = chiaveMat(nome)
+    if (!k) continue
+    const gia = perChiave.get(k)
+    if (!gia) { nuovi.push({ nome, costo, perche: r._pezzi.perche }); continue }
+    const attuale = gia.costo == null || gia.costo === '' ? null : Number(gia.costo)
+    if (attuale == null || !Number.isFinite(attuale)) {
+      vuoti.push({ nome: gia.nome, costo, perche: r._pezzi.perche })
+      continue
+    }
+    // Sotto il decimo di millesimo non è un cambio: è arrotondamento.
+    if (Math.abs(attuale - costo) < 0.0001) continue
+    diversi.push({ nome: gia.nome, costo, attuale, perche: r._pezzi.perche })
+  }
+  return { vuoti, diversi, nuovi }
+}
+
+/** Due nomi di materiale sono lo stesso materiale? Stessa regola dei formati. */
+function chiaveMat(nome) {
+  return String(nome ?? '').trim().toLowerCase().replace(/\s+/g, ' ')
+}

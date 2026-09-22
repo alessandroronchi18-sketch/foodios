@@ -33,6 +33,7 @@ import { CampoConElenco, formatNome } from './_shared'
 import SchedaFornitoreProposta from '../components/SchedaFornitoreProposta'
 import { smistaBolla } from '../lib/smistaMerce'
 import { sedeDaDestinazione } from '../lib/destinazioneSede'
+import PrezziMaterialiProposta from '../components/PrezziMaterialiProposta'
 import {
   preparaBolla, identitaBolla, normalizzaUnita,
   bollaDiQuestaFattura, controlloTotaleAMano,
@@ -462,6 +463,16 @@ export default function BollaInArrivo({
             </ul>
           )}
         </div>
+      )}
+
+      {/* ── Il prezzo di un pezzo, portato da questa bolla ───────────────
+          È quello che fa smettere la cialda di costare 0,001 €. */}
+      {orgId && smistamento.materiali.some(r => r._pezzi?.costoPezzo != null) && (
+        <PrezziMaterialiProposta
+          materialiDaBolla={smistamento.materiali}
+          orgId={orgId}
+          notify={notify}
+        />
       )}
 
       {/* ── Il totale scritto a penna ────────────────────────────────────── */}
