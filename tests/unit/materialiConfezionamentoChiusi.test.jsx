@@ -124,6 +124,15 @@ describe('Nel formato il materiale si sceglie, non si scrive', () => {
     fireEvent.mouseDown(screen.getByText('Coppetta 120'))
     // Il costo non si ribatte: arriva dall'elenco, dove è scritto una volta
     // sola e si corregge in un posto solo.
-    await waitFor(() => expect(screen.getByDisplayValue('0.032')).toBeTruthy())
+    //
+    // 22/09/2026: qui si cercava una **casella** con dentro 0.032, perché
+    // allora il prezzo veniva copiato nel formato e restava modificabile. Era
+    // proprio quella copia il difetto — correggere l'elenco non muoveva i
+    // formati già composti. Adesso il prezzo di un materiale in elenco è
+    // scritto e basta, quindi la prova guarda quello che si legge e, in più,
+    // che non esista nessuna casella da cui possa ripartire una seconda
+    // verità. Vedi `prezzoMaterialeSegueLaBolla.test.jsx`.
+    await waitFor(() => expect(document.body.textContent).toContain('0,032'))
+    expect(screen.queryByDisplayValue('0.032')).toBeNull()
   })
 })

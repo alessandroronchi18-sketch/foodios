@@ -36,3 +36,7 @@ import-data/*
 # File di lavoro usati per fotografare le pagine durante gli audit:
 # contengono percorsi di cartelle temporanee di sessione e non vanno versionati.
 scripts/.tmp-*
+
+# Le bolle e le fatture vere del design partner: dati di un'azienda, non
+# codice. Restano sul computer, non finiscono in un repository.
+Fatture esempio/

@@ -102,25 +102,154 @@ export function nuovoFormato() {
 // Restituisce i componenti del formato in forma normalizzata. Se il formato e'
 // in formato legacy (solo costoContenitore), lo trasforma in un singolo componente
 // "Contenitore" - così il resto del codice puo' lavorare solo con componenti[].
-export function componentiNormalizzati(formato) {
-  if (Array.isArray(formato?.componenti) && formato.componenti.length > 0) {
-    return formato.componenti.map(c => ({
-      nome: String(c?.nome || ''),
-      qta: Number(c?.qta) || 0,
-      costo: Number(c?.costo) || 0,
-    }))
-  }
-  const legacy = Number(formato?.costoContenitore) || 0
-  if (legacy > 0) {
-    return [{ nome: 'Contenitore', qta: 1, costo: legacy }]
-  }
-  return []
+//
+// Con `materiali` (l'elenco dei materiali di confezionamento, già risolto da
+// `materialiRisolti`) il costo arriva da lì invece che dal numero congelato
+// dentro il formato. Senza, si comporta esattamente come prima.
+export function componentiNormalizzati(formato, materiali = null) {
+  return componentiConOrigine(formato, materiali)
+    .map(c => ({ nome: c.nome, qta: c.qta, costo: c.costo }))
 }
 
 // Costo totale dei materiali consumabili per UNA unita' venduta del formato.
-export function costoComponentiUnita(formato) {
-  return componentiNormalizzati(formato)
+export function costoComponentiUnita(formato, materiali = null) {
+  return componentiConOrigine(formato, materiali)
     .reduce((s, c) => s + c.qta * c.costo, 0)
+}
+
+// ── Il prezzo di un materiale: dove sta il numero vero ──────────────────
+//
+// Il 18/09/2026 è nato l'elenco dei materiali di confezionamento, con questa
+// promessa scritta a schermo: «il prezzo si corregge in un posto solo».
+//
+// Non era così. Il costo veniva **copiato** dentro il formato nel momento in
+// cui sceglievi il materiale, e da lì restava fermo: correggere la cialda
+// nell'elenco non correggeva nessuno dei formati già composti. Correggeva
+// solo quelli composti dopo.
+//
+// Sui dati veri del design partner, 22/09/2026: tutti e 8 i formati portano
+// cialda, fazzoletto, cucchiaino a 0,001 € e coppetta a 0,002 € — numeri di
+// prova rimasti lì, fuori di circa trenta volte (il riferimento vero, scritto
+// nel prodotto stesso, è cialda 0,06 € e fazzoletto 0,01 €). Un Cono Grande
+// venduto 5,50 € risulta avere due millesimi di euro di materiali.
+//
+// Da qui in poi il numero sta in **un posto solo**, e il formato lo legge:
+//
+//   1. il materiale è legato a una materia prima e si sa quanto pesa un
+//      pezzo → il prezzo lo fa la bolla, e non si riscrive mai più;
+//   2. il materiale ha un prezzo scritto a mano nell'elenco → vale quello;
+//   3. il materiale non è nell'elenco → resta il numero vecchio congelato
+//      dentro il formato, **e si dice** che è vecchio.
+//
+// Il numero congelato non si butta: è l'unica cosa che qualcuno aveva
+// scritto, e cancellarlo farebbe scendere il costo a zero. Zero non è «non lo
+// so», ed è l'errore di famiglia di questo prodotto.
+
+/** La chiave con cui due nomi di materiale sono lo stesso materiale. */
+export function chiaveMateriale(nome) {
+  return String(nome || '').trim().toLowerCase().replace(/\s+/g, ' ')
+}
+
+/**
+ * Quanto costa UNO di questo materiale, e da dove viene il numero.
+ *
+ * @param {object} materiale  `{ nome, costo, legatoA?, pesoG? }`
+ * @param {object} [ingCosti] il listino materie prime già passato da `buildIngCosti`
+ * @returns {{costo: number|null, origine: 'magazzino'|'mano', stima: boolean,
+ *            legatoA: string|null, pesoG: number|null, problema: string|null}}
+ */
+export function costoDelMateriale(materiale, ingCosti = null) {
+  const legatoA = String(materiale?.legatoA || '').trim()
+  const pesoG = Number(materiale?.pesoG)
+  if (legatoA && Number.isFinite(pesoG) && pesoG > 0) {
+    const voce = ingCosti ? ingCosti[normIng(legatoA)] : null
+    // Il listino scrive sempre tutti e due i campi, ma chi lo costruisce a
+    // mano nei test a volte no: si legge quello che c'è.
+    const kg = voce?.costoKg != null ? Number(voce.costoKg)
+      : voce?.costoG != null ? Number(voce.costoG) * 1000
+        : null
+    const base = { origine: 'magazzino', legatoA, pesoG, stima: !!voce?.isStima }
+    if (kg != null && Number.isFinite(kg) && kg >= 0) {
+      return { ...base, costo: parseFloat((kg / 1000 * pesoG).toFixed(6)), problema: null }
+    }
+    return { ...base, costo: null, stima: false, problema: `«${legatoA}» non ha un prezzo fra le materie prime` }
+  }
+  // `null` e stringa vuota vogliono dire «non lo so», e `Number(null)` fa
+  // zero: il controllo parte dal `!= null`, non dall'`isFinite`.
+  const scritto = materiale?.costo
+  const n = scritto == null || scritto === '' ? null : Number(scritto)
+  const base = { origine: 'mano', legatoA: null, pesoG: null, stima: false }
+  if (n != null && Number.isFinite(n) && n >= 0) return { ...base, costo: n, problema: null }
+  return { ...base, costo: null, problema: 'senza prezzo' }
+}
+
+/**
+ * L'elenco dei materiali con il prezzo risolto: quelli legati al magazzino
+ * portano il prezzo dell'ultima bolla, gli altri quello scritto a mano.
+ */
+export function materialiRisolti(materiali, ingCosti = null) {
+  return (Array.isArray(materiali) ? materiali : []).map(m => {
+    const r = costoDelMateriale(m, ingCosti)
+    return {
+      ...m,
+      nome: String(m?.nome || ''),
+      costo: r.costo,
+      costoScritto: m?.costo == null || m?.costo === '' ? null : Number(m.costo),
+      origine: r.origine,
+      stima: r.stima,
+      problema: r.problema,
+    }
+  })
+}
+
+function mappaMateriali(materiali) {
+  const out = new Map()
+  for (const m of (Array.isArray(materiali) ? materiali : [])) {
+    const k = chiaveMateriale(m?.nome)
+    if (k && !out.has(k)) out.set(k, m)
+  }
+  return out
+}
+
+/**
+ * I componenti di un formato con il prezzo risolto **e la sua provenienza**.
+ *
+ * `costo` è il numero da usare; `costoScritto` è quello congelato dentro il
+ * formato, che resta a disposizione per dire di quanto era indietro.
+ */
+export function componentiConOrigine(formato, materiali = null) {
+  const elenco = mappaMateriali(materiali)
+  const grezzi = Array.isArray(formato?.componenti) && formato.componenti.length > 0
+    ? formato.componenti.map(c => ({ nome: String(c?.nome || ''), qta: Number(c?.qta) || 0, scritto: Number(c?.costo) || 0 }))
+    : (Number(formato?.costoContenitore) || 0) > 0
+      ? [{ nome: 'Contenitore', qta: 1, scritto: Number(formato.costoContenitore) }]
+      : []
+
+  return grezzi.map(g => {
+    const m = elenco.get(chiaveMateriale(g.nome))
+    const base = { nome: g.nome, qta: g.qta, costoScritto: g.scritto }
+    if (!m) {
+      return { ...base, costo: g.scritto, daListino: false, origine: 'formato', fuoriElenco: true, senzaPrezzo: false, diverso: false }
+    }
+    const daListino = m.costo
+    const n = daListino == null || daListino === '' ? null : Number(daListino)
+    if (n == null || !Number.isFinite(n) || n < 0) {
+      // Nell'elenco c'è, ma senza prezzo. Il numero vecchio resta — toglierlo
+      // vorrebbe dire far costare zero il cono — e il guaio si dichiara.
+      return { ...base, costo: g.scritto, daListino: false, origine: m.origine || 'mano', fuoriElenco: false, senzaPrezzo: true, diverso: false }
+    }
+    return {
+      ...base,
+      costo: n,
+      daListino: true,
+      origine: m.origine || 'mano',
+      fuoriElenco: false,
+      senzaPrezzo: false,
+      // Serve a dire «questo formato portava 0,001 € e il tuo elenco dice
+      // 0,06 €»: senza, la correzione arriva in silenzio.
+      diverso: Math.abs(n - g.scritto) > 5e-7,
+    }
+  })
 }
 
 // Trova il formato che corrisponde al nome battuto sullo scontrino.
@@ -261,8 +390,8 @@ export function avgPrezzoPerKgCategoria(categoria, formati) {
 
 // FC stimato (€) di UNA unità venduta di un formato.
 // = Σ (componente.qta × componente.costo) + baseQtaG × FC_medio_categoria
-export function fcStimatoFormato(formato, avgFCperG) {
-  const componenti = costoComponentiUnita(formato)
+export function fcStimatoFormato(formato, avgFCperG, materiali = null) {
+  const componenti = costoComponentiUnita(formato, materiali)
   const baseG = Number(formato.baseQtaG) || 0
   const perG = Number(avgFCperG) || 0
   return componenti + baseG * perG

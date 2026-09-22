@@ -16,6 +16,7 @@ import { buildIngCosti, isRicettaValida, getR } from '../lib/foodcost'
 import {
   nuovoFormato, avgFCperGCategoria, dettaglioFCperGCategoria, fcStimatoFormato,
   componentiNormalizzati, costoComponentiUnita, ricetteSenzaCategoria,
+  componentiConOrigine, materialiRisolti, chiaveMateriale,
 } from '../lib/formatiVendita'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { lessico } from '../lib/lessico'
@@ -61,6 +62,8 @@ export default function FormatiVendita({ orgId, ricettario, onSaveRicettario, no
   const [materiali, setMateriali] = useState([])
   const [pannelloMateriali, setPannelloMateriali] = useState(false)
   const [nuovoMat, setNuovoMat] = useState({ nome: '', costo: '' })
+  // Quale materiale ha aperto il collegamento al magazzino (indice, o null).
+  const [matCollega, setMatCollega] = useState(null)
   const [expanded, setExpanded] = useState(null) // id formato col breakdown aperto
   const [prezziSedeTarget, setPrezziSedeTarget] = useState(null) // formato per cui aprire modal "Prezzi per sede"
   const [assegnando, setAssegnando] = useState(false)
@@ -114,26 +117,44 @@ export default function FormatiVendita({ orgId, ricettario, onSaveRicettario, no
   // L'elenco da cui si sceglie comprende anche i materiali che stanno già
   // dentro i formati salvati: chi ha compilato prima di oggi non si trova il
   // suo lavoro fuori elenco.
+  // ── Il prezzo risolto, una volta sola per tutta la pagina ─────────────
+  //
+  // Un materiale può portare il suo prezzo scritto a mano, oppure essere
+  // legato a una materia prima: in quel caso il prezzo lo fa l'ultima bolla e
+  // non lo riscrive più nessuno. Da qui in giù la pagina usa SEMPRE questo
+  // elenco, mai `materiali` grezzo — se no il costo di un cono dipende da
+  // quale riga di codice lo sta guardando.
+  const materialiVivi = useMemo(() => materialiRisolti(materiali, ingCosti), [materiali, ingCosti])
+
   const nomiMateriali = useMemo(() => {
     const s = new Map()
     for (const m of materiali) {
       const n = String(m?.nome || '').trim()
-      if (n) s.set(n.toLowerCase(), n)
+      if (n) s.set(chiaveMateriale(n), n)
     }
     for (const f of formati) {
       for (const c of (f?.componenti || [])) {
         const n = String(c?.nome || '').trim()
-        if (n && !s.has(n.toLowerCase())) s.set(n.toLowerCase(), n)
+        if (n && !s.has(chiaveMateriale(n))) s.set(chiaveMateriale(n), n)
       }
     }
     return [...s.values()].sort((a, b) => a.localeCompare(b, 'it'))
   }, [materiali, formati])
 
+  const materialeDetto = (nome) => {
+    const k = chiaveMateriale(nome)
+    return k ? materialiVivi.find(x => chiaveMateriale(x.nome) === k) || null : null
+  }
+
   const costoDiMateriale = (nome) => {
-    const k = String(nome || '').trim().toLowerCase()
-    const m = materiali.find(x => String(x?.nome || '').trim().toLowerCase() === k)
+    const m = materialeDetto(nome)
     return m && Number.isFinite(Number(m.costo)) ? Number(m.costo) : null
   }
+
+  // I materiali che si possono collegare al magazzino: le materie prime che
+  // hanno un prezzo dichiarato, non le stime.
+  const nomiMateriePrime = useMemo(() => Object.keys(ricettario?.ingredienti_costi || {})
+    .filter(Boolean).sort((a, b) => a.localeCompare(b, 'it')), [ricettario])
 
   const persistMateriali = async (arr) => {
     try {
@@ -160,12 +181,20 @@ export default function FormatiVendita({ orgId, ricettario, onSaveRicettario, no
   const salva = async () => {
     if (!form.nome.trim()) { notify?.('Dai un nome al formato (es. "Cono piccolo")', false); return }
     if (!form.categoria.trim()) { notify?.('Scegli la categoria di ricette collegata', false); return }
+    // Il costo che finisce nel formato è quello dell'elenco, quando l'elenco
+    // ce l'ha. Resta scritto anche lì — è una copia di servizio, la legge chi
+    // guarda un formato senza avere l'elenco sotto mano — ma non è più la
+    // fonte: se i due numeri litigano, vince l'elenco.
     const componenti = (Array.isArray(form.componenti) ? form.componenti : [])
-      .map(c => ({
-        nome: String(c?.nome || '').trim(),
-        qta:  Number(c?.qta) || 0,
-        costo: Number(c?.costo) || 0,
-      }))
+      .map(c => {
+        const nome = String(c?.nome || '').trim()
+        const dallElenco = costoDiMateriale(nome)
+        return {
+          nome,
+          qta: Number(c?.qta) || 0,
+          costo: dallElenco != null ? dallElenco : Number(c?.costo) || 0,
+        }
+      })
       .filter(c => c.nome && c.qta > 0)
     const pulito = {
       id: form.id,
@@ -246,10 +275,10 @@ export default function FormatiVendita({ orgId, ricettario, onSaveRicettario, no
   const rows = useMemo(() => formati.map(f => {
     const det = dettaglioFCperGCategoria(f.categoria, ricettario, ingCosti)
     const avg = det.valore
-    const componenti = componentiNormalizzati(f)
-    const costoMateriali = costoComponentiUnita(f)
+    const componenti = componentiConOrigine(f, materialiVivi)
+    const costoMateriali = costoComponentiUnita(f, materialiVivi)
     const fcBase = (Number(f.baseQtaG) || 0) * (avg || 0)
-    const fcUnit = fcStimatoFormato(f, avg || 0)
+    const fcUnit = fcStimatoFormato(f, avg || 0, materialiVivi)
     const prezzo = Number(f.prezzoDefault) || 0
     // Il margine si calcola solo se il food cost si SA.
     //
@@ -264,7 +293,7 @@ export default function FormatiVendita({ orgId, ricettario, onSaveRicettario, no
     const fcNoto = avg != null && fcUnit > 0
     const margPct = prezzo > 0 && fcNoto ? (1 - fcUnit / prezzo) * 100 : null
     return { f, avg, componenti, costoMateriali, fcBase, fcUnit, prezzo, margPct, fcKnown: avg != null, nUsate: det.nUsate }
-  }), [formati, ricettario, ingCosti])
+  }), [formati, ricettario, ingCosti, materialiVivi])
 
   // ── Diagnosi (banda KPI) ──────────────────────────────────────────────────────
   const diag = useMemo(() => {
@@ -296,8 +325,8 @@ export default function FormatiVendita({ orgId, ricettario, onSaveRicettario, no
   const previewFC = (() => {
     if (!form || !form.categoria) return null
     const avg = avgFCperGCategoria(form.categoria, ricettario, ingCosti)
-    const fcUnit = fcStimatoFormato(form, avg || 0)
-    const fcComponenti = costoComponentiUnita(form)
+    const fcUnit = fcStimatoFormato(form, avg || 0, materialiVivi)
+    const fcComponenti = costoComponentiUnita(form, materialiVivi)
     const baseG = Number(form.baseQtaG) || 0
     const prezzo = Number(form.prezzoDefault) || 0
     // Stessa condizione dell'elenco, parola per parola: due schermate della
@@ -406,22 +435,97 @@ export default function FormatiVendita({ orgId, ricettario, onSaveRicettario, no
 
           {materiali.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
-              {materiali.map((m, i) => (
-                <div key={i} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 96px 40px' : '2fr 130px 40px', gap: 8, alignItems: 'center' }}>
-                  <input style={inputStyle} value={m.nome || ''} aria-label={`Nome del materiale ${i + 1}`}
-                    onChange={e => setMateriali(arr => arr.map((x, j) => j === i ? { ...x, nome: e.target.value } : x))}
-                    onBlur={() => persistMateriali(materiali)} />
-                  <input style={{ ...inputStyle, textAlign: 'right', ...TNUM }} value={m.costo ?? ''} inputMode="decimal"
-                    aria-label={`Costo di un ${m.nome || 'materiale'}`} placeholder="es. 0,060"
-                    onChange={e => setMateriali(arr => arr.map((x, j) => j === i ? { ...x, costo: e.target.value.replace(',', '.') } : x))}
-                    onBlur={() => persistMateriali(materiali)} />
-                  <button onClick={() => persistMateriali(materiali.filter((_, j) => j !== i))}
-                    aria-label={`Togli ${m.nome || 'il materiale'}`} title="Togli"
-                    style={{ width: 36, height: 36, padding: 0, background: 'transparent', color: T.textSoft, border: `1px solid ${T.border}`, borderRadius: R.sm, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <Icon name="trash" size={14} />
-                  </button>
-                </div>
-              ))}
+              {materiali.map((m, i) => {
+                const vivo = materialiVivi[i] || {}
+                const legato = vivo.origine === 'magazzino'
+                const apre = matCollega === i
+                return (
+                  <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 96px 40px' : '2fr 130px 40px', gap: 8, alignItems: 'center' }}>
+                      <input style={inputStyle} value={m.nome || ''} aria-label={`Nome del materiale ${i + 1}`}
+                        onChange={e => setMateriali(arr => arr.map((x, j) => j === i ? { ...x, nome: e.target.value } : x))}
+                        onBlur={() => persistMateriali(materiali)} />
+                      {legato ? (
+                        <div style={{ ...inputStyle, textAlign: 'right', ...TNUM, background: T.bgSubtle, color: vivo.costo == null ? T.red : T.textMid, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 5, cursor: 'help' }}
+                          title={vivo.problema || `${fmt3(vivo.costo)} a pezzo: ${(Number(m.pesoG) || 0).toLocaleString('it-IT')} g di «${m.legatoA}». Lo aggiorna la bolla.`}>
+                          <Icon name="package" size={11} />
+                          <span>{vivo.costo == null ? '—' : fmt3(vivo.costo)}</span>
+                        </div>
+                      ) : (
+                        <input style={{ ...inputStyle, textAlign: 'right', ...TNUM }} value={m.costo ?? ''} inputMode="decimal"
+                          aria-label={`Costo di un ${m.nome || 'materiale'}`} placeholder="es. 0,060"
+                          onChange={e => setMateriali(arr => arr.map((x, j) => j === i ? { ...x, costo: e.target.value.replace(',', '.') } : x))}
+                          onBlur={() => persistMateriali(materiali)} />
+                      )}
+                      <button onClick={() => persistMateriali(materiali.filter((_, j) => j !== i))}
+                        aria-label={`Togli ${m.nome || 'il materiale'}`} title="Togli"
+                        style={{ width: 36, height: 36, padding: 0, background: 'transparent', color: T.textSoft, border: `1px solid ${T.border}`, borderRadius: R.sm, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Icon name="trash" size={14} />
+                      </button>
+                    </div>
+
+                    {/* Il collegamento al magazzino: scritto una volta, poi il
+                        prezzo lo fanno le bolle e non lo riapre più nessuno. */}
+                    <button type="button" onClick={() => setMatCollega(apre ? null : i)} aria-expanded={apre}
+                      style={{ alignSelf: 'flex-start', padding: '2px 0', background: 'transparent', border: 'none', color: legato ? T.brand : T.textSoft, fontSize: typo.caption.fontSize, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                      <Icon name={legato ? 'package' : 'truck'} size={11} />
+                      {legato
+                        ? `segue «${m.legatoA}» · ${(Number(m.pesoG) || 0).toLocaleString('it-IT')} g a pezzo`
+                        : 'fai decidere il prezzo alle bolle'}
+                    </button>
+
+                    {apre && (
+                      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '2fr 130px auto', gap: 8, alignItems: 'end', padding: '9px 11px', background: T.bgSubtle, borderRadius: R.sm, marginBottom: 4 }}>
+                        <div>
+                          <label style={{ ...labelStyle, marginBottom: 4 }}>Quale materia prima</label>
+                          <CampoConElenco
+                            id={`legame-${i}`}
+                            valore={m.legatoA || ''}
+                            onCambia={(v) => setMateriali(arr => arr.map((x, j) => j === i ? { ...x, legatoA: v } : x))}
+                            voci={nomiMateriePrime}
+                            placeholder="es. cialde cono"
+                            ariaLabel={`Materia prima collegata a ${m.nome || 'questo materiale'}`}
+                            stile={inputStyle}
+                            nomeElenco="materie prime"
+                            elencoFemminile
+                          />
+                        </div>
+                        <div>
+                          {/* Il prezzo del magazzino è al chilo. Per sapere
+                              quanto costa UN pezzo serve quanto pesa un pezzo:
+                              senza, il conto non si può fare e non si inventa. */}
+                          <label style={{ ...labelStyle, marginBottom: 4 }}>Quanto pesa uno (g)</label>
+                          <input style={{ ...inputStyle, textAlign: 'right', ...TNUM }} value={m.pesoG ?? ''} inputMode="decimal"
+                            aria-label={`Peso di un ${m.nome || 'pezzo'} in grammi`} placeholder="es. 5"
+                            onChange={e => setMateriali(arr => arr.map((x, j) => j === i ? { ...x, pesoG: e.target.value.replace(',', '.') } : x))} />
+                        </div>
+                        <div style={{ display: 'flex', gap: 7 }}>
+                          <button type="button" onClick={async () => { if (await persistMateriali(materiali)) setMatCollega(null) }}
+                            style={{ padding: '9px 14px', minHeight: 40, background: T.brand, color: T.white, border: 'none', borderRadius: R.md, fontSize: typo.small.fontSize, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer' }}>
+                            Collega
+                          </button>
+                          {legato && (
+                            <button type="button" onClick={async () => {
+                              const arr = materiali.map((x, j) => j === i ? { ...x, legatoA: null, pesoG: null } : x)
+                              if (await persistMateriali(arr)) setMatCollega(null)
+                            }}
+                              style={{ padding: '9px 12px', minHeight: 40, background: 'transparent', color: T.textSoft, border: `1px solid ${T.border}`, borderRadius: R.md, fontSize: typo.small.fontSize, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }}>
+                              Stacca
+                            </button>
+                          )}
+                        </div>
+                        <div style={{ gridColumn: '1 / -1', fontSize: typo.caption.fontSize, color: T.textSoft, lineHeight: 1.5 }}>
+                          {vivo.problema
+                            ? vivo.problema
+                            : legato && vivo.costo != null
+                              ? `Adesso: ${fmt3(vivo.costo)} a pezzo. Quando carichi una bolla di «${m.legatoA}», questo numero e tutti i formati che lo usano si spostano da soli.`
+                              : 'Scegli la materia prima che compri col fornitore e scrivi quanto pesa un pezzo: il prezzo lo farà l’ultima bolla.'}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           )}
 
@@ -587,7 +691,13 @@ export default function FormatiVendita({ orgId, ricettario, onSaveRicettario, no
                 </div>
               )}
               {(form.componenti || []).map((c, i) => {
-                const subtot = (Number(c.qta) || 0) * (Number(c.costo) || 0)
+                // Il prezzo lo dice l'elenco, quando l'elenco ce l'ha: qui la
+                // casella diventa di sola lettura invece di lasciar credere
+                // che si possa correggere in due posti diversi.
+                const mat = materialeDetto(c.nome)
+                const daElenco = mat != null && Number.isFinite(Number(mat.costo))
+                const eff = daElenco ? Number(mat.costo) : (Number(c.costo) || 0)
+                const subtot = (Number(c.qta) || 0) * eff
                 return (
                   <div key={i} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 74px 96px 44px' : '2fr 80px 110px 100px 40px', gap: 8, alignItems: 'center' }}>
                     {/* Si sceglie, non si scrive. «coppettp» non entra più, e
@@ -613,8 +723,18 @@ export default function FormatiVendita({ orgId, ricettario, onSaveRicettario, no
                     />
                     <input style={{ ...inputStyle, textAlign: 'right', ...TNUM }} type="number" min="0" step="0.01" value={c.qta ?? ''} placeholder="es. 1"
                       onChange={e => setForm(f => ({ ...f, componenti: f.componenti.map((x, j) => j === i ? { ...x, qta: e.target.value } : x) }))}/>
-                    <input style={{ ...inputStyle, textAlign: 'right', ...TNUM }} type="number" min="0" step="0.001" value={c.costo ?? ''} placeholder="es. 0,060"
-                      onChange={e => setForm(f => ({ ...f, componenti: f.componenti.map((x, j) => j === i ? { ...x, costo: e.target.value } : x) }))}/>
+                    {daElenco ? (
+                      <div style={{ ...inputStyle, textAlign: 'right', ...TNUM, background: T.bgSubtle, color: T.textMid, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 5, cursor: 'help' }}
+                        title={mat.origine === 'magazzino'
+                          ? `${fmt3(eff)} — lo dice il magazzino: «${mat.legatoA}» per ${(Number(mat.pesoG) || 0).toLocaleString('it-IT')} g a pezzo. Cambia quando arriva una bolla nuova.`
+                          : `${fmt3(eff)} — lo dice il tuo elenco dei materiali. Per correggerlo apri «I tuoi materiali»: cambia in tutti i formati insieme.`}>
+                        <Icon name={mat.origine === 'magazzino' ? 'package' : 'lock'} size={11} />
+                        <span>{fmt3(eff)}</span>
+                      </div>
+                    ) : (
+                      <input style={{ ...inputStyle, textAlign: 'right', ...TNUM }} type="number" min="0" step="0.001" value={c.costo ?? ''} placeholder="es. 0,060"
+                        onChange={e => setForm(f => ({ ...f, componenti: f.componenti.map((x, j) => j === i ? { ...x, costo: e.target.value } : x) }))}/>
+                    )}
                     {!isMobile && <span style={{ textAlign: 'right', fontSize: font.size.sm, fontWeight: 700, color: T.textMid, ...TNUM }}>{fmt3(subtot)}</span>}
                     <button onClick={() => setForm(f => ({ ...f, componenti: f.componenti.filter((_, j) => j !== i) }))} title="Rimuovi materiale"
                       style={{ padding: '8px 0', width: 36, background: T.brandLight, color: T.brand, border: 'none', borderRadius: R.sm, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -797,6 +917,24 @@ export default function FormatiVendita({ orgId, ricettario, onSaveRicettario, no
                             return (
                               <div key={j} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: font.size.sm }}>
                                 <span style={{ flex: '0 0 38%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: T.text, fontWeight: 500 }}>
+                                  {/* Da dove viene il prezzo. Senza, un numero
+                                      preso dalla bolla e uno battuto a mano
+                                      due anni fa si leggono uguali. */}
+                                  {c.origine === 'magazzino' && (
+                                    <span style={{ color: T.brand, marginRight: 4, cursor: 'help' }} title="Il prezzo lo fa l'ultima bolla di magazzino">
+                                      <Icon name="package" size={11} />
+                                    </span>
+                                  )}
+                                  {c.fuoriElenco && (
+                                    <span style={{ color: T.amber, marginRight: 4, cursor: 'help' }} title={`«${c.nome}» non è fra i tuoi materiali: questo prezzo è scritto dentro il formato e non lo aggiorna nessuno. Aprilo in «I tuoi materiali» per correggerlo una volta sola.`}>
+                                      <Icon name="warning" size={11} />
+                                    </span>
+                                  )}
+                                  {c.senzaPrezzo && (
+                                    <span style={{ color: T.amber, marginRight: 4, cursor: 'help' }} title={`«${c.nome}» è fra i tuoi materiali ma senza prezzo: qui resta il numero vecchio del formato.`}>
+                                      <Icon name="warning" size={11} />
+                                    </span>
+                                  )}
                                   {c.nome} <span style={{ color: T.textSoft, ...TNUM }}>· {c.qta.toLocaleString('it-IT', { useGrouping: 'always' })} × {fmt3(c.costo)}</span>
                                 </span>
                                 <span style={{ flex: 1, height: 7, background: T.bgCard, borderRadius: 4, overflow: 'hidden' }}>
