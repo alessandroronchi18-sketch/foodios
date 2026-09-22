@@ -22,7 +22,7 @@
 //      cui uno apre questa pagina.
 import React from 'react'
 import { describe, it, expect, afterEach } from 'vitest'
-import { render, cleanup, fireEvent, waitFor, act } from '@testing-library/react'
+import { render, cleanup, waitFor } from '@testing-library/react'
 
 const { default: SemilavoratiView } = await import('../../src/views/SemilavoratiView.jsx')
 

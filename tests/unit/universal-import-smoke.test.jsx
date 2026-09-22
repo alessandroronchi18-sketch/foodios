@@ -56,11 +56,11 @@ describe('Universal import smoke — tutti i .jsx in src/', () => {
         // come bug. Per altri errori (es. side effect runtime), li tolleriamo
         // perche' non sono colpa di build problems.
         if (e instanceof ReferenceError || e instanceof SyntaxError) {
-          throw new Error(`Import crashato su ${file}: ${e.message}`)
+          throw new Error(`Import crashato su ${file}: ${e.message}`, { cause: e })
         }
         // TypeError (es. "Cannot read X of undefined") in module-level e' bug.
         if (e instanceof TypeError && /Cannot read|is not a function|is not defined/.test(e.message)) {
-          throw new Error(`Import crashato su ${file}: ${e.message}`)
+          throw new Error(`Import crashato su ${file}: ${e.message}`, { cause: e })
         }
         // Altri (es. fetch fail in qualche init) li tolleriamo.
         console.warn(`[smoke] ${file} ha lanciato ${e.constructor.name}: ${e.message} — tollerato`)

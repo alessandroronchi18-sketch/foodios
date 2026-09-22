@@ -12,7 +12,7 @@
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import React from 'react'
-import { render, act, cleanup, renderHook } from '@testing-library/react'
+import { act, cleanup, renderHook } from '@testing-library/react'
 
 // Mock Supabase RPC prima di importare il modulo (che chiude sulla ref).
 // Router per nome della RPC: valida (opens session), termina (closes), check.
@@ -47,7 +47,7 @@ function wrapperFactory(props) {
 
 describe('DipendenteOperativoProvider — persistenza e scope safety', () => {
   beforeEach(() => {
-    try { localStorage.clear() } catch {}
+    try { localStorage.clear() } catch { /* in finestra privata non c'è: la prova non dipende da lui */ }
     rpcMock.mockReset()
   })
   afterEach(() => { cleanup() })
@@ -109,7 +109,7 @@ describe('DipendenteOperativoProvider — persistenza e scope safety', () => {
 
 describe('seleziona() — validazione RPC e persistenza', () => {
   beforeEach(() => {
-    try { localStorage.clear() } catch {}
+    try { localStorage.clear() } catch { /* in finestra privata non c'è: la prova non dipende da lui */ }
     rpcMock.mockReset()
     // Default: qualsiasi RPC ritorna una Promise che risolve a null. I test
     // che vogliono specifici comportamenti sovrascrivono con mockImplementation
@@ -186,7 +186,7 @@ describe('seleziona() — validazione RPC e persistenza', () => {
 
 describe('deseleziona() — chiude sessione server-side + pulisce locale', () => {
   beforeEach(() => {
-    try { localStorage.clear() } catch {}
+    try { localStorage.clear() } catch { /* in finestra privata non c'è: la prova non dipende da lui */ }
     rpcMock.mockReset()
     // Default: qualsiasi RPC ritorna una Promise che risolve a null. I test
     // che vogliono specifici comportamenti sovrascrivono con mockImplementation
@@ -220,7 +220,7 @@ describe('deseleziona() — chiude sessione server-side + pulisce locale', () =>
 
 describe('session check al mount — sessione stale invalidata dal server', () => {
   beforeEach(() => {
-    try { localStorage.clear() } catch {}
+    try { localStorage.clear() } catch { /* in finestra privata non c'è: la prova non dipende da lui */ }
     rpcMock.mockReset()
     // Default: qualsiasi RPC ritorna una Promise che risolve a null. I test
     // che vogliono specifici comportamenti sovrascrivono con mockImplementation

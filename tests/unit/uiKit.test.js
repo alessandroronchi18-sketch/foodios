@@ -2,13 +2,7 @@
 // merge opts custom, varianti btn/tab.
 
 import { describe, it, expect } from 'vitest'
-import {
-  uiCard, uiCardCompact, uiLabel, uiSectionTitle,
-  uiInput, uiTextarea, uiBtn,
-  uiTable, uiTh, uiTd, uiTdNum,
-  uiTabBar, uiTab,
-  uiGap, uiPageContainer,
-} from '../../src/lib/uiKit'
+import { uiCard, uiCardCompact, uiLabel, uiSectionTitle, uiInput, uiTextarea, uiBtn, uiTable, uiTh, uiTdNum, uiTabBar, uiTab, uiGap, uiPageContainer } from '../../src/lib/uiKit'
 
 describe('uiCard / uiCardCompact', () => {
   it('uiCard ritorna oggetto con background+border+padding default', () => {

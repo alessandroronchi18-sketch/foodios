@@ -20,11 +20,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import {
-  costruisciMenu, vociMenu, sezionePerVista, gruppoPerVista, etichettaPerVista,
-  descriviVista, menuTelefono, etichettaBreve, VISTE_DIPENDENTE, VISTE_FUORI_MENU,
-  vociInFondo, schedeDiVista, cercaVoci, avvisoSpostamento, SPOSTAMENTI, nomeCompletoVista,
-} from '../../src/lib/menuFoodos'
+import { costruisciMenu, vociMenu, sezionePerVista, gruppoPerVista, etichettaPerVista, descriviVista, menuTelefono, etichettaBreve, VISTE_DIPENDENTE, VISTE_FUORI_MENU, vociInFondo, nomeCompletoVista } from '../../src/lib/menuFoodos'
 
 const RADICE = join(import.meta.dirname, '../..')
 const DASH = readFileSync(join(RADICE, 'src/Dashboard.jsx'), 'utf8')

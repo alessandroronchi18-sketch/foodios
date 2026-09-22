@@ -18,7 +18,7 @@ afterEach(() => {
 
 describe('activeSdiProviderId', () => {
   it('default = fattureincloud se env non settata', async () => {
-    const mod = await loadModule({ SDI_PROVIDER: undefined })
+    await loadModule({ SDI_PROVIDER: undefined })
     delete process.env.SDI_PROVIDER
     // re-import dopo aver pulito davvero
     vi.resetModules()

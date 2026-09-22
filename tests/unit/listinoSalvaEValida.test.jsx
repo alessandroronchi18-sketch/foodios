@@ -63,20 +63,6 @@ const formatiSalvati = () => {
   return ultimo ? ultimo[1] : null
 }
 
-/** Il campo di testo che sta sotto una certa etichetta. */
-function campo(etichetta) {
-  const lab = [...document.querySelectorAll('label, div, span')]
-    .find(e => (e.textContent || '').trim().toLowerCase() === etichetta.toLowerCase())
-  if (!lab) return null
-  let n = lab
-  for (let i = 0; i < 4 && n; i++) {
-    const inp = n.parentElement?.querySelector('input, select, textarea')
-    if (inp) return inp
-    n = n.parentElement
-  }
-  return null
-}
-
 async function apriNuovo() {
   const b = bottone('nuovo formato')
   expect(b, 'manca il pulsante per creare un formato').toBeTruthy()

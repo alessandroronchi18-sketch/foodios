@@ -92,6 +92,6 @@ describe('lo scontrino di un\'altra sede non finisce su questa', () => {
 
   it('e se non è di questa sede si butta, invece di applicarlo', () => {
     expect(SRC).toMatch(/if \(\(p\.perSede != null && p\.perSede !== sedeId\) \|\| \(p\.perOrg != null && p\.perOrg !== orgId\)\)/)
-    expect(SRC).toMatch(/_receiptPending\.current = null\n      return/)
+    expect(SRC).toMatch(/_receiptPending\.current = null\n {6}return/)
   })
 })

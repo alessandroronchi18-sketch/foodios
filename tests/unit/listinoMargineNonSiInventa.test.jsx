@@ -26,7 +26,7 @@
 // Queste prove montano la pagina vera e guardano quello che si legge.
 import React from 'react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, cleanup, screen, fireEvent, waitFor, act } from '@testing-library/react'
+import { render, cleanup, fireEvent, waitFor, act } from '@testing-library/react'
 
 let MATERIALI = []
 let FORMATI = []

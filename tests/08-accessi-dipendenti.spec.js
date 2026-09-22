@@ -81,7 +81,7 @@ test.describe('Accessi dipendenti — invito, attesa, attivazione', () => {
       // scopo del test. (Conferma RLS: lo stesso update fatto col token titolare
       // sarebbe un no-op silenzioso.)
       const titClient = titolare.userClient
-      const updClient = await titClient.from('profiles').update({ approvato: true }).eq('id', dU.user.id)
+      await titClient.from('profiles').update({ approvato: true }).eq('id', dU.user.id)
       const { data: chkClient } = await svc.from('profiles').select('approvato').eq('id', dU.user.id).maybeSingle()
       expect(chkClient?.approvato, 'RLS: update profilo cross-user lato client NON persiste').toBe(false)
 

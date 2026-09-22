@@ -515,7 +515,7 @@ describe('chi riceve', () => {
     await act(async () => { fireEvent.click(b) })
   }
 
-  const campoQta = (v) => [...v.container.querySelectorAll('input[type="number"]')].at(-2) || v.container.querySelector('input[type="number"]')
+  (v) => [...v.container.querySelectorAll('input[type="number"]')].at(-2) || v.container.querySelector('input[type="number"]')
 
   it('non si può ricevere più di quanto è partito', async () => {
     // Altrimenti si "creerebbe" merce dal nulla nella sede di arrivo.

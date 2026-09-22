@@ -64,7 +64,7 @@ describe('le regole del tocco valgono anche sul tablet', () => {
     // Solo il CONTENUTO dei blocchi `max-width: 767px`, non tutto quello che
     // viene dopo: le regole del tocco stanno più in basso nel file, dentro il
     // loro blocco `pointer: coarse`.
-    const blocchi = [...HTML.matchAll(/@media \(max-width: 767px\)\s*\{([\s\S]*?)\n      \}/g)].map(m => m[1])
+    const blocchi = [...HTML.matchAll(/@media \(max-width: 767px\)\s*\{([\s\S]*?)\n {6}\}/g)].map(m => m[1])
     expect(blocchi.length, 'nessun blocco 767px trovato').toBeGreaterThan(0)
     for (const b of blocchi) {
       expect(b).not.toMatch(/font-size: 16px !important/)

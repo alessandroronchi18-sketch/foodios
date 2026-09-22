@@ -150,7 +150,7 @@ describe('safeError — persistenza DB best-effort', () => {
 
   function mkSupabase() {
     const insert = vi.fn(() => ({
-      then: (ok, ko) => { ok && ok(); return { catch: () => {} } },
+      then: (ok, _ko) => { ok && ok(); return { catch: () => {} } },
     }))
     const from = vi.fn(() => ({ insert }))
     return { from, insert }

@@ -58,10 +58,10 @@ describe('Universal import smoke — tutti i file in api/', () => {
         mod = await import(/* @vite-ignore */ '/' + file)
       } catch (e) {
         if (e instanceof ReferenceError || e instanceof SyntaxError) {
-          throw new Error(`Import crashato su ${file}: ${e.message}`)
+          throw new Error(`Import crashato su ${file}: ${e.message}`, { cause: e })
         }
         if (e instanceof TypeError && /Cannot read|is not a function|is not defined/.test(e.message)) {
-          throw new Error(`Import crashato su ${file}: ${e.message}`)
+          throw new Error(`Import crashato su ${file}: ${e.message}`, { cause: e })
         }
         console.warn(`[api-smoke] ${file} ha lanciato ${e.constructor.name}: ${e.message} — tollerato`)
         mod = null

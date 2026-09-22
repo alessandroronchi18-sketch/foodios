@@ -74,12 +74,11 @@ vi.mock('../../src/lib/theme', async (importOriginal) => {
 
 // Helper renderer che cattura il crash come fallback (verifica che NON cada in fallback)
 function renderSafe(jsx) {
-  let err = null
   try {
     const r = render(jsx)
     return { ok: true, container: r.container }
   } catch (e) {
-    err = e
+    // L'errore torna dentro il risultato: non serve tenerne una seconda copia.
     return { ok: false, error: e }
   }
 }

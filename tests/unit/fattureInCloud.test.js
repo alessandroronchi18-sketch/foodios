@@ -161,7 +161,7 @@ describe('fattureInCloud', () => {
 
     it('search FiC throws → NON blocca, prosegue con POST', async () => {
       let call = 0
-      globalThis.fetch = vi.fn(async (url, opts) => {
+      globalThis.fetch = vi.fn(async (_url, _opts) => {
         call++
         if (call === 1) return new Response('{"error":{"message":"boom"}}', { status: 500 })
         return new Response(JSON.stringify({ data: { id: 50, name: 'Q' } }), { status: 200 })

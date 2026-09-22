@@ -170,7 +170,7 @@ describe('ruleBasedSuggestions', () => {
 // una mappa { tabella: handler({ key }) } in base alla data_key richiesta.
 function mockSupabase({ sedi = [], userData = {}, fatture = [], turni = [] } = {}) {
   // userData = { [`${sedeId}|${data_key}`]: value }
-  const builder = (handler) => {
+  (handler) => {
     const b = {
       select: vi.fn(() => b),
       eq: vi.fn(() => b),
@@ -201,7 +201,7 @@ function mockSupabase({ sedi = [], userData = {}, fatture = [], turni = [] } = {
           return { data: null }
         }),
         // Per query terminali senza maybeSingle (await chain finale)
-        then: function (resolve, reject) {
+        then: function (resolve, _reject) {
           if (state.table === 'sedi') return resolve({ data: sedi })
           if (state.table === 'fatture') return resolve({ data: fatture })
           if (state.table === 'turni') return resolve({ data: turni })

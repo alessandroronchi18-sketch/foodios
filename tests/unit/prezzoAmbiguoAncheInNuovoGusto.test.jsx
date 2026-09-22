@@ -15,7 +15,7 @@
 // sceglieva in silenzio.
 import React from 'react'
 import { describe, it, expect } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, fireEvent } from '@testing-library/react'
 import NuovaRicettaView from '../../src/views/NuovaRicettaView.jsx'
 
 const RICETTARIO = {

@@ -47,7 +47,7 @@ async function primeLocalStorage(page, viewId = null) {
         oggi: true, ricette: true, numeri: true, acquisti: true, azienda: true, strumenti: true,
       }))
       if (oid && view) sessionStorage.setItem(`foodos_view_${oid}`, view)
-    } catch {}
+    } catch { /* il magazzino del browser può essere spento: l'accesso resta valido lo stesso */ }
   }, { oid: orgId, view: viewId })
 }
 

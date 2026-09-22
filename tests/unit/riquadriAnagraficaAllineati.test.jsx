@@ -139,7 +139,7 @@ describe('Partita IVA / Consegna / Minimo d’ordine', () => {
   it('e nessuna delle tre è più lunga di «Termini pag. (gg)», che ci sta', async () => {
     // Il metro non è un numero inventato: è l'etichetta più lunga che in
     // questo modulo, in quella stessa larghezza, sta già su una riga.
-    const v = await apri()
+    await apri()
     const metro = 'Termini pag. (gg)'.length
     for (const t of I_TRE) expect(t.length, `«${t}» è più lunga del metro`).toBeLessThanOrEqual(metro)
   })

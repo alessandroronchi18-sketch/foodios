@@ -40,7 +40,6 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { screen, waitFor, cleanup, fireEvent } from '@testing-library/react'
-import React from 'react'
 
 vi.mock('../../src/lib/supabase', async () => {
   const { supabaseFinto } = await import('./aiutoCashflow.jsx')
@@ -174,7 +173,7 @@ describe('zero è una risposta, il nulla no', () => {
 
   it('e nel campo ritrova «0», non la casella vuota', async () => {
     reset({ fatture: [], impostazioni: { saldoOggi: 0, fissi: [] } })
-    const v = await apri()
+    await apri()
     expect(screen.getByLabelText(/Saldo cassa\+banca oggi/i).value).toBe('0')
   })
 

@@ -43,7 +43,6 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { screen, waitFor, cleanup, fireEvent } from '@testing-library/react'
-import React from 'react'
 
 vi.mock('../../src/lib/supabase', async () => {
   const { supabaseFinto } = await import('./aiutoCashflow.jsx')

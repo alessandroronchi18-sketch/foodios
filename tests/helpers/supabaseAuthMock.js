@@ -11,7 +11,7 @@
 //
 // NB: `vi` è globale (vitest config: `globals: true`), quindi non lo importiamo.
 
-/* global vi */
+// `vi` arriva dalle globali di vitest: dichiararlo qui lo ridichiara.
 
 // Mini fluent builder: `.select().eq().maybeSingle()` → ritorna { data, error }
 function mockChain(result) {

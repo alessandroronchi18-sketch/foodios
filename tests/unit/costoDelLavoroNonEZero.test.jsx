@@ -339,7 +339,9 @@ describe('Come si scrivono i numeri e i soldi', () => {
     // Faccine e pittogrammi. La freccia tipografica di «lordo↔netto» è un
     // segno di testo e resta: quello che non deve esserci è il disegnino
     // scritto a mano al posto del componente Icon (era «✕» e «↩ Riattiva»).
-    expect(container.textContent).not.toMatch(/[\u{1F300}-\u{1FAFF}\u{FE0F}\u{2764}]/u)
+    // Il cuore ❤️ è due caratteri in uno (il simbolo più il «rendilo colorato»),
+    // e dentro le parentesi quadre sembrava una cosa sola: si elencano a parte.
+    expect(container.textContent).not.toMatch(/[\u{1F300}-\u{1FAFF}]|\u{FE0F}|\u{2764}/u)
     expect(container.textContent).not.toContain('\u2715')
     expect(container.textContent).not.toContain('\u21A9')
   })

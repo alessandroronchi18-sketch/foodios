@@ -15,7 +15,7 @@
 // se un evento conviene accettarlo.
 
 import { describe, it, expect } from 'vitest'
-import { buildIngCosti, calcolaFC } from '../../src/lib/foodcost.js'
+import { calcolaFC } from '../../src/lib/foodcost.js'
 
 const ic = (m) => { const o = {}; for (const [n, kg] of Object.entries(m)) o[n] = { costoKg: kg, costoG: kg / 1000 }; return o }
 

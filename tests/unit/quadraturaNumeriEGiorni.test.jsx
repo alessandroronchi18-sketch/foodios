@@ -15,7 +15,7 @@
 //
 // Queste prove montano la pagina vera e guardano quello che si legge.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, cleanup, screen, waitFor, fireEvent, act } from '@testing-library/react'
+import { render, cleanup, waitFor, fireEvent, act } from '@testing-library/react'
 import React from 'react'
 
 const LUN = '2026-09-07'
@@ -86,7 +86,7 @@ afterEach(() => { cleanup(); vi.useRealTimers() })
 
 describe('Senza la cassa, il divario non è un divario', () => {
   it('con le chiusure la pagina confronta i due numeri', async () => {
-    const { } = apri({ chiusure: [{ data: '2026-09-08', totale: 500, kpi: { totV: 500 } }] })
+    apri({ chiusure: [{ data: '2026-09-08', totale: 500, kpi: { totV: 500 } }] })
     await pronta()
     expect(testo()).toMatch(/cassa|incassat/i)
   })

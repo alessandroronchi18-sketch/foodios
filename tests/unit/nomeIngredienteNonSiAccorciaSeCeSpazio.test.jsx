@@ -17,7 +17,7 @@
 // compaiono solo quando servono.
 import React from 'react'
 import { describe, it, expect } from 'vitest'
-import { render, fireEvent } from '@testing-library/react'
+import { render } from '@testing-library/react'
 import NuovaRicettaView from '../../src/views/NuovaRicettaView.jsx'
 
 const RICETTARIO = {

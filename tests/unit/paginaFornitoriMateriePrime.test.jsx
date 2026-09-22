@@ -174,7 +174,7 @@ describe('una materia prima può avere più fornitori', () => {
   })
 
   it('scollegare toglie solo quello scelto', async () => {
-    const { v, salvataggi } = apri({ fornitoreDaAprire: 'Latteria Rossi' })
+    const {salvataggi} = apri({ fornitoreDaAprire: 'Latteria Rossi' })
     await act(async () => { fireEvent.click(screen.getByLabelText('Scollega panna da Latteria Rossi')) })
     const voce = salvataggi.at(-1).ingredienti_costi.panna
     expect(fornitoriDiVoce(voce)).toEqual(['Cash & Carry Zeta'])
@@ -281,7 +281,7 @@ describe('col dito: telefono e tablet', () => {
     it(`su ${come} i comandi sono grandi almeno 44px e si torna indietro`, () => {
       schermo.mobile = stato.mobile
       schermo.tablet = stato.tablet
-      const { v } = apri({ fornitoreDaAprire: 'Latteria Rossi' })
+      apri({ fornitoreDaAprire: 'Latteria Rossi' })
       // Il tablet si tocca col dito come il telefono: la soglia vale per tutti
       // e due, non solo per il più piccolo.
       const indietro = screen.getByLabelText('Torna all’elenco')

@@ -18,7 +18,7 @@ vi.mock('../../src/lib/supabase', () => ({
 import { apiFetch, apiGet, apiPost } from '../../src/lib/apiFetch'
 import { supabase } from '../../src/lib/supabase'
 
-const origReplace = global.window?.location?.replace
+global.window?.location?.replace
 let replaceCalls = []
 
 beforeEach(() => {

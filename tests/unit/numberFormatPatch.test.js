@@ -11,7 +11,7 @@ import { describe, it, expect, beforeAll } from 'vitest'
 
 beforeAll(async () => {
   // Pulisci eventuale patch da test precedenti
-  try { delete Number.prototype._foodos_locale_patched } catch {}
+  try { delete Number.prototype._foodos_locale_patched } catch { /* già tolto, o non scrivibile: va bene lo stesso */ }
   await import('../../src/lib/numberFormatPatch.js')
 })
 

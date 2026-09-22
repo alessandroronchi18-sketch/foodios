@@ -35,7 +35,6 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { screen, waitFor, cleanup, fireEvent } from '@testing-library/react'
-import React from 'react'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
@@ -223,7 +222,7 @@ describe('i due rossi: il bordeaux agisce, il rosso avvisa', () => {
 
   it('il pulsante «Aggiungi evento» resta bordeaux: è un\'azione, non un allarme', async () => {
     reset({ impostazioni: { saldoOggi: 50000, fissi: [] } })
-    const v = await apri()
+    await apri()
     expect(screen.getByText(/Aggiungi evento/).closest('button').style.background).toBe(T.brand)
   })
 
