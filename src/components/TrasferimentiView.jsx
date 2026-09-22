@@ -16,6 +16,7 @@ import {
 } from '../lib/trasferimenti'
 import { scaricoMP, caricoMP } from '../lib/movimentoMP'
 import { fmtp0 } from '../lib/formatIt'
+import GiroTrasferimenti from './GiroTrasferimenti'
 
 const C = {
   bg: T.bg, bgCard: T.bgCard, red: T.brand, redLight: T.brandLight,
@@ -641,6 +642,24 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
           Sposta prodotti finiti, semilavorati o materie prime da una sede all'altra. Lo stock si aggiorna automaticamente.
         </p>
       </div>
+
+      {/* ── Il giro: cosa serve, e quando conviene partire ────────────────
+          Sta in cima perché è la domanda che uno si fa **prima** di creare
+          un trasferimento, non dopo. Il titolare, 23/09/2026: «i
+          trasferimenti vengono fatti anche tutti i giorni ma solo per un kg
+          di gelato». Qui la lista si accumula e il conto dice se aspettare. */}
+      {!soloRicezione && (
+        <div style={{ marginTop: 18 }}>
+          <GiroTrasferimenti
+            orgId={orgId}
+            sedeId={sedeAttiva?.id || null}
+            sedi={sedi}
+            sedeAttiva={sedeAttiva}
+            notify={notify}
+            onCreato={carica}
+          />
+        </div>
+      )}
 
       {/* KPI ACCURATEZZA MESE (cappello proprietario) */}
       {!loading && accuratezzaMese.tot > 0 && (

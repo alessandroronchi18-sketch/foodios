@@ -39,6 +39,15 @@ export const SK_MATERIALI = 'pasticceria-materiali-confezionamento-v1' // shared
 // 0001098522). Qui si tiene la risposta data una volta, per non richiederla.
 export const SK_SEDI_BOLLE = 'pasticceria-sedi-da-bolla-v1' // shared
 
+// I giri fra le sedi: quali giorni si fa il giro, quanto costa un viaggio, e
+// per i gusti che si fanno in un posto solo come si dividono quando si
+// producono. Uguali per tutta l'azienda: un calendario non e' per sede.
+export const SK_GIRI = 'pasticceria-giri-trasferimenti-v1' // shared
+
+// Quello che QUESTO negozio ha chiesto e non e' ancora partito. Per sede: la
+// lista di Berthollet non e' quella di Carlina.
+export const SK_LISTA_GIRO = 'pasticceria-lista-giro-v1' // per-sede
+
 export const SK_CAT_FORN = 'pasticceria-categorie-fornitori-v1' // shared
 
 export const SK_MOV      = 'pasticceria-movimenti-speciali-v1' // per-sede (sprechi e omaggi)

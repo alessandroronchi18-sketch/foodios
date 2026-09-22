@@ -64,6 +64,9 @@ export const SHARED_KEYS = [
   // l'azienda, come il ricettario. Una risposta data alla Carlina serve
   // anche a chi carica una bolla a Berthollet.
   'pasticceria-sedi-da-bolla-v1',
+  // I giri fra le sedi: il calendario e le quote di chi produce cosa valgono
+  // per tutta l'azienda. La lista di cosa serve, invece, e' per sede.
+  'pasticceria-giri-trasferimenti-v1',
   'pasticceria-categorie-fornitori-v1',
 ]
 
