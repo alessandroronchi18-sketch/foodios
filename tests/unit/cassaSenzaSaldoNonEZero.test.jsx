@@ -70,6 +70,24 @@ async function apri(props = {}) {
   return v
 }
 
+/**
+ * Il valore della casella del saldo, **aspettandolo**.
+ *
+ * ── Il difetto era nel righello, 22/09/2026 ──────────────────────────────
+ *
+ * `apri()` aspetta solo che sparisca «Caricamento…», ma il saldo dichiarato
+ * arriva dalle impostazioni in un secondo giro di render. Da solo questo file
+ * passa sempre — l'ho fatto girare sei volte di fila — e dentro la suite
+ * intera, con 383 file che si contendono i worker, ogni tanto la casella
+ * viene letta un istante prima che il valore ci arrivi: la prova diventava
+ * rossa e diceva «il saldo negativo non si rilegge», che è una bugia sul
+ * prodotto. Un test che dipende da quanto è carico il computer non protegge
+ * niente: fa solo perdere un push (questo, il 22/09).
+ */
+async function saldoNelCampo(atteso) {
+  await waitFor(() => expect(screen.getByLabelText(/Saldo cassa\+banca oggi/i).value).toBe(atteso))
+}
+
 const testo = (v) => v.container.textContent
 
 beforeEach(() => { schermo(LARGHEZZA.computer); reset() })
@@ -174,13 +192,13 @@ describe('zero è una risposta, il nulla no', () => {
   it('e nel campo ritrova «0», non la casella vuota', async () => {
     reset({ fatture: [], impostazioni: { saldoOggi: 0, fissi: [] } })
     await apri()
-    expect(screen.getByLabelText(/Saldo cassa\+banca oggi/i).value).toBe('0')
+    await saldoNelCampo('0')
   })
 
   it('un saldo negativo — il conto scoperto esiste — si rilegge col segno', async () => {
     reset({ fatture: [], impostazioni: { saldoOggi: -1200, fissi: [] } })
     const v = await apri()
-    expect(screen.getByLabelText(/Saldo cassa\+banca oggi/i).value).toBe('-1200')
+    await saldoNelCampo('-1200')
     expect(testo(v)).not.toContain('Non so da quanto parti')
   })
 
