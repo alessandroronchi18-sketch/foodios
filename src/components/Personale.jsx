@@ -12,6 +12,7 @@ import { toMin as _toMin, finMin as _finMin, hm as _hm, oreTurno, analizzaCopert
 import { color as T, radius as R, shadow as S, motion as M, font as F, tnum, typo } from '../lib/theme'
 import { fmtp, fmtp0 } from '../lib/formatIt'
 import { todayLocal, meseLocale, aggiungiGiorni, aggiungiMesi, giorniTra, lunediDellaSettimana, primoGiornoDelMese, ultimoGiornoDelMese } from '../lib/dateLocal'
+import { MEZZI } from '../lib/mezziTrasporto'
 
 // Quanto costa un'ora di quel dipendente.
 //
@@ -153,6 +154,10 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = 
     stipendio_lordo_mensile:"", stipendio_netto_mensile:"",
     contratto_tipo:"", livello:"", data_assunzione:"", data_fine:"",
     note:"", sede_id: "",
+    // Chi può fare i giri fra le sedi. `patente: ""` vuol dire «non lo so»,
+    // e non «no»: dire di tutti che non ce l'hanno farebbe proporre i giri
+    // sempre alle stesse due persone.
+    patente: "", mezzi: [],
   })
   const [editId, setEditId] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -302,6 +307,9 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = 
         data_fine: form.data_fine || null,
         note: form.note,
         sede_id: form.sede_id || null,
+        // `null` quando non si sa: è un dato che si chiede, non si indovina.
+        patente: form.patente === "" ? null : form.patente === "si",
+        mezzi: Array.isArray(form.mezzi) && form.mezzi.length ? form.mezzi : null,
         organization_id: orgId,
         attivo: true,
       }
@@ -391,6 +399,7 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = 
 
   function reset() {
     setForm({
+      patente: "", mezzi: [],
       nome:"", ruolo:"", tipo_contratto:"Full-time", costo_orario:"", ore_settimana:40,
       stipendio_lordo_mensile:"", stipendio_netto_mensile:"",
       contratto_tipo:"", livello:"", data_assunzione:"", data_fine:"",
@@ -410,6 +419,8 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = 
       data_assunzione: d.data_assunzione || "",
       data_fine: d.data_fine || "",
       note: d.note || "", sede_id: d.sede_id || "",
+      patente: d.patente === true ? "si" : d.patente === false ? "no" : "",
+      mezzi: Array.isArray(d.mezzi) ? d.mezzi : [],
       reparto1: reps[0] || "", reparto2: reps[1] || "",
     })
     setEditId(d.id); if (isMobile) setShowForm(true)
@@ -613,6 +624,60 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = 
             </select>
           </div>
         )}
+        {/* ── Chi può fare i giri fra le sedi ────────────────────────────
+            Il titolare, 23/09/2026: «bisogna considerare chi ha la patente e
+            chi no, altra informazione da mettere nel personale, e poi magari
+            il tipo di trasporto». Serve a non proporre a chi è in turno un
+            giro che non può fare. */}
+        <div style={{ gridColumn:"1 / -1", marginBottom:14 }}>
+          <div style={{ fontSize: typo.small.fontSize, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:6 }}>
+            Giri fra le sedi
+          </div>
+          <div style={{ display:"flex", flexWrap:"wrap", gap:16, alignItems:"flex-start" }}>
+            <div>
+              <label htmlFor="pers-patente" style={{ display:"block", fontSize: typo.caption.fontSize, color:C.textSoft, marginBottom:4 }}>
+                Ha la patente?
+              </label>
+              <select id="pers-patente" style={{ ...inputSt, width:"auto", minWidth:150 }}
+                value={form.patente}
+                onChange={e=>setForm(f=>({...f, patente:e.target.value}))}>
+                <option value="">non lo so</option>
+                <option value="si">sì</option>
+                <option value="no">no</option>
+              </select>
+            </div>
+            <div style={{ flex:1, minWidth:220 }}>
+              <div style={{ fontSize: typo.caption.fontSize, color:C.textSoft, marginBottom:4 }}>
+                Cosa può usare
+              </div>
+              <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+                {MEZZI.map(m => {
+                  const acceso = (form.mezzi || []).includes(m.id)
+                  return (
+                    <button key={m.id} type="button" aria-pressed={acceso}
+                      onClick={()=>setForm(f=>({ ...f, mezzi: acceso
+                        ? (f.mezzi || []).filter(x => x !== m.id)
+                        : [...(f.mezzi || []), m.id] }))}
+                      style={{
+                        padding:"8px 12px", minHeight: isMobile ? 44 : 36,
+                        background: acceso ? C.red : "transparent",
+                        color: acceso ? C.white : C.textMid,
+                        border:`1px solid ${acceso ? C.red : C.border}`,
+                        borderRadius:8, fontSize: typo.small.fontSize, fontWeight:700,
+                        fontFamily:"inherit", cursor:"pointer",
+                      }}>
+                      {m.label}
+                    </button>
+                  )
+                })}
+              </div>
+              <div style={{ fontSize: typo.caption.fontSize, color:C.textSoft, lineHeight:1.5, marginTop:6 }}>
+                Avere la patente non vuol dire avere il mezzo: qui si segna quello che può usare davvero.
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div style={{ gridColumn:"1 / -1", marginBottom:14 }}>
           <div style={{ fontSize: typo.small.fontSize, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:4 }}>Note</div>
           <textarea value={form.note} onChange={e=>setForm(f=>({...f,note:e.target.value}))} rows={2} style={{ ...inputSt, resize:"vertical" }}/>
