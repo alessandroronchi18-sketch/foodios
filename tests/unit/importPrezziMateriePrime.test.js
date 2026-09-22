@@ -54,6 +54,19 @@ import {
 } from '../../src/lib/materiePrimeImport'
 
 const OPZ = { normalizzaNome: normIng }
+// ── 22/09/2026: un listino non sovrascrive più un prezzo che c'è già ────
+//
+// Decisione del titolare: «comanda il prezzo caricato con la bolla di
+// magazzino, se no il prezzo che ho inserito io a mano». Il listino di un
+// fornitore è la terza fonte e la meno affidabile: è il prezzo di facciata,
+// mentre quello della bolla è quello pagato davvero — sconto compreso — e
+// quello a mano è quello trattato.
+//
+// Le prove che guardano la MECCANICA della sovrascrittura (come si scrive il
+// prezzo, da dove viene, quando) restano: chiedono esplicitamente di
+// sovrascrivere, che è la strada che esiste ancora. Quelle che guardavano il
+// COMPORTAMENTO PREDEFINITO sono cambiate, e lo dicono.
+const OPZ_SOVRASCRIVI = { normalizzaNome: normIng, sovrascriviPrezzi: true }
 
 /** Un file Excel vero in memoria, come quello che arriva dal fornitore. */
 function fileExcel(fogli) {
@@ -326,19 +339,44 @@ describe('il resoconto dice cosa succederà prima che succeda', () => {
     expect(r.scartate.map(x => x.nome)).toEqual(['Zucchero'])
   })
 
-  it('su una riga che cambia il prezzo dice il vecchio e il nuovo', () => {
+  it('un prezzo che c\'è già NON viene sovrascritto, e si dice quale', () => {
+    // La farina sta a 0,95 e il file dice 1,10: il file non comanda.
+    // La stessa riga porta però anche un fornitore nuovo, e quello sì che
+    // entra: è l'unico caso in cui una riga sta in due mucchi, e ci sta
+    // perché fa due cose diverse.
     const r = analizzaImportMateriePrime(righe, costiDiProva(), OPZ)
+    const farina = r.aggiornate.find(x => x.nome === 'Farina')
+    expect(farina.cambiaPrezzo, 'ha sovrascritto il prezzo').toBe(false)
+    expect(farina.prezzoKg, 'il prezzo scritto non è più quello di prima').toBe(0.95)
+    expect(farina.fornitore).toBe('Molino Rossi')
+    expect(r.prezziTenuti[0]).toMatchObject({
+      riga: 2, nome: 'Farina', chiave: 'farina',
+      prezzoTenuto: 0.95, prezzoNelFile: 1.1,
+    })
+    expect(r.prezziTenuti[0].differenza).toBeCloseTo(0.15, 4)
+  })
+
+  it('ma chiedendolo esplicitamente si sovrascrive, e si dice il vecchio e il nuovo', () => {
+    const r = analizzaImportMateriePrime(righe, costiDiProva(), OPZ_SOVRASCRIVI)
     expect(r.aggiornate[0]).toMatchObject({
       riga: 2, nome: 'Farina', chiave: 'farina',
       prezzoPrecedente: 0.95, prezzoKg: 1.1, cambiaPrezzo: true,
     })
+    expect(r.prezziTenuti).toEqual([])
   })
 
-  it('conta separatamente i prezzi cambiati e quelli che restano da scoprire', () => {
+  it('conta separatamente i prezzi nuovi, quelli tenuti e quelli da scoprire', () => {
     const r = analizzaImportMateriePrime(righe, costiDiProva(), OPZ)
+    expect(r.totali.prezziAggiornati).toBe(0)  // nessuno sovrascritto
+    expect(r.totali.prezziTenuti).toBe(1)      // la farina: il file diceva 1,10
+    expect(r.totali.prezziNuovi).toBe(1)       // Vaniglia
+    expect(r.totali.senzaPrezzo).toBe(1)       // Cacao
+  })
+
+  it('e chiedendo di sovrascrivere il conto torna com\'era', () => {
+    const r = analizzaImportMateriePrime(righe, costiDiProva(), OPZ_SOVRASCRIVI)
     expect(r.totali.prezziAggiornati).toBe(1)
-    expect(r.totali.prezziNuovi).toBe(1)   // Vaniglia
-    expect(r.totali.senzaPrezzo).toBe(1)   // Cacao
+    expect(r.totali.prezziTenuti).toBe(0)
   })
 
   it("su una riga scartata dice quale, perché, e cosa c'era scritto", () => {
@@ -399,7 +437,7 @@ describe('il resoconto dice cosa succederà prima che succeda', () => {
     const r = analizzaImportMateriePrime([
       { riga: 2, nome: 'Farina', prezzo: '1,10', fornitore: '' },
       { riga: 9, nome: ' FARINA ', prezzo: '2,00', fornitore: '' },
-    ], costiDiProva(), OPZ)
+    ], costiDiProva(), OPZ_SOVRASCRIVI)
     expect(r.aggiornate).toHaveLength(1)
     expect(r.aggiornate[0].prezzoKg).toBe(1.1)
     expect(r.scartate[0]).toMatchObject({ riga: 9, motivo: MOTIVI_SCARTO.DUPLICATO_NEL_FILE })
@@ -476,7 +514,7 @@ describe("applicare l'import", () => {
   it('non muta la mappa di partenza', () => {
     const costi = costiDiProva()
     const copia = JSON.parse(JSON.stringify(costi))
-    const res = analizzaImportMateriePrime([{ riga: 2, nome: 'Farina', prezzo: '1,10', fornitore: '' }], costi, OPZ)
+    const res = analizzaImportMateriePrime([{ riga: 2, nome: 'Farina', prezzo: '1,10', fornitore: '' }], costi, OPZ_SOVRASCRIVI)
     const nuovi = applicaImportMateriePrime(costi, res, OPZ)
     expect(costi).toEqual(copia)
     expect(nuovi).not.toBe(costi)
@@ -486,7 +524,7 @@ describe("applicare l'import", () => {
   it('scrive il prezzo sia al chilo sia al grammo', () => {
     // Il food cost guarda `costoG`, le schermate guardano `costoKg`: una voce
     // con solo uno dei due si comporta in modo diverso a seconda di chi legge.
-    const res = analizzaImportMateriePrime([{ riga: 2, nome: 'Farina', prezzo: '1,10', fornitore: '' }], costiDiProva(), OPZ)
+    const res = analizzaImportMateriePrime([{ riga: 2, nome: 'Farina', prezzo: '1,10', fornitore: '' }], costiDiProva(), OPZ_SOVRASCRIVI)
     const nuovi = applicaImportMateriePrime(costiDiProva(), res, OPZ)
     expect(nuovi.farina.costoKg).toBe(1.1)
     expect(nuovi.farina.costoG).toBe(0.0011)
@@ -521,7 +559,7 @@ describe("applicare l'import", () => {
     const res = analizzaImportMateriePrime([
       { riga: 2, nome: 'Farina', prezzo: '1,10', fornitore: '' },
       { riga: 3, nome: 'Burro', prezzo: '', fornitore: 'Latteria Bianchi' },
-    ], costiDiProva(), OPZ)
+    ], costiDiProva(), OPZ_SOVRASCRIVI)
     const nuovi = applicaImportMateriePrime(costiDiProva(), res, { ...OPZ, data: '2026-09-18' })
     expect(nuovi.farina).toMatchObject({ prezzoDa: 'import-prezzi', prezzoAggiornatoAl: '2026-09-18' })
     expect(nuovi.burro.prezzoDa).toBeUndefined()
@@ -632,5 +670,71 @@ describe('il modello Excel da scaricare', () => {
       expect(esito.ok).toBe(false)
       expect(notify).toHaveBeenCalledWith(expect.any(String), false)
     })
+  })
+})
+
+// ── Chi comanda su un prezzo già scritto ────────────────────────────────
+//
+// Decisione del titolare, 22/09/2026: «comanda il prezzo caricato con la
+// bolla di magazzino, se no il prezzo che ho inserito io a mano».
+//
+// Le tre fonti, in ordine: la **bolla** (quello che hai pagato davvero, sconto
+// di riga compreso), il prezzo **scritto a mano** (quello che hai trattato), e
+// il **listino del fornitore** (il prezzo di facciata). Un listino che
+// sovrascrive le prime due alza il food cost di tutte le ricette che usano
+// quella materia prima senza che nessuno l'abbia chiesto.
+describe('Un listino riempie i buchi, non riscrive l\'archivio', () => {
+  const costi = () => ({
+    burro: { costoKg: 9, costoG: 0.009 },                 // prezzo scritto a mano
+    farina: { costoKg: null, costoG: null },              // buco: nessun prezzo
+  })
+
+  it('una materia prima senza prezzo lo prende dal listino', () => {
+    const r = analizzaImportMateriePrime(
+      [{ riga: 2, nome: 'Farina', prezzo: '0,95', fornitore: '' }], costi(), OPZ)
+    const nuovi = applicaImportMateriePrime(costi(), r, OPZ)
+    expect(nuovi.farina.costoKg).toBe(0.95)
+  })
+
+  it('ma una che ce l\'ha già lo tiene', () => {
+    const r = analizzaImportMateriePrime(
+      [{ riga: 2, nome: 'Burro', prezzo: '10,80', fornitore: '' }], costi(), OPZ)
+    const nuovi = applicaImportMateriePrime(costi(), r, OPZ)
+    expect(nuovi.burro.costoKg, 'il listino ha riscritto un prezzo che c\'era').toBe(9)
+  })
+
+  it('e dice quanto chiedeva il file, perché serve saperlo', () => {
+    // Sapere che il fornitore ora chiede 10,80 invece di 9,00 serve a
+    // telefonargli, non a riscrivere l'archivio di nascosto.
+    const r = analizzaImportMateriePrime(
+      [{ riga: 2, nome: 'Burro', prezzo: '10,80', fornitore: '' }], costi(), OPZ)
+    expect(r.prezziTenuti).toHaveLength(1)
+    expect(r.prezziTenuti[0]).toMatchObject({ nome: 'Burro', prezzoTenuto: 9, prezzoNelFile: 10.8 })
+    expect(r.prezziTenuti[0].differenza).toBeCloseTo(1.8, 4)
+  })
+
+  it('il fornitore invece si aggiorna: non è un prezzo', () => {
+    // Chi ti vende una cosa può cambiare senza che cambi quanto costa.
+    const r = analizzaImportMateriePrime(
+      [{ riga: 2, nome: 'Burro', prezzo: '10,80', fornitore: 'Latteria Nuova' }], costi(), OPZ)
+    const nuovi = applicaImportMateriePrime(costi(), r, OPZ)
+    expect(nuovi.burro.fornitore).toBe('Latteria Nuova')
+    expect(nuovi.burro.costoKg).toBe(9)
+  })
+
+  it('e chi vuole davvero riscrivere lo chiede', () => {
+    const r = analizzaImportMateriePrime(
+      [{ riga: 2, nome: 'Burro', prezzo: '10,80', fornitore: '' }], costi(), OPZ_SOVRASCRIVI)
+    const nuovi = applicaImportMateriePrime(costi(), r, OPZ)
+    expect(nuovi.burro.costoKg).toBe(10.8)
+    expect(r.prezziTenuti).toEqual([])
+  })
+
+  it('un prezzo uguale a quello che c\'è non finisce fra quelli tenuti', () => {
+    // Non è stato «tenuto contro il file»: il file diceva la stessa cosa.
+    const r = analizzaImportMateriePrime(
+      [{ riga: 2, nome: 'Burro', prezzo: '9,00', fornitore: '' }], costi(), OPZ)
+    expect(r.prezziTenuti).toEqual([])
+    expect(r.invariate.map(x => x.nome)).toEqual(['Burro'])
   })
 })

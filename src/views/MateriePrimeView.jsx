@@ -1250,9 +1250,16 @@ export default function MateriePrimeView({
               <div style={{ fontSize: FS.base, color: C.text, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{imp.errore}</div>
             ) : (() => {
               const r = imp.resoconto
+              const tenuti = r.prezziTenuti || []
               const righe = [
                 ['Materie prime nuove', r.nuove.length, C.text],
-                ['Prezzi che cambiano', r.aggiornate.length, C.text],
+                ['Prezzi che cambiano', r.aggiornate.filter(x => x.cambiaPrezzo).length, C.text],
+                // Decisione del titolare, 22/09/2026: comanda il prezzo della
+                // bolla, e in mancanza quello scritto a mano. Un listino
+                // riempie i buchi e basta — ma quello che proponeva sugli
+                // altri va detto, perché sapere che il fornitore ora chiede
+                // di più serve: serve a telefonargli.
+                ['Prezzi che tengo come sono', tenuti.length, tenuti.length ? T.amberDark : C.textSoft],
                 ['Righe che non cambiano niente', r.invariate.length, C.textSoft],
                 ['Righe scartate', r.scartate.length, r.scartate.length ? C.alertDark : C.textSoft],
               ]
@@ -1281,6 +1288,21 @@ export default function MateriePrimeView({
                     <Elenco titolo="Questi nomi assomigliano a materie prime che hai già"
                       voci={r.somiglianze.slice(0, 8).map(x => `Riga ${x.riga}: «${x.nome}» assomiglia a «${x.simile}» — se è la stessa, correggi il file prima di importare`)}
                       resto={r.somiglianze.length - 8} colore={T.amberDark} />
+                  )}
+                  {tenuti.length > 0 && (
+                    <div style={{ background: T.fondoAvviso, border: `1px solid ${T.bordoAvviso}`, borderRadius: 8, padding: '10px 12px', marginBottom: 12 }}>
+                      <div style={{ fontSize: FS.sm, fontWeight: 700, color: T.amberDark, marginBottom: 4 }}>
+                        {tenuti.length === 1 ? 'Un prezzo lo tengo com\'è' : `${tenuti.length.toLocaleString('it-IT', { useGrouping: 'always' })} prezzi li tengo come sono`}
+                      </div>
+                      <div style={{ fontSize: typo.small.fontSize, color: C.textMid, lineHeight: 1.55 }}>
+                        Su queste materie prime un prezzo c&rsquo;è già, e comanda quello: il prezzo della
+                        bolla, o quello che hai scritto tu. Un listino del fornitore riempie i buchi, non
+                        riscrive l&rsquo;archivio.
+                      </div>
+                      <Elenco titolo=""
+                        voci={tenuti.slice(0, 8).map(x => `${x.nome}: tengo ${euroKg(x.prezzoTenuto)}, nel file c'è ${euroKg(x.prezzoNelFile)}`)}
+                        resto={tenuti.length - 8} colore={C.textMid} />
+                    </div>
                   )}
                   {r.aggiornate.filter(x => x.cambiaPrezzo).length > 0 && (
                     <Elenco titolo="Prezzi che cambiano"

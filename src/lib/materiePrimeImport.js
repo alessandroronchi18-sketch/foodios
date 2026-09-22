@@ -453,12 +453,21 @@ export function materiaPrimaSimile(chiave, chiaviEsistenti) {
  * @param {Object} ingredientiCosti la mappa `ricettario.ingredienti_costi` di adesso
  * @param {{ normalizzaNome?: Function }} opzioni passare `normIng` da `foodcost.js`
  * @returns {{
- *   nuove: Array, aggiornate: Array, invariate: Array, scartate: Array,
- *   somiglianze: Array, ambigue: Array, totali: Object
+ *   nuove: Array, aggiornate: Array, prezziTenuti: Array, invariate: Array,
+ *   scartate: Array, somiglianze: Array, ambigue: Array, totali: Object
  * }}
  *
- * Le quattro liste sono disgiunte e la loro somma fa il numero di righe lette:
- * un resoconto in cui i conti non tornano è peggio di nessun resoconto.
+ * Le liste sono disgiunte e la loro somma fa il numero di righe lette: un
+ * resoconto in cui i conti non tornano è peggio di nessun resoconto. (Una
+ * riga che cambia sia il prezzo sia il fornitore compare in `prezziTenuti`
+ * per il prezzo e in `aggiornate` per il fornitore: è l'unico caso in cui una
+ * riga sta in due liste, ed è perché fa due cose diverse.)
+ *
+ * **Un prezzo che c'è già non si sovrascrive.** Decisione del titolare del
+ * 22/09/2026: comanda il prezzo caricato con la bolla, e in mancanza quello
+ * scritto a mano. Il listino di un fornitore riempie i buchi e basta; quello
+ * che proponeva sugli altri finisce in `prezziTenuti`, che si mostra.
+ * Chi vuole davvero riscrivere passa `{ sovrascriviPrezzi: true }`.
  *
  * Una cella del prezzo VUOTA su una materia prima che un prezzo ce l'ha già
  * NON lo cancella. Vuoto vuol dire «in questo file non c'è», non «da oggi non
@@ -471,8 +480,13 @@ export function analizzaImportMateriePrime(righe, ingredientiCosti, opzioni = {}
   const chiaviEsistenti = Object.keys(costi).filter(k => String(k || '').trim() !== '')
   const chiaviConfronto = chiaviEsistenti.map(k => chiaveMateriaPrima(k))
 
+  // Un listino non sovrascrive un prezzo che c'è già: comanda quello della
+  // bolla, e in mancanza quello scritto a mano. Chi vuole il contrario lo
+  // chiede esplicitamente.
+  const sovrascriviPrezzi = opzioni.sovrascriviPrezzi === true
   const nuove = []
   const aggiornate = []
+  const prezziTenuti = []
   const invariate = []
   const scartate = []
   const somiglianze = []
@@ -552,25 +566,61 @@ export function analizzaImportMateriePrime(righe, ingredientiCosti, opzioni = {}
       continue
     }
 
+    // ── Chi comanda su un prezzo già scritto ───────────────────────────
+    //
+    // Decisione del titolare, 22/09/2026: «comanda il prezzo caricato con la
+    // bolla di magazzino, se no il prezzo che ho inserito io a mano».
+    //
+    // Il listino di un fornitore è la terza fonte, e la meno affidabile delle
+    // tre: è il prezzo di facciata, mentre quello della bolla è quello che
+    // hai pagato davvero — sconto di riga compreso — e quello scritto a mano
+    // è quello che hai trattato. Sovrascriverli alzerebbe il food cost di
+    // tutte le ricette che usano quella materia prima, senza che nessuno
+    // l'abbia chiesto.
+    //
+    // Quindi un listino **riempie i buchi** e non tocca il resto. Il prezzo
+    // che il file proponeva non si butta via: si mette da parte e si mostra,
+    // perché sapere che il fornitore ora chiede 10,80 invece di 9,00 serve —
+    // serve a telefonargli, non a riscrivere l'archivio.
+    // Un buco non è un prezzo: se quella materia prima un prezzo non ce
+    // l'ha, il listino lo riempie. La regola protegge quello che c'è, non
+    // impedisce di sapere quello che manca.
+    if (cambiaPrezzo && !sovrascriviPrezzi && prezzoPrecedente != null) {
+      prezziTenuti.push({
+        riga, nome, chiave,
+        prezzoTenuto: prezzoPrecedente,
+        prezzoNelFile: letto.prezzoKg,
+        differenza: prezzoPrecedente != null ? letto.prezzoKg - prezzoPrecedente : null,
+      })
+      if (!cambiaFornitore) continue
+    }
+
+    // Il prezzo si scrive quando c'era un buco (sempre) o quando qualcuno ha
+    // chiesto esplicitamente di sovrascrivere. Senza la prima metà, una
+    // materia prima già in elenco ma senza prezzo non lo prendeva mai.
+    const applicaPrezzo = cambiaPrezzo && (sovrascriviPrezzi || prezzoPrecedente == null)
     aggiornate.push({
       riga, nome, chiave,
-      prezzoKg: cambiaPrezzo ? letto.prezzoKg : prezzoPrecedente,
+      prezzoKg: applicaPrezzo ? letto.prezzoKg : prezzoPrecedente,
       prezzoPrecedente,
       fornitore: cambiaFornitore ? fornitore : fornitorePrecedente,
       fornitorePrecedente,
-      cambiaPrezzo,
+      cambiaPrezzo: applicaPrezzo,
       cambiaFornitore,
     })
   }
 
   return {
-    nuove, aggiornate, invariate, scartate, somiglianze, ambigue,
+    nuove, aggiornate, prezziTenuti, invariate, scartate, somiglianze, ambigue,
     totali: {
       lette: (righe || []).length,
       nuove: nuove.length,
       aggiornate: aggiornate.length,
       invariate: invariate.length,
       scartate: scartate.length,
+      // I prezzi che il file proponeva e che NON sono stati scritti, perché
+      // su quella materia prima ce n'era già uno (bolla o scritto a mano).
+      prezziTenuti: prezziTenuti.length,
       prezziAggiornati: aggiornate.filter(a => a.cambiaPrezzo).length,
       prezziNuovi: nuove.filter(n => n.prezzoKg != null).length,
       senzaPrezzo: nuove.filter(n => n.prezzoKg == null).length,
