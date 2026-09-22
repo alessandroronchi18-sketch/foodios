@@ -271,3 +271,69 @@ export function dividiProduzione(totale, quote, opzioni) {
   })
   return { per, resto: parseFloat(Math.max(0, tot - dato).toFixed(3)) }
 }
+
+// ── Già che vai da quella parte ─────────────────────────────────────────
+//
+// Il titolare, 23/09/2026: «magari il negozio che rifornisce un ingrediente
+// si trova vicino a De Gasperi, quindi uno esce a consegnare e nel frattempo
+// compra la materia prima».
+//
+// È il risparmio più grosso di tutta questa storia — il viaggio si fa
+// comunque — ed è anche il più facile da perdere: se nessuno se lo ricorda
+// **al momento giusto**, si fa due volte la stessa strada in due giorni.
+//
+// Foodos lo sa perché lo sa già: i fornitori hanno il campo «da quale sede si
+// passa comodi», e gli ordini mandati e non ancora arrivati sono in tabella.
+// Qui si mettono insieme.
+
+/**
+ * Cosa c'è da ritirare, andando in quella sede.
+ *
+ * Un fornitore entra solo se **tutte e tre** le cose sono vere: si passa di
+ * lì, da lui si ritira (se consegna lui, passare è un giro in più per
+ * niente), e c'è qualcosa da prendere. Due su tre non bastano: ognuna delle
+ * tre, da sola, manderebbe qualcuno a vuoto.
+ *
+ * @param {string} sedeId    dove si sta andando
+ * @param {Array}  fornitori `[{ id, nome, vicino_a_sede, si_ritira, telefono }]`
+ * @param {Array}  ordini    `[{ fornitore_id, stato, ... }]` gli ordini aperti
+ * @returns {{tappe: Array, frase: string|null}}
+ */
+export function ritiriSullaStrada(sedeId, fornitori, ordini) {
+  const sede = String(sedeId || '')
+  if (!sede) return { tappe: [], frase: null }
+
+  const aperti = new Map()
+  for (const o of (Array.isArray(ordini) ? ordini : [])) {
+    // «Inviato» vuol dire chiesto e non ancora arrivato: è quello che si può
+    // andare a prendere. Un ordine ricevuto è già a casa, una bozza non è
+    // mai stata chiesta a nessuno.
+    if (!o?.fornitore_id || o?.stato !== 'inviato') continue
+    const k = String(o.fornitore_id)
+    aperti.set(k, (aperti.get(k) || 0) + 1)
+  }
+
+  const tappe = []
+  for (const f of (Array.isArray(fornitori) ? fornitori : [])) {
+    if (!f?.id || String(f.vicino_a_sede || '') !== sede) continue
+    if (f.si_ritira !== true) continue
+    const quanti = aperti.get(String(f.id)) || 0
+    if (!quanti) continue
+    tappe.push({
+      fornitoreId: String(f.id),
+      nome: f.nome || 'fornitore',
+      telefono: f.telefono || null,
+      ordini: quanti,
+    })
+  }
+  tappe.sort((a, b) => a.nome.localeCompare(b.nome, 'it'))
+
+  if (!tappe.length) return { tappe: [], frase: null }
+  const nomi = tappe.map(t => t.nome).join(', ')
+  return {
+    tappe,
+    frase: tappe.length === 1
+      ? `Già che vai da quella parte: da ${nomi} c'è un ordine pronto da ritirare.`
+      : `Già che vai da quella parte: ci sono ordini pronti da ${nomi}.`,
+  }
+}

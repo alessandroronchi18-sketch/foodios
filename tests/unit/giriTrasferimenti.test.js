@@ -21,7 +21,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   prossimoGiro, giorniDiCopertura, puoAspettare, decidiGiro,
-  dividiProduzione, GIORNI, MINUTI_VIAGGIO,
+  dividiProduzione, ritiriSullaStrada, GIORNI, MINUTI_VIAGGIO,
 } from '../../src/lib/giriTrasferimenti.js'
 
 // Martedì 22 settembre 2026. Giri fissi il martedì e il venerdì.
@@ -228,5 +228,69 @@ describe('Il righello di questo file', () => {
     const giro = prossimoGiro(MERCOLEDI, FISSI)
     expect(puoAspettare({ giacenza: 4, consumoGiornaliero: 2 }, giro).aspetta).toBe(false)
     expect(puoAspettare({ giacenza: 6, consumoGiornaliero: 2 }, giro).aspetta).toBe(true)
+  })
+})
+
+describe('Già che vai da quella parte', () => {
+  // Il titolare, 23/09/2026: «magari il negozio che rifornisce un ingrediente
+  // si trova vicino a De Gasperi, quindi uno esce a consegnare e nel
+  // frattempo compra la materia prima».
+  //
+  // È il risparmio più grosso — il viaggio si fa comunque — ed è il più
+  // facile da perdere: se nessuno se lo ricorda al momento giusto, si fa due
+  // volte la stessa strada in due giorni diversi.
+  const FORNITORI = [
+    { id: 'conoartic', nome: 'ConoArtic', vicino_a_sede: 'gasperi', si_ritira: true, telefono: '0116964241' },
+    { id: 'desa', nome: 'DESA', vicino_a_sede: 'gasperi', si_ritira: false },
+    { id: 'foglia', nome: 'La Foglia', vicino_a_sede: 'carlina', si_ritira: true },
+    { id: 'galatea', nome: 'Galatea', vicino_a_sede: null, si_ritira: true },
+  ]
+  const ORDINI = [
+    { fornitore_id: 'conoartic', stato: 'inviato' },
+    { fornitore_id: 'desa', stato: 'inviato' },
+    { fornitore_id: 'foglia', stato: 'inviato' },
+  ]
+
+  it('andando a De Gasperi, ConoArtic è sulla strada', () => {
+    const { tappe, frase } = ritiriSullaStrada('gasperi', FORNITORI, ORDINI)
+    expect(tappe.map(t => t.nome)).toEqual(['ConoArtic'])
+    expect(frase).toMatch(/Già che vai da quella parte/)
+    expect(frase).toMatch(/ConoArtic/)
+  })
+
+  it('DESA no: consegna lui, e passare sarebbe un giro in più per niente', () => {
+    expect(ritiriSullaStrada('gasperi', FORNITORI, ORDINI).tappe.map(t => t.nome)).not.toContain('DESA')
+  })
+
+  it('e nemmeno chi sta da un\'altra parte', () => {
+    expect(ritiriSullaStrada('gasperi', FORNITORI, ORDINI).tappe.map(t => t.nome)).not.toContain('La Foglia')
+  })
+
+  it('senza un ordine aperto non si passa: non c\'è niente da prendere', () => {
+    const { tappe, frase } = ritiriSullaStrada('gasperi', FORNITORI, [])
+    expect(tappe).toEqual([])
+    expect(frase).toBe(null)
+  })
+
+  it('un ordine già ricevuto è a casa, una bozza non è mai stata chiesta', () => {
+    for (const stato of ['ricevuto', 'bozza', 'annullato']) {
+      const r = ritiriSullaStrada('gasperi', FORNITORI, [{ fornitore_id: 'conoartic', stato }])
+      expect(r.tappe, stato).toEqual([])
+    }
+  })
+
+  it('più fornitori sulla stessa strada si nominano tutti', () => {
+    const f = [...FORNITORI, { id: 'x', nome: 'Altro', vicino_a_sede: 'gasperi', si_ritira: true }]
+    const o = [...ORDINI, { fornitore_id: 'x', stato: 'inviato' }]
+    const { tappe, frase } = ritiriSullaStrada('gasperi', f, o)
+    expect(tappe).toHaveLength(2)
+    expect(frase).toMatch(/Altro, ConoArtic/)
+  })
+
+  it('e niente cade su dati storti', () => {
+    for (const s of [null, undefined, 'ciao', 42, {}, [null]]) {
+      expect(() => ritiriSullaStrada(s, s, s)).not.toThrow()
+    }
+    expect(ritiriSullaStrada(null, FORNITORI, ORDINI).tappe).toEqual([])
   })
 })

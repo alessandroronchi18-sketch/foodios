@@ -27,8 +27,10 @@ import { sload, ssave } from '../lib/storage'
 import { SK_GIRI, SK_LISTA_GIRO, SK_MAG } from '../lib/storageKeys'
 import { color as T, radius as R, font, typo } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
-import { prossimoGiro, decidiGiro, GIORNI } from '../lib/giriTrasferimenti'
+import { prossimoGiro, decidiGiro, ritiriSullaStrada, GIORNI } from '../lib/giriTrasferimenti'
 import { creaTrasferimento } from '../lib/trasferimenti'
+import { mezzoCheBasta, ciSta, MEZZI } from '../lib/mezziTrasporto'
+import { supabase } from '../lib/supabase'
 
 const GIORNI_CORTI = ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab']
 
@@ -60,6 +62,9 @@ export default function GiroTrasferimenti({ orgId, sedeId, sedi = [], sedeAttiva
   const [magazzino, setMagazzino] = useState({})
   const [nuovo, setNuovo] = useState({ prodotto: '', quantita: '', da: '' })
   const [staGiaAndando, setStaGiaAndando] = useState(false)
+  const [conMezzo, setConMezzo] = useState(null)
+  const [fornitori, setFornitori] = useState([])
+  const [ordini, setOrdini] = useState([])
   const [apriGiorni, setApriGiorni] = useState(false)
   const [salvando, setSalvando] = useState(false)
 
@@ -78,6 +83,24 @@ export default function GiroTrasferimenti({ orgId, sedeId, sedi = [], sedeAttiva
     })
     return () => { vivo = false }
   }, [orgId, sedeId])
+
+  // Chi sta da queste parti, e cosa c'è da ritirare. Due letture leggere: i
+  // campi che servono e basta.
+  useEffect(() => {
+    let vivo = true
+    if (!orgId) return () => { vivo = false }
+    Promise.all([
+      supabase.from('fornitori').select('id, nome, telefono, vicino_a_sede, si_ritira')
+        .eq('organization_id', orgId).eq('attivo', true),
+      supabase.from('ordini_fornitori').select('fornitore_id, stato')
+        .eq('organization_id', orgId).eq('stato', 'inviato'),
+    ]).then(([f, o]) => {
+      if (!vivo) return
+      setFornitori(f?.data || [])
+      setOrdini(o?.data || [])
+    })
+    return () => { vivo = false }
+  }, [orgId])
 
   const oggi = useMemo(() => {
     const d = new Date()
@@ -115,6 +138,24 @@ export default function GiroTrasferimenti({ orgId, sedeId, sedi = [], sedeAttiva
   const decisione = useMemo(
     () => decidiGiro(lista, { giro, staGiaAndando }),
     [lista, giro, staGiaAndando],
+  )
+
+  // Quanto pesa tutto quello che è in lista, e con che mezzo ci sta.
+  const pesoTotale = useMemo(
+    () => lista.reduce((s, r) => s + (Number(r.quantita) || 0), 0),
+    [lista],
+  )
+  const consigliato = useMemo(() => mezzoCheBasta(pesoTotale), [pesoTotale])
+  const capienza = useMemo(() => ciSta(pesoTotale, conMezzo || consigliato?.id), [pesoTotale, conMezzo, consigliato])
+
+  // ── Già che vai da quella parte ───────────────────────────────────────
+  //
+  // Il viaggio si fa comunque: se un fornitore da cui si ritira sta da queste
+  // parti e ha un ordine pronto, ricordarselo **adesso** vale un viaggio
+  // intero. Se nessuno se lo ricorda, si fa due volte la stessa strada.
+  const ritiri = useMemo(
+    () => ritiriSullaStrada(sedeId, fornitori, ordini),
+    [sedeId, fornitori, ordini],
   )
 
   async function salvaLista(l) {
@@ -384,6 +425,66 @@ export default function GiroTrasferimenti({ orgId, sedeId, sedi = [], sedeAttiva
           <Icon name="plus" size={14} />Aggiungi
         </button>
       </div>
+
+      {/* ── Già che vai da quella parte ───────────────────────────────────
+          È il risparmio più grosso di tutta la storia, e il più facile da
+          perdere: il viaggio si fa comunque. */}
+      {ritiri.frase && (
+        <div style={{
+          marginTop: 16, padding: '11px 13px', background: T.bgSubtle,
+          borderRadius: R.sm, display: 'flex', gap: 10, alignItems: 'flex-start',
+        }}>
+          <span style={{ flexShrink: 0, marginTop: 1, color: T.brand }}><Icon name="pin" size={15} /></span>
+          <div style={{ fontSize: font.size.base, color: T.textMid, lineHeight: 1.6 }}>
+            {ritiri.frase}
+            {ritiri.tappe.some(t => t.telefono) && (
+              <div style={{ fontSize: typo.caption.fontSize, color: T.textSoft, marginTop: 3 }}>
+                {ritiri.tappe.filter(t => t.telefono).map(t => `${t.nome} ${t.telefono}`).join(' · ')}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Con che mezzo ─────────────────────────────────────────────────
+          Il più piccolo che basta, non il più comodo: se quattro chili si
+          portano a piedi, il furgone è una macchina accesa per niente. */}
+      {lista.length > 0 && pesoTotale > 0 && (
+        <div style={{ marginTop: 16 }}>
+          <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
+            Con che mezzo — in tutto {scrivi(pesoTotale)}
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {MEZZI.map(m => {
+              const acceso = (conMezzo || consigliato?.id) === m.id
+              return (
+                <button key={m.id} type="button" aria-pressed={acceso}
+                  onClick={() => setConMezzo(m.id)}
+                  style={{
+                    padding: '8px 12px', minHeight: dito ? 44 : 36,
+                    background: acceso ? T.brand : 'transparent',
+                    color: acceso ? T.white : T.textMid,
+                    border: `1px solid ${acceso ? T.brand : T.borderStr}`,
+                    borderRadius: R.sm, fontSize: typo.small.fontSize, fontWeight: 700,
+                    fontFamily: 'inherit', cursor: 'pointer',
+                  }}>
+                  {m.label}
+                </button>
+              )
+            })}
+          </div>
+          {capienza.ci_sta === false && capienza.frase && (
+            <div style={{ fontSize: typo.small.fontSize, color: T.amberDark || T.amber, lineHeight: 1.5, marginTop: 8 }}>
+              {capienza.frase}
+            </div>
+          )}
+          {capienza.ci_sta === true && consigliato && !conMezzo && (
+            <div style={{ fontSize: typo.caption.fontSize, color: T.textSoft, lineHeight: 1.5, marginTop: 8 }}>
+              {scrivi(pesoTotale)} ci stanno {consigliato.label.toLowerCase()}: è il mezzo più piccolo che basta.
+            </div>
+          )}
+        </div>
+      )}
 
       {lista.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', marginTop: 16 }}>

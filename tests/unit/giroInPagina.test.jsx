@@ -33,6 +33,20 @@ vi.mock('../../src/lib/trasferimenti', () => ({
   creaTrasferimento: async (p) => { creati.push(p); return { id: `t-${creati.length}` } },
 }))
 
+let FORNITORI = []
+let ORDINI = []
+vi.mock('../../src/lib/supabase', () => {
+  const q = (nome) => {
+    const o = {
+      select: () => o,
+      eq: () => o,
+      then: (r) => Promise.resolve({ data: nome === 'fornitori' ? FORNITORI : ORDINI, error: null }).then(r),
+    }
+    return o
+  }
+  return { supabase: { from: q } }
+})
+
 const { default: GiroTrasferimenti } = await import('../../src/components/GiroTrasferimenti.jsx')
 
 const SEDI = [
@@ -50,6 +64,7 @@ const testo = () => document.body.textContent || ''
 beforeEach(() => {
   salvati.length = 0; creati.length = 0
   GIRI = { giorni: [] }; LISTA = []; MAGAZZINO = {}
+  FORNITORI = []; ORDINI = []
 })
 
 describe('Foodos propone quello che vede', () => {
@@ -174,5 +189,51 @@ describe('Il righello di questo file', () => {
   it('senza sede non disegna niente: la lista è di un negozio', () => {
     const { container } = apri({ sedeId: null })
     expect(container.textContent).toBe('')
+  })
+})
+
+describe('Già che vai da quella parte', () => {
+  // Il titolare, 23/09/2026: «magari il negozio che rifornisce un ingrediente
+  // si trova vicino a De Gasperi, quindi uno esce a consegnare e nel
+  // frattempo compra la materia prima». È il risparmio più grosso — il
+  // viaggio si fa comunque — e il più facile da perdere.
+  it('se un fornitore da cui si ritira è da queste parti e ha un ordine pronto, lo dice', async () => {
+    FORNITORI = [{ id: 'f1', nome: 'ConoArtic', telefono: '0116964241', vicino_a_sede: 'carlina', si_ritira: true }]
+    ORDINI = [{ fornitore_id: 'f1', stato: 'inviato' }]
+    LISTA = [{ id: 'l1', prodotto: 'Pistacchio', quantita: 3000 }]
+    apri()
+    await waitFor(() => expect(testo()).toMatch(/Già che vai da quella parte/))
+    expect(testo()).toContain('ConoArtic')
+    expect(testo()).toContain('0116964241')
+  })
+
+  it('ma non di chi consegna lui: passare sarebbe un giro in più', async () => {
+    FORNITORI = [{ id: 'f1', nome: 'DESA', vicino_a_sede: 'carlina', si_ritira: false }]
+    ORDINI = [{ fornitore_id: 'f1', stato: 'inviato' }]
+    LISTA = [{ id: 'l1', prodotto: 'Pistacchio', quantita: 3000 }]
+    apri()
+    await waitFor(() => expect(testo()).toMatch(/In lista/))
+    expect(testo()).not.toMatch(/Già che vai/)
+  })
+})
+
+describe('Con che mezzo', () => {
+  it('quattro chili si portano a piedi, e lo dice', async () => {
+    // Il più piccolo che basta, non il più comodo: se quattro chili si
+    // portano a piedi, il furgone è una macchina accesa per niente.
+    LISTA = [{ id: 'l1', prodotto: 'Pistacchio', quantita: 4000 }]
+    apri()
+    await waitFor(() => expect(testo()).toMatch(/Con che mezzo/))
+    expect(testo()).toMatch(/ci stanno a piedi/)
+    expect(testo()).toMatch(/il mezzo più piccolo che basta/)
+  })
+
+  it('e venti chili a piedi no, con i numeri', async () => {
+    LISTA = [{ id: 'l1', prodotto: 'Pistacchio', quantita: 20000 }]
+    apri()
+    await waitFor(() => expect(testo()).toMatch(/Con che mezzo/))
+    fireEvent.click(screen.getByRole('button', { name: 'A piedi' }))
+    await waitFor(() => expect(testo()).toMatch(/20 kg a piedi non ci stanno/))
+    expect(testo()).toMatch(/due viaggi/)
   })
 })
