@@ -87,25 +87,47 @@ Instructions:
 {"ingredienti":[{"nome":"ingredient name italian lowercase","prezzo_kg":price_per_kg_as_number}]}`,
 
     bolla: `You are an OCR specialist for Italian supplier delivery notes (DDT / bolla) and purchase invoices (fattura) for a pastry shop or gelateria.
-Read the WHOLE document: the header (supplier, document number, date) and every line of goods.
+Read the WHOLE document: the header (supplier, document number, date, delivery address) and every line of goods.
 CRITICAL RULE - do NOT do arithmetic. Report EXACTLY what is printed, in the units printed. Converting to euro-per-kilo is done downstream by code that shows its work to the user; a conversion done here is invisible and cannot be checked.
 Instructions:
-- Header: "fornitore" = supplier company name; "numero" = document number as printed; "data" = document date in YYYY-MM-DD
+- Header:
+  - "fornitore" = the SUPPLIER company name, i.e. whose letterhead is at the top. NOT the addressee ("Spett.le", "Destinatario"), which is the shop receiving the goods
+  - "numero" = document number as printed; "data" = document date in YYYY-MM-DD. A two-digit year means 20xx ("19/09/26" is 2026-09-19)
+  - "tipoDocumento" = what the document calls itself, as printed: "D.D.T.", "Documento di Trasporto", "Fattura", "Fattura Accompagnatoria"
+  - "destinazione" = the DELIVERY address block, labelled "Destinazione merce", "Destinazione" or "DESTINAZIONE DIVERSA". Report the whole block as one string. This is where the goods physically go and it is often a DIFFERENT shop from the addressee. If there is no such block, omit the field
+  - "testataFornitore" = the supplier's whole letterhead block verbatim, newlines kept: name, address, phone, fax, email, website, VAT number, fiscal code, IBAN, payment terms. Do not clean it up, do not reorder it
+  - "riferimentoDdt" = if a line or the header says this invoice refers to a delivery note ("Ddt nr. 20/26 del 05-06-2026", "rif. DDT 1685"), report that text verbatim. This means the goods were already delivered on that note
+  - "totaleScrittoAMano" = a handwritten amount on the document ("Ammonta EUR 2.651,00"), as printed. Handwriting only - never a printed total
+  - "senzaPrezzi" = true if the document has NO unit-price and NO line-amount column at all (a pure delivery note). Do not confuse this with a price column that exists but is empty on some rows
+  - "piuDocumenti" = true if the photo clearly shows more than one document (a second sheet behind, a card receipt stapled on top)
 - For EVERY line of goods extract:
-  - "nome": the product name in ITALIAN lowercase, cleaned of pack wording. "FARINA TIPO 00 SACCO 25KG" -> "farina 00". Translate from English if needed
-  - "quantita": the number in the quantity column, as printed
-  - "unita": the unit of measure EXACTLY as printed ("KG","PZ","N.","CF","LT","CT","SACCHI")
-  - "pesoConfezioneG": ONLY if the line states the weight of one pack/sack/piece, converted to grams ("SACCO 25KG" -> 25000, "conf. 500 g" -> 500). If not stated, omit the field. NEVER guess it
+  - "codice": the supplier article code, as printed ("51139", "DOT.001", "A065/C", "B085/B-16"). It may sit in its own column, or on the line BELOW the description ("Cod. 1007"). It is the only stable identifier: descriptions get truncated by the column width
+  - "nome": the product name in ITALIAN lowercase, cleaned of pack wording. "FARINA TIPO 00 SACCO 25KG" -> "farina 00". Translate from English if needed. If the printed description is cut off mid-word ("LATTE UHT INTERO FRASCHERI B"), report it as it is - do not invent the ending
+  - "quantita": the number in the quantity column, as printed. IF THE QUANTITY IS SPLIT INTO THREE COLUMNS (lorda / tara / netta, i.e. gross / tare / net), REPORT THE NET ONE - that is the quantity the price applies to and the quantity that actually arrived
+  - "quantitaLorda" and "tara": also report them, as printed, when those columns exist
+  - "unita": the unit of measure EXACTLY as printed ("KG","PZ","N.","NR","CF","LT","CT","SC","PA","SACCHI")
+  - "pesoConfezioneG": ONLY if the line states the WEIGHT of one pack/sack/piece, converted to grams ("SACCO 25KG" -> 25000, "conf. 500 g" -> 500). If not stated, omit. NEVER guess it
+  - "pezziPerConfezione": ONLY if the line states HOW MANY PIECES are in one pack, as a number ("COPPETTA BIO 16/B MARA N.250" -> 250, "TOVAGLIOLO MARA N. 12.000" -> 12000, "ESTORIL GLUT.FREE BOX 288 PZ." -> 288, "CANN.21/6 COMPOST-BIA pz500" -> 500, "PALETTINA BIO/TRASP 645 pz." -> 645). If not stated, omit. NEVER guess it
   - "prezzoUnitario": the unit price column, as printed
   - "imponibile": the line total NET of VAT, as printed
   - "totaleConIva": the line total INCLUDING VAT, only if that is what is printed
   - "aliquotaIva": the VAT percentage for that line as a number (4, 10, 22) if printed
-  - "scontoPct": the line discount percentage if printed
+  - "scontoPct": the line discount percentage if printed as a number
+  - "scontoTesto": the discount cell when it contains a WORD instead of a number ("Omaggio", "100%")
+  - "tipoRiga": the single letter of the line-type column when the document has one, as printed. Italian delivery notes print a legend at the foot: (V)=Vendita (M)=Sconto in merce (O)=Omaggio (I)=Omaggio Riv. Iva (R)=Reso (N)=Reso Inv. This letter decides whether goods came in or went back
+- COLUMN ALIGNMENT: some dot-matrix documents print the description column shifted by one row against the code and quantity columns, because the first description line is a note (e.g. "ORDINE CLIENTE 65139 DEL 14/09/26"). Anchor each line on the CODE and the QUANTITY, which are always aligned with each other, and match the description that belongs to that code. A description with no quantity beside it is a note, not a product
 - Numbers: keep the Italian format exactly as printed ("1.250,50" stays "1.250,50"). Do NOT reformat
 - Omit any field you cannot read. An omitted field means "unknown" and is handled; a guessed field is a wrong price nobody will notice
-- Skip lines that are not goods: transport, packaging, totals, VAT recap, notes
+- Do NOT extract lot numbers.
+- SKIP lines that are not goods, and do not report them at all:
+  - transport, packaging charges, stamp duty, collection fees, CONAI contribution
+  - totals, VAT recaps, "TOT. DA PAGARE", "TOTALE DOCUMENTO"
+  - legal boilerplate printed inside the description column ("Assolve gli obblighi di cui all'art.62", "NON SI ACCETTANO RECLAMI", "CATEGORIA: OVE NON INDICATO", "IN OTTEMPERANZA AL REG. CE 178/2002")
+  - bank details and IBANs, delivery instructions ("ORARIO DI SCARICO dalle 9 alle 12", "CONSEGNA SOLO DI MATTINA")
+  - ADVERTISING blocks, even when they contain an article code and a price per kilo. Example, printed large in the middle of the page: "OFFERTA FINO AD ESAURIMENTO PROSC.CRUDO ANTICA PIEVE(7208) A 8,98 EURO AL KG". A promotion is not a delivery: if a line has no quantity in the quantity column, it is not goods
+  - the "ORDINE CLIENTE nnnnn DEL gg/mm/aa" reference line
 - CRITICAL: Return ONLY valid JSON, no text outside JSON, no markdown
-{"fornitore":"supplier name","numero":"doc number","data":"YYYY-MM-DD","righe":[{"nome":"italian lowercase","quantita":5,"unita":"SACCHI","pesoConfezioneG":25000,"prezzoUnitario":"18,50","imponibile":"92,50","aliquotaIva":4}]}`,
+{"fornitore":"supplier name","numero":"doc number","data":"YYYY-MM-DD","tipoDocumento":"D.D.T.","destinazione":"delivery address block","testataFornitore":"supplier letterhead verbatim","senzaPrezzi":false,"righe":[{"codice":"1007","nome":"italian lowercase","quantita":5,"unita":"SACCHI","pesoConfezioneG":25000,"pezziPerConfezione":null,"prezzoUnitario":"18,50","imponibile":"92,50","aliquotaIva":4,"tipoRiga":"V"}]}`,
 
     magazzino: `You are an OCR specialist for Italian pastry ingredient/supply lists.
 The image is a handwritten list (sheet, notebook, delivery receipt) of ingredients received with quantities - may be in Italian or English.
