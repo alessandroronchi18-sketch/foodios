@@ -61,7 +61,7 @@ describe('pagine nascoste', () => {
     // Dal 15/09 la stessa riga filtra anche per ruolo: un dipendente non si
     // ritrova su una pagina non sua nemmeno ricaricando.
     expect(dash).toContain("stored && !PAGINE_NASCOSTE.has(stored)")
-    expect(dash).toContain("DIPENDENTE_VIEWS.has(stored)")
+    expect(dash).toContain("permesseIniziali.has(stored)")
   })
 
   it('non si raggiungono dalla ricerca Cmd+K', () => {

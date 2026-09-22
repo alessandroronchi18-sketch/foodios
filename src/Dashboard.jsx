@@ -3807,7 +3807,7 @@ export default function Dashboard({
         {vista==="whatsapp"&&(canAccessView("whatsapp",piano,auth?.user?.email)?<WhatsAppView orgId={orgId} user={auth?.user}/>:<UpgradeGate view="whatsapp" onUpgrade={goToUpgrade}/>)}
         {vista==="documentary"&&(canAccessView("documentary",piano,auth?.user?.email)?<DocumentaryView orgId={orgId} nomeAttivita={nomeAttivita}/>:<UpgradeGate view="documentary" onUpgrade={goToUpgrade}/>)}
         {vista==="ai-hub"&&<AiHubView orgId={orgId} setView={setView} goToUpgrade={goToUpgrade} piano={piano} userEmail={auth?.user?.email}/>}
-        <CommandPalette open={cmdkOpen} onClose={()=>setCmdkOpen(false)} onNavigate={(v)=>setView(v)} orgId={orgId} vistePermesse={isDip ? DIPENDENTE_VIEWS : null}/>
+        <CommandPalette open={cmdkOpen} onClose={()=>setCmdkOpen(false)} onNavigate={(v)=>setView(v)} orgId={orgId} vistePermesse={isDip ? VISTE_DIP : null}/>
         {upgradeModal && (
           <UpgradeModal
             featureName={upgradeModal.featureName}

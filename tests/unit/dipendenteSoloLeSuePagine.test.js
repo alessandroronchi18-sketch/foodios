@@ -45,7 +45,11 @@ function elencoPermesse() {
 describe('la pagina vietata non viene nemmeno disegnata', () => {
   it('esiste una pagina "effettiva", calcolata durante il render', () => {
     // Non in un useEffect: quello gira dopo il disegno.
-    expect(DASH).toMatch(/const vista = \(isDip && !DIPENDENTE_VIEWS\.has\(view\)\) \? 'home-dipendente' : view/)
+    // 22/09/2026: l'insieme non è più fisso. `VISTE_DIP` sono le pagine di
+    // QUESTO dipendente — quelle di base più «Ordini», se il titolare gli ha
+    // acceso il permesso. La regola non cambia: la pagina vietata non si
+    // disegna, e la decisione sta nel render, non in un useEffect.
+    expect(DASH).toMatch(/const vista = \(isDip && !VISTE_DIP\.has\(view\)\) \? 'home-dipendente' : view/)
   })
 
   it('il blocco che monta le pagine usa quella, non la pagina richiesta', () => {
@@ -58,11 +62,11 @@ describe('la pagina vietata non viene nemmeno disegnata', () => {
   })
 
   it('e nessuna strada di navigazione porta fuori dall\'elenco', () => {
-    expect(DASH).toMatch(/auth\?\.ruolo === 'dipendente' && !DIPENDENTE_VIEWS\.has\(v\)/)
+    expect(DASH).toMatch(/auth\?\.ruolo === 'dipendente' && !VISTE_DIP\.has\(v\)/)
   })
 
   it('nemmeno ricaricando la pagina', () => {
-    expect(DASH).toMatch(/!isDipIniziale \|\| DIPENDENTE_VIEWS\.has\(stored\)/)
+    expect(DASH).toMatch(/!isDipIniziale \|\| permesseIniziali\.has\(stored\)/)
   })
 })
 
@@ -74,7 +78,7 @@ describe('la ricerca rapida non offre pagine che non sono sue', () => {
     // Dashboard gli passi le pagine del dipendente.
     expect(PALETTE).toMatch(/function quickMatch\(q, permesse\)/)
     expect(PALETTE).toMatch(/\.filter\(v => !permesse \|\| permesse\.has\(v\.id\)\)/)
-    expect(DASH).toMatch(/vistePermesse=\{isDip \? DIPENDENTE_VIEWS : null\}/)
+    expect(DASH).toMatch(/vistePermesse=\{isDip \? VISTE_DIP : null\}/)
   })
 
   it('e il filtro funziona davvero, non solo sulla carta', async () => {

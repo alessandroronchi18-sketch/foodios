@@ -191,11 +191,16 @@ describe('Il menù delle unità contiene anche quello che c\'è scritto sulla bo
   })
 
   it('un\'unità che non sa leggere la dichiara, invece di far finta di niente', async () => {
-    const { container } = monta({ letto: conUnita('COLLI') })
+    // L'esempio era «COLLI», che dal 22/09/2026 è un'unità riconosciuta —
+    // insieme a «PA» e «SC» di ConoArtic, che stanno su ogni sua bolla e
+    // prima uscivano come sconosciute a ogni consegna. Serve un'unità che
+    // non sia davvero di nessuno: la regola che questo test difende — se non
+    // la so leggere lo dico — non cambia.
+    const { container } = monta({ letto: conUnita('BANCALI') })
     apri(container)
     const menu = container.querySelector('select[id^="bolla-unita-"]')
-    expect(menu.value).toBe('COLLI')
-    expect([...menu.options].find(o => o.value === 'COLLI').textContent)
+    expect(menu.value).toBe('BANCALI')
+    expect([...menu.options].find(o => o.value === 'BANCALI').textContent)
       .toMatch(/non la so leggere/)
     expect(testo(container)).toMatch(/unità di misura sconosciuta/)
   })
