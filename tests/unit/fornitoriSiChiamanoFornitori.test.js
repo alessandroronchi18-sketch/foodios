@@ -17,7 +17,7 @@
 
 import { describe, it, expect } from 'vitest'
 import {
-  costruisciMenu, descriviVista, etichettaPerVista, schedeDiVista, cercaVoci,
+  costruisciMenu, descriviVista, etichettaPerVista, schedeDiVista, cercaVoci, vociMenu,
   nomeCompletoVista, etichettaBreve, avvisoSpostamento, SPOSTAMENTI,
   VISTE_DISEGNATE, VISTE_FUORI_MENU,
 } from '../../src/lib/menuFoodos'
@@ -62,17 +62,21 @@ describe('la pagina delle fatture si chiama Fornitori dappertutto', () => {
     }
   })
 
-  it('le altre due schede restano raggiungibili e con nomi diversi fra loro', () => {
-    // 22/09/2026: la terza scheda era «Riordino» (`ordini-ai`) ed è diventata
-    // «Ordini» (`ordini`), che ha assorbito anche il vecchio elenco degli
-    // ordini. Decisione del titolare: «pagina nuova». Le altre due non si
-    // toccano, e i tre nomi restano diversi fra loro — due schede che si
-    // chiamano uguale non si distinguono.
+  it('l\'altra scheda resta raggiungibile e con un nome diverso', () => {
+    // La terza scheda era «Riordino» (`ordini-ai`), poi «Ordini». Il
+    // 23/09/2026 il titolare: «tienila solo nella tendina acquisti» — era in
+    // due posti, e una pagina che compare due volte è una pagina che
+    // qualcuno apre dalla strada sbagliata e poi non ritrova.
     const g = schedeDiVista('scadenzario', SEZIONI)
-    expect(g.schede.map(t => t.id)).toEqual(['scadenzario', 'fornitori', 'ordini'])
-    expect(new Set(g.schede.map(t => t.label)).size, 'due schede con lo stesso nome').toBe(3)
+    expect(g.schede.map(t => t.id)).toEqual(['scadenzario', 'fornitori'])
+    expect(new Set(g.schede.map(t => t.label)).size, 'due schede con lo stesso nome').toBe(2)
     expect(etichettaPerVista(SEZIONI).fornitori).toBe('Anagrafica')
-    expect(etichettaPerVista(SEZIONI).ordini).toBe('Ordini')
+  })
+
+  it('e «Ordini» sta in un posto solo: la tendina Acquisti', () => {
+    const voci = vociMenu(SEZIONI).filter(v => v.id === 'ordini')
+    expect(voci, '«Ordini» non è nel menu, o c\'è più di una volta').toHaveLength(1)
+    expect(schedeDiVista('scadenzario', SEZIONI).schede.map(t => t.id)).not.toContain('ordini')
   })
 
   it('la riga «questa pagina si è spostata» non manda a cercare una scheda che non esiste', () => {

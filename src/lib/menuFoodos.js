@@ -186,10 +186,13 @@ export function costruisciMenu(ctx = {}) {
       // vecchio.
       { id: 'scadenzario', label: 'Fornitori', icona: 'fileText',
         sinonimi: ['scadenzario', 'fatture', 'da pagare', 'scadenze', 'fatture e fornitori', 'iban', 'bonifici'],
+        // «Ordini» era anche qui come scheda, ed era in due posti: il
+        // titolare, 23/09/2026, «tienila solo nella tendina acquisti». Una
+        // pagina che compare due volte è una pagina che qualcuno apre dalla
+        // strada sbagliata e poi non ritrova.
         schede: [
           { id: 'scadenzario', label: 'Fornitori' },
           { id: 'fornitori',   label: 'Anagrafica' },
-          { id: 'ordini',      label: 'Ordini' },
         ] },
       // Ordinare è un gesto di tutti i giorni, non una scheda dentro
       // un'anagrafica: il titolare, 22/09/2026, ha scelto la pagina sua.
