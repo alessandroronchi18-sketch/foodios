@@ -858,10 +858,31 @@ export function preparaScrittureBolla(righe, documento = {}, stato = {}) {
   for (const r of scelte) {
     const g = Number(r.grammi)
     if (!Number.isFinite(g) || g <= 0) continue
+    // ── Il verso del movimento ────────────────────────────────────────────
+    //
+    // Quasi sempre è «+»: è arrivata della merce. Ma DESA stampa su ogni
+    // riga la colonna T, con la legenda in fondo al documento:
+    //
+    //     (V)=Vendita (M)=Sconto in merce (O)=Omaggio (I)=Omaggio Riv. Iva
+    //     (R)=Reso (N)=Reso Inv.
+    //
+    // Una riga marcata R o N è merce che **torna indietro**. Fino al
+    // 22/09/2026 questo ciclo sommava sempre: `classificaRiga` diceva
+    // `segno: -1` e nessuno lo leggeva, quindi un reso di 4 litri di panna
+    // ne **aggiungeva** quattro invece di toglierne quattro — la giacenza
+    // sbagliava del doppio della quantità resa, e in silenzio.
+    //
+    // Se il reso porta la giacenza sotto zero non si ferma e non si taglia a
+    // zero: si registra com'è. Una giacenza negativa è un errore di
+    // registrazione **vero**, il magazzino ha già lo stato «negativo» per
+    // dirlo, e nasconderlo vorrebbe dire far sparire il problema invece del
+    // sintomo.
+    const verso = r.segno === -1 ? -1 : 1
+    const delta = verso * g
     const prima = nuovoMagazzino[r.chiave]
     nuovoMagazzino[r.chiave] = {
       nome: prima?.nome || r.nome,
-      giacenza_g: (prima?.giacenza_g || 0) + g,
+      giacenza_g: (prima?.giacenza_g || 0) + delta,
       soglia_g: prima?.soglia_g || 0,
       ultimoRifornimento: adesso,
     }
@@ -871,8 +892,10 @@ export function preparaScrittureBolla(righe, documento = {}, stato = {}) {
       id: `r-${Date.now()}-${n++}-${r.chiave}`,
       data: adesso,
       ingrediente: r.nome,
-      quantita_g: g,
-      note: daDove,
+      quantita_g: delta,
+      // Un reso si deve leggere per quello che è nello storico dei
+      // carichi, se no fra un mese è una riga negativa senza spiegazione.
+      note: verso === -1 ? `reso — ${daDove}` : daDove,
       utente,
       // L'impronta del documento: serve a riconoscere una bolla già caricata
       // quando la foto sembra non essere andata a buon fine e si riprova.
