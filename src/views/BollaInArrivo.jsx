@@ -30,7 +30,10 @@ import Icon from '../components/Icon'
 import { color as T, radius as R, font } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { CampoConElenco, formatNome } from './_shared'
-import { preparaBolla, identitaBolla, normalizzaUnita } from '../lib/bolle'
+import {
+  preparaBolla, identitaBolla, normalizzaUnita,
+  bollaDiQuestaFattura, controlloTotaleAMano,
+} from '../lib/bolle'
 
 const euro = (v) => Number(v).toLocaleString('it-IT', {
   useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2,
@@ -49,6 +52,13 @@ const kg = (g) => (Number(g) / 1000).toLocaleString('it-IT', {
  * @param {Function} props.onRegistra   (righe, documento) => Promise
  * @param {Function} props.onAnnulla
  */
+/** «2026-06-05» → «05/06/2026». Si rimonta a mano: `new Date('2026-06-05')`
+ *  legge in UTC e su qualche fuso torna indietro di un giorno. */
+function dataDaLeggere(giorno) {
+  const m = String(giorno || '').match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : ''
+}
+
 export default function BollaInArrivo({
   letto, ricettario, logPrezzi = [], logRif = [], onRegistra, onAnnulla, notify,
 }) {
@@ -85,6 +95,9 @@ export default function BollaInArrivo({
       ingredientiCosti: ricettario?.ingredienti_costi || {},
       logPrezzi,
       dataBolla: data,
+      // Metà delle bolle vere non ha la colonna del prezzo: le quantità
+      // entrano lo stesso, e il listino non si tocca.
+      senzaPrezzi: !!letto?.senzaPrezzi,
     // `grezza` è la riga come sta scritta: serve ai campi modificabili.
     // Il resto (chili, prezzo, problemi) è il conto, e non si sovrascrive.
     // Le righe che non sono merce partono già saltate: il testo legale, la
@@ -98,7 +111,26 @@ export default function BollaInArrivo({
         ? !!righeGrezze[i].saltata
         : !r.caricaMagazzino,
     }))
-  ), [righeGrezze, ricettario, logPrezzi, data])
+  ), [righeGrezze, ricettario, logPrezzi, data, letto?.senzaPrezzi])
+
+  // ── Il documento che non ha prezzi ────────────────────────────────────
+  const senzaPrezzi = !!letto?.senzaPrezzi
+
+  // ── La fattura che si riferisce a una bolla già caricata ──────────────
+  //
+  // «Ddt nr. 20/26 del 05-06-2026» in testa alla fattura: se quella bolla
+  // risulta già caricata, i 60 kg di nocciola non si caricano un'altra volta.
+  const daBolla = useMemo(
+    () => bollaDiQuestaFattura(letto?.riferimentoDdt, { fornitore, logRif }),
+    [letto?.riferimentoDdt, fornitore, logRif],
+  )
+  const soloPrezzi = daBolla.cosaFare === 'solo-prezzi'
+
+  // ── Il totale scritto a penna ─────────────────────────────────────────
+  const controlloMano = useMemo(
+    () => controlloTotaleAMano(righe, letto?.totaleScrittoAMano, ricettario?.ingredienti_costi || {}),
+    [righe, letto?.totaleScrittoAMano, ricettario],
+  )
 
   // Che cosa ho tolto, e perché. Raggruppato per specie, con i nomi dentro.
   const nonMerce = useMemo(() => {
@@ -300,13 +332,62 @@ export default function BollaInArrivo({
         </button>
       </div>
 
+      {/* ── Il documento che non ha prezzi ────────────────────────────────
+          Metà delle bolle vere (Vecchio Enrico, ConoArtic) sono DDT puri: le
+          quantità entrano, il costo resta quello che sai già. Dirlo qui, in
+          alto, evita che uno cerchi il prezzo riga per riga. */}
+      {senzaPrezzi && !soloPrezzi && (
+        <div style={{ ...card, background: T.bgSubtle, display: 'flex', gap: 11, alignItems: 'flex-start' }}>
+          <span style={{ flexShrink: 0, marginTop: 1, color: T.textSoft }}><Icon name="info" size={17} /></span>
+          <div style={{ fontSize: font.size.base, color: T.textMid, lineHeight: 1.6 }}>
+            <b style={{ color: T.text }}>Su questo documento i prezzi non ci sono.</b> È una bolla di
+            sola consegna: le quantità entrano in magazzino, il costo di ogni materia prima resta
+            quello che hai già. Quando arriverà la fattura, fotografala e porterà lei i prezzi.
+          </div>
+        </div>
+      )}
+
+      {/* ── La fattura di una bolla già caricata ─────────────────────────── */}
+      {soloPrezzi && (
+        <div style={{ ...card, background: T.amberLight, border: `1px solid ${T.amber}55`, display: 'flex', gap: 11, alignItems: 'flex-start' }}>
+          <span style={{ flexShrink: 0, marginTop: 1, color: T.amber }}><Icon name="warning" size={17} /></span>
+          <div style={{ fontSize: font.size.base, color: T.amberDark || T.textMid, lineHeight: 1.6 }}>
+            <b>Questa è la fattura della bolla {daBolla.rif?.numero}</b>, che hai già caricato
+            {dataDaLeggere(daBolla.quando) ? ` il ${dataDaLeggere(daBolla.quando)}` : ''}. La merce è già in
+            magazzino: da qui prendo <b>solo i prezzi</b>, le quantità non si ricaricano.
+          </div>
+        </div>
+      )}
+      {daBolla.cosaFare === 'non-so' && (
+        <div style={{ ...card, background: T.amberLight, border: `1px solid ${T.amber}55`, display: 'flex', gap: 11, alignItems: 'flex-start' }}>
+          <span style={{ flexShrink: 0, marginTop: 1, color: T.amber }}><Icon name="warning" size={17} /></span>
+          <div style={{ fontSize: font.size.base, color: T.amberDark || T.textMid, lineHeight: 1.6 }}>
+            Questo documento dice di riferirsi alla bolla <b>{daBolla.rif?.numero}</b>, ma non c&apos;è
+            la data e non riesco a riconoscerla. Controlla di non avere già caricato quella merce:
+            caricarla due volte raddoppia la giacenza.
+          </div>
+        </div>
+      )}
+
+      {/* ── Il totale scritto a penna ────────────────────────────────────── */}
+      {controlloMano.frase && (
+        <div style={{ ...card, background: T.bgSubtle, display: 'flex', gap: 11, alignItems: 'flex-start' }}>
+          <span style={{ flexShrink: 0, marginTop: 1, color: T.textSoft }}><Icon name="pencil" size={16} /></span>
+          <div style={{ fontSize: font.size.base, color: T.textMid, lineHeight: 1.6 }}>
+            {controlloMano.frase}
+          </div>
+        </div>
+      )}
+
       <div style={card}>
         <div style={{ fontSize: font.size.md, fontWeight: 800, color: T.text, marginBottom: 10 }}>
           Cosa succede se registri
         </div>
         <ul style={{ margin: 0, paddingLeft: 20, fontSize: font.size.base, color: T.textMid, lineHeight: 1.75 }}>
-          <li>{conMerce.length === 0 ? 'Nessuna quantità entra in magazzino.'
-            : `${conMerce.length} ${conMerce.length === 1 ? 'voce entra' : 'voci entrano'} nel magazzino di questo punto vendita.`}</li>
+          <li>{soloPrezzi
+            ? 'Nessuna quantità entra in magazzino: questa merce è già arrivata con la bolla.'
+            : conMerce.length === 0 ? 'Nessuna quantità entra in magazzino.'
+              : `${conMerce.length} ${conMerce.length === 1 ? 'voce entra' : 'voci entrano'} nel magazzino di questo punto vendita.`}</li>
           <li>{conPrezzo.length === 0 ? 'Nessun prezzo cambia.'
             : `${conPrezzo.length} ${conPrezzo.length === 1 ? 'prezzo cambia' : 'prezzi cambiano'} per tutte le sedi, e finisce nello storico.`}</li>
           {soloStorico.length > 0 && (
