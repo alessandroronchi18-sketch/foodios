@@ -345,7 +345,7 @@ function fmt(n) {
  * @returns {{prezzoKg: number|null, grammi: number|null, spiegazione: string[],
  *            problema: string|null, ambiguo: boolean}}
  */
-export function prezzoAlKgDaRiga(riga = {}) {
+export function prezzoAlKgDaRiga(riga = {}, { senzaPrezzi = false } = {}) {
   const spiegazione = []
   const conv = inGrammi(riga.quantita, riga.unita, {
     nome: riga.nome, pesoConfezioneG: riga.pesoConfezioneG, descrizione: riga.descrizione,
@@ -448,6 +448,22 @@ export function prezzoAlKgDaRiga(riga = {}) {
   }
 
   if (imponibile == null) {
+    // ── Il documento che non ha prezzi, e non è un errore ─────────────────
+    //
+    // Metà delle bolle vere del design partner (Vecchio Enrico, ConoArtic)
+    // sono DDT puri: portano solo le quantità, e i prezzi arrivano dopo con
+    // la fattura. Trattarle come righe rotte vuol dire non caricare 85 kg di
+    // pasta nocciola e pistacchio che sono arrivati davvero.
+    //
+    // La quantità entra, il prezzo no, e la schermata lo dice. Decisione del
+    // titolare, 22/09/2026, alla domanda «la merce entra lo stesso?»: sì.
+    if (senzaPrezzi) {
+      return {
+        prezzoKg: null, grammi, spiegazione, problema: null,
+        prezzoNonSulDocumento: true, ambiguo,
+        avvisi: [...avvisi, 'su questo documento i prezzi non ci sono: entra la quantità, il costo resta quello che sai già'],
+      }
+    }
     return { prezzoKg: null, grammi, spiegazione, problema: 'su questa riga non c\'è nessun prezzo', ambiguo, avvisi }
   }
   if (!(imponibile > 0)) {
@@ -591,7 +607,7 @@ export function identitaBolla({ fornitore, numero, data } = {}) {
  * @param {string} ctx.dataBolla         il giorno del documento
  * @returns {Array} una riga per riga di bolla, pronta da mostrare
  */
-export function preparaBolla(righe, { ingredientiCosti = {}, logPrezzi = [], dataBolla } = {}) {
+export function preparaBolla(righe, { ingredientiCosti = {}, logPrezzi = [], dataBolla, senzaPrezzi = false } = {}) {
   const ultimoCambioPer = ultimiCambi(logPrezzi)
   return (righe || []).map((r, i) => {
     // ── Che riga è, prima di ogni conto ───────────────────────────────────
@@ -612,7 +628,7 @@ export function preparaBolla(righe, { ingredientiCosti = {}, logPrezzi = [], dat
     // una bolla vera lo deve poter sostituire senza fare storie.
     const eraUnaStima = !!voce?.isStima
 
-    const conto = prezzoAlKgDaRiga({ ...r, nome })
+    const conto = prezzoAlKgDaRiga({ ...r, nome }, { senzaPrezzi })
     const esisteInElenco = !!chiave && Object.prototype.hasOwnProperty.call(ingredientiCosti, chiave)
 
     // Un reso non è una trattativa sul prezzo, e un campione non è un
@@ -655,6 +671,10 @@ export function preparaBolla(righe, { ingredientiCosti = {}, logPrezzi = [], dat
       // rumore. La schermata mostra le prime quattro e toglie le ultime due,
       // **dicendolo**: una riga tolta in silenzio è una riga che nessuno
       // andrà mai a cercare.
+      // Il prezzo non c'è perché sul documento non c'è la colonna, non
+      // perché la riga è rotta: la differenza cambia quello che si dice a
+      // schermo e se la riga si può registrare.
+      prezzoNonSulDocumento: !!conto.prezzoNonSulDocumento,
       classe: classe.tipo,
       classeMotivo: classe.motivo,
       classeAvviso: classe.avviso,
@@ -1030,5 +1050,156 @@ export function annullaBolla(identita, stato = {}) {
     prezziRimessi: rimessi,
     prezziNonRimessi: nonRimessi,
     trovata: true,
+  }
+}
+
+// ── La fattura che arriva dopo la bolla ─────────────────────────────────
+//
+// Metà delle bolle vere del design partner non hanno prezzi: Vecchio Enrico
+// e ConoArtic mandano un DDT con le sole quantità, e i prezzi arrivano
+// settimane dopo con la fattura. La fattura, però, **dice da sola** a quale
+// bolla si riferisce: la Vecchio Enrico n. 28 del 30/06/2026 ha come prima
+// riga della tabella
+//
+//     #   Ddt nr. 20/26 del 05-06-2026   PZ
+//
+// e sotto i prezzi: nocciola 23,00 €/kg, pistacchio premium 38,00 €/kg.
+//
+// Se si caricano tutt'e due i documenti come consegne, la giacenza
+// raddoppia: 60 kg di nocciola diventano 120. Decisione del titolare,
+// 22/09/2026: la riga di riferimento aggancia la fattura alla bolla già
+// caricata, la fattura porta **solo i prezzi**, e se la bolla non risulta
+// caricata si carica tutto come una consegna normale.
+
+const MESI_RIF = /(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})/
+
+/**
+ * «Ddt nr. 20/26 del 05-06-2026» → `{ numero: '20/26', data: '2026-06-05' }`.
+ *
+ * Il numero di un DDT italiano è spesso `progressivo/anno` («20/26»,
+ * «004617/002», «17139/26»): la barra fa parte del numero e non si tocca.
+ * La data può essere scritta con le barre, i trattini o i punti, e l'anno a
+ * due cifre vuol dire duemila.
+ *
+ * @returns {{numero: string, data: string|null, testo: string}|null}
+ */
+export function leggiRiferimentoDdt(testo) {
+  const t = String(testo ?? '').trim()
+  if (!t) return null
+  // «ddt», «d.d.t.», «bolla», «documento di trasporto», poi eventuali
+  // «nr.»/«n.»/«numero», poi il numero.
+  const m = t.match(/\b(?:d\.?\s?d\.?\s?t\.?|bolla|documento\s+di\s+trasporto)\b[^A-Za-z0-9]{0,12}(?:n(?:r|um(?:ero)?)?\.?\s*)?([0-9][0-9A-Za-z/\-.]{0,19})/i)
+  if (!m) return null
+  // Il numero non si porta dietro la parola «del» né la data che segue.
+  const numero = m[1].replace(/[.\-/]+$/, '').trim()
+  if (!numero || !/\d/.test(numero)) return null
+
+  let data = null
+  const dopo = t.slice(t.indexOf(m[0]) + m[0].length)
+  const d = dopo.match(MESI_RIF) || t.match(MESI_RIF)
+  if (d) {
+    const gg = Number(d[1]); const mm = Number(d[2])
+    let aa = Number(d[3])
+    if (d[3].length === 2) aa += 2000
+    if (gg >= 1 && gg <= 31 && mm >= 1 && mm <= 12 && aa >= 2000 && aa <= 2099) {
+      data = `${aa}-${String(mm).padStart(2, '0')}-${String(gg).padStart(2, '0')}`
+    }
+  }
+  return { numero, data, testo: m[0].trim() }
+}
+
+/**
+ * La bolla a cui si riferisce questa fattura: c'è già, o non l'abbiamo mai
+ * caricata?
+ *
+ * @param {string} riferimento  il testo letto dalla fattura
+ * @param {object} ctx
+ * @param {string} ctx.fornitore  chi manda la fattura: è lo stesso della bolla
+ * @param {Array}  ctx.logRif     lo storico dei carichi, dove sta `bolla`
+ * @returns {{identita: string|null, giaCaricata: boolean, rif: object|null,
+ *            quando: string|null, cosaFare: 'solo-prezzi'|'carica-tutto'|'non-so'}}
+ */
+export function bollaDiQuestaFattura(riferimento, ctx) {
+  const { fornitore, logRif } = ctx || {}
+  const rif = leggiRiferimentoDdt(riferimento)
+  if (!rif) return { identita: null, giaCaricata: false, rif: null, quando: null, cosaFare: 'carica-tutto' }
+
+  const identita = identitaBolla({ fornitore, numero: rif.numero, data: rif.data })
+  if (!identita) {
+    // Senza la data non si sa riconoscere il documento: si dice, invece di
+    // dare per scontato che sia nuovo.
+    return { identita: null, giaCaricata: false, rif, quando: null, cosaFare: 'non-so' }
+  }
+  const trovata = (Array.isArray(logRif) ? logRif : []).find(r => r?.bolla === identita)
+  return {
+    identita,
+    giaCaricata: !!trovata,
+    rif,
+    quando: trovata ? (soloGiorno(trovata.data) || null) : null,
+    cosaFare: trovata ? 'solo-prezzi' : 'carica-tutto',
+  }
+}
+
+// ── Il totale scritto a penna ───────────────────────────────────────────
+//
+// Su due DDT di Vecchio Enrico c'è a mano «Ammonta € 2.651,00» e
+// «€ 4.743,20». Non si può spartire fra tre prodotti, e provarci sbaglia: ho
+// tentato di ricavare i prezzi unitari da due bolle con l'algebra e usciva
+// 72,20 €/kg per la granella da una e 77,90 €/kg dall'altra. Il conto
+// tornava lo stesso — ed è proprio per questo che non ci si può fidare.
+//
+// Decisione del titolare: si legge e si mostra come **controllo**, mai per
+// calcolare un prezzo.
+
+/**
+ * Quanto verrebbe questa bolla coi prezzi che già conosci, e quanto dice il
+ * numero scritto a mano.
+ *
+ * @returns {{atteso: number|null, scritto: number|null, differenza: number|null,
+ *            differenzaPct: number|null, coperte: number, scoperte: number,
+ *            frase: string|null}}
+ */
+export function controlloTotaleAMano(righe, totaleScritto, listino) {
+  const ingredientiCosti = listino && typeof listino === 'object' ? listino : {}
+  const letto = totaleScritto == null || totaleScritto === ''
+    ? null : letturaPrezzoKg(totaleScritto)
+  const scritto = letto?.valore != null && letto.valore > 0 ? letto.valore : null
+
+  let atteso = 0
+  let coperte = 0
+  let scoperte = 0
+  for (const r of (Array.isArray(righe) ? righe : [])) {
+    if (r?.saltata === true || r?.caricaMagazzino === false) continue
+    const g = Number(r?.grammi)
+    if (!Number.isFinite(g) || g <= 0) continue
+    const voce = r?.chiave ? ingredientiCosti[r.chiave] : null
+    const kg = voce?.costoKg != null ? Number(voce.costoKg)
+      : voce?.costoG != null ? Number(voce.costoG) * 1000
+        : null
+    // Una stima HORECA non è un prezzo dichiarato: contarla dentro un
+    // controllo la farebbe passare per un dato misurato.
+    if (kg == null || !Number.isFinite(kg) || kg <= 0 || voce?.isStima) { scoperte++; continue }
+    atteso += kg * (g / 1000)
+    coperte++
+  }
+
+  if (scritto == null) return { atteso: null, scritto: null, differenza: null, differenzaPct: null, coperte, scoperte, frase: null }
+  if (coperte === 0) {
+    return {
+      atteso: null, scritto, differenza: null, differenzaPct: null, coperte, scoperte,
+      frase: `Sulla bolla c'è scritto a mano ${fmt(scritto)} €. Non ho nessun prezzo di listino per questa merce, quindi non posso confrontarlo con niente.`,
+    }
+  }
+  const differenza = scritto - atteso
+  const differenzaPct = atteso > 0 ? (differenza / atteso) * 100 : null
+  const resto = scoperte > 0
+    ? ` (${scoperte} ${scoperte === 1 ? 'riga non ha' : 'righe non hanno'} un prezzo di listino e ${scoperte === 1 ? 'resta' : 'restano'} fuori dal conto)`
+    : ''
+  const vicino = differenzaPct != null && Math.abs(differenzaPct) <= 3
+  return {
+    atteso, scritto, differenza, differenzaPct, coperte, scoperte,
+    frase: vicino
+      ? `Coi prezzi che hai in listino questa merce fa ${fmt(atteso)} €, e a mano c'è scritto ${fmt(scritto)} €: torna${resto}.`
+      : `Coi prezzi che hai in listino questa merce fa ${fmt(atteso)} €, ma a mano c'è scritto ${fmt(scritto)} €: ${differenza > 0 ? 'mancano' : 'sono di troppo'} ${fmt(Math.abs(differenza))} €${resto}. Il prezzo vero lo dirà la fattura.`,
   }
 }
