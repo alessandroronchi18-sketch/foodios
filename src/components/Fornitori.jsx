@@ -234,7 +234,7 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
   const confirmDialog = useConfirm()
   const [lista, setLista] = useState([])
   const [loading, setLoading] = useState(true)
-  const [form, setForm] = useState({ nome: "", contatto: "", email: "", telefono: "", note: "", sede_id: "", iban: "", termini_pagamento: "30", termini_tipo: "netti", categoria: "", partita_iva: "", lead_time_giorni: "", minimo_ordine: "" })
+  const [form, setForm] = useState({ nome: "", contatto: "", email: "", telefono: "", note: "", sede_id: "", iban: "", termini_pagamento: "30", termini_tipo: "netti", categoria: "", vicino_a_sede: "", si_ritira: "", partita_iva: "", lead_time_giorni: "", minimo_ordine: "" })
   const [editId, setEditId] = useState(null)
   const [saving, setSaving] = useState(false)
   const [showForm, setShowForm] = useState(false)
@@ -469,6 +469,12 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
       // "non lo so" e "zero giorni di consegna" sono cose diverse.
       partita_iva: form.partita_iva?.replace(/\s+/g, '').toUpperCase() || null,
       lead_time_giorni: form.lead_time_giorni === "" ? null : (parseInt(form.lead_time_giorni, 10) || null),
+      // Da quale nostra sede si passa comodi per andare da lui, e se da lui
+      // si ritira. Servono al giro fra le sedi: «già che vai da quella parte,
+      // da ConoArtic c'è un ordine pronto». `null` = non lo sappiamo, e
+      // proporre di passare da chi consegna lui è un giro in più per niente.
+      vicino_a_sede: form.vicino_a_sede || null,
+      si_ritira: form.si_ritira === "" ? null : form.si_ritira === "si",
       minimo_ordine: form.minimo_ordine === "" ? null : (parseFloat(String(form.minimo_ordine).replace(',', '.')) || null),
       organization_id: orgId,
     }
@@ -518,13 +524,15 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
   const ibanScritto = !!form.iban?.trim()
   const ibanOk = ibanScritto && ibanIsValid(form.iban)
 
-  function resetForm() { setForm({ nome: "", contatto: "", email: "", telefono: "", note: "", sede_id: sedeId || "", iban: "", termini_pagamento: "30", termini_tipo: "netti", categoria: "", partita_iva: "", lead_time_giorni: "", minimo_ordine: "" }); setEditId(null); setShowForm(false) }
+  function resetForm() { setForm({ nome: "", contatto: "", email: "", telefono: "", note: "", sede_id: sedeId || "", iban: "", termini_pagamento: "30", termini_tipo: "netti", categoria: "", vicino_a_sede: "", si_ritira: "", partita_iva: "", lead_time_giorni: "", minimo_ordine: "" }); setEditId(null); setShowForm(false) }
   function initEdit(f) {
     setForm({
       nome: f.nome, contatto: f.contatto || "", email: f.email || "", telefono: f.telefono || "", note: f.note || "",
       sede_id: f.sede_id || "", iban: f.iban || "", termini_pagamento: String(f.termini_pagamento ?? 30), termini_tipo: f.termini_tipo || "netti", categoria: f.categoria || "",
       partita_iva: f.partita_iva || "", lead_time_giorni: f.lead_time_giorni == null ? "" : String(f.lead_time_giorni),
       minimo_ordine: f.minimo_ordine == null ? "" : String(f.minimo_ordine),
+      vicino_a_sede: f.vicino_a_sede || "",
+      si_ritira: f.si_ritira === true ? "si" : f.si_ritira === false ? "no" : "",
     })
     setEditId(f.id); if (isMobile) setShowForm(true)
   }
@@ -861,6 +869,41 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
               </div>
               <input value={form.minimo_ordine} onChange={e => setForm(f => ({ ...f, minimo_ordine: e.target.value.replace(/[^0-9,.]/g, '') }))}
                 aria-label="Minimo d'ordine" inputMode="decimal" placeholder="250" style={inputSt} />
+            </div>
+          </div>
+
+          {/* ── Già che vai da quella parte ─────────────────────────────────
+              Il titolare, 23/09/2026: «magari il negozio che rifornisce un
+              ingrediente si trova vicino a De Gasperi, quindi uno esce a
+              consegnare e nel frattempo compra la materia prima». Senza
+              questi due campi quel risparmio non si può nemmeno proporre. */}
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12, marginBottom: 12 }}>
+            <div>
+              <div style={lblRiq}>
+                <Tip text="Andando in questa sede si passa comodi da lui. «Vicino» dipende da dove parti: lo sai tu, non una mappa.">
+                  <span style={{ cursor: 'help', textDecoration: 'underline dotted', textUnderlineOffset: 2 }}>Si passa da lui andando a</span>
+                </Tip>
+              </div>
+              <select value={form.vicino_a_sede} aria-label="Da quale sede si passa comodi"
+                onChange={e => setForm(f => ({ ...f, vicino_a_sede: e.target.value }))} style={inputSt}>
+                <option value="">non è sulla strada di nessuna sede</option>
+                {sedi.filter(s => s.attiva !== false).map(s => (
+                  <option key={s.id} value={s.id}>{s.nome}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <div style={lblRiq}>
+                <Tip text="Se consegna lui, passare a ritirare è un giro in più per niente: Foodos non te lo propone.">
+                  <span style={{ cursor: 'help', textDecoration: 'underline dotted', textUnderlineOffset: 2 }}>Da lui si ritira?</span>
+                </Tip>
+              </div>
+              <select value={form.si_ritira} aria-label="Da lui si ritira la merce"
+                onChange={e => setForm(f => ({ ...f, si_ritira: e.target.value }))} style={inputSt}>
+                <option value="">non lo so</option>
+                <option value="si">sì, si va a prenderla</option>
+                <option value="no">no, consegna lui</option>
+              </select>
             </div>
           </div>
 
