@@ -30,6 +30,7 @@ import Icon from '../components/Icon'
 import { color as T, radius as R, font } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { CampoConElenco, formatNome } from './_shared'
+import SchedaFornitoreProposta from '../components/SchedaFornitoreProposta'
 import {
   preparaBolla, identitaBolla, normalizzaUnita,
   bollaDiQuestaFattura, controlloTotaleAMano,
@@ -61,6 +62,10 @@ function dataDaLeggere(giorno) {
 
 export default function BollaInArrivo({
   letto, ricettario, logPrezzi = [], logRif = [], onRegistra, onAnnulla, notify,
+  // Servono a proporre la scheda del fornitore dalla testata del documento.
+  // `pivaCliente` è la P.IVA dell'azienda: sulla bolla ci sono tutt'e due, e
+  // prendere la propria vorrebbe dire creare un fornitore che sei tu.
+  orgId = null, pivaCliente = null,
 }) {
   const suTelefono = useIsMobile()
   const suTablet = useIsTablet()
@@ -331,6 +336,19 @@ export default function BollaInArrivo({
           Aggiungi una riga
         </button>
       </div>
+
+      {/* ── La scheda del fornitore, proposta dalla sua testata ───────────
+          Ogni bolla porta stampati nome, via, telefono, email, P.IVA, IBAN e
+          condizioni di pagamento. Finora li buttavamo via. */}
+      {orgId && letto?.testataFornitore && (
+        <SchedaFornitoreProposta
+          testata={letto.testataFornitore}
+          fornitore={fornitore}
+          orgId={orgId}
+          pivaCliente={pivaCliente}
+          notify={notify}
+        />
+      )}
 
       {/* ── Il documento che non ha prezzi ────────────────────────────────
           Metà delle bolle vere (Vecchio Enrico, ConoArtic) sono DDT puri: le
