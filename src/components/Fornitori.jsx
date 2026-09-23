@@ -234,7 +234,7 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
   const confirmDialog = useConfirm()
   const [lista, setLista] = useState([])
   const [loading, setLoading] = useState(true)
-  const [form, setForm] = useState({ nome: "", contatto: "", email: "", telefono: "", note: "", sede_id: "", iban: "", termini_pagamento: "30", termini_tipo: "netti", categoria: "", vicino_a_sede: "", si_ritira: "", partita_iva: "", lead_time_giorni: "", minimo_ordine: "" })
+  const [form, setForm] = useState({ nome: "", contatto: "", email: "", telefono: "", note: "", sede_id: "", iban: "", termini_pagamento: "30", termini_tipo: "netti", categoria: "", vicino_a_sede: "", si_ritira: "", partita_iva: "", lead_time_giorni: "", minimo_ordine: "", indirizzo: "", cap: "", citta: "", provincia: "", codice_fiscale: "", pec: "", sito: "", whatsapp: "" })
   const [editId, setEditId] = useState(null)
   const [saving, setSaving] = useState(false)
   const [showForm, setShowForm] = useState(false)
@@ -476,6 +476,21 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
       vicino_a_sede: form.vicino_a_sede || null,
       si_ritira: form.si_ritira === "" ? null : form.si_ritira === "si",
       minimo_ordine: form.minimo_ordine === "" ? null : (parseFloat(String(form.minimo_ordine).replace(',', '.')) || null),
+      // ── Quello che la bolla ha già letto ──────────────────────────────
+      //
+      // Otto colonne aggiunte il 22/09/2026 perché `datiFornitoreDaBolla`
+      // le estrae dal documento e la scheda proposta le scrive. Fino al
+      // 23/09 questa pagina non le conosceva: il dato entrava nel database
+      // e non lo vedeva più nessuno — e una PEC letta male non si poteva
+      // nemmeno correggere a mano.
+      indirizzo: form.indirizzo?.trim() || null,
+      cap: form.cap?.replace(/\D/g, '').slice(0, 5) || null,
+      citta: form.citta?.trim() || null,
+      provincia: form.provincia?.trim().toUpperCase().slice(0, 2) || null,
+      codice_fiscale: form.codice_fiscale?.replace(/\s+/g, '').toUpperCase() || null,
+      pec: form.pec?.trim().toLowerCase() || null,
+      sito: form.sito?.trim() || null,
+      whatsapp: form.whatsapp?.trim() || null,
       organization_id: orgId,
     }
     let err
@@ -524,7 +539,7 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
   const ibanScritto = !!form.iban?.trim()
   const ibanOk = ibanScritto && ibanIsValid(form.iban)
 
-  function resetForm() { setForm({ nome: "", contatto: "", email: "", telefono: "", note: "", sede_id: sedeId || "", iban: "", termini_pagamento: "30", termini_tipo: "netti", categoria: "", vicino_a_sede: "", si_ritira: "", partita_iva: "", lead_time_giorni: "", minimo_ordine: "" }); setEditId(null); setShowForm(false) }
+  function resetForm() { setForm({ nome: "", contatto: "", email: "", telefono: "", note: "", sede_id: sedeId || "", iban: "", termini_pagamento: "30", termini_tipo: "netti", categoria: "", vicino_a_sede: "", si_ritira: "", partita_iva: "", lead_time_giorni: "", minimo_ordine: "", indirizzo: "", cap: "", citta: "", provincia: "", codice_fiscale: "", pec: "", sito: "", whatsapp: "" }); setEditId(null); setShowForm(false) }
   function initEdit(f) {
     setForm({
       nome: f.nome, contatto: f.contatto || "", email: f.email || "", telefono: f.telefono || "", note: f.note || "",
@@ -533,8 +548,24 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
       minimo_ordine: f.minimo_ordine == null ? "" : String(f.minimo_ordine),
       vicino_a_sede: f.vicino_a_sede || "",
       si_ritira: f.si_ritira === true ? "si" : f.si_ritira === false ? "no" : "",
+      // I campi che la bolla sa compilare da sola. Se restano fuori di qui,
+      // aprire il fornitore per modificarlo li svuota: il form parte vuoto e
+      // il salvataggio scrive il vuoto sopra quello che la bolla aveva letto.
+      indirizzo: f.indirizzo || "", cap: f.cap || "", citta: f.citta || "",
+      provincia: f.provincia || "", codice_fiscale: f.codice_fiscale || "",
+      pec: f.pec || "", sito: f.sito || "", whatsapp: f.whatsapp || "",
     })
     setEditId(f.id); if (isMobile) setShowForm(true)
+  }
+
+  /** L'indirizzo su una riga sola, saltando i pezzi che non ci sono. */
+  function indirizzoRiga(f) {
+    const via = (f?.indirizzo || '').trim()
+    const cap = (f?.cap || '').trim()
+    const citta = (f?.citta || '').trim()
+    const pr = (f?.provincia || '').trim()
+    const dopo = [cap, citta && pr ? `${citta} (${pr})` : citta || (pr ? `(${pr})` : '')].filter(Boolean).join(' ')
+    return [via, dopo].filter(Boolean).join(' · ') || null
   }
 
   const listaFiltrata = useMemo(() => {
@@ -907,6 +938,81 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
             </div>
           </div>
 
+          {/* ── L'anagrafica che la bolla compila da sola ──────────────────
+              Il titolare, 22/09/2026: «ci sarebbe da creare un tool che
+              caricando una bolla prende tutti i dati e compila la scheda del
+              fornitore». Il tool c'è: legge indirizzo, PEC, sito, WhatsApp,
+              codice fiscale dalla testata del documento e li scrive.
+              Mancava la seconda metà — questa pagina non li mostrava, quindi
+              il dato entrava e spariva dalla vista, e un dato letto male non
+              si poteva correggere. */}
+          <div style={{ marginBottom: 12, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
+            <div style={{ ...lblSt, marginBottom: 8 }}>
+              Anagrafica
+              <span style={{ fontWeight: 400, color: C.textSoft, marginLeft: 6 }}>
+                — la compila da sola la prima bolla che carichi; qui la correggi
+              </span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr', gap: 10, marginBottom: 10 }}>
+              <div>
+                <div style={lblRiq}>Indirizzo</div>
+                <input value={form.indirizzo} onChange={e => setForm(f => ({ ...f, indirizzo: e.target.value }))}
+                  aria-label="Indirizzo del fornitore" placeholder="Via Roma 12" style={inputSt} />
+              </div>
+              <div>
+                <div style={lblRiq}>Città</div>
+                <input value={form.citta} onChange={e => setForm(f => ({ ...f, citta: e.target.value }))}
+                  aria-label="Città del fornitore" placeholder="Torino" style={inputSt} />
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : '1fr 1fr 2fr', gap: 10, marginBottom: 10 }}>
+              <div>
+                <div style={lblRiq}>CAP</div>
+                <input value={form.cap} onChange={e => setForm(f => ({ ...f, cap: e.target.value.replace(/\D/g, '').slice(0, 5) }))}
+                  aria-label="CAP del fornitore" inputMode="numeric" placeholder="10123" style={inputSt} />
+              </div>
+              <div>
+                <div style={lblRiq}>Prov.</div>
+                <input value={form.provincia} onChange={e => setForm(f => ({ ...f, provincia: e.target.value.toUpperCase().slice(0, 2) }))}
+                  aria-label="Provincia del fornitore" placeholder="TO" style={{ ...inputSt, textTransform: 'uppercase' }} />
+              </div>
+              <div>
+                <div style={lblRiq}>
+                  <Tip text="Serve quando la partita IVA non c'è: le ditte individuali fatturano col codice fiscale.">
+                    <span style={{ cursor: 'help', textDecoration: 'underline dotted', textUnderlineOffset: 2 }}>Codice fiscale</span>
+                  </Tip>
+                </div>
+                <input value={form.codice_fiscale} onChange={e => setForm(f => ({ ...f, codice_fiscale: e.target.value.toUpperCase() }))}
+                  aria-label="Codice fiscale del fornitore" placeholder="RSSMRA80A01L219K" style={{ ...inputSt, fontFamily: 'monospace' }} />
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap: 10 }}>
+              <div>
+                <div style={lblRiq}>
+                  <Tip text="L'indirizzo a cui lo Stato manda le fatture elettroniche. Non è la mail per gli ordini.">
+                    <span style={{ cursor: 'help', textDecoration: 'underline dotted', textUnderlineOffset: 2 }}>PEC</span>
+                  </Tip>
+                </div>
+                <input value={form.pec} onChange={e => setForm(f => ({ ...f, pec: e.target.value }))}
+                  aria-label="PEC del fornitore" inputMode="email" placeholder="nome@pec.it" style={inputSt} />
+              </div>
+              <div>
+                <div style={lblRiq}>
+                  <Tip text="Il numero su cui parte il messaggio dell'ordine. Se è vuoto Foodos usa il telefono.">
+                    <span style={{ cursor: 'help', textDecoration: 'underline dotted', textUnderlineOffset: 2 }}>WhatsApp</span>
+                  </Tip>
+                </div>
+                <input value={form.whatsapp} onChange={e => setForm(f => ({ ...f, whatsapp: e.target.value }))}
+                  aria-label="Numero WhatsApp del fornitore" inputMode="tel" placeholder="+39 333 1234567" style={inputSt} />
+              </div>
+              <div>
+                <div style={lblRiq}>Sito</div>
+                <input value={form.sito} onChange={e => setForm(f => ({ ...f, sito: e.target.value }))}
+                  aria-label="Sito del fornitore" placeholder="www.fornitore.it" style={inputSt} />
+              </div>
+            </div>
+          </div>
+
           {haPiuSedi && (
             <div style={{ marginBottom: 12 }}>
               <div style={lblSt}>Sede</div>
@@ -964,6 +1070,8 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
             {f.contatto && <div style={{ fontSize: typo.small.fontSize, color: C.textMid, marginTop: 6, display: "flex", alignItems: "center", gap: 6 }}><Icon name="user" size={12} /> {f.contatto}</div>}
             {f.email && <div style={{ fontSize: typo.small.fontSize, color: C.textMid, marginTop: 2, display: "flex", alignItems: "center", gap: 6 }}><Icon name="mail" size={12} /> <a href={`mailto:${f.email}`} style={{ color: C.red }}>{f.email}</a></div>}
             {f.telefono && <div style={{ fontSize: typo.small.fontSize, color: C.textMid, marginTop: 2 }}><a href={`tel:${f.telefono}`} style={{ color: C.red }}>{f.telefono}</a></div>}
+            {f.whatsapp && <div style={{ fontSize: typo.small.fontSize, color: C.textMid, marginTop: 2, display: "flex", alignItems: "center", gap: 6 }}><Icon name="chat" size={12} /> {f.whatsapp}</div>}
+            {indirizzoRiga(f) && <div style={{ fontSize: typo.small.fontSize, color: C.textSoft, marginTop: 2, display: "flex", alignItems: "center", gap: 6 }}><Icon name="pin" size={12} /> {indirizzoRiga(f)}</div>}
             {f.note && <div style={{ fontSize: font.size.sm, color: C.textSoft, marginTop: 6, fontStyle: "italic" }}>{f.note}</div>}
             <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
               <button onClick={() => initEdit(f)} style={{ flex: 1, padding: "10px", background: C.bg, border: `1px solid ${C.borderStr}`, borderRadius: 8, fontSize: typo.small.fontSize, color: C.textMid, cursor: "pointer", fontWeight: 600 }}>Modifica</button>
@@ -988,6 +1096,8 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
                 {f.contatto && <div style={{ fontSize: font.size.sm, color: C.textMid, marginTop: 6, display: "flex", alignItems: "center", gap: 6 }}><Icon name="user" size={11} /> {f.contatto}</div>}
                 {f.email && <div style={{ fontSize: font.size.sm, color: C.textMid, marginTop: 2 }}><a href={`mailto:${f.email}`} style={{ color: C.red }}>{f.email}</a></div>}
                 {f.telefono && <div style={{ fontSize: font.size.sm, color: C.textMid, marginTop: 2 }}>{f.telefono}</div>}
+                {f.whatsapp && <div style={{ fontSize: font.size.sm, color: C.textMid, marginTop: 2 }}>{f.whatsapp}</div>}
+                {indirizzoRiga(f) && <div style={{ fontSize: font.size.sm, color: C.textSoft, marginTop: 2 }}>{indirizzoRiga(f)}</div>}
                 {f.note && <div style={{ fontSize: font.size.sm, color: C.textSoft, marginTop: 4, fontStyle: "italic" }}>{f.note}</div>}
               </div>
               <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>

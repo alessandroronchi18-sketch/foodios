@@ -14,6 +14,7 @@ import { todayLocal, formatLocalDate } from '../lib/dateLocal'
 import { normIng, getR, translateIngredienteEN, buildIngCosti } from '../lib/foodcost'
 import { onEnterAutoComplete } from '../lib/autocomplete'
 import { SK_MAG, SK_EXCL, SK_LOGRIF } from '../lib/storageKeys'
+import { merceSenzaPrezzo, avvisoMerceSenzaPrezzo } from '../lib/bolle'
 import { lessico } from '../lib/lessico'
 import FotoOCR from '../components/FotoOCR'
 import BollaInArrivo from './BollaInArrivo'
@@ -1087,6 +1088,22 @@ export default function MagazzinoView({
   // Ingredienti che stanno nelle ricette ma non sono mai stati inventariati.
   // Prima finivano fra gli "esauriti" e li rendevano inutili: nel magazzino
   // reale di Mara sono 40 su 48, quindi l'allarme era sempre acceso.
+  // ── La merce entrata senza che si sappia quanto costa ──────────────────
+  //
+  // Metà delle bolle vere del design partner sono DDT puri: la merce entra,
+  // i prezzi arrivano con la fattura settimane dopo. Va bene. Se però quella
+  // fattura non arriva mai, in magazzino resta roba di cui nessuno sa il
+  // costo, e il food cost di tutto quello che la usa è costruito su un
+  // prezzo vecchio.
+  //
+  // Il conto e la frase esistevano da ieri in `bolle.js`, con i loro test, e
+  // non li chiamava nessuno: il difetto di famiglia di questo prodotto — una
+  // metà che decide, una metà che agisce, mai collegate. Questo è il filo.
+  const senzaPrezzo = useMemo(
+    () => merceSenzaPrezzo(logRif, { escluse: [...esclusi] }),
+    [logRif, esclusi])
+  const avvisoSenzaPrezzo = useMemo(() => avvisoMerceSenzaPrezzo(senzaPrezzo), [senzaPrezzo])
+
   const maiContati = righe.filter(r => r.stato === 'mai_contato')
 
   // ── Diagnosi aggregata (banda premium) ─────────────────────────────────────
@@ -1414,7 +1431,7 @@ export default function MagazzinoView({
   // basta un import, o due tablet che salvano a pochi secondi l'uno dall'altro,
   // e in cima compare una riga di tre giorni fa.
   const logOrdinato = useMemo(
-    () => [...(logRif || [])].sort((a, b) => String(b.data || '').localeCompare(String(a.data || ''))),
+    () => (logRif || []).filter(Boolean).sort((a, b) => String(b?.data || '').localeCompare(String(a?.data || ''))),
     [logRif])
 
   // Annullare una riga sbagliata, senza cancellare niente.
@@ -1459,7 +1476,7 @@ export default function MagazzinoView({
       note: `annullo della riga del ${new Date(r.data).toLocaleDateString('it-IT')}`,
       annulla_id: r.id, utente,
     }
-    const log = [contraria, ...(logRif || []).map(x => x.id === r.id ? { ...x, annullata: true } : x)]
+    const log = [contraria, ...(logRif || []).filter(Boolean).map(x => x.id === r.id ? { ...x, annullata: true } : x)]
     setSaving(true)
     try {
       await ssave(SK_MAG, nm); await ssave(SK_LOGRIF, log)
@@ -1878,6 +1895,34 @@ export default function MagazzinoView({
           stati contati, e finché non lo sono la pagina non sa dire cosa sta
           finendo. Aggiungerli uno per uno vuol dire quaranta volte
           apri-scrivi-salva: è per questo che sono ancora quaranta. */}
+      {tab === 'giacenze' && avvisoSenzaPrezzo && (
+        <div data-avviso="merce-senza-prezzo" style={{
+          background: C.bgCard, border: `1px solid ${C.amber}55`, borderRadius: R['2xl'],
+          marginBottom: 16, padding: isMobile ? 12 : '14px 16px',
+          display: 'flex', alignItems: 'flex-start', gap: 10,
+        }}>
+          <span style={{ flexShrink: 0, marginTop: 1, color: C.amber }}><Icon name="clock" size={16} /></span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: typo.small.fontSize, color: C.textMid, lineHeight: 1.5 }}>
+              <strong style={{ color: C.text }}>Merce entrata senza prezzo</strong>
+              {' '}— {avvisoSenzaPrezzo}
+            </div>
+            <div style={{ fontSize: font.size.sm, color: C.textSoft, marginTop: 4, lineHeight: 1.5 }}>
+              Carica la fattura di quella bolla e il prezzo si sistema da solo. Se da
+              quel fornitore la fattura non arriva mai — capita, c'è merce che dà
+              dentro e non fattura a parte — togli l'ingrediente dal conteggio con
+              «Non seguire».
+            </div>
+            {senzaPrezzo.length > 1 && (
+              <div style={{ fontSize: font.size.sm, color: C.textSoft, marginTop: 6 }}>
+                {senzaPrezzo.slice(0, 6).map(r => `${r.nome} (${r.giorni} gg)`).join(' · ')}
+                {senzaPrezzo.length > 6 ? ` e altre ${senzaPrezzo.length - 6}` : ''}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {tab === 'giacenze' && maiContati.length > 0 && (
         <div style={{
           background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: R['2xl'],

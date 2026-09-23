@@ -105,6 +105,12 @@ describe('Ogni conto nuovo viene chiamato da qualche parte', () => {
     'righeBolla', 'datiFornitoreDaBolla', 'destinazioneSede', 'pezziPerConfezione',
     'riordino', 'testoOrdine', 'consumoGiornaliero', 'smistaMerce',
     'giriTrasferimenti', 'mezziTrasporto',
+    // 23/09/2026: `bolle.js` non era in elenco, ed è il file più grande di
+    // tutti. `merceSenzaPrezzo` e `avvisoMerceSenzaPrezzo` erano scritte,
+    // commentate e provate — e non le chiamava nessuna schermata. L'elenco
+    // scritto a mano è esso stesso un buco: quello che non ci metti non è
+    // sorvegliato.
+    'bolle',
   ]
 
   /** Tutto il codice del prodotto. */
