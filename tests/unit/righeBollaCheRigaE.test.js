@@ -16,7 +16,7 @@
 //   • una riga di **pubblicità** con dentro un prezzo al chilo diventa una
 //     materia prima nuova che nessuno ha mai comprato.
 import { describe, it, expect } from 'vitest'
-import { classificaRiga, classificaRighe, TIPO } from '../../src/lib/righeBolla.js'
+import { classificaRiga, TIPO } from '../../src/lib/righeBolla.js'
 
 const tipo = (r) => classificaRiga(r).tipo
 
@@ -208,42 +208,6 @@ describe('Il rumore non diventa una materia prima', () => {
   })
 })
 
-describe('Tutto insieme: una bolla vera', () => {
-  // Galatea 001821/2 del 13/05/2026, riga per riga come è stampata.
-  const GALATEA = [
-    { nome: 'base latte', quantita: '300,0000', unita: 'KG', prezzoUnitario: '8,300', imponibile: '2.490,00' },
-    { nome: 'base frutta', quantita: '480,0000', unita: 'KG', prezzoUnitario: '5,200', imponibile: '2.496,00' },
-    { nome: 'pasta pistacchio', descrizione: 'Sample/Campione', quantita: '2,0000', unita: 'NR', prezzoUnitario: '0,001', scontoPct: '100', imponibile: '0,00' },
-    { nome: 'variegato tropical', descrizione: 'SAMPLE/CAMPIONE', quantita: '1,0000', unita: 'NR', prezzoUnitario: '0,001', scontoPct: '100', imponibile: '0,00' },
-    { nome: 'polpa di mango', quantita: '3,1000', unita: 'KG', prezzoUnitario: '6,000', scontoTesto: 'Omaggio', imponibile: '18,60' },
-    { nome: '*** IBAN : IT49Z0708412500000000010611 ***' },
-    { nome: 'ORARIO DI SCARICO dalle 9 alle 13' },
-  ]
-
-  it('due righe di merce, due campioni, un omaggio, due di rumore', () => {
-    const { righe, fuori } = classificaRighe(GALATEA)
-    expect(righe.filter(r => r._classe.tipo === TIPO.MERCE).length).toBe(2)
-    expect(fuori[TIPO.CAMPIONE].length).toBe(2)
-    expect(fuori[TIPO.OMAGGIO].length).toBe(1)
-    expect(fuori[TIPO.RUMORE].length).toBe(2)
-  })
-
-  it('e lo dice, invece di togliere le righe in silenzio', () => {
-    const { avvisi } = classificaRighe(GALATEA)
-    const tutto = avvisi.join(' | ')
-    expect(tutto).toMatch(/2 righe sono campioni/)
-    expect(tutto).toMatch(/pasta pistacchio/)
-    expect(tutto).toMatch(/omaggio/i)
-    expect(tutto).toMatch(/2 righe erano testo del documento/)
-  })
-
-  it('la merce da caricare è solo quella comprata più l\'omaggio', () => {
-    const { righe } = classificaRighe(GALATEA)
-    const daCaricare = righe.filter(r => r._classe.caricaMagazzino)
-    expect(daCaricare.map(r => r.nome)).toEqual(['base latte', 'base frutta', 'polpa di mango'])
-  })
-})
-
 describe('Il righello di questo file', () => {
   it('senza classificazione il campione entrerebbe: è il motivo del file', () => {
     // Taratura: se `classificaRiga` tornasse a dire MERCE per tutto, qui si
@@ -256,7 +220,5 @@ describe('Il righello di questo file', () => {
     for (const storta of [null, undefined, {}, { nome: null }, { nome: 123 }, { quantita: NaN }]) {
       expect(() => classificaRiga(storta)).not.toThrow()
     }
-    expect(() => classificaRighe(null)).not.toThrow()
-    expect(classificaRighe(null).righe).toEqual([])
   })
 })

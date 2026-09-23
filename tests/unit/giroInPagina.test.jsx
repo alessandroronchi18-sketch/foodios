@@ -304,3 +304,135 @@ describe('Chi può fare questo giro', () => {
     expect(testo()).not.toMatch(/Può andarci/)
   })
 })
+
+describe('Materia prima o gelato: decide quale giacenza si muove', () => {
+  // Difetto trovato dall'audit del 23/09/2026. Tutti i trasferimenti partivano
+  // come `materia_prima`, e quel campo non è un'etichetta: una materia prima
+  // scarica e carica il magazzino degli ingredienti, un prodotto finito va
+  // sulla vetrina.
+  //
+  // «Pistacchio» è sia la pasta sia il gusto. Una riga di gelato scritta così
+  // andava a scalare la **pasta** di pistacchio — in silenzio, se
+  // l'ingrediente esisteva con lo stesso nome — oppure restava bloccata per
+  // sempre con «disponibilità insufficiente: 0 g».
+  //
+  // Ed è il caso che ha fatto nascere tutta la funzione: «i trasferimenti
+  // vengono fatti anche tutti i giorni ma solo per **un kg di gelato**».
+  it('scrivendo a mano si sceglie cos\'è', async () => {
+    apri()
+    await waitFor(() => expect(screen.getByLabelText(/Cosa ti serve/i)).toBeTruthy())
+    expect(screen.getByLabelText(/materia prima o un prodotto finito/i)).toBeTruthy()
+  })
+
+  it('e il gelato parte come prodotto, non come materia prima', async () => {
+    apri()
+    await waitFor(() => expect(screen.getByLabelText(/Cosa ti serve/i)).toBeTruthy())
+    fireEvent.change(screen.getByLabelText(/Cosa ti serve/i), { target: { value: 'pistacchio' } })
+    fireEvent.change(screen.getByLabelText(/Quanti grammi/i), { target: { value: '1000' } })
+    fireEvent.change(screen.getByLabelText(/materia prima o un prodotto finito/i), { target: { value: 'prodotto' } })
+    fireEvent.click(screen.getByRole('button', { name: /Aggiungi/i }))
+    await waitFor(() => expect(salvati.some(([k]) => k === 'pasticceria-lista-giro-v1')).toBe(true))
+    const [, l] = [...salvati].reverse().find(([k]) => k === 'pasticceria-lista-giro-v1')
+    expect(l[0].tipo).toBe('prodotto')
+  })
+
+  it('e arriva così fino al trasferimento creato', async () => {
+    LISTA = [
+      { id: 'l1', prodotto: 'Pistacchio', quantita: 1000, da: 'berth', tipo: 'prodotto' },
+      { id: 'l2', prodotto: 'Zucchero', quantita: 5000, da: 'berth', tipo: 'materia_prima' },
+    ]
+    apri()
+    await waitFor(() => expect(testo()).toMatch(/In lista/))
+    fireEvent.click(screen.getByRole('button', { name: /Crea i trasferimenti/i }))
+    await waitFor(() => expect(creati.length).toBe(2))
+    expect(creati.find(c => c.prodotto === 'Pistacchio').tipo).toBe('prodotto')
+    expect(creati.find(c => c.prodotto === 'Zucchero').tipo).toBe('materia_prima')
+  })
+
+  it('quello che propone Foodos dal magazzino è sempre materia prima', async () => {
+    // Lì dentro non c'è gelato: sono le giacenze degli ingredienti.
+    MAGAZZINO = { pistacchio: { nome: 'Pistacchio', giacenza_g: 500, soglia_g: 2000 } }
+    apri()
+    await waitFor(() => expect(testo()).toMatch(/Sotto scorta qui/))
+    fireEvent.click(screen.getByRole('button', { name: /Mettilo in lista/i }))
+    await waitFor(() => expect(salvati.some(([k]) => k === 'pasticceria-lista-giro-v1')).toBe(true))
+    const [, l] = [...salvati].reverse().find(([k]) => k === 'pasticceria-lista-giro-v1')
+    expect(l[0].tipo).toBe('materia_prima')
+  })
+
+  it('e una riga senza tipo resta materia prima, come prima', async () => {
+    LISTA = [{ id: 'l1', prodotto: 'Zucchero', quantita: 5000, da: 'berth' }]
+    apri()
+    await waitFor(() => expect(testo()).toMatch(/In lista/))
+    fireEvent.click(screen.getByRole('button', { name: /Crea i trasferimenti/i }))
+    await waitFor(() => expect(creati.length).toBe(1))
+    expect(creati[0].tipo).toBe('materia_prima')
+  })
+})
+
+describe('Il gusto che si fa in un posto solo', () => {
+  // Il titolare, 23/09/2026: «magari un gusto lo si fa solo in un posto tipo
+  // Carlina e poi lo si smista». È l'unica delle tre cause di un
+  // trasferimento che NON è un errore di previsione — e proprio per questo è
+  // l'unica che si può togliere: deciderlo quando si produce fa partire la
+  // roba già divisa col giro, invece di far nascere una corsa il giorno che
+  // un banco resta vuoto.
+  //
+  // `dividiProduzione` era costruita e provata con sei casi, e **non la
+  // chiamava nessuno**: la quarta volta in due giorni della stessa famiglia
+  // di difetti. Adesso la chiama questa banda.
+  it('dice quanto ti spetta dalla produzione di un altro negozio', async () => {
+    GIRI = {
+      giorni: [2, 5],
+      quote: [{
+        nome: 'Stracciatella', da: 'berth', totale: 10,
+        per: [{ sedeId: 'carlina', quota: 5 }, { sedeId: 'berth', quota: 3 }, { sedeId: 'gasperi', quota: 2 }],
+      }],
+    }
+    apri()
+    await waitFor(() => expect(testo()).toMatch(/Ti spetta dalla produzione degli altri/))
+    expect(testo()).toContain('Stracciatella')
+    expect(testo()).toMatch(/la fa Berthollet/)
+    expect(testo()).toMatch(/te ne spettano 5 kg/)
+  })
+
+  it('e quello che fai tu non ti spetta da nessuno', async () => {
+    GIRI = {
+      giorni: [2],
+      quote: [{ nome: 'Stracciatella', da: 'carlina', totale: 10, per: [{ sedeId: 'carlina', quota: 1 }] }],
+    }
+    apri()
+    await new Promise(r => setTimeout(r, 40))
+    expect(testo()).not.toMatch(/Ti spetta dalla produzione/)
+  })
+
+  it('mettendolo in lista parte come prodotto, non come materia prima', async () => {
+    // È gelato: muove la vetrina, non il magazzino degli ingredienti.
+    GIRI = {
+      giorni: [2],
+      quote: [{ nome: 'Stracciatella', da: 'berth', totale: 10, per: [{ sedeId: 'carlina', quota: 1 }, { sedeId: 'berth', quota: 1 }] }],
+    }
+    apri()
+    await waitFor(() => expect(testo()).toMatch(/Ti spetta dalla produzione/))
+    fireEvent.click(screen.getByRole('button', { name: /Mettilo in lista/i }))
+    await waitFor(() => expect(salvati.some(([k]) => k === 'pasticceria-lista-giro-v1')).toBe(true))
+    const [, l] = [...salvati].reverse().find(([k]) => k === 'pasticceria-lista-giro-v1')
+    expect(l[0]).toMatchObject({ prodotto: 'Stracciatella', tipo: 'prodotto', da: 'berth' })
+    expect(l[0].quantita).toBe(5000)
+  })
+
+  it('si imposta da lì, e il pulsante dice quanti gusti ci sono', async () => {
+    GIRI = { giorni: [], quote: [] }
+    apri()
+    await waitFor(() => expect(screen.getByRole('button', { name: /Un gusto si fa in un posto solo/i })).toBeTruthy())
+    fireEvent.click(screen.getByRole('button', { name: /Un gusto si fa in un posto solo/i }))
+    fireEvent.change(await screen.findByLabelText(/Che gusto/i), { target: { value: 'Stracciatella' } })
+    fireEvent.change(screen.getByLabelText(/Chi lo fa/i), { target: { value: 'berth' } })
+    fireEvent.change(screen.getByLabelText(/Quanti kg per tutti/i), { target: { value: '12' } })
+    fireEvent.click(screen.getAllByRole('button', { name: /^Aggiungi$/i })[0])
+    await waitFor(() => expect(salvati.some(([k]) => k === 'pasticceria-giri-trasferimenti-v1')).toBe(true))
+    const [, g] = [...salvati].reverse().find(([k]) => k === 'pasticceria-giri-trasferimenti-v1')
+    expect(g.quote[0]).toMatchObject({ nome: 'Stracciatella', da: 'berth', totale: 12 })
+    expect(g.quote[0].per).toHaveLength(3)
+  })
+})

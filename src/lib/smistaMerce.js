@@ -28,7 +28,7 @@
 //
 // Quando l'aliquota non c'è, non si indovina: si risponde «non lo so» e
 // decide la persona.
-import { pezziPerConfezione } from './pezziPerConfezione'
+import { pezziPerConfezione, pesoConfezioneGDaDescrizione } from './pezziPerConfezione'
 
 export const DOVE = {
   MAGAZZINO: 'magazzino',   // materia prima: pesa sul food cost
@@ -89,9 +89,25 @@ export function costoDiUnPezzo(riga = {}) {
   const imponibile = leggiImporto(riga?.imponibile)
 
   if (pezzi == null) {
+    // Quando la confezione si conta a peso.
+    //
+    // ConoArtic vende le palettine a chilo e le coppette a pacco. Se la riga
+    // dice quanto pesa una confezione ma non quanti pezzi ci sono dentro, il
+    // costo di UN pezzo non si puo' fare, e non si inventa. Ma il costo al
+    // chilo si', ed e' comunque un'informazione: si dice quella, invece di
+    // restare muti.
+    const pesoG = pesoConfezioneGDaDescrizione(riga && (riga.descrizione || riga.nome))
+    if (pesoG != null && Number.isFinite(confezioni) && confezioni > 0 && imponibile != null && imponibile > 0) {
+      const kg = (pesoG * confezioni) / 1000
+      return {
+        costoPezzo: null, pezzi: null, totPezzi: null,
+        perche: fmtIt(imponibile) + ' \u20AC per ' + fmtIt(kg) + ' kg = ' + fmtIt(imponibile / kg) + ' \u20AC/kg',
+        problema: 'si vende a peso, non a pezzi: so quanto costa al chilo, non quanto costa uno',
+      }
+    }
     return {
       costoPezzo: null, pezzi: null, totPezzi: null, perche: null,
-      problema: 'non c’è scritto quanti pezzi ci sono in una confezione',
+      problema: 'non c\u2019\u00E8 scritto quanti pezzi ci sono in una confezione',
     }
   }
   if (!Number.isFinite(confezioni) || confezioni <= 0) {

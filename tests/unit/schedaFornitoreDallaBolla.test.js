@@ -21,7 +21,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   datiFornitoreDaBolla, partitaIvaValida, ibanValido, normalizzaIban,
-  codiceFiscaleValido, telefonoPulito, numeroWhatsApp, condizioniPagamento,
+  codiceFiscaleValido, telefonoPulito, condizioniPagamento,
   differenzeScheda,
 } from '../../src/lib/datiFornitoreDaBolla.js'
 
@@ -133,12 +133,6 @@ describe('Codice fiscale, telefono, WhatsApp', () => {
     expect(telefonoPulito('12345')).toBe(null)
     expect(telefonoPulito('')).toBe(null)
     expect(telefonoPulito('chiedere in negozio')).toBe(null)
-  })
-  it('per wa.me serve il prefisso paese, e si dice quando è supposto', () => {
-    // Un numero italiano senza prefisso è un link che non si apre. Il 39 lo
-    // mettiamo noi, ma lo dichiariamo: è una supposizione, non un dato.
-    expect(numeroWhatsApp('0116964241')).toEqual({ numero: '390116964241', supposto: true })
-    expect(numeroWhatsApp('+39 011 6964241')).toEqual({ numero: '390116964241', supposto: false })
   })
 })
 

@@ -116,22 +116,6 @@ export function telefonoPulito(v) {
   return n
 }
 
-/**
- * Il numero come lo vuole `wa.me`: solo cifre, col prefisso paese.
- *
- * Un numero italiano senza prefisso è un link che non si apre. Qui si mette
- * il 39 davanti **solo** ai numeri che hanno la forma italiana (9 o 10
- * cifre, e non cominciano per zero-zero): è una supposizione, e chi chiama
- * la deve poter vedere — per questo la funzione dice anche `supposto`.
- */
-export function numeroWhatsApp(v) {
-  const t = telefonoPulito(v)
-  if (!t) return null
-  if (t.startsWith('+')) return { numero: t.slice(1), supposto: false }
-  if (t.length === 9 || t.length === 10) return { numero: `39${t}`, supposto: true }
-  return null
-}
-
 // ── Le condizioni di pagamento, come le scrivono i fornitori ─────────────
 //
 // Cinque modi diversi di dire tre cose, letti dalle bolle vere.

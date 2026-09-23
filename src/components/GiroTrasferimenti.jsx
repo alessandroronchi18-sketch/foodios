@@ -27,7 +27,7 @@ import { sload, ssave } from '../lib/storage'
 import { SK_GIRI, SK_LISTA_GIRO, SK_MAG } from '../lib/storageKeys'
 import { color as T, radius as R, font, typo } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
-import { prossimoGiro, decidiGiro, ritiriSullaStrada, GIORNI } from '../lib/giriTrasferimenti'
+import { prossimoGiro, decidiGiro, ritiriSullaStrada, dividiProduzione, GIORNI } from '../lib/giriTrasferimenti'
 import { creaTrasferimento } from '../lib/trasferimenti'
 import { mezzoCheBasta, ciSta, chiPuoAndare, MEZZI } from '../lib/mezziTrasporto'
 import { supabase } from '../lib/supabase'
@@ -60,13 +60,15 @@ export default function GiroTrasferimenti({ orgId, sedeId, sedi = [], sedeAttiva
   const [impostazioni, setImpostazioni] = useState(undefined)
   const [lista, setLista] = useState([])
   const [magazzino, setMagazzino] = useState({})
-  const [nuovo, setNuovo] = useState({ prodotto: '', quantita: '', da: '' })
+  const [nuovo, setNuovo] = useState({ prodotto: '', quantita: '', da: '', tipo: 'materia_prima' })
   const [staGiaAndando, setStaGiaAndando] = useState(false)
   const [conMezzo, setConMezzo] = useState(null)
   const [fornitori, setFornitori] = useState([])
   const [ordini, setOrdini] = useState([])
   const [persone, setPersone] = useState([])
   const [apriGiorni, setApriGiorni] = useState(false)
+  const [apriQuote, setApriQuote] = useState(false)
+  const [nuovoGusto, setNuovoGusto] = useState({ nome: '', da: '', totale: '' })
   const [salvando, setSalvando] = useState(false)
 
   useEffect(() => {
@@ -135,6 +137,8 @@ export default function GiroTrasferimenti({ orgId, sedeId, sedi = [], sedeAttiva
       out.push({
         chiave, prodotto: v?.nome || chiave, giacenza, soglia,
         quantita: Math.max(soglia * 2 - giacenza, soglia),
+        // Vengono dal magazzino delle materie prime: lì non c'è gelato.
+        tipo: 'materia_prima',
         daFoodos: true,
       })
     }
@@ -179,6 +183,25 @@ export default function GiroTrasferimenti({ orgId, sedeId, sedi = [], sedeAttiva
     }
   }
 
+  /**
+   * I gusti che si fanno in un posto solo.
+   *
+   * Il titolare, 23/09/2026: «magari un gusto lo si fa solo in un posto tipo
+   * Carlina e poi lo si smista». È l'unica delle tre cause che non è un
+   * errore di previsione — e proprio per questo è l'unica che si può
+   * **togliere**: deciderlo quando si produce fa partire la roba già divisa,
+   * col giro fisso, invece di generare una corsa il giorno che un banco
+   * resta vuoto.
+   */
+  const quote = useMemo(() => (Array.isArray(impostazioni?.quote) ? impostazioni.quote : []), [impostazioni])
+
+  // Quanto spetta a questo negozio, per ogni gusto che fa qualcun altro.
+  const spettanze = useMemo(() => quote.map(g => {
+    const { per } = dividiProduzione(Number(g.totale) || 0, g.per || [])
+    const mia = per.find(p => String(p.sedeId) === String(sedeId))
+    return { ...g, mia: mia?.quantita ?? null, tutte: per }
+  }).filter(g => String(g.da || '') !== String(sedeId) && g.mia > 0), [quote, sedeId])
+
   async function salvaImpostazioni(i) {
     try { await ssave(SK_GIRI, i, orgId, null); setImpostazioni(i); return true } catch (e) {
       notify?.('Non sono riuscito a salvare i giorni del giro: ' + (e?.message || 'rete'), false)
@@ -202,6 +225,15 @@ export default function GiroTrasferimenti({ orgId, sedeId, sedi = [], sedeAttiva
       // uno zero in lista è una riga che al banco nessuno sa cosa voglia dire.
       quantita: Number.isFinite(q) && q > 0 ? q : null,
       unita: 'g',
+      // ── Materia prima o gelato? ─────────────────────────────────────────
+      //
+      // Non è un'etichetta: decide **quale giacenza si muove**. Una materia
+      // prima scarica e carica `pasticceria-magazzino-v1`; un prodotto finito
+      // va sulla vetrina. Scritte tutte come «materia prima», una riga di
+      // gelato chiamata «pistacchio» andava a scalare la **pasta** di
+      // pistacchio — in silenzio, se l'ingrediente esisteva con lo stesso
+      // nome. Trovato dall'audit del 23/09/2026.
+      tipo: riga.tipo === 'prodotto' ? 'prodotto' : 'materia_prima',
       giacenza: riga.giacenza ?? null,
       consumoGiornaliero: riga.consumoGiornaliero ?? null,
       da: riga.da || null,
@@ -242,7 +274,8 @@ export default function GiroTrasferimenti({ orgId, sedeId, sedi = [], sedeAttiva
       for (const r of daFare) {
         try {
           await creaTrasferimento({
-            orgId, sedeDa: r.da, sedeA: sedeId, tipo: 'materia_prima',
+            orgId, sedeDa: r.da, sedeA: sedeId,
+            tipo: r.tipo === 'prodotto' ? 'prodotto' : 'materia_prima',
             prodotto: r.prodotto, quantita: (r.quantita || 0) / 1000, unita: 'kg',
           })
           partiti.add(r.id)
@@ -309,6 +342,76 @@ export default function GiroTrasferimenti({ orgId, sedeId, sedi = [], sedeAttiva
             ? `Giro: ${(impostazioni.giorni).map(g => GIORNI[g]).join(' e ')}`
             : 'Quali giorni si fa il giro?'}
         </button>
+        <button type="button" onClick={() => setApriQuote(v => !v)} aria-expanded={apriQuote}
+          style={{
+            marginLeft: 8, padding: '7px 12px', minHeight: dito ? 44 : 36, background: 'transparent',
+            color: T.textMid, border: `1px solid ${T.border}`, borderRadius: R.sm,
+            fontSize: typo.small.fontSize, fontWeight: 700, fontFamily: 'inherit',
+            cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7,
+          }}>
+          <Icon name="layers" size={13} />
+          {quote.length ? `${quote.length} ${quote.length === 1 ? 'gusto smistato' : 'gusti smistati'}` : 'Un gusto si fa in un posto solo?'}
+        </button>
+        {apriQuote && (
+          <div style={{ marginTop: 10, padding: '12px 13px', background: T.bgSubtle, borderRadius: R.sm }}>
+            <div style={{ fontSize: typo.caption.fontSize, color: T.textSoft, lineHeight: 1.55, marginBottom: 10 }}>
+              Scrivi chi lo fa, quanto ne fa per tutti e come si divide. Da qui in poi parte già
+              diviso col giro, invece di far nascere una corsa il giorno che un banco resta vuoto.
+            </div>
+            {quote.map((g, i) => (
+              <div key={i} style={{ display: 'flex', gap: 9, alignItems: 'center', padding: '6px 0', borderTop: `1px solid ${T.borderSoft}`, flexWrap: 'wrap' }}>
+                <div style={{ flex: 1, minWidth: 160, fontSize: font.size.base, color: T.text }}>
+                  <b>{g.nome}</b>
+                  <span style={{ color: T.textSoft }}>
+                    {' '}\u2014 la fa {sedi.find(x => String(x.id) === String(g.da))?.nome || '?'}, {g.totale} kg divisi{' '}
+                    {(g.per || []).map(p => `${sedi.find(x => String(x.id) === String(p.sedeId))?.nome || '?'} ${p.quota}`).join(' \u00B7 ')}
+                  </span>
+                </div>
+                <button type="button" aria-label={`Togli ${g.nome}`} title="Togli"
+                  onClick={() => salvaImpostazioni({ ...(impostazioni || {}), quote: quote.filter((_, j) => j !== i) })}
+                  style={{
+                    width: dito ? 40 : 34, height: dito ? 40 : 34, padding: 0, background: 'transparent',
+                    color: T.textSoft, border: `1px solid ${T.border}`, borderRadius: R.sm, cursor: 'pointer',
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                  <Icon name="trash" size={13} />
+                </button>
+              </div>
+            ))}
+            <div style={{ display: 'grid', gap: 8, marginTop: 10, gridTemplateColumns: suTelefono ? '1fr' : '2fr 150px 110px auto' }}>
+              <input style={campo} value={nuovoGusto.nome} aria-label="Che gusto"
+                placeholder="es. stracciatella"
+                onChange={e => setNuovoGusto(v => ({ ...v, nome: e.target.value }))} />
+              <select style={campo} value={nuovoGusto.da} aria-label="Chi lo fa"
+                onChange={e => setNuovoGusto(v => ({ ...v, da: e.target.value }))}>
+                <option value="">chi lo fa?</option>
+                {sedi.map(x => <option key={x.id} value={x.id}>{x.nome}</option>)}
+              </select>
+              <input style={{ ...campo, textAlign: 'right' }} value={nuovoGusto.totale} inputMode="decimal"
+                aria-label="Quanti kg per tutti" placeholder="kg"
+                onChange={e => setNuovoGusto(v => ({ ...v, totale: e.target.value }))} />
+              <button type="button"
+                onClick={() => {
+                  const t = Number(String(nuovoGusto.totale).replace(',', '.'))
+                  if (!nuovoGusto.nome.trim() || !nuovoGusto.da || !(t > 0)) {
+                    notify?.('Serve il gusto, chi lo fa e quanti chili se ne fanno per tutti.', false); return
+                  }
+                  // Di partenza le quote sono uguali per tutti: è il punto di
+                  // partenza onesto, e si correggono guardandole.
+                  const per = sedi.map(x => ({ sedeId: String(x.id), quota: 1 }))
+                  salvaImpostazioni({ ...(impostazioni || {}), quote: [...quote, { nome: nuovoGusto.nome.trim(), da: nuovoGusto.da, totale: t, per }] })
+                  setNuovoGusto({ nome: '', da: '', totale: '' })
+                }}
+                style={{
+                  padding: '10px 16px', minHeight: dito ? 48 : 42, background: 'transparent',
+                  color: T.textMid, border: `1px dashed ${T.borderStr}`, borderRadius: R.md,
+                  fontSize: font.size.base, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer',
+                }}>
+                Aggiungi
+              </button>
+            </div>
+          </div>
+        )}
         {apriGiorni && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
             {GIORNI_CORTI.map((g, i) => {
@@ -331,6 +434,44 @@ export default function GiroTrasferimenti({ orgId, sedeId, sedi = [], sedeAttiva
           </div>
         )}
       </div>
+
+      {/* ── I gusti che fa qualcun altro per tutti ────────────────────────
+          Non è un'emergenza: è una consegna prevedibile, e viaggia col giro. */}
+      {spettanze.length > 0 && (
+        <div style={{ marginTop: 16 }}>
+          <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
+            Ti spetta dalla produzione degli altri
+          </div>
+          {spettanze.map(g => {
+            const chi = sedi.find(x => String(x.id) === String(g.da))?.nome || 'un\u2019altra sede'
+            const gia = lista.some(r => String(r.prodotto || '').trim().toLowerCase() === String(g.nome || '').trim().toLowerCase())
+            return (
+              <div key={g.nome} style={{
+                display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0',
+                borderTop: `1px solid ${T.borderSoft}`, flexWrap: 'wrap',
+              }}>
+                <div style={{ flex: 1, minWidth: 150 }}>
+                  <div style={{ fontSize: font.size.base, fontWeight: 600, color: T.text }}>{g.nome}</div>
+                  <div style={{ fontSize: typo.caption.fontSize, color: T.textSoft, lineHeight: 1.45 }}>
+                    la fa {chi}: su {scrivi((Number(g.totale) || 0) * 1000)} te ne spettano {scrivi(g.mia * 1000)}
+                  </div>
+                </div>
+                {!gia && (
+                  <button type="button"
+                    onClick={() => aggiungi({ prodotto: g.nome, quantita: g.mia * 1000, da: g.da, tipo: 'prodotto' })}
+                    style={{
+                      padding: '8px 13px', minHeight: dito ? 44 : 36, background: 'transparent',
+                      color: T.brand, border: `1px solid ${T.brand}55`, borderRadius: R.sm,
+                      fontSize: typo.small.fontSize, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer',
+                    }}>
+                    Mettilo in lista
+                  </button>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
 
       {/* ── Quello che Foodos vede da solo ────────────────────────────────── */}
       {proposte.length > 0 && (
@@ -382,6 +523,7 @@ export default function GiroTrasferimenti({ orgId, sedeId, sedi = [], sedeAttiva
                   <div style={{ fontSize: font.size.base, fontWeight: 600, color: T.text }}>
                     {r.prodotto}
                     {r.quantita ? <span style={{ color: T.textSoft, fontWeight: 400 }}> · {scrivi(r.quantita)}</span> : null}
+                    {r.tipo === 'prodotto' && <span style={{ color: T.textSoft, fontWeight: 400 }}> · gelato</span>}
                     {urgente && <span style={{ color: T.red, marginLeft: 7, fontSize: typo.caption.fontSize, fontWeight: 700 }}>non ci arriva</span>}
                     {incerta && <span style={{ color: T.amber, marginLeft: 7, fontSize: typo.caption.fontSize, fontWeight: 700 }}>da decidere</span>}
                   </div>
@@ -429,11 +571,18 @@ export default function GiroTrasferimenti({ orgId, sedeId, sedi = [], sedeAttiva
           Le giacenze non sanno che domani c'è un evento: chi è al banco sì. */}
       <div style={{
         display: 'grid', gap: 8, marginTop: 16,
-        gridTemplateColumns: suTelefono ? '1fr' : '2fr 110px auto',
+        gridTemplateColumns: suTelefono ? '1fr' : '2fr 150px 110px auto',
       }}>
         <input style={campo} value={nuovo.prodotto} aria-label="Cosa ti serve"
           placeholder="es. pistacchio"
           onChange={e => setNuovo(v => ({ ...v, prodotto: e.target.value }))} />
+        {/* Cosa muove: due magazzini diversi, e il nome può essere lo stesso.
+            «Pistacchio» è sia la pasta sia il gusto. */}
+        <select style={campo} value={nuovo.tipo} aria-label="È una materia prima o un prodotto finito"
+          onChange={e => setNuovo(v => ({ ...v, tipo: e.target.value }))}>
+          <option value="materia_prima">materia prima</option>
+          <option value="prodotto">gelato o prodotto</option>
+        </select>
         <input style={{ ...campo, textAlign: 'right' }} value={nuovo.quantita} inputMode="decimal"
           aria-label="Quanti grammi" placeholder="grammi"
           onChange={e => setNuovo(v => ({ ...v, quantita: e.target.value }))} />
@@ -441,7 +590,7 @@ export default function GiroTrasferimenti({ orgId, sedeId, sedi = [], sedeAttiva
           onClick={async () => {
             if (!nuovo.prodotto.trim()) { notify?.('Scrivi cosa ti serve', false); return }
             await aggiungi(nuovo)
-            setNuovo({ prodotto: '', quantita: '', da: '' })
+            setNuovo({ prodotto: '', quantita: '', da: '', tipo: nuovo.tipo })
           }}
           style={{
             padding: '10px 16px', minHeight: dito ? 48 : 42, background: 'transparent',

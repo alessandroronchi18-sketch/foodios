@@ -849,7 +849,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
             </div>
             <div>
               <div style={lbl}>Tipo</div>
-              <select value={form.tipo} onChange={e => {
+              <select data-campo="tipo" value={form.tipo} onChange={e => {
                 const nuovoTipo = e.target.value
                 setForm(f => ({
                   ...f,
@@ -867,7 +867,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 30px 1fr', gap: 12, marginBottom: 12, alignItems: 'end' }}>
             <div>
               <div style={lbl}>Da</div>
-              <select value={form.sede_da} onChange={e => setForm(f => ({ ...f, sede_da: e.target.value }))} style={inp}>
+              <select data-campo="sedeDa" value={form.sede_da} onChange={e => setForm(f => ({ ...f, sede_da: e.target.value }))} style={inp}>
                 <option value="">- Seleziona -</option>
                 {sediAttive.map(s => <option key={s.id} value={s.id}>{s.nome}{s.citta ? ` · ${s.citta}` : ''}</option>)}
               </select>
@@ -875,7 +875,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
             {!isMobile && <div style={{ textAlign: 'center', fontSize: font.size.xl, color: C.textSoft, paddingBottom: 6 }} aria-hidden="true">→</div>}
             <div>
               <div style={lbl}>A</div>
-              <select value={form.sede_a} onChange={e => setForm(f => ({ ...f, sede_a: e.target.value }))} style={inp}>
+              <select data-campo="sedeA" value={form.sede_a} onChange={e => setForm(f => ({ ...f, sede_a: e.target.value }))} style={inp}>
                 <option value="">- Seleziona -</option>
                 {sediAttive.filter(s => s.id !== form.sede_da).map(s => <option key={s.id} value={s.id}>{s.nome}{s.citta ? ` · ${s.citta}` : ''}</option>)}
               </select>
@@ -899,7 +899,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
             </div>
             <div>
               <div style={lbl}>Unità</div>
-              <select value={form.unita} onChange={e => setForm(f => ({ ...f, unita: e.target.value }))} style={inp}>
+              <select data-campo="unita" value={form.unita} onChange={e => setForm(f => ({ ...f, unita: e.target.value }))} style={inp}>
                 {(form.tipo === 'materia_prima' ? ['g','kg'] : ['pz','vassoi','kg','g','l','ml']).map(u => <option key={u} value={u}>{u}</option>)}
               </select>
             </div>

@@ -146,12 +146,23 @@ async function apriForm(v) {
 }
 
 function campi(v) {
-  const sel = [...v.container.querySelectorAll('select')]
+  // I campi si prendono per NOME, non per posizione.
+  //
+  // Prima erano `sel[0]`, `sel[1]`, `sel[2]`, `sel[3]`: il primo, il secondo,
+  // il terzo e il quarto menu a tendina della pagina, in ordine di comparsa.
+  // Il 23/09/2026 è arrivata in cima una banda nuova con dentro un menu, e
+  // tredici prove sono diventate rosse tutte insieme — non perché il modulo
+  // fosse rotto, ma perché stavano compilando i campi sbagliati.
+  //
+  // Un riferimento che dipende dall'ordine della pagina si rompe ogni volta
+  // che qualcuno aggiunge qualcosa sopra, e quando si rompe dice una cosa
+  // falsa sul prodotto. `data-campo` è già la convenzione di questo file.
+  const q = (n) => v.container.querySelector(`[data-campo="${n}"]`)
   const num = [...v.container.querySelectorAll('input[type="number"]')]
   return {
     data: v.container.querySelector('input[type="date"]'),
-    tipo: sel[0], sedeDa: sel[1], sedeA: sel[2], unita: sel[3],
-    prodotto: v.container.querySelector('input[data-campo="prodotto"]'),
+    tipo: q('tipo'), sedeDa: q('sedeDa'), sedeA: q('sedeA'), unita: q('unita'),
+    prodotto: q('prodotto'),
     quantita: num[0], valore: num[1],
   }
 }

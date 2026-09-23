@@ -89,3 +89,55 @@ describe('Il righello di questo file', () => {
     expect(MIGRAZIONI).not.toMatch(/add column if not exists\s+colonna_che_non_esiste\b/i)
   })
 })
+
+// ── E nessuna funzione costruita e mai chiamata ─────────────────────────
+//
+// Il cricchetto qui sopra guarda le colonne. Il 23/09/2026 il difetto si è
+// ripetuto **una quarta volta**, e in una forma che quel controllo non
+// vedeva: `dividiProduzione` era esportata, provata con sei casi, e non la
+// chiamava nessuno. Cioè il pezzo che serviva al caso più importante — «un
+// gusto lo si fa solo in un posto tipo Carlina e poi lo si smista» — non era
+// raggiungibile da nessuna schermata, e dai test sembrava fatto.
+//
+// Una funzione che nessuno chiama non è codice pronto: è codice che non c'è.
+describe('Ogni conto nuovo viene chiamato da qualche parte', () => {
+  const LIBRERIE = [
+    'righeBolla', 'datiFornitoreDaBolla', 'destinazioneSede', 'pezziPerConfezione',
+    'riordino', 'testoOrdine', 'consumoGiornaliero', 'smistaMerce',
+    'giriTrasferimenti', 'mezziTrasporto',
+  ]
+
+  /** Tutto il codice del prodotto. */
+  const TUTTO = (() => {
+    const fuori = []
+    const gira = (dir) => {
+      for (const v of readdirSync(join(RADICE, dir), { withFileTypes: true })) {
+        const p = `${dir}/${v.name}`
+        if (v.isDirectory()) gira(p)
+        else if (/\.(js|jsx)$/.test(v.name)) fuori.push([p, readFileSync(join(RADICE, p), 'utf8')])
+      }
+    }
+    gira('src')
+    gira('api')
+    return fuori
+  })()
+
+  it.each(LIBRERIE)('src/lib/%s.js: tutto quello che esporta serve a qualcosa', (nome) => {
+    const file = `src/lib/${nome}.js`
+    const src = leggi(file)
+    const esportate = [...src.matchAll(/^export (?:async )?function (\w+)/gm)].map(m => m[1])
+    expect(esportate.length, `${file} non esporta nessuna funzione`).toBeGreaterThan(0)
+
+    // Una funzione serve a qualcosa se la chiama **qualcuno**: un'altra
+    // pagina, oppure il suo stesso file. Esportare un aiutante per poterlo
+    // provare da solo è una buona abitudine, e non va confusa con una
+    // funzione che non chiama nessuno — che è il difetto vero.
+    const orfane = esportate.filter(f => {
+      const usata = new RegExp(`\\b${f}\\s*\\(`)
+      const dentro = usata.test(src.replace(new RegExp(`export (?:async )?function ${f}\\s*\\(`, 'g'), ''))
+      if (dentro) return false
+      return !TUTTO.some(([p, t]) => p !== file && usata.test(t))
+    })
+    expect(orfane, `${file}: costruite e mai chiamate da nessuno — ${orfane.join(', ')}`).toEqual([])
+  })
+})

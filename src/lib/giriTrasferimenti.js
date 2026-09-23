@@ -141,12 +141,33 @@ export function puoAspettare(richiesta, giro) {
     aspetta,
     copre,
     perche: aspetta
-      ? `copre ancora ${arrotonda(copre)} ${arrotonda(copre) === 1 ? 'giorno' : 'giorni'}, e il giro passa fra ${fra === 0 ? 'oggi' : `${fra} ${fra === 1 ? 'giorno' : 'giorni'}`}`
-      : `copre ${arrotonda(copre)} ${arrotonda(copre) === 1 ? 'giorno' : 'giorni'} e il giro passa fra ${fra}: non ci arriva`,
+      ? `copre ancora ${scriviGiorni(copre)}, e il giro passa ${fra === 0 ? 'oggi' : `fra ${scriviGiorni(fra)}`}`
+      : `copre ${scriviGiorni(copre)} e il giro passa ${fra === 0 ? 'oggi' : `fra ${scriviGiorni(fra)}`}: non ci arriva`,
   }
 }
 
 const arrotonda = (n) => Math.max(0, Math.round(n))
+
+/**
+ * I giorni come si dicono, **senza arrotondare quello che non torna**.
+ *
+ * Difetto trovato dall'audit del 23/09/2026: con una copertura di 2,5 giorni e
+ * il giro fra 2, il messaggio arrotondava prima di scrivere e diceva «copre 3
+ * giorni e il giro passa fra 2: non ci arriva». Chi legge si chiede
+ * giustamente perché, e ha ragione: la frase si contraddice da sola.
+ *
+ * La decisione era giusta — serve un giorno intero di margine, fra «lo vedo
+ * scendere» e «il banco è vuoto a metà pomeriggio» passa mezza giornata — ma
+ * un numero arrotondato dentro una spiegazione la rende falsa. Qui il mezzo
+ * giorno si scrive.
+ */
+function scriviGiorni(n) {
+  const v = Math.max(0, Number(n) || 0)
+  if (v < 1) return v === 0 ? 'zero giorni' : 'meno di un giorno'
+  const mezzo = Math.round(v * 2) / 2
+  const testo = Number.isInteger(mezzo) ? String(mezzo) : mezzo.toLocaleString('it-IT')
+  return `${testo} ${mezzo === 1 ? 'giorno' : 'giorni'}`
+}
 
 /**
  * Cosa fare adesso, vista tutta la lista che si è accumulata.
