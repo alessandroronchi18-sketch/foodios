@@ -29,7 +29,7 @@ import { color as T, radius as R, font, typo } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { prossimoGiro, decidiGiro, ritiriSullaStrada, GIORNI } from '../lib/giriTrasferimenti'
 import { creaTrasferimento } from '../lib/trasferimenti'
-import { mezzoCheBasta, ciSta, MEZZI } from '../lib/mezziTrasporto'
+import { mezzoCheBasta, ciSta, chiPuoAndare, MEZZI } from '../lib/mezziTrasporto'
 import { supabase } from '../lib/supabase'
 
 const GIORNI_CORTI = ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab']
@@ -65,6 +65,7 @@ export default function GiroTrasferimenti({ orgId, sedeId, sedi = [], sedeAttiva
   const [conMezzo, setConMezzo] = useState(null)
   const [fornitori, setFornitori] = useState([])
   const [ordini, setOrdini] = useState([])
+  const [persone, setPersone] = useState([])
   const [apriGiorni, setApriGiorni] = useState(false)
   const [salvando, setSalvando] = useState(false)
 
@@ -94,10 +95,15 @@ export default function GiroTrasferimenti({ orgId, sedeId, sedi = [], sedeAttiva
         .eq('organization_id', orgId).eq('attivo', true),
       supabase.from('ordini_fornitori').select('fornitore_id, stato')
         .eq('organization_id', orgId).eq('stato', 'inviato'),
-    ]).then(([f, o]) => {
+      // Chi può guidare e con cosa: serve a non proporre un giro a chi non
+      // può farlo, che è far perdere tempo a chi legge.
+      supabase.from('dipendenti').select('id, nome, patente, mezzi')
+        .eq('organization_id', orgId).eq('attivo', true),
+    ]).then(([f, o, d]) => {
       if (!vivo) return
       setFornitori(f?.data || [])
       setOrdini(o?.data || [])
+      setPersone(d?.data || [])
     })
     return () => { vivo = false }
   }, [orgId])
@@ -158,6 +164,14 @@ export default function GiroTrasferimenti({ orgId, sedeId, sedi = [], sedeAttiva
     [sedeId, fornitori, ordini],
   )
 
+  // Chi può fare questo giro col mezzo scelto. Il motivo conta quanto
+  // l'elenco: «Anna non può» è un vicolo cieco, «Anna non ha la patente»
+  // dice a chi legge cosa fare.
+  const chiCiVa = useMemo(
+    () => chiPuoAndare(persone, conMezzo || consigliato?.id),
+    [persone, conMezzo, consigliato],
+  )
+
   async function salvaLista(l) {
     try { await ssave(SK_LISTA_GIRO, l, orgId, sedeId); setLista(l); return true } catch (e) {
       notify?.('Non sono riuscito a salvare la lista: ' + (e?.message || 'rete'), false)
@@ -204,13 +218,26 @@ export default function GiroTrasferimenti({ orgId, sedeId, sedi = [], sedeAttiva
    */
   async function creaGiro() {
     if (salvando) return
-    const daFare = lista.filter(r => r.da && r.prodotto)
+    const daFare = lista.filter(r => r.da && r.prodotto && Number(r.quantita) > 0)
     if (!daFare.length) {
-      notify?.('Scrivi da quale negozio arriva ogni cosa: senza, non posso creare il trasferimento.', false)
+      // Due motivi diversi, e vale la pena distinguerli: senza «da chi» non
+      // si sa chi manda, senza quantità non si sa cosa scaricargli.
+      const senzaDa = lista.some(r => r.prodotto && !r.da)
+      notify?.(senzaDa
+        ? 'Scrivi da quale negozio arriva ogni cosa: senza, non posso creare il trasferimento.'
+        : 'Scrivi quanto ti serve: un trasferimento senza quantità non si può registrare.', false)
       return
     }
     setSalvando(true)
-    let fatti = 0
+    // Gli id di quelli che sono partiti **davvero**, non il loro numero.
+    //
+    // Prima qui c'era un contatore e poi `daFare.slice(0, fatti)`: se
+    // falliva la riga di mezzo — la seconda di tre — il conto diceva «due
+    // fatti» e toglieva dalla lista la prima e la **seconda**. Cioè toglieva
+    // proprio quella che non era partita, e lasciava dentro la terza che
+    // invece era già in viaggio. Due errori in un colpo: una consegna persa e
+    // una chiesta due volte.
+    const partiti = new Set()
     try {
       for (const r of daFare) {
         try {
@@ -218,15 +245,15 @@ export default function GiroTrasferimenti({ orgId, sedeId, sedi = [], sedeAttiva
             orgId, sedeDa: r.da, sedeA: sedeId, tipo: 'materia_prima',
             prodotto: r.prodotto, quantita: (r.quantita || 0) / 1000, unita: 'kg',
           })
-          fatti++
+          partiti.add(r.id)
         } catch (e) {
           notify?.(`«${r.prodotto}» non è partito: ${e?.message || 'errore'}`, false)
         }
       }
+      const fatti = partiti.size
       if (fatti > 0) {
         // Solo quello che è partito davvero esce dalla lista: una riga che
         // non si è creata deve restare lì, o la si perde senza accorgersene.
-        const partiti = new Set(daFare.slice(0, fatti).map(r => r.id))
         await salvaLista(lista.filter(r => !partiti.has(r.id)))
         notify?.(`${fatti} ${fatti === 1 ? 'trasferimento creato' : 'trasferimenti creati'}. Chi manda li vedrà nella sua pagina.`)
         onCreato?.()
@@ -481,6 +508,21 @@ export default function GiroTrasferimenti({ orgId, sedeId, sedi = [], sedeAttiva
           {capienza.ci_sta === true && consigliato && !conMezzo && (
             <div style={{ fontSize: typo.caption.fontSize, color: T.textSoft, lineHeight: 1.5, marginTop: 8 }}>
               {scrivi(pesoTotale)} ci stanno {consigliato.label.toLowerCase()}: è il mezzo più piccolo che basta.
+            </div>
+          )}
+          {persone.length > 0 && (chiCiVa.possono.length > 0 || chiCiVa.daChiedere.length > 0 || chiCiVa.nonPossono.length > 0) && (
+            <div style={{ fontSize: typo.caption.fontSize, color: T.textSoft, lineHeight: 1.6, marginTop: 8 }}>
+              {chiCiVa.possono.length > 0 && (
+                <div>Può andarci: <b style={{ color: T.text }}>{chiCiVa.possono.map(p => p.nome).join(', ')}</b>.</div>
+              )}
+              {chiCiVa.possono.length === 0 && chiCiVa.daChiedere.length === 0 && (
+                <div style={{ color: T.amberDark || T.amber }}>
+                  Nessuno può farlo con questo mezzo: {chiCiVa.nonPossono.map(p => `${p.nome} ${p.perche}`).join(', ')}.
+                </div>
+              )}
+              {chiCiVa.daChiedere.length > 0 && (
+                <div>Da chiedere: {chiCiVa.daChiedere.map(p => `${p.nome} (${p.perche})`).join(', ')}.</div>
+              )}
             </div>
           )}
         </div>

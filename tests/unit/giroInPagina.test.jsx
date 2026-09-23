@@ -35,12 +35,14 @@ vi.mock('../../src/lib/trasferimenti', () => ({
 
 let FORNITORI = []
 let ORDINI = []
+let PERSONE = []
 vi.mock('../../src/lib/supabase', () => {
   const q = (nome) => {
+    const dati = () => (nome === 'fornitori' ? FORNITORI : nome === 'dipendenti' ? PERSONE : ORDINI)
     const o = {
       select: () => o,
       eq: () => o,
-      then: (r) => Promise.resolve({ data: nome === 'fornitori' ? FORNITORI : ORDINI, error: null }).then(r),
+      then: (r) => Promise.resolve({ data: dati(), error: null }).then(r),
     }
     return o
   }
@@ -64,7 +66,7 @@ const testo = () => document.body.textContent || ''
 beforeEach(() => {
   salvati.length = 0; creati.length = 0
   GIRI = { giorni: [] }; LISTA = []; MAGAZZINO = {}
-  FORNITORI = []; ORDINI = []
+  FORNITORI = []; ORDINI = []; PERSONE = []
 })
 
 describe('Foodos propone quello che vede', () => {
@@ -235,5 +237,70 @@ describe('Con che mezzo', () => {
     fireEvent.click(screen.getByRole('button', { name: 'A piedi' }))
     await waitFor(() => expect(testo()).toMatch(/20 kg a piedi non ci stanno/))
     expect(testo()).toMatch(/due viaggi/)
+  })
+})
+
+describe('Se un trasferimento non parte, esce dalla lista solo quello che è partito', () => {
+  // Difetto trovato dall'audit del 23/09/2026. Prima qui c'era un contatore e
+  // poi `daFare.slice(0, fatti)`: fallendo la riga di MEZZO — la seconda di
+  // tre — il conto diceva «due fatti» e toglieva dalla lista la prima e la
+  // seconda. Cioè toglieva proprio quella che NON era partita, e lasciava
+  // dentro la terza che invece era già in viaggio. Due errori in un colpo:
+  // una consegna persa e una chiesta due volte.
+  it('fallendo quella di mezzo, resta in lista lei e non le altre', async () => {
+    LISTA = [
+      { id: 'l1', prodotto: 'Uno', quantita: 1000, da: 'berth' },
+      { id: 'l2', prodotto: 'Due', quantita: 1000, da: 'berth' },
+      { id: 'l3', prodotto: 'Tre', quantita: 1000, da: 'berth' },
+    ]
+    apri()
+    await waitFor(() => expect(testo()).toMatch(/In lista/))
+    // La finta creazione fallisce sulla seconda.
+    creati.length = 0
+    const vero = Array.prototype.push
+    creati.push = function (p) { if (p?.prodotto === 'Due') throw new Error('rete'); return vero.call(this, p) }
+    fireEvent.click(screen.getByRole('button', { name: /Crea i trasferimenti/i }))
+    await waitFor(() => expect(creati.map(c => c.prodotto)).toEqual(['Uno', 'Tre']))
+    // `delete`, non un'assegnazione: riassegnando resterebbe una proprietà
+    // propria sull'array, e il `toEqual([])` della prova dopo la vedrebbe.
+    delete creati.push
+    const [, l] = [...salvati].reverse().find(([k]) => k === 'pasticceria-lista-giro-v1')
+    expect(l.map(r => r.prodotto)).toEqual(['Due'])
+  })
+
+  it('e una riga senza quantità non si prova nemmeno a creare', async () => {
+    // `creaTrasferimento` la rifiuterebbe, e l'utente leggerebbe un errore
+    // che non spiega niente. Meglio dirglielo prima, e dire cosa manca.
+    LISTA = [{ id: 'l1', prodotto: 'Pistacchio', quantita: null, da: 'berth' }]
+    apri()
+    await waitFor(() => expect(testo()).toMatch(/In lista/))
+    fireEvent.click(screen.getByRole('button', { name: /Crea i trasferimenti/i }))
+    await new Promise(r => setTimeout(r, 40))
+    expect(creati).toEqual([])
+  })
+})
+
+describe('Chi può fare questo giro', () => {
+  it('lo dice, col motivo di chi non può', async () => {
+    // «Anna non può» è un vicolo cieco; «Anna non ha la patente» dice a chi
+    // legge cosa fare: chiedere a un altro, o cambiare mezzo.
+    PERSONE = [
+      { id: 'a', nome: 'Anna', patente: true, mezzi: ['piedi', 'auto'] },
+      { id: 'b', nome: 'Bea', patente: false, mezzi: ['piedi'] },
+      { id: 'c', nome: 'Carlo', patente: null, mezzi: null },
+    ]
+    LISTA = [{ id: 'l1', prodotto: 'Pistacchio', quantita: 30000 }]
+    apri()
+    await waitFor(() => expect(testo()).toMatch(/Con che mezzo/))
+    await waitFor(() => expect(testo()).toMatch(/Può andarci/))
+    expect(testo()).toMatch(/Anna/)
+    expect(testo()).toMatch(/Da chiedere.*Carlo/)
+  })
+
+  it('e senza nessun dipendente registrato non dice niente', async () => {
+    LISTA = [{ id: 'l1', prodotto: 'Pistacchio', quantita: 3000 }]
+    apri()
+    await waitFor(() => expect(testo()).toMatch(/Con che mezzo/))
+    expect(testo()).not.toMatch(/Può andarci/)
   })
 })
