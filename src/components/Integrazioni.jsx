@@ -908,9 +908,9 @@ export default function Integrazioni({ orgId, sedeId }) {
           // core se una colonna nuova non c'è ancora.
           const { nuovi, scartati } = dedupFatture(records, chiaviNote)
           const toInsert = nuovi.map(r => pickFattura(r, orgId, sedeId))
-          await insertFattureResilient(supabase, toInsert)
-          nFile += toInsert.length; imported += toInsert.length
-          esiti.push({ file: file.name, ok: true, n: toInsert.length, doppie: scartati })
+          const esito = await insertFattureResilient(supabase, toInsert)
+          nFile += esito.inserite; imported += esito.inserite
+          esiti.push({ file: file.name, ok: true, n: esito.inserite, doppie: scartati + esito.gia })
 
         } else if (cfg.id === 'zucchetti_infinity') {
           const text = await file.text()

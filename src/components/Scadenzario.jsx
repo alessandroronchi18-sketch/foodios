@@ -601,11 +601,17 @@ export default function Scadenzario({ orgId, sedeId, sedi = [], pagina = 'scaden
           ...pickFattura(r, orgId, unaSola),
           ...(dest.length > 1 ? { sedi_condivise: dest } : null),
         }))
-        await insertFattureResilient(supabase, toInsert)
+        // Il conto viene da quello che il database ha **accettato**, non da
+        // quello che gli abbiamo passato: dal 23/09 un vincolo può rifiutare
+        // una fattura già presente, e dire «12 importate» quando ne sono
+        // entrate 10 è il modo più facile di far sparire due documenti senza
+        // che nessuno se ne accorga.
+        const esito = await insertFattureResilient(supabase, toInsert)
         // I record ORIGINALI (non quelli ripuliti): pickFattura tiene solo le
         // colonne della tabella, e l'IBAN del documento ci serve qui.
         inseriti.push(...nuovi)
-        imported += nuovi.length
+        imported += esito.inserite
+        scartati += esito.gia
       } catch (e) {
         const msg = e?.message || (typeof e === 'string' ? e : '') || 'errore sconosciuto'
         notify('Errore import ' + file.name + ': ' + msg, false)
@@ -647,11 +653,17 @@ export default function Scadenzario({ orgId, sedeId, sedi = [], pagina = 'scaden
           ...pickFattura(r, orgId, unaSola),
           ...(dest.length > 1 ? { sedi_condivise: dest } : null),
         }))
-        await insertFattureResilient(supabase, toInsert)
+        // Il conto viene da quello che il database ha **accettato**, non da
+        // quello che gli abbiamo passato: dal 23/09 un vincolo può rifiutare
+        // una fattura già presente, e dire «12 importate» quando ne sono
+        // entrate 10 è il modo più facile di far sparire due documenti senza
+        // che nessuno se ne accorga.
+        const esito = await insertFattureResilient(supabase, toInsert)
         // I record ORIGINALI (non quelli ripuliti): pickFattura tiene solo le
         // colonne della tabella, e l'IBAN del documento ci serve qui.
         inseriti.push(...nuovi)
-        imported += nuovi.length
+        imported += esito.inserite
+        scartati += esito.gia
       } catch (e) {
         notify('Errore import XML ' + file.name + ': ' + (e?.message || 'sconosciuto'), false)
       }
@@ -691,11 +703,17 @@ export default function Scadenzario({ orgId, sedeId, sedi = [], pagina = 'scaden
           ...pickFattura(r, orgId, unaSola),
           ...(dest.length > 1 ? { sedi_condivise: dest } : null),
         }))
-        await insertFattureResilient(supabase, toInsert)
+        // Il conto viene da quello che il database ha **accettato**, non da
+        // quello che gli abbiamo passato: dal 23/09 un vincolo può rifiutare
+        // una fattura già presente, e dire «12 importate» quando ne sono
+        // entrate 10 è il modo più facile di far sparire due documenti senza
+        // che nessuno se ne accorga.
+        const esito = await insertFattureResilient(supabase, toInsert)
         // I record ORIGINALI (non quelli ripuliti): pickFattura tiene solo le
         // colonne della tabella, e l'IBAN del documento ci serve qui.
         inseriti.push(...nuovi)
-        imported += nuovi.length
+        imported += esito.inserite
+        scartati += esito.gia
       } catch (e) {
         notify('Errore import FatturaSMART ' + file.name + ': ' + (e?.message || 'sconosciuto'), false)
       }

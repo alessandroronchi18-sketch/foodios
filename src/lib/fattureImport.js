@@ -58,29 +58,65 @@ export function dedupFatture(records, seen) {
   return { nuovi, scartati }
 }
 
+/** Il database ha rifiutato la riga perché quella fattura c'è già. */
+export function eDoppione(error) {
+  if (!error) return false
+  return String(error.code || '') === '23505'
+    || /duplicate key value|già presente|fatture_una_sola_volta/i.test(error.message || '')
+}
+
+/** Riscrive le righe con le sole colonne che c'erano prima dello scadenzario. */
+function soloColonneCore(chunk) {
+  return chunk.map(r => {
+    const o = { organization_id: r.organization_id, sede_id: r.sede_id }
+    for (const k of FATTURA_COLS_CORE) if (r[k] !== undefined && r[k] !== null) o[k] = r[k]
+    return o
+  })
+}
+
 /**
  * INSERT resiliente: prova con tutte le colonne sicure; se una colonna nuova
  * non esiste ancora nel database, ripiega sulle sole colonne core invece di
  * rompersi.
+ *
+ * Dal 23/09/2026 il database ha un vincolo che impedisce la stessa fattura
+ * due volte (`fatture_una_sola_volta`). Serve perché la difesa di prima era
+ * tutta nel browser: due persone che importano lo stesso file nello stesso
+ * momento leggono **tutte e due** l'elenco «già presenti» prima che l'altra
+ * scriva, e passano tutte e due. Il vincolo però fa fallire l'intero blocco
+ * da cento righe per colpa di una sola: qui, quando succede, si riprova riga
+ * per riga e le doppie si contano invece di buttare via le buone.
+ *
+ * @returns {Promise<{inserite: number, gia: number}>}
  */
 export async function insertFattureResilient(supabase, rows) {
-  if (!rows.length) return 0
+  if (!rows.length) return { inserite: 0, gia: 0 }
   let inserite = 0
+  let gia = 0
+
+  const prova = async (righe) => {
+    let { error } = await supabase.from('fatture').insert(righe)
+    if (error && /does not exist|schema cache|PGRST204|could not find/i.test(error.message || '')) {
+      error = (await supabase.from('fatture').insert(soloColonneCore(righe))).error
+    }
+    return error
+  }
+
   for (let i = 0; i < rows.length; i += 100) {
     const chunk = rows.slice(i, i + 100)
-    let { error } = await supabase.from('fatture').insert(chunk)
-    if (error && /does not exist|schema cache|PGRST204|could not find/i.test(error.message || '')) {
-      const core = chunk.map(r => {
-        const o = { organization_id: r.organization_id, sede_id: r.sede_id }
-        for (const k of FATTURA_COLS_CORE) if (r[k] !== undefined && r[k] !== null) o[k] = r[k]
-        return o
-      })
-      error = (await supabase.from('fatture').insert(core)).error
+    const error = await prova(chunk)
+    if (!error) { inserite += chunk.length; continue }
+    if (!eDoppione(error)) throw error
+    // Una riga sola ha fatto saltare il blocco: si ricomincia una per una,
+    // così le altre novantanove entrano lo stesso.
+    for (const r of chunk) {
+      const e = await prova([r])
+      if (!e) inserite++
+      else if (eDoppione(e)) gia++
+      else throw e
     }
-    if (error) throw error
-    inserite += chunk.length
   }
-  return inserite
+  return { inserite, gia }
 }
 
 /**
