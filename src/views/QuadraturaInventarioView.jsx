@@ -19,12 +19,13 @@ import { aggiungiGiorni } from '../lib/dateLocal'
 import { supabase } from '../lib/supabase'
 import { SK_FORMATI } from '../lib/storageKeys'
 import Icon from '../components/Icon'
+import { conGiorno } from '../lib/produzioneAnalisi'
 import ExportPdfButton from '../components/ExportPdfButton'
 import { C, PageHeader, TNUM, fmt0, TabellaOSchede } from './_shared'
 import {
   caricaSettimana, calcolaVendutoSettimana, lunediDellaSettimana,
   euroKgMedioFormati, kpiQuadraturaSettimana, classificaGusti, variazione,
-  accettaScostamento,
+  accettaScostamento, CAUSA_RIMANENZA_A_ZERO,
 } from '../lib/inventarioProduzione'
 
 // ── Helpers data/numeri (IT) ──────────────────────────────────────────────
@@ -57,6 +58,8 @@ function pct(v) {
   // Max 1 decimale (regola: percentuali con max 1 decimale)
   return `${n > 0 ? '+' : ''}${n.toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`
 }
+
+const maiuscola = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s)
 
 function csvEscape(s) {
   const v = String(s ?? '')
@@ -200,6 +203,11 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
           gusto, data: dataIso,
           mancano: Math.abs(Number(c.venduto) || 0),
           rimanPrec: c.rimanPrec, prod: c.prod, riman: c.riman,
+          // Per la causa più frequente la casella da sistemare è quella del
+          // giorno PRIMA (la rimanenza lasciata a 0): l'elenco deve indicare
+          // quella, non la casella negativa.
+          causa: c.causa || null,
+          giornoDaSistemare: c.giornoDaSistemare || null,
         })
       }
     }
@@ -668,14 +676,37 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
               }}>
                 <Icon name="alert" size={14} color={T.amber} style={{ flexShrink: 0, marginTop: 3 }} />
                 <span>
-                  {kpi.celleNonQuadrate > 0 && (
+                  {/* La causa più frequente (95,6% delle caselle negative di
+                      Mara a fine agosto): la rimanenza del giorno prima
+                      lasciata a 0 nel giorno della produzione. Lì il totale
+                      NON è più basso del vero — l'errore del giorno prima si
+                      annulla col giorno dopo — e la casella da sistemare è
+                      quella del giorno prima. Prima la pagina diceva il
+                      contrario su tutte e due le cose. */}
+                  {kpi.celleRimanenzaAZero > 0 && (
                     <>
                       <strong>
-                        {kpi.celleNonQuadrate === 1
-                          ? 'Una casella non torna'
-                          : `${n0(kpi.celleNonQuadrate)} caselle non tornano`}
+                        {kpi.celleRimanenzaAZero === 1
+                          ? 'Una casella risulta negativa'
+                          : `${n0(kpi.celleRimanenzaAZero)} caselle risultano negative`}
                       </strong>
-                      {' '}questa settimana, per {nKg(Math.abs(kpi.kgNonQuadrati) * 1000)} kg:
+                      {' '}perché il giorno prima la rimanenza è rimasta a 0 nel giorno in cui si era prodotto:
+                      quel gelato era ancora in vetrina, non venduto.
+                      {kpi.kgRimanenzaFuori < 0
+                        ? ` Il totale della settimana è più basso del vero di ${nKg(Math.abs(kpi.kgRimanenzaFuori) * 1000)} kg, perché il giorno da sistemare è prima del lunedì.`
+                        : ' Sui due giorni insieme il conto torna, quindi il totale della settimana è giusto; il giorno per giorno no.'}
+                      {' '}Va scritta la rimanenza del giorno indicato.
+                    </>
+                  )}
+                  {kpi.celleRimanenzaAZero > 0 && kpi.celleNonQuadrate - kpi.celleRimanenzaAZero > 0 && ' '}
+                  {kpi.celleNonQuadrate - kpi.celleRimanenzaAZero > 0 && (
+                    <>
+                      <strong>
+                        {kpi.celleNonQuadrate - kpi.celleRimanenzaAZero === 1
+                          ? 'Una casella non torna'
+                          : `${n0(kpi.celleNonQuadrate - kpi.celleRimanenzaAZero)} caselle non tornano`}
+                      </strong>
+                      {' '}questa settimana, per {nKg(Math.abs(kpi.kgNonQuadrati - kpi.kgRimanenzaAZero) * 1000)} kg:
                       la rimanenza scritta è più alta di quanto c&apos;era a disposizione.
                       Il totale qui sopra le conta col loro segno, quindi è più basso del vero.
                     </>
@@ -722,6 +753,28 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
                       <span style={{ color: C.textSoft, whiteSpace: 'nowrap' }}>
                         {giorno.toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: 'short' })}
                       </span>
+                      {c.causa === CAUSA_RIMANENZA_A_ZERO && c.giornoDaSistemare ? (
+                        // Non è un ammanco da accettare: è una casella del
+                        // giorno prima da compilare. «È giusta così» qui
+                        // avrebbe fatto passare per omaggio un errore di
+                        // compilazione.
+                        <>
+                          <span style={{ ...TNUM, color: T.amber, fontWeight: 700, whiteSpace: 'nowrap' }}
+                            title={`${maiuscola(conGiorno('il', c.giornoDaSistemare))} la rimanenza è 0 ma si erano prodotti dei chili: il giorno dopo ne ricompaiono ${nKg(c.riman)} kg, e il venduto esce -${nKg(c.mancano)} kg`}>
+                            rimanenza mancante il {new Date(c.giornoDaSistemare + 'T12:00:00').toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: 'short' })}
+                          </span>
+                          {onNavigate && (
+                            <button type="button" onClick={() => onNavigate('inventario-gusti')}
+                              style={{
+                                padding: '6px 12px', minHeight: tapMin, borderRadius: 8,
+                                border: `1px solid ${T.border}`, background: T.bgCard, color: C.textMid,
+                                fontSize: typo.small.fontSize, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
+                              }}>
+                              Apri l&apos;inventario
+                            </button>
+                          )}
+                        </>
+                      ) : (<>
                       <span style={{ ...TNUM, color: T.brand, fontWeight: 700, whiteSpace: 'nowrap' }}
                         title={`Rimasti il giorno prima ${nKg(c.rimanPrec)} kg + prodotti ${nKg(c.prod)} kg, ma la rimanenza scritta è ${nKg(c.riman)} kg`}>
                         mancano {nKg(c.mancano)} kg
@@ -737,6 +790,7 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
                         }}>
                         {accettando === chiave ? 'Salvo…' : 'È giusta così'}
                       </button>
+                      </>)}
                     </div>
                   )
                 })}

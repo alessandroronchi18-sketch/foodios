@@ -210,7 +210,7 @@ describe('Lo Storico a inventario si apre sui giorni registrati', () => {
 
   it('apre sui due mesi fino all\'ultimo giorno registrato, e lo dice', async () => {
     render(<StoricoProduzioneView {...props} />)
-    await waitFor(() => expect(testo()).toMatch(/62 giorni registrati, dal 01\/07 al 31\/08/), { timeout: 5000 })
+    await waitFor(() => expect(testo()).toMatch(/62 giorni registrati, dall'01\/07 al 31\/08/), { timeout: 5000 })
     expect(testo()).toMatch(/ti mostro i due mesi fino all'ultimo giorno registrato/)
     // Le date sono nella barra: si vede che periodo si sta guardando.
     expect(screen.getByLabelText('Data di inizio').value).toBe('2026-07-01')
@@ -255,7 +255,7 @@ describe('Lo Storico a inventario si apre sui giorni registrati', () => {
     await waitFor(() => expect(testo()).toMatch(/giorni registrati/), { timeout: 5000 })
     fireEvent.change(screen.getByLabelText('Data di inizio'), { target: { value: '2026-05-01' } })
     fireEvent.change(screen.getByLabelText('Data di fine'), { target: { value: '2026-05-31' } })
-    await waitFor(() => expect(testo()).toMatch(/31 giorni registrati, dal 01\/05 al 31\/05/), { timeout: 5000 })
+    await waitFor(() => expect(testo()).toMatch(/31 giorni registrati, dall'01\/05 al 31\/05/), { timeout: 5000 })
     await waitFor(() => expect(testo()).toMatch(/nessun confronto: nel periodo di confronto non c'è nessun giorno registrato/), { timeout: 5000 })
     expect(testo()).not.toMatch(/[↑↓]\s*\d/)
   })

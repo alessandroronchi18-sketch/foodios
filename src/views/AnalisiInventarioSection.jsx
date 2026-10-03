@@ -33,13 +33,13 @@ import { loadXLSX } from '../lib/xlsx'
 // i conti che non tornavano, perdeva la giacenza di partenza a ogni giorno di
 // chiusura e ignorava i chili spediti alle altre sedi: questa pagina mostrava
 // un venduto diverso da Quadratura e dal conto economico sugli stessi giorni.
-import { totaliPerGusto, serieVendutoMultiSede, ricettaDelGusto } from '../lib/inventarioProduzione'
+import { totaliPerGusto, serieVendutoMultiSede, ricettaDelGusto, caselleDaSistemare, riassuntoCaselle } from '../lib/inventarioProduzione'
 import { buildIngCosti } from '../lib/foodcost'
 // Il valore di ogni gusto (ricavo, food cost, margine) non si calcola qui: è
 // `valutaGusti`, provato coi numeri veri. Le due copie che stavano in questa
 // pagina chiamavano calcolaFC con gli argomenti sbagliati e davano un margine
 // del 100% su tutto (vedi il racconto in produzioneAnalisi.js).
-import { valutaGusti, giorniRegistrati, variazionePct, dataBreve, dataLunga } from '../lib/produzioneAnalisi'
+import { valutaGusti, giorniRegistrati, variazionePct, dataBreve, conGiorno } from '../lib/produzioneAnalisi'
 import { todayLocal, differenzaGiorni, formatLocalDate } from '../lib/dateLocal'
 import { useRicavoFlat } from '../lib/useRicavoFlat'
 import { fmtp } from '../lib/formatIt'
@@ -224,6 +224,26 @@ export default function AnalisiInventarioSection({
   const daPartenza = partenza && partenza.from === dateFrom && partenza.to === dateTo
     && partenza.ultimo && differenzaGiorni(partenza.ultimo, oggiIso) > 2
 
+  // ── Le caselle da sistemare, col giorno giusto ─────────────────────────
+  // `totaliPerGusto` le contava già, ma questa pagina non le leggeva: il
+  // grafico di apertura mostrava il 12/08 a -126,3 kg venduti senza una
+  // parola. Per la causa più frequente (la rimanenza lasciata a 0 il giorno
+  // della produzione) la casella da correggere è quella del giorno PRIMA.
+  const caselle = useMemo(() => caselleDaSistemare(rows, { da: dateFrom, a: dateTo }), [rows, dateFrom, dateTo])
+  const riassunto = useMemo(() => riassuntoCaselle(caselle), [caselle])
+  const nomeSede = (id) => (sedi || []).find(s => s.id === id)?.nome || null
+  const daSistemare = useMemo(() => {
+    const visti = new Set()
+    const out = []
+    for (const c of caselle) {
+      const k = `${c.sedeId}|${c.gusto}|${c.giornoDaSistemare}`
+      if (visti.has(k)) continue
+      visti.add(k)
+      out.push(c)
+    }
+    return out
+  }, [caselle])
+
   // Un gusto «a posto» ha il prezzo di vendita e il costo completo. Prima il
   // controllo guardava un food cost sempre zero, e l'avviso diceva «28 gusti
   // su 28 senza ricetta» con 88.970 € di ricavo in pagina.
@@ -297,11 +317,11 @@ export default function AnalisiInventarioSection({
       }}>
         <div style={{ fontWeight: 700, color: T.text, marginBottom: 6 }}>
           {dateFrom && dateTo
-            ? `Nessun giorno registrato dal ${dataLunga(dateFrom)} al ${dataLunga(dateTo)}.`
+            ? `Nessun giorno registrato ${conGiorno('dal', dateFrom, { lunga: true })} ${conGiorno('al', dateTo, { lunga: true })}.`
             : 'Nessun giorno registrato nel periodo scelto.'}
         </div>
         {ultimo && (
-          <div>L&apos;ultimo giorno registrato è il {dataLunga(ultimo)}.</div>
+          <div>L&apos;ultimo giorno registrato è {conGiorno('il', ultimo, { lunga: true })}.</div>
         )}
         {ultimo && onPeriodo && (
           <div style={{ marginTop: 12 }}>
@@ -314,7 +334,7 @@ export default function AnalisiInventarioSection({
                 color: T.brand, border: `1px solid ${T.brand}`, borderRadius: 10,
                 fontSize: font.size.base, fontWeight: 700, cursor: 'pointer',
               }}>
-              Guarda i due mesi fino al {dataBreve(ultimo)}
+              Guarda i due mesi fino {conGiorno('al', ultimo)}
             </button>
           </div>
         )}
@@ -373,8 +393,8 @@ export default function AnalisiInventarioSection({
           <b style={{ color: T.text }}>
             {copertura.n === 1 ? 'Un giorno registrato' : `${copertura.n.toLocaleString('it-IT')} giorni registrati`}
           </b>
-          {copertura.n > 1 ? `, dal ${dataBreve(copertura.primo)} al ${dataBreve(copertura.ultimo)}` : `, il ${dataBreve(copertura.primo)}`}
-          {registrazioneFerma && <> · dopo il {dataBreve(copertura.ultimo)} non c&apos;è niente di registrato</>}
+          {copertura.n > 1 ? `, ${conGiorno('dal', copertura.primo)} ${conGiorno('al', copertura.ultimo)}` : `, ${conGiorno('il', copertura.primo)}`}
+          {registrazioneFerma && <> · dopo {conGiorno('il', copertura.ultimo)} non c&apos;è niente di registrato</>}
           {daPartenza && <> · ti mostro i due mesi fino all&apos;ultimo giorno registrato</>}
           {confrontoInfo?.ok && confrontoInfo.from && (
             <> · confronto con {dataBreve(confrontoInfo.from)}–{dataBreve(confrontoInfo.to)}
@@ -406,6 +426,43 @@ export default function AnalisiInventarioSection({
           deltaLabel={deltaLabelText} highlight
           color={totali.margine == null ? T.textSoft : totali.margine >= 0 ? '#166534' : '#B91C1C'}/>
       </div>
+
+      {riassunto.n > 0 && (
+        <div data-caselle style={{
+          background: T.amberLight, border: `1px solid ${T.amber}55`, borderRadius: 10,
+          padding: '10px 12px', marginBottom: 14, fontSize: font.size.sm, color: T.amberDark || T.amber,
+          lineHeight: 1.5, display: 'flex', gap: 8, alignItems: 'flex-start',
+        }}>
+          <span style={{ display: 'inline-flex', marginTop: 2, flexShrink: 0 }}><Icon name="alert" size={14} /></span>
+          <span>
+            {riassunto.nRimanenza > 0 && (
+              <>
+                <b>
+                  {riassunto.nRimanenza === 1 ? 'Una casella da sistemare' : `${riassunto.nRimanenza.toLocaleString('it-IT')} caselle da sistemare`}
+                </b>: la rimanenza è rimasta a 0 nel giorno in cui si era prodotto, e il giorno dopo il venduto
+                risulta negativo. È lo stesso gelato, contato nel giorno sbagliato.
+                {riassunto.kgFuori < 0
+                  ? ` Il venduto del periodo è più basso del vero di ${kg(-riassunto.kgFuori)} kg, perché il giorno da sistemare è prima del periodo.`
+                  : ' Il venduto del periodo è giusto; quello dei singoli giorni no.'}
+              </>
+            )}
+            {riassunto.nRimanenza > 0 && riassunto.nAltre > 0 && ' '}
+            {riassunto.nAltre > 0 && (
+              <>
+                {riassunto.nAltre === 1 ? 'Una casella non torna' : `${riassunto.nAltre.toLocaleString('it-IT')} caselle non tornano`} per
+                altri motivi ({kg(-riassunto.kgAltre)} kg): la rimanenza scritta è più alta di quanto c&apos;era a disposizione.
+              </>
+            )}
+            <span style={{ display: 'block', marginTop: 4 }}>
+              Da sistemare: {daSistemare.slice(0, 5).map(c => {
+                const sede = nomeSede(c.sedeId)
+                return `${c.gusto}${sede ? ` a ${sede}` : ''} ${conGiorno('il', c.giornoDaSistemare)}`
+              }).join(', ')}
+              {daSistemare.length > 5 ? ` e altre ${(daSistemare.length - 5).toLocaleString('it-IT')}` : ''}.
+            </span>
+          </span>
+        </div>
+      )}
 
       {nNonMappati > 0 && (
         <div style={{
@@ -447,6 +504,14 @@ export default function AnalisiInventarioSection({
             <Bar dataKey="scarto" name="Scarto kg" fill="#B91C1C" radius={[4, 4, 0, 0]}/>
           </BarChart>
         </ResponsiveContainer>
+        {vista === 'giornaliero' && riassunto.nRimanenza > 0 && (
+          <div style={{ fontSize: font.size.sm, color: T.textMid, lineHeight: 1.45, marginTop: 8 }}>
+            Il giorno dopo una rimanenza lasciata a 0 il venduto scende, anche sotto zero, e il giorno prima
+            sale: è lo stesso gelato contato nel giorno sbagliato. Giorni da sistemare:{' '}
+            {riassunto.giorni.slice(0, 8).map(dataBreve).join(', ')}
+            {riassunto.giorni.length > 8 ? ` e altri ${(riassunto.giorni.length - 8).toLocaleString('it-IT')}` : ''}.
+          </div>
+        )}
       </div>
 
       {/* Top 10 gusti per venduto */}

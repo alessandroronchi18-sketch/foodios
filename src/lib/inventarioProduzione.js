@@ -14,6 +14,7 @@ import { supabase } from './supabase'
 import { formatLocalDate, todayLocal } from './dateLocal'
 import { normGusto } from './normGusto'
 import { prezzoMedioAlKg } from './prezzoMedioAlKg'
+import { conGiorno } from './produzioneAnalisi'
 
 // Normalizzazione del nome gusto: UPPER+trim come in stock_prodotti_finiti,
 // cosi e' indipendente da come l'utente l'ha digitato in ricettario.
@@ -366,6 +367,11 @@ export async function rimuoviCella(orgId, sedeId, gustoNome, dataIso, opts = {})
 //     `quadra: false` marca la cella; `venduto` resta il numero col segno.
 export const GIORNI_RIPORTO_MAX = 7
 
+// La causa più frequente di una casella che non torna: la rimanenza del
+// giorno prima lasciata a 0 nel giorno in cui si era prodotto. Vedi
+// `cellaVenduto`.
+export const CAUSA_RIMANENZA_A_ZERO = 'rimanenza-precedente-a-zero'
+
 // Somma di giorni su una data 'YYYY-MM-DD' senza passare dal fuso orario.
 function piuGiorni(dataIso, n) {
   const [y, m, d] = dataIso.split('-').map(Number)
@@ -509,9 +515,36 @@ export function cellaVenduto(byKey, gustoKey, dataIso) {
   }
   const v = rimanPrec + prod + ricevuto - riman - scarto - spedito
   const accettato = !!corrente.scostamento_accettato
+  // ── Il buco sta nel giorno PRIMA (audit del 03/10/2026) ───────────────
+  //
+  // Nei dati di Mara 660 righe hanno la rimanenza a 0, e in 658 quel giorno
+  // si era prodotto (in media 5,9 kg): la casella non è stata compilata, o
+  // la rimanenza è stata scritta il giorno dopo. Il conto allora sbaglia due
+  // volte, in versi opposti: il giorno della produzione tutto risulta
+  // venduto, e il giorno dopo la rimanenza «ricompare» e il venduto esce
+  // negativo. De Gasperi, MAROTTO: l'11/08 prodotti 5,0 kg e rimanenza 0
+  // (venduti 12,5 kg); il 12/08 rimanenza 4,6 kg (venduti -4,6 kg). Sui due
+  // giorni insieme (7,9 kg) il conto torna; giorno per giorno no.
+  //
+  // Nelle tre settimane 10-30/08 sono 151 delle 158 caselle negative
+  // (95,6%). La pagina le metteva tutte sul giorno negativo — «mancano 4,6 kg
+  // il 12/08» — e proponeva «È giusta così», cioè di accettare come omaggio
+  // un errore di compilazione dell'11.
+  //
+  // Il dato NON si corregge (non sappiamo quanto c'era davvero in vetrina):
+  // si riconosce il caso e si dice qual è la casella da sistemare.
+  const prec = v < 0 && rimanPrec === 0 && giorniIndietro > 0
+    ? byKey[`${gustoKey}|${piuGiorni(dataIso, -giorniIndietro)}`]
+    : null
+  const rimanenzaPrecAZero = !!(prec && (Number(prec.produzione_g) || 0) > 0)
+  const giornoDaSistemare = rimanenzaPrecAZero ? piuGiorni(dataIso, -giorniIndietro) : null
   return {
     prod, riman, scarto, spedito, ricevuto, rimanPrec, giorniIndietro,
     venduto: v, vendutoRaw: v,
+    // Perché non torna, quando lo si sa: 'rimanenza-precedente-a-zero' vuol
+    // dire che va sistemata la rimanenza di `giornoDaSistemare`, non questa.
+    causa: rimanenzaPrecAZero ? CAUSA_RIMANENZA_A_ZERO : (v < 0 ? 'non-torna' : null),
+    giornoDaSistemare,
     // `quadra` resta il fatto matematico (il conto torna o no).
     // `daControllare` è la domanda pratica: c'è qualcosa da guardare?
     // Una cella accettata non torna e non tornerà mai — è un omaggio, una
@@ -521,7 +554,9 @@ export function cellaVenduto(byKey, gustoKey, dataIso) {
     daControllare: v < 0 && !accettato,
     nota: corrente.scostamento_nota || null,
     registrata: true,
-    motivo: !(v >= 0)
+    motivo: rimanenzaPrecAZero
+      ? `la rimanenza ${conGiorno('del', giornoDaSistemare)} è rimasta a 0 nel giorno in cui si era prodotto: quel gelato era ancora in vetrina`
+      : !(v >= 0)
       ? "il conto non torna: la rimanenza scritta è più alta di quanto c'era a disposizione"
       : (giorniIndietro > 1
         ? `include ${giorniIndietro - 1} giorn${giorniIndietro === 2 ? 'o' : 'i'} non registrat${giorniIndietro === 2 ? 'o' : 'i'} prima`
@@ -742,6 +777,74 @@ export function totaliPerGusto(righe, opts = {}) {
     }
   }
   return out
+}
+
+// Le caselle da sistemare in un periodo, sede per sede, con il giorno GIUSTO.
+//
+// Serve allo Storico, che fino al 03/10/2026 le ignorava del tutto (i
+// contatori di `totaliPerGusto` c'erano, la pagina non li leggeva): sul
+// grafico di apertura il 12/08 risultava «-126,3 kg venduti» senza una
+// parola. E serve a dire il giorno giusto: per la causa più frequente il
+// giorno da sistemare è quello PRIMA della casella negativa.
+//
+// Ritorna un elenco di { sedeId, gusto, data, kg, causa, giornoDaSistemare,
+// compensata }:
+//   - kg: il venduto della casella (negativo);
+//   - giornoDaSistemare: la casella da correggere (per la rimanenza a zero è
+//     il giorno prima; per le altre è la casella stessa);
+//   - compensata: il giorno da sistemare è DENTRO il periodo, quindi il gelato
+//     contato in più quel giorno e in meno il giorno dopo si annulla, e il
+//     totale del periodo è giusto. Se è fuori (il periodo comincia il giorno
+//     dopo), il totale del periodo è più basso del vero di quei chili.
+export function caselleDaSistemare(righe, { da = null, a = null } = {}) {
+  if (!Array.isArray(righe) || righe.length === 0) return []
+  const perSede = new Map()
+  for (const r of righe) {
+    const k = r?.sede_id || '_'
+    if (!perSede.has(k)) perSede.set(k, [])
+    perSede.get(k).push(r)
+  }
+  const out = []
+  for (const [sedeId, righeSede] of perSede.entries()) {
+    for (const [gusto, celle] of Object.entries(serieVendutoGusto(righeSede))) {
+      for (const c of celle) {
+        if (da && c.data < da) continue
+        if (a && c.data > a) continue
+        if (!cellaDaControllare(c)) continue
+        const perRimanenza = c.causa === CAUSA_RIMANENZA_A_ZERO
+        const giorno = perRimanenza ? c.giornoDaSistemare : c.data
+        out.push({
+          sedeId: sedeId === '_' ? null : sedeId,
+          gusto, data: c.data,
+          kg: (Number(c.venduto) || 0) / 1000,
+          causa: c.causa || 'non-torna',
+          giornoDaSistemare: giorno,
+          compensata: perRimanenza && (!da || giorno >= da),
+        })
+      }
+    }
+  }
+  return out.sort((x, y) => x.kg - y.kg)
+}
+
+// Il riassunto di `caselleDaSistemare`, per la frase in cima alla pagina.
+export function riassuntoCaselle(caselle) {
+  const r = { n: 0, nRimanenza: 0, nAltre: 0, kgCompensati: 0, kgFuori: 0, kgAltre: 0, giorni: [] }
+  const giorni = new Set()
+  for (const c of caselle || []) {
+    r.n++
+    if (c.causa === CAUSA_RIMANENZA_A_ZERO) {
+      r.nRimanenza++
+      if (c.compensata) r.kgCompensati += c.kg
+      else r.kgFuori += c.kg
+    } else {
+      r.nAltre++
+      r.kgAltre += c.kg
+    }
+    if (c.giornoDaSistemare) giorni.add(c.giornoDaSistemare)
+  }
+  r.giorni = [...giorni].sort()
+  return r
 }
 
 // Qualita' del dato per gusto: quante celle non tornano, quanti kg valgono,
@@ -1052,6 +1155,13 @@ export function kpiQuadraturaSettimana(matrice, chiusureSettimana, euroKg, vendi
   // fatta su celle che non tornano non e' una quadratura: e' una coincidenza.
   let totVendutoG = 0
   let celleNonQuadrate = 0, gNonQuadrati = 0, celleNonCalcolabili = 0
+  // Di quelle che non tornano, quante per la rimanenza lasciata a 0 il giorno
+  // prima (vedi cellaVenduto), e quanti grammi hanno il giorno da sistemare
+  // FUORI dalla settimana: solo quelli abbassano davvero il totale. Gli altri
+  // si annullano col giorno prima, che è dentro.
+  let celleRimanenzaAZero = 0, gRimanenzaAZero = 0, gRimanenzaFuori = 0
+  const giorniSettimana = new Set()
+  for (const byData of Object.values(matrice || {})) for (const d of Object.keys(byData || {})) giorniSettimana.add(d)
   for (const byData of Object.values(matrice || {})) {
     for (const c of Object.values(byData)) {
       if (c.venduto == null) {
@@ -1059,7 +1169,15 @@ export function kpiQuadraturaSettimana(matrice, chiusureSettimana, euroKg, vendi
         continue
       }
       totVendutoG += Number(c.venduto) || 0
-      if (cellaDaControllare(c)) { celleNonQuadrate++; gNonQuadrati += Number(c.venduto) || 0 }
+      if (cellaDaControllare(c)) {
+        celleNonQuadrate++
+        gNonQuadrati += Number(c.venduto) || 0
+        if (c.causa === CAUSA_RIMANENZA_A_ZERO) {
+          celleRimanenzaAZero++
+          gRimanenzaAZero += Number(c.venduto) || 0
+          if (!giorniSettimana.has(c.giornoDaSistemare)) gRimanenzaFuori += Number(c.venduto) || 0
+        }
+      }
     }
   }
   const totVendutoKg = totVendutoG / 1000
@@ -1158,6 +1276,7 @@ export function kpiQuadraturaSettimana(matrice, chiusureSettimana, euroKg, vendi
     giorniConfrontati: giorniConfrontati.length,
     cassaConfrontata, attesoConfrontato, motivoConfronto,
     celleNonQuadrate, kgNonQuadrati: gNonQuadrati / 1000, celleNonCalcolabili,
+    celleRimanenzaAZero, kgRimanenzaAZero: gRimanenzaAZero / 1000, kgRimanenzaFuori: gRimanenzaFuori / 1000,
   }
 }
 

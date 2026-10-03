@@ -238,3 +238,16 @@ export function dataLunga(iso) {
   if (!/^\d{4}-\d{2}-\d{2}/.test(s)) return ''
   return `${s.slice(8, 10)}/${s.slice(5, 7)}/${s.slice(0, 4)}`
 }
+
+// Le preposizioni davanti a una data si leggono come si dice il numero:
+// «l'11/08», «dall'8/09», «dell'1/07» — non «il 11/08». Uno, otto e undici
+// cominciano per vocale.
+const ELISE = { il: 'l\'', del: 'dell\'', dal: 'dall\'', al: 'all\'' }
+/** conGiorno('dal', '2026-08-11') → «dall'11/08»; conGiorno('il', '2026-08-12') → «il 12/08». */
+export function conGiorno(prep, iso, { lunga = false } = {}) {
+  const testo = lunga ? dataLunga(iso) : dataBreve(iso)
+  if (!testo) return ''
+  const g = Number(String(iso).slice(8, 10))
+  const elisa = g === 1 || g === 8 || g === 11
+  return elisa && ELISE[prep] ? `${ELISE[prep]}${testo}` : `${prep} ${testo}`
+}
