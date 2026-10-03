@@ -11,6 +11,7 @@ import {
   loadClientiB2B, salvaClienteB2B, eliminaClienteB2B,
   loadVenditeB2B, salvaVenditaB2B, setStatoVenditaB2B, eliminaVenditaB2B,
   setPagamentoVenditaB2B,
+  riepilogoMeseB2B, unitaRiga,
 } from '../lib/venditeB2B'
 import Icon from '../components/Icon'
 import { useConfirm } from '../components/ConfirmModal'
@@ -31,9 +32,15 @@ const fmtData = (d) => {
   try { return new Date(d + 'T12:00').toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' }) }
   catch { return d }
 }
+// Le quantità di una vendita, per unità: «12 pz · 5 kg», mai «17 pz».
+const quantitaVendita = (righe) => {
+  const t = { pz: 0, kg: 0 }
+  for (const r of righe || []) t[unitaRiga(r)] += Number(r?.qta) || 0
+  return ['pz', 'kg'].filter(u => t[u] > 0).map(u => `${t[u].toLocaleString('it-IT', { useGrouping: 'always' })} ${u}`).join(' · ') || '0 pz'
+}
 const plural = (n, s, p) => `${n.toLocaleString('it-IT', { useGrouping: 'always' })} ${n === 1 ? s : p}`
 
-export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = null, ricettario, notify }) {
+export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = null, ricettario, notify, tipoAttivita }) {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
   const confirmDialog = useConfirm()
@@ -74,6 +81,9 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
     setLoading(false)
   }
 
+  // L'unità di partenza di una riga nuova: una gelateria vende all'ingrosso
+  // vaschette a peso, una pasticceria pezzi. Si cambia riga per riga.
+  const unitaNuova = tipoAttivita === 'gelateria' ? 'kg' : 'pz'
   const nomiProdotti = useMemo(() => Object.values(ricettario?.ricette || {})
     .filter(r => isRicettaValida(r.nome) && getR(r.nome, r).tipo !== 'interno' && getR(r.nome, r).tipo !== 'semilavorato')
     .map(r => r.nome).sort(), [ricettario])
@@ -81,7 +91,6 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
   // Il mese LOCALE. Con toISOString il primo del mese, prima delle 2 del
   // mattino, il conto girava ancora sul mese prima.
   const mese = todayLocal().slice(0, 7)
-  const ricavoMese = vendite.filter(v => (v.data || '').startsWith(mese)).reduce((s, v) => s + Number(v.totale || 0), 0)
   const daFatturare = vendite.filter(v => v.stato === 'consegnata')
   const totDaFatturare = daFatturare.reduce((s, v) => s + Number(v.totale || 0), 0)
 
@@ -165,8 +174,10 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
     const m = {}
     for (const v of venditeExt) {
       if (v.stato === 'annullata') continue
-      const k = v.cliente_id || v.clienti_b2b?.nome || 'sconosciuto'
-      if (!m[k]) m[k] = { nome: v.clienti_b2b?.nome || clienti.find(c => c.id === v.cliente_id)?.nome || 'Cliente', n: 0, fatturato: 0, margine: 0, insoluto: 0, ultimo: '' }
+      // Un cliente cancellato lascia le sue vendite senza `cliente_id`: prima
+      // finivano tutte in una riga «Cliente» che sembrava un cliente vero.
+      const k = v.cliente_id || 'eliminati'
+      if (!m[k]) m[k] = { nome: v.cliente_id ? (v.clienti_b2b?.nome || clienti.find(c => c.id === v.cliente_id)?.nome || 'Cliente senza nome') : 'Clienti eliminati', n: 0, fatturato: 0, margine: 0, insoluto: 0, ultimo: '' }
       const g = m[k]
       g.n++; g.fatturato += Number(v.totale || 0)
       // Solo le vendite col costo noto entrano nel margine, e si contano a
@@ -187,8 +198,11 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
     for (const v of venditeExt) {
       if (v.stato === 'annullata') continue
       for (const r of (v.righe || [])) {
-        const k = (r.prodotto || '').toUpperCase().trim(); if (!k) continue
-        if (!m[k]) m[k] = { nome: r.prodotto, qta: 0, ricavo: 0 }
+        const nome = (r.prodotto || '').toUpperCase().trim(); if (!nome) continue
+        // Stesso prodotto in kg e in pezzi: due righe, non una somma di mele e pere.
+        const unita = unitaRiga(r)
+        const k = nome + '|' + unita
+        if (!m[k]) m[k] = { nome: r.prodotto, unita, qta: 0, ricavo: 0 }
         m[k].qta += Number(r.qta) || 0
         m[k].ricavo += (Number(r.qta) || 0) * (Number(r.prezzo) || 0)
       }
@@ -197,21 +211,24 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
   }, [venditeExt])
 
   // KPI estesi
-  const venditeMeseNote = venditeExt.filter(v => (v.data || '').startsWith(mese) && v.margine != null)
-  const margineMese  = venditeMeseNote.reduce((s, v) => s + v.margine, 0)
-  const ricavoMeseNoto = venditeMeseNote.reduce((s, v) => s + Number(v.totale || 0), 0)
-  const venditeMeseSenzaCosto = venditeExt.filter(v => (v.data || '').startsWith(mese) && v.margine == null).length
-  const totInsoluto  = venditeExt.filter(v => v.nonPagata).reduce((s, v) => s + Number(v.totale || 0), 0)
-  const nInsoluti    = venditeExt.filter(v => v.nonPagata).length
-  const margPctMese  = ricavoMeseNoto > 0 ? margineMese / ricavoMeseNoto * 100 : null
+  // Un conto solo per i quattro riquadri (src/lib/venditeB2B.js): prima
+  // ognuno sommava a modo suo, annullate comprese.
+  const rm = riepilogoMeseB2B(venditeExt, mese)
+  const ricavoMese = rm.venduto
+  const margineMese = rm.margine ?? 0
+  const venditeMeseSenzaCosto = rm.senzaCosto
+  const totInsoluto = rm.daIncassare
+  const nInsoluti = rm.nDaIncassare
+  const margPctMese = rm.marginePct
+  const nessunaVendita = rm.nTotali === 0
 
   if (!orgId) return <div style={{ padding: 24, color: C.textSoft, fontSize: font.size.base }}>Caricamento…</div>
 
   // ── handlers vendita ──
-  const apriVendita = () => setVForm({ id: null, cliente_id: '', data: todayLocal(), note: '', righe: [{ prodotto: '', qta: '', prezzo: '' }] })
+  const apriVendita = () => setVForm({ id: null, cliente_id: '', data: todayLocal(), note: '', righe: [{ prodotto: '', qta: '', unita: unitaNuova, prezzo: '' }] })
   const modificaVendita = (v) => setVForm({
     id: v.id, cliente_id: v.cliente_id || '', data: v.data, note: v.note || '',
-    righe: (v.righe || []).map(r => ({ prodotto: r.prodotto, qta: String(r.qta ?? ''), prezzo: String(r.prezzo ?? '') })),
+    righe: (v.righe || []).map(r => ({ prodotto: r.prodotto, qta: String(r.qta ?? ''), unita: unitaRiga(r), prezzo: String(r.prezzo ?? '') })),
   })
   const salvaV = async () => {
     if (saving) return
@@ -349,10 +366,12 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
       }}>
         <KPI
           icon={<Icon name="briefcase" size={18} />}
-          label="Ricavo B2B (mese)"
-          value={fmt0(ricavoMese)}
-          color={C.green} highlight
-          sub={ricavoMese > 0 ? 'incassato finora questo mese' : 'nessuna vendita questo mese'}
+          label="Venduto B2B (mese)"
+          value={nessunaVendita ? '-' : fmt0(ricavoMese)}
+          color={nessunaVendita ? C.textSoft : C.text} highlight={!nessunaVendita}
+          sub={nessunaVendita ? 'nessuna vendita registrata'
+            : rm.nVendite === 0 ? 'nessuna vendita questo mese'
+              : `${plural(rm.nVendite, 'vendita', 'vendite')} · incassati ${fmt0(rm.incassato)}`}
         />
         <KPI
           icon={<Icon name="trendUp" size={18} />}
@@ -375,9 +394,12 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
         <KPI
           icon={<Icon name="card" size={18} />}
           label="Da incassare"
-          value={fmt0(totInsoluto)}
-          sub={nInsoluti > 0 ? plural(nInsoluti, 'vendita scoperta', 'vendite scoperte') : 'tutto incassato'}
-          color={totInsoluto > 0 ? C.red : C.green}
+          value={nessunaVendita ? '-' : fmt0(totInsoluto)}
+          // Senza nessuna vendita «tutto incassato» in verde era un dato che
+          // manca presentato come una buona notizia.
+          sub={nessunaVendita ? 'nessuna vendita registrata'
+            : nInsoluti > 0 ? plural(nInsoluti, 'vendita scoperta', 'vendite scoperte') : 'tutto incassato'}
+          color={nessunaVendita ? C.textSoft : totInsoluto > 0 ? C.alert : C.green}
         />
       </div>
 
@@ -460,7 +482,7 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
             { k: 'marg', label: 'Margine', cella: (g) => g.margPct == null ? '-' :
               <span style={{ color: C.green }}>{fmt(g.margine)} <span style={{ color: C.textSoft }}>{fmtp0(g.margPct)}</span></span> },
             { k: 'ins', label: 'Da incassare', forte: true, cella: (g) => g.insoluto > 0
-              ? <span style={{ color: C.red }}>{fmt(g.insoluto)}</span> : '-' },
+              ? <span style={{ color: C.alert }}>{fmt(g.insoluto)}</span> : '-' },
           ]}
           intestazione={<><thead>
                     <tr style={{ background: '#FAFAF8' }}>
@@ -503,7 +525,7 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
                             ? <span style={{ color: C.textSoft }} title="Manca il costo dei prodotti venduti a questo cliente">-</span>
                             : <>{fmt(g.margine)} <span style={{ color: C.textSoft, fontSize: font.size.sm }}>{fmtp0(g.margPct)}</span></>}
                         </td>
-                        <td style={{ ...TNUM, padding: '12px 14px', textAlign: 'right', fontWeight: 700, color: g.insoluto > 0 ? C.red : C.textSoft, ...TNUM, whiteSpace: 'nowrap' }}>
+                        <td style={{ ...TNUM, padding: '12px 14px', textAlign: 'right', fontWeight: 700, color: g.insoluto > 0 ? C.alert : C.textSoft, ...TNUM, whiteSpace: 'nowrap' }}>
                           {g.insoluto > 0 ? fmt(g.insoluto) : '-'}
                         </td>
                       </tr>
@@ -541,7 +563,7 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
                             <span style={{ display: 'block', height: '100%', width: `${widthPct}%`, background: i === 0 ? C.green : 'rgba(31,122,72,0.5)' }} />
                           </span>
                           <span style={{ fontSize: font.size.sm, color: C.textSoft, ...TNUM, whiteSpace: 'nowrap' }}>
-                            {p.qta.toLocaleString('it-IT', { useGrouping: 'always' })} pz
+                            {p.qta.toLocaleString('it-IT', { useGrouping: 'always' })} {p.unita}
                           </span>
                         </div>
                       </div>
@@ -557,7 +579,7 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
                         <span style={{ display: 'block', height: '100%', width: `${widthPct}%`, background: i === 0 ? C.green : 'rgba(31,122,72,0.5)' }} />
                       </span>
                       <span style={{ flex: '0 0 70px', textAlign: 'right', fontSize: font.size.sm, color: C.textSoft, ...TNUM, whiteSpace: 'nowrap' }}>
-                        {p.qta.toLocaleString('it-IT', { useGrouping: 'always' })} pz
+                        {p.qta.toLocaleString('it-IT', { useGrouping: 'always' })} {p.unita}
                       </span>
                       <span style={{ flex: '0 0 110px', textAlign: 'right', fontSize: font.size.base, fontWeight: 700, color: C.text, ...TNUM, whiteSpace: 'nowrap' }}>
                         {fmt(p.ricavo)}
@@ -685,7 +707,7 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
                           style={{ ...inp, fontWeight: 600 }}
                           aria-label={`Prodotto riga ${i + 1}`}
                         />
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 84px 1fr', gap: 8 }}>
                           <div>
                             <label style={{ ...lbl, marginBottom: 3 }}>Quantità</label>
                             <input type="number" inputMode="decimal" value={r.qta} placeholder="0"
@@ -693,7 +715,11 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
                               aria-label={`Quantità riga ${i + 1}`} />
                           </div>
                           <div>
-                            <label style={{ ...lbl, marginBottom: 3 }}>Prezzo cad.</label>
+                            <label style={{ ...lbl, marginBottom: 3 }}>Unità</label>
+                            <SceltaUnita valore={r.unita} onCambia={v => set('unita', v)} stile={inp} riga={i + 1} />
+                          </div>
+                          <div>
+                            <label style={{ ...lbl, marginBottom: 3 }}>{r.unita === 'kg' ? 'Prezzo al kg' : 'Prezzo cad.'}</label>
                             <input type="number" inputMode="decimal" value={r.prezzo} placeholder="0,00"
                               onChange={e => set('prezzo', e.target.value)} style={{ ...inp, textAlign: 'right' }}
                               aria-label={`Prezzo riga ${i + 1}`} />
@@ -721,14 +747,15 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
                 <div style={{ overflowX: 'auto' }}>
                   <div style={{ minWidth: 540 }}>
                     <div style={{
-                      display: 'grid', gridTemplateColumns: '1fr 80px 100px 90px 36px',
+                      display: 'grid', gridTemplateColumns: '1fr 80px 76px 100px 90px 36px',
                       gap: 8, fontSize: font.size.sm, fontWeight: 700, color: C.textSoft,
                       textTransform: 'uppercase', letterSpacing: '0.06em',
                       padding: '0 6px', marginBottom: 6,
                     }}>
                       <span>Prodotto</span>
                       <span style={{ textAlign: 'right' }}>Qtà</span>
-                      <span style={{ textAlign: 'right' }}>Prezzo cad.</span>
+                      <span>Unità</span>
+                      <span style={{ textAlign: 'right' }}>Prezzo</span>
                       <span style={{ textAlign: 'right' }}>Totale</span>
                       <span />
                     </div>
@@ -737,7 +764,7 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
                       const set = (k, val) => setVForm(f => ({ ...f, righe: f.righe.map((x, j) => j === i ? { ...x, [k]: val } : x) }))
                       return (
                         <div key={i} style={{
-                          display: 'grid', gridTemplateColumns: '1fr 80px 100px 90px 36px',
+                          display: 'grid', gridTemplateColumns: '1fr 80px 76px 100px 90px 36px',
                           gap: 8, alignItems: 'center', marginBottom: 8,
                         }}>
                           <input list="b2b-prod-list" value={r.prodotto} placeholder="es. FOCACCIA"
@@ -746,6 +773,7 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
                           <input type="number" inputMode="decimal" value={r.qta} placeholder="0"
                             onChange={e => set('qta', e.target.value)} style={{ ...inp, textAlign: 'right' }}
                             aria-label={`Quantità riga ${i + 1}`} />
+                          <SceltaUnita valore={r.unita} onCambia={v => set('unita', v)} stile={inp} riga={i + 1} />
                           <input type="number" inputMode="decimal" value={r.prezzo} placeholder="0,00"
                             onChange={e => set('prezzo', e.target.value)} style={{ ...inp, textAlign: 'right' }}
                             aria-label={`Prezzo riga ${i + 1}`} />
@@ -769,7 +797,7 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
 
               {/* Aggiungi riga + note + azioni */}
               <button
-                onClick={() => setVForm(f => ({ ...f, righe: [...f.righe, { prodotto: '', qta: '', prezzo: '' }] }))}
+                onClick={() => setVForm(f => ({ ...f, righe: [...f.righe, { prodotto: '', qta: '', unita: unitaNuova, prezzo: '' }] }))}
                 style={{
                   marginTop: 10, padding: '10px 14px', minHeight: 44,
                   background: C.white, border: `1px dashed ${C.borderStr}`, borderRadius: 10,
@@ -889,7 +917,7 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
                             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                           }}>{v.clienti_b2b?.nome || 'Cliente eliminato'}</div>
                           <div style={{ fontSize: font.size.sm, color: C.textSoft, marginTop: 3, lineHeight: 1.5 }}>
-                            {fmtData(v.data)} · {plural((v.righe || []).length, 'prodotto', 'prodotti')} · {(v.righe || []).reduce((s, r) => s + (Number(r.qta) || 0), 0).toLocaleString('it-IT', { useGrouping: 'always' })} pz
+                            {fmtData(v.data)} · {plural((v.righe || []).length, 'prodotto', 'prodotti')} · {quantitaVendita(v.righe)}
                           </div>
                           <div style={{ fontSize: font.size.sm, color: C.textSoft, marginTop: 2 }}>
                             {v.margine == null
@@ -966,7 +994,7 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
                         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                       }}>{v.clienti_b2b?.nome || 'Cliente eliminato'}</div>
                       <div style={{ fontSize: font.size.sm, color: C.textSoft, marginTop: 3 }}>
-                        {fmtData(v.data)} · {plural((v.righe || []).length, 'prodotto', 'prodotti')} · {(v.righe || []).reduce((s, r) => s + (Number(r.qta) || 0), 0).toLocaleString('it-IT', { useGrouping: 'always' })} pz
+                        {fmtData(v.data)} · {plural((v.righe || []).length, 'prodotto', 'prodotti')} · {quantitaVendita(v.righe)}
                         {v.margine == null
                           ? <span style={{ color: C.textSoft }} title={`${v.righeSenzaCosto === 1 ? 'Un prodotto non ha' : `${v.righeSenzaCosto} prodotti non hanno`} il costo nel ricettario`}> · margine non calcolabile</span>
                           : <>
@@ -1185,5 +1213,16 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
         </>
       ) : null}
     </div>
+  )
+}
+
+/** kg o pezzi: la Quadratura toglie dall'inventario solo i kg. */
+function SceltaUnita({ valore, onCambia, stile, riga }) {
+  return (
+    <select value={valore === 'kg' ? 'kg' : 'pz'} onChange={e => onCambia(e.target.value)}
+      aria-label={`Unità riga ${riga}`} style={{ ...stile, paddingRight: 4 }}>
+      <option value="pz">pz</option>
+      <option value="kg">kg</option>
+    </select>
   )
 }

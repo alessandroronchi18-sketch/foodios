@@ -1023,13 +1023,18 @@ export function scorporaB2B({ kg, euroKg, ricavi, venditeB2B } = {}) {
   }
 }
 
-// Chili usciti dal canale ingrosso. Le righe di `vendite_b2b` hanno le
-// quantità in kg dentro `righe[].qta`. Una funzione sola, usata sia qui sia
+// Chili usciti dal canale ingrosso. Una funzione sola, usata sia qui sia
 // dalla Quadratura: erano due cicli identici scritti in due punti.
+//
+// 03/10/2026: da oggi ogni riga può dire la sua unità. Le righe in pezzi non
+// sono chili e restano fuori; quelle senza unità (le vecchie) sono kg, come
+// questa funzione le ha sempre contate. Le vendite annullate non entrano:
+// hanno già rimesso la merce a magazzino.
 export function kgB2B(vendite) {
   return (Array.isArray(vendite) ? vendite : [])
+    .filter(v => v?.stato !== 'annullata')
     .reduce((s, v) => s + (Array.isArray(v?.righe) ? v.righe : [])
-      .reduce((a, r) => a + (Number(r?.qta) || 0), 0), 0)
+      .reduce((a, r) => a + (r?.unita === 'pz' ? 0 : (Number(r?.qta) || 0)), 0), 0)
 }
 
 // KPI settimana: somma kg venduti, € attesi, drift vs cassa effettiva.

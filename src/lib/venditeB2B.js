@@ -12,9 +12,18 @@ export function pulisciRighe(righe) {
     const prodotto = (r.prodotto || '').toUpperCase().trim()
     const qta = Number(String(r.qta).replace(',', '.')) || 0
     const prezzo = Number(String(r.prezzo).replace(',', '.')) || 0
-    return { prodotto, qta, prezzo, totale: Math.round(qta * prezzo * 100) / 100 }
+    // L'unità della riga (03/10/2026). Prima non c'era: la pagina scriveva
+    // «pz» e la Quadratura sommava le stesse quantità come kg. Il conto giusto
+    // era quello della Quadratura — l'ingrosso di una gelateria sono vaschette
+    // a peso — quindi una riga senza unità resta in kg (`unitaRiga`), e da
+    // oggi chi registra sceglie. I pezzi non entrano nei chili.
+    const unita = r.unita === 'kg' || r.unita === 'pz' ? r.unita : null
+    return { prodotto, qta, ...(unita ? { unita } : null), prezzo, totale: Math.round(qta * prezzo * 100) / 100 }
   }).filter(r => r.prodotto && r.qta > 0)
 }
+/** L'unità di una riga: quella scritta, o kg per le righe di prima. */
+export const unitaRiga = (r) => (r?.unita === 'pz' ? 'pz' : 'kg')
+
 export function calcolaTotaleRighe(righe) {
   const tot = (righe || []).reduce((s, r) => {
     const t = Number(r.totale)
@@ -134,16 +143,23 @@ export async function salvaVenditaB2B({ orgId, sedeId, clienteId, clienteNome, d
   const totale = calcolaTotaleRighe(pulite)
 
   // In modifica: ripristina lo stock della versione precedente.
+  let old = null
   if (id) {
-    const { data: old } = await supabase.from('vendite_b2b').select('*').eq('id', id).single()
+    const { data } = await supabase.from('vendite_b2b').select('*').eq('id', id).single()
+    old = data || null
     if (old) await ripristinaStock(old, 'Annullo B2B (modifica)')
   }
+  // Una vendita modificata resta della sua sede e nel suo stato. Prima la
+  // modifica la riportava a «consegnata» e le dava la sede attiva: una
+  // vendita già fatturata e incassata tornava «da fatturare», e correggendo
+  // un prezzo dalla sede sbagliata cambiava negozio.
+  const sedeVendita = old ? (old.sede_id ?? sedeId ?? null) : (sedeId || null)
 
   let dipOpId = null
   try { dipOpId = JSON.parse(localStorage.getItem('foodos_dip_op') || 'null')?.id || null } catch {}
   const row = {
     organization_id: orgId,
-    sede_id: sedeId || null,
+    sede_id: sedeVendita,
     cliente_id: clienteId || null,
     // Il giorno della consegna è quello del laboratorio. Con
     // `toISOString()` era il giorno UTC: una consegna registrata alle 00:30 —
@@ -152,8 +168,8 @@ export async function salvaVenditaB2B({ orgId, sedeId, clienteId, clienteNome, d
     data: data || todayLocal(),
     righe: pulite,
     totale,
-    stato: 'consegnata',
-    stock_scaricato: !!sedeId,
+    ...(old ? {} : { stato: 'consegnata' }),
+    stock_scaricato: !!sedeVendita,
     note: note?.trim() || null,
     dipendente_operativo_id: dipOpId,
   }
@@ -170,10 +186,10 @@ export async function salvaVenditaB2B({ orgId, sedeId, clienteId, clienteNome, d
 
   // Scarico stock delle nuove righe (best-effort) + avviso scorta insufficiente.
   const warnings = []
-  if (sedeId) {
+  if (sedeVendita) {
     for (const r of pulite) {
       try {
-        const stock = await rpcScaricoB2B({ sedeId, prodotto: r.prodotto, quantita: r.qta, note: `B2B${clienteNome ? ' · ' + clienteNome : ''}` })
+        const stock = await rpcScaricoB2B({ sedeId: sedeVendita, prodotto: r.prodotto, quantita: r.qta, note: `B2B${clienteNome ? ' · ' + clienteNome : ''}` })
         if (typeof stock === 'number' && stock < 0) warnings.push(`${r.prodotto}: scorta insufficiente (stock ${stock})`)
       } catch (e) { warnings.push(`${r.prodotto}: ${e.message || 'errore stock'}`) }
     }
@@ -234,12 +250,48 @@ export async function eliminaVenditaB2B(id) {
 // gli stessi chili verrebbero tolti a ogni negozio.
 export async function venditeB2BPeriodo(orgId, { sedeId = null, da, a, includiSenzaSede = true } = {}) {
   if (!orgId || !da || !a) return null
-  let q = supabase.from('vendite_b2b').select('data, righe, totale, sede_id')
+  let q = supabase.from('vendite_b2b').select('data, righe, totale, sede_id, stato')
     .eq('organization_id', orgId).gte('data', da).lte('data', a)
   if (sedeId) {
     q = includiSenzaSede ? q.or(`sede_id.eq.${sedeId},sede_id.is.null`) : q.eq('sede_id', sedeId)
   }
   const { data, error } = await q
   if (error) { console.error('venditeB2BPeriodo:', error); return null }
-  return data || []
+  // Una vendita annullata ha già rimesso la merce a magazzino: contarla qui
+  // toglieva dall'inventario chili che non sono mai usciti.
+  return (data || []).filter(v => v?.stato !== 'annullata')
+}
+
+/**
+ * I numeri del mese, calcolati in un posto solo.
+ *
+ * Prima la pagina chiamava «incassato finora» la somma di TUTTE le vendite
+ * del mese, annullate e non pagate comprese (nella demo: 1.477 € «incassati»
+ * con zero vendite pagate su otto). Qui le parole e i conti coincidono:
+ * `venduto` sono le vendite non annullate con la data del mese, `incassato`
+ * quelle segnate pagate con il pagamento in quel mese.
+ *
+ * @param {object[]} vendite  righe di `vendite_b2b` (anche con `margine`)
+ * @param {string} mese  «AAAA-MM»
+ */
+export function riepilogoMeseB2B(vendite, mese) {
+  const vive = (vendite || []).filter(v => v?.stato !== 'annullata')
+  const delMese = vive.filter(v => String(v?.data || '').startsWith(mese))
+  const tot = (arr) => Math.round(arr.reduce((s, v) => s + (Number(v?.totale) || 0), 0) * 100) / 100
+  const incassateNelMese = vive.filter(v => v?.pagata && String(v?.data_pagamento || v?.data || '').startsWith(mese))
+  const daIncassare = vive.filter(v => !v?.pagata)
+  const conMargine = delMese.filter(v => v?.margine != null)
+  const margine = conMargine.reduce((s, v) => s + Number(v.margine), 0)
+  const ricavoNoto = tot(conMargine)
+  return {
+    nVendite: delMese.length,
+    venduto: tot(delMese),
+    incassato: tot(incassateNelMese),
+    daIncassare: tot(daIncassare),
+    nDaIncassare: daIncassare.length,
+    margine: conMargine.length ? Math.round(margine * 100) / 100 : null,
+    marginePct: ricavoNoto > 0 ? margine / ricavoNoto * 100 : null,
+    senzaCosto: delMese.length - conMargine.length,
+    nTotali: vive.length,
+  }
 }
