@@ -22,7 +22,7 @@ import {
   CoperturaDati, NumeroConConfronto, BarraObiettivo, Cascata, IntestazioneAnalisi,
   TitoloGrafico, Riquadro, FraseInsight,
 } from '../components/analisi'
-import { euro, quota, nomeMese, mesePrima, variazione, dataBreve } from '../lib/formatoAnalisi'
+import { euro, quota, nomeMese, aMese, mesePrima, variazione, dataBreve } from '../lib/formatoAnalisi'
 import { OBIETTIVI, causeDelCambio, fraseCausa, titoloCascata, motivoSenzaUtile } from '../lib/ilMese'
 import { caricaIlMese } from '../lib/ilMeseArchivio'
 import { todayLocal } from '../lib/dateLocal'
@@ -94,7 +94,7 @@ export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate
 
   const intestazione = (
     <IntestazioneAnalisi isMobile={isMobile}
-      domanda={`Quanto hai guadagnato a ${nomeMese(mese, { anno: false })}?`}
+      domanda={`Quanto hai guadagnato ${aMese(mese, { anno: false })}?`}
       sotto={`${nomeSede} · confronto con ${nomeMese(dati?.confronto || mese)}`}
       destra={navMese} />
   )

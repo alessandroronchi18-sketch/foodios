@@ -26,7 +26,7 @@
 // sta in `ilMeseArchivio.js`.
 
 import { costoPersonaleMensile } from './stipendiCalc'
-import { euro, euroSegno, quota, nomeMese, variazione } from './formatoAnalisi'
+import { euro, euroSegno, quota, aMese, variazione } from './formatoAnalisi'
 
 export const ALIQUOTA_IVA_INCASSI = 10
 
@@ -235,7 +235,7 @@ function confrontaFornitori(vociA = [], vociB = []) {
 
 /** La frase di una causa: «Materie prime +2.340 € di spesa, soprattutto DESA (+1.100 €)». */
 export function fraseCausa(c, meseConfronto) {
-  const rispetto = meseConfronto ? ` rispetto a ${nomeMese(meseConfronto)}` : ''
+  const rispetto = meseConfronto ? ` rispetto ${aMese(meseConfronto)}` : ''
   if (c.chiave === 'incassi') {
     return `Hai incassato ${euro(Math.abs(c.effetto))} ${c.effetto > 0 ? 'in più' : 'in meno'}${rispetto}.`
   }

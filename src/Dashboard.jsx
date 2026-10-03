@@ -91,7 +91,7 @@ import { SK_RIC, SK_PROD, SK_ACT, SK_AI, SK_MAG, SK_GIOR, SK_CHIUS, SK_EXCL, SK_
 import { caricaChiusure, salvaChiusure } from './lib/chiusure'
 import { loadXLSX } from './lib/xlsx'
 const SimulatorePrezziView = lazyWithReload(() => import('./views/SimulatorePrezziView'))
-const PLView = lazyWithReload(() => import('./views/PLView'))
+const ContoEconomicoView = lazyWithReload(() => import('./views/ContoEconomicoView'))
 const IlMeseView = lazyWithReload(() => import('./views/IlMeseView'))
 const RicettarioView = lazyWithReload(() => import('./views/RicettarioView'))
 const SchedaAllergeniView = lazyWithReload(() => import('./views/SchedaAllergeniView'))
@@ -3745,7 +3745,7 @@ export default function Dashboard({
         )}
         {ricettario&&vista==="semilavorati"&&<SemilavoratiView ricettario={ricettario} onSave={handleSalvaRicetta} notify={notify} tipoAttivita={tipoAttivita}/>}
         {vista==="il-mese"&&!isDip&&<IlMeseView orgId={orgId} sedi={sedi} sedeId={sedeId} onNavigate={setView}/>}
-        {ricettario&&vista==="pl"&&<PLView metodoProduzione={metodoProduzione} ricettario={ricettario} chiusure={chiusure} orgId={orgId} sedeId={sedeId} onUpdateRegola={handleUpdateRegola} notify={notify}/>}
+        {vista==="pl"&&!isDip&&<ContoEconomicoView orgId={orgId} sedi={sedi} sedeId={sedeId} onNavigate={setView}/>}
         {ricettario&&vista==="simulatore"&&<SimulatorePrezziView ricettario={ricettario} giornaliero={giornaliero} tipoAttivita={tipoAttivita} sedi={sedi} orgId={orgId} sedeId={sedeId}/>}
         {vista==="nuova-ricetta"&&<NuovaRicettaView ricettario={ricettario} notify={notify} onSave={handleSalvaRicetta} editingRicetta={editingRicetta} onEditConsumed={()=>setEditingRicetta(null)} LEX={LEX} tipoAttivita={tipoAttivita}/>}
         {vista==="scheda-allergeni"&&!PAGINE_NASCOSTE.has("scheda-allergeni")&&<SchedaAllergeniView ricettario={ricettario} tipoAttivita={tipoAttivita}/>}

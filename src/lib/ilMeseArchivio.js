@@ -15,6 +15,7 @@ import { incassiDelMese, personaleDelMese, contoDelMese } from './ilMese'
 import { ricaviDaInventario, fetchAllInventarioProduzione } from './inventarioProduzione'
 import { venditeB2BPeriodo } from './venditeB2B'
 import { caricaChiusure } from './chiusure'
+import { caricaCostiAziendali, totaleMensile } from './costiAziendali'
 import { sload } from './storage'
 import { SK_FORMATI } from './storageKeys'
 import { annoPrima, mesePrima } from './formatoAnalisi'
@@ -84,7 +85,7 @@ export async function caricaIlMese({ supabase, orgId, sedi = [], mese, sedeId = 
     try { return await fn() } catch (e) { errori.push({ nome, messaggio: e?.message || String(e) }); return ripiego }
   }
 
-  const [fattureLette, categorie, chiusure, formati, dipendenti, vendite, righePerSede] = await Promise.all([
+  const [fattureLette, categorie, chiusure, formati, dipendenti, vendite, righePerSede, vociFisse] = await Promise.all([
     prova('fatture', () => leggiFatturePeriodo(supabase, orgId, { dal, al })),
     prova('categorie', () => leggiCategorieFornitori(supabase, orgId)),
     prova('cassa', () => caricaChiusure(orgId, null, { from: dal, to: al, tutteLeSedi: true }), null),
@@ -104,6 +105,10 @@ export async function caricaIlMese({ supabase, orgId, sedi = [], mese, sedeId = 
       }
       return out
     }),
+    // Le spese che non arrivano in fattura (pagina Costi fissi). Quelle che
+    // hanno anche la fattura vanno tolte da lì, se no contano due volte: lo
+    // dice ANALISI_DESIGN.md e la pagina lo ricorda.
+    prova('costi fissi', () => caricaCostiAziendali(orgId, sedeId)),
   ])
 
   const fatture = fattureLette?.fatture || null
@@ -138,7 +143,16 @@ export async function caricaIlMese({ supabase, orgId, sedi = [], mese, sedeId = 
       ? costiPerMese(fatture, { mese: m, categoriePerFornitore, sedeId: sede, sedi: sediAttive })
       : null
     const personale = dipendenti ? personaleDelMese(dipendenti, { mese: m, sedeId: sede }) : { valore: null, stato: 'manca', testo: 'non letto' }
-    return { mese: m, incassi, costi, personale, conto: contoDelMese({ incassi, costi, personale }) }
+    // Per una sede: le sue voci più quelle di tutta l'azienda divise fra le
+    // sedi attive (una voce senza sede non pesa per intero su ogni negozio).
+    const fisse = vociFisse ? {
+      importo: (vociFisse || []).reduce((s, v) => {
+        const quota = sede ? (v.sede_id ? (v.sede_id === sede ? 1 : 0) : 1 / Math.max(1, sediAttive.length)) : 1
+        return s + totaleMensile([v], `${m}-15`) * quota
+      }, 0),
+      voci: vociFisse,
+    } : null
+    return { mese: m, incassi, costi, personale, conto: contoDelMese({ incassi, costi, personale, speseFisse: fisse }) }
   }
 
   const perMese = Object.fromEntries(mesi.map(m => [m, contoDi(m)]))
