@@ -20,6 +20,7 @@ import AbbonamentoPanel from './AbbonamentoPanel'
 import WhatsAppReportPanel from './WhatsAppReportPanel'
 import MfaSection from './Mfa'
 import ImpostazioniSedi from './ImpostazioniSedi'
+import ImpostazioniSocieta from './ImpostazioniSocieta'
 import ImpostazioniTv from './ImpostazioniTv'
 import ExportContabilita from './ExportContabilita'
 import WhiteLabel from './WhiteLabel'
@@ -1165,6 +1166,13 @@ function buildSezioni({ auth, nomeAttivita, tipoAttivita, metodoProduzione = 'st
       summary: `${(sedi || []).filter(s => s.attiva !== false).length} sede/i`,
       render: () => <ImpostazioniSedi orgId={orgId} metodoProduzione={metodoProduzione}/>,
     },
+    {
+      // Un'azienda fatta di più società: a quali sedi vanno le fatture di
+      // ognuna (03/10/2026). Si riempie da sola al primo ZIP dell'Agenzia.
+      id: 'societa', label: 'Società', icon: 'briefcase',
+      summary: 'A quale sede vanno le fatture',
+      render: () => <ImpostazioniSocieta orgId={orgId} sedi={sedi || []} notify={notify}/>,
+    },
   ]
   if (whiteLabelOk) {
     attivitaItems.push({
@@ -1216,7 +1224,7 @@ function buildSezioni({ auth, nomeAttivita, tipoAttivita, metodoProduzione = 'st
             <Suspense fallback={<div style={{ padding: 30, textAlign: 'center', color: T.textSoft, fontSize: font.size.sm }}>Caricamento…</div>}>
               {/* sedeId: usa quella attiva dal Dashboard (coerente col resto
                   dell'app). Fallback su prima sede se nessuna attiva selezionata. */}
-              <IntegrazioniLazy orgId={orgId} sedeId={sedeId || (sedi || [])[0]?.id || null} notify={notify}/>
+              <IntegrazioniLazy orgId={orgId} sedeId={sedeId || (sedi || [])[0]?.id || null} sedi={sedi || []} notify={notify}/>
             </Suspense>
           ),
         },

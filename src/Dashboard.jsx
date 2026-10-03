@@ -3776,7 +3776,7 @@ export default function Dashboard({
         {vista==="confronto-sedi"&&(canAccessView("confronto-sedi",piano,auth?.user?.email)?<ConfrontoSedi orgId={orgId} sedi={sedi}/>:<UpgradeGate view="confronto-sedi" onUpgrade={goToUpgrade}/>)}
         {vista==="eventi"&&<EventiView orgId={orgId} sedeId={sedeId} ricettario={ricettario} notify={notify} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita}/>}
         {vista==="trasferimenti"&&!isAllSedi&&(canAccessView("trasferimenti",piano,auth?.user?.email)?<TrasferimentiView orgId={orgId} sedi={sedi} sedeAttiva={sedeAttiva} notify={notify} metodoProduzione={metodoProduzione} soloRicezione={isDip}/>:<UpgradeGate view="trasferimenti" onUpgrade={goToUpgrade}/>)}
-        {vista==="integrazioni"&&(canAccessView("integrazioni",piano,auth?.user?.email)?<Integrazioni orgId={orgId} sedeId={sedeId} notify={notify}/>:<UpgradeGate view="integrazioni" onUpgrade={goToUpgrade}/>)}
+        {vista==="integrazioni"&&(canAccessView("integrazioni",piano,auth?.user?.email)?<Integrazioni orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify}/>:<UpgradeGate view="integrazioni" onUpgrade={goToUpgrade}/>)}
         {vista==="scadenzario"&&<Scadenzario orgId={orgId} sedeId={sedeId} sedi={sedi} pagina="scadenzario" onNavigate={setView}/>}
         {/* Le cinque schermate che si aprono da Fornitori. Sono pagine vere e
             non filtri: hanno un nome proprio in cima, stanno nella storia del

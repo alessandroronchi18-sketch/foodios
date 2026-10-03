@@ -113,6 +113,9 @@ describe('Ogni conto nuovo viene chiamato da qualche parte', () => {
     'bolle',
     // 24/09/2026: gli XML dell'Agenzia che completano le fatture esistenti.
     'fattureXmlArchivio', 'completaFatture', 'importaFattureXml',
+    // 03/10/2026: la fattura va alla sede della società a cui è intestata,
+    // e la proposta per spostare quelle già in archivio.
+    'societaSedi', 'societaSediArchivio',
   ]
 
   /** Tutto il codice del prodotto. */
