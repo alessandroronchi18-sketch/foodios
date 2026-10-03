@@ -11,8 +11,14 @@
 // Stavano tutte e due dentro `Dashboard.jsx`, che ha un tetto di righe tenuto
 // fermo da una prova — e il messaggio di quella prova dice «è il momento di
 // scorporare, non di alzare il tetto».
-import { useCallback } from 'react'
+//
+// Dal 03/10/2026 ci passano anche i prezzi che arrivano dalle righe delle
+// fatture (Materie prime › Dalle fatture): stesso listino, stesso storico,
+// stessa regola — una scrittura sola, e lo stato in memoria si tocca solo
+// dopo che il database ha detto sì.
+import { useCallback, useEffect } from 'react'
 import { preparaScrittureBolla, annullaBolla } from '../lib/bolle'
+import { EVENTO_PREZZI_SCRITTI } from '../lib/storageKeys'
 
 /**
  * @param {object} ctx  lo stato e chi lo sa scrivere:
@@ -72,5 +78,50 @@ export default function useBolle(ctx) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [magazzino, logRif, ricettario, logPrezzi, utente, scrivi])
 
-  return { registra, annulla }
+  /**
+   * Listino e storico dai prezzi delle fatture, più le altre chiavi che
+   * devono entrare insieme (la mappa degli abbinamenti). `p` null scrive
+   * solo le altre: abbinare un detersivo come «non è una materia prima» non
+   * cambia nessun prezzo.
+   */
+  const scriviPrezzi = useCallback(async (p, altri = []) => {
+    const items = [...(altri || [])]
+    let nuovoRic = null
+    if (p) {
+      const base = ricettario || { ricette: {}, ingredienti_costi: {} }
+      nuovoRic = { ...base, ricette: base.ricette || {}, ingredienti_costi: p.ingredientiCosti }
+      items.unshift({ key: chiavi.SK_RIC, value: nuovoRic }, { key: chiavi.SK_LOG_PRZ, value: p.logPrezzi })
+    }
+    if (!items.length) return { ok: true }
+    try {
+      await ssaveTutto(items)
+    } catch (e) {
+      return { ok: false, errore: e?.message || 'rete' }
+    }
+    if (nuovoRic) { set.ric(nuovoRic); set.logPrezzi(p.logPrezzi) }
+    return { ok: true }
+  }, [ricettario, ssaveTutto, chiavi, set])
+
+  // ── Il listino riscritto da un'altra pagina ─────────────────────────────
+  //
+  // Il caricamento degli XML (Scadenzario, Integrazioni) aggiorna da solo i
+  // prezzi delle righe già abbinate, e li scrive direttamente nel database.
+  // Questo stato in memoria resterebbe quello di prima: la prossima modifica
+  // a mano di un prezzo ripartirebbe dal listino vecchio e cancellerebbe in
+  // silenzio quello che le fatture avevano appena scritto. Qui ci si rimette
+  // in pari.
+  const setRic = set?.ric
+  const setLog = set?.logPrezzi
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined
+    const allinea = (e) => {
+      const d = e?.detail
+      if (d?.ricettario && typeof d.ricettario === 'object') setRic?.(d.ricettario)
+      if (Array.isArray(d?.logPrezzi)) setLog?.(d.logPrezzi)
+    }
+    window.addEventListener(EVENTO_PREZZI_SCRITTI, allinea)
+    return () => window.removeEventListener(EVENTO_PREZZI_SCRITTI, allinea)
+  }, [setRic, setLog])
+
+  return { registra, annulla, scriviPrezzi }
 }

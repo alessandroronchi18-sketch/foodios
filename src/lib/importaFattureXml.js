@@ -15,6 +15,7 @@ import {
   decidiSediImport, applicaRisposte, domandeDaGruppi, destinazioneDaSedi,
   fraseDestinazioni, nomeSocieta,
 } from './societaSedi'
+import { aggiornaPrezziDopoImport } from './prezziDaFattureArchivio'
 
 const COLONNE_FORNITORE = 'id, nome, partita_iva, codice_fiscale, indirizzo, cap, citta, provincia, email, telefono, iban'
 
@@ -37,12 +38,15 @@ const COLONNE_FORNITORE = 'id, nome, partita_iva, codice_fiscale, indirizzo, cap
 export async function importaFattureXml(supabase, {
   orgId, sedeId = null, sediCondivise = null, files, onProgresso,
   societa = null, chiediSedi = null, ricordaSocieta = null,
+  // Solo per le prove: chi scrive listino e storico (di default `ssaveBatch`).
+  scriviPrezzi = null,
 }) {
   const esito = {
     lette: 0, saltati: 0, illeggibili: [], troncato: false, fileFalliti: [],
     completate: 0, nuove: 0, giaPresenti: 0, ambigue: [], errori: [],
     fornitoriCompletati: 0, recordsToccati: [],
     annullato: false, perSocieta: [], destinazioni: '', avvisoMappa: '',
+    prezzi: null,
   }
 
   // 1. Leggere tutto
@@ -135,10 +139,24 @@ export async function importaFattureXml(supabase, {
     esito.errori.push({ id: null, numero: null, messaggio: 'Anagrafica fornitori non aggiornata: ' + (e?.message || '') })
   }
 
+  // 7. I prezzi delle materie prime, per le righe già abbinate una volta
+  // (Materie prime › Dalle fatture). Il conto è in `prezziDaFatture.js`. Se
+  // non riesce, le fatture sono comunque entrate: lo si dice e basta. Un
+  // caricamento annullato alla domanda sulle società non arriva fin qui.
+  try {
+    onProgresso?.('prezzi', 0, 1)
+    esito.prezzi = await aggiornaPrezziDopoImport(supabase, orgId, esito.recordsToccati, { scrivi: scriviPrezzi })
+  } catch (e) {
+    esito.prezzi = { errore: e?.message || 'errore sconosciuto' }
+  }
+
   return esito
 }
 
-const FASI = { lettura: 'Leggo i file', completamento: 'Completo le fatture', nuove: 'Aggiungo le nuove', fornitori: 'Aggiorno i fornitori' }
+const FASI = { lettura: 'Leggo i file', completamento: 'Completo le fatture', nuove: 'Aggiungo le nuove', fornitori: 'Aggiorno i fornitori', prezzi: 'Aggiorno i prezzi' }
+
+const n = (v) => Number(v).toLocaleString('it-IT', { useGrouping: 'always' })
+const DOVE = 'Materie prime › Dalle fatture'
 
 /** A che punto è, com'è scritto sul pulsante. Uguale nelle due pagine. */
 export function testoAvanzamentoXml(fase, fatto, tot) {
@@ -154,6 +172,11 @@ export function fraseEsitoXml(e) {
   if (e.nuove) pezzi.push(`${e.nuove.toLocaleString('it-IT', { useGrouping: 'always' })} ${e.nuove === 1 ? 'nuova' : 'nuove'}`)
   if (e.giaPresenti) pezzi.push(`${e.giaPresenti.toLocaleString('it-IT', { useGrouping: 'always' })} già ${e.giaPresenti === 1 ? 'completa' : 'complete'}`)
   if (e.fornitoriCompletati) pezzi.push(`${e.fornitoriCompletati.toLocaleString('it-IT', { useGrouping: 'always' })} ${e.fornitoriCompletati === 1 ? 'scheda fornitore arricchita' : 'schede fornitore arricchite'}`)
+  // I prezzi delle materie prime: quanti ne sono cambiati, e quanti prodotti
+  // nuovi aspettano di essere abbinati una volta.
+  const p = e.prezzi
+  if (p?.applicati) pezzi.push(`${n(p.applicati)} ${p.applicati === 1 ? 'prezzo di materia prima aggiornato' : 'prezzi di materie prime aggiornati'}`)
+  if (p?.daAbbinare) pezzi.push(`${n(p.daAbbinare)} ${p.daAbbinare === 1 ? 'prodotto da abbinare' : 'prodotti da abbinare'} in ${DOVE}`)
   if (!pezzi.length) return e.lette ? 'Nessuna fattura da aggiungere: erano già tutte complete.' : 'In questi file non ho trovato fatture.'
   // Dove sono finite le nuove, anche quelle che nessuno ha chiesto.
   return pezzi.join(' · ') + (e.destinazioni ? `. ${e.destinazioni}` : '')
@@ -168,6 +191,9 @@ export function avvisiEsitoXml(e) {
   if (e.fileFalliti.length) a.push(`${e.fileFalliti.map(f => f.file).join(', ')}: ${e.fileFalliti[0].messaggio}`)
   if (e.errori.length) a.push(`${e.errori.length} ${e.errori.length === 1 ? 'scrittura non è andata' : 'scritture non sono andate'} (${e.errori[0].messaggio}). Ricarica lo stesso file: quelle già entrate non si doppiano.`)
   if (e.troncato) a.push('L\'archivio è molto grande e non l\'ho letto tutto: scaricalo diviso per periodi più corti.')
+  const p = e.prezzi
+  if (p?.daConfermare) a.push(`${n(p.daConfermare)} ${p.daConfermare === 1 ? 'prezzo cambia' : 'prezzi cambiano'} più della metà rispetto a prima: non ${p.daConfermare === 1 ? 'lo applico da solo, guardalo' : 'li applico da solo, guardali'} in ${DOVE}.`)
+  if (p?.errore) a.push(`I prezzi delle materie prime non li ho aggiornati (${p.errore}). Le fatture sono entrate: puoi applicarli da ${DOVE}.`)
   return a
 }
 

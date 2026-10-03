@@ -57,4 +57,19 @@ export const SK_CAT_FORN = 'pasticceria-categorie-fornitori-v1' // shared
 // dell'Agenzia e poi le fatture vanno da sole. Vedi src/lib/societaSedi.js.
 export const SK_SOCIETA_SEDI = 'pasticceria-societa-sedi-v1' // shared
 
+// Quale riga di fattura è quale materia prima: fornitore + descrizione,
+// abbinati una volta sola (o «non è una materia prima»). Da lì in poi ogni
+// fattura aggiorna listino e storico da sé. Dell'azienda, come il listino.
+// Vedi src/lib/prezziDaFatture.js.
+export const SK_ABB_FATTURE = 'pasticceria-abbinamenti-fatture-v1' // shared
+
+// Il segnale che listino e storico dei prezzi sono stati riscritti fuori
+// dalla pagina che li tiene in memoria (il caricamento degli XML sta nello
+// Scadenzario e in Integrazioni). Lo ascolta `useBolle`, che li rimette in
+// pari: senza, la prima modifica a mano di un prezzo ripartirebbe dal listino
+// vecchio e cancellerebbe quello che le fatture avevano appena scritto. Sta
+// qui, e non vicino a chi lo manda, perché chi lo ascolta è nel pacchetto
+// principale e non deve tirarsi dietro il codice delle fatture.
+export const EVENTO_PREZZI_SCRITTI = 'foodos:prezzi-scritti'
+
 export const SK_MOV      = 'pasticceria-movimenti-speciali-v1' // per-sede (sprechi e omaggi)
