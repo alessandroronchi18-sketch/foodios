@@ -742,8 +742,9 @@ const SOGLIA_UNICA = 10000
  * essere un investimento. Non decide niente, le indica.
  *
  * Una fattura è fuori misura se vale almeno 5.000 € e almeno cinque volte la
- * fattura tipica (la mediana delle ALTRE fatture dello stesso fornitore); se
- * il fornitore ha meno di due altre fatture, se vale almeno 10.000 €. Restano
+ * fattura tipica (la mediana delle ALTRE fatture dello stesso fornitore, o
+ * l'unica altra se ce n'è una); se è la sola fattura del fornitore, se vale
+ * almeno 10.000 €. Restano
  * fuori le note di credito, le fatture che hanno già una voce loro e quelle
  * di fornitori già segnati come investimento o fuori conto.
  *
@@ -776,8 +777,16 @@ export function fattureEccezionali(fatture, { categoriePerFornitore = null, dal 
         if (importo >= SOGLIA_EURO && importo >= VOLTE * tipica) {
           motivo = `${Math.round(importo / tipica).toLocaleString('it-IT', { useGrouping: 'always' })} volte la sua fattura tipica`
         }
+      } else if (altre.length === 1) {
+        // Una sola altra fattura: niente mediana, ma il «cinque volte» vale
+        // lo stesso. Senza, 16.365 € contro 7.305 € (2,2 volte) risultava
+        // fuori misura: visto provando la schermata, 03/10/2026.
+        tipica = altre[0]
+        if (importo >= SOGLIA_EURO && importo >= VOLTE * tipica) {
+          motivo = `${Math.round(importo / tipica).toLocaleString('it-IT', { useGrouping: 'always' })} volte l'altra fattura di questo fornitore`
+        }
       } else if (importo >= SOGLIA_UNICA) {
-        motivo = altre.length ? 'molto più grande delle altre di questo fornitore' : 'unica fattura di questo fornitore'
+        motivo = 'unica fattura di questo fornitore'
       }
       if (!motivo) continue
       out.push({

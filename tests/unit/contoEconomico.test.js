@@ -541,6 +541,19 @@ describe('fattureEccezionali: le candidate a investimento', () => {
     expect(r).toEqual([])
   })
 
+  it("con una sola altra fattura vale lo stesso il «cinque volte»", () => {
+    // Visto provando la schermata il 03/10: DESA 16.365 € contro 7.305 €
+    // (2,2 volte) risultava fuori misura perché «meno di due altre fatture».
+    const due = (a, b) => fattureEccezionali([
+      fattura({ fornitore: 'DESA SRL', data_fattura: '2026-06-01', totale: a }),
+      fattura({ fornitore: 'DESA SRL', data_fattura: '2026-07-01', totale: b }),
+    ])
+    expect(due(16365, 7305)).toEqual([])
+    const r = due(1000, 60000)
+    expect(r).toHaveLength(1)
+    expect(r[0]).toMatchObject({ importo: 60000, tipica: 1000, motivo: "60 volte l'altra fattura di questo fornitore" })
+  })
+
   it('un fornitore con una fattura sola: segnalata solo da 10.000 € in su', () => {
     expect(fattureEccezionali([fattura({ fornitore: 'MERCATO CENTRALE MILANO SRL', data_fattura: '2024-11-07', totale: 35063 })])[0].motivo).toBe('unica fattura di questo fornitore')
     expect(fattureEccezionali([fattura({ fornitore: 'Y SRL', data_fattura: '2024-11-07', totale: 9000 })])).toEqual([])
