@@ -15,17 +15,18 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { color as T, typo, ui3, ui, font } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { sload } from '../lib/storage'
-import { aggiungiGiorni } from '../lib/dateLocal'
+import { aggiungiGiorni, todayLocal } from '../lib/dateLocal'
 import { supabase } from '../lib/supabase'
 import { SK_FORMATI } from '../lib/storageKeys'
 import Icon from '../components/Icon'
-import { conGiorno } from '../lib/produzioneAnalisi'
+import { conGiorno, giorniRegistrati } from '../lib/produzioneAnalisi'
 import ExportPdfButton from '../components/ExportPdfButton'
 import { C, PageHeader, TNUM, fmt0, TabellaOSchede } from './_shared'
 import {
   caricaSettimana, calcolaVendutoSettimana, lunediDellaSettimana,
   euroKgMedioFormati, kpiQuadraturaSettimana, classificaGusti, variazione,
-  accettaScostamento, CAUSA_RIMANENZA_A_ZERO,
+  accettaScostamento, CAUSA_RIMANENZA_A_ZERO, ultimoGiornoRegistrato,
+  matriceDiPiuSedi, matricePerGusto,
 } from '../lib/inventarioProduzione'
 
 // ── Helpers data/numeri (IT) ──────────────────────────────────────────────
@@ -138,14 +139,21 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
   const isTablet = useIsTablet()
   const isAllSedi = sedeAttiva?._all === true
   const [lunediIso, setLunediIso] = useState(() => lunediDellaSettimana())
-  const [righe, setRighe] = useState([])
-  const [righePrev, setRighePrev] = useState([])
+  // Le righe della settimana (e di quella prima) SEDE PER SEDE: { [sedeId]: righe }.
+  const [righePerSede, setRighePerSede] = useState({})
+  const [righePrevPerSede, setRighePrevPerSede] = useState({})
   const [formati, setFormati] = useState([])
   const [venditeB2bSett, setVenditeB2bSett] = useState([])
   const [venditeB2bPrec, setVenditeB2bPrec] = useState([])
   const [trendData, setTrendData] = useState([])  // [{ lunIso, kg, cassa }] x 4 settimane
-  const [perSede, setPerSede] = useState([])      // drill-down per sede quando isAllSedi
   const [loading, setLoading] = useState(true)
+  // Di quale settimana sono le righe in memoria: finché non è quella mostrata
+  // la pagina è «in caricamento», non una settimana vuota (al cambio di
+  // settimana c'è un istante in cui le righe sono ancora quelle di prima).
+  const [settimanaCaricata, setSettimanaCaricata] = useState(null)
+  const [erroreLettura, setErroreLettura] = useState(false)
+  // L'ultimo giorno registrato e se la pagina si è spostata lì all'apertura.
+  const [apertura, setApertura] = useState(null)   // { ultimo, spostata }
 
   // Touch target minimo: ≥40 mobile, ≥44 tablet (regola permanente CLAUDE.md)
   // Era `isTablet ? 44 : 40`: il tablet aveva la misura giusta e il telefono
@@ -153,40 +161,97 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
   // misura sta in theme.js (ui.ctrlH) e vale 44 su tutto quello che si tocca.
   const tapMin = ui3(isMobile, isTablet, ui.ctrlH)
 
+  // ── Quali sedi si leggono ──────────────────────────────────────────────
+  // Quella attiva; in «Tutte le sedi» tutte quelle che producono. Prima in
+  // «Tutte le sedi» `sedeId` è null e il caricamento usciva subito: niente
+  // formati, euro al chilo nullo, e la pagina chiedeva di «impostare i
+  // formati di vendita» che c'erano già (otto, da Mara).
+  const sediDaLeggere = useMemo(() => {
+    if (sedeId) return [{ id: sedeId, nome: sedeAttiva?.nome || '' }]
+    if (!isAllSedi) return []
+    return (sedi || []).filter(s => s.attiva !== false && s.is_sede_produzione !== false)
+  }, [sedeId, isAllSedi, sedi, sedeAttiva])
+  const sediKey = sediDaLeggere.map(s => s.id).join(',')
+  const nomeSede = (id) => sediDaLeggere.find(s => s.id === id)?.nome || ''
+
+  // ── Si apre dove ci sono i dati ────────────────────────────────────────
+  // Prima apriva sempre sulla settimana di oggi: per Mara, a ottobre, una
+  // settimana vuota mostrata come «0,0 kg · 0 € · 0 €», con l'ultima
+  // settimana vera cinque clic indietro e nessuna parola per dirlo.
+  useEffect(() => {
+    if (!orgId || sediDaLeggere.length === 0) return undefined
+    let alive = true
+    ultimoGiornoRegistrato(orgId, sediDaLeggere.map(s => s.id), { finoA: todayLocal() })
+      .catch(() => null)
+      .then((ultimo) => {
+        if (!alive) return
+        const lunOggi = lunediDellaSettimana()
+        if (ultimo && ultimo < lunOggi) {
+          setLunediIso(lunediDellaSettimana(`${ultimo}T12:00:00`))
+          setApertura({ ultimo, spostata: true })
+        } else {
+          setApertura({ ultimo: ultimo || null, spostata: false })
+        }
+      })
+    return () => { alive = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgId, sediKey])
+
   useEffect(() => {
     let alive = true
-    if (!orgId || !sedeId) { setLoading(false); return }
+    if (!orgId || sediDaLeggere.length === 0) { setLoading(false); return undefined }
     setLoading(true)
+    const ids = sediDaLeggere.map(s => s.id)
     const lunPrec = addDays(lunediIso, -7)
     const finePrec = lunediIso
     const fineSett = addDays(lunediIso, 7)
+    const b2b = (da, a) => supabase.from('vendite_b2b').select('data, righe, totale, sede_id')
+      .eq('organization_id', orgId).in('sede_id', ids)
+      .gte('data', da).lt('data', a)
+      .then(({ data }) => data || [])
     Promise.all([
-      caricaSettimana(orgId, sedeId, lunediIso),
-      caricaSettimana(orgId, sedeId, lunPrec),
+      Promise.all(ids.map(id => caricaSettimana(orgId, id, lunediIso))),
+      Promise.all(ids.map(id => caricaSettimana(orgId, id, lunPrec))),
       sload(SK_FORMATI, orgId, null),
       // Vendite B2B della sett. corrente e della precedente (per togliere
       // i kg B2B dal confronto cassa retail, evita drift falso).
-      supabase.from('vendite_b2b').select('data, righe, totale')
-        .eq('organization_id', orgId).eq('sede_id', sedeId)
-        .gte('data', lunediIso).lt('data', fineSett)
-        .then(({ data }) => data || []),
-      supabase.from('vendite_b2b').select('data, righe, totale')
-        .eq('organization_id', orgId).eq('sede_id', sedeId)
-        .gte('data', lunPrec).lt('data', finePrec)
-        .then(({ data }) => data || []),
+      b2b(lunediIso, fineSett),
+      b2b(lunPrec, finePrec),
     ]).then(([sett, prec, fmt, b2bS, b2bP]) => {
       if (!alive) return
-      setRighe(sett || [])
-      setRighePrev(prec || [])
+      setRighePerSede(Object.fromEntries(ids.map((id, i) => [id, sett[i] || []])))
+      setRighePrevPerSede(Object.fromEntries(ids.map((id, i) => [id, prec[i] || []])))
       setFormati(Array.isArray(fmt) ? fmt : [])
       setVenditeB2bSett(b2bS || [])
       setVenditeB2bPrec(b2bP || [])
+      setErroreLettura(false)
+      setSettimanaCaricata(lunediIso)
       setLoading(false)
-    }).catch(e => { if (alive) { console.error(e); setLoading(false) } })
+    }).catch(e => {
+      if (!alive) return
+      console.error(e)
+      // Una lettura fallita non è una settimana vuota: lo si dice.
+      setRighePerSede({}); setRighePrevPerSede({})
+      setErroreLettura(true)
+      setSettimanaCaricata(lunediIso)
+      setLoading(false)
+    })
     return () => { alive = false }
-  }, [orgId, sedeId, lunediIso])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgId, sediKey, lunediIso])
 
-  const matrice = useMemo(() => calcolaVendutoSettimana(righe, lunediIso), [righe, lunediIso])
+  // Il venduto si calcola sede per sede; poi due viste delle stesse celle:
+  // una per i conti (ogni casella una volta), una per gusto (la classifica).
+  const matrici = useMemo(() => Object.entries(righePerSede)
+    .map(([id, rs]) => ({ sedeId: id, matrice: calcolaVendutoSettimana(rs, lunediIso) })), [righePerSede, lunediIso])
+  const matrice = useMemo(() => matriceDiPiuSedi(matrici), [matrici])
+  const matriceGusti = useMemo(() => matricePerGusto(matrici), [matrici])
+  // Le righe di tutte le sedi insieme, per contare i giorni registrati.
+  const righe = useMemo(() => Object.values(righePerSede).flat(), [righePerSede])
+  const giorniSettimana = useMemo(
+    () => giorniRegistrati(righe, { da: lunediIso, a: addDays(lunediIso, 6) }),
+    [righe, lunediIso]
+  )
 
   // Le celle da controllare, una per una.
   //
@@ -196,38 +261,41 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
   // non trovarle mai.
   const celleDaControllare = useMemo(() => {
     const out = []
-    for (const [gusto, byData] of Object.entries(matrice || {})) {
-      for (const [dataIso, c] of Object.entries(byData)) {
-        if (!c?.daControllare) continue
-        out.push({
-          gusto, data: dataIso,
-          mancano: Math.abs(Number(c.venduto) || 0),
-          rimanPrec: c.rimanPrec, prod: c.prod, riman: c.riman,
-          // Per la causa più frequente la casella da sistemare è quella del
-          // giorno PRIMA (la rimanenza lasciata a 0): l'elenco deve indicare
-          // quella, non la casella negativa.
-          causa: c.causa || null,
-          giornoDaSistemare: c.giornoDaSistemare || null,
-        })
+    for (const { sedeId: idSede, matrice: m } of matrici) {
+      for (const [gusto, byData] of Object.entries(m || {})) {
+        for (const [dataIso, c] of Object.entries(byData)) {
+          if (!c?.daControllare) continue
+          out.push({
+            gusto, data: dataIso, sedeId: idSede,
+            mancano: Math.abs(Number(c.venduto) || 0),
+            rimanPrec: c.rimanPrec, prod: c.prod, riman: c.riman,
+            // Per la causa più frequente la casella da sistemare è quella del
+            // giorno PRIMA (la rimanenza lasciata a 0): l'elenco deve indicare
+            // quella, non la casella negativa.
+            causa: c.causa || null,
+            giornoDaSistemare: c.giornoDaSistemare || null,
+          })
+        }
       }
     }
     return out.sort((a, b) => b.mancano - a.mancano)
-  }, [matrice])
+  }, [matrici])
 
   const [accettando, setAccettando] = useState(null)   // chiave della cella in salvataggio
   const [mostraTutteLeCelle, setMostraTutteLeCelle] = useState(false)
 
   // "È giusta così": lo scostamento resta nel totale (la merce è uscita
-  // davvero) ma la cella esce dall'elenco delle cose da guardare.
+  // davvero) ma la cella esce dall'elenco delle cose da guardare. Si scrive
+  // sulla sede della casella: in «Tutte le sedi» non ce n'è una attiva.
   const accettaCella = async (cella, nota) => {
-    const chiave = `${cella.gusto}|${cella.data}`
+    const chiave = `${cella.sedeId}|${cella.gusto}|${cella.data}`
     if (accettando) return
     setAccettando(chiave)
     try {
-      await accettaScostamento(orgId, sedeId, cella.gusto, cella.data, { accettato: true, nota })
+      await accettaScostamento(orgId, cella.sedeId, cella.gusto, cella.data, { accettato: true, nota })
       // Ricarico la settimana: il conteggio in alto deve scendere subito.
-      const righeNuove = await caricaSettimana(orgId, sedeId, lunediIso)
-      setRighe(righeNuove)
+      const righeNuove = await caricaSettimana(orgId, cella.sedeId, lunediIso)
+      setRighePerSede(x => ({ ...x, [cella.sedeId]: righeNuove }))
       notify?.(`${cella.gusto} del ${cella.data.slice(8, 10)}: segnata come giusta.`)
     } catch (e) {
       notify?.('Non ho potuto salvare: ' + (e?.message || 'rete'), false)
@@ -235,10 +303,9 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
       setAccettando(null)
     }
   }
-  const matricePrev = useMemo(
-    () => calcolaVendutoSettimana(righePrev, addDays(lunediIso, -7)),
-    [righePrev, lunediIso]
-  )
+  const matricePrev = useMemo(() => matriceDiPiuSedi(Object.entries(righePrevPerSede)
+    .map(([id, rs]) => ({ sedeId: id, matrice: calcolaVendutoSettimana(rs, addDays(lunediIso, -7)) }))),
+  [righePrevPerSede, lunediIso])
   const euroKg = useMemo(() => euroKgMedioFormati(formati), [formati])
 
   // Chiusure della settimana target (filtrate per data).
@@ -256,15 +323,18 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
   // Sparkline: ultime 4 settimane (incluse la corrente). Per ogni settimana
   // calcoliamo kg venduti totali dall'inventario + cassa retail. La cassa
   // arriva da `chiusure` (già filtrata dal Dashboard), l'inventario serve
-  // un fetch separato.
+  // un fetch separato, sede per sede.
   useEffect(() => {
-    if (!orgId || !sedeId) return
+    if (!orgId || sediDaLeggere.length === 0) return undefined
+    let alive = true
+    const ids = sediDaLeggere.map(s => s.id)
     const settimane = []
     for (let i = 3; i >= 0; i--) settimane.push(addDays(lunediIso, -7 * i))
-    Promise.all(settimane.map(lun => caricaSettimana(orgId, sedeId, lun)))
+    Promise.all(settimane.map(lun => Promise.all(ids.map(id => caricaSettimana(orgId, id, lun)))))
       .then(perSettimana => {
+        if (!alive) return
         const out = settimane.map((lun, idx) => {
-          const matr = calcolaVendutoSettimana(perSettimana[idx], lun)
+          const matr = matriceDiPiuSedi(ids.map((id, j) => ({ sedeId: id, matrice: calcolaVendutoSettimana(perSettimana[idx][j], lun) })))
           const fineW = addDays(lun, 7)
           const chiusW = (chiusure || []).filter(c => c.data >= lun && c.data < fineW)
           // Prima questa somma era scritta a mano qui dentro, in parallelo a
@@ -282,40 +352,21 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
         setTrendData(out)
       })
       .catch(e => console.error('trend:', e))
-  }, [orgId, sedeId, lunediIso, chiusure, euroKg])
+    return () => { alive = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgId, sediKey, lunediIso, chiusure, euroKg])
 
-  // Drill-down per sede (solo isAllSedi): per ogni sede produttiva
-  // carichiamo settimana + b2b e calcoliamo KPI individuali.
-  // Il metodo (inventario vs stampi) e' org-level: se l'org non e' su
-  // 'inventario' non c'e' nulla da drillare qui.
-  useEffect(() => {
-    if (!isAllSedi || !orgId || metodoProduzione !== 'inventario') { setPerSede([]); return }
-    const sediProduttive = (sedi || []).filter(s =>
-      s.attiva !== false && s.is_sede_produzione
-    )
-    if (sediProduttive.length === 0) { setPerSede([]); return }
-    Promise.all(sediProduttive.map(async s => {
-      const [righeSet, b2bSet] = await Promise.all([
-        caricaSettimana(orgId, s.id, lunediIso),
-        supabase.from('vendite_b2b').select('data, righe, totale')
-          .eq('organization_id', orgId).eq('sede_id', s.id)
-          .gte('data', lunediIso).lt('data', addDays(lunediIso, 7))
-          .then(({ data }) => data || []),
-      ])
-      const matr = calcolaVendutoSettimana(righeSet, lunediIso)
-      const chiusS = (chiusure || []).filter(c => c.data >= lunediIso && c.data < addDays(lunediIso, 7))
-        // Nota: chiusure arrivano filtrate per sede attiva, qui non
-        // possiamo distinguere -> il drill-down cassa per sede e' un'apparizione
-        // approssimativa (sommiamo tutta la cassa attiva, etichettata "tot org").
-      const kp = kpiQuadraturaSettimana(matr, chiusS, euroKg, b2bSet)
-      return { sede: s, kpi: kp }
+  // Dettaglio per sede (solo «Tutte le sedi»): dalle stesse righe già lette,
+  // senza una seconda lettura. La cassa per sede non si può separare (le
+  // chiusure arrivano già sommate dal Dashboard): il dettaglio mostra
+  // l'inventario e l'ingrosso, non uno scostamento per sede.
+  const perSede = useMemo(() => {
+    if (!isAllSedi || metodoProduzione !== 'inventario') return []
+    return matrici.map(({ sedeId: id, matrice: m }) => ({
+      sede: sediDaLeggere.find(s => s.id === id) || { id, nome: '' },
+      kpi: kpiQuadraturaSettimana(m, [], euroKg, (venditeB2bSett || []).filter(v => v.sede_id === id)),
     }))
-    .then(setPerSede)
-    .catch(e => console.error('drill-down per sede:', e))
-  // metodoProduzione nelle dipendenze: l'effetto lo legge per decidere se c'è
-  // qualcosa da drillare, e senza di lui il drill-down restava quello di prima
-  // dopo un cambio di metodo nelle impostazioni.
-  }, [isAllSedi, orgId, sedi, lunediIso, euroKg, chiusure, metodoProduzione])
+  }, [isAllSedi, metodoProduzione, matrici, sediDaLeggere, euroKg, venditeB2bSett])
 
   const kpi = useMemo(
     () => kpiQuadraturaSettimana(matrice, chiusureSett, euroKg, venditeB2bSett),
@@ -325,11 +376,13 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
     () => kpiQuadraturaSettimana(matricePrev, chiusurePrev, euroKg, venditeB2bPrec),
     [matricePrev, chiusurePrev, euroKg, venditeB2bPrec]
   )
-  const classifica = useMemo(() => classificaGusti(matrice), [matrice])
+  const classifica = useMemo(() => classificaGusti(matriceGusti), [matriceGusti])
 
   const settimanaPrec = () => setLunediIso(addDays(lunediIso, -7))
   const settimanaSucc = () => setLunediIso(addDays(lunediIso, 7))
   const oggi = () => setLunediIso(lunediDellaSettimana())
+  const lunUltimo = apertura?.ultimo ? lunediDellaSettimana(`${apertura.ultimo}T12:00:00`) : null
+  const inCaricamento = loading || (sediDaLeggere.length > 0 && settimanaCaricata !== lunediIso)
 
   // ── Render ─────────────────────────────────────────────────────────────
 
@@ -492,8 +545,49 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
         </div>
       </div>
 
-      {loading ? (
+      {/* La settimana mostrata è quella dell'ultimo giorno registrato, non
+          quella di oggi: si dice, così non si cerca la settimana corrente. */}
+      {!inCaricamento && apertura?.spostata && lunediIso === lunUltimo && (
+        <div data-apertura style={{
+          marginBottom: 14, fontSize: font.size.sm, color: C.textMid, lineHeight: 1.5,
+          display: 'flex', alignItems: 'flex-start', gap: 8,
+        }}>
+          <Icon name="calendar" size={14} color={C.textSoft} style={{ flexShrink: 0, marginTop: 2 }} />
+          <span>
+            Dopo {conGiorno('il', apertura.ultimo, { lunga: true })} non c&apos;è niente di registrato:
+            ti mostro l&apos;ultima settimana con i dati.
+          </span>
+        </div>
+      )}
+
+      {inCaricamento ? (
         <div style={{ padding: 60, textAlign: 'center', color: C.textSoft }}>Caricamento…</div>
+      ) : erroreLettura ? (
+        <div role="alert" style={{
+          padding: isMobile ? 20 : 28, background: C.bgCard, border: `1px solid ${T.red}`,
+          borderRadius: 14, marginBottom: 20, textAlign: 'center', color: T.red, fontSize: font.size.base,
+        }}>
+          Non sono riuscito a leggere l&apos;inventario di questa settimana. Riprova fra poco.
+        </div>
+      ) : giorniSettimana.n === 0 ? (
+        // Prima una settimana vuota diventava «0,0 kg · 0 € · 0 € · 0 €»:
+        // zero meno zero fa zero, ma qui la risposta è «non lo so».
+        <div data-settimana-vuota style={{
+          padding: isMobile ? 20 : 28, background: C.bgCard, border: `1px solid ${C.border}`,
+          borderRadius: 14, marginBottom: 20, textAlign: 'center', color: C.textMid,
+          fontSize: font.size.base, lineHeight: 1.55,
+        }}>
+          <div style={{ fontWeight: 700, color: C.text, marginBottom: 4 }}>Nessun giorno registrato in questa settimana.</div>
+          {apertura?.ultimo && (
+            <div>L&apos;ultimo giorno registrato è {conGiorno('il', apertura.ultimo, { lunga: true })}.</div>
+          )}
+          {apertura?.ultimo && lunUltimo && lunUltimo !== lunediIso && (
+            <button type="button" onClick={() => setLunediIso(lunUltimo)}
+              style={{ ...btnNav(tapMin), marginTop: 12, padding: '0 16px', fontWeight: 700, color: T.brand, borderColor: T.brand }}>
+              Vai a quella settimana
+            </button>
+          )}
+        </div>
       ) : !euroKg ? (
         <div style={{
           padding: isMobile ? 16 : '20px 24px',
@@ -740,7 +834,7 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
                 overflow: 'hidden', width: '100%', boxSizing: 'border-box',
               }}>
                 {celleDaControllare.slice(0, mostraTutteLeCelle ? 200 : 5).map((c) => {
-                  const chiave = `${c.gusto}|${c.data}`
+                  const chiave = `${c.sedeId}|${c.gusto}|${c.data}`
                   const giorno = new Date(c.data + 'T12:00:00')
                   return (
                     <div key={chiave} style={{
@@ -749,7 +843,12 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
                       borderTop: `1px solid ${T.borderSoft}`,
                       fontSize: typo.small.fontSize, color: C.text,
                     }}>
-                      <span style={{ fontWeight: 700, flex: '1 1 150px', minWidth: 0 }}>{c.gusto}</span>
+                      <span style={{ fontWeight: 700, flex: '1 1 150px', minWidth: 0 }}>
+                        {c.gusto}
+                        {isAllSedi && nomeSede(c.sedeId) && (
+                          <span style={{ fontWeight: 400, color: C.textSoft }}> · {nomeSede(c.sedeId)}</span>
+                        )}
+                      </span>
                       <span style={{ color: C.textSoft, whiteSpace: 'nowrap' }}>
                         {giorno.toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: 'short' })}
                       </span>

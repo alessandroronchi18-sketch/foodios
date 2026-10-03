@@ -1294,6 +1294,50 @@ export function kpiQuadraturaSettimana(matrice, chiusureSettimana, euroKg, vendi
   }
 }
 
+// ── Più sedi nella stessa settimana ───────────────────────────────────────
+//
+// 03/10/2026, audit della Quadratura. In «Tutte le sedi» la pagina non
+// caricava niente (caricaSettimana vuole una sede) e mostrava solo «Imposta i
+// formati di vendita», con otto formati già impostati. Le sedi si leggono una
+// per una e il venduto si calcola sede per sede (sommare le righe prima del
+// conto sbaglia con le spedizioni fra negozi: vedi serieVendutoMultiSede).
+//
+// Per i conti della settimana (kpiQuadraturaSettimana) le celle restano
+// separate: la chiave diventa «gusto ␟ sede», così ogni casella si conta una
+// volta sola e la somma per giorno è quella di tutte le sedi.
+export function matriceDiPiuSedi(matrici) {
+  const elenco = (matrici || []).filter(m => m && m.matrice)
+  if (elenco.length === 1) return elenco[0].matrice
+  const out = {}
+  for (const { sedeId, matrice } of elenco) {
+    for (const [gusto, byData] of Object.entries(matrice)) out[`${gusto}\u241F${sedeId}`] = byData
+  }
+  return out
+}
+
+// Per la classifica dei gusti invece serve il gusto, di tutte le sedi
+// insieme: si sommano le celle GIÀ calcolate. Il venduto resta «non lo so»
+// solo se nessuna sede lo sa; il residuo somma le rimanenze scritte.
+export function matricePerGusto(matrici) {
+  const elenco = (matrici || []).filter(m => m && m.matrice)
+  if (elenco.length === 1) return elenco[0].matrice
+  const out = {}
+  for (const { matrice } of elenco) {
+    for (const [gusto, byData] of Object.entries(matrice)) {
+      const g = out[gusto] || (out[gusto] = {})
+      for (const [d, c] of Object.entries(byData || {})) {
+        const t = g[d] || (g[d] = { prod: 0, riman: null, scarto: 0, venduto: null, registrata: false })
+        t.prod += Number(c?.prod) || 0
+        t.scarto += Number(c?.scarto) || 0
+        if (c?.riman != null) t.riman = (t.riman || 0) + (Number(c.riman) || 0)
+        if (c?.venduto != null) t.venduto = (t.venduto || 0) + (Number(c.venduto) || 0)
+        if (c?.registrata) t.registrata = true
+      }
+    }
+  }
+  return out
+}
+
 // Classifica gusti per kg venduti nella settimana: top N + sofferenza.
 // "Sofferenza" = gusti con residuo medio alto rispetto alla produzione.
 // Soglia base: ratio residuo/produzione >= 0.5 (cioe' sopra il 50% non
