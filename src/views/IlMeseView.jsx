@@ -20,7 +20,7 @@ import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from '../components/Icon'
 import {
   CoperturaDati, NumeroConConfronto, BarraObiettivo, Cascata, IntestazioneAnalisi,
-  TitoloGrafico, Riquadro, FraseInsight,
+  TitoloGrafico, Riquadro, FraseInsight, ClassificaSpese,
 } from '../components/analisi'
 import { euro, quota, nomeMese, aMese, mesePrima, variazione, dataBreve } from '../lib/formatoAnalisi'
 import { OBIETTIVI, causeDelCambio, fraseCausa, titoloCascata, motivoSenzaUtile } from '../lib/ilMese'
@@ -63,7 +63,7 @@ export function vociCopertura(dati, { onNavigate, onClassifica } = {}) {
   return voci
 }
 
-export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate }) {
+export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate, notify }) {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
   // Si parte dall'ultimo mese chiuso: il mese in corso ha pochi giorni e
@@ -72,6 +72,10 @@ export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate
   const [dati, setDati] = useState(null)
   const [caricando, setCaricando] = useState(true)
   const [errore, setErrore] = useState(null)
+  // La classificazione dei fornitori si apre qui dentro: finita, il conto
+  // si rilegge da solo (`versione`), senza cambiare pagina.
+  const [classifica, setClassifica] = useState(false)
+  const [versione, setVersione] = useState(0)
   // Alla prima apertura, se l'ultimo mese chiuso non ha incassi (la cassa non
   // c'è e l'inventario si ferma prima), si mostra l'ultimo mese che li ha, e
   // lo si dice. Una pagina che si apre su «non lo so» non risponde a niente.
@@ -97,7 +101,7 @@ export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate
       .catch(e => { if (vivo) setErrore(e?.message || 'lettura non riuscita') })
       .finally(() => { if (vivo) setCaricando(false) })
     return () => { vivo = false }
-  }, [orgId, sedeId, mese, sedi])
+  }, [orgId, sedeId, mese, sedi, versione])
 
   const conto = dati?.attuale?.conto || null
   const contoPrima = dati?.annoPrima?.conto || null
@@ -119,6 +123,15 @@ export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate
       destra={navMese} />
   )
 
+  if (classifica) return (
+    <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+      <button type="button" onClick={() => setClassifica(false)} style={{ ...stileFreccia, width: 'auto', padding: '0 12px', gap: 6, marginBottom: 12, fontSize: font.size.base, fontWeight: 600 }}>
+        <Icon name="chevL" size={14} />Torna {aMese(mese, { anno: false })}
+      </button>
+      <ClassificaSpese orgId={orgId} notify={notify} isMobile={isMobile}
+        onSalvato={() => { setClassifica(false); setVersione(v => v + 1) }} />
+    </div>
+  )
   if (caricando && !dati) return <div style={{ maxWidth: 1200, margin: '0 auto' }}>{intestazione}<Riquadro isMobile={isMobile}><span style={{ color: T.textSoft, fontSize: font.size.base }}>Metto insieme cassa, fatture e personale…</span></Riquadro></div>
   if (errore) return <div style={{ maxWidth: 1200, margin: '0 auto' }}>{intestazione}<Riquadro isMobile={isMobile}><span style={{ color: T.red, fontSize: font.size.base }}>Non sono riuscito a leggere i dati: {errore}</span></Riquadro></div>
   if (!conto) return null
@@ -147,7 +160,7 @@ export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate
           </button>
         </div>
       )}
-      <CoperturaDati voci={vociCopertura(dati, { onNavigate })} />
+      <CoperturaDati voci={vociCopertura(dati, { onNavigate, onClassifica: () => setClassifica(true) })} />
 
       {/* ── La risposta ─────────────────────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: colonne, gap: isMobile ? 10 : 14, marginBottom: 14 }}>

@@ -3744,8 +3744,8 @@ export default function Dashboard({
           </div>
         )}
         {ricettario&&vista==="semilavorati"&&<SemilavoratiView ricettario={ricettario} onSave={handleSalvaRicetta} notify={notify} tipoAttivita={tipoAttivita}/>}
-        {vista==="il-mese"&&!isDip&&<IlMeseView orgId={orgId} sedi={sedi} sedeId={sedeId} onNavigate={setView}/>}
-        {vista==="pl"&&!isDip&&<ContoEconomicoView orgId={orgId} sedi={sedi} sedeId={sedeId} onNavigate={setView}/>}
+        {vista==="il-mese"&&!isDip&&<IlMeseView orgId={orgId} sedi={sedi} sedeId={sedeId} onNavigate={setView} notify={notify}/>}
+        {vista==="pl"&&!isDip&&<ContoEconomicoView orgId={orgId} sedi={sedi} sedeId={sedeId} onNavigate={setView} notify={notify}/>}
         {ricettario&&vista==="simulatore"&&<SimulatorePrezziView ricettario={ricettario} giornaliero={giornaliero} tipoAttivita={tipoAttivita} sedi={sedi} orgId={orgId} sedeId={sedeId}/>}
         {vista==="nuova-ricetta"&&<NuovaRicettaView ricettario={ricettario} notify={notify} onSave={handleSalvaRicetta} editingRicetta={editingRicetta} onEditConsumed={()=>setEditingRicetta(null)} LEX={LEX} tipoAttivita={tipoAttivita}/>}
         {vista==="scheda-allergeni"&&!PAGINE_NASCOSTE.has("scheda-allergeni")&&<SchedaAllergeniView ricettario={ricettario} tipoAttivita={tipoAttivita}/>}

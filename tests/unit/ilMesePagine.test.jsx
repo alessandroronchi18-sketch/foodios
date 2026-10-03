@@ -156,3 +156,15 @@ describe('All\'apertura', () => {
     expect(testo()).not.toMatch(/Spese del mese[^]*su [a-z]+ \d{4}peggio|Spese del mese[^]*su [a-z]+ \d{4}meglio/)
   })
 })
+
+describe('Classificare le spese senza uscire dalla pagina', () => {
+  it('«Classifica» apre la schermata, «Torna» riporta al mese', async () => {
+    DATI = conDati()
+    render(<IlMeseView orgId="o1" sedi={[]} onNavigate={() => {}} />)
+    await waitFor(() => expect(testo()).toMatch(/senza categoria/))
+    await act(async () => { fireEvent.click([...document.querySelectorAll('button')].find(b => b.textContent === 'Classifica')) })
+    await waitFor(() => expect(testo()).toMatch(/Di che cosa sono queste spese/))
+    await act(async () => { fireEvent.click([...document.querySelectorAll('button')].find(b => /^Torna/.test(b.textContent))) })
+    await waitFor(() => expect(testo()).toMatch(/Quanto hai guadagnato/))
+  })
+})

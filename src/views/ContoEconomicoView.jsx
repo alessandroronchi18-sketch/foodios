@@ -15,7 +15,7 @@ import { supabase } from '../lib/supabase'
 import { color as T, font, typo } from '../lib/theme'
 import useIsMobile from '../lib/useIsMobile'
 import Icon from '../components/Icon'
-import { CoperturaDati, Andamentino, IntestazioneAnalisi, TitoloGrafico, Riquadro } from '../components/analisi'
+import { CoperturaDati, Andamentino, IntestazioneAnalisi, TitoloGrafico, Riquadro, ClassificaSpese } from '../components/analisi'
 import { euro, euroSegno, quota, nomeMese, mesePrima, variazione } from '../lib/formatoAnalisi'
 import { caricaIlMese } from '../lib/ilMeseArchivio'
 import { vociCopertura } from './IlMeseView'
@@ -80,12 +80,16 @@ function dettaglioFornitori(vociA = [], vociB = []) {
     .slice(0, 8)
 }
 
-export default function ContoEconomicoView({ orgId, sedi = [], sedeId = null, onNavigate }) {
+export default function ContoEconomicoView({ orgId, sedi = [], sedeId = null, onNavigate, notify }) {
   const isMobile = useIsMobile()
   const [mese, setMese] = useState(() => mesePrima(meseCorrente()))
   const [dati, setDati] = useState(null)
   const [caricando, setCaricando] = useState(true)
   const [errore, setErrore] = useState(null)
+  // La classificazione dei fornitori si apre qui dentro: finita, il conto
+  // si rilegge da solo (`versione`), senza cambiare pagina.
+  const [classifica, setClassifica] = useState(false)
+  const [versione, setVersione] = useState(0)
   const [aperte, setAperte] = useState(() => new Set())
 
   useEffect(() => {
@@ -97,7 +101,7 @@ export default function ContoEconomicoView({ orgId, sedi = [], sedeId = null, on
       .catch(e => { if (vivo) setErrore(e?.message || 'lettura non riuscita') })
       .finally(() => { if (vivo) setCaricando(false) })
     return () => { vivo = false }
-  }, [orgId, sedeId, mese, sedi])
+  }, [orgId, sedeId, mese, sedi, versione])
 
   const righe = useMemo(() => righeConto(dati?.attuale?.conto, dati?.annoPrima?.conto, dati?.andamento), [dati])
   const ricavi = dati?.attuale?.conto?.ricavi ?? null
@@ -112,6 +116,15 @@ export default function ContoEconomicoView({ orgId, sedi = [], sedeId = null, on
   )
 
   const conto = dati?.attuale?.conto
+  if (classifica) return (
+    <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+      <button type="button" onClick={() => setClassifica(false)} style={{ ...stileFreccia, width: 'auto', padding: '0 12px', gap: 6, marginBottom: 12, fontSize: font.size.base, fontWeight: 600 }}>
+        <Icon name="chevL" size={14} />Torna al conto
+      </button>
+      <ClassificaSpese orgId={orgId} notify={notify} isMobile={isMobile}
+        onSalvato={() => { setClassifica(false); setVersione(v => v + 1) }} />
+    </div>
+  )
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', opacity: caricando && dati ? 0.6 : 1 }}>
       <IntestazioneAnalisi isMobile={isMobile}
@@ -122,7 +135,7 @@ export default function ContoEconomicoView({ orgId, sedi = [], sedeId = null, on
       {!dati && !errore && <Riquadro isMobile={isMobile}><span style={{ color: T.textSoft, fontSize: font.size.base }}>Metto insieme cassa, fatture e personale…</span></Riquadro>}
       {dati && conto && (
         <>
-          <CoperturaDati voci={vociCopertura(dati, { onNavigate })} />
+          <CoperturaDati voci={vociCopertura(dati, { onNavigate, onClassifica: () => setClassifica(true) })} />
           <Riquadro isMobile={isMobile}>
             <TitoloGrafico
               titolo={conto.utile != null
