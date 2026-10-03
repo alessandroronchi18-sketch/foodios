@@ -100,9 +100,11 @@ describe('Quadratura — le caselle che non tornano si vedono', () => {
       { gusto_nome: 'NOCCIOLA', data: '2026-09-08', produzione_g: 300,  rimanenza_g: 200, scarto_g: 0, spedito_g: 0 },
     ])
     render(<QuadraturaInventarioView {...props} />)
-    // "Cassa effettiva" e' una tessera della banda KPI: quando c'e', la pagina
-    // ha finito di caricare e l'avviso, se servisse, sarebbe li'.
-    await waitFor(() => expect(screen.getByText(/Cassa effettiva/i)).toBeTruthy(), { timeout: 5000 })
+    // "Incasso stimato" e' una tessera della banda KPI: quando c'e', la pagina
+    // ha finito di caricare e l'avviso, se servisse, sarebbe li'. (Fino al
+    // 03/10/2026 era «Cassa effettiva»: la tessera adesso si chiama «Cassa» e
+    // dice «non registrata» quando la cassa non c'è.)
+    await waitFor(() => expect(screen.getAllByText(/Incasso stimato/i).length).toBeGreaterThan(0), { timeout: 5000 })
     expect(screen.queryByText(/caselle non tornano/i)).toBeNull()
   })
 })
@@ -147,7 +149,7 @@ describe('Quadratura — quali caselle non tornano', () => {
     mod.caricaSettimana.mockImplementation(async () => RIGHE.map(r =>
       r.data === '2026-09-08' ? { ...r, scostamento_accettato: true, scostamento_nota: 'omaggio' } : r))
     render(<QuadraturaInventarioView {...props} />)
-    await waitFor(() => expect(screen.getByText(/Cassa effettiva/i)).toBeTruthy(), { timeout: 5000 })
+    await waitFor(() => expect(screen.getAllByText(/Incasso stimato/i).length).toBeGreaterThan(0), { timeout: 5000 })
     expect(screen.queryByText(/caselle non tornano|casella non torna/i)).toBeNull()
     expect(screen.queryByRole('button', { name: /è giusta così/i })).toBeNull()
   })

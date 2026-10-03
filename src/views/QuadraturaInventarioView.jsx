@@ -346,7 +346,7 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
 
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
-      <PageHeader subtitle="Quadratura settimanale: l'inventario dice quanto e' uscito (kg), la cassa quanto e' entrato. Il drift indica dove guardare." />
+      <PageHeader subtitle="Quadratura settimanale: l'inventario dice quanto gelato è uscito, la cassa quanto è entrato. Se i due conti non tornano, qui si vede di quanto e dove guardare." />
 
       {/* ─ Toolbar settimana ─ Su mobile: layout a colonna piena per evitare accavallamenti */}
       <div style={{
@@ -542,32 +542,93 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
                 sub={kpi.b2bKg > 0 ? `${nKg(kpi.totVendutoG)} kg totali` : 'da inventario'}
                 tendVal={variazione(kpi.retailKg ?? kpi.totVendutoKg, kpiPrev.retailKg ?? kpiPrev.totVendutoKg)}
               />
+              {/* Senza chiusure la cassa è «non registrata», non zero euro:
+                  prima la tessera diceva «0 €» e quella accanto «-100%». */}
               <Tile
                 icon="card"
-                label="Cassa effettiva"
-                value={fmt0(kpi.cassaEffettiva)}
-                sub="incassato in cassa"
-                tendVal={variazione(kpi.cassaEffettiva, kpiPrev.cassaEffettiva)}
+                label="Cassa"
+                value={kpi.cassaRegistrata ? fmt0(kpi.cassaEffettiva) : 'non registrata'}
+                sub={kpi.cassaRegistrata
+                  ? (kpi.giorniCassa > 0 ? `incassato in ${kpi.giorniCassa} ${kpi.giorniCassa === 1 ? 'giorno' : 'giorni'}` : 'incassato in cassa')
+                  : 'nessuna chiusura questa settimana'}
+                tendVal={kpi.cassaRegistrata && kpiPrev.cassaRegistrata ? variazione(kpi.cassaEffettiva, kpiPrev.cassaEffettiva) : null}
+                muted={!kpi.cassaRegistrata}
               />
               <Tile
                 icon="barChart"
-                label="Atteso"
+                label="Incasso stimato"
                 value={fmt0(kpi.ricavoAtteso || 0)}
-                sub={`${n0(euroKg)} €/kg medio`}
+                sub={`stimato: kg × ${n0(euroKg)} €/kg medio`}
                 muted
               />
-              <Tile
-                icon="checkCircle"
-                label="Drift vs cassa"
-                value={kpi.driftEur != null ? fmtDriftEur(kpi.driftEur) : '-'}
-                sub={kpi.driftPct != null ? `${pct(kpi.driftPct)} dello scostamento` : 'nessun dato'}
-                color={tone.fg}
-                bg={tone.bg}
-                borderColor={tone.border}
-                accent={tone.accent}
-                badge={tone.label}
-              />
+              {kpi.driftEur != null ? (
+                <Tile
+                  icon="checkCircle"
+                  label="Differenza con la cassa"
+                  value={fmtDriftEur(kpi.driftEur)}
+                  sub={kpi.giorniConfrontati < kpi.giorniInventario
+                    ? `${pct(kpi.driftPct)} su ${kpi.giorniConfrontati} ${kpi.giorniConfrontati === 1 ? 'giorno' : 'giorni'} con cassa`
+                    : `${pct(kpi.driftPct)} dell'incasso stimato`}
+                  color={tone.fg}
+                  bg={tone.bg}
+                  borderColor={tone.border}
+                  accent={tone.accent}
+                  badge={tone.label}
+                />
+              ) : (
+                <Tile
+                  icon="info"
+                  label="Differenza con la cassa"
+                  value="non si può dire"
+                  sub={kpi.motivoConfronto || 'manca la cassa'}
+                  muted
+                />
+              )}
             </div>
+
+            {/* Quello che la pagina NON può fare, detto in chiaro, con quello
+                che serve per farlo. È il caso del design partner: zero
+                chiusure registrate. */}
+            {!kpi.cassaRegistrata && kpi.totVendutoG !== 0 && (
+              <div data-senza-cassa style={{
+                marginTop: 14, padding: isMobile ? 12 : '12px 16px',
+                background: T.bgSubtle, border: `1px solid ${T.border}`, borderRadius: 12,
+                fontSize: font.size.sm, color: C.textMid, lineHeight: 1.55,
+                display: 'flex', alignItems: isMobile ? 'stretch' : 'center', gap: 12,
+                flexDirection: isMobile ? 'column' : 'row',
+                width: '100%', boxSizing: 'border-box',
+              }}>
+                <span style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flex: '1 1 320px', minWidth: 0 }}>
+                  <Icon name="info" size={15} color={C.textSoft} style={{ flexShrink: 0, marginTop: 2 }} />
+                  <span>
+                    <strong style={{ color: C.text }}>Senza la cassa il confronto non si può fare.</strong>{' '}
+                    L&apos;inventario dice che sono usciti {nKg(kpi.totVendutoG)} kg di gelato, circa {fmt0(kpi.ricavoAtteso || 0)} ai
+                    prezzi dei formati. Per sapere se il conto torna serve l&apos;incasso vero di ogni giorno:
+                    basta il totale della chiusura, in Cassa.
+                  </span>
+                </span>
+                {onNavigate && (
+                  <button type="button" onClick={() => onNavigate('chiusura')}
+                    style={{
+                      ...btnNav(tapMin), padding: '0 16px', fontWeight: 700, color: T.brand,
+                      borderColor: T.brand, whiteSpace: 'nowrap', width: isMobile ? '100%' : 'auto',
+                    }}>
+                    Vai alla Cassa
+                  </button>
+                )}
+              </div>
+            )}
+            {kpi.cassaRegistrata && kpi.driftEur != null && kpi.giorniConfrontati < kpi.giorniInventario && (
+              <div style={{
+                marginTop: 14, padding: isMobile ? 12 : '12px 16px',
+                background: T.bgSubtle, border: `1px solid ${T.border}`, borderRadius: 12,
+                fontSize: font.size.sm, color: C.textMid, lineHeight: 1.55,
+                width: '100%', boxSizing: 'border-box',
+              }}>
+                La cassa c&apos;è per {kpi.giorniConfrontati} {kpi.giorniConfrontati === 1 ? 'giorno' : 'giorni'} su {kpi.giorniInventario} con
+                l&apos;inventario: il confronto è fatto solo su quelli ({fmt0(kpi.cassaConfrontata)} incassati contro {fmt0(kpi.attesoConfrontato)} stimati).
+              </div>
+            )}
 
             {kpi.b2bKg > 0 && (
               <div style={{
@@ -796,7 +857,11 @@ function SparklineTrend({ data }) {
   const W = 600, H = 110, PAD_X = 30, PAD_Y = 22
   if (!data || data.length === 0) return null
   const maxKg = Math.max(1, ...data.map(d => d.kg))
-  const maxEur = Math.max(1, ...data.map(d => d.cassa))
+  // Una settimana senza chiusure ha la cassa «non registrata» (null): non è
+  // un punto a zero. Prima la linea della cassa di chi non la registra era
+  // una retta piatta sul fondo, che si leggeva «non ha incassato niente».
+  const conCassa = data.filter(d => d.cassa != null)
+  const maxEur = Math.max(1, ...conCassa.map(d => d.cassa))
   const xStep = (W - PAD_X * 2) / Math.max(1, data.length - 1)
   const yScale = (val, max) => H - PAD_Y - (val / max) * (H - PAD_Y * 2)
 
@@ -805,11 +870,15 @@ function SparklineTrend({ data }) {
     const y = yScale(d.kg, maxKg)
     return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`
   }).join(' ')
+  let primoPunto = true
   const pathEur = data.map((d, i) => {
+    if (d.cassa == null) { primoPunto = true; return '' }
     const x = PAD_X + i * xStep
     const y = yScale(d.cassa, maxEur)
-    return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`
-  }).join(' ')
+    const comando = primoPunto ? 'M' : 'L'
+    primoPunto = false
+    return `${comando}${x.toFixed(1)},${y.toFixed(1)}`
+  }).filter(Boolean).join(' ')
   const fmtLabel = (iso) => {
     const d = new Date(`${String(iso).slice(0, 10)}T12:00:00`)
     return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`
@@ -820,7 +889,7 @@ function SparklineTrend({ data }) {
         {/* Gridline orizzontale di base */}
         <line x1={PAD_X} y1={H - PAD_Y} x2={W - PAD_X} y2={H - PAD_Y} stroke={T.border} strokeWidth="1" />
         {/* Cassa (linea brand tratteggiata) */}
-        <path d={pathEur} fill="none" stroke={T.brand} strokeWidth="2" strokeDasharray="4 3" />
+        {pathEur && <path d={pathEur} fill="none" stroke={T.brand} strokeWidth="2" strokeDasharray="4 3" />}
         {/* Kg venduti (linea verde) */}
         <path d={pathKg} fill="none" stroke={T.green} strokeWidth="2" />
         {data.map((d, i) => {
@@ -834,7 +903,9 @@ function SparklineTrend({ data }) {
                 <circle cx={x} cy={yScale(d.kg, maxKg)} r="6.5" fill="none" stroke={T.amber} strokeWidth="1.5" />
               )}
               <circle cx={x} cy={yScale(d.kg, maxKg)} r="3.5" fill={T.green} stroke={T.bgCard} strokeWidth="1.5" />
-              <circle cx={x} cy={yScale(d.cassa, maxEur)} r="3.5" fill={T.brand} stroke={T.bgCard} strokeWidth="1.5" />
+              {d.cassa != null && (
+                <circle cx={x} cy={yScale(d.cassa, maxEur)} r="3.5" fill={T.brand} stroke={T.bgCard} strokeWidth="1.5" />
+              )}
             </g>
           )
         })}
@@ -869,9 +940,9 @@ function SparklineTrend({ data }) {
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
           <span style={{
             display: 'inline-block', width: 14, height: 0,
-            borderTop: `2px dashed ${T.brand}`,
+            borderTop: `2px dashed ${conCassa.length > 0 ? T.brand : T.border}`,
           }} />
-          cassa retail
+          {conCassa.length > 0 ? 'cassa' : 'cassa non registrata'}
         </span>
         {data.some(d => d.nonQuadrate > 0) && (
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
@@ -995,19 +1066,27 @@ function Tile({ icon, label, value, sub, tendVal, muted, color, bg, borderColor,
 }
 
 // ── Diagnosi drift ────────────────────────────────────────────────────────
+// Si vede SOLO quando c'è una cassa vera da confrontare (driftPct non null):
+// senza chiusure lo scostamento non esiste, e fino al 03/10/2026 questo
+// riquadro compariva ogni settimana a chi non registra la cassa, suggerendo
+// «furti interni» su un incasso che semplicemente non era stato scritto.
+// Anche con la cassa, la prima cosa da guardare è l'inventario: sui dati veri
+// le caselle compilate male sono la causa più frequente di un conto che non
+// torna.
 function DiagnosiDrift({ driftEur, driftPct, isMobile }) {
-  const tono = driftEur < 0 ? 'mancante' : 'sovrastimato'
+  const tono = driftEur < 0 ? 'più basso della stima' : 'più alto della stima'
   const ipotesi = driftEur < 0
     ? [
-        'Porzioni piu grandi di quelle pianificate dai formati (controlla la bilancia)',
-        'Omaggi non registrati alla cassa',
+        'Giorni di cassa registrati a metà, o chiusure saltate',
+        'Rimanenze scritte male nell\'inventario (una casella lasciata a zero fa sembrare venduto quello che è in vetrina)',
+        'Porzioni più grandi di quelle dei formati (controlla la bilancia)',
+        'Omaggi e assaggi non battuti in cassa',
         'Errori di scontrino: battiture saltate o sottostimate',
-        'Furti interni',
       ]
     : [
         'Cassa con incassi extra non legati al gelato (es. articoli non da gusto)',
         'Inventario sottostimato: residuo della mattina dopo letto basso o errore di pesata',
-        'Scarti registrati ma in realta venduti',
+        'Scarti registrati ma in realtà venduti',
       ]
   return (
     <div style={{
@@ -1019,7 +1098,7 @@ function DiagnosiDrift({ driftEur, driftPct, isMobile }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
         <Icon name="warning" size={15} color={T.redDark} />
         <strong style={{ fontSize: font.size.base }}>
-          Cosa controllare - drift {tono} del {Math.abs(driftPct).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 1, maximumFractionDigits: 1 })}%
+          Cosa controllare: incasso {tono} del {Math.abs(driftPct).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 1, maximumFractionDigits: 1 })}%
         </strong>
       </div>
       <ul style={{ margin: 0, paddingLeft: 22 }}>

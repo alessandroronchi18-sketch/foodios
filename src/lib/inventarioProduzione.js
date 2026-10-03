@@ -1071,20 +1071,92 @@ export function kpiQuadraturaSettimana(matrice, chiusureSettimana, euroKg, vendi
   const ricaviB2b = (Array.isArray(venditeB2BSett) ? venditeB2BSett : [])
     .reduce((s, v) => s + (Number(v.totale) || 0), 0)
 
-  const cassaEffettiva = (Array.isArray(chiusureSettimana) ? chiusureSettimana : [])
-    .reduce((s, c) => s + Number(c?.kpi?.totV || c?.totale || 0), 0)
-
   // Confronto SOLO retail (la cassa retail non incassa i B2B):
   //   kg retail × €/kg medio formati = ricavo atteso da cassa.
+  // Sulla settimana intera è l'INCASSO STIMATO dall'inventario: si mostra
+  // anche quando la cassa non c'è, con scritto che è una stima.
   const ricavoAtteso = (euroKg != null) ? retailKg * euroKg : null
-  const driftEur = (ricavoAtteso != null) ? cassaEffettiva - ricavoAtteso : null
-  const driftPct = (ricavoAtteso != null && ricavoAtteso > 0)
-    ? (driftEur / ricavoAtteso) * 100
+
+  // ── Una cassa non registrata non è un incasso di zero euro ─────────────
+  //
+  // 03/10/2026, audit della Quadratura. Mara non registra le chiusure di
+  // cassa: qui la cassa valeva 0, lo scostamento «0 meno l'atteso», e ogni
+  // settimana con dati usciva a -100% con la tessera rossa «attenzione» e il
+  // riquadro «Cosa controllare: … furti interni». Carlina, 24-30/08:
+  // -15.273 €. La pagina prometteva un confronto che per lei non può esistere,
+  // e invece di dirlo suggeriva un furto.
+  //
+  // E lo stesso difetto in piccolo: con la cassa scritta tre giorni su sette,
+  // l'incasso di tre giorni si confrontava col gelato di sette, e usciva un
+  // -57% che non c'è.
+  //
+  // La regola: senza nessuna chiusura la cassa è «non registrata» (null) e lo
+  // scostamento non esiste. Con qualche chiusura, il confronto si fa SOLO sui
+  // giorni che hanno sia la cassa sia l'inventario. Una chiusura senza data
+  // (dati vecchi, o chi chiama senza filtrare) vale per tutta la settimana,
+  // come prima: non si sa a che giorno appartiene.
+  const chiusure = Array.isArray(chiusureSettimana) ? chiusureSettimana.filter(Boolean) : []
+  const incassoDi = (c) => Number(c?.kpi?.totV || c?.totale || 0)
+  const cassaRegistrata = chiusure.length > 0
+  const cassaEffettiva = cassaRegistrata ? chiusure.reduce((s, c) => s + incassoDi(c), 0) : null
+
+  // I giorni in cui l'inventario sa dire quanto è uscito.
+  const vendutoPerGiorno = {}
+  for (const byData of Object.values(matrice || {})) {
+    for (const [dataIso, c] of Object.entries(byData || {})) {
+      if (c?.venduto == null) continue
+      vendutoPerGiorno[dataIso] = (vendutoPerGiorno[dataIso] || 0) + (Number(c.venduto) || 0)
+    }
+  }
+  const giorniInventario = Object.keys(vendutoPerGiorno).sort()
+  const giornoDi = (v) => (v ? String(v).slice(0, 10) : null)
+  const chiusureSenzaData = chiusure.some(c => !giornoDi(c?.data))
+  const giorniCassa = [...new Set(chiusure.map(c => giornoDi(c?.data)).filter(Boolean))].sort()
+
+  let giorniConfrontati = []
+  let cassaConfrontata = null
+  let attesoConfrontato = null
+  let motivoConfronto = null
+  if (euroKg == null) {
+    motivoConfronto = 'senza formati di vendita non si sa quanto vale un chilo'
+  } else if (!cassaRegistrata) {
+    motivoConfronto = 'nessuna chiusura di cassa registrata in questa settimana'
+  } else if (chiusureSenzaData) {
+    // Come prima: tutta la cassa contro tutto l'inventario.
+    giorniConfrontati = giorniInventario
+    cassaConfrontata = cassaEffettiva
+    attesoConfrontato = ricavoAtteso
+  } else {
+    const inCassa = new Set(giorniCassa)
+    giorniConfrontati = giorniInventario.filter(d => inCassa.has(d))
+    if (giorniConfrontati.length === 0) {
+      motivoConfronto = 'i giorni con la cassa non hanno l\'inventario'
+    } else {
+      const comuni = new Set(giorniConfrontati)
+      const kgComuni = giorniConfrontati.reduce((s, d) => s + vendutoPerGiorno[d], 0) / 1000
+      const b2bComuni = kgB2B((Array.isArray(venditeB2BSett) ? venditeB2BSett : [])
+        .filter(v => !giornoDi(v?.data) || comuni.has(giornoDi(v.data))))
+      attesoConfrontato = Math.max(0, kgComuni - b2bComuni) * euroKg
+      cassaConfrontata = chiusure
+        .filter(c => comuni.has(giornoDi(c.data)))
+        .reduce((s, c) => s + incassoDi(c), 0)
+    }
+  }
+  const driftEur = (attesoConfrontato != null && cassaConfrontata != null)
+    ? cassaConfrontata - attesoConfrontato
+    : null
+  const driftPct = (driftEur != null && attesoConfrontato > 0)
+    ? (driftEur / attesoConfrontato) * 100
     : null
 
   return {
     totVendutoG, totVendutoKg, retailKg, b2bKg, ricaviB2b,
     cassaEffettiva, euroKg, ricavoAtteso, driftEur, driftPct,
+    cassaRegistrata,
+    giorniInventario: giorniInventario.length,
+    giorniCassa: giorniCassa.length,
+    giorniConfrontati: giorniConfrontati.length,
+    cassaConfrontata, attesoConfrontato, motivoConfronto,
     celleNonQuadrate, kgNonQuadrati: gNonQuadrati / 1000, celleNonCalcolabili,
   }
 }
