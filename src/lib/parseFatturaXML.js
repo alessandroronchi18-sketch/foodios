@@ -133,6 +133,24 @@ export function parseFatturaXML(xmlString) {
   const piva = cedente?.querySelector('IdFiscaleIVA IdCodice')?.textContent?.trim() || ''
   const cf = cedente?.querySelector('CodiceFiscale')?.textContent?.trim() || ''
 
+  // L'anagrafica del fornitore sta tutta qui, e prima si buttava: indirizzo,
+  // contatti. Non va nella tabella `fatture` (pickFattura la scarta), serve a
+  // riempire la scheda del fornitore dove è ancora vuota.
+  const t = (el, sel) => el?.querySelector(sel)?.textContent?.trim() || null
+  const sede = cedente?.querySelector('Sede')
+  const via = [t(sede, 'Indirizzo'), t(sede, 'NumeroCivico')].filter(Boolean).join(' ') || null
+  const fornitore_dati = {
+    indirizzo: via,
+    cap: t(sede, 'CAP'),
+    citta: t(sede, 'Comune'),
+    provincia: t(sede, 'Provincia'),
+    email: t(cedente?.querySelector('Contatti'), 'Email'),
+    telefono: t(cedente?.querySelector('Contatti'), 'Telefono'),
+  }
+  // Chi ha ricevuto la fattura: con due società nella stessa azienda è la
+  // P.IVA a dire di quale delle due è il documento.
+  const cessionario_piva = t(doc.querySelector('CessionarioCommittente'), 'IdFiscaleIVA IdCodice')
+
   const bodies = doc.querySelectorAll('FatturaElettronicaBody')
   if (!bodies.length) throw new Error('Nessun corpo fattura (FatturaElettronicaBody) trovato nel file XML')
 
@@ -240,6 +258,8 @@ export function parseFatturaXML(xmlString) {
       stato: 'da_pagare',
       note: descrizioni.slice(0, 3).join('; ') + (descrizioni.length > 3 ? '…' : ''),
       righe,
+      fornitore_dati,
+      cessionario_piva,
     })
   }
 

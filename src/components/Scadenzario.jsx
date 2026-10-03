@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { supabase } from '../lib/supabase'
-import { parseFatturaXML, parseFatturaSMART } from '../lib/parseFatturaXML'
+import { parseFatturaSMART } from '../lib/parseFatturaXML'
+import { importaFattureXml, fraseEsitoXml, avvisiEsitoXml, promemoriaZipAgenzia } from '../lib/importaFattureXml'
 import { loadXLSX } from '../lib/xlsx'
 import { exportScadenzario } from '../lib/exportPDF'
 import { getExportCtx, gateExport } from '../lib/exportGuard'
@@ -627,56 +628,54 @@ export default function Scadenzario({ orgId, sedeId, sedi = [], pagina = 'scaden
     setImportLoading(false)
   }
 
+  // Fin dove arrivano le fatture **complete** (con le righe prodotto): è
+  // quello che dice se è ora di scaricare lo ZIP del mese dall'Agenzia.
+  // `undefined` = non ancora letto, `null` = nessuna fattura con le righe.
+  const [ultimaConRighe, setUltimaConRighe] = useState(undefined)
+  async function caricaUltimaConRighe() {
+    if (!orgId) return
+    // Se la lettura non riesce il promemoria resta spento: meglio nessun
+    // avviso che uno sbagliato.
+    try {
+      const { data, error } = await supabase.from('fatture').select('data_fattura')
+        .eq('organization_id', orgId).not('righe->0', 'is', null)
+        .order('data_fattura', { ascending: false }).limit(1)
+      if (!error) setUltimaConRighe(data?.[0]?.data_fattura || null)
+    } catch { /* promemoria spento */ }
+  }
+  useEffect(() => { caricaUltimaConRighe() }, [orgId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Un percorso solo con la pagina Integrazioni (src/lib/importaFattureXml):
+  // apre ZIP, XML e P7M, e le fatture già presenti le **completa** con righe,
+  // P.IVA e IBAN invece di scartarle. Prima qui un `.p7m` si leggeva come
+  // testo e falliva sempre, e lo ZIP dell'Agenzia non si poteva caricare.
   async function handleImportXML(files, sediDestinazione = null) {
     if (!orgId) return
     const dest = Array.isArray(sediDestinazione) ? sediDestinazione.filter(Boolean) : (sedeId ? [sedeId] : [])
     setImportLoading(true)
-    let imported = 0, scartati = 0
-    const inseriti = []
-    // Le chiavi vengono dal DATABASE, non dalla lista in pagina: quella è
-    // filtrata per sede e, da oggi, non contiene tutte le pagate. Con le
-    // chiavi parziali un doppione di un'altra sede (o di una fattura vecchia
-    // non caricata) passava il controllo ed entrava due volte.
-    const seen = await chiaviFattureEsistenti(supabase, orgId)
-    for (const file of Array.from(files || [])) {
-      try {
-        const text = await file.text()
-        const records = parseFatturaXML(text)
-        if (!records.length) { notify('Nessuna fattura trovata nel file XML', false); continue }
-        const { nuovi, scartati: sc } = dedupFatture(records, seen)
-        scartati += sc
-        // Una sede sola: la fattura è sua. Due o più: è una spesa
-        // condivisa, e `sede_id` resta vuoto apposta — l'attribuzione la fa
-        // la ripartizione sui chili prodotti, non un'assegnazione a caso.
-        const unaSola = dest.length === 1 ? dest[0] : null
-        const toInsert = nuovi.map(r => ({
-          ...pickFattura(r, orgId, unaSola),
-          ...(dest.length > 1 ? { sedi_condivise: dest } : null),
-        }))
-        // Il conto viene da quello che il database ha **accettato**, non da
-        // quello che gli abbiamo passato: dal 23/09 un vincolo può rifiutare
-        // una fattura già presente, e dire «12 importate» quando ne sono
-        // entrate 10 è il modo più facile di far sparire due documenti senza
-        // che nessuno se ne accorga.
-        const esito = await insertFattureResilient(supabase, toInsert)
-        // I record ORIGINALI (non quelli ripuliti): pickFattura tiene solo le
-        // colonne della tabella, e l'IBAN del documento ci serve qui.
-        inseriti.push(...nuovi)
-        imported += esito.inserite
-        scartati += esito.gia
-      } catch (e) {
-        notify('Errore import XML ' + file.name + ': ' + (e?.message || 'sconosciuto'), false)
+    try {
+      const e = await importaFattureXml(supabase, {
+        orgId,
+        // Una sede sola: la fattura nuova è sua. Due o più: è una spesa
+        // condivisa, e `sede_id` resta vuoto apposta.
+        sedeId: dest.length === 1 ? dest[0] : null,
+        sediCondivise: dest.length > 1 ? dest : null,
+        files,
+      })
+      const avvisi = avvisiEsitoXml(e)
+      notify([fraseEsitoXml(e), ...avvisi].join(' '), avvisi.length === 0 && e.lette > 0)
+      if (e.completate + e.nuove > 0) {
+        try { await loadFatture() } catch { /* il toast di esito è già stato mostrato */ }
+        try { await dopoImport(e.recordsToccati) } catch (err) { console.error('[scadenzario] dopoImport', err) }
+        try { await caricaUltimaConRighe() } catch { /* il promemoria si aggiorna al prossimo giro */ }
       }
+    } catch (err) {
+      notify('Errore import XML: ' + (err?.message || 'sconosciuto'), false)
+    } finally {
+      setImportLoading(false)
     }
-    if (imported > 0) {
-      notify(`${imported} fatture XML importate${scartati > 0 ? ` · ${scartati} già presenti, saltate` : ''}`)
-      try { await loadFatture() } catch { /* il toast di esito è già stato mostrato */ }
-      try { await dopoImport(inseriti) } catch (e) { console.error('[scadenzario] dopoImport', e) }
-    } else if (scartati > 0) {
-      notify(`${scartati} fatture erano già presenti - nessun duplicato aggiunto`, false)
-    }
-    setImportLoading(false)
   }
+
 
   async function handleImportSMART(files, sediDestinazione = null) {
     if (!orgId) return
@@ -2874,8 +2873,8 @@ export default function Scadenzario({ orgId, sedeId, sedi = [], pagina = 'scaden
                 <label style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8, fontSize: 13, color: T.text, cursor: 'pointer', fontWeight: 500 }}
                   onMouseEnter={e => { e.currentTarget.style.background = '#F4EEEA' }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
-                  <Icon name="fileText" size={14} color={T.textSoft} /> XML SDI
-                  <input type="file" accept=".xml,.p7m" multiple style={{ display: 'none' }}
+                  <Icon name="fileText" size={14} color={T.textSoft} /> XML o ZIP dell'Agenzia
+                  <input type="file" accept=".zip,.xml,.p7m" multiple style={{ display: 'none' }}
                     onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length) { setActionsOpen(false); chiediSede(files, handleImportXML) } }} />
                 </label>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8, fontSize: font.size.base, color: T.text, cursor: 'pointer', fontWeight: 500 }}
@@ -3051,6 +3050,31 @@ export default function Scadenzario({ orgId, sedeId, sedi = [], pagina = 'scaden
           </button>
         </div>
       )}
+
+      {/* Il promemoria dello ZIP dell'Agenzia (24/09/2026). Nessun
+          automatismo gratuito porta le fatture da sole: il titolare le scarica
+          una volta al mese, e questo riquadro gli dice quando e da che mese.
+          Il pulsante carica qui, senza cambiare pagina. */}
+      {!loading && ultimaConRighe !== undefined && (() => {
+        const p = promemoriaZipAgenzia(ultimaConRighe, todayLocal(), fatture.length > 0)
+        if (!p) return null
+        return (
+          <div style={{ ...card, padding: isMobile ? '12px 14px' : '12px 18px', marginBottom: 14, borderLeft: `4px solid ${T.blue}`, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            <Icon name="fileText" size={16} color={T.blue} style={{ flexShrink: 0 }} />
+            <div style={{ flex: 1, minWidth: 200, fontSize: font.size.base, color: T.textMid, lineHeight: 1.5 }}>
+              <b style={{ color: T.text }}>{p.titolo}</b>{' '}{p.testo}
+              <div style={{ fontSize: font.size.sm, color: T.textSoft, marginTop: 2 }}>
+                Fatture e Corrispettivi → Consultazione → download massivi → fatture ricevute. Una richiesta per ogni partita IVA.
+              </div>
+            </div>
+            <label style={{ ...ghostBtn, minHeight: minTouch, flexShrink: 0, width: isMobile ? '100%' : 'auto', justifyContent: 'center', cursor: importLoading ? 'wait' : 'pointer' }}>
+              <Icon name="folder" size={14} /> {importLoading ? 'Carico…' : 'Carica lo ZIP'}
+              <input type="file" accept=".zip,.xml,.p7m" multiple disabled={importLoading} style={{ display: 'none' }}
+                onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length) chiediSede(files, handleImportXML) }} />
+            </label>
+          </div>
+        )
+      })()}
 
       {/* Fatture fuori scala rispetto alla storia del loro fornitore.
           Nei dati veri: GECKO CIOCCOLATI ha UNA fattura da 86.651 €, l'11,5%
@@ -3546,8 +3570,8 @@ export default function Scadenzario({ orgId, sedeId, sedi = [], pagina = 'scaden
               <input type="file" accept=".xlsx,.xls" style={{ display: 'none' }} onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length) chiediSede(files, handleImportExcel) }} />
             </label>
             <label style={{ ...ghostBtn, cursor: 'pointer' }}>
-              <Icon name="fileText" size={14} /> XML SDI
-              <input type="file" accept=".xml,.p7m" multiple style={{ display: 'none' }} onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length) chiediSede(files, handleImportXML) }} />
+              <Icon name="fileText" size={14} /> XML o ZIP dell'Agenzia
+              <input type="file" accept=".zip,.xml,.p7m" multiple style={{ display: 'none' }} onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length) chiediSede(files, handleImportXML) }} />
             </label>
           </div>
         </div>

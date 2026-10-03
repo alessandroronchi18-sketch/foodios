@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
-import { parseFatturaXML, parseFatturaSMART, estraiXmlDaP7m } from '../lib/parseFatturaXML'
-import { estraiZipTesto, sembraZip } from '../lib/zip'
+import { parseFatturaSMART } from '../lib/parseFatturaXML'
+import { importaFattureXml, fraseEsitoXml, avvisiEsitoXml } from '../lib/importaFattureXml'
 import { parseZucchettiInfinity, parseZucchettiKassa } from '../lib/importZucchetti'
 import { parseSumUp, parseSatispay, parseSquare, autoDetectCassaFormat } from '../lib/importCassa'
 import { parseUberEats, parseDeliveroo, parseJustEat, parseGlovo, mergeInChiusure } from '../lib/importDelivery'
@@ -70,12 +70,13 @@ const INTEGRAZIONI_CFG = [
     nome: 'Fattura Elettronica SDI',
     icona: 'fileText',
     categoria: 'Fatturazione',
-    descrizione: 'Le fatture dei tuoi fornitori, con dentro anche il dettaglio riga: prodotto, quantità e prezzo unitario. È da qui che si capisce quanto costa davvero un ingrediente.',
+    descrizione: 'Le fatture dei tuoi fornitori, con dentro anche il dettaglio riga: prodotto, quantità e prezzo unitario. È da qui che si capisce quanto costa davvero un ingrediente. Le fatture che hai già caricato da Excel non si doppiano: si completano.',
     istruzioni: [
       'Entra con SPID su ivaservizi.agenziaentrate.gov.it → Fatture e Corrispettivi → Consultazione → "Consultazione e download massivi"',
       'Richieste → Fatture elettroniche → scegli il periodo e "ricevute" → genera e invia la richiesta',
-      'Dopo qualche minuto, in Risposte → File Prodotti, scarica lo ZIP e caricalo qui sotto',
-      'Va bene anche una fattura sola (.xml o .p7m), o il file che ti manda il commercialista',
+      'Dopo qualche minuto, in Risposte → File Prodotti, scarica lo ZIP e caricalo qui sotto così com\'è, senza aprirlo',
+      'Due società? Una richiesta per ogni partita IVA. L\'Agenzia tiene le fatture fino al 31 dicembre del secondo anno dopo: quelle più vecchie chiedile al commercialista',
+      'Va bene anche una fattura sola (.xml o .p7m), o lo ZIP che ti manda il commercialista',
     ],
     tipoFile: '.zip,.xml,.p7m',
     tipoLabel: 'ZIP, XML o P7M',
@@ -777,6 +778,10 @@ export default function Integrazioni({ orgId, sedeId }) {
   const [registroMancante, setRegistroMancante] = useState(false)
   const [loading, setLoading] = useState(true)
   const [importLoading, setImportLoading] = useState(null)
+  // Cosa sta facendo l'import lungo degli XML, a parole: con tre anni di
+  // fatture sono migliaia di scritture, e un «Importazione…» fermo per un
+  // minuto sembra un blocco.
+  const [avanzamento, setAvanzamento] = useState('')
   const [expanded, setExpanded] = useState(null)
   const [toast, setToast] = useState(null)
   const [risultato, setRisultato] = useState(null)
@@ -849,6 +854,34 @@ export default function Integrazioni({ orgId, sedeId }) {
     if (!files?.length || !orgId) return
     setImportLoading(cfg.id)
     setRisultato(null)
+
+    // Gli XML delle fatture hanno il loro percorso: completano le fatture
+    // che ci sono già (dall'Excel di WebDesk) invece di scartarle come
+    // doppioni, e aprono anche le firmate dentro lo ZIP dell'Agenzia.
+    if (cfg.id === 'fattura_elettronica_xml') {
+      const FASI = { lettura: 'Leggo i file', completamento: 'Completo le fatture', nuove: 'Aggiungo le nuove' }
+      try {
+        const e = await importaFattureXml(supabase, {
+          orgId, sedeId, files,
+          onProgresso: (fase, fatto, tot) => setAvanzamento(
+            tot > 1 ? `${FASI[fase]} · ${fatto.toLocaleString('it-IT')} di ${tot.toLocaleString('it-IT')}` : `${FASI[fase]}…`),
+        })
+        const avvisi = avvisiEsitoXml(e)
+        const entrate = e.completate + e.nuove
+        await logSync(cfg.id, entrate > 0 || e.giaPresenti > 0 ? 'ok' : 'errore', entrate, avvisi[0] || null)
+        notify([fraseEsitoXml(e), ...avvisi].join(' '), avvisi.length === 0 && e.lette > 0)
+      } catch (err) {
+        console.error('[Integrazioni] import XML', err)
+        await logSync(cfg.id, 'errore', 0, err?.message || 'errore')
+        notify(messaggioLeggibile(err), false)
+      } finally {
+        setAvanzamento('')
+        setImportLoading(null)
+        await loadLogs()
+      }
+      return
+    }
+
     let imported = 0
     // Esito FILE PER FILE: prima un errore su un file di dodici faceva
     // sparire il messaggio di successo per tutti, e
@@ -857,50 +890,16 @@ export default function Integrazioni({ orgId, sedeId }) {
     // Chiavi delle fatture già in database: la deduplica dev'essere fatta
     // contro il DB, non solo dentro il file.
     let chiaviNote = null
-    if (['fattura_elettronica_xml', 'fattura_smart'].includes(cfg.id)) {
+    if (cfg.id === 'fattura_smart') {
       try { chiaviNote = await chiaviFattureEsistenti(supabase, orgId) } catch { chiaviNote = new Set() }
     }
 
     for (const file of Array.from(files)) {
       let nFile = 0
       try {
-        if (cfg.id === 'fattura_elettronica_xml' || cfg.id === 'fattura_smart') {
-          let records
-          if (cfg.id === 'fattura_smart') {
-            records = await parseFatturaSMART(file)
-          } else {
-            // Un archivio ZIP di fatture, oppure un singolo XML.
-            //
-            // Lo ZIP è la strada buona: dal portale dell'Agenzia delle Entrate
-            // (Fatture e Corrispettivi → Consultazione → download massivi) le
-            // fatture ricevute si scaricano in un archivio di XML, e lì dentro
-            // c'è tutto — dettaglio riga, IBAN, scadenze. Prima Foodos sapeva
-            // aprire gli XML uno per uno ma non l'archivio, e quella strada
-            // restava chiusa per un tappo di venti righe.
-            const bytes = new Uint8Array(await file.arrayBuffer())
-            if (sembraZip(bytes)) {
-              const dentro = await estraiZipTesto(bytes, { soloEstensioni: ['.xml'] })
-              if (!dentro.length) throw new Error("Dentro questo archivio non ci sono file XML: controlla di aver scaricato le fatture e non le ricevute di consegna.")
-              records = []
-              const illeggibili = []
-              for (const f of dentro) {
-                // Una fattura malformata dentro un archivio da trecento non
-                // deve far fallire tutto l'archivio: si salta e si dice quale.
-                try { records.push(...parseFatturaXML(f.testo)) }
-                catch { illeggibili.push(f.nome) }
-              }
-              if (illeggibili.length) {
-                notify(`${illeggibili.length} file dell'archivio non li ho saputi leggere (${illeggibili.slice(0, 3).join(', ')}${illeggibili.length > 3 ? '…' : ''}). Gli altri sono entrati.`, false)
-              }
-            } else if (/\.p7m$/i.test(file.name)) {
-              // Fattura firmata: l'XML sta dentro una busta binaria.
-              const xml = estraiXmlDaP7m(bytes)
-              if (!xml) throw new Error('Questa fattura firmata non si lascia aprire: mandaci il file e ci pensiamo noi.')
-              records = parseFatturaXML(xml)
-            } else {
-              records = parseFatturaXML(new TextDecoder('utf-8').decode(bytes))
-            }
-          }
+        if (cfg.id === 'fattura_smart') {
+          // L'Excel di Fattura Smart. Gli XML hanno il loro percorso, sopra.
+          const records = await parseFatturaSMART(file)
           // pickFattura tiene solo le colonne che la tabella ha e mette la
           // sede (le fatture importate da qui avevano sede_id NULL, e con tre
           // negozi sparivano dal Confronto sedi); dedupFatture scarta quelle
@@ -1197,7 +1196,7 @@ export default function Integrazioni({ orgId, sedeId }) {
                       /* File upload area */
                       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
                         <label style={{ ...btnStyle(true), cursor: 'pointer' }}>
-                          {isLoading ? <><Icon name="hourglass" size={13} /> Importazione…</> : <><Icon name="folder" size={13} /> Importa {cfg.tipoLabel}</>}
+                          {isLoading ? <><Icon name="hourglass" size={13} /> {avanzamento || 'Importazione…'}</> : <><Icon name="folder" size={13} /> Importa {cfg.tipoLabel}</>}
                           <input
                             type="file"
                             accept={cfg.tipoFile}

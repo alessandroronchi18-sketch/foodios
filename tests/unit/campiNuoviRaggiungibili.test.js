@@ -111,6 +111,8 @@ describe('Ogni conto nuovo viene chiamato da qualche parte', () => {
     // scritto a mano è esso stesso un buco: quello che non ci metti non è
     // sorvegliato.
     'bolle',
+    // 24/09/2026: gli XML dell'Agenzia che completano le fatture esistenti.
+    'fattureXmlArchivio', 'completaFatture', 'importaFattureXml',
   ]
 
   /** Tutto il codice del prodotto. */

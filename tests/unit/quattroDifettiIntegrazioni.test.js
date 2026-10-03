@@ -48,7 +48,9 @@ describe('2. il dettaglio riga delle fatture non si butta più', () => {
                          'UnitaMisura', 'PrezzoUnitario', 'PrezzoTotale', 'AliquotaIVA']) {
       expect(PARSER, `manca ${campo}`).toContain(campo)
     }
-    expect(PARSER).toMatch(/righe,\s*\n\s*\}\)/)
+    // `righe` dev'essere fra i campi della fattura restituita. Dal 24/09 dopo
+    // di lei vengono anche l'anagrafica del fornitore e la P.IVA di chi riceve.
+    expect(PARSER).toMatch(/\n\s*righe,\s*\n\s*fornitore_dati,\s*\n\s*cessionario_piva,\s*\n\s*\}\)/)
   })
 
   it('e `pickFattura` non le butta via in silenzio', () => {
@@ -138,7 +140,12 @@ describe('e lo ZIP dell\'Agenzia, che era il tappo', () => {
   })
 
   it('un file rotto dentro l\'archivio non fa fallire tutto l\'archivio', () => {
-    expect(UI).toMatch(/illeggibili\.push\(f\.nome\)/)
-    expect(UI).toMatch(/Gli altri sono entrati/)
+    // Dal 24/09/2026 la lettura dell'archivio sta in un posto solo, usato
+    // anche dallo Scadenzario (src/lib/fattureXmlArchivio.js); il
+    // comportamento è provato davvero in xmlCompletanoLeFatture.test.js.
+    const ARCHIVIO = leggi('src', 'lib', 'fattureXmlArchivio.js')
+    expect(ARCHIVIO).toMatch(/catch \{\s*\n\s*esito\.illeggibili\.push\(nome\)/)
+    expect(UI).toMatch(/importaFattureXml\(supabase/)
+    expect(leggi('src', 'lib', 'importaFattureXml.js')).toMatch(/non li ho saputi aprire/)
   })
 })
