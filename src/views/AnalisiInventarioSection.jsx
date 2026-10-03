@@ -269,6 +269,18 @@ export default function AnalisiInventarioSection({
     [perGusto]
   )
 
+  // ── Lo scarto non registrato non è «niente buttato» ──────────────────
+  // Nei dati di Mara lo scarto vale 0 in tutte le 7.013 righe: non è mai
+  // stato scritto. La pagina mostrava «-» e una barra «Scarto kg» vuota, che
+  // si leggevano «non si butta niente». E c'è di più: quando lo scarto non si
+  // scrive, quello che si butta finisce nel venduto (il conto è rimasto +
+  // prodotto − rimasto − scarto). Va detto con le parole.
+  const scartoRegistrato = useMemo(
+    () => (rows || []).some(r => r?.data && (!dateFrom || r.data >= dateFrom) && (!dateTo || r.data <= dateTo) && (Number(r.scarto_g) || 0) > 0),
+    [rows, dateFrom, dateTo]
+  )
+  const cellaScarto = (v) => (scartoRegistrato ? kg(v) : 'non registrato')
+
   // Un gusto «a posto» ha il prezzo di vendita e il costo completo. Prima il
   // controllo guardava un food cost sempre zero, e l'avviso diceva «28 gusti
   // su 28 senza ricetta» con 88.970 € di ricavo in pagina.
@@ -290,12 +302,12 @@ export default function AnalisiInventarioSection({
   async function esportaXlsx() {
     try {
       const XLSX = await loadXLSX()
-      const header = ['Gusto', 'Prodotto kg', 'Venduto kg', 'Scarto kg', 'Ricavo/kg €', 'Ricavo €', 'Food cost €', 'Margine €', 'Margine %']
+      const header = ['Gusto', 'Prodotto kg', 'Venduto kg', scartoRegistrato ? 'Scarto kg' : 'Scarto kg (non registrato)', 'Ricavo/kg €', 'Ricavo €', 'Food cost €', 'Margine €', 'Margine %']
       const body = sorted.map(r => [
         r.gusto,
         Number(r.prodKg.toFixed(2)),
         Number(r.vendKg.toFixed(2)),
-        Number(r.scartoKg.toFixed(2)),
+        scartoRegistrato ? Number(r.scartoKg.toFixed(2)) : '',
         Number(r.ricavoKg.toFixed(2)),
         Number(r.ricavo.toFixed(0)),
         Number(r.fc.toFixed(0)),
@@ -308,7 +320,7 @@ export default function AnalisiInventarioSection({
         'Totale',
         Number(totali.prod.toFixed(2)),
         Number(totali.vend.toFixed(2)),
-        Number(totali.scarto.toFixed(2)),
+        scartoRegistrato ? Number(totali.scarto.toFixed(2)) : '',
         '',
         Number(totali.ricavo.toFixed(0)),
         Number(totali.fc.toFixed(0)),
@@ -381,24 +393,24 @@ export default function AnalisiInventarioSection({
   return (
     <div style={{ marginBottom: 28 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
-        <SH sub="Analisi completa della produzione con metodo inventario differenziale: quanto hai prodotto, venduto, scartato + margini stimati dal listino formati.">
+        <SH sub="Quanto hai prodotto e venduto, gusto per gusto, contando la vetrina giorno per giorno; ricavo e margine sono stimati dai prezzi dei formati.">
           Analisi produzione inventario
         </SH>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {onBack && (
             <button onClick={onBack}
               style={{
-                padding: '8px 14px', minHeight: 36, background: '#FFF',
+                padding: '8px 14px', minHeight: 44, background: '#FFF',
                 color: T.text, border: `1px solid ${T.border}`, borderRadius: 8,
                 fontSize: 12, fontWeight: 600, cursor: 'pointer',
                 display: 'inline-flex', alignItems: 'center', gap: 6,
               }}>
-              <Icon name="chevD" size={12} /> Torna alla Produzione
+              <Icon name="arrowL" size={12} /> Torna alla Produzione
             </button>
           )}
           <button onClick={esportaXlsx}
             style={{
-              padding: '8px 14px', minHeight: 36, background: '#FFF',
+              padding: '8px 14px', minHeight: 44, background: '#FFF',
               color: T.brand, border: `1px solid ${T.brand}55`, borderRadius: 8,
               fontSize: 12, fontWeight: 700, cursor: 'pointer',
               display: 'inline-flex', alignItems: 'center', gap: 6,
@@ -420,6 +432,7 @@ export default function AnalisiInventarioSection({
           {copertura.n > 1 ? `, ${conGiorno('dal', copertura.primo)} ${conGiorno('al', copertura.ultimo)}` : `, ${conGiorno('il', copertura.primo)}`}
           {registrazioneFerma && <> · dopo {conGiorno('il', copertura.ultimo)} non c&apos;è niente di registrato</>}
           {daPartenza && <> · ti mostro i due mesi fino all&apos;ultimo giorno registrato</>}
+          {!scartoRegistrato && <> · scarto non registrato: quello che si butta è contato nel venduto</>}
           {confrontoInfo?.ok && confrontoInfo.from && (
             <> · confronto con {dataBreve(confrontoInfo.from)}–{dataBreve(confrontoInfo.to)}
               {confrontoInfo.giorniPrev === copertura.sedeGiorni
@@ -517,18 +530,18 @@ export default function AnalisiInventarioSection({
       <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, padding: 14, marginBottom: 16 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 10, flexWrap: 'wrap' }}>
           <div style={{ fontSize: 12, color: T.textSoft, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-            Andamento produzione ({vista})
+            Prodotto e venduto {vista === 'giornaliero' ? 'per giorno' : vista === 'settimana' ? 'per settimana' : 'per mese'}
           </div>
           <div style={{ display: 'inline-flex', gap: 4, background: '#F8FAFC', padding: 3, borderRadius: 8 }}>
-            {['giornaliero', 'settimana', 'mese'].map(v => (
-              <button key={v} onClick={() => setVista(v)}
+            {[['giornaliero', 'Giorno'], ['settimana', 'Settimana'], ['mese', 'Mese']].map(([v, etichetta]) => (
+              <button key={v} type="button" onClick={() => setVista(v)} aria-pressed={vista === v}
                 style={{
-                  padding: '6px 12px', minHeight: 34,
+                  padding: '6px 12px', minHeight: 44,
                   background: vista === v ? '#FFF' : 'transparent',
                   color: vista === v ? T.brand : T.textMid,
                   border: vista === v ? `1px solid ${T.border}` : '1px solid transparent',
-                  borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                }}>{v}</button>
+                  borderRadius: 6, fontSize: font.size.sm, fontWeight: 700, cursor: 'pointer',
+                }}>{etichetta}</button>
             ))}
           </div>
         </div>
@@ -541,7 +554,7 @@ export default function AnalisiInventarioSection({
             <Legend wrapperStyle={{ fontSize: 12 }}/>
             <Bar dataKey="prod" name="Prodotto kg" fill={T.brand} radius={[4, 4, 0, 0]}/>
             <Bar dataKey="vend" name="Venduto stimato kg" fill="#F59E0B" radius={[4, 4, 0, 0]}/>
-            <Bar dataKey="scarto" name="Scarto kg" fill="#B91C1C" radius={[4, 4, 0, 0]}/>
+            {scartoRegistrato && <Bar dataKey="scarto" name="Scarto kg" fill="#B91C1C" radius={[4, 4, 0, 0]}/>}
           </BarChart>
         </ResponsiveContainer>
         {vista === 'giornaliero' && riassunto.nRimanenza > 0 && (
@@ -609,7 +622,7 @@ export default function AnalisiInventarioSection({
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: font.size.sm }}>
               {[
                 ['Prodotto', kg(r.prodKg), C.text],
-                ['Scarto', r.scartoKg > 0 ? kg(r.scartoKg) : '-', r.scartoKg > 0 ? T.red : C.textSoft],
+                ['Scarto', cellaScarto(r.scartoKg), r.scartoKg > 0 ? T.red : C.textSoft],
                 ['Food cost', r.fc > 0 ? eur(r.fc) : '-', T.red],
                 ['Margine %', r.margPct != null ? pct(r.margPct) : '-', r.margPct == null ? C.textSoft : r.margPct >= 40 ? T.green : r.margPct >= 20 ? T.amber : T.red],
               ].map(([et, v, col]) => (
@@ -626,7 +639,7 @@ export default function AnalisiInventarioSection({
               {[
                 ['Prodotto', kg(totali.prod), C.text],
                 ['Venduto', kg(totali.vend), C.text],
-                ['Scarto', totali.scarto > 0 ? kg(totali.scarto) : '-', totali.scarto > 0 ? T.red : C.textSoft],
+                ['Scarto', cellaScarto(totali.scarto), totali.scarto > 0 ? T.red : C.textSoft],
                 ['Ricavo', eur(totali.ricavo), C.text],
                 ['Food cost', eur(totali.fc), T.red],
                 ['Margine', totali.margine != null ? eur(totali.margine) : '-', totali.margine == null ? C.textSoft : totali.margine >= 0 ? T.green : T.red],
@@ -656,11 +669,16 @@ export default function AnalisiInventarioSection({
                 <tr key={r.gusto} style={{ borderTop: `1px solid #F1F5F9` }}>
                   <td style={{ padding: '8px 12px', fontWeight: 700, color: C.text }}>
                     {r.gusto}
-                    {!completo(r) && <span title="Ricetta o formato non collegato" style={{ marginLeft: 6, color: '#B45309', fontSize: 12 }}>⚠</span>}
+                    {!completo(r) && (
+                      <span title={r.haRicetta ? 'Manca il prezzo di vendita o il costo di qualche ingrediente' : 'Nessuna ricetta collegata a questo nome'}
+                        style={{ marginLeft: 6, color: T.amber, display: 'inline-flex', verticalAlign: 'middle', cursor: 'help' }}>
+                        <Icon name="warning" size={13} />
+                      </span>
+                    )}
                   </td>
                   <td style={{ padding: '8px 12px', textAlign: 'right', ...TNUM }}>{kg(r.prodKg)}</td>
                   <td style={{ padding: '8px 12px', textAlign: 'right', ...TNUM }}>{kg(r.vendKg)}</td>
-                  <td style={{ padding: '8px 12px', textAlign: 'right', ...TNUM, color: r.scartoKg > 0 ? '#B91C1C' : C.textSoft }}>{r.scartoKg > 0 ? kg(r.scartoKg) : '-'}</td>
+                  <td style={{ padding: '8px 12px', textAlign: 'right', ...TNUM, color: r.scartoKg > 0 ? '#B91C1C' : C.textSoft }}>{cellaScarto(r.scartoKg)}</td>
                   <td style={{ padding: '8px 12px', textAlign: 'right', ...TNUM, fontWeight: 700, background: '#FEF9EB' }}>{r.ricavo > 0 ? eur(r.ricavo) : '-'}</td>
                   <td style={{ padding: '8px 12px', textAlign: 'right', ...TNUM, color: '#B91C1C' }}>{r.fc > 0 ? eur(r.fc) : '-'}</td>
                   <td style={{ padding: '8px 12px', textAlign: 'right', ...TNUM, fontWeight: 800, color: r.margine >= 0 ? '#166534' : '#B91C1C', background: '#F0FDF4' }}>{r.margine != null ? eur(r.margine) : '-'}</td>
@@ -673,7 +691,7 @@ export default function AnalisiInventarioSection({
                 <td style={{ padding: '10px 12px', fontWeight: 800 }}>Totale</td>
                 <td style={{ padding: '10px 12px', textAlign: 'right', ...TNUM, fontWeight: 800 }}>{kg(totali.prod)}</td>
                 <td style={{ padding: '10px 12px', textAlign: 'right', ...TNUM, fontWeight: 800 }}>{kg(totali.vend)}</td>
-                <td style={{ padding: '10px 12px', textAlign: 'right', ...TNUM, fontWeight: 800, color: totali.scarto > 0 ? '#B91C1C' : C.textSoft }}>{totali.scarto > 0 ? kg(totali.scarto) : '-'}</td>
+                <td style={{ padding: '10px 12px', textAlign: 'right', ...TNUM, fontWeight: 800, color: totali.scarto > 0 ? '#B91C1C' : C.textSoft }}>{cellaScarto(totali.scarto)}</td>
                 <td style={{ padding: '10px 12px', textAlign: 'right', ...TNUM, fontWeight: 800, background: '#FEF9EB' }}>{eur(totali.ricavo)}</td>
                 <td style={{ padding: '10px 12px', textAlign: 'right', ...TNUM, fontWeight: 800, color: '#B91C1C' }}>{eur(totali.fc)}</td>
                 <td style={{ padding: '10px 12px', textAlign: 'right', ...TNUM, fontWeight: 800, color: totali.margine == null ? C.textSoft : totali.margine >= 0 ? '#166534' : '#B91C1C', background: '#F0FDF4' }}>{totali.margine != null ? eur(totali.margine) : '-'}</td>

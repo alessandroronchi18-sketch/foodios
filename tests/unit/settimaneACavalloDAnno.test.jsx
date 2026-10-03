@@ -65,7 +65,8 @@ async function colonneSettimanali(giorni, { dateFrom, dateTo }) {
     />,
   )
   await waitFor(() => expect(v.container.querySelector('[data-testid="colonne-grafico"]')).toBeTruthy())
-  const bottone = [...v.container.querySelectorAll('button')].find(b => b.textContent.trim() === 'settimana')
+  // Il pulsante si chiamava «settimana» (il nome nel codice); dal 03/10/2026 «Settimana».
+  const bottone = [...v.container.querySelectorAll('button')].find(b => b.textContent.trim().toLowerCase() === 'settimana')
   expect(bottone, 'il selettore «settimana» del grafico non si trova più: aggiorna il test').toBeTruthy()
   fireEvent.click(bottone)
   const targa = v.container.querySelector('[data-testid="colonne-grafico"]')

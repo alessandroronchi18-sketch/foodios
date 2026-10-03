@@ -96,6 +96,9 @@ export function testoCsvSettimana({ lunediIso, kpi, dettaglio, sedeAttiva, isAll
   riga('Venduto da inventario (kg)', csvKg(kpi.totVendutoG))
   riga('Vendite all\'ingrosso (kg)', csvKg((kpi.b2bKg || 0) * 1000))
   riga('Venduto al banco (kg)', csvKg(((kpi.retailKg ?? kpi.totVendutoKg) || 0) * 1000))
+  // Uno scarto mai scritto non è «niente buttato»: è contato nel venduto.
+  const scartoG = (dettaglio || []).reduce((t, r) => t + (Number(r.scartoG) || 0), 0)
+  riga('Scarto (kg)', scartoG > 0 ? csvKg(scartoG) : 'non registrato: quello che si butta è contato nel venduto')
   riga('Incasso stimato dall\'inventario (€)', csvEuro(kpi.ricavoAtteso))
   riga('Cassa (€)', kpi.cassaRegistrata ? csvEuro(kpi.cassaEffettiva) : 'non registrata')
   riga('Differenza con la cassa (€)', kpi.driftEur != null ? csvEuro(kpi.driftEur) : `non calcolabile: ${kpi.motivoConfronto || 'manca la cassa'}`)
@@ -901,7 +904,7 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
                       <button type="button" disabled={accettando === chiave}
                         onClick={() => accettaCella(c, 'verificata dal titolare')}
                         style={{
-                          padding: '6px 12px', minHeight: 36, borderRadius: 8,
+                          padding: '6px 12px', minHeight: tapMin, borderRadius: 8,
                           border: `1px solid ${T.border}`, background: T.bgCard, color: C.textMid,
                           fontSize: typo.small.fontSize, fontWeight: 700,
                           cursor: accettando === chiave ? 'default' : 'pointer',
