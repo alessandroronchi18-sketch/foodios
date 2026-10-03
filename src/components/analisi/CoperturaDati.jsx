@@ -33,18 +33,26 @@ export default function CoperturaDati({ titolo = 'Da dove vengono i numeri', voc
           const a = ASPETTO[v.stato] || ASPETTO.manca
           return (
             <li key={v.id} title={v.dettaglio || undefined}
-              style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '2px 6px', fontSize: font.size.base, color: T.textMid, lineHeight: 1.45, minHeight: 28 }}>
-              <span style={{ color: a.colore, display: 'inline-flex', flexShrink: 0 }} aria-hidden="true"><Icon name={a.icona} size={14} /></span>
-              <span style={{ flex: '1 1 220px', minWidth: 0 }}>
+              style={{ display: 'flex', alignItems: 'flex-start', gap: 6, fontSize: font.size.base, color: T.textMid, lineHeight: 1.45, minHeight: 28, maxWidth: '100%' }}>
+              <span style={{ color: a.colore, display: 'inline-flex', flexShrink: 0, marginTop: 3 }} aria-hidden="true"><Icon name={a.icona} size={14} /></span>
+              {/* Testo e pulsante sono una frase sola: vanno a capo insieme,
+                  come una riga di testo, invece di lasciare l'icona da sola o
+                  stringere il pulsante in una colonna sul telefono. */}
+              <span style={{ minWidth: 0 }}>
                 {a.parola && <b style={{ color: T.amberDark, fontWeight: 700 }}>{a.parola[0].toUpperCase() + a.parola.slice(1)}: </b>}
                 {v.testo}
+                {v.azione && (
+                  <>
+                    {' '}
+                    <button type="button" onClick={v.azione.onClick}
+                      style={{ border: 'none', background: 'transparent', color: T.brand, fontWeight: 700, fontSize: font.size.base, cursor: 'pointer', fontFamily: 'inherit', display: 'inline-block', whiteSpace: 'nowrap',
+                        // Bersaglio alto 40 px per un dito, senza allargare la riga.
+                        padding: '10px 4px', margin: '-10px 0', lineHeight: '20px' }}>
+                      {v.azione.etichetta}
+                    </button>
+                  </>
+                )}
               </span>
-              {v.azione && (
-                <button type="button" onClick={v.azione.onClick}
-                  style={{ border: 'none', background: 'transparent', color: T.brand, fontWeight: 700, fontSize: font.size.base, cursor: 'pointer', padding: '4px 2px', fontFamily: 'inherit', minHeight: 28 }}>
-                  {v.azione.etichetta}
-                </button>
-              )}
             </li>
           )
         })}

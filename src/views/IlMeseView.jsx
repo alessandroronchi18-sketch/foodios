@@ -245,11 +245,12 @@ export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate
         <UltimiMesi andamento={dati.andamento} isMobile={isMobile} meseScelto={mese} onScegli={setMese} />
       </Riquadro>
 
-      {dati.ultimoInventario && (
-        <div style={{ fontSize: font.size.sm, color: T.textSoft, marginTop: 10 }}>
-          Ultimo inventario registrato: {dataBreve(dati.ultimoInventario)}. Incassi senza IVA al 10%.
-        </div>
-      )}
+      {/* L'ultimo inventario si dice solo se finisce prima della fine del
+          mese guardato: «ultimo inventario 31/07» guardando luglio, quando
+          l'inventario arriva al 31/08, era vero solo dentro la finestra letta. */}
+      <div style={{ fontSize: font.size.sm, color: T.textSoft, marginTop: 10 }}>
+        {dati.ultimoInventario && dati.ultimoInventario < `${mese}-28` ? `Inventario registrato fino al ${dataBreve(dati.ultimoInventario)}. ` : ''}Incassi senza IVA al 10%.
+      </div>
     </div>
   )
 }
