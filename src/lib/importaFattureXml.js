@@ -12,7 +12,7 @@ import {
 } from './completaFatture'
 import { insertFattureResilient } from './fattureImport'
 
-const COLONNE_FORNITORE = 'id, nome, partita_iva, codice_fiscale, indirizzo, cap, citta, provincia, email, telefono'
+const COLONNE_FORNITORE = 'id, nome, partita_iva, codice_fiscale, indirizzo, cap, citta, provincia, email, telefono, iban'
 
 /**
  * @param {object} supabase
@@ -72,7 +72,10 @@ export async function importaFattureXml(supabase, { orgId, sedeId = null, sediCo
   try {
     const { data: fornitori, error } = await supabase.from('fornitori').select(COLONNE_FORNITORE).eq('organization_id', orgId)
     if (error) throw error
-    for (const p of completaAnagraficaFornitori(fornitori || [], records)) {
+    const patches = completaAnagraficaFornitori(fornitori || [], records)
+    for (let i = 0; i < patches.length; i++) {
+      const p = patches[i]
+      onProgresso?.('fornitori', i, patches.length)
       const { error: e } = await supabase.from('fornitori').update(p.patch).eq('id', p.id).eq('organization_id', orgId)
       if (!e) esito.fornitoriCompletati++
     }
@@ -83,13 +86,21 @@ export async function importaFattureXml(supabase, { orgId, sedeId = null, sediCo
   return esito
 }
 
+const FASI = { lettura: 'Leggo i file', completamento: 'Completo le fatture', nuove: 'Aggiungo le nuove', fornitori: 'Aggiorno i fornitori' }
+
+/** A che punto è, com'è scritto sul pulsante. Uguale nelle due pagine. */
+export function testoAvanzamentoXml(fase, fatto, tot) {
+  const nome = FASI[fase] || 'Carico'
+  return tot > 1 ? `${nome} · ${fatto.toLocaleString('it-IT', { useGrouping: 'always' })} di ${tot.toLocaleString('it-IT', { useGrouping: 'always' })}` : `${nome}…`
+}
+
 /** Il riepilogo in una frase, com'è scritto a schermo. */
 export function fraseEsitoXml(e) {
   const pezzi = []
-  if (e.completate) pezzi.push(`${e.completate.toLocaleString('it-IT')} ${e.completate === 1 ? 'fattura completata' : 'fatture completate'} con righe e dati del fornitore`)
-  if (e.nuove) pezzi.push(`${e.nuove.toLocaleString('it-IT')} ${e.nuove === 1 ? 'nuova' : 'nuove'}`)
-  if (e.giaPresenti) pezzi.push(`${e.giaPresenti.toLocaleString('it-IT')} già ${e.giaPresenti === 1 ? 'completa' : 'complete'}`)
-  if (e.fornitoriCompletati) pezzi.push(`${e.fornitoriCompletati.toLocaleString('it-IT')} ${e.fornitoriCompletati === 1 ? 'scheda fornitore arricchita' : 'schede fornitore arricchite'}`)
+  if (e.completate) pezzi.push(`${e.completate.toLocaleString('it-IT', { useGrouping: 'always' })} ${e.completate === 1 ? 'fattura completata' : 'fatture completate'} con righe e dati del fornitore`)
+  if (e.nuove) pezzi.push(`${e.nuove.toLocaleString('it-IT', { useGrouping: 'always' })} ${e.nuove === 1 ? 'nuova' : 'nuove'}`)
+  if (e.giaPresenti) pezzi.push(`${e.giaPresenti.toLocaleString('it-IT', { useGrouping: 'always' })} già ${e.giaPresenti === 1 ? 'completa' : 'complete'}`)
+  if (e.fornitoriCompletati) pezzi.push(`${e.fornitoriCompletati.toLocaleString('it-IT', { useGrouping: 'always' })} ${e.fornitoriCompletati === 1 ? 'scheda fornitore arricchita' : 'schede fornitore arricchite'}`)
   if (!pezzi.length) return e.lette ? 'Nessuna fattura da aggiungere: erano già tutte complete.' : 'In questi file non ho trovato fatture.'
   return pezzi.join(' · ')
 }

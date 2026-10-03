@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { parseFatturaSMART } from '../lib/parseFatturaXML'
-import { importaFattureXml, fraseEsitoXml, avvisiEsitoXml } from '../lib/importaFattureXml'
+import { importaFattureXml, fraseEsitoXml, avvisiEsitoXml, testoAvanzamentoXml } from '../lib/importaFattureXml'
 import { parseZucchettiInfinity, parseZucchettiKassa } from '../lib/importZucchetti'
 import { parseSumUp, parseSatispay, parseSquare, autoDetectCassaFormat } from '../lib/importCassa'
 import { parseUberEats, parseDeliveroo, parseJustEat, parseGlovo, mergeInChiusure } from '../lib/importDelivery'
@@ -73,8 +73,8 @@ const INTEGRAZIONI_CFG = [
     descrizione: 'Le fatture dei tuoi fornitori, con dentro anche il dettaglio riga: prodotto, quantità e prezzo unitario. È da qui che si capisce quanto costa davvero un ingrediente. Le fatture che hai già caricato da Excel non si doppiano: si completano.',
     istruzioni: [
       'Entra con SPID su ivaservizi.agenziaentrate.gov.it → Fatture e Corrispettivi → Consultazione → "Consultazione e download massivi"',
-      'Richieste → Fatture elettroniche → scegli il periodo e "ricevute" → genera e invia la richiesta',
-      'Dopo qualche minuto, in Risposte → File Prodotti, scarica lo ZIP e caricalo qui sotto così com\'è, senza aprirlo',
+      'Richieste → Fatture elettroniche → scegli il periodo e "ricevute" → genera e invia la richiesta. Il periodo può essere al massimo di 3 mesi: per un anno servono 4 richieste',
+      'Dopo qualche minuto, in Risposte → File Prodotti, scarica lo ZIP e caricalo qui sotto così com\'è, senza aprirlo. Se ne hai più di uno, selezionali tutti insieme',
       'Due società? Una richiesta per ogni partita IVA. L\'Agenzia tiene le fatture fino al 31 dicembre del secondo anno dopo: quelle più vecchie chiedile al commercialista',
       'Va bene anche una fattura sola (.xml o .p7m), o lo ZIP che ti manda il commercialista',
     ],
@@ -859,12 +859,10 @@ export default function Integrazioni({ orgId, sedeId }) {
     // che ci sono già (dall'Excel di WebDesk) invece di scartarle come
     // doppioni, e aprono anche le firmate dentro lo ZIP dell'Agenzia.
     if (cfg.id === 'fattura_elettronica_xml') {
-      const FASI = { lettura: 'Leggo i file', completamento: 'Completo le fatture', nuove: 'Aggiungo le nuove' }
       try {
         const e = await importaFattureXml(supabase, {
           orgId, sedeId, files,
-          onProgresso: (fase, fatto, tot) => setAvanzamento(
-            tot > 1 ? `${FASI[fase]} · ${fatto.toLocaleString('it-IT')} di ${tot.toLocaleString('it-IT')}` : `${FASI[fase]}…`),
+          onProgresso: (fase, fatto, tot) => setAvanzamento(testoAvanzamentoXml(fase, fatto, tot)),
         })
         const avvisi = avvisiEsitoXml(e)
         const entrate = e.completate + e.nuove

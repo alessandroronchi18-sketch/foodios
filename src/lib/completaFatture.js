@@ -22,6 +22,7 @@
 // ne sono due possibili, non si tocca niente e lo si dice: meglio una fattura
 // da guardare che una scritta sulla riga sbagliata.
 import { fatturaKey, pickFattura } from './fattureImport'
+import { ibanIsValid, normalizeIban } from './sepa'
 
 // Le forme societarie e la punteggiatura cambiano da un programma all'altro;
 // il nome no. Quello che viene dopo «di» invece resta: «Bar di Mario» e «Bar
@@ -185,6 +186,9 @@ export function completaAnagraficaFornitori(fornitori, records) {
       partita_iva: r.piva, codice_fiscale: r.cf,
       indirizzo: d.indirizzo, cap: d.cap, citta: d.citta, provincia: d.provincia,
       email: d.email, telefono: d.telefono,
+      // Solo un IBAN che passa il controllo: uno sbagliato in anagrafica è
+      // peggio di nessuno, perché il file dei bonifici lo scarta in silenzio.
+      iban: ibanIsValid(r.iban) ? normalizeIban(r.iban) : null,
     }
     for (const [k, v] of Object.entries(da)) {
       if (vuoto(f[k]) && vuoto(p[k]) && !vuoto(v)) p[k] = v

@@ -31,7 +31,7 @@ import {
   abbinaFatture, patchDaXml, normFornitore, completaAnagraficaFornitori,
   applicaCompletamenti, fattureEsistentiPerAbbinare,
 } from '../../src/lib/completaFatture.js'
-import { importaFattureXml, fraseEsitoXml, avvisiEsitoXml, promemoriaZipAgenzia } from '../../src/lib/importaFattureXml.js'
+import { importaFattureXml, fraseEsitoXml, avvisiEsitoXml, promemoriaZipAgenzia, testoAvanzamentoXml } from '../../src/lib/importaFattureXml.js'
 import { parseFatturaXML } from '../../src/lib/parseFatturaXML.js'
 
 // ── Fixture ─────────────────────────────────────────────────────────────
@@ -300,6 +300,31 @@ describe('completaAnagraficaFornitori', () => {
 
   it('fornitore che non c\'è: nessuna scrittura', () => {
     expect(completaAnagraficaFornitori([{ id: 'x', nome: 'Altro' }], [xml])).toEqual([])
+  })
+
+  // In produzione, 03/10/2026: 315 fornitori, **nessuno** con l'IBAN. Lo
+  // Scadenzario lo copiava dalla fattura, la pagina Integrazioni no: dallo
+  // stesso ZIP, due risultati diversi a seconda del pulsante.
+  it('copia l\'IBAN della fattura, solo se valido e solo se manca', () => {
+    expect(completaAnagraficaFornitori([{ id: 'x', nome: "MELLY'S KOMBUCHA" }], [xml])[0].patch.iban).toBe('IT60X0542811101000000123456')
+    const [rotto] = parseFatturaXML(fatturaXml({ iban: 'IT60X0542811101000000123457' }))
+    expect(completaAnagraficaFornitori([{ id: 'x', nome: "MELLY'S KOMBUCHA" }], [rotto])[0].patch).not.toHaveProperty('iban')
+    const gia = completaAnagraficaFornitori([{ id: 'x', nome: "MELLY'S KOMBUCHA", iban: 'IT02L1234512345123456789012' }], [xml])
+    expect(gia[0].patch).not.toHaveProperty('iban')
+  })
+})
+
+describe('testoAvanzamentoXml', () => {
+  it('dice la fase e quanti ne mancano, coi numeri all\'italiana', () => {
+    expect(testoAvanzamentoXml('completamento', 1200, 2799)).toBe('Completo le fatture · 1.200 di 2.799')
+    expect(testoAvanzamentoXml('lettura', 0, 1)).toBe('Leggo i file…')
+    expect(testoAvanzamentoXml('fornitori', 3, 315)).toBe('Aggiorno i fornitori · 3 di 315')
+  })
+  // `toLocaleString('it-IT')` da solo non mette il punto sotto le 5 cifre:
+  // sul primo ZIP vero il riepilogo avrebbe detto «2799 fatture completate».
+  it('anche il riepilogo finale ha il punto delle migliaia', () => {
+    const e = { completate: 2799, nuove: 1004, giaPresenti: 0, fornitoriCompletati: 0, lette: 3803 }
+    expect(fraseEsitoXml(e)).toBe('2.799 fatture completate con righe e dati del fornitore · 1.004 nuove')
   })
 })
 

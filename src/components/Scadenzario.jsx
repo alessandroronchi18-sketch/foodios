@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { parseFatturaSMART } from '../lib/parseFatturaXML'
-import { importaFattureXml, fraseEsitoXml, avvisiEsitoXml, promemoriaZipAgenzia } from '../lib/importaFattureXml'
+import { importaFattureXml, fraseEsitoXml, avvisiEsitoXml, promemoriaZipAgenzia, testoAvanzamentoXml } from '../lib/importaFattureXml'
 import { loadXLSX } from '../lib/xlsx'
 import { exportScadenzario } from '../lib/exportPDF'
 import { getExportCtx, gateExport } from '../lib/exportGuard'
@@ -92,6 +92,9 @@ export default function Scadenzario({ orgId, sedeId, sedi = [], pagina = 'scaden
   const [pagateTotali, setPagateTotali]   = useState(null)
   const [loading, setLoading]             = useState(true)
   const [importLoading, setImportLoading] = useState(false)
+  // A che punto è il caricamento degli XML: tre anni di fatture sono minuti,
+  // e un «Carico…» fermo per minuti sembra una pagina bloccata.
+  const [avanzamentoXml, setAvanzamentoXml] = useState('')
   // Quali gruppi di scadenza hanno "mostra tutte" attivo. Sta qui e non dentro
   // Gruppo perché quel componente viene chiamato come funzione: vedi il
   // commento dentro Gruppo.
@@ -661,6 +664,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [], pagina = 'scaden
         sedeId: dest.length === 1 ? dest[0] : null,
         sediCondivise: dest.length > 1 ? dest : null,
         files,
+        onProgresso: (fase, fatto, tot) => setAvanzamentoXml(testoAvanzamentoXml(fase, fatto, tot)),
       })
       const avvisi = avvisiEsitoXml(e)
       notify([fraseEsitoXml(e), ...avvisi].join(' '), avvisi.length === 0 && e.lette > 0)
@@ -672,6 +676,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [], pagina = 'scaden
     } catch (err) {
       notify('Errore import XML: ' + (err?.message || 'sconosciuto'), false)
     } finally {
+      setAvanzamentoXml('')
       setImportLoading(false)
     }
   }
@@ -2842,7 +2847,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [], pagina = 'scaden
             Export Excel/PDF, Elimina tutte). Sostituisce 6 bottoni inline. */}
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', width: isMobile ? '100%' : 'auto', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
           <label style={{ ...primaryBtn, cursor: 'pointer', flex: isMobile ? 1 : '0 0 auto', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
-            {importLoading ? <><Icon name="hourglass" size={14} /> Importazione…</> : <><Icon name="folder" size={14} /> Importa .xlsx</>}
+            {importLoading ? <><Icon name="hourglass" size={14} /> {avanzamentoXml || 'Importazione…'}</> : <><Icon name="folder" size={14} /> Importa .xlsx</>}
             <input type="file" accept=".xlsx,.xls" multiple style={{ display: 'none' }}
               onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length) chiediSede(files, handleImportExcel) }} />
           </label>
@@ -3064,11 +3069,11 @@ export default function Scadenzario({ orgId, sedeId, sedi = [], pagina = 'scaden
             <div style={{ flex: 1, minWidth: 200, fontSize: font.size.base, color: T.textMid, lineHeight: 1.5 }}>
               <b style={{ color: T.text }}>{p.titolo}</b>{' '}{p.testo}
               <div style={{ fontSize: font.size.sm, color: T.textSoft, marginTop: 2 }}>
-                Fatture e Corrispettivi → Consultazione → download massivi → fatture ricevute. Una richiesta per ogni partita IVA.
+                Fatture e Corrispettivi → Consultazione → download massivi → fatture ricevute. Al massimo 3 mesi per richiesta, una richiesta per ogni partita IVA. Puoi caricare più ZIP insieme.
               </div>
             </div>
             <label style={{ ...ghostBtn, minHeight: minTouch, flexShrink: 0, width: isMobile ? '100%' : 'auto', justifyContent: 'center', cursor: importLoading ? 'wait' : 'pointer' }}>
-              <Icon name="folder" size={14} /> {importLoading ? 'Carico…' : 'Carica lo ZIP'}
+              <Icon name="folder" size={14} /> {importLoading ? (avanzamentoXml || 'Carico…') : 'Carica lo ZIP'}
               <input type="file" accept=".zip,.xml,.p7m" multiple disabled={importLoading} style={{ display: 'none' }}
                 onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length) chiediSede(files, handleImportXML) }} />
             </label>
