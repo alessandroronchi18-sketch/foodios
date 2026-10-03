@@ -44,6 +44,11 @@ vi.mock('../../src/lib/supabase', () => ({
 vi.mock('../../src/lib/storage', () => ({
   ssave: async () => {}, sload: async () => null, ssaveBatch: async () => {}, sloadAllSedi: async () => ({}),
 }))
+// Le Previsioni leggono l'inventario da sole: una gelateria finta di otto gusti.
+vi.mock('../../src/lib/inventarioProduzione', async (originale) => {
+  const { righeGelateriaFinta } = await import('./gelateriaFintaPrevisioni.js')
+  return { ...(await originale()), caricaRigheInventario: async () => righeGelateriaFinta() }
+})
 vi.mock('../../src/lib/stockPF', () => ({
   loadStockPF: async () => [
     { id: 'a', prodotto_nome: 'SACHER', quantita: 6, unita: 'pz', valore_unit: 12, soglia_min: 2, updated_at: new Date().toISOString() },
@@ -211,6 +216,12 @@ describe('fotografia delle viste', () => {
     n.push(await scrivi('menu-engineering', <MenuEngineeringView orgId="org-1" sedeId="s1" ricettario={ricettario} sedeAttiva={sedeAttiva} />))
     n.push(await scrivi('cashflow', <CashflowView orgId="org-1" sedeId="s1" sedi={sedi} notify={() => {}} />))
     n.push(await scrivi('previsione', <PrevisioneDomanda ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} ingCosti={buildIngCosti(ricettario.ingredienti_costi)} calcolaFC={calcolaFC} getR={getR} citta="Torino" tipoAttivita="pasticceria" />))
+    // Le Previsioni rifatte il 03/10/2026: con l'inventario di ieri, e con
+    // l'inventario fermo da un mese (l'ultima previsione possibile aperta).
+    const { default: PrevisioniView } = await import('../../src/views/PrevisioniView.jsx')
+    n.push(await scrivi('previsioni', <PrevisioniView orgId="org-1" sedeId="s1" sedi={sedi} sedeAttiva={sedeAttiva} tipoAttivita="gelateria" oggi="2026-08-29" />))
+    n.push(await scrivi('previsioni-ferme', <PrevisioniView orgId="org-1" sedeId="s1" sedi={sedi} sedeAttiva={sedeAttiva} tipoAttivita="gelateria" oggi="2026-10-03" />,
+      async v => fireEvent.click(v.getByRole('button', { name: /ultima previsione possibile/ }))))
     n.push(await scrivi('azioni', <AzioniView actions={[]} onUpdate={() => {}} onDelete={() => {}} ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} magazzino={magazzino} nomeAttivita="Pasticceria del Corso" tipoAttivita="pasticceria" />))
 
     const { default: ImportaDati } = await import('../../src/components/ImportaDati.jsx')
