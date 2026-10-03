@@ -1,7 +1,9 @@
 // StoricoProduzioneView - Storico produzioni con grafici. Estratta da Dashboard.jsx.
 import React, { useState, useMemo, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { fetchAllInventarioProduzione, GIORNI_RIPORTO_MAX, COLONNE_VENDUTO } from '../lib/inventarioProduzione'
+import { fetchAllInventarioProduzione, GIORNI_RIPORTO_MAX, COLONNE_VENDUTO, ultimoGiornoRegistrato } from '../lib/inventarioProduzione'
+import { giorniRegistrati, confrontoPossibile } from '../lib/produzioneAnalisi'
+import { finestraConfronto } from '../lib/periodoAnalisi'
 import AnalisiInventarioSection from './AnalisiInventarioSection'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend, ReferenceLine } from 'recharts'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
@@ -121,39 +123,48 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
     return (sedi || []).filter(s => s.is_sede_produzione !== false && s.attiva !== false).map(s => s.id)
   }, [sedeId, sedi])
   const sediKeyPL = sediProdIdsPL.join(',')
+  // ── La finestra di partenza (03/10/2026) ──────────────────────────────
+  //
+  // Quando l'utente non ha ancora scelto le date, la pagina guardava gli
+  // ultimi due mesi fino a oggi. Ma se l'ultimo giorno registrato è il 31/08,
+  // a ottobre metà di quella finestra è vuota: la pagina mostrava un mese di
+  // dati come se fossero due, e il confronto col periodo prima diceva -70%.
+  // Adesso la finestra di partenza finisce all'ultimo giorno registrato, e la
+  // pagina lo dice. Le date vanno anche nella barra del periodo: prima i campi
+  // restavano vuoti e non si capiva che periodo si stesse guardando.
+  const [partenza, setPartenza] = useState(null)   // { from, to, ultimo }
+  useEffect(() => {
+    if (!isMetodoInv || !orgId || sediProdIdsPL.length === 0) return
+    if (dateFrom || dateTo) return
+    let alive = true
+    const oggi = todayLocal()
+    ultimoGiornoRegistrato(orgId, sediProdIdsPL, { finoA: oggi })
+      .catch(() => null)
+      .then((ultimo) => {
+        if (!alive) return
+        const fine = ultimo && ultimo < oggi ? ultimo : oggi
+        const [y, m, d] = fine.split('-').map(Number)
+        // Due mesi, come prima: dal 03/08 al 03/10, o dal 01/07 al 31/08.
+        const inizio = formatLocalDate(new Date(y, m - 3, d))
+        setPartenza({ from: inizio, to: fine, ultimo: ultimo || null })
+        setDateFrom(inizio)
+        setDateTo(fine)
+      })
+    return () => { alive = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMetodoInv, orgId, sediKeyPL, dateFrom, dateTo])
+
+  // Cosa si confronta davvero, e perché (o perché no). Va alla sezione e alla
+  // barra del periodo, così la riga «confronto con…» dice la verità.
+  const [confrontoInfo, setConfrontoInfo] = useState(null)
+
   useEffect(() => {
     if (!isMetodoInv || !orgId || sediProdIdsPL.length === 0) { setInvRows([]); setInvRowsPrev([]); return }
+    // La finestra di partenza la sceglie l'effetto qui sopra.
+    if (!dateFrom || !dateTo) return
     let alive = true
-    // Range corrente: se dateFrom/dateTo non settati, usa ultimi 90gg
-    // Il periodo di partenza, quando l'utente non ha ancora scelto le date.
-    //
-    // Prima: `new Date(anno, mese - 2, giorno).toISOString().slice(0, 10)`.
-    // Quella `Date` è mezzanotte LOCALE, che in Italia sono le 22:00 (o le
-    // 23:00) UTC del giorno prima: la finestra di default partiva **sempre**
-    // un giorno prima di quello scritto, tutto l'anno. E `defTo` era la data
-    // UTC di adesso, quindi fra mezzanotte e le due finiva ieri.
-    const oggi = new Date()
-    const defFrom = formatLocalDate(new Date(oggi.getFullYear(), oggi.getMonth() - 2, oggi.getDate()))
-    const defTo = todayLocal()
-    const from = dateFrom || defFrom
-    const to = dateTo || defTo
-    // Range di confronto:
-    //   'periodoPrec' → stessa durata subito prima (es. 30gg vs 30gg precedenti)
-    //   'annoPrec'    → stesso intervallo dell'anno prima
-    //   'nessuno'     → non fa fetch del precedente
-    const dFrom = new Date(from + 'T12:00:00')
-    const dTo = new Date(to + 'T12:00:00')
-    let prevFrom = null, prevTo = null
-    if (confronto === 'periodoPrec') {
-      const durata = Math.round((dTo - dFrom) / 86400000) + 1
-      prevTo = formatLocalDate(new Date(dFrom.getTime() - 86400000))
-      prevFrom = formatLocalDate(new Date(dFrom.getTime() - durata * 86400000))
-    } else if (confronto === 'annoPrec') {
-      const pyFrom = new Date(dFrom); pyFrom.setFullYear(pyFrom.getFullYear() - 1)
-      const pyTo   = new Date(dTo);   pyTo.setFullYear(pyTo.getFullYear() - 1)
-      prevFrom = formatLocalDate(pyFrom)
-      prevTo   = formatLocalDate(pyTo)
-    }
+    const from = dateFrom
+    const to = dateTo
 
     // Paginato: il server Supabase (PostgREST) ha db-max-rows=50000, quindi
     // .limit() del client viene comunque cappato. Serve range() iterato.
@@ -167,29 +178,52 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
     // giorno precedente è la giacenza di partenza: senza quella il primo
     // giorno del periodo non si può calcolare.
     const COLONNE_INV = `${COLONNE_VENDUTO}, scostamento_accettato, sede_id`
-    setWin({ from, to, prevFrom, prevTo })
-    const prevPromise = prevFrom
-      ? fetchAllInventarioProduzione(orgId, {
-          sedeIds: sediProdIdsPL, dataFrom: giorniPrimaDi(prevFrom, GIORNI_RIPORTO_MAX), dataTo: prevTo,
-          columns: COLONNE_INV,
-        })
-      : Promise.resolve([])
-    Promise.all([
-      fetchAllInventarioProduzione(orgId, {
-        sedeIds: sediProdIdsPL, dataFrom: giorniPrimaDi(from, GIORNI_RIPORTO_MAX), dataTo: to,
-        columns: COLONNE_INV,
-      }),
-      prevPromise,
-    ]).then(([cur, prev]) => {
-      if (!alive) return
-      // Le righe NON si sommano più fra sedi prima del calcolo. Sommarle era
+    const carica = (da, a) => fetchAllInventarioProduzione(orgId, {
+      sedeIds: sediProdIdsPL, dataFrom: giorniPrimaDi(da, GIORNI_RIPORTO_MAX), dataTo: a,
+      columns: COLONNE_INV,
+    })
+
+    ;(async () => {
+      // Le righe NON si sommano fra sedi prima del calcolo. Sommarle era
       // sbagliato con le spedizioni interne: se la sede A manda 5 kg alla sede
       // B, quei 5 kg escono dal venduto di A (spedito) e restano giacenza di B
       // (rimanenza) — sommando prima del conto venivano sottratti due volte.
       // Il motore raggruppa per sede, calcola, e poi somma.
-      setInvRows(cur || [])
-      setInvRowsPrev(prev || [])
-    }).catch(() => { if (alive) { setInvRows([]); setInvRowsPrev([]) } })
+      const cur = (await carica(from, to)) || []
+      if (!alive) return
+      const regCur = giorniRegistrati(cur, { da: from, a: to })
+
+      // ── Il confronto si fa solo su giorni registrati comparabili ──────────
+      // Il tratto da confrontare è quello in cui ci sono i dati (dal primo
+      // all'ultimo giorno registrato del periodo), non la finestra di
+      // calendario: «ultimi 30 giorni» con i dati fermi a 12 giorni fa non
+      // deve diventare un -60%. Il periodo di confronto ha la stessa
+      // lunghezza (o le stesse date dell'anno prima) e deve avere quasi le
+      // stesse giornate registrate; se no il confronto non si fa, e si dice.
+      let prev = []
+      let info
+      if (confronto === 'nessuno') {
+        info = { ok: false, motivo: null, nessuno: true }
+      } else if (regCur.n === 0) {
+        // Periodo vuoto: si cerca l'ultimo giorno registrato prima, per dire
+        // «niente registrato dopo il 31/08» invece di una tabella di zeri.
+        const ultimo = await ultimoGiornoRegistrato(orgId, sediProdIdsPL, { finoA: to }).catch(() => null)
+        if (!alive) return
+        info = { ok: false, motivo: 'in questo periodo non c\'è nessun giorno registrato', ultimoPrima: ultimo }
+      } else {
+        const fin = finestraConfronto(regCur.primo, regCur.ultimo, confronto === 'annoPrec' ? 'year_prev' : 'prev')
+        prev = (await carica(fin.from, fin.to)) || []
+        if (!alive) return
+        const regPrev = giorniRegistrati(prev, { da: fin.from, a: fin.to })
+        info = { ...confrontoPossibile(regCur, regPrev), from: fin.from, to: fin.to, giorniPrev: regPrev.sedeGiorni }
+        if (!info.ok) prev = []
+      }
+      info = { ...info, giorni: regCur }
+      setInvRows(cur)
+      setInvRowsPrev(prev)
+      setWin({ from, to, prevFrom: info.ok ? info.from : null, prevTo: info.ok ? info.to : null })
+      setConfrontoInfo(info)
+    })().catch(() => { if (alive) { setInvRows([]); setInvRowsPrev([]); setConfrontoInfo(null) } })
     return () => { alive = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMetodoInv, orgId, sediKeyPL, dateFrom, dateTo, confronto])
@@ -775,7 +809,13 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
   const hasProd = giornaliero?.length>0;
   const hasVend = chiusure?.length>0;
 
-  if (!hasProd && !hasVend) return (
+  // A inventario i dati non stanno nelle sessioni né nelle chiusure, ma nella
+  // tabella dell'inventario, e la sezione sotto sa dire da sola quando un
+  // periodo è vuoto. Prima questo controllo guardava solo sessioni e chiusure
+  // (audit del 03/10/2026, difetto latente): una gelateria a inventario senza
+  // cassa, se le sessioni proiettate dall'inventario non arrivano, vedeva
+  // «Nessun dato storico» con mesi di produzione registrata.
+  if (!isMetodoInv && !hasProd && !hasVend) return (
     <div style={{maxWidth:560,margin:"80px auto",textAlign:"center",padding:'32px 24px',background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:18,boxShadow:'0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)'}}>
       <div style={{marginBottom:14,opacity:0.6,color:C.textSoft}}><Icon name="barChart" size={42} /></div>
       <div style={{fontSize: font.size.lg,fontWeight:700,color:C.text,marginBottom:8,letterSpacing:'-0.01em'}}>Nessun dato storico</div>
@@ -811,6 +851,11 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
           confronto={confronto === 'periodoPrec' ? 'prev' : confronto === 'annoPrec' ? 'year_prev' : 'none'}
           onConfronto={(m) => setConfronto(m === 'prev' ? 'periodoPrec' : m === 'year_prev' ? 'annoPrec' : 'nessuno')}
           isMobile={isMobile}
+          // A inventario la pagina confronta i giorni registrati, non la
+          // finestra di calendario: la riga «confronto con…» deve dire quello.
+          confrontoEffettivo={isMetodoInv && confrontoInfo && !confrontoInfo.nessuno
+            ? (confrontoInfo.ok ? { from: confrontoInfo.from, to: confrontoInfo.to } : { motivo: confrontoInfo.motivo })
+            : undefined}
         />
       </div>
 
@@ -832,6 +877,9 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
           sedeId={sedeId}
           sedi={sedi}
           onBack={onNavigate ? () => onNavigate('inventario-gusti') : null}
+          confrontoInfo={confrontoInfo}
+          partenza={partenza}
+          onPeriodo={(f, t) => { setDateFrom(f || ''); setDateTo(t || '') }}
         />
       )}
 

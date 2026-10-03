@@ -16,9 +16,18 @@ export default function BarraPeriodo({
   confronto = 'none', onConfronto,
   isMobile = false,
   mostraConfronto = true,
+  // Facoltativo. Quando la pagina NON confronta la finestra di calendario
+  // (perché i giorni registrati non tornano, o perché ha accorciato il
+  // periodo agli ultimi giorni con dati), passa qui quello che confronta
+  // davvero: { from, to }, oppure { motivo } se il confronto non si fa.
+  // Senza, la riga sotto diceva «confronto con giugno-luglio» mentre i numeri
+  // erano confrontati con un'altra cosa, o con niente.
+  confrontoEffettivo,
 }) {
   const attiva = scorciatoiaDi(from, to)
-  const conf = finestraConfronto(from, to, confronto)
+  const conf = confrontoEffettivo !== undefined
+    ? (confrontoEffettivo?.from && confrontoEffettivo?.to ? confrontoEffettivo : null)
+    : finestraConfronto(from, to, confronto)
 
   const chip = (attivo) => ({
     padding: isMobile ? '10px 12px' : '8px 12px',
@@ -87,7 +96,9 @@ export default function BarraPeriodo({
       {from && to && (
         <div style={{ fontSize: font.size.sm, color: T.textSoft, lineHeight: 1.45 }}>
           Stai guardando <b style={{ color: T.text }}>{nomePeriodo(from, to)}</b>
-          {conf ? <> · confronto con <b style={{ color: T.text }}>{nomePeriodo(conf.from, conf.to)}</b></> : null}
+          {conf
+            ? <> · confronto con <b style={{ color: T.text }}>{nomePeriodo(conf.from, conf.to)}</b></>
+            : (confrontoEffettivo?.motivo ? <> · nessun confronto: {confrontoEffettivo.motivo}</> : null)}
         </div>
       )}
     </div>

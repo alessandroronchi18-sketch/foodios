@@ -123,3 +123,118 @@ export function sommaGusti(righe) {
     ricavoConMargine, vendConMargine, nConMargine, nConVendita,
   }
 }
+
+// ── I giorni registrati, e quando due periodi si possono confrontare ───────
+//
+// 03/10/2026, audit dello Storico. All'apertura la pagina guardava gli ultimi
+// due mesi (03/08-03/10) e li confrontava con i due mesi prima. Ma da
+// settembre Mara non ha registrato niente: si confrontavano 29 giorni scritti
+// con 62, e a schermo uscivano «Prodotto -71,6%, Venduto -70,8%, Ricavo
+// -70,5%». Un dato che manca diventava un crollo delle vendite, e la pagina
+// non diceva mai «l'ultimo giorno registrato è il 31/08».
+//
+// La regola (ANALISI_DESIGN.md, punto 2): mai confrontare 29 giorni
+// registrati con 62. Si confronta il tratto in cui ci sono i dati con un
+// tratto della stessa lunghezza, e solo se anche quello ha (quasi) gli stessi
+// giorni registrati. Se no, il confronto non si fa e si dice perché.
+
+/**
+ * Una riga dice qualcosa? Conta come giornata registrata quella in cui il
+ * foglio è stato compilato: un prodotto, una rimanenza, uno scarto.
+ *
+ * Una riga tutta a zero è una casella lasciata aperta. E una spedizione da
+ * sola non basta: a Mara le uniche due righe di settembre sono ABIS il 07/09
+ * (tutto zero) e ABIS il 15/09 con **1 grammo spedito** e nient'altro — una
+ * prova del pulsante, non una giornata di gelateria. Contandole, settembre
+ * sembrerebbe registrato fino al 15 e il confronto ripartirebbe da lì.
+ */
+export function rigaHaDati(r) {
+  if (!r) return false
+  return (Number(r.produzione_g) || 0) > 0
+    || (r.rimanenza_g != null && Number(r.rimanenza_g) > 0)
+    || (Number(r.scarto_g) || 0) > 0
+}
+
+/**
+ * I giorni registrati in un periodo (`da`/`a` compresi, ISO).
+ * Ritorna { giorni, n, primo, ultimo, perSede, sedeGiorni }: `sedeGiorni`
+ * conta le giornate di negozio (una per sede e giorno), ed è quella che
+ * decide se due periodi si confrontano: con tre sedi, un periodo in cui una
+ * sede non ha scritto niente non vale l'altro anche se i giorni sono gli
+ * stessi.
+ */
+export function giorniRegistrati(righe, { da = null, a = null } = {}) {
+  const tutti = new Set()
+  const perSedeSet = {}
+  for (const r of righe || []) {
+    if (!r?.data || !rigaHaDati(r)) continue
+    if (da && r.data < da) continue
+    if (a && r.data > a) continue
+    tutti.add(r.data)
+    const s = r.sede_id || '_'
+    if (!perSedeSet[s]) perSedeSet[s] = new Set()
+    perSedeSet[s].add(r.data)
+  }
+  const giorni = [...tutti].sort()
+  const perSede = {}
+  let sedeGiorni = 0
+  for (const [s, set] of Object.entries(perSedeSet)) {
+    const g = [...set].sort()
+    perSede[s] = { n: g.length, primo: g[0], ultimo: g[g.length - 1] }
+    sedeGiorni += g.length
+  }
+  return {
+    giorni, n: giorni.length,
+    primo: giorni[0] || null, ultimo: giorni[giorni.length - 1] || null,
+    perSede, sedeGiorni,
+  }
+}
+
+/** Quante giornate di differenza si accettano fra due periodi: il 10%. */
+export const TOLLERANZA_GIORNI = 0.1
+
+/**
+ * Due periodi si possono confrontare? `cur` e `prev` sono uscite di
+ * `giorniRegistrati`. Ritorna { ok, motivo } — il motivo è scritto per chi
+ * legge la pagina.
+ */
+export function confrontoPossibile(cur, prev, { tolleranza = TOLLERANZA_GIORNI } = {}) {
+  const c = Number(cur?.sedeGiorni) || 0
+  const p = Number(prev?.sedeGiorni) || 0
+  if (c === 0) return { ok: false, motivo: 'in questo periodo non c\'è nessun giorno registrato' }
+  if (p === 0) return { ok: false, motivo: 'nel periodo di confronto non c\'è nessun giorno registrato' }
+  const scarto = Math.abs(c - p) / Math.max(c, p)
+  if (scarto > tolleranza) {
+    return {
+      ok: false,
+      motivo: `il periodo di confronto ha ${p.toLocaleString('it-IT')} giornate registrate, questo ${c.toLocaleString('it-IT')}: messi a confronto farebbero sembrare ${p > c ? 'un calo' : 'una crescita'} che non c'è`,
+    }
+  }
+  return { ok: true, motivo: null }
+}
+
+/**
+ * Variazione percentuale col segno giusto anche quando il valore di prima è
+ * negativo: da -100 a -50 è un miglioramento (+50%), non un -50%.
+ * null quando prima era zero o non si sa.
+ */
+export function variazionePct(cur, prev) {
+  if (cur == null || prev == null) return null
+  const p = Number(prev)
+  if (!Number.isFinite(p) || p === 0) return null
+  return ((Number(cur) - p) / Math.abs(p)) * 100
+}
+
+/** '2026-08-31' → '31/08'. Una data che manca resta vuota, mai «undefined». */
+export function dataBreve(iso) {
+  const s = String(iso || '')
+  if (!/^\d{4}-\d{2}-\d{2}/.test(s)) return ''
+  return `${s.slice(8, 10)}/${s.slice(5, 7)}`
+}
+
+/** '2026-08-31' → '31/08/2026'. */
+export function dataLunga(iso) {
+  const s = String(iso || '')
+  if (!/^\d{4}-\d{2}-\d{2}/.test(s)) return ''
+  return `${s.slice(8, 10)}/${s.slice(5, 7)}/${s.slice(0, 4)}`
+}

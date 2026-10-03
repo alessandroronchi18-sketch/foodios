@@ -1329,7 +1329,11 @@ export function unisciSessioni(daInventario, dalBlob) {
 //   columns:   colonne SELECT (default include sede_id per aggregazione)
 export async function fetchAllInventarioProduzione(orgId, opts = {}) {
   if (!orgId) return []
-  const { supabase } = await import('./supabase')
+  // Il client è quello importato in cima al file. Qui c'era un secondo
+  // `await import('./supabase')` che non serviva a niente (il modulo è già
+  // nel pacchetto) e che, con due letture partite insieme — cambiare la data
+  // di inizio e subito quella di fine — nei test restava appeso: la seconda
+  // lettura non tornava mai e la pagina mostrava il periodo di prima.
   const columns = opts.columns || `${COLONNE_VENDUTO}, sede_id`
   // Vale per tutte le pagine: se il database non ha ancora `ricevuto_g` si
   // riprova una volta sola senza, e da lì in poi si usa l'elenco ridotto.
@@ -1379,7 +1383,7 @@ export async function fetchAllInventarioProduzione(orgId, opts = {}) {
 //   mese formato 'YYYY-MM'
 export async function caricaStoricoMensile(orgId, sedeIds, dataFrom, dataTo) {
   if (!orgId) return { source: 'rpc', perMese: [] }
-  const { supabase } = await import('./supabase')
+  // Il client importato in cima al file (vedi fetchAllInventarioProduzione).
   const arr = Array.isArray(sedeIds) ? sedeIds : (sedeIds ? [sedeIds] : null)
   const { data, error } = await supabase.rpc('storico_inventario_per_mese', {
     p_org_id: orgId,
@@ -1480,6 +1484,40 @@ export async function giorniConProduzione(orgId, sedeId, dataFrom, dataTo) {
     return new Set()
   }
   return new Set((data || []).map(r => r.data))
+}
+
+/**
+ * L'ultimo giorno in cui qualcosa è stato registrato davvero (fino a `finoA`).
+ *
+ * Serve alle pagine di analisi per non aprirsi su un periodo vuoto e per dire
+ * «dopo il 31/08 non c'è niente»: il 03/10/2026 lo Storico di Mara si apriva
+ * su due mesi di cui uno vuoto, e la Quadratura su una settimana vuota che
+ * mostrava zeri come se fossero risultati.
+ *
+ * Conta un giorno con un prodotto, una rimanenza o uno scarto: stessa regola
+ * di `rigaHaDati` in produzioneAnalisi.js. Una riga tutta a zero, o con 1
+ * grammo spedito e nient'altro (la prova del pulsante che Mara ha fatto il
+ * 15/09), non è una giornata registrata.
+ *
+ * Ritorna la data ISO, o null se non c'è niente (o la domanda fallisce).
+ */
+export async function ultimoGiornoRegistrato(orgId, sedeIds, { finoA = null } = {}) {
+  if (!orgId) return null
+  if (Array.isArray(sedeIds) && sedeIds.length === 0) return null
+  let q = supabase
+    .from('inventario_produzione')
+    .select('data')
+    .eq('organization_id', orgId)
+    .or('produzione_g.gt.0,rimanenza_g.gt.0,scarto_g.gt.0')
+  if (Array.isArray(sedeIds)) q = q.in('sede_id', sedeIds)
+  else if (sedeIds) q = q.eq('sede_id', sedeIds)
+  if (finoA) q = q.lte('data', finoA)
+  const { data, error } = await q.order('data', { ascending: false }).limit(1)
+  if (error) {
+    console.error('ultimoGiornoRegistrato:', error)
+    return null
+  }
+  return (Array.isArray(data) && data[0]?.data) || null
 }
 
 // ── Helper date: lunedi della settimana che contiene `dateIso` ────────────

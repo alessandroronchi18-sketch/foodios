@@ -39,7 +39,8 @@ import { buildIngCosti } from '../lib/foodcost'
 // `valutaGusti`, provato coi numeri veri. Le due copie che stavano in questa
 // pagina chiamavano calcolaFC con gli argomenti sbagliati e davano un margine
 // del 100% su tutto (vedi il racconto in produzioneAnalisi.js).
-import { valutaGusti } from '../lib/produzioneAnalisi'
+import { valutaGusti, giorniRegistrati, variazionePct, dataBreve, dataLunga } from '../lib/produzioneAnalisi'
+import { todayLocal, differenzaGiorni, formatLocalDate } from '../lib/dateLocal'
 import { useRicavoFlat } from '../lib/useRicavoFlat'
 import { fmtp } from '../lib/formatIt'
 
@@ -62,6 +63,14 @@ export default function AnalisiInventarioSection({
   prevFrom = null, prevTo = null,
   ricettario, orgId, sedeId, sedi = [],
   onBack,
+  // Cosa si confronta davvero (o perché no): lo decide il contenitore sui
+  // giorni registrati. null = la pagina non lo sa ancora.
+  confrontoInfo = null,
+  // La finestra di partenza, quando l'utente non ha scelto le date: serve a
+  // dire «ti mostro i due mesi fino all'ultimo giorno registrato».
+  partenza = null,
+  // Per il pulsante «guarda fino al 31/08» quando il periodo è vuoto.
+  onPeriodo = null,
 }) {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
@@ -198,6 +207,23 @@ export default function AnalisiInventarioSection({
   }, [perGusto])
   const top10Max = Math.max(1, ...top10.map(x => x.vendKg))
 
+  // I giorni registrati DENTRO il periodo (le righe dei sette giorni prima
+  // servono solo come giacenza di partenza e non contano).
+  const copertura = useMemo(
+    () => giorniRegistrati(rows, { da: dateFrom, a: dateTo }),
+    [rows, dateFrom, dateTo]
+  )
+  // La riga che dice su cosa si reggono i numeri: quali giorni, dove finisce
+  // la registrazione, con cosa si confronta. Prima la pagina non diceva mai
+  // «l'ultimo giorno registrato è il 31/08», e un mese non scritto sembrava
+  // un crollo delle vendite.
+  const oggiIso = todayLocal()
+  const finePeriodo = dateTo && dateTo < oggiIso ? dateTo : oggiIso
+  const registrazioneFerma = copertura.ultimo && finePeriodo && copertura.ultimo < finePeriodo
+    && differenzaGiorni(copertura.ultimo, finePeriodo) > 1
+  const daPartenza = partenza && partenza.from === dateFrom && partenza.to === dateTo
+    && partenza.ultimo && differenzaGiorni(partenza.ultimo, oggiIso) > 2
+
   // Un gusto «a posto» ha il prezzo di vendita e il costo completo. Prima il
   // controllo guardava un food cost sempre zero, e l'avviso diceva «28 gusti
   // su 28 senza ricetta» con 88.970 € di ricavo in pagina.
@@ -207,10 +233,10 @@ export default function AnalisiInventarioSection({
   const eur = (n) => (Number(n) || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' €'
   const kg = (n) => (Number(n) || 0).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 1 })
   const pct = (n) => fmtp(Number(n) || 0)
-  const deltaPct = (cur, prev) => {
-    if (prev == null || prev === 0) return null
-    return ((cur - prev) / prev) * 100
-  }
+  // Il segno si calcola sul valore assoluto di prima: da -100 a -50 è un
+  // miglioramento. Prima la freccia si girava quando il margine di prima era
+  // negativo.
+  const deltaPct = (cur, prev) => variazionePct(cur, prev)
 
   function toggleSort(col) {
     if (sortBy === col) setSortDir(sortDir === 'asc' ? 'desc' : 'asc')
@@ -255,14 +281,43 @@ export default function AnalisiInventarioSection({
     }
   }
 
-  if (rows.length === 0) {
+  // ── Un periodo vuoto non è una tabella di zeri ─────────────────────────
+  // Il controllo guardava `rows.length`, ma le righe arrivano con i sette
+  // giorni prima del periodo (servono come giacenza di partenza). Con «30
+  // giorni» su Carlina, a ottobre, la pagina mostrava 22 gusti a 0,0 kg e
+  // -100% su tutto, invece di «niente registrato dopo il 31/08». Conta solo
+  // se dentro il periodo c'è un giorno registrato.
+  if (copertura.n === 0) {
+    const ultimo = confrontoInfo?.ultimoPrima || null
     return (
       <div style={{
         background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 14,
-        padding: 32, textAlign: 'center', color: T.textSoft, fontSize: 13,
-        marginBottom: 20,
+        padding: 32, textAlign: 'center', color: T.textSoft, fontSize: font.size.base,
+        marginBottom: 20, lineHeight: 1.5,
       }}>
-        Nessun dato di produzione a inventario nel periodo selezionato.
+        <div style={{ fontWeight: 700, color: T.text, marginBottom: 6 }}>
+          {dateFrom && dateTo
+            ? `Nessun giorno registrato dal ${dataLunga(dateFrom)} al ${dataLunga(dateTo)}.`
+            : 'Nessun giorno registrato nel periodo scelto.'}
+        </div>
+        {ultimo && (
+          <div>L&apos;ultimo giorno registrato è il {dataLunga(ultimo)}.</div>
+        )}
+        {ultimo && onPeriodo && (
+          <div style={{ marginTop: 12 }}>
+            <button type="button" onClick={() => {
+              const [y, m, d] = ultimo.split('-').map(Number)
+              onPeriodo(formatLocalDate(new Date(y, m - 3, d)), ultimo)
+            }}
+              style={{
+                padding: '10px 18px', minHeight: 44, background: T.bgCard,
+                color: T.brand, border: `1px solid ${T.brand}`, borderRadius: 10,
+                fontSize: font.size.base, fontWeight: 700, cursor: 'pointer',
+              }}>
+              Guarda i due mesi fino al {dataBreve(ultimo)}
+            </button>
+          </div>
+        )}
         {onBack && (
           <div style={{ marginTop: 12 }}>
             <button onClick={onBack}
@@ -307,6 +362,31 @@ export default function AnalisiInventarioSection({
             <Icon name="download" size={13} /> Esporta Excel
           </button>
         </div>
+      </div>
+
+      <div data-copertura style={{
+        fontSize: font.size.sm, color: T.textMid, lineHeight: 1.5, marginBottom: 12,
+        display: 'flex', alignItems: 'flex-start', gap: 8,
+      }}>
+        <span style={{ display: 'inline-flex', marginTop: 2, color: T.textSoft }}><Icon name="calendar" size={14} /></span>
+        <span>
+          <b style={{ color: T.text }}>
+            {copertura.n === 1 ? 'Un giorno registrato' : `${copertura.n.toLocaleString('it-IT')} giorni registrati`}
+          </b>
+          {copertura.n > 1 ? `, dal ${dataBreve(copertura.primo)} al ${dataBreve(copertura.ultimo)}` : `, il ${dataBreve(copertura.primo)}`}
+          {registrazioneFerma && <> · dopo il {dataBreve(copertura.ultimo)} non c&apos;è niente di registrato</>}
+          {daPartenza && <> · ti mostro i due mesi fino all&apos;ultimo giorno registrato</>}
+          {confrontoInfo?.ok && confrontoInfo.from && (
+            <> · confronto con {dataBreve(confrontoInfo.from)}–{dataBreve(confrontoInfo.to)}
+              {confrontoInfo.giorniPrev === copertura.sedeGiorni
+                ? ', con le stesse giornate registrate'
+                : `, ${Number(confrontoInfo.giorniPrev || 0).toLocaleString('it-IT')} giornate registrate contro ${copertura.sedeGiorni.toLocaleString('it-IT')}`}
+            </>
+          )}
+          {confrontoInfo && !confrontoInfo.ok && confrontoInfo.motivo && (
+            <> · nessun confronto: {confrontoInfo.motivo}</>
+          )}
+        </span>
       </div>
 
       {/* 4 KPI con confronto periodo precedente */}
