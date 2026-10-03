@@ -86,6 +86,7 @@ import {
 } from './lib/foodcost'
 import { labelPlurale } from './lib/tipoRicetta'
 import useBolle from './hooks/useBolle'
+import { tagliaStorico } from './lib/bolle'
 import { SK_RIC, SK_PROD, SK_ACT, SK_AI, SK_MAG, SK_GIOR, SK_CHIUS, SK_EXCL, SK_RESE, SK_LOG_PRZ } from './lib/storageKeys'
 import { caricaChiusure, salvaChiusure } from './lib/chiusure'
 import { loadXLSX } from './lib/xlsx'
@@ -1738,7 +1739,7 @@ export default function Dashboard({
   // Registrare e annullare una bolla: le due scritture stanno in
   // `hooks/useBolle`, perché sono la stessa cosa fatta al contrario — quattro
   // pezzi di dati che entrano tutti insieme o non entrano.
-  const { registra: handleRegistraBolla, annulla: handleAnnullaBolla } = useBolle({
+  const { registra: handleRegistraBolla, annulla: handleAnnullaBolla, scriviPrezzi: handleScriviPrezziFatture } = useBolle({
     magazzino, logRif, ricettario, logPrezzi,
     utente: auth?.user?.email || null,
     chiavi: { SK_RIC, SK_LOG_PRZ, SK_MAG, SK_LOGRIF },
@@ -1881,7 +1882,7 @@ export default function Dashboard({
       utente:        auth?.user?.email || null,
       pianificato:   isFuture || undefined,
     };
-    const nextLog = [entry, ...(logPrezzi||[])].slice(0, 500); // tieni gli ultimi 500
+    const nextLog = tagliaStorico([entry, ...(logPrezzi||[])]); // tetto per data: bolle.js
     try { await ssave(SK_LOG_PRZ, nextLog); }
     catch (e) { notify(`Errore log prezzi: ${e.message || 'rete'}`, false); return; }
     setLogPrezzi(nextLog);
@@ -2030,7 +2031,7 @@ export default function Dashboard({
         deltaPct: null,
         utente: auth?.user?.email || null,
       };
-      const nextLog = [entry, ...(logPrezzi || [])].slice(0, 500);
+      const nextLog = tagliaStorico([entry, ...(logPrezzi || [])]);
       try { await ssave(SK_LOG_PRZ, nextLog); setLogPrezzi(nextLog); }
       catch { /* la materia prima c'è comunque: lo storico non vale il rollback */ }
     }
@@ -3682,7 +3683,7 @@ export default function Dashboard({
             18/09/2026, su richiesta del titolare. `!isDip` è la terza rete
             dopo il filtro del menu e il dirottamento di riga ~1150: i prezzi
             d'acquisto non si mostrano a chi sta in laboratorio. */}
-        {vista==="materie-prime"&&!isDip&&<MateriePrimeView ricettario={ricettario} logPrezzi={logPrezzi} onUpdatePrezzo={handleUpdatePrezzoIng} onCreaMateriaPrima={handleCreaMateriaPrima} onRinominaMateriaPrima={handleRinominaMateriaPrima} onEliminaMateriaPrima={handleEliminaMateriaPrima} onImportPrezzi={handleImportPrezziMateriePrime} onAssegnaFornitore={handleAssegnaFornitore} onApriFornitore={apriFornitore} notify={notify} onNavigate={setView}/>}
+        {vista==="materie-prime"&&!isDip&&<MateriePrimeView orgId={orgId} utente={auth?.user?.email||null} onScriviPrezziFatture={handleScriviPrezziFatture} ricettario={ricettario} logPrezzi={logPrezzi} onUpdatePrezzo={handleUpdatePrezzoIng} onCreaMateriaPrima={handleCreaMateriaPrima} onRinominaMateriaPrima={handleRinominaMateriaPrima} onEliminaMateriaPrima={handleEliminaMateriaPrima} onImportPrezzi={handleImportPrezziMateriePrime} onAssegnaFornitore={handleAssegnaFornitore} onApriFornitore={apriFornitore} notify={notify} onNavigate={setView}/>}
         {vista==="fornitori-materie-prime"&&!isDip&&<FornitoriMateriePrimeView ricettario={ricettario} onSalvaRicettario={async (nuovo)=>{ await ssave(SK_RIC, nuovo); setRic(nuovo) }} fornitoreDaAprire={fornitoreDaAprire} onFornitoreAperto={()=>setFornitoreDaAprire(null)} notify={notify} onNavigate={setView}/>}
 
         {/* Formati di vendita (prodotti generici senza dettaglio gusto) */}

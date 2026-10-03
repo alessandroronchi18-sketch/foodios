@@ -330,12 +330,19 @@ describe('testoAvanzamentoXml', () => {
 
 // ── 5. Le scritture sul database ────────────────────────────────────────
 
-function fintoDb({ fatture = [], fornitori = [], falliscono = [] } = {}) {
+function fintoDb({ fatture = [], fornitori = [], falliscono = [], userData = [] } = {}) {
   const log = { update: [], insert: [] }
   const tabella = (nome) => {
     const q = { _nome: nome, _filtri: {}, _range: null }
     q.select = () => q
     q.order = () => q
+    // Dal 03/10/2026 il caricamento finisce coi prezzi delle materie prime
+    // (`prezziDaFattureArchivio`), che legge anche `user_data` con questi filtri.
+    q.not = () => q
+    q.gte = () => q
+    q.lte = () => q
+    q.is = () => q
+    q.in = () => q
     q.eq = (k, v) => { q._filtri[k] = v; return q }
     q.range = (a, b) => { q._range = [a, b]; return q }
     q.update = (patch) => { q._patch = patch; return q }
@@ -346,7 +353,7 @@ function fintoDb({ fatture = [], fornitori = [], falliscono = [] } = {}) {
         if (falliscono.includes(q._filtri.id)) res = { error: { message: 'rete caduta' } }
         else { log.update.push({ tabella: nome, id: q._filtri.id, patch: q._patch }); res = { error: null } }
       } else {
-        const tutte = nome === 'fatture' ? fatture : fornitori
+        const tutte = nome === 'fatture' ? fatture : nome === 'user_data' ? userData : fornitori
         const [a, b] = q._range || [0, tutte.length - 1]
         res = { data: tutte.slice(a, b + 1), error: null }
       }

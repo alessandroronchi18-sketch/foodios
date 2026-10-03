@@ -88,6 +88,7 @@ import {
 import { fmtp0, leggiPrezzoKg, letturaPrezzoKg } from '../lib/formatIt'
 import { formatNome } from './_shared'
 import StoricoPrezziSection from './StoricoPrezziSection'
+import PrezziDaFattureSection from './PrezziDaFattureSection'
 import { loadXLSX } from '../lib/xlsx'
 import {
   leggiFileMateriePrime, analizzaImportMateriePrime, applicaImportMateriePrime,
@@ -586,6 +587,7 @@ export default function MateriePrimeView({
   ricettario, logPrezzi, onUpdatePrezzo, onCreaMateriaPrima,
   onRinominaMateriaPrima, onEliminaMateriaPrima, onImportPrezzi,
   onAssegnaFornitore, onApriFornitore, onNavigate, notify,
+  orgId, utente, onScriviPrezziFatture,
 }) {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
@@ -1362,6 +1364,25 @@ export default function MateriePrimeView({
         </div>
       )}
 
+      {/* ── Dalle fatture: le righe delle fatture elettroniche, abbinate una
+          volta alle materie prime (ottobre 2026). Una sezione sua come lo
+          storico, perché sono centinaia di prodotti da passare uno per uno. */}
+      {vista === 'fatture' && (
+        <PrezziDaFattureSection
+          orgId={orgId}
+          ricettario={ricettario}
+          logPrezzi={logPrezzi}
+          materie={righe.map(r => ({ key: r.key, nome: r.nome }))}
+          utente={utente}
+          onScriviPrezzi={onScriviPrezziFatture}
+          onTornaAlListino={() => setVista('listino')}
+          onNavigate={onNavigate}
+          notify={notify}
+          isMobile={isMobile}
+          dito={dito}
+        />
+      )}
+
       {vista === 'storico' && (
         <StoricoPrezziSection
           logPrezzi={logPrezzi}
@@ -1386,6 +1407,14 @@ export default function MateriePrimeView({
           <Icon name="fileText" size={13} />{`Storico modifiche · ${(logPrezzi?.length || 0).toLocaleString('it-IT', { useGrouping: 'always' })}`}
           <Icon name="chevR" size={13} />
         </button>
+        {onScriviPrezziFatture && orgId && (
+          <button onClick={() => setVista('fatture')}
+            aria-label="Apri i prezzi dalle righe delle fatture"
+            style={{ padding: '0 14px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.borderStr}`, background: 'transparent', fontSize: FS.sm, fontWeight: 700, color: C.textMid, cursor: 'pointer', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'inherit' }}>
+            <Icon name="receipt" size={13} />Dalle fatture
+            <Icon name="chevR" size={13} />
+          </button>
+        )}
       </div>
 
       <div style={{ fontSize: FS.sm, color: C.textSoft, marginBottom: 14, lineHeight: 1.5 }}>

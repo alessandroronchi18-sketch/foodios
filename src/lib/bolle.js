@@ -129,11 +129,15 @@ export function pesoDiUnLitro(nome) {
 export function normalizzaUnita(u) {
   const s = String(u || '').toLowerCase().trim().replace(/[.\s]/g, '')
   if (!s) return null
-  if (['kg', 'chilo', 'chili', 'kilo', 'kgr'].includes(s)) return 'kg'
-  if (['g', 'gr', 'grammi', 'grammo'].includes(s)) return 'g'
+  // «KGM», «GRM», «LTR», «MLT», «PCE»: i codici internazionali che diversi
+  // gestionali scrivono nel campo UnitaMisura della fattura elettronica, al
+  // posto delle sigle italiane. Senza, ogni riga di quei fornitori diceva
+  // «unità di misura sconosciuta» e il prezzo al chilo non usciva mai.
+  if (['kg', 'chilo', 'chili', 'kilo', 'kgr', 'kgm'].includes(s)) return 'kg'
+  if (['g', 'gr', 'grammi', 'grammo', 'grm'].includes(s)) return 'g'
   if (['hg', 'etto', 'etti'].includes(s)) return 'hg'
-  if (['l', 'lt', 'litro', 'litri'].includes(s)) return 'l'
-  if (['ml', 'millilitri'].includes(s)) return 'ml'
+  if (['l', 'lt', 'litro', 'litri', 'ltr'].includes(s)) return 'l'
+  if (['ml', 'millilitri', 'mlt'].includes(s)) return 'ml'
   if (['cl', 'centilitri'].includes(s)) return 'cl'
   // «PA» (pacco) e «SC» (scatola) sono le unità vere di ConoArtic: stanno su
   // ogni sua bolla, e senza di loro ogni riga di coppette, bicchieri e
@@ -143,7 +147,8 @@ export function normalizzaUnita(u) {
   if (['pz', 'pezzo', 'pezzi', 'n', 'nr', 'num', 'cf', 'conf', 'confezione',
        'ct', 'cartone', 'cartoni', 'sacco', 'sacchi', 'secchio', 'secchi',
        'bottiglia', 'bottiglie', 'latta', 'pa', 'pacco', 'pacchi',
-       'sc', 'scatola', 'scatole', 'collo', 'colli'].includes(s)) return 'pz'
+       'sc', 'scatola', 'scatole', 'collo', 'colli',
+       'pce', 'c62', 'nar', 'bt', 'crt'].includes(s)) return 'pz'
   return null
 }
 
@@ -383,7 +388,7 @@ export function prezzoAlKgDaRiga(riga = {}, { senzaPrezzi = false } = {}) {
   }
 
   const lettoImponibile = riga.imponibile != null && riga.imponibile !== ''
-    ? letturaPrezzoKg(riga.imponibile) : null
+    ? leggiImporto(riga.imponibile) : null
   if (lettoImponibile?.valore != null) {
     imponibile = lettoImponibile.valore
     ambiguo = ambiguo || lettoImponibile.ambiguo
@@ -391,7 +396,7 @@ export function prezzoAlKgDaRiga(riga = {}, { senzaPrezzi = false } = {}) {
   }
 
   if (imponibile == null && riga.totaleConIva != null && riga.totaleConIva !== '') {
-    const lordo = letturaPrezzoKg(riga.totaleConIva)
+    const lordo = leggiImporto(riga.totaleConIva)
     const aliq = Number(riga.aliquotaIva)
     if (lordo?.valore == null) {
       return { prezzoKg: null, grammi, spiegazione, problema: 'il totale della riga non si legge', ambiguo, avvisi }
@@ -411,7 +416,7 @@ export function prezzoAlKgDaRiga(riga = {}, { senzaPrezzi = false } = {}) {
   // Il prezzo unitario di listino: serve come ripiego quando il totale di
   // riga non c'è, **e come controprova** quando c'è.
   const unit = riga.prezzoUnitario != null && riga.prezzoUnitario !== ''
-    ? letturaPrezzoKg(riga.prezzoUnitario) : null
+    ? leggiImporto(riga.prezzoUnitario) : null
   const sconto = Number(riga.scontoPct)
   const conSconto = Number.isFinite(sconto) && sconto > 0 && sconto < 100
 
@@ -481,6 +486,24 @@ export function prezzoAlKgDaRiga(riga = {}, { senzaPrezzi = false } = {}) {
   const prezzoKg = imponibile / (grammi / 1000)
   spiegazione.push(`${fmt(imponibile)} € ÷ ${fmt(grammi / 1000)} kg = ${fmt(prezzoKg)} €/kg`)
   return { prezzoKg: arrotonda(prezzoKg, 4), grammi, spiegazione, problema: null, ambiguo, avvisi }
+}
+
+/**
+ * Un importo della riga: testo come lo stampa il fornitore, o un numero.
+ *
+ * ── Il difetto del 03/10/2026 ─────────────────────────────────────────────
+ *
+ * Il lettore italiano (`letturaPrezzoKg`) lavora sul testo, e un numero lo
+ * trasformava in testo prima di leggerlo. `3.125` diventava «3.125», cioè
+ * tremilacentoventicinque all'italiana: **mille volte** il prezzo. Dalla foto
+ * della bolla arriva quasi sempre testo, quindi non si vedeva; dalle fatture
+ * elettroniche arriva sempre un numero, e il prezzo unitario ha spesso tre
+ * decimali (0,875 · 3,125 · 12,375 €). Un numero non ha punti delle migliaia:
+ * si prende com'è.
+ */
+function leggiImporto(v) {
+  if (typeof v === 'number') return { valore: Number.isFinite(v) ? v : null, ambiguo: false }
+  return letturaPrezzoKg(v)
 }
 
 /** Un importo scritto col meno davanti: nota di credito, reso, storno. */
@@ -707,6 +730,53 @@ export function ultimiCambi(logPrezzi = []) {
 export { leggiPrezzoKg }
 
 /**
+ * Quante righe di storico dei prezzi si tengono, al massimo.
+ *
+ * ── Il tetto di 500, e perché non bastava più (03/10/2026) ────────────────
+ *
+ * Erano 500, scritte in tre posti (qui e due volte nel Dashboard), e il
+ * taglio teneva **le ultime scritte**, non le più recenti per data. Con i
+ * prezzi ricostruiti dalle fatture elettroniche entrano in un colpo tre anni
+ * di cambi: oltre il tetto, il taglio buttava proprio le righe scritte prima
+ * — cioè i prezzi messi a mano, che sono la base dello storico — e ogni
+ * modifica successiva rifaceva il taglio. Il P&L di un mese passato si
+ * sarebbe ricostruito con buchi, in silenzio.
+ *
+ * Adesso il tetto è 5.000 e il taglio va per data di decorrenza: escono le
+ * righe più vecchie, mai l'ultima di ogni materia prima (è quella che dice
+ * da quando vale il prezzo di oggi, e senza una fattura vecchia potrebbe
+ * scavalcarlo). Cinquemila righe sono anni di cambi: lo storico dalle
+ * fatture scrive solo i cambi veri, non una riga per consegna.
+ */
+export const TETTO_STORICO = 5000
+
+/**
+ * Lo storico tagliato al tetto, togliendo le righe più vecchie per data.
+ * L'ordine di quelle che restano non cambia.
+ */
+export function tagliaStorico(logPrezzi, tieni = TETTO_STORICO) {
+  const righe = Array.isArray(logPrezzi) ? logPrezzi : []
+  if (!(tieni >= 0) || righe.length <= tieni) return righe
+  // L'ultima riga di ogni materia prima non si tocca.
+  const ultima = new Map()
+  righe.forEach((r, i) => {
+    const k = normIng(r?.ingrediente || '')
+    const g = soloGiorno(r?.decorre_da || r?.data) || ''
+    const prima = ultima.get(k)
+    if (!prima || g > prima.g) ultima.set(k, { i, g })
+  })
+  const protette = new Set([...ultima.values()].map(x => x.i))
+  // Dalla più vecchia; a parità di giorno esce prima quella più in fondo,
+  // che nello storico (dal più nuovo al più vecchio) è la scritta prima.
+  const candidate = righe
+    .map((r, i) => ({ i, g: soloGiorno(r?.decorre_da || r?.data) || '' }))
+    .filter(x => !protette.has(x.i))
+    .sort((a, b) => (a.g < b.g ? -1 : a.g > b.g ? 1 : b.i - a.i))
+  const via = new Set(candidate.slice(0, righe.length - tieni).map(x => x.i))
+  return righe.filter((_, i) => !via.has(i))
+}
+
+/**
  * Applica una serie di cambi di prezzo al listino e allo storico.
  *
  * Restituisce i due oggetti nuovi senza scrivere niente: sta a chi chiama
@@ -729,7 +799,7 @@ export { leggiPrezzoKg }
  */
 export function applicaCambiAlListino(cambi, {
   ingredientiCosti = {}, logPrezzi = [], origine = { tipo: 'manuale' },
-  utente = null, giorno = null, tieni = 500,
+  utente = null, giorno = null, tieni = TETTO_STORICO,
 } = {}) {
   const costi = { ...ingredientiCosti }
   const righe = []
@@ -800,7 +870,7 @@ export function applicaCambiAlListino(cambi, {
 
   return {
     ingredientiCosti: costi,
-    logPrezzi: [...righe, ...(logPrezzi || [])].slice(0, tieni),
+    logPrezzi: tagliaStorico([...righe, ...(logPrezzi || [])], tieni),
     applicati,
     storicizzati: righe.length,
   }

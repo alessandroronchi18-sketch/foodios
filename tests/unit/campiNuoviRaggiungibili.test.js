@@ -116,6 +116,8 @@ describe('Ogni conto nuovo viene chiamato da qualche parte', () => {
     // 03/10/2026: la fattura va alla sede della società a cui è intestata,
     // e la proposta per spostare quelle già in archivio.
     'societaSedi', 'societaSediArchivio',
+    // 03/10/2026: i prezzi delle materie prime dalle righe delle fatture.
+    'prezziDaFatture', 'prezziDaFattureArchivio',
   ]
 
   /** Tutto il codice del prodotto. */

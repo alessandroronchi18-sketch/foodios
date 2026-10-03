@@ -65,6 +65,11 @@ export function origineInParole(l) {
   if (!o) return { fornitore: null, testo: 'a mano' }
   if (typeof o === 'string') return { fornitore: null, testo: o }
   const forn = o.fornitore || null
+  // Dal 03/10/2026 i prezzi arrivano anche dalle righe delle fatture
+  // elettroniche: prima ogni origine con un numero si chiamava «bolla».
+  if (o.tipo === 'fattura') {
+    return { fornitore: forn, testo: `fattura${o.numero ? ` ${o.numero}` : ''}${forn ? ` · ${forn}` : ''}` }
+  }
   if (o.tipo === 'bolla' || o.numero) {
     return { fornitore: forn, testo: `bolla${o.numero ? ` ${o.numero}` : ''}${forn ? ` · ${forn}` : ''}` }
   }
@@ -88,7 +93,11 @@ export function filtraStorico(righe, { testo = '', fornitore = 'tutti', variazio
     const nome = l.ingrediente || ''
     if (q && !chiave(nome).includes(q)) continue
     if (limite != null) {
-      const t = new Date(l.data).getTime()
+      // Il periodo è quello in cui il prezzo ha cominciato a valere, non il
+      // giorno in cui la riga è stata scritta: lo storico ricostruito dalle
+      // fatture del 2024 si scrive oggi, e «ultimi 30 giorni» non deve
+      // mostrare tre anni di cambi.
+      const t = new Date(l.decorre_da || l.data).getTime()
       // Una riga con la data storta non si butta via in silenzio: resta
       // fuori solo se si sta chiedendo un periodo, e si vede nel conto.
       if (!Number.isFinite(t) || t < limite) continue

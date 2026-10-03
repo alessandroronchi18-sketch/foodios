@@ -71,6 +71,9 @@ export const SHARED_KEYS = [
   // Di quale società è una fattura e a quali sedi va: le società sono
   // dell'azienda, non di un negozio.
   'pasticceria-societa-sedi-v1',
+  // Gli abbinamenti fra le righe delle fatture e le materie prime: valgono
+  // per tutta l'azienda, come il listino che aggiornano.
+  'pasticceria-abbinamenti-fatture-v1',
 ]
 
 export function isSharedKey(key) {

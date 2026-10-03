@@ -13,6 +13,7 @@ import {
   inGrammi, normalizzaUnita, pesoDiUnLitro, prezzoAlKgDaRiga,
   scostamentoSospetto, decidiPrezzo, identitaBolla, soloGiorno,
   preparaBolla, ultimiCambi, applicaCambiAlListino, preparaScrittureBolla,
+  TETTO_STORICO,
 } from '../../src/lib/bolle'
 
 describe('Quanti grammi sono davvero', () => {
@@ -473,12 +474,14 @@ describe('Il listino e lo storico cambiano insieme', () => {
     expect(r.ingredientiCosti).toEqual(COSTI)
   })
 
+  // Il tetto era 500 fino al 03/10/2026: vedi `prezziDalleFatture.test.js`
+  // per il perché è salito, e per come si taglia adesso (per data).
   it('lo storico non cresce all\'infinito, ma le righe nuove stanno in cima', () => {
-    const vecchio = Array.from({ length: 500 }, (_, i) => ({ id: `v${i}`, ingrediente: 'x' }))
+    const vecchio = Array.from({ length: TETTO_STORICO }, (_, i) => ({ id: `v${i}`, ingrediente: 'x' }))
     const r = applicaCambiAlListino([
       { chiave: 'burro', nome: 'burro', prezzoKg: 9.5, prezzoAttuale: 9, azione: 'applica' },
     ], { ingredientiCosti: {}, logPrezzi: vecchio, origine: ORIGINE })
-    expect(r.logPrezzi).toHaveLength(500)
+    expect(r.logPrezzi).toHaveLength(TETTO_STORICO)
     expect(r.logPrezzi[0].ingrediente).toBe('burro')
   })
 })
