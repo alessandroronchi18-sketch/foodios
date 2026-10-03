@@ -1338,6 +1338,47 @@ export function matricePerGusto(matrici) {
   return out
 }
 
+// ── Il dettaglio per gusto della settimana, per l'esportazione ────────────
+//
+// 03/10/2026, audit della Quadratura: il CSV e il PDF dei gusti leggevano
+// campi che non esistono (`r.gusto`, `prodottoG`, `finaleG`, `vendutoG`) su
+// righe che sono quelle grezze del database (`gusto_nome`, `produzione_g`,
+// `rimanenza_g`). Uscivano righe senza nome e piene di zeri, una per ogni
+// riga del database, compresi i sette giorni prima del lunedì.
+//
+// Una riga per gusto (tutte le sedi sommate, il venduto calcolato sede per
+// sede): in vetrina all'inizio (la rimanenza di partenza), prodotto, scarto,
+// in vetrina alla fine (l'ultima rimanenza scritta della settimana), venduto.
+// Un valore che non si sa è null, non zero.
+export function dettaglioGustiSettimana(righePerSede, lunediIso) {
+  const acc = {}
+  const somma = (a, b) => (b == null ? a : (a == null ? 0 : a) + b)
+  for (const righe of Object.values(righePerSede || {})) {
+    if (!Array.isArray(righe) || righe.length === 0) continue
+    const matrice = calcolaVendutoSettimana(righe, lunediIso)
+    const partenza = rimanenzaDiPartenza(righe, lunediIso)
+    for (const [gusto, byData] of Object.entries(matrice)) {
+      const t = acc[gusto] || (acc[gusto] = {
+        gusto, inizialeG: null, prodottoG: 0, scartoG: 0, finaleG: null, vendutoG: null, celleNonCalcolabili: 0,
+      })
+      t.inizialeG = somma(t.inizialeG, partenza[gusto]?.grammi ?? null)
+      let finale = null
+      for (const d of Object.keys(byData).sort()) {
+        const c = byData[d]
+        t.prodottoG += Number(c.prod) || 0
+        t.scartoG += Number(c.scarto) || 0
+        if (c.riman != null && c.registrata) finale = Number(c.riman) || 0
+        if (c.venduto != null) t.vendutoG = somma(t.vendutoG, Number(c.venduto) || 0)
+        else if (c.registrata) t.celleNonCalcolabili++
+      }
+      t.finaleG = somma(t.finaleG, finale)
+    }
+  }
+  return Object.values(acc)
+    .filter(t => t.prodottoG || t.vendutoG || t.inizialeG || t.finaleG)
+    .sort((a, b) => (b.vendutoG || 0) - (a.vendutoG || 0))
+}
+
 // Classifica gusti per kg venduti nella settimana: top N + sofferenza.
 // "Sofferenza" = gusti con residuo medio alto rispetto alla produzione.
 // Soglia base: ratio residuo/produzione >= 0.5 (cioe' sopra il 50% non

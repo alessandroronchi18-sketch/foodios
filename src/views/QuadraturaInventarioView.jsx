@@ -26,7 +26,7 @@ import {
   caricaSettimana, calcolaVendutoSettimana, lunediDellaSettimana,
   euroKgMedioFormati, kpiQuadraturaSettimana, classificaGusti, variazione,
   accettaScostamento, CAUSA_RIMANENZA_A_ZERO, ultimoGiornoRegistrato,
-  matriceDiPiuSedi, matricePerGusto,
+  matriceDiPiuSedi, matricePerGusto, dettaglioGustiSettimana,
 } from '../lib/inventarioProduzione'
 
 // ── Helpers data/numeri (IT) ──────────────────────────────────────────────
@@ -70,59 +70,118 @@ function csvEscape(s) {
   return v
 }
 
-function esportaCsvSettimana({ lunediIso, kpi, righe, sedeAttiva, isAllSedi, perSede }) {
+// ── Esportazione della settimana (CSV e PDF) ──────────────────────────────
+//
+// 03/10/2026, audit: il dettaglio gusti leggeva campi che non esistono sulle
+// righe grezze del database, e usciva una riga senza nome e piena di zeri per
+// ogni riga, compresi i sette giorni prima del lunedì. Gli importi erano
+// numeri grezzi («12345,6789») e un valore che manca diventava «0»: una
+// cassa non registrata arrivava al commercialista come incasso zero.
+//
+// Adesso il dettaglio è una riga per gusto (`dettaglioGustiSettimana`), i
+// chili hanno un decimale, gli euro due, e quello che non si sa resta vuoto
+// o lo dice a parole.
+const csvKg = (g) => (g == null ? '' : (Number(g) / 1000).toFixed(1).replace('.', ','))
+const csvEuro = (v) => (v == null || !Number.isFinite(Number(v)) ? '' : Number(v).toFixed(2).replace('.', ','))
+
+export function testoCsvSettimana({ lunediIso, kpi, dettaglio, sedeAttiva, isAllSedi, perSede }) {
   const lines = []
   const sep = ';'
+  const riga = (...celle) => lines.push(celle.map(csvEscape).join(sep))
   const sedeName = isAllSedi ? 'TUTTE LE SEDI' : (sedeAttiva?.nome || '')
-  lines.push(['# Quadratura inventario vs cassa', sedeName, fmtRange(lunediIso)].join(sep))
+  riga('# Quadratura inventario e cassa', sedeName, fmtRange(lunediIso))
   lines.push('')
-  lines.push(['# Riepilogo settimana'].join(sep))
-  lines.push(['Voce', 'Valore'].join(sep))
-  lines.push(['Venduto inventario (kg)', nKg((kpi.totVendutoG ?? 0))].join(sep))
-  lines.push(['Vendite B2B (kg)', kpi.b2bKg ? nKg(kpi.b2bKg * 1000) : '0,0'].join(sep))
-  lines.push(['Retail effettivo (kg)', nKg(((kpi.retailKg ?? kpi.totVendutoKg) || 0) * 1000)].join(sep))
-  lines.push(['Cassa effettiva (€)', String(kpi.cassaEffettiva ?? 0).replace('.', ',')].join(sep))
-  lines.push(['Ricavo atteso (€)', String(kpi.ricavoAtteso ?? 0).replace('.', ',')].join(sep))
-  lines.push(['Drift (€)', String(kpi.driftEur ?? 0).replace('.', ',')].join(sep))
-  lines.push(['Drift (%)', pct(kpi.driftPct)].join(sep))
+  riga('# Riepilogo settimana')
+  riga('Voce', 'Valore')
+  riga('Venduto da inventario (kg)', csvKg(kpi.totVendutoG))
+  riga('Vendite all\'ingrosso (kg)', csvKg((kpi.b2bKg || 0) * 1000))
+  riga('Venduto al banco (kg)', csvKg(((kpi.retailKg ?? kpi.totVendutoKg) || 0) * 1000))
+  riga('Incasso stimato dall\'inventario (€)', csvEuro(kpi.ricavoAtteso))
+  riga('Cassa (€)', kpi.cassaRegistrata ? csvEuro(kpi.cassaEffettiva) : 'non registrata')
+  riga('Differenza con la cassa (€)', kpi.driftEur != null ? csvEuro(kpi.driftEur) : `non calcolabile: ${kpi.motivoConfronto || 'manca la cassa'}`)
+  riga('Differenza con la cassa (%)', kpi.driftPct != null ? pct(kpi.driftPct) : '')
+  if (kpi.driftEur != null && kpi.giorniConfrontati < kpi.giorniInventario) {
+    riga('Giorni confrontati', `${kpi.giorniConfrontati} su ${kpi.giorniInventario}`)
+  }
   lines.push('')
-  if (Array.isArray(righe) && righe.length > 0) {
-    lines.push(['# Dettaglio gusti'].join(sep))
-    lines.push(['Gusto', 'Iniziale (g)', 'Prodotto (g)', 'Finale (g)', 'Scarto (g)', 'Venduto (g)'].map(csvEscape).join(sep))
-    for (const r of righe) {
-      lines.push([
-        csvEscape(r.gusto || r.nome || ''),
-        String(r.inizialeG ?? r.iniziale_g ?? 0),
-        String(r.prodottoG ?? r.prodotto_g ?? 0),
-        String(r.finaleG ?? r.finale_g ?? 0),
-        String(r.scartoG ?? r.scarto_g ?? 0),
-        String(r.vendutoG ?? r.venduto_g ?? 0),
-      ].join(sep))
+  if (Array.isArray(dettaglio) && dettaglio.length > 0) {
+    riga('# Dettaglio gusti')
+    riga('Gusto', 'In vetrina all\'inizio (kg)', 'Prodotto (kg)', 'Scarto (kg)', 'In vetrina alla fine (kg)', 'Venduto (kg)')
+    for (const r of dettaglio) {
+      riga(r.gusto, csvKg(r.inizialeG), csvKg(r.prodottoG), csvKg(r.scartoG), csvKg(r.finaleG), csvKg(r.vendutoG))
     }
     lines.push('')
   }
   if (isAllSedi && Array.isArray(perSede) && perSede.length > 0) {
-    lines.push(['# Drill-down per sede'].join(sep))
-    lines.push(['Sede', 'Venduto retail (kg)', 'Cassa (€)', 'Atteso (€)', 'Drift (€)', 'Drift (%)'].map(csvEscape).join(sep))
+    riga('# Dettaglio per sede')
+    riga('Sede', 'Venduto al banco (kg)', 'Ingrosso (kg)', 'Incasso stimato (€)', 'Cassa (€)')
     for (const p of perSede) {
-      lines.push([
-        csvEscape(p.sede?.nome || ''),
-        nKg(((p.kpi.retailKg ?? p.kpi.totVendutoKg) || 0) * 1000),
-        String(p.kpi.cassaEffettiva ?? 0).replace('.', ','),
-        String(p.kpi.ricavoAtteso ?? 0).replace('.', ','),
-        String(p.kpi.driftEur ?? 0).replace('.', ','),
-        pct(p.kpi.driftPct),
-      ].join(sep))
+      riga(
+        p.sede?.nome || '',
+        csvKg(((p.kpi.retailKg ?? p.kpi.totVendutoKg) || 0) * 1000),
+        csvKg((p.kpi.b2bKg || 0) * 1000),
+        csvEuro(p.kpi.ricavoAtteso),
+        // Le chiusure arrivano già sommate: la cassa di una sede non si sa.
+        'non separabile per sede',
+      )
     }
   }
-  const csv = '﻿' + lines.join('\n')  // BOM per Excel
+  return '\uFEFF' + lines.join('\n')  // BOM per Excel
+}
+
+function esportaCsvSettimana(args) {
+  const csv = testoCsvSettimana(args)
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `quadratura_${lunediIso}_${(sedeAttiva?.nome || 'sede').replace(/\s+/g, '_')}.csv`
+  a.download = `quadratura_${args.lunediIso}_${(args.isAllSedi ? 'tutte-le-sedi' : (args.sedeAttiva?.nome || 'sede')).replace(/\s+/g, '_')}.csv`
   document.body.appendChild(a); a.click(); document.body.removeChild(a)
   URL.revokeObjectURL(url)
+}
+
+export function reportPdfSettimana({ lunediIso, kpi, dettaglio, sedeAttiva, isAllSedi, perSede, euroKg }) {
+  return {
+    title: 'Quadratura inventario e cassa',
+    subtitle: isAllSedi ? 'Tutte le sedi' : (sedeAttiva?.nome || ''),
+    periodo: fmtRange(lunediIso),
+    kpi: [
+      { label: 'Venduto (kg)', value: nKg(kpi.totVendutoG ?? 0), sub: 'da inventario' },
+      { label: 'Incasso stimato', value: fmt0(kpi.ricavoAtteso ?? 0), sub: euroKg != null ? `stimato: ${n0(euroKg)} €/kg medio` : '' },
+      { label: 'Cassa', value: kpi.cassaRegistrata ? fmt0(kpi.cassaEffettiva) : 'non registrata' },
+      { label: 'Differenza con la cassa', value: kpi.driftEur != null ? `${fmtDriftEur(kpi.driftEur)} (${pct(kpi.driftPct)})` : 'non calcolabile' },
+    ],
+    sections: [
+      ...(Array.isArray(dettaglio) && dettaglio.length > 0 ? [{
+        title: 'Dettaglio gusti',
+        table: {
+          columns: ['Gusto', 'Inizio (kg)', 'Prodotto (kg)', 'Scarto (kg)', 'Fine (kg)', 'Venduto (kg)'],
+          alignments: ['left', 'right', 'right', 'right', 'right', 'right'],
+          rows: dettaglio.map(r => [
+            r.gusto,
+            r.inizialeG == null ? '-' : nKg(r.inizialeG),
+            nKg(r.prodottoG),
+            nKg(r.scartoG),
+            r.finaleG == null ? '-' : nKg(r.finaleG),
+            r.vendutoG == null ? '-' : nKg(r.vendutoG),
+          ]),
+        },
+      }] : []),
+      ...(isAllSedi && Array.isArray(perSede) && perSede.length > 0 ? [{
+        title: 'Dettaglio per sede',
+        table: {
+          columns: ['Sede', 'Al banco (kg)', 'Ingrosso (kg)', 'Incasso stimato'],
+          alignments: ['left', 'right', 'right', 'right'],
+          rows: perSede.map(p => [
+            p.sede?.nome || '',
+            nKg(((p.kpi.retailKg ?? p.kpi.totVendutoKg) || 0) * 1000),
+            nKg((p.kpi.b2bKg || 0) * 1000),
+            fmt0(p.kpi.ricavoAtteso ?? 0),
+          ]),
+        },
+      }] : []),
+    ],
+  }
 }
 
 // Drift signed con € DOPO la cifra (es. "+ 1.234 €")
@@ -377,6 +436,8 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
     [matricePrev, chiusurePrev, euroKg, venditeB2bPrec]
   )
   const classifica = useMemo(() => classificaGusti(matriceGusti), [matriceGusti])
+  // Una riga per gusto, per il CSV e il PDF.
+  const dettaglioGusti = useMemo(() => dettaglioGustiSettimana(righePerSede, lunediIso), [righePerSede, lunediIso])
 
   const settimanaPrec = () => setLunediIso(addDays(lunediIso, -7))
   const settimanaSucc = () => setLunediIso(addDays(lunediIso, 7))
@@ -480,9 +541,10 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
           marginLeft: isMobile ? 0 : 'auto',
         }}>
           <button
-            onClick={() => esportaCsvSettimana({ lunediIso, kpi, righe, sedeAttiva, isAllSedi, perSede })}
+            onClick={() => esportaCsvSettimana({ lunediIso, kpi, dettaglio: dettaglioGusti, sedeAttiva, isAllSedi, perSede })}
+            disabled={giorniSettimana.n === 0}
             aria-label="Esporta settimana in CSV"
-            title="Esporta la settimana in CSV per commercialista o contabilita"
+            title="Esporta la settimana in CSV per il commercialista o la contabilità"
             style={{
               ...btnNav(tapMin),
               background: C.text, color: C.white, borderColor: C.text,
@@ -498,49 +560,7 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
             fileName={`quadratura-${lunediIso}.pdf`}
             compact
             label="Esporta PDF settimana"
-            getReport={() => ({
-              title: 'Quadratura inventario vs cassa',
-              subtitle: isAllSedi ? 'Tutte le sedi' : (sedeAttiva?.nome || ''),
-              periodo: fmtRange(lunediIso),
-              kpi: [
-                { label: 'Venduto (kg)', value: nKg((kpi.totVendutoG ?? 0)), sub: 'inventario' },
-                { label: 'Cassa effettiva', value: fmt0(kpi.cassaEffettiva ?? 0) },
-                { label: 'Atteso', value: fmt0(kpi.ricavoAtteso ?? 0), sub: `${n0(euroKg)} €/kg medio` },
-                { label: 'Drift', value: kpi.driftEur != null ? `${fmtDriftEur(kpi.driftEur)} (${pct(kpi.driftPct)})` : '-' },
-              ],
-              sections: [
-                ...(Array.isArray(righe) && righe.length > 0 ? [{
-                  title: 'Dettaglio gusti',
-                  table: {
-                    columns: ['Gusto', 'Iniziale (g)', 'Prodotto (g)', 'Finale (g)', 'Scarto (g)', 'Venduto (g)'],
-                    alignments: ['left', 'right', 'right', 'right', 'right', 'right'],
-                    rows: righe.map(r => [
-                      r.gusto || r.nome || '',
-                      n0(r.inizialeG ?? r.iniziale_g ?? 0),
-                      n0(r.prodottoG ?? r.prodotto_g ?? 0),
-                      n0(r.finaleG ?? r.finale_g ?? 0),
-                      n0(r.scartoG ?? r.scarto_g ?? 0),
-                      n0(r.vendutoG ?? r.venduto_g ?? 0),
-                    ]),
-                  },
-                }] : []),
-                ...(isAllSedi && Array.isArray(perSede) && perSede.length > 0 ? [{
-                  title: 'Drill-down per sede',
-                  table: {
-                    columns: ['Sede', 'Venduto retail (kg)', 'Cassa (€)', 'Atteso (€)', 'Drift (€)', 'Drift (%)'],
-                    alignments: ['left', 'right', 'right', 'right', 'right', 'right'],
-                    rows: perSede.map(p => [
-                      p.sede?.nome || '',
-                      nKg(((p.kpi.retailKg ?? p.kpi.totVendutoKg) || 0) * 1000),
-                      n0(p.kpi.cassaEffettiva ?? 0),
-                      n0(p.kpi.ricavoAtteso ?? 0),
-                      n0(p.kpi.driftEur ?? 0),
-                      pct(p.kpi.driftPct),
-                    ]),
-                  },
-                }] : []),
-              ],
-            })}
+            getReport={() => reportPdfSettimana({ lunediIso, kpi, dettaglio: dettaglioGusti, sedeAttiva, isAllSedi, perSede, euroKg })}
           />
         </div>
       </div>
