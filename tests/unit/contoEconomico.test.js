@@ -461,6 +461,14 @@ describe('causeVariazione e fraseCausa: perché i costi sono cambiati', () => {
     expect(c.voci[0]).toMatchObject({ differenza: 100, ivaMista: true })
   })
 
+  it("contro un mese in cui la voce non c'era, l'IVA non è «mista»", () => {
+    // Visto sul conto vero di luglio 2026 contro luglio 2025: «Servizi» col
+    // commercialista c'era solo quest'anno, e l'avviso compariva lo stesso.
+    const a = costiPerMese([fattura({ fornitore: 'DESA SRL', data_fattura: '2026-07-10', totale: 1100 })], { mese: '2026-07', categoriePerFornitore: cat })
+    const b = costiPerMese([], { mese: '2025-07', categoriePerFornitore: cat })
+    expect(causeVariazione(a, b).voci[0].ivaMista).toBe(false)
+  })
+
   it('i da classificare sono una voce, gli investimenti stanno a parte', () => {
     const a = costiPerMese([
       fattura({ fornitore: 'SUQQO S.R.L.', data_fattura: '2026-07-10', totale: 700 }),
@@ -493,6 +501,7 @@ describe('nomeBreve: il fornitore come lo si dice', () => {
     ['COMMERCIALISTIINTORINO S.S. STP', 'COMMERCIALISTIINTORINO'],
     ['MORE & MACINE BORGOGNO & CARBONE SNC', 'MORE & MACINE BORGOGNO & CARBONE'],
     ['Vecchio Enrico', 'Vecchio Enrico'],
+    ['S.I.A.E.', 'S.I.A.E.'],
     ['', ''],
   ])('%s → %s', (nome, atteso) => {
     expect(nomeBreve(nome)).toBe(atteso)
@@ -530,6 +539,19 @@ describe('fattureEccezionali: le candidate a investimento', () => {
       fattura({ fornitore: 'X SRL', data_fattura: '2026-03-01', totale: 4000 }),
     ])
     expect(r).toEqual([])
+  })
+
+  it("con una sola altra fattura vale lo stesso il «cinque volte»", () => {
+    // Visto provando la schermata il 03/10: DESA 16.365 € contro 7.305 €
+    // (2,2 volte) risultava fuori misura perché «meno di due altre fatture».
+    const due = (a, b) => fattureEccezionali([
+      fattura({ fornitore: 'DESA SRL', data_fattura: '2026-06-01', totale: a }),
+      fattura({ fornitore: 'DESA SRL', data_fattura: '2026-07-01', totale: b }),
+    ])
+    expect(due(16365, 7305)).toEqual([])
+    const r = due(1000, 60000)
+    expect(r).toHaveLength(1)
+    expect(r[0]).toMatchObject({ importo: 60000, tipica: 1000, motivo: "60 volte l'altra fattura di questo fornitore" })
   })
 
   it('un fornitore con una fattura sola: segnalata solo da 10.000 € in su', () => {
