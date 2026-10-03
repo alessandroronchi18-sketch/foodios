@@ -461,6 +461,14 @@ describe('causeVariazione e fraseCausa: perché i costi sono cambiati', () => {
     expect(c.voci[0]).toMatchObject({ differenza: 100, ivaMista: true })
   })
 
+  it("contro un mese in cui la voce non c'era, l'IVA non è «mista»", () => {
+    // Visto sul conto vero di luglio 2026 contro luglio 2025: «Servizi» col
+    // commercialista c'era solo quest'anno, e l'avviso compariva lo stesso.
+    const a = costiPerMese([fattura({ fornitore: 'DESA SRL', data_fattura: '2026-07-10', totale: 1100 })], { mese: '2026-07', categoriePerFornitore: cat })
+    const b = costiPerMese([], { mese: '2025-07', categoriePerFornitore: cat })
+    expect(causeVariazione(a, b).voci[0].ivaMista).toBe(false)
+  })
+
   it('i da classificare sono una voce, gli investimenti stanno a parte', () => {
     const a = costiPerMese([
       fattura({ fornitore: 'SUQQO S.R.L.', data_fattura: '2026-07-10', totale: 700 }),
@@ -493,6 +501,7 @@ describe('nomeBreve: il fornitore come lo si dice', () => {
     ['COMMERCIALISTIINTORINO S.S. STP', 'COMMERCIALISTIINTORINO'],
     ['MORE & MACINE BORGOGNO & CARBONE SNC', 'MORE & MACINE BORGOGNO & CARBONE'],
     ['Vecchio Enrico', 'Vecchio Enrico'],
+    ['S.I.A.E.', 'S.I.A.E.'],
     ['', ''],
   ])('%s → %s', (nome, atteso) => {
     expect(nomeBreve(nome)).toBe(atteso)

@@ -218,7 +218,8 @@ export function nomeBreve(nome) {
   if (!s) return ''
   const m = FORMA_SOCIETARIA.exec(' ' + s)
   const corto = m ? (' ' + s).slice(0, m.index).trim() : s
-  const pulito = corto.replace(/[\s,.;:-]+$/, '').trim()
+  // Il punto finale resta: «S.I.A.E.» è una sigla, non una frase.
+  const pulito = corto.replace(/[\s,;:-]+$/, '').trim()
   return pulito.length >= 2 ? pulito : s
 }
 
@@ -692,7 +693,9 @@ export function causeVariazione(attuale, confronto, { maxFornitori = 3 } = {}) {
       attuale: arrot(at),
       confronto: arrot(co),
       differenza: arrot(at - co),
-      ivaMista: Math.abs(quotaLorda(a) - quotaLorda(b)) > 0.2,
+      // Solo se la voce c'è in tutti e due i mesi: contro un mese vuoto non
+      // c'è IVA da mescolare (trovato sul conto vero di luglio, 03/10).
+      ivaMista: Math.abs(at) > 0 && Math.abs(co) > 0 && Math.abs(quotaLorda(a) - quotaLorda(b)) > 0.2,
       fornitori,
     }
   })
