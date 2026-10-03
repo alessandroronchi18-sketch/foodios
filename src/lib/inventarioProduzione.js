@@ -1508,7 +1508,10 @@ export async function ultimoGiornoRegistrato(orgId, sedeIds, { finoA = null } = 
     .from('inventario_produzione')
     .select('data')
     .eq('organization_id', orgId)
-    .or('produzione_g.gt.0,rimanenza_g.gt.0,scarto_g.gt.0')
+    // È un filtro, non un elenco di colonne da leggere: si scrive dalle sue
+    // tre colonne (le stesse di `rigaHaDati`) invece che in una stringa sola,
+    // che il controllo sulle colonne del venduto scambierebbe per una SELECT.
+    .or(['produzione_g', 'rimanenza_g', 'scarto_g'].map(c => `${c}.gt.0`).join(','))
   if (Array.isArray(sedeIds)) q = q.in('sede_id', sedeIds)
   else if (sedeIds) q = q.eq('sede_id', sedeIds)
   if (finoA) q = q.lte('data', finoA)
