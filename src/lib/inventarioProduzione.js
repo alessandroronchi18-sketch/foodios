@@ -15,6 +15,7 @@ import { formatLocalDate, todayLocal } from './dateLocal'
 import { normGusto } from './normGusto'
 import { prezzoMedioAlKg } from './prezzoMedioAlKg'
 import { conGiorno } from './produzioneAnalisi'
+import { ricettaCollegata } from './nomiGusti'
 
 // Normalizzazione del nome gusto: UPPER+trim come in stock_prodotti_finiti,
 // cosi e' indipendente da come l'utente l'ha digitato in ricettario.
@@ -977,13 +978,26 @@ export function scaloMagazzinoPerGusto(magazzino, ricetta, deltaProdG, ricettari
 }
 
 // Trova la ricetta corrispondente a un gusto (per nome normalizzato).
-export function ricettaDelGusto(ricettario, gustoNomeUpper) {
+//
+// `nomiGusti` (facoltativo) è la mappa dei nomi collegati a mano dal titolare
+// (src/lib/nomiGusti.js): MISTIC → MYSTIC. Vale solo quando il nome non trova
+// una ricetta da solo: un nome che corrisponde già a una ricetta resta suo.
+// Chi non la passa (lo scarico del magazzino, per esempio) si comporta come
+// prima.
+export function ricettaDelGusto(ricettario, gustoNomeUpper, nomiGusti = null) {
   if (!ricettario?.ricette) return null
-  const target = normGusto(gustoNomeUpper)
-  // Match esatto su chiave UPPER prima, poi su .nome (per compat legacy).
-  return ricettario.ricette[target]
-    || Object.values(ricettario.ricette).find(r => normGusto(r.nome) === target)
-    || null
+  const trova = (nome) => {
+    const target = normGusto(nome)
+    if (!target) return null
+    // Match esatto su chiave UPPER prima, poi su .nome (per compat legacy).
+    return ricettario.ricette[target]
+      || Object.values(ricettario.ricette).find(r => normGusto(r.nome) === target)
+      || null
+  }
+  const diretta = trova(gustoNomeUpper)
+  if (diretta || !nomiGusti) return diretta
+  const collegata = ricettaCollegata(nomiGusti, gustoNomeUpper)
+  return collegata ? trova(collegata) : null
 }
 
 // ── ANALISI QUADRATURA ────────────────────────────────────────────────────

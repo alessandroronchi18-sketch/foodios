@@ -74,6 +74,9 @@ export const SHARED_KEYS = [
   // Gli abbinamenti fra le righe delle fatture e le materie prime: valgono
   // per tutta l'azienda, come il listino che aggiornano.
   'pasticceria-abbinamenti-fatture-v1',
+  // I nomi dei gusti nel foglio collegati alle ricette (MISTIC → MYSTIC):
+  // valgono per tutte le sedi, come il ricettario.
+  'pasticceria-nomi-gusti-v1',
 ]
 
 export function isSharedKey(key) {

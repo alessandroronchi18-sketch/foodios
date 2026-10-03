@@ -880,6 +880,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
           confrontoInfo={confrontoInfo}
           partenza={partenza}
           onPeriodo={(f, t) => { setDateFrom(f || ''); setDateTo(t || '') }}
+          onNavigate={onNavigate}
         />
       )}
 

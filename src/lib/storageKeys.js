@@ -72,4 +72,9 @@ export const SK_ABB_FATTURE = 'pasticceria-abbinamenti-fatture-v1' // shared
 // principale e non deve tirarsi dietro il codice delle fatture.
 export const EVENTO_PREZZI_SCRITTI = 'foodos:prezzi-scritti'
 
+// Il nome di un gusto nel foglio dell'inventario e la sua ricetta, quando non
+// coincidono (MISTIC → MYSTIC): li collega il titolare dallo Storico, una
+// volta. Dell'azienda, come il ricettario. Vedi src/lib/nomiGusti.js.
+export const SK_NOMI_GUSTI = 'pasticceria-nomi-gusti-v1' // shared
+
 export const SK_MOV      = 'pasticceria-movimenti-speciali-v1' // per-sede (sprechi e omaggi)
