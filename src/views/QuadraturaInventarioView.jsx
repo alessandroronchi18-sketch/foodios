@@ -26,7 +26,7 @@ import {
   caricaSettimana, calcolaVendutoSettimana, lunediDellaSettimana,
   euroKgMedioFormati, kpiQuadraturaSettimana, classificaGusti, variazione,
   accettaScostamento, CAUSA_RIMANENZA_A_ZERO, ultimoGiornoRegistrato,
-  matriceDiPiuSedi, matricePerGusto, dettaglioGustiSettimana,
+  matriceDiPiuSedi, matricePerGusto, dettaglioGustiSettimana, GIORNI_VETRINA_SOFFERENZA,
 } from '../lib/inventarioProduzione'
 
 // ── Helpers data/numeri (IT) ──────────────────────────────────────────────
@@ -1385,7 +1385,7 @@ function PanelSofferenza({ sofferenza, zeroVenduto }) {
 
       {sofferenza.length === 0 ? (
         <div style={{ fontSize: font.size.sm, color: C.textSoft, lineHeight: 1.5 }}>
-          Nessun gusto con residuo persistente. Buon equilibrio produzione/vendita.
+          Nessun gusto resta in vetrina per {GIORNI_VETRINA_SOFFERENZA} giorni di vendita o più.
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -1406,7 +1406,7 @@ function PanelSofferenza({ sofferenza, zeroVenduto }) {
                 color: C.textSoft, ...TNUM, whiteSpace: 'nowrap',
                 fontSize: font.size.sm,
               }}>
-                residuo {nKg(x.residuoMedioG)} kg
+                in vetrina {nKg(x.residuoMedioG)} kg, vende {nKg(x.vendutoMedioG)} kg al giorno
               </span>
               <span style={{
                 color: T.amberDark, fontWeight: 700, ...TNUM,
@@ -1414,7 +1414,7 @@ function PanelSofferenza({ sofferenza, zeroVenduto }) {
                 background: T.amberLight, padding: '2px 8px', borderRadius: 999,
                 fontSize: font.size.sm,
               }}>
-                {(x.ratio * 100).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })}%
+                {x.giorniVetrina.toLocaleString('it-IT', { maximumFractionDigits: 1 })} giorni
               </span>
             </div>
           ))}
@@ -1424,7 +1424,8 @@ function PanelSofferenza({ sofferenza, zeroVenduto }) {
         fontSize: font.size.sm, color: C.textSoft, marginTop: 12, lineHeight: 1.4,
         paddingTop: 10, borderTop: `1px solid ${C.borderSoft}`,
       }}>
-        Soglia &quot;sofferenza&quot;: residuo medio &ge; 50% della produzione giornaliera.
+        In sofferenza: quello che resta in vetrina basta per {GIORNI_VETRINA_SOFFERENZA} giorni di vendita o più
+        (rimanenza media divisa per il venduto medio di un giorno).
       </div>
     </div>
   )

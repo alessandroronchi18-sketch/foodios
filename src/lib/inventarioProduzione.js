@@ -1380,17 +1380,35 @@ export function dettaglioGustiSettimana(righePerSede, lunediIso) {
 }
 
 // Classifica gusti per kg venduti nella settimana: top N + sofferenza.
-// "Sofferenza" = gusti con residuo medio alto rispetto alla produzione.
-// Soglia base: ratio residuo/produzione >= 0.5 (cioe' sopra il 50% non
-// venduto). E' una euristica MVP: il proprietario poi decide.
+//
+// ── «In sofferenza» = in vetrina ne resta per troppi giorni di vendita ────
+//
+// 03/10/2026, audit della Quadratura. Il conto era «residuo medio di UN
+// giorno diviso la produzione di TUTTA la settimana», mentre la pagina
+// scriveva «≥ 50% della produzione giornaliera». Così uscivano i gusti fatti
+// di rado, non quelli che restano invenduti: De Gasperi, 17-23/08, MANGO al
+// 149% (12,0 kg di residuo medio su 8,0 kg prodotti nella settimana), LIMONE
+// al 100%. E un gusto che restava in vetrina senza essere rifatto (prodotto
+// zero) non poteva mai comparire, perché si divideva per la produzione.
+//
+// La misura adesso è quella che usa un gelatiere: per quanti giorni di
+// vendita basta quello che resta in vetrina. Residuo medio diviso venduto
+// medio di un giorno (sui giorni in cui il venduto si sa). Da 3 giorni in su
+// il gusto «soffre». Un gusto che non vende niente sta in `zeroVenduto`; con
+// un venduto negativo (caselle da sistemare) i giorni non si possono dire.
+export const GIORNI_VETRINA_SOFFERENZA = 3
+
 export function classificaGusti(matrice, opts = {}) {
   const topN = opts.topN || 5
-  const sofferenzaRatio = opts.sofferenzaRatio || 0.5
+  const soglia = opts.giorniVetrina || GIORNI_VETRINA_SOFFERENZA
 
   const agg = Object.entries(matrice || {}).map(([gusto, byData]) => {
-    let venduto = 0, prod = 0, residuoMedio = 0, ngiorni = 0
+    let venduto = 0, prod = 0, residuoMedio = 0, ngiorni = 0, giorniVenduto = 0
     for (const cell of Object.values(byData)) {
-      venduto += Number(cell.venduto || 0)
+      if (cell.venduto != null) {
+        venduto += Number(cell.venduto) || 0
+        giorniVenduto++
+      }
       prod += Number(cell.prod || 0)
       // Il residuo medio si fa sui giorni in cui la rimanenza è stata
       // scritta davvero. Contare un giorno non rilevato come «zero rimasto»
@@ -1403,8 +1421,12 @@ export function classificaGusti(matrice, opts = {}) {
       }
     }
     residuoMedio = ngiorni > 0 ? residuoMedio / ngiorni : 0
-    const ratio = prod > 0 ? (residuoMedio / prod) : 0
-    return { gusto, vendutoG: venduto, prodG: prod, residuoMedioG: residuoMedio, ratio }
+    const vendutoMedio = giorniVenduto > 0 ? venduto / giorniVenduto : 0
+    const giorniVetrina = vendutoMedio > 0 ? residuoMedio / vendutoMedio : null
+    return {
+      gusto, vendutoG: venduto, prodG: prod, residuoMedioG: residuoMedio,
+      vendutoMedioG: vendutoMedio, giorniVetrina,
+    }
   })
 
   const top = [...agg]
@@ -1413,8 +1435,8 @@ export function classificaGusti(matrice, opts = {}) {
     .slice(0, topN)
 
   const sofferenza = agg
-    .filter(x => x.prodG > 0 && x.ratio >= sofferenzaRatio)
-    .sort((a, b) => b.ratio - a.ratio)
+    .filter(x => x.residuoMedioG > 0 && x.giorniVetrina != null && x.giorniVetrina >= soglia)
+    .sort((a, b) => b.giorniVetrina - a.giorniVetrina)
 
   // Zero-venduto: gusti senza vendite in tutta la settimana. Candidati alla
   // rimozione dal catalogo o all'analisi commerciale.
