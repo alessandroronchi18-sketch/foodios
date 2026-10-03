@@ -33,6 +33,7 @@ import {
 } from '../../src/lib/completaFatture.js'
 import { importaFattureXml, fraseEsitoXml, avvisiEsitoXml, promemoriaZipAgenzia, testoAvanzamentoXml } from '../../src/lib/importaFattureXml.js'
 import { parseFatturaXML } from '../../src/lib/parseFatturaXML.js'
+import { importoSenzaIva } from '../../src/lib/contoEconomico.js'
 
 // ── Fixture ─────────────────────────────────────────────────────────────
 
@@ -268,6 +269,91 @@ describe('abbinaFatture: completa, non doppia', () => {
   })
 })
 
+// ── 3b. Imponibile e imposta (03/10/2026) ───────────────────────────────
+//
+// Il difetto: lo ZIP completava righe, P.IVA, IBAN e scadenza, ma non
+// l'imponibile. Sul database vero 3.042 fatture su 3.104 hanno imponibile 0
+// (dall'Excel arriva solo il totale IVA compresa), e il conto economico
+// nuovo non può togliere l'IVA dai costi senza inventarsi un'aliquota: quei
+// costi restavano IVA compresa anche dopo aver caricato lo ZIP.
+
+describe('patchDaXml: imponibile e imposta dallo XML', () => {
+  const [xml] = parseFatturaXML(fatturaXml())
+  const [xmlNota] = parseFatturaXML(fatturaXml().replace('<TipoDocumento>TD01', '<TipoDocumento>TD04'))
+
+  it("la fattura dall'Excel con imponibile 0 riceve i numeri veri", () => {
+    const patch = patchDaXml(daExcel({ imponibile: 0, imposta: 0 }), xml)
+    expect(patch).toMatchObject({ imponibile: 100, imposta: 22 })
+    // ed è quello che rende il conto senza IVA
+    expect(importoSenzaIva({ ...daExcel({ imponibile: 0, imposta: 0 }), ...patch })).toMatchObject({ importo: 100, fonte: 'imponibile' })
+  })
+
+  it('anche quando i campi sono vuoti invece che 0', () => {
+    expect(patchDaXml(daExcel({ imponibile: null, imposta: null }), xml)).toMatchObject({ imponibile: 100, imposta: 22 })
+  })
+
+  it('un numero già scritto non si tocca: si riempie solo quello che manca', () => {
+    const patch = patchDaXml(daExcel({ imponibile: 101, imposta: 0 }), xml)
+    expect(patch).not.toHaveProperty('imponibile')
+    expect(patch.imposta).toBe(22)
+    const tutto = patchDaXml(daExcel({ imponibile: 101, imposta: 21 }), xml)
+    expect(tutto).not.toHaveProperty('imponibile')
+    expect(tutto).not.toHaveProperty('imposta')
+  })
+
+  it("la nota di credito dall'Excel (totale negativo) riceve i numeri col meno", () => {
+    // L'XML TD04 scrive gli importi in positivo; l'Excel la registra col meno.
+    expect(xmlNota.tipo).toBe('nota_credito')
+    const esistente = daExcel({ totale: -122, imponibile: 0, imposta: 0 })
+    const patch = patchDaXml(esistente, xmlNota)
+    expect(patch).toMatchObject({ imponibile: -100, imposta: -22 })
+    expect(importoSenzaIva({ ...esistente, ...patch }).importo).toBe(-100)
+  })
+
+  it('la nota di credito già entrata dallo XML (positiva, tipo nota_credito) resta positiva', () => {
+    const esistente = daExcel({ tipo: 'nota_credito', totale: 122, imponibile: 0, imposta: 0 })
+    const patch = patchDaXml(esistente, xmlNota)
+    expect(patch).toMatchObject({ imponibile: 100, imposta: 22 })
+    // il segno lo dà il tipo: il conto la sottrae lo stesso
+    expect(importoSenzaIva({ ...esistente, ...patch }).importo).toBe(-100)
+  })
+
+  it("se i totali non vanno d'accordo i numeri dell'XML non si scrivono (il resto sì)", () => {
+    const patch = patchDaXml(daExcel({ totale: 999, imponibile: 0, imposta: 0 }), xml)
+    expect(patch).not.toHaveProperty('imponibile')
+    expect(patch).not.toHaveProperty('imposta')
+    expect(patch.righe).toHaveLength(2)
+  })
+
+  it("il professionista registrato al netto della ritenuta: il totale sta fra imponibile e totale dell'XML", () => {
+    // imponibile 100, totale documento 122, netto a pagare 102 (ritenuta 20)
+    expect(patchDaXml(daExcel({ totale: 102, imponibile: 0, imposta: 0 }), xml)).toMatchObject({ imponibile: 100, imposta: 22 })
+  })
+
+  it('una piccola differenza di centesimi non ferma niente', () => {
+    expect(patchDaXml(daExcel({ totale: 122.4, imponibile: 0, imposta: 0 }), xml)).toMatchObject({ imponibile: 100 })
+  })
+
+  it("un XML con imponibile 0 non propone niente", () => {
+    expect(patchDaXml(daExcel({ imponibile: 0, imposta: 0 }), { ...xml, imponibile: 0, imposta: 0 })).not.toHaveProperty('imponibile')
+  })
+
+  it('se la riga in archivio non ha letto le colonne, non si propone niente', () => {
+    // È quello che tiene ferma la ricarica dello stesso ZIP per chi non le legge.
+    const patch = patchDaXml(daExcel(), xml)
+    expect(patch).not.toHaveProperty('imponibile')
+    expect(patch).not.toHaveProperty('imposta')
+  })
+
+  it("già completata una volta: alla ricarica non c'è più niente da scrivere", () => {
+    const prima = daExcel({ imponibile: 0, imposta: 0, piva: '1', cf: '1', iban: 'X', data_scadenza: '2026-05-01' })
+    const dopo = { ...prima, ...patchDaXml(prima, xml), ha_righe: true }
+    const ab = abbinaFatture([xml], [dopo])
+    expect(ab.completa).toEqual([])
+    expect(ab.giaComplete).toBe(1)
+  })
+})
+
 describe('normFornitore', () => {
   it('toglie forme societarie, accenti e punteggiatura', () => {
     expect(normFornitore("MELLY'S KOMBUCHA SRL")).toBe(normFornitore("Melly's Kombucha S.r.l."))
@@ -395,7 +481,7 @@ describe('importaFattureXml: dallo ZIP al database', () => {
 
   it('completa quella che c\'è, crea quella che manca, arricchisce il fornitore', async () => {
     const db = fintoDb({
-      fatture: [{ ...daExcel({ id: 'esistente' }), prima_riga: null }],
+      fatture: [{ ...daExcel({ id: 'esistente', imponibile: 0, imposta: 0 }), prima_riga: null }],
       fornitori: [{ id: 'forn1', nome: "MELLY'S KOMBUCHA SRL" }],
     })
     const zip = creaZip([
@@ -411,6 +497,8 @@ describe('importaFattureXml: dallo ZIP al database', () => {
     const upFattura = db.log.update.find(u => u.tabella === 'fatture')
     expect(upFattura.id).toBe('esistente')
     expect(upFattura.patch.righe).toHaveLength(2)
+    // e l'imponibile che l'Excel non aveva (03/10/2026)
+    expect(upFattura.patch).toMatchObject({ imponibile: 100, imposta: 22 })
     expect(db.log.insert).toHaveLength(1)
     expect(db.log.insert[0]).toMatchObject({ numero_rif: '161', sede_id: 'sede1', organization_id: 'org' })
     // `fornitore_dati` non è una colonna di `fatture`: non deve finire nell'INSERT.

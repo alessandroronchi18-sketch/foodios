@@ -186,6 +186,20 @@ export const color = {
   blue:       '#2563EB',
   blueLight:  '#EFF6FF',
 
+  // ── I colori dei grafici, per ruolo (03/10/2026) ────────────────────────
+  //
+  // La nuova Analisi (ANALISI_DESIGN.md) non colora le serie per categoria:
+  // le colora per quello che sono. Il dato del periodo pieno e scuro,
+  // l'anno prima chiaro, l'obiettivo un filo, la stima tratteggiata. Verde e
+  // rosso restano `green`/`red` e si usano solo sugli scostamenti, sempre
+  // con segno e parola. Validati con lo script della guida dataviz: come
+  // tavolozza a categorie falliscono apposta — non devono mai distinguere
+  // due serie fra loro.
+  graficoReale:     '#3B4A5E',
+  graficoConfronto: '#B8C2CF',
+  graficoObiettivo: '#475264',
+  graficoGriglia:   '#EEF1F6',
+
   white: '#FFFFFF',
   black: '#000000',
 };

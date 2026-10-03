@@ -16,7 +16,8 @@
 //     entrava **una seconda volta**.
 //
 // Qui ogni XML viene prima cercato fra le fatture esistenti. Se c'è, si
-// riempiono i campi vuoti (righe, P.IVA, IBAN, scadenza) e **nient'altro**:
+// riempiono i campi vuoti (righe, P.IVA, IBAN, scadenza, imponibile e
+// imposta) e **nient'altro**:
 // numero, fornitore, totale, stato, pagamenti restano quelli che il titolare
 // ha già — possono essere stati corretti a mano. Se non c'è, si crea. Se ce
 // ne sono due possibili, non si tocca niente e lo si dice: meglio una fattura
@@ -64,6 +65,54 @@ export function patchDaXml(esistente, xml) {
   // fattura a ogni ricarica dello stesso ZIP.
   if ('cessionario_piva' in esistente && vuoto(esistente.cessionario_piva) && !vuoto(xml.cessionario_piva)) {
     patch.cessionario_piva = xml.cessionario_piva
+  }
+  Object.assign(patch, patchImporti(esistente, xml))
+  return patch
+}
+
+// ── Imponibile e imposta (03/10/2026) ───────────────────────────────────
+//
+// Dall'Excel di WebDesk arriva solo il totale IVA compresa: 3.042 fatture su
+// 3.104 hanno imponibile 0, e il conto economico non può togliere l'IVA dai
+// costi senza inventarsi un'aliquota (`contoEconomico.importoSenzaIva`).
+// L'XML ha i due numeri veri nel riepilogo: si scrivono quando nella fattura
+// esistente sono vuoti o 0, e mai sopra un numero che c'è.
+//
+// Tre cautele:
+//   • si propongono solo se la riga in archivio HA la chiave (è stata letta),
+//     come per `cessionario_piva`: un chiamante che non legge le colonne non
+//     deve vedere «da completare» ogni fattura a ogni ricarica dello ZIP;
+//   • il segno segue il totale che c'è: le note di credito dall'Excel hanno
+//     il totale negativo, l'XML le scrive in positivo con tipo TD04. Un
+//     imponibile positivo sotto un totale negativo farebbe contare la nota
+//     come una spesa;
+//   • se il totale dell'XML e quello in archivio non vanno d'accordo, i
+//     numeri dell'XML non si scrivono: meglio una fattura che resta «senza
+//     imponibile» (e lo dice) che un imponibile di un altro documento. Si
+//     accetta un totale in archivio fra l'imponibile e il totale dell'XML,
+//     perché un professionista con la ritenuta d'acconto può essere stato
+//     registrato al netto da pagare.
+const vuotoOZero = (v) => v == null || v === '' || Number(v) === 0
+const numeroFinito = (v) => v != null && v !== '' && Number.isFinite(Number(v))
+
+function importiConcordano(esistente, xml) {
+  const e = Math.abs(Number(esistente.totale) || 0)
+  if (!e) return true
+  const imp = Math.abs(Number(xml.imponibile) || 0)
+  const tot = Math.abs(Number(xml.totale) || 0) || imp + Math.abs(Number(xml.imposta) || 0)
+  const tolleranza = Math.max(1, e * 0.02)
+  return e >= Math.min(imp, tot) - tolleranza && e <= Math.max(imp, tot) + tolleranza
+}
+
+export function patchImporti(esistente, xml) {
+  const patch = {}
+  const vuoti = ['imponibile', 'imposta'].filter(k => k in esistente && vuotoOZero(esistente[k]))
+  if (!vuoti.length) return patch
+  if (!importiConcordano(esistente, xml)) return patch
+  const negativa = Number(esistente.totale) < 0
+  const conSegno = (v) => Math.round((negativa ? -Math.abs(Number(v)) : Number(v)) * 100) / 100
+  for (const k of vuoti) {
+    if (numeroFinito(xml[k]) && Number(xml[k]) !== 0) patch[k] = conSegno(xml[k])
   }
   return patch
 }
@@ -129,7 +178,9 @@ export function abbinaFatture(records, esistenti) {
  * scaricano: basta sapere se ce ne sono (`righe->0`), altrimenti con lo
  * storico completo si porterebbero giù decine di migliaia di righe.
  */
-const COLONNE_ABBINA = 'id, numero_rif, fornitore, data_fattura, totale, piva, cf, iban, data_scadenza, prima_riga:righe->0'
+// `imponibile` e `imposta` servono a `patchImporti`: senza, l'XML non potrebbe
+// completarli (03/10/2026).
+const COLONNE_ABBINA = 'id, numero_rif, fornitore, data_fattura, totale, imponibile, imposta, piva, cf, iban, data_scadenza, prima_riga:righe->0'
 
 export async function fattureEsistentiPerAbbinare(supabase, orgId) {
   const tutte = []
