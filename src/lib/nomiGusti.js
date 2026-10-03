@@ -67,7 +67,7 @@ export function ricettaCollegata(mappa, nome) {
 const PAROLE_VUOTE = new Set(['E', 'ED', 'CON', 'AL', 'ALLA', 'DI', 'DEL', 'DELLA'])
 function pulito(s) {
   return normGusto(s)
-    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .replace(/[^A-Z0-9 ]+/g, ' ')
     .split(/\s+/).filter(p => p && !PAROLE_VUOTE.has(p))
 }
