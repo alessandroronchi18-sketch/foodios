@@ -9,6 +9,8 @@ import { parseShopifyOrders, parseWooCommerceOrders, mergeOrdiniInChiusure } fro
 import { caricaChiusure, upsertChiusure, importaChiusureIncassi } from '../lib/chiusure'
 import { pickFattura, dedupFatture, insertFattureResilient, chiaviFattureEsistenti } from '../lib/fattureImport'
 import Icon from './Icon'
+import { useDomandaSedi } from './DomandaSocietaSedi'
+import { caricaSocieta, ricordaSocieta } from '../lib/societaSediArchivio'
 import { TabellaOSchede } from '../views/_shared'
 
 import { color as T, radius as R, shadow as S, motion as M, typo, font } from '../lib/theme'
@@ -772,8 +774,11 @@ function LogTable({ logs }) {
   )
 }
 
-export default function Integrazioni({ orgId, sedeId }) {
+export default function Integrazioni({ orgId, sedeId, sedi = [] }) {
   const [logs, setLogs] = useState({})
+  // A quali sedi vanno le fatture di una società mai vista: la stessa
+  // domanda dello Scadenzario (src/components/DomandaSocietaSedi.jsx).
+  const [chiediSediSocieta, dialogoSediSocieta] = useDomandaSedi(sedi)
   // Vero solo se il registro degli import non risponde davvero (42P01).
   const [registroMancante, setRegistroMancante] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -860,10 +865,19 @@ export default function Integrazioni({ orgId, sedeId }) {
     // doppioni, e aprono anche le firmate dentro lo ZIP dell'Agenzia.
     if (cfg.id === 'fattura_elettronica_xml') {
       try {
+        // Ogni fattura nuova va alla sede della società a cui è intestata
+        // (03/10/2026). Si chiede solo per una società mai vista; quelle
+        // senza P.IVA di chi le riceve vanno sulla sede attiva, come prima.
+        let mappa = {}
+        try { mappa = await caricaSocieta(orgId) } catch (err) { console.warn('[Integrazioni] società non lette', err) }
         const e = await importaFattureXml(supabase, {
-          orgId, sedeId, files,
+          orgId, files,
+          societa: { mappa, sedi: (sedi || []).filter(s => s.attiva !== false), ripiego: sedeId ? [sedeId] : [] },
+          chiediSedi: (domande) => { setAvanzamento(''); return chiediSediSocieta(domande) },
+          ricordaSocieta: (voci) => ricordaSocieta(orgId, voci),
           onProgresso: (fase, fatto, tot) => setAvanzamento(testoAvanzamentoXml(fase, fatto, tot)),
         })
+        if (e.annullato) { notify(fraseEsitoXml(e), false); return }
         const avvisi = avvisiEsitoXml(e)
         const entrate = e.completate + e.nuove
         await logSync(cfg.id, entrate > 0 || e.giaPresenti > 0 ? 'ok' : 'errore', entrate, avvisi[0] || null)
@@ -1095,6 +1109,7 @@ export default function Integrazioni({ orgId, sedeId }) {
 
   return (
     <div style={{ maxWidth: 900 }}>
+      {dialogoSediSocieta}
       {/* Toast */}
       {toast && (
         <div style={{ position: 'fixed', top: 16, right: 16, zIndex: 999,

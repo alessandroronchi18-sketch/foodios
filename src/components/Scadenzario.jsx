@@ -9,6 +9,8 @@ import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { sload, ssave } from '../lib/storage'
 import { generateSepaXml, ibanIsValid, normalizeIban, causaleFattura, bonificoText } from '../lib/sepa'
 import Icon from './Icon'
+import { useDomandaSedi } from './DomandaSocietaSedi'
+import { caricaSocieta, ricordaSocieta } from '../lib/societaSediArchivio'
 import { TabellaOSchede } from '../views/_shared'
 import { color as T, radius as R, shadow as S, motion as M, typo, font } from '../lib/theme'
 // todayLocal: la data di OGGI nel fuso dell'utente. new Date().toISOString()
@@ -126,6 +128,11 @@ export default function Scadenzario({ orgId, sedeId, sedi = [], pagina = 'scaden
   // (`src/lib/costiCondivisi.js`), invece di essere attribuita a caso.
   const [confermaSede, setConfermaSede] = useState(null)   // { files, avvia }
   const [sediScelte, setSediScelte] = useState(() => (sedeId ? [sedeId] : []))
+  // Per gli XML la domanda è un'altra, e arriva dopo aver letto i file:
+  // ogni fattura dice a quale società è intestata, e si chiede solo per le
+  // società mai viste (src/lib/societaSedi.js). Gli Excel restano sulla
+  // domanda di sopra: non sanno di chi sono.
+  const [chiediSediSocieta, dialogoSediSocieta] = useDomandaSedi(sedi)
   const [toast, setToast]                 = useState(null)
   const [pagandoId, setPagandoId]         = useState(null)
   // "Registra anche l'uscita in Cassa": accesa per default, e ricordata fra
@@ -652,20 +659,32 @@ export default function Scadenzario({ orgId, sedeId, sedi = [], pagina = 'scaden
   // apre ZIP, XML e P7M, e le fatture già presenti le **completa** con righe,
   // P.IVA e IBAN invece di scartarle. Prima qui un `.p7m` si leggeva come
   // testo e falliva sempre, e lo ZIP dell'Agenzia non si poteva caricare.
-  async function handleImportXML(files, sediDestinazione = null) {
+  //
+  // Dal 03/10/2026 la sede non si chiede più prima, per tutto il file: ogni
+  // fattura nuova va alla sede della società a cui è intestata. Si chiede
+  // solo per una società mai vista (una volta, poi si ricorda) e per le
+  // fatture senza P.IVA di chi le riceve, partendo dalla sede attiva come
+  // prima. Con una sede sola non si chiede niente.
+  async function handleImportXML(files) {
     if (!orgId) return
-    const dest = Array.isArray(sediDestinazione) ? sediDestinazione.filter(Boolean) : (sedeId ? [sedeId] : [])
     setImportLoading(true)
     try {
+      // Se la mappa non si legge si va avanti lo stesso: al peggio si chiede
+      // una cosa già detta, e la risposta si unisce a quella salvata.
+      let mappa = {}
+      try { mappa = await caricaSocieta(orgId) } catch (err) { console.warn('[scadenzario] società non lette', err) }
       const e = await importaFattureXml(supabase, {
         orgId,
-        // Una sede sola: la fattura nuova è sua. Due o più: è una spesa
-        // condivisa, e `sede_id` resta vuoto apposta.
-        sedeId: dest.length === 1 ? dest[0] : null,
-        sediCondivise: dest.length > 1 ? dest : null,
         files,
+        societa: { mappa, sedi: (sedi || []).filter(s => s.attiva !== false), ripiego: null },
+        chiediSedi: (domande) => {
+          setAvanzamentoXml('')
+          return chiediSediSocieta(domande, { preselezione: sedeId ? [sedeId] : [] })
+        },
+        ricordaSocieta: (voci) => ricordaSocieta(orgId, voci),
         onProgresso: (fase, fatto, tot) => setAvanzamentoXml(testoAvanzamentoXml(fase, fatto, tot)),
       })
+      if (e.annullato) { notify(fraseEsitoXml(e), false); return }
       const avvisi = avvisiEsitoXml(e)
       notify([fraseEsitoXml(e), ...avvisi].join(' '), avvisi.length === 0 && e.lette > 0)
       if (e.completate + e.nuove > 0) {
@@ -2880,7 +2899,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [], pagina = 'scaden
                   onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
                   <Icon name="fileText" size={14} color={T.textSoft} /> XML o ZIP dell'Agenzia
                   <input type="file" accept=".zip,.xml,.p7m" multiple style={{ display: 'none' }}
-                    onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length) { setActionsOpen(false); chiediSede(files, handleImportXML) } }} />
+                    onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length) { setActionsOpen(false); handleImportXML(files) } }} />
                 </label>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8, fontSize: font.size.base, color: T.text, cursor: 'pointer', fontWeight: 500 }}
                   onMouseEnter={e => { e.currentTarget.style.background = T.bgSubtle }}
@@ -3075,7 +3094,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [], pagina = 'scaden
             <label style={{ ...ghostBtn, minHeight: minTouch, flexShrink: 0, width: isMobile ? '100%' : 'auto', justifyContent: 'center', cursor: importLoading ? 'wait' : 'pointer' }}>
               <Icon name="folder" size={14} /> {importLoading ? (avanzamentoXml || 'Carico…') : 'Carica lo ZIP'}
               <input type="file" accept=".zip,.xml,.p7m" multiple disabled={importLoading} style={{ display: 'none' }}
-                onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length) chiediSede(files, handleImportXML) }} />
+                onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length) handleImportXML(files) }} />
             </label>
           </div>
         )
@@ -3576,7 +3595,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [], pagina = 'scaden
             </label>
             <label style={{ ...ghostBtn, cursor: 'pointer' }}>
               <Icon name="fileText" size={14} /> XML o ZIP dell'Agenzia
-              <input type="file" accept=".zip,.xml,.p7m" multiple style={{ display: 'none' }} onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length) chiediSede(files, handleImportXML) }} />
+              <input type="file" accept=".zip,.xml,.p7m" multiple style={{ display: 'none' }} onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length) handleImportXML(files) }} />
             </label>
           </div>
         </div>
@@ -3655,6 +3674,10 @@ export default function Scadenzario({ orgId, sedeId, sedi = [], pagina = 'scaden
           </div>
         </div>
       )}
+
+      {/* La domanda per le fatture elettroniche: a quali sedi vanno quelle
+          di una società mai vista. */}
+      {dialogoSediSocieta}
 
       {/* ── «Sei sicuro che queste fatture sono di…» ────────────────────
           Le 3.104 fatture di Mara sono finite tutte su Carlina perché era la

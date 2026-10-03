@@ -8,9 +8,13 @@
 import { leggiFattureDaFile } from './fattureXmlArchivio'
 import {
   abbinaFatture, fattureEsistentiPerAbbinare, applicaCompletamenti,
-  completaAnagraficaFornitori, righeNuove,
+  completaAnagraficaFornitori, righeNuove, righeNuoveVerso,
 } from './completaFatture'
 import { insertFattureResilient } from './fattureImport'
+import {
+  decidiSediImport, applicaRisposte, domandeDaGruppi, destinazioneDaSedi,
+  fraseDestinazioni, nomeSocieta,
+} from './societaSedi'
 
 const COLONNE_FORNITORE = 'id, nome, partita_iva, codice_fiscale, indirizzo, cap, citta, provincia, email, telefono, iban'
 
@@ -18,13 +22,27 @@ const COLONNE_FORNITORE = 'id, nome, partita_iva, codice_fiscale, indirizzo, cap
  * @param {object} supabase
  * @param {{ orgId: string, sedeId?: string|null, sediCondivise?: string[]|null,
  *   files: {name: string, arrayBuffer: () => Promise<ArrayBuffer>}[],
- *   onProgresso?: (fase: string, fatto: number, totale: number) => void }} opz
+ *   onProgresso?: (fase: string, fatto: number, totale: number) => void,
+ *   societa?: { mappa: object, sedi: {id: string, nome: string}[], ripiego: string[]|null } | null,
+ *   chiediSedi?: (domande: object[]) => Promise<object|null>,
+ *   ricordaSocieta?: (voci: object) => Promise<void> }} opz
+ *
+ * Con `societa` le fatture nuove vanno alla sede della società a cui sono
+ * intestate (`src/lib/societaSedi.js`): P.IVA già nota → da sole; mai vista →
+ * `chiediSedi` una volta per società, e `ricordaSocieta` salva la risposta.
+ * La domanda arriva PRIMA di qualunque scrittura: se viene annullata
+ * (`chiediSedi` restituisce null) non si scrive niente. Senza `societa`,
+ * come prima: tutte verso `sedeId` / `sediCondivise`.
  */
-export async function importaFattureXml(supabase, { orgId, sedeId = null, sediCondivise = null, files, onProgresso }) {
+export async function importaFattureXml(supabase, {
+  orgId, sedeId = null, sediCondivise = null, files, onProgresso,
+  societa = null, chiediSedi = null, ricordaSocieta = null,
+}) {
   const esito = {
     lette: 0, saltati: 0, illeggibili: [], troncato: false, fileFalliti: [],
     completate: 0, nuove: 0, giaPresenti: 0, ambigue: [], errori: [],
     fornitoriCompletati: 0, recordsToccati: [],
+    annullato: false, perSocieta: [], destinazioni: '', avvisoMappa: '',
   }
 
   // 1. Leggere tutto
@@ -52,22 +70,56 @@ export async function importaFattureXml(supabase, { orgId, sedeId = null, sediCo
   esito.ambigue = ab.ambigue
   esito.giaPresenti = ab.giaComplete + ab.doppieNelFile
 
-  // 3. Completare
+  // 3. Dove vanno le nuove. Si decide (e se serve si chiede) PRIMA di
+  // scrivere qualunque cosa: chi annulla la domanda non trova mezzo import.
+  let gruppi = null
+  if (societa && ab.nuove.length) {
+    const decisione = decidiSediImport(ab.nuove, societa)
+    gruppi = decisione.gruppi
+    if (decisione.daChiedere.length) {
+      const risposte = chiediSedi ? await chiediSedi(domandeDaGruppi(decisione.daChiedere)) : null
+      const applicate = risposte ? applicaRisposte(decisione, risposte, societa.sedi) : null
+      if (!applicate || applicate.mancano.length) { esito.annullato = true; return esito }
+      gruppi = applicate.gruppi
+      if (Object.keys(applicate.ricordare).length && ricordaSocieta) {
+        // Se non si riesce a ricordare, le fatture entrano lo stesso dove ha
+        // detto il titolare: la prossima volta si richiederà, e lo si dice.
+        try { await ricordaSocieta(applicate.ricordare) } catch (e) {
+          const chi = Object.entries(applicate.ricordare).map(([piva, v]) => nomeSocieta({ piva, nome: v.nome })).join(', ')
+          esito.avvisoMappa = `Non sono riuscito a ricordare a quali sedi vanno le fatture di ${chi}: la prossima volta te lo richiedo${e?.message ? ` (${e.message})` : ''}.`
+        }
+      }
+    }
+  }
+
+  // 4. Completare
   const comp = await applicaCompletamenti(supabase, orgId, ab.completa, {
     onProgresso: (fatto, tot) => onProgresso?.('completamento', fatto, tot),
   })
   esito.completate = comp.fatte
   esito.errori.push(...comp.errori)
 
-  // 4. Creare le nuove. Il database ha l'ultima parola sui doppioni.
+  // 5. Creare le nuove, società per società. Il database ha l'ultima parola
+  // sui doppioni.
   onProgresso?.('nuove', 0, ab.nuove.length)
-  const ins = await insertFattureResilient(supabase, righeNuove(ab.nuove, orgId, sedeId, sediCondivise))
-  esito.nuove = ins.inserite
-  esito.giaPresenti += ins.gia
+  if (gruppi) {
+    for (const g of gruppi) {
+      const dest = destinazioneDaSedi(g.sedi)
+      const ins = await insertFattureResilient(supabase, righeNuoveVerso(g.records, orgId, () => dest))
+      esito.nuove += ins.inserite
+      esito.giaPresenti += ins.gia
+      esito.perSocieta.push({ piva: g.piva, nome: g.nome, sedi: g.sedi || [], come: g.come, lette: g.records.length, inserite: ins.inserite })
+    }
+    esito.destinazioni = fraseDestinazioni(esito.perSocieta, societa.sedi)
+  } else {
+    const ins = await insertFattureResilient(supabase, righeNuove(ab.nuove, orgId, sedeId, sediCondivise))
+    esito.nuove = ins.inserite
+    esito.giaPresenti += ins.gia
+  }
 
   esito.recordsToccati = [...ab.completa.map(c => c.record), ...ab.nuove]
 
-  // 5. L'anagrafica dei fornitori, solo dove è vuota. Se non si riesce, le
+  // 6. L'anagrafica dei fornitori, solo dove è vuota. Se non si riesce, le
   // fatture sono comunque entrate: lo si dice, non si annulla niente.
   try {
     const { data: fornitori, error } = await supabase.from('fornitori').select(COLONNE_FORNITORE).eq('organization_id', orgId)
@@ -96,18 +148,21 @@ export function testoAvanzamentoXml(fase, fatto, tot) {
 
 /** Il riepilogo in una frase, com'è scritto a schermo. */
 export function fraseEsitoXml(e) {
+  if (e.annullato) return 'Caricamento annullato: non ho scritto niente.'
   const pezzi = []
   if (e.completate) pezzi.push(`${e.completate.toLocaleString('it-IT', { useGrouping: 'always' })} ${e.completate === 1 ? 'fattura completata' : 'fatture completate'} con righe e dati del fornitore`)
   if (e.nuove) pezzi.push(`${e.nuove.toLocaleString('it-IT', { useGrouping: 'always' })} ${e.nuove === 1 ? 'nuova' : 'nuove'}`)
   if (e.giaPresenti) pezzi.push(`${e.giaPresenti.toLocaleString('it-IT', { useGrouping: 'always' })} già ${e.giaPresenti === 1 ? 'completa' : 'complete'}`)
   if (e.fornitoriCompletati) pezzi.push(`${e.fornitoriCompletati.toLocaleString('it-IT', { useGrouping: 'always' })} ${e.fornitoriCompletati === 1 ? 'scheda fornitore arricchita' : 'schede fornitore arricchite'}`)
   if (!pezzi.length) return e.lette ? 'Nessuna fattura da aggiungere: erano già tutte complete.' : 'In questi file non ho trovato fatture.'
-  return pezzi.join(' · ')
+  // Dove sono finite le nuove, anche quelle che nessuno ha chiesto.
+  return pezzi.join(' · ') + (e.destinazioni ? `. ${e.destinazioni}` : '')
 }
 
 /** Le cose da guardare, una per riga. Vuoto se è andato tutto liscio. */
 export function avvisiEsitoXml(e) {
   const a = []
+  if (e.avvisoMappa) a.push(e.avvisoMappa)
   if (e.ambigue.length) a.push(`${e.ambigue.length} ${e.ambigue.length === 1 ? 'fattura non l\'ho toccata' : 'fatture non le ho toccate'}: ci sono due fatture con lo stesso numero e la stessa data, e non so quale sia (${e.ambigue.slice(0, 3).map(x => `${x.record.fornitore} n. ${x.record.numero_rif}`).join(', ')}${e.ambigue.length > 3 ? '…' : ''}).`)
   if (e.illeggibili.length) a.push(`${e.illeggibili.length} ${e.illeggibili.length === 1 ? 'file non l\'ho saputo aprire' : 'file non li ho saputi aprire'} (${e.illeggibili.slice(0, 3).join(', ')}${e.illeggibili.length > 3 ? '…' : ''}).`)
   if (e.fileFalliti.length) a.push(`${e.fileFalliti.map(f => f.file).join(', ')}: ${e.fileFalliti[0].messaggio}`)
