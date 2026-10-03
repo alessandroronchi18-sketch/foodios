@@ -24,13 +24,14 @@ const M = mesePrima(todayLocal().slice(0, 7))
 const MA = annoPrima(M)
 
 let DATI = null
-vi.mock('../../src/lib/ilMeseArchivio', () => ({ caricaIlMese: async () => DATI }))
+let PER_MESE = null
+vi.mock('../../src/lib/ilMeseArchivio', () => ({ caricaIlMese: async ({ mese: m }) => (PER_MESE ? PER_MESE(m) : DATI) }))
 vi.mock('../../src/lib/supabase', () => ({ supabase: {} }))
 
 const { default: IlMeseView } = await import('../../src/views/IlMeseView.jsx')
 const { default: ContoEconomicoView } = await import('../../src/views/ContoEconomicoView.jsx')
 
-afterEach(() => cleanup())
+afterEach(() => { cleanup(); PER_MESE = null })
 const testo = () => document.body.textContent || ''
 
 const DIPENDENTI_MARA = [
@@ -126,5 +127,32 @@ describe('Il conto, voce per voce', () => {
     await waitFor(() => expect(testo()).toMatch(/Il conto di/))
     await act(async () => { fireEvent.click([...document.querySelectorAll('button')].find(b => /Materie prime/.test(b.textContent))) })
     expect(testo()).toMatch(/DESA SRL7\.500 €6\.500 €\+1\.000 €/)
+  })
+})
+
+describe('All\'apertura', () => {
+  it('se l\'ultimo mese chiuso non ha incassi, mostra l\'ultimo che li ha, e lo dice', async () => {
+    const M1 = mesePrima(M)
+    PER_MESE = (m) => {
+      const base = conDati()
+      if (m === M) {
+        const vuoto = { ...mese(M, { ricavi: null }) }
+        return { ...base, mese: M, attuale: vuoto, andamento: [mese(M1, { ricavi: 99000 }), vuoto] }
+      }
+      return { ...base, mese: m, confronto: annoPrima(m), attuale: mese(m, { ricavi: 99000 }) }
+    }
+    render(<IlMeseView orgId="o1" sedi={[]} />)
+    await waitFor(() => expect(testo()).toMatch(/non ha ancora gli incassi: ti mostro/))
+    expect(testo()).toMatch(new RegExp(`Quanto hai guadagnato ${aMese(M1, { anno: false })}`))
+    expect([...document.querySelectorAll('button')].some(b => b.textContent === `Vai a ${nomeMese(M, { anno: false })}`)).toBe(true)
+  })
+
+  it('con le fatture del mese a metà non confronta le spese e lo dice', async () => {
+    const d = conDati()
+    d.attuale.costi.copertura.ultimaFattura = `${M}-10`
+    DATI = d
+    render(<IlMeseView orgId="o1" sedi={[]} />)
+    await waitFor(() => expect(testo()).toMatch(/fatture registrate fino al 10\//))
+    expect(testo()).not.toMatch(/Spese del mese[^]*su [a-z]+ \d{4}peggio|Spese del mese[^]*su [a-z]+ \d{4}meglio/)
   })
 })

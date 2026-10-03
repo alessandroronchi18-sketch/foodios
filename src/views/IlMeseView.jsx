@@ -13,7 +13,7 @@
 //   5. materie prime, personale e prime cost contro l'obiettivo;
 //   6. le sedi affiancate;
 //   7. gli ultimi dodici mesi.
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { color as T, font, ui3 } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
@@ -47,6 +47,11 @@ export function vociCopertura(dati, { onNavigate, onClassifica } = {}) {
     voci.push({ id: 'fatture', stato: 'manca', testo: 'le fatture non si sono potute leggere' })
   } else {
     const c = costi.copertura || {}
+    // Le fatture del mese finiscono prima della fine del mese (l'ultimo
+    // import da WebDesk è del 10/09): il mese è a metà, e va detto.
+    if (c.ultimaFattura && c.ultimaFattura < `${dati.mese}-25` && dati.mese < meseCorrente()) {
+      voci.push({ id: 'fattureFino', stato: 'parziale', testo: `fatture registrate fino al ${dataBreve(c.ultimaFattura)}: il mese è incompleto`, azione: onNavigate ? { etichetta: 'Carica lo ZIP', onClick: () => onNavigate('scadenzario') } : null })
+    }
     voci.push(c.importoIvaCompresa > 0
       ? { id: 'fatture', stato: 'parziale', testo: `${c.nFatture} fatture, ${c.nSenzaImponibile} senza imponibile: ${euro(c.importoIvaCompresa)} contati con l'IVA`, azione: onNavigate ? { etichetta: 'Carica lo ZIP', onClick: () => onNavigate('scadenzario') } : null }
       : { id: 'fatture', stato: 'ok', testo: `${c.nFatture || 0} fatture del mese, senza IVA` })
@@ -67,13 +72,28 @@ export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate
   const [dati, setDati] = useState(null)
   const [caricando, setCaricando] = useState(true)
   const [errore, setErrore] = useState(null)
+  // Alla prima apertura, se l'ultimo mese chiuso non ha incassi (la cassa non
+  // c'è e l'inventario si ferma prima), si mostra l'ultimo mese che li ha, e
+  // lo si dice. Una pagina che si apre su «non lo so» non risponde a niente.
+  const primoGiro = useRef(true)
+  const [spostato, setSpostato] = useState(null)
 
   useEffect(() => {
     if (!orgId) return
     let vivo = true
     setCaricando(true); setErrore(null)
     caricaIlMese({ supabase, orgId, sedi, mese, sedeId })
-      .then(d => { if (vivo) setDati(d) })
+      .then(d => {
+        if (!vivo) return
+        if (primoGiro.current) {
+          primoGiro.current = false
+          if (d?.attuale?.incassi?.fonte == null) {
+            const conIncassi = (d.andamento || []).filter(m => m && m.mese < mese && m.incassi?.fonte).at(-1)
+            if (conIncassi) { setSpostato({ da: mese, a: conIncassi.mese }); setMese(conIncassi.mese); return }
+          }
+        }
+        setDati(d)
+      })
       .catch(e => { if (vivo) setErrore(e?.message || 'lettura non riuscita') })
       .finally(() => { if (vivo) setCaricando(false) })
     return () => { vivo = false }
@@ -105,7 +125,11 @@ export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate
 
   const vUtile = conto.utile != null && contoPrima?.utile != null ? variazione({ attuale: conto.utile, confronto: contoPrima.utile }) : null
   const vIncassi = conto.ricavi != null && contoPrima?.ricavi != null ? variazione({ attuale: conto.ricavi, confronto: contoPrima.ricavi }) : null
-  const vSpese = conto.spese != null && contoPrima?.spese != null ? variazione({ attuale: conto.spese, confronto: contoPrima.spese, piuEMeglio: false }) : null
+  // Con le fatture del mese a metà, un confronto delle spese direbbe «−49%»
+  // in verde: un calo che non c'è. Non si fa.
+  const ultimaFattura = dati.attuale.costi?.copertura?.ultimaFattura || null
+  const fattureAMeta = !!(ultimaFattura && ultimaFattura < `${mese}-25` && mese < meseCorrente())
+  const vSpese = !fattureAMeta && conto.spese != null && contoPrima?.spese != null ? variazione({ attuale: conto.spese, confronto: contoPrima.spese, piuEMeglio: false }) : null
   const meseConfronto = dati.confronto
   const materieIncomplete = conto.speseFatture > 0 && conto.daClassificare > conto.speseFatture * 0.05
   const eccezionali = dati.attuale.eccezionali || []
@@ -114,6 +138,15 @@ export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', opacity: caricando ? 0.6 : 1, transition: 'opacity 120ms' }}>
       {intestazione}
+      {spostato && spostato.a === mese && (
+        <div role="status" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 12, fontSize: font.size.base, color: T.textMid }}>
+          <Icon name="info" size={14} />
+          <span>{nomeMese(spostato.da, { anno: false })[0].toUpperCase() + nomeMese(spostato.da, { anno: false }).slice(1)} non ha ancora gli incassi: ti mostro {nomeMese(spostato.a, { anno: false })}, l&apos;ultimo mese che li ha.</span>
+          <button type="button" onClick={() => setMese(spostato.da)} style={{ border: 'none', background: 'transparent', color: T.brand, fontWeight: 700, fontSize: font.size.base, cursor: 'pointer', padding: '4px 2px', fontFamily: 'inherit', minHeight: 32 }}>
+            Vai a {nomeMese(spostato.da, { anno: false })}
+          </button>
+        </div>
+      )}
       <CoperturaDati voci={vociCopertura(dati, { onNavigate })} />
 
       {/* ── La risposta ─────────────────────────────────────────────── */}
@@ -138,7 +171,7 @@ export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate
         <NumeroConConfronto isMobile={isMobile} etichetta="Spese del mese"
           valore={conto.spese != null ? euro(conto.spese) : null} motivoMancante="fatture non lette"
           variazione={vSpese} rispettoA={`su ${nomeMese(meseConfronto, { anno: true })}`}
-          contesto={conto.personale == null && conto.speseFatture != null ? 'senza il personale, che manca' : 'fatture e personale'} />
+          contesto={fattureAMeta ? `fatture registrate fino al ${dataBreve(ultimaFattura)}` : conto.personale == null && conto.speseFatture != null ? 'senza il personale, che manca' : 'fatture e personale'} />
       </div>
 
       {eccezionali.length > 0 && (
@@ -190,7 +223,7 @@ export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate
 
       {dati.perSede && Object.keys(dati.perSede).length > 1 && (
         <Riquadro isMobile={isMobile} stile={{ marginBottom: 14 }}>
-          <TitoloGrafico titolo={titoloSedi(dati.perSede)} sottotitolo="Stesso conto, negozio per negozio. Le spese condivise sono ripartite sui chili prodotti." />
+          <TitoloGrafico titolo={titoloSedi(dati.perSede)} sottotitolo={`Stesso conto, negozio per negozio. ${testoRipartizione(dati.perSede)}`} />
           <SediAffiancate perSede={dati.perSede} isMobile={isMobile} />
         </Riquadro>
       )}
@@ -211,6 +244,13 @@ export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate
 const stileFreccia = {
   width: 36, height: 36, borderRadius: 8, border: `1px solid ${T.border}`, background: T.bgCard,
   color: T.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+}
+
+/** Come sono state divise le spese condivise, detto com'è andata davvero. */
+function testoRipartizione(perSede) {
+  const r = Object.values(perSede).map(s => s.costi?.ripartizione).find(x => x && x.criterio)
+  if (!r) return 'Le spese di una sede sola restano sue.'
+  return `Le spese condivise sono divise ${r.criterio}${r.certa === false ? ' (in parti uguali dove manca la produzione)' : ''}.`
 }
 
 function titoloSedi(perSede) {

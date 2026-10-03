@@ -120,6 +120,18 @@ export async function caricaIlMese({ supabase, orgId, sedi = [], mese, sedeId = 
     ? Object.values(righePerSede).map(ultimoGiornoInventario).filter(Boolean).sort().at(-1) || null
     : null
 
+  // I chili prodotti da ogni sede in un mese: il motore ci divide le spese
+  // condivise (regola del titolare, 17/09). Senza, le divideva sempre in
+  // parti uguali anche dove la produzione c'era.
+  const produzionePerSede = (m) => {
+    if (!righePerSede) return null
+    const out = {}
+    for (const [id, righe] of Object.entries(righePerSede)) {
+      out[id] = (righe || []).reduce((s, r) => s + (String(r.data).startsWith(m) ? (Number(r.produzione_g) || 0) / 1000 : 0), 0)
+    }
+    return Object.values(out).some(v => v > 0) ? out : null
+  }
+
   const contoDi = (m, sede = sedeId) => {
     const { da, a, giorni } = estremiMese(m)
     // Incassi: la cassa del mese, o la stima dall'inventario sommata sulle sedi.
@@ -142,7 +154,7 @@ export async function caricaIlMese({ supabase, orgId, sedi = [], mese, sedeId = 
     const cassaMese = sede && chiusure ? cassaPerMese(chiusure, { sedeId: sede })[m] : cassa?.[m]
     const incassi = incassiDelMese({ cassa: cassaMese || null, stima, giorniDelMese: giorni })
     const costi = fatture && categoriePerFornitore
-      ? costiPerMese(fatture, { mese: m, categoriePerFornitore, sedeId: sede, sedi: sediAttive })
+      ? costiPerMese(fatture, { mese: m, categoriePerFornitore, sedeId: sede, sedi: sediAttive, produzionePerSede })
       : null
     const personale = dipendenti ? personaleDelMese(dipendenti, { mese: m, sedeId: sede }) : { valore: null, stato: 'manca', testo: 'non letto' }
     // Per una sede: le sue voci più quelle di tutta l'azienda divise fra le

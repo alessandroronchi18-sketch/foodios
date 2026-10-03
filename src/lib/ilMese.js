@@ -160,7 +160,9 @@ export function contoDelMese({ incassi, costi, personale, speseFisse = null }) {
   const materiePrime = gruppi.find(g => g.chiave === 'materiePrime').importo
   const passi = [
     { etichetta: incassi?.fonte === 'stima' ? 'Incassi stimati' : 'Incassi', valore: ricavi, tipo: 'inizio', chiave: 'incassi' },
-    ...gruppi.filter(g => g.importo > 0 || g.chiave === 'materiePrime').map(g => ({ etichetta: g.etichetta, valore: costi ? g.importo : null, tipo: 'meno', chiave: g.chiave })),
+    // Le materie prime restano anche a zero solo se le fatture non si sanno
+    // (per dire «non lo so»); a zero con le fatture lette sono una riga «−0 €».
+    ...gruppi.filter(g => g.importo > 0 || (g.chiave === 'materiePrime' && !costi)).map(g => ({ etichetta: g.etichetta, valore: costi ? g.importo : null, tipo: 'meno', chiave: g.chiave })),
     ...(daClassificare > 0 ? [{ etichetta: 'Da classificare', valore: daClassificare, tipo: 'meno', chiave: 'daClassificare' }] : []),
     ...(fisse > 0 ? [{ etichetta: 'Spese senza fattura', valore: fisse, tipo: 'meno', chiave: 'fisse' }] : []),
     { etichetta: 'Personale', valore: pers, tipo: 'meno', chiave: 'personale' },
