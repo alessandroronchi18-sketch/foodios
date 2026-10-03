@@ -93,6 +93,7 @@ describe('Nell\'editor il prezzo non si corregge in due posti', () => {
     // Prima c'erano due caselle numeriche per riga (qtà e costo): adesso il
     // costo di un materiale in elenco è scritto, non battuto.
     expect(screen.queryByDisplayValue('0.001')).toBeNull()
+    expect(screen.queryByDisplayValue('0,001')).toBeNull()
     expect(testo()).toContain('0,060')
   })
 
@@ -101,7 +102,9 @@ describe('Nell\'editor il prezzo non si corregge in due posti', () => {
     await waitFor(() => expect(testo()).toContain('Cono Grande'))
     fireEvent.click(screen.getByRole('button', { name: /^Modifica/i }))
     await screen.findByLabelText(/Materiale 1/i)
-    expect(screen.queryAllByDisplayValue('0.001').length).toBeGreaterThan(0)
+    // Dal 03/10/2026 i numeri salvati si aprono con la virgola, come si
+    // scrivono al banco: la casella c'è, e dice «0,001», non «0.001».
+    expect(screen.queryAllByDisplayValue('0,001').length).toBeGreaterThan(0)
   })
 })
 
