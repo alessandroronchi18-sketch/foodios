@@ -52,7 +52,11 @@ export function righeConto(attuale, prima, andamento = []) {
     })
   }
   if ((attuale.daClassificare || 0) > 0 || (prima?.daClassificare || 0) > 0) {
-    righe.push({ chiave: 'daClassificare', etichetta: 'Da classificare', tipo: 'spesa', valore: attuale.daClassificare, prima: prima?.daClassificare ?? null, serie: serie(c => c.daClassificare) })
+    const primaPer = new Map((prima?.fornitoriDaClassificare || []).map(f => [f.nome, f.importo]))
+    righe.push({
+      chiave: 'daClassificare', etichetta: 'Da classificare', tipo: 'spesa', valore: attuale.daClassificare, prima: prima?.daClassificare ?? null, serie: serie(c => c.daClassificare),
+      dettaglio: (attuale.fornitoriDaClassificare || []).slice(0, 8).map(f => ({ nome: f.nome, valore: f.importo, prima: primaPer.get(f.nome) || 0 })),
+    })
   }
   if ((attuale.speseFisse || 0) > 0 || (prima?.speseFisse || 0) > 0) {
     righe.push({ chiave: 'fisse', etichetta: 'Spese senza fattura', tipo: 'spesa', valore: attuale.speseFisse, prima: prima?.speseFisse ?? null, serie: serie(c => c.speseFisse) })

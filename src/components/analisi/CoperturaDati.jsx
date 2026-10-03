@@ -33,9 +33,9 @@ export default function CoperturaDati({ titolo = 'Da dove vengono i numeri', voc
           const a = ASPETTO[v.stato] || ASPETTO.manca
           return (
             <li key={v.id} title={v.dettaglio || undefined}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: font.size.base, color: T.textMid, lineHeight: 1.45, minHeight: 28 }}>
+              style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '2px 6px', fontSize: font.size.base, color: T.textMid, lineHeight: 1.45, minHeight: 28 }}>
               <span style={{ color: a.colore, display: 'inline-flex', flexShrink: 0 }} aria-hidden="true"><Icon name={a.icona} size={14} /></span>
-              <span>
+              <span style={{ flex: '1 1 220px', minWidth: 0 }}>
                 {a.parola && <b style={{ color: T.amberDark, fontWeight: 700 }}>{a.parola[0].toUpperCase() + a.parola.slice(1)}: </b>}
                 {v.testo}
               </span>

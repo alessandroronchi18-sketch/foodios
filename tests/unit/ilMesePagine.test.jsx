@@ -68,9 +68,10 @@ describe('Il mese, con il personale com\'è oggi', () => {
     const vai = vi.fn()
     render(<IlMeseView orgId="o1" sedi={[]} onNavigate={vai} />)
     await waitFor(() => expect(testo()).toMatch(/Quanto hai guadagnato/))
-    expect(testo()).toMatch(/Non posso dirtelo: mancano il personale/)
+    expect(testo()).toMatch(/Non posso dirtelo: manca il personale/)
     expect(testo()).not.toMatch(/Utile di \w+0 €/)
     expect(testo()).toMatch(/3 persone con stipendio sono segnate non attive/)
+    expect(testo()).toMatch(/Prima del personale ti restano 60\.000 € \(stima\)/) // 90.000 − 15.000 − 3.000 − 12.000
     await act(async () => { fireEvent.click([...document.querySelectorAll('button')].find(b => b.textContent === 'Apri Personale')) })
     expect(vai).toHaveBeenCalledWith('personale')
   })

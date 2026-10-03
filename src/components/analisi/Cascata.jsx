@@ -66,7 +66,11 @@ export default function Cascata({ passi = [], ricavi = null, isMobile = false })
                 ) : (
                   <span style={{
                     position: 'absolute', top: 2, bottom: 2, left: `${scala(r.da)}%`,
-                    width: `max(2px, ${scala(r.a) - scala(r.da)}%)`, background: colore, borderRadius: 4,
+                    // La larghezza si calcola qui e non con `max()` del CSS: le
+                    // pagine salvate per le foto la perdevano, e la barra
+                    // spariva. Mezzo punto di minimo, perché si veda anche un
+                    // passo piccolo.
+                    width: `${Math.max(0.5, scala(r.a) - scala(r.da))}%`, background: colore, borderRadius: 4,
                   }} />
                 )}
               </span>

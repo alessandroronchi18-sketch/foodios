@@ -176,6 +176,12 @@ export function contoDelMese({ incassi, costi, personale, speseFisse = null }) {
       primeCost: costi && pers != null ? q(materiePrime + pers) : null,
     },
     investimenti: costi?.investimenti?.importo ?? 0,
+    // Chi c'è dentro «Da classificare»: serve alla tabella per dire a chi
+    // dare una categoria per primo.
+    fornitoriDaClassificare: (costi?.daClassificare?.fornitori || []).map(f => ({ nome: f.nome, importo: Number(f.importo) || 0 })),
+    // Quanto resta prima del personale: un numero vero anche quando il
+    // personale manca, e chiamato col suo nome non si scambia per l'utile.
+    primaDelPersonale: ricavi != null && speseFatture != null ? tonda(ricavi - speseFatture - fisse) : null,
     stimato: incassi?.fonte === 'stima',
   }
 }
@@ -188,7 +194,7 @@ export function motivoSenzaUtile(conto, { personale, costi } = {}) {
   if (!costi) manca.push('le fatture')
   if (personale?.valore == null) manca.push('il personale')
   if (!manca.length) return 'non ho tutti i dati'
-  return `mancano ${manca.length === 1 ? manca[0] : `${manca.slice(0, -1).join(', ')} e ${manca.at(-1)}`}`
+  return manca.length === 1 ? `manca ${manca[0]}` : `mancano ${manca.slice(0, -1).join(', ')} e ${manca.at(-1)}`
 }
 
 /**

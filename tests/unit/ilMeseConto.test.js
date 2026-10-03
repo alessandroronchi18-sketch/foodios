@@ -108,8 +108,10 @@ describe('Il conto del mese', () => {
   it('senza personale l\'utile non si dà: sarebbe falso', () => {
     const c = contoDelMese({ incassi, costi: costi(), personale: { valore: null, stato: 'manca' } })
     expect(c.utile).toBeNull()
+    // ma quanto resta prima del personale sì, col suo nome
+    expect(c.primaDelPersonale).toBe(34500)
     expect(c.quote.personale).toBeNull()
-    expect(motivoSenzaUtile(c, { personale: { valore: null }, costi: costi() })).toBe('mancano il personale')
+    expect(motivoSenzaUtile(c, { personale: { valore: null }, costi: costi() })).toBe('manca il personale')
     expect(c.passi.find(p => p.chiave === 'personale').valore).toBeNull()
   })
 

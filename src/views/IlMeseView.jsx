@@ -107,6 +107,8 @@ export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate
   const vIncassi = conto.ricavi != null && contoPrima?.ricavi != null ? variazione({ attuale: conto.ricavi, confronto: contoPrima.ricavi }) : null
   const vSpese = conto.spese != null && contoPrima?.spese != null ? variazione({ attuale: conto.spese, confronto: contoPrima.spese, piuEMeglio: false }) : null
   const meseConfronto = dati.confronto
+  const materieIncomplete = conto.speseFatture > 0 && conto.daClassificare > conto.speseFatture * 0.05
+  const eccezionali = dati.attuale.eccezionali || []
   const colonne = ui3(isMobile, isTablet, { telefono: '1fr', tablet: '1fr 1fr', computer: '2fr 1fr 1fr' })
 
   return (
@@ -125,7 +127,9 @@ export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate
             variazione={vUtile} rispettoA={`su ${nomeMese(meseConfronto)}`} valoreConfronto={contoPrima?.utile != null ? euro(contoPrima.utile) : ''}
             contesto={conto.utile != null && conto.ricavi > 0
               ? `${quota(conto.quote.utile)} degli incassi${conto.investimenti > 0 ? ` · fuori dal conto ${euro(conto.investimenti)} di investimenti` : ''}`
-              : conto.speseFatture != null ? `Spese già note: ${euro(conto.spese)} (fatture${conto.personale != null ? ' e personale' : ''})` : ''} />
+              : conto.primaDelPersonale != null && conto.personale == null
+                ? `Prima del personale ti restano ${euro(conto.primaDelPersonale)}${conto.stimato ? ' (stima)' : ''}: incassi meno le spese in fattura.`
+                : conto.speseFatture != null ? `Spese già note: ${euro(conto.spese)}` : ''} />
         </div>
         <NumeroConConfronto isMobile={isMobile} etichetta="Incassi senza IVA" stimato={conto.stimato}
           valore={conto.ricavi != null ? euro(conto.ricavi) : null} motivoMancante="nessun dato"
@@ -136,6 +140,18 @@ export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate
           variazione={vSpese} rispettoA={`su ${nomeMese(meseConfronto, { anno: true })}`}
           contesto={conto.personale == null && conto.speseFatture != null ? 'senza il personale, che manca' : 'fatture e personale'} />
       </div>
+
+      {eccezionali.length > 0 && (
+        <Riquadro isMobile={isMobile} stile={{ marginBottom: 14, borderColor: T.bordoAvviso, background: T.fondoAvviso }}>
+          <TitoloGrafico titolo={eccezionali.length === 1 ? 'Una fattura fuori scala questo mese' : `${eccezionali.length} fatture fuori scala questo mese`}
+            sottotitolo="Se sono investimenti (attrezzature, lavori) si pagano una volta e durano anni: non sono spese del mese. Finché non lo dici, le conto come spese." />
+          {eccezionali.slice(0, 3).map(f => (
+            <FraseInsight key={f.id || f.numero} verso="info" onClick={onNavigate ? () => onNavigate('scadenzario') : null} etichettaAzione="Apri">
+              <b>{f.fornitore}</b>: {euro(f.importo)} il {dataBreve(f.data)}, {f.motivo}.
+            </FraseInsight>
+          ))}
+        </Riquadro>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: isMobile || isTablet ? '1fr' : '3fr 2fr', gap: isMobile ? 10 : 14, marginBottom: 14 }}>
         <Riquadro isMobile={isMobile}>
@@ -160,11 +176,14 @@ export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate
         <TitoloGrafico titolo="Le tre spese che decidono il margine"
           sottotitolo="Quanto pesano sugli incassi. Gli obiettivi sono indicativi: per la pasticceria artigiana non ci sono riferimenti italiani solidi, conta il confronto con te stesso." />
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))', gap: isMobile ? 16 : 24 }}>
-          <BarraObiettivo etichetta="Materie prime" valore={conto.quote.materiePrime} obiettivo={OBIETTIVI.materiePrime}
-            motivoMancante={conto.ricavi == null ? 'mancano gli incassi' : 'mancano le fatture'} />
+          {/* Con molte spese ancora senza categoria la quota delle materie
+              prime è un minimo, non la quota: «1,6%, sotto l'obiettivo» in
+              verde sarebbe una buona notizia falsa. */}
+          <BarraObiettivo etichetta="Materie prime" valore={materieIncomplete ? null : conto.quote.materiePrime} obiettivo={OBIETTIVI.materiePrime}
+            motivoMancante={conto.ricavi == null ? 'mancano gli incassi' : materieIncomplete ? `prima classifica ${euro(conto.daClassificare)} di spese` : 'mancano le fatture'} />
           <BarraObiettivo etichetta="Personale" valore={conto.quote.personale} obiettivo={OBIETTIVI.personale}
             motivoMancante={conto.personale == null ? 'stipendi non registrati' : 'mancano gli incassi'} />
-          <BarraObiettivo etichetta="Materie prime + personale" valore={conto.quote.primeCost} obiettivo={OBIETTIVI.primeCost}
+          <BarraObiettivo etichetta="Materie prime + personale" valore={materieIncomplete ? null : conto.quote.primeCost} obiettivo={OBIETTIVI.primeCost}
             motivoMancante="servono tutte e due" />
         </div>
       </Riquadro>

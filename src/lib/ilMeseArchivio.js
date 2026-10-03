@@ -9,7 +9,7 @@
 // Una lettura che fallisce non diventa «zero»: si annota in `errori` e il
 // pezzo che ne dipende resta `null`, così la pagina dice «non lo so».
 
-import { costiPerMese } from './contoEconomico'
+import { costiPerMese, fattureEccezionali } from './contoEconomico'
 import { leggiFatturePeriodo, leggiCategorieFornitori } from './contoEconomicoArchivio'
 import { incassiDelMese, personaleDelMese, contoDelMese } from './ilMese'
 import { ricaviDaInventario, fetchAllInventarioProduzione } from './inventarioProduzione'
@@ -152,7 +152,13 @@ export async function caricaIlMese({ supabase, orgId, sedi = [], mese, sedeId = 
       }, 0),
       voci: vociFisse,
     } : null
-    return { mese: m, incassi, costi, personale, conto: contoDelMese({ incassi, costi, personale, speseFisse: fisse }) }
+    // Le fatture fuori scala del mese (una GECKO da 86.651 € a luglio, 27
+    // volte la solita): se sono investimenti non sono spese del mese, ma lo
+    // decide il titolare. Qui si trovano e basta.
+    const eccezionali = fatture && categoriePerFornitore
+      ? fattureEccezionali(fatture, { categoriePerFornitore, dal: da }).filter(f => f.data && f.data <= a)
+      : []
+    return { mese: m, incassi, costi, personale, eccezionali, conto: contoDelMese({ incassi, costi, personale, speseFisse: fisse }) }
   }
 
   const perMese = Object.fromEntries(mesi.map(m => [m, contoDi(m)]))
