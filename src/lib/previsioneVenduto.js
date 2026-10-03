@@ -73,6 +73,8 @@ const CORREZIONE_MAX = 1.4
 const MIN_CELLE_FATTORE = 12
 const MIN_ERRORI_GUSTO = 12
 const MIN_CONTROLLI_BANDA = 30
+// Un «totale del giorno» fatto di uno o due gusti non è un totale.
+const MIN_GUSTI_TOTALE = 3
 // Dove si cerca la conta di partenza del ritmo: fino a una settimana oltre i
 // GIORNI_RITMO, e non meno di 3 giorni prima della conta di arrivo.
 const MIN_GIORNI_RITMO = 3
@@ -512,7 +514,10 @@ export function ultimoGiornoRegistrato(righe) {
  *   ultimoDato, giorniVecchi, base, giorniPrevisti: [iso], simulata,
  *   gusti: [{ gusto, previsti: [{data, kg, basso, alto, bandaDaSede}], ritmo,
  *             errore, scorta, finisce, lotto }]  ordinati per urgenza,
- *   erroreSede: { pct, kgGiorno, giorni }, livelloBanda, correzione
+ *   erroreSede: { pct, kgGiorno, giorni },
+ *   totali: [{data, kg, basso, alto}], erroreTotale, mediaGiorno,
+ *   conte: { totale, inaffidabili }  (ultime 4 settimane),
+ *   livelloBanda, correzione
  * }
  *
  * Con dati più vecchi di GIORNI_DATI_VECCHI lo stato è 'vecchi' e i gusti
@@ -522,7 +527,10 @@ export function ultimoGiornoRegistrato(righe) {
  */
 export function previsioneSede(righe, { oggi, giorni = 3, chiuso = () => false, base: baseForzata = null, opzioni = {} } = {}) {
   const usate = baseForzata ? (righe || []).filter(r => r?.data && r.data < baseForzata) : (righe || [])
-  const vuoto = { giorniPrevisti: [], gusti: [], erroreSede: null, livelloBanda: null, correzione: null, simulata: !!baseForzata }
+  const vuoto = {
+    giorniPrevisti: [], gusti: [], erroreSede: null, totali: [], erroreTotale: null, mediaGiorno: null,
+    conte: null, livelloBanda: null, correzione: null, simulata: !!baseForzata,
+  }
   const ultimoDato = ultimoGiornoRegistrato(usate)
   if (!ultimoDato) return { ...vuoto, stato: 'vuoto', ultimoDato: null, giorniVecchi: null, base: null }
   const riferimento = baseForzata ? piuGiorni(baseForzata, -1) : oggi
@@ -581,11 +589,53 @@ export function previsioneSede(righe, { oggi, giorni = 3, chiuso = () => false, 
     return (b.previsti[0]?.kg || 0) - (a.previsti[0]?.kg || 0)
   })
 
+  // ── Il totale del giorno ───────────────────────────────────────────────
+  // La sua banda NON è la somma delle bande dei gusti: gli errori dei gusti
+  // in parte si compensano (oggi più pistacchio, meno nocciola). Si misura
+  // allo stesso modo, sugli errori del totale nelle ultime 4 settimane.
+  const erroriTotale = []
+  for (let i = GIORNI_BACKTEST; i >= 1; i--) {
+    const t = piuGiorni(base, -i)
+    let p = 0, a = 0, n = 0
+    for (const g of Object.keys(ctx.gusti)) {
+      const c = ctx.gusti[g].celle[t]
+      if (!c || !c.pulito) continue
+      const x = ctx.prevedi(g, t, t)
+      if (x == null) continue
+      p += x; a += c.venduto; n++
+    }
+    if (n >= MIN_GUSTI_TOTALE && p > 0) erroriTotale.push({ data: t, previsto: p, reale: a })
+  }
+  const livello = ctx.livelloBanda(base)
+  const totali = giorniPrevisti.map((d, i) => {
+    const kg = gusti.reduce((s, g) => s + (g.previsti[i]?.kg || 0), 0)
+    const b = bandaDaErrori(kg, rapporti(erroriTotale), [], livello)
+    return { data: d, kg, basso: b?.basso ?? null, alto: b?.alto ?? null }
+  })
+  // Il confronto del totale: un giorno medio dell'ultima settimana.
+  const mediaGiorno = gusti.reduce((s, g) => s + g.ritmo.kgGiorno, 0) * ctx.correzione(base)
+
+  // Quante conte della vetrina nelle ultime 4 settimane non sono affidabili:
+  // la pagina lo scrive nella riga della copertura.
+  let conteTot = 0, conteVuote = 0
+  for (const G of Object.values(ctx.gusti)) {
+    for (let i = 1; i <= GIORNI_BACKTEST; i++) {
+      const c = G.celle[piuGiorni(base, -i)]
+      if (!c) continue
+      conteTot++
+      if (!c.conta) conteVuote++
+    }
+  }
+
   return {
     ...vuoto,
     stato: 'ok', ultimoDato, giorniVecchi, base, giorniPrevisti, gusti,
     erroreSede: errorePassato(erroriSede),
-    livelloBanda: ctx.livelloBanda(base),
+    totali,
+    erroreTotale: errorePassato(erroriTotale),
+    mediaGiorno,
+    conte: { totale: conteTot, inaffidabili: conteVuote },
+    livelloBanda: livello,
     correzione: ctx.correzione(base),
   }
 }

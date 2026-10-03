@@ -509,6 +509,47 @@ describe('previsioneSede', () => {
     expect(p.gusti.map(g => g.previsti[0].kg)).toEqual(cieca.gusti.map(g => g.previsti[0].kg))
   })
 
+  it('il totale del giorno è la somma dei gusti, con la sua banda (non la somma delle bande)', () => {
+    const r = rng(11)
+    const rumorose = 'ABCDEF'.split('').flatMap((g, k) => simula({ gusto: g, vendite: () => (2 + k) * (0.6 + 0.8 * r()), giorni: 61, lotto: 20, soglia: 8, scorta: 12 }))
+    const p = previsioneSede(rumorose, { oggi: piuGiorni(ultimo, 1) })
+    p.totali.forEach((t, i) => {
+      expect(t.kg).toBeCloseTo(p.gusti.reduce((s, g) => s + g.previsti[i].kg, 0), 9)
+      expect(t.basso).toBeLessThanOrEqual(t.kg)
+      expect(t.alto).toBeGreaterThanOrEqual(t.kg)
+    })
+    // gli errori dei gusti si compensano: la banda del totale, in proporzione,
+    // è più stretta della somma delle bande dei gusti
+    const t0 = p.totali[0]
+    const sommaBande = p.gusti.reduce((s, g) => s + (g.previsti[0].alto - g.previsti[0].basso), 0)
+    expect(t0.alto - t0.basso).toBeLessThan(sommaBande)
+    // ...e anche della banda che verrebbe dagli scarti dei singoli gusti
+    // messi tutti insieme: con sei gusti che sbagliano ognuno per conto suo,
+    // il totale sbaglia molto meno di ciascuno
+    const ctx = creaContesto(rumorose)
+    const bandaGusti = bandaDaErrori(1, [], ctx.rapportiSede(p.base), p.livelloBanda)
+    expect((t0.alto - t0.basso) / t0.kg).toBeLessThan(0.7 * (bandaGusti.alto - bandaGusti.basso))
+    expect(p.erroreTotale.giorni).toBeGreaterThan(10)
+  })
+
+  it('il confronto del totale è un giorno medio dell’ultima settimana', () => {
+    const p = previsioneSede(righe, { oggi: piuGiorni(ultimo, 1) })
+    const atteso = p.gusti.reduce((s, g) => s + g.ritmo.kgGiorno, 0) * p.correzione
+    expect(p.mediaGiorno).toBeCloseTo(atteso, 9)
+    // 6 + 2 + 4 kg al giorno
+    expect(p.mediaGiorno).toBeCloseTo(12, 0)
+  })
+
+  it('conta le conte della vetrina non affidabili delle ultime 4 settimane', () => {
+    const conVuote = simula({ gusto: 'FONDENTE', vendite: costante(6), giorni: 61, lotto: 13, soglia: 7, scorta: 8, casellaVuota: true })
+    const p = previsioneSede(conVuote, { oggi: piuGiorni(ultimo, 1) })
+    const attese = conVuote.filter(x => x.data >= piuGiorni(ultimo, -27) && x.produzione_g > 0).length
+    expect(p.conte.totale).toBe(28)
+    expect(p.conte.inaffidabili).toBe(attese)
+    expect(attese).toBeGreaterThan(5)
+    expect(previsioneSede(righe, { oggi: piuGiorni(ultimo, 1) }).conte.inaffidabili).toBe(0)
+  })
+
   it('dice l’errore passato per gusto e per sede', () => {
     const p = previsioneSede(righe, { oggi: piuGiorni(ultimo, 1) })
     expect(p.erroreSede.giorni).toBeGreaterThan(20)
