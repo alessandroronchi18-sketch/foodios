@@ -5,6 +5,7 @@
 
 import React, { useEffect, useState, useMemo } from 'react'
 import { fmtp0 } from '../lib/formatIt'
+import { todayLocal } from '../lib/dateLocal'
 import { color as T, radius as R, shadow as S, typo, ui3, ui, font } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from '../components/Icon'
@@ -13,7 +14,7 @@ import { C, TNUM, PageHeader, fmt, fmt0 } from './_shared'
 import {
   CATEGORIE_DEFAULT, PERIODICITA,
   caricaCostiAziendali, salvaVoceCosto, eliminaVoceCosto,
-  importoMensile, totaleMensile, aggregaPerCategoria, statoVoce,
+  importoMensile, totaleMensile, aggregaPerCategoria, statoVoce, comeEliminare,
 } from '../lib/costiAziendali'
 
 // ── Un importo che non si sa non è zero ─────────────────────────────────────
@@ -117,13 +118,19 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
   // KPI calcolati sul SCOPE attivo: se "sede attiva" mostro totali della sede,
   // se "tutta l'azienda" mostro totale azienda. Così i numeri restano coerenti
   // col toggle.
-  const totMese = totaleMensile(vociScopeFiltrate)
+  // Il mese di riferimento è QUELLO DI OGGI. Senza data il totale contava
+  // anche le voci finite e quelle che iniziano fra sei mesi: il «costo
+  // mensile» in alto non era il costo di nessun mese.
+  const oggi = todayLocal()
+  const totMese = totaleMensile(vociScopeFiltrate, oggi)
+  const nAttive = vociScopeFiltrate.filter(v => statoVoce(v, oggi).stato === 'attiva').length
+  const nNonAttive = vociScopeFiltrate.length - nAttive
   const totAnno = totMese * 12
   // Quanto costa ogni giorno stare aperti, prima di vendere una pallina. È il
   // numero con cui si ragiona sul punto di pareggio: 365 giorni, non i giorni
   // di apertura, perché l'affitto si paga anche di lunedì.
   const costoGiorno = totAnno / 365
-  const perCategoria = aggregaPerCategoria(vociScopeFiltrate)
+  const perCategoria = aggregaPerCategoria(vociScopeFiltrate, oggi)
   // Quante voci hanno un importo che non si riesce a leggere. Contarle è il
   // solo modo di dire che il totale qui sopra è più basso del vero invece di
   // lasciarlo passare per completo.
@@ -196,17 +203,22 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
     }
   }
 
-  async function elimina(id) {
+  async function elimina(v) {
+    const oggiIso = todayLocal()
+    const modo = comeEliminare(v, oggiIso)
     const ok = await confirmDialog({
-      title: 'Eliminare voce di costo?',
-      message: 'La voce sara rimossa dal P&L. Le voci storiche restano.',
-      confirmLabel: 'Elimina', cancelLabel: 'Annulla', destructive: true,
+      title: modo === 'chiudi' ? `Smettere di contare «${v.voce}»?` : `Eliminare «${v.voce}»?`,
+      message: modo === 'chiudi'
+        ? 'Questo mese la conto ancora, dal prossimo no. I mesi passati restano com\'erano: il conto di gennaio non cambia.'
+        : 'Non ha mesi passati, quindi sparisce del tutto.',
+      confirmLabel: modo === 'chiudi' ? 'Smetti di contarla' : 'Elimina', cancelLabel: 'Annulla', destructive: true,
     })
     if (!ok) return
     try {
-      await eliminaVoceCosto(id, false)
+      if (modo === 'chiudi') await salvaVoceCosto({ ...v, data_fine: oggiIso })
+      else await eliminaVoceCosto(v.id, false)
       await reload()
-      notify?.('Voce eliminata')
+      notify?.(modo === 'chiudi' ? `«${v.voce}» non pesa più dal mese prossimo` : 'Voce eliminata')
     } catch (e) {
       notify?.('Eliminazione non riuscita: ' + messaggioErrore(e), false)
     }
@@ -302,7 +314,7 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
           label="Costo mensile totale"
           value={vociScopeFiltrate.length > 0 ? fmt0(totMese) : '-'}
           sub={vociScopeFiltrate.length > 0
-            ? `${vociScopeFiltrate.length} ${vociScopeFiltrate.length === 1 ? 'voce attiva' : 'voci attive'}`
+            ? `${nAttive} ${nAttive === 1 ? 'voce attiva' : 'voci attive'}${nNonAttive > 0 ? ` · ${nNonAttive} finit${nNonAttive === 1 ? 'a' : 'e'} o non ancora iniziat${nNonAttive === 1 ? 'a' : 'e'}` : ''}`
             : 'Non lo sappiamo ancora: nessuna voce inserita'}
           accent={T.brand}
           highlight
@@ -539,7 +551,7 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
                       isMobile={isMobile}
                       iconBtnSize={iconBtnSize}
                       onEdit={() => setForm({ ...v })}
-                      onDelete={() => elimina(v.id)}
+                      onDelete={() => elimina(v)}
                     />
                   ))}
                 </div>

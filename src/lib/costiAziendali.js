@@ -203,6 +203,23 @@ export function statoVoce(voce, asOfDate) {
   return { mensile, stato: 'attiva', mesiRimasti: null }
 }
 
+// ── Eliminare una voce senza cancellare i mesi passati (03/10/2026) ──────
+//
+// «Elimina» cancellava la riga dal database mentre il messaggio diceva «Le
+// voci storiche restano»: l'affitto di gennaio spariva anche da gennaio, e
+// il conto dei mesi passati cambiava a ogni pulizia dell'elenco. Ora una
+// voce che ha già pesato su un mese passato si CHIUDE (data di fine = oggi:
+// il mese in corso la conta ancora, dal prossimo no); una voce che non ha
+// mesi passati — nata questo mese o con l'inizio nel futuro — si cancella
+// davvero, perché non c'è niente da conservare.
+export function comeEliminare(voce, oggiIso) {
+  const mese = (d) => String(d || '').slice(0, 7)
+  const corrente = mese(oggiIso)
+  const nascita = voce?.data_inizio || voce?.created_at || null
+  if (nascita && mese(nascita) < corrente) return 'chiudi'
+  return 'cancella'
+}
+
 // Totale costi aziendali mensili (somma tutte le voci attive).
 // `asOfDate` = mese di riferimento: serve al conto economico di un periodo
 // passato, per non caricargli sopra voci nate dopo.
