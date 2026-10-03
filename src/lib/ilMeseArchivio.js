@@ -112,7 +112,9 @@ export async function caricaIlMese({ supabase, orgId, sedi = [], mese, sedeId = 
   ])
 
   const fatture = fattureLette?.fatture || null
-  const categoriePerFornitore = categorie?.categoriePerFornitore || null
+  // Se le fatture si leggono ma le categorie no, le spese si contano lo
+  // stesso: tutte «da classificare». Dire «fatture non lette» sarebbe falso.
+  const categoriePerFornitore = categorie?.categoriePerFornitore || (fatture ? {} : null)
   const cassa = chiusure ? cassaPerMese(chiusure, { sedeId }) : null
   const ultimoInventario = righePerSede
     ? Object.values(righePerSede).map(ultimoGiornoInventario).filter(Boolean).sort().at(-1) || null
