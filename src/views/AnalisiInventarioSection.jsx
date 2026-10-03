@@ -33,8 +33,13 @@ import { loadXLSX } from '../lib/xlsx'
 // i conti che non tornavano, perdeva la giacenza di partenza a ogni giorno di
 // chiusura e ignorava i chili spediti alle altre sedi: questa pagina mostrava
 // un venduto diverso da Quadratura e dal conto economico sugli stessi giorni.
-import { totaliPerGusto, serieVendutoMultiSede } from '../lib/inventarioProduzione'
-import { calcolaFC, isRicettaValida, getR } from '../lib/foodcost'
+import { totaliPerGusto, serieVendutoMultiSede, ricettaDelGusto } from '../lib/inventarioProduzione'
+import { buildIngCosti } from '../lib/foodcost'
+// Il valore di ogni gusto (ricavo, food cost, margine) non si calcola qui: è
+// `valutaGusti`, provato coi numeri veri. Le due copie che stavano in questa
+// pagina chiamavano calcolaFC con gli argomenti sbagliati e davano un margine
+// del 100% su tutto (vedi il racconto in produzioneAnalisi.js).
+import { valutaGusti } from '../lib/produzioneAnalisi'
 import { useRicavoFlat } from '../lib/useRicavoFlat'
 import { fmtp } from '../lib/formatIt'
 
@@ -70,64 +75,30 @@ export default function AnalisiInventarioSection({
                        : confronto === 'nessuno'  ? ''
                        : 'vs periodo prec.'
 
-  // Aggregato per gusto: prod, venduto (residuo differenziale), scarto,
-  // ricavo €, food cost €, margine €, margine %.
-  const perGusto = useMemo(() => {
-    const raw = totaliPerGusto(rows, { da: dateFrom, a: dateTo })
-    const ricByName = {}
-    for (const ric of Object.values(ricettario?.ricette || {})) {
-      ricByName[String(ric.nome || '').trim().toUpperCase()] = ric
-    }
-    const arr = []
-    for (const [gusto, { prodTot, scartoTot, vendTot }] of Object.entries(raw)) {
-      const ric = ricByName[String(gusto).trim().toUpperCase()]
-      const ricavoKg = ric ? (Number(ricavoFlatFor(ric)) || 0) : 0
-      const fcInfo = ric && isRicettaValida(ric.nome) ? calcolaFC(ric, ricettario) : null
-      const fcKg = fcInfo?.foodCost || 0
-      const prodKg = prodTot / 1000
-      const vendKg = vendTot / 1000
-      const scartoKg = scartoTot / 1000
-      const ricavo = vendKg * ricavoKg
-      const fc = prodKg * fcKg
-      const margine = ricavo - fc
-      const margPct = ricavo > 0 ? (margine / ricavo * 100) : 0
-      arr.push({
-        gusto, prodKg, vendKg, scartoKg,
-        ricavoKg, fcKg, ricavo, fc, margine, margPct,
-        haMapping: ricavoKg > 0 && fcKg > 0,
-      })
-    }
-    return arr
-  }, [rows, ricettario, ricavoFlatFor])
+  // I prezzi degli ingredienti, nella forma che calcolaFC si aspetta.
+  const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario])
+  const valuta = (righe, da, a) => valutaGusti(totaliPerGusto(righe, { da, a }), {
+    ricettaDi: (gusto) => ricettaDelGusto(ricettario, gusto),
+    ricavoKgDi: ricavoFlatFor,
+    ingCosti, ricettario,
+  })
 
-  const totali = useMemo(() => {
-    let prod = 0, vend = 0, scarto = 0, ricavo = 0, fc = 0
-    for (const r of perGusto) {
-      prod += r.prodKg; vend += r.vendKg; scarto += r.scartoKg
-      ricavo += r.ricavo; fc += r.fc
-    }
-    return { prod, vend, scarto, ricavo, fc, margine: ricavo - fc, margPct: ricavo > 0 ? ((ricavo - fc) / ricavo * 100) : 0 }
-  }, [perGusto])
+  // Aggregato per gusto: prod, venduto (residuo differenziale), scarto,
+  // ricavo €, food cost €, margine € e %. Il margine è null quando il gusto
+  // non ha sia il ricavo sia il costo completo: è «non lo so», non 100%.
+  const valutazione = useMemo(
+    () => valuta(rows, dateFrom, dateTo),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rows, dateFrom, dateTo, ricettario, ingCosti, ricavoFlatFor]
+  )
+  const perGusto = valutazione.righe
+  const totali = valutazione.totali
 
   const totaliPrev = useMemo(() => {
     if (!Array.isArray(rowsPrev) || rowsPrev.length === 0) return null
-    const raw = totaliPerGusto(rowsPrev, { da: prevFrom, a: prevTo })
-    const ricByName = {}
-    for (const ric of Object.values(ricettario?.ricette || {})) {
-      ricByName[String(ric.nome || '').trim().toUpperCase()] = ric
-    }
-    let prod = 0, vend = 0, scarto = 0, ricavo = 0, fc = 0
-    for (const [gusto, { prodTot, scartoTot, vendTot }] of Object.entries(raw)) {
-      prod += prodTot / 1000; vend += vendTot / 1000; scarto += scartoTot / 1000
-      const ric = ricByName[String(gusto).trim().toUpperCase()]
-      const ricavoKg = ric ? (Number(ricavoFlatFor(ric)) || 0) : 0
-      const fcInfo = ric && isRicettaValida(ric.nome) ? calcolaFC(ric, ricettario) : null
-      const fcKg = fcInfo?.foodCost || 0
-      ricavo += (vendTot / 1000) * ricavoKg
-      fc += (prodTot / 1000) * fcKg
-    }
-    return { prod, vend, scarto, ricavo, fc, margine: ricavo - fc, margPct: ricavo > 0 ? ((ricavo - fc) / ricavo * 100) : 0 }
-  }, [rowsPrev, ricettario, ricavoFlatFor])
+    return valuta(rowsPrev, prevFrom, prevTo).totali
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rowsPrev, prevFrom, prevTo, ricettario, ingCosti, ricavoFlatFor])
 
   // Serie temporale per il grafico (aggregazione per giorno/settimana/mese)
   const trend = useMemo(() => {
@@ -209,6 +180,11 @@ export default function AnalisiInventarioSection({
     arr.sort((a, b) => {
       const va = a[sortBy]; const vb = b[sortBy]
       if (typeof va === 'string') return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va)
+      // Un margine che non si sa (null) va in fondo, in tutti e due i versi:
+      // `null - 3` fa -3 e lo metterebbe a caso in mezzo alla classifica.
+      if (va == null && vb == null) return 0
+      if (va == null) return 1
+      if (vb == null) return -1
       return sortDir === 'asc' ? va - vb : vb - va
     })
     return arr
@@ -222,8 +198,11 @@ export default function AnalisiInventarioSection({
   }, [perGusto])
   const top10Max = Math.max(1, ...top10.map(x => x.vendKg))
 
-  const nMappati = perGusto.filter(x => x.haMapping).length
-  const nNonMappati = perGusto.length - nMappati
+  // Un gusto «a posto» ha il prezzo di vendita e il costo completo. Prima il
+  // controllo guardava un food cost sempre zero, e l'avviso diceva «28 gusti
+  // su 28 senza ricetta» con 88.970 € di ricavo in pagina.
+  const completo = (r) => r.haRicavo && r.fcCompleto
+  const nNonMappati = perGusto.filter(x => !completo(x)).length
 
   const eur = (n) => (Number(n) || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' €'
   const kg = (n) => (Number(n) || 0).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 1 })
@@ -250,8 +229,10 @@ export default function AnalisiInventarioSection({
         Number(r.ricavoKg.toFixed(2)),
         Number(r.ricavo.toFixed(0)),
         Number(r.fc.toFixed(0)),
-        Number(r.margine.toFixed(0)),
-        Number(r.margPct.toFixed(1)),
+        // Un margine che non si sa resta vuoto anche nel file: al
+        // commercialista arrivava «100,0» su ogni gusto.
+        r.margine == null ? '' : Number(r.margine.toFixed(0)),
+        r.margPct == null ? '' : Number(r.margPct.toFixed(1)),
       ])
       const total = [
         'Totale',
@@ -261,8 +242,8 @@ export default function AnalisiInventarioSection({
         '',
         Number(totali.ricavo.toFixed(0)),
         Number(totali.fc.toFixed(0)),
-        Number(totali.margine.toFixed(0)),
-        Number(totali.margPct.toFixed(1)),
+        totali.margine == null ? '' : Number(totali.margine.toFixed(0)),
+        totali.margPct == null ? '' : Number(totali.margPct.toFixed(1)),
       ]
       const ws = XLSX.utils.aoa_to_sheet([header, ...body, total])
       const wb = XLSX.utils.book_new()
@@ -333,7 +314,17 @@ export default function AnalisiInventarioSection({
         <KpiCell label="Prodotto" value={`${kg(totali.prod)} kg`} delta={deltaPct(totali.prod, totaliPrev?.prod)} deltaLabel={deltaLabelText} highlight={false} color={C.text}/>
         <KpiCell label="Venduto stimato" value={`${kg(totali.vend)} kg`} delta={deltaPct(totali.vend, totaliPrev?.vend)} deltaLabel={deltaLabelText} highlight color={T.brand}/>
         <KpiCell label="Ricavo stimato" value={eur(totali.ricavo)} delta={deltaPct(totali.ricavo, totaliPrev?.ricavo)} deltaLabel={deltaLabelText} highlight color="#166534"/>
-        <KpiCell label={`Margine (${pct(totali.margPct)})`} value={eur(totali.margine)} delta={deltaPct(totali.margine, totaliPrev?.margine)} deltaLabel={deltaLabelText} highlight color={totali.margine >= 0 ? '#166534' : '#B91C1C'}/>
+        <KpiCell
+          label={totali.margPct != null ? `Margine (${pct(totali.margPct)})` : 'Margine'}
+          value={totali.margine != null ? eur(totali.margine) : 'non calcolabile'}
+          // Su quanti gusti è fatto: un margine calcolato su 15 gusti su 28 non
+          // è il margine della gelateria, e chi legge deve saperlo.
+          sub={totali.margine == null
+            ? 'nessun gusto ha ricavo e costo'
+            : (totali.nConMargine < totali.nConVendita ? `su ${totali.nConMargine} gusti su ${totali.nConVendita}` : null)}
+          delta={totali.margine != null && totaliPrev?.margine != null ? deltaPct(totali.margine, totaliPrev.margine) : null}
+          deltaLabel={deltaLabelText} highlight
+          color={totali.margine == null ? T.textSoft : totali.margine >= 0 ? '#166534' : '#B91C1C'}/>
       </div>
 
       {nNonMappati > 0 && (
@@ -415,7 +406,7 @@ export default function AnalisiInventarioSection({
           titolo={(r) => (
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               {r.gusto}
-              {!r.haMapping && (
+              {!completo(r) && (
                 <span title="Ricetta o formato non collegato" style={{ color: T.amber, display: 'inline-flex' }}>
                   <Icon name="warning" size={13} />
                 </span>
@@ -426,7 +417,7 @@ export default function AnalisiInventarioSection({
             { k: 'vend', label: 'Venduto', forte: true, cella: (r) => kg(r.vendKg) },
             { k: 'ricavo', label: 'Ricavo', forte: true, cella: (r) => r.ricavo > 0 ? eur(r.ricavo) : '-' },
             { k: 'marg', label: 'Margine', forte: true,
-              cella: (r) => (r.ricavo > 0 || r.fc > 0)
+              cella: (r) => r.margine != null
                 ? <span style={{ color: r.margine >= 0 ? T.green : T.red }}>{eur(r.margine)}</span> : '-' },
           ]}
           dettaglio={(r) => (
@@ -435,7 +426,7 @@ export default function AnalisiInventarioSection({
                 ['Prodotto', kg(r.prodKg), C.text],
                 ['Scarto', r.scartoKg > 0 ? kg(r.scartoKg) : '-', r.scartoKg > 0 ? T.red : C.textSoft],
                 ['Food cost', r.fc > 0 ? eur(r.fc) : '-', T.red],
-                ['Margine %', r.ricavo > 0 ? pct(r.margPct) : '-', r.margPct >= 40 ? T.green : r.margPct >= 20 ? T.amber : T.red],
+                ['Margine %', r.margPct != null ? pct(r.margPct) : '-', r.margPct == null ? C.textSoft : r.margPct >= 40 ? T.green : r.margPct >= 20 ? T.amber : T.red],
               ].map(([et, v, col]) => (
                 <div key={et} style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
                   <span style={{ color: C.textSoft }}>{et}</span>
@@ -453,8 +444,8 @@ export default function AnalisiInventarioSection({
                 ['Scarto', totali.scarto > 0 ? kg(totali.scarto) : '-', totali.scarto > 0 ? T.red : C.textSoft],
                 ['Ricavo', eur(totali.ricavo), C.text],
                 ['Food cost', eur(totali.fc), T.red],
-                ['Margine', eur(totali.margine), totali.margine >= 0 ? T.green : T.red],
-                ['Margine %', pct(totali.margPct), C.text],
+                ['Margine', totali.margine != null ? eur(totali.margine) : '-', totali.margine == null ? C.textSoft : totali.margine >= 0 ? T.green : T.red],
+                ['Margine %', totali.margPct != null ? pct(totali.margPct) : '-', C.text],
               ].map(([et, v, col]) => (
                 <div key={et} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '4px 0', fontSize: font.size.base }}>
                   <span style={{ color: C.textSoft, fontWeight: 600 }}>{et}</span>
@@ -480,15 +471,15 @@ export default function AnalisiInventarioSection({
                 <tr key={r.gusto} style={{ borderTop: `1px solid #F1F5F9` }}>
                   <td style={{ padding: '8px 12px', fontWeight: 700, color: C.text }}>
                     {r.gusto}
-                    {!r.haMapping && <span title="Ricetta o formato non collegato" style={{ marginLeft: 6, color: '#B45309', fontSize: 12 }}>⚠</span>}
+                    {!completo(r) && <span title="Ricetta o formato non collegato" style={{ marginLeft: 6, color: '#B45309', fontSize: 12 }}>⚠</span>}
                   </td>
                   <td style={{ padding: '8px 12px', textAlign: 'right', ...TNUM }}>{kg(r.prodKg)}</td>
                   <td style={{ padding: '8px 12px', textAlign: 'right', ...TNUM }}>{kg(r.vendKg)}</td>
                   <td style={{ padding: '8px 12px', textAlign: 'right', ...TNUM, color: r.scartoKg > 0 ? '#B91C1C' : C.textSoft }}>{r.scartoKg > 0 ? kg(r.scartoKg) : '-'}</td>
                   <td style={{ padding: '8px 12px', textAlign: 'right', ...TNUM, fontWeight: 700, background: '#FEF9EB' }}>{r.ricavo > 0 ? eur(r.ricavo) : '-'}</td>
                   <td style={{ padding: '8px 12px', textAlign: 'right', ...TNUM, color: '#B91C1C' }}>{r.fc > 0 ? eur(r.fc) : '-'}</td>
-                  <td style={{ padding: '8px 12px', textAlign: 'right', ...TNUM, fontWeight: 800, color: r.margine >= 0 ? '#166534' : '#B91C1C', background: '#F0FDF4' }}>{r.ricavo > 0 || r.fc > 0 ? eur(r.margine) : '-'}</td>
-                  <td style={{ padding: '8px 12px', textAlign: 'right', ...TNUM, color: r.margPct >= 40 ? '#166534' : r.margPct >= 20 ? '#B45309' : '#B91C1C' }}>{r.ricavo > 0 ? pct(r.margPct) : '-'}</td>
+                  <td style={{ padding: '8px 12px', textAlign: 'right', ...TNUM, fontWeight: 800, color: r.margine >= 0 ? '#166534' : '#B91C1C', background: '#F0FDF4' }}>{r.margine != null ? eur(r.margine) : '-'}</td>
+                  <td style={{ padding: '8px 12px', textAlign: 'right', ...TNUM, color: r.margPct == null ? C.textSoft : r.margPct >= 40 ? '#166534' : r.margPct >= 20 ? '#B45309' : '#B91C1C' }}>{r.margPct != null ? pct(r.margPct) : '-'}</td>
                 </tr>
               ))}
             </tbody></>}
@@ -500,8 +491,8 @@ export default function AnalisiInventarioSection({
                 <td style={{ padding: '10px 12px', textAlign: 'right', ...TNUM, fontWeight: 800, color: totali.scarto > 0 ? '#B91C1C' : C.textSoft }}>{totali.scarto > 0 ? kg(totali.scarto) : '-'}</td>
                 <td style={{ padding: '10px 12px', textAlign: 'right', ...TNUM, fontWeight: 800, background: '#FEF9EB' }}>{eur(totali.ricavo)}</td>
                 <td style={{ padding: '10px 12px', textAlign: 'right', ...TNUM, fontWeight: 800, color: '#B91C1C' }}>{eur(totali.fc)}</td>
-                <td style={{ padding: '10px 12px', textAlign: 'right', ...TNUM, fontWeight: 800, color: totali.margine >= 0 ? '#166534' : '#B91C1C', background: '#F0FDF4' }}>{eur(totali.margine)}</td>
-                <td style={{ padding: '10px 12px', textAlign: 'right', ...TNUM, fontWeight: 800 }}>{pct(totali.margPct)}</td>
+                <td style={{ padding: '10px 12px', textAlign: 'right', ...TNUM, fontWeight: 800, color: totali.margine == null ? C.textSoft : totali.margine >= 0 ? '#166534' : '#B91C1C', background: '#F0FDF4' }}>{totali.margine != null ? eur(totali.margine) : '-'}</td>
+                <td style={{ padding: '10px 12px', textAlign: 'right', ...TNUM, fontWeight: 800 }}>{totali.margPct != null ? pct(totali.margPct) : '-'}</td>
               </tr>
             </tfoot></>}
         />
@@ -511,7 +502,7 @@ export default function AnalisiInventarioSection({
   )
 }
 
-function KpiCell({ label, value, delta, deltaLabel = 'vs periodo prec.', highlight, color }) {
+function KpiCell({ label, value, sub = null, delta, deltaLabel = 'vs periodo prec.', highlight, color }) {
   const deltaColor = delta == null ? T.textSoft : delta > 0 ? '#166534' : delta < 0 ? '#B91C1C' : T.textSoft
   const deltaSymbol = delta == null ? '' : delta > 0 ? '↑' : delta < 0 ? '↓' : '='
   return (
@@ -523,6 +514,9 @@ function KpiCell({ label, value, delta, deltaLabel = 'vs periodo prec.', highlig
     }}>
       <div style={{ fontSize: 12, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{label}</div>
       <div style={{ fontSize: 20, fontWeight: 800, color, ...TNUM, lineHeight: 1.1 }}>{value}</div>
+      {sub && (
+        <div style={{ fontSize: font.size.sm, color: T.textSoft, marginTop: 4, lineHeight: 1.35 }}>{sub}</div>
+      )}
       {delta != null && deltaLabel && (
         <div style={{ fontSize: 12, color: deltaColor, fontWeight: 700, marginTop: 4, ...TNUM }}>
           {deltaSymbol} {fmtp(Math.abs(delta))} {deltaLabel}
