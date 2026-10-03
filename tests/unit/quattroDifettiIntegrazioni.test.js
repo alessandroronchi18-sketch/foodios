@@ -49,8 +49,9 @@ describe('2. il dettaglio riga delle fatture non si butta più', () => {
       expect(PARSER, `manca ${campo}`).toContain(campo)
     }
     // `righe` dev'essere fra i campi della fattura restituita. Dal 24/09 dopo
-    // di lei vengono anche l'anagrafica del fornitore e la P.IVA di chi riceve.
-    expect(PARSER).toMatch(/\n\s*righe,\s*\n\s*fornitore_dati,\s*\n\s*cessionario_piva,\s*\n\s*\}\)/)
+    // di lei vengono anche l'anagrafica del fornitore e la P.IVA di chi riceve;
+    // dal 03/10 anche il nome di chi riceve (la domanda «a quali sedi vanno?»).
+    expect(PARSER).toMatch(/\n\s*righe,\s*\n\s*fornitore_dati,\s*\n\s*cessionario_piva,\s*\n\s*cessionario_nome,\s*\n\s*\}\)/)
   })
 
   it('e `pickFattura` non le butta via in silenzio', () => {

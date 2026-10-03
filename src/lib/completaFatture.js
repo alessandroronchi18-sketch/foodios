@@ -21,7 +21,7 @@
 // ha già — possono essere stati corretti a mano. Se non c'è, si crea. Se ce
 // ne sono due possibili, non si tocca niente e lo si dice: meglio una fattura
 // da guardare che una scritta sulla riga sbagliata.
-import { fatturaKey, pickFattura } from './fattureImport'
+import { fatturaKey, pickFattura, colonnaMancante } from './fattureImport'
 import { ibanIsValid, normalizeIban } from './sepa'
 
 // Le forme societarie e la punteggiatura cambiano da un programma all'altro;
@@ -57,6 +57,13 @@ export function patchDaXml(esistente, xml) {
   if (!esistente.ha_righe && Array.isArray(xml.righe) && xml.righe.length) patch.righe = xml.righe
   for (const k of ['piva', 'cf', 'iban', 'data_scadenza']) {
     if (vuoto(esistente[k]) && !vuoto(xml[k])) patch[k] = xml[k]
+  }
+  // Di quale società è (03/10/2026). Si propone solo se la riga in archivio
+  // HA la chiave, cioè se la colonna è stata letta: prima della migration la
+  // colonna non c'è, e proporla farebbe risultare «da completare» ogni
+  // fattura a ogni ricarica dello stesso ZIP.
+  if ('cessionario_piva' in esistente && vuoto(esistente.cessionario_piva) && !vuoto(xml.cessionario_piva)) {
+    patch.cessionario_piva = xml.cessionario_piva
   }
   return patch
 }
@@ -122,15 +129,29 @@ export function abbinaFatture(records, esistenti) {
  * scaricano: basta sapere se ce ne sono (`righe->0`), altrimenti con lo
  * storico completo si porterebbero giù decine di migliaia di righe.
  */
+const COLONNE_ABBINA = 'id, numero_rif, fornitore, data_fattura, totale, piva, cf, iban, data_scadenza, prima_riga:righe->0'
+
 export async function fattureEsistentiPerAbbinare(supabase, orgId) {
   const tutte = []
   const PAGINA = 1000
+  // `cessionario_piva` c'è solo dopo la migration del 03/10/2026. Se il
+  // database non la conosce si rilegge senza, e le righe non portano la
+  // chiave: `patchDaXml` allora non la propone.
+  let colonne = COLONNE_ABBINA + ', cessionario_piva'
   for (let offset = 0; offset < 200000; offset += PAGINA) {
-    const { data, error } = await supabase.from('fatture')
-      .select('id, numero_rif, fornitore, data_fattura, totale, piva, cf, iban, data_scadenza, prima_riga:righe->0')
+    let { data, error } = await supabase.from('fatture')
+      .select(colonne)
       .eq('organization_id', orgId)
       .order('id')
       .range(offset, offset + PAGINA - 1)
+    if (error && colonne !== COLONNE_ABBINA && colonnaMancante(error) === 'cessionario_piva') {
+      colonne = COLONNE_ABBINA
+      ;({ data, error } = await supabase.from('fatture')
+        .select(colonne)
+        .eq('organization_id', orgId)
+        .order('id')
+        .range(offset, offset + PAGINA - 1))
+    }
     if (error) throw new Error(error.message)
     for (const r of (data || [])) {
       const { prima_riga, ...resto } = r
@@ -148,13 +169,34 @@ export async function fattureEsistentiPerAbbinare(supabase, orgId) {
 export async function applicaCompletamenti(supabase, orgId, completa, { parallele = 8, onProgresso } = {}) {
   let fatte = 0
   const errori = []
+  // Le colonne che il database non ha: si tolgono dal completamento invece
+  // di perdere tutto il resto (righe, P.IVA, IBAN) per colpa di una.
+  const tolte = new Set()
+  const ripulita = (patch) => {
+    const o = { ...patch }
+    for (const c of tolte) delete o[c]
+    return o
+  }
+  const scrivi = async (c) => {
+    for (let giro = 0; giro < 5; giro++) {
+      const patch = ripulita(c.patch)
+      if (!Object.keys(patch).length) return 'vuota'
+      const { error } = await supabase.from('fatture').update(patch).eq('id', c.id).eq('organization_id', orgId)
+      if (!error) return null
+      const col = colonnaMancante(error)
+      if (col && col in patch) { tolte.add(col); continue }
+      return error
+    }
+    return { message: 'colonne mancanti nel database' }
+  }
   for (let i = 0; i < completa.length; i += parallele) {
     const blocco = completa.slice(i, i + parallele)
-    const esiti = await Promise.all(blocco.map(c =>
-      supabase.from('fatture').update(c.patch).eq('id', c.id).eq('organization_id', orgId)
-        .then(({ error }) => error ? { c, error } : null)))
-    for (const e of esiti) {
-      if (e) errori.push({ id: e.c.id, numero: e.c.record?.numero_rif, messaggio: e.error.message })
+    const esiti = await Promise.all(blocco.map(c => scrivi(c).then(error => ({ c, error }))))
+    for (const { c, error } of esiti) {
+      // Restava solo una colonna che non c'è: niente da scrivere, e non è
+      // un errore.
+      if (error === 'vuota') continue
+      if (error) errori.push({ id: c.id, numero: c.record?.numero_rif, messaggio: error.message })
       else fatte++
     }
     onProgresso?.(Math.min(i + parallele, completa.length), completa.length)
@@ -198,10 +240,26 @@ export function completaAnagraficaFornitori(fornitori, records) {
   return fornitori.filter(f => patches.has(f.id)).map(f => ({ id: f.id, nome: f.nome, patch: patches.get(f.id) }))
 }
 
-/** Le righe nuove, pronte per l'INSERT. */
+/** Le righe nuove, pronte per l'INSERT, tutte verso la stessa destinazione. */
 export function righeNuove(nuove, orgId, sedeId, sediCondivise = null) {
-  return nuove.map(r => ({
-    ...pickFattura(r, orgId, sedeId),
-    ...(sediCondivise && sediCondivise.length > 1 ? { sedi_condivise: sediCondivise } : null),
-  }))
+  return righeNuoveVerso(nuove, orgId, () => ({ sedeId, sediCondivise }))
+}
+
+/**
+ * Le righe nuove, ognuna verso la sua destinazione: con due società nella
+ * stessa azienda, le fatture di uno stesso ZIP vanno in sedi diverse.
+ *
+ * @param {(r: object) => { sedeId: string|null, sediCondivise: string[]|null }} destinazioneDi
+ */
+export function righeNuoveVerso(nuove, orgId, destinazioneDi) {
+  return nuove.map(r => {
+    const { sedeId = null, sediCondivise = null } = destinazioneDi(r) || {}
+    const condivisa = Array.isArray(sediCondivise) && sediCondivise.length > 1
+    return {
+      // Una spesa condivisa ha la sede vuota apposta: la divisione la fa la
+      // ripartizione sui chili prodotti, non una sede scelta a caso.
+      ...pickFattura(r, orgId, condivisa ? null : sedeId),
+      ...(condivisa ? { sedi_condivise: sediCondivise } : null),
+    }
+  })
 }

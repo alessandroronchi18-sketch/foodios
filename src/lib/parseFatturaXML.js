@@ -1,6 +1,7 @@
 // Italian electronic invoice (FatturaPA SDI) parser + TeamSystem FatturaSMART parser
 // Loader XLSX unico e robusto (multi-CDN, no SRI) - vedi src/lib/xlsx.js.
 import { loadXLSX } from './xlsx'
+import { normPiva } from './societaSedi'
 
 // Parse a cell into ISO date string (YYYY-MM-DD). Uses LOCAL date components
 // so a date authored in Italy doesn't shift backwards via UTC conversion.
@@ -148,8 +149,15 @@ export function parseFatturaXML(xmlString) {
     telefono: t(cedente?.querySelector('Contatti'), 'Telefono'),
   }
   // Chi ha ricevuto la fattura: con due società nella stessa azienda è la
-  // P.IVA a dire di quale delle due è il documento.
-  const cessionario_piva = t(doc.querySelector('CessionarioCommittente'), 'IdFiscaleIVA IdCodice')
+  // P.IVA a dire di quale delle due è il documento, e quindi di quale sede
+  // (`src/lib/societaSedi.js`). Il nome serve a fare la domanda in chiaro
+  // («Fatture intestate a … : a quali sedi vanno?») invece che con un numero.
+  const cessionario = doc.querySelector('CessionarioCommittente')
+  const cessionario_piva = normPiva(t(cessionario, 'DatiAnagrafici IdFiscaleIVA IdCodice')) || null
+  const anagraficaCess = cessionario?.querySelector('DatiAnagrafici Anagrafica')
+  const cessionario_nome = t(anagraficaCess, 'Denominazione')
+    || [t(anagraficaCess, 'Nome'), t(anagraficaCess, 'Cognome')].filter(Boolean).join(' ')
+    || null
 
   const bodies = doc.querySelectorAll('FatturaElettronicaBody')
   if (!bodies.length) throw new Error('Nessun corpo fattura (FatturaElettronicaBody) trovato nel file XML')
@@ -260,6 +268,7 @@ export function parseFatturaXML(xmlString) {
       righe,
       fornitore_dati,
       cessionario_piva,
+      cessionario_nome,
     })
   }
 
