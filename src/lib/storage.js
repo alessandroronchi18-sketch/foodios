@@ -68,6 +68,9 @@ export const SHARED_KEYS = [
   // per tutta l'azienda. La lista di cosa serve, invece, e' per sede.
   'pasticceria-giri-trasferimenti-v1',
   'pasticceria-categorie-fornitori-v1',
+  // Di quale società è una fattura e a quali sedi va: le società sono
+  // dell'azienda, non di un negozio.
+  'pasticceria-societa-sedi-v1',
 ]
 
 export function isSharedKey(key) {

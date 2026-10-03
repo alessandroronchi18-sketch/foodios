@@ -50,4 +50,11 @@ export const SK_LISTA_GIRO = 'pasticceria-lista-giro-v1' // per-sede
 
 export const SK_CAT_FORN = 'pasticceria-categorie-fornitori-v1' // shared
 
+// Di quale società è una fattura, e quindi a quali sedi va: P.IVA di chi la
+// riceve → { nome, sedi: [id…] }. Una sede = fattura sua; due o più = spesa
+// condivisa. Un'azienda può essere fatta di più società (il design partner,
+// 03/10/2026: due SRL, tre negozi). Si risponde una volta al primo ZIP
+// dell'Agenzia e poi le fatture vanno da sole. Vedi src/lib/societaSedi.js.
+export const SK_SOCIETA_SEDI = 'pasticceria-societa-sedi-v1' // shared
+
 export const SK_MOV      = 'pasticceria-movimenti-speciali-v1' // per-sede (sprechi e omaggi)
