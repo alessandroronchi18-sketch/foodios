@@ -47,6 +47,12 @@ vi.mock('../../src/lib/giorniChiusura', async () => {
 
 const { default: CalendarioOperativo } = await import('../../src/components/CalendarioOperativo.jsx')
 
+// Il giorno è fisso a metà mese. Senza, il 3/10/2026 il mese aveva tre
+// giorni e nessun lunedì: non c'era niente da escludere, e i test sulla
+// chiusura fallivano senza che il calendario avesse un difetto. Si finge
+// solo `Date`: i timer di `waitFor` restano veri.
+vi.useFakeTimers({ toFake: ['Date'] })
+vi.setSystemTime(new Date(2026, 8, 16, 12))
 const OGGI = new Date()
 const ANNO = OGGI.getFullYear()
 const MESE0 = OGGI.getMonth()

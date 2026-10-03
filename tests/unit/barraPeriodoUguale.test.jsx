@@ -42,7 +42,10 @@ describe('la barra del periodo', () => {
   })
 
   it('premendo una scorciatoia le due date cambiano insieme', () => {
-    render(<Prova />)
+    // Un periodo lontano da oggi: partendo da settembre, il 3/10/2026 «Mese
+    // scorso» ridava proprio settembre e il test diceva che il pulsante non
+    // faceva niente.
+    render(<Prova iniziale={{ from: '2025-03-01', to: '2025-03-16' }} />)
     const prima = screen.getByLabelText('Data di inizio').value
     fireEvent.click(screen.getByRole('button', { name: 'Mese scorso' }))
     expect(screen.getByLabelText('Data di inizio').value).not.toBe(prima)
