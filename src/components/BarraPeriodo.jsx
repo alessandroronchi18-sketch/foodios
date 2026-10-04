@@ -135,10 +135,12 @@ export default function BarraPeriodo({
       </div>
 
       <div role="group" aria-label="Scorciatoie" style={griglia(isMobile ? 2 : 3)}>
-        {SCORCIATOIE.map(s => (
+        {SCORCIATOIE.map((s, i) => (
           <button key={s.id} type="button" aria-pressed={attiva === s.id}
             onClick={() => { const f = finestraScorciatoia(s.id); if (f) applica(f.from, f.to); else chiudi() }}
-            style={opzione(attiva === s.id)}>
+            // Nove scorciatoie in due colonne lasciano l'ultima da sola, e
+            // l'occhio la legge come un errore: sul telefono prende la riga.
+            style={{ ...opzione(attiva === s.id), gridColumn: isMobile && SCORCIATOIE.length % 2 === 1 && i === SCORCIATOIE.length - 1 ? '1 / -1' : 'auto' }}>
             {s.label}
           </button>
         ))}
@@ -213,7 +215,10 @@ export default function BarraPeriodo({
           style={{
             display: 'flex', alignItems: 'center', gap: space[2], minWidth: 0, flex: isMobile ? 1 : '0 1 auto',
             minHeight: 44, padding: `0 ${space[3]}px`, boxSizing: 'border-box',
-            border: 'none', borderLeft: `1px solid ${T.border}`, borderRight: `1px solid ${T.border}`,
+            // I due divisori, scritti senza mescolare `border` e `borderLeft`:
+            // React sconsiglia la miscela (al cambio di stato un lato può
+            // sparire) e un righello la traduceva in un colore non valido.
+            borderStyle: 'solid', borderColor: T.border, borderWidth: '0 1px',
             background: 'transparent', fontFamily: 'inherit', fontSize: font.size.md, color: T.text,
             cursor: 'pointer', textAlign: 'left',
           }}>
@@ -253,7 +258,11 @@ export default function BarraPeriodo({
             style={{
               position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: z.modal + 1,
               maxHeight: '85vh', overflowY: 'auto', boxSizing: 'border-box',
-              padding: `${space[2]}px ${space[4]}px calc(${space[4]}px + env(safe-area-inset-bottom))`,
+              // Il margine in basso a parte: con `env()` dentro la scorciatoia
+              // `padding`, chi non capisce `env()` butta via tutti e quattro i
+              // lati, e le scelte finivano incollate ai bordi dello schermo.
+              padding: `${space[2]}px ${space[4]}px ${space[4]}px`,
+              paddingBottom: `calc(${space[4]}px + env(safe-area-inset-bottom))`,
               background: T.bgCard, borderRadius: `${radius['2xl']}px ${radius['2xl']}px 0 0`, boxShadow: shadow.xl,
             }}>
             {/* La maniglia: dice «questo foglio si chiude», come ogni foglio
