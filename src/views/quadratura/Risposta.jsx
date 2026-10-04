@@ -65,7 +65,10 @@ export default function Risposta({ kpi, kpiPrev, euroKg, vetrina, onCassa, isMob
   const retailPrima = kpiPrev ? (kpiPrev.retailKg ?? kpiPrev.totVendutoKg) : null
   const stessiGiorni = kpiPrev && kpiPrev.giorniInventario > 0 && kpiPrev.giorniInventario === kpi.giorniInventario
   const vVenduto = stessiGiorni ? variazione({ attuale: retail, confronto: retailPrima }) : null
-  const vCassa = kpi.cassaRegistrata && kpiPrev?.cassaRegistrata ? variazione({ attuale: kpi.cassaEffettiva, confronto: kpiPrev.cassaEffettiva }) : null
+  // Anche la cassa si confronta solo a parità di giorni con la cassa: due
+  // chiusure contro sette non sono un calo.
+  const vCassa = kpi.cassaRegistrata && kpiPrev?.cassaRegistrata && kpiPrev.giorniCassa === kpi.giorniCassa
+    ? variazione({ attuale: kpi.cassaEffettiva, confronto: kpiPrev.cassaEffettiva }) : null
   const colonne = ui3(isMobile, isTablet, { telefono: '1fr', tablet: '1fr 1fr', computer: '1.3fr 1fr 1fr' })
   const fra = isMobile ? 16 : 24
 

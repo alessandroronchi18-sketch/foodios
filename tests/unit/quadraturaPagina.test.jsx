@@ -223,10 +223,20 @@ describe('La tessera grande', () => {
   it('il venduto si confronta con la settimana prima solo se ha gli stessi giorni registrati', () => {
     const k = { ...base, driftEur: -3, driftPct: -6 }
     render(<Risposta kpi={k} kpiPrev={{ ...base, retailKg: 1, giorniInventario: 2 }} euroKg={33.33} />)
-    expect(testo()).toMatch(/Venduto1,5 kg\+50%sulla settimana prima\(1,0 kg\)/)
+    // «meglio» è la parola per chi legge con lo schermo vocale.
+    expect(testo()).toMatch(/Venduto1,5 kg\+50%sulla settimana prima\(1,0 kg\)meglio/)
     cleanup()
     render(<Risposta kpi={k} kpiPrev={{ ...base, retailKg: 1, giorniInventario: 7 }} euroKg={33.33} />)
-    expect(testo()).not.toMatch(/sulla settimana prima/)
+    // Il numero e subito la riga sotto: nessun confronto in mezzo.
+    expect(testo()).toMatch(/Venduto1,5 kgdall'inventario/)
+  })
+  it('e la cassa solo se ha gli stessi giorni con la cassa', () => {
+    const k = { ...base, driftEur: -3, driftPct: -6 }
+    render(<Risposta kpi={k} kpiPrev={{ ...base, cassaEffettiva: 94, giorniCassa: 2 }} euroKg={33.33} />)
+    expect(testo()).toMatch(/Cassa47 €−50%sulla settimana prima/)
+    cleanup()
+    render(<Risposta kpi={k} kpiPrev={{ ...base, cassaEffettiva: 94, giorniCassa: 7 }} euroKg={33.33} />)
+    expect(testo()).toMatch(/Cassa47 €incassato in 2 giorni/)
   })
 
   it('senza la cassa: «non si può dire», col motivo', () => {
