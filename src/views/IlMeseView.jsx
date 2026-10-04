@@ -21,7 +21,7 @@ import {
   TitoloGrafico, Riquadro, FraseInsight, ClassificaSpese,
 } from '../components/analisi'
 import { euro, quota, nomeMese, aMese, variazione, dataBreve } from '../lib/formatoAnalisi'
-import { OBIETTIVI, causeDelCambio, fraseCausa, titoloCascata, motivoSenzaUtile, nomeIncassi } from '../lib/ilMese'
+import { OBIETTIVI, causeDelCambio, fraseCausa, titoloCascata, motivoSenzaUtile, nomeIncassi, ivaDelleSpese } from '../lib/ilMese'
 import PaginaAnalisi, { SezioneAnalisi, spazioRiquadri } from '../components/analisi/PaginaAnalisi'
 import MeseAnalisi, { useMeseAnalisi, AvvisoMeseSpostato, PulsanteTorna, meseCorrente } from '../components/analisi/MeseAnalisi'
 
@@ -100,6 +100,10 @@ export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate
   const fattureAMeta = !!(ultimaFattura && ultimaFattura < `${mese}-25` && mese < meseCorrente())
   const vSpese = !fattureAMeta && conto.spese != null && contoPrima?.spese != null ? variazione({ attuale: conto.spese, confronto: contoPrima.spese, piuEMeglio: false }) : null
   const meseConfronto = dati.confronto
+  // Le spese con l'IVA dentro (fatture senza imponibile) si dicono accanto ai
+  // numeri che toccano, non solo nella copertura chiusa (§6, 04/10).
+  const iva = ivaDelleSpese(dati.attuale.costi)
+  const conIva = iva.stato !== 'senza'
   const materieIncomplete = conto.speseFatture > 0 && conto.daClassificare > conto.speseFatture * 0.05
   const eccezionali = dati.attuale.eccezionali || []
   // Una griglia sola per tutta la pagina (audit 04/10, IM4): le tessere e la
@@ -126,7 +130,7 @@ export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate
             contesto={conto.utile != null && conto.ricavi > 0
               ? `${quota(conto.quote.utile)} degli incassi${conto.investimenti > 0 ? ` · fuori dal conto ${euro(conto.investimenti)} di investimenti` : ''}`
               : conto.primaDelPersonale != null && conto.personale == null
-                ? `Prima del personale ti restano ${euro(conto.primaDelPersonale)}${conto.stimato ? ' (stima)' : ''}: incassi meno le spese in fattura.`
+                ? `Prima del personale ti restano ${euro(conto.primaDelPersonale)}${conto.stimato ? ' (stima)' : ''}: incassi meno le spese in fattura${conIva ? `, che sono ${iva.breve}: per l'IVA è più basso del vero` : ''}.`
                 : conto.speseFatture != null ? `Spese già note: ${euro(conto.spese)}` : ''} />
         </div>
         {/* Il nome degli incassi è lo stesso in tutte le pagine (nomeIncassi):
@@ -138,7 +142,10 @@ export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate
         <NumeroConConfronto isMobile={isMobile} etichetta="Spese del mese"
           valore={conto.spese != null ? euro(conto.spese) : null} motivoMancante="fatture non lette"
           variazione={vSpese} rispettoA={`su ${nomeMese(meseConfronto, { anno: true })}`}
-          contesto={fattureAMeta ? `fatture registrate fino al ${dataBreve(ultimaFattura)}` : conto.personale == null && conto.speseFatture != null ? 'senza il personale, che manca' : 'fatture e personale'} />
+          contesto={[
+            iva.riga,
+            fattureAMeta ? `fatture registrate fino al ${dataBreve(ultimaFattura)}` : conto.personale == null && conto.speseFatture != null ? 'senza il personale, che manca' : '',
+          ].filter(Boolean).join(' · ') || 'fatture e personale'} />
       </div>
 
       {eccezionali.length > 0 && (
@@ -155,8 +162,8 @@ export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate
 
       <div style={{ display: 'grid', gridTemplateColumns: unaRiga ? '1fr' : colonne, gap: fra }}>
         <Riquadro isMobile={isMobile}>
-          <TitoloGrafico titolo={titoloCascata(conto)}
-            sottotitolo={`Dagli incassi${conto.stimato ? ' stimati' : ''} all'utile, senza IVA. Le spese vengono dalle fatture del mese, per data.`} />
+          <TitoloGrafico titolo={titoloCascata(conto, iva)}
+            sottotitolo={`${iva.stato === 'senza' ? 'Incassi e spese senza IVA.' : `Incassi senza IVA, spese ${iva.breve}${iva.stato === 'tutte' ? ': le fatture non hanno ancora l\'imponibile' : ` (${iva.riga})`}.`} Le spese vengono dalle fatture del mese, per data.`} />
           <Cascata isMobile={isMobile} ricavi={conto.ricavi} passi={conto.passi} />
         </Riquadro>
         <Riquadro isMobile={isMobile} stile={unaRiga ? null : { gridColumn: '2 / 4' }}>
@@ -192,7 +199,7 @@ export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate
       {dati.perSede && Object.keys(dati.perSede).length > 1 && (
         <SezioneAnalisi isMobile={isMobile} etichetta="I negozi">
           <Riquadro isMobile={isMobile}>
-            <TitoloGrafico titolo={titoloSedi(dati.perSede)} sottotitolo={`Stesso conto, negozio per negozio. ${testoRipartizione(dati.perSede)}`} />
+            <TitoloGrafico titolo={titoloSedi(dati.perSede)} sottotitolo={`Stesso conto, negozio per negozio. ${testoRipartizione(dati.perSede)}${conIva ? ` Spese ${iva.breve}.` : ''}`} />
             <SediAffiancate perSede={dati.perSede} isMobile={isMobile} />
           </Riquadro>
         </SezioneAnalisi>
@@ -284,7 +291,7 @@ function UltimiMesi({ andamento = [], isMobile, meseScelto, onScegli }) {
   return (
     <>
       <TitoloGrafico titolo={titolo}
-        sottotitolo="Colonna scura: incassi (tratteggiata se stimati). Colonna chiara: spese. Tocca un mese per aprirlo."
+        sottotitolo={`Colonna scura: incassi senza IVA (tratteggiata se stimati). Colonna chiara: spese${mesi.some(m => ivaDelleSpese(m.costi).stato !== 'senza') ? ', con l\'IVA dove le fatture non hanno l\'imponibile' : ''}. Tocca un mese per aprirlo.`}
         destra={(
           <div style={{ display: 'flex', gap: 10, fontSize: font.size.sm, color: T.textSoft, flexShrink: 0 }} aria-hidden="true">
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><span style={{ width: 10, height: 10, borderRadius: 2, background: T.graficoReale }} />Incassi</span>

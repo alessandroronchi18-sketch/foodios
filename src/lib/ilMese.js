@@ -44,6 +44,32 @@ export const OBIETTIVI = { materiePrime: 30, personale: 30, primeCost: 60 }
  */
 export const nomeIncassi = (stimati) => (stimati ? 'Incassi stimati' : 'Incassi')
 
+const NF0 = new Intl.NumberFormat('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })
+
+/**
+ * Le spese del mese hanno l'IVA dentro? Le fatture importate da WebDesk hanno
+ * l'imponibile a zero finché non arriva lo ZIP dell'Agenzia (a Mara 3.042 su
+ * 3.104), e il conto le prende col totale. Audit del 04/10: la pagina diceva
+ * «senza IVA» su spese che l'IVA ce l'avevano, e lo diceva solo la copertura,
+ * chiusa. ANALISI_DESIGN §6: l'avvertimento sta nella riga sotto il numero.
+ *
+ * @returns {{ stato: 'senza'|'tutte'|'parte', breve: string, riga: string }}
+ *   `breve` per le frasi («spese IVA compresa»), `riga` per sotto il numero.
+ */
+export function ivaDelleSpese(costi) {
+  const c = costi?.copertura
+  if (!c || !(Number(c.importoIvaCompresa) > 0) || !(c.nSenzaImponibile > 0)) {
+    return { stato: 'senza', breve: 'senza IVA', riga: '' }
+  }
+  if (c.nSenzaImponibile >= c.nFatture) {
+    return { stato: 'tutte', breve: 'IVA compresa', riga: 'IVA compresa: le fatture non hanno ancora l\'imponibile' }
+  }
+  return {
+    stato: 'parte', breve: 'in parte IVA compresa',
+    riga: `di cui ${euro(c.importoIvaCompresa)} IVA compresa: ${NF0.format(c.nSenzaImponibile)} fatture su ${NF0.format(c.nFatture)} senza imponibile`,
+  }
+}
+
 /** Le categorie di spesa come passi della cascata, nell'ordine del conto. */
 export const PASSI_SPESA = [
   { ids: ['materie-prime'], etichetta: 'Materie prime', chiave: 'materiePrime' },
@@ -263,15 +289,23 @@ export function fraseCausa(c, meseConfronto) {
   return `${c.etichetta}: ${euroSegno(spesa)} di spesa${rispetto}${chi}.`
 }
 
-/** Il titolo-conclusione della cascata. */
-export function titoloCascata(conto) {
+/**
+ * Il titolo-conclusione della cascata, in dieci parole al massimo. Senza
+ * l'utile dice quanto pesano le fatture sugli incassi (prima ripeteva «Le
+ * spese del mese: 50.497 €», lo stesso numero della tessera accanto, audit
+ * 04/10 IM10), e se le spese hanno l'IVA dentro lo dice (`iva`, da
+ * `ivaDelleSpese`).
+ */
+export function titoloCascata(conto, iva = null) {
   if (conto.ricavi > 0 && conto.utile != null) {
     const resta = Math.round((conto.utile / conto.ricavi) * 100)
     return resta >= 0
       ? `Su 100 € incassati te ne restano ${resta}`
       : `Su 100 € incassati ne hai spesi ${100 - resta}: il mese è in perdita`
   }
-  if (conto.speseFatture != null) return `Le spese del mese: ${euro(conto.spese)}`
+  const conIva = iva && iva.stato !== 'senza' ? `, ${iva.breve}` : ''
+  if (conto.ricavi > 0 && conto.speseFatture != null) return `Le fatture valgono il ${quota((conto.speseFatture / conto.ricavi) * 100)} degli incassi${conIva}`
+  if (conto.speseFatture != null) return `Le spese del mese: ${euro(conto.spese)}${conIva}`
   return 'Il conto del mese'
 }
 

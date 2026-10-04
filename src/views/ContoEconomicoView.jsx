@@ -18,7 +18,7 @@ import { CoperturaDati, Andamentino, IntestazioneAnalisi, TitoloGrafico, Riquadr
 import PaginaAnalisi from '../components/analisi/PaginaAnalisi'
 import { euro, euroSegno, quota, nomeMese, aMese, variazione } from '../lib/formatoAnalisi'
 import { vociCopertura } from './IlMeseView'
-import { nomeIncassi } from '../lib/ilMese'
+import { nomeIncassi, ivaDelleSpese } from '../lib/ilMese'
 import MeseAnalisi, { useMeseAnalisi, AvvisoMeseSpostato, PulsanteTorna } from '../components/analisi/MeseAnalisi'
 
 /**
@@ -88,6 +88,9 @@ export default function ContoEconomicoView({ orgId, sedi = [], sedeId = null, on
 
   const righe = useMemo(() => righeConto(dati?.attuale?.conto, dati?.annoPrima?.conto, dati?.andamento), [dati])
   const ricavi = dati?.attuale?.conto?.ricavi ?? null
+  // Le spese con l'IVA dentro lo dicono sotto la domanda, sopra la tabella
+  // (§6, 04/10): prima «Voce per voce, senza IVA» anche quando non lo erano.
+  const iva = ivaDelleSpese(dati?.attuale?.costi)
   const apri = (k) => setAperte(s => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n })
 
   const conto = dati?.attuale?.conto
@@ -104,7 +107,9 @@ export default function ContoEconomicoView({ orgId, sedi = [], sedeId = null, on
         domanda={`Dove sono andati i soldi ${aMese(mese, { anno: false })}?`}
         sotto={(
           <>
-            {`Voce per voce, senza IVA, contro ${nomeMese(dati?.confronto || mese)}.`}
+            {iva.stato === 'senza'
+              ? `Voce per voce, senza IVA, contro ${nomeMese(dati?.confronto || mese)}.`
+              : `Voce per voce, contro ${nomeMese(dati?.confronto || mese)}. Incassi senza IVA, spese ${iva.breve}${iva.stato === 'tutte' ? ': le fatture non hanno ancora l\'imponibile' : ` (${iva.riga})`}.`}
             <AvvisoMeseSpostato spostato={spostato} onVai={() => setMese(spostato.da)} />
           </>
         )}
