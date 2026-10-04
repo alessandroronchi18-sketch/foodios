@@ -161,3 +161,56 @@ describe('La pagina si apre con la domanda, la settimana in una riga e la copert
     expect(screen.getByRole('button', { name: 'Esporta settimana in CSV' })).toBeTruthy()
   })
 })
+
+// ── 3. La risposta ─────────────────────────────────────────────────────────
+const { giudizio, frasiSenzaCassa } = await import('../../src/views/quadratura/Risposta.jsx')
+const { default: Risposta } = await import('../../src/views/quadratura/Risposta.jsx')
+
+describe('Il giudizio si scrive a parole', () => {
+  it('sotto il 5% torna, fino al 15% da guardare, oltre non torna, nei due versi', () => {
+    expect(giudizio(-4.9)).toBe('il conto torna')
+    expect(giudizio(4.9)).toBe('il conto torna')
+    expect(giudizio(-5)).toBe('da guardare')
+    expect(giudizio(14.9)).toBe('da guardare')
+    expect(giudizio(-15)).toBe('il conto non torna')
+    expect(giudizio(null)).toBeNull()
+  })
+})
+
+describe('Senza la cassa, cosa si può dire', () => {
+  const kpi = { totVendutoG: 1500, ricavoAtteso: 50, giorniInventario: 2 }
+  it('quanto è uscito e quanto vale', () => {
+    expect(frasiSenzaCassa({ kpi })[0].testo).toBe('L\'inventario dice che sono usciti 1,5 kg di gelato, circa 50 € ai prezzi dei formati.')
+  })
+  it('il conto della vetrina, che non ha bisogno della cassa', () => {
+    const torna = { inizioG: 400, prodottoG: 1300, ricevutoG: 0, speditoG: 0, scartoG: 0, vendutoG: 1500, fineG: 200, differenzaG: 0, torna: true, celleNonCalcolabili: 0 }
+    expect(frasiSenzaCassa({ kpi, vetrina: torna })[1]).toEqual({ id: 'vetrina', verso: 'meglio', testo: 'Il conto della vetrina torna: c\'erano 0,4 kg, ne hai fatti 1,3 kg, ne sono usciti 1,5 kg e ne restano 0,2 kg.' })
+    const no = { ...torna, fineG: 1200, differenzaG: -1000, torna: false, celleNonCalcolabili: 1 }
+    expect(frasiSenzaCassa({ kpi, vetrina: no })[1].testo).toBe('Il conto della vetrina non torna di 1 kg: dovevano restarne 0,2 kg, ne hai contati 1,2 kg (in 1 casella manca la rimanenza).')
+  })
+  it('la settimana prima solo con gli stessi giorni registrati', () => {
+    expect(frasiSenzaCassa({ kpi, kpiPrev: { totVendutoG: 1000, giorniInventario: 2 } })[1].testo).toBe('Rispetto alla settimana prima: +50% di gelato uscito (1 kg allora).')
+    expect(frasiSenzaCassa({ kpi, kpiPrev: { totVendutoG: 1000, giorniInventario: 7 } })[1].testo).toBe('Con la settimana prima non si confronta: ha 7 giorni registrati, questa 2.')
+    expect(frasiSenzaCassa({ kpi, kpiPrev: { totVendutoG: 0, giorniInventario: 0 } }).length).toBe(1)
+  })
+})
+
+describe('La tessera grande', () => {
+  afterEach(() => cleanup())
+  const base = { totVendutoG: 1500, totVendutoKg: 1.5, retailKg: 1.5, b2bKg: 0, ricavoAtteso: 50, cassaRegistrata: true, cassaEffettiva: 47, giorniCassa: 2, giorniInventario: 2, giorniConfrontati: 2, cassaConfrontata: 47, attesoConfrontato: 50 }
+  it('con la cassa: la differenza col segno vero e il giudizio', () => {
+    render(<Risposta kpi={{ ...base, driftEur: -3, driftPct: -6 }} kpiPrev={null} euroKg={33.33} />)
+    expect(testo()).toMatch(/Differenza con la cassa−3 €Da guardare: −6% dell'incasso stimato\./)
+  })
+  it('se l\'inventario non fa aspettare niente in quei giorni, niente percentuale e niente crash', () => {
+    // Trovato scrivendo questa pagina (04/10/2026): driftPct nullo con la
+    // differenza presente faceva cadere tutta la Quadratura.
+    render(<Risposta kpi={{ ...base, cassaConfrontata: 500, attesoConfrontato: 0, driftEur: 500, driftPct: null }} kpiPrev={null} euroKg={33.33} />)
+    expect(testo()).toMatch(/\+500 €500 € incassati contro 0 € stimati: la percentuale non si calcola\./)
+  })
+  it('senza la cassa: «non si può dire», col motivo', () => {
+    render(<Risposta kpi={{ ...base, cassaRegistrata: false, driftEur: null, driftPct: null, motivoConfronto: 'nessuna chiusura di cassa registrata in questa settimana' }} kpiPrev={null} euroKg={33.33} />)
+    expect(testo()).toMatch(/Differenza con la cassanon si può direNessuna chiusura di cassa registrata in questa settimana\./)
+    expect(testo()).toMatch(/Cassanon registrata/)
+  })
+})

@@ -24,10 +24,12 @@ import ExportPdfButton from '../components/ExportPdfButton'
 import { CoperturaDati, IntestazioneAnalisi } from '../components/analisi'
 import NavigatoreSettimana from './quadratura/NavigatoreSettimana'
 import { vociCoperturaQuadratura } from './quadratura/copertura'
+import Risposta from './quadratura/Risposta'
+import { bilancioVetrina } from '../lib/produzioneQuadro'
 import { C, TNUM, fmt0, TabellaOSchede } from './_shared'
 import {
   caricaSettimana, calcolaVendutoSettimana, lunediDellaSettimana,
-  euroKgMedioFormati, kpiQuadraturaSettimana, classificaGusti, variazione,
+  euroKgMedioFormati, kpiQuadraturaSettimana, classificaGusti,
   accettaScostamento, CAUSA_RIMANENZA_A_ZERO, ultimoGiornoRegistrato,
   matriceDiPiuSedi, matricePerGusto, dettaglioGustiSettimana, GIORNI_VETRINA_SOFFERENZA,
 } from '../lib/inventarioProduzione'
@@ -190,7 +192,8 @@ export function reportPdfSettimana({ lunediIso, kpi, dettaglio, sedeAttiva, isAl
   }
 }
 
-// Drift signed con € DOPO la cifra (es. "+ 1.234 €")
+// Differenza con € DOPO la cifra («+ 1.234 €»), solo per il PDF: il segno
+// meno tipografico (−) nei caratteri standard del PDF non sempre si stampa.
 function fmtDriftEur(v) {
   if (v == null || !Number.isFinite(Number(v))) return '-'
   const n = Math.round(Number(v))
@@ -446,6 +449,13 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
   const classifica = useMemo(() => classificaGusti(matriceGusti), [matriceGusti])
   // Una riga per gusto, per il CSV e il PDF.
   const dettaglioGusti = useMemo(() => dettaglioGustiSettimana(righePerSede, lunediIso), [righePerSede, lunediIso])
+  // Il conto della vetrina della settimana (c'era + fatto − venduto = resta),
+  // sede per sede: si fa anche senza la cassa. Le righe di `caricaSettimana`
+  // non portano la sede, gliela si mette qui.
+  const vetrinaSett = useMemo(() => bilancioVetrina(
+    Object.entries(righePerSede).flatMap(([id, rs]) => (rs || []).map(r => ({ ...r, sede_id: id }))),
+    { da: lunediIso, a: addDays(lunediIso, 6) }
+  ), [righePerSede, lunediIso])
   // Lo scarto mai scritto non è «niente buttato»: finisce nel venduto.
   const scartoRegistrato = useMemo(
     () => righe.some(r => r.data >= lunediIso && r.data <= addDays(lunediIso, 6) && (Number(r.scarto_g) || 0) > 0),
@@ -468,16 +478,6 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
   if (!sedeId && !isAllSedi) {
     return <div style={{ padding: 40, textAlign: 'center', color: C.textSoft }}>Seleziona una sede</div>
   }
-
-  // Tone del drift: |drift%| < 5% verde, < 15% giallo, oltre rosso.
-  const driftTone = (p) => {
-    if (p == null) return { bg: C.bgSubtle, border: C.border, fg: C.textMid, accent: C.textSoft, label: 'n/d' }
-    const a = Math.abs(p)
-    if (a < 5) return { bg: T.greenLight, border: T.greenLight, fg: T.green, accent: T.green, label: 'in target' }
-    if (a < 15) return { bg: T.amberLight, border: T.amber, fg: T.amberDark, accent: T.amber, label: 'da osservare' }
-    return { bg: T.redLight, border: T.red, fg: T.redDark, accent: T.red, label: 'attenzione' }
-  }
-  const tone = driftTone(kpi.driftPct)
 
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
@@ -565,135 +565,16 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
         </div>
       ) : (
         <>
-          {/* ─ KPI hero quadratura ─ */}
-          <div style={{
-            background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18,
-            padding: isMobile ? 16 : 24, marginBottom: 20,
-            boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 30px rgba(15,23,42,0.05)',
-            width: '100%', boxSizing: 'border-box',
-          }}>
-            <div style={{
-              display: 'grid', gap: isMobile ? 10 : 14,
-              gridTemplateColumns: isMobile ? '1fr' : (isTablet ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)'),
-            }}>
-              <Tile
-                icon="package"
-                label={kpi.b2bKg > 0 ? 'Venduto retail' : 'Venduto inventario'}
-                value={`${nKg((kpi.retailKg ?? kpi.totVendutoKg) * 1000)} kg`}
-                sub={kpi.b2bKg > 0 ? `${nKg(kpi.totVendutoG)} kg totali` : 'da inventario'}
-                tendVal={variazione(kpi.retailKg ?? kpi.totVendutoKg, kpiPrev.retailKg ?? kpiPrev.totVendutoKg)}
-              />
-              {/* Senza chiusure la cassa è «non registrata», non zero euro:
-                  prima la tessera diceva «0 €» e quella accanto «-100%». */}
-              <Tile
-                icon="card"
-                label="Cassa"
-                value={kpi.cassaRegistrata ? fmt0(kpi.cassaEffettiva) : 'non registrata'}
-                sub={kpi.cassaRegistrata
-                  ? (kpi.giorniCassa > 0 ? `incassato in ${kpi.giorniCassa} ${kpi.giorniCassa === 1 ? 'giorno' : 'giorni'}` : 'incassato in cassa')
-                  : 'nessuna chiusura questa settimana'}
-                tendVal={kpi.cassaRegistrata && kpiPrev.cassaRegistrata ? variazione(kpi.cassaEffettiva, kpiPrev.cassaEffettiva) : null}
-                muted={!kpi.cassaRegistrata}
-              />
-              <Tile
-                icon="barChart"
-                label="Incasso stimato"
-                value={fmt0(kpi.ricavoAtteso || 0)}
-                sub={`stimato: kg × ${n0(euroKg)} €/kg medio`}
-                muted
-              />
-              {kpi.driftEur != null ? (
-                <Tile
-                  icon="checkCircle"
-                  label="Differenza con la cassa"
-                  value={fmtDriftEur(kpi.driftEur)}
-                  sub={kpi.giorniConfrontati < kpi.giorniInventario
-                    ? `${pct(kpi.driftPct)} su ${kpi.giorniConfrontati} ${kpi.giorniConfrontati === 1 ? 'giorno' : 'giorni'} con cassa`
-                    : `${pct(kpi.driftPct)} dell'incasso stimato`}
-                  color={tone.fg}
-                  bg={tone.bg}
-                  borderColor={tone.border}
-                  accent={tone.accent}
-                  badge={tone.label}
-                />
-              ) : (
-                <Tile
-                  icon="info"
-                  label="Differenza con la cassa"
-                  value="non si può dire"
-                  sub={kpi.motivoConfronto || 'manca la cassa'}
-                  muted
-                />
-              )}
-            </div>
+          {/* La risposta: la differenza con la cassa (o perché non si può
+              dire), il venduto, l'incasso stimato, la cassa; senza la cassa,
+              quello che si può dire lo stesso. Prima: quattro tessere senza
+              giudizio e tre riquadri colorati (grigio, blu, ambra). */}
+          <div style={{ marginBottom: isMobile ? 32 : 40 }}>
+            <Risposta kpi={kpi} kpiPrev={kpiPrev} euroKg={euroKg} vetrina={vetrinaSett}
+              onCassa={onNavigate ? () => onNavigate('chiusura') : null} isMobile={isMobile} isTablet={isTablet} />
+          </div>
 
-            {/* Quello che la pagina NON può fare, detto in chiaro, con quello
-                che serve per farlo. È il caso del design partner: zero
-                chiusure registrate. */}
-            {!kpi.cassaRegistrata && kpi.totVendutoG !== 0 && (
-              <div data-senza-cassa style={{
-                marginTop: 14, padding: isMobile ? 12 : '12px 16px',
-                background: T.bgSubtle, border: `1px solid ${T.border}`, borderRadius: 12,
-                fontSize: font.size.sm, color: C.textMid, lineHeight: 1.55,
-                display: 'flex', alignItems: isMobile ? 'stretch' : 'center', gap: 12,
-                flexDirection: isMobile ? 'column' : 'row',
-                width: '100%', boxSizing: 'border-box',
-              }}>
-                <span style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flex: '1 1 320px', minWidth: 0 }}>
-                  <Icon name="info" size={15} color={C.textSoft} style={{ flexShrink: 0, marginTop: 2 }} />
-                  <span>
-                    <strong style={{ color: C.text }}>Senza la cassa il confronto non si può fare.</strong>{' '}
-                    L&apos;inventario dice che sono usciti {nKg(kpi.totVendutoG)} kg di gelato, circa {fmt0(kpi.ricavoAtteso || 0)} ai
-                    prezzi dei formati. Per sapere se il conto torna serve l&apos;incasso vero di ogni giorno:
-                    basta il totale della chiusura, in Cassa.
-                  </span>
-                </span>
-                {onNavigate && (
-                  <button type="button" onClick={() => onNavigate('chiusura')}
-                    style={{
-                      ...btnNav(tapMin), padding: '0 16px', fontWeight: 700, color: T.brand,
-                      borderColor: T.brand, whiteSpace: 'nowrap', width: isMobile ? '100%' : 'auto',
-                    }}>
-                    Vai alla Cassa
-                  </button>
-                )}
-              </div>
-            )}
-            {kpi.cassaRegistrata && kpi.driftEur != null && kpi.giorniConfrontati < kpi.giorniInventario && (
-              <div style={{
-                marginTop: 14, padding: isMobile ? 12 : '12px 16px',
-                background: T.bgSubtle, border: `1px solid ${T.border}`, borderRadius: 12,
-                fontSize: font.size.sm, color: C.textMid, lineHeight: 1.55,
-                width: '100%', boxSizing: 'border-box',
-              }}>
-                La cassa c&apos;è per {kpi.giorniConfrontati} {kpi.giorniConfrontati === 1 ? 'giorno' : 'giorni'} su {kpi.giorniInventario} con
-                l&apos;inventario: il confronto è fatto solo su quelli ({fmt0(kpi.cassaConfrontata)} incassati contro {fmt0(kpi.attesoConfrontato)} stimati).
-              </div>
-            )}
-
-            {kpi.b2bKg > 0 && (
-              <div style={{
-                marginTop: 14, padding: isMobile ? 12 : '12px 16px',
-                background: T.blueLight, border: `1px solid ${T.blue}`, borderRadius: 12,
-                fontSize: font.size.sm, color: T.blue,
-                display: 'flex', alignItems: isMobile ? 'flex-start' : 'center',
-                justifyContent: 'space-between', gap: 12,
-                flexDirection: isMobile ? 'column' : 'row',
-                width: '100%', boxSizing: 'border-box',
-              }}>
-                <span style={{ display: 'inline-flex', alignItems: 'flex-start', gap: 8, minWidth: 0 }}>
-                  <Icon name="receipt" size={14} color={T.blue} style={{ flexShrink: 0, marginTop: 2 }} />
-                  <span>
-                    <strong>Vendite B2B</strong> separate dalla cassa retail:
-                    {' '}{nKg(kpi.b2bKg * 1000)} kg fatturati per {fmt0(kpi.ricaviB2b)}
-                  </span>
-                </span>
-                <span style={{ fontSize: font.size.sm, color: T.blue, whiteSpace: 'nowrap' }}>
-                  sottratti dal retail per non gonfiare il drift
-                </span>
-              </div>
-            )}
-
+          <div style={{ marginBottom: 20 }}>
             {/* Le celle che non tornano abbassano il totale qui sopra, perché
                 entrano col loro segno. Sui dati reali del design partner sono
                 604 su 7.012 (8,6%) per -2.650 kg: se la pagina non lo dice, il
@@ -1079,104 +960,6 @@ const tdHeadSede = {
   whiteSpace: 'nowrap',
 }
 const tdCellSede = { padding: '10px 14px', fontSize: font.size.base, color: C.text }
-
-// ── Tile KPI ──────────────────────────────────────────────────────────────
-// Audit 2026-06-24: minHeight uniformi sui sub-elementi così tile affiancate
-// hanno label/value/sub/badge allineati anche con contenuti di lunghezza
-// diversa (es. una label su 1 vs 2 righe).
-function Tile({ icon, label, value, sub, tendVal, muted, color, bg, borderColor, accent, badge }) {
-  const fgValue = color || (muted ? C.textMid : C.text)
-  return (
-    <div style={{
-      position: 'relative', overflow: 'hidden',
-      padding: '16px 16px 14px',
-      background: bg || C.bgSubtle,
-      borderRadius: 14,
-      border: `1px solid ${borderColor || C.border}`,
-      display: 'flex', flexDirection: 'column',
-      minHeight: 132,
-      width: '100%', boxSizing: 'border-box',
-    }}>
-      {/* Header: chip icona + label */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 8,
-        marginBottom: 10, minHeight: 32,
-      }}>
-        <span style={{
-          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-          width: 30, height: 30, borderRadius: 9,
-          background: accent ? `${accent}22` : 'rgba(110,14,26,0.10)',
-          color: accent || C.red,
-          flexShrink: 0,
-        }}>
-          <Icon name={icon} size={15} color={accent || C.red} />
-        </span>
-        <div style={{
-          fontSize: font.size.sm, fontWeight: 700, textTransform: 'uppercase',
-          letterSpacing: '0.05em', color: C.textSoft, lineHeight: 1.25,
-          minHeight: 28,
-          display: 'flex', alignItems: 'center',
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        }} title={label}>
-          {label}
-        </div>
-      </div>
-
-      {/* Value: arrotondato all'unità, tabular nums, € DOPO la cifra */}
-      <div style={{
-        fontSize: font.size["3xl"], fontWeight: 800, color: fgValue,
-        letterSpacing: '-0.025em', lineHeight: 1.1,
-        minHeight: 32,
-        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-        ...TNUM,
-      }}>
-        {value}
-      </div>
-
-      {/* Sub: minHeight uniforme così le tile restano allineate */}
-      <div style={{
-        fontSize: font.size.sm, color: muted ? C.textSoft : C.textMid,
-        marginTop: 6, lineHeight: 1.35,
-        minHeight: 28,
-        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-      }} title={sub || ''}>
-        {sub || (tendVal != null ? '' : ' ')}
-        {tendVal != null && !sub && (
-          <span style={{ color: tendVal >= 0 ? T.green : T.redDark, fontWeight: 600 }}>
-            vs sett. prec.: {tendVal > 0 ? '+' : ''}{tendVal.toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 1, maximumFractionDigits: 1 })}%
-          </span>
-        )}
-      </div>
-
-      {/* Footer: badge tono + variazione (riga separata sempre presente) */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 8,
-        marginTop: 8, minHeight: 22,
-        flexWrap: 'wrap',
-      }}>
-        {badge && (
-          <span style={{
-            fontSize: font.size.sm, fontWeight: 700,
-            color: accent || C.textMid,
-            background: accent ? `${accent}1F` : 'rgba(15,23,42,0.05)',
-            padding: '3px 8px', borderRadius: 999,
-            textTransform: 'uppercase', letterSpacing: '0.05em',
-            whiteSpace: 'nowrap',
-          }}>{badge}</span>
-        )}
-        {tendVal != null && sub && (
-          <span style={{
-            fontSize: font.size.sm, fontWeight: 600,
-            color: tendVal >= 0 ? T.green : T.redDark,
-            whiteSpace: 'nowrap',
-          }}>
-            vs prec. {tendVal > 0 ? '+' : ''}{tendVal.toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 1, maximumFractionDigits: 1 })}%
-          </span>
-        )}
-      </div>
-    </div>
-  )
-}
 
 // ── Diagnosi drift ────────────────────────────────────────────────────────
 // Si vede SOLO quando c'è una cassa vera da confrontare (driftPct non null):
