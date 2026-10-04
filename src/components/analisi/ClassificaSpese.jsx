@@ -33,8 +33,14 @@ import {
 } from '../../lib/contoEconomicoArchivio'
 import CoperturaDati from './CoperturaDati'
 import { IntestazioneAnalisi, TitoloGrafico, Riquadro } from './Testi'
+import PaginaAnalisi from './PaginaAnalisi'
 
 const PASSO = 25
+// Una griglia sola per le due liste della pagina (audit 04/10, CS2): casella
+// (o il suo posto), nome, importo, tendina. Prima le fatture fuori scala ne
+// avevano un'altra e importi e tendine cadevano 84 px più a sinistra.
+const COLONNE_ELENCO = '40px minmax(0, 1fr) 150px 230px'
+const SPAZIO_ELENCO = 12
 const FS = font.size
 const nInt = (n) => Number(n || 0).toLocaleString('it-IT', { useGrouping: 'always' })
 const giornoIso = (d) => {
@@ -98,17 +104,70 @@ function SceltaVoce({ valore, onCambia, etichetta, disabilitato = false }) {
   )
 }
 
-function Pulsante({ children, onClick, principale = false, disabilitato = false }) {
+// Spento è grigio, mai bordeaux sbiadito: al 55% il bordeaux diventava rosa
+// e da lontano sembrava acceso (audit 04/10, CS1).
+function Pulsante({ children, onClick, principale = false, disabilitato = false, ...resto }) {
   return (
-    <button type="button" onClick={onClick} disabled={disabilitato}
+    <button type="button" onClick={onClick} disabled={disabilitato} {...resto}
       style={{
         minHeight: 40, padding: '8px 16px', borderRadius: R.md, fontFamily: 'inherit', fontSize: FS.md, fontWeight: 700,
-        cursor: disabilitato ? 'not-allowed' : 'pointer', opacity: disabilitato ? 0.55 : 1,
-        border: principale ? 'none' : `1px solid ${T.borderStr}`,
-        background: principale ? T.brand : T.bgCard, color: principale ? T.white : T.brand,
+        cursor: disabilitato ? 'not-allowed' : 'pointer',
+        border: disabilitato ? `1px solid ${T.border}` : principale ? 'none' : `1px solid ${T.borderStr}`,
+        background: disabilitato ? T.bgSubtle : principale ? T.brand : T.bgCard,
+        color: disabilitato ? T.textFaint : principale ? T.white : T.brand,
       }}>
       {children}
     </button>
+  )
+}
+
+/**
+ * Le fatture molto più grandi del solito (la GECKO da 86.651 €), che forse
+ * sono investimenti. Audit del 04/10 (CS1): stavano in cima alla pagina con 3
+ * tendine e 3 «Salva» sempre aperti, e senza la colonna nuova tutti spenti:
+ * 323 px al computer e 745 al telefono di comandi che non funzionavano, prima
+ * dell'elenco che funziona. Ora sono una riga: senza la colonna dice cosa
+ * succederà e basta; con la colonna i comandi stanno dietro un tocco.
+ */
+function FattureFuoriScala({ eccezionali, disponibili, aperta, onApri, isMobile, children }) {
+  const piuGrande = eccezionali[0]
+  const una = eccezionali.length === 1
+  const titolo = una
+    ? `Una fattura vale ${piuGrande.volteLaTipica ? `${nInt(Math.round(piuGrande.volteLaTipica))} volte` : 'molto più di'} le altre di ${nomeBreve(piuGrande.fornitore)}`
+    : `${nInt(eccezionali.length)} fatture molto più grandi del solito`
+  // Lo spazio prima di «€» non si spezza: al telefono «86.651» restava a fine
+  // riga e «€» andava sotto.
+  const quale = `${euro(piuGrande.importo).replace(' €', '\u00a0€')} il ${dataLunga(piuGrande.data)}`
+  const inizio = `${titolo}${una ? ` (${quale})` : `, la più grande di ${nomeBreve(piuGrande.fornitore)} (${quale})`}`
+  const frase = disponibili
+    ? `${inizio}: sono investimenti?`
+    : `${inizio}: potrai ${una ? 'segnarla' : 'segnarle'} come investimento con il prossimo aggiornamento di Foodos. Per ora ${una ? 'conta' : 'contano'} nella voce del fornitore.`
+  return (
+    <Riquadro isMobile={isMobile}>
+      <div style={{ display: 'grid', gridTemplateColumns: disponibili && !isMobile ? '16px minmax(0, 1fr) auto' : '16px minmax(0, 1fr)', columnGap: 10, rowGap: 8, alignItems: 'center' }}>
+        <span aria-hidden="true" style={{ display: 'inline-flex', color: T.textSoft, alignSelf: 'start', paddingTop: 2 }}><Icon name="info" size={16} /></span>
+        <span style={{ fontSize: FS.md, lineHeight: '20px', color: T.text }}>
+          {frase}
+          {disponibili && aperta && (
+            <span style={{ display: 'block', fontSize: FS.sm, lineHeight: '16px', color: T.textSoft, marginTop: 4 }}>
+              Macchine, arredi, lavori durano anni: segnati come investimento non pesano sul conto di un mese solo.
+            </span>
+          )}
+        </span>
+        {disponibili && (
+          <span style={{ gridColumn: isMobile ? '2' : 'auto' }}>
+            <Pulsante onClick={onApri} aria-expanded={aperta}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                {aperta ? 'Chiudi' : 'Guarda e decidi'}<Icon name={aperta ? 'chevUp' : 'chevDown'} size={14} />
+              </span>
+            </Pulsante>
+          </span>
+        )}
+      </div>
+      {disponibili && aperta && (
+        <div style={{ marginTop: 12 }}>{children}</div>
+      )}
+    </Riquadro>
   )
 }
 
@@ -156,7 +215,7 @@ function RigaFornitore({ g, scelta, spuntato, onScelta, onSpunta, isMobile }) {
     )
   }
   return (
-    <li style={{ display: 'grid', gridTemplateColumns: '40px minmax(0, 1fr) 150px 230px', gap: 12, alignItems: 'center', padding: '8px 0', borderTop: `1px solid ${T.borderSoft}` }}>
+    <li style={{ display: 'grid', gridTemplateColumns: COLONNE_ELENCO, gap: SPAZIO_ELENCO, alignItems: 'center', padding: '8px 0', borderTop: `1px solid ${T.borderSoft}` }}>
       {casella}{nome}{importo}{select}
     </li>
   )
@@ -169,9 +228,10 @@ function RigaFornitore({ g, scelta, spuntato, onScelta, onSpunta, isMobile }) {
  * @param {boolean} [p.isMobile]
  * @param {() => void} [p.onSalvato]  dopo ogni salvataggio riuscito: il conto si rilegge
  * @param {object} [p.client]  il client del database (le prove ne passano uno finto)
+ * @param {React.ReactNode} [p.torna]  il pulsante per tornare alla pagina da cui si è aperta
  * @param {Date|string} [p.oggi]
  */
-export default function ClassificaSpese({ orgId, notify, isMobile = false, onSalvato, client = clientVero, oggi = new Date() }) {
+export default function ClassificaSpese({ orgId, notify, isMobile = false, onSalvato, client = clientVero, oggi = new Date(), torna = null }) {
   const [lettura, setLettura] = useState({ stato: 'leggo', errore: null })
   const [fatture, setFatture] = useState([])
   const [fornitori, setFornitori] = useState([])
@@ -182,6 +242,8 @@ export default function ClassificaSpese({ orgId, notify, isMobile = false, onSal
   const [mostraClassificati, setMostraClassificati] = useState(false)
   const [salvando, setSalvando] = useState(false)
   const [vociFatture, setVociFatture] = useState(() => new Map()) // id fattura → voce scelta
+  // Le fatture fuori scala si guardano a richiesta: si decidono una volta e poi non servono più.
+  const [fuoriScalaAperte, setFuoriScalaAperte] = useState(false)
   const inCorso = useRef(false)
   const dal12 = useMemo(() => unAnnoPrima(oggi), [oggi])
 
@@ -315,11 +377,12 @@ export default function ClassificaSpese({ orgId, notify, isMobile = false, onSal
   )
 
   if (lettura.stato === 'leggo') {
-    return <div>{intestazione}<Riquadro isMobile={isMobile}><div role="status" style={{ fontSize: FS.md, color: T.textSoft }}>Leggo fatture e fornitori…</div></Riquadro></div>
+    return <PaginaAnalisi isMobile={isMobile}>{torna}{intestazione}<Riquadro isMobile={isMobile}><div role="status" style={{ fontSize: FS.md, color: T.textSoft }}>Leggo fatture e fornitori…</div></Riquadro></PaginaAnalisi>
   }
   if (lettura.stato === 'errore') {
     return (
-      <div>
+      <PaginaAnalisi isMobile={isMobile}>
+        {torna}
         {intestazione}
         <Riquadro isMobile={isMobile}>
           <div role="alert" style={{ display: 'flex', gap: 10, alignItems: 'flex-start', color: T.text, fontSize: FS.md, lineHeight: 1.5 }}>
@@ -327,7 +390,7 @@ export default function ClassificaSpese({ orgId, notify, isMobile = false, onSal
             <span>Non riesco a leggere fatture e fornitori ({lettura.errore}). Non ti mostro un elenco a metà: riprova fra poco.</span>
           </div>
         </Riquadro>
-      </div>
+      </PaginaAnalisi>
     )
   }
 
@@ -361,76 +424,66 @@ export default function ClassificaSpese({ orgId, notify, isMobile = false, onSal
   )
 
   return (
-    <div>
+    <PaginaAnalisi isMobile={isMobile}>
+      {torna}
       {intestazione}
       <CoperturaDati voci={copertura} />
 
       {eccezionali.length > 0 && (
-        <div style={{ marginBottom: 18 }}>
-          <Riquadro isMobile={isMobile}>
-            <TitoloGrafico
-              titolo={eccezionali.length === 1
-                ? `Una fattura vale ${eccezionali[0].volteLaTipica ? `${nInt(Math.round(eccezionali[0].volteLaTipica))} volte` : 'molto più di'} le altre di ${nomeBreve(eccezionali[0].fornitore)}`
-                : `${nInt(eccezionali.length)} fatture molto più grandi del solito: sono investimenti?`}
-              sottotitolo="Macchine, arredi, lavori durano anni: segnati come investimento non pesano sul conto di un mese solo." />
-            {!eccezioniDisponibili && (
-              <div style={{ fontSize: FS.sm, color: T.amberDark, background: T.fondoAvviso, border: `1px solid ${T.bordoAvviso}`, borderRadius: R.md, padding: '8px 10px', marginBottom: 10, lineHeight: 1.45 }}>
-                La voce di una singola fattura si potrà salvare con il prossimo aggiornamento di Foodos. Per ora queste fatture contano nella voce del loro fornitore.
-              </div>
-            )}
-            <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-              {eccezionali.map(f => (
-                <li key={f.id} style={{
-                  display: isMobile ? 'block' : 'grid', gridTemplateColumns: 'minmax(0, 1fr) 130px 230px auto', gap: 12, alignItems: 'center',
-                  padding: '10px 0', borderTop: `1px solid ${T.borderSoft}`,
-                }}>
-                  <div style={{ minWidth: 0 }}>
-                    <div title={f.fornitore} style={{ fontSize: FS.md, fontWeight: 600, color: T.text }}>{nomeBreve(f.fornitore)}</div>
-                    <div style={{ fontSize: FS.sm, color: T.textSoft }}>
-                      {`${f.numero ? `n. ${f.numero} · ` : ''}${dataLunga(f.data)} · ${f.motivo}${f.tipica ? ` (di solito ${euro(f.tipica)})` : ''}`}
-                    </div>
+        <FattureFuoriScala eccezionali={eccezionali} disponibili={eccezioniDisponibili} isMobile={isMobile}
+          aperta={fuoriScalaAperte} onApri={() => setFuoriScalaAperte(v => !v)}>
+          <ul style={{ listStyle: 'none', margin: 0, padding: 0 }} aria-label="Fatture fuori scala">
+            {eccezionali.map(f => (
+              <li key={f.id} style={{
+                display: isMobile ? 'block' : 'grid', gridTemplateColumns: COLONNE_ELENCO, gap: SPAZIO_ELENCO, alignItems: 'center',
+                padding: '8px 0', borderTop: `1px solid ${T.borderSoft}`,
+              }}>
+                {!isMobile && <span aria-hidden="true" />}
+                <div style={{ minWidth: 0 }}>
+                  <div title={f.fornitore} style={{ fontSize: FS.md, fontWeight: 600, color: T.text }}>{nomeBreve(f.fornitore)}</div>
+                  <div style={{ fontSize: FS.sm, color: T.textSoft }}>
+                    {`${f.numero ? `n. ${f.numero} · ` : ''}${dataLunga(f.data)} · ${f.motivo}${f.tipica ? ` (di solito ${euro(f.tipica)})` : ''}`}
                   </div>
-                  <div style={{ ...tnum, fontSize: FS.md, fontWeight: 700, color: T.text, textAlign: isMobile ? 'left' : 'right', margin: isMobile ? '6px 0' : 0 }}>{euro(f.importo)}</div>
+                </div>
+                <div style={{ ...tnum, fontSize: FS.md, fontWeight: 700, color: T.text, textAlign: isMobile ? 'left' : 'right', margin: isMobile ? '6px 0' : 0 }}>{euro(f.importo)}</div>
+                {/* Il «Salva» della fattura sta sotto la sua tendina, nella
+                    stessa colonna: una colonna in più per lui spostava tutto. */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'stretch' }}>
                   <SceltaVoce valore={vociFatture.has(f.id) ? vociFatture.get(f.id) : 'attrezzature'} etichetta={`Voce della fattura ${f.numero || ''} di ${f.fornitore}`}
-                    disabilitato={!eccezioniDisponibili}
                     onCambia={(v) => setVociFatture(m => new Map(m).set(f.id, v))} />
-                  <div style={{ marginTop: isMobile ? 8 : 0 }}>
-                    <Pulsante onClick={() => salvaFattura(f)} disabilitato={salvando || !eccezioniDisponibili || (vociFatture.has(f.id) && !vociFatture.get(f.id))}>Salva</Pulsante>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </Riquadro>
-        </div>
+                  <Pulsante onClick={() => salvaFattura(f)} disabilitato={salvando || (vociFatture.has(f.id) && !vociFatture.get(f.id))}>Salva</Pulsante>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </FattureFuoriScala>
       )}
 
-      <div style={{ marginBottom: 18 }}>
-        <Riquadro isMobile={isMobile}>
-          <TitoloGrafico
-            titolo={senzaVoce.length
-              ? `${nInt(senzaVoce.length)} fornitori senza voce: ${euro(spesaSenza)} negli ultimi 12 mesi`
-              : 'Tutti i fornitori hanno la loro voce'}
-            sottotitolo={senzaVoce.length ? 'Dal più pesante. Controlla la voce proposta, cambiala se serve, poi salva le righe spuntate.' : 'Le fatture nuove entrano da sole nella voce del loro fornitore.'}
-            destra={senzaVoce.length && !isMobile ? barraSalva : null} />
-          {senzaVoce.length > 0 && isMobile && <div style={{ marginBottom: 8 }}>{barraSalva}</div>}
-          {senzaVoce.length > 0 && (
-            <ul style={{ listStyle: 'none', margin: 0, padding: 0 }} aria-label="Fornitori senza voce">
-              {visibili.map(g => (
-                <RigaFornitore key={g.chiave} g={g} isMobile={isMobile}
-                  scelta={scelte.has(g.chiave) ? scelte.get(g.chiave) : undefined}
-                  spuntato={spuntati.has(g.chiave)}
-                  onScelta={(id) => cambiaScelta(g, id)}
-                  onSpunta={(si) => spunta(g, si)} />
-              ))}
-            </ul>
-          )}
-          {senzaVoce.length > quanti && (
-            <div style={{ marginTop: 10 }}>
-              <Pulsante onClick={() => setQuanti(q => q + PASSO)}>{`Mostra altri ${nInt(Math.min(PASSO, senzaVoce.length - quanti))} (ne restano ${nInt(senzaVoce.length - quanti)})`}</Pulsante>
-            </div>
-          )}
-        </Riquadro>
-      </div>
+      <Riquadro isMobile={isMobile}>
+        <TitoloGrafico
+          titolo={senzaVoce.length
+            ? `${nInt(senzaVoce.length)} fornitori senza voce: ${euro(spesaSenza)} negli ultimi 12 mesi`
+            : 'Tutti i fornitori hanno la loro voce'}
+          sottotitolo={senzaVoce.length ? 'Dal più pesante. Controlla la voce proposta, cambiala se serve, poi salva le righe spuntate.' : 'Le fatture nuove entrano da sole nella voce del loro fornitore.'}
+          destra={senzaVoce.length && !isMobile ? barraSalva : null} />
+        {senzaVoce.length > 0 && isMobile && <div style={{ marginBottom: 8 }}>{barraSalva}</div>}
+        {senzaVoce.length > 0 && (
+          <ul style={{ listStyle: 'none', margin: 0, padding: 0 }} aria-label="Fornitori senza voce">
+            {visibili.map(g => (
+              <RigaFornitore key={g.chiave} g={g} isMobile={isMobile}
+                scelta={scelte.has(g.chiave) ? scelte.get(g.chiave) : undefined}
+                spuntato={spuntati.has(g.chiave)}
+                onScelta={(id) => cambiaScelta(g, id)}
+                onSpunta={(si) => spunta(g, si)} />
+            ))}
+          </ul>
+        )}
+        {senzaVoce.length > quanti && (
+          <div style={{ marginTop: 10 }}>
+            <Pulsante onClick={() => setQuanti(q => q + PASSO)}>{`Mostra altri ${nInt(Math.min(PASSO, senzaVoce.length - quanti))} (ne restano ${nInt(senzaVoce.length - quanti)})`}</Pulsante>
+          </div>
+        )}
+      </Riquadro>
 
       {conVoce.length > 0 && (
         <Riquadro isMobile={isMobile}>
@@ -453,6 +506,6 @@ export default function ClassificaSpese({ orgId, notify, isMobile = false, onSal
           {mostraClassificati && daSalvare.length > 0 && isMobile && <div style={{ marginTop: 10 }}>{barraSalva}</div>}
         </Riquadro>
       )}
-    </div>
+    </PaginaAnalisi>
   )
 }
