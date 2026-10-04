@@ -1,68 +1,133 @@
 // ── Un numero, il suo confronto, e che cosa vuol dire ───────────────────
 //
-// ANALISI_DESIGN.md, regole 2 e 4: un numero non sta mai da solo, e una
+// ANALISI_DESIGN.md, regole 2 e 4 e §6: un numero non sta mai da solo, e una
 // stima porta la parola «stimato» dentro la tessera. Se il numero non si
 // può dare, la tessera dice perché invece di scrivere zero.
-import React from 'react'
-import { color as T, font, typo, radius as R } from '../../lib/theme'
-import Icon from '../Icon'
+//
+// 04/10/2026 (audit del design misurato al pixel, C2):
+//   • le tessere affiancate non erano incolonnate: etichette sfasate di 6 px
+//     (imbottitura 20/22 per la grande, 14/16 per le altre) e righe sotto il
+//     numero sfasate di 24,6 px nel Mese e 21,4 px nelle Previsioni, perché
+//     la riga del confronto c'era solo se c'era il confronto. Adesso
+//     l'imbottitura è una (20 computer, 16 telefono), la riga del confronto
+//     c'è sempre e dice «nessun confronto» quando manca, e dentro
+//     `FilaTessere` le tessere condividono le righe interne (subgrid): se
+//     un'etichetta va a capo si alzano tutte, e i numeri restano in fila;
+//   • la freccia seguiva il giudizio e non il segno («↘ +52%»): adesso la
+//     direzione la dà il segno, il colore il giudizio;
+//   • senza valore la risposta diventava una frase grigia da 16 px accanto a
+//     numeri neri da 22: adesso resta grande, e se la pagina sa un numero
+//     vicino (`noto`: «74.057 € prima del personale») mostra quello, con il
+//     perché in ambra sotto;
+//   • etichetta in frase normale, non in maiuscoletto; «€» più piccolo;
+//     «stimato» in parole, non in una pillola; cifre proporzionali.
+import React, { createContext, useContext } from 'react'
+import { color as T, font, radius as R, space } from '../../lib/theme'
+import { imbottitura, testo, SPAZI } from './misure'
+import { Cifra, ParolaStimato, RigaConfronto, RigaMotivo } from './parti'
 
-const COLORE_VERSO = { meglio: T.green, peggio: T.red, pari: T.textSoft }
-const ICONA_VERSO = { meglio: 'trendUp', peggio: 'trendDown', pari: 'minus' }
+// Dentro `FilaTessere` la tessera prende le righe della fila (subgrid).
+const InFila = createContext(false)
+
+/**
+ * La fila di tessere: una griglia le cui righe interne (etichetta · numero ·
+ * confronto · nota) sono in comune fra tutte le tessere. Al telefono una
+ * colonna sola.
+ * @param {{ colonne?: string, isMobile?: boolean, children: React.ReactNode }} p
+ *   `colonne` come `gridTemplateColumns` («2fr 1fr 1fr»); di base parti uguali.
+ */
+export function FilaTessere({ colonne = '', isMobile = false, children }) {
+  const n = React.Children.toArray(children).filter(Boolean).length || 1
+  const gap = isMobile ? SPAZI.fraRiquadri.telefono : SPAZI.fraRiquadri.computer
+  return (
+    <InFila.Provider value={true}>
+      <div style={{
+        display: 'grid', columnGap: gap, rowGap: gap, minWidth: 0,
+        gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : (colonne || `repeat(${n}, minmax(0, 1fr))`),
+      }}>
+        {children}
+      </div>
+    </InFila.Provider>
+  )
+}
+
+const DIM = { normale: font.size['2xl'], grande: font.size['4xl'], grandeTelefono: font.size['3xl'] }
 
 /**
  * @param {object} p
  * @param {string} p.etichetta
- * @param {string|null} p.valore  già formattato; `null` = non disponibile
+ * @param {string|null} p.valore  già formattato («124.553 €»); `null` = non disponibile
+ * @param {string} [p.unita]  se `valore` è senza unità; l'euro finale si stacca da solo
  * @param {boolean} [p.stimato]
- * @param {string} [p.motivoMancante]  cosa scrivere se `valore` è null
- * @param {{ verso: 'meglio'|'peggio'|'pari', testoDelta: string }|null} [p.variazione]
- * @param {string} [p.rispettoA]  «sull'anno prima»
+ * @param {string} [p.motivoMancante]  perché `valore` è null
+ * @param {{ valore: string, etichetta?: string, stimato?: boolean }} [p.noto]
+ *   il numero che si sa quando `valore` manca («74.057 €», «Utile prima del personale»)
+ * @param {{ etichetta: string, onClick: () => void }} [p.azione]  per sistemare quello che manca
+ * @param {{ verso: 'meglio'|'peggio'|'pari', testoDelta: string, delta?: number }|null} [p.variazione]
+ * @param {string} [p.rispettoA]  «su agosto 2025»
  * @param {string} [p.valoreConfronto]  «13.400 €»
+ * @param {string|null} [p.senzaConfronto]  cosa dire senza confronto; di base «nessun confronto» se c'è
+ *   `rispettoA` (un confronto era atteso), altrimenti la riga resta vuota, alta uguale
  * @param {string} [p.contesto]  riga sotto, grigia
- * @param {boolean} [p.grande]  il numero principale della pagina
+ * @param {boolean} [p.grande]  numero più grande (per LA risposta c'è `NumeroPrincipale`)
+ * @param {boolean} [p.isMobile]
  */
 export default function NumeroConConfronto({
-  etichetta, valore, stimato = false, motivoMancante = 'non lo so ancora',
-  variazione = null, rispettoA = '', valoreConfronto = '', contesto = '', grande = false, isMobile = false,
+  etichetta, valore, unita = '', stimato = false, motivoMancante = 'non lo so ancora', noto = null, azione = null,
+  variazione = null, rispettoA = '', valoreConfronto = '', senzaConfronto = '', contesto = '',
+  grande = false, isMobile = false,
 }) {
+  const inFila = useContext(InFila)
   const manca = valore == null
-  const dimNumero = grande ? (isMobile ? font.size['3xl'] : font.size['4xl']) : font.size['2xl']
+  const conNoto = manca && noto?.valore != null
+  const dim = grande ? (isMobile ? DIM.grandeTelefono : DIM.grande) : DIM.normale
+  const pad = imbottitura(isMobile)
+
+  let numero
+  if (!manca || conNoto) {
+    numero = (
+      <>
+        <Cifra valore={conNoto ? noto.valore : valore} unita={unita} dimensione={dim} />
+        {(conNoto ? noto.stimato : stimato) && <ParolaStimato />}
+      </>
+    )
+  } else {
+    // Senza numero la frase resta grande: è la risposta, non una nota.
+    const dimFrase = grande ? font.size['2xl'] : font.size.xl
+    numero = <span style={{ ...testo(dimFrase), fontWeight: 700, color: T.textMid }}>{motivoMancante}</span>
+  }
+
+  const rigaSotto = manca
+    ? (conNoto ? <RigaMotivo motivo={motivoMancante} azione={azione} /> : (
+      azione ? <RigaMotivo motivo="" azione={azione} /> : <RigaConfronto senzaConfronto={null} />
+    ))
+    // «nessun confronto» solo se un confronto era atteso (c'è `rispettoA` o la
+    // pagina dice perché manca): le Previsioni non confrontano, e tre volte
+    // «nessun confronto» sarebbe rumore. La riga c'è comunque, alta uguale.
+    : <RigaConfronto variazione={variazione} rispettoA={rispettoA} valoreConfronto={valoreConfronto}
+      senzaConfronto={senzaConfronto || (rispettoA ? '' : null)} />
+
   return (
     <div style={{
-      background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: R.xl,
-      padding: grande ? (isMobile ? '16px 16px' : '20px 22px') : '14px 16px',
-      display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0,
+      background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: R.xl, padding: pad, minWidth: 0,
+      display: 'grid', rowGap: space[1], alignContent: 'start',
+      // In fila: le quattro righe sono quelle della fila, condivise. Da
+      // sola (le pagine che non usano ancora `FilaTessere`): se la griglia
+      // della pagina la allunga, lo spazio in più va sopra il numero, così
+      // numero, confronto e nota restano in fila con le tessere accanto.
+      ...(inFila ? { gridRow: 'span 4', gridTemplateRows: 'subgrid' } : { gridTemplateRows: 'auto 1fr auto auto' }),
     }}>
-      <div style={{ ...typo.overline, color: T.textSoft, minHeight: 16 }}>{etichetta}</div>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-        <span style={{
-          fontSize: manca ? font.size.lg : dimNumero, fontWeight: manca ? 600 : 800,
-          color: manca ? T.textSoft : T.text, letterSpacing: '-0.02em', lineHeight: 1.1,
-          fontVariantNumeric: 'tabular-nums',
-        }}>
-          {manca ? motivoMancante : valore}
-        </span>
-        {!manca && stimato && (
-          <span style={{ fontSize: font.size.sm, fontWeight: 700, color: T.amberDark, background: T.amberLight, borderRadius: R.full, padding: '2px 8px' }}>
-            stimato
-          </span>
-        )}
+      {/* L'etichetta sta in fondo alla sua riga: se quella accanto va a capo,
+          questa resta attaccata al suo numero. */}
+      <div style={{ ...testo(font.size.base), fontWeight: 500, color: T.textSoft, minHeight: 20, alignSelf: 'end' }}>
+        {conNoto && noto.etichetta ? noto.etichetta : etichetta}
       </div>
-      {!manca && variazione && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: font.size.base, color: T.textMid, minHeight: 20, flexWrap: 'wrap' }}>
-          <span style={{ color: COLORE_VERSO[variazione.verso], display: 'inline-flex' }} aria-hidden="true">
-            <Icon name={ICONA_VERSO[variazione.verso]} size={14} />
-          </span>
-          <b style={{ color: COLORE_VERSO[variazione.verso], fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{variazione.testoDelta}</b>
-          {rispettoA && <span>{rispettoA}</span>}
-          {valoreConfronto && <span style={{ color: T.textSoft }}>({valoreConfronto})</span>}
-          {variazione.verso !== 'pari' && (
-            <span style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>{variazione.verso}</span>
-          )}
-        </div>
-      )}
-      {contesto && <div style={{ fontSize: font.size.sm, color: T.textSoft, lineHeight: 1.45 }}>{contesto}</div>}
+      {/* I numeri di una fila sulla stessa linea di base, anche se uno è più grande. */}
+      <div style={{ display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', columnGap: space[2], alignSelf: 'last baseline' }}>
+        {numero}
+      </div>
+      {rigaSotto}
+      <div style={{ ...testo(font.size.sm), color: T.textSoft }}>{contesto}</div>
     </div>
   )
 }

@@ -1,0 +1,91 @@
+// ── Le misure della nuova Analisi, scritte una volta ───────────────────
+//
+// ANALISI_DESIGN.md §6 («Il disegno al millimetro», 04/10/2026). L'audit
+// misurato al pixel ha trovato quattro imbottiture diverse nella stessa
+// pagina (20 · 10/14 · 20/22 · 14/16): il testo cominciava a 135, 137, 141 o
+// 143 px dal bordo, e scendendo il margine «ballava». Da qui in poi ogni
+// riquadro dell'Analisi prende l'imbottitura da questo file, e le righe di
+// testo hanno un'altezza in pixel tondi (niente 21 o 16,2 px), così le
+// tessere affiancate finiscono alla stessa altezza.
+import { space, font, motion, color as T } from '../../lib/theme'
+
+/** Gli spazi: dentro un riquadro, fra i riquadri, fra le sezioni. */
+export const SPAZI = {
+  dentro:      { computer: space[5], telefono: space[4] },   // 20 · 16
+  fraRiquadri: { computer: space[6], telefono: space[4] },   // 24 · 16
+  fraSezioni:  { computer: space[10], telefono: space[8] },  // 40 · 32
+}
+
+/** L'imbottitura di un riquadro, uguale in orizzontale e in verticale. */
+export const imbottitura = (isMobile = false) =>
+  (isMobile ? SPAZI.dentro.telefono : SPAZI.dentro.computer)
+
+// L'altezza della riga per ogni misura del testo, in pixel tondi (multipli
+// di 4, come la scala degli spazi). Ricerca §4.2.
+const RIGA = {
+  [font.size.sm]: 16,     // 12
+  [font.size.base]: 20,   // 13
+  [font.size.md]: 20,     // 14
+  15: 20,
+  [font.size.lg]: 24,     // 16
+  [font.size.xl]: 24,     // 18
+  [font.size['2xl']]: 28, // 22
+  24: 32,                 // typo.h1
+  [font.size['3xl']]: 36, // 28
+  32: 40,                 // typo.display, typo.numLg
+  [font.size['4xl']]: 44, // 36
+  [font.size['5xl']]: 56, // 48
+}
+
+/** `{ fontSize, lineHeight }` con la riga in pixel tondi. */
+export const testo = (dimensione) => ({
+  fontSize: dimensione,
+  lineHeight: `${RIGA[dimensione] ?? Math.ceil((dimensione * 1.4) / 4) * 4}px`,
+})
+
+/** Il testo che legge solo chi usa un lettore di schermo. */
+export const soloLettore = {
+  position: 'absolute', width: 1, height: 1, overflow: 'hidden',
+  clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap', margin: -1, padding: 0, border: 0,
+}
+
+/**
+ * Le barre che cambiano (si cambia mese con ‹ ›) si allungano in un quarto
+ * di secondo invece di sparire e ricomparire: l'occhio segue la stessa barra
+ * (ricerca design §6.5, scelta 15). Niente movimento se chi guarda ha chiesto
+ * di ridurlo nel sistema.
+ */
+export const DURATA_BARRE = 250
+export function transizione(...proprieta) {
+  let ridotto = false
+  try { ridotto = !!window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches } catch { ridotto = false }
+  return ridotto ? 'none' : proprieta.map(p => `${p} ${DURATA_BARRE}ms ${motion.ease}`).join(', ')
+}
+
+/**
+ * Le colonne dei numeri, larghe uguali in tabella, cascata e cause, così
+ * «12.480» della tabella sta esattamente sotto quello della cascata
+ * (ricerca design §4.4, scelta 5). Numeri e intestazioni a destra.
+ */
+export const COLONNE = {
+  voce:       { computer: 176, telefono: 112 },
+  euro:       { computer: 96,  telefono: 80 },
+  quota:      { computer: 64,  telefono: 56 },
+  barretta:   { computer: 64,  telefono: 48 },
+  differenza: { computer: 80,  telefono: 72 },
+}
+export const colonna = (nome, isMobile = false) => COLONNE[nome][isMobile ? 'telefono' : 'computer']
+
+/**
+ * Le intestazioni delle colonne: un solo stile in tutta l'Analisi (l'audit
+ * ne ha trovati due: maiuscolo spaziato nel Conto, normale nelle
+ * Previsioni). Frase normale, piccola, grigia, in grassetto leggero.
+ */
+export const intestazione = {
+  ...testo(font.size.sm), fontWeight: 600, color: T.textSoft, letterSpacing: 0, textTransform: 'none',
+}
+
+/** Le cifre in colonna: tabellari, a destra, senza andare a capo. */
+export const cifreInColonna = {
+  fontVariantNumeric: 'tabular-nums', textAlign: 'right', whiteSpace: 'nowrap',
+}
