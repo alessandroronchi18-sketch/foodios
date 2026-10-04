@@ -136,12 +136,12 @@ export default function ContoEconomicoView({ orgId, sedi = [], sedeId = null, on
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.size.base }}>
                 <thead>
                   <tr style={{ color: T.textSoft, ...typo.overline }}>
-                    <th style={{ ...cella, textAlign: 'left' }}>Voce</th>
-                    <th style={cellaNum}>{nomeMese(mese, { anno: false })}</th>
-                    <th style={cellaNum}>{nomeMese(dati.confronto)}</th>
-                    <th style={cellaNum}>Differenza</th>
-                    <th style={cellaNum}>Sugli incassi</th>
-                    <th style={{ ...cella, textAlign: 'right' }}>12 mesi</th>
+                    <th style={{ ...cellaTesta, textAlign: 'left' }}>Voce</th>
+                    <th style={{ ...cellaTesta, textAlign: 'right' }}>{nomeMese(mese, { anno: false })}</th>
+                    <th style={{ ...cellaTesta, textAlign: 'right' }}>{nomeMese(dati.confronto)}</th>
+                    <th style={{ ...cellaTesta, textAlign: 'right' }}>Differenza</th>
+                    <th style={{ ...cellaTesta, textAlign: 'right' }}>Sugli incassi</th>
+                    <th style={{ ...cellaTesta, textAlign: 'right' }}>12 mesi</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -170,7 +170,14 @@ export default function ContoEconomicoView({ orgId, sedi = [], sedeId = null, on
   )
 }
 
-const cella = { padding: '9px 8px', borderBottom: `1px solid ${T.borderSoft}`, whiteSpace: 'nowrap' }
+// Righe alte 44 px tutte uguali, senza imbottitura verticale: prima 9 px di
+// imbottitura e un pulsante da 28 facevano righe da 44 e da 47 (audit 04/10,
+// CE4). Il pulsante della voce prende tutta l'altezza (CE5).
+// La cella misura 44 + 1 di filo sotto (con box-sizing border-box l'altezza
+// della cella comprende il filo): così il pulsante da 44 non la allunga.
+const ALTEZZA_RIGA = 44
+const cella = { padding: '0 8px', height: ALTEZZA_RIGA + 1, borderBottom: `1px solid ${T.borderSoft}`, whiteSpace: 'nowrap' }
+const cellaTesta = { ...cella, height: 36 }
 const cellaNum = { ...cella, textAlign: 'right' }
 
 /** I numeri di una riga, uguali nella tabella e nella scheda del telefono. */
@@ -201,7 +208,7 @@ function PulsanteClassifica({ onClick }) {
   return (
     <button type="button" onClick={onClick} style={{
       border: 'none', background: 'transparent', color: T.brand, fontWeight: 700, fontSize: font.size.sm,
-      fontFamily: 'inherit', cursor: 'pointer', padding: '0 4px', minHeight: 28,
+      fontFamily: 'inherit', cursor: 'pointer', padding: '0 4px', minHeight: ALTEZZA_RIGA,
     }}>
       Classifica
     </button>
@@ -216,13 +223,17 @@ function RigaConto({ r, ricavi, aperta, onApri, onClassifica }) {
     <>
       <tr style={stileRiga}>
         <td style={{ ...cella, textAlign: 'left' }}>
-          {onApri ? (
-            <button type="button" onClick={onApri} aria-expanded={aperta}
-              style={{ border: 'none', background: 'transparent', padding: 0, font: 'inherit', color: 'inherit', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 28 }}>
-              <Icon name={aperta ? 'chevDown' : 'chevR'} size={13} />{r.etichetta}
-            </button>
-          ) : <span style={{ paddingLeft: r.tipo === 'spesa' ? 19 : 0 }}>{r.etichetta}</span>}
-          {onClassifica && <span style={{ marginLeft: 8 }}><PulsanteClassifica onClick={onClassifica} /></span>}
+          {/* Freccia e «Classifica» stanno in fila su una riga sola: in linea,
+              due pulsanti da 44 allineati sulla base alzavano la riga a 47. */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, height: ALTEZZA_RIGA }}>
+            {onApri ? (
+              <button type="button" onClick={onApri} aria-expanded={aperta}
+                style={{ border: 'none', background: 'transparent', padding: 0, font: 'inherit', color: 'inherit', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: ALTEZZA_RIGA }}>
+                <Icon name={aperta ? 'chevDown' : 'chevR'} size={13} />{r.etichetta}
+              </button>
+            ) : <span style={{ paddingLeft: r.tipo === 'spesa' ? 19 : 0 }}>{r.etichetta}</span>}
+            {onClassifica && <PulsanteClassifica onClick={onClassifica} />}
+          </div>
         </td>
         <td style={{ ...cellaNum, fontVariantNumeric: 'tabular-nums', color: n.coloreValore }}>{n.valore}</td>
         <td style={{ ...cellaNum, fontVariantNumeric: 'tabular-nums', color: T.textSoft, fontWeight: 500 }}>{n.prima ?? '—'}</td>
