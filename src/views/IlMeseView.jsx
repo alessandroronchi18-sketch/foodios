@@ -337,14 +337,17 @@ function UltimiMesi({ andamento = [], isMobile, meseScelto, onScegli }) {
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><span style={{ width: 10, height: 10, borderRadius: 2, background: T.graficoConfronto }} />Spese</span>
           </div>
         )} />
-      <div style={{ overflowX: 'auto' }}>
-        <div role="list" style={{ display: 'grid', gridTemplateColumns: `repeat(${mesi.length}, minmax(${isMobile ? 26 : 40}px, 1fr))`, gap: isMobile ? 4 : 8, alignItems: 'end', minWidth: isMobile ? 360 : 0 }}>
+      {/* Al telefono la griglia voleva 378 px in un riquadro di 354 e il mese
+          scelto, l'ultimo, restava tagliato sul bordo (audit 04/10, IM7): le
+          dodici colonne si dividono lo spazio che c'è. */}
+      <div>
+        <div role="list" aria-label="Gli ultimi dodici mesi" style={{ display: 'grid', gridTemplateColumns: `repeat(${mesi.length}, ${isMobile ? 'minmax(0, 1fr)' : 'minmax(40px, 1fr)'})`, gap: isMobile ? 2 : 8, alignItems: 'end' }}>
           {mesi.map(m => {
             const c = m.conto
             const h = (v) => (v == null ? 0 : Math.max(2, (v / max) * altezza))
             const scelto = m.mese === meseScelto
             return (
-              <button key={m.mese} type="button" role="listitem" onClick={() => onScegli(m.mese)}
+              <button key={m.mese} type="button" role="listitem" onClick={() => onScegli(m.mese)} aria-current={scelto ? 'true' : undefined}
                 aria-label={`${nomeMese(m.mese)}: incassi ${c.ricavi == null ? 'non noti' : euro(c.ricavi)}, spese ${c.spese == null ? 'non note' : euro(c.spese)}, utile ${c.utile == null ? 'non noto' : euro(c.utile)}`}
                 title={`${nomeMese(m.mese)} · incassi ${c.ricavi == null ? '—' : euro(c.ricavi)} · spese ${c.spese == null ? '—' : euro(c.spese)} · utile ${c.utile == null ? '—' : euro(c.utile)}`}
                 style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '4px 0', border: 'none', borderRadius: 6, background: scelto ? T.bgSubtle : 'transparent', cursor: 'pointer', font: 'inherit' }}>
