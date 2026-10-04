@@ -529,7 +529,7 @@ function rigaGusto(g, { oggi, base, colonne, isMobile, testoGiorno, max, giornoV
 function ComeLeggo({ LEX }) {
   return (
     <details style={{ color: T.textMid, fontSize: font.size.base, lineHeight: 1.6 }}>
-      <summary style={{ cursor: 'pointer', fontWeight: 700, color: T.textMid, minHeight: 32, display: 'flex', alignItems: 'center' }}>
+      <summary style={{ cursor: 'pointer', fontWeight: 700, color: T.textMid, minHeight: 44, display: 'flex', alignItems: 'center' }}>
         Come leggo questi numeri
       </summary>
       <div style={{ paddingTop: 6 }}>

@@ -411,7 +411,7 @@ function UltimiMesi({ andamento = [], isMobile, meseScelto, onScegli }) {
         </div>
       </div>
       <button type="button" onClick={() => setTabella(t => !t)} aria-expanded={tabella}
-        style={{ marginTop: 8, border: 'none', background: 'transparent', color: T.textSoft, fontSize: font.size.sm, fontWeight: 600, cursor: 'pointer', padding: '6px 0', fontFamily: 'inherit', minHeight: 32 }}>
+        style={{ marginTop: 8, border: 'none', background: 'transparent', color: T.textSoft, fontSize: font.size.sm, fontWeight: 600, cursor: 'pointer', padding: '6px 0', fontFamily: 'inherit', minHeight: 44 }}>
         {tabella ? 'Nascondi i numeri' : 'Vedi i numeri in tabella'}
       </button>
       {tabella && (

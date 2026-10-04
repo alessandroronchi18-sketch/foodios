@@ -279,7 +279,7 @@ function RigaFornitore({ g, scelta, spuntato, onScelta, onSpunta, isMobile, fuor
   )
   const nome = (
     <div style={{ minWidth: 0, flex: 1 }}>
-      <div title={g.nome} style={{ fontSize: FS.md, fontWeight: 600, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: isMobile ? 'normal' : 'nowrap' }}>
+      <div title={g.nome} style={{ fontSize: FS.md, fontWeight: 600, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: isMobile ? 'normal' : 'nowrap', overflowWrap: 'anywhere' }}>
         {nomeBreve(g.nome)}
       </div>
       <div style={{ fontSize: FS.sm, color: mostraProposta && p.certezza === 'media' ? T.amberDark : T.textSoft, lineHeight: 1.4, marginTop: 2 }}>

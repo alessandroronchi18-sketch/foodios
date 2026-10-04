@@ -112,3 +112,15 @@ describe('La tabella dei dodici mesi al telefono (tabelleLargheTelefono)', () =>
     expect([...tabella.querySelectorAll('td')].some(td => /€/.test(td.textContent))).toBe(false)
   })
 })
+
+// Foto finali del 04/10 sera (righello: bersagli sotto i 44 px al tocco):
+// «Vedi i numeri in tabella» dei dodici mesi era alto 32 px.
+describe('I comandi del Mese al telefono sono alti 44 px', () => {
+  it('«Vedi i numeri in tabella» dei dodici mesi', async () => {
+    DATI = conDati()
+    render(<IlMeseView orgId="o1" sedi={[]} />)
+    await waitFor(() => expect(griglia()).toBeTruthy())
+    const b = [...document.querySelectorAll('button')].filter(x => x.textContent === 'Vedi i numeri in tabella').at(-1)
+    expect(parseFloat(b.style.minHeight)).toBeGreaterThanOrEqual(44)
+  })
+})

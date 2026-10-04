@@ -373,6 +373,15 @@ describe('le previsioni come barre d’intervallo (audit 04/10, PR3)', () => {
     expect(mango.querySelector('[data-tacca="vetrina"]').style.left).toBe('100%')
   })
 
+  // Audit del 04/10 («Come leggo questi numeri» alto 32 px al tocco) e foto
+  // finali della sera: ancora 32.
+  it('«Come leggo questi numeri» si apre con un bersaglio da 44 px', async () => {
+    finto.righe.carlina = fisso('CREMA', IERI, 4, 2)
+    rendi()
+    await screen.findByRole('table')
+    expect(parseFloat(document.querySelector('details > summary').style.minHeight)).toBeGreaterThanOrEqual(44)
+  })
+
   it('«ieri sera» si dice una volta, non sotto ogni quantità in vetrina (PR4)', async () => {
     finto.righe.carlina = [...fisso('CREMA', IERI, 4, 2), ...fisso('MANGO', IERI, 1, 50)]
     rendi()

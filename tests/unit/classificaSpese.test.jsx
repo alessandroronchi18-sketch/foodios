@@ -433,6 +433,15 @@ describe('ClassificaSpese al telefono: bersagli da 44 px, importi sempre a destr
     expect(fattura.style.display).toBe('grid')
   })
 
+  // Foto finali del 04/10 sera: «COMMERCIALISTIINTORINO» (una parola sola,
+  // 191 px) usciva dalla sua colonna di 187 e veniva tagliata.
+  it('un nome di una parola sola lunghissima va a capo invece di tagliarsi', async () => {
+    monta(fintoDb(datiMara()), { isMobile: true })
+    await screen.findByRole('list', { name: 'Fornitori senza voce' })
+    const nome = within(righe()[0]).getByTitle(/GECKO/)
+    expect(nome.style.overflowWrap).toBe('anywhere')
+  })
+
   it('al computer i controlli restano da 40 (intorno a CS6)', async () => {
     monta(fintoDb(datiMara()))
     await screen.findByRole('list', { name: 'Fornitori senza voce' })
