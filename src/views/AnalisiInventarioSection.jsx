@@ -28,6 +28,8 @@ import CaselleDaSistemare from './produzione/CaselleDaSistemare'
 import PeriodoVuoto from './produzione/PeriodoVuoto'
 import Tessere from './produzione/Tessere'
 import ContoVetrina from './produzione/ContoVetrina'
+import GraficoVenduto from './produzione/GraficoVenduto'
+import GiornoSettimana from './produzione/GiornoSettimana'
 
 /**
  * @param {Object} props
@@ -107,8 +109,12 @@ export default function AnalisiInventarioSection({
         senzaRicetta={{ n: c.senzaRicetta.length, euroStimati: c.euroSenzaRicetta }}
         nGusti={c.totali.nConVendita} isMobile={isMobile} isTablet={isTablet} />
 
+      <GraficoVenduto rows={rows} da={dateFrom} a={dateTo} registrati={c.copertura} riassunto={c.riassunto}
+        isMobile={isMobile} stile={{ marginBottom: 14 }} />
+
       <div style={{ display: 'grid', gridTemplateColumns: isMobile || isTablet ? '1fr' : '1fr 1fr', gap: isMobile ? 10 : 14, marginBottom: 14 }}>
         <ContoVetrina vetrina={c.vetrina} scartoRegistrato={c.scartoRegistrato} isMobile={isMobile} />
+        <GiornoSettimana giorni={c.settimana} caselleDaSistemare={c.riassunto.nRimanenza} isMobile={isMobile} />
       </div>
 
       {daSistemare && (

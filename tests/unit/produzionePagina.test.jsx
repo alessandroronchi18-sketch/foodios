@@ -275,3 +275,127 @@ describe('La pagina: tessere e vetrina sui conti veri', () => {
     expect(onBack).toHaveBeenCalled()
   })
 })
+
+// ── 3. Il venduto per settimana e il giorno della settimana ────────────────
+const { colonneVenduto, titoloVenduto } = await import('../../src/views/produzione/colonneVenduto.js')
+const { titoloGiorni } = await import('../../src/views/produzione/GiornoSettimana.jsx')
+
+/** Una riga al giorno: 5 kg fatti, 1 kg lasciato (dal secondo giorno: 5 kg venduti). */
+function giorni(da, a, salta = []) {
+  const out = []
+  const t = new Date(`${da}T12:00:00Z`)
+  const fine = new Date(`${a}T12:00:00Z`)
+  while (t <= fine) {
+    const d = t.toISOString().slice(0, 10)
+    if (!salta.includes(d)) out.push(r('NOCCIOLA', d, 5000, 1000))
+    t.setUTCDate(t.getUTCDate() + 1)
+  }
+  return out
+}
+
+describe('Le colonne del grafico: intere e non intere', () => {
+  // Il 30/06 è il giorno prima del periodo: serve solo come vetrina di partenza.
+  const righe = giorni('2026-06-30', '2026-07-19')
+  const reg = { primo: '2026-07-01', ultimo: '2026-07-19' }
+
+  it('la settimana tagliata dal periodo (parte di mercoledì) va nella serie in ambra', () => {
+    const c = colonneVenduto(righe, { da: '2026-07-01', a: '2026-07-19', passo: 'settimana', registrati: reg })
+    expect(c.map(x => [x.key, x.label, x.intera])).toEqual([
+      ['2026-W27', '29/06', false], ['2026-W28', '06/07', true], ['2026-W29', '13/07', true],
+    ])
+    // 01-05/07: cinque giorni da 5 kg. Una serie o l'altra, mai tutte e due.
+    expect(c[0].vend).toBe(0)
+    expect(c[0].vendParziale).toBeCloseTo(25, 6)
+    expect(c[1].vend).toBeCloseTo(35, 6)
+    expect(c[1].vendParziale).toBe(0)
+    expect(c[1].prod).toBeCloseTo(35, 6)
+  })
+
+  it('la settimana tagliata dai giorni registrati (i dati si fermano di mercoledì) anche', () => {
+    const c = colonneVenduto(giorni('2026-06-30', '2026-07-15'), { da: '2026-07-01', a: '2026-07-19', passo: 'settimana', registrati: { primo: '2026-07-01', ultimo: '2026-07-15' } })
+    expect(c.find(x => x.key === '2026-W29').intera).toBe(false)
+    expect(c.find(x => x.key === '2026-W28').intera).toBe(true)
+  })
+
+  it('un giorno di chiusura dentro la settimana non la rende incompleta', () => {
+    const c = colonneVenduto(giorni('2026-06-30', '2026-07-19', ['2026-07-08']), { da: '2026-07-01', a: '2026-07-19', passo: 'settimana', registrati: reg })
+    const w28 = c.find(x => x.key === '2026-W28')
+    expect(w28.intera).toBe(true)
+    expect(w28.giorni).toBe(6)
+  })
+
+  it('i mesi: luglio tagliato a metà è in ambra, agosto intero no', () => {
+    const tutto = giorni('2026-07-14', '2026-08-31')
+    const c = colonneVenduto(tutto, { da: '2026-07-15', a: '2026-08-31', passo: 'mese', registrati: { primo: '2026-07-15', ultimo: '2026-08-31' } })
+    expect(c.map(x => [x.key, x.label, x.intera])).toEqual([['2026-07', 'lug', false], ['2026-08', 'ago', true]])
+  })
+
+  it('i giorni sono sempre interi, con l\'etichetta del giorno', () => {
+    const c = colonneVenduto(righe, { da: '2026-07-01', a: '2026-07-03', passo: 'giorno', registrati: reg })
+    expect(c.map(x => [x.label, x.intera])).toEqual([['01/07', true], ['02/07', true], ['03/07', true]])
+  })
+})
+
+describe('Il titolo del grafico dice la conclusione, sulle colonne intere', () => {
+  const col = (dal, vend, intera = true) => ({ key: dal, dal, label: dal, vend: intera ? vend : 0, vendParziale: intera ? 0 : vend, intera })
+  it('la settimana migliore e la peggiore, senza contare quelle non intere', () => {
+    const c = [col('2026-06-29', 50, false), col('2026-07-06', 1654.2), col('2026-07-13', 900.2), col('2026-08-31', 10, false)]
+    expect(titoloVenduto(c, 'settimana')).toBe('La settimana migliore è quella del 06/07: 1.654 kg, contro i 900 kg di quella del 13/07')
+  })
+  it('i mesi per nome', () => {
+    expect(titoloVenduto([{ ...col('2026-07-01', 6900), key: '2026-07' }, { ...col('2026-08-01', 4800), key: '2026-08' }], 'mese'))
+      .toBe('Il mese migliore è luglio: 6.900 kg, contro i 4.800 kg di agosto')
+  })
+  it('una settimana intera sola, o nessuna', () => {
+    expect(titoloVenduto([col('2026-07-06', 35)], 'settimana')).toBe('La settimana del 06/07: 35 kg venduti')
+    expect(titoloVenduto([col('2026-07-06', 35, false)], 'settimana')).toBe('Nessuna settimana intera nel periodo: le colonne sono parziali')
+  })
+})
+
+describe('Che giorno si vende di più', () => {
+  const g = (giorno, nome, kgMedi, n) => ({ giorno, nome, mediaG: kgMedi == null ? null : kgMedi * 1000, nGiorni: n })
+  it('il titolo nomina il giorno migliore e il peggiore, con l\'articolo giusto', () => {
+    const sett = [g(1, 'Lunedì', 197.7, 3), g(2, 'Martedì', 145.1, 3), g(4, 'Giovedì', 69.6, 3), g(7, 'Domenica', 190, 3)]
+    expect(titoloGiorni(sett)).toBe('Il lunedì vendi di più (198 kg al giorno), il giovedì di meno (69,6 kg)')
+    expect(titoloGiorni([g(7, 'Domenica', 300, 2), g(1, 'Lunedì', 100, 2)])).toBe('La domenica vendi di più (300 kg al giorno), il lunedì di meno (100 kg)')
+  })
+  it('un giorno visto una volta sola non decide il titolo', () => {
+    expect(titoloGiorni([g(1, 'Lunedì', 500, 1), g(2, 'Martedì', 100, 3), g(3, 'Mercoledì', 120, 3)]))
+      .toBe('Il mercoledì vendi di più (120 kg al giorno), il martedì di meno (100 kg)')
+    expect(titoloGiorni([g(1, 'Lunedì', 500, 1)])).toBe('Il venduto di ogni giorno della settimana')
+  })
+})
+
+describe('La pagina: il grafico e i giorni', () => {
+  it('all\'apertura il grafico è per settimana e le scelte stanno dietro un pulsante', async () => {
+    apri()
+    await waitFor(() => expect(testo()).toMatch(/Ricavo stimato210/), { timeout: 5000 })
+    const menu = screen.getByRole('button', { name: /^Raggruppa il grafico/ })
+    expect(menu.getAttribute('aria-expanded')).toBe('false')
+    expect(menu.textContent).toMatch(/per settimana/)
+    expect(screen.queryByRole('button', { name: 'Mese' })).toBeNull()
+    fireEvent.click(menu)
+    fireEvent.click(screen.getByRole('button', { name: 'Mese' }))
+    expect(screen.getByRole('button', { name: /^Raggruppa il grafico/ }).textContent).toMatch(/per mese/)
+    expect(testo()).toMatch(/Chili venduti per mese/)
+  })
+
+  it('i sette giorni della settimana, con «nessun giorno» dove non si sa', async () => {
+    apri()
+    await waitFor(() => expect(testo()).toMatch(/Ricavo stimato210/), { timeout: 5000 })
+    const giorniLista = screen.getAllByRole('listitem').filter(li => /^(Lunedì|Martedì|Mercoledì|Giovedì|Venerdì|Sabato|Domenica):/.test(li.getAttribute('aria-label') || ''))
+    expect(giorniLista.length).toBe(7)
+    // 03/08 lunedì: 5 kg; 04/08 martedì: 2 kg. Gli altri giorni non registrati.
+    expect(giorniLista[0].getAttribute('aria-label')).toBe('Lunedì: 5 kg al giorno, su un giorno')
+    expect(giorniLista[2].textContent).toMatch(/nessun giorno/)
+    // «non registrato» nella pagina vuol dire solo lo scarto mai scritto.
+    expect(giorniLista[2].textContent).not.toMatch(/non registrato/)
+  })
+
+  it('i numeri del grafico, a richiesta, in tabella', async () => {
+    apri()
+    await waitFor(() => expect(testo()).toMatch(/Ricavo stimato210/), { timeout: 5000 })
+    fireEvent.click(screen.getByRole('button', { name: 'Vedi i numeri in tabella' }))
+    expect(testo()).toMatch(/dal 03\/08 al 09\/08 \(non intera\)/)
+  })
+})

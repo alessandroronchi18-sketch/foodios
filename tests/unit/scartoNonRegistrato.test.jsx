@@ -15,9 +15,23 @@
 // l'icona, come già sul telefono), i pulsanti del grafico si chiamavano coi
 // nomi del codice («giornaliero / settimana / mese») ed erano alti 34 px, e
 // «Torna alla Produzione» aveva una freccia in giù.
+//
+// 04/10/2026, pagina Produzione rifatta (fase 2). Tre prove cambiano di
+// proposito, la regola che proteggono no:
+//   - la tabella per gusto non ha più la colonna Scarto quando lo scarto non
+//     è mai stato scritto (una colonna intera di «non registrato» è rumore):
+//     lo dicono la tessera «Scarto: non registrato» e la riga della
+//     copertura «Manca: lo scarto, quindi quello che si butta è contato nel
+//     venduto». Mai «-», mai 0;
+//   - Giorno/Settimana/Mese stanno dietro il pulsante «per settimana» (il
+//     titolare: niente comandi sempre aperti all'apertura); restano in
+//     italiano e alti 44 px;
+//   - «Torna alla Produzione» non c'è più: questa pagina adesso SI CHIAMA
+//     Produzione, e il pulsante porta all'inventario, quindi si chiama
+//     «Apri l'inventario». Alto 44 px.
 import React from 'react'
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, cleanup, waitFor, screen } from '@testing-library/react'
+import { render, cleanup, waitFor, screen, fireEvent } from '@testing-library/react'
 
 vi.mock('../../src/lib/supabase', () => {
   const q = new Proxy({}, { get(_t, p) {
@@ -52,17 +66,20 @@ describe('Lo scarto nello Storico', () => {
   it('senza nessuno scarto scritto lo dice, e dice dove finisce', async () => {
     apri(righe(0))
     await waitFor(() => expect(testo()).toMatch(/giorni registrati/), { timeout: 5000 })
-    expect(testo()).toMatch(/scarto non registrato: quello che si butta è contato nel venduto/)
-    // E nella tabella la casella dello scarto lo dice, invece di «-».
-    const caselle = [...document.querySelectorAll('td')].map(td => td.textContent.trim())
-    expect(caselle.filter(t => t === 'non registrato').length).toBeGreaterThan(0)
+    expect(testo()).toMatch(/Manca: lo scarto, quindi quello che si butta è contato nel venduto/)
+    // La tessera lo dice a parole; e nessuna casella della tabella scrive
+    // uno scarto di «-» o di zero.
+    expect(testo()).toMatch(/Scartonon registrato/)
+    expect(screen.queryByRole('columnheader', { name: /Scarto/ })).toBeNull()
   })
 
   it('con lo scarto scritto mostra i chili e non dice «non registrato»', async () => {
     apri(righe(500))
     await waitFor(() => expect(testo()).toMatch(/giorni registrati/), { timeout: 5000 })
-    expect(testo()).not.toMatch(/scarto non registrato/)
+    expect(testo()).not.toMatch(/non registrato/)
     expect(testo()).toMatch(/0,5/)
+    // Con lo scarto scritto la colonna c'è.
+    expect(screen.getByRole('columnheader', { name: /Scarto/ })).toBeTruthy()
   })
 })
 
@@ -77,18 +94,22 @@ describe('Le piccole cose della pagina', () => {
   it('i pulsanti del grafico parlano italiano e sono alti 44 px', async () => {
     apri(righe(0))
     await waitFor(() => expect(testo()).toMatch(/giorni registrati/), { timeout: 5000 })
+    // All'apertura le tre scelte non si vedono: c'è un pulsante solo.
+    expect(screen.queryByRole('button', { name: 'Giorno' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /^Raggruppa il grafico/ }))
     for (const nome of ['Giorno', 'Settimana', 'Mese']) {
       const b = screen.getByRole('button', { name: nome })
       expect(b.style.minHeight).toBe('44px')
     }
     expect(testo()).not.toMatch(/giornaliero/)
-    expect(testo()).toMatch(/Prodotto e venduto per giorno/)
+    fireEvent.click(screen.getByRole('button', { name: 'Giorno' }))
+    expect(testo()).toMatch(/Chili venduti per giorno/)
   })
 
-  it('«Torna alla Produzione» è alto 44 px', async () => {
+  it('«Apri l\'inventario» è alto 44 px', async () => {
     apri(righe(0))
     await waitFor(() => expect(testo()).toMatch(/giorni registrati/), { timeout: 5000 })
-    expect(screen.getByRole('button', { name: /Torna alla Produzione/ }).style.minHeight).toBe('44px')
+    expect(screen.getByRole('button', { name: /Apri l'inventario/ }).style.minHeight).toBe('44px')
   })
 })
 
