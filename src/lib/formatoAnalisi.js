@@ -54,6 +54,41 @@ export function punti(d) {
   return `${v > 0 ? '+' : MENO}${(Number.isInteger(n) ? NF0 : NF1).format(n)} ${n === 1 ? 'punto' : 'punti'}`
 }
 
+/**
+ * Un numero con il segno davanti: «+1,8», «−1,8», «0». Il meno è quello
+ * tipografico, largo come il più: in una colonna di scostamenti «+1,8» e
+ * «−1,8» finiscono sullo stesso bordo (ricerca design §4.6, 04/10/2026: il
+ * formato italiano del browser scrive il trattino, più stretto del «+»).
+ * Lo zero (anche dopo l'arrotondamento) non ha segno.
+ * @param {number} n
+ * @param {{ decimali?: number, unita?: string }} [o]  `unita` va dopo, con lo spazio: «+1.234 €»
+ */
+export function conSegno(n, { decimali = 0, unita = '' } = {}) {
+  if (!finito(n)) return null
+  const v = Number(n)
+  const testo = (decimali === 0 ? NF0 : decimali === 1 ? NF1 : decimali === 2 ? NF2 : nf(decimali)).format(Math.abs(v))
+  const zero = Math.round(Math.abs(v) * 10 ** decimali) === 0
+  return `${zero ? '' : v > 0 ? '+' : MENO}${testo}${unita ? ` ${unita}` : ''}`
+}
+
+/**
+ * Il verso di un numero, per la freccia: 1 sale, −1 scende, 0 fermo.
+ * Accetta un numero, un testo che comincia col segno («+52%», «−368 €»,
+ * anche col trattino) o il risultato di `variazione()`. La freccia segue il
+ * SEGNO, il colore segue il giudizio: «+52%» di spese è una freccia in su,
+ * rossa (audit del 04/10, difetto C2: era «↘ +52%»).
+ */
+export function segnoDi(x) {
+  if (x == null) return 0
+  if (typeof x === 'object') {
+    if (finito(x.delta)) return segnoDi(Number(x.delta))
+    return segnoDi(x.testoDelta)
+  }
+  if (typeof x === 'number') return Number.isFinite(x) ? Math.sign(x) : 0
+  const m = /^\s*([+−-])\s*\d/.exec(String(x))
+  return m ? (m[1] === '+' ? 1 : -1) : 0
+}
+
 /** «+6%» / «−12%» per la variazione relativa di un importo. */
 export function percentualeSegno(p) {
   if (!finito(p)) return null

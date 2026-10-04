@@ -1,9 +1,10 @@
 // I pezzi comuni della nuova Analisi (ANALISI_DESIGN.md, §4).
 export { default as CoperturaDati, riassuntoCopertura } from './CoperturaDati'
-export { default as NumeroConConfronto } from './NumeroConConfronto'
+export { default as NumeroConConfronto, FilaTessere } from './NumeroConConfronto'
 export { default as BarraObiettivo } from './BarraObiettivo'
 export { default as Cascata, geometriaCascata } from './Cascata'
 export { default as Andamentino, segmentiAndamentino } from './Andamentino'
-export { IntestazioneAnalisi, TitoloGrafico, Riquadro, FraseInsight } from './Testi'
+export { IntestazioneAnalisi, TitoloGrafico, Riquadro, FraseInsight, segnoNellaFrase } from './Testi'
 export { default as ClassificaSpese } from './ClassificaSpese'
 export { SPAZI, imbottitura, testo, soloLettore } from './misure'
+export { Cifra, ParolaStimato, Freccia, RigaConfronto, RigaMotivo, separaUnita } from './parti'
