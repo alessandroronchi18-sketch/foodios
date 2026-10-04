@@ -145,6 +145,14 @@ Lo spazio fra i blocchi lo possiede il contenitore della pagina
 opzioni delle tabelle: una riga sola che dice lo stato e si apre al tocco
 (come il periodo, `BarraPeriodo`). Mai righe di pulsanti sempre aperte.
 
+**Un avvertimento che cambia come si legge un numero sta accanto al numero**,
+non solo dentro la copertura chiusa. Trovato il 04/10 nella prima foto dopo la
+copertura chiusa: le spese di agosto (50.497 €) sono IVA compresa, perché le
+fatture di WebDesk non hanno l'imponibile finché non arriva lo ZIP, e la pagina
+diceva «dagli incassi all'utile, senza IVA»; «contati con l'IVA» stava solo
+dietro il tocco. «IVA compresa», «stimato», «mancano N giorni» vanno nella riga
+sotto il numero che toccano. La copertura chiusa riassume, non nasconde.
+
 **Una risposta grande per pagina**, 36-48 px al computer, con unità piccola,
 confronto e una frase. Il titolo è una frase di 10 parole al massimo, e il
 grafico evidenzia la stessa cosa: se il titolo parla del burro, la barra del
