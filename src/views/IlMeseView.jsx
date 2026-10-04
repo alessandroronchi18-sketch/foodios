@@ -23,7 +23,7 @@ import {
 import { euro, quota, nomeMese, aMese, variazione, dataBreve } from '../lib/formatoAnalisi'
 import { OBIETTIVI, causeDelCambio, fraseCausa, titoloCascata, motivoSenzaUtile, nomeIncassi, ivaDelleSpese } from '../lib/ilMese'
 import PaginaAnalisi, { SezioneAnalisi, spazioRiquadri } from '../components/analisi/PaginaAnalisi'
-import MeseAnalisi, { useMeseAnalisi, AvvisoMeseSpostato, PulsanteTorna, meseCorrente } from '../components/analisi/MeseAnalisi'
+import MeseAnalisi, { useMeseAnalisi, PulsanteTorna, meseCorrente } from '../components/analisi/MeseAnalisi'
 
 /** Le voci della riga «Da dove vengono i numeri», dal risultato della lettura. */
 export function vociCopertura(dati, { onNavigate, onClassifica } = {}) {
@@ -74,13 +74,8 @@ export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate
   const intestazione = (
     <IntestazioneAnalisi isMobile={isMobile}
       domanda={`Quanto hai guadagnato ${aMese(mese, { anno: false })}?`}
-      sotto={(
-        <>
-          {`${nomeSede} · confronto con ${nomeMese(dati?.confronto || mese)}`}
-          <AvvisoMeseSpostato spostato={spostato} onVai={() => setMese(spostato.da)} />
-        </>
-      )}
-      destra={<MeseAnalisi mese={mese} onCambia={setMese} />} />
+      sotto={`${nomeSede} · confronto con ${nomeMese(dati?.confronto || mese)}`}
+      destra={<MeseAnalisi mese={mese} onCambia={setMese} spostato={spostato} />} />
   )
 
   if (classifica) return (

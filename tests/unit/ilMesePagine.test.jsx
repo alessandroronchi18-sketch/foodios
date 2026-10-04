@@ -149,9 +149,11 @@ describe('All\'apertura', () => {
       return { ...base, mese: m, confronto: annoPrima(m), attuale: mese(m, { ricavi: 99000 }) }
     }
     render(<IlMeseView orgId="o1" sedi={[]} />)
-    await waitFor(() => expect(testo()).toMatch(/non ha ancora gli incassi: ti mostro/))
+    // Dal 04/10 l'avviso è una riga dentro il controllo del mese, accanto
+    // alla freccia che porta al mese chiuso (prima una frase con «Vai a …»).
+    await waitFor(() => expect(testo()).toMatch(new RegExp(`${nomeMese(M, { anno: false })} ancora senza incassi`)))
     expect(testo()).toMatch(new RegExp(`Quanto hai guadagnato ${aMese(M1, { anno: false })}`))
-    expect([...document.querySelectorAll('button')].some(b => b.textContent === `Vai a ${nomeMese(M, { anno: false })}`)).toBe(true)
+    expect([...document.querySelectorAll('button')].some(b => b.getAttribute('title') === `Vai a ${nomeMese(M, { anno: false })}`)).toBe(true)
   })
 
   it('con le fatture del mese a metà non confronta le spese e lo dice', async () => {

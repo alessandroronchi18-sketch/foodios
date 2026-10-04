@@ -11,14 +11,16 @@
 //   • `useMeseAnalisi`: il mese guardato, la lettura dei dati e la regola del
 //     primo mese (si parte dall'ultimo mese chiuso; se non ha incassi, si va
 //     all'ultimo che li ha, e lo si dice);
-//   • `MeseAnalisi`: le frecce ‹ agosto 2026 ›;
-//   • `AvvisoMeseSpostato`: la frase che dice dello spostamento, col pulsante
-//     per tornare al mese chiuso dentro la frase (al telefono l'icona, la
-//     frase e il pulsante andavano a capo su tre righe, difetto IM12);
+//   • `MeseAnalisi`: ‹ agosto 2026 ›, un controllo solo come la barra del
+//     periodo, con dentro, in una riga, l'avviso dello spostamento
+//     («settembre ancora senza incassi», accanto alla freccia che ci porta).
+//     Prima era una frase a parte col pulsante «Vai a settembre»: al telefono
+//     andava a capo su tre righe (IM12), poi su due, sotto la domanda;
 //   • `PulsanteTorna`: il pulsante per tornare alla pagina da una sotto-pagina.
 import React, { useEffect, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { color as T, font, radius as R } from '../../lib/theme'
+import { color as T, font, radius as R, space, shadow } from '../../lib/theme'
+import { testo } from './misure'
 import Icon from '../Icon'
 import { nomeMese, mesePrima } from '../../lib/formatoAnalisi'
 import { caricaIlMese } from '../../lib/ilMeseArchivio'
@@ -85,41 +87,54 @@ const stileFreccia = {
   color: T.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
 }
 
-/** Le frecce del mese: ‹ agosto 2026 ›. Dopo il mese in corso non si va. */
-export default function MeseAnalisi({ mese, onCambia }) {
-  const ultimo = mese >= meseCorrente()
-  return (
-    <div role="group" aria-label="Mese guardato" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-      <button type="button" onClick={() => onCambia(mesePrima(mese))} aria-label="Mese prima" style={stileFreccia}><Icon name="chevL" size={16} /></button>
-      <span style={{ fontSize: font.size.md, fontWeight: 700, color: T.text, minWidth: 128, textAlign: 'center' }}>{nomeMese(mese)}</span>
-      <button type="button" onClick={() => onCambia(meseDopo(mese))} disabled={ultimo} aria-label="Mese dopo" style={{ ...stileFreccia, opacity: ultimo ? 0.35 : 1, cursor: ultimo ? 'default' : 'pointer' }}><Icon name="chevR" size={16} /></button>
-    </div>
-  )
-}
+// Le frecce attaccate al mese, come nella barra del periodo chiusa
+// (`BarraPeriodo`): 44 × 44, senza bordo loro, dentro il bordo del controllo.
+const freccia = (attiva) => ({
+  width: 44, height: 44, flex: '0 0 auto', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+  border: 'none', background: 'transparent', padding: 0, fontFamily: 'inherit',
+  color: attiva ? T.textMid : T.border, cursor: attiva ? 'pointer' : 'default',
+})
 
 /**
- * «Settembre non ha ancora gli incassi: ti mostro agosto, l'ultimo mese che
- * li ha. Vai a settembre». Una frase sola, col pulsante dentro: si mette sotto
- * la domanda della pagina, perché parla del mese.
+ * Il mese guardato: ‹ agosto 2026 ›, un controllo solo con un bordo solo,
+ * come il periodo nelle altre pagine (BarraPeriodo chiusa), così mese e
+ * periodo sembrano la stessa cosa dappertutto. Dopo il mese in corso non si va.
+ *
+ * Se all'apertura la pagina è saltata indietro (`spostato`, vedi
+ * `useMeseAnalisi`), lo dice qui dentro, in una riga: «settembre senza
+ * incassi», accanto alla freccia che ci porta. Al telefono la testa del Mese
+ * aveva quattro righe prima del contenuto, una era l'avviso su due righe
+ * (richiesta del coordinatore, 04/10).
  */
-export function AvvisoMeseSpostato({ spostato, onVai }) {
-  if (!spostato) return null
-  const da = nomeMese(spostato.da, { anno: false })
+export default function MeseAnalisi({ mese, onCambia, spostato = null }) {
+  const ultimo = mese >= meseCorrente()
+  const avviso = spostato && spostato.a === mese
+  const da = avviso ? nomeMese(spostato.da, { anno: false }) : ''
   return (
-    <span role="status" style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginTop: 4, color: T.textMid, fontSize: font.size.base, lineHeight: '20px' }}>
-      <span aria-hidden="true" style={{ display: 'inline-flex', height: 20, alignItems: 'center', flexShrink: 0 }}><Icon name="info" size={14} /></span>
-      <span>
-        {maiuscola(da)} non ha ancora gli incassi: ti mostro {nomeMese(spostato.a, { anno: false })}, l&apos;ultimo mese che li ha.{' '}
-        {/* Bersaglio di 44 px senza alzare la riga: l'imbottitura la
-            restituisce il margine negativo. */}
-        <button type="button" onClick={onVai} style={{
-          border: 'none', background: 'transparent', color: T.brand, fontWeight: 700, fontSize: font.size.base, lineHeight: '20px',
-          cursor: 'pointer', fontFamily: 'inherit', padding: '12px 4px', margin: '-12px -4px',
-        }}>
-          Vai a {da}
-        </button>
+    <div role="group" aria-label="Mese guardato" style={{
+      display: 'inline-flex', alignItems: 'stretch', maxWidth: '100%',
+      boxSizing: 'border-box', border: `1px solid ${T.border}`, borderRadius: R.lg, background: T.bgCard, boxShadow: shadow.xs,
+    }}>
+      <button type="button" onClick={() => onCambia(mesePrima(mese))} aria-label="Mese prima" style={freccia(true)}><Icon name="chevL" size={16} /></button>
+      <span style={{
+        display: 'flex', alignItems: 'center', gap: space[2], minWidth: 168, flex: '0 1 auto',
+        minHeight: 44, padding: `0 ${space[3]}px`, boxSizing: 'border-box',
+        borderStyle: 'solid', borderColor: T.border, borderWidth: '0 1px',
+      }}>
+        <Icon name="calendar" size={16} color={T.textSoft} />
+        <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+          <span style={{ ...testo(font.size.md), fontWeight: 700, color: T.text, whiteSpace: 'nowrap' }}>{nomeMese(mese)}</span>
+          {avviso && (
+            <span role="status" title={`${maiuscola(da)} non ha ancora gli incassi: ti mostro ${nomeMese(spostato.a, { anno: false })}, l'ultimo mese che li ha.`}
+              style={{ ...testo(font.size.sm), color: T.amberDark, whiteSpace: 'nowrap' }}>
+              {da} ancora senza incassi
+            </span>
+          )}
+        </span>
       </span>
-    </span>
+      <button type="button" onClick={() => onCambia(meseDopo(mese))} disabled={ultimo} aria-label="Mese dopo"
+        title={avviso ? `Vai a ${da}` : undefined} style={freccia(!ultimo)}><Icon name="chevR" size={16} /></button>
+    </div>
   )
 }
 

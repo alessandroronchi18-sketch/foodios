@@ -19,7 +19,7 @@ import PaginaAnalisi from '../components/analisi/PaginaAnalisi'
 import { euro, euroSegno, quota, nomeMese, aMese, variazione } from '../lib/formatoAnalisi'
 import { vociCopertura } from './IlMeseView'
 import { nomeIncassi, ivaDelleSpese } from '../lib/ilMese'
-import MeseAnalisi, { useMeseAnalisi, AvvisoMeseSpostato, PulsanteTorna } from '../components/analisi/MeseAnalisi'
+import MeseAnalisi, { useMeseAnalisi, PulsanteTorna } from '../components/analisi/MeseAnalisi'
 
 /**
  * Le righe della tabella, dal conto del mese e da quello di confronto.
@@ -105,15 +105,10 @@ export default function ContoEconomicoView({ orgId, sedi = [], sedeId = null, on
         // Una domanda come le pagine sorelle, non «Il conto di agosto 2026»
         // (audit 04/10, CE9). L'anno lo dicono le frecce del mese.
         domanda={`Dove sono andati i soldi ${aMese(mese, { anno: false })}?`}
-        sotto={(
-          <>
-            {iva.stato === 'senza'
-              ? `Voce per voce, senza IVA, contro ${nomeMese(dati?.confronto || mese)}.`
-              : `Voce per voce, contro ${nomeMese(dati?.confronto || mese)}. Incassi senza IVA, spese ${iva.breve}${iva.stato === 'tutte' ? ': le fatture non hanno ancora l\'imponibile' : ` (${iva.riga})`}.`}
-            <AvvisoMeseSpostato spostato={spostato} onVai={() => setMese(spostato.da)} />
-          </>
-        )}
-        destra={<MeseAnalisi mese={mese} onCambia={setMese} />} />
+        sotto={iva.stato === 'senza'
+          ? `Voce per voce, senza IVA, contro ${nomeMese(dati?.confronto || mese)}.`
+          : `Voce per voce, contro ${nomeMese(dati?.confronto || mese)}. Incassi senza IVA, spese ${iva.breve}${iva.stato === 'tutte' ? ': le fatture non hanno ancora l\'imponibile' : ` (${iva.riga})`}.`}
+        destra={<MeseAnalisi mese={mese} onCambia={setMese} spostato={spostato} />} />
       {errore && <Riquadro isMobile={isMobile}><span style={{ color: T.red, fontSize: font.size.base }}>Non sono riuscito a leggere i dati: {errore}</span></Riquadro>}
       {!dati && !errore && <Riquadro isMobile={isMobile}><span style={{ color: T.textSoft, fontSize: font.size.base }}>Metto insieme cassa, fatture e personale…</span></Riquadro>}
       {dati && conto && (
