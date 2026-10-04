@@ -214,3 +214,25 @@ describe('La tessera grande', () => {
     expect(testo()).toMatch(/Cassanon registrata/)
   })
 })
+
+// ── 4. Le ultime quattro settimane, su un asse solo ────────────────────────
+const { titoloSettimane, default: UltimeSettimane } = await import('../../src/views/quadratura/UltimeSettimane.jsx')
+
+describe('Le ultime quattro settimane', () => {
+  afterEach(() => cleanup())
+  const s = (lunIso, kg, cassa = null, driftEur = null, driftPct = null) => ({ lunIso, kg, cassa, driftEur, driftPct })
+  it('senza cassa il titolo dice che non c\'è niente da confrontare', () => {
+    expect(titoloSettimane([s('2026-08-10', 900), s('2026-08-17', 909), s('2026-08-24', 1142), s('2026-08-31', 173)]))
+      .toBe('In 4 settimane nessuna cassa da confrontare')
+  })
+  it('con la cassa: in quante settimane il conto torna', () => {
+    expect(titoloSettimane([s('2026-08-10', 900, 100, -2, -2), s('2026-08-17', 909, 100, -20, -20), s('2026-08-24', 1142)]))
+      .toBe('Il conto torna in 1 settimana su 2')
+  })
+  it('una riga per settimana: le date, i chili, la cassa o «non registrata», la differenza a parole', () => {
+    render(<UltimeSettimane lunediGuardato="2026-08-17" settimane={[s('2026-08-10', 900, 27000, -2000, -6.9), s('2026-08-17', 909.3)]} />)
+    const righe = screen.getAllByRole('listitem').map(li => li.textContent)
+    expect(righe[0]).toBe('10/08–16/08900,0 kgcassa 27.000 €−2.000 € · da guardare (−6,9%)')
+    expect(righe[1]).toBe('17/08–23/08909,3 kgcassa non registrata')
+  })
+})

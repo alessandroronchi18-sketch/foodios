@@ -25,6 +25,7 @@ import { CoperturaDati, IntestazioneAnalisi } from '../components/analisi'
 import NavigatoreSettimana from './quadratura/NavigatoreSettimana'
 import { vociCoperturaQuadratura } from './quadratura/copertura'
 import Risposta from './quadratura/Risposta'
+import UltimeSettimane from './quadratura/UltimeSettimane'
 import { bilancioVetrina } from '../lib/produzioneQuadro'
 import { C, TNUM, fmt0, TabellaOSchede } from './_shared'
 import {
@@ -417,6 +418,11 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
             kg: kp.totVendutoKg,
             cassa: kp.cassaEffettiva,
             nonQuadrate: kp.celleNonQuadrate,
+            // Per dire se il conto torna settimana per settimana.
+            giorni: kp.giorniInventario,
+            atteso: kp.ricavoAtteso,
+            driftEur: kp.driftEur,
+            driftPct: kp.driftPct,
           }
         })
         setTrendData(out)
@@ -734,13 +740,10 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
             )}
           </div>
 
-          {/* ─ Sparkline trend 4 settimane ─ */}
-          {trendData.length > 0 && (
-            <div style={{ ...panelStyle, marginBottom: 16, padding: isMobile ? 16 : 18 }}>
-              <div style={panelTitle}>Trend ultime 4 settimane</div>
-              <SparklineTrend data={trendData} />
-            </div>
-          )}
+          {/* Le ultime quattro settimane, su un asse solo (prima: una
+              sparkline con due scale nascoste, chili e cassa). */}
+          <UltimeSettimane settimane={trendData} lunediGuardato={lunediIso} isMobile={isMobile}
+            stile={{ marginBottom: isMobile ? 16 : 24 }} />
 
           {/* ─ Drill-down per sede (solo se isAllSedi) ─ */}
           {isAllSedi && perSede.length > 0 && (
@@ -800,18 +803,10 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
             </div>
           )}
 
-          {/* ─ Top + Sofferenza ─ */}
-          <div style={{
-            display: 'grid', gap: 16,
-            gridTemplateColumns: isMobile ? '1fr' : (isTablet ? '1fr' : '1.2fr 1fr'),
-            marginBottom: 20,
-          }}>
-            <PanelTop
-              title="Top gusti per kg venduti"
-              items={classifica.top}
-              total={kpi.totVendutoG}
-              isMobile={isMobile}
-            />
+          {/* I gusti che restano in vetrina: la produzione da rivedere. La
+              classifica dei gusti più venduti non c'è più: è la domanda della
+              pagina Produzione, e qui ripeteva i suoi numeri. */}
+          <div style={{ marginBottom: isMobile ? 32 : 40 }}>
             <PanelSofferenza
               sofferenza={classifica.sofferenza}
               zeroVenduto={classifica.zeroVenduto}
@@ -840,114 +835,6 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
           </div>
         </>
       )}
-    </div>
-  )
-}
-
-// ── Sparkline trend 4 settimane (SVG inline) ───────────────────────────────
-// Mini grafico con 2 serie normalizzate: kg venduti (linea verde) e
-// cassa retail (linea brand tratteggiata). Asse Y separato per asse.
-function SparklineTrend({ data }) {
-  const W = 600, H = 110, PAD_X = 30, PAD_Y = 22
-  if (!data || data.length === 0) return null
-  const maxKg = Math.max(1, ...data.map(d => d.kg))
-  // Una settimana senza chiusure ha la cassa «non registrata» (null): non è
-  // un punto a zero. Prima la linea della cassa di chi non la registra era
-  // una retta piatta sul fondo, che si leggeva «non ha incassato niente».
-  const conCassa = data.filter(d => d.cassa != null)
-  const maxEur = Math.max(1, ...conCassa.map(d => d.cassa))
-  const xStep = (W - PAD_X * 2) / Math.max(1, data.length - 1)
-  const yScale = (val, max) => H - PAD_Y - (val / max) * (H - PAD_Y * 2)
-
-  const pathKg = data.map((d, i) => {
-    const x = PAD_X + i * xStep
-    const y = yScale(d.kg, maxKg)
-    return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`
-  }).join(' ')
-  let primoPunto = true
-  const pathEur = data.map((d, i) => {
-    if (d.cassa == null) { primoPunto = true; return '' }
-    const x = PAD_X + i * xStep
-    const y = yScale(d.cassa, maxEur)
-    const comando = primoPunto ? 'M' : 'L'
-    primoPunto = false
-    return `${comando}${x.toFixed(1)},${y.toFixed(1)}`
-  }).filter(Boolean).join(' ')
-  const fmtLabel = (iso) => {
-    const d = new Date(`${String(iso).slice(0, 10)}T12:00:00`)
-    return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`
-  }
-  return (
-    <div style={{ width: '100%' }}>
-      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto', maxHeight: 150, display: 'block' }} aria-label="Trend ultime 4 settimane">
-        {/* Gridline orizzontale di base */}
-        <line x1={PAD_X} y1={H - PAD_Y} x2={W - PAD_X} y2={H - PAD_Y} stroke={T.border} strokeWidth="1" />
-        {/* Cassa (linea brand tratteggiata) */}
-        {pathEur && <path d={pathEur} fill="none" stroke={T.brand} strokeWidth="2" strokeDasharray="4 3" />}
-        {/* Kg venduti (linea verde) */}
-        <path d={pathKg} fill="none" stroke={T.green} strokeWidth="2" />
-        {data.map((d, i) => {
-          const x = PAD_X + i * xStep
-          // Settimana con caselle che non tornano: anello ambra intorno al
-          // punto. Senza questo, una settimana compilata male sembra una
-          // settimana con meno vendite, ed è la lettura sbagliata.
-          return (
-            <g key={i}>
-              {d.nonQuadrate > 0 && (
-                <circle cx={x} cy={yScale(d.kg, maxKg)} r="6.5" fill="none" stroke={T.amber} strokeWidth="1.5" />
-              )}
-              <circle cx={x} cy={yScale(d.kg, maxKg)} r="3.5" fill={T.green} stroke={T.bgCard} strokeWidth="1.5" />
-              {d.cassa != null && (
-                <circle cx={x} cy={yScale(d.cassa, maxEur)} r="3.5" fill={T.brand} stroke={T.bgCard} strokeWidth="1.5" />
-              )}
-            </g>
-          )
-        })}
-      </svg>
-      {/* Le date stavano dentro l'SVG con fontSize 10 su un viewBox da 600:
-          su desktop si ingrandivano col disegno, ma su telefono lo stesso
-          disegno sta in 340px e quelle scritte diventavano 5-6px, illeggibili.
-          Fuori dall'SVG restano 12px su qualsiasi schermo. */}
-      <div style={{
-        display: 'flex', justifyContent: 'space-between',
-        padding: `0 ${(PAD_X / W * 100).toFixed(1)}%`, marginTop: 2,
-        fontSize: typo.small.fontSize, color: C.textSoft, ...TNUM,
-      }}>
-        {data.map((d, i) => (
-          <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-            {fmtLabel(d.lunIso)}
-            {d.nonQuadrate > 0 && (
-              <span title={`${d.nonQuadrate} caselle non tornano in questa settimana`}
-                style={{ color: T.amber, fontWeight: 700, cursor: 'help' }}>!</span>
-            )}
-          </span>
-        ))}
-      </div>
-      <div style={{
-        display: 'flex', gap: 18, fontSize: typo.small.fontSize, color: C.textSoft,
-        marginTop: 8, flexWrap: 'wrap',
-      }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ display: 'inline-block', width: 14, height: 2, background: T.green, borderRadius: 1 }} />
-          kg venduti (inventario)
-        </span>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-          <span style={{
-            display: 'inline-block', width: 14, height: 0,
-            borderTop: `2px dashed ${conCassa.length > 0 ? T.brand : T.border}`,
-          }} />
-          {conCassa.length > 0 ? 'cassa' : 'cassa non registrata'}
-        </span>
-        {data.some(d => d.nonQuadrate > 0) && (
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            <span style={{
-              display: 'inline-block', width: 10, height: 10,
-              borderRadius: '50%', border: `1.5px solid ${T.amber}`,
-            }} />
-            settimana con caselle da controllare
-          </span>
-        )}
-      </div>
     </div>
   )
 }
@@ -1000,78 +887,6 @@ function DiagnosiDrift({ driftEur, driftPct, isMobile }) {
       <ul style={{ margin: 0, paddingLeft: 22 }}>
         {ipotesi.map((it, i) => <li key={i} style={{ marginBottom: 3 }}>{it}</li>)}
       </ul>
-    </div>
-  )
-}
-
-// ── Panel Top gusti ───────────────────────────────────────────────────────
-function PanelTop({ title, items, total, isMobile }) {
-  if (!items || items.length === 0) {
-    return (
-      <div style={panelStyle}>
-        <div style={panelTitle}>{title}</div>
-        <div style={{ fontSize: font.size.base, color: C.textSoft, padding: '12px 0' }}>
-          Nessun venduto registrato per questa settimana.
-        </div>
-      </div>
-    )
-  }
-  return (
-    <div style={panelStyle}>
-      <div style={panelTitle}>{title}</div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {items.map((it, i) => {
-          const pctVal = total > 0 ? (it.vendutoG / total * 100) : 0
-          return (
-            <div key={it.gusto} style={{
-              display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 12,
-              width: '100%',
-            }}>
-              <span style={{
-                width: 22, height: 22, borderRadius: 6,
-                background: i === 0 ? T.amberLight : C.bgSubtle,
-                color: i === 0 ? T.amberDark : C.textSoft,
-                fontSize: font.size.sm, fontWeight: 800, textAlign: 'center',
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                flexShrink: 0,
-              }}>
-                {i + 1}
-              </span>
-              <span style={{
-                flex: isMobile ? '0 0 88px' : '0 0 140px',
-                fontSize: font.size.base, fontWeight: 600, color: C.text,
-                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              }} title={it.gusto}>
-                {it.gusto}
-              </span>
-              <div style={{
-                flex: 1, height: 8, background: T.border,
-                borderRadius: 4, overflow: 'hidden', minWidth: 30,
-              }}>
-                <div style={{
-                  width: `${Math.max(4, pctVal)}%`, height: '100%',
-                  background: i === 0 ? T.brand : T.brandDark,
-                  borderRadius: 4,
-                  transition: 'width 240ms ease',
-                }} />
-              </div>
-              <span style={{
-                flex: '0 0 64px', fontSize: font.size.sm, fontWeight: 700,
-                textAlign: 'right', ...TNUM, color: C.text,
-                whiteSpace: 'nowrap',
-              }}>
-                {nKg(it.vendutoG)} kg
-              </span>
-              <span style={{
-                flex: '0 0 38px', fontSize: font.size.sm, color: C.textSoft,
-                textAlign: 'right', ...TNUM, whiteSpace: 'nowrap',
-              }}>
-                {pctVal.toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })}%
-              </span>
-            </div>
-          )
-        })}
-      </div>
     </div>
   )
 }
