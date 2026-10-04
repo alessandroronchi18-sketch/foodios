@@ -59,6 +59,15 @@ export function vociCopertura(dati, { onNavigate, onClassifica } = {}) {
     voci.push(c.importoIvaCompresa > 0
       ? { id: 'fatture', breve: 'Spese IVA compresa', stato: 'parziale', testo: `${c.nFatture} fatture, ${c.nSenzaImponibile} senza imponibile: ${euro(c.importoIvaCompresa)} contati con l'IVA`, azione: onNavigate ? { etichetta: 'Carica lo ZIP', onClick: () => onNavigate('scadenzario') } : null }
       : { id: 'fatture', breve: 'Fatture senza IVA', stato: 'ok', testo: `${c.nFatture || 0} fatture del mese, senza IVA` })
+    // Le fatture fuori scala (una GECKO da 86.651 € a luglio): prima un
+    // riquadro giallo a sé, sotto le tessere. Ora il conto sta sotto il numero
+    // delle spese (avviso, §6) e qui il dettaglio, con dove andare a guardarle.
+    const ecc = dati.attuale.eccezionali || []
+    if (ecc.length > 0) {
+      voci.push({ id: 'fuoriScala', breve: ecc.length === 1 ? '1 fattura fuori scala' : `${ecc.length} fatture fuori scala`, stato: 'parziale',
+        testo: `${ecc.slice(0, 3).map(f => `${f.fornitore}, ${euro(f.importo)} il ${dataBreve(f.data)}`).join('; ')}: se sono investimenti (attrezzature, lavori) non sono spese del mese. Finché non lo dici, le conto come spese`,
+        azione: onNavigate ? { etichetta: 'Apri', onClick: () => onNavigate('scadenzario') } : null })
+    }
     if (costi.daClassificare?.importo > 0) {
       voci.push({ id: 'categorie', breve: 'Spese senza voce', stato: 'parziale', testo: `${euro(costi.daClassificare.importo)} di spese di ${costi.daClassificare.nFornitori} fornitori senza categoria`, azione: onClassifica ? { etichetta: 'Classifica', onClick: onClassifica } : null })
     }
@@ -160,23 +169,12 @@ export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate
               variazione={vSpese} rispettoA={`su ${nomeMese(meseConfronto, { anno: true })}`}
               // L'IVA dentro le spese è l'avvertimento del pezzo comune, in
               // ambra sotto il numero (§6); la nota dice il resto.
-              avviso={iva.riga}
+              avviso={[iva.riga, eccezionali.length ? `${eccezionali.length === 1 ? 'una fattura' : `${eccezionali.length} fatture`} fuori scala (${euro(eccezionali.reduce((t, f) => t + (Number(f.importo) || 0), 0))}): ${eccezionali.length === 1 ? 'è un investimento' : 'sono investimenti'}?` : ''].filter(Boolean).join(' · ')}
               contesto={fattureAMeta ? `fatture registrate fino al ${dataBreve(ultimaFattura)}` : conto.personale == null && conto.speseFatture != null ? 'senza il personale, che manca' : 'fatture e personale'} />
           </FilaTessere>
         </div>
       </div>
 
-      {eccezionali.length > 0 && (
-        <Riquadro isMobile={isMobile} stile={{ borderColor: T.bordoAvviso, background: T.fondoAvviso }}>
-          <TitoloGrafico titolo={eccezionali.length === 1 ? 'Una fattura fuori scala questo mese' : `${eccezionali.length} fatture fuori scala questo mese`}
-            sottotitolo="Se sono investimenti (attrezzature, lavori) si pagano una volta e durano anni: non sono spese del mese. Finché non lo dici, le conto come spese." />
-          {eccezionali.slice(0, 3).map(f => (
-            <FraseInsight key={f.id || f.numero} verso="info" onClick={onNavigate ? () => onNavigate('scadenzario') : null} etichettaAzione="Apri">
-              <b>{f.fornitore}</b>: {euro(f.importo)} il {dataBreve(f.data)}, {f.motivo}.
-            </FraseInsight>
-          ))}
-        </Riquadro>
-      )}
 
       {/* La cascata è la tabella del conto (scelta 1): voce · barra · € del
           mese · % sugli incassi · differenza con l'anno prima. Prende tutta
