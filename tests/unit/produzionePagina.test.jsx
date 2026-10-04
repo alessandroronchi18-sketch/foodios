@@ -76,6 +76,13 @@ describe('La copertura dei dati: una frase per fonte', () => {
     expect(v.azione).toEqual({ etichetta: 'Registra', onClick: vai })
   })
 
+  it('il calendario dei giorni si apre da qui', () => {
+    const vai = () => {}
+    const v = voce(vociCopertura({ copertura: LUGLIO_AGOSTO, registrazioneFerma: true, azioni: { inventario: () => {}, giorni: vai } }), 'inventario')
+    expect(v.azione).toEqual({ etichetta: 'Vedi i giorni', onClick: vai })
+    expect(voce(vociCopertura({ copertura: LUGLIO_AGOSTO, azioni: { giorni: vai, giorniAperti: true } }), 'inventario').azione.etichetta).toBe('Chiudi i giorni')
+  })
+
   it('un giorno solo si dice al singolare', () => {
     const v = voce(vociCopertura({ copertura: { n: 1, primo: '2026-08-11', ultimo: '2026-08-11', sedeGiorni: 1 } }), 'inventario')
     expect(v.testo).toBe('Un giorno registrato, l\'11/08')
@@ -687,5 +694,74 @@ describe('I pannelli delle sedi', () => {
     expect(testo()).toMatch(/registrato fino al 15\/07/)
     // Giorni diversi: il titolo confronta il venduto per giorno registrato.
     expect(testo()).toMatch(/Carlina vende di più: 5 kg per giorno registrato/)
+  })
+})
+
+// ── 8. Il calendario dei giorni e i buchi dentro il grafico (scelta 6) ─────
+const { calendarioGiorni, titoloCalendario } = await import('../../src/views/produzione/calendario.js')
+
+describe('Il calendario da muro dei giorni registrati', () => {
+  // Agosto 2026 comincia di sabato. Carlina registra 1-4/08, De Gasperi solo 1-2/08.
+  const righe = [
+    ...['2026-08-01', '2026-08-02', '2026-08-03', '2026-08-04'].map(d => ({ ...r('NOCCIOLA', d, 1000, 0), sede_id: 'c' })),
+    ...['2026-08-01', '2026-08-02'].map(d => ({ ...r('NOCCIOLA', d, 1000, 0), sede_id: 'd' })),
+    // Una riga tutta a zero non è un giorno registrato (la regola di tutta la pagina).
+    { ...r('NOCCIOLA', '2026-08-05', 0, 0), sede_id: 'c' },
+  ]
+  const cal = calendarioGiorni(righe, { da: '2026-07-30', a: '2026-08-05', sedi: ['c', 'd'] })
+
+  it('un blocco per mese, sette colonne da lunedì, i giorni prima del primo lasciati vuoti', () => {
+    expect(cal.mesi.map(m => m.chiave)).toEqual(['2026-07', '2026-08'])
+    // 30/07 è giovedì: tre caselle vuote davanti, e dopo il 31 la settimana si chiude vuota.
+    expect(cal.mesi[0].settimane[0].map(c => c && c.data)).toEqual([null, null, null, '2026-07-30', '2026-07-31', null, null])
+    // 01/08 è sabato.
+    expect(cal.mesi[1].settimane[0].map(c => c && c.data)).toEqual([null, null, null, null, null, '2026-08-01', '2026-08-02'])
+    expect(cal.mesi[1].settimane.every(s => s.length === 7)).toBe(true)
+  })
+  it('pieno se tutte le sedi hanno registrato, «parziale» se solo qualcuna, vuoto se nessuna', () => {
+    const stato = Object.fromEntries(cal.mesi.flatMap(m => m.settimane.flat()).filter(Boolean).map(c => [c.data, c.stato]))
+    expect(stato).toEqual({
+      '2026-07-30': 'vuoto', '2026-07-31': 'vuoto', '2026-08-01': 'registrato', '2026-08-02': 'registrato',
+      '2026-08-03': 'parziale', '2026-08-04': 'parziale', '2026-08-05': 'vuoto',
+    })
+    expect(cal.conteggio).toEqual({ registrati: 2, parziali: 2, vuoti: 3, totale: 7 })
+  })
+  it('con una sede sola un giorno registrato è pieno', () => {
+    const una = calendarioGiorni(righe.filter(x => x.sede_id === 'c'), { da: '2026-08-03', a: '2026-08-04', sedi: ['c'] })
+    expect(una.conteggio.registrati).toBe(2)
+  })
+  it('il titolo: quanti giorni su quanti', () => {
+    expect(titoloCalendario(cal.conteggio, { piuSedi: true })).toBe('2 giorni registrati su 7, in tutte le sedi')
+    expect(titoloCalendario({ registrati: 62, totale: 62 })).toBe('Registrati tutti i 62 giorni del periodo')
+  })
+  it('nella pagina si apre da «Vedi i giorni», con una casella per giorno', async () => {
+    apri()
+    await waitFor(() => expect(testo()).toMatch(/Ricavo stimato210/), { timeout: 5000 })
+    expect(screen.queryByRole('grid')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Vedi i giorni' }))
+    const grid = screen.getByRole('grid', { name: 'Giorni registrati di agosto 2026' })
+    expect(within(grid).getAllByRole('gridcell').map(c => c.getAttribute('aria-label'))).toEqual(['03/08: registrato', '04/08: registrato'])
+    expect(screen.getByRole('button', { name: 'Chiudi i giorni' })).toBeTruthy()
+  })
+})
+
+describe('Dopo l\'ultimo giorno registrato il grafico mostra il buco', () => {
+  const righe = giorni('2026-07-31', '2026-08-31')
+  const reg = { primo: '2026-08-01', ultimo: '2026-08-31' }
+  it('le settimane senza niente fino a oggi ci sono, vuote, e non contano nel titolo', () => {
+    const c = colonneVenduto(righe, { da: '2026-08-01', a: '2026-10-03', passo: 'settimana', registrati: reg, finoA: '2026-09-20' })
+    const vuote = c.filter(x => x.vuota)
+    // 31/08 è lunedì: la settimana del 31/08 ha un giorno (non intera); poi 07/09 e 14/09 vuote.
+    expect(vuote.map(x => x.label)).toEqual(['07/09', '14/09'])
+    expect(c.find(x => x.label === '31/08')).toMatchObject({ intera: false, vuota: false })
+    expect(conclusioneVenduto(c, 'settimana').titolo).toMatch(/^La settimana migliore è quella del/)
+  })
+  it('senza `finoA`, o con i dati fino alla fine, niente colonne vuote', () => {
+    expect(colonneVenduto(righe, { da: '2026-08-01', a: '2026-10-03', passo: 'settimana', registrati: reg }).some(x => x.vuota)).toBe(false)
+    expect(colonneVenduto(righe, { da: '2026-08-01', a: '2026-08-31', passo: 'settimana', registrati: reg, finoA: '2026-08-31' }).some(x => x.vuota)).toBe(false)
+  })
+  it('anche per mese', () => {
+    const c = colonneVenduto(righe, { da: '2026-08-01', a: '2026-10-03', passo: 'mese', registrati: reg, finoA: '2026-10-03' })
+    expect(c.map(x => [x.label, x.vuota])).toEqual([['ago', false], ['set', true], ['ott', true]])
   })
 })

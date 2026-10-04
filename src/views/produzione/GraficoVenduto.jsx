@@ -15,6 +15,7 @@ import React, { useMemo, useState } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { color as T, font, radius as R, tnum } from '../../lib/theme'
 import { dataBreve } from '../../lib/formatoAnalisi'
+import { todayLocal } from '../../lib/dateLocal'
 import { TitoloGrafico, Riquadro } from '../../components/analisi'
 import { colonneVenduto, conclusioneVenduto } from './colonneVenduto'
 import MenuScelta from './MenuScelta'
@@ -27,18 +28,24 @@ const NON_INTERA = { settimana: 'le settimane', mese: 'i mesi' }
 export default function GraficoVenduto({ rows, da, a, registrati, riassunto, isMobile, stile = null }) {
   const [passo, setPasso] = useState('settimana')
   const [tabella, setTabella] = useState(false)
+  // Fin dove il periodo è passato: oltre l'ultimo giorno registrato le
+  // colonne ci sono, vuote e a righe grigie.
+  const oggi = todayLocal()
+  const finoA = a && a < oggi ? a : oggi
   const grezze = useMemo(
-    () => colonneVenduto(rows, { da, a, passo, registrati }),
-    [rows, da, a, passo, registrati]
+    () => colonneVenduto(rows, { da, a, passo, registrati, finoA }),
+    [rows, da, a, passo, registrati, finoA]
   )
   const conclusione = conclusioneVenduto(grezze, passo)
   // La colonna di cui parla il titolo va in una serie sua, scura; le altre
   // intere chiare; le non intere tratteggiate in ambra. Tre serie impilate e
   // non colori per colonna: il grafico riceve solo dati.
+  const altezza = Math.max(0, ...grezze.map(c => c.vend + c.vendParziale))
   const colonne = useMemo(() => grezze.map(c => (c.key === conclusione.forte
-    ? { ...c, vendForte: c.vend, vend: 0 }
-    : { ...c, vendForte: 0 })), [grezze, conclusione.forte])
-  const parziali = colonne.some(c => !c.intera)
+    ? { ...c, vendForte: c.vend, vend: 0, zona: 0 }
+    : { ...c, vendForte: 0, zona: c.vuota ? altezza : 0 })), [grezze, conclusione.forte, altezza])
+  const parziali = colonne.some(c => !c.intera && !c.vuota)
+  const primaVuota = colonne.some(c => c.vuota) && registrati?.ultimo ? giornoDopo(registrati.ultimo) : null
   const giorniDaSistemare = riassunto?.nRimanenza > 0 ? riassunto.giorni : []
   const asse = { fontSize: font.size.sm, fill: T.textSoft }
 
@@ -46,7 +53,7 @@ export default function GraficoVenduto({ rows, da, a, registrati, riassunto, isM
     <Riquadro isMobile={isMobile} stile={stile}>
       <TitoloGrafico
         titolo={conclusione.titolo}
-        sottotitolo={`${conclusione.dettaglio ? `${conclusione.dettaglio} ` : ''}Chili venduti ${PER[passo]}.${parziali && NON_INTERA[passo] ? ` A righe ambra ${NON_INTERA[passo]} non intere, tagliate dal periodo o dai giorni registrati.` : ''}`}
+        sottotitolo={`${conclusione.dettaglio ? `${conclusione.dettaglio} ` : ''}Chili venduti ${PER[passo]}.${parziali && NON_INTERA[passo] ? ` A righe ambra ${NON_INTERA[passo]} non intere, tagliate dal periodo o dai giorni registrati.` : ''}${primaVuota ? ` A righe grigie: dal ${dataBreve(primaVuota)} niente registrato.` : ''}`}
         destra={<MenuScelta etichetta="Raggruppa il grafico" prefisso="per " valore={passo} scelte={PASSI} onScegli={setPasso} />}
       />
       <ResponsiveContainer width="100%" height={isMobile ? 200 : 240}>
@@ -62,10 +69,15 @@ export default function GraficoVenduto({ rows, da, a, registrati, riassunto, isM
               <rect width="6" height="6" fill={T.amberLight} />
               <line x1="0" y1="0" x2="0" y2="6" stroke={T.amber} strokeWidth="2.5" />
             </pattern>
+            <pattern id="produzione-righe-grigie" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+              <rect width="6" height="6" fill={T.bgCard} />
+              <line x1="0" y1="0" x2="0" y2="6" stroke={T.graficoConfronto} strokeWidth="1.5" />
+            </pattern>
           </defs>
           <Bar dataKey="vendForte" name="Venduto" stackId="v" fill={T.graficoReale} maxBarSize={24} radius={[4, 4, 0, 0]} isAnimationActive={false} />
           <Bar dataKey="vend" name="Venduto" stackId="v" fill={T.graficoConfronto} maxBarSize={24} radius={[4, 4, 0, 0]} isAnimationActive={false} />
           <Bar dataKey="vendParziale" name="Venduto, non intera" stackId="v" fill="url(#produzione-righe-ambra)" stroke={T.amber} maxBarSize={24} radius={[4, 4, 0, 0]} isAnimationActive={false} />
+          <Bar dataKey="zona" name="Niente registrato" stackId="v" fill="url(#produzione-righe-grigie)" maxBarSize={48} isAnimationActive={false} />
         </BarChart>
       </ResponsiveContainer>
       {giorniDaSistemare.length > 0 && (
@@ -86,11 +98,24 @@ export default function GraficoVenduto({ rows, da, a, registrati, riassunto, isM
   )
 }
 
+const giornoDopo = (iso) => {
+  const t = new Date(`${iso}T12:00:00Z`)
+  t.setUTCDate(t.getUTCDate() + 1)
+  return t.toISOString().slice(0, 10)
+}
+
 const periodoColonna = (c, passo) => (passo === 'giorno' ? dataBreve(c.dal) : `dal ${dataBreve(c.dal)} al ${dataBreve(c.al)}`)
 
 function Suggerimento({ active, payload, passo }) {
   if (!active || !payload?.length) return null
   const c = payload[0].payload
+  if (c.vuota) {
+    return (
+      <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: R.lg, padding: '8px 10px', fontSize: font.size.sm, color: T.textMid }}>
+        <b style={{ color: T.text }}>{periodoColonna(c, passo)}</b>: niente registrato
+      </div>
+    )
+  }
   return (
     <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: R.lg, padding: '8px 10px', fontSize: font.size.sm, color: T.textMid, lineHeight: 1.5 }}>
       <div style={{ fontWeight: 700, color: T.text }}>{passo === 'settimana' ? 'Settimana ' : passo === 'mese' ? 'Mese, ' : ''}{periodoColonna(c, passo)}</div>
@@ -120,7 +145,7 @@ function TabellaNumeri({ colonne, passo }) {
         <tbody>
           {colonne.map(c => (
             <tr key={c.key} style={{ borderTop: `1px solid ${T.borderSoft}` }}>
-              <td style={{ ...td, textAlign: 'left', color: T.text }}>{periodoColonna(c, passo)}{c.intera ? '' : ' (non intera)'}</td>
+              <td style={{ ...td, textAlign: 'left', color: T.text }}>{periodoColonna(c, passo)}{c.vuota ? ' (niente registrato)' : c.intera ? '' : ' (non intera)'}</td>
               <td style={{ ...td, fontWeight: 700 }}>{kg(c.vend + c.vendForte + c.vendParziale)}</td>
               <td style={td}>{kg(c.prod)}</td>
               <td style={td}>{intero(c.giorni)}</td>

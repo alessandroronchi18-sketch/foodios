@@ -50,14 +50,14 @@ export function estremiColonna(chiave, primo, passo) {
  *   chili; `vend` per le colonne intere, `vendParziale` per le altre (una
  *   delle due è sempre 0).
  */
-export function colonneVenduto(righe, { da = null, a = null, passo = 'settimana', registrati = {} } = {}) {
+export function colonneVenduto(righe, { da = null, a = null, passo = 'settimana', registrati = {}, finoA = null } = {}) {
   const serie = serieVenduto(righe, { da, a, passo })
   // La finestra in cui una colonna può essere intera: dentro il periodo E
   // dentro i giorni registrati.
   const inizio = [da, registrati.primo].filter(Boolean).sort().pop() || null
   const fine = [a, registrati.ultimo].filter(Boolean).sort()[0] || null
   const anni = new Set(serie.map(s => s.chiave.slice(0, 4)))
-  return serie.map(s => {
+  const colonne = serie.map(s => {
     const { dal, al } = estremiColonna(s.chiave, s.primo, passo)
     const intera = passo === 'giorno' || ((!inizio || dal >= inizio) && (!fine || al <= fine))
     const vend = s.vendutoG / 1000
@@ -69,9 +69,40 @@ export function colonneVenduto(righe, { da = null, a = null, passo = 'settimana'
       prod: s.prodottoG / 1000,
       vend: intera ? vend : 0,
       vendParziale: intera ? 0 : vend,
-      intera, giorni: s.giorni, daSistemare: s.daSistemare,
+      intera, vuota: false, giorni: s.giorni, daSistemare: s.daSistemare,
     }
   })
+  // Dopo l'ultimo giorno registrato, fino a `finoA` (di solito oggi, o la
+  // fine del periodo se viene prima), il periodo continua ma non c'è niente:
+  // quelle colonne ci sono, vuote e segnate (`vuota`), invece di far finire il
+  // grafico prima del periodo. Un mese senza dati sembrava un calo; così si
+  // vede che è un buco (ANALISI_DESIGN.md §6: l'incompleto è una zona).
+  const ultimo = registrati.ultimo
+  if (ultimo && finoA && finoA > ultimo) {
+    const presenti = new Set(colonne.map(c => c.key))
+    const chiaveDi = (d) => (passo === 'giorno' ? d : passo === 'mese' ? d.slice(0, 7) : settimanaChiave(d))
+    for (let d = piu(ultimo, 1); d <= finoA; d = piu(d, 1)) {
+      const k = chiaveDi(d)
+      if (presenti.has(k)) continue
+      presenti.add(k)
+      const { dal, al } = estremiColonna(k, d, passo)
+      colonne.push({
+        key: k, label: passo === 'giorno' ? dataBreve(k) : passo === 'mese' ? `${nomeMese(k, { anno: false }).slice(0, 3)}${anni.size > 1 ? ` ${k.slice(2, 4)}` : ''}` : dataBreve(dal),
+        dal, al, prod: 0, vend: 0, vendParziale: 0, intera: false, vuota: true, giorni: 0, daSistemare: 0,
+      })
+    }
+  }
+  return colonne
+}
+
+// La settimana ISO, «2026-W36», con lo stesso conto di produzioneQuadro.
+function settimanaChiave(iso) {
+  const tmp = new Date(`${iso}T12:00:00Z`)
+  const dow = tmp.getUTCDay() || 7
+  tmp.setUTCDate(tmp.getUTCDate() + 4 - dow)
+  const ys = new Date(Date.UTC(tmp.getUTCFullYear(), 0, 1))
+  const n = Math.ceil((((tmp - ys) / 86400000) + 1) / 7)
+  return `${tmp.getUTCFullYear()}-W${String(n).padStart(2, '0')}`
 }
 
 const kgT = (n) => `${new Intl.NumberFormat('it-IT', { useGrouping: 'always', maximumFractionDigits: n >= 100 ? 0 : 1 }).format(n)} kg`
@@ -89,7 +120,9 @@ const MIGLIORE = { giorno: 'Il giorno migliore è', settimana: 'La settimana mig
  *
  * @returns {{ titolo: string, dettaglio: string, forte: string|null }}
  */
-export function conclusioneVenduto(colonne, passo = 'settimana') {
+export function conclusioneVenduto(tutte, passo = 'settimana') {
+  // Le colonne vuote (dopo l'ultimo giorno registrato) non contano.
+  const colonne = tutte.filter(c => !c.vuota)
   const intere = colonne.filter(c => c.intera && c.vend > 0)
   if (!intere.length) {
     if (!colonne.length || colonne.every(c => c.intera)) return { titolo: 'Niente venduto nel periodo', dettaglio: '', forte: null }

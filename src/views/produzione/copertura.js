@@ -26,7 +26,7 @@ import { kg, intero, quanti, elenco } from './numeri'
  * @param {{ n: number }} [p.caselle]  il riassunto delle caselle da sistemare
  * @param {{ n: number, kgVenduti: number, euroStimati: number|null }} [p.senzaRicetta]
  * @param {string[]} [p.incompleti]  gusti con la ricetta ma senza prezzo o costo completo
- * @param {{ inventario?: Function, gusti?: Function, caselle?: Function }} [p.azioni]
+ * @param {{ inventario?: Function, gusti?: Function, caselle?: Function, giorni?: Function, giorniAperti?: boolean }} [p.azioni]
  */
 export function vociCopertura({
   copertura, registrazioneFerma = false, daPartenza = false, buchi = [],
@@ -52,7 +52,10 @@ export function vociCopertura({
     dettaglio: coiBuchi.length
       ? `Giorni senza niente registrato (chiusura o dimenticanza): ${coiBuchi.map(b => `${b.sede ? `${b.sede} ` : ''}${b.giorni.slice(0, 4).map(dataBreve).join(', ')}${b.giorni.length > 4 ? ` e altri ${intero(b.giorni.length - 4)}` : ''}`).join('; ')}`
       : undefined,
-    azione: registrazioneFerma && azioni.inventario ? { etichetta: 'Registra', onClick: azioni.inventario } : null,
+    // Il calendario dei giorni si apre da qui; senza calendario, se i dati si
+    // fermano, il pulsante porta a registrare.
+    azione: azioni.giorni ? { etichetta: azioni.giorniAperti ? 'Chiudi i giorni' : 'Vedi i giorni', onClick: azioni.giorni }
+      : registrazioneFerma && azioni.inventario ? { etichetta: 'Registra', onClick: azioni.inventario } : null,
   })
 
   // 2. Il confronto, quando si fa. Quando non si fa lo dicono la barra del

@@ -33,6 +33,7 @@ import GiornoSettimana from './produzione/GiornoSettimana'
 import SediAffiancate from './produzione/SediAffiancate'
 import TabellaGusti from './produzione/TabellaGusti'
 import ClassificaGusti from './produzione/ClassificaGusti'
+import CalendarioGiorni from './produzione/CalendarioGiorni'
 import { frasiProduzione } from './produzione/frasi'
 
 /**
@@ -61,6 +62,8 @@ export default function AnalisiInventarioSection({
   const refCaselle = useRef(null)
   // La tabella di tutti i gusti si apre al tocco, sotto la classifica.
   const [tabellaAperta, setTabellaAperta] = useState(false)
+  // Il calendario dei giorni registrati si apre dalla riga della copertura.
+  const [giorniAperti, setGiorniAperti] = useState(false)
   const vai = (ref) => () => ref.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
 
   const sediProduzione = (sedi || []).filter(s => s.attiva !== false && s.is_sede_produzione !== false)
@@ -100,7 +103,7 @@ export default function AnalisiInventarioSection({
     confrontoInfo, scartoRegistrato: c.scartoRegistrato, caselle: c.riassunto,
     senzaRicetta: { n: c.senzaRicetta.length, kgVenduti: c.kgSenzaRicetta, euroStimati: c.euroSenzaRicetta },
     incompleti: c.incompleti.map(r => r.gusto),
-    azioni: { inventario: onBack, gusti: vai(refGusti), caselle: vai(refCaselle) },
+    azioni: { inventario: onBack, gusti: vai(refGusti), caselle: vai(refCaselle), giorni: () => setGiorniAperti(v => !v), giorniAperti },
   })
   const daSistemare = c.riassunto.n > 0 || c.senzaRicetta.length > 0 || c.collegati.length > 0
   const frasi = frasiProduzione({ righe: c.righeTabella, senzaRicetta: { n: c.senzaRicetta.length, euroStimati: c.euroSenzaRicetta } })
@@ -123,6 +126,9 @@ export default function AnalisiInventarioSection({
         {barra}
         <CoperturaDati voci={voci} />
         {sezione('La risposta', <>
+          {giorniAperti && (
+            <CalendarioGiorni righe={rows} da={dateFrom} a={dateTo} sedi={c.sedi.map(s => s.sedeId || '_')} isMobile={isMobile} />
+          )}
           <Tessere totali={c.totali} totaliPrev={c.totaliPrev} confronto={confronto} confrontoInfo={confrontoInfo}
             copertura={c.copertura} scartoRegistrato={c.scartoRegistrato}
             senzaRicetta={{ n: c.senzaRicetta.length, euroStimati: c.euroSenzaRicetta }}
