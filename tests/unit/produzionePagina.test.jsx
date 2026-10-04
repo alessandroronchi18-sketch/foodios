@@ -43,7 +43,7 @@ vi.mock('../../src/lib/storage', () => ({
 }))
 
 const { vociCopertura } = await import('../../src/views/produzione/copertura.js')
-const { titoloVetrina } = await import('../../src/views/produzione/ContoVetrina.jsx')
+const { titoloVetrina, sottotitoloVetrina } = await import('../../src/views/produzione/ContoVetrina.jsx')
 const { confrontoNeutro } = await import('../../src/views/produzione/Tessere.jsx')
 const { kgTessera } = await import('../../src/views/produzione/numeri.js')
 const { default: AnalisiInventarioSection } = await import('../../src/views/AnalisiInventarioSection.jsx')
@@ -175,8 +175,11 @@ const tessera = (etichetta) => {
 
 describe('Il titolo del conto della vetrina dice la conclusione', () => {
   it('scesa, salita, com\'era', () => {
-    expect(titoloVetrina({ inizioG: 329400, fineG: 267000 })).toBe('La vetrina è scesa da 329 kg a 267 kg: hai venduto più di quanto hai fatto')
-    expect(titoloVetrina({ inizioG: 2000, fineG: 9000 })).toBe('La vetrina è salita da 2 kg a 9 kg: hai fatto più di quanto hai venduto')
+    // Dieci parole al massimo (ANALISI_DESIGN.md §6); il perché nel sottotitolo.
+    expect(titoloVetrina({ inizioG: 329400, fineG: 267000 })).toBe('La vetrina è scesa da 329 kg a 267 kg')
+    expect(sottotitoloVetrina({ inizioG: 329400, fineG: 267000 })).toMatch(/^Hai venduto più di quanto hai fatto\. /)
+    expect(titoloVetrina({ inizioG: 2000, fineG: 9000 })).toBe('La vetrina è salita da 2 kg a 9 kg')
+    expect(sottotitoloVetrina({ inizioG: 2000, fineG: 9000 })).toMatch(/^Hai fatto più di quanto hai venduto\. /)
     expect(titoloVetrina({ inizioG: 100500, fineG: 100800 })).toBe('La vetrina è rimasta com\'era: 101 kg')
   })
   it('i chili delle tessere: interi da 100 in su, un decimale sotto', () => {
@@ -246,7 +249,7 @@ describe('La pagina: tessere e vetrina sui conti veri', () => {
       'In vetrina all\'inizio2 kg', '+Prodotto6 kg', '−Venduto7 kg', '−Scartonon registrato',
       '=Deve restare1 kg', 'In vetrina alla fine, contato1 kg',
     ])
-    expect(testo()).toMatch(/La vetrina è scesa da 2 kg a 1 kg: hai venduto più di quanto hai fatto/)
+    expect(testo()).toMatch(/La vetrina è scesa da 2 kg a 1 kgHai venduto più di quanto hai fatto\./)
     expect(testo()).toMatch(/Il conto torna/)
   })
 
@@ -277,7 +280,7 @@ describe('La pagina: tessere e vetrina sui conti veri', () => {
 })
 
 // ── 3. Il venduto per settimana e il giorno della settimana ────────────────
-const { colonneVenduto, titoloVenduto } = await import('../../src/views/produzione/colonneVenduto.js')
+const { colonneVenduto, titoloVenduto, conclusioneVenduto } = await import('../../src/views/produzione/colonneVenduto.js')
 const { titoloGiorni } = await import('../../src/views/produzione/GiornoSettimana.jsx')
 
 /** Una riga al giorno: 5 kg fatti, 1 kg lasciato (dal secondo giorno: 5 kg venduti). */
@@ -340,15 +343,15 @@ describe('Il titolo del grafico dice la conclusione, sulle colonne intere', () =
   const col = (dal, vend, intera = true) => ({ key: dal, dal, label: dal, vend: intera ? vend : 0, vendParziale: intera ? 0 : vend, intera })
   it('la settimana migliore e la peggiore, senza contare quelle non intere', () => {
     const c = [col('2026-06-29', 50, false), col('2026-07-06', 1654.2), col('2026-07-13', 900.2), col('2026-08-31', 10, false)]
-    expect(titoloVenduto(c, 'settimana')).toBe('La settimana migliore è quella del 06/07: 1.654 kg, contro i 900 kg di quella del 13/07')
+    expect(conclusioneVenduto(c, 'settimana')).toEqual({ titolo: 'La settimana migliore è quella del 06/07: 1.654 kg', dettaglio: 'La più bassa, quella del 13/07: 900 kg.', forte: '2026-07-06' })
   })
   it('i mesi per nome', () => {
-    expect(titoloVenduto([{ ...col('2026-07-01', 6900), key: '2026-07' }, { ...col('2026-08-01', 4800), key: '2026-08' }], 'mese'))
-      .toBe('Il mese migliore è luglio: 6.900 kg, contro i 4.800 kg di agosto')
+    expect(conclusioneVenduto([{ ...col('2026-07-01', 6900), key: '2026-07' }, { ...col('2026-08-01', 4800), key: '2026-08' }], 'mese'))
+      .toEqual({ titolo: 'Il mese migliore è luglio: 6.900 kg', dettaglio: 'Il più basso, agosto: 4.800 kg.', forte: '2026-07' })
   })
   it('una settimana intera sola, o nessuna', () => {
     expect(titoloVenduto([col('2026-07-06', 35)], 'settimana')).toBe('La settimana del 06/07: 35 kg venduti')
-    expect(titoloVenduto([col('2026-07-06', 35, false)], 'settimana')).toBe('Nessuna settimana intera nel periodo: le colonne sono parziali')
+    expect(titoloVenduto([col('2026-07-06', 35, false)], 'settimana')).toBe('Nessuna settimana intera nel periodo')
   })
 })
 
@@ -356,12 +359,13 @@ describe('Che giorno si vende di più', () => {
   const g = (giorno, nome, kgMedi, n) => ({ giorno, nome, mediaG: kgMedi == null ? null : kgMedi * 1000, nGiorni: n })
   it('il titolo nomina il giorno migliore e il peggiore, con l\'articolo giusto', () => {
     const sett = [g(1, 'Lunedì', 197.7, 3), g(2, 'Martedì', 145.1, 3), g(4, 'Giovedì', 69.6, 3), g(7, 'Domenica', 190, 3)]
-    expect(titoloGiorni(sett)).toBe('Il lunedì vendi di più (198 kg al giorno), il giovedì di meno (69,6 kg)')
-    expect(titoloGiorni([g(7, 'Domenica', 300, 2), g(1, 'Lunedì', 100, 2)])).toBe('La domenica vendi di più (300 kg al giorno), il lunedì di meno (100 kg)')
+    expect(titoloGiorni(sett)).toBe('Il lunedì vendi di più: 198 kg al giorno')
+    expect(titoloGiorni([g(7, 'Domenica', 300, 2), g(1, 'Lunedì', 100, 2)])).toBe('La domenica vendi di più: 300 kg al giorno')
+    expect(sottotitoloGiorni(sett)).toBe('Il giorno più basso è il giovedì: 69,6 kg. Venduto medio di ogni giorno della settimana, sui giorni registrati.')
   })
   it('un giorno visto una volta sola non decide il titolo', () => {
     expect(titoloGiorni([g(1, 'Lunedì', 500, 1), g(2, 'Martedì', 100, 3), g(3, 'Mercoledì', 120, 3)]))
-      .toBe('Il mercoledì vendi di più (120 kg al giorno), il martedì di meno (100 kg)')
+      .toBe('Il mercoledì vendi di più: 120 kg al giorno')
     expect(titoloGiorni([g(1, 'Lunedì', 500, 1)])).toBe('Il venduto di ogni giorno della settimana')
   })
 })
@@ -581,21 +585,21 @@ describe('Il titolo dei giorni non conclude sui giorni falsati', () => {
     g(5, 'Venerdì', 180.6, 9, 61.3, 111.3), g(6, 'Sabato', 214.8, 9, 1.2, 61.3), g(7, 'Domenica', 222, 9, 10.4, 1.2),
   ]
   it('con quattro giorni falsati il titolo dice che non si confrontano (non «il martedì vendi di più»)', () => {
-    expect(titoloGiorni(MARA)).toBe('Il lunedì, il martedì, il mercoledì e il giovedì non si possono confrontare: la rimanenza lasciata a 0 fa contare i chili il giorno prima')
+    expect(titoloGiorni(MARA)).toBe('4 giorni su 7 non si possono confrontare')
     expect(titoloGiorni(MARA)).not.toMatch(/martedì vendi di più/)
   })
   it('il sottotitolo conta ogni casella una volta', () => {
     // I chili persi: 180 + 574,5 + 592,7 + 111,3 + 61,3 + 1,2 = 1.521 kg (con
     // anche i presi sarebbero il doppio).
-    expect(sottotitoloGiorni(MARA)).toBe('Venduto medio di ogni giorno della settimana, sui giorni registrati. In ambra i giorni falsati: almeno 1.521 kg contati nel giorno prima del vero.')
+    expect(sottotitoloGiorni(MARA)).toBe('Lunedì, martedì, mercoledì e giovedì: la rimanenza lasciata a 0 fa contare almeno 1.521 kg il giorno prima del vero. Venduto medio di ogni giorno della settimana, sui giorni registrati. A righe ambra i giorni falsati.')
   })
   it('con uno o due giorni falsati conclude sugli altri, e lo dice', () => {
     const due = MARA.map(x => ({ ...x, falsato: x.nome === 'Martedì' || x.nome === 'Mercoledì' }))
-    expect(titoloGiorni(due)).toBe('La domenica vendi di più (222 kg al giorno), il giovedì di meno (96,9 kg)')
-    expect(sottotitoloGiorni(due)).toMatch(/restano fuori dal confronto\.$/)
+    expect(titoloGiorni(due)).toBe('La domenica vendi di più: 222 kg al giorno')
+    expect(sottotitoloGiorni(due)).toMatch(/^Il giorno più basso è il giovedì: 96,9 kg\. Martedì e mercoledì sono falsati dalla rimanenza lasciata a 0 \(in tutto almeno 1\.521 kg contati il giorno prima del vero\): restano fuori dal confronto\. /)
   })
   it('senza giorni falsati il sottotitolo non parla di ambra', () => {
-    expect(sottotitoloGiorni(MARA.map(x => ({ ...x, falsato: false, presiKg: 0, persiKg: 0 })))).toBe('Venduto medio di ogni giorno della settimana, sui giorni registrati.')
+    expect(sottotitoloGiorni(MARA.map(x => ({ ...x, falsato: false, presiKg: 0, persiKg: 0 })))).not.toMatch(/ambra/)
   })
 })
 
@@ -619,6 +623,6 @@ describe('La pagina segna i giorni falsati', () => {
     expect(voce('Mercoledì').getAttribute('aria-label')).toMatch(/falsato/)
     expect(voce('Lunedì').getAttribute('aria-label')).not.toMatch(/falsato/)
     expect(testo()).not.toMatch(/Il martedì vendi di più/)
-    expect(testo()).toMatch(/In ambra i giorni falsati: almeno 2 kg contati nel giorno prima del vero, restano fuori dal confronto/)
+    expect(testo()).toMatch(/Martedì e mercoledì sono falsati dalla rimanenza lasciata a 0 \(in tutto almeno 2 kg contati il giorno prima del vero\): restano fuori dal confronto/)
   })
 })

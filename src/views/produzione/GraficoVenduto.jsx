@@ -16,7 +16,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { color as T, font, radius as R, tnum } from '../../lib/theme'
 import { dataBreve } from '../../lib/formatoAnalisi'
 import { TitoloGrafico, Riquadro } from '../../components/analisi'
-import { colonneVenduto, titoloVenduto } from './colonneVenduto'
+import { colonneVenduto, conclusioneVenduto } from './colonneVenduto'
 import MenuScelta from './MenuScelta'
 import { kg, intero } from './numeri'
 
@@ -27,10 +27,17 @@ const NON_INTERA = { settimana: 'le settimane', mese: 'i mesi' }
 export default function GraficoVenduto({ rows, da, a, registrati, riassunto, isMobile, stile = null }) {
   const [passo, setPasso] = useState('settimana')
   const [tabella, setTabella] = useState(false)
-  const colonne = useMemo(
+  const grezze = useMemo(
     () => colonneVenduto(rows, { da, a, passo, registrati }),
     [rows, da, a, passo, registrati]
   )
+  const conclusione = conclusioneVenduto(grezze, passo)
+  // La colonna di cui parla il titolo va in una serie sua, scura; le altre
+  // intere chiare; le non intere tratteggiate in ambra. Tre serie impilate e
+  // non colori per colonna: il grafico riceve solo dati.
+  const colonne = useMemo(() => grezze.map(c => (c.key === conclusione.forte
+    ? { ...c, vendForte: c.vend, vend: 0 }
+    : { ...c, vendForte: 0 })), [grezze, conclusione.forte])
   const parziali = colonne.some(c => !c.intera)
   const giorniDaSistemare = riassunto?.nRimanenza > 0 ? riassunto.giorni : []
   const asse = { fontSize: font.size.sm, fill: T.textSoft }
@@ -38,8 +45,8 @@ export default function GraficoVenduto({ rows, da, a, registrati, riassunto, isM
   return (
     <Riquadro isMobile={isMobile} stile={stile}>
       <TitoloGrafico
-        titolo={titoloVenduto(colonne, passo)}
-        sottotitolo={`Chili venduti ${PER[passo]}.${parziali && NON_INTERA[passo] ? ` In ambra ${NON_INTERA[passo]} non intere, tagliate dal periodo o dai giorni registrati.` : ''}`}
+        titolo={conclusione.titolo}
+        sottotitolo={`${conclusione.dettaglio ? `${conclusione.dettaglio} ` : ''}Chili venduti ${PER[passo]}.${parziali && NON_INTERA[passo] ? ` A righe ambra ${NON_INTERA[passo]} non intere, tagliate dal periodo o dai giorni registrati.` : ''}`}
         destra={<MenuScelta etichetta="Raggruppa il grafico" prefisso="per " valore={passo} scelte={PASSI} onScegli={setPasso} />}
       />
       <ResponsiveContainer width="100%" height={isMobile ? 200 : 240}>
@@ -48,8 +55,17 @@ export default function GraficoVenduto({ rows, da, a, registrati, riassunto, isM
           <XAxis dataKey="label" tick={asse} tickLine={false} axisLine={{ stroke: T.border }} interval="preserveStartEnd" minTickGap={10} />
           <YAxis tick={asse} tickLine={false} axisLine={false} width={44} tickFormatter={(v) => intero(v)} />
           <Tooltip content={<Suggerimento passo={passo} />} cursor={{ fill: T.bgSubtle }} />
-          <Bar dataKey="vend" name="Venduto" stackId="v" fill={T.graficoReale} maxBarSize={24} radius={[4, 4, 0, 0]} isAnimationActive={false} />
-          <Bar dataKey="vendParziale" name="Venduto, non intera" stackId="v" fill={T.amber} maxBarSize={24} radius={[4, 4, 0, 0]} isAnimationActive={false} />
+          <defs>
+            {/* L'incompleto non è solo un colore: è una zona a righe, come
+                in Stripe (ANALISI_DESIGN.md §6). */}
+            <pattern id="produzione-righe-ambra" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+              <rect width="6" height="6" fill={T.amberLight} />
+              <line x1="0" y1="0" x2="0" y2="6" stroke={T.amber} strokeWidth="2.5" />
+            </pattern>
+          </defs>
+          <Bar dataKey="vendForte" name="Venduto" stackId="v" fill={T.graficoReale} maxBarSize={24} radius={[4, 4, 0, 0]} isAnimationActive={false} />
+          <Bar dataKey="vend" name="Venduto" stackId="v" fill={T.graficoConfronto} maxBarSize={24} radius={[4, 4, 0, 0]} isAnimationActive={false} />
+          <Bar dataKey="vendParziale" name="Venduto, non intera" stackId="v" fill="url(#produzione-righe-ambra)" stroke={T.amber} maxBarSize={24} radius={[4, 4, 0, 0]} isAnimationActive={false} />
         </BarChart>
       </ResponsiveContainer>
       {giorniDaSistemare.length > 0 && (
@@ -78,7 +94,7 @@ function Suggerimento({ active, payload, passo }) {
   return (
     <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: R.lg, padding: '8px 10px', fontSize: font.size.sm, color: T.textMid, lineHeight: 1.5 }}>
       <div style={{ fontWeight: 700, color: T.text }}>{passo === 'settimana' ? 'Settimana ' : passo === 'mese' ? 'Mese, ' : ''}{periodoColonna(c, passo)}</div>
-      <div>Venduti <b style={{ ...tnum, color: T.text }}>{kg(c.vend + c.vendParziale)} kg</b></div>
+      <div>Venduti <b style={{ ...tnum, color: T.text }}>{kg(c.vend + c.vendForte + c.vendParziale)} kg</b></div>
       <div>Prodotti <span style={tnum}>{kg(c.prod)} kg</span></div>
       <div>{c.giorni === 1 ? 'Un giorno registrato' : `${intero(c.giorni)} giorni registrati`}</div>
       {!c.intera && <div style={{ color: T.amberDark }}>Non intera: tagliata dal periodo o dai giorni registrati</div>}
@@ -105,7 +121,7 @@ function TabellaNumeri({ colonne, passo }) {
           {colonne.map(c => (
             <tr key={c.key} style={{ borderTop: `1px solid ${T.borderSoft}` }}>
               <td style={{ ...td, textAlign: 'left', color: T.text }}>{periodoColonna(c, passo)}{c.intera ? '' : ' (non intera)'}</td>
-              <td style={{ ...td, fontWeight: 700 }}>{kg(c.vend + c.vendParziale)}</td>
+              <td style={{ ...td, fontWeight: 700 }}>{kg(c.vend + c.vendForte + c.vendParziale)}</td>
               <td style={td}>{kg(c.prod)}</td>
               <td style={td}>{intero(c.giorni)}</td>
             </tr>

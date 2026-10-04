@@ -59,7 +59,7 @@ export default function GustiSenzaRicetta({ senzaRicetta, collegati, euroKgMedio
   return (
     <div data-senza-ricetta style={{
       background: T.fondoAvviso, border: `1px solid ${T.bordoAvviso}`, borderRadius: R.xl,
-      padding: '12px 14px', marginBottom: 14, fontSize: font.size.sm, color: T.amberDark, lineHeight: 1.5,
+      padding: '12px 14px', fontSize: font.size.sm, color: T.amberDark, lineHeight: 1.5,
     }}>
       {senzaRicetta.length > 0 && (
         <div style={{ marginBottom: 10 }}>

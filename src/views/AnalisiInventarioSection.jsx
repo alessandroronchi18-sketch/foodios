@@ -83,7 +83,7 @@ export default function AnalisiInventarioSection({
   // Un periodo senza giorni registrati: si dice dove finiscono i dati.
   if (c.copertura.n === 0) {
     return (
-      <div style={{ marginBottom: 28 }}>
+      <div style={{ paddingBottom: isMobile ? 32 : 40 }}>
         {intestazione}
         {barra}
         <PeriodoVuoto dateFrom={dateFrom} dateTo={dateTo} ultimo={confrontoInfo?.ultimoPrima || null}
@@ -102,61 +102,76 @@ export default function AnalisiInventarioSection({
   const daSistemare = c.riassunto.n > 0 || c.senzaRicetta.length > 0 || c.collegati.length > 0
   const frasi = frasiProduzione({ righe: c.righeTabella, senzaRicetta: { n: c.senzaRicetta.length, euroStimati: c.euroSenzaRicetta } })
 
+  // Gli spazi li possiede la pagina, non i pezzi (ANALISI_DESIGN.md §6): fra
+  // una sezione e l'altra 40 px (32 al telefono), fra un riquadro e l'altro
+  // 24 (16). Prima ogni pezzo aveva il suo marginBottom, da 10 a 18 px.
+  const fraSezioni = isMobile ? 32 : 40
+  const fraRiquadri = isMobile ? 16 : 24
+  const sezione = (etichetta, figli) => (
+    <section aria-label={etichetta} style={{ display: 'flex', flexDirection: 'column', gap: fraRiquadri, minWidth: 0 }}>{figli}</section>
+  )
+  const affiancati = { display: 'grid', gridTemplateColumns: isMobile || isTablet ? '1fr' : '1fr 1fr', gap: fraRiquadri, alignItems: 'start' }
+
   return (
-    <div style={{ marginBottom: 28 }}>
-      {intestazione}
-      {barra}
-      <CoperturaDati voci={voci} />
-
-      <Tessere totali={c.totali} totaliPrev={c.totaliPrev} confronto={confronto} confrontoInfo={confrontoInfo}
-        copertura={c.copertura} scartoRegistrato={c.scartoRegistrato}
-        senzaRicetta={{ n: c.senzaRicetta.length, euroStimati: c.euroSenzaRicetta }}
-        nGusti={c.totali.nConVendita} isMobile={isMobile} isTablet={isTablet} />
-
-      {frasi.length > 0 && (
-        <Riquadro isMobile={isMobile} stile={{ marginBottom: 14, paddingBottom: isMobile ? 8 : 10 }}>
-          <TitoloGrafico titolo="Dove guardare" sottotitolo="Le cose che si notano in questo periodo, col numero dietro." />
-          {frasi.map(f => (
-            <FraseInsight key={f.id} verso={f.verso}
-              onClick={f.azione === 'gusti' ? vai(refGusti) : null} etichettaAzione="Collega">
-              {f.testo}
-            </FraseInsight>
-          ))}
-        </Riquadro>
-      )}
-
-      <GraficoVenduto rows={rows} da={dateFrom} a={dateTo} registrati={c.copertura} riassunto={c.riassunto}
-        isMobile={isMobile} stile={{ marginBottom: 14 }} />
-
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile || isTablet ? '1fr' : '1fr 1fr', gap: isMobile ? 10 : 14, marginBottom: 14 }}>
-        <ContoVetrina vetrina={c.vetrina} scartoRegistrato={c.scartoRegistrato} isMobile={isMobile} />
-        <GiornoSettimana giorni={c.settimana} isMobile={isMobile} />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: fraSezioni, paddingBottom: fraSezioni }}>
+      {/* La risposta: quanto, rispetto a cosa, e dove guardare. */}
+      <div>
+        {intestazione}
+        {barra}
+        <CoperturaDati voci={voci} />
+        {sezione('La risposta', <>
+          <Tessere totali={c.totali} totaliPrev={c.totaliPrev} confronto={confronto} confrontoInfo={confrontoInfo}
+            copertura={c.copertura} scartoRegistrato={c.scartoRegistrato}
+            senzaRicetta={{ n: c.senzaRicetta.length, euroStimati: c.euroSenzaRicetta }}
+            nGusti={c.totali.nConVendita} isMobile={isMobile} isTablet={isTablet} />
+          {frasi.length > 0 && (
+            <Riquadro isMobile={isMobile}>
+              <TitoloGrafico titolo="Dove guardare" sottotitolo="Le cose che si notano in questo periodo, col numero dietro." />
+              {frasi.map(f => (
+                <FraseInsight key={f.id} verso={f.verso}
+                  onClick={f.azione === 'gusti' ? vai(refGusti) : null} etichettaAzione="Collega">
+                  {f.testo}
+                </FraseInsight>
+              ))}
+            </Riquadro>
+          )}
+        </>)}
       </div>
 
-      <SediAffiancate sedi={c.sedi} isMobile={isMobile} stile={{ marginBottom: 14 }} />
+      {/* Quando: le settimane, la vetrina, i giorni. */}
+      {sezione('Quando', <>
+        <GraficoVenduto rows={rows} da={dateFrom} a={dateTo} registrati={c.copertura} riassunto={c.riassunto} isMobile={isMobile} />
+        <div style={affiancati}>
+          <ContoVetrina vetrina={c.vetrina} scartoRegistrato={c.scartoRegistrato} isMobile={isMobile} />
+          <GiornoSettimana giorni={c.settimana} isMobile={isMobile} />
+        </div>
+      </>)}
 
-      <TabellaGusti righe={c.righeTabella} totali={c.totali} scartoRegistrato={c.scartoRegistrato}
-        isMobile={isMobile} stile={{ marginBottom: 14 }} />
+      {/* Dove e cosa: le sedi, i gusti. */}
+      {sezione('Sedi e gusti', <>
+        <SediAffiancate sedi={c.sedi} isMobile={isMobile} />
+        <TabellaGusti righe={c.righeTabella} totali={c.totali} scartoRegistrato={c.scartoRegistrato} isMobile={isMobile} />
+      </>)}
 
-      {daSistemare && (
-        <section aria-label="Da sistemare" style={{ marginTop: 8 }}>
-          <TitoloGrafico titolo="Da sistemare"
-            sottotitolo="Quello che tiene fuori dai conti dei chili o degli euro. Si sistema una volta, e vale per tutti i periodi." />
+      {daSistemare && sezione('Da sistemare', <>
+        <TitoloGrafico titolo="Da sistemare"
+          sottotitolo="Quello che tiene fuori dai conti dei chili o degli euro. Si sistema una volta, e vale per tutti i periodi." />
+        {c.riassunto.n > 0 && (
           <div ref={refCaselle}>
             <CaselleDaSistemare riassunto={c.riassunto} caselle={c.daSistemare} nomeSede={c.nomeSede} onApri={onBack} />
           </div>
+        )}
+        {(c.senzaRicetta.length > 0 || c.collegati.length > 0) && (
           <div ref={refGusti}>
-            {(c.senzaRicetta.length > 0 || c.collegati.length > 0) && (
-              <GustiSenzaRicetta
-                senzaRicetta={c.senzaRicetta} collegati={c.collegati}
-                euroKgMedio={c.euroKgMedio} ricettario={ricettario}
-                collega={c.collega} pronto={c.nomiGusti != null}
-                onNavigate={onNavigate} isMobile={isMobile}
-              />
-            )}
+            <GustiSenzaRicetta
+              senzaRicetta={c.senzaRicetta} collegati={c.collegati}
+              euroKgMedio={c.euroKgMedio} ricettario={ricettario}
+              collega={c.collega} pronto={c.nomiGusti != null}
+              onNavigate={onNavigate} isMobile={isMobile}
+            />
           </div>
-        </section>
-      )}
+        )}
+      </>)}
     </div>
   )
 }

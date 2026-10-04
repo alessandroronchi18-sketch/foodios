@@ -16,16 +16,24 @@ import { color as T, font, tnum } from '../../lib/theme'
 import { TitoloGrafico, Riquadro } from '../../components/analisi'
 import { kg, kgTessera, intero } from './numeri'
 
-/** Il titolo-conclusione: la vetrina è salita, scesa o rimasta com'era. */
+/**
+ * Il titolo-conclusione, in dieci parole al massimo (ANALISI_DESIGN.md §6):
+ * la vetrina è salita, scesa o rimasta com'era. Il perché va nel sottotitolo.
+ */
 export function titoloVetrina(b) {
   const ini = b.inizioG / 1000
   const fine = b.fineG / 1000
-  const delta = fine - ini
   // Mezzo chilo su tutta la vetrina è il peso di una vaschetta mezza piena.
-  if (Math.abs(delta) < 0.5) return `La vetrina è rimasta com'era: ${kgTessera(fine)}`
-  return delta < 0
-    ? `La vetrina è scesa da ${kgTessera(ini)} a ${kgTessera(fine)}: hai venduto più di quanto hai fatto`
-    : `La vetrina è salita da ${kgTessera(ini)} a ${kgTessera(fine)}: hai fatto più di quanto hai venduto`
+  if (Math.abs(fine - ini) < 0.5) return `La vetrina è rimasta com'era: ${kgTessera(fine)}`
+  return `La vetrina è ${fine < ini ? 'scesa' : 'salita'} da ${kgTessera(ini)} a ${kgTessera(fine)}`
+}
+
+/** Il sottotitolo: cosa vuol dire, poi cosa è scritto sotto. */
+export function sottotitoloVetrina(b) {
+  const delta = (b.fineG - b.inizioG) / 1000
+  const senso = Math.abs(delta) < 0.5 ? 'Hai fatto quanto hai venduto. '
+    : delta < 0 ? 'Hai venduto più di quanto hai fatto. ' : 'Hai fatto più di quanto hai venduto. '
+  return `${senso}Quello che c'era, più quello che hai fatto, meno quello che è uscito: è quello che deve restare.`
 }
 
 /**
@@ -53,8 +61,7 @@ export default function ContoVetrina({ vetrina: b, scartoRegistrato, isMobile, s
   const atteso = b.inizioG + b.prodottoG + b.ricevutoG - b.speditoG - b.scartoG - b.vendutoG
   return (
     <Riquadro isMobile={isMobile} stile={stile}>
-      <TitoloGrafico titolo={titoloVetrina(b)}
-        sottotitolo="Quello che c'era, più quello che hai fatto, meno quello che è uscito: è quello che deve restare." />
+      <TitoloGrafico titolo={titoloVetrina(b)} sottotitolo={sottotitoloVetrina(b)} />
       <div role="table" aria-label="Il conto della vetrina" style={{ fontSize: font.size.md, color: T.text }}>
         {righe.map(r => (
           <Riga key={r.voce} segno={r.segno} voce={r.voce} valore={r.testo || `${kg(r.g / 1000)} kg`} tenue={!!r.testo} />

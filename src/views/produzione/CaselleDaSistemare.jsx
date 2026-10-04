@@ -19,7 +19,7 @@ export default function CaselleDaSistemare({ riassunto, caselle, nomeSede, onApr
   return (
     <div data-caselle style={{
       background: T.fondoAvviso, border: `1px solid ${T.bordoAvviso}`, borderRadius: R.xl,
-      padding: '12px 14px', marginBottom: 14, fontSize: font.size.sm, color: T.amberDark,
+      padding: '12px 14px', fontSize: font.size.sm, color: T.amberDark,
       lineHeight: 1.5, display: 'flex', gap: 8, alignItems: 'flex-start',
     }}>
       <span style={{ display: 'inline-flex', marginTop: 2, flexShrink: 0 }} aria-hidden="true"><Icon name="alert" size={14} /></span>

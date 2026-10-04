@@ -55,7 +55,7 @@ export default function Tessere({
   const colonne = ui3(isMobile, isTablet, { telefono: '1fr', tablet: '1fr 1fr', computer: '1.3fr 1fr 1fr' })
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: colonne, gap: isMobile ? 10 : 14, marginBottom: 14 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: colonne, gap: isMobile ? 16 : 24 }}>
       <div style={{ display: 'grid', gridRow: !isMobile && !isTablet ? 'span 2' : 'auto', gridColumn: isTablet && !isMobile ? '1 / -1' : 'auto' }}>
         <NumeroConConfronto grande isMobile={isMobile}
           etichetta="Venduto"

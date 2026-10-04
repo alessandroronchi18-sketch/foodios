@@ -74,26 +74,42 @@ export function colonneVenduto(righe, { da = null, a = null, passo = 'settimana'
   })
 }
 
-const NOME = { giorno: 'Il giorno', settimana: 'La settimana', mese: 'Il mese' }
 const kgT = (n) => `${new Intl.NumberFormat('it-IT', { useGrouping: 'always', maximumFractionDigits: n >= 100 ? 0 : 1 }).format(n)} kg`
 const nomeColonna = (c, passo) => (passo === 'mese' ? nomeMese(c.key, { anno: false })
-  : passo === 'giorno' ? `del ${dataBreve(c.key)}` : `del ${dataBreve(c.dal)}`)
+  : passo === 'giorno' ? `il ${dataBreve(c.key)}` : `quella del ${dataBreve(c.dal)}`)
+const maiuscolaIniziale = (t) => t[0].toUpperCase() + t.slice(1)
+const PIU_BASSA = { giorno: 'Il giorno più basso', settimana: 'La più bassa', mese: 'Il più basso' }
+const MIGLIORE = { giorno: 'Il giorno migliore è', settimana: 'La settimana migliore è', mese: 'Il mese migliore è' }
 
 /**
- * Il titolo del grafico: la conclusione, sulle sole colonne intere. «La
- * settimana migliore è quella del 13/07: 1.654 kg, contro i 900 kg di quella
- * del 10/08».
+ * La conclusione del grafico, sulle sole colonne intere: il titolo (dieci
+ * parole al massimo), il dettaglio per il sottotitolo, e la colonna di cui
+ * parla il titolo, che è l'unica disegnata scura (ANALISI_DESIGN.md §6: «se
+ * il titolo parla del burro, la barra del burro è l'unica scura»).
+ *
+ * @returns {{ titolo: string, dettaglio: string, forte: string|null }}
  */
-export function titoloVenduto(colonne, passo = 'settimana') {
+export function conclusioneVenduto(colonne, passo = 'settimana') {
   const intere = colonne.filter(c => c.intera && c.vend > 0)
   if (!intere.length) {
-    if (!colonne.length || colonne.every(c => c.intera)) return 'Niente venduto nel periodo'
-    return `${passo === 'mese' ? 'Nessun mese intero' : 'Nessuna settimana intera'} nel periodo: le colonne sono parziali`
+    if (!colonne.length || colonne.every(c => c.intera)) return { titolo: 'Niente venduto nel periodo', dettaglio: '', forte: null }
+    return { titolo: passo === 'mese' ? 'Nessun mese intero nel periodo' : 'Nessuna settimana intera nel periodo', dettaglio: 'Le colonne sono tutte parziali.', forte: null }
   }
   const max = intere.reduce((x, y) => (y.vend > x.vend ? y : x))
   const min = intere.reduce((x, y) => (y.vend < x.vend ? y : x))
-  const art = passo === 'settimana' ? 'quella' : 'quello'
-  if (intere.length === 1 || max === min) return `${NOME[passo]} ${nomeColonna(max, passo)}: ${kgT(max.vend)} venduti`
-  if (passo === 'mese') return `Il mese migliore è ${nomeColonna(max, passo)}: ${kgT(max.vend)}, contro i ${kgT(min.vend)} di ${nomeColonna(min, passo)}`
-  return `${NOME[passo]} migliore è ${art} ${nomeColonna(max, passo)}: ${kgT(max.vend)}, contro i ${kgT(min.vend)} di ${art} ${nomeColonna(min, passo)}`
+  // Con una colonna intera sola non c'è una «migliore».
+  if (intere.length === 1) {
+    const sola = passo === 'mese' ? maiuscolaIniziale(nomeMese(max.key, { anno: false }))
+      : passo === 'giorno' ? `Il ${dataBreve(max.key)}` : `La settimana del ${dataBreve(max.dal)}`
+    return { titolo: `${sola}: ${kgT(max.vend)} venduti`, dettaglio: '', forte: max.key }
+  }
+  const nome = nomeColonna(max, passo)
+  const titolo = `${MIGLIORE[passo]} ${nome}: ${kgT(max.vend)}`
+  const dettaglio = max !== min ? `${PIU_BASSA[passo]}, ${nomeColonna(min, passo)}: ${kgT(min.vend)}.` : ''
+  return { titolo, dettaglio, forte: max.key }
+}
+
+/** Il solo titolo (per chi non disegna). */
+export function titoloVenduto(colonne, passo = 'settimana') {
+  return conclusioneVenduto(colonne, passo).titolo
 }

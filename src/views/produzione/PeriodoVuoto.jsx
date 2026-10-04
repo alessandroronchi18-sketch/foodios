@@ -12,7 +12,7 @@ import { Riquadro } from '../../components/analisi'
 
 export default function PeriodoVuoto({ dateFrom, dateTo, ultimo = null, onPeriodo = null, onInventario = null, isMobile }) {
   return (
-    <Riquadro isMobile={isMobile} stile={{ textAlign: 'center', marginBottom: 20 }}>
+    <Riquadro isMobile={isMobile} stile={{ textAlign: 'center' }}>
       <div style={{ fontSize: font.size.lg, fontWeight: 700, color: T.text, marginBottom: 6 }}>
         {dateFrom && dateTo
           ? `Nessun giorno registrato ${conGiorno('dal', dateFrom, { lunga: true })} ${conGiorno('al', dateTo, { lunga: true })}.`
