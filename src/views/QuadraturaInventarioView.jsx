@@ -26,8 +26,9 @@ import NavigatoreSettimana from './quadratura/NavigatoreSettimana'
 import { vociCoperturaQuadratura } from './quadratura/copertura'
 import Risposta from './quadratura/Risposta'
 import UltimeSettimane from './quadratura/UltimeSettimane'
+import SediSettimana from './quadratura/SediSettimana'
 import { bilancioVetrina } from '../lib/produzioneQuadro'
-import { C, TNUM, fmt0, TabellaOSchede } from './_shared'
+import { C, TNUM, fmt0 } from './_shared'
 import {
   caricaSettimana, calcolaVendutoSettimana, lunediDellaSettimana,
   euroKgMedioFormati, kpiQuadraturaSettimana, classificaGusti,
@@ -745,62 +746,11 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
           <UltimeSettimane settimane={trendData} lunediGuardato={lunediIso} isMobile={isMobile}
             stile={{ marginBottom: isMobile ? 16 : 24 }} />
 
-          {/* ─ Drill-down per sede (solo se isAllSedi) ─ */}
+          {/* La settimana sede per sede (solo «Tutte le sedi»): elenco a
+              barre, come le classifiche. Prima una tabella con le colonne
+              dell'ingrosso tutte a zero e l'atteso in bordeaux. */}
           {isAllSedi && perSede.length > 0 && (
-            <div style={{ ...panelStyle, marginBottom: 16, padding: isMobile ? 16 : 18 }}>
-              <div style={panelTitle}>Dettaglio per sede</div>
-              <div style={{ overflowX: 'auto', width: '100%', WebkitOverflowScrolling: 'touch' }}>
-                <TabellaOSchede
-
-          minWidth={600}
-          righe={perSede}
-          chiave={({ sede }) => sede.id}
-          vuoto="Nessuna sede."
-          titolo={({ sede }) => `${sede.nome}${sede.is_default ? ' ★' : ''}`}
-          colonne={[
-            { k: 'retail', label: 'Retail', forte: true, cella: ({ kpi: k }) => `${nKg((k.retailKg ?? k.totVendutoKg) * 1000)} kg` },
-            { k: 'b2b', label: 'Ingrosso', cella: ({ kpi: k }) => `${nKg((k.b2bKg || 0) * 1000)} kg` },
-            { k: 'att', label: 'Ricavo atteso', forte: true, colore: T.brand, cella: ({ kpi: k }) => fmt0(k.ricavoAtteso || 0) },
-            { k: 'b2bric', label: 'Ricavi ingrosso', cella: ({ kpi: k }) => fmt0(k.ricaviB2b || 0) },
-          ]}
-          intestazione={<><thead>
-                    <tr style={{ background: T.bgSubtle }}>
-                      <th style={{ ...tdHeadSede, position: 'sticky', left: 0, background: T.bgSubtle, zIndex: 1 }}>Sede</th>
-                      <th style={{ ...tdHeadSede, textAlign: 'right' }}>Retail kg</th>
-                      <th style={{ ...tdHeadSede, textAlign: 'right' }}>B2B kg</th>
-                      <th style={{ ...tdHeadSede, textAlign: 'right' }}>Atteso</th>
-                      <th style={{ ...tdHeadSede, textAlign: 'right' }}>Ricavi B2B</th>
-                    </tr>
-                  </thead></>}
-          corpo={<><tbody>
-                    {perSede.map(({ sede, kpi: k }) => (
-                      <tr key={sede.id} style={{ borderTop: `1px solid ${C.borderSoft}` }}>
-                        <td style={{
-                          ...tdCellSede, position: 'sticky', left: 0,
-                          background: C.bgCard, zIndex: 1,
-                          fontWeight: 600,
-                          maxWidth: 180, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                        }} title={sede.nome}>
-                          {sede.nome}{sede.is_default ? ' ★' : ''}
-                        </td>
-                        <td style={{ ...tdCellSede, textAlign: 'right', ...TNUM, whiteSpace: 'nowrap' }}>
-                          {nKg((k.retailKg ?? k.totVendutoKg) * 1000)} kg
-                        </td>
-                        <td style={{ ...tdCellSede, textAlign: 'right', ...TNUM, color: C.textSoft, whiteSpace: 'nowrap' }}>
-                          {nKg((k.b2bKg || 0) * 1000)} kg
-                        </td>
-                        <td style={{ ...tdCellSede, textAlign: 'right', ...TNUM, color: T.brand, fontWeight: 700, whiteSpace: 'nowrap' }}>
-                          {fmt0(k.ricavoAtteso || 0)}
-                        </td>
-                        <td style={{ ...tdCellSede, textAlign: 'right', ...TNUM, color: T.blue, whiteSpace: 'nowrap' }}>
-                          {fmt0(k.ricaviB2b || 0)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody></>}
-        />
-              </div>
-            </div>
+            <SediSettimana perSede={perSede} isMobile={isMobile} stile={{ marginBottom: isMobile ? 16 : 24 }} />
           )}
 
           {/* I gusti che restano in vetrina: la produzione da rivedere. La
@@ -828,7 +778,6 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
             </button>
             <ExportPdfButton
               fileName={`quadratura-${lunediIso}.pdf`}
-              compact
               label="Esporta PDF settimana"
               getReport={() => reportPdfSettimana({ lunediIso, kpi, dettaglio: dettaglioGusti, sedeAttiva, isAllSedi, perSede, euroKg })}
             />
@@ -838,15 +787,6 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
     </div>
   )
 }
-
-// ── Stili tabella drill-down per sede ─────────────────────────────────────
-const tdHeadSede = {
-  padding: '10px 14px', textAlign: 'left',
-  fontSize: font.size.sm, fontWeight: 700, color: C.textSoft,
-  textTransform: 'uppercase', letterSpacing: '0.06em',
-  whiteSpace: 'nowrap',
-}
-const tdCellSede = { padding: '10px 14px', fontSize: font.size.base, color: C.text }
 
 // ── Diagnosi drift ────────────────────────────────────────────────────────
 // Si vede SOLO quando c'è una cassa vera da confrontare (driftPct non null):

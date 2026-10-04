@@ -96,7 +96,7 @@ export default function Risposta({ kpi, kpiPrev, euroKg, vetrina, onCassa, isMob
         <NumeroConConfronto isMobile={isMobile}
           etichetta="Incasso stimato" stimato
           valore={euro(kpi.ricavoAtteso || 0)}
-          contesto={`kg × ${euro(euroKg).replace(' €', '')} €/kg medio dei formati`} />
+          contesto={`kg × ${euro(euroKg, { decimali: 2 }).replace(' €', '')} €/kg medio dei formati`} />
         <NumeroConConfronto isMobile={isMobile}
           etichetta="Cassa"
           valore={kpi.cassaRegistrata ? euro(kpi.cassaEffettiva) : null}

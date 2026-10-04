@@ -31,16 +31,22 @@ export function titoloSettimane(settimane = []) {
 export default function UltimeSettimane({ settimane = [], lunediGuardato, isMobile, stile = null }) {
   if (!settimane.length) return null
   const max = Math.max(1e-9, ...settimane.map(s => Math.max(0, s.kg || 0)))
+  // Senza cassa in nessuna settimana le colonne della cassa e della
+  // differenza sarebbero quattro volte «non registrata» e una colonna vuota
+  // (foto del 04/10): lo si dice una volta sola, nel sottotitolo.
+  const senzaCassa = settimane.every(s => s.cassa == null)
   return (
     <Riquadro isMobile={isMobile} stile={stile}>
       <TitoloGrafico titolo={titoloSettimane(settimane)}
-        sottotitolo="Le ultime quattro settimane fino a quella che stai guardando: il gelato uscito dall'inventario, la cassa, la differenza." />
+        sottotitolo={senzaCassa
+          ? 'Le ultime quattro settimane fino a quella che stai guardando: il gelato uscito dall\'inventario. La cassa non è registrata in nessuna.'
+          : 'Le ultime quattro settimane fino a quella che stai guardando: il gelato uscito dall\'inventario, la cassa, la differenza.'} />
       <ol aria-label="Ultime quattro settimane" style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
         {settimane.map(s => {
           const scura = s.lunIso === lunediGuardato
           const g = giudizio(s.driftPct)
           return (
-            <li key={s.lunIso} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1.2fr)', gap: isMobile ? 4 : 16, alignItems: 'center' }}>
+            <li key={s.lunIso} style={{ display: 'grid', gridTemplateColumns: isMobile || senzaCassa ? '1fr' : 'minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1.2fr)', gap: isMobile ? 4 : 16, alignItems: 'center' }}>
               <div style={{ minWidth: 0 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: font.size.base, lineHeight: '20px' }}>
                   <span style={{ color: T.text, fontWeight: scura ? 700 : 500 }}>{dataBreve(s.lunIso)}–{dataBreve(piu(s.lunIso, 6))}</span>
@@ -50,6 +56,7 @@ export default function UltimeSettimane({ settimane = [], lunediGuardato, isMobi
                   <div style={{ width: `${Math.max(0, Math.min(100, ((s.kg || 0) / max) * 100))}%`, height: '100%', background: scura ? T.graficoReale : T.graficoConfronto, borderRadius: 4 }} />
                 </div>
               </div>
+              {!senzaCassa && (<>
               <div style={{ ...tnum, fontSize: font.size.base, color: s.cassa == null ? T.textSoft : T.text, textAlign: isMobile ? 'left' : 'right' }}>
                 {s.cassa == null ? 'cassa non registrata' : `cassa ${euro(s.cassa)}`}
               </div>
@@ -57,6 +64,7 @@ export default function UltimeSettimane({ settimane = [], lunediGuardato, isMobi
                 {s.driftEur == null ? '' : g ? `${euroSegno(s.driftEur)} · ${g}` : `${euroSegno(s.driftEur)}`}
                 {s.driftEur != null && s.driftPct != null && <span style={{ color: T.textSoft }}> ({quota(s.driftPct)})</span>}
               </div>
+              </>)}
             </li>
           )
         })}

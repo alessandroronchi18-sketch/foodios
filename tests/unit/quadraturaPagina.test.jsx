@@ -267,3 +267,34 @@ describe('Le ultime quattro settimane', () => {
     expect(righe[1]).toBe('17/08–23/08909,3 kgcassa non registrata')
   })
 })
+
+// ── 5. Dalle foto del 04/10 ────────────────────────────────────────────────
+const { titoloSediSettimana, default: SediSettimana } = await import('../../src/views/quadratura/SediSettimana.jsx')
+
+describe('Dalle foto coi dati veri', () => {
+  afterEach(() => cleanup())
+  it('senza cassa in nessuna settimana lo si dice una volta, non quattro', () => {
+    const s = (lunIso, kg) => ({ lunIso, kg, cassa: null, driftEur: null, driftPct: null })
+    render(<UltimeSettimane lunediGuardato="2026-08-24" settimane={[s('2026-08-17', 909.3), s('2026-08-24', 1142.2)]} />)
+    expect(testo()).not.toMatch(/cassa non registrata/)
+    expect(testo()).toMatch(/La cassa non è registrata in nessuna\./)
+  })
+  const sede = (id, nome, kg, atteso, b2bKg = 0) => ({ sede: { id, nome }, kpi: { retailKg: kg, totVendutoKg: kg + b2bKg, ricavoAtteso: atteso, b2bKg, ricaviB2b: b2bKg * 20 } })
+  it('le sedi: chi pesa di più nel titolo, una riga per sede, l\'ingrosso solo se c\'è', () => {
+    const tre = [sede('b', 'Berthollet', 297, 8758), sede('c', 'Carlina', 517.9, 15273), sede('d', 'De Gasperi', 327.3, 9650)]
+    expect(titoloSediSettimana(tre)).toBe('Carlina: il 45,3% del gelato uscito')
+    render(<SediSettimana perSede={tre} />)
+    expect(screen.getAllByRole('listitem').map(li => li.textContent)).toEqual([
+      'Carlina517,9 kg15.273 €', 'De Gasperi327,3 kg9.650 €', 'Berthollet297,0 kg8.758 €',
+    ])
+    expect(testo()).toMatch(/Dettaglio per sede/)
+    expect(testo()).not.toMatch(/ingrosso/)
+    cleanup()
+    render(<SediSettimana perSede={[sede('c', 'Carlina', 500, 15000, 3.5), sede('d', 'De Gasperi', 300, 9000)]} />)
+    expect(testo()).toMatch(/all'ingrosso 3,5 kg, 70 € fatturati/)
+  })
+  it('il prezzo al chilo dell\'incasso stimato coi centesimi', () => {
+    render(<Risposta kpi={{ totVendutoG: 1000, totVendutoKg: 1, retailKg: 1, b2bKg: 0, ricavoAtteso: 29.49, cassaRegistrata: false, giorniInventario: 1, driftEur: null, driftPct: null }} kpiPrev={null} euroKg={29.4882} />)
+    expect(testo()).toMatch(/kg × 29,49 €\/kg medio dei formati/)
+  })
+})
