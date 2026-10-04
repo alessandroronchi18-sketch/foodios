@@ -98,6 +98,13 @@ export function nomeMese(chiave, { anno = true } = {}) {
   return anno ? `${nome} ${m[1]}` : nome
 }
 
+/** «a settembre 2026», «ad agosto 2026»: la d eufonica davanti alla vocale. */
+export function aMese(chiave, opz = {}) {
+  const nome = nomeMese(chiave, opz)
+  if (!nome) return null
+  return `${/^[aeiou]/i.test(nome) ? 'ad' : 'a'} ${nome}`
+}
+
 /** Il mese prima e lo stesso mese dell'anno prima, come «AAAA-MM». */
 export function mesePrima(chiave) {
   const [y, m] = String(chiave).split('-').map(Number)

@@ -1,0 +1,275 @@
+// ── «Quanto hai guadagnato questo mese, e perché» ───────────────────────
+//
+// La prima pagina della nuova Analisi (ANALISI_DESIGN.md §5). Il titolare,
+// 03/10/2026: «la parte di analisi è fatta male e inutile»; la prima domanda
+// a cui rispondere è «quanto guadagno e perché».
+//
+// L'audit del vecchio P&L sui dati veri di Mara: utile all'82% dei ricavi,
+// perché (1) le 3.104 fatture fornitori non entravano mai nel conto,
+// (2) il personale contava zero — un solo dipendente attivo, con stipendio
+// zero, e tre con stipendio segnati non attivi —, (3) gli incassi erano
+// stimati senza dirlo e con l'IVA dentro, mentre i costi sono senza IVA.
+//
+// Qui il conto si fa con quello che c'è, e quello che manca si dice:
+//
+//   • gli INCASSI dalla cassa, se ci sono le chiusure del mese; altrimenti
+//     stimati dall'inventario (venduto × prezzo medio dei formati), e la
+//     parola «stimato» va con il numero. In tutti e due i casi senza IVA:
+//     pasticceria e gelateria al 10%, aliquota che si può cambiare;
+//   • le SPESE dalle fatture, per natura, senza IVA, per data della fattura
+//     (motore in `contoEconomico.js`); gli investimenti stanno fuori dal
+//     conto del mese e le spese senza categoria si contano a parte;
+//   • il PERSONALE dalla pagina Personale, contando chi c'era quel mese. Se
+//     non si sa, l'utile non si dà: un utile senza personale è falso.
+//
+// Tutto qui dentro è puro: niente rete, niente schermo. La lettura dei dati
+// sta in `ilMeseArchivio.js`.
+
+import { costoPersonaleMensile } from './stipendiCalc'
+import { euro, euroSegno, quota, aMese, variazione } from './formatoAnalisi'
+
+export const ALIQUOTA_IVA_INCASSI = 10
+
+/** Obiettivi indicativi: la ricerca del 03/10 non ha trovato benchmark
+ *  italiani solidi per la pasticceria artigianale. Si confronta il cliente
+ *  con sé stesso; questi numeri sono solo il riferimento della barra. */
+export const OBIETTIVI = { materiePrime: 30, personale: 30, primeCost: 60 }
+
+/** Le categorie di spesa come passi della cascata, nell'ordine del conto. */
+export const PASSI_SPESA = [
+  { ids: ['materie-prime'], etichetta: 'Materie prime', chiave: 'materiePrime' },
+  { ids: ['confezionamento'], etichetta: 'Confezioni', chiave: 'confezioni' },
+  { ids: ['affitto', 'utenze'], etichetta: 'Affitto e utenze', chiave: 'locale' },
+  { ids: ['servizi', 'commissioni', 'marketing', 'personale-esterno'], etichetta: 'Servizi e commissioni', chiave: 'servizi' },
+  { ids: ['manutenzione', 'altro'], etichetta: 'Altre spese', chiave: 'altre' },
+]
+
+const tonda = (n) => Math.round(Number(n) * 100) / 100
+const senzaIva = (lordo, aliquota) => tonda(Number(lordo) / (1 + aliquota / 100))
+
+/**
+ * Gli incassi del mese, senza IVA.
+ *
+ * @param {object} o
+ * @param {{ totV: number, giorni: number }|null} o.cassa  somma delle chiusure del mese
+ * @param {{ ricavi: number|null, motivo?: string, ultimoGiorno?: string }|null} o.stima  da `ricaviDaInventario`
+ * @param {number} [o.giorniDelMese]
+ * @param {number} [o.aliquota]
+ * @returns {{ valore: number|null, lordo: number|null, fonte: 'cassa'|'stima'|null, testo: string, giorni?: number }}
+ */
+export function incassiDelMese({ cassa = null, stima = null, giorniDelMese = 30, aliquota = ALIQUOTA_IVA_INCASSI } = {}) {
+  if (cassa && cassa.giorni > 0 && Number(cassa.totV) > 0) {
+    const parziale = cassa.giorni < giorniDelMese
+    return {
+      valore: senzaIva(cassa.totV, aliquota), lordo: tonda(cassa.totV), fonte: 'cassa', giorni: cassa.giorni,
+      testo: parziale
+        ? `dalla cassa: ${cassa.giorni} giorni su ${giorniDelMese} registrati`
+        : 'dalla cassa, tutti i giorni registrati',
+      parziale,
+    }
+  }
+  if (stima && stima.ricavi != null && Number(stima.ricavi) > 0) {
+    return {
+      valore: senzaIva(stima.ricavi, aliquota), lordo: tonda(stima.ricavi), fonte: 'stima',
+      testo: `stimati dall'inventario (venduto × prezzo medio dei formati)${stima.ultimoGiorno ? `, dati fino al ${stima.ultimoGiorno.slice(8, 10)}/${stima.ultimoGiorno.slice(5, 7)}` : ''}`,
+      parziale: !!stima.parziale,
+    }
+  }
+  return {
+    valore: null, lordo: null, fonte: null, parziale: false,
+    testo: stima?.motivo ? `nessuna chiusura di cassa e ${stima.motivo}` : 'nessuna chiusura di cassa e nessun inventario',
+  }
+}
+
+/**
+ * Il personale del mese, e quello che non torna.
+ *
+ * `costoPersonaleMensile` conta solo gli attivi: chi è segnato non attivo
+ * sparisce anche dai mesi in cui lavorava. Sui dati di Mara sono tre persone
+ * con 8.039 € lordi al mese: qui si contano a parte e si dice.
+ */
+export function personaleDelMese(dipendenti = [], { mese, sedeId = null } = {}) {
+  const asOf = `${mese}-15`
+  const attivi = costoPersonaleMensile(dipendenti, { sedeId, asOf })
+  const inattiviConStipendio = (dipendenti || []).filter(d =>
+    d && d.attivo === false && !d.data_fine && (Number(d.stipendio_lordo_mensile) > 0 || Number(d.costo_orario) > 0)
+    && (!sedeId || !d.sede_id || d.sede_id === sedeId))
+  const lordoInattivi = tonda(inattiviConStipendio.reduce((s, d) => s + (Number(d.stipendio_lordo_mensile) || 0), 0))
+  const nAttivi = attivi.contati + attivi.senzaDato
+  let valore = attivi.contati > 0 ? attivi.totale : null
+  let stato = 'ok'
+  let testo = ''
+  if (!nAttivi && !inattiviConStipendio.length) {
+    stato = 'manca'; testo = 'nessun dipendente nella pagina Personale'
+  } else if (!attivi.contati) {
+    stato = 'manca'
+    testo = attivi.senzaDato
+      ? `${attivi.senzaDato === 1 ? '1 persona attiva' : `${attivi.senzaDato} persone attive`} senza stipendio`
+      : 'nessuna persona attiva con lo stipendio'
+  } else if (attivi.senzaDato) {
+    stato = 'parziale'
+    testo = `${attivi.contati} con lo stipendio, ${attivi.senzaDato} senza`
+  } else {
+    testo = `${attivi.contati === 1 ? '1 persona' : `${attivi.contati} persone`}, costo azienda`
+  }
+  if (inattiviConStipendio.length) {
+    if (stato === 'ok') stato = 'parziale'
+    testo += `${testo ? ' · ' : ''}${inattiviConStipendio.length === 1 ? 'una persona con stipendio è segnata' : `${inattiviConStipendio.length} persone con stipendio sono segnate`} ${inattiviConStipendio.length === 1 ? 'non attiva' : 'non attive'} (${euro(lordoInattivi)} lordi al mese)`
+  }
+  // Con qualcuno senza stipendio il costo è un minimo, non il costo: l'utile
+  // calcolato sopra sarebbe più alto del vero. Lo si dà, ma come «almeno».
+  return { valore, stato, testo, contati: attivi.contati, senzaDato: attivi.senzaDato, inattivi: inattiviConStipendio.length, lordoInattivi }
+}
+
+/** Le spese di un gruppo di categorie, dal risultato di `costiPerMese`. */
+function sommaCategorie(costi, ids) {
+  const voci = (costi?.perCategoria || []).filter(c => ids.includes(c.id))
+  if (!voci.length) return { importo: 0, voci: [] }
+  return { importo: tonda(voci.reduce((s, c) => s + (Number(c.importo) || 0), 0)), voci }
+}
+
+/**
+ * Il conto del mese: le righe, l'utile, le quote, i passi della cascata.
+ *
+ * @param {object} o
+ * @param {ReturnType<typeof incassiDelMese>} o.incassi
+ * @param {object|null} o.costi  risultato di `costiPerMese` (null = non letto)
+ * @param {ReturnType<typeof personaleDelMese>} o.personale
+ * @param {{ importo: number, voci?: object[] }|null} [o.speseFisse]  spese senza fattura
+ */
+export function contoDelMese({ incassi, costi, personale, speseFisse = null }) {
+  const ricavi = incassi?.valore ?? null
+  const gruppi = PASSI_SPESA.map(p => ({ ...p, ...sommaCategorie(costi, p.ids) }))
+  // Le categorie che il motore conosce e questa pagina no finiscono in
+  // «Altre spese», non spariscono.
+  const noti = new Set(PASSI_SPESA.flatMap(p => p.ids))
+  const extra = (costi?.perCategoria || []).filter(c => !noti.has(c.id) && c.tipo !== 'investimento')
+  if (extra.length) {
+    const altre = gruppi.find(g => g.chiave === 'altre')
+    altre.importo = tonda(altre.importo + extra.reduce((s, c) => s + (Number(c.importo) || 0), 0))
+    altre.voci = [...altre.voci, ...extra]
+  }
+  const daClassificare = costi ? tonda(costi.daClassificare?.importo || 0) : null
+  const fisse = speseFisse ? tonda(speseFisse.importo || 0) : 0
+  const speseFatture = costi ? tonda(gruppi.reduce((s, g) => s + g.importo, 0) + daClassificare) : null
+  const pers = personale?.valore ?? null
+  const spese = speseFatture == null ? null : tonda(speseFatture + fisse + (pers ?? 0))
+  // L'utile si dà solo se si sanno incassi, spese in fattura e personale.
+  const utile = ricavi != null && speseFatture != null && pers != null ? tonda(ricavi - speseFatture - fisse - pers) : null
+  const q = (x) => (ricavi > 0 && x != null ? (x / ricavi) * 100 : null)
+  const materiePrime = gruppi.find(g => g.chiave === 'materiePrime').importo
+  const passi = [
+    { etichetta: incassi?.fonte === 'stima' ? 'Incassi stimati' : 'Incassi', valore: ricavi, tipo: 'inizio', chiave: 'incassi' },
+    // Le materie prime restano anche a zero solo se le fatture non si sanno
+    // (per dire «non lo so»); a zero con le fatture lette sono una riga «−0 €».
+    ...gruppi.filter(g => g.importo > 0 || (g.chiave === 'materiePrime' && !costi)).map(g => ({ etichetta: g.etichetta, valore: costi ? g.importo : null, tipo: 'meno', chiave: g.chiave })),
+    ...(daClassificare > 0 ? [{ etichetta: 'Da classificare', valore: daClassificare, tipo: 'meno', chiave: 'daClassificare' }] : []),
+    ...(fisse > 0 ? [{ etichetta: 'Spese senza fattura', valore: fisse, tipo: 'meno', chiave: 'fisse' }] : []),
+    { etichetta: 'Personale', valore: pers, tipo: 'meno', chiave: 'personale' },
+    { etichetta: 'Utile', valore: utile, tipo: 'fine', chiave: 'utile' },
+  ]
+  return {
+    ricavi, utile, spese, speseFatture, personale: pers, speseFisse: fisse, daClassificare,
+    gruppi, passi,
+    quote: {
+      utile: q(utile),
+      materiePrime: costi ? q(materiePrime) : null,
+      personale: q(pers),
+      primeCost: costi && pers != null ? q(materiePrime + pers) : null,
+    },
+    investimenti: costi?.investimenti?.importo ?? 0,
+    // Chi c'è dentro «Da classificare»: serve alla tabella per dire a chi
+    // dare una categoria per primo.
+    fornitoriDaClassificare: (costi?.daClassificare?.fornitori || []).map(f => ({ nome: f.nome, importo: Number(f.importo) || 0 })),
+    // Quanto resta prima del personale: un numero vero anche quando il
+    // personale manca, e chiamato col suo nome non si scambia per l'utile.
+    primaDelPersonale: ricavi != null && speseFatture != null ? tonda(ricavi - speseFatture - fisse) : null,
+    stimato: incassi?.fonte === 'stima',
+  }
+}
+
+/** Perché manca l'utile, in una frase. */
+export function motivoSenzaUtile(conto, { personale, costi } = {}) {
+  if (conto.utile != null) return null
+  const manca = []
+  if (conto.ricavi == null) manca.push('gli incassi')
+  if (!costi) manca.push('le fatture')
+  if (personale?.valore == null) manca.push('il personale')
+  if (!manca.length) return 'non ho tutti i dati'
+  return manca.length === 1 ? `manca ${manca[0]}` : `mancano ${manca.slice(0, -1).join(', ')} e ${manca.at(-1)}`
+}
+
+/**
+ * Perché questo mese è diverso da quello di confronto: le voci che spostano
+ * l'utile, in €, dalla più pesante. Un incasso in più alza l'utile, una spesa
+ * in più lo abbassa. Voci che non si sanno in uno dei due mesi non entrano.
+ *
+ * @returns {{ chiave, etichetta, effetto: number, attuale: number, prima: number, fornitori?: object[] }[]}
+ */
+export function causeDelCambio(attuale, prima, { soglia = 50, massimo = 5 } = {}) {
+  if (!attuale || !prima) return []
+  const out = []
+  if (attuale.ricavi != null && prima.ricavi != null) {
+    out.push({ chiave: 'incassi', etichetta: 'Incassi', effetto: tonda(attuale.ricavi - prima.ricavi), attuale: attuale.ricavi, prima: prima.ricavi })
+  }
+  for (const g of attuale.gruppi || []) {
+    const p = (prima.gruppi || []).find(x => x.chiave === g.chiave)
+    if (!p || attuale.speseFatture == null || prima.speseFatture == null) continue
+    const fornitori = confrontaFornitori(g.voci, p.voci)
+    out.push({ chiave: g.chiave, etichetta: g.etichetta, effetto: tonda(p.importo - g.importo), attuale: g.importo, prima: p.importo, fornitori })
+  }
+  if (attuale.personale != null && prima.personale != null) {
+    out.push({ chiave: 'personale', etichetta: 'Personale', effetto: tonda(prima.personale - attuale.personale), attuale: attuale.personale, prima: prima.personale })
+  }
+  return out.filter(c => Math.abs(c.effetto) >= soglia)
+    .sort((a, b) => Math.abs(b.effetto) - Math.abs(a.effetto))
+    .slice(0, massimo)
+}
+
+/** I fornitori che spiegano la differenza di una voce, dal più pesante. */
+function confrontaFornitori(vociA = [], vociB = []) {
+  const somma = (voci) => {
+    const m = new Map()
+    for (const c of voci || []) for (const f of c.fornitori || []) m.set(f.nome, (m.get(f.nome) || 0) + (Number(f.importo) || 0))
+    return m
+  }
+  const a = somma(vociA), b = somma(vociB)
+  const nomi = new Set([...a.keys(), ...b.keys()])
+  return [...nomi].map(nome => ({ nome, delta: tonda((a.get(nome) || 0) - (b.get(nome) || 0)) }))
+    .filter(f => Math.abs(f.delta) >= 1)
+    .sort((x, y) => Math.abs(y.delta) - Math.abs(x.delta))
+    .slice(0, 2)
+}
+
+/** La frase di una causa: «Materie prime +2.340 € di spesa, soprattutto DESA (+1.100 €)». */
+export function fraseCausa(c, meseConfronto) {
+  const rispetto = meseConfronto ? ` rispetto ${aMese(meseConfronto)}` : ''
+  if (c.chiave === 'incassi') {
+    return `Hai incassato ${euro(Math.abs(c.effetto))} ${c.effetto > 0 ? 'in più' : 'in meno'}${rispetto}.`
+  }
+  const spesa = -c.effetto
+  const chi = c.fornitori?.length
+    ? `, soprattutto ${c.fornitori.map(f => `${f.nome} (${euroSegno(f.delta)})`).join(' e ')}`
+    : ''
+  return `${c.etichetta}: ${euroSegno(spesa)} di spesa${rispetto}${chi}.`
+}
+
+/** Il titolo-conclusione della cascata. */
+export function titoloCascata(conto) {
+  if (conto.ricavi > 0 && conto.utile != null) {
+    const resta = Math.round((conto.utile / conto.ricavi) * 100)
+    return resta >= 0
+      ? `Su 100 € incassati te ne restano ${resta}`
+      : `Su 100 € incassati ne hai spesi ${100 - resta}: il mese è in perdita`
+  }
+  if (conto.speseFatture != null) return `Le spese del mese: ${euro(conto.spese)}`
+  return 'Il conto del mese'
+}
+
+/** Il giudizio di un mese rispetto a un altro, per la tessera dell'utile. */
+export function confrontoUtile(attuale, prima) {
+  if (attuale?.utile == null || prima?.utile == null) return null
+  return variazione({ attuale: attuale.utile, confronto: prima.utile })
+}
+
+export { quota }

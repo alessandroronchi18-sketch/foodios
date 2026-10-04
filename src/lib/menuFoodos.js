@@ -208,6 +208,10 @@ export function costruisciMenu(ctx = {}) {
     // ─── 4. I CONTI ─────────────────────────────────────────────────────
     // Come sta andando.
     { id: 'numeri', label: 'Analisi', icona: 'coins', voci: [
+      // 03/10/2026, la nuova Analisi (ANALISI_DESIGN.md): la prima voce
+      // risponde alla prima domanda del titolare, «quanto guadagno e perché».
+      { id: 'il-mese', label: 'Il mese', icona: 'barChart',
+        sinonimi: ['il mese', 'quanto ho guadagnato', 'quanto guadagno', 'utile', 'guadagno', 'come è andato il mese'] },
       { id: 'pl', label: 'P&L', icona: 'trendUp',
         // Accorpare P&L e Costi aziendali non è solo ordine: i costi fissi
         // stanno in una pagina che nessuno collega al conto, e per il primo
@@ -448,7 +452,7 @@ export const VISTE_DISEGNATE = new Set([
   'fatture-scadute', 'fatture-senza-sede', 'forecast', 'formati-vendita',
   'fornitori-materie-prime',
   'fornitori', 'fornitori-senza-iban',
-  'giornaliero', 'haccp', 'home', 'home-dipendente', 'importa-dati',
+  'giornaliero', 'haccp', 'home', 'home-dipendente', 'il-mese', 'importa-dati',
   'impostazioni', 'integrazioni', 'inventario-gusti', 'magazzino',
   'marketplace', 'materie-prime', 'menu', 'menu-engineering', 'nuova-ricetta',
   'ordini-ai',

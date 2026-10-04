@@ -69,6 +69,10 @@ const VenditeB2BView = lazyWithReload(() => import('./views/VenditeB2BView'))
 const Personale = lazyWithReload(() => import('./components/Personale'))
 const MenuDinamico = lazyWithReload(() => import('./components/MenuDinamico'))
 const PrevisioneDomanda = lazyWithReload(() => import('./components/PrevisioneDomanda'))
+// Previsioni rifatte il 03/10/2026 (ANALISI_DESIGN.md): per chi conta la
+// vetrina col metodo inventario. Le aziende a stampi restano sulla pagina di
+// prima, che prevede gli impasti prodotti.
+const PrevisioniView = lazyWithReload(() => import('./views/PrevisioniView'))
 const AIFotoAnalisi = lazyWithReload(() => import('./components/AIFotoAnalisi'))
 const AIAssistant = lazyWithReload(() => import('./components/AIAssistant'))
 const ImportaDatiView = lazyWithReload(() => import('./components/ImportaDati'))
@@ -91,7 +95,8 @@ import { SK_RIC, SK_PROD, SK_ACT, SK_AI, SK_MAG, SK_GIOR, SK_CHIUS, SK_EXCL, SK_
 import { caricaChiusure, salvaChiusure } from './lib/chiusure'
 import { loadXLSX } from './lib/xlsx'
 const SimulatorePrezziView = lazyWithReload(() => import('./views/SimulatorePrezziView'))
-const PLView = lazyWithReload(() => import('./views/PLView'))
+const ContoEconomicoView = lazyWithReload(() => import('./views/ContoEconomicoView'))
+const IlMeseView = lazyWithReload(() => import('./views/IlMeseView'))
 const RicettarioView = lazyWithReload(() => import('./views/RicettarioView'))
 const SchedaAllergeniView = lazyWithReload(() => import('./views/SchedaAllergeniView'))
 const DashboardHomeView = lazyWithReload(() => import('./views/DashboardHomeView'))
@@ -3743,7 +3748,8 @@ export default function Dashboard({
           </div>
         )}
         {ricettario&&vista==="semilavorati"&&<SemilavoratiView ricettario={ricettario} onSave={handleSalvaRicetta} notify={notify} tipoAttivita={tipoAttivita}/>}
-        {ricettario&&vista==="pl"&&<PLView metodoProduzione={metodoProduzione} ricettario={ricettario} chiusure={chiusure} orgId={orgId} sedeId={sedeId} onUpdateRegola={handleUpdateRegola} notify={notify}/>}
+        {vista==="il-mese"&&!isDip&&<IlMeseView orgId={orgId} sedi={sedi} sedeId={sedeId} onNavigate={setView} notify={notify}/>}
+        {vista==="pl"&&!isDip&&<ContoEconomicoView orgId={orgId} sedi={sedi} sedeId={sedeId} onNavigate={setView} notify={notify}/>}
         {ricettario&&vista==="simulatore"&&<SimulatorePrezziView ricettario={ricettario} giornaliero={giornaliero} tipoAttivita={tipoAttivita} sedi={sedi} orgId={orgId} sedeId={sedeId}/>}
         {vista==="nuova-ricetta"&&<NuovaRicettaView ricettario={ricettario} notify={notify} onSave={handleSalvaRicetta} editingRicetta={editingRicetta} onEditConsumed={()=>setEditingRicetta(null)} LEX={LEX} tipoAttivita={tipoAttivita}/>}
         {vista==="scheda-allergeni"&&!PAGINE_NASCOSTE.has("scheda-allergeni")&&<SchedaAllergeniView ricettario={ricettario} tipoAttivita={tipoAttivita}/>}
@@ -3753,7 +3759,11 @@ export default function Dashboard({
         {vista==="personale"&&!isDip&&<Personale orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify} adminNome={auth?.profile?.nome_completo || auth?.user?.email} nomeAttivita={nomeAttivita}/>}
         {vista==="haccp"&&!PAGINE_NASCOSTE.has("haccp")&&<HaccpView orgId={orgId} sedeId={sedeId} ricettario={ricettario} nomeAttivita={nomeAttivita} notify={notify}/>}
         {vista==="menu"&&!PAGINE_NASCOSTE.has("menu")&&<MenuDinamico ricettario={ricettario} ingCosti={ingCostiMain} calcolaFC={calcolaFC} getR={getR} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita} chiusure={chiusure} orgId={orgId} sedeId={sedeId}/>}
-        {vista==="previsione"&&<PrevisioneDomanda ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} ingCosti={ingCostiMain} calcolaFC={calcolaFC} getR={getR} citta={citta} tipoAttivita={tipoAttivita}/>}
+        {vista==="previsione"&&(isMetodoInv
+          ? <PrevisioniView orgId={orgId} sedeId={sedeId} sedi={sedi} sedeAttiva={sedeAttiva} tipoAttivita={tipoAttivita} onNavigate={setView}/>
+          // La città per il meteo è quella della SEDE: quella dell'azienda per
+          // Mara è vuota, e il meteo non partiva mai (audit 03/10/2026).
+          : <PrevisioneDomanda ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} ingCosti={ingCostiMain} calcolaFC={calcolaFC} getR={getR} citta={sedeCorrente?.citta || citta} tipoAttivita={tipoAttivita}/>)}
         {vista==="chiusura"&&!isAllSedi&&<ChiusuraView ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} setChiusure={setChiusure} notify={notify} orgId={orgId} sedeId={sedeId} isDipendente={isDip} metodoProduzione={metodoProduzione} tipoAttivita={tipoAttivita} onNavigate={setView} LEX={LEX}/>}
         {vista==="storico"&&<StoricoProduzioneView ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} logPrezzi={logPrezzi} orgId={orgId} sedeId={sedeId} sedi={sedi} metodoProduzione={metodoProduzione} onNavigate={setView} LEX={LEX}/>}
         {vista==="magazzino"&&!isAllSedi&&<MagazzinoView pivaAzienda={auth?.organization?.partita_iva||null} sedi={sedi} sedeAttiva={sedeAttiva} utente={auth?.user?.email||null} ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} logRif={logRif} setLogRif={setLogRif} giornaliero={giornaliero} notify={notify} esclusi={esclusi} setEsclusi={setEsclusi} onImportPrezzi={handleImportPrezzi} onRegistraBolla={handleRegistraBolla} onAnnullaBolla={handleAnnullaBolla} logPrezzi={logPrezzi} orgId={orgId} sedeId={sedeId} isDipendente={isDip} onNavigate={setView} LEX={LEX}/>}

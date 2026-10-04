@@ -19,7 +19,11 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { todayLocal, formatLocalDate } from '../../src/lib/dateLocal'
 
 const ATTIVO = !!process.env.DUMP_LAYOUT
-const FUORI = '/private/tmp/claude-501/-Users-aler/7259be07-0e07-42ba-9be1-e672e3a32c10/scratchpad/viste-mobile'
+// DIR_VISTE_MOBILE come DIR_VISTE nell'attrezzo da tavolo: chi lavora in
+// un'altra sessione scrive nella sua cartella, non in quella di chi ha scritto
+// l'attrezzo.
+const FUORI = process.env.DIR_VISTE_MOBILE
+  || '/private/tmp/claude-501/-Users-aler/7259be07-0e07-42ba-9be1-e672e3a32c10/scratchpad/viste-mobile'
 
 function fluente(res = { data: [], error: null }) {
   const h = { get(_t, p) {
@@ -62,6 +66,11 @@ vi.mock('../../src/lib/stockPF', () => ({
   scartoPF: async () => 0, rettificaPF: async () => 0, caricoProduzionePF: async () => 0,
 }))
 vi.mock('../../src/lib/trasferimenti', () => ({ creaTrasferimento: async () => ({ ok: true }) }))
+// Le Previsioni leggono l'inventario da sole: una gelateria finta di otto gusti.
+vi.mock('../../src/lib/inventarioProduzione', async (originale) => {
+  const { righeGelateriaFinta } = await import('./gelateriaFintaPrevisioni.js')
+  return { ...(await originale()), caricaRigheInventario: async () => righeGelateriaFinta() }
+})
 
 // ── Dati di prova con le forme VERE (vedi CLAUDE.md e la memoria del progetto)
 const ricettario = {
@@ -250,6 +259,12 @@ describe('fotografia delle viste — telefono', () => {
     n.push(await scrivi('menu-engineering', <MenuEngineeringView orgId="org-1" sedeId="s1" ricettario={ricettario} sedeAttiva={sedeAttiva} />))
     n.push(await scrivi('cashflow', <CashflowView orgId="org-1" sedeId="s1" sedi={sedi} notify={() => {}} />))
     n.push(await scrivi('previsione', <PrevisioneDomanda ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} ingCosti={buildIngCosti(ricettario.ingredienti_costi)} calcolaFC={calcolaFC} getR={getR} citta="Torino" tipoAttivita="pasticceria" />))
+    // Le Previsioni rifatte il 03/10/2026: con l'inventario di ieri, e con
+    // l'inventario fermo da un mese (l'ultima previsione possibile aperta).
+    const { default: PrevisioniView } = await import('../../src/views/PrevisioniView.jsx')
+    n.push(await scrivi('previsioni', <PrevisioniView orgId="org-1" sedeId="s1" sedi={sedi} sedeAttiva={sedeAttiva} tipoAttivita="gelateria" oggi="2026-08-29" />))
+    n.push(await scrivi('previsioni-ferme', <PrevisioniView orgId="org-1" sedeId="s1" sedi={sedi} sedeAttiva={sedeAttiva} tipoAttivita="gelateria" oggi="2026-10-03" />,
+      async v => fireEvent.click(v.getByRole('button', { name: /ultima previsione possibile/ }))))
     n.push(await scrivi('azioni', <AzioniView actions={[]} onUpdate={() => {}} onDelete={() => {}} ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} magazzino={magazzino} nomeAttivita="Pasticceria del Corso" tipoAttivita="pasticceria" />))
 
     const { default: ImportaDati } = await import('../../src/components/ImportaDati.jsx')
