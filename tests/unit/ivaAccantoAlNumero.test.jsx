@@ -140,5 +140,7 @@ describe('Il Conto con le spese IVA compresa', () => {
     const sotto = document.querySelector('header').textContent
     expect(sotto).not.toMatch(/Voce per voce, senza IVA/)
     expect(sotto).toMatch(/spese IVA compresa/)
+    // E dalla sera del 04/10 la risposta del Conto lo dice sotto il suo numero.
+    expect(document.querySelector('section[aria-label^="Spese di"] [role="note"]').textContent).toBe('IVA compresa: 76 fatture senza imponibile')
   })
 })

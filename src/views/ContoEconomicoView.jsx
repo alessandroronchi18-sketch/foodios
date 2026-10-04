@@ -14,12 +14,12 @@ import React, { useMemo, useState } from 'react'
 import { color as T, font, tnum } from '../lib/theme'
 import useIsMobile from '../lib/useIsMobile'
 import Icon from '../components/Icon'
-import { CoperturaDati, Andamentino, IntestazioneAnalisi, TitoloGrafico, Riquadro, ClassificaSpese, TabellaAnalisi, testo } from '../components/analisi'
+import { CoperturaDati, Andamentino, NumeroPrincipale, IntestazioneAnalisi, TitoloGrafico, Riquadro, ClassificaSpese, TabellaAnalisi, testo } from '../components/analisi'
 import PaginaAnalisi from '../components/analisi/PaginaAnalisi'
-import { euro, euroSegno, quota, nomeMese, aMese, variazione } from '../lib/formatoAnalisi'
+import { euro, euroSegno, quota, nomeMese, aMese, variazione, dataBreve } from '../lib/formatoAnalisi'
 import { vociCopertura } from './IlMeseView'
 import { nomeIncassi, ivaDelleSpese } from '../lib/ilMese'
-import MeseAnalisi, { useMeseAnalisi, PulsanteTorna } from '../components/analisi/MeseAnalisi'
+import MeseAnalisi, { useMeseAnalisi, PulsanteTorna, meseCorrente } from '../components/analisi/MeseAnalisi'
 
 /**
  * Le righe della tabella, dal conto del mese e da quello di confronto.
@@ -58,6 +58,39 @@ export function righeConto(attuale, prima, andamento = []) {
   righe.push({ chiave: 'personale', etichetta: 'Personale', tipo: 'spesa', valore: attuale.personale, prima: prima?.personale ?? null, serie: serie(c => c.personale) })
   righe.push({ chiave: 'utile', etichetta: 'Utile', tipo: 'risultato', valore: attuale.utile, prima: prima?.utile ?? null, serie: serie(c => c.utile) })
   return righe
+}
+
+/**
+ * Le prop di NumeroPrincipale per «Dove sono andati i soldi?»: le spese del
+ * mese contro lo stesso mese dell'anno prima, con l'IVA detta sotto il numero
+ * se le fatture ce l'hanno dentro, e una frase che dice dove: la voce più
+ * pesante e quanto non ha ancora la voce. Con le fatture del mese a metà il
+ * confronto non si fa (direbbe un calo che non c'è), come nel Mese.
+ */
+export function rispostaDelConto({ dati, mese, iva }) {
+  const conto = dati.attuale.conto
+  const prima = dati.annoPrima?.conto
+  const ultimaFattura = dati.attuale.costi?.copertura?.ultimaFattura || null
+  const aMeta = !!(ultimaFattura && ultimaFattura < `${mese}-25` && mese < meseCorrente())
+  const v = !aMeta && conto.spese != null && prima?.spese != null
+    ? variazione({ attuale: conto.spese, confronto: prima.spese, piuEMeglio: false })
+    : null
+  const piuPesante = [...(conto.gruppi || [])].filter(g => g.importo > 0).sort((a, b) => b.importo - a.importo)[0]
+  const frase = [
+    conto.ricavi > 0 && conto.spese != null ? `È il ${quota((conto.spese / conto.ricavi) * 100)} degli incassi.` : null,
+    piuPesante ? `La voce più pesante è ${piuPesante.etichetta}: ${euro(piuPesante.importo)}${conto.daClassificare > 0 ? `; ${euro(conto.daClassificare)} non hanno ancora la voce` : ''}.` : null,
+    conto.personale == null ? 'Il personale manca: gli stipendi non sono registrati.' : null,
+  ].filter(Boolean).join(' ')
+  return {
+    etichetta: `Spese di ${nomeMese(mese, { anno: false })}`,
+    valore: conto.spese != null ? euro(conto.spese) : null,
+    motivoMancante: 'Non lo so ancora: le fatture non si sono potute leggere',
+    variazione: v, rispettoA: `su ${nomeMese(dati.confronto)}`,
+    valoreConfronto: v && prima?.spese != null ? euro(prima.spese) : '',
+    senzaConfronto: aMeta ? `fatture registrate fino al ${dataBreve(ultimaFattura)}: niente confronto` : '',
+    avviso: iva.riga,
+    frase: frase || null,
+  }
 }
 
 /** I fornitori di una voce, mese contro anno prima, dal più pesante. */
@@ -108,15 +141,19 @@ export default function ContoEconomicoView({ orgId, sedi = [], sedeId = null, on
         // Una domanda come le pagine sorelle, non «Il conto di agosto 2026»
         // (audit 04/10, CE9). L'anno lo dicono le frecce del mese.
         domanda={`Dove sono andati i soldi ${aMese(mese, { anno: false })}?`}
-        sotto={iva.stato === 'senza'
-          ? `Voce per voce, senza IVA, contro ${nomeMese(dati?.confronto || mese)}.`
-          : `Voce per voce, contro ${nomeMese(dati?.confronto || mese)}. Incassi senza IVA, spese ${iva.breve}${iva.stato === 'tutte' ? ': le fatture non hanno ancora l\'imponibile' : ` (${iva.riga})`}.`}
+        // L'IVA dentro le spese la dice l'avvertimento sotto il numero della
+        // risposta; qui solo come si legge la tabella.
+        sotto={`Voce per voce, contro ${nomeMese(dati?.confronto || mese)}. ${iva.stato === 'senza' ? 'Incassi e spese senza IVA.' : `Incassi senza IVA, spese ${iva.breve}.`}`}
         destra={<MeseAnalisi mese={mese} onCambia={setMese} spostato={spostato} />} />
       {errore && <Riquadro isMobile={isMobile}><span style={{ color: T.red, fontSize: font.size.base }}>Non sono riuscito a leggere i dati: {errore}</span></Riquadro>}
       {!dati && !errore && <Riquadro isMobile={isMobile}><span style={{ color: T.textSoft, fontSize: font.size.base }}>Metto insieme cassa, fatture e personale…</span></Riquadro>}
       {dati && conto && (
         <>
           <CoperturaDati isMobile={isMobile} voci={vociCopertura(dati, { onNavigate, onClassifica: () => setClassifica(true) })} />
+          {/* La risposta alla domanda, una e grande (fase B): quanto si è
+              speso, contro l'anno prima, e dove. Prima il primo numero della
+              pagina era una cella da 13 px della tabella. */}
+          <NumeroPrincipale riquadro isMobile={isMobile} {...rispostaDelConto({ dati, mese, iva })} />
           <Riquadro isMobile={isMobile}>
             <TitoloGrafico
               titolo={conto.utile != null
