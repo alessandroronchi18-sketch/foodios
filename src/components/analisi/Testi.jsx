@@ -8,38 +8,61 @@ import React from 'react'
 import { color as T, font, typo, radius as R, space } from '../../lib/theme'
 import { segnoDi } from '../../lib/formatoAnalisi'
 import Icon from '../Icon'
-import { testo } from './misure'
+import { testo, imbottitura } from './misure'
 
-/** La domanda della pagina, con a destra i comandi (mese, sede). */
+// Le righe di testo hanno l'altezza in pixel tondi (§6): h1 24/32, h2 18/24,
+// h3 15/20, testo 13/20, didascalia 12/16. Con i moltiplicatori del tema
+// erano 28,8 · 23,4 · 20,25 · 19,5 · 17,4 px, e due titoli affiancati non
+// finivano mai alla stessa altezza.
+const TITOLO = {
+  h1: { ...typo.h1, ...testo(typo.h1.fontSize) },
+  h2: { ...typo.h2, ...testo(typo.h2.fontSize) },
+  h3: { ...typo.h3, ...testo(typo.h3.fontSize) },
+}
+
+/**
+ * La domanda della pagina, con a destra i comandi (mese, sede). Niente
+ * margine sotto: lo spazio fra i blocchi è della pagina (`PaginaAnalisi`),
+ * non dei pezzi (audit del 04/10: spazi da 10 a 18 px, quattro sistemi).
+ */
 export function IntestazioneAnalisi({ domanda, sotto = '', destra = null, isMobile = false }) {
   return (
-    <header style={{ display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
+    <header style={{ display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', gap: space[3], flexWrap: 'wrap' }}>
       <div style={{ minWidth: 0 }}>
-        <h2 style={{ ...(isMobile ? typo.h2 : typo.h1), margin: 0, color: T.text }}>{domanda}</h2>
-        {sotto && <div style={{ fontSize: font.size.base, color: T.textSoft, marginTop: 4, lineHeight: 1.5 }}>{sotto}</div>}
+        <h2 style={{ ...(isMobile ? TITOLO.h2 : TITOLO.h1), margin: 0, color: T.text }}>{domanda}</h2>
+        {sotto && <div style={{ ...testo(font.size.base), color: T.textSoft, marginTop: space[1], maxWidth: 640 }}>{sotto}</div>}
       </div>
-      {destra && <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>{destra}</div>}
+      {destra && <div style={{ display: 'flex', gap: space[2], alignItems: 'center', flexWrap: 'wrap' }}>{destra}</div>}
     </header>
   )
 }
 
-/** Il titolo di un riquadro o di un grafico: la conclusione, poi cosa c'è disegnato. */
+/**
+ * Il titolo di un riquadro o di un grafico: la conclusione, poi cosa c'è
+ * disegnato. Il sottotitolo va a capo prima dei 640 px: l'audit ne ha
+ * misurati da 163 caratteri su una riga, il doppio di quanto si legge.
+ */
 export function TitoloGrafico({ titolo, sottotitolo = '', destra = null }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 12 }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: space[3], marginBottom: space[3] }}>
       <div style={{ minWidth: 0 }}>
-        <h3 style={{ ...typo.h3, margin: 0, color: T.text }}>{titolo}</h3>
-        {sottotitolo && <div style={{ fontSize: font.size.sm, color: T.textSoft, marginTop: 3, lineHeight: 1.45 }}>{sottotitolo}</div>}
+        <h3 style={{ ...TITOLO.h3, margin: 0, color: T.text }}>{titolo}</h3>
+        {sottotitolo && <div style={{ ...testo(font.size.sm), color: T.textSoft, marginTop: space[1], maxWidth: 640 }}>{sottotitolo}</div>}
       </div>
       {destra}
     </div>
   )
 }
 
-/** Il riquadro di base: stesso fondo, bordo e respiro in tutte le pagine. */
+/**
+ * Il riquadro di base: stesso fondo, bordo e respiro in tutte le pagine.
+ * L'imbottitura è quella di tutti i riquadri dell'Analisi (`imbottitura`:
+ * 20 computer, 16 telefono), così il testo comincia sempre alla stessa
+ * distanza dal bordo (audit del 04/10, C4: 135, 137, 141 o 143 px).
+ */
 export function Riquadro({ children, isMobile = false, stile = null }) {
   return (
-    <section style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: R.xl, padding: isMobile ? 16 : 20, minWidth: 0, ...stile }}>
+    <section style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: R.xl, padding: imbottitura(isMobile), minWidth: 0, ...stile }}>
       {children}
     </section>
   )

@@ -30,7 +30,9 @@ const RIGA = {
   [font.size.lg]: 24,     // 16
   [font.size.xl]: 24,     // 18
   [font.size['2xl']]: 28, // 22
+  24: 32,                 // typo.h1
   [font.size['3xl']]: 36, // 28
+  32: 40,                 // typo.display, typo.numLg
   [font.size['4xl']]: 44, // 36
   [font.size['5xl']]: 56, // 48
 }
