@@ -11,7 +11,7 @@
 // quanto e uscito (kg), la cassa dice quanto e entrato (euro). Il sistema
 // suggerisce dove guardare per chiudere il gap.
 
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { color as T, typo, ui3, ui, font } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { sload } from '../lib/storage'
@@ -21,7 +21,10 @@ import { SK_FORMATI } from '../lib/storageKeys'
 import Icon from '../components/Icon'
 import { conGiorno, giorniRegistrati } from '../lib/produzioneAnalisi'
 import ExportPdfButton from '../components/ExportPdfButton'
-import { C, PageHeader, TNUM, fmt0, TabellaOSchede } from './_shared'
+import { CoperturaDati, IntestazioneAnalisi } from '../components/analisi'
+import NavigatoreSettimana from './quadratura/NavigatoreSettimana'
+import { vociCoperturaQuadratura } from './quadratura/copertura'
+import { C, TNUM, fmt0, TabellaOSchede } from './_shared'
 import {
   caricaSettimana, calcolaVendutoSettimana, lunediDellaSettimana,
   euroKgMedioFormati, kpiQuadraturaSettimana, classificaGusti, variazione,
@@ -216,6 +219,8 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
   const [erroreLettura, setErroreLettura] = useState(false)
   // L'ultimo giorno registrato e se la pagina si è spostata lì all'apertura.
   const [apertura, setApertura] = useState(null)   // { ultimo, spostata }
+  // Il pulsante «Vedi» della copertura porta all'elenco delle caselle.
+  const refCaselle = useRef(null)
 
   // Touch target minimo: ≥40 mobile, ≥44 tablet (regola permanente CLAUDE.md)
   // Era `isTablet ? 44 : 40`: il tablet aveva la misura giusta e il telefono
@@ -441,6 +446,11 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
   const classifica = useMemo(() => classificaGusti(matriceGusti), [matriceGusti])
   // Una riga per gusto, per il CSV e il PDF.
   const dettaglioGusti = useMemo(() => dettaglioGustiSettimana(righePerSede, lunediIso), [righePerSede, lunediIso])
+  // Lo scarto mai scritto non è «niente buttato»: finisce nel venduto.
+  const scartoRegistrato = useMemo(
+    () => righe.some(r => r.data >= lunediIso && r.data <= addDays(lunediIso, 6) && (Number(r.scarto_g) || 0) > 0),
+    [righe, lunediIso]
+  )
 
   const settimanaPrec = () => setLunediIso(addDays(lunediIso, -7))
   const settimanaSucc = () => setLunediIso(addDays(lunediIso, 7))
@@ -471,116 +481,22 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
 
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
-      <PageHeader subtitle="Quadratura settimanale: l'inventario dice quanto gelato è uscito, la cassa quanto è entrato. Se i due conti non tornano, qui si vede di quanto e dove guardare." />
+      <IntestazioneAnalisi
+        domanda="Torna il conto?"
+        sotto={`${isAllSedi ? 'Tutte le sedi' : (sedeAttiva?.nome || '')}${(isAllSedi || sedeAttiva?.nome) ? ' · ' : ''}l'inventario dice quanto gelato è uscito, la cassa quanto è entrato`}
+        isMobile={isMobile}
+        destra={<NavigatoreSettimana etichetta={fmtRange(lunediIso)} onPrima={settimanaPrec} onDopo={settimanaSucc}
+          onOggi={lunediIso !== lunediDellaSettimana() ? oggi : null} />}
+      />
 
-      {/* ─ Toolbar settimana ─ Su mobile: layout a colonna piena per evitare accavallamenti */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 12, marginBottom: 20,
-        background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 14,
-        padding: isMobile ? 12 : '14px 16px',
-        flexDirection: isMobile ? 'column' : 'row',
-        flexWrap: 'wrap', width: '100%', boxSizing: 'border-box',
-        boxShadow: '0 1px 2px rgba(15,23,42,0.03)',
-      }}>
-        {/* Etichetta settimana - sempre in alto, centrale */}
-        <div style={{
-          flex: isMobile ? 'none' : 1,
-          width: isMobile ? '100%' : 'auto',
-          textAlign: isMobile ? 'center' : 'left',
-          minWidth: 0,
-        }}>
-          <div style={{
-            fontSize: font.size.sm, fontWeight: 700, textTransform: 'uppercase',
-            letterSpacing: '0.05em', color: C.textSoft, marginBottom: 2,
-          }}>Settimana</div>
-          <div style={{
-            fontSize: isMobile ? 15 : 16, fontWeight: 700, color: C.text,
-            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-            letterSpacing: '-0.01em',
-          }}>{fmtRange(lunediIso)}</div>
-        </div>
-
-        {/* Navigatore prec / oggi / succ */}
-        <div style={{
-          display: 'flex', gap: 8, alignItems: 'center',
-          width: isMobile ? '100%' : 'auto',
-        }}>
-          <button
-            onClick={settimanaPrec}
-            aria-label="Settimana precedente"
-            title="Settimana precedente"
-            style={{ ...btnNav(tapMin), flex: isMobile ? 1 : 'none', padding: '0 14px' }}
-          >
-            <Icon name="chevR" size={16} style={{ transform: 'rotate(180deg)' }} />
-            {!isMobile && <span style={{ marginLeft: 6 }}>Prec.</span>}
-          </button>
-          <button
-            onClick={oggi}
-            aria-label="Settimana corrente"
-            style={{
-              ...btnNav(tapMin),
-              flex: isMobile ? 1 : 'none',
-              padding: '0 16px',
-              fontWeight: 600,
-            }}
-          >
-            Oggi
-          </button>
-          <button
-            onClick={settimanaSucc}
-            aria-label="Settimana successiva"
-            title="Settimana successiva"
-            style={{ ...btnNav(tapMin), flex: isMobile ? 1 : 'none', padding: '0 14px' }}
-          >
-            {!isMobile && <span style={{ marginRight: 6 }}>Succ.</span>}
-            <Icon name="chevR" size={16} />
-          </button>
-        </div>
-
-        {/* Export - su mobile va a riga piena */}
-        <div style={{
-          display: 'flex', gap: 8,
-          width: isMobile ? '100%' : 'auto',
-          marginLeft: isMobile ? 0 : 'auto',
-        }}>
-          <button
-            onClick={() => esportaCsvSettimana({ lunediIso, kpi, dettaglio: dettaglioGusti, sedeAttiva, isAllSedi, perSede })}
-            disabled={giorniSettimana.n === 0}
-            aria-label="Esporta settimana in CSV"
-            title="Esporta la settimana in CSV per il commercialista o la contabilità"
-            style={{
-              ...btnNav(tapMin),
-              background: C.text, color: C.white, borderColor: C.text,
-              fontWeight: 600,
-              flex: isMobile ? 1 : 'none',
-              padding: '0 14px',
-            }}
-          >
-            <Icon name="download" size={14} color={C.white} />
-            <span style={{ marginLeft: 6 }}>CSV</span>
-          </button>
-          <ExportPdfButton
-            fileName={`quadratura-${lunediIso}.pdf`}
-            compact
-            label="Esporta PDF settimana"
-            getReport={() => reportPdfSettimana({ lunediIso, kpi, dettaglio: dettaglioGusti, sedeAttiva, isAllSedi, perSede, euroKg })}
-          />
-        </div>
-      </div>
-
-      {/* La settimana mostrata è quella dell'ultimo giorno registrato, non
-          quella di oggi: si dice, così non si cerca la settimana corrente. */}
-      {!inCaricamento && apertura?.spostata && lunediIso === lunUltimo && (
-        <div data-apertura style={{
-          marginBottom: 14, fontSize: font.size.sm, color: C.textMid, lineHeight: 1.5,
-          display: 'flex', alignItems: 'flex-start', gap: 8,
-        }}>
-          <Icon name="calendar" size={14} color={C.textSoft} style={{ flexShrink: 0, marginTop: 2 }} />
-          <span>
-            Dopo {conGiorno('il', apertura.ultimo, { lunga: true })} non c&apos;è niente di registrato:
-            ti mostro l&apos;ultima settimana con i dati.
-          </span>
-        </div>
+      {/* Da dove vengono i numeri, una frase per fonte (ANALISI_DESIGN.md,
+          regola 3). La riga «dopo il … non c'è niente» sta qui dentro. */}
+      {!inCaricamento && !erroreLettura && giorniSettimana.n > 0 && (
+        <CoperturaDati voci={vociCoperturaQuadratura({
+          giorni: giorniSettimana, kpi, euroKg, scartoRegistrato,
+          apertura: apertura?.spostata && lunediIso === lunUltimo ? apertura : null,
+          azioni: { cassa: onNavigate ? () => onNavigate('chiusura') : null, caselle: () => refCaselle.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' }) },
+        })} />
       )}
 
       {inCaricamento ? (
@@ -852,7 +768,7 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
                 delle cose da guardare, così l'elenco cala invece di restare
                 rosso per sempre. */}
             {celleDaControllare.length > 0 && (
-              <div style={{
+              <div ref={refCaselle} style={{
                 marginTop: 10, border: `1px solid ${T.border}`, borderRadius: 12,
                 overflow: 'hidden', width: '100%', boxSizing: 'border-box',
               }}>
@@ -1018,6 +934,27 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
             <PanelSofferenza
               sofferenza={classifica.sofferenza}
               zeroVenduto={classifica.zeroVenduto}
+            />
+          </div>
+
+          {/* Per il commercialista: in fondo, dove servono, non in testa
+              alla pagina fra i comandi. */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 40, fontSize: font.size.base, color: C.textSoft }}>
+            <span>Per il commercialista:</span>
+            <button
+              onClick={() => esportaCsvSettimana({ lunediIso, kpi, dettaglio: dettaglioGusti, sedeAttiva, isAllSedi, perSede })}
+              aria-label="Esporta settimana in CSV"
+              title="Esporta la settimana in CSV per il commercialista o la contabilità"
+              style={{ ...btnNav(tapMin), padding: '0 14px', fontWeight: 700, color: T.brand }}
+            >
+              <Icon name="download" size={14} />
+              <span style={{ marginLeft: 6 }}>CSV</span>
+            </button>
+            <ExportPdfButton
+              fileName={`quadratura-${lunediIso}.pdf`}
+              compact
+              label="Esporta PDF settimana"
+              getReport={() => reportPdfSettimana({ lunediIso, kpi, dettaglio: dettaglioGusti, sedeAttiva, isAllSedi, perSede, euroKg })}
             />
           </div>
         </>
