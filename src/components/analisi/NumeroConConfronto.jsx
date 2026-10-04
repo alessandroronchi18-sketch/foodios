@@ -24,15 +24,15 @@
 import React, { createContext, useContext } from 'react'
 import { color as T, font, radius as R, space } from '../../lib/theme'
 import { imbottitura, testo, SPAZI } from './misure'
-import { Cifra, ParolaStimato, RigaConfronto, RigaMotivo } from './parti'
+import { Cifra, ParolaStimato, RigaConfronto, RigaMotivo, RigaAvviso } from './parti'
 
 // Dentro `FilaTessere` la tessera prende le righe della fila (subgrid).
 const InFila = createContext(false)
 
 /**
  * La fila di tessere: una griglia le cui righe interne (etichetta · numero ·
- * confronto · nota) sono in comune fra tutte le tessere. Al telefono una
- * colonna sola.
+ * avvertimento · confronto · nota) sono in comune fra tutte le tessere. Al
+ * telefono una colonna sola.
  * @param {{ colonne?: string, isMobile?: boolean, children: React.ReactNode }} p
  *   `colonne` come `gridTemplateColumns` («2fr 1fr 1fr»); di base parti uguali.
  */
@@ -50,6 +50,9 @@ export function FilaTessere({ colonne = '', isMobile = false, children }) {
     </InFila.Provider>
   )
 }
+
+// Le righe di una tessera: etichetta · numero · avvertimento · confronto · nota.
+const RIGHE = 5
 
 const DIM = { normale: font.size['2xl'], grande: font.size['4xl'], grandeTelefono: font.size['3xl'] }
 
@@ -69,12 +72,14 @@ const DIM = { normale: font.size['2xl'], grande: font.size['4xl'], grandeTelefon
  * @param {string|null} [p.senzaConfronto]  cosa dire senza confronto; di base «nessun confronto» se c'è
  *   `rispettoA` (un confronto era atteso), altrimenti la riga resta vuota, alta uguale
  * @param {string} [p.contesto]  riga sotto, grigia
+ * @param {string} [p.avviso]  l'avvertimento che cambia come si legge il numero («IVA compresa: 76
+ *   fatture senza imponibile»): in ambra, nella riga subito sotto il numero (ANALISI_DESIGN §6)
  * @param {boolean} [p.grande]  numero più grande (per LA risposta c'è `NumeroPrincipale`)
  * @param {boolean} [p.isMobile]
  */
 export default function NumeroConConfronto({
   etichetta, valore, unita = '', stimato = false, motivoMancante = 'non lo so ancora', noto = null, azione = null,
-  variazione = null, rispettoA = '', valoreConfronto = '', senzaConfronto = '', contesto = '',
+  variazione = null, rispettoA = '', valoreConfronto = '', senzaConfronto = '', contesto = '', avviso = '',
   grande = false, isMobile = false,
 }) {
   const inFila = useContext(InFila)
@@ -97,25 +102,30 @@ export default function NumeroConConfronto({
     numero = <span style={{ ...testo(dimFrase), fontWeight: 700, color: T.textMid }}>{motivoMancante}</span>
   }
 
+  // Lo spazio fra le righe è un'imbottitura in alto (4 px) e non lo spazio
+  // della griglia: così la riga dell'avvertimento, quando non c'è, è alta zero
+  // e non lascia 4 px in più.
+  const sopra = { paddingTop: space[1] }
   const rigaSotto = manca
-    ? (conNoto ? <RigaMotivo motivo={motivoMancante} azione={azione} /> : (
-      azione ? <RigaMotivo motivo="" azione={azione} /> : <RigaConfronto senzaConfronto={null} />
+    ? (conNoto ? <RigaMotivo motivo={motivoMancante} azione={azione} stile={sopra} /> : (
+      azione ? <RigaMotivo motivo="" azione={azione} stile={sopra} /> : <RigaConfronto senzaConfronto={null} stile={sopra} />
     ))
     // «nessun confronto» solo se un confronto era atteso (c'è `rispettoA` o la
     // pagina dice perché manca): le Previsioni non confrontano, e tre volte
     // «nessun confronto» sarebbe rumore. La riga c'è comunque, alta uguale.
     : <RigaConfronto variazione={variazione} rispettoA={rispettoA} valoreConfronto={valoreConfronto}
-      senzaConfronto={senzaConfronto || (rispettoA ? '' : null)} />
+      senzaConfronto={senzaConfronto === null ? null : (senzaConfronto || (rispettoA ? '' : null))} stile={sopra} />
 
   return (
     <div style={{
       background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: R.xl, padding: pad, minWidth: 0,
-      display: 'grid', rowGap: space[1], alignContent: 'start',
-      // In fila: le quattro righe sono quelle della fila, condivise. Da
-      // sola (le pagine che non usano ancora `FilaTessere`): se la griglia
-      // della pagina la allunga, lo spazio in più va sopra il numero, così
-      // numero, confronto e nota restano in fila con le tessere accanto.
-      ...(inFila ? { gridRow: 'span 4', gridTemplateRows: 'subgrid' } : { gridTemplateRows: 'auto 1fr auto auto' }),
+      display: 'grid', rowGap: 0, alignContent: 'start',
+      // Cinque righe: etichetta · numero · avvertimento · confronto · nota.
+      // In fila sono quelle della fila, condivise. Da sola (le pagine che non
+      // usano `FilaTessere`): se la griglia della pagina la allunga, lo
+      // spazio in più va sopra il numero, così numero, confronto e nota
+      // restano in fila con le tessere accanto.
+      ...(inFila ? { gridRow: `span ${RIGHE}`, gridTemplateRows: 'subgrid' } : { gridTemplateRows: 'auto 1fr auto auto auto' }),
     }}>
       {/* L'etichetta sta in fondo alla sua riga: se quella accanto va a capo,
           questa resta attaccata al suo numero. */}
@@ -123,11 +133,12 @@ export default function NumeroConConfronto({
         {conNoto && noto.etichetta ? noto.etichetta : etichetta}
       </div>
       {/* I numeri di una fila sulla stessa linea di base, anche se uno è più grande. */}
-      <div style={{ display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', columnGap: space[2], alignSelf: 'last baseline' }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', columnGap: space[2], alignSelf: 'last baseline', ...sopra }}>
         {numero}
       </div>
+      <RigaAvviso avviso={avviso} stile={sopra} />
       {rigaSotto}
-      <div style={{ ...testo(font.size.sm), color: T.textSoft }}>{contesto}</div>
+      <div style={{ ...testo(font.size.sm), color: T.textSoft, ...(contesto ? sopra : null) }}>{contesto}</div>
     </div>
   )
 }

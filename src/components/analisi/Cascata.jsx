@@ -22,6 +22,7 @@ import { color as T, font, radius as R, space } from '../../lib/theme'
 import { euro, quotaColonna, conSegno } from '../../lib/formatoAnalisi'
 import { testo, transizione, colonna, intestazione, cifreInColonna } from './misure'
 import { stileIncompleto } from './incompleto'
+import { RigaAvviso } from './parti'
 
 const MENO = '−'
 const finito = (x) => x != null && Number.isFinite(Number(x))
@@ -77,7 +78,7 @@ export function differenzaPasso(r) {
 /**
  * @param {object} p
  * @param {{ etichetta: string, valore: number|null, tipo: 'inizio'|'meno'|'aggiunta'|'fine',
- *   chiave?: string, confronto?: number|null, incompleto?: boolean, nota?: string,
+ *   chiave?: string, confronto?: number|null, incompleto?: boolean, avviso?: string, nota?: string,
  *   onClick?: () => void }[]} p.passi
  *   I passi «meno» hanno `valore` positivo (quanto si toglie). Un passo con
  *   `valore` null si disegna come zona tratteggiata e dice «non lo so»: non
@@ -86,9 +87,13 @@ export function differenzaPasso(r) {
  * @param {string} [p.titoloValore]  l'intestazione della colonna degli euro («agosto» → «agosto, €»)
  * @param {string} [p.titoloConfronto]  l'intestazione della differenza («su agosto 2025»)
  * @param {string} [p.evidenzia]  la `chiave` del passo di cui parla il titolo: sarà l'unica barra scura
+ * @param {string} [p.avviso]  l'avvertimento che cambia come si leggono i numeri di tutta la cascata
+ *   («Spese IVA compresa: le fatture di agosto non hanno l'imponibile»), sopra le intestazioni.
+ *   Un passo può avere il suo (`passo.avviso`): va sotto la voce, sulla stessa riga dei numeri.
+ *   ANALISI_DESIGN §6: l'avvertimento sta accanto al numero, non solo nella copertura chiusa.
  * @param {boolean} [p.isMobile]  al telefono restano voce, barra, €; le etichette vanno a capo
  */
-export default function Cascata({ passi = [], ricavi = null, titoloValore = '', titoloConfronto = '', evidenzia = null, isMobile = false }) {
+export default function Cascata({ passi = [], ricavi = null, titoloValore = '', titoloConfronto = '', evidenzia = null, avviso = '', isMobile = false }) {
   const [tabella, setTabella] = useState(false)
   const { righe, min, max } = geometriaCascata(passi)
   const scala = (x) => ((x - min) / (max - min)) * 100
@@ -112,6 +117,7 @@ export default function Cascata({ passi = [], ricavi = null, titoloValore = '', 
 
   return (
     <div>
+      {avviso && <RigaAvviso avviso={avviso} stile={{ marginBottom: space[2] }} />}
       {/* Le intestazioni: una volta, con l'euro (le celle non lo ripetono). */}
       <div aria-hidden="true" style={{ ...griglia, paddingBottom: space[2], borderBottom: `1px solid ${T.borderSoft}`, marginBottom: space[1] }}>
         <span style={intestazione}>Voce</span>
@@ -132,6 +138,8 @@ export default function Cascata({ passi = [], ricavi = null, titoloValore = '', 
             <>
               <span style={{ ...testo(font.size.base), fontWeight: forte ? 700 : 500, color: T.text, minWidth: 0, overflowWrap: 'break-word' }}>
                 {r.etichetta}
+                {/* L'avvertimento del passo, sotto la voce: «IVA compresa». */}
+                {r.avviso && <span style={{ display: 'block', ...testo(font.size.sm), fontWeight: 600, color: T.amberDark }}>{r.avviso}</span>}
               </span>
               <span style={{ position: 'relative', height: 16 }} aria-hidden="true">
                 <span style={{ position: 'absolute', top: -4, bottom: -4, left: `${scala(0)}%`, width: 1, background: T.graficoGriglia }} />
@@ -180,7 +188,7 @@ export default function Cascata({ passi = [], ricavi = null, titoloValore = '', 
             border: 'none', background: 'transparent', font: 'inherit', textAlign: 'left', width: '100%',
             ...(r.tipo === 'fine' ? { borderTop: `1px solid ${T.borderStr}`, marginTop: space[1], paddingTop: space[2] } : null),
           }
-          const nomeAccessibile = `${r.etichetta}: ${conEuro(r)}${incompleto ? ', spese senza voce' : ''}`
+          const nomeAccessibile = `${r.etichetta}: ${conEuro(r)}${incompleto ? ', spese senza voce' : ''}${r.avviso ? `, ${r.avviso}` : ''}`
           return r.onClick ? (
             <button key={i} type="button" role="listitem" onClick={r.onClick} title={r.nota || undefined}
               aria-label={`${nomeAccessibile}. Apri il dettaglio`} style={{ ...stile, cursor: 'pointer' }}>

@@ -9,13 +9,14 @@
 //   • «stimato» in parole accanto al numero, non una pillola colorata che
 //     gli fa concorrenza;
 //   • la riga del confronto: la freccia segue il SEGNO del numero, il colore
-//     segue il giudizio. Prima era il contrario: «↘ +52%» per una spesa
-//     salita del 52%, e chi guardava di sfuggita leggeva «calo».
+//     segue il giudizio, e il giudizio è anche scritto («· peggio»). Prima
+//     era il contrario: «↘ +52%» per una spesa salita del 52%, e chi guardava
+//     di sfuggita leggeva «calo».
 import React from 'react'
-import { color as T, font, space } from '../../lib/theme'
+import { color as T, font, space, radius as R } from '../../lib/theme'
 import { segnoDi } from '../../lib/formatoAnalisi'
 import Icon from '../Icon'
-import { testo, soloLettore } from './misure'
+import { testo } from './misure'
 
 /** L'unità, al 60-70% del numero, presa dalla scala del tema (sotto i 16 px
  *  l'euro accanto a un numero da 22 si stacca e sembra una nota). */
@@ -71,8 +72,8 @@ export function Freccia({ segno = 0, verso = 'pari', dimensione = 16 }) {
  * così le tessere affiancate restano incolonnate. `senzaConfronto === null`
  * lascia la riga vuota (ma della stessa altezza).
  */
-export function RigaConfronto({ variazione = null, rispettoA = '', valoreConfronto = '', senzaConfronto = '', dimensione = font.size.base }) {
-  const stile = { display: 'flex', alignItems: 'center', columnGap: space[1], flexWrap: 'wrap', minHeight: 20, color: T.textMid, ...testo(dimensione) }
+export function RigaConfronto({ variazione = null, rispettoA = '', valoreConfronto = '', senzaConfronto = '', dimensione = font.size.base, stile: extra = null }) {
+  const stile = { display: 'flex', alignItems: 'center', columnGap: space[1], flexWrap: 'wrap', minHeight: 20, color: T.textMid, ...testo(dimensione), ...extra }
   if (!variazione) {
     return <div style={stile}>{senzaConfronto === null ? null : <span style={{ color: T.textSoft }}>{senzaConfronto || 'nessun confronto'}</span>}</div>
   }
@@ -83,15 +84,24 @@ export function RigaConfronto({ variazione = null, rispettoA = '', valoreConfron
       <b style={{ color: COLORE_GIUDIZIO[verso] || T.textMid, fontWeight: 700 }}>{variazione.testoDelta}</b>
       {rispettoA && <span>{rispettoA}</span>}
       {valoreConfronto && <span style={{ color: T.textSoft }}>({valoreConfronto})</span>}
-      {verso !== 'pari' && <span style={soloLettore}>{verso}</span>}
+      {/* Il giudizio a parole, visibile, come nella tabella del conto («· peggio»):
+          non col colore solo (regola 7). Prima era un testo nascosto a 1 px per
+          chi legge lo schermo, e il righello delle foto lo vedeva «tagliato». Il
+          puntino è disegnato, non scritto: il testo resta «… 2025peggio». */}
+      {verso !== 'pari' && (
+        <span style={{ display: 'inline-flex', alignItems: 'center', columnGap: space[1], color: COLORE_GIUDIZIO[verso], fontWeight: 600 }}>
+          <span aria-hidden="true" style={{ width: 3, height: 3, borderRadius: R.full, background: T.textSoft }} />
+          {verso}
+        </span>
+      )}
     </div>
   )
 }
 
 /** La riga che dice perché il numero manca, in ambra, con il passaggio per sistemarlo (anche solo il passaggio). */
-export function RigaMotivo({ motivo, azione = null, dimensione = font.size.base }) {
+export function RigaMotivo({ motivo, azione = null, dimensione = font.size.base, stile = null }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-start', columnGap: space[1], minHeight: 20, color: T.amberDark, ...testo(dimensione) }}>
+    <div style={{ display: 'flex', alignItems: 'flex-start', columnGap: space[1], minHeight: 20, color: T.amberDark, ...testo(dimensione), ...stile }}>
       {motivo && <span style={{ display: 'inline-flex', height: 20, alignItems: 'center', flexShrink: 0, color: T.amber }} aria-hidden="true"><Icon name="alertCircle" size={14} /></span>}
       <span style={{ minWidth: 0 }}>
         {motivo}
@@ -105,6 +115,26 @@ export function RigaMotivo({ motivo, azione = null, dimensione = font.size.base 
           </>
         )}
       </span>
+    </div>
+  )
+}
+
+/**
+ * L'avvertimento che cambia come si legge il numero, nella riga subito sotto
+ * («IVA compresa: 76 fatture senza imponibile», «mancano 9 giorni»).
+ * ANALISI_DESIGN §6 (04/10): non solo dentro la copertura chiusa, che
+ * riassume e non nasconde. Senza avvertimento la riga è vuota e alta zero:
+ * nelle tessere in fila la riga è comune, e si alza per tutte.
+ */
+export function RigaAvviso({ avviso = '', dimensione = font.size.sm, stile = null }) {
+  if (!avviso) return <div style={stile ? { ...stile, paddingTop: 0 } : undefined} />
+  const icona = dimensione >= font.size.md ? 16 : 14
+  return (
+    <div role="note" style={{ display: 'flex', alignItems: 'flex-start', columnGap: space[1], color: T.amberDark, fontWeight: 600, ...testo(dimensione), ...stile }}>
+      <span aria-hidden="true" style={{ display: 'inline-flex', alignItems: 'center', height: testo(dimensione).lineHeight, flexShrink: 0, color: T.amber }}>
+        <Icon name="alertCircle" size={icona} />
+      </span>
+      <span style={{ minWidth: 0 }}>{avviso}</span>
     </div>
   )
 }

@@ -27,9 +27,19 @@
 // con un ingrediente senza prezzo) faceva anche lui un margine del 100%, e
 // quel 100% entrava nel totale. Adesso il suo margine è «non lo so» e il
 // totale dice su quanti gusti è calcolato.
+//
+// 04/10/2026, pagina rifatta (fase 2): la tessera non scrive più «Margine
+// (79,0%)» ma «Margine stimato 166 €» con sotto «79% del ricavo» (le quote
+// con al massimo un decimale, zero se intero: ANALISI_DESIGN.md §2.6). La
+// prova resta la stessa — 79 e non 100 — cambia solo come si legge.
+// E la tabella mostra il costo AL CHILO (7,33 €/kg) invece del food cost del
+// periodo (44 €): la prova della resa è la stessa, 8,80 € diviso 1,2 kg e
+// non 8,80 €/kg (il food cost totale resta nel file Excel). La tabella dei
+// gusti si apre al tocco, sotto la classifica (ANALISI_DESIGN.md §6): la
+// prova la apre.
 import React from 'react'
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, cleanup, waitFor } from '@testing-library/react'
+import { render, cleanup, waitFor, fireEvent, screen } from '@testing-library/react'
 
 vi.mock('../../src/lib/supabase', () => {
   const RES = { data: [], error: null }
@@ -190,9 +200,10 @@ describe('La pagina dello Storico mostra il margine vero', () => {
     apri()
     // Il ricavo arriva quando i formati sono caricati: 7 kg × 30 €/kg.
     await waitFor(() => expect(testo()).toMatch(/210\s?€/), { timeout: 5000 })
-    expect(testo()).not.toMatch(/Margine \(100,0%\)/)
+    expect(testo()).not.toMatch(/100(,0)?% del ricavo/)
     // 166 / 210 = 79,0%
-    expect(testo()).toMatch(/Margine \(79,0%\)/)
+    // «nessun confronto»: senza periodo prima la riga del confronto lo dice (pezzo comune, 04/10).
+    expect(testo()).toMatch(/Margine stimato166\s?€nessun confronto79% del ricavo/)
     expect(testo()).toMatch(/166\s?€/)
   })
 
@@ -200,13 +211,19 @@ describe('La pagina dello Storico mostra il margine vero', () => {
     apri(RICETTARIO, RIGHE.map(r => ({ ...r, gusto_nome: 'PISTACCHIO' })))
     await waitFor(() => expect(testo()).toMatch(/210\s?€/), { timeout: 5000 })
     expect(testo()).toMatch(/non calcolabile/)
-    expect(testo()).not.toMatch(/100,0%/)
+    // Il margine non è il 100%. («100,0%» c'è, ma nella classifica dei gusti:
+    // un gusto solo fa il 100% del venduto. La prova guarda il margine.)
+    expect(testo()).not.toMatch(/100(,0)?% del ricavo/)
+    expect(testo()).not.toMatch(/Margine stimato[^€]{0,20}100/)
   })
 
-  it('il food cost della tabella è quello diviso per la resa (44 €, non 53 €)', async () => {
+  it('il costo della tabella è quello diviso per la resa (7,33 €/kg, non 8,80 €/kg)', async () => {
     apri()
     await waitFor(() => expect(testo()).toMatch(/210\s?€/), { timeout: 5000 })
-    expect(testo()).toMatch(/44\s?€/)
-    expect(testo()).not.toMatch(/53\s?€/)
+    fireEvent.click(screen.getByRole('button', { name: /^Vedi (tutti i \d+ gusti|la tabella del gusto)/ }))
+    expect(testo()).toMatch(/7,33\s?€\/kg/)
+    expect(testo()).not.toMatch(/8,80\s?€\/kg/)
+    // E il margine della riga è 210 − 6 kg × 7,33 = 166 €, non 210 − 53.
+    expect(testo()).not.toMatch(/157\s?€/)
   })
 })
