@@ -13,7 +13,7 @@
 import React from 'react'
 import { color as T, font, radius as R, ui3 } from '../../lib/theme'
 import { euro, euroSegno, quota, variazione } from '../../lib/formatoAnalisi'
-import { NumeroConConfronto, Riquadro, TitoloGrafico, FraseInsight } from '../../components/analisi'
+import { NumeroPrincipale, NumeroConConfronto, FilaTessere, Riquadro, TitoloGrafico, FraseInsight } from '../../components/analisi'
 import { kg, intero } from '../produzione/numeri'
 
 // Sotto il 5% è arrotondamento delle pesate e delle porzioni; fino al 15%
@@ -69,29 +69,44 @@ export default function Risposta({ kpi, kpiPrev, euroKg, vetrina, onCassa, isMob
   // chiusure contro sette non sono un calo.
   const vCassa = kpi.cassaRegistrata && kpiPrev?.cassaRegistrata && kpiPrev.giorniCassa === kpi.giorniCassa
     ? variazione({ attuale: kpi.cassaEffettiva, confronto: kpiPrev.cassaEffettiva }) : null
-  const colonne = ui3(isMobile, isTablet, { telefono: '1fr', tablet: '1fr 1fr', computer: '1.3fr 1fr 1fr' })
+  // La riga del confronto (pezzo comune, §6) c'è sempre: con la settimana
+  // prima confrontabile dice di quanto, se no perché non si confronta.
+  const senzaVenduto = kpiPrev && kpiPrev.giorniInventario > 0 && !stessiGiorni
+    ? `nessun confronto: la settimana prima ha ${kpiPrev.giorniInventario} giorni registrati, questa ${kpi.giorniInventario}`
+    : 'nessun confronto'
+  const senzaCassa = !kpi.cassaRegistrata ? null
+    : kpiPrev?.cassaRegistrata ? `nessun confronto: la settimana prima ha la cassa in ${kpiPrev.giorniCassa} giorni, questa in ${kpi.giorniCassa}`
+      : 'nessun confronto: la settimana prima non ha la cassa'
+  const colonne = ui3(isMobile, isTablet, { telefono: '', tablet: 'repeat(3, minmax(0, 1fr))', computer: 'repeat(3, minmax(0, 1fr))' })
   const fra = isMobile ? 16 : 24
+  const frase = kpi.driftEur == null ? null
+    // Senza percentuale (l'inventario non fa aspettare niente in quei giorni)
+    // il giudizio non si dà: si dicono i due numeri.
+    : `${g ? `${g[0].toUpperCase() + g.slice(1)}: ${quota(kpi.driftPct)} dell'incasso stimato.` : `${euro(kpi.cassaConfrontata)} incassati contro ${euro(kpi.attesoConfrontato || 0)} stimati: la percentuale non si calcola.`}${kpi.giorniConfrontati < kpi.giorniInventario
+      ? ` La cassa c'è per ${kpi.giorniConfrontati} ${kpi.giorniConfrontati === 1 ? 'giorno' : 'giorni'} su ${kpi.giorniInventario} con l'inventario: il confronto è fatto solo su quelli (${euro(kpi.cassaConfrontata)} incassati contro ${euro(kpi.attesoConfrontato)} stimati).`
+      : ''}`
+  // La frase grande è corta; il dettaglio («nessuna chiusura questa
+  // settimana») sta nella tessera della cassa accanto.
+  const motivo = !kpi.cassaRegistrata ? 'manca la cassa' : (kpi.motivoConfronto || 'manca la cassa')
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: fra }}>
-      <div style={{ display: 'grid', gridTemplateColumns: colonne, gap: fra }}>
-        <div style={{ display: 'grid', gridRow: !isMobile && !isTablet ? 'span 2' : 'auto', gridColumn: isTablet && !isMobile ? '1 / -1' : 'auto' }}>
-          <NumeroConConfronto grande isMobile={isMobile}
-            etichetta="Differenza con la cassa"
-            valore={kpi.driftEur != null ? euroSegno(kpi.driftEur) : null}
-            motivoMancante="non si può dire"
-            contesto={kpi.driftEur != null
-              // Senza percentuale (l'inventario non fa aspettare niente in
-              // quei giorni) il giudizio non si dà: si dicono i due numeri.
-              ? `${g ? `${g[0].toUpperCase() + g.slice(1)}: ${quota(kpi.driftPct)} dell'incasso stimato.` : `${euro(kpi.cassaConfrontata)} incassati contro ${euro(kpi.attesoConfrontato || 0)} stimati: la percentuale non si calcola.`}${kpi.giorniConfrontati < kpi.giorniInventario
-                ? ` La cassa c'è per ${kpi.giorniConfrontati} ${kpi.giorniConfrontati === 1 ? 'giorno' : 'giorni'} su ${kpi.giorniInventario} con l'inventario: il confronto è fatto solo su quelli (${euro(kpi.cassaConfrontata)} incassati contro ${euro(kpi.attesoConfrontato)} stimati).`
-                : ''}`
-              : `${(kpi.motivoConfronto || 'manca la cassa')[0].toUpperCase()}${(kpi.motivoConfronto || 'manca la cassa').slice(1)}.`} />
-        </div>
+      {/* La risposta, grande e sola (NumeroPrincipale). Senza la cassa il
+          motivo è la risposta, e «Registra la cassa» sta sotto: l'azione
+          che cambia come si legge il numero sta accanto al numero (§6), non
+          solo dentro la copertura chiusa. */}
+      <NumeroPrincipale isMobile={isMobile}
+        etichetta="Differenza con la cassa"
+        valore={kpi.driftEur != null ? euroSegno(kpi.driftEur) : null}
+        motivoMancante={`Non si può dire: ${motivo}`}
+        azione={!kpi.cassaRegistrata && onCassa ? { etichetta: 'Registra la cassa', onClick: onCassa } : null}
+        frase={frase} />
+      <FilaTessere colonne={colonne} isMobile={isMobile}>
         <NumeroConConfronto isMobile={isMobile}
           etichetta={kpi.b2bKg > 0 ? 'Venduto al banco' : 'Venduto'}
           valore={`${nKg1(retail)} kg`}
-          variazione={vVenduto} rispettoA="sulla settimana prima" valoreConfronto={vVenduto ? `${nKg1(retailPrima)} kg` : ''}
+          variazione={vVenduto} rispettoA={vVenduto ? 'sulla settimana prima' : ''} valoreConfronto={vVenduto ? `${nKg1(retailPrima)} kg` : ''}
+          senzaConfronto={vVenduto ? '' : senzaVenduto}
           contesto={kpi.b2bKg > 0 ? `${nKg1(kpi.totVendutoKg)} kg in tutto, ${nKg1(kpi.b2bKg)} all'ingrosso` : 'dall\'inventario'} />
         <NumeroConConfronto isMobile={isMobile}
           etichetta="Incasso stimato" stimato
@@ -101,11 +116,12 @@ export default function Risposta({ kpi, kpiPrev, euroKg, vetrina, onCassa, isMob
           etichetta="Cassa"
           valore={kpi.cassaRegistrata ? euro(kpi.cassaEffettiva) : null}
           motivoMancante="non registrata"
-          variazione={vCassa} rispettoA="sulla settimana prima"
+          variazione={vCassa} rispettoA={vCassa ? 'sulla settimana prima' : ''}
+          senzaConfronto={vCassa ? '' : senzaCassa}
           contesto={kpi.cassaRegistrata
             ? `incassato in ${kpi.giorniCassa} ${kpi.giorniCassa === 1 ? 'giorno' : 'giorni'}`
             : 'nessuna chiusura questa settimana'} />
-      </div>
+      </FilaTessere>
 
       {!kpi.cassaRegistrata && kpi.totVendutoG !== 0 && (
         <Riquadro isMobile={isMobile}>

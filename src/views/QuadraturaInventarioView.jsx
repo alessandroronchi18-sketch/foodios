@@ -22,8 +22,10 @@ import Icon from '../components/Icon'
 import { conGiorno, giorniRegistrati } from '../lib/produzioneAnalisi'
 import ExportPdfButton from '../components/ExportPdfButton'
 import { CoperturaDati, IntestazioneAnalisi } from '../components/analisi'
+import PaginaAnalisi from '../components/analisi/PaginaAnalisi'
 import NavigatoreSettimana from './quadratura/NavigatoreSettimana'
 import { vociCoperturaQuadratura } from './quadratura/copertura'
+import { riassuntoSistemabili } from './produzione/copertura'
 import Risposta from './quadratura/Risposta'
 import UltimeSettimane from './quadratura/UltimeSettimane'
 import SediSettimana from './quadratura/SediSettimana'
@@ -475,6 +477,14 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
   const lunUltimo = apertura?.ultimo ? lunediDellaSettimana(`${apertura.ultimo}T12:00:00`) : null
   const inCaricamento = loading || (sediDaLeggere.length > 0 && settimanaCaricata !== lunediIso)
 
+  // La riga chiusa della copertura: «da sistemare» solo di quello che si
+  // sistema (la cassa, le caselle), il resto per nome.
+  const vociCopertura = vociCoperturaQuadratura({
+    giorni: giorniSettimana, kpi, euroKg, scartoRegistrato,
+    apertura: apertura?.spostata && lunediIso === lunUltimo ? apertura : null,
+    azioni: { cassa: onNavigate ? () => onNavigate('chiusura') : null, caselle: () => refCaselle.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' }) },
+  })
+
   // ── Render ─────────────────────────────────────────────────────────────
 
   if (!orgId) {
@@ -487,7 +497,7 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
   }
 
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
+    <PaginaAnalisi isMobile={isMobile}>
       <IntestazioneAnalisi
         domanda="Torna il conto?"
         sotto={`${isAllSedi ? 'Tutte le sedi' : (sedeAttiva?.nome || '')}${(isAllSedi || sedeAttiva?.nome) ? ' · ' : ''}l'inventario dice quanto gelato è uscito, la cassa quanto è entrato`}
@@ -499,11 +509,7 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
       {/* Da dove vengono i numeri, una frase per fonte (ANALISI_DESIGN.md,
           regola 3). La riga «dopo il … non c'è niente» sta qui dentro. */}
       {!inCaricamento && !erroreLettura && giorniSettimana.n > 0 && (
-        <CoperturaDati voci={vociCoperturaQuadratura({
-          giorni: giorniSettimana, kpi, euroKg, scartoRegistrato,
-          apertura: apertura?.spostata && lunediIso === lunUltimo ? apertura : null,
-          azioni: { cassa: onNavigate ? () => onNavigate('chiusura') : null, caselle: () => refCaselle.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' }) },
-        })} />
+        <CoperturaDati isMobile={isMobile} voci={vociCopertura} riassunto={riassuntoSistemabili(vociCopertura)} />
       )}
 
       {inCaricamento ? (
@@ -784,7 +790,7 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
           </div>
         </>
       )}
-    </div>
+    </PaginaAnalisi>
   )
 }
 

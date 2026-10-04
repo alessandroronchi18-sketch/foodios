@@ -17,9 +17,18 @@
 // riga sola (`CoperturaDati`), poi la risposta. Questo file prova il
 // contratto pezzo per pezzo; le prove dei numeri restano nei file della fase
 // 1 (quadraturaSenzaCassa, quadraturaNumeriEGiorni, …).
+//
+// 04/10/2026, dopo i pezzi comuni nuovi (copertura chiusa in una riga,
+// tessere con la riga del confronto sempre presente, NumeroPrincipale): la
+// risposta è il NumeroPrincipale; senza la cassa dice «Non si può dire: …»
+// e sotto «Registra la cassa», perché l'azione che cambia come si legge il
+// numero sta accanto al numero (ANALISI_DESIGN.md §6) e non solo dentro la
+// riga chiusa. La riga del confronto delle tessere dice perché non si
+// confronta, invece di restare vuota. Le prove qui sotto sono aggiornate a
+// questo; la regola che proteggono è la stessa.
 import React from 'react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor, cleanup, fireEvent } from '@testing-library/react'
+import { render, screen, waitFor, cleanup, fireEvent, within } from '@testing-library/react'
 
 const LUN = '2026-09-07'
 // Domenica restano 400 g; lunedì si fanno 1.000 g e ne restano 600 (venduti
@@ -114,7 +123,10 @@ describe('La copertura della Quadratura: una frase per fonte', () => {
     expect(voce(voci, 'ingrosso').testo).toBe('3,5 kg venduti all\'ingrosso tolti dal banco (70 € fatturati)')
     expect(voce(voci, 'caselle').testo).toBe('4 caselle da sistemare nell\'inventario')
     expect(voce(voci, 'caselle').azione.etichetta).toBe('Vedi')
-    expect(voce(voci, 'scarto')).toEqual({ id: 'scarto', stato: 'manca', testo: 'lo scarto, quindi quello che si butta è contato come venduto' })
+    expect(voce(voci, 'scarto')).toEqual({ id: 'scarto', stato: 'manca', breve: 'scarto mai scritto', testo: 'lo scarto, quindi quello che si butta è contato come venduto' })
+    // Nella riga chiusa: «da sistemare» solo di quello che si sistema.
+    expect(voce(voci, 'caselle').sistemabile).toBe(true)
+    expect(voce(voci, 'scarto').sistemabile).toBeUndefined()
   })
 })
 
@@ -160,6 +172,13 @@ describe('La pagina si apre con la domanda, la settimana in una riga e la copert
     // Domenica 400 g in vetrina; fatti 1.000 + 300 g; martedì sera 200 g.
     expect(testo()).toMatch(/Viene dalla vetrina: c'erano 0,4 kg, ne hai fatti 1,3 kg, ne restano 0,2 kg\./)
     expect(screen.getByRole('button', { name: 'Vai alla Cassa' })).toBeTruthy()
+  })
+
+  it('la riga chiusa dice le cose per nome, e «da sistemare» solo di quello che si sistema', async () => {
+    render(<QuadraturaInventarioView {...props()} />)
+    await pronta()
+    expect(screen.getByRole('button', { name: /^Da dove vengono i numeri/ }).textContent)
+      .toMatch(/Incasso stimato · cassa non registrata · 2 giorni su 7 · scarto mai scritto/)
   })
 
   it('CSV e PDF stanno in fondo, per il commercialista', async () => {
@@ -214,6 +233,13 @@ describe('La tessera grande', () => {
     render(<Risposta kpi={{ ...base, driftEur: -3, driftPct: -6 }} kpiPrev={null} euroKg={33.33} />)
     expect(testo()).toMatch(/Differenza con la cassa−3 €Da guardare: −6% dell'incasso stimato\./)
   })
+  it('senza la cassa «Registra la cassa» sta sotto la risposta, non solo nella riga chiusa', () => {
+    const vai = vi.fn()
+    render(<Risposta kpi={{ ...base, cassaRegistrata: false, driftEur: null, driftPct: null, motivoConfronto: 'nessuna chiusura di cassa registrata in questa settimana' }} kpiPrev={null} euroKg={33.33} onCassa={vai} />)
+    const risposta = screen.getByRole('region', { name: 'Differenza con la cassa' })
+    fireEvent.click(within(risposta).getByRole('button', { name: 'Registra la cassa' }))
+    expect(vai).toHaveBeenCalled()
+  })
   it('se l\'inventario non fa aspettare niente in quei giorni, niente percentuale e niente crash', () => {
     // Trovato scrivendo questa pagina (04/10/2026): driftPct nullo con la
     // differenza presente faceva cadere tutta la Quadratura.
@@ -227,8 +253,8 @@ describe('La tessera grande', () => {
     expect(testo()).toMatch(/Venduto1,5 kg\+50%sulla settimana prima\(1,0 kg\)meglio/)
     cleanup()
     render(<Risposta kpi={k} kpiPrev={{ ...base, retailKg: 1, giorniInventario: 7 }} euroKg={33.33} />)
-    // Il numero e subito la riga sotto: nessun confronto in mezzo.
-    expect(testo()).toMatch(/Venduto1,5 kgdall'inventario/)
+    // Niente variazione: la riga del confronto dice perché.
+    expect(testo()).toMatch(/Venduto1,5 kgnessun confronto: la settimana prima ha 7 giorni registrati, questa 2dall'inventario/)
   })
   it('e la cassa solo se ha gli stessi giorni con la cassa', () => {
     const k = { ...base, driftEur: -3, driftPct: -6 }
@@ -236,12 +262,12 @@ describe('La tessera grande', () => {
     expect(testo()).toMatch(/Cassa47 €−50%sulla settimana prima/)
     cleanup()
     render(<Risposta kpi={k} kpiPrev={{ ...base, cassaEffettiva: 94, giorniCassa: 7 }} euroKg={33.33} />)
-    expect(testo()).toMatch(/Cassa47 €incassato in 2 giorni/)
+    expect(testo()).toMatch(/Cassa47 €nessun confronto: la settimana prima ha la cassa in 7 giorni, questa in 2incassato in 2 giorni/)
   })
 
   it('senza la cassa: «non si può dire», col motivo', () => {
     render(<Risposta kpi={{ ...base, cassaRegistrata: false, driftEur: null, driftPct: null, motivoConfronto: 'nessuna chiusura di cassa registrata in questa settimana' }} kpiPrev={null} euroKg={33.33} />)
-    expect(testo()).toMatch(/Differenza con la cassanon si può direNessuna chiusura di cassa registrata in questa settimana\./)
+    expect(testo()).toMatch(/Differenza con la cassaNon si può dire: manca la cassa/)
     expect(testo()).toMatch(/Cassanon registrata/)
   })
 })
