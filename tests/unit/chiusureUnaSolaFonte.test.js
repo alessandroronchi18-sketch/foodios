@@ -21,7 +21,7 @@
 // accesso ai dati, non sugli undici callsite, così nessuno può restare
 // indietro. Questi test difendono quel punto unico.
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mockChain, mockSupabase } from '../helpers/supabaseMock.js'
 
 vi.mock('../../src/lib/supabase', () => ({ supabase: mockSupabase() }))
@@ -320,7 +320,46 @@ async function semina() {
   return { registro, esito }
 }
 
+// 04/10/2026: le tre prove qui sotto fallivano di domenica, e solo di
+// domenica. La demo semina i 90 giorni prima di oggi saltando le domeniche: i
+// giorni sono 77 quando nei 90 cadono 13 domeniche, 78 quando ne cadono 12, e
+// ne cadono 12 proprio quando oggi è domenica. Il «77» era la fotografia del
+// giorno in cui il test è stato scritto. Se n'è accorto il gate del push di
+// domenica 4 ottobre, sulla versione già online: il prodotto era giusto, era
+// il test a dipendere dal calendario. Ora il giorno è fissato (sabato 3/10,
+// 77 giornate), e una prova a parte conta le giornate giuste in tutti e sette
+// i giorni della settimana.
+const domenicheEscluse = (oggi) => {
+  let n = 0
+  for (let i = 90; i >= 1; i--) {
+    const d = new Date(oggi); d.setDate(d.getDate() - i)
+    if (d.getDay() !== 0) n++
+  }
+  return n
+}
+
 describe('stessa famiglia: il seme della demo scriveva le chiusure nel blob', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-10-03T10:00:00'))
+  })
+  afterEach(() => vi.useRealTimers())
+
+  it('il conto delle giornate non dipende dal giorno in cui gira il test', async () => {
+    // Una settimana intera, da sabato 3/10 a venerdì 9/10: un giorno qualunque
+    // conta i giorni non di domenica nei 90 prima, né 77 né 78 fissi.
+    const visti = new Set()
+    for (let g = 3; g <= 9; g++) {
+      const oggi = new Date(2026, 9, g, 10, 0, 0)
+      vi.setSystemTime(oggi)
+      const { esito } = await semina()
+      expect(esito.counts.chiusure, `il ${g}/10`).toBe(domenicheEscluse(oggi))
+      visti.add(esito.counts.chiusure)
+    }
+    // Entrambi i casi passano davvero di qui: 77 e 78.
+    expect([...visti].sort()).toEqual([77, 78])
+  })
+
   it('riproduce: scritte nel blob, il prodotto le cerca nella tabella e non trova niente', async () => {
     const { esito } = await semina()
     expect(esito.counts.chiusure).toBe(77)
