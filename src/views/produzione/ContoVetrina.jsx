@@ -37,16 +37,21 @@ export function sottotitoloVetrina(b) {
 }
 
 /**
- * La riga sotto il conto. Una rimanenza che manca rende il venduto di quel
- * giorno «non lo so»: se era l'ultima, il conto torna lo stesso (si chiude
- * con la conta di prima), ma quel giorno resta fuori e va detto.
+ * La riga sotto il conto.
+ *
+ * 04/10/2026: prima, con tutte le caselle a posto, diceva «Il conto torna:
+ * quello che deve restare è quello che hai contato», come se fosse un
+ * controllo superato. Non lo è: il venduto si CALCOLA da questa riga (c'era
+ * + fatto − resta), quindi torna per costruzione. Adesso la nota spiega da
+ * dove viene il venduto, e dà un giudizio solo dove c'è qualcosa da dire:
+ * le rimanenze che mancano, che lasciano fuori il venduto di quei giorni.
  */
 export function notaVetrina(b) {
   const n = b.celleNonCalcolabili || 0
   const caselle = `in ${intero(n)} ${n === 1 ? 'casella' : 'caselle'} manca la rimanenza (di quel giorno o del giorno prima) e il venduto di quel giorno non si sa`
   if (!b.torna) return `Non tornano ${kg(Math.abs(b.differenzaG) / 1000)} kg: ${caselle}.`
-  if (n > 0) return `Il conto torna, ma ${caselle}: quei giorni sono fuori dal conto.`
-  return 'Il conto torna: quello che deve restare è quello che hai contato.'
+  if (n > 0) return `I chili tornano, ma ${caselle}: quei giorni sono fuori dal venduto.`
+  return 'Il venduto è proprio questa differenza: si calcola dalla vetrina contata ogni sera, non da uno scontrino.'
 }
 
 export default function ContoVetrina({ vetrina: b, scartoRegistrato, isMobile, stile = null }) {
@@ -69,7 +74,7 @@ export default function ContoVetrina({ vetrina: b, scartoRegistrato, isMobile, s
         <Riga segno="=" voce="Deve restare" valore={`${kg(atteso / 1000)} kg`} forte filo />
         <Riga segno="" voce="In vetrina alla fine, contato" valore={`${kg(b.fineG / 1000)} kg`} forte />
       </div>
-      <div style={{ fontSize: font.size.sm, color: b.torna ? T.textSoft : T.amberDark, marginTop: 10, lineHeight: 1.5 }}>
+      <div style={{ fontSize: font.size.sm, color: b.torna && !b.celleNonCalcolabili ? T.textSoft : T.amberDark, marginTop: 10, lineHeight: 1.5 }}>
         {notaVetrina(b)}
         {!scartoRegistrato && ' Lo scarto non è mai stato scritto: quello che si butta è dentro il venduto.'}
       </div>

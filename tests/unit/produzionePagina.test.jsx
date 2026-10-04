@@ -257,7 +257,10 @@ describe('La pagina: tessere e vetrina sui conti veri', () => {
       '=Deve restare1 kg', 'In vetrina alla fine, contato1 kg',
     ])
     expect(testo()).toMatch(/La vetrina è scesa da 2 kg a 1 kgHai venduto più di quanto hai fatto\./)
-    expect(testo()).toMatch(/Il conto torna/)
+    // Non «Il conto torna»: il venduto si calcola da questa riga, torna per
+    // costruzione (difetto del 04/10, trovato sui dati veri prima di pubblicare).
+    expect(testo()).toMatch(/Il venduto è proprio questa differenza/)
+    expect(testo()).not.toMatch(/Il conto torna/)
   })
 
   it('una rimanenza non scritta: il conto dice di quanto non torna, e perché', async () => {
@@ -265,7 +268,7 @@ describe('La pagina: tessere e vetrina sui conti veri', () => {
     await waitFor(() => expect(screen.getByRole('table', { name: 'Il conto della vetrina' })).toBeTruthy(), { timeout: 5000 })
     // Il 04/08 non si sa: venduto 5 (solo il 03), alla fine 3 (l'ultima
     // scritta). Il conto si chiude con la conta del 03, ma il 04 è fuori.
-    expect(testo()).toMatch(/Il conto torna, ma in 1 casella manca la rimanenza/)
+    expect(testo()).toMatch(/I chili tornano, ma in 1 casella manca la rimanenza/)
   })
 
   it('se in quel giorno si era anche prodotto, il conto non torna di quei chili', async () => {

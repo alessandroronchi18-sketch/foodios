@@ -182,11 +182,15 @@ describe('Senza la cassa, cosa si può dire', () => {
   it('quanto è uscito e quanto vale', () => {
     expect(frasiSenzaCassa({ kpi })[0].testo).toBe('L\'inventario dice che sono usciti 1,5 kg di gelato, circa 50 € ai prezzi dei formati.')
   })
-  it('il conto della vetrina, che non ha bisogno della cassa', () => {
-    const torna = { inizioG: 400, prodottoG: 1300, ricevutoG: 0, speditoG: 0, scartoG: 0, vendutoG: 1500, fineG: 200, differenzaG: 0, torna: true, celleNonCalcolabili: 0 }
-    expect(frasiSenzaCassa({ kpi, vetrina: torna })[1]).toEqual({ id: 'vetrina', verso: 'meglio', testo: 'Il conto della vetrina torna: c\'erano 0,4 kg, ne hai fatti 1,3 kg, ne sono usciti 1,5 kg e ne restano 0,2 kg.' })
-    const no = { ...torna, fineG: 1200, differenzaG: -1000, torna: false, celleNonCalcolabili: 1 }
-    expect(frasiSenzaCassa({ kpi, vetrina: no })[1].testo).toBe('Il conto della vetrina non torna di 1 kg: dovevano restarne 0,2 kg, ne hai contati 1,2 kg (in 1 casella manca la rimanenza).')
+  it('da dove viene il venduto: la vetrina, detto senza fingere un controllo', () => {
+    // Il venduto si calcola da c'era + fatto − resta: quel conto «torna»
+    // per costruzione. Non si scrive «torna» in verde (difetto del 04/10,
+    // trovato sui dati veri prima di pubblicare).
+    const ok = { inizioG: 400, prodottoG: 1300, ricevutoG: 0, speditoG: 0, scartoG: 0, vendutoG: 1500, fineG: 200, differenzaG: 0, torna: true, celleNonCalcolabili: 0 }
+    expect(frasiSenzaCassa({ kpi, vetrina: ok })[1]).toEqual({ id: 'vetrina', verso: 'info', testo: 'Viene dalla vetrina: c\'erano 0,4 kg, ne hai fatti 1,3 kg, ne restano 0,2 kg.' })
+    expect(frasiSenzaCassa({ kpi, vetrina: ok }).map(f => f.testo).join(' ')).not.toMatch(/torna/)
+    const no = { ...ok, fineG: 1200, differenzaG: -1000, torna: false, celleNonCalcolabili: 1 }
+    expect(frasiSenzaCassa({ kpi, vetrina: no })[1]).toEqual({ id: 'vetrina', verso: 'peggio', testo: 'Viene dalla vetrina: c\'erano 0,4 kg, ne hai fatti 1,3 kg, ne restano 1,2 kg. In 1 casella manca la rimanenza: il venduto di quei giorni non si sa, con una differenza di 1 kg.' })
   })
   it('la settimana prima solo con gli stessi giorni registrati', () => {
     expect(frasiSenzaCassa({ kpi, kpiPrev: { totVendutoG: 1000, giorniInventario: 2 } })[1].testo).toBe('Rispetto alla settimana prima: +50% di gelato uscito (1 kg allora).')

@@ -34,11 +34,18 @@ const nKg1 = (n) => new Intl.NumberFormat('it-IT', { useGrouping: 'always', mini
 export function frasiSenzaCassa({ kpi, kpiPrev, vetrina }) {
   const frasi = []
   frasi.push({ id: 'uscito', testo: `L'inventario dice che sono usciti ${nKg1(kpi.totVendutoG / 1000)} kg di gelato, circa ${euro(kpi.ricavoAtteso || 0)} ai prezzi dei formati.` })
+  // Da dove viene quel venduto. Non è un controllo: il venduto si calcola
+  // proprio da questa riga (c'era + fatto − resta), quindi «torna» sempre,
+  // tranne dove manca una rimanenza. Prima (04/10, mai pubblicato) questa
+  // frase diceva «Il conto della vetrina torna» in verde: una rassicurazione
+  // senza verifica. Il giudizio c'è solo per le rimanenze che mancano.
   if (vetrina) {
-    const resta = (vetrina.inizioG + vetrina.prodottoG + vetrina.ricevutoG - vetrina.speditoG - vetrina.scartoG - vetrina.vendutoG) / 1000
-    frasi.push(vetrina.torna
-      ? { id: 'vetrina', verso: 'meglio', testo: `Il conto della vetrina torna: c'erano ${kgSett(vetrina.inizioG / 1000)}, ne hai fatti ${kgSett(vetrina.prodottoG / 1000)}, ne sono usciti ${kgSett(vetrina.vendutoG / 1000)} e ne restano ${kgSett(vetrina.fineG / 1000)}.` }
-      : { id: 'vetrina', verso: 'peggio', testo: `Il conto della vetrina non torna di ${kgSett(Math.abs(vetrina.differenzaG) / 1000)}: dovevano restarne ${kgSett(resta)}, ne hai contati ${kgSett(vetrina.fineG / 1000)}${vetrina.celleNonCalcolabili > 0 ? ` (in ${intero(vetrina.celleNonCalcolabili)} ${vetrina.celleNonCalcolabili === 1 ? 'casella' : 'caselle'} manca la rimanenza)` : ''}.` })
+    const n = vetrina.celleNonCalcolabili || 0
+    frasi.push({
+      id: 'vetrina', verso: n > 0 ? 'peggio' : 'info',
+      testo: `Viene dalla vetrina: c'erano ${kgSett(vetrina.inizioG / 1000)}, ne hai fatti ${kgSett(vetrina.prodottoG / 1000)}, ne restano ${kgSett(vetrina.fineG / 1000)}.`
+        + (n > 0 ? ` In ${intero(n)} ${n === 1 ? 'casella' : 'caselle'} manca la rimanenza: il venduto di quei giorni non si sa${vetrina.torna ? '' : `, con una differenza di ${kgSett(Math.abs(vetrina.differenzaG) / 1000)}`}.` : ''),
+    })
   }
   // La settimana prima si confronta solo con gli stessi giorni registrati.
   if (kpiPrev && kpiPrev.giorniInventario > 0) {
