@@ -29,6 +29,8 @@
 //   - «Torna alla Produzione» non c'è più: questa pagina adesso SI CHIAMA
 //     Produzione, e il pulsante porta all'inventario, quindi si chiama
 //     «Apri l'inventario». Alto 44 px.
+// La tabella dei gusti si apre al tocco sotto la classifica (§6 del
+// contratto): le prove che la guardano la aprono prima.
 import React from 'react'
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, cleanup, waitFor, screen, fireEvent } from '@testing-library/react'
@@ -70,6 +72,7 @@ describe('Lo scarto nello Storico', () => {
     // La tessera lo dice a parole; e nessuna casella della tabella scrive
     // uno scarto di «-» o di zero.
     expect(testo()).toMatch(/Scartonon registrato/)
+    fireEvent.click(screen.getByRole('button', { name: /^Vedi (tutti i \d+ gusti|la tabella del gusto)/ }))
     expect(screen.queryByRole('columnheader', { name: /Scarto/ })).toBeNull()
   })
 
@@ -79,6 +82,7 @@ describe('Lo scarto nello Storico', () => {
     expect(testo()).not.toMatch(/non registrato/)
     expect(testo()).toMatch(/0,5/)
     // Con lo scarto scritto la colonna c'è.
+    fireEvent.click(screen.getByRole('button', { name: /^Vedi (tutti i \d+ gusti|la tabella del gusto)/ }))
     expect(screen.getByRole('columnheader', { name: /Scarto/ })).toBeTruthy()
   })
 })
@@ -88,6 +92,7 @@ describe('Le piccole cose della pagina', () => {
     apri(righe(0))
     await waitFor(() => expect(testo()).toMatch(/giorni registrati/), { timeout: 5000 })
     expect(testo()).not.toMatch(/⚠/)
+    fireEvent.click(screen.getByRole('button', { name: /^Vedi (tutti i \d+ gusti|la tabella del gusto)/ }))
     expect(document.querySelector('[title="Nessuna ricetta collegata a questo nome"]')).toBeTruthy()
   })
 

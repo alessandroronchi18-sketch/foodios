@@ -59,3 +59,25 @@ export function ordinaGusti(righe = [], chiave = 'vendKg', verso = 'desc') {
 
 /** Il verso naturale di ogni colonna: i nomi dalla A, i numeri dal più grande. */
 export const versoIniziale = (chiave) => (chiave === 'gusto' ? 'asc' : 'desc')
+
+/**
+ * La classifica del venduto: i primi `n` gusti e tutti gli altri insieme
+ * (ricerca del 04/10, scelta 13: «primi 7 + Altro», come Toast e Qonto).
+ *
+ * @returns {{ voci: { gusto: string, kg: number, quota: number|null }[],
+ *   altri: { n: number, kg: number, quota: number|null } | null, totaleKg: number }}
+ */
+export function classificaGusti(righe = [], n = 7) {
+  const ordinate = [...righe].sort((x, y) => y.vendKg - x.vendKg || String(x.gusto).localeCompare(String(y.gusto), 'it'))
+  const totaleKg = ordinate.reduce((s, r) => s + r.vendKg, 0)
+  const quota = (kg) => (totaleKg > 0 ? (kg / totaleKg) * 100 : null)
+  // Un «Altri 1 gusto» non ha senso: se resta un gusto solo, entra.
+  const primi = ordinate.length <= n + 1 ? ordinate : ordinate.slice(0, n)
+  const resto = ordinate.slice(primi.length)
+  const kgResto = resto.reduce((s, r) => s + r.vendKg, 0)
+  return {
+    voci: primi.map(r => ({ gusto: r.gusto, kg: r.vendKg, quota: quota(r.vendKg) })),
+    altri: resto.length ? { n: resto.length, kg: kgResto, quota: quota(kgResto) } : null,
+    totaleKg,
+  }
+}

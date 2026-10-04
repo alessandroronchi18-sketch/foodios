@@ -18,15 +18,7 @@ import { TabellaOSchede } from '../_shared'
 import Icon from '../../components/Icon'
 import MenuScelta from './MenuScelta'
 import { ORDINI, ordinaGusti, versoIniziale } from './righeGusti'
-import { kg, kgTessera } from './numeri'
-
-/** «MAROTTO è il gusto più venduto: 1.131 kg, il 9,6% del totale». */
-export function titoloTabella(righe = []) {
-  const tot = righe.reduce((s, r) => s + Math.max(0, r.vendKg), 0)
-  if (!righe.length || tot <= 0) return 'Gusto per gusto'
-  const top = righe.reduce((x, y) => (y.vendKg > x.vendKg ? y : x))
-  return `${top.gusto} è il gusto più venduto: ${kgTessera(top.vendKg)}, il ${quota((top.vendKg / tot) * 100)} del totale`
-}
+import { kg } from './numeri'
 
 const giorni = (n) => (n == null ? null : new Intl.NumberFormat('it-IT', { maximumFractionDigits: 1 }).format(n))
 const MOTIVO = {
@@ -69,7 +61,7 @@ export default function TabellaGusti({ righe = [], totali, scartoRegistrato, isM
   const quotaTot = totali.prod > 0 ? (totali.vend / totali.prod) * 100 : null
   return (
     <Riquadro isMobile={isMobile} stile={stile}>
-      <TitoloGrafico titolo={titoloTabella(righe)}
+      <TitoloGrafico titolo={`Tutti i ${righe.length} gusti`}
         sottotitolo={isMobile
           ? 'Quanto ne vendi, quanto ne fai, quanto rende.'
           : 'Quanto ne vendi e quanto ne fai, per quanti giorni basta quello che resta in vetrina, quanto rende. Tocca un\'intestazione per ordinare.'}

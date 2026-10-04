@@ -34,10 +34,12 @@
 // prova resta la stessa — 79 e non 100 — cambia solo come si legge.
 // E la tabella mostra il costo AL CHILO (7,33 €/kg) invece del food cost del
 // periodo (44 €): la prova della resa è la stessa, 8,80 € diviso 1,2 kg e
-// non 8,80 €/kg (il food cost totale resta nel file Excel).
+// non 8,80 €/kg (il food cost totale resta nel file Excel). La tabella dei
+// gusti si apre al tocco, sotto la classifica (ANALISI_DESIGN.md §6): la
+// prova la apre.
 import React from 'react'
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, cleanup, waitFor } from '@testing-library/react'
+import { render, cleanup, waitFor, fireEvent, screen } from '@testing-library/react'
 
 vi.mock('../../src/lib/supabase', () => {
   const RES = { data: [], error: null }
@@ -214,6 +216,7 @@ describe('La pagina dello Storico mostra il margine vero', () => {
   it('il costo della tabella è quello diviso per la resa (7,33 €/kg, non 8,80 €/kg)', async () => {
     apri()
     await waitFor(() => expect(testo()).toMatch(/210\s?€/), { timeout: 5000 })
+    fireEvent.click(screen.getByRole('button', { name: /^Vedi (tutti i \d+ gusti|la tabella del gusto)/ }))
     expect(testo()).toMatch(/7,33\s?€\/kg/)
     expect(testo()).not.toMatch(/8,80\s?€\/kg/)
     // E il margine della riga è 210 − 6 kg × 7,33 = 166 €, non 210 − 53.

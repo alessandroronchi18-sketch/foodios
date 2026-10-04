@@ -405,9 +405,9 @@ describe('La pagina: il grafico e i giorni', () => {
 })
 
 // ── 4. Le sedi affiancate e la tabella per gusto ───────────────────────────
-const { righeGusti, ordinaGusti } = await import('../../src/views/produzione/righeGusti.js')
+const { righeGusti, ordinaGusti, classificaGusti } = await import('../../src/views/produzione/righeGusti.js')
 const { titoloSedi } = await import('../../src/views/produzione/SediAffiancate.jsx')
-const { titoloTabella } = await import('../../src/views/produzione/TabellaGusti.jsx')
+const { titoloClassifica } = await import('../../src/views/produzione/ClassificaGusti.jsx')
 
 describe('Le sedi una accanto all\'altra', () => {
   const s = (nome, venduto, giorni) => ({ nome, vendutoG: venduto * 1000, giorni })
@@ -452,8 +452,18 @@ describe('Le righe della tabella', () => {
     expect(ordinaGusti(r, 'vendKg', 'desc').map(x => x.gusto)).toEqual(['B', 'D', 'A'])
     expect(r.map(x => x.gusto)).toEqual(['A', 'B', 'D'])
   })
-  it('il titolo nomina il gusto più venduto e la sua quota', () => {
-    expect(titoloTabella(righeGusti(valutate, andamento))).toBe('B è il gusto più venduto: 30 kg, il 50% del totale')
+  it('il titolo della classifica nomina il gusto più venduto e la sua quota', () => {
+    expect(titoloClassifica(classificaGusti(righeGusti(valutate, andamento)))).toBe('B è il più venduto: 30 kg, il 50%')
+  })
+  it('la classifica: i primi sette e «Altri», mai «Altri 1 gusto»', () => {
+    const tanti = 'ABCDEFGHIJ'.split('').map((g, i) => ({ gusto: g, vendKg: 100 - i * 10, prodKg: 1 }))
+    const cl = classificaGusti(tanti, 7)
+    expect(cl.voci.map(v => v.gusto)).toEqual(['A', 'B', 'C', 'D', 'E', 'F', 'G'])
+    // H, I, J: 30 + 20 + 10 = 60 kg su 550.
+    expect(cl.altri).toEqual({ n: 3, kg: 60, quota: (60 / 550) * 100 })
+    const otto = classificaGusti(tanti.slice(0, 8), 7)
+    expect(otto.voci.length).toBe(8)
+    expect(otto.altri).toBeNull()
   })
 })
 
@@ -474,9 +484,17 @@ describe('La pagina: sedi e tabella', () => {
     expect(testo()).not.toMatch(/vende di più/)
   })
 
+  it('all\'arrivo la classifica, la tabella dietro un tocco', async () => {
+    apri()
+    await waitFor(() => expect(testo()).toMatch(/NOCCIOLA è il più venduto: 7 kg, il 100%/), { timeout: 5000 })
+    expect(screen.queryByRole('columnheader', { name: 'Gusto' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Vedi la tabella del gusto: vetrina, costo, margine' }).getAttribute('aria-expanded')).toBe('false')
+  })
+
   it('la tabella ha le colonne che un gelatiere chiede a un gusto', async () => {
     apri()
     await waitFor(() => expect(testo()).toMatch(/Ricavo stimato210/), { timeout: 5000 })
+    fireEvent.click(screen.getByRole('button', { name: /^Vedi (tutti i \d+ gusti|la tabella del gusto)/ }))
     const intestazioni = screen.getAllByRole('columnheader').map(h => h.textContent)
     expect(intestazioni).toEqual(['Gusto', 'Venduto kg', 'Prodotto kg', 'Venduto su prodotto', 'Giorni in vetrina', 'Andamento', 'Ricavo stimato', 'Costo al kg', 'Margine stimato'])
     const riga = screen.getByRole('rowheader', { name: 'NOCCIOLA' }).parentElement
@@ -489,7 +507,8 @@ describe('La pagina: sedi e tabella', () => {
 
   it('si ordina toccando l\'intestazione, e lo dice', async () => {
     apri({ rows: [...NOCCIOLA, ...NOCCIOLA.map(x => ({ ...x, gusto_nome: 'AMARENA', produzione_g: x.produzione_g * 2, rimanenza_g: x.rimanenza_g * 2 }))] })
-    await waitFor(() => expect(screen.getByRole('rowheader', { name: /AMARENA/ })).toBeTruthy(), { timeout: 5000 })
+    await waitFor(() => expect(testo()).toMatch(/AMARENA è il più venduto/), { timeout: 5000 })
+    fireEvent.click(screen.getByRole('button', { name: /^Vedi (tutti i \d+ gusti|la tabella del gusto)/ }))
     const nomi = () => screen.getAllByRole('rowheader').map(h => h.textContent).filter(t => t !== 'Totale')
     expect(nomi()).toEqual(['AMARENA', 'NOCCIOLA'])
     const gusto = screen.getByRole('columnheader', { name: 'Gusto' })

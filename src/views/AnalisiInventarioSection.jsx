@@ -15,7 +15,7 @@
 //
 // Questo file impagina e basta. I conti sono in `produzione/useContiProduzione`
 // (che chiama le librerie provate), i pezzi in `produzione/*`.
-import React, { useRef } from 'react'
+import React, { useRef, useState } from 'react'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { color as T, font, radius as R } from '../lib/theme'
 import { CoperturaDati, IntestazioneAnalisi, TitoloGrafico, Riquadro, FraseInsight } from '../components/analisi'
@@ -32,6 +32,7 @@ import GraficoVenduto from './produzione/GraficoVenduto'
 import GiornoSettimana from './produzione/GiornoSettimana'
 import SediAffiancate from './produzione/SediAffiancate'
 import TabellaGusti from './produzione/TabellaGusti'
+import ClassificaGusti from './produzione/ClassificaGusti'
 import { frasiProduzione } from './produzione/frasi'
 
 /**
@@ -58,6 +59,8 @@ export default function AnalisiInventarioSection({
   const c = useContiProduzione({ rows, rowsPrev, dateFrom, dateTo, prevFrom, prevTo, ricettario, orgId, sedeId, sedi, partenza })
   const refGusti = useRef(null)
   const refCaselle = useRef(null)
+  // La tabella di tutti i gusti si apre al tocco, sotto la classifica.
+  const [tabellaAperta, setTabellaAperta] = useState(false)
   const vai = (ref) => () => ref.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
 
   const sediProduzione = (sedi || []).filter(s => s.attiva !== false && s.is_sede_produzione !== false)
@@ -150,7 +153,10 @@ export default function AnalisiInventarioSection({
       {/* Dove e cosa: le sedi, i gusti. */}
       {sezione('Sedi e gusti', <>
         <SediAffiancate sedi={c.sedi} pannelli={c.pannelli} isMobile={isMobile} />
-        <TabellaGusti righe={c.righeTabella} totali={c.totali} scartoRegistrato={c.scartoRegistrato} isMobile={isMobile} />
+        <ClassificaGusti righe={c.righeTabella} aperta={tabellaAperta} onApri={() => setTabellaAperta(v => !v)} isMobile={isMobile} />
+        {tabellaAperta && (
+          <TabellaGusti righe={c.righeTabella} totali={c.totali} scartoRegistrato={c.scartoRegistrato} isMobile={isMobile} />
+        )}
       </>)}
 
       {daSistemare && sezione('Da sistemare', <>
