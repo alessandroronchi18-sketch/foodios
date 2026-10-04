@@ -21,6 +21,14 @@
 // controllava quella. Messo a girare sul sorgente col difetto, 11 test su 13
 // passavano lo stesso: provavano la copia, non il prodotto. Qui il conto lo
 // fa il componente, e le colonne si leggono da quello che il grafico riceve.
+//
+// 04/10/2026, pagina Produzione rifatta: il grafico si apre già per
+// settimana, e la scelta Giorno/Settimana/Mese sta dietro UN pulsante
+// («per settimana») che apre le tre voci — indicazione del titolare: «appena
+// atterro sulla pagina non devo vedere tutto questo ammasso di cose». La
+// prova apre il menu e sceglie «Settimana» come prima; le colonne restano
+// oggetti {key, label, prod, vend…} (in più `vendParziale`, la serie in
+// ambra delle settimane non intere).
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, cleanup, fireEvent, waitFor } from '@testing-library/react'
@@ -65,7 +73,11 @@ async function colonneSettimanali(giorni, { dateFrom, dateTo }) {
     />,
   )
   await waitFor(() => expect(v.container.querySelector('[data-testid="colonne-grafico"]')).toBeTruthy())
-  // Il pulsante si chiamava «settimana» (il nome nel codice); dal 03/10/2026 «Settimana».
+  // Il pulsante si chiamava «settimana» (il nome nel codice); dal 03/10/2026
+  // «Settimana»; dal 04/10/2026 sta dentro il menu «Raggruppa il grafico».
+  const menu = v.container.querySelector('button[aria-label^="Raggruppa il grafico"]')
+  expect(menu, 'il pulsante che apre le scelte del grafico non si trova più: aggiorna il test').toBeTruthy()
+  fireEvent.click(menu)
   const bottone = [...v.container.querySelectorAll('button')].find(b => b.textContent.trim().toLowerCase() === 'settimana')
   expect(bottone, 'il selettore «settimana» del grafico non si trova più: aggiorna il test').toBeTruthy()
   fireEvent.click(bottone)

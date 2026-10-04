@@ -1,0 +1,96 @@
+// ── Il conto della vetrina ────────────────────────────────────────────────
+//
+//   in vetrina all'inizio + prodotto − venduto − scarto = in vetrina alla fine
+//
+// La domanda che il titolare si fa davvero («torna il conto?»), e che la
+// pagina di prima non aveva: c'erano prodotto e venduto, mai quello che
+// c'era e quello che è rimasto. Il conto viene da `bilancioVetrina`
+// (lib/produzioneQuadro, provato al grammo sui dati veri). Dove una
+// rimanenza manca il venduto di quel giorno non si sa, e la riga dice di
+// quanto non torna invece di farla quadrare per forza.
+//
+// È uno scontrino: una voce per riga, il segno davanti, i chili incolonnati
+// a destra. Si legge uguale sul telefono e sul computer.
+import React from 'react'
+import { color as T, font, tnum } from '../../lib/theme'
+import { TitoloGrafico, Riquadro } from '../../components/analisi'
+import { kg, kgTessera, kgFisso, intero } from './numeri'
+
+/**
+ * Il titolo-conclusione, in dieci parole al massimo (ANALISI_DESIGN.md §6):
+ * la vetrina è salita, scesa o rimasta com'era. Il perché va nel sottotitolo.
+ */
+export function titoloVetrina(b) {
+  const ini = b.inizioG / 1000
+  const fine = b.fineG / 1000
+  // Mezzo chilo su tutta la vetrina è il peso di una vaschetta mezza piena.
+  if (Math.abs(fine - ini) < 0.5) return `La vetrina è rimasta com'era: ${kgTessera(fine)}`
+  return `La vetrina è ${fine < ini ? 'scesa' : 'salita'} da ${kgTessera(ini)} a ${kgTessera(fine)}`
+}
+
+/** Il sottotitolo: cosa vuol dire, poi cosa è scritto sotto. */
+export function sottotitoloVetrina(b) {
+  const delta = (b.fineG - b.inizioG) / 1000
+  const senso = Math.abs(delta) < 0.5 ? 'Hai fatto quanto hai venduto. '
+    : delta < 0 ? 'Hai venduto più di quanto hai fatto. ' : 'Hai fatto più di quanto hai venduto. '
+  return `${senso}Quello che c'era, più quello che hai fatto, meno quello che è uscito: è quello che deve restare.`
+}
+
+/**
+ * La riga sotto il conto.
+ *
+ * 04/10/2026: prima, con tutte le caselle a posto, diceva «Il conto torna:
+ * quello che deve restare è quello che hai contato», come se fosse un
+ * controllo superato. Non lo è: il venduto si CALCOLA da questa riga (c'era
+ * + fatto − resta), quindi torna per costruzione. Adesso la nota spiega da
+ * dove viene il venduto, e dà un giudizio solo dove c'è qualcosa da dire:
+ * le rimanenze che mancano, che lasciano fuori il venduto di quei giorni.
+ */
+export function notaVetrina(b) {
+  const n = b.celleNonCalcolabili || 0
+  const caselle = `in ${intero(n)} ${n === 1 ? 'casella' : 'caselle'} manca la rimanenza (di quel giorno o del giorno prima) e il venduto di quel giorno non si sa`
+  if (!b.torna) return `Non tornano ${kg(Math.abs(b.differenzaG) / 1000)} kg: ${caselle}.`
+  if (n > 0) return `I chili tornano, ma ${caselle}: quei giorni sono fuori dal venduto.`
+  return 'Il venduto è proprio questa differenza: si calcola dalla vetrina contata ogni sera, non da uno scontrino.'
+}
+
+export default function ContoVetrina({ vetrina: b, scartoRegistrato, isMobile, stile = null }) {
+  const righe = [
+    { segno: '', voce: 'In vetrina all\'inizio', g: b.inizioG },
+    { segno: '+', voce: 'Prodotto', g: b.prodottoG },
+    b.ricevutoG > 0 ? { segno: '+', voce: 'Arrivato da altre sedi', g: b.ricevutoG } : null,
+    b.speditoG > 0 ? { segno: '−', voce: 'Mandato ad altre sedi', g: b.speditoG } : null,
+    { segno: '−', voce: 'Venduto', g: b.vendutoG },
+    { segno: '−', voce: 'Scarto', g: scartoRegistrato ? b.scartoG : null, testo: scartoRegistrato ? null : 'non registrato' },
+  ].filter(Boolean)
+  const atteso = b.inizioG + b.prodottoG + b.ricevutoG - b.speditoG - b.scartoG - b.vendutoG
+  return (
+    <Riquadro isMobile={isMobile} stile={stile}>
+      <TitoloGrafico titolo={titoloVetrina(b)} sottotitolo={sottotitoloVetrina(b)} />
+      <div role="table" aria-label="Il conto della vetrina" style={{ fontSize: font.size.md, color: T.text }}>
+        {righe.map(r => (
+          <Riga key={r.voce} segno={r.segno} voce={r.voce} valore={r.testo || kgFisso(r.g / 1000)} tenue={!!r.testo} />
+        ))}
+        <Riga segno="=" voce="Deve restare" valore={kgFisso(atteso / 1000)} forte filo />
+        <Riga segno="" voce="In vetrina alla fine, contato" valore={kgFisso(b.fineG / 1000)} forte />
+      </div>
+      <div style={{ fontSize: font.size.sm, color: b.torna && !b.celleNonCalcolabili ? T.textSoft : T.amberDark, marginTop: 10, lineHeight: 1.5 }}>
+        {notaVetrina(b)}
+        {!scartoRegistrato && ' Lo scarto non è mai stato scritto: quello che si butta è dentro il venduto.'}
+      </div>
+    </Riquadro>
+  )
+}
+
+function Riga({ segno, voce, valore, forte = false, tenue = false, filo = false }) {
+  return (
+    <div role="row" style={{
+      display: 'grid', gridTemplateColumns: '18px minmax(0, 1fr) auto', gap: 8, alignItems: 'baseline',
+      padding: '6px 0', borderTop: filo ? `1px solid ${T.border}` : 'none', marginTop: filo ? 4 : 0,
+    }}>
+      <span role="cell" aria-hidden={!segno} style={{ color: T.textSoft, fontWeight: 700, textAlign: 'center' }}>{segno}</span>
+      <span role="cell" style={{ color: forte ? T.text : T.textMid, fontWeight: forte ? 700 : 500, minWidth: 0 }}>{voce}</span>
+      <span role="cell" style={{ ...tnum, textAlign: 'right', whiteSpace: 'nowrap', fontWeight: forte ? 800 : 600, color: tenue ? T.textSoft : T.text }}>{valore}</span>
+    </div>
+  )
+}
