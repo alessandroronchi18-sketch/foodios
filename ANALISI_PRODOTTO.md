@@ -139,6 +139,7 @@
 | Data | Prodotto | Ingegneria | Business | Maturità azienda | Δ note |
 |---|---:|---:|---:|---:|---|
 | 2026-06-05 | 76 | 70 | 22 | ~30 | baseline |
+| **2026-10-04** | **96** | **98** | **43** | **~68** | **LA NUOVA ANALISI.** 130 commit dal 03/10, 49 file di test nuovi (~665 prove). Il titolare il 03/10: «la parte di analisi è fatta male e inutile». Vista con i dati di Mara valeva 12-35/100 pagina per pagina, mentre i voti di solidità del 22/09 le davano 90: **il 96 di Prodotto del 15/09 non vedeva quel buco, ora quel pezzo lo regge** (sezione 13). Ingegneria, Business e Maturità invariati: zero clienti paganti, dominio ancora da comprare. |
 | **2026-09-15** | **96** | **98** | **43** | **~68** | **SEI LAVORI: ACCESSO, DIPENDENTE, PIANI, INTEGRAZIONI.** 5 commit, test 2.394 → **2.485** su 176 file, 5 migrazioni nuove applicate e verificate. **(1) Accesso**: `/api/login-guard` non ha autenticazione e «questo accesso e' fallito» era una cosa che il BROWSER dichiarava — chiunque conoscesse l'email di un cliente poteva lasciarlo fuori dal gestionale, per sempre. Provato in produzione: cinque richieste senza credenziali e l'account e' bloccato. Piu' il **codice a 4 cifre dei dipendenti provabile all'infinito** (10.000 combinazioni, nessun limite: ci si presentava come un collega), il passo SMS in registrazione che **non poteva riuscire** e nel fallire diceva se un numero e' registrato, e altri quattro. **reCAPTCHA non si puo' usare** (Supabase accetta solo hCaptcha e Turnstile, perche' l'accesso non passa dai nostri server): messo **Turnstile**, spento. **(2) Dipendente «solo le sue pagine»**: il filtro girava DOPO il disegno della pagina, e la ricerca rapida offriva la scorciatoia. Ma il buco vero era nel database — **leggeva affitti e utenze** (8 righe vere), perche' `fatture` era chiusa e `extracted_invoices` no. La porta principale chiusa e la finestra di lato aperta. **(3) Produzione**: la rimanenza del giorno prima non era a schermo, si inseriva alla cieca. **(4) Piani → Standard/Plus/Ultra, solo il Plus in vendita**: e correggendo e' uscito che `plan_pricing` era ferma al 27/05 e **la pagina pubblica mostrava 89 € e 149 € invece di 149 € e 399 €, da tre mesi** — Termini di servizio compresi. **(5) Quattro difetti nelle integrazioni**: l'auto-riconoscimento dei CSV di cassa **dichiarato su 13 marche e mai collegato** (e dentro i parser, i metodi di pagamento sempre vuoti e RCH che leggeva 0 € su una giornata da 100 €); il **dettaglio riga di 3.520 fatture** letto e buttato; i `.p7m` accettati e sempre falliti; il registro a una riga per scontrino (140.000 l'anno). Piu' il **lettore ZIP** che apre gli archivi dell'Agenzia delle Entrate, dove le fatture hanno dentro tutto. **(6) «Settimana precedente» non tornava indietro**, segnalato dal titolare: un effetto che correggeva uno stato guardandone un altro, e i due comandi si combattevano  **POMERIGGIO — altri tre audit profondi.** **(7) La spesa dell'AI non aveva nessun tetto che funzionasse**: le funzioni del contatore cercavano l'azienda con `auth.uid()`, vuoto quando chiama il server, quindi non scrivevano mai e il totale tornava sempre 0 — `0 >= tetto` non e' mai vero, e il limite non e' mai scattato per nessuno. La prova: `ai_usage_daily` VUOTA con 327 organizzazioni e sette chiavi `ai:…` in `rate_limits` che dimostrano che le chiamate c'erano state. Anche il pannello admin leggeva quella tabella e mostrava 0 € per tutti: non c'era modo di accorgersene. Tetto a 5 $/giorno, e i pacchetti comprati adesso si consumano davvero. **(8) Trasferimenti fra sedi** (mai usati da nessuno: zero righe, 108 aziende con i requisiti): **la merce poteva essere scalata due volte** in silenzio, due conferme insieme caricavano due volte, e il dipendente **non vedeva niente ma poteva fare tutto** — le funzioni saltano le regole di isolamento e guardavano l'azienda, non il ruolo. Piu' chili e pezzi sommati fra loro, il valore perso all'arrivo, le due sedi che potevano essere di aziende diverse. **(9) I due bottoni assistente e feedback**: la chat **smetteva di ascoltare dall'undicesima domanda**, l'assistente spiegava al dipendente come arrivare alle pagine chiuse, mandava su pagine spente, non aveva nessun divieto di inventare numeri, e le chiamate AI **non lasciavano nessuna traccia** (9.825 righe di registro, zero per l'AI). **(10)** La suite girava su un core solo per un vincolo che serviva solo al calcolo della copertura: 2m58 -> 2m23. Test 2.394 -> **2.531** su 178 file, audit-sicurezza 19/19, 7 migrazioni  **(11) Telefono e tablet**: le due regole che salvano il telefono (niente zoom automatico nei campi, bersagli da 44px) si fermavano a 767px, cioe' **un pixel prima dell'iPad** — 95 campi di testo sotto i 16px su tablet contro 8 sul telefono, e 306 bersagli su 404 troppo piccoli. La soglia era scritta in PIXEL invece che sul tipo di dispositivo: ora e' `pointer: coarse` e dopo la correzione i campi sono **0**. E **l'attrezzo misurava una pagina diversa da quella vera**: niente foglio di stile globale (ogni riquadro 38px piu' alto), margine sbagliato, niente meta viewport, e **nessuna variante tablet** — il buco dove il difetto si nascondeva. Pagine che si trascinavano di lato: 320px 3→0, 360px 1→0. Due attrezzi nuovi e due regole di cricchetto (109 misure scritte tre volte, 101 anti-zoom a mano) |
 | **2026-09-14 (notte)** | **95** | **97** | **42** | **~67** | **AUDIT DI SICUREZZA PROFONDO — otto buchi trovati e chiusi.** 12 commit, test 2.258 → **2.335** su 165 file, 8 migration di sicurezza applicate e verificate in produzione. Ognuno provato **dall'esterno con la sola chiave pubblica del sito** prima e dopo la correzione. (1) Sei funzioni interne chiamabili senza account: sovrascrivere ricettario, magazzino e chiusure di un'attività conoscendone l'id, alterare lo stock, **cancellare tutto il registro delle modifiche**. (2) I trasferimenti fra sedi comandabili da anonimi, perché il controllo di proprietà era `x <> get_user_org_id()` e in SQL `x <> NULL` non è falso, è NULL — un `if` con condizione NULL non scatta. (3) Deposito delle foto pubblico: scaricabile **ed elencabile** da chiunque. (4) Lo storico dei prezzi d'acquisto leggibile dai dipendenti — l'unico dei otto dove c'erano dati veri. (5) Un titolare poteva mettersi `approvato = true` dal browser e sbloccare tutto senza pagare. (6) Sul proprio profilo si poteva creare un account di laboratorio da soli. (7) TRUNCATE concesso ai ruoli pubblici: ignora le regole di isolamento per costruzione. (8) La cassa entrava con una parola d'ordine **uguale per tutti i clienti** e dichiarava lei l'attività: chi l'aveva scriveva incassi nella cassa di chiunque. **Nessun dato uscito** tranne il punto 4: deposito foto vuoto, zero integrazioni cassa attive. Tenuti da `audit-sicurezza.mjs` (12 controlli in produzione), una prova d'attacco con la chiave pubblica e 50 test. **Sicurezza 88 → 97**, Ingegneria 96 → 97  **Poi le sette sezioni sotto l'80**, chiuse nella stessa notte: WhatsApp mostrava un numero di cellulare INVENTATO e diceva di salvarlo in rubrica e scrivergli; le stelle delle Recensioni partivano da 5 e l'AI ci credeva, quindi rispondeva da cliente contento a una recensione da una stella; due schede di Impostazioni parlavano di "rotazione token", "il cron non parte" e "approvare il sender Twilio, o in sandbox l'opt-in"; la pagina della prova scaduta prometteva che i dati restassero "al sicuro per 60 giorni", lasciando capire che poi sparissero. **OnboardingChat rimossa**: non era raggiungibile da quando e' nata il 12/06, e se il salvataggio falliva a meta' creava una seconda organizzazione. Fuori dalle sette: i **Termini di servizio** — il contratto — elencavano due piani inesistenti a due prezzi sbagliati, e i vecchi nomi erano offerti in 8 punti da tre mesi; il pannello invito prometteva "60 giorni invece di 30" quando la prova vera ne dura 90 e il codice ne aggiunge 60; il dominio **foodos.it non esiste** (NXDOMAIN) e ci sono 46 indirizzi che ci puntano. Media UI 84,6 → **85,0**, nessuna sezione sotto l'80 |
 | **2026-09-14 (sera)** | **94** | **96** | **42** | **~66** | **ARRETRATO DEGLI AUDIT CHIUSO + AUDIT DI IMPAGINAZIONE + DUE SCELTE DI STILE.** 22 commit, test 1.721 → 2.258. **Prodotto +1**: i 117 difetti "sostenuti e mai verificati" di Magazzino e Produzione sono stati passati uno per uno (52 risultavano già corretti e il documento era rimasto indietro, 59 corretti, 2 rifiutati con un fatto). Dentro c'erano cose che nessuno vedeva: il percorso del DIPENDENTE era rimasto indietro rispetto a quello del titolare — il server non scendeva nei semilavorati, saltava gli ingredienti salvati al plurale, e non aveva idempotenza (tablet che perde la rete, messaggio "riprova", stessa produzione registrata due volte e magazzino scalato due volte); "Azzera" registrava una correzione di giacenza come merce buttata; la home diceva "8.409 pezzi al banco" sommando 6 torte e 8,4 kg di gelato. **Ingegneria +1**: i difetti non verificati erano il motivo per cui il 14/09 mattina l'ingegneria non saliva, e ora sono verificati. Più: **due migration mai applicate in produzione** trovate confrontando le 37 RPC chiamate dal codice con quelle esistenti nel database (ogni vendita all'ingrosso scaricava il magazzino come una vendita al banco, con un ripiego silenzioso); **il gate pre-push non bloccava il build dal 7 set** (`| tail -5` mangiava l'esito) e la produzione è rimasta ferma tre commit indietro senza nessun segnale — corretto, più `npm run push` che verifica che il commit sia davvero online. **Impaginazione 80 → 88**: scala tipografica unica tenuta da un test (261 misure fuori scala, compresi testi a 8-10px), colonne di numeri incolonnate, 32 viste rese in due versioni e misurate. **Due scelte di stile del titolare**: le undici pagine AI usano l'intestazione di tutte le altre (via gradienti e titoli in oro: erano le uniche che sembravano generate), e il rosso del marchio si separa da quello d'allarme. **Business fermo a 42**: nessun blocco esterno tolto. Media UI 84,6 → **84,9** |
@@ -3260,3 +3261,81 @@ Quello che sposta il numero, in ordine di quanto lo sposta:
    prodotto resta una promessa non verificata;
 3. **il secondo e il terzo cliente**, che dicono se il prodotto vende o se il
    primo era un'amicizia.
+
+---
+
+## 13. 03–04/10/2026 — la nuova Analisi, e due voti per pagina invece di uno
+
+Il titolare, 03/10: «la parte di analisi per ora è fatta male e inutile …
+tutto perfetto, innovativo e intuitivo, nei dati e nella data visualization».
+E il 04/10: «appena atterro sulla pagina non devo vedere tutto sto ammasso di
+cose»; «incolonnare tutto, allineare tutto al millimetro».
+
+### 13.1 Perché due voti
+
+Il 22/09 (sezione 12) P&L, Storico e Previsioni avevano 90 e la Quadratura 93.
+Quei voti misurano la **solidità** (prove, pulizia, difetti aperti) e lo
+dicevano. Ma visti con i dati veri di Mara, il 03/10, gli audit hanno dato:
+P&L **18**, Storico **18**, Quadratura **12**, Previsioni **15**, Costi fissi
+**35**, Vendite B2B **35**. Utile all'82% con personale e costi a zero, margine
+al 100%, cali del −70% inventati, «furti interni» senza cassa, previsioni
+peggio che niente. Un voto solo nascondeva questo. Da qui in avanti le pagine
+dell'Analisi hanno **due voti**: la solidità e quanto la pagina dice il vero
+in modo che si capisca (numeri giusti + design misurato).
+
+### 13.2 I voti delle pagine dell'Analisi
+
+Design misurato con l'attrezzo verificato (stile vero, Inter, contenitore del
+Dashboard, tocco vero a 420 px; `attrezzi/foto-analisi` in `foodos-lavori`).
+«Px prima del numero» = quanto si scorre prima del primo numero, computer /
+telefono.
+
+| Pagina | Numeri giusti + design: prima → dopo | Px prima del numero, prima → dopo | Cosa lo regge |
+|---|---:|---|---|
+| **Il mese** (nuova: «quanto ho guadagnato e perché») | design 52 → **82** | 318/648 → 213/239 | la risposta grande (74.057 € prima del personale), «IVA compresa» e fatture fuori scala sotto il numero che toccano, la cascata è la tabella con l'anno prima, il perché a barre divergenti. Manca: l'utile, finché il personale non è segnato; le sedi in tre grafici; i 12 mesi col tratteggio |
+| **Conto economico** (ex P&L) | 18 → **84** | 347/507 → 213/259 | spese dalle fatture per natura, IVA dichiarata, al telefono schede, al computer colonne al pixel, «Da classificare» in ambra con il pulsante nella riga |
+| **Di che cosa sono queste spese?** (nuova) | design 55 → **80** | 347/563 → 233/221 | proposta per 74 fornitori (43% della spesa), barra che si riempie, nessun comando spento in vista. Resta al titolare: DESA, PRONTOSERVICE, GELINOVA, Vecchio Enrico |
+| **Produzione** (ex Storico) | 18 → **86** | — | margine vero (84%, non 100%), confronti solo su giorni registrati (−13%, non −70%), ricavo stimato senza IVA uguale al Mese, calendario dei giorni, sedi in pannelli uguali, i giorni falsati dalle rimanenze a 0 dichiarati (il «martedì» era un artefatto) |
+| **Quadratura** («Torna il conto?») | 12 → **80** | — | niente −100% e niente «furti» senza cassa, la risposta grande dice cosa si può dire, «Registra la cassa» accanto, apre sull'ultima settimana intera. Il tetto è il dato: zero chiusure di cassa |
+| **Previsioni** («Cosa preparo domani?») | 15 → **82** (design 62) | 240/310 → 209/201 | errore per gusto e giorno dal 36% al 24% (Carlina), forbice «8 volte su 10» che ci prende davvero (77-82% contro 10-46%), barra d'intervallo con la tacca della vetrina |
+| **Costi fissi** | 35 → **65** | — | il totale è di un mese vero ed entra nell'utile del Mese; non rifatta nel design |
+| **Vendite B2B** | 35 → **50** | — | numeri giusti (incassato vero, annullate fuori, anche in Quadratura); nessuna rifondazione finché un cliente non la usa |
+
+**Media delle sei pagine rifatte: 82.** Le quattro che esistevano già valevano in media **16** (P&L 18, Storico 18, Quadratura 12, Previsioni 15); le due nuove partivano dal design dell'audit (52 e 55).
+
+Su tutte le 18 foto finali: nessun bersaglio sotto 44 px al telefono, nessuno
+sforamento orizzontale, nessun testo tagliato, zero violazioni di contrasto,
+fra i blocchi sempre 24 px (computer) e 16 (telefono).
+
+### 13.3 La solidità (le 30 sezioni della sezione 12)
+
+Invariate dal 22/09 le 24 sezioni non toccate: media **94**, nessuna sotto 90.
+Le sei dell'Analisi hanno da oggi molte più prove (~665 nuove in 49 file, fra
+cui `ricavoStimatoUguale` che prova lo stesso numero nelle tre pagine,
+`ivaAccantoAlNumero`, `fuoriScalaAccantoAlNumero`, `caratteriInvisibili`), con
+mutazioni sui punti che decidono i numeri: la loro solidità resta **≥ 90**.
+
+### 13.4 Difetti veri trovati per strada
+
+- **IVA**: incassi senza IVA meno spese IVA compresa (le fatture di WebDesk
+  hanno l'imponibile 0 in 3.042 casi su 3.104 finché non arriva lo ZIP), e la
+  pagina diceva «senza IVA». Ora lo dice sotto il numero.
+- **Ricavo stimato**: due numeri diversi con lo stesso nome (244.452 € e
+  ~347.600 € a luglio-agosto). Deciso dal titolare: uno solo, senza IVA.
+- **Il martedì**: «vendi di più il martedì» era il buco delle rimanenze a 0
+  (141 caselle di martedì, 150 di mercoledì).
+- **«Il conto della vetrina torna»** in verde era vero per costruzione.
+- **Ingrosso annullato**: toglieva i chili e teneva i soldi (anche online).
+- **Un test che falliva solo di domenica** (77 giornate fisse della demo).
+- **12 caratteri invisibili** nei sorgenti, nati dagli strumenti di scrittura.
+
+### 13.5 Cosa resta aperto
+
+- l'utile del Mese aspetta il personale (3 persone con stipendio segnate non
+  attive) e l'imponibile aspetta gli ZIP dell'Agenzia;
+- le sedi in tre grafici uguali nel Mese, il dito sul grafico che cambia il
+  numero, i 12 mesi col tratteggio dei mesi senza dati, l'incasso giorno per
+  giorno (manca il dato);
+- il calcolo notturno delle previsioni che non serve a nessuna pagina (da
+  decidere se spegnerlo);
+- «€» che al telefono può andare a capo da solo (da misurare).
