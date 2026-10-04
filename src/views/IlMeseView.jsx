@@ -16,7 +16,11 @@
 import React, { useMemo, useState } from 'react'
 import { color as T, font, ui3 } from '../lib/theme'
 import Icon from '../components/Icon'
-import { testo } from '../components/analisi/misure'
+import { testo, intestazione, cifreInColonna } from '../components/analisi/misure'
+
+// «124.553», «−2.020»: le cifre senza l'euro, per le colonne che lo dicono in testa.
+const NF0 = new Intl.NumberFormat('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })
+const cifra = (n) => `${n < 0 && Math.round(Math.abs(n)) > 0 ? '−' : ''}${NF0.format(Math.abs(n))}`
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import {
   CoperturaDati, NumeroConConfronto, NumeroPrincipale, FilaTessere, BarraObiettivo, Cascata, IntestazioneAnalisi,
@@ -379,22 +383,25 @@ function UltimiMesi({ andamento = [], isMobile, meseScelto, onScegli }) {
       </button>
       {tabella && (
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.size.base, minWidth: 420 }}>
+          {/* L'euro sta nell'intestazione e non in ogni cella, come nelle altre
+              tabelle dell'Analisi: così la tabella sta nel telefono (prima
+              minWidth 420 in un riquadro di 356, 04/10). */}
+          <table aria-label="Gli ultimi dodici mesi, in numeri" style={{ width: '100%', borderCollapse: 'collapse', ...testo(font.size.base) }}>
             <thead>
-              <tr style={{ color: T.textSoft, textAlign: 'right' }}>
-                <th style={{ textAlign: 'left', padding: '6px 4px', fontWeight: 600 }}>Mese</th>
-                <th style={{ padding: '6px 4px', fontWeight: 600 }}>Incassi</th>
-                <th style={{ padding: '6px 4px', fontWeight: 600 }}>Spese</th>
-                <th style={{ padding: '6px 4px', fontWeight: 600 }}>Utile</th>
+              <tr>
+                <th scope="col" style={{ ...intestazione, textAlign: 'left', padding: '8px 4px' }}>Mese</th>
+                <th scope="col" style={{ ...intestazione, textAlign: 'right', padding: '8px 4px' }}>Incassi, €</th>
+                <th scope="col" style={{ ...intestazione, textAlign: 'right', padding: '8px 4px' }}>Spese, €</th>
+                <th scope="col" style={{ ...intestazione, textAlign: 'right', padding: '8px 4px' }}>Utile, €</th>
               </tr>
             </thead>
             <tbody>
               {mesi.map(m => (
-                <tr key={m.mese} style={{ borderTop: `1px solid ${T.borderSoft}`, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                  <td style={{ textAlign: 'left', padding: '6px 4px', color: T.text }}>{nomeMese(m.mese)}</td>
-                  <td style={{ padding: '6px 4px' }}>{m.conto.ricavi == null ? '—' : `${euro(m.conto.ricavi)}${m.conto.stimato ? ' *' : ''}`}</td>
-                  <td style={{ padding: '6px 4px' }}>{m.conto.spese == null ? '—' : euro(m.conto.spese)}</td>
-                  <td style={{ padding: '6px 4px', fontWeight: 700, color: m.conto.utile < 0 ? T.red : T.text }}>{m.conto.utile == null ? '—' : euro(m.conto.utile)}</td>
+                <tr key={m.mese} style={{ borderTop: `1px solid ${T.borderSoft}` }}>
+                  <td style={{ textAlign: 'left', padding: '8px 4px', color: T.text }}>{nomeMese(m.mese)}</td>
+                  <td style={{ ...cifreInColonna, padding: '8px 4px' }}>{m.conto.ricavi == null ? '—' : `${cifra(m.conto.ricavi)}${m.conto.stimato ? ' *' : ''}`}</td>
+                  <td style={{ ...cifreInColonna, padding: '8px 4px' }}>{m.conto.spese == null ? '—' : cifra(m.conto.spese)}</td>
+                  <td style={{ ...cifreInColonna, padding: '8px 4px', fontWeight: 700, color: m.conto.utile < 0 ? T.red : T.text }}>{m.conto.utile == null ? '—' : cifra(m.conto.utile)}</td>
                 </tr>
               ))}
             </tbody>
