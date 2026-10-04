@@ -13,26 +13,17 @@
 //   5. materie prime, personale e prime cost contro l'obiettivo;
 //   6. le sedi affiancate;
 //   7. gli ultimi dodici mesi.
-import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { supabase } from '../lib/supabase'
+import React, { useMemo, useState } from 'react'
 import { color as T, font, ui3 } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
-import Icon from '../components/Icon'
 import {
   CoperturaDati, NumeroConConfronto, BarraObiettivo, Cascata, IntestazioneAnalisi,
   TitoloGrafico, Riquadro, FraseInsight, ClassificaSpese,
 } from '../components/analisi'
-import { euro, quota, nomeMese, aMese, mesePrima, variazione, dataBreve } from '../lib/formatoAnalisi'
+import { euro, quota, nomeMese, aMese, variazione, dataBreve } from '../lib/formatoAnalisi'
 import { OBIETTIVI, causeDelCambio, fraseCausa, titoloCascata, motivoSenzaUtile } from '../lib/ilMese'
-import { caricaIlMese } from '../lib/ilMeseArchivio'
 import PaginaAnalisi, { SezioneAnalisi, spazioRiquadri } from '../components/analisi/PaginaAnalisi'
-import { todayLocal } from '../lib/dateLocal'
-
-const meseCorrente = () => todayLocal().slice(0, 7)
-const meseDopo = (m) => {
-  const [y, mm] = m.split('-').map(Number)
-  return mm === 12 ? `${y + 1}-01` : `${y}-${String(mm + 1).padStart(2, '0')}`
-}
+import MeseAnalisi, { useMeseAnalisi, AvvisoMeseSpostato, PulsanteTorna, meseCorrente } from '../components/analisi/MeseAnalisi'
 
 /** Le voci della riga «Da dove vengono i numeri», dal risultato della lettura. */
 export function vociCopertura(dati, { onNavigate, onClassifica } = {}) {
@@ -67,70 +58,34 @@ export function vociCopertura(dati, { onNavigate, onClassifica } = {}) {
 export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate, notify }) {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
-  // Si parte dall'ultimo mese chiuso: il mese in corso ha pochi giorni e
-  // confrontarlo con un mese intero è il difetto dei «cali del -70%».
-  const [mese, setMese] = useState(() => mesePrima(meseCorrente()))
-  const [dati, setDati] = useState(null)
-  const [caricando, setCaricando] = useState(true)
-  const [errore, setErrore] = useState(null)
   // La classificazione dei fornitori si apre qui dentro: finita, il conto
   // si rilegge da solo (`versione`), senza cambiare pagina.
   const [classifica, setClassifica] = useState(false)
   const [versione, setVersione] = useState(0)
-  // Alla prima apertura, se l'ultimo mese chiuso non ha incassi (la cassa non
-  // c'è e l'inventario si ferma prima), si mostra l'ultimo mese che li ha, e
-  // lo si dice. Una pagina che si apre su «non lo so» non risponde a niente.
-  const primoGiro = useRef(true)
-  const [spostato, setSpostato] = useState(null)
-
-  useEffect(() => {
-    if (!orgId) return
-    let vivo = true
-    setCaricando(true); setErrore(null)
-    caricaIlMese({ supabase, orgId, sedi, mese, sedeId })
-      .then(d => {
-        if (!vivo) return
-        if (primoGiro.current) {
-          primoGiro.current = false
-          if (d?.attuale?.incassi?.fonte == null) {
-            const conIncassi = (d.andamento || []).filter(m => m && m.mese < mese && m.incassi?.fonte).at(-1)
-            if (conIncassi) { setSpostato({ da: mese, a: conIncassi.mese }); setMese(conIncassi.mese); return }
-          }
-        }
-        setDati(d)
-      })
-      .catch(e => { if (vivo) setErrore(e?.message || 'lettura non riuscita') })
-      .finally(() => { if (vivo) setCaricando(false) })
-    return () => { vivo = false }
-  }, [orgId, sedeId, mese, sedi, versione])
+  // Il mese guardato, la lettura e la regola del primo mese stanno in
+  // MeseAnalisi: il Conto economico usa le stesse (audit 04/10, C9 e CE2).
+  const { mese, setMese, dati, caricando, errore, spostato } = useMeseAnalisi({ orgId, sedi, sedeId, versione })
 
   const conto = dati?.attuale?.conto || null
   const contoPrima = dati?.annoPrima?.conto || null
   const cause = useMemo(() => causeDelCambio(conto, contoPrima), [conto, contoPrima])
   const nomeSede = sedeId ? (sedi.find(s => s.id === sedeId)?.nome || 'questa sede') : 'Tutta l\'azienda'
 
-  const navMese = (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-      <button type="button" onClick={() => setMese(mesePrima(mese))} aria-label="Mese prima" style={stileFreccia}><Icon name="chevL" size={16} /></button>
-      <span style={{ fontSize: font.size.md, fontWeight: 700, color: T.text, minWidth: 128, textAlign: 'center' }}>{nomeMese(mese)}</span>
-      <button type="button" onClick={() => setMese(meseDopo(mese))} disabled={mese >= meseCorrente()} aria-label="Mese dopo" style={{ ...stileFreccia, opacity: mese >= meseCorrente() ? 0.35 : 1 }}><Icon name="chevR" size={16} /></button>
-    </div>
-  )
-
   const intestazione = (
     <IntestazioneAnalisi isMobile={isMobile}
       domanda={`Quanto hai guadagnato ${aMese(mese, { anno: false })}?`}
-      sotto={`${nomeSede} · confronto con ${nomeMese(dati?.confronto || mese)}`}
-      destra={navMese} />
+      sotto={(
+        <>
+          {`${nomeSede} · confronto con ${nomeMese(dati?.confronto || mese)}`}
+          <AvvisoMeseSpostato spostato={spostato} onVai={() => setMese(spostato.da)} />
+        </>
+      )}
+      destra={<MeseAnalisi mese={mese} onCambia={setMese} />} />
   )
 
   if (classifica) return (
     <ClassificaSpese orgId={orgId} notify={notify} isMobile={isMobile}
-      torna={(
-        <button type="button" onClick={() => setClassifica(false)} style={{ ...stileFreccia, width: 'auto', padding: '0 12px', gap: 6, alignSelf: 'flex-start', fontSize: font.size.base, fontWeight: 600 }}>
-          <Icon name="chevL" size={14} />Torna {aMese(mese, { anno: false })}
-        </button>
-      )}
+      torna={<PulsanteTorna onClick={() => setClassifica(false)}>Torna {aMese(mese, { anno: false })}</PulsanteTorna>}
       onSalvato={() => { setClassifica(false); setVersione(v => v + 1) }} />
   )
   if (caricando && !dati) return <PaginaAnalisi isMobile={isMobile}>{intestazione}<Riquadro isMobile={isMobile}><span style={{ color: T.textSoft, fontSize: font.size.base }}>Metto insieme cassa, fatture e personale…</span></Riquadro></PaginaAnalisi>
@@ -157,15 +112,6 @@ export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate
   return (
     <PaginaAnalisi isMobile={isMobile} attenuata={caricando}>
       {intestazione}
-      {spostato && spostato.a === mese && (
-        <div role="status" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: font.size.base, color: T.textMid }}>
-          <Icon name="info" size={14} />
-          <span>{nomeMese(spostato.da, { anno: false })[0].toUpperCase() + nomeMese(spostato.da, { anno: false }).slice(1)} non ha ancora gli incassi: ti mostro {nomeMese(spostato.a, { anno: false })}, l&apos;ultimo mese che li ha.</span>
-          <button type="button" onClick={() => setMese(spostato.da)} style={{ border: 'none', background: 'transparent', color: T.brand, fontWeight: 700, fontSize: font.size.base, cursor: 'pointer', padding: '4px 2px', fontFamily: 'inherit', minHeight: 32 }}>
-            Vai a {nomeMese(spostato.da, { anno: false })}
-          </button>
-        </div>
-      )}
       <CoperturaDati voci={vociCopertura(dati, { onNavigate, onClassifica: () => setClassifica(true) })} />
 
       {/* ── La risposta ─────────────────────────────────────────────── */}
@@ -264,11 +210,6 @@ export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate
       </div>
     </PaginaAnalisi>
   )
-}
-
-const stileFreccia = {
-  width: 36, height: 36, borderRadius: 8, border: `1px solid ${T.border}`, background: T.bgCard,
-  color: T.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
 }
 
 /** Come sono state divise le spese condivise, detto com'è andata davvero. */

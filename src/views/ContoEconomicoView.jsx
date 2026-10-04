@@ -10,23 +10,15 @@
 //
 // I numeri vengono dalla stessa lettura de «Il mese» (`ilMeseArchivio.js`):
 // le due pagine non possono dire due cose diverse dello stesso mese.
-import React, { useEffect, useMemo, useState } from 'react'
-import { supabase } from '../lib/supabase'
+import React, { useMemo, useState } from 'react'
 import { color as T, font, typo, tnum } from '../lib/theme'
 import useIsMobile from '../lib/useIsMobile'
 import Icon from '../components/Icon'
 import { CoperturaDati, Andamentino, IntestazioneAnalisi, TitoloGrafico, Riquadro, ClassificaSpese } from '../components/analisi'
 import PaginaAnalisi from '../components/analisi/PaginaAnalisi'
-import { euro, euroSegno, quota, nomeMese, mesePrima, variazione } from '../lib/formatoAnalisi'
-import { caricaIlMese } from '../lib/ilMeseArchivio'
+import { euro, euroSegno, quota, nomeMese, variazione } from '../lib/formatoAnalisi'
 import { vociCopertura } from './IlMeseView'
-import { todayLocal } from '../lib/dateLocal'
-
-const meseCorrente = () => todayLocal().slice(0, 7)
-const meseDopo = (m) => {
-  const [y, mm] = m.split('-').map(Number)
-  return mm === 12 ? `${y + 1}-01` : `${y}-${String(mm + 1).padStart(2, '0')}`
-}
+import MeseAnalisi, { useMeseAnalisi, AvvisoMeseSpostato, PulsanteTorna } from '../components/analisi/MeseAnalisi'
 
 /**
  * Le righe della tabella, dal conto del mese e da quello di confronto.
@@ -83,55 +75,37 @@ function dettaglioFornitori(vociA = [], vociB = []) {
 
 export default function ContoEconomicoView({ orgId, sedi = [], sedeId = null, onNavigate, notify }) {
   const isMobile = useIsMobile()
-  const [mese, setMese] = useState(() => mesePrima(meseCorrente()))
-  const [dati, setDati] = useState(null)
-  const [caricando, setCaricando] = useState(true)
-  const [errore, setErrore] = useState(null)
   // La classificazione dei fornitori si apre qui dentro: finita, il conto
   // si rilegge da solo (`versione`), senza cambiare pagina.
   const [classifica, setClassifica] = useState(false)
   const [versione, setVersione] = useState(0)
   const [aperte, setAperte] = useState(() => new Set())
-
-  useEffect(() => {
-    if (!orgId) return
-    let vivo = true
-    setCaricando(true); setErrore(null)
-    caricaIlMese({ supabase, orgId, sedi, mese, sedeId })
-      .then(d => { if (vivo) setDati(d) })
-      .catch(e => { if (vivo) setErrore(e?.message || 'lettura non riuscita') })
-      .finally(() => { if (vivo) setCaricando(false) })
-    return () => { vivo = false }
-  }, [orgId, sedeId, mese, sedi, versione])
+  // Lo stesso mese, la stessa lettura e la stessa regola del primo mese de
+  // «Il mese»: prima il conto si apriva sul mese appena chiuso, senza incassi,
+  // mentre «Il mese» andava all'ultimo che li ha (audit 04/10, CE2).
+  const { mese, setMese, dati, caricando, errore, spostato } = useMeseAnalisi({ orgId, sedi, sedeId, versione })
 
   const righe = useMemo(() => righeConto(dati?.attuale?.conto, dati?.annoPrima?.conto, dati?.andamento), [dati])
   const ricavi = dati?.attuale?.conto?.ricavi ?? null
   const apri = (k) => setAperte(s => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n })
 
-  const navMese = (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-      <button type="button" onClick={() => setMese(mesePrima(mese))} aria-label="Mese prima" style={stileFreccia}><Icon name="chevL" size={16} /></button>
-      <span style={{ fontSize: font.size.md, fontWeight: 700, color: T.text, minWidth: 128, textAlign: 'center' }}>{nomeMese(mese)}</span>
-      <button type="button" onClick={() => setMese(meseDopo(mese))} disabled={mese >= meseCorrente()} aria-label="Mese dopo" style={{ ...stileFreccia, opacity: mese >= meseCorrente() ? 0.35 : 1 }}><Icon name="chevR" size={16} /></button>
-    </div>
-  )
-
   const conto = dati?.attuale?.conto
   if (classifica) return (
     <ClassificaSpese orgId={orgId} notify={notify} isMobile={isMobile}
-      torna={(
-        <button type="button" onClick={() => setClassifica(false)} style={{ ...stileFreccia, width: 'auto', padding: '0 12px', gap: 6, alignSelf: 'flex-start', fontSize: font.size.base, fontWeight: 600 }}>
-          <Icon name="chevL" size={14} />Torna al conto
-        </button>
-      )}
+      torna={<PulsanteTorna onClick={() => setClassifica(false)}>Torna al conto</PulsanteTorna>}
       onSalvato={() => { setClassifica(false); setVersione(v => v + 1) }} />
   )
   return (
     <PaginaAnalisi isMobile={isMobile} attenuata={caricando && !!dati}>
       <IntestazioneAnalisi isMobile={isMobile}
         domanda={`Il conto di ${nomeMese(mese)}`}
-        sotto={`Voce per voce, senza IVA, contro ${nomeMese(dati?.confronto || mese)}.`}
-        destra={navMese} />
+        sotto={(
+          <>
+            {`Voce per voce, senza IVA, contro ${nomeMese(dati?.confronto || mese)}.`}
+            <AvvisoMeseSpostato spostato={spostato} onVai={() => setMese(spostato.da)} />
+          </>
+        )}
+        destra={<MeseAnalisi mese={mese} onCambia={setMese} />} />
       {errore && <Riquadro isMobile={isMobile}><span style={{ color: T.red, fontSize: font.size.base }}>Non sono riuscito a leggere i dati: {errore}</span></Riquadro>}
       {!dati && !errore && <Riquadro isMobile={isMobile}><span style={{ color: T.textSoft, fontSize: font.size.base }}>Metto insieme cassa, fatture e personale…</span></Riquadro>}
       {dati && conto && (
@@ -193,10 +167,6 @@ export default function ContoEconomicoView({ orgId, sedi = [], sedeId = null, on
 
 const cella = { padding: '9px 8px', borderBottom: `1px solid ${T.borderSoft}`, whiteSpace: 'nowrap' }
 const cellaNum = { ...cella, textAlign: 'right' }
-const stileFreccia = {
-  width: 36, height: 36, borderRadius: 8, border: `1px solid ${T.border}`, background: T.bgCard,
-  color: T.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-}
 
 /** I numeri di una riga, uguali nella tabella e nella scheda del telefono. */
 function numeriRiga(r, ricavi) {
