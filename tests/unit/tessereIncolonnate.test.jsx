@@ -149,6 +149,14 @@ describe('Le tessere affiancate sono incolonnate', () => {
     expect(t.children[3].style.minHeight).toBe('20px')
   })
 
+  it('`senzaConfronto={null}` dalla pagina vuol dire riga vuota anche con il termine di confronto', () => {
+    // Trovato il 04/10 unendo le pagine: il null esplicito diventava «nessun confronto».
+    const { container } = render(<NumeroConConfronto etichetta="Venduto" valore="1,5 kg" rispettoA="sulla settimana prima" senzaConfronto={null} />)
+    const riga = container.firstChild.children[3]
+    expect(riga.textContent).toBe('')
+    expect(riga.style.minHeight).toBe('20px')
+  })
+
   it('una tessera che non confronta (le Previsioni) ha la riga vuota, alta uguale', () => {
     const { container } = render(<NumeroConConfronto etichetta="Di solito sbaglio" valore="±26% per gusto" />)
     const riga = container.firstChild.children[3]

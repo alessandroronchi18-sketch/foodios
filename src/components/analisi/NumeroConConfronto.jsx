@@ -114,7 +114,7 @@ export default function NumeroConConfronto({
     // pagina dice perché manca): le Previsioni non confrontano, e tre volte
     // «nessun confronto» sarebbe rumore. La riga c'è comunque, alta uguale.
     : <RigaConfronto variazione={variazione} rispettoA={rispettoA} valoreConfronto={valoreConfronto}
-      senzaConfronto={senzaConfronto || (rispettoA ? '' : null)} stile={sopra} />
+      senzaConfronto={senzaConfronto === null ? null : (senzaConfronto || (rispettoA ? '' : null))} stile={sopra} />
 
   return (
     <div style={{

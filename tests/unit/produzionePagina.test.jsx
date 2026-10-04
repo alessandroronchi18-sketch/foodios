@@ -213,7 +213,9 @@ describe('La pagina: tessere e vetrina sui conti veri', () => {
     apri()
     await waitFor(() => expect(testo()).toMatch(/Ricavo stimato210\s?€/), { timeout: 5000 })
     // 210 € − 6 kg × 7,33 €/kg = 166 €, il 79% del ricavo.
-    expect(tessera('Margine stimato')).toBe('Margine stimato166 €79% del ricavo')
+    // Senza il periodo prima la riga del confronto lo dice (pezzo comune, 04/10:
+    // la riga c'è sempre, così le tessere affiancate restano incolonnate).
+    expect(tessera('Margine stimato')).toBe('Margine stimato166 €nessun confronto79% del ricavo')
   })
 
   it('lo scarto mai scritto: «non registrato», non zero', async () => {
@@ -226,7 +228,7 @@ describe('La pagina: tessere e vetrina sui conti veri', () => {
   it('con lo scarto scritto mostra i chili e la quota del prodotto', async () => {
     apri({ rows: [NOCCIOLA[0], { ...NOCCIOLA[1], scarto_g: 600 }, NOCCIOLA[2]] })
     await waitFor(() => expect(testo()).toMatch(/Ricavo stimato/), { timeout: 5000 })
-    expect(tessera('Scarto')).toBe('Scarto0,6 kg10% del prodotto')
+    expect(tessera('Scarto')).toBe('Scarto0,6 kgnessun confronto10% del prodotto')
   })
 
   it('il confronto: freccia, percentuale, «sul periodo prima» e il valore di prima', async () => {
@@ -748,6 +750,9 @@ describe('Il calendario da muro dei giorni registrati', () => {
     apri()
     await waitFor(() => expect(testo()).toMatch(/Ricavo stimato210/), { timeout: 5000 })
     expect(screen.queryByRole('grid')).toBeNull()
+    // «Vedi i giorni» sta nella copertura, che all'apertura è chiusa (04/10, C1):
+    // prima si apre la riga, poi il pulsante.
+    fireEvent.click(within(screen.getByRole('region', { name: 'Da dove vengono i numeri' })).getAllByRole('button')[0])
     fireEvent.click(screen.getByRole('button', { name: 'Vedi i giorni' }))
     const grid = screen.getByRole('grid', { name: 'Giorni registrati di agosto 2026' })
     expect(within(grid).getAllByRole('gridcell').map(c => c.getAttribute('aria-label'))).toEqual(['03/08: registrato', '04/08: registrato'])

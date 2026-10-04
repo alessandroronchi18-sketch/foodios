@@ -19,7 +19,7 @@
 // 1 (quadraturaSenzaCassa, quadraturaNumeriEGiorni, …).
 import React from 'react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor, cleanup, fireEvent } from '@testing-library/react'
+import { render, screen, waitFor, cleanup, fireEvent, within } from '@testing-library/react'
 
 const LUN = '2026-09-07'
 // Domenica restano 400 g; lunedì si fanno 1.000 g e ne restano 600 (venduti
@@ -150,6 +150,8 @@ describe('La pagina si apre con la domanda, la settimana in una riga e la copert
     const riga = screen.getByRole('region', { name: 'Da dove vengono i numeri' })
     expect(riga.textContent).toMatch(/2 giorni su 7 con l'inventario/)
     expect(riga.textContent).toMatch(/Manca: la cassa: nessuna chiusura in questa settimana/)
+    // La copertura all'apertura è chiusa (04/10, C1): si apre, poi «Registra la cassa».
+    fireEvent.click(within(riga).getAllByRole('button')[0])
     fireEvent.click(screen.getByRole('button', { name: 'Registra la cassa' }))
     expect(onNavigate).toHaveBeenCalledWith('chiusura')
   })
@@ -227,8 +229,9 @@ describe('La tessera grande', () => {
     expect(testo()).toMatch(/Venduto1,5 kg\+50%sulla settimana prima\(1,0 kg\)meglio/)
     cleanup()
     render(<Risposta kpi={k} kpiPrev={{ ...base, retailKg: 1, giorniInventario: 7 }} euroKg={33.33} />)
-    // Il numero e subito la riga sotto: nessun confronto in mezzo.
-    expect(testo()).toMatch(/Venduto1,5 kgdall'inventario/)
+    // Con giorni diversi il confronto non si fa, e la riga lo dice (pezzo
+    // comune, 04/10: la riga del confronto c'è sempre, tessere incolonnate).
+    expect(testo()).toMatch(/Venduto1,5 kgnessun confrontodall'inventario/)
   })
   it('e la cassa solo se ha gli stessi giorni con la cassa', () => {
     const k = { ...base, driftEur: -3, driftPct: -6 }
@@ -236,7 +239,7 @@ describe('La tessera grande', () => {
     expect(testo()).toMatch(/Cassa47 €−50%sulla settimana prima/)
     cleanup()
     render(<Risposta kpi={k} kpiPrev={{ ...base, cassaEffettiva: 94, giorniCassa: 7 }} euroKg={33.33} />)
-    expect(testo()).toMatch(/Cassa47 €incassato in 2 giorni/)
+    expect(testo()).toMatch(/Cassa47 €nessun confrontoincassato in 2 giorni/)
   })
 
   it('senza la cassa: «non si può dire», col motivo', () => {
