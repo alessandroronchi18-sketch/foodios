@@ -310,6 +310,30 @@ describe('ClassificaSpese: le due liste sulla stessa griglia (audit 04/10, CS2)'
   })
 })
 
+// 04/10, prima foto dell'unione (coordinatore): al computer il primo numero
+// delle spese era sceso da 347 a 376 px, perché la riga delle fatture fuori
+// scala (82 px) stava sopra l'elenco che si usa. Ora l'elenco viene prima, e
+// la fattura fuori scala si dice nella riga del suo fornitore, accanto al
+// numero che tocca (ANALISI_DESIGN §6); la riga con i comandi sta sotto.
+describe('ClassificaSpese: prima l\'elenco, le fatture fuori scala nella riga del fornitore', () => {
+  it('l\'elenco dei fornitori viene prima della riga delle fatture fuori scala', async () => {
+    monta(fintoDb(datiMara()))
+    await screen.findByRole('list', { name: 'Fornitori senza voce' })
+    const elenco = lista()
+    const fuoriScala = screen.getByText(/Una fattura vale 33 volte/)
+    expect(elenco.compareDocumentPosition(fuoriScala) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('la riga della GECKO dice che ha una fattura fuori scala, con l\'importo e la data', async () => {
+    monta(fintoDb(datiMara()))
+    await screen.findByRole('list', { name: 'Fornitori senza voce' })
+    const gecko = righe().find(li => /GECKO/.test(li.textContent))
+    expect(gecko.textContent).toMatch(/fattura da 86\.651\u00a0€ del 10\/07\/2026 fuori scala: forse un investimento/)
+    const desa = righe().find(li => /DESA/.test(li.textContent))
+    expect(desa.textContent).not.toMatch(/fuori scala/)
+  })
+})
+
 describe('ClassificaSpese: un pulsante spento si vede spento (audit 04/10, CS1)', () => {
   it('grigio, non bordeaux sbiadito', async () => {
     const db = fintoDb({

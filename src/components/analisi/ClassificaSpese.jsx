@@ -171,7 +171,10 @@ function FattureFuoriScala({ eccezionali, disponibili, aperta, onApri, isMobile,
   )
 }
 
-function RigaFornitore({ g, scelta, spuntato, onScelta, onSpunta, isMobile }) {
+// «86.651 €» senza andare a capo fra il numero e l'euro.
+const euroUnito = (n) => (euro(n) || '').replace(' €', '\u00a0€')
+
+function RigaFornitore({ g, scelta, spuntato, onScelta, onSpunta, isMobile, fuoriScala = [] }) {
   const voceScelta = scelta !== undefined ? scelta : (g.voce || g.proposta?.categoria || null)
   const p = g.proposta
   const mostraProposta = !g.voce && p
@@ -196,6 +199,13 @@ function RigaFornitore({ g, scelta, spuntato, onScelta, onSpunta, isMobile }) {
       <div style={{ fontSize: FS.sm, color: mostraProposta && p.certezza === 'media' ? T.amberDark : T.textSoft, lineHeight: 1.4, marginTop: 2 }}>
         {nota}
       </div>
+      {/* La fattura fuori scala si dice qui, accanto al numero che tocca
+          (ANALISI_DESIGN §6): prima stava in una riga a sé sopra l'elenco. */}
+      {fuoriScala.map(f => (
+        <div key={f.id || f.numero} style={{ fontSize: FS.sm, color: T.amberDark, lineHeight: 1.4, marginTop: 2 }}>
+          {`fattura da ${euroUnito(f.importo)} del ${dataLunga(f.data)} fuori scala: forse un investimento`}
+        </div>
+      ))}
     </div>
   )
   const importo = (
@@ -280,6 +290,11 @@ export default function ClassificaSpese({ orgId, notify, isMobile = false, onSal
     () => fattureEccezionali(fatture, { categoriePerFornitore: mappa.categoriePerFornitore, dal: dal12 }),
     [fatture, mappa, dal12],
   )
+  const fuoriScalaPer = useMemo(() => {
+    const m = new Map()
+    for (const f of eccezionali) m.set(f.chiave, [...(m.get(f.chiave) || []), f])
+    return m
+  }, [eccezionali])
 
   // Le proposte sicure partono già spuntate; si rifà quando cambia l'elenco
   // dei fornitori senza voce (dopo un salvataggio non si rispunta niente di
@@ -429,6 +444,35 @@ export default function ClassificaSpese({ orgId, notify, isMobile = false, onSal
       {intestazione}
       <CoperturaDati voci={copertura} />
 
+
+      <Riquadro isMobile={isMobile}>
+        <TitoloGrafico
+          titolo={senzaVoce.length
+            ? `${nInt(senzaVoce.length)} fornitori senza voce: ${euro(spesaSenza)} negli ultimi 12 mesi`
+            : 'Tutti i fornitori hanno la loro voce'}
+          sottotitolo={senzaVoce.length ? 'Dal più pesante. Controlla la voce proposta, cambiala se serve, poi salva le righe spuntate.' : 'Le fatture nuove entrano da sole nella voce del loro fornitore.'}
+          destra={senzaVoce.length && !isMobile ? barraSalva : null} />
+        {senzaVoce.length > 0 && isMobile && <div style={{ marginBottom: 8 }}>{barraSalva}</div>}
+        {senzaVoce.length > 0 && (
+          <ul style={{ listStyle: 'none', margin: 0, padding: 0 }} aria-label="Fornitori senza voce">
+            {visibili.map(g => (
+              <RigaFornitore key={g.chiave} g={g} isMobile={isMobile} fuoriScala={fuoriScalaPer.get(g.chiave)}
+                scelta={scelte.has(g.chiave) ? scelte.get(g.chiave) : undefined}
+                spuntato={spuntati.has(g.chiave)}
+                onScelta={(id) => cambiaScelta(g, id)}
+                onSpunta={(si) => spunta(g, si)} />
+            ))}
+          </ul>
+        )}
+        {senzaVoce.length > quanti && (
+          <div style={{ marginTop: 10 }}>
+            <Pulsante onClick={() => setQuanti(q => q + PASSO)}>{`Mostra altri ${nInt(Math.min(PASSO, senzaVoce.length - quanti))} (ne restano ${nInt(senzaVoce.length - quanti)})`}</Pulsante>
+          </div>
+        )}
+      </Riquadro>
+
+      {/* Dopo l'elenco che si usa: prima stavano sopra, e al computer
+          spingevano giù il primo numero da 347 a 376 px (04/10). */}
       {eccezionali.length > 0 && (
         <FattureFuoriScala eccezionali={eccezionali} disponibili={eccezioniDisponibili} isMobile={isMobile}
           aperta={fuoriScalaAperte} onApri={() => setFuoriScalaAperte(v => !v)}>
@@ -459,32 +503,6 @@ export default function ClassificaSpese({ orgId, notify, isMobile = false, onSal
         </FattureFuoriScala>
       )}
 
-      <Riquadro isMobile={isMobile}>
-        <TitoloGrafico
-          titolo={senzaVoce.length
-            ? `${nInt(senzaVoce.length)} fornitori senza voce: ${euro(spesaSenza)} negli ultimi 12 mesi`
-            : 'Tutti i fornitori hanno la loro voce'}
-          sottotitolo={senzaVoce.length ? 'Dal più pesante. Controlla la voce proposta, cambiala se serve, poi salva le righe spuntate.' : 'Le fatture nuove entrano da sole nella voce del loro fornitore.'}
-          destra={senzaVoce.length && !isMobile ? barraSalva : null} />
-        {senzaVoce.length > 0 && isMobile && <div style={{ marginBottom: 8 }}>{barraSalva}</div>}
-        {senzaVoce.length > 0 && (
-          <ul style={{ listStyle: 'none', margin: 0, padding: 0 }} aria-label="Fornitori senza voce">
-            {visibili.map(g => (
-              <RigaFornitore key={g.chiave} g={g} isMobile={isMobile}
-                scelta={scelte.has(g.chiave) ? scelte.get(g.chiave) : undefined}
-                spuntato={spuntati.has(g.chiave)}
-                onScelta={(id) => cambiaScelta(g, id)}
-                onSpunta={(si) => spunta(g, si)} />
-            ))}
-          </ul>
-        )}
-        {senzaVoce.length > quanti && (
-          <div style={{ marginTop: 10 }}>
-            <Pulsante onClick={() => setQuanti(q => q + PASSO)}>{`Mostra altri ${nInt(Math.min(PASSO, senzaVoce.length - quanti))} (ne restano ${nInt(senzaVoce.length - quanti)})`}</Pulsante>
-          </div>
-        )}
-      </Riquadro>
-
       {conVoce.length > 0 && (
         <Riquadro isMobile={isMobile}>
           <TitoloGrafico
@@ -495,7 +513,7 @@ export default function ClassificaSpese({ orgId, notify, isMobile = false, onSal
           {mostraClassificati && (
             <ul style={{ listStyle: 'none', margin: '10px 0 0', padding: 0 }} aria-label="Fornitori con la voce">
               {conVoce.map(g => (
-                <RigaFornitore key={g.chiave} g={g} isMobile={isMobile}
+                <RigaFornitore key={g.chiave} g={g} isMobile={isMobile} fuoriScala={fuoriScalaPer.get(g.chiave)}
                   scelta={scelte.has(g.chiave) ? scelte.get(g.chiave) : undefined}
                   spuntato={spuntati.has(g.chiave)}
                   onScelta={(id) => cambiaScelta(g, id)}
