@@ -370,7 +370,10 @@ export const VISTE_FUORI_MENU = {
   haccp: { label: 'HACCP', gruppo: 'Azienda' },
   'inventario-gusti': { label: 'Produzione', gruppo: 'Oggi' },
   giornaliero: { label: 'Produzione', gruppo: 'Oggi' },
-  'quadratura-inventario': { label: 'Torna il conto?', gruppo: 'Analisi', labelBreve: 'Quadratura' },
+  // Decisione del titolare, 04/10/2026: nel menu e nella ricerca si chiama
+  // «Quadratura» (parola di mestiere); la pagina si apre con la sua domanda,
+  // «Torna il conto?».
+  'quadratura-inventario': { label: 'Quadratura', gruppo: 'Analisi' },
   // ── Le cinque schermate che si aprono DA Fornitori ───────────────────────
   //
   // Richiesta del titolare, 19/09/2026: le tre tessere in cima («Da pagare»,

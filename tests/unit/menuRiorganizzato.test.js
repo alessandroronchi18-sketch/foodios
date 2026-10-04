@@ -334,3 +334,17 @@ describe('il racconto di cosa è cambiato', () => {
     }
   })
 })
+
+// Decisione del titolare, 04/10/2026: la Quadratura si chiama «Quadratura»
+// nel menu (la scheda dentro Storico) e fuori dal menu (ricerca, riga sopra
+// il titolo); la pagina si apre con la domanda «Torna il conto?».
+describe('Il nome della Quadratura', () => {
+  it('«Quadratura» nella scheda e fra le viste fuori menu, mai «Torna il conto?»', async () => {
+    const { VISTE_FUORI_MENU, costruisciMenu, schedeDiVista } = await import('../../src/lib/menuFoodos.js')
+    expect(VISTE_FUORI_MENU['quadratura-inventario'].label).toBe('Quadratura')
+    const menu = costruisciMenu({ metodoInventario: true, sedeDiProduzione: true })
+    const scheda = schedeDiVista('quadratura-inventario', menu).schede.find(t => t.id === 'quadratura-inventario')
+    expect(scheda.label).toBe('Quadratura')
+    expect(JSON.stringify(VISTE_FUORI_MENU) + JSON.stringify(menu)).not.toMatch(/Torna il conto/)
+  })
+})
