@@ -47,14 +47,23 @@ DATI = {
 }
 
 describe('La tabella del conto al computer', () => {
-  it('ogni riga è alta uguale, 44 px più il filo, senza imbottitura verticale (CE4)', async () => {
+  // Dalla sera del 04/10 il conto al computer è la tabella comune
+  // dell'Analisi (TabellaAnalisi): celle alte 44 col filo dentro, la stessa
+  // per il Conto e le Previsioni. Prima 45 (44 + filo) scritte qui a mano.
+  it('ogni riga è alta uguale, 44 px col filo, anche quelle che si aprono (CE4)', async () => {
     render(<ContoEconomicoView orgId="o1" sedi={[]} onNavigate={() => {}} />)
     await waitFor(() => expect(document.querySelectorAll('tbody tr').length).toBeGreaterThan(4))
-    const celle = [...document.querySelectorAll('tbody tr td')]
-    // 44 px di riga più 1 di filo sotto, che con box-sizing border-box sta dentro la cella.
-    expect(new Set(celle.map(td => td.style.height))).toEqual(new Set(['45px']))
-    expect(celle.filter(td => td.style.paddingTop && td.style.paddingTop !== '0px')).toEqual([])
-    // Le apribili e le altre hanno lo stesso passo: nessuna eccezione.
+    const celle = [...document.querySelectorAll('tbody tr > td, tbody tr > th')]
+    expect(new Set(celle.map(c => c.style.height))).toEqual(new Set(['44px']))
+    expect(new Set(celle.map(c => c.style.boxSizing))).toEqual(new Set(['border-box']))
+  })
+
+  it('le intestazioni in frase normale, a destra sopra i numeri, con l\'euro in testa (C5)', async () => {
+    render(<ContoEconomicoView orgId="o1" sedi={[]} onNavigate={() => {}} />)
+    await waitFor(() => expect(document.querySelector('thead')).toBeTruthy())
+    const th = [...document.querySelectorAll('thead th')]
+    expect(th.every(t => t.style.textTransform !== 'uppercase')).toBe(true)
+    expect(th.filter(t => /, €$/.test(t.textContent)).every(t => t.style.textAlign === 'right')).toBe(true)
   })
 
   it('il pulsante che apre una voce è alto quanto la riga (CE5)', async () => {

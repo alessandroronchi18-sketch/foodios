@@ -126,13 +126,15 @@ describe('Il conto, voce per voce', () => {
     render(<ContoEconomicoView orgId="o1" sedi={[]} onNavigate={() => {}} />)
     // Il titolo era «Il conto di agosto 2026»; dal 04/10 è una domanda (CE9).
     await waitFor(() => expect(testo()).toMatch(new RegExp(`Dove sono andati i soldi ${aMese(M, { anno: false })}\\?`)))
+    // Dalla sera del 04/10 è la tabella comune dell'Analisi (TabellaAnalisi):
+    // l'euro sta nell'intestazione, non in ogni cella.
     const righe = [...document.querySelectorAll('tbody tr')].map(r => r.textContent)
-    expect(righe.find(r => r.startsWith('Incassi stimati'))).toMatch(/90\.000 €80\.000 €\+10\.000 € · meglio/)
-    expect(righe.find(r => /Materie prime/.test(r))).toMatch(/−15\.000 €−13\.000 €\+2\.000 € · peggio/)
+    expect(righe.find(r => r.startsWith('Incassi stimati'))).toMatch(/90\.00080\.000\+10\.000 · meglio/)
+    expect(righe.find(r => /Materie prime/.test(r))).toMatch(/−15\.000−13\.000\+2\.000 · peggio/)
     expect(righe.find(r => r.startsWith('Personale'))).toMatch(/non lo so/)
     expect(righe.find(r => r.startsWith('Utile'))).toMatch(/non lo so/)
-    // Nessuna riga «−0 €»: le voci a zero in tutti e due i mesi non ci sono.
-    expect(righe.some(r => /\u22120 €/.test(r))).toBe(false)
+    // Nessuna riga «−0»: le voci a zero in tutti e due i mesi non ci sono.
+    expect(righe.some(r => /\u22120(?![.,\d])/.test(r))).toBe(false)
   })
 
   it('una voce di spesa si apre sui fornitori', async () => {
@@ -140,7 +142,10 @@ describe('Il conto, voce per voce', () => {
     render(<ContoEconomicoView orgId="o1" sedi={[]} />)
     await waitFor(() => expect(testo()).toMatch(/Dove sono andati i soldi/))
     await act(async () => { fireEvent.click([...document.querySelectorAll('button')].find(b => /Materie prime/.test(b.textContent))) })
-    expect(testo()).toMatch(/DESA SRL7\.500 €6\.500 €\+1\.000 €/)
+    // I fornitori sono righe della stessa tabella, sotto la voce: i loro numeri
+    // cadono nelle stesse colonne (spese col meno, euro in testa).
+    const desa = [...document.querySelectorAll('tbody tr')].find(r => /DESA SRL/.test(r.textContent))
+    expect(desa.textContent).toMatch(/DESA SRL−7\.500−6\.500\+1\.000/)
   })
 })
 

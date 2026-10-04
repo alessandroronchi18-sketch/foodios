@@ -70,8 +70,9 @@ describe('Il Conto si apre sullo stesso mese de «Il mese» (CE2)', () => {
     await waitFor(() => expect(avviso()?.textContent).toMatch(breve))
     expect(avviso().getAttribute('title')).toMatch(/non ha ancora gli incassi: ti mostro/)
     expect(document.querySelector('[aria-label="Mese guardato"]').textContent).toMatch(new RegExp(nomeMese(M1)))
-    // Il conto del mese mostrato ha gli incassi, non «non lo so».
-    await waitFor(() => expect(testo()).toMatch(/90\.000 €/))
+    // Il conto del mese mostrato ha gli incassi, non «non lo so» (nella
+    // tabella l'euro sta nell'intestazione: «90.000»).
+    await waitFor(() => expect(testo()).toMatch(/Incassi stimati90\.000/))
   })
 
   it('«Il mese» fa lo stesso, con la stessa riga', async () => {

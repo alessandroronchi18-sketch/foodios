@@ -60,9 +60,9 @@ describe('«Da classificare» nel conto, al computer (CE3)', () => {
     render(<ContoEconomicoView orgId="o1" sedi={[]} onNavigate={() => {}} />)
     await waitFor(() => expect(rigaDi(/Da classificare/)).toBeTruthy())
     const r = rigaDi(/Da classificare/)
-    expect(r.textContent).toMatch(/\+4\.417 €/)
+    expect(r.textContent).toMatch(/\+4\.417/)
     expect(r.textContent).not.toMatch(/peggio|meglio/)
-    const cella = [...r.querySelectorAll('td')].find(td => /\+4\.417 €/.test(td.textContent))
+    const cella = [...r.querySelectorAll('td')].find(td => /\+4\.417/.test(td.textContent))
     expect(cella.style.color).not.toBe(T.red)
     expect(cella.style.color).toBe(T.amberDark)
   })
@@ -71,7 +71,7 @@ describe('«Da classificare» nel conto, al computer (CE3)', () => {
     DATI = conDati()
     render(<ContoEconomicoView orgId="o1" sedi={[]} />)
     await waitFor(() => expect(rigaDi(/Materie prime/)).toBeTruthy())
-    expect(rigaDi(/Materie prime/).textContent).toMatch(/\+2\.000 € · peggio/)
+    expect(rigaDi(/Materie prime/).textContent).toMatch(/\+2\.000 · peggio/)
   })
 
   it('nella riga c\'è «Classifica», che apre la schermata delle voci', async () => {

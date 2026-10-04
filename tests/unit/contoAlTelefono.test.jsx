@@ -123,8 +123,9 @@ describe('Al computer la tabella resta (intorno a CE1)', () => {
     DATI = conDati()
     render(<ContoEconomicoView orgId="o1" sedi={[]} />)
     await waitFor(() => expect(document.querySelector('table')).toBeTruthy())
+    // La tabella comune dell'Analisi: l'euro nell'intestazione (sera del 04/10).
     const intestazioni = [...document.querySelectorAll('thead th')].map(t => t.textContent)
-    expect(intestazioni).toEqual(['Voce', nomeMese(M, { anno: false }), nomeMese(MA), 'Differenza', 'Sugli incassi', '12 mesi'])
+    expect(intestazioni).toEqual(['Voce', `${nomeMese(M, { anno: false })}, €`, `${nomeMese(MA)}, €`, 'differenza, €', '% incassi', '12 mesi'])
     expect(schede()).toEqual([])
   })
 })
