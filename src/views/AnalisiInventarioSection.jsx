@@ -18,7 +18,7 @@
 import React, { useRef } from 'react'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { color as T, font, radius as R } from '../lib/theme'
-import { CoperturaDati, IntestazioneAnalisi, TitoloGrafico } from '../components/analisi'
+import { CoperturaDati, IntestazioneAnalisi, TitoloGrafico, Riquadro, FraseInsight } from '../components/analisi'
 import Icon from '../components/Icon'
 import { useContiProduzione } from './produzione/useContiProduzione'
 import { vociCopertura } from './produzione/copertura'
@@ -32,6 +32,7 @@ import GraficoVenduto from './produzione/GraficoVenduto'
 import GiornoSettimana from './produzione/GiornoSettimana'
 import SediAffiancate from './produzione/SediAffiancate'
 import TabellaGusti from './produzione/TabellaGusti'
+import { frasiProduzione } from './produzione/frasi'
 
 /**
  * @param {Object} props
@@ -99,6 +100,7 @@ export default function AnalisiInventarioSection({
     azioni: { inventario: onBack, gusti: vai(refGusti), caselle: vai(refCaselle) },
   })
   const daSistemare = c.riassunto.n > 0 || c.senzaRicetta.length > 0 || c.collegati.length > 0
+  const frasi = frasiProduzione({ righe: c.righeTabella, senzaRicetta: { n: c.senzaRicetta.length, euroStimati: c.euroSenzaRicetta } })
 
   return (
     <div style={{ marginBottom: 28 }}>
@@ -110,6 +112,18 @@ export default function AnalisiInventarioSection({
         copertura={c.copertura} scartoRegistrato={c.scartoRegistrato}
         senzaRicetta={{ n: c.senzaRicetta.length, euroStimati: c.euroSenzaRicetta }}
         nGusti={c.totali.nConVendita} isMobile={isMobile} isTablet={isTablet} />
+
+      {frasi.length > 0 && (
+        <Riquadro isMobile={isMobile} stile={{ marginBottom: 14, paddingBottom: isMobile ? 8 : 10 }}>
+          <TitoloGrafico titolo="Dove guardare" sottotitolo="Le cose che si notano in questo periodo, col numero dietro." />
+          {frasi.map(f => (
+            <FraseInsight key={f.id} verso={f.verso}
+              onClick={f.azione === 'gusti' ? vai(refGusti) : null} etichettaAzione="Collega">
+              {f.testo}
+            </FraseInsight>
+          ))}
+        </Riquadro>
+      )}
 
       <GraficoVenduto rows={rows} da={dateFrom} a={dateTo} registrati={c.copertura} riassunto={c.riassunto}
         isMobile={isMobile} stile={{ marginBottom: 14 }} />

@@ -496,3 +496,68 @@ describe('La pagina: sedi e tabella', () => {
     expect(nomi()).toEqual(['NOCCIOLA', 'AMARENA'])
   })
 })
+
+// ── 5. Dove guardare: le frasi ─────────────────────────────────────────────
+const { frasiProduzione } = await import('../../src/views/produzione/frasi.js')
+const { righeEsportazione } = await import('../../src/views/produzione/esporta.js')
+
+describe('Le frasi dicono dove guardare, solo quando i numeri le reggono', () => {
+  const g = (gusto, vendKg, extra = {}) => ({ gusto, vendKg, prodKg: vendKg, giorniVetrina: 1, margPct: null, margine: null, ricavo: 0, fcKg: null, ...extra })
+  const dieci = 'ABCDEFGHIJ'.split('').map((x, i) => g(x, 100 - i * 5))
+
+  it('il gusto che resta in vetrina 3 giorni o più, e gli altri', () => {
+    const f = frasiProduzione({ righe: [g('PISTACCHIO', 20, { giorniVetrina: 4.2 }), g('MENTA', 30, { giorniVetrina: 3 }), g('FIORDILATTE', 50, { giorniVetrina: 0.8 })] })
+    expect(f.find(x => x.id === 'vetrina').testo).toBe('PISTACCHIO resta in vetrina 4,2 giorni in media: se ne fa più di quanto se ne vende. Anche MENTA')
+  })
+  it('sotto i 3 giorni, o con meno di 5 kg venduti, niente frase', () => {
+    expect(frasiProduzione({ righe: [g('A', 20, { giorniVetrina: 2.9 })] }).find(x => x.id === 'vetrina')).toBeUndefined()
+    expect(frasiProduzione({ righe: [g('A', 4, { giorniVetrina: 9 })] }).find(x => x.id === 'vetrina')).toBeUndefined()
+  })
+  it('i primi cinque gusti, con la quota del venduto', () => {
+    // 100+95+90+85+80 = 450 su 775.
+    expect(frasiProduzione({ righe: dieci }).find(x => x.id === 'primi').testo)
+      .toBe('I cinque gusti più venduti fanno il 58,1% del venduto (450 kg): A, B, C, D e E')
+    expect(frasiProduzione({ righe: dieci.slice(0, 5) }).find(x => x.id === 'primi')).toBeUndefined()
+  })
+  it('chi rende meno, solo se è almeno 5 punti sotto la media', () => {
+    const m = (gusto, margPct) => g(gusto, 10, { ricavo: 300, margine: 3 * margPct, margPct, fcKg: 9.1 })
+    const f = frasiProduzione({ righe: [m('A', 85), m('B', 84), m('MENTA', 70)] })
+    expect(f.find(x => x.id === 'margine').testo).toBe('MENTA rende il 70% del ricavo, il meno di tutti (la media è 79,7%): costa 9,10 € al kg')
+    expect(frasiProduzione({ righe: [m('A', 85), m('B', 84), m('C', 82)] }).find(x => x.id === 'margine')).toBeUndefined()
+  })
+  it('il ricavo che resta fuori, con l\'azione per collegare', () => {
+    const f = frasiProduzione({ righe: [], senzaRicetta: { n: 10, euroStimati: 34823.4 } })
+    expect(f[0]).toEqual({ id: 'senzaRicetta', verso: 'azione', azione: 'gusti', testo: '10 gusti senza ricetta valgono circa 34.823 € di ricavo che qui non entra: collegandoli alla ricetta entrano nel conto' })
+    expect(frasiProduzione({ righe: [], senzaRicetta: { n: 1, euroStimati: 210 } })[0].testo).toMatch(/^1 gusto senza ricetta vale circa 210 €/)
+  })
+  it('al massimo quattro', () => {
+    const tutte = frasiProduzione({ righe: [...dieci, g('Z', 20, { giorniVetrina: 5 })], senzaRicetta: { n: 1, euroStimati: 10 } })
+    expect(tutte.length).toBeLessThanOrEqual(4)
+  })
+})
+
+describe('Il file Excel', () => {
+  const totali = { prod: 6, vend: 7, scarto: 0, ricavo: 210, fc: 44, margine: 166, margPct: 79.0476 }
+  const riga = { gusto: 'NOCCIOLA', prodKg: 6, vendKg: 7, scartoKg: 0, ricavoKg: 30, ricavo: 210, fcKg: 7.3333, fc: 44, margine: 166, margPct: 79.0476 }
+  it('una riga per gusto con le colonne nuove, e il totale', () => {
+    const r = righeEsportazione({ righe: [riga], totali, scartoRegistrato: false, andamento: { gusti: { NOCCIOLA: { quotaVenduta: 116.666, giorniVetrina: 0.571 } } } })
+    expect(r[0]).toEqual(['Gusto', 'Prodotto kg', 'Venduto kg', 'Venduto su prodotto %', 'Giorni in vetrina', 'Scarto kg (non registrato)', 'Ricavo/kg €', 'Ricavo €', 'Costo al kg €', 'Food cost €', 'Margine €', 'Margine %'])
+    expect(r[1]).toEqual(['NOCCIOLA', 6, 7, 116.7, 0.6, '', 30, 210, 7.33, 44, 166, 79])
+    expect(r[2]).toEqual(['Totale', 6, 7, 116.7, '', '', '', 210, '', 44, 166, 79])
+  })
+  it('un margine che non si sa resta vuoto, non 100', () => {
+    const r = righeEsportazione({ righe: [{ ...riga, margine: null, margPct: null }], totali: { ...totali, margine: null, margPct: null }, scartoRegistrato: true })
+    expect(r[1].slice(-2)).toEqual(['', ''])
+    expect(r[2].slice(-2)).toEqual(['', ''])
+    expect(r[0][5]).toBe('Scarto kg')
+  })
+})
+
+describe('La pagina: le frasi', () => {
+  it('il gusto senza ricetta porta al collegamento', async () => {
+    apri({ rows: [...NOCCIOLA, ...NOCCIOLA.map(x => ({ ...x, gusto_nome: 'MISTIC' }))] })
+    await waitFor(() => expect(testo()).toMatch(/Dove guardare/), { timeout: 5000 })
+    expect(testo()).toMatch(/1 gusto senza ricetta vale circa 210 € di ricavo che qui non entra/)
+    expect(screen.getByRole('button', { name: /1 gusto senza ricetta vale/ })).toBeTruthy()
+  })
+})
