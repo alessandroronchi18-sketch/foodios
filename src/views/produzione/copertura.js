@@ -78,7 +78,7 @@ export function vociCopertura({
   // 3. Ricavo e margine sono stime, e si dice con che cosa.
   voci.push({
     id: 'stima', stato: 'stima', breve: 'ricavo e margine stimati',
-    testo: 'ricavo: tutti i chili venduti per il prezzo medio dei formati, come nel Mese e in «Torna il conto?»; margine: costo delle ricette ai prezzi di oggi',
+    testo: 'ricavo: tutti i chili venduti per il prezzo medio dei formati, senza IVA, come nel Mese e in «Torna il conto?»; margine: costo delle ricette ai prezzi di oggi',
   })
 
   // 4. I gusti che non trovano la ricetta valgono zero euro.
@@ -89,7 +89,7 @@ export function vociCopertura({
       // Dal 04/10 quei chili sono nel ricavo (decisione del titolare): senza
       // ricetta manca il costo, quindi restano fuori dal margine.
       testo: `${quanti(senzaRicetta.n, 'gusto', 'gusti')} senza ricetta: ${kg(senzaRicetta.kgVenduti)} kg venduti fuori dal margine`
-        + (senzaRicetta.euroStimati != null ? ` (circa ${euro(senzaRicetta.euroStimati)} di ricavo)` : ''),
+        + (senzaRicetta.euroStimati != null ? ` (circa ${euro(senzaRicetta.euroStimati)} di ricavo senza IVA)` : ''),
       azione: azioni.gusti ? { etichetta: senzaRicetta.n === 1 ? 'Collegalo' : 'Collegali', onClick: azioni.gusti } : null,
     })
   }

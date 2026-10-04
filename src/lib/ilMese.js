@@ -54,7 +54,10 @@ export const PASSI_SPESA = [
 ]
 
 const tonda = (n) => Math.round(Number(n) * 100) / 100
-const senzaIva = (lordo, aliquota) => tonda(Number(lordo) / (1 + aliquota / 100))
+// Esportata il 04/10/2026: la Produzione e «Torna il conto?» scrivono il
+// ricavo stimato senza IVA con questa stessa funzione e la stessa aliquota
+// (decisione del titolare: lo stesso numero in tutte le pagine).
+export const senzaIva = (lordo, aliquota = ALIQUOTA_IVA_INCASSI) => tonda(Number(lordo) / (1 + aliquota / 100))
 
 /**
  * Gli incassi del mese, senza IVA.

@@ -122,7 +122,7 @@ describe('La copertura della Quadratura: una frase per fonte', () => {
   })
   it('l\'incasso dall\'inventario è una stima, col prezzo al chilo', () => {
     expect(voce(vociCoperturaQuadratura({ giorni: { n: 2 }, kpi: kpiSenzaCassa, euroKg: 29.4882 }), 'stima').testo)
-      .toBe('incasso dall\'inventario: chili venduti al banco per 29,49 €/kg, il prezzo medio dei formati')
+      .toBe('incasso dall\'inventario: chili venduti al banco per 29,49 €/kg, il prezzo medio dei formati; a schermo senza IVA, come la cassa e il Mese')
     expect(voce(vociCoperturaQuadratura({ giorni: { n: 2 }, kpi: kpiSenzaCassa, euroKg: null }), 'stima')).toBeUndefined()
   })
   it('l\'ingrosso tolto dal banco, le caselle, lo scarto', () => {
@@ -221,7 +221,8 @@ describe('Il giudizio si scrive a parole', () => {
 describe('Senza la cassa, cosa si può dire', () => {
   const kpi = { totVendutoG: 1500, ricavoAtteso: 50, giorniInventario: 2 }
   it('quanto è uscito e quanto vale', () => {
-    expect(frasiSenzaCassa({ kpi })[0].testo).toBe('L\'inventario dice che sono usciti 1,5 kg di gelato, circa 50 € ai prezzi dei formati.')
+    // La pagina le passa i conti già senza IVA (kpiSenzaIva): la frase lo dice.
+    expect(frasiSenzaCassa({ kpi })[0].testo).toBe('L\'inventario dice che sono usciti 1,5 kg di gelato, circa 50 € senza IVA ai prezzi dei formati.')
   })
   it('da dove viene il venduto: la vetrina, detto senza fingere un controllo', () => {
     // Il venduto si calcola da c'era + fatto − resta: quel conto «torna»
@@ -276,7 +277,7 @@ describe('La tessera grande', () => {
     expect(testo()).toMatch(/Cassa47 €−50%sulla settimana prima/)
     cleanup()
     render(<Risposta kpi={k} kpiPrev={{ ...base, cassaEffettiva: 94, giorniCassa: 7 }} euroKg={33.33} />)
-    expect(testo()).toMatch(/Cassa47 €nessun confronto: la settimana prima ha la cassa in 7 giorni, questa in 2incassato in 2 giorni/)
+    expect(testo()).toMatch(/Cassa47 €nessun confronto: la settimana prima ha la cassa in 7 giorni, questa in 2senza IVA · incassato in 2 giorni/)
   })
 
   it('senza la cassa: «non si può dire», col motivo', () => {

@@ -35,10 +35,11 @@ vi.mock('../../src/lib/supabase', () => {
   } }
   return { supabase: { from: () => new Proxy({}, h), rpc: () => Promise.resolve({ data: null, error: null }) } }
 })
-// Un formato solo: 100 g a 3 € = 30 €/kg.
+// Un formato solo: 100 g a 3,30 € = 33 €/kg al banco, 30 €/kg senza IVA
+// (04/10/2026: il ricavo stimato è senza IVA, come il Mese).
 vi.mock('../../src/lib/storage', () => ({
   sload: async (k) => (k === 'pasticceria-formati-vendita-v1'
-    ? [{ id: 'f1', nome: 'Coppetta', categoria: 'Gusto', baseQtaG: 100, prezzoDefault: 3, componenti: [] }] : null),
+    ? [{ id: 'f1', nome: 'Coppetta', categoria: 'Gusto', baseQtaG: 100, prezzoDefault: 3.3, componenti: [] }] : null),
   ssave: async () => {}, ssaveBatch: async () => {}, sloadAllSedi: async () => ({}),
 }))
 
@@ -126,7 +127,7 @@ describe('La copertura dei dati: una frase per fonte', () => {
     const vai = () => {}
     const v = voce(vociCopertura({ copertura: LUGLIO_AGOSTO, senzaRicetta: { n: 10, kgVenduti: 1181.04, euroStimati: 34823.4 }, azioni: { gusti: vai } }), 'senzaRicetta')
     // Dal 04/10 quei chili sono nel ricavo (decisione del titolare): restano fuori dal margine.
-    expect(v.testo).toBe('10 gusti senza ricetta: 1.181 kg venduti fuori dal margine (circa 34.823 € di ricavo)')
+    expect(v.testo).toBe('10 gusti senza ricetta: 1.181 kg venduti fuori dal margine (circa 34.823 € di ricavo senza IVA)')
     expect(v.azione.etichetta).toBe('Collegali')
     expect(voce(vociCopertura({ copertura: LUGLIO_AGOSTO, senzaRicetta: { n: 0 } }), 'senzaRicetta')).toBeUndefined()
   })
@@ -218,7 +219,7 @@ describe('La pagina: tessere e vetrina sui conti veri', () => {
     // c'è (pezzo comune, tessere incolonnate) ma resta vuota; «nessun
     // confronto» si scrive solo quando un confronto era atteso e manca
     // (prova «se un confronto era atteso e non c'è» più sotto).
-    expect(tessera('Margine stimato')).toBe('Margine stimato166 €79% del ricavo dei gusti con ricetta')
+    expect(tessera('Margine stimato')).toBe('Margine stimato166 €79% del ricavo senza IVA dei gusti con ricetta')
   })
 
   it('lo scarto mai scritto: «non registrato», non zero', async () => {
@@ -572,7 +573,7 @@ describe('Le frasi dicono dove guardare, solo quando i numeri le reggono', () =>
   })
   it('il ricavo che resta fuori, con l\'azione per collegare', () => {
     const f = frasiProduzione({ righe: [], senzaRicetta: { n: 10, euroStimati: 34823.4 } })
-    expect(f[0]).toEqual({ id: 'senzaRicetta', verso: 'azione', azione: 'gusti', testo: '10 gusti senza ricetta valgono circa 34.823 € di ricavo che restano fuori dal margine: collegandoli alla ricetta il margine li conta' })
+    expect(f[0]).toEqual({ id: 'senzaRicetta', verso: 'azione', azione: 'gusti', testo: '10 gusti senza ricetta valgono circa 34.823 € di ricavo senza IVA che restano fuori dal margine: collegandoli alla ricetta il margine li conta' })
     expect(frasiProduzione({ righe: [], senzaRicetta: { n: 1, euroStimati: 210 } })[0].testo).toMatch(/^1 gusto senza ricetta vale circa 210 €/)
   })
   it('al massimo quattro', () => {
@@ -586,7 +587,7 @@ describe('Il file Excel', () => {
   const riga = { gusto: 'NOCCIOLA', prodKg: 6, vendKg: 7, scartoKg: 0, ricavoKg: 30, ricavo: 210, fcKg: 7.3333, fc: 44, margine: 166, margPct: 79.0476 }
   it('una riga per gusto con le colonne nuove, e il totale', () => {
     const r = righeEsportazione({ righe: [riga], totali, scartoRegistrato: false, andamento: { gusti: { NOCCIOLA: { quotaVenduta: 116.666, giorniVetrina: 0.571 } } } })
-    expect(r[0]).toEqual(['Gusto', 'Prodotto kg', 'Venduto kg', 'Venduto su prodotto %', 'Giorni in vetrina', 'Scarto kg (non registrato)', 'Ricavo/kg €', 'Ricavo €', 'Costo al kg €', 'Food cost €', 'Margine €', 'Margine %'])
+    expect(r[0]).toEqual(['Gusto', 'Prodotto kg', 'Venduto kg', 'Venduto su prodotto %', 'Giorni in vetrina', 'Scarto kg (non registrato)', 'Ricavo/kg € senza IVA', 'Ricavo € senza IVA', 'Costo al kg €', 'Food cost €', 'Margine €', 'Margine %'])
     expect(r[1]).toEqual(['NOCCIOLA', 6, 7, 116.7, 0.6, '', 30, 210, 7.33, 44, 166, 79])
     expect(r[2]).toEqual(['Totale', 6, 7, 116.7, '', '', '', 210, '', 44, 166, 79])
   })
@@ -602,7 +603,7 @@ describe('La pagina: le frasi', () => {
   it('il gusto senza ricetta porta al collegamento', async () => {
     apri({ rows: [...NOCCIOLA, ...NOCCIOLA.map(x => ({ ...x, gusto_nome: 'MISTIC' }))] })
     await waitFor(() => expect(testo()).toMatch(/Dove guardare/), { timeout: 5000 })
-    expect(testo()).toMatch(/1 gusto senza ricetta vale circa 210 € di ricavo che restano fuori dal margine/)
+    expect(testo()).toMatch(/1 gusto senza ricetta vale circa 210 € di ricavo senza IVA che restano fuori dal margine/)
     expect(screen.getByRole('button', { name: /1 gusto senza ricetta vale/ })).toBeTruthy()
   })
 })
@@ -876,12 +877,13 @@ describe('La tessera del ricavo e quella del margine', () => {
   it('il gusto senza ricetta è nel ricavo e fuori dal margine, e lo si dice', async () => {
     apri({ rows: DUE })
     await waitFor(() => expect(testo()).toMatch(/Ricavo stimato420/), { timeout: 5000 })
-    expect(tessera('Ricavo stimato')).toMatch(/tutti i chili × 30,00 €\/kg, IVA compresa$/)
-    expect(tessera('Margine stimato')).toBe('Margine stimato166 €79% del ricavo dei gusti con ricetta · su 1 gusto su 2; fuori 7 kg, circa 210 €')
+    expect(tessera('Ricavo stimato')).toMatch(/senza IVA \(10%\) · tutti i chili × 33,00 €\/kg al banco$/)
+    expect(tessera('Margine stimato')).toBe('Margine stimato166 €79% del ricavo senza IVA dei gusti con ricetta · su 1 gusto su 2; fuori 7 kg, circa 210 €')
   })
   it('l\'ingrosso vale il suo fatturato, non il prezzo del banco', async () => {
-    apri({ rows: DUE, venditeB2B: [{ sede_id: 's1', data: '2026-08-03', totale: 20, stato: 'consegnata', righe: [{ qta: 1, unita: 'kg' }] }] })
-    // 14 kg − 1 all'ingrosso = 13 × 30 € + 20 € fatturati.
+    apri({ rows: DUE, venditeB2B: [{ sede_id: 's1', data: '2026-08-03', totale: 22, stato: 'consegnata', righe: [{ qta: 1, unita: 'kg' }] }] })
+    // 14 kg − 1 all'ingrosso = 13 × 33 € + 22 € fatturati = 451 € con l'IVA,
+    // 410 € senza (il fatturato passa per la stessa funzione, come nel Mese).
     await waitFor(() => expect(testo()).toMatch(/Ricavo stimato410/), { timeout: 5000 })
     expect(tessera('Ricavo stimato')).toMatch(/ingrosso 20 € fatturati$/)
   })

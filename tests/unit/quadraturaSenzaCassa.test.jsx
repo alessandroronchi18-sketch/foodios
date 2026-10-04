@@ -53,11 +53,13 @@ vi.mock('../../src/lib/supabase', () => {
     },
   }
 })
-// 120 g a 4 € = 33,33 €/kg. La settimana vale 50 € stimati.
+// 120 g a 4,40 € = 36,67 €/kg al banco, 33,33 €/kg senza IVA (04/10/2026: a
+// schermo l'incasso stimato è senza IVA, come il Mese). La settimana vale
+// 50 € stimati senza IVA.
 vi.mock('../../src/lib/storage', () => ({
   ssave: () => Promise.resolve(),
   sload: () => Promise.resolve([
-    { id: 'f1', nome: 'Coppetta media', categoria: 'Gelato', baseQtaG: 120, prezzoDefault: 4, componenti: [] },
+    { id: 'f1', nome: 'Coppetta media', categoria: 'Gelato', baseQtaG: 120, prezzoDefault: 4.4, componenti: [] },
   ]),
   ssaveBatch: () => Promise.resolve(),
   sloadAllSedi: () => Promise.resolve({}),

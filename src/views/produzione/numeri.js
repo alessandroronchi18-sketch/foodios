@@ -5,6 +5,8 @@
 // scrive `lib/formatoAnalisi`; qui ci sono solo i chili, che quella libreria
 // non conosce, e due frasi sui periodi che servono in più punti della pagina.
 
+import { senzaIva, ALIQUOTA_IVA_INCASSI } from '../../lib/ilMese'
+
 const NF0 = new Intl.NumberFormat('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })
 const NF1 = new Intl.NumberFormat('it-IT', { useGrouping: 'always', minimumFractionDigits: 0, maximumFractionDigits: 1 })
 
@@ -66,3 +68,19 @@ export function quotaFissa(n, d = 1) {
   const v = Number(n)
   return `${v < 0 ? '−' : ''}${NF_FISSO[d].format(Math.abs(v))}%`
 }
+
+// ── Senza IVA, come il Mese ───────────────────────────────────────────────
+//
+// Decisione del titolare, 04/10/2026: il ricavo stimato è lo stesso numero
+// in tutte le pagine, e il Mese lo mostra senza IVA (i prezzi dei formati
+// sono quelli al banco, IVA compresa). Stessa funzione e stessa aliquota del
+// Mese; il margine si calcola su questo, contro costi degli ingredienti che
+// sono senza IVA.
+
+export const ALIQUOTA_IVA = ALIQUOTA_IVA_INCASSI
+
+/** Il ricavo (o l'incasso) senza IVA, arrotondato ai centesimi come nel Mese. */
+export const nettoIva = (lordo) => (finito(lordo) ? senzaIva(Number(lordo), ALIQUOTA_IVA_INCASSI) : null)
+
+/** Il prezzo al chilo senza IVA, senza arrotondare (per moltiplicarlo). */
+export const prezzoNetto = (lordo) => (finito(lordo) ? Number(lordo) / (1 + ALIQUOTA_IVA_INCASSI / 100) : null)

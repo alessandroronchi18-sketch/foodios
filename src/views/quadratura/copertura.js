@@ -57,7 +57,7 @@ export function vociCoperturaQuadratura({ giorni, kpi, euroKg, scartoRegistrato 
 
   // 3. L'incasso dall'inventario è una stima, e si dice con cosa.
   if (euroKg) {
-    voci.push({ id: 'stima', stato: 'stima', breve: 'incasso stimato', testo: `incasso dall'inventario: chili venduti al banco per ${euro(euroKg, { decimali: 2 })}/kg, il prezzo medio dei formati` })
+    voci.push({ id: 'stima', stato: 'stima', breve: 'incasso stimato', testo: `incasso dall'inventario: chili venduti al banco per ${euro(euroKg, { decimali: 2 })}/kg, il prezzo medio dei formati; a schermo senza IVA, come la cassa e il Mese` })
   }
 
   // 4. L'ingrosso non passa dalla cassa del banco.

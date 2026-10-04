@@ -9,7 +9,7 @@ import React, { useMemo, useState } from 'react'
 import { color as T, font, radius as R, tnum } from '../../lib/theme'
 import { ricetteSimili } from '../../lib/nomiGusti'
 import { euro } from '../../lib/formatoAnalisi'
-import { kg, intero } from './numeri'
+import { kg, intero, prezzoNetto } from './numeri'
 
 export default function GustiSenzaRicetta({ senzaRicetta, collegati, euroKgMedio, ricettario, collega, pronto, onNavigate, isMobile }) {
   const [scelte, setScelte] = useState({})
@@ -17,6 +17,9 @@ export default function GustiSenzaRicetta({ senzaRicetta, collegati, euroKgMedio
   const [errore, setErrore] = useState(null)
   const [tutti, setTutti] = useState(false)
   const kgVenduti = senzaRicetta.reduce((s, r) => s + r.vendKg, 0)
+  // Gli euro senza IVA, come il ricavo stimato della pagina e il Mese; il
+  // prezzo si scrive quello al banco, che Mara riconosce.
+  const netto = prezzoNetto(euroKgMedio)
   const kgProdotti = senzaRicetta.reduce((s, r) => s + r.prodKg, 0)
   const ricetteGusto = useMemo(() => Object.entries(ricettario?.ricette || {})
     .filter(([, r]) => !['semilavorato', 'interno'].includes(String(r?.tipo || '').toLowerCase()))
@@ -68,7 +71,7 @@ export default function GustiSenzaRicetta({ senzaRicetta, collegati, euroKgMedio
           </b>: {kg(kgVenduti)} kg venduti ({kg(kgProdotti)} kg prodotti) che sono nel ricavo ma non nel margine: senza ricetta non se ne sa il costo.
           {euroKgMedio != null && (
             <> Al prezzo medio dei formati ({euro(euroKgMedio, { decimali: 2 }).replace(' €', '')} €/kg)
-              sono circa <b>{euro(kgVenduti * euroKgMedio)}</b> di ricavo fuori dal margine.</>
+              sono circa <b>{euro(kgVenduti * netto)}</b> di ricavo senza IVA fuori dal margine.</>
           )}
           {' '}Di solito è il nome scritto in un altro modo: collegalo alla sua ricetta, una volta, e vale per tutti i periodi.
         </div>
@@ -86,7 +89,7 @@ export default function GustiSenzaRicetta({ senzaRicetta, collegati, euroKgMedio
                 <span style={{ flex: isMobile ? '1 1 100%' : '0 1 200px', minWidth: 0 }}>
                   <b>{r.gusto}</b>
                   <span style={{ display: 'block', color: T.textSoft, ...tnum }}>
-                    {kg(r.vendKg)} kg venduti{euroKgMedio != null ? ` · circa ${euro(r.vendKg * euroKgMedio)}` : ''}
+                    {kg(r.vendKg)} kg venduti{netto != null ? ` · circa ${euro(r.vendKg * netto)}` : ''}
                   </span>
                 </span>
                 <select aria-label={`Ricetta di ${r.gusto}`} value={scelta} disabled={!pronto}

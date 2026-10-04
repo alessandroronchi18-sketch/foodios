@@ -16,7 +16,8 @@ export function righeEsportazione({ righe = [], totali, scartoRegistrato, andame
   const intestazione = [
     'Gusto', 'Prodotto kg', 'Venduto kg', 'Venduto su prodotto %', 'Giorni in vetrina',
     scartoRegistrato ? 'Scarto kg' : 'Scarto kg (non registrato)',
-    'Ricavo/kg €', 'Ricavo €', 'Costo al kg €', 'Food cost €', 'Margine €', 'Margine %',
+    // Il ricavo è senza IVA, come a schermo e nel Mese (04/10/2026).
+    'Ricavo/kg € senza IVA', 'Ricavo € senza IVA', 'Costo al kg €', 'Food cost €', 'Margine €', 'Margine %',
   ]
   const corpo = righe.map(r => [
     r.gusto, due(r.prodKg), due(r.vendKg), uno(extra(r.gusto).quotaVenduta), uno(extra(r.gusto).giorniVetrina),

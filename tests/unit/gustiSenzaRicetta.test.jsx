@@ -40,7 +40,10 @@ vi.mock('../../src/lib/supabase', () => {
   } }
   return { supabase: { from: () => new Proxy({}, h), rpc: () => Promise.resolve({ data: null, error: null }) } }
 })
-const FORMATI = [{ id: 'f1', nome: 'Coppetta', categoria: 'Gusto', baseQtaG: 100, prezzoDefault: 3, componenti: [] }]
+// 04/10/2026: il ricavo stimato è senza IVA (10%, come il Mese). Il prezzo
+// al banco dei dati di prova è 3,30 € per 100 g = 33 €/kg, cioè 30 €/kg
+// senza IVA: i conti delle prove restano quelli di prima.
+const FORMATI = [{ id: 'f1', nome: 'Coppetta', categoria: 'Gusto', baseQtaG: 100, prezzoDefault: 3.3, componenti: [] }]
 let NOMI_SALVATI = null
 const ssave = vi.fn(async () => {})
 vi.mock('../../src/lib/storage', () => ({
@@ -160,7 +163,7 @@ describe('Lo Storico dice quanto vale il gusto senza ricetta e lo fa collegare',
     apri()
     await waitFor(() => expect(testo()).toMatch(/Un gusto non trova la ricetta/), { timeout: 5000 })
     expect(testo()).toMatch(/7 kg venduti \(6 kg prodotti\) che sono nel ricavo ma non nel margine/)
-    expect(testo()).toMatch(/circa 210\s?€ di ricavo fuori dal margine/)
+    expect(testo()).toMatch(/circa 210\s?€ di ricavo senza IVA fuori dal margine/)
     // l'avviso falso di prima
     expect(testo()).not.toMatch(/gusti su \d+ non hanno ricetta/)
   })

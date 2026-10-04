@@ -71,7 +71,7 @@ export function frasiProduzione({ righe = [], senzaRicetta = null } = {}) {
   if (senzaRicetta?.n > 0 && senzaRicetta.euroStimati != null && senzaRicetta.euroStimati >= 1) {
     frasi.push({
       id: 'senzaRicetta', verso: 'azione', azione: 'gusti',
-      testo: `${quanti(senzaRicetta.n, 'gusto senza ricetta vale', 'gusti senza ricetta valgono')} circa ${euro(senzaRicetta.euroStimati)} di ricavo che restano fuori dal margine: collegandoli alla ricetta il margine li conta`,
+      testo: `${quanti(senzaRicetta.n, 'gusto senza ricetta vale', 'gusti senza ricetta valgono')} circa ${euro(senzaRicetta.euroStimati)} di ricavo senza IVA che restano fuori dal margine: collegandoli alla ricetta il margine li conta`,
     })
   }
   return frasi.slice(0, 4)

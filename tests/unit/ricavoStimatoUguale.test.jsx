@@ -1,3 +1,5 @@
+// @vitest-environment happy-dom
+//
 // ── Il ricavo stimato è lo stesso numero in tutte le pagine ──────────────
 //
 // Decisione del titolare, 04/10/2026. Sui dati di Mara, luglio-agosto, la
@@ -17,15 +19,27 @@
 // settimana (`kpiQuadraturaSettimana`: incasso al banco + ingrosso), la
 // Produzione con `ricaviStimatiSedi`.
 //
-// «Il mese» mostra poi lo stesso numero SENZA IVA (lo dice la sua riga):
-// qui si confronta il lordo, che è la stima.
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+// 04/10/2026, seconda decisione: lo stesso numero anche A SCHERMO. Il Mese
+// mostra gli incassi senza IVA (ALIQUOTA_IVA_INCASSI, `senzaIva`), mentre
+// Produzione e «Torna il conto?» mostravano i chili × 29,49 €/kg con l'IVA
+// dentro: settimana 24-30/08, 33.681 € contro 30.619 €. Adesso le tre pagine
+// scrivono il numero senza IVA con la stessa funzione, e il margine della
+// Produzione si calcola su quello (i costi degli ingredienti sono senza
+// IVA). Le prove qui sotto confrontano il numero che si VEDE: la tessera
+// della Produzione disegnata, la tessera della Quadratura coi conti che la
+// pagina le passa (`kpiSenzaIva`), il Mese col suo `conto.ricavi`.
+import React from 'react'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { render, cleanup, waitFor } from '@testing-library/react'
 
 const FORMATI = [{ id: 'f1', nome: 'Coppetta', categoria: 'Gelato', baseQtaG: 100, prezzoDefault: 3, componenti: [] }] // 30 €/kg
 let RIGHE = []
 let VENDITE = []
 
-vi.mock('../../src/lib/supabase', () => ({ supabase: { from: () => ({}) } }))
+vi.mock('../../src/lib/supabase', () => {
+  const h = { get(_t, p) { if (p === 'then') return (r) => r({ data: [], error: null }); return () => new Proxy({}, h) } }
+  return { supabase: { from: () => new Proxy({}, h), rpc: async () => ({ data: null, error: null }) } }
+})
 vi.mock('../../src/lib/storage', () => ({ sload: async () => FORMATI, ssave: async () => {} }))
 vi.mock('../../src/lib/chiusure', () => ({ caricaChiusure: async () => [] }))
 vi.mock('../../src/lib/costiAziendali', async (orig) => ({ ...(await orig()), caricaCostiAziendali: async () => [] }))
@@ -44,6 +58,10 @@ vi.mock('../../src/lib/inventarioProduzione', async (orig) => ({
 const { caricaIlMese } = await import('../../src/lib/ilMeseArchivio.js')
 const { ricaviStimatiSedi } = await import('../../src/lib/produzioneQuadro.js')
 const { calcolaVendutoSettimana, matriceDiPiuSedi, kpiQuadraturaSettimana, euroKgMedioFormati } = await import('../../src/lib/inventarioProduzione.js')
+const { euro } = await import('../../src/lib/formatoAnalisi.js')
+const { default: AnalisiInventarioSection } = await import('../../src/views/AnalisiInventarioSection.jsx')
+const { kpiSenzaIva } = await import('../../src/views/QuadraturaInventarioView.jsx')
+const { default: Risposta } = await import('../../src/views/quadratura/Risposta.jsx')
 
 const supabaseFinto = { from: () => ({ select: () => ({ eq: async () => ({ data: [], error: null }) }) }) }
 const SEDI = [{ id: 'A', nome: 'Carlina', attiva: true }, { id: 'B', nome: 'Berthollet', attiva: true }]
@@ -109,5 +127,64 @@ describe('Lo stesso periodo, lo stesso ricavo stimato', () => {
 
   it('senza formati il ricavo non si sa (non zero)', () => {
     expect(ricaviStimatiSedi(RIGHE, [], { da: LUN, a: DOM }).ricavi).toBeNull()
+  })
+})
+
+// ── Il numero che si vede, senza IVA ───────────────────────────────────────
+// La tessera di una pagina: l'etichetta e quello che segue.
+const tessera = (etichetta) => {
+  const el = [...document.querySelectorAll('div')].find(d => d.textContent === etichetta && d.parentElement?.children.length >= 2)
+  return el ? el.parentElement.textContent : ''
+}
+
+async function treNumeriAschermo() {
+  // La Produzione, disegnata coi dati della settimana.
+  render(<AnalisiInventarioSection rows={RIGHE} rowsPrev={[]} dateFrom={LUN} dateTo={DOM} confronto="nessuno"
+    ricettario={{ ricette: {}, ingredienti_costi: {} }} orgId="o1" sedeId={null} sedi={SEDI} venditeB2B={VENDITE} />)
+  await waitFor(() => { if (!/Ricavo stimato\d/.test(tessera('Ricavo stimato'))) throw new Error('attendo') }, { timeout: 5000 })
+  const produzione = /Ricavo stimato([\d.]+ €)/.exec(tessera('Ricavo stimato'))[1]
+  cleanup()
+  // «Torna il conto?»: la tessera coi conti che la pagina le passa.
+  const perSede = ['A', 'B'].map(id => ({ sedeId: id, matrice: calcolaVendutoSettimana(RIGHE.filter(r => r.sede_id === id), LUN) }))
+  const kpi = kpiQuadraturaSettimana(matriceDiPiuSedi(perSede), [], euroKgMedioFormati(FORMATI), VENDITE)
+  render(<Risposta kpi={kpiSenzaIva(kpi)} kpiPrev={null} euroKg={euroKgMedioFormati(FORMATI)} />)
+  const quadratura = /Incasso stimato([\d.]+ €)/.exec(tessera('Incasso stimato'))[1]
+  cleanup()
+  // Il Mese: il numero della sua tessera degli incassi.
+  const dati = await caricaIlMese({ supabase: supabaseFinto, orgId: 'o1', sedi: SEDI, mese: '2026-08' })
+  const mese = euro(dati.attuale.conto.ricavi)
+  return { produzione, quadratura, mese, kpi }
+}
+
+describe('A schermo, senza IVA: lo stesso numero nelle tre pagine', () => {
+  beforeEach(() => { RIGHE = settimana(); VENDITE = [] })
+  afterEach(() => cleanup())
+
+  it('senza ingrosso: 2.100 € al banco, 1.909 € senza IVA, uguale nelle tre pagine', async () => {
+    const n = await treNumeriAschermo()
+    expect(n.produzione).toBe('1.909 €')
+    expect(n.quadratura).toBe('1.909 €')
+    expect(n.mese).toBe('1.909 €')
+  })
+
+  it('la Produzione scrive «senza IVA» sotto il numero', async () => {
+    render(<AnalisiInventarioSection rows={RIGHE} rowsPrev={[]} dateFrom={LUN} dateTo={DOM} confronto="nessuno"
+      ricettario={{ ricette: {}, ingredienti_costi: {} }} orgId="o1" sedeId={null} sedi={SEDI} />)
+    await waitFor(() => expect(tessera('Ricavo stimato')).toMatch(/senza IVA \(10%\)/), { timeout: 5000 })
+  })
+
+  it('con l\'ingrosso: la Produzione e il Mese uguali; la Quadratura dà il banco, e col fatturato fa lo stesso', async () => {
+    VENDITE = [
+      { sede_id: 'B', data: '2026-08-26', totale: 40, stato: 'consegnata', righe: [{ qta: 2, unita: 'kg' }] },
+      { sede_id: null, data: '2026-08-27', totale: 25, stato: 'consegnata', righe: [{ qta: 1, unita: 'kg' }] },
+    ]
+    const n = await treNumeriAschermo()
+    // (67 kg × 30 € + 65 €) / 1,10 = 1.886,36 €.
+    expect(n.produzione).toBe('1.886 €')
+    expect(n.mese).toBe('1.886 €')
+    // La Quadratura confronta il banco con la cassa: 67 × 30 / 1,10.
+    expect(n.quadratura).toBe('1.827 €')
+    const k = kpiSenzaIva(n.kpi)
+    expect(k.ricavoAtteso + k.ricaviB2b).toBeCloseTo(1886.36, 1)
   })
 })
