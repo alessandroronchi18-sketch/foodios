@@ -748,6 +748,9 @@ describe('Il calendario da muro dei giorni registrati', () => {
     apri()
     await waitFor(() => expect(testo()).toMatch(/Ricavo stimato210/), { timeout: 5000 })
     expect(screen.queryByRole('grid')).toBeNull()
+    // Dal 04/10 la copertura è chiusa in una riga (pezzo comune, §6): le
+    // azioni stanno dietro il tocco. Prima si apre la riga, poi i giorni.
+    fireEvent.click(screen.getByRole('button', { name: /^Da dove vengono i numeri/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Vedi i giorni' }))
     const grid = screen.getByRole('grid', { name: 'Giorni registrati di agosto 2026' })
     expect(within(grid).getAllByRole('gridcell').map(c => c.getAttribute('aria-label'))).toEqual(['03/08: registrato', '04/08: registrato'])
@@ -802,5 +805,58 @@ describe('All\'arrivo i numeri, i comandi in fondo', () => {
     expect(titolo.compareDocumentPosition(apriInv) & 4).toBe(4)
     expect(classifica.compareDocumentPosition(apriInv) & 4).toBe(4)
     expect(classifica.compareDocumentPosition(screen.getByRole('button', { name: /Esporta Excel/ })) & 4).toBe(4)
+  })
+})
+
+// ── 10. Dopo i pezzi comuni nuovi (04/10): la riga chiusa e il confronto ───
+const { riassuntoSistemabili } = await import('../../src/views/produzione/copertura.js')
+
+describe('La riga chiusa della copertura dice «da sistemare» solo di quello che si sistema', () => {
+  // Il riassunto comune contava ogni voce non «ok» come «dati da sistemare»:
+  // con lo scarto mai scritto (che all'indietro non si sistema) e un gusto
+  // senza ricetta diceva «2 dati da sistemare» anche senza nessuna casella
+  // storta (rimanenzaAZeroGiornoGiusto, «senza caselle storte non dice niente»).
+  it('i dati di Mara: le stime e le cose da sistemare per nome, lo scarto per nome', () => {
+    const voci = vociCopertura({
+      copertura: LUGLIO_AGOSTO, scartoRegistrato: false, caselle: { n: 359 },
+      senzaRicetta: { n: 14, kgVenduti: 3496.9, euroStimati: 103114 },
+    })
+    expect(riassuntoSistemabili(voci)).toBe('Ricavo e margine stimati · 14 gusti senza ricetta · 359 caselle da sistemare · scarto mai scritto')
+  })
+  it('senza caselle storte la parola «da sistemare» non compare', () => {
+    const voci = vociCopertura({ copertura: LUGLIO_AGOSTO, scartoRegistrato: false, senzaRicetta: { n: 1, kgVenduti: 7, euroStimati: 210 } })
+    expect(riassuntoSistemabili(voci)).toBe('Ricavo e margine stimati · 1 gusto senza ricetta · scarto mai scritto')
+  })
+  it('con più di due cose da sistemare le conta, ma solo quelle', () => {
+    const voci = vociCopertura({
+      copertura: LUGLIO_AGOSTO, registrazioneFerma: true, scartoRegistrato: false, caselle: { n: 3 },
+      senzaRicetta: { n: 2, kgVenduti: 10, euroStimati: 300 }, incompleti: ['MENTA'],
+    })
+    expect(riassuntoSistemabili(voci)).toBe('Ricavo e margine stimati · 4 cose da sistemare · scarto mai scritto')
+  })
+  it('tutto a posto', () => {
+    expect(riassuntoSistemabili([{ id: 'x', stato: 'ok', testo: 'ok' }])).toBe('Tutti i dati ci sono')
+  })
+})
+
+describe('La risposta grande e il confronto atteso', () => {
+  it('il venduto è il numero principale della pagina, e i dati fermi si dicono accanto', async () => {
+    apri({ dateTo: '2026-08-20' })
+    await waitFor(() => expect(testo()).toMatch(/Ricavo stimato/), { timeout: 5000 })
+    const risposta = screen.getByRole('region', { name: 'Venduto' })
+    expect(risposta.textContent).toMatch(/^Venduto7 kg/)
+    expect(risposta.textContent).toMatch(/Registrato fino al 04\/08: dopo non c'è niente\./)
+  })
+  it('se un confronto era atteso e non c\'è, la riga lo dice; se l\'utente non lo vuole, resta vuota', async () => {
+    apri({ confronto: 'periodoPrec', confrontoInfo: { ok: false, motivo: 'il periodo di confronto ha 14 giornate registrate, questo 32' } })
+    await waitFor(() => expect(testo()).toMatch(/Ricavo stimato/), { timeout: 5000 })
+    expect(screen.getByRole('region', { name: 'Venduto' }).textContent).toMatch(/nessun confronto: il periodo di confronto ha 14 giornate registrate, questo 32/)
+    expect(tessera('Ricavo stimato')).toMatch(/nessun confronto/)
+    // Il prodotto non ha giudizio: niente «nessun confronto», niente freccia.
+    expect(tessera('Prodotto')).not.toMatch(/nessun confronto/)
+    cleanup()
+    apri({ confronto: 'nessuno' })
+    await waitFor(() => expect(testo()).toMatch(/Ricavo stimato/), { timeout: 5000 })
+    expect(testo()).not.toMatch(/nessun confronto/)
   })
 })

@@ -44,6 +44,8 @@ export function vociCopertura({
   voci.push({
     id: 'inventario',
     stato: registrazioneFerma ? 'parziale' : 'ok',
+    breve: registrazioneFerma ? `inventario fermo ${conGiorno('al', copertura.ultimo)}` : undefined,
+    sistemabile: registrazioneFerma,
     testo: giorni + (daPartenza
       ? ': ti mostro i due mesi fino all\'ultimo giorno registrato'
       : registrazioneFerma ? `; dopo ${conGiorno('il', copertura.ultimo)} non c'è niente di registrato` : ''),
@@ -75,14 +77,15 @@ export function vociCopertura({
 
   // 3. Ricavo e margine sono stime, e si dice con che cosa.
   voci.push({
-    id: 'stima', stato: 'stima',
+    id: 'stima', stato: 'stima', breve: 'ricavo e margine stimati',
     testo: 'ricavo e margine: chili venduti per il prezzo medio dei formati, costo delle ricette ai prezzi di oggi',
   })
 
   // 4. I gusti che non trovano la ricetta valgono zero euro.
   if (senzaRicetta?.n > 0) {
     voci.push({
-      id: 'senzaRicetta', stato: 'parziale',
+      id: 'senzaRicetta', stato: 'parziale', sistemabile: true,
+      breve: quanti(senzaRicetta.n, 'gusto senza ricetta', 'gusti senza ricetta'),
       testo: `${quanti(senzaRicetta.n, 'gusto', 'gusti')} senza ricetta: ${kg(senzaRicetta.kgVenduti)} kg venduti fuori dal ricavo`
         + (senzaRicetta.euroStimati != null ? ` (circa ${euro(senzaRicetta.euroStimati)})` : ''),
       azione: azioni.gusti ? { etichetta: senzaRicetta.n === 1 ? 'Collegalo' : 'Collegali', onClick: azioni.gusti } : null,
@@ -90,7 +93,8 @@ export function vociCopertura({
   }
   if (incompleti.length > 0) {
     voci.push({
-      id: 'incompleti', stato: 'parziale',
+      id: 'incompleti', stato: 'parziale', sistemabile: true,
+      breve: quanti(incompleti.length, 'gusto senza prezzo', 'gusti senza prezzo'),
       testo: `${quanti(incompleti.length, 'gusto', 'gusti')} con la ricetta ma senza prezzo o costo completo: margine non calcolato`,
       dettaglio: elenco(incompleti.slice(0, 8)) + (incompleti.length > 8 ? ` e altri ${intero(incompleti.length - 8)}` : ''),
     })
@@ -99,7 +103,8 @@ export function vociCopertura({
   // 5. Le caselle dell'inventario da sistemare.
   if (caselle?.n > 0) {
     voci.push({
-      id: 'caselle', stato: 'parziale',
+      id: 'caselle', stato: 'parziale', sistemabile: true,
+      breve: `${quanti(caselle.n, 'casella', 'caselle')} da sistemare`,
       testo: `${quanti(caselle.n, 'casella', 'caselle')} da sistemare nell'inventario`,
       azione: azioni.caselle ? { etichetta: 'Vedi', onClick: azioni.caselle } : null,
     })
@@ -107,7 +112,36 @@ export function vociCopertura({
 
   // 6. Lo scarto mai scritto non è «niente buttato».
   if (!scartoRegistrato) {
-    voci.push({ id: 'scarto', stato: 'manca', testo: 'lo scarto, quindi quello che si butta è contato nel venduto' })
+    // Non si sistema all'indietro: si comincia a scriverlo da domani.
+    voci.push({ id: 'scarto', stato: 'manca', breve: 'scarto mai scritto', testo: 'lo scarto, quindi quello che si butta è contato nel venduto' })
   }
   return voci
 }
+
+/**
+ * La riga della copertura chiusa, scritta dalla pagina (`CoperturaDati` lo
+ * permette con `riassunto`).
+ *
+ * 04/10/2026, dopo i pezzi comuni nuovi: il riassunto comune conta ogni voce
+ * che non è «ok» come «N dati da sistemare». Sulla Produzione diceva «3 dati
+ * da sistemare» mettendo insieme le caselle (si sistemano), i gusti senza
+ * ricetta (si collegano) e lo scarto mai scritto, che all'indietro non si
+ * sistema; e con una sola casella storta in meno diceva comunque «da
+ * sistemare» per lo scarto (tests/unit/rimanenzaAZeroGiornoGiusto). Qui
+ * «da sistemare» si dice solo di quello che si può sistemare davvero
+ * (`sistemabile`); il resto si nomina.
+ */
+export function riassuntoSistemabili(voci = []) {
+  const stime = voci.filter(v => v.stato === 'stima' && v.breve).map(v => v.breve)
+  const sistemabili = voci.filter(v => v.sistemabile)
+  const altri = voci.filter(v => v.stato !== 'ok' && v.stato !== 'stima' && !v.sistemabile && v.breve).map(v => v.breve)
+  const parti = [...stime]
+  if (sistemabili.length > 2 || sistemabili.some(v => !v.breve)) parti.push(`${sistemabili.length} cose da sistemare`)
+  else parti.push(...sistemabili.map(v => v.breve))
+  parti.push(...altri)
+  if (!parti.length) return 'Tutti i dati ci sono'
+  const t = parti.join(' · ')
+  return t[0].toUpperCase() + t.slice(1)
+}
+
+export const riassuntoCoperturaProduzione = riassuntoSistemabili
