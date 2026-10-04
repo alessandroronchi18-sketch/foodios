@@ -63,6 +63,8 @@ export default defineConfig({
     // grandi (Dashboard 2900 righe, AdminPage 3300 righe) e in CI sotto carico
     // possono superare 5s default.
     testTimeout: 30000,
+    // `waitFor` aspetta 5 s invece di 1: vedi tests/attesePiuLunghe.js.
+    setupFiles: ['./tests/attesePiuLunghe.js'],
     hookTimeout: 30000,
     // Limita massimi heap per evitare OOM su GitHub Actions runner (7GB).
     maxConcurrency: 4,
