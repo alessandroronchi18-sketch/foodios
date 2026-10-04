@@ -98,17 +98,68 @@ function SceltaVoce({ valore, onCambia, etichetta, disabilitato = false }) {
   )
 }
 
-function Pulsante({ children, onClick, principale = false, disabilitato = false }) {
+// Spento è grigio, mai bordeaux sbiadito: al 55% il bordeaux diventava rosa
+// e da lontano sembrava acceso (audit 04/10, CS1).
+function Pulsante({ children, onClick, principale = false, disabilitato = false, ...resto }) {
   return (
-    <button type="button" onClick={onClick} disabled={disabilitato}
+    <button type="button" onClick={onClick} disabled={disabilitato} {...resto}
       style={{
         minHeight: 40, padding: '8px 16px', borderRadius: R.md, fontFamily: 'inherit', fontSize: FS.md, fontWeight: 700,
-        cursor: disabilitato ? 'not-allowed' : 'pointer', opacity: disabilitato ? 0.55 : 1,
-        border: principale ? 'none' : `1px solid ${T.borderStr}`,
-        background: principale ? T.brand : T.bgCard, color: principale ? T.white : T.brand,
+        cursor: disabilitato ? 'not-allowed' : 'pointer',
+        border: disabilitato ? `1px solid ${T.border}` : principale ? 'none' : `1px solid ${T.borderStr}`,
+        background: disabilitato ? T.bgSubtle : principale ? T.brand : T.bgCard,
+        color: disabilitato ? T.textFaint : principale ? T.white : T.brand,
       }}>
       {children}
     </button>
+  )
+}
+
+/**
+ * Le fatture molto più grandi del solito (la GECKO da 86.651 €), che forse
+ * sono investimenti. Audit del 04/10 (CS1): stavano in cima alla pagina con 3
+ * tendine e 3 «Salva» sempre aperti, e senza la colonna nuova tutti spenti:
+ * 323 px al computer e 745 al telefono di comandi che non funzionavano, prima
+ * dell'elenco che funziona. Ora sono una riga: senza la colonna dice cosa
+ * succederà e basta; con la colonna i comandi stanno dietro un tocco.
+ */
+function FattureFuoriScala({ eccezionali, disponibili, aperta, onApri, isMobile, children }) {
+  const piuGrande = eccezionali[0]
+  const una = eccezionali.length === 1
+  const titolo = una
+    ? `Una fattura vale ${piuGrande.volteLaTipica ? `${nInt(Math.round(piuGrande.volteLaTipica))} volte` : 'molto più di'} le altre di ${nomeBreve(piuGrande.fornitore)}`
+    : `${nInt(eccezionali.length)} fatture molto più grandi del solito`
+  // Lo spazio prima di «€» non si spezza: al telefono «86.651» restava a fine
+  // riga e «€» andava sotto.
+  const quale = `${euro(piuGrande.importo).replace(' €', '\u00a0€')} il ${dataLunga(piuGrande.data)}`
+  const inizio = `${titolo}${una ? ` (${quale})` : `, la più grande di ${nomeBreve(piuGrande.fornitore)} (${quale})`}`
+  const frase = disponibili
+    ? `${inizio}: sono investimenti?`
+    : `${inizio}: potrai ${una ? 'segnarla' : 'segnarle'} come investimento con il prossimo aggiornamento di Foodos. Per ora ${una ? 'conta' : 'contano'} nella voce del fornitore.`
+  return (
+    <Riquadro isMobile={isMobile}>
+      <div style={{ display: 'grid', gridTemplateColumns: disponibili && !isMobile ? '16px minmax(0, 1fr) auto' : '16px minmax(0, 1fr)', columnGap: 10, rowGap: 8, alignItems: 'center' }}>
+        <span aria-hidden="true" style={{ display: 'inline-flex', color: T.textSoft, alignSelf: 'start', paddingTop: 2 }}><Icon name="info" size={16} /></span>
+        <span style={{ fontSize: FS.md, lineHeight: '20px', color: T.text }}>{frase}</span>
+        {disponibili && (
+          <span style={{ gridColumn: isMobile ? '2' : 'auto' }}>
+            <Pulsante onClick={onApri} aria-expanded={aperta}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                {aperta ? 'Chiudi' : 'Guarda e decidi'}<Icon name={aperta ? 'chevUp' : 'chevDown'} size={14} />
+              </span>
+            </Pulsante>
+          </span>
+        )}
+      </div>
+      {disponibili && aperta && (
+        <div style={{ marginTop: 12 }}>
+          <div style={{ fontSize: FS.sm, lineHeight: '16px', color: T.textSoft, marginBottom: 8 }}>
+            Macchine, arredi, lavori durano anni: segnati come investimento non pesano sul conto di un mese solo.
+          </div>
+          {children}
+        </div>
+      )}
+    </Riquadro>
   )
 }
 
@@ -182,6 +233,8 @@ export default function ClassificaSpese({ orgId, notify, isMobile = false, onSal
   const [mostraClassificati, setMostraClassificati] = useState(false)
   const [salvando, setSalvando] = useState(false)
   const [vociFatture, setVociFatture] = useState(() => new Map()) // id fattura → voce scelta
+  // Le fatture fuori scala si guardano a richiesta: si decidono una volta e poi non servono più.
+  const [fuoriScalaAperte, setFuoriScalaAperte] = useState(false)
   const inCorso = useRef(false)
   const dal12 = useMemo(() => unAnnoPrima(oggi), [oggi])
 
@@ -367,18 +420,9 @@ export default function ClassificaSpese({ orgId, notify, isMobile = false, onSal
 
       {eccezionali.length > 0 && (
         <div style={{ marginBottom: 18 }}>
-          <Riquadro isMobile={isMobile}>
-            <TitoloGrafico
-              titolo={eccezionali.length === 1
-                ? `Una fattura vale ${eccezionali[0].volteLaTipica ? `${nInt(Math.round(eccezionali[0].volteLaTipica))} volte` : 'molto più di'} le altre di ${nomeBreve(eccezionali[0].fornitore)}`
-                : `${nInt(eccezionali.length)} fatture molto più grandi del solito: sono investimenti?`}
-              sottotitolo="Macchine, arredi, lavori durano anni: segnati come investimento non pesano sul conto di un mese solo." />
-            {!eccezioniDisponibili && (
-              <div style={{ fontSize: FS.sm, color: T.amberDark, background: T.fondoAvviso, border: `1px solid ${T.bordoAvviso}`, borderRadius: R.md, padding: '8px 10px', marginBottom: 10, lineHeight: 1.45 }}>
-                La voce di una singola fattura si potrà salvare con il prossimo aggiornamento di Foodos. Per ora queste fatture contano nella voce del loro fornitore.
-              </div>
-            )}
-            <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+          <FattureFuoriScala eccezionali={eccezionali} disponibili={eccezioniDisponibili} isMobile={isMobile}
+            aperta={fuoriScalaAperte} onApri={() => setFuoriScalaAperte(v => !v)}>
+            <ul style={{ listStyle: 'none', margin: 0, padding: 0 }} aria-label="Fatture fuori scala">
               {eccezionali.map(f => (
                 <li key={f.id} style={{
                   display: isMobile ? 'block' : 'grid', gridTemplateColumns: 'minmax(0, 1fr) 130px 230px auto', gap: 12, alignItems: 'center',
@@ -392,15 +436,14 @@ export default function ClassificaSpese({ orgId, notify, isMobile = false, onSal
                   </div>
                   <div style={{ ...tnum, fontSize: FS.md, fontWeight: 700, color: T.text, textAlign: isMobile ? 'left' : 'right', margin: isMobile ? '6px 0' : 0 }}>{euro(f.importo)}</div>
                   <SceltaVoce valore={vociFatture.has(f.id) ? vociFatture.get(f.id) : 'attrezzature'} etichetta={`Voce della fattura ${f.numero || ''} di ${f.fornitore}`}
-                    disabilitato={!eccezioniDisponibili}
                     onCambia={(v) => setVociFatture(m => new Map(m).set(f.id, v))} />
                   <div style={{ marginTop: isMobile ? 8 : 0 }}>
-                    <Pulsante onClick={() => salvaFattura(f)} disabilitato={salvando || !eccezioniDisponibili || (vociFatture.has(f.id) && !vociFatture.get(f.id))}>Salva</Pulsante>
+                    <Pulsante onClick={() => salvaFattura(f)} disabilitato={salvando || (vociFatture.has(f.id) && !vociFatture.get(f.id))}>Salva</Pulsante>
                   </div>
                 </li>
               ))}
             </ul>
-          </Riquadro>
+          </FattureFuoriScala>
         </div>
       )}
 
