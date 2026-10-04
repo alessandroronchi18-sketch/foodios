@@ -246,8 +246,9 @@ describe('censimento: la misura decisa sulla larghezza invece che sul dito', () 
     // prezzo delle materie prime, che era l'azione principale di una pagina
     // nata quel giorno. L'elenco si accorcia solo così: correggendo, mai
     // allargando la maglia.
+    // 04/10/2026: `BarraPeriodo.jsx` esce dall'elenco. Rifatta come pulsante
+    // che si apre, ha ogni comando a 44 px anche sul computer.
     expect(rimasti).toEqual({
-      'src/components/BarraPeriodo.jsx': 1,
       'src/components/EsportaDati.jsx': 1,
       'src/components/Haccp.jsx': 4,
       'src/components/Impostazioni.jsx': 1,
