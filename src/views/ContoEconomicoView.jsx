@@ -127,7 +127,8 @@ export default function ContoEconomicoView({ orgId, sedi = [], sedeId = null, on
               <ul aria-label="Il conto voce per voce" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
                 {righe.map(r => (
                   <SchedaConto key={r.chiave} r={r} ricavi={ricavi} meseConfronto={dati.confronto}
-                    aperta={aperte.has(r.chiave)} onApri={r.dettaglio?.length ? () => apri(r.chiave) : null} />
+                    aperta={aperte.has(r.chiave)} onApri={r.dettaglio?.length ? () => apri(r.chiave) : null}
+                    onClassifica={r.chiave === 'daClassificare' ? () => setClassifica(true) : null} />
                 ))}
               </ul>
             ) : (
@@ -146,7 +147,8 @@ export default function ContoEconomicoView({ orgId, sedi = [], sedeId = null, on
                 <tbody>
                   {righe.map(r => (
                     <RigaConto key={r.chiave} r={r} ricavi={ricavi}
-                      aperta={aperte.has(r.chiave)} onApri={r.dettaglio?.length ? () => apri(r.chiave) : null} />
+                      aperta={aperte.has(r.chiave)} onApri={r.dettaglio?.length ? () => apri(r.chiave) : null}
+                      onClassifica={r.chiave === 'daClassificare' ? () => setClassifica(true) : null} />
                   ))}
                 </tbody>
               </table>
@@ -176,8 +178,12 @@ function numeriRiga(r, ricavi) {
   const v = r.valore != null && r.prima != null
     ? variazione({ attuale: r.valore, confronto: r.prima, piuEMeglio: r.tipo !== 'spesa' })
     : null
+  // «Da classificare» non è una spesa salita o scesa: sono fatture senza voce.
+  // La differenza si scrive senza giudizio, nel colore di «incompleto», mai in
+  // rosso (audit 04/10, CE3: era «+4.417 € · peggio»).
+  const incompleta = r.chiave === 'daClassificare'
   return {
-    coloreDiff: v ? (v.verso === 'meglio' ? T.green : v.verso === 'peggio' ? T.red : T.textSoft) : T.textSoft,
+    coloreDiff: incompleta ? T.amberDark : v ? (v.verso === 'meglio' ? T.green : v.verso === 'peggio' ? T.red : T.textSoft) : T.textSoft,
     peso: ricavi > 0 && r.valore != null && r.tipo !== 'ricavo' ? quota((r.valore / ricavi) * 100) : '',
     valore: r.valore == null ? 'non lo so' : r.tipo === 'spesa' ? `−${euro(r.valore)}` : euro(r.valore),
     coloreValore: r.valore == null ? T.amberDark : r.tipo === 'risultato' && r.valore < 0 ? T.red : T.text,
@@ -185,12 +191,24 @@ function numeriRiga(r, ricavi) {
     // La differenza in euro e il giudizio a parole, separati: la tabella li
     // scrive «+2.000 € · peggio», la scheda «+2.000 € su agosto 2025 · peggio».
     diff: v ? euroSegno(r.valore - r.prima) : null,
-    giudizio: v && v.verso !== 'pari' ? v.verso : null,
+    giudizio: v && v.verso !== 'pari' && !incompleta ? v.verso : null,
   }
 }
 const conGiudizio = (testo, giudizio) => `${testo}${giudizio ? ` · ${giudizio}` : ''}`
 
-function RigaConto({ r, ricavi, aperta, onApri }) {
+/** «Classifica», accanto alla voce «Da classificare»: porta dove si sistema. */
+function PulsanteClassifica({ onClick }) {
+  return (
+    <button type="button" onClick={onClick} style={{
+      border: 'none', background: 'transparent', color: T.brand, fontWeight: 700, fontSize: font.size.sm,
+      fontFamily: 'inherit', cursor: 'pointer', padding: '0 4px', minHeight: 28,
+    }}>
+      Classifica
+    </button>
+  )
+}
+
+function RigaConto({ r, ricavi, aperta, onApri, onClassifica }) {
   const forte = r.tipo !== 'spesa'
   const n = numeriRiga(r, ricavi)
   const stileRiga = { fontWeight: forte ? 800 : 500, color: T.text, background: r.tipo === 'risultato' ? T.bgSubtle : 'transparent' }
@@ -204,6 +222,7 @@ function RigaConto({ r, ricavi, aperta, onApri }) {
               <Icon name={aperta ? 'chevDown' : 'chevR'} size={13} />{r.etichetta}
             </button>
           ) : <span style={{ paddingLeft: r.tipo === 'spesa' ? 19 : 0 }}>{r.etichetta}</span>}
+          {onClassifica && <span style={{ marginLeft: 8 }}><PulsanteClassifica onClick={onClassifica} /></span>}
         </td>
         <td style={{ ...cellaNum, fontVariantNumeric: 'tabular-nums', color: n.coloreValore }}>{n.valore}</td>
         <td style={{ ...cellaNum, fontVariantNumeric: 'tabular-nums', color: T.textSoft, fontWeight: 500 }}>{n.prima ?? '—'}</td>
@@ -230,7 +249,7 @@ function RigaConto({ r, ricavi, aperta, onApri }) {
  * scheda, quanto pesa sugli incassi e la differenza con l'anno prima.
  * Le voci con i fornitori dietro si aprono toccando la scheda intera.
  */
-function SchedaConto({ r, ricavi, meseConfronto, aperta, onApri }) {
+function SchedaConto({ r, ricavi, meseConfronto, aperta, onApri, onClassifica }) {
   const n = numeriRiga(r, ricavi)
   const forte = r.tipo !== 'spesa'
   const confronto = nomeMese(meseConfronto)
@@ -265,6 +284,12 @@ function SchedaConto({ r, ricavi, meseConfronto, aperta, onApri }) {
           {corpo}
         </button>
       ) : <div style={griglia}>{corpo}</div>}
+      {/* Fuori dal pulsante della scheda: un pulsante non ne contiene un altro. */}
+      {onClassifica && (
+        <div style={{ paddingLeft: 24, marginTop: -8, paddingBottom: 4 }}>
+          <span style={{ display: 'inline-flex', minHeight: 44, alignItems: 'center' }}><PulsanteClassifica onClick={onClassifica} /></span>
+        </div>
+      )}
       {aperta && (
         <ul style={{ listStyle: 'none', margin: 0, padding: '0 0 8px 24px' }}>
           {(r.dettaglio || []).map(f => (
