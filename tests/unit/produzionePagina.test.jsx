@@ -327,6 +327,12 @@ describe('Le colonne del grafico: intere e non intere', () => {
     expect(c.find(x => x.key === '2026-W28').intera).toBe(true)
   })
 
+  it('la settimana tagliata dai dati (il periodo parte di lunedì, i dati di mercoledì) è in ambra', () => {
+    const c = colonneVenduto(righe, { da: '2026-06-29', a: '2026-07-19', passo: 'settimana', registrati: reg })
+    expect(c.find(x => x.key === '2026-W27').intera).toBe(false)
+    expect(c.find(x => x.key === '2026-W28').intera).toBe(true)
+  })
+
   it('un giorno di chiusura dentro la settimana non la rende incompleta', () => {
     const c = colonneVenduto(giorni('2026-06-30', '2026-07-19', ['2026-07-08']), { da: '2026-07-01', a: '2026-07-19', passo: 'settimana', registrati: reg })
     const w28 = c.find(x => x.key === '2026-W28')
