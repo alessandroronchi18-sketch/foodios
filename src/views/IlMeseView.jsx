@@ -21,7 +21,7 @@ import {
   TitoloGrafico, Riquadro, FraseInsight, ClassificaSpese,
 } from '../components/analisi'
 import { euro, quota, nomeMese, aMese, variazione, dataBreve } from '../lib/formatoAnalisi'
-import { OBIETTIVI, causeDelCambio, fraseCausa, titoloCascata, motivoSenzaUtile } from '../lib/ilMese'
+import { OBIETTIVI, causeDelCambio, fraseCausa, titoloCascata, motivoSenzaUtile, nomeIncassi } from '../lib/ilMese'
 import PaginaAnalisi, { SezioneAnalisi, spazioRiquadri } from '../components/analisi/PaginaAnalisi'
 import MeseAnalisi, { useMeseAnalisi, AvvisoMeseSpostato, PulsanteTorna, meseCorrente } from '../components/analisi/MeseAnalisi'
 
@@ -129,10 +129,12 @@ export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate
                 ? `Prima del personale ti restano ${euro(conto.primaDelPersonale)}${conto.stimato ? ' (stima)' : ''}: incassi meno le spese in fattura.`
                 : conto.speseFatture != null ? `Spese già note: ${euro(conto.spese)}` : ''} />
         </div>
-        <NumeroConConfronto isMobile={isMobile} etichetta="Incassi senza IVA" stimato={conto.stimato}
+        {/* Il nome degli incassi è lo stesso in tutte le pagine (nomeIncassi):
+            «stimati» sta nel nome, «senza IVA» nella riga sotto il numero. */}
+        <NumeroConConfronto isMobile={isMobile} etichetta={nomeIncassi(conto.stimato)}
           valore={conto.ricavi != null ? euro(conto.ricavi) : null} motivoMancante="nessun dato"
           variazione={vIncassi} rispettoA={`su ${nomeMese(meseConfronto, { anno: true })}`}
-          contesto={dati.attuale.incassi.fonte === 'stima' ? 'stimati dall\'inventario' : dati.attuale.incassi.fonte === 'cassa' ? 'dalla cassa' : ''} />
+          contesto={dati.attuale.incassi.fonte === 'stima' ? 'dall\'inventario, senza IVA' : dati.attuale.incassi.fonte === 'cassa' ? 'dalla cassa, senza IVA' : ''} />
         <NumeroConConfronto isMobile={isMobile} etichetta="Spese del mese"
           valore={conto.spese != null ? euro(conto.spese) : null} motivoMancante="fatture non lette"
           variazione={vSpese} rispettoA={`su ${nomeMese(meseConfronto, { anno: true })}`}
@@ -239,7 +241,7 @@ function SediAffiancate({ perSede, isMobile }) {
         return (
           <div key={s.sede.id} style={{ minWidth: 0 }}>
             <div style={{ fontSize: font.size.md, fontWeight: 800, color: T.text, marginBottom: 6 }}>{s.sede.nome}</div>
-            <RigaBarra etichetta={c.stimato ? 'Incassi stimati' : 'Incassi'} valore={c.ricavi} max={max} colore={T.graficoReale} />
+            <RigaBarra etichetta={nomeIncassi(c.stimato)} valore={c.ricavi} max={max} colore={T.graficoReale} />
             <RigaBarra etichetta="Spese" valore={c.spese} max={max} colore={T.graficoConfronto} />
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: font.size.base }}>
               <span style={{ color: T.textSoft }}>Utile</span>

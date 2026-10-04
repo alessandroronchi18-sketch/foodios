@@ -18,6 +18,7 @@ import { CoperturaDati, Andamentino, IntestazioneAnalisi, TitoloGrafico, Riquadr
 import PaginaAnalisi from '../components/analisi/PaginaAnalisi'
 import { euro, euroSegno, quota, nomeMese, aMese, variazione } from '../lib/formatoAnalisi'
 import { vociCopertura } from './IlMeseView'
+import { nomeIncassi } from '../lib/ilMese'
 import MeseAnalisi, { useMeseAnalisi, AvvisoMeseSpostato, PulsanteTorna } from '../components/analisi/MeseAnalisi'
 
 /**
@@ -29,7 +30,7 @@ export function righeConto(attuale, prima, andamento = []) {
   const serie = (fn) => andamento.map(m => (m ? fn(m.conto) : null))
   const gruppo = (c, chiave) => c?.gruppi?.find(g => g.chiave === chiave)
   const righe = [
-    { chiave: 'incassi', etichetta: attuale.stimato ? 'Incassi (stimati)' : 'Incassi', valore: attuale.ricavi, prima: prima?.ricavi ?? null, tipo: 'ricavo', serie: serie(c => c.ricavi) },
+    { chiave: 'incassi', etichetta: nomeIncassi(attuale.stimato), valore: attuale.ricavi, prima: prima?.ricavi ?? null, tipo: 'ricavo', serie: serie(c => c.ricavi) },
   ]
   for (const g of attuale.gruppi || []) {
     const p = gruppo(prima, g.chiave)

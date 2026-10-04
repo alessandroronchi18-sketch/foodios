@@ -35,6 +35,15 @@ export const ALIQUOTA_IVA_INCASSI = 10
  *  con sé stesso; questi numeri sono solo il riferimento della barra. */
 export const OBIETTIVI = { materiePrime: 30, personale: 30, primeCost: 60 }
 
+/**
+ * Il nome degli incassi, uguale in tutte le pagine dell'Analisi: «Incassi
+ * stimati» quando vengono dall'inventario, «Incassi» dalla cassa. Audit del
+ * 04/10 (§7): lo stesso numero si chiamava «Incassi senza IVA», «Incassi
+ * stimati» e «Incassi (stimati)» in tre posti. «Senza IVA» si dice sotto il
+ * numero, non nel nome.
+ */
+export const nomeIncassi = (stimati) => (stimati ? 'Incassi stimati' : 'Incassi')
+
 /** Le categorie di spesa come passi della cascata, nell'ordine del conto. */
 export const PASSI_SPESA = [
   { ids: ['materie-prime'], etichetta: 'Materie prime', chiave: 'materiePrime' },
@@ -159,7 +168,7 @@ export function contoDelMese({ incassi, costi, personale, speseFisse = null }) {
   const q = (x) => (ricavi > 0 && x != null ? (x / ricavi) * 100 : null)
   const materiePrime = gruppi.find(g => g.chiave === 'materiePrime').importo
   const passi = [
-    { etichetta: incassi?.fonte === 'stima' ? 'Incassi stimati' : 'Incassi', valore: ricavi, tipo: 'inizio', chiave: 'incassi' },
+    { etichetta: nomeIncassi(incassi?.fonte === 'stima'), valore: ricavi, tipo: 'inizio', chiave: 'incassi' },
     // Le materie prime restano anche a zero solo se le fatture non si sanno
     // (per dire «non lo so»); a zero con le fatture lette sono una riga «−0 €».
     ...gruppi.filter(g => g.importo > 0 || (g.chiave === 'materiePrime' && !costi)).map(g => ({ etichetta: g.etichetta, valore: costi ? g.importo : null, tipo: 'meno', chiave: g.chiave })),
@@ -210,7 +219,7 @@ export function causeDelCambio(attuale, prima, { soglia = 50, massimo = 5 } = {}
   if (!attuale || !prima) return []
   const out = []
   if (attuale.ricavi != null && prima.ricavi != null) {
-    out.push({ chiave: 'incassi', etichetta: 'Incassi', effetto: tonda(attuale.ricavi - prima.ricavi), attuale: attuale.ricavi, prima: prima.ricavi })
+    out.push({ chiave: 'incassi', etichetta: nomeIncassi(attuale.stimato), effetto: tonda(attuale.ricavi - prima.ricavi), attuale: attuale.ricavi, prima: prima.ricavi })
   }
   for (const g of attuale.gruppi || []) {
     const p = (prima.gruppi || []).find(x => x.chiave === g.chiave)
