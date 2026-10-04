@@ -111,6 +111,8 @@ describe('Il mese, con il personale sistemato', () => {
     // Dal 04/10 (audit IM9) le cause sono barre divergenti, non frasi: il
     // titolo dice la causa più pesante, ogni riga voce · barra · differenza,
     // e il fornitore principale in nome breve sotto la voce.
+    // … e dalla sera del 04/10 stanno dietro «Perché è cambiato da …?».
+    await act(async () => { fireEvent.click([...document.querySelectorAll('button')].find(b => b.textContent.startsWith('Perché'))) })
     expect(testo()).toMatch(new RegExp(`Hai incassato 10\\.000 € in più rispetto ${aMese(MA)}`))
     const mp = document.querySelector('ul[aria-label="Che cosa è cambiato"] li[aria-label^="Materie prime"]')
     expect(mp.getAttribute('aria-label')).toBe('Materie prime: +2.000 €, peggio')

@@ -14,7 +14,7 @@
 //   6. le sedi affiancate;
 //   7. gli ultimi dodici mesi.
 import React, { useMemo, useState } from 'react'
-import { color as T, font, ui3 } from '../lib/theme'
+import { color as T, font, ui3, space } from '../lib/theme'
 import Icon from '../components/Icon'
 import { testo, intestazione, cifreInColonna } from '../components/analisi/misure'
 
@@ -23,7 +23,7 @@ const NF0 = new Intl.NumberFormat('it-IT', { useGrouping: 'always', maximumFract
 const cifra = (n) => `${n < 0 && Math.round(Math.abs(n)) > 0 ? '−' : ''}${NF0.format(Math.abs(n))}`
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import {
-  CoperturaDati, NumeroConConfronto, NumeroPrincipale, FilaTessere, BarraObiettivo, Cascata, IntestazioneAnalisi,
+  CoperturaDati, NumeroConConfronto, NumeroPrincipale, FilaTessere, BarraObiettivo, Cascata, conConfronto, IntestazioneAnalisi,
   TitoloGrafico, Riquadro, FraseInsight, ClassificaSpese, ElencoDivergente,
 } from '../components/analisi'
 import { euro, euroSegno, quota, nomeMese, aMese, variazione, dataBreve } from '../lib/formatoAnalisi'
@@ -74,6 +74,7 @@ export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate
   // si rilegge da solo (`versione`), senza cambiare pagina.
   const [classifica, setClassifica] = useState(false)
   const [versione, setVersione] = useState(0)
+  const [percheAperto, setPercheAperto] = useState(false)
   // Il mese guardato, la lettura e la regola del primo mese stanno in
   // MeseAnalisi: il Conto economico usa le stesse (audit 04/10, C9 e CE2).
   const { mese, setMese, dati, caricando, errore, spostato } = useMeseAnalisi({ orgId, sedi, sedeId, versione })
@@ -177,21 +178,22 @@ export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate
         </Riquadro>
       )}
 
-      {/* Senza cause la cascata prende tutta la riga e la frase sta sotto il
-          suo titolo: prima accanto c'era un riquadro con una frase sola
-          (audit 04/10, IM14). */}
-      <div style={{ display: 'grid', gridTemplateColumns: unaRiga ? '1fr' : colonne, gap: fra }}>
-        <Riquadro isMobile={isMobile} stile={!cause.length && !unaRiga ? { gridColumn: '1 / -1' } : null}>
-          <TitoloGrafico titolo={titoloCascata(conto, iva)}
-            sottotitolo={`${iva.stato === 'senza' ? 'Incassi e spese senza IVA.' : 'Incassi senza IVA.'} Le spese vengono dalle fatture del mese, per data.${cause.length ? '' : ` ${senzaCause}`}`} />
-          <Cascata isMobile={isMobile} ricavi={conto.ricavi} passi={conto.passi} avviso={iva.riga} />
-        </Riquadro>
+      {/* La cascata è la tabella del conto (scelta 1): voce · barra · € del
+          mese · % sugli incassi · differenza con l'anno prima. Prende tutta
+          la riga; la barra scura è quella di cui parla il titolo. Il perché,
+          ordinato per euro di impatto, si apre a un tocco sotto (scelta 7):
+          prima «Cosa è cambiato» stava sempre aperto accanto, e senza cause
+          era un riquadro con una frase sola (audit 04/10, IM9 e IM14). */}
+      <Riquadro isMobile={isMobile}>
+        <TitoloGrafico titolo={titoloCascata(conto, iva)}
+          sottotitolo={`${iva.stato === 'senza' ? 'Incassi e spese senza IVA.' : 'Incassi senza IVA.'} Le spese vengono dalle fatture del mese, per data.${cause.length ? '' : ` ${senzaCause}`}`} />
+        <Cascata isMobile={isMobile} ricavi={conto.ricavi} avviso={iva.riga}
+          passi={conConfronto(conto.passi, contoPrima?.passi)}
+          titoloValore={nomeMese(mese, { anno: false })} titoloConfronto={`su ${nomeMese(meseConfronto)}`}
+          evidenzia={conto.utile != null ? 'utile' : null} />
         {cause.length > 0 && (
-          <Riquadro isMobile={isMobile} stile={unaRiga ? null : { gridColumn: '2 / 4' }}>
-            {/* Barre da uno zero comune invece di cinque paragrafi con «di
-                spesa rispetto ad agosto 2025» ripetuto (audit 04/10, IM9). */}
-            <TitoloGrafico titolo={titoloCause(cause, meseConfronto)}
-              sottotitolo="Le voci che hanno spostato di più l'utile, dalla più pesante: a destra quello che è salito, a sinistra quello che è sceso." />
+          <Perche aperto={percheAperto} onApri={() => setPercheAperto(v => !v)} meseConfronto={meseConfronto}>
+            <p style={{ margin: `0 0 ${space[3]}px`, ...testo(font.size.md), fontWeight: 600, color: T.text }}>{titoloCause(cause, meseConfronto)}</p>
             <ElencoDivergente isMobile={isMobile} titoloValore={`su ${nomeMese(meseConfronto)}, €`}
               voci={cause.map(c => ({
                 chiave: c.chiave, etichetta: c.etichetta, valore: Math.round(c.attuale - c.prima),
@@ -200,9 +202,9 @@ export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate
                 // andavano su tre righe nella colonna delle voci.
                 nota: c.fornitori?.length ? `soprattutto ${nomeBreve(c.fornitori[0].nome)} ${euroSegno(c.fornitori[0].delta).replace(' €', '')}` : undefined,
               }))} />
-          </Riquadro>
+          </Perche>
         )}
-      </div>
+      </Riquadro>
 
       {/* Le tre quote contro l'obiettivo. Se non se ne sa nessuna, niente
           riquadro di «non lo so»: una riga che dice quando ci saranno
@@ -290,6 +292,22 @@ export function rispostaDelMese({ conto, contoPrima, mese, meseConfronto, vUtile
   }
 }
 const maiuscola = (t) => (t ? t[0].toUpperCase() + t.slice(1) : t)
+
+/** «Perché è cambiato da agosto 2025?»: il pulsante e quello che apre. */
+function Perche({ aperto, onApri, meseConfronto, children }) {
+  return (
+    <div style={{ marginTop: space[2], borderTop: `1px solid ${T.borderSoft}` }}>
+      <button type="button" onClick={onApri} aria-expanded={aperto} style={{
+        display: 'inline-flex', alignItems: 'center', gap: space[1], minHeight: 44, padding: 0, border: 'none', background: 'transparent',
+        color: T.brand, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer', ...testo(font.size.md),
+      }}>
+        {`Perché è cambiato da ${nomeMese(meseConfronto)}?`}
+        <Icon name={aperto ? 'chevUp' : 'chevDown'} size={16} />
+      </button>
+      {aperto && <div style={{ paddingTop: space[2] }}>{children}</div>}
+    </div>
+  )
+}
 
 /** Come sono state divise le spese condivise, detto com'è andata davvero. */
 function testoRipartizione(perSede) {

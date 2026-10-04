@@ -17,7 +17,7 @@
 // posto una riga dice quando ci saranno.
 import React from 'react'
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, cleanup, waitFor } from '@testing-library/react'
+import { render, cleanup, waitFor, fireEvent, act } from '@testing-library/react'
 import { incassiDelMese, personaleDelMese, contoDelMese } from '../../src/lib/ilMese.js'
 import { mesePrima, annoPrima, nomeMese } from '../../src/lib/formatoAnalisi.js'
 import { todayLocal } from '../../src/lib/dateLocal.js'
@@ -52,19 +52,22 @@ describe('Senza cause del cambio (IM14)', () => {
     await waitFor(() => expect(testo()).toMatch(/Quanto hai guadagnato/))
     expect(riquadroCol(/^Il confronto con/)).toBeUndefined()
     const cascata = riquadroCol(/Le fatture valgono/)
-    expect(cascata.style.gridColumn).toBe('1 / -1')
+    // A tutta riga: figlia diretta della pagina.
+    expect(cascata.parentElement.classList.contains('fos-pagina-analisi')).toBe(true)
     expect(cascata.textContent).toMatch(new RegExp(`Per ${nomeMese(MA)} mancano i dati per confrontare voce per voce`))
   })
 
-  it('con le cause, due riquadri come prima: la cascata in colonna 1, le cause nelle altre due', async () => {
+  // Dalla sera del 04/10 la cascata ha le differenze voce per voce, e il
+  // perché ordinato per impatto si apre a un tocco nello stesso riquadro
+  // (scelta 7): prima era un secondo riquadro accanto, sempre aperto.
+  it('con le cause, il perché sta nello stesso riquadro della cascata, dietro un tocco', async () => {
     DATI = { mese: M, confronto: MA, attuale: mese(M), annoPrima: mese(MA, { ricavi: 80000 }), andamento: [], perSede: null, ultimoInventario: null, errori: [] }
     render(<IlMeseView orgId="o1" sedi={[]} />)
-    // Il riquadro delle cause: quello con le barre divergenti (dal 04/10 il
-    // suo titolo è la causa più pesante, non «Cosa è cambiato»).
-    const cause = () => document.querySelector('ul[aria-label="Che cosa è cambiato"]')?.closest('section')
-    await waitFor(() => expect(cause()).toBeTruthy())
-    expect(cause().style.gridColumn).toBe('2 / 4')
-    expect(riquadroCol(/Le fatture valgono/).style.gridColumn || 'auto').toBe('auto')
+    await waitFor(() => expect(riquadroCol(/Le fatture valgono/)).toBeTruthy())
+    const perche = [...riquadroCol(/Le fatture valgono/).querySelectorAll('button')].find(b => b.textContent.startsWith('Perché'))
+    expect(perche.getAttribute('aria-expanded')).toBe('false')
+    await act(async () => { fireEvent.click(perche) })
+    expect(document.querySelector('ul[aria-label="Che cosa è cambiato"]').closest('section')).toBe(riquadroCol(/Le fatture valgono/))
   })
 })
 

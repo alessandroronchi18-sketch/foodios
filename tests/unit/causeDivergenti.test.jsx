@@ -16,7 +16,7 @@
 // gli passa le cose giuste.
 import React from 'react'
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, cleanup, waitFor } from '@testing-library/react'
+import { render, cleanup, waitFor, fireEvent, act } from '@testing-library/react'
 import { incassiDelMese, personaleDelMese, contoDelMese, causeDelCambio, titoloCause } from '../../src/lib/ilMese.js'
 import { mesePrima, annoPrima, aMese, nomeMese } from '../../src/lib/formatoAnalisi.js'
 import { todayLocal } from '../../src/lib/dateLocal.js'
@@ -51,6 +51,15 @@ const conDati = () => ({
   andamento: [], perSede: null, ultimoInventario: null, errori: [],
 })
 const elenco = () => document.querySelector('ul[aria-label="Che cosa è cambiato"]')
+// Dalla sera del 04/10 le cause si aprono a un tocco sotto la cascata
+// («Perché è cambiato da …?», scelta 7): le prove le aprono prima.
+async function apriPerche() {
+  let b
+  await waitFor(() => { b = [...document.querySelectorAll('button')].find(x => x.textContent.startsWith('Perché')); expect(b).toBeTruthy() })
+  await act(async () => { fireEvent.click(b) })
+}
+// Il pannello del perché: il titolo-conclusione e l'elenco.
+const pannello = () => elenco().parentElement.parentElement
 
 describe('titoloCause', () => {
   it('la voce che ha pesato di più, in dieci parole al massimo', () => {
@@ -69,22 +78,21 @@ describe('«Cosa è cambiato» nel Mese (IM9)', () => {
   it('barre divergenti, una riga per voce, non paragrafi', async () => {
     DATI = conDati()
     render(<IlMeseView orgId="o1" sedi={[]} />)
-    await waitFor(() => expect(elenco()).toBeTruthy())
+    await apriPerche()
     const righe = [...elenco().querySelectorAll('li')]
     expect(righe.map(li => li.getAttribute('aria-label'))).toEqual([
       'Confezioni: +11.542 €, peggio',
       'Materie prime: −368 €, meglio',
     ])
     // Il mese di confronto si dice una volta (nel titolo), non in ogni riga.
-    const riquadro = elenco().closest('section')
-    expect(riquadro.textContent.match(new RegExp(nomeMese(MA), 'g'))).toHaveLength(2) // titolo + intestazione dei numeri
-    expect(riquadro.textContent).not.toMatch(/di spesa rispetto ad? \w+ \d{4}, soprattutto/)
+    expect(pannello().textContent.match(new RegExp(nomeMese(MA), 'g'))).toHaveLength(2) // titolo + intestazione dei numeri
+    expect(pannello().textContent).not.toMatch(/di spesa rispetto ad? \w+ \d{4}, soprattutto/)
   })
 
   it('il fornitore principale in nome breve, sotto la voce', async () => {
     DATI = conDati()
     render(<IlMeseView orgId="o1" sedi={[]} />)
-    await waitFor(() => expect(elenco()).toBeTruthy())
+    await apriPerche()
     const conf = [...elenco().querySelectorAll('li')][0]
     expect(conf.textContent).toMatch(/soprattutto CONO ARTIC COMMERCIALE \+11\.542/)
     expect(elenco().textContent).not.toMatch(/AZIENDA AGRICOLA DI VETRIOLO/)
@@ -93,9 +101,8 @@ describe('«Cosa è cambiato» nel Mese (IM9)', () => {
   it('il titolo è la conclusione, e i numeri hanno l\'intestazione col mese di confronto', async () => {
     DATI = conDati()
     render(<IlMeseView orgId="o1" sedi={[]} />)
-    await waitFor(() => expect(elenco()).toBeTruthy())
-    const riquadro = elenco().closest('section')
-    expect(riquadro.querySelector('h3').textContent).toBe(`Confezioni: +11.542 € di spesa rispetto ${aMese(MA)}`)
-    expect(riquadro.textContent).toMatch(new RegExp(`su ${nomeMese(MA)}, €`))
+    await apriPerche()
+    expect(pannello().querySelector('p').textContent).toBe(`Confezioni: +11.542 € di spesa rispetto ${aMese(MA)}`)
+    expect(pannello().textContent).toMatch(new RegExp(`su ${nomeMese(MA)}, €`))
   })
 })
