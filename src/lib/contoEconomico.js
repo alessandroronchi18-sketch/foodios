@@ -157,7 +157,7 @@ export function categoriaPerId(id) {
 }
 
 const piano = (s) => String(s ?? '')
-  .normalize('NFD').replace(/[̀-ͯ]/g, '')
+  .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
   .toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim()
 
 // Le etichette di prodotto che la pagina Fornitori propone da sempre
@@ -284,7 +284,7 @@ const CAFFE = /\b(CAFFE|COFFEE)\b/
 const CAFFE_MACCHINE = /\b(TECH|SERVICE|MACCHIN\w*|ASSISTENZA)\b/
 
 const perRegola = (s) => ' ' + String(s ?? '')
-  .normalize('NFD').replace(/[̀-ͯ]/g, '')
+  .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
   .toUpperCase().replace(/[^A-Z0-9]+/g, ' ').trim() + ' '
 
 function dalNome(nome) {

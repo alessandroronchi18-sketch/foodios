@@ -2170,7 +2170,7 @@ export default function AdminPage() {
         q(c.registrata_il || ''), q(c.ultimo_accesso || ''), q(c.trial_ends_at || ''),
       ].join(',')
     })
-    const csv = '﻿' + [header, ...rows].join('\n')
+    const csv = '\ufeff' + [header, ...rows].join('\n')
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')

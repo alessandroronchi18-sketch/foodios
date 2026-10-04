@@ -27,7 +27,7 @@ import { isNotaCredito } from './fatture'
 export function normPerConfronto(s) {
   return String(s || '')
     .toUpperCase()
-    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .replace(/\b(S\.?R\.?L\.?|S\.?P\.?A\.?|S\.?A\.?S\.?|S\.?N\.?C\.?|SOCIETA|UNIPERSONALE|DI|E|&)\b/g, ' ')
     .replace(/[^A-Z0-9 ]/g, ' ')
     .replace(/\s+/g, ' ')

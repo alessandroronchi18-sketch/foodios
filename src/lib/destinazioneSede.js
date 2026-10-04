@@ -103,7 +103,7 @@ const CODA_FORMA = /\s+(srl|spa|snc|sas|scarl|sc|ss|soc\s+coop|societa\s+coopera
 export function chiaveIndirizzo(testo) {
   let t = String(testo ?? '')
     .toLowerCase()
-    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
   for (const [re, con] of FORME) t = t.replace(re, con)
   for (const [re, con] of ABBREVIAZIONI) t = t.replace(re, con)
   // Il CAP e la parola che lo annuncia: «CAP. 10125», «10123 TORINO».
