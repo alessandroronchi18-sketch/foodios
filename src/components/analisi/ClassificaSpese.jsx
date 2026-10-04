@@ -36,6 +36,11 @@ import { IntestazioneAnalisi, TitoloGrafico, Riquadro } from './Testi'
 import PaginaAnalisi from './PaginaAnalisi'
 
 const PASSO = 25
+// Una griglia sola per le due liste della pagina (audit 04/10, CS2): casella
+// (o il suo posto), nome, importo, tendina. Prima le fatture fuori scala ne
+// avevano un'altra e importi e tendine cadevano 84 px più a sinistra.
+const COLONNE_ELENCO = '40px minmax(0, 1fr) 150px 230px'
+const SPAZIO_ELENCO = 12
 const FS = font.size
 const nInt = (n) => Number(n || 0).toLocaleString('it-IT', { useGrouping: 'always' })
 const giornoIso = (d) => {
@@ -141,7 +146,14 @@ function FattureFuoriScala({ eccezionali, disponibili, aperta, onApri, isMobile,
     <Riquadro isMobile={isMobile}>
       <div style={{ display: 'grid', gridTemplateColumns: disponibili && !isMobile ? '16px minmax(0, 1fr) auto' : '16px minmax(0, 1fr)', columnGap: 10, rowGap: 8, alignItems: 'center' }}>
         <span aria-hidden="true" style={{ display: 'inline-flex', color: T.textSoft, alignSelf: 'start', paddingTop: 2 }}><Icon name="info" size={16} /></span>
-        <span style={{ fontSize: FS.md, lineHeight: '20px', color: T.text }}>{frase}</span>
+        <span style={{ fontSize: FS.md, lineHeight: '20px', color: T.text }}>
+          {frase}
+          {disponibili && aperta && (
+            <span style={{ display: 'block', fontSize: FS.sm, lineHeight: '16px', color: T.textSoft, marginTop: 4 }}>
+              Macchine, arredi, lavori durano anni: segnati come investimento non pesano sul conto di un mese solo.
+            </span>
+          )}
+        </span>
         {disponibili && (
           <span style={{ gridColumn: isMobile ? '2' : 'auto' }}>
             <Pulsante onClick={onApri} aria-expanded={aperta}>
@@ -153,12 +165,7 @@ function FattureFuoriScala({ eccezionali, disponibili, aperta, onApri, isMobile,
         )}
       </div>
       {disponibili && aperta && (
-        <div style={{ marginTop: 12 }}>
-          <div style={{ fontSize: FS.sm, lineHeight: '16px', color: T.textSoft, marginBottom: 8 }}>
-            Macchine, arredi, lavori durano anni: segnati come investimento non pesano sul conto di un mese solo.
-          </div>
-          {children}
-        </div>
+        <div style={{ marginTop: 12 }}>{children}</div>
       )}
     </Riquadro>
   )
@@ -208,7 +215,7 @@ function RigaFornitore({ g, scelta, spuntato, onScelta, onSpunta, isMobile }) {
     )
   }
   return (
-    <li style={{ display: 'grid', gridTemplateColumns: '40px minmax(0, 1fr) 150px 230px', gap: 12, alignItems: 'center', padding: '8px 0', borderTop: `1px solid ${T.borderSoft}` }}>
+    <li style={{ display: 'grid', gridTemplateColumns: COLONNE_ELENCO, gap: SPAZIO_ELENCO, alignItems: 'center', padding: '8px 0', borderTop: `1px solid ${T.borderSoft}` }}>
       {casella}{nome}{importo}{select}
     </li>
   )
@@ -428,9 +435,10 @@ export default function ClassificaSpese({ orgId, notify, isMobile = false, onSal
           <ul style={{ listStyle: 'none', margin: 0, padding: 0 }} aria-label="Fatture fuori scala">
             {eccezionali.map(f => (
               <li key={f.id} style={{
-                display: isMobile ? 'block' : 'grid', gridTemplateColumns: 'minmax(0, 1fr) 130px 230px auto', gap: 12, alignItems: 'center',
-                padding: '10px 0', borderTop: `1px solid ${T.borderSoft}`,
+                display: isMobile ? 'block' : 'grid', gridTemplateColumns: COLONNE_ELENCO, gap: SPAZIO_ELENCO, alignItems: 'center',
+                padding: '8px 0', borderTop: `1px solid ${T.borderSoft}`,
               }}>
+                {!isMobile && <span aria-hidden="true" />}
                 <div style={{ minWidth: 0 }}>
                   <div title={f.fornitore} style={{ fontSize: FS.md, fontWeight: 600, color: T.text }}>{nomeBreve(f.fornitore)}</div>
                   <div style={{ fontSize: FS.sm, color: T.textSoft }}>
@@ -438,9 +446,11 @@ export default function ClassificaSpese({ orgId, notify, isMobile = false, onSal
                   </div>
                 </div>
                 <div style={{ ...tnum, fontSize: FS.md, fontWeight: 700, color: T.text, textAlign: isMobile ? 'left' : 'right', margin: isMobile ? '6px 0' : 0 }}>{euro(f.importo)}</div>
-                <SceltaVoce valore={vociFatture.has(f.id) ? vociFatture.get(f.id) : 'attrezzature'} etichetta={`Voce della fattura ${f.numero || ''} di ${f.fornitore}`}
-                  onCambia={(v) => setVociFatture(m => new Map(m).set(f.id, v))} />
-                <div style={{ marginTop: isMobile ? 8 : 0 }}>
+                {/* Il «Salva» della fattura sta sotto la sua tendina, nella
+                    stessa colonna: una colonna in più per lui spostava tutto. */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'stretch' }}>
+                  <SceltaVoce valore={vociFatture.has(f.id) ? vociFatture.get(f.id) : 'attrezzature'} etichetta={`Voce della fattura ${f.numero || ''} di ${f.fornitore}`}
+                    onCambia={(v) => setVociFatture(m => new Map(m).set(f.id, v))} />
                   <Pulsante onClick={() => salvaFattura(f)} disabilitato={salvando || (vociFatture.has(f.id) && !vociFatture.get(f.id))}>Salva</Pulsante>
                 </div>
               </li>

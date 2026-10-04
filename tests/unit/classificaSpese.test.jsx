@@ -28,6 +28,12 @@
 // spenti erano bordeaux al 55%, cioè rosa: da lontano sembravano accesi. Ora le
 // fatture fuori scala sono una riga; senza la colonna non c'è nessun comando,
 // con la colonna i comandi si aprono a richiesta; lo spento è grigio.
+//
+// Stesso audit (CS2): le due liste della pagina avevano due griglie diverse
+// (`minmax(0,1fr) 130px 230px auto` e `40px minmax(0,1fr) 150px 230px`):
+// importi e tendine sfasati di 84 px, e la GECKO da 86.651 €, che sta in tutte
+// e due, compariva in due colonne diverse una sotto l'altra. Ora la griglia è
+// una sola; il «Salva» della fattura sta sotto la sua tendina.
 import React from 'react'
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent, waitFor, within, act } from '@testing-library/react'
@@ -283,6 +289,24 @@ describe('ClassificaSpese: le fatture fuori misura', () => {
     const riga = await screen.findByText(/fatture molto più grandi del solito/)
     expect(riga.textContent).toMatch(/^\d+ fatture molto più grandi del solito, la più grande di GECKO CIOCCOLATI E GELATI TORINO \(86\.651\u00a0€/)
     expect(riga.textContent).toMatch(/potrai segnarle come investimento/)
+  })
+})
+
+describe('ClassificaSpese: le due liste sulla stessa griglia (audit 04/10, CS2)', () => {
+  it('importi e tendine delle fatture fuori scala cadono sotto quelli dei fornitori', async () => {
+    monta(fintoDb(datiMara()))
+    await screen.findByText(/Una fattura vale 33 volte/)
+    fireEvent.click(screen.getByRole('button', { name: 'Guarda e decidi' }))
+    const fattura = within(screen.getByRole('list', { name: 'Fatture fuori scala' })).getAllByRole('listitem')[0]
+    const fornitore = righe()[0]
+    expect(fattura.style.gridTemplateColumns).toBe(fornitore.style.gridTemplateColumns)
+    expect(fattura.style.columnGap || fattura.style.gap).toBe(fornitore.style.columnGap || fornitore.style.gap)
+    // Quattro celle in tutte e due: casella (o il suo posto vuoto), nome, importo, tendina.
+    expect(fattura.children).toHaveLength(4)
+    expect(fornitore.children).toHaveLength(4)
+    expect(fattura.children[2].textContent).toBe('86.651 €')
+    expect(within(fattura.children[3]).getByRole('combobox')).toBeTruthy()
+    expect(within(fattura.children[3]).getByRole('button', { name: 'Salva' })).toBeTruthy()
   })
 })
 
