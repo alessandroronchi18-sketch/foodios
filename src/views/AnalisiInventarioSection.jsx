@@ -16,7 +16,7 @@
 // Questo file impagina e basta. I conti sono in `produzione/useContiProduzione`
 // (che chiama le librerie provate), i pezzi in `produzione/*`.
 import React, { useRef } from 'react'
-import useIsMobile from '../lib/useIsMobile'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { color as T, font, radius as R } from '../lib/theme'
 import { CoperturaDati, IntestazioneAnalisi, TitoloGrafico } from '../components/analisi'
 import Icon from '../components/Icon'
@@ -26,6 +26,8 @@ import { esportaXlsx } from './produzione/esporta'
 import GustiSenzaRicetta from './produzione/GustiSenzaRicetta'
 import CaselleDaSistemare from './produzione/CaselleDaSistemare'
 import PeriodoVuoto from './produzione/PeriodoVuoto'
+import Tessere from './produzione/Tessere'
+import ContoVetrina from './produzione/ContoVetrina'
 
 /**
  * @param {Object} props
@@ -47,6 +49,7 @@ export default function AnalisiInventarioSection({
   barra = null,
 }) {
   const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
   const c = useContiProduzione({ rows, rowsPrev, dateFrom, dateTo, prevFrom, prevTo, ricettario, orgId, sedeId, sedi, partenza })
   const refGusti = useRef(null)
   const refCaselle = useRef(null)
@@ -98,6 +101,15 @@ export default function AnalisiInventarioSection({
       {intestazione}
       {barra}
       <CoperturaDati voci={voci} />
+
+      <Tessere totali={c.totali} totaliPrev={c.totaliPrev} confronto={confronto} confrontoInfo={confrontoInfo}
+        copertura={c.copertura} scartoRegistrato={c.scartoRegistrato}
+        senzaRicetta={{ n: c.senzaRicetta.length, euroStimati: c.euroSenzaRicetta }}
+        nGusti={c.totali.nConVendita} isMobile={isMobile} isTablet={isTablet} />
+
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile || isTablet ? '1fr' : '1fr 1fr', gap: isMobile ? 10 : 14, marginBottom: 14 }}>
+        <ContoVetrina vetrina={c.vetrina} scartoRegistrato={c.scartoRegistrato} isMobile={isMobile} />
+      </div>
 
       {daSistemare && (
         <section aria-label="Da sistemare" style={{ marginTop: 8 }}>

@@ -27,6 +27,11 @@
 // con un ingrediente senza prezzo) faceva anche lui un margine del 100%, e
 // quel 100% entrava nel totale. Adesso il suo margine è «non lo so» e il
 // totale dice su quanti gusti è calcolato.
+//
+// 04/10/2026, pagina rifatta (fase 2): la tessera non scrive più «Margine
+// (79,0%)» ma «Margine stimato 166 €» con sotto «79% del ricavo» (le quote
+// con al massimo un decimale, zero se intero: ANALISI_DESIGN.md §2.6). La
+// prova resta la stessa — 79 e non 100 — cambia solo come si legge.
 import React from 'react'
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, cleanup, waitFor } from '@testing-library/react'
@@ -190,9 +195,9 @@ describe('La pagina dello Storico mostra il margine vero', () => {
     apri()
     // Il ricavo arriva quando i formati sono caricati: 7 kg × 30 €/kg.
     await waitFor(() => expect(testo()).toMatch(/210\s?€/), { timeout: 5000 })
-    expect(testo()).not.toMatch(/Margine \(100,0%\)/)
+    expect(testo()).not.toMatch(/100(,0)?% del ricavo/)
     // 166 / 210 = 79,0%
-    expect(testo()).toMatch(/Margine \(79,0%\)/)
+    expect(testo()).toMatch(/Margine stimato166\s?€79% del ricavo/)
     expect(testo()).toMatch(/166\s?€/)
   })
 
