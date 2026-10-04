@@ -23,7 +23,7 @@ import { caricaRigheInventario } from '../lib/inventarioProduzione'
 import { caricaRegoleChiusura, giornoChiuso } from '../lib/giorniChiusura'
 import { previsioneSede, piuGiorni, giorniFra, giornoSettimana, GIORNI_DATI_VECCHI, LIVELLO_BANDA } from '../lib/previsioneVenduto'
 import { dataBreve } from '../lib/formatoAnalisi'
-import { CoperturaDati, NumeroConConfronto, IntestazioneAnalisi, TitoloGrafico, Riquadro } from '../components/analisi'
+import { CoperturaDati, NumeroConConfronto, IntestazioneAnalisi, TitoloGrafico, Riquadro, TabellaAnalisi, testo, transizione } from '../components/analisi'
 import PaginaAnalisi, { spazioRiquadri } from '../components/analisi/PaginaAnalisi'
 import Icon from '../components/Icon'
 
@@ -342,7 +342,7 @@ function Previsione({ p, oggi, LEX, isMobile, assoluto = false }) {
       <Riquadro isMobile={isMobile}>
         <TitoloGrafico
           titolo={urgenti.length ? `Da rifare per primi: ${elenco(urgenti.slice(0, 3).map(g => g.gusto))}` : (scorteNote ? `Entro ${etichettaDomani} non finisce niente` : `In ordine di vendita prevista`)}
-          sottotitolo={`Prima chi finisce prima. ${isMobile ? '«4–6 kg»' : '«Fra 4 e 6 kg»'} vuol dire: 8 volte su 10 il venduto vero cade lì dentro.${allargata ? ' La banda è più larga del solito: nelle ultime due settimane ci ho preso meno spesso.' : ''}`}
+          sottotitolo={`Prima chi finisce prima. «4–6 kg» e la banda chiara vogliono dire: 8 volte su 10 il venduto vero cade lì dentro. Il trattino nero è quello che c'era in vetrina ${testoGiorno(p.ultimoDato)} sera: se sta a sinistra della banda, non basta.${allargata ? ' La banda è più larga del solito: nelle ultime due settimane ci ho preso meno spesso.' : ''}`}
         />
         <TabellaGusti p={p} oggi={oggi} colonne={colonne} LEX={LEX} isMobile={isMobile} testoGiorno={testoGiorno} />
       </Riquadro>
@@ -350,44 +350,97 @@ function Previsione({ p, oggi, LEX, isMobile, assoluto = false }) {
   )
 }
 
-const TH = { textAlign: 'left', fontSize: font.size.sm, fontWeight: 700, color: T.textSoft, padding: '8px 10px', borderBottom: `1px solid ${T.border}`, whiteSpace: 'nowrap' }
-const TD = { padding: '10px', borderBottom: `1px solid ${T.borderSoft}`, fontSize: font.size.md, color: T.text, verticalAlign: 'top' }
-const NUM = { ...tnum, textAlign: 'right', whiteSpace: 'nowrap' }
-const SOTTO = { fontSize: font.size.sm, color: T.textSoft, marginTop: 2, fontWeight: 400 }
+// ── La tabella: la tabella comune dell'Analisi, con le barre d'intervallo ─
+//
+// Audit del 04/10 (PR3, PR4, C5): 40 intervalli scritti a parole che non si
+// incolonnavano, «ieri sera» sotto ogni quantità in vetrina, intestazioni in
+// uno stile diverso da quelle del Conto. Ora è TabellaAnalisi («kg» in
+// testa), e ogni previsione è anche una barra d'intervallo su una scala
+// comune; nella colonna del giorno che la vetrina deve coprire c'è la tacca
+// di quello che c'è in vetrina. Perché la barra e non i dieci pallini della
+// ricerca: è nel diario dell'agente pagine (04/10 sera).
+
+/** «6,2–14», «≈ 5»: l'intervallo per la cella, senza «kg» (sta in testa). */
+export function intervalloCella(basso, alto, kg) {
+  const c = kgTesto(kg)
+  if (c == null) return null
+  if (basso == null || alto == null) return `≈ ${c}`
+  const b = kgTesto(basso), a = kgTesto(alto)
+  return b === a ? `≈ ${c}` : `${b}–${a}`
+}
+
+/** Basta quello che c'è in vetrina per la giornata prevista? */
+export function bastaLaVetrina(vetrinaKg, previsto) {
+  if (vetrinaKg == null || !previsto || previsto.kg == null) return null
+  const basso = previsto.basso ?? previsto.kg
+  const alto = previsto.alto ?? previsto.kg
+  if (vetrinaKg < basso) return 'non basta'
+  if (vetrinaKg >= alto) return 'basta'
+  return 'forse non basta'
+}
+
+/**
+ * La barra d'intervallo: la banda chiara va dal minimo al massimo previsto
+ * (8 volte su 10 il venduto vero cade lì), la tacca nera è quello che c'è in
+ * vetrina. Tacca a sinistra della banda: finisce. Una sola serie, il colore
+ * della stima (ardesia al 35%); i numeri sono scritti nella cella accanto.
+ */
+function BarraIntervallo({ previsto, vetrina = null, max, etichetta }) {
+  const pct = (x) => Math.max(0, Math.min(100, (Number(x) / max) * 100))
+  const da = pct(previsto.basso ?? previsto.kg)
+  const a = pct(previsto.alto ?? previsto.kg)
+  return (
+    <span role="img" aria-label={etichetta} title={etichetta} data-scala={Math.round(max * 10) / 10}
+      style={{ position: 'relative', display: 'block', height: 16, marginTop: 4 }}>
+      {/* Il binario: la scala comune, un filo da un capo all'altro. */}
+      <span aria-hidden="true" style={{ position: 'absolute', left: 0, right: 0, top: 7, height: 2, borderRadius: 1, background: T.graficoGriglia }} />
+      <span aria-hidden="true" style={{
+        position: 'absolute', top: 4, height: 8, left: `${da}%`, width: `${Math.max(1, a - da)}%`,
+        background: T.graficoReale, opacity: 0.35, borderRadius: 4, transition: transizione('left', 'width'),
+      }} />
+      {vetrina != null && (
+        <span data-tacca="vetrina" aria-hidden="true" style={{
+          position: 'absolute', top: 0, height: 16, width: 2, marginLeft: -1, left: `${pct(vetrina)}%`, background: T.text, borderRadius: 1,
+        }} />
+      )}
+    </span>
+  )
+}
+
+const SOTTO = { ...testo(font.size.sm), color: T.textSoft, fontWeight: 400 }
 
 function TabellaGusti({ p, oggi, colonne, LEX, isMobile, testoGiorno }) {
-  return (
-    <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', margin: isMobile ? '0 -4px' : 0 }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: isMobile ? 0 : 720 }}>
-        <thead>
-          <tr>
-            <th scope="col" style={TH}>{LEX.Prodotto}</th>
-            {!isMobile && <th scope="col" style={{ ...TH, textAlign: 'right' }}>In vetrina</th>}
-            {colonne.map(i => (
-              // Al telefono l'intestazione va a capo: tenuta su una riga
-              // allargava la colonna e tagliava «Da rifare».
-              <th key={i} scope="col" style={{ ...TH, textAlign: 'right', whiteSpace: isMobile ? 'normal' : 'nowrap' }}>Si venderà {testoGiorno(p.giorniPrevisti[i])}</th>
-            ))}
-            {!isMobile && <th scope="col" style={TH}>Finisce</th>}
-            <th scope="col" style={TH}>Da rifare</th>
-            {!isMobile && <th scope="col" style={{ ...TH, textAlign: 'right' }} title="Errore medio di questo metodo sulle ultime 4 settimane, per questo gusto">Di solito sbaglio</th>}
-          </tr>
-        </thead>
-        <tbody>
-          {p.gusti.map(g => <RigaGusto key={g.gusto} g={g} oggi={oggi} base={p.base} colonne={colonne} isMobile={isMobile} testoGiorno={testoGiorno} />)}
-        </tbody>
-      </table>
-    </div>
-  )
+  // Una scala sola per tutte le barre: il più grande fra i massimi previsti e
+  // le vetrine. La stessa quantità sta nello stesso punto in ogni riga.
+  const max = Math.max(1, ...p.gusti.flatMap(g => [
+    ...colonne.map(i => g.previsti[i]?.alto ?? g.previsti[i]?.kg ?? 0),
+    g.scorta?.kg ?? 0,
+  ]))
+  const maiuscola = (t) => (t ? t[0].toUpperCase() + t.slice(1) : t)
+  const cols = [
+    { chiave: 'gusto', titolo: LEX.Prodotto },
+    { chiave: 'vetrina', titolo: 'In vetrina, kg', tipo: 'nodo', soloComputer: true },
+    ...colonne.map(i => ({
+      chiave: `p${i}`, tipo: 'nodo', larghezza: isMobile ? 104 : 200,
+      // Al telefono corta, perché le tre colonne stiano nel riquadro.
+      titolo: isMobile ? `${maiuscola(testoGiorno(p.giorniPrevisti[i]))}, kg` : `Si venderà ${testoGiorno(p.giorniPrevisti[i])}, kg`,
+    })),
+    { chiave: 'finisce', titolo: 'Finisce', soloComputer: true, larghezza: 112 },
+    // Al telefono 112 + 104 + 90 più 3 × 16 di imbottitura fanno 354 px:
+    // il riquadro a 420, col suo bordo (con 356 scorreva di 2 px).
+    { chiave: 'rifare', titolo: 'Da rifare', larghezza: isMobile ? 90 : 128 },
+    { chiave: 'sbaglio', titolo: 'Di solito sbaglio', tipo: 'nodo', soloComputer: true, larghezza: 120 },
+  ]
+  const righe = p.gusti.map(g => rigaGusto(g, { oggi, base: p.base, colonne, isMobile, testoGiorno, max, giornoVetrina: p.giorniPrevisti[0] }))
+  return <TabellaAnalisi colonne={cols} righe={righe} isMobile={isMobile} etichetta={`${LEX.Prodotti}: quanto se ne venderà`} />
 }
 
 // Niente rosso qui: in una gelateria che produce ogni giorno quasi tutto
 // «finisce oggi», ed è la normalità, non un allarme (ANALISI_DESIGN.md,
 // regola 12). L'urgenza si legge dall'ordine e dalla parola «subito».
-function RigaGusto({ g, oggi, base, colonne, isMobile, testoGiorno }) {
+function rigaGusto(g, { oggi, base, colonne, isMobile, testoGiorno, max, giornoVetrina }) {
   const rifare = quandoRifare(g.finisce, base)
   const scortaTesto = g.scorta ? `${kgTesto(g.scorta.kg)}\u00a0kg` : '—'
-  const scortaSotto = g.scorta ? (g.scorta.stimata ? 'stimata' : `${testoGiorno(g.scorta.data)} sera`) : 'non contata'
   const finisceTesto = g.finisce
     ? testoGiorno(g.finisce)
     : (g.scorta ? 'fra più di 2 settimane' : '—')
@@ -396,40 +449,55 @@ function RigaGusto({ g, oggi, base, colonne, isMobile, testoGiorno }) {
   const rifareTesto = rifare ? (rifare.subito ? 'subito' : testoGiorno(rifare.data)) : '—'
   const presto = !!rifare && (rifare.subito || rifare.data <= piuGiorni(oggi, 1))
 
-  return (
-    <tr>
-      <th scope="row" style={{ ...TD, textAlign: 'left', fontWeight: 700 }}>
+  const celle = {
+    gusto: (
+      <span style={{ fontWeight: 700 }}>
         {g.gusto}
         {isMobile && (
-          <div style={SOTTO}>
-            <div>in vetrina {scortaTesto}{g.scorta?.stimata ? ' (stimata)' : ''}</div>
-            {err && <div>sbaglio {err}</div>}
-          </div>
+          <span style={{ display: 'block', ...SOTTO }}>
+            <span style={{ display: 'block' }}>in vetrina {scortaTesto}{g.scorta?.stimata ? ' (stimata)' : ''}</span>
+            {err && <span style={{ display: 'block' }}>sbaglio {err}</span>}
+          </span>
         )}
-      </th>
-      {!isMobile && (
-        <td style={{ ...TD, ...NUM }}>
-          {scortaTesto}
-          <div style={SOTTO}>{scortaSotto}</div>
-        </td>
-      )}
-      {colonne.map(i => {
-        const x = g.previsti[i]
-        return (
-          <td key={i} style={{ ...TD, ...NUM }} title={x?.bandaDaSede ? 'Per questo gusto ho ancora pochi giorni: la banda viene dagli errori di tutta la sede' : undefined}>
-            {intervalloTesto(x?.basso, x?.alto, x?.kg, { breve: isMobile }) || '—'}
-          </td>
-        )
-      })}
-      {!isMobile && <td style={{ ...TD, whiteSpace: 'nowrap' }}>{finisceTesto}</td>}
-      <td style={TD}>
+      </span>
+    ),
+    // Sotto la quantità solo quello che la cambia («stimata», «non contata»):
+    // «ieri sera» lo dice una volta il sottotitolo (PR4).
+    vetrina: (
+      <span style={{ display: 'block', textAlign: 'right' }}>
+        {g.scorta ? kgTesto(g.scorta.kg) : '—'}
+        {g.scorta?.stimata && <span style={{ display: 'block', ...SOTTO }}>stimata</span>}
+        {!g.scorta && <span style={{ display: 'block', ...SOTTO }}>non contata</span>}
+      </span>
+    ),
+    finisce: <span style={{ fontWeight: 400, whiteSpace: 'nowrap' }}>{finisceTesto}</span>,
+    rifare: (
+      <span style={{ display: 'block' }}>
         <span style={{ fontWeight: presto ? 700 : 400, whiteSpace: 'nowrap' }}>{rifareTesto}</span>
-        {isMobile && g.finisce && <div style={SOTTO}>finisce {finisceTesto}</div>}
-        {lotto && <div style={{ ...SOTTO, whiteSpace: isMobile ? 'normal' : 'nowrap' }}>{lotto}</div>}
-      </td>
-      {!isMobile && <td style={{ ...TD, ...NUM, color: err ? T.text : T.textSoft }}>{err || 'da misurare'}</td>}
-    </tr>
-  )
+        {isMobile && g.finisce && <span style={{ display: 'block', ...SOTTO }}>finisce {finisceTesto}</span>}
+        {lotto && <span style={{ display: 'block', ...SOTTO }}>{lotto}</span>}
+      </span>
+    ),
+    sbaglio: <span style={{ fontWeight: 400, color: err ? T.text : T.textSoft }}>{err || 'da misurare'}</span>,
+  }
+  for (const i of colonne) {
+    const x = g.previsti[i]
+    const testoCella = intervalloCella(x?.basso, x?.alto, x?.kg)
+    // La tacca va nella colonna del giorno che la vetrina deve coprire: il
+    // primo giorno previsto.
+    const conVetrina = x?.data === giornoVetrina && g.scorta
+    const basta = conVetrina ? bastaLaVetrina(g.scorta.kg, x) : null
+    const etichetta = testoCella
+      ? `${g.gusto} ${testoGiorno(x.data)}: si venderà ${testoCella.replace('≈ ', 'circa ')} kg${conVetrina ? `; in vetrina ${kgTesto(g.scorta.kg)} kg: ${basta}` : ''}`
+      : null
+    celle[`p${i}`] = (
+      <span style={{ display: 'block', width: '100%' }} title={x?.bandaDaSede ? 'Per questo gusto ho ancora pochi giorni: la banda viene dagli errori di tutta la sede' : undefined}>
+        <span style={{ display: 'block', textAlign: 'right', ...tnum }}>{testoCella || '—'}</span>
+        {testoCella && <BarraIntervallo previsto={x} vetrina={conVetrina ? g.scorta.kg : null} max={max} etichetta={etichetta} />}
+      </span>
+    )
+  }
+  return { chiave: g.gusto, celle }
 }
 
 function ComeLeggo({ LEX }) {
