@@ -19,11 +19,11 @@
 // La lettura dei fornitori che non riesce mostra l'errore: presa per
 // «nessuna voce», ripresenterebbe da classificare fornitori già classificati.
 // Si scrive prima nell'archivio e solo dopo si cambia lo schermo.
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { color as T, font, radius as R, tnum } from '../../lib/theme'
 import Icon from '../Icon'
 import { supabase as clientVero } from '../../lib/supabase'
-import { euro, dataBreve } from '../../lib/formatoAnalisi'
+import { euro, dataBreve, quota } from '../../lib/formatoAnalisi'
 import {
   CATEGORIE_SPESA, categoriaPerId, chiaveFornitore, suggerisciCategoria, nomeBreve,
   fattureEccezionali, categoriaDellaFattura,
@@ -34,6 +34,8 @@ import {
 import CoperturaDati from './CoperturaDati'
 import { IntestazioneAnalisi, TitoloGrafico, Riquadro } from './Testi'
 import PaginaAnalisi from './PaginaAnalisi'
+import NumeroPrincipale from './NumeroPrincipale'
+import { testo, transizione } from './misure'
 
 const PASSO = 25
 // Una griglia sola per le due liste della pagina (audit 04/10, CS2): casella
@@ -59,6 +61,23 @@ const GRUPPI_VOCI = [
   { tipo: 'investimento', etichetta: 'Investimento' },
   { tipo: 'escluso', etichetta: 'Non è una spesa' },
 ]
+
+/**
+ * Le voci della copertura di questa pagina. Quanti fornitori e quanta spesa
+ * hanno la voce lo dice la barra in cima (AvanzamentoVoci): la copertura dice
+ * il resto. Prima ripeteva gli stessi numeri del titolo dell'elenco, e «0 su
+ * 143» era «in parte» (audit 04/10, CS3). Ogni voce ha il nome breve per la
+ * riga chiusa.
+ */
+export function vociCoperturaSpese({ nProposte = 0, senzaImponibile = 0, nFatture12 = 0 }) {
+  return [
+    ...(nProposte ? [{ id: 'proposte', breve: `${nInt(nProposte)} voci proposte`, stato: 'stima', testo: `Voce proposta per ${nInt(nProposte)} fornitori: da confermare` }] : []),
+    ...(senzaImponibile ? [{
+      id: 'iva', breve: 'Fatture col solo totale', stato: 'parziale', testo: `${nInt(senzaImponibile)} fatture su ${nInt(nFatture12)} hanno solo il totale con l'IVA`,
+      dettaglio: "Carica lo ZIP delle fatture dall'Agenzia delle Entrate: Foodos completa imponibile e righe, e le proposte migliorano.",
+    }] : []),
+  ]
+}
 
 /** I fornitori come li vede il conto: uno per ditta, con la spesa e le righe per la proposta. */
 export function fornitoriDaFatture(fatture, { fornitori = [], categoriePerFornitore = {}, dal12 }) {
@@ -87,11 +106,17 @@ export function fornitoriDaFatture(fatture, { fornitori = [], categoriePerFornit
   })).sort((a, b) => b.spesa12 - a.spesa12 || b.spesaTotale - a.spesaTotale || a.nome.localeCompare(b.nome, 'it'))
 }
 
+// Al telefono tendine, pulsanti e caselle alti 44 px, un dito (audit 04/10,
+// CS6: erano 40); al computer 40 come prima. La pagina lo dice una volta.
+const AlTelefono = createContext(false)
+const altezzaControllo = (telefono) => (telefono ? 44 : 40)
+
 function SceltaVoce({ valore, onCambia, etichetta, disabilitato = false }) {
+  const telefono = useContext(AlTelefono)
   return (
     <select value={valore || ''} onChange={e => onCambia(e.target.value || null)} aria-label={etichetta} disabled={disabilitato}
       style={{
-        minHeight: 40, width: '100%', padding: '6px 10px', borderRadius: R.md, border: `1px solid ${T.borderStr}`,
+        minHeight: altezzaControllo(telefono), width: '100%', padding: '6px 10px', borderRadius: R.md, border: `1px solid ${T.borderStr}`,
         background: T.bgCard, color: valore ? T.text : T.textSoft, fontSize: FS.md, fontFamily: 'inherit',
       }}>
       <option value="">Scegli la voce…</option>
@@ -107,10 +132,11 @@ function SceltaVoce({ valore, onCambia, etichetta, disabilitato = false }) {
 // Spento è grigio, mai bordeaux sbiadito: al 55% il bordeaux diventava rosa
 // e da lontano sembrava acceso (audit 04/10, CS1).
 function Pulsante({ children, onClick, principale = false, disabilitato = false, ...resto }) {
+  const telefono = useContext(AlTelefono)
   return (
     <button type="button" onClick={onClick} disabled={disabilitato} {...resto}
       style={{
-        minHeight: 40, padding: '8px 16px', borderRadius: R.md, fontFamily: 'inherit', fontSize: FS.md, fontWeight: 700,
+        minHeight: altezzaControllo(telefono), padding: '8px 16px', borderRadius: R.md, fontFamily: 'inherit', fontSize: FS.md, fontWeight: 700,
         cursor: disabilitato ? 'not-allowed' : 'pointer',
         border: disabilitato ? `1px solid ${T.border}` : principale ? 'none' : `1px solid ${T.borderStr}`,
         background: disabilitato ? T.bgSubtle : principale ? T.brand : T.bgCard,
@@ -171,7 +197,70 @@ function FattureFuoriScala({ eccezionali, disponibili, aperta, onApri, isMobile,
   )
 }
 
-function RigaFornitore({ g, scelta, spuntato, onScelta, onSpunta, isMobile }) {
+// «86.651 €» senza andare a capo fra il numero e l'euro.
+const euroUnito = (n) => (euro(n) || '').replace(' €', '\u00a0€')
+
+/**
+ * La risposta della pagina: quanta della spesa degli ultimi 12 mesi ha la
+ * voce, e una barra che si riempie man mano che si classifica (audit 04/10,
+ * CS4: la pagina non diceva mai quanta strada c'è, né quanta se n'è fatta).
+ * Scuro quello che è salvato, chiaro quello che è spuntato e si salverà, una
+ * tacca dove si arriva con i primi 10 fornitori senza voce. Una sola serie su
+ * un binario dello stesso grigio dei grafici (guida dataviz: «meter»), le
+ * parti separate da 2 px di fondo, i numeri scritti sotto: niente fumetti
+ * che li nascondono.
+ */
+function AvanzamentoVoci({ totale, conVoce, inAttesa = 0, nInAttesa = 0, primi10 = null, isMobile }) {
+  const pct = (x) => Math.max(0, Math.min(100, (x / totale) * 100))
+  const fatto = pct(conVoce)
+  const poi = pct(inAttesa)
+  const tacca = primi10 != null ? pct(conVoce + primi10) : null
+  const tondo = (x) => Math.round(x * 10) / 10
+  const muovi = transizione('width', 'left')
+  const frase = fatto >= 99.95
+    ? 'Tutta la spesa degli ultimi 12 mesi ha la voce: le fatture nuove entrano da sole nella voce del fornitore.'
+    : [
+      primi10 != null ? `I primi 10 fornitori senza voce fanno il ${quota(pct(primi10))} della spesa: comincia da loro.` : null,
+      nInAttesa ? `Salvando le ${nInt(nInAttesa)} voci spuntate arrivi al ${quota(fatto + poi)}.` : null,
+    ].filter(Boolean).join(' ') || null
+  const nome = 'Spesa degli ultimi 12 mesi con la voce'
+  // Il quadratino della legenda; quello del binario vuoto ha un filo, se no
+  // sul bianco del riquadro non si vede.
+  const segno = (colore, opacita = 1, filo = false) => (
+    <span aria-hidden="true" style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: colore, opacity: opacita, flexShrink: 0, boxSizing: 'border-box', ...(filo ? { border: `1px solid ${T.borderStr}` } : null) }} />
+  )
+  return (
+    <section aria-label="Avanzamento delle voci" style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: R.xl, padding: isMobile ? 16 : 20, minWidth: 0 }}>
+      <NumeroPrincipale etichetta={nome} valore={quota(fatto)} frase={frase} isMobile={isMobile} />
+      <div role="meter" aria-label={nome} aria-valuemin={0} aria-valuemax={100} aria-valuenow={tondo(fatto)}
+        aria-valuetext={`${euro(conVoce)} su ${euro(totale)}${inAttesa ? `; spuntate da salvare ${euro(inAttesa)}` : ''}`}
+        style={{ position: 'relative', height: 12, marginTop: 16, borderRadius: 4, background: T.graficoGriglia }}>
+        {fatto > 0 && (
+          <span title={`Con la voce: ${euro(conVoce)}`} style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${fatto}%`, background: T.graficoReale, borderRadius: 4, transition: muovi }} />
+        )}
+        {poi > 0 && (
+          // 2 px di fondo fra salvato e spuntato: si leggono come due parti.
+          <span title={`Spuntate, da salvare: ${euro(inAttesa)}`} style={{
+            position: 'absolute', top: 0, bottom: 0, left: fatto > 0 ? `calc(${fatto}% + 2px)` : 0,
+            width: fatto > 0 ? `calc(${poi}% - 2px)` : `${poi}%`, background: T.graficoReale, opacity: 0.35, borderRadius: 4, transition: muovi,
+          }} />
+        )}
+        {tacca != null && (
+          <span title="Fin qui con i primi 10 fornitori" style={{ position: 'absolute', top: -4, bottom: -4, left: `${tacca}%`, width: 2, marginLeft: -1, background: T.text, transition: muovi }} />
+        )}
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', columnGap: 16, rowGap: 4, marginTop: 8, ...testo(font.size.sm), color: T.textSoft }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>{segno(T.graficoReale)}con la voce <b style={{ color: T.text, ...tnum }}>{euro(conVoce)}</b></span>
+        {inAttesa > 0 && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>{segno(T.graficoReale, 0.35)}spuntate, da salvare <b style={{ color: T.text, ...tnum }}>{euro(inAttesa)}</b></span>}
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>{segno(T.graficoGriglia, 1, true)}senza voce <b style={{ color: T.text, ...tnum }}>{euro(Math.max(0, totale - conVoce - inAttesa))}</b></span>
+        {tacca != null && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span aria-hidden="true" style={{ display: 'inline-block', width: 2, height: 12, background: T.text }} />fin qui con i primi 10</span>}
+        <span>IVA compresa, come nelle fatture</span>
+      </div>
+    </section>
+  )
+}
+
+function RigaFornitore({ g, scelta, spuntato, onScelta, onSpunta, isMobile, fuoriScala = [] }) {
   const voceScelta = scelta !== undefined ? scelta : (g.voce || g.proposta?.categoria || null)
   const p = g.proposta
   const mostraProposta = !g.voce && p
@@ -183,19 +272,26 @@ function RigaFornitore({ g, scelta, spuntato, onScelta, onSpunta, isMobile }) {
     ? `${nInt(g.nFatture12)} ${g.nFatture12 === 1 ? 'fattura' : 'fatture'} in 12 mesi`
     : `nessuna in 12 mesi · ultima il ${dataLunga(g.ultima)}`
   const casella = (
-    <label style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: 40, minHeight: 40, cursor: voceScelta ? 'pointer' : 'default', flexShrink: 0 }}>
+    <label style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: altezzaControllo(isMobile), minHeight: altezzaControllo(isMobile), cursor: voceScelta ? 'pointer' : 'default', flexShrink: 0 }}>
       <input type="checkbox" checked={spuntato} disabled={!voceScelta} onChange={e => onSpunta(e.target.checked)}
         aria-label={`Conferma la voce di ${g.nome}`} style={{ width: 18, height: 18, accentColor: T.brand }} />
     </label>
   )
   const nome = (
     <div style={{ minWidth: 0, flex: 1 }}>
-      <div title={g.nome} style={{ fontSize: FS.md, fontWeight: 600, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: isMobile ? 'normal' : 'nowrap' }}>
+      <div title={g.nome} style={{ fontSize: FS.md, fontWeight: 600, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: isMobile ? 'normal' : 'nowrap', overflowWrap: 'anywhere' }}>
         {nomeBreve(g.nome)}
       </div>
       <div style={{ fontSize: FS.sm, color: mostraProposta && p.certezza === 'media' ? T.amberDark : T.textSoft, lineHeight: 1.4, marginTop: 2 }}>
         {nota}
       </div>
+      {/* La fattura fuori scala si dice qui, accanto al numero che tocca
+          (ANALISI_DESIGN §6): prima stava in una riga a sé sopra l'elenco. */}
+      {fuoriScala.map(f => (
+        <div key={f.id || f.numero} style={{ fontSize: FS.sm, color: T.amberDark, lineHeight: 1.4, marginTop: 2 }}>
+          {`fattura da ${euroUnito(f.importo)} del ${dataLunga(f.data)} fuori scala: forse un investimento`}
+        </div>
+      ))}
     </div>
   )
   const importo = (
@@ -280,12 +376,22 @@ export default function ClassificaSpese({ orgId, notify, isMobile = false, onSal
     () => fattureEccezionali(fatture, { categoriePerFornitore: mappa.categoriePerFornitore, dal: dal12 }),
     [fatture, mappa, dal12],
   )
+  const fuoriScalaPer = useMemo(() => {
+    const m = new Map()
+    for (const f of eccezionali) m.set(f.chiave, [...(m.get(f.chiave) || []), f])
+    return m
+  }, [eccezionali])
 
   // Le proposte sicure partono già spuntate; si rifà quando cambia l'elenco
   // dei fornitori senza voce (dopo un salvataggio non si rispunta niente di
   // già salvato, perché quei fornitori non sono più qui).
+  // `useLayoutEffect` e non `useEffect`: le spunte ci sono già al primo
+  // disegno. Con `useEffect` l'elenco compariva un istante con le caselle
+  // vuote, la barra in cima senza la parte «spuntate», e il «Salva 30 voci»
+  // spento (04/10: le prove che leggevano l'elenco appena comparso
+  // fallivano a caso).
   const firmaSenza = senzaVoce.map(g => g.chiave).join('|')
-  useEffect(() => {
+  useLayoutEffect(() => {
     setSpuntati(prima => {
       const s = new Set([...prima].filter(k => tutti.some(g => g.chiave === k)))
       for (const g of senzaVoce) if (g.proposta?.certezza === 'alta' && !scelte.has(g.chiave)) s.add(g.chiave)
@@ -400,19 +506,7 @@ export default function ClassificaSpese({ orgId, notify, isMobile = false, onSal
   const fatture12 = fatture.filter(f => String(f.data_fattura || '') >= dal12)
   const senzaImponibile = fatture12.filter(f => !(Math.abs(Number(f.imponibile) || 0) > 0) && !(Math.abs(Number(f.imposta) || 0) > 0)).length
 
-  const copertura = [
-    { id: 'fornitori', stato: senzaVoce.length ? 'parziale' : 'ok', testo: `${nInt(conVoce.length)} fornitori su ${nInt(tutti.length)} hanno la voce` },
-    {
-      id: 'spesa', stato: spesaSenza > 0 ? 'manca' : 'ok',
-      testo: spesaSenza > 0 ? `${euro(spesaSenza)} su ${euro(spesa12)} spesi negli ultimi 12 mesi sono senza voce` : 'Tutta la spesa degli ultimi 12 mesi ha la voce',
-      dettaglio: 'Importi IVA compresa, come nelle fatture.',
-    },
-    ...(nProposte ? [{ id: 'proposte', stato: 'stima', testo: `Voce proposta per ${nInt(nProposte)} fornitori: da confermare` }] : []),
-    ...(senzaImponibile ? [{
-      id: 'iva', stato: 'parziale', testo: `${nInt(senzaImponibile)} fatture su ${nInt(fatture12.length)} hanno solo il totale con l'IVA`,
-      dettaglio: "Carica lo ZIP delle fatture dall'Agenzia delle Entrate: Foodos completa imponibile e righe, e le proposte migliorano.",
-    }] : []),
-  ]
+  const copertura = vociCoperturaSpese({ nProposte, senzaImponibile, nFatture12: fatture12.length })
 
   const visibili = senzaVoce.slice(0, quanti)
   const barraSalva = (
@@ -424,53 +518,31 @@ export default function ClassificaSpese({ orgId, notify, isMobile = false, onSal
   )
 
   return (
+    <AlTelefono.Provider value={isMobile}>
     <PaginaAnalisi isMobile={isMobile}>
       {torna}
       {intestazione}
-      <CoperturaDati voci={copertura} />
-
-      {eccezionali.length > 0 && (
-        <FattureFuoriScala eccezionali={eccezionali} disponibili={eccezioniDisponibili} isMobile={isMobile}
-          aperta={fuoriScalaAperte} onApri={() => setFuoriScalaAperte(v => !v)}>
-          <ul style={{ listStyle: 'none', margin: 0, padding: 0 }} aria-label="Fatture fuori scala">
-            {eccezionali.map(f => (
-              <li key={f.id} style={{
-                display: isMobile ? 'block' : 'grid', gridTemplateColumns: COLONNE_ELENCO, gap: SPAZIO_ELENCO, alignItems: 'center',
-                padding: '8px 0', borderTop: `1px solid ${T.borderSoft}`,
-              }}>
-                {!isMobile && <span aria-hidden="true" />}
-                <div style={{ minWidth: 0 }}>
-                  <div title={f.fornitore} style={{ fontSize: FS.md, fontWeight: 600, color: T.text }}>{nomeBreve(f.fornitore)}</div>
-                  <div style={{ fontSize: FS.sm, color: T.textSoft }}>
-                    {`${f.numero ? `n. ${f.numero} · ` : ''}${dataLunga(f.data)} · ${f.motivo}${f.tipica ? ` (di solito ${euro(f.tipica)})` : ''}`}
-                  </div>
-                </div>
-                <div style={{ ...tnum, fontSize: FS.md, fontWeight: 700, color: T.text, textAlign: isMobile ? 'left' : 'right', margin: isMobile ? '6px 0' : 0 }}>{euro(f.importo)}</div>
-                {/* Il «Salva» della fattura sta sotto la sua tendina, nella
-                    stessa colonna: una colonna in più per lui spostava tutto. */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'stretch' }}>
-                  <SceltaVoce valore={vociFatture.has(f.id) ? vociFatture.get(f.id) : 'attrezzature'} etichetta={`Voce della fattura ${f.numero || ''} di ${f.fornitore}`}
-                    onCambia={(v) => setVociFatture(m => new Map(m).set(f.id, v))} />
-                  <Pulsante onClick={() => salvaFattura(f)} disabilitato={salvando || (vociFatture.has(f.id) && !vociFatture.get(f.id))}>Salva</Pulsante>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </FattureFuoriScala>
+      <CoperturaDati isMobile={isMobile} voci={copertura} />
+      {spesa12 > 0 && (
+        <AvanzamentoVoci totale={spesa12} conVoce={spesa12 - spesaSenza} isMobile={isMobile}
+          inAttesa={daSalvare.filter(g => !g.voce).reduce((t, g) => t + g.spesa12, 0)}
+          nInAttesa={daSalvare.filter(g => !g.voce).length}
+          primi10={senzaVoce.length > 10 ? senzaVoce.slice(0, 10).reduce((t, g) => t + g.spesa12, 0) : null} />
       )}
+
 
       <Riquadro isMobile={isMobile}>
         <TitoloGrafico
           titolo={senzaVoce.length
-            ? `${nInt(senzaVoce.length)} fornitori senza voce: ${euro(spesaSenza)} negli ultimi 12 mesi`
+            ? `${nInt(senzaVoce.length)} fornitori senza voce, dal più pesante`
             : 'Tutti i fornitori hanno la loro voce'}
-          sottotitolo={senzaVoce.length ? 'Dal più pesante. Controlla la voce proposta, cambiala se serve, poi salva le righe spuntate.' : 'Le fatture nuove entrano da sole nella voce del loro fornitore.'}
+          sottotitolo={senzaVoce.length ? 'Controlla la voce proposta, cambiala se serve, poi salva le righe spuntate.' : 'Le fatture nuove entrano da sole nella voce del loro fornitore.'}
           destra={senzaVoce.length && !isMobile ? barraSalva : null} />
         {senzaVoce.length > 0 && isMobile && <div style={{ marginBottom: 8 }}>{barraSalva}</div>}
         {senzaVoce.length > 0 && (
           <ul style={{ listStyle: 'none', margin: 0, padding: 0 }} aria-label="Fornitori senza voce">
             {visibili.map(g => (
-              <RigaFornitore key={g.chiave} g={g} isMobile={isMobile}
+              <RigaFornitore key={g.chiave} g={g} isMobile={isMobile} fuoriScala={fuoriScalaPer.get(g.chiave)}
                 scelta={scelte.has(g.chiave) ? scelte.get(g.chiave) : undefined}
                 spuntato={spuntati.has(g.chiave)}
                 onScelta={(id) => cambiaScelta(g, id)}
@@ -485,6 +557,40 @@ export default function ClassificaSpese({ orgId, notify, isMobile = false, onSal
         )}
       </Riquadro>
 
+      {/* Dopo l'elenco che si usa: prima stavano sopra, e al computer
+          spingevano giù il primo numero da 347 a 376 px (04/10). */}
+      {eccezionali.length > 0 && (
+        <FattureFuoriScala eccezionali={eccezionali} disponibili={eccezioniDisponibili} isMobile={isMobile}
+          aperta={fuoriScalaAperte} onApri={() => setFuoriScalaAperte(v => !v)}>
+          <ul style={{ listStyle: 'none', margin: 0, padding: 0 }} aria-label="Fatture fuori scala">
+            {eccezionali.map(f => (
+              <li key={f.id} style={{
+                // Al telefono nome e importo sulla stessa riga, l'importo a
+                // destra come nei fornitori (audit 04/10, CS5); sotto la scelta.
+                display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0, 1fr) auto' : COLONNE_ELENCO, gap: SPAZIO_ELENCO, alignItems: isMobile ? 'start' : 'center',
+                padding: '8px 0', borderTop: `1px solid ${T.borderSoft}`,
+              }}>
+                {!isMobile && <span aria-hidden="true" />}
+                <div style={{ minWidth: 0 }}>
+                  <div title={f.fornitore} style={{ fontSize: FS.md, fontWeight: 600, color: T.text }}>{nomeBreve(f.fornitore)}</div>
+                  <div style={{ fontSize: FS.sm, color: T.textSoft }}>
+                    {`${f.numero ? `n. ${f.numero} · ` : ''}${dataLunga(f.data)} · ${f.motivo}${f.tipica ? ` (di solito ${euro(f.tipica)})` : ''}`}
+                  </div>
+                </div>
+                <div style={{ ...tnum, fontSize: FS.md, fontWeight: 700, color: T.text, textAlign: 'right' }}>{euro(f.importo)}</div>
+                {/* Il «Salva» della fattura sta sotto la sua tendina, nella
+                    stessa colonna: una colonna in più per lui spostava tutto. */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'stretch', ...(isMobile ? { gridColumn: '1 / -1' } : null) }}>
+                  <SceltaVoce valore={vociFatture.has(f.id) ? vociFatture.get(f.id) : 'attrezzature'} etichetta={`Voce della fattura ${f.numero || ''} di ${f.fornitore}`}
+                    onCambia={(v) => setVociFatture(m => new Map(m).set(f.id, v))} />
+                  <Pulsante onClick={() => salvaFattura(f)} disabilitato={salvando || (vociFatture.has(f.id) && !vociFatture.get(f.id))}>Salva</Pulsante>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </FattureFuoriScala>
+      )}
+
       {conVoce.length > 0 && (
         <Riquadro isMobile={isMobile}>
           <TitoloGrafico
@@ -495,7 +601,7 @@ export default function ClassificaSpese({ orgId, notify, isMobile = false, onSal
           {mostraClassificati && (
             <ul style={{ listStyle: 'none', margin: '10px 0 0', padding: 0 }} aria-label="Fornitori con la voce">
               {conVoce.map(g => (
-                <RigaFornitore key={g.chiave} g={g} isMobile={isMobile}
+                <RigaFornitore key={g.chiave} g={g} isMobile={isMobile} fuoriScala={fuoriScalaPer.get(g.chiave)}
                   scelta={scelte.has(g.chiave) ? scelte.get(g.chiave) : undefined}
                   spuntato={spuntati.has(g.chiave)}
                   onScelta={(id) => cambiaScelta(g, id)}
@@ -507,5 +613,6 @@ export default function ClassificaSpese({ orgId, notify, isMobile = false, onSal
         </Riquadro>
       )}
     </PaginaAnalisi>
+    </AlTelefono.Provider>
   )
 }

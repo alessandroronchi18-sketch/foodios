@@ -156,13 +156,16 @@ describe('ClassificaSpese: i fornitori senza voce', () => {
     expect(screen.getByText(/Proposta da controllare/)).toBeTruthy()
   })
 
-  it('la copertura in cima dice quanti hanno la voce e quanta spesa manca', async () => {
+  // Fino al 04/10 la copertura diceva anche quanti fornitori hanno la voce e
+  // quanta spesa manca: gli stessi numeri del titolo dell'elenco, a 300 px di
+  // distanza, e «0 su 143» marcato «in parte» (audit CS3). Ora quei numeri li
+  // dice la barra in cima (CS4, sotto); la copertura dice il resto.
+  it('la copertura dice quello che la barra e il titolo non dicono', async () => {
     monta(fintoDb(datiMara()))
     await screen.findByRole('list', { name: 'Fornitori senza voce' })
     const cop = screen.getByRole('region', { name: 'Da dove vengono i numeri' })
-    expect(cop.textContent).toMatch(/1 fornitori su 6 hanno la voce/)
-    // 86.651 + 23.670 + 15.790 + 2.303 senza voce; + 1.065 del commercialista
-    expect(cop.textContent).toMatch(/128\.414 € su 129\.479 € spesi negli ultimi 12 mesi sono senza voce/)
+    expect(cop.textContent).not.toMatch(/hanno la voce|sono senza voce/)
+    expect(cop.textContent).toMatch(/Voce proposta per 4 fornitori: da confermare/)
     expect(cop.textContent).toMatch(/solo il totale con l'IVA/)
   })
 
@@ -310,6 +313,73 @@ describe('ClassificaSpese: le due liste sulla stessa griglia (audit 04/10, CS2)'
   })
 })
 
+// 04/10, prima foto dell'unione (coordinatore): al computer il primo numero
+// delle spese era sceso da 347 a 376 px, perché la riga delle fatture fuori
+// scala (82 px) stava sopra l'elenco che si usa. Ora l'elenco viene prima, e
+// la fattura fuori scala si dice nella riga del suo fornitore, accanto al
+// numero che tocca (ANALISI_DESIGN §6); la riga con i comandi sta sotto.
+describe('ClassificaSpese: prima l\'elenco, le fatture fuori scala nella riga del fornitore', () => {
+  it('l\'elenco dei fornitori viene prima della riga delle fatture fuori scala', async () => {
+    monta(fintoDb(datiMara()))
+    await screen.findByRole('list', { name: 'Fornitori senza voce' })
+    const elenco = lista()
+    const fuoriScala = screen.getByText(/Una fattura vale 33 volte/)
+    expect(elenco.compareDocumentPosition(fuoriScala) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('la riga della GECKO dice che ha una fattura fuori scala, con l\'importo e la data', async () => {
+    monta(fintoDb(datiMara()))
+    await screen.findByRole('list', { name: 'Fornitori senza voce' })
+    const gecko = righe().find(li => /GECKO/.test(li.textContent))
+    expect(gecko.textContent).toMatch(/fattura da 86\.651\u00a0€ del 10\/07\/2026 fuori scala: forse un investimento/)
+    const desa = righe().find(li => /DESA/.test(li.textContent))
+    expect(desa.textContent).not.toMatch(/fuori scala/)
+  })
+})
+
+// Audit del 04/10 (CS4): la pagina non diceva mai quanta strada c'è, né
+// quanta se n'è fatta. La risposta della pagina ora è la quota della spesa
+// che ha la voce, con una barra che si riempie: scuro quello che è salvato,
+// chiaro quello che è spuntato e si salverà, e una tacca dove si arriva con
+// i primi 10 fornitori senza voce.
+describe('ClassificaSpese: la barra che si riempie (audit 04/10, CS4)', () => {
+  const barra = () => screen.getByRole('meter', { name: 'Spesa degli ultimi 12 mesi con la voce' })
+
+  it('dice quanta spesa ha la voce, e quanta ne avrà salvando le spuntate', async () => {
+    monta(fintoDb(datiMara()))
+    await screen.findByRole('list', { name: 'Fornitori senza voce' })
+    // 1.065 € del commercialista su 129.479 €.
+    expect(barra().getAttribute('aria-valuenow')).toBe('0.8')
+    expect(screen.getByRole('region', { name: 'Avanzamento delle voci' }).textContent).toMatch(/0,8%/)
+    // Spuntate le proposte sicure: GECKO 86.651 + CONO ARTIC 15.790 + Enel 2.303.
+    expect(barra().getAttribute('aria-valuetext')).toMatch(/1\.065 € su 129\.479 €; spuntate da salvare 104\.744 €/)
+  })
+
+  it('salvando, la barra si riempie', async () => {
+    monta(fintoDb(datiMara()))
+    await screen.findByRole('list', { name: 'Fornitori senza voce' })
+    fireEvent.click(screen.getByRole('button', { name: /^Salva 3 voci$/ }))
+    await waitFor(() => expect(barra().getAttribute('aria-valuenow')).toBe('81.7'))
+  })
+
+  it('con più di 10 fornitori senza voce, la tacca dei primi 10 e la frase', async () => {
+    const fornitori = Array.from({ length: 14 }, (_, i) => ({ id: `x${i}`, organization_id: ORG, nome: `Fornitore ${String.fromCharCode(65 + i)}`, partita_iva: null, categoria: null }))
+    const fatture = fornitori.map((f, i) => fattura(f.nome, '2026-07-01', 1000 * (14 - i)))
+    monta(fintoDb({ fornitori, fatture }))
+    await screen.findByRole('list', { name: 'Fornitori senza voce' })
+    // 14 + 13 + … + 5 = 95 su 105 (migliaia).
+    const r = screen.getByRole('region', { name: 'Avanzamento delle voci' })
+    expect(r.textContent).toMatch(/I primi 10 fornitori senza voce fanno il 90,5% della spesa: comincia da loro/)
+    expect(r.textContent).toMatch(/fin qui con i primi 10/)
+  })
+
+  it('l\'elenco non ripete gli euro della barra nel suo titolo (CS3)', async () => {
+    monta(fintoDb(datiMara()))
+    await screen.findByRole('list', { name: 'Fornitori senza voce' })
+    expect(screen.getByRole('heading', { name: /fornitori senza voce/ }).textContent).toBe('5 fornitori senza voce, dal più pesante')
+  })
+})
+
 describe('ClassificaSpese: un pulsante spento si vede spento (audit 04/10, CS1)', () => {
   it('grigio, non bordeaux sbiadito', async () => {
     const db = fintoDb({
@@ -333,6 +403,49 @@ describe('ClassificaSpese: al telefono', () => {
     expect(enel.style.display).not.toBe('grid')
     expect(within(enel).getByRole('combobox')).toBeTruthy()
     expect(screen.getByRole('button', { name: /^Salva \d+ voci$/ })).toBeTruthy()
+  })
+})
+
+// Audit del 04/10 (CS5, CS6): al telefono gli importi delle fatture fuori
+// scala stavano a sinistra sotto il nome, quelli dei fornitori a destra; e
+// tendine, pulsanti e caselle erano alti 40 px, sotto i 44 di un dito.
+describe('ClassificaSpese al telefono: bersagli da 44 px, importi sempre a destra (CS5, CS6)', () => {
+  it('tendine, pulsanti e caselle alti almeno 44 px', async () => {
+    monta(fintoDb(datiMara()), { isMobile: true })
+    await screen.findByRole('list', { name: 'Fornitori senza voce' })
+    fireEvent.click(screen.getByRole('button', { name: 'Guarda e decidi' }))
+    const controlli = [...document.querySelectorAll('select, button')]
+    const bassi = controlli.filter(c => !(parseFloat(c.style.minHeight) >= 44) && !(parseFloat(c.style.height) >= 44))
+    expect(bassi.map(c => c.textContent || c.getAttribute('aria-label'))).toEqual([])
+    for (const l of within(lista()).getAllByRole('checkbox').map(c => c.closest('label'))) {
+      expect(parseFloat(l.style.minHeight)).toBeGreaterThanOrEqual(44)
+      expect(parseFloat(l.style.minWidth)).toBeGreaterThanOrEqual(44)
+    }
+  })
+
+  it('l\'importo della fattura fuori scala sta a destra, sulla riga del nome, come quello dei fornitori', async () => {
+    monta(fintoDb(datiMara()), { isMobile: true })
+    await screen.findByRole('list', { name: 'Fornitori senza voce' })
+    fireEvent.click(screen.getByRole('button', { name: 'Guarda e decidi' }))
+    const fattura = within(screen.getByRole('list', { name: 'Fatture fuori scala' })).getAllByRole('listitem')[0]
+    const importo = [...fattura.querySelectorAll('div')].find(d => d.textContent === '86.651 €')
+    expect(importo.style.textAlign).toBe('right')
+    expect(fattura.style.display).toBe('grid')
+  })
+
+  // Foto finali del 04/10 sera: «COMMERCIALISTIINTORINO» (una parola sola,
+  // 191 px) usciva dalla sua colonna di 187 e veniva tagliata.
+  it('un nome di una parola sola lunghissima va a capo invece di tagliarsi', async () => {
+    monta(fintoDb(datiMara()), { isMobile: true })
+    await screen.findByRole('list', { name: 'Fornitori senza voce' })
+    const nome = within(righe()[0]).getByTitle(/GECKO/)
+    expect(nome.style.overflowWrap).toBe('anywhere')
+  })
+
+  it('al computer i controlli restano da 40 (intorno a CS6)', async () => {
+    monta(fintoDb(datiMara()))
+    await screen.findByRole('list', { name: 'Fornitori senza voce' })
+    expect(screen.getByRole('combobox', { name: 'Voce di spesa di DESA SRL' }).style.minHeight).toBe('40px')
   })
 })
 

@@ -20,6 +20,18 @@
 // test la rendono davvero e leggono quello che comparirebbe a schermo: con i
 // dati vecchi non prevede e lo dice; con i dati di ieri mette in cima il gusto
 // che finisce prima; parla la lingua del banco.
+//
+// Audit del design del 04/10/2026 (PR3, PR4, C5): la tabella scriveva 40
+// intervalli a parole («fra 3,8 e 9,9 kg») che non si incolonnavano, e per
+// sapere se la vetrina bastava bisognava confrontare a mente tre numeri per
+// riga; «ieri sera» era scritto sotto ogni quantità in vetrina. Ora è la
+// tabella comune dell'Analisi (TabellaAnalisi, «kg» nell'intestazione), ogni
+// previsione è anche una barra d'intervallo su una scala comune in kg, e
+// nella colonna del giorno che la vetrina deve coprire c'è la tacca di
+// quello che c'è in vetrina: tacca a sinistra della banda, il gusto finisce.
+// Perché la barra e non i dieci pallini della ricerca: è scritto nel diario
+// dell'agente pagine (la libreria dà un intervallo dagli errori veri; i giorni
+// «simili» sono un metodo che la libreria ha provato e scartato).
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, cleanup, within } from '@testing-library/react'
 import React from 'react'
@@ -111,6 +123,16 @@ describe('riproduce il difetto: dati di 33 giorni presentati come «Oggi»', () 
     expect(testo()).not.toMatch(/\bOggi\b/)
   })
 
+  // Audit del 04/10 (PR6): con l'inventario vecchio lo stesso avviso c'era due
+  // volte, nella copertura («Inventario fermo al 31/08 · Registra») e nel
+  // riquadro subito sotto: tre pulsanti, due uguali. Il riquadro basta.
+  it('lo dice una volta: niente copertura sopra il riquadro che lo spiega (PR6)', async () => {
+    rendi()
+    await waitFor(() => expect(testo()).toContain('fermo al 31/08'))
+    expect(screen.queryByRole('region', { name: 'Da dove vengono i numeri' })).toBeNull()
+    expect(testo().match(/fermo al 31\/08/g)).toHaveLength(1)
+  })
+
   it('il pulsante porta all’inventario', async () => {
     const { onNavigate } = rendi()
     await waitFor(() => expect(testo()).toContain('fermo al 31/08'))
@@ -129,8 +151,9 @@ describe('riproduce il difetto: dati di 33 giorni presentati come «Oggi»', () 
     expect(within(tabella).getByText('AMOR FOU')).toBeTruthy()
     // Nella previsione di un giorno passato niente «oggi» e «domani»: chi legge
     // è al 03/10, e «oggi sera» vorrebbe dire un’altra cosa. Si scrivono le date.
-    expect(within(tabella).getAllByRole('columnheader').map(h => h.textContent)).toContain('Si venderà mar 01/09')
-    expect(tabella.textContent).toContain('lun 31/08 sera')
+    expect(within(tabella).getAllByRole('columnheader').map(h => h.textContent)).toContain('Si venderà mar 01/09, kg')
+    // La conta della vetrina si dice una volta, sopra la tabella (PR4).
+    expect(testo()).toContain('lun 31/08 sera')
     expect(tabella.textContent).not.toMatch(/oggi sera|\bdomani\b/)
   })
 })
@@ -153,7 +176,8 @@ describe('con l’inventario di ieri sera', () => {
     const righe = within(tabella).getAllByRole('row').slice(1)
     expect(righe.map(r => within(r).getByRole('rowheader').textContent)).toEqual(['CREMA', 'AMOR FOU', 'PESCA', 'MANGO'])
     // CREMA: 2 kg in vetrina ieri sera, ne vende 4 → finisce oggi, da rifare subito
-    expect(righe[0].textContent).toContain('2\u00a0kg')   // numero e kg non si separano andando a capo
+    // (dal 04/10 sera «kg» sta nell'intestazione della colonna, non nella cella)
+    expect(within(righe[0]).getAllByRole('cell')[0].textContent).toBe('2')
     expect(righe[0].textContent).toContain('oggi')
     expect(righe[0].textContent).toContain('subito')
     // AMOR FOU: 10 kg, ne vende 4 → finisce dopodomani (lunedì 05/10)... da rifare domani
@@ -169,7 +193,8 @@ describe('con l’inventario di ieri sera', () => {
     rendi()
     const tabella = await screen.findByRole('table')
     const intestazioni = within(tabella).getAllByRole('columnheader').map(h => h.textContent)
-    expect(intestazioni).toEqual(['Gusto', 'In vetrina', 'Si venderà oggi', 'Si venderà domani', 'Finisce', 'Da rifare', 'Di solito sbaglio'])
+    // Dal 04/10 sera l'unità sta nell'intestazione (tabella comune).
+    expect(intestazioni).toEqual(['Gusto', 'In vetrina, kg', 'Si venderà oggi, kg', 'Si venderà domani, kg', 'Finisce', 'Da rifare', 'Di solito sbaglio'])
   })
 
   it('niente rosso: in una gelateria «finisce oggi» è la normalità, non un allarme', async () => {
@@ -184,7 +209,8 @@ describe('con l’inventario di ieri sera', () => {
     await screen.findByRole('table')
     expect(testo()).toContain('Da rifare per primi: CREMA e AMOR FOU')
     expect(testo()).toMatch(/Da rifare entro domani/i)
-    expect(testo()).toContain('2 gusti')
+    // Audit 04/10 (PR5): «18 gusti» da solo sembrava un allarme; su quanti?
+    expect(testo()).toContain('2 su 4 gusti')
     expect(testo()).toMatch(/Si venderà domani, in tutto/i)
     expect(testo()).toContain('stimato')
   })
@@ -272,13 +298,96 @@ describe('quello che c’è intorno', () => {
     const tabella = await screen.findByRole('table')
     expect(tabella.parentElement.style.overflowX).toBe('auto')
     const intestazioni = within(tabella).getAllByRole('columnheader').map(h => h.textContent)
-    expect(intestazioni).toEqual(['Gusto', 'Si venderà domani', 'Da rifare'])
+    // Al telefono l'intestazione è corta, perché le tre colonne stiano nei
+    // 356 px del riquadro senza scorrere (04/10 sera).
+    expect(intestazioni).toEqual(['Gusto', 'Domani, kg', 'Da rifare'])
+    // Il riquadro a 420 px: 420 − 2 × 16 di pagina − 2 × 16 di imbottitura − 2 di bordo.
+    expect(parseFloat(tabella.style.minWidth)).toBeLessThanOrEqual(354)
     // la vetrina e l'errore scendono sotto il nome
     expect(within(tabella).getByRole('rowheader').textContent).toContain('in vetrina 2\u00a0kg')
-    // «fra 3,2 e 4,9 kg» non sta nella colonna: al telefono «3,2–4,9 kg»
+    // «fra 3,2 e 4,9 kg» non sta nella colonna: «3,2–4,9», e «kg» in testa
     const cella = within(tabella).getAllByRole('cell')[0].textContent
-    expect(cella).toMatch(/^([\d,]+–[\d,]+ kg|≈ [\d,]+ kg)$/)
-    expect(testo()).toContain('«4–6 kg» vuol dire')
+    expect(cella).toMatch(/^([\d,]+–[\d,]+|≈ [\d,]+)$/)
+    expect(testo()).toContain('«4–6 kg» e la banda chiara vogliono dire')
+  })
+})
+
+// ── 2a. La risposta della pagina (fase B, 04/10) ─────────────────────────
+
+describe('la risposta grande: quanti gusti rifare, su quanti', () => {
+  it('una sola risposta grande (NumeroPrincipale), le altre due un gradino sotto', async () => {
+    finto.righe.carlina = [
+      ...fisso('MANGO', IERI, 1, 50), ...fisso('AMOR FOU', IERI, 4, 10),
+      ...fisso('CREMA', IERI, 4, 2), ...fisso('PESCA', IERI, 4, 20),
+    ]
+    rendi()
+    await screen.findByRole('table')
+    const risposta = document.querySelector('section[aria-label^="Da rifare entro"]')
+    expect(risposta).toBeTruthy()
+    expect(risposta.textContent).toMatch(/^Da rifare entro domani2 su 4 gusti/)
+    // La frase dice quello che il numero non dice: quanti bastano.
+    expect(risposta.textContent).toMatch(/2 gusti bastano oltre domani\.$/)
+    const grandi = [...document.querySelectorAll('span')].filter(x => parseFloat(x.style.fontSize) >= 36)
+    expect(grandi).toHaveLength(1)
+    // Le altre due sono una fila di tessere incolonnate.
+    const tessere = [...document.querySelectorAll('div')].filter(d => d.style.gridTemplateRows === 'subgrid')
+    expect(tessere.map(t => t.firstElementChild.textContent)).toEqual(['Si venderà domani, in tutto', 'Di solito sbaglio'])
+  })
+})
+
+// ── 2b. La barra d'intervallo con la tacca della vetrina (PR3, PR4) ──────
+
+describe('le previsioni come barre d’intervallo (audit 04/10, PR3)', () => {
+  const barre = () => [...document.querySelectorAll('[role="img"][aria-label*="si venderà"]')]
+
+  it('ogni gusto ha la sua barra, che dice a parole se la vetrina basta', async () => {
+    finto.righe.carlina = [...fisso('CREMA', IERI, 4, 2), ...fisso('MANGO', IERI, 1, 50)]
+    rendi()
+    await screen.findByRole('table')
+    const crema = barre().find(b => /^CREMA/.test(b.getAttribute('aria-label')))
+    const mango = barre().find(b => /^MANGO/.test(b.getAttribute('aria-label')))
+    // CREMA: in vetrina 2 kg, oggi se ne vendono circa 4: non basta.
+    expect(crema.getAttribute('aria-label')).toMatch(/^CREMA oggi: si venderà .* kg; in vetrina 2 kg: non basta$/)
+    // MANGO: 50 kg, se ne vende 1: basta.
+    expect(mango.getAttribute('aria-label')).toMatch(/in vetrina 50 kg: basta$/)
+  })
+
+  it('la tacca della vetrina sta nella colonna del giorno che deve coprire, una volta per gusto', async () => {
+    finto.righe.carlina = fisso('CREMA', IERI, 4, 2)
+    rendi()
+    await screen.findByRole('table')
+    // Computer: oggi e domani; la vetrina di ieri sera deve bastare oggi.
+    const tacche = [...document.querySelectorAll('[data-tacca="vetrina"]')]
+    expect(tacche).toHaveLength(1)
+    expect(tacche[0].closest('[role="img"]').getAttribute('aria-label')).toMatch(/^CREMA oggi:/)
+  })
+
+  it('una scala sola per tutti i gusti: la stessa quantità sta nello stesso punto', async () => {
+    finto.righe.carlina = [...fisso('CREMA', IERI, 4, 2), ...fisso('MANGO', IERI, 1, 50)]
+    rendi()
+    await screen.findByRole('table')
+    const scale = new Set(barre().map(b => b.getAttribute('data-scala')))
+    expect(scale.size).toBe(1)
+    // La tacca di MANGO (50 kg) è il massimo della scala: in fondo a destra.
+    const mango = barre().find(b => /^MANGO oggi/.test(b.getAttribute('aria-label')))
+    expect(mango.querySelector('[data-tacca="vetrina"]').style.left).toBe('100%')
+  })
+
+  // Audit del 04/10 («Come leggo questi numeri» alto 32 px al tocco) e foto
+  // finali della sera: ancora 32.
+  it('«Come leggo questi numeri» si apre con un bersaglio da 44 px', async () => {
+    finto.righe.carlina = fisso('CREMA', IERI, 4, 2)
+    rendi()
+    await screen.findByRole('table')
+    expect(parseFloat(document.querySelector('details > summary').style.minHeight)).toBeGreaterThanOrEqual(44)
+  })
+
+  it('«ieri sera» si dice una volta, non sotto ogni quantità in vetrina (PR4)', async () => {
+    finto.righe.carlina = [...fisso('CREMA', IERI, 4, 2), ...fisso('MANGO', IERI, 1, 50)]
+    rendi()
+    const tabella = await screen.findByRole('table')
+    expect(tabella.textContent).not.toMatch(/sera/)
+    expect(testo().match(/ieri sera/g)).toHaveLength(1)
   })
 })
 

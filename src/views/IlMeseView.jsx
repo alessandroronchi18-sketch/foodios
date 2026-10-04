@@ -14,44 +14,56 @@
 //   6. le sedi affiancate;
 //   7. gli ultimi dodici mesi.
 import React, { useMemo, useState } from 'react'
-import { color as T, font, ui3 } from '../lib/theme'
+import { color as T, font, ui3, space } from '../lib/theme'
+import Icon from '../components/Icon'
+import { testo, intestazione, cifreInColonna } from '../components/analisi/misure'
+
+// «124.553», «−2.020»: le cifre senza l'euro, per le colonne che lo dicono in testa.
+const NF0 = new Intl.NumberFormat('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })
+const cifra = (n) => `${n < 0 && Math.round(Math.abs(n)) > 0 ? '−' : ''}${NF0.format(Math.abs(n))}`
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import {
-  CoperturaDati, NumeroConConfronto, BarraObiettivo, Cascata, IntestazioneAnalisi,
-  TitoloGrafico, Riquadro, FraseInsight, ClassificaSpese,
+  CoperturaDati, NumeroConConfronto, NumeroPrincipale, FilaTessere, BarraObiettivo, Cascata, conConfronto, IntestazioneAnalisi,
+  TitoloGrafico, Riquadro, FraseInsight, ClassificaSpese, ElencoDivergente,
 } from '../components/analisi'
-import { euro, quota, nomeMese, aMese, variazione, dataBreve } from '../lib/formatoAnalisi'
-import { OBIETTIVI, causeDelCambio, fraseCausa, titoloCascata, motivoSenzaUtile, nomeIncassi } from '../lib/ilMese'
+import { euro, euroSegno, quota, nomeMese, aMese, variazione, dataBreve } from '../lib/formatoAnalisi'
+import { OBIETTIVI, causeDelCambio, titoloCause, titoloCascata, motivoSenzaUtile, nomeIncassi, ivaDelleSpese } from '../lib/ilMese'
+import { nomeBreve } from '../lib/contoEconomico'
 import PaginaAnalisi, { SezioneAnalisi, spazioRiquadri } from '../components/analisi/PaginaAnalisi'
-import MeseAnalisi, { useMeseAnalisi, AvvisoMeseSpostato, PulsanteTorna, meseCorrente } from '../components/analisi/MeseAnalisi'
+import MeseAnalisi, { useMeseAnalisi, PulsanteTorna, meseCorrente } from '../components/analisi/MeseAnalisi'
 
-/** Le voci della riga «Da dove vengono i numeri», dal risultato della lettura. */
+/**
+ * Le voci della riga «Da dove vengono i numeri», dal risultato della lettura.
+ * Ognuna ha il suo nome breve (`breve`): la copertura chiusa li usa per dire
+ * che cosa è stimato o manca («Incassi stimati · 3 dati da sistemare»), non
+ * solo quanti (04/10: diceva «1 numero stimato», e non si sapeva quale).
+ */
 export function vociCopertura(dati, { onNavigate, onClassifica } = {}) {
   if (!dati?.attuale) return []
   const { incassi, costi, personale } = dati.attuale
   const voci = []
   voci.push(incassi.fonte === 'cassa'
-    ? { id: 'incassi', stato: incassi.parziale ? 'parziale' : 'ok', testo: `Incassi ${incassi.testo}`, azione: incassi.parziale && onNavigate ? { etichetta: 'Registra la cassa', onClick: () => onNavigate('chiusura') } : null }
+    ? { id: 'incassi', breve: incassi.parziale ? 'Cassa a metà' : 'Incassi dalla cassa', stato: incassi.parziale ? 'parziale' : 'ok', testo: `Incassi ${incassi.testo}`, azione: incassi.parziale && onNavigate ? { etichetta: 'Registra la cassa', onClick: () => onNavigate('chiusura') } : null }
     : incassi.fonte === 'stima'
-      ? { id: 'incassi', stato: 'stima', testo: `incassi ${incassi.testo}`, azione: onNavigate ? { etichetta: 'Registra la cassa', onClick: () => onNavigate('chiusura') } : null }
-      : { id: 'incassi', stato: 'manca', testo: `gli incassi: ${incassi.testo}`, azione: onNavigate ? { etichetta: 'Registra la cassa', onClick: () => onNavigate('chiusura') } : null })
+      ? { id: 'incassi', breve: 'Incassi stimati', stato: 'stima', testo: `incassi ${incassi.testo}`, azione: onNavigate ? { etichetta: 'Registra la cassa', onClick: () => onNavigate('chiusura') } : null }
+      : { id: 'incassi', breve: 'Incassi mancanti', stato: 'manca', testo: `gli incassi: ${incassi.testo}`, azione: onNavigate ? { etichetta: 'Registra la cassa', onClick: () => onNavigate('chiusura') } : null })
   if (!costi) {
-    voci.push({ id: 'fatture', stato: 'manca', testo: 'le fatture non si sono potute leggere' })
+    voci.push({ id: 'fatture', breve: 'Fatture non lette', stato: 'manca', testo: 'le fatture non si sono potute leggere' })
   } else {
     const c = costi.copertura || {}
     // Le fatture del mese finiscono prima della fine del mese (l'ultimo
     // import da WebDesk è del 10/09): il mese è a metà, e va detto.
     if (c.ultimaFattura && c.ultimaFattura < `${dati.mese}-25` && dati.mese < meseCorrente()) {
-      voci.push({ id: 'fattureFino', stato: 'parziale', testo: `fatture registrate fino al ${dataBreve(c.ultimaFattura)}: il mese è incompleto`, azione: onNavigate ? { etichetta: 'Carica lo ZIP', onClick: () => onNavigate('scadenzario') } : null })
+      voci.push({ id: 'fattureFino', breve: `Fatture fino al ${dataBreve(c.ultimaFattura)}`, stato: 'parziale', testo: `fatture registrate fino al ${dataBreve(c.ultimaFattura)}: il mese è incompleto`, azione: onNavigate ? { etichetta: 'Carica lo ZIP', onClick: () => onNavigate('scadenzario') } : null })
     }
     voci.push(c.importoIvaCompresa > 0
-      ? { id: 'fatture', stato: 'parziale', testo: `${c.nFatture} fatture, ${c.nSenzaImponibile} senza imponibile: ${euro(c.importoIvaCompresa)} contati con l'IVA`, azione: onNavigate ? { etichetta: 'Carica lo ZIP', onClick: () => onNavigate('scadenzario') } : null }
-      : { id: 'fatture', stato: 'ok', testo: `${c.nFatture || 0} fatture del mese, senza IVA` })
+      ? { id: 'fatture', breve: 'Spese IVA compresa', stato: 'parziale', testo: `${c.nFatture} fatture, ${c.nSenzaImponibile} senza imponibile: ${euro(c.importoIvaCompresa)} contati con l'IVA`, azione: onNavigate ? { etichetta: 'Carica lo ZIP', onClick: () => onNavigate('scadenzario') } : null }
+      : { id: 'fatture', breve: 'Fatture senza IVA', stato: 'ok', testo: `${c.nFatture || 0} fatture del mese, senza IVA` })
     if (costi.daClassificare?.importo > 0) {
-      voci.push({ id: 'categorie', stato: 'parziale', testo: `${euro(costi.daClassificare.importo)} di spese di ${costi.daClassificare.nFornitori} fornitori senza categoria`, azione: onClassifica ? { etichetta: 'Classifica', onClick: onClassifica } : null })
+      voci.push({ id: 'categorie', breve: 'Spese senza voce', stato: 'parziale', testo: `${euro(costi.daClassificare.importo)} di spese di ${costi.daClassificare.nFornitori} fornitori senza categoria`, azione: onClassifica ? { etichetta: 'Classifica', onClick: onClassifica } : null })
     }
   }
-  voci.push({ id: 'personale', stato: personale.stato === 'ok' ? 'ok' : personale.stato, testo: personale.stato === 'ok' ? `Personale: ${personale.testo}` : `personale: ${personale.testo}`, azione: personale.stato !== 'ok' && onNavigate ? { etichetta: 'Apri Personale', onClick: () => onNavigate('personale') } : null })
+  voci.push({ id: 'personale', breve: personale.stato === 'ok' ? 'Personale' : personale.stato === 'manca' ? 'Personale mancante' : 'Personale incompleto', stato: personale.stato === 'ok' ? 'ok' : personale.stato, testo: personale.stato === 'ok' ? `Personale: ${personale.testo}` : `personale: ${personale.testo}`, azione: personale.stato !== 'ok' && onNavigate ? { etichetta: 'Apri Personale', onClick: () => onNavigate('personale') } : null })
   return voci
 }
 
@@ -62,6 +74,7 @@ export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate
   // si rilegge da solo (`versione`), senza cambiare pagina.
   const [classifica, setClassifica] = useState(false)
   const [versione, setVersione] = useState(0)
+  const [percheAperto, setPercheAperto] = useState(false)
   // Il mese guardato, la lettura e la regola del primo mese stanno in
   // MeseAnalisi: il Conto economico usa le stesse (audit 04/10, C9 e CE2).
   const { mese, setMese, dati, caricando, errore, spostato } = useMeseAnalisi({ orgId, sedi, sedeId, versione })
@@ -74,13 +87,8 @@ export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate
   const intestazione = (
     <IntestazioneAnalisi isMobile={isMobile}
       domanda={`Quanto hai guadagnato ${aMese(mese, { anno: false })}?`}
-      sotto={(
-        <>
-          {`${nomeSede} · confronto con ${nomeMese(dati?.confronto || mese)}`}
-          <AvvisoMeseSpostato spostato={spostato} onVai={() => setMese(spostato.da)} />
-        </>
-      )}
-      destra={<MeseAnalisi mese={mese} onCambia={setMese} />} />
+      sotto={`${nomeSede} · confronto con ${nomeMese(dati?.confronto || mese)}`}
+      destra={<MeseAnalisi mese={mese} onCambia={setMese} spostato={spostato} />} />
   )
 
   if (classifica) return (
@@ -100,6 +108,10 @@ export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate
   const fattureAMeta = !!(ultimaFattura && ultimaFattura < `${mese}-25` && mese < meseCorrente())
   const vSpese = !fattureAMeta && conto.spese != null && contoPrima?.spese != null ? variazione({ attuale: conto.spese, confronto: contoPrima.spese, piuEMeglio: false }) : null
   const meseConfronto = dati.confronto
+  // Le spese con l'IVA dentro (fatture senza imponibile) si dicono accanto ai
+  // numeri che toccano, non solo nella copertura chiusa (§6, 04/10).
+  const iva = ivaDelleSpese(dati.attuale.costi)
+  const conIva = iva.stato !== 'senza'
   const materieIncomplete = conto.speseFatture > 0 && conto.daClassificare > conto.speseFatture * 0.05
   const eccezionali = dati.attuale.eccezionali || []
   // Una griglia sola per tutta la pagina (audit 04/10, IM4): le tessere e la
@@ -108,37 +120,50 @@ export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate
   const colonne = ui3(isMobile, isTablet, { telefono: '1fr', tablet: '1fr 1fr', computer: 'minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr)' })
   const fra = spazioRiquadri(isMobile)
   const unaRiga = isMobile || isTablet
+  const senzaCause = dati.annoPrima ? `Per ${nomeMese(meseConfronto)} mancano i dati per confrontare voce per voce.` : 'Non ci sono dati dell\'anno prima.'
+  const quoteMargine = [
+    { etichetta: 'Materie prime', valore: materieIncomplete ? null : conto.quote.materiePrime, obiettivo: OBIETTIVI.materiePrime,
+      motivoMancante: conto.ricavi == null ? 'mancano gli incassi' : materieIncomplete ? `prima classifica ${euro(conto.daClassificare)} di spese` : 'mancano le fatture' },
+    { etichetta: 'Personale', valore: conto.quote.personale, obiettivo: OBIETTIVI.personale,
+      motivoMancante: conto.personale == null ? 'stipendi non registrati' : 'mancano gli incassi' },
+    { etichetta: 'Materie prime + personale', valore: materieIncomplete ? null : conto.quote.primeCost, obiettivo: OBIETTIVI.primeCost,
+      motivoMancante: 'servono tutte e due' },
+  ]
+  const risposta = rispostaDelMese({ conto, contoPrima, mese, meseConfronto, vUtile, iva, attuale: dati.attuale, onNavigate })
 
   return (
     <PaginaAnalisi isMobile={isMobile} attenuata={caricando}>
       {intestazione}
-      <CoperturaDati voci={vociCopertura(dati, { onNavigate, onClassifica: () => setClassifica(true) })} />
+      <CoperturaDati isMobile={isMobile} voci={vociCopertura(dati, { onNavigate, onClassifica: () => setClassifica(true) })} />
 
-      {/* ── La risposta ─────────────────────────────────────────────── */}
+      {/* ── La risposta ───────────────────────────────────────────────
+          Una sola, grande (NumeroPrincipale). Prima la cosa più grande della
+          pagina era «Non posso dirtelo: manca il personale», e il numero che
+          si sa stava in una riga da 12 px (audit 04/10, IM3). Incassi e
+          spese un gradino sotto, nella fila di tessere incolonnate. */}
       <div style={{ display: 'grid', gridTemplateColumns: colonne, gap: fra }}>
-        <div style={{ gridColumn: isTablet && !isMobile ? '1 / -1' : 'auto', display: 'grid' }}>
-          <NumeroConConfronto grande isMobile={isMobile}
-            etichetta={`Utile di ${nomeMese(mese, { anno: false })}`}
-            valore={conto.utile != null ? euro(conto.utile) : null}
-            stimato={conto.stimato}
-            motivoMancante={`Non posso dirtelo: ${motivoSenzaUtile(conto, dati.attuale)}`}
-            variazione={vUtile} rispettoA={`su ${nomeMese(meseConfronto)}`} valoreConfronto={contoPrima?.utile != null ? euro(contoPrima.utile) : ''}
-            contesto={conto.utile != null && conto.ricavi > 0
-              ? `${quota(conto.quote.utile)} degli incassi${conto.investimenti > 0 ? ` · fuori dal conto ${euro(conto.investimenti)} di investimenti` : ''}`
-              : conto.primaDelPersonale != null && conto.personale == null
-                ? `Prima del personale ti restano ${euro(conto.primaDelPersonale)}${conto.stimato ? ' (stima)' : ''}: incassi meno le spese in fattura.`
-                : conto.speseFatture != null ? `Spese già note: ${euro(conto.spese)}` : ''} />
+        <div style={{ gridColumn: isTablet && !isMobile ? '1 / -1' : 'auto', display: 'grid', minWidth: 0 }}>
+          <NumeroPrincipale riquadro isMobile={isMobile} {...risposta} />
         </div>
-        {/* Il nome degli incassi è lo stesso in tutte le pagine (nomeIncassi):
-            «stimati» sta nel nome, «senza IVA» nella riga sotto il numero. */}
-        <NumeroConConfronto isMobile={isMobile} etichetta={nomeIncassi(conto.stimato)}
-          valore={conto.ricavi != null ? euro(conto.ricavi) : null} motivoMancante="nessun dato"
-          variazione={vIncassi} rispettoA={`su ${nomeMese(meseConfronto, { anno: true })}`}
-          contesto={dati.attuale.incassi.fonte === 'stima' ? 'dall\'inventario, senza IVA' : dati.attuale.incassi.fonte === 'cassa' ? 'dalla cassa, senza IVA' : ''} />
-        <NumeroConConfronto isMobile={isMobile} etichetta="Spese del mese"
-          valore={conto.spese != null ? euro(conto.spese) : null} motivoMancante="fatture non lette"
-          variazione={vSpese} rispettoA={`su ${nomeMese(meseConfronto, { anno: true })}`}
-          contesto={fattureAMeta ? `fatture registrate fino al ${dataBreve(ultimaFattura)}` : conto.personale == null && conto.speseFatture != null ? 'senza il personale, che manca' : 'fatture e personale'} />
+        {/* `grid`: la fila delle tessere si allunga fino in fondo alla riga,
+            e le tessere finiscono alla stessa altezza della risposta. */}
+        <div style={{ gridColumn: ui3(isMobile, isTablet, { telefono: 'auto', tablet: '1 / -1', computer: '2 / 4' }), minWidth: 0, display: 'grid' }}>
+          <FilaTessere isMobile={isMobile}>
+            {/* Il nome degli incassi è lo stesso in tutte le pagine (nomeIncassi):
+                «stimati» sta nel nome, «senza IVA» nella riga sotto il numero. */}
+            <NumeroConConfronto isMobile={isMobile} etichetta={nomeIncassi(conto.stimato)}
+              valore={conto.ricavi != null ? euro(conto.ricavi) : null} motivoMancante="nessun dato"
+              variazione={vIncassi} rispettoA={`su ${nomeMese(meseConfronto, { anno: true })}`}
+              contesto={dati.attuale.incassi.fonte === 'stima' ? 'dall\'inventario, senza IVA' : dati.attuale.incassi.fonte === 'cassa' ? 'dalla cassa, senza IVA' : ''} />
+            <NumeroConConfronto isMobile={isMobile} etichetta="Spese del mese"
+              valore={conto.spese != null ? euro(conto.spese) : null} motivoMancante="fatture non lette"
+              variazione={vSpese} rispettoA={`su ${nomeMese(meseConfronto, { anno: true })}`}
+              // L'IVA dentro le spese è l'avvertimento del pezzo comune, in
+              // ambra sotto il numero (§6); la nota dice il resto.
+              avviso={iva.riga}
+              contesto={fattureAMeta ? `fatture registrate fino al ${dataBreve(ultimaFattura)}` : conto.personale == null && conto.speseFatture != null ? 'senza il personale, che manca' : 'fatture e personale'} />
+          </FilaTessere>
+        </div>
       </div>
 
       {eccezionali.length > 0 && (
@@ -153,46 +178,59 @@ export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate
         </Riquadro>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: unaRiga ? '1fr' : colonne, gap: fra }}>
-        <Riquadro isMobile={isMobile}>
-          <TitoloGrafico titolo={titoloCascata(conto)}
-            sottotitolo={`Dagli incassi${conto.stimato ? ' stimati' : ''} all'utile, senza IVA. Le spese vengono dalle fatture del mese, per data.`} />
-          <Cascata isMobile={isMobile} ricavi={conto.ricavi} passi={conto.passi} />
-        </Riquadro>
-        <Riquadro isMobile={isMobile} stile={unaRiga ? null : { gridColumn: '2 / 4' }}>
-          <TitoloGrafico titolo={cause.length ? `Cosa è cambiato da ${nomeMese(meseConfronto)}` : `Il confronto con ${nomeMese(meseConfronto)}`}
-            sottotitolo={cause.length ? 'Le voci che hanno spostato di più l\'utile, dalla più pesante.' : ''} />
-          {cause.length ? cause.map(c => (
-            <FraseInsight key={c.chiave} verso={c.effetto >= 0 ? 'meglio' : 'peggio'}>{fraseCausa(c, meseConfronto)}</FraseInsight>
-          )) : (
-            <div style={{ fontSize: font.size.base, color: T.textSoft, lineHeight: 1.55 }}>
-              {dati.annoPrima ? `Per ${nomeMese(meseConfronto)} mancano i dati per confrontare voce per voce.` : 'Non ci sono dati dell\'anno prima.'}
-            </div>
-          )}
-        </Riquadro>
-      </div>
-
+      {/* La cascata è la tabella del conto (scelta 1): voce · barra · € del
+          mese · % sugli incassi · differenza con l'anno prima. Prende tutta
+          la riga; la barra scura è quella di cui parla il titolo. Il perché,
+          ordinato per euro di impatto, si apre a un tocco sotto (scelta 7):
+          prima «Cosa è cambiato» stava sempre aperto accanto, e senza cause
+          era un riquadro con una frase sola (audit 04/10, IM9 e IM14). */}
       <Riquadro isMobile={isMobile}>
-        <TitoloGrafico titolo="Le tre spese che decidono il margine"
-          sottotitolo="Quanto pesano sugli incassi. Gli obiettivi sono indicativi: per la pasticceria artigiana non ci sono riferimenti italiani solidi, conta il confronto con te stesso." />
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))', gap: fra }}>
-          {/* Con molte spese ancora senza categoria la quota delle materie
-              prime è un minimo, non la quota: «1,6%, sotto l'obiettivo» in
-              verde sarebbe una buona notizia falsa. */}
-          <BarraObiettivo etichetta="Materie prime" valore={materieIncomplete ? null : conto.quote.materiePrime} obiettivo={OBIETTIVI.materiePrime}
-            motivoMancante={conto.ricavi == null ? 'mancano gli incassi' : materieIncomplete ? `prima classifica ${euro(conto.daClassificare)} di spese` : 'mancano le fatture'} />
-          <BarraObiettivo etichetta="Personale" valore={conto.quote.personale} obiettivo={OBIETTIVI.personale}
-            motivoMancante={conto.personale == null ? 'stipendi non registrati' : 'mancano gli incassi'} />
-          <BarraObiettivo etichetta="Materie prime + personale" valore={materieIncomplete ? null : conto.quote.primeCost} obiettivo={OBIETTIVI.primeCost}
-            motivoMancante="servono tutte e due" />
-        </div>
+        <TitoloGrafico titolo={titoloCascata(conto, iva)}
+          sottotitolo={`${iva.stato === 'senza' ? 'Incassi e spese senza IVA.' : 'Incassi senza IVA.'} Le spese vengono dalle fatture del mese, per data.${cause.length ? '' : ` ${senzaCause}`}`} />
+        <Cascata isMobile={isMobile} ricavi={conto.ricavi} avviso={iva.riga}
+          passi={conConfronto(conto.passi, contoPrima?.passi)}
+          titoloValore={nomeMese(mese, { anno: false })} titoloConfronto={`su ${nomeMese(meseConfronto)}`}
+          evidenzia={conto.utile != null ? 'utile' : null} />
+        {cause.length > 0 && (
+          <Perche aperto={percheAperto} onApri={() => setPercheAperto(v => !v)} meseConfronto={meseConfronto}>
+            <p style={{ margin: `0 0 ${space[3]}px`, ...testo(font.size.md), fontWeight: 600, color: T.text }}>{titoloCause(cause, meseConfronto)}</p>
+            <ElencoDivergente isMobile={isMobile} titoloValore={`su ${nomeMese(meseConfronto)}, €`}
+              voci={cause.map(c => ({
+                chiave: c.chiave, etichetta: c.etichetta, valore: Math.round(c.attuale - c.prima),
+                verso: c.effetto >= 0 ? 'meglio' : 'peggio',
+                // Il fornitore principale solo, in nome breve: due nomi interi
+                // andavano su tre righe nella colonna delle voci.
+                nota: c.fornitori?.length ? `soprattutto ${nomeBreve(c.fornitori[0].nome)} ${euroSegno(c.fornitori[0].delta).replace(' €', '')}` : undefined,
+              }))} />
+          </Perche>
+        )}
       </Riquadro>
+
+      {/* Le tre quote contro l'obiettivo. Se non se ne sa nessuna, niente
+          riquadro di «non lo so»: una riga che dice quando ci saranno
+          (audit 04/10, IM6). Con molte spese ancora senza categoria la quota
+          delle materie prime è un minimo, non la quota: «1,6%, sotto
+          l'obiettivo» in verde sarebbe una buona notizia falsa. */}
+      {quoteMargine.some(q => q.valore != null) ? (
+        <Riquadro isMobile={isMobile}>
+          <TitoloGrafico titolo="Le tre spese che decidono il margine"
+            sottotitolo="Quanto pesano sugli incassi. Gli obiettivi sono indicativi: per la pasticceria artigiana non ci sono riferimenti italiani solidi, conta il confronto con te stesso." />
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))', gap: fra }}>
+            {quoteMargine.map(q => <BarraObiettivo key={q.etichetta} {...q} />)}
+          </div>
+        </Riquadro>
+      ) : (
+        <p style={{ margin: 0, display: 'flex', gap: 8, alignItems: 'flex-start', ...testo(font.size.base), color: T.textSoft }}>
+          <span aria-hidden="true" style={{ display: 'inline-flex', height: 20, alignItems: 'center', flexShrink: 0 }}><Icon name="info" size={14} /></span>
+          <span>Materie prime e personale sugli incassi, contro l&apos;obiettivo: li calcolo quando le spese avranno la voce e gli stipendi ci saranno.</span>
+        </p>
+      )}
 
       {/* Due capitoli dopo il conto del mese: i negozi, poi l'anno. */}
       {dati.perSede && Object.keys(dati.perSede).length > 1 && (
         <SezioneAnalisi isMobile={isMobile} etichetta="I negozi">
           <Riquadro isMobile={isMobile}>
-            <TitoloGrafico titolo={titoloSedi(dati.perSede)} sottotitolo={`Stesso conto, negozio per negozio. ${testoRipartizione(dati.perSede)}`} />
+            <TitoloGrafico titolo={titoloSedi(dati.perSede)} sottotitolo={`Stesso conto, negozio per negozio. ${testoRipartizione(dati.perSede)}${conIva ? ` Spese ${iva.breve}.` : ''}`} />
             <SediAffiancate perSede={dati.perSede} isMobile={isMobile} />
           </Riquadro>
         </SezioneAnalisi>
@@ -211,6 +249,63 @@ export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate
         {dati.ultimoInventario && dati.ultimoInventario < `${mese}-28` ? `Inventario registrato fino al ${dataBreve(dati.ultimoInventario)}. ` : ''}Incassi senza IVA al 10%.
       </div>
     </PaginaAnalisi>
+  )
+}
+
+/**
+ * Le prop di NumeroPrincipale per la domanda «Quanto hai guadagnato?».
+ * L'utile se si sa. Se manca il personale, il numero che si sa (incassi meno
+ * fatture, «Rimasti prima del personale») con il perché in ambra e il
+ * passaggio per sistemarlo, e accanto lo stesso numero dell'anno prima: un
+ * numero non sta mai da solo. Se le spese hanno l'IVA dentro lo dice.
+ */
+export function rispostaDelMese({ conto, contoPrima, mese, meseConfronto, vUtile, iva, attuale, onNavigate }) {
+  const etichetta = `Utile di ${nomeMese(mese, { anno: false })}`
+  const conIva = iva && iva.stato !== 'senza'
+  if (conto.utile != null) {
+    const investimenti = conto.investimenti > 0 ? ` Fuori dal conto ${euro(conto.investimenti)} di investimenti.` : ''
+    return {
+      etichetta, valore: euro(conto.utile), stimato: conto.stimato,
+      variazione: vUtile, rispettoA: `su ${nomeMese(meseConfronto)}`, valoreConfronto: contoPrima?.utile != null ? euro(contoPrima.utile) : '',
+      avviso: conIva ? `Più basso del vero: le spese in fattura sono ${iva.breve}` : '',
+      frase: conto.ricavi > 0 ? `È il ${quota(conto.quote.utile)} degli incassi.${investimenti}` : null,
+    }
+  }
+  const apriPersonale = onNavigate ? { etichetta: 'Apri Personale', onClick: () => onNavigate('personale') } : null
+  if (conto.primaDelPersonale != null && conto.personale == null) {
+    const prima = contoPrima?.primaDelPersonale != null && contoPrima?.personale == null ? ` ${maiuscola(aMese(meseConfronto))} erano ${euro(contoPrima.primaDelPersonale)}.` : ''
+    return {
+      etichetta, valore: null,
+      motivoMancante: 'l\'utile vero sarà più basso: manca il personale',
+      noto: { valore: euro(conto.primaDelPersonale), etichetta: 'Rimasti prima del personale', stimato: conto.stimato },
+      azione: apriPersonale,
+      // Incassi senza IVA meno spese con l'IVA: il numero è più basso del
+      // vero, e lo si dice sotto il numero (§6), non in fondo alla frase.
+      avviso: conIva ? `Più basso del vero: le spese in fattura sono ${iva.breve}` : '',
+      frase: `Incassi meno le spese in fattura.${prima}`,
+    }
+  }
+  return {
+    etichetta, valore: null,
+    motivoMancante: `Non lo so ancora: ${motivoSenzaUtile(conto, attuale)}`,
+    azione: conto.personale == null ? apriPersonale : null,
+  }
+}
+const maiuscola = (t) => (t ? t[0].toUpperCase() + t.slice(1) : t)
+
+/** «Perché è cambiato da agosto 2025?»: il pulsante e quello che apre. */
+function Perche({ aperto, onApri, meseConfronto, children }) {
+  return (
+    <div style={{ marginTop: space[2], borderTop: `1px solid ${T.borderSoft}` }}>
+      <button type="button" onClick={onApri} aria-expanded={aperto} style={{
+        display: 'inline-flex', alignItems: 'center', gap: space[1], minHeight: 44, padding: 0, border: 'none', background: 'transparent',
+        color: T.brand, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer', ...testo(font.size.md),
+      }}>
+        {`Perché è cambiato da ${nomeMese(meseConfronto)}?`}
+        <Icon name={aperto ? 'chevUp' : 'chevDown'} size={16} />
+      </button>
+      {aperto && <div style={{ paddingTop: space[2] }}>{children}</div>}
+    </div>
   )
 }
 
@@ -284,7 +379,7 @@ function UltimiMesi({ andamento = [], isMobile, meseScelto, onScegli }) {
   return (
     <>
       <TitoloGrafico titolo={titolo}
-        sottotitolo="Colonna scura: incassi (tratteggiata se stimati). Colonna chiara: spese. Tocca un mese per aprirlo."
+        sottotitolo={`Colonna scura: incassi senza IVA (tratteggiata se stimati). Colonna chiara: spese${mesi.some(m => ivaDelleSpese(m.costi).stato !== 'senza') ? ', con l\'IVA dove le fatture non hanno l\'imponibile' : ''}. Tocca un mese per aprirlo.`}
         destra={(
           <div style={{ display: 'flex', gap: 10, fontSize: font.size.sm, color: T.textSoft, flexShrink: 0 }} aria-hidden="true">
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><span style={{ width: 10, height: 10, borderRadius: 2, background: T.graficoReale }} />Incassi</span>
@@ -316,27 +411,30 @@ function UltimiMesi({ andamento = [], isMobile, meseScelto, onScegli }) {
         </div>
       </div>
       <button type="button" onClick={() => setTabella(t => !t)} aria-expanded={tabella}
-        style={{ marginTop: 8, border: 'none', background: 'transparent', color: T.textSoft, fontSize: font.size.sm, fontWeight: 600, cursor: 'pointer', padding: '6px 0', fontFamily: 'inherit', minHeight: 32 }}>
+        style={{ marginTop: 8, border: 'none', background: 'transparent', color: T.textSoft, fontSize: font.size.sm, fontWeight: 600, cursor: 'pointer', padding: '6px 0', fontFamily: 'inherit', minHeight: 44 }}>
         {tabella ? 'Nascondi i numeri' : 'Vedi i numeri in tabella'}
       </button>
       {tabella && (
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.size.base, minWidth: 420 }}>
+          {/* L'euro sta nell'intestazione e non in ogni cella, come nelle altre
+              tabelle dell'Analisi: così la tabella sta nel telefono (prima
+              minWidth 420 in un riquadro di 356, 04/10). */}
+          <table aria-label="Gli ultimi dodici mesi, in numeri" style={{ width: '100%', borderCollapse: 'collapse', ...testo(font.size.base) }}>
             <thead>
-              <tr style={{ color: T.textSoft, textAlign: 'right' }}>
-                <th style={{ textAlign: 'left', padding: '6px 4px', fontWeight: 600 }}>Mese</th>
-                <th style={{ padding: '6px 4px', fontWeight: 600 }}>Incassi</th>
-                <th style={{ padding: '6px 4px', fontWeight: 600 }}>Spese</th>
-                <th style={{ padding: '6px 4px', fontWeight: 600 }}>Utile</th>
+              <tr>
+                <th scope="col" style={{ ...intestazione, textAlign: 'left', padding: '8px 4px' }}>Mese</th>
+                <th scope="col" style={{ ...intestazione, textAlign: 'right', padding: '8px 4px' }}>Incassi, €</th>
+                <th scope="col" style={{ ...intestazione, textAlign: 'right', padding: '8px 4px' }}>Spese, €</th>
+                <th scope="col" style={{ ...intestazione, textAlign: 'right', padding: '8px 4px' }}>Utile, €</th>
               </tr>
             </thead>
             <tbody>
               {mesi.map(m => (
-                <tr key={m.mese} style={{ borderTop: `1px solid ${T.borderSoft}`, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                  <td style={{ textAlign: 'left', padding: '6px 4px', color: T.text }}>{nomeMese(m.mese)}</td>
-                  <td style={{ padding: '6px 4px' }}>{m.conto.ricavi == null ? '—' : `${euro(m.conto.ricavi)}${m.conto.stimato ? ' *' : ''}`}</td>
-                  <td style={{ padding: '6px 4px' }}>{m.conto.spese == null ? '—' : euro(m.conto.spese)}</td>
-                  <td style={{ padding: '6px 4px', fontWeight: 700, color: m.conto.utile < 0 ? T.red : T.text }}>{m.conto.utile == null ? '—' : euro(m.conto.utile)}</td>
+                <tr key={m.mese} style={{ borderTop: `1px solid ${T.borderSoft}` }}>
+                  <td style={{ textAlign: 'left', padding: '8px 4px', color: T.text }}>{nomeMese(m.mese)}</td>
+                  <td style={{ ...cifreInColonna, padding: '8px 4px' }}>{m.conto.ricavi == null ? '—' : `${cifra(m.conto.ricavi)}${m.conto.stimato ? ' *' : ''}`}</td>
+                  <td style={{ ...cifreInColonna, padding: '8px 4px' }}>{m.conto.spese == null ? '—' : cifra(m.conto.spese)}</td>
+                  <td style={{ ...cifreInColonna, padding: '8px 4px', fontWeight: 700, color: m.conto.utile < 0 ? T.red : T.text }}>{m.conto.utile == null ? '—' : cifra(m.conto.utile)}</td>
                 </tr>
               ))}
             </tbody>

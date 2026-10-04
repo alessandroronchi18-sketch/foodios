@@ -69,10 +69,13 @@ describe('Il mese, con il personale com\'è oggi', () => {
     const vai = vi.fn()
     render(<IlMeseView orgId="o1" sedi={[]} onNavigate={vai} />)
     await waitFor(() => expect(testo()).toMatch(/Quanto hai guadagnato/))
-    expect(testo()).toMatch(/Non posso dirtelo: manca il personale/)
+    // Dal 04/10 (audit IM3) la risposta è il numero che si sa, grande, col
+    // perché in ambra; prima era «Non posso dirtelo: manca il personale» e il
+    // numero stava in una riga piccola («Prima del personale ti restano…»).
+    expect(testo()).toMatch(/l'utile vero sarà più basso: manca il personale/)
     expect(testo()).not.toMatch(/Utile di \w+0 €/)
     expect(testo()).toMatch(/3 persone con stipendio sono segnate non attive/)
-    expect(testo()).toMatch(/Prima del personale ti restano 60\.000 € \(stima\)/) // 90.000 − 15.000 − 3.000 − 12.000
+    expect(testo()).toMatch(/Rimasti prima del personale60\.000 €stimato/) // 90.000 − 15.000 − 3.000 − 12.000
     await act(async () => { fireEvent.click([...document.querySelectorAll('button')].find(b => b.textContent === 'Apri Personale')) })
     expect(vai).toHaveBeenCalledWith('personale')
   })
@@ -105,8 +108,15 @@ describe('Il mese, con il personale sistemato', () => {
     expect(testo()).not.toMatch(/Non posso dirtelo/)
     expect(testo()).toMatch(new RegExp(`su ${nomeMese(MA)}`))
     expect(testo()).toMatch(/Su 100 € incassati te ne restano/)
-    expect(testo()).toMatch(new RegExp(`Cosa è cambiato da ${nomeMese(MA)}`))
-    expect(testo()).toMatch(new RegExp(`Materie prime: \\+2\\.000 € di spesa rispetto ${aMese(MA)}, soprattutto DESA SRL`))
+    // Dal 04/10 (audit IM9) le cause sono barre divergenti, non frasi: il
+    // titolo dice la causa più pesante, ogni riga voce · barra · differenza,
+    // e il fornitore principale in nome breve sotto la voce.
+    // … e dalla sera del 04/10 stanno dietro «Perché è cambiato da …?».
+    await act(async () => { fireEvent.click([...document.querySelectorAll('button')].find(b => b.textContent.startsWith('Perché'))) })
+    expect(testo()).toMatch(new RegExp(`Hai incassato 10\\.000 € in più rispetto ${aMese(MA)}`))
+    const mp = document.querySelector('ul[aria-label="Che cosa è cambiato"] li[aria-label^="Materie prime"]')
+    expect(mp.getAttribute('aria-label')).toBe('Materie prime: +2.000 €, peggio')
+    expect(mp.textContent).toMatch(/soprattutto DESA \+1\.000/)
   })
 })
 
@@ -116,13 +126,15 @@ describe('Il conto, voce per voce', () => {
     render(<ContoEconomicoView orgId="o1" sedi={[]} onNavigate={() => {}} />)
     // Il titolo era «Il conto di agosto 2026»; dal 04/10 è una domanda (CE9).
     await waitFor(() => expect(testo()).toMatch(new RegExp(`Dove sono andati i soldi ${aMese(M, { anno: false })}\\?`)))
+    // Dalla sera del 04/10 è la tabella comune dell'Analisi (TabellaAnalisi):
+    // l'euro sta nell'intestazione, non in ogni cella.
     const righe = [...document.querySelectorAll('tbody tr')].map(r => r.textContent)
-    expect(righe.find(r => r.startsWith('Incassi stimati'))).toMatch(/90\.000 €80\.000 €\+10\.000 € · meglio/)
-    expect(righe.find(r => /Materie prime/.test(r))).toMatch(/−15\.000 €−13\.000 €\+2\.000 € · peggio/)
+    expect(righe.find(r => r.startsWith('Incassi stimati'))).toMatch(/90\.00080\.000\+10\.000 · meglio/)
+    expect(righe.find(r => /Materie prime/.test(r))).toMatch(/−15\.000−13\.000\+2\.000 · peggio/)
     expect(righe.find(r => r.startsWith('Personale'))).toMatch(/non lo so/)
     expect(righe.find(r => r.startsWith('Utile'))).toMatch(/non lo so/)
-    // Nessuna riga «−0 €»: le voci a zero in tutti e due i mesi non ci sono.
-    expect(righe.some(r => /\u22120 €/.test(r))).toBe(false)
+    // Nessuna riga «−0»: le voci a zero in tutti e due i mesi non ci sono.
+    expect(righe.some(r => /\u22120(?![.,\d])/.test(r))).toBe(false)
   })
 
   it('una voce di spesa si apre sui fornitori', async () => {
@@ -130,7 +142,10 @@ describe('Il conto, voce per voce', () => {
     render(<ContoEconomicoView orgId="o1" sedi={[]} />)
     await waitFor(() => expect(testo()).toMatch(/Dove sono andati i soldi/))
     await act(async () => { fireEvent.click([...document.querySelectorAll('button')].find(b => /Materie prime/.test(b.textContent))) })
-    expect(testo()).toMatch(/DESA SRL7\.500 €6\.500 €\+1\.000 €/)
+    // I fornitori sono righe della stessa tabella, sotto la voce: i loro numeri
+    // cadono nelle stesse colonne (spese col meno, euro in testa).
+    const desa = [...document.querySelectorAll('tbody tr')].find(r => /DESA SRL/.test(r.textContent))
+    expect(desa.textContent).toMatch(/DESA SRL−7\.500−6\.500\+1\.000/)
   })
 })
 
@@ -146,9 +161,11 @@ describe('All\'apertura', () => {
       return { ...base, mese: m, confronto: annoPrima(m), attuale: mese(m, { ricavi: 99000 }) }
     }
     render(<IlMeseView orgId="o1" sedi={[]} />)
-    await waitFor(() => expect(testo()).toMatch(/non ha ancora gli incassi: ti mostro/))
+    // Dal 04/10 l'avviso è una riga dentro il controllo del mese, accanto
+    // alla freccia che porta al mese chiuso (prima una frase con «Vai a …»).
+    await waitFor(() => expect(testo()).toMatch(new RegExp(`${nomeMese(M, { anno: false })} ancora senza incassi`)))
     expect(testo()).toMatch(new RegExp(`Quanto hai guadagnato ${aMese(M1, { anno: false })}`))
-    expect([...document.querySelectorAll('button')].some(b => b.textContent === `Vai a ${nomeMese(M, { anno: false })}`)).toBe(true)
+    expect([...document.querySelectorAll('button')].some(b => b.getAttribute('title') === `Vai a ${nomeMese(M, { anno: false })}`)).toBe(true)
   })
 
   it('con le fatture del mese a metà non confronta le spese e lo dice', async () => {

@@ -11,15 +11,15 @@
 // I numeri vengono dalla stessa lettura de «Il mese» (`ilMeseArchivio.js`):
 // le due pagine non possono dire due cose diverse dello stesso mese.
 import React, { useMemo, useState } from 'react'
-import { color as T, font, typo, tnum } from '../lib/theme'
+import { color as T, font, tnum } from '../lib/theme'
 import useIsMobile from '../lib/useIsMobile'
 import Icon from '../components/Icon'
-import { CoperturaDati, Andamentino, IntestazioneAnalisi, TitoloGrafico, Riquadro, ClassificaSpese } from '../components/analisi'
+import { CoperturaDati, Andamentino, NumeroPrincipale, IntestazioneAnalisi, TitoloGrafico, Riquadro, ClassificaSpese, TabellaAnalisi, testo } from '../components/analisi'
 import PaginaAnalisi from '../components/analisi/PaginaAnalisi'
-import { euro, euroSegno, quota, nomeMese, aMese, variazione } from '../lib/formatoAnalisi'
+import { euro, euroSegno, quota, nomeMese, aMese, variazione, dataBreve } from '../lib/formatoAnalisi'
 import { vociCopertura } from './IlMeseView'
-import { nomeIncassi } from '../lib/ilMese'
-import MeseAnalisi, { useMeseAnalisi, AvvisoMeseSpostato, PulsanteTorna } from '../components/analisi/MeseAnalisi'
+import { nomeIncassi, ivaDelleSpese } from '../lib/ilMese'
+import MeseAnalisi, { useMeseAnalisi, PulsanteTorna, meseCorrente } from '../components/analisi/MeseAnalisi'
 
 /**
  * Le righe della tabella, dal conto del mese e da quello di confronto.
@@ -60,6 +60,39 @@ export function righeConto(attuale, prima, andamento = []) {
   return righe
 }
 
+/**
+ * Le prop di NumeroPrincipale per «Dove sono andati i soldi?»: le spese del
+ * mese contro lo stesso mese dell'anno prima, con l'IVA detta sotto il numero
+ * se le fatture ce l'hanno dentro, e una frase che dice dove: la voce più
+ * pesante e quanto non ha ancora la voce. Con le fatture del mese a metà il
+ * confronto non si fa (direbbe un calo che non c'è), come nel Mese.
+ */
+export function rispostaDelConto({ dati, mese, iva }) {
+  const conto = dati.attuale.conto
+  const prima = dati.annoPrima?.conto
+  const ultimaFattura = dati.attuale.costi?.copertura?.ultimaFattura || null
+  const aMeta = !!(ultimaFattura && ultimaFattura < `${mese}-25` && mese < meseCorrente())
+  const v = !aMeta && conto.spese != null && prima?.spese != null
+    ? variazione({ attuale: conto.spese, confronto: prima.spese, piuEMeglio: false })
+    : null
+  const piuPesante = [...(conto.gruppi || [])].filter(g => g.importo > 0).sort((a, b) => b.importo - a.importo)[0]
+  const frase = [
+    conto.ricavi > 0 && conto.spese != null ? `È il ${quota((conto.spese / conto.ricavi) * 100)} degli incassi.` : null,
+    piuPesante ? `La voce più pesante è ${piuPesante.etichetta}: ${euro(piuPesante.importo)}${conto.daClassificare > 0 ? `; ${euro(conto.daClassificare)} non hanno ancora la voce` : ''}.` : null,
+    conto.personale == null ? 'Il personale manca: gli stipendi non sono registrati.' : null,
+  ].filter(Boolean).join(' ')
+  return {
+    etichetta: `Spese di ${nomeMese(mese, { anno: false })}`,
+    valore: conto.spese != null ? euro(conto.spese) : null,
+    motivoMancante: 'Non lo so ancora: le fatture non si sono potute leggere',
+    variazione: v, rispettoA: `su ${nomeMese(dati.confronto)}`,
+    valoreConfronto: v && prima?.spese != null ? euro(prima.spese) : '',
+    senzaConfronto: aMeta ? `fatture registrate fino al ${dataBreve(ultimaFattura)}: niente confronto` : '',
+    avviso: iva.riga,
+    frase: frase || null,
+  }
+}
+
 /** I fornitori di una voce, mese contro anno prima, dal più pesante. */
 function dettaglioFornitori(vociA = [], vociB = []) {
   const somma = (voci) => {
@@ -88,6 +121,12 @@ export default function ContoEconomicoView({ orgId, sedi = [], sedeId = null, on
 
   const righe = useMemo(() => righeConto(dati?.attuale?.conto, dati?.annoPrima?.conto, dati?.andamento), [dati])
   const ricavi = dati?.attuale?.conto?.ricavi ?? null
+  // Le spese con l'IVA dentro lo dicono sotto la domanda, sopra la tabella
+  // (§6, 04/10): prima «Voce per voce, senza IVA» anche quando non lo erano.
+  const iva = ivaDelleSpese(dati?.attuale?.costi)
+  // Il mese guardato dentro l'andamento dei 12 mesi: lì va il punto.
+  const indiceMese = (dati?.andamento || []).findIndex(m => m?.mese === mese)
+  const scelto = indiceMese >= 0 ? indiceMese : null
   const apri = (k) => setAperte(s => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n })
 
   const conto = dati?.attuale?.conto
@@ -102,18 +141,19 @@ export default function ContoEconomicoView({ orgId, sedi = [], sedeId = null, on
         // Una domanda come le pagine sorelle, non «Il conto di agosto 2026»
         // (audit 04/10, CE9). L'anno lo dicono le frecce del mese.
         domanda={`Dove sono andati i soldi ${aMese(mese, { anno: false })}?`}
-        sotto={(
-          <>
-            {`Voce per voce, senza IVA, contro ${nomeMese(dati?.confronto || mese)}.`}
-            <AvvisoMeseSpostato spostato={spostato} onVai={() => setMese(spostato.da)} />
-          </>
-        )}
-        destra={<MeseAnalisi mese={mese} onCambia={setMese} />} />
+        // L'IVA dentro le spese la dice l'avvertimento sotto il numero della
+        // risposta; qui solo come si legge la tabella.
+        sotto={`Voce per voce, contro ${nomeMese(dati?.confronto || mese)}. ${iva.stato === 'senza' ? 'Incassi e spese senza IVA.' : `Incassi senza IVA, spese ${iva.breve}.`}`}
+        destra={<MeseAnalisi mese={mese} onCambia={setMese} spostato={spostato} />} />
       {errore && <Riquadro isMobile={isMobile}><span style={{ color: T.red, fontSize: font.size.base }}>Non sono riuscito a leggere i dati: {errore}</span></Riquadro>}
       {!dati && !errore && <Riquadro isMobile={isMobile}><span style={{ color: T.textSoft, fontSize: font.size.base }}>Metto insieme cassa, fatture e personale…</span></Riquadro>}
       {dati && conto && (
         <>
-          <CoperturaDati voci={vociCopertura(dati, { onNavigate, onClassifica: () => setClassifica(true) })} />
+          <CoperturaDati isMobile={isMobile} voci={vociCopertura(dati, { onNavigate, onClassifica: () => setClassifica(true) })} />
+          {/* La risposta alla domanda, una e grande (fase B): quanto si è
+              speso, contro l'anno prima, e dove. Prima il primo numero della
+              pagina era una cella da 13 px della tabella. */}
+          <NumeroPrincipale riquadro isMobile={isMobile} {...rispostaDelConto({ dati, mese, iva })} />
           <Riquadro isMobile={isMobile}>
             <TitoloGrafico
               titolo={conto.utile != null
@@ -127,29 +167,28 @@ export default function ContoEconomicoView({ orgId, sedi = [], sedeId = null, on
               <ul aria-label="Il conto voce per voce" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
                 {righe.map(r => (
                   <SchedaConto key={r.chiave} r={r} ricavi={ricavi} meseConfronto={dati.confronto}
-                    aperta={aperte.has(r.chiave)} onApri={r.dettaglio?.length ? () => apri(r.chiave) : null} />
+                    aperta={aperte.has(r.chiave)} onApri={r.dettaglio?.length ? () => apri(r.chiave) : null}
+                    onClassifica={r.chiave === 'daClassificare' ? () => setClassifica(true) : null} />
                 ))}
               </ul>
             ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.size.base }}>
-                <thead>
-                  <tr style={{ color: T.textSoft, ...typo.overline }}>
-                    <th style={{ ...cella, textAlign: 'left' }}>Voce</th>
-                    <th style={cellaNum}>{nomeMese(mese, { anno: false })}</th>
-                    <th style={cellaNum}>{nomeMese(dati.confronto)}</th>
-                    <th style={cellaNum}>Differenza</th>
-                    <th style={cellaNum}>Sugli incassi</th>
-                    <th style={{ ...cella, textAlign: 'right' }}>12 mesi</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {righe.map(r => (
-                    <RigaConto key={r.chiave} r={r} ricavi={ricavi}
-                      aperta={aperte.has(r.chiave)} onApri={r.dettaglio?.length ? () => apri(r.chiave) : null} />
-                  ))}
-                </tbody>
-              </table>
+            // Al computer la tabella comune dell'Analisi (TabellaAnalisi):
+            // intestazioni in frase normale con l'euro in testa, numeri in
+            // colonne di larghezza fissa vicino ai nomi, righe da 44 px, la
+            // stessa tabella delle Previsioni (audit 04/10, C5, CE4, CE6).
+            // Larga al massimo 880 px: a tutta larghezza la colonna dei nomi
+            // prendeva il resto e i numeri finivano lontani dalle voci (CE6).
+            <div style={{ maxWidth: 880 }}>
+            <TabellaAnalisi isMobile={false} etichetta={`Il conto ${aMese(mese, { anno: false })}`}
+              colonne={[
+                { chiave: 'voce', titolo: 'Voce' },
+                { chiave: 'mese', titolo: nomeMese(mese, { anno: false }), tipo: 'euro' },
+                { chiave: 'prima', titolo: nomeMese(dati.confronto), tipo: 'euro' },
+                { chiave: 'diff', titolo: 'differenza', tipo: 'differenza' },
+                { chiave: 'quota', titolo: '% incassi', tipo: 'quota' },
+                { chiave: 'andamento', titolo: '12 mesi', tipo: 'nodo', larghezza: 88 },
+              ]}
+              righe={righeTabella(righe, { ricavi, aperte, apri, scelto, onClassifica: () => setClassifica(true) })} />
             </div>
             )}
             {conto.investimenti > 0 && (
@@ -168,16 +207,25 @@ export default function ContoEconomicoView({ orgId, sedi = [], sedeId = null, on
   )
 }
 
-const cella = { padding: '9px 8px', borderBottom: `1px solid ${T.borderSoft}`, whiteSpace: 'nowrap' }
-const cellaNum = { ...cella, textAlign: 'right' }
+// Righe alte 44 px tutte uguali, senza imbottitura verticale: prima 9 px di
+// imbottitura e un pulsante da 28 facevano righe da 44 e da 47 (audit 04/10,
+// CE4). Il pulsante della voce prende tutta l'altezza (CE5).
+// La cella misura 44 + 1 di filo sotto (con box-sizing border-box l'altezza
+// della cella comprende il filo): così il pulsante da 44 non la allunga.
+// L'altezza di una riga che si tocca: 44 px, un polpastrello.
+const ALTEZZA_RIGA = 44
 
 /** I numeri di una riga, uguali nella tabella e nella scheda del telefono. */
 function numeriRiga(r, ricavi) {
   const v = r.valore != null && r.prima != null
     ? variazione({ attuale: r.valore, confronto: r.prima, piuEMeglio: r.tipo !== 'spesa' })
     : null
+  // «Da classificare» non è una spesa salita o scesa: sono fatture senza voce.
+  // La differenza si scrive senza giudizio, nel colore di «incompleto», mai in
+  // rosso (audit 04/10, CE3: era «+4.417 € · peggio»).
+  const incompleta = r.chiave === 'daClassificare'
   return {
-    coloreDiff: v ? (v.verso === 'meglio' ? T.green : v.verso === 'peggio' ? T.red : T.textSoft) : T.textSoft,
+    coloreDiff: incompleta ? T.amberDark : v ? (v.verso === 'meglio' ? T.green : v.verso === 'peggio' ? T.red : T.textSoft) : T.textSoft,
     peso: ricavi > 0 && r.valore != null && r.tipo !== 'ricavo' ? quota((r.valore / ricavi) * 100) : '',
     valore: r.valore == null ? 'non lo so' : r.tipo === 'spesa' ? `−${euro(r.valore)}` : euro(r.valore),
     coloreValore: r.valore == null ? T.amberDark : r.tipo === 'risultato' && r.valore < 0 ? T.red : T.text,
@@ -185,44 +233,68 @@ function numeriRiga(r, ricavi) {
     // La differenza in euro e il giudizio a parole, separati: la tabella li
     // scrive «+2.000 € · peggio», la scheda «+2.000 € su agosto 2025 · peggio».
     diff: v ? euroSegno(r.valore - r.prima) : null,
-    giudizio: v && v.verso !== 'pari' ? v.verso : null,
+    giudizio: v && v.verso !== 'pari' && !incompleta ? v.verso : null,
   }
 }
 const conGiudizio = (testo, giudizio) => `${testo}${giudizio ? ` · ${giudizio}` : ''}`
 
-function RigaConto({ r, ricavi, aperta, onApri }) {
-  const forte = r.tipo !== 'spesa'
-  const n = numeriRiga(r, ricavi)
-  const stileRiga = { fontWeight: forte ? 800 : 500, color: T.text, background: r.tipo === 'risultato' ? T.bgSubtle : 'transparent' }
+/** «Classifica», accanto alla voce «Da classificare»: porta dove si sistema. */
+function PulsanteClassifica({ onClick }) {
   return (
-    <>
-      <tr style={stileRiga}>
-        <td style={{ ...cella, textAlign: 'left' }}>
-          {onApri ? (
-            <button type="button" onClick={onApri} aria-expanded={aperta}
-              style={{ border: 'none', background: 'transparent', padding: 0, font: 'inherit', color: 'inherit', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 28 }}>
-              <Icon name={aperta ? 'chevDown' : 'chevR'} size={13} />{r.etichetta}
-            </button>
-          ) : <span style={{ paddingLeft: r.tipo === 'spesa' ? 19 : 0 }}>{r.etichetta}</span>}
-        </td>
-        <td style={{ ...cellaNum, fontVariantNumeric: 'tabular-nums', color: n.coloreValore }}>{n.valore}</td>
-        <td style={{ ...cellaNum, fontVariantNumeric: 'tabular-nums', color: T.textSoft, fontWeight: 500 }}>{n.prima ?? '—'}</td>
-        <td style={{ ...cellaNum, fontVariantNumeric: 'tabular-nums', color: n.coloreDiff, fontWeight: 600 }}>{n.diff ? conGiudizio(n.diff, n.giudizio) : '—'}</td>
-        <td style={{ ...cellaNum, fontVariantNumeric: 'tabular-nums', color: T.textSoft, fontWeight: 500 }}>{n.peso}</td>
-        <td style={{ ...cella, textAlign: 'right' }}><span style={{ display: 'inline-block' }}><Andamentino valori={r.serie} etichetta={`${r.etichetta}, ultimi 12 mesi`} /></span></td>
-      </tr>
-      {aperta && (r.dettaglio || []).map(f => (
-        <tr key={f.nome} style={{ color: T.textMid, fontSize: font.size.sm }}>
-          <td style={{ ...cella, textAlign: 'left', paddingLeft: 32, whiteSpace: 'normal' }}>{f.nome}</td>
-          <td style={{ ...cellaNum, fontVariantNumeric: 'tabular-nums' }}>{euro(f.valore)}</td>
-          <td style={{ ...cellaNum, fontVariantNumeric: 'tabular-nums', color: T.textSoft }}>{euro(f.prima)}</td>
-          <td style={{ ...cellaNum, fontVariantNumeric: 'tabular-nums' }}>{euroSegno(f.valore - f.prima)}</td>
-          <td style={cellaNum} />
-          <td style={cella} />
-        </tr>
-      ))}
-    </>
+    <button type="button" onClick={onClick} style={{
+      border: 'none', background: 'transparent', color: T.brand, fontWeight: 700, fontSize: font.size.sm,
+      fontFamily: 'inherit', cursor: 'pointer', padding: '0 4px', minHeight: ALTEZZA_RIGA,
+    }}>
+      Classifica
+    </button>
   )
+}
+
+/**
+ * Le righe del conto per la tabella comune. Le spese col meno, l'euro
+ * nell'intestazione; «Da classificare» in ambra e senza giudizio, con
+ * «Classifica» nella cella del nome (CE3); i fornitori di una voce aperta
+ * sono righe della stessa tabella, così i loro numeri cadono nelle stesse
+ * colonne.
+ */
+function righeTabella(righe, { ricavi, aperte, apri, scelto, onClassifica }) {
+  const segno = (r, v) => (v == null ? null : r.tipo === 'spesa' ? -v : v)
+  const out = []
+  for (const r of righe) {
+    const n = numeriRiga(r, ricavi)
+    const daClassificare = r.chiave === 'daClassificare'
+    const apribile = !daClassificare && r.dettaglio?.length > 0
+    out.push({
+      chiave: r.chiave,
+      forte: r.tipo === 'risultato',
+      incompleto: daClassificare,
+      onClick: apribile ? () => apri(r.chiave) : undefined,
+      aperta: apribile ? aperte.has(r.chiave) : undefined,
+      celle: {
+        voce: daClassificare
+          ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minHeight: ALTEZZA_RIGA, margin: '-8px 0' }}>{r.etichetta}<PulsanteClassifica onClick={onClassifica} /></span>
+          : r.etichetta,
+        mese: segno(r, r.valore),
+        prima: r.prima == null ? '—' : segno(r, r.prima),
+        diff: n.diff ? { valore: r.valore - r.prima, verso: n.giudizio || 'pari', incompleto: daClassificare } : undefined,
+        quota: r.tipo !== 'ricavo' && ricavi > 0 && r.valore != null ? (r.valore / ricavi) * 100 : undefined,
+        andamento: <Andamentino valori={r.serie} scelto={scelto} larghezza={72} etichetta={`${r.etichetta}, ultimi 12 mesi`} />,
+      },
+    })
+    if (apribile && aperte.has(r.chiave)) {
+      for (const f of r.dettaglio) {
+        out.push({
+          chiave: `${r.chiave}:${f.nome}`,
+          celle: {
+            voce: <span style={{ display: 'block', paddingLeft: 22, ...testo(font.size.sm), color: T.textMid, whiteSpace: 'normal' }}>{f.nome}</span>,
+            mese: -f.valore, prima: -f.prima,
+            diff: { valore: f.valore - f.prima },
+          },
+        })
+      }
+    }
+  }
+  return out
 }
 
 /**
@@ -230,7 +302,7 @@ function RigaConto({ r, ricavi, aperta, onApri }) {
  * scheda, quanto pesa sugli incassi e la differenza con l'anno prima.
  * Le voci con i fornitori dietro si aprono toccando la scheda intera.
  */
-function SchedaConto({ r, ricavi, meseConfronto, aperta, onApri }) {
+function SchedaConto({ r, ricavi, meseConfronto, aperta, onApri, onClassifica }) {
   const n = numeriRiga(r, ricavi)
   const forte = r.tipo !== 'spesa'
   const confronto = nomeMese(meseConfronto)
@@ -265,6 +337,12 @@ function SchedaConto({ r, ricavi, meseConfronto, aperta, onApri }) {
           {corpo}
         </button>
       ) : <div style={griglia}>{corpo}</div>}
+      {/* Fuori dal pulsante della scheda: un pulsante non ne contiene un altro. */}
+      {onClassifica && (
+        <div style={{ paddingLeft: 24, marginTop: -8, paddingBottom: 4 }}>
+          <span style={{ display: 'inline-flex', minHeight: 44, alignItems: 'center' }}><PulsanteClassifica onClick={onClassifica} /></span>
+        </div>
+      )}
       {aperta && (
         <ul style={{ listStyle: 'none', margin: 0, padding: '0 0 8px 24px' }}>
           {(r.dettaglio || []).map(f => (

@@ -11,8 +11,8 @@
 //
 // Ora la regola del primo mese, la lettura e le frecce stanno in un pezzo
 // solo (`MeseAnalisi`), e le due pagine lo usano tutte e due. E l'avviso
-// dello spostamento è una frase sola col pulsante dentro: al telefono
-// l'icona, la frase e il pulsante andavano a capo su tre righe (IM12).
+// dello spostamento sta dentro il controllo del mese, in una riga: al
+// telefono era una frase a parte, su tre righe (IM12) e poi su due.
 import React from 'react'
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, cleanup, waitFor, fireEvent, act } from '@testing-library/react'
@@ -55,44 +55,54 @@ const daticome = (m) => ({
   perSede: null, ultimoInventario: `${M1}-31`, errori: [],
 })
 
+// L'avviso dello spostamento sta dentro il controllo del mese, in una riga
+// («settembre ancora senza incassi», accanto alla freccia › che ci porta);
+// la frase intera è nel suo `title`. Prima era una frase a parte sotto la
+// domanda, con «Vai a settembre» (richiesta del coordinatore, 04/10: al
+// telefono la testa del Mese aveva quattro righe prima del contenuto).
+const avviso = () => document.querySelector('[role="group"][aria-label="Mese guardato"] [role="status"]')
+const breve = new RegExp(`${nomeMese(M, { anno: false })} ancora senza incassi`)
+
 describe('Il Conto si apre sullo stesso mese de «Il mese» (CE2)', () => {
   it('se l\'ultimo mese chiuso non ha incassi va all\'ultimo che li ha, e lo dice', async () => {
     PER_MESE = daticome
     render(<ContoEconomicoView orgId="o1" sedi={[]} />)
-    await waitFor(() => expect(testo()).toMatch(/non ha ancora gli incassi: ti mostro/))
-    expect(testo()).toMatch(new RegExp(nomeMese(M1)))
-    expect(bottone(/^Vai a /).textContent).toBe(`Vai a ${nomeMese(M, { anno: false })}`)
-    // Il conto del mese mostrato ha gli incassi, non «non lo so».
-    await waitFor(() => expect(testo()).toMatch(/90\.000 €/))
+    await waitFor(() => expect(avviso()?.textContent).toMatch(breve))
+    expect(avviso().getAttribute('title')).toMatch(/non ha ancora gli incassi: ti mostro/)
+    expect(document.querySelector('[aria-label="Mese guardato"]').textContent).toMatch(new RegExp(nomeMese(M1)))
+    // Il conto del mese mostrato ha gli incassi, non «non lo so» (nella
+    // tabella l'euro sta nell'intestazione: «90.000»).
+    await waitFor(() => expect(testo()).toMatch(/Incassi stimati90\.000/))
   })
 
-  it('«Il mese» fa lo stesso, con la stessa frase', async () => {
+  it('«Il mese» fa lo stesso, con la stessa riga', async () => {
     PER_MESE = daticome
     render(<IlMeseView orgId="o1" sedi={[]} />)
-    await waitFor(() => expect(testo()).toMatch(/non ha ancora gli incassi: ti mostro/))
+    await waitFor(() => expect(avviso()?.textContent).toMatch(breve))
     expect(testo()).toMatch(new RegExp(`Quanto hai guadagnato ${aMese(M1, { anno: false })}`))
   })
 
-  it('«Vai a …» riporta al mese chiuso, e l\'avviso sparisce', async () => {
+  it('la freccia accanto all\'avviso riporta al mese chiuso, e l\'avviso sparisce', async () => {
     PER_MESE = daticome
     render(<ContoEconomicoView orgId="o1" sedi={[]} />)
-    await waitFor(() => expect(bottone(/^Vai a /)).toBeTruthy())
-    await act(async () => { fireEvent.click(bottone(/^Vai a /)) })
+    await waitFor(() => expect(avviso()).toBeTruthy())
+    expect(bottone(/^Mese dopo$/).getAttribute('title')).toBe(`Vai a ${nomeMese(M, { anno: false })}`)
+    await act(async () => { fireEvent.click(bottone(/^Mese dopo$/)) })
     await waitFor(() => expect(chiesti.at(-1)).toBe(M))
-    await waitFor(() => expect(testo()).not.toMatch(/non ha ancora gli incassi/))
+    await waitFor(() => expect(avviso()).toBeNull())
   })
 
   it('la regola vale solo all\'apertura: tornando a mano su un mese senza incassi ci si resta', async () => {
     PER_MESE = daticome
     render(<IlMeseView orgId="o1" sedi={[]} />)
-    await waitFor(() => expect(testo()).toMatch(/ti mostro/))
+    await waitFor(() => expect(avviso()).toBeTruthy())
     await act(async () => { fireEvent.click(bottone(/^Mese dopo$/)) })
     await waitFor(() => expect(chiesti.at(-1)).toBe(M))
     await waitFor(() => expect(testo()).toMatch(new RegExp(`Quanto hai guadagnato ${aMese(M, { anno: false })}`)))
   })
 })
 
-describe('Le frecce sono le stesse nelle due pagine (C9)', () => {
+describe('Il mese è lo stesso controllo nelle due pagine (C9)', () => {
   it('un gruppo «Mese guardato», con «Mese prima» e «Mese dopo»', async () => {
     PER_MESE = (m) => ({ ...daticome(m), attuale: mese(m, 99000) })
     for (const Vista of [IlMeseView, ContoEconomicoView]) {
@@ -104,21 +114,27 @@ describe('Le frecce sono le stesse nelle due pagine (C9)', () => {
       cleanup()
     }
   })
-})
 
-describe('L\'avviso è una frase sola, col pulsante dentro (IM12)', () => {
-  it('icona e frase affiancate; il pulsante sta nella frase; 44 px da toccare senza alzare la riga', async () => {
+  it('ha l\'aspetto della barra del periodo chiusa: un bordo solo, frecce da 44 attaccate al mese', async () => {
     PER_MESE = daticome
     render(<IlMeseView orgId="o1" sedi={[]} />)
-    await waitFor(() => expect(bottone(/^Vai a /)).toBeTruthy())
-    const avviso = document.querySelector('[role="status"]')
-    expect(avviso.children).toHaveLength(2)                // icona, frase
-    expect(avviso.children[1].contains(bottone(/^Vai a /))).toBe(true)
-    const b = bottone(/^Vai a /)
-    expect(parseFloat(b.style.paddingTop) * 2 + 20).toBeGreaterThanOrEqual(44)
-    expect(b.style.marginTop).toBe('-12px')
-    // Ed è sotto la domanda, dentro l'intestazione.
-    expect(avviso.closest('header')).toBeTruthy()
+    await waitFor(() => expect(avviso()).toBeTruthy())
+    const g = document.querySelector('[role="group"][aria-label="Mese guardato"]')
+    expect(g.style.border).toMatch(/^1px solid/)
+    for (const b of g.querySelectorAll('button')) {
+      expect([b.style.width, b.style.height]).toEqual(['44px', '44px'])
+      expect(b.style.border).toMatch(/^none/)
+    }
+  })
+
+  it('l\'avviso è una riga corta dentro il controllo, non una frase sotto la domanda', async () => {
+    PER_MESE = daticome
+    render(<IlMeseView orgId="o1" sedi={[]} />)
+    await waitFor(() => expect(avviso()).toBeTruthy())
+    expect(avviso().textContent.length).toBeLessThanOrEqual(32)
+    expect(avviso().style.whiteSpace).toBe('nowrap')
+    expect(document.querySelectorAll('[role="status"]')).toHaveLength(1)
+    expect(testo()).not.toMatch(/Vai a /)
   })
 })
 
