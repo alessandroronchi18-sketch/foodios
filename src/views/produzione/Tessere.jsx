@@ -12,6 +12,7 @@
 // aveva il numero spinto in fondo e un vuoto sopra: la risposta adesso è il
 // `NumeroPrincipale`, come il pezzo comune chiede.
 import React from 'react'
+import { ui3 } from '../../lib/theme'
 import { euro, quota, variazione, percentualeSegno } from '../../lib/formatoAnalisi'
 import { variazionePct, conGiorno } from '../../lib/produzioneAnalisi'
 import { NumeroPrincipale, NumeroConConfronto, FilaTessere } from '../../components/analisi'
@@ -62,7 +63,7 @@ export default function Tessere({
   const vScarto = prima && scartoRegistrato ? variazione({ attuale: totali.scarto, confronto: prima.scarto, piuEMeglio: false }) : null
 
   const mediaGiorno = copertura?.n > 0 ? totali.vend / copertura.n : null
-  const colonne = isMobile ? '' : isTablet ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))'
+  const colonne = ui3(isMobile, isTablet, { telefono: '', tablet: 'repeat(2, minmax(0, 1fr))', computer: 'repeat(4, minmax(0, 1fr))' })
 
   return (
     <>
