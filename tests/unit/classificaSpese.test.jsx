@@ -406,6 +406,40 @@ describe('ClassificaSpese: al telefono', () => {
   })
 })
 
+// Audit del 04/10 (CS5, CS6): al telefono gli importi delle fatture fuori
+// scala stavano a sinistra sotto il nome, quelli dei fornitori a destra; e
+// tendine, pulsanti e caselle erano alti 40 px, sotto i 44 di un dito.
+describe('ClassificaSpese al telefono: bersagli da 44 px, importi sempre a destra (CS5, CS6)', () => {
+  it('tendine, pulsanti e caselle alti almeno 44 px', async () => {
+    monta(fintoDb(datiMara()), { isMobile: true })
+    await screen.findByRole('list', { name: 'Fornitori senza voce' })
+    fireEvent.click(screen.getByRole('button', { name: 'Guarda e decidi' }))
+    const controlli = [...document.querySelectorAll('select, button')]
+    const bassi = controlli.filter(c => !(parseFloat(c.style.minHeight) >= 44) && !(parseFloat(c.style.height) >= 44))
+    expect(bassi.map(c => c.textContent || c.getAttribute('aria-label'))).toEqual([])
+    for (const l of within(lista()).getAllByRole('checkbox').map(c => c.closest('label'))) {
+      expect(parseFloat(l.style.minHeight)).toBeGreaterThanOrEqual(44)
+      expect(parseFloat(l.style.minWidth)).toBeGreaterThanOrEqual(44)
+    }
+  })
+
+  it('l\'importo della fattura fuori scala sta a destra, sulla riga del nome, come quello dei fornitori', async () => {
+    monta(fintoDb(datiMara()), { isMobile: true })
+    await screen.findByRole('list', { name: 'Fornitori senza voce' })
+    fireEvent.click(screen.getByRole('button', { name: 'Guarda e decidi' }))
+    const fattura = within(screen.getByRole('list', { name: 'Fatture fuori scala' })).getAllByRole('listitem')[0]
+    const importo = [...fattura.querySelectorAll('div')].find(d => d.textContent === '86.651 €')
+    expect(importo.style.textAlign).toBe('right')
+    expect(fattura.style.display).toBe('grid')
+  })
+
+  it('al computer i controlli restano da 40 (intorno a CS6)', async () => {
+    monta(fintoDb(datiMara()))
+    await screen.findByRole('list', { name: 'Fornitori senza voce' })
+    expect(screen.getByRole('combobox', { name: 'Voce di spesa di DESA SRL' }).style.minHeight).toBe('40px')
+  })
+})
+
 describe('fornitoriDaFatture', () => {
   it('una ditta scritta in due modi è un fornitore, con la spesa sommata', () => {
     const g = fornitoriDaFatture([

@@ -19,7 +19,7 @@
 // La lettura dei fornitori che non riesce mostra l'errore: presa per
 // «nessuna voce», ripresenterebbe da classificare fornitori già classificati.
 // Si scrive prima nell'archivio e solo dopo si cambia lo schermo.
-import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import React, { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { color as T, font, radius as R, tnum } from '../../lib/theme'
 import Icon from '../Icon'
 import { supabase as clientVero } from '../../lib/supabase'
@@ -106,11 +106,17 @@ export function fornitoriDaFatture(fatture, { fornitori = [], categoriePerFornit
   })).sort((a, b) => b.spesa12 - a.spesa12 || b.spesaTotale - a.spesaTotale || a.nome.localeCompare(b.nome, 'it'))
 }
 
+// Al telefono tendine, pulsanti e caselle alti 44 px, un dito (audit 04/10,
+// CS6: erano 40); al computer 40 come prima. La pagina lo dice una volta.
+const AlTelefono = createContext(false)
+const altezzaControllo = (telefono) => (telefono ? 44 : 40)
+
 function SceltaVoce({ valore, onCambia, etichetta, disabilitato = false }) {
+  const telefono = useContext(AlTelefono)
   return (
     <select value={valore || ''} onChange={e => onCambia(e.target.value || null)} aria-label={etichetta} disabled={disabilitato}
       style={{
-        minHeight: 40, width: '100%', padding: '6px 10px', borderRadius: R.md, border: `1px solid ${T.borderStr}`,
+        minHeight: altezzaControllo(telefono), width: '100%', padding: '6px 10px', borderRadius: R.md, border: `1px solid ${T.borderStr}`,
         background: T.bgCard, color: valore ? T.text : T.textSoft, fontSize: FS.md, fontFamily: 'inherit',
       }}>
       <option value="">Scegli la voce…</option>
@@ -126,10 +132,11 @@ function SceltaVoce({ valore, onCambia, etichetta, disabilitato = false }) {
 // Spento è grigio, mai bordeaux sbiadito: al 55% il bordeaux diventava rosa
 // e da lontano sembrava acceso (audit 04/10, CS1).
 function Pulsante({ children, onClick, principale = false, disabilitato = false, ...resto }) {
+  const telefono = useContext(AlTelefono)
   return (
     <button type="button" onClick={onClick} disabled={disabilitato} {...resto}
       style={{
-        minHeight: 40, padding: '8px 16px', borderRadius: R.md, fontFamily: 'inherit', fontSize: FS.md, fontWeight: 700,
+        minHeight: altezzaControllo(telefono), padding: '8px 16px', borderRadius: R.md, fontFamily: 'inherit', fontSize: FS.md, fontWeight: 700,
         cursor: disabilitato ? 'not-allowed' : 'pointer',
         border: disabilitato ? `1px solid ${T.border}` : principale ? 'none' : `1px solid ${T.borderStr}`,
         background: disabilitato ? T.bgSubtle : principale ? T.brand : T.bgCard,
@@ -265,7 +272,7 @@ function RigaFornitore({ g, scelta, spuntato, onScelta, onSpunta, isMobile, fuor
     ? `${nInt(g.nFatture12)} ${g.nFatture12 === 1 ? 'fattura' : 'fatture'} in 12 mesi`
     : `nessuna in 12 mesi · ultima il ${dataLunga(g.ultima)}`
   const casella = (
-    <label style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: 40, minHeight: 40, cursor: voceScelta ? 'pointer' : 'default', flexShrink: 0 }}>
+    <label style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: altezzaControllo(isMobile), minHeight: altezzaControllo(isMobile), cursor: voceScelta ? 'pointer' : 'default', flexShrink: 0 }}>
       <input type="checkbox" checked={spuntato} disabled={!voceScelta} onChange={e => onSpunta(e.target.checked)}
         aria-label={`Conferma la voce di ${g.nome}`} style={{ width: 18, height: 18, accentColor: T.brand }} />
     </label>
@@ -511,6 +518,7 @@ export default function ClassificaSpese({ orgId, notify, isMobile = false, onSal
   )
 
   return (
+    <AlTelefono.Provider value={isMobile}>
     <PaginaAnalisi isMobile={isMobile}>
       {torna}
       {intestazione}
@@ -557,7 +565,9 @@ export default function ClassificaSpese({ orgId, notify, isMobile = false, onSal
           <ul style={{ listStyle: 'none', margin: 0, padding: 0 }} aria-label="Fatture fuori scala">
             {eccezionali.map(f => (
               <li key={f.id} style={{
-                display: isMobile ? 'block' : 'grid', gridTemplateColumns: COLONNE_ELENCO, gap: SPAZIO_ELENCO, alignItems: 'center',
+                // Al telefono nome e importo sulla stessa riga, l'importo a
+                // destra come nei fornitori (audit 04/10, CS5); sotto la scelta.
+                display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0, 1fr) auto' : COLONNE_ELENCO, gap: SPAZIO_ELENCO, alignItems: isMobile ? 'start' : 'center',
                 padding: '8px 0', borderTop: `1px solid ${T.borderSoft}`,
               }}>
                 {!isMobile && <span aria-hidden="true" />}
@@ -567,10 +577,10 @@ export default function ClassificaSpese({ orgId, notify, isMobile = false, onSal
                     {`${f.numero ? `n. ${f.numero} · ` : ''}${dataLunga(f.data)} · ${f.motivo}${f.tipica ? ` (di solito ${euro(f.tipica)})` : ''}`}
                   </div>
                 </div>
-                <div style={{ ...tnum, fontSize: FS.md, fontWeight: 700, color: T.text, textAlign: isMobile ? 'left' : 'right', margin: isMobile ? '6px 0' : 0 }}>{euro(f.importo)}</div>
+                <div style={{ ...tnum, fontSize: FS.md, fontWeight: 700, color: T.text, textAlign: 'right' }}>{euro(f.importo)}</div>
                 {/* Il «Salva» della fattura sta sotto la sua tendina, nella
                     stessa colonna: una colonna in più per lui spostava tutto. */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'stretch' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'stretch', ...(isMobile ? { gridColumn: '1 / -1' } : null) }}>
                   <SceltaVoce valore={vociFatture.has(f.id) ? vociFatture.get(f.id) : 'attrezzature'} etichetta={`Voce della fattura ${f.numero || ''} di ${f.fornitore}`}
                     onCambia={(v) => setVociFatture(m => new Map(m).set(f.id, v))} />
                   <Pulsante onClick={() => salvaFattura(f)} disabilitato={salvando || (vociFatture.has(f.id) && !vociFatture.get(f.id))}>Salva</Pulsante>
@@ -603,5 +613,6 @@ export default function ClassificaSpese({ orgId, notify, isMobile = false, onSal
         </Riquadro>
       )}
     </PaginaAnalisi>
+    </AlTelefono.Provider>
   )
 }
