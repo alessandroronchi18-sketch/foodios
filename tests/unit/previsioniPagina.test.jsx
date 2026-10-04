@@ -123,6 +123,16 @@ describe('riproduce il difetto: dati di 33 giorni presentati come «Oggi»', () 
     expect(testo()).not.toMatch(/\bOggi\b/)
   })
 
+  // Audit del 04/10 (PR6): con l'inventario vecchio lo stesso avviso c'era due
+  // volte, nella copertura («Inventario fermo al 31/08 · Registra») e nel
+  // riquadro subito sotto: tre pulsanti, due uguali. Il riquadro basta.
+  it('lo dice una volta: niente copertura sopra il riquadro che lo spiega (PR6)', async () => {
+    rendi()
+    await waitFor(() => expect(testo()).toContain('fermo al 31/08'))
+    expect(screen.queryByRole('region', { name: 'Da dove vengono i numeri' })).toBeNull()
+    expect(testo().match(/fermo al 31\/08/g)).toHaveLength(1)
+  })
+
   it('il pulsante porta all’inventario', async () => {
     const { onNavigate } = rendi()
     await waitFor(() => expect(testo()).toContain('fermo al 31/08'))
@@ -199,7 +209,8 @@ describe('con l’inventario di ieri sera', () => {
     await screen.findByRole('table')
     expect(testo()).toContain('Da rifare per primi: CREMA e AMOR FOU')
     expect(testo()).toMatch(/Da rifare entro domani/i)
-    expect(testo()).toContain('2 gusti')
+    // Audit 04/10 (PR5): «18 gusti» da solo sembrava un allarme; su quanti?
+    expect(testo()).toContain('2 su 4 gusti')
     expect(testo()).toMatch(/Si venderà domani, in tutto/i)
     expect(testo()).toContain('stimato')
   })
@@ -298,6 +309,29 @@ describe('quello che c’è intorno', () => {
     const cella = within(tabella).getAllByRole('cell')[0].textContent
     expect(cella).toMatch(/^([\d,]+–[\d,]+|≈ [\d,]+)$/)
     expect(testo()).toContain('«4–6 kg» e la banda chiara vogliono dire')
+  })
+})
+
+// ── 2a. La risposta della pagina (fase B, 04/10) ─────────────────────────
+
+describe('la risposta grande: quanti gusti rifare, su quanti', () => {
+  it('una sola risposta grande (NumeroPrincipale), le altre due un gradino sotto', async () => {
+    finto.righe.carlina = [
+      ...fisso('MANGO', IERI, 1, 50), ...fisso('AMOR FOU', IERI, 4, 10),
+      ...fisso('CREMA', IERI, 4, 2), ...fisso('PESCA', IERI, 4, 20),
+    ]
+    rendi()
+    await screen.findByRole('table')
+    const risposta = document.querySelector('section[aria-label^="Da rifare entro"]')
+    expect(risposta).toBeTruthy()
+    expect(risposta.textContent).toMatch(/^Da rifare entro domani2 su 4 gusti/)
+    // La frase dice quello che il numero non dice: quanti bastano.
+    expect(risposta.textContent).toMatch(/2 gusti bastano oltre domani\.$/)
+    const grandi = [...document.querySelectorAll('span')].filter(x => parseFloat(x.style.fontSize) >= 36)
+    expect(grandi).toHaveLength(1)
+    // Le altre due sono una fila di tessere incolonnate.
+    const tessere = [...document.querySelectorAll('div')].filter(d => d.style.gridTemplateRows === 'subgrid')
+    expect(tessere.map(t => t.firstElementChild.textContent)).toEqual(['Si venderà domani, in tutto', 'Di solito sbaglio'])
   })
 })
 

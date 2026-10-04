@@ -15,15 +15,15 @@
 // Vale per chi lavora col metodo inventario (si conta la vetrina ogni sera):
 // le aziende a stampi vedono ancora la pagina di prima (Dashboard).
 import React, { useEffect, useMemo, useState } from 'react'
-import { color as T, font, radius as R, tnum } from '../lib/theme'
-import useIsMobile from '../lib/useIsMobile'
+import { color as T, font, radius as R, tnum, ui3 } from '../lib/theme'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { lessico } from '../lib/lessico'
 import { todayLocal } from '../lib/dateLocal'
 import { caricaRigheInventario } from '../lib/inventarioProduzione'
 import { caricaRegoleChiusura, giornoChiuso } from '../lib/giorniChiusura'
 import { previsioneSede, piuGiorni, giorniFra, giornoSettimana, GIORNI_DATI_VECCHI, LIVELLO_BANDA } from '../lib/previsioneVenduto'
 import { dataBreve } from '../lib/formatoAnalisi'
-import { CoperturaDati, NumeroConConfronto, IntestazioneAnalisi, TitoloGrafico, Riquadro, TabellaAnalisi, testo, transizione } from '../components/analisi'
+import { CoperturaDati, NumeroConConfronto, NumeroPrincipale, FilaTessere, IntestazioneAnalisi, TitoloGrafico, Riquadro, TabellaAnalisi, testo, transizione } from '../components/analisi'
 import PaginaAnalisi, { spazioRiquadri } from '../components/analisi/PaginaAnalisi'
 import Icon from '../components/Icon'
 
@@ -90,6 +90,22 @@ export function quandoRifare(finisce, primoGiorno) {
 export function erroreTesto(errore, minimoGiorni = 5) {
   if (!errore || errore.pct == null || errore.giorni < minimoGiorni) return null
   return `±${Math.round(errore.pct * 100)}%`
+}
+
+/**
+ * La frase sotto la risposta: quello che il numero non dice. Quali sono i
+ * primi lo dice il titolo della tabella; qui si dice quanti bastano, e di
+ * quanti non si sa (mai contati come «bastano»).
+ */
+export function fraseBastano(gusti, urgenti, quando, LEX) {
+  if (!urgenti.length) return 'La vetrina basta.'
+  const bastano = gusti.filter(g => g.scorta && !urgenti.includes(g)).length
+  const nonSo = gusti.filter(g => !g.scorta).length
+  const parti = []
+  if (bastano) parti.push(`${bastano === 1 ? `Un ${LEX.prodotto} basta` : `${NF0.format(bastano)} ${LEX.prodotti} bastano`} oltre ${quando}`)
+  else parti.push(`Nessun ${LEX.prodotto} basta oltre ${quando}`)
+  if (nonSo) parti.push(`di ${NF0.format(nonSo)} non so quanto ce n'è in vetrina`)
+  return `${parti.join('; ')}.`
 }
 
 function elenco(nomi) {
@@ -183,7 +199,9 @@ export default function PrevisioniView({ orgId, sedeId, sedi = [], sedeAttiva = 
         <Riquadro isMobile={isMobile}><p style={{ margin: 0, color: T.textSoft, fontSize: font.size.md }}>Leggo l’inventario…</p></Riquadro>
       ) : (
         <>
-          <CoperturaDati isMobile={isMobile} voci={vociCopertura(p, oggi, nomeSede, vaiInventario)} />
+          {/* Con l'inventario vecchio il riquadro sotto dice tutto, con il suo
+              pulsante: la copertura ripeteva lo stesso avviso (audit 04/10, PR6). */}
+          {p.stato !== 'vecchi' && <CoperturaDati isMobile={isMobile} voci={vociCopertura(p, oggi, nomeSede, vaiInventario)} />}
           {p.stato === 'vuoto' && (
             <Riquadro isMobile={isMobile}>
               <TitoloGrafico
@@ -289,6 +307,7 @@ export function vociCopertura(p, oggi, nomeSede, vaiInventario) {
 // `assoluto`: nella previsione di un giorno passato (dati vecchi) «oggi» e
 // «domani» confonderebbero chi legge il 03/10: si scrivono le date.
 function Previsione({ p, oggi, LEX, isMobile, assoluto = false }) {
+  const isTablet = useIsTablet()
   const testoGiorno = assoluto ? giornoAssoluto : (iso => giornoRelativo(iso, oggi))
   // La colonna «domani»: il primo giorno previsto dopo oggi. Sul computer,
   // se i dati sono di ieri sera, accanto c'è anche oggi: è il giorno in cui la
@@ -309,34 +328,41 @@ function Previsione({ p, oggi, LEX, isMobile, assoluto = false }) {
 
   return (
     <>
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))', gap: spazioRiquadri(isMobile) }}>
-        <NumeroConConfronto
-          etichetta={`Da rifare entro ${etichettaDomani}`}
-          valore={scorteNote ? `${NF0.format(urgenti.length)} ${urgenti.length === 1 ? LEX.prodotto : LEX.prodotti}` : null}
-          motivoMancante="non lo so"
-          contesto={scorteNote
-            ? (urgenti.length ? elenco(urgenti.slice(0, 3).map(g => g.gusto)) + (urgenti.length > 3 ? ` e altri ${urgenti.length - 3}` : '') : 'la vetrina basta')
-            : `l’ultima conta della vetrina è del ${dataBreve(p.ultimoDato)}`}
-          isMobile={isMobile}
-          grande
-        />
-        <NumeroConConfronto
-          etichetta={`Si venderà ${etichettaDomani}, in tutto`}
-          valore={tot ? intervalloTesto(tot.basso, tot.alto, tot.kg) : null}
-          stimato
-          contesto={[
-            p.mediaGiorno != null ? `un giorno medio dell’ultima settimana: ${kgTesto(p.mediaGiorno)} kg` : null,
-            errTot ? `sul totale di solito sbaglio di ${errTot}` : null,
-          ].filter(Boolean).join(' · ')}
-          isMobile={isMobile}
-        />
-        <NumeroConConfronto
-          etichetta="Di solito sbaglio"
-          valore={errSede ? `${errSede} per ${LEX.prodotto}` : null}
-          motivoMancante="ancora da misurare"
-          contesto={p.erroreSede ? `misurato sulle ultime 4 settimane, ${NF0.format(p.erroreSede.giorni)} giornate provate` : 'servono almeno due settimane di inventario'}
-          isMobile={isMobile}
-        />
+      {/* Una risposta grande (fase B): quanti gusti rifare, su quanti (PR5:
+          «18 gusti» da solo sembrava un allarme, ed è la normalità di una
+          gelateria). Le altre due un gradino sotto, incolonnate. */}
+      <div style={{ display: 'grid', gridTemplateColumns: ui3(isMobile, isTablet, { telefono: '1fr', tablet: '1fr', computer: 'minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr)' }), gap: spazioRiquadri(isMobile) }}>
+        <div style={{ display: 'grid', minWidth: 0 }}>
+          <NumeroPrincipale riquadro isMobile={isMobile}
+            etichetta={`Da rifare entro ${etichettaDomani}`}
+            valore={scorteNote ? NF0.format(urgenti.length) : null}
+            unita={scorteNote ? `su ${NF0.format(p.gusti.length)} ${p.gusti.length === 1 ? LEX.prodotto : LEX.prodotti}` : ''}
+            motivoMancante={`Non lo so: l’ultima conta della vetrina è del ${dataBreve(p.ultimoDato)}`}
+            frase={scorteNote ? fraseBastano(p.gusti, urgenti, etichettaDomani, LEX) : null} />
+        </div>
+        <div style={{ gridColumn: ui3(isMobile, isTablet, { telefono: 'auto', tablet: 'auto', computer: '2 / 4' }), minWidth: 0, display: 'grid' }}>
+          <FilaTessere isMobile={isMobile}>
+            <NumeroConConfronto
+              etichetta={`Si venderà ${etichettaDomani}, in tutto`}
+              valore={tot ? intervalloTesto(tot.basso, tot.alto, tot.kg) : null}
+              stimato
+              senzaConfronto={null}
+              contesto={[
+                p.mediaGiorno != null ? `un giorno medio dell’ultima settimana: ${kgTesto(p.mediaGiorno)} kg` : null,
+                errTot ? `sul totale di solito sbaglio di ${errTot}` : null,
+              ].filter(Boolean).join(' · ')}
+              isMobile={isMobile}
+            />
+            <NumeroConConfronto
+              etichetta="Di solito sbaglio"
+              valore={errSede ? `${errSede} per ${LEX.prodotto}` : null}
+              motivoMancante="ancora da misurare"
+              senzaConfronto={null}
+              contesto={p.erroreSede ? `misurato sulle ultime 4 settimane, ${NF0.format(p.erroreSede.giorni)} giornate provate` : 'servono almeno due settimane di inventario'}
+              isMobile={isMobile}
+            />
+          </FilaTessere>
+        </div>
       </div>
 
       <Riquadro isMobile={isMobile}>
