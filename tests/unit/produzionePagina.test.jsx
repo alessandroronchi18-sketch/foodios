@@ -399,3 +399,100 @@ describe('La pagina: il grafico e i giorni', () => {
     expect(testo()).toMatch(/dal 03\/08 al 09\/08 \(non intera\)/)
   })
 })
+
+// ── 4. Le sedi affiancate e la tabella per gusto ───────────────────────────
+const { righeGusti, ordinaGusti } = await import('../../src/views/produzione/righeGusti.js')
+const { titoloSedi } = await import('../../src/views/produzione/SediAffiancate.jsx')
+const { titoloTabella } = await import('../../src/views/produzione/TabellaGusti.jsx')
+
+describe('Le sedi una accanto all\'altra', () => {
+  const s = (nome, venduto, giorni) => ({ nome, vendutoG: venduto * 1000, giorni })
+  it('stessi giorni: chi vende di più e quanto pesa sul totale', () => {
+    expect(titoloSedi([s('Carlina', 5068.5, 61), s('De Gasperi', 3491.1, 61), s('Berthollet', 3227.5, 61)]))
+      .toBe('Carlina vende di più: 5.069 kg, il 43% del totale')
+  })
+  it('giorni diversi: si confronta il venduto di un giorno registrato', () => {
+    // Berthollet ha registrato metà dei giorni: col totale sembrerebbe la più piccola.
+    expect(titoloSedi([s('Carlina', 600, 60), s('Berthollet', 400, 30)]))
+      .toBe('Berthollet vende di più: 13,3 kg per giorno registrato')
+  })
+  it('una sede sola non ha confronto', () => {
+    expect(titoloSedi([s('Carlina', 600, 60)])).toBe('Le sedi una accanto all\'altra')
+  })
+})
+
+describe('Le righe della tabella', () => {
+  const valutate = [
+    { gusto: 'A', vendKg: 10, prodKg: 9, margine: 50 },
+    { gusto: 'B', vendKg: 30, prodKg: 31, margine: null },
+    { gusto: 'C', vendKg: 0, prodKg: 0, margine: null },
+    { gusto: 'D', vendKg: 20, prodKg: 20, margine: 80 },
+  ]
+  const andamento = {
+    settimane: ['2026-W27', '2026-W28', '2026-W29'],
+    gusti: { A: { perSettimana: [1000, 4000, 5000], quotaVenduta: 111.1, giorniVetrina: 0.9 } },
+  }
+  it('un gusto senza movimenti non è una riga', () => {
+    expect(righeGusti(valutate, andamento).map(r => r.gusto)).toEqual(['A', 'B', 'D'])
+  })
+  it('l\'andamentino usa solo le settimane intere, in chili', () => {
+    const [a] = righeGusti(valutate, andamento, new Set(['2026-W28', '2026-W29']))
+    expect(a.serie).toEqual([null, 4, 5])
+    expect(a.quotaVenduta).toBe(111.1)
+    expect(a.giorniVetrina).toBe(0.9)
+  })
+  it('un margine che non si sa va in fondo in tutti e due i versi', () => {
+    const r = righeGusti(valutate, andamento)
+    expect(ordinaGusti(r, 'margine', 'desc').map(x => x.gusto)).toEqual(['D', 'A', 'B'])
+    expect(ordinaGusti(r, 'margine', 'asc').map(x => x.gusto)).toEqual(['A', 'D', 'B'])
+    expect(ordinaGusti(r, 'vendKg', 'desc').map(x => x.gusto)).toEqual(['B', 'D', 'A'])
+    expect(r.map(x => x.gusto)).toEqual(['A', 'B', 'D'])
+  })
+  it('il titolo nomina il gusto più venduto e la sua quota', () => {
+    expect(titoloTabella(righeGusti(valutate, andamento))).toBe('B è il gusto più venduto: 30 kg, il 50% del totale')
+  })
+})
+
+describe('La pagina: sedi e tabella', () => {
+  const DUE_SEDI = [...NOCCIOLA, ...NOCCIOLA.map(x => ({ ...x, sede_id: 's2', produzione_g: x.produzione_g / 2, rimanenza_g: x.rimanenza_g / 2 }))]
+  const SEDI = [{ id: 's1', nome: 'Carlina' }, { id: 's2', nome: 'De Gasperi' }]
+
+  it('con due sedi le mette affiancate, con la quota di ognuna', async () => {
+    apri({ rows: DUE_SEDI, sedeId: null, sedi: SEDI })
+    await waitFor(() => expect(testo()).toMatch(/Carlina vende di più: 7 kg, il 66,7% del totale/), { timeout: 5000 })
+    expect(testo()).toMatch(/De Gasperi33,3% del venduto/)
+    expect(testo()).toMatch(/Tutte le sedi · /)
+  })
+
+  it('con una sede sola non c\'è il riquadro delle sedi', async () => {
+    apri()
+    await waitFor(() => expect(testo()).toMatch(/Ricavo stimato210/), { timeout: 5000 })
+    expect(testo()).not.toMatch(/vende di più/)
+  })
+
+  it('la tabella ha le colonne che un gelatiere chiede a un gusto', async () => {
+    apri()
+    await waitFor(() => expect(testo()).toMatch(/Ricavo stimato210/), { timeout: 5000 })
+    const intestazioni = screen.getAllByRole('columnheader').map(h => h.textContent)
+    expect(intestazioni).toEqual(['Gusto', 'Venduto kg', 'Prodotto kg', 'Venduto su prodotto', 'Giorni in vetrina', 'Andamento', 'Ricavo stimato', 'Costo al kg', 'Margine stimato'])
+    const riga = screen.getByRole('rowheader', { name: 'NOCCIOLA' }).parentElement
+    // 7 venduti su 6 fatti: 116,7%; resta in vetrina 2 kg in media (03: 3,
+    // 04: 1) su 3,5 venduti al giorno: 0,6 giorni. Costo 8,80 € / 1,2 kg.
+    // Margine 166 € = 79%.
+    expect(riga.textContent).toMatch(/NOCCIOLA76116,7%0,6/)
+    expect(riga.textContent).toMatch(/210 €7,33 €\/kg166 € · 79%/)
+  })
+
+  it('si ordina toccando l\'intestazione, e lo dice', async () => {
+    apri({ rows: [...NOCCIOLA, ...NOCCIOLA.map(x => ({ ...x, gusto_nome: 'AMARENA', produzione_g: x.produzione_g * 2, rimanenza_g: x.rimanenza_g * 2 }))] })
+    await waitFor(() => expect(screen.getByRole('rowheader', { name: /AMARENA/ })).toBeTruthy(), { timeout: 5000 })
+    const nomi = () => screen.getAllByRole('rowheader').map(h => h.textContent).filter(t => t !== 'Totale')
+    expect(nomi()).toEqual(['AMARENA', 'NOCCIOLA'])
+    const gusto = screen.getByRole('columnheader', { name: 'Gusto' })
+    fireEvent.click(within(gusto).getByRole('button'))
+    expect(nomi()).toEqual(['AMARENA', 'NOCCIOLA'])
+    expect(gusto.getAttribute('aria-sort')).toBe('ascending')
+    fireEvent.click(within(gusto).getByRole('button'))
+    expect(nomi()).toEqual(['NOCCIOLA', 'AMARENA'])
+  })
+})

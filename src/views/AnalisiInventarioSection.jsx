@@ -30,6 +30,8 @@ import Tessere from './produzione/Tessere'
 import ContoVetrina from './produzione/ContoVetrina'
 import GraficoVenduto from './produzione/GraficoVenduto'
 import GiornoSettimana from './produzione/GiornoSettimana'
+import SediAffiancate from './produzione/SediAffiancate'
+import TabellaGusti from './produzione/TabellaGusti'
 
 /**
  * @param {Object} props
@@ -116,6 +118,11 @@ export default function AnalisiInventarioSection({
         <ContoVetrina vetrina={c.vetrina} scartoRegistrato={c.scartoRegistrato} isMobile={isMobile} />
         <GiornoSettimana giorni={c.settimana} caselleDaSistemare={c.riassunto.nRimanenza} isMobile={isMobile} />
       </div>
+
+      <SediAffiancate sedi={c.sedi} isMobile={isMobile} stile={{ marginBottom: 14 }} />
+
+      <TabellaGusti righe={c.righeTabella} totali={c.totali} scartoRegistrato={c.scartoRegistrato}
+        isMobile={isMobile} stile={{ marginBottom: 14 }} />
 
       {daSistemare && (
         <section aria-label="Da sistemare" style={{ marginTop: 8 }}>

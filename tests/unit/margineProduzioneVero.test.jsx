@@ -32,6 +32,9 @@
 // (79,0%)» ma «Margine stimato 166 €» con sotto «79% del ricavo» (le quote
 // con al massimo un decimale, zero se intero: ANALISI_DESIGN.md §2.6). La
 // prova resta la stessa — 79 e non 100 — cambia solo come si legge.
+// E la tabella mostra il costo AL CHILO (7,33 €/kg) invece del food cost del
+// periodo (44 €): la prova della resa è la stessa, 8,80 € diviso 1,2 kg e
+// non 8,80 €/kg (il food cost totale resta nel file Excel).
 import React from 'react'
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, cleanup, waitFor } from '@testing-library/react'
@@ -208,10 +211,12 @@ describe('La pagina dello Storico mostra il margine vero', () => {
     expect(testo()).not.toMatch(/100,0%/)
   })
 
-  it('il food cost della tabella è quello diviso per la resa (44 €, non 53 €)', async () => {
+  it('il costo della tabella è quello diviso per la resa (7,33 €/kg, non 8,80 €/kg)', async () => {
     apri()
     await waitFor(() => expect(testo()).toMatch(/210\s?€/), { timeout: 5000 })
-    expect(testo()).toMatch(/44\s?€/)
-    expect(testo()).not.toMatch(/53\s?€/)
+    expect(testo()).toMatch(/7,33\s?€\/kg/)
+    expect(testo()).not.toMatch(/8,80\s?€\/kg/)
+    // E il margine della riga è 210 − 6 kg × 7,33 = 166 €, non 210 − 53.
+    expect(testo()).not.toMatch(/157\s?€/)
   })
 })

@@ -18,6 +18,8 @@ import { todayLocal, differenzaGiorni } from '../../lib/dateLocal'
 import { useRicavoFlat } from '../../lib/useRicavoFlat'
 import { useNomiGusti } from '../../lib/useNomiGusti'
 import { normGusto } from '../../lib/normGusto'
+import { colonneVenduto } from './colonneVenduto'
+import { righeGusti } from './righeGusti'
 
 const dentro = (r, da, a) => r?.data && (!da || r.data >= da) && (!a || r.data <= a)
 
@@ -125,6 +127,13 @@ export function useContiProduzione({
     [rows, dateFrom, dateTo, sedi]
   )
   const andamento = useMemo(() => andamentoGusti(rows, { da: dateFrom, a: dateTo }), [rows, dateFrom, dateTo])
+  // Le settimane intere (non tagliate dal periodo né dai giorni registrati):
+  // le sole che entrano nell'andamentino di ogni gusto.
+  const settimaneIntere = useMemo(() => new Set(
+    colonneVenduto(rows, { da: dateFrom, a: dateTo, passo: 'settimana', registrati: copertura })
+      .filter(x => x.intera).map(x => x.key)
+  ), [rows, dateFrom, dateTo, copertura])
+  const righeTabella = useMemo(() => righeGusti(perGusto, andamento, settimaneIntere), [perGusto, andamento, settimaneIntere])
 
   return {
     valutazione, perGusto, totali: valutazione.totali, totaliPrev,
@@ -132,7 +141,7 @@ export function useContiProduzione({
     caselle, riassunto, daSistemare, nomeSede,
     euroKgMedio, senzaRicetta, collegati, incompleti, kgSenzaRicetta,
     euroSenzaRicetta: euroKgMedio != null ? kgSenzaRicetta * euroKgMedio : null,
-    scartoRegistrato, vetrina, settimana, sedi: sediQuadro, andamento,
+    scartoRegistrato, vetrina, settimana, sedi: sediQuadro, andamento, righeTabella,
     nomiGusti, collega,
   }
 }
