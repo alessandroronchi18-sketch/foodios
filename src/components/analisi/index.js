@@ -1,6 +1,7 @@
 // I pezzi comuni della nuova Analisi (ANALISI_DESIGN.md, §4).
 export { default as CoperturaDati, riassuntoCopertura } from './CoperturaDati'
 export { default as NumeroConConfronto, FilaTessere } from './NumeroConConfronto'
+export { default as NumeroPrincipale } from './NumeroPrincipale'
 export { default as BarraObiettivo } from './BarraObiettivo'
 export { default as Cascata, geometriaCascata } from './Cascata'
 export { default as Andamentino, segmentiAndamentino } from './Andamentino'
