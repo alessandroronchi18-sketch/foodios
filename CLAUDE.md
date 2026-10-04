@@ -373,10 +373,11 @@ Non è teoria: il 16/09/2026 due agenti su tre si sono fermati a metà per un
 errore di autenticazione. Quello che avevano scritto sul diario si è potuto
 riprendere; quello che avevano solo in testa no.
 
-**Come si fa.** Ogni agente riceve un percorso suo, in `scratchpad`:
+**Come si fa.** Ogni agente riceve un percorso suo, in una cartella fissa
+(vedi sotto perché non lo scratchpad):
 
 ```
-<scratchpad>/agente-<nome>.md
+/Users/aler/foodos-lavori/agente-<nome>.md
 ```
 
 e queste istruzioni:
@@ -393,6 +394,36 @@ e queste istruzioni:
 
 Chi lancia l'agente: dagli il percorso del diario nel prompt, e digli di
 leggerlo per primo.
+
+### Il diario sta in un posto fisso, e ce l'ha anche chi coordina
+
+Regola del titolare, 04/10/2026: «lascia sempre tracce, così se risuccede vado
+su un'altra pagina e si riprende tutto».
+
+Il 03/10 alle 22:29 l'agente della Produzione si è bloccato mentre scriveva una
+pagina intera in un colpo solo. La pagina che coordinava è rimasta ad aspettarlo
+fino al giorno dopo, e la pagina nuova ha dovuto ricostruire tutto leggendo i
+registri: cosa era online, cosa no, quali agenti c'erano, dove stavano i diari.
+I diari c'erano, ma dentro `/private/tmp/…/scratchpad`, che **cambia a ogni
+pagina e si svuota quando il Mac si riavvia**.
+
+Quindi:
+
+1. **Tutto sta in `/Users/aler/foodos-lavori/`**, mai nello scratchpad:
+   - `STATO.md` — il passaggio di consegne di chi coordina: cosa è fatto (con
+     l'hash), cosa è online e cosa no, quali agenti lavorano e dove sta il
+     loro diario, cosa manca in ordine, e in fondo **il prossimo passo**;
+   - `agente-<nome>.md` — il diario di ogni agente;
+   - rapporti, audit, foto e strumenti che servono anche domani.
+2. **Una pagina nuova legge `STATO.md` per primo** e riparte dal prossimo
+   passo.
+3. Chi coordina aggiorna `STATO.md` **a ogni passo finito**: agente lanciato,
+   agente finito, unione, push. Non alla fine della giornata.
+4. **Un agente non scrive mai un file grande in un colpo solo**: lo costruisce
+   a pezzi, con un commit per ogni pezzo che passa il suo test, e mette un tempo
+   massimo a ogni comando lungo (il parametro `timeout` dello strumento Bash:
+   sul Mac il comando `timeout` non esiste). Un agente che sta zitto per dieci
+   minuti viene dato per morto, e perde quello che non ha committato.
 
 ---
 

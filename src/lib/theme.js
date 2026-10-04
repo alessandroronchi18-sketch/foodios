@@ -202,6 +202,10 @@ export const color = {
 
   white: '#FFFFFF',
   black: '#000000',
+
+  // Il velo dietro un foglio che sale dal basso sul telefono: scurisce la
+  // pagina quanto basta a dire «adesso conta il foglio», senza nasconderla.
+  velo: 'rgba(15,23,42,0.32)',
 };
 
 // 4-based spacing scale

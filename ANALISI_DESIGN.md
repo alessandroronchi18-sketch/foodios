@@ -119,3 +119,57 @@ dei token vale per i file nuovi).
   passato.
 - **Vendite B2B**: corretta il 03/10 (54a5df1); nessuna rifondazione finché
   non c'è un cliente che la usa.
+
+## 6. Il disegno al millimetro (04/10/2026)
+
+Dopo l'audit misurato al pixel (`/Users/aler/foodos-lavori/audit-design.md`) e
+la ricerca sui migliori pannelli (`/Users/aler/foodos-lavori/ricerca-design.md`).
+Il titolare: «il più figo, innovativo, intuitivo e semplice possibile;
+incolonnare tutto, allineare tutto al millimetro; appena atterro non devo
+vedere tutto sto ammasso di cose».
+
+**Spazi, una regola sola** (l'audit ne ha contati quattro sistemi di colonne e
+spazi fra i blocchi da 10 a 18 px):
+
+| | computer | telefono |
+|---|---|---|
+| dentro un riquadro (orizzontale e verticale) | 20 | 16 |
+| fra un riquadro e l'altro | 24 | 16 |
+| fra una sezione e l'altra | 40 | 32 |
+| altezza delle righe di testo | pixel tondi (niente 21 o 16,2 px) | idem |
+
+Lo spazio fra i blocchi lo possiede il contenitore della pagina
+(`PaginaAnalisi`), non i pezzi: niente `marginBottom` sparsi.
+
+**All'arrivo si vedono i numeri, non i comandi.** Filtri, copertura dei dati,
+opzioni delle tabelle: una riga sola che dice lo stato e si apre al tocco
+(come il periodo, `BarraPeriodo`). Mai righe di pulsanti sempre aperte.
+
+**Una risposta grande per pagina**, 36-48 px al computer, con unità piccola,
+confronto e una frase. Il titolo è una frase di 10 parole al massimo, e il
+grafico evidenzia la stessa cosa: se il titolo parla del burro, la barra del
+burro è l'unica scura.
+
+**Numeri incolonnati**: tessere affiancate con le righe interne condivise
+(etichetta, numero, confronto sulla stessa linea anche se un'etichetta va a
+capo); colonne di numeri della stessa larghezza in tabella, cascata e cause;
+numeri e intestazioni a destra, cifre tabellari, € nell'intestazione quando
+la colonna è tutta in euro, il meno vero (−, non il trattino). La freccia
+segue il segno del numero, il colore il giudizio.
+
+**Cambiano tre regole di sopra:**
+- la **cascata** del conto non sta sopra la tabella: è la tabella (voce,
+  barra, €, % sui ricavi, differenza con l'anno prima come barretta);
+- la **barra con l'obiettivo** segue la specifica di Few (barra spessa un
+  terzo, segno dell'obiettivo e dell'anno prima, tre fasce di grigio davvero
+  distinte);
+- l'**incompleto** oltre al colore ambra è una zona tratteggiata dentro il
+  grafico, con la scritta (come Stripe).
+
+**Telefono**: il conto diventa un elenco di schede (voce, € a destra, sotto
+«31,2% · +1,8 punti»); col dito sul grafico cambia il numero grande in alto
+invece di aprire un fumetto che il dito copre; si tocca tutta la colonna.
+
+**Movimento** solo per non perdere il filo: le barre cambiano in un quarto di
+secondo, mentre carica resta il grafico vecchio sbiadito. Niente numeri che
+contano da soli, niente scintille.

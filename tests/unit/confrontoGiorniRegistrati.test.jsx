@@ -201,6 +201,19 @@ const props = {
   onNavigate: () => {},
 }
 const testo = () => document.body.textContent || ''
+// Dal 04/10/2026 la barra del periodo è un pulsante che si apre: le date e le
+// scorciatoie stanno dentro, e le date scritte a mano si confermano con
+// «Applica» (prima la pagina ricaricava a ogni cifra).
+const apriPeriodo = () => {
+  const p = screen.getByRole('button', { name: /^Periodo:/ })
+  if (p.getAttribute('aria-expanded') !== 'true') fireEvent.click(p)
+}
+const scriviDate = (da, a) => {
+  apriPeriodo()
+  fireEvent.change(screen.getByLabelText('Data di inizio'), { target: { value: da } })
+  fireEvent.change(screen.getByLabelText('Data di fine'), { target: { value: a } })
+  fireEvent.click(screen.getByRole('button', { name: 'Applica' }))
+}
 
 describe('Lo Storico a inventario si apre sui giorni registrati', () => {
   beforeEach(() => {
@@ -219,6 +232,8 @@ describe('Lo Storico a inventario si apre sui giorni registrati', () => {
     await waitFor(() => expect(testo()).toMatch(/62 giorni registrati, dall'01\/07 al 31\/08/), { timeout: 5000 })
     expect(testo()).toMatch(/ti mostro i due mesi fino all'ultimo giorno registrato/)
     // Le date sono nella barra: si vede che periodo si sta guardando.
+    expect(screen.getByRole('button', { name: /^Periodo:/ }).textContent).toMatch(/1 luglio – 31 agosto 2026/)
+    apriPeriodo()
     expect(screen.getByLabelText('Data di inizio').value).toBe('2026-07-01')
     expect(screen.getByLabelText('Data di fine').value).toBe('2026-08-31')
   })
@@ -238,8 +253,7 @@ describe('Lo Storico a inventario si apre sui giorni registrati', () => {
   it('un periodo con i dati fermi a metà si confronta solo sul tratto registrato', async () => {
     render(<StoricoProduzioneView {...props} />)
     await waitFor(() => expect(testo()).toMatch(/giorni registrati/), { timeout: 5000 })
-    fireEvent.change(screen.getByLabelText('Data di inizio'), { target: { value: '2026-08-03' } })
-    fireEvent.change(screen.getByLabelText('Data di fine'), { target: { value: '2026-10-03' } })
+    scriviDate('2026-08-03', '2026-10-03')
     await waitFor(() => expect(testo()).toMatch(/29 giorni registrati, dal 03\/08 al 31\/08/), { timeout: 5000 })
     expect(testo()).toMatch(/dopo il 31\/08 non c'è niente di registrato/)
     // Il confronto è col tratto lungo uguale prima del 03/08.
@@ -251,6 +265,7 @@ describe('Lo Storico a inventario si apre sui giorni registrati', () => {
   it('«30 giorni» senza niente registrato dice dove finiscono i dati, non -100%', async () => {
     render(<StoricoProduzioneView {...props} />)
     await waitFor(() => expect(testo()).toMatch(/giorni registrati/), { timeout: 5000 })
+    apriPeriodo()
     fireEvent.click(screen.getByRole('button', { name: '30 giorni' }))
     await waitFor(() => expect(testo()).toMatch(/Nessun giorno registrato dal 03\/09\/2026 al 02\/10\/2026|Nessun giorno registrato dal 04\/09\/2026 al 03\/10\/2026/), { timeout: 5000 })
     expect(testo()).toMatch(/L'ultimo giorno registrato è il 31\/08\/2026/)
@@ -261,10 +276,12 @@ describe('Lo Storico a inventario si apre sui giorni registrati', () => {
   it('senza giorni registrati nel periodo di confronto non mostra frecce e dice perché', async () => {
     render(<StoricoProduzioneView {...props} />)
     await waitFor(() => expect(testo()).toMatch(/giorni registrati/), { timeout: 5000 })
-    fireEvent.change(screen.getByLabelText('Data di inizio'), { target: { value: '2026-05-01' } })
-    fireEvent.change(screen.getByLabelText('Data di fine'), { target: { value: '2026-05-31' } })
+    scriviDate('2026-05-01', '2026-05-31')
     await waitFor(() => expect(testo()).toMatch(/31 giorni registrati, dall'01\/05 al 31\/05/), { timeout: 5000 })
-    await waitFor(() => expect(testo()).toMatch(/nessun confronto: nel periodo di confronto non c'è nessun giorno registrato/), { timeout: 5000 })
+    // Il pulsante lo dice in due parole; il perché sta dentro.
+    await waitFor(() => expect(screen.getByRole('button', { name: /^Periodo:/ }).textContent).toMatch(/senza confronto/), { timeout: 5000 })
+    apriPeriodo()
+    expect(screen.getByRole('dialog').textContent).toMatch(/Nessun confronto: nel periodo di confronto non c'è nessun giorno registrato/)
     expect(testo()).not.toMatch(/[↑↓]\s*\d/)
     // Il formato nuovo delle tessere: nessuna variazione e nessun «sul periodo prima».
     expect(testo()).not.toMatch(/[+−]\d+%/)
@@ -277,10 +294,12 @@ describe('Lo Storico a inventario si apre sui giorni registrati', () => {
     // più che raddoppiare.
     render(<StoricoProduzioneView {...props} />)
     await waitFor(() => expect(testo()).toMatch(/giorni registrati/), { timeout: 5000 })
-    fireEvent.change(screen.getByLabelText('Data di inizio'), { target: { value: '2026-05-15' } })
-    fireEvent.change(screen.getByLabelText('Data di fine'), { target: { value: '2026-06-15' } })
+    scriviDate('2026-05-15', '2026-06-15')
     await waitFor(() => expect(testo()).toMatch(/32 giorni registrati, dal 15\/05 al 15\/06/), { timeout: 5000 })
-    await waitFor(() => expect(testo()).toMatch(/nessun confronto: il periodo di confronto ha 14 giornate registrate, questo 32/), { timeout: 5000 })
+    // Il pulsante lo dice in due parole; il perché sta dentro.
+    await waitFor(() => expect(screen.getByRole('button', { name: /^Periodo:/ }).textContent).toMatch(/senza confronto/), { timeout: 5000 })
+    apriPeriodo()
+    expect(screen.getByRole('dialog').textContent).toMatch(/Nessun confronto: il periodo di confronto ha 14 giornate registrate, questo 32/)
     expect(testo()).not.toMatch(/[↑↓]\s*\d/)
     // Il formato nuovo delle tessere: nessuna variazione e nessun «sul periodo prima».
     expect(testo()).not.toMatch(/[+−]\d+%/)
