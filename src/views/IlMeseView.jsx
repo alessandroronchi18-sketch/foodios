@@ -17,7 +17,7 @@ import React, { useMemo, useState } from 'react'
 import { color as T, font, ui3 } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import {
-  CoperturaDati, NumeroConConfronto, BarraObiettivo, Cascata, IntestazioneAnalisi,
+  CoperturaDati, NumeroConConfronto, NumeroPrincipale, FilaTessere, BarraObiettivo, Cascata, IntestazioneAnalisi,
   TitoloGrafico, Riquadro, FraseInsight, ClassificaSpese,
 } from '../components/analisi'
 import { euro, quota, nomeMese, aMese, variazione, dataBreve } from '../lib/formatoAnalisi'
@@ -112,40 +112,39 @@ export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate
   const colonne = ui3(isMobile, isTablet, { telefono: '1fr', tablet: '1fr 1fr', computer: 'minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr)' })
   const fra = spazioRiquadri(isMobile)
   const unaRiga = isMobile || isTablet
+  const risposta = rispostaDelMese({ conto, contoPrima, mese, meseConfronto, vUtile, iva, attuale: dati.attuale, onNavigate })
 
   return (
     <PaginaAnalisi isMobile={isMobile} attenuata={caricando}>
       {intestazione}
       <CoperturaDati voci={vociCopertura(dati, { onNavigate, onClassifica: () => setClassifica(true) })} />
 
-      {/* ── La risposta ─────────────────────────────────────────────── */}
+      {/* ── La risposta ───────────────────────────────────────────────
+          Una sola, grande (NumeroPrincipale). Prima la cosa più grande della
+          pagina era «Non posso dirtelo: manca il personale», e il numero che
+          si sa stava in una riga da 12 px (audit 04/10, IM3). Incassi e
+          spese un gradino sotto, nella fila di tessere incolonnate. */}
       <div style={{ display: 'grid', gridTemplateColumns: colonne, gap: fra }}>
-        <div style={{ gridColumn: isTablet && !isMobile ? '1 / -1' : 'auto', display: 'grid' }}>
-          <NumeroConConfronto grande isMobile={isMobile}
-            etichetta={`Utile di ${nomeMese(mese, { anno: false })}`}
-            valore={conto.utile != null ? euro(conto.utile) : null}
-            stimato={conto.stimato}
-            motivoMancante={`Non posso dirtelo: ${motivoSenzaUtile(conto, dati.attuale)}`}
-            variazione={vUtile} rispettoA={`su ${nomeMese(meseConfronto)}`} valoreConfronto={contoPrima?.utile != null ? euro(contoPrima.utile) : ''}
-            contesto={conto.utile != null && conto.ricavi > 0
-              ? `${quota(conto.quote.utile)} degli incassi${conto.investimenti > 0 ? ` · fuori dal conto ${euro(conto.investimenti)} di investimenti` : ''}`
-              : conto.primaDelPersonale != null && conto.personale == null
-                ? `Prima del personale ti restano ${euro(conto.primaDelPersonale)}${conto.stimato ? ' (stima)' : ''}: incassi meno le spese in fattura${conIva ? `, che sono ${iva.breve}: per l'IVA è più basso del vero` : ''}.`
-                : conto.speseFatture != null ? `Spese già note: ${euro(conto.spese)}` : ''} />
+        <div style={{ gridColumn: isTablet && !isMobile ? '1 / -1' : 'auto', display: 'grid', minWidth: 0 }}>
+          <NumeroPrincipale riquadro isMobile={isMobile} {...risposta} />
         </div>
-        {/* Il nome degli incassi è lo stesso in tutte le pagine (nomeIncassi):
-            «stimati» sta nel nome, «senza IVA» nella riga sotto il numero. */}
-        <NumeroConConfronto isMobile={isMobile} etichetta={nomeIncassi(conto.stimato)}
-          valore={conto.ricavi != null ? euro(conto.ricavi) : null} motivoMancante="nessun dato"
-          variazione={vIncassi} rispettoA={`su ${nomeMese(meseConfronto, { anno: true })}`}
-          contesto={dati.attuale.incassi.fonte === 'stima' ? 'dall\'inventario, senza IVA' : dati.attuale.incassi.fonte === 'cassa' ? 'dalla cassa, senza IVA' : ''} />
-        <NumeroConConfronto isMobile={isMobile} etichetta="Spese del mese"
-          valore={conto.spese != null ? euro(conto.spese) : null} motivoMancante="fatture non lette"
-          variazione={vSpese} rispettoA={`su ${nomeMese(meseConfronto, { anno: true })}`}
-          contesto={[
-            iva.riga,
-            fattureAMeta ? `fatture registrate fino al ${dataBreve(ultimaFattura)}` : conto.personale == null && conto.speseFatture != null ? 'senza il personale, che manca' : '',
-          ].filter(Boolean).join(' · ') || 'fatture e personale'} />
+        <div style={{ gridColumn: ui3(isMobile, isTablet, { telefono: 'auto', tablet: '1 / -1', computer: '2 / 4' }), minWidth: 0 }}>
+          <FilaTessere isMobile={isMobile}>
+            {/* Il nome degli incassi è lo stesso in tutte le pagine (nomeIncassi):
+                «stimati» sta nel nome, «senza IVA» nella riga sotto il numero. */}
+            <NumeroConConfronto isMobile={isMobile} etichetta={nomeIncassi(conto.stimato)}
+              valore={conto.ricavi != null ? euro(conto.ricavi) : null} motivoMancante="nessun dato"
+              variazione={vIncassi} rispettoA={`su ${nomeMese(meseConfronto, { anno: true })}`}
+              contesto={dati.attuale.incassi.fonte === 'stima' ? 'dall\'inventario, senza IVA' : dati.attuale.incassi.fonte === 'cassa' ? 'dalla cassa, senza IVA' : ''} />
+            <NumeroConConfronto isMobile={isMobile} etichetta="Spese del mese"
+              valore={conto.spese != null ? euro(conto.spese) : null} motivoMancante="fatture non lette"
+              variazione={vSpese} rispettoA={`su ${nomeMese(meseConfronto, { anno: true })}`}
+              contesto={[
+                iva.riga,
+                fattureAMeta ? `fatture registrate fino al ${dataBreve(ultimaFattura)}` : conto.personale == null && conto.speseFatture != null ? 'senza il personale, che manca' : '',
+              ].filter(Boolean).join(' · ') || 'fatture e personale'} />
+          </FilaTessere>
+        </div>
       </div>
 
       {eccezionali.length > 0 && (
@@ -220,6 +219,45 @@ export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate
     </PaginaAnalisi>
   )
 }
+
+/**
+ * Le prop di NumeroPrincipale per la domanda «Quanto hai guadagnato?».
+ * L'utile se si sa. Se manca il personale, il numero che si sa (incassi meno
+ * fatture, «Rimasti prima del personale») con il perché in ambra e il
+ * passaggio per sistemarlo, e accanto lo stesso numero dell'anno prima: un
+ * numero non sta mai da solo. Se le spese hanno l'IVA dentro lo dice.
+ */
+export function rispostaDelMese({ conto, contoPrima, mese, meseConfronto, vUtile, iva, attuale, onNavigate }) {
+  const etichetta = `Utile di ${nomeMese(mese, { anno: false })}`
+  const conIva = iva && iva.stato !== 'senza'
+  if (conto.utile != null) {
+    const investimenti = conto.investimenti > 0 ? ` Fuori dal conto ${euro(conto.investimenti)} di investimenti.` : ''
+    return {
+      etichetta, valore: euro(conto.utile), stimato: conto.stimato,
+      variazione: vUtile, rispettoA: `su ${nomeMese(meseConfronto)}`, valoreConfronto: contoPrima?.utile != null ? euro(contoPrima.utile) : '',
+      frase: conto.ricavi > 0
+        ? `È il ${quota(conto.quote.utile)} degli incassi${conIva ? `. Le spese in fattura sono ${iva.breve}: l'utile vero è più alto` : ''}.${investimenti}`
+        : null,
+    }
+  }
+  const apriPersonale = onNavigate ? { etichetta: 'Apri Personale', onClick: () => onNavigate('personale') } : null
+  if (conto.primaDelPersonale != null && conto.personale == null) {
+    const prima = contoPrima?.primaDelPersonale != null && contoPrima?.personale == null ? ` ${maiuscola(aMese(meseConfronto))} erano ${euro(contoPrima.primaDelPersonale)}.` : ''
+    return {
+      etichetta, valore: null,
+      motivoMancante: 'l\'utile vero sarà più basso: manca il personale',
+      noto: { valore: euro(conto.primaDelPersonale), etichetta: 'Rimasti prima del personale', stimato: conto.stimato },
+      azione: apriPersonale,
+      frase: `Incassi meno le spese in fattura${conIva ? `, che sono ${iva.breve}: per l'IVA è più basso del vero` : ''}.${prima}`,
+    }
+  }
+  return {
+    etichetta, valore: null,
+    motivoMancante: `Non lo so ancora: ${motivoSenzaUtile(conto, attuale)}`,
+    azione: conto.personale == null ? apriPersonale : null,
+  }
+}
+const maiuscola = (t) => (t ? t[0].toUpperCase() + t.slice(1) : t)
 
 /** Come sono state divise le spese condivise, detto com'è andata davvero. */
 function testoRipartizione(perSede) {
