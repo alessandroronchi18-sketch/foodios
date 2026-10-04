@@ -12,7 +12,7 @@ import {
 import { buildIngCosti } from '../../lib/foodcost'
 import { valutaGusti, giorniRegistrati } from '../../lib/produzioneAnalisi'
 import {
-  bilancioVetrina, perGiornoDellaSettimana, sediAffiancate, andamentoGusti, buchiRegistrazione,
+  bilancioVetrina, perGiornoDellaSettimana, sediAffiancate, andamentoGusti, buchiRegistrazione, giorniFalsati,
 } from '../../lib/produzioneQuadro'
 import { todayLocal, differenzaGiorni } from '../../lib/dateLocal'
 import { useRicavoFlat } from '../../lib/useRicavoFlat'
@@ -120,7 +120,12 @@ export function useContiProduzione({
 
   // I conti nuovi della pagina (produzioneQuadro, provati coi dati veri).
   const vetrina = useMemo(() => bilancioVetrina(rows, { da: dateFrom, a: dateTo }), [rows, dateFrom, dateTo])
-  const settimana = useMemo(() => perGiornoDellaSettimana(rows, { da: dateFrom, a: dateTo }), [rows, dateFrom, dateTo])
+  // Il giorno della settimana, con i giorni falsati dalle rimanenze lasciate
+  // a 0 (sui dati di Mara il martedì e il mercoledì: vedi giorniFalsati).
+  const settimana = useMemo(
+    () => giorniFalsati(perGiornoDellaSettimana(rows, { da: dateFrom, a: dateTo }), caselle),
+    [rows, dateFrom, dateTo, caselle]
+  )
   const sediQuadro = useMemo(
     () => sediAffiancate(rows, { da: dateFrom, a: dateTo }).map(s => ({ ...s, nome: nomeSede(s.sedeId) || 'Sede' })),
     // eslint-disable-next-line react-hooks/exhaustive-deps

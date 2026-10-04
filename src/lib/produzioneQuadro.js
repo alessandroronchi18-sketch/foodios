@@ -114,6 +114,52 @@ export function perGiornoDellaSettimana(righe, { da = null, a = null } = {}) {
   return acc.map(v => ({ giorno: v.giorno, nome: v.nome, nGiorni: v.nGiorni, mediaG: v.nGiorni > 0 ? v.totG / v.nGiorni : null }))
 }
 
+// ── Il giorno della settimana falsato dalla rimanenza lasciata a zero ────
+//
+// Trovato il 04/10/2026 verificando la pagina sui dati veri di Mara
+// (01/07-31/08): il titolo diceva «Il martedì vendi di più (272 kg al
+// giorno), il giovedì di meno (96,9 kg)». Ma 141 delle caselle con la
+// rimanenza lasciata a 0 nel giorno della produzione cadono di martedì e 150
+// di mercoledì: il gelato rimasto in vetrina la sera viene contato come
+// venduto quel giorno, e il giorno dopo il venduto esce negativo. Almeno
+// 574 kg contati il martedì invece del mercoledì, 593 il mercoledì invece
+// del giovedì. Il totale del periodo è giusto; il giorno della settimana no.
+//
+// Il dato non si corregge (quanto c'era davvero in vetrina non lo sappiamo):
+// si misura quanto pesa. Per ogni giorno della settimana, i chili spostati
+// sono quelli della casella negativa (il minimo certo: il venduto vero del
+// giorno dopo non è sotto zero), contati sia sul giorno che li ha presi sia
+// su quello che li ha persi. Sopra il 10% del venduto di quel giorno, il
+// giorno è falsato e non si confronta.
+export const SOGLIA_GIORNO_FALSATO = 0.1
+
+/**
+ * @param {Array} settimana  da `perGiornoDellaSettimana`
+ * @param {Array} caselle  da `caselleDaSistemare` sullo stesso periodo
+ * @returns la stessa settimana, con { presiKg, persiKg, spostatiKg, falsato } per ogni giorno
+ */
+export function giorniFalsati(settimana = [], caselle = [], { soglia = SOGLIA_GIORNO_FALSATO } = {}) {
+  const presi = [0, 0, 0, 0, 0, 0, 0]
+  const persi = [0, 0, 0, 0, 0, 0, 0]
+  for (const c of caselle || []) {
+    if (c?.causa !== CAUSA_RIMANENZA_A_ZERO || !c.data) continue
+    const kg = Math.abs(Number(c.kg) || 0)
+    // Il giorno che ha perso i chili è sempre nel periodo; quello che li ha
+    // presi solo se il periodo non comincia proprio il giorno dopo.
+    persi[giornoSettimana(c.data) - 1] += kg
+    if (c.compensata && c.giornoDaSistemare) presi[giornoSettimana(c.giornoDaSistemare) - 1] += kg
+  }
+  return settimana.map(g => {
+    const totKg = g.mediaG != null ? (g.mediaG * g.nGiorni) / 1000 : 0
+    const i = g.giorno - 1
+    // Per dire se il giorno è falsato contano tutti e due i versi; per dire
+    // quanti chili sono nel giorno sbagliato, ogni casella una volta sola
+    // (`persiKg`, sul giorno della casella negativa).
+    const sp = (presi[i] || 0) + (persi[i] || 0)
+    return { ...g, presiKg: presi[i] || 0, persiKg: persi[i] || 0, spostatiKg: sp, falsato: totKg > 0 ? sp / totKg > soglia : sp > 0 }
+  })
+}
+
 /**
  * Le sedi affiancate: per ognuna giorni registrati, prodotto, venduto,
  * vetrina all'inizio e alla fine. `nome` lo mette chi disegna.

@@ -130,7 +130,7 @@ export default function AnalisiInventarioSection({
 
       <div style={{ display: 'grid', gridTemplateColumns: isMobile || isTablet ? '1fr' : '1fr 1fr', gap: isMobile ? 10 : 14, marginBottom: 14 }}>
         <ContoVetrina vetrina={c.vetrina} scartoRegistrato={c.scartoRegistrato} isMobile={isMobile} />
-        <GiornoSettimana giorni={c.settimana} caselleDaSistemare={c.riassunto.nRimanenza} isMobile={isMobile} />
+        <GiornoSettimana giorni={c.settimana} isMobile={isMobile} />
       </div>
 
       <SediAffiancate sedi={c.sedi} isMobile={isMobile} stile={{ marginBottom: 14 }} />

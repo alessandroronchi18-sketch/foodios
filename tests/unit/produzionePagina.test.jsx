@@ -561,3 +561,64 @@ describe('La pagina: le frasi', () => {
     expect(screen.getByRole('button', { name: /1 gusto senza ricetta vale/ })).toBeTruthy()
   })
 })
+
+// ── 6. Il giorno della settimana falsato (difetto trovato il 04/10/2026) ───
+// Sui dati veri 01/07-31/08 il titolo diceva «Il martedì vendi di più (272
+// kg al giorno), il giovedì di meno (96,9 kg)». Ma le rimanenze lasciate a 0
+// nel giorno della produzione cadono quasi tutte di martedì e mercoledì: il
+// martedì prende chili del mercoledì, il mercoledì del giovedì. La pagina
+// adesso misura i chili spostati (lib giorniFalsati) e non conclude sui
+// giorni falsati.
+const { sottotitoloGiorni } = await import('../../src/views/produzione/GiornoSettimana.jsx')
+
+describe('Il titolo dei giorni non conclude sui giorni falsati', () => {
+  // I numeri veri di Mara, 01/07-31/08 (media al giorno, giornate, chili presi e persi).
+  const g = (giorno, nome, kgMedi, n, presi = 0, persi = 0, falsato = false) =>
+    ({ giorno, nome, mediaG: kgMedi * 1000, nGiorni: n, presiKg: presi, persiKg: persi, spostatiKg: presi + persi, falsato })
+  const MARA = [
+    g(1, 'Lunedì', 187.5, 9, 180, 0, true), g(2, 'Martedì', 271.8, 8, 574.5, 180, true),
+    g(3, 'Mercoledì', 166.2, 9, 592.7, 574.5, true), g(4, 'Giovedì', 96.9, 9, 111.3, 592.7, true),
+    g(5, 'Venerdì', 180.6, 9, 61.3, 111.3), g(6, 'Sabato', 214.8, 9, 1.2, 61.3), g(7, 'Domenica', 222, 9, 10.4, 1.2),
+  ]
+  it('con quattro giorni falsati il titolo dice che non si confrontano (non «il martedì vendi di più»)', () => {
+    expect(titoloGiorni(MARA)).toBe('Il lunedì, il martedì, il mercoledì e il giovedì non si possono confrontare: la rimanenza lasciata a 0 fa contare i chili il giorno prima')
+    expect(titoloGiorni(MARA)).not.toMatch(/martedì vendi di più/)
+  })
+  it('il sottotitolo conta ogni casella una volta', () => {
+    // I chili persi: 180 + 574,5 + 592,7 + 111,3 + 61,3 + 1,2 = 1.521 kg (con
+    // anche i presi sarebbero il doppio).
+    expect(sottotitoloGiorni(MARA)).toBe('Venduto medio di ogni giorno della settimana, sui giorni registrati. In ambra i giorni falsati: almeno 1.521 kg contati nel giorno prima del vero.')
+  })
+  it('con uno o due giorni falsati conclude sugli altri, e lo dice', () => {
+    const due = MARA.map(x => ({ ...x, falsato: x.nome === 'Martedì' || x.nome === 'Mercoledì' }))
+    expect(titoloGiorni(due)).toBe('La domenica vendi di più (222 kg al giorno), il giovedì di meno (96,9 kg)')
+    expect(sottotitoloGiorni(due)).toMatch(/restano fuori dal confronto\.$/)
+  })
+  it('senza giorni falsati il sottotitolo non parla di ambra', () => {
+    expect(sottotitoloGiorni(MARA.map(x => ({ ...x, falsato: false, presiKg: 0, persiKg: 0 })))).toBe('Venduto medio di ogni giorno della settimana, sui giorni registrati.')
+  })
+})
+
+describe('La pagina segna i giorni falsati', () => {
+  // Due settimane: ogni giorno 5 kg fatti e 1 kg lasciato, ma il martedì la
+  // rimanenza è rimasta a 0 e il mercoledì non si produce (resta 1 kg): il
+  // martedì «vende» 6 kg, il mercoledì −1 kg.
+  const righe = []
+  const t = new Date('2026-08-02T12:00:00Z')
+  for (let i = 0; i < 15; i++) {
+    const d = t.toISOString().slice(0, 10)
+    const wd = t.getUTCDay()
+    righe.push(wd === 2 ? r('NOCCIOLA', d, 5000, 0) : wd === 3 ? r('NOCCIOLA', d, 0, 1000) : r('NOCCIOLA', d, 5000, 1000))
+    t.setUTCDate(t.getUTCDate() + 1)
+  }
+  it('martedì e mercoledì in ambra, e il titolo non li usa', async () => {
+    apri({ rows: righe, dateFrom: '2026-08-03', dateTo: '2026-08-16' })
+    await waitFor(() => expect(testo()).toMatch(/Ricavo stimato/), { timeout: 5000 })
+    const voce = (nome) => screen.getAllByRole('listitem').find(li => (li.getAttribute('aria-label') || '').startsWith(`${nome}:`))
+    expect(voce('Martedì').getAttribute('aria-label')).toMatch(/falsato: almeno 2 kg contati nel giorno sbagliato/)
+    expect(voce('Mercoledì').getAttribute('aria-label')).toMatch(/falsato/)
+    expect(voce('Lunedì').getAttribute('aria-label')).not.toMatch(/falsato/)
+    expect(testo()).not.toMatch(/Il martedì vendi di più/)
+    expect(testo()).toMatch(/In ambra i giorni falsati: almeno 2 kg contati nel giorno prima del vero, restano fuori dal confronto/)
+  })
+})

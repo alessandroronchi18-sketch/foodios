@@ -148,3 +148,69 @@ describe('I buchi nel foglio', () => {
     expect(buchiRegistrazione(null)).toEqual([])
   })
 })
+
+// ── Il giorno della settimana falsato dalla rimanenza lasciata a zero ─────
+// Trovato il 04/10/2026 sui dati veri (01/07-31/08): «Il martedì vendi di
+// più (272 kg al giorno)», ma 141 caselle con la rimanenza lasciata a 0
+// cadevano di martedì: almeno 574 kg contati il martedì invece del mercoledì.
+import { giorniFalsati, SOGLIA_GIORNO_FALSATO } from '../../src/lib/produzioneQuadro.js'
+import { caselleDaSistemare } from '../../src/lib/inventarioProduzione.js'
+
+describe('Il giorno della settimana falsato', () => {
+  // Due settimane, NOCCIOLA: ogni giorno 5 kg fatti, 1 kg lasciato (5
+  // venduti). I martedì la rimanenza è rimasta a 0: il martedì «vende» 6 kg,
+  // il mercoledì 4 (−1 rispetto al vero) ... e la casella del mercoledì non
+  // è negativa. Per avere la casella negativa vera: il mercoledì non si
+  // produce, e resta 1 kg: venduto = 0 + 0 − 1 = −1 kg.
+  const righe = []
+  const t = new Date('2026-08-02T12:00:00Z')   // domenica
+  for (let i = 0; i < 15; i++) {
+    const d = t.toISOString().slice(0, 10)
+    const g = t.getUTCDay()
+    if (g === 2) righe.push(r(d, 5000, 0))          // martedì: rimanenza lasciata a 0
+    else if (g === 3) righe.push(r(d, 0, 1000))     // mercoledì: niente fatto, resta 1 kg
+    else righe.push(r(d, 5000, 1000))
+    t.setUTCDate(t.getUTCDate() + 1)
+  }
+  const da = '2026-08-03', a = '2026-08-16'
+  const settimana = perGiornoDellaSettimana(righe, { da, a })
+  const caselle = caselleDaSistemare(righe, { da, a })
+
+  it('senza la misura il martedì sembra il giorno migliore (il difetto)', () => {
+    const mar = settimana.find(g => g.nome === 'Martedì')
+    const lun = settimana.find(g => g.nome === 'Lunedì')
+    expect(mar.mediaG).toBeGreaterThan(lun.mediaG)
+  })
+
+  it('martedì e mercoledì sono falsati, gli altri no', () => {
+    const f = giorniFalsati(settimana, caselle)
+    expect(f.filter(g => g.falsato).map(g => g.nome)).toEqual(['Martedì', 'Mercoledì'])
+    const mar = f.find(g => g.nome === 'Martedì')
+    const mer = f.find(g => g.nome === 'Mercoledì')
+    // Due caselle da −1 kg: il martedì le prende, il mercoledì le perde.
+    expect(mar.presiKg).toBeCloseTo(2, 6)
+    expect(mar.persiKg).toBe(0)
+    expect(mer.persiKg).toBeCloseTo(2, 6)
+    expect(mer.presiKg).toBe(0)
+  })
+
+  it('sotto la soglia del 10% il giorno non è falsato', () => {
+    expect(SOGLIA_GIORNO_FALSATO).toBe(0.1)
+    // Il martedì ha venduto 12 kg in due giorni (6 + 6), spostati 2: il 16,7%.
+    expect(giorniFalsati(settimana, caselle, { soglia: 0.17 }).find(g => g.nome === 'Martedì').falsato).toBe(false)
+    expect(giorniFalsati(settimana, caselle, { soglia: 0.16 }).find(g => g.nome === 'Martedì').falsato).toBe(true)
+  })
+
+  it('se il giorno da sistemare è prima del periodo, conta solo il giorno che ha perso', () => {
+    const c = caselleDaSistemare(righe, { da: '2026-08-05', a })
+    const f = giorniFalsati(perGiornoDellaSettimana(righe, { da: '2026-08-05', a }), c)
+    // Il martedì 04/08 è fuori: il martedì 11 prende 1 kg solo.
+    expect(f.find(g => g.nome === 'Martedì').presiKg).toBeCloseTo(1, 6)
+    expect(f.find(g => g.nome === 'Mercoledì').persiKg).toBeCloseTo(2, 6)
+  })
+
+  it('le caselle che non tornano per altri motivi non spostano niente', () => {
+    const f = giorniFalsati(settimana, caselle.map(c => ({ ...c, causa: 'non-torna' })))
+    expect(f.every(g => !g.falsato && g.spostatiKg === 0)).toBe(true)
+  })
+})
