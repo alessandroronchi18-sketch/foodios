@@ -9,13 +9,14 @@
 //   • «stimato» in parole accanto al numero, non una pillola colorata che
 //     gli fa concorrenza;
 //   • la riga del confronto: la freccia segue il SEGNO del numero, il colore
-//     segue il giudizio. Prima era il contrario: «↘ +52%» per una spesa
-//     salita del 52%, e chi guardava di sfuggita leggeva «calo».
+//     segue il giudizio, e il giudizio è anche scritto («· peggio»). Prima
+//     era il contrario: «↘ +52%» per una spesa salita del 52%, e chi guardava
+//     di sfuggita leggeva «calo».
 import React from 'react'
-import { color as T, font, space } from '../../lib/theme'
+import { color as T, font, space, radius as R } from '../../lib/theme'
 import { segnoDi } from '../../lib/formatoAnalisi'
 import Icon from '../Icon'
-import { testo, soloLettore } from './misure'
+import { testo } from './misure'
 
 /** L'unità, al 60-70% del numero, presa dalla scala del tema (sotto i 16 px
  *  l'euro accanto a un numero da 22 si stacca e sembra una nota). */
@@ -83,7 +84,16 @@ export function RigaConfronto({ variazione = null, rispettoA = '', valoreConfron
       <b style={{ color: COLORE_GIUDIZIO[verso] || T.textMid, fontWeight: 700 }}>{variazione.testoDelta}</b>
       {rispettoA && <span>{rispettoA}</span>}
       {valoreConfronto && <span style={{ color: T.textSoft }}>({valoreConfronto})</span>}
-      {verso !== 'pari' && <span style={soloLettore}>{verso}</span>}
+      {/* Il giudizio a parole, visibile, come nella tabella del conto («· peggio»):
+          non col colore solo (regola 7). Prima era un testo nascosto a 1 px per
+          chi legge lo schermo, e il righello delle foto lo vedeva «tagliato». Il
+          puntino è disegnato, non scritto: il testo resta «… 2025peggio». */}
+      {verso !== 'pari' && (
+        <span style={{ display: 'inline-flex', alignItems: 'center', columnGap: space[1], color: COLORE_GIUDIZIO[verso], fontWeight: 600 }}>
+          <span aria-hidden="true" style={{ width: 3, height: 3, borderRadius: R.full, background: T.textSoft }} />
+          {verso}
+        </span>
+      )}
     </div>
   )
 }

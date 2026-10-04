@@ -18,7 +18,7 @@
 import React, { useId, useState } from 'react'
 import { color as T, font, radius as R, space, shadow } from '../../lib/theme'
 import Icon from '../Icon'
-import { imbottitura, testo, soloLettore } from './misure'
+import { imbottitura, testo } from './misure'
 
 const ASPETTO = {
   ok:       { icona: 'checkCircle', colore: T.green, parola: '' },
@@ -92,7 +92,6 @@ export default function CoperturaDati({ titolo = 'Da dove vengono i numeri', ria
           <Icon name={icona.icona} size={16} />
         </span>
         <span style={{ flex: isMobile ? 1 : '0 1 auto', minWidth: 0, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          <span style={soloLettore}>{titolo}: </span>
           {frase}
         </span>
         <Icon name={aperta ? 'chevUp' : 'chevDown'} size={16} color={T.textSoft} />
@@ -102,6 +101,10 @@ export default function CoperturaDati({ titolo = 'Da dove vengono i numeri', ria
         marginTop: space[2], background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: R.xl,
         padding: `${space[1]}px ${pad}px`,
       }}>
+        {/* Il nome della riga sta in cima al pannello aperto (prima era un testo
+            nascosto a 1 px dentro il pulsante, che il righello vedeva «tagliato»):
+            chi legge lo schermo lo trova anche nel nome della regione. */}
+        <p style={{ margin: 0, padding: `${space[3]}px 0 0`, ...testo(font.size.sm), fontWeight: 600, color: T.textSoft }}>{titolo}</p>
         <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column' }}>
           {voci.map((v, i) => {
             const a = aspetto(v.stato)
