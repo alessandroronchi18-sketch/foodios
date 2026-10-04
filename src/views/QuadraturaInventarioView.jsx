@@ -894,7 +894,13 @@ function DiagnosiDrift({ driftEur, driftPct, isMobile }) {
 }
 
 // ── Panel Sofferenza / Zero venduto ───────────────────────────────────────
-function PanelSofferenza({ sofferenza, zeroVenduto }) {
+// La riga va a capo: al telefono il nome del gusto prende la prima riga e il
+// dettaglio col bollino scende sotto. Fino al 04/10/2026 stavano tutti e tre
+// su una riga sola e il nome si riduceva a «CA…» (30 px su 81).
+// Sotto questa larghezza il nome non sta accanto al dettaglio e va a capo.
+export const NOME_SOFFERENZA_MIN = 140
+
+export function PanelSofferenza({ sofferenza, zeroVenduto }) {
   return (
     <div style={panelStyle}>
       <div style={panelTitle}>Gusti in sofferenza</div>
@@ -931,12 +937,12 @@ function PanelSofferenza({ sofferenza, zeroVenduto }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {sofferenza.slice(0, 6).map(x => (
             <div key={x.gusto} style={{
-              display: 'flex', alignItems: 'center', gap: 10, fontSize: font.size.sm,
-              padding: '6px 0',
+              display: 'flex', alignItems: 'center', flexWrap: 'wrap', columnGap: 10, rowGap: 4,
+              fontSize: font.size.sm, padding: '6px 0',
               borderBottom: `1px dashed ${C.borderSoft}`,
             }}>
               <span style={{
-                flex: 1, fontWeight: 600, color: C.text,
+                flex: `1 1 ${NOME_SOFFERENZA_MIN}px`, fontWeight: 600, color: C.text,
                 overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 minWidth: 0,
               }} title={x.gusto}>
@@ -949,7 +955,7 @@ function PanelSofferenza({ sofferenza, zeroVenduto }) {
                 in vetrina {nKg(x.residuoMedioG)} kg, vende {nKg(x.vendutoMedioG)} kg al giorno
               </span>
               <span style={{
-                color: T.amberDark, fontWeight: 700, ...TNUM,
+                color: T.amberDark, fontWeight: 700, ...TNUM, marginLeft: 'auto',
                 minWidth: 52, textAlign: 'right', whiteSpace: 'nowrap',
                 background: T.amberLight, padding: '2px 8px', borderRadius: 999,
                 fontSize: font.size.sm,
