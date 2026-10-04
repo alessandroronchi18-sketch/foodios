@@ -15,6 +15,8 @@
 //   7. gli ultimi dodici mesi.
 import React, { useMemo, useState } from 'react'
 import { color as T, font, ui3 } from '../lib/theme'
+import Icon from '../components/Icon'
+import { testo } from '../components/analisi/misure'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import {
   CoperturaDati, NumeroConConfronto, NumeroPrincipale, FilaTessere, BarraObiettivo, Cascata, IntestazioneAnalisi,
@@ -107,6 +109,15 @@ export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate
   const colonne = ui3(isMobile, isTablet, { telefono: '1fr', tablet: '1fr 1fr', computer: 'minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr)' })
   const fra = spazioRiquadri(isMobile)
   const unaRiga = isMobile || isTablet
+  const senzaCause = dati.annoPrima ? `Per ${nomeMese(meseConfronto)} mancano i dati per confrontare voce per voce.` : 'Non ci sono dati dell\'anno prima.'
+  const quoteMargine = [
+    { etichetta: 'Materie prime', valore: materieIncomplete ? null : conto.quote.materiePrime, obiettivo: OBIETTIVI.materiePrime,
+      motivoMancante: conto.ricavi == null ? 'mancano gli incassi' : materieIncomplete ? `prima classifica ${euro(conto.daClassificare)} di spese` : 'mancano le fatture' },
+    { etichetta: 'Personale', valore: conto.quote.personale, obiettivo: OBIETTIVI.personale,
+      motivoMancante: conto.personale == null ? 'stipendi non registrati' : 'mancano gli incassi' },
+    { etichetta: 'Materie prime + personale', valore: materieIncomplete ? null : conto.quote.primeCost, obiettivo: OBIETTIVI.primeCost,
+      motivoMancante: 'servono tutte e due' },
+  ]
   const risposta = rispostaDelMese({ conto, contoPrima, mese, meseConfronto, vUtile, iva, attuale: dati.attuale, onNavigate })
 
   return (
@@ -123,7 +134,9 @@ export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate
         <div style={{ gridColumn: isTablet && !isMobile ? '1 / -1' : 'auto', display: 'grid', minWidth: 0 }}>
           <NumeroPrincipale riquadro isMobile={isMobile} {...risposta} />
         </div>
-        <div style={{ gridColumn: ui3(isMobile, isTablet, { telefono: 'auto', tablet: '1 / -1', computer: '2 / 4' }), minWidth: 0 }}>
+        {/* `grid`: la fila delle tessere si allunga fino in fondo alla riga,
+            e le tessere finiscono alla stessa altezza della risposta. */}
+        <div style={{ gridColumn: ui3(isMobile, isTablet, { telefono: 'auto', tablet: '1 / -1', computer: '2 / 4' }), minWidth: 0, display: 'grid' }}>
           <FilaTessere isMobile={isMobile}>
             {/* Il nome degli incassi è lo stesso in tutte le pagine (nomeIncassi):
                 «stimati» sta nel nome, «senza IVA» nella riga sotto il numero. */}
@@ -154,40 +167,45 @@ export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate
         </Riquadro>
       )}
 
+      {/* Senza cause la cascata prende tutta la riga e la frase sta sotto il
+          suo titolo: prima accanto c'era un riquadro con una frase sola
+          (audit 04/10, IM14). */}
       <div style={{ display: 'grid', gridTemplateColumns: unaRiga ? '1fr' : colonne, gap: fra }}>
-        <Riquadro isMobile={isMobile}>
+        <Riquadro isMobile={isMobile} stile={!cause.length && !unaRiga ? { gridColumn: '1 / -1' } : null}>
           <TitoloGrafico titolo={titoloCascata(conto, iva)}
-            sottotitolo={`${iva.stato === 'senza' ? 'Incassi e spese senza IVA.' : `Incassi senza IVA, spese ${iva.breve}${iva.stato === 'tutte' ? ': le fatture non hanno ancora l\'imponibile' : ` (${iva.riga})`}.`} Le spese vengono dalle fatture del mese, per data.`} />
+            sottotitolo={`${iva.stato === 'senza' ? 'Incassi e spese senza IVA.' : `Incassi senza IVA, spese ${iva.breve}${iva.stato === 'tutte' ? ': le fatture non hanno ancora l\'imponibile' : ` (${iva.riga})`}.`} Le spese vengono dalle fatture del mese, per data.${cause.length ? '' : ` ${senzaCause}`}`} />
           <Cascata isMobile={isMobile} ricavi={conto.ricavi} passi={conto.passi} />
         </Riquadro>
-        <Riquadro isMobile={isMobile} stile={unaRiga ? null : { gridColumn: '2 / 4' }}>
-          <TitoloGrafico titolo={cause.length ? `Cosa è cambiato da ${nomeMese(meseConfronto)}` : `Il confronto con ${nomeMese(meseConfronto)}`}
-            sottotitolo={cause.length ? 'Le voci che hanno spostato di più l\'utile, dalla più pesante.' : ''} />
-          {cause.length ? cause.map(c => (
-            <FraseInsight key={c.chiave} verso={c.effetto >= 0 ? 'meglio' : 'peggio'}>{fraseCausa(c, meseConfronto)}</FraseInsight>
-          )) : (
-            <div style={{ fontSize: font.size.base, color: T.textSoft, lineHeight: 1.55 }}>
-              {dati.annoPrima ? `Per ${nomeMese(meseConfronto)} mancano i dati per confrontare voce per voce.` : 'Non ci sono dati dell\'anno prima.'}
-            </div>
-          )}
-        </Riquadro>
+        {cause.length > 0 && (
+          <Riquadro isMobile={isMobile} stile={unaRiga ? null : { gridColumn: '2 / 4' }}>
+            <TitoloGrafico titolo={`Cosa è cambiato da ${nomeMese(meseConfronto)}`}
+              sottotitolo="Le voci che hanno spostato di più l'utile, dalla più pesante." />
+            {cause.map(c => (
+              <FraseInsight key={c.chiave} verso={c.effetto >= 0 ? 'meglio' : 'peggio'}>{fraseCausa(c, meseConfronto)}</FraseInsight>
+            ))}
+          </Riquadro>
+        )}
       </div>
 
-      <Riquadro isMobile={isMobile}>
-        <TitoloGrafico titolo="Le tre spese che decidono il margine"
-          sottotitolo="Quanto pesano sugli incassi. Gli obiettivi sono indicativi: per la pasticceria artigiana non ci sono riferimenti italiani solidi, conta il confronto con te stesso." />
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))', gap: fra }}>
-          {/* Con molte spese ancora senza categoria la quota delle materie
-              prime è un minimo, non la quota: «1,6%, sotto l'obiettivo» in
-              verde sarebbe una buona notizia falsa. */}
-          <BarraObiettivo etichetta="Materie prime" valore={materieIncomplete ? null : conto.quote.materiePrime} obiettivo={OBIETTIVI.materiePrime}
-            motivoMancante={conto.ricavi == null ? 'mancano gli incassi' : materieIncomplete ? `prima classifica ${euro(conto.daClassificare)} di spese` : 'mancano le fatture'} />
-          <BarraObiettivo etichetta="Personale" valore={conto.quote.personale} obiettivo={OBIETTIVI.personale}
-            motivoMancante={conto.personale == null ? 'stipendi non registrati' : 'mancano gli incassi'} />
-          <BarraObiettivo etichetta="Materie prime + personale" valore={materieIncomplete ? null : conto.quote.primeCost} obiettivo={OBIETTIVI.primeCost}
-            motivoMancante="servono tutte e due" />
-        </div>
-      </Riquadro>
+      {/* Le tre quote contro l'obiettivo. Se non se ne sa nessuna, niente
+          riquadro di «non lo so»: una riga che dice quando ci saranno
+          (audit 04/10, IM6). Con molte spese ancora senza categoria la quota
+          delle materie prime è un minimo, non la quota: «1,6%, sotto
+          l'obiettivo» in verde sarebbe una buona notizia falsa. */}
+      {quoteMargine.some(q => q.valore != null) ? (
+        <Riquadro isMobile={isMobile}>
+          <TitoloGrafico titolo="Le tre spese che decidono il margine"
+            sottotitolo="Quanto pesano sugli incassi. Gli obiettivi sono indicativi: per la pasticceria artigiana non ci sono riferimenti italiani solidi, conta il confronto con te stesso." />
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))', gap: fra }}>
+            {quoteMargine.map(q => <BarraObiettivo key={q.etichetta} {...q} />)}
+          </div>
+        </Riquadro>
+      ) : (
+        <p style={{ margin: 0, display: 'flex', gap: 8, alignItems: 'flex-start', ...testo(font.size.base), color: T.textSoft }}>
+          <span aria-hidden="true" style={{ display: 'inline-flex', height: 20, alignItems: 'center', flexShrink: 0 }}><Icon name="info" size={14} /></span>
+          <span>Materie prime e personale sugli incassi, contro l&apos;obiettivo: li calcolo quando le spese avranno la voce e gli stipendi ci saranno.</span>
+        </p>
+      )}
 
       {/* Due capitoli dopo il conto del mese: i negozi, poi l'anno. */}
       {dati.perSede && Object.keys(dati.perSede).length > 1 && (
