@@ -85,14 +85,20 @@ beforeEach(() => preparaServer())
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 
 describe('I numeri in cima alla pagina', () => {
+  // 04/10/2026: rosso intermittente sul gate del push, mai da solo (3 su 3
+  // verdi). `apri()` aspetta l'etichetta «Totale clienti», che c'è subito; i
+  // numeri arrivano dopo la risposta del server finto, e con 465 file in
+  // parallelo arrivavano dopo il controllo. Si aspetta il numero stesso.
   it('mostrano quello che il server ha mandato', async () => {
     const { container } = await apri()
-    expect(container.textContent).toMatch(/1\.234/)   // totale clienti, col punto
+    await waitFor(() => expect(container.textContent).toMatch(/1\.234/), { timeout: 5000 })   // totale clienti, col punto
     expect(container.textContent).toMatch(/1\.477 €/) // MRR stimato
   })
 
   it('i numeri oltre il migliaio hanno il punto, all\'italiana', async () => {
     const { container } = await apri()
+    // Prima i numeri a schermo: senza, «nessun 1234» passava anche a pagina vuota.
+    await waitFor(() => expect(container.textContent).toMatch(/1\.234/), { timeout: 5000 })
     expect(container.textContent, 'un numero è scritto 1234 invece di 1.234').not.toMatch(/(^|[^\d.])1234([^\d]|$)/)
   })
 
