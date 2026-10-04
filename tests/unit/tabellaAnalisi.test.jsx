@@ -113,7 +113,9 @@ describe('I numeri in colonna', () => {
     render(<TabellaAnalisi etichetta="Conto" colonne={colonne} righe={righe()} />)
     const mp = riga('Materie prime').children[3]
     expect(mp.textContent).toBe('+734 · peggio')
-    expect(stesso(mp.firstChild.style.color, T.red)).toBe(true)
+    // 04/10/2026: il peggio ha il colore dei grafici (T.graficoPeggio), non più
+    // il rosso degli allarmi (theme.js).
+    expect(stesso(mp.firstChild.style.color, T.graficoPeggio)).toBe(true)
     const dc = riga('Da classificare').children[3]
     expect(dc.textContent).toBe('+4.417')
     expect(stesso(dc.firstChild.style.color, T.amberDark)).toBe(true)
