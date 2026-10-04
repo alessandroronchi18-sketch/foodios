@@ -183,7 +183,7 @@ export default function PrevisioniView({ orgId, sedeId, sedi = [], sedeAttiva = 
         <Riquadro isMobile={isMobile}><p style={{ margin: 0, color: T.textSoft, fontSize: font.size.md }}>Leggo l’inventario…</p></Riquadro>
       ) : (
         <>
-          <CoperturaDati voci={vociCopertura(p, oggi, nomeSede, vaiInventario)} />
+          <CoperturaDati isMobile={isMobile} voci={vociCopertura(p, oggi, nomeSede, vaiInventario)} />
           {p.stato === 'vuoto' && (
             <Riquadro isMobile={isMobile}>
               <TitoloGrafico
@@ -243,26 +243,29 @@ function Pulsante({ children, onClick, principale = false }) {
   )
 }
 
-/** La riga «da dove vengono i numeri» (ANALISI_DESIGN.md, regola 3). */
+/**
+ * La riga «da dove vengono i numeri» (ANALISI_DESIGN.md, regola 3). Ogni voce
+ * ha il suo nome breve per la riga chiusa («Inventario fermo al 31/08»).
+ */
 export function vociCopertura(p, oggi, nomeSede, vaiInventario) {
   const voci = []
   const dove = nomeSede ? ` di ${nomeSede}` : ''
   if (p.stato === 'vuoto') {
-    voci.push({ id: 'inv', stato: 'manca', testo: `Inventario${dove}: nessun giorno registrato`, azione: { etichetta: 'Registra', onClick: vaiInventario } })
+    voci.push({ id: 'inv', breve: 'Nessun inventario', stato: 'manca', testo: `Inventario${dove}: nessun giorno registrato`, azione: { etichetta: 'Registra', onClick: vaiInventario } })
     return voci
   }
   const quando = giornoRelativo(p.ultimoDato, oggi)
   if (p.giorniVecchi <= 1) {
-    voci.push({ id: 'inv', stato: 'ok', testo: `Inventario${dove} fino a ${quando} (${dataBreve(p.ultimoDato)})` })
+    voci.push({ id: 'inv', breve: `Inventario fino a ${quando}`, stato: 'ok', testo: `Inventario${dove} fino a ${quando} (${dataBreve(p.ultimoDato)})` })
   } else if (p.giorniVecchi <= GIORNI_DATI_VECCHI) {
     voci.push({
-      id: 'inv', stato: 'parziale',
+      id: 'inv', breve: `Inventario fermo al ${dataBreve(p.ultimoDato)}`, stato: 'parziale',
       testo: `Inventario${dove} fermo al ${dataBreve(p.ultimoDato)}: la vetrina di oggi non la conosco`,
       azione: { etichetta: 'Registra', onClick: vaiInventario },
     })
   } else {
     voci.push({
-      id: 'inv', stato: 'manca',
+      id: 'inv', breve: `Inventario fermo al ${dataBreve(p.ultimoDato)}`, stato: 'manca',
       testo: `Inventario${dove} fermo al ${dataBreve(p.ultimoDato)}, ${NF0.format(p.giorniVecchi)} giorni fa`,
       azione: { etichetta: 'Registra', onClick: vaiInventario },
     })
@@ -270,13 +273,13 @@ export function vociCopertura(p, oggi, nomeSede, vaiInventario) {
   if (p.conte && p.conte.totale > 0 && p.conte.inaffidabili > 0) {
     const quota = Math.round(p.conte.inaffidabili / p.conte.totale * 100)
     voci.push({
-      id: 'conte', stato: quota >= 5 ? 'parziale' : 'ok',
+      id: 'conte', breve: 'Rimanenze a zero', stato: quota >= 5 ? 'parziale' : 'ok',
       testo: `Rimanenza a zero nel giorno di produzione: ${NF0.format(p.conte.inaffidabili)} righe su ${NF0.format(p.conte.totale)} nelle ultime 4 settimane`,
       dettaglio: 'Nel giorno in cui si rifà un gusto la rimanenza spesso resta a zero: quel giorno il venduto esce troppo alto e il giorno dopo negativo. Per questo il venduto lo misuro fra due conte giuste, e quei giorni non li uso per misurare l’errore.',
     })
   }
   if (p.stato === 'ok') {
-    voci.push({ id: 'stima', stato: 'stima', testo: 'previsione dal venduto delle ultime settimane, senza meteo né festività' })
+    voci.push({ id: 'stima', breve: 'Previsione stimata', stato: 'stima', testo: 'previsione dal venduto delle ultime settimane, senza meteo né festività' })
   }
   return voci
 }

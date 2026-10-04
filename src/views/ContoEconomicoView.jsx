@@ -113,7 +113,7 @@ export default function ContoEconomicoView({ orgId, sedi = [], sedeId = null, on
       {!dati && !errore && <Riquadro isMobile={isMobile}><span style={{ color: T.textSoft, fontSize: font.size.base }}>Metto insieme cassa, fatture e personale…</span></Riquadro>}
       {dati && conto && (
         <>
-          <CoperturaDati voci={vociCopertura(dati, { onNavigate, onClassifica: () => setClassifica(true) })} />
+          <CoperturaDati isMobile={isMobile} voci={vociCopertura(dati, { onNavigate, onClassifica: () => setClassifica(true) })} />
           <Riquadro isMobile={isMobile}>
             <TitoloGrafico
               titolo={conto.utile != null

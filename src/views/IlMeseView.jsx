@@ -32,33 +32,38 @@ import { nomeBreve } from '../lib/contoEconomico'
 import PaginaAnalisi, { SezioneAnalisi, spazioRiquadri } from '../components/analisi/PaginaAnalisi'
 import MeseAnalisi, { useMeseAnalisi, PulsanteTorna, meseCorrente } from '../components/analisi/MeseAnalisi'
 
-/** Le voci della riga «Da dove vengono i numeri», dal risultato della lettura. */
+/**
+ * Le voci della riga «Da dove vengono i numeri», dal risultato della lettura.
+ * Ognuna ha il suo nome breve (`breve`): la copertura chiusa li usa per dire
+ * che cosa è stimato o manca («Incassi stimati · 3 dati da sistemare»), non
+ * solo quanti (04/10: diceva «1 numero stimato», e non si sapeva quale).
+ */
 export function vociCopertura(dati, { onNavigate, onClassifica } = {}) {
   if (!dati?.attuale) return []
   const { incassi, costi, personale } = dati.attuale
   const voci = []
   voci.push(incassi.fonte === 'cassa'
-    ? { id: 'incassi', stato: incassi.parziale ? 'parziale' : 'ok', testo: `Incassi ${incassi.testo}`, azione: incassi.parziale && onNavigate ? { etichetta: 'Registra la cassa', onClick: () => onNavigate('chiusura') } : null }
+    ? { id: 'incassi', breve: incassi.parziale ? 'Cassa a metà' : 'Incassi dalla cassa', stato: incassi.parziale ? 'parziale' : 'ok', testo: `Incassi ${incassi.testo}`, azione: incassi.parziale && onNavigate ? { etichetta: 'Registra la cassa', onClick: () => onNavigate('chiusura') } : null }
     : incassi.fonte === 'stima'
-      ? { id: 'incassi', stato: 'stima', testo: `incassi ${incassi.testo}`, azione: onNavigate ? { etichetta: 'Registra la cassa', onClick: () => onNavigate('chiusura') } : null }
-      : { id: 'incassi', stato: 'manca', testo: `gli incassi: ${incassi.testo}`, azione: onNavigate ? { etichetta: 'Registra la cassa', onClick: () => onNavigate('chiusura') } : null })
+      ? { id: 'incassi', breve: 'Incassi stimati', stato: 'stima', testo: `incassi ${incassi.testo}`, azione: onNavigate ? { etichetta: 'Registra la cassa', onClick: () => onNavigate('chiusura') } : null }
+      : { id: 'incassi', breve: 'Incassi mancanti', stato: 'manca', testo: `gli incassi: ${incassi.testo}`, azione: onNavigate ? { etichetta: 'Registra la cassa', onClick: () => onNavigate('chiusura') } : null })
   if (!costi) {
-    voci.push({ id: 'fatture', stato: 'manca', testo: 'le fatture non si sono potute leggere' })
+    voci.push({ id: 'fatture', breve: 'Fatture non lette', stato: 'manca', testo: 'le fatture non si sono potute leggere' })
   } else {
     const c = costi.copertura || {}
     // Le fatture del mese finiscono prima della fine del mese (l'ultimo
     // import da WebDesk è del 10/09): il mese è a metà, e va detto.
     if (c.ultimaFattura && c.ultimaFattura < `${dati.mese}-25` && dati.mese < meseCorrente()) {
-      voci.push({ id: 'fattureFino', stato: 'parziale', testo: `fatture registrate fino al ${dataBreve(c.ultimaFattura)}: il mese è incompleto`, azione: onNavigate ? { etichetta: 'Carica lo ZIP', onClick: () => onNavigate('scadenzario') } : null })
+      voci.push({ id: 'fattureFino', breve: `Fatture fino al ${dataBreve(c.ultimaFattura)}`, stato: 'parziale', testo: `fatture registrate fino al ${dataBreve(c.ultimaFattura)}: il mese è incompleto`, azione: onNavigate ? { etichetta: 'Carica lo ZIP', onClick: () => onNavigate('scadenzario') } : null })
     }
     voci.push(c.importoIvaCompresa > 0
-      ? { id: 'fatture', stato: 'parziale', testo: `${c.nFatture} fatture, ${c.nSenzaImponibile} senza imponibile: ${euro(c.importoIvaCompresa)} contati con l'IVA`, azione: onNavigate ? { etichetta: 'Carica lo ZIP', onClick: () => onNavigate('scadenzario') } : null }
-      : { id: 'fatture', stato: 'ok', testo: `${c.nFatture || 0} fatture del mese, senza IVA` })
+      ? { id: 'fatture', breve: 'Spese IVA compresa', stato: 'parziale', testo: `${c.nFatture} fatture, ${c.nSenzaImponibile} senza imponibile: ${euro(c.importoIvaCompresa)} contati con l'IVA`, azione: onNavigate ? { etichetta: 'Carica lo ZIP', onClick: () => onNavigate('scadenzario') } : null }
+      : { id: 'fatture', breve: 'Fatture senza IVA', stato: 'ok', testo: `${c.nFatture || 0} fatture del mese, senza IVA` })
     if (costi.daClassificare?.importo > 0) {
-      voci.push({ id: 'categorie', stato: 'parziale', testo: `${euro(costi.daClassificare.importo)} di spese di ${costi.daClassificare.nFornitori} fornitori senza categoria`, azione: onClassifica ? { etichetta: 'Classifica', onClick: onClassifica } : null })
+      voci.push({ id: 'categorie', breve: 'Spese senza voce', stato: 'parziale', testo: `${euro(costi.daClassificare.importo)} di spese di ${costi.daClassificare.nFornitori} fornitori senza categoria`, azione: onClassifica ? { etichetta: 'Classifica', onClick: onClassifica } : null })
     }
   }
-  voci.push({ id: 'personale', stato: personale.stato === 'ok' ? 'ok' : personale.stato, testo: personale.stato === 'ok' ? `Personale: ${personale.testo}` : `personale: ${personale.testo}`, azione: personale.stato !== 'ok' && onNavigate ? { etichetta: 'Apri Personale', onClick: () => onNavigate('personale') } : null })
+  voci.push({ id: 'personale', breve: personale.stato === 'ok' ? 'Personale' : personale.stato === 'manca' ? 'Personale mancante' : 'Personale incompleto', stato: personale.stato === 'ok' ? 'ok' : personale.stato, testo: personale.stato === 'ok' ? `Personale: ${personale.testo}` : `personale: ${personale.testo}`, azione: personale.stato !== 'ok' && onNavigate ? { etichetta: 'Apri Personale', onClick: () => onNavigate('personale') } : null })
   return voci
 }
 
@@ -128,7 +133,7 @@ export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate
   return (
     <PaginaAnalisi isMobile={isMobile} attenuata={caricando}>
       {intestazione}
-      <CoperturaDati voci={vociCopertura(dati, { onNavigate, onClassifica: () => setClassifica(true) })} />
+      <CoperturaDati isMobile={isMobile} voci={vociCopertura(dati, { onNavigate, onClassifica: () => setClassifica(true) })} />
 
       {/* ── La risposta ───────────────────────────────────────────────
           Una sola, grande (NumeroPrincipale). Prima la cosa più grande della

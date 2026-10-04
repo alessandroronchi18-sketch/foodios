@@ -62,6 +62,23 @@ const GRUPPI_VOCI = [
   { tipo: 'escluso', etichetta: 'Non è una spesa' },
 ]
 
+/**
+ * Le voci della copertura di questa pagina. Quanti fornitori e quanta spesa
+ * hanno la voce lo dice la barra in cima (AvanzamentoVoci): la copertura dice
+ * il resto. Prima ripeteva gli stessi numeri del titolo dell'elenco, e «0 su
+ * 143» era «in parte» (audit 04/10, CS3). Ogni voce ha il nome breve per la
+ * riga chiusa.
+ */
+export function vociCoperturaSpese({ nProposte = 0, senzaImponibile = 0, nFatture12 = 0 }) {
+  return [
+    ...(nProposte ? [{ id: 'proposte', breve: `${nInt(nProposte)} voci proposte`, stato: 'stima', testo: `Voce proposta per ${nInt(nProposte)} fornitori: da confermare` }] : []),
+    ...(senzaImponibile ? [{
+      id: 'iva', breve: 'Fatture col solo totale', stato: 'parziale', testo: `${nInt(senzaImponibile)} fatture su ${nInt(nFatture12)} hanno solo il totale con l'IVA`,
+      dettaglio: "Carica lo ZIP delle fatture dall'Agenzia delle Entrate: Foodos completa imponibile e righe, e le proposte migliorano.",
+    }] : []),
+  ]
+}
+
 /** I fornitori come li vede il conto: uno per ditta, con la spesa e le righe per la proposta. */
 export function fornitoriDaFatture(fatture, { fornitori = [], categoriePerFornitore = {}, dal12 }) {
   const schede = new Map((fornitori || []).map(f => [chiaveFornitore(f.nome), f]))
@@ -482,16 +499,7 @@ export default function ClassificaSpese({ orgId, notify, isMobile = false, onSal
   const fatture12 = fatture.filter(f => String(f.data_fattura || '') >= dal12)
   const senzaImponibile = fatture12.filter(f => !(Math.abs(Number(f.imponibile) || 0) > 0) && !(Math.abs(Number(f.imposta) || 0) > 0)).length
 
-  // Quanti fornitori e quanta spesa hanno la voce lo dice la barra in cima
-  // (AvanzamentoVoci): la copertura dice il resto. Prima ripeteva gli stessi
-  // numeri del titolo dell'elenco, e «0 su 143» era «in parte» (audit CS3).
-  const copertura = [
-    ...(nProposte ? [{ id: 'proposte', stato: 'stima', testo: `Voce proposta per ${nInt(nProposte)} fornitori: da confermare` }] : []),
-    ...(senzaImponibile ? [{
-      id: 'iva', stato: 'parziale', testo: `${nInt(senzaImponibile)} fatture su ${nInt(fatture12.length)} hanno solo il totale con l'IVA`,
-      dettaglio: "Carica lo ZIP delle fatture dall'Agenzia delle Entrate: Foodos completa imponibile e righe, e le proposte migliorano.",
-    }] : []),
-  ]
+  const copertura = vociCoperturaSpese({ nProposte, senzaImponibile, nFatture12: fatture12.length })
 
   const visibili = senzaVoce.slice(0, quanti)
   const barraSalva = (
@@ -506,7 +514,7 @@ export default function ClassificaSpese({ orgId, notify, isMobile = false, onSal
     <PaginaAnalisi isMobile={isMobile}>
       {torna}
       {intestazione}
-      <CoperturaDati voci={copertura} />
+      <CoperturaDati isMobile={isMobile} voci={copertura} />
       {spesa12 > 0 && (
         <AvanzamentoVoci totale={spesa12} conVoce={spesa12 - spesaSenza} isMobile={isMobile}
           inAttesa={daSalvare.filter(g => !g.voce).reduce((t, g) => t + g.spesa12, 0)}
