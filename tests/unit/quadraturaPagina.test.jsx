@@ -154,6 +154,14 @@ describe('La pagina si apre con la domanda, la settimana in una riga e la copert
     expect(onNavigate).toHaveBeenCalledWith('chiusura')
   })
 
+  it('senza la cassa dice da dove viene il venduto, con la vetrina della settimana', async () => {
+    render(<QuadraturaInventarioView {...props()} />)
+    await pronta()
+    // Domenica 400 g in vetrina; fatti 1.000 + 300 g; martedì sera 200 g.
+    expect(testo()).toMatch(/Viene dalla vetrina: c'erano 0,4 kg, ne hai fatti 1,3 kg, ne restano 0,2 kg\./)
+    expect(screen.getByRole('button', { name: 'Vai alla Cassa' })).toBeTruthy()
+  })
+
   it('CSV e PDF stanno in fondo, per il commercialista', async () => {
     render(<QuadraturaInventarioView {...props()} />)
     await pronta()
@@ -212,6 +220,15 @@ describe('La tessera grande', () => {
     render(<Risposta kpi={{ ...base, cassaConfrontata: 500, attesoConfrontato: 0, driftEur: 500, driftPct: null }} kpiPrev={null} euroKg={33.33} />)
     expect(testo()).toMatch(/\+500 €500 € incassati contro 0 € stimati: la percentuale non si calcola\./)
   })
+  it('il venduto si confronta con la settimana prima solo se ha gli stessi giorni registrati', () => {
+    const k = { ...base, driftEur: -3, driftPct: -6 }
+    render(<Risposta kpi={k} kpiPrev={{ ...base, retailKg: 1, giorniInventario: 2 }} euroKg={33.33} />)
+    expect(testo()).toMatch(/Venduto1,5 kg\+50%sulla settimana prima\(1,0 kg\)/)
+    cleanup()
+    render(<Risposta kpi={k} kpiPrev={{ ...base, retailKg: 1, giorniInventario: 7 }} euroKg={33.33} />)
+    expect(testo()).not.toMatch(/sulla settimana prima/)
+  })
+
   it('senza la cassa: «non si può dire», col motivo', () => {
     render(<Risposta kpi={{ ...base, cassaRegistrata: false, driftEur: null, driftPct: null, motivoConfronto: 'nessuna chiusura di cassa registrata in questa settimana' }} kpiPrev={null} euroKg={33.33} />)
     expect(testo()).toMatch(/Differenza con la cassanon si può direNessuna chiusura di cassa registrata in questa settimana\./)
