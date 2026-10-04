@@ -12,7 +12,7 @@
 // rimanenza non scritta non è zero, un giorno non registrato non è un giorno
 // di vendite a zero.
 import {
-  serieVendutoGusto, rimanenzaDiPartenza, CAUSA_RIMANENZA_A_ZERO, cellaDaControllare,
+  serieVendutoGusto, rimanenzaDiPartenza, CAUSA_RIMANENZA_A_ZERO, cellaDaControllare, ricaviDaInventario,
 } from './inventarioProduzione'
 import { giorniRegistrati } from './produzioneAnalisi'
 
@@ -279,4 +279,43 @@ export function buchiRegistrazione(giorni) {
     if (!presenti.has(d)) out.push(d)
   }
   return out
+}
+
+// ── Il ricavo stimato: lo stesso numero in tutte le pagine ───────────────
+//
+// Decisione del titolare, 04/10/2026. La Produzione chiamava «ricavo
+// stimato» i chili dei soli gusti con la ricetta per il prezzo della loro
+// categoria (luglio-agosto, dati di Mara: 244.452 €), mentre «Il mese» e
+// «Torna il conto?» stimano gli incassi con TUTTI i chili venduti per il
+// prezzo medio dei formati (circa 347.600 €). Stessa parola, due numeri.
+//
+// Adesso la Produzione usa la stessa somma del Mese (ilMeseArchivio):
+// `ricaviDaInventario` sede per sede, ogni sede con le sue vendite
+// all'ingrosso, quelle senza sede alla prima sede. Il margine resta sui soli
+// gusti con la ricetta (senza ricetta non si sa il costo).
+//
+// @param {Array} righe  righe d'inventario di una o più sedi (con i giorni prima)
+// @param {Array} formati  i formati di vendita
+// @param {{ da, a, venditeB2B?: Array|null }} o  `venditeB2B` null = non lette
+// @returns {{ ricavi: number|null, kg: number, kgRetail: number, b2bKg: number,
+//   ricaviB2b: number, euroKg: number|null, motivo: string|null }}
+export function ricaviStimatiSedi(righe, formati, { da = null, a = null, venditeB2B = null } = {}) {
+  const per = perSede(righe)
+  const ids = [...per.keys()]
+  const t = { ricavi: 0, kg: 0, kgRetail: 0, b2bKg: 0, ricaviB2b: 0, euroKg: null, motivo: null, conDati: 0 }
+  for (const id of ids) {
+    const vendite = Array.isArray(venditeB2B)
+      ? venditeB2B.filter(v => (v?.sede_id ? v.sede_id === id : id === ids[0]))
+      : null
+    const r = ricaviDaInventario(per.get(id), formati, { da, a, venditeB2B: vendite })
+    if (r.euroKg != null) t.euroKg = r.euroKg
+    if (r.ricavi == null) { t.motivo = t.motivo || r.motivo; continue }
+    t.conDati++
+    t.ricavi += r.ricavi
+    t.kg += r.kg
+    t.kgRetail += r.kgRetail
+    t.b2bKg += r.b2bKg
+    t.ricaviB2b += r.ricaviB2b
+  }
+  return { ...t, ricavi: t.conDati ? t.ricavi : null }
 }

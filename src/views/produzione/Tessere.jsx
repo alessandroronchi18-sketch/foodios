@@ -37,12 +37,15 @@ export function confrontoNeutro(attuale, prima, etichetta, formato) {
  * @param {{ n: number, ultimo?: string }} p.copertura
  * @param {boolean} [p.registrazioneFerma]  i dati si fermano prima della fine del periodo
  * @param {boolean} p.scartoRegistrato
- * @param {{ n: number, euroStimati: number|null }} p.senzaRicetta
+ * @param {{ ricavi: number|null, euroKg: number|null, b2bKg: number, ricaviB2b: number }} p.ricavoStimato
+ *   da `ricaviStimatiSedi`: lo stesso numero del Mese e della Quadratura
+ * @param {{ ricavi: number|null }|null} p.ricavoStimatoPrev
+ * @param {{ n: number, kg: number, euro: number }} p.fuoriMargine  i gusti senza margine
  * @param {number} p.nGusti  i gusti con un movimento nel periodo
  */
 export default function Tessere({
   totali, totaliPrev, confronto, confrontoInfo, copertura, registrazioneFerma = false, scartoRegistrato,
-  senzaRicetta, nGusti, isMobile, isTablet,
+  ricavoStimato = null, ricavoStimatoPrev = null, fuoriMargine = null, nGusti, isMobile, isTablet,
 }) {
   const prima = totaliPrev || null
   const rispettoA = confronto === 'annoPrec' ? 'sull\'anno prima' : 'sul periodo prima'
@@ -57,7 +60,9 @@ export default function Tessere({
     : { rispettoA: '', senzaConfronto: atteso ? perche : null })
 
   const vVenduto = prima ? variazione({ attuale: totali.vend, confronto: prima.vend }) : null
-  const vRicavo = prima ? variazione({ attuale: totali.ricavo, confronto: prima.ricavo }) : null
+  const ricavo = ricavoStimato?.ricavi ?? null
+  const ricavoPrima = prima ? (ricavoStimatoPrev?.ricavi ?? null) : null
+  const vRicavo = ricavo != null && ricavoPrima != null ? variazione({ attuale: ricavo, confronto: ricavoPrima }) : null
   const vMargine = prima && totali.margine != null && prima.margine != null
     ? variazione({ attuale: totali.margine, confronto: prima.margine }) : null
   const vScarto = prima && scartoRegistrato ? variazione({ attuale: totali.scarto, confronto: prima.scarto, piuEMeglio: false }) : null
@@ -83,21 +88,26 @@ export default function Tessere({
           valore={kgTessera(totali.prod)}
           senzaConfronto={confrontoNeutro(totali.prod, prima?.prod, etichettaPrima, kgTessera)}
           contesto={nGusti > 0 ? quanti(nGusti, 'gusto', 'gusti') : ''} />
+        {/* Lo stesso numero del Mese e della Quadratura (decisione del
+            titolare, 04/10): tutti i chili, col prezzo e l'IVA scritti sotto. */}
         <NumeroConConfronto isMobile={isMobile}
           etichetta="Ricavo stimato"
-          valore={euro(totali.ricavo)}
-          {...riga(vRicavo, prima ? euro(prima.ricavo) : '')}
-          contesto={senzaRicetta?.n > 0
-            ? `mancano ${quanti(senzaRicetta.n, 'gusto senza ricetta', 'gusti senza ricetta')}${senzaRicetta.euroStimati != null ? ` (circa ${euro(senzaRicetta.euroStimati)})` : ''}`
-            : 'chili venduti per il prezzo medio dei formati'} />
+          valore={ricavo != null ? euro(ricavo) : null}
+          motivoMancante="senza formati di vendita"
+          {...riga(vRicavo, ricavoPrima != null ? euro(ricavoPrima) : '')}
+          contesto={ricavoStimato?.euroKg
+            ? `tutti i chili × ${euro(ricavoStimato.euroKg, { decimali: 2 }).replace(' €', '')} €/kg, IVA compresa${ricavoStimato.ricaviB2b > 0 ? ` · ingrosso ${euro(ricavoStimato.ricaviB2b)} fatturati` : ''}`
+            : ''} />
         <NumeroConConfronto isMobile={isMobile}
           etichetta="Margine stimato"
           valore={totali.margine != null ? euro(totali.margine) : null}
           motivoMancante="non calcolabile"
           {...riga(vMargine, vMargine ? euro(prima.margine) : '')}
+          // Il margine è solo dei gusti con la ricetta e il costo: si dice su
+          // quanti, e quanti chili ed euro di ricavo restano fuori.
           contesto={totali.margine == null
             ? 'nessun gusto ha prezzo e costo completi'
-            : `${quota(totali.margPct)} del ricavo${totali.nConMargine < totali.nConVendita ? ` · su ${totali.nConMargine} gusti su ${totali.nConVendita}` : ''}`} />
+            : `${quota(totali.margPct)} del ricavo dei gusti con ricetta${totali.nConMargine < totali.nConVendita ? ` · su ${totali.nConMargine} ${totali.nConMargine === 1 ? 'gusto' : 'gusti'} su ${totali.nConVendita}` : ''}${fuoriMargine?.n > 0 ? `; fuori ${kgTessera(fuoriMargine.kg)}, circa ${euro(fuoriMargine.euro)}` : ''}`} />
         <NumeroConConfronto isMobile={isMobile}
           etichetta="Scarto"
           valore={scartoRegistrato ? kgTessera(totali.scarto) : null}

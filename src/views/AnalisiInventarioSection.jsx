@@ -54,11 +54,11 @@ export default function AnalisiInventarioSection({
   prevFrom = null, prevTo = null,
   ricettario, orgId, sedeId, sedi = [],
   onBack = null, confrontoInfo = null, partenza = null, onPeriodo = null, onNavigate = null,
-  barra = null,
+  barra = null, venditeB2B = null, venditeB2BPrev = null,
 }) {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
-  const c = useContiProduzione({ rows, rowsPrev, dateFrom, dateTo, prevFrom, prevTo, ricettario, orgId, sedeId, sedi, partenza })
+  const c = useContiProduzione({ rows, rowsPrev, dateFrom, dateTo, prevFrom, prevTo, ricettario, orgId, sedi, partenza, venditeB2B, venditeB2BPrev })
   const refGusti = useRef(null)
   const refCaselle = useRef(null)
   // La tabella di tutti i gusti si apre al tocco, sotto la classifica.
@@ -129,7 +129,7 @@ export default function AnalisiInventarioSection({
       {/* La risposta: il venduto grande, poi le altre quattro tessere. */}
       <Tessere totali={c.totali} totaliPrev={c.totaliPrev} confronto={confronto} confrontoInfo={confrontoInfo}
         copertura={c.copertura} registrazioneFerma={c.registrazioneFerma} scartoRegistrato={c.scartoRegistrato}
-        senzaRicetta={{ n: c.senzaRicetta.length, euroStimati: c.euroSenzaRicetta }}
+        ricavoStimato={c.ricavoStimato} ricavoStimatoPrev={c.ricavoStimatoPrev} fuoriMargine={c.fuoriMargine}
         nGusti={c.totali.nConVendita} isMobile={isMobile} isTablet={isTablet} />
       {frasi.length > 0 && (
         <Riquadro isMobile={isMobile}>

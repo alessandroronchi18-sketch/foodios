@@ -2,6 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { fetchAllInventarioProduzione, GIORNI_RIPORTO_MAX, COLONNE_VENDUTO, ultimoGiornoRegistrato } from '../lib/inventarioProduzione'
+import { venditeB2BPeriodo } from '../lib/venditeB2B'
 import { giorniRegistrati, confrontoPossibile } from '../lib/produzioneAnalisi'
 import { finestraConfronto } from '../lib/periodoAnalisi'
 import AnalisiInventarioSection from './AnalisiInventarioSection'
@@ -109,6 +110,12 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
   // Se metodo=stampi, restiamo sul flusso legacy (giornaliero da localStorage).
   const [invRows, setInvRows] = useState([])
   const [invRowsPrev, setInvRowsPrev] = useState([])
+  // Le vendite all'ingrosso del periodo e del confronto: il ricavo stimato
+  // della Produzione è lo stesso numero del Mese (decisione del titolare,
+  // 04/10/2026), e il Mese toglie i chili dell'ingrosso al prezzo del banco
+  // e conta il loro fatturato. `null` = non lette.
+  const [venditeB2B, setVenditeB2B] = useState(null)
+  const [venditeB2BPrev, setVenditeB2BPrev] = useState(null)
   // Finestre EFFETTIVE (periodo scelto e periodo di confronto), da passare
   // alla sezione. Non bastano le prop dateFrom/dateTo: quando l'utente non ha
   // scelto le date sono vuote e qui dentro valgono gli ultimi due mesi. Le
@@ -219,6 +226,16 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
         if (!info.ok) prev = []
       }
       info = { ...info, giorni: regCur }
+      // Con la stessa regola del Mese: una sede scelta legge anche le
+      // vendite senza sede; «Tutte le sedi» le legge tutte.
+      const b2bSede = sedeId || null
+      const [b2bCur, b2bPrev] = await Promise.all([
+        venditeB2BPeriodo(orgId, { sedeId: b2bSede, da: from, a: to }).catch(() => null),
+        info.ok ? venditeB2BPeriodo(orgId, { sedeId: b2bSede, da: info.from, a: info.to }).catch(() => null) : null,
+      ])
+      if (!alive) return
+      setVenditeB2B(b2bCur)
+      setVenditeB2BPrev(b2bPrev)
       setInvRows(cur)
       setInvRowsPrev(prev)
       setWin({ from, to, prevFrom: info.ok ? info.from : null, prevTo: info.ok ? info.to : null })
@@ -848,6 +865,8 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
       <AnalisiInventarioSection
         rows={invRows}
         rowsPrev={invRowsPrev}
+        venditeB2B={venditeB2B}
+        venditeB2BPrev={venditeB2BPrev}
         dateFrom={win.from || dateFrom}
         dateTo={win.to || dateTo}
         prevFrom={win.prevFrom}

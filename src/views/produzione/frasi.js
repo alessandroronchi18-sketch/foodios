@@ -11,7 +11,7 @@
 //      vende;
 //   2. quanto pesano i primi cinque gusti sul venduto;
 //   3. il gusto che rende meno, fra quelli col margine;
-//   4. quanto ricavo resta fuori per i gusti senza ricetta.
+//   4. quanto ricavo resta fuori dal margine per i gusti senza ricetta.
 import { GIORNI_VETRINA_SOFFERENZA } from '../../lib/inventarioProduzione'
 import { euro, quota } from '../../lib/formatoAnalisi'
 import { kgTessera, intero, elenco, quanti } from './numeri'
@@ -71,7 +71,7 @@ export function frasiProduzione({ righe = [], senzaRicetta = null } = {}) {
   if (senzaRicetta?.n > 0 && senzaRicetta.euroStimati != null && senzaRicetta.euroStimati >= 1) {
     frasi.push({
       id: 'senzaRicetta', verso: 'azione', azione: 'gusti',
-      testo: `${quanti(senzaRicetta.n, 'gusto senza ricetta vale', 'gusti senza ricetta valgono')} circa ${euro(senzaRicetta.euroStimati)} di ricavo che qui non entra: collegandoli alla ricetta entrano nel conto`,
+      testo: `${quanti(senzaRicetta.n, 'gusto senza ricetta vale', 'gusti senza ricetta valgono')} circa ${euro(senzaRicetta.euroStimati)} di ricavo che restano fuori dal margine: collegandoli alla ricetta il margine li conta`,
     })
   }
   return frasi.slice(0, 4)

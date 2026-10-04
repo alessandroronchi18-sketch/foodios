@@ -12,7 +12,7 @@ import {
 import { buildIngCosti } from '../../lib/foodcost'
 import { valutaGusti, giorniRegistrati } from '../../lib/produzioneAnalisi'
 import {
-  bilancioVetrina, perGiornoDellaSettimana, sediAffiancate, andamentoGusti, buchiRegistrazione, giorniFalsati,
+  bilancioVetrina, perGiornoDellaSettimana, sediAffiancate, andamentoGusti, buchiRegistrazione, giorniFalsati, ricaviStimatiSedi,
 } from '../../lib/produzioneQuadro'
 import { todayLocal, differenzaGiorni } from '../../lib/dateLocal'
 import { useRicavoFlat } from '../../lib/useRicavoFlat'
@@ -26,16 +26,24 @@ const dentro = (r, da, a) => r?.data && (!da || r.data >= da) && (!a || r.data <
 
 export function useContiProduzione({
   rows = [], rowsPrev = [], dateFrom, dateTo, prevFrom = null, prevTo = null,
-  ricettario, orgId, sedeId, sedi = [], partenza = null,
+  ricettario, orgId, sedi = [], partenza = null, venditeB2B = null, venditeB2BPrev = null,
 }) {
-  const { ricavoFlatFor, formati } = useRicavoFlat(orgId, ricettario, sedeId)
+  // ── Il ricavo stimato è lo stesso numero di «Il mese» e «Torna il conto?»
+  // (decisione del titolare, 04/10/2026): tutti i chili venduti per il
+  // prezzo medio dei formati dell'azienda, con l'ingrosso al suo fatturato
+  // (`ricaviStimatiSedi`). Prima erano i soli gusti con la ricetta, al prezzo
+  // della loro categoria e del listino della sede: 244.452 € a luglio-agosto
+  // contro i circa 347.600 € delle altre due pagine. Il margine resta sui
+  // soli gusti con la ricetta, allo stesso prezzo al chilo.
+  const { formati } = useRicavoFlat(orgId, ricettario, null)
+  const euroKgMedio = useMemo(() => euroKgMedioFormati(formati), [formati])
   // I nomi del foglio collegati a mano alle ricette (MISTIC → MYSTIC).
   const { mappa: nomiGusti, collega } = useNomiGusti(orgId)
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario])
 
   const valuta = (righe, da, a) => valutaGusti(totaliPerGusto(righe, { da, a }), {
     ricettaDi: (gusto) => ricettaDelGusto(ricettario, gusto, nomiGusti),
-    ricavoKgDi: ricavoFlatFor,
+    ricavoKgDi: () => euroKgMedio || 0,
     ingCosti, ricettario,
   })
   // Ricavo, food cost e margine per gusto. Il margine è null quando il gusto
@@ -43,13 +51,21 @@ export function useContiProduzione({
   const valutazione = useMemo(
     () => valuta(rows, dateFrom, dateTo),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [rows, dateFrom, dateTo, ricettario, ingCosti, ricavoFlatFor, nomiGusti]
+    [rows, dateFrom, dateTo, ricettario, ingCosti, euroKgMedio, nomiGusti]
   )
   const totaliPrev = useMemo(() => {
     if (!Array.isArray(rowsPrev) || rowsPrev.length === 0) return null
     return valuta(rowsPrev, prevFrom, prevTo).totali
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rowsPrev, prevFrom, prevTo, ricettario, ingCosti, ricavoFlatFor, nomiGusti])
+  }, [rowsPrev, prevFrom, prevTo, ricettario, ingCosti, euroKgMedio, nomiGusti])
+  const ricavoStimato = useMemo(
+    () => ricaviStimatiSedi(rows, formati, { da: dateFrom, a: dateTo, venditeB2B }),
+    [rows, formati, dateFrom, dateTo, venditeB2B]
+  )
+  const ricavoStimatoPrev = useMemo(
+    () => (Array.isArray(rowsPrev) && rowsPrev.length ? ricaviStimatiSedi(rowsPrev, formati, { da: prevFrom, a: prevTo, venditeB2B: venditeB2BPrev }) : null),
+    [rowsPrev, formati, prevFrom, prevTo, venditeB2BPrev]
+  )
 
   // I giorni registrati DENTRO il periodo: le righe dei sette giorni prima
   // servono solo come giacenza di partenza e non contano.
@@ -94,8 +110,11 @@ export function useContiProduzione({
 
   // I gusti senza ricetta, dal più venduto, e quanto valgono al prezzo medio
   // dei formati: è lo stesso prezzo con cui la Quadratura stima l'incasso.
-  const perGusto = valutazione.righe
-  const euroKgMedio = useMemo(() => euroKgMedioFormati(formati), [formati])
+  // Un gusto senza ricetta ha il suo ricavo (i chili venduti per il prezzo
+  // al chilo, come nel totale), non il margine: senza ricetta non si sa il
+  // costo. Così la colonna del ricavo somma al totale della tessera.
+  const perGusto = useMemo(() => valutazione.righe.map(r => (r.haRicetta || !euroKgMedio ? r
+    : { ...r, ricavoKg: euroKgMedio, ricavo: r.vendKg * euroKgMedio })), [valutazione, euroKgMedio])
   const attivo = (r) => r.vendKg !== 0 || r.prodKg !== 0
   const senzaRicetta = useMemo(
     () => perGusto.filter(r => !r.haRicetta && attivo(r)).sort((a, b) => b.vendKg - a.vendKg),
@@ -111,6 +130,13 @@ export function useContiProduzione({
     [perGusto]
   )
   const kgSenzaRicetta = senzaRicetta.reduce((s, r) => s + r.vendKg, 0)
+  // Quello che resta fuori dal margine: i gusti attivi senza margine (senza
+  // ricetta, o senza il costo completo), quanti chili, quanti euro di ricavo.
+  const fuoriMargine = useMemo(() => {
+    const fuori = perGusto.filter(r => attivo(r) && r.margine == null)
+    return { n: fuori.length, kg: fuori.reduce((s, r) => s + r.vendKg, 0), euro: fuori.reduce((s, r) => s + (r.ricavo || 0), 0) }
+  }, [perGusto])
+  const totali = useMemo(() => ({ ...valutazione.totali, ricavo: perGusto.reduce((s, r) => s + (r.ricavo || 0), 0) }), [valutazione, perGusto])
 
   // Lo scarto mai scritto non è «niente buttato»: nei dati di Mara vale 0 in
   // tutte le 7.013 righe, e quello che si butta finisce nel venduto.
@@ -148,7 +174,7 @@ export function useContiProduzione({
   const righeTabella = useMemo(() => righeGusti(perGusto, andamento, settimaneIntere), [perGusto, andamento, settimaneIntere])
 
   return {
-    valutazione, perGusto, totali: valutazione.totali, totaliPrev,
+    valutazione, perGusto, totali, totaliPrev, ricavoStimato, ricavoStimatoPrev, fuoriMargine,
     copertura, registrazioneFerma, daPartenza, buchi,
     caselle, riassunto, daSistemare, nomeSede,
     euroKgMedio, senzaRicetta, collegati, incompleti, kgSenzaRicetta,

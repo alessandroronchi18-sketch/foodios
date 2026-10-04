@@ -125,7 +125,8 @@ describe('La copertura dei dati: una frase per fonte', () => {
   it('i gusti senza ricetta: quanti chili e quanti euro restano fuori, e il pulsante per collegarli', () => {
     const vai = () => {}
     const v = voce(vociCopertura({ copertura: LUGLIO_AGOSTO, senzaRicetta: { n: 10, kgVenduti: 1181.04, euroStimati: 34823.4 }, azioni: { gusti: vai } }), 'senzaRicetta')
-    expect(v.testo).toBe('10 gusti senza ricetta: 1.181 kg venduti fuori dal ricavo (circa 34.823 €)')
+    // Dal 04/10 quei chili sono nel ricavo (decisione del titolare): restano fuori dal margine.
+    expect(v.testo).toBe('10 gusti senza ricetta: 1.181 kg venduti fuori dal margine (circa 34.823 € di ricavo)')
     expect(v.azione.etichetta).toBe('Collegali')
     expect(voce(vociCopertura({ copertura: LUGLIO_AGOSTO, senzaRicetta: { n: 0 } }), 'senzaRicetta')).toBeUndefined()
   })
@@ -217,7 +218,7 @@ describe('La pagina: tessere e vetrina sui conti veri', () => {
     // c'è (pezzo comune, tessere incolonnate) ma resta vuota; «nessun
     // confronto» si scrive solo quando un confronto era atteso e manca
     // (prova «se un confronto era atteso e non c'è» più sotto).
-    expect(tessera('Margine stimato')).toBe('Margine stimato166 €79% del ricavo')
+    expect(tessera('Margine stimato')).toBe('Margine stimato166 €79% del ricavo dei gusti con ricetta')
   })
 
   it('lo scarto mai scritto: «non registrato», non zero', async () => {
@@ -571,7 +572,7 @@ describe('Le frasi dicono dove guardare, solo quando i numeri le reggono', () =>
   })
   it('il ricavo che resta fuori, con l\'azione per collegare', () => {
     const f = frasiProduzione({ righe: [], senzaRicetta: { n: 10, euroStimati: 34823.4 } })
-    expect(f[0]).toEqual({ id: 'senzaRicetta', verso: 'azione', azione: 'gusti', testo: '10 gusti senza ricetta valgono circa 34.823 € di ricavo che qui non entra: collegandoli alla ricetta entrano nel conto' })
+    expect(f[0]).toEqual({ id: 'senzaRicetta', verso: 'azione', azione: 'gusti', testo: '10 gusti senza ricetta valgono circa 34.823 € di ricavo che restano fuori dal margine: collegandoli alla ricetta il margine li conta' })
     expect(frasiProduzione({ righe: [], senzaRicetta: { n: 1, euroStimati: 210 } })[0].testo).toMatch(/^1 gusto senza ricetta vale circa 210 €/)
   })
   it('al massimo quattro', () => {
@@ -601,7 +602,7 @@ describe('La pagina: le frasi', () => {
   it('il gusto senza ricetta porta al collegamento', async () => {
     apri({ rows: [...NOCCIOLA, ...NOCCIOLA.map(x => ({ ...x, gusto_nome: 'MISTIC' }))] })
     await waitFor(() => expect(testo()).toMatch(/Dove guardare/), { timeout: 5000 })
-    expect(testo()).toMatch(/1 gusto senza ricetta vale circa 210 € di ricavo che qui non entra/)
+    expect(testo()).toMatch(/1 gusto senza ricetta vale circa 210 € di ricavo che restano fuori dal margine/)
     expect(screen.getByRole('button', { name: /1 gusto senza ricetta vale/ })).toBeTruthy()
   })
 })
@@ -862,5 +863,40 @@ describe('La risposta grande e il confronto atteso', () => {
     apri({ confronto: 'nessuno' })
     await waitFor(() => expect(testo()).toMatch(/Ricavo stimato/), { timeout: 5000 })
     expect(testo()).not.toMatch(/nessun confronto/)
+  })
+})
+
+// ── 11. Il ricavo stimato è lo stesso numero di tutte le pagine (04/10) ────
+// Decisione del titolare: tutti i chili venduti per il prezzo medio dei
+// formati, con l'ingrosso al suo fatturato, come il Mese e «Torna il
+// conto?» (prova d'insieme in ricavoStimatoUguale). Il margine resta sui
+// gusti con la ricetta, e la tessera dice cosa resta fuori.
+describe('La tessera del ricavo e quella del margine', () => {
+  const DUE = [...NOCCIOLA, ...NOCCIOLA.map(x => ({ ...x, gusto_nome: 'MISTIC' }))]
+  it('il gusto senza ricetta è nel ricavo e fuori dal margine, e lo si dice', async () => {
+    apri({ rows: DUE })
+    await waitFor(() => expect(testo()).toMatch(/Ricavo stimato420/), { timeout: 5000 })
+    expect(tessera('Ricavo stimato')).toMatch(/tutti i chili × 30,00 €\/kg, IVA compresa$/)
+    expect(tessera('Margine stimato')).toBe('Margine stimato166 €79% del ricavo dei gusti con ricetta · su 1 gusto su 2; fuori 7 kg, circa 210 €')
+  })
+  it('l\'ingrosso vale il suo fatturato, non il prezzo del banco', async () => {
+    apri({ rows: DUE, venditeB2B: [{ sede_id: 's1', data: '2026-08-03', totale: 20, stato: 'consegnata', righe: [{ qta: 1, unita: 'kg' }] }] })
+    // 14 kg − 1 all'ingrosso = 13 × 30 € + 20 € fatturati.
+    await waitFor(() => expect(testo()).toMatch(/Ricavo stimato410/), { timeout: 5000 })
+    expect(tessera('Ricavo stimato')).toMatch(/ingrosso 20 € fatturati$/)
+  })
+  it('la colonna del ricavo della tabella somma alla tessera', async () => {
+    apri({ rows: DUE })
+    await waitFor(() => expect(testo()).toMatch(/Ricavo stimato420/), { timeout: 5000 })
+    fireEvent.click(screen.getByRole('button', { name: /^Vedi (tutti i \d+ gusti|la tabella del gusto)/ }))
+    const totale = screen.getAllByRole('rowheader').find(h => h.textContent === 'Totale').parentElement
+    expect(totale.textContent).toMatch(/420 €/)
+    expect(screen.getByRole('rowheader', { name: /MISTIC/ }).parentElement.textContent).toMatch(/210 €/)
+  })
+  it('il confronto del ricavo è col ricavo stimato del periodo prima, con la stessa regola', async () => {
+    const prima = [r('NOCCIOLA', '2026-07-31', 0, 1000), r('NOCCIOLA', '2026-08-01', 3000, 1000), r('NOCCIOLA', '2026-08-02', 0, 500)]
+    apri({ rows: DUE, rowsPrev: prima, prevFrom: '2026-08-01', prevTo: '2026-08-02', confronto: 'periodoPrec', confrontoInfo: { ok: true, from: '2026-08-01', to: '2026-08-02', giorniPrev: 2 } })
+    // Prima: 3,5 kg × 30 € = 105 €; adesso 420 €: +300%.
+    await waitFor(() => expect(tessera('Ricavo stimato')).toMatch(/\+300%sul periodo prima\(105 €\)/), { timeout: 5000 })
   })
 })

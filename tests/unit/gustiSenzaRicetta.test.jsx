@@ -19,6 +19,14 @@
 // (`pasticceria-nomi-gusti-v1`) e vale per tutti i periodi. Con i quattro
 // collegamenti più evidenti, sui dati veri, il ricavo stimato passa da
 // 88.970 € a 100.273 €.
+//
+// 04/10/2026, decisione del titolare: il ricavo stimato è lo stesso numero
+// in tutte le pagine (tutti i chili venduti per il prezzo medio dei formati,
+// come il Mese e «Torna il conto?»), quindi i chili di MISTIC sono nel
+// ricavo anche prima del collegamento. Quello che il collegamento sposta
+// adesso è il MARGINE: senza ricetta il costo non si sa e quei chili restano
+// fuori dal margine; collegati, entrano. Le prove della pagina guardano il
+// margine (198 € → 396 €) e che il ricavo resti fermo a 420 €.
 import React from 'react'
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, cleanup, waitFor, screen, fireEvent } from '@testing-library/react'
@@ -151,8 +159,8 @@ describe('Lo Storico dice quanto vale il gusto senza ricetta e lo fa collegare',
   it('dice quanti chili e quanti euro mancano', async () => {
     apri()
     await waitFor(() => expect(testo()).toMatch(/Un gusto non trova la ricetta/), { timeout: 5000 })
-    expect(testo()).toMatch(/7 kg venduti \(6 kg prodotti\)/)
-    expect(testo()).toMatch(/circa 210\s?€ di ricavo stimato che mancano/)
+    expect(testo()).toMatch(/7 kg venduti \(6 kg prodotti\) che sono nel ricavo ma non nel margine/)
+    expect(testo()).toMatch(/circa 210\s?€ di ricavo fuori dal margine/)
     // l'avviso falso di prima
     expect(testo()).not.toMatch(/gusti su \d+ non hanno ricetta/)
   })
@@ -161,7 +169,10 @@ describe('Lo Storico dice quanto vale il gusto senza ricetta e lo fa collegare',
     apri()
     await waitFor(() => expect(screen.getByLabelText('Ricetta di MISTIC').value).toBe('MYSTIC'), { timeout: 5000 })
     // Prima del collegamento: ricavo della sola NOCCIOLA.
-    expect(testo()).toMatch(/Ricavo stimato210\s?€/)
+    // Prima del collegamento: ricavo di tutti e due i gusti (14 kg × 30 €),
+    // margine della sola NOCCIOLA (210 € − 6 kg × 2 €/kg).
+    expect(testo()).toMatch(/Ricavo stimato420\s?€/)
+    expect(testo()).toMatch(/Margine stimato198\s?€/)
     fireEvent.click(screen.getByRole('button', { name: 'Collega' }))
     await waitFor(() => expect(testo()).toMatch(/Collegati: MISTIC → MYSTIC/), { timeout: 5000 })
     expect(ssave).toHaveBeenCalledTimes(1)
@@ -170,8 +181,9 @@ describe('Lo Storico dice quanto vale il gusto senza ricetta e lo fa collegare',
     expect(valore.nomi.MISTIC.ricetta).toBe('MYSTIC')
     expect(org).toBe('org-1')
     expect(sede).toBeNull()
-    // Dopo: il gelato di MISTIC vale come quello di MYSTIC.
+    // Dopo: il ricavo non cambia, il margine conta anche MISTIC.
     expect(testo()).toMatch(/Ricavo stimato420\s?€/)
+    expect(testo()).toMatch(/Margine stimato396\s?€/)
     expect(testo()).not.toMatch(/non trova la ricetta/)
   })
 
@@ -181,7 +193,7 @@ describe('Lo Storico dice quanto vale il gusto senza ricetta e lo fa collegare',
     await waitFor(() => expect(screen.getByLabelText('Ricetta di MISTIC').value).toBe('MYSTIC'), { timeout: 5000 })
     fireEvent.click(screen.getByRole('button', { name: 'Collega' }))
     await waitFor(() => expect(testo()).toMatch(/Non sono riuscito a salvare \(rete giù\)/), { timeout: 5000 })
-    expect(testo()).toMatch(/Ricavo stimato210\s?€/)
+    expect(testo()).toMatch(/Margine stimato198\s?€/)
     expect(testo()).toMatch(/Un gusto non trova la ricetta/)
   })
 
@@ -189,7 +201,7 @@ describe('Lo Storico dice quanto vale il gusto senza ricetta e lo fa collegare',
     NOMI_SALVATI = { versione: 1, nomi: { MISTIC: { ricetta: 'MYSTIC' } } }
     apri()
     await waitFor(() => expect(testo()).toMatch(/Collegati: MISTIC → MYSTIC/), { timeout: 5000 })
-    expect(testo()).toMatch(/Ricavo stimato420\s?€/)
+    expect(testo()).toMatch(/Margine stimato396\s?€/)
     fireEvent.click(screen.getByRole('button', { name: 'Scollega MISTIC' }))
     await waitFor(() => expect(testo()).toMatch(/Un gusto non trova la ricetta/), { timeout: 5000 })
     expect(ssave.mock.calls[0][1].nomi).toEqual({})

@@ -65,10 +65,10 @@ export default function GustiSenzaRicetta({ senzaRicetta, collegati, euroKgMedio
         <div style={{ marginBottom: 10 }}>
           <b>
             {senzaRicetta.length === 1 ? 'Un gusto non trova la ricetta' : `${intero(senzaRicetta.length)} gusti non trovano la ricetta`}
-          </b>: {kg(kgVenduti)} kg venduti ({kg(kgProdotti)} kg prodotti) che non entrano né nel ricavo né nel food cost.
+          </b>: {kg(kgVenduti)} kg venduti ({kg(kgProdotti)} kg prodotti) che sono nel ricavo ma non nel margine: senza ricetta non se ne sa il costo.
           {euroKgMedio != null && (
             <> Al prezzo medio dei formati ({euro(euroKgMedio, { decimali: 2 }).replace(' €', '')} €/kg)
-              sono circa <b>{euro(kgVenduti * euroKgMedio)}</b> di ricavo stimato che mancano.</>
+              sono circa <b>{euro(kgVenduti * euroKgMedio)}</b> di ricavo fuori dal margine.</>
           )}
           {' '}Di solito è il nome scritto in un altro modo: collegalo alla sua ricetta, una volta, e vale per tutti i periodi.
         </div>
