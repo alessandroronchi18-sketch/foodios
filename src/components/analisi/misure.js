@@ -7,7 +7,7 @@
 // riquadro dell'Analisi prende l'imbottitura da questo file, e le righe di
 // testo hanno un'altezza in pixel tondi (niente 21 o 16,2 px), così le
 // tessere affiancate finiscono alla stessa altezza.
-import { space, font } from '../../lib/theme'
+import { space, font, motion } from '../../lib/theme'
 
 /** Gli spazi: dentro un riquadro, fra i riquadri, fra le sezioni. */
 export const SPAZI = {
@@ -47,4 +47,17 @@ export const testo = (dimensione) => ({
 export const soloLettore = {
   position: 'absolute', width: 1, height: 1, overflow: 'hidden',
   clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap', margin: -1, padding: 0, border: 0,
+}
+
+/**
+ * Le barre che cambiano (si cambia mese con ‹ ›) si allungano in un quarto
+ * di secondo invece di sparire e ricomparire: l'occhio segue la stessa barra
+ * (ricerca design §6.5, scelta 15). Niente movimento se chi guarda ha chiesto
+ * di ridurlo nel sistema.
+ */
+export const DURATA_BARRE = 250
+export function transizione(...proprieta) {
+  let ridotto = false
+  try { ridotto = !!window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches } catch { ridotto = false }
+  return ridotto ? 'none' : proprieta.map(p => `${p} ${DURATA_BARRE}ms ${motion.ease}`).join(', ')
 }
