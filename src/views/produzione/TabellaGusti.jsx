@@ -167,7 +167,7 @@ function Margine({ r }) {
     return <span style={{ color: T.textSoft, fontWeight: 500 }} title={motivoDi(r) || undefined}>non lo so</span>
   }
   return (
-    <span style={{ color: r.margine < 0 ? T.red : T.text }}>
+    <span style={{ color: r.margine < 0 ? T.graficoPeggio : T.text }}>
       {euro(r.margine)}
       {r.margPct != null && <span style={{ color: T.textSoft, fontWeight: 500 }}> · {quotaFissa(r.margPct)}</span>}
     </span>

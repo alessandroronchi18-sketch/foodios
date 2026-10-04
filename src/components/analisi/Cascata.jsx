@@ -132,7 +132,7 @@ export default function Cascata({ passi = [], ricavi = null, titoloValore = '', 
           const incompleto = eIncompleto(r)
           const forte = r.tipo === 'inizio' || r.tipo === 'fine'
           const scuro = evidenzia ? r.chiave === evidenzia : forte
-          const colore = r.negativo ? T.red : r.tipo === 'aggiunta' ? T.green : scuro ? T.graficoReale : T.graficoConfronto
+          const colore = r.negativo ? T.graficoPeggio : r.tipo === 'aggiunta' ? T.graficoMeglio : scuro ? T.graficoReale : T.graficoConfronto
           const diff = differenze[i]
           const contenuto = (
             <>
@@ -159,7 +159,7 @@ export default function Cascata({ passi = [], ricavi = null, titoloValore = '', 
               </span>
               <span style={{
                 ...testo(font.size.base), ...cifreInColonna, fontWeight: forte ? 700 : 600,
-                color: r.v == null || incompleto ? T.amberDark : r.negativo ? T.red : T.text,
+                color: r.v == null || incompleto ? T.amberDark : r.negativo ? T.graficoPeggio : T.text,
               }}>{cifra(r)}</span>
               {conQuota && <span style={{ ...testo(font.size.sm), ...cifreInColonna, color: T.textSoft }}>{quotaDi(r)}</span>}
               {conDifferenza && (
@@ -170,7 +170,7 @@ export default function Cascata({ passi = [], ricavi = null, titoloValore = '', 
                       position: 'absolute', top: 0, bottom: 0, transition: muovi,
                       left: diff.d > 0 ? '50%' : `${50 - (Math.abs(diff.d) / maxDiff) * 50}%`,
                       width: `${Math.max(2, (Math.abs(diff.d) / maxDiff) * 50)}%`,
-                      background: diff.verso === 'peggio' ? T.red : T.green,
+                      background: diff.verso === 'peggio' ? T.graficoPeggio : T.graficoMeglio,
                       borderRadius: diff.d > 0 ? `0 ${R.xs}px ${R.xs}px 0` : `${R.xs}px 0 0 ${R.xs}px`,
                     }} />
                   )}

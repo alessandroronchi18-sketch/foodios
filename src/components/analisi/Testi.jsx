@@ -73,7 +73,7 @@ export function Riquadro({ children, isMobile = false, stile = null }) {
 // per l'utile era un peggioramento, e chi guardava di sfuggita leggeva
 // «calo». Se il segno non si sa, niente freccia: un segno che non dice una
 // direzione (spunta o avviso).
-const COLORE = { meglio: T.green, peggio: T.red, pari: T.textSoft, info: T.textSoft, azione: T.brand }
+const COLORE = { meglio: T.graficoMeglio, peggio: T.graficoPeggio, pari: T.textSoft, info: T.textSoft, azione: T.brand }
 const ICONA_FISSA = { info: 'info', azione: 'arrowR' }
 const ICONA_SENZA_SEGNO = { meglio: 'checkCircle', peggio: 'alertCircle', pari: 'minus' }
 

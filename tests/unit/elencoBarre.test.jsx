@@ -130,8 +130,10 @@ describe('Le barre dallo zero (che cosa è cambiato)', () => {
   it('il colore dice il giudizio: spesa salita rossa, scesa verde; il numero col segno vero', () => {
     render(<ElencoDivergente voci={cause} />)
     const [confezioni, , , affitto] = righe()
-    expect(stesso(barra(confezioni).style.background, T.red)).toBe(true)
-    expect(stesso(barra(affitto).style.background, T.green)).toBe(true)
+    // 04/10/2026: meglio e peggio hanno i colori dei grafici (T.graficoMeglio,
+    // T.graficoPeggio), non più il verde e il rosso degli allarmi (theme.js).
+    expect(stesso(barra(confezioni).style.background, T.graficoPeggio)).toBe(true)
+    expect(stesso(barra(affitto).style.background, T.graficoMeglio)).toBe(true)
     expect(confezioni.children[2].textContent).toBe('+11.542')
     expect(affitto.children[2].textContent).toBe('−368')
     expect(confezioni.getAttribute('aria-label')).toBe('Confezioni: +11.542 €, peggio')

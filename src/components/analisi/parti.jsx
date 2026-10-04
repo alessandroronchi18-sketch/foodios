@@ -54,7 +54,7 @@ export function ParolaStimato({ dimensione = font.size.md }) {
   return <span style={{ ...testo(dimensione), fontStyle: 'italic', fontWeight: 500, color: T.textSoft }}>stimato</span>
 }
 
-const COLORE_GIUDIZIO = { meglio: T.green, peggio: T.red, pari: T.textSoft }
+const COLORE_GIUDIZIO = { meglio: T.graficoMeglio, peggio: T.graficoPeggio, pari: T.textSoft }
 const ICONA_SEGNO = { 1: 'trendUp', [-1]: 'trendDown', 0: 'minus' }
 
 /** La freccia: direzione dal segno, colore dal giudizio. */

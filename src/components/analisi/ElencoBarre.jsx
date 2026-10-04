@@ -135,7 +135,7 @@ export function ElencoDivergente({ voci = [], quante = 5, piuEMeglio = false, ti
   const muovi = transizione('left', 'width')
   const colonne = `${colonna('voce', isMobile)}px minmax(0, 1fr) ${colonna('euro', isMobile)}px`
   const griglia = { display: 'grid', gridTemplateColumns: colonne, columnGap: space[3], alignItems: 'center' }
-  const colore = { meglio: T.green, peggio: T.red, pari: T.textSoft }
+  const colore = { meglio: T.graficoMeglio, peggio: T.graficoPeggio, pari: T.textSoft }
 
   return (
     <div>

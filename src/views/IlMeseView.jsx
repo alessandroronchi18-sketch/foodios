@@ -338,7 +338,7 @@ function SediAffiancate({ perSede, isMobile }) {
             <RigaBarra etichetta="Spese" valore={c.spese} max={max} colore={T.graficoConfronto} />
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: font.size.base }}>
               <span style={{ color: T.textSoft }}>Utile</span>
-              <span style={{ fontWeight: 800, color: c.utile == null ? T.textSoft : c.utile < 0 ? T.red : T.text, fontVariantNumeric: 'tabular-nums' }}>
+              <span style={{ fontWeight: 800, color: c.utile == null ? T.textSoft : c.utile < 0 ? T.graficoPeggio : T.text, fontVariantNumeric: 'tabular-nums' }}>
                 {c.utile == null ? 'non lo so' : `${euro(c.utile)} · ${quota(c.quote.utile)}`}
               </span>
             </div>
@@ -432,7 +432,7 @@ function UltimiMesi({ andamento = [], isMobile, meseScelto, onScegli }) {
                   <td style={{ textAlign: 'left', padding: '8px 4px', color: T.text }}>{nomeMese(m.mese)}</td>
                   <td style={{ ...cifreInColonna, padding: '8px 4px' }}>{m.conto.ricavi == null ? '—' : `${cifra(m.conto.ricavi)}${m.conto.stimato ? ' *' : ''}`}</td>
                   <td style={{ ...cifreInColonna, padding: '8px 4px' }}>{m.conto.spese == null ? '—' : cifra(m.conto.spese)}</td>
-                  <td style={{ ...cifreInColonna, padding: '8px 4px', fontWeight: 700, color: m.conto.utile < 0 ? T.red : T.text }}>{m.conto.utile == null ? '—' : cifra(m.conto.utile)}</td>
+                  <td style={{ ...cifreInColonna, padding: '8px 4px', fontWeight: 700, color: m.conto.utile < 0 ? T.graficoPeggio : T.text }}>{m.conto.utile == null ? '—' : cifra(m.conto.utile)}</td>
                 </tr>
               ))}
             </tbody>

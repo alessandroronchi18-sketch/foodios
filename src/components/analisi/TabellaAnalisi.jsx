@@ -72,7 +72,7 @@ function cella(c, v, riga) {
     if (!finito(d.valore)) return ''
     const incompleto = d.incompleto || riga.incompleto
     const verso = incompleto ? null : d.verso
-    const colore = incompleto ? T.amberDark : verso === 'peggio' ? T.red : verso === 'meglio' ? T.green : T.textMid
+    const colore = incompleto ? T.amberDark : verso === 'peggio' ? T.graficoPeggio : verso === 'meglio' ? T.graficoMeglio : T.textMid
     return (
       <span style={{ color: colore, fontWeight: verso && verso !== 'pari' ? 600 : 500 }}>
         {conSegno(Number(d.valore))}{verso && verso !== 'pari' ? ` · ${verso}` : ''}

@@ -195,10 +195,25 @@ export const color = {
   // con segno e parola. Validati con lo script della guida dataviz: come
   // tavolozza a categorie falliscono apposta — non devono mai distinguere
   // due serie fra loro.
-  graficoReale:     '#3B4A5E',
-  graficoConfronto: '#B8C2CF',
+  // 04/10/2026, il titolare: «i colori dei grafici stonano un po' con i
+  // grigi … molto professionali». Il dato era ardesia (#3B4A5E) e il
+  // confronto grigio: su una pagina grigia il grafico spariva, e meglio e
+  // peggio usavano il verde e il ROSSO DEGLI ALLARMI, che in mezzo al grigio
+  // gridavano. Ora un blu profondo che sta col bordeaux del marchio, una sua
+  // tinta per il confronto, e una coppia meglio/peggio smorzata. Verificati
+  // con validate_palette.js (guida dataviz): tutti e cinque passano banda di
+  // luminosità, saturazione minima, distanza anche per chi confonde rosso e
+  // verde (ΔE 8,1) e a vista normale (≥ 17), contrasto ≥ 3:1; meglio e
+  // peggio anche come testo (≥ 4,98:1 sul fondo pagina).
+  graficoReale:     '#1D5FA8',
+  graficoConfronto: '#9DB8DE',
   graficoObiettivo: '#475264',
   graficoGriglia:   '#EEF1F6',
+  graficoMeglio:    '#1B7A58',
+  graficoPeggio:    '#B5432A',
+  // L'incompleto nei grafici (tratteggio): ocra, non l'ambra degli avvisi,
+  // che accanto al mattone del peggio era quasi lo stesso colore (ΔE 4,3).
+  graficoIncompleto: '#BF8A00',
 
   white: '#FFFFFF',
   black: '#000000',

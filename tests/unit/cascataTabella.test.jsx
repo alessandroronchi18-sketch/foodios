@@ -56,7 +56,9 @@ describe('Il difetto: «Da classificare» grigio come una spesa vera', () => {
     const riga = righe(container).find(r => r.textContent.startsWith('Da classificare'))
     const barra = barraDi(riga)
     expect(barra.style.borderStyle).toBe('dashed')
-    expect(stesso(barra.style.borderColor, T.amber)).toBe(true)
+    // 04/10/2026: l'incompleto nei grafici è ocra (T.graficoIncompleto): l'ambra
+    // degli avvisi accanto al mattone del peggio era quasi lo stesso colore.
+    expect(stesso(barra.style.borderColor, T.graficoIncompleto)).toBe(true)
     expect(barra.style.backgroundImage).toMatch(/repeating-linear-gradient\(135deg/)
     expect(stesso(barra.style.background || barra.style.backgroundColor, T.graficoConfronto)).toBe(false)
   })
@@ -137,14 +139,16 @@ describe('La cascata è la tabella', () => {
     const barretta = (r) => r.children[4].children[1]
     // Materie prime: +734 di spesa → peggio, a destra dello zero, rossa
     expect(materie.children[5].textContent).toBe('+734')
-    expect(stesso(barretta(materie).style.background, T.red)).toBe(true)
+    // 04/10/2026: meglio e peggio hanno i colori dei grafici (T.graficoMeglio,
+    // T.graficoPeggio), non più il verde e il rosso degli allarmi (theme.js).
+    expect(stesso(barretta(materie).style.background, T.graficoPeggio)).toBe(true)
     expect(barretta(materie).style.left).toBe('50%')
     // Servizi: −412 di spesa → meglio, a sinistra, verde
     expect(servizi.children[5].textContent).toBe('−412')
-    expect(stesso(barretta(servizi).style.background, T.green)).toBe(true)
+    expect(stesso(barretta(servizi).style.background, T.graficoMeglio)).toBe(true)
     expect(parseFloat(barretta(servizi).style.left)).toBeLessThan(50)
     // Incassi: +43.553 → meglio, verde. La più grande è lunga mezza colonna.
-    expect(stesso(barretta(incassi).style.background, T.green)).toBe(true)
+    expect(stesso(barretta(incassi).style.background, T.graficoMeglio)).toBe(true)
     expect(barretta(incassi).style.width).toBe('50%')
     expect(confezioni.children[5].textContent).toBe('+11.542')
   })

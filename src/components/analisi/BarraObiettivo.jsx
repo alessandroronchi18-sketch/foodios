@@ -115,7 +115,7 @@ export default function BarraObiettivo({
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', columnGap: space[3], ...testo(font.size.sm) }}>
-        <span style={{ color: bene ? T.green : T.red, fontWeight: 600 }}>{stato}</span>
+        <span style={{ color: bene ? T.graficoMeglio : T.graficoPeggio, fontWeight: 600 }}>{stato}</span>
         <span style={{ color: T.textSoft, display: 'inline-flex', alignItems: 'center', columnGap: space[3], flexWrap: 'wrap' }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: space[1], whiteSpace: 'nowrap' }}>
             <span aria-hidden="true" style={{ width: 2, height: 12, background: T.graficoObiettivo }} />obiettivo {quota(obiettivo)}

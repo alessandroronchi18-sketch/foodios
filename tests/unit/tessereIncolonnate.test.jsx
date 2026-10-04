@@ -57,29 +57,31 @@ describe('La freccia segue il segno, il colore il giudizio', () => {
     // la riga più interna che contiene il confronto
     const riga = [...container.querySelectorAll('div')].filter(d => /\+52%su agosto 2025/.test(d.textContent) && d.querySelector('svg')).pop()
     expect(iconaDi(riga)).toBe('trendUp')
-    expect(stessoColore(riga.querySelector('span').style.color, T.red)).toBe(true)
+    // 04/10/2026: meglio e peggio hanno i colori dei grafici (T.graficoMeglio,
+    // T.graficoPeggio), non più il verde e il rosso degli allarmi (theme.js).
+    expect(stessoColore(riga.querySelector('span').style.color, T.graficoPeggio)).toBe(true)
   })
 
   it('incassi scesi: freccia in giù, rossa; spese scese: freccia in giù, verde', () => {
     const giu = variazione({ attuale: 80000, confronto: 100000 })
     const { container, unmount } = render(<NumeroConConfronto etichetta="Incassi" valore="80.000 €" variazione={giu} />)
     expect(iconaDi(container)).toBe('trendDown')
-    expect(stessoColore(container.querySelector('svg').parentElement.style.color, T.red)).toBe(true)
+    expect(stessoColore(container.querySelector('svg').parentElement.style.color, T.graficoPeggio)).toBe(true)
     unmount()
     const speseGiu = variazione({ attuale: 8000, confronto: 10000, piuEMeglio: false })
     const r = render(<NumeroConConfronto etichetta="Spese" valore="8.000 €" variazione={speseGiu} />)
     expect(iconaDi(r.container)).toBe('trendDown')
-    expect(stessoColore(r.container.querySelector('svg').parentElement.style.color, T.green)).toBe(true)
+    expect(stessoColore(r.container.querySelector('svg').parentElement.style.color, T.graficoMeglio)).toBe(true)
   })
 
   it('nelle frasi: «Confezioni: +11.542 €» peggio → freccia in su; «−368 €» meglio → in giù', () => {
     const { container, unmount } = render(<FraseInsight verso="peggio">Confezioni: +11.542 € di spesa rispetto ad agosto 2025</FraseInsight>)
     expect(iconaDi(container)).toBe('trendUp')
-    expect(stessoColore(container.querySelector('svg').parentElement.style.color, T.red)).toBe(true)
+    expect(stessoColore(container.querySelector('svg').parentElement.style.color, T.graficoPeggio)).toBe(true)
     unmount()
     const r = render(<FraseInsight verso="meglio">Affitto e utenze: {'−368 €'} di spesa</FraseInsight>)
     expect(iconaDi(r.container)).toBe('trendDown')
-    expect(stessoColore(r.container.querySelector('svg').parentElement.style.color, T.green)).toBe(true)
+    expect(stessoColore(r.container.querySelector('svg').parentElement.style.color, T.graficoMeglio)).toBe(true)
   })
 
   it('nelle frasi il segno dato dalla pagina vince su quello letto nel testo', () => {

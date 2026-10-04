@@ -73,7 +73,7 @@ export default function GiornoSettimana({ giorni = [], isMobile, stile = null })
   const dec = max >= 100000 ? 0 : 1
   const { titolo, forte } = conclusioneGiorni(giorni)
   // Il giorno del titolo scuro, gli altri chiari, i falsati a righe ambra.
-  const fondo = (g) => (g.falsato ? `repeating-linear-gradient(45deg, ${T.amber} 0 2px, ${T.amberLight} 2px 6px)`
+  const fondo = (g) => (g.falsato ? `repeating-linear-gradient(45deg, ${T.graficoIncompleto} 0 2px, ${T.amberLight} 2px 6px)`
     : g.giorno === forte ? T.graficoReale : T.graficoConfronto)
   return (
     <Riquadro isMobile={isMobile} stile={stile}>

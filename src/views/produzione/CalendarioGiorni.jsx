@@ -27,7 +27,7 @@ export default function CalendarioGiorni({ righe, da, a, sedi = [], isMobile, st
     ...(stato === 'registrato' ? { background: T.graficoReale, color: T.white }
       // Contorno ambra pieno e fondo chiaro: sulle righe il numero del
       // giorno non si leggeva (foto del 04/10).
-      : stato === 'parziale' ? { background: T.amberLight, color: T.amberDark, border: `2px solid ${T.amber}` }
+      : stato === 'parziale' ? { background: T.amberLight, color: T.amberDark, border: `2px solid ${T.graficoIncompleto}` }
         : { border: `1.5px dashed ${T.textSoft}`, color: T.textSoft }),
   })
   return (

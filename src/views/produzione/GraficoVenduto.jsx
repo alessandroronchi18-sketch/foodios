@@ -70,7 +70,7 @@ export default function GraficoVenduto({ rows, da, a, registrati, riassunto, isM
                 in Stripe (ANALISI_DESIGN.md §6). */}
             <pattern id="produzione-righe-ambra" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
               <rect width="6" height="6" fill={T.amberLight} />
-              <line x1="0" y1="0" x2="0" y2="6" stroke={T.amber} strokeWidth="2.5" />
+              <line x1="0" y1="0" x2="0" y2="6" stroke={T.graficoIncompleto} strokeWidth="2.5" />
             </pattern>
             <pattern id="produzione-righe-grigie" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
               <rect width="6" height="6" fill={T.bgCard} />
@@ -79,7 +79,7 @@ export default function GraficoVenduto({ rows, da, a, registrati, riassunto, isM
           </defs>
           <Bar dataKey="vendForte" name="Venduto" stackId="v" fill={T.graficoReale} maxBarSize={24} radius={[4, 4, 0, 0]} isAnimationActive={false} />
           <Bar dataKey="vend" name="Venduto" stackId="v" fill={T.graficoConfronto} maxBarSize={24} radius={[4, 4, 0, 0]} isAnimationActive={false} />
-          <Bar dataKey="vendParziale" name="Venduto, non intera" stackId="v" fill="url(#produzione-righe-ambra)" stroke={T.amber} maxBarSize={24} radius={[4, 4, 0, 0]} isAnimationActive={false} />
+          <Bar dataKey="vendParziale" name="Venduto, non intera" stackId="v" fill="url(#produzione-righe-ambra)" stroke={T.graficoIncompleto} maxBarSize={24} radius={[4, 4, 0, 0]} isAnimationActive={false} />
           <Bar dataKey="zona" name="Niente registrato" stackId="v" fill="url(#produzione-righe-grigie)" maxBarSize={48} isAnimationActive={false} />
         </BarChart>
       </ResponsiveContainer>

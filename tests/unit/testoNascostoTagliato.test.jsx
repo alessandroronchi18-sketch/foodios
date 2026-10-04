@@ -67,7 +67,9 @@ describe('Il giudizio si scrive, visibile', () => {
     expect(parola).toBeTruthy()
     expect(parola.style.width).toBe('')
     expect(parola.style.overflow).toBe('')
-    expect(stesso(parola.style.color, T.red)).toBe(true)
+    // 04/10/2026: meglio e peggio hanno i colori dei grafici (T.graficoMeglio,
+    // T.graficoPeggio), non più il verde e il rosso degli allarmi (theme.js).
+    expect(stesso(parola.style.color, T.graficoPeggio)).toBe(true)
     // Il testo resta quello che le pagine controllano: «… 2025peggio».
     expect(container.textContent).toMatch(/\+52%su agosto 2025peggio/)
   })
@@ -75,7 +77,7 @@ describe('Il giudizio si scrive, visibile', () => {
     const giu = variazione({ attuale: 8000, confronto: 10000, piuEMeglio: false })
     const { container, unmount } = render(<A.NumeroConConfronto etichetta="Spese" valore="8.000 €" variazione={giu} />)
     const parola = [...container.querySelectorAll('span')].find(s => s.textContent === 'meglio')
-    expect(stesso(parola.style.color, T.green)).toBe(true)
+    expect(stesso(parola.style.color, T.graficoMeglio)).toBe(true)
     unmount()
     const pari = variazione({ attuale: 10050, confronto: 10000 })
     const r = render(<A.NumeroConConfronto etichetta="Incassi" valore="10.050 €" variazione={pari} />)

@@ -225,10 +225,10 @@ function numeriRiga(r, ricavi) {
   // rosso (audit 04/10, CE3: era «+4.417 € · peggio»).
   const incompleta = r.chiave === 'daClassificare'
   return {
-    coloreDiff: incompleta ? T.amberDark : v ? (v.verso === 'meglio' ? T.green : v.verso === 'peggio' ? T.red : T.textSoft) : T.textSoft,
+    coloreDiff: incompleta ? T.amberDark : v ? (v.verso === 'meglio' ? T.graficoMeglio : v.verso === 'peggio' ? T.graficoPeggio : T.textSoft) : T.textSoft,
     peso: ricavi > 0 && r.valore != null && r.tipo !== 'ricavo' ? quota((r.valore / ricavi) * 100) : '',
     valore: r.valore == null ? 'non lo so' : r.tipo === 'spesa' ? `−${euro(r.valore)}` : euro(r.valore),
-    coloreValore: r.valore == null ? T.amberDark : r.tipo === 'risultato' && r.valore < 0 ? T.red : T.text,
+    coloreValore: r.valore == null ? T.amberDark : r.tipo === 'risultato' && r.valore < 0 ? T.graficoPeggio : T.text,
     prima: r.prima == null ? null : r.tipo === 'spesa' ? `−${euro(r.prima)}` : euro(r.prima),
     // La differenza in euro e il giudizio a parole, separati: la tabella li
     // scrive «+2.000 € · peggio», la scheda «+2.000 € su agosto 2025 · peggio».

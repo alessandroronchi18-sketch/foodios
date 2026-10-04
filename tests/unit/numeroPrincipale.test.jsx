@@ -52,7 +52,9 @@ describe('Il numero grande', () => {
     const { container } = render(<NumeroPrincipale etichetta="Spese" valore="50.497 €" variazione={v} rispettoA="su agosto 2025" valoreConfronto="33.200 €" />)
     expect(container.textContent).toMatch(/\+52%su agosto 2025\(33\.200 €\)peggio/)
     const icona = container.querySelector('svg').parentElement
-    expect(stessoColore(icona.style.color, T.red)).toBe(true)
+    // 04/10/2026: meglio e peggio hanno i colori dei grafici (T.graficoMeglio,
+    // T.graficoPeggio), non più il verde e il rosso degli allarmi (theme.js).
+    expect(stessoColore(icona.style.color, T.graficoPeggio)).toBe(true)
   })
 
   it('una frase sola, stretta abbastanza da leggersi', () => {
