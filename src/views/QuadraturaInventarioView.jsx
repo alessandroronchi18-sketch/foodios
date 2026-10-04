@@ -25,7 +25,7 @@ import { CoperturaDati, IntestazioneAnalisi } from '../components/analisi'
 import PaginaAnalisi from '../components/analisi/PaginaAnalisi'
 import NavigatoreSettimana from './quadratura/NavigatoreSettimana'
 import { vociCoperturaQuadratura } from './quadratura/copertura'
-import { riassuntoSistemabili } from './produzione/copertura'
+import { nettoIva } from './produzione/numeri'
 import Risposta from './quadratura/Risposta'
 import UltimeSettimane from './quadratura/UltimeSettimane'
 import SediSettimana from './quadratura/SediSettimana'
@@ -204,6 +204,16 @@ function fmtDriftEur(v) {
   const sign = n > 0 ? '+ ' : (n < 0 ? '- ' : '')
   const abs = Math.abs(n).toLocaleString('it-IT', { useGrouping: 'always' })
   return `${sign}${abs} €`
+}
+
+/** I conti della settimana con gli euro senza IVA (stessa funzione del Mese). */
+export function kpiSenzaIva(k) {
+  if (!k) return k
+  return {
+    ...k,
+    ricavoAtteso: nettoIva(k.ricavoAtteso), cassaEffettiva: nettoIva(k.cassaEffettiva), driftEur: nettoIva(k.driftEur),
+    cassaConfrontata: nettoIva(k.cassaConfrontata), attesoConfrontato: nettoIva(k.attesoConfrontato), ricaviB2b: nettoIva(k.ricaviB2b),
+  }
 }
 
 export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAttiva, chiusure, metodoProduzione = 'stampi', onNavigate, notify }) {
@@ -495,10 +505,24 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
   const lunUltimo = apertura?.lunedi || (apertura?.ultimo ? lunediDellaSettimana(`${apertura.ultimo}T12:00:00`) : null)
   const inCaricamento = loading || (sediDaLeggere.length > 0 && settimanaCaricata !== lunediIso)
 
+  // ── A schermo gli euro sono senza IVA, come nel Mese ────────────────────
+  // Decisione del titolare (04/10/2026): il ricavo stimato è lo stesso numero
+  // in tutte le pagine, e il Mese lo mostra senza IVA. Qui l'incasso stimato
+  // e la cassa sono tutti e due IVA compresa: si tolgono tutti e due con la
+  // stessa funzione del Mese, così la differenza resta un confronto alla pari
+  // e la percentuale non cambia. CSV e PDF per il commercialista restano con
+  // l'IVA, come sono sempre stati.
+  const kpiSchermo = useMemo(() => kpiSenzaIva(kpi), [kpi])
+  const kpiPrevSchermo = useMemo(() => kpiSenzaIva(kpiPrev), [kpiPrev])
+  const settimaneSchermo = useMemo(() => trendData.map(t => ({
+    ...t, cassa: nettoIva(t.cassa), atteso: nettoIva(t.atteso), driftEur: nettoIva(t.driftEur),
+  })), [trendData])
+  const perSedeSchermo = useMemo(() => perSede.map(x => ({ ...x, kpi: kpiSenzaIva(x.kpi) })), [perSede])
+
   // La riga chiusa della copertura: «da sistemare» solo di quello che si
   // sistema (la cassa, le caselle), il resto per nome.
   const vociCopertura = vociCoperturaQuadratura({
-    giorni: giorniSettimana, kpi, euroKg, scartoRegistrato,
+    giorni: giorniSettimana, kpi: kpiSchermo, euroKg, scartoRegistrato,
     apertura: apertura?.spostata && lunediIso === lunUltimo ? apertura : null,
     azioni: { cassa: onNavigate ? () => onNavigate('chiusura') : null, caselle: () => refCaselle.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' }) },
   })
@@ -541,7 +565,7 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
       {/* Da dove vengono i numeri, una frase per fonte (ANALISI_DESIGN.md,
           regola 3). La riga «dopo il … non c'è niente» sta qui dentro. */}
       {!inCaricamento && !erroreLettura && giorniSettimana.n > 0 && (
-        <CoperturaDati isMobile={isMobile} voci={vociCopertura} riassunto={riassuntoSistemabili(vociCopertura)} />
+        <CoperturaDati isMobile={isMobile} voci={vociCopertura} />
       )}
 
       {inCaricamento ? (
@@ -615,7 +639,7 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
               quello che si può dire lo stesso. Prima: quattro tessere senza
               giudizio e tre riquadri colorati (grigio, blu, ambra). */}
           <div style={{ marginBottom: isMobile ? 32 : 40 }}>
-            <Risposta kpi={kpi} kpiPrev={kpiPrev} euroKg={euroKg} vetrina={vetrinaSett}
+            <Risposta kpi={kpiSchermo} kpiPrev={kpiPrevSchermo} euroKg={euroKg} vetrina={vetrinaSett}
               onCassa={onNavigate ? () => onNavigate('chiusura') : null} isMobile={isMobile} isTablet={isTablet} />
           </div>
 
@@ -775,20 +799,20 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
             )}
 
             {kpi.driftPct != null && Math.abs(kpi.driftPct) >= 15 && (
-              <DiagnosiDrift driftEur={kpi.driftEur} driftPct={kpi.driftPct} isMobile={isMobile} />
+              <DiagnosiDrift driftEur={kpiSchermo.driftEur} driftPct={kpi.driftPct} isMobile={isMobile} />
             )}
           </div>
 
           {/* Le ultime quattro settimane, su un asse solo (prima: una
               sparkline con due scale nascoste, chili e cassa). */}
-          <UltimeSettimane settimane={trendData} lunediGuardato={lunediIso} isMobile={isMobile}
+          <UltimeSettimane settimane={settimaneSchermo} lunediGuardato={lunediIso} isMobile={isMobile}
             stile={{ marginBottom: isMobile ? 16 : 24 }} />
 
           {/* La settimana sede per sede (solo «Tutte le sedi»): elenco a
               barre, come le classifiche. Prima una tabella con le colonne
               dell'ingrosso tutte a zero e l'atteso in bordeaux. */}
           {isAllSedi && perSede.length > 0 && (
-            <SediSettimana perSede={perSede} isMobile={isMobile} stile={{ marginBottom: isMobile ? 16 : 24 }} />
+            <SediSettimana perSede={perSedeSchermo} isMobile={isMobile} stile={{ marginBottom: isMobile ? 16 : 24 }} />
           )}
 
           {/* I gusti che restano in vetrina: la produzione da rivedere. La
@@ -870,7 +894,13 @@ function DiagnosiDrift({ driftEur, driftPct, isMobile }) {
 }
 
 // ── Panel Sofferenza / Zero venduto ───────────────────────────────────────
-function PanelSofferenza({ sofferenza, zeroVenduto }) {
+// La riga va a capo: al telefono il nome del gusto prende la prima riga e il
+// dettaglio col bollino scende sotto. Fino al 04/10/2026 stavano tutti e tre
+// su una riga sola e il nome si riduceva a «CA…» (30 px su 81).
+// Sotto questa larghezza il nome non sta accanto al dettaglio e va a capo.
+export const NOME_SOFFERENZA_MIN = 140
+
+export function PanelSofferenza({ sofferenza, zeroVenduto }) {
   return (
     <div style={panelStyle}>
       <div style={panelTitle}>Gusti in sofferenza</div>
@@ -907,12 +937,12 @@ function PanelSofferenza({ sofferenza, zeroVenduto }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {sofferenza.slice(0, 6).map(x => (
             <div key={x.gusto} style={{
-              display: 'flex', alignItems: 'center', gap: 10, fontSize: font.size.sm,
-              padding: '6px 0',
+              display: 'flex', alignItems: 'center', flexWrap: 'wrap', columnGap: 10, rowGap: 4,
+              fontSize: font.size.sm, padding: '6px 0',
               borderBottom: `1px dashed ${C.borderSoft}`,
             }}>
               <span style={{
-                flex: 1, fontWeight: 600, color: C.text,
+                flex: `1 1 ${NOME_SOFFERENZA_MIN}px`, fontWeight: 600, color: C.text,
                 overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 minWidth: 0,
               }} title={x.gusto}>
@@ -925,7 +955,7 @@ function PanelSofferenza({ sofferenza, zeroVenduto }) {
                 in vetrina {nKg(x.residuoMedioG)} kg, vende {nKg(x.vendutoMedioG)} kg al giorno
               </span>
               <span style={{
-                color: T.amberDark, fontWeight: 700, ...TNUM,
+                color: T.amberDark, fontWeight: 700, ...TNUM, marginLeft: 'auto',
                 minWidth: 52, textAlign: 'right', whiteSpace: 'nowrap',
                 background: T.amberLight, padding: '2px 8px', borderRadius: 999,
                 fontSize: font.size.sm,

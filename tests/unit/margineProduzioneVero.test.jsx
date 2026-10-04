@@ -52,7 +52,10 @@ vi.mock('../../src/lib/supabase', () => {
 })
 
 // Un formato solo: 100 g a 3 € = 30 €/kg.
-const FORMATI = [{ id: 'f1', nome: 'Coppetta', categoria: 'Gusto', baseQtaG: 100, prezzoDefault: 3, componenti: [] }]
+// 04/10/2026: il ricavo stimato è senza IVA (10%, come il Mese). Il prezzo
+// al banco dei dati di prova è 3,30 € per 100 g = 33 €/kg, cioè 30 €/kg
+// senza IVA: i conti delle prove restano quelli di prima.
+const FORMATI = [{ id: 'f1', nome: 'Coppetta', categoria: 'Gusto', baseQtaG: 100, prezzoDefault: 3.3, componenti: [] }]
 vi.mock('../../src/lib/storage', () => ({
   sload: async (k) => (k === 'pasticceria-formati-vendita-v1' ? FORMATI : null),
   ssave: async () => {}, ssaveBatch: async () => {}, sloadAllSedi: async () => ({}),

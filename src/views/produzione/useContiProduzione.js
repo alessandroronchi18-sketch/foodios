@@ -20,6 +20,7 @@ import { useNomiGusti } from '../../lib/useNomiGusti'
 import { normGusto } from '../../lib/normGusto'
 import { colonneVenduto } from './colonneVenduto'
 import { righeGusti } from './righeGusti'
+import { prezzoNetto } from './numeri'
 import { pannelliSedi } from './pannelliSedi'
 
 const dentro = (r, da, a) => r?.data && (!da || r.data >= da) && (!a || r.data <= a)
@@ -37,13 +38,17 @@ export function useContiProduzione({
   // soli gusti con la ricetta, allo stesso prezzo al chilo.
   const { formati } = useRicavoFlat(orgId, ricettario, null)
   const euroKgMedio = useMemo(() => euroKgMedioFormati(formati), [formati])
+  // Senza IVA, come il Mese (decisione del titolare, 04/10): il prezzo al
+  // banco comprende l'IVA, i costi degli ingredienti no. Il margine e la
+  // tabella usano il prezzo al chilo senza IVA.
+  const euroKgNetto = useMemo(() => prezzoNetto(euroKgMedio), [euroKgMedio])
   // I nomi del foglio collegati a mano alle ricette (MISTIC → MYSTIC).
   const { mappa: nomiGusti, collega } = useNomiGusti(orgId)
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario])
 
   const valuta = (righe, da, a) => valutaGusti(totaliPerGusto(righe, { da, a }), {
     ricettaDi: (gusto) => ricettaDelGusto(ricettario, gusto, nomiGusti),
-    ricavoKgDi: () => euroKgMedio || 0,
+    ricavoKgDi: () => euroKgNetto || 0,
     ingCosti, ricettario,
   })
   // Ricavo, food cost e margine per gusto. Il margine è null quando il gusto
@@ -51,13 +56,13 @@ export function useContiProduzione({
   const valutazione = useMemo(
     () => valuta(rows, dateFrom, dateTo),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [rows, dateFrom, dateTo, ricettario, ingCosti, euroKgMedio, nomiGusti]
+    [rows, dateFrom, dateTo, ricettario, ingCosti, euroKgNetto, nomiGusti]
   )
   const totaliPrev = useMemo(() => {
     if (!Array.isArray(rowsPrev) || rowsPrev.length === 0) return null
     return valuta(rowsPrev, prevFrom, prevTo).totali
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rowsPrev, prevFrom, prevTo, ricettario, ingCosti, euroKgMedio, nomiGusti])
+  }, [rowsPrev, prevFrom, prevTo, ricettario, ingCosti, euroKgNetto, nomiGusti])
   const ricavoStimato = useMemo(
     () => ricaviStimatiSedi(rows, formati, { da: dateFrom, a: dateTo, venditeB2B }),
     [rows, formati, dateFrom, dateTo, venditeB2B]
@@ -113,8 +118,8 @@ export function useContiProduzione({
   // Un gusto senza ricetta ha il suo ricavo (i chili venduti per il prezzo
   // al chilo, come nel totale), non il margine: senza ricetta non si sa il
   // costo. Così la colonna del ricavo somma al totale della tessera.
-  const perGusto = useMemo(() => valutazione.righe.map(r => (r.haRicetta || !euroKgMedio ? r
-    : { ...r, ricavoKg: euroKgMedio, ricavo: r.vendKg * euroKgMedio })), [valutazione, euroKgMedio])
+  const perGusto = useMemo(() => valutazione.righe.map(r => (r.haRicetta || !euroKgNetto ? r
+    : { ...r, ricavoKg: euroKgNetto, ricavo: r.vendKg * euroKgNetto })), [valutazione, euroKgNetto])
   const attivo = (r) => r.vendKg !== 0 || r.prodKg !== 0
   const senzaRicetta = useMemo(
     () => perGusto.filter(r => !r.haRicetta && attivo(r)).sort((a, b) => b.vendKg - a.vendKg),
@@ -178,7 +183,7 @@ export function useContiProduzione({
     copertura, registrazioneFerma, daPartenza, buchi,
     caselle, riassunto, daSistemare, nomeSede,
     euroKgMedio, senzaRicetta, collegati, incompleti, kgSenzaRicetta,
-    euroSenzaRicetta: euroKgMedio != null ? kgSenzaRicetta * euroKgMedio : null,
+    euroSenzaRicetta: euroKgNetto != null ? kgSenzaRicetta * euroKgNetto : null,
     scartoRegistrato, vetrina, settimana, sedi: sediQuadro, pannelli, andamento, righeTabella,
     nomiGusti, collega,
   }

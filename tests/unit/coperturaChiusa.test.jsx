@@ -22,6 +22,17 @@
 // `hidden` (lo schema «mostra/nascondi» del W3C): chi legge lo schermo sa
 // cosa c'è dietro il pulsante, e le pagine che cercano «Apri Personale»
 // continuano a trovarlo.
+//
+// 04/10/2026, dopo le foto della Produzione: il riassunto contava come «da
+// sistemare» ogni voce che non tornava, anche quelle che non si possono
+// sistemare. Sui dati di Mara diceva «3 dati da sistemare» mettendo insieme
+// caselle da sistemare, gusti da collegare e lo scarto mai scritto, che
+// all'indietro non si sistema; e con zero caselle storte diceva lo stesso
+// «da sistemare». Adesso «da sistemare» conta solo le voci che lo sono
+// (`sistemabile: true`, o con un'azione se la voce non lo dice); le altre
+// si nominano col nome breve, o si contano come «dati incompleti». Due prove
+// qui sotto, scritte sulla regola di prima, sono aggiornate a questa. E al
+// telefono la riga va a capo invece di troncarsi coi puntini.
 import React from 'react'
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, cleanup, fireEvent, screen, within } from '@testing-library/react'
@@ -158,8 +169,10 @@ describe('Il riassunto, nei casi intorno', () => {
     ])).toBe('Fatture fino al 10/09 · Personale incompleto')
   })
 
-  it('senza nome breve conta: «1 dato da sistemare», «2 numeri stimati»', () => {
-    expect(riassuntoCopertura([{ id: 'a', stato: 'manca', testo: 'x' }])).toBe('1 dato da sistemare')
+  it('senza nome breve conta: «1 dato da sistemare», «1 dato incompleto», «2 numeri stimati»', () => {
+    // Con l'azione si sistema; senza, è un dato che manca e basta.
+    expect(riassuntoCopertura([{ id: 'a', stato: 'manca', testo: 'x', azione: { etichetta: 'Apri', onClick: () => {} } }])).toBe('1 dato da sistemare')
+    expect(riassuntoCopertura([{ id: 'a', stato: 'manca', testo: 'x' }])).toBe('1 dato incompleto')
     expect(riassuntoCopertura([
       { id: 'a', stato: 'stima', testo: 'x' }, { id: 'b', stato: 'stima', testo: 'y' },
       { id: 'c', stato: 'ok', testo: 'z' },
@@ -168,10 +181,45 @@ describe('Il riassunto, nei casi intorno', () => {
 
   it('tre problemi o più si contano anche se hanno il nome breve', () => {
     expect(riassuntoCopertura([
+      { id: 'a', stato: 'parziale', breve: 'A', testo: 'x', sistemabile: true },
+      { id: 'b', stato: 'parziale', breve: 'B', testo: 'x', sistemabile: true },
+      { id: 'c', stato: 'manca', breve: 'C', testo: 'x', sistemabile: true },
+    ])).toBe('3 dati da sistemare')
+    // Senza azione e senza `sistemabile` non si dicono «da sistemare».
+    expect(riassuntoCopertura([
       { id: 'a', stato: 'parziale', breve: 'A', testo: 'x' },
       { id: 'b', stato: 'parziale', breve: 'B', testo: 'x' },
       { id: 'c', stato: 'manca', breve: 'C', testo: 'x' },
-    ])).toBe('3 dati da sistemare')
+    ])).toBe('3 dati incompleti')
+  })
+
+  it('«da sistemare» solo per quello che si sistema: i dati della Produzione di Mara', () => {
+    const vai = { etichetta: 'Vedi', onClick: () => {} }
+    expect(riassuntoCopertura([
+      { id: 'stima', stato: 'stima', breve: 'ricavo e margine stimati', testo: 'x' },
+      { id: 'gusti', stato: 'parziale', breve: '14 gusti senza ricetta', testo: 'x', sistemabile: true, azione: vai },
+      { id: 'caselle', stato: 'parziale', breve: '359 caselle da sistemare', testo: 'x', sistemabile: true, azione: vai },
+      { id: 'scarto', stato: 'manca', breve: 'scarto mai scritto', testo: 'x' },
+    ])).toBe('Ricavo e margine stimati · 14 gusti senza ricetta · 359 caselle da sistemare · scarto mai scritto')
+    // Con zero caselle storte la parola non compare.
+    expect(riassuntoCopertura([
+      { id: 'stima', stato: 'stima', breve: 'ricavo e margine stimati', testo: 'x' },
+      { id: 'scarto', stato: 'manca', breve: 'scarto mai scritto', testo: 'x' },
+    ])).not.toMatch(/da sistemare/)
+  })
+
+  it('`sistemabile: false` vince sull\'azione', () => {
+    expect(riassuntoCopertura([{ id: 'a', stato: 'manca', testo: 'x', sistemabile: false, azione: { etichetta: 'Apri', onClick: () => {} } }])).toBe('1 dato incompleto')
+  })
+
+  it('al telefono la riga va a capo, al computer resta su una riga coi puntini', () => {
+    const voci = [{ id: 'a', stato: 'manca', breve: 'una frase lunga abbastanza da non stare in una riga sola del telefono', testo: 'x' }]
+    render(<CoperturaDati isMobile voci={voci} />)
+    const riga = screen.getByRole('button').querySelector('span[style*="white-space"]')
+    expect(riga.style.whiteSpace).toBe('normal')
+    cleanup()
+    render(<CoperturaDati voci={voci} />)
+    expect(screen.getByRole('button').querySelector('span[style*="white-space"]').style.whiteSpace).toBe('nowrap')
   })
 
   it('la pagina può scrivere il riassunto da sé', () => {

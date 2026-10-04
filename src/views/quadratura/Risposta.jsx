@@ -33,7 +33,7 @@ const nKg1 = (n) => new Intl.NumberFormat('it-IT', { useGrouping: 'always', mini
 /** Le frasi di «Senza la cassa, ecco cosa si può dire». */
 export function frasiSenzaCassa({ kpi, kpiPrev, vetrina }) {
   const frasi = []
-  frasi.push({ id: 'uscito', testo: `L'inventario dice che sono usciti ${nKg1(kpi.totVendutoG / 1000)} kg di gelato, circa ${euro(kpi.ricavoAtteso || 0)} ai prezzi dei formati.` })
+  frasi.push({ id: 'uscito', testo: `L'inventario dice che sono usciti ${nKg1(kpi.totVendutoG / 1000)} kg di gelato, circa ${euro(kpi.ricavoAtteso || 0)} senza IVA ai prezzi dei formati.` })
   // Da dove viene quel venduto. Non è un controllo: il venduto si calcola
   // proprio da questa riga (c'era + fatto − resta), quindi «torna» sempre,
   // tranne dove manca una rimanenza. Prima (04/10, mai pubblicato) questa
@@ -111,7 +111,7 @@ export default function Risposta({ kpi, kpiPrev, euroKg, vetrina, onCassa, isMob
         <NumeroConConfronto isMobile={isMobile}
           etichetta="Incasso stimato" stimato
           valore={euro(kpi.ricavoAtteso || 0)}
-          contesto={`kg × ${euro(euroKg, { decimali: 2 }).replace(' €', '')} €/kg medio dei formati`} />
+          contesto={`senza IVA · kg × ${euro(euroKg, { decimali: 2 }).replace(' €', '')} €/kg medio dei formati, al banco`} />
         <NumeroConConfronto isMobile={isMobile}
           etichetta="Cassa"
           valore={kpi.cassaRegistrata ? euro(kpi.cassaEffettiva) : null}
@@ -119,7 +119,7 @@ export default function Risposta({ kpi, kpiPrev, euroKg, vetrina, onCassa, isMob
           variazione={vCassa} rispettoA={vCassa ? 'sulla settimana prima' : ''}
           senzaConfronto={vCassa ? '' : senzaCassa}
           contesto={kpi.cassaRegistrata
-            ? `incassato in ${kpi.giorniCassa} ${kpi.giorniCassa === 1 ? 'giorno' : 'giorni'}`
+            ? `senza IVA · incassato in ${kpi.giorniCassa} ${kpi.giorniCassa === 1 ? 'giorno' : 'giorni'}`
             : 'nessuna chiusura questa settimana'} />
       </FilaTessere>
 

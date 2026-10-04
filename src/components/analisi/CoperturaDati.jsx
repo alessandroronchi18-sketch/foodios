@@ -31,11 +31,26 @@ const problema = (v) => v.stato !== 'ok' && v.stato !== 'stima'
 const maiuscola = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s)
 
 /**
+ * Una voce si può sistemare se lo dice (`sistemabile: true`) o, se non lo
+ * dice, se ha il passaggio per sistemarla (`azione`). Lo scarto mai scritto,
+ * per esempio, manca ma all'indietro non si sistema.
+ */
+const sistemabile = (v) => problema(v) && (v.sistemabile ?? !!v.azione)
+
+/**
  * La riga chiusa, a parole. Le stime si nominano (dicono che il numero
- * grande è una stima); i problemi si nominano se sono uno o due e hanno il
- * nome breve, altrimenti si contano.
+ * grande è una stima). Le voci che non tornano in due gruppi: quelle che si
+ * possono sistemare («da sistemare») e le altre («incompleti»); in ogni
+ * gruppo uno o due con il nome breve si nominano, di più si contano.
  *   «Incassi stimati · 3 dati da sistemare» · «Inventario fermo al 31/08» ·
+ *   «Ricavo stimato · 359 caselle da sistemare · scarto mai scritto» ·
  *   «Tutti i dati ci sono»
+ *
+ * 04/10/2026: prima ogni voce che non era «ok» si contava come «da
+ * sistemare». Sulla Produzione la riga diceva «3 dati da sistemare»
+ * mettendo insieme le caselle (si sistemano), i gusti senza ricetta (si
+ * collegano) e lo scarto mai scritto, che all'indietro non si sistema; e
+ * con zero caselle storte diceva lo stesso «da sistemare».
  */
 export function riassuntoCopertura(voci = []) {
   const stime = voci.filter(v => v.stato === 'stima')
@@ -44,11 +59,13 @@ export function riassuntoCopertura(voci = []) {
   const parti = stime.filter(v => v.breve).map(v => v.breve)
   const stimeSenzaNome = stime.filter(v => !v.breve).length
   if (stimeSenzaNome) parti.push(`${stimeSenzaNome} ${stimeSenzaNome === 1 ? 'numero stimato' : 'numeri stimati'}`)
-  if (problemi.length && problemi.length <= 2 && problemi.every(v => v.breve)) {
-    parti.push(...problemi.map(v => v.breve))
-  } else if (problemi.length) {
-    parti.push(`${problemi.length} ${problemi.length === 1 ? 'dato' : 'dati'} da sistemare`)
+  const gruppo = (lista, uno, tanti) => {
+    if (!lista.length) return
+    if (lista.length <= 2 && lista.every(v => v.breve)) parti.push(...lista.map(v => v.breve))
+    else parti.push(`${lista.length} ${lista.length === 1 ? uno : tanti}`)
   }
+  gruppo(problemi.filter(sistemabile), 'dato da sistemare', 'dati da sistemare')
+  gruppo(problemi.filter(v => !sistemabile(v)), 'dato incompleto', 'dati incompleti')
   return maiuscola(parti.join(' · '))
 }
 
@@ -62,6 +79,8 @@ export function riassuntoCopertura(voci = []) {
  *   azione?: { etichetta: string, onClick: () => void } }[]} p.voci
  *   `breve` è il nome della voce nella riga chiusa («Incassi stimati»,
  *   «Personale incompleto»): due-tre parole. Senza, la riga conta.
+ *   `sistemabile` (facoltativo) dice se la voce si può sistemare; senza,
+ *   vale «ha un'azione».
  */
 export default function CoperturaDati({ titolo = 'Da dove vengono i numeri', riassunto = '', voci = [], isMobile = false }) {
   const [aperta, setAperta] = useState(false)
@@ -91,7 +110,13 @@ export default function CoperturaDati({ titolo = 'Da dove vengono i numeri', ria
         <span style={{ color: icona.colore, display: 'inline-flex', flexShrink: 0 }} aria-hidden="true">
           <Icon name={icona.icona} size={16} />
         </span>
-        <span style={{ flex: isMobile ? 1 : '0 1 auto', minWidth: 0, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {/* Al telefono la riga va a capo (di solito due righe di 20 px)
+            invece di troncarsi coi puntini: «…14 gusti senza ri…» non si
+            leggeva (foto del 04/10). Al computer resta su una riga. */}
+        <span style={{
+          flex: isMobile ? 1 : '0 1 auto', minWidth: 0, fontWeight: 600,
+          ...(isMobile ? { whiteSpace: 'normal', overflowWrap: 'anywhere', padding: `${space[3]}px 0` } : { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }),
+        }}>
           {frase}
         </span>
         <Icon name={aperta ? 'chevUp' : 'chevDown'} size={16} color={T.textSoft} />
