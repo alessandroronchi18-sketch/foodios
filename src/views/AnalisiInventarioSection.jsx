@@ -73,18 +73,20 @@ export default function AnalisiInventarioSection({
       domanda="Quanto ho prodotto e venduto?"
       sotto={`${dove ? `${dove} · ` : ''}dalla vetrina contata ogni sera, gusto per gusto`}
       isMobile={isMobile}
-      destra={(onBack || c.copertura.n > 0) ? (
-        <>
-          {onBack && <Pulsante onClick={onBack} icona="arrowR">Apri l&apos;inventario</Pulsante>}
-          {c.copertura.n > 0 && (
-            <Pulsante icona="download" onClick={() => esportaXlsx({
-              dateFrom, dateTo, righe: c.perGusto, totali: c.totali, scartoRegistrato: c.scartoRegistrato, andamento: c.andamento,
-            })}>Esporta Excel</Pulsante>
-          )}
-        </>
-      ) : null}
     />
   )
+  // I comandi stanno in fondo, dopo i numeri (ANALISI_DESIGN.md §6): in
+  // testa, al telefono, erano una riga di pulsanti prima della risposta.
+  const comandi = (onBack || c.copertura.n > 0) ? (
+    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+      {onBack && <Pulsante onClick={onBack} icona="arrowR">Apri l&apos;inventario</Pulsante>}
+      {c.copertura.n > 0 && (
+        <Pulsante icona="download" onClick={() => esportaXlsx({
+          dateFrom, dateTo, righe: c.perGusto, totali: c.totali, scartoRegistrato: c.scartoRegistrato, andamento: c.andamento,
+        })}>Esporta Excel</Pulsante>
+      )}
+    </div>
+  ) : null
 
   // Un periodo senza giorni registrati: si dice dove finiscono i dati.
   if (c.copertura.n === 0) {
@@ -184,6 +186,8 @@ export default function AnalisiInventarioSection({
           </div>
         )}
       </>)}
+
+      {comandi}
     </div>
   )
 }

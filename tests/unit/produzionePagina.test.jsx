@@ -253,8 +253,8 @@ describe('La pagina: tessere e vetrina sui conti veri', () => {
     await waitFor(() => expect(screen.getByRole('table', { name: 'Il conto della vetrina' })).toBeTruthy(), { timeout: 5000 })
     const righe = within(screen.getByRole('table', { name: 'Il conto della vetrina' })).getAllByRole('row').map(x => x.textContent)
     expect(righe).toEqual([
-      'In vetrina all\'inizio2 kg', '+Prodotto6 kg', '−Venduto7 kg', '−Scartonon registrato',
-      '=Deve restare1 kg', 'In vetrina alla fine, contato1 kg',
+      'In vetrina all\'inizio2,0 kg', '+Prodotto6,0 kg', '−Venduto7,0 kg', '−Scartonon registrato',
+      '=Deve restare1,0 kg', 'In vetrina alla fine, contato1,0 kg',
     ])
     expect(testo()).toMatch(/La vetrina è scesa da 2 kg a 1 kgHai venduto più di quanto hai fatto\./)
     // Non «Il conto torna»: il venduto si calcola da questa riga, torna per
@@ -517,8 +517,9 @@ describe('La pagina: sedi e tabella', () => {
     // 7 venduti su 6 fatti: 116,7%; resta in vetrina 2 kg in media (03: 3,
     // 04: 1) su 3,5 venduti al giorno: 0,6 giorni. Costo 8,80 € / 1,2 kg.
     // Margine 166 € = 79%.
-    expect(riga.textContent).toMatch(/NOCCIOLA76116,7%0,6/)
-    expect(riga.textContent).toMatch(/210 €7,33 €\/kg166 € · 79%/)
+    // Stessi decimali in tutta la colonna (§6): «7,0», non «7».
+    expect(riga.textContent).toMatch(/NOCCIOLA7,06,0116,7%0,6/)
+    expect(riga.textContent).toMatch(/210 €7,33 €\/kg166 € · 79,0%/)
   })
 
   it('si ordina toccando l\'intestazione, e lo dice', async () => {
@@ -772,5 +773,34 @@ describe('Dopo l\'ultimo giorno registrato il grafico mostra il buco', () => {
   it('anche per mese', () => {
     const c = colonneVenduto(righe, { da: '2026-08-01', a: '2026-10-03', passo: 'mese', registrati: reg, finoA: '2026-10-03' })
     expect(c.map(x => [x.label, x.vuota])).toEqual([['ago', false], ['set', true], ['ott', true]])
+  })
+})
+
+// ── 9. Dalle foto del 04/10: colonne incolonnate, comandi in fondo ─────────
+const { numFisso, kgFisso, quotaFissa } = await import('../../src/views/produzione/numeri.js')
+
+describe('Stessi decimali in tutta la colonna (ANALISI_DESIGN.md §6)', () => {
+  it('«865,0» sotto «874,2», «101,0%» sotto «100,2%», il meno vero', () => {
+    expect(numFisso(865)).toBe('865,0')
+    expect(numFisso(1130.66)).toBe('1.130,7')
+    expect(kgFisso(1)).toBe('1,0 kg')
+    expect(kgFisso(188.4, 0)).toBe('188 kg')
+    expect(quotaFissa(101)).toBe('101,0%')
+    expect(quotaFissa(-6.94)).toBe('−6,9%')
+    expect(numFisso(null)).toBeNull()
+  })
+})
+
+describe('All\'arrivo i numeri, i comandi in fondo', () => {
+  it('«Apri l\'inventario» ed «Esporta Excel» vengono dopo la classifica, non in testa', async () => {
+    apri({ onBack: () => {} })
+    await waitFor(() => expect(testo()).toMatch(/NOCCIOLA è il più venduto/), { timeout: 5000 })
+    const apriInv = screen.getByRole('button', { name: /Apri l'inventario/ })
+    const titolo = screen.getByRole('heading', { level: 2 })
+    const classifica = screen.getByRole('list', { name: 'Gusti più venduti' })
+    // DOCUMENT_POSITION_FOLLOWING = 4: il pulsante viene dopo.
+    expect(titolo.compareDocumentPosition(apriInv) & 4).toBe(4)
+    expect(classifica.compareDocumentPosition(apriInv) & 4).toBe(4)
+    expect(classifica.compareDocumentPosition(screen.getByRole('button', { name: /Esporta Excel/ })) & 4).toBe(4)
   })
 })

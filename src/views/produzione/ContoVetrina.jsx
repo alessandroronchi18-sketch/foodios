@@ -14,7 +14,7 @@
 import React from 'react'
 import { color as T, font, tnum } from '../../lib/theme'
 import { TitoloGrafico, Riquadro } from '../../components/analisi'
-import { kg, kgTessera, intero } from './numeri'
+import { kg, kgTessera, kgFisso, intero } from './numeri'
 
 /**
  * Il titolo-conclusione, in dieci parole al massimo (ANALISI_DESIGN.md §6):
@@ -69,10 +69,10 @@ export default function ContoVetrina({ vetrina: b, scartoRegistrato, isMobile, s
       <TitoloGrafico titolo={titoloVetrina(b)} sottotitolo={sottotitoloVetrina(b)} />
       <div role="table" aria-label="Il conto della vetrina" style={{ fontSize: font.size.md, color: T.text }}>
         {righe.map(r => (
-          <Riga key={r.voce} segno={r.segno} voce={r.voce} valore={r.testo || `${kg(r.g / 1000)} kg`} tenue={!!r.testo} />
+          <Riga key={r.voce} segno={r.segno} voce={r.voce} valore={r.testo || kgFisso(r.g / 1000)} tenue={!!r.testo} />
         ))}
-        <Riga segno="=" voce="Deve restare" valore={`${kg(atteso / 1000)} kg`} forte filo />
-        <Riga segno="" voce="In vetrina alla fine, contato" valore={`${kg(b.fineG / 1000)} kg`} forte />
+        <Riga segno="=" voce="Deve restare" valore={kgFisso(atteso / 1000)} forte filo />
+        <Riga segno="" voce="In vetrina alla fine, contato" valore={kgFisso(b.fineG / 1000)} forte />
       </div>
       <div style={{ fontSize: font.size.sm, color: b.torna && !b.celleNonCalcolabili ? T.textSoft : T.amberDark, marginTop: 10, lineHeight: 1.5 }}>
         {notaVetrina(b)}

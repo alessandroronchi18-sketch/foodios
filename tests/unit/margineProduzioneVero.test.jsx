@@ -210,7 +210,10 @@ describe('La pagina dello Storico mostra il margine vero', () => {
     apri(RICETTARIO, RIGHE.map(r => ({ ...r, gusto_nome: 'PISTACCHIO' })))
     await waitFor(() => expect(testo()).toMatch(/210\s?€/), { timeout: 5000 })
     expect(testo()).toMatch(/non calcolabile/)
-    expect(testo()).not.toMatch(/100,0%/)
+    // Il margine non è il 100%. («100,0%» c'è, ma nella classifica dei gusti:
+    // un gusto solo fa il 100% del venduto. La prova guarda il margine.)
+    expect(testo()).not.toMatch(/100(,0)?% del ricavo/)
+    expect(testo()).not.toMatch(/Margine stimato[^€]{0,20}100/)
   })
 
   it('il costo della tabella è quello diviso per la resa (7,33 €/kg, non 8,80 €/kg)', async () => {

@@ -15,7 +15,7 @@
 import React from 'react'
 import { color as T, font, tnum } from '../../lib/theme'
 import { TitoloGrafico, Riquadro } from '../../components/analisi'
-import { kgTessera, intero, elenco } from './numeri'
+import { kgTessera, kgFisso, intero, elenco } from './numeri'
 
 const conArticolo = (nome) => (nome === 'Domenica' ? 'la domenica' : `il ${nome.toLowerCase()}`)
 const maiuscola = (t) => t[0].toUpperCase() + t.slice(1)
@@ -68,6 +68,9 @@ export function sottotitoloGiorni(giorni = []) {
 
 export default function GiornoSettimana({ giorni = [], isMobile, stile = null }) {
   const max = Math.max(1, ...giorni.map(g => g.mediaG || 0))
+  // Stessi decimali in tutta la colonna (§6): interi se un giorno arriva a
+  // 100 kg, se no un decimale per tutti.
+  const dec = max >= 100000 ? 0 : 1
   const { titolo, forte } = conclusioneGiorni(giorni)
   // Il giorno del titolo scuro, gli altri chiari, i falsati a righe ambra.
   const fondo = (g) => (g.falsato ? `repeating-linear-gradient(45deg, ${T.amber} 0 2px, ${T.amberLight} 2px 6px)`
@@ -93,7 +96,7 @@ export default function GiornoSettimana({ giorni = [], isMobile, stile = null })
                 // «non registrato» è lo scarto mai scritto.
                 ? <span style={{ color: T.textSoft }}>nessun giorno</span>
                 : <>
-                  <b style={{ color: g.falsato ? T.amberDark : T.text }}>{kgTessera(g.mediaG / 1000)}</b>
+                  <b style={{ color: g.falsato ? T.amberDark : T.text }}>{kgFisso(g.mediaG / 1000, dec)}</b>
                   {!isMobile && <span style={{ color: T.textSoft }}> · {g.falsato ? 'falsato' : g.nGiorni === 1 ? '1 giorno' : `${intero(g.nGiorni)} giorni`}</span>}
                 </>}
             </span>

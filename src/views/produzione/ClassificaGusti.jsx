@@ -14,7 +14,7 @@ import { quota } from '../../lib/formatoAnalisi'
 import { TitoloGrafico, Riquadro } from '../../components/analisi'
 import Icon from '../../components/Icon'
 import { classificaGusti } from './righeGusti'
-import { kg, kgTessera, intero } from './numeri'
+import { kgTessera, kgFisso, quotaFissa, intero } from './numeri'
 
 /** «MAROTTO è il più venduto: 1.131 kg, il 9,6%» (dieci parole al massimo). */
 export function titoloClassifica(cl) {
@@ -33,7 +33,7 @@ export default function ClassificaGusti({ righe = [], aperta = false, onApri, is
       <ol aria-label="Gusti più venduti" style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
         {cl.voci.map((v, i) => (
           <li key={v.gusto} style={{ minWidth: 0 }}>
-            <Riga nome={v.gusto} valore={`${kg(v.kg)} kg`} quotaTesto={quota(v.quota)} />
+            <Riga nome={v.gusto} valore={kgFisso(v.kg)} quotaTesto={quotaFissa(v.quota)} />
             <div style={{ height: 8, background: T.graficoGriglia, borderRadius: 4, overflow: 'hidden', marginTop: 4 }} aria-hidden="true">
               <div style={{ width: `${Math.max(0, Math.min(100, (v.kg / max) * 100))}%`, height: '100%', background: i === 0 ? T.graficoReale : T.graficoConfronto, borderRadius: 4 }} />
             </div>
@@ -41,7 +41,7 @@ export default function ClassificaGusti({ righe = [], aperta = false, onApri, is
         ))}
         {cl.altri && (
           <li style={{ borderTop: `1px solid ${T.borderSoft}`, paddingTop: 10 }}>
-            <Riga nome={`Altri ${intero(cl.altri.n)} gusti`} valore={`${kg(cl.altri.kg)} kg`} quotaTesto={quota(cl.altri.quota)} tenue />
+            <Riga nome={`Altri ${intero(cl.altri.n)} gusti`} valore={kgFisso(cl.altri.kg)} quotaTesto={quotaFissa(cl.altri.quota)} tenue />
           </li>
         )}
       </ol>

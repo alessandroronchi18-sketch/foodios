@@ -41,3 +41,28 @@ export function elenco(nomi = []) {
   if (nomi.length <= 1) return nomi.join('')
   return `${nomi.slice(0, -1).join(', ')} e ${nomi[nomi.length - 1]}`
 }
+
+// ── Le colonne: stessi decimali in tutte le righe ─────────────────────────
+//
+// ANALISI_DESIGN.md §6: in una colonna di numeri tutte le righe hanno gli
+// stessi decimali, se no le cifre non si incolonnano («865» sotto «874,2»,
+// «90%» sotto «77,5%»). Le foto del 04/10 lo mostravano nella tabella dei
+// gusti, nel conto della vetrina e nei giorni della settimana.
+const nfFisso = (d) => new Intl.NumberFormat('it-IT', { useGrouping: 'always', minimumFractionDigits: d, maximumFractionDigits: d })
+const NF_FISSO = [nfFisso(0), nfFisso(1), nfFisso(2)]
+
+/** «865,0» con un decimale sempre (o `d` decimali). */
+export function numFisso(n, d = 1) {
+  if (!finito(n)) return null
+  return NF_FISSO[d].format(Number(n))
+}
+
+/** «865,0 kg». */
+export const kgFisso = (n, d = 1) => (finito(n) ? `${numFisso(n, d)} kg` : null)
+
+/** «101,0%», col segno meno vero se negativo. */
+export function quotaFissa(n, d = 1) {
+  if (!finito(n)) return null
+  const v = Number(n)
+  return `${v < 0 ? '−' : ''}${NF_FISSO[d].format(Math.abs(v))}%`
+}

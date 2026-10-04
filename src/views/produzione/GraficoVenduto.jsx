@@ -59,7 +59,10 @@ export default function GraficoVenduto({ rows, da, a, registrati, riassunto, isM
       <ResponsiveContainer width="100%" height={isMobile ? 200 : 240}>
         <BarChart data={colonne} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
           <CartesianGrid vertical={false} stroke={T.graficoGriglia} />
-          <XAxis dataKey="label" tick={asse} tickLine={false} axisLine={{ stroke: T.border }} interval="preserveStartEnd" minTickGap={10} />
+          {/* Al telefono una data ogni tante: dieci date in 358 px si
+              accavallavano (foto del 04/10). */}
+          <XAxis dataKey="label" tick={asse} tickLine={false} axisLine={{ stroke: T.border }}
+            interval={isMobile ? Math.max(0, Math.ceil(colonne.length / 5) - 1) : 'preserveStartEnd'} minTickGap={10} />
           <YAxis tick={asse} tickLine={false} axisLine={false} width={44} tickFormatter={(v) => intero(v)} />
           <Tooltip content={<Suggerimento passo={passo} />} cursor={{ fill: T.bgSubtle }} />
           <defs>

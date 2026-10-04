@@ -21,13 +21,15 @@ export default function CalendarioGiorni({ righe, da, a, sedi = [], isMobile, st
     display: 'flex', alignItems: 'center', justifyContent: 'center', ...tnum,
     fontSize: font.size.sm, fontWeight: 600,
     ...(stato === 'registrato' ? { background: T.graficoReale, color: T.white }
-      : stato === 'parziale' ? { background: `repeating-linear-gradient(45deg, ${T.amber} 0 2px, ${T.amberLight} 2px 6px)`, color: T.amberDark, border: `1px solid ${T.amber}` }
+      // Contorno ambra pieno e fondo chiaro: sulle righe il numero del
+      // giorno non si leggeva (foto del 04/10).
+      : stato === 'parziale' ? { background: T.amberLight, color: T.amberDark, border: `2px solid ${T.amber}` }
         : { border: `1.5px dashed ${T.textSoft}`, color: T.textSoft }),
   })
   return (
     <Riquadro isMobile={isMobile} stile={stile}>
       <TitoloGrafico titolo={titoloCalendario(conteggio, { piuSedi })}
-        sottotitolo={`Pieno: registrato${piuSedi ? ' in tutte le sedi. A righe ambra: solo in qualche sede' : ''}. Tratteggiato: niente registrato, per una chiusura o una dimenticanza.`} />
+        sottotitolo={`Pieno: registrato${piuSedi ? ' in tutte le sedi. Bordo ambra: solo in qualche sede' : ''}. Tratteggiato: niente registrato, per una chiusura o una dimenticanza.`} />
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: isMobile ? 16 : 24 }}>
         {mesi.map(m => (
           <div key={m.chiave} style={{ minWidth: 0 }}>

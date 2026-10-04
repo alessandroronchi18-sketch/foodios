@@ -12,28 +12,28 @@
 // telefono una scheda per gusto, e l'ordine dietro un pulsante solo.
 import React, { useMemo, useState } from 'react'
 import { color as T, font, tnum } from '../../lib/theme'
-import { euro, quota } from '../../lib/formatoAnalisi'
+import { euro } from '../../lib/formatoAnalisi'
 import { TitoloGrafico, Riquadro, Andamentino } from '../../components/analisi'
 import { TabellaOSchede } from '../_shared'
 import Icon from '../../components/Icon'
 import MenuScelta from './MenuScelta'
 import { ORDINI, ordinaGusti, versoIniziale } from './righeGusti'
-import { kg } from './numeri'
+import { numFisso, quotaFissa } from './numeri'
 
-const giorni = (n) => (n == null ? null : new Intl.NumberFormat('it-IT', { maximumFractionDigits: 1 }).format(n))
 const MOTIVO = {
   ricetta: 'Nessuna ricetta collegata a questo nome',
   prezzo: 'Manca il prezzo di vendita o il costo di qualche ingrediente',
 }
 const motivoDi = (r) => (!r.haRicetta ? MOTIVO.ricetta : !(r.haRicavo && r.fcCompleto) ? MOTIVO.prezzo : null)
 
-// Le celle, scritte una volta per la tabella e per le schede.
+// Le celle, scritte una volta per la tabella e per le schede. Stessi
+// decimali in tutta la colonna (§6): «865,0» sotto «874,2», non «865».
 const cella = {
-  vendKg: (r) => kg(r.vendKg),
-  prodKg: (r) => kg(r.prodKg),
-  quotaVenduta: (r) => quota(r.quotaVenduta) || '—',
-  giorniVetrina: (r) => giorni(r.giorniVetrina) || '—',
-  scartoKg: (r) => kg(r.scartoKg),
+  vendKg: (r) => numFisso(r.vendKg),
+  prodKg: (r) => numFisso(r.prodKg),
+  quotaVenduta: (r) => quotaFissa(r.quotaVenduta) || '—',
+  giorniVetrina: (r) => numFisso(r.giorniVetrina) || '—',
+  scartoKg: (r) => numFisso(r.scartoKg),
   ricavo: (r) => (r.ricavo > 0 ? euro(r.ricavo) : '—'),
   fcKg: (r) => (r.fcKg > 0 ? `${euro(r.fcKg, { decimali: 2 })}/kg` : '—'),
   margine: (r) => (r.margine != null ? euro(r.margine) : 'non lo so'),
@@ -121,8 +121,8 @@ export default function TabellaGusti({ righe = [], totali, scartoRegistrato, isM
               <th scope="row" style={{ ...TD, textAlign: 'left', position: 'sticky', left: 0, background: T.bgCard, fontWeight: 800 }}>Totale</th>
               {colonne.map(c => (
                 <td key={c.k} style={{ ...TD, fontWeight: 800 }}>
-                  {c.k === 'vendKg' ? kg(totali.vend) : c.k === 'prodKg' ? kg(totali.prod)
-                    : c.k === 'quotaVenduta' ? (quota(quotaTot) || '—') : c.k === 'scartoKg' ? kg(totali.scarto)
+                  {c.k === 'vendKg' ? numFisso(totali.vend) : c.k === 'prodKg' ? numFisso(totali.prod)
+                    : c.k === 'quotaVenduta' ? (quotaFissa(quotaTot) || '—') : c.k === 'scartoKg' ? numFisso(totali.scarto)
                       : c.k === 'ricavo' ? euro(totali.ricavo)
                         : c.k === 'margine' ? <Margine r={{ margine: totali.margine, margPct: totali.margPct, haRicetta: true }} /> : ''}
                 </td>
@@ -132,8 +132,8 @@ export default function TabellaGusti({ righe = [], totali, scartoRegistrato, isM
         )}
         riepilogoTelefono={(
           <div style={{ border: `1px solid ${T.border}`, borderRadius: 12, background: T.bgSubtle, padding: '12px 14px', fontSize: font.size.base }}>
-            {[['Venduto', `${kg(totali.vend)} kg`], ['Prodotto', `${kg(totali.prod)} kg`], ['Ricavo stimato', euro(totali.ricavo)],
-              ['Margine stimato', totali.margine != null ? `${euro(totali.margine)} · ${quota(totali.margPct)}` : 'non lo so']].map(([v, x]) => (
+            {[['Venduto', `${numFisso(totali.vend)} kg`], ['Prodotto', `${numFisso(totali.prod)} kg`], ['Ricavo stimato', euro(totali.ricavo)],
+              ['Margine stimato', totali.margine != null ? `${euro(totali.margine)} · ${quotaFissa(totali.margPct)}` : 'non lo so']].map(([v, x]) => (
               <div key={v} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '4px 0' }}>
                 <span style={{ color: T.textSoft, fontWeight: 600 }}>{v}</span>
                 <span style={{ ...tnum, fontWeight: 800, color: T.text }}>{x}</span>
@@ -169,7 +169,7 @@ function Margine({ r }) {
   return (
     <span style={{ color: r.margine < 0 ? T.red : T.text }}>
       {euro(r.margine)}
-      {r.margPct != null && <span style={{ color: T.textSoft, fontWeight: 500 }}> · {quota(r.margPct)}</span>}
+      {r.margPct != null && <span style={{ color: T.textSoft, fontWeight: 500 }}> · {quotaFissa(r.margPct)}</span>}
     </span>
   )
 }

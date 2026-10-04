@@ -17,7 +17,7 @@ import { color as T, font, tnum } from '../../lib/theme'
 import { quota } from '../../lib/formatoAnalisi'
 import { conGiorno, dataBreve } from '../../lib/produzioneAnalisi'
 import { TitoloGrafico, Riquadro } from '../../components/analisi'
-import { kgTessera, intero } from './numeri'
+import { kgTessera, kgFisso, intero } from './numeri'
 
 /** «Carlina vende di più: 5.069 kg, il 43% del totale» (dieci parole al massimo). */
 export function titoloSedi(sedi = []) {
@@ -94,9 +94,10 @@ export default function SediAffiancate({ sedi = [], pannelli = null, isMobile, s
                   <span>{dataBreve(settimane[0].dal)}</span><span>{dataBreve(settimane[settimane.length - 1].dal)}</span>
                 </div>
               )}
-              <Riga voce="Al giorno registrato" valore={s.giorni > 0 ? kgTessera(s.vendutoG / s.giorni / 1000) : 'non lo so'} />
-              <Riga voce="Prodotto" valore={kgTessera(s.prodottoG / 1000)} />
-              <Riga voce="Vetrina, inizio e fine" valore={`${kgTessera(s.inizioG / 1000)} → ${kgTessera(s.fineG / 1000)}`} />
+              {/* Stessi decimali in tutta la colonna (§6). */}
+              <Riga voce="Al giorno registrato" valore={s.giorni > 0 ? kgFisso(s.vendutoG / s.giorni / 1000) : 'non lo so'} />
+              <Riga voce="Prodotto" valore={kgFisso(s.prodottoG / 1000)} />
+              <Riga voce="Vetrina, inizio e fine" valore={`${kgFisso(s.inizioG / 1000)} → ${kgFisso(s.fineG / 1000)}`} />
               <Riga voce="Giorni registrati" valore={intero(s.giorni)}
                 nota={fermo ? `registrato fino ${conGiorno('al', s.ultimo)}` : null} />
             </div>
