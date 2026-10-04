@@ -20,6 +20,7 @@ import { useNomiGusti } from '../../lib/useNomiGusti'
 import { normGusto } from '../../lib/normGusto'
 import { colonneVenduto } from './colonneVenduto'
 import { righeGusti } from './righeGusti'
+import { pannelliSedi } from './pannelliSedi'
 
 const dentro = (r, da, a) => r?.data && (!da || r.data >= da) && (!a || r.data <= a)
 
@@ -131,6 +132,12 @@ export function useContiProduzione({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [rows, dateFrom, dateTo, sedi]
   )
+  // Le sedi come pannelli uguali: il venduto delle settimane intere di
+  // ognuna, sulle stesse settimane e con la stessa scala.
+  const pannelli = useMemo(
+    () => (sediQuadro.length > 1 ? pannelliSedi(rows, { da: dateFrom, a: dateTo }, sediQuadro) : null),
+    [rows, dateFrom, dateTo, sediQuadro]
+  )
   const andamento = useMemo(() => andamentoGusti(rows, { da: dateFrom, a: dateTo }), [rows, dateFrom, dateTo])
   // Le settimane intere (non tagliate dal periodo né dai giorni registrati):
   // le sole che entrano nell'andamentino di ogni gusto.
@@ -146,7 +153,7 @@ export function useContiProduzione({
     caselle, riassunto, daSistemare, nomeSede,
     euroKgMedio, senzaRicetta, collegati, incompleti, kgSenzaRicetta,
     euroSenzaRicetta: euroKgMedio != null ? kgSenzaRicetta * euroKgMedio : null,
-    scartoRegistrato, vetrina, settimana, sedi: sediQuadro, andamento, righeTabella,
+    scartoRegistrato, vetrina, settimana, sedi: sediQuadro, pannelli, andamento, righeTabella,
     nomiGusti, collega,
   }
 }

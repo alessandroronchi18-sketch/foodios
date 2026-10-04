@@ -149,7 +149,7 @@ export default function AnalisiInventarioSection({
 
       {/* Dove e cosa: le sedi, i gusti. */}
       {sezione('Sedi e gusti', <>
-        <SediAffiancate sedi={c.sedi} isMobile={isMobile} />
+        <SediAffiancate sedi={c.sedi} pannelli={c.pannelli} isMobile={isMobile} />
         <TabellaGusti righe={c.righeTabella} totali={c.totali} scartoRegistrato={c.scartoRegistrato} isMobile={isMobile} />
       </>)}
 

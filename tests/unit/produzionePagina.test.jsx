@@ -464,7 +464,7 @@ describe('La pagina: sedi e tabella', () => {
   it('con due sedi le mette affiancate, con la quota di ognuna', async () => {
     apri({ rows: DUE_SEDI, sedeId: null, sedi: SEDI })
     await waitFor(() => expect(testo()).toMatch(/Carlina vende di più: 7 kg, il 66,7% del totale/), { timeout: 5000 })
-    expect(testo()).toMatch(/De Gasperi33,3% del venduto/)
+    expect(testo()).toMatch(/De Gasperi3,5 kg33,3% del venduto/)
     expect(testo()).toMatch(/Tutte le sedi · /)
   })
 
@@ -624,5 +624,49 @@ describe('La pagina segna i giorni falsati', () => {
     expect(voce('Lunedì').getAttribute('aria-label')).not.toMatch(/falsato/)
     expect(testo()).not.toMatch(/Il martedì vendi di più/)
     expect(testo()).toMatch(/Martedì e mercoledì sono falsati dalla rimanenza lasciata a 0 \(in tutto almeno 2 kg contati il giorno prima del vero\): restano fuori dal confronto/)
+  })
+})
+
+// ── 7. Le sedi in pannelli uguali (ricerca del 04/10, scelta 10) ───────────
+const { pannelliSedi } = await import('../../src/views/produzione/pannelliSedi.js')
+const { trattiSerie } = await import('../../src/views/produzione/SediAffiancate.jsx')
+
+describe('I pannelli delle sedi', () => {
+  // Due sedi, tre settimane piene (29/06-19/07, con la vetrina del 28/06):
+  // la seconda vende la metà e smette di registrare il 15/07.
+  const giorniSede = (sede, da, a, prod, riman) => {
+    const out = []
+    const t = new Date(`${da}T12:00:00Z`)
+    while (t <= new Date(`${a}T12:00:00Z`)) { out.push({ ...r('NOCCIOLA', t.toISOString().slice(0, 10), prod, riman), sede_id: sede }); t.setUTCDate(t.getUTCDate() + 1) }
+    return out
+  }
+  const righe = [...giorniSede('s1', '2026-06-28', '2026-07-19', 5000, 1000), ...giorniSede('s2', '2026-06-28', '2026-07-15', 2500, 500)]
+  const sedi = [
+    { sedeId: 's1', nome: 'Carlina', primo: '2026-06-29', ultimo: '2026-07-19' },
+    { sedeId: 's2', nome: 'Berthollet', primo: '2026-06-29', ultimo: '2026-07-15' },
+  ]
+  const p = pannelliSedi(righe, { da: '2026-06-29', a: '2026-07-19' }, sedi)
+
+  it('le stesse settimane per tutte le sedi, e la stessa scala', () => {
+    expect(p.settimane.map(w => w.dal)).toEqual(['2026-06-29', '2026-07-06', '2026-07-13'])
+    expect(p.sedi[0].serie).toEqual([35, 35, 35])
+    // La settimana del 13/07 di Berthollet è tagliata (si ferma il 15): un buco, non un calo.
+    expect(p.sedi[1].serie).toEqual([17.5, 17.5, null])
+    expect(p.max).toBe(35)
+  })
+  it('la linea si spezza dove manca la settimana', () => {
+    expect(trattiSerie([10, null, 10], 10).length).toBe(2)
+    expect(trattiSerie([10, 5, 10], 10)).toHaveLength(1)
+    // Stessa scala: il massimo in alto, la metà a metà.
+    const [[[, alto], [, meta]]] = trattiSerie([10, 5], 10)
+    expect(alto).toBeLessThan(meta)
+  })
+  it('nella pagina: un pannello per sede, il nome dentro, «registrato fino al» per chi si ferma prima', async () => {
+    apri({ rows: righe, dateFrom: '2026-06-29', dateTo: '2026-07-19', sedeId: null, sedi: [{ id: 's1', nome: 'Carlina' }, { id: 's2', nome: 'Berthollet' }] })
+    await waitFor(() => expect(screen.getByRole('img', { name: 'Carlina: venduto per settimana' })).toBeTruthy(), { timeout: 5000 })
+    expect(screen.getByRole('img', { name: 'Berthollet: venduto per settimana' })).toBeTruthy()
+    expect(testo()).toMatch(/registrato fino al 15\/07/)
+    // Giorni diversi: il titolo confronta il venduto per giorno registrato.
+    expect(testo()).toMatch(/Carlina vende di più: 5 kg per giorno registrato/)
   })
 })
