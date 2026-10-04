@@ -1120,7 +1120,11 @@ export function scorporaB2B({ kg, euroKg, ricavi, venditeB2B } = {}) {
     : (kgTot > 0 ? (Number(ricavi) || 0) / kgTot : 0)
   const b2bConsiderato = Array.isArray(venditeB2B)
   const b2bKg = kgB2B(venditeB2B)
+  // Una vendita annullata non ha fatturato niente: come per i chili
+  // (`kgB2B`), non conta. Prima i chili si toglievano e i soldi restavano
+  // (trovato il 04/10/2026, tests/unit/ingrossoAnnullato).
   const ricaviB2b = (b2bConsiderato ? venditeB2B : [])
+    .filter(v => v?.stato !== 'annullata')
     .reduce((s, v) => s + (Number(v?.totale) || 0), 0)
   // I chili al banco non possono essere meno di zero: se le righe B2B
   // superano i chili usciti dall'inventario c'è un dato sbagliato da qualche
@@ -1200,7 +1204,9 @@ export function kpiQuadraturaSettimana(matrice, chiusureSettimana, euroKg, vendi
   const b2bKg = kgB2B(venditeB2BSett)
   const retailKg = Math.max(0, totVendutoKg - b2bKg)
   // Ricavi B2B (totale fatturato vendite_b2b): informativo, separato.
+  // Le annullate non contano, né nei chili né nei soldi (vedi scorporaB2B).
   const ricaviB2b = (Array.isArray(venditeB2BSett) ? venditeB2BSett : [])
+    .filter(v => v?.stato !== 'annullata')
     .reduce((s, v) => s + (Number(v.totale) || 0), 0)
 
   // Confronto SOLO retail (la cassa retail non incassa i B2B):

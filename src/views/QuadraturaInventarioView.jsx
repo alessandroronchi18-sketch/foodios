@@ -16,7 +16,7 @@ import { color as T, typo, ui3, ui, font } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { sload } from '../lib/storage'
 import { aggiungiGiorni, todayLocal } from '../lib/dateLocal'
-import { supabase } from '../lib/supabase'
+import { venditeB2BPeriodo } from '../lib/venditeB2B'
 import { SK_FORMATI } from '../lib/storageKeys'
 import Icon from '../components/Icon'
 import { conGiorno, giorniRegistrati } from '../lib/produzioneAnalisi'
@@ -293,10 +293,13 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
     const lunPrec = addDays(lunediIso, -7)
     const finePrec = lunediIso
     const fineSett = addDays(lunediIso, 7)
-    const b2b = (da, a) => supabase.from('vendite_b2b').select('data, righe, totale, sede_id')
-      .eq('organization_id', orgId).in('sede_id', ids)
-      .gte('data', da).lt('data', a)
-      .then(({ data }) => data || [])
+    // L'ingrosso si legge come nel Mese (`venditeB2BPeriodo`): le vendite
+    // annullate fuori, quelle senza sede dentro. Prima la pagina chiedeva
+    // `vendite_b2b` da sola senza lo stato (un'annullata contava chili e
+    // soldi) e solo con una sede (quelle senza sede non contavano mai):
+    // lo stesso ingrosso dava un incasso diverso dal Mese.
+    const b2b = (da, a) => venditeB2BPeriodo(orgId, { sedeId: sedeId || null, da, a: addDays(a, -1) })
+      .then(v => v || [])
     Promise.all([
       Promise.all(ids.map(id => caricaSettimana(orgId, id, lunediIso))),
       Promise.all(ids.map(id => caricaSettimana(orgId, id, lunPrec))),
