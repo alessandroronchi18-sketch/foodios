@@ -33,6 +33,7 @@ import {
 } from '../../lib/contoEconomicoArchivio'
 import CoperturaDati from './CoperturaDati'
 import { IntestazioneAnalisi, TitoloGrafico, Riquadro } from './Testi'
+import PaginaAnalisi from './PaginaAnalisi'
 
 const PASSO = 25
 const FS = font.size
@@ -220,9 +221,10 @@ function RigaFornitore({ g, scelta, spuntato, onScelta, onSpunta, isMobile }) {
  * @param {boolean} [p.isMobile]
  * @param {() => void} [p.onSalvato]  dopo ogni salvataggio riuscito: il conto si rilegge
  * @param {object} [p.client]  il client del database (le prove ne passano uno finto)
+ * @param {React.ReactNode} [p.torna]  il pulsante per tornare alla pagina da cui si è aperta
  * @param {Date|string} [p.oggi]
  */
-export default function ClassificaSpese({ orgId, notify, isMobile = false, onSalvato, client = clientVero, oggi = new Date() }) {
+export default function ClassificaSpese({ orgId, notify, isMobile = false, onSalvato, client = clientVero, oggi = new Date(), torna = null }) {
   const [lettura, setLettura] = useState({ stato: 'leggo', errore: null })
   const [fatture, setFatture] = useState([])
   const [fornitori, setFornitori] = useState([])
@@ -368,11 +370,12 @@ export default function ClassificaSpese({ orgId, notify, isMobile = false, onSal
   )
 
   if (lettura.stato === 'leggo') {
-    return <div>{intestazione}<Riquadro isMobile={isMobile}><div role="status" style={{ fontSize: FS.md, color: T.textSoft }}>Leggo fatture e fornitori…</div></Riquadro></div>
+    return <PaginaAnalisi isMobile={isMobile}>{torna}{intestazione}<Riquadro isMobile={isMobile}><div role="status" style={{ fontSize: FS.md, color: T.textSoft }}>Leggo fatture e fornitori…</div></Riquadro></PaginaAnalisi>
   }
   if (lettura.stato === 'errore') {
     return (
-      <div>
+      <PaginaAnalisi isMobile={isMobile}>
+        {torna}
         {intestazione}
         <Riquadro isMobile={isMobile}>
           <div role="alert" style={{ display: 'flex', gap: 10, alignItems: 'flex-start', color: T.text, fontSize: FS.md, lineHeight: 1.5 }}>
@@ -380,7 +383,7 @@ export default function ClassificaSpese({ orgId, notify, isMobile = false, onSal
             <span>Non riesco a leggere fatture e fornitori ({lettura.errore}). Non ti mostro un elenco a metà: riprova fra poco.</span>
           </div>
         </Riquadro>
-      </div>
+      </PaginaAnalisi>
     )
   }
 
@@ -414,66 +417,63 @@ export default function ClassificaSpese({ orgId, notify, isMobile = false, onSal
   )
 
   return (
-    <div>
+    <PaginaAnalisi isMobile={isMobile}>
+      {torna}
       {intestazione}
       <CoperturaDati voci={copertura} />
 
       {eccezionali.length > 0 && (
-        <div style={{ marginBottom: 18 }}>
-          <FattureFuoriScala eccezionali={eccezionali} disponibili={eccezioniDisponibili} isMobile={isMobile}
-            aperta={fuoriScalaAperte} onApri={() => setFuoriScalaAperte(v => !v)}>
-            <ul style={{ listStyle: 'none', margin: 0, padding: 0 }} aria-label="Fatture fuori scala">
-              {eccezionali.map(f => (
-                <li key={f.id} style={{
-                  display: isMobile ? 'block' : 'grid', gridTemplateColumns: 'minmax(0, 1fr) 130px 230px auto', gap: 12, alignItems: 'center',
-                  padding: '10px 0', borderTop: `1px solid ${T.borderSoft}`,
-                }}>
-                  <div style={{ minWidth: 0 }}>
-                    <div title={f.fornitore} style={{ fontSize: FS.md, fontWeight: 600, color: T.text }}>{nomeBreve(f.fornitore)}</div>
-                    <div style={{ fontSize: FS.sm, color: T.textSoft }}>
-                      {`${f.numero ? `n. ${f.numero} · ` : ''}${dataLunga(f.data)} · ${f.motivo}${f.tipica ? ` (di solito ${euro(f.tipica)})` : ''}`}
-                    </div>
+        <FattureFuoriScala eccezionali={eccezionali} disponibili={eccezioniDisponibili} isMobile={isMobile}
+          aperta={fuoriScalaAperte} onApri={() => setFuoriScalaAperte(v => !v)}>
+          <ul style={{ listStyle: 'none', margin: 0, padding: 0 }} aria-label="Fatture fuori scala">
+            {eccezionali.map(f => (
+              <li key={f.id} style={{
+                display: isMobile ? 'block' : 'grid', gridTemplateColumns: 'minmax(0, 1fr) 130px 230px auto', gap: 12, alignItems: 'center',
+                padding: '10px 0', borderTop: `1px solid ${T.borderSoft}`,
+              }}>
+                <div style={{ minWidth: 0 }}>
+                  <div title={f.fornitore} style={{ fontSize: FS.md, fontWeight: 600, color: T.text }}>{nomeBreve(f.fornitore)}</div>
+                  <div style={{ fontSize: FS.sm, color: T.textSoft }}>
+                    {`${f.numero ? `n. ${f.numero} · ` : ''}${dataLunga(f.data)} · ${f.motivo}${f.tipica ? ` (di solito ${euro(f.tipica)})` : ''}`}
                   </div>
-                  <div style={{ ...tnum, fontSize: FS.md, fontWeight: 700, color: T.text, textAlign: isMobile ? 'left' : 'right', margin: isMobile ? '6px 0' : 0 }}>{euro(f.importo)}</div>
-                  <SceltaVoce valore={vociFatture.has(f.id) ? vociFatture.get(f.id) : 'attrezzature'} etichetta={`Voce della fattura ${f.numero || ''} di ${f.fornitore}`}
-                    onCambia={(v) => setVociFatture(m => new Map(m).set(f.id, v))} />
-                  <div style={{ marginTop: isMobile ? 8 : 0 }}>
-                    <Pulsante onClick={() => salvaFattura(f)} disabilitato={salvando || (vociFatture.has(f.id) && !vociFatture.get(f.id))}>Salva</Pulsante>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </FattureFuoriScala>
-        </div>
+                </div>
+                <div style={{ ...tnum, fontSize: FS.md, fontWeight: 700, color: T.text, textAlign: isMobile ? 'left' : 'right', margin: isMobile ? '6px 0' : 0 }}>{euro(f.importo)}</div>
+                <SceltaVoce valore={vociFatture.has(f.id) ? vociFatture.get(f.id) : 'attrezzature'} etichetta={`Voce della fattura ${f.numero || ''} di ${f.fornitore}`}
+                  onCambia={(v) => setVociFatture(m => new Map(m).set(f.id, v))} />
+                <div style={{ marginTop: isMobile ? 8 : 0 }}>
+                  <Pulsante onClick={() => salvaFattura(f)} disabilitato={salvando || (vociFatture.has(f.id) && !vociFatture.get(f.id))}>Salva</Pulsante>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </FattureFuoriScala>
       )}
 
-      <div style={{ marginBottom: 18 }}>
-        <Riquadro isMobile={isMobile}>
-          <TitoloGrafico
-            titolo={senzaVoce.length
-              ? `${nInt(senzaVoce.length)} fornitori senza voce: ${euro(spesaSenza)} negli ultimi 12 mesi`
-              : 'Tutti i fornitori hanno la loro voce'}
-            sottotitolo={senzaVoce.length ? 'Dal più pesante. Controlla la voce proposta, cambiala se serve, poi salva le righe spuntate.' : 'Le fatture nuove entrano da sole nella voce del loro fornitore.'}
-            destra={senzaVoce.length && !isMobile ? barraSalva : null} />
-          {senzaVoce.length > 0 && isMobile && <div style={{ marginBottom: 8 }}>{barraSalva}</div>}
-          {senzaVoce.length > 0 && (
-            <ul style={{ listStyle: 'none', margin: 0, padding: 0 }} aria-label="Fornitori senza voce">
-              {visibili.map(g => (
-                <RigaFornitore key={g.chiave} g={g} isMobile={isMobile}
-                  scelta={scelte.has(g.chiave) ? scelte.get(g.chiave) : undefined}
-                  spuntato={spuntati.has(g.chiave)}
-                  onScelta={(id) => cambiaScelta(g, id)}
-                  onSpunta={(si) => spunta(g, si)} />
-              ))}
-            </ul>
-          )}
-          {senzaVoce.length > quanti && (
-            <div style={{ marginTop: 10 }}>
-              <Pulsante onClick={() => setQuanti(q => q + PASSO)}>{`Mostra altri ${nInt(Math.min(PASSO, senzaVoce.length - quanti))} (ne restano ${nInt(senzaVoce.length - quanti)})`}</Pulsante>
-            </div>
-          )}
-        </Riquadro>
-      </div>
+      <Riquadro isMobile={isMobile}>
+        <TitoloGrafico
+          titolo={senzaVoce.length
+            ? `${nInt(senzaVoce.length)} fornitori senza voce: ${euro(spesaSenza)} negli ultimi 12 mesi`
+            : 'Tutti i fornitori hanno la loro voce'}
+          sottotitolo={senzaVoce.length ? 'Dal più pesante. Controlla la voce proposta, cambiala se serve, poi salva le righe spuntate.' : 'Le fatture nuove entrano da sole nella voce del loro fornitore.'}
+          destra={senzaVoce.length && !isMobile ? barraSalva : null} />
+        {senzaVoce.length > 0 && isMobile && <div style={{ marginBottom: 8 }}>{barraSalva}</div>}
+        {senzaVoce.length > 0 && (
+          <ul style={{ listStyle: 'none', margin: 0, padding: 0 }} aria-label="Fornitori senza voce">
+            {visibili.map(g => (
+              <RigaFornitore key={g.chiave} g={g} isMobile={isMobile}
+                scelta={scelte.has(g.chiave) ? scelte.get(g.chiave) : undefined}
+                spuntato={spuntati.has(g.chiave)}
+                onScelta={(id) => cambiaScelta(g, id)}
+                onSpunta={(si) => spunta(g, si)} />
+            ))}
+          </ul>
+        )}
+        {senzaVoce.length > quanti && (
+          <div style={{ marginTop: 10 }}>
+            <Pulsante onClick={() => setQuanti(q => q + PASSO)}>{`Mostra altri ${nInt(Math.min(PASSO, senzaVoce.length - quanti))} (ne restano ${nInt(senzaVoce.length - quanti)})`}</Pulsante>
+          </div>
+        )}
+      </Riquadro>
 
       {conVoce.length > 0 && (
         <Riquadro isMobile={isMobile}>
@@ -496,6 +496,6 @@ export default function ClassificaSpese({ orgId, notify, isMobile = false, onSal
           {mostraClassificati && daSalvare.length > 0 && isMobile && <div style={{ marginTop: 10 }}>{barraSalva}</div>}
         </Riquadro>
       )}
-    </div>
+    </PaginaAnalisi>
   )
 }

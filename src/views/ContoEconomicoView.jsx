@@ -16,6 +16,7 @@ import { color as T, font, typo, tnum } from '../lib/theme'
 import useIsMobile from '../lib/useIsMobile'
 import Icon from '../components/Icon'
 import { CoperturaDati, Andamentino, IntestazioneAnalisi, TitoloGrafico, Riquadro, ClassificaSpese } from '../components/analisi'
+import PaginaAnalisi from '../components/analisi/PaginaAnalisi'
 import { euro, euroSegno, quota, nomeMese, mesePrima, variazione } from '../lib/formatoAnalisi'
 import { caricaIlMese } from '../lib/ilMeseArchivio'
 import { vociCopertura } from './IlMeseView'
@@ -117,16 +118,16 @@ export default function ContoEconomicoView({ orgId, sedi = [], sedeId = null, on
 
   const conto = dati?.attuale?.conto
   if (classifica) return (
-    <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-      <button type="button" onClick={() => setClassifica(false)} style={{ ...stileFreccia, width: 'auto', padding: '0 12px', gap: 6, marginBottom: 12, fontSize: font.size.base, fontWeight: 600 }}>
-        <Icon name="chevL" size={14} />Torna al conto
-      </button>
-      <ClassificaSpese orgId={orgId} notify={notify} isMobile={isMobile}
-        onSalvato={() => { setClassifica(false); setVersione(v => v + 1) }} />
-    </div>
+    <ClassificaSpese orgId={orgId} notify={notify} isMobile={isMobile}
+      torna={(
+        <button type="button" onClick={() => setClassifica(false)} style={{ ...stileFreccia, width: 'auto', padding: '0 12px', gap: 6, alignSelf: 'flex-start', fontSize: font.size.base, fontWeight: 600 }}>
+          <Icon name="chevL" size={14} />Torna al conto
+        </button>
+      )}
+      onSalvato={() => { setClassifica(false); setVersione(v => v + 1) }} />
   )
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto', opacity: caricando && dati ? 0.6 : 1 }}>
+    <PaginaAnalisi isMobile={isMobile} attenuata={caricando && !!dati}>
       <IntestazioneAnalisi isMobile={isMobile}
         domanda={`Il conto di ${nomeMese(mese)}`}
         sotto={`Voce per voce, senza IVA, contro ${nomeMese(dati?.confronto || mese)}.`}
@@ -181,12 +182,12 @@ export default function ContoEconomicoView({ orgId, sedi = [], sedeId = null, on
               </div>
             )}
           </Riquadro>
-          <div style={{ fontSize: font.size.sm, color: T.textSoft, marginTop: 10, lineHeight: 1.5 }}>
+          <div style={{ fontSize: font.size.sm, color: T.textSoft, lineHeight: '16px' }}>
             Le spese sono per data della fattura, senza IVA dove l&apos;imponibile c&apos;è. Il margine per prodotto, che prima stava qui, è in Food cost.
           </div>
         </>
       )}
-    </div>
+    </PaginaAnalisi>
   )
 }
 

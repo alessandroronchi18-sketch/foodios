@@ -24,6 +24,7 @@ import { caricaRegoleChiusura, giornoChiuso } from '../lib/giorniChiusura'
 import { previsioneSede, piuGiorni, giorniFra, giornoSettimana, GIORNI_DATI_VECCHI, LIVELLO_BANDA } from '../lib/previsioneVenduto'
 import { dataBreve } from '../lib/formatoAnalisi'
 import { CoperturaDati, NumeroConConfronto, IntestazioneAnalisi, TitoloGrafico, Riquadro } from '../components/analisi'
+import PaginaAnalisi, { spazioRiquadri } from '../components/analisi/PaginaAnalisi'
 import Icon from '../components/Icon'
 
 // ── Come si scrivono i numeri (esportati per i test) ────────────────────
@@ -166,7 +167,9 @@ export default function PrevisioniView({ orgId, sedeId, sedi = [], sedeAttiva = 
   ) : null
 
   return (
-    <div style={{ maxWidth: 1040, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
+    // Era larga 1040 px e le sorelle 1200: cambiando pagina tutto saltava di
+    // 80 px (audit 04/10, PR1). Larghezza e spazi li decide PaginaAnalisi.
+    <PaginaAnalisi isMobile={isMobile}>
       <IntestazioneAnalisi
         domanda="Cosa preparo domani?"
         sotto={`${nomeSede ? `${nomeSede} · ` : ''}quanto se ne venderà, ${LEX.prodotto} per ${LEX.prodotto}, in kg: dall'inventario della vetrina`}
@@ -191,7 +194,7 @@ export default function PrevisioniView({ orgId, sedeId, sedi = [], sedeAttiva = 
             </Riquadro>
           )}
           {p.stato === 'vecchi' && (
-            <Riquadro isMobile={isMobile} stile={{ marginBottom: 16 }}>
+            <Riquadro isMobile={isMobile}>
               <TitoloGrafico
                 titolo={`L’inventario di ${nomeSede || 'questa sede'} è fermo al ${dataBreve(p.ultimoDato)}: non posso dirti cosa preparare`}
                 sottotitolo={`Sono passati ${NF0.format(p.giorniVecchi)} giorni. Oltre ${GIORNI_DATI_VECCHI} giorni non so cosa c’è in vetrina, e un numero sarebbe inventato.`}
@@ -209,7 +212,7 @@ export default function PrevisioniView({ orgId, sedeId, sedi = [], sedeAttiva = 
             <>
               <div role="note" style={{
                 background: T.fondoAvviso, border: `1px solid ${T.bordoAvviso}`, borderRadius: R.xl,
-                padding: '10px 14px', marginBottom: 14, color: T.amberDark, fontSize: font.size.md, lineHeight: 1.5,
+                padding: '10px 14px', color: T.amberDark, fontSize: font.size.md, lineHeight: 1.5,
                 display: 'flex', gap: 8, alignItems: 'flex-start',
               }}>
                 <span style={{ display: 'inline-flex', marginTop: 2, flexShrink: 0 }} aria-hidden="true"><Icon name="clock" size={15} /></span>
@@ -223,7 +226,7 @@ export default function PrevisioniView({ orgId, sedeId, sedi = [], sedeAttiva = 
           {(p.stato === 'ok' || ultima?.stato === 'ok') && <ComeLeggo LEX={LEX} />}
         </>
       )}
-    </div>
+    </PaginaAnalisi>
   )
 }
 
@@ -303,7 +306,7 @@ function Previsione({ p, oggi, LEX, isMobile, assoluto = false }) {
 
   return (
     <>
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))', gap: 12, marginBottom: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))', gap: spazioRiquadri(isMobile) }}>
         <NumeroConConfronto
           etichetta={`Da rifare entro ${etichettaDomani}`}
           valore={scorteNote ? `${NF0.format(urgenti.length)} ${urgenti.length === 1 ? LEX.prodotto : LEX.prodotti}` : null}
@@ -333,7 +336,7 @@ function Previsione({ p, oggi, LEX, isMobile, assoluto = false }) {
         />
       </div>
 
-      <Riquadro isMobile={isMobile} stile={{ marginBottom: 16 }}>
+      <Riquadro isMobile={isMobile}>
         <TitoloGrafico
           titolo={urgenti.length ? `Da rifare per primi: ${elenco(urgenti.slice(0, 3).map(g => g.gusto))}` : (scorteNote ? `Entro ${etichettaDomani} non finisce niente` : `In ordine di vendita prevista`)}
           sottotitolo={`Prima chi finisce prima. ${isMobile ? '«4–6 kg»' : '«Fra 4 e 6 kg»'} vuol dire: 8 volte su 10 il venduto vero cade lì dentro.${allargata ? ' La banda è più larga del solito: nelle ultime due settimane ci ho preso meno spesso.' : ''}`}
@@ -428,7 +431,7 @@ function RigaGusto({ g, oggi, base, colonne, isMobile, testoGiorno }) {
 
 function ComeLeggo({ LEX }) {
   return (
-    <details style={{ marginBottom: 24, color: T.textMid, fontSize: font.size.base, lineHeight: 1.6 }}>
+    <details style={{ color: T.textMid, fontSize: font.size.base, lineHeight: 1.6 }}>
       <summary style={{ cursor: 'pointer', fontWeight: 700, color: T.textMid, minHeight: 32, display: 'flex', alignItems: 'center' }}>
         Come leggo questi numeri
       </summary>
