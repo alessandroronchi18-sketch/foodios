@@ -12,7 +12,7 @@
 // le due pagine non possono dire due cose diverse dello stesso mese.
 import React, { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { color as T, font, typo } from '../lib/theme'
+import { color as T, font, typo, tnum } from '../lib/theme'
 import useIsMobile from '../lib/useIsMobile'
 import Icon from '../components/Icon'
 import { CoperturaDati, Andamentino, IntestazioneAnalisi, TitoloGrafico, Riquadro, ClassificaSpese } from '../components/analisi'
@@ -142,8 +142,19 @@ export default function ContoEconomicoView({ orgId, sedi = [], sedeId = null, on
                 ? `Utile ${euro(conto.utile)}${ricavi > 0 ? `, ${quota(conto.quote.utile)} degli incassi` : ''}`
                 : 'L\'utile non si può ancora dire'}
               sottotitolo="Tocca una voce di spesa per vedere i fornitori che pesano di più." />
+            {/* Al telefono la tabella era larga 608 px in un riquadro di 354 e
+                la differenza con l'anno prima restava fuori schermo (audit
+                04/10, CE1): lì il conto è un elenco di schede. */}
+            {isMobile ? (
+              <ul aria-label="Il conto voce per voce" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+                {righe.map(r => (
+                  <SchedaConto key={r.chiave} r={r} ricavi={ricavi} meseConfronto={dati.confronto}
+                    aperta={aperte.has(r.chiave)} onApri={r.dettaglio?.length ? () => apri(r.chiave) : null} />
+                ))}
+              </ul>
+            ) : (
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.size.base, minWidth: isMobile ? 560 : 0 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.size.base }}>
                 <thead>
                   <tr style={{ color: T.textSoft, ...typo.overline }}>
                     <th style={{ ...cella, textAlign: 'left' }}>Voce</th>
@@ -151,17 +162,18 @@ export default function ContoEconomicoView({ orgId, sedi = [], sedeId = null, on
                     <th style={cellaNum}>{nomeMese(dati.confronto)}</th>
                     <th style={cellaNum}>Differenza</th>
                     <th style={cellaNum}>Sugli incassi</th>
-                    {!isMobile && <th style={{ ...cella, textAlign: 'right' }}>12 mesi</th>}
+                    <th style={{ ...cella, textAlign: 'right' }}>12 mesi</th>
                   </tr>
                 </thead>
                 <tbody>
                   {righe.map(r => (
-                    <RigaConto key={r.chiave} r={r} ricavi={ricavi} isMobile={isMobile}
+                    <RigaConto key={r.chiave} r={r} ricavi={ricavi}
                       aperta={aperte.has(r.chiave)} onApri={r.dettaglio?.length ? () => apri(r.chiave) : null} />
                   ))}
                 </tbody>
               </table>
             </div>
+            )}
             {conto.investimenti > 0 && (
               <div style={{ marginTop: 12, paddingTop: 10, borderTop: `1px dashed ${T.border}`, fontSize: font.size.base, color: T.textMid, display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
                 <span><b style={{ color: T.text }}>Fuori dal conto:</b> investimenti (attrezzature, lavori). Si pagano una volta e durano anni: non sono spese del mese.</span>
@@ -185,13 +197,28 @@ const stileFreccia = {
   color: T.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
 }
 
-function RigaConto({ r, ricavi, isMobile, aperta, onApri }) {
-  const forte = r.tipo !== 'spesa'
+/** I numeri di una riga, uguali nella tabella e nella scheda del telefono. */
+function numeriRiga(r, ricavi) {
   const v = r.valore != null && r.prima != null
     ? variazione({ attuale: r.valore, confronto: r.prima, piuEMeglio: r.tipo !== 'spesa' })
     : null
-  const coloreDiff = v ? (v.verso === 'meglio' ? T.green : v.verso === 'peggio' ? T.red : T.textSoft) : T.textSoft
-  const peso = ricavi > 0 && r.valore != null && r.tipo !== 'ricavo' ? quota((r.valore / ricavi) * 100) : ''
+  return {
+    coloreDiff: v ? (v.verso === 'meglio' ? T.green : v.verso === 'peggio' ? T.red : T.textSoft) : T.textSoft,
+    peso: ricavi > 0 && r.valore != null && r.tipo !== 'ricavo' ? quota((r.valore / ricavi) * 100) : '',
+    valore: r.valore == null ? 'non lo so' : r.tipo === 'spesa' ? `−${euro(r.valore)}` : euro(r.valore),
+    coloreValore: r.valore == null ? T.amberDark : r.tipo === 'risultato' && r.valore < 0 ? T.red : T.text,
+    prima: r.prima == null ? null : r.tipo === 'spesa' ? `−${euro(r.prima)}` : euro(r.prima),
+    // La differenza in euro e il giudizio a parole, separati: la tabella li
+    // scrive «+2.000 € · peggio», la scheda «+2.000 € su agosto 2025 · peggio».
+    diff: v ? euroSegno(r.valore - r.prima) : null,
+    giudizio: v && v.verso !== 'pari' ? v.verso : null,
+  }
+}
+const conGiudizio = (testo, giudizio) => `${testo}${giudizio ? ` · ${giudizio}` : ''}`
+
+function RigaConto({ r, ricavi, aperta, onApri }) {
+  const forte = r.tipo !== 'spesa'
+  const n = numeriRiga(r, ricavi)
   const stileRiga = { fontWeight: forte ? 800 : 500, color: T.text, background: r.tipo === 'risultato' ? T.bgSubtle : 'transparent' }
   return (
     <>
@@ -204,17 +231,11 @@ function RigaConto({ r, ricavi, isMobile, aperta, onApri }) {
             </button>
           ) : <span style={{ paddingLeft: r.tipo === 'spesa' ? 19 : 0 }}>{r.etichetta}</span>}
         </td>
-        <td style={{ ...cellaNum, fontVariantNumeric: 'tabular-nums', color: r.valore == null ? T.amberDark : r.tipo === 'risultato' && r.valore < 0 ? T.red : T.text }}>
-          {r.valore == null ? 'non lo so' : r.tipo === 'spesa' ? `−${euro(r.valore)}` : euro(r.valore)}
-        </td>
-        <td style={{ ...cellaNum, fontVariantNumeric: 'tabular-nums', color: T.textSoft, fontWeight: 500 }}>
-          {r.prima == null ? '—' : r.tipo === 'spesa' ? `−${euro(r.prima)}` : euro(r.prima)}
-        </td>
-        <td style={{ ...cellaNum, fontVariantNumeric: 'tabular-nums', color: coloreDiff, fontWeight: 600 }}>
-          {v ? `${euroSegno(r.valore - r.prima)}${v.verso !== 'pari' ? (v.verso === 'meglio' ? ' · meglio' : ' · peggio') : ''}` : '—'}
-        </td>
-        <td style={{ ...cellaNum, fontVariantNumeric: 'tabular-nums', color: T.textSoft, fontWeight: 500 }}>{peso}</td>
-        {!isMobile && <td style={{ ...cella, textAlign: 'right' }}><span style={{ display: 'inline-block' }}><Andamentino valori={r.serie} etichetta={`${r.etichetta}, ultimi 12 mesi`} /></span></td>}
+        <td style={{ ...cellaNum, fontVariantNumeric: 'tabular-nums', color: n.coloreValore }}>{n.valore}</td>
+        <td style={{ ...cellaNum, fontVariantNumeric: 'tabular-nums', color: T.textSoft, fontWeight: 500 }}>{n.prima ?? '—'}</td>
+        <td style={{ ...cellaNum, fontVariantNumeric: 'tabular-nums', color: n.coloreDiff, fontWeight: 600 }}>{n.diff ? conGiudizio(n.diff, n.giudizio) : '—'}</td>
+        <td style={{ ...cellaNum, fontVariantNumeric: 'tabular-nums', color: T.textSoft, fontWeight: 500 }}>{n.peso}</td>
+        <td style={{ ...cella, textAlign: 'right' }}><span style={{ display: 'inline-block' }}><Andamentino valori={r.serie} etichetta={`${r.etichetta}, ultimi 12 mesi`} /></span></td>
       </tr>
       {aperta && (r.dettaglio || []).map(f => (
         <tr key={f.nome} style={{ color: T.textMid, fontSize: font.size.sm }}>
@@ -223,9 +244,64 @@ function RigaConto({ r, ricavi, isMobile, aperta, onApri }) {
           <td style={{ ...cellaNum, fontVariantNumeric: 'tabular-nums', color: T.textSoft }}>{euro(f.prima)}</td>
           <td style={{ ...cellaNum, fontVariantNumeric: 'tabular-nums' }}>{euroSegno(f.valore - f.prima)}</td>
           <td style={cellaNum} />
-          {!isMobile && <td style={cella} />}
+          <td style={cella} />
         </tr>
       ))}
     </>
+  )
+}
+
+/**
+ * La voce al telefono: nome ed euro sulla prima riga; sotto, nella stessa
+ * scheda, quanto pesa sugli incassi e la differenza con l'anno prima.
+ * Le voci con i fornitori dietro si aprono toccando la scheda intera.
+ */
+function SchedaConto({ r, ricavi, meseConfronto, aperta, onApri }) {
+  const n = numeriRiga(r, ricavi)
+  const forte = r.tipo !== 'spesa'
+  const confronto = nomeMese(meseConfronto)
+  const sotto = [
+    n.peso ? <span key="p">{n.peso} degli incassi</span> : null,
+    n.diff
+      ? <span key="d" style={{ color: n.coloreDiff, fontWeight: 600 }}>{conGiudizio(`${n.diff} su ${confronto}`, n.giudizio)}</span>
+      : <span key="d">{n.prima ? `${confronto}: ${n.prima}` : `${confronto}: non noto`}</span>,
+  ].filter(Boolean)
+  const corpo = (
+    <>
+      <span aria-hidden="true" style={{ display: 'inline-flex', alignItems: 'center', height: 20, color: T.textSoft }}>
+        {onApri ? <Icon name={aperta ? 'chevDown' : 'chevR'} size={14} /> : null}
+      </span>
+      <span style={{ fontSize: font.size.md, lineHeight: '20px', fontWeight: forte ? 800 : 600, color: T.text, minWidth: 0 }}>{r.etichetta}</span>
+      <span style={{ fontSize: font.size.md, lineHeight: '20px', fontWeight: forte ? 800 : 600, color: n.coloreValore, textAlign: 'right', whiteSpace: 'nowrap', ...tnum }}>{n.valore}</span>
+      <span style={{ gridColumn: '2 / 4', fontSize: font.size.sm, lineHeight: '16px', color: T.textSoft, ...tnum }}>
+        {sotto.reduce((acc, el, i) => (i ? [...acc, <span key={`s${i}`}> · </span>, el] : [el]), [])}
+      </span>
+    </>
+  )
+  const griglia = {
+    display: 'grid', gridTemplateColumns: '16px minmax(0, 1fr) auto', columnGap: 8, rowGap: 4, alignItems: 'start',
+    width: '100%', minHeight: 44, padding: '12px 0', boxSizing: 'border-box', textAlign: 'left',
+  }
+  return (
+    // L'utile chiude il conto: il filo sopra è più scuro, come una somma.
+    <li style={{ borderTop: r.tipo === 'risultato' ? `2px solid ${T.borderStr}` : `1px solid ${T.borderSoft}` }}>
+      {onApri ? (
+        <button type="button" onClick={onApri} aria-expanded={aperta}
+          style={{ ...griglia, border: 'none', background: 'transparent', font: 'inherit', color: 'inherit', cursor: 'pointer' }}>
+          {corpo}
+        </button>
+      ) : <div style={griglia}>{corpo}</div>}
+      {aperta && (
+        <ul style={{ listStyle: 'none', margin: 0, padding: '0 0 8px 24px' }}>
+          {(r.dettaglio || []).map(f => (
+            <li key={f.nome} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', columnGap: 8, padding: '8px 0', borderTop: `1px dashed ${T.borderSoft}`, fontSize: font.size.sm, lineHeight: '16px', color: T.textMid }}>
+              <span style={{ minWidth: 0 }}>{f.nome}</span>
+              <span style={{ textAlign: 'right', whiteSpace: 'nowrap', color: T.text, ...tnum }}>{euro(f.valore)}</span>
+              <span style={{ gridColumn: '1 / 3', color: T.textSoft, ...tnum }}>{`${confronto}: ${euro(f.prima)} · ${euroSegno(f.valore - f.prima)}`}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </li>
   )
 }
