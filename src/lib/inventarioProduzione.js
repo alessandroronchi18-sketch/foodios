@@ -14,6 +14,8 @@ import { supabase } from './supabase'
 import { formatLocalDate, todayLocal } from './dateLocal'
 import { normGusto } from './normGusto'
 import { prezzoMedioAlKg } from './prezzoMedioAlKg'
+import { conGiorno } from './produzioneAnalisi'
+import { ricettaCollegata } from './nomiGusti'
 
 // Normalizzazione del nome gusto: UPPER+trim come in stock_prodotti_finiti,
 // cosi e' indipendente da come l'utente l'ha digitato in ricettario.
@@ -366,6 +368,11 @@ export async function rimuoviCella(orgId, sedeId, gustoNome, dataIso, opts = {})
 //     `quadra: false` marca la cella; `venduto` resta il numero col segno.
 export const GIORNI_RIPORTO_MAX = 7
 
+// La causa più frequente di una casella che non torna: la rimanenza del
+// giorno prima lasciata a 0 nel giorno in cui si era prodotto. Vedi
+// `cellaVenduto`.
+export const CAUSA_RIMANENZA_A_ZERO = 'rimanenza-precedente-a-zero'
+
 // Somma di giorni su una data 'YYYY-MM-DD' senza passare dal fuso orario.
 function piuGiorni(dataIso, n) {
   const [y, m, d] = dataIso.split('-').map(Number)
@@ -509,9 +516,36 @@ export function cellaVenduto(byKey, gustoKey, dataIso) {
   }
   const v = rimanPrec + prod + ricevuto - riman - scarto - spedito
   const accettato = !!corrente.scostamento_accettato
+  // ── Il buco sta nel giorno PRIMA (audit del 03/10/2026) ───────────────
+  //
+  // Nei dati di Mara 660 righe hanno la rimanenza a 0, e in 658 quel giorno
+  // si era prodotto (in media 5,9 kg): la casella non è stata compilata, o
+  // la rimanenza è stata scritta il giorno dopo. Il conto allora sbaglia due
+  // volte, in versi opposti: il giorno della produzione tutto risulta
+  // venduto, e il giorno dopo la rimanenza «ricompare» e il venduto esce
+  // negativo. De Gasperi, MAROTTO: l'11/08 prodotti 5,0 kg e rimanenza 0
+  // (venduti 12,5 kg); il 12/08 rimanenza 4,6 kg (venduti -4,6 kg). Sui due
+  // giorni insieme (7,9 kg) il conto torna; giorno per giorno no.
+  //
+  // Nelle tre settimane 10-30/08 sono 151 delle 158 caselle negative
+  // (95,6%). La pagina le metteva tutte sul giorno negativo — «mancano 4,6 kg
+  // il 12/08» — e proponeva «È giusta così», cioè di accettare come omaggio
+  // un errore di compilazione dell'11.
+  //
+  // Il dato NON si corregge (non sappiamo quanto c'era davvero in vetrina):
+  // si riconosce il caso e si dice qual è la casella da sistemare.
+  const prec = v < 0 && rimanPrec === 0 && giorniIndietro > 0
+    ? byKey[`${gustoKey}|${piuGiorni(dataIso, -giorniIndietro)}`]
+    : null
+  const rimanenzaPrecAZero = !!(prec && (Number(prec.produzione_g) || 0) > 0)
+  const giornoDaSistemare = rimanenzaPrecAZero ? piuGiorni(dataIso, -giorniIndietro) : null
   return {
     prod, riman, scarto, spedito, ricevuto, rimanPrec, giorniIndietro,
     venduto: v, vendutoRaw: v,
+    // Perché non torna, quando lo si sa: 'rimanenza-precedente-a-zero' vuol
+    // dire che va sistemata la rimanenza di `giornoDaSistemare`, non questa.
+    causa: rimanenzaPrecAZero ? CAUSA_RIMANENZA_A_ZERO : (v < 0 ? 'non-torna' : null),
+    giornoDaSistemare,
     // `quadra` resta il fatto matematico (il conto torna o no).
     // `daControllare` è la domanda pratica: c'è qualcosa da guardare?
     // Una cella accettata non torna e non tornerà mai — è un omaggio, una
@@ -521,7 +555,9 @@ export function cellaVenduto(byKey, gustoKey, dataIso) {
     daControllare: v < 0 && !accettato,
     nota: corrente.scostamento_nota || null,
     registrata: true,
-    motivo: !(v >= 0)
+    motivo: rimanenzaPrecAZero
+      ? `la rimanenza ${conGiorno('del', giornoDaSistemare)} è rimasta a 0 nel giorno in cui si era prodotto: quel gelato era ancora in vetrina`
+      : !(v >= 0)
       ? "il conto non torna: la rimanenza scritta è più alta di quanto c'era a disposizione"
       : (giorniIndietro > 1
         ? `include ${giorniIndietro - 1} giorn${giorniIndietro === 2 ? 'o' : 'i'} non registrat${giorniIndietro === 2 ? 'o' : 'i'} prima`
@@ -744,6 +780,74 @@ export function totaliPerGusto(righe, opts = {}) {
   return out
 }
 
+// Le caselle da sistemare in un periodo, sede per sede, con il giorno GIUSTO.
+//
+// Serve allo Storico, che fino al 03/10/2026 le ignorava del tutto (i
+// contatori di `totaliPerGusto` c'erano, la pagina non li leggeva): sul
+// grafico di apertura il 12/08 risultava «-126,3 kg venduti» senza una
+// parola. E serve a dire il giorno giusto: per la causa più frequente il
+// giorno da sistemare è quello PRIMA della casella negativa.
+//
+// Ritorna un elenco di { sedeId, gusto, data, kg, causa, giornoDaSistemare,
+// compensata }:
+//   - kg: il venduto della casella (negativo);
+//   - giornoDaSistemare: la casella da correggere (per la rimanenza a zero è
+//     il giorno prima; per le altre è la casella stessa);
+//   - compensata: il giorno da sistemare è DENTRO il periodo, quindi il gelato
+//     contato in più quel giorno e in meno il giorno dopo si annulla, e il
+//     totale del periodo è giusto. Se è fuori (il periodo comincia il giorno
+//     dopo), il totale del periodo è più basso del vero di quei chili.
+export function caselleDaSistemare(righe, { da = null, a = null } = {}) {
+  if (!Array.isArray(righe) || righe.length === 0) return []
+  const perSede = new Map()
+  for (const r of righe) {
+    const k = r?.sede_id || '_'
+    if (!perSede.has(k)) perSede.set(k, [])
+    perSede.get(k).push(r)
+  }
+  const out = []
+  for (const [sedeId, righeSede] of perSede.entries()) {
+    for (const [gusto, celle] of Object.entries(serieVendutoGusto(righeSede))) {
+      for (const c of celle) {
+        if (da && c.data < da) continue
+        if (a && c.data > a) continue
+        if (!cellaDaControllare(c)) continue
+        const perRimanenza = c.causa === CAUSA_RIMANENZA_A_ZERO
+        const giorno = perRimanenza ? c.giornoDaSistemare : c.data
+        out.push({
+          sedeId: sedeId === '_' ? null : sedeId,
+          gusto, data: c.data,
+          kg: (Number(c.venduto) || 0) / 1000,
+          causa: c.causa || 'non-torna',
+          giornoDaSistemare: giorno,
+          compensata: perRimanenza && (!da || giorno >= da),
+        })
+      }
+    }
+  }
+  return out.sort((x, y) => x.kg - y.kg)
+}
+
+// Il riassunto di `caselleDaSistemare`, per la frase in cima alla pagina.
+export function riassuntoCaselle(caselle) {
+  const r = { n: 0, nRimanenza: 0, nAltre: 0, kgCompensati: 0, kgFuori: 0, kgAltre: 0, giorni: [] }
+  const giorni = new Set()
+  for (const c of caselle || []) {
+    r.n++
+    if (c.causa === CAUSA_RIMANENZA_A_ZERO) {
+      r.nRimanenza++
+      if (c.compensata) r.kgCompensati += c.kg
+      else r.kgFuori += c.kg
+    } else {
+      r.nAltre++
+      r.kgAltre += c.kg
+    }
+    if (c.giornoDaSistemare) giorni.add(c.giornoDaSistemare)
+  }
+  r.giorni = [...giorni].sort()
+  return r
+}
+
 // Qualita' del dato per gusto: quante celle non tornano, quanti kg valgono,
 // quante celle non si possono calcolare. Serve a scrivere accanto al totale
 // "3 giorni non tornano" invece di mostrare un numero muto.
@@ -874,13 +978,26 @@ export function scaloMagazzinoPerGusto(magazzino, ricetta, deltaProdG, ricettari
 }
 
 // Trova la ricetta corrispondente a un gusto (per nome normalizzato).
-export function ricettaDelGusto(ricettario, gustoNomeUpper) {
+//
+// `nomiGusti` (facoltativo) è la mappa dei nomi collegati a mano dal titolare
+// (src/lib/nomiGusti.js): MISTIC → MYSTIC. Vale solo quando il nome non trova
+// una ricetta da solo: un nome che corrisponde già a una ricetta resta suo.
+// Chi non la passa (lo scarico del magazzino, per esempio) si comporta come
+// prima.
+export function ricettaDelGusto(ricettario, gustoNomeUpper, nomiGusti = null) {
   if (!ricettario?.ricette) return null
-  const target = normGusto(gustoNomeUpper)
-  // Match esatto su chiave UPPER prima, poi su .nome (per compat legacy).
-  return ricettario.ricette[target]
-    || Object.values(ricettario.ricette).find(r => normGusto(r.nome) === target)
-    || null
+  const trova = (nome) => {
+    const target = normGusto(nome)
+    if (!target) return null
+    // Match esatto su chiave UPPER prima, poi su .nome (per compat legacy).
+    return ricettario.ricette[target]
+      || Object.values(ricettario.ricette).find(r => normGusto(r.nome) === target)
+      || null
+  }
+  const diretta = trova(gustoNomeUpper)
+  if (diretta || !nomiGusti) return diretta
+  const collegata = ricettaCollegata(nomiGusti, gustoNomeUpper)
+  return collegata ? trova(collegata) : null
 }
 
 // ── ANALISI QUADRATURA ────────────────────────────────────────────────────
@@ -1052,6 +1169,13 @@ export function kpiQuadraturaSettimana(matrice, chiusureSettimana, euroKg, vendi
   // fatta su celle che non tornano non e' una quadratura: e' una coincidenza.
   let totVendutoG = 0
   let celleNonQuadrate = 0, gNonQuadrati = 0, celleNonCalcolabili = 0
+  // Di quelle che non tornano, quante per la rimanenza lasciata a 0 il giorno
+  // prima (vedi cellaVenduto), e quanti grammi hanno il giorno da sistemare
+  // FUORI dalla settimana: solo quelli abbassano davvero il totale. Gli altri
+  // si annullano col giorno prima, che è dentro.
+  let celleRimanenzaAZero = 0, gRimanenzaAZero = 0, gRimanenzaFuori = 0
+  const giorniSettimana = new Set()
+  for (const byData of Object.values(matrice || {})) for (const d of Object.keys(byData || {})) giorniSettimana.add(d)
   for (const byData of Object.values(matrice || {})) {
     for (const c of Object.values(byData)) {
       if (c.venduto == null) {
@@ -1059,7 +1183,15 @@ export function kpiQuadraturaSettimana(matrice, chiusureSettimana, euroKg, vendi
         continue
       }
       totVendutoG += Number(c.venduto) || 0
-      if (cellaDaControllare(c)) { celleNonQuadrate++; gNonQuadrati += Number(c.venduto) || 0 }
+      if (cellaDaControllare(c)) {
+        celleNonQuadrate++
+        gNonQuadrati += Number(c.venduto) || 0
+        if (c.causa === CAUSA_RIMANENZA_A_ZERO) {
+          celleRimanenzaAZero++
+          gRimanenzaAZero += Number(c.venduto) || 0
+          if (!giorniSettimana.has(c.giornoDaSistemare)) gRimanenzaFuori += Number(c.venduto) || 0
+        }
+      }
     }
   }
   const totVendutoKg = totVendutoG / 1000
@@ -1071,36 +1203,212 @@ export function kpiQuadraturaSettimana(matrice, chiusureSettimana, euroKg, vendi
   const ricaviB2b = (Array.isArray(venditeB2BSett) ? venditeB2BSett : [])
     .reduce((s, v) => s + (Number(v.totale) || 0), 0)
 
-  const cassaEffettiva = (Array.isArray(chiusureSettimana) ? chiusureSettimana : [])
-    .reduce((s, c) => s + Number(c?.kpi?.totV || c?.totale || 0), 0)
-
   // Confronto SOLO retail (la cassa retail non incassa i B2B):
   //   kg retail × €/kg medio formati = ricavo atteso da cassa.
+  // Sulla settimana intera è l'INCASSO STIMATO dall'inventario: si mostra
+  // anche quando la cassa non c'è, con scritto che è una stima.
   const ricavoAtteso = (euroKg != null) ? retailKg * euroKg : null
-  const driftEur = (ricavoAtteso != null) ? cassaEffettiva - ricavoAtteso : null
-  const driftPct = (ricavoAtteso != null && ricavoAtteso > 0)
-    ? (driftEur / ricavoAtteso) * 100
+
+  // ── Una cassa non registrata non è un incasso di zero euro ─────────────
+  //
+  // 03/10/2026, audit della Quadratura. Mara non registra le chiusure di
+  // cassa: qui la cassa valeva 0, lo scostamento «0 meno l'atteso», e ogni
+  // settimana con dati usciva a -100% con la tessera rossa «attenzione» e il
+  // riquadro «Cosa controllare: … furti interni». Carlina, 24-30/08:
+  // -15.273 €. La pagina prometteva un confronto che per lei non può esistere,
+  // e invece di dirlo suggeriva un furto.
+  //
+  // E lo stesso difetto in piccolo: con la cassa scritta tre giorni su sette,
+  // l'incasso di tre giorni si confrontava col gelato di sette, e usciva un
+  // -57% che non c'è.
+  //
+  // La regola: senza nessuna chiusura la cassa è «non registrata» (null) e lo
+  // scostamento non esiste. Con qualche chiusura, il confronto si fa SOLO sui
+  // giorni che hanno sia la cassa sia l'inventario. Una chiusura senza data
+  // (dati vecchi, o chi chiama senza filtrare) vale per tutta la settimana,
+  // come prima: non si sa a che giorno appartiene.
+  const chiusure = Array.isArray(chiusureSettimana) ? chiusureSettimana.filter(Boolean) : []
+  const incassoDi = (c) => Number(c?.kpi?.totV || c?.totale || 0)
+  const cassaRegistrata = chiusure.length > 0
+  const cassaEffettiva = cassaRegistrata ? chiusure.reduce((s, c) => s + incassoDi(c), 0) : null
+
+  // I giorni in cui l'inventario sa dire quanto è uscito.
+  const vendutoPerGiorno = {}
+  for (const byData of Object.values(matrice || {})) {
+    for (const [dataIso, c] of Object.entries(byData || {})) {
+      if (c?.venduto == null) continue
+      vendutoPerGiorno[dataIso] = (vendutoPerGiorno[dataIso] || 0) + (Number(c.venduto) || 0)
+    }
+  }
+  const giorniInventario = Object.keys(vendutoPerGiorno).sort()
+  const giornoDi = (v) => (v ? String(v).slice(0, 10) : null)
+  const chiusureSenzaData = chiusure.some(c => !giornoDi(c?.data))
+  const giorniCassa = [...new Set(chiusure.map(c => giornoDi(c?.data)).filter(Boolean))].sort()
+
+  let giorniConfrontati = []
+  let cassaConfrontata = null
+  let attesoConfrontato = null
+  let motivoConfronto = null
+  if (euroKg == null) {
+    motivoConfronto = 'senza formati di vendita non si sa quanto vale un chilo'
+  } else if (!cassaRegistrata) {
+    motivoConfronto = 'nessuna chiusura di cassa registrata in questa settimana'
+  } else if (chiusureSenzaData) {
+    // Come prima: tutta la cassa contro tutto l'inventario.
+    giorniConfrontati = giorniInventario
+    cassaConfrontata = cassaEffettiva
+    attesoConfrontato = ricavoAtteso
+  } else {
+    const inCassa = new Set(giorniCassa)
+    giorniConfrontati = giorniInventario.filter(d => inCassa.has(d))
+    if (giorniConfrontati.length === 0) {
+      motivoConfronto = 'i giorni con la cassa non hanno l\'inventario'
+    } else {
+      const comuni = new Set(giorniConfrontati)
+      const kgComuni = giorniConfrontati.reduce((s, d) => s + vendutoPerGiorno[d], 0) / 1000
+      const b2bComuni = kgB2B((Array.isArray(venditeB2BSett) ? venditeB2BSett : [])
+        .filter(v => !giornoDi(v?.data) || comuni.has(giornoDi(v.data))))
+      attesoConfrontato = Math.max(0, kgComuni - b2bComuni) * euroKg
+      cassaConfrontata = chiusure
+        .filter(c => comuni.has(giornoDi(c.data)))
+        .reduce((s, c) => s + incassoDi(c), 0)
+    }
+  }
+  const driftEur = (attesoConfrontato != null && cassaConfrontata != null)
+    ? cassaConfrontata - attesoConfrontato
+    : null
+  const driftPct = (driftEur != null && attesoConfrontato > 0)
+    ? (driftEur / attesoConfrontato) * 100
     : null
 
   return {
     totVendutoG, totVendutoKg, retailKg, b2bKg, ricaviB2b,
     cassaEffettiva, euroKg, ricavoAtteso, driftEur, driftPct,
+    cassaRegistrata,
+    giorniInventario: giorniInventario.length,
+    giorniCassa: giorniCassa.length,
+    giorniConfrontati: giorniConfrontati.length,
+    cassaConfrontata, attesoConfrontato, motivoConfronto,
     celleNonQuadrate, kgNonQuadrati: gNonQuadrati / 1000, celleNonCalcolabili,
+    celleRimanenzaAZero, kgRimanenzaAZero: gRimanenzaAZero / 1000, kgRimanenzaFuori: gRimanenzaFuori / 1000,
   }
 }
 
+// ── Più sedi nella stessa settimana ───────────────────────────────────────
+//
+// 03/10/2026, audit della Quadratura. In «Tutte le sedi» la pagina non
+// caricava niente (caricaSettimana vuole una sede) e mostrava solo «Imposta i
+// formati di vendita», con otto formati già impostati. Le sedi si leggono una
+// per una e il venduto si calcola sede per sede (sommare le righe prima del
+// conto sbaglia con le spedizioni fra negozi: vedi serieVendutoMultiSede).
+//
+// Per i conti della settimana (kpiQuadraturaSettimana) le celle restano
+// separate: la chiave diventa «gusto ␟ sede», così ogni casella si conta una
+// volta sola e la somma per giorno è quella di tutte le sedi.
+export function matriceDiPiuSedi(matrici) {
+  const elenco = (matrici || []).filter(m => m && m.matrice)
+  if (elenco.length === 1) return elenco[0].matrice
+  const out = {}
+  for (const { sedeId, matrice } of elenco) {
+    for (const [gusto, byData] of Object.entries(matrice)) out[`${gusto}\u241F${sedeId}`] = byData
+  }
+  return out
+}
+
+// Per la classifica dei gusti invece serve il gusto, di tutte le sedi
+// insieme: si sommano le celle GIÀ calcolate. Il venduto resta «non lo so»
+// solo se nessuna sede lo sa; il residuo somma le rimanenze scritte.
+export function matricePerGusto(matrici) {
+  const elenco = (matrici || []).filter(m => m && m.matrice)
+  if (elenco.length === 1) return elenco[0].matrice
+  const out = {}
+  for (const { matrice } of elenco) {
+    for (const [gusto, byData] of Object.entries(matrice)) {
+      const g = out[gusto] || (out[gusto] = {})
+      for (const [d, c] of Object.entries(byData || {})) {
+        const t = g[d] || (g[d] = { prod: 0, riman: null, scarto: 0, venduto: null, registrata: false })
+        t.prod += Number(c?.prod) || 0
+        t.scarto += Number(c?.scarto) || 0
+        if (c?.riman != null) t.riman = (t.riman || 0) + (Number(c.riman) || 0)
+        if (c?.venduto != null) t.venduto = (t.venduto || 0) + (Number(c.venduto) || 0)
+        if (c?.registrata) t.registrata = true
+      }
+    }
+  }
+  return out
+}
+
+// ── Il dettaglio per gusto della settimana, per l'esportazione ────────────
+//
+// 03/10/2026, audit della Quadratura: il CSV e il PDF dei gusti leggevano
+// campi che non esistono (`r.gusto`, `prodottoG`, `finaleG`, `vendutoG`) su
+// righe che sono quelle grezze del database (`gusto_nome`, `produzione_g`,
+// `rimanenza_g`). Uscivano righe senza nome e piene di zeri, una per ogni
+// riga del database, compresi i sette giorni prima del lunedì.
+//
+// Una riga per gusto (tutte le sedi sommate, il venduto calcolato sede per
+// sede): in vetrina all'inizio (la rimanenza di partenza), prodotto, scarto,
+// in vetrina alla fine (l'ultima rimanenza scritta della settimana), venduto.
+// Un valore che non si sa è null, non zero.
+export function dettaglioGustiSettimana(righePerSede, lunediIso) {
+  const acc = {}
+  const somma = (a, b) => (b == null ? a : (a == null ? 0 : a) + b)
+  for (const righe of Object.values(righePerSede || {})) {
+    if (!Array.isArray(righe) || righe.length === 0) continue
+    const matrice = calcolaVendutoSettimana(righe, lunediIso)
+    const partenza = rimanenzaDiPartenza(righe, lunediIso)
+    for (const [gusto, byData] of Object.entries(matrice)) {
+      const t = acc[gusto] || (acc[gusto] = {
+        gusto, inizialeG: null, prodottoG: 0, scartoG: 0, finaleG: null, vendutoG: null, celleNonCalcolabili: 0,
+      })
+      t.inizialeG = somma(t.inizialeG, partenza[gusto]?.grammi ?? null)
+      let finale = null
+      for (const d of Object.keys(byData).sort()) {
+        const c = byData[d]
+        t.prodottoG += Number(c.prod) || 0
+        t.scartoG += Number(c.scarto) || 0
+        if (c.riman != null && c.registrata) finale = Number(c.riman) || 0
+        if (c.venduto != null) t.vendutoG = somma(t.vendutoG, Number(c.venduto) || 0)
+        else if (c.registrata) t.celleNonCalcolabili++
+      }
+      t.finaleG = somma(t.finaleG, finale)
+    }
+  }
+  return Object.values(acc)
+    .filter(t => t.prodottoG || t.vendutoG || t.inizialeG || t.finaleG)
+    .sort((a, b) => (b.vendutoG || 0) - (a.vendutoG || 0))
+}
+
 // Classifica gusti per kg venduti nella settimana: top N + sofferenza.
-// "Sofferenza" = gusti con residuo medio alto rispetto alla produzione.
-// Soglia base: ratio residuo/produzione >= 0.5 (cioe' sopra il 50% non
-// venduto). E' una euristica MVP: il proprietario poi decide.
+//
+// ── «In sofferenza» = in vetrina ne resta per troppi giorni di vendita ────
+//
+// 03/10/2026, audit della Quadratura. Il conto era «residuo medio di UN
+// giorno diviso la produzione di TUTTA la settimana», mentre la pagina
+// scriveva «≥ 50% della produzione giornaliera». Così uscivano i gusti fatti
+// di rado, non quelli che restano invenduti: De Gasperi, 17-23/08, MANGO al
+// 149% (12,0 kg di residuo medio su 8,0 kg prodotti nella settimana), LIMONE
+// al 100%. E un gusto che restava in vetrina senza essere rifatto (prodotto
+// zero) non poteva mai comparire, perché si divideva per la produzione.
+//
+// La misura adesso è quella che usa un gelatiere: per quanti giorni di
+// vendita basta quello che resta in vetrina. Residuo medio diviso venduto
+// medio di un giorno (sui giorni in cui il venduto si sa). Da 3 giorni in su
+// il gusto «soffre». Un gusto che non vende niente sta in `zeroVenduto`; con
+// un venduto negativo (caselle da sistemare) i giorni non si possono dire.
+export const GIORNI_VETRINA_SOFFERENZA = 3
+
 export function classificaGusti(matrice, opts = {}) {
   const topN = opts.topN || 5
-  const sofferenzaRatio = opts.sofferenzaRatio || 0.5
+  const soglia = opts.giorniVetrina || GIORNI_VETRINA_SOFFERENZA
 
   const agg = Object.entries(matrice || {}).map(([gusto, byData]) => {
-    let venduto = 0, prod = 0, residuoMedio = 0, ngiorni = 0
+    let venduto = 0, prod = 0, residuoMedio = 0, ngiorni = 0, giorniVenduto = 0
     for (const cell of Object.values(byData)) {
-      venduto += Number(cell.venduto || 0)
+      if (cell.venduto != null) {
+        venduto += Number(cell.venduto) || 0
+        giorniVenduto++
+      }
       prod += Number(cell.prod || 0)
       // Il residuo medio si fa sui giorni in cui la rimanenza è stata
       // scritta davvero. Contare un giorno non rilevato come «zero rimasto»
@@ -1113,8 +1421,12 @@ export function classificaGusti(matrice, opts = {}) {
       }
     }
     residuoMedio = ngiorni > 0 ? residuoMedio / ngiorni : 0
-    const ratio = prod > 0 ? (residuoMedio / prod) : 0
-    return { gusto, vendutoG: venduto, prodG: prod, residuoMedioG: residuoMedio, ratio }
+    const vendutoMedio = giorniVenduto > 0 ? venduto / giorniVenduto : 0
+    const giorniVetrina = vendutoMedio > 0 ? residuoMedio / vendutoMedio : null
+    return {
+      gusto, vendutoG: venduto, prodG: prod, residuoMedioG: residuoMedio,
+      vendutoMedioG: vendutoMedio, giorniVetrina,
+    }
   })
 
   const top = [...agg]
@@ -1123,8 +1435,8 @@ export function classificaGusti(matrice, opts = {}) {
     .slice(0, topN)
 
   const sofferenza = agg
-    .filter(x => x.prodG > 0 && x.ratio >= sofferenzaRatio)
-    .sort((a, b) => b.ratio - a.ratio)
+    .filter(x => x.residuoMedioG > 0 && x.giorniVetrina != null && x.giorniVetrina >= soglia)
+    .sort((a, b) => b.giorniVetrina - a.giorniVetrina)
 
   // Zero-venduto: gusti senza vendite in tutta la settimana. Candidati alla
   // rimozione dal catalogo o all'analisi commerciale.
@@ -1329,7 +1641,11 @@ export function unisciSessioni(daInventario, dalBlob) {
 //   columns:   colonne SELECT (default include sede_id per aggregazione)
 export async function fetchAllInventarioProduzione(orgId, opts = {}) {
   if (!orgId) return []
-  const { supabase } = await import('./supabase')
+  // Il client è quello importato in cima al file. Qui c'era un secondo
+  // `await import('./supabase')` che non serviva a niente (il modulo è già
+  // nel pacchetto) e che, con due letture partite insieme — cambiare la data
+  // di inizio e subito quella di fine — nei test restava appeso: la seconda
+  // lettura non tornava mai e la pagina mostrava il periodo di prima.
   const columns = opts.columns || `${COLONNE_VENDUTO}, sede_id`
   // Vale per tutte le pagine: se il database non ha ancora `ricevuto_g` si
   // riprova una volta sola senza, e da lì in poi si usa l'elenco ridotto.
@@ -1379,7 +1695,7 @@ export async function fetchAllInventarioProduzione(orgId, opts = {}) {
 //   mese formato 'YYYY-MM'
 export async function caricaStoricoMensile(orgId, sedeIds, dataFrom, dataTo) {
   if (!orgId) return { source: 'rpc', perMese: [] }
-  const { supabase } = await import('./supabase')
+  // Il client importato in cima al file (vedi fetchAllInventarioProduzione).
   const arr = Array.isArray(sedeIds) ? sedeIds : (sedeIds ? [sedeIds] : null)
   const { data, error } = await supabase.rpc('storico_inventario_per_mese', {
     p_org_id: orgId,
@@ -1480,6 +1796,43 @@ export async function giorniConProduzione(orgId, sedeId, dataFrom, dataTo) {
     return new Set()
   }
   return new Set((data || []).map(r => r.data))
+}
+
+/**
+ * L'ultimo giorno in cui qualcosa è stato registrato davvero (fino a `finoA`).
+ *
+ * Serve alle pagine di analisi per non aprirsi su un periodo vuoto e per dire
+ * «dopo il 31/08 non c'è niente»: il 03/10/2026 lo Storico di Mara si apriva
+ * su due mesi di cui uno vuoto, e la Quadratura su una settimana vuota che
+ * mostrava zeri come se fossero risultati.
+ *
+ * Conta un giorno con un prodotto, una rimanenza o uno scarto: stessa regola
+ * di `rigaHaDati` in produzioneAnalisi.js. Una riga tutta a zero, o con 1
+ * grammo spedito e nient'altro (la prova del pulsante che Mara ha fatto il
+ * 15/09), non è una giornata registrata.
+ *
+ * Ritorna la data ISO, o null se non c'è niente (o la domanda fallisce).
+ */
+export async function ultimoGiornoRegistrato(orgId, sedeIds, { finoA = null } = {}) {
+  if (!orgId) return null
+  if (Array.isArray(sedeIds) && sedeIds.length === 0) return null
+  let q = supabase
+    .from('inventario_produzione')
+    .select('data')
+    .eq('organization_id', orgId)
+    // È un filtro, non un elenco di colonne da leggere: si scrive dalle sue
+    // tre colonne (le stesse di `rigaHaDati`) invece che in una stringa sola,
+    // che il controllo sulle colonne del venduto scambierebbe per una SELECT.
+    .or(['produzione_g', 'rimanenza_g', 'scarto_g'].map(c => `${c}.gt.0`).join(','))
+  if (Array.isArray(sedeIds)) q = q.in('sede_id', sedeIds)
+  else if (sedeIds) q = q.eq('sede_id', sedeIds)
+  if (finoA) q = q.lte('data', finoA)
+  const { data, error } = await q.order('data', { ascending: false }).limit(1)
+  if (error) {
+    console.error('ultimoGiornoRegistrato:', error)
+    return null
+  }
+  return (Array.isArray(data) && data[0]?.data) || null
 }
 
 // ── Helper date: lunedi della settimana che contiene `dateIso` ────────────

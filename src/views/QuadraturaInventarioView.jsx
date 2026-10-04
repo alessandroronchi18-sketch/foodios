@@ -15,16 +15,18 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { color as T, typo, ui3, ui, font } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { sload } from '../lib/storage'
-import { aggiungiGiorni } from '../lib/dateLocal'
+import { aggiungiGiorni, todayLocal } from '../lib/dateLocal'
 import { supabase } from '../lib/supabase'
 import { SK_FORMATI } from '../lib/storageKeys'
 import Icon from '../components/Icon'
+import { conGiorno, giorniRegistrati } from '../lib/produzioneAnalisi'
 import ExportPdfButton from '../components/ExportPdfButton'
 import { C, PageHeader, TNUM, fmt0, TabellaOSchede } from './_shared'
 import {
   caricaSettimana, calcolaVendutoSettimana, lunediDellaSettimana,
   euroKgMedioFormati, kpiQuadraturaSettimana, classificaGusti, variazione,
-  accettaScostamento,
+  accettaScostamento, CAUSA_RIMANENZA_A_ZERO, ultimoGiornoRegistrato,
+  matriceDiPiuSedi, matricePerGusto, dettaglioGustiSettimana, GIORNI_VETRINA_SOFFERENZA,
 } from '../lib/inventarioProduzione'
 
 // ── Helpers data/numeri (IT) ──────────────────────────────────────────────
@@ -58,6 +60,8 @@ function pct(v) {
   return `${n > 0 ? '+' : ''}${n.toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`
 }
 
+const maiuscola = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s)
+
 function csvEscape(s) {
   const v = String(s ?? '')
   if (v.includes(';') || v.includes('"') || v.includes('\n')) {
@@ -66,59 +70,121 @@ function csvEscape(s) {
   return v
 }
 
-function esportaCsvSettimana({ lunediIso, kpi, righe, sedeAttiva, isAllSedi, perSede }) {
+// ── Esportazione della settimana (CSV e PDF) ──────────────────────────────
+//
+// 03/10/2026, audit: il dettaglio gusti leggeva campi che non esistono sulle
+// righe grezze del database, e usciva una riga senza nome e piena di zeri per
+// ogni riga, compresi i sette giorni prima del lunedì. Gli importi erano
+// numeri grezzi («12345,6789») e un valore che manca diventava «0»: una
+// cassa non registrata arrivava al commercialista come incasso zero.
+//
+// Adesso il dettaglio è una riga per gusto (`dettaglioGustiSettimana`), i
+// chili hanno un decimale, gli euro due, e quello che non si sa resta vuoto
+// o lo dice a parole.
+const csvKg = (g) => (g == null ? '' : (Number(g) / 1000).toFixed(1).replace('.', ','))
+const csvEuro = (v) => (v == null || !Number.isFinite(Number(v)) ? '' : Number(v).toFixed(2).replace('.', ','))
+
+export function testoCsvSettimana({ lunediIso, kpi, dettaglio, sedeAttiva, isAllSedi, perSede }) {
   const lines = []
   const sep = ';'
+  const riga = (...celle) => lines.push(celle.map(csvEscape).join(sep))
   const sedeName = isAllSedi ? 'TUTTE LE SEDI' : (sedeAttiva?.nome || '')
-  lines.push(['# Quadratura inventario vs cassa', sedeName, fmtRange(lunediIso)].join(sep))
+  riga('# Quadratura inventario e cassa', sedeName, fmtRange(lunediIso))
   lines.push('')
-  lines.push(['# Riepilogo settimana'].join(sep))
-  lines.push(['Voce', 'Valore'].join(sep))
-  lines.push(['Venduto inventario (kg)', nKg((kpi.totVendutoG ?? 0))].join(sep))
-  lines.push(['Vendite B2B (kg)', kpi.b2bKg ? nKg(kpi.b2bKg * 1000) : '0,0'].join(sep))
-  lines.push(['Retail effettivo (kg)', nKg(((kpi.retailKg ?? kpi.totVendutoKg) || 0) * 1000)].join(sep))
-  lines.push(['Cassa effettiva (€)', String(kpi.cassaEffettiva ?? 0).replace('.', ',')].join(sep))
-  lines.push(['Ricavo atteso (€)', String(kpi.ricavoAtteso ?? 0).replace('.', ',')].join(sep))
-  lines.push(['Drift (€)', String(kpi.driftEur ?? 0).replace('.', ',')].join(sep))
-  lines.push(['Drift (%)', pct(kpi.driftPct)].join(sep))
+  riga('# Riepilogo settimana')
+  riga('Voce', 'Valore')
+  riga('Venduto da inventario (kg)', csvKg(kpi.totVendutoG))
+  riga('Vendite all\'ingrosso (kg)', csvKg((kpi.b2bKg || 0) * 1000))
+  riga('Venduto al banco (kg)', csvKg(((kpi.retailKg ?? kpi.totVendutoKg) || 0) * 1000))
+  // Uno scarto mai scritto non è «niente buttato»: è contato nel venduto.
+  const scartoG = (dettaglio || []).reduce((t, r) => t + (Number(r.scartoG) || 0), 0)
+  riga('Scarto (kg)', scartoG > 0 ? csvKg(scartoG) : 'non registrato: quello che si butta è contato nel venduto')
+  riga('Incasso stimato dall\'inventario (€)', csvEuro(kpi.ricavoAtteso))
+  riga('Cassa (€)', kpi.cassaRegistrata ? csvEuro(kpi.cassaEffettiva) : 'non registrata')
+  riga('Differenza con la cassa (€)', kpi.driftEur != null ? csvEuro(kpi.driftEur) : `non calcolabile: ${kpi.motivoConfronto || 'manca la cassa'}`)
+  riga('Differenza con la cassa (%)', kpi.driftPct != null ? pct(kpi.driftPct) : '')
+  if (kpi.driftEur != null && kpi.giorniConfrontati < kpi.giorniInventario) {
+    riga('Giorni confrontati', `${kpi.giorniConfrontati} su ${kpi.giorniInventario}`)
+  }
   lines.push('')
-  if (Array.isArray(righe) && righe.length > 0) {
-    lines.push(['# Dettaglio gusti'].join(sep))
-    lines.push(['Gusto', 'Iniziale (g)', 'Prodotto (g)', 'Finale (g)', 'Scarto (g)', 'Venduto (g)'].map(csvEscape).join(sep))
-    for (const r of righe) {
-      lines.push([
-        csvEscape(r.gusto || r.nome || ''),
-        String(r.inizialeG ?? r.iniziale_g ?? 0),
-        String(r.prodottoG ?? r.prodotto_g ?? 0),
-        String(r.finaleG ?? r.finale_g ?? 0),
-        String(r.scartoG ?? r.scarto_g ?? 0),
-        String(r.vendutoG ?? r.venduto_g ?? 0),
-      ].join(sep))
+  if (Array.isArray(dettaglio) && dettaglio.length > 0) {
+    riga('# Dettaglio gusti')
+    riga('Gusto', 'In vetrina all\'inizio (kg)', 'Prodotto (kg)', 'Scarto (kg)', 'In vetrina alla fine (kg)', 'Venduto (kg)')
+    for (const r of dettaglio) {
+      riga(r.gusto, csvKg(r.inizialeG), csvKg(r.prodottoG), csvKg(r.scartoG), csvKg(r.finaleG), csvKg(r.vendutoG))
     }
     lines.push('')
   }
   if (isAllSedi && Array.isArray(perSede) && perSede.length > 0) {
-    lines.push(['# Drill-down per sede'].join(sep))
-    lines.push(['Sede', 'Venduto retail (kg)', 'Cassa (€)', 'Atteso (€)', 'Drift (€)', 'Drift (%)'].map(csvEscape).join(sep))
+    riga('# Dettaglio per sede')
+    riga('Sede', 'Venduto al banco (kg)', 'Ingrosso (kg)', 'Incasso stimato (€)', 'Cassa (€)')
     for (const p of perSede) {
-      lines.push([
-        csvEscape(p.sede?.nome || ''),
-        nKg(((p.kpi.retailKg ?? p.kpi.totVendutoKg) || 0) * 1000),
-        String(p.kpi.cassaEffettiva ?? 0).replace('.', ','),
-        String(p.kpi.ricavoAtteso ?? 0).replace('.', ','),
-        String(p.kpi.driftEur ?? 0).replace('.', ','),
-        pct(p.kpi.driftPct),
-      ].join(sep))
+      riga(
+        p.sede?.nome || '',
+        csvKg(((p.kpi.retailKg ?? p.kpi.totVendutoKg) || 0) * 1000),
+        csvKg((p.kpi.b2bKg || 0) * 1000),
+        csvEuro(p.kpi.ricavoAtteso),
+        // Le chiusure arrivano già sommate: la cassa di una sede non si sa.
+        'non separabile per sede',
+      )
     }
   }
-  const csv = '﻿' + lines.join('\n')  // BOM per Excel
+  return '\uFEFF' + lines.join('\n')  // BOM per Excel
+}
+
+function esportaCsvSettimana(args) {
+  const csv = testoCsvSettimana(args)
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `quadratura_${lunediIso}_${(sedeAttiva?.nome || 'sede').replace(/\s+/g, '_')}.csv`
+  a.download = `quadratura_${args.lunediIso}_${(args.isAllSedi ? 'tutte-le-sedi' : (args.sedeAttiva?.nome || 'sede')).replace(/\s+/g, '_')}.csv`
   document.body.appendChild(a); a.click(); document.body.removeChild(a)
   URL.revokeObjectURL(url)
+}
+
+export function reportPdfSettimana({ lunediIso, kpi, dettaglio, sedeAttiva, isAllSedi, perSede, euroKg }) {
+  return {
+    title: 'Quadratura inventario e cassa',
+    subtitle: isAllSedi ? 'Tutte le sedi' : (sedeAttiva?.nome || ''),
+    periodo: fmtRange(lunediIso),
+    kpi: [
+      { label: 'Venduto (kg)', value: nKg(kpi.totVendutoG ?? 0), sub: 'da inventario' },
+      { label: 'Incasso stimato', value: fmt0(kpi.ricavoAtteso ?? 0), sub: euroKg != null ? `stimato: ${n0(euroKg)} €/kg medio` : '' },
+      { label: 'Cassa', value: kpi.cassaRegistrata ? fmt0(kpi.cassaEffettiva) : 'non registrata' },
+      { label: 'Differenza con la cassa', value: kpi.driftEur != null ? `${fmtDriftEur(kpi.driftEur)} (${pct(kpi.driftPct)})` : 'non calcolabile' },
+    ],
+    sections: [
+      ...(Array.isArray(dettaglio) && dettaglio.length > 0 ? [{
+        title: 'Dettaglio gusti',
+        table: {
+          columns: ['Gusto', 'Inizio (kg)', 'Prodotto (kg)', 'Scarto (kg)', 'Fine (kg)', 'Venduto (kg)'],
+          alignments: ['left', 'right', 'right', 'right', 'right', 'right'],
+          rows: dettaglio.map(r => [
+            r.gusto,
+            r.inizialeG == null ? '-' : nKg(r.inizialeG),
+            nKg(r.prodottoG),
+            nKg(r.scartoG),
+            r.finaleG == null ? '-' : nKg(r.finaleG),
+            r.vendutoG == null ? '-' : nKg(r.vendutoG),
+          ]),
+        },
+      }] : []),
+      ...(isAllSedi && Array.isArray(perSede) && perSede.length > 0 ? [{
+        title: 'Dettaglio per sede',
+        table: {
+          columns: ['Sede', 'Al banco (kg)', 'Ingrosso (kg)', 'Incasso stimato'],
+          alignments: ['left', 'right', 'right', 'right'],
+          rows: perSede.map(p => [
+            p.sede?.nome || '',
+            nKg(((p.kpi.retailKg ?? p.kpi.totVendutoKg) || 0) * 1000),
+            nKg((p.kpi.b2bKg || 0) * 1000),
+            fmt0(p.kpi.ricavoAtteso ?? 0),
+          ]),
+        },
+      }] : []),
+    ],
+  }
 }
 
 // Drift signed con € DOPO la cifra (es. "+ 1.234 €")
@@ -135,14 +201,21 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
   const isTablet = useIsTablet()
   const isAllSedi = sedeAttiva?._all === true
   const [lunediIso, setLunediIso] = useState(() => lunediDellaSettimana())
-  const [righe, setRighe] = useState([])
-  const [righePrev, setRighePrev] = useState([])
+  // Le righe della settimana (e di quella prima) SEDE PER SEDE: { [sedeId]: righe }.
+  const [righePerSede, setRighePerSede] = useState({})
+  const [righePrevPerSede, setRighePrevPerSede] = useState({})
   const [formati, setFormati] = useState([])
   const [venditeB2bSett, setVenditeB2bSett] = useState([])
   const [venditeB2bPrec, setVenditeB2bPrec] = useState([])
   const [trendData, setTrendData] = useState([])  // [{ lunIso, kg, cassa }] x 4 settimane
-  const [perSede, setPerSede] = useState([])      // drill-down per sede quando isAllSedi
   const [loading, setLoading] = useState(true)
+  // Di quale settimana sono le righe in memoria: finché non è quella mostrata
+  // la pagina è «in caricamento», non una settimana vuota (al cambio di
+  // settimana c'è un istante in cui le righe sono ancora quelle di prima).
+  const [settimanaCaricata, setSettimanaCaricata] = useState(null)
+  const [erroreLettura, setErroreLettura] = useState(false)
+  // L'ultimo giorno registrato e se la pagina si è spostata lì all'apertura.
+  const [apertura, setApertura] = useState(null)   // { ultimo, spostata }
 
   // Touch target minimo: ≥40 mobile, ≥44 tablet (regola permanente CLAUDE.md)
   // Era `isTablet ? 44 : 40`: il tablet aveva la misura giusta e il telefono
@@ -150,40 +223,97 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
   // misura sta in theme.js (ui.ctrlH) e vale 44 su tutto quello che si tocca.
   const tapMin = ui3(isMobile, isTablet, ui.ctrlH)
 
+  // ── Quali sedi si leggono ──────────────────────────────────────────────
+  // Quella attiva; in «Tutte le sedi» tutte quelle che producono. Prima in
+  // «Tutte le sedi» `sedeId` è null e il caricamento usciva subito: niente
+  // formati, euro al chilo nullo, e la pagina chiedeva di «impostare i
+  // formati di vendita» che c'erano già (otto, da Mara).
+  const sediDaLeggere = useMemo(() => {
+    if (sedeId) return [{ id: sedeId, nome: sedeAttiva?.nome || '' }]
+    if (!isAllSedi) return []
+    return (sedi || []).filter(s => s.attiva !== false && s.is_sede_produzione !== false)
+  }, [sedeId, isAllSedi, sedi, sedeAttiva])
+  const sediKey = sediDaLeggere.map(s => s.id).join(',')
+  const nomeSede = (id) => sediDaLeggere.find(s => s.id === id)?.nome || ''
+
+  // ── Si apre dove ci sono i dati ────────────────────────────────────────
+  // Prima apriva sempre sulla settimana di oggi: per Mara, a ottobre, una
+  // settimana vuota mostrata come «0,0 kg · 0 € · 0 €», con l'ultima
+  // settimana vera cinque clic indietro e nessuna parola per dirlo.
+  useEffect(() => {
+    if (!orgId || sediDaLeggere.length === 0) return undefined
+    let alive = true
+    ultimoGiornoRegistrato(orgId, sediDaLeggere.map(s => s.id), { finoA: todayLocal() })
+      .catch(() => null)
+      .then((ultimo) => {
+        if (!alive) return
+        const lunOggi = lunediDellaSettimana()
+        if (ultimo && ultimo < lunOggi) {
+          setLunediIso(lunediDellaSettimana(`${ultimo}T12:00:00`))
+          setApertura({ ultimo, spostata: true })
+        } else {
+          setApertura({ ultimo: ultimo || null, spostata: false })
+        }
+      })
+    return () => { alive = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgId, sediKey])
+
   useEffect(() => {
     let alive = true
-    if (!orgId || !sedeId) { setLoading(false); return }
+    if (!orgId || sediDaLeggere.length === 0) { setLoading(false); return undefined }
     setLoading(true)
+    const ids = sediDaLeggere.map(s => s.id)
     const lunPrec = addDays(lunediIso, -7)
     const finePrec = lunediIso
     const fineSett = addDays(lunediIso, 7)
+    const b2b = (da, a) => supabase.from('vendite_b2b').select('data, righe, totale, sede_id')
+      .eq('organization_id', orgId).in('sede_id', ids)
+      .gte('data', da).lt('data', a)
+      .then(({ data }) => data || [])
     Promise.all([
-      caricaSettimana(orgId, sedeId, lunediIso),
-      caricaSettimana(orgId, sedeId, lunPrec),
+      Promise.all(ids.map(id => caricaSettimana(orgId, id, lunediIso))),
+      Promise.all(ids.map(id => caricaSettimana(orgId, id, lunPrec))),
       sload(SK_FORMATI, orgId, null),
       // Vendite B2B della sett. corrente e della precedente (per togliere
       // i kg B2B dal confronto cassa retail, evita drift falso).
-      supabase.from('vendite_b2b').select('data, righe, totale')
-        .eq('organization_id', orgId).eq('sede_id', sedeId)
-        .gte('data', lunediIso).lt('data', fineSett)
-        .then(({ data }) => data || []),
-      supabase.from('vendite_b2b').select('data, righe, totale')
-        .eq('organization_id', orgId).eq('sede_id', sedeId)
-        .gte('data', lunPrec).lt('data', finePrec)
-        .then(({ data }) => data || []),
+      b2b(lunediIso, fineSett),
+      b2b(lunPrec, finePrec),
     ]).then(([sett, prec, fmt, b2bS, b2bP]) => {
       if (!alive) return
-      setRighe(sett || [])
-      setRighePrev(prec || [])
+      setRighePerSede(Object.fromEntries(ids.map((id, i) => [id, sett[i] || []])))
+      setRighePrevPerSede(Object.fromEntries(ids.map((id, i) => [id, prec[i] || []])))
       setFormati(Array.isArray(fmt) ? fmt : [])
       setVenditeB2bSett(b2bS || [])
       setVenditeB2bPrec(b2bP || [])
+      setErroreLettura(false)
+      setSettimanaCaricata(lunediIso)
       setLoading(false)
-    }).catch(e => { if (alive) { console.error(e); setLoading(false) } })
+    }).catch(e => {
+      if (!alive) return
+      console.error(e)
+      // Una lettura fallita non è una settimana vuota: lo si dice.
+      setRighePerSede({}); setRighePrevPerSede({})
+      setErroreLettura(true)
+      setSettimanaCaricata(lunediIso)
+      setLoading(false)
+    })
     return () => { alive = false }
-  }, [orgId, sedeId, lunediIso])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgId, sediKey, lunediIso])
 
-  const matrice = useMemo(() => calcolaVendutoSettimana(righe, lunediIso), [righe, lunediIso])
+  // Il venduto si calcola sede per sede; poi due viste delle stesse celle:
+  // una per i conti (ogni casella una volta), una per gusto (la classifica).
+  const matrici = useMemo(() => Object.entries(righePerSede)
+    .map(([id, rs]) => ({ sedeId: id, matrice: calcolaVendutoSettimana(rs, lunediIso) })), [righePerSede, lunediIso])
+  const matrice = useMemo(() => matriceDiPiuSedi(matrici), [matrici])
+  const matriceGusti = useMemo(() => matricePerGusto(matrici), [matrici])
+  // Le righe di tutte le sedi insieme, per contare i giorni registrati.
+  const righe = useMemo(() => Object.values(righePerSede).flat(), [righePerSede])
+  const giorniSettimana = useMemo(
+    () => giorniRegistrati(righe, { da: lunediIso, a: addDays(lunediIso, 6) }),
+    [righe, lunediIso]
+  )
 
   // Le celle da controllare, una per una.
   //
@@ -193,33 +323,41 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
   // non trovarle mai.
   const celleDaControllare = useMemo(() => {
     const out = []
-    for (const [gusto, byData] of Object.entries(matrice || {})) {
-      for (const [dataIso, c] of Object.entries(byData)) {
-        if (!c?.daControllare) continue
-        out.push({
-          gusto, data: dataIso,
-          mancano: Math.abs(Number(c.venduto) || 0),
-          rimanPrec: c.rimanPrec, prod: c.prod, riman: c.riman,
-        })
+    for (const { sedeId: idSede, matrice: m } of matrici) {
+      for (const [gusto, byData] of Object.entries(m || {})) {
+        for (const [dataIso, c] of Object.entries(byData)) {
+          if (!c?.daControllare) continue
+          out.push({
+            gusto, data: dataIso, sedeId: idSede,
+            mancano: Math.abs(Number(c.venduto) || 0),
+            rimanPrec: c.rimanPrec, prod: c.prod, riman: c.riman,
+            // Per la causa più frequente la casella da sistemare è quella del
+            // giorno PRIMA (la rimanenza lasciata a 0): l'elenco deve indicare
+            // quella, non la casella negativa.
+            causa: c.causa || null,
+            giornoDaSistemare: c.giornoDaSistemare || null,
+          })
+        }
       }
     }
     return out.sort((a, b) => b.mancano - a.mancano)
-  }, [matrice])
+  }, [matrici])
 
   const [accettando, setAccettando] = useState(null)   // chiave della cella in salvataggio
   const [mostraTutteLeCelle, setMostraTutteLeCelle] = useState(false)
 
   // "È giusta così": lo scostamento resta nel totale (la merce è uscita
-  // davvero) ma la cella esce dall'elenco delle cose da guardare.
+  // davvero) ma la cella esce dall'elenco delle cose da guardare. Si scrive
+  // sulla sede della casella: in «Tutte le sedi» non ce n'è una attiva.
   const accettaCella = async (cella, nota) => {
-    const chiave = `${cella.gusto}|${cella.data}`
+    const chiave = `${cella.sedeId}|${cella.gusto}|${cella.data}`
     if (accettando) return
     setAccettando(chiave)
     try {
-      await accettaScostamento(orgId, sedeId, cella.gusto, cella.data, { accettato: true, nota })
+      await accettaScostamento(orgId, cella.sedeId, cella.gusto, cella.data, { accettato: true, nota })
       // Ricarico la settimana: il conteggio in alto deve scendere subito.
-      const righeNuove = await caricaSettimana(orgId, sedeId, lunediIso)
-      setRighe(righeNuove)
+      const righeNuove = await caricaSettimana(orgId, cella.sedeId, lunediIso)
+      setRighePerSede(x => ({ ...x, [cella.sedeId]: righeNuove }))
       notify?.(`${cella.gusto} del ${cella.data.slice(8, 10)}: segnata come giusta.`)
     } catch (e) {
       notify?.('Non ho potuto salvare: ' + (e?.message || 'rete'), false)
@@ -227,10 +365,9 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
       setAccettando(null)
     }
   }
-  const matricePrev = useMemo(
-    () => calcolaVendutoSettimana(righePrev, addDays(lunediIso, -7)),
-    [righePrev, lunediIso]
-  )
+  const matricePrev = useMemo(() => matriceDiPiuSedi(Object.entries(righePrevPerSede)
+    .map(([id, rs]) => ({ sedeId: id, matrice: calcolaVendutoSettimana(rs, addDays(lunediIso, -7)) }))),
+  [righePrevPerSede, lunediIso])
   const euroKg = useMemo(() => euroKgMedioFormati(formati), [formati])
 
   // Chiusure della settimana target (filtrate per data).
@@ -248,15 +385,18 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
   // Sparkline: ultime 4 settimane (incluse la corrente). Per ogni settimana
   // calcoliamo kg venduti totali dall'inventario + cassa retail. La cassa
   // arriva da `chiusure` (già filtrata dal Dashboard), l'inventario serve
-  // un fetch separato.
+  // un fetch separato, sede per sede.
   useEffect(() => {
-    if (!orgId || !sedeId) return
+    if (!orgId || sediDaLeggere.length === 0) return undefined
+    let alive = true
+    const ids = sediDaLeggere.map(s => s.id)
     const settimane = []
     for (let i = 3; i >= 0; i--) settimane.push(addDays(lunediIso, -7 * i))
-    Promise.all(settimane.map(lun => caricaSettimana(orgId, sedeId, lun)))
+    Promise.all(settimane.map(lun => Promise.all(ids.map(id => caricaSettimana(orgId, id, lun)))))
       .then(perSettimana => {
+        if (!alive) return
         const out = settimane.map((lun, idx) => {
-          const matr = calcolaVendutoSettimana(perSettimana[idx], lun)
+          const matr = matriceDiPiuSedi(ids.map((id, j) => ({ sedeId: id, matrice: calcolaVendutoSettimana(perSettimana[idx][j], lun) })))
           const fineW = addDays(lun, 7)
           const chiusW = (chiusure || []).filter(c => c.data >= lun && c.data < fineW)
           // Prima questa somma era scritta a mano qui dentro, in parallelo a
@@ -274,40 +414,21 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
         setTrendData(out)
       })
       .catch(e => console.error('trend:', e))
-  }, [orgId, sedeId, lunediIso, chiusure, euroKg])
+    return () => { alive = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgId, sediKey, lunediIso, chiusure, euroKg])
 
-  // Drill-down per sede (solo isAllSedi): per ogni sede produttiva
-  // carichiamo settimana + b2b e calcoliamo KPI individuali.
-  // Il metodo (inventario vs stampi) e' org-level: se l'org non e' su
-  // 'inventario' non c'e' nulla da drillare qui.
-  useEffect(() => {
-    if (!isAllSedi || !orgId || metodoProduzione !== 'inventario') { setPerSede([]); return }
-    const sediProduttive = (sedi || []).filter(s =>
-      s.attiva !== false && s.is_sede_produzione
-    )
-    if (sediProduttive.length === 0) { setPerSede([]); return }
-    Promise.all(sediProduttive.map(async s => {
-      const [righeSet, b2bSet] = await Promise.all([
-        caricaSettimana(orgId, s.id, lunediIso),
-        supabase.from('vendite_b2b').select('data, righe, totale')
-          .eq('organization_id', orgId).eq('sede_id', s.id)
-          .gte('data', lunediIso).lt('data', addDays(lunediIso, 7))
-          .then(({ data }) => data || []),
-      ])
-      const matr = calcolaVendutoSettimana(righeSet, lunediIso)
-      const chiusS = (chiusure || []).filter(c => c.data >= lunediIso && c.data < addDays(lunediIso, 7))
-        // Nota: chiusure arrivano filtrate per sede attiva, qui non
-        // possiamo distinguere -> il drill-down cassa per sede e' un'apparizione
-        // approssimativa (sommiamo tutta la cassa attiva, etichettata "tot org").
-      const kp = kpiQuadraturaSettimana(matr, chiusS, euroKg, b2bSet)
-      return { sede: s, kpi: kp }
+  // Dettaglio per sede (solo «Tutte le sedi»): dalle stesse righe già lette,
+  // senza una seconda lettura. La cassa per sede non si può separare (le
+  // chiusure arrivano già sommate dal Dashboard): il dettaglio mostra
+  // l'inventario e l'ingrosso, non uno scostamento per sede.
+  const perSede = useMemo(() => {
+    if (!isAllSedi || metodoProduzione !== 'inventario') return []
+    return matrici.map(({ sedeId: id, matrice: m }) => ({
+      sede: sediDaLeggere.find(s => s.id === id) || { id, nome: '' },
+      kpi: kpiQuadraturaSettimana(m, [], euroKg, (venditeB2bSett || []).filter(v => v.sede_id === id)),
     }))
-    .then(setPerSede)
-    .catch(e => console.error('drill-down per sede:', e))
-  // metodoProduzione nelle dipendenze: l'effetto lo legge per decidere se c'è
-  // qualcosa da drillare, e senza di lui il drill-down restava quello di prima
-  // dopo un cambio di metodo nelle impostazioni.
-  }, [isAllSedi, orgId, sedi, lunediIso, euroKg, chiusure, metodoProduzione])
+  }, [isAllSedi, metodoProduzione, matrici, sediDaLeggere, euroKg, venditeB2bSett])
 
   const kpi = useMemo(
     () => kpiQuadraturaSettimana(matrice, chiusureSett, euroKg, venditeB2bSett),
@@ -317,11 +438,15 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
     () => kpiQuadraturaSettimana(matricePrev, chiusurePrev, euroKg, venditeB2bPrec),
     [matricePrev, chiusurePrev, euroKg, venditeB2bPrec]
   )
-  const classifica = useMemo(() => classificaGusti(matrice), [matrice])
+  const classifica = useMemo(() => classificaGusti(matriceGusti), [matriceGusti])
+  // Una riga per gusto, per il CSV e il PDF.
+  const dettaglioGusti = useMemo(() => dettaglioGustiSettimana(righePerSede, lunediIso), [righePerSede, lunediIso])
 
   const settimanaPrec = () => setLunediIso(addDays(lunediIso, -7))
   const settimanaSucc = () => setLunediIso(addDays(lunediIso, 7))
   const oggi = () => setLunediIso(lunediDellaSettimana())
+  const lunUltimo = apertura?.ultimo ? lunediDellaSettimana(`${apertura.ultimo}T12:00:00`) : null
+  const inCaricamento = loading || (sediDaLeggere.length > 0 && settimanaCaricata !== lunediIso)
 
   // ── Render ─────────────────────────────────────────────────────────────
 
@@ -346,7 +471,7 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
 
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
-      <PageHeader subtitle="Quadratura settimanale: l'inventario dice quanto e' uscito (kg), la cassa quanto e' entrato. Il drift indica dove guardare." />
+      <PageHeader subtitle="Quadratura settimanale: l'inventario dice quanto gelato è uscito, la cassa quanto è entrato. Se i due conti non tornano, qui si vede di quanto e dove guardare." />
 
       {/* ─ Toolbar settimana ─ Su mobile: layout a colonna piena per evitare accavallamenti */}
       <div style={{
@@ -419,9 +544,10 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
           marginLeft: isMobile ? 0 : 'auto',
         }}>
           <button
-            onClick={() => esportaCsvSettimana({ lunediIso, kpi, righe, sedeAttiva, isAllSedi, perSede })}
+            onClick={() => esportaCsvSettimana({ lunediIso, kpi, dettaglio: dettaglioGusti, sedeAttiva, isAllSedi, perSede })}
+            disabled={giorniSettimana.n === 0}
             aria-label="Esporta settimana in CSV"
-            title="Esporta la settimana in CSV per commercialista o contabilita"
+            title="Esporta la settimana in CSV per il commercialista o la contabilità"
             style={{
               ...btnNav(tapMin),
               background: C.text, color: C.white, borderColor: C.text,
@@ -437,55 +563,54 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
             fileName={`quadratura-${lunediIso}.pdf`}
             compact
             label="Esporta PDF settimana"
-            getReport={() => ({
-              title: 'Quadratura inventario vs cassa',
-              subtitle: isAllSedi ? 'Tutte le sedi' : (sedeAttiva?.nome || ''),
-              periodo: fmtRange(lunediIso),
-              kpi: [
-                { label: 'Venduto (kg)', value: nKg((kpi.totVendutoG ?? 0)), sub: 'inventario' },
-                { label: 'Cassa effettiva', value: fmt0(kpi.cassaEffettiva ?? 0) },
-                { label: 'Atteso', value: fmt0(kpi.ricavoAtteso ?? 0), sub: `${n0(euroKg)} €/kg medio` },
-                { label: 'Drift', value: kpi.driftEur != null ? `${fmtDriftEur(kpi.driftEur)} (${pct(kpi.driftPct)})` : '-' },
-              ],
-              sections: [
-                ...(Array.isArray(righe) && righe.length > 0 ? [{
-                  title: 'Dettaglio gusti',
-                  table: {
-                    columns: ['Gusto', 'Iniziale (g)', 'Prodotto (g)', 'Finale (g)', 'Scarto (g)', 'Venduto (g)'],
-                    alignments: ['left', 'right', 'right', 'right', 'right', 'right'],
-                    rows: righe.map(r => [
-                      r.gusto || r.nome || '',
-                      n0(r.inizialeG ?? r.iniziale_g ?? 0),
-                      n0(r.prodottoG ?? r.prodotto_g ?? 0),
-                      n0(r.finaleG ?? r.finale_g ?? 0),
-                      n0(r.scartoG ?? r.scarto_g ?? 0),
-                      n0(r.vendutoG ?? r.venduto_g ?? 0),
-                    ]),
-                  },
-                }] : []),
-                ...(isAllSedi && Array.isArray(perSede) && perSede.length > 0 ? [{
-                  title: 'Drill-down per sede',
-                  table: {
-                    columns: ['Sede', 'Venduto retail (kg)', 'Cassa (€)', 'Atteso (€)', 'Drift (€)', 'Drift (%)'],
-                    alignments: ['left', 'right', 'right', 'right', 'right', 'right'],
-                    rows: perSede.map(p => [
-                      p.sede?.nome || '',
-                      nKg(((p.kpi.retailKg ?? p.kpi.totVendutoKg) || 0) * 1000),
-                      n0(p.kpi.cassaEffettiva ?? 0),
-                      n0(p.kpi.ricavoAtteso ?? 0),
-                      n0(p.kpi.driftEur ?? 0),
-                      pct(p.kpi.driftPct),
-                    ]),
-                  },
-                }] : []),
-              ],
-            })}
+            getReport={() => reportPdfSettimana({ lunediIso, kpi, dettaglio: dettaglioGusti, sedeAttiva, isAllSedi, perSede, euroKg })}
           />
         </div>
       </div>
 
-      {loading ? (
+      {/* La settimana mostrata è quella dell'ultimo giorno registrato, non
+          quella di oggi: si dice, così non si cerca la settimana corrente. */}
+      {!inCaricamento && apertura?.spostata && lunediIso === lunUltimo && (
+        <div data-apertura style={{
+          marginBottom: 14, fontSize: font.size.sm, color: C.textMid, lineHeight: 1.5,
+          display: 'flex', alignItems: 'flex-start', gap: 8,
+        }}>
+          <Icon name="calendar" size={14} color={C.textSoft} style={{ flexShrink: 0, marginTop: 2 }} />
+          <span>
+            Dopo {conGiorno('il', apertura.ultimo, { lunga: true })} non c&apos;è niente di registrato:
+            ti mostro l&apos;ultima settimana con i dati.
+          </span>
+        </div>
+      )}
+
+      {inCaricamento ? (
         <div style={{ padding: 60, textAlign: 'center', color: C.textSoft }}>Caricamento…</div>
+      ) : erroreLettura ? (
+        <div role="alert" style={{
+          padding: isMobile ? 20 : 28, background: C.bgCard, border: `1px solid ${T.red}`,
+          borderRadius: 14, marginBottom: 20, textAlign: 'center', color: T.red, fontSize: font.size.base,
+        }}>
+          Non sono riuscito a leggere l&apos;inventario di questa settimana. Riprova fra poco.
+        </div>
+      ) : giorniSettimana.n === 0 ? (
+        // Prima una settimana vuota diventava «0,0 kg · 0 € · 0 € · 0 €»:
+        // zero meno zero fa zero, ma qui la risposta è «non lo so».
+        <div data-settimana-vuota style={{
+          padding: isMobile ? 20 : 28, background: C.bgCard, border: `1px solid ${C.border}`,
+          borderRadius: 14, marginBottom: 20, textAlign: 'center', color: C.textMid,
+          fontSize: font.size.base, lineHeight: 1.55,
+        }}>
+          <div style={{ fontWeight: 700, color: C.text, marginBottom: 4 }}>Nessun giorno registrato in questa settimana.</div>
+          {apertura?.ultimo && (
+            <div>L&apos;ultimo giorno registrato è {conGiorno('il', apertura.ultimo, { lunga: true })}.</div>
+          )}
+          {apertura?.ultimo && lunUltimo && lunUltimo !== lunediIso && (
+            <button type="button" onClick={() => setLunediIso(lunUltimo)}
+              style={{ ...btnNav(tapMin), marginTop: 12, padding: '0 16px', fontWeight: 700, color: T.brand, borderColor: T.brand }}>
+              Vai a quella settimana
+            </button>
+          )}
+        </div>
       ) : !euroKg ? (
         <div style={{
           padding: isMobile ? 16 : '20px 24px',
@@ -542,32 +667,93 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
                 sub={kpi.b2bKg > 0 ? `${nKg(kpi.totVendutoG)} kg totali` : 'da inventario'}
                 tendVal={variazione(kpi.retailKg ?? kpi.totVendutoKg, kpiPrev.retailKg ?? kpiPrev.totVendutoKg)}
               />
+              {/* Senza chiusure la cassa è «non registrata», non zero euro:
+                  prima la tessera diceva «0 €» e quella accanto «-100%». */}
               <Tile
                 icon="card"
-                label="Cassa effettiva"
-                value={fmt0(kpi.cassaEffettiva)}
-                sub="incassato in cassa"
-                tendVal={variazione(kpi.cassaEffettiva, kpiPrev.cassaEffettiva)}
+                label="Cassa"
+                value={kpi.cassaRegistrata ? fmt0(kpi.cassaEffettiva) : 'non registrata'}
+                sub={kpi.cassaRegistrata
+                  ? (kpi.giorniCassa > 0 ? `incassato in ${kpi.giorniCassa} ${kpi.giorniCassa === 1 ? 'giorno' : 'giorni'}` : 'incassato in cassa')
+                  : 'nessuna chiusura questa settimana'}
+                tendVal={kpi.cassaRegistrata && kpiPrev.cassaRegistrata ? variazione(kpi.cassaEffettiva, kpiPrev.cassaEffettiva) : null}
+                muted={!kpi.cassaRegistrata}
               />
               <Tile
                 icon="barChart"
-                label="Atteso"
+                label="Incasso stimato"
                 value={fmt0(kpi.ricavoAtteso || 0)}
-                sub={`${n0(euroKg)} €/kg medio`}
+                sub={`stimato: kg × ${n0(euroKg)} €/kg medio`}
                 muted
               />
-              <Tile
-                icon="checkCircle"
-                label="Drift vs cassa"
-                value={kpi.driftEur != null ? fmtDriftEur(kpi.driftEur) : '-'}
-                sub={kpi.driftPct != null ? `${pct(kpi.driftPct)} dello scostamento` : 'nessun dato'}
-                color={tone.fg}
-                bg={tone.bg}
-                borderColor={tone.border}
-                accent={tone.accent}
-                badge={tone.label}
-              />
+              {kpi.driftEur != null ? (
+                <Tile
+                  icon="checkCircle"
+                  label="Differenza con la cassa"
+                  value={fmtDriftEur(kpi.driftEur)}
+                  sub={kpi.giorniConfrontati < kpi.giorniInventario
+                    ? `${pct(kpi.driftPct)} su ${kpi.giorniConfrontati} ${kpi.giorniConfrontati === 1 ? 'giorno' : 'giorni'} con cassa`
+                    : `${pct(kpi.driftPct)} dell'incasso stimato`}
+                  color={tone.fg}
+                  bg={tone.bg}
+                  borderColor={tone.border}
+                  accent={tone.accent}
+                  badge={tone.label}
+                />
+              ) : (
+                <Tile
+                  icon="info"
+                  label="Differenza con la cassa"
+                  value="non si può dire"
+                  sub={kpi.motivoConfronto || 'manca la cassa'}
+                  muted
+                />
+              )}
             </div>
+
+            {/* Quello che la pagina NON può fare, detto in chiaro, con quello
+                che serve per farlo. È il caso del design partner: zero
+                chiusure registrate. */}
+            {!kpi.cassaRegistrata && kpi.totVendutoG !== 0 && (
+              <div data-senza-cassa style={{
+                marginTop: 14, padding: isMobile ? 12 : '12px 16px',
+                background: T.bgSubtle, border: `1px solid ${T.border}`, borderRadius: 12,
+                fontSize: font.size.sm, color: C.textMid, lineHeight: 1.55,
+                display: 'flex', alignItems: isMobile ? 'stretch' : 'center', gap: 12,
+                flexDirection: isMobile ? 'column' : 'row',
+                width: '100%', boxSizing: 'border-box',
+              }}>
+                <span style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flex: '1 1 320px', minWidth: 0 }}>
+                  <Icon name="info" size={15} color={C.textSoft} style={{ flexShrink: 0, marginTop: 2 }} />
+                  <span>
+                    <strong style={{ color: C.text }}>Senza la cassa il confronto non si può fare.</strong>{' '}
+                    L&apos;inventario dice che sono usciti {nKg(kpi.totVendutoG)} kg di gelato, circa {fmt0(kpi.ricavoAtteso || 0)} ai
+                    prezzi dei formati. Per sapere se il conto torna serve l&apos;incasso vero di ogni giorno:
+                    basta il totale della chiusura, in Cassa.
+                  </span>
+                </span>
+                {onNavigate && (
+                  <button type="button" onClick={() => onNavigate('chiusura')}
+                    style={{
+                      ...btnNav(tapMin), padding: '0 16px', fontWeight: 700, color: T.brand,
+                      borderColor: T.brand, whiteSpace: 'nowrap', width: isMobile ? '100%' : 'auto',
+                    }}>
+                    Vai alla Cassa
+                  </button>
+                )}
+              </div>
+            )}
+            {kpi.cassaRegistrata && kpi.driftEur != null && kpi.giorniConfrontati < kpi.giorniInventario && (
+              <div style={{
+                marginTop: 14, padding: isMobile ? 12 : '12px 16px',
+                background: T.bgSubtle, border: `1px solid ${T.border}`, borderRadius: 12,
+                fontSize: font.size.sm, color: C.textMid, lineHeight: 1.55,
+                width: '100%', boxSizing: 'border-box',
+              }}>
+                La cassa c&apos;è per {kpi.giorniConfrontati} {kpi.giorniConfrontati === 1 ? 'giorno' : 'giorni'} su {kpi.giorniInventario} con
+                l&apos;inventario: il confronto è fatto solo su quelli ({fmt0(kpi.cassaConfrontata)} incassati contro {fmt0(kpi.attesoConfrontato)} stimati).
+              </div>
+            )}
 
             {kpi.b2bKg > 0 && (
               <div style={{
@@ -607,14 +793,37 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
               }}>
                 <Icon name="alert" size={14} color={T.amber} style={{ flexShrink: 0, marginTop: 3 }} />
                 <span>
-                  {kpi.celleNonQuadrate > 0 && (
+                  {/* La causa più frequente (95,6% delle caselle negative di
+                      Mara a fine agosto): la rimanenza del giorno prima
+                      lasciata a 0 nel giorno della produzione. Lì il totale
+                      NON è più basso del vero — l'errore del giorno prima si
+                      annulla col giorno dopo — e la casella da sistemare è
+                      quella del giorno prima. Prima la pagina diceva il
+                      contrario su tutte e due le cose. */}
+                  {kpi.celleRimanenzaAZero > 0 && (
                     <>
                       <strong>
-                        {kpi.celleNonQuadrate === 1
-                          ? 'Una casella non torna'
-                          : `${n0(kpi.celleNonQuadrate)} caselle non tornano`}
+                        {kpi.celleRimanenzaAZero === 1
+                          ? 'Una casella risulta negativa'
+                          : `${n0(kpi.celleRimanenzaAZero)} caselle risultano negative`}
                       </strong>
-                      {' '}questa settimana, per {nKg(Math.abs(kpi.kgNonQuadrati) * 1000)} kg:
+                      {' '}perché il giorno prima la rimanenza è rimasta a 0 nel giorno in cui si era prodotto:
+                      quel gelato era ancora in vetrina, non venduto.
+                      {kpi.kgRimanenzaFuori < 0
+                        ? ` Il totale della settimana è più basso del vero di ${nKg(Math.abs(kpi.kgRimanenzaFuori) * 1000)} kg, perché il giorno da sistemare è prima del lunedì.`
+                        : ' Sui due giorni insieme il conto torna, quindi il totale della settimana è giusto; il giorno per giorno no.'}
+                      {' '}Va scritta la rimanenza del giorno indicato.
+                    </>
+                  )}
+                  {kpi.celleRimanenzaAZero > 0 && kpi.celleNonQuadrate - kpi.celleRimanenzaAZero > 0 && ' '}
+                  {kpi.celleNonQuadrate - kpi.celleRimanenzaAZero > 0 && (
+                    <>
+                      <strong>
+                        {kpi.celleNonQuadrate - kpi.celleRimanenzaAZero === 1
+                          ? 'Una casella non torna'
+                          : `${n0(kpi.celleNonQuadrate - kpi.celleRimanenzaAZero)} caselle non tornano`}
+                      </strong>
+                      {' '}questa settimana, per {nKg(Math.abs(kpi.kgNonQuadrati - kpi.kgRimanenzaAZero) * 1000)} kg:
                       la rimanenza scritta è più alta di quanto c&apos;era a disposizione.
                       Il totale qui sopra le conta col loro segno, quindi è più basso del vero.
                     </>
@@ -648,7 +857,7 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
                 overflow: 'hidden', width: '100%', boxSizing: 'border-box',
               }}>
                 {celleDaControllare.slice(0, mostraTutteLeCelle ? 200 : 5).map((c) => {
-                  const chiave = `${c.gusto}|${c.data}`
+                  const chiave = `${c.sedeId}|${c.gusto}|${c.data}`
                   const giorno = new Date(c.data + 'T12:00:00')
                   return (
                     <div key={chiave} style={{
@@ -657,10 +866,37 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
                       borderTop: `1px solid ${T.borderSoft}`,
                       fontSize: typo.small.fontSize, color: C.text,
                     }}>
-                      <span style={{ fontWeight: 700, flex: '1 1 150px', minWidth: 0 }}>{c.gusto}</span>
+                      <span style={{ fontWeight: 700, flex: '1 1 150px', minWidth: 0 }}>
+                        {c.gusto}
+                        {isAllSedi && nomeSede(c.sedeId) && (
+                          <span style={{ fontWeight: 400, color: C.textSoft }}> · {nomeSede(c.sedeId)}</span>
+                        )}
+                      </span>
                       <span style={{ color: C.textSoft, whiteSpace: 'nowrap' }}>
                         {giorno.toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: 'short' })}
                       </span>
+                      {c.causa === CAUSA_RIMANENZA_A_ZERO && c.giornoDaSistemare ? (
+                        // Non è un ammanco da accettare: è una casella del
+                        // giorno prima da compilare. «È giusta così» qui
+                        // avrebbe fatto passare per omaggio un errore di
+                        // compilazione.
+                        <>
+                          <span style={{ ...TNUM, color: T.amber, fontWeight: 700, whiteSpace: 'nowrap' }}
+                            title={`${maiuscola(conGiorno('il', c.giornoDaSistemare))} la rimanenza è 0 ma si erano prodotti dei chili: il giorno dopo ne ricompaiono ${nKg(c.riman)} kg, e il venduto esce -${nKg(c.mancano)} kg`}>
+                            rimanenza mancante il {new Date(c.giornoDaSistemare + 'T12:00:00').toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: 'short' })}
+                          </span>
+                          {onNavigate && (
+                            <button type="button" onClick={() => onNavigate('inventario-gusti')}
+                              style={{
+                                padding: '6px 12px', minHeight: tapMin, borderRadius: 8,
+                                border: `1px solid ${T.border}`, background: T.bgCard, color: C.textMid,
+                                fontSize: typo.small.fontSize, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
+                              }}>
+                              Apri l&apos;inventario
+                            </button>
+                          )}
+                        </>
+                      ) : (<>
                       <span style={{ ...TNUM, color: T.brand, fontWeight: 700, whiteSpace: 'nowrap' }}
                         title={`Rimasti il giorno prima ${nKg(c.rimanPrec)} kg + prodotti ${nKg(c.prod)} kg, ma la rimanenza scritta è ${nKg(c.riman)} kg`}>
                         mancano {nKg(c.mancano)} kg
@@ -668,7 +904,7 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
                       <button type="button" disabled={accettando === chiave}
                         onClick={() => accettaCella(c, 'verificata dal titolare')}
                         style={{
-                          padding: '6px 12px', minHeight: 36, borderRadius: 8,
+                          padding: '6px 12px', minHeight: tapMin, borderRadius: 8,
                           border: `1px solid ${T.border}`, background: T.bgCard, color: C.textMid,
                           fontSize: typo.small.fontSize, fontWeight: 700,
                           cursor: accettando === chiave ? 'default' : 'pointer',
@@ -676,6 +912,7 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
                         }}>
                         {accettando === chiave ? 'Salvo…' : 'È giusta così'}
                       </button>
+                      </>)}
                     </div>
                   )
                 })}
@@ -796,7 +1033,11 @@ function SparklineTrend({ data }) {
   const W = 600, H = 110, PAD_X = 30, PAD_Y = 22
   if (!data || data.length === 0) return null
   const maxKg = Math.max(1, ...data.map(d => d.kg))
-  const maxEur = Math.max(1, ...data.map(d => d.cassa))
+  // Una settimana senza chiusure ha la cassa «non registrata» (null): non è
+  // un punto a zero. Prima la linea della cassa di chi non la registra era
+  // una retta piatta sul fondo, che si leggeva «non ha incassato niente».
+  const conCassa = data.filter(d => d.cassa != null)
+  const maxEur = Math.max(1, ...conCassa.map(d => d.cassa))
   const xStep = (W - PAD_X * 2) / Math.max(1, data.length - 1)
   const yScale = (val, max) => H - PAD_Y - (val / max) * (H - PAD_Y * 2)
 
@@ -805,11 +1046,15 @@ function SparklineTrend({ data }) {
     const y = yScale(d.kg, maxKg)
     return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`
   }).join(' ')
+  let primoPunto = true
   const pathEur = data.map((d, i) => {
+    if (d.cassa == null) { primoPunto = true; return '' }
     const x = PAD_X + i * xStep
     const y = yScale(d.cassa, maxEur)
-    return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`
-  }).join(' ')
+    const comando = primoPunto ? 'M' : 'L'
+    primoPunto = false
+    return `${comando}${x.toFixed(1)},${y.toFixed(1)}`
+  }).filter(Boolean).join(' ')
   const fmtLabel = (iso) => {
     const d = new Date(`${String(iso).slice(0, 10)}T12:00:00`)
     return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`
@@ -820,7 +1065,7 @@ function SparklineTrend({ data }) {
         {/* Gridline orizzontale di base */}
         <line x1={PAD_X} y1={H - PAD_Y} x2={W - PAD_X} y2={H - PAD_Y} stroke={T.border} strokeWidth="1" />
         {/* Cassa (linea brand tratteggiata) */}
-        <path d={pathEur} fill="none" stroke={T.brand} strokeWidth="2" strokeDasharray="4 3" />
+        {pathEur && <path d={pathEur} fill="none" stroke={T.brand} strokeWidth="2" strokeDasharray="4 3" />}
         {/* Kg venduti (linea verde) */}
         <path d={pathKg} fill="none" stroke={T.green} strokeWidth="2" />
         {data.map((d, i) => {
@@ -834,7 +1079,9 @@ function SparklineTrend({ data }) {
                 <circle cx={x} cy={yScale(d.kg, maxKg)} r="6.5" fill="none" stroke={T.amber} strokeWidth="1.5" />
               )}
               <circle cx={x} cy={yScale(d.kg, maxKg)} r="3.5" fill={T.green} stroke={T.bgCard} strokeWidth="1.5" />
-              <circle cx={x} cy={yScale(d.cassa, maxEur)} r="3.5" fill={T.brand} stroke={T.bgCard} strokeWidth="1.5" />
+              {d.cassa != null && (
+                <circle cx={x} cy={yScale(d.cassa, maxEur)} r="3.5" fill={T.brand} stroke={T.bgCard} strokeWidth="1.5" />
+              )}
             </g>
           )
         })}
@@ -869,9 +1116,9 @@ function SparklineTrend({ data }) {
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
           <span style={{
             display: 'inline-block', width: 14, height: 0,
-            borderTop: `2px dashed ${T.brand}`,
+            borderTop: `2px dashed ${conCassa.length > 0 ? T.brand : T.border}`,
           }} />
-          cassa retail
+          {conCassa.length > 0 ? 'cassa' : 'cassa non registrata'}
         </span>
         {data.some(d => d.nonQuadrate > 0) && (
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
@@ -995,19 +1242,27 @@ function Tile({ icon, label, value, sub, tendVal, muted, color, bg, borderColor,
 }
 
 // ── Diagnosi drift ────────────────────────────────────────────────────────
+// Si vede SOLO quando c'è una cassa vera da confrontare (driftPct non null):
+// senza chiusure lo scostamento non esiste, e fino al 03/10/2026 questo
+// riquadro compariva ogni settimana a chi non registra la cassa, suggerendo
+// «furti interni» su un incasso che semplicemente non era stato scritto.
+// Anche con la cassa, la prima cosa da guardare è l'inventario: sui dati veri
+// le caselle compilate male sono la causa più frequente di un conto che non
+// torna.
 function DiagnosiDrift({ driftEur, driftPct, isMobile }) {
-  const tono = driftEur < 0 ? 'mancante' : 'sovrastimato'
+  const tono = driftEur < 0 ? 'più basso della stima' : 'più alto della stima'
   const ipotesi = driftEur < 0
     ? [
-        'Porzioni piu grandi di quelle pianificate dai formati (controlla la bilancia)',
-        'Omaggi non registrati alla cassa',
+        'Giorni di cassa registrati a metà, o chiusure saltate',
+        'Rimanenze scritte male nell\'inventario (una casella lasciata a zero fa sembrare venduto quello che è in vetrina)',
+        'Porzioni più grandi di quelle dei formati (controlla la bilancia)',
+        'Omaggi e assaggi non battuti in cassa',
         'Errori di scontrino: battiture saltate o sottostimate',
-        'Furti interni',
       ]
     : [
         'Cassa con incassi extra non legati al gelato (es. articoli non da gusto)',
         'Inventario sottostimato: residuo della mattina dopo letto basso o errore di pesata',
-        'Scarti registrati ma in realta venduti',
+        'Scarti registrati ma in realtà venduti',
       ]
   return (
     <div style={{
@@ -1019,7 +1274,7 @@ function DiagnosiDrift({ driftEur, driftPct, isMobile }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
         <Icon name="warning" size={15} color={T.redDark} />
         <strong style={{ fontSize: font.size.base }}>
-          Cosa controllare - drift {tono} del {Math.abs(driftPct).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 1, maximumFractionDigits: 1 })}%
+          Cosa controllare: incasso {tono} del {Math.abs(driftPct).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 1, maximumFractionDigits: 1 })}%
         </strong>
       </div>
       <ul style={{ margin: 0, paddingLeft: 22 }}>
@@ -1133,7 +1388,7 @@ function PanelSofferenza({ sofferenza, zeroVenduto }) {
 
       {sofferenza.length === 0 ? (
         <div style={{ fontSize: font.size.sm, color: C.textSoft, lineHeight: 1.5 }}>
-          Nessun gusto con residuo persistente. Buon equilibrio produzione/vendita.
+          Nessun gusto resta in vetrina per {GIORNI_VETRINA_SOFFERENZA} giorni di vendita o più.
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -1154,7 +1409,7 @@ function PanelSofferenza({ sofferenza, zeroVenduto }) {
                 color: C.textSoft, ...TNUM, whiteSpace: 'nowrap',
                 fontSize: font.size.sm,
               }}>
-                residuo {nKg(x.residuoMedioG)} kg
+                in vetrina {nKg(x.residuoMedioG)} kg, vende {nKg(x.vendutoMedioG)} kg al giorno
               </span>
               <span style={{
                 color: T.amberDark, fontWeight: 700, ...TNUM,
@@ -1162,7 +1417,7 @@ function PanelSofferenza({ sofferenza, zeroVenduto }) {
                 background: T.amberLight, padding: '2px 8px', borderRadius: 999,
                 fontSize: font.size.sm,
               }}>
-                {(x.ratio * 100).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })}%
+                {x.giorniVetrina.toLocaleString('it-IT', { maximumFractionDigits: 1 })} giorni
               </span>
             </div>
           ))}
@@ -1172,7 +1427,8 @@ function PanelSofferenza({ sofferenza, zeroVenduto }) {
         fontSize: font.size.sm, color: C.textSoft, marginTop: 12, lineHeight: 1.4,
         paddingTop: 10, borderTop: `1px solid ${C.borderSoft}`,
       }}>
-        Soglia &quot;sofferenza&quot;: residuo medio &ge; 50% della produzione giornaliera.
+        In sofferenza: quello che resta in vetrina basta per {GIORNI_VETRINA_SOFFERENZA} giorni di vendita o più
+        (rimanenza media divisa per il venduto medio di un giorno).
       </div>
     </div>
   )

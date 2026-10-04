@@ -33,9 +33,18 @@ import { loadXLSX } from '../lib/xlsx'
 // i conti che non tornavano, perdeva la giacenza di partenza a ogni giorno di
 // chiusura e ignorava i chili spediti alle altre sedi: questa pagina mostrava
 // un venduto diverso da Quadratura e dal conto economico sugli stessi giorni.
-import { totaliPerGusto, serieVendutoMultiSede } from '../lib/inventarioProduzione'
-import { calcolaFC, isRicettaValida, getR } from '../lib/foodcost'
+import { totaliPerGusto, serieVendutoMultiSede, ricettaDelGusto, caselleDaSistemare, riassuntoCaselle, euroKgMedioFormati } from '../lib/inventarioProduzione'
+import { buildIngCosti } from '../lib/foodcost'
+// Il valore di ogni gusto (ricavo, food cost, margine) non si calcola qui: è
+// `valutaGusti`, provato coi numeri veri. Le due copie che stavano in questa
+// pagina chiamavano calcolaFC con gli argomenti sbagliati e davano un margine
+// del 100% su tutto (vedi il racconto in produzioneAnalisi.js).
+import { valutaGusti, giorniRegistrati, variazionePct, dataBreve, conGiorno } from '../lib/produzioneAnalisi'
+import { todayLocal, differenzaGiorni, formatLocalDate } from '../lib/dateLocal'
 import { useRicavoFlat } from '../lib/useRicavoFlat'
+import { useNomiGusti } from '../lib/useNomiGusti'
+import { ricetteSimili } from '../lib/nomiGusti'
+import { normGusto } from '../lib/normGusto'
 import { fmtp } from '../lib/formatIt'
 
 /**
@@ -57,10 +66,22 @@ export default function AnalisiInventarioSection({
   prevFrom = null, prevTo = null,
   ricettario, orgId, sedeId, sedi = [],
   onBack,
+  // Cosa si confronta davvero (o perché no): lo decide il contenitore sui
+  // giorni registrati. null = la pagina non lo sa ancora.
+  confrontoInfo = null,
+  // La finestra di partenza, quando l'utente non ha scelto le date: serve a
+  // dire «ti mostro i due mesi fino all'ultimo giorno registrato».
+  partenza = null,
+  // Per il pulsante «guarda fino al 31/08» quando il periodo è vuoto.
+  onPeriodo = null,
+  // Per andare al Ricettario quando un gusto non ha nessuna ricetta simile.
+  onNavigate = null,
 }) {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
-  const { ricavoFlatFor } = useRicavoFlat(orgId, ricettario, sedeId)
+  const { ricavoFlatFor, formati } = useRicavoFlat(orgId, ricettario, sedeId)
+  // I nomi del foglio collegati a mano alle ricette (MISTIC → MYSTIC).
+  const { mappa: nomiGusti, collega } = useNomiGusti(orgId)
   const [vista, setVista] = useState('giornaliero')  // giornaliero | settimana | mese
   const [sortBy, setSortBy] = useState('ricavo')
   const [sortDir, setSortDir] = useState('desc')
@@ -70,64 +91,30 @@ export default function AnalisiInventarioSection({
                        : confronto === 'nessuno'  ? ''
                        : 'vs periodo prec.'
 
-  // Aggregato per gusto: prod, venduto (residuo differenziale), scarto,
-  // ricavo €, food cost €, margine €, margine %.
-  const perGusto = useMemo(() => {
-    const raw = totaliPerGusto(rows, { da: dateFrom, a: dateTo })
-    const ricByName = {}
-    for (const ric of Object.values(ricettario?.ricette || {})) {
-      ricByName[String(ric.nome || '').trim().toUpperCase()] = ric
-    }
-    const arr = []
-    for (const [gusto, { prodTot, scartoTot, vendTot }] of Object.entries(raw)) {
-      const ric = ricByName[String(gusto).trim().toUpperCase()]
-      const ricavoKg = ric ? (Number(ricavoFlatFor(ric)) || 0) : 0
-      const fcInfo = ric && isRicettaValida(ric.nome) ? calcolaFC(ric, ricettario) : null
-      const fcKg = fcInfo?.foodCost || 0
-      const prodKg = prodTot / 1000
-      const vendKg = vendTot / 1000
-      const scartoKg = scartoTot / 1000
-      const ricavo = vendKg * ricavoKg
-      const fc = prodKg * fcKg
-      const margine = ricavo - fc
-      const margPct = ricavo > 0 ? (margine / ricavo * 100) : 0
-      arr.push({
-        gusto, prodKg, vendKg, scartoKg,
-        ricavoKg, fcKg, ricavo, fc, margine, margPct,
-        haMapping: ricavoKg > 0 && fcKg > 0,
-      })
-    }
-    return arr
-  }, [rows, ricettario, ricavoFlatFor])
+  // I prezzi degli ingredienti, nella forma che calcolaFC si aspetta.
+  const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario])
+  const valuta = (righe, da, a) => valutaGusti(totaliPerGusto(righe, { da, a }), {
+    ricettaDi: (gusto) => ricettaDelGusto(ricettario, gusto, nomiGusti),
+    ricavoKgDi: ricavoFlatFor,
+    ingCosti, ricettario,
+  })
 
-  const totali = useMemo(() => {
-    let prod = 0, vend = 0, scarto = 0, ricavo = 0, fc = 0
-    for (const r of perGusto) {
-      prod += r.prodKg; vend += r.vendKg; scarto += r.scartoKg
-      ricavo += r.ricavo; fc += r.fc
-    }
-    return { prod, vend, scarto, ricavo, fc, margine: ricavo - fc, margPct: ricavo > 0 ? ((ricavo - fc) / ricavo * 100) : 0 }
-  }, [perGusto])
+  // Aggregato per gusto: prod, venduto (residuo differenziale), scarto,
+  // ricavo €, food cost €, margine € e %. Il margine è null quando il gusto
+  // non ha sia il ricavo sia il costo completo: è «non lo so», non 100%.
+  const valutazione = useMemo(
+    () => valuta(rows, dateFrom, dateTo),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rows, dateFrom, dateTo, ricettario, ingCosti, ricavoFlatFor, nomiGusti]
+  )
+  const perGusto = valutazione.righe
+  const totali = valutazione.totali
 
   const totaliPrev = useMemo(() => {
     if (!Array.isArray(rowsPrev) || rowsPrev.length === 0) return null
-    const raw = totaliPerGusto(rowsPrev, { da: prevFrom, a: prevTo })
-    const ricByName = {}
-    for (const ric of Object.values(ricettario?.ricette || {})) {
-      ricByName[String(ric.nome || '').trim().toUpperCase()] = ric
-    }
-    let prod = 0, vend = 0, scarto = 0, ricavo = 0, fc = 0
-    for (const [gusto, { prodTot, scartoTot, vendTot }] of Object.entries(raw)) {
-      prod += prodTot / 1000; vend += vendTot / 1000; scarto += scartoTot / 1000
-      const ric = ricByName[String(gusto).trim().toUpperCase()]
-      const ricavoKg = ric ? (Number(ricavoFlatFor(ric)) || 0) : 0
-      const fcInfo = ric && isRicettaValida(ric.nome) ? calcolaFC(ric, ricettario) : null
-      const fcKg = fcInfo?.foodCost || 0
-      ricavo += (vendTot / 1000) * ricavoKg
-      fc += (prodTot / 1000) * fcKg
-    }
-    return { prod, vend, scarto, ricavo, fc, margine: ricavo - fc, margPct: ricavo > 0 ? ((ricavo - fc) / ricavo * 100) : 0 }
-  }, [rowsPrev, ricettario, ricavoFlatFor])
+    return valuta(rowsPrev, prevFrom, prevTo).totali
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rowsPrev, prevFrom, prevTo, ricettario, ingCosti, ricavoFlatFor, nomiGusti])
 
   // Serie temporale per il grafico (aggregazione per giorno/settimana/mese)
   const trend = useMemo(() => {
@@ -209,6 +196,11 @@ export default function AnalisiInventarioSection({
     arr.sort((a, b) => {
       const va = a[sortBy]; const vb = b[sortBy]
       if (typeof va === 'string') return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va)
+      // Un margine che non si sa (null) va in fondo, in tutti e due i versi:
+      // `null - 3` fa -3 e lo metterebbe a caso in mezzo alla classifica.
+      if (va == null && vb == null) return 0
+      if (va == null) return 1
+      if (vb == null) return -1
       return sortDir === 'asc' ? va - vb : vb - va
     })
     return arr
@@ -222,16 +214,85 @@ export default function AnalisiInventarioSection({
   }, [perGusto])
   const top10Max = Math.max(1, ...top10.map(x => x.vendKg))
 
-  const nMappati = perGusto.filter(x => x.haMapping).length
-  const nNonMappati = perGusto.length - nMappati
+  // I giorni registrati DENTRO il periodo (le righe dei sette giorni prima
+  // servono solo come giacenza di partenza e non contano).
+  const copertura = useMemo(
+    () => giorniRegistrati(rows, { da: dateFrom, a: dateTo }),
+    [rows, dateFrom, dateTo]
+  )
+  // La riga che dice su cosa si reggono i numeri: quali giorni, dove finisce
+  // la registrazione, con cosa si confronta. Prima la pagina non diceva mai
+  // «l'ultimo giorno registrato è il 31/08», e un mese non scritto sembrava
+  // un crollo delle vendite.
+  const oggiIso = todayLocal()
+  const finePeriodo = dateTo && dateTo < oggiIso ? dateTo : oggiIso
+  const registrazioneFerma = copertura.ultimo && finePeriodo && copertura.ultimo < finePeriodo
+    && differenzaGiorni(copertura.ultimo, finePeriodo) > 1
+  const daPartenza = partenza && partenza.from === dateFrom && partenza.to === dateTo
+    && partenza.ultimo && differenzaGiorni(partenza.ultimo, oggiIso) > 2
+
+  // ── Le caselle da sistemare, col giorno giusto ─────────────────────────
+  // `totaliPerGusto` le contava già, ma questa pagina non le leggeva: il
+  // grafico di apertura mostrava il 12/08 a -126,3 kg venduti senza una
+  // parola. Per la causa più frequente (la rimanenza lasciata a 0 il giorno
+  // della produzione) la casella da correggere è quella del giorno PRIMA.
+  const caselle = useMemo(() => caselleDaSistemare(rows, { da: dateFrom, a: dateTo }), [rows, dateFrom, dateTo])
+  const riassunto = useMemo(() => riassuntoCaselle(caselle), [caselle])
+  const nomeSede = (id) => (sedi || []).find(s => s.id === id)?.nome || null
+  const daSistemare = useMemo(() => {
+    const visti = new Set()
+    const out = []
+    for (const c of caselle) {
+      const k = `${c.sedeId}|${c.gusto}|${c.giornoDaSistemare}`
+      if (visti.has(k)) continue
+      visti.add(k)
+      out.push(c)
+    }
+    return out
+  }, [caselle])
+
+  // I gusti senza ricetta, dal più venduto, e quanto valgono al prezzo medio
+  // dei formati: è lo stesso prezzo con cui la Quadratura stima l'incasso.
+  const euroKgMedio = useMemo(() => euroKgMedioFormati(formati), [formati])
+  const attivo = (r) => r.vendKg !== 0 || r.prodKg !== 0
+  const senzaRicetta = useMemo(
+    () => perGusto.filter(r => !r.haRicetta && attivo(r)).sort((a, b) => b.vendKg - a.vendKg),
+    [perGusto]
+  )
+  // I nomi già collegati a mano che compaiono nel periodo: si vedono, e si
+  // possono scollegare (un collegamento sbagliato sposta dei soldi).
+  const collegati = useMemo(() => (nomiGusti ? perGusto.filter(r =>
+    r.haRicetta && attivo(r) && nomiGusti.nomi[normGusto(r.gusto)]
+    && normGusto(r.ricetta) !== normGusto(r.gusto)) : []), [perGusto, nomiGusti])
+  const incompleti = useMemo(
+    () => perGusto.filter(r => r.haRicetta && attivo(r) && !(r.haRicavo && r.fcCompleto)),
+    [perGusto]
+  )
+
+  // ── Lo scarto non registrato non è «niente buttato» ──────────────────
+  // Nei dati di Mara lo scarto vale 0 in tutte le 7.013 righe: non è mai
+  // stato scritto. La pagina mostrava «-» e una barra «Scarto kg» vuota, che
+  // si leggevano «non si butta niente». E c'è di più: quando lo scarto non si
+  // scrive, quello che si butta finisce nel venduto (il conto è rimasto +
+  // prodotto − rimasto − scarto). Va detto con le parole.
+  const scartoRegistrato = useMemo(
+    () => (rows || []).some(r => r?.data && (!dateFrom || r.data >= dateFrom) && (!dateTo || r.data <= dateTo) && (Number(r.scarto_g) || 0) > 0),
+    [rows, dateFrom, dateTo]
+  )
+  const cellaScarto = (v) => (scartoRegistrato ? kg(v) : 'non registrato')
+
+  // Un gusto «a posto» ha il prezzo di vendita e il costo completo. Prima il
+  // controllo guardava un food cost sempre zero, e l'avviso diceva «28 gusti
+  // su 28 senza ricetta» con 88.970 € di ricavo in pagina.
+  const completo = (r) => r.haRicavo && r.fcCompleto
 
   const eur = (n) => (Number(n) || 0).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' €'
   const kg = (n) => (Number(n) || 0).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 1 })
   const pct = (n) => fmtp(Number(n) || 0)
-  const deltaPct = (cur, prev) => {
-    if (prev == null || prev === 0) return null
-    return ((cur - prev) / prev) * 100
-  }
+  // Il segno si calcola sul valore assoluto di prima: da -100 a -50 è un
+  // miglioramento. Prima la freccia si girava quando il margine di prima era
+  // negativo.
+  const deltaPct = (cur, prev) => variazionePct(cur, prev)
 
   function toggleSort(col) {
     if (sortBy === col) setSortDir(sortDir === 'asc' ? 'desc' : 'asc')
@@ -241,28 +302,30 @@ export default function AnalisiInventarioSection({
   async function esportaXlsx() {
     try {
       const XLSX = await loadXLSX()
-      const header = ['Gusto', 'Prodotto kg', 'Venduto kg', 'Scarto kg', 'Ricavo/kg €', 'Ricavo €', 'Food cost €', 'Margine €', 'Margine %']
+      const header = ['Gusto', 'Prodotto kg', 'Venduto kg', scartoRegistrato ? 'Scarto kg' : 'Scarto kg (non registrato)', 'Ricavo/kg €', 'Ricavo €', 'Food cost €', 'Margine €', 'Margine %']
       const body = sorted.map(r => [
         r.gusto,
         Number(r.prodKg.toFixed(2)),
         Number(r.vendKg.toFixed(2)),
-        Number(r.scartoKg.toFixed(2)),
+        scartoRegistrato ? Number(r.scartoKg.toFixed(2)) : '',
         Number(r.ricavoKg.toFixed(2)),
         Number(r.ricavo.toFixed(0)),
         Number(r.fc.toFixed(0)),
-        Number(r.margine.toFixed(0)),
-        Number(r.margPct.toFixed(1)),
+        // Un margine che non si sa resta vuoto anche nel file: al
+        // commercialista arrivava «100,0» su ogni gusto.
+        r.margine == null ? '' : Number(r.margine.toFixed(0)),
+        r.margPct == null ? '' : Number(r.margPct.toFixed(1)),
       ])
       const total = [
         'Totale',
         Number(totali.prod.toFixed(2)),
         Number(totali.vend.toFixed(2)),
-        Number(totali.scarto.toFixed(2)),
+        scartoRegistrato ? Number(totali.scarto.toFixed(2)) : '',
         '',
         Number(totali.ricavo.toFixed(0)),
         Number(totali.fc.toFixed(0)),
-        Number(totali.margine.toFixed(0)),
-        Number(totali.margPct.toFixed(1)),
+        totali.margine == null ? '' : Number(totali.margine.toFixed(0)),
+        totali.margPct == null ? '' : Number(totali.margPct.toFixed(1)),
       ]
       const ws = XLSX.utils.aoa_to_sheet([header, ...body, total])
       const wb = XLSX.utils.book_new()
@@ -274,14 +337,43 @@ export default function AnalisiInventarioSection({
     }
   }
 
-  if (rows.length === 0) {
+  // ── Un periodo vuoto non è una tabella di zeri ─────────────────────────
+  // Il controllo guardava `rows.length`, ma le righe arrivano con i sette
+  // giorni prima del periodo (servono come giacenza di partenza). Con «30
+  // giorni» su Carlina, a ottobre, la pagina mostrava 22 gusti a 0,0 kg e
+  // -100% su tutto, invece di «niente registrato dopo il 31/08». Conta solo
+  // se dentro il periodo c'è un giorno registrato.
+  if (copertura.n === 0) {
+    const ultimo = confrontoInfo?.ultimoPrima || null
     return (
       <div style={{
         background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 14,
-        padding: 32, textAlign: 'center', color: T.textSoft, fontSize: 13,
-        marginBottom: 20,
+        padding: 32, textAlign: 'center', color: T.textSoft, fontSize: font.size.base,
+        marginBottom: 20, lineHeight: 1.5,
       }}>
-        Nessun dato di produzione a inventario nel periodo selezionato.
+        <div style={{ fontWeight: 700, color: T.text, marginBottom: 6 }}>
+          {dateFrom && dateTo
+            ? `Nessun giorno registrato ${conGiorno('dal', dateFrom, { lunga: true })} ${conGiorno('al', dateTo, { lunga: true })}.`
+            : 'Nessun giorno registrato nel periodo scelto.'}
+        </div>
+        {ultimo && (
+          <div>L&apos;ultimo giorno registrato è {conGiorno('il', ultimo, { lunga: true })}.</div>
+        )}
+        {ultimo && onPeriodo && (
+          <div style={{ marginTop: 12 }}>
+            <button type="button" onClick={() => {
+              const [y, m, d] = ultimo.split('-').map(Number)
+              onPeriodo(formatLocalDate(new Date(y, m - 3, d)), ultimo)
+            }}
+              style={{
+                padding: '10px 18px', minHeight: 44, background: T.bgCard,
+                color: T.brand, border: `1px solid ${T.brand}`, borderRadius: 10,
+                fontSize: font.size.base, fontWeight: 700, cursor: 'pointer',
+              }}>
+              Guarda i due mesi fino {conGiorno('al', ultimo)}
+            </button>
+          </div>
+        )}
         {onBack && (
           <div style={{ marginTop: 12 }}>
             <button onClick={onBack}
@@ -301,24 +393,24 @@ export default function AnalisiInventarioSection({
   return (
     <div style={{ marginBottom: 28 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
-        <SH sub="Analisi completa della produzione con metodo inventario differenziale: quanto hai prodotto, venduto, scartato + margini stimati dal listino formati.">
+        <SH sub="Quanto hai prodotto e venduto, gusto per gusto, contando la vetrina giorno per giorno; ricavo e margine sono stimati dai prezzi dei formati.">
           Analisi produzione inventario
         </SH>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {onBack && (
             <button onClick={onBack}
               style={{
-                padding: '8px 14px', minHeight: 36, background: '#FFF',
+                padding: '8px 14px', minHeight: 44, background: '#FFF',
                 color: T.text, border: `1px solid ${T.border}`, borderRadius: 8,
                 fontSize: 12, fontWeight: 600, cursor: 'pointer',
                 display: 'inline-flex', alignItems: 'center', gap: 6,
               }}>
-              <Icon name="chevD" size={12} /> Torna alla Produzione
+              <Icon name="arrowL" size={12} /> Torna alla Produzione
             </button>
           )}
           <button onClick={esportaXlsx}
             style={{
-              padding: '8px 14px', minHeight: 36, background: '#FFF',
+              padding: '8px 14px', minHeight: 44, background: '#FFF',
               color: T.brand, border: `1px solid ${T.brand}55`, borderRadius: 8,
               fontSize: 12, fontWeight: 700, cursor: 'pointer',
               display: 'inline-flex', alignItems: 'center', gap: 6,
@@ -328,20 +420,109 @@ export default function AnalisiInventarioSection({
         </div>
       </div>
 
+      <div data-copertura style={{
+        fontSize: font.size.sm, color: T.textMid, lineHeight: 1.5, marginBottom: 12,
+        display: 'flex', alignItems: 'flex-start', gap: 8,
+      }}>
+        <span style={{ display: 'inline-flex', marginTop: 2, color: T.textSoft }}><Icon name="calendar" size={14} /></span>
+        <span>
+          <b style={{ color: T.text }}>
+            {copertura.n === 1 ? 'Un giorno registrato' : `${copertura.n.toLocaleString('it-IT')} giorni registrati`}
+          </b>
+          {copertura.n > 1 ? `, ${conGiorno('dal', copertura.primo)} ${conGiorno('al', copertura.ultimo)}` : `, ${conGiorno('il', copertura.primo)}`}
+          {registrazioneFerma && <> · dopo {conGiorno('il', copertura.ultimo)} non c&apos;è niente di registrato</>}
+          {daPartenza && <> · ti mostro i due mesi fino all&apos;ultimo giorno registrato</>}
+          {!scartoRegistrato && <> · scarto non registrato: quello che si butta è contato nel venduto</>}
+          {confrontoInfo?.ok && confrontoInfo.from && (
+            <> · confronto con {dataBreve(confrontoInfo.from)}–{dataBreve(confrontoInfo.to)}
+              {confrontoInfo.giorniPrev === copertura.sedeGiorni
+                ? ', con le stesse giornate registrate'
+                : `, ${Number(confrontoInfo.giorniPrev || 0).toLocaleString('it-IT')} giornate registrate contro ${copertura.sedeGiorni.toLocaleString('it-IT')}`}
+            </>
+          )}
+          {confrontoInfo && !confrontoInfo.ok && confrontoInfo.motivo && (
+            <> · nessun confronto: {confrontoInfo.motivo}</>
+          )}
+        </span>
+      </div>
+
       {/* 4 KPI con confronto periodo precedente */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: isMobile ? 10 : 14, marginBottom: 16 }}>
         <KpiCell label="Prodotto" value={`${kg(totali.prod)} kg`} delta={deltaPct(totali.prod, totaliPrev?.prod)} deltaLabel={deltaLabelText} highlight={false} color={C.text}/>
         <KpiCell label="Venduto stimato" value={`${kg(totali.vend)} kg`} delta={deltaPct(totali.vend, totaliPrev?.vend)} deltaLabel={deltaLabelText} highlight color={T.brand}/>
         <KpiCell label="Ricavo stimato" value={eur(totali.ricavo)} delta={deltaPct(totali.ricavo, totaliPrev?.ricavo)} deltaLabel={deltaLabelText} highlight color="#166534"/>
-        <KpiCell label={`Margine (${pct(totali.margPct)})`} value={eur(totali.margine)} delta={deltaPct(totali.margine, totaliPrev?.margine)} deltaLabel={deltaLabelText} highlight color={totali.margine >= 0 ? '#166534' : '#B91C1C'}/>
+        <KpiCell
+          label={totali.margPct != null ? `Margine (${pct(totali.margPct)})` : 'Margine'}
+          value={totali.margine != null ? eur(totali.margine) : 'non calcolabile'}
+          // Su quanti gusti è fatto: un margine calcolato su 15 gusti su 28 non
+          // è il margine della gelateria, e chi legge deve saperlo.
+          sub={totali.margine == null
+            ? 'nessun gusto ha ricavo e costo'
+            : (totali.nConMargine < totali.nConVendita ? `su ${totali.nConMargine} gusti su ${totali.nConVendita}` : null)}
+          delta={totali.margine != null && totaliPrev?.margine != null ? deltaPct(totali.margine, totaliPrev.margine) : null}
+          deltaLabel={deltaLabelText} highlight
+          color={totali.margine == null ? T.textSoft : totali.margine >= 0 ? '#166534' : '#B91C1C'}/>
       </div>
 
-      {nNonMappati > 0 && (
-        <div style={{
-          background: '#FEF9EB', border: '1px solid #FCD34D', borderRadius: 10,
-          padding: 10, marginBottom: 14, fontSize: 12, color: '#78350F', lineHeight: 1.5,
+      {riassunto.n > 0 && (
+        <div data-caselle style={{
+          background: T.amberLight, border: `1px solid ${T.amber}55`, borderRadius: 10,
+          padding: '10px 12px', marginBottom: 14, fontSize: font.size.sm, color: T.amberDark || T.amber,
+          lineHeight: 1.5, display: 'flex', gap: 8, alignItems: 'flex-start',
         }}>
-          <b>Nota:</b> {nNonMappati} gusti su {perGusto.length} non hanno ricetta collegata o listino formato vendita — ricavo e food cost sono a zero per loro. Sistema le ricette e i formati per un P&L completo.
+          <span style={{ display: 'inline-flex', marginTop: 2, flexShrink: 0 }}><Icon name="alert" size={14} /></span>
+          <span>
+            {riassunto.nRimanenza > 0 && (
+              <>
+                <b>
+                  {riassunto.nRimanenza === 1 ? 'Una casella da sistemare' : `${riassunto.nRimanenza.toLocaleString('it-IT')} caselle da sistemare`}
+                </b>: la rimanenza è rimasta a 0 nel giorno in cui si era prodotto, e il giorno dopo il venduto
+                risulta negativo. È lo stesso gelato, contato nel giorno sbagliato.
+                {riassunto.kgFuori < 0
+                  ? ` Il venduto del periodo è più basso del vero di ${kg(-riassunto.kgFuori)} kg, perché il giorno da sistemare è prima del periodo.`
+                  : ' Il venduto del periodo è giusto; quello dei singoli giorni no.'}
+              </>
+            )}
+            {riassunto.nRimanenza > 0 && riassunto.nAltre > 0 && ' '}
+            {riassunto.nAltre > 0 && (
+              <>
+                {riassunto.nAltre === 1 ? 'Una casella non torna' : `${riassunto.nAltre.toLocaleString('it-IT')} caselle non tornano`} per
+                altri motivi ({kg(-riassunto.kgAltre)} kg): la rimanenza scritta è più alta di quanto c&apos;era a disposizione.
+              </>
+            )}
+            <span style={{ display: 'block', marginTop: 4 }}>
+              Da sistemare: {daSistemare.slice(0, 5).map(c => {
+                const sede = nomeSede(c.sedeId)
+                return `${c.gusto}${sede ? ` a ${sede}` : ''} ${conGiorno('il', c.giornoDaSistemare)}`
+              }).join(', ')}
+              {daSistemare.length > 5 ? ` e altre ${(daSistemare.length - 5).toLocaleString('it-IT')}` : ''}.
+            </span>
+          </span>
+        </div>
+      )}
+
+      {/* ── I gusti che valgono zero perché il nome non trova la ricetta ──
+          Prima l'avviso diceva «28 gusti su 28 non hanno ricetta… ricavo e
+          food cost sono a zero» con 88.970 € di ricavo in pagina, e nessun
+          modo di sistemare dalla pagina. Adesso dice quanti chili e quanti
+          euro mancano, e il nome si collega alla ricetta qui. */}
+      {(senzaRicetta.length > 0 || collegati.length > 0) && (
+        <GustiSenzaRicetta
+          senzaRicetta={senzaRicetta} collegati={collegati}
+          euroKgMedio={euroKgMedio} ricettario={ricettario}
+          collega={collega} pronto={nomiGusti != null}
+          onNavigate={onNavigate} kg={kg} eur={eur} isMobile={isMobile}
+        />
+      )}
+      {incompleti.length > 0 && (
+        <div style={{
+          background: T.amberLight, border: `1px solid ${T.amber}55`, borderRadius: 10,
+          padding: '10px 12px', marginBottom: 14, fontSize: font.size.sm, color: T.amberDark, lineHeight: 1.5,
+        }}>
+          {incompleti.length === 1 ? 'Un gusto ha' : `${incompleti.length.toLocaleString('it-IT')} gusti hanno`} la
+          ricetta ma {incompleti.length === 1 ? 'non ha' : 'non hanno'} il prezzo di vendita o il costo di tutti gli
+          ingredienti: il margine non si calcola ({incompleti.slice(0, 4).map(r => r.gusto).join(', ')}
+          {incompleti.length > 4 ? ` e altri ${(incompleti.length - 4).toLocaleString('it-IT')}` : ''}).
         </div>
       )}
 
@@ -349,18 +530,18 @@ export default function AnalisiInventarioSection({
       <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, padding: 14, marginBottom: 16 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 10, flexWrap: 'wrap' }}>
           <div style={{ fontSize: 12, color: T.textSoft, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-            Andamento produzione ({vista})
+            Prodotto e venduto {vista === 'giornaliero' ? 'per giorno' : vista === 'settimana' ? 'per settimana' : 'per mese'}
           </div>
           <div style={{ display: 'inline-flex', gap: 4, background: '#F8FAFC', padding: 3, borderRadius: 8 }}>
-            {['giornaliero', 'settimana', 'mese'].map(v => (
-              <button key={v} onClick={() => setVista(v)}
+            {[['giornaliero', 'Giorno'], ['settimana', 'Settimana'], ['mese', 'Mese']].map(([v, etichetta]) => (
+              <button key={v} type="button" onClick={() => setVista(v)} aria-pressed={vista === v}
                 style={{
-                  padding: '6px 12px', minHeight: 34,
+                  padding: '6px 12px', minHeight: 44,
                   background: vista === v ? '#FFF' : 'transparent',
                   color: vista === v ? T.brand : T.textMid,
                   border: vista === v ? `1px solid ${T.border}` : '1px solid transparent',
-                  borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                }}>{v}</button>
+                  borderRadius: 6, fontSize: font.size.sm, fontWeight: 700, cursor: 'pointer',
+                }}>{etichetta}</button>
             ))}
           </div>
         </div>
@@ -373,9 +554,17 @@ export default function AnalisiInventarioSection({
             <Legend wrapperStyle={{ fontSize: 12 }}/>
             <Bar dataKey="prod" name="Prodotto kg" fill={T.brand} radius={[4, 4, 0, 0]}/>
             <Bar dataKey="vend" name="Venduto stimato kg" fill="#F59E0B" radius={[4, 4, 0, 0]}/>
-            <Bar dataKey="scarto" name="Scarto kg" fill="#B91C1C" radius={[4, 4, 0, 0]}/>
+            {scartoRegistrato && <Bar dataKey="scarto" name="Scarto kg" fill="#B91C1C" radius={[4, 4, 0, 0]}/>}
           </BarChart>
         </ResponsiveContainer>
+        {vista === 'giornaliero' && riassunto.nRimanenza > 0 && (
+          <div style={{ fontSize: font.size.sm, color: T.textMid, lineHeight: 1.45, marginTop: 8 }}>
+            Il giorno dopo una rimanenza lasciata a 0 il venduto scende, anche sotto zero, e il giorno prima
+            sale: è lo stesso gelato contato nel giorno sbagliato. Giorni da sistemare:{' '}
+            {riassunto.giorni.slice(0, 8).map(dataBreve).join(', ')}
+            {riassunto.giorni.length > 8 ? ` e altri ${(riassunto.giorni.length - 8).toLocaleString('it-IT')}` : ''}.
+          </div>
+        )}
       </div>
 
       {/* Top 10 gusti per venduto */}
@@ -415,7 +604,7 @@ export default function AnalisiInventarioSection({
           titolo={(r) => (
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               {r.gusto}
-              {!r.haMapping && (
+              {!completo(r) && (
                 <span title="Ricetta o formato non collegato" style={{ color: T.amber, display: 'inline-flex' }}>
                   <Icon name="warning" size={13} />
                 </span>
@@ -426,16 +615,16 @@ export default function AnalisiInventarioSection({
             { k: 'vend', label: 'Venduto', forte: true, cella: (r) => kg(r.vendKg) },
             { k: 'ricavo', label: 'Ricavo', forte: true, cella: (r) => r.ricavo > 0 ? eur(r.ricavo) : '-' },
             { k: 'marg', label: 'Margine', forte: true,
-              cella: (r) => (r.ricavo > 0 || r.fc > 0)
+              cella: (r) => r.margine != null
                 ? <span style={{ color: r.margine >= 0 ? T.green : T.red }}>{eur(r.margine)}</span> : '-' },
           ]}
           dettaglio={(r) => (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: font.size.sm }}>
               {[
                 ['Prodotto', kg(r.prodKg), C.text],
-                ['Scarto', r.scartoKg > 0 ? kg(r.scartoKg) : '-', r.scartoKg > 0 ? T.red : C.textSoft],
+                ['Scarto', cellaScarto(r.scartoKg), r.scartoKg > 0 ? T.red : C.textSoft],
                 ['Food cost', r.fc > 0 ? eur(r.fc) : '-', T.red],
-                ['Margine %', r.ricavo > 0 ? pct(r.margPct) : '-', r.margPct >= 40 ? T.green : r.margPct >= 20 ? T.amber : T.red],
+                ['Margine %', r.margPct != null ? pct(r.margPct) : '-', r.margPct == null ? C.textSoft : r.margPct >= 40 ? T.green : r.margPct >= 20 ? T.amber : T.red],
               ].map(([et, v, col]) => (
                 <div key={et} style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
                   <span style={{ color: C.textSoft }}>{et}</span>
@@ -450,11 +639,11 @@ export default function AnalisiInventarioSection({
               {[
                 ['Prodotto', kg(totali.prod), C.text],
                 ['Venduto', kg(totali.vend), C.text],
-                ['Scarto', totali.scarto > 0 ? kg(totali.scarto) : '-', totali.scarto > 0 ? T.red : C.textSoft],
+                ['Scarto', cellaScarto(totali.scarto), totali.scarto > 0 ? T.red : C.textSoft],
                 ['Ricavo', eur(totali.ricavo), C.text],
                 ['Food cost', eur(totali.fc), T.red],
-                ['Margine', eur(totali.margine), totali.margine >= 0 ? T.green : T.red],
-                ['Margine %', pct(totali.margPct), C.text],
+                ['Margine', totali.margine != null ? eur(totali.margine) : '-', totali.margine == null ? C.textSoft : totali.margine >= 0 ? T.green : T.red],
+                ['Margine %', totali.margPct != null ? pct(totali.margPct) : '-', C.text],
               ].map(([et, v, col]) => (
                 <div key={et} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '4px 0', fontSize: font.size.base }}>
                   <span style={{ color: C.textSoft, fontWeight: 600 }}>{et}</span>
@@ -480,15 +669,20 @@ export default function AnalisiInventarioSection({
                 <tr key={r.gusto} style={{ borderTop: `1px solid #F1F5F9` }}>
                   <td style={{ padding: '8px 12px', fontWeight: 700, color: C.text }}>
                     {r.gusto}
-                    {!r.haMapping && <span title="Ricetta o formato non collegato" style={{ marginLeft: 6, color: '#B45309', fontSize: 12 }}>⚠</span>}
+                    {!completo(r) && (
+                      <span title={r.haRicetta ? 'Manca il prezzo di vendita o il costo di qualche ingrediente' : 'Nessuna ricetta collegata a questo nome'}
+                        style={{ marginLeft: 6, color: T.amber, display: 'inline-flex', verticalAlign: 'middle', cursor: 'help' }}>
+                        <Icon name="warning" size={13} />
+                      </span>
+                    )}
                   </td>
                   <td style={{ padding: '8px 12px', textAlign: 'right', ...TNUM }}>{kg(r.prodKg)}</td>
                   <td style={{ padding: '8px 12px', textAlign: 'right', ...TNUM }}>{kg(r.vendKg)}</td>
-                  <td style={{ padding: '8px 12px', textAlign: 'right', ...TNUM, color: r.scartoKg > 0 ? '#B91C1C' : C.textSoft }}>{r.scartoKg > 0 ? kg(r.scartoKg) : '-'}</td>
+                  <td style={{ padding: '8px 12px', textAlign: 'right', ...TNUM, color: r.scartoKg > 0 ? '#B91C1C' : C.textSoft }}>{cellaScarto(r.scartoKg)}</td>
                   <td style={{ padding: '8px 12px', textAlign: 'right', ...TNUM, fontWeight: 700, background: '#FEF9EB' }}>{r.ricavo > 0 ? eur(r.ricavo) : '-'}</td>
                   <td style={{ padding: '8px 12px', textAlign: 'right', ...TNUM, color: '#B91C1C' }}>{r.fc > 0 ? eur(r.fc) : '-'}</td>
-                  <td style={{ padding: '8px 12px', textAlign: 'right', ...TNUM, fontWeight: 800, color: r.margine >= 0 ? '#166534' : '#B91C1C', background: '#F0FDF4' }}>{r.ricavo > 0 || r.fc > 0 ? eur(r.margine) : '-'}</td>
-                  <td style={{ padding: '8px 12px', textAlign: 'right', ...TNUM, color: r.margPct >= 40 ? '#166534' : r.margPct >= 20 ? '#B45309' : '#B91C1C' }}>{r.ricavo > 0 ? pct(r.margPct) : '-'}</td>
+                  <td style={{ padding: '8px 12px', textAlign: 'right', ...TNUM, fontWeight: 800, color: r.margine >= 0 ? '#166534' : '#B91C1C', background: '#F0FDF4' }}>{r.margine != null ? eur(r.margine) : '-'}</td>
+                  <td style={{ padding: '8px 12px', textAlign: 'right', ...TNUM, color: r.margPct == null ? C.textSoft : r.margPct >= 40 ? '#166534' : r.margPct >= 20 ? '#B45309' : '#B91C1C' }}>{r.margPct != null ? pct(r.margPct) : '-'}</td>
                 </tr>
               ))}
             </tbody></>}
@@ -497,11 +691,11 @@ export default function AnalisiInventarioSection({
                 <td style={{ padding: '10px 12px', fontWeight: 800 }}>Totale</td>
                 <td style={{ padding: '10px 12px', textAlign: 'right', ...TNUM, fontWeight: 800 }}>{kg(totali.prod)}</td>
                 <td style={{ padding: '10px 12px', textAlign: 'right', ...TNUM, fontWeight: 800 }}>{kg(totali.vend)}</td>
-                <td style={{ padding: '10px 12px', textAlign: 'right', ...TNUM, fontWeight: 800, color: totali.scarto > 0 ? '#B91C1C' : C.textSoft }}>{totali.scarto > 0 ? kg(totali.scarto) : '-'}</td>
+                <td style={{ padding: '10px 12px', textAlign: 'right', ...TNUM, fontWeight: 800, color: totali.scarto > 0 ? '#B91C1C' : C.textSoft }}>{cellaScarto(totali.scarto)}</td>
                 <td style={{ padding: '10px 12px', textAlign: 'right', ...TNUM, fontWeight: 800, background: '#FEF9EB' }}>{eur(totali.ricavo)}</td>
                 <td style={{ padding: '10px 12px', textAlign: 'right', ...TNUM, fontWeight: 800, color: '#B91C1C' }}>{eur(totali.fc)}</td>
-                <td style={{ padding: '10px 12px', textAlign: 'right', ...TNUM, fontWeight: 800, color: totali.margine >= 0 ? '#166534' : '#B91C1C', background: '#F0FDF4' }}>{eur(totali.margine)}</td>
-                <td style={{ padding: '10px 12px', textAlign: 'right', ...TNUM, fontWeight: 800 }}>{pct(totali.margPct)}</td>
+                <td style={{ padding: '10px 12px', textAlign: 'right', ...TNUM, fontWeight: 800, color: totali.margine == null ? C.textSoft : totali.margine >= 0 ? '#166534' : '#B91C1C', background: '#F0FDF4' }}>{totali.margine != null ? eur(totali.margine) : '-'}</td>
+                <td style={{ padding: '10px 12px', textAlign: 'right', ...TNUM, fontWeight: 800 }}>{totali.margPct != null ? pct(totali.margPct) : '-'}</td>
               </tr>
             </tfoot></>}
         />
@@ -511,7 +705,137 @@ export default function AnalisiInventarioSection({
   )
 }
 
-function KpiCell({ label, value, delta, deltaLabel = 'vs periodo prec.', highlight, color }) {
+// ── Collegare un nome del foglio alla sua ricetta ──────────────────────────
+function GustiSenzaRicetta({ senzaRicetta, collegati, euroKgMedio, ricettario, collega, pronto, onNavigate, kg, eur, isMobile }) {
+  const [scelte, setScelte] = useState({})
+  const [salvo, setSalvo] = useState(null)
+  const [errore, setErrore] = useState(null)
+  const [tutti, setTutti] = useState(false)
+  const kgVenduti = senzaRicetta.reduce((s, r) => s + r.vendKg, 0)
+  const kgProdotti = senzaRicetta.reduce((s, r) => s + r.prodKg, 0)
+  const ricetteGusto = useMemo(() => Object.entries(ricettario?.ricette || {})
+    .filter(([, r]) => !['semilavorato', 'interno'].includes(String(r?.tipo || '').toLowerCase()))
+    .map(([chiave, r]) => ({ chiave, nome: r?.nome || chiave }))
+    .sort((a, b) => a.nome.localeCompare(b.nome)), [ricettario])
+  const proposte = useMemo(() => {
+    const out = {}
+    for (const r of senzaRicetta) out[r.gusto] = ricetteSimili(r.gusto, ricettario)
+    return out
+  }, [senzaRicetta, ricettario])
+  // Si preseleziona solo una proposta molto simile; le altre le sceglie il
+  // titolare. Il collegamento parte comunque solo col pulsante.
+  const sceltaDi = (g) => scelte[g] ?? ((proposte[g]?.[0]?.punti || 0) >= 0.85 ? proposte[g][0].chiave : '')
+
+  async function fai(gusto, ricetta) {
+    if (salvo) return
+    setSalvo(gusto); setErrore(null)
+    try { await collega(gusto, ricetta) }
+    catch (e) { setErrore(`Non sono riuscito a salvare (${e?.message || 'rete'}): il collegamento non è stato fatto.`) }
+    finally { setSalvo(null) }
+  }
+
+  const campo = {
+    minHeight: 44, padding: '8px 10px', borderRadius: 8, border: `1px solid ${T.border}`,
+    background: T.bgCard, color: T.text, fontSize: font.size.md, fontFamily: 'inherit',
+    minWidth: 0, flex: isMobile ? '1 1 100%' : '1 1 220px', boxSizing: 'border-box',
+  }
+  const pulsante = (attivo) => ({
+    minHeight: 44, padding: '0 16px', borderRadius: 8, border: `1px solid ${T.brand}`,
+    background: attivo ? T.brand : T.bgCard, color: attivo ? T.bgCard : T.brand,
+    fontSize: font.size.sm, fontWeight: 700, cursor: attivo ? 'pointer' : 'default',
+    opacity: attivo ? 1 : 0.5, whiteSpace: 'nowrap', fontFamily: 'inherit',
+  })
+  const elenco = tutti ? senzaRicetta : senzaRicetta.slice(0, 6)
+
+  return (
+    <div data-senza-ricetta style={{
+      background: T.amberLight, border: `1px solid ${T.amber}55`, borderRadius: 10,
+      padding: '12px 14px', marginBottom: 14, fontSize: font.size.sm, color: T.amberDark, lineHeight: 1.5,
+    }}>
+      {senzaRicetta.length > 0 && (
+        <div style={{ marginBottom: 10 }}>
+          <b>
+            {senzaRicetta.length === 1 ? 'Un gusto non trova la ricetta' : `${senzaRicetta.length.toLocaleString('it-IT')} gusti non trovano la ricetta`}
+          </b>: {kg(kgVenduti)} kg venduti ({kg(kgProdotti)} kg prodotti) che non entrano né nel ricavo né nel food cost.
+          {euroKgMedio != null && (
+            <> Al prezzo medio dei formati ({euroKgMedio.toLocaleString('it-IT', { maximumFractionDigits: 2, minimumFractionDigits: 2 })} €/kg)
+              sono circa <b>{eur(kgVenduti * euroKgMedio)}</b> di ricavo stimato che mancano.</>
+          )}
+          {' '}Di solito è il nome scritto in un altro modo: collegalo alla sua ricetta, una volta, e vale per tutti i periodi.
+        </div>
+      )}
+      {senzaRicetta.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {elenco.map((r) => {
+            const prop = proposte[r.gusto] || []
+            const scelta = sceltaDi(r.gusto)
+            return (
+              <div key={r.gusto} style={{
+                display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8,
+                background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 8, padding: '8px 10px', color: T.text,
+              }}>
+                <span style={{ flex: isMobile ? '1 1 100%' : '0 1 200px', minWidth: 0 }}>
+                  <b>{r.gusto}</b>
+                  <span style={{ display: 'block', color: T.textSoft, ...TNUM }}>
+                    {kg(r.vendKg)} kg venduti{euroKgMedio != null ? ` · circa ${eur(r.vendKg * euroKgMedio)}` : ''}
+                  </span>
+                </span>
+                <select aria-label={`Ricetta di ${r.gusto}`} value={scelta} disabled={!pronto}
+                  onChange={(e) => setScelte(x => ({ ...x, [r.gusto]: e.target.value }))} style={campo}>
+                  <option value="">{prop.length ? 'Scegli la ricetta…' : 'Nessuna ricetta simile: scegli dall\'elenco…'}</option>
+                  {prop.length > 0 && (
+                    <optgroup label="Simili">
+                      {prop.map(p => <option key={`s-${p.chiave}`} value={p.chiave}>{p.nome}</option>)}
+                    </optgroup>
+                  )}
+                  <optgroup label="Tutte le ricette">
+                    {ricetteGusto.map(p => <option key={p.chiave} value={p.chiave}>{p.nome}</option>)}
+                  </optgroup>
+                </select>
+                <button type="button" disabled={!pronto || !scelta || salvo != null}
+                  onClick={() => fai(r.gusto, scelta)} style={pulsante(pronto && !!scelta && salvo == null)}>
+                  {salvo === r.gusto ? 'Salvo…' : 'Collega'}
+                </button>
+              </div>
+            )
+          })}
+          {senzaRicetta.length > 6 && (
+            <button type="button" onClick={() => setTutti(v => !v)}
+              style={{ ...pulsante(true), background: 'transparent', color: T.amberDark, borderColor: `${T.amber}55`, alignSelf: 'flex-start' }}>
+              {tutti ? 'Mostra solo i primi 6' : `Vedi tutti e ${senzaRicetta.length.toLocaleString('it-IT')}`}
+            </button>
+          )}
+          {onNavigate && (
+            <span>
+              Se la ricetta non c&apos;è proprio, va creata:{' '}
+              <button type="button" onClick={() => onNavigate('ricettario')}
+                style={{ background: 'none', border: 'none', padding: 0, minHeight: 44, color: T.brand, fontWeight: 700, cursor: 'pointer', fontSize: font.size.sm, fontFamily: 'inherit', textDecoration: 'underline' }}>
+                apri il Ricettario
+              </button>.
+            </span>
+          )}
+        </div>
+      )}
+      {collegati.length > 0 && (
+        <div style={{ marginTop: senzaRicetta.length > 0 ? 10 : 0, color: T.textMid }}>
+          Collegati: {collegati.map((r, i) => (
+            <span key={r.gusto} style={{ whiteSpace: 'nowrap' }}>
+              {i > 0 ? ', ' : ''}{r.gusto} → {r.ricetta}{' '}
+              <button type="button" disabled={salvo != null} onClick={() => fai(r.gusto, null)}
+                aria-label={`Scollega ${r.gusto}`}
+                style={{ background: 'none', border: 'none', padding: '0 2px', minHeight: 44, color: T.brand, cursor: 'pointer', fontSize: font.size.sm, fontFamily: 'inherit', textDecoration: 'underline' }}>
+                {salvo === r.gusto ? 'salvo…' : 'scollega'}
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      {errore && <div role="alert" style={{ marginTop: 8, color: T.red, fontWeight: 700 }}>{errore}</div>}
+    </div>
+  )
+}
+
+function KpiCell({ label, value, sub = null, delta, deltaLabel = 'vs periodo prec.', highlight, color }) {
   const deltaColor = delta == null ? T.textSoft : delta > 0 ? '#166534' : delta < 0 ? '#B91C1C' : T.textSoft
   const deltaSymbol = delta == null ? '' : delta > 0 ? '↑' : delta < 0 ? '↓' : '='
   return (
@@ -523,6 +847,9 @@ function KpiCell({ label, value, delta, deltaLabel = 'vs periodo prec.', highlig
     }}>
       <div style={{ fontSize: 12, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{label}</div>
       <div style={{ fontSize: 20, fontWeight: 800, color, ...TNUM, lineHeight: 1.1 }}>{value}</div>
+      {sub && (
+        <div style={{ fontSize: font.size.sm, color: T.textSoft, marginTop: 4, lineHeight: 1.35 }}>{sub}</div>
+      )}
       {delta != null && deltaLabel && (
         <div style={{ fontSize: 12, color: deltaColor, fontWeight: 700, marginTop: 4, ...TNUM }}>
           {deltaSymbol} {fmtp(Math.abs(delta))} {deltaLabel}
