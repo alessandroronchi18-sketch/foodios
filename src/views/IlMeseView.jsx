@@ -152,10 +152,10 @@ export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate
             <NumeroConConfronto isMobile={isMobile} etichetta="Spese del mese"
               valore={conto.spese != null ? euro(conto.spese) : null} motivoMancante="fatture non lette"
               variazione={vSpese} rispettoA={`su ${nomeMese(meseConfronto, { anno: true })}`}
-              contesto={[
-                iva.riga,
-                fattureAMeta ? `fatture registrate fino al ${dataBreve(ultimaFattura)}` : conto.personale == null && conto.speseFatture != null ? 'senza il personale, che manca' : '',
-              ].filter(Boolean).join(' · ') || 'fatture e personale'} />
+              // L'IVA dentro le spese è l'avvertimento del pezzo comune, in
+              // ambra sotto il numero (§6); la nota dice il resto.
+              avviso={iva.riga}
+              contesto={fattureAMeta ? `fatture registrate fino al ${dataBreve(ultimaFattura)}` : conto.personale == null && conto.speseFatture != null ? 'senza il personale, che manca' : 'fatture e personale'} />
           </FilaTessere>
         </div>
       </div>
@@ -178,8 +178,8 @@ export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate
       <div style={{ display: 'grid', gridTemplateColumns: unaRiga ? '1fr' : colonne, gap: fra }}>
         <Riquadro isMobile={isMobile} stile={!cause.length && !unaRiga ? { gridColumn: '1 / -1' } : null}>
           <TitoloGrafico titolo={titoloCascata(conto, iva)}
-            sottotitolo={`${iva.stato === 'senza' ? 'Incassi e spese senza IVA.' : `Incassi senza IVA, spese ${iva.breve}${iva.stato === 'tutte' ? ': le fatture non hanno ancora l\'imponibile' : ` (${iva.riga})`}.`} Le spese vengono dalle fatture del mese, per data.${cause.length ? '' : ` ${senzaCause}`}`} />
-          <Cascata isMobile={isMobile} ricavi={conto.ricavi} passi={conto.passi} />
+            sottotitolo={`${iva.stato === 'senza' ? 'Incassi e spese senza IVA.' : 'Incassi senza IVA.'} Le spese vengono dalle fatture del mese, per data.${cause.length ? '' : ` ${senzaCause}`}`} />
+          <Cascata isMobile={isMobile} ricavi={conto.ricavi} passi={conto.passi} avviso={iva.riga} />
         </Riquadro>
         {cause.length > 0 && (
           <Riquadro isMobile={isMobile} stile={unaRiga ? null : { gridColumn: '2 / 4' }}>
@@ -260,9 +260,8 @@ export function rispostaDelMese({ conto, contoPrima, mese, meseConfronto, vUtile
     return {
       etichetta, valore: euro(conto.utile), stimato: conto.stimato,
       variazione: vUtile, rispettoA: `su ${nomeMese(meseConfronto)}`, valoreConfronto: contoPrima?.utile != null ? euro(contoPrima.utile) : '',
-      frase: conto.ricavi > 0
-        ? `È il ${quota(conto.quote.utile)} degli incassi${conIva ? `. Le spese in fattura sono ${iva.breve}: l'utile vero è più alto` : ''}.${investimenti}`
-        : null,
+      avviso: conIva ? `Più basso del vero: le spese in fattura sono ${iva.breve}` : '',
+      frase: conto.ricavi > 0 ? `È il ${quota(conto.quote.utile)} degli incassi.${investimenti}` : null,
     }
   }
   const apriPersonale = onNavigate ? { etichetta: 'Apri Personale', onClick: () => onNavigate('personale') } : null
@@ -273,7 +272,10 @@ export function rispostaDelMese({ conto, contoPrima, mese, meseConfronto, vUtile
       motivoMancante: 'l\'utile vero sarà più basso: manca il personale',
       noto: { valore: euro(conto.primaDelPersonale), etichetta: 'Rimasti prima del personale', stimato: conto.stimato },
       azione: apriPersonale,
-      frase: `Incassi meno le spese in fattura${conIva ? `, che sono ${iva.breve}: per l'IVA è più basso del vero` : ''}.${prima}`,
+      // Incassi senza IVA meno spese con l'IVA: il numero è più basso del
+      // vero, e lo si dice sotto il numero (§6), non in fondo alla frase.
+      avviso: conIva ? `Più basso del vero: le spese in fattura sono ${iva.breve}` : '',
+      frase: `Incassi meno le spese in fattura.${prima}`,
     }
   }
   return {

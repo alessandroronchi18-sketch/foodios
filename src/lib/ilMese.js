@@ -62,7 +62,7 @@ export function ivaDelleSpese(costi) {
     return { stato: 'senza', breve: 'senza IVA', riga: '' }
   }
   if (c.nSenzaImponibile >= c.nFatture) {
-    return { stato: 'tutte', breve: 'IVA compresa', riga: 'IVA compresa: le fatture non hanno ancora l\'imponibile' }
+    return { stato: 'tutte', breve: 'IVA compresa', riga: `IVA compresa: ${NF0.format(c.nSenzaImponibile)} fatture senza imponibile` }
   }
   return {
     stato: 'parte', breve: 'in parte IVA compresa',

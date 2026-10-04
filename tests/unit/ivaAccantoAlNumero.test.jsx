@@ -54,14 +54,16 @@ const conDati = (tipo, personale = SENZA_STIPENDI) => ({
   mese: M, confronto: annoPrima(M), attuale: mese(M, COPERTURA[tipo], personale), annoPrima: mese(annoPrima(M), COPERTURA[tipo], personale),
   andamento: [M].map(m => mese(m, COPERTURA[tipo], personale)), perSede: null, ultimoInventario: null, errori: [],
 })
-// La tessera: il riquadro con quattro righe (etichetta, numero, confronto, nota).
-const tessera = (re) => [...document.querySelectorAll('div')].find(d => d.children.length === 4 && re.test(d.firstElementChild?.textContent || ''))
+// La tessera: dentro la fila, la casella che prende le righe della fila (subgrid).
+const tessera = (re) => [...document.querySelectorAll('div')].find(d => d.style.gridTemplateRows === 'subgrid' && re.test(d.firstElementChild?.textContent || ''))
+// L'avvertimento in ambra del pezzo comune (RigaAvviso): role=note.
+const avvisoIn = (el) => el?.querySelector('[role="note"]')?.textContent || ''
 
 describe('ivaDelleSpese', () => {
   it('tutte le fatture senza imponibile: «IVA compresa», col perché', () => {
     const iva = ivaDelleSpese({ copertura: COPERTURA.tutte })
     expect(iva.stato).toBe('tutte')
-    expect(iva.riga).toBe('IVA compresa: le fatture non hanno ancora l\'imponibile')
+    expect(iva.riga).toBe('IVA compresa: 76 fatture senza imponibile')
   })
   it('solo una parte: quanti euro', () => {
     const iva = ivaDelleSpese({ copertura: COPERTURA.parte })
@@ -80,12 +82,22 @@ describe('ivaDelleSpese', () => {
 })
 
 describe('«Il mese» con le spese IVA compresa', () => {
+  // Dal secondo giro (04/10 sera) l'avvertimento è quello del pezzo comune:
+  // `avviso`, in ambra, nella riga subito sotto il numero (non nella nota).
   it('la tessera delle spese lo dice sotto il numero', async () => {
     DATI = conDati('tutte')
     render(<IlMeseView orgId="o1" sedi={[]} />)
     await waitFor(() => expect(testo()).toMatch(/Quanto hai guadagnato/))
-    const t = tessera(/^Spese del mese/)
-    expect(t.textContent).toMatch(/IVA compresa: le fatture non hanno ancora l'imponibile/)
+    expect(avvisoIn(tessera(/^Spese del mese/))).toBe('IVA compresa: 76 fatture senza imponibile')
+  })
+
+  it('anche la cascata e la risposta portano l\'avvertimento', async () => {
+    DATI = conDati('tutte')
+    render(<IlMeseView orgId="o1" sedi={[]} />)
+    await waitFor(() => expect(testo()).toMatch(/Quanto hai guadagnato/))
+    const cascata = [...document.querySelectorAll('section')].find(s => /Le fatture valgono/.test(s.querySelector('h3')?.textContent || ''))
+    expect(avvisoIn(cascata)).toBe('IVA compresa: 76 fatture senza imponibile')
+    expect(avvisoIn(document.querySelector('section[aria-label="Rimasti prima del personale"]'))).toMatch(/più basso del vero: le spese in fattura sono IVA compresa/i)
   })
 
   it('la cascata non dice più «all\'utile, senza IVA»: incassi senza, spese con', async () => {
@@ -93,7 +105,7 @@ describe('«Il mese» con le spese IVA compresa', () => {
     render(<IlMeseView orgId="o1" sedi={[]} />)
     await waitFor(() => expect(testo()).toMatch(/Quanto hai guadagnato/))
     expect(testo()).not.toMatch(/all'utile, senza IVA/)
-    expect(testo()).toMatch(/Incassi senza IVA, spese IVA compresa/)
+    expect(testo()).toMatch(/Incassi senza IVA\. Le spese vengono dalle fatture/)
     expect(testo()).toMatch(/Le fatture valgono il 20% degli incassi, IVA compresa/)
   })
 
@@ -101,21 +113,21 @@ describe('«Il mese» con le spese IVA compresa', () => {
     DATI = conDati('tutte')
     render(<IlMeseView orgId="o1" sedi={[]} />)
     await waitFor(() => expect(testo()).toMatch(/72\.000 €/)) // 90.000 − 18.000
-    expect(testo()).toMatch(/più basso del vero/)
+    expect(testo()).toMatch(/più basso del vero/i)
   })
 
   it('solo una parte con l\'IVA: lo dice in euro', async () => {
     DATI = conDati('parte')
     render(<IlMeseView orgId="o1" sedi={[]} />)
     await waitFor(() => expect(testo()).toMatch(/Quanto hai guadagnato/))
-    expect(tessera(/^Spese del mese/).textContent).toMatch(/di cui 5\.000 € IVA compresa/)
+    expect(avvisoIn(tessera(/^Spese del mese/))).toMatch(/di cui 5\.000 € IVA compresa/)
   })
 
   it('con l\'imponibile c\'è, niente «IVA compresa» e niente «più basso del vero»', async () => {
     DATI = conDati('senza')
     render(<IlMeseView orgId="o1" sedi={[]} />)
     await waitFor(() => expect(testo()).toMatch(/Quanto hai guadagnato/))
-    expect(testo()).not.toMatch(/IVA compresa|più basso del vero/)
+    expect(testo()).not.toMatch(/IVA compresa|più basso del vero/i)
     expect(testo()).toMatch(/Incassi e spese senza IVA/)
   })
 })
