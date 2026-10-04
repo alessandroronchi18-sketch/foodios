@@ -59,7 +59,7 @@ export const TIPO = {
 
 const norm = (v) => String(v ?? '')
   .toLowerCase()
-  .normalize('NFD').replace(/[̀-ͯ]/g, '')
+  .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
   .replace(/\s+/g, ' ')
   .trim()
 

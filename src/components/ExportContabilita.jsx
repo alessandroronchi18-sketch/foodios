@@ -117,7 +117,7 @@ function exportFattureInCloudCSV(corrispettivi, fatturePassive, ivaPct, sediMap,
 
   const csv = rows.map(r => r.map(csvEscape).join(';')).join('\n')
   // BOM per Excel/Fatture in Cloud che si aspettano UTF-8 BOM
-  downloadBlob('﻿' + csv, `foodos_fatture-in-cloud_${yearMonth}.csv`, 'text/csv;charset=utf-8')
+  downloadBlob('\ufeff' + csv, `foodos_fatture-in-cloud_${yearMonth}.csv`, 'text/csv;charset=utf-8')
 }
 
 function exportTeamSystemXML(corrispettivi, fatturePassive, ivaPct, sediMap, yearMonth, orgNome) {

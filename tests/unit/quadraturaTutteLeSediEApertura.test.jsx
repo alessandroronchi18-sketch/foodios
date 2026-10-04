@@ -16,6 +16,13 @@
 //    0 € · scostamento 0 €»: zero meno zero fa zero, ma la risposta vera era
 //    «non lo so». L'ultima settimana con i dati era cinque clic indietro, e
 //    la pagina non lo diceva.
+//
+// 04/10/2026: la regola è diventata «l'ultima settimana INTERA con i dati»
+// (decisione del titolare; prove in quadraturaPagina, «La settimana di
+// apertura»). Il finto database qui sotto risponde sempre ULTIMO, qualunque
+// `finoA` gli si chieda: per questa pagina la settimana intera prima del
+// 25/08 risulta senza dati, e le prove di questo file guardano il caso di
+// riserva (resta la settimana dell'ultimo giorno), che vale ancora.
 import React from 'react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, cleanup, waitFor, screen, fireEvent } from '@testing-library/react'

@@ -36,8 +36,10 @@ export const SCORCIATOIE = [
 // mese di apertura non ha un mese precedente).
 export const CONFRONTI = [
   { id: 'none', label: 'Nessuno' },
-  { id: 'prev', label: 'Periodo prec.' },
-  { id: 'year_prev', label: 'Anno prec.' },
+  // Per esteso: «prec.» era un'abbreviazione da gestionale, e nel pannello
+  // c'è posto per la parola intera.
+  { id: 'prev', label: 'Periodo prima' },
+  { id: 'year_prev', label: 'Anno prima' },
 ]
 
 /**
@@ -99,6 +101,42 @@ export function finestraConfronto(from, to, modo) {
     return { from: formatLocalDate(inizio), to: formatLocalDate(fine) }
   }
   return null
+}
+
+/**
+ * Il periodo prima o dopo, per le frecce ‹ › accanto al pulsante del periodo
+ * (04/10/2026: «com'era il mese prima?» senza aprire niente, come Plausible).
+ *
+ * Un mese — intero, o «questo mese» fino a oggi — va al mese intero prima o
+ * dopo: da «1–4 ottobre» la freccia indietro porta a tutto settembre, non al
+ * 27–30 settembre. Un anno allo stesso modo. Tutto il resto si sposta della
+ * sua stessa lunghezza. In avanti non si va oltre oggi: un periodo che
+ * comincerebbe domani torna null (la freccia si spegne), uno che finirebbe
+ * dopo oggi si ferma a oggi.
+ *
+ * @param {string} from  `YYYY-MM-DD`
+ * @param {string} to    `YYYY-MM-DD`
+ * @param {-1|1} verso   indietro o avanti
+ */
+export function spostaPeriodo(from, to, verso, adesso = new Date()) {
+  if (!from || !to || (verso !== -1 && verso !== 1)) return null
+  const oggi = formatLocalDate(adesso)
+  const [fy, fm, fd] = from.split('-').map(Number)
+  const [ty, tm, td] = to.split('-').map(Number)
+  const piuGiorni = from !== to
+  const ultimoDelMese = g(ty, tm, 0) === to
+  let nuovo
+  if (fd === 1 && fy === ty && fm === tm && (ultimoDelMese || (to === oggi && piuGiorni))) {
+    nuovo = { from: g(fy, fm - 1 + verso, 1), to: g(fy, fm + verso, 0) }
+  } else if (fm === 1 && fd === 1 && fy === ty && ((tm === 12 && td === 31) || (to === oggi && piuGiorni))) {
+    nuovo = { from: g(fy + verso, 0, 1), to: g(fy + verso, 11, 31) }
+  } else {
+    const n = giorniDelPeriodo(from, to)
+    nuovo = { from: g(fy, fm - 1, fd + verso * n), to: g(ty, tm - 1, td + verso * n) }
+  }
+  if (nuovo.from > oggi) return null
+  if (nuovo.to > oggi) nuovo.to = oggi
+  return nuovo
 }
 
 /**

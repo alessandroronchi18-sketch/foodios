@@ -15,7 +15,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   SCORCIATOIE, CONFRONTI, finestraScorciatoia, giorniDelPeriodo,
-  finestraConfronto, scorciatoiaDi, nomePeriodo,
+  finestraConfronto, scorciatoiaDi, nomePeriodo, spostaPeriodo,
 } from '../../src/lib/periodoAnalisi'
 
 // Mercoledì 16 settembre 2026, mezzanotte e mezza: l'ora in cui il difetto
@@ -169,5 +169,64 @@ describe('le scelte offerte', () => {
 
   it('e tre modi di confrontare, «Nessuno» compreso', () => {
     expect(CONFRONTI.map(c => c.id)).toEqual(['none', 'prev', 'year_prev'])
+  })
+})
+
+// 04/10/2026: le frecce ‹ › accanto al pulsante del periodo. Il rischio vero
+// è spostare un mese di 30 giorni e finire a cavallo di due mesi («27/08–
+// 26/09»), o andare in avanti oltre oggi su giorni che non esistono ancora.
+describe('le frecce: il periodo prima e dopo', () => {
+  // Domenica 4 ottobre 2026, pomeriggio.
+  const OGGI = new Date(2026, 9, 4, 15, 0)
+
+  it('un mese intero va al mese intero prima, anche con lunghezze diverse', () => {
+    expect(spostaPeriodo('2026-09-01', '2026-09-30', -1, OGGI)).toEqual({ from: '2026-08-01', to: '2026-08-31' })
+    expect(spostaPeriodo('2026-03-01', '2026-03-31', -1, OGGI)).toEqual({ from: '2026-02-01', to: '2026-02-28' })
+    expect(spostaPeriodo('2026-01-01', '2026-01-31', -1, OGGI)).toEqual({ from: '2025-12-01', to: '2025-12-31' })
+  })
+
+  it('«questo mese» fino a oggi va a tutto il mese prima, non a un pezzo', () => {
+    expect(spostaPeriodo('2026-10-01', '2026-10-04', -1, OGGI)).toEqual({ from: '2026-09-01', to: '2026-09-30' })
+  })
+
+  it('in avanti dal mese scorso si arriva a questo mese, fermo a oggi', () => {
+    expect(spostaPeriodo('2026-09-01', '2026-09-30', 1, OGGI)).toEqual({ from: '2026-10-01', to: '2026-10-04' })
+  })
+
+  it('in avanti oltre oggi non si va: la freccia si spegne', () => {
+    expect(spostaPeriodo('2026-10-01', '2026-10-04', 1, OGGI)).toBeNull()
+    expect(spostaPeriodo('2026-09-05', '2026-10-04', 1, OGGI)).toBeNull()
+    expect(spostaPeriodo('2026-10-04', '2026-10-04', 1, OGGI)).toBeNull()
+  })
+
+  it('un anno va all\'anno intero', () => {
+    expect(spostaPeriodo('2026-01-01', '2026-10-04', -1, OGGI)).toEqual({ from: '2025-01-01', to: '2025-12-31' })
+    expect(spostaPeriodo('2025-01-01', '2025-12-31', 1, OGGI)).toEqual({ from: '2026-01-01', to: '2026-10-04' })
+  })
+
+  it('il resto si sposta della sua lunghezza, senza buchi né sovrapposizioni', () => {
+    // 30 giorni fino a oggi → i 30 giorni subito prima.
+    expect(spostaPeriodo('2026-09-05', '2026-10-04', -1, OGGI)).toEqual({ from: '2026-08-06', to: '2026-09-04' })
+    // Una settimana da lunedì a domenica.
+    expect(spostaPeriodo('2026-09-21', '2026-09-27', -1, OGGI)).toEqual({ from: '2026-09-14', to: '2026-09-20' })
+    expect(spostaPeriodo('2026-09-21', '2026-09-27', 1, OGGI)).toEqual({ from: '2026-09-28', to: '2026-10-04' })
+  })
+
+  it('un giorno solo va al giorno prima, anche se è il primo del mese', () => {
+    // «Oggi» il primo del mese non è «un mese»: la freccia porta a ieri.
+    const PRIMO = new Date(2026, 9, 1, 12, 0)
+    expect(spostaPeriodo('2026-10-01', '2026-10-01', -1, PRIMO)).toEqual({ from: '2026-09-30', to: '2026-09-30' })
+  })
+
+  it('il cambio dell\'ora legale non sposta un giorno', () => {
+    // 25/10/2026 l'ora torna indietro: in millisecondi una settimana a cavallo
+    // è lunga un'ora in più, e un conto in ms sbaglierebbe di un giorno.
+    const DOPO = new Date(2026, 10, 15, 12, 0)
+    expect(spostaPeriodo('2026-10-26', '2026-11-01', -1, DOPO)).toEqual({ from: '2026-10-19', to: '2026-10-25' })
+  })
+
+  it('senza date o con un verso strano non inventa niente', () => {
+    expect(spostaPeriodo('', '2026-10-04', -1, OGGI)).toBeNull()
+    expect(spostaPeriodo('2026-09-01', '2026-09-30', 0, OGGI)).toBeNull()
   })
 })

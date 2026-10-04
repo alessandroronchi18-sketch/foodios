@@ -1904,7 +1904,7 @@ export default async function handler(req) {
             q(c.registrata_il || ''), q(c.ultimo_accesso || ''), q(c.trial_ends_at || ''),
           ].join(',')
         })
-        const csv = '﻿' + [header, ...rows].join('\n')
+        const csv = '\ufeff' + [header, ...rows].join('\n')
         return new Response(csv, {
           status: 200,
           headers: {

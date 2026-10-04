@@ -2,6 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { fetchAllInventarioProduzione, GIORNI_RIPORTO_MAX, COLONNE_VENDUTO, ultimoGiornoRegistrato } from '../lib/inventarioProduzione'
+import { venditeB2BPeriodo } from '../lib/venditeB2B'
 import { giorniRegistrati, confrontoPossibile } from '../lib/produzioneAnalisi'
 import { finestraConfronto } from '../lib/periodoAnalisi'
 import AnalisiInventarioSection from './AnalisiInventarioSection'
@@ -109,6 +110,12 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
   // Se metodo=stampi, restiamo sul flusso legacy (giornaliero da localStorage).
   const [invRows, setInvRows] = useState([])
   const [invRowsPrev, setInvRowsPrev] = useState([])
+  // Le vendite all'ingrosso del periodo e del confronto: il ricavo stimato
+  // della Produzione è lo stesso numero del Mese (decisione del titolare,
+  // 04/10/2026), e il Mese toglie i chili dell'ingrosso al prezzo del banco
+  // e conta il loro fatturato. `null` = non lette.
+  const [venditeB2B, setVenditeB2B] = useState(null)
+  const [venditeB2BPrev, setVenditeB2BPrev] = useState(null)
   // Finestre EFFETTIVE (periodo scelto e periodo di confronto), da passare
   // alla sezione. Non bastano le prop dateFrom/dateTo: quando l'utente non ha
   // scelto le date sono vuote e qui dentro valgono gli ultimi due mesi. Le
@@ -219,6 +226,16 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
         if (!info.ok) prev = []
       }
       info = { ...info, giorni: regCur }
+      // Con la stessa regola del Mese: una sede scelta legge anche le
+      // vendite senza sede; «Tutte le sedi» le legge tutte.
+      const b2bSede = sedeId || null
+      const [b2bCur, b2bPrev] = await Promise.all([
+        venditeB2BPeriodo(orgId, { sedeId: b2bSede, da: from, a: to }).catch(() => null),
+        info.ok ? venditeB2BPeriodo(orgId, { sedeId: b2bSede, da: info.from, a: info.to }).catch(() => null) : null,
+      ])
+      if (!alive) return
+      setVenditeB2B(b2bCur)
+      setVenditeB2BPrev(b2bPrev)
       setInvRows(cur)
       setInvRowsPrev(prev)
       setWin({ from, to, prevFrom: info.ok ? info.from : null, prevTo: info.ok ? info.to : null })
@@ -825,9 +842,53 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
     </div>
   );
 
+  // La barra del periodo. A inventario va DENTRO la pagina Produzione, sotto
+  // la sua domanda (ANALISI_DESIGN.md, regola 1: la pagina si apre con la
+  // domanda, non con i comandi); a stampi resta qui sopra, com'era.
+  const barraPeriodo = (
+    <BarraPeriodo
+      from={dateFrom} to={dateTo}
+      onPeriodo={(f, t) => { setDateFrom(f || ''); setDateTo(t || '') }}
+      confronto={confronto === 'periodoPrec' ? 'prev' : confronto === 'annoPrec' ? 'year_prev' : 'none'}
+      onConfronto={(m) => setConfronto(m === 'prev' ? 'periodoPrec' : m === 'year_prev' ? 'annoPrec' : 'nessuno')}
+      isMobile={isMobile}
+      // A inventario la pagina confronta i giorni registrati, non la
+      // finestra di calendario: la riga «confronto con…» deve dire quello.
+      confrontoEffettivo={isMetodoInv && confrontoInfo && !confrontoInfo.nessuno
+        ? (confrontoInfo.ok ? { from: confrontoInfo.from, to: confrontoInfo.to } : { motivo: confrontoInfo.motivo })
+        : undefined}
+    />
+  )
+
+  if (isMetodoInv) return (
+    <div style={{maxWidth:1200, margin:'0 auto', boxSizing:'border-box', width:'100%'}}>
+      <AnalisiInventarioSection
+        rows={invRows}
+        rowsPrev={invRowsPrev}
+        venditeB2B={venditeB2B}
+        venditeB2BPrev={venditeB2BPrev}
+        dateFrom={win.from || dateFrom}
+        dateTo={win.to || dateTo}
+        prevFrom={win.prevFrom}
+        prevTo={win.prevTo}
+        confronto={confronto}
+        ricettario={ricettario}
+        orgId={orgId}
+        sedeId={sedeId}
+        sedi={sedi}
+        onBack={onNavigate ? () => onNavigate('inventario-gusti') : null}
+        confrontoInfo={confrontoInfo}
+        partenza={partenza}
+        onPeriodo={(f, t) => { setDateFrom(f || ''); setDateTo(t || '') }}
+        onNavigate={onNavigate}
+        barra={barraPeriodo}
+      />
+    </div>
+  );
+
   return (
     <div style={{maxWidth:1200, margin:'0 auto', boxSizing:'border-box', width:'100%'}}>
-      {/* ─── FILTRI PERIODO (comuni a entrambi i metodi) ─── */}
+      {/* ─── FILTRI PERIODO (metodo a stampi) ─── */}
       <div style={{
         display:'flex', flexDirection:'column', gap:12, marginBottom:18,
         padding:isMobile?"12px 14px":"14px 16px",
@@ -845,44 +906,8 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
             (`periodoPrec`/`annoPrec`/`nessuno`) perché li legge anche la
             sezione dell'inventario: la barra parla la lingua comune e si
             traduce qui, in due righe, invece di rinominare il mondo. */}
-        <BarraPeriodo
-          from={dateFrom} to={dateTo}
-          onPeriodo={(f, t) => { setDateFrom(f || ''); setDateTo(t || '') }}
-          confronto={confronto === 'periodoPrec' ? 'prev' : confronto === 'annoPrec' ? 'year_prev' : 'none'}
-          onConfronto={(m) => setConfronto(m === 'prev' ? 'periodoPrec' : m === 'year_prev' ? 'annoPrec' : 'nessuno')}
-          isMobile={isMobile}
-          // A inventario la pagina confronta i giorni registrati, non la
-          // finestra di calendario: la riga «confronto con…» deve dire quello.
-          confrontoEffettivo={isMetodoInv && confrontoInfo && !confrontoInfo.nessuno
-            ? (confrontoInfo.ok ? { from: confrontoInfo.from, to: confrontoInfo.to } : { motivo: confrontoInfo.motivo })
-            : undefined}
-        />
+        {barraPeriodo}
       </div>
-
-      {/* ═══ Sezione dedicata metodo INVENTARIO (gelaterie/yogurterie/pasta) ═══
-          Appare SOLO se organizations.metodo_produzione='inventario'. Le tab
-          Produzione/Vendite/Confronto sotto restano funzionanti sulle chiusure
-          cassa (parte cassa e' comune ai 2 metodi). */}
-      {isMetodoInv && (
-        <AnalisiInventarioSection
-          rows={invRows}
-          rowsPrev={invRowsPrev}
-          dateFrom={win.from || dateFrom}
-          dateTo={win.to || dateTo}
-          prevFrom={win.prevFrom}
-          prevTo={win.prevTo}
-          confronto={confronto}
-          ricettario={ricettario}
-          orgId={orgId}
-          sedeId={sedeId}
-          sedi={sedi}
-          onBack={onNavigate ? () => onNavigate('inventario-gusti') : null}
-          confrontoInfo={confrontoInfo}
-          partenza={partenza}
-          onPeriodo={(f, t) => { setDateFrom(f || ''); setDateTo(t || '') }}
-          onNavigate={onNavigate}
-        />
-      )}
 
       {/* Sezioni legacy (metodo=stampi): tab Produzione/Vendite/Confronto +
           DIAGNOSI dark + tabelle sessioni. Per metodo=inventario tutto questo

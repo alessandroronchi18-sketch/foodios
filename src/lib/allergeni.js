@@ -396,7 +396,7 @@ function normalizeIngName(s) {
   return String(s || '')
     .toLowerCase()
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '') // rimuove accenti
+    .replace(/[\u0300-\u036f]/g, '') // rimuove accenti
     .replace(/[^a-z0-9\s]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()

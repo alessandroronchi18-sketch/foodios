@@ -32,7 +32,7 @@ const round2 = n => Math.round((Number(n) || 0) * 100) / 100
 // SEPA ammette solo un set ristretto di caratteri nei campi testuali.
 function sepaText(s, max = 140) {
   return String(s || '')
-    .normalize('NFKD').replace(/[̀-ͯ]/g, '') // accenti → base
+    .normalize('NFKD').replace(/[\u0300-\u036f]/g, '') // accenti → base
     .replace(/[^A-Za-z0-9/\-?:().,'+ ]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()

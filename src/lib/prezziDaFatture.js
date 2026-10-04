@@ -103,7 +103,7 @@ export function ignoraAcquisto(abbinamenti, idAcquisto, { utente = null, adesso 
  */
 export function normDescrizione(d) {
   return String(d ?? '')
-    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, ' ')
     .trim()

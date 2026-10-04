@@ -157,7 +157,7 @@ export function categoriaPerId(id) {
 }
 
 const piano = (s) => String(s ?? '')
-  .normalize('NFD').replace(/[̀-ͯ]/g, '')
+  .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
   .toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim()
 
 // Le etichette di prodotto che la pagina Fornitori propone da sempre
@@ -218,7 +218,8 @@ export function nomeBreve(nome) {
   if (!s) return ''
   const m = FORMA_SOCIETARIA.exec(' ' + s)
   const corto = m ? (' ' + s).slice(0, m.index).trim() : s
-  const pulito = corto.replace(/[\s,.;:-]+$/, '').trim()
+  // Il punto finale resta: «S.I.A.E.» è una sigla, non una frase.
+  const pulito = corto.replace(/[\s,;:-]+$/, '').trim()
   return pulito.length >= 2 ? pulito : s
 }
 
@@ -283,7 +284,7 @@ const CAFFE = /\b(CAFFE|COFFEE)\b/
 const CAFFE_MACCHINE = /\b(TECH|SERVICE|MACCHIN\w*|ASSISTENZA)\b/
 
 const perRegola = (s) => ' ' + String(s ?? '')
-  .normalize('NFD').replace(/[̀-ͯ]/g, '')
+  .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
   .toUpperCase().replace(/[^A-Z0-9]+/g, ' ').trim() + ' '
 
 function dalNome(nome) {
@@ -692,7 +693,9 @@ export function causeVariazione(attuale, confronto, { maxFornitori = 3 } = {}) {
       attuale: arrot(at),
       confronto: arrot(co),
       differenza: arrot(at - co),
-      ivaMista: Math.abs(quotaLorda(a) - quotaLorda(b)) > 0.2,
+      // Solo se la voce c'è in tutti e due i mesi: contro un mese vuoto non
+      // c'è IVA da mescolare (trovato sul conto vero di luglio, 03/10).
+      ivaMista: Math.abs(at) > 0 && Math.abs(co) > 0 && Math.abs(quotaLorda(a) - quotaLorda(b)) > 0.2,
       fornitori,
     }
   })
@@ -739,8 +742,9 @@ const SOGLIA_UNICA = 10000
  * essere un investimento. Non decide niente, le indica.
  *
  * Una fattura è fuori misura se vale almeno 5.000 € e almeno cinque volte la
- * fattura tipica (la mediana delle ALTRE fatture dello stesso fornitore); se
- * il fornitore ha meno di due altre fatture, se vale almeno 10.000 €. Restano
+ * fattura tipica (la mediana delle ALTRE fatture dello stesso fornitore, o
+ * l'unica altra se ce n'è una); se è la sola fattura del fornitore, se vale
+ * almeno 10.000 €. Restano
  * fuori le note di credito, le fatture che hanno già una voce loro e quelle
  * di fornitori già segnati come investimento o fuori conto.
  *
@@ -773,8 +777,16 @@ export function fattureEccezionali(fatture, { categoriePerFornitore = null, dal 
         if (importo >= SOGLIA_EURO && importo >= VOLTE * tipica) {
           motivo = `${Math.round(importo / tipica).toLocaleString('it-IT', { useGrouping: 'always' })} volte la sua fattura tipica`
         }
+      } else if (altre.length === 1) {
+        // Una sola altra fattura: niente mediana, ma il «cinque volte» vale
+        // lo stesso. Senza, 16.365 € contro 7.305 € (2,2 volte) risultava
+        // fuori misura: visto provando la schermata, 03/10/2026.
+        tipica = altre[0]
+        if (importo >= SOGLIA_EURO && importo >= VOLTE * tipica) {
+          motivo = `${Math.round(importo / tipica).toLocaleString('it-IT', { useGrouping: 'always' })} volte l'altra fattura di questo fornitore`
+        }
       } else if (importo >= SOGLIA_UNICA) {
-        motivo = altre.length ? 'molto più grande delle altre di questo fornitore' : 'unica fattura di questo fornitore'
+        motivo = 'unica fattura di questo fornitore'
       }
       if (!motivo) continue
       out.push({

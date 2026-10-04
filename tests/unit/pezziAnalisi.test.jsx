@@ -17,7 +17,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, cleanup, fireEvent } from '@testing-library/react'
 import {
   euro, euroSegno, quota, punti, percentualeSegno, variazione,
-  nomeMese, mesePrima, annoPrima, dataBreve,
+  nomeMese, mesePrima, annoPrima, dataBreve, aMese,
 } from '../../src/lib/formatoAnalisi.js'
 import {
   CoperturaDati, NumeroConConfronto, BarraObiettivo, Cascata, geometriaCascata,
@@ -94,6 +94,12 @@ describe('I mesi', () => {
     expect(annoPrima('2026-09')).toBe('2025-09')
     expect(dataBreve('2026-08-31')).toBe('31/08')
   })
+  it('«ad agosto», «ad aprile», «ad ottobre», ma «a settembre»', () => {
+    expect(aMese('2025-08')).toBe('ad agosto 2025')
+    expect(aMese('2026-04', { anno: false })).toBe('ad aprile')
+    expect(aMese('2026-10', { anno: false })).toBe('ad ottobre')
+    expect(aMese('2026-09', { anno: false })).toBe('a settembre')
+  })
 })
 
 describe('La cascata', () => {
@@ -127,7 +133,8 @@ describe('La cascata', () => {
   it('i numeri si possono vedere in tabella', () => {
     const { container } = render(<Cascata passi={passi} ricavi={100} />)
     fireEvent.click([...container.querySelectorAll('button')].find(b => /tabella/.test(b.textContent)))
-    expect(container.querySelector('table').textContent).toMatch(/Materie prime.*30,00 €.*30%/)
+    // In colonna le quote hanno sempre un decimale (04/10: le virgole una sotto l'altra).
+    expect(container.querySelector('table').textContent).toMatch(/Materie prime.*30,00 €.*30,0%/)
   })
   it('un passo cliccabile è un pulsante con un nome', () => {
     const apri = vi.fn()
