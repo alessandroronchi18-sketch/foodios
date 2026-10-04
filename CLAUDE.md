@@ -227,6 +227,15 @@ con `npm run build` — `npx vite build` li salta.
 
 4. **"Il pannello cliente non carica"**: orgId/sedeId null durante il primissimo render. Tutti i componenti devono avere `if (!orgId) return ...` come guard.
 
+5. **"Caratteri invisibili nei sorgenti"**: gli strumenti di scrittura di
+   Claude trasformano le sequenze `\u…` scritte nel testo nei caratteri
+   veri. L'intervallo degli accenti `\u0300-\u036f` diventava un intervallo di
+   caratteri invisibili (trovato il 04/10/2026 in 12 righe di 9 file, più tre
+   BOM dentro stringhe CSV): funziona, ma nessuno lo vede né lo può correggere.
+   Chi deve scrivere un escape lo costruisce dai codici
+   (`String.fromCodePoint(0x300)`) o con un comando che non lo interpreta.
+   `tests/unit/caratteriInvisibili.test.js` controlla tutto `src/` e `api/`.
+
 ---
 
 ## Le sostituzioni di massa sul codice: la regola del 19/09/2026
