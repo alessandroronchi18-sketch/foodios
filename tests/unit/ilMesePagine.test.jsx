@@ -77,11 +77,14 @@ describe('Il mese, con il personale com\'è oggi', () => {
     expect(vai).toHaveBeenCalledWith('personale')
   })
 
+  // Dal 04/10 «stimati» sta nel nome della tessera, uguale in tutte le pagine
+  // (nomeIncassi), e «senza IVA» nella riga sotto il numero: prima la tessera
+  // si chiamava «Incassi senza IVA» e il Conto «Incassi (stimati)».
   it('gli incassi stimati lo dicono nella tessera, e senza IVA', async () => {
     DATI = conDati()
     render(<IlMeseView orgId="o1" sedi={[]} />)
-    await waitFor(() => expect(testo()).toMatch(/Incassi senza IVA/))
-    expect(testo()).toMatch(/90\.000 €stimato/) // 99.000 lordi / 1,10
+    await waitFor(() => expect(testo()).toMatch(/Incassi stimati90\.000 €/)) // 99.000 lordi / 1,10
+    expect(testo()).toMatch(/dall'inventario, senza IVA/)
   })
 
   it('le spese con l\'IVA dentro e quelle senza categoria sono dichiarate in cima', async () => {
@@ -111,9 +114,10 @@ describe('Il conto, voce per voce', () => {
   it('ogni voce col mese, l\'anno prima e il giudizio; il personale che manca dice «non lo so»', async () => {
     DATI = conDati()
     render(<ContoEconomicoView orgId="o1" sedi={[]} onNavigate={() => {}} />)
-    await waitFor(() => expect(testo()).toMatch(new RegExp(`Il conto di ${nomeMese(M)}`)))
+    // Il titolo era «Il conto di agosto 2026»; dal 04/10 è una domanda (CE9).
+    await waitFor(() => expect(testo()).toMatch(new RegExp(`Dove sono andati i soldi ${aMese(M, { anno: false })}\\?`)))
     const righe = [...document.querySelectorAll('tbody tr')].map(r => r.textContent)
-    expect(righe.find(r => r.startsWith('Incassi (stimati)'))).toMatch(/90\.000 €80\.000 €\+10\.000 € · meglio/)
+    expect(righe.find(r => r.startsWith('Incassi stimati'))).toMatch(/90\.000 €80\.000 €\+10\.000 € · meglio/)
     expect(righe.find(r => /Materie prime/.test(r))).toMatch(/−15\.000 €−13\.000 €\+2\.000 € · peggio/)
     expect(righe.find(r => r.startsWith('Personale'))).toMatch(/non lo so/)
     expect(righe.find(r => r.startsWith('Utile'))).toMatch(/non lo so/)
@@ -124,7 +128,7 @@ describe('Il conto, voce per voce', () => {
   it('una voce di spesa si apre sui fornitori', async () => {
     DATI = conDati()
     render(<ContoEconomicoView orgId="o1" sedi={[]} />)
-    await waitFor(() => expect(testo()).toMatch(/Il conto di/))
+    await waitFor(() => expect(testo()).toMatch(/Dove sono andati i soldi/))
     await act(async () => { fireEvent.click([...document.querySelectorAll('button')].find(b => /Materie prime/.test(b.textContent))) })
     expect(testo()).toMatch(/DESA SRL7\.500 €6\.500 €\+1\.000 €/)
   })

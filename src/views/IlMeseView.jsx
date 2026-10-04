@@ -13,25 +13,17 @@
 //   5. materie prime, personale e prime cost contro l'obiettivo;
 //   6. le sedi affiancate;
 //   7. gli ultimi dodici mesi.
-import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { supabase } from '../lib/supabase'
+import React, { useMemo, useState } from 'react'
 import { color as T, font, ui3 } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
-import Icon from '../components/Icon'
 import {
   CoperturaDati, NumeroConConfronto, BarraObiettivo, Cascata, IntestazioneAnalisi,
   TitoloGrafico, Riquadro, FraseInsight, ClassificaSpese,
 } from '../components/analisi'
-import { euro, quota, nomeMese, aMese, mesePrima, variazione, dataBreve } from '../lib/formatoAnalisi'
-import { OBIETTIVI, causeDelCambio, fraseCausa, titoloCascata, motivoSenzaUtile } from '../lib/ilMese'
-import { caricaIlMese } from '../lib/ilMeseArchivio'
-import { todayLocal } from '../lib/dateLocal'
-
-const meseCorrente = () => todayLocal().slice(0, 7)
-const meseDopo = (m) => {
-  const [y, mm] = m.split('-').map(Number)
-  return mm === 12 ? `${y + 1}-01` : `${y}-${String(mm + 1).padStart(2, '0')}`
-}
+import { euro, quota, nomeMese, aMese, variazione, dataBreve } from '../lib/formatoAnalisi'
+import { OBIETTIVI, causeDelCambio, fraseCausa, titoloCascata, motivoSenzaUtile, nomeIncassi } from '../lib/ilMese'
+import PaginaAnalisi, { SezioneAnalisi, spazioRiquadri } from '../components/analisi/PaginaAnalisi'
+import MeseAnalisi, { useMeseAnalisi, AvvisoMeseSpostato, PulsanteTorna, meseCorrente } from '../components/analisi/MeseAnalisi'
 
 /** Le voci della riga «Da dove vengono i numeri», dal risultato della lettura. */
 export function vociCopertura(dati, { onNavigate, onClassifica } = {}) {
@@ -66,74 +58,38 @@ export function vociCopertura(dati, { onNavigate, onClassifica } = {}) {
 export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate, notify }) {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
-  // Si parte dall'ultimo mese chiuso: il mese in corso ha pochi giorni e
-  // confrontarlo con un mese intero è il difetto dei «cali del -70%».
-  const [mese, setMese] = useState(() => mesePrima(meseCorrente()))
-  const [dati, setDati] = useState(null)
-  const [caricando, setCaricando] = useState(true)
-  const [errore, setErrore] = useState(null)
   // La classificazione dei fornitori si apre qui dentro: finita, il conto
   // si rilegge da solo (`versione`), senza cambiare pagina.
   const [classifica, setClassifica] = useState(false)
   const [versione, setVersione] = useState(0)
-  // Alla prima apertura, se l'ultimo mese chiuso non ha incassi (la cassa non
-  // c'è e l'inventario si ferma prima), si mostra l'ultimo mese che li ha, e
-  // lo si dice. Una pagina che si apre su «non lo so» non risponde a niente.
-  const primoGiro = useRef(true)
-  const [spostato, setSpostato] = useState(null)
-
-  useEffect(() => {
-    if (!orgId) return
-    let vivo = true
-    setCaricando(true); setErrore(null)
-    caricaIlMese({ supabase, orgId, sedi, mese, sedeId })
-      .then(d => {
-        if (!vivo) return
-        if (primoGiro.current) {
-          primoGiro.current = false
-          if (d?.attuale?.incassi?.fonte == null) {
-            const conIncassi = (d.andamento || []).filter(m => m && m.mese < mese && m.incassi?.fonte).at(-1)
-            if (conIncassi) { setSpostato({ da: mese, a: conIncassi.mese }); setMese(conIncassi.mese); return }
-          }
-        }
-        setDati(d)
-      })
-      .catch(e => { if (vivo) setErrore(e?.message || 'lettura non riuscita') })
-      .finally(() => { if (vivo) setCaricando(false) })
-    return () => { vivo = false }
-  }, [orgId, sedeId, mese, sedi, versione])
+  // Il mese guardato, la lettura e la regola del primo mese stanno in
+  // MeseAnalisi: il Conto economico usa le stesse (audit 04/10, C9 e CE2).
+  const { mese, setMese, dati, caricando, errore, spostato } = useMeseAnalisi({ orgId, sedi, sedeId, versione })
 
   const conto = dati?.attuale?.conto || null
   const contoPrima = dati?.annoPrima?.conto || null
   const cause = useMemo(() => causeDelCambio(conto, contoPrima), [conto, contoPrima])
   const nomeSede = sedeId ? (sedi.find(s => s.id === sedeId)?.nome || 'questa sede') : 'Tutta l\'azienda'
 
-  const navMese = (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-      <button type="button" onClick={() => setMese(mesePrima(mese))} aria-label="Mese prima" style={stileFreccia}><Icon name="chevL" size={16} /></button>
-      <span style={{ fontSize: font.size.md, fontWeight: 700, color: T.text, minWidth: 128, textAlign: 'center' }}>{nomeMese(mese)}</span>
-      <button type="button" onClick={() => setMese(meseDopo(mese))} disabled={mese >= meseCorrente()} aria-label="Mese dopo" style={{ ...stileFreccia, opacity: mese >= meseCorrente() ? 0.35 : 1 }}><Icon name="chevR" size={16} /></button>
-    </div>
-  )
-
   const intestazione = (
     <IntestazioneAnalisi isMobile={isMobile}
       domanda={`Quanto hai guadagnato ${aMese(mese, { anno: false })}?`}
-      sotto={`${nomeSede} · confronto con ${nomeMese(dati?.confronto || mese)}`}
-      destra={navMese} />
+      sotto={(
+        <>
+          {`${nomeSede} · confronto con ${nomeMese(dati?.confronto || mese)}`}
+          <AvvisoMeseSpostato spostato={spostato} onVai={() => setMese(spostato.da)} />
+        </>
+      )}
+      destra={<MeseAnalisi mese={mese} onCambia={setMese} />} />
   )
 
   if (classifica) return (
-    <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-      <button type="button" onClick={() => setClassifica(false)} style={{ ...stileFreccia, width: 'auto', padding: '0 12px', gap: 6, marginBottom: 12, fontSize: font.size.base, fontWeight: 600 }}>
-        <Icon name="chevL" size={14} />Torna {aMese(mese, { anno: false })}
-      </button>
-      <ClassificaSpese orgId={orgId} notify={notify} isMobile={isMobile}
-        onSalvato={() => { setClassifica(false); setVersione(v => v + 1) }} />
-    </div>
+    <ClassificaSpese orgId={orgId} notify={notify} isMobile={isMobile}
+      torna={<PulsanteTorna onClick={() => setClassifica(false)}>Torna {aMese(mese, { anno: false })}</PulsanteTorna>}
+      onSalvato={() => { setClassifica(false); setVersione(v => v + 1) }} />
   )
-  if (caricando && !dati) return <div style={{ maxWidth: 1200, margin: '0 auto' }}>{intestazione}<Riquadro isMobile={isMobile}><span style={{ color: T.textSoft, fontSize: font.size.base }}>Metto insieme cassa, fatture e personale…</span></Riquadro></div>
-  if (errore) return <div style={{ maxWidth: 1200, margin: '0 auto' }}>{intestazione}<Riquadro isMobile={isMobile}><span style={{ color: T.red, fontSize: font.size.base }}>Non sono riuscito a leggere i dati: {errore}</span></Riquadro></div>
+  if (caricando && !dati) return <PaginaAnalisi isMobile={isMobile}>{intestazione}<Riquadro isMobile={isMobile}><span style={{ color: T.textSoft, fontSize: font.size.base }}>Metto insieme cassa, fatture e personale…</span></Riquadro></PaginaAnalisi>
+  if (errore) return <PaginaAnalisi isMobile={isMobile}>{intestazione}<Riquadro isMobile={isMobile}><span style={{ color: T.red, fontSize: font.size.base }}>Non sono riuscito a leggere i dati: {errore}</span></Riquadro></PaginaAnalisi>
   if (!conto) return null
 
   const vUtile = conto.utile != null && contoPrima?.utile != null ? variazione({ attuale: conto.utile, confronto: contoPrima.utile }) : null
@@ -146,24 +102,20 @@ export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate
   const meseConfronto = dati.confronto
   const materieIncomplete = conto.speseFatture > 0 && conto.daClassificare > conto.speseFatture * 0.05
   const eccezionali = dati.attuale.eccezionali || []
-  const colonne = ui3(isMobile, isTablet, { telefono: '1fr', tablet: '1fr 1fr', computer: '2fr 1fr 1fr' })
+  // Una griglia sola per tutta la pagina (audit 04/10, IM4): le tessere e la
+  // riga cascata + cause tagliano le colonne nello stesso punto, con lo
+  // stesso spazio fra i riquadri della pagina (24 al computer, 16 al telefono).
+  const colonne = ui3(isMobile, isTablet, { telefono: '1fr', tablet: '1fr 1fr', computer: 'minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr)' })
+  const fra = spazioRiquadri(isMobile)
+  const unaRiga = isMobile || isTablet
 
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto', opacity: caricando ? 0.6 : 1, transition: 'opacity 120ms' }}>
+    <PaginaAnalisi isMobile={isMobile} attenuata={caricando}>
       {intestazione}
-      {spostato && spostato.a === mese && (
-        <div role="status" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 12, fontSize: font.size.base, color: T.textMid }}>
-          <Icon name="info" size={14} />
-          <span>{nomeMese(spostato.da, { anno: false })[0].toUpperCase() + nomeMese(spostato.da, { anno: false }).slice(1)} non ha ancora gli incassi: ti mostro {nomeMese(spostato.a, { anno: false })}, l&apos;ultimo mese che li ha.</span>
-          <button type="button" onClick={() => setMese(spostato.da)} style={{ border: 'none', background: 'transparent', color: T.brand, fontWeight: 700, fontSize: font.size.base, cursor: 'pointer', padding: '4px 2px', fontFamily: 'inherit', minHeight: 32 }}>
-            Vai a {nomeMese(spostato.da, { anno: false })}
-          </button>
-        </div>
-      )}
       <CoperturaDati voci={vociCopertura(dati, { onNavigate, onClassifica: () => setClassifica(true) })} />
 
       {/* ── La risposta ─────────────────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: colonne, gap: isMobile ? 10 : 14, marginBottom: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: colonne, gap: fra }}>
         <div style={{ gridColumn: isTablet && !isMobile ? '1 / -1' : 'auto', display: 'grid' }}>
           <NumeroConConfronto grande isMobile={isMobile}
             etichetta={`Utile di ${nomeMese(mese, { anno: false })}`}
@@ -177,10 +129,12 @@ export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate
                 ? `Prima del personale ti restano ${euro(conto.primaDelPersonale)}${conto.stimato ? ' (stima)' : ''}: incassi meno le spese in fattura.`
                 : conto.speseFatture != null ? `Spese già note: ${euro(conto.spese)}` : ''} />
         </div>
-        <NumeroConConfronto isMobile={isMobile} etichetta="Incassi senza IVA" stimato={conto.stimato}
+        {/* Il nome degli incassi è lo stesso in tutte le pagine (nomeIncassi):
+            «stimati» sta nel nome, «senza IVA» nella riga sotto il numero. */}
+        <NumeroConConfronto isMobile={isMobile} etichetta={nomeIncassi(conto.stimato)}
           valore={conto.ricavi != null ? euro(conto.ricavi) : null} motivoMancante="nessun dato"
           variazione={vIncassi} rispettoA={`su ${nomeMese(meseConfronto, { anno: true })}`}
-          contesto={dati.attuale.incassi.fonte === 'stima' ? 'stimati dall\'inventario' : dati.attuale.incassi.fonte === 'cassa' ? 'dalla cassa' : ''} />
+          contesto={dati.attuale.incassi.fonte === 'stima' ? 'dall\'inventario, senza IVA' : dati.attuale.incassi.fonte === 'cassa' ? 'dalla cassa, senza IVA' : ''} />
         <NumeroConConfronto isMobile={isMobile} etichetta="Spese del mese"
           valore={conto.spese != null ? euro(conto.spese) : null} motivoMancante="fatture non lette"
           variazione={vSpese} rispettoA={`su ${nomeMese(meseConfronto, { anno: true })}`}
@@ -188,7 +142,7 @@ export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate
       </div>
 
       {eccezionali.length > 0 && (
-        <Riquadro isMobile={isMobile} stile={{ marginBottom: 14, borderColor: T.bordoAvviso, background: T.fondoAvviso }}>
+        <Riquadro isMobile={isMobile} stile={{ borderColor: T.bordoAvviso, background: T.fondoAvviso }}>
           <TitoloGrafico titolo={eccezionali.length === 1 ? 'Una fattura fuori scala questo mese' : `${eccezionali.length} fatture fuori scala questo mese`}
             sottotitolo="Se sono investimenti (attrezzature, lavori) si pagano una volta e durano anni: non sono spese del mese. Finché non lo dici, le conto come spese." />
           {eccezionali.slice(0, 3).map(f => (
@@ -199,13 +153,13 @@ export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate
         </Riquadro>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile || isTablet ? '1fr' : '3fr 2fr', gap: isMobile ? 10 : 14, marginBottom: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: unaRiga ? '1fr' : colonne, gap: fra }}>
         <Riquadro isMobile={isMobile}>
           <TitoloGrafico titolo={titoloCascata(conto)}
             sottotitolo={`Dagli incassi${conto.stimato ? ' stimati' : ''} all'utile, senza IVA. Le spese vengono dalle fatture del mese, per data.`} />
           <Cascata isMobile={isMobile} ricavi={conto.ricavi} passi={conto.passi} />
         </Riquadro>
-        <Riquadro isMobile={isMobile}>
+        <Riquadro isMobile={isMobile} stile={unaRiga ? null : { gridColumn: '2 / 4' }}>
           <TitoloGrafico titolo={cause.length ? `Cosa è cambiato da ${nomeMese(meseConfronto)}` : `Il confronto con ${nomeMese(meseConfronto)}`}
             sottotitolo={cause.length ? 'Le voci che hanno spostato di più l\'utile, dalla più pesante.' : ''} />
           {cause.length ? cause.map(c => (
@@ -218,10 +172,10 @@ export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate
         </Riquadro>
       </div>
 
-      <Riquadro isMobile={isMobile} stile={{ marginBottom: 14 }}>
+      <Riquadro isMobile={isMobile}>
         <TitoloGrafico titolo="Le tre spese che decidono il margine"
           sottotitolo="Quanto pesano sugli incassi. Gli obiettivi sono indicativi: per la pasticceria artigiana non ci sono riferimenti italiani solidi, conta il confronto con te stesso." />
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))', gap: isMobile ? 16 : 24 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))', gap: fra }}>
           {/* Con molte spese ancora senza categoria la quota delle materie
               prime è un minimo, non la quota: «1,6%, sotto l'obiettivo» in
               verde sarebbe una buona notizia falsa. */}
@@ -234,30 +188,30 @@ export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate
         </div>
       </Riquadro>
 
+      {/* Due capitoli dopo il conto del mese: i negozi, poi l'anno. */}
       {dati.perSede && Object.keys(dati.perSede).length > 1 && (
-        <Riquadro isMobile={isMobile} stile={{ marginBottom: 14 }}>
-          <TitoloGrafico titolo={titoloSedi(dati.perSede)} sottotitolo={`Stesso conto, negozio per negozio. ${testoRipartizione(dati.perSede)}`} />
-          <SediAffiancate perSede={dati.perSede} isMobile={isMobile} />
-        </Riquadro>
+        <SezioneAnalisi isMobile={isMobile} etichetta="I negozi">
+          <Riquadro isMobile={isMobile}>
+            <TitoloGrafico titolo={titoloSedi(dati.perSede)} sottotitolo={`Stesso conto, negozio per negozio. ${testoRipartizione(dati.perSede)}`} />
+            <SediAffiancate perSede={dati.perSede} isMobile={isMobile} />
+          </Riquadro>
+        </SezioneAnalisi>
       )}
 
-      <Riquadro isMobile={isMobile}>
-        <UltimiMesi andamento={dati.andamento} isMobile={isMobile} meseScelto={mese} onScegli={setMese} />
-      </Riquadro>
+      <SezioneAnalisi isMobile={isMobile} etichetta="Gli ultimi dodici mesi">
+        <Riquadro isMobile={isMobile}>
+          <UltimiMesi andamento={dati.andamento} isMobile={isMobile} meseScelto={mese} onScegli={setMese} />
+        </Riquadro>
+      </SezioneAnalisi>
 
       {/* L'ultimo inventario si dice solo se finisce prima della fine del
           mese guardato: «ultimo inventario 31/07» guardando luglio, quando
           l'inventario arriva al 31/08, era vero solo dentro la finestra letta. */}
-      <div style={{ fontSize: font.size.sm, color: T.textSoft, marginTop: 10 }}>
+      <div style={{ fontSize: font.size.sm, color: T.textSoft, lineHeight: '16px' }}>
         {dati.ultimoInventario && dati.ultimoInventario < `${mese}-28` ? `Inventario registrato fino al ${dataBreve(dati.ultimoInventario)}. ` : ''}Incassi senza IVA al 10%.
       </div>
-    </div>
+    </PaginaAnalisi>
   )
-}
-
-const stileFreccia = {
-  width: 36, height: 36, borderRadius: 8, border: `1px solid ${T.border}`, background: T.bgCard,
-  color: T.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
 }
 
 /** Come sono state divise le spese condivise, detto com'è andata davvero. */
@@ -281,13 +235,13 @@ function SediAffiancate({ perSede, isMobile }) {
   const voci = Object.values(perSede)
   const max = Math.max(1, ...voci.map(s => Math.max(s.conto.ricavi || 0, s.conto.spese || 0)))
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : `repeat(${Math.min(voci.length, 4)}, minmax(0, 1fr))`, gap: isMobile ? 12 : 18 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : `repeat(${Math.min(voci.length, 4)}, minmax(0, 1fr))`, gap: spazioRiquadri(isMobile) }}>
       {voci.map(s => {
         const c = s.conto
         return (
           <div key={s.sede.id} style={{ minWidth: 0 }}>
             <div style={{ fontSize: font.size.md, fontWeight: 800, color: T.text, marginBottom: 6 }}>{s.sede.nome}</div>
-            <RigaBarra etichetta={c.stimato ? 'Incassi stimati' : 'Incassi'} valore={c.ricavi} max={max} colore={T.graficoReale} />
+            <RigaBarra etichetta={nomeIncassi(c.stimato)} valore={c.ricavi} max={max} colore={T.graficoReale} />
             <RigaBarra etichetta="Spese" valore={c.spese} max={max} colore={T.graficoConfronto} />
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: font.size.base }}>
               <span style={{ color: T.textSoft }}>Utile</span>
@@ -337,14 +291,17 @@ function UltimiMesi({ andamento = [], isMobile, meseScelto, onScegli }) {
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><span style={{ width: 10, height: 10, borderRadius: 2, background: T.graficoConfronto }} />Spese</span>
           </div>
         )} />
-      <div style={{ overflowX: 'auto' }}>
-        <div role="list" style={{ display: 'grid', gridTemplateColumns: `repeat(${mesi.length}, minmax(${isMobile ? 26 : 40}px, 1fr))`, gap: isMobile ? 4 : 8, alignItems: 'end', minWidth: isMobile ? 360 : 0 }}>
+      {/* Al telefono la griglia voleva 378 px in un riquadro di 354 e il mese
+          scelto, l'ultimo, restava tagliato sul bordo (audit 04/10, IM7): le
+          dodici colonne si dividono lo spazio che c'è. */}
+      <div>
+        <div role="list" aria-label="Gli ultimi dodici mesi" style={{ display: 'grid', gridTemplateColumns: `repeat(${mesi.length}, ${isMobile ? 'minmax(0, 1fr)' : 'minmax(40px, 1fr)'})`, gap: isMobile ? 2 : 8, alignItems: 'end' }}>
           {mesi.map(m => {
             const c = m.conto
             const h = (v) => (v == null ? 0 : Math.max(2, (v / max) * altezza))
             const scelto = m.mese === meseScelto
             return (
-              <button key={m.mese} type="button" role="listitem" onClick={() => onScegli(m.mese)}
+              <button key={m.mese} type="button" role="listitem" onClick={() => onScegli(m.mese)} aria-current={scelto ? 'true' : undefined}
                 aria-label={`${nomeMese(m.mese)}: incassi ${c.ricavi == null ? 'non noti' : euro(c.ricavi)}, spese ${c.spese == null ? 'non note' : euro(c.spese)}, utile ${c.utile == null ? 'non noto' : euro(c.utile)}`}
                 title={`${nomeMese(m.mese)} · incassi ${c.ricavi == null ? '—' : euro(c.ricavi)} · spese ${c.spese == null ? '—' : euro(c.spese)} · utile ${c.utile == null ? '—' : euro(c.utile)}`}
                 style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '4px 0', border: 'none', borderRadius: 6, background: scelto ? T.bgSubtle : 'transparent', cursor: 'pointer', font: 'inherit' }}>

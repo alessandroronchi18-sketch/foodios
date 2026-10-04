@@ -19,6 +19,21 @@
 //     la colonna nuova (migration 20261003b non applicata) la schermata lo
 //     dice e non finge di salvare;
 //   • al telefono la stessa schermata, in colonna.
+//
+// Audit del design del 04/10/2026 (CS1, il sesto difetto più grave della
+// nuova Analisi): le fatture fuori scala stavano in cima alla pagina con 3
+// tendine e 3 «Salva» sempre aperti; senza la colonna nuova erano tutti spenti,
+// con un avviso giallo che lo diceva: 323 px al computer e 745 al telefono di
+// comandi che non funzionavano, prima dell'elenco che funziona. E i «Salva»
+// spenti erano bordeaux al 55%, cioè rosa: da lontano sembravano accesi. Ora le
+// fatture fuori scala sono una riga; senza la colonna non c'è nessun comando,
+// con la colonna i comandi si aprono a richiesta; lo spento è grigio.
+//
+// Stesso audit (CS2): le due liste della pagina avevano due griglie diverse
+// (`minmax(0,1fr) 130px 230px auto` e `40px minmax(0,1fr) 150px 230px`):
+// importi e tendine sfasati di 84 px, e la GECKO da 86.651 €, che sta in tutte
+// e due, compariva in due colonne diverse una sotto l'altra. Ora la griglia è
+// una sola; il «Salva» della fattura sta sotto la sua tendina.
 import React from 'react'
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent, waitFor, within, act } from '@testing-library/react'
@@ -26,6 +41,7 @@ import { render, screen, cleanup, fireEvent, waitFor, within, act } from '@testi
 vi.mock('../../src/lib/supabase', () => ({ supabase: { from: () => { throw new Error('client vero usato in una prova') } } }))
 
 import ClassificaSpese, { fornitoriDaFatture } from '../../src/components/analisi/ClassificaSpese'
+import { color as T } from '../../src/lib/theme'
 
 afterEach(() => cleanup())
 
@@ -225,6 +241,8 @@ describe('ClassificaSpese: le fatture fuori misura', () => {
     const db = fintoDb(datiMara())
     const { notify, onSalvato } = monta(db)
     await screen.findByText(/Una fattura vale 33 volte le altre di GECKO CIOCCOLATI E GELATI TORINO/)
+    // I comandi stanno dietro un tocco (audit 04/10, CS1).
+    fireEvent.click(screen.getByRole('button', { name: 'Guarda e decidi' }))
     const voce = screen.getByRole('combobox', { name: 'Voce della fattura 6 di GECKO CIOCCOLATI E GELATI TORINO SRL' })
     expect(voce.value).toBe('attrezzature')
     fireEvent.click(screen.getByRole('button', { name: 'Salva' }))
@@ -234,13 +252,76 @@ describe('ClassificaSpese: le fatture fuori misura', () => {
     expect(screen.queryByText(/Una fattura vale/)).toBeNull()
   })
 
-  it('senza la colonna nuova lo dice, e non si può salvare', async () => {
+  // Prima questa prova voleva la tendina e il «Salva» presenti e spenti: era
+  // proprio il difetto CS1 dell'audit del 04/10. Ora senza la colonna non
+  // c'è nessun comando, solo la riga che dice cosa succederà.
+  it('senza la colonna nuova lo dice in una riga, senza comandi spenti', async () => {
     const db = fintoDb({ ...datiMara(), colonneMancanti: ['categoria_spesa'] })
     monta(db)
-    await screen.findByText(/Una fattura vale/)
-    expect(screen.getByText(/si potrà salvare con il prossimo aggiornamento/)).toBeTruthy()
-    expect(screen.getByRole('combobox', { name: /Voce della fattura 6/ }).disabled).toBe(true)
-    expect(screen.getByRole('button', { name: 'Salva' }).disabled).toBe(true)
+    const riga = await screen.findByText(/Una fattura vale 33 volte le altre di GECKO/)
+    expect(riga.textContent).toMatch(/86\.651\u00a0€ il 10\/07\/2026\): potrai segnarla come investimento con il prossimo aggiornamento di Foodos/)
+    expect(screen.queryByRole('combobox', { name: /Voce della fattura/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Salva' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Guarda e decidi' })).toBeNull()
+    expect([...document.querySelectorAll('select:disabled')]).toEqual([])
+  })
+
+  it('con la colonna, i comandi stanno chiusi finché non li chiedi', async () => {
+    monta(fintoDb(datiMara()))
+    await screen.findByText(/Una fattura vale 33 volte/)
+    expect(screen.queryByRole('combobox', { name: /Voce della fattura/ })).toBeNull()
+    const apri = screen.getByRole('button', { name: 'Guarda e decidi' })
+    expect(apri.getAttribute('aria-expanded')).toBe('false')
+    fireEvent.click(apri)
+    expect(screen.getByRole('button', { name: 'Chiudi' }).getAttribute('aria-expanded')).toBe('true')
+    expect(screen.getByRole('combobox', { name: /Voce della fattura 6/ }).disabled).toBe(false)
+    fireEvent.click(screen.getByRole('button', { name: 'Chiudi' }))
+    expect(screen.queryByRole('combobox', { name: /Voce della fattura/ })).toBeNull()
+  })
+
+  it('più fatture fuori scala: una riga sola, con la più grande', async () => {
+    const d = datiMara()
+    d.fatture.push(
+      fattura('Enel Energia S.p.A.', '2025-12-12', 2100), fattura('Enel Energia S.p.A.', '2026-01-12', 2200),
+      fattura('Enel Energia S.p.A.', '2026-02-12', 2000), fattura('Enel Energia S.p.A.', '2026-08-12', 41000),
+    )
+    monta(fintoDb({ ...d, colonneMancanti: ['categoria_spesa'] }))
+    const riga = await screen.findByText(/fatture molto più grandi del solito/)
+    expect(riga.textContent).toMatch(/^\d+ fatture molto più grandi del solito, la più grande di GECKO CIOCCOLATI E GELATI TORINO \(86\.651\u00a0€/)
+    expect(riga.textContent).toMatch(/potrai segnarle come investimento/)
+  })
+})
+
+describe('ClassificaSpese: le due liste sulla stessa griglia (audit 04/10, CS2)', () => {
+  it('importi e tendine delle fatture fuori scala cadono sotto quelli dei fornitori', async () => {
+    monta(fintoDb(datiMara()))
+    await screen.findByText(/Una fattura vale 33 volte/)
+    fireEvent.click(screen.getByRole('button', { name: 'Guarda e decidi' }))
+    const fattura = within(screen.getByRole('list', { name: 'Fatture fuori scala' })).getAllByRole('listitem')[0]
+    const fornitore = righe()[0]
+    expect(fattura.style.gridTemplateColumns).toBe(fornitore.style.gridTemplateColumns)
+    expect(fattura.style.columnGap || fattura.style.gap).toBe(fornitore.style.columnGap || fornitore.style.gap)
+    // Quattro celle in tutte e due: casella (o il suo posto vuoto), nome, importo, tendina.
+    expect(fattura.children).toHaveLength(4)
+    expect(fornitore.children).toHaveLength(4)
+    expect(fattura.children[2].textContent).toBe('86.651 €')
+    expect(within(fattura.children[3]).getByRole('combobox')).toBeTruthy()
+    expect(within(fattura.children[3]).getByRole('button', { name: 'Salva' })).toBeTruthy()
+  })
+})
+
+describe('ClassificaSpese: un pulsante spento si vede spento (audit 04/10, CS1)', () => {
+  it('grigio, non bordeaux sbiadito', async () => {
+    const db = fintoDb({
+      fornitori: [{ id: 'v', organization_id: ORG, nome: 'Vecchio Enrico', partita_iva: null, categoria: null }],
+      fatture: [fattura('Vecchio Enrico', '2026-07-01', 3200)],
+    })
+    monta(db)
+    const b = await screen.findByRole('button', { name: 'Niente da salvare' })
+    expect(b.disabled).toBe(true)
+    expect(b.style.background).not.toBe(T.brand)
+    expect(b.style.opacity).toBe('')
+    expect(b.style.color).toBe(T.textFaint)
   })
 })
 
