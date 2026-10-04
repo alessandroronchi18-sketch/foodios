@@ -15,7 +15,11 @@ const PAROLA = { registrato: 'registrato', parziale: 'registrato solo in qualche
 export default function CalendarioGiorni({ righe, da, a, sedi = [], isMobile, stile = null }) {
   const { mesi, conteggio } = calendarioGiorni(righe, { da, a, sedi })
   const piuSedi = sedi.length > 1
-  const lato = isMobile ? 40 : 32
+  // Una misura sola, 40 px, al telefono e al computer: le caselle si
+  // guardano, non si toccano, ma una misura che cambia col dispositivo cadeva
+  // nel controllo dei bersagli (bersagliSulTablet), e due mesi affiancati
+  // stanno comunque in 620 px.
+  const lato = 40
   const casella = (stato) => ({
     width: lato, height: lato, boxSizing: 'border-box', borderRadius: R.sm,
     display: 'flex', alignItems: 'center', justifyContent: 'center', ...tnum,
