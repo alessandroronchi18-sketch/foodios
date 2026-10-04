@@ -16,7 +16,7 @@ import useIsMobile from '../lib/useIsMobile'
 import Icon from '../components/Icon'
 import { CoperturaDati, Andamentino, IntestazioneAnalisi, TitoloGrafico, Riquadro, ClassificaSpese } from '../components/analisi'
 import PaginaAnalisi from '../components/analisi/PaginaAnalisi'
-import { euro, euroSegno, quota, nomeMese, variazione } from '../lib/formatoAnalisi'
+import { euro, euroSegno, quota, nomeMese, aMese, variazione } from '../lib/formatoAnalisi'
 import { vociCopertura } from './IlMeseView'
 import MeseAnalisi, { useMeseAnalisi, AvvisoMeseSpostato, PulsanteTorna } from '../components/analisi/MeseAnalisi'
 
@@ -98,7 +98,9 @@ export default function ContoEconomicoView({ orgId, sedi = [], sedeId = null, on
   return (
     <PaginaAnalisi isMobile={isMobile} attenuata={caricando && !!dati}>
       <IntestazioneAnalisi isMobile={isMobile}
-        domanda={`Il conto di ${nomeMese(mese)}`}
+        // Una domanda come le pagine sorelle, non «Il conto di agosto 2026»
+        // (audit 04/10, CE9). L'anno lo dicono le frecce del mese.
+        domanda={`Dove sono andati i soldi ${aMese(mese, { anno: false })}?`}
         sotto={(
           <>
             {`Voce per voce, senza IVA, contro ${nomeMese(dati?.confronto || mese)}.`}
