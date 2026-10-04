@@ -25,7 +25,6 @@ import { CoperturaDati, IntestazioneAnalisi } from '../components/analisi'
 import PaginaAnalisi from '../components/analisi/PaginaAnalisi'
 import NavigatoreSettimana from './quadratura/NavigatoreSettimana'
 import { vociCoperturaQuadratura } from './quadratura/copertura'
-import { riassuntoSistemabili } from './produzione/copertura'
 import { nettoIva } from './produzione/numeri'
 import Risposta from './quadratura/Risposta'
 import UltimeSettimane from './quadratura/UltimeSettimane'
@@ -566,7 +565,7 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
       {/* Da dove vengono i numeri, una frase per fonte (ANALISI_DESIGN.md,
           regola 3). La riga «dopo il … non c'è niente» sta qui dentro. */}
       {!inCaricamento && !erroreLettura && giorniSettimana.n > 0 && (
-        <CoperturaDati isMobile={isMobile} voci={vociCopertura} riassunto={riassuntoSistemabili(vociCopertura)} />
+        <CoperturaDati isMobile={isMobile} voci={vociCopertura} />
       )}
 
       {inCaricamento ? (

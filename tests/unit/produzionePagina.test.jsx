@@ -815,7 +815,9 @@ describe('All\'arrivo i numeri, i comandi in fondo', () => {
 })
 
 // ── 10. Dopo i pezzi comuni nuovi (04/10): la riga chiusa e il confronto ───
-const { riassuntoSistemabili } = await import('../../src/views/produzione/copertura.js')
+// Dal 04/10 la riga la scrive il pezzo comune (riassuntoCopertura), con la
+// regola che prima stava qui: «da sistemare» solo per le voci `sistemabile`.
+const { riassuntoCopertura: riassuntoSistemabili } = await import('../../src/components/analisi/CoperturaDati.jsx')
 
 describe('La riga chiusa della copertura dice «da sistemare» solo di quello che si sistema', () => {
   // Il riassunto comune contava ogni voce non «ok» come «dati da sistemare»:
@@ -838,7 +840,7 @@ describe('La riga chiusa della copertura dice «da sistemare» solo di quello ch
       copertura: LUGLIO_AGOSTO, registrazioneFerma: true, scartoRegistrato: false, caselle: { n: 3 },
       senzaRicetta: { n: 2, kgVenduti: 10, euroStimati: 300 }, incompleti: ['MENTA'],
     })
-    expect(riassuntoSistemabili(voci)).toBe('Ricavo e margine stimati · 4 cose da sistemare · scarto mai scritto')
+    expect(riassuntoSistemabili(voci)).toBe('Ricavo e margine stimati · 4 dati da sistemare · scarto mai scritto')
   })
   it('tutto a posto', () => {
     expect(riassuntoSistemabili([{ id: 'x', stato: 'ok', testo: 'ok' }])).toBe('Tutti i dati ci sono')

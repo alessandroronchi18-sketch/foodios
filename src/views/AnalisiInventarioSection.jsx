@@ -22,7 +22,7 @@ import { CoperturaDati, IntestazioneAnalisi, TitoloGrafico, Riquadro, FraseInsig
 import PaginaAnalisi, { SezioneAnalisi, spazioRiquadri } from '../components/analisi/PaginaAnalisi'
 import Icon from '../components/Icon'
 import { useContiProduzione } from './produzione/useContiProduzione'
-import { vociCopertura, riassuntoCoperturaProduzione } from './produzione/copertura'
+import { vociCopertura } from './produzione/copertura'
 import { esportaXlsx } from './produzione/esporta'
 import GustiSenzaRicetta from './produzione/GustiSenzaRicetta'
 import CaselleDaSistemare from './produzione/CaselleDaSistemare'
@@ -122,7 +122,9 @@ export default function AnalisiInventarioSection({
     <PaginaAnalisi isMobile={isMobile}>
       {intestazione}
       {barra}
-      <CoperturaDati voci={voci} riassunto={riassuntoCoperturaProduzione(voci)} isMobile={isMobile} />
+      {/* La riga chiusa la scrive il pezzo comune: «da sistemare» solo per le
+          voci `sistemabile`, le altre per nome. */}
+      <CoperturaDati voci={voci} isMobile={isMobile} />
       {giorniAperti && (
         <CalendarioGiorni righe={rows} da={dateFrom} a={dateTo} sedi={c.sedi.map(s => s.sedeId || '_')} isMobile={isMobile} />
       )}
