@@ -59,8 +59,11 @@ describe('Senza cause del cambio (IM14)', () => {
   it('con le cause, due riquadri come prima: la cascata in colonna 1, le cause nelle altre due', async () => {
     DATI = { mese: M, confronto: MA, attuale: mese(M), annoPrima: mese(MA, { ricavi: 80000 }), andamento: [], perSede: null, ultimoInventario: null, errori: [] }
     render(<IlMeseView orgId="o1" sedi={[]} />)
-    await waitFor(() => expect(riquadroCol(/^Cosa è cambiato/)).toBeTruthy())
-    expect(riquadroCol(/^Cosa è cambiato/).style.gridColumn).toBe('2 / 4')
+    // Il riquadro delle cause: quello con le barre divergenti (dal 04/10 il
+    // suo titolo è la causa più pesante, non «Cosa è cambiato»).
+    const cause = () => document.querySelector('ul[aria-label="Che cosa è cambiato"]')?.closest('section')
+    await waitFor(() => expect(cause()).toBeTruthy())
+    expect(cause().style.gridColumn).toBe('2 / 4')
     expect(riquadroCol(/Le fatture valgono/).style.gridColumn || 'auto').toBe('auto')
   })
 })

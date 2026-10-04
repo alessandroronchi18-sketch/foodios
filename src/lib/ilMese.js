@@ -276,6 +276,21 @@ function confrontaFornitori(vociA = [], vociB = []) {
     .slice(0, 2)
 }
 
+/**
+ * Il titolo-conclusione di «Cosa è cambiato», in dieci parole al massimo
+ * (ANALISI_DESIGN §6): la voce che ha spostato di più l'utile.
+ * «Confezioni: +11.542 € di spesa rispetto ad agosto 2025»,
+ * «Hai incassato 10.000 € in più rispetto ad agosto 2025».
+ */
+export function titoloCause(cause = [], meseConfronto) {
+  const c = cause[0]
+  if (!c) return meseConfronto ? `Il confronto con ${aMese(meseConfronto).replace(/^ad? /, '')}` : 'Il confronto'
+  const rispetto = meseConfronto ? ` rispetto ${aMese(meseConfronto)}` : ''
+  const diff = tonda(c.attuale - c.prima)
+  if (c.chiave === 'incassi') return `Hai incassato ${euro(Math.abs(diff))} ${diff > 0 ? 'in più' : 'in meno'}${rispetto}`
+  return `${c.etichetta}: ${euroSegno(diff)} di spesa${rispetto}`
+}
+
 /** La frase di una causa: «Materie prime +2.340 € di spesa, soprattutto DESA (+1.100 €)». */
 export function fraseCausa(c, meseConfronto) {
   const rispetto = meseConfronto ? ` rispetto ${aMese(meseConfronto)}` : ''

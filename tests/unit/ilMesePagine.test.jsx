@@ -108,8 +108,13 @@ describe('Il mese, con il personale sistemato', () => {
     expect(testo()).not.toMatch(/Non posso dirtelo/)
     expect(testo()).toMatch(new RegExp(`su ${nomeMese(MA)}`))
     expect(testo()).toMatch(/Su 100 € incassati te ne restano/)
-    expect(testo()).toMatch(new RegExp(`Cosa è cambiato da ${nomeMese(MA)}`))
-    expect(testo()).toMatch(new RegExp(`Materie prime: \\+2\\.000 € di spesa rispetto ${aMese(MA)}, soprattutto DESA SRL`))
+    // Dal 04/10 (audit IM9) le cause sono barre divergenti, non frasi: il
+    // titolo dice la causa più pesante, ogni riga voce · barra · differenza,
+    // e il fornitore principale in nome breve sotto la voce.
+    expect(testo()).toMatch(new RegExp(`Hai incassato 10\\.000 € in più rispetto ${aMese(MA)}`))
+    const mp = document.querySelector('ul[aria-label="Che cosa è cambiato"] li[aria-label^="Materie prime"]')
+    expect(mp.getAttribute('aria-label')).toBe('Materie prime: +2.000 €, peggio')
+    expect(mp.textContent).toMatch(/soprattutto DESA \+1\.000/)
   })
 })
 

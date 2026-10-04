@@ -24,10 +24,11 @@ const cifra = (n) => `${n < 0 && Math.round(Math.abs(n)) > 0 ? '−' : ''}${NF0.
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import {
   CoperturaDati, NumeroConConfronto, NumeroPrincipale, FilaTessere, BarraObiettivo, Cascata, IntestazioneAnalisi,
-  TitoloGrafico, Riquadro, FraseInsight, ClassificaSpese,
+  TitoloGrafico, Riquadro, FraseInsight, ClassificaSpese, ElencoDivergente,
 } from '../components/analisi'
-import { euro, quota, nomeMese, aMese, variazione, dataBreve } from '../lib/formatoAnalisi'
-import { OBIETTIVI, causeDelCambio, fraseCausa, titoloCascata, motivoSenzaUtile, nomeIncassi, ivaDelleSpese } from '../lib/ilMese'
+import { euro, euroSegno, quota, nomeMese, aMese, variazione, dataBreve } from '../lib/formatoAnalisi'
+import { OBIETTIVI, causeDelCambio, titoloCause, titoloCascata, motivoSenzaUtile, nomeIncassi, ivaDelleSpese } from '../lib/ilMese'
+import { nomeBreve } from '../lib/contoEconomico'
 import PaginaAnalisi, { SezioneAnalisi, spazioRiquadri } from '../components/analisi/PaginaAnalisi'
 import MeseAnalisi, { useMeseAnalisi, PulsanteTorna, meseCorrente } from '../components/analisi/MeseAnalisi'
 
@@ -182,11 +183,18 @@ export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate
         </Riquadro>
         {cause.length > 0 && (
           <Riquadro isMobile={isMobile} stile={unaRiga ? null : { gridColumn: '2 / 4' }}>
-            <TitoloGrafico titolo={`Cosa è cambiato da ${nomeMese(meseConfronto)}`}
-              sottotitolo="Le voci che hanno spostato di più l'utile, dalla più pesante." />
-            {cause.map(c => (
-              <FraseInsight key={c.chiave} verso={c.effetto >= 0 ? 'meglio' : 'peggio'}>{fraseCausa(c, meseConfronto)}</FraseInsight>
-            ))}
+            {/* Barre da uno zero comune invece di cinque paragrafi con «di
+                spesa rispetto ad agosto 2025» ripetuto (audit 04/10, IM9). */}
+            <TitoloGrafico titolo={titoloCause(cause, meseConfronto)}
+              sottotitolo="Le voci che hanno spostato di più l'utile, dalla più pesante: a destra quello che è salito, a sinistra quello che è sceso." />
+            <ElencoDivergente isMobile={isMobile} titoloValore={`su ${nomeMese(meseConfronto)}, €`}
+              voci={cause.map(c => ({
+                chiave: c.chiave, etichetta: c.etichetta, valore: Math.round(c.attuale - c.prima),
+                verso: c.effetto >= 0 ? 'meglio' : 'peggio',
+                // Il fornitore principale solo, in nome breve: due nomi interi
+                // andavano su tre righe nella colonna delle voci.
+                nota: c.fornitori?.length ? `soprattutto ${nomeBreve(c.fornitori[0].nome)} ${euroSegno(c.fornitori[0].delta).replace(' €', '')}` : undefined,
+              }))} />
           </Riquadro>
         )}
       </div>
