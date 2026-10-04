@@ -255,18 +255,32 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
   useEffect(() => {
     if (!orgId || sediDaLeggere.length === 0) return undefined
     let alive = true
-    ultimoGiornoRegistrato(orgId, sediDaLeggere.map(s => s.id), { finoA: todayLocal() })
-      .catch(() => null)
-      .then((ultimo) => {
+    // 04/10/2026, decisione del titolare: si apre sull'ultima settimana
+    // INTERA con i dati, come «Il mese» si apre sull'ultimo mese chiuso. Sui
+    // dati di Mara l'ultimo giorno è lunedì 31/08: la pagina apriva la
+    // settimana 31/08-06/09, con un giorno solo (173 kg contro i 1.142 della
+    // settimana prima). «Intera» vuol dire che la sua domenica non va oltre
+    // l'ultimo giorno registrato; se quella settimana non ha niente, resta
+    // la settimana dell'ultimo giorno, come prima.
+    const ids = sediDaLeggere.map(s => s.id)
+    ;(async () => {
+      const ultimo = await ultimoGiornoRegistrato(orgId, ids, { finoA: todayLocal() }).catch(() => null)
+      if (!alive) return
+      const lunOggi = lunediDellaSettimana()
+      if (!ultimo) { setApertura({ ultimo: null, spostata: false }); return }
+      const lunUltimoGiorno = lunediDellaSettimana(`${ultimo}T12:00:00`)
+      let lunedi = lunUltimoGiorno
+      let intera = addDays(lunUltimoGiorno, 6) === ultimo
+      if (!intera) {
+        const prima = addDays(lunUltimoGiorno, -7)
+        const fine = addDays(prima, 6)
+        const u = await ultimoGiornoRegistrato(orgId, ids, { finoA: fine }).catch(() => null)
         if (!alive) return
-        const lunOggi = lunediDellaSettimana()
-        if (ultimo && ultimo < lunOggi) {
-          setLunediIso(lunediDellaSettimana(`${ultimo}T12:00:00`))
-          setApertura({ ultimo, spostata: true })
-        } else {
-          setApertura({ ultimo: ultimo || null, spostata: false })
-        }
-      })
+        if (u && u >= prima && u <= fine) { lunedi = prima; intera = true }
+      }
+      if (lunedi !== lunOggi) setLunediIso(lunedi)
+      setApertura({ ultimo, lunedi, intera, spostata: lunedi !== lunOggi })
+    })()
     return () => { alive = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orgId, sediKey])
@@ -474,7 +488,8 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
   const settimanaPrec = () => setLunediIso(addDays(lunediIso, -7))
   const settimanaSucc = () => setLunediIso(addDays(lunediIso, 7))
   const oggi = () => setLunediIso(lunediDellaSettimana())
-  const lunUltimo = apertura?.ultimo ? lunediDellaSettimana(`${apertura.ultimo}T12:00:00`) : null
+  // La settimana su cui la pagina si è aperta (l'ultima intera con i dati).
+  const lunUltimo = apertura?.lunedi || (apertura?.ultimo ? lunediDellaSettimana(`${apertura.ultimo}T12:00:00`) : null)
   const inCaricamento = loading || (sediDaLeggere.length > 0 && settimanaCaricata !== lunediIso)
 
   // La riga chiusa della copertura: «da sistemare» solo di quello che si
@@ -505,6 +520,20 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
         destra={<NavigatoreSettimana etichetta={fmtRange(lunediIso)} onPrima={settimanaPrec} onDopo={settimanaSucc}
           onOggi={lunediIso !== lunediDellaSettimana() ? oggi : null} />}
       />
+
+      {/* Si è aperta sull'ultima settimana intera: lo si dice sotto la
+          domanda, come «Il mese», con il passaggio alla settimana
+          dell'ultimo giorno. */}
+      {!inCaricamento && apertura?.spostata && apertura.intera && lunediIso === apertura.lunedi && apertura.ultimo > addDays(apertura.lunedi, 6) && (
+        <div role="status" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: font.size.base, color: C.textMid }}>
+          <Icon name="info" size={14} />
+          <span>L&apos;ultimo giorno registrato è {conGiorno('il', apertura.ultimo)}: ti mostro l&apos;ultima settimana intera.</span>
+          <button type="button" onClick={() => setLunediIso(lunediDellaSettimana(`${apertura.ultimo}T12:00:00`))}
+            style={{ border: 'none', background: 'transparent', color: T.brand, fontWeight: 700, fontSize: font.size.base, cursor: 'pointer', padding: '0 4px', fontFamily: 'inherit', minHeight: 44 }}>
+            Vai alla settimana {conGiorno('del', lunediDellaSettimana(`${apertura.ultimo}T12:00:00`))}
+          </button>
+        </div>
+      )}
 
       {/* Da dove vengono i numeri, una frase per fonte (ANALISI_DESIGN.md,
           regola 3). La riga «dopo il … non c'è niente» sta qui dentro. */}

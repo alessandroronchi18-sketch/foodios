@@ -28,8 +28,13 @@ export function vociCoperturaQuadratura({ giorni, kpi, euroKg, scartoRegistrato 
 
   // 1. L'inventario della settimana.
   const inventario = `${quanti(giorni.n, 'giorno', 'giorni')} su 7 con l'inventario`
+  // La pagina si è spostata da sola: se è sull'ultima settimana intera lo
+  // dice così (l'ultimo giorno può essere dopo), se no come prima.
+  const settimanaIntera = apertura?.intera && apertura.lunedi && apertura.ultimo > piu(apertura.lunedi, 6)
   voci.push(apertura?.spostata && apertura.ultimo
-    ? { id: 'inventario', stato: 'parziale', breve: `dati fino ${conGiorno('al', apertura.ultimo)}`, testo: `Dopo ${conGiorno('il', apertura.ultimo, { lunga: true })} non c'è niente di registrato: ti mostro l'ultima settimana con i dati (${inventario})` }
+    ? (settimanaIntera
+      ? { id: 'inventario', stato: giorni.n === 7 ? 'ok' : 'parziale', breve: 'ultima settimana intera', testo: `L'ultimo giorno registrato è ${conGiorno('il', apertura.ultimo, { lunga: true })}: ti mostro l'ultima settimana intera (${inventario})` }
+      : { id: 'inventario', stato: 'parziale', breve: `dati fino ${conGiorno('al', apertura.ultimo)}`, testo: `Dopo ${conGiorno('il', apertura.ultimo, { lunga: true })} non c'è niente di registrato: ti mostro l'ultima settimana con i dati (${inventario})` })
     : { id: 'inventario', stato: giorni.n === 7 ? 'ok' : 'parziale', breve: giorni.n === 7 ? undefined : `${giorni.n} giorni su 7`, testo: maiuscola(inventario) })
 
   // 2. La cassa: c'è, c'è in parte, non c'è.
@@ -78,3 +83,4 @@ export function vociCoperturaQuadratura({ giorni, kpi, euroKg, scartoRegistrato 
 }
 
 const maiuscola = (t) => (t ? t[0].toUpperCase() + t.slice(1) : t)
+const piu = (iso, n) => { const t = new Date(`${iso}T12:00:00Z`); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10) }

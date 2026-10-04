@@ -41,9 +41,19 @@ const BASE = [
 ]
 const piu = (iso, n) => { const t = new Date(`${iso}T12:00:00Z`); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10) }
 // Come quella vera: la settimana e i sette giorni prima (la vetrina di partenza).
+// L'ultimo giorno registrato, rispettando `finoA` (come il vero). Spento di
+// base: le prove della testata guardano la settimana di oggi.
+let APERTURA = false
 vi.mock('../../src/lib/inventarioProduzione', async () => {
   const vero = await vi.importActual('../../src/lib/inventarioProduzione')
-  return { ...vero, caricaSettimana: vi.fn(async (_o, _s, lun) => RIGHE.filter(r => r.data >= piu(lun, -7) && r.data < piu(lun, 7))) }
+  const { rigaHaDati } = await vi.importActual('../../src/lib/produzioneAnalisi')
+  return {
+    ...vero,
+    caricaSettimana: vi.fn(async (_o, _s, lun) => RIGHE.filter(r => r.data >= piu(lun, -7) && r.data < piu(lun, 7))),
+    ultimoGiornoRegistrato: vi.fn(async (_o, _ids, { finoA } = {}) => (APERTURA
+      ? RIGHE.filter(r => rigaHaDati(r) && (!finoA || r.data <= finoA)).map(r => r.data).sort().pop() || null
+      : null)),
+  }
 })
 vi.mock('../../src/lib/supabase', () => {
   const RESULT = { data: [], error: null }
@@ -322,5 +332,45 @@ describe('Dalle foto coi dati veri', () => {
   it('il prezzo al chilo dell\'incasso stimato coi centesimi', () => {
     render(<Risposta kpi={{ totVendutoG: 1000, totVendutoKg: 1, retailKg: 1, b2bKg: 0, ricavoAtteso: 29.49, cassaRegistrata: false, giorniInventario: 1, driftEur: null, driftPct: null }} kpiPrev={null} euroKg={29.4882} />)
     expect(testo()).toMatch(/kg × 29,49 €\/kg medio dei formati/)
+  })
+})
+
+// ── 6. Si apre sull'ultima settimana intera (decisione del titolare, 04/10) ─
+// Sui dati di Mara l'ultimo giorno è lunedì 31/08: la pagina apriva la
+// settimana 31/08-06/09 con un giorno solo (173 kg). Adesso si apre sulla
+// settimana intera prima (24-30/08), lo dice sotto la domanda e porta,
+// con un tocco, alla settimana dell'ultimo giorno.
+describe('La settimana di apertura', () => {
+  const giorniDal = (da, a) => { const out = []; for (let d = da; d <= a; d = piu(d, 1)) out.push({ gusto_nome: 'NOCCIOLA', data: d, produzione_g: 1000, rimanenza_g: 500, scarto_g: 0, spedito_g: 0 }); return out }
+  beforeEach(() => { APERTURA = true; vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2026-10-03T10:00:00')) })
+  afterEach(() => { cleanup(); vi.useRealTimers(); APERTURA = false; RIGHE = BASE })
+
+  it('l\'ultimo giorno è un lunedì: si apre sulla settimana intera prima, e lo dice', async () => {
+    RIGHE = giorniDal('2026-08-16', '2026-08-31')
+    render(<QuadraturaInventarioView {...props()} />)
+    await waitFor(() => expect(testo()).toMatch(/24 ago - 30 ago 2026/), { timeout: 5000 })
+    await pronta()
+    expect(screen.getByRole('status').textContent).toMatch(/L'ultimo giorno registrato è il 31\/08: ti mostro l'ultima settimana intera\./)
+    expect(testo()).toMatch(/ti mostro l'ultima settimana intera \(7 giorni su 7 con l'inventario\)/)
+    fireEvent.click(screen.getByRole('button', { name: 'Vai alla settimana del 31/08' }))
+    await waitFor(() => expect(testo()).toMatch(/31 ago - 06 set 2026/), { timeout: 5000 })
+  })
+
+  it('l\'ultimo giorno è una domenica: quella settimana è già intera', async () => {
+    RIGHE = giorniDal('2026-08-16', '2026-08-30')
+    render(<QuadraturaInventarioView {...props()} />)
+    await waitFor(() => expect(testo()).toMatch(/24 ago - 30 ago 2026/), { timeout: 5000 })
+    await pronta()
+    expect(screen.queryByRole('status')).toBeNull()
+    expect(testo()).toMatch(/Dopo il 30\/08\/2026 non c'è niente di registrato/)
+  })
+
+  it('se la settimana intera prima non ha niente, resta sulla settimana dell\'ultimo giorno', async () => {
+    RIGHE = giorniDal('2026-08-31', '2026-09-01')
+    render(<QuadraturaInventarioView {...props()} />)
+    await waitFor(() => expect(testo()).toMatch(/31 ago - 06 set 2026/), { timeout: 5000 })
+    await pronta()
+    expect(screen.queryByRole('status')).toBeNull()
+    expect(testo()).toMatch(/Dopo l'01\/09\/2026 non c'è niente di registrato/)
   })
 })
