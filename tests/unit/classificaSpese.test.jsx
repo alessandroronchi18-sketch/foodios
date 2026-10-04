@@ -156,13 +156,16 @@ describe('ClassificaSpese: i fornitori senza voce', () => {
     expect(screen.getByText(/Proposta da controllare/)).toBeTruthy()
   })
 
-  it('la copertura in cima dice quanti hanno la voce e quanta spesa manca', async () => {
+  // Fino al 04/10 la copertura diceva anche quanti fornitori hanno la voce e
+  // quanta spesa manca: gli stessi numeri del titolo dell'elenco, a 300 px di
+  // distanza, e «0 su 143» marcato «in parte» (audit CS3). Ora quei numeri li
+  // dice la barra in cima (CS4, sotto); la copertura dice il resto.
+  it('la copertura dice quello che la barra e il titolo non dicono', async () => {
     monta(fintoDb(datiMara()))
     await screen.findByRole('list', { name: 'Fornitori senza voce' })
     const cop = screen.getByRole('region', { name: 'Da dove vengono i numeri' })
-    expect(cop.textContent).toMatch(/1 fornitori su 6 hanno la voce/)
-    // 86.651 + 23.670 + 15.790 + 2.303 senza voce; + 1.065 del commercialista
-    expect(cop.textContent).toMatch(/128\.414 € su 129\.479 € spesi negli ultimi 12 mesi sono senza voce/)
+    expect(cop.textContent).not.toMatch(/hanno la voce|sono senza voce/)
+    expect(cop.textContent).toMatch(/Voce proposta per 4 fornitori: da confermare/)
     expect(cop.textContent).toMatch(/solo il totale con l'IVA/)
   })
 
@@ -331,6 +334,49 @@ describe('ClassificaSpese: prima l\'elenco, le fatture fuori scala nella riga de
     expect(gecko.textContent).toMatch(/fattura da 86\.651\u00a0€ del 10\/07\/2026 fuori scala: forse un investimento/)
     const desa = righe().find(li => /DESA/.test(li.textContent))
     expect(desa.textContent).not.toMatch(/fuori scala/)
+  })
+})
+
+// Audit del 04/10 (CS4): la pagina non diceva mai quanta strada c'è, né
+// quanta se n'è fatta. La risposta della pagina ora è la quota della spesa
+// che ha la voce, con una barra che si riempie: scuro quello che è salvato,
+// chiaro quello che è spuntato e si salverà, e una tacca dove si arriva con
+// i primi 10 fornitori senza voce.
+describe('ClassificaSpese: la barra che si riempie (audit 04/10, CS4)', () => {
+  const barra = () => screen.getByRole('meter', { name: 'Spesa degli ultimi 12 mesi con la voce' })
+
+  it('dice quanta spesa ha la voce, e quanta ne avrà salvando le spuntate', async () => {
+    monta(fintoDb(datiMara()))
+    await screen.findByRole('list', { name: 'Fornitori senza voce' })
+    // 1.065 € del commercialista su 129.479 €.
+    expect(barra().getAttribute('aria-valuenow')).toBe('0.8')
+    expect(screen.getByRole('region', { name: 'Avanzamento delle voci' }).textContent).toMatch(/0,8%/)
+    // Spuntate le proposte sicure: GECKO 86.651 + CONO ARTIC 15.790 + Enel 2.303.
+    expect(barra().getAttribute('aria-valuetext')).toMatch(/1\.065 € su 129\.479 €; spuntate da salvare 104\.744 €/)
+  })
+
+  it('salvando, la barra si riempie', async () => {
+    monta(fintoDb(datiMara()))
+    await screen.findByRole('list', { name: 'Fornitori senza voce' })
+    fireEvent.click(screen.getByRole('button', { name: /^Salva 3 voci$/ }))
+    await waitFor(() => expect(barra().getAttribute('aria-valuenow')).toBe('81.7'))
+  })
+
+  it('con più di 10 fornitori senza voce, la tacca dei primi 10 e la frase', async () => {
+    const fornitori = Array.from({ length: 14 }, (_, i) => ({ id: `x${i}`, organization_id: ORG, nome: `Fornitore ${String.fromCharCode(65 + i)}`, partita_iva: null, categoria: null }))
+    const fatture = fornitori.map((f, i) => fattura(f.nome, '2026-07-01', 1000 * (14 - i)))
+    monta(fintoDb({ fornitori, fatture }))
+    await screen.findByRole('list', { name: 'Fornitori senza voce' })
+    // 14 + 13 + … + 5 = 95 su 105 (migliaia).
+    const r = screen.getByRole('region', { name: 'Avanzamento delle voci' })
+    expect(r.textContent).toMatch(/I primi 10 fornitori senza voce fanno il 90,5% della spesa: comincia da loro/)
+    expect(r.textContent).toMatch(/fin qui con i primi 10/)
+  })
+
+  it('l\'elenco non ripete gli euro della barra nel suo titolo (CS3)', async () => {
+    monta(fintoDb(datiMara()))
+    await screen.findByRole('list', { name: 'Fornitori senza voce' })
+    expect(screen.getByRole('heading', { name: /fornitori senza voce/ }).textContent).toBe('5 fornitori senza voce, dal più pesante')
   })
 })
 

@@ -19,11 +19,11 @@
 // La lettura dei fornitori che non riesce mostra l'errore: presa per
 // «nessuna voce», ripresenterebbe da classificare fornitori già classificati.
 // Si scrive prima nell'archivio e solo dopo si cambia lo schermo.
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { color as T, font, radius as R, tnum } from '../../lib/theme'
 import Icon from '../Icon'
 import { supabase as clientVero } from '../../lib/supabase'
-import { euro, dataBreve } from '../../lib/formatoAnalisi'
+import { euro, dataBreve, quota } from '../../lib/formatoAnalisi'
 import {
   CATEGORIE_SPESA, categoriaPerId, chiaveFornitore, suggerisciCategoria, nomeBreve,
   fattureEccezionali, categoriaDellaFattura,
@@ -34,6 +34,8 @@ import {
 import CoperturaDati from './CoperturaDati'
 import { IntestazioneAnalisi, TitoloGrafico, Riquadro } from './Testi'
 import PaginaAnalisi from './PaginaAnalisi'
+import NumeroPrincipale from './NumeroPrincipale'
+import { testo, transizione } from './misure'
 
 const PASSO = 25
 // Una griglia sola per le due liste della pagina (audit 04/10, CS2): casella
@@ -174,6 +176,66 @@ function FattureFuoriScala({ eccezionali, disponibili, aperta, onApri, isMobile,
 // «86.651 €» senza andare a capo fra il numero e l'euro.
 const euroUnito = (n) => (euro(n) || '').replace(' €', '\u00a0€')
 
+/**
+ * La risposta della pagina: quanta della spesa degli ultimi 12 mesi ha la
+ * voce, e una barra che si riempie man mano che si classifica (audit 04/10,
+ * CS4: la pagina non diceva mai quanta strada c'è, né quanta se n'è fatta).
+ * Scuro quello che è salvato, chiaro quello che è spuntato e si salverà, una
+ * tacca dove si arriva con i primi 10 fornitori senza voce. Una sola serie su
+ * un binario dello stesso grigio dei grafici (guida dataviz: «meter»), le
+ * parti separate da 2 px di fondo, i numeri scritti sotto: niente fumetti
+ * che li nascondono.
+ */
+function AvanzamentoVoci({ totale, conVoce, inAttesa = 0, nInAttesa = 0, primi10 = null, isMobile }) {
+  const pct = (x) => Math.max(0, Math.min(100, (x / totale) * 100))
+  const fatto = pct(conVoce)
+  const poi = pct(inAttesa)
+  const tacca = primi10 != null ? pct(conVoce + primi10) : null
+  const tondo = (x) => Math.round(x * 10) / 10
+  const muovi = transizione('width', 'left')
+  const frase = fatto >= 99.95
+    ? 'Tutta la spesa degli ultimi 12 mesi ha la voce: le fatture nuove entrano da sole nella voce del fornitore.'
+    : [
+      primi10 != null ? `I primi 10 fornitori senza voce fanno il ${quota(pct(primi10))} della spesa: comincia da loro.` : null,
+      nInAttesa ? `Salvando le ${nInt(nInAttesa)} voci spuntate arrivi al ${quota(fatto + poi)}.` : null,
+    ].filter(Boolean).join(' ') || null
+  const nome = 'Spesa degli ultimi 12 mesi con la voce'
+  // Il quadratino della legenda; quello del binario vuoto ha un filo, se no
+  // sul bianco del riquadro non si vede.
+  const segno = (colore, opacita = 1, filo = false) => (
+    <span aria-hidden="true" style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: colore, opacity: opacita, flexShrink: 0, boxSizing: 'border-box', ...(filo ? { border: `1px solid ${T.borderStr}` } : null) }} />
+  )
+  return (
+    <section aria-label="Avanzamento delle voci" style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: R.xl, padding: isMobile ? 16 : 20, minWidth: 0 }}>
+      <NumeroPrincipale etichetta={nome} valore={quota(fatto)} frase={frase} isMobile={isMobile} />
+      <div role="meter" aria-label={nome} aria-valuemin={0} aria-valuemax={100} aria-valuenow={tondo(fatto)}
+        aria-valuetext={`${euro(conVoce)} su ${euro(totale)}${inAttesa ? `; spuntate da salvare ${euro(inAttesa)}` : ''}`}
+        style={{ position: 'relative', height: 12, marginTop: 16, borderRadius: 4, background: T.graficoGriglia }}>
+        {fatto > 0 && (
+          <span title={`Con la voce: ${euro(conVoce)}`} style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${fatto}%`, background: T.graficoReale, borderRadius: 4, transition: muovi }} />
+        )}
+        {poi > 0 && (
+          // 2 px di fondo fra salvato e spuntato: si leggono come due parti.
+          <span title={`Spuntate, da salvare: ${euro(inAttesa)}`} style={{
+            position: 'absolute', top: 0, bottom: 0, left: fatto > 0 ? `calc(${fatto}% + 2px)` : 0,
+            width: fatto > 0 ? `calc(${poi}% - 2px)` : `${poi}%`, background: T.graficoReale, opacity: 0.35, borderRadius: 4, transition: muovi,
+          }} />
+        )}
+        {tacca != null && (
+          <span title="Fin qui con i primi 10 fornitori" style={{ position: 'absolute', top: -4, bottom: -4, left: `${tacca}%`, width: 2, marginLeft: -1, background: T.text, transition: muovi }} />
+        )}
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', columnGap: 16, rowGap: 4, marginTop: 8, ...testo(font.size.sm), color: T.textSoft }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>{segno(T.graficoReale)}con la voce <b style={{ color: T.text, ...tnum }}>{euro(conVoce)}</b></span>
+        {inAttesa > 0 && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>{segno(T.graficoReale, 0.35)}spuntate, da salvare <b style={{ color: T.text, ...tnum }}>{euro(inAttesa)}</b></span>}
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>{segno(T.graficoGriglia, 1, true)}senza voce <b style={{ color: T.text, ...tnum }}>{euro(Math.max(0, totale - conVoce - inAttesa))}</b></span>
+        {tacca != null && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span aria-hidden="true" style={{ display: 'inline-block', width: 2, height: 12, background: T.text }} />fin qui con i primi 10</span>}
+        <span>IVA compresa, come nelle fatture</span>
+      </div>
+    </section>
+  )
+}
+
 function RigaFornitore({ g, scelta, spuntato, onScelta, onSpunta, isMobile, fuoriScala = [] }) {
   const voceScelta = scelta !== undefined ? scelta : (g.voce || g.proposta?.categoria || null)
   const p = g.proposta
@@ -299,8 +361,13 @@ export default function ClassificaSpese({ orgId, notify, isMobile = false, onSal
   // Le proposte sicure partono già spuntate; si rifà quando cambia l'elenco
   // dei fornitori senza voce (dopo un salvataggio non si rispunta niente di
   // già salvato, perché quei fornitori non sono più qui).
+  // `useLayoutEffect` e non `useEffect`: le spunte ci sono già al primo
+  // disegno. Con `useEffect` l'elenco compariva un istante con le caselle
+  // vuote, la barra in cima senza la parte «spuntate», e il «Salva 30 voci»
+  // spento (04/10: le prove che leggevano l'elenco appena comparso
+  // fallivano a caso).
   const firmaSenza = senzaVoce.map(g => g.chiave).join('|')
-  useEffect(() => {
+  useLayoutEffect(() => {
     setSpuntati(prima => {
       const s = new Set([...prima].filter(k => tutti.some(g => g.chiave === k)))
       for (const g of senzaVoce) if (g.proposta?.certezza === 'alta' && !scelte.has(g.chiave)) s.add(g.chiave)
@@ -415,13 +482,10 @@ export default function ClassificaSpese({ orgId, notify, isMobile = false, onSal
   const fatture12 = fatture.filter(f => String(f.data_fattura || '') >= dal12)
   const senzaImponibile = fatture12.filter(f => !(Math.abs(Number(f.imponibile) || 0) > 0) && !(Math.abs(Number(f.imposta) || 0) > 0)).length
 
+  // Quanti fornitori e quanta spesa hanno la voce lo dice la barra in cima
+  // (AvanzamentoVoci): la copertura dice il resto. Prima ripeteva gli stessi
+  // numeri del titolo dell'elenco, e «0 su 143» era «in parte» (audit CS3).
   const copertura = [
-    { id: 'fornitori', stato: senzaVoce.length ? 'parziale' : 'ok', testo: `${nInt(conVoce.length)} fornitori su ${nInt(tutti.length)} hanno la voce` },
-    {
-      id: 'spesa', stato: spesaSenza > 0 ? 'manca' : 'ok',
-      testo: spesaSenza > 0 ? `${euro(spesaSenza)} su ${euro(spesa12)} spesi negli ultimi 12 mesi sono senza voce` : 'Tutta la spesa degli ultimi 12 mesi ha la voce',
-      dettaglio: 'Importi IVA compresa, come nelle fatture.',
-    },
     ...(nProposte ? [{ id: 'proposte', stato: 'stima', testo: `Voce proposta per ${nInt(nProposte)} fornitori: da confermare` }] : []),
     ...(senzaImponibile ? [{
       id: 'iva', stato: 'parziale', testo: `${nInt(senzaImponibile)} fatture su ${nInt(fatture12.length)} hanno solo il totale con l'IVA`,
@@ -443,14 +507,20 @@ export default function ClassificaSpese({ orgId, notify, isMobile = false, onSal
       {torna}
       {intestazione}
       <CoperturaDati voci={copertura} />
+      {spesa12 > 0 && (
+        <AvanzamentoVoci totale={spesa12} conVoce={spesa12 - spesaSenza} isMobile={isMobile}
+          inAttesa={daSalvare.filter(g => !g.voce).reduce((t, g) => t + g.spesa12, 0)}
+          nInAttesa={daSalvare.filter(g => !g.voce).length}
+          primi10={senzaVoce.length > 10 ? senzaVoce.slice(0, 10).reduce((t, g) => t + g.spesa12, 0) : null} />
+      )}
 
 
       <Riquadro isMobile={isMobile}>
         <TitoloGrafico
           titolo={senzaVoce.length
-            ? `${nInt(senzaVoce.length)} fornitori senza voce: ${euro(spesaSenza)} negli ultimi 12 mesi`
+            ? `${nInt(senzaVoce.length)} fornitori senza voce, dal più pesante`
             : 'Tutti i fornitori hanno la loro voce'}
-          sottotitolo={senzaVoce.length ? 'Dal più pesante. Controlla la voce proposta, cambiala se serve, poi salva le righe spuntate.' : 'Le fatture nuove entrano da sole nella voce del loro fornitore.'}
+          sottotitolo={senzaVoce.length ? 'Controlla la voce proposta, cambiala se serve, poi salva le righe spuntate.' : 'Le fatture nuove entrano da sole nella voce del loro fornitore.'}
           destra={senzaVoce.length && !isMobile ? barraSalva : null} />
         {senzaVoce.length > 0 && isMobile && <div style={{ marginBottom: 8 }}>{barraSalva}</div>}
         {senzaVoce.length > 0 && (
