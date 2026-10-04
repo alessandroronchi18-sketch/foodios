@@ -7,7 +7,7 @@
 // riquadro dell'Analisi prende l'imbottitura da questo file, e le righe di
 // testo hanno un'altezza in pixel tondi (niente 21 o 16,2 px), così le
 // tessere affiancate finiscono alla stessa altezza.
-import { space, font, motion } from '../../lib/theme'
+import { space, font, motion, color as T } from '../../lib/theme'
 
 /** Gli spazi: dentro un riquadro, fra i riquadri, fra le sezioni. */
 export const SPAZI = {
@@ -60,4 +60,32 @@ export function transizione(...proprieta) {
   let ridotto = false
   try { ridotto = !!window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches } catch { ridotto = false }
   return ridotto ? 'none' : proprieta.map(p => `${p} ${DURATA_BARRE}ms ${motion.ease}`).join(', ')
+}
+
+/**
+ * Le colonne dei numeri, larghe uguali in tabella, cascata e cause, così
+ * «12.480» della tabella sta esattamente sotto quello della cascata
+ * (ricerca design §4.4, scelta 5). Numeri e intestazioni a destra.
+ */
+export const COLONNE = {
+  voce:       { computer: 176, telefono: 112 },
+  euro:       { computer: 96,  telefono: 80 },
+  quota:      { computer: 64,  telefono: 56 },
+  barretta:   { computer: 64,  telefono: 48 },
+  differenza: { computer: 80,  telefono: 72 },
+}
+export const colonna = (nome, isMobile = false) => COLONNE[nome][isMobile ? 'telefono' : 'computer']
+
+/**
+ * Le intestazioni delle colonne: un solo stile in tutta l'Analisi (l'audit
+ * ne ha trovati due: maiuscolo spaziato nel Conto, normale nelle
+ * Previsioni). Frase normale, piccola, grigia, in grassetto leggero.
+ */
+export const intestazione = {
+  ...testo(font.size.sm), fontWeight: 600, color: T.textSoft, letterSpacing: 0, textTransform: 'none',
+}
+
+/** Le cifre in colonna: tabellari, a destra, senza andare a capo. */
+export const cifreInColonna = {
+  fontVariantNumeric: 'tabular-nums', textAlign: 'right', whiteSpace: 'nowrap',
 }
