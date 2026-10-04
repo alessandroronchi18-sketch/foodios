@@ -245,6 +245,8 @@ describe('Lo Storico dice quali caselle sistemare', () => {
   it('senza caselle storte non dice niente', async () => {
     apri('2026-08-10', '2026-08-11', MAROTTO.slice(0, 2))
     await waitFor(() => expect(testo()).toMatch(/giorn[oi] registrat/), { timeout: 5000 })
-    expect(testo()).not.toMatch(/da sistemare/)
+    // Le parole delle caselle storte, non «N dati da sistemare» del riassunto
+    // della copertura chiusa (04/10, C1), che parla di altro (cassa, ricette).
+    expect(testo()).not.toMatch(/(casella|caselle) da sistemare|Giorni da sistemare/i)
   })
 })

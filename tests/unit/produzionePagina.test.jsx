@@ -213,6 +213,10 @@ describe('La pagina: tessere e vetrina sui conti veri', () => {
     apri()
     await waitFor(() => expect(testo()).toMatch(/Ricavo stimato210\s?€/), { timeout: 5000 })
     // 210 € − 6 kg × 7,33 €/kg = 166 €, il 79% del ricavo.
+    // Qui il confronto è «nessuno», scelto dall'utente: la riga del confronto
+    // c'è (pezzo comune, tessere incolonnate) ma resta vuota; «nessun
+    // confronto» si scrive solo quando un confronto era atteso e manca
+    // (prova «se un confronto era atteso e non c'è» più sotto).
     expect(tessera('Margine stimato')).toBe('Margine stimato166 €79% del ricavo')
   })
 
@@ -748,9 +752,9 @@ describe('Il calendario da muro dei giorni registrati', () => {
     apri()
     await waitFor(() => expect(testo()).toMatch(/Ricavo stimato210/), { timeout: 5000 })
     expect(screen.queryByRole('grid')).toBeNull()
-    // Dal 04/10 la copertura è chiusa in una riga (pezzo comune, §6): le
-    // azioni stanno dietro il tocco. Prima si apre la riga, poi i giorni.
-    fireEvent.click(screen.getByRole('button', { name: /^Da dove vengono i numeri/ }))
+    // «Vedi i giorni» sta nella copertura, che all'apertura è chiusa (04/10, C1):
+    // prima si apre la riga, poi il pulsante.
+    fireEvent.click(within(screen.getByRole('region', { name: 'Da dove vengono i numeri' })).getAllByRole('button')[0])
     fireEvent.click(screen.getByRole('button', { name: 'Vedi i giorni' }))
     const grid = screen.getByRole('grid', { name: 'Giorni registrati di agosto 2026' })
     expect(within(grid).getAllByRole('gridcell').map(c => c.getAttribute('aria-label'))).toEqual(['03/08: registrato', '04/08: registrato'])

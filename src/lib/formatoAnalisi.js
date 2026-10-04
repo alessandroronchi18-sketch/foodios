@@ -45,6 +45,16 @@ export function quota(n) {
   return `${v < 0 ? MENO : ''}${(intero ? NF0 : NF1).format(Math.abs(v))}%`
 }
 
+/**
+ * Una quota in colonna: sempre un decimale («12,0%»), così le virgole cadono
+ * una sotto l'altra (ricerca design §4.5). Nelle tessere resta `quota()`.
+ */
+export function quotaColonna(n) {
+  if (!finito(n)) return null
+  const v = Math.round(Number(n) * 10) / 10
+  return `${v < 0 ? MENO : ''}${NF1.format(Math.abs(v))}%`
+}
+
 /** La variazione di una quota, in punti: «+1,8 punti», «−0,4 punti». */
 export function punti(d) {
   if (!finito(d)) return null

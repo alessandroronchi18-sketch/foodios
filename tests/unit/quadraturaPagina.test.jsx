@@ -172,7 +172,10 @@ describe('La pagina si apre con la domanda, la settimana in una riga e la copert
     const riga = screen.getByRole('region', { name: 'Da dove vengono i numeri' })
     expect(riga.textContent).toMatch(/2 giorni su 7 con l'inventario/)
     expect(riga.textContent).toMatch(/Manca: la cassa: nessuna chiusura in questa settimana/)
-    fireEvent.click(screen.getByRole('button', { name: 'Registra la cassa' }))
+    // La copertura all'apertura è chiusa (04/10, C1): si apre, poi «Registra la cassa».
+    // (Lo stesso pulsante sta anche sotto la risposta: qui si prende quello della riga.)
+    fireEvent.click(within(riga).getAllByRole('button')[0])
+    fireEvent.click(within(riga).getByRole('button', { name: 'Registra la cassa' }))
     expect(onNavigate).toHaveBeenCalledWith('chiusura')
   })
 
@@ -187,7 +190,8 @@ describe('La pagina si apre con la domanda, la settimana in una riga e la copert
   it('la riga chiusa dice le cose per nome, e «da sistemare» solo di quello che si sistema', async () => {
     render(<QuadraturaInventarioView {...props()} />)
     await pronta()
-    expect(screen.getByRole('button', { name: /^Da dove vengono i numeri/ }).textContent)
+    // Il pulsante della riga chiusa è il primo dentro la regione (il suo nome è il riassunto).
+    expect(within(screen.getByRole('region', { name: 'Da dove vengono i numeri' })).getAllByRole('button')[0].textContent)
       .toMatch(/Incasso stimato · cassa non registrata · 2 giorni su 7 · scarto mai scritto/)
   })
 

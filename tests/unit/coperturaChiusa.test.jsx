@@ -184,10 +184,13 @@ describe('Il riassunto, nei casi intorno', () => {
     expect(container.innerHTML).toBe('')
   })
 
-  it('chi legge lo schermo sente il nome della riga, e la regione resta trovabile', () => {
+  it('la regione ha il suo nome, e il pannello aperto lo dice in cima', () => {
     render(<CoperturaDati voci={vociMara()} />)
     expect(screen.getByRole('region', { name: 'Da dove vengono i numeri' })).toBeTruthy()
-    expect(screen.getByRole('button').textContent).toMatch(/^Da dove vengono i numeri/)
+    const p = screen.getByRole('button')
+    expect(p.textContent).toBe('Incassi stimati · 3 dati da sistemare')
+    const pannello = document.getElementById(p.getAttribute('aria-controls'))
+    expect(pannello.firstChild.textContent).toBe('Da dove vengono i numeri')
   })
 })
 

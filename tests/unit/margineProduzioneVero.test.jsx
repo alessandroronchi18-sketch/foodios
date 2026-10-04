@@ -202,6 +202,8 @@ describe('La pagina dello Storico mostra il margine vero', () => {
     await waitFor(() => expect(testo()).toMatch(/210\s?€/), { timeout: 5000 })
     expect(testo()).not.toMatch(/100(,0)?% del ricavo/)
     // 166 / 210 = 79,0%
+    // Il confronto qui è «nessuno», scelto: la riga del confronto c'è ma resta
+    // vuota. «nessun confronto» si scrive solo quando era atteso e manca.
     expect(testo()).toMatch(/Margine stimato166\s?€79% del ricavo/)
     expect(testo()).toMatch(/166\s?€/)
   })

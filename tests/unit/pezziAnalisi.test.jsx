@@ -133,7 +133,8 @@ describe('La cascata', () => {
   it('i numeri si possono vedere in tabella', () => {
     const { container } = render(<Cascata passi={passi} ricavi={100} />)
     fireEvent.click([...container.querySelectorAll('button')].find(b => /tabella/.test(b.textContent)))
-    expect(container.querySelector('table').textContent).toMatch(/Materie prime.*30,00 €.*30%/)
+    // In colonna le quote hanno sempre un decimale (04/10: le virgole una sotto l'altra).
+    expect(container.querySelector('table').textContent).toMatch(/Materie prime.*30,00 €.*30,0%/)
   })
   it('un passo cliccabile è un pulsante con un nome', () => {
     const apri = vi.fn()

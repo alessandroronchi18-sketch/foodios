@@ -30,6 +30,10 @@
 //   perché in ambra con il passaggio per sistemarlo. Senza `noto` il perché
 //   diventa la risposta, grande, e non si scrive mai zero.
 //
+// L'avvertimento che cambia come si legge il numero sta subito sotto, in
+// ambra, non solo nella copertura chiusa (ANALISI_DESIGN §6, 04/10):
+//   avviso="IVA compresa: 76 fatture di agosto non hanno l'imponibile"
+//
 // Altre prop: `unita` (se `valore` non ha l'unità; l'euro finale si stacca
 // da solo), `senzaConfronto` (cosa dire se il confronto manca; di base
 // «nessun confronto» se c'è `rispettoA`), `riquadro` (dentro un riquadro
@@ -41,7 +45,7 @@
 import React from 'react'
 import { color as T, font, radius as R, space } from '../../lib/theme'
 import { imbottitura, testo } from './misure'
-import { Cifra, ParolaStimato, RigaConfronto, RigaMotivo } from './parti'
+import { Cifra, ParolaStimato, RigaConfronto, RigaMotivo, RigaAvviso } from './parti'
 
 const DIM = {
   computer: { numero: font.size['5xl'], frase: font.size['3xl'], confronto: font.size.md, testo: font.size.lg },
@@ -52,7 +56,7 @@ export default function NumeroPrincipale({
   etichetta, valore, unita = '', stimato = false,
   motivoMancante = 'non lo so ancora', noto = null, azione = null,
   variazione = null, rispettoA = '', valoreConfronto = '', senzaConfronto = '',
-  frase = null, destra = null, riquadro = false, isMobile = false,
+  frase = null, destra = null, riquadro = false, avviso = '', isMobile = false,
 }) {
   const d = isMobile ? DIM.telefono : DIM.computer
   const manca = valore == null
@@ -89,6 +93,7 @@ export default function NumeroPrincipale({
       <div style={{ display: 'flex', flexDirection: 'column', gap: space[1], minWidth: 0 }}>
         <div style={{ ...testo(d.testo), fontWeight: 600, color: T.textMid }}>{nome}</div>
         <div style={{ display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', columnGap: space[3] }}>{numero}</div>
+        {avviso && <RigaAvviso avviso={avviso} dimensione={d.confronto} />}
         {sotto}
         {frase && (
           // Una frase sola, stretta abbastanza da leggersi (~70 caratteri).

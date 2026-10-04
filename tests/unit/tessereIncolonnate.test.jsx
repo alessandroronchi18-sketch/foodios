@@ -144,31 +144,39 @@ describe('Le tessere affiancate sono incolonnate', () => {
   it('la riga del confronto c\'è sempre: se il confronto era atteso e manca, lo dice', () => {
     const { container } = render(<NumeroConConfronto etichetta="Incassi senza IVA" valore="124.553 €" stimato rispettoA="su agosto 2025" />)
     const t = container.firstChild
-    expect(t.children).toHaveLength(4)
-    expect(t.children[2].textContent).toBe('nessun confronto')
-    expect(t.children[2].style.minHeight).toBe('20px')
+    expect(t.children).toHaveLength(5)
+    expect(t.children[3].textContent).toBe('nessun confronto')
+    expect(t.children[3].style.minHeight).toBe('20px')
+  })
+
+  it('`senzaConfronto={null}` dalla pagina vuol dire riga vuota anche con il termine di confronto', () => {
+    // Trovato il 04/10 unendo le pagine: il null esplicito diventava «nessun confronto».
+    const { container } = render(<NumeroConConfronto etichetta="Venduto" valore="1,5 kg" rispettoA="sulla settimana prima" senzaConfronto={null} />)
+    const riga = container.firstChild.children[3]
+    expect(riga.textContent).toBe('')
+    expect(riga.style.minHeight).toBe('20px')
   })
 
   it('una tessera che non confronta (le Previsioni) ha la riga vuota, alta uguale', () => {
     const { container } = render(<NumeroConConfronto etichetta="Di solito sbaglio" valore="±26% per gusto" />)
-    const riga = container.firstChild.children[2]
+    const riga = container.firstChild.children[3]
     expect(riga.textContent).toBe('')
     expect(riga.style.minHeight).toBe('20px')
   })
 
   it('la pagina può dire perché il confronto manca', () => {
     const { container } = render(<NumeroConConfronto etichetta="Incassi" valore="124.553 €" senzaConfronto="agosto 2025: nessun incasso registrato" />)
-    expect(container.firstChild.children[2].textContent).toBe('agosto 2025: nessun incasso registrato')
+    expect(container.firstChild.children[3].textContent).toBe('agosto 2025: nessun incasso registrato')
   })
 
-  it('quattro righe in ogni stato: con il numero, senza, con il numero che si sa', () => {
+  it('cinque righe in ogni stato (etichetta · numero · avvertimento · confronto · nota): con il numero, senza, con il numero che si sa', () => {
     for (const el of [
       <NumeroConConfronto key="1" etichetta="A" valore="1 €" variazione={speseSu} contesto="x" />,
       <NumeroConConfronto key="2" etichetta="B" valore={null} motivoMancante="nessun dato" />,
       <NumeroConConfronto key="3" etichetta="C" valore={null} noto={{ valore: '74.057 €' }} motivoMancante="manca il personale" />,
     ]) {
       const { container, unmount } = render(el)
-      expect(container.firstChild.children).toHaveLength(4)
+      expect(container.firstChild.children).toHaveLength(5)
       unmount()
     }
   })
@@ -183,7 +191,7 @@ describe('Le tessere affiancate sono incolonnate', () => {
     expect(fila.style.display).toBe('grid')
     expect(fila.style.gridTemplateColumns).toBe('2fr 1fr 1fr')
     for (const t of fila.children) {
-      expect(t.style.gridRow).toMatch(/span 4/)
+      expect(t.style.gridRow).toMatch(/span 5/)
       expect(t.style.gridTemplateRows).toBe('subgrid')
     }
   })
@@ -195,7 +203,7 @@ describe('Le tessere affiancate sono incolonnate', () => {
     expect(container.firstChild.style.gridRow).toBe('')
     expect(container.firstChild.style.gridTemplateRows).not.toBe('subgrid')
     // e se la griglia della pagina la allunga, lo spazio va sopra il numero
-    expect(container.firstChild.style.gridTemplateRows).toBe('auto 1fr auto auto')
+    expect(container.firstChild.style.gridTemplateRows).toBe('auto 1fr auto auto auto')
   })
 
   it('la fila al telefono è una colonna sola, con 16 fra le tessere (24 al computer)', () => {
@@ -221,8 +229,8 @@ describe('La risposta che manca resta grande', () => {
     expect(t.children[1].textContent).toBe('74.057 €stimato')
     const cifra = t.children[1].querySelector('span')
     expect(parseFloat(cifra.style.fontSize)).toBe(36)
-    expect(t.children[2].textContent).toMatch(/manca il personale/)
-    expect(stessoColore(t.children[2].style.color, T.amberDark)).toBe(true)
+    expect(t.children[3].textContent).toMatch(/manca il personale/)
+    expect(stessoColore(t.children[3].style.color, T.amberDark)).toBe(true)
     fireEvent.click(screen.getByRole('button', { name: 'Apri Personale' }))
     expect(apri).toHaveBeenCalled()
   })
