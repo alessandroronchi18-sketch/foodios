@@ -24,7 +24,10 @@ import { COLONNE, rigaAChiusura, chiusuraARiga } from './chiusuraRiga'
  */
 export async function caricaChiusure(orgId, sedeId, { from, to, tutteLeSedi = false } = {}) {
   if (!orgId) return []
-  let q = supabase.from('chiusure_cassa').select(COLONNE).eq('organization_id', orgId)
+  // Con tutteLeSedi si legge anche la sede di ogni chiusura (05/10/2026): prima
+  // non c'era, e chi le divideva per sede (il Mese, `c.sede_id`) non scartava
+  // mai niente — nella vista di una sede entravano le chiusure di tutte.
+  let q = supabase.from('chiusure_cassa').select(tutteLeSedi ? `sede_id, ${COLONNE}` : COLONNE).eq('organization_id', orgId)
   // tutteLeSedi serve alla vista aziendale, che aggrega tutti i punti vendita.
   if (!tutteLeSedi) q = sedeId ? q.eq('sede_id', sedeId) : q.is('sede_id', null)
   if (from) q = q.gte('data', from)
@@ -34,7 +37,7 @@ export async function caricaChiusure(orgId, sedeId, { from, to, tutteLeSedi = fa
     console.error('caricaChiusure:', error)
     throw new Error(error.message || 'caricaChiusure fallita')
   }
-  return (data || []).map(rigaAChiusura)
+  return (data || []).map(r => (tutteLeSedi ? { ...rigaAChiusura(r), sede_id: r.sede_id ?? null } : rigaAChiusura(r)))
 }
 
 /**

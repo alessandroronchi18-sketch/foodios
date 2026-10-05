@@ -40,3 +40,5 @@ scripts/.tmp-*
 # Le bolle e le fatture vere del design partner: dati di un'azienda, non
 # codice. Restano sul computer, non finiscono in un repository.
 Fatture esempio/
+# Le foto delle chiusure di cassa di Mara (05/10/2026): stessi dati veri.
+Chiusure cassa/

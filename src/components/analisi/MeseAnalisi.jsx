@@ -13,7 +13,7 @@
 //     all'ultimo che li ha, e lo si dice);
 //   • `MeseAnalisi`: ‹ agosto 2026 ›, un controllo solo come la barra del
 //     periodo, con dentro, in una riga, l'avviso dello spostamento
-//     («settembre ancora senza incassi», accanto alla freccia che ci porta).
+//     («settembre ancora incompleto», accanto alla freccia che ci porta).
 //     Prima era una frase a parte col pulsante «Vai a settembre»: al telefono
 //     andava a capo su tre righe (IM12), poi su due, sotto la domanda;
 //   • `PulsanteTorna`: il pulsante per tornare alla pagina da una sotto-pagina.
@@ -43,8 +43,12 @@ const maiuscola = (t) => (t ? t[0].toUpperCase() + t.slice(1) : t)
  * @returns {string} il mese da mostrare (`mese` stesso se va bene)
  */
 export function primoMeseDaMostrare(dati, mese) {
-  if (dati?.attuale?.incassi?.fonte != null) return mese
-  const conIncassi = (dati?.andamento || []).filter(m => m && m.mese < mese && m.incassi?.fonte).at(-1)
+  // 05/10/2026: «ha incassi» vuol dire incassi COMPLETI. Con le chiusure vere
+  // di Carlina caricate, settembre aveva la cassa di una sede sola e le altre
+  // due scoperte: la pagina si sarebbe aperta su un mese senza utile.
+  const completi = (i) => i?.fonte != null && i?.completo !== false
+  if (completi(dati?.attuale?.incassi)) return mese
+  const conIncassi = (dati?.andamento || []).filter(m => m && m.mese < mese && completi(m.incassi)).at(-1)
   return conIncassi ? conIncassi.mese : mese
 }
 
@@ -125,9 +129,9 @@ export default function MeseAnalisi({ mese, onCambia, spostato = null }) {
         <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
           <span style={{ ...testo(font.size.md), fontWeight: 700, color: T.text, whiteSpace: 'nowrap' }}>{nomeMese(mese)}</span>
           {avviso && (
-            <span role="status" title={`${maiuscola(da)} non ha ancora gli incassi: ti mostro ${nomeMese(spostato.a, { anno: false })}, l'ultimo mese che li ha.`}
+            <span role="status" title={`${maiuscola(da)} non ha ancora tutti gli incassi: ti mostro ${nomeMese(spostato.a, { anno: false })}, l'ultimo mese completo.`}
               style={{ ...testo(font.size.sm), color: T.amberDark, whiteSpace: 'nowrap' }}>
-              {da} ancora senza incassi
+              {da} ancora incompleto
             </span>
           )}
         </span>

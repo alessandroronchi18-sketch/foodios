@@ -11,7 +11,8 @@
 
 import { costiPerMese, fattureEccezionali } from './contoEconomico'
 import { leggiFatturePeriodo, leggiCategorieFornitori } from './contoEconomicoArchivio'
-import { incassiDelMese, personaleDelMese, contoDelMese } from './ilMese'
+import { incassiDaSedi, personaleDelMese, contoDelMese } from './ilMese'
+import { formatLocalDate } from './dateLocal'
 import { ricaviDaInventario, fetchAllInventarioProduzione } from './inventarioProduzione'
 import { venditeB2BPeriodo } from './venditeB2B'
 import { caricaChiusure } from './chiusure'
@@ -61,6 +62,59 @@ export function cassaPerMese(chiusure = [], { sedeId = null } = {}) {
   }
   for (const m of Object.keys(out)) out[m].giorni = giorni[m].size
   return out
+}
+
+const giornoDopo = (iso) => { const [y, m, d] = iso.split('-').map(Number); return formatLocalDate(new Date(y, m - 1, d + 1)) }
+const giorniFra = (da, a) => { let n = 0; for (let g = da; g <= a; g = giornoDopo(g)) n++; return n }
+
+/**
+ * Gli incassi di una sede in un tratto di giorni: la cassa dove c'è, la
+ * stima dall'inventario dove manca, scoperti i giorni senza nessuno dei due.
+ * Il risultato è una «parte» di `incassiDaSedi` (ilMese.js).
+ *
+ * La stima si fa sui tratti di giorni consecutivi senza cassa, non giorno per
+ * giorno: le rimanenze lasciate a 0 spostano i chili da un giorno all'altro,
+ * e su un tratto si compensano (sui dati veri di Carlina, 16-31/08: +9,8%
+ * contro la cassa sul periodo, fino a +150% sul giorno singolo).
+ *
+ * @param {object} o
+ * @param {object[]} o.chiusure  chiusure DELLA sede
+ * @param {object[]|null} o.righe  righe d'inventario della sede (null = non lette)
+ * @param {object[]|null} o.formati
+ * @param {string} o.da
+ * @param {string} o.a  ultimo giorno da contare (per il mese in corso: oggi)
+ * @param {object[]|null} [o.venditeB2B]
+ * @param {string} [o.nome]
+ */
+export function incassiSedeDelMese({ chiusure = [], righe = null, formati = null, da, a, venditeB2B = null, nome = '' }) {
+  const perGiorno = new Map()
+  for (const c of chiusure || []) {
+    const g = String(c?.data || c?.date || '').slice(0, 10)
+    if (!g || g < da || g > a) continue
+    const t = Number(c?.kpi?.totV ?? c?.totale ?? 0) || 0
+    if (t > 0) perGiorno.set(g, (perGiorno.get(g) || 0) + t)
+  }
+  const cassa = { totV: [...perGiorno.values()].reduce((s, v) => s + v, 0), giorni: perGiorno.size }
+  const tratti = []
+  let inizio = null, prima = null
+  for (let g = da; g <= a; g = giornoDopo(g)) {
+    if (perGiorno.has(g)) { if (inizio) tratti.push([inizio, prima]); inizio = null }
+    else { if (!inizio) inizio = g; prima = g }
+  }
+  if (inizio) tratti.push([inizio, prima])
+  const ultimo = righe ? ultimoGiornoInventario(righe) : null
+  let ricavi = 0, giorni = 0, scoperti = 0, motivo = null
+  for (const [t0, t1] of tratti) {
+    const n = giorniFra(t0, t1)
+    if (!righe || !formati || !ultimo || ultimo < t0) { scoperti += n; continue }
+    const fine = ultimo < t1 ? ultimo : t1
+    const vendite = venditeB2B ? venditeB2B.filter(v => !v?.data || (v.data >= t0 && v.data <= fine)) : null
+    const r = ricaviDaInventario(righe, formati, { da: t0, a: fine, venditeB2B: vendite })
+    if (r.ricavi == null) { scoperti += n; motivo = motivo || r.motivo; continue }
+    const coperti = giorniFra(t0, fine)
+    ricavi += r.ricavi; giorni += coperti; scoperti += n - coperti
+  }
+  return { nome, cassa, stima: { ricavi: giorni ? ricavi : null, giorni, ultimoGiorno: ultimo }, scoperti, motivo }
 }
 
 /**
@@ -132,27 +186,36 @@ export async function caricaIlMese({ supabase, orgId, sedi = [], mese, sedeId = 
     return Object.values(out).some(v => v > 0) ? out : null
   }
 
+  const oggi = formatLocalDate(new Date())
   const contoDi = (m, sede = sedeId) => {
-    const { da, a, giorni } = estremiMese(m)
-    // Incassi: la cassa del mese, o la stima dall'inventario sommata sulle sedi.
-    let stima = null
-    if (righePerSede && formati) {
-      let ricavi = 0, conDati = 0, motivo = null
-      const ids = sede ? [sede] : Object.keys(righePerSede)
-      for (const id of ids) {
-        // Con una sede scelta valgono le sue vendite più quelle senza sede (le
-        // vecchie). Per tutta l'azienda ogni vendita va a una sede sola: quelle
-        // senza sede alla prima, se no si toglierebbero da ogni negozio.
-        const venditeSede = vendite
-          ? vendite.filter(v => (sede ? (!v.sede_id || v.sede_id === id) : (v.sede_id ? v.sede_id === id : id === ids[0])))
-          : null
-        const r = ricaviDaInventario(righePerSede[id] || [], formati, { da, a, venditeB2B: venditeSede })
-        if (r.ricavi != null) { ricavi += r.ricavi; conDati++ } else motivo = r.motivo
-      }
-      stima = conDati ? { ricavi, ultimoGiorno: ultimoInventario && ultimoInventario < a ? ultimoInventario : null, parziale: !!(ultimoInventario && ultimoInventario < a) } : { ricavi: null, motivo }
+    const { da, a } = estremiMese(m)
+    // Incassi: sede per sede, la cassa dove c'è e la stima dall'inventario
+    // dove manca (incassiSedeDelMese). Prima la cassa vinceva appena c'era un
+    // giorno, anche per tutta l'azienda: vedi incassiDaSedi in ilMese.js.
+    // I giorni futuri del mese in corso non sono «scoperti».
+    const fine = a < oggi ? a : oggi
+    const ids = sede ? [sede] : sediDaLeggere.map(s => s.id)
+    const parti = ids.map(id => {
+      // Con una sede scelta valgono le sue vendite all'ingrosso più quelle
+      // senza sede (le vecchie). Per tutta l'azienda ogni vendita va a una
+      // sede sola: quelle senza sede alla prima, se no si toglierebbero da
+      // ogni negozio.
+      const venditeSede = vendite
+        ? vendite.filter(v => (sede ? (!v.sede_id || v.sede_id === id) : (v.sede_id ? v.sede_id === id : id === ids[0])))
+        : null
+      return incassiSedeDelMese({
+        chiusure: (chiusure || []).filter(c => c?.sede_id === id),
+        righe: righePerSede ? (righePerSede[id] || []) : null,
+        formati, da, a: fine, venditeB2B: venditeSede,
+        nome: (sediAttive.find(s => s.id === id) || {}).nome || '',
+      })
+    })
+    // Le chiusure senza sede (vecchie) contano solo per tutta l'azienda.
+    if (!sede && chiusure) {
+      const senzaSede = incassiSedeDelMese({ chiusure: chiusure.filter(c => !c?.sede_id), righe: null, formati: null, da, a: fine })
+      if (senzaSede.cassa.giorni > 0) parti.push({ ...senzaSede, nome: 'senza sede', scoperti: 0 })
     }
-    const cassaMese = sede && chiusure ? cassaPerMese(chiusure, { sedeId: sede })[m] : cassa?.[m]
-    const incassi = incassiDelMese({ cassa: cassaMese || null, stima, giorniDelMese: giorni })
+    const incassi = incassiDaSedi(parti)
     const costi = fatture && categoriePerFornitore
       ? costiPerMese(fatture, { mese: m, categoriePerFornitore, sedeId: sede, sedi: sediAttive, produzionePerSede })
       : null

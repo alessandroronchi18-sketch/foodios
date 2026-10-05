@@ -56,19 +56,21 @@ const daticome = (m) => ({
 })
 
 // L'avviso dello spostamento sta dentro il controllo del mese, in una riga
-// («settembre ancora senza incassi», accanto alla freccia › che ci porta);
+// («settembre ancora incompleto», accanto alla freccia › che ci porta; prima
+// «ancora senza incassi»: dal 05/10/2026 conta che gli incassi siano COMPLETI,
+// perché con la cassa di una sede sola settembre aveva incassi ma non l'utile);
 // la frase intera è nel suo `title`. Prima era una frase a parte sotto la
 // domanda, con «Vai a settembre» (richiesta del coordinatore, 04/10: al
 // telefono la testa del Mese aveva quattro righe prima del contenuto).
 const avviso = () => document.querySelector('[role="group"][aria-label="Mese guardato"] [role="status"]')
-const breve = new RegExp(`${nomeMese(M, { anno: false })} ancora senza incassi`)
+const breve = new RegExp(`${nomeMese(M, { anno: false })} ancora incompleto`)
 
 describe('Il Conto si apre sullo stesso mese de «Il mese» (CE2)', () => {
   it('se l\'ultimo mese chiuso non ha incassi va all\'ultimo che li ha, e lo dice', async () => {
     PER_MESE = daticome
     render(<ContoEconomicoView orgId="o1" sedi={[]} />)
     await waitFor(() => expect(avviso()?.textContent).toMatch(breve))
-    expect(avviso().getAttribute('title')).toMatch(/non ha ancora gli incassi: ti mostro/)
+    expect(avviso().getAttribute('title')).toMatch(/non ha ancora tutti gli incassi: ti mostro/)
     expect(document.querySelector('[aria-label="Mese guardato"]').textContent).toMatch(new RegExp(nomeMese(M1)))
     // Il conto del mese mostrato ha gli incassi, non «non lo so» (nella
     // tabella l'euro sta nell'intestazione: «90.000»).

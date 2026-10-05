@@ -120,6 +120,54 @@ export function incassiDelMese({ cassa = null, stima = null, giorniDelMese = 30,
 }
 
 /**
+ * Gli incassi del mese messi insieme sede per sede (senza IVA).
+ *
+ * In ogni sede i giorni con la chiusura di cassa valgono la cassa, gli altri
+ * la stima dall'inventario; quelli senza nessuno dei due restano scoperti.
+ * Le parti le prepara `incassiSedeDelMese` (ilMeseArchivio.js).
+ *
+ * 05/10/2026: caricate 40 chiusure vere di Carlina (18 giorni d'agosto), il
+ * Mese usava solo quelle anche per tutta l'azienda — `incassiDelMese` sceglie
+ * la cassa appena ce n'è un giorno — e gli incassi d'agosto scendevano da
+ * 124.553 € (stima delle tre sedi) a 28.490 €, contro le spese di tre sedi
+ * per un mese intero: una perdita di 22.000 € che non esisteva.
+ *
+ * @param {{ nome?: string, cassa: { totV: number, giorni: number }, stima: { ricavi: number|null, giorni: number, ultimoGiorno?: string|null }, scoperti: number }[]} parti
+ * @returns {{ valore: number|null, lordo: number|null, fonte: 'cassa'|'stima'|'misto'|null, giorni: number, giorniStimati: number, scoperti: number, parziale: boolean, completo: boolean, testo: string }}
+ */
+export function incassiDaSedi(parti = [], { aliquota = ALIQUOTA_IVA_INCASSI } = {}) {
+  const ps = (parti || []).filter(Boolean)
+  const gCassa = ps.reduce((s, p) => s + (Number(p.cassa?.giorni) || 0), 0)
+  const lCassa = ps.reduce((s, p) => s + (Number(p.cassa?.totV) || 0), 0)
+  const gStima = ps.reduce((s, p) => s + (p.stima?.ricavi != null ? Number(p.stima.giorni) || 0 : 0), 0)
+  const lStima = ps.reduce((s, p) => s + (p.stima?.ricavi != null ? Number(p.stima.ricavi) || 0 : 0), 0)
+  const scoperti = ps.reduce((s, p) => s + (Number(p.scoperti) || 0), 0)
+  if (!(lCassa > 0) && !(lStima > 0)) {
+    const motivo = ps.map(p => p.motivo).find(Boolean)
+    return { valore: null, lordo: null, fonte: null, giorni: 0, giorniStimati: 0, scoperti, parziale: false, completo: false,
+      testo: motivo ? `nessuna chiusura di cassa e ${motivo}` : 'nessuna chiusura di cassa e nessun inventario' }
+  }
+  const lordo = tonda(lCassa + lStima)
+  const fonte = gCassa > 0 && gStima === 0 ? 'cassa' : gCassa === 0 ? 'stima' : 'misto'
+  const gg = (n) => `${n} ${n === 1 ? 'giorno' : 'giorni'}`
+  const dataBreve = (d) => (d ? `${d.slice(8, 10)}/${d.slice(5, 7)}` : '')
+  const descrivi = (p) => {
+    const c = Number(p.cassa?.giorni) || 0
+    const s = p.stima?.ricavi != null ? Number(p.stima.giorni) || 0 : 0
+    const pezzi = []
+    if (c) pezzi.push(`${gg(c)} dalla cassa`)
+    if (s) pezzi.push(c ? `${s} stimati dall'inventario` : `stimati dall'inventario${p.scoperti && p.stima?.ultimoGiorno ? `, dati fino al ${dataBreve(p.stima.ultimoGiorno)}` : ''}`)
+    if (p.scoperti && (c || !s)) pezzi.push(`${gg(p.scoperti)} senza dati`)
+    return pezzi.join(', ') || 'nessun dato'
+  }
+  const testo = ps.length === 1 || !ps.some(p => p.nome)
+    ? descrivi(ps[0])
+    : ps.map(p => `${p.nome}: ${descrivi(p)}`).join(' · ')
+  return { valore: senzaIva(lordo, aliquota), lordo, fonte, giorni: gCassa, giorniStimati: gStima, scoperti,
+    parziale: scoperti > 0, completo: scoperti === 0, testo }
+}
+
+/**
  * Il personale del mese, e quello che non torna.
  *
  * `costoPersonaleMensile` conta solo gli attivi: chi è segnato non attivo
@@ -177,6 +225,11 @@ function sommaCategorie(costi, ids) {
  */
 export function contoDelMese({ incassi, costi, personale, speseFisse = null }) {
   const ricavi = incassi?.valore ?? null
+  // Incassi a cui mancano dei giorni (nessuna cassa e nessun inventario):
+  // contro le spese di un mese intero darebbero un utile — o una perdita —
+  // che non esiste (05/10/2026, vedi incassiDaSedi). Si mostrano, non si
+  // sottraggono.
+  const incassiCompleti = incassi?.completo !== false
   const gruppi = PASSI_SPESA.map(p => ({ ...p, ...sommaCategorie(costi, p.ids) }))
   // Le categorie che il motore conosce e questa pagina no finiscono in
   // «Altre spese», non spariscono.
@@ -193,11 +246,11 @@ export function contoDelMese({ incassi, costi, personale, speseFisse = null }) {
   const pers = personale?.valore ?? null
   const spese = speseFatture == null ? null : tonda(speseFatture + fisse + (pers ?? 0))
   // L'utile si dà solo se si sanno incassi, spese in fattura e personale.
-  const utile = ricavi != null && speseFatture != null && pers != null ? tonda(ricavi - speseFatture - fisse - pers) : null
+  const utile = incassiCompleti && ricavi != null && speseFatture != null && pers != null ? tonda(ricavi - speseFatture - fisse - pers) : null
   const q = (x) => (ricavi > 0 && x != null ? (x / ricavi) * 100 : null)
   const materiePrime = gruppi.find(g => g.chiave === 'materiePrime').importo
   const passi = [
-    { etichetta: nomeIncassi(incassi?.fonte === 'stima'), valore: ricavi, tipo: 'inizio', chiave: 'incassi' },
+    { etichetta: nomeIncassi(incassi?.fonte === 'stima' || incassi?.fonte === 'misto'), valore: ricavi, tipo: 'inizio', chiave: 'incassi' },
     // Le materie prime restano anche a zero solo se le fatture non si sanno
     // (per dire «non lo so»); a zero con le fatture lette sono una riga «−0 €».
     ...gruppi.filter(g => g.importo > 0 || (g.chiave === 'materiePrime' && !costi)).map(g => ({ etichetta: g.etichetta, valore: costi ? g.importo : null, tipo: 'meno', chiave: g.chiave })),
@@ -221,8 +274,10 @@ export function contoDelMese({ incassi, costi, personale, speseFisse = null }) {
     fornitoriDaClassificare: (costi?.daClassificare?.fornitori || []).map(f => ({ nome: f.nome, importo: Number(f.importo) || 0 })),
     // Quanto resta prima del personale: un numero vero anche quando il
     // personale manca, e chiamato col suo nome non si scambia per l'utile.
-    primaDelPersonale: ricavi != null && speseFatture != null ? tonda(ricavi - speseFatture - fisse) : null,
-    stimato: incassi?.fonte === 'stima',
+    primaDelPersonale: incassiCompleti && ricavi != null && speseFatture != null ? tonda(ricavi - speseFatture - fisse) : null,
+    // «stimato» anche quando una parte dei giorni viene dall'inventario.
+    stimato: incassi?.fonte === 'stima' || incassi?.fonte === 'misto',
+    incassiIncompleti: !incassiCompleti,
   }
 }
 
@@ -231,6 +286,7 @@ export function motivoSenzaUtile(conto, { personale, costi } = {}) {
   if (conto.utile != null) return null
   const manca = []
   if (conto.ricavi == null) manca.push('gli incassi')
+  else if (conto.incassiIncompleti) manca.push('gli incassi di alcuni giorni')
   if (!costi) manca.push('le fatture')
   if (personale?.valore == null) manca.push('il personale')
   if (!manca.length) return 'non ho tutti i dati'

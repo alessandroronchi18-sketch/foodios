@@ -163,7 +163,7 @@ describe('All\'apertura', () => {
     render(<IlMeseView orgId="o1" sedi={[]} />)
     // Dal 04/10 l'avviso è una riga dentro il controllo del mese, accanto
     // alla freccia che porta al mese chiuso (prima una frase con «Vai a …»).
-    await waitFor(() => expect(testo()).toMatch(new RegExp(`${nomeMese(M, { anno: false })} ancora senza incassi`)))
+    await waitFor(() => expect(testo()).toMatch(new RegExp(`${nomeMese(M, { anno: false })} ancora incompleto`)))
     expect(testo()).toMatch(new RegExp(`Quanto hai guadagnato ${aMese(M1, { anno: false })}`))
     expect([...document.querySelectorAll('button')].some(b => b.getAttribute('title') === `Vai a ${nomeMese(M, { anno: false })}`)).toBe(true)
   })

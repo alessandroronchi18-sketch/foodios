@@ -42,8 +42,13 @@ export function vociCopertura(dati, { onNavigate, onClassifica } = {}) {
   if (!dati?.attuale) return []
   const { incassi, costi, personale } = dati.attuale
   const voci = []
+  // 05/10/2026: gli incassi si mettono insieme sede per sede (cassa dove c'è,
+  // stima dove manca): «misto» quando ci sono tutte e due, e i giorni senza
+  // nessuno dei due si dicono, perché l'utile in quel caso non si dà.
   voci.push(incassi.fonte === 'cassa'
     ? { id: 'incassi', breve: incassi.parziale ? 'Cassa a metà' : 'Incassi dalla cassa', stato: incassi.parziale ? 'parziale' : 'ok', testo: `Incassi ${incassi.testo}`, azione: incassi.parziale && onNavigate ? { etichetta: 'Registra la cassa', onClick: () => onNavigate('chiusura') } : null }
+    : incassi.fonte === 'misto'
+      ? { id: 'incassi', breve: incassi.parziale ? 'Incassi a metà' : 'Incassi in parte stimati', stato: incassi.parziale ? 'parziale' : 'stima', testo: `incassi: ${incassi.testo}`, azione: onNavigate ? { etichetta: 'Registra la cassa', onClick: () => onNavigate('chiusura') } : null }
     : incassi.fonte === 'stima'
       ? { id: 'incassi', breve: 'Incassi stimati', stato: 'stima', testo: `incassi ${incassi.testo}`, azione: onNavigate ? { etichetta: 'Registra la cassa', onClick: () => onNavigate('chiusura') } : null }
       : { id: 'incassi', breve: 'Incassi mancanti', stato: 'manca', testo: `gli incassi: ${incassi.testo}`, azione: onNavigate ? { etichetta: 'Registra la cassa', onClick: () => onNavigate('chiusura') } : null })
@@ -163,7 +168,10 @@ export default function IlMeseView({ orgId, sedi = [], sedeId = null, onNavigate
             <NumeroConConfronto isMobile={isMobile} etichetta={nomeIncassi(conto.stimato)}
               valore={conto.ricavi != null ? euro(conto.ricavi) : null} motivoMancante="nessun dato"
               variazione={vIncassi} rispettoA={`su ${nomeMese(meseConfronto, { anno: true })}`}
-              contesto={dati.attuale.incassi.fonte === 'stima' ? 'dall\'inventario, senza IVA' : dati.attuale.incassi.fonte === 'cassa' ? 'dalla cassa, senza IVA' : ''} />
+              contesto={dati.attuale.incassi.fonte === 'stima' ? 'dall\'inventario, senza IVA' : dati.attuale.incassi.fonte === 'cassa' ? 'dalla cassa, senza IVA' : dati.attuale.incassi.fonte === 'misto' ? 'dalla cassa e dall\'inventario, senza IVA' : ''}
+              // I giorni senza cassa né inventario cambiano come si legge il
+              // numero: accanto al numero (§6), non solo nella copertura.
+              avviso={dati.attuale.incassi.parziale ? 'incompleti, mancano dei giorni: l\'utile non si calcola' : ''} />
             <NumeroConConfronto isMobile={isMobile} etichetta="Spese del mese"
               valore={conto.spese != null ? euro(conto.spese) : null} motivoMancante="fatture non lette"
               variazione={vSpese} rispettoA={`su ${nomeMese(meseConfronto, { anno: true })}`}
