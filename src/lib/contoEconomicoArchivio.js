@@ -198,10 +198,15 @@ export async function salvaCategorieFornitori(supabase, orgId, scelte, fornitori
 
   for (const g of aggiornare.values()) {
     const ids = [...g.ids]
-    const { error } = await supabase.from('fornitori')
-      .update({ categoria: g.testo })
-      .eq('organization_id', orgId)
-      .in('id', ids)
+    // Una richiesta che cade (rete) non butta via quelle già riuscite: si
+    // dice quali no, e le altre restano segnate come salvate (05/10/2026).
+    let error = null
+    try {
+      ;({ error } = await supabase.from('fornitori')
+        .update({ categoria: g.testo })
+        .eq('organization_id', orgId)
+        .in('id', ids))
+    } catch (e) { error = { message: e?.message || 'rete assente' } }
     if (error) {
       for (const sc of g.scelte) esito.errori.push({ nome: sc.nome, messaggio: error.message || 'scrittura non riuscita' })
       continue
@@ -214,7 +219,11 @@ export async function salvaCategorieFornitori(supabase, orgId, scelte, fornitori
 
   if (creare.length) {
     const nuove = creare.map(c => ({ organization_id: orgId, nome: c.nome, partita_iva: c.piva, categoria: c.testo }))
-    const { data, error } = await supabase.from('fornitori').insert(nuove).select('id, nome, partita_iva, categoria')
+    let data = null
+    let error = null
+    try {
+      ;({ data, error } = await supabase.from('fornitori').insert(nuove).select('id, nome, partita_iva, categoria'))
+    } catch (e) { error = { message: e?.message || 'rete assente' } }
     if (error) {
       for (const c of creare) esito.errori.push({ nome: c.nome, messaggio: error.message || 'scheda fornitore non creata' })
     } else {
@@ -238,10 +247,13 @@ export async function salvaCategorieFornitori(supabase, orgId, scelte, fornitori
 export async function salvaCategoriaFattura(supabase, orgId, fatturaId, categoriaId) {
   if (!orgId || !fatturaId) return { ok: false, motivo: 'dati_mancanti', messaggio: 'manca la fattura' }
   if (categoriaId != null && !categoriaPerId(categoriaId)) return { ok: false, motivo: 'voce_sconosciuta', messaggio: `voce sconosciuta: ${categoriaId}` }
-  const { error } = await supabase.from('fatture')
-    .update({ categoria_spesa: categoriaId ?? null })
-    .eq('organization_id', orgId)
-    .eq('id', fatturaId)
+  let error = null
+  try {
+    ;({ error } = await supabase.from('fatture')
+      .update({ categoria_spesa: categoriaId ?? null })
+      .eq('organization_id', orgId)
+      .eq('id', fatturaId))
+  } catch (e) { error = { message: e?.message || 'rete assente' } }
   if (!error) return { ok: true }
   if (colonnaMancante(error) === 'categoria_spesa') return { ok: false, motivo: 'colonna_mancante', messaggio: error.message }
   return { ok: false, motivo: 'errore', messaggio: error.message || 'scrittura non riuscita' }

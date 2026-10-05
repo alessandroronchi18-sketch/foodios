@@ -26,7 +26,7 @@ import { supabase as clientVero } from '../../lib/supabase'
 import { euro, dataBreve, quota } from '../../lib/formatoAnalisi'
 import {
   CATEGORIE_SPESA, categoriaPerId, chiaveFornitore, suggerisciCategoria, nomeBreve,
-  fattureEccezionali, categoriaDellaFattura,
+  fattureEccezionali, categoriaDellaFattura, ID_CATEGORIE,
 } from '../../lib/contoEconomico'
 import {
   leggiFatturePeriodo, leggiCategorieFornitori, mappaCategorie, salvaCategorieFornitori, salvaCategoriaFattura,
@@ -55,6 +55,9 @@ const unAnnoPrima = (oggi) => {
   return giornoIso(d)
 }
 const dataLunga = (iso) => (iso ? `${dataBreve(iso)}/${String(iso).slice(0, 4)}` : '')
+
+// Le voci più frequenti per chi non ha proposta (05/10/2026).
+const VOCI_RAPIDE = [ID_CATEGORIE.MATERIE_PRIME, ID_CATEGORIE.SERVIZI, ID_CATEGORIE.MANUTENZIONE]
 
 const GRUPPI_VOCI = [
   { tipo: 'costo', etichetta: 'Spese del mese' },
@@ -88,19 +91,21 @@ export function fornitoriDaFatture(fatture, { fornitori = [], categoriePerFornit
     if (!chiave) continue
     const g = perChiave.get(chiave) || {
       chiave, nome: schede.get(chiave)?.nome || String(f.fornitore || '').trim(), piva: null,
-      spesa12: 0, nFatture12: 0, spesaTotale: 0, nFatture: 0, ultima: null, descrizioni: [],
+      spesa12: 0, nFatture12: 0, spesaTotale: 0, nFatture: 0, ultima: null, descrizioni: [], mesi12: new Set(),
     }
     const importo = Number(f.totale) || 0
     g.spesaTotale += importo
     g.nFatture += 1
-    if (String(f.data_fattura || '') >= dal12) { g.spesa12 += importo; g.nFatture12 += 1 }
+    if (String(f.data_fattura || '') >= dal12) { g.spesa12 += importo; g.nFatture12 += 1; g.mesi12.add(String(f.data_fattura).slice(0, 7)) }
     if (!g.ultima || String(f.data_fattura || '') > g.ultima) g.ultima = String(f.data_fattura || '').slice(0, 10) || g.ultima
     if (!g.piva && f.piva) g.piva = f.piva
     for (const d of (f.descrizioni || [])) if (g.descrizioni.length < 12) g.descrizioni.push(d)
     perChiave.set(chiave, g)
   }
-  return [...perChiave.values()].map(g => ({
+  return [...perChiave.values()].map(({ mesi12, ...g }) => ({
     ...g,
+    mesi12: mesi12.size,
+    medio12: g.nFatture12 ? g.spesa12 / g.nFatture12 : 0,
     voce: categoriaDellaFattura({ fornitore: g.nome, piva: g.piva }, categoriePerFornitore),
     proposta: suggerisciCategoria(g.nome, g.descrizioni),
   })).sort((a, b) => b.spesa12 - a.spesa12 || b.spesaTotale - a.spesaTotale || a.nome.localeCompare(b.nome, 'it'))
@@ -260,7 +265,7 @@ function AvanzamentoVoci({ totale, conVoce, inAttesa = 0, nInAttesa = 0, primi10
   )
 }
 
-function RigaFornitore({ g, scelta, spuntato, onScelta, onSpunta, isMobile, fuoriScala = [] }) {
+function RigaFornitore({ g, scelta, spuntato, onScelta, onSpunta, isMobile, fuoriScala = [], totale12 = 0 }) {
   const voceScelta = scelta !== undefined ? scelta : (g.voce || g.proposta?.categoria || null)
   const p = g.proposta
   const mostraProposta = !g.voce && p
@@ -271,6 +276,14 @@ function RigaFornitore({ g, scelta, spuntato, onScelta, onSpunta, isMobile, fuor
   const sottoSpesa = g.spesa12
     ? `${nInt(g.nFatture12)} ${g.nFatture12 === 1 ? 'fattura' : 'fatture'} in 12 mesi`
     : `nessuna in 12 mesi · ultima il ${dataLunga(g.ultima)}`
+  // L'indizio per scegliere: quanto pesa, quanto vale una fattura, se torna
+  // ogni mese (la luce sì, un lavoro no).
+  const indizio = g.spesa12
+    ? `${totale12 > 0 ? `${quota((g.spesa12 / totale12) * 100)} della spesa · ` : ''}media ${euro(g.medio12)} · ${nInt(g.mesi12)} ${g.mesi12 === 1 ? 'mese' : 'mesi'} su 12`
+    : null
+  const nota2 = indizio && (
+    <div style={{ fontSize: FS.sm, color: T.textSoft, lineHeight: 1.4, marginTop: 2 }}>{indizio}</div>
+  )
   const casella = (
     <label style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: altezzaControllo(isMobile), minHeight: altezzaControllo(isMobile), cursor: voceScelta ? 'pointer' : 'default', flexShrink: 0 }}>
       <input type="checkbox" checked={spuntato} disabled={!voceScelta} onChange={e => onSpunta(e.target.checked)}
@@ -285,6 +298,7 @@ function RigaFornitore({ g, scelta, spuntato, onScelta, onSpunta, isMobile, fuor
       <div style={{ fontSize: FS.sm, color: mostraProposta && p.certezza === 'media' ? T.amberDark : T.textSoft, lineHeight: 1.4, marginTop: 2 }}>
         {nota}
       </div>
+      {nota2}
       {/* La fattura fuori scala si dice qui, accanto al numero che tocca
           (ANALISI_DESIGN §6): prima stava in una riga a sé sopra l'elenco. */}
       {fuoriScala.map(f => (
@@ -300,19 +314,30 @@ function RigaFornitore({ g, scelta, spuntato, onScelta, onSpunta, isMobile, fuor
       <div style={{ fontSize: FS.sm, color: T.textSoft, whiteSpace: 'nowrap' }}>{sottoSpesa}</div>
     </div>
   )
+  // Senza proposta, le tre voci che di solito sono giuste: un tocco, non due.
+  const rapide = !g.voce && !p && !voceScelta && (
+    <div role="group" aria-label={`Voci rapide per ${g.nome}`} style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+      {VOCI_RAPIDE.map(id => (
+        <button key={id} type="button" onClick={() => onScelta(id)} aria-label={`Metti ${g.nome} in ${categoriaPerId(id).nome}`}
+          style={{ minHeight: altezzaControllo(isMobile), padding: '4px 12px', borderRadius: R.md, border: `1px solid ${T.borderStr}`, background: T.bgCard, color: T.brand, fontFamily: 'inherit', fontSize: FS.sm, fontWeight: 600, cursor: 'pointer' }}>
+          {categoriaPerId(id).nome}
+        </button>
+      ))}
+    </div>
+  )
   const select = <SceltaVoce valore={voceScelta} etichetta={`Voce di spesa di ${g.nome}`} onCambia={onScelta} />
 
   if (isMobile) {
     return (
       <li style={{ padding: '10px 0', borderTop: `1px solid ${T.borderSoft}` }}>
         <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>{casella}{nome}{importo}</div>
-        <div style={{ marginTop: 8 }}>{select}</div>
+        <div style={{ marginTop: 8 }}>{select}{rapide}</div>
       </li>
     )
   }
   return (
     <li style={{ display: 'grid', gridTemplateColumns: COLONNE_ELENCO, gap: SPAZIO_ELENCO, alignItems: 'center', padding: '8px 0', borderTop: `1px solid ${T.borderSoft}` }}>
-      {casella}{nome}{importo}{select}
+      {casella}{nome}{importo}<div>{select}{rapide}</div>
     </li>
   )
 }
@@ -468,6 +493,8 @@ export default function ClassificaSpese({ orgId, notify, isMobile = false, onSal
       } else {
         notify?.(`Non salvato (${r.messaggio || 'rete'}): riprova.`, false)
       }
+    } catch (e) {
+      notify?.(`Non salvato (${e?.message || 'rete'}): riprova.`, false)
     } finally {
       inCorso.current = false
       setSalvando(false)
@@ -508,6 +535,8 @@ export default function ClassificaSpese({ orgId, notify, isMobile = false, onSal
 
   const copertura = vociCoperturaSpese({ nProposte, senzaImponibile, nFatture12: fatture12.length })
 
+  // Quanto manca, sempre, e cosa si sblocca (05/10/2026).
+  const quantoManca = `Ne restano ${nInt(senzaVoce.length)}${spesa12 > 0 ? `, il ${quota((spesaSenza / spesa12) * 100)} della spesa` : ''}. Messi in una voce, i loro costi entrano nel Conto economico: oggi sono tutti «da classificare». Controlla la proposta, cambiala se serve, poi salva le righe spuntate.`
   const visibili = senzaVoce.slice(0, quanti)
   const barraSalva = (
     <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -536,13 +565,13 @@ export default function ClassificaSpese({ orgId, notify, isMobile = false, onSal
           titolo={senzaVoce.length
             ? `${nInt(senzaVoce.length)} fornitori senza voce, dal più pesante`
             : 'Tutti i fornitori hanno la loro voce'}
-          sottotitolo={senzaVoce.length ? 'Controlla la voce proposta, cambiala se serve, poi salva le righe spuntate.' : 'Le fatture nuove entrano da sole nella voce del loro fornitore.'}
+          sottotitolo={senzaVoce.length ? quantoManca : 'Le fatture nuove entrano da sole nella voce del loro fornitore.'}
           destra={senzaVoce.length && !isMobile ? barraSalva : null} />
         {senzaVoce.length > 0 && isMobile && <div style={{ marginBottom: 8 }}>{barraSalva}</div>}
         {senzaVoce.length > 0 && (
           <ul style={{ listStyle: 'none', margin: 0, padding: 0 }} aria-label="Fornitori senza voce">
             {visibili.map(g => (
-              <RigaFornitore key={g.chiave} g={g} isMobile={isMobile} fuoriScala={fuoriScalaPer.get(g.chiave)}
+              <RigaFornitore key={g.chiave} g={g} isMobile={isMobile} totale12={spesa12} fuoriScala={fuoriScalaPer.get(g.chiave)}
                 scelta={scelte.has(g.chiave) ? scelte.get(g.chiave) : undefined}
                 spuntato={spuntati.has(g.chiave)}
                 onScelta={(id) => cambiaScelta(g, id)}
@@ -601,7 +630,7 @@ export default function ClassificaSpese({ orgId, notify, isMobile = false, onSal
           {mostraClassificati && (
             <ul style={{ listStyle: 'none', margin: '10px 0 0', padding: 0 }} aria-label="Fornitori con la voce">
               {conVoce.map(g => (
-                <RigaFornitore key={g.chiave} g={g} isMobile={isMobile} fuoriScala={fuoriScalaPer.get(g.chiave)}
+                <RigaFornitore key={g.chiave} g={g} isMobile={isMobile} totale12={spesa12} fuoriScala={fuoriScalaPer.get(g.chiave)}
                   scelta={scelte.has(g.chiave) ? scelte.get(g.chiave) : undefined}
                   spuntato={spuntati.has(g.chiave)}
                   onScelta={(id) => cambiaScelta(g, id)}
