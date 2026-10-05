@@ -55,6 +55,9 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
   // form nuova vendita / cliente
   const [vForm, setVForm] = useState(null)
   const [importa, setImporta] = useState(false)
+  // La lista mostra 50 vendite per volta (06/10/2026): con le 187 fatture
+  // importate al telefono era alta 36.459 px.
+  const [quante, setQuante] = useState(50)
   const [cForm, setCForm] = useState(null)
   // avvisi scorte insufficienti (banner persistente, non toast)
   const [stockWarn, setStockWarn] = useState([])
@@ -74,6 +77,7 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
   const tutteLeSedi = !!sedeAttiva?._all
   const sedeFiltro = tutteLeSedi ? null : sedeId
   useEffect(() => { if (orgId) ricarica() }, [orgId, sedeFiltro])
+  useEffect(() => { setQuante(50) }, [fPeriodo, fCliente, fPagamento, sedeFiltro])
   async function ricarica() {
     setLoading(true)
     try {
@@ -603,7 +607,7 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
       ) : tab === 'vendite' ? (
         <>
           {importa && (
-            <ImportaFattureEmesse orgId={orgId} esistenti={vendite} isMobile={isMobile} notify={notify}
+            <ImportaFattureEmesse orgId={orgId} esistenti={vendite} sedi={sedi} sedeAttiva={sedeAttiva} isMobile={isMobile} notify={notify}
               onChiudi={() => setImporta(false)} onFatto={() => { setImporta(false); ricarica() }} />
           )}
           {/* Toolbar: nuova vendita + filtri pill (a pagina vuota ci sono i pulsanti grandi) */}
@@ -932,9 +936,9 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
                 </div>
               )}
 
-              {venditeFiltered.map((v, i) => {
+              {venditeFiltered.slice(0, quante).map((v, i) => {
                 const st = STATI[v.stato] || STATI.consegnata
-                const last = i === venditeFiltered.length - 1
+                const last = i === Math.min(quante, venditeFiltered.length) - 1
                 const btnAct = {
                   padding: isMobile ? '10px 12px' : '7px 12px',
                   borderRadius: 8, border: `1px solid ${C.border}`,
@@ -1103,6 +1107,14 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
                   </div>
                 )
               })}
+              {venditeFiltered.length > quante && (
+                <div style={{ padding: 12, borderTop: `1px solid ${C.border}`, textAlign: 'center' }}>
+                  <button onClick={() => setQuante(q => q + 50)} style={{
+                    padding: '12px 20px', minHeight: 44, background: C.white, color: C.text, border: `1px solid ${C.border}`,
+                    borderRadius: 10, fontWeight: 700, fontSize: font.size.md, cursor: 'pointer', width: isMobile ? '100%' : 'auto',
+                  }}>Mostra altre {Math.min(50, venditeFiltered.length - quante)} (ne vedi {quante} su {venditeFiltered.length})</button>
+                </div>
+              )}
             </div>
           )}
         </>

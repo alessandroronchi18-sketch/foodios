@@ -6,20 +6,24 @@ import React, { useMemo, useRef, useState } from 'react'
 import Icon from '../components/Icon'
 import { font } from '../lib/theme'
 import { C, fmt0, TNUM } from './_shared'
-import { leggiFileEmesse, anteprimaEmesse, venditeDaEmesse, nomeMese } from '../lib/fattureEmesse'
+import { leggiFileEmesse, anteprimaEmesse, venditeDaEmesse, nomeMese, sedeDalNomeFile } from '../lib/fattureEmesse'
 import { caricaFattureEmesse } from '../lib/venditeB2B'
 import { formatLocalDate } from '../lib/dateLocal'
 
 const num = (n) => Number(n).toLocaleString('it-IT', { useGrouping: 'always' })
 const plur = (n, uno, molti) => `${num(n)} ${n === 1 ? uno : molti}`
 
-export default function ImportaFattureEmesse({ orgId, esistenti = [], isMobile, notify, onFatto, onChiudi }) {
+export default function ImportaFattureEmesse({ orgId, esistenti = [], sedi = [], isMobile, notify, onFatto, onChiudi }) {
   const [lette, setLette] = useState(null)       // { fatture, senzaCliente }
   const [errore, setErrore] = useState('')
   const [lavoro, setLavoro] = useState(false)
   const [soloAnno, setSoloAnno] = useState(false)
   const [vecchieIncassate, setVecchieIncassate] = useState(false)
   const [tuttiClienti, setTuttiClienti] = useState(false)
+  const [esclusi, setEsclusi] = useState([])
+  const [sedeId, setSedeId] = useState('')
+  const [sedeDaFile, setSedeDaFile] = useState(false)
+  const sediVere = useMemo(() => (sedi || []).filter(x => x?.id && !x._all), [sedi])
   const [tuttiMesi, setTuttiMesi] = useState(false)
   const inputRef = useRef(null)
 
@@ -34,8 +38,8 @@ export default function ImportaFattureEmesse({ orgId, esistenti = [], isMobile, 
   }, [vecchieIncassate])
 
   const a = useMemo(
-    () => (lette ? anteprimaEmesse(lette.fatture, { esistenti, dal, incassateFinoAl }) : null),
-    [lette, esistenti, dal, incassateFinoAl],
+    () => (lette ? anteprimaEmesse(lette.fatture, { esistenti, dal, incassateFinoAl, clientiEsclusi: esclusi }) : null),
+    [lette, esistenti, dal, incassateFinoAl, esclusi],
   )
 
   async function scegli(e) {
@@ -47,7 +51,13 @@ export default function ImportaFattureEmesse({ orgId, esistenti = [], isMobile, 
       const r = await leggiFileEmesse(file)
       if (!r) setErrore('Questo file non è un elenco di fatture emesse. Serve l\'Excel «Elenco documenti» di Fattura SMART, con la colonna «Cliente».')
       else if (!r.fatture.length) setErrore('Il file è vuoto: non ci sono fatture sotto l\'intestazione.')
-      else setLette(r)
+      else {
+        // La sede si propone dal nome del file («Fatture x carlina»), ma
+        // resta una scelta visibile: mai vuota senza dirlo.
+        const sd = sedeDalNomeFile(file.name, sediVere)
+        setSedeId(sd || ''); setSedeDaFile(!!sd); setEsclusi([])
+        setLette(r)
+      }
     } catch (err) { setErrore(err?.message || 'Non riesco a leggere il file.') }
   }
 
@@ -55,7 +65,7 @@ export default function ImportaFattureEmesse({ orgId, esistenti = [], isMobile, 
     if (!a || !a.nDaCaricare || lavoro) return
     setLavoro(true)
     try {
-      const r = await caricaFattureEmesse(orgId, venditeDaEmesse(a.daCaricare, { incassateFinoAl }))
+      const r = await caricaFattureEmesse(orgId, venditeDaEmesse(a.daCaricare, { incassateFinoAl, sedeId: sedeId || null }))
       notify?.(`Caricate ${plur(r.vendite, 'fattura', 'fatture')}${r.clientiCreati ? ` e ${plur(r.clientiCreati, 'cliente nuovo', 'clienti nuovi')}` : ''}`)
       onFatto?.(r)
     } catch (err) {
@@ -137,10 +147,23 @@ export default function ImportaFattureEmesse({ orgId, esistenti = [], isMobile, 
           {a.nDaCaricare > 0 && (
             <>
               {tabella('Fatture per anno', a.perAnno.map(x => [x.anno, num(x.n), fmt0(x.imponibile)]), ['Anno', 'Fatture', 'Senza IVA'])}
-              {tuttiMesi
+              {tuttiMesi || a.perMese.length < 2
                 ? tabella('Fatture per mese', a.perMese.map(x => [nomeMese(x.mese), num(x.n), fmt0(x.imponibile)]), ['Mese', 'Fatture', 'Senza IVA'])
                 : <button onClick={() => setTuttiMesi(true)} style={bottone(false)}>Mostra i {num(a.perMese.length)} mesi</button>}
-              {tabella('Fatture per cliente', (tuttiClienti ? a.perCliente : a.perCliente.slice(0, 8)).map(x => [x.nome, num(x.n), fmt0(x.imponibile)]), ['Cliente', 'Fatture', 'Senza IVA'])}
+              <div role="group" aria-label="Clienti da caricare" style={{ border: `1px solid ${C.border}`, borderRadius: 12 }}>
+                <div style={{ ...cella, fontWeight: 700, color: C.textSoft, background: C.bgSubtle, borderRadius: '12px 12px 0 0', whiteSpace: 'normal' }}>
+                  Clienti: togli la spunta a quelli che non sono ingrosso ({num(a.nClienti)} su {num(a.perCliente.length)} da caricare)
+                </div>
+                {(tuttiClienti ? a.perCliente : a.perCliente.slice(0, 8)).map(x => (
+                  <label key={x.chiave} style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: 44, padding: '4px 10px', borderTop: `1px solid ${C.border}`, cursor: 'pointer', fontSize: font.size.base, color: x.escluso ? C.textSoft : C.text, ...TNUM }}>
+                    <input type="checkbox" checked={!x.escluso} aria-label={x.nome}
+                      onChange={e => setEsclusi(v => e.target.checked ? v.filter(k => k !== x.chiave) : [...v, x.chiave])}
+                      style={{ width: 22, height: 22, flexShrink: 0 }} />
+                    <span style={{ flex: 1, minWidth: 0, overflowWrap: 'anywhere', textDecoration: x.escluso ? 'line-through' : 'none' }}>{x.nome}</span>
+                    <span style={{ flexShrink: 0, textAlign: 'right' }}>{num(x.n)} · {fmt0(x.imponibile)}</span>
+                  </label>
+                ))}
+              </div>
               {!tuttiClienti && a.perCliente.length > 8 && <button onClick={() => setTuttiClienti(true)} style={bottone(false)}>Mostra tutti i {num(a.perCliente.length)} clienti</button>}
             </>
           )}
@@ -153,6 +176,20 @@ export default function ImportaFattureEmesse({ orgId, esistenti = [], isMobile, 
             {a.senzaData.length > 0 && <li>{plur(a.senzaData.length, 'fattura senza data resta fuori', 'fatture senza data restano fuori')}.</li>}
             {lette.senzaCliente > 0 && <li>{plur(lette.senzaCliente, 'riga senza cliente saltata', 'righe senza cliente saltate')}.</li>}
           </ul>
+
+          {sediVere.length > 0 && (
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: font.size.base, color: C.text }}>
+              <b>Di quale sede sono le fatture?</b>
+              <select value={sedeId} onChange={e => { setSedeId(e.target.value); setSedeDaFile(false) }} style={{ minHeight: 44, fontSize: font.size.lg, borderRadius: 10, border: `1px solid ${C.border}`, padding: '0 10px', background: C.white, color: C.text }}>
+                {sediVere.map(x => <option key={x.id} value={x.id}>{x.nome}</option>)}
+                <option value="">Nessuna sede</option>
+              </select>
+              <span style={{ color: C.textSoft }}>
+                {sedeId ? (sedeDaFile ? 'Scelta dal nome del file: cambiala se non è giusta.' : 'Le fatture compaiono sotto questa sede.')
+                  : 'Senza sede le fatture compaiono in tutte le sedi.'}
+              </span>
+            </label>
+          )}
 
           <div style={{ background: C.bgSubtle, borderRadius: 12, padding: 12, fontSize: font.size.base, color: C.text, lineHeight: 1.6 }}>
             <b>Cosa cambia:</b> ogni fattura diventa una vendita «fatturata» nel registro dell'ingrosso, con il suo cliente.

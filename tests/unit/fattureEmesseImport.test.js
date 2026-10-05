@@ -14,7 +14,7 @@ vi.mock('../../src/lib/supabase', () => ({ supabase: { from: () => ({}) } }))
 
 import { scorporaB2B } from '../../src/lib/inventarioProduzione'
 import {
-  leggiRigheEmesse, anteprimaEmesse, venditeDaEmesse, eElencoEmesse, eSoloRegistro, chiaveCliente,
+  leggiRigheEmesse, anteprimaEmesse, venditeDaEmesse, eElencoEmesse, eSoloRegistro, chiaveCliente, sedeDalNomeFile,
 } from '../../src/lib/fattureEmesse'
 
 const INTEST = ['Numero', 'Suffisso', 'Anno', 'Data', 'Tipo Documento', 'Cliente', 'Codice Fiscale', 'Partita IVA', 'Imponibile',
@@ -129,5 +129,40 @@ describe('le vendite che si scriverebbero', () => {
     expect(v.every(eSoloRegistro)).toBe(true)
     expect(v[1].pagata).toBe(true)
     expect(v.find(x => x.totale === 500).note).toMatch(/non recapitabile/)
+  })
+})
+
+// Secondo giro, 06/10/2026: nel file di Mara ci sono clienti che non sono ingrosso
+// (FONDO FOR.TE. 17.185 € in una fattura sola, MARAMIA 12.279 €) e le righe
+// importate restavano senza sede, cioè in tutte le sedi.
+describe('clienti esclusi dall\'anteprima', () => {
+  const { fatture } = leggiRigheEmesse(FOGLIO)
+  it('togliere un cliente aggiorna i totali ma lo lascia nell\'elenco, segnato', () => {
+    const a = anteprimaEmesse(fatture, { clientiEsclusi: ['savoia21'] })
+    expect(a.nDaCaricare).toBe(4)            // 6 meno le due SAVOIA21 caricabili
+    expect(a.nEsclusi).toBe(2)
+    expect(a.imponibile).toBe(1280 - 232)
+    expect(a.perCliente.find(c => c.chiave === 'savoia21')).toMatchObject({ escluso: true, n: 2 })
+    expect(a.nClienti).toBe(a.perCliente.length - 1)
+    expect(a.perAnno.reduce((s, x) => s + x.n, 0)).toBe(4)
+  })
+  it('le vendite scritte non contengono il cliente escluso', () => {
+    const a = anteprimaEmesse(fatture, { clientiEsclusi: ['savoia21'] })
+    expect(venditeDaEmesse(a.daCaricare).some(v => /SAVOIA/.test(v.cliente_nome))).toBe(false)
+  })
+  it('senza esclusi tutto come prima', () => {
+    expect(anteprimaEmesse(fatture).nEsclusi).toBe(0)
+  })
+})
+describe('la sede dal nome del file', () => {
+  const sedi = [{ id: 'a', nome: 'Mara dei Boschi Carlina' }, { id: 'b', nome: 'Mara dei Boschi Berthollet' }, { id: 'c', nome: 'Mara dei Boschi De Gasperi' }]
+  it('«Fatture x carlina (1).xlsx» è Carlina', () => { expect(sedeDalNomeFile('Fatture x carlina (1).xlsx', sedi)).toBe('a') })
+  it('un nome che non dice niente, o due sedi insieme, non indovina', () => {
+    expect(sedeDalNomeFile('fatture.xlsx', sedi)).toBeNull()
+    expect(sedeDalNomeFile('carlina berthollet.xlsx', sedi)).toBeNull()
+    expect(sedeDalNomeFile('mara dei boschi.xlsx', sedi)).toBeNull()
+  })
+  it('la sede scelta finisce nelle vendite', () => {
+    expect(venditeDaEmesse(anteprimaEmesse(leggiRigheEmesse(FOGLIO).fatture).daCaricare, { sedeId: 'a' }).every(v => v.sede_id === 'a')).toBe(true)
   })
 })

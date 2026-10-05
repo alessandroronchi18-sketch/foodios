@@ -131,22 +131,26 @@ export const chiaveDaNota = (nota) => String(nota || '').match(/^Fattura (\S+) �
  * @param {string|null} [o.dal]     «AAAA-MM-GG»: le fatture prima non si caricano
  * @param {string|null} [o.incassateFinoAl]  le fatture fino a questa data si considerano incassate
  */
-export function anteprimaEmesse(fatture, { esistenti = [], dal = null, incassateFinoAl = null } = {}) {
+export function anteprimaEmesse(fatture, { esistenti = [], dal = null, incassateFinoAl = null, clientiEsclusi = [] } = {}) {
+  const esclusi = new Set(clientiEsclusi || [])
+  const chiaveDi = (f) => chiaveCliente(f.cliente) || norm(f.cliente)
   const gia = new Set((esistenti || []).map(v => chiaveDaNota(v?.note)).filter(Boolean))
   const viste = new Set()
   const doppioniNelFile = []
   const giaPresenti = []
   const fuoriPeriodo = []
   const senzaData = []
-  const daCaricare = []
+  const candidate = []
   for (const f of fatture || []) {
     if (viste.has(f.chiave)) { doppioniNelFile.push(f); continue }
     viste.add(f.chiave)
     if (gia.has(f.chiave)) { giaPresenti.push(f); continue }
     if (!f.data) { senzaData.push(f); continue }
     if (dal && f.data < dal) { fuoriPeriodo.push(f); continue }
-    daCaricare.push(f)
+    candidate.push(f)
   }
+  const daCaricare = candidate.filter(f => !esclusi.has(chiaveDi(f)))
+  const nEsclusi = candidate.length - daCaricare.length
   const somma = (a, k = 'imponibile') => arrotonda(a.reduce((s, f) => s + f[k], 0))
   const raggruppa = (chiaveDi) => {
     const m = new Map()
@@ -161,9 +165,16 @@ export function anteprimaEmesse(fatture, { esistenti = [], dal = null, incassate
   const tonda = (g) => ({ ...g, imponibile: arrotonda(g.imponibile), totale: arrotonda(g.totale) })
   const perAnno = [...raggruppa(f => f.data.slice(0, 4))].map(([anno, g]) => ({ anno, ...tonda(g) })).sort((a, b) => a.anno.localeCompare(b.anno))
   const perMese = [...raggruppa(f => f.data.slice(0, 7))].map(([mese, g]) => ({ mese, ...tonda(g) })).sort((a, b) => a.mese.localeCompare(b.mese))
-  const perCliente = [...raggruppa(f => chiaveCliente(f.cliente) || norm(f.cliente))].map(([k, g]) => ({
-    chiave: k, nome: daCaricare.find(f => (chiaveCliente(f.cliente) || norm(f.cliente)) === k).cliente, ...tonda(g),
-  })).sort((a, b) => b.imponibile - a.imponibile)
+  // L'elenco dei clienti comprende anche quelli tolti (con `escluso`), se no
+  // la casella sparirebbe e non si potrebbe rimetterli.
+  const tuttiClienti = new Map()
+  for (const f of candidate) {
+    const k = chiaveDi(f)
+    const g = tuttiClienti.get(k) || { chiave: k, nome: f.cliente, n: 0, imponibile: 0, totale: 0, escluso: esclusi.has(k) }
+    g.n++; g.imponibile += f.imponibile; g.totale += f.totale
+    tuttiClienti.set(k, g)
+  }
+  const perCliente = [...tuttiClienti.values()].map(tonda).sort((a, b) => b.imponibile - a.imponibile)
   const note = daCaricare.filter(f => f.notaCredito)
   const nonRec = daCaricare.filter(f => f.nonRecapitabile)
   const incassata = (f) => f.pagata || (incassateFinoAl != null && f.data <= incassateFinoAl)
@@ -175,7 +186,8 @@ export function anteprimaEmesse(fatture, { esistenti = [], dal = null, incassate
     daCaricare,
     doppioniNelFile, giaPresenti, fuoriPeriodo, senzaData,
     perAnno, perMese, perCliente,
-    nClienti: perCliente.length,
+    nClienti: perCliente.filter(c => !c.escluso).length,
+    nEsclusi,
     noteCredito: { n: note.length, imponibile: somma(note) },
     nonRecapitabili: { n: nonRec.length, imponibile: somma(nonRec) },
     imponibile: somma(daCaricare), iva: somma(daCaricare, 'imposta'), totale: somma(daCaricare, 'totale'),
@@ -202,4 +214,18 @@ export function venditeDaEmesse(daCaricare, { incassateFinoAl = null, sedeId = n
       note: `Fattura ${f.chiave} · Fattura SMART${f.nonRecapitabile ? ' · non recapitabile al cliente' : ''}${f.notaCredito ? ' · nota di credito' : ''}`,
     }
   })
+}
+
+/**
+ * La sede che il nome del file dice (es. «Fatture x carlina (1).xlsx» → Carlina).
+ * Ritorna l'id, o `null` se nessuna sede o più di una compaiono nel nome.
+ */
+export function sedeDalNomeFile(nomeFile, sedi = []) {
+  const parole = new Set(norm(nomeFile).split(' '))
+  const vere = (sedi || []).filter(s => s?.id && !s._all && norm(s.nome))
+  // Una parola del nome conta solo se è di UNA sede (non «boschi», che hanno tutte).
+  const conteggio = new Map()
+  for (const s of vere) for (const w of new Set(norm(s.nome).split(' '))) conteggio.set(w, (conteggio.get(w) || 0) + 1)
+  const trovate = vere.filter(s => norm(s.nome).split(' ').some(w => w.length >= 4 && conteggio.get(w) === 1 && parole.has(w)))
+  return trovate.length === 1 ? trovate[0].id : null
 }

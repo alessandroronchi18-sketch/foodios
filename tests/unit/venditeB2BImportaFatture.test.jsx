@@ -135,3 +135,49 @@ describe('importatore', () => {
     expect(testo()).toMatch(/Carica 3 fatture/)
   })
 })
+
+describe('secondo giro 06/10/2026', () => {
+  const SEDI = [{ id: 'sa', nome: 'Carlina' }, { id: 'sb', nome: 'Berthollet' }]
+  const apriConSedi = async () => {
+    const u = render(<VenditeB2BView orgId="o1" sedeId="sb" sedi={SEDI} sedeAttiva={{ id: 'sb' }} ricettario={{ ricette: {} }} notify={() => {}} tipoAttivita="gelateria" />)
+    await waitFor(() => { if (/Caricamento/.test(testo())) throw new Error('attendo') })
+    return u
+  }
+  const scegliNome = async (nome) => {
+    await act(async () => { bottone(/Importa le fatture già emesse/).click() })
+    const f = fileExcel(); Object.defineProperty(f, 'name', { value: nome })
+    await act(async () => { fireEvent.change(document.querySelector('input[type="file"]'), { target: { files: [f] } }) })
+    await waitFor(() => { if (!/Carica \d+ fatt/.test(testo())) throw new Error('attendo') })
+  }
+  it('togliendo la spunta a un cliente il pulsante e i totali cambiano, e non si scrive quel cliente', async () => {
+    await apriConSedi(); await scegliNome('fatture.xlsx')
+    await act(async () => { document.querySelector('input[aria-label^="SAVOIA21"]').click() })
+    expect(testo()).toMatch(/Carica 1 fattura(?=Non)/)
+    await act(async () => { bottone(/^Carica 1 fattura$/).click() })
+    await waitFor(() => { if (!scritture.some(s => s.tabella === 'vendite_b2b')) throw new Error('attendo') })
+    expect(scritture.find(s => s.tabella === 'clienti_b2b').payload.map(c => c.nome)).toEqual(['I CARBONARI S.R.L'])
+  })
+  it('la sede si propone dal nome del file e finisce nelle vendite scritte', async () => {
+    await apriConSedi(); await scegliNome('Fatture x carlina (1).xlsx')
+    expect(document.querySelector('select').value).toBe('sa')
+    expect(testo()).toMatch(/Scelta dal nome del file/)
+    await act(async () => { bottone(/Carica 4 fatture/).click() })
+    await waitFor(() => { if (!scritture.some(s => s.tabella === 'vendite_b2b')) throw new Error('attendo') })
+    expect(scritture.filter(s => s.tabella === 'vendite_b2b').flatMap(s => s.payload).every(v => v.sede_id === 'sa')).toBe(true)
+  })
+  it('se il nome non dice la sede la scelta resta visibile e «Nessuna sede» è detto', async () => {
+    await apriConSedi(); await scegliNome('x.xlsx')
+    await act(async () => { fireEvent.change(document.querySelector('select'), { target: { value: '' } }) })
+    expect(testo()).toMatch(/Senza sede le fatture compaiono in tutte le sedi/)
+  })
+  it('la lista mostra 50 vendite per volta con «Mostra altre»', async () => {
+    VENDITE = Array.from({ length: 120 }, (_, i) => ({ id: 'v' + i, data: '2026-09-01', stato: 'fatturata', pagata: true, totale: 10, righe: [{ prodotto: 'X' + i, qta: 1, unita: 'pz', prezzo: 10, totale: 10 }], clienti_b2b: { nome: 'BAR' } }))
+    await apri()
+    expect(testo()).toMatch(/ne vedi 50 su 120/)
+    expect(testo()).not.toMatch(/X60\b/)
+    await act(async () => { bottone(/Mostra altre/).click() })
+    expect(testo()).toMatch(/ne vedi 100 su 120/)
+    await act(async () => { bottone(/Mostra altre/).click() })
+    expect(bottone(/Mostra altre/)).toBeFalsy()
+  })
+})
