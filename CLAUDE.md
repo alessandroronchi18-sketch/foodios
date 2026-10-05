@@ -206,6 +206,15 @@ Due strati di protezione, da allora:
    (lo legge da `CACHE_VERSION` in `/sw.js`) e, se non arriva, dice cosa
    guardare (`npx vercel ls`, `npx vercel inspect --logs`).
 
+**Mentre `npm run push` gira, la cartella del progetto non si tocca.** Il gate
+prova i file della cartella di lavoro, non il commit che sta per partire. Il
+05/10/2026 un push è caduto con «Test falliti» su un commit sano (la batteria
+intera, rifatta su una copia ferma a quel commit, passava 7.939 su 7.939):
+nel frattempo stavo scrivendo i file nuovi di un'altra pagina, e uno usava
+`T.bgSoft`, che non esiste; `temaChiaviEsistenti.test.js` lo ha letto a metà.
+Chi deve lavorare durante un push lo fa in un `git worktree` a parte, o
+fuori da `src/` e `tests/`.
+
 Il sospetto numero uno quando il deploy fallisce è il **prebuild**: controllo
 grammaticale italiano e cricchetto sui token di design. In locale girano solo
 con `npm run build` — `npx vite build` li salta.
