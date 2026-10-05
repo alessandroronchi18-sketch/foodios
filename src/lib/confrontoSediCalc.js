@@ -12,6 +12,9 @@
 
 import { residuoFattura, scadenzaFattura } from './fatture'
 import { quoteDiRipartizione } from './costiCondivisi'
+import { incassiSedeDelMese } from './ilMeseArchivio'
+import { incassiDaSedi } from './ilMese'
+import { aggiungiGiorni, lunediDellaSettimana } from './dateLocal'
 
 // Food cost del periodo, pesato: euro di food cost su euro di ricavo.
 // `pct` è null quando non c'è ricavo: senza un ricavo sotto, una percentuale
@@ -112,7 +115,12 @@ export function fattureDaPagarePerSede(fatture, oggiIso, produzionePerSede = nul
 
     const condivise = Array.isArray(f.sedi_condivise) ? f.sedi_condivise.filter(Boolean) : []
     if (condivise.length > 1) {
-      const { quote, certa } = quoteDiRipartizione(condivise, produzionePerSede || {})
+      // `produzionePerSede` può essere la mappa {sede: grammi} oppure una
+      // funzione che, data la fattura, dà la mappa del suo mese: le spese si
+      // dividono sui chili del mese a cui appartengono, come nel Conto
+      // economico, non su quelli di un altro periodo.
+      const prod = typeof produzionePerSede === 'function' ? produzionePerSede(f) : produzionePerSede
+      const { quote, certa } = quoteDiRipartizione(condivise, prod || {})
       for (const id of condivise) {
         const v = tocca(id)
         v.ripartito += residuo * (quote[id] || 0)
@@ -129,6 +137,60 @@ export function fattureDaPagarePerSede(fatture, oggiIso, produzionePerSede = nul
     v.aperte += 1
     v.importo += residuo
     if (inRitardo) { v.scadute += 1; if (stimata) v.stimate += 1 }
+  }
+  return out
+}
+
+// ── Gli incassi di una sede in un periodo, e quelli di prima ────────────────
+//
+// 05/10/2026. La pagina prendeva l'incasso dalla stima dell'inventario SOLO
+// se la sede non aveva nessuna chiusura nel periodo (`nChiusureCur === 0`), e
+// il periodo prima e l'andamento delle 8 settimane solo dalle chiusure. Sui
+// dati veri Carlina ha 40 chiusure (agosto-settembre, non tutti i giorni): con
+// una sola chiusura nel mese la pagina contava quella e basta, e gli altri 29
+// giorni valevano zero. Ora si usa la stessa funzione del Mese
+// (`incassiSedeDelMese` + `incassiDaSedi`): cassa nei giorni che hanno la
+// chiusura, stima dall'inventario negli altri, giorni senza dati dichiarati.
+// Il numero è quello del Mese (IVA esclusa), perché sono la stessa domanda.
+
+/**
+ * @param {object} o
+ * @param {object[]} o.chiusure  chiusure della sede
+ * @param {object[]|null} o.righe  inventario della sede (con i giorni di riporto prima di `da`)
+ * @param {object[]|null} o.formati
+ * @param {object[]|null} [o.venditeB2B]
+ * @param {string} o.da  primo giorno
+ * @param {string} o.a  ultimo giorno
+ * @param {string} [o.nome]
+ */
+export function incassiSedePeriodo({ chiusure = [], righe = null, formati = null, venditeB2B = null, da, a, nome = '' }) {
+  if (!da || !a) return incassiDaSedi([])
+  const parte = incassiSedeDelMese({ chiusure, righe, formati, venditeB2B, da, a, nome })
+  return { ...incassiDaSedi([parte]), parte }
+}
+
+/**
+ * L'andamento di N settimane (lunedì-domenica) che finiscono con quella di
+ * `fine`: per ogni settimana i ricavi di tutte le sedi insieme, calcolati con
+ * la stessa regola dell'incasso del periodo. Una settimana in cui nessuna sede
+ * ha un dato vale `null`, non zero.
+ *
+ * @param {object[]} sedi  [{ nome, chiusure, righe, formati, venditeB2B }]
+ * @param {string} fine  un giorno qualunque dell'ultima settimana
+ * @param {number} [n]
+ */
+export function andamentoSettimane(sedi = [], fine, n = 8) {
+  if (!fine) return []
+  const ultimoLun = lunediDellaSettimana(fine)
+  const out = []
+  for (let i = n - 1; i >= 0; i--) {
+    const lun = aggiungiGiorni(ultimoLun, -7 * i)
+    const dom = aggiungiGiorni(lun, 6)
+    const parti = sedi.map(s => incassiSedeDelMese({
+      chiusure: s.chiusure, righe: s.righe, formati: s.formati, venditeB2B: s.venditeB2B, da: lun, a: dom, nome: s.nome,
+    }))
+    const r = incassiDaSedi(parti)
+    out.push({ lunIso: lun, domIso: dom, ricavi: r.valore, scoperti: r.scoperti, fonte: r.fonte })
   }
   return out
 }
