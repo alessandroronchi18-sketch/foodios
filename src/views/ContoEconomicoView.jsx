@@ -55,6 +55,16 @@ export function righeConto(attuale, prima, andamento = []) {
   if ((attuale.speseFisse || 0) > 0 || (prima?.speseFisse || 0) > 0) {
     righe.push({ chiave: 'fisse', etichetta: 'Spese senza fattura', tipo: 'spesa', valore: attuale.speseFisse, prima: prima?.speseFisse ?? null, serie: serie(c => c.speseFisse) })
   }
+  // 05/10/2026: senza gli stipendi la tabella finiva in due «non lo so». Il
+  // numero che si sa c'è: incassi meno spese, prima del personale, lo stesso
+  // che dà «Il mese».
+  if (attuale.personale == null && attuale.primaDelPersonale != null) {
+    righe.push({
+      chiave: 'primaDelPersonale', etichetta: 'Prima del personale', tipo: 'risultato', valore: attuale.primaDelPersonale,
+      prima: prima?.personale == null ? (prima?.primaDelPersonale ?? null) : null,
+      serie: serie(c => (c.personale == null ? c.primaDelPersonale : null)),
+    })
+  }
   righe.push({ chiave: 'personale', etichetta: 'Personale', tipo: 'spesa', valore: attuale.personale, prima: prima?.personale ?? null, serie: serie(c => c.personale) })
   righe.push({ chiave: 'utile', etichetta: 'Utile', tipo: 'risultato', valore: attuale.utile, prima: prima?.utile ?? null, serie: serie(c => c.utile) })
   return righe
@@ -91,6 +101,66 @@ export function rispostaDelConto({ dati, mese, iva }) {
     avviso: iva.riga,
     frase: frase || null,
   }
+}
+
+/**
+ * Quanto delle spese in fattura ha la voce e quanto no (05/10/2026): il
+ * conto con metà delle spese in «Da classificare» dice cose diverse da uno
+ * con l'1%. Null se le fatture non si sono lette.
+ */
+export function statoClassificazione(conto, costi) {
+  if (!conto || conto.speseFatture == null || !(conto.speseFatture > 0)) return null
+  const senza = conto.daClassificare || 0
+  const con = conto.speseFatture - senza
+  const q = (con / conto.speseFatture) * 100
+  return { con, senza, quota: senza > 0 ? Math.min(q, 99.9) : 100, nFornitori: costi?.daClassificare?.nFornitori || 0 }
+}
+
+function RigaClassificazione({ stato, onClassifica, isMobile }) {
+  const { con, senza, quota: q, nFornitori } = stato
+  return (
+    <div data-classificazione style={{ margin: '0 0 16px', maxWidth: 880 }}>
+      <div role="img" aria-label={`Con la voce ${quota(q)}`} style={{ display: 'flex', height: 8, borderRadius: 4, overflow: 'hidden', background: T.borderSoft }}>
+        <div style={{ width: `${q}%`, background: T.graficoReale }} />
+        {senza > 0 && <div style={{ flex: 1, background: T.graficoIncompleto }} />}
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', columnGap: 16, rowGap: 0, marginTop: 6, fontSize: font.size.base, color: T.textMid }}>
+        {senza > 0 ? (
+          <>
+            <span>Con la voce: <b style={{ color: T.text, ...tnum }}>{euro(con)}</b> ({quota(q)})</span>
+            <span style={{ color: T.amberDark }}>Senza voce: <b style={tnum}>{euro(senza)}</b>{nFornitori > 0 ? ` di ${nFornitori} ${nFornitori === 1 ? 'fornitore' : 'fornitori'}` : ''}</span>
+            <PulsanteClassifica onClick={onClassifica} />
+          </>
+        ) : <span>Tutte le spese hanno la voce.</span>}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Quello che sta fuori dal conto del mese, detto con i nomi: gli investimenti
+ * (una GECKO da 86.651 € a luglio) e le fatture segnate «Fuori conto».
+ */
+function FuoriConto({ costi, investimenti }) {
+  const nEsclusi = costi?.esclusi?.nFatture || 0
+  if (!(investimenti > 0) && !nEsclusi) return null
+  const nomi = [...(costi?.investimenti?.fatture || [])].slice(0, 3).map(f => `${f.fornitore} ${euro(f.importo)}`)
+  const riga = { fontSize: font.size.base, color: T.textMid, display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }
+  return (
+    <div data-fuori-conto style={{ marginTop: 12, paddingTop: 10, borderTop: `1px dashed ${T.border}`, display: 'grid', rowGap: 6 }}>
+      {investimenti > 0 && (
+        <div style={riga}>
+          <span><b style={{ color: T.text }}>Fuori dal conto:</b> investimenti (attrezzature, lavori){nomi.length ? `: ${nomi.join(', ')}` : ''}. Si pagano una volta e durano anni: non sono spese del mese.</span>
+          <span style={{ fontWeight: 800, color: T.text, ...tnum }}>{euro(investimenti)}</span>
+        </div>
+      )}
+      {nEsclusi > 0 && (
+        <div style={riga}>
+          <span><b style={{ color: T.text }}>Tolte:</b> {nEsclusi} {nEsclusi === 1 ? 'fattura segnata' : 'fatture segnate'} «Fuori conto» (doppioni, spese private, altre società). Non sono della gelateria.</span>
+        </div>
+      )}
+    </div>
+  )
 }
 
 /** I fornitori di una voce, mese contro anno prima, dal più pesante. */
@@ -130,6 +200,8 @@ export default function ContoEconomicoView({ orgId, sedi = [], sedeId = null, on
   const apri = (k) => setAperte(s => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n })
 
   const conto = dati?.attuale?.conto
+  const costiMese = dati?.attuale?.costi
+  const stato = statoClassificazione(conto, costiMese)
   if (classifica) return (
     <ClassificaSpese orgId={orgId} notify={notify} isMobile={isMobile}
       torna={<PulsanteTorna onClick={() => setClassifica(false)}>Torna al conto</PulsanteTorna>}
@@ -158,8 +230,13 @@ export default function ContoEconomicoView({ orgId, sedi = [], sedeId = null, on
             <TitoloGrafico
               titolo={conto.utile != null
                 ? `Utile ${euro(conto.utile)}${ricavi > 0 ? `, ${quota(conto.quote.utile)} degli incassi` : ''}`
-                : 'L\'utile non si può ancora dire'}
-              sottotitolo="Tocca una voce di spesa per vedere i fornitori che pesano di più." />
+                : conto.primaDelPersonale != null && conto.personale == null
+                  ? `Restano ${euro(conto.primaDelPersonale)} prima del personale`
+                  : 'L\'utile non si può ancora dire'}
+              sottotitolo={conto.utile == null && conto.personale == null
+                ? 'L\'utile arriva quando ci sono gli stipendi. Tocca una voce di spesa per vedere i fornitori che pesano di più.'
+                : 'Tocca una voce di spesa per vedere i fornitori che pesano di più.'} />
+            {stato && <RigaClassificazione stato={stato} isMobile={isMobile} onClassifica={() => setClassifica(true)} />}
             {/* Al telefono la tabella era larga 608 px in un riquadro di 354 e
                 la differenza con l'anno prima restava fuori schermo (audit
                 04/10, CE1): lì il conto è un elenco di schede. */}
@@ -191,12 +268,7 @@ export default function ContoEconomicoView({ orgId, sedi = [], sedeId = null, on
               righe={righeTabella(righe, { ricavi, aperte, apri, scelto, onClassifica: () => setClassifica(true) })} />
             </div>
             )}
-            {conto.investimenti > 0 && (
-              <div style={{ marginTop: 12, paddingTop: 10, borderTop: `1px dashed ${T.border}`, fontSize: font.size.base, color: T.textMid, display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-                <span><b style={{ color: T.text }}>Fuori dal conto:</b> investimenti (attrezzature, lavori). Si pagano una volta e durano anni: non sono spese del mese.</span>
-                <span style={{ fontWeight: 800, color: T.text, fontVariantNumeric: 'tabular-nums' }}>{euro(conto.investimenti)}</span>
-              </div>
-            )}
+            <FuoriConto costi={costiMese} investimenti={conto.investimenti} />
           </Riquadro>
           <div style={{ fontSize: font.size.sm, color: T.textSoft, lineHeight: '16px' }}>
             Le spese sono per data della fattura, senza IVA dove l&apos;imponibile c&apos;è. Il margine per prodotto, che prima stava qui, è in Food cost.
