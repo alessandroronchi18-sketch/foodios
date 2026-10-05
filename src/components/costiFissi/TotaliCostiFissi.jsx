@@ -54,7 +54,6 @@ export default function TotaliCostiFissi({
 }) {
   const vuoto = nVoci === 0
   const { totale, frase } = composizioneFissi({ totVoci: totMese, nVoci: nAttive, totFatture })
-  const noto = vuoto && totFatture > 0 ? { valore: fmt0(totFatture), etichetta: 'Già dalle fatture, al mese' } : null
   const attive = `${nAttive} ${nAttive === 1 ? 'voce attiva' : 'voci attive'}`
   const fuori = nNonAttive > 0 ? ` · ${nNonAttive} finit${nNonAttive === 1 ? 'a' : 'e'} o non ancora iniziat${nNonAttive === 1 ? 'a' : 'e'}` : ''
   const avvisoSenzaImporto = vociSenzaImporto > 0
@@ -67,7 +66,6 @@ export default function TotaliCostiFissi({
           etichetta="Costo mensile totale"
           valore={vuoto ? null : fmt0(totale)}
           motivoMancante={invitoPrimaVoce()}
-          noto={noto}
           frase={vuoto ? null : (
             <>
               {frase}

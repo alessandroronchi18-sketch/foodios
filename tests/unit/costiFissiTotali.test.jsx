@@ -87,8 +87,9 @@ describe('la pagina con zero voci', () => {
     FATTURE = GARAGE()
     await apri()
     expect(testo()).toContain('l\'affitto di ogni negozio, le rate, le assicurazioni, la TARI')
-    // il numero che si sa (il garage in fattura) è mostrato come tale
-    await waitFor(() => expect(testo()).toContain('Già dalle fatture, al mese'))
+    // il totale viene prima delle fatture: la risposta, poi il perché
+    await waitFor(() => expect(testo()).toContain('Già dalle fatture: 200 € al mese'))
+    expect(testo().indexOf('Costo mensile totale')).toBeLessThan(testo().indexOf('Già dalle fatture'))
   })
   it('gli esempi aprono il modulo sulla categoria giusta', async () => {
     await apri()

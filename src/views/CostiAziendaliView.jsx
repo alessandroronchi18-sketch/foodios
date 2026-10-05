@@ -266,9 +266,6 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
     <div style={{ maxWidth: 1200, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
       <PageHeader subtitle="Le spese che non arrivano in fattura: l'affitto pagato a un privato, le rate, le assicurazioni, le tasse con l'F24. Quelle con la fattura entrano già da sole nel conto." />
 
-      <GiaDalleFatture ricorrenti={ricorrenti} isMobile={isMobile} onClassifica={() => setClassifica(true)} nSedi={(sedi || []).length}
-        stile={{ marginBottom: 20 }} />
-
       {/* L'ambito: tutta l'azienda o la sola sede attiva. Visibile solo con più
           sedi e una sede attiva (in «Tutte le sedi» non avrebbe senso).
           Rifatto nel kit il 05/10/2026: via gradiente, striscia animata e
@@ -318,6 +315,11 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
         topCategoria={topCategoria} topVoci={topVoci}
         totFatture={scope === 'all' && ricorrenti ? ricorrenti.totaleMese : null}
         vociSenzaImporto={vociSenzaImporto} />
+
+      {/* Sotto i totali (05/10/2026): la risposta della pagina viene prima, le
+          fatture sono il perché di una parte del numero. */}
+      <GiaDalleFatture ricorrenti={ricorrenti} isMobile={isMobile} onClassifica={() => setClassifica(true)} nSedi={(sedi || []).length}
+        stile={{ marginBottom: 20 }} />
 
       {/* Filtri + bottone aggiungi.
           Audit 2026-06-24: su mobile il filtro va in colonna sopra il bottone
