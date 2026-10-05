@@ -15,10 +15,11 @@ import { IntestazioneAnalisi, Riquadro, TabellaAnalisi, testo } from '../compone
 import PaginaAnalisi from '../components/analisi/PaginaAnalisi'
 import { euro } from '../lib/formatoAnalisi'
 import { finestraScorciatoia } from '../lib/periodoAnalisi'
+import { todayLocal } from '../lib/dateLocal'
 import { CATEGORIE_SPESA } from '../lib/contoEconomico'
 import { leggiCategorieFornitori } from '../lib/contoEconomicoArchivio'
 import {
-  leggiArchivioFatture, conLaVoce, filtraFatture, ordinaPerData, totaliFatture, paginaFatture,
+  leggiArchivioFatture, primaDataArchivio, conLaVoce, filtraFatture, ordinaPerData, totaliFatture, paginaFatture,
   csvFatture, sedeScritta, nomeDellaVoce, ePagata, SENZA_SEDE, SENZA_VOCE, RIGHE_PER_VOLTA,
 } from '../lib/archivioFatture'
 
@@ -60,10 +61,10 @@ function Tessera({ etichetta, valore, sotto }) {
 
 export default function ArchivioFattureView({ orgId, sedi = [], sedeId = null, client = supabase }) {
   const isMobile = useIsMobile()
-  const [periodo, setPeriodo] = useState(() => {
-    const f = finestraScorciatoia('annoCorr')
-    return { from: f.from, to: f.to }
-  })
+  // Si apre su TUTTO: dalla prima fattura a oggi (titolare, 05/10/2026,
+  // «tutte le fatture»). `periodo` è null finché non si sa qual è la prima.
+  const [periodo, setPeriodo] = useState(null)
+  const [primo, setPrimo] = useState(null)
   const [dati, setDati] = useState(null)
   const [errore, setErrore] = useState(null)
   const [caricando, setCaricando] = useState(false)
@@ -78,6 +79,19 @@ export default function ArchivioFattureView({ orgId, sedi = [], sedeId = null, c
 
   useEffect(() => {
     if (!orgId) return undefined
+    let vivo = true
+    ;(async () => {
+      let p = null
+      try { p = await primaDataArchivio(client, orgId) } catch { /* si ripiega sull'anno in corso */ }
+      if (!vivo) return
+      setPrimo(p)
+      setPeriodo({ from: p || finestraScorciatoia('annoCorr').from, to: todayLocal() })
+    })()
+    return () => { vivo = false }
+  }, [orgId, client])
+
+  useEffect(() => {
+    if (!orgId || !periodo) return undefined
     let vivo = true
     setCaricando(true); setErrore(null)
     ;(async () => {
@@ -94,10 +108,10 @@ export default function ArchivioFattureView({ orgId, sedi = [], sedeId = null, c
       }
     })()
     return () => { vivo = false }
-  }, [orgId, periodo.from, periodo.to, client])
+  }, [orgId, periodo, client])
 
   // Quando cambia un filtro si riparte dalle prime 50.
-  useEffect(() => { setVolte(1) }, [cerca, stato, sede, voce, periodo.from, periodo.to])
+  useEffect(() => { setVolte(1) }, [cerca, stato, sede, voce, periodo])
 
   const visibili = useMemo(
     () => ordinaPerData(filtraFatture(dati?.fatture || [], { cerca, stato, sede, voce })),
@@ -145,6 +159,7 @@ export default function ArchivioFattureView({ orgId, sedi = [], sedeId = null, c
     }
   })
 
+  const eTutto = !!periodo && !!primo && periodo.from === primo && periodo.to === todayLocal()
   const periodoVuoto = !caricando && dati && (dati.fatture || []).length === 0
   const nessunaCorrispondenza = dati && !periodoVuoto && visibili.length === 0
 
@@ -153,8 +168,14 @@ export default function ArchivioFattureView({ orgId, sedi = [], sedeId = null, c
       <IntestazioneAnalisi isMobile={isMobile}
         domanda="Tutte le fatture dei fornitori"
         sotto="Pagate e da pagare, per data della fattura."
-        destra={<BarraPeriodo from={periodo.from} to={periodo.to} isMobile={isMobile} mostraConfronto={false}
-          onPeriodo={(f, t) => setPeriodo({ from: f || '', to: t || '' })} />} />
+        destra={periodo && (<>
+          {!eTutto && primo && (
+            <button type="button" onClick={() => setPeriodo({ from: primo, to: todayLocal() })}
+              style={{ ...campo(false), cursor: 'pointer', fontWeight: 600 }}>Tutto l'archivio</button>
+          )}
+          <BarraPeriodo from={periodo.from} to={periodo.to} isMobile={isMobile} mostraConfronto={false}
+            onPeriodo={(f, t) => setPeriodo({ from: f || '', to: t || '' })} />
+        </>)} />
 
       {errore && <Riquadro isMobile={isMobile}><span style={{ color: T.red, fontSize: font.size.base }}>Non sono riuscito a leggere le fatture: {errore}</span></Riquadro>}
       {!dati && !errore && <Riquadro isMobile={isMobile}><span style={{ color: T.textSoft, fontSize: font.size.base }}>Leggo le fatture…</span></Riquadro>}

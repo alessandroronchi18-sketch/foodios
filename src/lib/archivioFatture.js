@@ -126,7 +126,17 @@ export function paginaFatture(fatture, volte = 1, perVolta = RIGHE_PER_VOLTA) {
   return { righe, altre: Math.max(0, (fatture || []).length - righe.length) }
 }
 
-export const nomeDellaVoce = (id) => categoriaPerId(id)?.nome || ''
+/** La data della fattura più vecchia (AAAA-MM-GG), o null se non ce ne sono. */
+export async function primaDataArchivio(supabase, orgId) {
+  if (!orgId) throw new Error('manca l\'azienda')
+  const { data, error } = await supabase.from('fatture').select('data_fattura').eq('organization_id', orgId)
+    .not('data_fattura', 'is', null).order('data_fattura', { ascending: true }).limit(1)
+  if (error) throw new Error(error.message || 'lettura della prima fattura non riuscita')
+  const d = String(data?.[0]?.data_fattura ?? '').slice(0, 10)
+  return giornoValido(d) ? d : null
+}
+
+export const nomeDellaVoce =(id) => categoriaPerId(id)?.nome || ''
 
 /** Le sedi di una fattura, scritte: «Berthollet + De Gasperi». */
 export function sedeScritta(f, sedi) {
