@@ -185,7 +185,7 @@ export function costruisciMenu(ctx = {}) {
       // voce, e «scadenzario» resta fra i sinonimi per chi lo cerca col nome
       // vecchio.
       { id: 'scadenzario', label: 'Fornitori', icona: 'fileText',
-        sinonimi: ['scadenzario', 'fatture', 'da pagare', 'scadenze', 'fatture e fornitori', 'iban', 'bonifici'],
+        sinonimi: ['scadenzario', 'fatture', 'da pagare', 'scadenze', 'fatture e fornitori', 'iban', 'bonifici', 'archivio fatture', 'tutte le fatture', 'fatture pagate'],
         // «Ordini» era anche qui come scheda, ed era in due posti: il
         // titolare, 23/09/2026, «tienila solo nella tendina acquisti». Una
         // pagina che compare due volte è una pagina che qualcuno apre dalla
@@ -193,6 +193,9 @@ export function costruisciMenu(ctx = {}) {
         schede: [
           { id: 'scadenzario', label: 'Fornitori' },
           { id: 'fornitori',   label: 'Anagrafica' },
+          // 05/10/2026, titolare: «mi manca una pagina dove vedo tutte le
+          // fatture insieme, pagate e non pagate».
+          { id: 'archivio-fatture', label: 'Archivio' },
         ] },
       // Ordinare è un gesto di tutti i giorni, non una scheda dentro
       // un'anagrafica: il titolare, 22/09/2026, ha scelto la pagina sua.
@@ -452,7 +455,7 @@ export const VISTE_DISEGNATE = new Set([
   'ai-brain', 'ai-hub', 'azioni', 'calendario', 'cashflow', 'changelog',
   'chiusura', 'competitor-pricing', 'confronto-sedi', 'costi-aziendali',
   'documentary', 'eventi', 'fatture-da-pagare', 'fatture-in-scadenza',
-  'fatture-scadute', 'fatture-senza-sede', 'forecast', 'formati-vendita',
+  'archivio-fatture', 'fatture-scadute', 'fatture-senza-sede', 'forecast', 'formati-vendita',
   'fornitori-materie-prime',
   'fornitori', 'fornitori-senza-iban',
   'giornaliero', 'haccp', 'home', 'home-dipendente', 'il-mese', 'importa-dati',

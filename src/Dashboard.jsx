@@ -96,6 +96,7 @@ import { caricaChiusure, salvaChiusure } from './lib/chiusure'
 import { loadXLSX } from './lib/xlsx'
 const SimulatorePrezziView = lazyWithReload(() => import('./views/SimulatorePrezziView'))
 const ContoEconomicoView = lazyWithReload(() => import('./views/ContoEconomicoView'))
+const ArchivioFattureView = lazyWithReload(() => import('./views/ArchivioFattureView'))
 const IlMeseView = lazyWithReload(() => import('./views/IlMeseView'))
 const RicettarioView = lazyWithReload(() => import('./views/RicettarioView'))
 const SchedaAllergeniView = lazyWithReload(() => import('./views/SchedaAllergeniView'))
@@ -3789,6 +3790,7 @@ export default function Dashboard({
         {vista==="trasferimenti"&&!isAllSedi&&(canAccessView("trasferimenti",piano,auth?.user?.email)?<TrasferimentiView orgId={orgId} sedi={sedi} sedeAttiva={sedeAttiva} notify={notify} metodoProduzione={metodoProduzione} soloRicezione={isDip}/>:<UpgradeGate view="trasferimenti" onUpgrade={goToUpgrade}/>)}
         {vista==="integrazioni"&&(canAccessView("integrazioni",piano,auth?.user?.email)?<Integrazioni orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify}/>:<UpgradeGate view="integrazioni" onUpgrade={goToUpgrade}/>)}
         {vista==="scadenzario"&&<Scadenzario orgId={orgId} sedeId={sedeId} sedi={sedi} pagina="scadenzario" onNavigate={setView}/>}
+        {vista==="archivio-fatture"&&!isDip&&<ArchivioFattureView orgId={orgId} sedi={sedi} sedeId={sedeId}/>}
         {/* Le cinque schermate che si aprono da Fornitori. Sono pagine vere e
             non filtri: hanno un nome proprio in cima, stanno nella storia del
             browser (il tasto «indietro» funziona) e ognuna ha il suo ritorno.

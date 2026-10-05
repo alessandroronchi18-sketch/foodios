@@ -68,8 +68,9 @@ describe('la pagina delle fatture si chiama Fornitori dappertutto', () => {
     // due posti, e una pagina che compare due volte è una pagina che
     // qualcuno apre dalla strada sbagliata e poi non ritrova.
     const g = schedeDiVista('scadenzario', SEZIONI)
-    expect(g.schede.map(t => t.id)).toEqual(['scadenzario', 'fornitori'])
-    expect(new Set(g.schede.map(t => t.label)).size, 'due schede con lo stesso nome').toBe(2)
+    // 05/10/2026: terza scheda «Archivio», tutte le fatture (pagate e no).
+    expect(g.schede.map(t => t.id)).toEqual(['scadenzario', 'fornitori', 'archivio-fatture'])
+    expect(new Set(g.schede.map(t => t.label)).size, 'due schede con lo stesso nome').toBe(3)
     expect(etichettaPerVista(SEZIONI).fornitori).toBe('Anagrafica')
   })
 
