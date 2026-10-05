@@ -88,9 +88,6 @@
     "testo-a-mano": 2,
     "tripla-a-mano": 1
   },
-  "src/components/ConfrontoSedi.jsx": {
-    "colore-a-mano": 11
-  },
   "src/components/DailyBriefCard.jsx": {
     "colore-a-mano": 8,
     "testo-a-mano": 8
