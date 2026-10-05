@@ -75,7 +75,9 @@ export function Freccia({ segno = 0, verso = 'pari', dimensione = 16 }) {
 export function RigaConfronto({ variazione = null, rispettoA = '', valoreConfronto = '', senzaConfronto = '', dimensione = font.size.base, stile: extra = null }) {
   const stile = { display: 'flex', alignItems: 'center', columnGap: space[1], flexWrap: 'wrap', minHeight: 20, color: T.textMid, ...testo(dimensione), ...extra }
   if (!variazione) {
-    return <div style={stile}>{senzaConfronto === null ? null : <span style={{ color: T.textSoft }}>{senzaConfronto || 'nessun confronto'}</span>}</div>
+    // Una riga di solo testo parte dall'alto della riga condivisa (06/10/2026):
+    // centrata, accanto a un confronto su due righe cadeva 10 px più in basso.
+    return <div style={{ ...stile, alignItems: 'flex-start' }}>{senzaConfronto === null ? null : <span style={{ color: T.textSoft }}>{senzaConfronto || 'nessun confronto'}</span>}</div>
   }
   const verso = variazione.verso || 'pari'
   return (
