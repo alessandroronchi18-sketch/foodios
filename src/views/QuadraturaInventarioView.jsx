@@ -25,6 +25,8 @@ import { CoperturaDati, IntestazioneAnalisi } from '../components/analisi'
 import PaginaAnalisi from '../components/analisi/PaginaAnalisi'
 import NavigatoreSettimana from './quadratura/NavigatoreSettimana'
 import { vociCoperturaQuadratura } from './quadratura/copertura'
+import { kpiQuadraturaSedi, giorniDelConfronto } from '../lib/quadraturaCassa'
+import ConfrontoGiorni from './quadratura/ConfrontoGiorni'
 import { nettoIva } from './produzione/numeri'
 import Risposta from './quadratura/Risposta'
 import UltimeSettimane from './quadratura/UltimeSettimane'
@@ -133,8 +135,7 @@ export function testoCsvSettimana({ lunediIso, kpi, dettaglio, sedeAttiva, isAll
         csvKg(((p.kpi.retailKg ?? p.kpi.totVendutoKg) || 0) * 1000),
         csvKg((p.kpi.b2bKg || 0) * 1000),
         csvEuro(p.kpi.ricavoAtteso),
-        // Le chiusure arrivano già sommate: la cassa di una sede non si sa.
-        'non separabile per sede',
+        p.kpi.cassaRegistrata ? csvEuro(p.kpi.cassaEffettiva) : 'non registrata',
       )
     }
   }
@@ -404,8 +405,8 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
       setAccettando(null)
     }
   }
-  const matricePrev = useMemo(() => matriceDiPiuSedi(Object.entries(righePrevPerSede)
-    .map(([id, rs]) => ({ sedeId: id, matrice: calcolaVendutoSettimana(rs, addDays(lunediIso, -7)) }))),
+  const matriciPrev = useMemo(() => Object.entries(righePrevPerSede)
+    .map(([id, rs]) => ({ sedeId: id, matrice: calcolaVendutoSettimana(rs, addDays(lunediIso, -7)) })),
   [righePrevPerSede, lunediIso])
   const euroKg = useMemo(() => euroKgMedioFormati(formati), [formati])
 
@@ -435,14 +436,14 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
       .then(perSettimana => {
         if (!alive) return
         const out = settimane.map((lun, idx) => {
-          const matr = matriceDiPiuSedi(ids.map((id, j) => ({ sedeId: id, matrice: calcolaVendutoSettimana(perSettimana[idx][j], lun) })))
+          const matr = ids.map((id, j) => ({ sedeId: id, matrice: calcolaVendutoSettimana(perSettimana[idx][j], lun) }))
           const fineW = addDays(lun, 7)
           const chiusW = (chiusure || []).filter(c => c.data >= lun && c.data < fineW)
           // Prima questa somma era scritta a mano qui dentro, in parallelo a
           // quella del KPI: due conti diversi sullo stesso dato, liberi di
           // divergere alla prima modifica di uno dei due. Ora è la stessa
           // funzione, e porta anche il conto delle celle che non tornano.
-          const kp = kpiQuadraturaSettimana(matr, chiusW, euroKg, null)
+          const kp = kpiQuadraturaSedi({ matrici: matr, chiusure: chiusW, euroKg, venditeB2b: null })
           return {
             lunIso: lun,
             kg: kp.totVendutoKg,
@@ -470,17 +471,20 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
     if (!isAllSedi || metodoProduzione !== 'inventario') return []
     return matrici.map(({ sedeId: id, matrice: m }) => ({
       sede: sediDaLeggere.find(s => s.id === id) || { id, nome: '' },
-      kpi: kpiQuadraturaSettimana(m, [], euroKg, (venditeB2bSett || []).filter(v => v.sede_id === id)),
+      kpi: kpiQuadraturaSettimana(m, chiusureSett.filter(c => c.sede_id === id), euroKg, (venditeB2bSett || []).filter(v => v.sede_id === id)),
     }))
-  }, [isAllSedi, metodoProduzione, matrici, sediDaLeggere, euroKg, venditeB2bSett])
+  }, [isAllSedi, metodoProduzione, matrici, sediDaLeggere, euroKg, venditeB2bSett, chiusureSett])
 
+  // La differenza con la cassa si calcola solo sulle sedi che hanno la cassa
+  // (vedi lib/quadraturaCassa.js): in «Tutte le sedi» l'inventario di tre
+  // sedi non si confronta con la cassa di una.
   const kpi = useMemo(
-    () => kpiQuadraturaSettimana(matrice, chiusureSett, euroKg, venditeB2bSett),
-    [matrice, chiusureSett, euroKg, venditeB2bSett]
+    () => kpiQuadraturaSedi({ matrici, chiusure: chiusureSett, euroKg, venditeB2b: venditeB2bSett }),
+    [matrici, chiusureSett, euroKg, venditeB2bSett]
   )
   const kpiPrev = useMemo(
-    () => kpiQuadraturaSettimana(matricePrev, chiusurePrev, euroKg, venditeB2bPrec),
-    [matricePrev, chiusurePrev, euroKg, venditeB2bPrec]
+    () => kpiQuadraturaSedi({ matrici: matriciPrev, chiusure: chiusurePrev, euroKg, venditeB2b: venditeB2bPrec }),
+    [matriciPrev, chiusurePrev, euroKg, venditeB2bPrec]
   )
   const classifica = useMemo(() => classificaGusti(matriceGusti), [matriceGusti])
   // Una riga per gusto, per il CSV e il PDF.
@@ -512,6 +516,8 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
   // stessa funzione del Mese, così la differenza resta un confronto alla pari
   // e la percentuale non cambia. CSV e PDF per il commercialista restano con
   // l'IVA, come sono sempre stati.
+  const giorniConfrontoSchermo = useMemo(() => giorniDelConfronto({ matrici, chiusure: chiusureSett, euroKg, venditeB2b: venditeB2bSett })
+    .map(g => ({ ...g, cassa: nettoIva(g.cassa), atteso: nettoIva(g.atteso), driftEur: nettoIva(g.driftEur) })), [matrici, chiusureSett, euroKg, venditeB2bSett])
   const kpiSchermo = useMemo(() => kpiSenzaIva(kpi), [kpi])
   const kpiPrevSchermo = useMemo(() => kpiSenzaIva(kpiPrev), [kpiPrev])
   const settimaneSchermo = useMemo(() => trendData.map(t => ({
@@ -522,7 +528,7 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
   // La riga chiusa della copertura: «da sistemare» solo di quello che si
   // sistema (la cassa, le caselle), il resto per nome.
   const vociCopertura = vociCoperturaQuadratura({
-    giorni: giorniSettimana, kpi: kpiSchermo, euroKg, scartoRegistrato,
+    giorni: giorniSettimana, kpi: kpiSchermo, euroKg, scartoRegistrato, nomeSede,
     apertura: apertura?.spostata && lunediIso === lunUltimo ? apertura : null,
     azioni: { cassa: onNavigate ? () => onNavigate('chiusura') : null, caselle: () => refCaselle.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' }) },
   })
@@ -639,7 +645,7 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
               quello che si può dire lo stesso. Prima: quattro tessere senza
               giudizio e tre riquadri colorati (grigio, blu, ambra). */}
           <div style={{ marginBottom: isMobile ? 32 : 40 }}>
-            <Risposta kpi={kpiSchermo} kpiPrev={kpiPrevSchermo} euroKg={euroKg} vetrina={vetrinaSett}
+            <Risposta kpi={kpiSchermo} kpiPrev={kpiPrevSchermo} euroKg={euroKg} vetrina={vetrinaSett} nomeSede={nomeSede}
               onCassa={onNavigate ? () => onNavigate('chiusura') : null} isMobile={isMobile} isTablet={isTablet} />
           </div>
 
@@ -798,10 +804,14 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
               </div>
             )}
 
-            {kpi.driftPct != null && Math.abs(kpi.driftPct) >= 15 && (
-              <DiagnosiDrift driftEur={kpiSchermo.driftEur} driftPct={kpi.driftPct} isMobile={isMobile} />
-            )}
+            {/* Una differenza grande non si spiega con un elenco di ipotesi
+                (omaggi, errori di scontrino, «furti»): si guarda giorno per
+                giorno, e si dice solo quello che i dati sanno. */}
           </div>
+
+          {giorniConfrontoSchermo.some(g => g.confrontato) && (
+            <ConfrontoGiorni giorni={giorniConfrontoSchermo} isMobile={isMobile} stile={{ marginBottom: isMobile ? 16 : 24 }} />
+          )}
 
           {/* Le ultime quattro settimane, su un asse solo (prima: una
               sparkline con due scale nascoste, chili e cassa). */}
@@ -850,48 +860,11 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
   )
 }
 
-// ── Diagnosi drift ────────────────────────────────────────────────────────
-// Si vede SOLO quando c'è una cassa vera da confrontare (driftPct non null):
-// senza chiusure lo scostamento non esiste, e fino al 03/10/2026 questo
-// riquadro compariva ogni settimana a chi non registra la cassa, suggerendo
-// «furti interni» su un incasso che semplicemente non era stato scritto.
-// Anche con la cassa, la prima cosa da guardare è l'inventario: sui dati veri
-// le caselle compilate male sono la causa più frequente di un conto che non
-// torna.
-function DiagnosiDrift({ driftEur, driftPct, isMobile }) {
-  const tono = driftEur < 0 ? 'più basso della stima' : 'più alto della stima'
-  const ipotesi = driftEur < 0
-    ? [
-        'Giorni di cassa registrati a metà, o chiusure saltate',
-        'Rimanenze scritte male nell\'inventario (una casella lasciata a zero fa sembrare venduto quello che è in vetrina)',
-        'Porzioni più grandi di quelle dei formati (controlla la bilancia)',
-        'Omaggi e assaggi non battuti in cassa',
-        'Errori di scontrino: battiture saltate o sottostimate',
-      ]
-    : [
-        'Cassa con incassi extra non legati al gelato (es. articoli non da gusto)',
-        'Inventario sottostimato: residuo della mattina dopo letto basso o errore di pesata',
-        'Scarti registrati ma in realtà venduti',
-      ]
-  return (
-    <div style={{
-      marginTop: 14, padding: isMobile ? 14 : '14px 16px',
-      background: T.redLight, border: `1px solid ${T.red}`,
-      borderRadius: 12, fontSize: font.size.sm, color: T.redDark, lineHeight: 1.55,
-      width: '100%', boxSizing: 'border-box',
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-        <Icon name="warning" size={15} color={T.redDark} />
-        <strong style={{ fontSize: font.size.base }}>
-          Cosa controllare: incasso {tono} del {Math.abs(driftPct).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 1, maximumFractionDigits: 1 })}%
-        </strong>
-      </div>
-      <ul style={{ margin: 0, paddingLeft: 22 }}>
-        {ipotesi.map((it, i) => <li key={i} style={{ marginBottom: 3 }}>{it}</li>)}
-      </ul>
-    </div>
-  )
-}
+// 05/10/2026: qui c'era «DiagnosiDrift», un riquadro rosso con cinque ipotesi
+// per ogni differenza oltre il 15% (porzioni, omaggi, errori di scontrino).
+// Con le chiusure vere di Carlina non spiegava niente e metteva tutto sullo
+// stesso piano: l'ha sostituito il confronto giorno per giorno
+// (quadratura/ConfrontoGiorni), che dice solo quello che i dati sanno.
 
 // ── Panel Sofferenza / Zero venduto ───────────────────────────────────────
 // La riga va a capo: al telefono il nome del gusto prende la prima riga e il

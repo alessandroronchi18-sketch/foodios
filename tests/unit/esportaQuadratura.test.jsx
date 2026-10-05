@@ -120,9 +120,11 @@ describe('Il CSV', () => {
     expect(t).toMatch(/Incasso stimato dall'inventario \(€\);165,00/)
   })
 
-  it('in «Tutte le sedi» la cassa per sede non si inventa', () => {
+  // 05/10/2026: le chiusure portano la sede, la cassa per sede si legge
+  // («non separabile per sede» non era più vero). Senza chiusure: non registrata.
+  it('in «Tutte le sedi» la cassa per sede c\'è se registrata, se no non si inventa', () => {
     const t = csv({ isAllSedi: true, perSede: [{ sede: { nome: 'Carlina' }, kpi: kpiDi([]) }] })
-    expect(t).toMatch(/Carlina;5,5;0,0;165,00;non separabile per sede/)
+    expect(t).toMatch(/Carlina;5,5;0,0;165,00;non registrata/)
   })
 
   it('il PDF ha le stesse righe, e la cassa che manca la dice', () => {

@@ -15,6 +15,7 @@ import { color as T, font, radius as R, ui3 } from '../../lib/theme'
 import { euro, euroSegno, quota, variazione } from '../../lib/formatoAnalisi'
 import { NumeroPrincipale, NumeroConConfronto, FilaTessere, Riquadro, TitoloGrafico, FraseInsight } from '../../components/analisi'
 import { kg, intero } from '../produzione/numeri'
+import { nomiSenzaCassa, nomiConCassa, elencoNomi } from './copertura'
 
 // Sotto il 5% è arrotondamento delle pesate e delle porzioni; fino al 15%
 // conviene guardare; oltre il conto non torna. Le stesse soglie di prima
@@ -59,7 +60,7 @@ export function frasiSenzaCassa({ kpi, kpiPrev, vetrina }) {
   return frasi
 }
 
-export default function Risposta({ kpi, kpiPrev, euroKg, vetrina, onCassa, isMobile, isTablet }) {
+export default function Risposta({ kpi, kpiPrev, euroKg, vetrina, onCassa, isMobile, isTablet, nomeSede = () => '' }) {
   const g = giudizio(kpi.driftPct)
   const retail = kpi.retailKg ?? kpi.totVendutoKg
   const retailPrima = kpiPrev ? (kpiPrev.retailKg ?? kpiPrev.totVendutoKg) : null
@@ -79,12 +80,16 @@ export default function Risposta({ kpi, kpiPrev, euroKg, vetrina, onCassa, isMob
       : 'nessun confronto: la settimana prima non ha la cassa'
   const colonne = ui3(isMobile, isTablet, { telefono: '', tablet: 'repeat(3, minmax(0, 1fr))', computer: 'repeat(3, minmax(0, 1fr))' })
   const fra = isMobile ? 16 : 24
+  const senza = nomiSenzaCassa(kpi, nomeSede)
+  const suSedi = senza.length > 0
+    ? ` Il confronto è fatto solo su ${nomiConCassa(kpi, nomeSede)}: ${elencoNomi(senza)} ${senza.length === 1 ? 'non ha' : 'non hanno'} le chiusure registrate, quindi il suo gelato resta fuori dal conto.`
+    : ''
   const frase = kpi.driftEur == null ? null
     // Senza percentuale (l'inventario non fa aspettare niente in quei giorni)
     // il giudizio non si dà: si dicono i due numeri.
-    : `${g ? `${g[0].toUpperCase() + g.slice(1)}: ${quota(kpi.driftPct)} dell'incasso stimato.` : `${euro(kpi.cassaConfrontata)} incassati contro ${euro(kpi.attesoConfrontato || 0)} stimati: la percentuale non si calcola.`}${kpi.giorniConfrontati < kpi.giorniInventario
-      ? ` La cassa c'è per ${kpi.giorniConfrontati} ${kpi.giorniConfrontati === 1 ? 'giorno' : 'giorni'} su ${kpi.giorniInventario} con l'inventario: il confronto è fatto solo su quelli (${euro(kpi.cassaConfrontata)} incassati contro ${euro(kpi.attesoConfrontato)} stimati).`
-      : ''}`
+    : `${g ? `${g[0].toUpperCase() + g.slice(1)}: ${quota(kpi.driftPct)} dell'incasso stimato.` : `${euro(kpi.cassaConfrontata)} incassati contro ${euro(kpi.attesoConfrontato || 0)} stimati: la percentuale non si calcola.`}${kpi.giorniConfrontati < (kpi.giorniInventarioConfronto ?? kpi.giorniInventario)
+      ? ` La cassa c'è per ${kpi.giorniConfrontati} ${kpi.giorniConfrontati === 1 ? 'giorno' : 'giorni'} su ${kpi.giorniInventarioConfronto ?? kpi.giorniInventario} con l'inventario: il confronto è fatto solo su quelli (${euro(kpi.cassaConfrontata)} incassati contro ${euro(kpi.attesoConfrontato)} stimati).`
+      : ''}${suSedi}`
   // La frase grande è corta; il dettaglio («nessuna chiusura questa
   // settimana») sta nella tessera della cassa accanto.
   const motivo = !kpi.cassaRegistrata ? 'manca la cassa' : (kpi.motivoConfronto || 'manca la cassa')
@@ -119,7 +124,7 @@ export default function Risposta({ kpi, kpiPrev, euroKg, vetrina, onCassa, isMob
           variazione={vCassa} rispettoA={vCassa ? 'sulla settimana prima' : ''}
           senzaConfronto={vCassa ? '' : senzaCassa}
           contesto={kpi.cassaRegistrata
-            ? `senza IVA · incassato in ${kpi.giorniCassa} ${kpi.giorniCassa === 1 ? 'giorno' : 'giorni'}`
+            ? `senza IVA · incassato in ${kpi.giorniCassa} ${kpi.giorniCassa === 1 ? 'giorno' : 'giorni'}${senza.length > 0 ? `, solo per ${nomiConCassa(kpi, nomeSede)}` : ''}`
             : 'nessuna chiusura questa settimana'} />
       </FilaTessere>
 

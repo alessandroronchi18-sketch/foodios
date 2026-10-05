@@ -198,13 +198,17 @@ describe('La pagina senza cassa', () => {
     expect(testo()).not.toMatch(/Senza la cassa/)
   })
 
-  it('con la cassa vera e un ammanco grosso la diagnosi c\'è, ma senza furti', async () => {
+  // 05/10/2026: il riquadro rosso «Cosa controllare» con cinque ipotesi è
+  // stato sostituito dal confronto giorno per giorno (vedi
+  // quadraturaCarlinaCassaVera). Resta la regola: mai furti.
+  it('con la cassa vera e uno scarto grosso si guardano i giorni, senza furti né ipotesi', async () => {
     render(<QuadraturaInventarioView {...props({ chiusure: [
       { data: '2026-09-07', totale: 10 }, { data: '2026-09-08', totale: 10 },
     ] })} />)
     await pronta()
-    expect(testo()).toMatch(/Cosa controllare/)
+    expect(document.querySelector('[data-confronto-giorni]')).not.toBeNull()
+    expect(testo()).toMatch(/oltre il 15% senza una rimanenza a 0/)
+    expect(testo()).not.toMatch(/Cosa controllare|Omaggi e assaggi/)
     expect(testo()).not.toMatch(/furt/i)
-    expect(testo()).toMatch(/Rimanenze scritte male/)
   })
 })

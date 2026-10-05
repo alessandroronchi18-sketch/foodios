@@ -22,7 +22,7 @@ import { kg, intero, quanti } from '../produzione/numeri'
  * @param {{ ultimo: string|null, spostata: boolean }|null} [p.apertura]
  * @param {{ cassa?: Function, caselle?: Function }} [p.azioni]
  */
-export function vociCoperturaQuadratura({ giorni, kpi, euroKg, scartoRegistrato = true, apertura = null, azioni = {} }) {
+export function vociCoperturaQuadratura({ giorni, kpi, euroKg, scartoRegistrato = true, apertura = null, azioni = {}, nomeSede = () => '' }) {
   const voci = []
   if (!giorni?.n || !kpi) return voci
 
@@ -44,11 +44,22 @@ export function vociCoperturaQuadratura({ giorni, kpi, euroKg, scartoRegistrato 
       testo: 'la cassa: nessuna chiusura in questa settimana, quindi la differenza non si calcola',
       azione: azioni.cassa ? { etichetta: 'Registra la cassa', onClick: azioni.cassa } : null,
     })
-  } else if (kpi.giorniConfrontati < kpi.giorniInventario) {
+  } else if (nomiSenzaCassa(kpi, nomeSede).length > 0) {
+    // In «Tutte le sedi»: la cassa c'è solo per alcune sedi, e il confronto
+    // si fa solo su quelle.
+    const su = kpi.giorniInventarioConfronto ?? kpi.giorniInventario
     voci.push({
       id: 'cassa', stato: 'parziale', sistemabile: true,
-      breve: `cassa in ${intero(kpi.giorniConfrontati)} ${kpi.giorniConfrontati === 1 ? 'giorno' : 'giorni'} su ${intero(kpi.giorniInventario)}`,
-      testo: `cassa in ${intero(kpi.giorniConfrontati)} ${kpi.giorniConfrontati === 1 ? 'giorno' : 'giorni'} su ${intero(kpi.giorniInventario)} con l'inventario: il confronto è fatto solo su quelli`,
+      breve: `cassa solo per ${nomiConCassa(kpi, nomeSede)}`,
+      testo: `la cassa c'è solo per ${nomiConCassa(kpi, nomeSede)} (${intero(kpi.giorniConfrontati)} ${kpi.giorniConfrontati === 1 ? 'giorno' : 'giorni'} su ${intero(su)} con l'inventario): il confronto è fatto solo lì. ${elencoNomi(nomiSenzaCassa(kpi, nomeSede))} ${nomiSenzaCassa(kpi, nomeSede).length === 1 ? 'non ha' : 'non hanno'} le chiusure registrate`,
+      azione: azioni.cassa ? { etichetta: 'Registra la cassa', onClick: azioni.cassa } : null,
+    })
+  } else if (kpi.giorniConfrontati < (kpi.giorniInventarioConfronto ?? kpi.giorniInventario)) {
+    const su = kpi.giorniInventarioConfronto ?? kpi.giorniInventario
+    voci.push({
+      id: 'cassa', stato: 'parziale', sistemabile: true,
+      breve: `cassa in ${intero(kpi.giorniConfrontati)} ${kpi.giorniConfrontati === 1 ? 'giorno' : 'giorni'} su ${intero(su)}`,
+      testo: `cassa in ${intero(kpi.giorniConfrontati)} ${kpi.giorniConfrontati === 1 ? 'giorno' : 'giorni'} su ${intero(su)} con l'inventario: il confronto è fatto solo su quelli`,
       azione: azioni.cassa ? { etichetta: 'Registra la cassa', onClick: azioni.cassa } : null,
     })
   } else {
@@ -82,5 +93,11 @@ export function vociCoperturaQuadratura({ giorni, kpi, euroKg, scartoRegistrato 
   return voci
 }
 
+export const nomiSenzaCassa = (kpi, nomeSede) => (kpi?.sediSenzaCassa || []).filter(() => (kpi?.sediConCassa || []).length > 0).map(nomeSede).filter(Boolean)
+export const nomiConCassa = (kpi, nomeSede) => {
+  const n = (kpi?.sediConCassa || []).map(nomeSede).filter(Boolean)
+  return elencoNomi(n)
+}
+export const elencoNomi = (n) => (n.length <= 1 ? n.join('') : `${n.slice(0, -1).join(', ')} e ${n[n.length - 1]}`)
 const maiuscola = (t) => (t ? t[0].toUpperCase() + t.slice(1) : t)
 const piu = (iso, n) => { const t = new Date(`${iso}T12:00:00Z`); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10) }

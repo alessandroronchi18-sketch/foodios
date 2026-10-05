@@ -326,7 +326,10 @@ describe('Dalle foto coi dati veri', () => {
     expect(titoloSediSettimana(tre)).toBe('Carlina: il 45,3% del gelato uscito')
     render(<SediSettimana perSede={tre} />)
     expect(screen.getAllByRole('listitem').map(li => li.textContent)).toEqual([
-      'Carlina517,9 kg15.273 €', 'De Gasperi327,3 kg9.650 €', 'Berthollet297,0 kg8.758 €',
+      // 05/10: sotto ogni sede la riga della cassa (qui nessuna registrata).
+      'Carlina517,9 kg15.273 €cassa non registrata: il confronto non si può fare',
+      'De Gasperi327,3 kg9.650 €cassa non registrata: il confronto non si può fare',
+      'Berthollet297,0 kg8.758 €cassa non registrata: il confronto non si può fare',
     ])
     expect(testo()).toMatch(/Dettaglio per sede/)
     expect(testo()).not.toMatch(/ingrosso/)
