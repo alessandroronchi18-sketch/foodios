@@ -129,9 +129,13 @@ export default function GustiSenzaRicetta({ senzaRicetta, collegati, euroKgMedio
       )}
       {collegati.length > 0 && (
         <div style={{ marginTop: senzaRicetta.length > 0 ? 10 : 0, color: T.textMid }}>
-          Collegati: {collegati.map((r, i) => (
-            <span key={r.gusto} style={{ whiteSpace: 'nowrap' }}>
-              {i > 0 ? ', ' : ''}{r.gusto} → {r.ricetta}{' '}
+          {/* Uno per riga e che va a capo: con «nowrap» e tutti di fila, al
+              telefono la riga usciva dallo schermo (foto del 05/10/2026,
+              Menu engineering: 339 px di sforamento con i collegati di Mara). */}
+          <b>Collegati:</b>{' '}
+          {collegati.map((r) => (
+            <span key={r.gusto} data-collegato style={{ display: 'block' }}>
+              {r.gusto} → {r.ricetta}{' '}
               <button type="button" disabled={salvo != null} onClick={() => fai(r.gusto, null)}
                 aria-label={`Scollega ${r.gusto}`} style={link}>
                 {salvo === r.gusto ? 'salvo…' : 'scollega'}

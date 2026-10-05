@@ -221,3 +221,19 @@ describe('Lo Storico dice quanto vale il gusto senza ricetta e lo fa collegare',
     expect(screen.getByRole('button', { name: 'apri il Ricettario' })).toBeTruthy()
   })
 })
+
+// 05/10/2026 sera (foto del Menu engineering a 420 px): la riga «Collegati: A → B,
+// C → D, …» aveva ogni voce in «nowrap» e di fila: coi collegati veri di Mara
+// la pagina sforava di 339 px. Ora una voce per riga, che può andare a capo.
+describe('i collegati non sforano al telefono', () => {
+  it('ogni collegamento sta su una riga sua e può andare a capo', async () => {
+    const { default: G } = await import('../../src/views/produzione/GustiSenzaRicetta.jsx')
+    const collegati = [{ gusto: 'AMOUR FOU', ricetta: 'AMOUR FOU, MYSTIC, LIMONE' }, { gusto: 'MISTIC', ricetta: 'MYSTIC' }]
+    const { container } = render(<G senzaRicetta={[]} collegati={collegati} euroKgMedio={30} ricettario={{ ricette: {} }}
+      collega={async () => {}} pronto onNavigate={null} isMobile />)
+    const voci = [...container.querySelectorAll('[data-collegato]')]
+    expect(voci.length).toBe(2)
+    for (const v of voci) { expect(v.style.display).toBe('block'); expect(v.style.whiteSpace).not.toBe('nowrap') }
+    expect(container.textContent).toMatch(/AMOUR FOU → AMOUR FOU, MYSTIC, LIMONE/)
+  })
+})
