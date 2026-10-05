@@ -83,7 +83,7 @@ export default function ImportaFattureEmesse({ orgId, esistenti = [], isMobile, 
         <tbody>
           {righe.map((r, k) => (
             <tr key={k} style={{ borderTop: `1px solid ${C.border}` }}>
-              {r.map((v, i) => <td key={i} style={{ ...cella, textAlign: i === 0 ? 'left' : 'right', position: i === 0 ? 'sticky' : 'static', left: 0, background: C.bgCard, maxWidth: i === 0 ? 200 : undefined, overflow: 'hidden', textOverflow: 'ellipsis' }}>{v}</td>)}
+              {r.map((v, i) => <td key={i} style={{ ...cella, textAlign: i === 0 ? 'left' : 'right', position: i === 0 ? 'sticky' : 'static', left: 0, background: C.bgCard, ...(i === 0 ? { whiteSpace: 'normal', minWidth: 150, overflowWrap: 'anywhere' } : null) }}>{v}</td>)}
             </tr>
           ))}
         </tbody>
