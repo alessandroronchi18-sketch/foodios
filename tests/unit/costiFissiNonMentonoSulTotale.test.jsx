@@ -329,7 +329,8 @@ describe('Costi fissi · i numeri si scrivono all’italiana', () => {
     expect(conEuro.length).toBeGreaterThan(0)
     for (const t of conEuro) {
       // «1.500 €», «1.500 €/mese», «69 € al giorno», «Importo (€)»
-      expect(t).toMatch(/(\d\s€|\(€\))/)
+      // Nel kit l'unità sta in un pezzo suo, piccola accanto alla cifra («2.100» + « €»).
+      expect(t).toMatch(/(\d\s€|\(€\)|^€$)/)
     }
   })
 
@@ -485,8 +486,9 @@ describe('Costi fissi · la pagina vuota spiega a cosa serve', () => {
   it('i riquadri dicono «-» e non «0 €»: zero costi fissi non esiste', async () => {
     await monta()
     const box = screen.getByText('Costo mensile totale').parentElement
+    // Dal 05/10/2026 il vuoto non è un «-»: è l'invito a scrivere cosa (Costi fissi, totali).
     expect(box.textContent).not.toContain('0 €')
-    expect(box.textContent).toContain('-')
+    expect(box.textContent).toContain('Scrivi qui')
   })
 
   it('il riquadro spiega perché non c’è un numero', async () => {
@@ -496,9 +498,9 @@ describe('Costi fissi · la pagina vuota spiega a cosa serve', () => {
 
   it('anche il riquadro annuo spiega invece di scrivere zero', async () => {
     await monta()
-    const box = screen.getByText('Costo annuo stimato').parentElement
-    expect(box.textContent).not.toContain('0 €')
-    expect(box.textContent).toContain('Si calcola dal mensile')
+    // Con zero voci il riquadro annuo non c'è più (dal 05/10/2026): niente «0 €» da nessuna parte.
+    expect(screen.queryByText('Costo annuo stimato')).toBeNull()
+    expect(testo()).not.toMatch(/(^|[^\d.,])0 €/)
   })
 
   it('con un filtro che non trova niente il testo cambia: «in questa categoria»', async () => {
@@ -876,7 +878,7 @@ describe('Costi fissi · le voci più care, per sapere da dove tagliare', () => 
   it('le mette in ordine, dalla più cara', async () => {
     mockState.voci = VOCI_VERE
     const { container } = await monta()
-    const riquadro = screen.getByText('Voci più care del mese').parentElement.parentElement
+    const riquadro = screen.getByText('Voci più care del mese').closest('section')
     const testoRiquadro = riquadro.textContent
     expect(testoRiquadro.indexOf('Affitto laboratorio')).toBeLessThan(testoRiquadro.indexOf('Energia elettrica'))
     expect(container).toBeTruthy()
@@ -885,7 +887,7 @@ describe('Costi fissi · le voci più care, per sapere da dove tagliare', () => 
   it('una voce senza importo non entra fra le più care', async () => {
     mockState.voci = [...VOCI_VERE, { id: 'r', voce: 'Voce rotta', importo: 'abc', periodicita: 'mensile', categoria: 'altro', attivo: true }]
     await monta()
-    const riquadro = screen.getByText('Voci più care del mese').parentElement.parentElement
+    const riquadro = screen.getByText('Voci più care del mese').closest('section')
     expect(riquadro.textContent).not.toContain('Voce rotta')
   })
 
@@ -897,7 +899,7 @@ describe('Costi fissi · le voci più care, per sapere da dove tagliare', () => 
   it('ogni voce cara mostra quanto pesa in percentuale', async () => {
     mockState.voci = VOCI_VERE
     await monta()
-    const riquadro = screen.getByText('Voci più care del mese').parentElement.parentElement
+    const riquadro = screen.getByText('Voci più care del mese').closest('section')
     expect(riquadro.textContent).toMatch(/\d+%/)
   })
 })

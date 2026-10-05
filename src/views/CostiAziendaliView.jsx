@@ -6,7 +6,7 @@
 import React, { useEffect, useState, useMemo } from 'react'
 import { fmtp0 } from '../lib/formatIt'
 import { todayLocal } from '../lib/dateLocal'
-import { color as T, radius as R, shadow as S, typo, ui3, ui, font } from '../lib/theme'
+import { color as T, radius as R, shadow as S, typo, font, space } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from '../components/Icon'
 import { useConfirm } from '../components/ConfirmModal'
@@ -20,7 +20,8 @@ import { supabase } from '../lib/supabase'
 import { leggiFatturePeriodo, leggiCategorieFornitori } from '../lib/contoEconomicoArchivio'
 import { speseRicorrenti, doppioneProbabile, testoDoppione } from '../lib/speseRicorrenti'
 import GiaDalleFatture from '../components/costiFissi/GiaDalleFatture'
-import { ClassificaSpese, RigaMotivo } from '../components/analisi'
+import { ClassificaSpese, RigaMotivo, Riquadro, TitoloGrafico, testo } from '../components/analisi'
+import TotaliCostiFissi from '../components/costiFissi/TotaliCostiFissi'
 import { PulsanteTorna } from '../components/analisi/MeseAnalisi'
 
 // ── Un importo che non si sa non è zero ─────────────────────────────────────
@@ -196,11 +197,11 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
     return { label: catLabel, value: top.totaleMensile, pct }
   }, [perCategoria, totMese])
 
-  function nuovaVoce() {
+  function nuovaVoce(categoria) {
     setForm({
       organization_id: orgId,
       sede_id: null,
-      categoria: 'consumabili',
+      categoria: typeof categoria === 'string' ? categoria : 'consumabili',
       voce: '',
       importo: '',
       periodicita: 'mensile',
@@ -255,9 +256,6 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
     }
   }
 
-  // KPI grid: 1 col mobile, 2 tablet, 3 desktop (uniforme col resto dell'app).
-  const kpiCols = ui3(isMobile, isTablet, ui.grid3)
-
   if (classifica) return (
     <ClassificaSpese orgId={orgId} notify={notify} isMobile={isMobile}
       torna={<PulsanteTorna onClick={() => setClassifica(false)}>Torna ai costi fissi</PulsanteTorna>}
@@ -271,42 +269,22 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
       <GiaDalleFatture ricorrenti={ricorrenti} isMobile={isMobile} onClassifica={() => setClassifica(true)} nSedi={(sedi || []).length}
         stile={{ marginBottom: 20 }} />
 
-      {/* Toggle SCOPE futuristic-clean: visibile solo se multi-sede E c'e' una
-          sede attiva (non in modalita' "Tutte le sedi" aggregate). In _all
-          mode il toggle "Sede: -" non avrebbe senso. */}
+      {/* L'ambito: tutta l'azienda o la sola sede attiva. Visibile solo con più
+          sedi e una sede attiva (in «Tutte le sedi» non avrebbe senso).
+          Rifatto nel kit il 05/10/2026: via gradiente, striscia animata e
+          maiuscolo spaziato; i due pulsanti restano alti 44 px. */}
       {hasMultiSede && sedeId && sedeAttivaNome && (
-        <div style={{
-          marginBottom: 20, padding: '14px 16px',
-          background: `linear-gradient(180deg, ${T.white} 0%, ${T.fondoCaldo} 100%)`,
-          border: `1px solid ${C.border}`, borderRadius: 14,
-          boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 8px 24px rgba(15,23,42,0.05), inset 0 1px 0 rgba(255,255,255,0.6)',
-          position: 'relative', overflow: 'hidden',
-        }}>
-          <style>{`
-            @keyframes _fos_scope_accent {
-              0%, 100% { background-position: 0% 50%; }
-              50%      { background-position: 100% 50%; }
-            }
-            @media (prefers-reduced-motion: reduce) {
-              .fos-scope-accent { animation: none !important; }
-            }
-          `}</style>
-          <div aria-hidden="true" className="fos-scope-accent" style={{
-            position: 'absolute', top: 0, left: 0, right: 0, height: 2,
-            background: `linear-gradient(90deg, #E84B3A 0%, #FFB350 50%, ${T.brand} 100%)`,
-            backgroundSize: '200% 100%',
-            animation: '_fos_scope_accent 6s ease-in-out infinite',
-          }}/>
-          <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', justifyContent: 'space-between', gap: 12 }}>
+        <Riquadro isMobile={isMobile} stile={{ marginBottom: space[5] }}>
+          <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', justifyContent: 'space-between', gap: space[3] }}>
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: C.textSoft, marginBottom: 4 }}>Ambito visualizzazione</div>
-              <div style={{ fontSize: font.size.base, color: C.textMid, lineHeight: 1.4 }}>
+              <div style={{ ...testo(font.size.base), fontWeight: 700, color: T.text }}>Ambito visualizzazione</div>
+              <div style={{ ...testo(font.size.base), color: T.textMid }}>
                 {scope === 'all'
-                  ? <>Stai vedendo <b style={{ color: C.text }}>tutti i costi dell'azienda</b> (globali + di tutte le sedi).</>
-                  : <>Stai vedendo i costi della sede <b style={{ color: C.text }}>{sedeAttivaNome}</b> (specifici di sede + globali azienda).</>}
+                  ? <>Stai vedendo <b style={{ color: T.text }}>tutti i costi dell'azienda</b> (globali + di tutte le sedi).</>
+                  : <>Stai vedendo i costi della sede <b style={{ color: T.text }}>{sedeAttivaNome}</b> (specifici di sede + globali azienda).</>}
               </div>
             </div>
-            <div style={{ display: 'inline-flex', padding: 4, background: C.bgSubtle, borderRadius: 10, flexShrink: 0 }}>
+            <div style={{ display: 'inline-flex', padding: 4, background: T.bgSubtle, borderRadius: R.lg, flexShrink: 0 }}>
               {[
                 { id: 'all', label: 'Tutta l\'azienda' },
                 { id: 'sede', label: `Sede: ${sedeAttivaNome || '-'}` },
@@ -315,131 +293,31 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
                 return (
                   <button key={opt.id} onClick={() => setScope(opt.id)}
                     style={{
-                      padding: '8px 16px', minHeight: 44,
-                      borderRadius: 8, border: 'none', cursor: 'pointer',
+                      padding: '8px 16px', minHeight: 44, borderRadius: R.md, border: 'none', cursor: 'pointer',
                       background: active ? T.white : 'transparent',
-                      color: active ? T.brand : C.textMid,
+                      color: active ? T.brand : T.textMid,
                       fontSize: font.size.sm, fontWeight: active ? 800 : 600,
-                      letterSpacing: '0.01em',
-                      boxShadow: active ? '0 1px 3px rgba(15,23,42,0.10), 0 0 0 1px rgba(110,14,26,0.08)' : 'none',
-                      transition: 'background 140ms ease, color 140ms ease',
                       fontFamily: 'inherit', whiteSpace: 'nowrap',
                     }}>{opt.label}</button>
                 )
               })}
             </div>
           </div>
-        </div>
+        </Riquadro>
       )}
 
-      {/* KPI riepilogativi
-          ────────────────────────────────────────────────────────────────
-          Audit del 16/09/2026, agente PAGINE. Con la tabella vuota questi
-          tre riquadri dicevano «0 €», «0 €» e «-». Due su tre erano una
-          bugia: una pasticceria con zero costi fissi non esiste — affitto,
-          utenze, ammortamenti ci sono comunque, semplicemente non sono
-          ancora scritti qui. E quel «0 €» non resta in questa pagina: i
-          costi fissi entrano nel P&L mensile, quindi il conto economico
-          usciva per forza sbagliato e nessuno aveva motivo di sospettarlo.
-          Il terzo riquadro faceva già la cosa giusta («-» più una riga che
-          spiega): adesso la fanno tutti e tre.
-
-          21/09/2026: il conteggio delle voci veniva da `voci` (tutta
-          l'azienda) mentre il totale veniva dall'ambito scelto. In «Sede:
-          Carlina» si leggeva il totale della sede con accanto «5 voci
-          attive» dell'azienda intera: due numeri che non si riferivano alla
-          stessa cosa, uno sopra l'altro. */}
-      <div style={{ display: 'grid', gridTemplateColumns: kpiCols, gap: 12, marginBottom: 20 }}>
-        <KpiBox
-          label="Costo mensile totale"
-          value={vociScopeFiltrate.length > 0 ? fmt0(totMese) : '-'}
-          sub={vociScopeFiltrate.length > 0
-            ? `${nAttive} ${nAttive === 1 ? 'voce attiva' : 'voci attive'}${nNonAttive > 0 ? ` · ${nNonAttive} finit${nNonAttive === 1 ? 'a' : 'e'} o non ancora iniziat${nNonAttive === 1 ? 'a' : 'e'}` : ''}`
-            : 'Non lo sappiamo ancora: nessuna voce inserita'}
-          accent={T.brand}
-          highlight
-        />
-        <KpiBox
-          label="Costo annuo stimato"
-          value={vociScopeFiltrate.length > 0 ? fmt0(totAnno) : '-'}
-          sub={vociScopeFiltrate.length > 0
-            ? `Mensile × 12 · ${fmt0(costoGiorno)} al giorno`
-            : 'Si calcola dal mensile, appena c’è'}
-          accent={C.textMid}
-        />
-        <KpiBox
-          label="Categoria principale"
-          value={topCategoria ? fmt0(topCategoria.value) : '-'}
-          sub={topCategoria ? `${topCategoria.label} · ${fmtp0(topCategoria.pct)} del totale` : 'Aggiungi voci per vedere il dettaglio'}
-          accent={C.textMid}
-        />
-      </div>
-
-      {/* ── Il totale qui sopra è più basso del vero, e lo dice ──────────────
-          Una voce con l'importo illeggibile vale zero in tutti i conti: nel
-          totale mensile, in quello annuo e nel P&L. Senza questa riga il
-          numero grande sembra completo, ed è l'errore che costa di più
-          perché non si vede. */}
-      {vociSenzaImporto > 0 && (
-        <div role="status" style={{
-          marginBottom: 20, padding: '12px 14px',
-          background: T.amberLight, border: `1px solid ${T.amber}`,
-          borderRadius: 12, color: T.amberDark,
-          fontSize: font.size.base, lineHeight: 1.5,
-          display: 'flex', gap: 10, alignItems: 'flex-start',
-        }}>
-          <span style={{ flexShrink: 0, lineHeight: 1 }} aria-hidden="true">
-            <Icon name="alert" size={16} color={T.amberDark} />
-          </span>
-          <span>
-            {vociSenzaImporto === 1
-              ? 'Una voce non ha un importo leggibile'
-              : `${vociSenzaImporto} voci non hanno un importo leggibile`}
-            : il totale qui sopra è più basso del vero, e lo stesso vale nel P&L.
-            Aprile e scrivi l’importo per rimetterle nel conto.
-          </span>
-        </div>
-      )}
-
-      {/* Top 3 voci più care del mese - utile per il proprietario per capire
-          immediatamente da dove iniziare a tagliare. */}
-      {topVoci.length > 0 && (
-        <div style={{
-          marginBottom: 20, padding: '14px 18px',
-          background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 14,
-          boxShadow: '0 1px 2px rgba(15,23,42,0.04)',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
-            <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, color: T.brand, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Voci più care del mese</div>
-            <div style={{ fontSize: typo.small.fontSize, color: C.textSoft }}>top 3</div>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 10 }}>
-            {topVoci.map((v, i) => {
-              const pct = totMese > 0 ? (v.mensile / totMese) * 100 : 0
-              const catLbl = CATEGORIE_DEFAULT.find(c => c.id === v.categoria)?.label || v.categoria || 'altro'
-              return (
-                <div key={v.id} style={{
-                  padding: '11px 13px', background: T.fondoCaldo,
-                  border: `1px solid ${C.border}`, borderRadius: 10,
-                  display: 'flex', flexDirection: 'column', gap: 5, minHeight: 78,
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
-                    <span style={{ width: 22, height: 22, borderRadius: '50%', background: T.brand, color: T.white, fontSize: typo.small.fontSize, fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{i + 1}</span>
-                    <div style={{ minWidth: 0, flex: 1 }}>
-                      <div style={{ fontSize: font.size.base, fontWeight: 700, color: C.text, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={v.voce}>{v.voce}</div>
-                      <div style={{ fontSize: typo.small.fontSize, color: C.textSoft, marginTop: 2 }}>{catLbl}</div>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 'auto' }}>
-                    <span style={{ fontSize: typo.h3.fontSize, fontWeight: 800, color: T.brand, ...TNUM, letterSpacing: '-0.015em' }}>{fmt0(v.mensile)}/mese</span>
-                    {pct > 0 && <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, ...TNUM, fontWeight: 600 }}>{fmtp0(pct)}</span>}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
+      {/* I totali. Storia dei difetti (16/09 e 21/09/2026: «0 €» a tabella
+          vuota, conteggio voci di un ambito diverso dal totale, importo
+          illeggibile che spariva dal totale) nel commento di
+          `components/costiFissi/TotaliCostiFissi.jsx` e nei test
+          `costiAziendaliView-edge`, `costiFissiNonMentonoSulTotale`. */}
+      <TotaliCostiFissi
+        isMobile={isMobile}
+        nVoci={vociScopeFiltrate.length} nAttive={nAttive} nNonAttive={nNonAttive}
+        totMese={totMese} totAnno={totAnno} costoGiorno={costoGiorno}
+        topCategoria={topCategoria} topVoci={topVoci}
+        totFatture={scope === 'all' && ricorrenti ? ricorrenti.totaleMese : null}
+        vociSenzaImporto={vociSenzaImporto} />
 
       {/* Filtri + bottone aggiungi.
           Audit 2026-06-24: su mobile il filtro va in colonna sopra il bottone
@@ -525,7 +403,7 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
           fontSize: font.size.base,
         }}>Caricamento…</div>
       ) : vociFiltrate.length === 0 ? (
-        <EmptyState filterCategoria={filterCategoria} onAdd={nuovaVoce} />
+        <EmptyState filterCategoria={filterCategoria} onAdd={nuovaVoce} isMobile={isMobile} />
       ) : (
         <div style={{
           background: C.bgCard, border: `1px solid ${C.border}`,
@@ -543,7 +421,7 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
                       per distinguerlo dalle voci sotto. Sfondo cream warm. */}
                   <div style={{
                     padding: isMobile ? '12px 14px' : '12px 18px',
-                    background: `linear-gradient(180deg, ${T.fondoCaldo} 0%, #F4ECE7 100%)`,
+                    background: T.fondoCaldo,
                     borderTop: gi === 0 ? 'none' : `1px solid ${C.border}`,
                     borderBottom: `1px solid ${C.border}`,
                     boxShadow: `inset 3px 0 0 ${T.brand}`,
@@ -795,109 +673,43 @@ function VoceRow({ v, sedi, isMobile, iconBtnSize = 40, onEdit, onDelete }) {
 }
 
 // Empty state ridisegnato: più aria, gerarchia chiara, CTA primaria.
-function EmptyState({ filterCategoria, onAdd }) {
+// Nessuna voce: dice cosa scrivere, con esempi veri, e ogni esempio apre il
+// modulo già sulla categoria giusta (05/10/2026: prima era «Nessuna voce»
+// con un'icona e una frase generica).
+const DA_SCRIVERE = [
+  { categoria: 'affitti', titolo: 'L\'affitto di ogni negozio', esempio: 'pagato a un privato o all\'agenzia, uno per sede' },
+  { categoria: 'ammortamenti', titolo: 'Le rate', esempio: 'finanziamenti e leasing di macchine e arredi' },
+  { categoria: 'assicurazioni', titolo: 'Le assicurazioni', esempio: 'responsabilità civile, furto, infortuni' },
+  { categoria: 'utenze', titolo: 'La TARI', esempio: 'rifiuti e tasse pagate con l\'F24, senza fattura' },
+]
+function EmptyState({ filterCategoria, onAdd, isMobile = false }) {
   return (
-    <div style={{
-      padding: '56px 24px', textAlign: 'center',
-      background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 14,
-      boxShadow: S.sm,
-    }}>
-      <div style={{
-        width: 64, height: 64, borderRadius: '50%',
-        background: T.bg, border: `1px solid ${C.borderSoft}`,
-        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-        marginBottom: 16,
-      }}>
-        <Icon name="package" size={28} color={C.textSoft} />
-      </div>
-      <div style={{
-        fontSize: typo.h3.fontSize, fontWeight: 700, color: C.text, marginBottom: 6,
-        letterSpacing: '-0.01em',
-      }}>
-        Nessuna voce di costo {filterCategoria ? 'in questa categoria' : 'configurata'}
-      </div>
-      <div style={{
-        fontSize: font.size.base, color: C.textSoft, lineHeight: 1.55,
-        maxWidth: 420, margin: '0 auto 18px',
-      }}>
-        Aggiungi le spese che non arrivano in fattura (l'affitto pagato a un privato, le rate, le assicurazioni) per vederle nel P&L mensile.
-      </div>
+    <Riquadro isMobile={isMobile}>
+      <TitoloGrafico
+        titolo={`Nessuna voce di costo ${filterCategoria ? 'in questa categoria' : 'configurata'}`}
+        sottotitolo={filterCategoria ? '' : 'Aggiungi le spese che non arrivano in fattura per vederle nel P&L mensile. Cominciamo da queste:'} />
       {!filterCategoria && (
-        <button
-          onClick={onAdd}
-          style={{
-            padding: '10px 20px', minHeight: 44,
-            background: T.brand, color: T.white,
-            border: 'none', borderRadius: 10,
-            fontSize: font.size.md, fontWeight: 700, cursor: 'pointer',
-            display: 'inline-flex', alignItems: 'center', gap: 8,
-            boxShadow: '0 1px 2px rgba(110,14,26,0.18), 0 4px 10px rgba(110,14,26,0.12)',
-          }}>
-          <Icon name="plus" size={15} color={T.white} />
-          Aggiungi la prima voce
-        </button>
+        <>
+          <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+            {DA_SCRIVERE.map(r => (
+              <li key={r.categoria} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: space[3], padding: `${space[2]}px 0`, borderTop: `1px solid ${T.borderSoft}` }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ ...testo(font.size.md), fontWeight: 600, color: T.text }}>{r.titolo}</div>
+                  <div style={{ ...testo(font.size.sm), color: T.textSoft }}>{r.esempio}</div>
+                </div>
+                <button type="button" onClick={() => onAdd(r.categoria)} aria-label={`Scrivi: ${r.titolo}`}
+                  style={{ flexShrink: 0, minHeight: 44, minWidth: 44, padding: '0 14px', border: `1px solid ${T.border}`, borderRadius: R.lg, background: T.white, color: T.brand, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', fontSize: font.size.sm }}>Scrivi</button>
+              </li>
+            ))}
+          </ul>
+          <button type="button" onClick={() => onAdd()}
+            style={{ marginTop: space[4], minHeight: 44, padding: '10px 20px', background: T.brand, color: T.white, border: 'none', borderRadius: R.lg, fontSize: font.size.md, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, fontFamily: 'inherit' }}>
+            <Icon name="plus" size={15} color={T.white} />
+            Aggiungi la prima voce
+          </button>
+        </>
       )}
-    </div>
-  )
-}
-
-// KPI box riprogettato con minHeight uniformi (label/value/sub) per allineamento
-// verticale perfetto tra card adiacenti. Stile coerente con KPI globale ma più
-// compatto (qui non serve l'icon-chip premium).
-function KpiBox({ label, value, sub, accent, highlight }) {
-  const isHighlight = !!highlight
-  const accentCol = accent || T.brand
-  return (
-    <div style={{
-      position: 'relative', overflow: 'hidden',
-      padding: '16px 18px',
-      background: isHighlight
-        ? T.brandGradient
-        : C.bgCard,
-      border: `1px solid ${isHighlight ? T.brandDarker : C.border}`,
-      borderRadius: 14,
-      boxShadow: isHighlight
-        ? '0 8px 24px rgba(110,14,26,0.25), inset 0 1px 0 rgba(255,255,255,0.15)'
-        : '0 1px 2px rgba(15,23,42,0.04), 0 4px 12px rgba(15,23,42,0.04)',
-      display: 'flex', flexDirection: 'column',
-      boxSizing: 'border-box', width: '100%',
-    }}>
-      {/* Decoro radiale d'angolo */}
-      <div style={{
-        position: 'absolute', top: -24, right: -24, width: 80, height: 80,
-        borderRadius: '50%',
-        background: isHighlight ? 'rgba(255,255,255,0.08)' : `${accentCol}12`,
-        pointerEvents: 'none',
-      }} />
-      <div style={{
-        position: 'relative',
-        fontSize: typo.small.fontSize, fontWeight: 700,
-        textTransform: 'uppercase', letterSpacing: '0.05em',
-        color: isHighlight ? 'rgba(255,255,255,0.78)' : C.textSoft,
-        marginBottom: 8,
-        minHeight: 26, lineHeight: 1.25,
-        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-      }}>{label}</div>
-      <div style={{
-        position: 'relative',
-        fontSize: font.size['2xl'], fontWeight: 800,
-        color: isHighlight ? T.white : accentCol,
-        ...TNUM,
-        letterSpacing: '-0.03em', lineHeight: 1.1,
-        minHeight: 34,
-        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-      }}>{value}</div>
-      <div style={{
-        position: 'relative',
-        fontSize: typo.small.fontSize,
-        color: isHighlight ? 'rgba(255,255,255,0.72)' : C.textSoft,
-        marginTop: 6,
-        fontWeight: 500, lineHeight: 1.35,
-        minHeight: 32,
-        overflow: 'hidden', textOverflow: 'ellipsis',
-        display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
-      }}>{sub || ' '}</div>
-    </div>
+    </Riquadro>
   )
 }
 
@@ -933,9 +745,8 @@ function DialogFormCosto({ form, setForm, sedi, isMobile, dito = isMobile, onClo
   }
   const selectStyle = { ...inpStyle, appearance: 'none', WebkitAppearance: 'none', cursor: 'pointer', paddingRight: 36 }
   const lblStyle = {
-    display: 'block', fontSize: typo.small.fontSize, fontWeight: 700,
-    textTransform: 'uppercase', letterSpacing: '0.05em',
-    color: T.textSoft, marginBottom: 7,
+    display: 'block', fontSize: font.size.sm, fontWeight: 700,
+    color: T.textMid, marginBottom: 6,
   }
   const btnPrimaryStyle = {
     padding: '11px 22px', minHeight: 46,
@@ -977,7 +788,7 @@ function DialogFormCosto({ form, setForm, sedi, isMobile, dito = isMobile, onClo
           gap: 12, marginBottom: 20,
         }}>
           <h2 id="costo-dialog-title" style={{
-            margin: 0, fontSize: isMobile ? 18 : 16, fontWeight: 800,
+            margin: 0, fontSize: font.size.lg, fontWeight: 800,
             color: C.text, letterSpacing: '-0.015em', lineHeight: 1.2,
           }}>
             {isEdit ? 'Modifica voce di costo' : 'Nuova voce di costo'}

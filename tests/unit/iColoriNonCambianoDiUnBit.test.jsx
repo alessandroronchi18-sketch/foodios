@@ -232,10 +232,13 @@ describe('i colori scritti a mano sono spariti dalle due pagine', () => {
     // che passa non li aggiunga «per simmetria» — e perché se un giorno si
     // moltiplicano, il conteggio vada rifatto invece che indovinato.
     const src = SORGENTI['src/views/CostiAziendaliView.jsx']
-    for (const hex of ['#F4ECE7', '#FEF7F4', '#F4D5C4']) {
+    // 05/10/2026: #F4ECE7 stava nel gradiente dell'intestazione di categoria,
+    // tolto con la rifatta nel kit dell'Analisi: ora non c'è più.
+    for (const hex of ['#FEF7F4', '#F4D5C4']) {
       const quante = (src.match(new RegExp(hex, 'gi')) || []).length
       expect(quante, `${hex} in CostiAziendaliView`).toBe(1)
     }
+    expect((src.match(/#F4ECE7/gi) || []).length).toBe(0)
   })
 })
 
