@@ -157,9 +157,11 @@ describe('La pagina senza vendite', () => {
   it('non dice «tutto incassato» in verde: dice che non ci sono vendite', async () => {
     VENDITE = []; CLIENTI = []
     apri()
-    await waitFor(() => expect(testo()).toMatch(/Da incassare/))
+    // 06/10/2026: senza vendite non ci sono più i quattro box col trattino
+    // (nessuna vendita registrata): la pagina spiega a cosa serve.
+    await waitFor(() => expect(testo()).toMatch(/Qui registri quello che vendi a bar e ristoranti/))
     expect(testo()).not.toMatch(/tutto incassato/)
-    expect(testo()).toMatch(/nessuna vendita registrata/)
+    expect(testo()).not.toMatch(/Da incassare/)
   })
 })
 

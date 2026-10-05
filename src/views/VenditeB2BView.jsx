@@ -14,6 +14,7 @@ import {
   riepilogoMeseB2B, unitaRiga,
 } from '../lib/venditeB2B'
 import Icon from '../components/Icon'
+import ImportaFattureEmesse from './ImportaFattureEmesse'
 import { useConfirm } from '../components/ConfirmModal'
 import { C, PageHeader, KPI, fmt, fmt0, fmtp, TNUM, TabellaOSchede } from './_shared'
 import { fmtp0 } from '../lib/formatIt'
@@ -53,6 +54,7 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
 
   // form nuova vendita / cliente
   const [vForm, setVForm] = useState(null)
+  const [importa, setImporta] = useState(false)
   const [cForm, setCForm] = useState(null)
   // avvisi scorte insufficienti (banner persistente, non toast)
   const [stockWarn, setStockWarn] = useState([])
@@ -358,8 +360,10 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
     <div style={{ maxWidth: 1180, width: '100%', boxSizing: 'border-box' }}>
       <PageHeader subtitle="Vendite all'ingrosso a clienti business (bar, ristoranti) - canale separato dal banco" />
 
-      {/* ── KPI: griglia uniforme (2 col mobile/tablet, 4 col desktop) ── */}
-      <div style={{
+      {/* ── KPI: griglia uniforme (2 col mobile/tablet, 4 col desktop) ──
+          Senza nessuna vendita non si mostrano: quattro box con un trattino
+          non dicevano niente (06/10/2026), la pagina vuota spiega da sé. */}
+      {!nessunaVendita && <div style={{
         display: 'grid',
         gridTemplateColumns: ui3(isMobile, isTablet, ui.grid4),
         gap: isMobile ? 10 : 16, marginBottom: 18,
@@ -401,7 +405,7 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
             : nInsoluti > 0 ? plural(nInsoluti, 'vendita scoperta', 'vendite scoperte') : 'tutto incassato'}
           color={nessunaVendita ? C.textSoft : totInsoluto > 0 ? C.alert : C.green}
         />
-      </div>
+      </div>}
 
       {/* ── Banner scorte insufficienti ── */}
       {stockWarn.length > 0 && (
@@ -598,8 +602,12 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
         <div style={{ color: C.textSoft, fontSize: font.size.base }}>Caricamento…</div>
       ) : tab === 'vendite' ? (
         <>
-          {/* Toolbar: nuova vendita + filtri pill */}
-          {!vForm && (
+          {importa && (
+            <ImportaFattureEmesse orgId={orgId} esistenti={vendite} isMobile={isMobile} notify={notify}
+              onChiudi={() => setImporta(false)} onFatto={() => { setImporta(false); ricarica() }} />
+          )}
+          {/* Toolbar: nuova vendita + filtri pill (a pagina vuota ci sono i pulsanti grandi) */}
+          {!vForm && vendite.length > 0 && (
             <div style={{
               display: 'flex', flexDirection: isMobile ? 'column' : 'row',
               gap: 12, marginBottom: 16, alignItems: isMobile ? 'stretch' : 'center', flexWrap: 'wrap',
@@ -614,6 +622,16 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
               }}>
                 <Icon name="plus" size={16} /> Nuova vendita B2B
               </button>
+              {!importa && (
+                <button onClick={() => setImporta(true)} style={{
+                  padding: '12px 20px', minHeight: 44, background: C.white, color: C.text,
+                  border: `1px solid ${C.border}`, borderRadius: 10, fontWeight: 700, fontSize: font.size.md, cursor: 'pointer',
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  width: isMobile ? '100%' : 'auto',
+                }}>
+                  <Icon name="upload" size={16} /> Importa fatture emesse
+                </button>
+              )}
 
               {/* Filtri pill: periodo / cliente (select) / pagamento */}
               <div style={{
@@ -857,10 +875,34 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
 
           {/* Lista vendite */}
           {vendite.length === 0 ? (
-            <div style={{ ...surface, padding: '48px 24px', textAlign: 'center', color: C.textSoft, fontSize: font.size.base }}>
-              <div style={{ marginBottom: 10, display: 'flex', justifyContent: 'center' }}><Icon name="briefcase" size={32} color={C.textSoft} /></div>
-              Nessuna vendita B2B registrata.
+            // La pagina vuota dice a cosa serve e come cominciare (06/10/2026).
+            // Prima: un'icona e «Nessuna vendita B2B registrata», con il
+            // pulsante in alto e nessuna parola su cosa fosse l'ingrosso.
+            !importa && (
+            <div style={{ ...surface, padding: isMobile ? '28px 16px' : '40px 32px', color: C.text, fontSize: font.size.base }}>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}><Icon name="briefcase" size={32} color={C.textSoft} /></div>
+              <div style={{ textAlign: 'center', fontSize: isMobile ? font.size.xl : font.size['2xl'], fontWeight: 800, lineHeight: 1.3 }}>
+                Qui registri quello che vendi a bar e ristoranti
+              </div>
+              <div style={{ textAlign: 'center', color: C.textSoft, lineHeight: 1.6, maxWidth: 560, margin: '10px auto 22px' }}>
+                Le vaschette e i dolci che consegni a un cliente business non passano dalla cassa del negozio.
+                Qui li scrivi, vedi quanto vale ogni cliente e chi deve ancora pagarti.
+              </div>
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexDirection: isMobile ? 'column' : 'row' }}>
+                <button onClick={apriVendita} style={{
+                  padding: '12px 20px', minHeight: 44, background: C.red, color: C.white, border: 'none', borderRadius: 10,
+                  fontWeight: 800, fontSize: font.size.md, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                }}><Icon name="plus" size={16} /> Registra la prima vendita</button>
+                <button onClick={() => setImporta(true)} style={{
+                  padding: '12px 20px', minHeight: 44, background: C.white, color: C.text, border: `1px solid ${C.border}`, borderRadius: 10,
+                  fontWeight: 700, fontSize: font.size.md, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                }}><Icon name="upload" size={16} /> Importa le fatture già emesse</button>
+              </div>
+              <div style={{ textAlign: 'center', color: C.textSoft, marginTop: 16, fontSize: font.size.sm }}>
+                Le fatture si prendono dall'Excel «Elenco documenti» di Fattura SMART.
+              </div>
             </div>
+            )
           ) : venditeFiltered.length === 0 ? (
             <div style={{ ...surface, padding: '40px 24px', textAlign: 'center', color: C.textSoft, fontSize: font.size.base }}>
               Nessuna vendita corrisponde ai filtri selezionati.
