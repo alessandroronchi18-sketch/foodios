@@ -69,9 +69,12 @@ export default function GustiSenzaRicetta({ senzaRicetta, collegati, euroKgMedio
           <b>
             {senzaRicetta.length === 1 ? 'Un gusto non trova la ricetta' : `${intero(senzaRicetta.length)} gusti non trovano la ricetta`}
           </b>: {kg(kgVenduti)} kg venduti ({kg(kgProdotti)} kg prodotti) che sono nel ricavo ma non nel margine: senza ricetta non se ne sa il costo.
-          {euroKgMedio != null && (
-            <> Al prezzo medio dei formati ({euro(euroKgMedio, { decimali: 2 }).replace(' €', '')} €/kg)
-              sono circa <b>{euro(kgVenduti * netto)}</b> di ricavo senza IVA fuori dal margine.</>
+          {/* Il prezzo detto è quello senza IVA, lo stesso con cui si fa il
+              conto: prima diceva 29,49 €/kg (con l'IVA) accanto a un ricavo
+              calcolato su 26,81 (05/10/2026). */}
+          {euroKgMedio != null && netto != null && (
+            <> Al prezzo medio dei formati senza IVA ({euro(netto, { decimali: 2 }).replace(' €', '')} €/kg)
+              sono circa <b>{euro(kgVenduti * netto)}</b> di ricavo fuori dal margine.</>
           )}
           {' '}Di solito è il nome scritto in un altro modo: collegalo alla sua ricetta, una volta, e vale per tutti i periodi.
         </div>

@@ -163,7 +163,10 @@ describe('Lo Storico dice quanto vale il gusto senza ricetta e lo fa collegare',
     apri()
     await waitFor(() => expect(testo()).toMatch(/Un gusto non trova la ricetta/), { timeout: 5000 })
     expect(testo()).toMatch(/7 kg venduti \(6 kg prodotti\) che sono nel ricavo ma non nel margine/)
-    expect(testo()).toMatch(/circa 210\s?€ di ricavo senza IVA fuori dal margine/)
+    // 05/10/2026: il prezzo detto è quello senza IVA, lo stesso del conto
+    // (prima diceva quello col banco accanto a un ricavo senza IVA).
+    expect(testo()).toMatch(/prezzo medio dei formati senza IVA \(30,00 €\/kg\) sono circa 210\s?€ di ricavo fuori dal margine/)
+    expect(testo()).not.toMatch(/formati \(33,00 €\/kg\)/)
     // l'avviso falso di prima
     expect(testo()).not.toMatch(/gusti su \d+ non hanno ricetta/)
   })
