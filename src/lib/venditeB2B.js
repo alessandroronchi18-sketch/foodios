@@ -3,6 +3,7 @@
 // non tocca le chiusure cassa, quindi non entra nel sell-through B2C.
 import { supabase } from './supabase'
 import { todayLocal } from './dateLocal'
+import { chiaveCliente } from './fattureEmesse'
 
 // ── Helper puri (testabili) ──────────────────────────────────────────────────
 // Normalizza le righe: prodotto UPPERCASE (per combaciare con stock_prodotti_finiti),
@@ -294,4 +295,46 @@ export function riepilogoMeseB2B(vendite, mese) {
     senzaCosto: delMese.length - conMargine.length,
     nTotali: vive.length,
   }
+}
+
+// ── Fatture emesse importate (06/10/2026) ───────────────────────────────────
+// Scrive le vendite già preparate da `venditeDaEmesse` (fattureEmesse.js).
+// Chiamata SOLO dopo la conferma esplicita di chi usa la pagina. Crea i
+// clienti che mancano (stessa P.IVA o stesso nome senza forma societaria) e
+// inserisce a blocchi di 100. Ritorna quante vendite e quanti clienti ha scritto.
+export async function caricaFattureEmesse(orgId, vendite) {
+  if (!orgId) throw new Error('orgId mancante')
+  if (!Array.isArray(vendite) || !vendite.length) return { vendite: 0, clientiCreati: 0 }
+  const esistenti = await loadClientiB2B(orgId)
+  const pulisciPiva = (p) => (p ? String(p).replace(/\s/g, '') : null)
+  const perPiva = new Map(), perNome = new Map()
+  for (const c of esistenti) {
+    if (c.partita_iva) perPiva.set(pulisciPiva(c.partita_iva), c.id)
+    perNome.set(chiaveCliente(c.nome), c.id)
+  }
+  const nuovi = new Map()
+  for (const v of vendite) {
+    const k = chiaveCliente(v.cliente_nome)
+    const piva = pulisciPiva(v.partita_iva)
+    if ((piva && perPiva.has(piva)) || perNome.has(k) || nuovi.has(k)) continue
+    nuovi.set(k, { organization_id: orgId, nome: v.cliente_nome, partita_iva: piva, attivo: true })
+  }
+  if (nuovi.size) {
+    const { data, error } = await supabase.from('clienti_b2b').insert([...nuovi.values()]).select('id, nome, partita_iva')
+    if (error) throw error
+    for (const c of data || []) {
+      if (c.partita_iva) perPiva.set(pulisciPiva(c.partita_iva), c.id)
+      perNome.set(chiaveCliente(c.nome), c.id)
+    }
+  }
+  const righe = vendite.map(({ cliente_nome, partita_iva, ...v }) => ({
+    ...v,
+    organization_id: orgId,
+    cliente_id: (pulisciPiva(partita_iva) && perPiva.get(pulisciPiva(partita_iva))) || perNome.get(chiaveCliente(cliente_nome)) || null,
+  }))
+  for (let i = 0; i < righe.length; i += 100) {
+    const { error } = await supabase.from('vendite_b2b').insert(righe.slice(i, i + 100))
+    if (error) throw error
+  }
+  return { vendite: righe.length, clientiCreati: nuovi.size }
 }

@@ -16,6 +16,7 @@ import { normGusto } from './normGusto'
 import { prezzoMedioAlKg } from './prezzoMedioAlKg'
 import { conGiorno } from './produzioneAnalisi'
 import { ricettaCollegata } from './nomiGusti'
+import { eSoloRegistro } from './fattureEmesse'
 
 // Normalizzazione del nome gusto: UPPER+trim come in stock_prodotti_finiti,
 // cosi e' indipendente da come l'utente l'ha digitato in ricettario.
@@ -1125,6 +1126,10 @@ export function scorporaB2B({ kg, euroKg, ricavi, venditeB2B } = {}) {
   // (trovato il 04/10/2026, tests/unit/ingrossoAnnullato).
   const ricaviB2b = (b2bConsiderato ? venditeB2B : [])
     .filter(v => v?.stato !== 'annullata')
+    // 06/10/2026: le vendite nate da una fattura importata (Fattura SMART) non
+    // hanno chili: i chili restavano al prezzo del banco e l'importo si
+    // sommava sopra, lo stesso gelato due volte (test fattureEmesseImport).
+    .filter(v => !eSoloRegistro(v))
     .reduce((s, v) => s + (Number(v?.totale) || 0), 0)
   // I chili al banco non possono essere meno di zero: se le righe B2B
   // superano i chili usciti dall'inventario c'è un dato sbagliato da qualche

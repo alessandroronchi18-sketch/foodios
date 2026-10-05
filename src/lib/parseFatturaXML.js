@@ -5,7 +5,7 @@ import { normPiva } from './societaSedi'
 
 // Parse a cell into ISO date string (YYYY-MM-DD). Uses LOCAL date components
 // so a date authored in Italy doesn't shift backwards via UTC conversion.
-function parseExcelDate(val, XLSX) {
+export function parseExcelDate(val, XLSX) {
   if (val === null || val === undefined || val === '') return null
   if (val instanceof Date) {
     if (isNaN(val.getTime())) return null
@@ -31,7 +31,7 @@ function parseExcelDate(val, XLSX) {
 
 // Italian number parser: handles "1.234,56" → 1234.56, "1234.56" → 1234.56,
 // numbers, empties, and bad input. Always returns a finite number (0 if invalid).
-function parseItalianNumber(val) {
+export function parseItalianNumber(val) {
   if (val === null || val === undefined || val === '') return 0
   if (typeof val === 'number') return Number.isFinite(val) ? Math.round(val * 100) / 100 : 0
   const s = String(val).trim()
