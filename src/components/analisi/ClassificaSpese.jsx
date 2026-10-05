@@ -284,6 +284,17 @@ function RigaFornitore({ g, scelta, spuntato, onScelta, onSpunta, isMobile, fuor
   const nota2 = indizio && (
     <div style={{ fontSize: FS.sm, color: T.textSoft, lineHeight: 1.4, marginTop: 2 }}>{indizio}</div>
   )
+  // Senza proposta, le tre voci che di solito sono giuste: un tocco, non due.
+  const rapide = !g.voce && !p && !voceScelta && (
+    <div role="group" aria-label={`Voci rapide per ${g.nome}`} style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+      {VOCI_RAPIDE.map(id => (
+        <button key={id} type="button" onClick={() => onScelta(id)} aria-label={`Metti ${g.nome} in ${categoriaPerId(id).nome}`}
+          style={{ minHeight: altezzaControllo(isMobile), padding: '4px 12px', borderRadius: R.md, border: `1px solid ${T.borderStr}`, background: T.bgCard, color: T.brand, fontFamily: 'inherit', fontSize: FS.sm, fontWeight: 600, cursor: 'pointer' }}>
+          {categoriaPerId(id).nome}
+        </button>
+      ))}
+    </div>
+  )
   const casella = (
     <label style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: altezzaControllo(isMobile), minHeight: altezzaControllo(isMobile), cursor: voceScelta ? 'pointer' : 'default', flexShrink: 0 }}>
       <input type="checkbox" checked={spuntato} disabled={!voceScelta} onChange={e => onSpunta(e.target.checked)}
@@ -299,6 +310,7 @@ function RigaFornitore({ g, scelta, spuntato, onScelta, onSpunta, isMobile, fuor
         {nota}
       </div>
       {nota2}
+      {!isMobile && rapide}
       {/* La fattura fuori scala si dice qui, accanto al numero che tocca
           (ANALISI_DESIGN §6): prima stava in una riga a sé sopra l'elenco. */}
       {fuoriScala.map(f => (
@@ -314,17 +326,6 @@ function RigaFornitore({ g, scelta, spuntato, onScelta, onSpunta, isMobile, fuor
       <div style={{ fontSize: FS.sm, color: T.textSoft, whiteSpace: 'nowrap' }}>{sottoSpesa}</div>
     </div>
   )
-  // Senza proposta, le tre voci che di solito sono giuste: un tocco, non due.
-  const rapide = !g.voce && !p && !voceScelta && (
-    <div role="group" aria-label={`Voci rapide per ${g.nome}`} style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
-      {VOCI_RAPIDE.map(id => (
-        <button key={id} type="button" onClick={() => onScelta(id)} aria-label={`Metti ${g.nome} in ${categoriaPerId(id).nome}`}
-          style={{ minHeight: altezzaControllo(isMobile), padding: '4px 12px', borderRadius: R.md, border: `1px solid ${T.borderStr}`, background: T.bgCard, color: T.brand, fontFamily: 'inherit', fontSize: FS.sm, fontWeight: 600, cursor: 'pointer' }}>
-          {categoriaPerId(id).nome}
-        </button>
-      ))}
-    </div>
-  )
   const select = <SceltaVoce valore={voceScelta} etichetta={`Voce di spesa di ${g.nome}`} onCambia={onScelta} />
 
   if (isMobile) {
@@ -337,7 +338,7 @@ function RigaFornitore({ g, scelta, spuntato, onScelta, onSpunta, isMobile, fuor
   }
   return (
     <li style={{ display: 'grid', gridTemplateColumns: COLONNE_ELENCO, gap: SPAZIO_ELENCO, alignItems: 'center', padding: '8px 0', borderTop: `1px solid ${T.borderSoft}` }}>
-      {casella}{nome}{importo}<div>{select}{rapide}</div>
+      {casella}{nome}{importo}{select}
     </li>
   )
 }
