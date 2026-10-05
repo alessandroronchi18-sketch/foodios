@@ -17,7 +17,9 @@ import { sload } from '../lib/storage'
 import { todayLocal, giorniFaLocal, soloData } from '../lib/dateLocal'
 import { color as T } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
-import { buildIngCosti, calcolaFC, getR, resaGrammi } from '../lib/foodcost'
+import { buildIngCosti, calcolaFC, getR, resaGrammi, isRicettaValida } from '../lib/foodcost'
+import { isGustoTipo } from '../lib/tipoRicetta'
+import MenuEngineeringGusti from './menuEngineering/MenuEngineeringGusti'
 import { useRicavoFlat } from '../lib/useRicavoFlat'
 import { useListinoSede, getRegSede } from '../lib/listinoSede'
 import Icon from '../components/Icon'
@@ -57,7 +59,17 @@ function classifica(popolarita, margine, mediaPop, mediaMarg) {
   return 'DOG'
 }
 
-export default function MenuEngineeringView({ orgId, sedeId, ricettario, sedeAttiva }) {
+// Chi ha i gusti (la gelateria) vede il menu engineering dei gusti, fatto
+// sull'inventario (05/10/2026, MenuEngineeringGusti). Questa pagina legge le
+// vendite per prodotto dal vecchio archivio delle chiusure: a Mara, che ha
+// solo gusti, non mostrava niente. Resta per la pasticceria.
+export default function MenuEngineeringView(props) {
+  const haGusti = useMemo(() => Object.values(props.ricettario?.ricette || {})
+    .some(r => r && isRicettaValida(r.nome) && isGustoTipo(getR(r.nome, r).tipo)), [props.ricettario])
+  return haGusti ? <MenuEngineeringGusti {...props} /> : <MenuEngineeringProdotti {...props} />
+}
+
+function MenuEngineeringProdotti({ orgId, sedeId, ricettario, sedeAttiva }) {
   // Ricavo effettivo per gusti (gelateria): riceve prezzo/kg dai Formati vendita.
   // Vedi useRicavoFlat: se il gusto ha ricavoFlat stimabile viene incluso
   // nel menu engineering; altrimenti resta escluso (senza formati non ha senso

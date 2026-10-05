@@ -3805,7 +3805,7 @@ export default function Dashboard({
         {vista==="fornitori-senza-iban"&&<Scadenzario orgId={orgId} sedeId={sedeId} sedi={sedi} pagina="fornitori-senza-iban" onNavigate={setView}/>}
         {vista==="changelog"&&<ChangelogView/>}
         {vista==="recensioni"&&<RecensioniView nomeAttivita={nomeAttivita}/>}
-        {vista==="menu-engineering"&&<MenuEngineeringView orgId={orgId} sedeId={sedeId} ricettario={ricettario} sedeAttiva={sedeAttiva}/>}
+        {vista==="menu-engineering"&&<MenuEngineeringView orgId={orgId} sedeId={sedeId} sedi={sedi} ricettario={ricettario} sedeAttiva={sedeAttiva} onNavigate={setView}/>}
         {vista==="cashflow"&&<CashflowView orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify}/>}
         {vista==="forecast"&&<ForecastView orgId={orgId} sedeId={sedeId} sedeAttiva={sedeAttiva} setView={setView}/>}
         {vista==="reformulation"&&<ReformulationView ricettario={ricettario} orgId={orgId} sedeId={sedeId} notify={notify}/>}
