@@ -29,6 +29,7 @@
 //       diff: { valore: 2000, verso: 'peggio' }, quota: 12.1, andamento: <Andamentino … /> },
 //       onClick: apri, aperta: false }]} />
 // Tipi: 'testo' (di base), 'euro', 'quota', 'numero', 'differenza'
+// (`decimali: 2` su 'euro' e 'numero' per i prezzi al chilo),
 // ({ valore, verso, incompleto }), 'nodo' (qualunque cosa, già disegnata).
 // Una riga `forte` è un totale (grassetto, filo sopra); `incompleto` la
 // scrive in ambra.
@@ -64,6 +65,13 @@ function cella(c, v, riga) {
   if (c.tipo === 'euro' || c.tipo === 'numero') {
     if (!finito(v)) return v == null ? <span style={{ color: T.amberDark }}>non lo so</span> : v
     const n = Number(v)
+    // `decimali` per i prezzi piccoli (3,61 € al chilo): arrotondati
+    // all'euro direbbero tutti 4.
+    if (c.decimali > 0) {
+      const f = new Intl.NumberFormat('it-IT', { useGrouping: 'always', minimumFractionDigits: c.decimali, maximumFractionDigits: c.decimali })
+      const nonZero = Math.round(Math.abs(n) * 10 ** c.decimali) > 0
+      return `${n < 0 && nonZero ? MENO : ''}${f.format(Math.abs(n))}`
+    }
     return `${n < 0 && Math.round(Math.abs(n)) > 0 ? MENO : ''}${NF0.format(Math.abs(n))}`
   }
   if (c.tipo === 'quota') return finito(v) ? quotaColonna(v) : ''
@@ -84,7 +92,7 @@ function cella(c, v, riga) {
 
 /**
  * @param {object} p
- * @param {{ chiave: string, titolo: string, tipo?: string, larghezza?: number, soloComputer?: boolean }[]} p.colonne
+ * @param {{ chiave: string, titolo: string, tipo?: string, larghezza?: number, soloComputer?: boolean, decimali?: number }[]} p.colonne
  * @param {{ chiave: string, celle: object, forte?: boolean, incompleto?: boolean,
  *   onClick?: () => void, aperta?: boolean, sotto?: React.ReactNode }[]} p.righe
  *   `sotto` è quello che si apre sotto la riga (per esempio i fornitori della voce).

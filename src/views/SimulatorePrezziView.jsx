@@ -16,6 +16,11 @@ import { lessico } from '../lib/lessico'
 import { KPI, SH, PageHeader, Tip, useSortable, SortTH, TNUM, TabellaOSchede, fmt, fmt0, fmtp } from './_shared'
 import Icon from '../components/Icon'
 import { fmtp0 } from '../lib/formatIt'
+import { useRicavoFlat } from '../lib/useRicavoFlat'
+import { euroKgMedioFormati } from '../lib/inventarioProduzione'
+import { prezzoNetto } from './produzione/numeri'
+import { righeFoodCostGusti } from '../lib/foodCostGusti'
+import FoodCostGusti from '../components/foodcost/FoodCostGusti'
 
 const SHADOW_PREMIUM = '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)'
 
@@ -43,13 +48,22 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
   // simulatore muove `reg.prezzo` della ricetta per fare what-if sui listini,
   // ma per un gusto il prezzo non vive sulla ricetta — vive sui Formati
   // vendita. Simulare qui produrrebbe una leva senza effetto pratico
-  // (audit 2026-07-28). I gusti ora hanno margine visibile nel Ricettario
-  // e nel P&L via ricavo flat: il banner rimanda lì.
+  // (audit 2026-07-28). Il loro costo sta più sotto, in FoodCostGusti.
   const tutteLeRicette = useMemo(() => Object.values(ricettario?.ricette || {})
     .filter(r => isRicettaValida(r.nome) && getR(r.nome, r).tipo !== 'interno' && getR(r.nome, r).tipo !== 'semilavorato'),
     [ricettario])
-  const gustiCount = useMemo(() => tutteLeRicette.filter(r => isGustoTipo(getR(r.nome, r).tipo)).length, [tutteLeRicette])
   const ricette = useMemo(() => tutteLeRicette.filter(r => !isGustoTipo(getR(r.nome, r).tipo)), [tutteLeRicette])
+  // I gusti hanno la loro parte (FoodCostGusti, 05/10/2026): il costo al
+  // chilo contro il prezzo medio dei formati senza IVA, lo stesso numero di
+  // Il mese e della Produzione. Prima a chi aveva solo gusti la pagina diceva
+  // «Nessun prodotto vendibile».
+  const { formati } = useRicavoFlat(orgId, ricettario, null)
+  const prezzoKgGusti = useMemo(() => prezzoNetto(euroKgMedioFormati(formati)), [formati])
+  const righeGusti = useMemo(() => righeFoodCostGusti(ricettario, ingCosti, prezzoKgGusti), [ricettario, ingCosti, prezzoKgGusti])
+  const parteGusti = righeGusti.length > 0 && (
+    <FoodCostGusti righe={righeGusti} prezzoKg={prezzoKgGusti} ingCosti={ingCosti} ricettario={ricettario}
+      isMobile={isMobile} stile={{ marginBottom: 18 }} />
+  )
 
   // ── Stato ───────────────────────────────────────────────────────────────────
   const [targetPct, setTargetPct] = useState(30)       // food cost obiettivo (%)
@@ -249,6 +263,17 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
     }
   }
 
+  if (!rows.length && parteGusti) {
+    // Solo gusti: niente simulatore (muove i prezzi delle ricette, e un gusto
+    // il prezzo ce l'ha sui formati) e niente PDF, che sarebbe vuoto.
+    return (
+      <div style={{ maxWidth: 1200, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
+        <PageHeader subtitle="Quanto ti costa ogni gusto e quanto ti resta al chilo." />
+        {parteGusti}
+      </div>
+    )
+  }
+
   if (!rows.length) {
     return (
       <div style={{ maxWidth: 1200, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
@@ -271,12 +296,7 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
         action={exportBtn}
       />
 
-      {gustiCount > 0 && (
-        <div style={{ marginBottom: 16, padding: '10px 14px', background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 10, fontSize: 12, color: '#1E3A8A', lineHeight: 1.5, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-          <Icon name="bulb" size={13} />
-          <span><b>{gustiCount} gusti gelateria</b> non appaiono qui: il loro prezzo di vendita non è sulla ricetta ma sui <b>Formati vendita</b> (cono/coppetta/vaschetta). Il margine dei gusti è visibile nel <b>Ricettario</b> e nel <b>P&amp;L</b>, calcolato dal ricavo/kg medio dei formati.</span>
-        </div>
-      )}
+      {parteGusti}
 
       {/* Target food cost - selector */}
       <div style={{

@@ -46,6 +46,20 @@ export function quota(n) {
 }
 
 /**
+ * La quota con l'articolo, per le frasi: «il 26%», ma «l'11%», «l'8%»,
+ * «l'80%», «l'1,5%», perché si leggono undici, otto, ottanta, uno.
+ * «Il 11%» in una frase si sente subito che è scritto da una macchina.
+ */
+export function quotaConArticolo(n) {
+  const q = quota(n)
+  if (q == null) return null
+  const v = Math.round(Number(n) * 10) / 10
+  const i = Math.floor(Math.abs(v))
+  const vocale = v >= 0 && (i === 1 || i === 8 || i === 11 || (i >= 80 && i <= 89) || (i >= 800 && i <= 899))
+  return `${vocale ? "l'" : 'il '}${q}`
+}
+
+/**
  * Una quota in colonna: sempre un decimale («12,0%»), così le virgole cadono
  * una sotto l'altra (ricerca design §4.5). Nelle tessere resta `quota()`.
  */

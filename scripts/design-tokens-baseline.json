@@ -416,8 +416,8 @@
     "colore-a-mano": 1
   },
   "src/views/SimulatorePrezziView.jsx": {
-    "colore-a-mano": 8,
-    "testo-a-mano": 23,
+    "colore-a-mano": 5,
+    "testo-a-mano": 22,
     "antizoom-a-mano": 2
   },
   "src/views/StoricoProduzioneView.jsx": {
