@@ -14,6 +14,8 @@
 import { calcolaFCDettaglio, getR, isRicettaValida, resaGrammi } from './foodcost'
 import { isGustoTipo } from './tipoRicetta'
 import { costoAlKgGusto } from './produzioneAnalisi'
+import { prezzoMedioAlKg } from './prezzoMedioAlKg'
+import { prezzoNetto } from '../views/produzione/numeri'
 
 const finito = (x) => x != null && Number.isFinite(Number(x))
 
@@ -92,4 +94,49 @@ export function riassuntoGusti(righe = []) {
     medianaQuota: mediana(completi.map(r => r.quota)),
     medianaKg: mediana(completi.map(r => r.fcKg)),
   }
+}
+
+// ── Il simulatore dei formati (05/10/2026) ─────────────────────────────
+//
+// Una prova: i prezzi dei formati si cambiano qui, in memoria, e il prezzo
+// medio al chilo si ricalcola con la stessa funzione di tutte le pagine
+// (`prezzoMedioAlKg`, poi senza IVA come il Mese). Non si salva niente.
+
+/** La chiave di un formato nelle prove. */
+export const chiaveFormato = (f) => String(f?.id ?? f?.nome ?? '')
+
+/** I formati che entrano nel prezzo medio: con un peso e un prezzo. */
+export function formatiInMedia(formati) {
+  if (!Array.isArray(formati)) return []
+  return formati.filter(f => (Number(f?.baseQtaG) || 0) > 0 && (Number(f?.prezzoDefault) || 0) > 0)
+}
+
+/** Un prezzo provato vale solo se è un numero maggiore di zero: mai zero per errore. */
+export const prezzoProvaValido = (v) => Number.isFinite(Number(v)) && Number(v) > 0
+
+/** I formati col prezzo provato al posto di quello vero (dove c'è). */
+export function formatiDelPrezzo(formati, prove = {}) {
+  if (!Array.isArray(formati)) return []
+  return formati.map(f => {
+    const v = prove?.[chiaveFormato(f)]
+    return prezzoProvaValido(v) ? { ...f, prezzoDefault: Number(v) } : f
+  })
+}
+
+/** Prezzo medio al chilo senza IVA coi prezzi provati, o null se non si sa. */
+export function prezzoKgInProva(formati, prove = {}) {
+  return prezzoNetto(prezzoMedioAlKg(formatiDelPrezzo(formati, prove)))
+}
+
+/**
+ * Quanto può spostarsi il prezzo al chilo a seconda di cosa si vende:
+ * il formato più economico e il più caro al chilo, senza IVA. Con meno di
+ * due formati, o tutti uguali, non c'è un intervallo da dire.
+ * @returns {{ min: number, max: number }|null}
+ */
+export function intervalloPrezzoKg(formati) {
+  const k = formatiInMedia(formati).map(f => prezzoNetto((Number(f.prezzoDefault) / Number(f.baseQtaG)) * 1000))
+  if (k.length < 2) return null
+  const min = Math.min(...k), max = Math.max(...k)
+  return max - min < 0.005 ? null : { min, max }
 }

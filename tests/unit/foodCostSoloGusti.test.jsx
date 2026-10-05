@@ -233,7 +233,7 @@ describe('la tabella in pagina', () => {
 
   it('i prezzi al chilo con i centesimi, e il prezzo dei formati detto senza IVA', async () => {
     disegna(ricettario([NOCCIOLA]))
-    await waitFor(() => expect(testo()).toMatch(/30,00 € al chilo senza IVA/))
+    await waitFor(() => expect(testo()).toMatch(/senza IVA: 30,00 € al chilo/))
     const t = screen.getByRole('table', { name: /Food cost dei gusti/ })
     expect(t.textContent).toMatch(/7,33/)
     expect(t.textContent).toMatch(/24,4%/)

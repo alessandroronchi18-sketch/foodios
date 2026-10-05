@@ -35,7 +35,7 @@ const SLIDER_CSS = `
 .fos-sim-slider:focus::-webkit-slider-thumb { box-shadow: 0 0 0 4px rgba(110,14,26,0.18), 0 2px 6px rgba(15,23,42,0.18); }
 `
 
-export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAttivita, orgId, sedeId }) {
+export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAttivita, orgId, sedeId, onNavigate = null }) {
   const LEX = useMemo(() => lessico(tipoAttivita), [tipoAttivita])
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
@@ -61,7 +61,7 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
   const prezzoKgGusti = useMemo(() => prezzoNetto(euroKgMedioFormati(formati)), [formati])
   const righeGusti = useMemo(() => righeFoodCostGusti(ricettario, ingCosti, prezzoKgGusti), [ricettario, ingCosti, prezzoKgGusti])
   const parteGusti = righeGusti.length > 0 && (
-    <FoodCostGusti righe={righeGusti} prezzoKg={prezzoKgGusti} ingCosti={ingCosti} ricettario={ricettario}
+    <FoodCostGusti righe={righeGusti} prezzoKg={prezzoKgGusti} ingCosti={ingCosti} ricettario={ricettario} formati={formati} onNavigate={onNavigate}
       isMobile={isMobile} stile={{ marginBottom: 18 }} />
   )
 
