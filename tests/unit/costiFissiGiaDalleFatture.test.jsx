@@ -183,7 +183,7 @@ describe('la pagina', () => {
     expect(t).toMatch(/ENEL ENERGIA/)
     expect(t).toMatch(/12 su 12/)
     expect(testo()).toMatch(/Sono già nel conto: non aggiungerle qui sotto/)
-    expect(testo()).toMatch(/Le spese che non arrivano in fattura/)
+    expect(testo()).toMatch(/Le spese senza fattura/)
   })
 
   it('scrivere «Luce» avverte, e il pulsante dice «Aggiungi lo stesso»; si può salvare lo stesso', async () => {

@@ -171,6 +171,7 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
       .filter(v => leggiImporto(v?.importo) === null).length,
     [vociScopeFiltrate],
   )
+  const zeroVoci = !loading && voci.length === 0
   const vociFiltrate = filterCategoria
     ? vociScopeFiltrate.filter(v => v.categoria === filterCategoria)
     : vociScopeFiltrate
@@ -264,7 +265,7 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
 
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
-      <PageHeader subtitle="Le spese che non arrivano in fattura: l'affitto pagato a un privato, le rate, le assicurazioni, le tasse con l'F24. Quelle con la fattura entrano già da sole nel conto." />
+      <PageHeader subtitle="Le spese senza fattura. Quelle con la fattura entrano già da sole nel conto." />
 
       {/* L'ambito: tutta l'azienda o la sola sede attiva. Visibile solo con più
           sedi e una sede attiva (in «Tutte le sedi» non avrebbe senso).
@@ -318,9 +319,12 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
 
       {/* Sotto i totali (05/10/2026): la risposta della pagina viene prima, le
           fatture sono il perché di una parte del numero. */}
+      {/* Zero voci: prima l'invito a scrivere, poi la tabella delle fatture. */}
+      {zeroVoci && <EmptyState filterCategoria="" onAdd={nuovaVoce} isMobile={isMobile} stile={{ marginBottom: 20 }} />}
       <GiaDalleFatture ricorrenti={ricorrenti} isMobile={isMobile} onClassifica={() => setClassifica(true)} nSedi={(sedi || []).length}
         stile={{ marginBottom: 20 }} />
 
+      {!zeroVoci && (<>
       {/* Filtri + bottone aggiungi.
           Audit 2026-06-24: su mobile il filtro va in colonna sopra il bottone
           per non comprimere la select. Touch target ≥40px ovunque.
@@ -408,8 +412,8 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
         <EmptyState filterCategoria={filterCategoria} onAdd={nuovaVoce} isMobile={isMobile} />
       ) : (
         <div style={{
-          background: C.bgCard, border: `1px solid ${C.border}`,
-          borderRadius: 14, overflow: 'hidden', boxShadow: S.sm,
+          background: C.bgCard, border: `1px solid ${T.border}`,
+          borderRadius: R.xl, overflow: 'hidden',
           width: '100%', boxSizing: 'border-box',
         }}>
           {perCategoria
@@ -426,7 +430,6 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
                     background: T.fondoCaldo,
                     borderTop: gi === 0 ? 'none' : `1px solid ${C.border}`,
                     borderBottom: `1px solid ${C.border}`,
-                    boxShadow: `inset 3px 0 0 ${T.brand}`,
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                     gap: 10,
                   }}>
@@ -435,8 +438,7 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
                       minWidth: 0, flex: 1,
                     }}>
                       <span style={{
-                        fontSize: typo.small.fontSize, fontWeight: 800, color: T.brand,
-                        textTransform: 'uppercase', letterSpacing: '0.05em',
+                        fontSize: font.size.md, fontWeight: 700, color: T.text,
                         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                       }}>{catLabel}</span>
                       <span style={{
@@ -499,6 +501,8 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
         </div>
       )}
 
+      </>)}
+
       {form && (
         <DialogFormCosto
           form={form} setForm={setForm} sedi={sedi}
@@ -533,89 +537,39 @@ function VoceRow({ v, sedi, isMobile, iconBtnSize = 40, onEdit, onDelete }) {
   const sedeLabel = v.sede_id
     ? ((sedi || []).find(s => s.id === v.sede_id)?.nome || 'sede')
     : 'tutte le sedi'
-
+  // Riga nello stile delle tabelle dell'Analisi (05/10/2026): testo a sinistra,
+  // importo a destra in cifre tabellari, azioni alte 44 px al tocco.
+  const chip = { padding: '2px 8px', borderRadius: R.md, fontWeight: 600, whiteSpace: 'nowrap', fontSize: font.size.sm }
+  const piccolo = { ...testo(font.size.sm), whiteSpace: 'nowrap' }
   return (
-    <div
-      onMouseEnter={e => { if (!isMobile) e.currentTarget.style.background = T.bg }}
-      onMouseLeave={e => { if (!isMobile) e.currentTarget.style.background = 'transparent' }}
-      style={{
-        padding: isMobile ? '14px' : '14px 18px',
-        borderBottom: `1px solid ${C.borderSoft}`,
-        display: 'flex',
-        flexDirection: isMobile ? 'column' : 'row',
-        alignItems: isMobile ? 'stretch' : 'center',
-        gap: isMobile ? 10 : 14,
-        transition: 'background 0.15s',
-        background: 'transparent',
-      }}>
-      {/* Descrizione */}
+    <div style={{
+      padding: isMobile ? `${space[3]}px 16px` : `${space[3]}px 20px`,
+      borderBottom: `1px solid ${T.borderSoft}`,
+      display: 'flex', flexDirection: isMobile ? 'column' : 'row',
+      alignItems: isMobile ? 'stretch' : 'center', gap: isMobile ? space[2] : space[4],
+    }}>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{
-          fontSize: font.size.md, fontWeight: 600, color: C.text,
-          letterSpacing: '-0.01em', lineHeight: 1.3,
-          overflow: 'hidden', textOverflow: 'ellipsis',
-          whiteSpace: isMobile ? 'normal' : 'nowrap',
-        }} title={v.voce}>{v.voce}</div>
+        <div style={{ ...testo(font.size.md), fontWeight: 600, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: isMobile ? 'normal' : 'nowrap' }} title={v.voce}>{v.voce}</div>
         {v.note && (
-          <div style={{
-            fontSize: typo.small.fontSize, color: C.textSoft, marginTop: 3, lineHeight: 1.4,
-            overflow: 'hidden', textOverflow: 'ellipsis',
-            whiteSpace: isMobile ? 'normal' : 'nowrap',
-          }} title={v.note}>{v.note}</div>
+          <div style={{ ...testo(font.size.sm), color: T.textSoft, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: isMobile ? 'normal' : 'nowrap' }} title={v.note}>{v.note}</div>
         )}
-        <div style={{
-          fontSize: typo.small.fontSize, color: C.textSoft, marginTop: 5,
-          display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center',
-        }}>
-          <span style={{
-            background: T.bgSubtle, padding: '2px 7px', borderRadius: 6,
-            fontWeight: 600, color: C.textMid, whiteSpace: 'nowrap',
-          }}>{periodLabel}</span>
-          {/* Scope badge: colore distintivo. Verde = azienda, brand = sede. */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: space[1], alignItems: 'center', marginTop: space[1] }}>
+          <span style={{ ...chip, background: T.bgSubtle, color: T.textMid }}>{periodLabel}</span>
           {v.sede_id ? (
-            <span style={{
-              background: 'rgba(110,14,26,0.08)', color: T.brand, padding: '2px 8px', borderRadius: 6,
-              fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '0.01em',
-              border: '1px solid rgba(110,14,26,0.18)',
-            }} title={`Costo specifico per ${sedeLabel}`}>Sede: {sedeLabel}</span>
+            <span style={{ ...chip, background: T.brandSoft, color: T.brand, fontWeight: 700 }} title={`Costo specifico per ${sedeLabel}`}>Sede: {sedeLabel}</span>
           ) : (
-            <span style={{
-              background: 'rgba(22,163,74,0.08)', color: T.green, padding: '2px 8px', borderRadius: 6,
-              fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '0.01em',
-              border: '1px solid rgba(22,163,74,0.18)',
-            }} title="Costo a livello azienda (vale per ogni sede)">Azienda</span>
+            <span style={{ ...chip, background: T.greenLight, color: T.green, fontWeight: 700 }} title="Costo a livello azienda (vale per ogni sede)">Azienda</span>
           )}
         </div>
       </div>
-
-      {/* Importo + equivalente mensile.
-          Su mobile va in riga sotto la descrizione, allineato a sinistra
-          insieme ai bottoni; su desktop a destra. */}
-      <div style={{
-        display: 'flex',
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: isMobile ? 'space-between' : 'flex-end',
-        gap: 10,
-        flexShrink: 0,
-      }}>
-        <div style={{ textAlign: isMobile ? 'left' : 'right' }}>
-          <div style={{
-            fontSize: typo.h3.fontSize, fontWeight: 800, color: C.text, ...TNUM,
-            letterSpacing: '-0.015em', lineHeight: 1.1,
-            whiteSpace: 'nowrap',
-          }}>{fmt2(v.importo)}</div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: isMobile ? 'space-between' : 'flex-end', gap: space[3], flexShrink: 0 }}>
+        <div style={{ textAlign: isMobile ? 'left' : 'right', minWidth: isMobile ? 0 : 150 }}>
+          <div style={{ ...testo(font.size.lg), fontWeight: 700, color: T.text, ...TNUM, whiteSpace: 'nowrap' }}>{fmt2(v.importo)}</div>
           {importoLetto === null && (
-            <div style={{
-              fontSize: typo.small.fontSize, color: T.amberDark, marginTop: 3,
-              fontWeight: 700, whiteSpace: 'nowrap',
-            }}>importo da scrivere</div>
+            <div style={{ ...piccolo, color: T.amberDark, fontWeight: 700 }}>importo da scrivere</div>
           )}
           {importoLetto !== null && v.periodicita !== 'mensile' && (
-            <div style={{
-              fontSize: typo.small.fontSize, color: stato.stato === 'attiva' ? T.brand : C.textSoft,
-              ...TNUM, marginTop: 3, fontWeight: 600, whiteSpace: 'nowrap',
-            }}>
+            <div style={{ ...piccolo, ...TNUM, color: stato.stato === 'attiva' ? T.brand : T.textSoft, fontWeight: 600 }}>
               {stato.stato === 'esaurita'
                 ? 'spalmatura finita'
                 : stato.stato === 'finita'
@@ -628,44 +582,18 @@ function VoceRow({ v, sedi, isMobile, iconBtnSize = 40, onEdit, onDelete }) {
           {/* Quanto manca alla fine della spalmatura: senza questa riga, il
               giorno in cui la voce passa a zero sembra un errore. */}
           {stato.stato === 'attiva' && stato.mesiRimasti != null && stato.mesiRimasti <= 3 && (
-            <div style={{ fontSize: typo.small.fontSize, color: C.textSoft, marginTop: 2, whiteSpace: 'nowrap' }}>
+            <div style={{ ...piccolo, color: T.textSoft }}>
               {stato.mesiRimasti === 0 ? 'ultimo mese' : `ancora ${stato.mesiRimasti} mesi`}
             </div>
           )}
         </div>
-
-        {/* Azioni */}
-        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-          <button
-            onClick={onEdit}
-            aria-label={`Modifica voce ${v.voce}`}
-            title="Modifica"
-            style={{
-              padding: 0, width: iconBtnSize, height: iconBtnSize,
-              background: T.bg, border: `1px solid ${C.border}`,
-              borderRadius: 10, cursor: 'pointer',
-              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-              transition: 'background 0.15s, border-color 0.15s',
-              flexShrink: 0,
-            }}
-            onMouseEnter={e => { e.currentTarget.style.background = T.bgMuted }}
-            onMouseLeave={e => { e.currentTarget.style.background = T.bg }}>
-            <Icon name="edit" size={14} color={C.textMid} />
+        <div style={{ display: 'flex', gap: space[1], flexShrink: 0 }}>
+          <button onClick={onEdit} aria-label={`Modifica voce ${v.voce}`} title="Modifica"
+            style={{ padding: 0, width: iconBtnSize, height: iconBtnSize, background: T.white, border: `1px solid ${T.border}`, borderRadius: R.lg, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Icon name="edit" size={14} color={T.textMid} />
           </button>
-          <button
-            onClick={onDelete}
-            aria-label={`Elimina voce ${v.voce}`}
-            title="Elimina"
-            style={{
-              padding: 0, width: iconBtnSize, height: iconBtnSize,
-              background: C.redLight, border: `1px solid ${T.brandSoft}`,
-              borderRadius: 10, cursor: 'pointer',
-              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-              transition: 'background 0.15s',
-              flexShrink: 0,
-            }}
-            onMouseEnter={e => { e.currentTarget.style.background = T.brandSoft }}
-            onMouseLeave={e => { e.currentTarget.style.background = C.redLight }}>
+          <button onClick={onDelete} aria-label={`Elimina voce ${v.voce}`} title="Elimina"
+            style={{ padding: 0, width: iconBtnSize, height: iconBtnSize, background: T.white, border: `1px solid ${T.brandSoft}`, borderRadius: R.lg, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             <Icon name="trash" size={14} color={T.brand} />
           </button>
         </div>
@@ -684,9 +612,9 @@ const DA_SCRIVERE = [
   { categoria: 'assicurazioni', titolo: 'Le assicurazioni', esempio: 'responsabilità civile, furto, infortuni' },
   { categoria: 'utenze', titolo: 'La TARI', esempio: 'rifiuti e tasse pagate con l\'F24, senza fattura' },
 ]
-function EmptyState({ filterCategoria, onAdd, isMobile = false }) {
+function EmptyState({ filterCategoria, onAdd, isMobile = false, stile = null }) {
   return (
-    <Riquadro isMobile={isMobile}>
+    <Riquadro isMobile={isMobile} stile={stile}>
       <TitoloGrafico
         titolo={`Nessuna voce di costo ${filterCategoria ? 'in questa categoria' : 'configurata'}`}
         sottotitolo={filterCategoria ? '' : 'Aggiungi le spese che non arrivano in fattura per vederle nel P&L mensile. Cominciamo da queste:'} />
@@ -704,7 +632,7 @@ function EmptyState({ filterCategoria, onAdd, isMobile = false }) {
               </li>
             ))}
           </ul>
-          <button type="button" onClick={() => onAdd()}
+          <button type="button" onClick={() => onAdd()} aria-label="Aggiungi nuova voce di costo"
             style={{ marginTop: space[4], minHeight: 44, padding: '10px 20px', background: T.brand, color: T.white, border: 'none', borderRadius: R.lg, fontSize: font.size.md, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, fontFamily: 'inherit' }}>
             <Icon name="plus" size={15} color={T.white} />
             Aggiungi la prima voce
@@ -739,7 +667,7 @@ function DialogFormCosto({ form, setForm, sedi, isMobile, dito = isMobile, onClo
     width: '100%', boxSizing: 'border-box',
     padding: '11px 13px',
     minHeight: dito ? 46 : 42,
-    border: `1px solid ${T.border}`, borderRadius: 10,
+    border: `1px solid ${T.border}`, borderRadius: R.lg,
     fontSize: dito ? font.size.lg : font.size.md,
     color: T.text, outline: 'none', background: T.white,
     fontFamily: 'inherit',
@@ -753,15 +681,13 @@ function DialogFormCosto({ form, setForm, sedi, isMobile, dito = isMobile, onClo
   const btnPrimaryStyle = {
     padding: '11px 22px', minHeight: 46,
     background: T.brand, color: T.white,
-    border: 'none', borderRadius: 11,
+    border: 'none', borderRadius: R.lg,
     fontSize: font.size.md, fontWeight: 700, cursor: 'pointer',
-    boxShadow: '0 1px 2px rgba(110,14,26,0.2), 0 4px 10px rgba(110,14,26,0.15)',
-    letterSpacing: '-0.01em',
   }
   const btnSecondaryStyle = {
     padding: '11px 22px', minHeight: 46,
     background: T.white, color: T.textMid,
-    border: `1px solid ${T.border}`, borderRadius: 11,
+    border: `1px solid ${T.border}`, borderRadius: R.lg,
     fontSize: font.size.md, fontWeight: 600, cursor: 'pointer',
   }
 
@@ -777,7 +703,7 @@ function DialogFormCosto({ form, setForm, sedi, isMobile, dito = isMobile, onClo
       }}>
       <div style={{
         background: T.white,
-        borderRadius: isMobile ? '20px 20px 0 0' : 18,
+        borderRadius: isMobile ? `${R.xl}px ${R.xl}px 0 0` : R.xl,
         maxWidth: 560, width: '100%',
         maxHeight: isMobile ? '92vh' : 'calc(100vh - 32px)',
         overflowY: 'auto',

@@ -39,7 +39,7 @@ vi.mock('../../src/lib/costiAziendali', async (orig) => ({
   caricaCostiAziendali: async () => VOCI,
 }))
 
-const { composizioneFissi, invitoPrimaVoce } = await import('../../src/components/costiFissi/TotaliCostiFissi.jsx')
+const { composizioneFissi, MANCA_SENZA_FATTURA } = await import('../../src/components/costiFissi/TotaliCostiFissi.jsx')
 const { default: CostiAziendaliView } = await import('../../src/views/CostiAziendaliView.jsx')
 
 const SEDI = [{ id: 'C', nome: 'Carlina' }, { id: 'B', nome: 'Berthollet' }]
@@ -77,19 +77,35 @@ describe('composizioneFissi: da cosa è fatto il totale', () => {
   it('nessuna spesa fissa dalle fatture: non inventa una somma', () => {
     expect(composizioneFissi({ totVoci: 500, nVoci: 1, totFatture: 0 }).totale).toBe(500)
   })
-  it('l\'invito chiede sempre l\'affitto dei negozi (il garage in fattura non è quello)', () => {
-    expect(invitoPrimaVoce()).toContain('l\'affitto di ogni negozio')
-  })
-})
+  it('cosa manca: le spese senza fattura, l\'affitto dei negozi per prima', () => {
+    expect(MANCA_SENZA_FATTURA).toContain('l\'affitto dei negozi prima di tutto')
+  })})
 
-describe('la pagina con zero voci', () => {
-  it('invita a scrivere affitti, rate, assicurazioni, TARI; niente «-» al posto del numero', async () => {
+describe('la pagina con zero voci (giro del 05/10 sera: la lista era detta tre volte)', () => {
+  it('la risposta grande è il fisso che si sa (le fatture), con cosa manca', async () => {
     FATTURE = GARAGE()
     await apri()
-    expect(testo()).toContain('l\'affitto di ogni negozio, le rate, le assicurazioni, la TARI')
-    // il totale viene prima delle fatture: la risposta, poi il perché
+    await waitFor(() => expect(testo()).toContain('Per ora solo quelle in fattura.'))
+    expect(screen.getByLabelText('Costo mensile totale').textContent).toContain('200 €')
+    expect(testo()).toContain('Mancano le spese senza fattura, l\'affitto dei negozi prima di tutto.')
+  })
+  it('l\'elenco affitto/rate/assicurazioni/TARI è scritto una volta sola', async () => {
+    FATTURE = GARAGE()
+    await apri()
+    expect(testo().match(/TARI/g) || []).toHaveLength(1)
+  })
+  it('l\'invito viene prima della tabella delle fatture', async () => {
+    FATTURE = GARAGE()
+    await apri()
     await waitFor(() => expect(testo()).toContain('Già dalle fatture: 200 € al mese'))
-    expect(testo().indexOf('Costo mensile totale')).toBeLessThan(testo().indexOf('Già dalle fatture'))
+    expect(testo().indexOf('Nessuna voce di costo')).toBeLessThan(testo().indexOf('Già dalle fatture'))
+    expect(testo().indexOf('Costo mensile totale')).toBeLessThan(testo().indexOf('Nessuna voce di costo'))
+  })
+  it('niente filtro categorie né secondo «Aggiungi voce» in alto', async () => {
+    await apri()
+    expect(screen.queryByLabelText('Filtra per categoria')).toBeNull()
+    // un solo pulsante per aggiungere, dentro l'invito
+    expect(screen.getAllByRole('button', { name: /Aggiungi (nuova voce|la prima voce)/ })).toHaveLength(1)
   })
   it('gli esempi aprono il modulo sulla categoria giusta', async () => {
     await apri()
@@ -100,6 +116,23 @@ describe('la pagina con zero voci', () => {
   it('il vuoto non scrive mai «0 €»', async () => {
     await apri()
     expect(testo()).not.toMatch(/(^|[^\d.,])0 €/)
+  })
+})
+
+describe('le righe delle voci nel kit', () => {
+  it('con voci restano filtro, «Aggiungi voce» e azioni da 44 px al tocco', async () => {
+    VOCI = [voce({ voce: 'Affitto Carlina', importo: 1000 })]
+    await apri()
+    expect(screen.getByLabelText('Filtra per categoria')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Aggiungi nuova voce di costo' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Modifica voce Affitto Carlina' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Elimina voce Affitto Carlina' })).toBeTruthy()
+  })
+  it('l\'intestazione di categoria non è più in maiuscolo spaziato', async () => {
+    VOCI = [voce({ voce: 'Affitto Carlina', importo: 1000 })]
+    await apri()
+    const intest = [...document.querySelectorAll('span')].find(e => e.textContent === 'Affitti')
+    expect(intest.style.textTransform).toBe('')
   })
 })
 

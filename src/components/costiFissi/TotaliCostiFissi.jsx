@@ -18,7 +18,7 @@
 import React from 'react'
 import { color as T, font, space } from '../../lib/theme'
 import { fmt0, fmtp0 } from '../../lib/formatIt'
-import { NumeroPrincipale, Riquadro, TitoloGrafico, ElencoBarre, RigaAvviso, Cifra, testo } from '../analisi'
+import { NumeroPrincipale, Riquadro, TitoloGrafico, ElencoBarre, RigaAvviso, RigaMotivo, Cifra, testo } from '../analisi'
 import { CATEGORIE_DEFAULT } from '../../lib/costiAziendali'
 
 const parteVoci = (n) => `${n} ${n === 1 ? 'voce' : 'voci'}`
@@ -39,13 +39,13 @@ export function composizioneFissi({ totVoci = 0, nVoci = 0, totFatture = null })
 }
 
 /**
- * Cosa chiedere con zero voci. L'affitto dei negozi si chiede sempre: il
- * garage che arriva in fattura (Mara) è un affitto, ma non è quello dei
- * negozi, e la prima versione di oggi lo toglieva dall'invito per questo.
+ * Cosa manca con zero voci: le spese senza fattura, l'affitto dei negozi per
+ * prima (il garage che arriva in fattura è un affitto, ma non è quello dei
+ * negozi). L'elenco di cosa scrivere sta UNA volta sola, nell'invito sotto
+ * (giro del 05/10 sera: era detto tre volte, nel sottotitolo, nella risposta
+ * grande e nell'elenco).
  */
-export function invitoPrimaVoce() {
-  return 'Scrivi qui l\'affitto di ogni negozio, le rate, le assicurazioni, la TARI: non arrivano in fattura.'
-}
+export const MANCA_SENZA_FATTURA = 'Mancano le spese senza fattura, l\'affitto dei negozi prima di tutto.'
 
 export default function TotaliCostiFissi({
   isMobile = false, nVoci = 0, nAttive = 0, nNonAttive = 0, totMese = 0, totAnno = 0, costoGiorno = 0,
@@ -64,9 +64,9 @@ export default function TotaliCostiFissi({
       <Riquadro isMobile={isMobile} stile={{ marginBottom: space[5] }}>
         <NumeroPrincipale isMobile={isMobile}
           etichetta="Costo mensile totale"
-          valore={vuoto ? null : fmt0(totale)}
-          motivoMancante={invitoPrimaVoce()}
-          frase={vuoto ? null : (
+          valore={vuoto ? (totFatture > 0 ? fmt0(totFatture) : null) : fmt0(totale)}
+          motivoMancante="Non lo sappiamo ancora: nessuna voce scritta e nessuna spesa fissa in fattura."
+          frase={vuoto ? (totFatture > 0 ? 'Per ora solo quelle in fattura.' : null) : (
             <>
               {frase}
               <span style={{ display: 'block', color: T.textSoft, ...testo(font.size.sm) }}>{attive}{fuori}</span>
@@ -76,7 +76,7 @@ export default function TotaliCostiFissi({
           <div role="status" style={{ marginTop: space[3] }}><RigaAvviso avviso={avvisoSenzaImporto} dimensione={font.size.base} /></div>
         )}
         {vuoto ? (
-          <div style={{ marginTop: space[3], color: T.textSoft, ...testo(font.size.sm) }}>Non lo sappiamo ancora: nessuna voce inserita.</div>
+          <RigaMotivo motivo={MANCA_SENZA_FATTURA} dimensione={font.size.base} stile={{ marginTop: space[3] }} />
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))', gap: space[4], marginTop: space[4], paddingTop: space[4], borderTop: `1px solid ${T.border}` }}>
             <Dato etichetta="Costo annuo stimato" valore={fmt0(totAnno)} sotto={`Mensile × 12 · ${fmt0(costoGiorno)} al giorno`} />
@@ -91,7 +91,8 @@ export default function TotaliCostiFissi({
           <ElencoBarre etichetta="Voci più care del mese"
             voci={topVoci.map(v => ({
               chiave: v.id, etichetta: v.voce, valore: v.mensile, testoValore: `${fmt0(v.mensile)}/mese`,
-              nota: `${CATEGORIE_DEFAULT.find(c => c.id === v.categoria)?.label || v.categoria || 'Altro'}${totMese > 0 ? ` · ${fmtp0((v.mensile / totMese) * 100)}` : ''}`,
+              // Al telefono solo la percentuale: «Servizi professionali · 15%» andava a capo (foto del 05/10).
+              nota: `${isMobile ? '' : `${CATEGORIE_DEFAULT.find(c => c.id === v.categoria)?.label || v.categoria || 'Altro'}${totMese > 0 ? ' · ' : ''}`}${totMese > 0 ? fmtp0((v.mensile / totMese) * 100) : ''}`,
             }))} />
         </Riquadro>
       )}

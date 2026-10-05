@@ -488,7 +488,7 @@ describe('Costi fissi · la pagina vuota spiega a cosa serve', () => {
     const box = screen.getByText('Costo mensile totale').parentElement
     // Dal 05/10/2026 il vuoto non è un «-»: è l'invito a scrivere cosa (Costi fissi, totali).
     expect(box.textContent).not.toContain('0 €')
-    expect(box.textContent).toContain('Scrivi qui')
+    expect(box.textContent).toContain('Non lo sappiamo ancora')
   })
 
   it('il riquadro spiega perché non c’è un numero', async () => {
@@ -748,6 +748,8 @@ describe('Costi fissi · ogni comando si raggiunge da tastiera', () => {
   })
 
   it('il filtro ha un’etichetta, anche se a schermo non si vede', async () => {
+    // Con zero voci il filtro non c'è più (05/10 sera): serve una voce.
+    mockState.voci = VOCI_VERE
     await monta()
     expect(screen.getByLabelText('Filtra per categoria').tagName).toBe('SELECT')
   })
