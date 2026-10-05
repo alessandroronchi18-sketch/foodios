@@ -107,7 +107,7 @@ describe('scegliere in fretta', () => {
     const desa = within(l).getAllByRole('listitem')[0].textContent
     expect(desa).toMatch(/DESA/)
     expect(desa).toMatch(/85,7% della spesa/)
-    expect(desa).toMatch(/media 2\.000 €/)
+    expect(desa).toMatch(/media 2\.000\u00a0€/)
     expect(desa).toMatch(/3 mesi su 12/)
   })
   it('senza proposta: un tocco sulla voce, e la riga è scelta e spuntata', async () => {

@@ -279,7 +279,7 @@ function RigaFornitore({ g, scelta, spuntato, onScelta, onSpunta, isMobile, fuor
   // L'indizio per scegliere: quanto pesa, quanto vale una fattura, se torna
   // ogni mese (la luce sì, un lavoro no).
   const indizio = g.spesa12
-    ? `${totale12 > 0 ? `${quota((g.spesa12 / totale12) * 100)} della spesa · ` : ''}media ${euro(g.medio12)} · ${nInt(g.mesi12)} ${g.mesi12 === 1 ? 'mese' : 'mesi'} su 12`
+    ? `${totale12 > 0 ? `${quota((g.spesa12 / totale12) * 100)} della spesa · ` : ''}media ${euroUnito(g.medio12)} · ${nInt(g.mesi12)} ${g.mesi12 === 1 ? 'mese' : 'mesi'} su 12`
     : null
   const nota2 = indizio && (
     <div style={{ fontSize: FS.sm, color: T.textSoft, lineHeight: 1.4, marginTop: 2 }}>{indizio}</div>
