@@ -1,1103 +1,280 @@
+// Confronto sedi: quale sede rende di più, e su quali giorni lo si sa.
+//
+// 05/10/2026, riscritta sul kit dell'Analisi (voto di partenza ≈40):
+//   • il periodo è quello della barra comune (prima solo «settimana»/«mese»);
+//   • gli incassi di ogni sede sono quelli del Mese: cassa nei giorni con la
+//     chiusura, stima dall'inventario negli altri, i giorni senza dati detti
+//     accanto al numero (prima la stima scattava solo con ZERO chiusure);
+//   • le spese comuni a Berthollet e De Gasperi si dividono sui chili, e si
+//     vedono in una riga loro (prima la lettura non chiedeva la colonna e
+//     quelle fatture sparivano);
+//   • niente punteggi inventati («sede critica», «lettura AI»): una risposta
+//     grande, il perché sotto, e quello che non si sa detto accanto.
+// I conti stanno in `lib/confrontoSediArchivio.js` e `lib/confrontoSediCalc.js`.
+
 import React, { useState, useEffect, useMemo } from 'react'
 import Icon from './Icon'
-import { SkeletonGrid, SkeletonTable, SkeletonList } from './Skeleton'
+import BarraPeriodo from './BarraPeriodo'
 import ExportPdfButton from './ExportPdfButton'
-import PeriodCompareSelector from './PeriodCompareSelector'
-import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from 'recharts'
-import { sload } from '../lib/storage'
+import {
+  IntestazioneAnalisi, Riquadro, TitoloGrafico, NumeroPrincipale, CoperturaDati,
+  TabellaAnalisi, ElencoBarre, Andamentino, testo,
+} from './analisi'
+import PaginaAnalisi from './analisi/PaginaAnalisi'
 import { supabase } from '../lib/supabase'
-import { color as T, typo, ui3, ui, font } from '../lib/theme'
-import { foodCostPesato, vocePerGruppo, fattureDaPagarePerSede } from '../lib/confrontoSediCalc'
-import { ricaviDaInventario, fetchAllInventarioProduzione, GIORNI_RIPORTO_MAX, COLONNE_VENDUTO } from '../lib/inventarioProduzione'
-import { SK_FORMATI } from '../lib/storageKeys'
-import { venditeB2BPeriodo } from '../lib/venditeB2B'
-import { todayLocal, aggiungiGiorni, soloData } from '../lib/dateLocal'
+import { color as T, font, space } from '../lib/theme'
+import useIsMobile from '../lib/useIsMobile'
+import { todayLocal } from '../lib/dateLocal'
+import { finestraScorciatoia, finestraConfronto, nomePeriodo, giorniDelPeriodo } from '../lib/periodoAnalisi'
+import { euro, variazione, quota, dataBreve } from '../lib/formatoAnalisi'
+import { nomeIncassi } from '../lib/ilMese'
+import { vocePerGruppo } from '../lib/confrontoSediCalc'
+import { caricaConfrontoSedi } from '../lib/confrontoSediArchivio'
 
-// Date in ISO locale per le finestre dell'inventario.
-const isoDi = (d) => {
-  const x = new Date(d)
-  return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`
-}
-// Indietro di N giorni di CALENDARIO, non di N × 24 ore.
-//
-// Era `new Date(d).getTime() - giorni * 86400000`. Un giorno non dura sempre
-// 24 ore: la domenica del passaggio all'ora legale ne dura 23. Una finestra
-// che attraversa quel giorno, sommata in millisecondi, scivola indietro di
-// un'ora e cade nel giorno prima — e da lì tutto il conto è spostato di uno.
-// Misurato: `isoMeno(20 aprile 2026, 30)` rispondeva 20 marzo invece che 21.
-const isoMeno = (d, giorni) => aggiungiGiorni(isoDi(d), -giorni)
-// L'ultimo giorno di un periodo, dato il suo confine ESCLUSIVO. Stessa
-// ragione: `curEnd.getTime() - 86400000` sulla settimana 23–29 marzo 2026
-// (il 29 è il giorno del cambio ora) rispondeva **28 marzo**, e la domenica
-// spariva dal confronto fra le sedi — un'intera giornata di lavoro, per
-// tutti i punti vendita, una volta all'anno.
-const ultimoGiornoDelPeriodo = (fineEsclusa) => aggiungiGiorni(isoDi(fineEsclusa), -1)
-import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
-import { caricaCostiAziendali, totaleMensile } from '../lib/costiAziendali'
-import { ChartTip } from '../views/_shared'
-import { fmtp, fmtp0 } from '../lib/formatIt'
+const tab = { fontVariantNumeric: 'tabular-nums' }
+const ND = (motivo) => <span title={motivo} style={{ color: T.amberDark, cursor: 'help' }}>non lo so</span>
+const num = (v) => <span style={tab}>{v}</span>
 
-const TXT = T.text
-const SOFT = T.textSoft
-const MID = T.textMid
-const GRN = T.green
-const RED = T.brand
-const GRN_BG = T.greenLight
-const RED_BG = T.brandLight
-const AMB = T.amber
-const AMB_BG = T.amberLight
-const CARD = T.bgCard
-const BORDER = T.border
-const tnum = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" };
-
-// Il simbolo € va DOPO la cifra: "1.477 €", non "€ 1.477". Qui stava davanti,
-// e in tre punti chi chiamava la funzione aggiungeva un secondo € in coda —
-// a schermo usciva "€ 1.234 €".
-function fmt(n) {
-  if (n == null) return '-'
-  return Number(n).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'
-}
-function fmt0(n) {
-  if (n == null) return '-'
-  return Number(n).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 }) + ' €'
-}
-function fmtInt(n) {
-  if (n == null) return '-'
-  return Number(n).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })
-}
-function fmtPct(n) {
-  if (n == null) return '-'
-  return fmtp(Number(n))
-}
-function fmtDelta(prev, curr, fmtter) {
-  if (prev == null || curr == null) return null
-  const delta = curr - prev
-  if (Math.abs(delta) < 0.01) return null
-  const pct = prev !== 0 ? ((curr - prev) / Math.abs(prev)) * 100 : null
-  return { delta, pct, sign: delta >= 0 ? '+' : '', positive: delta >= 0, fmt: fmtter || fmt }
+// Fino a una settimana dall'inizio del mese il mese in corso ha pochi giorni:
+// si parte dal mese scorso, intero.
+function finestraDiPartenza(oggi = new Date()) {
+  return finestraScorciatoia(oggi.getDate() <= 7 ? 'mesePrec' : 'meseCorr', oggi)
 }
 
-// Inizio settimana corrente (domenica → lunedì? in Italia tipicamente lunedì).
-function getStartOfWeek(offset = 0) {
-  const d = new Date()
-  d.setHours(0, 0, 0, 0)
-  const dow = (d.getDay() + 6) % 7  // 0 = lunedì
-  d.setDate(d.getDate() - dow - 7 * offset)
-  return d
-}
-function getEndOfWeek(start) {
-  const e = new Date(start)
-  e.setDate(e.getDate() + 7)
-  return e
-}
-function getStartOfMonth(offset = 0) {
-  const d = new Date()
-  d.setHours(0, 0, 0, 0)
-  d.setDate(1)
-  d.setMonth(d.getMonth() - offset)
-  return d
-}
-function getEndOfMonth(start) {
-  const e = new Date(start)
-  e.setMonth(e.getMonth() + 1)
-  return e
-}
-
-const PERIODI = [
-  { id: 'settimana', lbl: 'Settimana' },
-  { id: 'mese',      lbl: 'Mese' },
-]
-
-export default function ConfrontoSedi({ orgId, sedi }) {
+export default function ConfrontoSedi({ orgId, sedi, onNavigate }) {
   const isMobile = useIsMobile()
-  const isTablet = useIsTablet()
-  const [kpiMap, setKpiMap] = useState({})
-  const [loading, setLoading] = useState(true)
-  const [periodo, setPeriodo] = useState('settimana')
-  const [costiMap, setCostiMap] = useState({})  // sedeId -> totale mensile costi azienda
-  const [trend8w, setTrend8w] = useState([])    // [{lunIso, ricavi}] x 8 settimane gruppo
-  const [trendHoveredIdx, setTrendHoveredIdx] = useState(null)  // pallino sparkline cliccato/hover
-  // ── Grafici interattivi (R96) ─────────────────────────────────────────────
-  const [chartType, setChartType] = useState('bar')   // bar | line | pie
-  const [chartMetric, setChartMetric] = useState('ricaviCur')  // KPI selezionata
-  const [compareMode, setCompareMode] = useState('prev')  // none | prev | year_prev
+  const sediAttive = useMemo(() => (sedi || []).filter(s => s.attiva !== false), [sedi])
+  const chiaveSedi = sediAttive.map(s => s.id).join(',')
 
-  const sediAttive = (sedi || []).filter(s => s.attiva !== false)
+  const [finestra, setFinestra] = useState(() => finestraDiPartenza())
+  const [modoConfronto, setModoConfronto] = useState('prev')
+  const [dati, setDati] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [errore, setErrore] = useState('')
+
+  const da = finestra.from, a = finestra.to
+  const conf = useMemo(() => finestraConfronto(da, a, modoConfronto), [da, a, modoConfronto])
 
   useEffect(() => {
-    if (!orgId || sediAttive.length < 2) { setLoading(false); return }
-    let cancelled = false
+    if (!orgId || sediAttive.length < 2 || !da || !a) { setLoading(false); return }
+    let annullato = false
+    setLoading(true); setErrore('')
+    caricaConfrontoSedi({ supabase, orgId, sedi: sediAttive, da, a, confronto: conf, oggi: todayLocal() })
+      .then(r => { if (!annullato) { setDati(r); setLoading(false) } })
+      .catch(e => { if (!annullato) { setErrore(e?.message || 'lettura non riuscita'); setLoading(false) } })
+    return () => { annullato = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgId, chiaveSedi, da, a, conf?.from, conf?.to])
 
-    async function loadAll() {
-      setLoading(true)
-      // Oggi in ora italiana, non a Greenwich.
-      //
-      // Era `new Date().toISOString().split('T')[0]`, cioè il giorno UTC: fra
-      // mezzanotte e le due di notte (ora italiana) rispondeva ieri. Da qui
-      // scendeva in due punti che il titolare legge come numeri di oggi:
-      // «Fatture scadute» (`fattureDaPagarePerSede`, sotto), che contava
-      // scadute anche quelle che scadono oggi, e la colonna «Prodotto oggi»
-      // (più sotto), che mostrava le sessioni di ieri. Chi apre la pagina
-      // all'una di notte dopo una nottata di produzione la vedeva a zero.
-      const today = todayLocal()
-      let curStart, curEnd, prevStart, prevEnd
-      if (periodo === 'mese') {
-        curStart = getStartOfMonth(0)
-        curEnd = getEndOfMonth(curStart)
-        prevStart = getStartOfMonth(1)
-        prevEnd = getEndOfMonth(prevStart)
-      } else {
-        curStart = getStartOfWeek(0)
-        curEnd = getEndOfWeek(curStart)
-        prevStart = getStartOfWeek(1)
-        prevEnd = getEndOfWeek(prevStart)
-      }
-      const results = {}
-      const costiResults = {}
+  const kpiMap = useMemo(() => dati?.kpiMap || {}, [dati])
+  const giorni = giorniDelPeriodo(da, a)
 
-      // Carico in una sola query: stock PF + trasferimenti pendenti per tutte le sedi.
-      const [stockAll, trasfPending, fattureAll, costiOrg] = await Promise.all([
-        supabase.from('stock_prodotti_finiti')
-          .select('sede_id, quantita, prodotto_nome')
-          .eq('organization_id', orgId),
-        supabase.from('trasferimenti')
-          .select('sede_a, sede_da, stato')
-          .eq('organization_id', orgId)
-          .eq('stato', 'inviato'),
-        supabase.from('fatture')
-          .select('id, sede_id, stato, totale, importo_pagato, data_fattura, data_scadenza')
-          .eq('organization_id', orgId),
-        caricaCostiAziendali(orgId, null).catch(() => []),
-      ])
-
-      // Costi aziendali: globali + per-sede.
-      const globaliMensili = totaleMensile((costiOrg || []).filter(c => !c.sede_id))
-      for (const s of sediAttive) {
-        const speMensile = totaleMensile((costiOrg || []).filter(c => c.sede_id === s.id))
-        // I costi globali vengono ripartiti in parti uguali tra le sedi.
-        const quotaGlob = sediAttive.length > 0 ? globaliMensili / sediAttive.length : 0
-        costiResults[s.id] = speMensile + quotaGlob
-      }
-
-      // Aggrego stock PF per sede.
-      const stockBySede = {}
-      const stockProdsBySede = {}
-      for (const r of (stockAll.data || [])) {
-        stockBySede[r.sede_id] = (stockBySede[r.sede_id] || 0) + Number(r.quantita || 0)
-        stockProdsBySede[r.sede_id] = (stockProdsBySede[r.sede_id] || new Set()).add(r.prodotto_nome)
-      }
-      // Trasferimenti pendenti per sede destinataria.
-      const pendingBySede = {}
-      for (const t of (trasfPending.data || [])) {
-        pendingBySede[t.sede_a] = (pendingBySede[t.sede_a] || 0) + 1
-      }
-      // ── Fatture da pagare, e quante sono in ritardo ──────────────────────
-      //
-      // La regola sta in `fattureDaPagarePerSede` (confrontoSediCalc.js), col
-      // racconto del difetto: qui «Fatture scadute» diceva SEMPRE zero perché
-      // il controllo era `f.data_scadenza < oggi` e quella colonna in
-      // produzione è vuota su 3.520 fatture su 3.520.
-      const perSedeFatture = fattureDaPagarePerSede(fattureAll.data || [], today)
-
-      // Calcola le 8 settimane più recenti (per trend sparkline gruppo).
-      const trend8 = []
-      for (let i = 7; i >= 0; i--) {
-        const lun = getStartOfWeek(i)
-        const dom = getEndOfWeek(lun)
-        // `lun` è mezzanotte LOCALE del lunedì: riletta con `toISOString()`
-        // tornava indietro all'offset, cioè alla DOMENICA sera, e l'etichetta
-        // della settimana portava la data del giorno prima. Si formatta con
-        // lo stesso righello locale usato in tutto il file.
-        trend8.push({ lun, dom, lunIso: isoDi(lun), ricavi: 0 })
-      }
-
-      // Per ogni sede, carico chiusure + giornaliero (per-sede, non c'è un modo aggregato).
-      await Promise.all(sediAttive.map(async (sede) => {
-        try {
-          // Si carica anche l'inventario e i formati di vendita: servono a
-          // ricavare l'incasso quando le chiusure di cassa non ci sono. Chi
-          // lavora col metodo inventario spesso non le compila, e questa
-          // pagina restava completamente vuota — con l'allarme rosso acceso.
-          const [chiusure, giornaliero, formati, righeInv, venditeB2B] = await Promise.all([
-            sload('pasticceria-chiusure-v1', orgId, sede.id),
-            sload('pasticceria-giornaliero-v1', orgId, sede.id),
-            sload(SK_FORMATI, orgId, null),
-            fetchAllInventarioProduzione(orgId, {
-              sedeIds: sede.id,
-              dataFrom: isoMeno(curStart, GIORNI_RIPORTO_MAX),
-              dataTo: ultimoGiornoDelPeriodo(curEnd),
-              columns: `${COLONNE_VENDUTO}, scostamento_accettato, sede_id`,
-            }).catch(() => []),
-            // I chili consegnati all'ingrosso: vanno tolti prima di
-            // valorizzare l'uscita al prezzo del banco, se no un negozio che
-            // rifornisce due bar sembra incassare più di uno che non lo fa.
-            // `includiSenzaSede: false` di proposito: le vendite senza sede
-            // qui verrebbero tolte a TUTTI i negozi, e gli stessi chili
-            // sparirebbero tre volte.
-            venditeB2BPeriodo(orgId, {
-              sedeId: sede.id,
-              da: isoDi(curStart),
-              a: ultimoGiornoDelPeriodo(curEnd),
-              includiSenzaSede: false,
-            }).catch(() => null),
-          ])
-
-          const chiusureArr = Array.isArray(chiusure) ? chiusure : []
-          // Giorni contro giorni, confrontati come stringhe.
-          //
-          // Era `new Date(d)` su '2026-09-14', cioè mezzanotte a GREENWICH,
-          // riportata al giorno locale con `setHours(0,0,0,0)`. In Italia
-          // tornava — mezzanotte a Greenwich è l'una o le due di notte dello
-          // stesso giorno — ma a ovest di Greenwich quella chiusura finiva
-          // nel giorno prima, e quindi nella settimana prima.
-          const inRange = (d, a, b) => {
-            const g = soloData(d)
-            return !!g && g >= isoDi(a) && g < isoDi(b)
-          }
-          // Si conta anche QUANTE chiusure ci sono nel periodo: zero chiusure
-          // non vuol dire zero incasso, vuol dire che nessuno ha chiuso la
-          // cassa. La differenza cambia tutto quello che viene dopo.
-          const chiusureCur = chiusureArr.filter(c => inRange(c.data || 0, curStart, curEnd))
-          const chiusurePrev = chiusureArr.filter(c => inRange(c.data || 0, prevStart, prevEnd))
-          const nChiusureCur = chiusureCur.length
-          const nChiusurePrev = chiusurePrev.length
-          const ricaviCassaCur = chiusureCur.reduce((s, c) => s + (c.kpi?.totV || 0), 0)
-          const ricaviPrev = chiusurePrev.reduce((s, c) => s + (c.kpi?.totV || 0), 0)
-
-          // Senza nemmeno una chiusura, l'incasso si stima dall'inventario:
-          // chili usciti × prezzo medio al chilo dei formati. È una stima, e
-          // la pagina lo dice.
-          const stima = nChiusureCur === 0
-            ? ricaviDaInventario(righeInv, formati, {
-              da: isoDi(curStart),
-              a: ultimoGiornoDelPeriodo(curEnd),
-              // `null` se la lettura è fallita: allora la stima resta sui
-              // chili totali e lo dichiara (`b2bConsiderato: false`), invece
-              // di far finta che all'ingrosso non sia uscito niente.
-              venditeB2B,
-            })
-            : null
-          const ricaviStimati = stima?.ricavi != null && stima.ricavi > 0
-          const ricaviCur = ricaviStimati ? stima.ricavi : ricaviCassaCur
-
-          // Trend 8 settimane: somma cumulativa nel trend8 condiviso.
-          for (const wk of trend8) {
-            const sumW = chiusureArr
-              .filter(c => inRange(c.data || 0, wk.lun, wk.dom))
-              .reduce((s, c) => s + (c.kpi?.totV || 0), 0)
-            wk.ricavi += sumW
-          }
-
-          const giorArr = Array.isArray(giornaliero) ? giornaliero : []
-          // Food cost in EURO e ricavi delle stesse giornate: il food cost in
-          // percentuale si fa dividendo i due totali, non facendo la media
-          // delle percentuali giorno per giorno.
-          //
-          // Prima era la media: una giornata da 50 € di incasso al 50% di food
-          // cost pesava come una da 3.000 € al 25%, e la percentuale che ne
-          // usciva non era quella di nessuno. Su quel numero la pagina alzava
-          // un allarme rosso a 38%.
-          // Stesso confronto fra giorni delle chiusure, e per la stessa
-          // ragione: le sessioni di produzione portano la data con l'ora
-          // attaccata, e farla passare da `new Date` le spostava di fuso.
-          const sessioniPeriodo = giorArr.filter(sess => inRange(sess.data, curStart, curEnd))
-          const fc = foodCostPesato(sessioniPeriodo)
-          const fcEuroCur = fc.fcEuro
-          const giornateConDato = fc.giornate
-          const foodCostPct = fc.pct
-
-          // Margine lordo: si calcola solo se c'e' un incasso vero nel periodo.
-          //
-          // Prima era `ricavi - foodcost` sempre, anche con zero chiusure di
-          // cassa: per il design partner, che lavora col metodo inventario e
-          // non compila le chiusure, usciva 0 - 2,42 = margine NEGATIVO su
-          // tutte e tre le sedi, e la pagina alzava un allarme rosso
-          // "margine netto negativo" fisso, basato sul nulla.
-          const haIncasso = nChiusureCur > 0 || ricaviStimati
-          const margineLordoCur = haIncasso ? ricaviCur - fcEuroCur : null
-
-          // Costi aziendali ripartiti sul periodo
-          const giorniPeriodo = Math.max(1, Math.round((curEnd - curStart) / (1000 * 60 * 60 * 24)))
-          const costiPeriodo = (costiResults[sede.id] || 0) * (giorniPeriodo / 30)
-          const margineNettoCur = margineLordoCur != null ? margineLordoCur - costiPeriodo : null
-
-          const prodOggi = giorArr
-            .filter(sess => (sess.data || '').startsWith(today))
-            .reduce((s, sess) => s + (sess.prodotti || []).reduce((ps, p) => ps + (p.stampi || 0), 0), 0)
-
-          results[sede.id] = {
-            ricaviCur: haIncasso ? ricaviCur : null,
-            ricaviStimati,
-            kgStimati: stima?.kg ?? null,
-            // Chili usciti verso bar e ristoranti: tolti dalla stima al
-            // prezzo del banco e rimessi al loro prezzo di fattura.
-            kgB2bStimati: stima?.b2bKg ?? null,
-            ricaviPrev: nChiusurePrev > 0 ? ricaviPrev : null,
-            nChiusureCur, nChiusurePrev, giornateConDato,
-            foodCostPct,
-            margineLordoCur,
-            margineNettoCur,
-            costiPeriodo,
-            prodOggi,
-            fattureDaPagare: perSedeFatture[sede.id]?.aperte || 0,
-            fattureScadute: perSedeFatture[sede.id]?.scadute || 0,
-            // Quante di quelle scadenze sono dedotte invece che scritte sul
-            // documento. Oggi sono tutte: va detto, non nascosto.
-            fattureScadStimate: perSedeFatture[sede.id]?.stimate || 0,
-            fattureImporto: perSedeFatture[sede.id]?.importo || 0,
-            stockPF: stockBySede[sede.id] || 0,
-            stockProdsCount: (stockProdsBySede[sede.id]?.size) || 0,
-            trasfInArrivo: pendingBySede[sede.id] || 0,
-          }
-        } catch (e) {
-          // Prima il catch era muto: un errore di lettura e "nessun dato nel
-          // periodo" finivano entrambi in una fila di trattini, e non c'era
-          // modo di capire quale dei due fosse.
-          console.error(`[ConfrontoSedi] sede ${sede.nome || sede.id}:`, e)
-          results[sede.id] = {
-            errore: (e?.message || 'errore di lettura').slice(0, 120),
-            ricaviCur: null, ricaviPrev: null,
-            nChiusureCur: 0, nChiusurePrev: 0, giornateConDato: 0,
-            foodCostPct: null,
-            margineLordoCur: null, margineNettoCur: null, costiPeriodo: null,
-            prodOggi: null,
-            fattureDaPagare: null, fattureScadute: null, fattureScadStimate: null, fattureImporto: null,
-            stockPF: null, stockProdsCount: null, trasfInArrivo: null,
-          }
-        }
-      }))
-
-      if (!cancelled) {
-        setKpiMap(results)
-        setCostiMap(costiResults)
-        setTrend8w(trend8)
-        setLoading(false)
-      }
-    }
-
-    loadAll()
-    return () => { cancelled = true }
-  }, [orgId, sediAttive.length, periodo])
-
-  // ── Alerts (dati derivati) ─────────────────────────────────────────────────
-  const alerts = useMemo(() => {
-    const out = []
-    for (const s of sediAttive) {
-      const k = kpiMap[s.id]
-      if (!k) continue
-      if (k.foodCostPct != null && k.foodCostPct > 38) {
-        out.push({ sede: s, lvl: 'red', icon: 'receipt', msg: `Food cost ${fmtp(k.foodCostPct)} sopra soglia (38%)` })
-      } else if (k.foodCostPct != null && k.foodCostPct > 33) {
-        out.push({ sede: s, lvl: 'amber', icon: 'receipt', msg: `Food cost ${fmtp(k.foodCostPct)} - monitorare` })
-      }
-      if (k.fattureScadute > 0) {
-        // Se la scadenza è dedotta (oggi lo è sempre) l'avviso lo dice: chi
-        // legge «3 fatture scadute» deve sapere se è un fatto o una
-        // convenzione a trenta giorni.
-        const tutteStimate = k.fattureScadStimate === k.fattureScadute
-        out.push({
-          sede: s, lvl: 'red', icon: 'fileText',
-          msg: `${k.fattureScadute} fattur${k.fattureScadute === 1 ? 'a scaduta' : 'e scadute'} da pagare`
-            + (tutteStimate ? ' (scadenza dedotta a 30 giorni)' : ''),
-        })
-      }
-      if (k.trasfInArrivo > 0) {
-        out.push({ sede: s, lvl: 'amber', icon: 'truck', msg: `${k.trasfInArrivo} trasferiment${k.trasfInArrivo === 1 ? 'o' : 'i'} in attesa di ricezione` })
-      }
-      // Il margine negativo si segnala solo se c'e' un incasso vero da cui
-      // calcolarlo. Senza chiusure di cassa nel periodo, `margineNettoCur` e'
-      // null e questo allarme non parte: prima partiva sempre, perché zero
-      // incasso meno i costi fa sempre un numero negativo.
-      if (k.margineNettoCur != null && k.margineNettoCur < 0) {
-        out.push({ sede: s, lvl: 'red', icon: 'money', msg: `Margine netto negativo (${fmt0(k.margineNettoCur)})` })
-      }
-      // Cassa non chiusa: e' un promemoria, non un allarme sui conti.
-      if (k.errore) {
-        out.push({ sede: s, lvl: 'amber', icon: 'alert', msg: `Dati non caricati: ${k.errore}` })
-      } else if (k.nChiusureCur === 0 && !k.ricaviStimati) {
-        out.push({ sede: s, lvl: 'amber', icon: 'clock', msg: `Nessuna chiusura di cassa ${periodo === 'mese' ? 'questo mese' : 'questa settimana'}: ricavi e margini non si possono calcolare` })
-      }
-      if (k.ricaviCur != null && k.ricaviPrev != null && k.ricaviPrev > 0) {
-        const calo = ((k.ricaviCur - k.ricaviPrev) / k.ricaviPrev) * 100
-        if (calo < -15) out.push({ sede: s, lvl: 'red', icon: 'trendDown', msg: `Ricavi -${fmtp0(Math.abs(calo))} vs ${periodo === 'mese' ? 'mese' : 'settimana'} precedente` })
-      }
-    }
-    return out
-  }, [kpiMap, sediAttive, periodo])
-
-  // ── Consolidato gruppo (CFO view) ─────────────────────────────────────────
-  // Il consolidato del gruppo lo calcola la libreria (provata dai test): il
-  // ciclo stava qui dentro e faceva la media del food cost FRA LE SEDI, così
-  // una sede da 500 € pesava come una da 5.000 €.
-  const consolidato = useMemo(
-    () => vocePerGruppo(sediAttive.map(s => kpiMap[s.id])),
-    [sediAttive, kpiMap],
+  const intestazione = (
+    <IntestazioneAnalisi isMobile={isMobile}
+      domanda="Quale sede incassa di più?"
+      sotto={`${nomePeriodo(da, a)}${conf ? ` · confronto con ${nomePeriodo(conf.from, conf.to)}` : ''}`}
+      destra={(
+        <>
+          <BarraPeriodo from={da} to={a} lato="destra" isMobile={isMobile}
+            onPeriodo={(f, t) => { if (f && t) setFinestra({ from: f, to: t }) }}
+            confronto={modoConfronto} onConfronto={setModoConfronto} />
+        </>
+      )} />
   )
-
-  // ── Sede critica + Sede champion (con punteggio composito) ─────────────────
-  // Punteggio composito per ogni sede (alto = bene):
-  //   margine netto vs ricavi  → +1 a +50
-  //   food cost (bassa = bene) → +20 se <30, +10 se <35, 0 se <40, -10 se >=40
-  //   trend ricavi             → +15 se >+10%, -15 se <-10%
-  //   alert critici            → -20 per ognuno
-  const scoreSedi = useMemo(() => {
-    return sediAttive.map(s => {
-      const k = kpiMap[s.id]
-      if (!k) return { sede: s, score: null }
-      // Senza incasso nel periodo NON si dà un voto.
-      //
-      // Prima il punteggio partiva da 50 e veniva corretto dai dati: con zero
-      // chiusure di cassa nessuna correzione scattava, e tutte le sedi
-      // restavano a 50 esatti. La pagina poi ordinava quei 50 tutti uguali e
-      // incoronava una "sede critica" — che in pratica era la prima
-      // dell'elenco. Un verdetto sul nulla, con l'aria di una misura.
-      if (k.ricaviCur == null) return { sede: s, score: null }
-      let score = 50
-      if (k.ricaviCur > 0 && k.margineNettoCur != null) {
-        score += (k.margineNettoCur / k.ricaviCur) * 50
-      }
-      if (k.foodCostPct != null) {
-        if (k.foodCostPct < 30) score += 20
-        else if (k.foodCostPct < 35) score += 10
-        else if (k.foodCostPct >= 40) score -= 10
-      }
-      if (k.ricaviCur != null && k.ricaviPrev > 0) {
-        const dPct = ((k.ricaviCur - k.ricaviPrev) / k.ricaviPrev) * 100
-        if (dPct >= 10) score += 15
-        else if (dPct <= -10) score -= 15
-      }
-      if (k.fattureScadute > 0) score -= 10
-      if (k.margineNettoCur != null && k.margineNettoCur < 0) score -= 20
-      return { sede: s, score, k }
-    }).filter(x => x.score != null)
-  }, [sediAttive, kpiMap])
-
-  const sedeCritica = useMemo(() => {
-    if (scoreSedi.length < 2) return null
-    const sorted = [...scoreSedi].sort((a, b) => a.score - b.score)
-    return sorted[0].score < 40 ? sorted[0] : null
-  }, [scoreSedi])
-
-  const sedeChampion = useMemo(() => {
-    if (scoreSedi.length < 2) return null
-    const sorted = [...scoreSedi].sort((a, b) => b.score - a.score)
-    return sorted[0].score > 60 ? sorted[0] : null
-  }, [scoreSedi])
-
-  // ── Verdict narrativo gruppo (regola-based, niente AI per zero-cost) ──────
-  const verdict = useMemo(() => {
-    if (!consolidato || consolidato.sediConData < 2) return null
-    const pieces = []
-    if (consolidato.deltaRicPct != null && Math.abs(consolidato.deltaRicPct) >= 5) {
-      pieces.push(consolidato.deltaRicPct >= 0
-        ? `Gruppo in crescita: +${fmtp0(consolidato.deltaRicPct)} vs ${periodo === 'mese' ? 'mese' : 'settimana'} precedente`
-        : `Gruppo in calo: ${fmtp0(consolidato.deltaRicPct)} vs ${periodo === 'mese' ? 'mese' : 'settimana'} precedente`)
-    }
-    if (sedeChampion && sedeCritica) {
-      pieces.push(`${sedeChampion.sede.nome} traina, ${sedeCritica.sede.nome} richiede attenzione`)
-    } else if (sedeChampion) {
-      pieces.push(`${sedeChampion.sede.nome} sta performando sopra la media`)
-    } else if (sedeCritica) {
-      pieces.push(`${sedeCritica.sede.nome} richiede attenzione immediata`)
-    }
-    if (consolidato.margineNettoPct != null) {
-      pieces.push(consolidato.margineNettoPct >= 15
-        ? `margine netto sano (${fmtp0(consolidato.margineNettoPct)})`
-        : consolidato.margineNettoPct >= 5
-          ? `margine sotto target (${fmtp0(consolidato.margineNettoPct)})`
-          : `margine critico (${fmtp0(consolidato.margineNettoPct)})`)
-    }
-    return pieces.length > 0 ? pieces.join('. ') + '.' : null
-  }, [consolidato, sedeChampion, sedeCritica, periodo])
-
-  // ── Ranking per ricavi periodo ─────────────────────────────────────────────
-  const ranking = useMemo(() => {
-    return [...sediAttive]
-      .map(s => ({ sede: s, ricavi: kpiMap[s.id]?.ricaviCur }))
-      .filter(x => x.ricavi != null)
-      .sort((a, b) => (b.ricavi || 0) - (a.ricavi || 0))
-  }, [sediAttive, kpiMap])
 
   if (sediAttive.length < 2) return (
-    <div style={{ maxWidth: 640, margin: '60px auto', textAlign: 'center', padding: 20 }}>
-      <div style={{ marginBottom: 12 }}><Icon name="barChart" size={48} color={SOFT} /></div>
-      <h2 style={{ fontSize: font.size.xl, color: TXT, marginBottom: 8 }}>Confronto sedi</h2>
-      <p style={{ fontSize: font.size.base, color: SOFT, lineHeight: 1.6 }}>
-        Disponibile quando hai almeno 2 sedi attive.<br/>
-        <strong style={{ color: TXT }}>Vai in Impostazioni → Sedi</strong> per aggiungerne una.
-      </p>
-    </div>
+    <PaginaAnalisi isMobile={isMobile}>
+      <IntestazioneAnalisi isMobile={isMobile} domanda="Confronto sedi" />
+      <Riquadro isMobile={isMobile}>
+        <p style={{ margin: 0, ...testo(font.size.base), color: T.textSoft }}>
+          Serve almeno due sedi attive. Le aggiungi da Impostazioni, Sedi.
+        </p>
+      </Riquadro>
+    </PaginaAnalisi>
+  )
+  if (loading && !dati) return (
+    <PaginaAnalisi isMobile={isMobile}>{intestazione}
+      <Riquadro isMobile={isMobile}><span style={{ color: T.textSoft, fontSize: font.size.base }}>Metto insieme cassa, inventario e fatture di ogni sede…</span></Riquadro>
+    </PaginaAnalisi>
+  )
+  if (errore) return (
+    <PaginaAnalisi isMobile={isMobile}>{intestazione}
+      <Riquadro isMobile={isMobile}><span style={{ color: T.red, fontSize: font.size.base }}>Non sono riuscito a leggere i dati: {errore}</span></Riquadro>
+    </PaginaAnalisi>
   )
 
-  function getBestWorst(key, lowerIsBetter = false) {
-    const vals = sediAttive
-      .map(s => ({ id: s.id, v: kpiMap[s.id]?.[key] }))
-      .filter(x => x.v != null)
-    if (vals.length < 2) return {}
-    const sorted = [...vals].sort((a, b) => lowerIsBetter ? a.v - b.v : b.v - a.v)
-    if (sorted[0].v === sorted[sorted.length - 1].v) return {}
-    return { best: sorted[0].id, worst: sorted[sorted.length - 1].id }
+  const kSede = (s) => kpiMap[s.id] || {}
+  const conIncasso = sediAttive.filter(s => kSede(s).ricaviCur != null)
+  const consolidato = vocePerGruppo(sediAttive.map(s => kpiMap[s.id]))
+  const incompleti = sediAttive.filter(s => kSede(s).incasso && (kSede(s).incasso.parziale || kSede(s).ricaviCur == null))
+  const tutteConfrontabili = conIncasso.length > 0 && conIncasso.every(s => kSede(s).confrontabile)
+  const vGruppo = tutteConfrontabili && consolidato.ricPrev > 0
+    ? variazione({ attuale: consolidato.ricCur, confronto: consolidato.ricPrev }) : null
+  const giorniMancanti = sediAttive.reduce((t, s) => t + (kSede(s).incasso?.scoperti || 0), 0)
+  const stimati = conIncasso.some(s => kSede(s).ricaviStimati)
+
+  const ordinate = [...conIncasso].sort((x, y) => kSede(y).ricaviCur - kSede(x).ricaviCur)
+  const guida = ordinate[0]
+  const quotaGuida = guida && consolidato.ricCur > 0 ? Math.round((kSede(guida).ricaviCur / consolidato.ricCur) * 100) : null
+  let frase = null
+  if (conIncasso.length >= 2 && guida) {
+    frase = `${guida.nome} fa il ${quotaGuida}% degli incassi: ${ordinate.slice(1).map(s => `${s.nome} ${euro(kSede(s).ricaviCur)}`).join(', ')}.`
+  } else if (conIncasso.length === 1) {
+    frase = `Solo ${guida.nome} ha incassi in questo periodo: il confronto fra le sedi non si può fare.`
   }
 
-  const bwRicavi  = getBestWorst('ricaviCur')
-  const bwFC      = getBestWorst('foodCostPct', true)
-  const bwMargine = getBestWorst('margineNettoCur')
-  const bwProd    = getBestWorst('prodOggi')
-  const bwFatture = getBestWorst('fattureDaPagare', true)
-  const bwStock   = getBestWorst('stockPF')
-  const bwArrivo  = getBestWorst('trasfInArrivo', true)
-
-  function cellStyle(sedeId, bw) {
-    if (!bw.best) return {}
-    if (sedeId === bw.best) return { background: GRN_BG, color: GRN, fontWeight: 800 }
-    if (sedeId === bw.worst) return { background: RED_BG, color: RED, fontWeight: 800 }
-    return {}
+  // ── Da dove vengono i numeri ────────────────────────────────────────────
+  const vociCopertura = sediAttive.map(s => {
+    const k = kSede(s)
+    if (k.errore) return { id: `inc-${s.id}`, breve: `${s.nome}: dati non letti`, stato: 'manca', testo: `${s.nome}: ${k.errore}` }
+    const i = k.incasso
+    const stato = i.valore == null ? 'manca' : i.parziale ? 'parziale' : i.fonte === 'cassa' ? 'ok' : 'stima'
+    const breve = stato === 'ok' ? `${s.nome}: cassa` : stato === 'stima' ? `${s.nome}: stimato` : stato === 'parziale' ? `${s.nome}: giorni mancanti` : `${s.nome}: nessun dato`
+    return {
+      id: `inc-${s.id}`, breve, stato, testo: `${s.nome}: ${i.testo}`,
+      azione: stato !== 'ok' && onNavigate ? { etichetta: 'Registra la cassa', onClick: () => onNavigate('chiusura') } : null,
+    }
+  })
+  if (sediAttive.some(s => kSede(s).fattureComuniStimate)) {
+    vociCopertura.push({ id: 'comuni', breve: 'Spese comuni a metà', stato: 'stima',
+      testo: 'Alcune spese comuni sono divise in parti uguali: nel mese della fattura non c\'è produzione registrata.',
+      azione: onNavigate ? { etichetta: 'Apri Produzione', onClick: () => onNavigate('storico') } : null })
+  } else if (sediAttive.some(s => kSede(s).fattureComuni > 0)) {
+    vociCopertura.push({ id: 'comuni', breve: 'Spese comuni sui chili', stato: 'ok', testo: 'Le fatture di più sedi insieme sono divise in proporzione ai chili prodotti nel mese della fattura.' })
+  }
+  if (!sediAttive.some(s => kSede(s).giornateConDato > 0)) {
+    vociCopertura.push({ id: 'foodcost', breve: 'Food cost mancante', stato: 'manca',
+      testo: 'Nessuna produzione giornaliera registrata nel periodo: food cost e margine non si calcolano (non sono zero).' })
   }
 
-  const periodoLabel = periodo === 'mese' ? 'mese' : 'settimana'
-
-  const RIGHE_KPI = [
-    { key: 'ricaviCur',       icon: 'money',    label: `Ricavi ${periodoLabel}`,   fmt: fmt0,    bw: bwRicavi,  prevKey: 'ricaviPrev' },
-    { key: 'foodCostPct',     icon: 'receipt',  label: 'Food cost medio',          fmt: fmtPct,  bw: bwFC },
-    { key: 'margineNettoCur', icon: 'trendUp',  label: `Margine netto ${periodoLabel}`, fmt: fmt0, bw: bwMargine },
-    { key: 'prodOggi',        icon: 'factory',  label: 'Prodotti oggi',            fmt: v => v ?? 0, bw: bwProd },
-    { key: 'stockPF',         icon: 'package',  label: 'Stock vetrina',            fmt: v => v != null ? `${fmtInt(v)} pz` : '-', bw: bwStock },
-    { key: 'trasfInArrivo',   icon: 'truck',    label: 'Trasf. in arrivo',         fmt: v => v ?? 0, bw: bwArrivo },
-    { key: 'fattureDaPagare', icon: 'fileText', label: 'Fatture da pagare',        fmt: v => v ?? 0, bw: bwFatture },
+  // ── La tabella: una colonna per sede ────────────────────────────────────
+  const colonne = [{ chiave: 'voce', titolo: 'Voce' }, ...sediAttive.map(s => ({ chiave: s.id, titolo: s.nome, tipo: 'nodo' }))]
+  const riga = (chiave, voce, cella, extra = {}) => ({ chiave, celle: { voce, ...Object.fromEntries(sediAttive.map(s => [s.id, cella(kSede(s), s)])) }, ...extra })
+  const dif = (k) => {
+    if (!conf) return num('nessun confronto')
+    if (!k.confrontabile) return ND(k.ricaviCur == null ? 'mancano gli incassi' : 'nel periodo o in quello di confronto mancano dei giorni: il confronto direbbe un calo che non c\'è')
+    const v = variazione({ attuale: k.ricaviCur, confronto: k.ricaviPrev })
+    return <span style={{ ...tab, color: v?.verso === 'peggio' ? T.graficoPeggio : v?.verso === 'meglio' ? T.graficoMeglio : T.textMid, fontWeight: 600 }}>{v ? v.testoDelta : '-'}</span>
+  }
+  const righe = [
+    riga('incassi', nomeIncassi(stimati), (k) => (k.ricaviCur != null ? num(euro(k.ricaviCur)) : ND(k.incasso?.testo || 'nessun dato')), { forte: true }),
+    riga('giorni', 'Giorni con dati', (k) => (k.incasso
+      ? <span style={{ ...tab, color: k.incasso.scoperti > 0 ? T.amberDark : T.text }}>{giorni - k.incasso.scoperti} su {giorni}</span> : ND('lettura non riuscita'))),
+    riga('prima', conf ? 'Sul periodo prima' : 'Confronto', (k) => dif(k)),
+    riga('chili', 'Chili prodotti', (k) => (k.kgProdotti != null ? num(Math.round(k.kgProdotti).toLocaleString('it-IT')) : ND('inventario non letto'))),
+    riga('fc', 'Food cost', (k) => (k.foodCostPct != null ? num(quota(k.foodCostPct)) : ND('nessuna produzione giornaliera registrata'))),
+    riga('margine', 'Margine netto', (k) => (k.margineNettoCur != null ? num(euro(k.margineNettoCur)) : ND(k.ricaviCur == null ? 'mancano gli incassi' : k.incasso?.parziale ? 'mancano dei giorni di incasso' : 'manca il food cost'))),
+    riga('dapagare', 'Fatture da pagare', (k) => (k.fattureImporto != null ? num(euro(k.fattureImporto)) : ND('fatture non lette'))),
+    riga('comuni', 'di cui spese comuni', (k) => (k.fattureComuni != null ? <span style={{ ...tab, color: k.fattureComuniStimate ? T.amberDark : T.text }} title={k.fattureComuniStimate ? 'divise in parti uguali: nel mese non c\'è produzione registrata' : 'divise sui chili prodotti'}>{euro(k.fattureComuni)}{k.fattureComuniStimate ? ' stimato' : ''}</span> : ND('fatture non lette'))),
+    riga('scadute', 'Fatture scadute', (k) => (k.fattureScadute != null ? num(k.fattureScadute) : ND('fatture non lette'))),
+    riga('oggi', 'Prodotti oggi', (k) => num(k.prodOggi ?? 0)),
+    riga('stock', 'Stock vetrina', (k) => num(`${(k.stockPF || 0).toLocaleString('it-IT')} pz`)),
+    riga('trasf', 'Trasferimenti in arrivo', (k) => num(k.trasfInArrivo ?? 0)),
   ]
 
-  const headerStyle = { padding: isMobile ? '8px 10px' : '12px 16px', fontSize: typo.small.fontSize, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: `1px solid ${BORDER}`, textAlign: 'center' }
-  const tdL = { padding: isMobile ? '10px 10px' : '12px 16px', fontSize: font.size.base, color: MID, borderTop: `1px solid ${BORDER}` }
-  const tdC = { padding: isMobile ? '10px 10px' : '12px 16px', fontSize: font.size.base, textAlign: 'center', borderTop: `1px solid ${BORDER}`, ...tnum }
+  // ── Da guardare ─────────────────────────────────────────────────────────
+  const avvisi = []
+  for (const s of sediAttive) {
+    const k = kSede(s)
+    if (k.errore) { avvisi.push({ id: `e-${s.id}`, rosso: false, icona: 'alert', msg: `${s.nome}: dati non caricati (${k.errore})` }); continue }
+    if (k.foodCostPct != null && k.foodCostPct > 38) avvisi.push({ id: `fc-${s.id}`, rosso: true, icona: 'receipt', msg: `${s.nome}: food cost ${quota(k.foodCostPct)}, sopra la soglia del 38%` })
+    if (k.fattureScadute > 0) {
+      const dedotta = k.fattureScadStimate === k.fattureScadute
+      avvisi.push({ id: `fs-${s.id}`, rosso: true, icona: 'fileText', msg: `${s.nome}: ${k.fattureScadute} fattur${k.fattureScadute === 1 ? 'a scaduta' : 'e scadute'} da pagare${dedotta ? ' (scadenza dedotta a 30 giorni)' : ''}` })
+    }
+    if (k.trasfInArrivo > 0) avvisi.push({ id: `tr-${s.id}`, rosso: false, icona: 'truck', msg: `${s.nome}: ${k.trasfInArrivo} trasferiment${k.trasfInArrivo === 1 ? 'o' : 'i'} in attesa di ricezione` })
+    if (k.margineNettoCur != null && k.margineNettoCur < 0) avvisi.push({ id: `mn-${s.id}`, rosso: true, icona: 'money', msg: `${s.nome}: margine netto negativo (${euro(k.margineNettoCur)})` })
+    if (conf && k.confrontabile && k.ricaviPrev > 0 && (k.ricaviCur - k.ricaviPrev) / k.ricaviPrev < -0.15) {
+      avvisi.push({ id: `ca-${s.id}`, rosso: true, icona: 'trendDown', msg: `${s.nome}: incassi ${Math.round(((k.ricaviCur - k.ricaviPrev) / k.ricaviPrev) * 100).toString().replace('-', '−')}% sul periodo prima` })
+    }
+  }
 
-  // Sedi senza nemmeno una chiusura di cassa nel periodo: senza quelle non
-  // esistono ricavi, e senza ricavi non esistono margini, food cost e voti.
-  const sediSenzaCassa = sediAttive.filter(s => (kpiMap[s.id]?.nChiusureCur ?? 0) === 0 && !kpiMap[s.id]?.errore)
-  // Sedi i cui ricavi arrivano dall'inventario invece che dalla cassa.
-  const sediStimate = sediAttive.filter(s => kpiMap[s.id]?.ricaviStimati)
+  const andamento = dati?.andamento || []
+  const settimaneIncomplete = andamento.filter(w => w.ricavi != null && w.scoperti > 0).length
+  const conDati = andamento.filter(w => w.ricavi != null)
+  const fra = space[3]
 
   return (
-    <div style={{ maxWidth: 1080, padding: isMobile ? 12 : 0 }}>
-      {/* Perché mezza pagina è vuota. Prima non c'era scritto da nessuna
-          parte: la tabella mostrava trattini, il margine usciva negativo
-          (zero incasso meno i costi) e l'allarme rosso partiva su tutte le
-          sedi. Il design partner lavora col metodo inventario e non compila
-          le chiusure: per lui questa pagina era tutta rossa senza motivo. */}
-      {!loading && sediSenzaCassa.length > 0 && (
-        <div style={{
-          display: 'flex', alignItems: 'flex-start', gap: 9,
-          background: AMB_BG, border: `1px solid ${AMB}55`, borderRadius: 12,
-          padding: isMobile ? 12 : '12px 16px', marginBottom: 14,
-          fontSize: typo.small.fontSize, color: T.amberDark, lineHeight: 1.55,
-        }}>
-          <Icon name="clock" size={14} color={T.amberDark} style={{ flexShrink: 0, marginTop: 3 }} />
-          <span>
-            {sediStimate.length > 0
-              ? <><strong>Ricavi stimati dall&apos;inventario</strong> per {sediStimate.length === sediAttive.length ? 'tutte le sedi' : sediStimate.map(s => s.nome).join(', ')}: {periodo === 'mese' ? 'questo mese' : 'questa settimana'} non ci sono chiusure di cassa, quindi l&apos;incasso è calcolato dai chili usciti dal laboratorio per il prezzo dei formati. Va bene per confrontare le sedi fra loro, non per chiudere i conti.{sediStimate.some(s => (kpiMap[s.id]?.kgB2bStimati || 0) > 0) && <> I chili consegnati all&apos;ingrosso non sono contati al prezzo del banco: valgono quello della loro fattura.</>}</>
-              : sediSenzaCassa.length === sediAttive.length
-                ? <><strong>Nessuna chiusura di cassa {periodo === 'mese' ? 'questo mese' : 'questa settimana'}</strong>, e nemmeno dati di inventario da cui ricavare l&apos;incasso. Ricavi e margini restano vuoti: non è un dato negativo, è un dato che manca.</>
-                : <><strong>{sediSenzaCassa.length === 1 ? 'Una sede non ha' : `${sediSenzaCassa.length} sedi non hanno`} chiusure di cassa {periodo === 'mese' ? 'questo mese' : 'questa settimana'}</strong> ({sediSenzaCassa.map(s => s.nome).join(', ')}): per {sediSenzaCassa.length === 1 ? 'quella' : 'quelle'} i ricavi e i margini restano vuoti, e il confronto è fra le altre.</>}
-          </span>
-        </div>
+    <PaginaAnalisi isMobile={isMobile} attenuata={loading}>
+      {intestazione}
+      <CoperturaDati isMobile={isMobile} voci={vociCopertura} />
+
+      <NumeroPrincipale riquadro isMobile={isMobile}
+        etichetta={`${nomeIncassi(stimati)} delle sedi`}
+        valore={conIncasso.length > 0 ? euro(consolidato.ricCur) : null} stimato={stimati}
+        motivoMancante="nessuna sede ha incassi in questo periodo"
+        azione={conIncasso.length === 0 && onNavigate ? { etichetta: 'Registra la cassa', onClick: () => onNavigate('chiusura') } : null}
+        variazione={vGruppo} rispettoA={conf ? `su ${nomePeriodo(conf.from, conf.to)}` : ''}
+        senzaConfronto={conf && !vGruppo ? 'confronto non fatto: mancano dei giorni' : ''}
+        frase={frase}
+        avviso={conIncasso.length > 0 && (giorniMancanti > 0 || conIncasso.length < sediAttive.length)
+          ? `incompleti: ${giorniMancanti > 0 ? `${giorniMancanti} ${giorniMancanti === 1 ? 'giorno' : 'giorni'} senza dati` : ''}${giorniMancanti > 0 && conIncasso.length < sediAttive.length ? ', ' : ''}${conIncasso.length < sediAttive.length ? `${sediAttive.length - conIncasso.length} ${sediAttive.length - conIncasso.length === 1 ? 'sede' : 'sedi'} senza incassi` : ''}`
+          : ''} />
+
+      {ordinate.length > 0 && (
+        <Riquadro isMobile={isMobile}>
+          <TitoloGrafico
+            titolo={conIncasso.length >= 2 ? `${guida.nome} incassa di più` : 'Gli incassi per sede'}
+            sottotitolo={`${nomePeriodo(da, a)}, senza IVA. ${incompleti.length ? `Le sedi con giorni senza dati sono in ambra: il numero è un minimo.` : 'Tutti i giorni hanno un dato.'}`} />
+          <ElencoBarre isMobile={isMobile} etichetta="Incassi per sede"
+            voci={sediAttive.map(s => ({
+              chiave: s.id, etichetta: s.nome, valore: kSede(s).ricaviCur ?? null,
+              incompleto: !!kSede(s).incasso?.parziale,
+              nota: kSede(s).incasso?.scoperti > 0 ? `${kSede(s).incasso.scoperti} ${kSede(s).incasso.scoperti === 1 ? 'giorno' : 'giorni'} senza dati` : undefined,
+            }))} />
+        </Riquadro>
       )}
 
-      {/* Header + selettore periodo */}
-      <div style={{ marginBottom: 14 }}>
-        <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: RED, marginBottom: 6 }}>Analisi</div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <p style={{ margin: 0, fontSize: typo.small.fontSize, color: SOFT, lineHeight: 1.5 }}>
-            <span style={{ color: GRN, fontWeight: 700 }}>Verde</span> = migliore &nbsp;·&nbsp;
-            <span style={{ color: RED, fontWeight: 700 }}>Rosso</span> = peggiore &nbsp;·&nbsp;
-            confronto con <strong>{periodo === 'mese' ? 'mese' : 'settimana'} precedente</strong>
-          </p>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', gap: 4, background: T.bgSubtle, borderRadius: 999, padding: 3 }}>
-              {PERIODI.map(p => (
-                <button key={p.id} onClick={() => setPeriodo(p.id)}
-                  style={{
-                    padding: '6px 14px', borderRadius: 999, border: 'none',
-                    background: periodo === p.id ? TXT : 'transparent',
-                    color: periodo === p.id ? T.white : MID,
-                    fontSize: typo.small.fontSize, fontWeight: 700, cursor: 'pointer',
-                  }}>
-                  {p.lbl}
-                </button>
-              ))}
-            </div>
-            <ExportPdfButton
-              fileName={`confronto-sedi-${periodo}.pdf`}
-              compact
-              getReport={() => ({
-                title: 'Confronto sedi',
-                subtitle: `${sediAttive.length} sedi attive`,
-                periodo: `Periodo: ${periodo === 'mese' ? 'mese corrente' : 'settimana corrente'} vs ${periodo} precedente`,
-                kpi: consolidato ? [
-                  { label: 'Ricavi gruppo', value: `${fmt0(consolidato.ricCur)}`, sub: consolidato.deltaRicPct != null ? `${consolidato.deltaRicPct >= 0 ? '+' : ''}${fmtp0(consolidato.deltaRicPct)} vs prec.` : '' },
-                  { label: 'Margine netto', value: `${fmt0(consolidato.margNetto)}`, sub: consolidato.margineNettoPct != null ? `${fmtp(consolidato.margineNettoPct)} dei ricavi` : '' },
-                  { label: 'Food cost medio', value: consolidato.foodCostMedio != null ? fmtp(consolidato.foodCostMedio) : '-', sub: 'target < 33%' },
-                  { label: 'Costi azienda', value: `${fmt0(consolidato.costiPeriodo || 0)}` },
-                ] : [],
-                sections: [
-                  {
-                    title: 'KPI per sede',
-                    table: {
-                      columns: ['Sede', 'Ricavi €', 'Food cost %', 'Margine netto €', 'Trasf. attesi', 'Fatture scadute'],
-                      alignments: ['left', 'right', 'right', 'right', 'right', 'right'],
-                      rows: sediAttive.map(s => {
-                        const k = kpiMap[s.id] || {}
-                        return [
-                          s.nome,
-                          fmt0(k.ricaviCur),
-                          k.foodCostPct != null ? fmtp(k.foodCostPct) : '-',
-                          fmt0(k.margineNettoCur),
-                          String(k.trasfInArrivo || 0),
-                          String(k.fattureScadute || 0),
-                        ]
-                      }),
-                    },
-                  },
-                  ...(alerts.length > 0 ? [{
-                    title: 'Alerts da gestire',
-                    table: {
-                      columns: ['Sede', 'Livello', 'Messaggio'],
-                      alignments: ['left', 'left', 'left'],
-                      rows: alerts.map(a => [a.sede.nome, a.lvl.toUpperCase(), a.msg]),
-                    },
-                  }] : []),
-                ],
-              })}
-            />
+      <Riquadro isMobile={isMobile}>
+        <TitoloGrafico titolo="Le sedi, voce per voce"
+          sottotitolo="Incassi, giorni coperti, spese e magazzino. «Non lo so» vuol dire che il dato manca: non è zero." />
+        <TabellaAnalisi etichetta="Confronto fra le sedi" isMobile={isMobile} colonne={colonne} righe={righe} />
+      </Riquadro>
+
+      {conDati.length >= 2 && (
+        <Riquadro isMobile={isMobile}>
+          <TitoloGrafico titolo={`Ultima settimana: ${euro(conDati[conDati.length - 1].ricavi)}, prima ${euro(conDati[conDati.length - 2].ricavi)}`}
+            sottotitolo={`Incassi di tutte le sedi, ultime 8 settimane, dal ${dataBreve(andamento[0].lunIso)}. Le settimane senza dati restano vuote.${settimaneIncomplete ? ` In ${settimaneIncomplete} ${settimaneIncomplete === 1 ? 'settimana' : 'settimane'} mancano dei giorni: sono più basse del vero.` : ''}`} />
+          <Andamentino valori={andamento.map(w => w.ricavi)} scelto={andamento.length - 1} larghezza={isMobile ? 280 : 480} altezza={64} etichetta="Incassi delle ultime 8 settimane" />
+        </Riquadro>
+      )}
+
+      {avvisi.length > 0 && (
+        <Riquadro isMobile={isMobile}>
+          <TitoloGrafico titolo={`Da guardare: ${avvisi.length}`} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: fra }}>
+            {avvisi.map(v => (
+              <div key={v.id} style={{ display: 'flex', alignItems: 'flex-start', gap: space[2], ...testo(font.size.base), color: v.rosso ? T.red : T.amberDark }}>
+                <span style={{ flexShrink: 0, marginTop: 2 }}><Icon name={v.icona} size={16} /></span>
+                <span>{v.msg}</span>
+              </div>
+            ))}
           </div>
-        </div>
-      </div>
-
-      {loading ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 8 }}>
-          <SkeletonList count={Math.min(sediAttive.length || 3, 5)} height={56} />
-          <SkeletonTable rows={5} cols={Math.min((sediAttive.length || 2) + 1, 5)} />
-        </div>
-      ) : (
-        <>
-          {/* HERO CONSOLIDATO GRUPPO + verdict narrativo. Audit 2026-06-25:
-              sfondo bordeaux non esaltava i valori rossi negativi (margine -721
-              su rosso scuro = mimetizzato). Passato a dark slate professionale,
-              valori negativi spiccano in #FF6B6B chiaro. */}
-          {consolidato && consolidato.sediConData >= 2 && (
-            <div style={{
-              background: 'linear-gradient(135deg, #0B1020 0%, #14182B 55%, #1C2236 100%)',
-              borderRadius: 18, padding: isMobile ? 18 : 26, marginBottom: 16,
-              boxShadow: '0 14px 40px rgba(15,23,42,0.32)',
-              color: T.white, position: 'relative', overflow: 'hidden',
-            }}>
-              <div style={{ position: 'absolute', top: -60, right: -30, width: 220, height: 220, borderRadius: '50%', background: 'radial-gradient(circle, rgba(110,14,26,0.22) 0%, transparent 70%)', pointerEvents: 'none' }}/>
-              <div style={{ position: 'relative' }}>
-                <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.65)', marginBottom: 10 }}>
-                  Vista gruppo · {consolidato.sediConData} {consolidato.sediConData === 1 ? 'sede' : 'sedi'} attive
-                </div>
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: ui3(isMobile, isTablet, ui.grid4),
-                  gap: isMobile ? 12 : 18,
-                }}>
-                  <div>
-                    <div style={{ fontSize: typo.small.fontSize, color: 'rgba(255,255,255,0.55)', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', minHeight: 28, lineHeight: 1.2 }}>Ricavi {periodoLabel}</div>
-                    <div style={{ fontSize: isMobile ? 22 : 28, fontWeight: 900, marginTop: 4, whiteSpace: 'nowrap', minHeight: 30, ...tnum }}>{fmt0(consolidato.ricCur)}</div>
-                    <div style={{ fontSize: typo.small.fontSize, marginTop: 4, color: consolidato.deltaRicPct != null ? (consolidato.deltaRicPct >= 0 ? T.green : '#FF6B6B') : 'rgba(255,255,255,0.45)', fontWeight: 700, minHeight: 16, ...tnum }}>
-                      {consolidato.deltaRicPct != null ? `${consolidato.deltaRicPct >= 0 ? '+' : ''}${fmtp0(consolidato.deltaRicPct)} vs prec.` : '-'}
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: typo.small.fontSize, color: 'rgba(255,255,255,0.55)', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', minHeight: 28, lineHeight: 1.2 }}>Margine netto</div>
-                    <div style={{ fontSize: isMobile ? 22 : 28, fontWeight: 900, marginTop: 4, color: consolidato.margNetto >= 0 ? T.white : '#FF6B6B', whiteSpace: 'nowrap', minHeight: 30, ...tnum }}>
-                      {fmt0(consolidato.margNetto)}
-                    </div>
-                    <div style={{ fontSize: typo.small.fontSize, marginTop: 4, color: 'rgba(255,255,255,0.65)', fontWeight: 600, minHeight: 16, ...tnum }}>
-                      {consolidato.margineNettoPct != null ? `${fmtp(consolidato.margineNettoPct)} dei ricavi` : '-'}
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: typo.small.fontSize, color: 'rgba(255,255,255,0.55)', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', minHeight: 28, lineHeight: 1.2 }}>Food cost medio</div>
-                    <div style={{ fontSize: isMobile ? 22 : 28, fontWeight: 900, marginTop: 4, color: consolidato.foodCostMedio == null ? 'rgba(255,255,255,0.5)' : consolidato.foodCostMedio < 33 ? T.green : consolidato.foodCostMedio < 38 ? T.amber : '#FF6B6B', whiteSpace: 'nowrap', minHeight: 30, ...tnum }}>
-                      {consolidato.foodCostMedio != null ? fmtp(consolidato.foodCostMedio) : '-'}
-                    </div>
-                    <div style={{ fontSize: typo.small.fontSize, marginTop: 4, color: 'rgba(255,255,255,0.55)', minHeight: 16 }}>
-                      target &lt; 33%
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: typo.small.fontSize, color: 'rgba(255,255,255,0.55)', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', minHeight: 28, lineHeight: 1.2 }}>Costi azienda</div>
-                    <div style={{ fontSize: isMobile ? 22 : 28, fontWeight: 900, marginTop: 4, whiteSpace: 'nowrap', minHeight: 30, ...tnum }}>{fmt0(consolidato.costiPeriodo || 0)}</div>
-                    <div style={{ fontSize: typo.small.fontSize, marginTop: 4, color: 'rgba(255,255,255,0.55)', minHeight: 16 }}>
-                      personalizzati
-                    </div>
-                  </div>
-                </div>
-
-                {/* Trend sparkline 8 settimane gruppo */}
-                {trend8w.length >= 4 && (() => {
-                  const max = Math.max(...trend8w.map(w => w.ricavi))
-                  const min = Math.min(...trend8w.map(w => w.ricavi))
-                  const range = max - min || 1
-                  const W = isMobile ? 280 : 520
-                  const H = 56
-                  const pad = 4
-                  const pts = trend8w.map((w, i) => {
-                    const x = pad + (i / (trend8w.length - 1)) * (W - 2 * pad)
-                    const y = pad + (1 - (w.ricavi - min) / range) * (H - 2 * pad)
-                    return [x, y]
-                  })
-                  const d = pts.map((p, i) => (i === 0 ? 'M' : 'L') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ')
-                  const dArea = d + ` L${pts[pts.length - 1][0].toFixed(1)},${H - pad} L${pts[0][0].toFixed(1)},${H - pad} Z`
-                  return (
-                    <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.15)' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
-                        <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)' }}>
-                          Trend ricavi · ultime 8 settimane
-                        </div>
-                        {trendHoveredIdx != null && trend8w[trendHoveredIdx] && (
-                          <div style={{ fontSize: typo.small.fontSize, color: T.brandSoft, fontWeight: 700, ...tnum }}>
-                            {trend8w[trendHoveredIdx].label || `W${trendHoveredIdx + 1}`}: {fmt0(trend8w[trendHoveredIdx].ricavi)}
-                          </div>
-                        )}
-                      </div>
-                      <svg width={W} height={H + 6} viewBox={`0 0 ${W} ${H + 6}`} style={{ maxWidth: '100%', height: 'auto', display: 'block' }}>
-                        <path d={dArea} fill="rgba(232,75,58,0.18)" />
-                        <path d={d} stroke={T.brandSoft} strokeWidth="2" fill="none" strokeLinejoin="round" strokeLinecap="round" />
-                        {pts.map((p, i) => {
-                          const isHovered = trendHoveredIdx === i
-                          const isLast = i === pts.length - 1
-                          return (
-                            <g key={i}>
-                              {/* Hit-area invisibile più grande per tap touch-friendly */}
-                              <circle cx={p[0]} cy={p[1]} r={14} fill="transparent" style={{ cursor: 'pointer' }}
-                                onMouseEnter={() => setTrendHoveredIdx(i)}
-                                onMouseLeave={() => setTrendHoveredIdx(idx => idx === i ? null : idx)}
-                                onClick={() => setTrendHoveredIdx(idx => idx === i ? null : i)}/>
-                              <circle cx={p[0]} cy={p[1]} r={isHovered ? 5 : isLast ? 3.5 : 2.5}
-                                fill={isHovered ? T.white : isLast ? '#FFF' : T.brandSoft}
-                                stroke={isHovered ? '#FBD7C9' : 'none'} strokeWidth={isHovered ? 2 : 0}
-                                style={{ pointerEvents: 'none', transition: 'r 0.15s' }}/>
-                            </g>
-                          )
-                        })}
-                      </svg>
-                    </div>
-                  )
-                })()}
-              </div>
-            </div>
-          )}
-
-          {/* AI VERDICT (narrativo regola-based) */}
-          {verdict && (
-            <div style={{
-              background: T.amberLight, border: `1px solid ${T.amber}`, borderRadius: 12,
-              padding: '14px 18px', marginBottom: 16,
-              display: 'flex', gap: 12, alignItems: 'flex-start',
-            }}>
-              <div style={{ flexShrink: 0, marginTop: 1 }}>
-                <Icon name="sparkles" size={18} color={T.amber} />
-              </div>
-              <div>
-                <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: T.amberDark, marginBottom: 4 }}>
-                  Lettura AI del gruppo
-                </div>
-                <div style={{ fontSize: font.size.base, color: T.amberDark, lineHeight: 1.6, fontWeight: 500 }}>
-                  {verdict}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* SEDE CRITICA + SEDE CHAMPION (2 card side-by-side) */}
-          {(sedeCritica || sedeChampion) && (
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: isMobile ? '1fr' : (sedeCritica && sedeChampion ? '1fr 1fr' : '1fr'),
-              gap: 12, marginBottom: 16,
-            }}>
-              {sedeCritica && (
-                <div style={{
-                  background: T.redLight, border: `1px solid ${RED}`, borderRadius: 12,
-                  padding: isMobile ? 14 : 18,
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                    <span style={{ color: RED, display: 'inline-flex' }}><Icon name="alert" size={20} /></span>
-                    <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: RED }}>
-                      Sede da gestire subito
-                    </div>
-                  </div>
-                  <div style={{ fontSize: font.size.xl, fontWeight: 800, color: TXT, marginBottom: 6 }}>
-                    <Icon name="pin" size={14} /> {sedeCritica.sede.nome}
-                  </div>
-                  <ul style={{ margin: 0, paddingLeft: 18, fontSize: font.size.sm, color: MID, lineHeight: 1.6 }}>
-                    {sedeCritica.k?.foodCostPct > 38 && <li>Food cost <strong>{fmtp(sedeCritica.k.foodCostPct)}</strong> sopra soglia</li>}
-                    {sedeCritica.k?.margineNettoCur < 0 && <li>Margine netto <strong>{fmt0(sedeCritica.k.margineNettoCur)}</strong></li>}
-                    {sedeCritica.k?.ricaviCur != null && sedeCritica.k?.ricaviPrev > 0 && ((sedeCritica.k.ricaviCur - sedeCritica.k.ricaviPrev) / sedeCritica.k.ricaviPrev * 100) <= -10 && <li>Ricavi in calo <strong>{fmtp0(((sedeCritica.k.ricaviCur - sedeCritica.k.ricaviPrev) / sedeCritica.k.ricaviPrev) * 100)}</strong></li>}
-                    {sedeCritica.k?.fattureScadute > 0 && <li><strong>{sedeCritica.k.fattureScadute}</strong> fatture scadute</li>}
-                    {sedeCritica.k?.trasfInArrivo > 0 && <li><strong>{sedeCritica.k.trasfInArrivo}</strong> trasferimenti in attesa</li>}
-                  </ul>
-                </div>
-              )}
-              {sedeChampion && (
-                <div style={{
-                  background: T.greenLight, border: `1px solid ${GRN}`, borderRadius: 12,
-                  padding: isMobile ? 14 : 18,
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                    <Icon name="award" size={22} color={GRN}/>
-                    <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: GRN }}>
-                      Sede champion (replica il modello)
-                    </div>
-                  </div>
-                  <div style={{ fontSize: font.size.xl, fontWeight: 800, color: TXT, marginBottom: 6 }}>
-                    <Icon name="pin" size={14} /> {sedeChampion.sede.nome}
-                  </div>
-                  <ul style={{ margin: 0, paddingLeft: 18, fontSize: font.size.sm, color: MID, lineHeight: 1.6 }}>
-                    {sedeChampion.k?.foodCostPct != null && sedeChampion.k.foodCostPct < 33 && <li>Food cost <strong>{fmtp(sedeChampion.k.foodCostPct)}</strong> sotto target</li>}
-                    {sedeChampion.k?.margineNettoCur > 0 && sedeChampion.k?.ricaviCur > 0 && <li>Margine netto <strong>{fmtp0((sedeChampion.k.margineNettoCur / sedeChampion.k.ricaviCur) * 100)}</strong> dei ricavi</li>}
-                    {sedeChampion.k?.ricaviCur != null && sedeChampion.k?.ricaviPrev > 0 && ((sedeChampion.k.ricaviCur - sedeChampion.k.ricaviPrev) / sedeChampion.k.ricaviPrev * 100) >= 10 && <li>Ricavi in crescita <strong>+{fmtp0(((sedeChampion.k.ricaviCur - sedeChampion.k.ricaviPrev) / sedeChampion.k.ricaviPrev) * 100)}</strong></li>}
-                    {sedeChampion.k?.fattureDaPagare === 0 && <li>Nessuna fattura scaduta</li>}
-                  </ul>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* GRAFICO INTERATTIVO - chart switcher + metric + compare */}
-          {sediAttive.length >= 2 && (() => {
-            const METRICS = [
-              // `fmt0` il simbolo ce l'ha già dentro, e lo mette DOPO la
-              // cifra come si scrive in italiano: «1.234 €». Qui davanti ce
-              // n'era un altro, e il confronto fra sedi diceva «€1.234 €».
-              { id: 'ricaviCur',       lbl: 'Ricavi',       fmt: v => fmt0(v) },
-              { id: 'foodCostPct',     lbl: 'Food cost %',  fmt: v => v != null ? fmtp(v) : '-' },
-              { id: 'margineNettoCur', lbl: 'Margine netto',fmt: v => fmt0(v) },
-              { id: 'fattureScadute',  lbl: 'Fatture scadute', fmt: v => String(v) },
-              { id: 'stockPF',         lbl: 'Stock vetrina (pz)', fmt: v => String(v) },
-            ]
-            const metricDef = METRICS.find(m => m.id === chartMetric) || METRICS[0]
-            const prevKey = chartMetric === 'ricaviCur' ? 'ricaviPrev' : null
-            const data = sediAttive.map(s => {
-              const k = kpiMap[s.id] || {}
-              return {
-                sede: s.nome.length > 12 ? s.nome.slice(0, 12) + '…' : s.nome,
-                fullName: s.nome,
-                current: Number(k[chartMetric]) || 0,
-                compare: compareMode !== 'none' && prevKey ? (Number(k[prevKey]) || 0) : null,
-              }
-            })
-            const COLORS = [T.brand, T.amber, T.green, T.blue, '#7E22CE', '#BE185D']
-            const COMPARE_COLOR = T.textSoft
-            return (
-              <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 14, padding: isMobile ? 14 : 20, marginBottom: 16 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
-                  <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: SOFT }}>
-                    Visualizzazione interattiva
-                  </div>
-                  <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    {METRICS.map(m => (
-                      <button key={m.id} onClick={() => setChartMetric(m.id)}
-                        style={{ padding: '5px 10px', borderRadius: 999, border: `1px solid ${chartMetric === m.id ? RED : BORDER}`, background: chartMetric === m.id ? RED : 'transparent', color: chartMetric === m.id ? T.white : MID, fontSize: typo.small.fontSize, fontWeight: 700, cursor: 'pointer' }}>
-                        {m.lbl}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14, flexWrap: 'wrap' }}>
-                  {/* Switcher tipo grafico */}
-                  <div style={{ display: 'flex', gap: 4, background: T.bgSubtle, borderRadius: 999, padding: 3 }}>
-                    {[
-                      { id: 'bar',  lbl: 'Barre' },
-                      { id: 'line', lbl: 'Linea' },
-                      { id: 'pie',  lbl: 'Torta' },
-                    ].map(t => (
-                      <button key={t.id} onClick={() => setChartType(t.id)}
-                        style={{ padding: '5px 12px', borderRadius: 999, border: 'none', background: chartType === t.id ? TXT : 'transparent', color: chartType === t.id ? '#FFF' : MID, fontSize: typo.small.fontSize, fontWeight: 700, cursor: 'pointer' }}>
-                        {t.lbl}
-                      </button>
-                    ))}
-                  </div>
-                  {/* Compare temporale */}
-                  {prevKey && (
-                    <PeriodCompareSelector mode={compareMode} onChange={setCompareMode} compact />
-                  )}
-                </div>
-
-                <div style={{ width: '100%', height: isMobile ? 240 : 300 }}>
-                  <ResponsiveContainer>
-                    {chartType === 'bar' && (
-                      <BarChart data={data} margin={isMobile ? { top: 8, right: 12, bottom: 8, left: 8 } : { top: 12, right: 24, bottom: 12, left: 12 }}>
-                        <CartesianGrid strokeDasharray="4 4" stroke={T.border} vertical={false}/>
-                        <XAxis dataKey="sede" tick={{ fontSize: typo.small.fontSize, fill: T.textMid }} tickLine={false} axisLine={{ stroke: T.border }} />
-                        <YAxis tick={{ fontSize: typo.small.fontSize, fill: T.textMid }} tickLine={false} axisLine={false} tickFormatter={v => metricDef.fmt(v)} width={isMobile ? 56 : 72} />
-                        <Tooltip cursor={{ fill: 'rgba(110,14,26,0.04)' }} content={<ChartTip />} formatter={v => metricDef.fmt(v)} />
-                        <Legend wrapperStyle={{ fontSize: typo.small.fontSize, paddingTop: 8 }} iconType="circle" />
-                        <Bar dataKey="current" name={`${metricDef.lbl} (attuale)`} fill={RED} radius={[6, 6, 0, 0]} maxBarSize={56} />
-                        {compareMode !== 'none' && prevKey && <Bar dataKey="compare" name={metricDef.lbl + ' (confronto)'} fill={COMPARE_COLOR} radius={[6, 6, 0, 0]} maxBarSize={56} />}
-                      </BarChart>
-                    )}
-                    {chartType === 'line' && (
-                      <LineChart data={data} margin={isMobile ? { top: 8, right: 12, bottom: 8, left: 8 } : { top: 12, right: 24, bottom: 12, left: 12 }}>
-                        <CartesianGrid strokeDasharray="4 4" stroke={T.border} vertical={false}/>
-                        <XAxis dataKey="sede" tick={{ fontSize: typo.small.fontSize, fill: T.textMid }} tickLine={false} axisLine={{ stroke: T.border }} />
-                        <YAxis tick={{ fontSize: typo.small.fontSize, fill: T.textMid }} tickLine={false} axisLine={false} tickFormatter={v => metricDef.fmt(v)} width={isMobile ? 56 : 72} />
-                        <Tooltip content={<ChartTip />} formatter={v => metricDef.fmt(v)} />
-                        <Legend wrapperStyle={{ fontSize: typo.small.fontSize, paddingTop: 8 }} iconType="circle" />
-                        <Line type="monotone" dataKey="current" name={`${metricDef.lbl} (attuale)`} stroke={RED} strokeWidth={2.5} dot={{ r: 4, fill: RED }} activeDot={{ r: 6 }} />
-                        {compareMode !== 'none' && prevKey && <Line type="monotone" dataKey="compare" name={metricDef.lbl + ' (confronto)'} stroke={COMPARE_COLOR} strokeWidth={2} strokeDasharray="6 4" dot={{ r: 3 }} />}
-                      </LineChart>
-                    )}
-                    {chartType === 'pie' && (
-                      <PieChart margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
-                        <Tooltip content={<ChartTip />} formatter={v => metricDef.fmt(v)} />
-                        <Legend wrapperStyle={{ fontSize: typo.small.fontSize, paddingTop: 8 }} iconType="circle" />
-                        <Pie data={data} dataKey="current" nameKey="sede" outerRadius={isMobile ? 76 : 100} innerRadius={isMobile ? 36 : 50} paddingAngle={2} label={d => d.sede} labelLine={false}>
-                          {data.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                        </Pie>
-                      </PieChart>
-                    )}
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            )
-          })()}
-
-          {/* RANKING ricavi */}
-          {ranking.length >= 2 && (
-            <div style={{ background: `linear-gradient(180deg, ${T.amberLight} 0%, ${T.white} 80%)`, border: `1px solid ${BORDER}`, borderRadius: 12, padding: isMobile ? 14 : 20, marginBottom: 16 }}>
-              <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: SOFT, marginBottom: 10 }}>
-                Classifica ricavi {periodoLabel}
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {ranking.map((r, i) => {
-                  // Erano tre medaglie disegnate con le emoji. Le emoji nel
-                  // prodotto non si usano (cambiano forma da un telefono
-                  // all'altro e un lettore di schermo le legge «medaglia
-                  // d'oro», che non è quello che c'è scritto): il posto in
-                  // classifica si scrive col numero, e il primo si distingue
-                  // col colore del marchio.
-                  const medal = `${i + 1}°`
-                  const kk = kpiMap[r.sede.id] || {}
-                  const delta = fmtDelta(kk.ricaviPrev, kk.ricaviCur)
-                  return (
-                    <div key={r.sede.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', background: i === 0 ? T.amberLight : T.white, borderRadius: 8, border: `1px solid ${i === 0 ? T.amber : BORDER}` }}>
-                      <div style={{
-                        fontSize: font.size.xl, width: 36, textAlign: 'center', fontWeight: 800,
-                        color: i === 0 ? T.brand : T.textSoft,
-                      }}>{medal}</div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: font.size.md, fontWeight: 800, color: TXT, display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <Icon name="pin" size={13} />{r.sede.nome}
-                        </div>
-                        {r.sede.citta && <div style={{ fontSize: typo.small.fontSize, color: SOFT }}>{r.sede.citta}</div>}
-                      </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: font.size.lg, fontWeight: 900, color: TXT, ...tnum }}>{fmt0(r.ricavi)}</div>
-                        {delta && (
-                          <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, color: delta.positive ? GRN : RED, ...tnum }}>
-                            {delta.sign}{fmt0(delta.delta)}{delta.pct != null ? ` (${delta.sign}${fmtp0(delta.pct)})` : ''}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* ALERTS */}
-          {alerts.length > 0 && (
-            <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: isMobile ? 14 : 18, marginBottom: 16 }}>
-              <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: SOFT, marginBottom: 10 }}>
-                Alerts da gestire ({alerts.length})
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {alerts.map((a, i) => {
-                  const bg = a.lvl === 'red' ? RED_BG : AMB_BG
-                  const col = a.lvl === 'red' ? RED : AMB
-                  return (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: bg, borderRadius: 8 }}>
-                      <Icon name={a.icon} size={15} color={col} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, color: TXT }}>{a.sede.nome}</div>
-                        <div style={{ fontSize: typo.small.fontSize, color: MID }}>{a.msg}</div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* TABELLA KPI COMPLETA */}
-          {isMobile ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 8 }}>
-              {sediAttive.map(s => {
-                const k = kpiMap[s.id] || {}
-                return (
-                  <div key={s.id} style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: 16 }}>
-                    <div style={{ fontSize: font.size.md, fontWeight: 800, color: TXT, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="pin" size={14} />{s.nome}</div>
-                    {s.citta && <div style={{ fontSize: typo.small.fontSize, color: SOFT, marginBottom: 12 }}>{s.citta}</div>}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                      {RIGHE_KPI.map(r => {
-                        const cs = cellStyle(s.id, r.bw)
-                        const bg = cs.background || T.bgSubtle
-                        const col = cs.color || TXT
-                        return (
-                          <div key={r.key} style={{ background: bg, borderRadius: 8, padding: '10px 12px' }}>
-                            <div style={{ fontSize: typo.small.fontSize, color: SOFT, marginBottom: 4, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}><Icon name={r.icon} size={12} />{r.label}</div>
-                            <div style={{ fontSize: font.size.lg, fontWeight: 800, color: col, ...tnum }}>{r.fmt(k[r.key])}</div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          ) : (
-            <div style={{ overflowX: 'auto', marginTop: 8 }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', background: CARD, borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
-                <thead>
-                  <tr style={{ background: T.bgSubtle }}>
-                    <th style={{ ...headerStyle, textAlign: 'left', width: 220 }}>KPI</th>
-                    {sediAttive.map(s => (
-                      <th key={s.id} style={headerStyle}>
-                        {s.nome}
-                        {s.citta && <div style={{ fontSize: typo.small.fontSize, color: SOFT, fontWeight: 500, textTransform: 'none', letterSpacing: 0 }}>{s.citta}</div>}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {RIGHE_KPI.map(r => (
-                    <tr key={r.key}>
-                      <td style={tdL}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name={r.icon} size={14} />{r.label}</span></td>
-                      {sediAttive.map(s => {
-                        const k = kpiMap[s.id] || {}
-                        const delta = r.prevKey ? fmtDelta(k[r.prevKey], k[r.key], r.fmt) : null
-                        return (
-                          <td key={s.id} style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', ...tdC, ...cellStyle(s.id, r.bw) }}>
-                            <div>{r.fmt(k[r.key])}</div>
-                            {delta && (
-                              <div style={{ fontSize: typo.small.fontSize, color: delta.positive ? GRN : RED, fontWeight: 700, marginTop: 2 }}>
-                                {delta.sign}{r.fmt(delta.delta)}{delta.pct != null ? ` (${delta.sign}${fmtp0(delta.pct)})` : ''}
-                              </div>
-                            )}
-                          </td>
-                        )
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </>
+        </Riquadro>
       )}
-    </div>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <ExportPdfButton fileName={`confronto-sedi-${da}-${a}.pdf`} compact getReport={() => ({
+          title: 'Confronto sedi',
+          subtitle: `${sediAttive.length} sedi attive`,
+          periodo: `${nomePeriodo(da, a)}${conf ? ` · confronto con ${nomePeriodo(conf.from, conf.to)}` : ''}`,
+          kpi: [
+            { label: 'Incassi delle sedi', value: euro(consolidato.ricCur) || '-', sub: vGruppo ? `${vGruppo.testoDelta} sul periodo prima` : '' },
+            ...(giorniMancanti > 0 ? [{ label: 'Giorni senza dati', value: String(giorniMancanti) }] : []),
+          ],
+          sections: [{
+            title: 'Per sede',
+            table: {
+              columns: ['Sede', 'Incassi', 'Giorni con dati', 'Fatture da pagare', 'Fatture scadute'],
+              alignments: ['left', 'right', 'right', 'right', 'right'],
+              rows: sediAttive.map(s => {
+                const k = kSede(s)
+                return [s.nome, k.ricaviCur != null ? euro(k.ricaviCur) : 'non lo so', `${giorni - (k.incasso?.scoperti || 0)} su ${giorni}`, euro(k.fattureImporto || 0), String(k.fattureScadute || 0)]
+              }),
+            },
+          }],
+        })} />
+      </div>
+    </PaginaAnalisi>
   )
 }

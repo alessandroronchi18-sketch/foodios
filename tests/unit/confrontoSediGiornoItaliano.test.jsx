@@ -75,17 +75,15 @@ vi.mock('../../src/lib/storage', () => ({
   ssave: async () => {},
 }))
 
-vi.mock('../../src/lib/inventarioProduzione', () => ({
+vi.mock('../../src/lib/inventarioProduzione', async (orig) => ({
+  ...(await orig()),
   fetchAllInventarioProduzione: async () => [],
-  ricaviDaInventario: () => null,
-  GIORNI_RIPORTO_MAX: 30,
-  COLONNE_VENDUTO: [],
 }))
-vi.mock('../../src/lib/costiAziendali', () => ({
+vi.mock('../../src/lib/costiAziendali', async (orig) => ({
+  ...(await orig()),
   caricaCostiAziendali: async () => [],
-  totaleMensile: () => 0,
 }))
-vi.mock('../../src/lib/venditeB2B', () => ({ venditeB2BPeriodo: async () => [] }))
+vi.mock('../../src/lib/venditeB2B', async (orig) => ({ ...(await orig()), venditeB2BPeriodo: async () => [] }))
 
 import ConfrontoSedi from '../../src/components/ConfrontoSedi'
 
@@ -121,8 +119,10 @@ function prodottiOggiPrimaSede() {
   const righe = Array.from(document.querySelectorAll('tr'))
   const riga = righe.find(tr => tr.textContent.startsWith('Prodotti oggi'))
   if (!riga) return null
+  // 05/10/2026: la pagina è sul kit dell'Analisi, il nome della voce è
+  // l'intestazione di riga (th) e la prima sede è la prima cella (td).
   const celle = Array.from(riga.querySelectorAll('td'))
-  return celle[1] ? celle[1].textContent.trim() : null
+  return celle[0] ? celle[0].textContent.trim() : null
 }
 
 beforeEach(() => {

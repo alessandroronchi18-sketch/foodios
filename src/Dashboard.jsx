@@ -3784,7 +3784,7 @@ export default function Dashboard({
           ricettario={ricettario}
           nomeAttivita={nomeAttivita}
           notify={notify}/>}
-        {vista==="confronto-sedi"&&(canAccessView("confronto-sedi",piano,auth?.user?.email)?<ConfrontoSedi orgId={orgId} sedi={sedi}/>:<UpgradeGate view="confronto-sedi" onUpgrade={goToUpgrade}/>)}
+        {vista==="confronto-sedi"&&(canAccessView("confronto-sedi",piano,auth?.user?.email)?<ConfrontoSedi orgId={orgId} sedi={sedi} onNavigate={setView}/>:<UpgradeGate view="confronto-sedi" onUpgrade={goToUpgrade}/>)}
         {vista==="eventi"&&<EventiView orgId={orgId} sedeId={sedeId} ricettario={ricettario} notify={notify} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita}/>}
         {vista==="trasferimenti"&&!isAllSedi&&(canAccessView("trasferimenti",piano,auth?.user?.email)?<TrasferimentiView orgId={orgId} sedi={sedi} sedeAttiva={sedeAttiva} notify={notify} metodoProduzione={metodoProduzione} soloRicezione={isDip}/>:<UpgradeGate view="trasferimenti" onUpgrade={goToUpgrade}/>)}
         {vista==="integrazioni"&&(canAccessView("integrazioni",piano,auth?.user?.email)?<Integrazioni orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify}/>:<UpgradeGate view="integrazioni" onUpgrade={goToUpgrade}/>)}
