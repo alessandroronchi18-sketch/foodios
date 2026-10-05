@@ -15,6 +15,9 @@ import { quoteDiRipartizione } from './costiCondivisi'
 import { incassiSedeDelMese } from './ilMeseArchivio'
 import { incassiDaSedi } from './ilMese'
 import { aggiungiGiorni, lunediDellaSettimana } from './dateLocal'
+import { totaliPerGusto, ricettaDelGusto } from './inventarioProduzione'
+import { buildIngCosti } from './foodcost'
+import { valutaGusti } from './produzioneAnalisi'
 
 // Food cost del periodo, pesato: euro di food cost su euro di ricavo.
 // `pct` è null quando non c'è ricavo: senza un ricavo sotto, una percentuale
@@ -193,4 +196,43 @@ export function andamentoSettimane(sedi = [], fine, n = 8) {
     out.push({ lunIso: lun, domIso: dom, ricavi: r.valore, scoperti: r.scoperti, fonte: r.fonte })
   }
   return out
+}
+
+// ── Food cost e margine di una sede, dall'inventario e dalle ricette ────────
+//
+// 05/10/2026. La pagina diceva «non lo so» al food cost e al margine di tutte
+// le sedi, perché li leggeva solo dalla produzione giornaliera (che Mara non
+// compila). La Produzione li calcola dall'inventario e dalle ricette: qui
+// stesse funzioni (`valutaGusti`, `totaliPerGusto`), stesso numero della
+// Produzione con quella sede scelta. Il margine è sui soli gusti con la
+// ricetta e il costo completo; i chili degli altri restano fuori e si dicono.
+//
+/**
+ * @param {object} o
+ * @param {object[]} o.righe  inventario della sede
+ * @param {string} o.da
+ * @param {string} o.a
+ * @param {object|null} o.ricettario
+ * @param {object|null} [o.nomiGusti]
+ * @param {number|null} o.euroKgNetto  prezzo medio al chilo senza IVA
+ * @returns {null | { margine:number|null, margPct:number|null, fcEuro:number|null, fcPct:number|null,
+ *   ricavoConMargine:number, kgVenduti:number, kgFuori:number, pctFuori:number|null, nConMargine:number }}
+ */
+export function foodCostSede({ righe, da, a, ricettario, nomiGusti = null, euroKgNetto }) {
+  if (!Array.isArray(righe) || !ricettario || !(euroKgNetto > 0)) return null
+  const v = valutaGusti(totaliPerGusto(righe, { da, a }), {
+    ricettaDi: (g) => ricettaDelGusto(ricettario, g, nomiGusti),
+    ricavoKgDi: () => euroKgNetto,
+    ingCosti: buildIngCosti(ricettario?.ingredienti_costi || {}), ricettario,
+  })
+  const t = v.totali
+  if (!(t.nConVendita > 0)) return null
+  const kgFuori = Math.max(0, t.vend - t.vendConMargine)
+  return {
+    margine: t.margine, margPct: t.margPct,
+    fcEuro: t.margine != null ? t.ricavoConMargine - t.margine : null,
+    fcPct: t.margPct != null ? 100 - t.margPct : null,
+    ricavoConMargine: t.ricavoConMargine, kgVenduti: t.vend, kgFuori,
+    pctFuori: t.vend > 0 ? (kgFuori / t.vend) * 100 : null, nConMargine: t.nConMargine,
+  }
 }

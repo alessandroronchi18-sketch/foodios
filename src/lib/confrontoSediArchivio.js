@@ -12,14 +12,17 @@
 import { sload } from './storage'
 import { caricaChiusure } from './chiusure'
 import { fetchAllInventarioProduzione, GIORNI_RIPORTO_MAX, COLONNE_VENDUTO } from './inventarioProduzione'
-import { SK_FORMATI } from './storageKeys'
+import { SK_FORMATI, SK_NOMI_GUSTI } from './storageKeys'
+import { leggiNomiGusti } from './nomiGusti'
+import { euroKgMedioFormati } from './inventarioProduzione'
+import { prezzoNetto } from '../views/produzione/numeri'
 import { venditeB2BPeriodo } from './venditeB2B'
 import { caricaCostiAziendali, totaleMensile } from './costiAziendali'
 import { produzionePerSedeMese } from './contoEconomicoArchivio'
 import { quoteDiRipartizione } from './costiCondivisi'
 import { aggiungiGiorni, differenzaGiorni, soloData } from './dateLocal'
 import {
-  foodCostPesato, fattureDaPagarePerSede, incassiSedePeriodo, andamentoSettimane,
+  foodCostPesato, foodCostSede, fattureDaPagarePerSede, incassiSedePeriodo, andamentoSettimane,
 } from './confrontoSediCalc'
 
 const kgProdotti = (righe, da, a) => {
@@ -44,7 +47,7 @@ const kgProdotti = (righe, da, a) => {
  * @param {{from:string,to:string}|null} [o.confronto]  il periodo con cui confrontare
  * @param {string} o.oggi
  */
-export async function caricaConfrontoSedi({ supabase, orgId, sedi = [], da, a, confronto = null, oggi }) {
+export async function caricaConfrontoSedi({ supabase, orgId, sedi = [], da, a, confronto = null, oggi, ricettario = null }) {
   const inizioAndamento = aggiungiGiorni(a, -(7 * 8 - 1) - 7)
   const inizioLettura = [da, confronto?.from, inizioAndamento].filter(Boolean).sort()[0]
   const fineLettura = [a, confronto?.to].filter(Boolean).sort().slice(-1)[0]
@@ -54,7 +57,7 @@ export async function caricaConfrontoSedi({ supabase, orgId, sedi = [], da, a, c
     try { return await fn() } catch (e) { errori.push({ nome, messaggio: e?.message || String(e) }); return ripiego }
   }
 
-  const [stockAll, trasfPending, fattureAll, costiOrg, chiusureTutte, formati] = await Promise.all([
+  const [stockAll, trasfPending, fattureAll, costiOrg, chiusureTutte, formati, nomiGustiRaw] = await Promise.all([
     supabase.from('stock_prodotti_finiti').select('sede_id, quantita, prodotto_nome').eq('organization_id', orgId),
     supabase.from('trasferimenti').select('sede_a, sede_da, stato').eq('organization_id', orgId).eq('stato', 'inviato'),
     // `sedi_condivise` serve alla divisione delle spese comuni: senza, le
@@ -66,7 +69,10 @@ export async function caricaConfrontoSedi({ supabase, orgId, sedi = [], da, a, c
     caricaCostiAziendali(orgId, null).catch(() => []),
     prova('cassa', () => caricaChiusure(orgId, null, { from: inizioLettura, to: fineLettura, tutteLeSedi: true }), null),
     prova('formati', () => sload(SK_FORMATI, orgId, null), null),
+    prova('nomi dei gusti', () => sload(SK_NOMI_GUSTI, orgId, null), null),
   ])
+  const nomiGusti = leggiNomiGusti(nomiGustiRaw)
+  const euroKgNetto = prezzoNetto(euroKgMedioFormati(formati))
 
   // I chili di ogni sede nei mesi delle fatture, per dividere le spese comuni.
   const fattureRighe = fattureAll?.data || []
@@ -118,11 +124,15 @@ export async function caricaConfrontoSedi({ supabase, orgId, sedi = [], da, a, c
       const fc = foodCostPesato(sessioni)
 
       const ricaviCur = cur.valore
+      // Food cost e margine dall'inventario e dalle ricette (come la
+      // Produzione); se non ci sono, quello della produzione giornaliera.
+      const inv = righeInv ? foodCostSede({ righe: righeInv, da, a, ricettario, nomiGusti, euroKgNetto }) : null
       // Il food cost in euro è noto solo se nel periodo ci sono giornate
       // registrate: senza, «food cost zero» farebbe un margine del 100 %.
       // E con incassi a metà (giorni senza dati) il margine non si calcola:
       // i ricavi sono un minimo, i costi no.
-      const margineLordoCur = ricaviCur != null && fc.giornate > 0 && !cur.parziale ? ricaviCur - fc.fcEuro : null
+      const margineLordoCur = inv ? inv.margine
+        : ricaviCur != null && fc.giornate > 0 && !cur.parziale ? ricaviCur - fc.fcEuro : null
       const confrontabile = !!(prev && cur.valore != null && prev.valore != null && !cur.parziale && !prev.parziale)
 
       risultati[sede.id] = {
@@ -135,8 +145,10 @@ export async function caricaConfrontoSedi({ supabase, orgId, sedi = [], da, a, c
         nChiusureCur: cur.giorni,
         kgProdotti: righeInv ? kgProdotti(righeInv, da, a) : null,
         giornateConDato: fc.giornate,
-        foodCostPct: fc.pct,
-        fcEuroCur: fc.fcEuro,
+        foodCostPct: inv ? inv.fcPct : fc.pct,
+        fcEuroCur: inv ? inv.fcEuro : fc.fcEuro,
+        foodCostChiliFuoriPct: inv?.pctFuori ?? null,
+        foodCostSuGusti: inv?.nConMargine ?? null,
         margineLordoCur,
         prodOggi: giorArr
           .filter(s => (s.data || '').startsWith(oggi))

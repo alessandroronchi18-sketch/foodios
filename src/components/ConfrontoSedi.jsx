@@ -44,7 +44,7 @@ function finestraDiPartenza(oggi = new Date()) {
   return finestraScorciatoia(oggi.getDate() <= 7 ? 'mesePrec' : 'meseCorr', oggi)
 }
 
-export default function ConfrontoSedi({ orgId, sedi, onNavigate }) {
+export default function ConfrontoSedi({ orgId, sedi, onNavigate, ricettario = null, metodoProduzione = 'stampi' }) {
   const isMobile = useIsMobile()
   const sediAttive = useMemo(() => (sedi || []).filter(s => s.attiva !== false), [sedi])
   const chiaveSedi = sediAttive.map(s => s.id).join(',')
@@ -62,12 +62,12 @@ export default function ConfrontoSedi({ orgId, sedi, onNavigate }) {
     if (!orgId || sediAttive.length < 2 || !da || !a) { setLoading(false); return }
     let annullato = false
     setLoading(true); setErrore('')
-    caricaConfrontoSedi({ supabase, orgId, sedi: sediAttive, da, a, confronto: conf, oggi: todayLocal() })
+    caricaConfrontoSedi({ supabase, orgId, sedi: sediAttive, da, a, confronto: conf, oggi: todayLocal(), ricettario })
       .then(r => { if (!annullato) { setDati(r); setLoading(false) } })
       .catch(e => { if (!annullato) { setErrore(e?.message || 'lettura non riuscita'); setLoading(false) } })
     return () => { annullato = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orgId, chiaveSedi, da, a, conf?.from, conf?.to])
+  }, [orgId, chiaveSedi, da, a, conf?.from, conf?.to, ricettario])
 
   const kpiMap = useMemo(() => dati?.kpiMap || {}, [dati])
   const giorni = giorniDelPeriodo(da, a)
@@ -136,6 +136,8 @@ export default function ConfrontoSedi({ orgId, sedi, onNavigate }) {
     ? variazione({ attuale: consolidato.ricCur, confronto: consolidato.ricPrev }) : null
   const giorniMancanti = sediAttive.reduce((t, s) => t + (kSede(s).incasso?.scoperti || 0), 0)
   const stimati = conIncasso.some(s => kSede(s).ricaviStimati)
+  // «Incassi stimati» solo se TUTTI i giorni lo sono; con cassa e stima insieme è «Incassi».
+  const tuttoStimato = conIncasso.length > 0 && conIncasso.every(s => kSede(s).incasso?.fonte === 'stima')
 
   const ordinate = [...conIncasso].sort((x, y) => kSede(y).ricaviCur - kSede(x).ricaviCur)
   const guida = ordinate[0]
@@ -152,8 +154,9 @@ export default function ConfrontoSedi({ orgId, sedi, onNavigate }) {
     const k = kSede(s)
     if (k.errore) return { id: `inc-${s.id}`, breve: `${s.nome}: dati non letti`, stato: 'manca', testo: `${s.nome}: ${k.errore}` }
     const i = k.incasso
-    const stato = i.valore == null ? 'manca' : i.parziale ? 'parziale' : i.fonte === 'cassa' ? 'ok' : 'stima'
-    const breve = stato === 'ok' ? `${s.nome}: cassa` : stato === 'stima' ? `${s.nome}: stimato` : stato === 'parziale' ? `${s.nome}: giorni mancanti` : `${s.nome}: nessun dato`
+    const stato = i.valore == null ? 'manca' : i.parziale ? 'parziale' : i.fonte === 'cassa' ? 'ok' : 'stima'  // 'misto' = in parte stimato
+    const breve = stato === 'parziale' ? `${s.nome}: giorni mancanti` : stato === 'manca' ? `${s.nome}: nessun dato`
+      : i.fonte === 'misto' ? `${s.nome}: in parte cassa` : i.fonte === 'cassa' ? `${s.nome}: cassa` : `${s.nome}: stimato`
     return {
       id: `inc-${s.id}`, breve, stato, testo: `${s.nome}: ${i.testo}`,
       azione: stato !== 'ok' && onNavigate ? { etichetta: 'Registra la cassa', onClick: () => onNavigate('chiusura') } : null,
@@ -166,9 +169,16 @@ export default function ConfrontoSedi({ orgId, sedi, onNavigate }) {
   } else if (sediAttive.some(s => kSede(s).fattureComuni > 0)) {
     vociCopertura.push({ id: 'comuni', breve: 'Spese comuni sui chili', stato: 'ok', testo: 'Le fatture di più sedi insieme sono divise in proporzione ai chili prodotti nel mese della fattura.' })
   }
-  if (!sediAttive.some(s => kSede(s).giornateConDato > 0)) {
+  const conFc = sediAttive.filter(s => kSede(s).foodCostPct != null)
+  if (conFc.length === 0) {
     vociCopertura.push({ id: 'foodcost', breve: 'Food cost mancante', stato: 'manca',
-      testo: 'Nessuna produzione giornaliera registrata nel periodo: food cost e margine non si calcolano (non sono zero).' })
+      testo: ricettario ? 'Nessun gusto venduto ha la ricetta con il costo completo: food cost e margine non si calcolano (non sono zero).' : 'Il ricettario non è arrivato: food cost e margine non si calcolano.',
+      azione: onNavigate ? { etichetta: 'Apri Food cost', onClick: () => onNavigate('simulatore') } : null })
+  } else {
+    const fuori = conFc.map(s => `${s.nome} ${Math.round(kSede(s).foodCostChiliFuoriPct || 0)}%`).join(', ')
+    vociCopertura.push({ id: 'foodcost', breve: 'Food cost sui gusti con ricetta', stato: 'parziale',
+      testo: `Food cost e margine contano solo i gusti con la ricetta e il costo completo. Chili venduti senza ricetta, esclusi: ${fuori}.`,
+      azione: onNavigate ? { etichetta: 'Collega le ricette', onClick: () => onNavigate('storico') } : null })
   }
 
   // ── La tabella: una colonna per sede ────────────────────────────────────
@@ -180,20 +190,27 @@ export default function ConfrontoSedi({ orgId, sedi, onNavigate }) {
     const v = variazione({ attuale: k.ricaviCur, confronto: k.ricaviPrev })
     return <span style={{ ...tab, color: v?.verso === 'peggio' ? T.graficoPeggio : v?.verso === 'meglio' ? T.graficoMeglio : T.textMid, fontWeight: 600 }}>{v ? v.testoDelta : '-'}</span>
   }
+  // Chi lavora a inventario non usa stampi, vetrina e trasferimenti: tre
+  // zeri non dicono niente. Si mostrano solo se hanno un dato.
+  const vediPasticceria = metodoProduzione !== 'inventario'
+    || sediAttive.some(s => (kSede(s).prodOggi || 0) > 0 || (kSede(s).stockPF || 0) > 0 || (kSede(s).trasfInArrivo || 0) > 0)
   const righe = [
-    riga('incassi', nomeIncassi(stimati), (k) => (k.ricaviCur != null ? num(euro(k.ricaviCur)) : ND(k.incasso?.testo || 'nessun dato')), { forte: true }),
+    riga('incassi', nomeIncassi(tuttoStimato), (k) => (k.ricaviCur != null ? num(euro(k.ricaviCur)) : ND(k.incasso?.testo || 'nessun dato')), { forte: true }),
     riga('giorni', 'Giorni con dati', (k) => (k.incasso
-      ? <span style={{ ...tab, color: k.incasso.scoperti > 0 ? T.amberDark : T.text }}>{giorni - k.incasso.scoperti} su {giorni}</span> : ND('lettura non riuscita'))),
+      ? <span title={k.incasso.testo} style={{ ...tab, color: k.incasso.scoperti > 0 ? T.amberDark : T.text }}>{giorni - k.incasso.scoperti} su {giorni}</span> : ND('lettura non riuscita'))),
     riga('prima', conf ? 'Sul periodo prima' : 'Confronto', (k) => dif(k)),
     riga('chili', 'Chili prodotti', (k) => (k.kgProdotti != null ? num(nIt(k.kgProdotti)) : ND('inventario non letto'))),
-    riga('fc', 'Food cost', (k) => (k.foodCostPct != null ? num(quota(k.foodCostPct)) : ND('nessuna produzione giornaliera registrata'))),
-    riga('margine', 'Margine netto', (k) => (k.margineNettoCur != null ? num(euro(k.margineNettoCur)) : ND(k.ricaviCur == null ? 'mancano gli incassi' : k.incasso?.parziale ? 'mancano dei giorni di incasso' : 'manca il food cost'))),
+    riga('fc', 'Food cost', (k) => (k.foodCostPct != null ? num(quota(k.foodCostPct)) : ND(ricettario ? 'nessun gusto con ricetta e costo completo nel periodo' : 'ricettario non letto'))),
+    riga('margine', 'Margine netto', (k) => (k.margineNettoCur != null ? num(euro(k.margineNettoCur)) : ND('serve il food cost: nessun gusto con ricetta e costo completo'))),
+    riga('fuori', 'Chili senza ricetta', (k) => (k.foodCostChiliFuoriPct != null
+      ? <span style={{ ...tab, color: k.foodCostChiliFuoriPct > 0 ? T.amberDark : T.text }} title="Chili venduti di gusti senza ricetta collegata: restano fuori dal food cost e dal margine">{quota(k.foodCostChiliFuoriPct)}</span>
+      : ND('nessun dato di inventario'))),
     riga('dapagare', 'Fatture da pagare', (k) => (k.fattureImporto != null ? num(euro(k.fattureImporto)) : ND('fatture non lette'))),
     riga('comuni', 'di cui spese comuni', (k) => (k.fattureComuni != null ? <span style={{ ...tab, color: k.fattureComuniStimate ? T.amberDark : T.text }} title={k.fattureComuniStimate ? 'divise in parti uguali: nel mese non c\'è produzione registrata' : 'divise sui chili prodotti'}>{euro(k.fattureComuni)}{k.fattureComuniStimate ? ' stimato' : ''}</span> : ND('fatture non lette'))),
     riga('scadute', 'Fatture scadute', (k) => (k.fattureScadute != null ? num(k.fattureScadute) : ND('fatture non lette'))),
-    riga('oggi', 'Prodotti oggi', (k) => num(k.prodOggi ?? 0)),
+    ...(vediPasticceria ? [riga('oggi', 'Prodotti oggi', (k) => num(k.prodOggi ?? 0)),
     riga('stock', 'Stock vetrina', (k) => num(`${nIt(k.stockPF || 0)} pz`)),
-    riga('trasf', 'Trasferimenti in arrivo', (k) => num(k.trasfInArrivo ?? 0)),
+    riga('trasf', 'Trasferimenti in arrivo', (k) => num(k.trasfInArrivo ?? 0))] : []),
   ]
 
   // ── Da guardare ─────────────────────────────────────────────────────────
@@ -224,7 +241,7 @@ export default function ConfrontoSedi({ orgId, sedi, onNavigate }) {
       <CoperturaDati isMobile={isMobile} voci={vociCopertura} />
 
       <NumeroPrincipale riquadro isMobile={isMobile}
-        etichetta={`${nomeIncassi(stimati)} delle sedi`}
+        etichetta={`${nomeIncassi(tuttoStimato)} delle sedi`}
         valore={conIncasso.length > 0 ? euro(consolidato.ricCur) : null} stimato={stimati}
         motivoMancante="nessuna sede ha incassi in questo periodo"
         azione={conIncasso.length === 0 && onNavigate ? { etichetta: 'Registra la cassa', onClick: () => onNavigate('chiusura') } : null}
@@ -262,7 +279,7 @@ export default function ConfrontoSedi({ orgId, sedi, onNavigate }) {
 
       <Riquadro isMobile={isMobile}>
         <TitoloGrafico titolo="Le sedi, voce per voce"
-          sottotitolo="Incassi, giorni coperti, spese e magazzino. «Non lo so» vuol dire che il dato manca: non è zero." />
+          sottotitolo="Incassi, giorni coperti, spese e magazzino. Food cost e margine sui gusti con ricetta e costo completo. «Non lo so» vuol dire che il dato manca: non è zero." />
         <TabellaAnalisi etichetta="Confronto fra le sedi" isMobile={isMobile} colonne={colonne} righe={righe} />
       </Riquadro>
 
