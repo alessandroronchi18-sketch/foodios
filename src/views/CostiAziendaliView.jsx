@@ -16,6 +16,12 @@ import {
   caricaCostiAziendali, salvaVoceCosto, eliminaVoceCosto,
   importoMensile, totaleMensile, aggregaPerCategoria, statoVoce, comeEliminare,
 } from '../lib/costiAziendali'
+import { supabase } from '../lib/supabase'
+import { leggiFatturePeriodo, leggiCategorieFornitori } from '../lib/contoEconomicoArchivio'
+import { speseRicorrenti, doppioneProbabile, testoDoppione } from '../lib/speseRicorrenti'
+import GiaDalleFatture from '../components/costiFissi/GiaDalleFatture'
+import { ClassificaSpese, RigaMotivo } from '../components/analisi'
+import { PulsanteTorna } from '../components/analisi/MeseAnalisi'
 
 // ── Un importo che non si sa non è zero ─────────────────────────────────────
 //
@@ -96,6 +102,31 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
     setLoading(false)
   }
   useEffect(() => { if (orgId) reload() }, [orgId])
+
+  // Le spese fisse che arrivano già in fattura (05/10/2026, speseRicorrenti):
+  // si vedono in cima, e l'avviso del modulo le usa per fermare i doppioni.
+  // Se la lettura non riesce la pagina resta com'era: niente riquadro, niente
+  // avviso, mai un errore che blocca l'inserimento.
+  // La lettura una volta (e dopo aver dato le voci); il conto a ogni
+  // ridisegno, che costa niente.
+  const [letteFatture, setLetteFatture] = useState(null)   // { fatture, categoriePerFornitore, oggi }
+  const [classifica, setClassifica] = useState(false)
+  const [versioneFatture, setVersioneFatture] = useState(0)
+  useEffect(() => {
+    if (!orgId) return undefined
+    let vivo = true
+    const oggi = todayLocal()
+    const [y, m] = oggi.split('-').map(Number)
+    // I dodici mesi interi prima di questo: dallo stesso mese dell'anno scorso.
+    const dal = `${y - 1}-${String(m).padStart(2, '0')}-01`
+    Promise.all([leggiFatturePeriodo(supabase, orgId, { dal, al: oggi }), leggiCategorieFornitori(supabase, orgId)])
+      .then(([f, c]) => { if (vivo) setLetteFatture({ fatture: f?.fatture || [], categoriePerFornitore: c?.categoriePerFornitore || {}, oggi }) })
+      .catch((e) => { console.warn('[costi fissi] fatture non lette', e); if (vivo) setLetteFatture(null) })
+    return () => { vivo = false }
+  }, [orgId, versioneFatture])
+  const ricorrenti = useMemo(() => (letteFatture
+    ? speseRicorrenti(letteFatture.fatture, { categoriePerFornitore: letteFatture.categoriePerFornitore, oggi: letteFatture.oggi, sedi })
+    : null), [letteFatture, sedi])
 
   // Filtraggio per scope: tutte vs sede attiva (include sempre quelle globali).
   // Multi-sede only: se l'azienda ha una sola sede il toggle non ha senso.
@@ -227,9 +258,18 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
   // KPI grid: 1 col mobile, 2 tablet, 3 desktop (uniforme col resto dell'app).
   const kpiCols = ui3(isMobile, isTablet, ui.grid3)
 
+  if (classifica) return (
+    <ClassificaSpese orgId={orgId} notify={notify} isMobile={isMobile}
+      torna={<PulsanteTorna onClick={() => setClassifica(false)}>Torna ai costi fissi</PulsanteTorna>}
+      onSalvato={() => { setClassifica(false); setVersioneFatture(v => v + 1) }} />
+  )
+
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
-      <PageHeader subtitle="Costi extra-food: consumabili, manutenzione, ammortamenti, utenze. Confluiscono nel P&L mensile normalizzati alla periodicità scelta." />
+      <PageHeader subtitle="Le spese che non arrivano in fattura: l'affitto pagato a un privato, le rate, le assicurazioni, le tasse con l'F24. Quelle con la fattura entrano già da sole nel conto." />
+
+      <GiaDalleFatture ricorrenti={ricorrenti} isMobile={isMobile} onClassifica={() => setClassifica(true)} nSedi={(sedi || []).length}
+        stile={{ marginBottom: 20 }} />
 
       {/* Toggle SCOPE futuristic-clean: visibile solo se multi-sede E c'e' una
           sede attiva (non in modalita' "Tutte le sedi" aggregate). In _all
@@ -584,6 +624,7 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
           form={form} setForm={setForm} sedi={sedi}
           isMobile={isMobile} dito={dito}
           saving={saving}
+          doppione={doppioneProbabile(form, ricorrenti, { sedi })}
           onClose={() => { if (!saving) setForm(null) }} onSave={salva}
         />
       )}
@@ -779,7 +820,7 @@ function EmptyState({ filterCategoria, onAdd }) {
         fontSize: font.size.base, color: C.textSoft, lineHeight: 1.55,
         maxWidth: 420, margin: '0 auto 18px',
       }}>
-        Aggiungi le tue voci (consumabili, utenze, manutenzione…) per vederle riflesse nel P&L mensile.
+        Aggiungi le spese che non arrivano in fattura (l'affitto pagato a un privato, le rate, le assicurazioni) per vederle nel P&L mensile.
       </div>
       {!filterCategoria && (
         <button
@@ -860,7 +901,8 @@ function KpiBox({ label, value, sub, accent, highlight }) {
   )
 }
 
-function DialogFormCosto({ form, setForm, sedi, isMobile, dito = isMobile, onClose, onSave, saving = false }) {
+function DialogFormCosto({ form, setForm, sedi, isMobile, dito = isMobile, onClose, onSave, saving = false, doppione = null }) {
+  const avviso = testoDoppione(doppione)
   const isEdit = !!form.id
   const update = (k, v) => setForm(f => ({ ...f, [k]: v }))
   const catInfo = CATEGORIE_DEFAULT.find(c => c.id === form.categoria)
@@ -1101,6 +1143,10 @@ function DialogFormCosto({ form, setForm, sedi, isMobile, dito = isMobile, onClo
           </div>
         )}
 
+        {/* Il doppione probabile: la spesa arriva già in fattura. Non blocca
+            (può essere un'altra spesa), ma il pulsante lo dice. */}
+        {avviso && <RigaMotivo motivo={avviso} dimensione={font.size.sm} stile={{ marginBottom: 16 }} />}
+
         {/* Azioni.
             Su mobile in colonna full-width, primary in alto per pollice. */}
         <div style={{
@@ -1116,7 +1162,7 @@ function DialogFormCosto({ form, setForm, sedi, isMobile, dito = isMobile, onClo
               ...btnPrimaryStyle, width: isMobile ? '100%' : 'auto',
               opacity: saving ? 0.65 : 1, cursor: saving ? 'default' : 'pointer',
             }}>
-            {saving ? 'Salvataggio…' : isEdit ? 'Salva modifiche' : 'Aggiungi voce'}
+            {saving ? 'Salvataggio…' : isEdit ? 'Salva modifiche' : doppione?.forte ? 'Aggiungi lo stesso' : 'Aggiungi voce'}
           </button>
         </div>
       </div>

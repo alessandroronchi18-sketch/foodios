@@ -19,7 +19,9 @@ export const CATEGORIE_DEFAULT = [
   { id: 'consumabili',   label: 'Consumabili vendita',   esempi: 'fazzoletti, coppette, palette, sacchetti, tovaglioli' },
   { id: 'manutenzione',  label: 'Manutenzione',          esempi: 'vetrina, condizionatori, banco frigo, impianti' },
   { id: 'ammortamenti',  label: 'Ammortamenti',          esempi: 'impianti, arredi, attrezzature acquistate' },
-  { id: 'utenze',        label: 'Utenze',                esempi: 'energia, gas, acqua, internet, telefono' },
+  // Le utenze arrivano quasi sempre in fattura, e allora sono già nel conto
+  // (05/10/2026): qui solo quelle che non ce l'hanno.
+  { id: 'utenze',        label: 'Utenze',                esempi: 'solo quelle senza fattura: acqua o spese pagate al proprietario' },
   { id: 'affitti',       label: 'Affitti',               esempi: 'locale, parcheggio, magazzino' },
   { id: 'assicurazioni', label: 'Assicurazioni',         esempi: 'RC, infortuni, alimenti, furto' },
   { id: 'servizi',       label: 'Servizi professionali', esempi: 'commercialista, consulente, software, audit' },
