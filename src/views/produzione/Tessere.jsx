@@ -36,6 +36,7 @@ export function confrontoNeutro(attuale, prima, etichetta, formato) {
  * @param {object|null} p.confrontoInfo
  * @param {{ n: number, ultimo?: string }} p.copertura
  * @param {boolean} [p.registrazioneFerma]  i dati si fermano prima della fine del periodo
+ * @param {number} [p.fermoDa]  giorni fra l'ultimo giorno registrato e oggi (solo se la finestra è quella di partenza e se sono tanti)
  * @param {boolean} p.scartoRegistrato
  * @param {{ ricavi: number|null, euroKg: number|null, b2bKg: number, ricaviB2b: number }} p.ricavoStimato
  *   da `ricaviStimatiSedi`: lo stesso numero del Mese e della Quadratura
@@ -44,7 +45,7 @@ export function confrontoNeutro(attuale, prima, etichetta, formato) {
  * @param {number} p.nGusti  i gusti con un movimento nel periodo
  */
 export default function Tessere({
-  totali, totaliPrev, confronto, confrontoInfo, copertura, registrazioneFerma = false, scartoRegistrato,
+  totali, totaliPrev, confronto, confrontoInfo, copertura, registrazioneFerma = false, fermoDa = 0, scartoRegistrato,
   ricavoStimato = null, ricavoStimatoPrev = null, fuoriMargine = null, nGusti, isMobile, isTablet,
 }) {
   const prima = totaliPrev || null
@@ -82,6 +83,9 @@ export default function Tessere({
         frase={[
           mediaGiorno != null ? `${kgTessera(mediaGiorno)} al giorno registrato, in media.` : null,
           registrazioneFerma && copertura?.ultimo ? `Registrato fino ${conGiorno('al', copertura.ultimo)}: dopo non c'è niente.` : null,
+          // 06/10/2026: il periodo finisce all'ultimo giorno registrato, ma
+          // se è lontano da oggi il numero non è quello di oggi.
+          !registrazioneFerma && fermoDa > 0 && copertura?.ultimo ? `Ultimo giorno registrato ${conGiorno('il', copertura.ultimo)}: ${fermoDa} giorni senza inventario.` : null,
         ].filter(Boolean).join(' ') || null} />
       <FilaTessere colonne={colonne} isMobile={isMobile}>
         <NumeroConConfronto isMobile={isMobile}

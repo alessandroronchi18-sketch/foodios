@@ -24,22 +24,22 @@ export default function CaselleDaSistemare({ riassunto, caselle, nomeSede, onApr
     }}>
       <span style={{ display: 'inline-flex', marginTop: 2, flexShrink: 0 }} aria-hidden="true"><Icon name="alert" size={14} /></span>
       <span style={{ minWidth: 0 }}>
+        <b>{riassunto.n === 1 ? 'Una casella da sistemare' : `${intero(riassunto.n)} caselle da sistemare`}</b>
+        {riassunto.nRimanenza > 0 && riassunto.nAltre > 0
+          ? `: ${intero(riassunto.nRimanenza)} con la rimanenza a 0 e ${intero(riassunto.nAltre)} che non tornano per altri motivi.`
+          : ':'}
         {riassunto.nRimanenza > 0 && (
           <>
-            <b>
-              {riassunto.nRimanenza === 1 ? 'Una casella da sistemare' : `${intero(riassunto.nRimanenza)} caselle da sistemare`}
-            </b>: la rimanenza è rimasta a 0 nel giorno in cui si era prodotto, e il giorno dopo il venduto
+            {' '}Rimanenza rimasta a 0 nel giorno in cui si era prodotto, e il giorno dopo il venduto
             risulta negativo. È lo stesso gelato, contato nel giorno sbagliato.
             {riassunto.kgFuori < 0
               ? ` Il venduto del periodo è più basso del vero di ${kg(-riassunto.kgFuori)} kg, perché il giorno da sistemare è prima del periodo.`
               : ' Il venduto del periodo è giusto; quello dei singoli giorni no.'}
           </>
         )}
-        {riassunto.nRimanenza > 0 && riassunto.nAltre > 0 && ' '}
         {riassunto.nAltre > 0 && (
           <>
-            {riassunto.nAltre === 1 ? 'Una casella non torna' : `${intero(riassunto.nAltre)} caselle non tornano`} per
-            altri motivi ({kg(-riassunto.kgAltre)} kg): la rimanenza scritta è più alta di quanto c&apos;era a disposizione.
+            {' '}{riassunto.nRimanenza > 0 ? `Le ${intero(riassunto.nAltre)} che non tornano` : 'Non tornano'} ({kg(-riassunto.kgAltre)} kg): la rimanenza scritta è più alta di quanto c&apos;era a disposizione.
           </>
         )}
         <span style={{ display: 'block', marginTop: 4 }}>

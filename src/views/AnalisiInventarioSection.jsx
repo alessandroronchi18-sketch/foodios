@@ -22,7 +22,8 @@ import { CoperturaDati, IntestazioneAnalisi, TitoloGrafico, Riquadro, FraseInsig
 import PaginaAnalisi, { SezioneAnalisi, spazioRiquadri } from '../components/analisi/PaginaAnalisi'
 import Icon from '../components/Icon'
 import { useContiProduzione } from './produzione/useContiProduzione'
-import { vociCopertura } from './produzione/copertura'
+import { todayLocal } from '../lib/dateLocal'
+import { vociCopertura, giorniFra, GIORNI_INVENTARIO_FERMO } from './produzione/copertura'
 import { esportaXlsx } from './produzione/esporta'
 import GustiSenzaRicetta from './produzione/GustiSenzaRicetta'
 import CaselleDaSistemare from './produzione/CaselleDaSistemare'
@@ -101,8 +102,11 @@ export default function AnalisiInventarioSection({
     )
   }
 
+  const oggi = todayLocal()
+  const giorniFermo = c.daPartenza ? giorniFra(c.copertura?.ultimo, oggi) : 0
+  const fermoDa = giorniFermo > GIORNI_INVENTARIO_FERMO ? giorniFermo : 0
   const voci = vociCopertura({
-    copertura: c.copertura, registrazioneFerma: c.registrazioneFerma, daPartenza: c.daPartenza, buchi: c.buchi,
+    copertura: c.copertura, registrazioneFerma: c.registrazioneFerma, daPartenza: c.daPartenza, buchi: c.buchi, oggi,
     confrontoInfo, scartoRegistrato: c.scartoRegistrato, caselle: c.riassunto,
     senzaRicetta: { n: c.senzaRicetta.length, kgVenduti: c.kgSenzaRicetta, euroStimati: c.euroSenzaRicetta },
     incompleti: c.incompleti.map(r => r.gusto),
@@ -130,7 +134,7 @@ export default function AnalisiInventarioSection({
       )}
       {/* La risposta: il venduto grande, poi le altre quattro tessere. */}
       <Tessere totali={c.totali} totaliPrev={c.totaliPrev} confronto={confronto} confrontoInfo={confrontoInfo}
-        copertura={c.copertura} registrazioneFerma={c.registrazioneFerma} scartoRegistrato={c.scartoRegistrato}
+        copertura={c.copertura} registrazioneFerma={c.registrazioneFerma} fermoDa={fermoDa} scartoRegistrato={c.scartoRegistrato}
         ricavoStimato={c.ricavoStimato} ricavoStimatoPrev={c.ricavoStimatoPrev} fuoriMargine={c.fuoriMargine}
         nGusti={c.totali.nConVendita} isMobile={isMobile} isTablet={isTablet} />
       {frasi.length > 0 && (

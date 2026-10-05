@@ -28,8 +28,16 @@ import { kg, intero, quanti, elenco } from './numeri'
  * @param {string[]} [p.incompleti]  gusti con la ricetta ma senza prezzo o costo completo
  * @param {{ inventario?: Function, gusti?: Function, caselle?: Function, giorni?: Function, giorniAperti?: boolean }} [p.azioni]
  */
+/** Quanti giorni passano fra due date ISO (0 se manca una). */
+export function giorniFra(da, a) {
+  if (!da || !a) return 0
+  return Math.round((Date.parse(`${a}T12:00:00Z`) - Date.parse(`${da}T12:00:00Z`)) / 86400000)
+}
+/** Oltre quanti giorni dall'ultimo inventario lo si dice «fermo». */
+export const GIORNI_INVENTARIO_FERMO = 7
+
 export function vociCopertura({
-  copertura, registrazioneFerma = false, daPartenza = false, buchi = [],
+  copertura, registrazioneFerma = false, daPartenza = false, buchi = [], oggi = null,
   confrontoInfo = null, scartoRegistrato = true, caselle = null,
   senzaRicetta = null, incompleti = [], azioni = {},
 }) {
@@ -59,6 +67,19 @@ export function vociCopertura({
     azione: azioni.giorni ? { etichetta: azioni.giorniAperti ? 'Chiudi i giorni' : 'Vedi i giorni', onClick: azioni.giorni }
       : registrazioneFerma && azioni.inventario ? { etichetta: 'Registra', onClick: azioni.inventario } : null,
   })
+
+  // 1b. Il venduto è «fino all'ultimo giorno registrato»: se quel giorno è
+  // lontano da oggi lo si dice con l'azione (06/10/2026: a ottobre il 31/08
+  // sembrava il dato di oggi).
+  const fermoDa = daPartenza ? giorniFra(copertura.ultimo, oggi) : 0
+  if (fermoDa > GIORNI_INVENTARIO_FERMO) {
+    voci.push({
+      id: 'inventarioFermo', stato: 'parziale', sistemabile: true,
+      breve: `inventario fermo ${conGiorno('al', copertura.ultimo)}`,
+      testo: `L'inventario si ferma ${conGiorno('al', copertura.ultimo)}: sono ${intero(fermoDa)} giorni senza niente di registrato, il venduto di dopo non c'è`,
+      azione: azioni.inventario ? { etichetta: 'Registra', onClick: azioni.inventario } : null,
+    })
+  }
 
   // 2. Il confronto, quando si fa. Quando non si fa lo dicono la barra del
   // periodo e la tessera del venduto, con il motivo.
