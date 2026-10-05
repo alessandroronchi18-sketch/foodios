@@ -109,12 +109,12 @@ export default function ArchivioFattureView({ orgId, sedi = [], sedeId = null, c
 
   const colonne = [
     { chiave: 'fornitore', titolo: 'Fornitore' },
-    { chiave: 'data', titolo: 'Data', larghezza: isMobile ? 88 : 96 },
-    { chiave: 'numero', titolo: 'Numero', larghezza: 96, soloComputer: true },
+    { chiave: 'data', titolo: 'Data', larghezza: isMobile ? 72 : 96 },
+    { chiave: 'numero', titolo: 'Numero', larghezza: 152, soloComputer: true },
     { chiave: 'sede', titolo: 'Sede', larghezza: 136, soloComputer: true },
     { chiave: 'voce', titolo: 'Voce', larghezza: 136, soloComputer: true },
-    { chiave: 'stato', titolo: 'Stato', larghezza: isMobile ? 80 : 128 },
-    { chiave: 'totale', titolo: 'Totale', tipo: 'euro', decimali: 2, larghezza: isMobile ? 88 : 104 },
+    { chiave: 'stato', titolo: 'Stato', larghezza: 128, soloComputer: true },
+    { chiave: 'totale', titolo: 'Totale', tipo: 'euro', decimali: 2, larghezza: isMobile ? 80 : 104 },
   ]
   const righe = mostrate.map(f => {
     const pagata = ePagata(f)
@@ -123,9 +123,13 @@ export default function ArchivioFattureView({ orgId, sedi = [], sedeId = null, c
     return {
       chiave,
       celle: {
-        fornitore: f.fornitore || 'senza nome',
-        data: dataIt(f.data_fattura),
-        numero: f.numero_rif || '',
+        // Al telefono lo stato non ha una colonna: sta sotto il nome.
+        fornitore: isMobile
+          ? <span><span style={{ display: 'block' }}>{f.fornitore || 'senza nome'}</span>
+            <span style={{ display: 'block', ...testo(font.size.sm), fontWeight: 600, color: pagata ? T.textSoft : T.amberDark }}>{pagata ? 'pagata' : 'da pagare'}</span></span>
+          : (f.fornitore || 'senza nome'),
+        data: isMobile ? dataIt(f.data_fattura).replace(/\/\d{2}(\d{2})$/, '/$1') : dataIt(f.data_fattura),
+        numero: f.numero_rif ? <span title={f.numero_rif} style={{ display: 'block', maxWidth: 128, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.numero_rif}</span> : '',
         sede: sedeScritta(f, sedi) || 'senza sede',
         voce: nomeDellaVoce(f.voce) || 'da classificare',
         stato: pagata
