@@ -11,7 +11,10 @@
 //      angoli: la posizione dice il gruppo, non un colore (un colore per
 //      gruppo sarebbe un quinto codice da imparare);
 //   3. la tabella, dieci gusti all'arrivo e gli altri dietro un tocco;
-//   4. i gusti venduti che restano fuori, detti, col posto dove sistemarli.
+//   4. i gusti venduti che restano fuori, detti, e collegati qui, sul posto
+//      (05/10/2026 sera: prima «Collegali» portava alla Produzione).
+//   Il prezzo è uguale per tutti i gusti (la media dei formati): la pagina lo
+//   dice, perché il margine al chilo cambia solo col costo.
 import React, { useMemo, useState } from 'react'
 import { color as T, font, radius as R, space, tnum, shadow as S } from '../../lib/theme'
 import { quotaConArticolo, quota } from '../../lib/formatoAnalisi'
@@ -119,6 +122,8 @@ export function tacche(min, max, quante = 5) {
 
 function GraficoMatrice({ m, isMobile }) {
   const [attivo, setAttivo] = useState(null)
+  // Al telefono il bersaglio è di 22 di raggio su 340 di larghezza: 44 px.
+  const RB = isMobile ? 22 : 12
   const W = isMobile ? 340 : 1000
   const H = isMobile ? 300 : 400
   const SX = isMobile ? 44 : 56, DX = 16, SU = 16, GIU = 40
@@ -142,11 +147,23 @@ function GraficoMatrice({ m, isMobile }) {
   const testo = { fontSize: font.size.sm, fill: T.textSoft, fontFamily: 'inherit' }
   const angolo = { fontSize: font.size.sm, fontWeight: 700, fill: T.textMid, fontFamily: 'inherit' }
   const a = g.find(v => v.gusto === attivo)
+  const dettaglio = (v) => `${v.gusto}, ${GRUPPI[v.gruppo].nome}: ${kg(v.kg)}, ${euro2(v.margineKg)} al chilo, ${euro0(v.margine)} di margine`
+  const riquadro = a && (
+    <div role="status" style={{
+      ...(isMobile
+        ? { marginTop: space[2], whiteSpace: 'normal', lineHeight: 1.5 }
+        : { position: 'absolute', top: space[2], left: '50%', transform: 'translateX(-50%)', pointerEvents: 'none', whiteSpace: 'nowrap' }),
+      background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: R.md, padding: `${space[2]}px ${space[3]}px`,
+      boxShadow: S.md, fontSize: font.size.sm, color: T.text, ...tnum,
+    }}>
+      <b>{a.gusto}</b> · {GRUPPI[a.gruppo].nome} · {kg(a.kg)} · {euro2(a.margineKg)} al chilo · {euro0(a.margine)}
+    </div>
+  )
 
   return (
     <div style={{ position: 'relative', minWidth: 0 }}>
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img"
-        aria-label={`Gusti per chili venduti e margine al chilo. Soglie: ${kg(m.soglie.kg)} e ${euro2(m.soglie.margineKg)} al chilo. I numeri sono nella tabella sotto.`}
+        aria-label={`Gusti per chili venduti e margine al chilo. Soglie: ${kg(m.soglie.kg)} e ${euro2(m.soglie.margineKg)} al chilo. Ogni gusto è un pulsante col suo nome; gli stessi numeri sono nella tabella sotto.`}
         style={{ display: 'block', overflow: 'visible' }} onMouseLeave={() => setAttivo(null)}>
         {ty.map(v => (
           <g key={`y${v}`}>
@@ -168,10 +185,13 @@ function GraficoMatrice({ m, isMobile }) {
         <text x={SX + 6} y={SU + 14} textAnchor="start" style={angolo}>{GRUPPI.spingere.nome}</text>
         <text x={SX + 6} y={H - GIU - 8} textAnchor="start" style={angolo}>{GRUPPI.rivedere.nome}</text>
         {g.map(v => (
-          <g key={v.gusto} onMouseEnter={() => setAttivo(v.gusto)} onClick={() => setAttivo(attivo === v.gusto ? null : v.gusto)}
-            style={{ cursor: 'pointer' }}>
-            {/* Il bersaglio è più grande del punto: 12 di raggio, invisibile. */}
-            <circle cx={x(v.kg)} cy={y(v.margineKg)} r={12} fill="transparent" />
+          <g key={v.gusto} data-punto={v.gusto} role="button" tabIndex={0} aria-label={dettaglio(v)}
+            onMouseEnter={() => setAttivo(v.gusto)} onFocus={() => setAttivo(v.gusto)}
+            onClick={() => setAttivo(attivo === v.gusto ? null : v.gusto)}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setAttivo(attivo === v.gusto ? null : v.gusto) } }}
+            style={{ cursor: 'pointer', outline: 'none' }}>
+            {/* Il bersaglio è più grande del punto, invisibile: 44 px al telefono. */}
+            <circle data-bersaglio cx={x(v.kg)} cy={y(v.margineKg)} r={RB} fill="transparent" />
             <circle cx={x(v.kg)} cy={y(v.margineKg)} r={attivo === v.gusto ? 7 : 5}
               fill={T.graficoReale} stroke={T.bgCard} strokeWidth={2} />
             {conNome.has(v.gusto) && (
@@ -182,15 +202,7 @@ function GraficoMatrice({ m, isMobile }) {
           </g>
         ))}
       </svg>
-      {a && (
-        <div role="status" style={{
-          position: 'absolute', top: space[2], left: '50%', transform: 'translateX(-50%)', pointerEvents: 'none',
-          background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: R.md, padding: `${space[2]}px ${space[3]}px`,
-          boxShadow: S.md, fontSize: font.size.sm, color: T.text, whiteSpace: 'nowrap', ...tnum,
-        }}>
-          <b>{a.gusto}</b> · {GRUPPI[a.gruppo].nome} · {kg(a.kg)} · {euro2(a.margineKg)} al chilo · {euro0(a.margine)}
-        </div>
-      )}
+      {riquadro}
     </div>
   )
 }
@@ -202,9 +214,12 @@ function GraficoMatrice({ m, isMobile }) {
  * @param {string} p.periodo  «16 lug – 15 set 2026», per i sottotitoli
  * @param {string} [p.copertura]  la frase su quali giorni ci sono, se serve
  * @param {(vista: string) => void} [p.onNavigate]
+ * @param {React.ReactNode} [p.collegamento]  il pezzo della Produzione che collega
+ *   i gusti senza ricetta: se c'è, «Collegali» lo apre qui invece di cambiare pagina
  */
-export default function MatriceGusti({ m, periodo = '', copertura = '', onNavigate = null, isMobile = false }) {
+export default function MatriceGusti({ m, periodo = '', copertura = '', onNavigate = null, isMobile = false, collegamento = null }) {
   const [gruppo, setGruppo] = useState(null)
+  const [collegando, setCollegando] = useState(false)
   const [tutti, setTutti] = useState(false)
   const elenco = useMemo(() => (gruppo ? m.gusti.filter(g => g.gruppo === gruppo) : m.gusti), [m, gruppo])
   const visibili = tutti ? elenco : elenco.slice(0, PRIMI)
@@ -223,11 +238,19 @@ export default function MatriceGusti({ m, periodo = '', copertura = '', onNaviga
           </div>
         )}
         {avvisi.map(v => (
-          // Una riga sola: l'avviso e, per i gusti senza ricetta, dove si
-          // collegano (la Produzione ha la lista con «Collega»).
+          // Una riga sola: l'avviso e, per i gusti senza ricetta, il modo di
+          // collegarli: qui sotto se c'è il pezzo della Produzione, altrimenti
+          // la Produzione.
           <RigaMotivo key={v.id} motivo={v.testo} dimensione={font.size.sm} stile={{ marginTop: space[3] }}
-            azione={v.id === 'senzaRicetta' && onNavigate ? { etichetta: 'Collegali', onClick: () => onNavigate('storico') } : null} />
+            azione={v.id !== 'senzaRicetta' ? null
+              : collegamento ? { etichetta: collegando ? 'Chiudi' : 'Collegali', onClick: () => setCollegando(c => !c) }
+                : onNavigate ? { etichetta: 'Collegali', onClick: () => onNavigate('storico') } : null} />
         ))}
+        {collegando && collegamento && <div style={{ marginTop: space[3] }}>{collegamento}</div>}
+        <div style={{ marginTop: space[3], fontSize: font.size.sm, color: T.textSoft, lineHeight: 1.5 }}>
+          Il prezzo è uguale per tutti i gusti (la media dei formati): il margine al chilo cambia solo col costo degli ingredienti.
+          I gruppi dicono dove il costo pesa di più, non quale gusto fai pagare di più.
+        </div>
       </Riquadro>
 
       <Riquadro isMobile={isMobile} stile={sp}>

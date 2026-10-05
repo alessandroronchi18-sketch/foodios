@@ -28,6 +28,7 @@ import { useContiProduzione } from '../produzione/useContiProduzione'
 import { prezzoNetto } from '../produzione/numeri'
 import BarraPeriodo from '../../components/BarraPeriodo'
 import { IntestazioneAnalisi, Riquadro, RigaMotivo } from '../../components/analisi'
+import GustiSenzaRicetta from '../produzione/GustiSenzaRicetta'
 import MatriceGusti from '../../components/menuEngineering/MatriceGusti'
 
 const NF2 = new Intl.NumberFormat('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -149,7 +150,11 @@ export default function MenuEngineeringGusti({ orgId, sedeId = null, sedi = [], 
   } else if (m.gusti.length < 2) {
     corpo = <Vuoto testo="Servono almeno due gusti venduti con la ricetta e il costo completo per dividerli in gruppi." />
   } else {
-    corpo = <MatriceGusti m={m} periodo={nomePeriodo(periodo.from, periodo.to)} copertura={copertura} onNavigate={onNavigate} isMobile={isMobile} />
+    corpo = <MatriceGusti m={m} periodo={nomePeriodo(periodo.from, periodo.to)} copertura={copertura} onNavigate={onNavigate} isMobile={isMobile}
+      collegamento={(
+        <GustiSenzaRicetta senzaRicetta={conti.senzaRicetta} collegati={conti.collegati} euroKgMedio={conti.euroKgMedio}
+          ricettario={ricettario} collega={conti.collega} pronto={pronto} onNavigate={onNavigate} isMobile={isMobile} />
+      )} />
   }
 
   return (

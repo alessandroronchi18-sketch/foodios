@@ -28,7 +28,8 @@ vi.mock('../../src/lib/supabase', () => {
   } }
   return { supabase: { from: () => new Proxy({}, h), rpc: () => Promise.resolve({ data: null, error: null }) } }
 })
-vi.mock('../../src/lib/useIsMobile', () => ({ default: () => false, useIsTablet: () => false, useDevice: () => 'computer' }))
+let MOBILE = false
+vi.mock('../../src/lib/useIsMobile', () => ({ default: () => MOBILE, useIsTablet: () => false, useDevice: () => 'computer' }))
 
 // 100 g a 3,30 € = 33 €/kg al banco, 30 €/kg senza IVA.
 let FORMATI = []
@@ -55,7 +56,7 @@ const { periodoDiPartenza, fraseCopertura } = await import('../../src/views/menu
 const { default: MenuEngineeringView } = await import('../../src/views/MenuEngineeringView.jsx')
 
 const FORMATI_OK = [{ id: 'f1', nome: 'Coppetta', categoria: 'Gusto', baseQtaG: 100, prezzoDefault: 3.3, componenti: [] }]
-beforeEach(() => { FORMATI = FORMATI_OK; LEGACY = null; RIGHE = []; ULTIMO = '2026-08-31'; chiamate.length = 0 })
+beforeEach(() => { MOBILE = false; FORMATI = FORMATI_OK; LEGACY = null; RIGHE = []; ULTIMO = '2026-08-31'; chiamate.length = 0 })
 afterEach(() => cleanup())
 const testo = () => document.body.textContent || ''
 
@@ -216,14 +217,15 @@ describe('la pagina: il difetto', () => {
 })
 
 describe('la pagina: quello che c\'è intorno', () => {
-  it('un gusto venduto senza ricetta: detto, coi chili, e «Collegali» porta alla Produzione', async () => {
+  it('un gusto venduto senza ricetta: detto, coi chili, e «Collegali» apre il collegamento sul posto', async () => {
     RIGHE = [...inventario('S1', 'NOCCIOLA', 20), ...inventario('S1', 'FIORDILATTE', 10), ...inventario('S1', 'FRAGOLA', 5)]
     const vai = vi.fn()
     disegna({ onNavigate: vai })
     await screen.findByRole('table', { name: 'Gusti per margine' })
     expect(testo()).toMatch(/1 gusto venduto non ha una ricetta collegata: 155 kg/)
     fireEvent.click(screen.getByRole('button', { name: 'Collegali' }))
-    expect(vai).toHaveBeenCalledWith('storico')
+    expect(screen.getByLabelText('Ricetta di FRAGOLA')).toBeTruthy()
+    expect(vai).not.toHaveBeenCalled()
   })
 
   it('senza i prezzi dei formati: non inventa il margine, e dice dove metterli', async () => {
@@ -276,5 +278,92 @@ describe('la pagina: quello che c\'è intorno', () => {
     disegna({ ricettario: { ricette: { TORTA: torta }, ingredienti_costi: COSTI }, sedeId: 'S1' })
     await waitFor(() => expect(testo()).not.toMatch(/Leggo l'inventario/))
     expect(testo()).not.toMatch(/Quali gusti ti fanno guadagnare/)
+  })
+})
+
+// ── Cose rifatte il 05/10/2026 (sera): collegare sul posto, prezzo, telefono ──
+// Difetto 1. «Collegali» portava alla Produzione: 11 gusti (2.487 kg, il 21%
+// del venduto: CREMA, GRANITA ANGURIA, FRAGOLA…) restavano fuori dalla matrice
+// finché il titolare non cambiava pagina, collegava, e tornava. Ora il
+// collegamento si fa qui (i pezzi sono quelli della Produzione) e il gusto
+// entra subito nella matrice.
+// Difetto 2. Il prezzo è la media dei formati, uguale per tutti i gusti: il
+// margine al chilo cambia solo col costo. La pagina non lo diceva.
+// Difetto 3. Al telefono i punti del grafico avevano un bersaglio di 24 px,
+// nessun nome per chi non vede il grafico, e il riquadro stava sopra i punti.
+describe('collegare i gusti senza ricetta sul posto', () => {
+  const SENZA = () => { RIGHE = [...inventario('S1', 'NOCCIOLA', 20), ...inventario('S1', 'FIORDILATTE', 10), ...inventario('S1', 'PISTACCHIO', 12), ...inventario('S1', 'FRAGOLA', 8)] }
+  it('scelta la ricetta e confermato, il gusto entra nella matrice', async () => {
+    SENZA()
+    disegna()
+    expect((await screen.findByRole('table', { name: 'Gusti per margine' })).textContent).not.toMatch(/FRAGOLA/)
+    fireEvent.click(screen.getByRole('button', { name: 'Collegali' }))
+    fireEvent.change(screen.getByLabelText('Ricetta di FRAGOLA'), { target: { value: 'PISTACCHIO' } })
+    fireEvent.click(screen.getAllByRole('button', { name: 'Collega' })[0])
+    await waitFor(() => expect(screen.getByRole('table', { name: 'Gusti per margine' }).textContent).toMatch(/FRAGOLA/))
+    expect(testo()).not.toMatch(/gusto venduto non ha una ricetta/)
+  })
+  it('senza scelta il pulsante Collega non parte (il collegamento lo sceglie il titolare)', async () => {
+    SENZA()
+    disegna()
+    await screen.findByRole('table', { name: 'Gusti per margine' })
+    fireEvent.click(screen.getByRole('button', { name: 'Collegali' }))
+    expect(screen.getAllByRole('button', { name: 'Collega' })[0].disabled).toBe(true)
+  })
+  it('se la ricetta non esiste lo dice e porta al Ricettario', async () => {
+    SENZA()
+    const vai = vi.fn()
+    disegna({ onNavigate: vai })
+    await screen.findByRole('table', { name: 'Gusti per margine' })
+    fireEvent.click(screen.getByRole('button', { name: 'Collegali' }))
+    expect(testo()).toMatch(/Se la ricetta non c'è proprio, va creata/)
+    fireEvent.click(screen.getByRole('button', { name: 'apri il Ricettario' }))
+    expect(vai).toHaveBeenCalledWith('ricettario')
+  })
+})
+
+describe('il prezzo è uguale per tutti', () => {
+  it('la pagina dice che il margine al chilo cambia solo col costo', async () => {
+    RIGHE = [...inventario('S1', 'NOCCIOLA', 20), ...inventario('S1', 'FIORDILATTE', 10)]
+    disegna()
+    await screen.findByRole('table', { name: 'Gusti per margine' })
+    expect(testo()).toMatch(/prezzo è uguale per tutti i gusti/)
+    expect(testo()).toMatch(/cambia solo col costo/)
+  })
+})
+
+describe('il grafico al telefono', () => {
+  const punti = () => [...document.querySelectorAll('svg [data-punto]')]
+  async function telefono() {
+    MOBILE = true
+    RIGHE = [...inventario('S1', 'NOCCIOLA', 20), ...inventario('S1', 'FIORDILATTE', 10), ...inventario('S1', 'PISTACCHIO', 12)]
+    disegna()
+    await screen.findByRole('table', { name: 'Gusti per margine' })
+  }
+  it('ogni punto è un bersaglio da almeno 44 px (raggio 22 su un grafico largo 340)', async () => {
+    await telefono()
+    expect(punti().length).toBe(3)
+    for (const p of punti()) {
+      expect(Number(p.querySelector('circle[data-bersaglio]').getAttribute('r'))).toBeGreaterThanOrEqual(22)
+    }
+  })
+  it('ogni punto ha il nome per chi non vede il grafico, ed è raggiungibile da tastiera', async () => {
+    await telefono()
+    const p = punti()[0]
+    expect(p.getAttribute('role')).toBe('button')
+    expect(p.getAttribute('tabindex')).toBe('0')
+    expect(p.getAttribute('aria-label')).toMatch(/kg/)
+  })
+  it('un tocco mostra il riquadro sotto il grafico, in pagina, e un secondo tocco lo toglie', async () => {
+    await telefono()
+    fireEvent.click(punti()[0])
+    expect(screen.getByRole('status').style.position).not.toBe('absolute')
+    fireEvent.click(punti()[0])
+    expect(screen.queryByRole('status')).toBeNull()
+  })
+  it('chi non vede il grafico è mandato alla tabella, che c\'è sempre', async () => {
+    await telefono()
+    expect(document.querySelector('svg[role="img"]').getAttribute('aria-label')).toMatch(/tabella/)
+    expect(screen.getByRole('table', { name: 'Gusti per margine' })).toBeTruthy()
   })
 })
