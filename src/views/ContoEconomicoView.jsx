@@ -231,7 +231,7 @@ export default function ContoEconomicoView({ orgId, sedi = [], sedeId = null, on
               titolo={conto.utile != null
                 ? `Utile ${euro(conto.utile)}${ricavi > 0 ? `, ${quota(conto.quote.utile)} degli incassi` : ''}`
                 : conto.primaDelPersonale != null && conto.personale == null
-                  ? `Restano ${euro(conto.primaDelPersonale)} prima del personale`
+                  ? `Restano${conto.stimato ? ' circa' : ''} ${euro(conto.primaDelPersonale)} prima del personale`
                   : 'L\'utile non si può ancora dire'}
               sottotitolo={conto.utile == null && conto.personale == null
                 ? 'L\'utile arriva quando ci sono gli stipendi. Tocca una voce di spesa per vedere i fornitori che pesano di più.'

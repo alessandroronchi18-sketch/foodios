@@ -102,7 +102,7 @@ describe('prima del personale, lo stesso numero de «Il mese»', () => {
     render(<ContoEconomicoView orgId="o1" sedi={[]} onNavigate={() => {}} />)
     const riga = await waitFor(() => { const r = [...document.querySelectorAll('tbody tr')].find(x => /Prima del personale/.test(x.textContent)); expect(r).toBeTruthy(); return r })
     expect(riga.textContent).toContain(atteso.replace(' €', ''))
-    expect(testo()).toContain(`Restano ${atteso} prima del personale`)
+    expect(testo()).toContain(`Restano circa ${atteso} prima del personale`)
     cleanup()
     render(<IlMeseView orgId="o1" sedi={[]} onNavigate={() => {}} />)
     await waitFor(() => expect(testo()).toContain(atteso))
