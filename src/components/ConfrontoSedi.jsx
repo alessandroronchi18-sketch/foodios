@@ -25,7 +25,7 @@ import { supabase } from '../lib/supabase'
 import { color as T, font, space } from '../lib/theme'
 import useIsMobile from '../lib/useIsMobile'
 import { todayLocal } from '../lib/dateLocal'
-import { finestraScorciatoia, finestraConfronto, nomePeriodo, giorniDelPeriodo } from '../lib/periodoAnalisi'
+import { finestraScorciatoia, finestraConfronto, nomePeriodo, giorniDelPeriodo, spostaPeriodo } from '../lib/periodoAnalisi'
 import { euro, variazione, quota, dataBreve } from '../lib/formatoAnalisi'
 import { nomeIncassi } from '../lib/ilMese'
 import { vocePerGruppo } from '../lib/confrontoSediCalc'
@@ -33,6 +33,9 @@ import { caricaConfrontoSedi } from '../lib/confrontoSediArchivio'
 
 const tab = { fontVariantNumeric: 'tabular-nums' }
 const ND = (motivo) => <span title={motivo} style={{ color: T.amberDark, cursor: 'help' }}>non lo so</span>
+// `toLocaleString('it-IT')` non mette il punto nei numeri a quattro cifre (1204):
+// la regola del progetto lo vuole da mille in su.
+const nIt = (n) => new Intl.NumberFormat('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 }).format(n)
 const num = (v) => <span style={tab}>{v}</span>
 
 // Fino a una settimana dall'inizio del mese il mese in corso ha pochi giorni:
@@ -68,6 +71,7 @@ export default function ConfrontoSedi({ orgId, sedi, onNavigate }) {
 
   const kpiMap = useMemo(() => dati?.kpiMap || {}, [dati])
   const giorni = giorniDelPeriodo(da, a)
+  const periodoPrima = spostaPeriodo(da, a, -1)
 
   const intestazione = (
     <IntestazioneAnalisi isMobile={isMobile}
@@ -78,6 +82,26 @@ export default function ConfrontoSedi({ orgId, sedi, onNavigate }) {
           <BarraPeriodo from={da} to={a} lato="destra" isMobile={isMobile}
             onPeriodo={(f, t) => { if (f && t) setFinestra({ from: f, to: t }) }}
             confronto={modoConfronto} onConfronto={setModoConfronto} />
+          <ExportPdfButton fileName={`confronto-sedi-${da}-${a}.pdf`} compact getReport={() => ({
+          title: 'Confronto sedi',
+          subtitle: `${sediAttive.length} sedi attive`,
+          periodo: `${nomePeriodo(da, a)}${conf ? ` · confronto con ${nomePeriodo(conf.from, conf.to)}` : ''}`,
+          kpi: [
+            { label: 'Incassi delle sedi', value: euro(consolidato.ricCur) || '-', sub: vGruppo ? `${vGruppo.testoDelta} sul periodo prima` : '' },
+            ...(giorniMancanti > 0 ? [{ label: 'Giorni senza dati', value: String(giorniMancanti) }] : []),
+          ],
+          sections: [{
+            title: 'Per sede',
+            table: {
+              columns: ['Sede', 'Incassi', 'Giorni con dati', 'Fatture da pagare', 'Fatture scadute'],
+              alignments: ['left', 'right', 'right', 'right', 'right'],
+              rows: sediAttive.map(s => {
+                const k = kSede(s)
+                return [s.nome, k.ricaviCur != null ? euro(k.ricaviCur) : 'non lo so', `${giorni - (k.incasso?.scoperti || 0)} su ${giorni}`, euro(k.fattureImporto || 0), String(k.fattureScadute || 0)]
+              }),
+            },
+          }],
+        })} />
         </>
       )} />
   )
@@ -148,7 +172,7 @@ export default function ConfrontoSedi({ orgId, sedi, onNavigate }) {
   }
 
   // ── La tabella: una colonna per sede ────────────────────────────────────
-  const colonne = [{ chiave: 'voce', titolo: 'Voce' }, ...sediAttive.map(s => ({ chiave: s.id, titolo: s.nome, tipo: 'nodo' }))]
+  const colonne = [{ chiave: 'voce', titolo: 'Voce' }, ...sediAttive.map(s => ({ chiave: s.id, titolo: s.nome, tipo: 'nodo', larghezza: isMobile ? 128 : 150 }))]
   const riga = (chiave, voce, cella, extra = {}) => ({ chiave, celle: { voce, ...Object.fromEntries(sediAttive.map(s => [s.id, cella(kSede(s), s)])) }, ...extra })
   const dif = (k) => {
     if (!conf) return num('nessun confronto')
@@ -161,14 +185,14 @@ export default function ConfrontoSedi({ orgId, sedi, onNavigate }) {
     riga('giorni', 'Giorni con dati', (k) => (k.incasso
       ? <span style={{ ...tab, color: k.incasso.scoperti > 0 ? T.amberDark : T.text }}>{giorni - k.incasso.scoperti} su {giorni}</span> : ND('lettura non riuscita'))),
     riga('prima', conf ? 'Sul periodo prima' : 'Confronto', (k) => dif(k)),
-    riga('chili', 'Chili prodotti', (k) => (k.kgProdotti != null ? num(Math.round(k.kgProdotti).toLocaleString('it-IT')) : ND('inventario non letto'))),
+    riga('chili', 'Chili prodotti', (k) => (k.kgProdotti != null ? num(nIt(k.kgProdotti)) : ND('inventario non letto'))),
     riga('fc', 'Food cost', (k) => (k.foodCostPct != null ? num(quota(k.foodCostPct)) : ND('nessuna produzione giornaliera registrata'))),
     riga('margine', 'Margine netto', (k) => (k.margineNettoCur != null ? num(euro(k.margineNettoCur)) : ND(k.ricaviCur == null ? 'mancano gli incassi' : k.incasso?.parziale ? 'mancano dei giorni di incasso' : 'manca il food cost'))),
     riga('dapagare', 'Fatture da pagare', (k) => (k.fattureImporto != null ? num(euro(k.fattureImporto)) : ND('fatture non lette'))),
     riga('comuni', 'di cui spese comuni', (k) => (k.fattureComuni != null ? <span style={{ ...tab, color: k.fattureComuniStimate ? T.amberDark : T.text }} title={k.fattureComuniStimate ? 'divise in parti uguali: nel mese non c\'è produzione registrata' : 'divise sui chili prodotti'}>{euro(k.fattureComuni)}{k.fattureComuniStimate ? ' stimato' : ''}</span> : ND('fatture non lette'))),
     riga('scadute', 'Fatture scadute', (k) => (k.fattureScadute != null ? num(k.fattureScadute) : ND('fatture non lette'))),
     riga('oggi', 'Prodotti oggi', (k) => num(k.prodOggi ?? 0)),
-    riga('stock', 'Stock vetrina', (k) => num(`${(k.stockPF || 0).toLocaleString('it-IT')} pz`)),
+    riga('stock', 'Stock vetrina', (k) => num(`${nIt(k.stockPF || 0)} pz`)),
     riga('trasf', 'Trasferimenti in arrivo', (k) => num(k.trasfInArrivo ?? 0)),
   ]
 
@@ -210,6 +234,17 @@ export default function ConfrontoSedi({ orgId, sedi, onNavigate }) {
         avviso={conIncasso.length > 0 && (giorniMancanti > 0 || conIncasso.length < sediAttive.length)
           ? `incompleti: ${giorniMancanti > 0 ? `${giorniMancanti} ${giorniMancanti === 1 ? 'giorno' : 'giorni'} senza dati` : ''}${giorniMancanti > 0 && conIncasso.length < sediAttive.length ? ', ' : ''}${conIncasso.length < sediAttive.length ? `${sediAttive.length - conIncasso.length} ${sediAttive.length - conIncasso.length === 1 ? 'sede' : 'sedi'} senza incassi` : ''}`
           : ''} />
+
+      {/* Con meno di due sedi che hanno incassi il confronto non c'è: si
+          offre il periodo prima, dove di solito le sedi hanno dati. */}
+      {conIncasso.length < 2 && periodoPrima && (
+        <div>
+          <button type="button" onClick={() => setFinestra(periodoPrima)}
+            style={{ minHeight: 44, padding: `0 ${space[4]}px`, border: `1px solid ${T.border}`, borderRadius: 8, background: T.bgCard, color: T.brand, fontWeight: 600, fontSize: font.size.base, cursor: 'pointer' }}>
+            Guarda {nomePeriodo(periodoPrima.from, periodoPrima.to)}
+          </button>
+        </div>
+      )}
 
       {ordinate.length > 0 && (
         <Riquadro isMobile={isMobile}>
@@ -253,28 +288,6 @@ export default function ConfrontoSedi({ orgId, sedi, onNavigate }) {
         </Riquadro>
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <ExportPdfButton fileName={`confronto-sedi-${da}-${a}.pdf`} compact getReport={() => ({
-          title: 'Confronto sedi',
-          subtitle: `${sediAttive.length} sedi attive`,
-          periodo: `${nomePeriodo(da, a)}${conf ? ` · confronto con ${nomePeriodo(conf.from, conf.to)}` : ''}`,
-          kpi: [
-            { label: 'Incassi delle sedi', value: euro(consolidato.ricCur) || '-', sub: vGruppo ? `${vGruppo.testoDelta} sul periodo prima` : '' },
-            ...(giorniMancanti > 0 ? [{ label: 'Giorni senza dati', value: String(giorniMancanti) }] : []),
-          ],
-          sections: [{
-            title: 'Per sede',
-            table: {
-              columns: ['Sede', 'Incassi', 'Giorni con dati', 'Fatture da pagare', 'Fatture scadute'],
-              alignments: ['left', 'right', 'right', 'right', 'right'],
-              rows: sediAttive.map(s => {
-                const k = kSede(s)
-                return [s.nome, k.ricaviCur != null ? euro(k.ricaviCur) : 'non lo so', `${giorni - (k.incasso?.scoperti || 0)} su ${giorni}`, euro(k.fattureImporto || 0), String(k.fattureScadute || 0)]
-              }),
-            },
-          }],
-        })} />
-      </div>
     </PaginaAnalisi>
   )
 }

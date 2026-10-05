@@ -28,7 +28,8 @@ const kgProdotti = (righe, da, a) => {
     const d = soloData(r?.data)
     if (d && d >= da && d <= a) g += Number(r?.produzione_g) || 0
   }
-  return g / 1000
+  // Nessuna produzione scritta nel periodo = non si sa, non «0 chili».
+  return g > 0 ? g / 1000 : null
 }
 
 /**
@@ -159,7 +160,7 @@ export async function caricaConfrontoSedi({ supabase, orgId, sedi = [], da, a, c
   // Costi aziendali: quelli della sede per intero, i comuni sui chili
   // prodotti nel periodo (parti uguali, dichiarato, se nessuno ha prodotto).
   const globaliMensili = totaleMensile((costiOrg || []).filter(c => !c.sede_id))
-  const kg = Object.fromEntries(sedi.map(s => [s.id, risultati[s.id]?.kgProdotti || 0]))
+  const kg = Object.fromEntries(sedi.map(s => [s.id, risultati[s.id]?.kgProdotti || 0]))  // senza produzione, parti uguali (dichiarato)
   const { quote: quoteComuni, certa: quoteCerte } = quoteDiRipartizione(sedi.map(s => s.id), kg)
   for (const s of sedi) {
     const k = risultati[s.id]

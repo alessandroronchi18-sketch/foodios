@@ -342,17 +342,20 @@ describe('le pagine passano davvero le righe dell\'ingrosso', () => {
   })
 
   it('il confronto fra sedi le passa a `ricaviDaInventario`', () => {
-    const src = leggi('../../src/components/ConfrontoSedi.jsx')
+    // 05/10/2026: la lettura sta in `confrontoSediArchivio.js`, il conto in
+    // `incassiSedeDelMese` (la stessa funzione del Mese, che le passa).
+    const src = leggi('../../src/lib/confrontoSediArchivio.js')
     expect(src).toMatch(/venditeB2BPeriodo\(/)
-    // La chiamata deve ricevere l'elenco, non solo caricarlo.
-    expect(src).toMatch(/ricaviDaInventario\([\s\S]{0,400}venditeB2B,/)
+    // L'elenco deve entrare nel conto, non solo essere caricato.
+    expect(src).toMatch(/const base = \{[^}]*venditeB2B/)
+    expect(leggi('../../src/lib/ilMeseArchivio.js')).toMatch(/ricaviDaInventario\([\s\S]{0,200}venditeB2B/)
   })
 
   it('confrontando le sedi le vendite senza sede non si tolgono a tutte', () => {
     // Le righe salvate prima che il campo sede esistesse hanno `sede_id`
     // nullo: in una pagina che mette i negozi uno accanto all'altro
     // andrebbero tolte tre volte, una per negozio.
-    const src = leggi('../../src/components/ConfrontoSedi.jsx')
+    const src = leggi('../../src/lib/confrontoSediArchivio.js')
     expect(src).toMatch(/includiSenzaSede: false/)
   })
 })
@@ -452,7 +455,7 @@ describe('le SELECT dell\'inventario chiedono tutte le colonne che servono', () 
       '../../src/views/PLView.jsx',
       '../../src/views/StoricoProduzioneView.jsx',
       '../../src/views/InventarioSettimanaleView.jsx',
-      '../../src/components/ConfrontoSedi.jsx',
+      '../../src/lib/confrontoSediArchivio.js',
     ]) {
       expect(leggi(f), f).toMatch(/COLONNE_VENDUTO/)
     }
