@@ -45,7 +45,12 @@ export async function leggiArchivioFatture(supabase, orgId, { dal = null, al = n
   return { fatture, conNote: extra.includes('note') }
 }
 
-const piano = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
+// Gli accenti staccati da NFD (U+0300-U+036F) e il segno iniziale del CSV
+// (U+FEFF) si costruiscono dai codici: scritti come caratteri veri sono
+// invisibili (CLAUDE.md, pitfall 5; test caratteriInvisibili).
+const ACCENTI = new RegExp(`[${String.fromCodePoint(0x300)}-${String.fromCodePoint(0x36f)}]`, 'g')
+const BOM = String.fromCodePoint(0xfeff)
+const piano = (s) => String(s ?? '').normalize('NFD').replace(ACCENTI, '').toLowerCase().trim()
 const eNumero = (x) => x != null && x !== '' && Number.isFinite(Number(x))
 
 export const SENZA_SEDE = 'senza-sede'
@@ -158,5 +163,5 @@ export function csvFatture(fatture, sedi = []) {
     ePagata(f) ? 'pagata' : 'da pagare', f.data_pagamento, f.data_scadenza,
     virgola(f.imponibile), virgola(f.imposta), virgola(f.totale), f.note,
   ])
-  return '﻿' + [testa, ...righe].map(r => r.map(cella).join(';')).join('\r\n')
+  return BOM + [testa, ...righe].map(r => r.map(cella).join(';')).join('\r\n')
 }
