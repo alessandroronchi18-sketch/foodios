@@ -10,7 +10,7 @@
 // pezzo che ne dipende resta `null`, così la pagina dice «non lo so».
 
 import { costiPerMese, fattureEccezionali } from './contoEconomico'
-import { leggiFatturePeriodo, leggiCategorieFornitori } from './contoEconomicoArchivio'
+import { leggiFatturePeriodo, leggiCategorieFornitori, produzionePerSedeMese } from './contoEconomicoArchivio'
 import { incassiDaSedi, personaleDelMese, contoDelMese } from './ilMese'
 import { formatLocalDate } from './dateLocal'
 import { ricaviDaInventario, fetchAllInventarioProduzione } from './inventarioProduzione'
@@ -139,7 +139,7 @@ export async function caricaIlMese({ supabase, orgId, sedi = [], mese, sedeId = 
     try { return await fn() } catch (e) { errori.push({ nome, messaggio: e?.message || String(e) }); return ripiego }
   }
 
-  const [fattureLette, categorie, chiusure, formati, dipendenti, vendite, righePerSede, vociFisse] = await Promise.all([
+  const [fattureLette, categorie, chiusure, formati, dipendenti, vendite, righePerSede, vociFisse, chiliDiTutte] = await Promise.all([
     prova('fatture', () => leggiFatturePeriodo(supabase, orgId, { dal, al })),
     prova('categorie', () => leggiCategorieFornitori(supabase, orgId)),
     prova('cassa', () => caricaChiusure(orgId, null, { from: dal, to: al, tutteLeSedi: true }), null),
@@ -163,6 +163,13 @@ export async function caricaIlMese({ supabase, orgId, sedi = [], mese, sedeId = 
     // hanno anche la fattura vanno tolte da lì, se no contano due volte: lo
     // dice ANALISI_DESIGN.md e la pagina lo ricorda.
     prova('costi fissi', () => caricaCostiAziendali(orgId, sedeId)),
+    // Con una sede scelta l'inventario qui sopra è solo il suo, ma per
+    // dividere una spesa comune servono i chili di TUTTE le sedi che la
+    // condividono: con i chili di una sola, la regola dava il 100 % a chi si
+    // stava guardando (05/10/2026, test speseComuniUnaSedeSola). È la stessa
+    // lettura del Conto economico. Per tutta l'azienda non serve: ogni spesa
+    // conta per intero.
+    sedeId ? prova('produzione delle sedi', () => produzionePerSedeMese(supabase, orgId, { dal, al })) : null,
   ])
 
   const fatture = fattureLette?.fatture || null
@@ -178,6 +185,12 @@ export async function caricaIlMese({ supabase, orgId, sedi = [], mese, sedeId = 
   // condivise (regola del titolare, 17/09). Senza, le divideva sempre in
   // parti uguali anche dove la produzione c'era.
   const produzionePerSede = (m) => {
+    // Una sede sola: i chili di tutte, o niente (parti uguali, dichiarate).
+    // Mai i chili della sola sede guardata.
+    if (sedeId) {
+      const p = chiliDiTutte?.[m]
+      return p && Object.values(p).some(v => v > 0) ? p : null
+    }
     if (!righePerSede) return null
     const out = {}
     for (const [id, righe] of Object.entries(righePerSede)) {
