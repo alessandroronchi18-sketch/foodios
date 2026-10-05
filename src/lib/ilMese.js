@@ -207,6 +207,31 @@ export function personaleDelMese(dipendenti = [], { mese, sedeId = null } = {}) 
   return { valore, stato, testo, contati: attivi.contati, senzaDato: attivi.senzaDato, inattivi: inattiviConStipendio.length, lordoInattivi }
 }
 
+/**
+ * Perché il personale non si conta, detto con i numeri di Personale. L'utile
+ * non si calcola per colpa del dato, non della pagina. 05/10/2026, sui dati
+ * veri di Mara: 18 persone in Personale, 17 create dalle foto dei turni con
+ * contratto e costo vuoti, 3 con lo stipendio ma segnate non attive. La
+ * pagina diceva «manca il personale», e non si capiva se mancavano le persone
+ * o i costi. Il pulsante per sistemarlo sta accanto, a parte.
+ */
+export function spiegaPersonaleMancante(personale) {
+  const p = personale || {}
+  const senza = Number(p.senzaDato) || 0
+  const inattivi = Number(p.inattivi) || 0
+  const persone = (n) => (n === 1 ? '1 persona' : `${NF0.format(n)} persone`)
+  const pezzi = []
+  if (senza > 0) {
+    pezzi.push(`In Personale ${senza === 1 ? 'c\'è' : 'ci sono'} ${persone(senza)} ${senza === 1 ? 'attiva' : 'attive'} senza stipendio né costo orario`)
+  } else if (!inattivi) {
+    pezzi.push('In Personale non c\'è nessuno')
+  }
+  if (inattivi > 0) {
+    pezzi.push(`${persone(inattivi)} con lo stipendio ${inattivi === 1 ? 'è segnata non attiva' : 'sono segnate non attive'} (${euro(p.lordoInattivi)} lordi al mese)`)
+  }
+  return `${pezzi.join('; ')}. Senza questi costi l'utile non si può calcolare`
+}
+
 /** Le spese di un gruppo di categorie, dal risultato di `costiPerMese`. */
 function sommaCategorie(costi, ids) {
   const voci = (costi?.perCategoria || []).filter(c => ids.includes(c.id))

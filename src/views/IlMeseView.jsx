@@ -27,7 +27,7 @@ import {
   TitoloGrafico, Riquadro, FraseInsight, ClassificaSpese, ElencoDivergente,
 } from '../components/analisi'
 import { euro, euroSegno, quota, nomeMese, aMese, variazione, dataBreve } from '../lib/formatoAnalisi'
-import { OBIETTIVI, causeDelCambio, titoloCause, titoloCascata, motivoSenzaUtile, nomeIncassi, ivaDelleSpese } from '../lib/ilMese'
+import { OBIETTIVI, causeDelCambio, titoloCause, titoloCascata, motivoSenzaUtile, nomeIncassi, ivaDelleSpese, spiegaPersonaleMancante } from '../lib/ilMese'
 import { nomeBreve } from '../lib/contoEconomico'
 import PaginaAnalisi, { SezioneAnalisi, spazioRiquadri } from '../components/analisi/PaginaAnalisi'
 import MeseAnalisi, { useMeseAnalisi, PulsanteTorna, meseCorrente } from '../components/analisi/MeseAnalisi'
@@ -277,12 +277,12 @@ export function rispostaDelMese({ conto, contoPrima, mese, meseConfronto, vUtile
       frase: conto.ricavi > 0 ? `È il ${quota(conto.quote.utile)} degli incassi.${investimenti}` : null,
     }
   }
-  const apriPersonale = onNavigate ? { etichetta: 'Apri Personale', onClick: () => onNavigate('personale') } : null
+  const apriPersonale = onNavigate ? { etichetta: 'Metti i costi in Personale', onClick: () => onNavigate('personale') } : null
   if (conto.primaDelPersonale != null && conto.personale == null) {
     const prima = contoPrima?.primaDelPersonale != null && contoPrima?.personale == null ? ` ${maiuscola(aMese(meseConfronto))} erano ${euro(contoPrima.primaDelPersonale)}.` : ''
     return {
       etichetta, valore: null,
-      motivoMancante: 'l\'utile vero sarà più basso: manca il personale',
+      motivoMancante: `${spiegaPersonaleMancante(attuale?.personale)}. Il numero vero sarà più basso di questo.`,
       noto: { valore: euro(conto.primaDelPersonale), etichetta: 'Rimasti prima del personale', stimato: conto.stimato },
       azione: apriPersonale,
       // Incassi senza IVA meno spese con l'IVA: il numero è più basso del
@@ -322,11 +322,21 @@ function testoRipartizione(perSede) {
   return `Le spese condivise sono divise ${r.criterio}${r.certa === false ? ' (in parti uguali dove manca la produzione)' : ''}.`
 }
 
-function titoloSedi(perSede) {
-  const conUtile = Object.values(perSede).filter(s => s.conto.utile != null)
+export function titoloSedi(perSede) {
+  const voci = Object.values(perSede)
+  const conUtile = voci.filter(s => s.conto.utile != null)
   if (conUtile.length >= 2) {
     const migliore = conUtile.reduce((a, b) => ((b.conto.quote.utile ?? -1e9) > (a.conto.quote.utile ?? -1e9) ? b : a))
     return `${migliore.sede.nome} è il negozio che rende di più`
+  }
+  // 05/10/2026: senza i costi del personale nessun negozio ha l'utile, e il
+  // titolo diceva solo «uno accanto all'altro». Il numero che si sa (incassi
+  // meno spese, prima del personale) basta a dire quale rende di più.
+  const q = (s) => (s.conto.ricavi > 0 && s.conto.primaDelPersonale != null ? s.conto.primaDelPersonale / s.conto.ricavi : null)
+  const conPrima = voci.filter(s => q(s) != null)
+  if (conPrima.length >= 2) {
+    const migliore = conPrima.reduce((a, b) => (q(b) > q(a) ? b : a))
+    return `${migliore.sede.nome} è il negozio che lascia di più, prima del personale`
   }
   return 'I negozi uno accanto all\'altro'
 }
@@ -344,10 +354,14 @@ function SediAffiancate({ perSede, isMobile }) {
             <div style={{ fontSize: font.size.md, fontWeight: 800, color: T.text, marginBottom: 6 }}>{s.sede.nome}</div>
             <RigaBarra etichetta={nomeIncassi(c.stimato)} valore={c.ricavi} max={max} colore={T.graficoReale} />
             <RigaBarra etichetta="Spese" valore={c.spese} max={max} colore={T.graficoConfronto} />
+            {/* Senza i costi del personale l'utile non c'è: si dà il numero che
+                si sa, col suo nome (05/10/2026), non «non lo so». */}
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: font.size.base }}>
-              <span style={{ color: T.textSoft }}>Utile</span>
-              <span style={{ fontWeight: 800, color: c.utile == null ? T.textSoft : c.utile < 0 ? T.graficoPeggio : T.text, fontVariantNumeric: 'tabular-nums' }}>
-                {c.utile == null ? 'non lo so' : `${euro(c.utile)} · ${quota(c.quote.utile)}`}
+              <span style={{ color: T.textSoft }}>{c.utile == null && c.primaDelPersonale != null ? 'Prima del personale' : 'Utile'}</span>
+              <span style={{ fontWeight: 800, color: c.utile == null && c.primaDelPersonale == null ? T.textSoft : (c.utile ?? c.primaDelPersonale) < 0 ? T.graficoPeggio : T.text, fontVariantNumeric: 'tabular-nums' }}>
+                {c.utile != null ? `${euro(c.utile)} · ${quota(c.quote.utile)}`
+                  : c.primaDelPersonale != null ? `${euro(c.primaDelPersonale)}${c.ricavi > 0 ? ` · ${quota((c.primaDelPersonale / c.ricavi) * 100)}` : ''}`
+                    : 'non lo so'}
               </span>
             </div>
           </div>
@@ -371,6 +385,18 @@ function RigaBarra({ etichetta, valore, max, colore }) {
   )
 }
 
+/**
+ * Un dato che non c'è non è zero (05/10/2026): nei dodici mesi i mesi senza
+ * incassi o senza spese non avevano nessuna colonna, e un buco vuoto si legge
+ * «zero euro». Adesso una colonnina bassa a righe oblique, in grigio, che
+ * non ha un'altezza «vera» e non si confonde con gli incassi stimati
+ * (contorno tratteggiato blu).
+ */
+const stileSenzaDati = {
+  height: 28, boxSizing: 'border-box', borderRadius: '4px 4px 0 0', border: `1px solid ${T.border}`,
+  background: `repeating-linear-gradient(135deg, ${T.border} 0 2px, transparent 2px 5px)`,
+}
+
 /** Gli ultimi 12 mesi: incassi e spese affiancati, sulla stessa scala. */
 function UltimiMesi({ andamento = [], isMobile, meseScelto, onScegli }) {
   const [tabella, setTabella] = useState(false)
@@ -390,6 +416,7 @@ function UltimiMesi({ andamento = [], isMobile, meseScelto, onScegli }) {
           <div style={{ display: 'flex', gap: 10, fontSize: font.size.sm, color: T.textSoft, flexShrink: 0 }} aria-hidden="true">
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><span style={{ width: 10, height: 10, borderRadius: 2, background: T.graficoReale }} />Incassi</span>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><span style={{ width: 10, height: 10, borderRadius: 2, background: T.graficoConfronto }} />Spese</span>
+            {mesi.some(m => m.conto.ricavi == null || m.conto.spese == null) && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><span style={{ width: 10, height: 10, borderRadius: 2, border: `1px solid ${T.border}`, boxSizing: 'border-box', background: `repeating-linear-gradient(135deg, ${T.border} 0 2px, transparent 2px 4px)` }} />Senza dati</span>}
           </div>
         )} />
       {/* Al telefono la griglia voleva 378 px in un riquadro di 354 e il mese
@@ -405,10 +432,14 @@ function UltimiMesi({ andamento = [], isMobile, meseScelto, onScegli }) {
               <button key={m.mese} type="button" role="listitem" onClick={() => onScegli(m.mese)} aria-current={scelto ? 'true' : undefined}
                 aria-label={`${nomeMese(m.mese)}: incassi ${c.ricavi == null ? 'non noti' : euro(c.ricavi)}, spese ${c.spese == null ? 'non note' : euro(c.spese)}, utile ${c.utile == null ? 'non noto' : euro(c.utile)}`}
                 title={`${nomeMese(m.mese)} · incassi ${c.ricavi == null ? '—' : euro(c.ricavi)} · spese ${c.spese == null ? '—' : euro(c.spese)} · utile ${c.utile == null ? '—' : euro(c.utile)}`}
-                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '4px 0', border: 'none', borderRadius: 6, background: scelto ? T.bgSubtle : 'transparent', cursor: 'pointer', font: 'inherit' }}>
+                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '4px 0', border: 'none', borderRadius: 6, background: scelto ? T.bgSubtle : 'transparent', boxShadow: scelto ? `inset 0 0 0 2px ${T.text}` : 'none', cursor: 'pointer', font: 'inherit' }}>
                 <div style={{ height: altezza, display: 'flex', alignItems: 'flex-end', gap: 2 }}>
-                  <span style={{ width: isMobile ? 8 : 12, height: h(c.ricavi), background: c.stimato ? 'transparent' : T.graficoReale, border: c.stimato && c.ricavi != null ? `2px dashed ${T.graficoReale}` : 'none', boxSizing: 'border-box', borderRadius: '4px 4px 0 0' }} />
-                  <span style={{ width: isMobile ? 8 : 12, height: h(c.spese), background: T.graficoConfronto, borderRadius: '4px 4px 0 0' }} />
+                  {c.ricavi == null
+                    ? <span data-senza-dati="incassi" style={{ ...stileSenzaDati, width: isMobile ? 8 : 12 }} />
+                    : <span style={{ width: isMobile ? 8 : 12, height: h(c.ricavi), background: c.stimato ? 'transparent' : T.graficoReale, border: c.stimato ? `2px dashed ${T.graficoReale}` : 'none', boxSizing: 'border-box', borderRadius: '4px 4px 0 0' }} />}
+                  {c.spese == null
+                    ? <span data-senza-dati="spese" style={{ ...stileSenzaDati, width: isMobile ? 8 : 12 }} />
+                    : <span style={{ width: isMobile ? 8 : 12, height: h(c.spese), background: T.graficoConfronto, borderRadius: '4px 4px 0 0' }} />}
                 </div>
                 <span style={{ fontSize: font.size.sm, color: scelto ? T.text : T.textSoft, fontWeight: scelto ? 700 : 500 }}>{nomeMese(m.mese, { anno: false }).slice(0, 3)}</span>
               </button>
