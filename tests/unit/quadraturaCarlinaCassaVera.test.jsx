@@ -136,6 +136,26 @@ describe('giorno per giorno', () => {
     expect(t).toMatch(/26\/08 ha una differenza oltre il 15%/)
     expect(t).not.toMatch(/furt|ammanc|rub/i)
   })
+  it('un giorno negativo non si azzera: la somma dei giorni è la somma della settimana', () => {
+    // Carlina martedì: rimanenza 0 + niente fatto -> resta 0, ma un giorno che riparte da 0 va negativo
+    const righe = [
+      { gusto_nome: 'X', data: '2026-08-23', produzione_g: 0, rimanenza_g: 0, scarto_g: 0, spedito_g: 0 },
+      { gusto_nome: 'X', data: '2026-08-24', produzione_g: 3000, rimanenza_g: 0, scarto_g: 0, spedito_g: 0 },
+      { gusto_nome: 'X', data: '2026-08-25', produzione_g: 0, rimanenza_g: 2000, scarto_g: 0, spedito_g: 0 },
+    ]
+    const m = [{ sedeId: 'A', matrice: calcolaVendutoSettimana(righe, LUN) }]
+    const ch = [{ data: '2026-08-24', sede_id: 'A', kpi: { totV: 99 } }, { data: '2026-08-25', sede_id: 'A', kpi: { totV: 0 } }]
+    const g = giorniDelConfronto({ matrici: m, chiusure: ch, euroKg: 33 })
+    const k = kpiQuadraturaSedi({ matrici: m, chiusure: ch, euroKg: 33 })
+    expect(g.reduce((s, x) => s + x.atteso, 0)).toBeCloseTo(k.attesoConfrontato, 6)
+  })
+  it('sempre dallo stesso lato: lo dice, e parla del prezzo medio, non di furti', () => {
+    const g = [1, 2, 3, 4, 5].map(i => ({ data: `2026-08-2${i}`, confrontato: true, cassa: 80, atteso: 100, driftEur: -20, driftPct: -20, rimanenzaZero: 0, riparteDaZero: 0 }))
+    const t = spiegaConfronto(g).find(x => x.id === 'stesso-verso').testo
+    expect(t).toMatch(/sotto lo stimato in 5 giorni su 5/)
+    expect(t).toMatch(/prezzo medio al chilo/)
+    expect(spiegaConfronto(g.map((x, i) => (i % 2 ? { ...x, driftEur: 20 } : x))).find(x => x.id === 'stesso-verso')).toBeUndefined()
+  })
   it('senza differenze grandi e senza rimanenze a 0 non inventa spiegazioni', () => {
     expect(spiegaConfronto([{ data: '2026-08-24', confrontato: true, cassa: 100, atteso: 101, driftEur: -1, driftPct: -1, rimanenzaZero: 0, riparteDaZero: 0 }])).toEqual([])
   })

@@ -107,7 +107,10 @@ export function giorniDelConfronto({ matrici, chiusure, euroKg, venditeB2b = [] 
   return Object.values(per).sort((a, b) => (a.data < b.data ? -1 : 1)).map(x => {
     const kgTot = x.g == null ? null : x.g / 1000
     const kgB = kgB2B((b2b || []).filter(v => giornoDi(v?.data) === x.data))
-    const atteso = kgTot != null && euroKg != null ? Math.max(0, kgTot - kgB) * euroKg : null
+    // Senza Math.max(0): un giorno negativo (rimanenza a 0 il giorno prima)
+    // resta negativo, così la somma dei giorni è la somma della settimana
+    // (05/10: con il max il 26/08 valeva 0 e «Insieme» era 149 € sopra).
+    const atteso = kgTot != null && euroKg != null ? (kgTot - kgB) * euroKg : null
     const confrontato = x.cassa != null && atteso != null
     const driftEur = confrontato ? x.cassa - atteso : null
     return {
@@ -147,6 +150,16 @@ export function spiegaConfronto(giorni, { soglia = 15 } = {}) {
     frasi.push({
       id: 'senza-causa', verso: 'peggio',
       testo: `${grandi.length === 1 ? 'Il' : 'I'} ${grandi.map(g => dm(g.data)).join(', ')} ${grandi.length === 1 ? 'ha' : 'hanno'} una differenza oltre il ${soglia}% senza una rimanenza a 0 che la spieghi. I dati non dicono perché: si guardano la pesata di quel giorno e le battute di cassa.`,
+    })
+  }
+  // Sempre lo stesso verso: non è l'errore di un giorno. Il prezzo al chilo
+  // è una stima (non si sa il mix di coni e vaschette).
+  const sotto = conf.filter(g => g.driftEur < 0).length
+  if (conf.length >= 4 && (sotto >= conf.length * 0.8 || sotto <= conf.length * 0.2)) {
+    const basso = sotto >= conf.length * 0.8
+    frasi.push({
+      id: 'stesso-verso', verso: 'info',
+      testo: `La cassa è ${basso ? 'sotto' : 'sopra'} lo stimato in ${basso ? sotto : conf.length - sotto} giorni su ${conf.length}: sempre dallo stesso lato, non è l'errore di un giorno. Parte può stare nel prezzo medio al chilo, che è una stima (non si sa quanti coni e quante vaschette si vendono).`,
     })
   }
   return frasi
