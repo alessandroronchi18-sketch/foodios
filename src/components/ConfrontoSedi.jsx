@@ -201,7 +201,7 @@ export default function ConfrontoSedi({ orgId, sedi, onNavigate, ricettario = nu
     riga('prima', conf ? 'Sul periodo prima' : 'Confronto', (k) => dif(k)),
     riga('chili', 'Chili prodotti', (k) => (k.kgProdotti != null ? num(nIt(k.kgProdotti)) : ND('inventario non letto'))),
     riga('fc', 'Food cost', (k) => (k.foodCostPct != null ? num(quota(k.foodCostPct)) : ND(ricettario ? 'nessun gusto con ricetta e costo completo nel periodo' : 'ricettario non letto'))),
-    riga('margine', 'Margine netto', (k) => (k.margineNettoCur != null ? num(euro(k.margineNettoCur)) : ND('serve il food cost: nessun gusto con ricetta e costo completo'))),
+    riga('margine', 'Margine sugli ingredienti', (k) => (k.margineNettoCur != null ? num(euro(k.margineNettoCur)) : ND('serve il food cost: nessun gusto con ricetta e costo completo'))),
     riga('fuori', 'Chili senza ricetta', (k) => (k.foodCostChiliFuoriPct != null
       ? <span style={{ ...tab, color: k.foodCostChiliFuoriPct > 0 ? T.amberDark : T.text }} title="Chili venduti di gusti senza ricetta collegata: restano fuori dal food cost e dal margine">{quota(k.foodCostChiliFuoriPct)}</span>
       : ND('nessun dato di inventario'))),
