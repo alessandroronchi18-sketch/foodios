@@ -140,6 +140,7 @@
 |---|---:|---:|---:|---:|---|
 | 2026-06-05 | 76 | 70 | 22 | ~30 | baseline |
 | **2026-10-04** | **96** | **98** | **43** | **~68** | **LA NUOVA ANALISI.** 130 commit dal 03/10, 49 file di test nuovi (~665 prove). Il titolare il 03/10: «la parte di analisi è fatta male e inutile». Vista con i dati di Mara valeva 12-35/100 pagina per pagina, mentre i voti di solidità del 22/09 le davano 90: **il 96 di Prodotto del 15/09 non vedeva quel buco, ora quel pezzo lo regge** (sezione 13). Ingegneria, Business e Maturità invariati: zero clienti paganti, dominio ancora da comprare. |
+| **2026-10-05** | **96** | **98** | **43** | **~69** | **I PRIMI DATI VERI DENTRO.** 40 chiusure di Carlina dalle foto, 17 persone e 245 turni, 63 fatture nuove; agosto completo (121.375 € di incassi). Tre pagine che a Mara dicevano niente o il falso rifatte per la gelateria: Food cost 10 → 82, Menu engineering 5 → 80, Costi fissi 65 → 76; Il mese 82 → 85 (spese comuni contate due volte guardando una sede). 72 test nuovi, batteria 7.982 verde. Prodotto e Ingegneria invariati: trovato un buco nuovo (Confronto sedi ≈40 con le chiusure caricate). Business invariato: zero clienti paganti (sezione 14). |
 | **2026-09-15** | **96** | **98** | **43** | **~68** | **SEI LAVORI: ACCESSO, DIPENDENTE, PIANI, INTEGRAZIONI.** 5 commit, test 2.394 → **2.485** su 176 file, 5 migrazioni nuove applicate e verificate. **(1) Accesso**: `/api/login-guard` non ha autenticazione e «questo accesso e' fallito» era una cosa che il BROWSER dichiarava — chiunque conoscesse l'email di un cliente poteva lasciarlo fuori dal gestionale, per sempre. Provato in produzione: cinque richieste senza credenziali e l'account e' bloccato. Piu' il **codice a 4 cifre dei dipendenti provabile all'infinito** (10.000 combinazioni, nessun limite: ci si presentava come un collega), il passo SMS in registrazione che **non poteva riuscire** e nel fallire diceva se un numero e' registrato, e altri quattro. **reCAPTCHA non si puo' usare** (Supabase accetta solo hCaptcha e Turnstile, perche' l'accesso non passa dai nostri server): messo **Turnstile**, spento. **(2) Dipendente «solo le sue pagine»**: il filtro girava DOPO il disegno della pagina, e la ricerca rapida offriva la scorciatoia. Ma il buco vero era nel database — **leggeva affitti e utenze** (8 righe vere), perche' `fatture` era chiusa e `extracted_invoices` no. La porta principale chiusa e la finestra di lato aperta. **(3) Produzione**: la rimanenza del giorno prima non era a schermo, si inseriva alla cieca. **(4) Piani → Standard/Plus/Ultra, solo il Plus in vendita**: e correggendo e' uscito che `plan_pricing` era ferma al 27/05 e **la pagina pubblica mostrava 89 € e 149 € invece di 149 € e 399 €, da tre mesi** — Termini di servizio compresi. **(5) Quattro difetti nelle integrazioni**: l'auto-riconoscimento dei CSV di cassa **dichiarato su 13 marche e mai collegato** (e dentro i parser, i metodi di pagamento sempre vuoti e RCH che leggeva 0 € su una giornata da 100 €); il **dettaglio riga di 3.520 fatture** letto e buttato; i `.p7m` accettati e sempre falliti; il registro a una riga per scontrino (140.000 l'anno). Piu' il **lettore ZIP** che apre gli archivi dell'Agenzia delle Entrate, dove le fatture hanno dentro tutto. **(6) «Settimana precedente» non tornava indietro**, segnalato dal titolare: un effetto che correggeva uno stato guardandone un altro, e i due comandi si combattevano  **POMERIGGIO — altri tre audit profondi.** **(7) La spesa dell'AI non aveva nessun tetto che funzionasse**: le funzioni del contatore cercavano l'azienda con `auth.uid()`, vuoto quando chiama il server, quindi non scrivevano mai e il totale tornava sempre 0 — `0 >= tetto` non e' mai vero, e il limite non e' mai scattato per nessuno. La prova: `ai_usage_daily` VUOTA con 327 organizzazioni e sette chiavi `ai:…` in `rate_limits` che dimostrano che le chiamate c'erano state. Anche il pannello admin leggeva quella tabella e mostrava 0 € per tutti: non c'era modo di accorgersene. Tetto a 5 $/giorno, e i pacchetti comprati adesso si consumano davvero. **(8) Trasferimenti fra sedi** (mai usati da nessuno: zero righe, 108 aziende con i requisiti): **la merce poteva essere scalata due volte** in silenzio, due conferme insieme caricavano due volte, e il dipendente **non vedeva niente ma poteva fare tutto** — le funzioni saltano le regole di isolamento e guardavano l'azienda, non il ruolo. Piu' chili e pezzi sommati fra loro, il valore perso all'arrivo, le due sedi che potevano essere di aziende diverse. **(9) I due bottoni assistente e feedback**: la chat **smetteva di ascoltare dall'undicesima domanda**, l'assistente spiegava al dipendente come arrivare alle pagine chiuse, mandava su pagine spente, non aveva nessun divieto di inventare numeri, e le chiamate AI **non lasciavano nessuna traccia** (9.825 righe di registro, zero per l'AI). **(10)** La suite girava su un core solo per un vincolo che serviva solo al calcolo della copertura: 2m58 -> 2m23. Test 2.394 -> **2.531** su 178 file, audit-sicurezza 19/19, 7 migrazioni  **(11) Telefono e tablet**: le due regole che salvano il telefono (niente zoom automatico nei campi, bersagli da 44px) si fermavano a 767px, cioe' **un pixel prima dell'iPad** — 95 campi di testo sotto i 16px su tablet contro 8 sul telefono, e 306 bersagli su 404 troppo piccoli. La soglia era scritta in PIXEL invece che sul tipo di dispositivo: ora e' `pointer: coarse` e dopo la correzione i campi sono **0**. E **l'attrezzo misurava una pagina diversa da quella vera**: niente foglio di stile globale (ogni riquadro 38px piu' alto), margine sbagliato, niente meta viewport, e **nessuna variante tablet** — il buco dove il difetto si nascondeva. Pagine che si trascinavano di lato: 320px 3→0, 360px 1→0. Due attrezzi nuovi e due regole di cricchetto (109 misure scritte tre volte, 101 anti-zoom a mano) |
 | **2026-09-14 (notte)** | **95** | **97** | **42** | **~67** | **AUDIT DI SICUREZZA PROFONDO — otto buchi trovati e chiusi.** 12 commit, test 2.258 → **2.335** su 165 file, 8 migration di sicurezza applicate e verificate in produzione. Ognuno provato **dall'esterno con la sola chiave pubblica del sito** prima e dopo la correzione. (1) Sei funzioni interne chiamabili senza account: sovrascrivere ricettario, magazzino e chiusure di un'attività conoscendone l'id, alterare lo stock, **cancellare tutto il registro delle modifiche**. (2) I trasferimenti fra sedi comandabili da anonimi, perché il controllo di proprietà era `x <> get_user_org_id()` e in SQL `x <> NULL` non è falso, è NULL — un `if` con condizione NULL non scatta. (3) Deposito delle foto pubblico: scaricabile **ed elencabile** da chiunque. (4) Lo storico dei prezzi d'acquisto leggibile dai dipendenti — l'unico dei otto dove c'erano dati veri. (5) Un titolare poteva mettersi `approvato = true` dal browser e sbloccare tutto senza pagare. (6) Sul proprio profilo si poteva creare un account di laboratorio da soli. (7) TRUNCATE concesso ai ruoli pubblici: ignora le regole di isolamento per costruzione. (8) La cassa entrava con una parola d'ordine **uguale per tutti i clienti** e dichiarava lei l'attività: chi l'aveva scriveva incassi nella cassa di chiunque. **Nessun dato uscito** tranne il punto 4: deposito foto vuoto, zero integrazioni cassa attive. Tenuti da `audit-sicurezza.mjs` (12 controlli in produzione), una prova d'attacco con la chiave pubblica e 50 test. **Sicurezza 88 → 97**, Ingegneria 96 → 97  **Poi le sette sezioni sotto l'80**, chiuse nella stessa notte: WhatsApp mostrava un numero di cellulare INVENTATO e diceva di salvarlo in rubrica e scrivergli; le stelle delle Recensioni partivano da 5 e l'AI ci credeva, quindi rispondeva da cliente contento a una recensione da una stella; due schede di Impostazioni parlavano di "rotazione token", "il cron non parte" e "approvare il sender Twilio, o in sandbox l'opt-in"; la pagina della prova scaduta prometteva che i dati restassero "al sicuro per 60 giorni", lasciando capire che poi sparissero. **OnboardingChat rimossa**: non era raggiungibile da quando e' nata il 12/06, e se il salvataggio falliva a meta' creava una seconda organizzazione. Fuori dalle sette: i **Termini di servizio** — il contratto — elencavano due piani inesistenti a due prezzi sbagliati, e i vecchi nomi erano offerti in 8 punti da tre mesi; il pannello invito prometteva "60 giorni invece di 30" quando la prova vera ne dura 90 e il codice ne aggiunge 60; il dominio **foodos.it non esiste** (NXDOMAIN) e ci sono 46 indirizzi che ci puntano. Media UI 84,6 → **85,0**, nessuna sezione sotto l'80 |
 | **2026-09-14 (sera)** | **94** | **96** | **42** | **~66** | **ARRETRATO DEGLI AUDIT CHIUSO + AUDIT DI IMPAGINAZIONE + DUE SCELTE DI STILE.** 22 commit, test 1.721 → 2.258. **Prodotto +1**: i 117 difetti "sostenuti e mai verificati" di Magazzino e Produzione sono stati passati uno per uno (52 risultavano già corretti e il documento era rimasto indietro, 59 corretti, 2 rifiutati con un fatto). Dentro c'erano cose che nessuno vedeva: il percorso del DIPENDENTE era rimasto indietro rispetto a quello del titolare — il server non scendeva nei semilavorati, saltava gli ingredienti salvati al plurale, e non aveva idempotenza (tablet che perde la rete, messaggio "riprova", stessa produzione registrata due volte e magazzino scalato due volte); "Azzera" registrava una correzione di giacenza come merce buttata; la home diceva "8.409 pezzi al banco" sommando 6 torte e 8,4 kg di gelato. **Ingegneria +1**: i difetti non verificati erano il motivo per cui il 14/09 mattina l'ingegneria non saliva, e ora sono verificati. Più: **due migration mai applicate in produzione** trovate confrontando le 37 RPC chiamate dal codice con quelle esistenti nel database (ogni vendita all'ingrosso scaricava il magazzino come una vendita al banco, con un ripiego silenzioso); **il gate pre-push non bloccava il build dal 7 set** (`| tail -5` mangiava l'esito) e la produzione è rimasta ferma tre commit indietro senza nessun segnale — corretto, più `npm run push` che verifica che il commit sia davvero online. **Impaginazione 80 → 88**: scala tipografica unica tenuta da un test (261 misure fuori scala, compresi testi a 8-10px), colonne di numeri incolonnate, 32 viste rese in due versioni e misurate. **Due scelte di stile del titolare**: le undici pagine AI usano l'intestazione di tutte le altre (via gradienti e titoli in oro: erano le uniche che sembravano generate), e il rosso del marchio si separa da quello d'allarme. **Business fermo a 42**: nessun blocco esterno tolto. Media UI 84,6 → **84,9** |
@@ -3339,3 +3340,95 @@ mutazioni sui punti che decidono i numeri: la loro solidità resta **≥ 90**.
 - il calcolo notturno delle previsioni che non serve a nessuna pagina (da
   decidere se spegnerlo);
 - «€» che al telefono può andare a capo da solo (da misurare).
+
+## 14. 05/10/2026 — i primi dati veri dentro, e quattro pagine che a una gelateria non dicevano niente
+
+Il giorno in cui sono entrati i primi dati veri raccolti a mano (le foto delle
+chiusure di Carlina, le fatture riscaricate) e in cui il titolare ha aperto tre
+pagine che a Mara mostravano niente o il falso: Food cost («Nessun prodotto
+vendibile», con 63 gusti dal costo completo), Menu engineering (vuota: leggeva
+un archivio con zero righe), Costi fissi (nessun avviso che le spese con
+fattura sono già nel conto). Ogni numero qui sotto è stato rifatto **dopo** il
+caricamento, con le funzioni vere delle pagine sui dati veri (regola «controlla
+sempre che tutto giri e torni»), e ogni pagina toccata è stata fotografata a
+1440 e 420 px.
+
+### 14.1 I dati entrati
+
+| Cosa | Quanto | Controllo che torna |
+|---|---|---|
+| Chiusure di cassa di Carlina (dalle foto) | 40 giorni di agosto-settembre, 76.188 € | pagamenti = totale 34/34; modulo 24h = cassa 24/26; fondo cassa a catena 22/30 |
+| Movimenti di prima nota (dalle foto) | 46 | origine `foto-chiusura`, «documento» incerto tranne 1 |
+| Personale e turni (dai moduli) | 17 persone, 245 turni, 1.447 ore | contratto e costo lasciati vuoti, non inventati |
+| Fatture d'acquisto riscaricate (Fattura SMART) | 63 nuove: 46 Carlina (20.425 €), 17 Berthollet + De Gasperi (7.165 €) | le 3.104 già presenti ritrovate tutte, nessuna spostata, nessun doppione |
+| Fatture **emesse** (file «Fatture x carlina») | 187, non caricate | sono vendite, non spese: decidere prima come contarle con la cassa |
+
+Agosto, tutta l'azienda: **121.375 € di incassi**, cassa dove c'è e stima
+dall'inventario dove manca, completo. Settembre resta incompleto (mancano dei
+giorni) e il Mese lo dice invece di inventare l'utile.
+
+### 14.2 I voti delle pagine dell'Analisi (numeri giusti + design)
+
+| Pagina | 04/10 → 05/10 | Cosa è cambiato, e cosa manca |
+|---|---:|---|
+| **Produzione** | 86 → **86** | invariata. Ora alimenta anche il Menu engineering con gli stessi conti |
+| **Il mese** | 82 → **85** | con una sede scelta le spese comuni di Berthollet e De Gasperi andavano **per intero a tutte e due** (agosto: 22.520 € contati due volte, la somma delle sedi superava l'azienda). Ora divise sui chili di tutte le sedi; le sedi sommate = l'azienda, agosto e settembre. Incassi sede per sede con cassa e stima. Manca: l'utile, finché il personale non ha i costi |
+| **Conto economico** | 84 → **84** | invariato. Tutte le spese restano «Da classificare»: 0 fornitori su 315 hanno una voce (è un dato, non un difetto) |
+| **Food cost** (gusti, nuova) | 10 → **82** | prima: «Nessun prodotto vendibile» a chi ha 63 gusti. Ora costo al kg, quota sul prezzo medio dei formati senza IVA (26,81 €/kg, lo stesso di Mese e Produzione), margine al kg, dieci all'arrivo e gli altri con un tocco, ingredienti al kg incolonnati sotto il gusto. «I gusti ti costano fra il 3,6% e il 26% del prezzo». Manca: il mix vero dei formati, il simulatore sui formati |
+| **Menu engineering** (gusti, nuova) | 5 → **80** | prima: vuota (archivio a zero righe, solo con una sede). Ora sull'inventario, con i conti della Produzione, soglie vere di Kasavana-Smith (70% della quota media: la Nocciola, 479 kg, non è più «da rivedere»; margine medio pesato sui chili), consigli da gelateria, grafico con le soglie, «Fondente ti lascia 23.392 € su 1.052 kg». Manca: 11 gusti venduti senza ricetta collegata, il 21% dei chili, restano fuori |
+| **Costi fissi** | 65 → **76** | prima: niente diceva che le spese con fattura sono già nel conto, e il riquadro vuoto invitava ad aggiungere le utenze. Ora «Già dalle fatture: 2.217 € al mese» (Enel 1.881, garage 212, Fastweb 87, Wind Tre 38), avviso forte nel modulo per nome o per «luce/gas/telefono» con «Aggiungi lo stesso», solo informativo per categoria. Manca: la parte sotto è ancora del design vecchio; gli affitti dei negozi non sono in nessuna fattura e vanno scritti |
+| **Previsioni** | 82 → **82** | invariata |
+| **Di che cosa sono queste spese?** | 80 → **80** | invariata; ora si apre anche da Costi fissi («Dai la voce») |
+| **Quadratura** | 80 → **80** | invariata; con le 40 chiusure di Carlina ora ha qualcosa da confrontare: **da rifotografare** |
+| **Confronto sedi** | — → **≈40** (stima, non misurata) | non toccata. Ha lo stesso difetto che il Mese aveva fino al 04/10: la stima solo se la sede non ha nessuna chiusura, il periodo prima e l'andamento solo dalle chiusure, e niente scelta del periodo. Con le chiusure di Carlina caricate oggi conta solo i giorni di cassa |
+| **Vendite B2B** | 50 → **50** | invariata |
+
+**Media delle pagine rifatte o nuove dal 03/10 (nove): 82.** Le tre di oggi
+partivano da 10, 5 e 65.
+
+### 14.3 La solidità
+
+Le 30 sezioni della sezione 12 restano sopra 90 (media 94). Oggi sono entrati
+72 test nuovi in quattro file (`speseComuniUnaSedeSola` 7, `foodCostSoloGusti`
+25, `menuEngineeringGusti` 21, `costiFissiGiaDalleFatture` 19): ognuno
+riproduce il difetto (5, 8, 8 e 4 prove rosse sul codice di prima). La batteria
+completa: **7.982 test**, tutti verdi.
+
+### 14.4 Difetti veri trovati per strada
+
+- **Le spese comuni contate due volte guardando una sede** (Il mese): la
+  divisione sui chili usava i chili della sola sede guardata, che si prendeva
+  il 100%. Il Conto economico era giusto.
+- **Una frase che diceva il falso** (Food cost): «Nessun prodotto vendibile»
+  con 63 gusti completi; la riga che lo spiegava stava dopo il ritorno
+  anticipato e non compariva mai.
+- **Una pagina su un archivio vuoto** (Menu engineering), con la soglia di
+  popolarità sbagliata e il consiglio «alza il prezzo» di un gusto, che nel
+  gelato non si può.
+- **Il doppione invisibile** (Costi fissi): nessun avviso, e l'esempio delle
+  utenze che invitava a scriverle.
+- **«Il 11%»**: le frasi con le percentuali ora mettono l'articolo giusto
+  (`quotaConArticolo`: l'11%, l'8%, l'80%).
+- **Il gate prova la cartella di lavoro, non il commit**: un push è caduto su
+  un commit sano perché nel frattempo un file nuovo a metà usava una chiave
+  del tema che non esiste. Regola in CLAUDE.md.
+- **Il gate dipende dal Mac**: col Mac a carico 70-200 (browser automatici di
+  un altro lavoro) la batteria è passata da 444 a 1.016 secondi e i due test
+  d'apertura di App e Dashboard hanno superato i 25 secondi. Al secondo giro,
+  col Mac scarico, tutti verdi. Proposta aperta: la batteria completa su
+  GitHub.
+- **Un file di fatture emesse scambiato per fatture d'acquisto**: riconosciuto
+  dalle colonne («Cliente», non «Fornitore») prima di caricarlo.
+
+### 14.5 Cosa resta aperto
+
+- **Dai dati, non dal codice**: gli ZIP XML dell'Agenzia per l'imponibile
+  (mancano 2.925 fatture di Carlina su 2.962 e 117 condivise su 142), la voce
+  di spesa dei fornitori (37 su 143 proposti da Foodos), gli 11 gusti senza
+  ricetta, gli affitti e le altre spese senza fattura in Costi fissi, contratto
+  e costo dei 17 dipendenti, i giorni senza foto di agosto e settembre;
+- **Confronto sedi**: il periodo da scegliere e gli incassi sede per sede come
+  nel Mese (stimato 1-1,5 ore);
+- **Costi fissi**: la parte sotto nel design dell'Analisi;
+- **Quadratura**: rifotografarla con le chiusure di Carlina;
+- le fatture emesse di Carlina: decidere se e come contarle negli incassi.
