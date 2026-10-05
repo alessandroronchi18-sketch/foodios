@@ -991,7 +991,8 @@ export default function VenditeB2BView({ orgId, sedeId, sedi = [], sedeAttiva = 
                               border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
                               background: v.pagata ? C.greenLight : T.redLight,
                               color: v.pagata ? C.green : C.red,
-                              minHeight: 28,
+                              // Al telefono si tocca col dito: 44 px (era 28, 06/10/2026).
+                              minHeight: 44, display: 'inline-flex', alignItems: 'center',
                             }}>
                             {v.pagata ? 'Incassato' : 'Da incassare'}
                           </button>
