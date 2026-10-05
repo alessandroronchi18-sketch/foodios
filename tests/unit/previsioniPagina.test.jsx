@@ -462,3 +462,56 @@ describe('come si scrivono i numeri', () => {
     expect(erroreTesto(null)).toBeNull()
   })
 })
+
+// ── 5. Dati vecchi: su cosa si basa, di quando, quanto fidarsi (05/10) ──
+//
+// 05/10/2026, brief «sopra 95». Il 05/10 Mara apriva la pagina e leggeva
+// «L'inventario è fermo al 31/08: non posso dirti cosa preparare» e due
+// pulsanti: vero, ma non diceva su cosa si basa la previsione, né quanto ci
+// si poteva fidare quando i dati c'erano (±26% per gusto, misurato), né che
+// l'ultimo dato era lunedì 31/08. E con 21 gusti la tabella era lunga 1.900 px
+// (all'arrivo ammasso): ora dieci righe e «Mostra gli altri».
+describe('con i dati vecchi la pagina dice su cosa si basa e quanto ci si può fidare', () => {
+  beforeEach(() => {
+    finto.righe.carlina = [
+      ...simula({ gusto: 'FONDENTE', fine: '2026-08-31', vendite: 6, lotto: 13, soglia: 7, scorta: 8 }),
+      ...simula({ gusto: 'AMOR FOU', fine: '2026-08-31', vendite: 2, lotto: 5, soglia: 3, scorta: 4 }),
+    ]
+  })
+  it('scrive le tre cose senza bisogno di un tocco', async () => {
+    rendi({ oggi: '2026-10-05' })
+    await waitFor(() => expect(testo()).toContain('fermo al 31/08'))
+    expect(testo()).toContain('Su cosa si basa')
+    expect(testo()).toContain('La conta della vetrina ogni sera')
+    expect(testo()).toContain('lun 31/08 sera, 35 giorni fa')
+    expect(testo()).toContain('Quanto ci si può fidare')
+    expect(testo()).toMatch(/sbagliavo di ±\d+% per gusto, misurato su \d+ giornate/)
+    expect(screen.queryByRole('table')).toBeNull()
+  })
+  it('con troppo poco inventario per misurare l’errore non lo inventa', async () => {
+    finto.righe.carlina = [riga('FONDENTE', '2026-08-30', { prod: 5, riman: 3 }), riga('FONDENTE', '2026-08-31', { prod: 0, riman: 2 })]
+    rendi({ oggi: '2026-10-05' })
+    await waitFor(() => expect(testo()).toContain('Quanto ci si può fidare'))
+    expect(testo()).toContain('Ancora da misurare')
+    expect(testo()).not.toMatch(/sbagliavo di/)
+  })
+})
+
+describe('la tabella con tanti gusti: dieci all’arrivo, gli altri con un tocco', () => {
+  it('21 gusti: dieci righe, «Mostra gli altri 11», poi tutti', async () => {
+    finto.righe.carlina = Array.from({ length: 21 }, (_, i) => fisso(`GUSTO${String(i).padStart(2, '0')}`, IERI, 3 + (i % 4), 2 + i)).flat()
+    rendi()
+    const t = await screen.findByRole('table')
+    expect(within(t).getAllByRole('row')).toHaveLength(11)
+    fireEvent.click(screen.getByRole('button', { name: 'Mostra gli altri 11' }))
+    expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(22)
+    expect(screen.getByRole('button', { name: /Mostra solo i primi 10/ })).toBeTruthy()
+  })
+  it('12 gusti o meno: nessun pulsante, si vedono tutti', async () => {
+    finto.righe.carlina = Array.from({ length: 12 }, (_, i) => fisso(`GUSTO${String(i).padStart(2, '0')}`, IERI, 3, 2 + i)).flat()
+    rendi()
+    const t = await screen.findByRole('table')
+    expect(within(t).getAllByRole('row')).toHaveLength(13)
+    expect(screen.queryByRole('button', { name: /Mostra gli altri/ })).toBeNull()
+  })
+})

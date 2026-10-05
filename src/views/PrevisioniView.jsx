@@ -156,9 +156,12 @@ export default function PrevisioniView({ orgId, sedeId, sedi = [], sedeAttiva = 
 
   // Con i dati vecchi la pagina non prevede; a richiesta mostra com'era
   // l'ultima previsione possibile, dichiarandolo in grande.
-  const ultima = useMemo(() => (p?.stato === 'vecchi' && mostraUltima)
+  // Calcolata subito (l'errore misurato serve a dire quanto ci si poteva
+  // fidare), mostrata solo a richiesta.
+  const ultimaSim = useMemo(() => (p?.stato === 'vecchi')
     ? previsioneSede(stato.righe, { oggi, giorni: 3, chiuso, base: piuGiorni(p.ultimoDato, 1) })
-    : null, [p, mostraUltima, stato.righe, oggi, chiuso])
+    : null, [p, stato.righe, oggi, chiuso])
+  const ultima = mostraUltima ? ultimaSim : null
 
   if (!orgId) return null
 
@@ -217,6 +220,7 @@ export default function PrevisioniView({ orgId, sedeId, sedi = [], sedeAttiva = 
                 titolo={`L’inventario di ${nomeSede || 'questa sede'} è fermo al ${dataBreve(p.ultimoDato)}: non posso dirti cosa preparare`}
                 sottotitolo={`Sono passati ${NF0.format(p.giorniVecchi)} giorni. Oltre ${GIORNI_DATI_VECCHI} giorni non so cosa c’è in vetrina, e un numero sarebbe inventato.`}
               />
+              <SuCosaSiBasa p={p} sim={ultimaSim} LEX={LEX} isMobile={isMobile} />
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                 <Pulsante onClick={vaiInventario} principale>Registra l’inventario</Pulsante>
                 <Pulsante onClick={() => setMostraUltima(v => !v)}>
@@ -245,6 +249,32 @@ export default function PrevisioniView({ orgId, sedeId, sedi = [], sedeAttiva = 
         </>
       )}
     </PaginaAnalisi>
+  )
+}
+
+/**
+ * Con i dati vecchi la pagina non prevede, ma dice tre cose: su cosa si basa,
+ * di quando sono gli ultimi dati, quanto ci si poteva fidare l'ultima volta
+ * che l'inventario era in ordine (errore misurato, non promesso).
+ */
+export function SuCosaSiBasa({ p, sim, LEX, isMobile }) {
+  const err = sim?.stato === 'ok' ? erroreTesto(sim.erroreSede) : null
+  const righe = [
+    ['Su cosa si basa', `La conta della vetrina ogni sera: da lì ricavo quanto si vende di ogni ${LEX.prodotto}, col ritmo dell’ultima settimana e il giorno della settimana.`],
+    ['Ultimo dato', `${giornoAssoluto(p.ultimoDato)} sera, ${NF0.format(p.giorniVecchi)} giorni fa.`],
+    ['Quanto ci si può fidare', err
+      ? `Con l’inventario in ordine sbagliavo di ${err} per ${LEX.prodotto}, misurato su ${NF0.format(sim.erroreSede.giorni)} giornate. Adesso non so dirlo.`
+      : 'Ancora da misurare: servono almeno due settimane di inventario in ordine.'],
+  ]
+  return (
+    <dl style={{ margin: '0 0 14px', display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '200px minmax(0, 1fr)', gap: isMobile ? '2px 0' : '8px 16px' }}>
+      {righe.map(([k, v]) => (
+        <React.Fragment key={k}>
+          <dt style={{ ...testo(font.size.md), fontWeight: 700, color: T.text, marginTop: isMobile ? 8 : 0 }}>{k}</dt>
+          <dd style={{ ...testo(font.size.md), margin: 0, color: T.textMid }}>{v}</dd>
+        </React.Fragment>
+      ))}
+    </dl>
   )
 }
 
@@ -433,6 +463,7 @@ function BarraIntervallo({ previsto, vetrina = null, max, etichetta }) {
   )
 }
 
+const GUSTI_VISIBILI = 10
 const SOTTO = { ...testo(font.size.sm), color: T.textSoft, fontWeight: 400 }
 
 function TabellaGusti({ p, oggi, colonne, LEX, isMobile, testoGiorno }) {
@@ -457,8 +488,24 @@ function TabellaGusti({ p, oggi, colonne, LEX, isMobile, testoGiorno }) {
     { chiave: 'rifare', titolo: 'Da rifare', larghezza: isMobile ? 90 : 128 },
     { chiave: 'sbaglio', titolo: 'Di solito sbaglio', tipo: 'nodo', soloComputer: true, larghezza: 120 },
   ]
-  const righe = p.gusti.map(g => rigaGusto(g, { oggi, base: p.base, colonne, isMobile, testoGiorno, max, giornoVetrina: p.giorniPrevisti[0] }))
-  return <TabellaAnalisi colonne={cols} righe={righe} isMobile={isMobile} etichetta={`${LEX.Prodotti}: quanto se ne venderà`} />
+  // Dieci all'arrivo (sono i primi a finire), gli altri con un tocco: con 21
+  // gusti la pagina era una tabella di 1.900 px (05/10, brief «sopra 95»).
+  const [tutti, setTutti] = useState(false)
+  const nascosti = !tutti && p.gusti.length > GUSTI_VISIBILI + 2 ? p.gusti.length - GUSTI_VISIBILI : 0
+  const visibili = nascosti ? p.gusti.slice(0, GUSTI_VISIBILI) : p.gusti
+  const righe = visibili.map(g => rigaGusto(g, { oggi, base: p.base, colonne, isMobile, testoGiorno, max, giornoVetrina: p.giorniPrevisti[0] }))
+  return (
+    <>
+      <TabellaAnalisi colonne={cols} righe={righe} isMobile={isMobile} etichetta={`${LEX.Prodotti}: quanto se ne venderà`} />
+      {(nascosti > 0 || tutti) && p.gusti.length > GUSTI_VISIBILI + 2 && (
+        <div style={{ paddingTop: 12 }}>
+          <Pulsante onClick={() => setTutti(v => !v)}>
+            {tutti ? `Mostra solo i primi ${GUSTI_VISIBILI}` : `Mostra gli altri ${NF0.format(nascosti)}`}
+          </Pulsante>
+        </div>
+      )}
+    </>
+  )
 }
 
 // Niente rosso qui: in una gelateria che produce ogni giorno quasi tutto
