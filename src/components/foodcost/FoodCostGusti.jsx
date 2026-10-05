@@ -166,7 +166,7 @@ export default function FoodCostGusti({ righe: righeVere = [], prezzoKg: prezzoK
           ? 'Gli ingredienti di un chilo di gelato, contro il prezzo medio dei tuoi formati. Il margine è il prezzo meno gli ingredienti.'
           : 'Gli ingredienti di un chilo di gelato. Per la percentuale e il margine servono i prezzi dei formati di vendita.'} />
       {conPrezzo && (
-        <div style={{ marginTop: space[2], color: T.textSoft, ...testo(font.size.base) }}>
+        <div style={{ marginTop: space[2], marginBottom: space[3], maxWidth: 720, color: T.textSoft, ...testo(font.size.base) }}>
           <div style={{ color: T.text, fontWeight: 700, ...testo(font.size.md) }}>
             {`Prezzo medio, senza IVA: ${euro2(prezzoKg)} al chilo`}
             {inProva && <span style={{ color: T.textSoft, fontWeight: 600 }}>{` (prima ${euro2(prezzoKgVero)})`}</span>}
@@ -231,7 +231,7 @@ export default function FoodCostGusti({ righe: righeVere = [], prezzoKg: prezzoK
                     Rimetti i prezzi veri
                   </button>
                 )}
-                <span style={{ color: T.textSoft, ...testo(font.size.base), flex: 1, minWidth: 200 }}>
+                <span style={{ color: T.textSoft, ...testo(font.size.base), flex: 1, minWidth: 200, maxWidth: 560 }}>
                   {inProva ? 'È una prova: non cambia il listino. ' : 'Scrivi un prezzo per vedere cosa cambia: è solo una prova. '}
                   {'Il listino vero si cambia in Listino.'}
                 </span>
