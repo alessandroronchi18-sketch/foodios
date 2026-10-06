@@ -3496,3 +3496,103 @@ I costi del personale; gli affitti in Costi fissi; gli ZIP XML dell'Agenzia
 (imponibile e descrizioni); l'inventario di settembre di Berthollet e De
 Gasperi; gli 11 gusti da collegare; la decisione sulle 187 fatture emesse; le
 note automatiche dell'Archivio (scelta A/B/C).
+
+## 16. 06/10/2026 — tutte le sezioni in classifica, e il voto di tutto
+
+Il titolare: «elencami tutte le sezioni in ordine da 1 a 100, anche le singole
+sezioni; voto generale di tutto, utilità, design, tutto».
+
+### 16.1 Come sono fatti questi voti
+
+Quattro dimensioni per ogni sezione, e il generale che le pesa:
+**utilità per Mara 30% + numeri giusti 30% + design 20% + solidità 20%**.
+
+- **Utilità**: a cosa serve oggi a una gelateria con tre sedi, letta anche
+  dall'uso vero: le aperture da settembre (`view_usage_daily`). Attenzione:
+  dentro ci sono anche le prove fatte con l'account di collaudo, quindi è
+  un'indicazione, non una misura pulita.
+- **Design**: MISURATO per le pagine rifatte nel kit dell'Analisi (foto a
+  1440 e 420 sui dati veri, 05-06/10); **stimato (\*)** per le altre, che non
+  sono state rifotografate: sono nel design di prima, e il voto lo dice.
+- **Numeri giusti**: per l'Analisi rifatti con le funzioni vere sui dati
+  veri; per le altre dalle prove della sezione 12 e dai difetti noti.
+- **Solidità**: la misura della sezione 12 (prove, pulizia, difetti aperti),
+  più i test di stanotte; «stimata» dove la sezione 12 non c'era.
+
+Dopo l'ultimo giro: le Previsioni salgono a 93 (al telefono «Da rifare» non va
+a capo; in «Tutte le sedi» ogni sede dice di che giorno sono i suoi dati) e
+nell'Archivio si aprono solo le note scritte da una persona (scelta B).
+
+### 16.2 La classifica
+
+| # | Sezione | Gruppo | Aperture da sett. | Utilità | Design | Numeri giusti | Solidità | **Generale** | Nota |
+|---:|---|---|---:|---:|---:|---:|---:|---:|---|
+| 1 | Conto economico | Analisi | 46 | 92 | 93 | 92 | 94 | **93** | 98,9% della spesa di agosto con la voce; prima del personale uguale al Mese |
+| 2 | Il mese | Analisi | 12 | 95 | 92 | 92 | 94 | **93** | risposta grande; l'utile aspetta i costi del personale |
+| 3 | Costi fissi | Analisi | 20 | 85 | 93 | 95 | 97 | **92** | «già dalle fatture» 2.217 €/mese; affitti da scrivere |
+| 4 | Di che cosa sono queste spese? | Analisi | — | 92 | 90 | 92 | 93 | **92** | 85 fornitori classificati dal titolare la sera stessa |
+| 5 | Food cost | Analisi | 41 | 88 | 93 | 93 | 95 | **92** | 63 gusti; simulatore dei formati; mix vero non nei dati |
+| 6 | Produzione | Analisi | 48 | 92 | 91 | 91 | 94 | **92** | inventario fermo al 31/08 detto accanto al venduto |
+| 7 | Inventario dei gusti | Oggi | 101 | 95 | 80* | 90 | 97 | **91** | la fonte di quasi tutti i numeri |
+| 8 | Materie prime | Ricette | 53 | 88 | 80* | 95 | 100 | **91** | 110 ingredienti col prezzo |
+| 9 | Menu engineering | Analisi | 8 | 85 | 92 | 92 | 93 | **90** | soglie vere; 11 gusti da collegare |
+| 10 | Ricettario | Ricette | 195 | 95 | 80* | 90 | 90 | **90** | la pagina più aperta |
+| 11 | Archivio fatture | Acquisti | 0 | 85 | 88 | 92 | 92 | **89** | nuova: 2.418 fatture, filtri, CSV |
+| 12 | Fornitori (scadenzario) | Acquisti | 60 | 88 | 80* | 92 | 93 | **89** | tutte pagate dal 06/10 |
+| 13 | Nuova ricetta / nuovo gusto | Ricette | 134 | 90 | 80* | 90 | 93 | **89** |  |
+| 14 | Previsioni | Analisi | 18 | 80 | 93 | 92 | 93 | **89** | chiara su base e data; senza inventario recente niente numeri |
+| 15 | Confronto sedi | Analisi | 6 | 85 | 88 | 88 | 92 | **88** | Berthollet e De Gasperi senza inventario di settembre |
+| 16 | Listino (formati di vendita) | Ricette | 33 | 85 | 75* | 92 | 93 | **87** | il prezzo al kg di tutte le pagine nasce qui |
+| 17 | Menu e navigazione | Tutto | — | 85 | 80* | 90 | 93 | **87** |  |
+| 18 | Cassa e prima nota | Oggi | 58 | 85 | 80* | 90 | 90 | **86** | 40 chiusure di Carlina dalle foto |
+| 19 | Home | Oggi | 175 | 85 | 80* | 85 | 93 | **86** |  |
+| 20 | Quadratura | Analisi | 5 | 75 | 90 | 90 | 93 | **86** | cassa solo per Carlina |
+| 21 | Calendario | Oggi | 71 | 85 | 75* | 85 | 90 | **84** |  |
+| 22 | Semilavorati | Ricette | 22 | 80 | 75* | 90 | 90 | **84** |  |
+| 23 | Anagrafica fornitori | Acquisti | 28 | 75 | 75* | 90 | 93 | **83** | 119 fornitori su 316 con la voce |
+| 24 | Import dati | Acquisti | 10 | 75 | 75* | 90 | 93 | **83** |  |
+| 25 | Impostazioni | Azienda | 22 | 70 | 75* | 90 | 97 | **82** |  |
+| 26 | Magazzino / giacenze | Oggi | 61 | 80 | 75* | 85 | 90 | **82** |  |
+| 27 | Personale | Azienda | 34 | 80 | 75* | 80 | 97 | **82** | 18 persone senza stipendio né costo orario |
+| 28 | Vendite B2B | Vendite | 19 | 60 | 86 | 90 | 93 | **81** | zero vendite registrate: decisione sulle 187 fatture emesse |
+| 29 | Sprechi e omaggi | Oggi | 19 | 55 | 75* | 90 | 100 | **78** |  |
+| 30 | Registro attività | Azienda | 16 | 55 | 75* | 90 | 90 | **76** |  |
+| 31 | Trasferimenti fra sedi | Azienda | 6 | 50 | 75* | 90 | 97 | **76** | 1 trasferimento registrato |
+| 32 | Allergeni e HACCP | Azienda | 2 | 50 | 75* | 85 | 90 | **74** | obbligo di legge, quasi mai aperta |
+| 33 | Produzione giornaliera (stampi) | Oggi | 9 | 40 | 75* | 85 | 93 | **71** | Mara lavora a inventario, non a stampi |
+| 34 | Cashflow | Analisi (vecchia) | 0 | 35 | 70* | 85 | 100 | **70** | mai aperta da settembre |
+| 35 | Eventi | Vendite | 10 | 50 | 70* | 80 | 80 | **69** | solidità stimata |
+| 36 | Ordini e ordini AI | Acquisti | 8 | 45 | 70* | 80 | 80 | **68** | solidità stimata |
+| 37 | Pagine AI (Brain, Hub, Recensioni) | AI | 30 | 40 | 70* | 75 | 80 | **64** | poco usate; risposte non verificate sui dati |
+
+Media di 37 sezioni: utilità 75.0, design 80.6, numeri giusti 88.7, solidità 92.6; **generale 84**. Pesata sull'uso vero (aperture da settembre): **87**.
+
+### 16.3 Il voto di tutto
+
+| Dimensione | Voto | Cosa lo tiene giù |
+|---|---:|---|
+| Utilità per Mara | **75** | le sezioni da pasticceria o da AI che una gelateria a inventario non usa (stampi, cashflow, eventi, ordini, pagine AI) |
+| Design | **81** | le pagine operative non ancora rifatte nel kit (Ricettario, Inventario, Cassa, Magazzino, Personale…): stima, da rifotografare |
+| Numeri giusti | **89** | i dati che mancano: costi del personale, affitti, imponibile, inventario di settembre di due sedi |
+| Solidità | **93** | 8.000+ test, gate prima di ogni pubblicazione |
+| **Generale (37 sezioni)** | **84** | |
+| **Generale pesato sull'uso** | **87** | le sezioni aperte di più stanno sopra la media |
+
+I quattro compositi della tabella in cima restano quelli del 06/10: Prodotto
+97, Ingegneria 98, Business 43 (zero clienti paganti), Maturità ~71. Il
+generale qui sopra è un'altra domanda: non «quanto vale il prodotto» ma
+«quanto serve oggi a Mara, sezione per sezione».
+
+### 16.4 Le prossime mosse, in ordine di quanto rendono
+
+1. **i costi del personale** (18 persone): sbloccano l'utile in Il mese, Conto
+   economico e Confronto sedi;
+2. **l'inventario ogni sera** in tutte e tre le sedi: Produzione, Previsioni,
+   Menu engineering, Confronto sedi e Quadratura vivono di questo;
+3. **gli ZIP XML dell'Agenzia**: imponibile vero e descrizioni per le proposte;
+4. **rifare nel kit le pagine operative più aperte** (Ricettario 195 aperture,
+   Inventario 101, Calendario 71, Magazzino 61, Cassa 58): è lì che il design
+   stimato vale meno della media;
+5. **nascondere a una gelateria a inventario** quello che non le serve
+   (produzione a stampi, cashflow vecchio), così l'utilità media sale senza
+   scrivere niente di nuovo.
