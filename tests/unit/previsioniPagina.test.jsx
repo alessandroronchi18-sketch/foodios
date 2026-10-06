@@ -278,10 +278,20 @@ describe('quello che c’è intorno', () => {
     rendi({ sedeId: null, sedeAttiva: { _all: true } })
     await screen.findByRole('table')
     expect(finto.chiamate[0]).toBe('carlina')
-    fireEvent.click(screen.getByRole('button', { name: 'De Gasperi' }))
+    fireEvent.click(screen.getByRole('button', { name: /De Gasperi/ }))
     await waitFor(() => expect(within(screen.getByRole('table')).getByText('PESCA')).toBeTruthy())
     expect(finto.chiamate).toContain('degasperi')
     expect(testo()).toContain('De Gasperi · ')
+  })
+
+  it('in «Tutte le sedi» ogni pulsante dice di che giorno sono gli ultimi dati di quella sede', async () => {
+    finto.righe.carlina = [...fisso('CREMA', IERI, 4, 2), riga('ABIS', '2026-10-03', { prod: 0, riman: 0 })]
+    finto.righe.degasperi = fisso('PESCA', '2026-08-31', 3, 9)
+    rendi({ sedeId: null, sedeAttiva: { _all: true } })
+    await screen.findByRole('table')
+    await waitFor(() => expect(screen.getByRole('button', { name: /De Gasperi/ }).textContent).toContain('dati al 31/08'))
+    // la riga a zero del 03/10 non conta: Carlina è ferma a ieri
+    expect(screen.getByRole('button', { name: /Carlina/ }).textContent).toContain('dati al 02/10')
   })
 
   it('a 420 px la colonna «Da rifare» sta in due righe corte per gusto, senza andare a capo', async () => {
@@ -304,7 +314,7 @@ describe('quello che c’è intorno', () => {
     finto.righe.carlina = fisso('CREMA', IERI, 4, 2)
     rendi()
     await screen.findByRole('table')
-    expect(screen.queryByRole('button', { name: 'De Gasperi' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /De Gasperi/ })).toBeNull()
   })
 
   it('a 420 px la tabella scorre nel suo riquadro e tiene le colonne che servono', async () => {

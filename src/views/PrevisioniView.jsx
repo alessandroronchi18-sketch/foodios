@@ -21,7 +21,7 @@ import { lessico } from '../lib/lessico'
 import { todayLocal } from '../lib/dateLocal'
 import { caricaRigheInventario } from '../lib/inventarioProduzione'
 import { caricaRegoleChiusura, giornoChiuso } from '../lib/giorniChiusura'
-import { previsioneSede, piuGiorni, giorniFra, giornoSettimana, GIORNI_DATI_VECCHI, LIVELLO_BANDA } from '../lib/previsioneVenduto'
+import { previsioneSede, ultimoGiornoRegistrato, piuGiorni, giorniFra, giornoSettimana, GIORNI_DATI_VECCHI, LIVELLO_BANDA } from '../lib/previsioneVenduto'
 import { dataBreve } from '../lib/formatoAnalisi'
 import { CoperturaDati, NumeroConConfronto, NumeroPrincipale, FilaTessere, IntestazioneAnalisi, TitoloGrafico, Riquadro, TabellaAnalisi, testo, transizione } from '../components/analisi'
 import PaginaAnalisi, { spazioRiquadri } from '../components/analisi/PaginaAnalisi'
@@ -150,6 +150,21 @@ export default function PrevisioniView({ orgId, sedeId, sedi = [], sedeAttiva = 
     return r ? (d => giornoChiuso(d, r)) : (() => false)
   }, [stato.regole])
 
+  // «Tutte le sedi»: di che giorno sono gli ultimi dati di ognuna, scritto
+  // sul pulsante della sede (06/10: con tre sedi ferme a date diverse la
+  // pagina ne mostrava una sola e delle altre non diceva niente).
+  const [ultimiPerSede, setUltimiPerSede] = useState({})
+  const chiaveSedi = sediAttive.map(s => s.id).join('|')
+  useEffect(() => {
+    if (!orgId || !tutte || sediAttive.length < 2) return undefined
+    let vivo = true
+    Promise.all(sediAttive.map(s => caricaRigheInventario(orgId, s.id, { monthsBack: 2 })
+      .then(r => [s.id, ultimoGiornoRegistrato(r || []) || null]).catch(() => [s.id, undefined])))
+      .then(coppie => { if (vivo) setUltimiPerSede(Object.fromEntries(coppie)) })
+    return () => { vivo = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgId, tutte, chiaveSedi])
+
   const p = useMemo(() => (stato.caricando || stato.perSede !== sede)
     ? null
     : previsioneSede(stato.righe, { oggi, giorni: 3, chiuso }), [stato, sede, oggi, chiuso])
@@ -170,15 +185,18 @@ export default function PrevisioniView({ orgId, sedeId, sedi = [], sedeAttiva = 
     <div role="group" aria-label="Sede" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
       {sediAttive.map(s => {
         const attiva = s.id === sede
+        const ultimo = ultimiPerSede[s.id]
+        const quando = ultimo === undefined ? null : (ultimo ? `dati al ${dataBreve(ultimo)}` : 'nessun dato')
         return (
           <button key={s.id} type="button" onClick={() => setSedeScelta(s.id)} aria-pressed={attiva}
             style={{
-              minHeight: 40, padding: '8px 14px', borderRadius: R.full, cursor: 'pointer', fontFamily: 'inherit',
-              fontSize: font.size.base, fontWeight: 700,
+              minHeight: 44, padding: '6px 14px', borderRadius: R.full, cursor: 'pointer', fontFamily: 'inherit',
+              fontSize: font.size.base, fontWeight: 700, lineHeight: 1.25, textAlign: 'center',
               border: `1px solid ${attiva ? T.brand : T.border}`,
               background: attiva ? T.brand : T.bgCard, color: attiva ? T.white : T.textMid,
             }}>
             {s.nome}
+            {quando && <span style={{ display: 'block', fontSize: font.size.sm, fontWeight: 400, color: attiva ? T.white : T.textSoft }}>{quando}</span>}
           </button>
         )
       })}
