@@ -518,7 +518,9 @@ function rigaGusto(g, { oggi, base, colonne, isMobile, testoGiorno, max, giornoV
     ? testoGiorno(g.finisce)
     : (g.scorta ? 'fra più di 2 settimane' : '—')
   const err = erroreTesto(g.errore)
-  const lotto = g.lotto ? `di solito ${kgTesto(g.lotto.kg)}\u00a0kg` : null
+  // Al telefono la colonna è larga 90 px: «ne fai 8 kg» sta su una riga,
+  // «di solito 8 kg» andava a capo (3-4 righe per gusto, 05/10).
+  const lotto = g.lotto ? `${isMobile ? 'ne fai' : 'di solito'} ${kgTesto(g.lotto.kg)}\u00a0kg` : null
   const rifareTesto = rifare ? (rifare.subito ? 'subito' : testoGiorno(rifare.data)) : '—'
   const presto = !!rifare && (rifare.subito || rifare.data <= piuGiorni(oggi, 1))
 
@@ -547,8 +549,8 @@ function rigaGusto(g, { oggi, base, colonne, isMobile, testoGiorno, max, giornoV
     rifare: (
       <span style={{ display: 'block' }}>
         <span style={{ fontWeight: presto ? 700 : 400, whiteSpace: 'nowrap' }}>{rifareTesto}</span>
-        {isMobile && g.finisce && <span style={{ display: 'block', ...SOTTO }}>finisce {finisceTesto}</span>}
-        {lotto && <span style={{ display: 'block', ...SOTTO }}>{lotto}</span>}
+        {isMobile && g.finisce && <span style={{ display: 'block', whiteSpace: 'nowrap', ...SOTTO }}>finisce {finisceTesto.replace('dopodomani', 'fra 2 gg')}</span>}
+        {lotto && <span style={{ display: 'block', whiteSpace: 'nowrap', ...SOTTO }}>{lotto}</span>}
       </span>
     ),
     sbaglio: <span style={{ fontWeight: 400, color: err ? T.text : T.textSoft }}>{err || 'da misurare'}</span>,

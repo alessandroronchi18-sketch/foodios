@@ -284,6 +284,22 @@ describe('quello che c’è intorno', () => {
     expect(testo()).toContain('De Gasperi · ')
   })
 
+  it('a 420 px la colonna «Da rifare» sta in due righe corte per gusto, senza andare a capo', async () => {
+    window.innerWidth = 420
+    // il gusto finisce dopodomani: la riga più lunga
+    finto.righe.carlina = fisso('CREMA', IERI, 4, 9)
+    rendi()
+    const tabella = await screen.findByRole('table')
+    const cella = within(tabella).getAllByRole('cell').find(c => /di solito|ne fai|finisce/.test(c.textContent))
+    expect(cella).toBeTruthy()
+    for (const sotto of cella.querySelectorAll('span span')) {
+      expect(sotto.textContent.length).toBeLessThanOrEqual(16)
+      expect(sotto.style.whiteSpace).toBe('nowrap')
+    }
+    expect(cella.textContent).not.toContain('di solito')
+    expect(cella.textContent).not.toContain('dopodomani')
+  })
+
   it('con una sede scelta dal selettore in alto non mostra un secondo selettore', async () => {
     finto.righe.carlina = fisso('CREMA', IERI, 4, 2)
     rendi()
