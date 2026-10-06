@@ -73,7 +73,9 @@ describe('il difetto: a chi ha solo gusti la pagina diceva che non c\'era niente
     await screen.findByRole('table', { name: /Food cost dei gusti/ })
     expect(testo()).not.toMatch(/Nessun prodotto vendibile/)
     // Il titolo dice la conclusione: fra quanto e quanto stanno i gusti.
-    expect(testo()).toMatch(/I gusti ti costano fra il 3,3% e il 24,4% del prezzo/)
+    // 06/10/2026: la percentuale arriva quando i formati sono letti, dopo la
+    // tabella: si aspetta il titolo (col Mac carico la prova correva avanti).
+    await waitFor(() => expect(testo()).toMatch(/I gusti ti costano fra il 3,3% e il 24,4% del prezzo/))
   })
 
   it('la base (semilavorato) non è un gusto e non sta nella tabella', async () => {

@@ -85,8 +85,11 @@ describe('Il velo del menu del profilo', () => {
   it('è un pulsante con un nome, non un rettangolo muto', async () => {
     await apri()
     // il comando che apre il menu del profilo
-    const profilo = bottoni().find(b => /profilo|account|menu utente/i.test(b.getAttribute('aria-label') || b.getAttribute('title') || ''))
-    expect(profilo, 'non trovo il comando del profilo').toBeTruthy()
+    // 06/10/2026: il comando del profilo arriva dopo il primo testo della
+    // pagina; col Mac carico la prova lo cercava troppo presto. Si aspetta lui.
+    const trova = () => bottoni().find(b => /profilo|account|menu utente/i.test(b.getAttribute('aria-label') || b.getAttribute('title') || ''))
+    await waitFor(() => expect(trova(), 'non trovo il comando del profilo').toBeTruthy(), { timeout: 5000 })
+    const profilo = trova()
     act(() => { fireEvent.click(profilo) })
     await waitFor(() => {
       const velo = perEtichetta(/^Chiudi il menu$/)

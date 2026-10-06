@@ -128,7 +128,12 @@ describe('Il conto, voce per voce', () => {
     await waitFor(() => expect(testo()).toMatch(new RegExp(`Dove sono andati i soldi ${aMese(M, { anno: false })}\\?`)))
     // Dalla sera del 04/10 è la tabella comune dell'Analisi (TabellaAnalisi):
     // l'euro sta nell'intestazione, non in ogni cella.
-    const righe = [...document.querySelectorAll('tbody tr')].map(r => r.textContent)
+    // 06/10/2026: il titolo compare prima delle righe; col Mac carico la prova
+    // leggeva la tabella vuota (cadeva solo nella batteria intera). Si aspetta
+    // la riga che si controlla, non il titolo.
+    const leRighe = () => [...document.querySelectorAll('tbody tr')].map(r => r.textContent)
+    await waitFor(() => expect(leRighe().find(r => r.startsWith('Utile'))).toBeTruthy())
+    const righe = leRighe()
     expect(righe.find(r => r.startsWith('Incassi stimati'))).toMatch(/90\.00080\.000\+10\.000 · meglio/)
     expect(righe.find(r => /Materie prime/.test(r))).toMatch(/−15\.000−13\.000\+2\.000 · peggio/)
     expect(righe.find(r => r.startsWith('Personale'))).toMatch(/non lo so/)

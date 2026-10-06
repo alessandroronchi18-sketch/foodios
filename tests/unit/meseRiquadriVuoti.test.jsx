@@ -50,6 +50,9 @@ describe('Senza cause del cambio (IM14)', () => {
     DATI = { mese: M, confronto: MA, attuale: mese(M, { daClassificare: 30000 }), annoPrima: mese(MA, { ricavi: null }), andamento: [], perSede: null, ultimoInventario: null, errori: [] }
     render(<IlMeseView orgId="o1" sedi={[]} />)
     await waitFor(() => expect(testo()).toMatch(/Quanto hai guadagnato/))
+    // 06/10/2026: si aspetta il riquadro che si controlla (col Mac carico la
+    // domanda compariva prima della cascata e la prova leggeva «undefined»).
+    await waitFor(() => expect(riquadroCol(/Le fatture valgono/)).toBeTruthy())
     expect(riquadroCol(/^Il confronto con/)).toBeUndefined()
     const cascata = riquadroCol(/Le fatture valgono/)
     // A tutta riga: figlia diretta della pagina.
