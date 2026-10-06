@@ -165,3 +165,12 @@ export function csvFatture(fatture, sedi = []) {
   ])
   return BOM + [testa, ...righe].map(r => r.map(cella).join(';')).join('\r\n')
 }
+
+/**
+ * La nota l'ha scritta il programma, non una persona: «Segnata pagata il
+ * 10/09/2026: scaduta da oltre un anno…» (1.632 fatture) e «Segnata pagata in
+ * blocco il 05/10/2026…» (99). Nell'Archivio non si apre con un tocco: su
+ * quasi ogni riga ci sarebbe la stessa frase (scelta B, 06/10/2026). Resta
+ * leggibile passando sopra lo stato, e nel CSV.
+ */
+export const notaAutomatica = (nota) => /^\s*Segnata pagata\b/i.test(String(nota ?? ''))

@@ -21,6 +21,7 @@ import { leggiCategorieFornitori } from '../lib/contoEconomicoArchivio'
 import {
   leggiArchivioFatture, primaDataArchivio, conLaVoce, filtraFatture, ordinaPerData, totaliFatture, paginaFatture,
   csvFatture, sedeScritta, nomeDellaVoce, ePagata, SENZA_SEDE, SENZA_VOCE, RIGHE_PER_VOLTA,
+  notaAutomatica,
 } from '../lib/archivioFatture'
 
 const dataIt = (iso) => {
@@ -133,6 +134,10 @@ export default function ArchivioFattureView({ orgId, sedi = [], sedeId = null, c
   const righe = mostrate.map(f => {
     const pagata = ePagata(f)
     const nota = String(f.note ?? '').trim()
+    // Solo le note scritte da una persona si aprono: quelle automatiche
+    // stanno nel suggerimento dello stato (notaAutomatica).
+    const notaScritta = nota && !notaAutomatica(nota) ? nota : ''
+    const titoloStato = nota && notaAutomatica(nota) ? nota : undefined
     const chiave = String(f.id)
     return {
       chiave,
@@ -140,21 +145,21 @@ export default function ArchivioFattureView({ orgId, sedi = [], sedeId = null, c
         // Al telefono lo stato non ha una colonna: sta sotto il nome.
         fornitore: isMobile
           ? <span><span style={{ display: 'block' }}>{f.fornitore || 'senza nome'}</span>
-            <span style={{ display: 'block', ...testo(font.size.sm), fontWeight: 600, color: pagata ? T.textSoft : T.amberDark }}>{pagata ? 'pagata' : 'da pagare'}</span></span>
+            <span title={titoloStato} style={{ display: 'block', ...testo(font.size.sm), fontWeight: 600, color: pagata ? T.textSoft : T.amberDark }}>{pagata ? 'pagata' : 'da pagare'}</span></span>
           : (f.fornitore || 'senza nome'),
         data: isMobile ? dataIt(f.data_fattura).replace(/\/\d{2}(\d{2})$/, '/$1') : dataIt(f.data_fattura),
         numero: f.numero_rif ? <span title={f.numero_rif} style={{ display: 'block', maxWidth: 128, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.numero_rif}</span> : '',
         sede: sedeScritta(f, sedi) || 'senza sede',
         voce: nomeDellaVoce(f.voce) || 'da classificare',
         stato: pagata
-          ? <span>pagata{f.data_pagamento && !isMobile ? ` il ${dataIt(f.data_pagamento).slice(0, 5)}` : ''}</span>
+          ? <span title={titoloStato}>pagata{f.data_pagamento && !isMobile ? ` il ${dataIt(f.data_pagamento).slice(0, 5)}` : ''}</span>
           : <span style={{ color: T.amberDark, fontWeight: 600 }}>da pagare{f.data_scadenza && !isMobile ? ` · ${dataIt(f.data_scadenza).slice(0, 5)}` : ''}</span>,
         totale: f.totale == null || f.totale === '' ? null : Number(f.totale),
       },
       // La nota si apre con un tocco sul fornitore: il chevron la annuncia.
-      ...(nota ? {
+      ...(notaScritta ? {
         onClick: () => apri(chiave), aperta: aperte.has(chiave),
-        sotto: <div style={{ ...testo(font.size.sm), color: T.textMid, padding: `${space[1]}px ${space[4]}px ${space[2]}px`, overflowWrap: 'anywhere' }}>{nota}</div>,
+        sotto: <div style={{ ...testo(font.size.sm), color: T.textMid, padding: `${space[1]}px ${space[4]}px ${space[2]}px`, overflowWrap: 'anywhere' }}>{notaScritta}</div>,
       } : {}),
     }
   })
