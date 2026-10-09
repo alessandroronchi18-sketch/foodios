@@ -402,8 +402,7 @@
     "tripla-a-mano": 4
   },
   "src/views/RicettarioView.jsx": {
-    "colore-a-mano": 22,
-    "tripla-a-mano": 1
+    "colore-a-mano": 22
   },
   "src/views/SchedaAllergeniView.jsx": {
     "colore-a-mano": 4,
