@@ -31,6 +31,8 @@ import {
   estraiIncassi, chiaveSede, rilevaPeriodo, etichettaAnnoMese,
 } from '../lib/importIncassi'
 import { importaChiusureIncassi } from '../lib/chiusure'
+import { supabase } from '../lib/supabase'
+import { collegaSpesePeriodo } from '../lib/speseFatture'
 import { aggiungiMovimentiInBlocco, movimentiImportatiPeriodo, eliminaMovimentiPerId } from '../lib/primaNota'
 
 /** Ultimo giorno del mese, per delimitare il periodo che l'import sostituisce. */
@@ -194,6 +196,13 @@ export default function ImportRegistroIncassi({ orgId, sedi, notify, onClose }) 
         }
         conteggio.sedi++
       }
+      // Le spese (F) che hanno già la fattura (stesso fornitore, importo,
+      // data entro 3 giorni) si collegano: nei costi contano una volta. Un
+      // errore qui non deve far perdere un import riuscito.
+      try {
+        const col = await collegaSpesePeriodo(supabase, orgId, { dal: from, al: to })
+        conteggio.giaInFattura = col.scritti || 0
+      } catch (e) { console.warn('collegamento spese-fatture:', e) }
       setEsito(conteggio)
       notify?.(`Registro di ${etichettaAnnoMese(annoMese)} importato: ${conteggio.giorni} giornate.`)
     } catch (err) {
@@ -425,7 +434,8 @@ export default function ImportRegistroIncassi({ orgId, sedi, notify, onClose }) 
             {esito.nuove > 0 && ` · ${esito.nuove} nuove`}
             {esito.aggiornate > 0 && ` · ${esito.aggiornate} aggiornate`}
             {esito.spese > 0 && ` · ${esito.spese} uscite di cassa`}
-            {esito.sostituite > 0 && ` (${esito.sostituite} uscite di un import precedente sostituite)`}.
+            {esito.sostituite > 0 && ` (${esito.sostituite} uscite di un import precedente sostituite)`}
+            {esito.giaInFattura > 0 && `, di cui ${esito.giaInFattura} già in fattura`}.
           </div>
           <div style={{ ...typo.small, color: T.textSoft, marginTop: 8, lineHeight: 1.5 }}>
             Li trovi nella pagina Cassa, giorno per giorno, e nel P&L del mese.

@@ -223,21 +223,28 @@ export async function eliminaMovimentiPeriodo(orgId, sedeId, from, to, origine =
 export async function usciteDaSottrarre(orgId, sedeIds, from, to) {
   const vuoto = { totale: 0, daFatture: 0, numero: 0, numeroDaFatture: 0 }
   if (!orgId || !from || !to) return vuoto
-  let q = supabase.from('movimenti_cassa')
-    .select('importo, origine')
-    .eq('organization_id', orgId)
-    .gte('data', from)
-    .lte('data', to)
-  if (sedeIds != null) {
-    const ids = Array.isArray(sedeIds) ? sedeIds : [sedeIds]
-    if (ids.length) q = q.in('sede_id', ids)
+  const leggi = (colonne) => {
+    let q = supabase.from('movimenti_cassa')
+      .select(colonne)
+      .eq('organization_id', orgId)
+      .gte('data', from)
+      .lte('data', to)
+    if (sedeIds != null) {
+      const ids = Array.isArray(sedeIds) ? sedeIds : [sedeIds]
+      if (ids.length) q = q.in('sede_id', ids)
+    }
+    return q
   }
-  const { data, error } = await q
+  // `fattura_id` (migration 20261009a): la spesa (F) che ha la sua fattura è
+  // già in fattura, come quelle pagate dallo Scadenzario. Se la colonna non
+  // c'è ancora si legge come prima.
+  let { data, error } = await leggi('importo, origine, fattura_id')
+  if (error && /fattura_id/.test(error.message || '')) ({ data, error } = await leggi('importo, origine'))
   if (error) { console.error('usciteDaSottrarre:', error); return vuoto }
   let totale = 0, daFatture = 0, numero = 0, numeroDaFatture = 0
   for (const r of (data || [])) {
     const v = Number(r?.importo) || 0
-    if (r?.origine === ORIGINE_FATTURA) { daFatture += v; numeroDaFatture++; continue }
+    if (r?.origine === ORIGINE_FATTURA || r?.fattura_id) { daFatture += v; numeroDaFatture++; continue }
     totale += v; numero++
   }
   const c2 = (n) => Math.round(n * 100) / 100
