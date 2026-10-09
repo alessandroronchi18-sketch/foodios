@@ -16,6 +16,7 @@
 
 import { supabase } from './supabase'
 import { COLONNE, rigaAChiusura, chiusuraARiga } from './chiusuraRiga'
+import { fondiFonti } from './confrontoFonti'
 
 /**
  * Carica le chiusure di una sede, opzionalmente ristrette a un intervallo.
@@ -243,8 +244,15 @@ export async function upsertChiusure(orgId, sedeId, chiusure) {
  * costo delle materie, se qualcuno li aveva inseriti, valgono più di quello
  * che c'è scritto nel registro e restano dove sono: il registro sa quanto e'
  * entrato, non cosa e' stato venduto.
+ *
+ * La FONTE dei soldi (`opzioni.fonte`: 'registro' di default, 'foto' per lo
+ * scontrino della cassa) si scrive in `extra.fonteTotale`. Se la giornata
+ * aveva già una cifra di un'altra fonte, le due restano in
+ * `extra.confrontoFonti` e il totale lo tiene la fonte più forte: lo
+ * scontrino fiscale batte il registro, in qualunque ordine si carichino
+ * (regola del titolare, 09/10/2026; vedi confrontoFonti.js).
  */
-export async function importaChiusureIncassi(orgId, sedeId, righe) {
+export async function importaChiusureIncassi(orgId, sedeId, righe, { fonte = 'registro' } = {}) {
   if (!orgId) throw new Error('importaChiusureIncassi: orgId mancante')
   const valide = (Array.isArray(righe) ? righe : [])
     .filter(r => r && r.data && Number(r.totale) > 0)
@@ -266,6 +274,24 @@ export async function importaChiusureIncassi(orgId, sedeId, righe) {
     // Ai centesimi: la colonna e' numeric(12,2) e un margine di
     // 776,4000000000001 in memoria non serve a nessuno.
     const cent = (v) => Math.round(v * 100) / 100
+    const f = fondiFonti(
+      vecchia ? {
+        totale: vecchia.kpi?.totV, pos: vecchia.kpi?.pos,
+        contanti: vecchia.kpi?.contanti, delivery: vecchia.kpi?.delivery,
+        extra: vecchia,
+      } : null,
+      { totale: totV, pos: r.pos, contanti: r.contanti, delivery: r.delivery, nota: r.nota },
+      fonte,
+    )
+    if (f.vince === 'vecchia') {
+      // Il totale resta quello della fonte più forte: si aggiunge solo la
+      // cifra dell'altra, perché si veda se le due tornano.
+      return chiusuraARiga({
+        ...vecchia,
+        fonteTotale: f.fonteTotale,
+        confrontoFonti: f.confrontoFonti,
+      }, orgId, sedeId)
+    }
     return chiusuraARiga({
       ...(vecchia || {}),
       data: r.data,
@@ -273,7 +299,9 @@ export async function importaChiusureIncassi(orgId, sedeId, righe) {
       formati: vecchia?.formati || [],
       solo_totale:   vecchia ? !!vecchia.solo_totale : true,
       foodcost_noto: vecchia ? foodcostNoto(vecchia) : false,
-      fonte_incassi: 'registro',
+      fonte_incassi: f.fonteTotale === 'registro' ? 'registro' : vecchia?.fonte_incassi,
+      fonteTotale: f.fonteTotale,
+      confrontoFonti: f.confrontoFonti,
       kpi: {
         ...(vecchia?.kpi || {}),
         totV,

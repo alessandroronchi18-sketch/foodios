@@ -952,7 +952,7 @@ export default function Integrazioni({ orgId, sedeId, sedi = [] }) {
               pos: sommaMetodi(ch.per_metodo, ['carta', 'carte', 'pos', 'bancomat', 'card']),
               contanti: sommaMetodi(ch.per_metodo, ['contanti', 'cash', 'contante']),
             }))
-            const r = await importaChiusureIncassi(orgId, sedeId, righe)
+            const r = await importaChiusureIncassi(orgId, sedeId, righe, { fonte: 'registratore' })
             nFile += (r.nuove + r.aggiornate); imported += (r.nuove + r.aggiornate)
           }
           setRisultato({ tipo: 'kassa', chiusure: chiusure_giornaliere, cfgId: cfg.id, vendite: vendite.length })
@@ -984,7 +984,7 @@ export default function Integrazioni({ orgId, sedeId, sedi = [] }) {
             pos: sommaMetodi(g.metodi, ['carta', 'carte', 'pos', 'bancomat', 'card']),
             contanti: sommaMetodi(g.metodi, ['contanti', 'cash', 'contante']),
           }))
-          const esito = await importaChiusureIncassi(orgId, sedeId, righeChiusura)
+          const esito = await importaChiusureIncassi(orgId, sedeId, righeChiusura, { fonte: 'registratore' })
           nFile += (esito.nuove + esito.aggiornate); imported += (esito.nuove + esito.aggiornate)
           // Quando il riconoscimento è incerto si dice, invece di far passare
           // una lettura a caso per una certezza.
