@@ -19,13 +19,27 @@ import Icon from '../components/Icon'
 import { mediaFoodCost } from '../lib/mediaFoodCost'
 import { prezzoNetto } from './produzione/numeri'
 import {
-  C, TNUM, margColor, margBadge, Badge, Tip, KPI, fmtp, formatNome,
+  C, TNUM, margColor, Badge, Tip, KPI, fmtp, formatNome,
 } from './_shared'
 
 // Grammi all'italiana: «0,4», non «0.4»; interi senza decimali (400, non 400,0).
 const grammiIt = v => Number.isFinite(Number(v))
   ? Number(v).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 2 })
   : String(v ?? '')
+
+// 09/10/2026 — L'etichetta di qualità si scrive SOLO per le eccezioni. Su 63
+// gusti, 63 dicevano «Eccellente» (margine fra 76 e 97%): una parola ripetuta
+// 63 volte non dice niente, e nasconde quella che serve. Ora il silenzio vuol
+// dire «a posto»; resta scritto solo quello che va guardato:
+//   · senza prezzo di vendita → «Da completare»
+//   · margine sotto il 55%    → «Basso» (rosso sotto il 40%, ambra fra 40 e 55)
+export const etichettaEccezione = (margPct, senzaPrezzo = false) => {
+  if (senzaPrezzo) return { label: 'Da completare', color: 'gray' }
+  if (margPct === null || margPct === undefined) return null
+  if (margPct < 40) return { label: 'Basso', color: 'red' }
+  if (margPct < 55) return { label: 'Basso', color: 'amber' }
+  return null
+}
 
 const fmt  = v => `${Number(v).toLocaleString('it-IT', { useGrouping: 'always',minimumFractionDigits:2,maximumFractionDigits:2})} €`
 // fmtp arriva da _shared: quello scritto qui usava toFixed(1) e stampava le
@@ -204,6 +218,10 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
   // e la card lo dichiara invece di riempirlo con numeri inventati.
   const senzaPrezzo = !!reg.senzaRegola && !isGusto
   const mc = margColor(margPct)
+  // Un gusto senza formati di vendita non ha un margine: non è «Basso», è da completare.
+  const eccezione = isSemi ? null
+    : (isGusto && !ricavoFlatOk) ? { label: 'Da completare', color: 'gray' }
+    : etichettaEccezione(margPct, senzaPrezzo)
   const mbg = margPct >= 60 ? C.greenLight : margPct >= 40 ? C.amberLight : C.redLight
 
   const SEMI = { bg: '#FAF6FF', border: '#C9A4DC', accent: '#8E44AD', accentLight: '#F0E4FA', panel: '#F5F0FA', divider: '#E5D4F0' }
@@ -315,7 +333,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
             {isSemi && (
               <span style={{ padding: '2px 7px', borderRadius: 5, background: SEMI.accentLight, color: SEMI.accent, fontSize: font.size.sm, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Semilavorato</span>
             )}
-            {!isSemi && margBadge(margPct, senzaPrezzo)}
+            {eccezione && <Badge label={eccezione.label} color={eccezione.color}/>}
             {/* Card chiusa: "N stime" era la stessa bugia della card aperta, in più
                 corto. Chi non apre la card vede solo questo. */}
             {mancanti.length > 0 && (
@@ -422,15 +440,25 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
           {/* Etichette qualità/avvisi su riga dedicata: così restano allineate
               nella stessa posizione sotto ogni gusto, indipendentemente dalla
               lunghezza del nome. */}
-          {(!isSemi || mancanti.length > 0) && (
+          {(isSemi
+            ? mancanti.length > 0
+            : ((isGusto && !ricavoFlatOk) || eccezione || mancanti.length > 0 || nStimati > 0)) && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 5, minHeight: 22 }}>
               {!isSemi && (isGusto && !ricavoFlatOk
                 ? <Badge label="Ricavo/kg da configurare" color="amber"/>
-                : <Tip text={senzaPrezzo
-                    ? 'Non c’è un prezzo di vendita salvato, quindi il margine non si può calcolare. Impostalo col bottone Prezzo qui sotto.'
-                    : isGusto
-                      ? `Margine ${fmtp(margPct)}: ricavo ${fmt(ricavo)}/kg (media formati) − costo ${fmt(fcPerKg)}/kg.`
-                      : `Margine: ${fmtp(margPct)}. Ricavo ${fmt(ricavo)} − FC ${fmt(fc)}.`} width={280}><span style={zonaTocco}>{margBadge(margPct, senzaPrezzo)}</span></Tip>
+                : (() => {
+                    const e = etichettaEccezione(margPct, senzaPrezzo)
+                    if (!e) return null
+                    return (
+                      <Tip text={senzaPrezzo
+                        ? 'Non c’è un prezzo di vendita salvato, quindi il margine non si può calcolare. Impostalo col bottone Prezzo qui sotto.'
+                        : isGusto
+                          ? `Margine ${fmtp(margPct)}: ricavo ${fmt(ricavo)}/kg (media formati, senza IVA) − costo ${fmt(fcPerKg)}/kg.`
+                          : `Margine: ${fmtp(margPct)}. Ricavo ${fmt(ricavo)} − FC ${fmt(fc)}.`} width={280}>
+                        <span style={zonaTocco}><Badge label={e.label} color={e.color}/></span>
+                      </Tip>
+                    )
+                  })()
               )}
               {/* Audit 2026-09-09 ALTA: questo badge diceva "N prezzi stimati" con il
                   tooltip "FC calcolato su stime HoReCa" contando gli ingredienti che
