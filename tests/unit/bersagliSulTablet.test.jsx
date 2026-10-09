@@ -105,17 +105,17 @@ beforeEach(() => { schermo(LARGHEZZA.computer) })
 afterEach(() => { cleanup() })
 
 describe('i comandi delle barre dei gusti, sulle tre larghezze', () => {
-  it('sul TELEFONO sono alti 40: la misura di un polpastrello', async () => {
+  it('sul TELEFONO sono alti 44: la misura di un polpastrello (da 40 a 44 il 09/10/2026)', async () => {
     schermo(LARGHEZZA.telefono)
     const v = render(<RicettarioView ricettario={ricettario} orgId="org-1" sedi={[{ id: 's1', nome: 'Corso Vittorio' }]} />)
-    for (const b of await apriPrimoGusto(v)) expect(altezza(b), b.textContent.trim()).toBe(40)
+    for (const b of await apriPrimoGusto(v)) expect(altezza(b), b.textContent.trim()).toBe(44)
   })
 
   // Questa è la prova che cade sul codice di prima: là i comandi uscivano 30.
-  it('sul TABLET sono alti 40 anche loro — era il difetto del 18/09/2026', async () => {
+  it('sul TABLET sono alti 44 anche loro — era il difetto del 18/09/2026', async () => {
     schermo(LARGHEZZA.tablet)
     const v = render(<RicettarioView ricettario={ricettario} orgId="org-1" sedi={[{ id: 's1', nome: 'Corso Vittorio' }]} />)
-    for (const b of await apriPrimoGusto(v)) expect(altezza(b), b.textContent.trim()).toBe(40)
+    for (const b of await apriPrimoGusto(v)) expect(altezza(b), b.textContent.trim()).toBe(44)
   })
 
   it('sul COMPUTER restano 30: la richiesta del titolare non viene annullata', async () => {
@@ -135,7 +135,7 @@ describe('i comandi delle barre dei gusti, sulle tre larghezze', () => {
       misure.push(altezza((await apriPrimoGusto(v))[0]))
       cleanup()
     }
-    expect(misure).toEqual([40, 40, 40])
+    expect(misure).toEqual([44, 44, 44])
   })
 })
 

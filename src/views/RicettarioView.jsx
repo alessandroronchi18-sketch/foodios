@@ -22,6 +22,11 @@ import {
   C, TNUM, margColor, margBadge, Badge, Tip, KPI, fmtp, formatNome,
 } from './_shared'
 
+// Grammi all'italiana: «0,4», non «0.4»; interi senza decimali (400, non 400,0).
+const grammiIt = v => Number.isFinite(Number(v))
+  ? Number(v).toLocaleString('it-IT', { useGrouping: 'always', maximumFractionDigits: 2 })
+  : String(v ?? '')
+
 const fmt  = v => `${Number(v).toLocaleString('it-IT', { useGrouping: 'always',minimumFractionDigits:2,maximumFractionDigits:2})} €`
 // fmtp arriva da _shared: quello scritto qui usava toFixed(1) e stampava le
 // percentuali col PUNTO ("71.0%") accanto agli importi con la virgola
@@ -72,6 +77,12 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
   // `dito` dice la cosa giusta: non «è un telefono», ma «si tocca».
   const isTablet = useIsTablet()
   const dito = isMobile || isTablet
+  // Dove si tocca, la parte che si preme deve essere alta 44 px. L'etichetta
+  // resta piccola: è la zona che si allarga (margine negativo, la riga non
+  // cresce).
+  const zonaTocco = dito
+    ? { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 44, minWidth: 44, margin: '-12px -6px' }
+    : { display: 'inline-flex', alignItems: 'center' }
   const [open, setOpen] = useState(false)
   // Gli allergeni si aprono solo se li si chiede: vedi il commento sul
   // pulsante, più sotto.
@@ -250,7 +261,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
         ? { lbl: 'Costo / kg', val: fmt(fcPerKg), c: C.red }
         : senzaPrezzo
           ? { lbl: 'Margine', val: 'prezzo da impostare', c: C.textSoft }
-          : { lbl: 'Margine', val: fmtp(margPct), c: mc }
+          : { lbl: 'Margine', val: fmtp0(margPct), c: mc }
     const kpiSec = isSemi
       ? { lbl: 'Peso batch', val: pesoTotSemi >= 1000 ? `${(Number(pesoTotSemi) / 1000).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : `${Math.round(Number(pesoTotSemi)||0).toLocaleString('it-IT', { useGrouping: 'always' })} g`, c: C.text }
       : (isGusto && !ricavoFlatOk)
@@ -419,7 +430,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
                     ? 'Non c’è un prezzo di vendita salvato, quindi il margine non si può calcolare. Impostalo col bottone Prezzo qui sotto.'
                     : isGusto
                       ? `Margine ${fmtp(margPct)}: ricavo ${fmt(ricavo)}/kg (media formati) − costo ${fmt(fcPerKg)}/kg.`
-                      : `Margine: ${fmtp(margPct)}. Ricavo ${fmt(ricavo)} − FC ${fmt(fc)}.`} width={280}>{margBadge(margPct, senzaPrezzo)}</Tip>
+                      : `Margine: ${fmtp(margPct)}. Ricavo ${fmt(ricavo)} − FC ${fmt(fc)}.`} width={280}><span style={zonaTocco}>{margBadge(margPct, senzaPrezzo)}</span></Tip>
               )}
               {/* Audit 2026-09-09 ALTA: questo badge diceva "N prezzi stimati" con il
                   tooltip "FC calcolato su stime HoReCa" contando gli ingredienti che
@@ -433,10 +444,10 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
                   ABIS ha lo zafferano che fa il 99% del food cost da listino medio.
                   Ora sono due cose distinte, perché sono due problemi distinti. */}
               {mancanti.length > 0 && (
-                <Tip text={`Questi ingredienti non hanno prezzo e valgono ZERO nel calcolo: ${mancanti.join(', ')}. Il food cost vero e' più alto.`} width={300}><Badge label={mancanti.length === 1 ? '1 senza prezzo' : `${mancanti.length} senza prezzo`} color="red"/></Tip>
+                <Tip text={`Questi ingredienti non hanno prezzo e valgono ZERO nel calcolo: ${mancanti.join(', ')}. Il food cost vero e' più alto.`} width={300}><span style={zonaTocco}><Badge label={mancanti.length === 1 ? '1 senza prezzo' : `${mancanti.length} senza prezzo`} color="red"/></span></Tip>
               )}
               {nStimati > 0 && (
-                <Tip text="Prezzo preso dal listino medio di mercato, non dal tuo. Caricando i tuoi prezzi il food cost diventa il tuo." width={300}><Badge label={nStimati === 1 ? '1 prezzo stimato' : `${nStimati} prezzi stimati`} color="amber"/></Tip>
+                <Tip text="Prezzo preso dal listino medio di mercato, non dal tuo. Caricando i tuoi prezzi il food cost diventa il tuo." width={300}><span style={zonaTocco}><Badge label={nStimati === 1 ? '1 prezzo stimato' : `${nStimati} prezzi stimati`} color="amber"/></span></Tip>
               )}
             </div>
           )}
@@ -474,7 +485,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
               <button type="button"
                 onClick={(e) => { e.stopPropagation(); setAllergeniAperti(v => !v) }}
                 aria-expanded={allergeniAperti}
-                style={{ minHeight: 28, padding: '4px 9px', borderRadius: 20, cursor: 'pointer',
+                style={{ minHeight: dito ? 44 : 28, padding: '4px 9px', borderRadius: 20, cursor: 'pointer',
                   border: `1px solid ${C.border}`, background: allergeniAperti ? C.bgSubtle : 'transparent',
                   color: C.textMid, fontFamily: 'inherit', fontSize: font.size.sm, fontWeight: 700,
                   display: 'inline-flex', alignItems: 'center', gap: 5 }}>
@@ -533,7 +544,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
         <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start', flexShrink: 0, flexBasis: isMobile ? '100%' : 'auto', width: isMobile ? '100%' : 'auto' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, flex: isMobile ? 1 : 'none' }}>
           <button onClick={() => setOpen(o => !o)}
-            style={{ height: dito ? 40 : 30, padding: '0 10px', borderRadius: 7, border: `1px solid ${isSemi ? SEMI.border : C.borderStr}`, background: 'transparent', fontSize: font.size.sm, fontWeight: 700, color: isSemi ? SEMI.accent : C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 4, whiteSpace: 'nowrap' }}>
+            style={{ height: dito ? 44 : 30, padding: '0 10px', borderRadius: 7, border: `1px solid ${isSemi ? SEMI.border : C.borderStr}`, background: 'transparent', fontSize: font.size.sm, fontWeight: 700, color: isSemi ? SEMI.accent : C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 4, whiteSpace: 'nowrap' }}>
             <Icon name={open ? 'chevUp' : 'chevDown'} size={12} /> {open ? 'Chiudi' : 'Dettaglio'}
           </button>
           {/* Edit rapido prezzo/n°fette: solo per stampi. Per i gusti (gelateria)
@@ -544,7 +555,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
               apre la modale batch multi-sede. */}
           {!isSemi && tipoEff !== 'gusto' && !hasOverride && (
             <button onClick={() => { setEditPrezzo(reg.prezzo); setEditUnita(reg.unita); setEditMode(e => !e) }}
-              style={{ height: dito ? 40 : 30, padding: '0 10px', borderRadius: 7, border: `1px solid ${editMode ? C.red : C.borderStr}`, background: editMode ? C.redLight : 'transparent', fontSize: font.size.sm, fontWeight: 700, color: editMode ? C.red : C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+              style={{ height: dito ? 44 : 30, padding: '0 10px', borderRadius: 7, border: `1px solid ${editMode ? C.red : C.borderStr}`, background: editMode ? C.redLight : 'transparent', fontSize: font.size.sm, fontWeight: 700, color: editMode ? C.red : C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
               <Icon name="edit" size={13} /> Prezzo
             </button>
           )}
@@ -554,7 +565,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
           {!isSemi && hasMultiSede && orgId && (
             <button onClick={() => setPrezziSedeOpen(true)}
               title={hasOverride ? `Prezzo override attivo per ${sedeAttivaNome || 'questa sede'}` : 'Prezzi diversi per sede'}
-              style={{ height: dito ? 40 : 30, padding: '0 10px', borderRadius: 7, border: `1px solid ${hasOverride ? C.red : C.borderStr}`, background: hasOverride ? C.redLight : 'transparent', fontSize: font.size.sm, fontWeight: 700, color: hasOverride ? C.red : C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+              style={{ height: dito ? 44 : 30, padding: '0 10px', borderRadius: 7, border: `1px solid ${hasOverride ? C.red : C.borderStr}`, background: hasOverride ? C.redLight : 'transparent', fontSize: font.size.sm, fontWeight: 700, color: hasOverride ? C.red : C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
               <Icon name="map" size={13} /> Prezzi / sede
               {/* Il pallino era il carattere tipografico "•": cambia forma da
                   un sistema all'altro e non si allinea col testo. */}
@@ -563,7 +574,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
           )}
           {onEdit && (
             <button onClick={() => onEdit(ric.nome)}
-              style={{ height: dito ? 40 : 30, padding: '0 10px', borderRadius: 7, border: `1px solid ${C.red}`, background: C.red, color: C.white, fontSize: font.size.sm, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+              style={{ height: dito ? 44 : 30, padding: '0 10px', borderRadius: 7, border: `1px solid ${C.red}`, background: C.red, color: C.white, fontSize: font.size.sm, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
               <Icon name="edit" size={13} /> Modifica
             </button>
           )}
@@ -578,7 +589,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
             } finally { setExportingPdf(false) }
           }}
             disabled={exportingPdf}
-            style={{ height: dito ? 40 : 30, padding: '0 10px', borderRadius: 7, border: `1px solid ${isSemi ? SEMI.border : C.borderStr}`, background: 'transparent', fontSize: font.size.sm, fontWeight: 700, color: isSemi ? SEMI.accent : C.textMid, cursor: exportingPdf ? 'not-allowed' : 'pointer', opacity: exportingPdf ? 0.6 : 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5, ...(isMobile && isSemi ? { gridColumn: '1 / -1' } : {}) }}>
+            style={{ height: dito ? 44 : 30, padding: '0 10px', borderRadius: 7, border: `1px solid ${isSemi ? SEMI.border : C.borderStr}`, background: 'transparent', fontSize: font.size.sm, fontWeight: 700, color: isSemi ? SEMI.accent : C.textMid, cursor: exportingPdf ? 'not-allowed' : 'pointer', opacity: exportingPdf ? 0.6 : 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5, ...(isMobile && isSemi ? { gridColumn: '1 / -1' } : {}) }}>
             <Icon name="fileText" size={13} /> {exportingPdf ? '…' : 'PDF'}
           </button>
           </div>
@@ -588,7 +599,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
           <button onClick={() => { setExpanded(false); setOpen(false); setEditMode(false) }}
             aria-label="Riduci scheda"
             title="Riduci"
-            style={{ width: dito ? 40 : 30, height: dito ? 40 : 66, padding: 0, borderRadius: 7, border: `1px solid ${isSemi ? SEMI.border : C.borderStr}`, background: 'transparent', cursor: 'pointer', color: isSemi ? SEMI.accent : C.textMid, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            style={{ width: dito ? 44 : 30, height: dito ? 44 : 66, padding: 0, borderRadius: 7, border: `1px solid ${isSemi ? SEMI.border : C.borderStr}`, background: 'transparent', cursor: 'pointer', color: isSemi ? SEMI.accent : C.textMid, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
           </button>
         </div>
@@ -676,22 +687,24 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
           {pannello === 'ingredienti' && (
           <div style={PANEL_STYLE}>
             {PANEL_ACCENT}
-            {/* Container tabella: overflowX auto + scroll hint a destra (sfumatura)
-                per segnalare visivamente che ci sono altre colonne da scrollare.
-                minWidth 480 cosi le 5 colonne (Ingr/g/€-g/Costo/%FC) non si
-                comprimono troppo su mobile 375px. */}
+            {/* 09/10/2026 — Al telefono (420 px) la tabella era larga 480 e se ne
+                vedevano 326: «Costo» tagliato, il nome della riga che scorreva
+                via con le altre colonne. Ora al telefono la tabella sta tutta
+                nello schermo: tolti la colonna «€ / g» (si ricava: Costo ÷
+                grammi) e la barretta del %FC; il nome va a capo. Lo scorrimento
+                resta come rete di sicurezza per i nomi lunghissimi. */}
             <div style={{ position: 'relative', borderRadius: 8, overflow: 'hidden', background: C.white }}>
               <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.size.sm, minWidth: isMobile ? 480 : 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: font.size.sm, minWidth: 'auto' }}>
                 <thead>
                   <tr style={{ background: T.bgSubtle }}>
                     {[
                       ['Ingrediente', 'Materia prima usata nella ricetta', 'nome'],
-                      ['g / st.', 'Grammi di ingrediente per UNO stampo (o batch) della ricetta', 'qty1stampo'],
+                      ['Grammi', 'Grammi di ingrediente per UNO stampo (o batch) della ricetta', 'qty1stampo'],
                       ['€ / g', "Costo di un grammo dell'ingrediente (prezzo materia prima ÷ 1000 se al kg)", 'costoPerGCalc'],
                       ['Costo', 'Costo di questo ingrediente per uno stampo = g/st. × €/g', 'costoCalc'],
                       ['%FC', 'Peso percentuale di questo ingrediente sul food cost totale della ricetta', 'pct'],
-                    ].map(([h, tip, key], i) => {
+                    ].filter(([, , key]) => !(isMobile && key === 'costoPerGCalc')).map(([h, tip, key], i) => {
                       const isActive = sortKey === key
                       // Le frecce erano i caratteri "↑" e "↓" attaccati al
                       // testo dell'intestazione: caratteri tipografici usati
@@ -703,9 +716,9 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
                       return (
                         <th key={h}
                           onClick={() => toggleSort(key)}
-                          style={{ padding: '9px 12px', textAlign: i === 0 ? 'left' : 'right', fontSize: font.size.sm, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: isActive ? C.text : C.textSoft, borderBottom: `1px solid ${C.border}`, cursor: 'pointer', whiteSpace: 'nowrap', userSelect: 'none' }}>
+                          style={{ padding: isMobile ? '0 6px' : '9px 12px', textAlign: i === 0 ? 'left' : 'right', fontSize: font.size.sm, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: isActive ? C.text : C.textSoft, borderBottom: `1px solid ${C.border}`, cursor: 'pointer', whiteSpace: 'nowrap', userSelect: 'none' }}>
                           <Tip text={tip} width={240}>
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>{h}{freccia}</span>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, ...(dito ? { minHeight: 44, minWidth: 44, justifyContent: i === 0 ? 'flex-start' : 'flex-end' } : {}) }}>{h}{freccia}</span>
                           </Tip>
                         </th>
                       )
@@ -715,20 +728,20 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
                 <tbody>
                   {ingList.map((ing, i) => (
                     <tr key={i} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.white : T.bgSubtle }}>
-                      <td style={{ padding: '9px 12px', fontWeight: 600, color: C.text }}>
+                      <td style={{ padding: isMobile ? '9px 6px' : '9px 12px', fontWeight: 600, color: C.text, minWidth: 0, overflowWrap: 'anywhere' }}>
                         {ing.nomeDisplay}
                         {ing.isStima && <span style={{ fontSize: font.size.sm, marginLeft: 4, background: C.amberLight, color: C.amber, padding: '1px 4px', borderRadius: 3, fontWeight: 700 }}>stima</span>}
                         {ing.mancante && <span style={{ fontSize: font.size.sm, marginLeft: 4, background: C.redLight, color: C.red, padding: '1px 4px', borderRadius: 3, fontWeight: 700 }}>n/d</span>}
                       </td>
-                      <td style={{ padding: '9px 12px', textAlign: 'right', color: C.textMid, ...TNUM, whiteSpace: 'nowrap' }}>{ing.qty1stampo}</td>
-                      <td style={{ padding: '9px 12px', textAlign: 'right', color: C.textSoft, ...TNUM, fontSize: font.size.sm, whiteSpace: 'nowrap' }}>{ing.costoPerGCalc > 0 ? ing.costoPerGCalc.toLocaleString('it-IT', { minimumFractionDigits: 4, maximumFractionDigits: 4 }) : '-'}</td>
-                      <td style={{ ...TNUM, padding: '9px 12px', textAlign: 'right', fontWeight: 600, color: ing.costoCalc > 0 ? C.text : C.textSoft, ...TNUM, whiteSpace: 'nowrap' }}>{ing.costoCalc > 0 ? fmt(ing.costoCalc) : '-'}</td>
-                      <td style={{ ...TNUM, padding: '9px 12px', textAlign: 'right' }}>
+                      <td style={{ padding: isMobile ? '9px 6px' : '9px 12px', textAlign: 'right', color: C.textMid, ...TNUM, whiteSpace: 'nowrap' }}>{grammiIt(ing.qty1stampo)}</td>
+                      {!isMobile && <td style={{ padding: '9px 12px', textAlign: 'right', color: C.textSoft, ...TNUM, fontSize: font.size.sm, whiteSpace: 'nowrap' }}>{ing.costoPerGCalc > 0 ? ing.costoPerGCalc.toLocaleString('it-IT', { minimumFractionDigits: 4, maximumFractionDigits: 4 }) : '-'}</td>}
+                      <td style={{ ...TNUM, padding: isMobile ? '9px 6px' : '9px 12px', textAlign: 'right', fontWeight: 600, color: ing.costoCalc > 0 ? C.text : C.textSoft, ...TNUM, whiteSpace: 'nowrap' }}>{ing.costoCalc > 0 ? fmt(ing.costoCalc) : '-'}</td>
+                      <td style={{ ...TNUM, padding: isMobile ? '9px 6px' : '9px 12px', textAlign: 'right' }}>
                         {ing.pct > 0 && (
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
-                            <div style={{ width: 44, height: 5, background: T.border, borderRadius: 3, flexShrink: 0 }}>
+                            {!isMobile && <div style={{ width: 44, height: 5, background: T.border, borderRadius: 3, flexShrink: 0 }}>
                               <div style={{ width: `${Math.min(100, ing.pct)}%`, height: 5, background: ing.pct > 30 ? C.red : ing.pct > 15 ? C.amber : '#AAB', borderRadius: 3 }}/>
-                            </div>
+                            </div>}
                             <span style={{ fontSize: font.size.sm, color: C.textMid, width: 30, textAlign: 'right', fontWeight: 700, ...TNUM }}>{fmtp0(ing.pct)}</span>
                           </div>
                         )}
@@ -745,23 +758,17 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
                     const totPct = ingList.reduce((s, x) => s + (Number(x.pct) || 0), 0)
                     return (
                       <tr style={{ background: T.border, borderTop: `2px solid ${C.borderStr}` }}>
-                        <td style={{ padding: '9px 12px', fontWeight: 800, fontSize: font.size.sm, color: C.text, letterSpacing: '0.05em' }}>TOTALE</td>
-                        <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 900, fontSize: font.size.sm, color: C.text, ...TNUM, whiteSpace: 'nowrap' }}>{Math.round(totG)}</td>
-                        <td/>
-                        <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 900, fontSize: font.size.sm, color: C.red, ...TNUM, whiteSpace: 'nowrap' }}>{fmt(fc)}</td>
-                        <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 900, fontSize: font.size.sm, color: C.text, ...TNUM, whiteSpace: 'nowrap' }}>{Math.round(totPct)}%</td>
+                        <td style={{ padding: isMobile ? '9px 6px' : '9px 12px', fontWeight: 800, fontSize: font.size.sm, color: C.text, letterSpacing: '0.05em' }}>TOTALE</td>
+                        <td style={{ padding: isMobile ? '9px 6px' : '9px 12px', textAlign: 'right', fontWeight: 900, fontSize: font.size.sm, color: C.text, ...TNUM, whiteSpace: 'nowrap' }}>{Math.round(totG)}</td>
+                        {!isMobile && <td/>}
+                        <td style={{ padding: isMobile ? '9px 6px' : '9px 12px', textAlign: 'right', fontWeight: 900, fontSize: font.size.sm, color: C.red, ...TNUM, whiteSpace: 'nowrap' }}>{fmt(fc)}</td>
+                        <td style={{ padding: isMobile ? '9px 6px' : '9px 12px', textAlign: 'right', fontWeight: 900, fontSize: font.size.sm, color: C.text, ...TNUM, whiteSpace: 'nowrap' }}>{Math.round(totPct)}%</td>
                       </tr>
                     )
                   })()}
                 </tfoot>
               </table>
               </div>
-              {/* Scroll hint: sfumatura bianco→trasparente sul lato destro per
-                  indicare visivamente che si può scrollare la tabella. Solo mobile. */}
-              {isMobile && (
-                <div aria-hidden="true" style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: 28, pointerEvents: 'none',
-                  background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.95) 100%)' }}/>
-              )}
             </div>
           </div>
           )}
@@ -927,6 +934,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
 export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, onEditRicetta, onNuovaRicetta, orgId, sedi = [], sedeAttiva = null, notify = null, LEX = lessico(), metodoProduzione = 'stampi' }) {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
+  const dito = isMobile || isTablet
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario])
   // Listino per-sede: se sedeAttiva è impostata (non "tutte le sedi"), tutte
   // le card usano i prezzi override; altrimenti i base.
@@ -1082,8 +1090,10 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
   return (
     <div onContextMenu={e => e.preventDefault()} onDragStart={e => e.preventDefault()}
       style={{ maxWidth: 1200, margin: '0 auto', userSelect: 'none' }}>
-      <div style={{ marginBottom: isMobile ? 16 : 24 }}>
-        <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'flex-end', justifyContent: 'space-between', gap: isMobile ? 12 : 14, marginBottom: 16 }}>
+      {/* Spazi del kit (ANALISI_DESIGN §2): 40/32 fra le sezioni, 24/16 fra i
+          riquadri. Prima erano 24, 20 e 32 a caso. */}
+      <div style={{ marginBottom: isMobile ? 32 : 40 }}>
+        <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'flex-end', justifyContent: 'space-between', gap: isMobile ? 12 : 14, marginBottom: isMobile ? 16 : 24 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: font.size.base, color: T.textSoft, lineHeight: 1.5, fontWeight: 500 }}>
               {ricette.length > 0
@@ -1110,7 +1120,7 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
             ? `${semi} semilavorat${semi === 1 ? 'o' : 'i'} nella scheda accanto`
             : 'menu attivo'
           return (
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : isTablet ? 'repeat(2,1fr)' : 'repeat(3,1fr)', gap: isMobile ? 10 : 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : isTablet ? 'repeat(2,1fr)' : 'repeat(3,1fr)', gap: isMobile ? 16 : 24 }}>
               <KPI label={LEX.ricette} value={ric} icon={<Icon name="gift" size={18} />} color={T.text} sub={subRicette} />
               <KPI label="Food cost medio"
                 value={fcMedioSu === 0 ? '—' : `${(fcMedio * 100).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}
@@ -1147,7 +1157,7 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
               <div style={{ gridColumn: isMobile ? '1 / -1' : 'auto' }}>
                 {daCompletare === 0 ? (
                   <KPI label="Da completare" value="—" icon={<Icon name="check" size={18} />} color={T.green}
-                    sub={`tutte le ${LEX.ricette.toLowerCase()} hanno costo e prezzo`} />
+                    sub={`costo e prezzo di ogni ${LEX.ricetta}`} />
                 ) : (
                   <KPI label="Da completare" value={daCompletare} icon={<Icon name="alert" size={18} />} color={T.amber}
                     sub={[
@@ -1161,15 +1171,15 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
         })()}
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: isMobile ? 16 : 20, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: isMobile ? 16 : 24, flexWrap: 'wrap' }}>
         <div style={{ flex: 1, minWidth: 200, position: 'relative' }}>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder={`Cerca ${LEX.ricetta}…`}
-            style={{ width: '100%', padding: '10px 12px', minHeight: isMobile || isTablet ? 44 : 'auto', border: `1px solid ${T.border}`, borderRadius: R.md,
+            style={{ width: '100%', padding: '10px 12px', height: 44, border: `1px solid ${T.border}`, borderRadius: R.md,
               fontSize: isMobile || isTablet ? 16 : 13, color: T.text, background: T.bgCard, outline: 'none', fontFamily: 'inherit',
               boxSizing: 'border-box', boxShadow: S.xs }}/>
         </div>
         <select value={sortBy} onChange={e => setSortBy(e.target.value)}
-          style={{ padding: '10px 32px 10px 12px', minHeight: isMobile || isTablet ? 44 : 'auto', border: `1px solid ${T.border}`, borderRadius: R.md,
+          style={{ padding: '10px 32px 10px 12px', height: 44, boxSizing: 'border-box', border: `1px solid ${T.border}`, borderRadius: R.md,
             fontSize: isMobile || isTablet ? 16 : 13, color: T.text, background: T.bgCard, cursor: 'pointer', fontFamily: 'inherit', outline: 'none' }}>
           <option value="margine_desc">Margine ↓</option>
           <option value="margine_asc">Margine ↑</option>
@@ -1181,13 +1191,13 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
         {/* I due bottoni lista/griglia erano 34x32: sotto la misura di un
             polpastrello, e attaccati fra loro. Adesso sono 44 e altrettanto
             alti degli altri controlli della riga. */}
-        <div style={{ display: 'flex', gap: 2, padding: 3, background: T.bgSubtle, borderRadius: R.md }}>
-          <button onClick={() => setGridView(false)} aria-label="Vista a elenco" style={{ width: 44, height: 44, padding: 0, border: 'none', borderRadius: R.sm, background: !gridView ? T.bgCard : 'transparent', cursor: 'pointer', color: !gridView ? T.text : T.textSoft, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ display: 'flex', gap: 2, padding: dito ? 0 : 3, background: T.bgSubtle, borderRadius: R.md }}>
+          <button onClick={() => setGridView(false)} aria-label="Vista a elenco" style={{ width: dito ? 44 : 38, height: dito ? 44 : 38, padding: 0, border: 'none', borderRadius: R.sm, background: !gridView ? T.bgCard : 'transparent', cursor: 'pointer', color: !gridView ? T.text : T.textSoft, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
               <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
             </svg>
           </button>
-          <button onClick={() => setGridView(true)} aria-label="Vista a schede" style={{ width: 44, height: 44, padding: 0, border: 'none', borderRadius: R.sm, background: gridView ? T.bgCard : 'transparent', cursor: 'pointer', color: gridView ? T.text : T.textSoft, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <button onClick={() => setGridView(true)} aria-label="Vista a schede" style={{ width: dito ? 44 : 38, height: dito ? 44 : 38, padding: 0, border: 'none', borderRadius: R.sm, background: gridView ? T.bgCard : 'transparent', cursor: 'pointer', color: gridView ? T.text : T.textSoft, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
             </svg>
@@ -1203,7 +1213,7 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
       )}
 
       {filtered.length > 0 && (gridView ? (
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14, marginBottom: 32 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(280px, 1fr))', gap: isMobile ? 16 : 24, marginBottom: 32 }}>
           {filtered.map(ric => {
             const reg = getR(ric.nome, ric)
             const { tot: fc, mancanti } = calcolaFC(ric, ingCosti, ricettario)

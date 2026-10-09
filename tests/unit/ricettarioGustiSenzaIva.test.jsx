@@ -72,8 +72,9 @@ describe('Ricettario — i gusti contano il ricavo senza IVA', () => {
     expect(riga.quota).not.toBeCloseTo(conIva.quota, 1)
     render(<RicettarioView ricettario={ricettario} onUpdateRegola={async () => {}} onUpload={() => {}}
       onEditRicetta={() => {}} orgId="o" sedi={[]} sedeAttiva={null} notify={() => {}} />)
-    const margine = (100 - riga.quota).toLocaleString('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
-    expect(screen.getAllByText(new RegExp(margine.replace('.', '\\.'))).length).toBeGreaterThan(0)
+    // la riga chiusa mostra il margine intero (85%), non 85,0%
+    const margine = `${Math.round(100 - riga.quota)}%`
+    expect(screen.getAllByText(margine).length).toBeGreaterThan(0)
   })
 
   it('la spiegazione del conto al kg dice che il prezzo è senza IVA', () => {
