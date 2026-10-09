@@ -1,7 +1,7 @@
 // RicettarioView + TortaCard - estratti da Dashboard.jsx.
 // TortaCard è il card espandibile usato sia dal Ricettario che dai Semilavorati.
 
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { fmtp0 } from '../lib/formatIt'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S, motion as M, font } from '../lib/theme'
@@ -17,6 +17,7 @@ import { exportRicettaPDF } from '../lib/exportPDF'
 import { gateExport, getExportCtx } from '../lib/exportGuard'
 import Icon from '../components/Icon'
 import { mediaFoodCost } from '../lib/mediaFoodCost'
+import { prezzoNetto } from './produzione/numeri'
 import {
   C, TNUM, margColor, margBadge, Badge, Tip, KPI, fmtp, formatNome,
 } from './_shared'
@@ -940,7 +941,17 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
 
   // Ricavo flat €/kg per gusti: delegato a useRicavoFlat che internamente
   // applica anche l'override formati sede (fonte unica di verita').
-  const { ricavoFlatFor, byCategoria: ricavoFlatByCategoria } = useRicavoFlat(orgId, ricettario, sedeIdCorrente)
+  const { ricavoFlatFor: ricavoFlatConIva, byCategoria: ricavoFlatByCategoria } = useRicavoFlat(orgId, ricettario, sedeIdCorrente)
+  // 09/10/2026 — i formati (cono, coppetta, vaschetta) hanno il prezzo CON
+  // l'IVA, quello che paga il cliente. Il ricavo dell'azienda è senza IVA: così
+  // lo contano la pagina Food cost e Il mese (26,81 €/kg, non 29,49). Qui si
+  // usava il prezzo con IVA, e lo stesso gusto (ABIS) usciva con un margine e
+  // un food cost diversi da quelli di Food cost. Si toglie l'IVA qui e solo
+  // per i gusti: useRicavoFlat resta com'è, lo usano altri nove file.
+  const ricavoFlatFor = useCallback((ric) => {
+    const v = ricavoFlatConIva(ric)
+    return v > 0 ? prezzoNetto(v) : null
+  }, [ricavoFlatConIva])
 
   const [search, setSearch] = useState('')
   // Default: alfabetico ascendente (richiesta utente 13/07/2026: più facile
