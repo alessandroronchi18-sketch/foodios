@@ -36,7 +36,9 @@ describe('il filo c\'è', () => {
 
   it('le giornate finiscono nelle chiusure, non in un angolo che nessuno legge', () => {
     const ramo = UI.split("cfg.tipo === 'kassa' || cfg.id === 'pos_universal'")[1].slice(0, 2000)
-    expect(ramo).toMatch(/importaChiusureIncassi\(orgId, sedeId, righeChiusura\)/)
+    // Dal 09/10/2026 la chiamata dice anche da dove vengono i soldi (la
+    // fonte decide chi vince fra registratore, registro e scontrino fiscale).
+    expect(ramo).toMatch(/importaChiusureIncassi\(orgId, sedeId, righeChiusura, \{ fonte: 'registratore' \}\)/)
     // I metodi del registratore diventano i canali della chiusura.
     expect(ramo).toMatch(/pos: sommaMetodi\(g\.metodi/)
     expect(ramo).toMatch(/contanti: sommaMetodi\(g\.metodi/)
