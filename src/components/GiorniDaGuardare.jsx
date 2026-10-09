@@ -22,17 +22,19 @@ export default function GiorniDaGuardare({ chiusure, onVai }) {
     <div data-testid="giorni-da-guardare" style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: R['2xl'], padding: '14px 16px', marginBottom: 16 }}>
       <div style={{ fontWeight: 700, color: T.text, marginBottom: 2 }}>Giorni da guardare</div>
       <div style={{ color: T.textSoft, marginBottom: 10 }}>
-        Due fonti con cifre diverse. Conta {nome('foto')}.
+        Due fonti con cifre diverse. Vale lo {nome('foto')}, il registro è il controllo.
       </div>
       {visti.map(g => (
-        <button key={`${g.sede_id || ''}${g.data}`} type="button" onClick={() => onVai && onVai(g.data)}
-          style={{ display: 'block', width: '100%', textAlign: 'left', background: 'transparent', border: 'none', borderTop: `1px solid ${T.border}`, padding: '8px 0', cursor: onVai ? 'pointer' : 'default', color: T.text }}>
-          <span style={{ fontWeight: 600 }}>{giornoIt(g.data)}</span>
-          {' · '}{nome(g.vincente.fonte)} {fmt(g.vincente.totale)}
-          {' · '}{nome(g.altra.fonte)} {fmt(g.altra.totale)}
-          {' · '}<span style={{ color: T.amber, fontWeight: 600 }}>differenza {fmt(Math.abs(g.differenza))}</span>
-          {g.nota && <div style={{ color: T.textSoft }}>{g.nota}</div>}
-        </button>
+        <div key={`${g.sede_id || ''}${g.data}`} style={{ borderTop: `1px solid ${T.border}` }}>
+          <button type="button" onClick={() => onVai && onVai(g.data)}
+            style={{ display: 'block', width: '100%', textAlign: 'left', background: 'transparent', border: 'none', padding: '8px 0', cursor: onVai ? 'pointer' : 'default', color: T.text, font: 'inherit' }}>
+            <span style={{ fontWeight: 600 }}>{giornoIt(g.data)}</span>
+            {' · '}{nome(g.vincente.fonte)} {fmt(g.vincente.totale)}
+            {' · '}{nome(g.altra.fonte)} {fmt(g.altra.totale)}
+            {' · '}<span style={{ color: T.amber, fontWeight: 600 }}>differenza {fmt(Math.abs(g.differenza))}</span>
+            {g.nota && <div style={{ color: T.textSoft }}>{g.nota}</div>}
+          </button>
+        </div>
       ))}
       {giorni.length > MAX_RIGHE && (
         <div style={{ color: T.textSoft, paddingTop: 8 }}>e altri {giorni.length - MAX_RIGHE} giorni</div>
