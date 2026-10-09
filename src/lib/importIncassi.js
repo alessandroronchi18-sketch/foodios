@@ -28,6 +28,7 @@
 // ── Riconoscimento delle intestazioni ───────────────────────────────────────
 
 import { eRigaDiTotale } from './righeDiTotale'
+import { fmt } from './formatIt'
 
 const norm = (s) => String(s ?? '')
   .toLowerCase()
@@ -114,7 +115,7 @@ export function descrizionePulita(testo) {
  * sulla voce unica: non lo dividiamo per il numero di pezzi, che sarebbe
  * inventarsi una ripartizione.
  */
-export function spesaDaCella(importoColonna, testo) {
+function spesaDaCellaGrezza(importoColonna, testo) {
   const desc = String(testo ?? '').trim()
   const tot = Number(importoColonna) || 0
   if (!desc && tot <= 0) return []
@@ -122,11 +123,37 @@ export function spesaDaCella(importoColonna, testo) {
   const pezzi = desc.split(';').map(p => p.trim()).filter(Boolean)
   if (pezzi.length <= 1) {
     if (tot <= 0) return []
+    // «F)» da sola: la parentesi aperta è sparita, ma la lettera dice com'è
+    // la spesa. Il 09/10/2026, De Gasperi 8/9: 27,37 € con scritto solo «F)».
+    const troncata = notazioneTroncata(desc)
+    if (troncata) {
+      return [{ importo: tot, descrizione: 'spesa non descritta', documento: troncata, notazioneTroncata: true }]
+    }
     return [{
       importo: tot,
       descrizione: descrizionePulita(desc) || 'spesa non descritta',
       documento: documentoDaTesto(desc),
     }]
+  }
+
+  // Importo in CODA al nome: "MACCH.NER.20,4;MINIMARKET238(F)" (Berthollet,
+  // 15/09/2026, 258,40 € in colonna). Senza questo caso i due pezzi non hanno
+  // importo e la colonna si divideva a metà: 129,20 € a testa invece di
+  // 20,40 e 238. Si accetta solo se la somma dei pezzi è esattamente il totale
+  // della colonna: è la prova che i numeri in coda sono importi.
+  const inCoda = pezzi.map(p => {
+    const m = descrizionePulita(p).match(/^(.*?[A-Za-zÀ-ù.])\s*(\d+(?:[.,]\d+)?)$/)
+    return m ? { nome: m[1], importo: Number(m[2].replace(',', '.')), p } : null
+  })
+  if (tot > 0 && inCoda.every(Boolean)
+    && !pezzi.some(p => /^\s*\d+(?:[.,]\d+)?\s+\S/.test(p))
+    && Math.abs(inCoda.reduce((s, x) => s + x.importo, 0) - tot) <= 0.02) {
+    return inCoda.map(x => ({
+      importo: x.importo,
+      descrizione: descrizionePulita(x.nome).replace(/[.\s]+$/, '') || 'spesa',
+      documento: documentoDaTesto(x.p),
+      _esplicito: notazioneEsplicita(x.p),
+    }))
   }
 
   const conImporto = []
@@ -138,11 +165,11 @@ export function spesaDaCella(importoColonna, testo) {
       const v = Number(m[1].replace(',', '.'))
       if (v > 0) {
         sommaPezzi += v
-        conImporto.push({ importo: v, descrizione: descrizionePulita(m[2]) || 'spesa', documento: documentoDaTesto(p) })
+        conImporto.push({ importo: v, descrizione: descrizionePulita(m[2]) || 'spesa', documento: documentoDaTesto(p), _esplicito: notazioneEsplicita(p) })
         continue
       }
     }
-    conImporto.push({ importo: null, descrizione: descrizionePulita(p) || 'spesa', documento: documentoDaTesto(p) })
+    conImporto.push({ importo: null, descrizione: descrizionePulita(p) || 'spesa', documento: documentoDaTesto(p), _esplicito: notazioneEsplicita(p) })
   }
 
   const senzaImporto = conImporto.filter(x => x.importo == null)
@@ -169,6 +196,38 @@ export function spesaDaCella(importoColonna, testo) {
   if (residuo <= 0) return conImporto.filter(x => x.importo != null)
   const quota = Math.round((residuo / senzaImporto.length) * 100) / 100
   return conImporto.map(x => x.importo != null ? x : { ...x, importo: quota, importoStimato: true })
+}
+
+/** La notazione scritta nel pezzo, o null se non ce n'è nessuna. */
+function notazioneEsplicita(testo) {
+  const t = String(testo ?? '')
+  return /\(\s*(no\s*f|f|\?)\s*\)|\bno\s*f\b(?!\w)/i.test(t) ? documentoDaTesto(t) : null
+}
+
+/** «F)» o «(F» da soli: notazione con una parentesi mancante. Restituisce il documento o null. */
+function notazioneTroncata(testo) {
+  const m = String(testo ?? '').trim().toLowerCase().match(/^\(?\s*(no\s*f|f)\s*\)?$/)
+  if (!m || !/[()]/.test(String(testo))) return null
+  return m[1] === 'f' ? 'fattura' : 'senza'
+}
+
+/**
+ * Una notazione scritta una volta sola in una cella con più spese vale per
+ * tutte: «MACCH.NER.20,4;MINIMARKET238(F)» ha una sola «(F)», in fondo. Chi
+ * non ha notazione la prende dalle altre, se le altre sono tutte uguali; la
+ * voce resta segnata `documentoDedotto` perché è una lettura, non un dato.
+ */
+function ereditaDocumento(voci) {
+  const espliciti = new Set(voci.map(v => v._esplicito).filter(Boolean))
+  return voci.map(({ _esplicito, ...v }) => (
+    !_esplicito && espliciti.size === 1
+      ? { ...v, documento: [...espliciti][0], documentoDedotto: true }
+      : v
+  ))
+}
+
+export function spesaDaCella(importoColonna, testo) {
+  return ereditaDocumento(spesaDaCellaGrezza(importoColonna, testo))
 }
 
 /**
@@ -347,7 +406,10 @@ export function analizzaFoglioIncassi(righe, annoMese) {
 /** Costruisce la data ISO dal numero di giorno e dal periodo. */
 function dataDa(annoMese, giorno) {
   const g = Number(giorno)
-  if (!annoMese || !Number.isInteger(g) || g < 1 || g > 31) return null
+  // Il giorno deve esistere nel mese: «31 settembre» non c'è, e senza questo
+  // controllo ogni foglio con la riga 31 riempita di formule (totali a 0,00)
+  // portava una giornata fantasma per sede (09/10/2026: 62 chiusure invece di 60).
+  if (!annoMese || !Number.isInteger(g) || g < 1 || g > giorniNelMese(annoMese)) return null
   return `${annoMese}-${String(g).padStart(2, '0')}`
 }
 
@@ -383,11 +445,25 @@ export function estraiIncassi(righe, annoMese) {
       const g = riga[inc.colGiorno]
       if (isRigaTotale(g)) continue
       const data = dataDa(annoMese, g)
-      if (!data) continue
       const pos = inc.colPos != null ? num(riga[inc.colPos]) : null
       const con = inc.colContanti != null ? num(riga[inc.colContanti]) : null
       const tot = inc.colTotale != null ? num(riga[inc.colTotale]) : null
+      if (!data) {
+        // Un giorno che nel mese non esiste (il 31 di un mese da 30): se porta
+        // dei soldi non si butta in silenzio, si dice.
+        if (Number.isInteger(Number(g)) && Number(g) > giorniNelMese(annoMese) && Number(g) <= 31
+          && ((pos || 0) + (con || 0) + (tot || 0)) > 0) {
+          avvisi.push({
+            tipo: 'giorno_fuori_mese', sede: inc.sede,
+            messaggio: `${inc.sede}: il giorno ${g} ha degli importi, ma ${etichettaAnnoMese(annoMese)} ha ${giorniNelMese(annoMese)} giorni. Quella riga non è stata letta: controlla il mese scelto.`,
+          })
+        }
+        continue
+      }
       if (pos == null && con == null && tot == null) continue
+      // Riga con le sole formule dei totali, a zero e senza nessun importo
+      // scritto: giornata non ancora compilata, non una chiusura a zero.
+      if (pos == null && con == null && !(tot > 0)) continue
 
       const totale = tot != null ? tot : (pos || 0) + (con || 0)
       // Il foglio è tenuto a mano: se la somma non torna lo diciamo invece di
@@ -426,11 +502,119 @@ export function estraiIncassi(righe, annoMese) {
       for (const s of spesaDaCella(imp, txt)) {
         if (!(s.importo > 0)) continue
         movimenti.push({ data, sede: sp.sede, ...s })
+        const dove = `${sp.sede || 'spese'} ${Number(g)}/${annoMese.slice(5)}`
+        if (s.notazioneTroncata) {
+          avvisi.push({ tipo: 'spesa_da_controllare', data, sede: sp.sede, messaggio: `${dove}: ${eur(s.importo)} con scritto solo «${String(txt).trim()}». L'ho letta come spesa con fattura, senza descrizione.` })
+        } else if (s.importoResiduo || s.importoStimato) {
+          avvisi.push({ tipo: 'spesa_da_controllare', data, sede: sp.sede, messaggio: `${dove}: ${s.descrizione} ${eur(s.importo)} è una quota calcolata, non scritta nel foglio.` })
+        } else if (s.documentoDedotto) {
+          avvisi.push({ tipo: 'spesa_da_controllare', data, sede: sp.sede, messaggio: `${dove}: «${s.descrizione}» non ha (F) o (no F) scritto: ho preso quello delle altre voci della cella (${s.documento === 'fattura' ? 'con fattura' : 'senza fattura'}).` })
+        }
       }
     }
   }
 
+  // Delivery senza la riga di incasso della stessa sede e giorno: la chiusura
+  // nasce col solo delivery, e il suo `totale` sarebbe il delivery stesso.
+  for (const c of chiusure.values()) {
+    if (c.pos == null && c.contanti == null && c.delivery != null) {
+      avvisi.push({
+        tipo: 'solo_delivery', data: c.data, sede: c.sede,
+        messaggio: `${c.sede} ${c.data}: c'è il delivery (${eur(c.delivery)}) ma nessun incasso del negozio.`,
+      })
+    }
+  }
+
+  controlliSulFoglio(righe, piano, annoMese, chiusure, movimenti, avvisi)
+
   return { chiusure: [...chiusure.values()], movimenti, avvisi, piano }
+}
+
+const eur = fmt
+
+/**
+ * Quello che il foglio dice FUORI dalle tabelle, e il confronto con i totali
+ * che il foglio stesso scrive. Aggiunge `avvisi`, non cambia i dati.
+ *
+ *  - una spesa nell'INTESTAZIONE della colonna (a Mara capita: un copia-incolla
+ *    della spesa del 15 finito sopra la colonna);
+ *  - una nota di scontrino annullato / stornato, con la data e l'importo;
+ *  - la riga «TOTALE MESE» del foglio contro la somma di quello che abbiamo
+ *    letto: se non torna, si è perso o raddoppiato qualcosa.
+ */
+function controlliSulFoglio(righe, piano, annoMese, chiusure, movimenti, avvisi) {
+  const intest = righe[piano.rigaIntestazione] || []
+  const num = (v) => (typeof v === 'number' ? v : Number(String(v ?? '').replace(/[€\s]/g, '').replace(/\./g, '').replace(',', '.')))
+  const lista = [...chiusure.values()]
+
+  // 1. Spesa nell'intestazione.
+  for (const sp of piano.spese) {
+    const h = String(intest[sp.colDescrizione] ?? '').trim()
+    if (!/\d/.test(h) || isSpesa(h)) continue
+    const numeri = (h.match(/\d+(?:,\d+)?/g) || []).map(x => Number(x.replace(',', '.'))).filter(n => n > 0)
+    const somma = numeri.reduce((a, b) => a + b, 0)
+    const uguale = movimenti.find(m => chiaveSede(m.sede) === chiaveSede(sp.sede)
+      && (numeri.some(n => Math.abs(m.importo - n) < 0.01) || Math.abs(m.importo - somma) < 0.01))
+    avvisi.push({
+      tipo: 'intestazione_con_spesa', sede: sp.sede,
+      messaggio: `${sp.sede || 'Spese'}: sopra la colonna delle spese c'è scritto «${h}». Non l'ho contata come spesa`
+        + (uguale ? `: è uguale a quella del giorno ${Number(uguale.data.slice(8))} che ho già letto.` : `: se è una spesa vera aggiungila a mano.`),
+    })
+  }
+
+  // 2. Note di scontrino annullato / storno.
+  for (let r = 0; r < righe.length; r++) {
+    for (const cella of righe[r] || []) {
+      if (typeof cella !== 'string' || !/annull|storn/i.test(cella)) continue
+      const m = cella.match(/(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)\s*(?:€|euro)/i)
+      const importo = m ? num(m[1].includes(',') || /\.\d{3}(?!\d)/.test(m[1]) ? m[1] : m[1].replace('.', ',')) : null
+      const d = cella.match(/(?<!\d)(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})(?!\d)/)
+      const sede = (piano.incassi.map(i => i.sede).find(s => chiaveSede(cella).includes(chiaveSede(s)))) || null
+      // La data si scrive in due modi: «3-9-26» e «in data 20 luglio».
+      const scritta = cella.match(/(?<!\d)(\d{1,2})\s+(?:di\s+)?([a-zà-ù]{3,})/i)
+      const giorno = d ? Number(d[1]) : (scritta && meseDaParola(scritta[2]) >= 0 ? Number(scritta[1]) : null)
+      const ch = sede && giorno ? lista.find(c => chiaveSede(c.sede) === chiaveSede(sede) && Number(c.data.slice(8)) === giorno) : null
+      let esito = ''
+      if (importo && ch) {
+        esito = ch.totale >= importo
+          ? ` Il totale di quel giorno è ${eur(ch.totale)}: potrebbe contenerlo ancora, controlla.`
+          : ` Il totale di quel giorno è ${eur(ch.totale)}, più piccolo: lo scontrino annullato non è dentro.`
+      }
+      avvisi.push({
+        tipo: 'scontrino_annullato', sede, data: ch?.data || null, importo,
+        messaggio: `Nota nel foglio: «${cella.trim()}».${esito}`,
+      })
+    }
+  }
+
+  // 3. Totali scritti nel foglio contro la somma letta.
+  const rTot = righe.findIndex((riga, r) => r > piano.rigaIntestazione && riga && Object.values(riga).some(v => typeof v === 'string' && isRigaTotale(v)) && piano.incassi.some(i => isRigaTotale(riga[i.colGiorno])))
+  if (rTot >= 0) {
+    const rigaTot = righe[rTot]
+    const confronta = (etichetta, scritto, calcolato) => {
+      if (typeof scritto !== 'number') return
+      if (Math.abs(scritto - calcolato) > 0.05) {
+        avvisi.push({
+          tipo: 'totale_mese_non_quadra',
+          messaggio: `${etichetta}: il foglio scrive ${eur(scritto)} nella riga dei totali, io leggendo i giorni ottengo ${eur(Math.round(calcolato * 100) / 100)}.`,
+        })
+      }
+    }
+    for (const inc of piano.incassi) {
+      const sue = lista.filter(c => chiaveSede(c.sede) === chiaveSede(inc.sede))
+      if (inc.colPos != null) confronta(`${inc.sede}, POS`, rigaTot[inc.colPos], sue.reduce((s, c) => s + (c.pos || 0), 0))
+      if (inc.colContanti != null) confronta(`${inc.sede}, contanti`, rigaTot[inc.colContanti], sue.reduce((s, c) => s + (c.contanti || 0), 0))
+      if (inc.colTotale != null) confronta(`${inc.sede}, totale`, rigaTot[inc.colTotale], sue.reduce((s, c) => s + (c.totale || 0) - (c.pos == null && c.contanti == null ? (c.delivery || 0) : 0), 0))
+    }
+    for (const dl of piano.delivery) {
+      const sue = lista.filter(c => chiaveSede(c.sede) === chiaveSede(dl.sede))
+      confronta(`${dl.sede}, delivery`, rigaTot[dl.col], sue.reduce((s, c) => s + (c.delivery || 0), 0))
+    }
+    for (const sp of piano.spese) {
+      confronta(`${sp.sede || 'Spese'}, uscite di cassa`, rigaTot[sp.colImporto],
+        movimenti.filter(m => chiaveSede(m.sede) === chiaveSede(sp.sede)).reduce((s, m) => s + m.importo, 0))
+    }
+  }
 }
 
 // ── Il periodo del foglio ───────────────────────────────────────────────────
@@ -461,11 +645,127 @@ export function annoMeseDaNomeFile(nome) {
   if (inv) return `${inv[2]}-${inv[1]}`
 
   // Forma scritta: "luglio 2026". L'anno può stare prima o dopo il mese.
-  const anno = t.match(/(20\d{2})/)
-  const iMese = MESI.findIndex(m => t.includes(m))
-  if (iMese >= 0 && anno) return `${anno[1]}-${String(iMese + 1).padStart(2, '0')}`
-
+  const { mese, anno } = periodoDaTesto(t)
+  if (mese != null && anno) return `${anno}-${String(mese + 1).padStart(2, '0')}`
   return null
+}
+
+// Distanza di modifica fra due parole (per i refusi: «setembre», «ottobe»).
+function distanza(a, b) {
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)])
+  for (let j = 1; j <= b.length; j++) d[0][j] = j
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1))
+    }
+  }
+  return d[a.length][b.length]
+}
+
+/**
+ * Il mese (0-11) a cui somiglia una parola, oppure -1.
+ *
+ * Nomi di file scritti a mano: «SETEMBRE» (una T sola, 09/10/2026, il file
+ * vero di Mara), «sett», «ott», «Agost». Si accetta l'abbreviazione (almeno tre
+ * lettere, che sia l'inizio del mese) e un refuso solo se la parola è lunga e
+ * UN solo mese le somiglia. «MARAMA» (il nome dell'azienda) non è «marzo».
+ */
+export function meseDaParola(parola) {
+  const p = String(parola ?? '').toLowerCase().replace(/[^a-z]/g, '')
+  if (p.length < 3) return -1
+  const esatto = MESI.indexOf(p)
+  if (esatto >= 0) return esatto
+  const abbreviati = MESI.map((m, i) => (m.startsWith(p) ? i : -1)).filter(i => i >= 0)
+  if (abbreviati.length === 1) return abbreviati[0]
+  if (p.length >= 5) {
+    const soglia = p.length >= 8 ? 2 : 1
+    const vicini = MESI.map((m, i) => ({ i, d: distanza(p, m) })).filter(x => x.d <= soglia)
+    if (vicini.length === 1) return vicini[0].i
+  }
+  return -1
+}
+
+/** Mese e anno che si leggono in un testo qualsiasi: {mese: 0-11|null, anno: 2026|null}. */
+function periodoDaTesto(testo) {
+  const t = String(testo ?? '').toLowerCase()
+  const anno = t.match(/(?<!\d)(20\d{2})(?!\d)/)
+  let mese = null
+  for (const w of t.match(/[a-zà-ù]+/g) || []) {
+    const i = meseDaParola(w)
+    if (i >= 0) { mese = i; break }
+  }
+  return { mese, anno: anno ? Number(anno[1]) : null }
+}
+
+/** Quanti giorni ha il mese 'YYYY-MM'. Se il periodo non è valido: 31. */
+export function giorniNelMese(annoMese) {
+  const m = String(annoMese ?? '').match(/^(20\d{2})-(0[1-9]|1[0-2])$/)
+  return m ? new Date(Number(m[1]), Number(m[2]), 0).getDate() : 31
+}
+
+const aaaamm = (anno, mese0) => `${anno}-${String(mese0 + 1).padStart(2, '0')}`
+
+/**
+ * Il periodo del file, da TUTTE le fonti: nome del file, nome del foglio,
+ * testo dentro il foglio (un titolo «Settembre 2026», una nota con una data
+ * «3-9-26»).
+ *
+ * Restituisce {annoMese, fonte, dubbio}: `annoMese` è '' se non si sa, e
+ * `dubbio` dice perché l'utente deve guardare (fonti che non concordano, mese
+ * senza anno). Il periodo sbagliato sposta un mese intero di soldi, quindi nel
+ * dubbio si chiede.
+ */
+export function rilevaPeriodo({ nomeFile, nomiFogli = [], righe = [] } = {}) {
+  const fonti = []
+  const aggiungi = (fonte, annoMese, mese, anno) => {
+    if (annoMese || mese != null) fonti.push({ fonte, annoMese, mese, anno })
+  }
+
+  const pn = periodoDaTesto(nomeFile)
+  aggiungi('dal nome del file', annoMeseDaNomeFile(nomeFile), pn.mese, pn.anno)
+  for (const nf of nomiFogli) {
+    const pf = periodoDaTesto(nf)
+    aggiungi(`dal foglio «${nf}»`, annoMeseDaNomeFile(nf), pf.mese, pf.anno)
+  }
+
+  // Testo dentro il foglio: una data in una nota, o un titolo con il mese.
+  let daTesto = null
+  for (const riga of righe.slice(0, 80)) {
+    for (const cella of riga || []) {
+      if (typeof cella !== 'string' || cella.length < 3) continue
+      const d = cella.match(/(?<!\d)(\d{1,2})[-/.](0?[1-9]|1[0-2])[-/.](20\d{2}|\d{2})(?!\d)/)
+      if (d) {
+        const a = d[3].length === 2 ? 2000 + Number(d[3]) : Number(d[3])
+        daTesto = { annoMese: aaaamm(a, Number(d[2]) - 1), mese: Number(d[2]) - 1, anno: a }
+        break
+      }
+      const pt = periodoDaTesto(cella)
+      if (pt.mese != null) {
+        daTesto = { annoMese: pt.anno ? aaaamm(pt.anno, pt.mese) : null, mese: pt.mese, anno: pt.anno }
+        break
+      }
+    }
+    if (daTesto) break
+  }
+  if (daTesto) aggiungi('dal testo nel foglio', daTesto.annoMese, daTesto.mese, daTesto.anno)
+
+  // Il primo con mese E anno vince; un mese letto senza anno prende l'anno da
+  // un'altra fonte.
+  let scelta = fonti.find(f => f.annoMese)
+  let dubbio = null
+  if (!scelta) {
+    const soloMese = fonti.find(f => f.mese != null)
+    const conAnno = fonti.find(f => f.anno)
+    if (soloMese && conAnno) scelta = { fonte: soloMese.fonte, annoMese: aaaamm(conAnno.anno, soloMese.mese) }
+    else if (soloMese) dubbio = `Il mese sembra ${MESI[soloMese.mese]} (${soloMese.fonte}), ma non si capisce l'anno.`
+  }
+  if (!scelta) return { annoMese: '', fonte: '', dubbio: dubbio || 'Dal nome del file e dal foglio non si capisce il mese.' }
+
+  const discorde = fonti.find(f => f.annoMese && f.annoMese !== scelta.annoMese)
+  if (discorde) {
+    dubbio = `${scelta.fonte[0].toUpperCase()}${scelta.fonte.slice(1)} risulta ${etichettaAnnoMese(scelta.annoMese)}, ${discorde.fonte} ${etichettaAnnoMese(discorde.annoMese)}.`
+  }
+  return { annoMese: scelta.annoMese, fonte: scelta.fonte, dubbio }
 }
 
 /** Il periodo in italiano, per farlo confermare all'utente: "luglio 2026". */

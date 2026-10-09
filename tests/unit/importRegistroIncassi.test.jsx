@@ -135,7 +135,9 @@ describe('ImportRegistroIncassi', () => {
     })
     const view = monta()
     await caricaFile(view)
-    expect(view.container.textContent).toContain('Una somma non torna')
+    // Una somma del giorno e, di conseguenza, il totale del mese: le due righe contano.
+    expect(view.container.textContent).toMatch(/somm[ae] non torn/)
+    expect(view.container.textContent).toContain('POS 788.1 + contanti 288.3')
     vi.restoreAllMocks()
   })
 

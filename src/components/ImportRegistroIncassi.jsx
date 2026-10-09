@@ -28,7 +28,7 @@ import { fmt, fmt0 } from '../views/_shared'
 import { loadXLSX } from '../lib/xlsx'
 import { parseWorkbook, fileToArrayBuffer } from '../lib/importParse'
 import {
-  estraiIncassi, chiaveSede, annoMeseDaNomeFile, etichettaAnnoMese,
+  estraiIncassi, chiaveSede, rilevaPeriodo, etichettaAnnoMese,
 } from '../lib/importIncassi'
 import { importaChiusureIncassi } from '../lib/chiusure'
 import { aggiungiMovimentiInBlocco, movimentiImportatiPeriodo, eliminaMovimentiPerId } from '../lib/primaNota'
@@ -62,6 +62,7 @@ export default function ImportRegistroIncassi({ orgId, sedi, notify, onClose }) 
   const fileRef = useRef(null)
   const [nomeFile, setNomeFile] = useState('')
   const [annoMese, setAnnoMese] = useState('')
+  const [periodoInfo, setPeriodoInfo] = useState({ fonte: '', dubbio: null })
   const [fogli, setFogli] = useState([])          // { nome, righe }
   const [foglioAttivo, setFoglioAttivo] = useState('')
   const [mappaSedi, setMappaSedi] = useState({})
@@ -117,7 +118,13 @@ export default function ImportRegistroIncassi({ orgId, sedi, notify, onClose }) 
         .filter(f => f.righe.length > 0)
       if (elenco.length === 0) throw new Error('Il file non contiene fogli con dei dati.')
 
-      const periodo = annoMeseDaNomeFile(file.name) || ''
+      const rp = rilevaPeriodo({
+        nomeFile: file.name,
+        nomiFogli: elenco.map(f => f.nome),
+        righe: elenco.flatMap(f => f.righe.slice(0, 80)),
+      })
+      const periodo = rp.annoMese || ''
+      setPeriodoInfo({ fonte: rp.fonte, dubbio: rp.dubbio })
       setNomeFile(file.name)
       setAnnoMese(periodo)
       setFogli(elenco)
@@ -263,8 +270,11 @@ export default function ImportRegistroIncassi({ orgId, sedi, notify, onClose }) 
                   style={{ ...campo, width: '100%', fontWeight: 700 }} />
                 <div style={nota}>
                   {annoMese
-                    ? `Le giornate del foglio diventeranno date di ${etichettaAnnoMese(annoMese)}.`
-                    : 'Dal nome del file non si capisce il mese: scegliolo qui.'}
+                    ? `Le giornate del foglio diventeranno date di ${etichettaAnnoMese(annoMese)}${periodoInfo.fonte ? ` (letto ${periodoInfo.fonte})` : ''}.`
+                    : 'Dal nome del file non si capisce il mese: sceglilo qui.'}
+                  {periodoInfo.dubbio && (
+                    <span style={{ display: 'block', color: T.amber, marginTop: 4 }}>{periodoInfo.dubbio} Controlla il mese prima di importare.</span>
+                  )}
                 </div>
               </div>
               {fogli.length > 1 && (
@@ -353,22 +363,24 @@ export default function ImportRegistroIncassi({ orgId, sedi, notify, onClose }) 
             )}
           </div>
 
-          {/* 4. Le differenze trovate nel foglio */}
+          {/* 4. Cosa il foglio dice e va guardato */}
           {letto?.avvisi?.length > 0 && (
             <div style={{ ...card, marginBottom: 14, borderColor: T.amber, background: T.amberLight }}>
               <div style={{ ...typo.bodyStrong, color: T.amber, marginBottom: 6, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                 <Icon name="warning" size={14} />
-                {letto.avvisi.length === 1 ? 'Una somma non torna' : `${letto.avvisi.length} somme non tornano`}
+                {letto.avvisi.every(x => /^totale/.test(x.tipo))
+                  ? (letto.avvisi.length === 1 ? 'Una somma non torna' : `${letto.avvisi.length} somme non tornano`)
+                  : (letto.avvisi.length === 1 ? 'Una cosa da guardare' : `${letto.avvisi.length} cose da guardare`)}
               </div>
               <div style={{ ...typo.small, color: T.textMid, marginBottom: 8, lineHeight: 1.5 }}>
-                Nel foglio il totale scritto a mano non coincide con POS più contanti. Importiamo il totale scritto: se è quello sbagliato, correggi la giornata dalla pagina Cassa.
+                Non bloccano l'importazione. Sono i punti dove il foglio non è chiaro o non torna: le somme scritte a mano, gli scontrini annullati, le spese con la notazione incompleta.
               </div>
               <div style={{ display: 'grid', gap: 5 }}>
-                {letto.avvisi.slice(0, 8).map((a, i) => (
+                {letto.avvisi.slice(0, 10).map((a, i) => (
                   <div key={i} style={{ ...typo.caption, color: T.textMid, lineHeight: 1.5 }}>{a.messaggio}</div>
                 ))}
-                {letto.avvisi.length > 8 && (
-                  <div style={{ ...typo.caption, color: T.textSoft }}>e altre {letto.avvisi.length - 8}.</div>
+                {letto.avvisi.length > 10 && (
+                  <div style={{ ...typo.caption, color: T.textSoft }}>e altre {letto.avvisi.length - 10}.</div>
                 )}
               </div>
             </div>
