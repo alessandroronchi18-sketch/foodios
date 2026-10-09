@@ -111,4 +111,34 @@ describe('Ricettario — pulizia', () => {
     apriDettaglio()
     expect(screen.getByText('€ / g')).toBeTruthy()
   })
+
+  // 09/10/2026, dalle foto della fase 2: aprendo un gusto il margine che si
+  // stava guardando nella barra chiusa spariva dalla testa della scheda.
+  it('aprendo il gusto il margine resta in testa, come nella barra chiusa', () => {
+    monta()
+    const chiusa = screen.getByText('Margine').parentElement.textContent
+    fireEvent.click(screen.getByText('ABIS'))
+    const testa = screen.getByRole('heading', { name: 'ABIS' }).parentElement
+    expect(testa.textContent).toContain('Margine')
+    expect(testa.textContent).toContain(chiusa.replace('Margine', ''))
+  })
+
+  // Al telefono «Ingredienti / Composizione costo / Conto al kg» andava a capo.
+  it('al telefono le tre schede stanno su una riga, in tre colonne uguali', () => {
+    telefono.v = true
+    monta()
+    apriDettaglio()
+    const ingr = screen.getByRole('button', { name: 'Ingredienti' })
+    const fila = ingr.parentElement
+    expect(fila.style.display).toBe('grid')
+    expect(fila.style.gridTemplateColumns).toBe('repeat(3, minmax(0, 1fr))')
+    expect(screen.getByRole('button', { name: 'Composizione' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Conto al kg' })).toBeTruthy()
+  })
+
+  it('sul computer la scheda si chiama ancora «Composizione costo»', () => {
+    monta()
+    apriDettaglio()
+    expect(screen.getByRole('button', { name: 'Composizione costo' })).toBeTruthy()
+  })
 })

@@ -269,17 +269,26 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
   // ─── Card COLLAPSED ───────────────────────────────────────────────
   // Mostra solo: nome + badge qualità + 1 KPI chiave (Margine % per ricette,
   // Costo/kg per semilavorati) + chevron. Tap → espande l'header pieno.
+  // Per i gusti: se non abbiamo un ricavo flat stimato, mostriamo il food
+  // cost/kg come KPI primario (è il dato che c'è) e "Configura formati"
+  // come hint secondario. Se c'è il ricavo, mostriamo Margine% + Ricavo/kg.
+  // Calcolato qui una volta: lo usano la barra chiusa e la testa della
+  // scheda aperta (09/10/2026: aprendo un gusto il margine spariva).
+  const kpiPrim = isSemi
+    ? { lbl: 'Costo / kg', val: fmt(costoGSemi * 1000), c: SEMI.accent }
+    : (isGusto && !ricavoFlatOk)
+      ? { lbl: 'Costo / kg', val: fmt(fcPerKg), c: C.red }
+      : senzaPrezzo
+        ? { lbl: 'Margine', val: 'prezzo da impostare', c: C.textSoft }
+        : { lbl: 'Margine', val: fmtp0(margPct), c: mc }
+  const kpiPrimBlocco = (
+    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+      <div style={{ fontSize: font.size.sm, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, lineHeight: 1 }}>{kpiPrim.lbl}</div>
+      <div style={{ fontSize: font.size.lg, fontWeight: 800, color: kpiPrim.c, marginTop: 3, ...TNUM, lineHeight: 1 }}>{kpiPrim.val}</div>
+    </div>
+  )
+
   if (!expanded) {
-    // Per i gusti: se non abbiamo un ricavo flat stimato, mostriamo il food
-    // cost/kg come KPI primario (è il dato che c'è) e "Configura formati"
-    // come hint secondario. Se c'è il ricavo, mostriamo Margine% + Ricavo/kg.
-    const kpiPrim = isSemi
-      ? { lbl: 'Costo / kg', val: fmt(costoGSemi * 1000), c: SEMI.accent }
-      : (isGusto && !ricavoFlatOk)
-        ? { lbl: 'Costo / kg', val: fmt(fcPerKg), c: C.red }
-        : senzaPrezzo
-          ? { lbl: 'Margine', val: 'prezzo da impostare', c: C.textSoft }
-          : { lbl: 'Margine', val: fmtp0(margPct), c: mc }
     const kpiSec = isSemi
       ? { lbl: 'Peso batch', val: pesoTotSemi >= 1000 ? `${(Number(pesoTotSemi) / 1000).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : `${Math.round(Number(pesoTotSemi)||0).toLocaleString('it-IT', { useGrouping: 'always' })} g`, c: C.text }
       : (isGusto && !ricavoFlatOk)
@@ -349,10 +358,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
                 una scheda da leggere. */}
           </div>
         </div>
-        <div style={{ textAlign: 'right', flexShrink: 0 }}>
-          <div style={{ fontSize: font.size.sm, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textSoft, lineHeight: 1 }}>{kpiPrim.lbl}</div>
-          <div style={{ fontSize: font.size.lg, fontWeight: 800, color: kpiPrim.c, marginTop: 3, ...TNUM, lineHeight: 1 }}>{kpiPrim.val}</div>
-        </div>
+        {kpiPrimBlocco}
         <div style={{ flexShrink: 0, color: C.textSoft, lineHeight: 0 }}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
         </div>
@@ -436,6 +442,9 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
               }}>
               {ric.nome}
             </h3>
+            {/* Lo stesso numero della barra chiusa, nello stesso posto: aprendo
+                il gusto non si perde il margine che si stava guardando. */}
+            <div style={{ marginLeft: 'auto' }}>{kpiPrimBlocco}</div>
           </div>
           {/* Etichette qualità/avvisi su riga dedicata: così restano allineate
               nella stessa posizione sotto ogni gusto, indipendentemente dalla
@@ -687,20 +696,24 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
               in cima alla pagina e nel Ricettario per elenco/riquadri. Una
               forma sola per «scegli fra queste cose». */}
           {(() => {
+            // Al telefono le tre schede andavano a capo su due righe: «Composizione
+            // costo» non ci stava. Lì si chiama «Composizione» e le tre stanno in
+            // tre colonne uguali (09/10/2026).
             const scelte = [
               ['ingredienti', 'Ingredienti'],
-              ['composizione', 'Composizione costo'],
+              ['composizione', isMobile ? 'Composizione' : 'Composizione costo'],
               [isGusto ? 'contoKg' : 'conto', isGusto ? 'Conto al kg' : 'Conto per stampo'],
             ]
             return (
-              <div style={{ display: 'flex', gap: 3, background: C.bgSubtle, border: `1px solid ${C.border}`,
-                borderRadius: 12, padding: 3, marginBottom: 16, width: 'fit-content', maxWidth: '100%', flexWrap: 'wrap' }}>
+              <div style={{ display: isMobile ? 'grid' : 'flex', gridTemplateColumns: isMobile ? 'repeat(3, minmax(0, 1fr))' : undefined,
+                gap: 3, background: C.bgSubtle, border: `1px solid ${C.border}`,
+                borderRadius: 12, padding: 3, marginBottom: 16, width: isMobile ? '100%' : 'fit-content', maxWidth: '100%', flexWrap: 'wrap', boxSizing: 'border-box' }}>
                 {scelte.map(([id, etichetta]) => {
                   const att = pannello === id
                   return (
                     <button key={id} type="button" onClick={(e) => { e.stopPropagation(); setPannello(id) }}
                       aria-pressed={att}
-                      style={{ minHeight: 44, padding: '0 16px', border: 'none', borderRadius: 9, cursor: 'pointer',
+                      style={{ minHeight: 44, padding: isMobile ? '0 6px' : '0 16px', border: 'none', borderRadius: 9, cursor: 'pointer',
                         fontFamily: 'inherit', fontSize: font.size.base, fontWeight: att ? 800 : 600,
                         background: att ? C.white : 'transparent', color: att ? C.brand : C.textMid,
                         boxShadow: att ? '0 1px 2px rgba(15,23,42,0.06), 0 2px 8px rgba(15,23,42,0.06)' : 'none' }}>
