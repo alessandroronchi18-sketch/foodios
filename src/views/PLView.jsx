@@ -13,6 +13,7 @@ import { venditeB2BPeriodo } from '../lib/venditeB2B'
 import { caricaCostiAziendali, totaleMensile } from '../lib/costiAziendali'
 import { costoPersonaleMensile, costoLavoroDaTurni } from '../lib/stipendiCalc'
 import { foodcostNoto } from '../lib/chiusure'
+import { margineLordoDelPeriodo } from '../lib/margineNoto'
 import { usciteDaSottrarre } from '../lib/primaNota'
 import { righeSensibilita, margineDiSicurezza } from '../lib/plSensibilita'
 import { totaliSuCostiNoti } from '../lib/totaliSuCostiNoti'
@@ -1278,17 +1279,21 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
       const ricInv = inventarioPL.totRicConB2b
       cur = { ...cur, ricavi: ricInv, foodcost: inventarioPL.totFc, ricaviConFc: ricInv }
     }
-    const margineLordo = cur.ricavi - cur.foodcost
+    // Dove il costo delle materie non si sa il margine non si inventa:
+    // `margineLordo` e `utile` sono null (non noto) o una stima dichiarata.
+    const mCur = margineLordoDelPeriodo(cur)
+    const mPrev = margineLordoDelPeriodo(prev)
+    const margineLordo = mCur.margine
     const usciteCassa = Number(uscite?.totale) || 0
-    const utile = margineLordo - personale - costiFissi - usciteCassa
+    const utile = margineLordo == null ? null : margineLordo - personale - costiFissi - usciteCassa
     // Percentuale sui soli giorni misurati: e' la sola base su cui il numero
     // significa qualcosa. Con zero giorni misurati non si stampa una stima.
     const fcPct = cur.ricaviConFc > 0 ? cur.foodcost / cur.ricaviConFc * 100 : 0
     const lavPct = cur.ricavi > 0 ? personale / cur.ricavi * 100 : 0
-    const margOpPct = cur.ricavi > 0 ? utile / cur.ricavi * 100 : 0
-    const mcPct = cur.ricavi > 0 ? margineLordo / cur.ricavi : 0.7
+    const margOpPct = cur.ricavi > 0 && utile != null ? utile / cur.ricavi * 100 : (utile != null ? 0 : null)
+    const mcPct = margineLordo == null ? 0 : (cur.ricavi > 0 ? margineLordo / cur.ricavi : 0.7)
     const breakeven = mcPct > 0 ? (personale + costiFissi) / mcPct : 0
-    const utilePrev = (prev.ricavi - prev.foodcost) - personale - costiFissi
+    const utilePrev = mPrev.margine == null ? null : mPrev.margine - personale - costiFissi
     // Le stesse percentuali, sul periodo di confronto: si confrontano in
     // PUNTI e non in euro, perché «+3 punti di food cost» dice qualcosa mentre
     // «+1.200 €» su un periodo più lungo o più corto no.
@@ -1296,6 +1301,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
     const lavPctPrev = prev.ricavi > 0 ? personale / prev.ricavi * 100 : null
     return {
       cur, prev, costiFissi, personale, margineLordo, utile, fcPct, lavPct,
+      margineNoto: mCur.noto, margineStimato: mCur.stimato,
       fcPctPrev, lavPctPrev,
       daInventario,
       personaleDaDipendenti, personaleDipendentiN: personaleReale.contati,
@@ -1536,13 +1542,13 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
               <div style={{ ...typo.small, color: T.textMid, lineHeight: 1.55 }}>
                 {plMese.cur.giorniSenzaFc === plMese.cur.giorni ? (
                   <>Sono chiusure registrate col solo totale: l’incasso c’è, quanto è costata la merce no.
-                  Il food cost qui sotto non viene mostrato in percentuale, e utile e margine contano l’incasso
-                  senza il costo della merce — quindi sono più alti del reale.</>
+                  Food cost, margine e utile qui sotto sono «non noto»: senza il costo della merce non si può dire
+                  quanto resta.</>
                 ) : (
                   <>Sono chiusure registrate col solo totale. La percentuale di food cost è misurata sulle altre{' '}
                   {plMese.cur.giorni - plMese.cur.giorniSenzaFc}, per {fmt0(plMese.cur.ricaviConFc)} di ricavi.
-                  Utile e margine, per le giornate senza costo, contano l’incasso senza il costo della merce:
-                  sono più alti del reale.</>
+                  Margine e utile sono una stima: alle giornate senza costo si applica la stessa percentuale
+                  di food cost di quelle misurate.</>
                 )}
               </div>
               <div style={{ ...typo.caption, color: T.textSoft, marginTop: 7, lineHeight: 1.5 }}>
@@ -1564,8 +1570,8 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
               cost sia salito di tre punti no. */}
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: isMobile ? 10 : 16, marginBottom: 14 }}>
             <KPI icon={<Icon name="barChart" size={18} />} label="Ricavi del periodo" value={fmt0(plMese.cur.ricavi)} sub={`${plMese.cur.giorni} giorni${plMese.prev.ricavi ? ` · ${plMese.cur.ricavi >= plMese.prev.ricavi ? '+' : ''}${fmt0(plMese.cur.ricavi - plMese.prev.ricavi)} ${etichettaConfronto}` : ''}`} />
-            <KPI icon={<Icon name="bulb" size={18} />} label="Utile del periodo" value={fmt0(plMese.utile)} highlight={plMese.utile >= 0} color={plMese.utile >= 0 ? undefined : T.brand}
-              sub={`margine operativo ${pct(plMese.margOpPct)}${confrontoPL !== 'none' && plMese.utilePrev != null && plMese.prev.ricavi > 0
+            <KPI icon={<Icon name="bulb" size={18} />} label="Utile del periodo" value={plMese.utile == null ? 'non noto' : fmt0(plMese.utile)} highlight={plMese.utile != null && plMese.utile >= 0} color={plMese.utile == null ? T.textSoft : plMese.utile >= 0 ? undefined : T.brand}
+              sub={plMese.utile == null ? 'manca il costo delle materie' : `${plMese.margineStimato ? 'stima · ' : ''}margine operativo ${pct(plMese.margOpPct)}${confrontoPL !== 'none' && plMese.utilePrev != null && plMese.prev.ricavi > 0
                 ? ` · ${plMese.utile >= plMese.utilePrev ? '+' : ''}${fmt0(plMese.utile - plMese.utilePrev)} ${etichettaConfronto}`
                 : ''}`} />
             <KPI icon={<Icon name="receipt" size={18} />} label="Food cost"
@@ -1588,14 +1594,14 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
             <AiExplainButton
               label={`P&L ${rangeLabel(dateFrom, dateTo)}`}
-              value={`Utile ${fmt0(plMese.utile)} · FC ${pct(plMese.fcPct)}`}
+              value={`Utile ${plMese.utile == null ? 'non noto' : fmt0(plMese.utile)} · FC ${plMese.cur.ricaviConFc > 0 ? pct(plMese.fcPct) : 'non noto'}`}
               context={{
                 periodo: rangeLabel(dateFrom, dateTo),
                 giorni: plMese.cur.giorni,
                 ricavi: plMese.cur.ricavi,
                 ricavi_periodo_prec: plMese.prev?.ricavi,
                 foodcost_eur: plMese.cur.foodcost,
-                foodcost_pct: plMese.fcPct,
+                foodcost_pct: plMese.cur.ricaviConFc > 0 ? plMese.fcPct : null,
                 costo_lavoro_eur: plMese.personale,
                 costo_lavoro_pct: plMese.lavPct,
                 uscite_cassa_eur: plMese.usciteCassa,
@@ -1604,6 +1610,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
                 target_lavoro_pct: targetLavoro,
                 margine_operativo_pct: plMese.margOpPct,
                 utile: plMese.utile,
+                utile_e_stima: !!plMese.margineStimato,
               }}
             />
             <ExportPdfButton
@@ -1628,7 +1635,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
                       : 'nessuna giornata col costo delle materie',
                   },
                   { label: 'Costo lavoro', value: pct(plMese.lavPct), sub: fmt0(plMese.personale) },
-                  { label: 'Utile', value: fmt0(plMese.utile), sub: `margine op. ${pct(plMese.margOpPct)}` },
+                  { label: 'Utile', value: plMese.utile == null ? 'non noto' : fmt0(plMese.utile), sub: plMese.utile == null ? 'manca il costo delle materie' : `margine op. ${pct(plMese.margOpPct)}` },
                 ],
                 nota: [
                   plMese.cur.giorniSenzaFc > 0
@@ -1646,13 +1653,13 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
                       alignments: ['left', 'right', 'right'],
                       rows: [
                         ['Ricavi totali', fmt0(plMese.cur.ricavi), '100%'],
-                        ['- Food cost', `(${fmt0(plMese.cur.foodcost)})`, pct(plMese.fcPct)],
-                        ['= Margine lordo', fmt0(plMese.cur.ricavi - plMese.cur.foodcost), pct(100 - plMese.fcPct)],
+                        ['- Food cost', plMese.cur.ricaviConFc > 0 ? `(${fmt0(plMese.cur.foodcost)})` : 'non noto', plMese.cur.ricaviConFc > 0 ? pct(plMese.fcPct) : ''],
+                        ['= Margine lordo', plMese.margineLordo == null ? 'non noto' : fmt0(plMese.margineLordo), plMese.margineLordo == null ? '' : pct(plMese.cur.ricavi > 0 ? plMese.margineLordo / plMese.cur.ricavi * 100 : 0)],
                         ['- Costo lavoro', `(${fmt0(plMese.personale)})`, pct(plMese.lavPct)],
                         ...(plMese.usciteCassa > 0
                           ? [['- Uscite di cassa', `(${fmt0(plMese.usciteCassa)})`, pct(plMese.cur.ricavi > 0 ? plMese.usciteCassa / plMese.cur.ricavi * 100 : 0)]]
                           : []),
-                        ['= Margine operativo', fmt0(plMese.utile), pct(plMese.margOpPct)],
+                        ['= Margine operativo', plMese.utile == null ? 'non noto' : fmt0(plMese.utile), plMese.utile == null ? '' : pct(plMese.margOpPct)],
                       ],
                     },
                   },
@@ -1669,8 +1676,8 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
                   <span style={{ fontSize: strong ? 14 : 13, fontWeight: strong || bold ? 800 : 500, color: strong ? T.text : T.textMid, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}{sub && <span style={{ fontSize: font.size.sm, color: T.textSoft, fontWeight: 500 }}> · {sub}</span>}</span>
                   <span style={{ display: 'flex', alignItems: 'baseline', gap: isMobile ? 8 : 12, flexShrink: 0 }}>
                     {pctv != null && <span style={{ fontSize: font.size.sm, color: T.textSoft, ...TNUM, minWidth: 46, textAlign: 'right' }}>{pct(pctv)}</span>}
-                    <span style={{ fontSize: strong ? (isMobile ? 18 : 20) : 14, fontWeight: strong || bold ? 800 : 600, color: strong ? (val >= 0 ? T.green : T.brand) : (neg ? T.brand : T.text), ...TNUM, minWidth: isMobile ? 80 : 100, textAlign: 'right' }}>
-                      {neg && val !== 0 ? '−' : ''}{fmt0(Math.abs(val))}
+                    <span style={{ fontSize: strong ? (isMobile ? 18 : 20) : 14, fontWeight: strong || bold ? 800 : 600, color: val == null ? T.textSoft : strong ? (val >= 0 ? T.green : T.brand) : (neg ? T.brand : T.text), ...TNUM, minWidth: isMobile ? 80 : 100, textAlign: 'right' }}>
+                      {val == null ? 'non noto' : <>{neg && val !== 0 ? '−' : ''}{fmt0(Math.abs(val))}</>}
                     </span>
                   </span>
                 </div>
@@ -1678,8 +1685,8 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
               return (
                 <>
                   <Row label="Ricavi" val={plMese.cur.ricavi} pctv={100} bold />
-                  <Row label="Food cost (materie prime)" val={plMese.cur.foodcost} pctv={plMese.fcPct} neg />
-                  <Row label="Margine lordo" val={plMese.margineLordo} pctv={plMese.cur.ricavi > 0 ? plMese.margineLordo / plMese.cur.ricavi * 100 : 0} bold />
+                  <Row label="Food cost (materie prime)" val={plMese.cur.ricaviConFc > 0 ? plMese.cur.foodcost : null} pctv={plMese.cur.ricaviConFc > 0 ? plMese.fcPct : null} neg />
+                  <Row label="Margine lordo" sub={plMese.margineStimato ? 'stima' : undefined} val={plMese.margineLordo} pctv={plMese.margineLordo != null && plMese.cur.ricavi > 0 ? plMese.margineLordo / plMese.cur.ricavi * 100 : null} bold />
                   <Row
                     label={plMese.personaleDaDipendenti
                       ? `Costo del personale (${plMese.personaleDipendentiN === 1 ? '1 dipendente' : `${plMese.personaleDipendentiN} dipendenti`})`
@@ -1725,9 +1732,11 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
                       sottrarle di nuovo vorrebbe dire contare la merce due volte.
                     </div>
                   )}
-                  <Row label={plMese.utile >= 0 ? 'UTILE DEL PERIODO' : 'PERDITA DEL PERIODO'} val={plMese.utile} pctv={plMese.margOpPct} strong />
+                  <Row label={plMese.utile != null && plMese.utile < 0 ? 'PERDITA DEL PERIODO' : 'UTILE DEL PERIODO'} sub={plMese.margineStimato ? 'stima' : undefined} val={plMese.utile} pctv={plMese.margOpPct} strong />
                   <div style={{ fontSize: font.size.sm, color: T.textSoft, marginTop: 10, lineHeight: 1.5 }}>
-                    Break-even: servono <b style={{ color: T.text }}>{fmt0(plMese.breakeven)}</b> di ricavi/mese per coprire personale e costi fissi
+                    {plMese.margineNoto
+                      ? <>Break-even: servono <b style={{ color: T.text }}>{fmt0(plMese.breakeven)}</b> di ricavi/mese per coprire personale e costi fissi</>
+                      : <>Break-even non noto: manca il costo delle materie</>}
                     {(plMese.personale + plMese.costiFissi) === 0 && ' · imposta i costi fissi e il personale per un calcolo completo'}.
                   </div>
                 </>
@@ -1921,7 +1930,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
       <CostiNettoBanda
         costiAziendali={costiAziendali}
         asOf={dateTo}
-        margineLordoPeriodo={plMese.cur.giorni > 0 ? plMese.margineLordo : null}
+        margineLordoPeriodo={plMese.cur.giorni > 0 && plMese.margineLordo != null ? plMese.margineLordo : null}
         giorniPeriodo={plMese.cur.giorni}
         euro={euro}
         isMobile={isMobile}

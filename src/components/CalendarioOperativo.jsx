@@ -33,6 +33,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import Icon from './Icon'
 import { fmtp } from '../views/_shared'
 import { supabase } from '../lib/supabase'
+import { foodcostNoto } from '../lib/chiusure'
 import { color as T, radius as R, shadow as S, motion as M, typo, ui3, ui } from '../lib/theme'
 import { useIsTablet } from '../lib/useIsMobile'
 import { giorniConProduzione } from '../lib/inventarioProduzione'
@@ -464,7 +465,7 @@ export default function CalendarioOperativo({
               ...((cassaRichiesta || selDetail.haCassa) ? [{
                 icon: 'receipt', label: 'Cassa', has: selDetail.haCassa, view: 'chiusura',
                 sub: selDetail.cassaD?.kpi?.totV != null
-                  ? `${eur2(selDetail.cassaD.kpi.totV)} incasso${selDetail.cassaD.kpi.totMP != null ? ` · margine ${fmtp(Number(selDetail.cassaD.kpi.totMP)||0)}` : ''}`
+                  ? `${eur2(selDetail.cassaD.kpi.totV)} incasso${selDetail.cassaD.kpi.totMP != null && foodcostNoto(selDetail.cassaD) ? ` · margine ${fmtp(Number(selDetail.cassaD.kpi.totMP)||0)}` : ''}`
                   : null }] : []),
             ].map(({ icon, label, has, sub, view: v }) => {
               const accent = has ? T.green : selDetail.isFuture ? T.textSoft : T.brand
