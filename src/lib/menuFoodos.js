@@ -298,6 +298,56 @@ function pagineDi(voce) {
   return [...ids]
 }
 
+// ─── Le voci spente dal titolare ────────────────────────────────────────────
+//
+// Richiesta del titolare, 09/10/2026: le pagine che un'azienda non usa
+// restano nel menu e lo allungano. Da Mara, Recensioni e Assistente AI non
+// sono state più aperte dopo il 16/09. Toglierle a tutti sarebbe sbagliato
+// per il cliente dopo, che magari le usa: decide ogni titolare, in
+// Impostazioni → Voci del menu.
+//
+// Una voce spenta sparisce dalle barre, non dal programma: la ricerca guarda
+// il menu intero e la trova ancora, e il titolo in cima alla pagina ha ancora
+// il suo nome. Impostazioni non si spegne mai, perché è da lì che si riaccende.
+export const VOCI_SEMPRE_ACCESE = new Set(['impostazioni'])
+
+// Impostazioni lo manda dopo aver salvato: il menu cambia subito, senza
+// ricaricare la pagina.
+export const EVENTO_VOCI_SPENTE = 'foodos:voci-spente'
+
+/** Il valore salvato, ripulito: solo nomi di voce, senza doppioni, mai Impostazioni. */
+export function leggiVociSpente(valore) {
+  if (!Array.isArray(valore)) return []
+  return [...new Set(valore.filter(v => typeof v === 'string' && v && !VOCI_SEMPRE_ACCESE.has(v)))]
+}
+
+/**
+ * Le voci che restano accese. Quella della pagina aperta resta anche se è
+ * spenta: chi ci è arrivato dalla ricerca deve vedere dove si trova.
+ */
+export function vociAccese(voci, spente = [], vistaCorrente = null) {
+  const off = new Set(leggiVociSpente(spente))
+  if (!off.size) return voci
+  return voci.filter(v => !off.has(v.id) || pagineDi(v).includes(vistaCorrente))
+}
+
+/** Le sezioni con le sole voci accese. Una sezione rimasta vuota sparisce. */
+export function sezioniAccese(sezioni, spente = [], vistaCorrente = null) {
+  return sezioni
+    .map(s => ({ ...s, voci: vociAccese(s.voci, spente, vistaCorrente) }))
+    .filter(s => s.voci.length > 0)
+}
+
+/** Le voci che si possono spegnere, sezione per sezione, col nome che hanno nel menu. */
+export function vociDaScegliere(sezioni) {
+  return [...sezioni, { id: 'fondo', label: 'In fondo al menu', voci: vociInFondo() }]
+    .map(s => ({
+      id: s.id, label: s.label,
+      voci: s.voci.filter(v => !VOCI_SEMPRE_ACCESE.has(v.id)).map(v => ({ id: v.id, label: v.label })),
+    }))
+    .filter(s => s.voci.length > 0)
+}
+
 /**
  * Mappa `pagina → id della sezione`, per aprire il gruppo giusto.
  * Le schede contano come la voce che le contiene: stando su «Spese fisse»,

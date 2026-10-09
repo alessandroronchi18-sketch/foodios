@@ -296,9 +296,14 @@ describe('Dashboard.jsx non ha più le copie a mano', () => {
     // su decisione del titolare. `menuTelefono()` resta in menuFoodos.js coi
     // suoi test — dice quali sono le quattro cose che si fanno ogni giorno,
     // ed è la fonte da cui si ricostruirebbe la barra se servisse.
+    // Dal 09/10/2026 le due barre leggono SEZIONI_MENU: lo stesso elenco
+    // senza le voci che il titolare ha spento (Impostazioni → Voci del menu).
+    // Resta un elenco solo, ricavato da SEZIONI, per tutte e due. Il cassetto,
+    // mentre si cerca, guarda il menu intero: una voce spenta si trova.
     expect(DASH_VIVO).toMatch(/const SEZIONI = useMemo\(\(\) => costruisciMenu\(/)
-    expect(DASH_VIVO).toMatch(/const NAV = SEZIONI\.map/)          // barra in alto
-    expect(DASH_VIVO).toMatch(/\{SEZIONI\.map\(sec =>/)            // cassetto
+    expect(DASH_VIVO).toMatch(/const SEZIONI_MENU = useMemo\(\(\) => sezioniAccese\(SEZIONI,/)
+    expect(DASH_VIVO).toMatch(/const NAV = SEZIONI_MENU\.map/)                          // barra in alto
+    expect(DASH_VIVO).toMatch(/\{\(sidebarQuery \? SEZIONI : SEZIONI_MENU\)\.map\(sec =>/) // cassetto
     expect(DASH_VIVO).not.toMatch(/const BOTTOM_NAV =/)
   })
 

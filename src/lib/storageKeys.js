@@ -77,4 +77,9 @@ export const EVENTO_PREZZI_SCRITTI = 'foodos:prezzi-scritti'
 // volta. Dell'azienda, come il ricettario. Vedi src/lib/nomiGusti.js.
 export const SK_NOMI_GUSTI = 'pasticceria-nomi-gusti-v1' // shared
 
+// Le voci del menu che il titolare ha spento (Impostazioni → Voci del menu):
+// un elenco di nomi di voce. Dell'azienda, non della sede: il menu è lo stesso
+// in tutti i negozi. Vedi `sezioniAccese` in src/lib/menuFoodos.js.
+export const SK_VOCI_SPENTE = 'pasticceria-voci-spente-v1' // shared
+
 export const SK_MOV      = 'pasticceria-movimenti-speciali-v1' // per-sede (sprechi e omaggi)

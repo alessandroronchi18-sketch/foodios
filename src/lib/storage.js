@@ -77,6 +77,8 @@ export const SHARED_KEYS = [
   // I nomi dei gusti nel foglio collegati alle ricette (MISTIC → MYSTIC):
   // valgono per tutte le sedi, come il ricettario.
   'pasticceria-nomi-gusti-v1',
+  // Le voci del menu spente dal titolare: il menu è lo stesso in tutte le sedi.
+  'pasticceria-voci-spente-v1',
 ]
 
 export function isSharedKey(key) {

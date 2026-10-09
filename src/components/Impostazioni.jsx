@@ -21,6 +21,7 @@ import WhatsAppReportPanel from './WhatsAppReportPanel'
 import MfaSection from './Mfa'
 import ImpostazioniSedi from './ImpostazioniSedi'
 import ImpostazioniSocieta from './ImpostazioniSocieta'
+import ImpostazioniVociMenu from './ImpostazioniVociMenu'
 import ImpostazioniTv from './ImpostazioniTv'
 import ExportContabilita from './ExportContabilita'
 import WhiteLabel from './WhiteLabel'
@@ -1172,6 +1173,12 @@ function buildSezioni({ auth, nomeAttivita, tipoAttivita, metodoProduzione = 'st
       id: 'societa', label: 'Società', icon: 'briefcase',
       summary: 'A quale sede vanno le fatture',
       render: () => <ImpostazioniSocieta orgId={orgId} sedi={sedi || []} notify={notify}/>,
+    },
+    {
+      // 09/10/2026: il titolare spegne le pagine che non usa.
+      id: 'voci-menu', label: 'Voci del menu', icon: 'eye',
+      summary: 'Le pagine che vedi nel menu',
+      render: () => <ImpostazioniVociMenu orgId={orgId} metodoProduzione={metodoProduzione} sedi={sedi || []} sedeId={sedeId} tipoAttivita={tipoAttivita} notify={notify}/>,
     },
   ]
   if (whiteLabelOk) {

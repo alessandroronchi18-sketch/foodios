@@ -93,6 +93,7 @@ import { labelPlurale } from './lib/tipoRicetta'
 import useBolle from './hooks/useBolle'
 import { tagliaStorico } from './lib/bolle'
 import { SK_RIC, SK_PROD, SK_ACT, SK_AI, SK_MAG, SK_GIOR, SK_CHIUS, SK_EXCL, SK_RESE, SK_LOG_PRZ } from './lib/storageKeys'
+import useVociSpente from './lib/useVociSpente'
 import { caricaChiusure, salvaChiusure } from './lib/chiusure'
 import { loadXLSX } from './lib/xlsx'
 const SimulatorePrezziView = lazyWithReload(() => import('./views/SimulatorePrezziView'))
@@ -125,6 +126,7 @@ import { impostaVistaCorrente } from './lib/vistaCorrente'
 import {
   costruisciMenu, sezionePerVista, descriviVista, menuTelefono, etichettaBreve,
   vociInFondo, schedeDiVista, cercaVoci, avvisoSpostamento,
+  sezioniAccese, vociAccese,
   VISTE_DIPENDENTE,
   risolviVista,
   vistePerDipendente,
@@ -1320,6 +1322,13 @@ export default function Dashboard({
     segnali: segnaliMenu,
   }), [isMetodoInv, sedeCorrente, sedi, auth?.user?.email, isDip, view, LEX, segnaliMenu]);
 
+  // Le voci spente dal titolare (Impostazioni → Voci del menu): le barre
+  // mostrano solo quelle accese; ricerca, titolo e schede guardano il menu
+  // intero, così una pagina spenta si trova e si apre ancora.
+  const vociSpente = useVociSpente(orgId);
+  const SEZIONI_MENU = useMemo(() => sezioniAccese(SEZIONI, vociSpente, view), [SEZIONI, vociSpente, view]);
+  const FONDO_MENU = useMemo(() => vociAccese(vociInFondo(), vociSpente, view), [vociSpente, view]);
+
   // Mappa view → gruppo della sidebar (per auto-aprire il gruppo della view attiva)
   const VIEW_TO_SEC = useMemo(() => sezionePerVista(SEZIONI), [SEZIONI]);
   useEffect(() => {
@@ -2503,7 +2512,7 @@ export default function Dashboard({
         // Il menu si costruisce in un posto solo (src/lib/menuFoodos.js) e si
         // calcola una volta sola, sopra: qui si adatta solo ai nomi che il
         // disegno di questa barra usa da sempre.
-        const NAV = SEZIONI.map(sec=>({
+        const NAV = SEZIONI_MENU.map(sec=>({
           id: sec.id, label: sec.label, headerView: sec.headerView, badge: sec.badge,
           items: sec.voci.map(v=>({ id: v.id, label: v.label, icon: v.icona, badge: v.badge, alert: v.allarme })),
         }));
@@ -3243,7 +3252,8 @@ export default function Dashboard({
                   seconda di quale delle due si toccava, «Trasferimenti»
                   compariva in una e non nell'altra con una sede archiviata,
                   e due voci avevano icone diverse. */}
-              {SEZIONI.map(sec => (
+              {/* Mentre si cerca, il menu intero: una voce spenta si trova. */}
+              {(sidebarQuery ? SEZIONI : SEZIONI_MENU).map(sec => (
                 <React.Fragment key={sec.id}>{
                 sec.voci.length === 1
                   // Una sezione con una voce sola non merita un titolo che si
@@ -3265,7 +3275,7 @@ export default function Dashboard({
                   fare), che prima erano due voci di menu separate con 5 e 3
                   aperture in tre mesi su tutti i clienti. */}
               <div style={{ height: 1, background:"rgba(255,255,255,0.06)", margin:"12px 16px 8px" }}/>
-              {vociInFondo().map(v => navItem(v.id, v.icona, v.label))}
+              {(sidebarQuery ? vociInFondo() : FONDO_MENU).map(v => navItem(v.id, v.icona, v.label))}
 
             </div>
 
