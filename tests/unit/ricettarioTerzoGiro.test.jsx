@@ -77,7 +77,9 @@ describe('La tessera che contava i semilavorati è diventata utile', () => {
 
   it('al suo posto dice quante ricette non si possono ancora valutare', () => {
     apri()
-    expect(screen.getByText('Da completare')).toBeTruthy()
+    // 09/10/2026: «Da completare» è anche l'etichetta di una riga senza prezzo,
+    // quindi può comparire più di una volta: basta che ci sia.
+    expect(screen.getAllByText('Da completare').length).toBeGreaterThan(0)
   })
 })
 
