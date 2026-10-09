@@ -340,7 +340,7 @@ export default function ImportRegistroIncassi({ orgId, sedi, notify, onClose }) 
                         ['Incassato', fmt0(s.totale)],
                         ['POS', s.pos > 0 ? fmt0(s.pos) : '—'],
                         ['Contanti', s.contanti > 0 ? fmt0(s.contanti) : '—'],
-                        ['Delivery', s.delivery > 0 ? fmt0(s.delivery) : '—'],
+                        ['Di cui delivery', s.delivery > 0 ? fmt0(s.delivery) : '—'],
                         ['Uscite', s.nSpese > 0 ? `${fmt0(s.spese)} · ${s.nSpese}` : '—'],
                       ].map(([lbl, val]) => (
                         <div key={lbl} style={{ background: T.bgSubtle, borderRadius: R.md, padding: '8px 10px' }}>
