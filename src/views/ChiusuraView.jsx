@@ -28,6 +28,7 @@ import Icon from '../components/Icon'
 import { fmtp0 } from '../lib/formatIt'
 import { useConfirm } from '../components/ConfirmModal'
 import PrimaNotaCassa from '../components/PrimaNotaCassa'
+import GiorniDaGuardare from '../components/GiorniDaGuardare'
 import { C, KPI, PageHeader, margColor, fmt, fmt0, fmtp, TabellaOSchede } from './_shared'
 import { promptScontrino, categorieLette } from '../lib/promptScontrino'
 import { calcolaKpiChiusura, colorePerSellThrough } from '../lib/chiusuraKpi'
@@ -1395,6 +1396,8 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
           quadra bisogna aver tolto i dieci euro di limoni. Il dipendente le
           registra come registra l'incasso — sono soldi che ha visto uscire. */}
       <PrimaNotaCassa orgId={orgId} sedeId={sedeId} data={dataFiltro} notify={notify} />
+
+      <GiorniDaGuardare chiusure={chiusure} onVai={setDataFiltro} />
 
       {(confronto.length > 0 || formatiRiconc.righe.length > 0) && (
         <>
