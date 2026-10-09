@@ -19,7 +19,7 @@ import Icon from '../components/Icon'
 import { mediaFoodCost } from '../lib/mediaFoodCost'
 import { prezzoNetto } from './produzione/numeri'
 import {
-  C, TNUM, margColor, Badge, Tip, KPI, fmtp, formatNome,
+  C, TNUM, margColor, Badge, Tip, fmtp, formatNome,
 } from './_shared'
 
 // Grammi all'italiana: «0,4», non «0.4»; interi senza decimali (400, non 400,0).
@@ -1142,58 +1142,48 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
           // se il costo è completo. Quindi la somma conta ricette distinte, e
           // non c'è nessun doppio conteggio da togliere.
           const daCompletare = senzaPrezzoVendita + costoIncompleto
-          // Il conto dei semilavorati resta, ma detto come quello che è: un
-          // rimando alla scheda di fianco, non roba di questa pagina.
-          const subRicette = semi > 0
-            ? `${semi} semilavorat${semi === 1 ? 'o' : 'i'} nella scheda accanto`
-            : 'menu attivo'
+          // 09/10/2026 — Le tre tessere erano alte 194 px per dire «63», «14,1%» e
+          // «—»: mezzo schermo, e il primo gusto cominciava più in basso della
+          // prima schermata. Ora sono una riga di stato sola, di 64 px: gli
+          // stessi tre numeri, gli stessi colori (il food cost resta verde sotto
+          // il 30%), e la frase che spiega solo quando c'è qualcosa da spiegare.
+          const fcValore = fcMedioSu === 0 ? '—' : `${(fcMedio * 100).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`
+          const fcColore = fcMedioSu === 0 ? T.textSoft : fcMedio < 0.30 ? T.green : fcMedio < 0.35 ? T.amber : T.brand
+          const fcSpiega = fcMedioSu === 0
+            ? (costoIncompleto > 0
+                ? `manca il prezzo di qualche ingrediente in tutt${costoIncompleto === 1 ? 'a la ricetta' : 'e e ' + costoIncompleto + ' le ricette'}`
+                : 'serve il prezzo di vendita di almeno una ricetta')
+            : fcMedioSu < ric
+              ? `Food cost medio su ${fcMedioSu} ${fcMedioSu === 1 ? 'ricetta' : 'ricette'} di ${ric}` +
+                (costoIncompleto > 0 ? ` · ${costoIncompleto} con ingredienti senza prezzo` : '') +
+                (senzaPrezzoVendita > 0 ? ` · ${senzaPrezzoVendita} senza prezzo di vendita` : '')
+              : ''
+          const manca = [
+            costoIncompleto > 0 && `${costoIncompleto} senza il prezzo di un ingrediente`,
+            senzaPrezzoVendita > 0 && `${senzaPrezzoVendita} senza prezzo di vendita`,
+          ].filter(Boolean).join(' · ')
+          const voci = [
+            { lbl: LEX.ricette, val: ric, c: T.text },
+            { lbl: 'Food cost medio', val: fcValore, c: fcColore },
+            { lbl: 'Da completare', val: daCompletare === 0 ? 'Niente' : daCompletare, c: daCompletare === 0 ? T.green : T.amber },
+          ]
+          // I semilavorati hanno una scheda tutta loro: qui resta solo il rimando.
+          const rimando = semi > 0 ? `${semi} semilavorat${semi === 1 ? 'o' : 'i'} nella scheda accanto` : ''
+          const nota = [[fcSpiega, daCompletare > 0 ? manca : ''].filter(Boolean).join(' — '), rimando].filter(Boolean).join(' · ')
           return (
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : isTablet ? 'repeat(2,1fr)' : 'repeat(3,1fr)', gap: isMobile ? 16 : 24 }}>
-              <KPI label={LEX.ricette} value={ric} icon={<Icon name="gift" size={18} />} color={T.text} sub={subRicette} />
-              <KPI label="Food cost medio"
-                value={fcMedioSu === 0 ? '—' : `${(fcMedio * 100).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}
-                icon={<Icon name="barChart" size={18} />}
-                color={fcMedioSu === 0 ? T.textSoft : fcMedio < 0.30 ? T.green : fcMedio < 0.35 ? T.amber : T.brand}
-                sub={fcMedioSu === 0
-                  ? (costoIncompleto > 0
-                      ? `manca il prezzo di qualche ingrediente in tutt${costoIncompleto === 1 ? 'a la ricetta' : 'e e ' + costoIncompleto + ' le ricette'}`
-                      : 'serve il prezzo di vendita di almeno una ricetta')
-                  : fcMedioSu < ric
-                    ? `su ${fcMedioSu} ${fcMedioSu === 1 ? 'ricetta' : 'ricette'} di ${ric}` +
-                      (costoIncompleto > 0 ? ` · ${costoIncompleto} con ingredienti senza prezzo` : '') +
-                      (senzaPrezzoVendita > 0 ? ` · ${senzaPrezzoVendita} senza prezzo di vendita` : '')
-                    : 'media non pesata sulle ricette'} />
-              {/* Sul telefono le tessere stanno su due colonne: la terza
-                  restava sola a metà riga, con mezzo schermo vuoto accanto.
-                  Presa la riga intera si legge come una scelta.
-
-                  17/09/2026, richiesta del titolare: «nella scheda Gusti il
-                  riquadro Semilavorati a destra non serve, metterci
-                  qualcos'altro di utile». Aveva ragione: i semilavorati hanno
-                  una scheda tutta loro, qui accanto, e contarli in questa
-                  pagina non fa prendere nessuna decisione — è un numero che
-                  si guarda e si lascia lì.
-
-                  Al suo posto il numero che invece fa fare qualcosa: quante
-                  ricette non si riescono ancora a valutare. Sono di due specie
-                  e vanno tenute separate, perché il rimedio è diverso:
-                    · manca il prezzo di un ingrediente → il costo esce più
-                      basso del vero, e con lui il food cost di tutto;
-                    · manca il prezzo di vendita → il margine non esiste.
-                  È la stessa regola del resto del prodotto: un dato che manca
-                  non è uno zero, ed è lavoro da fare. */}
-              <div style={{ gridColumn: isMobile ? '1 / -1' : 'auto' }}>
-                {daCompletare === 0 ? (
-                  <KPI label="Da completare" value="—" icon={<Icon name="check" size={18} />} color={T.green}
-                    sub={`costo e prezzo di ogni ${LEX.ricetta}`} />
-                ) : (
-                  <KPI label="Da completare" value={daCompletare} icon={<Icon name="alert" size={18} />} color={T.amber}
-                    sub={[
-                      costoIncompleto > 0 && `${costoIncompleto} senza il prezzo di un ingrediente`,
-                      senzaPrezzoVendita > 0 && `${senzaPrezzoVendita} senza prezzo di vendita`,
-                    ].filter(Boolean).join(' · ')} />
-                )}
+            <div role="group" aria-label="Stato del ricettario"
+              style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: R.xl, boxShadow: S.xs, overflow: 'hidden' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)' }}>
+                {voci.map((v, i) => (
+                  <div key={v.lbl} style={{ padding: isMobile ? '12px 12px' : '14px 20px', minWidth: 0, borderLeft: i === 0 ? 'none' : `1px solid ${T.border}` }}>
+                    <div style={{ fontSize: font.size.sm, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: T.textSoft, lineHeight: 1.25, minHeight: 15 }}>{v.lbl}</div>
+                    <div style={{ fontSize: isMobile ? font.size.xl : font.size['2xl'], fontWeight: 800, color: v.c, lineHeight: 1.2, marginTop: 4, ...TNUM }}>{v.val}</div>
+                  </div>
+                ))}
               </div>
+              {nota && (
+                <div style={{ padding: isMobile ? '8px 12px' : '8px 20px', borderTop: `1px solid ${T.border}`, background: T.bgSubtle, fontSize: font.size.sm, color: T.textSoft, lineHeight: 1.4 }}>{nota}</div>
+              )}
             </div>
           )
         })()}
