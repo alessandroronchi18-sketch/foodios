@@ -14,6 +14,7 @@ import { caricaCostiAziendali, totaleMensile } from '../lib/costiAziendali'
 import { costoPersonaleMensile, costoLavoroDaTurni } from '../lib/stipendiCalc'
 import { foodcostNoto } from '../lib/chiusure'
 import { margineLordoDelPeriodo } from '../lib/margineNoto'
+import { senzaIva } from '../lib/ilMese'
 import { usciteDaSottrarre } from '../lib/primaNota'
 import { righeSensibilita, margineDiSicurezza } from '../lib/plSensibilita'
 import { totaliSuCostiNoti } from '../lib/totaliSuCostiNoti'
@@ -1045,7 +1046,9 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
         giorniSenzaFc++
       }
     }
-    return { ricavi, foodcost, giorni, ricaviConFc, giorniSenzaFc }
+    // Ricavi SENZA IVA, come il Mese: il food cost e i costi sono senza IVA,
+    // e confrontarli con un incasso lordo gonfiava il margine di ~9%.
+    return { ricavi: senzaIva(ricavi), foodcost, giorni, ricaviConFc: senzaIva(ricaviConFc), giorniSenzaFc }
   }
   const meseLabel = (ym) => { const [y, m] = ym.split('-').map(Number); return new Date(y, m - 1, 1).toLocaleDateString('it-IT', { month: 'long', year: 'numeric' }) }
   // Range etichetta: "1 giu - 24 giu 2026" (compatta per UI).
@@ -1276,7 +1279,8 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
     // numeri coincidono.
     const daInventario = cur.giorni === 0 && inventarioPL && inventarioPL.totRicConB2b > 0
     if (daInventario) {
-      const ricInv = inventarioPL.totRicConB2b
+      // Stima dall'inventario: lorda come nel Mese, qui si scorpora l'IVA.
+      const ricInv = senzaIva(inventarioPL.totRicConB2b)
       cur = { ...cur, ricavi: ricInv, foodcost: inventarioPL.totFc, ricaviConFc: ricInv }
     }
     // Dove il costo delle materie non si sa il margine non si inventa:
@@ -1569,7 +1573,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
               ricavi siano saliti lo si vede anche dalla cassa, che il food
               cost sia salito di tre punti no. */}
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: isMobile ? 10 : 16, marginBottom: 14 }}>
-            <KPI icon={<Icon name="barChart" size={18} />} label="Ricavi del periodo" value={fmt0(plMese.cur.ricavi)} sub={`${plMese.cur.giorni} giorni${plMese.prev.ricavi ? ` · ${plMese.cur.ricavi >= plMese.prev.ricavi ? '+' : ''}${fmt0(plMese.cur.ricavi - plMese.prev.ricavi)} ${etichettaConfronto}` : ''}`} />
+            <KPI icon={<Icon name="barChart" size={18} />} label="Ricavi senza IVA" value={fmt0(plMese.cur.ricavi)} sub={`${plMese.cur.giorni} giorni${plMese.prev.ricavi ? ` · ${plMese.cur.ricavi >= plMese.prev.ricavi ? '+' : ''}${fmt0(plMese.cur.ricavi - plMese.prev.ricavi)} ${etichettaConfronto}` : ''}`} />
             <KPI icon={<Icon name="bulb" size={18} />} label="Utile del periodo" value={plMese.utile == null ? 'non noto' : fmt0(plMese.utile)} highlight={plMese.utile != null && plMese.utile >= 0} color={plMese.utile == null ? T.textSoft : plMese.utile >= 0 ? undefined : T.brand}
               sub={plMese.utile == null ? 'manca il costo delle materie' : `${plMese.margineStimato ? 'stima · ' : ''}margine operativo ${pct(plMese.margOpPct)}${confrontoPL !== 'none' && plMese.utilePrev != null && plMese.prev.ricavi > 0
                 ? ` · ${plMese.utile >= plMese.utilePrev ? '+' : ''}${fmt0(plMese.utile - plMese.utilePrev)} ${etichettaConfronto}`
@@ -1652,7 +1656,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
                       columns: ['Voce', 'Importo €', '% sui ricavi'],
                       alignments: ['left', 'right', 'right'],
                       rows: [
-                        ['Ricavi totali', fmt0(plMese.cur.ricavi), '100%'],
+                        ['Ricavi totali (senza IVA)', fmt0(plMese.cur.ricavi), '100%'],
                         ['- Food cost', plMese.cur.ricaviConFc > 0 ? `(${fmt0(plMese.cur.foodcost)})` : 'non noto', plMese.cur.ricaviConFc > 0 ? pct(plMese.fcPct) : ''],
                         ['= Margine lordo', plMese.margineLordo == null ? 'non noto' : fmt0(plMese.margineLordo), plMese.margineLordo == null ? '' : pct(plMese.cur.ricavi > 0 ? plMese.margineLordo / plMese.cur.ricavi * 100 : 0)],
                         ['- Costo lavoro', `(${fmt0(plMese.personale)})`, pct(plMese.lavPct)],
@@ -1684,7 +1688,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
               )
               return (
                 <>
-                  <Row label="Ricavi" val={plMese.cur.ricavi} pctv={100} bold />
+                  <Row label="Ricavi senza IVA" val={plMese.cur.ricavi} pctv={100} bold />
                   <Row label="Food cost (materie prime)" val={plMese.cur.ricaviConFc > 0 ? plMese.cur.foodcost : null} pctv={plMese.cur.ricaviConFc > 0 ? plMese.fcPct : null} neg />
                   <Row label="Margine lordo" sub={plMese.margineStimato ? 'stima' : undefined} val={plMese.margineLordo} pctv={plMese.margineLordo != null && plMese.cur.ricavi > 0 ? plMese.margineLordo / plMese.cur.ricavi * 100 : null} bold />
                   <Row

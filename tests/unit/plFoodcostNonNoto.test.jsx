@@ -133,12 +133,13 @@ describe('P&L — food cost non noto', () => {
   })
 
   it('misura la percentuale sui soli giorni che il costo lo hanno', async () => {
-    // Un giorno misurato (1.000 di ricavo, 300 di food cost = 30%) e uno no.
-    // Sulla base sbagliata — tutti i ricavi — sarebbe uscito 15%.
+    // Un giorno misurato (1.000 lordi = 909,09 senza IVA, 300 di food cost = 33%)
+    // e uno no. Sulla base sbagliata — tutti i ricavi — sarebbe uscito 16,5%.
+    // (Dal 09/10/2026 i ricavi del P&L sono senza IVA, come il Mese.)
     const v = monta([conDettaglio(g(1), 1000, 300), soloTotale(g(2), 1000)])
     await waitFor(() => expect(v.container.textContent).toContain('Food cost'))
-    expect(v.container.textContent).toContain('30,0%')
-    expect(v.container.textContent).not.toContain('15,0%')
+    expect(v.container.textContent).toContain('33,0%')
+    expect(v.container.textContent).not.toContain('16,5%')
     // E dichiara la base su cui è calcolata.
     expect(v.container.textContent).toContain('su 1 giorni di 2')
   })
@@ -146,7 +147,7 @@ describe('P&L — food cost non noto', () => {
   it('quando tutte le giornate hanno il costo materie non avverte di niente', async () => {
     const v = monta([conDettaglio(g(1), 1000, 300), conDettaglio(g(2), 1000, 300)])
     await waitFor(() => expect(v.container.textContent).toContain('Food cost'))
-    expect(v.container.textContent).toContain('30,0%')
+    expect(v.container.textContent).toContain('33,0%')
     expect(v.container.textContent).not.toContain('senza costo delle materie')
     expect(v.container.textContent).not.toContain('non noto')
   })
@@ -157,7 +158,7 @@ describe('P&L — food cost non noto', () => {
     const senzaFlag = { data: g(1), venduto: [], kpi: { totV: 1000, totFC: 250, totM: 750, totS: 0, totMP: 0, avgST: 0 } }
     const v = monta([senzaFlag])
     await waitFor(() => expect(v.container.textContent).toContain('Food cost'))
-    expect(v.container.textContent).toContain('25,0%')
+    expect(v.container.textContent).toContain('27,5%')
     expect(v.container.textContent).not.toContain('senza costo delle materie')
   })
 })
@@ -168,15 +169,24 @@ describe('P&L — food cost non noto', () => {
 // usciti dal cassetto che l'utile ignorava. Questi test difendono il fatto
 // che ora entrino, e che si veda quanto di quelle spese non ha fattura.
 
+describe('P&L — senza IVA, come il Mese', () => {
+  it('1.000 € lordi di cassa sono 909 € di ricavi, lo stesso numero del Mese', async () => {
+    const { senzaIva } = await import('../../src/lib/ilMese')
+    const v = monta([conDettaglio(g(1), 1000, 300)])
+    await waitFor(() => expect(v.container.textContent).toContain('Ricavi senza IVA'))
+    expect(v.container.textContent).toContain(`${Math.round(senzaIva(1000))} €`)
+  })
+})
+
 describe('P&L — uscite di cassa', () => {
   it('sottrae le uscite di cassa dall\'utile e le mostra nella cascata', async () => {
     uscitePeriodo.mockResolvedValue({ totale: 827.19, daFatture: 0, numero: 37, numeroDaFatture: 0 })
     const v = monta([conDettaglio(g(1), 1000, 300)])
     await waitFor(() => expect(v.container.textContent).toContain('Uscite di cassa (prima nota)'))
 
-    // 1.000 di ricavo − 300 di food cost − 827,19 di uscite = perdita di 127,19.
+    // 909,09 di ricavo senza IVA − 300 di food cost − 827,19 di uscite = perdita di 218,10.
     expect(v.container.textContent).toContain('PERDITA DEL PERIODO')
-    expect(v.container.textContent).toContain('127 €')
+    expect(v.container.textContent).toContain('218 €')
     // Quante voci sono.
     expect(v.container.textContent).toContain('37 voci')
   })

@@ -102,7 +102,8 @@ describe('L\'incasso del mese conta tutti i soldi entrati', () => {
     await waitFor(() => {
       expect(testo(container), 'la chiusura non è ancora in vigore').toMatch(/gg di chiusura esclusi/)
     })
-    expect(testo(container)).toMatch(/1\.000 €/)
+    // 400 + 600 = 1.000 lordi: il Calendario li mostra senza IVA (909 €), come il Mese.
+    expect(testo(container)).toMatch(/909 €/)
   })
 
   it('ma quel giorno resta fuori dal conto della copertura', async () => {
@@ -111,6 +112,22 @@ describe('L\'incasso del mese conta tutti i soldi entrati', () => {
     REGOLE = { ricorrenti: [], periodi: [{ data_da: iso(1), data_a: iso(1), motivo: 'ferie' }] }
     const { container } = monta({ chiusure: [chiusura(iso(1), 600)], giornaliero: [] })
     await waitFor(() => expect(testo(container)).toMatch(/gg di chiusura esclusi|1 gg/))
+  })
+})
+
+describe('Gli incassi si leggono senza IVA, come nel Mese', () => {
+  it('lo stesso incasso dà lo stesso numero nel Calendario e nel Mese', async () => {
+    const { incassiDelMese } = await import('../../src/lib/ilMese')
+    const mese = incassiDelMese({ cassa: { totV: 1000, giorni: 2 } })
+    const { container } = monta({ chiusure: [chiusura(IERI, 400), chiusura(iso(1), 600)], giornaliero: [] })
+    await waitFor(() => expect(testo(container)).toMatch(/incassati nel mese, senza IVA/))
+    expect(mese.valore).toBe(909.09)
+    expect(testo(container)).toMatch(/909 € incassati nel mese/)
+  })
+  it('il giorno aperto dice «senza IVA» accanto alla cifra', async () => {
+    const { container } = monta({ chiusure: [chiusura(IERI, 1100)], giornaliero: [produzione(IERI)] })
+    await act(async () => { fireEvent.click(cella(container, Number(IERI.slice(-2)))) })
+    expect(testo(container)).toMatch(/1\.000,00 € incasso senza IVA|1\.000 € incasso senza IVA/)
   })
 })
 

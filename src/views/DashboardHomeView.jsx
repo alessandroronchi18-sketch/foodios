@@ -17,6 +17,7 @@ import PrimiPassi from '../components/PrimiPassi'
 import { C, TNUM } from './_shared'
 import Icon from '../components/Icon'
 import { fmtp, fmtp0 } from '../lib/formatIt'
+import { senzaIva } from '../lib/ilMese'
 
 const fmt = v => `${Number(v).toLocaleString('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
 const fmt0 = v => `${Math.round(Number(v) || 0).toLocaleString('it-IT', { useGrouping: 'always' })} €`
@@ -289,7 +290,10 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
   // Le chiusure ChiusuraView salvano i ricavi su c.kpi.totV (cfr. ChiusuraView
   // rec building). c.totale e' un campo legacy/non garantito. Senza il
   // fallback su kpi.totV il KPI hero "Ricavi oggi" risultava sempre 0.
-  const totaleChiusura = (c) => Number(c?.kpi?.totV || c?.totale || 0)
+  // Senza IVA, come nel Mese e nel P&L (decisione del titolare 09/10/2026:
+  // lo stesso giorno deve dare lo stesso numero in tutte le pagine). Il lordo
+  // resta solo nella registrazione della chiusura, dove si conta la cassa.
+  const totaleChiusura = (c) => senzaIva(Number(c?.kpi?.totV || c?.totale || 0))
   const cassaOggi = viewAggregato
     ? (cassaOggiList.length > 0
         ? { totale: cassaOggiList.reduce((s, c) => s + totaleChiusura(c), 0) }
@@ -552,7 +556,7 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
       {/* KPI */}
       <div style={{ display: 'grid', gridTemplateColumns: ui3(isMobile, isTablet, ui.grid4), gap: isMobile ? 12 : 16, marginBottom: isMobile ? 16 : 24 }}>
         <KpiCard
-          label="Ricavi"
+          label="Ricavi senza IVA"
           icon={ICO.euro}
           tint={TINT.green}
           value={fmt0(ricaviOggi + b2bOggi)}

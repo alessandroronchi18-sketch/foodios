@@ -34,6 +34,7 @@ import Icon from './Icon'
 import { fmtp } from '../views/_shared'
 import { supabase } from '../lib/supabase'
 import { foodcostNoto } from '../lib/chiusure'
+import { senzaIva } from '../lib/ilMese'
 import { color as T, radius as R, shadow as S, motion as M, typo, ui3, ui } from '../lib/theme'
 import { useIsTablet } from '../lib/useIsMobile'
 import { giorniConProduzione } from '../lib/inventarioProduzione'
@@ -304,7 +305,8 @@ export default function CalendarioOperativo({
     // diceva giustamente «nessun giorno da registrare»: due caselle affiancate
     // che si contraddicono, e quella che urla è quella sbagliata.
     const pct = totPassati > 0 ? Math.round(completi/totPassati*100) : null
-    return { completi, totPassati, soloProd, soloCassa, vuoti, anomalie, streak, pct, incasso, chiusi }
+    // Senza IVA, come il Mese e il P&L: l'IVA non e' incasso dell'attivita'.
+    return { completi, totPassati, soloProd, soloCassa, vuoti, anomalie, streak, pct, incasso: senzaIva(incasso), chiusi }
   }, [haProduzione, cassaMap, anno, mese, oggiStr, oggi, isChiuso, cassaRichiesta, produzioneRichiesta])
 
   const semaforo = diag.pct == null ? T.textSoft
@@ -465,7 +467,7 @@ export default function CalendarioOperativo({
               ...((cassaRichiesta || selDetail.haCassa) ? [{
                 icon: 'receipt', label: 'Cassa', has: selDetail.haCassa, view: 'chiusura',
                 sub: selDetail.cassaD?.kpi?.totV != null
-                  ? `${eur2(selDetail.cassaD.kpi.totV)} incasso${selDetail.cassaD.kpi.totMP != null && foodcostNoto(selDetail.cassaD) ? ` · margine ${fmtp(Number(selDetail.cassaD.kpi.totMP)||0)}` : ''}`
+                  ? `${eur2(senzaIva(selDetail.cassaD.kpi.totV))} incasso senza IVA${selDetail.cassaD.kpi.totMP != null && foodcostNoto(selDetail.cassaD) ? ` · margine ${fmtp(Number(selDetail.cassaD.kpi.totMP)||0)}` : ''}`
                   : null }] : []),
             ].map(({ icon, label, has, sub, view: v }) => {
               const accent = has ? T.green : selDetail.isFuture ? T.textSoft : T.brand
@@ -649,7 +651,7 @@ export default function CalendarioOperativo({
                   {isDipendente
                     ? 'tocca un giorno per vedere cosa c\'è da fare'
                     : diag.incasso > 0
-                      ? `${eur0(diag.incasso)} incassati nel mese`
+                      ? `${eur0(diag.incasso)} incassati nel mese, senza IVA`
                       : 'registra produzione e cassa ogni giorno'}
                 </div>
               </div>
@@ -745,7 +747,7 @@ export default function CalendarioOperativo({
                 // Al dipendente l'incasso della giornata non si mostra: è la
                 // stessa regola della banda dei conti, e questa casella è
                 // il posto dove sarebbe sfuggita.
-                const totale  = isDipendente ? null : cassa?.kpi?.totV
+                const totale  = isDipendente || cassa?.kpi?.totV == null ? null : senzaIva(cassa.kpi.totV)
                 const hasNota = !!note[k]?.nota
                 const st      = STATUS[status]
                 const d = new Date(k+'T12:00')
@@ -825,7 +827,7 @@ export default function CalendarioOperativo({
                 const isWeek   = date.getDay()===0 || date.getDay()===6
                 const isSel    = k === sel
                 const cassa    = cassaMap[k]
-                const totale   = isDipendente ? null : cassa?.kpi?.totV
+                const totale   = isDipendente || cassa?.kpi?.totV == null ? null : senzaIva(cassa.kpi.totV)
                 const hasNota  = !!note[k]?.nota
                 const st       = status && status !== 'futuro' ? STATUS[status] : null
                 const accent   = st?.color || null
