@@ -75,4 +75,15 @@ describe('Ricettario — i gusti contano il ricavo senza IVA', () => {
     const margine = (100 - riga.quota).toLocaleString('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
     expect(screen.getAllByText(new RegExp(margine.replace('.', '\\.'))).length).toBeGreaterThan(0)
   })
+
+  it('la spiegazione del conto al kg dice che il prezzo è senza IVA', () => {
+    // Il numero accanto è 26,81 €/kg mentre i formati dicono 29,49: senza la
+    // parola, chi confronta col listino crede a un errore.
+    render(<RicettarioView ricettario={ricettario} onUpdateRegola={async () => {}} onUpload={() => {}}
+      onEditRicetta={() => {}} orgId="o" sedi={[]} sedeAttiva={null} notify={() => {}} />)
+    fireEvent.click(screen.getByText('ABIS'))
+    fireEvent.click(screen.getByText('Dettaglio'))
+    fireEvent.click(screen.getByText('Conto al kg'))
+    expect(document.body.textContent).toMatch(/Ricavo\/kg = prezzo medio dei Formati vendita della categoria .gelato., senza IVA/)
+  })
 })

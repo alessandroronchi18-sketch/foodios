@@ -848,7 +848,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
                     ))}
                   </div>
                   <div style={{ fontSize: font.size.sm, color: C.textSoft, marginTop: 10, lineHeight: 1.45 }}>
-                    Ricavo/kg = prezzo medio dei <b>Formati vendita</b> della categoria &ldquo;{ric.categoria || 'Gelato'}&rdquo; (uguale per tutti i gusti). Il costo varia gusto per gusto.
+                    Ricavo/kg = prezzo medio dei <b>Formati vendita</b> della categoria &ldquo;{ric.categoria || 'Gelato'}&rdquo;, senza IVA (uguale per tutti i gusti). Il costo varia gusto per gusto.
                   </div>
                 </>
               ) : (
